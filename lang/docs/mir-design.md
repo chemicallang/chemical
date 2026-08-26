@@ -1,6 +1,7 @@
 # Chemical MIR Design
 
 Status: design proposal
+Revision: semantic and implementation clarifications added after design review
 
 This document defines the design and adoption plan for Chemical's middle-level
 instruction representation (MIR). It is intentionally implementation-oriented.
@@ -129,11 +130,16 @@ incorrect operation.
 
 ### 3.2 Initial implementation subset and capability matrix
 
-The first implementation should support primitives, scalar arithmetic and
+The first implementation subset supports primitives, scalar arithmetic and
 comparison, locals, places, loads/stores, address-of, scalar calls, explicit
-struct result places, returns, and canonical CFG control flow in the C emitter,
-interpreter, and LLVM emitter. Add aggregate lifetime operations immediately
-after this subset, before enabling MIR by default for library code.
+struct result places, and returns in the C emitter, interpreter, and LLVM
+emitter. The first implementation must also define canonical CFG containers,
+block arguments, and terminators, but the first PR may restrict lowering and
+emission to straight-line functions. Add CFG lowering immediately after the
+straight-line subset, followed by aggregate lifetime operations, before
+enabling MIR by default for library code. This distinction is intentional:
+the representation has CFG support from the beginning, while the first
+lowering milestone is smaller.
 
 The following matrix is normative for staged adoption:
 
@@ -144,7 +150,7 @@ The following matrix is normative for staged adoption:
 | Scalar calls and function pointers | yes | yes | yes | yes | first subset |
 | Struct result places and ABI metadata | yes | yes | partial | yes | before aggregate default |
 | Struct/array/variant lifetime | yes | staged | staged | staged | capability-gated |
-| CFG branches and loops | yes | staged | staged | staged | capability-gated |
+| CFG branches and loops | yes | staged after straight-line subset | staged after straight-line subset | staged after straight-line subset | required before default |
 | Lambdas and captures | yes | staged | staged | staged | capability-gated |
 | Atomics and TLS | yes | staged | target-dependent | yes | capability-gated |
 | Exceptions/throw/provide | yes | unsupported/staged | staged | unsupported/staged | diagnostic required |
@@ -214,6 +220,8 @@ verifier:
 ```text
 Uninitialized -> Initialized
 Initialized   -> Moved
+Initialized   -> PartiallyMoved  // permitted field/element move
+PartiallyMoved -> Destroyed      // partial destruction only
 Initialized   -> Destroyed
 Moved         -> Initialized       // explicit reinitialization only
 ```
@@ -226,6 +234,43 @@ flag explicitly makes that state conditional.
 The MIR builder may initially emit conservative cleanup. Optimization can remove
 redundant cleanup only after proving the same state transition. The C and
 interpreter backends must execute the MIR lifetime operations literally.
+
+#### 4.3.1 Move paths and projection state
+
+The state is not tracked only on the root `PlaceId`. Each owned aggregate has
+a move-path tree: one node for the root and child nodes for owned fields and
+fixed-array elements. Pointer dereferences are not owned move paths unless the
+type contract explicitly says that the pointee is owned. A place projection
+refers to the corresponding move-path node when one exists.
+
+The allowed root states are `Uninitialized`, `Initialized`, `PartiallyMoved`,
+`Moved`, and `Destroyed`. A child may independently become `Moved` only when
+the type contract permits partial-field moves. Otherwise lowering must emit a
+whole-object move or report a semantic error. A parent with moved children is
+`PartiallyMoved`; it cannot use the ordinary complete destroy operation. Its
+cleanup walks only initialized child paths, in reverse successful
+initialization order, using the aggregate's partial-destroy contract.
+
+`move_init` and `move` perform these steps atomically from the MIR model:
+
+1. Validate that the source path is initialized and the destination is
+   uninitialized or explicitly reinitialized.
+2. Execute the selected move contract.
+3. Mark the destination path initialized with the contract's resulting child
+   state.
+4. Mark the source path moved, or update its child paths for a partial move.
+
+If a move contract does not explicitly preserve the source, the source is not
+available for loads, another move, or complete destruction. A bitwise move is
+therefore a transfer of MIR ownership even when its native lowering is a
+`memcpy`; it is not an implicit copy. `copy` and `copy_init` leave the source
+initialized and are valid only when the copy contract permits them.
+
+The verifier performs a forward data-flow check over blocks. State at a join
+must agree for every move path, or be represented by an explicit drop flag or
+block argument. Loops require a fixed-point state check. This check is part of
+the full verifier; the builder still performs local state checks while
+constructing instructions.
 
 ### 4.4 Place projections, aliasing, and borrows
 
@@ -441,6 +486,15 @@ pointers, while C and LLVM lower them to their native representations. This
 classification is required in core MIR now so JVM and WebAssembly backends do
 not discover incompatibilities only after lowering.
 
+The selected target capability set is available to the lowerer as read-only
+context. Lowering must attach the classification to every native-only or
+target-layout-dependent operation. If the selected target cannot represent an
+operation, lowering reports a source-linked capability diagnostic before
+backend emission; a backend may still reject malformed or unexpectedly
+unsupported MIR as a second line of defense. Portable MIR must not silently
+acquire a native pointer interpretation merely because the C or LLVM backend
+has one.
+
 Constants should be immutable interned records. A string literal is a constant
 plus its addressable global representation, not an arbitrary C string fragment.
 
@@ -529,6 +583,42 @@ whether it permits partial-field moves, whether source and destination may
 overlap, and which subobjects are initialized on success. The C and LLVM
 emitters use this contract; they do not rediscover it from the AST type.
 
+For MIR v1, an ordinary move is a bitwise ownership transfer. The native
+operation is `memcpy` from source storage to destination storage, followed by
+the source being marked moved in MIR. The source bytes do not need to be
+zeroed, but the source must not be loaded, moved again, or dropped after the
+move. This intentionally preserves the existing low-level behavior for
+aggregates containing pointers. It does not turn a move into a copy: `copy`
+remains a separate operation and requires a valid copy contract.
+
+An aggregate may optionally define an unsafe post-move repair hook. The hook
+is an ordinary MIR symbol recorded in the move contract and runs after the
+destination `memcpy`, with the destination and any required context as
+explicit arguments. It may repair self-referential pointers or other
+representation-dependent state. MIR must never infer or synthesize this hook.
+When no hook is present, the bitwise move and its resulting low-level behavior
+are still valid. The hook's failure/return convention must be part of its ABI;
+it cannot be hidden in a backend.
+
+Drop follows Rust-like ownership semantics: a moved place is not dropped. The
+drop flag, or equivalent move-path state, records whether the resource remains
+active. Conditional `drop` checks that state before invoking the complete
+destruction operation. A moved source may retain stale bytes in native
+storage, but those bytes have no live MIR ownership.
+
+When initialization or movement is runtime-conditional, the drop state is a
+runtime variable/flag in the generated function frame, not merely verifier
+metadata. It is initialized and updated by MIR instructions and is consulted
+by every cleanup path. When the verifier proves the state constant, a backend
+may omit the flag as a representation optimization, but it must preserve the
+same conditional-drop behavior.
+
+The complete destruction operation is defined once per type contract. It
+includes the user destructor and recursive destruction of owned members in the
+language-defined order. `drop` conditionally invokes that operation; explicit
+`destroy` invokes it unconditionally and consumes the cleanup state. Neither
+operation may cause a second backend-generated destructor call.
+
 Constructors and destructors are symbols with normal call ABI metadata. Do not
 encode them as magic text. An implicit constructor selected by type checking is
 lowered to `init`, not rediscovered by a backend.
@@ -587,6 +677,22 @@ in MIR.
 Arguments are an ordered range of `MIRArgument` records. Each record can refer
 to a value, place address, value loaded from a place, or a result place. This
 avoids inventing a fake value for `&raw std::string()`.
+
+Each argument record must also contain an explicit passing action:
+`value-copy`, `borrow`, `mutable-borrow`, `move`, `out-result`, or `vararg`.
+The action determines whether the lowerer emits a load, address materialization,
+move-state transition, or result-place binding. `borrow` and `mutable-borrow`
+do not transfer ownership; `move` consumes the source move path. The argument
+records are already ordered, so a backend never reconstructs evaluation order
+from the callee signature or C spelling.
+
+The ABI record must explicitly identify the ordered physical parameters,
+including hidden receiver, closure-environment, sret, and implicit parameters.
+For every physical parameter it records source argument association, passing
+action, MIR type, target ABI type, mutability, address space, alignment, and
+whether ownership is transferred. Struct-return calls always bind their result
+to the declared MIR result place. A backend may choose a different physical
+spelling only through this ABI record.
 
 ### 6.5 Control flow
 
@@ -992,6 +1098,14 @@ All LLVM verifier failures must be reported with the MIR function/block/
 instruction ID and source location. Do not suppress LLVM verification to make a
 backend pass.
 
+LLVM emission is initially serial within one LLVM module. `LLVMContext`,
+`llvm::Module`, and `IRBuilder` are not shared by MIR worker tasks. If LLVM
+parallelism is later required, each worker must own a complete LLVM context and
+module, or an equivalent LLVM thread-safe module, and the coordinator must
+link or merge those modules deterministically after workers finish. A worker
+must never insert into a shared LLVM module or use a shared IR builder. C MIR
+parallelism therefore does not imply LLVM parallelism.
+
 ## 10.1 MIR insertion point and job applicability
 
 The normal compilation pipeline must be:
@@ -1003,7 +1117,7 @@ parse
   -> body symbol resolution and operator/implicit-conversion resolution
   -> type verification
   -> AST-to-MIR lowering
-  -> MIR verification
+  -> MIR verification (cheap checks always; full checks by mode)
   -> MIR optimization/canonicalization (mode-dependent)
   -> selected backend emitter
 ```
@@ -1021,6 +1135,10 @@ configuration and diagnostics. A plugin must not accidentally receive a partial
 MIR module and then call AST-only APIs. Interpretation jobs must use MIR for all
 MIR-supported runtime functions; comptime evaluation remains a separate
 compile-time phase until its AST interpreter is replaced or can consume MIR.
+
+The initial MIR project targets C, the interpreter, and LLVM. C++ output is
+explicitly out of scope for this design and must not be used to justify a core
+MIR operation or a relaxation of TinyCC-compatible C emission.
 
 The module boundary is important: a function MIR artifact may be built per file
 or per function, but symbol/type/layout tables are module artifacts. A backend
@@ -1246,14 +1364,17 @@ test before being enabled.
 
 ### Stage 8: Make MIR C the default incrementally
 
-Use per-function, per-statement, and per-module feature gates. A statement-level
-legacy C fragment may be used only through the temporary migration bridge defined
-in the introduction; it is never an input to a portable MIR backend. When a
-function contains unsupported ownership/control-flow interaction, lower the
-whole function through the legacy path rather than silently mixing cleanup
-models. When all functions in a module successfully lower and verify, emit that
-module through MIR. Every fallback must be visible in verbose/debug output and
-must not silently mix lifetime state between legacy and MIR code.
+Use per-function and per-module feature gates initially. A function containing
+unsupported ownership or control-flow interaction must lower wholly through the
+legacy path; do not mix legacy destructor scheduling with MIR cleanup in one
+function. A statement-level `LegacyCFragment` is permitted only for a proven
+side-effect-free statement boundary that has no ownership, cleanup, control-flow,
+or alias interaction with neighboring MIR instructions. Until such proof exists,
+the statement gate must escalate to whole-function legacy fallback. A fragment
+is never an input to a portable MIR backend. When all functions in a module
+successfully lower and verify, emit that module through MIR. Every fallback must
+be visible in verbose/debug output and must not silently mix lifetime state
+between legacy and MIR code.
 
 ### Stage 9: Add LLVM lowering
 
@@ -1384,6 +1505,23 @@ and must be benchmarked in `debug_quick`; MIR itself must not assume that the
 number of C artifacts equals the number of source files. Per-file artifacts must
 still receive the complete declaration snapshot/header described above.
 
+#### 14.0.1a Module and artifact ownership
+
+`MIRModule` owns immutable declaration data and finalized function artifacts;
+workers do not append to its function vector while lowering. Before workers
+start, the coordinator assigns each concrete function a stable slot containing
+its symbol, signature, source-order key, and expected artifact kind. A worker
+builds the function body in its private arena and returns one artifact for that
+slot. The coordinator publishes the moved artifact only after the required
+validation and backend emission succeed.
+
+In `KeepMIR` modes, the published artifact retains its function arena. In
+`debug_quick`, the artifact may retain only emitted backend bytes and the
+identity needed for diagnostics and deterministic merging. Module tables are
+never copied into workers and are never mutated by them. This is the ownership
+model for both serial and parallel operation; serial mode merely executes the
+same artifact protocol without scheduling tasks.
+
 ### 14.0.2 Sealing, discovery, and worker contracts
 
 The phrase “fresh emitter per file” is safe only after a serial preparation
@@ -1495,7 +1633,7 @@ policy is:
 | Instruction storage | packed records and contiguous operand storage |
 | IDs | dense 32-bit function-local IDs |
 | Debug data | absent unless `-g`, `--dump-mir`, or validation explicitly requests it |
-| Verification | disabled by default; only typed builder assertions and essential backend checks |
+| Verification | cheap local shape checks by default; full structural/lifetime verification only when requested |
 | MIR optimization | none |
 | CFG processing | construct blocks directly; no global canonicalization/dominance pass |
 | C emission | direct sequential emission with TinyCC-compatible spellings; no separate global optimization pass |
@@ -1504,9 +1642,13 @@ policy is:
 
 The quick path must not run full dominance, alias, lifetime, dead-code, cleanup,
 expression-tree, or block-merging passes. This does not permit malformed MIR:
-the builder API must make invalid IDs and malformed payloads difficult to create,
-and the emitter must return failure rather than crash if defensive checks detect
-bad input.
+the builder API must make invalid IDs and malformed payloads difficult to create.
+Cheap local checks remain mandatory: opcode payload shape, ID bounds, operand
+types, terminator placement, and backend capability checks. The emitter must
+return failure rather than crash if defensive checks detect bad input. Full
+CFG-dominance and ownership data-flow verification is enabled by
+`--verify-mir`, assertions, and validation modes, not by default in
+`debug_quick`.
 
 The C emitter may print a pure MIR result inline when that requires no
 reordering. This is a representation choice, not a MIR optimization pass. To

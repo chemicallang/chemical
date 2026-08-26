@@ -352,11 +352,28 @@ public namespace tls {
         @constructor
         func constructor(endpoint_type : int) {
             ensure_init()  // Initialize ciphersuite database
-            var pref_count = num_preferred_ciphersuites()
+            // Build the automatic preference list, restricted to suites this
+            // stack can fully complete: TLS 1.3 suites plus TLS 1.2 RSA-key-
+            // exchange GCM/CBC suites with SHA-256 or SHA-384 PRFs. TLS 1.2
+            // ECDHE is not implemented, so those are excluded from the AUTO
+            // list only — explicit ciphersuite_list configs are honored
+            // verbatim (an unsupported pick fails gracefully post-hello).
+            var pref_src_count = num_preferred_ciphersuites()
             unsafe var suite_list : [64]u16
+            var pref_count : u32 = 0
             var i : u32 = 0
-            while(i < pref_count) {
-                suite_list[i] = get_preferred_ciphersuite(i)
+            while(i < pref_src_count && pref_count < 64) {
+                var sid = get_preferred_ciphersuite(i)
+                if(sid != 0) {
+                    var sinfo = get_ciphersuite_info(sid)
+                    var tls13_only = (sinfo.max_tls_version >= SSL_VERSION_TLS1_3 as u8)
+                    var supported_tls12 = ((sinfo.key_exchange == KE_RSA as u8 || sinfo.key_exchange == KE_NONE as u8) &&
+                                           (sinfo.hash == HASH_SHA256 as u8 || sinfo.hash == HASH_SHA384 as u8 || sinfo.hash == HASH_NONE as u8))
+                    if(tls13_only || supported_tls12) {
+                        suite_list[pref_count] = sid
+                        pref_count += 1
+                    }
+                }
                 i += 1
             }
             if(pref_count < 64) {

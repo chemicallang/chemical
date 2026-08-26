@@ -597,6 +597,8 @@ func binary_operator_precedence(tokenType : int) : int {
         JsTokenType.LeftShift, JsTokenType.RightShift, JsTokenType.RightShiftUnsigned => return 8
         JsTokenType.Plus, JsTokenType.Minus => return 9
         JsTokenType.Star, JsTokenType.Slash, JsTokenType.Percent => return 10
+        JsTokenType.Exponent => return 11
+        JsTokenType.NullishCoalescing => return 1  // same level as ||, left-associative
         default => return 0
     }
 }
@@ -658,6 +660,52 @@ func (jsParser : &mut JsParser) parseExpressionContinuation(parser : *mut Parser
             // Consume all binary operators (with correct precedence), then
             // re-check for assignment / ternary continuations.
             node = jsParser.parseBinaryPrecedence(parser, builder, 1, node);
+        } else if(token.type == JsTokenType.QuestionDot as int) {
+            // Optional chaining: a?.b — treat as member access for now;
+            // the converter handles null safety.
+            parser.increment();
+            var prop = parser.getToken();
+            if(prop.type == JsTokenType.Identifier as int) {
+                var propView = builder.allocate_view(&prop.value);
+                parser.increment();
+                var mem = builder.allocate<JsMemberAccess>()
+                new (mem) JsMemberAccess {
+                    base : JsNode { kind : JsNodeKind.MemberAccess },
+                    object : node,
+                    property : propView
+                }
+                node = mem as *mut JsNode;
+            } else if(prop.type == JsTokenType.LBracket as int) {
+                parser.increment();
+                var index = jsParser.parseExpression(parser, builder);
+                parser.increment_if(JsTokenType.RBracket as int);
+                var idx = builder.allocate<JsIndexAccess>()
+                new (idx) JsIndexAccess {
+                    base : JsNode { kind : JsNodeKind.IndexAccess },
+                    object : node,
+                    index : index
+                }
+                node = idx as *mut JsNode;
+            } else if(prop.type == JsTokenType.LParen as int) {
+                // a?.() — optional call: treat as regular call
+                parser.increment();
+                var args = std::vector<*mut JsNode>()
+                if(prop.type != JsTokenType.RParen as int) {
+                    while(true) {
+                        var arg = jsParser.parseExpression(parser, builder);
+                        args.push(arg);
+                        if(!parser.increment_if(JsTokenType.Comma as int)) break;
+                    }
+                }
+                parser.increment_if(JsTokenType.RParen as int);
+                var call = builder.allocate<JsFunctionCall>()
+                new (call) JsFunctionCall {
+                    base : JsNode { kind : JsNodeKind.FunctionCall },
+                    callee : node,
+                    args : args
+                }
+                node = call as *mut JsNode;
+            }
         } else if(token.type == JsTokenType.Question as int) {
             parser.increment();
             var consequent = jsParser.parseExpression(parser, builder);

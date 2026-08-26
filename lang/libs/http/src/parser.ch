@@ -187,11 +187,17 @@ public namespace http {
         timeout_secs: long,
         max_header_bytes: usize,
         tls_ctx: *mut tls::SSLContext = null,
-        max_body_len: usize = DEFAULT_MAX_BODY_LEN
+        max_body_len: usize = DEFAULT_MAX_BODY_LEN,
+        is_head_request: bool = false
     ) : std::Option<Response> {
         if(s != 0) {
             net::set_recv_timeout(s, timeout_secs, 0);
+        } else if(tls_ctx != null) {
+            // HTTPS: the socket lives inside the TLS context — apply the
+            // per-request timeout there so slow servers fail fast.
+            net::set_recv_timeout(tls_ctx.transport_socket, timeout_secs, 0);
         }
+        var interim_1xx_count = 0u;
         loop {
             var i = 0u; var found = false; var crlfpos = 0u;
             while(i + 3 < buf.len()) {
@@ -207,15 +213,34 @@ public namespace http {
                 var ptr = buf.as_ptr();
                 var res_opt = parse_response_from_bytes(ptr, crlfpos, s);
                 if(res_opt is std::Option.Some) {
-                    buf.consume(crlfpos);
                     var Some(res) = res_opt else unreachable;
+                    buf.consume(crlfpos);
+
+                    // RFC 9110 §6.2.1: a client MUST be able to skip any
+                    // number of interim 1xx responses before the final one.
+                    // (101 Switching Protocols hands the connection off and is
+                    // NOT skipped.)
+                    if(res.status >= 100u && res.status <= 199u && res.status != 101u) {
+                        interim_1xx_count = interim_1xx_count + 1u;
+                        if(interim_1xx_count > 16u) { return std::Option.None<Response>() }
+                        continue;
+                    }
+
                     var body_len: isize = -1;
                     var chunked = false;
-                    if(res.body_len > 0u) { body_len = res.body_len as isize; }
-                    var te_opt = res.headers.get("Transfer-Encoding");
-                    if(te_opt is std::Option.Some) {
-                        var Some(te) = te_opt else unreachable;
-                        if(te.equals_with_len("chunked", 7)) { chunked = true; body_len = -1; }
+                    if(is_head_request) {
+                        // RFC 9110 §9.3.2 / §8.6: a HEAD response has NO
+                        // message body — Content-Length describes what a GET
+                        // would produce and must not wait for body bytes.
+                        body_len = 0;
+                        chunked = false;
+                    } else {
+                        if(res.body_len > 0u) { body_len = res.body_len as isize; }
+                        var te_opt = res.headers.get("Transfer-Encoding");
+                        if(te_opt is std::Option.Some) {
+                            var Some(te) = te_opt else unreachable;
+                            if(te.equals_with_len("chunked", 7)) { chunked = true; body_len = -1; }
+                        }
                     }
                     res.body = Body.make_body(s, buf as *mut net::Buffer, body_len, chunked, timeout_secs * 4, max_body_len);
                     if(tls_ctx != null) {
@@ -224,7 +249,11 @@ public namespace http {
                     return std::Option.Some<Response>(std::replace(&mut res, Response()));
                 } else { return std::Option.None<Response>() }
             }
-            if(buf.len() > max_header_bytes) { return std::Option.None<Response>() }
+            // The header block must fit within max_header_bytes. If we have
+            // not seen the terminator yet and the buffer already holds
+            // max_header_bytes bytes, the complete block would exceed the
+            // cap — reject (RFC 9112 §7.1 / limits enforcement).
+            if(buf.len() >= max_header_bytes) { return std::Option.None<Response>() }
             unsafe var tmp : [DEFAULT_READ_BUF]u8;
             var n = http_recv(s, tls_ctx, &raw mut tmp[0], DEFAULT_READ_BUF);
             if(n <= 0) { return std::Option.None<Response>() }

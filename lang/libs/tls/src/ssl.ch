@@ -3513,28 +3513,32 @@ public namespace tls {
                     crypto::sha256_update(&raw mut transcript, &raw msg_buf[0], msg_body_len2 + 4)
 
                     // Parse ALPN from EncryptedExtensions
+                    // EE body: ExtensionVectorLen(2) then extensions
+                    // {type(2) len(2) data...}. Skip the vector length first.
                     if(msg_body_len2 >= 4) {
-                        var ee_pos : size_t = 4
-                        var ee_end : size_t = 4 + msg_body_len2 as size_t
+                        var ext_block_len = read_u16_be(&raw msg_buf[4]) as size_t
+                        var ee_pos : size_t = 6
+                        var ee_end : size_t = 6 + ext_block_len
+                        var ee_body_end : size_t = 4 + msg_body_len2 as size_t
+                        if(ee_end > ee_body_end) { ee_end = ee_body_end }
                         while(ee_pos + 4 <= ee_end) {
-                            var ext_type = read_u16_be(&raw msg_buf[ee_pos]) as u16
-                            ee_pos += 2
-                            var ext_data_len = read_u16_be(&raw msg_buf[ee_pos]) as size_t
-                            ee_pos += 2
-                            if(ext_type == TLS_EXT_ALPN as u16 && ext_data_len >= 2) {
-                                var alpn_list_len = read_u16_be(&raw msg_buf[ee_pos]) as size_t
-                                ee_pos += 2
-                                if(alpn_list_len > 0 && ee_pos < ee_end) {
-                                    var alpn_name_len = msg_buf[ee_pos] as size_t
-                                    ee_pos += 1
-                                    if(alpn_name_len > 0 && alpn_name_len <= 255 &&
-                                       ee_pos + alpn_name_len <= ee_end) {
+                            var ext_type = read_u16_be(&raw msg_buf[ee_pos])
+                            var ext_data_len = read_u16_be(&raw msg_buf[ee_pos + 2]) as size_t
+                            var ext_data_start = ee_pos + 4
+                            if(ext_data_start + ext_data_len > ee_end) { break }
+                            if(ext_type == TLS_EXT_ALPN && ext_data_len >= 5) {
+                                var alpn_list_len = read_u16_be(&raw msg_buf[ext_data_start]) as size_t
+                                if(alpn_list_len >= 3 && alpn_list_len <= ext_data_len - 2) {
+                                    var name_pos = ext_data_start + 2
+                                    var alpn_name_len = msg_buf[name_pos] as size_t
+                                    if(alpn_name_len > 0 && alpn_name_len + 1 <= alpn_list_len - 2 &&
+                                       name_pos + 1 + alpn_name_len <= ee_end) {
                                         // Store negotiated protocol
                                         var alpn_mem = malloc(alpn_name_len + 1) as *mut u8
                                         if(alpn_mem != null) {
                                             var alpi : size_t = 0
                                             while(alpi < alpn_name_len) {
-                                                alpn_mem[alpi] = msg_buf[ee_pos + alpi]
+                                                alpn_mem[alpi] = msg_buf[name_pos + 1 + alpi]
                                                 alpi += 1
                                             }
                                             alpn_mem[alpn_name_len] = 0
@@ -3544,7 +3548,7 @@ public namespace tls {
                                     }
                                 }
                             }
-                            ee_pos += ext_data_len
+                            ee_pos = ext_data_start + ext_data_len
                         }
                     }
 

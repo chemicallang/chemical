@@ -349,7 +349,9 @@ func srv_serve_http_loop(env : &mut TestEnv, ssl_mem : *mut SSLContext, mode : s
                 var prefix = "SRV_OK:"
                 while(prefix[si2] != 0) { scratch[si2] = prefix[si2] as u8; si2 += 1 }
                 var qi = qpos + 1
-                while(qi < line_end && si2 < 60) { scratch[si2] = req_buf[qi]; si2 += 1; qi += 1 }
+                // Stop at the space separating the request target from the
+                // HTTP version ("GET /integrate?a=1<SP>HTTP/1.1").
+                while(qi < line_end && req_buf[qi] != 32 && si2 < 60) { scratch[si2] = req_buf[qi]; si2 += 1; qi += 1 }
                 srv_send_response(ssl_mem, "HTTP/1.1 200 OK", scratch, si2, keep)
             }
         }

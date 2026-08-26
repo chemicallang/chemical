@@ -284,6 +284,9 @@ public namespace http {
             var ii = 0u;
             while(ii < linebuf.size()) {
                 var c = linebuf.get(ii);
+                // RFC 9112 §7.1.1: chunk extensions follow a ';' and MUST be
+                // ignored by the recipient.
+                if(c == ';' as char) { break }
                 var v = hex_value(c);
                 if(v < 0) { hex_ok = false; break }
                 hex_val = (hex_val * 16u) + (v as usize);

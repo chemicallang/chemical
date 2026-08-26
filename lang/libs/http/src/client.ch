@@ -302,10 +302,12 @@ public namespace http {
 
             // Read response headers (Body.tls_ctx is set inside read_response_incremental)
             var buf_ptr = new net::Buffer()
+            var is_head = req_builder.method.equals_with_len("HEAD", 4)
             var res_opt = read_response_incremental(s, &mut *buf_ptr, req_builder.timeout_secs,
                                                       self.max_response_header_bytes,
                                                       tls_ctx,
-                                                      self.max_body_len)
+                                                      self.max_body_len,
+                                                      is_head)
             if(res_opt is std::Option.None) {
                 if(is_https) {
                     // tls_ctx is heap-allocated via malloc; free with ssl_free + dealloc

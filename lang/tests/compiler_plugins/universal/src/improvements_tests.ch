@@ -44,7 +44,7 @@ public func universal_key_prop_in_map_emitted(env : &mut TestEnv) {
 // #html block outputs raw JSX text, which is a separate bug.
 // =============================================================================
 
-#universal useRefHook(props) {
+#universal UseRefHook(props) {
     var inputRef = useRef(null)
     return <span>{inputRef.current}</span>
 }
@@ -52,20 +52,18 @@ public func universal_key_prop_in_map_emitted(env : &mut TestEnv) {
 @test
 public func universal_use_ref_compiles(env : &mut TestEnv) {
     var page = HtmlPage()
-    #html { <useRefHook /> }
-    var html = std::string()
-    html.append_view(page.getHtml())
-    // If the component registered, the HTML should NOT contain raw JSX tags.
-    if(html.contains("useRefHook")) {
-        // Component didn't register — raw JSX in HTML is a known issue.
-        env.error("useRef component did not register (raw JSX in HTML)")
-        env.info(html.data())
+    #html { <UseRefHook /> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    if(js.contains("$_r.useRef")) {
+        env.success("useRef hook rewritten to $_r.useRef in JS output")
     } else {
-        env.success("useRef component registered and rendered")
+        env.error("useRef hook was not rewritten to $_r.useRef")
+        env.info(js.data())
     }
 }
 
-#universal useMemoHook(props) {
+#universal UseMemoHook(props) {
     var computed = useMemo(() => props.x * 2)
     return <span>{computed}</span>
 }
@@ -73,18 +71,18 @@ public func universal_use_ref_compiles(env : &mut TestEnv) {
 @test
 public func universal_use_memo_compiles(env : &mut TestEnv) {
     var page = HtmlPage()
-    #html { <useMemoHook x={5} /> }
-    var html = std::string()
-    html.append_view(page.getHtml())
-    if(html.contains("useMemoHook")) {
-        env.error("useMemo component did not register (raw JSX in HTML)")
-        env.info(html.data())
+    #html { <UseMemoHook x={5} /> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    if(js.contains("$_r.useMemo")) {
+        env.success("useMemo hook rewritten to $_r.useMemo in JS output")
     } else {
-        env.success("useMemo component registered and rendered")
+        env.error("useMemo hook was not rewritten to $_r.useMemo")
+        env.info(js.data())
     }
 }
 
-#universal useCallbackHook(props) {
+#universal UseCallbackHook(props) {
     var handler = useCallback(() => { doSomething() })
     return <button onClick={handler}>click</button>
 }
@@ -92,18 +90,18 @@ public func universal_use_memo_compiles(env : &mut TestEnv) {
 @test
 public func universal_use_callback_compiles(env : &mut TestEnv) {
     var page = HtmlPage()
-    #html { <useCallbackHook /> }
-    var html = std::string()
-    html.append_view(page.getHtml())
-    if(html.contains("useCallbackHook")) {
-        env.error("useCallback component did not register (raw JSX in HTML)")
-        env.info(html.data())
+    #html { <UseCallbackHook /> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    if(js.contains("$_r.useCallback")) {
+        env.success("useCallback hook rewritten to $_r.useCallback in JS output")
     } else {
-        env.success("useCallback component registered and rendered")
+        env.error("useCallback hook was not rewritten to $_r.useCallback")
+        env.info(js.data())
     }
 }
 
-#universal useContextHook(props) {
+#universal UseContextHook(props) {
     var theme = useContext("theme")
     return <div className={theme}>content</div>
 }
@@ -111,14 +109,14 @@ public func universal_use_callback_compiles(env : &mut TestEnv) {
 @test
 public func universal_use_context_compiles(env : &mut TestEnv) {
     var page = HtmlPage()
-    #html { <useContextHook /> }
-    var html = std::string()
-    html.append_view(page.getHtml())
-    if(html.contains("useContextHook")) {
-        env.error("useContext component did not register (raw JSX in HTML)")
-        env.info(html.data())
+    #html { <UseContextHook /> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    if(js.contains("$_r.useContext")) {
+        env.success("useContext hook rewritten to $_r.useContext in JS output")
     } else {
-        env.success("useContext component registered and rendered")
+        env.error("useContext hook was not rewritten to $_r.useContext")
+        env.info(js.data())
     }
 }
 

@@ -130,6 +130,9 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             if(provider.peek() == '=') {
                 provider.readCharacter();
                 return Token { type : JsTokenType.StarEqual as int, value : view("*="), position : position }
+            } else if(provider.peek() == '*') {
+                provider.readCharacter();
+                return Token { type : JsTokenType.Exponent as int, value : view("**"), position : position }
             }
             return Token { type : JsTokenType.Star as int, value : view("*"), position : position }
         }
@@ -205,6 +208,13 @@ public func getNextToken(js : &mut JsLexer, lexer : &mut Lexer) : Token {
             return Token { type : JsTokenType.BitwiseOr as int, value : view("|"), position : position }
         }
         '?' => {
+            if(provider.peek() == '?') {
+                provider.readCharacter();
+                return Token { type : JsTokenType.NullishCoalescing as int, value : view("??"), position : position }
+            } else if(provider.peek() == '.') {
+                provider.readCharacter();
+                return Token { type : JsTokenType.QuestionDot as int, value : view("?."), position : position }
+            }
             return Token { type : JsTokenType.Question as int, value : view("?"), position : position }
         }
         ' ', '\t', '\n', '\r' => {

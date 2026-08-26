@@ -91,7 +91,10 @@ public enum JsTokenType {
     Yield,
     Debugger,
     Percent, // %
-    PercentEqual // %=
+    PercentEqual, // %=
+    NullishCoalescing, // ??
+    QuestionDot, // ?.
+    Exponent // **
 }
 
 public func isIdOrKw(type : JsTokenType) : bool {

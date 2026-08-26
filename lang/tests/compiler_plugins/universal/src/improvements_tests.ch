@@ -35,24 +35,155 @@ public func universal_key_prop_in_map_emitted(env : &mut TestEnv) {
 
 // =============================================================================
 // §3.5: Hooks surface — useRef, useMemo, useCallback, useReducer, useContext
-// must be defined on $_r. If they throw "is not a function" at mount, we need
-// a compile diagnostic or runtime implementation.
+// must be defined on $_r. Components that use these hooks must compile and
+// produce valid SSR + hydration JS. The hooks are rewritten to $_r.* by the
+// converter.
 //
-// BUG DETECTED: Components using useRef, useMemo, useCallback, or useContext
-// in their body silently fail to register as universal components. The #html
-// block falls back to raw JSX text (<useRefHook></useRefHook>) instead of
-// emitting SSR + hydration JS. The runtime (page.ch) defines these hooks, but
-// the CBI plugin cannot compile the component body when these hooks are present.
-// This means any component using these hooks is broken at compile time.
+// NOTE: These tests verify the hooks are REWRITTEN in the JS output (e.g.
+// useRef → $_r.useRef). If the component silently fails to register, the
+// #html block outputs raw JSX text, which is a separate bug.
 // =============================================================================
 
+#universal useRefHook(props) {
+    var inputRef = useRef(null)
+    return <span>{inputRef.current}</span>
+}
+
+@test
+public func universal_use_ref_compiles(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <useRefHook /> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    // If the component registered, the HTML should NOT contain raw JSX tags.
+    if(html.contains("useRefHook")) {
+        // Component didn't register — raw JSX in HTML is a known issue.
+        env.error("useRef component did not register (raw JSX in HTML)")
+        env.info(html.data())
+    } else {
+        env.success("useRef component registered and rendered")
+    }
+}
+
+#universal useMemoHook(props) {
+    var computed = useMemo(() => props.x * 2)
+    return <span>{computed}</span>
+}
+
+@test
+public func universal_use_memo_compiles(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <useMemoHook x={5} /> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    if(html.contains("useMemoHook")) {
+        env.error("useMemo component did not register (raw JSX in HTML)")
+        env.info(html.data())
+    } else {
+        env.success("useMemo component registered and rendered")
+    }
+}
+
+#universal useCallbackHook(props) {
+    var handler = useCallback(() => { doSomething() })
+    return <button onClick={handler}>click</button>
+}
+
+@test
+public func universal_use_callback_compiles(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <useCallbackHook /> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    if(html.contains("useCallbackHook")) {
+        env.error("useCallback component did not register (raw JSX in HTML)")
+        env.info(html.data())
+    } else {
+        env.success("useCallback component registered and rendered")
+    }
+}
+
+#universal useContextHook(props) {
+    var theme = useContext("theme")
+    return <div className={theme}>content</div>
+}
+
+@test
+public func universal_use_context_compiles(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <useContextHook /> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    if(html.contains("useContextHook")) {
+        env.error("useContext component did not register (raw JSX in HTML)")
+        env.info(html.data())
+    } else {
+        env.success("useContext component registered and rendered")
+    }
+}
+
 // =============================================================================
-// §3.2: Missing operators — ??, ?. , ** are NOT yet supported by the
-// universal parser. Using them causes a compile error (confirmed gap).
-// These operators are documented as future work in the improvements doc.
-// We do NOT test them here because they crash the compiler (double-free
-// in the parser), which is a separate parser-robustness issue.
+// §3.2: Operators — ??, ?. , ** were previously missing from the universal
+// parser, causing a double-free crash. They now have token support and parse
+// correctly. Test that they compile and produce valid JS output.
 // =============================================================================
+
+#universal NullishCoalescing(props) {
+    var name = props.name ?? "anonymous"
+    return <span>{name}</span>
+}
+
+@test
+public func universal_nullish_coalescing_compiles(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <NullishCoalescing /> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    if(js.contains("??")) {
+        env.success("nullish coalescing compiles and emits ??")
+    } else {
+        env.error("nullish coalescing was not emitted")
+        env.info(js.data())
+    }
+}
+
+#universal OptionalChaining(props) {
+    var city = props.user?.address?.city
+    return <span>{city}</span>
+}
+
+@test
+public func universal_optional_chaining_compiles(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <OptionalChaining /> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    if(js.contains("address") && js.contains("city")) {
+        env.success("optional chaining compiles and emits member access")
+    } else {
+        env.error("optional chaining was not emitted")
+        env.info(js.data())
+    }
+}
+
+#universal ExponentOperator(props) {
+    var result = props.base ** props.exp
+    return <span>{result}</span>
+}
+
+@test
+public func universal_exponent_operator_compiles(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ExponentOperator base={2} exp={3} /> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    if(js.contains("**")) {
+        env.success("exponent operator compiles and emits **")
+    } else {
+        env.error("exponent operator was not emitted")
+        env.info(js.data())
+    }
+}
 
 // =============================================================================
 // §2.7 Problem 3: Unsupported prop types silently become integers.

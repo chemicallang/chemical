@@ -116,10 +116,8 @@ public namespace tls {
                                   seed : *u8, seed_len : size_t,
                                   output : *mut u8, output_len : size_t) {
 
-        // Build the combined seed = label + seed
         var combined_len : size_t = label_len + seed_len
         unsafe var combined : [512]u8
-
         var i : size_t = 0
         while(i < label_len) {
             combined[i] = label[i] as u8
@@ -129,43 +127,25 @@ public namespace tls {
             combined[i] = seed[i - label_len]
             i += 1
         }
-
-        unsafe var A : [48]u8
+        // NOTE: A is padded to 64 bytes; a 48-byte stack array here triggered a
+        // TCC stack-frame miscompilation of this function in the large TLS TU.
+        unsafe var A : [64]u8
         var generated : size_t = 0
-
-        // First A(1) = HMAC(secret, A(0)=seed) = HMAC(secret, combined)
         crypto::hmac_sha384(secret, secret_len, combined, combined_len, &raw mut A[0])
-
+        var block_in_len : size_t = 48 + combined_len
         while(generated < output_len) {
-            // output_block = HMAC(secret, A(i) + seed)
-            var block_in_len : size_t = 48 + combined_len
-            unsafe var block_in : [608]u8
-
+            unsafe var block_in : [544]u8
+            unsafe var block_out : [64]u8
             var j : size_t = 0
-            while(j < 48) {
-                block_in[j] = A[j]
-                j += 1
-            }
-            while(j < block_in_len) {
-                block_in[j] = combined[j - 48]
-                j += 1
-            }
-
-            unsafe var block_out : [48]u8
+            while(j < 48) { block_in[j] = A[j]; j += 1 }
+            while(j < block_in_len) { block_in[j] = combined[j - 48]; j += 1 }
             crypto::hmac_sha384(secret, secret_len, block_in, block_in_len, &raw mut block_out[0])
-
-            // Copy block_out to output (up to 48 bytes)
             var copy_size : size_t = output_len - generated
             if(copy_size > 48 as size_t) { copy_size = 48 as size_t }
             var k : size_t = 0
-            while(k < copy_size) {
-                output[generated + k] = block_out[k]
-                k += 1
-            }
+            while(k < copy_size) { output[generated + k] = block_out[k]; k += 1 }
             generated += copy_size
             if(generated >= output_len) { break }
-
-            // Compute next A(i+1) = HMAC(secret, A(i))
             crypto::hmac_sha384(secret, secret_len, A, 48, &raw mut A[0])
         }
     }

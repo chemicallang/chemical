@@ -1262,6 +1262,120 @@ module output deterministically.
 
 ## 14. Parallelism Design
 
+### 14.0 Correct unit of parallel MIR emission
+
+The proposed strategy is correct only with an important qualification:
+
+> A thread-pool task may own one source file's MIR lowering and function
+> artifacts, but it must not independently own or emit a complete module.
+
+The semantic unit remains a complete module. The parallel unit is a resolved
+concrete function or a group of functions from one file. A file task is the best
+initial implementation because it matches `LabModule::direct_files`, avoids
+excessive scheduling overhead, and gives a natural arena lifetime. It may later
+be split into function tasks when a large file becomes a load-balancing problem.
+
+The correct topology is:
+
+```text
+module semantic barrier
+  -> immutable MIRModuleContext
+  -> serial module prologue
+  -> thread-pool file/function tasks
+       each owns MIRTaskContext + MIR arena + private backend buffer
+  -> deterministic serial artifact merge
+  -> module finalization and TinyCC/LLVM invocation
+```
+
+`MIRModuleContext` contains immutable references or IDs for the completed symbol
+table, canonical types, target layout, ABI records, mangled names, runtime
+declarations, generic-instantiation list, and module ordering. It must not be
+copied into each task and must not be mutated by a worker. Passing a const
+reference with a module lifetime is preferable to a reference-counted object in
+the inner loop; reference-counting every operand or task adds unnecessary atomic
+traffic.
+
+Before workers start, seal module interning and numbering: assign all `TypeId`,
+`SymbolId`, ABI-record IDs, runtime-support IDs, and mangled symbol spellings that
+workers may need. A worker may perform read-only indexed lookup, but it must not
+insert into a shared type table, symbol table, name-mangling cache, or constant
+pool. If a late lowering case needs a new module entry, return it to a serial
+completion queue or pre-reserve a deterministic slot; never protect the hot path
+with a global mutex.
+
+Each task creates a fresh lightweight context on the worker stack:
+
+```text
+MIRTaskContext {
+    MIRFunctionBuilder builder
+    MIRLowerer lowerer
+    MIR bump arena
+    CFunctionEmitter emitter
+    local C-name/label counters
+    local diagnostics
+}
+```
+
+“Fresh per task” means fresh logical state, not necessarily a fresh heap
+allocation. For maximum throughput, a thread-pool worker may own one reusable
+`MIRWorkerContext` containing its bump arena, operand buffers, C buffer, name
+counter, and diagnostic scratch storage. Before the next file task starts, reset
+lengths and counters and release all references to the previous artifact. The
+worker context must never retain a place, value, AST pointer, string view, or
+cleanup entry from a prior task. A stack-created context is also correct for a
+small initial implementation; benchmark reusable worker storage before adding
+more complex pooling.
+
+There must be no shared MIR writer, shared task arena, shared temporary counter,
+mutable `ToCAstVisitor`, mutable `CDestructionVisitor`, or mutable backend
+context. The task returns an owned `MIRFunctionArtifact`; the merge stage moves
+that artifact into its source-order slot rather than copying its MIR or C buffer.
+
+MIR retention is mode-dependent. In `debug_quick` C compilation, a task may
+lower, emit, and immediately release its function arena after the private C
+buffer is complete. The artifact then owns only the C bytes and identity needed
+for merging. Interpreter runs, MIR dumps, validation, and backends that need a
+later pass use `KeepMIR` and retain the arena until all consumers finish. Do not
+keep every function's MIR alive in a module-wide vector merely because another
+mode might request a dump.
+
+For a normal single-C-output module, the file task emits only function bodies
+and function-local support into its private buffer. Includes, type declarations,
+globals, prototypes, generic declarations, and deferred interface stubs remain
+module-level work. For per-file/incremental C output, every emitted C file must
+receive the required common prologue and declarations through a shared immutable
+declaration snapshot or generated header; workers must not independently guess
+which declarations another file needs.
+
+A literal “new complete MIR emitter per file” is therefore not the strategy:
+
+* Correct: one new worker-local lowering/emitter context per file task, sharing
+  immutable module data, producing an isolated artifact.
+* Incorrect: one emitter per file that copies module types/symbols, writes to the
+  final module buffer, discovers generic instantiations, or emits declarations
+  according to task completion order.
+
+Start with one task per sufficiently large file, batch small files, and reserve
+per-function scheduling for files whose functions are large or uneven. This
+avoids paying thread-pool, arena, and artifact overhead for tiny files while
+still allowing multiple files to lower concurrently.
+
+### 14.0.1 MIR/C emission versus TinyCC compilation
+
+Parallel MIR emission and parallel TinyCC compilation are separate decisions.
+MIR lowering and C emission can safely run concurrently because each task owns
+its state. TinyCC state objects and final link/output state must also be isolated
+if compilation is parallelized; never share one mutable TinyCC compiler state
+between workers.
+
+For a small module, one merged C translation unit and one TinyCC invocation may
+be faster than creating many object files. For a large module, workers may emit
+per-file C artifacts and compile them independently with one compiler state per
+artifact, followed by serial linking. The choice belongs to the job scheduler
+and must be benchmarked in `debug_quick`; MIR itself must not assume that the
+number of C artifacts equals the number of source files. Per-file artifacts must
+still receive the complete declaration snapshot/header described above.
+
 ### 14.1 Ownership boundaries
 
 The unit of parallel work should be a `MIRFunctionArtifact` containing:
@@ -1473,6 +1587,12 @@ amortize task scheduling and artifact merging. Use a cheap pre-scan estimate,
 such as AST node count or source byte count, and keep tiny functions in the
 current worker. The threshold must be measured, not guessed, and must be
 configurable for benchmarking.
+
+The initial scheduler should submit one task per sufficiently large source file,
+with each task lowering all eligible functions in that file using one task arena
+and one task-local emitter. This minimizes task/context overhead. Once file-level
+parallelism is working, large files may be partitioned into function groups, but
+the same immutable module context and artifact rules continue to apply.
 
 The default parallel design is:
 

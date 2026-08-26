@@ -65,6 +65,63 @@ public func hmac_sha256(key : *u8, key_len : size_t, data : *u8, data_len : size
 }
 
 // ---------------------------------------------------------------------------
+// HMAC-SHA384 (SHA-512 family — 128-byte block size, 48-byte digest)
+// ---------------------------------------------------------------------------
+
+/// Compute HMAC-SHA384.
+/// key: secret key
+/// data: message data
+/// digest: output buffer (at least 48 bytes)
+public func hmac_sha384(key : *u8, key_len : size_t, data : *u8, data_len : size_t, digest : *mut u8) {
+    // If key is longer than block size (128 bytes for the SHA-512 family),
+    // hash it first. All locals are declared up front — mid-function
+    // declarations can receive clobbered stack slots in the TCC backend.
+    unsafe var actual_key : [128]u8;
+    unsafe var inner_key : [128]u8;
+    unsafe var outer_key : [128]u8;
+    unsafe var inner_ctx : Sha512Context;
+    unsafe var outer_ctx : Sha512Context;
+    unsafe var inner_digest : [48]u8;
+    var actual_key_len : size_t = key_len;
+    var i : size_t = 0;
+
+    if(key_len > 128) {
+        sha384_hash(key, key_len, &raw mut actual_key[0]);
+        actual_key_len = 48;
+        i = 48; while(i < 128) { actual_key[i] = 0; i += 1 }
+    } else {
+        i = 0;
+        while(i < key_len) {
+            actual_key[i] = key[i];
+            i += 1;
+        }
+        while(i < 128) {
+            actual_key[i] = 0;
+            i += 1;
+        }
+    }
+
+    i = 0;
+    while(i < 128) {
+        inner_key[i] = actual_key[i] ^ (0x36 as u8);
+        outer_key[i] = actual_key[i] ^ (0x5C as u8);
+        i += 1;
+    }
+
+    // Inner hash: SHA384(inner_key || data)
+    sha384_init(&raw mut inner_ctx);
+    sha384_update(&raw mut inner_ctx, &raw inner_key[0], 128);
+    sha384_update(&raw mut inner_ctx, data, data_len);
+    sha384_final(&raw mut inner_ctx, &raw mut inner_digest[0]);
+
+    // Outer hash: SHA384(outer_key || inner_digest)
+    sha384_init(&raw mut outer_ctx);
+    sha384_update(&raw mut outer_ctx, &raw outer_key[0], 128);
+    sha384_update(&raw mut outer_ctx, &raw inner_digest[0], 48);
+    sha384_final(&raw mut outer_ctx, digest);
+}
+
+// ---------------------------------------------------------------------------
 // HMAC-MD5 (legacy, cryptographically broken)
 // ---------------------------------------------------------------------------
 

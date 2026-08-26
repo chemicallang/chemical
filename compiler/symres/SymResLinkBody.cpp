@@ -3109,6 +3109,7 @@ void SymResLinkBody::VisitZeroedValue(ZeroedValue* value) {
     if(type == nullptr) {
         if(expected_type == nullptr) {
             diagnoser.error(value) << "couldn't infer type for zeroed value";
+            value->setType(getTypeBuilder().getVoidType());
             return;
         }
         type = expected_type;

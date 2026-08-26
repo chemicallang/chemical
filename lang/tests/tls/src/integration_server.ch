@@ -377,6 +377,11 @@ func srv_serve_http_loop(env : &mut TestEnv, ssl_mem : *mut SSLContext, mode : s
 func srv_launch_hcli(port : uint, host : string_view, py_mode : string_view,
                       cafile : string_view, ciphers : string_view, result_file : string_view) {
     test_ensure_tmp_dir()
+    // Truncate any stale verdict file so the poller never reads an old
+    // RESULT:FAIL from a previous suite run before python finishes writing.
+    var rf = string(&result_file)
+    var zero : u8 = 0
+    test_write_file(rf.data(), &raw zero, 0)
     var bg = test_py_interp()
     bg.append_view("/tmp/tls_utils.py hcli ")
     bg.append_view(&host)

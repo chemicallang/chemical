@@ -1810,6 +1810,16 @@ public namespace tls {
             buf[alpn_len_pos + 1] = (alpn_data_len & 0xFF) as u8
         }
 
+        // SessionTicket extension (RFC 5077, empty offer). Servers only send
+        // a NewSessionTicket when the client advertises support — without it
+        // ssl_read_new_session_ticket() would wait for a message that never
+        // arrives. Empty (zero-length) data means "issue me a new ticket".
+        if(ssl.conf != null && ssl.conf.session_tickets != 0) {
+            buf[pos] = ((TLS_EXT_SESSION_TICKET >> 8) & 0xFF) as u8; pos += 1
+            buf[pos] = (TLS_EXT_SESSION_TICKET & 0xFF) as u8; pos += 1
+            buf[pos] = 0 as u8; pos += 1; buf[pos] = 0 as u8; pos += 1  // empty ext data
+        }
+
         // psk_key_exchange_modes (TLS 1.3 resumption). The pre_shared_key
         // extension itself is appended AFTER key_share, since it MUST be the
         // last extension (RFC 8446 §4.2.11). Only offered when a session
@@ -3010,13 +3020,48 @@ public namespace tls {
         ssl_hash_handshake_msg(&raw mut hash_ctx, SSL_HS_FINISHED as u8, 12, &raw client_finished[0])
 
         // 9. Read Server's ChangeCipherSpec + Finished
+        // RFC 5077 §3.3: a session-aware server sends NewSessionTicket
+        // BEFORE its ChangeCipherSpec — accept it here instead of treating
+        // it as an unexpected message. The ticket is stored immediately,
+        // its bytes are hashed into the transcript (matching peer behavior)
+        // and pushed back onto the input buffer so the post-handshake API
+        // (ssl_read_new_session_ticket) can still consume it explicitly.
         ssl.state = SSLState.SERVER_CHANGE_CIPHER_SPEC()
+        unsafe var nst_copy : [8192]u8
+        var nst_push_len : size_t = 0
         ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                   &raw mut hs_buf[0], 8192)
+        while(ret == 0 && hs_type == SSL_HS_NEW_SESSION_TICKET as u8) {
+            ssl_hash_handshake_msg(&raw mut hash_ctx, SSL_HS_NEW_SESSION_TICKET as u8,
+                                    hs_len, &raw hs_buf[4])
+            ssl_process_new_session_ticket(ssl, &raw hs_buf[0], (4 + hs_len) as size_t)
+            var nc : size_t = 0
+            while(nc < (4 + hs_len) && nc < 8192) { nst_copy[nc] = hs_buf[nc]; nc += 1 }
+            nst_push_len = (4 + hs_len) as size_t
+            if(nst_push_len > 8192) { nst_push_len = 8192 }
+            ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
+                                      &raw mut hs_buf[0], 8192)
+        }
         if(ret < 0) { return ret }
-
-        // Verify server's Finished
         if(hs_type == SSL_HS_FINISHED as u8) {
+            // Push the consumed NewSessionTicket back onto the input buffer
+            // as a complete plaintext record so the post-handshake API
+            // (ssl_read_new_session_ticket) can still consume it explicitly.
+            if(nst_push_len > 0 && ssl.in_left + (nst_push_len as i32) + 5 <= 17408) {
+                var shift_i : i32 = ssl.in_left - 1
+                while(shift_i >= 0) {
+                    ssl.in_buf[nst_push_len + 5 + shift_i] = ssl.in_buf[shift_i]
+                    shift_i -= 1
+                }
+                ssl.in_buf[0] = SSL_MSG_HANDSHAKE as u8
+                ssl.in_buf[1] = 3 as u8
+                ssl.in_buf[2] = 3 as u8
+                ssl.in_buf[3] = ((nst_push_len >> 8) & 0xFF) as u8
+                ssl.in_buf[4] = (nst_push_len & 0xFF) as u8
+                var pc : size_t = 0
+                while(pc < nst_push_len) { ssl.in_buf[5 + pc] = nst_copy[pc]; pc += 1 }
+                ssl.in_left = ssl.in_left + (nst_push_len as i32) + 5
+            }
         unsafe var server_hs_hash : [32]u8
             crypto::sha256_final(&raw mut hash_ctx, &raw mut server_hs_hash[0])
 
@@ -3528,10 +3573,13 @@ public namespace tls {
                             if(ext_data_start + ext_data_len > ee_end) { break }
                             if(ext_type == TLS_EXT_ALPN && ext_data_len >= 5) {
                                 var alpn_list_len = read_u16_be(&raw msg_buf[ext_data_start]) as size_t
-                                if(alpn_list_len >= 3 && alpn_list_len <= ext_data_len - 2) {
+                                // List content: [name_len(1)][name...] so a
+                                // usable entry needs at least len+1 bytes and
+                                // must fit inside the announced vector.
+                                if(alpn_list_len >= 1 && alpn_list_len <= ext_data_len - 2) {
                                     var name_pos = ext_data_start + 2
                                     var alpn_name_len = msg_buf[name_pos] as size_t
-                                    if(alpn_name_len > 0 && alpn_name_len + 1 <= alpn_list_len - 2 &&
+                                    if(alpn_name_len > 0 && alpn_name_len + 1 <= alpn_list_len &&
                                        name_pos + 1 + alpn_name_len <= ee_end) {
                                         // Store negotiated protocol
                                         var alpn_mem = malloc(alpn_name_len + 1) as *mut u8
@@ -4901,10 +4949,17 @@ public namespace tls {
 
         var nst_pos : size_t = 4
         var lifetime = read_u32_be(&raw buf[nst_pos]); nst_pos += 4
-        nst_pos += 4  // skip age_add
-        var nonce_len = buf[nst_pos] as size_t
-        var nonce_pos : size_t = nst_pos + 1
-        nst_pos += 1 + nonce_len
+        var nonce_len : size_t = 0
+        var nonce_pos : size_t = 0
+        // TLS 1.3 NST: [lifetime u32][age_add u32][nonce<0..255>][ticket<0..2^16-1>]
+        // TLS 1.2 (RFC 5077) NST: [lifetime u32][ticket<0..2^16-1>] — no age
+        // add and no nonce field.
+        if(ssl.tls_version >= SSL_VERSION_TLS1_3) {
+            nst_pos += 4  // skip age_add
+            nonce_len = buf[nst_pos] as size_t
+            nonce_pos = nst_pos + 1
+            nst_pos += 1 + nonce_len
+        }
         var ticket_len = read_u16_be(&raw buf[nst_pos]) as size_t; nst_pos += 2
 
         if(ticket_len > 0 && ticket_len < 4096 && nst_pos + ticket_len <= 4 + msg_len as size_t) {
@@ -4922,16 +4977,18 @@ public namespace tls {
             ssl.session.ticket_len = ticket_len
             ssl.session.ticket_lifetime = lifetime
 
-            // Resumption PSK per RFC 8446 §4.6.1:
+            // Resumption PSK per RFC 8446 §4.6.1 (TLS 1.3 only):
             //   PSK = HKDF-Expand-Label(resumption_master_secret, "resumption",
             //                           ticket_nonce, Hash.length)
-            var res_label = "resumption\0" as *char
-            var bounded_nonce : size_t = nonce_len
-            if(bounded_nonce > 32) { bounded_nonce = 32 }
-            tls13_hkdf_expand_label(&raw ssl.tls13_keys.resumption_master_secret[0], 32,
-                                    res_label, 10, &raw buf[nonce_pos], bounded_nonce,
-                                    &raw mut ssl.session.resumption_key[0], 32)
-            ssl.session.resumption_key_len = 32 as u8
+            if(ssl.tls_version >= SSL_VERSION_TLS1_3) {
+                var res_label = "resumption\0" as *char
+                var bounded_nonce : size_t = nonce_len
+                if(bounded_nonce > 32) { bounded_nonce = 32 }
+                tls13_hkdf_expand_label(&raw ssl.tls13_keys.resumption_master_secret[0], 32,
+                                        res_label, 10, &raw buf[nonce_pos], bounded_nonce,
+                                        &raw mut ssl.session.resumption_key[0], 32)
+                ssl.session.resumption_key_len = 32 as u8
+            }
         }
     }
 

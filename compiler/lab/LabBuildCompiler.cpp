@@ -2409,7 +2409,8 @@ int LabBuildCompiler::translate_mod_file_to_lab(
     const auto isModFileOk = ASTProcessor::import_chemical_mod_file(allocator, allocator, loc_man, modFileData, modFileId, modFilePath.view());
 
     // print the result
-    ASTDiagnoser::print_diagnostics(modFileData.diagnostics, modFilePath, "Parser");
+    Diagnoser::print_diagnostics(modFileData.lex_diagnostics, modFilePath, "Lexer");
+    Diagnoser::print_diagnostics(modFileData.parse_diagnostics, modFilePath, "Parser");
 
     // check
     if(!isModFileOk) {
@@ -2515,7 +2516,8 @@ LabModule* LabBuildCompiler::build_module_from_mod_file(
     const auto isModFileOk = ASTProcessor::import_chemical_mod_file(*file_allocator, *mod_allocator, loc_man, modFileData, modFileId, modFilePathView);
 
     // printing the diagnostics for the file
-    Diagnoser::print_diagnostics(modFileData.diagnostics, modFilePathChemView, "Parser");
+    Diagnoser::print_diagnostics(modFileData.lex_diagnostics, modFilePathChemView, "Lexer");
+    Diagnoser::print_diagnostics(modFileData.parse_diagnostics, modFilePathChemView, "Parser");
 
     // error out if not ok
     if (!isModFileOk) {

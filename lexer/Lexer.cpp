@@ -870,6 +870,10 @@ Token Lexer::getNextToken() {
             if(!isIdentifierStart(first)) {
                 diagnoser.diagnostic(AnnotMacroStartErr, chem::string_view(file_path), pos, provider.position(), DiagSeverity::Error);
             }
+            if (binder == nullptr) {
+                diagnoser.diagnostic("unexpected '#' token, when no macro processing context exists", chem::string_view(file_path), pos, provider.position(), DiagSeverity::Error);
+                return Token(TokenType::Unexpected, { "#", 1 }, pos);
+            }
             read_annotation_id(provider);
             auto hashed_view = view_from(provider, curr_data_ptr);
             auto view = chem::string_view((hashed_view.data() + 1), hashed_view.size() - 1);

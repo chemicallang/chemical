@@ -6,6 +6,7 @@ import cstd
 import std
 import test_env
 import page
+import css_cbi
 import universal_cbi
 import html_cbi
 

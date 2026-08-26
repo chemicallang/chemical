@@ -228,9 +228,10 @@ public func NEG_raw_http_to_chemical_tls_server_fails(env : &mut TestEnv) {
         env.error("raw http: listen failed"); return
     }
 
-    // plaintcp connects, reads (our ClientHello), then answers with plain
-    // HTTP-ish text (single token) — the hostile-input case for the handshake.
-    test_py_run_background(string_view("plaintcp 20125 GET 1"))
+    // rawcli CONNECTS to our listening TLS server and dumps plain
+    // HTTP-ish text at it — the hostile-input case for the handshake.
+    // (plaintcp is a listener itself and would collide with listen_addr.)
+    test_py_run_background(string_view("rawcli 127.0.0.1 20125 GET"))
     test_server_wait()
 
     net::set_nonblocking(server_sock)

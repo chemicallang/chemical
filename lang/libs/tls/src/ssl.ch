@@ -42,8 +42,9 @@ public namespace tls {
     // ============================================================================
     // TLS PRF (Pseudo-Random Function) for TLS 1.2
     // ============================================================================
-    // Implements TLS 1.2 PRF = P_SHA256(secret, label + seed)
-    // As defined in RFC 5246 section 5
+    // Implements TLS 1.2 PRF = P_<hash>(secret, label + seed)
+    // As defined in RFC 5246 section 5. The hash is SHA-256 for most suites
+    // and SHA-384 for the AES_256_GCM_SHA384 family (use_sha384 = true).
 
     public func tls12_prf(secret : *u8, secret_len : size_t,
                            label : *char, label_len : size_t,
@@ -105,6 +106,47 @@ public namespace tls {
 
             // Compute next A(i+1) = HMAC(secret, A(i))
             crypto::hmac_sha256(secret, secret_len, A, 32, &raw mut A[0])
+        }
+    }
+
+    // SHA-384 variant of the TLS 1.2 PRF for the AES_256_GCM_SHA384 family.
+    // Structurally identical to tls12_prf above with 48-byte hash blocks.
+    public func tls12_prf_sha384(secret : *u8, secret_len : size_t,
+                                  label : *char, label_len : size_t,
+                                  seed : *u8, seed_len : size_t,
+                                  output : *mut u8, output_len : size_t) {
+
+        var combined_len : size_t = label_len + seed_len
+        unsafe var combined : [512]u8
+        var i : size_t = 0
+        while(i < label_len) {
+            combined[i] = label[i] as u8
+            i += 1
+        }
+        while(i < combined_len) {
+            combined[i] = seed[i - label_len]
+            i += 1
+        }
+        // NOTE: A is padded to 64 bytes; a 48-byte stack array here triggered a
+        // TCC stack-frame miscompilation of this function in the large TLS TU.
+        unsafe var A : [64]u8
+        var generated : size_t = 0
+        crypto::hmac_sha384(secret, secret_len, combined, combined_len, &raw mut A[0])
+        var block_in_len : size_t = 48 + combined_len
+        while(generated < output_len) {
+            unsafe var block_in : [544]u8
+            unsafe var block_out : [64]u8
+            var j : size_t = 0
+            while(j < 48) { block_in[j] = A[j]; j += 1 }
+            while(j < block_in_len) { block_in[j] = combined[j - 48]; j += 1 }
+            crypto::hmac_sha384(secret, secret_len, block_in, block_in_len, &raw mut block_out[0])
+            var copy_size : size_t = output_len - generated
+            if(copy_size > 48 as size_t) { copy_size = 48 as size_t }
+            var k : size_t = 0
+            while(k < copy_size) { output[generated + k] = block_out[k]; k += 1 }
+            generated += copy_size
+            if(generated >= output_len) { break }
+            crypto::hmac_sha384(secret, secret_len, A, 48, &raw mut A[0])
         }
     }
 
@@ -689,7 +731,8 @@ public namespace tls {
     // master_secret = PRF(pre_master_secret, "master secret", ClientHello.random + ServerHello.random)[0..47]
     public func tls12_derive_master_secret(pre_master : *u8, pre_master_len : size_t,
                                             client_random : *u8, server_random : *u8,
-                                            master_secret : *mut u8) {
+                                            master_secret : *mut u8,
+                                            use_sha384 : bool = false) {
         // Build seed = ClientRandom + ServerRandom (64 bytes total)
         unsafe var seed : [64]u8
         var i : size_t = 0
@@ -700,7 +743,11 @@ public namespace tls {
         }
 
         var label = "master secret\0" as *char
-        tls12_prf(pre_master, pre_master_len, label, 13, &raw seed[0], 64, master_secret, 48)
+        if(use_sha384) {
+            tls12_prf_sha384(pre_master, pre_master_len, label, 13, &raw seed[0], 64, master_secret, 48)
+        } else {
+            tls12_prf(pre_master, pre_master_len, label, 13, &raw seed[0], 64, master_secret, 48)
+        }
     }
 
     // Derive key block from master secret (RFC 5246 Section 6.3)
@@ -708,7 +755,8 @@ public namespace tls {
     // The key_block is split as needed for the cipher suite
     public func tls12_derive_key_block(master_secret : *u8,
                                         server_random : *u8, client_random : *u8,
-                                        key_block : *mut u8, key_block_len : size_t) {
+                                        key_block : *mut u8, key_block_len : size_t,
+                                        use_sha384 : bool = false) {
         // Build seed = ServerRandom + ClientRandom (reversed from master secret derivation)
         unsafe var seed : [64]u8
         var i : size_t = 0
@@ -719,7 +767,11 @@ public namespace tls {
         }
 
         var label = "key expansion\0" as *char
-        tls12_prf(master_secret, 48, label, 13, &raw seed[0], 64, key_block, key_block_len)
+        if(use_sha384) {
+            tls12_prf_sha384(master_secret, 48, label, 13, &raw seed[0], 64, key_block, key_block_len)
+        } else {
+            tls12_prf(master_secret, 48, label, 13, &raw seed[0], 64, key_block, key_block_len)
+        }
     }
 
     // Compute the key block size needed for a cipher suite
@@ -822,15 +874,21 @@ public namespace tls {
     // verify_data = PRF(master_secret, finished_label, SHA256(handshake_messages))[0..11]
     public func tls12_compute_finished(master_secret : *u8, is_client : bool,
                                         handshake_hash : *u8, hash_len : size_t,
-                                        verify_data : *mut u8) {
+                                        verify_data : *mut u8,
+                                        use_sha384 : bool = false) {
         unsafe var label : *char
         if(is_client) {
             label = "client finished\0" as *char
         } else {
             label = "server finished\0" as *char
         }
-        tls12_prf(master_secret, 48, label, 15,
-                   handshake_hash, hash_len, verify_data, 12)
+        if(use_sha384) {
+            tls12_prf_sha384(master_secret, 48, label, 15,
+                              handshake_hash, hash_len, verify_data, 12)
+        } else {
+            tls12_prf(master_secret, 48, label, 15,
+                       handshake_hash, hash_len, verify_data, 12)
+        }
     }
 
     // ============================================================================
@@ -1641,18 +1699,15 @@ public namespace tls {
         while(i < ssl.conf.ciphersuite_count) {
             var cs_id = ssl.conf.ciphersuite_list[i]
             if(cs_id != 0) {
-                // In TLS 1.2 mode, skip TLS 1.3-only cipher suites and ECDHE/SHA-384 ciphers
+                // Only version-gate the offer: TLS 1.3-only suites are dropped
+                // when the config caps the version at TLS 1.2. Capability
+                // filtering is NOT applied here — explicit ciphersuite_list
+                // configurations are offered verbatim (unsupported picks are
+                // rejected gracefully after the ServerHello).
                 var skip_cs : bool = false
                 var cs_info = get_ciphersuite_info(cs_id)
                 if(!supports_tls13) {
                     if(cs_info.max_tls_version >= SSL_VERSION_TLS1_3 as u8) {
-                        skip_cs = true
-                    }
-                    // TLS 1.2 client only supports RSA key exchange (not ECDHE) and SHA-256 PRF
-                    if(cs_info.key_exchange != KE_RSA as u8 && cs_info.key_exchange != KE_NONE as u8) {
-                        skip_cs = true
-                    }
-                    if(cs_info.hash != HASH_SHA256 as u8 && cs_info.hash != HASH_NONE as u8) {
                         skip_cs = true
                     }
                 }
@@ -2017,6 +2072,24 @@ public namespace tls {
         crypto::sha256_update(hash_ctx, &raw hdr[0], 4)
         if(msg_len > 0) {
             crypto::sha256_update(hash_ctx, msg_body, msg_len as size_t)
+        }
+    }
+
+    // Dual-hash variant for TLS 1.2: keeps SHA-256 and SHA-384 transcripts in
+    // lockstep so either can be finalized once the negotiated ciphersuite is
+    // known (SHA-384 PRF suites hash the transcript with SHA-384).
+    func tls12_hash_handshake_msg_both(h256 : *mut crypto::Sha256Context,
+                                        h384 : *mut crypto::Sha512Context,
+                                        msg_type : u8, msg_len : u32,
+                                        msg_body : *u8) {
+        unsafe var hdr : [4]u8
+        hdr[0] = msg_type
+        write_u24(msg_len, &raw mut hdr[1])
+        crypto::sha256_update(h256, &raw hdr[0], 4)
+        crypto::sha384_update(h384, &raw hdr[0], 4)
+        if(msg_len > 0) {
+            crypto::sha256_update(h256, msg_body, msg_len as size_t)
+            crypto::sha384_update(h384, msg_body, msg_len as size_t)
         }
     }
 
@@ -2758,9 +2831,15 @@ public namespace tls {
     func do_tls12_client_handshake(ssl : *mut SSLContext) : int {
         ensure_init()
 
-        // ── Handshake transcript hash context ──
+        // ── Handshake transcript hash context (dual SHA-256 + SHA-384) ──
+        // Both are kept up to date; after the ServerHello reveals the
+        // ciphersuite, the matching one is finalized (SHA-384 PRF suites
+        // per RFC 5246 §5 hash the transcript with SHA-384).
         unsafe var hash_ctx : crypto::Sha256Context
         crypto::sha256_init(&raw mut hash_ctx)
+        unsafe var hash_ctx_384 : crypto::Sha512Context
+        crypto::sha384_init(&raw mut hash_ctx_384)
+        var use_sha384 : bool = false
 
         // 1. Send ClientHello
         ssl.state = SSLState.CLIENT_HELLO()
@@ -2769,7 +2848,7 @@ public namespace tls {
         var ch_len = build_client_hello(ssl, &raw mut ch_buf[0], 2048)
 
         // Feed ClientHello into transcript hash (including handshake header)
-        ssl_hash_handshake_msg(&raw mut hash_ctx, SSL_HS_CLIENT_HELLO as u8, ch_len as u32, &raw ch_buf[0])
+        tls12_hash_handshake_msg_both(&raw mut hash_ctx, &raw mut hash_ctx_384, SSL_HS_CLIENT_HELLO as u8, ch_len as u32, &raw ch_buf[0])
 
         var ret = send_handshake_msg(ssl, SSL_HS_CLIENT_HELLO as u8, &raw ch_buf[0], ch_len as u32)
         if(ret < 0) { return ret }
@@ -2803,10 +2882,26 @@ public namespace tls {
         }
 
         // Feed ServerHello into transcript hash (body starts at hs_buf[4] after 4-byte header)
-        ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[4])
+        tls12_hash_handshake_msg_both(&raw mut hash_ctx, &raw mut hash_ctx_384, hs_type, hs_len, &raw hs_buf[4])
 
         ret = parse_server_hello(ssl, &raw hs_buf[0], hs_len)
         if(ret < 0) { return ret }
+
+        // ── Capability gate for the negotiated TLS 1.2 suite ──
+        // This client implements the RSA key exchange (plus NKE suites) with
+        // SHA-256 / SHA-384 PRFs. Anything else (e.g. ECDHE) is rejected
+        // gracefully here rather than mis-negotiated.
+        var cs_info_early = get_ciphersuite_info(ssl.negotiated_ciphersuite)
+        if(cs_info_early.hash == HASH_SHA384 as u8) {
+            use_sha384 = true
+        } else if(cs_info_early.hash != HASH_SHA256 as u8 && cs_info_early.hash != HASH_NONE as u8) {
+            send_alert(ssl, SSL_ALERT_LEVEL_FATAL as u8, SSL_ALERT_MSG_HANDSHAKE_FAILURE as u8)
+            return ERR_SSL_HANDSHAKE_FAILURE
+        }
+        if(cs_info_early.key_exchange != KE_RSA as u8 && cs_info_early.key_exchange != KE_NONE as u8) {
+            send_alert(ssl, SSL_ALERT_LEVEL_FATAL as u8, SSL_ALERT_MSG_HANDSHAKE_FAILURE as u8)
+            return ERR_SSL_HANDSHAKE_FAILURE
+        }
 
         // Copy server random (bytes 6-37 of hs_buf)
         i = 0
@@ -2816,6 +2911,7 @@ public namespace tls {
         }
 
         // Record negotiated ciphersuite (already set by parse_server_hello)
+        printf("[DBG-TLS12] SH done suite=%d\n", ssl.negotiated_ciphersuite as int)
 
         // 3. Read Certificate
         ssl.state = SSLState.SERVER_CERTIFICATE()
@@ -2832,7 +2928,7 @@ public namespace tls {
             ssl.state = SSLState.SERVER_KEY_EXCHANGE()
 
             // Feed Certificate into transcript hash (body starts at hs_buf[4])
-            ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[4])
+            tls12_hash_handshake_msg_both(&raw mut hash_ctx, &raw mut hash_ctx_384, hs_type, hs_len, &raw hs_buf[4])
 
             // Parse the full server certificate chain (leaf first, then any
             // intermediates). Certificate message layout (TLS 1.2):
@@ -2877,7 +2973,7 @@ public namespace tls {
             }
         } else if(hs_type == SSL_HS_SERVER_HELLO_DONE as u8) {
             ssl.state = SSLState.SERVER_HELLO_DONE()
-            ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[4])
+            tls12_hash_handshake_msg_both(&raw mut hash_ctx, &raw mut hash_ctx_384, hs_type, hs_len, &raw hs_buf[4])
         }
 
         // 4. Read ServerKeyExchange (if present) or ServerHelloDone
@@ -2886,7 +2982,7 @@ public namespace tls {
             ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                       &raw mut hs_buf[0], 8192)
             if(ret < 0) { return ret }
-            ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[4])
+            tls12_hash_handshake_msg_both(&raw mut hash_ctx, &raw mut hash_ctx_384, hs_type, hs_len, &raw hs_buf[4])
             if(hs_type == SSL_HS_SERVER_HELLO_DONE as u8) {
                 // RSA key exchange: ServerHelloDone received directly after Certificate
                 got_shd = true
@@ -2901,16 +2997,17 @@ public namespace tls {
                 ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                           &raw mut hs_buf[0], 8192)
                 if(ret < 0) { return ret }
-                ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[4])
+                tls12_hash_handshake_msg_both(&raw mut hash_ctx, &raw mut hash_ctx_384, hs_type, hs_len, &raw hs_buf[4])
             } else {
                 // Certificate was not present, read ServerHelloDone
                 ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                           &raw mut hs_buf[0], 8192)
                 if(ret < 0) { return ret }
-                ssl_hash_handshake_msg(&raw mut hash_ctx, hs_type, hs_len, &raw hs_buf[4])
+                tls12_hash_handshake_msg_both(&raw mut hash_ctx, &raw mut hash_ctx_384, hs_type, hs_len, &raw hs_buf[4])
             }
         }
 
+        printf("[DBG-TLS12] cert+SHD done\n")
         // ── Generate pre-master secret (TLS_RSA key exchange) ──
         // For TLS 1.2 RSA: pre_master_secret = ClientHello.version (2 bytes) + 46 random bytes
         unsafe var pre_master : [48]u8
@@ -2946,7 +3043,8 @@ public namespace tls {
             &raw pre_master[0], 48,
             &raw ssl.handshake.randbytes[0],   // client random
             &raw ssl.handshake.randbytes[32],  // server random
-            &raw mut master_secret[0]
+            &raw mut master_secret[0],
+            use_sha384
         )
 
         // Store master secret in session
@@ -2966,7 +3064,8 @@ public namespace tls {
             &raw master_secret[0],
             &raw ssl.handshake.randbytes[32],  // server random
             &raw ssl.handshake.randbytes[0],   // client random
-            &raw mut key_block[0], kb_size
+            &raw mut key_block[0], kb_size,
+            use_sha384
         )
 
         // 6. Send ClientKeyExchange (must be sent BEFORE transform activation per RFC 5246)
@@ -2976,7 +3075,20 @@ public namespace tls {
         if(ret < 0) { return ret }
 
         // Feed ClientKeyExchange into transcript hash
-        ssl_hash_handshake_msg(&raw mut hash_ctx, SSL_HS_CLIENT_KEY_EXCHANGE as u8, cke_len as u32, &raw cke_data[0])
+        tls12_hash_handshake_msg_both(&raw mut hash_ctx, &raw mut hash_ctx_384, SSL_HS_CLIENT_KEY_EXCHANGE as u8, cke_len as u32, &raw cke_data[0])
+
+        printf("[DBG-TLS12] cr=")
+        var dbgi : size_t = 0
+        while(dbgi < 32) { printf("%02x", ssl.handshake.randbytes[dbgi] as int); dbgi += 1 }
+        printf(" sr=")
+        dbgi = 0
+        while(dbgi < 32) { printf("%02x", ssl.handshake.randbytes[32 + dbgi] as int); dbgi += 1 }
+        printf("\n[DBG-TLS12] ms=")
+        dbgi = 0
+        while(dbgi < 48) { printf("%02x", master_secret[dbgi] as int); dbgi += 1 }
+        printf("\n[DBG-TLS12] kb=")
+        dbgi = 0
+        while(dbgi < 72) { printf("%02x", key_block[dbgi] as int); dbgi += 1 }
 
         // 7. Send ChangeCipherSpec (in the clear!)
         ssl.state = SSLState.CLIENT_CHANGE_CIPHER_SPEC()
@@ -3003,13 +3115,25 @@ public namespace tls {
         while(i < 8) { ssl.in_ctr[i] = 0; ssl.out_ctr[i] = 0; i += 1 }
 
         // ── Finalize handshake transcript hash (includes all msgs up to CKE) ──
-        unsafe var client_hs_hash : [32]u8
+        unsafe var client_hs_hash : [48]u8
         var copy_ctx = hash_ctx
-        crypto::sha256_final(&raw mut copy_ctx, &raw mut client_hs_hash[0])
+        var copy_ctx_384 = hash_ctx_384
+        var cf_hash_len : size_t = 32 as size_t
+        if(use_sha384) { cf_hash_len = 48 as size_t }
+        if(use_sha384) {
+            crypto::sha384_final(&raw mut copy_ctx_384, &raw mut client_hs_hash[0])
+        } else {
+            crypto::sha256_final(&raw mut copy_ctx, &raw mut client_hs_hash[0])
+        }
 
         // ── Compute client Finished verify_data ──
         unsafe var client_finished : [12]u8
-        tls12_compute_finished(&raw master_secret[0], true, &raw client_hs_hash[0], 32, &raw mut client_finished[0])
+        tls12_compute_finished(&raw master_secret[0], true, &raw client_hs_hash[0], cf_hash_len, &raw mut client_finished[0], use_sha384)
+
+        printf("[DBG-TLS12] cf=")
+        var dbgj : size_t = 0
+        while(dbgj < 12) { printf("%02x", client_finished[dbgj] as int); dbgj += 1 }
+        printf("\n")
 
         // 8. Send Finished (with verify_data)
         ssl.state = SSLState.CLIENT_FINISHED()
@@ -3017,8 +3141,9 @@ public namespace tls {
         if(ret < 0) { return ret }
 
         // Feed Client Finished message into transcript hash for verifying Server Finished
-        ssl_hash_handshake_msg(&raw mut hash_ctx, SSL_HS_FINISHED as u8, 12, &raw client_finished[0])
+        tls12_hash_handshake_msg_both(&raw mut hash_ctx, &raw mut hash_ctx_384, SSL_HS_FINISHED as u8, 12, &raw client_finished[0])
 
+        printf("[DBG-TLS12] client Finished sent\n")
         // 9. Read Server's ChangeCipherSpec + Finished
         // RFC 5077 §3.3: a session-aware server sends NewSessionTicket
         // BEFORE its ChangeCipherSpec — accept it here instead of treating
@@ -3032,7 +3157,7 @@ public namespace tls {
         ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                   &raw mut hs_buf[0], 8192)
         while(ret == 0 && hs_type == SSL_HS_NEW_SESSION_TICKET as u8) {
-            ssl_hash_handshake_msg(&raw mut hash_ctx, SSL_HS_NEW_SESSION_TICKET as u8,
+            tls12_hash_handshake_msg_both(&raw mut hash_ctx, &raw mut hash_ctx_384, SSL_HS_NEW_SESSION_TICKET as u8,
                                     hs_len, &raw hs_buf[4])
             ssl_process_new_session_ticket(ssl, &raw hs_buf[0], (4 + hs_len) as size_t)
             var nc : size_t = 0
@@ -3062,14 +3187,20 @@ public namespace tls {
                 while(pc < nst_push_len) { ssl.in_buf[5 + pc] = nst_copy[pc]; pc += 1 }
                 ssl.in_left = ssl.in_left + (nst_push_len as i32) + 5
             }
-        unsafe var server_hs_hash : [32]u8
-            crypto::sha256_final(&raw mut hash_ctx, &raw mut server_hs_hash[0])
+        unsafe var server_hs_hash : [48]u8
+            var sf_hash_len : size_t = 32 as size_t
+            if(use_sha384) { sf_hash_len = 48 as size_t }
+            if(use_sha384) {
+                crypto::sha384_final(&raw mut hash_ctx_384, &raw mut server_hs_hash[0])
+            } else {
+                crypto::sha256_final(&raw mut hash_ctx, &raw mut server_hs_hash[0])
+            }
 
             // Compute expected server verify_data using transcript hash including Client Finished
             unsafe var expected_server_finished : [12]u8
             tls12_compute_finished(&raw master_secret[0], false,
-                                    &raw server_hs_hash[0], 32,
-                                    &raw mut expected_server_finished[0])
+                                    &raw server_hs_hash[0], sf_hash_len,
+                                    &raw mut expected_server_finished[0], use_sha384)
 
             // Compare against received server Finished
             var verify_match = true

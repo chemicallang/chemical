@@ -792,6 +792,14 @@ The C backend should have a `CModuleEmitter` and `CFunctionEmitter`.
 The emitter must write to a function-local buffer or output object. It must not
 share mutable current-function state between threads.
 
+All output operations in the MIR emitter must be fallible. `BufferedWriter`
+currently aborts on allocation failure; MIR code must not inherit that contract.
+The emitter must return an emission status for success, unsupported feature,
+I/O failure, or allocation failure, and must never publish a partial artifact.
+Allocation failure must unwind the worker and fail compilation cleanly rather
+than calling `abort` or dereferencing a null buffer. This is required by the
+no-crash policy and matters when several workers exhaust memory concurrently.
+
 Emission is transactional. A backend writes an artifact into a private buffer,
 runs its backend verifier or syntax validation where available, and publishes
 the buffer only on success. A diagnostic or unsupported operation discards the
@@ -1376,6 +1384,48 @@ and must be benchmarked in `debug_quick`; MIR itself must not assume that the
 number of C artifacts equals the number of source files. Per-file artifacts must
 still receive the complete declaration snapshot/header described above.
 
+### 14.0.2 Sealing, discovery, and worker contracts
+
+The phrase “fresh emitter per file” is safe only after a serial preparation
+step. MIR lowering is not allowed to discover new module symbols as a side
+effect of a worker task. Before submitting tasks, the coordinator must:
+
+1. finish parsing, symbol resolution, generic instantiation, and type
+   verification;
+2. enumerate every concrete function body that may be emitted, including
+   nested/capturing lambdas and already-required generic functions;
+3. assign deterministic declaration, function, type, ABI, runtime-support, and
+   output-order IDs; and
+4. build and seal an immutable `MIRModuleContext` containing the target layout,
+   canonical type descriptions, symbol/linkage records, lambda environment
+   descriptions, and declaration snapshot.
+
+If lowering a function would require a new generic instantiation, lambda
+declaration, type, runtime helper, or symbol, that is a pipeline error in the
+first implementation. Later implementations may send an explicit request to
+the coordinator, pause the worker at a barrier, perform the insertion
+serially, and resume with a new sealed snapshot. A worker must never mutate a
+shared table or use mutex-protected insertion in the instruction hot path.
+
+Nested lambdas are functions in MIR, not anonymous C text inside their parent.
+Their environment type, capture order, function symbol, and body must be
+assigned during discovery so workers cannot race while inventing names or
+declarations. A lambda body may be emitted by the same file task initially,
+but it must occupy its own stable function artifact slot.
+
+The immutable context must own or reference data whose lifetime extends past
+all workers. It may not contain views into an allocator reset between AST
+passes. AST pointers are permitted only transiently while lowering the current
+source node; they must not escape into `MIRModuleContext`, an artifact, or a
+retained diagnostic.
+
+The coordinator owns scheduling and publication. A worker owns only its
+`MIRWorkerContext` and its in-progress artifact. It must not print diagnostics,
+append to the final C writer, update shared timing state, or call `reset()` or
+`file_level_reset()` on the shared `ToCAstVisitor`. Worker results are moved
+into preassigned slots and published only after lowering, mode-required
+validation, and backend emission complete.
+
 ### 14.1 Ownership boundaries
 
 The unit of parallel work should be a `MIRFunctionArtifact` containing:
@@ -1448,7 +1498,7 @@ policy is:
 | Verification | disabled by default; only typed builder assertions and essential backend checks |
 | MIR optimization | none |
 | CFG processing | construct blocks directly; no global canonicalization/dominance pass |
-| C emission | direct sequential emission with TinyCC-compatible spellings; no separate optimization pass |
+| C emission | direct sequential emission with TinyCC-compatible spellings; no separate global optimization pass |
 | Output | private function buffer, then one deterministic merge |
 | Diagnostics | collect only errors that are needed to continue/fail; do not format source snippets eagerly |
 
@@ -1458,11 +1508,28 @@ the builder API must make invalid IDs and malformed payloads difficult to create
 and the emitter must return failure rather than crash if defensive checks detect
 bad input.
 
-The C emitter may print a pure MIR result inline when that requires no analysis
-or reordering, but `debug_quick` must not build a separate optimized expression
-graph. Any expression fusion that requires use-count, alias, dominance, or
-effect analysis belongs to release modes. The quick path must prefer predictable
-linear work over a smaller C file.
+The C emitter may print a pure MIR result inline when that requires no
+reordering. This is a representation choice, not a MIR optimization pass. To
+make this cheap and deterministic, each function value record should maintain a
+dense use count while operands are appended. A pure scalar instruction may be
+printed inline when it has one use, its operands are already available in the
+same straight-line region, and its opcode is on the TinyCC-safe whitelist. No
+expression DAG, hash-map analysis, alias analysis, or dominance pass is allowed
+for this decision. The use-count update is O(1) per operand, so the quick path
+still performs linear lowering/emission while avoiding unnecessary arithmetic
+locals.
+
+This micro-compaction must never apply to calls, loads with possible aliasing,
+stores, allocations, lifetime operations, volatile/atomic operations, trapping
+operations, or expressions whose operands cross a block edge. It must not be
+used to hide an evaluation-order decision. Otherwise the result is
+materialized as a local. The quick path must prefer predictable linear work
+over a smaller C file.
+
+A non-volatile load from a local scalar place that has not escaped and cannot be
+mutated between the load and its use may be treated as an expression leaf. This
+is the permitted case needed for `take(i * 8, i * 2, i * 4)` to remain compact;
+it is not permission to inline arbitrary memory reads.
 
 ### 14.6 Concrete hot representation
 
@@ -1484,6 +1551,12 @@ struct MIROperand {
     uint32_t type_or_kind;
 };
 ```
+
+The dense value table should also contain a small saturating use count. Increment
+it when an operand is recorded, not by walking a hash map later. If a value is
+referenced from multiple blocks or more than once, conservatively materialize
+it in C. This is deliberately weaker than a use-def graph and must not be
+presented as a general optimization analysis.
 
 The exact fields may change, but the following properties are mandatory:
 
@@ -1569,10 +1642,15 @@ module merge time
 
 The fast path should use a small inline buffer for each function emitter, for
 example 16--64 KiB, and grow through chunks or geometric capacity changes. A
-4 MiB allocation for every small function is wasteful; repeated `realloc` of a
-large module buffer can also copy all prior output. A final module writer may be
-contiguous, but function writers should return ownership of their already-built
-buffers without an extra copy.
+4 MiB allocation for every small function is wasteful. In particular, do not
+construct the current `BufferedWriter` with its 4 MiB default for every worker
+artifact. A small inline buffer or segmented/chunked output is required, with
+growth only for functions that need it. Repeated `realloc` of a large module
+buffer can also copy all prior output. A final module writer may be contiguous,
+but function writers should return ownership of their already-built buffers or
+segments. The merge must not copy an artifact into an intermediate string and
+then copy that string again into the final output; one final append is the
+maximum acceptable copy in the initial implementation.
 
 Do not optimize only for instruction count. A pass that removes three MIR
 instructions but performs a hash-map lookup, allocates an expression node, or
@@ -1609,6 +1687,25 @@ No worker may access mutable `ToCAstVisitor` state, shared temporary counters,
 shared writers, or a shared allocator. Shared module type/symbol tables must be
 immutable during this stage. Deterministic ordering is required even when file
 order is shuffled in debug builds.
+
+The first scheduler should use the existing compilation thread pool, but it
+must not create a new pool for each module or recursively submit one task per
+AST node. A module coordinator submits file tasks, waits at one explicit
+barrier, and then submits any function groups selected by the measured size
+threshold. A worker-local context may be reused by a thread-pool worker, but
+reuse is an optimization of storage, not shared ownership: reset all arena
+lengths, side-table lengths, counters, diagnostics, and references before the
+next task. On cancellation or failure, discard the whole context and artifact
+instead of attempting partial reuse.
+
+For the current `ASTProcessor`, this means retaining the serial declaration,
+type-alias, generic, and prototype phases. Replace the serial
+`implement_module()` body loop only after constructing the sealed context and a
+stable list of function bodies. The existing `ToCAstVisitor` remains a serial
+module-prologue visitor during migration. It must not be made concurrently
+callable by adding locks: its `current_scope`, `nested_value`, temporary
+counters, aliases, `local_allocated`, `destructible_refs`, and destructor jobs
+are logically per-function state mixed into one object.
 
 ### 14.10 Performance gates
 
@@ -1677,6 +1774,52 @@ LLVM: existing O0 behavior where LLVM is selected
 The compiler executable used for these benchmarks must itself be built in a
 performance-oriented configuration. Measuring a debug-built compiler and then
 attributing its overhead to MIR gives misleading results.
+
+### 14.12 Incremental parallel implementation sequence
+
+Parallelism must be introduced as a sequence of independently testable changes,
+not as a rewrite of `ASTProcessor`. The required order is:
+
+1. Add a worker-local MIR lowerer and C function emitter, but invoke it from
+   the existing serial `implement_module()` loop. Keep the existing module
+   prologue, prototypes, globals, generic declaration emission, and final
+   writer unchanged. Compare MIR C and legacy C on the complete TCC suite.
+2. Change the loop to produce one private artifact at a time, still serially.
+   This proves artifact ownership, stable names, cleanup, fallible output, and
+   legacy fallback without introducing scheduling nondeterminism.
+3. Pre-enumerate and assign stable function slots, then submit independent
+   file tasks to the existing thread pool. Each task reads the sealed module
+   context and returns artifacts plus local diagnostics. Merge slots in source
+   order and compare the merged C output and runtime behavior with the serial
+   MIR path.
+4. Batch small files and split only large files into function groups. Use a
+   measured threshold and retain one worker arena/emitter per task. Never use
+   one task per AST node or one global lock around emission.
+5. Only after parallel MIR-to-C is stable, consider parallel C/TinyCC object
+   compilation. Each compiler invocation must own its compiler state; the
+   final linker and output publication remain coordinated separately.
+
+Every step must be independently selectable by a feature flag and must retain
+the whole-function legacy fallback. A worker failure, unsupported MIR feature,
+or failed artifact validation must discard that artifact and choose the legacy
+whole-function path when the configured migration mode permits it. Do not mix
+legacy destructor scheduling with MIR cleanup inside one function.
+
+The minimum verification matrix for each step is:
+
+* serial legacy C versus serial MIR C;
+* serial MIR C versus parallel MIR C;
+* TinyCC execution versus a stronger C compiler when available;
+* deterministic output with debug file shuffling and repeated runs;
+* observable evaluation order, destructor order, lambda discovery, and generic
+  instantiation coverage; and
+* cancellation, unsupported-operation, allocation-failure, and diagnostic
+  propagation paths.
+
+The parallel path is correct only when these comparisons are made after the
+module merge. Comparing individual worker buffers is insufficient because
+declaration order, global initialization, weak interface stubs, and generated
+lambda declarations are module-level semantics.
 
 ## 15. Debugging And Tooling
 

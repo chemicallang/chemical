@@ -5109,7 +5109,24 @@ public namespace tls {
             ssl.state = SSLState.CERTIFICATE_VERIFY()
 
             var cv_copy = transcript
+            // CertificateVerify signature hash/scheme is chosen by the server
+            // certificate's curve (RFC 8446: ecdsa_secp256r1_sha256 /
+            // ecdsa_secp384r1_sha384), independent of the ciphersuite hash.
+            var cert_use_sha384 : bool = false
+            var cert_hash_len : size_t = 32
+            if(ssl.conf.own_key != null) {
+                var ck = ssl.conf.own_key as *mut ECDSAContext
+                if(ck.curve_id == TLS_GROUP_SECP384R1 as u16) {
+                    cert_use_sha384 = true
+                    cert_hash_len = 48
+                }
+            }
             unsafe var cv_transcript_hash : [48]u8
+            // The transcript hash uses the ciphersuite's hash (SHA-384 for the
+            // AES-256-GCM-SHA384 family, SHA-256 otherwise) per RFC 8446 — it is
+            // independent of the certificate's curve. Only the signature scheme
+            // (and thus the hash applied to the CertificateVerify content) follows
+            // the certificate curve.
             tls13_transcript_finalize(&raw mut cv_copy, &raw mut cv_transcript_hash[0], use_sha384)
 
             // content = 64 spaces + "TLS 1.3, server CertificateVerify" + 0x00 + transcript_hash
@@ -5128,7 +5145,7 @@ public namespace tls {
             sp += tls13_hash_len
 
             unsafe var cv_hash : [48]u8
-            if(use_sha384) {
+            if(cert_use_sha384) {
                 crypto::sha384_hash(&raw sig_in[0], sp, &raw mut cv_hash[0])
             } else {
                 crypto::sha256_hash(&raw sig_in[0], sp, &raw mut cv_hash[0])
@@ -5142,9 +5159,9 @@ public namespace tls {
 
             if(pk_type == PK_ECKEY as u8) {
                 var ecdsa_key = ssl.conf.own_key as *mut ECDSAContext
-                ret = ecdsa_sign(ecdsa_key, &raw cv_hash[0], tls13_hash_len, &raw mut sig_buf[0], &raw mut sig_len)
+                ret = ecdsa_sign(ecdsa_key, &raw cv_hash[0], cert_hash_len, &raw mut sig_buf[0], &raw mut sig_len)
                 if(ret < 0) { return ERR_SSL_INTERNAL_ERROR }
-                if(use_sha384) {
+                if(cert_use_sha384) {
                     sig_alg = TLS1_3_SIG_ECDSA_SECP384R1_SHA384 as u16
                 } else {
                     sig_alg = TLS1_3_SIG_ECDSA_SECP256R1_SHA256 as u16

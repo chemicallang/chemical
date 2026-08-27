@@ -82,10 +82,6 @@ public namespace tls {
             return ERR_ECP_FEATURE_UNAVAILABLE
         }
         ecp_select_curve(curve_select)
-        printf("[DBGEC] sign curve_id=%d coord=%d hash_len=%d hash=", ctx.curve_id as int, coord_bytes as int, hash_len as int)
-        var dbg_i : size_t = 0
-        while(dbg_i < hash_len) { printf("%02x", hash[dbg_i] as int); dbg_i += 1 }
-        printf("\n")
 
         unsafe var n : Mpi; ecp_curve_n(&raw mut n)
         unsafe var e : Mpi; mpi_init(&raw mut e)

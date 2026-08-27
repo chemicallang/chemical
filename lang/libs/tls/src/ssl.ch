@@ -192,7 +192,7 @@ public namespace tls {
         }
 
         // HKDF-Expand: T(0) = empty, T(i) = HMAC(PRK, T(i-1) | info | i)
-        unsafe var T : [32]u8
+        unsafe var T : [48]u8
         var generated : size_t = 0
         var counter : u8 = 1
         var T_len : size_t = 0
@@ -213,11 +213,15 @@ public namespace tls {
             input_buf[k] = counter as u8
             k += 1
 
-            crypto::hmac_sha256(secret, secret_len, input_buf, input_len, &raw mut T[0])
-            T_len = 32
+            if(secret_len == 48) {
+                crypto::hmac_sha384(secret, secret_len, input_buf, input_len, &raw mut T[0])
+            } else {
+                crypto::hmac_sha256(secret, secret_len, input_buf, input_len, &raw mut T[0])
+            }
+            T_len = secret_len
 
             var copy_size : size_t = output_len - generated
-            if(copy_size > 32 as size_t) { copy_size = 32 as size_t }
+            if(copy_size > secret_len) { copy_size = secret_len }
             var l : size_t = 0
             while(l < copy_size) {
                 output[generated + l] = T[l]
@@ -238,6 +242,42 @@ public namespace tls {
                                 transcript_hash, hash_len, output, output_len)
     }
 
+    func tls13_is_sha384(ssl : *mut SSLContext) : bool {
+        var cs = get_ciphersuite_info(ssl.negotiated_ciphersuite)
+        return cs.hash == HASH_SHA384 as u8
+    }
+
+    func tls13_hash_len_for(ssl : *mut SSLContext) : size_t {
+        if(tls13_is_sha384(ssl)) { return 48 as size_t }
+        return 32 as size_t
+    }
+
+    // Dual-hash transcript: keeps both SHA-256 and SHA-384 running contexts so
+    // the same handshake message stream can be finalized with either hash
+    // depending on the negotiated TLS 1.3 ciphersuite.
+    public struct TLS13Transcript {
+        var h256 : crypto::Sha256Context
+        var h384 : crypto::Sha512Context
+    }
+
+    func tls13_transcript_init(t : *mut TLS13Transcript) {
+        crypto::sha256_init(&raw mut t.h256)
+        crypto::sha384_init(&raw mut t.h384)
+    }
+
+    func tls13_transcript_update(t : *mut TLS13Transcript, data : *u8, len : size_t) {
+        crypto::sha256_update(&raw mut t.h256, data, len)
+        crypto::sha384_update(&raw mut t.h384, data, len)
+    }
+
+    func tls13_transcript_finalize(t : *mut TLS13Transcript, out : *mut u8, use_sha384 : bool) {
+        if(use_sha384) {
+            crypto::sha384_final(&raw mut t.h384, out)
+        } else {
+            crypto::sha256_final(&raw mut t.h256, out)
+        }
+    }
+
     // ============================================================================
     // TLS 1.3 Key Schedule (RFC 8446 Section 7.1)
     // ============================================================================
@@ -245,8 +285,12 @@ public namespace tls {
     // HKDF-Extract: PRK = HMAC-Hash(salt, IKM)
     func tls13_hkdf_extract(salt : *u8, salt_len : size_t,
                              ikm : *u8, ikm_len : size_t,
-                             prk : *mut u8) {
-        crypto::hmac_sha256(salt, salt_len, ikm, ikm_len, prk)
+                             prk : *mut u8, hash_len : size_t) {
+        if(hash_len == 48) {
+            crypto::hmac_sha384(salt, salt_len, ikm, ikm_len, prk)
+        } else {
+            crypto::hmac_sha256(salt, salt_len, ikm, ikm_len, prk)
+        }
     }
 
     // Derive handshake traffic keys from the ECDHE shared secret.
@@ -256,95 +300,94 @@ public namespace tls {
     public func tls13_derive_handshake_keys(ssl : *mut SSLContext,
                                              shared_secret : *u8, shared_len : size_t,
                                              transcript_hash : *u8,
-                                             psk : *u8 = null, psk_len : size_t = 0) : int {
-        var hash_len : size_t = 32  // SHA-256
-
+                                             psk : *u8 = null, psk_len : size_t = 0,
+                                             hash_len : size_t = 32,
+                                             key_len : size_t = 16,
+                                             cipher_type : u8 = CIPHER_AES_128_GCM as u8) : int {
         // Step 1: Early secret
-        unsafe var zeros32 : [32]u8
+        unsafe var zeros : [48]u8
         var i : size_t = 0
-        while(i < 32) { zeros32[i] = 0; i += 1 }
+        while(i < hash_len) { zeros[i] = 0; i += 1 }
 
-        unsafe var early_secret : [32]u8
+        unsafe var early_secret : [48]u8
         if(psk != null && psk_len > 0) {
             // PSK mode: early_secret = HKDF-Extract(0, PSK)
-            tls13_hkdf_extract(&raw zeros32[0], 32, psk, psk_len, &raw mut early_secret[0])
+            tls13_hkdf_extract(&raw zeros[0], hash_len, psk, psk_len, &raw mut early_secret[0], hash_len)
         } else {
             // No PSK: early_secret = HKDF-Extract(0, 0)
-            tls13_hkdf_extract(&raw zeros32[0], 32, &raw zeros32[0], 32, &raw mut early_secret[0])
+            tls13_hkdf_extract(&raw zeros[0], hash_len, &raw zeros[0], hash_len, &raw mut early_secret[0], hash_len)
         }
 
-        // Step 2: Derived = HKDF-Expand-Label(early_secret, "derived", "", 32)
-        // Per RFC 8446 Section 7.1: Derive-Secret(Secret, Label, Messages) =
-        //   HKDF-Expand-Label(Secret, Label, Transcript-Hash(Messages), Hash.length)
-        // For empty Messages "", Transcript-Hash("") = SHA256("") = 32-byte hash
-        unsafe var derived : [32]u8
-        unsafe var empty_hash : [32]u8
-        unsafe var sha_ctx : crypto::Sha256Context
-        crypto::sha256_init(&raw mut sha_ctx)
-        crypto::sha256_final(&raw mut sha_ctx, &raw mut empty_hash[0])
+        // Step 2: Derived = HKDF-Expand-Label(early_secret, "derived", "", hash_len)
+        // For empty Messages "", Transcript-Hash("") = SHA256/SHA384("") (hash_len bytes)
+        unsafe var derived : [48]u8
+        unsafe var empty_hash : [48]u8
+        if(hash_len == 48) {
+            unsafe var hctx : crypto::Sha512Context
+            crypto::sha384_init(&raw mut hctx)
+            crypto::sha384_final(&raw mut hctx, &raw mut empty_hash[0])
+        } else {
+            unsafe var hctx : crypto::Sha256Context
+            crypto::sha256_init(&raw mut hctx)
+            crypto::sha256_final(&raw mut hctx, &raw mut empty_hash[0])
+        }
         var derived_label = "derived\0" as *char
-        tls13_hkdf_expand_label(&raw early_secret[0], 32, derived_label, 7,
-                                &raw empty_hash[0], 32, &raw mut derived[0], 32)
+        tls13_hkdf_expand_label(&raw early_secret[0], hash_len, derived_label, 7,
+                                &raw empty_hash[0], hash_len, &raw mut derived[0], hash_len)
 
         // Step 3: Handshake secret = HKDF-Extract(Derived, shared_secret)
-        unsafe var handshake_secret : [32]u8
-        tls13_hkdf_extract(&raw derived[0], 32, shared_secret, shared_len,
-                           &raw mut handshake_secret[0])
+        unsafe var handshake_secret : [48]u8
+        tls13_hkdf_extract(&raw derived[0], hash_len, shared_secret, shared_len,
+                           &raw mut handshake_secret[0], hash_len)
 
         // Store early secret in key schedule
         i = 0
-        while(i < 32) {
+        while(i < hash_len) {
             ssl.tls13_keys.early_secret[i] = early_secret[i]
             i += 1
         }
 
         // Store handshake secret in key schedule
         i = 0
-        while(i < 32) {
+        while(i < hash_len) {
             ssl.tls13_keys.handshake_secret[i] = handshake_secret[i]
             i += 1
         }
 
         // Step 4: Derive client and server handshake traffic secrets
-        // Context = Transcript-Hash(ClientHello...ServerHello)
-        unsafe var client_hts : [32]u8
-        unsafe var server_hts : [32]u8
+        unsafe var client_hts : [48]u8
+        unsafe var server_hts : [48]u8
         var chts_label = "c hs traffic\0" as *char
         var shts_label = "s hs traffic\0" as *char
-        tls13_hkdf_expand_label(&raw handshake_secret[0], 32, chts_label, 12,
-                                transcript_hash, hash_len, &raw mut client_hts[0], 32)
-        tls13_hkdf_expand_label(&raw handshake_secret[0], 32, shts_label, 12,
-                                transcript_hash, hash_len, &raw mut server_hts[0], 32)
+        tls13_hkdf_expand_label(&raw handshake_secret[0], hash_len, chts_label, 12,
+                                transcript_hash, hash_len, &raw mut client_hts[0], hash_len)
+        tls13_hkdf_expand_label(&raw handshake_secret[0], hash_len, shts_label, 12,
+                                transcript_hash, hash_len, &raw mut server_hts[0], hash_len)
 
-        // Store in key schedule
         i = 0
-        while(i < 32) {
+        while(i < hash_len) {
             ssl.tls13_keys.client_handshake_traffic_secret[i] = client_hts[i]
             ssl.tls13_keys.server_handshake_traffic_secret[i] = server_hts[i]
             i += 1
         }
 
-        // Step 5: Derive keys and IVs for AES-128-GCM
-        // client_handshake_key = HKDF-Expand-Label(client_hts, "key", "", 16)
-        // client_handshake_iv  = HKDF-Expand-Label(client_hts, "iv",  "", 12)
-        // server_handshake_key = HKDF-Expand-Label(server_hts, "key", "", 16)
-        // server_handshake_iv  = HKDF-Expand-Label(server_hts, "iv",  "", 12)
+        // Step 5: Derive keys and IVs
         var empty_ctx2 : [1]u8 = [0]
         var key_label = "key\0" as *char
         var iv_label = "iv\0" as *char
 
-        unsafe var client_key : [16]u8
+        unsafe var client_key : [32]u8
         unsafe var client_iv : [12]u8
-        unsafe var server_key : [16]u8
+        unsafe var server_key : [32]u8
         unsafe var server_iv : [12]u8
 
-        tls13_hkdf_expand_label(&raw client_hts[0], 32, key_label, 3,
-                                &raw empty_ctx2[0], 0, &raw mut client_key[0], 16)
-        tls13_hkdf_expand_label(&raw client_hts[0], 32, iv_label, 2,
+        tls13_hkdf_expand_label(&raw client_hts[0], hash_len, key_label, 3,
+                                &raw empty_ctx2[0], 0, &raw mut client_key[0], key_len)
+        tls13_hkdf_expand_label(&raw client_hts[0], hash_len, iv_label, 2,
                                 &raw empty_ctx2[0], 0, &raw mut client_iv[0], 12)
-        tls13_hkdf_expand_label(&raw server_hts[0], 32, key_label, 3,
-                                &raw empty_ctx2[0], 0, &raw mut server_key[0], 16)
-        tls13_hkdf_expand_label(&raw server_hts[0], 32, iv_label, 2,
+        tls13_hkdf_expand_label(&raw server_hts[0], hash_len, key_label, 3,
+                                &raw empty_ctx2[0], 0, &raw mut server_key[0], key_len)
+        tls13_hkdf_expand_label(&raw server_hts[0], hash_len, iv_label, 2,
                                 &raw empty_ctx2[0], 0, &raw mut server_iv[0], 12)
 
         // Per RFC 8446:
@@ -355,19 +398,19 @@ public namespace tls {
         // Populate transform_out — for sending
         unsafe var tr_out : Transform
         transform_init(&raw mut tr_out)
-        tr_out.cipher_type = CIPHER_AES_128_GCM as u8
-        tr_out.key_len = 16
+        tr_out.cipher_type = cipher_type
+        tr_out.key_len = key_len as u8
         tr_out.iv_len = 12
         tr_out.fixed_iv_len = 12
         tr_out.mac_key_len = 0
         if(is_server_role) {
             i = 0
-            while(i < 16) { tr_out.key_enc[i] = server_key[i]; i += 1 }
+            while(i < key_len) { tr_out.key_enc[i] = server_key[i]; i += 1 }
             i = 0
             while(i < 12) { tr_out.base_iv_enc[i] = server_iv[i]; i += 1 }
         } else {
             i = 0
-            while(i < 16) { tr_out.key_enc[i] = client_key[i]; i += 1 }
+            while(i < key_len) { tr_out.key_enc[i] = client_key[i]; i += 1 }
             i = 0
             while(i < 12) { tr_out.base_iv_enc[i] = client_iv[i]; i += 1 }
         }
@@ -375,19 +418,19 @@ public namespace tls {
         // Populate transform_in — for receiving
         unsafe var tr_in : Transform
         transform_init(&raw mut tr_in)
-        tr_in.cipher_type = CIPHER_AES_128_GCM as u8
-        tr_in.key_len = 16
+        tr_in.cipher_type = cipher_type
+        tr_in.key_len = key_len as u8
         tr_in.iv_len = 12
         tr_in.fixed_iv_len = 12
         tr_in.mac_key_len = 0
         if(is_server_role) {
             i = 0
-            while(i < 16) { tr_in.key_dec[i] = client_key[i]; i += 1 }
+            while(i < key_len) { tr_in.key_dec[i] = client_key[i]; i += 1 }
             i = 0
             while(i < 12) { tr_in.base_iv_dec[i] = client_iv[i]; i += 1 }
         } else {
             i = 0
-            while(i < 16) { tr_in.key_dec[i] = server_key[i]; i += 1 }
+            while(i < key_len) { tr_in.key_dec[i] = server_key[i]; i += 1 }
             i = 0
             while(i < 12) { tr_in.base_iv_dec[i] = server_iv[i]; i += 1 }
         }
@@ -410,105 +453,138 @@ public namespace tls {
 
     // Derive application traffic keys after handshake completes.
     // Called after both Finished messages have been exchanged.
+    // The transcript-hash contexts (ClientHello..server Finished and
+    // ClientHello..client Finished) are normally passed via hs_hash/res_hash.
+    // NOTE: passing &raw local_array[0] for a caller-local array is corrupted
+    // by a compiler codegen bug for large stack offsets, so the production
+    // TLS1.3 handshake passes null and delivers the contexts via the struct
+    // fields client_handshake_traffic_secret (ClientHello..server Finished)
+    // and server_handshake_traffic_secret (ClientHello..client Finished). The
+    // function copies those into callee-local arrays via indexed reads, which
+    // are reliable.
     public func tls13_derive_application_keys(ssl : *mut SSLContext,
-                                               hs_hash : *u8, hash_len : size_t,
-                                               res_hash : *u8 = null,
-                                               res_hash_len : size_t = 0) : int {
+                                                hs_hash : *u8 = null, hash_len : size_t,
+                                                res_hash : *u8 = null,
+                                                res_hash_len : size_t = 0,
+                                                key_len : size_t = 16,
+                                                cipher_type : u8 = CIPHER_AES_128_GCM as u8) : int {
         var i : size_t = 0
 
-        // RFC 8446 Section 7.1:
-        //   master_secret = HKDF-Extract(0, Derive-Secret(handshake_secret, "derived", ""))
-        // The "derived" label for the master secret uses empty Messages "", so the
-        // context is Transcript-Hash("") = SHA256("") (32 bytes) — NOT the handshake
-        // hash hs_hash and NOT a zero-length context.
-        unsafe var derived : [32]u8
-        unsafe var empty32 : [32]u8
-        unsafe var empty_hash : [32]u8
-        unsafe var sha_ctx_d : crypto::Sha256Context
-        crypto::sha256_init(&raw mut sha_ctx_d)
-        crypto::sha256_final(&raw mut sha_ctx_d, &raw mut empty_hash[0])
-        while(i < 32) { empty32[i] = 0; i += 1 }
+        // Resolve context pointers (callee-local copies when coming from struct).
+        unsafe var ctx_cf : [48]u8
+        unsafe var ctx_full : [48]u8
+        unsafe var cf_ptr : *u8
+        unsafe var full_ptr : *u8
+        var full_len : size_t = hash_len
+        if(hs_hash != null) {
+            cf_ptr = hs_hash
+        } else {
+            var z : size_t = 0
+            while(z < hash_len) { ctx_cf[z] = ssl.tls13_keys.client_handshake_traffic_secret[z]; z += 1 }
+            cf_ptr = &raw ctx_cf[0]
+        }
+        if(res_hash != null) {
+            full_ptr = res_hash
+            full_len = res_hash_len
+        } else {
+            var z : size_t = 0
+            while(z < hash_len) { ctx_full[z] = ssl.tls13_keys.server_handshake_traffic_secret[z]; z += 1 }
+            full_ptr = &raw ctx_full[0]
+        }
+        // RFC 8446 Section 7.1: master_secret = HKDF-Extract(0, derived)
+        unsafe var derived : [48]u8
+        unsafe var empty32 : [48]u8
+        unsafe var empty_hash : [48]u8
+        if(hash_len == 48) {
+            unsafe var hctx_d : crypto::Sha512Context
+            crypto::sha384_init(&raw mut hctx_d)
+            crypto::sha384_final(&raw mut hctx_d, &raw mut empty_hash[0])
+        } else {
+            unsafe var hctx_d : crypto::Sha256Context
+            crypto::sha256_init(&raw mut hctx_d)
+            crypto::sha256_final(&raw mut hctx_d, &raw mut empty_hash[0])
+        }
+        while(i < hash_len) { empty32[i] = 0; i += 1 }
         var derived_label = "derived\0" as *char
-        tls13_hkdf_expand_label(&raw ssl.tls13_keys.handshake_secret[0], 32,
-                                derived_label, 7, &raw empty_hash[0], 32,
-                                &raw mut derived[0], 32)
+        tls13_hkdf_expand_label(&raw ssl.tls13_keys.handshake_secret[0], hash_len,
+                                derived_label, 7, &raw empty_hash[0], hash_len,
+                                &raw mut derived[0], hash_len)
 
-        // Master secret = HKDF-Extract(salt=Derived, IKM=0)  (RFC 8446 §7.1:
-        // "0 -> HKDF-Extract" means the all-zero IKM; the "derived" value is the salt)
-        unsafe var master_secret : [32]u8
-        tls13_hkdf_extract(&raw derived[0], 32, &raw empty32[0], 32,
-                           &raw mut master_secret[0])
+        // Master secret = HKDF-Extract(salt=Derived, IKM=0)
+        unsafe var master_secret : [48]u8
+        tls13_hkdf_extract(&raw derived[0], hash_len, &raw empty32[0], hash_len,
+                           &raw mut master_secret[0], hash_len)
         i = 0
-        while(i < 32) { ssl.tls13_keys.master_secret[i] = master_secret[i]; i += 1 }
+        while(i < hash_len) { ssl.tls13_keys.master_secret[i] = master_secret[i]; i += 1 }
 
-        // Resumption master secret (RFC 8446 §7.1: context = ClientHello...client Finished)
-        var rms_hash : *u8 = hs_hash
+        // Resumption master secret (context = ClientHello...client Finished)
+        var rms_hash : *u8 = cf_ptr
         var rms_hash_len : size_t = hash_len
-        if(res_hash != null) { rms_hash = res_hash; rms_hash_len = res_hash_len }
+        if(hs_hash != null && res_hash != null) { rms_hash = res_hash; rms_hash_len = res_hash_len }
+        else if(hs_hash == null && res_hash == null) { rms_hash = full_ptr; rms_hash_len = full_len }
+        else if(res_hash != null) { rms_hash = res_hash; rms_hash_len = res_hash_len }
         var rms_label = "res master\0" as *char
-        tls13_hkdf_expand_label(&raw master_secret[0], 32, rms_label, 10,
+        tls13_hkdf_expand_label(&raw master_secret[0], hash_len, rms_label, 10,
                                 rms_hash, rms_hash_len,
-                                &raw mut ssl.tls13_keys.resumption_master_secret[0], 32)
+                                &raw mut ssl.tls13_keys.resumption_master_secret[0], hash_len)
 
         // Client application traffic secret
-        unsafe var c_ats : [32]u8
+        unsafe var c_ats : [48]u8
         var c_ats_label = "c ap traffic\0" as *char
-        tls13_hkdf_expand_label(&raw master_secret[0], 32, c_ats_label, 12,
-                                hs_hash, hash_len, &raw mut c_ats[0], 32)
+        tls13_hkdf_expand_label(&raw master_secret[0], hash_len, c_ats_label, 12,
+                                 cf_ptr, hash_len, &raw mut c_ats[0], hash_len)
         i = 0
-        while(i < 32) { ssl.tls13_keys.client_application_traffic_secret[i] = c_ats[i]; i += 1 }
+        while(i < hash_len) { ssl.tls13_keys.client_application_traffic_secret[i] = c_ats[i]; i += 1 }
 
         // Server application traffic secret
-        unsafe var s_ats : [32]u8
+        unsafe var s_ats : [48]u8
         var s_ats_label = "s ap traffic\0" as *char
-        tls13_hkdf_expand_label(&raw master_secret[0], 32, s_ats_label, 12,
-                                hs_hash, hash_len, &raw mut s_ats[0], 32)
+        tls13_hkdf_expand_label(&raw master_secret[0], hash_len, s_ats_label, 12,
+                                 cf_ptr, hash_len, &raw mut s_ats[0], hash_len)
         i = 0
-        while(i < 32) { ssl.tls13_keys.server_application_traffic_secret[i] = s_ats[i]; i += 1 }
+        while(i < hash_len) { ssl.tls13_keys.server_application_traffic_secret[i] = s_ats[i]; i += 1 }
 
         // Derive application keys
         var empty_ctx : [1]u8 = [0]
         var key_label = "key\0" as *char
         var iv_label = "iv\0" as *char
 
-        unsafe var client_key : [16]u8
+        unsafe var client_key : [32]u8
         unsafe var client_iv : [12]u8
-        unsafe var server_key : [16]u8
+        unsafe var server_key : [32]u8
         unsafe var server_iv : [12]u8
 
-        tls13_hkdf_expand_label(&raw c_ats[0], 32, key_label, 3,
-                                &raw empty_ctx[0], 0, &raw mut client_key[0], 16)
-        tls13_hkdf_expand_label(&raw c_ats[0], 32, iv_label, 2,
+        tls13_hkdf_expand_label(&raw c_ats[0], hash_len, key_label, 3,
+                                &raw empty_ctx[0], 0, &raw mut client_key[0], key_len)
+        tls13_hkdf_expand_label(&raw c_ats[0], hash_len, iv_label, 2,
                                 &raw empty_ctx[0], 0, &raw mut client_iv[0], 12)
-        tls13_hkdf_expand_label(&raw s_ats[0], 32, key_label, 3,
-                                &raw empty_ctx[0], 0, &raw mut server_key[0], 16)
-        tls13_hkdf_expand_label(&raw s_ats[0], 32, iv_label, 2,
+        tls13_hkdf_expand_label(&raw s_ats[0], hash_len, key_label, 3,
+                                &raw empty_ctx[0], 0, &raw mut server_key[0], key_len)
+        tls13_hkdf_expand_label(&raw s_ats[0], hash_len, iv_label, 2,
                                 &raw empty_ctx[0], 0, &raw mut server_iv[0], 12)
 
         // Per RFC 8446:
         // - Client role: transform_out (send) = client_key, transform_in (recv) = server_key
         // - Server role: transform_out (send) = server_key, transform_in (recv) = client_key
         var is_server_role : bool = (ssl.conf != null && ssl.conf.endpoint == SSL_IS_SERVER)
-        // In loopback mode (no transport connected), use the same key for both directions
         var is_loopback : bool = !ssl.transport_connected
 
-        // Replace transforms with application-traffic versions
         // Send direction (transform_out)
         if(ssl.transform_out != null) { unsafe { dealloc ssl.transform_out } }
         unsafe var tr_out : Transform
         transform_init(&raw mut tr_out)
-        tr_out.cipher_type = CIPHER_AES_128_GCM as u8
-        tr_out.key_len = 16
+        tr_out.cipher_type = cipher_type
+        tr_out.key_len = key_len as u8
         tr_out.iv_len = 12
         tr_out.fixed_iv_len = 12
         if(is_server_role) {
             i = 0
-            while(i < 16) { tr_out.key_enc[i] = server_key[i]; i += 1 }
+            while(i < key_len) { tr_out.key_enc[i] = server_key[i]; i += 1 }
             i = 0
             while(i < 12) { tr_out.base_iv_enc[i] = server_iv[i]; i += 1 }
         } else {
             i = 0
-            while(i < 16) { tr_out.key_enc[i] = client_key[i]; i += 1 }
+            while(i < key_len) { tr_out.key_enc[i] = client_key[i]; i += 1 }
             i = 0
             while(i < 12) { tr_out.base_iv_enc[i] = client_iv[i]; i += 1 }
         }
@@ -520,31 +596,30 @@ public namespace tls {
         if(ssl.transform_in != null) { unsafe { dealloc ssl.transform_in } }
         unsafe var tr_in : Transform
         transform_init(&raw mut tr_in)
-        tr_in.cipher_type = CIPHER_AES_128_GCM as u8
-        tr_in.key_len = 16
+        tr_in.cipher_type = cipher_type
+        tr_in.key_len = key_len as u8
         tr_in.iv_len = 12
         tr_in.fixed_iv_len = 12
         if(is_loopback) {
-            // Loopback mode: both directions use the sending key
             if(is_server_role) {
                 i = 0
-                while(i < 16) { tr_in.key_dec[i] = server_key[i]; i += 1 }
+                while(i < key_len) { tr_in.key_dec[i] = server_key[i]; i += 1 }
                 i = 0
                 while(i < 12) { tr_in.base_iv_dec[i] = server_iv[i]; i += 1 }
             } else {
                 i = 0
-                while(i < 16) { tr_in.key_dec[i] = client_key[i]; i += 1 }
+                while(i < key_len) { tr_in.key_dec[i] = client_key[i]; i += 1 }
                 i = 0
                 while(i < 12) { tr_in.base_iv_dec[i] = client_iv[i]; i += 1 }
             }
         } else if(is_server_role) {
             i = 0
-            while(i < 16) { tr_in.key_dec[i] = client_key[i]; i += 1 }
+            while(i < key_len) { tr_in.key_dec[i] = client_key[i]; i += 1 }
             i = 0
             while(i < 12) { tr_in.base_iv_dec[i] = client_iv[i]; i += 1 }
         } else {
             i = 0
-            while(i < 16) { tr_in.key_dec[i] = server_key[i]; i += 1 }
+            while(i < key_len) { tr_in.key_dec[i] = server_key[i]; i += 1 }
             i = 0
             while(i < 12) { tr_in.base_iv_dec[i] = server_iv[i]; i += 1 }
         }
@@ -570,39 +645,41 @@ public namespace tls {
     // Server sends with server_application_traffic_secret -> transform_out.key_enc
     public func tls13_update_send_keys(ssl : *mut SSLContext) : int {
         var is_server_role : bool = (ssl.conf != null && ssl.conf.endpoint == SSL_IS_SERVER)
+        var hash_len = tls13_hash_len_for(ssl)
+        var key_len = ssl.transform_out.key_len as size_t
 
         // Choose the correct traffic secret based on role
-        unsafe var traffic_secret : [32]u8
+        unsafe var traffic_secret : [48]u8
         var si : size_t = 0
         if(is_server_role) {
-            while(si < 32) {
+            while(si < hash_len) {
                 traffic_secret[si] = ssl.tls13_keys.server_application_traffic_secret[si]
                 si += 1
             }
         } else {
-            while(si < 32) {
+            while(si < hash_len) {
                 traffic_secret[si] = ssl.tls13_keys.client_application_traffic_secret[si]
                 si += 1
             }
         }
 
         // Derive new secret from current traffic secret
-        unsafe var new_secret : [32]u8
+        unsafe var new_secret : [48]u8
         var empty_c : [1]u8 = [0]
         var upd_label = "traffic upd\0" as *char
-        tls13_hkdf_expand_label(&raw traffic_secret[0], 32,
-                                upd_label, 11, &raw empty_c[0], 0, &raw mut new_secret[0], 32)
+        tls13_hkdf_expand_label(&raw traffic_secret[0], hash_len,
+                                upd_label, 11, &raw empty_c[0], 0, &raw mut new_secret[0], hash_len)
 
         // Store updated secret back to the correct slot
         if(is_server_role) {
             si = 0
-            while(si < 32) {
+            while(si < hash_len) {
                 ssl.tls13_keys.server_application_traffic_secret[si] = new_secret[si]
                 si += 1
             }
         } else {
             si = 0
-            while(si < 32) {
+            while(si < hash_len) {
                 ssl.tls13_keys.client_application_traffic_secret[si] = new_secret[si]
                 si += 1
             }
@@ -611,17 +688,17 @@ public namespace tls {
         // Derive new key and IV
         var key_label = "key\0" as *char
         var iv_label = "iv\0" as *char
-        unsafe var new_key : [16]u8
+        unsafe var new_key : [32]u8
         unsafe var new_iv : [12]u8
-        tls13_hkdf_expand_label(&raw new_secret[0], 32, key_label, 3,
-                                &raw empty_c[0], 0, &raw mut new_key[0], 16)
-        tls13_hkdf_expand_label(&raw new_secret[0], 32, iv_label, 2,
+        tls13_hkdf_expand_label(&raw new_secret[0], hash_len, key_label, 3,
+                                &raw empty_c[0], 0, &raw mut new_key[0], key_len)
+        tls13_hkdf_expand_label(&raw new_secret[0], hash_len, iv_label, 2,
                                 &raw empty_c[0], 0, &raw mut new_iv[0], 12)
 
         // Update transform_out with new encryption keys
         if(ssl.transform_out != null) {
             si = 0
-            while(si < 16) { ssl.transform_out.key_enc[si] = new_key[si]; si += 1 }
+            while(si < key_len) { ssl.transform_out.key_enc[si] = new_key[si]; si += 1 }
             si = 0
             while(si < 12) { ssl.transform_out.base_iv_enc[si] = new_iv[si]; si += 1 }
         }
@@ -638,39 +715,41 @@ public namespace tls {
     // Server receives with client_application_traffic_secret -> transform_in.key_dec
     public func tls13_update_recv_keys(ssl : *mut SSLContext) : int {
         var is_server_role : bool = (ssl.conf != null && ssl.conf.endpoint == SSL_IS_SERVER)
+        var hash_len = tls13_hash_len_for(ssl)
+        var key_len = ssl.transform_in.key_len as size_t
 
         // Choose the correct traffic secret based on role
-        unsafe var traffic_secret : [32]u8
+        unsafe var traffic_secret : [48]u8
         var si : size_t = 0
         if(is_server_role) {
-            while(si < 32) {
+            while(si < hash_len) {
                 traffic_secret[si] = ssl.tls13_keys.client_application_traffic_secret[si]
                 si += 1
             }
         } else {
-            while(si < 32) {
+            while(si < hash_len) {
                 traffic_secret[si] = ssl.tls13_keys.server_application_traffic_secret[si]
                 si += 1
             }
         }
 
         // Derive new secret from current traffic secret
-        unsafe var new_secret : [32]u8
+        unsafe var new_secret : [48]u8
         var empty_c : [1]u8 = [0]
         var upd_label = "traffic upd\0" as *char
-        tls13_hkdf_expand_label(&raw traffic_secret[0], 32,
-                                upd_label, 11, &raw empty_c[0], 0, &raw mut new_secret[0], 32)
+        tls13_hkdf_expand_label(&raw traffic_secret[0], hash_len,
+                                upd_label, 11, &raw empty_c[0], 0, &raw mut new_secret[0], hash_len)
 
         // Store updated secret back to the correct slot
         if(is_server_role) {
             si = 0
-            while(si < 32) {
+            while(si < hash_len) {
                 ssl.tls13_keys.client_application_traffic_secret[si] = new_secret[si]
                 si += 1
             }
         } else {
             si = 0
-            while(si < 32) {
+            while(si < hash_len) {
                 ssl.tls13_keys.server_application_traffic_secret[si] = new_secret[si]
                 si += 1
             }
@@ -679,17 +758,17 @@ public namespace tls {
         // Derive new key and IV
         var key_label = "key\0" as *char
         var iv_label = "iv\0" as *char
-        unsafe var new_key : [16]u8
+        unsafe var new_key : [32]u8
         unsafe var new_iv : [12]u8
-        tls13_hkdf_expand_label(&raw new_secret[0], 32, key_label, 3,
-                                &raw empty_c[0], 0, &raw mut new_key[0], 16)
-        tls13_hkdf_expand_label(&raw new_secret[0], 32, iv_label, 2,
+        tls13_hkdf_expand_label(&raw new_secret[0], hash_len, key_label, 3,
+                                &raw empty_c[0], 0, &raw mut new_key[0], key_len)
+        tls13_hkdf_expand_label(&raw new_secret[0], hash_len, iv_label, 2,
                                 &raw empty_c[0], 0, &raw mut new_iv[0], 12)
 
         // Update transform_in with new decryption keys
         if(ssl.transform_in != null) {
             si = 0
-            while(si < 16) { ssl.transform_in.key_dec[si] = new_key[si]; si += 1 }
+            while(si < key_len) { ssl.transform_in.key_dec[si] = new_key[si]; si += 1 }
             si = 0
             while(si < 12) { ssl.transform_in.base_iv_dec[si] = new_iv[si]; si += 1 }
         }
@@ -1260,10 +1339,6 @@ public namespace tls {
         unsafe var nonce : [12]u8
         tls13_build_nonce(&raw tr.base_iv_enc[0], &raw ssl.out_ctr[0], &raw mut nonce[0])
 
-        unsafe var gcm_ctx : GCMContext
-        var ret = gcm_init(&raw mut gcm_ctx, &raw tr.key_enc[0], tr.key_len as size_t)
-        if(ret < 0) { return ret }
-
         var enc_record_len : size_t = inner_len + 16
         unsafe var outer_hdr : [5]u8
         outer_hdr[0] = SSL_MSG_APPLICATION_DATA as u8
@@ -1275,12 +1350,24 @@ public namespace tls {
         var ct_out = output + 5
         var tag_out = output + 5 + inner_len
 
-        ret = gcm_crypt_and_tag(&raw mut gcm_ctx,
-                                 &raw nonce[0], 12,
-                                 &raw outer_hdr[0], 5,
-                                 &raw inner[0], inner_len,
-                                 ct_out, tag_out)
-        if(ret < 0) { return ret }
+        var ret : int = 0
+        if(tr.cipher_type == CIPHER_CHACHA20_POLY1305 as u8) {
+            chacha20_poly1305_encrypt(&raw tr.key_enc[0], &raw nonce[0],
+                                      &raw outer_hdr[0], 5,
+                                      &raw inner[0], inner_len,
+                                      ct_out, tag_out)
+        } else {
+            unsafe var gcm_ctx : GCMContext
+            ret = gcm_init(&raw mut gcm_ctx, &raw tr.key_enc[0], tr.key_len as size_t)
+            if(ret < 0) { return ret }
+
+            ret = gcm_crypt_and_tag(&raw mut gcm_ctx,
+                                     &raw nonce[0], 12,
+                                     &raw outer_hdr[0], 5,
+                                     &raw inner[0], inner_len,
+                                     ct_out, tag_out)
+            if(ret < 0) { return ret }
+        }
 
         i = 0
         while(i < 5) {
@@ -1313,10 +1400,6 @@ public namespace tls {
         unsafe var nonce : [12]u8
         tls13_build_nonce(&raw tr.base_iv_dec[0], &raw ssl.in_ctr[0], &raw mut nonce[0])
 
-        unsafe var gcm_ctx : GCMContext
-        var ret = gcm_init(&raw mut gcm_ctx, &raw tr.key_dec[0], tr.key_len as size_t)
-        if(ret < 0) { return ret }
-
         unsafe var outer_hdr : [5]u8
         outer_hdr[0] = ssl.in_hdr[0]
         outer_hdr[1] = ssl.in_hdr[1]
@@ -1327,14 +1410,29 @@ public namespace tls {
         unsafe var dec_buf : [16640]u8
         if(ct_len > out_max + 1) { ct_len = out_max + 1 }
 
-        ret = gcm_auth_decrypt(&raw mut gcm_ctx,
-                                &raw nonce[0], 12,
-                                &raw outer_hdr[0], 5,
-                                input, ct_len,
-                                tag_start, 16,
-                                &raw mut dec_buf[0])
-        if(ret < 0) {
-            return ERR_SSL_INVALID_RECORD
+        var ret : int = 0
+        if(tr.cipher_type == CIPHER_CHACHA20_POLY1305 as u8) {
+            ret = chacha20_poly1305_decrypt(&raw tr.key_dec[0], &raw nonce[0],
+                                            &raw outer_hdr[0], 5,
+                                            input, ct_len,
+                                            tag_start, &raw mut dec_buf[0])
+            if(ret < 0) {
+                return ERR_SSL_INVALID_RECORD
+            }
+        } else {
+            unsafe var gcm_ctx : GCMContext
+            ret = gcm_init(&raw mut gcm_ctx, &raw tr.key_dec[0], tr.key_len as size_t)
+            if(ret < 0) { return ret }
+
+            ret = gcm_auth_decrypt(&raw mut gcm_ctx,
+                                    &raw nonce[0], 12,
+                                    &raw outer_hdr[0], 5,
+                                    input, ct_len,
+                                    tag_start, 16,
+                                    &raw mut dec_buf[0])
+            if(ret < 0) {
+                return ERR_SSL_INVALID_RECORD
+            }
         }
 
         if(ct_len == 0) { return ERR_SSL_INVALID_RECORD }
@@ -3256,7 +3354,7 @@ public namespace tls {
         while(zi < 32) { zeros32[zi] = 0; zi += 1 }
         unsafe var binder_early : [32]u8
         tls13_hkdf_extract(&raw zeros32[0], 32, &raw ssl.handshake.psk[0],
-                           ssl.handshake.psk_len as size_t, &raw mut binder_early[0])
+                           ssl.handshake.psk_len as size_t, &raw mut binder_early[0], 32)
 
         // binder_key = Derive-Secret(early_secret, "res binder", "") ->
         //   context = Transcript-Hash("") = SHA256("")
@@ -3366,8 +3464,8 @@ public namespace tls {
         if(ch_len < 0) { return ch_len }
 
         // Hash the ClientHello body for the transcript
-        unsafe var transcript : crypto::Sha256Context
-        crypto::sha256_init(&raw mut transcript)
+        unsafe var transcript : TLS13Transcript
+        tls13_transcript_init(&raw mut transcript)
         unsafe var ch_hdr : [4]u8
         ch_hdr[0] = SSL_HS_CLIENT_HELLO as u8
         write_u24(ch_len as u32, &raw mut ch_hdr[1])
@@ -3376,8 +3474,8 @@ public namespace tls {
         ret = tls13_fill_psk_binder(ssl, &raw mut ch_buf[0], ch_len as size_t, &raw ch_hdr[0])
         if(ret < 0) { return ret }
 
-        crypto::sha256_update(&raw mut transcript, &raw ch_hdr[0], 4)
-        crypto::sha256_update(&raw mut transcript, &raw ch_buf[0], ch_len as size_t)
+        tls13_transcript_update(&raw mut transcript, &raw ch_hdr[0], 4)
+        tls13_transcript_update(&raw mut transcript, &raw ch_buf[0], ch_len as size_t)
 
         ret = send_handshake_msg(ssl, SSL_HS_CLIENT_HELLO as u8, &raw ch_buf[0], ch_len as u32)
         if(ret < 0) { return ret }
@@ -3500,8 +3598,8 @@ public namespace tls {
                     write_u24(ch2_len as u32, &raw mut ch2_hdr[1])
                     ret = tls13_fill_psk_binder(ssl, &raw mut ch2_buf[0], ch2_len as size_t, &raw ch2_hdr[0])
                     if(ret < 0) { return ret }
-                    crypto::sha256_update(&raw mut transcript, &raw ch2_hdr[0], 4)
-                    crypto::sha256_update(&raw mut transcript, &raw ch2_buf[0], ch2_len as size_t)
+                    tls13_transcript_update(&raw mut transcript, &raw ch2_hdr[0], 4)
+                    tls13_transcript_update(&raw mut transcript, &raw ch2_buf[0], ch2_len as size_t)
 
                     ret = send_handshake_msg(ssl, SSL_HS_CLIENT_HELLO as u8, &raw ch2_buf[0], ch2_len as u32)
                     if(ret < 0) { return ret }
@@ -3528,10 +3626,19 @@ public namespace tls {
         // cipher_suite (2 bytes)
         ssl.negotiated_ciphersuite = read_u16_be(&raw hs_buf[sh_pos]); sh_pos += 2
 
-        // Verify we support the hash algorithm: only SHA-256 is currently implemented
+        // Verify we support the hash algorithm: SHA-256 and SHA-384 TLS 1.3 suites
         var cs_info = get_ciphersuite_info(ssl.negotiated_ciphersuite)
-        if(cs_info.hash != HASH_SHA256 as u8 && cs_info.hash != HASH_NONE as u8) {
+        if(cs_info.hash != HASH_SHA256 as u8 && cs_info.hash != HASH_SHA384 as u8 && cs_info.hash != HASH_NONE as u8) {
             return ERR_SSL_HANDSHAKE_FAILURE
+        }
+        var use_sha384 : bool = tls13_is_sha384(ssl)
+        var tls13_hash_len = tls13_hash_len_for(ssl)
+        var tls13_key_len : size_t = 16
+        var tls13_cipher_type : u8 = CIPHER_AES_128_GCM as u8
+        if(cs_info.cipher == CIPHER_AES_256_GCM as u8) {
+            tls13_key_len = 32; tls13_cipher_type = CIPHER_AES_256_GCM as u8
+        } else if(cs_info.cipher == CIPHER_CHACHA20_POLY1305 as u8) {
+            tls13_key_len = 32; tls13_cipher_type = CIPHER_CHACHA20_POLY1305 as u8
         }
 
         // compression_method (1 byte)
@@ -3587,7 +3694,7 @@ public namespace tls {
         }
 
         // Hash ServerHello into transcript (including the 4-byte handshake header)
-        crypto::sha256_update(&raw mut transcript, &raw hs_buf[0], 4 + hs_body_len)
+        tls13_transcript_update(&raw mut transcript, &raw hs_buf[0], 4 + hs_body_len)
 
         // ── Compute ECDHE shared secret ──────────────────────────────
         unsafe var shared_secret : [32]u8
@@ -3604,8 +3711,8 @@ public namespace tls {
 
         // Hash(ClientHello...ServerHello) — save transcript state first, then finalize
         var sh_transcript_copy = transcript
-        unsafe var sh_hash : [32]u8
-        crypto::sha256_final(&raw mut sh_transcript_copy, &raw mut sh_hash[0])
+        unsafe var sh_hash : [48]u8
+        tls13_transcript_finalize(&raw mut sh_transcript_copy, &raw mut sh_hash[0], use_sha384)
 
         // ── Derive handshake traffic keys ────────────────────────────
         // Only use the PSK when the server actually accepted it; otherwise a
@@ -3616,10 +3723,13 @@ public namespace tls {
             ret = tls13_derive_handshake_keys(ssl, &raw shared_secret[0], 32,
                                                &raw sh_hash[0],
                                                &raw ssl.handshake.psk[0],
-                                               ssl.handshake.psk_len as size_t)
+                                               ssl.handshake.psk_len as size_t,
+                                               tls13_hash_len, tls13_key_len, tls13_cipher_type)
         } else {
             ret = tls13_derive_handshake_keys(ssl, &raw shared_secret[0], 32,
-                                               &raw sh_hash[0])
+                                               &raw sh_hash[0],
+                                               null, 0,
+                                               tls13_hash_len, tls13_key_len, tls13_cipher_type)
         }
         if(ret < 0) { return ret }
 
@@ -3630,7 +3740,7 @@ public namespace tls {
         unsafe var server_ecdsa_ctx : ECDSAContext
         var has_server_ecdsa : bool = false
         // Saved transcript hash before CertificateVerify (for signature verification)
-        unsafe var cv_transcript_copy : crypto::Sha256Context
+        unsafe var cv_transcript_copy : TLS13Transcript
         var cv_saved : bool = false
         // Persistent handshake-message accumulator. Servers may coalesce
         // several handshake messages into a single record and a single
@@ -3686,7 +3796,7 @@ public namespace tls {
                 if(msg_total > msg_buf_len) { break }  // need more data
 
                 if(msg_type_code == SSL_HS_ENCRYPTED_EXTENSIONS as u32) {
-                    crypto::sha256_update(&raw mut transcript, &raw msg_buf[0], msg_body_len2 + 4)
+                    tls13_transcript_update(&raw mut transcript, &raw msg_buf[0], msg_body_len2 + 4)
 
                     // Parse ALPN from EncryptedExtensions
                     // EE body: ExtensionVectorLen(2) then extensions
@@ -3733,7 +3843,7 @@ public namespace tls {
 
             } else if(msg_type_code == SSL_HS_CERTIFICATE as u32) {
                 // Hash Certificate into transcript BEFORE saving transcript state
-                crypto::sha256_update(&raw mut transcript, &raw msg_buf[0], 4 + msg_body_len2)
+                tls13_transcript_update(&raw mut transcript, &raw msg_buf[0], 4 + msg_body_len2)
 
                 // Parse the full server certificate chain: leaf first, then any
                 // intermediates. The chain is stored on ssl.peer_cert and freed
@@ -3799,9 +3909,11 @@ public namespace tls {
                         var sig_data = &raw msg_buf[8]
 
                         // Finalize the saved transcript to get Transcript-Hash(ClientHello...Certificate)
-                        unsafe var cv_hash : [32]u8
+                        // Write into a struct field: &raw local[0] output buffers are corrupted
+                        // by a compiler bug for this large-stack (SHA-384) function.
                         var cv_hash_copy = cv_transcript_copy
-                        crypto::sha256_final(&raw mut cv_hash_copy, &raw mut cv_hash[0])
+                        tls13_transcript_finalize(&raw mut cv_hash_copy,
+                                                  &raw mut ssl.tls13_keys.exporter_master_secret[0], use_sha384)
 
                         // Build signed_content for TLS 1.3:
                         // 64 spaces + "TLS 1.3, server CertificateVerify" + 0x00 + transcript_hash
@@ -3822,20 +3934,27 @@ public namespace tls {
                         }
                         // NUL byte
                         signed_content[sc_pos] = 0x00; sc_pos += 1
-                        // transcript hash (32 bytes)
+                        // transcript hash (hash_len bytes)
                         var th_i : size_t = 0
-                        while(th_i < 32) {
-                            signed_content[sc_pos + th_i] = cv_hash[th_i]
+                        while(th_i < tls13_hash_len) {
+                            signed_content[sc_pos + th_i] = ssl.tls13_keys.exporter_master_secret[th_i]
                             th_i += 1
                         }
-                        sc_pos += 32
+                        sc_pos += tls13_hash_len
 
-                        // SHA-256 hash of signed_content
-                        unsafe var signed_hash : [32]u8
-                        unsafe var sig_hash_ctx : crypto::Sha256Context
-                        crypto::sha256_init(&raw mut sig_hash_ctx)
-                        crypto::sha256_update(&raw mut sig_hash_ctx, &raw signed_content[0], sc_pos)
-                        crypto::sha256_final(&raw mut sig_hash_ctx, &raw mut signed_hash[0])
+                        // Hash of signed_content (SHA-256 or SHA-384)
+                        unsafe var signed_hash : [48]u8
+                        if(use_sha384) {
+                            unsafe var sig_hash_ctx : crypto::Sha512Context
+                            crypto::sha384_init(&raw mut sig_hash_ctx)
+                            crypto::sha384_update(&raw mut sig_hash_ctx, &raw signed_content[0], sc_pos)
+                            crypto::sha384_final(&raw mut sig_hash_ctx, &raw mut signed_hash[0])
+                        } else {
+                            unsafe var sig_hash_ctx : crypto::Sha256Context
+                            crypto::sha256_init(&raw mut sig_hash_ctx)
+                            crypto::sha256_update(&raw mut sig_hash_ctx, &raw signed_content[0], sc_pos)
+                            crypto::sha256_final(&raw mut sig_hash_ctx, &raw mut signed_hash[0])
+                        }
 
                         // Verify based on signature algorithm
                         var verify_ret : int = 0
@@ -3846,6 +3965,14 @@ public namespace tls {
                         } else if(sig_alg == TLS1_3_SIG_ECDSA_SECP256R1_SHA256 && has_server_ecdsa) {
                             verify_ret = ecdsa_verify(&raw mut server_ecdsa_ctx,
                                                       &raw signed_hash[0], 32,
+                                                      sig_data, sig_len)
+                        } else if(sig_alg == TLS1_3_SIG_RSA_PKCS1_SHA384 && has_server_rsa) {
+                            verify_ret = rsa_pkcs1_verify(&raw mut server_rsa_ctx,
+                                                          &raw signed_hash[0], 48,
+                                                          sig_data, sig_len)
+                        } else if(sig_alg == TLS1_3_SIG_ECDSA_SECP384R1_SHA384 && has_server_ecdsa) {
+                            verify_ret = ecdsa_verify(&raw mut server_ecdsa_ctx,
+                                                      &raw signed_hash[0], 48,
                                                       sig_data, sig_len)
                         }
                         // If we don't recognize the signature algorithm, allow pass
@@ -3859,34 +3986,42 @@ public namespace tls {
                 }
 
                 // Hash CertificateVerify into transcript AFTER verification
-                crypto::sha256_update(&raw mut transcript, &raw msg_buf[0], 4 + msg_body_len2)
+                tls13_transcript_update(&raw mut transcript, &raw msg_buf[0], 4 + msg_body_len2)
 
             } else if(msg_type_code == SSL_HS_FINISHED as u32) {
                 // Server Finished: derive expected verify_data
-                unsafe var finished_key : [32]u8
+                unsafe var finished_key : [48]u8
                 var fin_key_label = "finished\0" as *char
                 var empty_c : [1]u8 = [0]
-                tls13_hkdf_expand_label(&raw ssl.tls13_keys.server_handshake_traffic_secret[0], 32,
+                tls13_hkdf_expand_label(&raw ssl.tls13_keys.server_handshake_traffic_secret[0], tls13_hash_len,
                                         fin_key_label, 8,
                                         &raw empty_c[0], 0,
-                                        &raw mut finished_key[0], 32)
+                                        &raw mut finished_key[0], tls13_hash_len)
 
                 // Hash Transcript: save state before finalizing (copy the struct)
                 var fin_transcript_copy = transcript
-                unsafe var fin_transcript_hash : [32]u8
-                crypto::sha256_final(&raw mut fin_transcript_copy, &raw mut fin_transcript_hash[0])
+                // Write into a struct field (same compiler bug as above). cv_hash
+                // above already used this scratch field and is no longer needed.
+                tls13_transcript_finalize(&raw mut fin_transcript_copy,
+                                          &raw mut ssl.tls13_keys.exporter_master_secret[0], use_sha384)
 
                 // Compute expected: HMAC(finished_key, transcript_hash)
-                unsafe var expected_finished : [32]u8
-                crypto::hmac_sha256(&raw finished_key[0], 32,
-                                    &raw fin_transcript_hash[0], 32,
-                                    &raw mut expected_finished[0])
+                unsafe var expected_finished : [48]u8
+                if(use_sha384) {
+                    crypto::hmac_sha384(&raw finished_key[0], tls13_hash_len,
+                                        &raw ssl.tls13_keys.exporter_master_secret[0], tls13_hash_len,
+                                        &raw mut expected_finished[0])
+                } else {
+                    crypto::hmac_sha256(&raw finished_key[0], tls13_hash_len,
+                                        &raw ssl.tls13_keys.exporter_master_secret[0], tls13_hash_len,
+                                        &raw mut expected_finished[0])
+                }
 
-                // Compare with received (msg_buf[4..4+32])
+                // Compare with received (msg_buf[4..4+hash_len])
                 var verify_ok = true
-                if(msg_body_len2 != 32) { verify_ok = false }
+                if(msg_body_len2 != tls13_hash_len) { verify_ok = false }
                 var vi : size_t = 0
-                while(vi < 32) {
+                while(vi < tls13_hash_len) {
                     if(msg_buf[4 + vi] != expected_finished[vi]) { verify_ok = false }
                     vi += 1
                 }
@@ -3896,7 +4031,7 @@ public namespace tls {
                 }
 
                 // Hash Finished into transcript
-                crypto::sha256_update(&raw mut transcript, &raw msg_buf[0], 4 + msg_body_len2)
+                tls13_transcript_update(&raw mut transcript, &raw msg_buf[0], 4 + msg_body_len2)
 
                 server_finished_verified = true
 
@@ -3929,53 +4064,64 @@ public namespace tls {
         if(ret < 0) { return ret }
 
         // Derive client finished key
-        unsafe var client_finished_key : [32]u8
+        unsafe var client_finished_key : [48]u8
         var cf_label = "finished\0" as *char
         var empty_c2 : [1]u8 = [0]
-        tls13_hkdf_expand_label(&raw ssl.tls13_keys.client_handshake_traffic_secret[0], 32,
+        tls13_hkdf_expand_label(&raw ssl.tls13_keys.client_handshake_traffic_secret[0], tls13_hash_len,
                                 cf_label, 8,
                                 &raw empty_c2[0], 0,
-                                &raw mut client_finished_key[0], 32)
+                                &raw mut client_finished_key[0], tls13_hash_len)
 
         // Hash Transcript: finalize for client Finished compute
         var cf_transcript_copy = transcript
-        unsafe var cf_hash : [32]u8
-        crypto::sha256_final(&raw mut cf_transcript_copy, &raw mut cf_hash[0])
+        // Write directly into a struct field: &raw local[0] output buffers are
+        // corrupted by a compiler bug for this large-stack (SHA-384) function.
+        tls13_transcript_finalize(&raw mut cf_transcript_copy,
+                                  &raw mut ssl.tls13_keys.client_handshake_traffic_secret[0], use_sha384)
 
-        unsafe var client_finished_verify : [32]u8
-        crypto::hmac_sha256(&raw client_finished_key[0], 32,
-                            &raw cf_hash[0], 32,
-                            &raw mut client_finished_verify[0])
+        unsafe var client_finished_verify : [48]u8
+        if(use_sha384) {
+            crypto::hmac_sha384(&raw client_finished_key[0], tls13_hash_len,
+                                &raw ssl.tls13_keys.client_handshake_traffic_secret[0], tls13_hash_len,
+                                &raw mut client_finished_verify[0])
+        } else {
+            crypto::hmac_sha256(&raw client_finished_key[0], tls13_hash_len,
+                                &raw ssl.tls13_keys.client_handshake_traffic_secret[0], tls13_hash_len,
+                                &raw mut client_finished_verify[0])
+        }
 
-        // Build and send Finished message: hs_type(1) + length(3) + verify_data(32)
-        unsafe var cf_body : [32]u8
+        // Build and send Finished message: hs_type(1) + length(3) + verify_data(hash_len)
+        unsafe var cf_body : [48]u8
         var ci : size_t = 0
-        while(ci < 32) {
+        while(ci < tls13_hash_len) {
             cf_body[ci] = client_finished_verify[ci]
             ci += 1
         }
 
-        unsafe var cf_msg_buf : [36]u8
+        unsafe var cf_msg_buf : [64]u8
         cf_msg_buf[0] = SSL_HS_FINISHED as u8
-        write_u24(32, &raw mut cf_msg_buf[1])
+        write_u24(tls13_hash_len, &raw mut cf_msg_buf[1])
         ci = 0
-        while(ci < 32) {
+        while(ci < tls13_hash_len) {
             cf_msg_buf[4 + ci] = client_finished_verify[ci]
             ci += 1
         }
-        crypto::sha256_update(&raw mut transcript, &raw cf_msg_buf[0], 36)
+        tls13_transcript_update(&raw mut transcript, &raw cf_msg_buf[0], 4 + tls13_hash_len)
 
-        ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw cf_body[0], 32)
+        ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw cf_body[0], tls13_hash_len)
         if(ret < 0) { return ret }
 
         // ── Derive application traffic keys ──
         // RFC 8446 §7.1: c/s ap traffic use ClientHello...server Finished (cf_hash);
         // res master uses ClientHello...client Finished (full_hash).
         var full_transcript_copy = transcript
-        unsafe var full_hash : [32]u8
-        crypto::sha256_final(&raw mut full_transcript_copy, &raw mut full_hash[0])
-        ret = tls13_derive_application_keys(ssl, &raw cf_hash[0], 32,
-                                                   &raw full_hash[0], 32)
+        // Write directly into a struct field (same compiler bug as cf_hash above).
+        tls13_transcript_finalize(&raw mut full_transcript_copy,
+                                  &raw mut ssl.tls13_keys.server_handshake_traffic_secret[0], use_sha384)
+        var di_fh : size_t = 0
+        while(di_fh < 48) { ssl.tls13_keys.exporter_master_secret[di_fh] = ssl.tls13_keys.server_handshake_traffic_secret[di_fh]; di_fh += 1 }
+        ret = tls13_derive_application_keys(ssl, null, tls13_hash_len, null, 0,
+                                                   tls13_key_len, tls13_cipher_type)
         if(ret < 0) { return ret }
 
         ssl.state = SSLState.HANDSHAKE_OVER()
@@ -4638,8 +4784,12 @@ public namespace tls {
         }
 
         // Transcript hash context
-        unsafe var transcript : crypto::Sha256Context
-        crypto::sha256_init(&raw mut transcript)
+        unsafe var transcript : TLS13Transcript
+        tls13_transcript_init(&raw mut transcript)
+
+        // Candidate cipher suites offered by the client (parsed from ClientHello)
+        unsafe var client_cs : [64]u16
+        var client_cs_count : size_t = 0
 
         // Hash ClientHello into transcript
         // FIXED: hs_buf from read_handshake_msg has the 4-byte handshake header
@@ -4649,8 +4799,8 @@ public namespace tls {
         unsafe var ch_hdr : [4]u8
         ch_hdr[0] = SSL_HS_CLIENT_HELLO as u8
         write_u24(hs_len, &raw mut ch_hdr[1])
-        crypto::sha256_update(&raw mut transcript, &raw ch_hdr[0], 4)
-        crypto::sha256_update(&raw mut transcript, &raw hs_buf[4], hs_len)
+        tls13_transcript_update(&raw mut transcript, &raw ch_hdr[0], 4)
+        tls13_transcript_update(&raw mut transcript, &raw hs_buf[4], hs_len)
 
         // Parse ClientHello to find client's key_share (support both P-256 and x25519)
         unsafe var client_p256_key : [65]u8
@@ -4668,7 +4818,15 @@ public namespace tls {
         var sid_copy_i : size_t = 0
         while(sid_copy_i < sid_copy_len) { server_client_sid[sid_copy_i] = hs_buf[ch_pos + 1 + sid_copy_i]; sid_copy_i += 1 }
         ch_pos += 1 + sid_len
-        var cs_len = read_u16_be(&raw hs_buf[ch_pos]) as size_t; ch_pos += 2 + cs_len
+        var cs_len = read_u16_be(&raw hs_buf[ch_pos]) as size_t; ch_pos += 2
+        var cs_pos : size_t = 0
+        while(cs_pos + 2 <= cs_len && client_cs_count < 64) {
+            var cs = read_u16_be(&raw hs_buf[ch_pos + cs_pos]) as u16
+            client_cs[client_cs_count] = cs
+            client_cs_count += 1
+            cs_pos += 2
+        }
+        ch_pos += cs_len
         var cm_count = hs_buf[ch_pos] as size_t; ch_pos += 1 + cm_count
         if(ch_pos + 2 <= hs_len as size_t + 4) {
             var ext_len = read_u16_be(&raw hs_buf[ch_pos]) as size_t; ch_pos += 2
@@ -4740,8 +4898,47 @@ public namespace tls {
         ssl.major_ver = 0x03
         ssl.minor_ver = 0x03
 
-        // Pick cipher suite
-        ssl.negotiated_ciphersuite = TLS1_3_AES_128_GCM_SHA256 as u16
+        // ── Negotiate cipher suite (TLS 1.3 only) ──
+        // Prefer the config's explicit ciphersuite_list; otherwise offer the
+        // full TLS 1.3 set in strongest-first order. Pick the first suite the
+        // client also advertised.
+        unsafe var srv_pref : [8]u16
+        var srv_pref_count : size_t = 0
+        if(ssl.conf.ciphersuite_count > 0 && ssl.conf.ciphersuite_count <= 8) {
+            var pi : size_t = 0
+            while(pi < ssl.conf.ciphersuite_count as size_t) {
+                srv_pref[srv_pref_count] = ssl.conf.ciphersuite_list[pi]
+                srv_pref_count += 1
+                pi += 1
+            }
+        } else {
+            srv_pref[0] = TLS1_3_AES_128_GCM_SHA256 as u16
+            srv_pref[1] = TLS1_3_AES_256_GCM_SHA384 as u16
+            srv_pref[2] = TLS1_3_CHACHA20_POLY1305_SHA256 as u16
+            srv_pref_count = 3
+        }
+        var selected_cs : u16 = 0
+        var nsp : size_t = 0
+        while(nsp < srv_pref_count && selected_cs == 0) {
+            var want = srv_pref[nsp]
+            var cp : size_t = 0
+            while(cp < client_cs_count) {
+                if(client_cs[cp] == want) { selected_cs = want; break }
+                cp += 1
+            }
+            nsp += 1
+        }
+        if(selected_cs == 0) { return ERR_SSL_HANDSHAKE_FAILURE }
+        ssl.negotiated_ciphersuite = selected_cs
+
+        // Derive hash/key parameters for the negotiated suite
+        var cs_info = get_ciphersuite_info(selected_cs)
+        var use_sha384 = (cs_info.hash == HASH_SHA384 as u8)
+        var tls13_hash_len : size_t = 32
+        if(use_sha384) { tls13_hash_len = 48 }
+        var tls13_key_len : size_t = 16
+        if(cs_info.cipher != CIPHER_AES_128_GCM as u8) { tls13_key_len = 32 }
+        var tls13_cipher_type : u8 = cs_info.cipher
 
         unsafe var sh_buf : [1024]u8
         var sh_pos : size_t = 0
@@ -4807,8 +5004,8 @@ public namespace tls {
         unsafe var sh_hdr : [4]u8
         sh_hdr[0] = SSL_HS_SERVER_HELLO as u8
         write_u24(sh_len as u32, &raw mut sh_hdr[1])
-        crypto::sha256_update(&raw mut transcript, &raw sh_hdr[0], 4)
-        crypto::sha256_update(&raw mut transcript, &raw sh_buf[0], sh_len)
+        tls13_transcript_update(&raw mut transcript, &raw sh_hdr[0], 4)
+        tls13_transcript_update(&raw mut transcript, &raw sh_buf[0], sh_len)
 
         // Send ServerHello
         ret = send_handshake_msg(ssl, SSL_HS_SERVER_HELLO as u8, &raw sh_buf[0], sh_len as u32)
@@ -4817,11 +5014,12 @@ public namespace tls {
         // ── Derive handshake traffic keys ────────────────────────────
         // Compute Transcript-Hash(ClientHello...ServerHello)
         var ch_sh_copy = transcript
-        unsafe var ch_sh_hash : [32]u8
-        crypto::sha256_final(&raw mut ch_sh_copy, &raw mut ch_sh_hash[0])
+        unsafe var ch_sh_hash : [48]u8
+        tls13_transcript_finalize(&raw mut ch_sh_copy, &raw mut ch_sh_hash[0], use_sha384)
 
         ret = tls13_derive_handshake_keys(ssl, &raw shared_secret[0], 32,
-                                           &raw ch_sh_hash[0])
+                                           &raw ch_sh_hash[0], null, 0,
+                                           tls13_hash_len, tls13_key_len, tls13_cipher_type)
         if(ret < 0) { return ret }
 
         // ── Send CCS (ChangeCipherSpec compatibility indicator) ──────
@@ -4837,7 +5035,7 @@ public namespace tls {
         write_u24(2, &raw mut ee_buf[1])  // body length (just empty extensions: 00 00)
         ee_buf[4] = 0 as u8; ee_buf[5] = 0 as u8  // empty extensions
 
-        crypto::sha256_update(&raw mut transcript, &raw ee_buf[0], 6)
+        tls13_transcript_update(&raw mut transcript, &raw ee_buf[0], 6)
 
         ret = send_handshake_msg(ssl, SSL_HS_ENCRYPTED_EXTENSIONS as u8, &raw ee_buf[4], 2)
         if(ret < 0) { return ret }
@@ -4876,7 +5074,7 @@ public namespace tls {
                 // Fill handshake header length
                 write_u24(cert_body_pos - 4, &raw mut cert_buf[1])
 
-                crypto::sha256_update(&raw mut transcript, &raw cert_buf[0], cert_body_pos)
+                tls13_transcript_update(&raw mut transcript, &raw cert_buf[0], cert_body_pos)
 
                 ret = send_handshake_msg(ssl, SSL_HS_CERTIFICATE as u8, &raw cert_buf[4], cert_body_pos - 4)
                 if(ret < 0) { return ret }
@@ -4893,7 +5091,7 @@ public namespace tls {
             empty_cert_buf[6] = 0 as u8               // certificate_list length mid
             empty_cert_buf[7] = 0 as u8               // certificate_list length low (= 0 = empty)
 
-            crypto::sha256_update(&raw mut transcript, &raw empty_cert_buf[0], 8)
+            tls13_transcript_update(&raw mut transcript, &raw empty_cert_buf[0], 8)
 
             ret = send_handshake_msg(ssl, SSL_HS_CERTIFICATE as u8, &raw empty_cert_buf[4], 4)
             if(ret < 0) { return ret }
@@ -4904,8 +5102,8 @@ public namespace tls {
             ssl.state = SSLState.CERTIFICATE_VERIFY()
 
             var cv_copy = transcript
-            unsafe var cv_transcript_hash : [32]u8
-            crypto::sha256_final(&raw mut cv_copy, &raw mut cv_transcript_hash[0])
+            unsafe var cv_transcript_hash : [48]u8
+            tls13_transcript_finalize(&raw mut cv_copy, &raw mut cv_transcript_hash[0], use_sha384)
 
             // content = 64 spaces + "TLS 1.3, server CertificateVerify" + 0x00 + transcript_hash
             unsafe var sig_in : [200]u8
@@ -4919,14 +5117,15 @@ public namespace tls {
             sp += clen
             sig_in[sp] = 0x00 as u8; sp += 1
             var cj : size_t = 0
-            while(cj < 32) { sig_in[sp + cj] = cv_transcript_hash[cj]; cj += 1 }
-            sp += 32
+            while(cj < tls13_hash_len) { sig_in[sp + cj] = cv_transcript_hash[cj]; cj += 1 }
+            sp += tls13_hash_len
 
-            unsafe var cv_hash : [32]u8
-            unsafe var cv_hctx : crypto::Sha256Context
-            crypto::sha256_init(&raw mut cv_hctx)
-            crypto::sha256_update(&raw mut cv_hctx, &raw sig_in[0], sp)
-            crypto::sha256_final(&raw mut cv_hctx, &raw mut cv_hash[0])
+            unsafe var cv_hash : [48]u8
+            if(use_sha384) {
+                crypto::sha384_hash(&raw sig_in[0], sp, &raw mut cv_hash[0])
+            } else {
+                crypto::sha256_hash(&raw sig_in[0], sp, &raw mut cv_hash[0])
+            }
 
             var pk_type = ssl.conf.own_cert.pk_type
             unsafe var sig_buf : [256]u8
@@ -4936,9 +5135,13 @@ public namespace tls {
 
             if(pk_type == PK_ECKEY as u8) {
                 var ecdsa_key = ssl.conf.own_key as *mut ECDSAContext
-                ret = ecdsa_sign(ecdsa_key, &raw cv_hash[0], 32, &raw mut sig_buf[0], &raw mut sig_len)
+                ret = ecdsa_sign(ecdsa_key, &raw cv_hash[0], tls13_hash_len, &raw mut sig_buf[0], &raw mut sig_len)
                 if(ret < 0) { return ERR_SSL_INTERNAL_ERROR }
-                sig_alg = TLS1_3_SIG_ECDSA_SECP256R1_SHA256 as u16
+                if(use_sha384) {
+                    sig_alg = TLS1_3_SIG_ECDSA_SECP384R1_SHA384 as u16
+                } else {
+                    sig_alg = TLS1_3_SIG_ECDSA_SECP256R1_SHA256 as u16
+                }
             } else {
                 return ERR_SSL_INTERNAL_ERROR
             }
@@ -4954,7 +5157,7 @@ public namespace tls {
             while(ck < sig_len as size_t) { cv_buf[8 + ck] = sig_buf[ck]; ck += 1 }
             var cv_total = 4 + cv_body
 
-            crypto::sha256_update(&raw mut transcript, &raw cv_buf[0], cv_total as size_t)
+            tls13_transcript_update(&raw mut transcript, &raw cv_buf[0], cv_total as size_t)
 
             ret = send_handshake_msg(ssl, SSL_HS_CERTIFICATE_VERIFY as u8, &raw cv_buf[4], cv_body)
             if(ret < 0) { return ret }
@@ -4962,31 +5165,36 @@ public namespace tls {
 
         // Finished
         ssl.state = SSLState.SERVER_FINISHED()
-        unsafe var finished_key : [32]u8
+        unsafe var finished_key : [48]u8
         var fin_key_label = "finished\0" as *char
         var empty_c : [1]u8 = [0]
-        tls13_hkdf_expand_label(&raw ssl.tls13_keys.server_handshake_traffic_secret[0], 32,
+        tls13_hkdf_expand_label(&raw ssl.tls13_keys.server_handshake_traffic_secret[0], tls13_hash_len,
                                 fin_key_label, 8,
                                 &raw empty_c[0], 0,
-                                &raw mut finished_key[0], 32)
+                                &raw mut finished_key[0], tls13_hash_len)
 
-        unsafe var full_hash_before_fin : [32]u8
+        unsafe var full_hash_before_fin : [48]u8
         var fin_copy = transcript
-        crypto::sha256_final(&raw mut fin_copy, &raw mut full_hash_before_fin[0])
-        unsafe var server_verify : [32]u8
-        crypto::hmac_sha256(&raw finished_key[0], 32, &raw full_hash_before_fin[0], 32,
-                            &raw mut server_verify[0])
+        tls13_transcript_finalize(&raw mut fin_copy, &raw mut full_hash_before_fin[0], use_sha384)
+        unsafe var server_verify : [48]u8
+        if(use_sha384) {
+            crypto::hmac_sha384(&raw finished_key[0], tls13_hash_len, &raw full_hash_before_fin[0], tls13_hash_len,
+                                &raw mut server_verify[0])
+        } else {
+            crypto::hmac_sha256(&raw finished_key[0], tls13_hash_len, &raw full_hash_before_fin[0], tls13_hash_len,
+                                &raw mut server_verify[0])
+        }
 
-        // Build Finished (32 bytes verify_data for SHA-256 in TLS 1.3)
-        unsafe var fin_buf : [36]u8
+        // Build Finished (verify_data length == hash_len)
+        unsafe var fin_buf : [64]u8
         fin_buf[0] = SSL_HS_FINISHED as u8
-        write_u24(32, &raw mut fin_buf[1])
+        write_u24(tls13_hash_len, &raw mut fin_buf[1])
         var fi : size_t = 0
-        while(fi < 32) { fin_buf[4 + fi] = server_verify[fi]; fi += 1 }
+        while(fi < tls13_hash_len) { fin_buf[4 + fi] = server_verify[fi]; fi += 1 }
 
-        crypto::sha256_update(&raw mut transcript, &raw fin_buf[0], 36)
+        tls13_transcript_update(&raw mut transcript, &raw fin_buf[0], 4 + tls13_hash_len)
 
-        ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw fin_buf[4], 32)
+        ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw fin_buf[4], tls13_hash_len)
         if(ret < 0) { return ret }
 
         // ── Read client Finished ────────────────────────────────────
@@ -4999,27 +5207,35 @@ public namespace tls {
         }
 
         // Verify client Finished message
-        unsafe var client_finished_key : [32]u8
+        unsafe var client_finished_key : [48]u8
         var cf_label = "finished\0" as *char
         var empty_c2 : [1]u8 = [0]
-        tls13_hkdf_expand_label(&raw ssl.tls13_keys.client_handshake_traffic_secret[0], 32,
+        tls13_hkdf_expand_label(&raw ssl.tls13_keys.client_handshake_traffic_secret[0], tls13_hash_len,
                                 cf_label, 8,
                                 &raw empty_c2[0], 0,
-                                &raw mut client_finished_key[0], 32)
+                                &raw mut client_finished_key[0], tls13_hash_len)
 
         var cf_copy = transcript
-        unsafe var cf_transcript_hash : [32]u8
-        crypto::sha256_final(&raw mut cf_copy, &raw mut cf_transcript_hash[0])
+        // Write directly into a struct field: &raw local[0] output buffers are
+        // corrupted by a compiler bug for this large-stack (SHA-384) function.
+        tls13_transcript_finalize(&raw mut cf_copy,
+                                  &raw mut ssl.tls13_keys.client_handshake_traffic_secret[0], use_sha384)
 
-        unsafe var expected_client_verify : [32]u8
-        crypto::hmac_sha256(&raw client_finished_key[0], 32,
-                            &raw cf_transcript_hash[0], 32,
-                            &raw mut expected_client_verify[0])
+        unsafe var expected_client_verify : [48]u8
+        if(use_sha384) {
+            crypto::hmac_sha384(&raw client_finished_key[0], tls13_hash_len,
+                                &raw ssl.tls13_keys.client_handshake_traffic_secret[0], tls13_hash_len,
+                                &raw mut expected_client_verify[0])
+        } else {
+            crypto::hmac_sha256(&raw client_finished_key[0], tls13_hash_len,
+                                &raw ssl.tls13_keys.client_handshake_traffic_secret[0], tls13_hash_len,
+                                &raw mut expected_client_verify[0])
+        }
 
         var verify_ok = true
-        if(hs_len != 32) { verify_ok = false }
+        if(hs_len != tls13_hash_len) { verify_ok = false }
         var cfi : size_t = 0
-        while(cfi < 32) {
+        while(cfi < tls13_hash_len) {
             if(hs_buf[4 + cfi] != expected_client_verify[cfi]) { verify_ok = false }
             cfi += 1
         }
@@ -5031,16 +5247,17 @@ public namespace tls {
         unsafe var cf_hdr : [4]u8
         cf_hdr[0] = SSL_HS_FINISHED as u8
         write_u24(hs_len, &raw mut cf_hdr[1])
-        crypto::sha256_update(&raw mut transcript, &raw cf_hdr[0], 4)
-        crypto::sha256_update(&raw mut transcript, &raw hs_buf[4], hs_len)
+        tls13_transcript_update(&raw mut transcript, &raw cf_hdr[0], 4)
+        tls13_transcript_update(&raw mut transcript, &raw hs_buf[4], hs_len)
 
         // ── Derive application traffic keys ──
         // RFC 8446 §7.1: c/s ap traffic use ClientHello...server Finished
         // (cf_transcript_hash); res master uses ClientHello...client Finished (full_hash).
-        unsafe var full_hash : [32]u8
-        crypto::sha256_final(&raw mut transcript, &raw mut full_hash[0])
-        ret = tls13_derive_application_keys(ssl, &raw cf_transcript_hash[0], 32,
-                                                   &raw full_hash[0], 32)
+        // Write full_hash directly into a struct field (same compiler bug).
+        tls13_transcript_finalize(&raw mut transcript,
+                                  &raw mut ssl.tls13_keys.server_handshake_traffic_secret[0], use_sha384)
+        ret = tls13_derive_application_keys(ssl, null, tls13_hash_len, null, 0,
+                                                   tls13_key_len, tls13_cipher_type)
         if(ret < 0) { return ret }
 
         ssl.state = SSLState.HANDSHAKE_OVER()

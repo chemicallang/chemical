@@ -55,6 +55,21 @@ public func E2E_tls13_pinned_aes256_gcm_sha384(env : &mut TestEnv) {
         env.error("AES256-SHA384: expected TLS 1.3 negotiated version")
     }
 
+    // DIAG
+    unsafe var dhex : [97]char
+    test_bytes_to_hex(&raw ctx.tls13_keys.handshake_secret[0], 48, &raw mut dhex[0])
+    printf("DIAG_HS=%s\n", &raw dhex[0])
+    test_bytes_to_hex(&raw ctx.tls13_keys.master_secret[0], 48, &raw mut dhex[0])
+    printf("DIAG_MS=%s\n", &raw dhex[0])
+    test_bytes_to_hex(&raw ctx.tls13_keys.resumption_master_secret[0], 48, &raw mut dhex[0])
+    printf("DIAG_CFH=%s\n", &raw dhex[0])
+    test_bytes_to_hex(&raw ctx.tls13_keys.exporter_master_secret[0], 48, &raw mut dhex[0])
+    printf("DIAG_FULLH=%s\n", &raw dhex[0])
+    test_bytes_to_hex(&raw ctx.tls13_keys.client_application_traffic_secret[0], 48, &raw mut dhex[0])
+    printf("DIAG_CATS=%s\n", &raw dhex[0])
+    test_bytes_to_hex(&raw ctx.tls13_keys.server_application_traffic_secret[0], 48, &raw mut dhex[0])
+    printf("DIAG_SATS=%s\n", &raw dhex[0])
+
     var req = "GET / HTTP/1.0\r\n\r\n"
     ssl_write(&raw mut ctx, req as *u8, 18)
     unsafe var buf : [512]u8

@@ -49,6 +49,11 @@ public func INT_tls13_client(env : &mut TestEnv) {
         else if(ret == ERR_SSL_NO_RNG) { env.error("TLS13: ERR_SSL_NO_RNG") }
         else { env.error("TLS13: unknown error") }
     } else {
+        unsafe var dhex : [97]char
+        test_bytes_to_hex(&raw ctx.tls13_keys.client_application_traffic_secret[0], 48, &raw mut dhex[0])
+        printf("DIAG128_CATS=%s\n", &raw dhex[0])
+        test_bytes_to_hex(&raw ctx.tls13_keys.server_application_traffic_secret[0], 48, &raw mut dhex[0])
+        printf("DIAG128_SATS=%s\n", &raw dhex[0])
         var req = "GET / HTTP/1.0\r\n\r\n"
         ssl_write(&raw mut ctx, req as *u8, 18)
         unsafe var buf : [512]u8

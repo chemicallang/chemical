@@ -861,6 +861,85 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     ecdsa_import_pubkey(&raw mut ctx, &raw pub_key[0], 97, TLS_GROUP_SECP384R1 as u16)
 }
 
+@test public func INT_ecdsa_sign_verify_p384(env : &mut TestEnv) {
+    unsafe var data : [40]u8; test_random_bytes(&raw mut data[0], 40)
+    unsafe var hash : [48]u8; sha384_hash(&raw data[0], 40, &raw mut hash[0])
+    unsafe var script : [256]u8; var sp : size_t = 0; var si : size_t = 0
+    var hdr = "from cryptography.hazmat.primitives.asymmetric import ec\nkey=ec.generate_private_key(ec.SECP384R1())\npub=key.public_key()\nn=pub.public_numbers()\nprint('SK='+format(key.private_numbers().private_value,'096x'))\nprint('PX='+format(n.x,'096x'))\nprint('PY='+format(n.y,'096x'))\n" as *char
+    si=0; while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
+    var py_out = test_python_run_script(&raw script[0], sp, string_view("ecdsa_p384k"))
+    unsafe var sk_hex : [96]u8; unsafe var px_hex : [96]u8; unsafe var py_hex : [96]u8
+    if(test_parse_py_hex_label(&raw mut py_out, string_view("SK="), &raw mut sk_hex[0], 48)!=48){env.error("sk p384");return}else{}
+    test_parse_py_hex_label(&raw mut py_out, string_view("PX="), &raw mut px_hex[0], 48)
+    test_parse_py_hex_label(&raw mut py_out, string_view("PY="), &raw mut py_hex[0], 48)
+    unsafe var ctx : ECDSAContext; ecdsa_init(&raw mut ctx)
+    ecdsa_import_privkey(&raw mut ctx, &raw sk_hex[0], 48, TLS_GROUP_SECP384R1 as u16)
+    unsafe var sig : [256]u8; var sig_len : u16 = 256
+    if(ecdsa_sign(&raw mut ctx, &raw hash[0], 48, &raw mut sig[0], &raw mut sig_len) < 0){env.error("sign p384");return}else{}
+    unsafe var ctx2 : ECDSAContext; ecdsa_init(&raw mut ctx2)
+    unsafe var pub_key : [97]u8; pub_key[0]=4; var i:size_t=0;while(i<48){pub_key[1+i]=px_hex[i];pub_key[49+i]=py_hex[i];i+=1}
+    ecdsa_import_pubkey(&raw mut ctx2, &raw pub_key[0], 97, TLS_GROUP_SECP384R1 as u16)
+    if(ecdsa_verify(&raw mut ctx2, &raw hash[0], 48, &raw sig[0], sig_len) < 0){env.error("verify p384");return}else{}
+}
+
+@test public func INT_ecdsa_verify_py_sig_p384(env : &mut TestEnv) {
+    unsafe var data : [40]u8; test_random_bytes(&raw mut data[0], 40)
+    unsafe var hash : [48]u8; sha384_hash(&raw data[0], 40, &raw mut hash[0])
+    unsafe var h_hex : [97]char; test_bytes_to_hex(&raw hash[0], 48, &raw mut h_hex[0])
+    unsafe var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
+    var hdr = "from cryptography.hazmat.primitives.asymmetric import ec,utils\nfrom cryptography.hazmat.primitives import hashes\nkey=ec.generate_private_key(ec.SECP384R1())\npub=key.public_key()\nsig=key.sign(bytes.fromhex('" as *char
+    si=0; while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
+    si=0; while(h_hex[si]!=0){script[sp]=h_hex[si] as u8; sp+=1; si+=1}
+    var l = "'),ec.ECDSA(utils.Prehashed(hashes.SHA384())))\nn=pub.public_numbers()\nprint('PX='+format(n.x,'096x'))\nprint('PY='+format(n.y,'096x'))\nprint('SIG='+sig.hex())\n" as *char; si=0
+    while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
+    var py_out = test_python_run_script(&raw script[0], sp, string_view("ecdsa_p384vfy"))
+    unsafe var px_hex : [96]u8; unsafe var py_hex : [96]u8; unsafe var sig_hex : [256]u8
+    test_parse_py_hex_label(&raw mut py_out, string_view("PX="), &raw mut px_hex[0], 48)
+    test_parse_py_hex_label(&raw mut py_out, string_view("PY="), &raw mut py_hex[0], 48)
+    var sig_len = test_parse_py_hex_label(&raw mut py_out, string_view("SIG="), &raw mut sig_hex[0], 256)
+    if(sig_len==0){env.error("sig p384");return}else{}
+    unsafe var ctx : ECDSAContext; ecdsa_init(&raw mut ctx)
+    unsafe var pub_key : [97]u8; pub_key[0]=4; var i:size_t=0;while(i<48){pub_key[1+i]=px_hex[i];pub_key[49+i]=py_hex[i];i+=1}
+    ecdsa_import_pubkey(&raw mut ctx, &raw pub_key[0], 97, TLS_GROUP_SECP384R1 as u16)
+    if(ecdsa_verify(&raw mut ctx, &raw hash[0], 48, &raw sig_hex[0], sig_len) < 0){env.error("ecdsa verify vs py p384");return}else{}
+}
+
+@test public func INT_ecdsa_sign_py_verify_p384(env : &mut TestEnv) {
+    unsafe var script : [256]u8; var sp : size_t = 0; var si : size_t = 0
+    var hdr = "from cryptography.hazmat.primitives.asymmetric import ec\nkey=ec.generate_private_key(ec.SECP384R1())\nn=key.public_key().public_numbers()\nprint('PX='+format(n.x,'096x'))\nprint('PY='+format(n.y,'096x'))\nprint('SK='+format(key.private_numbers().private_value,'096x'))\n" as *char
+    si=0; while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
+    var py_out = test_python_run_script(&raw script[0], sp, string_view("ecdsa_p384st"))
+    unsafe var sk_hex : [96]u8; unsafe var px_hex : [96]u8; unsafe var py_hex : [96]u8
+    if(test_parse_py_hex_label(&raw mut py_out, string_view("SK="), &raw mut sk_hex[0], 48)!=48){env.error("sk p384");return}else{}
+    test_parse_py_hex_label(&raw mut py_out, string_view("PX="), &raw mut px_hex[0], 48)
+    test_parse_py_hex_label(&raw mut py_out, string_view("PY="), &raw mut py_hex[0], 48)
+    unsafe var px_hexstr : [97]char; test_bytes_to_hex(&raw px_hex[0], 48, &raw mut px_hexstr[0])
+    unsafe var py_hexstr : [97]char; test_bytes_to_hex(&raw py_hex[0], 48, &raw mut py_hexstr[0])
+    unsafe var data : [40]u8; test_random_bytes(&raw mut data[0], 40)
+    unsafe var hash : [48]u8; sha384_hash(&raw data[0], 40, &raw mut hash[0])
+    unsafe var h_hex : [97]char; test_bytes_to_hex(&raw hash[0], 48, &raw mut h_hex[0])
+    unsafe var ctx : ECDSAContext; ecdsa_init(&raw mut ctx); ecdsa_import_privkey(&raw mut ctx, &raw sk_hex[0], 48, TLS_GROUP_SECP384R1 as u16)
+    unsafe var sig : [256]u8; var sig_len : u16 = 256
+    ecdsa_sign(&raw mut ctx, &raw hash[0], 48, &raw mut sig[0], &raw mut sig_len)
+    unsafe var sig_hex : [513]char; test_bytes_to_hex(&raw sig[0], sig_len as size_t, &raw mut sig_hex[0])
+    unsafe var script2 : [2048]u8; var sp2 : size_t = 0; var si2 : size_t = 0
+    script2[0]=0
+    hdr = "from cryptography.hazmat.primitives.asymmetric import ec,utils\nfrom cryptography.hazmat.primitives import hashes\nkey=ec.EllipticCurvePublicNumbers(int.from_bytes(bytes.fromhex('" as *char
+    si=0; while(hdr[si]!=0){script2[sp2]=hdr[si] as u8; sp2+=1; si+=1}
+    si=0; while(px_hexstr[si]!=0){script2[sp2]=px_hexstr[si] as u8; sp2+=1; si+=1}
+    var l = "'),'big'),int.from_bytes(bytes.fromhex('" as *char; si=0; while(l[si]!=0){script2[sp2]=l[si] as u8; sp2+=1; si+=1}
+    si=0; while(py_hexstr[si]!=0){script2[sp2]=py_hexstr[si] as u8; sp2+=1; si+=1}
+    l = "'),'big'),ec.SECP384R1()).public_key(backend=None)\ntry:\n key.verify(bytes.fromhex('" as *char; si=0
+    while(l[si]!=0){script2[sp2]=l[si] as u8; sp2+=1; si+=1}
+    si=0; while(sig_hex[si]!=0){script2[sp2]=sig_hex[si] as u8; sp2+=1; si+=1}
+    l = "'),bytes.fromhex('" as *char; si=0; while(l[si]!=0){script2[sp2]=l[si] as u8; sp2+=1; si+=1}
+    si=0; while(h_hex[si]!=0){script2[sp2]=h_hex[si] as u8; sp2+=1; si+=1}
+    l = "'),ec.ECDSA(utils.Prehashed(hashes.SHA384())))\n print('OK=1')\nexcept Exception:\n print('OK=0')\n" as *char; si=0
+    while(l[si]!=0){script2[sp2]=l[si] as u8; sp2+=1; si+=1}
+    py_out = test_python_run_script(&raw script2[0], sp2, string_view("ecdsa_p384st2"))
+    if(py_out.size()<4||py_out.get(0)!=79||py_out.get(1)!=75||py_out.get(2)!=61||py_out.get(3)!=49){env.error("python verify rejected p384");return}else{}
+}
+
 // ============================================================
 // RSA tests (4)
 // ============================================================

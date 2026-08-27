@@ -188,4 +188,18 @@ public func run_common_tests() {
     // C codegen compatibility tests (TinyCC patterns)
     test_tcc_codegen_compat();
 
+    // Regression: fixed-size char array string literals (exact fit must compile)
+    test("string literal exact-fit char array", () => {
+        return string_literal_exact_fit_char_array();
+    })
+    test("string literal exact-fit uppercase char array", () => {
+        return string_literal_exact_fit_uppercase();
+    })
+    test("string literal smaller than char array", () => {
+        return string_literal_smaller_than_char_array();
+    })
+    test("char array variable exact fit", () => {
+        return char_array_var_exact_fit();
+    })
+
 }

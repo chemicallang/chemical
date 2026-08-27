@@ -1601,8 +1601,7 @@ int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& d
 
 }
 
-int LabBuildCompiler::process_job_tcc(LabJob* job) {
-
+ int LabBuildCompiler::process_job_tcc(LabJob* job) {
 
     const auto exe = job;
     const auto get_job_type = job->type;

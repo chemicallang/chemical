@@ -3008,14 +3008,23 @@ void SymResLinkBody::VisitStringValue(StringValue* strValue) {
     if (type && type->kind() == BaseTypeKind::Array) {
         strValue->is_array = true;
         auto arrayType = (ArrayType*) (type);
-        if (arrayType->get_array_size() > strValue->value.size()) {
+        if (arrayType->get_array_size() >= strValue->value.size()) {
+            // array is large enough to hold the literal; an exact fit means the
+            // literal has no trailing null terminator (valid, like C char[N]="...")
             strValue->length = (unsigned int) arrayType->get_array_size();
         } else if (arrayType->has_no_array_size()) {
             strValue->length = strValue->value.size() + 1; // adding 1 for the last /0
         } else {
-#ifdef DEBUG
-            CHEM_THROW_RUNTIME("unknown");
-#endif
+            // fixed-size array is too small to hold the string literal; report it
+            // as a diagnostic instead of throwing (which crashes the compiler)
+            const auto literal_len = strValue->value.size();
+            const auto array_len = arrayType->get_array_size();
+            diagnoser.error(strValue)
+                << "string literal of length " << std::to_string(literal_len).c_str()
+                << " does not fit in a fixed-size array of length " << std::to_string(array_len).c_str()
+                << " (literal: \""
+                << chem::string_view(strValue->value.data(), strValue->value.size()) << "\")";
+            strValue->length = (unsigned int) literal_len + 1;
         }
     }
 }

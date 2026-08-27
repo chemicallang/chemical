@@ -73,9 +73,19 @@ public namespace tls {
                             sig_out : *mut u8, sig_out_len : *mut u16) : int {
         if(tls_config::DEBUG_LOG) printf("[ECDSA_DBG] has_priv=%d curve=%d\n", ctx.has_private as int, ctx.curve_id as int)
         if(!ctx.has_private) { if(tls_config::DEBUG_LOG) printf("[ECDSA_DBG] no private key!\n"); return ERR_ECDSA_VERIFY_FAILED }
-        if(ctx.curve_id != TLS_GROUP_SECP256R1 as u16) {
+        var coord_bytes : size_t = 32
+        var curve_select : int = 0
+        if(ctx.curve_id == TLS_GROUP_SECP384R1 as u16) {
+            coord_bytes = 48
+            curve_select = 1
+        } else if(ctx.curve_id != TLS_GROUP_SECP256R1 as u16) {
             return ERR_ECP_FEATURE_UNAVAILABLE
         }
+        ecp_select_curve(curve_select)
+        printf("[DBGEC] sign curve_id=%d coord=%d hash_len=%d hash=", ctx.curve_id as int, coord_bytes as int, hash_len as int)
+        var dbg_i : size_t = 0
+        while(dbg_i < hash_len) { printf("%02x", hash[dbg_i] as int); dbg_i += 1 }
+        printf("\n")
 
         unsafe var n : Mpi; ecp_curve_n(&raw mut n)
         unsafe var e : Mpi; mpi_init(&raw mut e)
@@ -84,12 +94,8 @@ public namespace tls {
         if(ret < 0) { return ret }
 
         unsafe var G : ECPPoint; ecp_point_init(&raw mut G)
-        mpi_grow(&raw mut G.X, 8); G.X.n = 8
-        mpi_grow(&raw mut G.Y, 8); G.Y.n = 8
-        var gi : size_t = 0
-        while(gi < 8) { G.X.p[gi] = P256_GX[gi]; gi += 1 }
-        gi = 0
-        while(gi < 8) { G.Y.p[gi] = P256_GY[gi]; gi += 1 }
+        ecp_curve_gx(&raw mut G.X)
+        ecp_curve_gy(&raw mut G.Y)
         mpi_lset(&raw mut G.Z, 1)
         if(tls_config::DEBUG_LOG) printf("[ECDSA_DBG] G_ok\n")
 
@@ -101,17 +107,17 @@ public namespace tls {
         unsafe var R : ECPPoint; ecp_point_init(&raw mut R)
 
         var attempts : i32 = 0
-        unsafe var k_bytes : [32]u8
-        unsafe var r_bytes : [32]u8
-        unsafe var s_bytes : [32]u8
+        unsafe var k_bytes : [48]u8
+        unsafe var r_bytes : [48]u8
+        unsafe var s_bytes : [48]u8
         var r_body_len : size_t = 0
         var s_body_len : size_t = 0
 
         while(attempts < 100) {
-            ret = random_fill(&raw mut k_bytes[0], 32)
+            ret = random_fill(&raw mut k_bytes[0], coord_bytes)
             if(ret < 0) { return ret }
             k_bytes[0] = (k_bytes[0] & 0x7F) as u8
-            ret = mpi_read_binary(&raw mut k, &raw k_bytes[0], 32)
+            ret = mpi_read_binary(&raw mut k, &raw k_bytes[0], coord_bytes)
             if(ret < 0) { return ret }
             ret = mpi_mod(&raw mut k, &raw mut k, &raw mut n)
             if(ret < 0) { return ret }
@@ -146,21 +152,21 @@ public namespace tls {
         }
         if(attempts >= 100) { return ERR_ECDSA_VERIFY_FAILED }
 
-        ret = mpi_write_binary(&raw mut r_val, &raw mut r_bytes[0], 32)
+        ret = mpi_write_binary(&raw mut r_val, &raw mut r_bytes[0], coord_bytes)
         if(ret < 0) { return ret }
-        ret = mpi_write_binary(&raw mut s_val, &raw mut s_bytes[0], 32)
+        ret = mpi_write_binary(&raw mut s_val, &raw mut s_bytes[0], coord_bytes)
         if(ret < 0) { return ret }
 
         // DER encode: SEQUENCE { INTEGER r, INTEGER s }
         var r_start : size_t = 0
-        while(r_start < 32 && r_bytes[r_start] == 0) { r_start += 1 }
-        var r_need : bool = (r_start < 32 && (r_bytes[r_start] & 0x80) != 0)
-        if(r_need) { r_body_len = (32 - r_start) + 1 } else { r_body_len = 32 - r_start }
+        while(r_start < coord_bytes && r_bytes[r_start] == 0) { r_start += 1 }
+        var r_need : bool = (r_start < coord_bytes && (r_bytes[r_start] & 0x80) != 0)
+        if(r_need) { r_body_len = (coord_bytes - r_start) + 1 } else { r_body_len = coord_bytes - r_start }
 
         var s_start : size_t = 0
-        while(s_start < 32 && s_bytes[s_start] == 0) { s_start += 1 }
-        var s_need : bool = (s_start < 32 && (s_bytes[s_start] & 0x80) != 0)
-        if(s_need) { s_body_len = (32 - s_start) + 1 } else { s_body_len = 32 - s_start }
+        while(s_start < coord_bytes && s_bytes[s_start] == 0) { s_start += 1 }
+        var s_need : bool = (s_start < coord_bytes && (s_bytes[s_start] & 0x80) != 0)
+        if(s_need) { s_body_len = (coord_bytes - s_start) + 1 } else { s_body_len = coord_bytes - s_start }
 
         var total_content = 2 + r_body_len + 2 + s_body_len
 
@@ -177,14 +183,14 @@ public namespace tls {
         sig_out[pos] = r_body_len as u8; pos += 1
         if(r_need) { sig_out[pos] = 0; pos += 1 }
         var ri : size_t = 0
-        while(ri < 32 - r_start) { sig_out[pos + ri] = r_bytes[r_start + ri]; ri += 1 }
+        while(ri < coord_bytes - r_start) { sig_out[pos + ri] = r_bytes[r_start + ri]; ri += 1 }
         pos += ri
 
         sig_out[pos] = 0x02 as u8; pos += 1
         sig_out[pos] = s_body_len as u8; pos += 1
         if(s_need) { sig_out[pos] = 0; pos += 1 }
         var si : size_t = 0
-        while(si < 32 - s_start) { sig_out[pos + si] = s_bytes[s_start + si]; si += 1 }
+        while(si < coord_bytes - s_start) { sig_out[pos + si] = s_bytes[s_start + si]; si += 1 }
         pos += si
 
         *sig_out_len = pos as u16

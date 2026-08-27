@@ -737,7 +737,7 @@ public func E2E_tls13_server_pinned_aes256_gcm(env : &mut TestEnv) {
     write_tls_python_utils()
     test_kill_port(20115u)
     test_server_wait()
-    test_py_run_foreground(string_view("cert /tmp/tls_20115_cert.pem /tmp/tls_20115_key.pem localhost ec"))
+    test_py_run_foreground(string_view("cert /tmp/tls_20115_cert.pem /tmp/tls_20115_key.pem localhost ec384"))
 
     var cert = x509_crt_load_pem_file("/tmp/tls_20115_cert.pem")
     if(cert == null) { env.error("server aes256: failed to load cert"); return }
@@ -795,6 +795,7 @@ public func E2E_tls13_server_pinned_aes256_gcm(env : &mut TestEnv) {
     ssl_set_config(ssl_mem, &raw mut cfg)
 
     var ret = ssl_handshake(ssl_mem)
+    printf("DEBUG aes256 handshake ret = %d\n", ret)
     if(ret < 0) {
         env.error("server aes256: TLS 1.3 handshake with pinned suite failed")
     } else {

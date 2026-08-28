@@ -784,8 +784,8 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
             // Get the concrete type from the receiver type
             if (call->parent_val->kind() == ValueKind::AccessChain) {
                 auto chain = call->parent_val->as_access_chain_unsafe();
-                if (!chain->values.empty()) {
-                    auto receiver_type = chain->values[0]->getType();
+                if (chain->values.size() > 1) {
+                    auto receiver_type = chain->values[chain->values.size() - 2]->getType();
                     if (receiver_type && receiver_type->kind() == BaseTypeKind::Generic) {
                         auto gen_type = receiver_type->as_generic_type_unsafe();
                         auto param_index = constraint.param->param_index;

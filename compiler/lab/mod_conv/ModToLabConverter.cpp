@@ -258,9 +258,11 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
                 output << ") {\n\t";
             }
 
-            output << "\tconst c_file_mod_" << c_file_index << " = " << "ctx.c_file_module(\"" << data.scope_name << "\", \"" << data.module_name << "_cfile_" << c_file_index << "\", lab::rel_path_to(\"" << lib.path << "\").to_view(), std::span<*mut Module>());\n";
+            output << "\tconst c_file_path_" << c_file_index << " = " << "lab::rel_path_to(\"" << lib.path << "\");\n";
+            output << "\tconst c_file_mod_" << c_file_index << " = " << "ctx.c_file_module(\"" << data.scope_name << "\", \"" << data.module_name << "_cfile_" << c_file_index << "\", c_file_path_" << c_file_index << ".to_view(), std::span<*mut Module>());\n";
 
             // adding global includes (scopes to this chemical.mod file)
+            unsigned int include_index = 0;
             for (auto& inc : data.include_dirs) {
                 const auto has_include_if = inc.if_cond != nullptr;
                 if(has_include_if) {
@@ -268,13 +270,16 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
                     writeIfConditional(inc.if_cond, output);
                     output << ") {\n\t";
                 }
-                output << "\tctx.add_include_dir(c_file_mod_" << c_file_index << ", lab::rel_path_to(\"" << inc.path << "\").to_view());\n";
+                output << "const c_inc_" << c_file_index << "_" << include_index << " = " << "lab::rel_path_to(\"" << inc.path << "\");\n";
+                output << "\tctx.add_include_dir(c_file_mod_" << c_file_index << ", c_inc_" << c_file_index << "_" << include_index << ".to_view());\n";
                 if(has_include_if) {
                     output << "\t}\n";
                 }
+                include_index++;
             }
 
             // adding global includes (scopes to this chemical.mod file)
+            include_index = 0;
             for (auto& inc : lib.include_dirs) {
                 const auto has_include_if = inc.if_cond != nullptr;
                 if(has_include_if) {
@@ -282,10 +287,12 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
                     writeIfConditional(inc.if_cond, output);
                     output << ") {\n\t";
                 }
-                output << "\tctx.add_include_dir(c_file_mod_" << c_file_index << ", lab::rel_path_to(\"" << inc.path << "\").to_view());\n";
+                output << "const cg_inc_" << c_file_index << "_" << include_index << " = " << "lab::rel_path_to(\"" << inc.path << "\");\n";
+                output << "\tctx.add_include_dir(c_file_mod_" << c_file_index << ", cg_inc_" << c_file_index << "_" << include_index << ".to_view());\n";
                 if(has_include_if) {
                     output << "\t}\n";
                 }
+                include_index++;
             }
 
             output << "\tctx.add_dependency(__chx_job, c_file_mod_" << c_file_index << ", null)\n";

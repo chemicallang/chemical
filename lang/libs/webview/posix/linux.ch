@@ -61,7 +61,7 @@ const WEBKIT_USER_SCRIPT_INJECT_AT_DOCUMENT_START = 0
 // `window.__webview__` with `call(method, ...params)` returning a Promise that
 // resolves with the JSON-parsed handler result; `window.webview_bridge` is kept
 // as an alias for older callers.
-const WEBVIEW_BRIDGE_JS : *char = """(function(){'use strict';function generateId(){var c=window.crypto||window.msCrypto;var b=new Uint8Array(16);c.getRandomValues(b);return Array.prototype.slice.call(b).map(function(n){var s=n.toString(16);return((s.length%2)==1?'0':'')+s;}).join('');}var Webview=(function(){var _p={};function W(){}W.prototype.post=function(m){return window.webkit.messageHandlers.__webview__.postMessage(m);};W.prototype.call=function(method){var _id=generateId();var _params=Array.prototype.slice.call(arguments,1);var promise=new Promise(function(resolve,reject){_p[_id]={resolve:resolve,reject:reject};});this.post(JSON.stringify({id:_id,method:method,params:_params}));return promise;};W.prototype.onReply=function(id,status,result){var promise=_p[id];if(!promise)return;if(result!==undefined){try{result=JSON.parse(result);}catch(e){promise.reject(new Error('Failed to parse binding result as JSON'));return;}}if(status===0){promise.resolve(result);}else{promise.reject(result);}};W.prototype.onBind=function(name){if(window.hasOwnProperty(name)){throw new Error('Property "'+name+'" already exists');}window[name]=(function(){var params=[name].concat(Array.prototype.slice.call(arguments));return W.prototype.call.apply(this,params);}).bind(this);};W.prototype.onUnbind=function(name){if(!window.hasOwnProperty(name)){throw new Error('Property "'+name+'" does not exist');}delete window[name];};return W;})();window.__webview__=new Webview();window.webview_bridge=window.__webview__;})()"""
+const WEBVIEW_BRIDGE_JS : *char = """(function(){'use strict';function generateId(){var c=window.crypto||window.msCrypto;var b=new Uint8Array(16);c.getRandomValues(b);return Array.prototype.slice.call(b).map(function(n){var s=n.toString(16);return((s.length%2)==1?'0':'')+s;}).join('');}var Webview=(function(){var _p={};function W(){}W.prototype.post=function(m){return window.webkit.messageHandlers.__webview__.postMessage(m);};W.prototype.call=function(method){var _id=generateId();var _params=Array.prototype.slice.call(arguments,1);var promise=new Promise(function(resolve,reject){_p[_id]={resolve:resolve,reject:reject};});this.post(JSON.stringify({id:_id,method:method,params:_params}));return promise;};W.prototype.onReply=function(id,status,result){var promise=_p[id];if(!promise)return;if(result!==undefined){try{result=JSON.parse(result);}catch(e){promise.reject(new Error('Failed to parse binding result as JSON'));return;}}if(status===0){promise.resolve(result);}else{promise.reject(result);}};W.prototype._lrBuf=null;W.prototype._lrPush=function(chunk){if(!this._lrBuf)return;try{var obj=typeof chunk==='string'?JSON.parse(chunk):chunk;this._lrBuf.chunks.push(obj.data||'');}catch(e){this._lrBuf.chunks.push(String(chunk));}};W.prototype._lrDone=function(){if(!this._lrBuf)return;var lr=this._lrBuf;this._lrBuf=null;var full=lr.chunks.join('');var promise=_p[lr.id];if(promise){try{promise.resolve(JSON.parse(full));}catch(e){promise.reject(new Error('Failed to parse large result'));}}};W.prototype.onBind=function(name){if(window.hasOwnProperty(name)){throw new Error('Property "'+name+'" already exists');}window[name]=(function(){var params=[name].concat(Array.prototype.slice.call(arguments));return W.prototype.call.apply(this,params);}).bind(this);};W.prototype.onUnbind=function(name){if(!window.hasOwnProperty(name)){throw new Error('Property "'+name+'" does not exist');}delete window[name];};return W;})();window.__webview__=new Webview();window.webview_bridge=window.__webview__;})()"""
 
 // The injected WebKitUserScript is owned by the user content manager for the
 // lifetime of the web view (no manual unreference needed).
@@ -435,29 +435,205 @@ func linux_json_escape(sv : std::string_view) : string {
     return result
 }
 
+
+// ---------------------------------------------------------------------------
+// Large result chunking — bridge responses exceeding this threshold are
+// stored in a C buffer and delivered to JS in small chunks.  The threshold
+// is deliberately low so even escaped JSON stays under the WebKit script
+// size limit (~64 KB).
+// ---------------------------------------------------------------------------
+const LARGE_RESULT_THRESHOLD : size_t = 32768
+
+// Heap-allocated buffer holding the pending large result.  Protected by
+// the GTK main-loop serialization (all access happens on the main thread
+// inside signal handlers and their pump iterations).
+unsafe var g_lr_buf : *char = null
+unsafe var g_lr_size : size_t = 0
+unsafe var g_lr_alloc : size_t = 0  // capacity of g_lr_buf
+var g_lr_ready : bool = false
+
+// State for the idle-delivery callback
+struct LrIdleState {
+    var wv : *mut WebView
+    var call_id : string
+}
+unsafe var g_lr_idle_state : *mut LrIdleState = null
+
+func linux_store_large_result(id_str : *char, data : *char, size : size_t) {
+    // Free previous if any
+    if(g_lr_buf != null) {
+        free(g_lr_buf as *mut void)
+    }
+    g_lr_buf = malloc(size) as *char
+    g_lr_alloc = size
+    g_lr_size = size
+    if(size > 0u && data != null) {
+        memcpy(g_lr_buf as *mut void, data as *mut void, size)
+    }
+    g_lr_ready = true
+}
+
+func linux_chunk_result(offset : size_t, length : size_t) : string {
+    if(!g_lr_ready || g_lr_buf == null || offset >= g_lr_size) {
+        return string("{}")
+    }
+    var end = offset + length
+    if(end > g_lr_size) { end = g_lr_size }
+    var chunk_size = end - offset
+    // Build a small JSON: {"data":"...escaped chunk...","offset":N,"total":M,"done":bool}
+    var out = string("{\"data\":")
+    var chunk_sv = std::string_view(g_lr_buf + offset, chunk_size)
+    var escaped = linux_json_escape(chunk_sv)
+    var escaped_sv = std::string_view::make_view(&escaped)
+    out.append_view(&escaped_sv)
+    out.append_view(std::string_view::make_no_len(",\"offset\":"))
+    out.append_integer(offset as bigint)
+    out.append_view(std::string_view::make_no_len(",\"total\":"))
+    out.append_integer(g_lr_size as bigint)
+    out.append_view(std::string_view::make_no_len(",\"done\":"))
+    if(end >= g_lr_size) {
+        out.append_view(std::string_view::make_no_len("true"))
+    } else {
+        out.append_view(std::string_view::make_no_len("false"))
+    }
+    out.append('}')
+    return out
+}
+
+func linux_clear_large_result() {
+    if(g_lr_buf != null) {
+        free(g_lr_buf as *mut void)
+        g_lr_buf = null
+    }
+    g_lr_size = 0
+    g_lr_alloc = 0
+    g_lr_ready = false
+}
+
+// Parse an integer field from a JSON params string.
+func linux_json_int_field(params_view : std::string_view, key : *char) : size_t {
+    var val_str = linux_json_value(params_view, key)
+    if(val_str.size() == 0u) { return 0 }
+    var result : size_t = 0
+    var i : size_t = 0
+    while(i < val_str.size()) {
+        var c = val_str.get(i)
+        if(c >= '0' && c <= '9') {
+            result = result * 10 + (c - '0') as size_t
+        }
+        i = i + 1
+    }
+    return result
+}
+
+
+// Idle callback that delivers a large result in chunks via the main loop.
+// This runs outside any signal handler, so webview_evaluate_js works normally.
+func linux_lr_idle_deliver(data : *mut void) : i32 {
+    fprintf(stderr, "[WV-BRIDGE] idle callback fired\n")
+    var state = data as *mut LrIdleState
+    if(state == null || state.wv == null || !g_lr_ready || g_lr_buf == null) {
+        fprintf(stderr, "[WV-BRIDGE] idle callback: early exit (null state or no data)\n")
+        if(state != null) { free(state as *mut void) }
+        return 0
+    }
+    var wv = state.wv
+        // 1. Init accumulator
+    var init_js = string("window.__webview__._lrBuf={id:")
+    var nid_sv = std::string_view::make_view(&state.call_id)
+    var nid_view = nid_sv
+    var esc_nid = linux_json_escape(nid_view)
+    var esc_nid_view = std::string_view::make_view(&esc_nid)
+    init_js.append_view(&esc_nid_view)
+    init_js.append_view(std::string_view::make_no_len(",chunks:[],total:"))
+    init_js.append_integer(g_lr_size as bigint)
+    init_js.append_view(std::string_view::make_no_len(",offset:0}"))
+    webview_evaluate_js(wv, init_js.data())
+
+    // 2. Send chunks
+    var chunk_offset : size_t = 0
+    var chunk_size : size_t = 4096
+    while(chunk_offset < g_lr_size) {
+        if(chunk_size > g_lr_size - chunk_offset) { chunk_size = g_lr_size - chunk_offset }
+        var chunk = linux_chunk_result(chunk_offset, chunk_size)
+        var chunk_js = string("window.__webview__._lrPush(")
+        var chunk_view = std::string_view::make_view(&chunk)
+        var esc_chunk = linux_json_escape(chunk_view)
+        var esc_chunk_view = std::string_view::make_view(&esc_chunk)
+        chunk_js.append_view(&esc_chunk_view)
+        chunk_js.append(')')
+        webview_evaluate_js(wv, chunk_js.data())
+        chunk_offset = chunk_offset + chunk_size
+    }
+
+    // 3. Assemble and resolve
+    var done_js = string("window.__webview__._lrDone()")
+    webview_evaluate_js(wv, done_js.data())
+
+    // Cleanup
+    linux_clear_large_result()
+    free(state as *mut void)
+    g_lr_idle_state = null
+    return 0
+}
+
 // Process an incoming bridge message (JSON from JS). Parses {id, method,
 // params}, calls the bound handler, and sends the result back via
 // window.__webview__.onReply(id, 0, result).
 func linux_on_message(wv : *mut WebView, msg : *char) {
-    fprintf(stderr, "[WV-BRIDGE] message received\n")
     var msg_view = std::string_view::make_no_len(msg)
 
     var id_str = linux_json_value(msg_view, "\"id\":")
     var method = linux_json_value(msg_view, "\"method\":")
     var params_str = linux_json_value(msg_view, "\"params\":")
+    var method_view = std::string_view::make_view(&method)
 
-    if(method.size() == 0) {
-        fprintf(stderr, "[WV-BRIDGE] empty method\n")
+    // ---- Internal chunking protocol (intercept before user handler) ----
+    // _getChunk: return a slice of a previously stored large result.
+    var GET_CHUNK_SV = std::string_view::make_no_len("_getChunk")
+    if(method_view.equals(&GET_CHUNK_SV)) {
+        var params_view = std::string_view::make_view(&params_str)
+        var offset_val = linux_json_int_field(params_view, "\"offset\":")
+        var size_val = linux_json_int_field(params_view, "\"size\":")
+        if(size_val == 0u) { size_val = 4096 }
+        var chunk = linux_chunk_result(offset_val, size_val)
+        var chunk_view = std::string_view::make_view(&chunk)
+        var esc_chunk = linux_json_escape(chunk_view)
+        var js_call = string("window.__webview__.onReply(")
+        var id_view = std::string_view::make_view(&id_str)
+        var esc_id = linux_json_escape(id_view)
+        var esc_id_view = std::string_view::make_view(&esc_id)
+        js_call.append_view(&esc_id_view)
+        js_call.append_view(std::string_view::make_no_len(", 0, "))
+        var esc_chunk_view = std::string_view::make_view(&esc_chunk)
+        js_call.append_view(&esc_chunk_view)
+        js_call.append(')')
+        webview_evaluate_js(wv, js_call.data())
         return
     }
 
-    fprintf(stderr, "[WV-BRIDGE] method=%s\n", method.data())
-    var method_view = std::string_view::make_view(&method)
-    var params_view = std::string_view::make_view(&params_str)
-    var result = wv.bind_ctx.handler(method_view, params_view)
+    if(method.size() == 0) {
+        return
+    }
 
-    // Resolve the call: window.__webview__.onReply(id, 0, result_json). The id
-    // and result are embedded as JSON string literals (escaped).
+    var handler_params = std::string_view::make_view(&params_str)
+    var result = wv.bind_ctx.handler(method_view, handler_params)
+
+    // For large results (>32KB), store in a C buffer and schedule delivery
+    // via an idle callback. This avoids re-entrancy issues with
+    // webview_evaluate_js being called from inside a signal handler.
+    if(result.size() >= LARGE_RESULT_THRESHOLD) {
+        linux_store_large_result(id_str.data(), result.data(), result.size())
+        var state = malloc(sizeof(LrIdleState)) as *mut LrIdleState
+        state.wv = wv
+        state.call_id = string("")
+        var id_sv = std::string_view::make_view(&id_str)
+        state.call_id.append_view(&id_sv)
+        g_lr_idle_state = state
+        g_idle_add(linux_lr_idle_deliver as *mut void, state as *mut void)
+        return
+    }
+    // Small result: send inline.
     var js_call = string("window.__webview__.onReply(")
     var id_view = std::string_view::make_view(&id_str)
     var esc_id = linux_json_escape(id_view)
@@ -687,7 +863,7 @@ public func webview_evaluate_js(wv : *mut WebView, script : *char) {
         // unrelated event (e.g. download-thread I/O) and leave the JS evaluation
         // callback still queued; the Promise would then never resolve.
         var safety = 0
-        while(gtk_events_pending() != 0 && safety < 20) {
+        while(gtk_events_pending() != 0 && safety < 500) {
             gtk_main_iteration()
             safety = safety + 1
         }
@@ -949,12 +1125,33 @@ public func webview_return(wv : *mut WebView, id : *char, status : int, result :
     if(wv.web_view == null) {
         return
     }
-    var js_call = string("window.__webview__.onReply(")
     var id_str = string("")
     if(id != null) {
         var i = 0
         while(id[i] != '\0' as char) { id_str.append(id[i]); i = i + 1 }
     }
+    // Compute result size for chunking check
+    var res_size : size_t = 0
+    if(result != null) {
+        var j = 0
+        while(result[j] != '\0' as char) { j = j + 1 }
+        res_size = j as size_t
+    }
+    if(res_size >= LARGE_RESULT_THRESHOLD && result != null) {
+        linux_store_large_result(id_str.data(), result, res_size)
+        var notify = string("window.__webview__._onLargeResult(")
+        var nid_view = std::string_view::make_view(&id_str)
+        var esc_nid = linux_json_escape(nid_view)
+        var esc_nid_view = std::string_view::make_view(&esc_nid)
+        notify.append_view(&esc_nid_view)
+        notify.append_view(std::string_view::make_no_len(", "))
+        notify.append_integer(res_size as bigint)
+        notify.append(')')
+        webview_evaluate_js(wv, notify.data())
+        return
+    }
+    // Small result: send inline.
+    var js_call = string("window.__webview__.onReply(")
     var esc_id = linux_json_escape(std::string_view::make_view(&id_str))
     var esc_id_view = std::string_view::make_view(&esc_id)
     js_call.append_view(&esc_id_view)
@@ -963,8 +1160,8 @@ public func webview_return(wv : *mut WebView, id : *char, status : int, result :
     js_call.append_view(std::string_view::make_no_len(", "))
     if(result != null) {
         var res_str = string("")
-        var j = 0
-        while(result[j] != '\0' as char) { res_str.append(result[j]); j = j + 1 }
+        var j2 = 0
+        while(result[j2] != '\0' as char) { res_str.append(result[j2]); j2 = j2 + 1 }
         var esc_res = linux_json_escape(std::string_view::make_view(&res_str))
         var esc_res_view = std::string_view::make_view(&esc_res)
         js_call.append_view(&esc_res_view)

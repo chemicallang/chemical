@@ -17,9 +17,17 @@ func redirect_to_devnull(fd : int) {
 }
 
 // POSIX impl returns bool: true=success, false=error (details in errno)
+//
+// NOTE: argv/envp and the program path are built in the PARENT, before
+// fork(). The forked child must only run async-signal-safe ops
+// (close/dup2/chdir/execve) — never getenv()/malloc()/execvp — otherwise
+// process::execute() deadlocks when called from a worker thread while
+// another thread holds a lock (e.g. WebKitGTK/GLib).
 public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
     unsafe var stdout_pipe : [2]int;
     unsafe var stderr_pipe : [2]int;
+    unsafe var stdin_pipe : [2]int;
+    var has_stdin_pipe = false;
 
     if(cfg.capture_stdout) {
         if(pipe(&raw mut stdout_pipe[0]) != 0) { return false } else {}
@@ -30,16 +38,37 @@ public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool
             return false
         } else {}
     } else {}
+    if(cfg.stdin_data.size() > 0) {
+        if(pipe(&raw mut stdin_pipe[0]) != 0) {
+            if(cfg.capture_stdout) { close(stdout_pipe[0]); close(stdout_pipe[1]); } else {}
+            if(cfg.capture_stderr || cfg.merge_stdout_stderr) { close(stderr_pipe[0]); close(stderr_pipe[1]); } else {}
+            return false
+        } else {}
+        has_stdin_pipe = true;
+    } else {}
+
+    // ---- Parent-side setup: build argv/envp and resolve the program path ----
+    // This runs BEFORE fork() so the child never has to call getenv()/malloc().
+    var argv = build_argv(&raw mut cfg.args);
+    unsafe var resolved : [4096]char;
+    var prog = lookup_program(argv.ptrs[0], &raw mut resolved[0], 4096);
+    var use_envp = false;
+    unsafe var envp : ArgvBuffer;
+    if(cfg.env.size() > 0) {
+        envp = build_envp(&raw mut cfg.env);
+        use_envp = true;
+    } else {}
 
     var pid = fork();
     if(pid == -1) {
         if(cfg.capture_stdout) { close(stdout_pipe[0]); close(stdout_pipe[1]); } else {}
         if(cfg.capture_stderr || cfg.merge_stdout_stderr) { close(stderr_pipe[0]); close(stderr_pipe[1]); } else {}
+        if(has_stdin_pipe) { close(stdin_pipe[0]); close(stdin_pipe[1]); } else {}
         return false
     } else {}
 
     if(pid == 0) {
-        // Change working directory if requested.
+        // ---- Child: async-signal-safe operations only ----
         if(cfg.working_dir.size() > 0) {
             chdir(cfg.working_dir.data())
         } else {}
@@ -47,12 +76,10 @@ public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool
             close(stdout_pipe[0])
             dup2(stdout_pipe[1], 1)
             if(cfg.merge_stdout_stderr) {
-                // Both stdout and stderr go to stdout_pipe[1]
                 dup2(stdout_pipe[1], 2)
             }
             close(stdout_pipe[1])
         } else if(cfg.merge_stdout_stderr) {
-            // merge without capturing stdout: route both to stderr pipe
             close(stderr_pipe[0])
             dup2(stderr_pipe[1], 1)
             dup2(stderr_pipe[1], 2)
@@ -69,30 +96,26 @@ public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool
         } else {
             redirect_to_devnull(2)
         }
-        // stdin_data: create a temporary pipe in the child, write data, then dup2 to fd 0.
-        // This is done in the child so the parent doesn't need a separate pipe.
-        if(cfg.stdin_data.size() > 0) {
-            unsafe var stdin_pipe_tmp : [2]int
-            pipe(&raw mut stdin_pipe_tmp[0])
-            // Write data to the pipe write end in the child, then close it.
-            var written = write(stdin_pipe_tmp[1], cfg.stdin_data.data() as *void, cfg.stdin_data.size())
-            close(stdin_pipe_tmp[1])
-            dup2(stdin_pipe_tmp[0], 0)
-            close(stdin_pipe_tmp[0])
+        if(has_stdin_pipe) {
+            close(stdin_pipe[1])
+            dup2(stdin_pipe[0], 0)
+            close(stdin_pipe[0])
         } else {}
-        var argv = build_argv(&raw mut cfg.args);
-        // Resolve the program via PATH (execve doesn't search PATH, unlike
-        // execvp). When env vars are provided we must use execve to replace
-        // the environment entirely; otherwise execvp is fine.
-        unsafe var resolved : [4096]char;
-        var prog = lookup_program(argv.ptrs[0], &raw mut resolved[0], 4096);
-        if(cfg.env.size() > 0) {
-            var envp = build_envp(&raw mut cfg.env);
+        // execve takes pre-built argv/envp and the parent-resolved path, so the
+        // child performs no PATH lookup (no getenv) itself.
+        if(use_envp) {
             execve(prog, &raw argv.ptrs[0], &raw envp.ptrs[0]);
         } else {
-            execvp(prog, &raw argv.ptrs[0]);
+            execve(prog, &raw argv.ptrs[0], get_environ());
         }
         _exit(1);
+    } else {}
+
+    // ---- Parent: feed stdin, then read the child's output ----
+    if(has_stdin_pipe) {
+        close(stdin_pipe[0]);
+        write(stdin_pipe[1], cfg.stdin_data.data() as *void, cfg.stdin_data.size());
+        close(stdin_pipe[1]);
     } else {}
 
     if(cfg.capture_stdout) { close(stdout_pipe[1]); } else {}
@@ -184,6 +207,8 @@ func read_available(fd : int, data : *mut vector<u8>) : bool {
     return false
 }
 
+// Same parent-side setup rule as posix_execute() above (no getenv()/malloc()
+// in the forked child) to avoid the multi-threaded deadlock.
 public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
     unsafe var stdout_pipe : [2]int;
     unsafe var stderr_pipe : [2]int;
@@ -205,6 +230,19 @@ public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool 
         return false
     } else {}
 
+    // ---- Parent-side setup (see posix_execute for the rationale) ----
+    // Build argv/envp and resolve the program path BEFORE fork() so the child
+    // never calls getenv()/malloc() (which would deadlock under held locks).
+    var argv = build_argv(&raw mut cfg.args);
+    unsafe var resolved : [4096]char;
+    var prog = lookup_program(argv.ptrs[0], &raw mut resolved[0], 4096);
+    var use_envp = false;
+    unsafe var envp : ArgvBuffer;
+    if(cfg.env.size() > 0) {
+        envp = build_envp(&raw mut cfg.env);
+        use_envp = true;
+    } else {}
+
     var pid = fork();
     if(pid == -1) {
         if(cfg.capture_stdout) { close(stdout_pipe[0]); close(stdout_pipe[1]); } else {}
@@ -214,14 +252,13 @@ public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool 
     } else {}
 
     if(pid == 0) {
-        // Change working directory if requested.
+        // ---- Child: async-signal-safe operations only ----
         if(cfg.working_dir.size() > 0) {
             chdir(cfg.working_dir.data())
         } else {}
         if(cfg.capture_stdout) {
             close(stdout_pipe[0])
             if(cfg.merge_stdout_stderr) {
-                // Both stdout and stderr go to stdout_pipe[1]
                 dup2(stdout_pipe[1], 1)
                 dup2(stdout_pipe[1], 2)
                 close(stdout_pipe[1])
@@ -237,7 +274,6 @@ public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool 
             dup2(stderr_pipe[1], 2)
             close(stderr_pipe[1])
         } else if(cfg.merge_stdout_stderr && !cfg.capture_stdout) {
-            // merge without capture_stdout: redirect both to stderr_pipe[1]
             close(stderr_pipe[0])
             dup2(stderr_pipe[1], 1)
             dup2(stderr_pipe[1], 2)
@@ -247,19 +283,17 @@ public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool 
         } else {}
         // Child reads from stdin_pipe[0]; parent writes to stdin_pipe[1].
         close(stdin_pipe[1]); dup2(stdin_pipe[0], 0); close(stdin_pipe[0]);
-        var argv = build_argv(&raw mut cfg.args);
-        if(cfg.env.size() > 0) {
-            var envp = build_envp(&raw mut cfg.env);
-            execve(argv.ptrs[0], &raw argv.ptrs[0], &raw envp.ptrs[0]);
+        if(use_envp) {
+            execve(prog, &raw argv.ptrs[0], &raw envp.ptrs[0]);
         } else {
-            execvp(argv.ptrs[0], &raw argv.ptrs[0]);
+            execve(prog, &raw argv.ptrs[0], get_environ());
         }
         _exit(1);
     } else {}
 
     if(cfg.capture_stdout) { close(stdout_pipe[1]); } else {}
     if(cfg.capture_stderr || cfg.merge_stdout_stderr) { close(stderr_pipe[1]); } else {}
-    close(stdin_pipe[0]); // parent writes to stdin_pipe[1]
+    close(stdin_pipe[0]); // parent keeps stdin_pipe[1] for writes
 
     child._unix.pid = pid;
     child._unix.stdout_fd = if(cfg.capture_stdout) stdout_pipe[0] else -1;

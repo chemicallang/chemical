@@ -187,6 +187,7 @@ public func run_common_tests() {
 
     // C codegen compatibility tests (TinyCC patterns)
     test_tcc_codegen_compat();
+    test_c_keyword_var_names();
 
     // Regression: fixed-size char array string literals (exact fit must compile)
     test("string literal exact-fit char array", () => {

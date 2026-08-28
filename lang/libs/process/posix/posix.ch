@@ -18,18 +18,11 @@ func redirect_to_devnull(fd : int) {
 
 // POSIX impl returns bool: true=success, false=error (details in errno)
 //
-// Fix for the multi-threaded deadlock documented in
-// lang/docs/known-issues-process-library.md: fork() in a multi-threaded
-// process copies every thread's held locks into the child. If the child then
-// calls a function that acquires one of those locks — most importantly
-// getenv() (which takes the environment lock) or malloc() — it deadlocks.
-// The previous implementation called build_argv()/lookup_program() (which
-// calls getenv("PATH")) and execvp() (which calls getenv() internally) in
-// the child. We now perform ALL of that work in the PARENT, before fork():
-// the argv/envp arrays are built and the program path is resolved in the
-// parent, and the child only runs async-signal-safe operations (close,
-// dup2, chdir, execve). This avoids touching any lock held by another thread
-// and matches the behaviour a posix_spawn()-based implementation would have.
+// NOTE: argv/envp and the program path are built in the PARENT, before
+// fork(). The forked child must only run async-signal-safe ops
+// (close/dup2/chdir/execve) — never getenv()/malloc()/execvp — otherwise
+// process::execute() deadlocks when called from a worker thread while
+// another thread holds a lock (e.g. WebKitGTK/GLib).
 public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
     unsafe var stdout_pipe : [2]int;
     unsafe var stderr_pipe : [2]int;
@@ -214,6 +207,8 @@ func read_available(fd : int, data : *mut vector<u8>) : bool {
     return false
 }
 
+// Same parent-side setup rule as posix_execute() above (no getenv()/malloc()
+// in the forked child) to avoid the multi-threaded deadlock.
 public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
     unsafe var stdout_pipe : [2]int;
     unsafe var stderr_pipe : [2]int;

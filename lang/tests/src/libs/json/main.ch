@@ -729,3 +729,70 @@ func test_double_encode_decode_number(env : &mut TestEnv) {
         env.error("encode_i64(42) via encoder failed")
     }
 }
+
+// ===== Regression: strings longer than the old 4096 scratch limit (YouTube format urls) =====
+
+@test
+func test_long_string_over_old_4096_limit(env : &mut TestEnv) {
+    // YouTube "url" fields are often 5K-15K chars; the parser must not reject them.
+    var val = std::string()
+    for (var i = 0u; i < 5000u; i++) { val.append('a') }
+    var doc = std::string()
+    doc.append_view(std::string_view("{\"url\":\""))
+    doc.append_string(&val)
+    doc.append_view(std::string_view("\"}"))
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(256, 1048576)
+    var r = parser.parse(doc.data(), doc.size(), &mut ph)
+    if (!r.ok) { env.error(r.msg); return }
+    if (!(ph.root is JsonValue.Object)) { env.error("expected object"); return }
+    var Object(map) = ph.root else unreachable
+    var vp = map.get_ptr(std::string("url"))
+    if (vp == null) { env.error("missing url field"); return }
+    if (!(vp is JsonValue.String)) { env.error("expected string value"); return }
+    var String(s) = *vp else unreachable
+    if (s.size() != 5000u) { env.error("long string length mismatch"); return }
+}
+
+@test
+func test_long_escaped_string_over_old_4096_limit(env : &mut TestEnv) {
+    // 5000 unicode escapes, each decoding to a single char -> 5000 char string.
+    var esc = std::string()
+    for (var i = 0u; i < 5000u; i++) { esc.append_view(std::string_view("\\u0041")) }
+    var doc = std::string()
+    doc.append_view(std::string_view("{\"k\":\""))
+    doc.append_string(&esc)
+    doc.append_view(std::string_view("\"}"))
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(256, 1048576)
+    var r = parser.parse(doc.data(), doc.size(), &mut ph)
+    if (!r.ok) { env.error(r.msg); return }
+    if (!(ph.root is JsonValue.Object)) { env.error("expected object"); return }
+    var Object(map) = ph.root else unreachable
+    var vp = map.get_ptr(std::string("k"))
+    if (vp == null) { env.error("missing k field"); return }
+    if (!(vp is JsonValue.String)) { env.error("expected string value"); return }
+    var String(s) = *vp else unreachable
+    if (s.size() != 5000u) { env.error("decoded long escaped string length mismatch"); return }
+}
+
+@test
+func test_long_string_roundtrip(env : &mut TestEnv) {
+    var val = std::string()
+    for (var i = 0u; i < 8000u; i++) { val.append('b') }
+    var doc = std::string()
+    doc.append_view(std::string_view("{\"big\":\""))
+    doc.append_string(&val)
+    doc.append_view(std::string_view("\"}"))
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(256, 1048576)
+    var r = parser.parse(doc.data(), doc.size(), &mut ph)
+    if (!r.ok) { env.error(r.msg); return }
+    var encoded = encode_json(&ph.root)
+    var ph2 = ASTJsonHandler()
+    var parser2 = JsonParser(256, 1048576)
+    var r2 = parser2.parse(encoded.data(), encoded.size(), &mut ph2)
+    if (!r2.ok) { env.error("roundtrip re-parse failed"); return }
+    var encoded2 = encode_json(&ph2.root)
+    if (!encoded.to_view().equals(encoded2.to_view())) { env.error("long string roundtrip mismatch") }
+}

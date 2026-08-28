@@ -452,12 +452,18 @@ unsafe var g_lr_size : size_t = 0
 unsafe var g_lr_alloc : size_t = 0  // capacity of g_lr_buf
 var g_lr_ready : bool = false
 
-// State for the idle-delivery callback
-struct LrIdleState {
-    var wv : *mut WebView
-    var call_id : string
+// Queue a JavaScript snippet for execution on the next GTK main-loop iteration.
+// Unlike webview_evaluate_js this does NOT pump the loop (no nested
+// gtk_main_iteration), so it is safe to call from inside a signal handler such
+// as script-message-received. The script runs as a normal-priority event, which
+// avoids both the re-entrancy hazard (re-entering the main loop from inside a
+// signal handler) and idle-source starvation under a busy loop (e.g. an app
+// that polls the bridge on a timer while downloads render).
+func linux_run_js(wv : *mut WebView, script : *char) {
+    if(wv.web_view != null) {
+        webkit_web_view_run_javascript(wv.web_view as *mut WebKitWebView, script, null, null, null)
+    }
 }
-unsafe var g_lr_idle_state : *mut LrIdleState = null
 
 func linux_store_large_result(id_str : *char, data : *char, size : size_t) {
     // Free previous if any
@@ -527,28 +533,20 @@ func linux_json_int_field(params_view : std::string_view, key : *char) : size_t 
 }
 
 
-// Idle callback that delivers a large result in chunks via the main loop.
-// This runs outside any signal handler, so webview_evaluate_js works normally.
-func linux_lr_idle_deliver(data : *mut void) : i32 {
-    fprintf(stderr, "[WV-BRIDGE] idle callback fired\n")
-    var state = data as *mut LrIdleState
-    if(state == null || state.wv == null || !g_lr_ready || g_lr_buf == null) {
-        fprintf(stderr, "[WV-BRIDGE] idle callback: early exit (null state or no data)\n")
-        if(state != null) { free(state as *mut void) }
-        return 0
-    }
-    var wv = state.wv
-        // 1. Init accumulator
+// Deliver a large result (already stored in g_lr_buf) to JS by queuing a short
+// sequence of scripts — init accumulator, push each chunk, then resolve — on
+// the normal main loop. No re-entrant loop pumping, so it is safe to call
+// directly from the script-message-received signal handler.
+func linux_deliver_large_result(wv : *mut WebView, call_id : std::string_view) {
+    // 1. Init accumulator
     var init_js = string("window.__webview__._lrBuf={id:")
-    var nid_sv = std::string_view::make_view(&state.call_id)
-    var nid_view = nid_sv
-    var esc_nid = linux_json_escape(nid_view)
+    var esc_nid = linux_json_escape(call_id)
     var esc_nid_view = std::string_view::make_view(&esc_nid)
     init_js.append_view(&esc_nid_view)
     init_js.append_view(std::string_view::make_no_len(",chunks:[],total:"))
     init_js.append_integer(g_lr_size as bigint)
     init_js.append_view(std::string_view::make_no_len(",offset:0}"))
-    webview_evaluate_js(wv, init_js.data())
+    linux_run_js(wv, init_js.data())
 
     // 2. Send chunks
     var chunk_offset : size_t = 0
@@ -562,19 +560,15 @@ func linux_lr_idle_deliver(data : *mut void) : i32 {
         var esc_chunk_view = std::string_view::make_view(&esc_chunk)
         chunk_js.append_view(&esc_chunk_view)
         chunk_js.append(')')
-        webview_evaluate_js(wv, chunk_js.data())
+        linux_run_js(wv, chunk_js.data())
         chunk_offset = chunk_offset + chunk_size
     }
 
     // 3. Assemble and resolve
-    var done_js = string("window.__webview__._lrDone()")
-    webview_evaluate_js(wv, done_js.data())
+    linux_run_js(wv, "window.__webview__._lrDone()")
 
     // Cleanup
     linux_clear_large_result()
-    free(state as *mut void)
-    g_lr_idle_state = null
-    return 0
 }
 
 // Process an incoming bridge message (JSON from JS). Parses {id, method,
@@ -608,7 +602,7 @@ func linux_on_message(wv : *mut WebView, msg : *char) {
         var esc_chunk_view = std::string_view::make_view(&esc_chunk)
         js_call.append_view(&esc_chunk_view)
         js_call.append(')')
-        webview_evaluate_js(wv, js_call.data())
+        linux_run_js(wv, js_call.data())
         return
     }
 
@@ -619,18 +613,15 @@ func linux_on_message(wv : *mut WebView, msg : *char) {
     var handler_params = std::string_view::make_view(&params_str)
     var result = wv.bind_ctx.handler(method_view, handler_params)
 
-    // For large results (>32KB), store in a C buffer and schedule delivery
-    // via an idle callback. This avoids re-entrancy issues with
-    // webview_evaluate_js being called from inside a signal handler.
+    // For large results (>32KB), store in a C buffer and deliver the chunks by
+    // queuing JS on the normal main loop (no re-entrant gtk_main_iteration,
+    // which would deadlock/drop replies when bridge calls arrive in rapid
+    // succession — e.g. an app polling the bridge on a timer while a large
+    // result is in flight).
     if(result.size() >= LARGE_RESULT_THRESHOLD) {
         linux_store_large_result(id_str.data(), result.data(), result.size())
-        var state = malloc(sizeof(LrIdleState)) as *mut LrIdleState
-        state.wv = wv
-        state.call_id = string("")
         var id_sv = std::string_view::make_view(&id_str)
-        state.call_id.append_view(&id_sv)
-        g_lr_idle_state = state
-        g_idle_add(linux_lr_idle_deliver as *mut void, state as *mut void)
+        linux_deliver_large_result(wv, id_sv)
         return
     }
     // Small result: send inline.
@@ -649,7 +640,7 @@ func linux_on_message(wv : *mut WebView, msg : *char) {
         js_call.append_view(&esc_result_view)
     }
     js_call.append(')')
-    webview_evaluate_js(wv, js_call.data())
+    linux_run_js(wv, js_call.data())
 }
 
 // Bind a native handler to the JS window.webview_bridge.call(method, args).
@@ -1139,15 +1130,8 @@ public func webview_return(wv : *mut WebView, id : *char, status : int, result :
     }
     if(res_size >= LARGE_RESULT_THRESHOLD && result != null) {
         linux_store_large_result(id_str.data(), result, res_size)
-        var notify = string("window.__webview__._onLargeResult(")
-        var nid_view = std::string_view::make_view(&id_str)
-        var esc_nid = linux_json_escape(nid_view)
-        var esc_nid_view = std::string_view::make_view(&esc_nid)
-        notify.append_view(&esc_nid_view)
-        notify.append_view(std::string_view::make_no_len(", "))
-        notify.append_integer(res_size as bigint)
-        notify.append(')')
-        webview_evaluate_js(wv, notify.data())
+        var id_sv = std::string_view::make_view(&id_str)
+        linux_deliver_large_result(wv, id_sv)
         return
     }
     // Small result: send inline.
@@ -1169,7 +1153,7 @@ public func webview_return(wv : *mut WebView, id : *char, status : int, result :
         js_call.append_view(std::string_view::make_no_len("undefined"))
     }
     js_call.append(')')
-    webview_evaluate_js(wv, js_call.data())
+    linux_run_js(wv, js_call.data())
 }
 
 // Get a native handle by kind.

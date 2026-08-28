@@ -37,41 +37,13 @@ public interface JsonSaxHandler {
 
 }
 
-/* Helper: append codepoint as UTF-8 into out buffer. Return false if not enough space. */
-func append_utf8(cp : uint32_t, out : *mut char, outpos : &mut size_t, outcap : size_t) : bool {
-    if (cp <= 0x7F) {
-        if (*outpos + 1 > outcap) return false;
-        out[outpos++] = cp as char;
-        return true;
-    } else if (cp <= 0x7FF) {
-        if (*outpos + 2 > outcap) return false;
-        out[outpos++] = (0xC0 | ((cp >> 6) & 0x1F)) as char;
-        out[outpos++] = (0x80 | (cp & 0x3F)) as char;
-        return true;
-    } else if (cp <= 0xFFFF) {
-        if (*outpos + 3 > outcap) return false;
-        out[outpos++] = (0xE0 | ((cp >> 12) & 0x0F)) as char;
-        out[outpos++] = (0x80 | ((cp >> 6) & 0x3F)) as char;
-        out[outpos++] = (0x80 | (cp & 0x3F)) as char;
-        return true;
-    } else if (cp <= 0x10FFFF) {
-        if (*outpos + 4 > outcap) return false;
-        out[outpos++] = (0xF0 | ((cp >> 18) & 0x07)) as char;
-        out[outpos++] = (0x80 | ((cp >> 12) & 0x3F)) as char;
-        out[outpos++] = (0x80 | ((cp >> 6) & 0x3F)) as char;
-        out[outpos++] = (0x80 | (cp & 0x3F)) as char;
-        return true;
-    }
-    return false;
-}
-
 public struct JsonParser {
 
     /* Configuration limits */
     var max_depth : size_t;
     var max_string : size_t; /* maximum unescaped string length */
 
-    // a scratch buffer for usage
+    // a scratch buffer for small strings (fast path, no allocation)
     var scratch : [4096]char
 
     @make
@@ -83,7 +55,10 @@ public struct JsonParser {
             s : null,
             len : 0,
             pos : 0,
-            handler : null
+            handler : null,
+            heap_buf : null,
+            heap_cap : 0,
+            str_buf : null
         }
     }
 
@@ -102,6 +77,12 @@ private:
     var len : size_t;
     var pos : size_t;
     var handler : *mut JsonSaxHandler;
+
+    /* growable buffer for strings longer than the 4096 scratch */
+    var heap_buf : *mut char = null;
+    var heap_cap : size_t = 0;
+    /* points at the active string buffer (scratch or heap) for the current parse */
+    var str_buf : *mut char = null;
 
     func at_end(&self) : bool { return pos >= len; }
     func cur(&self) : char { return if(at_end()) '\0' else s[pos]; }
@@ -122,14 +103,7 @@ private:
         if (c == '{') return parse_object(depth + 1);
         if (c == '[') return parse_array(depth + 1);
         if (c == '"') {
-            /* use stack buffer for unescaped string; small default, no heap */
-            var out = &raw mut scratch[0]
-            var outcap : size_t = 4096;
-            var outlen : size_t = 0;
-            var r : ParseResult = parse_string_inplace(out, outcap, &mut outlen);
-            if (!r.ok) return r;
-            handler.on_string(out, outlen);
-            return ParseResult::Ok();
+            return parse_string_value();
         }
         if (c == 't') return parse_literal("true", 4, 0);
         if (c == 'f') return parse_literal("false", 5, 1);
@@ -195,13 +169,9 @@ private:
             skip_ws();
             if (at_end()) return ParseResult::Err(pos, "unexpected end in object");
             if (cur() != '"') return ParseResult::Err(pos, "expected string key");
-            /* parse key into stack buffer */
-            var out = &raw mut scratch[0]
-            var outcap : size_t = 4096;
-            var outlen : size_t = 0;
-            var r : ParseResult = parse_string_inplace(out, outcap, &mut outlen);
+            /* parse key into string buffer */
+            var r : ParseResult = parse_string_key();
             if (!r.ok) return r;
-            handler.on_key(out, outlen);
             skip_ws();
             if (at_end() || cur() != ':') return ParseResult::Err(pos, "expected ':' after key");
             advance();
@@ -235,14 +205,110 @@ private:
         }
     }
 
+    /* Ensure there is room to write `need` more bytes at index cur_len.
+       Returns a pointer to the active buffer (scratch or a growable heap buffer),
+       or null if the resulting length would exceed max_string. The previously
+       written bytes are preserved across any switch to the heap buffer. */
+    func ensure_buf(&mut self, cur_len : size_t, need : size_t) : *mut char {
+        var required : size_t = cur_len + need;
+        if (required > self.max_string) return null;
+        if (required <= 4096) {
+            return &raw mut scratch[0];
+        }
+        if (self.heap_buf == null) {
+            var init_cap : size_t = 8192;
+            if (init_cap < required) init_cap = required;
+            if (init_cap > self.max_string) init_cap = self.max_string;
+            self.heap_cap = init_cap;
+            self.heap_buf = malloc(self.heap_cap) as *mut char;
+            memcpy(self.heap_buf, &raw mut scratch[0], cur_len);
+            self.str_buf = self.heap_buf;
+        } else if (required > self.heap_cap) {
+            var newcap : size_t = self.heap_cap * 2;
+            if (newcap < required) newcap = required;
+            if (newcap > self.max_string) newcap = self.max_string;
+            var newbuf = malloc(newcap) as *mut char;
+            memcpy(newbuf, self.heap_buf, cur_len);
+            free(self.heap_buf);
+            self.heap_buf = newbuf;
+            self.heap_cap = newcap;
+        }
+        return self.heap_buf;
+    }
+
+    func emit_char(&mut self, c : char, outlen : &mut size_t) : bool {
+        var buf = self.ensure_buf(*outlen, 1);
+        if (buf == null) return false;
+        buf[*outlen] = c;
+        *outlen += 1;
+        return true;
+    }
+
+    func emit_codepoint(&mut self, cp : uint32_t, outlen : &mut size_t) : bool {
+        if (cp <= 0x7F) {
+            return self.emit_char(cp as char, outlen);
+        } else if (cp <= 0x7FF) {
+            var buf = self.ensure_buf(*outlen, 2);
+            if (buf == null) return false;
+            buf[*outlen] = (0xC0 | ((cp >> 6) & 0x1F)) as char;
+            buf[*outlen + 1] = (0x80 | (cp & 0x3F)) as char;
+            *outlen += 2;
+            return true;
+        } else if (cp <= 0xFFFF) {
+            var buf = self.ensure_buf(*outlen, 3);
+            if (buf == null) return false;
+            buf[*outlen] = (0xE0 | ((cp >> 12) & 0x0F)) as char;
+            buf[*outlen + 1] = (0x80 | ((cp >> 6) & 0x3F)) as char;
+            buf[*outlen + 2] = (0x80 | (cp & 0x3F)) as char;
+            *outlen += 3;
+            return true;
+        } else {
+            var buf = self.ensure_buf(*outlen, 4);
+            if (buf == null) return false;
+            buf[*outlen] = (0xF0 | ((cp >> 18) & 0x07)) as char;
+            buf[*outlen + 1] = (0x80 | ((cp >> 12) & 0x3F)) as char;
+            buf[*outlen + 2] = (0x80 | ((cp >> 6) & 0x3F)) as char;
+            buf[*outlen + 3] = (0x80 | (cp & 0x3F)) as char;
+            *outlen += 4;
+            return true;
+        }
+    }
+
+    func free_str_buf(&mut self) {
+        if (self.heap_buf != null) {
+            free(self.heap_buf);
+            self.heap_buf = null;
+            self.heap_cap = 0;
+        }
+        self.str_buf = null;
+    }
+
     /* parse a JSON string starting at current pos (expects '"').
-       Unescape into provided out buffer with capacity outcap. outlen set to length.
-       Uses strict rules: control characters (0x00-0x1F) are forbidden.
-    */
-    func parse_string_inplace(&mut self, out : *mut char, outcap : size_t, outlen : &mut size_t) : ParseResult {
+       Unescape into a growable buffer. Strict: control chars (0x00-0x1F) forbidden.
+       Calls handler.on_string with the resulting (unterminated) buffer. */
+    func parse_string_value(&mut self) : ParseResult {
+        var outlen : size_t = 0;
+        var r = self.parse_string_body(&mut outlen);
+        if (!r.ok) return r;
+        handler.on_string(self.str_buf, outlen);
+        self.free_str_buf();
+        return ParseResult::Ok();
+    }
+
+    func parse_string_key(&mut self) : ParseResult {
+        var outlen : size_t = 0;
+        var r = self.parse_string_body(&mut outlen);
+        if (!r.ok) return r;
+        handler.on_key(self.str_buf, outlen);
+        self.free_str_buf();
+        return ParseResult::Ok();
+    }
+
+    func parse_string_body(&mut self, outlen : &mut size_t) : ParseResult {
         if (cur() != '"') return ParseResult::Err(pos, "expected '\"'");
         advance(); /* skip '"' */
         *outlen = 0 as size_t;
+        self.str_buf = &raw mut scratch[0];
         while (!at_end()) {
             var c = cur() as uchar;
             if (c == '"') { advance(); return ParseResult::Ok(); }
@@ -254,21 +320,21 @@ private:
                 var e = cur() as uchar;
                 advance();
                 if (e == '"') {
-                    if (*outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '"';
+                    if (!self.emit_char('"', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
                 } else if (e == '\\') {
-                    if (*outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '\\';
+                    if (!self.emit_char('\\', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
                 } else if (e == '/') {
-                    if (*outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '/';
+                    if (!self.emit_char('/', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
                 } else if (e == 'b') {
-                    if (*outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '\b';
+                    if (!self.emit_char('\b', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
                 } else if (e == 'f') {
-                    if (*outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '\f';
+                    if (!self.emit_char('\f', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
                 } else if (e == 'n') {
-                    if (*outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '\n';
+                    if (!self.emit_char('\n', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
                 } else if (e == 'r') {
-                    if (*outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '\r';
+                    if (!self.emit_char('\r', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
                 } else if (e == 't') {
-                    if (*outlen + 1 > outcap) return ParseResult::Err(pos, "string too long"); out[outlen++] = '\t';
+                    if (!self.emit_char('\t', outlen)) return ParseResult::Err(pos, "string exceeds max_string");
                 } else if (e == 'u') {
                     /* expect 4 hex digits */
                     if (pos + 4 > len) return ParseResult::Err(pos, "incomplete unicode escape");
@@ -300,18 +366,15 @@ private:
                         pos += 4;
                         if (!(lo >= 0xDC00 && lo <= 0xDFFF)) return ParseResult::Err(pos, "invalid low surrogate");
                         var full : uint32_t = (0x10000 + (((code - 0xD800) << 10) | (lo - 0xDC00))) as uint32_t;
-                        if (!append_utf8(full, out, outlen, outcap)) return ParseResult::Err(pos, "string too long or invalid unicode");
+                        if (!self.emit_codepoint(full, outlen)) return ParseResult::Err(pos, "string exceeds max_string or invalid unicode");
                     } else {
-                        if (!append_utf8(code, out, outlen, outcap)) return ParseResult::Err(pos, "string too long or invalid unicode");
+                        if (!self.emit_codepoint(code, outlen)) return ParseResult::Err(pos, "string exceeds max_string or invalid unicode");
                     }
                 } else return ParseResult::Err(pos, "invalid escape");
-                if (*outlen > max_string) return ParseResult::Err(pos, "string exceeds max_string");
             } else {
                 /* regular character: copy as-is (assume UTF-8 in source) */
-                if (*outlen + 1 > outcap) return ParseResult::Err(pos, "string too long");
-                out[outlen++] = c as char;
+                if (!self.emit_char(c as char, outlen)) { return ParseResult::Err(pos, "string exceeds max_string"); }
                 advance();
-                if (*outlen > max_string) return ParseResult::Err(pos, "string exceeds max_string");
             }
         }
         return ParseResult::Err(pos, "unterminated string");

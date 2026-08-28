@@ -422,6 +422,48 @@ public func test_bridge_large_payload(env : &mut TestEnv) {
 }
 
 // ============================================================================
+// Test 11: Large payload WITH special characters, under continuous bridge load.
+//
+// This mirrors the cdm app: it polls the bridge on a timer (like yt_info_poll)
+// while awaiting a large result (like yt_info_get). The large payload contains
+// quotes, backslashes, unicode and tabs — exactly the kind of content a
+// serialized video-info JSON carries. The test fails if the reply is dropped
+// (stuck) OR if the chunked payload is corrupted in any way, both of which the
+// plain completion-only large-payload test above could not catch.
+// ============================================================================
+
+func verify_large_payload_under_load(env : &mut TestEnv) {
+    if(!state().bridge_ok) {
+        var msg = string("large payload under load did not round-trip correctly")
+        if(state().error_msg.size() > 0u) {
+            msg.append_view(std::string_view::make_no_len(": "))
+            msg.append_view(std::string_view::make_view(&state().error_msg))
+        }
+        env.error(msg.data())
+        return
+    }
+}
+
+@test
+public func test_bridge_large_payload_under_load(env : &mut TestEnv) {
+    var html = string("<html><head><script>")
+    html.append_view(std::string_view::make_no_len("function go(){try{"))
+    // A ~300KB payload full of characters that must survive JSON chunking.
+    html.append_view(std::string_view::make_no_len("var payload='';for(var i=0;i<40000;i++){payload+='a\"b\\\\c\\u00e9d\\t';}"))
+    // Keep the bridge busy (mirrors cdm's continuous polling) while we wait.
+    html.append_view(std::string_view::make_no_len("var busy=setInterval(function(){window.__webview__.call('echo',{ping:1}).catch(function(){});},40);"))
+    html.append_view(std::string_view::make_no_len("window.__webview__.call('echo',{payload:payload}).then(function(r){"))
+    html.append_view(std::string_view::make_no_len("clearInterval(busy);"))
+    html.append_view(std::string_view::make_no_len("var ok=(r.echo&&r.echo[0]&&typeof r.echo[0].payload==='string'&&r.echo[0].payload===payload);"))
+    html.append_view(std::string_view::make_no_len("var got=(r.echo&&r.echo[0]&&typeof r.echo[0].payload==='string')?r.echo[0].payload.length:-1;"))
+    html.append_view(std::string_view::make_no_len("if(ok){window.__webview__.call('done',{ok:true,len:payload.length});}else{var hd=(typeof r==='string')?r.slice(0,120):JSON.stringify(r).slice(0,120);window.__webview__.call('stop','mismatch exp='+payload.length+' got='+got+' te='+typeof(r.echo)+' head='+hd);}"))
+    html.append_view(std::string_view::make_no_len("}).catch(function(e){clearInterval(busy);window.__webview__.call('stop',e.message);});"))
+    html.append_view(std::string_view::make_no_len("}catch(e){window.__webview__.call('stop',e.message);}}"))
+    html.append_view(std::string_view::make_no_len("</script></head><body onload='go()'><p>test</p></body></html>"))
+    run_bridge_test(env, html.data(), verify_large_payload_under_load, "large_payload_under_load")
+}
+
+// ============================================================================
 // BridgeTestState needs wv_ptr for the handler to call webview_stop
 // ============================================================================
 

@@ -67,7 +67,7 @@ public namespace datetime {
         public func minute_val(&self) : i64 { return self.minute }
         public func second_val(&self) : i64 { return self.second }
         public func subsec_nanos(&self) : i64 { return self.nanos }
-        public func timezone(&self) : TimeZone { return self.tz }
+        public func timezone(&self) : TimeZone { return self.tz.copy() }
 
         // ---- Calendar queries -----------------------------------------------
 

@@ -105,7 +105,7 @@ struct OsString {
         comptime if(def.windows) {
             return u16_to_utf8(&data_);
         } else {
-            return data_;
+            return data_.copy();
         }
     }
 

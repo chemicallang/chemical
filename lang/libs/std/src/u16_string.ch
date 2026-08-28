@@ -391,6 +391,14 @@ public struct u16string {
         dealloc out;
     }
 
+    func copy(&self) : u16string {
+        return substr(0, size())
+    }
+
+    func substring(&self, start : size_t, len : size_t) : u16string {
+        return substr(start, len)
+    }
+
     // substring copy by u16 unit indices
     func substr(&self, start : size_t, len : size_t) : u16string {
         var result = u16string.empty_str();

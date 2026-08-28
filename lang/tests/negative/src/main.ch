@@ -128,8 +128,15 @@ internal func neg_debug_print(name : *char, output : *char) {
 
 internal const NEG_MOD = "module neg_test\nsource \".\"\n"
 
+// variant that imports core so the `Copy` marker interface is in scope
+internal const NEG_MOD_CORE = "module neg_test\nsource \".\"\nimport core\n"
+
 internal func expect_compile_error(env : &mut TestEnv, name : *char, ch_content : *char, expected_sub : *char) {
-    setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
+    expect_compile_error_with_mod(env, name, ch_content, expected_sub, NEG_MOD)
+}
+
+internal func expect_compile_error_with_mod(env : &mut TestEnv, name : *char, ch_content : *char, expected_sub : *char, mod_content : *char) {
+    setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
 
     unsafe var mod_path : char[512]
     sprintf(&raw mut mod_path[0], "%s/%s/chemical.mod", NEG_WORK_DIR, name)
@@ -217,6 +224,26 @@ func neg_lambda_param_unresolved_child_prints_error(env : &mut TestEnv) {
     // should print a proper error, not crash with SIGSEGV.
     var ch = "func main() {\n    var cb = ||(x) => {\n        x.some_nonexistent_field\n    }\n}\n"
     expect_compile_error(env, "lambda_param_unresolved_child", ch, "unresolved")
+}
+
+// vector<T>::get has `where T : Copy`. Calling .get on a vector whose element type
+// carries a destructor (and is therefore not Copy) must be rejected at compile time.
+// If it were allowed, the returned temporary would be destroyed and would free the
+// element's buffers, corrupting the original in the vector.
+@test
+func neg_get_on_destructible_struct_direct_errors(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func get(&self, i : int) : T where T : Copy {\n        return *data\n    }\n}\nstruct Row {\n    var p : *char\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    var h = Holder<Row> { data = null }\n    var r = h.get(0)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "get_on_destructible_struct_direct", ch, "does not satisfy where clause constraint", NEG_MOD_CORE)
+}
+
+// Same as above but the receiver of .get is reached through a member access
+// (outer.h.get(0)), which is exactly how `qr.rows.get(0)` triggered the bug.
+@test
+func neg_get_on_destructible_struct_nested_receiver_errors(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func get(&self, i : int) : T where T : Copy {\n        return *data\n    }\n}\nstruct Row {\n    var p : *char\n    @delete\n    func delete(&mut self) { }\n}\nstruct Outer {\n    var h : Holder<Row>\n}\npublic func main() : int {\n    var outer = Outer { h = Holder<Row> { data = null } }\n    var r = outer.h.get(0)\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "get_on_destructible_struct_nested", ch, "does not satisfy where clause constraint", NEG_MOD_CORE)
 }
 
 public func main(argc : int, argv : **char) {

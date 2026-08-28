@@ -296,7 +296,7 @@ func <T> gen_lamb_with_param() : T {
     return lamb(93837)
 }
 
-struct GenFuncProvider<T> {
+struct GenFuncProvider<T : Copy> {
     var value : T
     func give_value(&self) : T {
         return value;

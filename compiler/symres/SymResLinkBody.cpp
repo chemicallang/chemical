@@ -711,7 +711,10 @@ void SymResLinkBody::VisitReturnStmt(ReturnStatement* node) {
     if (value) {
 
         const auto func_type = current_func_type;
-        visit(value, func_type->returnType ? func_type->returnType : nullptr);
+        const auto exp_type = func_type->returnType ? func_type->returnType : nullptr;
+        visit(value, exp_type);
+
+        mark_moved_value(getAstAllocator(), value, exp_type, diagnoser, true);
 
         if(func_type->data.signature_resolved && func_type->returnType) {
             const auto func = func_type->as_function();

@@ -5,7 +5,7 @@
 // so generic types used in global variable initializers don't crash the compiler.
 
 // Generic struct used for testing instantiation in global variable values
-struct GlobalGenBox<T> {
+struct GlobalGenBox<T : Copy> {
     var value : T
     func get(&self) : T {
         return value

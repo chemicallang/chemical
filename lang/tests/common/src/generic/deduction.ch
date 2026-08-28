@@ -7,26 +7,26 @@ func <T> deduce_gen_sum(a : T, b : T) : T {
     return a + b;
 }
 
-struct DeduceThing<T> {
+struct DeduceThing<T : Copy> {
     var t : T
 }
 
-func <T> deduce_thing(thing : DeduceThing<T>) : T {
+func <T : Copy> deduce_thing(thing : DeduceThing<T>) : T {
     return thing.t;
 }
 
-variant DeduceThingVar<T> {
+variant DeduceThingVar<T : Copy> {
     Some(value : T)
     None()
 }
 
-func <T> deduce_thing_var(thing : DeduceThingVar<T>) : T {
+func <T : Copy> deduce_thing_var(thing : DeduceThingVar<T>) : T {
     switch(thing) {
         Some(value) => {
             return value;
         }
         None => {
-            return -1;
+            return -1 as T;
         }
     }
 }

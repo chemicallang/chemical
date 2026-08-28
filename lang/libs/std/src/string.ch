@@ -485,109 +485,36 @@ public struct string {
             v = -v;
         }
 
-        // integer part
-        var int_part = (v as bigint);
-        append_integer(int_part);
-
-        if(precision == 0) {
-            return;
-        }
-
-        append('.');
-
-        // fractional part scaled and rounded
-        var frac = v - (int_part as double);
-        var pow10_d : double = 1.0;
-        var pow10_u : ubigint = 1;
+        // Scale and round to `precision` fractional digits up front, so we never
+        // have to mutate already-appended characters (which breaks the SSO layout).
+        var scale : bigint = 1;
         var pi : int = 0;
         while(pi < precision) {
-            pow10_d = pow10_d * 10.0;
-            pow10_u = pow10_u * 10;
+            scale = scale * 10;
             pi = pi + 1;
         }
 
-        // add rounding
-        var scaled = (frac * pow10_d + 0.5) as ubigint;
+        var scaled = (v * (scale as double) + 0.5) as bigint;
+        var int_part = scaled / scale;
+        var frac_part = scaled - int_part * scale;
 
-        // rounding may carry into integer part
-        if(scaled >= pow10_u) {
-            // increment integer part by 1
-            // remove previously appended integer and re-append incremented value
-            // simplest approach: compute new integer and replace tail.
-            // We'll compute current total length and roll back integer characters.
+        append_integer(int_part);
 
-            // find length of integer we appended: convert int_part+1 to string in temp
-            var new_int = int_part + 1;
-            // remove the integer we appended before the '.'
-            // compute pos where '.' is: size() currently = previous size
-            var dot_pos = size();
-            // backtrack: find start index of integer by scanning backwards until non-digit or start
-            var si : size_t = 0;
-            if(state == '1') {
-                si = 0;
-                // sso case: scan
-                var idx = dot_pos;
-                while(idx > 0 && get(idx - 1) >= '0' && get(idx - 1) <= '9') {
-                    idx = idx - 1;
-                }
-                si = idx;
-            } else {
-                si = 0;
-                var idx2 = dot_pos;
-                while(idx2 > 0 && get(idx2 - 1) >= '0' && get(idx2 - 1) <= '9') {
-                    idx2 = idx2 - 1;
-                }
-                si = idx2;
-            }
-            // truncate back to si
-            if(state == '1') {
-                storage.sso.buffer[si] = '\0';
-                storage.sso.length = si as uchar;
-            } else {
-                storage.heap.data[si] = '\0';
-                storage.heap.length = si;
-            }
-            // append new integer
-            append_integer(new_int);
-            // append '.' again (we removed it too)
+        if(precision > 0) {
             append('.');
-            scaled = 0; // fractional part became zero after carry
-        }
-
-        // write fractional part with zero-padding to precision
-        // scaled is in [0, pow10_u)
-        // we need to write exactly 'precision' digits (with leading zeros)
-        // convert scaled to string into temporary buffer
-        unsafe var frac_buf : [20]char;
-        var fbi : int = 0;
-        if(scaled == 0) {
-            // write zeros
-            var z = 0;
-            while(z < precision) {
-                append('0');
-                z = z + 1;
+            // Write frac_part zero-padded to exactly `precision` digits.
+            unsafe var frac_buf : [24]char;
+            var fbi : int = 0;
+            while(fbi < precision) {
+                frac_buf[precision - 1 - fbi] = (('0' as int) + (frac_part % 10) as int) as char;
+                frac_part = frac_part / 10;
+                fbi = fbi + 1;
             }
-            return;
-        }
-        var tmp = scaled;
-        while(tmp != 0) {
-            const d = (tmp % 10) as ubigint;
-            frac_buf[fbi] = ('0' as int + d as int) as char;
-            fbi = fbi + 1;
-            tmp = tmp / 10;
-        }
-        // number of leading zeros needed
-        var leading = precision - fbi;
-        var zi = 0;
-        while(zi < leading) {
-            append('0');
-            zi = zi + 1;
-        }
-        // append reversed frac_buf
-        var fj = 0;
-        while(fj < fbi) {
-            append(frac_buf[fbi - 1 - fj]);
-            fj = fj + 1;
+            var fj : int = 0;
+            while(fj < precision) {
+                append(frac_buf[fj]);
+                fj = fj + 1;
+            }
         }
     }
 

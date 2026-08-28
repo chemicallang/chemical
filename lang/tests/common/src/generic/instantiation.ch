@@ -17,7 +17,7 @@
 // GenericNodeA<int> back. With recursive_mutex this resolves.
 // ============================================================
 
-struct GenericNodeA<T> {
+struct GenericNodeA<T : Copy> {
     var value : T
     func get_peer(&self, other : GenericNodeB<T>) : T {
         return other.value
@@ -27,7 +27,7 @@ struct GenericNodeA<T> {
     }
 }
 
-struct GenericNodeB<T> {
+struct GenericNodeB<T : Copy> {
     var value : T
     func get_peer(&self, other : GenericNodeA<T>) : T {
         return other.value
@@ -43,21 +43,21 @@ struct GenericNodeB<T> {
 // C encounters A (already registered → returns pointer).
 // ============================================================
 
-struct GenericChainA<T> {
+struct GenericChainA<T : Copy> {
     var value : T
     func chain(&self, b : GenericChainB<T>) : T {
         return b.value
     }
 }
 
-struct GenericChainB<T> {
+struct GenericChainB<T : Copy> {
     var value : T
     func chain(&self, c : GenericChainC<T>) : T {
         return c.value
     }
 }
 
-struct GenericChainC<T> {
+struct GenericChainC<T : Copy> {
     var value : T
     func chain(&self, a : GenericChainA<T>) : T {
         return a.value
@@ -71,7 +71,7 @@ struct GenericChainC<T> {
 // through the wrapper.
 // ============================================================
 
-struct GenericBox<T> {
+struct GenericBox<T : Copy> {
     var item : T
     func get(&self) : T {
         return item
@@ -102,7 +102,7 @@ struct GenericSender<T> {
     }
 }
 
-struct GenericReceiver<T> {
+struct GenericReceiver<T : Copy> {
     var buffer : T
     func receive(&self) : T {
         return buffer
@@ -116,7 +116,7 @@ struct GenericReceiver<T> {
 // recursive instantiation at the type level.
 // ============================================================
 
-struct GenericDeepWrapper<T> {
+struct GenericDeepWrapper<T : Copy> {
     var inner : T
     func peek(&self) : T {
         return inner
@@ -141,7 +141,7 @@ variant GenericResult<T> {
 // concurrently during signature finalization.
 // ============================================================
 
-struct GenericPair<A, B> {
+struct GenericPair<A : Copy, B : Copy> {
     var first : A
     var second : B
     func get_first(&self) : A {
@@ -152,7 +152,7 @@ struct GenericPair<A, B> {
     }
 }
 
-struct GenericTriple<A, B, C> {
+struct GenericTriple<A : Copy, B : Copy, C : Copy> {
     var a : A
     var b : B
     var c : C
@@ -173,15 +173,15 @@ struct GenericTriple<A, B, C> {
 // Tests that body finalization handles multiple generics.
 // ============================================================
 
-func <T> make_generic_pair(a : T, b : T) : GenericPair<T, T> {
+func <T : Copy> make_generic_pair(a : T, b : T) : GenericPair<T, T> {
     return GenericPair<T, T> { first : a, second : b }
 }
 
-func <T> make_generic_box(val : T) : GenericBox<T> {
+func <T : Copy> make_generic_box(val : T) : GenericBox<T> {
     return GenericBox<T> { item : val }
 }
 
-func <T> chain_three(a_val : T, b_val : T, c_val : T) : int {
+func <T : Copy> chain_three(a_val : T, b_val : T, c_val : T) : int {
     var a = GenericChainA<T> { value : a_val }
     var b = GenericChainB<T> { value : b_val }
     var c = GenericChainC<T> { value : c_val }
@@ -198,7 +198,7 @@ func <T> chain_three(a_val : T, b_val : T, c_val : T) : int {
 // instantiation that may run on different threads.
 // ============================================================
 
-struct GenericSizeBox<T> {
+struct GenericSizeBox<T : Copy> {
     var value : T
 }
 

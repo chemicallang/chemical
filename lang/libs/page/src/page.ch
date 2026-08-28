@@ -1,4 +1,42 @@
 
+// Explicit HTML escaping. The #html macro does NOT auto-escape interpolated values,
+// so callers must escape any untrusted / user-provided string before embedding it in
+// markup: #html { <div>{escape_html(userValue)}</div> }. Escaping is explicit to keep
+// the framework fast and avoid escaping values that are already safe (e.g. a single
+// *char placed into <head>).
+public func escape_html(value : *char) : std::string {
+    var out = std::string()
+    if(value == null) { return out }
+    var i : size_t = 0
+    while(value[i] != '\0') {
+        var c = value[i]
+        if(c == '<') { out.append_view(std::string_view("&lt;")) }
+        else if(c == '>') { out.append_view(std::string_view("&gt;")) }
+        else if(c == '&') { out.append_view(std::string_view("&amp;")) }
+        else if(c == '"') { out.append_view(std::string_view("&quot;")) }
+        else if(c == '\'') { out.append_view(std::string_view("&#39;")) }
+        else { out.append(c) }
+        i = i + 1
+    }
+    return out
+}
+
+public func escape_html_view(value : std::string_view) : std::string {
+    var out = std::string()
+    var i : size_t = 0
+    while(i < value.size()) {
+        var c = value.get(i)
+        if(c == '<') { out.append_view(std::string_view("&lt;")) }
+        else if(c == '>') { out.append_view(std::string_view("&gt;")) }
+        else if(c == '&') { out.append_view(std::string_view("&amp;")) }
+        else if(c == '"') { out.append_view(std::string_view("&quot;")) }
+        else if(c == '\'') { out.append_view(std::string_view("&#39;")) }
+        else { out.append(c) }
+        i = i + 1
+    }
+    return out
+}
+
 public struct HtmlPage {
 
     var pageHead : std::string

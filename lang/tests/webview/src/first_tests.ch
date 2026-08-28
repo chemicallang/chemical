@@ -395,6 +395,33 @@ public func test_bridge_error_handling(env : &mut TestEnv) {
 }
 
 // ============================================================================
+// Test 8: Large payload (600KB+) — tests webview chunking for bridge results
+// ============================================================================
+
+func verify_large_payload(env : &mut TestEnv) {
+    if(!state().bridge_ok) {
+        env.error("large payload round-trip did not complete")
+        return
+    }
+}
+
+@test
+public func test_bridge_large_payload(env : &mut TestEnv) {
+    // Build HTML that creates a 600KB+ string and sends it through the bridge.
+    var html = string("<html><head><script>")
+    html.append_view(std::string_view::make_no_len("function go(){try{"))
+    html.append_view(std::string_view::make_no_len("var chunks=[];"))
+    html.append_view(std::string_view::make_no_len("for(var i=0;i<20000;i++){chunks.push('ABCDEFGH12345678');}"))
+    html.append_view(std::string_view::make_no_len("var big=chunks.join('');"))
+    html.append_view(std::string_view::make_no_len("window.__webview__.call('echo',{data:big}).then(function(r){"))
+    html.append_view(std::string_view::make_no_len("window.__webview__.call('done',{ok:true,size:r.echo&&r.echo[0]&&r.echo[0].data?r.echo[0].data.length:0});"))
+    html.append_view(std::string_view::make_no_len("}).catch(function(e){window.__webview__.call('stop',e.message);});"))
+    html.append_view(std::string_view::make_no_len("}catch(e){window.__webview__.call('stop',e.message);}}"))
+    html.append_view(std::string_view::make_no_len("</script></head><body onload='go()'><p>test</p></body></html>"))
+    run_bridge_test(env, html.data(), verify_large_payload, "large_payload")
+}
+
+// ============================================================================
 // BridgeTestState needs wv_ptr for the handler to call webview_stop
 // ============================================================================
 

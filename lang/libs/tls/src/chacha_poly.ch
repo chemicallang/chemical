@@ -100,11 +100,12 @@ public struct Poly1305State {
 
 func poly1305_load_r(state : *mut Poly1305State, key : *u8) {
     var k = key
+    // Clamp r per RFC 8439 §2.5: r &= 0x0ffffffc0ffffffc0ffffffc0fffffff.
     state.r[0] = (k[0] as u32 | (k[1] as u32 << 8) | (k[2] as u32 << 16) | (k[3] as u32 << 24)) & 0x3ffffffu
-    state.r[1] = ((k[3] as u32 >> 2) | (k[4] as u32 << 6) | (k[5] as u32 << 14) | (k[6] as u32 << 22)) & 0x3ffffffu
-    state.r[2] = ((k[6] as u32 >> 4) | (k[7] as u32 << 4) | (k[8] as u32 << 12) | (k[9] as u32 << 20)) & 0x3ffffffu
-    state.r[3] = ((k[9] as u32 >> 6) | (k[10] as u32 << 2) | (k[11] as u32 << 10) | (k[12] as u32 << 18)) & 0x3ffffffu
-    state.r[4] = ((k[12] as u32 >> 8) | (k[13] as u32 << 8) | (k[14] as u32 << 16) | (k[15] as u32 << 24)) & 0x3ffffffu
+    state.r[1] = ((k[3] as u32 >> 2) | (k[4] as u32 << 6) | (k[5] as u32 << 14) | (k[6] as u32 << 22)) & 0x3ffff03u
+    state.r[2] = ((k[6] as u32 >> 4) | (k[7] as u32 << 4) | (k[8] as u32 << 12) | (k[9] as u32 << 20)) & 0x3ffc0ffu
+    state.r[3] = ((k[9] as u32 >> 6) | (k[10] as u32 << 2) | (k[11] as u32 << 10) | (k[12] as u32 << 18)) & 0x3f03fffu
+    state.r[4] = ((k[12] as u32 >> 8) | (k[13] as u32) | (k[14] as u32 << 8) | (k[15] as u32 << 16)) & 0x00fffffu
 }
 
 func poly1305_init(state : *mut Poly1305State, key : *u8) {
@@ -118,11 +119,11 @@ func poly1305_init(state : *mut Poly1305State, key : *u8) {
 // Process one full (16-byte) or partial (final_len-byte) block into h.
 func poly1305_process(state : *mut Poly1305State, block : *u8, is_final : bool, final_len : size_t) {
     var h = &raw mut state.h[0]
-    h[0] = h[0] + (block[0] as u32 | (block[1] as u32 << 8) | (block[2] as u32 << 16) | (block[3] as u32 << 24)) & 0x3ffffffu
+    h[0] = h[0] + ((block[0] as u32 | (block[1] as u32 << 8) | (block[2] as u32 << 16) | (block[3] as u32 << 24)) & 0x3ffffffu)
     h[1] = h[1] + (((block[3] as u32 >> 2) | (block[4] as u32 << 6) | (block[5] as u32 << 14) | (block[6] as u32 << 22)) & 0x3ffffffu)
     h[2] = h[2] + (((block[6] as u32 >> 4) | (block[7] as u32 << 4) | (block[8] as u32 << 12) | (block[9] as u32 << 20)) & 0x3ffffffu)
     h[3] = h[3] + (((block[9] as u32 >> 6) | (block[10] as u32 << 2) | (block[11] as u32 << 10) | (block[12] as u32 << 18)) & 0x3ffffffu)
-    h[4] = h[4] + (((block[12] as u32 >> 8) | (block[13] as u32 << 8) | (block[14] as u32 << 16) | (block[15] as u32 << 24)) & 0x3ffffffu)
+    h[4] = h[4] + (((block[12] as u32 >> 8) | (block[13] as u32) | (block[14] as u32 << 8) | (block[15] as u32 << 16)) & 0x3ffffffu)
 
     // Append the 0x01 terminator at bit (8 * processed_len).
     var term_bit : size_t = 128
@@ -198,8 +199,8 @@ func poly1305_finish(state : *mut Poly1305State, tag : *mut u8) {
     g[3] = state.h[3] + c; c = g[3] >> 26; g[3] = g[3] & 0x3ffffffu
     g[4] = state.h[4] + c - (1u << 26)
 
-    // nb = 0xffffffff if h >= p (select g), else 0 (select h).
-    var nb : u32 = (g[4] >> 31) - 1u
+    // nb = 0 if h >= p (select g = h - p), else 0xffffffff (select h).
+    var nb : u32 = 0u - (g[4] >> 31)
     var k : size_t = 0
     while(k < 5) {
         state.h[k] = g[k] ^ (nb & (state.h[k] ^ g[k]))
@@ -254,7 +255,23 @@ func chacha20_poly1305_encrypt(key : *u8, nonce : *u8,
     unsafe var st : Poly1305State
     poly1305_init(&raw mut st, &raw mut otk_block[0])
     poly1305_update(&raw mut st, aad, aad_len)
+    // Zero-pad AAD to a 16-byte boundary (RFC 8439 §2.8.1).
+    var pad_aad = (16u - (aad_len % 16u)) % 16u
+    if(pad_aad > 0u) {
+        unsafe var zp : [16]u8
+        var zi : size_t = 0
+        while(zi < 16) { zp[zi] = 0u as u8; zi += 1 }
+        poly1305_update(&raw mut st, &raw zp[0], pad_aad)
+    }
     poly1305_update(&raw mut st, ciphertext, pt_len)
+    // Zero-pad ciphertext to a 16-byte boundary.
+    var pad_ct = (16u - (pt_len % 16u)) % 16u
+    if(pad_ct > 0u) {
+        unsafe var zp2 : [16]u8
+        var zi2 : size_t = 0
+        while(zi2 < 16) { zp2[zi2] = 0u as u8; zi2 += 1 }
+        poly1305_update(&raw mut st, &raw zp2[0], pad_ct)
+    }
     unsafe var lens : [16]u8
     var i : size_t = 0
     while(i < 16) { lens[i] = 0u as u8; i += 1 }
@@ -279,7 +296,23 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
     unsafe var st : Poly1305State
     poly1305_init(&raw mut st, &raw mut otk_block[0])
     poly1305_update(&raw mut st, aad, aad_len)
+    // Zero-pad AAD to a 16-byte boundary (RFC 8439 §2.8.1).
+    var pad_aad = (16u - (aad_len % 16u)) % 16u
+    if(pad_aad > 0u) {
+        unsafe var zp : [16]u8
+        var zi : size_t = 0
+        while(zi < 16) { zp[zi] = 0u as u8; zi += 1 }
+        poly1305_update(&raw mut st, &raw zp[0], pad_aad)
+    }
     poly1305_update(&raw mut st, ciphertext, ct_len)
+    // Zero-pad ciphertext to a 16-byte boundary.
+    var pad_ct = (16u - (ct_len % 16u)) % 16u
+    if(pad_ct > 0u) {
+        unsafe var zp2 : [16]u8
+        var zi2 : size_t = 0
+        while(zi2 < 16) { zp2[zi2] = 0u as u8; zi2 += 1 }
+        poly1305_update(&raw mut st, &raw zp2[0], pad_ct)
+    }
     unsafe var lens : [16]u8
     var i : size_t = 0
     while(i < 16) { lens[i] = 0u as u8; i += 1 }

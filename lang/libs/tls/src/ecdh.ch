@@ -74,7 +74,10 @@ public namespace tls {
     // Current active curve for the generic point arithmetic helpers.
     // 0 = P-256 (default), 1 = P-384. Set by ecdsa_verify / ecdh around the
     // multiplicative ladder so the ecp_* parameter accessors use the right set.
-    var GLOBAL_CURVE : int = 0
+    // Thread-local: the TLS test suite runs handshake tests in parallel threads,
+    // and concurrent P-256 / P-384 operations must not corrupt each other's
+    // curve selection.
+    @thread_local var GLOBAL_CURVE : int = 0
 
     public func ecp_select_curve(c : int) {
         GLOBAL_CURVE = c

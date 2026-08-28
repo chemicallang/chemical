@@ -370,6 +370,59 @@ void write_type_post_id(ToCAstVisitor& visitor, BaseType* type) {
 #define struct_passed_param_name "__chx_struct_ret_param_xx"
 #define static_interface_passed_param_name "__chx_interface_self"
 
+// C/C++ keywords that are NOT Chemical keywords.
+// These can be used as variable names in Chemical but are reserved in C output.
+//
+// Strategy: switch on first char (jump table) for the6 lowercase keywords,
+// then a small table scan for the19 underscore-prefixed ones.
+// Most variable names start with a letter != {a,i,r,v,_} and hit the
+// default case — one comparison total.
+static bool is_c_keyword(chem::string_view name) {
+    const size_t len = name.size();
+    switch (name[0]) {
+        case 'a': // auto(4), asm(3)
+            return (len == 4 && memcmp(name.data(), "auto", 4) == 0)
+                || (len == 3 && memcmp(name.data(), "asm", 3) == 0);
+        case 'i': // inline(6)
+            return len == 6 && memcmp(name.data(), "inline", 6) == 0;
+        case 'r': // register(8), restrict(8)
+            return len == 8 && (memcmp(name.data(), "register", 8) == 0
+                             || memcmp(name.data(), "restrict", 8) == 0);
+        case 'v': // volatile(8)
+            return len == 8 && memcmp(name.data(), "volatile", 8) == 0;
+        case '_': {
+            // 19 underscore-prefixed C keywords, lengths 5-14
+            static const std::string_view udict[] = {
+                "_Bool", "_Atomic",
+                "__asm",
+                "_Complex", "__asm__",
+                "_Generic", "_Alignas", "_Alignof",
+                "_Float16", "_Float32", "_Float64",
+                "_Noreturn",
+                "_Decimal32", "_Decimal64", "_Float128",
+                "_Decimal128",
+                "_Imaginary",
+                "_Static_assert", "_Thread_local",
+            };
+            for (const auto& kw : udict) {
+                if (len == kw.size() && memcmp(name.data(), kw.data(), len) == 0)
+                    return true;
+            }
+            return false;
+        }
+        default:
+            return false;
+    }
+}
+
+// Write an identifier, escaping C keywords with a __chx__ prefix.
+static void write_c_id(ToCAstVisitor& visitor, chem::string_view name) {
+    if (is_c_keyword(name)) {
+        visitor.write("__chx__");
+    }
+    visitor.write(name);
+}
+
 void node_name(ToCAstVisitor& visitor, ASTNode* node) {
     if(!node) return;
     visitor.mangler.mangle(visitor.writer, node);
@@ -393,7 +446,7 @@ void type_with_id(ToCAstVisitor& visitor, BaseType* type, const chem::string_vie
         visit_non_arr_type(visitor, type);
         if(!id.empty() && id != "_") {
             visitor.space();
-            visitor.write(id);
+            write_c_id(visitor, id);
         }
         write_type_post_id(visitor, type);
     }
@@ -1388,7 +1441,7 @@ bool write_self_arg_bool_no_pointer(ToCAstVisitor& visitor, FunctionType* func_t
 
 void value_assign_default(ToCAstVisitor& visitor, const chem::string_view& identifier, BaseType* type, Value* value, bool write_id = true) {
     if(write_id) {
-        visitor.write(identifier);
+        write_c_id(visitor, identifier);
         write_type_post_id(visitor, type);
     }
     visitor.write(" = ");
@@ -6634,7 +6687,7 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
                 mangle(linked->as_function_unsafe());
                 return;
             case ASTNodeKind::FunctionParam:
-                write(linked->as_func_param_unsafe()->name);
+                write_c_id(*this, linked->as_func_param_unsafe()->name);
                 return;
             case ASTNodeKind::VarInitStmt: {
                 const auto init = linked->as_var_init_unsafe();
@@ -6650,12 +6703,12 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
             case ASTNodeKind::ForInLoopStmt: {
                 const auto stmt = linked->as_for_in_loop_unsafe();
                 if (stmt->is_reference()) {
-                    write(stmt->id);
+                    write_c_id(*this, stmt->id);
                     return;
                 }
                 write('(');
                 write('*');
-                write(stmt->id);
+                write_c_id(*this, stmt->id);
                 write(')');
                 return;
             }
@@ -6745,7 +6798,7 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
                 break;
         }
     }
-    write(identifier->value);
+    write_c_id(*this, identifier->value);
 }
 
 void ToCAstVisitor::VisitVariableIdentifier(VariableIdentifier *identifier) {

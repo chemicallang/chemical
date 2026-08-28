@@ -97,3 +97,62 @@ func accept_box(b : TCCBox) : int {
 func create_box(val : int) : TCCBox {
     return TCCBox.make(val)
 }
+
+// Test 8: Variable named with a C keyword (auto)
+// The C translator must escape C keywords when emitting variable names.
+// If it doesn't, TinyCC/Clang will reject 'auto' as an identifier.
+func test_c_keyword_var_names() {
+    test("variable named 'auto' (C keyword) works", () => {
+        var auto = 42
+        return auto == 42
+    })
+
+    test("variable named 'auto' used in expressions", () => {
+        var auto = 10
+        var other = 20
+        return auto + other == 30
+    })
+
+    test("variable named 'auto' passed to function", () => {
+        var auto = 7
+        return accept_auto(auto) == 7
+    })
+
+    test("variable named 'auto' returned from function", () => {
+        return get_auto_value() == 99
+    })
+
+    test("variable named 'register' (C keyword) works", () => {
+        var register = 5
+        return register == 5
+    })
+
+    test("variable named 'volatile' (C keyword) works", () => {
+        var volatile = 8
+        return volatile == 8
+    })
+
+    test("variable named 'restrict' (C keyword) works", () => {
+        var restrict = 3
+        return restrict == 3
+    })
+
+    test("variable named 'inline' (C keyword) works", () => {
+        var inline = 11
+        return inline == 11
+    })
+
+    test("variable named 'asm' (C keyword) works", () => {
+        var asm = 6
+        return asm == 6
+    })
+}
+
+func accept_auto(auto : int) : int {
+    return auto
+}
+
+func get_auto_value() : int {
+    var auto = 99
+    return auto
+}

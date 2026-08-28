@@ -824,3 +824,190 @@ public func E2E_tls13_server_pinned_aes256_gcm(env : &mut TestEnv) {
     net::close_socket(server_sock)
     test_kill_port(20115u)
 }
+
+// ─── Chemical TLS 1.3 server pinned to AES-256-GCM-SHA384 with a P-384 cert ──
+@test
+@test.timeout(60000)
+public func E2E_tls13_server_pinned_p384_aes256_gcm(env : &mut TestEnv) {
+    write_tls_python_utils()
+    test_kill_port(20116u)
+    test_server_wait()
+    test_py_run_foreground(string_view("cert /tmp/tls_20116_cert.pem /tmp/tls_20116_key.pem localhost ec384"))
+
+    var cert = x509_crt_load_pem_file("/tmp/tls_20116_cert.pem")
+    if(cert == null) { env.error("server p384 aes256: failed to load cert"); return }
+
+    var server_sock = net::listen_addr("127.0.0.1", 20116u)
+    if(server_sock == 0 as net::Socket) {
+        cert_free(cert); unsafe { dealloc cert }
+        env.error("server p384 aes256: listen failed"); return
+    }
+
+    test_py_run_background(string_view("cli 127.0.0.1 20116 1.3"))
+    test_server_wait()
+
+    net::set_nonblocking(server_sock)
+    var client_sock = net::accept_socket(server_sock) as net::Socket
+    var attempts : int = 0
+    while(client_sock == 0 as net::Socket && attempts < 50) {
+        std::concurrent::sleep_ms(100u)
+        client_sock = net::accept_socket(server_sock) as net::Socket
+        attempts += 1
+    }
+    if(client_sock == 0 as net::Socket) {
+        env.error("server p384 aes256: no client connected")
+        cert_free(cert); unsafe { dealloc cert }
+        net::close_socket(server_sock)
+        test_kill_port(20116u)
+        return
+    }
+
+    var ssl_mem = malloc(sizeof(SSLContext)) as *mut SSLContext
+    ssl_init(ssl_mem)
+    ssl_set_socket(ssl_mem, client_sock)
+
+    var cfg = ssl_config_init(SSL_IS_SERVER)
+    cfg.own_cert = cert
+    cfg.max_tls_version = SSL_VERSION_TLS1_3
+    cfg.min_tls_version = SSL_VERSION_TLS1_3
+    cfg.ciphersuite_list[0] = TLS1_3_AES_256_GCM_SHA384 as u16
+    cfg.ciphersuite_count = 1
+    ssl_set_config(ssl_mem, &raw mut cfg)
+
+    test_py_run_foreground(string_view("privkey /tmp/tls_20116_key.pem /tmp/tls_20116_priv.hex"))
+    var priv_key = ec_privkey_load_hex_file("/tmp/tls_20116_priv.hex")
+    if(priv_key == null) {
+        env.error("server p384 aes256: failed to load private key")
+        ssl_free(ssl_mem); unsafe { dealloc ssl_mem }
+        cert_free(cert); unsafe { dealloc cert }
+        net::close_socket(server_sock)
+        test_kill_port(20116u)
+        return
+    }
+    cfg.own_key = priv_key as *mut void
+    ssl_set_config(ssl_mem, &raw mut cfg)
+
+    var ret = ssl_handshake(ssl_mem)
+    if(ret < 0) {
+        env.error("server p384 aes256: TLS 1.3 handshake with P-384 cert + AES-256 failed")
+    } else {
+        if(ssl_mem.negotiated_ciphersuite != TLS1_3_AES_256_GCM_SHA384 as u16) {
+            env.error("server p384 aes256: wrong negotiated ciphersuite")
+        }
+        unsafe var buf : [512]u8
+        var n = ssl_read(ssl_mem, &raw mut buf[0], 512)
+        var expect = "GET / HTTP/1.0\r\n\r\n" as *char
+        var match = (n == 18)
+        var mi : size_t = 0
+        while(match && mi < 18) {
+            if(buf[mi] != expect[mi] as u8) { match = false }
+            mi += 1
+        }
+        if(!match) { env.error("server p384 aes256: client request mismatch") }
+        var resp = "HTTP/1.0 200 OK\r\n\r\n\0" as *char
+        ssl_write(ssl_mem, resp as *u8, 19)
+        ssl_close_notify(ssl_mem)
+    }
+
+    ecdsa_context_free(priv_key)
+    ssl_free(ssl_mem)
+    unsafe { dealloc ssl_mem }
+    cert_free(cert)
+    unsafe { dealloc cert }
+    net::close_socket(server_sock)
+    test_kill_port(20116u)
+}
+
+// ─── Server must reassemble a ClientHello delivered in fragmented TCP writes ──
+@test
+@test.timeout(60000)
+public func E2E_tls13_server_fragmented_clienthello(env : &mut TestEnv) {
+    write_tls_python_utils()
+    test_kill_port(20117u)
+    test_server_wait()
+    test_py_run_foreground(string_view("cert /tmp/tls_20117_cert.pem /tmp/tls_20117_key.pem localhost ec"))
+
+    var cert = x509_crt_load_pem_file("/tmp/tls_20117_cert.pem")
+    if(cert == null) { env.error("frag ch: failed to load cert"); return }
+
+    var server_sock = net::listen_addr("127.0.0.1", 20117u)
+    if(server_sock == 0 as net::Socket) {
+        cert_free(cert); unsafe { dealloc cert }
+        env.error("frag ch: listen failed"); return
+    }
+
+    // clifrag sends the ClientHello in 16-byte TCP writes to force server reassembly
+    test_py_run_background(string_view("clifrag 127.0.0.1 20117 1.3"))
+    test_server_wait()
+
+    net::set_nonblocking(server_sock)
+    var client_sock = net::accept_socket(server_sock) as net::Socket
+    var attempts : int = 0
+    while(client_sock == 0 as net::Socket && attempts < 50) {
+        std::concurrent::sleep_ms(100u)
+        client_sock = net::accept_socket(server_sock) as net::Socket
+        attempts += 1
+    }
+    if(client_sock == 0 as net::Socket) {
+        env.error("frag ch: no client connected")
+        cert_free(cert); unsafe { dealloc cert }
+        net::close_socket(server_sock)
+        test_kill_port(20117u)
+        return
+    }
+
+    var ssl_mem = malloc(sizeof(SSLContext)) as *mut SSLContext
+    ssl_init(ssl_mem)
+    ssl_set_socket(ssl_mem, client_sock)
+
+    var cfg = ssl_config_init(SSL_IS_SERVER)
+    cfg.own_cert = cert
+    cfg.max_tls_version = SSL_VERSION_TLS1_3
+    cfg.min_tls_version = SSL_VERSION_TLS1_3
+    cfg.ciphersuite_list[0] = TLS1_3_AES_128_GCM_SHA256 as u16
+    cfg.ciphersuite_count = 1
+    ssl_set_config(ssl_mem, &raw mut cfg)
+
+    test_py_run_foreground(string_view("privkey /tmp/tls_20117_key.pem /tmp/tls_20117_priv.hex"))
+    var priv_key = ec_privkey_load_hex_file("/tmp/tls_20117_priv.hex")
+    if(priv_key == null) {
+        env.error("frag ch: failed to load private key")
+        ssl_free(ssl_mem); unsafe { dealloc ssl_mem }
+        cert_free(cert); unsafe { dealloc cert }
+        net::close_socket(server_sock)
+        test_kill_port(20117u)
+        return
+    }
+    cfg.own_key = priv_key as *mut void
+    ssl_set_config(ssl_mem, &raw mut cfg)
+
+    var ret = ssl_handshake(ssl_mem)
+    if(ret < 0) {
+        env.error("frag ch: handshake with fragmented ClientHello failed")
+    } else {
+        if(ssl_mem.negotiated_ciphersuite != TLS1_3_AES_128_GCM_SHA256 as u16) {
+            env.error("frag ch: wrong negotiated ciphersuite")
+        }
+        unsafe var buf : [512]u8
+        var n = ssl_read(ssl_mem, &raw mut buf[0], 512)
+        var expect = "GET / HTTP/1.0\r\n\r\n" as *char
+        var match = (n == 18)
+        var mi : size_t = 0
+        while(match && mi < 18) {
+            if(buf[mi] != expect[mi] as u8) { match = false }
+            mi += 1
+        }
+        if(!match) { env.error("frag ch: client request mismatch") }
+        var resp = "HTTP/1.0 200 OK\r\n\r\n\0" as *char
+        ssl_write(ssl_mem, resp as *u8, 19)
+        ssl_close_notify(ssl_mem)
+    }
+
+    ecdsa_context_free(priv_key)
+    ssl_free(ssl_mem)
+    unsafe { dealloc ssl_mem }
+    cert_free(cert)
+    unsafe { dealloc cert }
+    net::close_socket(server_sock)
+    test_kill_port(20117u)
+}

@@ -4225,37 +4225,44 @@ public namespace tls {
         var mode = "r\0" as *char
         var f = fopen(path, mode)
         if(f == null) { return null }
-        unsafe var hex_buf : [80]u8
+        unsafe var hex_buf : [100]u8
         var total_read : size_t = 0
-        while(total_read < 64) {
-            var n = fread(&raw mut hex_buf[total_read], 1 as size_t, 64 - total_read, f)
+        while(total_read < 100) {
+            var n = fread(&raw mut hex_buf[total_read], 1 as size_t, 100 - total_read, f)
             if(n <= 0) { break }
             total_read += n
         }
         fclose(f)
-        if(total_read < 64) { return null }
 
-        unsafe var key_bytes : [32]u8
+        // Decode up to 96 hex digits (48 bytes for P-384) into key_bytes,
+        // skipping any non-hex characters (whitespace, newlines).
+        unsafe var key_bytes : [48]u8
+        var hex_count : size_t = 0
         var i : size_t = 0
-        while(i < 32) {
-            var hi = hex_buf[i*2]
-            var lo = hex_buf[i*2 + 1]
+        while(i < total_read && hex_count < 96) {
+            var c = hex_buf[i]; i += 1
             var hv : u8 = 0
-            if(hi >= 48 && hi <= 57) { hv = hi - 48 as u8 }
-            else if(hi >= 97 && hi <= 102) { hv = (hi - 97) + 10 as u8 }
-            else if(hi >= 65 && hi <= 70) { hv = (hi - 65) + 10 as u8 }
-            var lv : u8 = 0
-            if(lo >= 48 && lo <= 57) { lv = lo - 48 as u8 }
-            else if(lo >= 97 && lo <= 102) { lv = (lo - 97) + 10 as u8 }
-            else if(lo >= 65 && lo <= 70) { lv = (lo - 65) + 10 as u8 }
-            key_bytes[i] = (hv << 4) | lv
-            i += 1
+            var valid = false
+            if(c >= 48 && c <= 57) { hv = c - 48 as u8; valid = true }
+            else if(c >= 97 && c <= 102) { hv = (c - 97) + 10 as u8; valid = true }
+            else if(c >= 65 && c <= 70) { hv = (c - 65) + 10 as u8; valid = true }
+            if(!valid) { continue }
+            if((hex_count & 1) == 0) {
+                key_bytes[hex_count / 2] = hv << 4
+            } else {
+                key_bytes[hex_count / 2] = key_bytes[hex_count / 2] | hv
+            }
+            hex_count += 1
         }
+        if(hex_count != 64 && hex_count != 96) { return null }
+
+        var curve : u16 = TLS_GROUP_SECP256R1 as u16
+        if(hex_count == 96) { curve = TLS_GROUP_SECP384R1 as u16 }
 
         var ctx = malloc(sizeof(ECDSAContext)) as *mut ECDSAContext
         if(ctx == null) { return null }
         ecdsa_init(ctx)
-        var ret = ecdsa_import_privkey(ctx, &raw key_bytes[0], 32, TLS_GROUP_SECP256R1 as u16)
+        var ret = ecdsa_import_privkey(ctx, &raw key_bytes[0], hex_count / 2, curve)
         if(ret < 0) { unsafe { dealloc ctx }; return null }
         return ctx
     }
@@ -5102,7 +5109,24 @@ public namespace tls {
             ssl.state = SSLState.CERTIFICATE_VERIFY()
 
             var cv_copy = transcript
+            // CertificateVerify signature hash/scheme is chosen by the server
+            // certificate's curve (RFC 8446: ecdsa_secp256r1_sha256 /
+            // ecdsa_secp384r1_sha384), independent of the ciphersuite hash.
+            var cert_use_sha384 : bool = false
+            var cert_hash_len : size_t = 32
+            if(ssl.conf.own_key != null) {
+                var ck = ssl.conf.own_key as *mut ECDSAContext
+                if(ck.curve_id == TLS_GROUP_SECP384R1 as u16) {
+                    cert_use_sha384 = true
+                    cert_hash_len = 48
+                }
+            }
             unsafe var cv_transcript_hash : [48]u8
+            // The transcript hash uses the ciphersuite's hash (SHA-384 for the
+            // AES-256-GCM-SHA384 family, SHA-256 otherwise) per RFC 8446 — it is
+            // independent of the certificate's curve. Only the signature scheme
+            // (and thus the hash applied to the CertificateVerify content) follows
+            // the certificate curve.
             tls13_transcript_finalize(&raw mut cv_copy, &raw mut cv_transcript_hash[0], use_sha384)
 
             // content = 64 spaces + "TLS 1.3, server CertificateVerify" + 0x00 + transcript_hash
@@ -5121,7 +5145,7 @@ public namespace tls {
             sp += tls13_hash_len
 
             unsafe var cv_hash : [48]u8
-            if(use_sha384) {
+            if(cert_use_sha384) {
                 crypto::sha384_hash(&raw sig_in[0], sp, &raw mut cv_hash[0])
             } else {
                 crypto::sha256_hash(&raw sig_in[0], sp, &raw mut cv_hash[0])
@@ -5135,9 +5159,9 @@ public namespace tls {
 
             if(pk_type == PK_ECKEY as u8) {
                 var ecdsa_key = ssl.conf.own_key as *mut ECDSAContext
-                ret = ecdsa_sign(ecdsa_key, &raw cv_hash[0], tls13_hash_len, &raw mut sig_buf[0], &raw mut sig_len)
+                ret = ecdsa_sign(ecdsa_key, &raw cv_hash[0], cert_hash_len, &raw mut sig_buf[0], &raw mut sig_len)
                 if(ret < 0) { return ERR_SSL_INTERNAL_ERROR }
-                if(use_sha384) {
+                if(cert_use_sha384) {
                     sig_alg = TLS1_3_SIG_ECDSA_SECP384R1_SHA384 as u16
                 } else {
                     sig_alg = TLS1_3_SIG_ECDSA_SECP256R1_SHA256 as u16

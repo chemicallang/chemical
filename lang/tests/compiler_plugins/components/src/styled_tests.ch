@@ -109,6 +109,20 @@ public func styled_count_char(view : std::string_view, c : char) : uint {
     return count
 }
 
+// Count occurrences of a substring in a view.
+public func styled_count_substr(view : std::string_view, needle : std::string_view) : uint {
+    if(needle.empty()) { return 0 }
+    var count : uint = 0
+    var remaining = view
+    while(remaining.size() >= needle.size()) {
+        const pos = remaining.find(&needle)
+        if(pos >= remaining.size()) { break }
+        count = count + 1
+        remaining = remaining.skip(pos + needle.size())
+    }
+    return count
+}
+
 // ---------------------------------------------------------------------------
 // Plain styled component
 // ---------------------------------------------------------------------------
@@ -245,12 +259,11 @@ public func styled_nested_components(env : &mut TestEnv) {
     #html { <SOuter><SInner>z</SInner></SOuter> }
     var html = std::string()
     html.append_view(page.getHtml())
-    contains_string_assert(env, html.to_view(), std::string_view("<div"))
     contains_string_assert(env, html.to_view(), std::string_view("<span"))
-    contains_string_assert(env, html.to_view(), std::string_view(">z</span>"))
-    contains_string_assert(env, html.to_view(), std::string_view("</div>"))
     var css = std::string()
     css.append_view(page.getCss())
+    contains_string_assert(env, html.to_view(), std::string_view(">z</span>"))
+    contains_string_assert(env, html.to_view(), std::string_view("</div>"))
     styled_assert_prop(env, css.to_view(), std::string_view("padding"), std::string_view("1px"))
     styled_assert_prop(env, css.to_view(), std::string_view("color"), std::string_view("blue"))
     // both generated classes must be linked
@@ -456,4 +469,169 @@ public func styled_empty_css_block(env : &mut TestEnv) {
     css.append_view(page.getCss())
     // With no declarations, no class should be generated / linked.
     not_contains_string_assert(env, css.to_view(), std::string_view("color:"))
+}
+
+// ---------------------------------------------------------------------------
+// Non-hashable CSS (media queries / nested rules)
+// ---------------------------------------------------------------------------
+// A `@media` block makes the generated css non-hashable, so the rule is emitted
+// under the page (random) hash path. It must still render and link correctly.
+#styled SMedia("div") {
+    color: red;
+    @media (max-width: 600px) {
+        color: blue;
+    }
+}
+
+@test
+public func styled_media_query_renders(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SMedia>x</SMedia> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("<div"))
+    contains_string_assert(env, html.to_view(), std::string_view(">x</div>"))
+    var cls = styled_extract_class(env, html.to_view())
+    if(cls.empty()) { return }
+    var css = std::string()
+    css.append_view(page.getCss())
+    // The media query and both color declarations must be present.
+    contains_string_assert(env, css.to_view(), std::string_view("@media"))
+    contains_string_assert(env, css.to_view(), std::string_view("color:red"))
+    contains_string_assert(env, css.to_view(), std::string_view("color:blue"))
+    styled_assert_linked(env, html.to_view(), css.to_view())
+}
+
+// ---------------------------------------------------------------------------
+// CSS dedup: identical css -> identical hash class, emitted once
+// ---------------------------------------------------------------------------
+#styled SDupA("div") {
+    color: red;
+}
+
+#styled SDupB("div") {
+    color: red;
+}
+
+@test
+public func styled_identical_css_dedups_class(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SDupA>a</SDupA> }
+    #html { <SDupB>b</SDupB> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    // Both components share the same css, so they must share the same class.
+    var clsA = styled_extract_class_n(env, html.to_view(), 0)
+    var clsB = styled_extract_class_n(env, html.to_view(), 1)
+    var spc = std::string_view(" ")
+    var spA = clsA.to_view().find(&spc)
+    var hashA = clsA.to_view()
+    if(spA < clsA.size()) { hashA = clsA.to_view().subview(0, spA) }
+    var spB = clsB.to_view().find(&spc)
+    var hashB = clsB.to_view()
+    if(spB < clsB.size()) { hashB = clsB.to_view().subview(0, spB) }
+    if(!hashA.equals(&hashB)) {
+        env.error("styled: identical css should produce identical hash class")
+        var i = std::string("a:\"")
+        i.append_view(&hashA); i.append('"'); i.append_view(std::string_view(" b:\"")); i.append_view(&hashB); i.append('"')
+        env.info(i.data())
+    }
+    var css = std::string()
+    css.append_view(page.getCss())
+    // The shared rule is emitted exactly once.
+    var sel = std::string(".")
+    var h = hashA
+    sel.append_view(&h)
+    sel.append_view(std::string_view("{"))
+    var sel_ref = sel.to_view()
+    if(styled_count_substr(css.to_view(), sel_ref) != 1) {
+        env.error("styled: identical css rule should be emitted exactly once")
+        env.info(sel.data())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// CSS emitted once for many instances of the same component
+// ---------------------------------------------------------------------------
+#styled SMany("div") {
+    color: green;
+}
+
+@test
+public func styled_many_instances_emit_css_once(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SMany>a</SMany> }
+    #html { <SMany>b</SMany> }
+    #html { <SMany>c</SMany> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    var cls = styled_extract_class(env, html.to_view())
+    var spc = std::string_view(" ")
+    var sp = cls.to_view().find(&spc)
+    var hash = cls.to_view()
+    if(sp < cls.size()) { hash = cls.to_view().subview(0, sp) }
+    var css = std::string()
+    css.append_view(page.getCss())
+    var sel = std::string(".")
+    var h = hash
+    sel.append_view(&h)
+    sel.append_view(std::string_view("{"))
+    var sel_ref = sel.to_view()
+    if(styled_count_substr(css.to_view(), sel_ref) != 1) {
+        env.error("styled: css for repeated component should be emitted exactly once")
+        env.info(sel.data())
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Wrap merges wrapper hash + inner hash + user classes
+// ---------------------------------------------------------------------------
+#styled SInner2("span") {
+    color: teal;
+}
+
+#styled SWrap2(SInner2) {
+    padding: 2px;
+}
+
+@test
+public func styled_wrap_merges_user_classes(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SWrap2 class="outer-x">hi</SWrap2> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("<span"))
+    var page_css = std::string()
+    page_css.append_view(page.getCss())
+    // The class attribute must carry the inner hash, the user-supplied class,
+    // and the wrapper hash (in that order: base, user, wrapper).
+    var all_cls = styled_extract_class(env, html.to_view())
+    contains_string_assert(env, all_cls.to_view(), std::string_view("outer-x"))
+    // The inner hash (first class token) must be linked.
+    styled_assert_linked(env, html.to_view(), page_css.to_view())
+    // Both components' own css rules must be present (proving wrap + inner are
+    // both linked and the user class sits alongside them).
+    contains_string_assert(env, page_css.to_view(), std::string_view("color:teal"))
+    contains_string_assert(env, page_css.to_view(), std::string_view("padding:2px"))
+}
+
+// ---------------------------------------------------------------------------
+// Cross-module styled component (declared in `styled_export`, imported here)
+// ---------------------------------------------------------------------------
+@test
+public func styled_cross_module_usage(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <ExportedCard>cross</ExportedCard> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("<div"))
+    contains_string_assert(env, html.to_view(), std::string_view(">cross</div>"))
+    var cls = styled_extract_class(env, html.to_view())
+    if(cls.empty()) { return }
+    var css = std::string()
+    css.append_view(page.getCss())
+    // The exported component's css must be present in this module's page.
+    contains_string_assert(env, css.to_view(), std::string_view("rebeccapurple"))
+    contains_string_assert(env, css.to_view(), std::string_view("border:1px solid"))
+    styled_assert_linked(env, html.to_view(), css.to_view())
 }

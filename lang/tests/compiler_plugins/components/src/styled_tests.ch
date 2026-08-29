@@ -616,6 +616,46 @@ public func styled_wrap_merges_user_classes(env : &mut TestEnv) {
 }
 
 // ---------------------------------------------------------------------------
+// Rendered inside a loop (common for lists/cards): CSS must be emitted once
+// even though the component renders many times.
+// ---------------------------------------------------------------------------
+#styled SLoop("div") {
+    color: navy;
+}
+
+@test
+public func styled_loop_emits_css_once(env : &mut TestEnv) {
+    var page = HtmlPage()
+    var i : int = 0
+    while(i < 10) {
+        #html { <SLoop>item</SLoop> }
+        i = i + 1
+    }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    if(styled_count_substr(html.to_view(), std::string_view("<div")) != 10) {
+        env.error("styled: expected 10 loop elements")
+    }
+    var cls = styled_extract_class(env, html.to_view())
+    var spc = std::string_view(" ")
+    var sp0 = cls.to_view().find(&spc)
+    var hash = cls.to_view()
+    if(sp0 < cls.size()) { hash = cls.to_view().subview(0, sp0) }
+    var css = std::string()
+    css.append_view(page.getCss())
+    var sel = std::string(".")
+    var h = hash
+    sel.append_view(&h)
+    sel.append_view(std::string_view("{"))
+    var sel_ref = sel.to_view()
+    if(styled_count_substr(css.to_view(), sel_ref) != 1) {
+        env.error("styled: css for loop-rendered component should be emitted exactly once")
+        env.info(sel.data())
+    }
+    styled_assert_linked(env, html.to_view(), css.to_view())
+}
+
+// ---------------------------------------------------------------------------
 // Cross-module styled component (declared in `styled_export`, imported here)
 // ---------------------------------------------------------------------------
 @test

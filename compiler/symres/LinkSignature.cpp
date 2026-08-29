@@ -783,21 +783,18 @@ void configure_members_by_inheritance(EnumDeclaration* current, int start) {
 
 void TopLevelLinkSignature::VisitEnumDecl(EnumDeclaration* node) {
     RecursiveVisitor<TopLevelLinkSignature>::VisitEnumDecl(node);
-    auto& underlying_type = node->underlying_type;
-    auto& underlying_integer_type = node->underlying_integer_type;
-    const auto pure_underlying = underlying_type->canonical();
-    const auto k = pure_underlying->kind();
-    if(k == BaseTypeKind::IntN) {
-        underlying_integer_type = pure_underlying->as_intn_type_unsafe();
+    const auto pure_underlying = node->underlying_type->canonical();
+    if(pure_underlying->kind() == BaseTypeKind::IntN) {
+        node->underlying_integer_type = pure_underlying->as_intn_type_unsafe();
     } else {
         const auto linked = pure_underlying->get_direct_linked_node();
-        if(linked->kind() == ASTNodeKind::EnumDecl) {
+        if(linked && linked->kind() == ASTNodeKind::EnumDecl) {
             const auto inherited = linked->as_enum_decl_unsafe();
             configure_members_by_inheritance(node, inherited->next_start);
-            underlying_integer_type = inherited->underlying_integer_type;
+            node->underlying_integer_type = inherited->get_underlying_integer_type();
         } else {
             diagnoser.error("given type is not an enum or integer type", node->encoded_location());
-            underlying_integer_type = getTypeBuilder().getIntType();
+            node->underlying_integer_type = getTypeBuilder().getIntType();
         }
     }
 }

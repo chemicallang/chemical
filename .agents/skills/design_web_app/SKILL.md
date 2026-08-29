@@ -113,6 +113,59 @@ func InvalidHtml(page : &mut HtmlPage) {
 }
 ```
 
+#### `@{}` escape syntax for dynamic content
+
+Use `@{...}` to escape from JSX/HTML mode back to Chemical code inside `#html` blocks. Inside the escape, you can write any Chemical statement (loops, conditionals, variable declarations). Use nested `#html { }` blocks inside the escape to emit HTML elements.
+
+**Loops (for/while):**
+```chemical
+var items = // ... array of data
+var idx : size_t = 0
+var count = items.size()
+
+#html {
+    <div class="grid-3">
+        @{while(idx < count) {
+            var item = items.get_ptr(idx)
+            var name = // extract from item
+            var id = // extract from item
+            var link = std::string("/detail/")
+            link.append_string(&cars_core::int_to_string(id))
+            idx = idx + 1
+            #html {
+                <Card><CardBody><CardTitle>{name}</CardTitle>
+                    <Button variant="outline" size="sm"><Link href={link}>View</Link></Button>
+                </CardBody></Card>
+            }
+        }}
+    </div>
+}
+```
+
+**Conditionals (if/@else):**
+```chemical
+#html {
+    <div>
+        @{if(has_data) {
+            <div class="grid-3">
+                @{while(idx < count) {
+                    // ... render items
+                }}
+            </div>
+        } @else {
+            <div>No data available</div>
+        }}
+    </div>
+}
+```
+
+**Key rules:**
+- You CANNOT split a `#html` block across multiple blocks with Chemical code in between
+- Always use `@{}` to write Chemical logic inside `#html` blocks
+- The index variable (`idx`) must be incremented BEFORE the nested `#html { }` block
+- The loop variable extraction happens inside the `@{}` block, before the `#html { }`
+- Each `@{}` block must be self-contained (all variables declared or accessible within it)
+
 #### Components
 
 To better provide support for JS handling of elements, applying event listeners and DOM manipulation, universal components come into play.

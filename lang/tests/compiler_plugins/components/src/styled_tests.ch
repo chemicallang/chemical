@@ -675,3 +675,29 @@ public func styled_cross_module_usage(env : &mut TestEnv) {
     contains_string_assert(env, css.to_view(), std::string_view("border:1px solid"))
     styled_assert_linked(env, html.to_view(), css.to_view())
 }
+
+// ---------------------------------------------------------------------------
+// Wrap of a UNIVERSAL component (robustness: must not crash; wrapper css must
+// still be emitted). Observe the actual markup to decide class-merge behavior.
+// ---------------------------------------------------------------------------
+#universal UWrapTarget(props) {
+    <div>{children}</div>
+}
+
+#styled SWrapU(UWrapTarget) {
+    padding: 5px;
+}
+
+@test
+public func styled_wrap_universal_inner(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SWrapU>content</SWrapU> }
+    var html = std::string()
+    html.append_view(page.getHtml())
+    printf("UWRAP_HTML: %s\n", html.to_view().data())
+    var css = std::string()
+    css.append_view(page.getCss())
+    printf("UWRAP_CSS: %s\n", css.to_view().data())
+    // The wrapper's own css must always be emitted, regardless of inner type.
+    contains_string_assert(env, css.to_view(), std::string_view("padding:5px"))
+}

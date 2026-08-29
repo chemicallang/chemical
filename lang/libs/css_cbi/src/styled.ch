@@ -275,9 +275,17 @@ public func styled_symResNode(visitor : *mut SymResLinkBody, node : *mut Embedde
             resolver.error(std::string_view("could not find the component to wrap for the styled component"), loc);
             return;
         }
+        if(inner.getKind() != ASTNodeKind.EmbeddedNode) {
+            resolver.error(std::string_view("the symbol wrapped by a styled component must be a component"), loc);
+            return;
+        }
+        // Cast to the shared ComponentSignature (the first field of every component
+        // payload, mirroring html_cbi's convention) instead of the concrete
+        // StyledComponent. This keeps wrap safe when the inner is any component
+        // type (styled / universal / html) rather than assuming it is a StyledComponent.
         const innerEmbedded = inner as *mut EmbeddedNode;
-        const innerComp = innerEmbedded.getDataPtr() as *mut StyledComponent;
-        root.innerFunctionNode = innerComp.signature.functionNode;
+        const innerSig = innerEmbedded.getDataPtr() as *mut ComponentSignature;
+        root.innerFunctionNode = innerSig.functionNode;
     }
 
     root.signature.functionNode = funcDecl;

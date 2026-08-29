@@ -270,7 +270,10 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
 
         const idLoc = element.loc
 
-        const attrsVal = converter.build_ssr_attrs(element, std::string_view())
+        // `signature.className` carries the generated class name for a styled
+        // wrap over a universal component (set by css_cbi during symres). For
+        // plain universal components it is empty, so this is a no-op there.
+        const attrsVal = converter.build_ssr_attrs(element, signature.className)
         const childrenVal = converter.build_ssr_children(element, idLoc)
 
         var compBase = builder.make_identifier(&signature.name, signature.functionNode as *mut ASTNode, false, location)

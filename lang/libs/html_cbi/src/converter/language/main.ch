@@ -248,7 +248,19 @@ func (converter : &mut ASTConverter) emit_append_html_from_str(s : &mut std::str
 func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlElement, signature : *mut ComponentSignature, idStr : &std::string) {
     var js = std::string();
     js.append_view("window.$__uni_dispatch('");
-    get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, &mut js);
+    // For a styled wrap over a universal component, hydration must target the
+    // inner universal component (which owns the client JS); the styled
+    // component's own `functionNode` is only used for SSR (to emit its CSS).
+    unsafe var hydrateNode : *mut ASTNode;
+    unsafe var hydrateName : std::string_view;
+    if(signature.hydrateFunctionNode != null) {
+        hydrateNode = signature.hydrateFunctionNode as *mut ASTNode;
+        hydrateName = signature.hydrateName;
+    } else {
+        hydrateNode = signature.functionNode as *mut ASTNode;
+        hydrateName = signature.name;
+    }
+    get_module_scoped_name(hydrateNode, hydrateName, &mut js);
     js.append_view("', document.getElementById('");
     js.append_view(idStr.view());
     js.append_view("'), {");

@@ -17,6 +17,13 @@ public struct ComponentSignature {
     var propsName : std::string_view
     var params : std::vector<ComponentParam>
     var functionNode : *mut FunctionDeclaration = null
+    // When a styled component wraps a universal component, the SSR call still
+    // goes through the styled component's function (so its generated CSS is
+    // emitted), but hydration must target the inner universal component (which
+    // owns the client-side JS). `hydrateFunctionNode`/`hydrateName` carry that
+    // inner target.
+    var hydrateFunctionNode : *mut FunctionDeclaration = null
+    var hydrateName : std::string_view
     var mountStrategy : MountStrategy = MountStrategy.Default
     var access : AccessSpecifier = AccessSpecifier.Private
     var rootNodeCount : uint = 0

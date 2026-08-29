@@ -285,6 +285,15 @@ public func styled_symResNode(visitor : *mut SymResLinkBody, node : *mut Embedde
         // type (styled / universal / html) rather than assuming it is a StyledComponent.
         const innerEmbedded = inner as *mut EmbeddedNode;
         const innerSig = innerEmbedded.getDataPtr() as *mut ComponentSignature;
+        // Universal components render through a capture buffer + `<span id="u">`
+        // host wrapper (the SSR -> client hydration delta mechanism). A styled
+        // wrap bypasses that host wrapper, so the inner's markup would be captured
+        // but never flushed, producing empty output. Reject this at compile time
+        // with a clear message rather than silently emitting nothing.
+        if(innerSig.mountStrategy == MountStrategy.Universal) {
+            resolver.error(std::string_view("wrapping a universal component is not supported; wrap a plain or styled component instead"), loc);
+            return;
+        }
         root.innerFunctionNode = innerSig.functionNode;
     }
 

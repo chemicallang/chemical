@@ -42,18 +42,18 @@ public func INT_mpi_mul_4096_vs_python(env : &mut TestEnv) {
     var mul_len = test_parse_py_hex_label(&raw mut py_out, string_view("MUL="), &raw mut py_mul[0], 1024)
     if(mul_len != 1024) { env.error("failed to parse Python MUL output"); return }
 
-    var ma : Mpi; mpi_init(&raw mut ma)
-    var mb : Mpi; mpi_init(&raw mut mb)
-    var mx : Mpi; mpi_init(&raw mut mx)
-    var ret = mpi_read_binary(&raw mut ma, &raw a[0], 512)
+    var ma : Mpi; mpi_init(unsafe(&raw mut ma))
+    var mb : Mpi; mpi_init(unsafe(&raw mut mb))
+    var mx : Mpi; mpi_init(unsafe(&raw mut mx))
+    var ret = mpi_read_binary(unsafe(&raw mut ma), &raw a[0], 512)
     if(ret < 0) { env.error("mpi_read_binary failed"); return }
-    ret = mpi_read_binary(&raw mut mb, &raw b[0], 512)
+    ret = mpi_read_binary(unsafe(&raw mut mb), &raw b[0], 512)
     if(ret < 0) { env.error("mpi_read_binary(2) failed"); return }
-    ret = mpi_mul(&raw mut mx, &raw mut ma, &raw mut mb)
+    ret = mpi_mul(unsafe(&raw mut mx), unsafe(&raw mut ma), unsafe(&raw mut mb))
     if(ret < 0) { env.error("mpi_mul failed on 4096-bit operands"); return }
 
     var chem_mul : [1024]u8
-    ret = mpi_write_binary(&raw mut mx, &raw mut chem_mul[0], 1024)
+    ret = mpi_write_binary(unsafe(&raw mut mx), &raw mut chem_mul[0], 1024)
     if(ret < 0) { env.error("mpi_write_binary failed"); return }
     if(!test_bytes_eq(&raw chem_mul[0], &raw py_mul[0], 1024)) { env.error("mpi_mul 4096 mismatch vs Python"); return }
 }
@@ -89,20 +89,20 @@ public func INT_mpi_exp_mod_4096_vs_python(env : &mut TestEnv) {
     var r_len = test_parse_py_hex_label(&raw mut py_out, string_view("R="), &raw mut py_r[0], 512)
     if(r_len != 512) { env.error("failed to parse Python R output"); return }
 
-    var mn : Mpi; mpi_init(&raw mut mn)
-    var ma : Mpi; mpi_init(&raw mut ma)
-    var me : Mpi; mpi_init(&raw mut me)
-    var mr : Mpi; mpi_init(&raw mut mr)
-    var ret = mpi_read_binary(&raw mut mn, &raw n[0], 512)
+    var mn : Mpi; mpi_init(unsafe(&raw mut mn))
+    var ma : Mpi; mpi_init(unsafe(&raw mut ma))
+    var me : Mpi; mpi_init(unsafe(&raw mut me))
+    var mr : Mpi; mpi_init(unsafe(&raw mut mr))
+    var ret = mpi_read_binary(unsafe(&raw mut mn), &raw n[0], 512)
     if(ret < 0) { env.error("mpi_read_binary(n) failed"); return }
-    ret = mpi_read_binary(&raw mut ma, &raw a[0], 512)
+    ret = mpi_read_binary(unsafe(&raw mut ma), &raw a[0], 512)
     if(ret < 0) { env.error("mpi_read_binary(a) failed"); return }
-    mpi_lset(&raw mut me, 65537)
-    ret = mpi_exp_mod(&raw mut mr, &raw mut ma, &raw mut me, &raw mut mn)
+    mpi_lset(unsafe(&raw mut me), 65537)
+    ret = mpi_exp_mod(unsafe(&raw mut mr), unsafe(&raw mut ma), unsafe(&raw mut me), unsafe(&raw mut mn))
     if(ret < 0) { env.error("mpi_exp_mod failed on 4096-bit modulus"); return }
 
     var chem_r : [512]u8
-    ret = mpi_write_binary(&raw mut mr, &raw mut chem_r[0], 512)
+    ret = mpi_write_binary(unsafe(&raw mut mr), &raw mut chem_r[0], 512)
     if(ret < 0) { env.error("mpi_write_binary failed"); return }
     if(!test_bytes_eq(&raw chem_r[0], &raw py_r[0], 512)) { env.error("mpi_exp_mod 4096 mismatch vs Python"); return }
 }
@@ -136,18 +136,18 @@ public func INT_rsa4096_cert_signature_vs_python(env : &mut TestEnv) {
     fclose(cert_file)
     if(cert_len < 100) { env.error("cert DER too small"); return }
 
-    var crt : X509Cert; x509_cert_init(&raw mut crt)
-    var ret = parse_cert_der(&raw mut crt, &raw cert_buf[0], cert_len)
+    var crt : X509Cert; x509_cert_init(unsafe(&raw mut crt))
+    var ret = parse_cert_der(unsafe(&raw mut crt), &raw cert_buf[0], cert_len)
     if(ret < 0) { env.error("parse_cert_der failed"); return }
-    if(crt.pk_type != PK_RSA) { env.error("expected RSA key type"); return }
+    if(unsafe(crt.pk_type) != PK_RSA) { env.error("expected RSA key type"); return }
 
-    var rsa_ctx : RSAContext; rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
-    ret = x509_extract_rsa_pubkey(&raw mut crt, &raw mut rsa_ctx)
+    var rsa_ctx : RSAContext; rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
+    ret = x509_extract_rsa_pubkey(unsafe(&raw mut crt), unsafe(&raw mut rsa_ctx))
     if(ret < 0) { env.error("x509_extract_rsa_pubkey failed"); return }
-    if(rsa_get_len(&raw mut rsa_ctx) != 512) { env.error("RSA modulus len should be 512 bytes"); return }
-    if(crt.pk_bitlen != 4096) { env.error("pk_bitlen should report 4096"); return }
+    if(rsa_get_len(unsafe(&raw mut rsa_ctx)) != 512) { env.error("RSA modulus len should be 512 bytes"); return }
+    if(unsafe(crt.pk_bitlen) != 4096) { env.error("pk_bitlen should report 4096"); return }
 
-    ret = x509_verify_cert_signature(&raw mut crt, &raw mut rsa_ctx)
+    ret = x509_verify_cert_signature(unsafe(&raw mut crt), unsafe(&raw mut rsa_ctx))
     if(ret < 0) { env.error("4096-bit RSA cert signature verification failed"); return }
 }
 
@@ -178,14 +178,14 @@ public func INT_rsa2048_cert_signature_still_verifies(env : &mut TestEnv) {
     var cert_len = fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file)
     fclose(cert_file)
 
-    var crt : X509Cert; x509_cert_init(&raw mut crt)
-    var ret = parse_cert_der(&raw mut crt, &raw cert_buf[0], cert_len)
+    var crt : X509Cert; x509_cert_init(unsafe(&raw mut crt))
+    var ret = parse_cert_der(unsafe(&raw mut crt), &raw cert_buf[0], cert_len)
     if(ret < 0) { env.error("parse_cert_der failed"); return }
 
-    var rsa_ctx : RSAContext; rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
-    ret = x509_extract_rsa_pubkey(&raw mut crt, &raw mut rsa_ctx)
+    var rsa_ctx : RSAContext; rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
+    ret = x509_extract_rsa_pubkey(unsafe(&raw mut crt), unsafe(&raw mut rsa_ctx))
     if(ret < 0) { env.error("x509_extract_rsa_pubkey failed"); return }
-    ret = x509_verify_cert_signature(&raw mut crt, &raw mut rsa_ctx)
+    ret = x509_verify_cert_signature(unsafe(&raw mut crt), unsafe(&raw mut rsa_ctx))
     if(ret < 0) { env.error("2048-bit RSA cert signature verification failed"); return }
 }
 
@@ -257,25 +257,25 @@ public func INT_x509_chain_leaf_intermediate_root_vs_python(env : &mut TestEnv) 
     var leaf_buf : [2048]u8; var leaf_len = test_read_der_file(leaf_path.data() as *char, &raw mut leaf_buf[0], 2048)
     if(root_len == 0 || inter_len == 0 || leaf_len == 0) { env.error("failed to read chain DER files"); return }
 
-    var root : X509Cert; x509_cert_init(&raw mut root)
-    var inter : X509Cert; x509_cert_init(&raw mut inter)
-    var leaf : X509Cert; x509_cert_init(&raw mut leaf)
-    var ret = parse_cert_der(&raw mut root, &raw root_buf[0], root_len)
+    var root : X509Cert; x509_cert_init(unsafe(&raw mut root))
+    var inter : X509Cert; x509_cert_init(unsafe(&raw mut inter))
+    var leaf : X509Cert; x509_cert_init(unsafe(&raw mut leaf))
+    var ret = parse_cert_der(unsafe(&raw mut root), &raw root_buf[0], root_len)
     if(ret < 0) { env.error("parse root failed"); return }
-    ret = parse_cert_der(&raw mut inter, &raw inter_buf[0], inter_len)
+    ret = parse_cert_der(unsafe(&raw mut inter), &raw inter_buf[0], inter_len)
     if(ret < 0) { env.error("parse inter failed"); return }
-    ret = parse_cert_der(&raw mut leaf, &raw leaf_buf[0], leaf_len)
+    ret = parse_cert_der(unsafe(&raw mut leaf), &raw leaf_buf[0], leaf_len)
     if(ret < 0) { env.error("parse leaf failed"); return }
 
     // Build the peer chain: the server sends leaf then intermediate.
-    leaf.next = &raw mut inter
+    unsafe { leaf.next = &raw mut inter }
 
     // Verify: leaf -> inter via peer chain (4b), inter -> root via trusted
     // root match (4a). Root is a 4096-bit RSA key — exercises MAX_LIMBS.
     var hostname = "test.example.com\0" as *char
-    ret = x509_verify_chain(&raw mut leaf, &raw mut root, hostname)
+    ret = x509_verify_chain(unsafe(&raw mut leaf), unsafe(&raw mut root), hostname)
     if(ret != 0) { env.error("full chain verify should succeed"); return }
-    if(leaf.flags != 0) { env.error("leaf flags should be 0 on success"); return }
+    if(unsafe(leaf.flags) != 0) { env.error("leaf flags should be 0 on success"); return }
 }
 
 // ─── Chain fails with an unrelated trusted root ──────────────────────
@@ -313,22 +313,22 @@ public func INT_x509_chain_wrong_root_fails_vs_python(env : &mut TestEnv) {
     var wrong_buf : [2048]u8; var wrong_len = test_read_der_file(wrong_path.data() as *char, &raw mut wrong_buf[0], 2048)
     if(wrong_len == 0) { env.error("failed to read wrong root"); return }
 
-    var root : X509Cert; x509_cert_init(&raw mut root)
-    var inter : X509Cert; x509_cert_init(&raw mut inter)
-    var leaf : X509Cert; x509_cert_init(&raw mut leaf)
-    var wrong : X509Cert; x509_cert_init(&raw mut wrong)
-    var ret = parse_cert_der(&raw mut root, &raw root_buf[0], root_len)
+    var root : X509Cert; x509_cert_init(unsafe(&raw mut root))
+    var inter : X509Cert; x509_cert_init(unsafe(&raw mut inter))
+    var leaf : X509Cert; x509_cert_init(unsafe(&raw mut leaf))
+    var wrong : X509Cert; x509_cert_init(unsafe(&raw mut wrong))
+    var ret = parse_cert_der(unsafe(&raw mut root), &raw root_buf[0], root_len)
     if(ret < 0) { env.error("parse root failed"); return }
-    ret = parse_cert_der(&raw mut inter, &raw inter_buf[0], inter_len)
+    ret = parse_cert_der(unsafe(&raw mut inter), &raw inter_buf[0], inter_len)
     if(ret < 0) { env.error("parse inter failed"); return }
-    ret = parse_cert_der(&raw mut leaf, &raw leaf_buf[0], leaf_len)
+    ret = parse_cert_der(unsafe(&raw mut leaf), &raw leaf_buf[0], leaf_len)
     if(ret < 0) { env.error("parse leaf failed"); return }
-    ret = parse_cert_der(&raw mut wrong, &raw wrong_buf[0], wrong_len)
+    ret = parse_cert_der(unsafe(&raw mut wrong), &raw wrong_buf[0], wrong_len)
     if(ret < 0) { env.error("parse wrong root failed"); return }
 
-    leaf.next = &raw mut inter
+    unsafe { leaf.next = &raw mut inter }
     var hostname = "test.example.com\0" as *char
-    ret = x509_verify_chain(&raw mut leaf, &raw mut wrong, hostname)
+    ret = x509_verify_chain(unsafe(&raw mut leaf), unsafe(&raw mut wrong), hostname)
     if(ret == 0) { env.error("chain verify should FAIL with unrelated root"); return }
 }
 
@@ -346,16 +346,16 @@ public func INT_x509_chain_missing_intermediate_fails_vs_python(env : &mut TestE
     var leaf_buf : [2048]u8; var leaf_len = test_read_der_file(leaf_path.data() as *char, &raw mut leaf_buf[0], 2048)
     if(root_len == 0 || leaf_len == 0) { env.error("failed to read chain DER files"); return }
 
-    var root : X509Cert; x509_cert_init(&raw mut root)
-    var leaf : X509Cert; x509_cert_init(&raw mut leaf)
-    var ret = parse_cert_der(&raw mut root, &raw root_buf[0], root_len)
+    var root : X509Cert; x509_cert_init(unsafe(&raw mut root))
+    var leaf : X509Cert; x509_cert_init(unsafe(&raw mut leaf))
+    var ret = parse_cert_der(unsafe(&raw mut root), &raw root_buf[0], root_len)
     if(ret < 0) { env.error("parse root failed"); return }
-    ret = parse_cert_der(&raw mut leaf, &raw leaf_buf[0], leaf_len)
+    ret = parse_cert_der(unsafe(&raw mut leaf), &raw leaf_buf[0], leaf_len)
     if(ret < 0) { env.error("parse leaf failed"); return }
 
     // leaf.next stays null — the intermediate was never sent.
     var hostname = "test.example.com\0" as *char
-    ret = x509_verify_chain(&raw mut leaf, &raw mut root, hostname)
+    ret = x509_verify_chain(unsafe(&raw mut leaf), unsafe(&raw mut root), hostname)
     if(ret == 0) { env.error("chain verify should FAIL without the intermediate"); return }
 }
 

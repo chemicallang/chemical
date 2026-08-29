@@ -59,16 +59,16 @@ public func INT_hkdf_against_python(env : &mut TestEnv) {
         env.error("failed to parse all keys from Python output"); return
     } else {}
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx, &raw mut cfg)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)
 
-    var ret = tls13_derive_handshake_keys(&raw mut ctx, &raw shared_secret[0], 32, &raw transcript_hash[0])
+    var ret = tls13_derive_handshake_keys(unsafe(&raw mut ctx), &raw shared_secret[0], 32, &raw transcript_hash[0])
     if(ret < 0) { env.error("tls13_derive_handshake_keys failed"); return } else {}
 
-    if(ctx.transform_out == null) { env.error("transform_out is null"); return } else {}
-    var tr_out = ctx.transform_out
+    if(unsafe(ctx.transform_out) == null) { env.error("transform_out is null"); return } else {}
+    var tr_out = unsafe(ctx.transform_out)
     if(!test_bytes_eq(&raw tr_out.key_enc[0], &raw py_ck[0], 16)) {
         printf("[HKDF_TEST] client_key mismatch: chem[0]=%02x py[0]=%02x\n", tr_out.key_enc[0] as int, py_ck[0] as int)
         env.error("client_key mismatch")
@@ -78,8 +78,8 @@ public func INT_hkdf_against_python(env : &mut TestEnv) {
         env.error("client_iv mismatch"); return
     } else {}
 
-    if(ctx.transform_in == null) { env.error("transform_in is null"); return } else {}
-    var tr_in = ctx.transform_in
+    if(unsafe(ctx.transform_in) == null) { env.error("transform_in is null"); return } else {}
+    var tr_in = unsafe(ctx.transform_in)
     if(!test_bytes_eq(&raw tr_in.key_dec[0], &raw py_sk[0], 16)) {
         printf("[HKDF_TEST] server_key mismatch: chem[0]=%02x py[0]=%02x\n", tr_in.key_dec[0] as int, py_sk[0] as int)
         env.error("server_key mismatch")

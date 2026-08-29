@@ -17,26 +17,26 @@ public func INT_tls13_client(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19876_cert.pem /tmp/tls_19876_key.pem 19876 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19876u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 19876u)
     if(ret < 0) {
         if(ret == ERR_SSL_HANDSHAKE_FAILURE) { env.error("TLS13: ERR_SSL_HANDSHAKE_FAILURE") }
         else if(ret == ERR_SSL_UNEXPECTED_MESSAGE) { env.error("TLS13: ERR_SSL_UNEXPECTED_MESSAGE") }
         else if(ret == ERR_SSL_FATAL_ALERT_MESSAGE) {
-            if(ctx.last_alert_desc == 40) { env.error("TLS13: alert = handshake_failure(40)") }
-            else if(ctx.last_alert_desc == 70) { env.error("TLS13: alert = protocol_version(70)") }
-            else if(ctx.last_alert_desc == 47) { env.error("TLS13: alert = illegal_parameter(47)") }
-            else if(ctx.last_alert_desc == 50) { env.error("TLS13: alert = decode_error(50)") }
-            else if(ctx.last_alert_desc == 51) { env.error("TLS13: alert = decrypt_error(51)") }
-            else if(ctx.last_alert_desc == 10) { env.error("TLS13: alert = unexpected_message(10)") }
-            else if(ctx.last_alert_desc == 86) { env.error("TLS13: alert = inappropriate_fallback(86)") }
-            else if(ctx.last_alert_desc == 110) { env.error("TLS13: alert = unsupported_ext(110)") }
-            else if(ctx.last_alert_desc == 112) { env.error("TLS13: alert = unrecognized_name(112)") }
+            if(unsafe(ctx.last_alert_desc) == 40) { env.error("TLS13: alert = handshake_failure(40)") }
+            else if(unsafe(ctx.last_alert_desc) == 70) { env.error("TLS13: alert = protocol_version(70)") }
+            else if(unsafe(ctx.last_alert_desc) == 47) { env.error("TLS13: alert = illegal_parameter(47)") }
+            else if(unsafe(ctx.last_alert_desc) == 50) { env.error("TLS13: alert = decode_error(50)") }
+            else if(unsafe(ctx.last_alert_desc) == 51) { env.error("TLS13: alert = decrypt_error(51)") }
+            else if(unsafe(ctx.last_alert_desc) == 10) { env.error("TLS13: alert = unexpected_message(10)") }
+            else if(unsafe(ctx.last_alert_desc) == 86) { env.error("TLS13: alert = inappropriate_fallback(86)") }
+            else if(unsafe(ctx.last_alert_desc) == 110) { env.error("TLS13: alert = unsupported_ext(110)") }
+            else if(unsafe(ctx.last_alert_desc) == 112) { env.error("TLS13: alert = unrecognized_name(112)") }
             else { env.error("TLS13: ERR_SSL_FATAL_ALERT_MESSAGE") }
         }
         else if(ret == ERR_SSL_DECODE_ERROR) { env.error("TLS13: ERR_SSL_DECODE_ERROR") }
@@ -55,17 +55,17 @@ public func INT_tls13_client(env : &mut TestEnv) {
         test_bytes_to_hex(&raw ctx.tls13_keys.server_application_traffic_secret[0], 48, &raw mut dhex[0])
         printf("DIAG128_SATS=%s\n", &raw dhex[0])
         var req = "GET / HTTP/1.0\r\n\r\n"
-        ssl_write(&raw mut ctx, req as *u8, 18)
+        ssl_write(unsafe(&raw mut ctx), req as *u8, 18)
         var buf : [512]u8
-        var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+        var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 512)
         if(n != 2 || buf[0] != 79 || buf[1] != 75) {
             // Expected the Python server's literal "OK" response, proving the
             // application-data decrypt path round-trips the real payload.
             env.error("TLS13: app-data response mismatch")
         }
-        ssl_close_notify(&raw mut ctx)
+        ssl_close_notify(unsafe(&raw mut ctx))
     }
-    ssl_free(&raw mut ctx)
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(19876)
 }
 
@@ -78,23 +78,23 @@ public func INT_x25519_handshake(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19878_cert.pem /tmp/tls_19878_key.pem 19878 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19878u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 19878u)
     if(ret < 0) {
         if(ret == ERR_SSL_HANDSHAKE_FAILURE) { env.error("X25519: ERR_SSL_HANDSHAKE_FAILURE") }
         else if(ret == ERR_SSL_UNEXPECTED_MESSAGE) { env.error("X25519: ERR_SSL_UNEXPECTED_MESSAGE") }
         else if(ret == ERR_SSL_FATAL_ALERT_MESSAGE) {
-            if(ctx.last_alert_desc == 40) { env.error("X25519: alert = handshake_failure(40)") }
-            else if(ctx.last_alert_desc == 70) { env.error("X25519: alert = protocol_version(70)") }
-            else if(ctx.last_alert_desc == 47) { env.error("X25519: alert = illegal_parameter(47)") }
-            else if(ctx.last_alert_desc == 50) { env.error("X25519: alert = decode_error(50)") }
-            else if(ctx.last_alert_desc == 51) { env.error("X25519: alert = decrypt_error(51)") }
-            else if(ctx.last_alert_desc == 110) { env.error("X25519: alert = unsupported_ext(110)") }
+            if(unsafe(ctx.last_alert_desc) == 40) { env.error("X25519: alert = handshake_failure(40)") }
+            else if(unsafe(ctx.last_alert_desc) == 70) { env.error("X25519: alert = protocol_version(70)") }
+            else if(unsafe(ctx.last_alert_desc) == 47) { env.error("X25519: alert = illegal_parameter(47)") }
+            else if(unsafe(ctx.last_alert_desc) == 50) { env.error("X25519: alert = decode_error(50)") }
+            else if(unsafe(ctx.last_alert_desc) == 51) { env.error("X25519: alert = decrypt_error(51)") }
+            else if(unsafe(ctx.last_alert_desc) == 110) { env.error("X25519: alert = unsupported_ext(110)") }
             else { env.error("X25519: ERR_SSL_FATAL_ALERT_MESSAGE") }
         }
         else if(ret == ERR_SSL_DECODE_ERROR) { env.error("X25519: ERR_SSL_DECODE_ERROR") }
@@ -107,7 +107,7 @@ public func INT_x25519_handshake(env : &mut TestEnv) {
         else if(ret == ERR_SSL_NO_RNG) { env.error("X25519: ERR_SSL_NO_RNG") }
         else { env.error("X25519: unknown error") }
     }
-    ssl_free(&raw mut ctx)
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(19878)
 }
 
@@ -122,22 +122,22 @@ public func INT_tls12_client(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19877_cert.pem /tmp/tls_19877_key.pem 19877 1.2 AES128-GCM-SHA256:@SECLEVEL=0"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_2
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19877u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 19877u)
     if(ret < 0) {
         if(ret == ERR_SSL_HANDSHAKE_FAILURE) { env.error("TLS12: ERR_SSL_HANDSHAKE_FAILURE") }
         else if(ret == ERR_SSL_UNEXPECTED_MESSAGE) { env.error("TLS12: ERR_SSL_UNEXPECTED_MESSAGE") }
         else if(ret == ERR_SSL_FATAL_ALERT_MESSAGE) {
-            if(ctx.last_alert_desc == 40) { env.error("TLS12: alert = handshake_failure(40)") }
-            else if(ctx.last_alert_desc == 70) { env.error("TLS12: alert = protocol_version(70)") }
-            else if(ctx.last_alert_desc == 47) { env.error("TLS12: alert = illegal_parameter(47)") }
-            else if(ctx.last_alert_desc == 50) { env.error("TLS12: alert = decode_error(50)") }
-            else if(ctx.last_alert_desc == 51) { env.error("TLS12: alert = decrypt_error(51)") }
+            if(unsafe(ctx.last_alert_desc) == 40) { env.error("TLS12: alert = handshake_failure(40)") }
+            else if(unsafe(ctx.last_alert_desc) == 70) { env.error("TLS12: alert = protocol_version(70)") }
+            else if(unsafe(ctx.last_alert_desc) == 47) { env.error("TLS12: alert = illegal_parameter(47)") }
+            else if(unsafe(ctx.last_alert_desc) == 50) { env.error("TLS12: alert = decode_error(50)") }
+            else if(unsafe(ctx.last_alert_desc) == 51) { env.error("TLS12: alert = decrypt_error(51)") }
             else { env.error("TLS12: ERR_SSL_FATAL_ALERT_MESSAGE") }
         }
         else if(ret == ERR_SSL_DECODE_ERROR) { env.error("TLS12: ERR_SSL_DECODE_ERROR") }
@@ -150,15 +150,15 @@ public func INT_tls12_client(env : &mut TestEnv) {
         else { env.error("TLS12: unknown error") }
     } else {
         var req = "GET / HTTP/1.0\r\n\r\n"
-        ssl_write(&raw mut ctx, req as *u8, 18)
+        ssl_write(unsafe(&raw mut ctx), req as *u8, 18)
         var buf : [512]u8
-        var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+        var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 512)
         if(n != 2 || buf[0] != 79 || buf[1] != 75) {
             env.error("TLS12: app-data response mismatch")
         }
-        ssl_close_notify(&raw mut ctx)
+        ssl_close_notify(unsafe(&raw mut ctx))
     }
-    ssl_free(&raw mut ctx)
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(19877)
 }
 
@@ -178,46 +178,46 @@ public func INT_tls13_key_update_e2e(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19910_cert.pem /tmp/tls_19910_key.pem 19910 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx, &raw mut config)
-    ssl_set_hostname(&raw mut ctx, "localhost")
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
+    ssl_set_hostname(unsafe(&raw mut ctx), "localhost")
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19910u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 19910u)
     if(ret < 0) {
         env.error("TLS13 KeyUpdate: connect failed")
-        ssl_free(&raw mut ctx); return
+        ssl_free(unsafe(&raw mut ctx)); return
     }
 
     // Send KeyUpdate requesting the peer to rotate too.
-    ret = tls13_send_key_update(&raw mut ctx, true)
+    ret = tls13_send_key_update(unsafe(&raw mut ctx), true)
     if(ret < 0) {
         env.error("TLS13 KeyUpdate: send failed")
-        ssl_free(&raw mut ctx); return
+        ssl_free(unsafe(&raw mut ctx)); return
     }
 
     // Send app data protected with the NEW send keys.
     var req = "GET / HTTP/1.0\r\n\r\n"
-    ret = ssl_write(&raw mut ctx, req as *u8, 18)
+    ret = ssl_write(unsafe(&raw mut ctx), req as *u8, 18)
     if(ret < 0) {
         env.error("TLS13 KeyUpdate: write failed")
-        ssl_free(&raw mut ctx); return
+        ssl_free(unsafe(&raw mut ctx)); return
     }
 
     // The server responds with its own KeyUpdate (update_not_requested) and
     // then "OK" under its NEW send keys. ssl_read must process the KeyUpdate
     // (rotate receive keys) before decrypting "OK".
     var buf : [512]u8
-    var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+    var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("TLS13 KeyUpdate: app-data mismatch after key update")
-        ssl_free(&raw mut ctx); return
+        ssl_free(unsafe(&raw mut ctx)); return
     }
 
-    ssl_close_notify(&raw mut ctx)
-    ssl_free(&raw mut ctx)
+    ssl_close_notify(unsafe(&raw mut ctx))
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(19910)
 }
 
@@ -234,33 +234,33 @@ public func INT_tls13_peer_cert(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19911_cert.pem /tmp/tls_19911_key.pem 19911 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx, &raw mut config)
-    ssl_set_hostname(&raw mut ctx, "localhost")
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
+    ssl_set_hostname(unsafe(&raw mut ctx), "localhost")
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19911u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 19911u)
     if(ret < 0) {
         env.error("TLS13 peer_cert: connect failed")
-        ssl_free(&raw mut ctx); return
+        ssl_free(unsafe(&raw mut ctx)); return
     }
 
-    if(ctx.peer_cert == null) {
+    if(unsafe(ctx.peer_cert) == null) {
         env.error("TLS13 peer_cert: peer_cert not populated")
-        ssl_free(&raw mut ctx); return
+        ssl_free(unsafe(&raw mut ctx)); return
     }
 
     // The Python server cert has CN=localhost; verification must succeed.
-    var hret = x509_verify_hostname(ctx.peer_cert, "localhost")
+    var hret = x509_verify_hostname(unsafe(ctx.peer_cert), "localhost")
     if(hret != 0) {
         env.error("TLS13 peer_cert: hostname verification failed")
-        ssl_free(&raw mut ctx); return
+        ssl_free(unsafe(&raw mut ctx)); return
     }
 
-    ssl_close_notify(&raw mut ctx)
-    ssl_free(&raw mut ctx)
+    ssl_close_notify(unsafe(&raw mut ctx))
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(19911)
 }
 
@@ -277,46 +277,46 @@ public func INT_tls13_session_ticket(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19912_cert.pem /tmp/tls_19912_key.pem 19912 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx, &raw mut config)
-    ssl_set_hostname(&raw mut ctx, "localhost")
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
+    ssl_set_hostname(unsafe(&raw mut ctx), "localhost")
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19912u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 19912u)
     if(ret < 0) {
         env.error("TLS13 ticket: connect failed")
-        ssl_free(&raw mut ctx); return
+        ssl_free(unsafe(&raw mut ctx)); return
     }
 
-    if(ctx.session == null) {
+    if(unsafe(ctx.session) == null) {
         env.error("TLS13 ticket: session not allocated")
-        ssl_free(&raw mut ctx); return
+        ssl_free(unsafe(&raw mut ctx)); return
     }
 
     // The server sends NewSessionTicket(s) before its "OK" app data.
     var req = "GET / HTTP/1.0\r\n\r\n"
-    ssl_write(&raw mut ctx, req as *u8, 18)
+    ssl_write(unsafe(&raw mut ctx), req as *u8, 18)
     var buf : [512]u8
-    var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+    var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("TLS13 ticket: app-data mismatch")
-        ssl_free(&raw mut ctx); return
+        ssl_free(unsafe(&raw mut ctx)); return
     }
 
     // ssl_read processes the NewSessionTicket internally — verify storage.
-    if(ctx.session.ticket == null || ctx.session.ticket_len == 0) {
+    if(unsafe(ctx.session.ticket) == null || unsafe(ctx.session.ticket_len) == 0) {
         env.error("TLS13 ticket: NewSessionTicket not stored")
-        ssl_free(&raw mut ctx); return
+        ssl_free(unsafe(&raw mut ctx)); return
     }
-    if(ctx.session.resumption_key_len != 32) {
+    if(unsafe(ctx.session.resumption_key_len) != 32) {
         env.error("TLS13 ticket: resumption key not derived")
-        ssl_free(&raw mut ctx); return
+        ssl_free(unsafe(&raw mut ctx)); return
     }
 
-    ssl_close_notify(&raw mut ctx)
-    ssl_free(&raw mut ctx)
+    ssl_close_notify(unsafe(&raw mut ctx))
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(19912)
 }
 
@@ -336,99 +336,99 @@ public func INT_tls13_session_resumption(env : &mut TestEnv) {
     test_server_wait()
 
     // ── Connection 1: full handshake + ticket acquisition ───────────
-    var ctx1 : SSLContext; ssl_init(&raw mut ctx1)
+    var ctx1 : SSLContext; ssl_init(unsafe(&raw mut ctx1))
     var cfg1 = ssl_config_init(SSL_IS_CLIENT)
     cfg1.authmode = SSL_VERIFY_NONE
     cfg1.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx1, &raw mut cfg1)
-    ssl_set_hostname(&raw mut ctx1, "localhost")
+    ssl_set_config(unsafe(&raw mut ctx1), &raw mut cfg1)
+    ssl_set_hostname(unsafe(&raw mut ctx1), "localhost")
 
-    var ret = tls_connect(&raw mut ctx1, "127.0.0.1", 19913u)
+    var ret = tls_connect(unsafe(&raw mut ctx1), "127.0.0.1", 19913u)
     if(ret < 0) {
         env.error("resumption: conn1 connect failed")
-        ssl_free(&raw mut ctx1); return
+        ssl_free(unsafe(&raw mut ctx1)); return
     }
-    if(ctx1.peer_cert == null) {
+    if(unsafe(ctx1.peer_cert) == null) {
         env.error("resumption: conn1 should present a peer certificate")
-        ssl_free(&raw mut ctx1); return
+        ssl_free(unsafe(&raw mut ctx1)); return
     }
 
     var req = "GET / HTTP/1.0\r\n\r\n"
-    ssl_write(&raw mut ctx1, req as *u8, 18)
+    ssl_write(unsafe(&raw mut ctx1), req as *u8, 18)
     var buf : [512]u8
-    var n = ssl_read(&raw mut ctx1, &raw mut buf[0], 512)
+    var n = ssl_read(unsafe(&raw mut ctx1), &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("resumption: conn1 app-data mismatch")
-        ssl_free(&raw mut ctx1); return
+        ssl_free(unsafe(&raw mut ctx1)); return
     }
-    if(ctx1.session == null || ctx1.session.ticket == null || ctx1.session.ticket_len == 0) {
+    if(unsafe(ctx1.session) == null || unsafe(ctx1.session.ticket) == null || unsafe(ctx1.session.ticket_len) == 0) {
         env.error("resumption: conn1 did not receive a session ticket")
-        ssl_free(&raw mut ctx1); return
+        ssl_free(unsafe(&raw mut ctx1)); return
     }
-    if(ctx1.session.resumption_key_len != 32) {
+    if(unsafe(ctx1.session.resumption_key_len) != 32) {
         env.error("resumption: conn1 did not derive a resumption key")
-        ssl_free(&raw mut ctx1); return
+        ssl_free(unsafe(&raw mut ctx1)); return
     }
-    ssl_close_notify(&raw mut ctx1)
+    ssl_close_notify(unsafe(&raw mut ctx1))
 
     // ── Connection 2: offer the ticket for resumption ────────────────
-    var ctx2 : SSLContext; ssl_init(&raw mut ctx2)
+    var ctx2 : SSLContext; ssl_init(unsafe(&raw mut ctx2))
     var cfg2 = ssl_config_init(SSL_IS_CLIENT)
     cfg2.authmode = SSL_VERIFY_NONE
     cfg2.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx2, &raw mut cfg2)
-    ssl_set_hostname(&raw mut ctx2, "localhost")
+    ssl_set_config(unsafe(&raw mut ctx2), &raw mut cfg2)
+    ssl_set_hostname(unsafe(&raw mut ctx2), "localhost")
 
     // Copy the session (ticket + resumption PSK) from conn1 into ctx2.
-    var tkt_copy = malloc(ctx1.session.ticket_len) as *mut u8
+    var tkt_copy = malloc(unsafe(ctx1.session.ticket_len)) as *mut u8
     if(tkt_copy != null) {
         var ci : size_t = 0
-        while(ci < ctx1.session.ticket_len) {
-            tkt_copy[ci] = ctx1.session.ticket[ci]
+        while(ci < unsafe(ctx1.session.ticket_len)) {
+            tkt_copy[ci] = unsafe(ctx1.session.ticket[ci])
             ci += 1
         }
-        if(ctx2.session != null) {
-            ctx2.session.ticket = tkt_copy
-            ctx2.session.ticket_len = ctx1.session.ticket_len
-            ctx2.session.resumption_key_len = ctx1.session.resumption_key_len
+        if(unsafe(ctx2.session) != null) {
+            unsafe { ctx2.session.ticket = tkt_copy }
+            unsafe { ctx2.session.ticket_len = unsafe(ctx1.session.ticket_len) }
+            unsafe { ctx2.session.resumption_key_len = unsafe(ctx1.session.resumption_key_len) }
             var ki : size_t = 0
             while(ki < 32) {
-                ctx2.session.resumption_key[ki] = ctx1.session.resumption_key[ki]
+                ctx2.session.resumption_key[ki] = unsafe(ctx1.session.resumption_key[ki])
                 ki += 1
             }
         }
     }
 
-    ret = tls_connect(&raw mut ctx2, "127.0.0.1", 19913u)
+    ret = tls_connect(unsafe(&raw mut ctx2), "127.0.0.1", 19913u)
     if(ret < 0) {
         env.error("resumption: conn2 connect failed")
-        ssl_free(&raw mut ctx1)
-        ssl_free(&raw mut ctx2); return
+        ssl_free(unsafe(&raw mut ctx1))
+        ssl_free(unsafe(&raw mut ctx2)); return
     }
 
     // Resumption was accepted: the server did not send a Certificate, so
     // peer_cert stays null and psk_accepted is set.
-    var resumed : bool = (ctx2.peer_cert == null)
-    if(ctx2.handshake != null && ctx2.handshake.psk_accepted) { resumed = true }
+    var resumed : bool = (unsafe(ctx2.peer_cert) == null)
+    if(unsafe(ctx2.handshake) != null && unsafe(ctx2.handshake.psk_accepted)) { resumed = true }
     if(!resumed) {
         env.error("resumption: server did not resume (fell back to full handshake)")
-        ssl_free(&raw mut ctx1)
-        ssl_free(&raw mut ctx2); return
+        ssl_free(unsafe(&raw mut ctx1))
+        ssl_free(unsafe(&raw mut ctx2)); return
     }
 
     var req2 = "GET / HTTP/1.0\r\n\r\n"
-    ssl_write(&raw mut ctx2, req2 as *u8, 18)
+    ssl_write(unsafe(&raw mut ctx2), req2 as *u8, 18)
     var buf2 : [512]u8
-    var n2 = ssl_read(&raw mut ctx2, &raw mut buf2[0], 512)
+    var n2 = ssl_read(unsafe(&raw mut ctx2), &raw mut buf2[0], 512)
     if(n2 != 2 || buf2[0] != 79 || buf2[1] != 75) {
         env.error("resumption: conn2 app-data mismatch after resume")
-        ssl_free(&raw mut ctx1)
-        ssl_free(&raw mut ctx2); return
+        ssl_free(unsafe(&raw mut ctx1))
+        ssl_free(unsafe(&raw mut ctx2)); return
     }
 
-    ssl_close_notify(&raw mut ctx2)
-    ssl_free(&raw mut ctx1)
-    ssl_free(&raw mut ctx2)
+    ssl_close_notify(unsafe(&raw mut ctx2))
+    ssl_free(unsafe(&raw mut ctx1))
+    ssl_free(unsafe(&raw mut ctx2))
     test_kill_port(19913)
 }
 
@@ -442,7 +442,7 @@ public func INT_ssl_delete_cleanup(env : &mut TestEnv) {
     ssl_init(ssl_mem)
 
     // Attach resources so the destructor has something to release.
-    var tr : Transform; transform_init(&raw mut tr)
+    var tr : Transform; transform_init(unsafe(&raw mut tr))
     var tr_out = malloc(sizeof(Transform)) as *mut Transform
     *tr_out = tr
     ssl_mem.transform_out = tr_out
@@ -636,23 +636,23 @@ public func INT_ecdsa_client_handshake(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19883_cert.pem /tmp/tls_19883_key.pem 19883 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19883u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 19883u)
     if(ret < 0) {
         if(ret == ERR_SSL_HANDSHAKE_FAILURE) { env.error("ECDSA: ERR_SSL_HANDSHAKE_FAILURE") }
         else if(ret == ERR_SSL_UNEXPECTED_MESSAGE) { env.error("ECDSA: ERR_SSL_UNEXPECTED_MESSAGE") }
         else if(ret == ERR_SSL_FATAL_ALERT_MESSAGE) {
-            if(ctx.last_alert_desc == 40) { env.error("ECDSA: alert = handshake_failure(40)") }
-            else if(ctx.last_alert_desc == 70) { env.error("ECDSA: alert = protocol_version(70)") }
-            else if(ctx.last_alert_desc == 47) { env.error("ECDSA: alert = illegal_parameter(47)") }
-            else if(ctx.last_alert_desc == 50) { env.error("ECDSA: alert = decode_error(50)") }
-            else if(ctx.last_alert_desc == 51) { env.error("ECDSA: alert = decrypt_error(51)") }
-            else if(ctx.last_alert_desc == 110) { env.error("ECDSA: alert = unsupported_ext(110)") }
+            if(unsafe(ctx.last_alert_desc) == 40) { env.error("ECDSA: alert = handshake_failure(40)") }
+            else if(unsafe(ctx.last_alert_desc) == 70) { env.error("ECDSA: alert = protocol_version(70)") }
+            else if(unsafe(ctx.last_alert_desc) == 47) { env.error("ECDSA: alert = illegal_parameter(47)") }
+            else if(unsafe(ctx.last_alert_desc) == 50) { env.error("ECDSA: alert = decode_error(50)") }
+            else if(unsafe(ctx.last_alert_desc) == 51) { env.error("ECDSA: alert = decrypt_error(51)") }
+            else if(unsafe(ctx.last_alert_desc) == 110) { env.error("ECDSA: alert = unsupported_ext(110)") }
             else { env.error("ECDSA: ERR_SSL_FATAL_ALERT_MESSAGE") }
         }
         else if(ret == ERR_SSL_DECODE_ERROR) { env.error("ECDSA: ERR_SSL_DECODE_ERROR") }
@@ -665,7 +665,7 @@ public func INT_ecdsa_client_handshake(env : &mut TestEnv) {
         else if(ret == ERR_SSL_NO_RNG) { env.error("ECDSA: ERR_SSL_NO_RNG") }
         else { env.error("ECDSA: unknown error") }
     }
-    ssl_free(&raw mut ctx)
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(19883)
 }
 
@@ -680,8 +680,8 @@ public func INT_x509_extract_ecdsa_pubkey_works(env : &mut TestEnv) {
     if(ec_cert == null) { env.error("failed to load EC cert"); return }
 
     var ecdsa : ECDSAContext
-    ecdsa_init(&raw mut ecdsa)
-    var ret = x509_extract_ecdsa_pubkey(ec_cert, &raw mut ecdsa)
+    ecdsa_init(unsafe(&raw mut ecdsa))
+    var ret = x509_extract_ecdsa_pubkey(ec_cert, unsafe(&raw mut ecdsa))
     if(ret != 0) {
         printf("[X509_EC] extract ret=%d\n", ret as int)
         cert_free(ec_cert); unsafe { dealloc ec_cert }
@@ -694,7 +694,7 @@ public func INT_x509_extract_ecdsa_pubkey_works(env : &mut TestEnv) {
     }
 
     // The extracted public key must verify the self-signed cert's own signature
-    var vret = x509_verify_cert_ecdsa_signature(ec_cert, &raw mut ecdsa)
+    var vret = x509_verify_cert_ecdsa_signature(ec_cert, unsafe(&raw mut ecdsa))
     if(vret != 0) {
         cert_free(ec_cert); unsafe { dealloc ec_cert }
         env.error("x509_verify_cert_ecdsa_signature with extracted key failed")
@@ -708,8 +708,8 @@ public func INT_x509_extract_ecdsa_pubkey_works(env : &mut TestEnv) {
         env.error("failed to load RSA cert"); return
     }
     var e2 : ECDSAContext
-    ecdsa_init(&raw mut e2)
-    ret = x509_extract_ecdsa_pubkey(rsa_cert, &raw mut e2)
+    ecdsa_init(unsafe(&raw mut e2))
+    ret = x509_extract_ecdsa_pubkey(rsa_cert, unsafe(&raw mut e2))
     if(ret == 0) { env.error("x509_extract_ecdsa_pubkey should reject an RSA cert") }
 
     cert_free(ec_cert)
@@ -740,8 +740,8 @@ public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
     if(n_len == 0 || d_len == 0) { env.error("failed to parse RSA N/D"); return }
 
     var rsa_ctx : RSAContext
-    rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
-    var kret = rsa_import_privkey(&raw mut rsa_ctx, &raw n_buf[0], n_len, &raw d_buf[0], d_len)
+    rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
+    var kret = rsa_import_privkey(unsafe(&raw mut rsa_ctx), &raw n_buf[0], n_len, &raw d_buf[0], d_len)
     if(kret < 0) { env.error("failed to import RSA private key"); return }
 
     var server_sock = net::listen_addr("127.0.0.1", 19885u)
@@ -769,7 +769,7 @@ public func INT_tls_accept_rsa_server_client(env : &mut TestEnv) {
         return
     }
 
-    var ssl_mem = tls_accept(client_sock, cert, &raw mut rsa_ctx)
+    var ssl_mem = tls_accept(client_sock, cert, unsafe(&raw mut rsa_ctx))
     if(ssl_mem == null) {
         env.error("tls_accept server handshake failed against Python TLS 1.2 client")
     } else {
@@ -819,8 +819,8 @@ public func INT_tls_accept_rsa_server_client_cbc(env : &mut TestEnv) {
     if(n_len == 0 || d_len == 0) { env.error("failed to parse RSA N/D"); return }
 
     var rsa_ctx : RSAContext
-    rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
-    var kret = rsa_import_privkey(&raw mut rsa_ctx, &raw n_buf[0], n_len, &raw d_buf[0], d_len)
+    rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
+    var kret = rsa_import_privkey(unsafe(&raw mut rsa_ctx), &raw n_buf[0], n_len, &raw d_buf[0], d_len)
     if(kret < 0) { env.error("failed to import RSA private key"); return }
 
     var server_sock = net::listen_addr("127.0.0.1", 19886u)
@@ -847,7 +847,7 @@ public func INT_tls_accept_rsa_server_client_cbc(env : &mut TestEnv) {
         return
     }
 
-    var ssl_mem = tls_accept(client_sock, cert, &raw mut rsa_ctx, TLS_RSA_WITH_AES_128_CBC_SHA256)
+    var ssl_mem = tls_accept(client_sock, cert, unsafe(&raw mut rsa_ctx), TLS_RSA_WITH_AES_128_CBC_SHA256)
     if(ssl_mem == null) {
         env.error("tls_accept CBC server handshake failed against Python TLS 1.2 client")
     } else {
@@ -888,31 +888,31 @@ public func INT_tls12_client_cbc(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_19887_cert.pem /tmp/tls_19887_key.pem 19887 1.2 AES128-SHA256:@SECLEVEL=0"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_2
     config.ciphersuite_list[0] = TLS_RSA_WITH_AES_128_CBC_SHA256 as u16
     config.ciphersuite_count = 1
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19887u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 19887u)
     if(ret < 0) {
         env.error("TLS12 CBC client handshake failed against Python server")
     } else {
-        if(ctx.negotiated_ciphersuite != TLS_RSA_WITH_AES_128_CBC_SHA256 as u16) {
+        if(unsafe(ctx.negotiated_ciphersuite) != TLS_RSA_WITH_AES_128_CBC_SHA256 as u16) {
             env.error("TLS12 CBC client: wrong negotiated ciphersuite")
         }
         var req = "GET / HTTP/1.0\r\n\r\n"
-        ssl_write(&raw mut ctx, req as *u8, 18)
+        ssl_write(unsafe(&raw mut ctx), req as *u8, 18)
         var buf : [512]u8
-        var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+        var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 512)
         if(n != 2 || buf[0] != 79 || buf[1] != 75) {
             env.error("TLS12 CBC client: app-data response mismatch")
         }
-        ssl_close_notify(&raw mut ctx)
+        ssl_close_notify(unsafe(&raw mut ctx))
     }
-    ssl_free(&raw mut ctx)
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(19887)
 }
 
@@ -930,28 +930,28 @@ public func INT_tls13_large_payload_transfer(env : &mut TestEnv) {
     test_py_run_background(string_view("bigsrv /tmp/tls_19888_cert.pem /tmp/tls_19888_key.pem 19888 131072"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19888u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 19888u)
     if(ret < 0) {
         env.error("large transfer: handshake failed against Python server")
-        ssl_free(&raw mut ctx)
+        ssl_free(unsafe(&raw mut ctx))
         test_kill_port(19888)
         return
     }
 
     var req = "GET / HTTP/1.0\r\n\r\n"
-    ssl_write(&raw mut ctx, req as *u8, 18)
+    ssl_write(unsafe(&raw mut ctx), req as *u8, 18)
 
     var total : size_t = 0
     var bad = false
     var buf : [17400]u8
     while(total < 131072) {
-        var n = ssl_read(&raw mut ctx, &raw mut buf[0], 17400)
+        var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 17400)
         if(n <= 0) { bad = true; break }
         var i : size_t = 0
         while(i < n as size_t) {
@@ -966,7 +966,7 @@ public func INT_tls13_large_payload_transfer(env : &mut TestEnv) {
         env.error("large transfer: payload mismatch or incomplete")
     }
 
-    ssl_close_notify(&raw mut ctx)
-    ssl_free(&raw mut ctx)
+    ssl_close_notify(unsafe(&raw mut ctx))
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(19888)
 }

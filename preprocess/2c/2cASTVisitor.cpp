@@ -932,6 +932,9 @@ void call_implicit_constructor(ToCAstVisitor& visitor, FunctionDeclaration* imp_
 }
 
 VariableIdentifier* get_single_id(Value* value) {
+    if(value->kind() == ValueKind::UnsafeValue) {
+        return get_single_id(static_cast<UnsafeValue*>(value)->getValue());
+    }
     switch(value->kind()) {
         case ValueKind::Identifier:
             return value->as_identifier_unsafe();
@@ -1041,6 +1044,10 @@ void write_lambda_expansion_site(ToCAstVisitor& visitor, LambdaFunction* lambdaF
 }
 
 void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value) {
+    if(value->kind() == ValueKind::UnsafeValue) {
+        accept_mutating_value_explicit(type, static_cast<UnsafeValue*>(value)->getValue());
+        return;
+    }
     if(type) {
         // struct member takes a pointer
         // user writes a array value, array value can't write compound literal (it writes initializer list)
@@ -1089,6 +1096,10 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value)
 }
 
 void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value) {
+    if(value->kind() == ValueKind::UnsafeValue) {
+        accept_mutating_value(type, static_cast<UnsafeValue*>(value)->getValue());
+        return;
+    }
     if(type) {
         const auto imp_cons = type->implicit_constructor_for(value);
         if (imp_cons) {
@@ -1176,6 +1187,10 @@ void func_call_single_arg(
 ) {
 
     bool is_destructible_ref = false;
+    if(val->kind() == ValueKind::UnsafeValue) {
+        func_call_single_arg(visitor, non_canon_param_type, static_cast<UnsafeValue*>(val)->getValue(), temp_struct_name, d_ref_name);
+        return;
+    }
     const auto param_type = non_canon_param_type->canonical();
 
     // passing a struct value to a reference, whereas the struct is destructible
@@ -2063,6 +2078,9 @@ void CDestructionVisitor::destruct_arr_ptr(const chem::string_view &self_name, V
 
 void CDestructionVisitor::destruct(const DestructionJob& job, Value* current_return) {
     if(current_return) {
+        if(current_return->kind() == ValueKind::UnsafeValue) {
+            current_return = static_cast<UnsafeValue*>(current_return)->getValue();
+        }
         const auto returnKind = current_return->val_kind();
         if(returnKind == ValueKind::AccessChain) {
             const auto chain = current_return->as_access_chain_unsafe();
@@ -3542,10 +3560,7 @@ void ToCAstVisitor::return_value(Value* val, BaseType* non_canon_type) {
             write('*');
             write(get_struct_return_param_name(*this));
             write(" = ");
-            if(is_value_param_pointer_like(val)) {
-                write('*');
-            }
-            visit(val);
+            accept_mutating_value_explicit(type, val);
         }
     } else {
         accept_mutating_value_explicit(type, val);

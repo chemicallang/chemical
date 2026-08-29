@@ -25,7 +25,7 @@ func read_hex_output(filepath : *char, out : *mut u8, out_max : size_t) : size_t
 // Write script to temp dir, run it with python, read hex output
 func run_py_script(script : *u8, slen : size_t, out : *mut u8, out_max : size_t) : size_t {
     var rnd : u32
-    tls::random_fill(&raw mut rnd as *mut u8, 4)
+    tls::random_fill(unsafe(&raw mut rnd) as *mut u8, 4)
     var name = string("py_")
     name.append_uinteger((rnd as ubigint) & 0xFFFFFFFu)
     var py_out = test_python_run_script(script, slen, name.to_view())
@@ -51,8 +51,8 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
 
 // === mpi_mul_int: P-256 * 4 ===
 @test public func TEST_mpi_mul_int_vs_py(env:&mut TestEnv) {
-    var p : Mpi; ecp_curve_p(&raw mut p)
-    var p_bytes : [32]u8; mpi_get_bytes(&raw mut p, &raw mut p_bytes[0])
+    var p : Mpi; ecp_curve_p(unsafe(&raw mut p))
+    var p_bytes : [32]u8; mpi_get_bytes(unsafe(&raw mut p), &raw mut p_bytes[0])
     var p_hex : [65]char; test_bytes_to_hex(&raw p_bytes[0], 32, &raw mut p_hex[0])
 
     var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
@@ -73,9 +73,9 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
     }
     if(py_len == 0) { env.error("Python output empty"); return }
 
-    var mr: Mpi; mpi_init(&raw mut mr)
-    var ret = mpi_mul_int(&raw mut mr, &raw mut p, 4)
-    var cs = mpi_size(&raw mut mr); var cb:[64]u8; mpi_write_binary(&raw mut mr, &raw mut cb[0], 64)
+    var mr: Mpi; mpi_init(unsafe(&raw mut mr))
+    var ret = mpi_mul_int(unsafe(&raw mut mr), unsafe(&raw mut p), 4)
+    var cs = mpi_size(unsafe(&raw mut mr)); var cb:[64]u8; mpi_write_binary(unsafe(&raw mut mr), &raw mut cb[0], 64)
     if(ret < 0) { env.error("mpi_mul_int error"); return }
     if(cs != py_len || !test_bytes_eq(&raw cb[64-cs], &raw py_r[0], cs)) {
         printf("[MULINT] cs=%d py_len=%d\n", cs as int, py_len as int)
@@ -86,8 +86,8 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
 
 // === mpi_sub: P-256 - 5 ===
 @test public func TEST_mpi_sub_vs_py(env:&mut TestEnv) {
-    var p : Mpi; ecp_curve_p(&raw mut p)
-    var p_bytes : [32]u8; mpi_get_bytes(&raw mut p, &raw mut p_bytes[0])
+    var p : Mpi; ecp_curve_p(unsafe(&raw mut p))
+    var p_bytes : [32]u8; mpi_get_bytes(unsafe(&raw mut p), &raw mut p_bytes[0])
     var p_hex : [65]char; test_bytes_to_hex(&raw p_bytes[0], 32, &raw mut p_hex[0])
 
     var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
@@ -108,10 +108,10 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
     }
     if(py_len == 0) { env.error("Python empty"); return }
 
-    var mf: Mpi; var fv:[1]u8; fv[0]=5; mpi_read_binary(&raw mut mf, &raw fv[0], 1)
-    var mr: Mpi; mpi_init(&raw mut mr)
-    var ret = mpi_sub(&raw mut mr, &raw mut p, &raw mut mf)
-    var cs = mpi_size(&raw mut mr); var cb:[40]u8; mpi_write_binary(&raw mut mr, &raw mut cb[0], 40)
+    var mf: Mpi; var fv:[1]u8; fv[0]=5; mpi_read_binary(unsafe(&raw mut mf), &raw fv[0], 1)
+    var mr: Mpi; mpi_init(unsafe(&raw mut mr))
+    var ret = mpi_sub(unsafe(&raw mut mr), unsafe(&raw mut p), unsafe(&raw mut mf))
+    var cs = mpi_size(unsafe(&raw mut mr)); var cb:[40]u8; mpi_write_binary(unsafe(&raw mut mr), &raw mut cb[0], 40)
     if(ret < 0) { env.error("mpi_sub error"); return }
     if(cs != py_len || !test_bytes_eq(&raw cb[40-cs], &raw py_r[0], cs)) {
         printf("[SUB] cs=%d py_len=%d\n", cs as int, py_len as int)
@@ -122,8 +122,8 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
 
 // === mpi_add: P-256 + 5 ===
 @test public func TEST_mpi_add_vs_py(env:&mut TestEnv) {
-    var p : Mpi; ecp_curve_p(&raw mut p)
-    var p_bytes : [32]u8; mpi_get_bytes(&raw mut p, &raw mut p_bytes[0])
+    var p : Mpi; ecp_curve_p(unsafe(&raw mut p))
+    var p_bytes : [32]u8; mpi_get_bytes(unsafe(&raw mut p), &raw mut p_bytes[0])
     var p_hex : [65]char; test_bytes_to_hex(&raw p_bytes[0], 32, &raw mut p_hex[0])
 
     var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
@@ -144,10 +144,10 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
     }
     if(py_len == 0) { env.error("Python empty"); return }
 
-    var mf: Mpi; var fv:[1]u8; fv[0]=5; mpi_read_binary(&raw mut mf, &raw fv[0], 1)
-    var mr: Mpi; mpi_init(&raw mut mr)
-    var ret = mpi_add(&raw mut mr, &raw mut p, &raw mut mf)
-    var cs = mpi_size(&raw mut mr); var cb:[40]u8; mpi_write_binary(&raw mut mr, &raw mut cb[0], 40)
+    var mf: Mpi; var fv:[1]u8; fv[0]=5; mpi_read_binary(unsafe(&raw mut mf), &raw fv[0], 1)
+    var mr: Mpi; mpi_init(unsafe(&raw mut mr))
+    var ret = mpi_add(unsafe(&raw mut mr), unsafe(&raw mut p), unsafe(&raw mut mf))
+    var cs = mpi_size(unsafe(&raw mut mr)); var cb:[40]u8; mpi_write_binary(unsafe(&raw mut mr), &raw mut cb[0], 40)
     if(ret < 0) { env.error("mpi_add error"); return }
     if(cs != py_len || !test_bytes_eq(&raw cb[40-cs], &raw py_r[0], cs)) {
         printf("[ADD] cs=%d py_len=%d\n", cs as int, py_len as int)
@@ -158,8 +158,8 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
 
 // === mpi_mul: P-256 * 2 ===
 @test public func TEST_mpi_mul_vs_py(env:&mut TestEnv) {
-    var p : Mpi; ecp_curve_p(&raw mut p)
-    var p_bytes : [32]u8; mpi_get_bytes(&raw mut p, &raw mut p_bytes[0])
+    var p : Mpi; ecp_curve_p(unsafe(&raw mut p))
+    var p_bytes : [32]u8; mpi_get_bytes(unsafe(&raw mut p), &raw mut p_bytes[0])
     var p_hex : [65]char; test_bytes_to_hex(&raw p_bytes[0], 32, &raw mut p_hex[0])
 
     var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
@@ -180,10 +180,10 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
     }
     if(py_len == 0) { env.error("Python empty"); return }
 
-    var mtwo: Mpi; var tv:[1]u8; tv[0]=2; mpi_read_binary(&raw mut mtwo, &raw tv[0], 1)
-    var mr: Mpi; mpi_init(&raw mut mr)
-    var ret = mpi_mul(&raw mut mr, &raw mut p, &raw mut mtwo)
-    var cs = mpi_size(&raw mut mr); var cb:[64]u8; mpi_write_binary(&raw mut mr, &raw mut cb[0], 64)
+    var mtwo: Mpi; var tv:[1]u8; tv[0]=2; mpi_read_binary(unsafe(&raw mut mtwo), &raw tv[0], 1)
+    var mr: Mpi; mpi_init(unsafe(&raw mut mr))
+    var ret = mpi_mul(unsafe(&raw mut mr), unsafe(&raw mut p), unsafe(&raw mut mtwo))
+    var cs = mpi_size(unsafe(&raw mut mr)); var cb:[64]u8; mpi_write_binary(unsafe(&raw mut mr), &raw mut cb[0], 64)
     if(ret < 0) { env.error("mpi_mul error"); return }
     if(cs != py_len || !test_bytes_eq(&raw cb[64-cs], &raw py_r[0], cs)) {
         printf("[MUL] cs=%d py_len=%d\n", cs as int, py_len as int)
@@ -194,8 +194,8 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
 
 // === mpi_mod: (P-256 + 5) mod 7 ===
 @test public func TEST_mpi_mod_vs_py(env:&mut TestEnv) {
-    var p : Mpi; ecp_curve_p(&raw mut p)
-    var p_bytes : [32]u8; mpi_get_bytes(&raw mut p, &raw mut p_bytes[0])
+    var p : Mpi; ecp_curve_p(unsafe(&raw mut p))
+    var p_bytes : [32]u8; mpi_get_bytes(unsafe(&raw mut p), &raw mut p_bytes[0])
     var p_hex : [65]char; test_bytes_to_hex(&raw p_bytes[0], 32, &raw mut p_hex[0])
 
     var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
@@ -216,11 +216,11 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
     }
     if(py_len == 0) { env.error("Python empty"); return }
 
-    var mf: Mpi; var fv:[1]u8; fv[0]=5; mpi_read_binary(&raw mut mf, &raw fv[0], 1)
-    var mm: Mpi; var mv:[1]u8; mv[0]=7; mpi_read_binary(&raw mut mm, &raw mv[0], 1)
-    var tmp: Mpi; mpi_init(&raw mut tmp); mpi_add(&raw mut tmp, &raw mut p, &raw mut mf)
-    var mr: Mpi; mpi_init(&raw mut mr); mpi_mod(&raw mut mr, &raw mut tmp, &raw mut mm)
-    var cs = mpi_size(&raw mut mr); var cb:[8]u8; mpi_write_binary(&raw mut mr, &raw mut cb[0], 8)
+    var mf: Mpi; var fv:[1]u8; fv[0]=5; mpi_read_binary(unsafe(&raw mut mf), &raw fv[0], 1)
+    var mm: Mpi; var mv:[1]u8; mv[0]=7; mpi_read_binary(unsafe(&raw mut mm), &raw mv[0], 1)
+    var tmp: Mpi; mpi_init(unsafe(&raw mut tmp)); mpi_add(unsafe(&raw mut tmp), unsafe(&raw mut p), unsafe(&raw mut mf))
+    var mr: Mpi; mpi_init(unsafe(&raw mut mr)); mpi_mod(unsafe(&raw mut mr), unsafe(&raw mut tmp), unsafe(&raw mut mm))
+    var cs = mpi_size(unsafe(&raw mut mr)); var cb:[8]u8; mpi_write_binary(unsafe(&raw mut mr), &raw mut cb[0], 8)
     if(cs != py_len || (cs>0 && !test_bytes_eq(&raw cb[8-cs], &raw py_r[0], cs))) {
         printf("[MOD] cs=%d py_len=%d\n", cs as int, py_len as int)
         if(cs>0) { print_hex("chem", &raw cb[8-cs], cs) }
@@ -231,8 +231,8 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
 
 // === mpi_mod with negative: (3 - P-256) mod P-256 = 3 ===
 @test public func TEST_mpi_negmod_vs_py(env:&mut TestEnv) {
-    var p : Mpi; ecp_curve_p(&raw mut p)
-    var p_bytes : [32]u8; mpi_get_bytes(&raw mut p, &raw mut p_bytes[0])
+    var p : Mpi; ecp_curve_p(unsafe(&raw mut p))
+    var p_bytes : [32]u8; mpi_get_bytes(unsafe(&raw mut p), &raw mut p_bytes[0])
     var p_hex : [65]char; test_bytes_to_hex(&raw p_bytes[0], 32, &raw mut p_hex[0])
 
     var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
@@ -253,12 +253,12 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
     }
     if(py_len == 0) { env.error("Python empty"); return }
 
-    var mthree: Mpi; var tv:[1]u8; tv[0]=3; mpi_read_binary(&raw mut mthree, &raw tv[0], 1)
-    var tmp: Mpi; mpi_init(&raw mut tmp); var ret = mpi_sub(&raw mut tmp, &raw mut mthree, &raw mut p)
+    var mthree: Mpi; var tv:[1]u8; tv[0]=3; mpi_read_binary(unsafe(&raw mut mthree), &raw tv[0], 1)
+    var tmp: Mpi; mpi_init(unsafe(&raw mut tmp)); var ret = mpi_sub(unsafe(&raw mut tmp), unsafe(&raw mut mthree), unsafe(&raw mut p))
     if(ret < 0) { env.error("mpi_sub failed"); return }
-    var mr: Mpi; mpi_init(&raw mut mr); ret = mpi_mod(&raw mut mr, &raw mut tmp, &raw mut p)
+    var mr: Mpi; mpi_init(unsafe(&raw mut mr)); ret = mpi_mod(unsafe(&raw mut mr), unsafe(&raw mut tmp), unsafe(&raw mut p))
     if(ret < 0) { env.error("mpi_mod failed"); return }
-    var cs = mpi_size(&raw mut mr); var cb:[8]u8; mpi_write_binary(&raw mut mr, &raw mut cb[0], 8)
+    var cs = mpi_size(unsafe(&raw mut mr)); var cb:[8]u8; mpi_write_binary(unsafe(&raw mut mr), &raw mut cb[0], 8)
     if(cs != py_len || (cs>0 && !test_bytes_eq(&raw cb[8-cs], &raw py_r[0], cs))) {
         printf("[NEGMOD] cs=%d py_len=%d\n", cs as int, py_len as int)
         if(cs>0) { print_hex("chem", &raw cb[8-cs], cs) }
@@ -269,11 +269,11 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
 
 // === P-256 prime self-consistency check ===
 @test public func TEST_p256_prime(env:&mut TestEnv) {
-    var p : Mpi; ecp_curve_p(&raw mut p)
-    var expected : Mpi; ecp_curve_p(&raw mut expected)
+    var p : Mpi; ecp_curve_p(unsafe(&raw mut p))
+    var expected : Mpi; ecp_curve_p(unsafe(&raw mut expected))
     var buf1:[32]u8; var buf2:[32]u8
-    mpi_write_binary(&raw mut p, &raw mut buf1[0], 32)
-    mpi_write_binary(&raw mut expected, &raw mut buf2[0], 32)
+    mpi_write_binary(unsafe(&raw mut p), &raw mut buf1[0], 32)
+    mpi_write_binary(unsafe(&raw mut expected), &raw mut buf2[0], 32)
     if(!test_bytes_eq(&raw buf1[0], &raw buf2[0], 32)) {
         print_hex("got", &raw buf1[0], 32)
         env.error("P-256 prime mismatch")
@@ -282,16 +282,16 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
 
 // === 2*G test: check if doubling alone is correct ===
 @test public func TEST_ecdh_k2_direct(env:&mut TestEnv) {
-    var G : ECPPoint; ecp_point_init(&raw mut G)
-    ecp_curve_gx(&raw mut G.X); ecp_curve_gy(&raw mut G.Y); mpi_lset(&raw mut G.Z, 1)
-    var k : Mpi; mpi_init(&raw mut k); mpi_lset(&raw mut k, 2)
-    var R : ECPPoint; ecp_point_init(&raw mut R)
-    var ret = ecp_mul(&raw mut R, &raw mut k, &raw mut G)
+    var G : ECPPoint; ecp_point_init(unsafe(&raw mut G))
+    ecp_curve_gx(unsafe(&raw mut G.X)); ecp_curve_gy(unsafe(&raw mut G.Y)); mpi_lset(unsafe(&raw mut G.Z), 1)
+    var k : Mpi; mpi_init(unsafe(&raw mut k)); mpi_lset(unsafe(&raw mut k), 2)
+    var R : ECPPoint; ecp_point_init(unsafe(&raw mut R))
+    var ret = ecp_mul(unsafe(&raw mut R), unsafe(&raw mut k), unsafe(&raw mut G))
     var _k2b : [256]char
     if(ret < 0) { snprintf(&raw mut _k2b[0], sizeof(_k2b), "[K2] ecp_mul error=%d", ret); env.info(&raw _k2b[0]); env.error("ecp_mul failed"); return }
-    ret = ecp_normalize_jac(&raw mut R)
+    ret = ecp_normalize_jac(unsafe(&raw mut R))
     if(ret < 0) { snprintf(&raw mut _k2b[0], sizeof(_k2b), "[K2] normalize error=%d", ret); env.info(&raw _k2b[0]); env.error("normalize failed"); return }
-    var chem_x : [32]u8; ret = mpi_write_binary(&raw mut R.X, &raw mut chem_x[0], 32)
+    var chem_x : [32]u8; ret = mpi_write_binary(unsafe(&raw mut R.X), &raw mut chem_x[0], 32)
     if(ret < 0) { snprintf(&raw mut _k2b[0], sizeof(_k2b), "[K2] write error=%d", ret); env.info(&raw _k2b[0]); env.error("write failed"); return }
 
     // Python: compute 2*G
@@ -316,30 +316,30 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
 
 // === 2G + G using mixed Jacobian-affine addition ===
 @test public func TEST_ecdh_add(env:&mut TestEnv) {
-    var G : ECPPoint; ecp_point_init(&raw mut G)
-    ecp_curve_gx(&raw mut G.X); ecp_curve_gy(&raw mut G.Y); mpi_lset(&raw mut G.Z, 1)
+    var G : ECPPoint; ecp_point_init(unsafe(&raw mut G))
+    ecp_curve_gx(unsafe(&raw mut G.X)); ecp_curve_gy(unsafe(&raw mut G.Y)); mpi_lset(unsafe(&raw mut G.Z), 1)
 
-    var k2 : Mpi; mpi_init(&raw mut k2); mpi_lset(&raw mut k2, 2)
-    var R2 : ECPPoint; ecp_point_init(&raw mut R2)
-    var ret = ecp_mul(&raw mut R2, &raw mut k2, &raw mut G)
+    var k2 : Mpi; mpi_init(unsafe(&raw mut k2)); mpi_lset(unsafe(&raw mut k2), 2)
+    var R2 : ECPPoint; ecp_point_init(unsafe(&raw mut R2))
+    var ret = ecp_mul(unsafe(&raw mut R2), unsafe(&raw mut k2), unsafe(&raw mut G))
     if(ret < 0) { env.error("ecp_mul k=2"); return }
 
-    var P_affine : ECPPoint; ecp_point_init(&raw mut P_affine)
-    ecp_curve_gx(&raw mut P_affine.X); ecp_curve_gy(&raw mut P_affine.Y); mpi_lset(&raw mut P_affine.Z, 1)
-    var R3_add : ECPPoint; ecp_point_init(&raw mut R3_add)
-    ret = ecp_add_jac(&raw mut R3_add, &raw mut R2, &raw mut P_affine)
+    var P_affine : ECPPoint; ecp_point_init(unsafe(&raw mut P_affine))
+    ecp_curve_gx(unsafe(&raw mut P_affine.X)); ecp_curve_gy(unsafe(&raw mut P_affine.Y)); mpi_lset(unsafe(&raw mut P_affine.Z), 1)
+    var R3_add : ECPPoint; ecp_point_init(unsafe(&raw mut R3_add))
+    ret = ecp_add_jac(unsafe(&raw mut R3_add), unsafe(&raw mut R2), unsafe(&raw mut P_affine))
     if(ret < 0) { env.error("ecp_add_jac failed"); return }
-    ret = ecp_normalize_jac(&raw mut R3_add)
+    ret = ecp_normalize_jac(unsafe(&raw mut R3_add))
     if(ret < 0) { env.error("normalize failed"); return }
-    var add_x : [32]u8; mpi_write_binary(&raw mut R3_add.X, &raw mut add_x[0], 32)
+    var add_x : [32]u8; mpi_write_binary(unsafe(&raw mut R3_add.X), &raw mut add_x[0], 32)
 
-    var k3 : Mpi; mpi_init(&raw mut k3); mpi_lset(&raw mut k3, 3)
-    var R3_mul : ECPPoint; ecp_point_init(&raw mut R3_mul)
-    ret = ecp_mul(&raw mut R3_mul, &raw mut k3, &raw mut G)
+    var k3 : Mpi; mpi_init(unsafe(&raw mut k3)); mpi_lset(unsafe(&raw mut k3), 3)
+    var R3_mul : ECPPoint; ecp_point_init(unsafe(&raw mut R3_mul))
+    ret = ecp_mul(unsafe(&raw mut R3_mul), unsafe(&raw mut k3), unsafe(&raw mut G))
     if(ret < 0) { env.error("ecp_mul k=3"); return }
-    ret = ecp_normalize_jac(&raw mut R3_mul)
+    ret = ecp_normalize_jac(unsafe(&raw mut R3_mul))
     if(ret < 0) { env.error("normalize mul"); return }
-    var mul_x : [32]u8; mpi_write_binary(&raw mut R3_mul.X, &raw mut mul_x[0], 32)
+    var mul_x : [32]u8; mpi_write_binary(unsafe(&raw mut R3_mul.X), &raw mut mul_x[0], 32)
 
     if(!test_bytes_eq(&raw add_x[0], &raw mul_x[0], 32)) {
         printf("[ADD] add="); var _adi:size_t=0; while(_adi<32){printf("%02x",add_x[_adi]as int);_adi+=1}; printf("\n")
@@ -458,15 +458,15 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
     var py_pub:[65]u8; var py_len = run_py_script(&raw py_script[0], psi, &raw mut py_pub[0], 65)
     if(py_len < 65) { printf("[K3] Python output too short: %d\n", py_len as int); env.error("python failed"); return }
 
-    var G : ECPPoint; ecp_point_init(&raw mut G)
-    ecp_curve_gx(&raw mut G.X); ecp_curve_gy(&raw mut G.Y); mpi_lset(&raw mut G.Z, 1)
-    var k : Mpi; mpi_init(&raw mut k); mpi_lset(&raw mut k, 3)
-    var R : ECPPoint; ecp_point_init(&raw mut R)
-    var ret = ecp_mul(&raw mut R, &raw mut k, &raw mut G)
+    var G : ECPPoint; ecp_point_init(unsafe(&raw mut G))
+    ecp_curve_gx(unsafe(&raw mut G.X)); ecp_curve_gy(unsafe(&raw mut G.Y)); mpi_lset(unsafe(&raw mut G.Z), 1)
+    var k : Mpi; mpi_init(unsafe(&raw mut k)); mpi_lset(unsafe(&raw mut k), 3)
+    var R : ECPPoint; ecp_point_init(unsafe(&raw mut R))
+    var ret = ecp_mul(unsafe(&raw mut R), unsafe(&raw mut k), unsafe(&raw mut G))
     if(ret < 0) { printf("[K3] ecp_mul error=%d\n", ret); env.error("ecp_mul failed"); return }
-    ret = ecp_normalize_jac(&raw mut R)
+    ret = ecp_normalize_jac(unsafe(&raw mut R))
     if(ret < 0) { printf("[K3] normalize error=%d\n", ret); env.error("normalize failed"); return }
-    var chem_x : [32]u8; ret = mpi_write_binary(&raw mut R.X, &raw mut chem_x[0], 32)
+    var chem_x : [32]u8; ret = mpi_write_binary(unsafe(&raw mut R.X), &raw mut chem_x[0], 32)
     if(ret < 0) { printf("[K3] write error=%d\n", ret); env.error("write failed"); return }
     if(!test_bytes_eq(&raw chem_x[0], &raw py_pub[1], 32)) {
         printf("[K3] X mismatch\n")
@@ -477,22 +477,22 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
 
 // === Curve equation: G on curve ===
 @test public func TEST_curve_equation_stepwise(env:&mut TestEnv) {
-    var G : ECPPoint; ecp_point_init(&raw mut G)
-    ecp_curve_gx(&raw mut G.X); ecp_curve_gy(&raw mut G.Y); mpi_lset(&raw mut G.Z, 1)
-    var p : Mpi; ecp_curve_p(&raw mut p)
-    var b_m : Mpi; ecp_curve_b(&raw mut b_m)
-    var lhs : Mpi; mpi_init(&raw mut lhs)
-    mpi_mul(&raw mut lhs, &raw mut G.Y, &raw mut G.Y); mpi_mod(&raw mut lhs, &raw mut lhs, &raw mut p)
-    var x_sq : Mpi; mpi_init(&raw mut x_sq)
-    mpi_mul(&raw mut x_sq, &raw mut G.X, &raw mut G.X); mpi_mod(&raw mut x_sq, &raw mut x_sq, &raw mut p)
-    var x_cu : Mpi; mpi_init(&raw mut x_cu)
-    mpi_mul(&raw mut x_cu, &raw mut x_sq, &raw mut G.X); mpi_mod(&raw mut x_cu, &raw mut x_cu, &raw mut p)
-    var three_x : Mpi; mpi_init(&raw mut three_x)
-    mpi_mul_int(&raw mut three_x, &raw mut G.X, 3); mpi_mod(&raw mut three_x, &raw mut three_x, &raw mut p)
-    var rhs : Mpi; mpi_init(&raw mut rhs)
-    mpi_sub(&raw mut rhs, &raw mut x_cu, &raw mut three_x); mpi_mod(&raw mut rhs, &raw mut rhs, &raw mut p)
-    mpi_add(&raw mut rhs, &raw mut rhs, &raw mut b_m); mpi_mod(&raw mut rhs, &raw mut rhs, &raw mut p)
-    if(mpi_cmp(&raw mut lhs, &raw mut rhs) != 0) {
+    var G : ECPPoint; ecp_point_init(unsafe(&raw mut G))
+    ecp_curve_gx(unsafe(&raw mut G.X)); ecp_curve_gy(unsafe(&raw mut G.Y)); mpi_lset(unsafe(&raw mut G.Z), 1)
+    var p : Mpi; ecp_curve_p(unsafe(&raw mut p))
+    var b_m : Mpi; ecp_curve_b(unsafe(&raw mut b_m))
+    var lhs : Mpi; mpi_init(unsafe(&raw mut lhs))
+    mpi_mul(unsafe(&raw mut lhs), unsafe(&raw mut G.Y), unsafe(&raw mut G.Y)); mpi_mod(unsafe(&raw mut lhs), unsafe(&raw mut lhs), unsafe(&raw mut p))
+    var x_sq : Mpi; mpi_init(unsafe(&raw mut x_sq))
+    mpi_mul(unsafe(&raw mut x_sq), unsafe(&raw mut G.X), unsafe(&raw mut G.X)); mpi_mod(unsafe(&raw mut x_sq), unsafe(&raw mut x_sq), unsafe(&raw mut p))
+    var x_cu : Mpi; mpi_init(unsafe(&raw mut x_cu))
+    mpi_mul(unsafe(&raw mut x_cu), unsafe(&raw mut x_sq), unsafe(&raw mut G.X)); mpi_mod(unsafe(&raw mut x_cu), unsafe(&raw mut x_cu), unsafe(&raw mut p))
+    var three_x : Mpi; mpi_init(unsafe(&raw mut three_x))
+    mpi_mul_int(unsafe(&raw mut three_x), unsafe(&raw mut G.X), 3); mpi_mod(unsafe(&raw mut three_x), unsafe(&raw mut three_x), unsafe(&raw mut p))
+    var rhs : Mpi; mpi_init(unsafe(&raw mut rhs))
+    mpi_sub(unsafe(&raw mut rhs), unsafe(&raw mut x_cu), unsafe(&raw mut three_x)); mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
+    mpi_add(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut b_m)); mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
+    if(mpi_cmp(unsafe(&raw mut lhs), unsafe(&raw mut rhs)) != 0) {
         printf("[CURVE] G NOT on curve!\n")
         env.error("G not on curve")
     }
@@ -500,10 +500,10 @@ func mpi_get_bytes(m : *mut Mpi, out : *mut u8) {
 
 @test public func TEST_mpi_mul_simple(env:&mut TestEnv) {
     var a:[32]u8 = [0]; a[31]=7
-    var ma:Mpi; mpi_read_binary(&raw mut ma, &raw a[0], 32)
-    var mr:Mpi; mpi_init(&raw mut mr)
-    var ret = mpi_mul_int(&raw mut mr, &raw mut ma, 6)
-    var cs=mpi_size(&raw mut mr); var cb:[8]u8; mpi_write_binary(&raw mut mr, &raw mut cb[0], 8)
+    var ma:Mpi; mpi_read_binary(unsafe(&raw mut ma), &raw a[0], 32)
+    var mr:Mpi; mpi_init(unsafe(&raw mut mr))
+    var ret = mpi_mul_int(unsafe(&raw mut mr), unsafe(&raw mut ma), 6)
+    var cs=mpi_size(unsafe(&raw mut mr)); var cb:[8]u8; mpi_write_binary(unsafe(&raw mut mr), &raw mut cb[0], 8)
     if(ret<0 || cs!=1 || cb[7]!=42){
         printf("[MUL_SIMP] ret=%d cs=%d cb[7]=%d\n", ret, cs as int, cb[7] as int)
         env.error("mpi_mul_int(7,6) failed")
@@ -610,11 +610,11 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
 
     var inc : [64]u8
     var ctx : crypto::Sha512Context
-    crypto::sha512_init(&raw mut ctx)
-    crypto::sha512_update(&raw mut ctx, &raw msg[0], 100)
-    crypto::sha512_update(&raw mut ctx, &raw msg[100], 300)
-    crypto::sha512_update(&raw mut ctx, &raw msg[400], 600)
-    crypto::sha512_final(&raw mut ctx, &raw mut inc[0])
+    crypto::sha512_init(unsafe(&raw mut ctx))
+    crypto::sha512_update(unsafe(&raw mut ctx), &raw msg[0], 100)
+    crypto::sha512_update(unsafe(&raw mut ctx), &raw msg[100], 300)
+    crypto::sha512_update(unsafe(&raw mut ctx), &raw msg[400], 600)
+    crypto::sha512_final(unsafe(&raw mut ctx), &raw mut inc[0])
 
     var eq = true
     var j : usize = 0

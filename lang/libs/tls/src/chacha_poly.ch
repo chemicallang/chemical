@@ -253,24 +253,24 @@ func chacha20_poly1305_encrypt(key : *u8, nonce : *u8,
 
     // Build Poly1305 MAC over aad || pad16(aad) || ciphertext || pad16(ct) || le64(aad_len) || le64(pt_len)
     var st : Poly1305State
-    poly1305_init(&raw mut st, &raw mut otk_block[0])
-    poly1305_update(&raw mut st, aad, aad_len)
+    poly1305_init(unsafe(&raw mut st), &raw mut otk_block[0])
+    poly1305_update(unsafe(&raw mut st), aad, aad_len)
     // Zero-pad AAD to a 16-byte boundary (RFC 8439 §2.8.1).
     var pad_aad = (16u - (aad_len % 16u)) % 16u
     if(pad_aad > 0u) {
         var zp : [16]u8
         var zi : size_t = 0
         while(zi < 16) { zp[zi] = 0u as u8; zi += 1 }
-        poly1305_update(&raw mut st, &raw zp[0], pad_aad)
+        poly1305_update(unsafe(&raw mut st), &raw zp[0], pad_aad)
     }
-    poly1305_update(&raw mut st, ciphertext, pt_len)
+    poly1305_update(unsafe(&raw mut st), ciphertext, pt_len)
     // Zero-pad ciphertext to a 16-byte boundary.
     var pad_ct = (16u - (pt_len % 16u)) % 16u
     if(pad_ct > 0u) {
         var zp2 : [16]u8
         var zi2 : size_t = 0
         while(zi2 < 16) { zp2[zi2] = 0u as u8; zi2 += 1 }
-        poly1305_update(&raw mut st, &raw zp2[0], pad_ct)
+        poly1305_update(unsafe(&raw mut st), &raw zp2[0], pad_ct)
     }
     var lens : [16]u8
     var i : size_t = 0
@@ -281,8 +281,8 @@ func chacha20_poly1305_encrypt(key : *u8, nonce : *u8,
     while(i < 8) { lens[i] = ((aad_bits >> (8 * i)) & 0xFFu) as u8; i += 1 }
     i = 0
     while(i < 8) { lens[8 + i] = ((pt_bits >> (8 * i)) & 0xFFu) as u8; i += 1 }
-    poly1305_update(&raw mut st, &raw mut lens[0], 16)
-    poly1305_finish(&raw mut st, tag)
+    poly1305_update(unsafe(&raw mut st), &raw mut lens[0], 16)
+    poly1305_finish(unsafe(&raw mut st), tag)
 }
 
 // Returns 0 on success (tag verified), negative on authentication failure.
@@ -294,24 +294,24 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
     chacha20_block(key, 0u, nonce, &raw mut otk_block[0])
 
     var st : Poly1305State
-    poly1305_init(&raw mut st, &raw mut otk_block[0])
-    poly1305_update(&raw mut st, aad, aad_len)
+    poly1305_init(unsafe(&raw mut st), &raw mut otk_block[0])
+    poly1305_update(unsafe(&raw mut st), aad, aad_len)
     // Zero-pad AAD to a 16-byte boundary (RFC 8439 §2.8.1).
     var pad_aad = (16u - (aad_len % 16u)) % 16u
     if(pad_aad > 0u) {
         var zp : [16]u8
         var zi : size_t = 0
         while(zi < 16) { zp[zi] = 0u as u8; zi += 1 }
-        poly1305_update(&raw mut st, &raw zp[0], pad_aad)
+        poly1305_update(unsafe(&raw mut st), &raw zp[0], pad_aad)
     }
-    poly1305_update(&raw mut st, ciphertext, ct_len)
+    poly1305_update(unsafe(&raw mut st), ciphertext, ct_len)
     // Zero-pad ciphertext to a 16-byte boundary.
     var pad_ct = (16u - (ct_len % 16u)) % 16u
     if(pad_ct > 0u) {
         var zp2 : [16]u8
         var zi2 : size_t = 0
         while(zi2 < 16) { zp2[zi2] = 0u as u8; zi2 += 1 }
-        poly1305_update(&raw mut st, &raw zp2[0], pad_ct)
+        poly1305_update(unsafe(&raw mut st), &raw zp2[0], pad_ct)
     }
     var lens : [16]u8
     var i : size_t = 0
@@ -322,9 +322,9 @@ func chacha20_poly1305_decrypt(key : *u8, nonce : *u8,
     while(i < 8) { lens[i] = ((aad_bits >> (8 * i)) & 0xFFu) as u8; i += 1 }
     i = 0
     while(i < 8) { lens[8 + i] = ((ct_bits >> (8 * i)) & 0xFFu) as u8; i += 1 }
-    poly1305_update(&raw mut st, &raw mut lens[0], 16)
+    poly1305_update(unsafe(&raw mut st), &raw mut lens[0], 16)
     var expected : [16]u8
-    poly1305_finish(&raw mut st, &raw mut expected[0])
+    poly1305_finish(unsafe(&raw mut st), &raw mut expected[0])
 
     var diff : u8 = 0u
     i = 0

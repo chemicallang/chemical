@@ -211,14 +211,14 @@ func srv_serve_one_connection(env : &mut TestEnv, cs : net::Socket, mode : strin
             ssl_free(ssl_mem); unsafe { dealloc ssl_mem }
             return false
         }
-        rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
-        if(rsa_import_privkey(&raw mut rsa_ctx, &raw n_buf[0], n_len, &raw d_buf[0], d_len) < 0) {
+        rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
+        if(rsa_import_privkey(unsafe(&raw mut rsa_ctx), &raw n_buf[0], n_len, &raw d_buf[0], d_len) < 0) {
             env.error("RSA private key import failed")
             cert_free(cert); unsafe { dealloc cert }
             ssl_free(ssl_mem); unsafe { dealloc ssl_mem }
             return false
         }
-        cfg.own_key = &raw mut rsa_ctx as *mut void
+        cfg.own_key = unsafe(&raw mut rsa_ctx) as *mut void
         using_rsa = true
     } else {
         var priv_key = ec_privkey_load_hex_file(hex_path.data())
@@ -252,13 +252,13 @@ func srv_serve_one_connection(env : &mut TestEnv, cs : net::Socket, mode : strin
     var hret2 = ssl_handshake(ssl_mem)
     if(hret2 < 0) {
         env.error("TLS 1.2 server handshake against python failed")
-        rsa_free(&raw mut rsa_ctx)
+        rsa_free(unsafe(&raw mut rsa_ctx))
         cert_free(cert); unsafe { dealloc cert }
         ssl_free(ssl_mem); unsafe { dealloc ssl_mem }
         return false
     }
     ok = srv_serve_http_loop(env, ssl_mem, mode)
-    rsa_free(&raw mut rsa_ctx)
+    rsa_free(unsafe(&raw mut rsa_ctx))
     cert_free(cert); unsafe { dealloc cert }
     ssl_free(ssl_mem)
     unsafe { dealloc ssl_mem }

@@ -45,10 +45,10 @@ public func INT_gcm_aes128_encrypt(env : &mut TestEnv) {
     if(ct_len != 32 || tag_len != 16) { env.error("failed to parse Python output"); return } else {}
 
     var gcm : GCMContext
-    var ret = gcm_init(&raw mut gcm, &raw key[0], 16)
+    var ret = gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
     if(ret < 0) { env.error("gcm_init failed"); return } else {}
     var chem_ct : [64]u8; var chem_tag : [16]u8
-    ret = gcm_crypt_and_tag(&raw mut gcm, &raw iv[0], 12, &raw aad[0], 8, &raw pt[0], 32, &raw mut chem_ct[0], &raw mut chem_tag[0])
+    ret = gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, &raw aad[0], 8, &raw pt[0], 32, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(ret < 0) { env.error("gcm_crypt_and_tag failed"); return } else {}
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 32)) { env.error("GCM AES-128 ct mismatch"); return } else {}
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("GCM AES-128 tag mismatch"); return } else {}
@@ -95,10 +95,10 @@ public func INT_gcm_aes256_encrypt(env : &mut TestEnv) {
     if(ct_len != 32 || tag_len != 16) { env.error("failed to parse Python output"); return } else {}
 
     var gcm : GCMContext
-    var ret = gcm_init(&raw mut gcm, &raw key[0], 32)
+    var ret = gcm_init(unsafe(&raw mut gcm), &raw key[0], 32)
     if(ret < 0) { env.error("gcm_init failed"); return } else {}
     var chem_ct : [64]u8; var chem_tag : [16]u8
-    ret = gcm_crypt_and_tag(&raw mut gcm, &raw iv[0], 12, &raw aad[0], 8, &raw pt[0], 32, &raw mut chem_ct[0], &raw mut chem_tag[0])
+    ret = gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, &raw aad[0], 8, &raw pt[0], 32, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(ret < 0) { env.error("gcm_crypt_and_tag failed"); return } else {}
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 32)) { env.error("GCM AES-256 ct mismatch"); return } else {}
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("GCM AES-256 tag mismatch"); return } else {}
@@ -141,10 +141,10 @@ public func INT_gcm_empty_aad(env : &mut TestEnv) {
     if(ct_len != 16 || tag_len != 16) { env.error("failed to parse Python output"); return } else {}
 
     var gcm : GCMContext
-    var ret = gcm_init(&raw mut gcm, &raw key[0], 16)
+    var ret = gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
     if(ret < 0) { env.error("gcm_init failed"); return } else {}
     var chem_ct : [64]u8; var chem_tag : [16]u8
-    ret = gcm_crypt_and_tag(&raw mut gcm, &raw iv[0], 12, null, 0, &raw pt[0], 16, &raw mut chem_ct[0], &raw mut chem_tag[0])
+    ret = gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, null, 0, &raw pt[0], 16, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(ret < 0) { env.error("gcm_crypt_and_tag failed"); return } else {}
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 16)) { env.error("GCM empty AAD ct mismatch"); return } else {}
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("GCM empty AAD tag mismatch"); return } else {}
@@ -157,10 +157,10 @@ public func INT_gcm_auth_decrypt_wrong_tag(env : &mut TestEnv) {
     var pt : [16]u8; test_random_bytes(&raw mut pt[0], 16)
 
     var gcm : GCMContext
-    var ret = gcm_init(&raw mut gcm, &raw key[0], 16)
+    var ret = gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
     if(ret < 0) { env.error("gcm_init failed"); return } else {}
     var ct : [64]u8; var tag : [16]u8
-    ret = gcm_crypt_and_tag(&raw mut gcm, &raw iv[0], 12, null, 0, &raw pt[0], 16, &raw mut ct[0], &raw mut tag[0])
+    ret = gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, null, 0, &raw pt[0], 16, &raw mut ct[0], &raw mut tag[0])
     if(ret < 0) { env.error("gcm_crypt_and_tag failed"); return } else {}
 
     var wrong_tag : [16]u8
@@ -168,9 +168,9 @@ public func INT_gcm_auth_decrypt_wrong_tag(env : &mut TestEnv) {
     wrong_tag[0] = wrong_tag[0] ^ 0xFF
 
     var gcm2 : GCMContext
-    gcm_init(&raw mut gcm2, &raw key[0], 16)
+    gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16)
     var dec_out : [64]u8
-    ret = gcm_auth_decrypt(&raw mut gcm2, &raw iv[0], 12, null, 0, &raw ct[0], 16, &raw wrong_tag[0], 16, &raw mut dec_out[0])
+    ret = gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12, null, 0, &raw ct[0], 16, &raw wrong_tag[0], 16, &raw mut dec_out[0])
     if(ret >= 0) { env.error("auth_decrypt should have failed with wrong tag"); return } else {}
 }
 
@@ -187,16 +187,16 @@ public func INT_gcm_varying_sizes(env : &mut TestEnv) {
         var pt : [1024]u8; test_random_bytes(&raw mut pt[0], pt_len)
 
         var gcm : GCMContext
-        var ret = gcm_init(&raw mut gcm, &raw key[0], 16)
+        var ret = gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
         if(ret < 0) { env.error("gcm_init failed"); return } else {}
         var ct : [1024]u8; var tag : [16]u8
-        ret = gcm_crypt_and_tag(&raw mut gcm, &raw iv[0], 12, null, 0, &raw pt[0], pt_len, &raw mut ct[0], &raw mut tag[0])
+        ret = gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, null, 0, &raw pt[0], pt_len, &raw mut ct[0], &raw mut tag[0])
         if(ret < 0) { env.error("gcm_crypt_and_tag failed"); return } else {}
 
         var gcm2 : GCMContext
-        gcm_init(&raw mut gcm2, &raw key[0], 16)
+        gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16)
         var dec : [1024]u8
-        ret = gcm_auth_decrypt(&raw mut gcm2, &raw iv[0], 12, null, 0, &raw ct[0], pt_len, &raw tag[0], 16, &raw mut dec[0])
+        ret = gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12, null, 0, &raw ct[0], pt_len, &raw tag[0], 16, &raw mut dec[0])
         if(ret < 0) { env.error("gcm_auth_decrypt failed"); return } else {}
         if(!test_bytes_eq(&raw dec[0], &raw pt[0], pt_len)) { env.error("GCM varying size roundtrip failed"); return } else {}
 
@@ -245,10 +245,10 @@ public func INT_gcm_long_aad(env : &mut TestEnv) {
     if(ct_len != 16 || tag_len != 16) { env.error("failed to parse Python output"); return } else {}
 
     var gcm : GCMContext
-    var ret = gcm_init(&raw mut gcm, &raw key[0], 16)
+    var ret = gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
     if(ret < 0) { env.error("gcm_init failed"); return } else {}
     var chem_ct : [64]u8; var chem_tag : [16]u8
-    ret = gcm_crypt_and_tag(&raw mut gcm, &raw iv[0], 12, &raw aad[0], 1024, &raw pt[0], 16, &raw mut chem_ct[0], &raw mut chem_tag[0])
+    ret = gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, &raw aad[0], 1024, &raw pt[0], 16, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(ret < 0) { env.error("gcm_crypt_and_tag failed"); return } else {}
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 16)) { env.error("GCM long AAD ct mismatch"); return } else {}
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("GCM long AAD tag mismatch"); return } else {}
@@ -295,16 +295,16 @@ public func INT_gcm_aes256_auth_decrypt(env : &mut TestEnv) {
     if(ct_len != 32 || tag_len != 16) { env.error("failed to parse Python output"); return } else {}
 
     var gcm : GCMContext
-    var ret = gcm_init(&raw mut gcm, &raw key[0], 32)
+    var ret = gcm_init(unsafe(&raw mut gcm), &raw key[0], 32)
     if(ret < 0) { env.error("gcm_init failed"); return } else {}
     var chem_ct : [64]u8; var chem_tag : [16]u8
-    ret = gcm_crypt_and_tag(&raw mut gcm, &raw iv[0], 12, &raw aad[0], 8, &raw pt[0], 32, &raw mut chem_ct[0], &raw mut chem_tag[0])
+    ret = gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, &raw aad[0], 8, &raw pt[0], 32, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(ret < 0) { env.error("gcm_crypt_and_tag failed"); return } else {}
 
     var gcm2 : GCMContext
-    gcm_init(&raw mut gcm2, &raw key[0], 32)
+    gcm_init(unsafe(&raw mut gcm2), &raw key[0], 32)
     var chem_dec : [64]u8
-    ret = gcm_auth_decrypt(&raw mut gcm2, &raw iv[0], 12, &raw aad[0], 8, &raw chem_ct[0], 32, &raw chem_tag[0], 16, &raw mut chem_dec[0])
+    ret = gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12, &raw aad[0], 8, &raw chem_ct[0], 32, &raw chem_tag[0], 16, &raw mut chem_dec[0])
     if(ret < 0) { env.error("gcm_auth_decrypt failed"); return } else {}
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 32)) { env.error("GCM AES-256 auth decrypt roundtrip failed"); return } else {}
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 32)) { env.error("GCM AES-256 ct mismatch"); return } else {}
@@ -318,20 +318,20 @@ public func INT_aes_cbc_128_roundtrip(env : &mut TestEnv) {
     var pt : [64]u8; test_random_bytes(&raw mut pt[0], 64)
 
     var ctx : AESContext
-    aes_init(&raw mut ctx)
-    var ret = aes_setkey_enc(&raw mut ctx, &raw key[0], 16)
+    aes_init(unsafe(&raw mut ctx))
+    var ret = aes_setkey_enc(unsafe(&raw mut ctx), &raw key[0], 16)
     if(ret < 0) { env.error("aes_setkey_enc failed"); return } else {}
 
     var enc_out : [80]u8
     var enc_iv : [16]u8; var ii : size_t = 0; while(ii < 16) { enc_iv[ii] = iv[ii]; ii += 1 }
-    ret = aes_crypt_cbc(&raw mut ctx, AES_ENCRYPT, 64, &raw mut enc_iv[0], &raw pt[0], &raw mut enc_out[0])
+    ret = aes_crypt_cbc(unsafe(&raw mut ctx), AES_ENCRYPT, 64, &raw mut enc_iv[0], &raw pt[0], &raw mut enc_out[0])
     if(ret < 0) { env.error("aes_crypt_cbc encrypt failed"); return } else {}
 
-    ret = aes_setkey_dec(&raw mut ctx, &raw key[0], 16)
+    ret = aes_setkey_dec(unsafe(&raw mut ctx), &raw key[0], 16)
     if(ret < 0) { env.error("aes_setkey_dec failed"); return } else {}
     var dec_iv : [16]u8; ii = 0; while(ii < 16) { dec_iv[ii] = iv[ii]; ii += 1 }
     var dec_out : [80]u8
-    ret = aes_crypt_cbc(&raw mut ctx, AES_DECRYPT, 64, &raw mut dec_iv[0], &raw enc_out[0], &raw mut dec_out[0])
+    ret = aes_crypt_cbc(unsafe(&raw mut ctx), AES_DECRYPT, 64, &raw mut dec_iv[0], &raw enc_out[0], &raw mut dec_out[0])
     if(ret < 0) { env.error("aes_crypt_cbc decrypt failed"); return } else {}
 
     if(!test_bytes_eq(&raw dec_out[0], &raw pt[0], 64)) { env.error("AES-128 CBC roundtrip failed"); return } else {}
@@ -344,20 +344,20 @@ public func INT_aes_cbc_256_roundtrip(env : &mut TestEnv) {
     var pt : [64]u8; test_random_bytes(&raw mut pt[0], 64)
 
     var ctx : AESContext
-    aes_init(&raw mut ctx)
-    var ret = aes_setkey_enc(&raw mut ctx, &raw key[0], 32)
+    aes_init(unsafe(&raw mut ctx))
+    var ret = aes_setkey_enc(unsafe(&raw mut ctx), &raw key[0], 32)
     if(ret < 0) { env.error("aes_setkey_enc failed"); return } else {}
 
     var enc_out : [80]u8
     var enc_iv : [16]u8; var ii : size_t = 0; while(ii < 16) { enc_iv[ii] = iv[ii]; ii += 1 }
-    ret = aes_crypt_cbc(&raw mut ctx, AES_ENCRYPT, 64, &raw mut enc_iv[0], &raw pt[0], &raw mut enc_out[0])
+    ret = aes_crypt_cbc(unsafe(&raw mut ctx), AES_ENCRYPT, 64, &raw mut enc_iv[0], &raw pt[0], &raw mut enc_out[0])
     if(ret < 0) { env.error("aes_crypt_cbc encrypt failed"); return } else {}
 
-    ret = aes_setkey_dec(&raw mut ctx, &raw key[0], 32)
+    ret = aes_setkey_dec(unsafe(&raw mut ctx), &raw key[0], 32)
     if(ret < 0) { env.error("aes_setkey_dec failed"); return } else {}
     var dec_iv : [16]u8; ii = 0; while(ii < 16) { dec_iv[ii] = iv[ii]; ii += 1 }
     var dec_out : [80]u8
-    ret = aes_crypt_cbc(&raw mut ctx, AES_DECRYPT, 64, &raw mut dec_iv[0], &raw enc_out[0], &raw mut dec_out[0])
+    ret = aes_crypt_cbc(unsafe(&raw mut ctx), AES_DECRYPT, 64, &raw mut dec_iv[0], &raw enc_out[0], &raw mut dec_out[0])
     if(ret < 0) { env.error("aes_crypt_cbc decrypt failed"); return } else {}
 
     if(!test_bytes_eq(&raw dec_out[0], &raw pt[0], 64)) { env.error("AES-256 CBC roundtrip failed"); return } else {}
@@ -398,12 +398,12 @@ public func INT_aes_cbc_128_vs_python(env : &mut TestEnv) {
     if(ct_len == 0) { env.error("failed to parse Python output"); return } else {}
 
     var ctx : AESContext
-    aes_init(&raw mut ctx)
-    var ret = aes_setkey_enc(&raw mut ctx, &raw key[0], 16)
+    aes_init(unsafe(&raw mut ctx))
+    var ret = aes_setkey_enc(unsafe(&raw mut ctx), &raw key[0], 16)
     if(ret < 0) { env.error("aes_setkey_enc failed"); return } else {}
     var enc_iv : [16]u8; var ii : size_t = 0; while(ii < 16) { enc_iv[ii] = iv[ii]; ii += 1 }
     var chem_ct : [64]u8
-    ret = aes_crypt_cbc(&raw mut ctx, AES_ENCRYPT, 48, &raw mut enc_iv[0], &raw pt[0], &raw mut chem_ct[0])
+    ret = aes_crypt_cbc(unsafe(&raw mut ctx), AES_ENCRYPT, 48, &raw mut enc_iv[0], &raw pt[0], &raw mut chem_ct[0])
     if(ret < 0) { env.error("aes_crypt_cbc encrypt failed"); return } else {}
 
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], ct_len)) { env.error("AES-128 CBC ct mismatch vs Python"); return } else {}
@@ -444,12 +444,12 @@ public func INT_aes_cbc_256_vs_python(env : &mut TestEnv) {
     if(ct_len == 0) { env.error("failed to parse Python output"); return } else {}
 
     var ctx : AESContext
-    aes_init(&raw mut ctx)
-    var ret = aes_setkey_enc(&raw mut ctx, &raw key[0], 32)
+    aes_init(unsafe(&raw mut ctx))
+    var ret = aes_setkey_enc(unsafe(&raw mut ctx), &raw key[0], 32)
     if(ret < 0) { env.error("aes_setkey_enc failed"); return } else {}
     var enc_iv : [16]u8; var ii : size_t = 0; while(ii < 16) { enc_iv[ii] = iv[ii]; ii += 1 }
     var chem_ct : [64]u8
-    ret = aes_crypt_cbc(&raw mut ctx, AES_ENCRYPT, 48, &raw mut enc_iv[0], &raw pt[0], &raw mut chem_ct[0])
+    ret = aes_crypt_cbc(unsafe(&raw mut ctx), AES_ENCRYPT, 48, &raw mut enc_iv[0], &raw pt[0], &raw mut chem_ct[0])
     if(ret < 0) { env.error("aes_crypt_cbc encrypt failed"); return } else {}
 
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], ct_len)) { env.error("AES-256 CBC ct mismatch vs Python"); return } else {}
@@ -618,11 +618,11 @@ public func INT_sha256_incremental(env : &mut TestEnv) {
     if(hash_len != 32) { env.error("failed to parse Python output"); return } else {}
 
     var ctx : Sha256Context
-    sha256_init(&raw mut ctx)
-    sha256_update(&raw mut ctx, &raw part1[0], 32)
-    sha256_update(&raw mut ctx, &raw part2[0], 32)
+    sha256_init(unsafe(&raw mut ctx))
+    sha256_update(unsafe(&raw mut ctx), &raw part1[0], 32)
+    sha256_update(unsafe(&raw mut ctx), &raw part2[0], 32)
     var chem_hash : [32]u8
-    sha256_final(&raw mut ctx, &raw mut chem_hash[0])
+    sha256_final(unsafe(&raw mut ctx), &raw mut chem_hash[0])
 
     if(!test_bytes_eq(&raw chem_hash[0], &raw py_hash[0], 32)) { env.error("SHA-256 incremental mismatch"); return } else {}
 }
@@ -707,12 +707,12 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     if(hash_len != 16) { env.error("failed to parse Python output"); return } else {}
 
     var ctx : Md5Context
-    md5_init(&raw mut ctx)
-    md5_update(&raw mut ctx, &raw part1[0], 16)
-    md5_update(&raw mut ctx, &raw part2[0], 16)
-    md5_update(&raw mut ctx, &raw part3[0], 16)
+    md5_init(unsafe(&raw mut ctx))
+    md5_update(unsafe(&raw mut ctx), &raw part1[0], 16)
+    md5_update(unsafe(&raw mut ctx), &raw part2[0], 16)
+    md5_update(unsafe(&raw mut ctx), &raw part3[0], 16)
     var chem_hash : [16]u8
-    md5_final(&raw mut ctx, &raw mut chem_hash[0])
+    md5_final(unsafe(&raw mut ctx), &raw mut chem_hash[0])
 
     if(!test_bytes_eq(&raw chem_hash[0], &raw py_hash[0], 16)) { env.error("MD5 incremental mismatch"); return } else {}
 }
@@ -783,14 +783,14 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     if(test_parse_py_hex_label(&raw mut py_out, string_view("SK="), &raw mut sk_hex[0], 32)!=32){env.error("sk");return}else{}
     test_parse_py_hex_label(&raw mut py_out, string_view("PX="), &raw mut px_hex[0], 32)
     test_parse_py_hex_label(&raw mut py_out, string_view("PY="), &raw mut py_hex[0], 32)
-    var ctx : ECDSAContext; ecdsa_init(&raw mut ctx)
-    ecdsa_import_privkey(&raw mut ctx, &raw sk_hex[0], 32, TLS_GROUP_SECP256R1 as u16)
+    var ctx : ECDSAContext; ecdsa_init(unsafe(&raw mut ctx))
+    ecdsa_import_privkey(unsafe(&raw mut ctx), &raw sk_hex[0], 32, TLS_GROUP_SECP256R1 as u16)
     var sig : [128]u8; var sig_len : u16 = 128
-    if(ecdsa_sign(&raw mut ctx, &raw hash[0], 32, &raw mut sig[0], &raw mut sig_len) < 0){env.error("sign");return}else{}
-    var ctx2 : ECDSAContext; ecdsa_init(&raw mut ctx2)
+    if(ecdsa_sign(unsafe(&raw mut ctx), &raw hash[0], 32, &raw mut sig[0], &raw mut sig_len) < 0){env.error("sign");return}else{}
+    var ctx2 : ECDSAContext; ecdsa_init(unsafe(&raw mut ctx2))
     var pub_key : [65]u8; pub_key[0]=4; var i:size_t=0;while(i<32){pub_key[1+i]=px_hex[i];pub_key[33+i]=py_hex[i];i+=1}
-    ecdsa_import_pubkey(&raw mut ctx2, &raw pub_key[0], 65, TLS_GROUP_SECP256R1 as u16)
-    if(ecdsa_verify(&raw mut ctx2, &raw hash[0], 32, &raw sig[0], sig_len) < 0){env.error("verify");return}else{}
+    ecdsa_import_pubkey(unsafe(&raw mut ctx2), &raw pub_key[0], 65, TLS_GROUP_SECP256R1 as u16)
+    if(ecdsa_verify(unsafe(&raw mut ctx2), &raw hash[0], 32, &raw sig[0], sig_len) < 0){env.error("verify");return}else{}
 }
 
 @test public func INT_dbg_cv_sign(env : &mut TestEnv) {
@@ -804,8 +804,8 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     test_parse_py_hex_label(&raw mut py_out, string_view("PY="), &raw mut py_hex[0], 32)
     var px_hexstr : [65]char; test_bytes_to_hex(&raw px_hex[0], 32, &raw mut px_hexstr[0])
     var py_hexstr : [65]char; test_bytes_to_hex(&raw py_hex[0], 32, &raw mut py_hexstr[0])
-    var ctx : ECDSAContext; ecdsa_init(&raw mut ctx)
-    ecdsa_import_privkey(&raw mut ctx, &raw sk_hex[0], 32, TLS_GROUP_SECP256R1 as u16)
+    var ctx : ECDSAContext; ecdsa_init(unsafe(&raw mut ctx))
+    ecdsa_import_privkey(unsafe(&raw mut ctx), &raw sk_hex[0], 32, TLS_GROUP_SECP256R1 as u16)
     var th : [32]u8; sha256_hash("fixed transcript for cv debug\0" as *u8, 28, &raw mut th[0])
     var sig_in : [200]u8; var sp2 : size_t = 0
     while(sp2<64){sig_in[sp2]=0x20 as u8;sp2+=1}
@@ -816,7 +816,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     sp2+=32
     var cv_hash : [32]u8; sha256_hash(&raw sig_in[0], sp2, &raw mut cv_hash[0])
     var sig : [256]u8; var sig_len : u16 = 256
-    if(ecdsa_sign(&raw mut ctx, &raw cv_hash[0], 32, &raw mut sig[0], &raw mut sig_len) < 0){env.error("sign");return}else{}
+    if(ecdsa_sign(unsafe(&raw mut ctx), &raw cv_hash[0], 32, &raw mut sig[0], &raw mut sig_len) < 0){env.error("sign");return}else{}
     var sig_hex : [513]char; test_bytes_to_hex(&raw sig[0], sig_len as size_t, &raw mut sig_hex[0])
     var th_hex : [65]char; test_bytes_to_hex(&raw th[0], 32, &raw mut th_hex[0])
     var script2 : [1024]u8; var sp3 : size_t = 0; var si3 : size_t = 0
@@ -854,10 +854,10 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     test_parse_py_hex_label(&raw mut py_out, string_view("PY="), &raw mut py_hex[0], 32)
     var sig_len = test_parse_py_hex_label(&raw mut py_out, string_view("SIG="), &raw mut sig_hex[0], 128)
     if(sig_len==0){env.error("sig");return}else{}
-    var ctx : ECDSAContext; ecdsa_init(&raw mut ctx)
+    var ctx : ECDSAContext; ecdsa_init(unsafe(&raw mut ctx))
     var pub_key : [65]u8; pub_key[0]=4; var i:size_t=0;while(i<32){pub_key[1+i]=px_hex[i];pub_key[33+i]=py_hex[i];i+=1}
-    ecdsa_import_pubkey(&raw mut ctx, &raw pub_key[0], 65, TLS_GROUP_SECP256R1 as u16)
-    if(ecdsa_verify(&raw mut ctx, &raw hash[0], 32, &raw sig_hex[0], sig_len) < 0){env.error("ecdsa verify vs py");return}else{}
+    ecdsa_import_pubkey(unsafe(&raw mut ctx), &raw pub_key[0], 65, TLS_GROUP_SECP256R1 as u16)
+    if(ecdsa_verify(unsafe(&raw mut ctx), &raw hash[0], 32, &raw sig_hex[0], sig_len) < 0){env.error("ecdsa verify vs py");return}else{}
 }
 
 @test public func INT_ecdsa_sign_py_verify(env : &mut TestEnv) {
@@ -873,9 +873,9 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var py_hexstr : [65]char; test_bytes_to_hex(&raw py_hex[0], 32, &raw mut py_hexstr[0])
     var hash : [32]u8; test_random_bytes(&raw mut hash[0], 32)
     var h_hex : [65]char; test_bytes_to_hex(&raw hash[0], 32, &raw mut h_hex[0])
-    var ctx : ECDSAContext; ecdsa_init(&raw mut ctx); ecdsa_import_privkey(&raw mut ctx, &raw sk_hex[0], 32, TLS_GROUP_SECP256R1 as u16)
+    var ctx : ECDSAContext; ecdsa_init(unsafe(&raw mut ctx)); ecdsa_import_privkey(unsafe(&raw mut ctx), &raw sk_hex[0], 32, TLS_GROUP_SECP256R1 as u16)
     var sig : [128]u8; var sig_len : u16 = 128
-    ecdsa_sign(&raw mut ctx, &raw hash[0], 32, &raw mut sig[0], &raw mut sig_len)
+    ecdsa_sign(unsafe(&raw mut ctx), &raw hash[0], 32, &raw mut sig[0], &raw mut sig_len)
     var sig_hex : [257]char; test_bytes_to_hex(&raw sig[0], sig_len as size_t, &raw mut sig_hex[0])
     script[0]=0; sp=0; si=0
     hdr = "from cryptography.hazmat.primitives.asymmetric import ec,utils\nfrom cryptography.hazmat.primitives import hashes\nkey=ec.EllipticCurvePublicNumbers(int.from_bytes(bytes.fromhex('" as *char
@@ -903,8 +903,8 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     test_parse_py_hex_label(&raw mut py_out, string_view("PX="), &raw mut px[0], 48)
     test_parse_py_hex_label(&raw mut py_out, string_view("PY="), &raw mut py[0], 48)
     var pub_key : [97]u8; pub_key[0]=4; var i:size_t=0;while(i<48){pub_key[1+i]=px[i];pub_key[49+i]=py[i];i+=1}
-    var ctx : ECDSAContext; ecdsa_init(&raw mut ctx)
-    ecdsa_import_pubkey(&raw mut ctx, &raw pub_key[0], 97, TLS_GROUP_SECP384R1 as u16)
+    var ctx : ECDSAContext; ecdsa_init(unsafe(&raw mut ctx))
+    ecdsa_import_pubkey(unsafe(&raw mut ctx), &raw pub_key[0], 97, TLS_GROUP_SECP384R1 as u16)
 }
 
 @test public func INT_ecdsa_sign_verify_p384(env : &mut TestEnv) {
@@ -918,14 +918,14 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     if(test_parse_py_hex_label(&raw mut py_out, string_view("SK="), &raw mut sk_hex[0], 48)!=48){env.error("sk p384");return}else{}
     test_parse_py_hex_label(&raw mut py_out, string_view("PX="), &raw mut px_hex[0], 48)
     test_parse_py_hex_label(&raw mut py_out, string_view("PY="), &raw mut py_hex[0], 48)
-    var ctx : ECDSAContext; ecdsa_init(&raw mut ctx)
-    ecdsa_import_privkey(&raw mut ctx, &raw sk_hex[0], 48, TLS_GROUP_SECP384R1 as u16)
+    var ctx : ECDSAContext; ecdsa_init(unsafe(&raw mut ctx))
+    ecdsa_import_privkey(unsafe(&raw mut ctx), &raw sk_hex[0], 48, TLS_GROUP_SECP384R1 as u16)
     var sig : [256]u8; var sig_len : u16 = 256
-    if(ecdsa_sign(&raw mut ctx, &raw hash[0], 48, &raw mut sig[0], &raw mut sig_len) < 0){env.error("sign p384");return}else{}
-    var ctx2 : ECDSAContext; ecdsa_init(&raw mut ctx2)
+    if(ecdsa_sign(unsafe(&raw mut ctx), &raw hash[0], 48, &raw mut sig[0], &raw mut sig_len) < 0){env.error("sign p384");return}else{}
+    var ctx2 : ECDSAContext; ecdsa_init(unsafe(&raw mut ctx2))
     var pub_key : [97]u8; pub_key[0]=4; var i:size_t=0;while(i<48){pub_key[1+i]=px_hex[i];pub_key[49+i]=py_hex[i];i+=1}
-    ecdsa_import_pubkey(&raw mut ctx2, &raw pub_key[0], 97, TLS_GROUP_SECP384R1 as u16)
-    if(ecdsa_verify(&raw mut ctx2, &raw hash[0], 48, &raw sig[0], sig_len) < 0){env.error("verify p384");return}else{}
+    ecdsa_import_pubkey(unsafe(&raw mut ctx2), &raw pub_key[0], 97, TLS_GROUP_SECP384R1 as u16)
+    if(ecdsa_verify(unsafe(&raw mut ctx2), &raw hash[0], 48, &raw sig[0], sig_len) < 0){env.error("verify p384");return}else{}
 }
 
 @test public func INT_ecdsa_verify_py_sig_p384(env : &mut TestEnv) {
@@ -944,10 +944,10 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     test_parse_py_hex_label(&raw mut py_out, string_view("PY="), &raw mut py_hex[0], 48)
     var sig_len = test_parse_py_hex_label(&raw mut py_out, string_view("SIG="), &raw mut sig_hex[0], 256)
     if(sig_len==0){env.error("sig p384");return}else{}
-    var ctx : ECDSAContext; ecdsa_init(&raw mut ctx)
+    var ctx : ECDSAContext; ecdsa_init(unsafe(&raw mut ctx))
     var pub_key : [97]u8; pub_key[0]=4; var i:size_t=0;while(i<48){pub_key[1+i]=px_hex[i];pub_key[49+i]=py_hex[i];i+=1}
-    ecdsa_import_pubkey(&raw mut ctx, &raw pub_key[0], 97, TLS_GROUP_SECP384R1 as u16)
-    if(ecdsa_verify(&raw mut ctx, &raw hash[0], 48, &raw sig_hex[0], sig_len) < 0){env.error("ecdsa verify vs py p384");return}else{}
+    ecdsa_import_pubkey(unsafe(&raw mut ctx), &raw pub_key[0], 97, TLS_GROUP_SECP384R1 as u16)
+    if(ecdsa_verify(unsafe(&raw mut ctx), &raw hash[0], 48, &raw sig_hex[0], sig_len) < 0){env.error("ecdsa verify vs py p384");return}else{}
 }
 
 @test public func INT_ecdsa_sign_py_verify_p384(env : &mut TestEnv) {
@@ -964,9 +964,9 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var data : [40]u8; test_random_bytes(&raw mut data[0], 40)
     var hash : [48]u8; sha384_hash(&raw data[0], 40, &raw mut hash[0])
     var h_hex : [97]char; test_bytes_to_hex(&raw hash[0], 48, &raw mut h_hex[0])
-    var ctx : ECDSAContext; ecdsa_init(&raw mut ctx); ecdsa_import_privkey(&raw mut ctx, &raw sk_hex[0], 48, TLS_GROUP_SECP384R1 as u16)
+    var ctx : ECDSAContext; ecdsa_init(unsafe(&raw mut ctx)); ecdsa_import_privkey(unsafe(&raw mut ctx), &raw sk_hex[0], 48, TLS_GROUP_SECP384R1 as u16)
     var sig : [256]u8; var sig_len : u16 = 256
-    ecdsa_sign(&raw mut ctx, &raw hash[0], 48, &raw mut sig[0], &raw mut sig_len)
+    ecdsa_sign(unsafe(&raw mut ctx), &raw hash[0], 48, &raw mut sig[0], &raw mut sig_len)
     var sig_hex : [513]char; test_bytes_to_hex(&raw sig[0], sig_len as size_t, &raw mut sig_hex[0])
     var script2 : [2048]u8; var sp2 : size_t = 0; var si2 : size_t = 0
     script2[0]=0
@@ -1003,18 +1003,18 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     if(n_len==0||d_len==0){env.error("rsa key parse");return}else{}
     var e_bytes : [3]u8; e_bytes[0]=1; e_bytes[1]=0; e_bytes[2]=1
     var pt : [16]u8; test_random_bytes(&raw mut pt[0], 16)
-    var ctx : RSAContext; rsa_init(&raw mut ctx, 0, 0)
-    rsa_import_pubkey(&raw mut ctx, &raw n_hex[0], n_len, &raw e_bytes[0], 3)
+    var ctx : RSAContext; rsa_init(unsafe(&raw mut ctx), 0, 0)
+    rsa_import_pubkey(unsafe(&raw mut ctx), &raw n_hex[0], n_len, &raw e_bytes[0], 3)
     var ct : [256]u8
-    if(rsa_pkcs1_encrypt(&raw mut ctx, &raw pt[0], 16, &raw mut ct[0]) < 0){env.error("encrypt");return}else{}
-    rsa_free(&raw mut ctx)
-    var ctx2 : RSAContext; rsa_init(&raw mut ctx2, 0, 0)
-    rsa_import_pubkey(&raw mut ctx2, &raw n_hex[0], n_len, &raw e_bytes[0], 3)
-    rsa_import_privkey(&raw mut ctx2, &raw n_hex[0], n_len, &raw d_hex[0], d_len)
+    if(rsa_pkcs1_encrypt(unsafe(&raw mut ctx), &raw pt[0], 16, &raw mut ct[0]) < 0){env.error("encrypt");return}else{}
+    rsa_free(unsafe(&raw mut ctx))
+    var ctx2 : RSAContext; rsa_init(unsafe(&raw mut ctx2), 0, 0)
+    rsa_import_pubkey(unsafe(&raw mut ctx2), &raw n_hex[0], n_len, &raw e_bytes[0], 3)
+    rsa_import_privkey(unsafe(&raw mut ctx2), &raw n_hex[0], n_len, &raw d_hex[0], d_len)
     var dec : [256]u8; var dec_len : size_t = 256
-    if(rsa_pkcs1_decrypt(&raw mut ctx2, &raw ct[0], n_len, &raw mut dec[0], &raw mut dec_len, 256) < 0){env.error("decrypt");return}else{}
+    if(rsa_pkcs1_decrypt(unsafe(&raw mut ctx2), &raw ct[0], n_len, &raw mut dec[0], &raw mut dec_len, 256) < 0){env.error("decrypt");return}else{}
     if(!test_bytes_eq(&raw pt[0], &raw dec[0], 16)){env.error("rsa roundtrip");return}else{}
-    rsa_free(&raw mut ctx2)
+    rsa_free(unsafe(&raw mut ctx2))
 }
 
 @test @test.timeout(60000) public func INT_rsa_sign_verify(env : &mut TestEnv) {
@@ -1030,11 +1030,11 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var msg_len = test_parse_py_hex_label(&raw mut py_out, string_view("MSG="), &raw mut msg_hex[0], 32)
     if(n_len==0||sig_len==0||msg_len==0){env.error("rsa sig parse");return}else{}
     var e_bytes : [3]u8; e_bytes[0]=1; e_bytes[1]=0; e_bytes[2]=1
-    var ctx : RSAContext; rsa_init(&raw mut ctx, 0, 0)
-    rsa_import_pubkey(&raw mut ctx, &raw n_hex[0], n_len, &raw e_bytes[0], 3)
+    var ctx : RSAContext; rsa_init(unsafe(&raw mut ctx), 0, 0)
+    rsa_import_pubkey(unsafe(&raw mut ctx), &raw n_hex[0], n_len, &raw e_bytes[0], 3)
     var digest : [32]u8; sha256_hash(&raw msg_hex[0], msg_len, &raw mut digest[0])
-    if(rsa_pkcs1_verify(&raw mut ctx, &raw digest[0], 32, &raw sig_hex[0], sig_len) < 0){env.error("rsa verify");return}else{}
-    rsa_free(&raw mut ctx)
+    if(rsa_pkcs1_verify(unsafe(&raw mut ctx), &raw digest[0], 32, &raw sig_hex[0], sig_len) < 0){env.error("rsa verify");return}else{}
+    rsa_free(unsafe(&raw mut ctx))
 }
 
 // ============================================================
@@ -1124,12 +1124,12 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     test_parse_py_hex_label(&raw mut py_out, string_view("E="), &raw mut e_hex[0], 32)
     test_parse_py_hex_label(&raw mut py_out, string_view("M="), &raw mut m_hex[0], 32)
     test_parse_py_hex_label(&raw mut py_out, string_view("R="), &raw mut r_hex[0], 32)
-    var b : Mpi; mpi_read_binary(&raw mut b, &raw b_hex[0], 32)
-    var e : Mpi; mpi_read_binary(&raw mut e, &raw e_hex[0], 32)
-    var m : Mpi; mpi_read_binary(&raw mut m, &raw m_hex[0], 32)
-    var r : Mpi; mpi_init(&raw mut r)
-    if(mpi_exp_mod(&raw mut r, &raw mut b, &raw mut e, &raw mut m) < 0){env.error("exp_mod");return}else{}
-    var chem_r : [32]u8; mpi_write_binary(&raw mut r, &raw mut chem_r[0], 32)
+    var b : Mpi; mpi_read_binary(unsafe(&raw mut b), &raw b_hex[0], 32)
+    var e : Mpi; mpi_read_binary(unsafe(&raw mut e), &raw e_hex[0], 32)
+    var m : Mpi; mpi_read_binary(unsafe(&raw mut m), &raw m_hex[0], 32)
+    var r : Mpi; mpi_init(unsafe(&raw mut r))
+    if(mpi_exp_mod(unsafe(&raw mut r), unsafe(&raw mut b), unsafe(&raw mut e), unsafe(&raw mut m)) < 0){env.error("exp_mod");return}else{}
+    var chem_r : [32]u8; mpi_write_binary(unsafe(&raw mut r), &raw mut chem_r[0], 32)
     if(!test_bytes_eq(&raw chem_r[0], &raw r_hex[0], 32)){env.error("exp_mod mismatch");return}else{}
 }
 
@@ -1141,14 +1141,14 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var a_hex : [32]u8; var m_hex : [32]u8
     test_parse_py_hex_label(&raw mut py_out, string_view("A="), &raw mut a_hex[0], 16)
     test_parse_py_hex_label(&raw mut py_out, string_view("M="), &raw mut m_hex[0], 16)
-    var a : Mpi; mpi_read_binary(&raw mut a, &raw a_hex[0], 16)
-    var m : Mpi; mpi_read_binary(&raw mut m, &raw m_hex[0], 16)
-    var r : Mpi; mpi_init(&raw mut r)
-    if(mpi_mod_inv(&raw mut r, &raw mut a, &raw mut m) < 0){env.error("mod_inv");return}else{}
-    var check : Mpi; mpi_init(&raw mut check)
-    mpi_mul(&raw mut check, &raw mut r, &raw mut a); mpi_mod(&raw mut check, &raw mut check, &raw mut m)
-    var one : Mpi; mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
-    if(mpi_cmp(&raw mut check, &raw mut one) != 0){env.error("mod_inv check");return}else{}
+    var a : Mpi; mpi_read_binary(unsafe(&raw mut a), &raw a_hex[0], 16)
+    var m : Mpi; mpi_read_binary(unsafe(&raw mut m), &raw m_hex[0], 16)
+    var r : Mpi; mpi_init(unsafe(&raw mut r))
+    if(mpi_mod_inv(unsafe(&raw mut r), unsafe(&raw mut a), unsafe(&raw mut m)) < 0){env.error("mod_inv");return}else{}
+    var check : Mpi; mpi_init(unsafe(&raw mut check))
+    mpi_mul(unsafe(&raw mut check), unsafe(&raw mut r), unsafe(&raw mut a)); mpi_mod(unsafe(&raw mut check), unsafe(&raw mut check), unsafe(&raw mut m))
+    var one : Mpi; mpi_init(unsafe(&raw mut one)); mpi_lset(unsafe(&raw mut one), 1)
+    if(mpi_cmp(unsafe(&raw mut check), unsafe(&raw mut one)) != 0){env.error("mod_inv check");return}else{}
 }
 
 @test public func INT_mpi_gcd_vs_py(env : &mut TestEnv) {
@@ -1160,32 +1160,32 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     test_parse_py_hex_label(&raw mut py_out, string_view("A="), &raw mut a_hex[0], 16)
     test_parse_py_hex_label(&raw mut py_out, string_view("B="), &raw mut b_hex[0], 16)
     test_parse_py_hex_label(&raw mut py_out, string_view("G="), &raw mut g_hex[0], 16)
-    var a : Mpi; mpi_read_binary(&raw mut a, &raw a_hex[0], 16)
-    var b : Mpi; mpi_read_binary(&raw mut b, &raw b_hex[0], 16)
-    var g : Mpi; mpi_init(&raw mut g); mpi_gcd(&raw mut g, &raw mut a, &raw mut b)
-    var chem_g : [16]u8; mpi_write_binary(&raw mut g, &raw mut chem_g[0], 16)
+    var a : Mpi; mpi_read_binary(unsafe(&raw mut a), &raw a_hex[0], 16)
+    var b : Mpi; mpi_read_binary(unsafe(&raw mut b), &raw b_hex[0], 16)
+    var g : Mpi; mpi_init(unsafe(&raw mut g)); mpi_gcd(unsafe(&raw mut g), unsafe(&raw mut a), unsafe(&raw mut b))
+    var chem_g : [16]u8; mpi_write_binary(unsafe(&raw mut g), &raw mut chem_g[0], 16)
     if(!test_bytes_eq(&raw chem_g[0], &raw g_hex[0], 16)){env.error("gcd mismatch");return}else{}
 }
 
 @test public func INT_mpi_shift_ops(env : &mut TestEnv) {
-    var a : Mpi; mpi_init(&raw mut a); mpi_lset(&raw mut a, 0x12345678)
-    var b : Mpi; mpi_init(&raw mut b); mpi_copy(&raw mut b, &raw mut a)
-    mpi_shift_l(&raw mut b, 8)
-    var c : Mpi; mpi_init(&raw mut c); mpi_copy(&raw mut c, &raw mut b)
-    mpi_shift_r(&raw mut c, 8)
-    if(mpi_cmp(&raw mut a, &raw mut c) != 0){env.error("shift roundtrip");return}else{}
+    var a : Mpi; mpi_init(unsafe(&raw mut a)); mpi_lset(unsafe(&raw mut a), 0x12345678)
+    var b : Mpi; mpi_init(unsafe(&raw mut b)); mpi_copy(unsafe(&raw mut b), unsafe(&raw mut a))
+    mpi_shift_l(unsafe(&raw mut b), 8)
+    var c : Mpi; mpi_init(unsafe(&raw mut c)); mpi_copy(unsafe(&raw mut c), unsafe(&raw mut b))
+    mpi_shift_r(unsafe(&raw mut c), 8)
+    if(mpi_cmp(unsafe(&raw mut a), unsafe(&raw mut c)) != 0){env.error("shift roundtrip");return}else{}
 }
 
 @test public func INT_mpi_cmp_ops(env : &mut TestEnv) {
-    var a : Mpi; mpi_init(&raw mut a); mpi_lset(&raw mut a, 100)
-    var b : Mpi; mpi_init(&raw mut b); mpi_lset(&raw mut b, 200)
-    var c : Mpi; mpi_init(&raw mut c); mpi_lset(&raw mut c, 100)
-    if(mpi_cmp(&raw mut a, &raw mut b) >= 0){env.error("cmp a<b");return}else{}
-    if(mpi_cmp(&raw mut b, &raw mut a) <= 0){env.error("cmp b>a");return}else{}
-    if(mpi_cmp(&raw mut a, &raw mut c) != 0){env.error("cmp a==c");return}else{}
-    if(mpi_cmp_int(&raw mut a, 100) != 0){env.error("cmp int");return}else{}
-    if(mpi_size(&raw mut a) == 0){env.error("size zero");return}else{}
-    if(mpi_bitlen(&raw mut a) == 0){env.error("bitlen zero");return}else{}
+    var a : Mpi; mpi_init(unsafe(&raw mut a)); mpi_lset(unsafe(&raw mut a), 100)
+    var b : Mpi; mpi_init(unsafe(&raw mut b)); mpi_lset(unsafe(&raw mut b), 200)
+    var c : Mpi; mpi_init(unsafe(&raw mut c)); mpi_lset(unsafe(&raw mut c), 100)
+    if(mpi_cmp(unsafe(&raw mut a), unsafe(&raw mut b)) >= 0){env.error("cmp a<b");return}else{}
+    if(mpi_cmp(unsafe(&raw mut b), unsafe(&raw mut a)) <= 0){env.error("cmp b>a");return}else{}
+    if(mpi_cmp(unsafe(&raw mut a), unsafe(&raw mut c)) != 0){env.error("cmp a==c");return}else{}
+    if(mpi_cmp_int(unsafe(&raw mut a), 100) != 0){env.error("cmp int");return}else{}
+    if(mpi_size(unsafe(&raw mut a)) == 0){env.error("size zero");return}else{}
+    if(mpi_bitlen(unsafe(&raw mut a)) == 0){env.error("bitlen zero");return}else{}
 }
 
 // ============================================================
@@ -1193,62 +1193,62 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 // ============================================================
 
 @test public func INT_tls13_record_empty(env : &mut TestEnv) {
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
-    var tr : Transform; transform_init(&raw mut tr)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var tr : Transform; transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_AES_128_GCM as u8; tr.hash_type = HASH_SHA256 as u8
     tr.key_len = 16; tr.iv_len = 12; tr.fixed_iv_len = 4
     var i : size_t = 0; while(i<16){tr.key_enc[i]=i as u8;tr.key_dec[i]=i as u8;i+=1}
     while(i<28){tr.iv_enc[i-16]=i as u8;tr.iv_dec[i-16]=i as u8;tr.base_iv_enc[i-16]=i as u8;tr.base_iv_dec[i-16]=i as u8;i+=1}
-    var tr_out = malloc(sizeof(Transform)) as *mut Transform; *tr_out = tr; ctx.transform_out = tr_out
-    var tr_in = malloc(sizeof(Transform)) as *mut Transform; *tr_in = tr; ctx.transform_in = tr_in
+    var tr_out = malloc(sizeof(Transform)) as *mut Transform; *tr_out = tr;unsafe { ctx.transform_out = tr_out }
+    var tr_in = malloc(sizeof(Transform)) as *mut Transform; *tr_in = tr;unsafe { ctx.transform_in = tr_in }
     i=0; while(i<8){ctx.in_ctr[i]=0;ctx.out_ctr[i]=0;i+=1}
-    var enc : [32]u8; var elen = tls13_encrypt_record(&raw mut ctx, SSL_MSG_APPLICATION_DATA as u8, null, 0, &raw mut enc[0], 32)
+    var enc : [32]u8; var elen = tls13_encrypt_record(unsafe(&raw mut ctx), SSL_MSG_APPLICATION_DATA as u8, null, 0, &raw mut enc[0], 32)
     if(elen < 0){env.error("empty encrypt");return}else{}
     ctx.in_hdr[0]=enc[0];ctx.in_hdr[1]=enc[1];ctx.in_hdr[2]=enc[2];ctx.in_hdr[3]=enc[3];ctx.in_hdr[4]=enc[4]
     var dec_buf : [32]u8; var inner_ct : u8 = 0
-    var dlen = tls13_decrypt_record(&raw mut ctx, &raw enc[5], (elen-5) as size_t, &raw mut dec_buf[0], 32, &raw mut inner_ct)
+    var dlen = tls13_decrypt_record(unsafe(&raw mut ctx), &raw enc[5], (elen-5) as size_t, &raw mut dec_buf[0], 32, &raw mut inner_ct)
     if(dlen < 0){env.error("empty decrypt");return}else{}
     if(inner_ct != SSL_MSG_APPLICATION_DATA as u8){env.error("inner ct");return}else{}
     // transforms are freed by the SSLContext destructor (ssl_free)
 }
 
 @test public func INT_tls13_record_large(env : &mut TestEnv) {
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
-    var tr : Transform; transform_init(&raw mut tr)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var tr : Transform; transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_AES_128_GCM as u8; tr.hash_type = HASH_SHA256 as u8
     tr.key_len = 16; tr.iv_len = 12; tr.fixed_iv_len = 4
     var i : size_t = 0; while(i<16){tr.key_enc[i]=i as u8;tr.key_dec[i]=i as u8;i+=1}
     while(i<28){tr.iv_enc[i-16]=i as u8;tr.iv_dec[i-16]=i as u8;tr.base_iv_enc[i-16]=i as u8;tr.base_iv_dec[i-16]=i as u8;i+=1}
-    var tr_out = malloc(sizeof(Transform)) as *mut Transform; *tr_out = tr; ctx.transform_out = tr_out
-    var tr_in = malloc(sizeof(Transform)) as *mut Transform; *tr_in = tr; ctx.transform_in = tr_in
+    var tr_out = malloc(sizeof(Transform)) as *mut Transform; *tr_out = tr;unsafe { ctx.transform_out = tr_out }
+    var tr_in = malloc(sizeof(Transform)) as *mut Transform; *tr_in = tr;unsafe { ctx.transform_in = tr_in }
     i=0; while(i<8){ctx.in_ctr[i]=0;ctx.out_ctr[i]=0;i+=1}
     var data : [16384]u8; test_random_bytes(&raw mut data[0], 16384)
-    var enc : [16410]u8; var elen = tls13_encrypt_record(&raw mut ctx, SSL_MSG_APPLICATION_DATA as u8, &raw data[0], 16384, &raw mut enc[0], 16410)
+    var enc : [16410]u8; var elen = tls13_encrypt_record(unsafe(&raw mut ctx), SSL_MSG_APPLICATION_DATA as u8, &raw data[0], 16384, &raw mut enc[0], 16410)
     if(elen < 0){env.error("large encrypt");return}else{}
     ctx.in_hdr[0]=enc[0];ctx.in_hdr[1]=enc[1];ctx.in_hdr[2]=enc[2];ctx.in_hdr[3]=enc[3];ctx.in_hdr[4]=enc[4]
     var dec_buf : [16400]u8; var inner_ct : u8 = 0
-    var dlen = tls13_decrypt_record(&raw mut ctx, &raw enc[5], (elen-5) as size_t, &raw mut dec_buf[0], 16400, &raw mut inner_ct)
+    var dlen = tls13_decrypt_record(unsafe(&raw mut ctx), &raw enc[5], (elen-5) as size_t, &raw mut dec_buf[0], 16400, &raw mut inner_ct)
     if(dlen < 0){env.error("large decrypt");return}else{}
     if(!test_bytes_eq(&raw data[0], &raw dec_buf[0], 16384)){env.error("large data");return}else{}
     // transforms are freed by the SSLContext destructor (ssl_free)
 }
 
 @test public func INT_tls13_record_handshake_ct(env : &mut TestEnv) {
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
-    var tr : Transform; transform_init(&raw mut tr)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var tr : Transform; transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_AES_128_GCM as u8; tr.hash_type = HASH_SHA256 as u8
     tr.key_len = 16; tr.iv_len = 12; tr.fixed_iv_len = 4
     var i : size_t = 0; while(i<16){tr.key_enc[i]=i as u8;tr.key_dec[i]=i as u8;i+=1}
     while(i<28){tr.iv_enc[i-16]=i as u8;tr.iv_dec[i-16]=i as u8;tr.base_iv_enc[i-16]=i as u8;tr.base_iv_dec[i-16]=i as u8;i+=1}
-    var tr_out = malloc(sizeof(Transform)) as *mut Transform; *tr_out = tr; ctx.transform_out = tr_out
-    var tr_in = malloc(sizeof(Transform)) as *mut Transform; *tr_in = tr; ctx.transform_in = tr_in
+    var tr_out = malloc(sizeof(Transform)) as *mut Transform; *tr_out = tr;unsafe { ctx.transform_out = tr_out }
+    var tr_in = malloc(sizeof(Transform)) as *mut Transform; *tr_in = tr;unsafe { ctx.transform_in = tr_in }
     i=0; while(i<8){ctx.in_ctr[i]=0;ctx.out_ctr[i]=0;i+=1}
     var data : [32]u8; test_random_bytes(&raw mut data[0], 32)
-    var enc : [64]u8; var elen = tls13_encrypt_record(&raw mut ctx, SSL_MSG_HANDSHAKE as u8, &raw data[0], 32, &raw mut enc[0], 64)
+    var enc : [64]u8; var elen = tls13_encrypt_record(unsafe(&raw mut ctx), SSL_MSG_HANDSHAKE as u8, &raw data[0], 32, &raw mut enc[0], 64)
     if(elen < 0){env.error("hs encrypt");return}else{}
     ctx.in_hdr[0]=enc[0];ctx.in_hdr[1]=enc[1];ctx.in_hdr[2]=enc[2];ctx.in_hdr[3]=enc[3];ctx.in_hdr[4]=enc[4]
     var dec_buf : [64]u8; var inner_ct : u8 = 0
-    var dlen = tls13_decrypt_record(&raw mut ctx, &raw enc[5], (elen-5) as size_t, &raw mut dec_buf[0], 64, &raw mut inner_ct)
+    var dlen = tls13_decrypt_record(unsafe(&raw mut ctx), &raw enc[5], (elen-5) as size_t, &raw mut dec_buf[0], 64, &raw mut inner_ct)
     if(dlen < 0){env.error("hs decrypt");return}else{}
     if(inner_ct != SSL_MSG_HANDSHAKE as u8){env.error("hs inner ct");return}else{}
     if(!test_bytes_eq(&raw data[0], &raw dec_buf[0], 32)){env.error("hs data");return}else{}
@@ -1260,27 +1260,27 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 // ============================================================
 
 @test public func INT_tls13_derive_app_keys(env : &mut TestEnv) {
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx, &raw mut cfg)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)
     var ss : [32]u8; test_random_bytes(&raw mut ss[0], 32)
     var hh : [32]u8; test_random_bytes(&raw mut hh[0], 32)
-    if(tls13_derive_handshake_keys(&raw mut ctx, &raw ss[0], 32, &raw hh[0]) < 0){env.error("hs keys");return}else{}
-    if(tls13_derive_application_keys(&raw mut ctx, &raw hh[0], 32) < 0){env.error("app keys");return}else{}
+    if(tls13_derive_handshake_keys(unsafe(&raw mut ctx), &raw ss[0], 32, &raw hh[0]) < 0){env.error("hs keys");return}else{}
+    if(tls13_derive_application_keys(unsafe(&raw mut ctx), &raw hh[0], 32) < 0){env.error("app keys");return}else{}
 }
 
 @test public func INT_tls13_key_update(env : &mut TestEnv) {
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx, &raw mut cfg)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)
     var ss : [32]u8; test_random_bytes(&raw mut ss[0], 32)
     var hh : [32]u8; test_random_bytes(&raw mut hh[0], 32)
-    tls13_derive_handshake_keys(&raw mut ctx, &raw ss[0], 32, &raw hh[0])
-    tls13_derive_application_keys(&raw mut ctx, &raw hh[0], 32)
-    if(tls13_update_send_keys(&raw mut ctx) < 0){env.error("update send");return}else{}
-    if(tls13_update_recv_keys(&raw mut ctx) < 0){env.error("update recv");return}else{}
+    tls13_derive_handshake_keys(unsafe(&raw mut ctx), &raw ss[0], 32, &raw hh[0])
+    tls13_derive_application_keys(unsafe(&raw mut ctx), &raw hh[0], 32)
+    if(tls13_update_send_keys(unsafe(&raw mut ctx)) < 0){env.error("update send");return}else{}
+    if(tls13_update_recv_keys(unsafe(&raw mut ctx)) < 0){env.error("update recv");return}else{}
 }
 
 // ============================================================
@@ -1329,12 +1329,12 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var key : [16]u8; var i : size_t = 0; while(i<16){key[i]=shared_a[i]^shared_a[16+i];i+=1}
     var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
     var pt : [40]u8; test_random_bytes(&raw mut pt[0], 40)
-    var gcm : GCMContext; gcm_init(&raw mut gcm, &raw key[0], 16)
+    var gcm : GCMContext; gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
     var ct : [40]u8; var tag : [16]u8
-    gcm_crypt_and_tag(&raw mut gcm, &raw iv[0], 12, null, 0, &raw pt[0], 40, &raw mut ct[0], &raw mut tag[0])
-    var gcm2 : GCMContext; gcm_init(&raw mut gcm2, &raw key[0], 16)
+    gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, null, 0, &raw pt[0], 40, &raw mut ct[0], &raw mut tag[0])
+    var gcm2 : GCMContext; gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16)
     var dec : [40]u8
-    if(gcm_auth_decrypt(&raw mut gcm2, &raw iv[0], 12, null, 0, &raw ct[0], 40, &raw tag[0], 16, &raw mut dec[0]) < 0){env.error("compound decrypt");return}else{}
+    if(gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12, null, 0, &raw ct[0], 40, &raw tag[0], 16, &raw mut dec[0]) < 0){env.error("compound decrypt");return}else{}
     if(!test_bytes_eq(&raw pt[0], &raw dec[0], 40)){env.error("compound pt");return}else{}
 }
 
@@ -1344,12 +1344,12 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var hmac_key : [32]u8; hmac_sha256(&raw salt[0], 16, &raw key_material[0], 32, &raw mut hmac_key[0])
     var pt : [48]u8; test_random_bytes(&raw mut pt[0], 48)
     var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
-    var gcm : GCMContext; gcm_init(&raw mut gcm, &raw hmac_key[0], 16)
+    var gcm : GCMContext; gcm_init(unsafe(&raw mut gcm), &raw hmac_key[0], 16)
     var ct : [48]u8; var tag : [16]u8
-    gcm_crypt_and_tag(&raw mut gcm, &raw iv[0], 12, null, 0, &raw pt[0], 48, &raw mut ct[0], &raw mut tag[0])
-    var gcm2 : GCMContext; gcm_init(&raw mut gcm2, &raw hmac_key[0], 16)
+    gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, null, 0, &raw pt[0], 48, &raw mut ct[0], &raw mut tag[0])
+    var gcm2 : GCMContext; gcm_init(unsafe(&raw mut gcm2), &raw hmac_key[0], 16)
     var dec : [48]u8
-    if(gcm_auth_decrypt(&raw mut gcm2, &raw iv[0], 12, null, 0, &raw ct[0], 48, &raw tag[0], 16, &raw mut dec[0]) < 0){env.error("compound2 decrypt");return}else{}
+    if(gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12, null, 0, &raw ct[0], 48, &raw tag[0], 16, &raw mut dec[0]) < 0){env.error("compound2 decrypt");return}else{}
     if(!test_bytes_eq(&raw pt[0], &raw dec[0], 48)){env.error("compound2 pt");return}else{}
 }
 
@@ -1366,11 +1366,11 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var e_bytes : [3]u8; e_bytes[0]=1; e_bytes[1]=0; e_bytes[2]=1
     var msg : [32]u8; test_random_bytes(&raw mut msg[0], 32)
     var digest : [32]u8; sha256_hash(&raw msg[0], 32, &raw mut digest[0])
-    var ctx : RSAContext; rsa_init(&raw mut ctx, 0, 0)
-    rsa_import_pubkey(&raw mut ctx, &raw n_hex[0], n_len, &raw e_bytes[0], 3)
+    var ctx : RSAContext; rsa_init(unsafe(&raw mut ctx), 0, 0)
+    rsa_import_pubkey(unsafe(&raw mut ctx), &raw n_hex[0], n_len, &raw e_bytes[0], 3)
     var ct : [256]u8
-    if(rsa_pkcs1_encrypt(&raw mut ctx, &raw digest[0], 32, &raw mut ct[0]) < 0){env.error("rsa enc");return}else{}
-    rsa_free(&raw mut ctx)
+    if(rsa_pkcs1_encrypt(unsafe(&raw mut ctx), &raw digest[0], 32, &raw mut ct[0]) < 0){env.error("rsa enc");return}else{}
+    rsa_free(unsafe(&raw mut ctx))
 }
 
 // ============================================================
@@ -1378,8 +1378,8 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 // ============================================================
 
 @test public func INT_x509_cert_init_free(env : &mut TestEnv) {
-    var cert : X509Cert; x509_cert_init(&raw mut cert)
-    cert_free(&raw mut cert)
+    var cert : X509Cert; x509_cert_init(unsafe(&raw mut cert))
+    cert_free(unsafe(&raw mut cert))
 }
 
 @test public func INT_x509_constant_time(env : &mut TestEnv) {
@@ -1394,7 +1394,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 // ============================================================
 
 @test public func INT_ecdh_p256_shared_consistency(env : &mut TestEnv) {
-    var ctx_a : ECDHContext; ecdh_init(&raw mut ctx_a)
+    var ctx_a : ECDHContext; ecdh_init(unsafe(&raw mut ctx_a))
     var priv_a : [32]u8; test_random_bytes(&raw mut priv_a[0], 32)
     var priv_b : [32]u8; test_random_bytes(&raw mut priv_b[0], 32)
     var pub_a : [32]u8
@@ -1431,10 +1431,10 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 // ============================================================
 
 @test public func INT_mpi_add_vs_py_2(env : &mut TestEnv) {
-    var a : Mpi; mpi_init(&raw mut a); mpi_lset(&raw mut a, 123456789)
-    var b : Mpi; mpi_init(&raw mut b); mpi_lset(&raw mut b, 987654321)
-    var r : Mpi; mpi_init(&raw mut r); mpi_add(&raw mut r, &raw mut a, &raw mut b)
-    var chem : [16]u8; mpi_write_binary(&raw mut r, &raw mut chem[0], 16)
+    var a : Mpi; mpi_init(unsafe(&raw mut a)); mpi_lset(unsafe(&raw mut a), 123456789)
+    var b : Mpi; mpi_init(unsafe(&raw mut b)); mpi_lset(unsafe(&raw mut b), 987654321)
+    var r : Mpi; mpi_init(unsafe(&raw mut r)); mpi_add(unsafe(&raw mut r), unsafe(&raw mut a), unsafe(&raw mut b))
+    var chem : [16]u8; mpi_write_binary(unsafe(&raw mut r), &raw mut chem[0], 16)
     var script : [128]u8; var sp : size_t = 0
     var hdr = "print(format(123456789+987654321,'x'))\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
@@ -1445,10 +1445,10 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 }
 
 @test public func INT_mpi_mul_vs_py_2(env : &mut TestEnv) {
-    var a : Mpi; mpi_init(&raw mut a); mpi_lset(&raw mut a, 1234567)
-    var b : Mpi; mpi_init(&raw mut b); mpi_lset(&raw mut b, 7654321)
-    var r : Mpi; mpi_init(&raw mut r); mpi_mul(&raw mut r, &raw mut a, &raw mut b)
-    var chem : [16]u8; mpi_write_binary(&raw mut r, &raw mut chem[0], 16)
+    var a : Mpi; mpi_init(unsafe(&raw mut a)); mpi_lset(unsafe(&raw mut a), 1234567)
+    var b : Mpi; mpi_init(unsafe(&raw mut b)); mpi_lset(unsafe(&raw mut b), 7654321)
+    var r : Mpi; mpi_init(unsafe(&raw mut r)); mpi_mul(unsafe(&raw mut r), unsafe(&raw mut a), unsafe(&raw mut b))
+    var chem : [16]u8; mpi_write_binary(unsafe(&raw mut r), &raw mut chem[0], 16)
     var script : [128]u8; var sp : size_t = 0
     var hdr = "print(format(1234567*7654321,'016x'))\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
@@ -1459,21 +1459,21 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 }
 
 @test public func INT_mpi_div_mod(env : &mut TestEnv) {
-    var a : Mpi; mpi_init(&raw mut a); mpi_lset(&raw mut a, 1000)
-    var b : Mpi; mpi_init(&raw mut b); mpi_lset(&raw mut b, 7)
-    var q : Mpi; mpi_init(&raw mut q); var r : Mpi; mpi_init(&raw mut r)
-    mpi_div(&raw mut q, &raw mut r, &raw mut a, &raw mut b)
-    var q_val : [8]u8; mpi_write_binary(&raw mut q, &raw mut q_val[0], 8)
-    var r_val : [8]u8; mpi_write_binary(&raw mut r, &raw mut r_val[0], 8)
+    var a : Mpi; mpi_init(unsafe(&raw mut a)); mpi_lset(unsafe(&raw mut a), 1000)
+    var b : Mpi; mpi_init(unsafe(&raw mut b)); mpi_lset(unsafe(&raw mut b), 7)
+    var q : Mpi; mpi_init(unsafe(&raw mut q)); var r : Mpi; mpi_init(unsafe(&raw mut r))
+    mpi_div(unsafe(&raw mut q), unsafe(&raw mut r), unsafe(&raw mut a), unsafe(&raw mut b))
+    var q_val : [8]u8; mpi_write_binary(unsafe(&raw mut q), &raw mut q_val[0], 8)
+    var r_val : [8]u8; mpi_write_binary(unsafe(&raw mut r), &raw mut r_val[0], 8)
     if(q_val[7]!=142||r_val[7]!=6){env.error("mpi div/mod");return}else{}
 }
 
 @test public func INT_mpi_large_add(env : &mut TestEnv) {
-    var a : Mpi; mpi_init(&raw mut a); mpi_lset(&raw mut a, -1)
-    mpi_shift_l(&raw mut a, 255)
-    var b : Mpi; mpi_init(&raw mut b); mpi_lset(&raw mut b, 1)
-    var r : Mpi; mpi_init(&raw mut r); mpi_add(&raw mut r, &raw mut a, &raw mut b)
-    var sz = mpi_size(&raw mut r)
+    var a : Mpi; mpi_init(unsafe(&raw mut a)); mpi_lset(unsafe(&raw mut a), -1)
+    mpi_shift_l(unsafe(&raw mut a), 255)
+    var b : Mpi; mpi_init(unsafe(&raw mut b)); mpi_lset(unsafe(&raw mut b), 1)
+    var r : Mpi; mpi_init(unsafe(&raw mut r)); mpi_add(unsafe(&raw mut r), unsafe(&raw mut a), unsafe(&raw mut b))
+    var sz = mpi_size(unsafe(&raw mut r))
     if(sz != 32){env.error("large add size");return}else{}
 }
 
@@ -1482,70 +1482,70 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 // ============================================================
 
 @test public func INT_consistency_p256_ng(env : &mut TestEnv) {
-    var Gx : Mpi; mpi_init(&raw mut Gx); ecp_curve_gx(&raw mut Gx)
-    var Gy : Mpi; mpi_init(&raw mut Gy); ecp_curve_gy(&raw mut Gy)
-    var p : Mpi; mpi_init(&raw mut p); ecp_curve_p(&raw mut p)
-    var b : Mpi; mpi_init(&raw mut b); ecp_curve_b(&raw mut b)
-    var lhs : Mpi; mpi_init(&raw mut lhs)
-    mpi_mul(&raw mut lhs, &raw mut Gy, &raw mut Gy); mpi_mod(&raw mut lhs, &raw mut lhs, &raw mut p)
-    var x3 : Mpi; mpi_init(&raw mut x3)
-    mpi_mul(&raw mut x3, &raw mut Gx, &raw mut Gx); mpi_mod(&raw mut x3, &raw mut x3, &raw mut p)
-    mpi_mul(&raw mut x3, &raw mut x3, &raw mut Gx); mpi_mod(&raw mut x3, &raw mut x3, &raw mut p)
-    var rhs : Mpi; mpi_init(&raw mut rhs)
-    mpi_sub(&raw mut rhs, &raw mut x3, &raw mut Gx); mpi_mod(&raw mut rhs, &raw mut rhs, &raw mut p)
-    mpi_sub(&raw mut rhs, &raw mut rhs, &raw mut Gx); mpi_mod(&raw mut rhs, &raw mut rhs, &raw mut p)
-    mpi_sub(&raw mut rhs, &raw mut rhs, &raw mut Gx); mpi_mod(&raw mut rhs, &raw mut rhs, &raw mut p)
-    mpi_add(&raw mut rhs, &raw mut rhs, &raw mut b); mpi_mod(&raw mut rhs, &raw mut rhs, &raw mut p)
-    if(mpi_cmp(&raw mut lhs, &raw mut rhs) != 0){env.error("G not on curve");return}else{}
+    var Gx : Mpi; mpi_init(unsafe(&raw mut Gx)); ecp_curve_gx(unsafe(&raw mut Gx))
+    var Gy : Mpi; mpi_init(unsafe(&raw mut Gy)); ecp_curve_gy(unsafe(&raw mut Gy))
+    var p : Mpi; mpi_init(unsafe(&raw mut p)); ecp_curve_p(unsafe(&raw mut p))
+    var b : Mpi; mpi_init(unsafe(&raw mut b)); ecp_curve_b(unsafe(&raw mut b))
+    var lhs : Mpi; mpi_init(unsafe(&raw mut lhs))
+    mpi_mul(unsafe(&raw mut lhs), unsafe(&raw mut Gy), unsafe(&raw mut Gy)); mpi_mod(unsafe(&raw mut lhs), unsafe(&raw mut lhs), unsafe(&raw mut p))
+    var x3 : Mpi; mpi_init(unsafe(&raw mut x3))
+    mpi_mul(unsafe(&raw mut x3), unsafe(&raw mut Gx), unsafe(&raw mut Gx)); mpi_mod(unsafe(&raw mut x3), unsafe(&raw mut x3), unsafe(&raw mut p))
+    mpi_mul(unsafe(&raw mut x3), unsafe(&raw mut x3), unsafe(&raw mut Gx)); mpi_mod(unsafe(&raw mut x3), unsafe(&raw mut x3), unsafe(&raw mut p))
+    var rhs : Mpi; mpi_init(unsafe(&raw mut rhs))
+    mpi_sub(unsafe(&raw mut rhs), unsafe(&raw mut x3), unsafe(&raw mut Gx)); mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
+    mpi_sub(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut Gx)); mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
+    mpi_sub(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut Gx)); mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
+    mpi_add(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut b)); mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
+    if(mpi_cmp(unsafe(&raw mut lhs), unsafe(&raw mut rhs)) != 0){env.error("G not on curve");return}else{}
 }
 
 @test public func INT_consistency_ecdh_2g_3g(env : &mut TestEnv) {
-    var G : ECPPoint; ecp_point_init(&raw mut G)
-    ecp_curve_gx(&raw mut G.X); ecp_curve_gy(&raw mut G.Y); mpi_lset(&raw mut G.Z, 1)
-    var k2 : Mpi; mpi_init(&raw mut k2); mpi_lset(&raw mut k2, 2)
-    var R2 : ECPPoint; ecp_point_init(&raw mut R2)
-    ecp_mul(&raw mut R2, &raw mut k2, &raw mut G)
-    var k3 : Mpi; mpi_init(&raw mut k3); mpi_lset(&raw mut k3, 3)
-    var R3 : ECPPoint; ecp_point_init(&raw mut R3)
-    ecp_mul(&raw mut R3, &raw mut k3, &raw mut G)
-    var P_aff : ECPPoint; ecp_point_init(&raw mut P_aff)
-    ecp_curve_gx(&raw mut P_aff.X); ecp_curve_gy(&raw mut P_aff.Y); mpi_lset(&raw mut P_aff.Z, 1)
-    var R2G : ECPPoint; ecp_point_init(&raw mut R2G)
-    ecp_add_jac(&raw mut R2G, &raw mut R2, &raw mut P_aff)
-    ecp_normalize_jac(&raw mut R2G)
-    ecp_normalize_jac(&raw mut R3)
-    if(mpi_cmp(&raw mut R2G.X, &raw mut R3.X) != 0){env.error("2G+G != 3G");return}else{}
+    var G : ECPPoint; ecp_point_init(unsafe(&raw mut G))
+    ecp_curve_gx(unsafe(&raw mut G.X)); ecp_curve_gy(unsafe(&raw mut G.Y)); mpi_lset(unsafe(&raw mut G.Z), 1)
+    var k2 : Mpi; mpi_init(unsafe(&raw mut k2)); mpi_lset(unsafe(&raw mut k2), 2)
+    var R2 : ECPPoint; ecp_point_init(unsafe(&raw mut R2))
+    ecp_mul(unsafe(&raw mut R2), unsafe(&raw mut k2), unsafe(&raw mut G))
+    var k3 : Mpi; mpi_init(unsafe(&raw mut k3)); mpi_lset(unsafe(&raw mut k3), 3)
+    var R3 : ECPPoint; ecp_point_init(unsafe(&raw mut R3))
+    ecp_mul(unsafe(&raw mut R3), unsafe(&raw mut k3), unsafe(&raw mut G))
+    var P_aff : ECPPoint; ecp_point_init(unsafe(&raw mut P_aff))
+    ecp_curve_gx(unsafe(&raw mut P_aff.X)); ecp_curve_gy(unsafe(&raw mut P_aff.Y)); mpi_lset(unsafe(&raw mut P_aff.Z), 1)
+    var R2G : ECPPoint; ecp_point_init(unsafe(&raw mut R2G))
+    ecp_add_jac(unsafe(&raw mut R2G), unsafe(&raw mut R2), unsafe(&raw mut P_aff))
+    ecp_normalize_jac(unsafe(&raw mut R2G))
+    ecp_normalize_jac(unsafe(&raw mut R3))
+    if(mpi_cmp(unsafe(&raw mut R2G.X), unsafe(&raw mut R3.X)) != 0){env.error("2G+G != 3G");return}else{}
 }
 
 @test public func INT_consistency_ecdh_zero_check(env : &mut TestEnv) {
-    var G : ECPPoint; ecp_point_init(&raw mut G)
-    ecp_curve_gx(&raw mut G.X); ecp_curve_gy(&raw mut G.Y); mpi_lset(&raw mut G.Z, 1)
-    var k0 : Mpi; mpi_init(&raw mut k0); mpi_lset(&raw mut k0, 0)
-    var R : ECPPoint; ecp_point_init(&raw mut R)
-    var ret = ecp_mul(&raw mut R, &raw mut k0, &raw mut G)
+    var G : ECPPoint; ecp_point_init(unsafe(&raw mut G))
+    ecp_curve_gx(unsafe(&raw mut G.X)); ecp_curve_gy(unsafe(&raw mut G.Y)); mpi_lset(unsafe(&raw mut G.Z), 1)
+    var k0 : Mpi; mpi_init(unsafe(&raw mut k0)); mpi_lset(unsafe(&raw mut k0), 0)
+    var R : ECPPoint; ecp_point_init(unsafe(&raw mut R))
+    var ret = ecp_mul(unsafe(&raw mut R), unsafe(&raw mut k0), unsafe(&raw mut G))
     if(ret < 0){env.error("zero mul failed");return}else{}
-    ecp_normalize_jac(&raw mut R)
-    if(!mpi_is_zero(&raw mut R.X) || !mpi_is_zero(&raw mut R.Y)){env.error("0*G should be zero");return}else{}
+    ecp_normalize_jac(unsafe(&raw mut R))
+    if(!mpi_is_zero(unsafe(&raw mut R.X)) || !mpi_is_zero(unsafe(&raw mut R.Y))){env.error("0*G should be zero");return}else{}
 }
 
 @test public func INT_consistency_ecdh_identity(env : &mut TestEnv) {
-    var G : ECPPoint; ecp_point_init(&raw mut G)
-    ecp_curve_gx(&raw mut G.X); ecp_curve_gy(&raw mut G.Y); mpi_lset(&raw mut G.Z, 1)
-    var k1 : Mpi; mpi_init(&raw mut k1); mpi_lset(&raw mut k1, 1)
-    var R : ECPPoint; ecp_point_init(&raw mut R)
-    ecp_mul(&raw mut R, &raw mut k1, &raw mut G)
-    ecp_normalize_jac(&raw mut R)
-    if(mpi_cmp(&raw mut R.X, &raw mut G.X) != 0 || mpi_cmp(&raw mut R.Y, &raw mut G.Y) != 0){env.error("1*G != G");return}else{}
+    var G : ECPPoint; ecp_point_init(unsafe(&raw mut G))
+    ecp_curve_gx(unsafe(&raw mut G.X)); ecp_curve_gy(unsafe(&raw mut G.Y)); mpi_lset(unsafe(&raw mut G.Z), 1)
+    var k1 : Mpi; mpi_init(unsafe(&raw mut k1)); mpi_lset(unsafe(&raw mut k1), 1)
+    var R : ECPPoint; ecp_point_init(unsafe(&raw mut R))
+    ecp_mul(unsafe(&raw mut R), unsafe(&raw mut k1), unsafe(&raw mut G))
+    ecp_normalize_jac(unsafe(&raw mut R))
+    if(mpi_cmp(unsafe(&raw mut R.X), unsafe(&raw mut G.X)) != 0 || mpi_cmp(unsafe(&raw mut R.Y), unsafe(&raw mut G.Y)) != 0){env.error("1*G != G");return}else{}
 }
 
 @test public func INT_consistency_transform_init(env : &mut TestEnv) {
-    var tr : Transform; transform_init(&raw mut tr)
+    var tr : Transform; transform_init(unsafe(&raw mut tr))
     if(tr.cipher_type != 0 || tr.hash_type != 0){env.error("transform init");return}else{}
 }
 
 @test public func INT_consistency_ssl_context_init(env : &mut TestEnv) {
-    var ssl : SSLContext; ssl_init(&raw mut ssl)
-    if(ssl.tls_version != 0){env.error("ssl init");return}else{}
+    var ssl : SSLContext; ssl_init(unsafe(&raw mut ssl))
+    if(unsafe(ssl.tls_version) != 0){env.error("ssl init");return}else{}
 }
 
 @test public func INT_consistency_ciphersuite_lookup(env : &mut TestEnv) {
@@ -1570,7 +1570,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 }
 
 @test public func INT_consistency_hkdf_key_schedule(env : &mut TestEnv) {
-    var ks : TLS13KeySchedule; tls13_key_schedule_init(&raw mut ks)
+    var ks : TLS13KeySchedule; tls13_key_schedule_init(unsafe(&raw mut ks))
     if(ks.hash_algorithm != 0){env.error("ks init");return}else{}
 }
 
@@ -1582,12 +1582,12 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
     var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
     var pt : [16]u8; test_random_bytes(&raw mut pt[0], 16)
-    var gcm : GCMContext; gcm_init(&raw mut gcm, &raw key[0], 16)
+    var gcm : GCMContext; gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
     var ct : [16]u8; var tag : [16]u8
-    gcm_crypt_and_tag(&raw mut gcm, &raw iv[0], 12, null, 0, &raw pt[0], 16, &raw mut ct[0], &raw mut tag[0])
-    var gcm2 : GCMContext; gcm_init(&raw mut gcm2, &raw key[0], 16)
+    gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, null, 0, &raw pt[0], 16, &raw mut ct[0], &raw mut tag[0])
+    var gcm2 : GCMContext; gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16)
     var dec : [16]u8
-    if(gcm_auth_decrypt(&raw mut gcm2, &raw iv[0], 12, null, 0, &raw ct[0], 16, &raw tag[0], 16, &raw mut dec[0]) < 0){env.error("null aad");return}else{}
+    if(gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12, null, 0, &raw ct[0], 16, &raw tag[0], 16, &raw mut dec[0]) < 0){env.error("null aad");return}else{}
     if(!test_bytes_eq(&raw pt[0], &raw dec[0], 16)){env.error("null aad pt");return}else{}
 }
 
@@ -1596,12 +1596,12 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var pt : [16]u8; test_random_bytes(&raw mut pt[0], 16)
     var ct1 : [16]u8; var tag1 : [16]u8
     var iv1 : [12]u8; var i : size_t = 0; while(i<12){iv1[i]=i as u8;i+=1}
-    var gcm1 : GCMContext; gcm_init(&raw mut gcm1, &raw key[0], 16)
-    gcm_crypt_and_tag(&raw mut gcm1, &raw iv1[0], 12, null, 0, &raw pt[0], 16, &raw mut ct1[0], &raw mut tag1[0])
+    var gcm1 : GCMContext; gcm_init(unsafe(&raw mut gcm1), &raw key[0], 16)
+    gcm_crypt_and_tag(unsafe(&raw mut gcm1), &raw iv1[0], 12, null, 0, &raw pt[0], 16, &raw mut ct1[0], &raw mut tag1[0])
     var iv2 : [12]u8; i=0; while(i<12){iv2[i]=i as u8;i+=1} iv2[0]=iv2[0]^1
     var ct2 : [16]u8; var tag2 : [16]u8
-    var gcm2 : GCMContext; gcm_init(&raw mut gcm2, &raw key[0], 16)
-    gcm_crypt_and_tag(&raw mut gcm2, &raw iv2[0], 12, null, 0, &raw pt[0], 16, &raw mut ct2[0], &raw mut tag2[0])
+    var gcm2 : GCMContext; gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16)
+    gcm_crypt_and_tag(unsafe(&raw mut gcm2), &raw iv2[0], 12, null, 0, &raw pt[0], 16, &raw mut ct2[0], &raw mut tag2[0])
     if(test_bytes_eq(&raw ct1[0], &raw ct2[0], 16)){env.error("same ct different iv");return}else{}
 }
 
@@ -1611,11 +1611,11 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
     var pt : [16]u8; test_random_bytes(&raw mut pt[0], 16)
     var ct1 : [16]u8; var tag1 : [16]u8
-    var gcm1 : GCMContext; gcm_init(&raw mut gcm1, &raw key1[0], 16)
-    gcm_crypt_and_tag(&raw mut gcm1, &raw iv[0], 12, null, 0, &raw pt[0], 16, &raw mut ct1[0], &raw mut tag1[0])
+    var gcm1 : GCMContext; gcm_init(unsafe(&raw mut gcm1), &raw key1[0], 16)
+    gcm_crypt_and_tag(unsafe(&raw mut gcm1), &raw iv[0], 12, null, 0, &raw pt[0], 16, &raw mut ct1[0], &raw mut tag1[0])
     var ct2 : [16]u8; var tag2 : [16]u8
-    var gcm2 : GCMContext; gcm_init(&raw mut gcm2, &raw key2[0], 16)
-    gcm_crypt_and_tag(&raw mut gcm2, &raw iv[0], 12, null, 0, &raw pt[0], 16, &raw mut ct2[0], &raw mut tag2[0])
+    var gcm2 : GCMContext; gcm_init(unsafe(&raw mut gcm2), &raw key2[0], 16)
+    gcm_crypt_and_tag(unsafe(&raw mut gcm2), &raw iv[0], 12, null, 0, &raw pt[0], 16, &raw mut ct2[0], &raw mut tag2[0])
     if(test_bytes_eq(&raw ct1[0], &raw ct2[0], 16)){env.error("same ct diff key");return}else{}
 }
 
@@ -1646,38 +1646,38 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 // ============================================================
 
 @test public func INT_consistency_mpi_zero(env : &mut TestEnv) {
-    var a : Mpi; mpi_init(&raw mut a)
-    if(!mpi_is_zero(&raw mut a)){env.error("zero not zero");return}else{}
-    mpi_lset(&raw mut a, 0)
-    if(!mpi_is_zero(&raw mut a)){env.error("lset zero not zero");return}else{}
+    var a : Mpi; mpi_init(unsafe(&raw mut a))
+    if(!mpi_is_zero(unsafe(&raw mut a))){env.error("zero not zero");return}else{}
+    mpi_lset(unsafe(&raw mut a), 0)
+    if(!mpi_is_zero(unsafe(&raw mut a))){env.error("lset zero not zero");return}else{}
 }
 
 @test public func INT_consistency_mpi_negative(env : &mut TestEnv) {
-    var a : Mpi; mpi_init(&raw mut a); mpi_lset(&raw mut a, -10)
-    var b : Mpi; mpi_init(&raw mut b); mpi_lset(&raw mut b, 5)
-    var r : Mpi; mpi_init(&raw mut r); mpi_add(&raw mut r, &raw mut a, &raw mut b)
-    if(mpi_cmp_int(&raw mut r, -5) != 0){env.error("-10+5 != -5");return}else{}
+    var a : Mpi; mpi_init(unsafe(&raw mut a)); mpi_lset(unsafe(&raw mut a), -10)
+    var b : Mpi; mpi_init(unsafe(&raw mut b)); mpi_lset(unsafe(&raw mut b), 5)
+    var r : Mpi; mpi_init(unsafe(&raw mut r)); mpi_add(unsafe(&raw mut r), unsafe(&raw mut a), unsafe(&raw mut b))
+    if(mpi_cmp_int(unsafe(&raw mut r), -5) != 0){env.error("-10+5 != -5");return}else{}
 }
 
 @test public func INT_consistency_mpi_abs_sub(env : &mut TestEnv) {
-    var a : Mpi; mpi_init(&raw mut a); mpi_lset(&raw mut a, 100)
-    var b : Mpi; mpi_init(&raw mut b); mpi_lset(&raw mut b, 200)
-    var r : Mpi; mpi_init(&raw mut r); mpi_sub(&raw mut r, &raw mut a, &raw mut b)
-    if(mpi_cmp_int(&raw mut r, -100) != 0){env.error("100-200 != -100");return}else{}
+    var a : Mpi; mpi_init(unsafe(&raw mut a)); mpi_lset(unsafe(&raw mut a), 100)
+    var b : Mpi; mpi_init(unsafe(&raw mut b)); mpi_lset(unsafe(&raw mut b), 200)
+    var r : Mpi; mpi_init(unsafe(&raw mut r)); mpi_sub(unsafe(&raw mut r), unsafe(&raw mut a), unsafe(&raw mut b))
+    if(mpi_cmp_int(unsafe(&raw mut r), -100) != 0){env.error("100-200 != -100");return}else{}
 }
 
 @test public func INT_consistency_mpi_mul_neg(env : &mut TestEnv) {
-    var a : Mpi; mpi_init(&raw mut a); mpi_lset(&raw mut a, 7)
-    var b : Mpi; mpi_init(&raw mut b); mpi_lset(&raw mut b, -3)
-    var r : Mpi; mpi_init(&raw mut r); mpi_mul(&raw mut r, &raw mut a, &raw mut b)
-    if(mpi_cmp_int(&raw mut r, -21) != 0){env.error("7*-3 != -21");return}else{}
+    var a : Mpi; mpi_init(unsafe(&raw mut a)); mpi_lset(unsafe(&raw mut a), 7)
+    var b : Mpi; mpi_init(unsafe(&raw mut b)); mpi_lset(unsafe(&raw mut b), -3)
+    var r : Mpi; mpi_init(unsafe(&raw mut r)); mpi_mul(unsafe(&raw mut r), unsafe(&raw mut a), unsafe(&raw mut b))
+    if(mpi_cmp_int(unsafe(&raw mut r), -21) != 0){env.error("7*-3 != -21");return}else{}
 }
 
 @test public func INT_consistency_gcm_init_reinit(env : &mut TestEnv) {
     var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
     var gcm : GCMContext
-    if(gcm_init(&raw mut gcm, &raw key[0], 16) < 0){env.error("first init");return}else{}
-    if(gcm_init(&raw mut gcm, &raw key[0], 16) < 0){env.error("second init");return}else{}
+    if(gcm_init(unsafe(&raw mut gcm), &raw key[0], 16) < 0){env.error("first init");return}else{}
+    if(gcm_init(unsafe(&raw mut gcm), &raw key[0], 16) < 0){env.error("second init");return}else{}
 }
 
 @test public func INT_consistency_x25519_small_scalar(env : &mut TestEnv) {
@@ -1769,8 +1769,8 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     while(i < 48) { pub_key[1+i] = px[i]; pub_key[49+i] = py[i]; i += 1 }
 
     var ctx : ECDSAContext
-    ecdsa_init(&raw mut ctx)
-    var ret = ecdsa_import_pubkey(&raw mut ctx, &raw pub_key[0], 97, TLS_GROUP_SECP384R1 as u16)
+    ecdsa_init(unsafe(&raw mut ctx))
+    var ret = ecdsa_import_pubkey(unsafe(&raw mut ctx), &raw pub_key[0], 97, TLS_GROUP_SECP384R1 as u16)
     if(ret < 0) { env.error("p384 import failed"); return }
 
     var hash : [48]u8
@@ -1778,7 +1778,7 @@ public func INT_md5_incremental(env : &mut TestEnv) {
 
     // Verify runs without crashing (return value is checked but not asserted
     // as success because P-384 verify is not yet fully functional).
-    ret = ecdsa_verify(&raw mut ctx, &raw hash[0], 48, &raw sig_bytes[0], sig_len)
+    ret = ecdsa_verify(unsafe(&raw mut ctx), &raw hash[0], 48, &raw sig_bytes[0], sig_len)
     // TODO: when P-384 verify is fixed, change to: if(ret < 0) { env.error("p384 sha384 verify failed"); return }
 }
 
@@ -1804,14 +1804,14 @@ public func INT_md5_incremental(env : &mut TestEnv) {
     while(i < 48) { pub_key[1+i] = px[i]; pub_key[49+i] = py[i]; i += 1 }
 
     var ctx : ECDSAContext
-    ecdsa_init(&raw mut ctx)
-    var ret = ecdsa_import_pubkey(&raw mut ctx, &raw pub_key[0], 97, TLS_GROUP_SECP384R1 as u16)
+    ecdsa_init(unsafe(&raw mut ctx))
+    var ret = ecdsa_import_pubkey(unsafe(&raw mut ctx), &raw pub_key[0], 97, TLS_GROUP_SECP384R1 as u16)
     if(ret < 0) { env.error("p384 import failed"); return }
 
     // Hash a DIFFERENT message - should NOT verify
     var hash : [48]u8
     sha384_hash("wrong message" as *u8, 13, &raw mut hash[0])
 
-    ret = ecdsa_verify(&raw mut ctx, &raw hash[0], 48, &raw sig_bytes[0], sig_len)
+    ret = ecdsa_verify(unsafe(&raw mut ctx), &raw hash[0], 48, &raw sig_bytes[0], sig_len)
     if(ret >= 0) { env.error("wrong digest should fail"); return }
 }

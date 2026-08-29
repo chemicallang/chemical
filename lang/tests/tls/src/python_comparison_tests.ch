@@ -31,11 +31,11 @@ public func INT_aes128_ecb_vs_python(env : &mut TestEnv) {
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 32)
     if(ct_len != 32) { env.error("failed to parse Python output"); return }
 
-    var ctx : AESContext; aes_init(&raw mut ctx)
-    aes_setkey_enc(&raw mut ctx, &raw key[0], 16)
+    var ctx : AESContext; aes_init(unsafe(&raw mut ctx))
+    aes_setkey_enc(unsafe(&raw mut ctx), &raw key[0], 16)
     var chem_ct : [32]u8
-    aes_crypt_ecb(&raw mut ctx, AES_ENCRYPT, &raw pt[0], &raw mut chem_ct[0])
-    aes_crypt_ecb(&raw mut ctx, AES_ENCRYPT, &raw pt[16], &raw mut chem_ct[16])
+    aes_crypt_ecb(unsafe(&raw mut ctx), AES_ENCRYPT, &raw pt[0], &raw mut chem_ct[0])
+    aes_crypt_ecb(unsafe(&raw mut ctx), AES_ENCRYPT, &raw pt[16], &raw mut chem_ct[16])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 32)) { env.error("AES-128-ECB ct mismatch vs Python"); return }
 }
 
@@ -64,11 +64,11 @@ public func INT_aes256_ecb_vs_python(env : &mut TestEnv) {
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 32)
     if(ct_len != 32) { env.error("failed to parse Python output"); return }
 
-    var ctx : AESContext; aes_init(&raw mut ctx)
-    aes_setkey_enc(&raw mut ctx, &raw key[0], 32)
+    var ctx : AESContext; aes_init(unsafe(&raw mut ctx))
+    aes_setkey_enc(unsafe(&raw mut ctx), &raw key[0], 32)
     var chem_ct : [32]u8
-    aes_crypt_ecb(&raw mut ctx, AES_ENCRYPT, &raw pt[0], &raw mut chem_ct[0])
-    aes_crypt_ecb(&raw mut ctx, AES_ENCRYPT, &raw pt[16], &raw mut chem_ct[16])
+    aes_crypt_ecb(unsafe(&raw mut ctx), AES_ENCRYPT, &raw pt[0], &raw mut chem_ct[0])
+    aes_crypt_ecb(unsafe(&raw mut ctx), AES_ENCRYPT, &raw pt[16], &raw mut chem_ct[16])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 32)) { env.error("AES-256-ECB ct mismatch vs Python"); return }
 }
 
@@ -100,10 +100,10 @@ public func INT_aes128_ecb_decrypt_vs_python(env : &mut TestEnv) {
     var pt2_len = test_parse_py_hex_label(&raw mut py_out, string_view("PT2="), &raw mut py_pt2[0], 16)
     if(ct_len != 16 || pt2_len != 16) { env.error("failed to parse Python output"); return }
 
-    var ctx : AESContext; aes_init(&raw mut ctx)
-    aes_setkey_dec(&raw mut ctx, &raw key[0], 16)
+    var ctx : AESContext; aes_init(unsafe(&raw mut ctx))
+    aes_setkey_dec(unsafe(&raw mut ctx), &raw key[0], 16)
     var chem_dec : [16]u8
-    aes_crypt_ecb(&raw mut ctx, AES_DECRYPT, &raw py_ct[0], &raw mut chem_dec[0])
+    aes_crypt_ecb(unsafe(&raw mut ctx), AES_DECRYPT, &raw py_ct[0], &raw mut chem_dec[0])
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 16)) { env.error("AES-128-ECB decrypt roundtrip mismatch vs Python"); return }
 }
 
@@ -122,12 +122,12 @@ public func INT_tls12_record_gcm_vs_python(env : &mut TestEnv) {
     var pt_hex : [33]char; test_bytes_to_hex(&raw pt[0], 16, &raw mut pt_hex[0])
     var seq_hex : [17]char; test_bytes_to_hex(&raw seq[0], 8, &raw mut seq_hex[0])
 
-    var tr : Transform; transform_init(&raw mut tr)
+    var tr : Transform; transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_AES_128_GCM as u8; tr.key_len = 16; tr.iv_len = 4; tr.fixed_iv_len = 4; tr.mac_key_len = 0
     var i : size_t = 0; while(i < 16) { tr.key_enc[i] = key[i]; i += 1 }
     i = 0; while(i < 4) { tr.base_iv_enc[i] = iv[i]; i += 1 }
     var ct_out : [64]u8
-    var enc_len = tls12_encrypt_record(&raw mut tr, &raw seq[0], SSL_MSG_APPLICATION_DATA as u8, 3, 3, &raw pt[0], 16, &raw mut ct_out[0], 64)
+    var enc_len = tls12_encrypt_record(unsafe(&raw mut tr), &raw seq[0], SSL_MSG_APPLICATION_DATA as u8, 3, 3, &raw pt[0], 16, &raw mut ct_out[0], 64)
     if(enc_len < 0) { env.error("tls12_encrypt_record failed"); return }
 
     var ct : [16]u8; i = 0; while(i < 16) { ct[i] = ct_out[8 + i]; i += 1 }
@@ -166,12 +166,12 @@ public func INT_tls12_record_gcm_vs_python(env : &mut TestEnv) {
     if(pt_len != 16) { env.error("failed to parse Python output"); return }
     if(!test_bytes_eq(&raw py_pt[0], &raw pt[0], 16)) { env.error("TLS 1.2 GCM record decrypt mismatch vs Python"); return }
 
-    var tr_dec : Transform; transform_init(&raw mut tr_dec)
+    var tr_dec : Transform; transform_init(unsafe(&raw mut tr_dec))
     tr_dec.cipher_type = CIPHER_AES_128_GCM as u8; tr_dec.key_len = 16; tr_dec.iv_len = 4; tr_dec.fixed_iv_len = 4; tr_dec.mac_key_len = 0
     i = 0; while(i < 16) { tr_dec.key_dec[i] = key[i]; i += 1 }
     i = 0; while(i < 4) { tr_dec.base_iv_dec[i] = iv[i]; i += 1 }
     var dec_out : [64]u8
-    var dec_ret = tls12_decrypt_record(&raw mut tr_dec, &raw seq[0], SSL_MSG_APPLICATION_DATA as u8, 3, 3, &raw ct_out[0], enc_len as size_t, &raw mut dec_out[0], 64)
+    var dec_ret = tls12_decrypt_record(unsafe(&raw mut tr_dec), &raw seq[0], SSL_MSG_APPLICATION_DATA as u8, 3, 3, &raw ct_out[0], enc_len as size_t, &raw mut dec_out[0], 64)
     if(dec_ret < 0) { env.error("tls12_decrypt_record failed"); return }
     if(!test_bytes_eq(&raw dec_out[0], &raw pt[0], 16)) { env.error("TLS 1.2 GCM record Chemical decrypt mismatch"); return }
 }
@@ -247,17 +247,17 @@ public func INT_x509_rsa_signature_vs_python(env : &mut TestEnv) {
     var cert_len = fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file)
     fclose(cert_file)
 
-    var crt : X509Cert; x509_cert_init(&raw mut crt)
-    var ret = parse_cert_der(&raw mut crt, &raw cert_buf[0], cert_len)
+    var crt : X509Cert; x509_cert_init(unsafe(&raw mut crt))
+    var ret = parse_cert_der(unsafe(&raw mut crt), &raw cert_buf[0], cert_len)
     if(ret < 0) { env.error("parse_cert_der failed"); return }
-    if(crt.pk_type != PK_RSA) { env.error("expected RSA key type"); return }
+    if(unsafe(crt.pk_type) != PK_RSA) { env.error("expected RSA key type"); return }
 
     // Import the RSA public key and verify signature
-    var rsa_ctx : RSAContext; rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
-    ret = x509_extract_rsa_pubkey(&raw mut crt, &raw mut rsa_ctx)
+    var rsa_ctx : RSAContext; rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
+    ret = x509_extract_rsa_pubkey(unsafe(&raw mut crt), unsafe(&raw mut rsa_ctx))
     if(ret < 0) { env.error("x509_extract_rsa_pubkey failed"); return }
 
-    ret = x509_verify_cert_signature(&raw mut crt, &raw mut rsa_ctx)
+    ret = x509_verify_cert_signature(unsafe(&raw mut crt), unsafe(&raw mut rsa_ctx))
     if(ret < 0) { env.error("RSA cert signature verification failed"); return }
 }
 
@@ -269,17 +269,19 @@ public func INT_tls13_record_bidirectional_python(env : &mut TestEnv) {
     var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
     var pt : [32]u8; test_random_bytes(&raw mut pt[0], 32)
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
-    var tr : Transform; transform_init(&raw mut tr)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var tr : Transform; transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_AES_128_GCM as u8; tr.key_len = 16; tr.iv_len = 12; tr.fixed_iv_len = 12
     var i : size_t = 0
     while(i < 16) { tr.key_enc[i] = key[i]; tr.key_dec[i] = key[i]; i += 1 }
     i = 0; while(i < 12) { tr.base_iv_enc[i] = iv[i]; tr.base_iv_dec[i] = iv[i]; i += 1 }
-    var tr_out = malloc(sizeof(Transform)) as *mut Transform; *tr_out = tr; ctx.transform_out = tr_out
-    var tr_in = malloc(sizeof(Transform)) as *mut Transform; *tr_in = tr; ctx.transform_in = tr_in
+    var tr_out = malloc(sizeof(Transform)) as *mut Transform; *tr_out = tr
+    unsafe { ctx.transform_out = tr_out }
+    var tr_in = malloc(sizeof(Transform)) as *mut Transform; *tr_in = tr
+    unsafe { ctx.transform_in = tr_in }
 
     var ct_buf : [128]u8
-    var ct_len = tls13_encrypt_record(&raw mut ctx, SSL_MSG_APPLICATION_DATA as u8, &raw pt[0], 32, &raw mut ct_buf[0], 128)
+    var ct_len = tls13_encrypt_record(unsafe(&raw mut ctx), SSL_MSG_APPLICATION_DATA as u8, &raw pt[0], 32, &raw mut ct_buf[0], 128)
     if(ct_len < 0) { env.error("tls13_encrypt_record failed"); return }
 
     var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
@@ -338,7 +340,7 @@ public func INT_tls13_record_bidirectional_python(env : &mut TestEnv) {
     i = 0; while(i < 8) { ctx.in_ctr[i] = 0; i += 1 }
 
     var dec_buf : [64]u8; var inner_ct : u8 = 0
-    var dlen = tls13_decrypt_record(&raw mut ctx, &raw rec_bytes[5], (rec_len-5) as size_t, &raw mut dec_buf[0], 64, &raw mut inner_ct)
+    var dlen = tls13_decrypt_record(unsafe(&raw mut ctx), &raw rec_bytes[5], (rec_len-5) as size_t, &raw mut dec_buf[0], 64, &raw mut inner_ct)
     if(dlen < 0) { env.error("tls13_decrypt_record failed"); return }
     if(!test_bytes_eq(&raw dec_buf[0], &raw pt2[0], 16)) { env.error("TLS 1.3 bidirectional decrypt mismatch"); return }
 }
@@ -477,11 +479,11 @@ public func INT_aes_cbc_128_decrypt_vs_python(env : &mut TestEnv) {
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 64)
     if(ct_len == 0) { env.error("failed to parse Python output"); return }
 
-    var ctx : AESContext; aes_init(&raw mut ctx)
-    aes_setkey_dec(&raw mut ctx, &raw key[0], 16)
+    var ctx : AESContext; aes_init(unsafe(&raw mut ctx))
+    aes_setkey_dec(unsafe(&raw mut ctx), &raw key[0], 16)
     var dec_iv : [16]u8; var di : size_t = 0; while(di < 16) { dec_iv[di] = iv[di]; di += 1 }
     var chem_dec : [64]u8
-    var ret = aes_crypt_cbc(&raw mut ctx, AES_DECRYPT, ct_len, &raw mut dec_iv[0], &raw py_ct[0], &raw mut chem_dec[0])
+    var ret = aes_crypt_cbc(unsafe(&raw mut ctx), AES_DECRYPT, ct_len, &raw mut dec_iv[0], &raw py_ct[0], &raw mut chem_dec[0])
     if(ret < 0) { env.error("aes_crypt_cbc decrypt failed"); return }
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 48)) { env.error("AES-128-CBC decrypt mismatch vs Python"); return }
 }
@@ -516,11 +518,11 @@ public func INT_aes_cbc_256_decrypt_vs_python(env : &mut TestEnv) {
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 64)
     if(ct_len == 0) { env.error("failed to parse Python output"); return }
 
-    var ctx : AESContext; aes_init(&raw mut ctx)
-    aes_setkey_dec(&raw mut ctx, &raw key[0], 32)
+    var ctx : AESContext; aes_init(unsafe(&raw mut ctx))
+    aes_setkey_dec(unsafe(&raw mut ctx), &raw key[0], 32)
     var dec_iv : [16]u8; var di : size_t = 0; while(di < 16) { dec_iv[di] = iv[di]; di += 1 }
     var chem_dec : [64]u8
-    var ret = aes_crypt_cbc(&raw mut ctx, AES_DECRYPT, ct_len, &raw mut dec_iv[0], &raw py_ct[0], &raw mut chem_dec[0])
+    var ret = aes_crypt_cbc(unsafe(&raw mut ctx), AES_DECRYPT, ct_len, &raw mut dec_iv[0], &raw py_ct[0], &raw mut chem_dec[0])
     if(ret < 0) { env.error("aes_crypt_cbc decrypt failed"); return }
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 48)) { env.error("AES-256-CBC decrypt mismatch vs Python"); return }
 }
@@ -608,9 +610,9 @@ public func INT_gcm_large_plaintext_vs_python(env : &mut TestEnv) {
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 1024)
     var tag_len = test_parse_py_hex_label(&raw mut py_out, string_view("TAG="), &raw mut py_tag[0], 16)
     if(ct_len != 1024 || tag_len != 16) { env.error("failed to parse Python output"); return }
-    var gcm : GCMContext; gcm_init(&raw mut gcm, &raw key[0], 16)
+    var gcm : GCMContext; gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
     var chem_ct : [2048]u8; var chem_tag : [16]u8
-    gcm_crypt_and_tag(&raw mut gcm, &raw iv[0], 12, &raw aad[0], 16, &raw pt[0], 1024, &raw mut chem_ct[0], &raw mut chem_tag[0])
+    gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, &raw aad[0], 16, &raw pt[0], 1024, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 1024)) { env.error("GCM large ct mismatch vs Python"); return }
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("GCM large tag mismatch vs Python"); return }
 }
@@ -676,9 +678,9 @@ public func INT_gcm_iv8_vs_python(env : &mut TestEnv) {
     var tag_len = test_parse_py_hex_label(&raw mut py_out, string_view("TAG="), &raw mut py_tag[0], 16)
     if(ct_len != 37 || tag_len != 16) { env.error("failed to parse Python output"); return }
 
-    var gcm : GCMContext; gcm_init(&raw mut gcm, &raw key[0], 16)
+    var gcm : GCMContext; gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
     var chem_ct : [64]u8; var chem_tag : [16]u8
-    gcm_crypt_and_tag(&raw mut gcm, &raw iv8[0], 8, &raw aad[0], 13, &raw pt[0], 37, &raw mut chem_ct[0], &raw mut chem_tag[0])
+    gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv8[0], 8, &raw aad[0], 13, &raw pt[0], 37, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 37)) { env.error("GCM 8-byte IV ct mismatch vs Python"); return }
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("GCM 8-byte IV tag mismatch vs Python"); return }
 }
@@ -716,9 +718,9 @@ public func INT_gcm_iv16_vs_python(env : &mut TestEnv) {
     var tag_len = test_parse_py_hex_label(&raw mut py_out, string_view("TAG="), &raw mut py_tag[0], 16)
     if(ct_len != 32 || tag_len != 16) { env.error("failed to parse Python output"); return }
 
-    var gcm : GCMContext; gcm_init(&raw mut gcm, &raw key[0], 16)
+    var gcm : GCMContext; gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
     var chem_ct : [64]u8; var chem_tag : [16]u8
-    gcm_crypt_and_tag(&raw mut gcm, &raw iv16[0], 16, null, 0, &raw pt[0], 32, &raw mut chem_ct[0], &raw mut chem_tag[0])
+    gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv16[0], 16, null, 0, &raw pt[0], 32, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 32)) { env.error("GCM 16-byte IV ct mismatch vs Python"); return }
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("GCM 16-byte IV tag mismatch vs Python"); return }
 }
@@ -761,9 +763,9 @@ public func INT_aes256_gcm_encrypt_vs_python(env : &mut TestEnv) {
     var tag_len = test_parse_py_hex_label(&raw mut py_out, string_view("TAG="), &raw mut py_tag[0], 16)
     if(ct_len != 64 || tag_len != 16) { env.error("failed to parse Python output"); return }
 
-    var gcm : GCMContext; gcm_init(&raw mut gcm, &raw key[0], 32)
+    var gcm : GCMContext; gcm_init(unsafe(&raw mut gcm), &raw key[0], 32)
     var chem_ct : [128]u8; var chem_tag : [16]u8
-    gcm_crypt_and_tag(&raw mut gcm, &raw iv[0], 12, &raw aad[0], 8, &raw pt[0], 64, &raw mut chem_ct[0], &raw mut chem_tag[0])
+    gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, &raw aad[0], 8, &raw pt[0], 64, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 64)) { env.error("AES-256-GCM ct mismatch vs Python"); return }
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("AES-256-GCM tag mismatch vs Python"); return }
 }
@@ -837,9 +839,9 @@ public func INT_gcm_no_aad_vs_python(env : &mut TestEnv) {
     var tag_len = test_parse_py_hex_label(&raw mut py_out, string_view("TAG="), &raw mut py_tag[0], 16)
     if(ct_len != 32 || tag_len != 16) { env.error("failed to parse Python output"); return }
 
-    var gcm : GCMContext; gcm_init(&raw mut gcm, &raw key[0], 16)
+    var gcm : GCMContext; gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
     var chem_ct : [64]u8; var chem_tag : [16]u8
-    gcm_crypt_and_tag(&raw mut gcm, &raw iv[0], 12, null, 0, &raw pt[0], 32, &raw mut chem_ct[0], &raw mut chem_tag[0])
+    gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, null, 0, &raw pt[0], 32, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 32)) { env.error("GCM no AAD ct mismatch vs Python"); return }
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("GCM no AAD tag mismatch vs Python"); return }
 }
@@ -882,15 +884,15 @@ public func INT_gcm_auth_decrypt_vs_python(env : &mut TestEnv) {
     var tag_len = test_parse_py_hex_label(&raw mut py_out, string_view("TAG="), &raw mut py_tag[0], 16)
     if(ct_len != 48 || tag_len != 16) { env.error("failed to parse Python output"); return }
 
-    var gcm : GCMContext; gcm_init(&raw mut gcm, &raw key[0], 16)
+    var gcm : GCMContext; gcm_init(unsafe(&raw mut gcm), &raw key[0], 16)
     var chem_ct : [64]u8; var chem_tag : [16]u8
-    gcm_crypt_and_tag(&raw mut gcm, &raw iv[0], 12, &raw aad[0], 8, &raw pt[0], 48, &raw mut chem_ct[0], &raw mut chem_tag[0])
+    gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv[0], 12, &raw aad[0], 8, &raw pt[0], 48, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 48)) { env.error("GCM auth ct mismatch vs Python"); return }
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("GCM auth tag mismatch vs Python"); return }
 
-    var gcm2 : GCMContext; gcm_init(&raw mut gcm2, &raw key[0], 16)
+    var gcm2 : GCMContext; gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16)
     var chem_dec : [64]u8
-    var dret = gcm_auth_decrypt(&raw mut gcm2, &raw iv[0], 12, &raw aad[0], 8, &raw chem_ct[0], 48, &raw chem_tag[0], 16, &raw mut chem_dec[0])
+    var dret = gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12, &raw aad[0], 8, &raw chem_ct[0], 48, &raw chem_tag[0], 16, &raw mut chem_dec[0])
     if(dret < 0) { env.error("gcm_auth_decrypt failed"); return }
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 48)) { env.error("GCM auth decrypt roundtrip mismatch"); return }
 }
@@ -924,14 +926,14 @@ public func INT_hmac_md5_empty_key_vs_python(env : &mut TestEnv) {
 @test
 @test.timeout(60000)
 public func INT_rsa_pkcs1_encrypt_determinism_vs_python(env : &mut TestEnv) {
-    var rsa_ctx : RSAContext; rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
-    var ret = rsa_gen_key(&raw mut rsa_ctx, 2048, 65537)
+    var rsa_ctx : RSAContext; rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
+    var ret = rsa_gen_key(unsafe(&raw mut rsa_ctx), 2048, 65537)
     if(ret < 0) { env.error("rsa_gen_key failed"); return }
 
-    var n_len = rsa_get_len(&raw mut rsa_ctx)
+    var n_len = rsa_get_len(unsafe(&raw mut rsa_ctx))
     var n_buf : [256]u8; var e_buf : [4]u8
-    mpi_write_binary(&raw mut rsa_ctx.N, &raw mut n_buf[0], n_len)
-    mpi_write_binary(&raw mut rsa_ctx.E, &raw mut e_buf[0], 4)
+    mpi_write_binary(unsafe(&raw mut rsa_ctx.N), &raw mut n_buf[0], n_len)
+    mpi_write_binary(unsafe(&raw mut rsa_ctx.E), &raw mut e_buf[0], 4)
 
     var n_hex : [513]char; test_bytes_to_hex(&raw n_buf[0], n_len, &raw mut n_hex[0])
     var e_hex : [9]char; test_bytes_to_hex(&raw e_buf[0], 4, &raw mut e_hex[0])
@@ -940,10 +942,10 @@ public func INT_rsa_pkcs1_encrypt_determinism_vs_python(env : &mut TestEnv) {
     var pt_hex : [33]char; test_bytes_to_hex(&raw pt[0], 16, &raw mut pt_hex[0])
 
     var chem_ct : [256]u8
-    ret = rsa_pkcs1_encrypt(&raw mut rsa_ctx, &raw pt[0], 16, &raw mut chem_ct[0])
+    ret = rsa_pkcs1_encrypt(unsafe(&raw mut rsa_ctx), &raw pt[0], 16, &raw mut chem_ct[0])
     if(ret < 0) { env.error("rsa_pkcs1_encrypt failed"); return }
     var chem_ct2 : [256]u8
-    ret = rsa_pkcs1_encrypt(&raw mut rsa_ctx, &raw pt[0], 16, &raw mut chem_ct2[0])
+    ret = rsa_pkcs1_encrypt(unsafe(&raw mut rsa_ctx), &raw pt[0], 16, &raw mut chem_ct2[0])
     if(ret < 0) { env.error("rsa_pkcs1_encrypt failed"); return }
     if(test_bytes_eq(&raw chem_ct[0], &raw chem_ct2[0], 256)) { env.error("RSA PKCS#1 encrypt should be non-deterministic"); return }
 
@@ -966,7 +968,7 @@ public func INT_rsa_pkcs1_encrypt_determinism_vs_python(env : &mut TestEnv) {
     var py_ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], n_len)
     if(py_ct_len != n_len) { env.error("failed to parse Python ciphertext"); return }
     var chem_dec : [256]u8; var dec_len : size_t = 256
-    ret = rsa_pkcs1_decrypt(&raw mut rsa_ctx, &raw py_ct[0], n_len, &raw mut chem_dec[0], &raw mut dec_len, 64)
+    ret = rsa_pkcs1_decrypt(unsafe(&raw mut rsa_ctx), &raw py_ct[0], n_len, &raw mut chem_dec[0], &raw mut dec_len, 64)
     if(ret < 0) { env.error("rsa_pkcs1_decrypt of Python ct failed"); return }
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 16)) { env.error("decrypted Python ct mismatch"); return }
 }

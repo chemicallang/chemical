@@ -48,6 +48,7 @@
 #include "ast/base/TypeBuilder.h"
 #include "ast/types/VoidType.h"
 #include "ast/values/NullValue.h"
+#include "ast/values/UnsafeValue.h"
 #include "ast/values/RuntimeValue.h"
 #include "ast/values/StringValue.h"
 #include "ast/types/LinkedValueType.h"
@@ -3396,6 +3397,12 @@ bool SymResLinkBody::mark_moved_id(VariableIdentifier* id, ASTDiagnoser& diagnos
 }
 
 bool SymResLinkBody::mark_moved_value(Value* value, ASTDiagnoser& diagnoser) {
+    // An `unsafe(expr)` wrapper must be transparent to move analysis: the inner
+    // value is what actually gets moved out (e.g. `return unsafe(ctx)` should
+    // move `ctx`, not copy it and then run its destructor on the local).
+    if(value->val_kind() == ValueKind::UnsafeValue) {
+        return mark_moved_value(static_cast<UnsafeValue*>(value)->getValue(), diagnoser);
+    }
     const auto chain = value->as_access_chain();
     if(chain) {
         if(chain->values.size() == 1) {
@@ -3514,6 +3521,17 @@ bool SymResLinkBody::mark_moved_value(
         bool check_implicit_constructors
 ) {
     auto& value = *value_ptr;
+    // An `unsafe(expr)` wrapper must be transparent to move analysis: the inner
+    // value is what actually gets moved out (see mark_moved_value(Value*)).
+    if(value.kind() == ValueKind::UnsafeValue) {
+        return mark_moved_value(
+            allocator,
+            static_cast<UnsafeValue&>(value).getValue(),
+            expected_type_non_canon,
+            diagnoser,
+            check_implicit_constructors
+        );
+    }
     switch(value.kind()) {
         case ValueKind::AccessChain:
             if(value.as_access_chain_unsafe()->values.back()->kind() == ValueKind::FunctionCall) {

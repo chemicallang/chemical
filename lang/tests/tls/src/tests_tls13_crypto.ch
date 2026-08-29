@@ -44,7 +44,7 @@ func setup_symmetric_record_test() : SSLContext {
     // variable would create a dangling pointer when this helper returns.
 
     var ctx : SSLContext
-    ssl_init(&raw mut ctx)
+    ssl_init(unsafe(&raw mut ctx))
 
     // Known AES-128-GCM key (from FIPS 197 test vector)
     var key : [16]u8 = [
@@ -59,7 +59,7 @@ func setup_symmetric_record_test() : SSLContext {
 
     // Create symmetric transform for encrypt (key_enc) and decrypt (key_dec)
     var tr : Transform
-    transform_init(&raw mut tr)
+    transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_AES_128_GCM as u8
     tr.key_len = 16
     tr.iv_len = 12
@@ -82,11 +82,11 @@ func setup_symmetric_record_test() : SSLContext {
     // Allocate and assign both directions (same key for self-test)
     var tr_out = malloc(sizeof(Transform)) as *mut Transform
     *tr_out = tr
-    ctx.transform_out = tr_out
+    unsafe { ctx.transform_out = tr_out }
 
     var tr_in = malloc(sizeof(Transform)) as *mut Transform
     *tr_in = tr
-    ctx.transform_in = tr_in
+    unsafe { ctx.transform_in = tr_in }
 
     // Reset sequence numbers (all zeros)
     i = 0
@@ -96,7 +96,7 @@ func setup_symmetric_record_test() : SSLContext {
         i += 1
     }
 
-    return ctx
+    return unsafe(ctx)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -111,23 +111,23 @@ public func tls_ssl_set_config_works(env : &mut TestEnv) {
     cfg.max_tls_version = SSL_VERSION_TLS1_3
 
     var ctx : SSLContext
-    ssl_init(&raw mut ctx)
-    ssl_set_config(&raw mut ctx, &raw mut cfg)
+    ssl_init(unsafe(&raw mut ctx))
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)
 
-    if(ctx.conf == null) {
+    if(unsafe(ctx.conf) == null) {
         env.error("ctx.conf should not be null after ssl_set_config")
         return
     }
-    if(ctx.conf.endpoint != SSL_IS_CLIENT) {
+    if(unsafe(ctx.conf.endpoint) != SSL_IS_CLIENT) {
         env.error("endpoint should match config")
     }
-    if(ctx.conf.authmode != SSL_VERIFY_NONE) {
+    if(unsafe(ctx.conf.authmode) != SSL_VERIFY_NONE) {
         env.error("authmode should match config")
     }
-    if(ctx.conf.min_tls_version != SSL_VERSION_TLS1_2) {
+    if(unsafe(ctx.conf.min_tls_version) != SSL_VERSION_TLS1_2) {
         env.error("min_tls_version should match config")
     }
-    if(ctx.conf.max_tls_version != SSL_VERSION_TLS1_3) {
+    if(unsafe(ctx.conf.max_tls_version) != SSL_VERSION_TLS1_3) {
         env.error("max_tls_version should match config")
     }
 }
@@ -169,8 +169,8 @@ public func tls13_derive_handshake_keys_works(env : &mut TestEnv) {
     cfg.authmode = SSL_VERIFY_NONE
 
     var ctx : SSLContext
-    ssl_init(&raw mut ctx)
-    ssl_set_config(&raw mut ctx, &raw mut cfg)
+    ssl_init(unsafe(&raw mut ctx))
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)
 
     // Known shared secret (32 bytes, from ECDHE)
     var shared_secret : [32]u8
@@ -188,7 +188,7 @@ public func tls13_derive_handshake_keys_works(env : &mut TestEnv) {
         i += 1
     }
 
-    var ret = tls13_derive_handshake_keys(&raw mut ctx,
+    var ret = tls13_derive_handshake_keys(unsafe(&raw mut ctx),
                                            &raw shared_secret[0], 32,
                                            &raw transcript_hash[0])
     if(ret < 0) {
@@ -197,11 +197,11 @@ public func tls13_derive_handshake_keys_works(env : &mut TestEnv) {
     }
 
     // Verify transforms were allocated
-    if(ctx.transform_out == null) {
+    if(unsafe(ctx.transform_out) == null) {
         env.error("transform_out should be non-null after key derivation")
         return
     }
-    if(ctx.transform_in == null) {
+    if(unsafe(ctx.transform_in) == null) {
         env.error("transform_in should be non-null after key derivation")
         return
     }
@@ -220,13 +220,13 @@ public func tls13_derive_handshake_keys_works(env : &mut TestEnv) {
     }
 
     // Verify cipher type is set
-    if(ctx.transform_out.cipher_type != CIPHER_AES_128_GCM as u8) {
+    if(unsafe(ctx.transform_out.cipher_type) != CIPHER_AES_128_GCM as u8) {
         env.error("cipher_type should be AES-128-GCM")
     }
-    if(ctx.transform_out.key_len != 16) {
+    if(unsafe(ctx.transform_out.key_len) != 16) {
         env.error("key_len should be 16 for AES-128")
     }
-    if(ctx.transform_out.iv_len != 12) {
+    if(unsafe(ctx.transform_out.iv_len) != 12) {
         env.error("iv_len should be 12 for TLS 1.3")
     }
 }
@@ -237,8 +237,8 @@ public func tls13_derive_application_keys_works(env : &mut TestEnv) {
     cfg.authmode = SSL_VERIFY_NONE
 
     var ctx : SSLContext
-    ssl_init(&raw mut ctx)
-    ssl_set_config(&raw mut ctx, &raw mut cfg)
+    ssl_init(unsafe(&raw mut ctx))
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)
 
     // Derive handshake keys first (prerequisite)
     var shared_secret : [32]u8
@@ -250,7 +250,7 @@ public func tls13_derive_application_keys_works(env : &mut TestEnv) {
         i += 1
     }
 
-    var ret = tls13_derive_handshake_keys(&raw mut ctx,
+    var ret = tls13_derive_handshake_keys(unsafe(&raw mut ctx),
                                            &raw shared_secret[0], 32,
                                            &raw transcript_hash[0])
     if(ret < 0) {
@@ -263,8 +263,8 @@ public func tls13_derive_application_keys_works(env : &mut TestEnv) {
     var hs_key_dec : [16]u8
     i = 0
     while(i < 16) {
-        hs_key_enc[i] = ctx.transform_out.key_enc[i]
-        hs_key_dec[i] = ctx.transform_in.key_dec[i]
+        hs_key_enc[i] = unsafe(ctx.transform_out.key_enc[i])
+        hs_key_dec[i] = unsafe(ctx.transform_in.key_dec[i])
         i += 1
     }
 
@@ -276,7 +276,7 @@ public func tls13_derive_application_keys_works(env : &mut TestEnv) {
         i += 1
     }
 
-    ret = tls13_derive_application_keys(&raw mut ctx,
+    ret = tls13_derive_application_keys(unsafe(&raw mut ctx),
                                          &raw hs_hash[0], 32)
     if(ret < 0) {
         env.error("tls13_derive_application_keys should succeed")
@@ -284,11 +284,11 @@ public func tls13_derive_application_keys_works(env : &mut TestEnv) {
     }
 
     // Verify transforms still exist (old ones freed, new ones allocated)
-    if(ctx.transform_out == null) {
+    if(unsafe(ctx.transform_out) == null) {
         env.error("transform_out should be non-null after application key derivation")
         return
     }
-    if(ctx.transform_in == null) {
+    if(unsafe(ctx.transform_in) == null) {
         env.error("transform_in should be non-null after application key derivation")
         return
     }
@@ -554,8 +554,8 @@ public func tls13_update_send_keys_works(env : &mut TestEnv) {
     cfg.authmode = SSL_VERIFY_NONE
 
     var ctx : SSLContext
-    ssl_init(&raw mut ctx)
-    ssl_set_config(&raw mut ctx, &raw mut cfg)
+    ssl_init(unsafe(&raw mut ctx))
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)
 
     // Derive handshake keys
     var shared_secret : [32]u8
@@ -566,7 +566,7 @@ public func tls13_update_send_keys_works(env : &mut TestEnv) {
         transcript_hash[i] = (i + 0x55) as u8
         i += 1
     }
-    var ret = tls13_derive_handshake_keys(&raw mut ctx,
+    var ret = tls13_derive_handshake_keys(unsafe(&raw mut ctx),
                                            &raw shared_secret[0], 32,
                                            &raw transcript_hash[0])
     if(ret < 0) { env.error("handshake key derivation should succeed"); return }
@@ -578,7 +578,7 @@ public func tls13_update_send_keys_works(env : &mut TestEnv) {
         hs_hash[i] = (i + 0xAA) as u8
         i += 1
     }
-    ret = tls13_derive_application_keys(&raw mut ctx, &raw hs_hash[0], 32)
+    ret = tls13_derive_application_keys(unsafe(&raw mut ctx), &raw hs_hash[0], 32)
     if(ret < 0) { env.error("application key derivation should succeed"); return }
 
     // Capture pre-update keys
@@ -586,13 +586,13 @@ public func tls13_update_send_keys_works(env : &mut TestEnv) {
     var pre_iv_enc : [12]u8
     i = 0
     while(i < 16) {
-        pre_key_enc[i] = ctx.transform_out.key_enc[i]
-        if(i < 12) { pre_iv_enc[i] = ctx.transform_out.base_iv_enc[i] }
+        pre_key_enc[i] = unsafe(ctx.transform_out.key_enc[i])
+        if(i < 12) { pre_iv_enc[i] = unsafe(ctx.transform_out.base_iv_enc[i]) }
         i += 1
     }
 
     // Perform key update
-    ret = tls13_update_send_keys(&raw mut ctx)
+    ret = tls13_update_send_keys(unsafe(&raw mut ctx))
     if(ret < 0) {
         env.error("tls13_update_send_keys should succeed")
         return
@@ -618,7 +618,7 @@ public func tls13_update_send_keys_works(env : &mut TestEnv) {
     var seq_all_zero = true
     i = 0
     while(i < 8) {
-        if(ctx.out_ctr[i] != 0) { seq_all_zero = false }
+        if(unsafe(ctx.out_ctr[i]) != 0) { seq_all_zero = false }
         i += 1
     }
     if(!seq_all_zero) {
@@ -633,10 +633,10 @@ public func tls13_update_send_keys_works(env : &mut TestEnv) {
 @test
 public func tls_ssl_close_notify_no_socket_works(env : &mut TestEnv) {
     var ctx : SSLContext
-    ssl_init(&raw mut ctx)
+    ssl_init(unsafe(&raw mut ctx))
     // No socket or config set — just ensures ssl_close_notify doesn't crash
 
-    ssl_close_notify(&raw mut ctx)
+    ssl_close_notify(unsafe(&raw mut ctx))
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -268,6 +268,8 @@ public func styled_symResNode(visitor : *mut SymResLinkBody, node : *mut Embedde
     root.ssrTextDataFn = childrenParam.child("data");
     root.ssrTextSizeFn = childrenParam.child("size");
 
+    root.signature.functionNode = funcDecl;
+
     // if wrapping a component, resolve the inner component function
     if(root.isComponentWrap) {
         const inner = resolver.resolve(&root.tag);
@@ -285,19 +287,24 @@ public func styled_symResNode(visitor : *mut SymResLinkBody, node : *mut Embedde
         // type (styled / universal / html) rather than assuming it is a StyledComponent.
         const innerEmbedded = inner as *mut EmbeddedNode;
         const innerSig = innerEmbedded.getDataPtr() as *mut ComponentSignature;
-        // Universal components render through a capture buffer + `<span id="u">`
-        // host wrapper (the SSR -> client hydration delta mechanism). A styled
-        // wrap bypasses that host wrapper, so the inner's markup would be captured
-        // but never flushed, producing empty output. Reject this at compile time
-        // with a clear message rather than silently emitting nothing.
-        if(innerSig.mountStrategy == MountStrategy.Universal) {
-            resolver.error(std::string_view("wrapping a universal component is not supported; wrap a plain or styled component instead"), loc);
-            return;
-        }
         root.innerFunctionNode = innerSig.functionNode;
+        // Universal components render through a capture buffer + `<span id="u">`
+        // host wrapper (the SSR -> client hydration delta mechanism): their
+        // server function appends markup to the page and then moves it into the
+        // JS bundle for hydration. A styled wrap therefore inherits the inner's
+        // `Universal` mount strategy so that html_cbi's `#html` conversion emits
+        // the host wrapper + hydration trigger around the wrap. The generated
+        // SSR function (styled_replacementNode) still emits the wrapper CSS and
+        // forwards the call to the inner universal component.
+        if(innerSig.mountStrategy == MountStrategy.Universal) {
+            root.signature.mountStrategy = MountStrategy.Universal;
+            // Hydration must target the inner universal component (it owns the
+            // client JS); the styled component's own `functionNode` is only used
+            // for SSR (emitting the wrapper CSS) and would have no client side.
+            root.signature.hydrateFunctionNode = innerSig.functionNode;
+            root.signature.hydrateName = innerSig.name;
+        }
     }
-
-    root.signature.functionNode = funcDecl;
 
     table.scope_start();
     table.declare(std::string_view("page"), pageParam);
@@ -353,8 +360,8 @@ func styled_make_children_call(builder : *mut ASTBuilder, pageParam : *mut ASTNo
 public func styled_replacementNode(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
     const root = value.getDataPtr() as *mut StyledComponent;
     const funcNode = root.signature.functionNode;
-    const body = funcNode.add_body();
     const location = intrinsics::get_raw_location();
+    const body = funcNode.add_body();
 
     // Emit the generated CSS rules into the page (sets root.cssom.className).
     var converter = ASTConverter {

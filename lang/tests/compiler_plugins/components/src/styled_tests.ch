@@ -677,27 +677,32 @@ public func styled_cross_module_usage(env : &mut TestEnv) {
 }
 
 // ---------------------------------------------------------------------------
-// Wrap of a UNIVERSAL component (robustness: must not crash; wrapper css must
-// still be emitted). Observe the actual markup to decide class-merge behavior.
+// Wrapping a `#universal` component: the wrapper CSS is still emitted (via the
+// styled component's SSR function) while hydration must target the INNER
+// universal component (which owns the client-side JS). The styled wrapper has
+// no client component, so dispatching hydration to it would leave an empty
+// <span> in the browser.
 // ---------------------------------------------------------------------------
-#universal UWrapTarget(props) {
+#universal UInnerW(props) {
     <div>{children}</div>
 }
 
-#styled SWrapU(UWrapTarget) {
+#styled SWrapUni(UInnerW) {
     padding: 5px;
 }
 
 @test
-public func styled_wrap_universal_inner(env : &mut TestEnv) {
+public func styled_wrap_universal_hydrates_inner(env : &mut TestEnv) {
     var page = HtmlPage()
-    #html { <SWrapU>content</SWrapU> }
-    var html = std::string()
-    html.append_view(page.getHtml())
-    printf("UWRAP_HTML: %s\n", html.to_view().data())
+    #html { <SWrapUni>content</SWrapUni> }
+    // The wrapper's own CSS rule must still be emitted.
     var css = std::string()
     css.append_view(page.getCss())
-    printf("UWRAP_CSS: %s\n", css.to_view().data())
-    // The wrapper's own css must always be emitted, regardless of inner type.
-    contains_string_assert(env, css.to_view(), std::string_view("padding:5px"))
+    styled_assert_prop(env, css.to_view(), std::string_view("padding"), std::string_view("5px"))
+    // Hydration must dispatch to the inner universal component. The inner's
+    // module-scoped name contains "UInnerW"; if hydration wrongly targeted the
+    // styled wrapper (which has no client JS) the inner would never appear.
+    var js = std::string()
+    js.append_view(page.getJs())
+    contains_string_assert(env, js.to_view(), std::string_view("UInnerW"))
 }

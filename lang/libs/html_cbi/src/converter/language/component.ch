@@ -21,6 +21,212 @@ func has_non_ssr_attr_value(attrValue : *AttributeValue) : bool {
     }
 }
 
+// Builds an SsrAttributeList struct value for a component invocation. When `withClass` is
+// non-empty, an additional `class` attribute carrying the generated class name is appended
+// (renderHtmlAttrs merges it with any caller-provided class).
+func (converter : &mut ASTConverter) build_ssr_attrs(element : *mut HtmlElement, withClass : std::string_view) : *mut Value {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location()
+
+    const ssrAttrLinkedNode = converter.support.ssrAttrLinkedNode
+    const ssrTextLinkedNode = converter.support.ssrTextLinkedNode
+    const ssrAttributeValueNode = converter.support.ssrAttributeValueNode
+    const multipleAttributeValueNode = converter.support.multipleAttributeValueNode
+    const ssrAttributeListNode = converter.support.ssrAttributeListNode
+
+    const structValue = builder.make_struct_value(ssrAttributeListNode, location)
+
+    const hasClass = withClass.size() > 0
+    const hasAttrs = !element.attributes.empty()
+
+    if(!hasAttrs && !hasClass) {
+        structValue.add_value(std::string_view("data"), builder.make_null_value(location))
+        structValue.add_value(std::string_view("size"), builder.make_ubigint_value(0, location))
+        return structValue;
+    }
+
+    const ssrAttrLinkedType = builder.make_linked_type(std::string_view("SsrAttribute"), ssrAttrLinkedNode, location)
+    const arrayValue = builder.make_array_value(ssrAttrLinkedType, location)
+    const attrValues = arrayValue.get_values()
+
+    var attrValConv = AttrValueConverter {
+        pageNode : converter.support.pageNode,
+        ssrTextNode : converter.support.ssrTextLinkedNode,
+        ssrAttributeValueNode : converter.support.ssrAttributeValueNode,
+        multipleAttributeValueNode : converter.support.multipleAttributeValueNode,
+        parent : converter.parent
+    }
+
+    var pushedCount : ubigint = 0;
+    for(var i = 0u; i < element.attributes.size(); i++) {
+        const attr = element.attributes.get(i)
+        if(is_event_attribute_name(attr.name) || has_non_ssr_attr_value(attr.value)) continue;
+        // skip if a later attribute with same name exists
+        var is_duplicate : bool = false;
+        for(var j = i + 1u; j < element.attributes.size(); j++) {
+            const nextAttr = element.attributes.get(j)
+            if(nextAttr.name.equals(&attr.name)) {
+                is_duplicate = true;
+                break;
+            }
+        }
+        if(is_duplicate) continue;
+
+        const attrStructVal = builder.make_struct_value(ssrAttrLinkedNode, location)
+
+        const nameStructVal = builder.make_struct_value(ssrTextLinkedNode, location)
+        nameStructVal.add_value(std::string_view("data"), builder.make_string_value(&attr.name, location))
+        nameStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(attr.name.size(), location))
+        attrStructVal.add_value(std::string_view("name"), nameStructVal)
+
+        const attrValue = attr.value;
+        if(attrValue == null) {
+            const textStructVal = builder.make_struct_value(ssrTextLinkedNode, location);
+            textStructVal.add_value(std::string_view("data"), builder.make_string_value(builder.allocate_view(std::string_view("true")), location));
+            textStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(4, location));
+            attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, "Text", textStructVal));
+        } else if(attrValue.kind == AttributeValueKind.Chemical) {
+            var chemAttrValue = attrValue as *mut ChemicalAttributeValue
+            var attrValueVal = attrValConv.convert_to_attr_value(builder, chemAttrValue.value.getType(), chemAttrValue.value)
+            attrStructVal.add_value(std::string_view("value"), attrValueVal);
+        } else if(attrValue.kind == AttributeValueKind.ChemicalValues) {
+            var chemAttrValue = attrValue as *mut ChemicalAttributeValues
+            const multiVal = attrValConv.convert_multiple_attr_values(builder, chemAttrValue.values.data(), chemAttrValue.values.size())
+            attrStructVal.add_value(std::string_view("value"), multiVal);
+        } else {
+            var chemAttrValue = attrValue as *mut TextAttributeValue
+            const textStructVal = builder.make_struct_value(ssrTextLinkedNode, location)
+            var stripped = strip_js_string_quotes(chemAttrValue.text);
+            var escaped = std::string();
+            escape_html_append(&mut escaped, stripped);
+            textStructVal.add_value(std::string_view("data"), builder.make_string_value(builder.allocate_view(escaped.view()), location))
+            textStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(escaped.size(), location))
+            attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, "Text", textStructVal));
+        }
+
+        attrValues.push(attrStructVal)
+        pushedCount++;
+    }
+
+    if(hasClass) {
+        const classAttrStruct = builder.make_struct_value(ssrAttrLinkedNode, location)
+        const nameStruct = builder.make_struct_value(ssrTextLinkedNode, location)
+        nameStruct.add_value(std::string_view("data"), builder.make_string_value(builder.allocate_view(std::string_view("class")), location))
+        nameStruct.add_value(std::string_view("size"), builder.make_ubigint_value(5, location))
+        classAttrStruct.add_value(std::string_view("name"), nameStruct)
+        const valueStruct = builder.make_struct_value(ssrTextLinkedNode, location)
+        valueStruct.add_value(std::string_view("data"), builder.make_string_value(&withClass, location))
+        valueStruct.add_value(std::string_view("size"), builder.make_ubigint_value(withClass.size(), location))
+        classAttrStruct.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, "Text", valueStruct))
+        attrValues.push(classAttrStruct)
+        pushedCount++;
+    }
+
+    structValue.add_value(std::string_view("data"), arrayValue)
+    structValue.add_value(std::string_view("size"), builder.make_ubigint_value(pushedCount, location))
+    return structValue;
+}
+
+// Renders the children of a component invocation into an SsrText struct value by capturing
+// the html buffer between two points and truncating.
+func (converter : &mut ASTConverter) build_ssr_children(element : *mut HtmlElement, idLoc : ubigint) : *mut Value {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location()
+
+    if(element.children.empty()) {
+        const ssrTextStructVal = builder.make_struct_value(converter.support.ssrTextLinkedNode, location);
+        ssrTextStructVal.add_value(std::string_view("data"), builder.make_null_value(location));
+        ssrTextStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(0, location));
+        return ssrTextStructVal;
+    }
+
+    // 1. Capture current HTML size
+    var pageId2 = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+    var getHtmlSizeId = builder.make_identifier(std::string_view("get_html_size"), converter.support.getHtmlSizeFn, false, location)
+    var getSizeCall = builder.make_function_call_value(
+        builder.make_access_chain(&std::span<*mut Value>([ pageId2 as *mut Value, getHtmlSizeId ]), location),
+        location
+    );
+
+    var startIdxNameStr = std::string();
+    startIdxNameStr.append_view("startIdx_");
+    startIdxNameStr.append_uinteger(idLoc);
+    var startIdxName = builder.allocate_view(startIdxNameStr.to_view());
+
+    var startIdxVar = builder.make_varinit_stmt(false, false, &startIdxName, builder.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
+    converter.vec.push(startIdxVar as *mut ASTNode);
+
+    // 2. Render children
+    for(var i : uint = 0; i < element.children.size(); i++) {
+         converter.convertHtmlChild(element.children.get(i));
+    }
+
+    converter.put_chain_in()
+
+    // 3. Extract range and truncate
+    var pageId3 = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+    var pageHtmlId = builder.make_identifier(std::string_view("pageHtml"), converter.support.pageHtmlNode, false, location)
+    var pageHtmlAccess = builder.make_access_chain(&std::span<*mut Value>([ pageId3, pageHtmlId ]), location);
+
+    var childrenHtmlNameStr = std::string();
+    childrenHtmlNameStr.append_view("childrenHtml_");
+    childrenHtmlNameStr.append_uinteger(idLoc);
+    var childrenHtmlName = builder.allocate_view(childrenHtmlNameStr.to_view());
+
+    var childrenHtmlVar = builder.make_varinit_stmt(false, false, &childrenHtmlName, null,
+        builder.make_function_call_value(builder.make_identifier(std::string_view("std::string"), converter.support.stringNodeMake, false, location), location),
+        AccessSpecifier.Internal, converter.parent, location);
+    converter.vec.push(childrenHtmlVar as *mut ASTNode);
+
+    var childrenHtmlId = builder.make_identifier(&childrenHtmlName, childrenHtmlVar as *mut ASTNode, false, location);
+    var appendWithLenId = builder.make_identifier(std::string_view("append_with_len"), converter.support.appendWithLenFn, false, location)
+    var appendCall = builder.make_function_call_node(
+        builder.make_access_chain(&std::span<*mut Value>([ childrenHtmlId, appendWithLenId ]), location),
+        converter.parent,
+        location
+    );
+    var startIdxId = builder.make_identifier(&startIdxName, startIdxVar as *mut ASTNode, false, location);
+    var dataId = builder.make_identifier(std::string_view("data"), converter.support.dataFn, false, location)
+    var dataCall = builder.make_function_call_value(
+        builder.make_access_chain(&std::span<*mut Value>([ pageHtmlAccess as *mut Value, dataId ]), location),
+        location
+    );
+    var sizeId = builder.make_identifier(std::string_view("size"), converter.support.sizeFn, false, location)
+    var sizeCall = builder.make_function_call_value(
+        builder.make_access_chain(&std::span<*mut Value>([ pageHtmlAccess as *mut Value, sizeId ]), location),
+        location
+    );
+
+    appendCall.get_args().push(builder.make_expression_value(dataCall as *mut Value, startIdxId as *mut Value, Operation.Addition, dataCall.getType(), location));
+    appendCall.get_args().push(builder.make_expression_value(sizeCall as *mut Value, startIdxId as *mut Value, Operation.Subtraction, sizeCall.getType(), location));
+    converter.vec.push(appendCall as *mut ASTNode);
+
+    var pageId4 = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+    var truncateHtmlId = builder.make_identifier(std::string_view("truncate_html"), converter.support.truncateHtmlFn, false, location)
+    var truncateCall = builder.make_function_call_node(
+        builder.make_access_chain(&std::span<*mut Value>([ pageId4 as *mut Value, truncateHtmlId ]), location),
+        converter.parent,
+        location
+    );
+    truncateCall.get_args().push(builder.make_identifier(&startIdxName, startIdxVar as *mut ASTNode, false, location));
+    converter.vec.push(truncateCall as *mut ASTNode);
+
+    // 4. Construct SsrText
+    const ssrTextStructVal = builder.make_struct_value(converter.support.ssrTextLinkedNode, location);
+    var dataCall2 = builder.make_function_call_value(
+        builder.make_access_chain(&std::span<*mut Value>([ childrenHtmlId, dataId ]), location),
+        location
+    );
+    var sizeCall2 = builder.make_function_call_value(
+        builder.make_access_chain(&std::span<*mut Value>([ childrenHtmlId as *mut Value, sizeId ]), location),
+        location
+    );
+
+    ssrTextStructVal.add_value(std::string_view("data"), dataCall2);
+    ssrTextStructVal.add_value(std::string_view("size"), sizeCall2);
+    return ssrTextStructVal;
+}
+
 func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlElement) {
     // 0. Flush any pending HTML
     converter.put_chain_in()
@@ -29,11 +235,25 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
     const location = intrinsics::get_raw_location()
     const signature = element.componentSignature
 
-    // the output string
-    var s = &mut converter.str
-
     // 1. Generate the hash based on component name
     const hash = signature.functionNode.getEncodedLocation()
+
+    // Styled components: render <tag class="hash">children</tag> (or forward to a wrapped
+    // component) by calling the generated SSR function with the attribute list + children.
+    // No hydration <span> / JS queue is emitted (pure SSR + injected CSS).
+    if(signature.mountStrategy == MountStrategy.Styled) {
+        const attrsVal = converter.build_ssr_attrs(element, signature.className)
+        const childrenVal = converter.build_ssr_children(element, element.loc)
+
+        var compBase = builder.make_identifier(&signature.name, signature.functionNode as *mut ASTNode, false, location)
+        var compCall = builder.make_function_call_node(compBase as *mut Value, converter.parent, location)
+        compCall.get_args().push(builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location) as *mut Value)
+        compCall.get_args().push(builder.make_addr_of_value(attrsVal, true, location) as *mut Value)
+        compCall.get_args().push(childrenVal as *mut Value)
+        converter.vec.push(compCall as *mut ASTNode)
+        converter.put_chain_in();
+        return;
+    }
 
     // 2. Generate the if(page.require_component(hash)) block to emit component JS.
     if(signature.mountStrategy != MountStrategy.Universal) {
@@ -48,243 +268,24 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
     // it just requires a single function call with the props
     if(signature.mountStrategy == MountStrategy.Universal) {
 
-        // lets construct a var decl array of attributes
-        // var attrs = [ SsrAttribute { name : SsrText { data : "", size : 0 }, value : SsrAttributeValue.Text(SsrText { data : "", size : 0 }) } ]
+        const idLoc = element.loc
 
-        // every component invocation generates different html
-        // therefore we must make sure every html gets a different id
-        const idLoc = element.loc;
+        const attrsVal = converter.build_ssr_attrs(element, std::string_view())
+        const childrenVal = converter.build_ssr_children(element, idLoc)
 
-        // the ssr attribute linked type
-        const ssrAttrLinkedNode = converter.support.ssrAttrLinkedNode
-        const ssrAttrLinkedType = builder.make_linked_type(std::string_view("SsrAttribute"), ssrAttrLinkedNode, location)
-
-        // the ssr text linked type
-        const ssrTextLinkedNode = converter.support.ssrTextLinkedNode
-        const ssrTextLinkedType = builder.make_linked_type(std::string_view("SsrText"), ssrTextLinkedNode, location)
-
-        // creating a struct value for ssr attribute list
-        const ssrAttributeListNode = converter.support.ssrAttributeListNode
-        const structValue = builder.make_struct_value(ssrAttributeListNode, location)
-
-        // Call ComponentFunction(page) to write the component's HTML
         var compBase = builder.make_identifier(&signature.name, signature.functionNode as *mut ASTNode, false, location)
         var compPageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
         var compCall = builder.make_function_call_node(compBase as *mut Value, converter.parent, location)
-        const args = compCall.get_args();
-        args.push(compPageId as *mut Value)
-
-        if(element.attributes.empty()) {
-
-            // now lets add value for the data (going to be the array), and size
-            structValue.add_value(std::string_view("data"), builder.make_null_value(location))
-            structValue.add_value(std::string_view("size"), builder.make_ubigint_value(0, location))
-
-        } else {
-            // creating an array value for the attributes
-            const arrayValue = builder.make_array_value(ssrAttrLinkedType, location)
-            const attrValues = arrayValue.get_values()
-
-            var attrValConv = AttrValueConverter {
-                pageNode : converter.support.pageNode,
-                ssrTextNode : converter.support.ssrTextLinkedNode,
-                ssrAttributeValueNode : converter.support.ssrAttributeValueNode,
-                multipleAttributeValueNode : converter.support.multipleAttributeValueNode,
-                parent : converter.parent
-            }
-
-            // constructing ssr attributes (dedup by keeping last occurrence)
-            var pushedCount : ubigint = 0;
-            for(var i = 0u; i < element.attributes.size(); i++) {
-                const attr = element.attributes.get(i)
-                if(is_event_attribute_name(attr.name) || has_non_ssr_attr_value(attr.value)) continue;
-                // skip if a later attribute with same name exists
-                var is_duplicate : bool = false;
-                for(var j = i + 1u; j < element.attributes.size(); j++) {
-                    const nextAttr = element.attributes.get(j)
-                    if(nextAttr.name.equals(&attr.name)) {
-                        is_duplicate = true;
-                        break;
-                    }
-                }
-                if(is_duplicate) continue;
-
-                // constructing a ssr text for the attribute name
-                const attrStructVal = builder.make_struct_value(ssrAttrLinkedNode, location)
-
-                // constructing a ssr text val for the name value
-                const nameStructVal = builder.make_struct_value(ssrTextLinkedNode, location)
-                nameStructVal.add_value(std::string_view("data"), builder.make_string_value(&attr.name, location))
-                nameStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(attr.name.size(), location))
-                attrStructVal.add_value(std::string_view("name"), nameStructVal)
-
-                // constructing a ssr value
-                const attrValue = attr.value;
-                if(attrValue == null) {
-                    // boolean attribute (e.g., disabled, checked) - emit as text "true"
-                    const textStructVal = builder.make_struct_value(ssrTextLinkedNode, location);
-                    textStructVal.add_value(std::string_view("data"), builder.make_string_value(builder.allocate_view(std::string_view("true")), location));
-                    textStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(4, location));
-                    attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, "Text", textStructVal));
-                } else if(attrValue.kind == AttributeValueKind.Chemical) {
-                    var chemAttrValue = attrValue as *mut ChemicalAttributeValue
-                    var attrValueVal = attrValConv.convert_to_attr_value(builder, chemAttrValue.value.getType(), chemAttrValue.value)
-
-                    attrStructVal.add_value(std::string_view("value"), attrValueVal);
-                } else if(attrValue.kind == AttributeValueKind.ChemicalValues) {
-                    var chemAttrValue = attrValue as *mut ChemicalAttributeValues
-                    const multiVal = attrValConv.convert_multiple_attr_values(builder, chemAttrValue.values.data(), chemAttrValue.values.size())
-                    attrStructVal.add_value(std::string_view("value"), multiVal);
-
-                } else {
-                    // constructing a ssr text val for the name value
-                    var chemAttrValue = attrValue as *mut TextAttributeValue
-                    const textStructVal = builder.make_struct_value(ssrTextLinkedNode, location)
-                    
-                    var stripped = strip_js_string_quotes(chemAttrValue.text);
-                    var escaped = std::string();
-                    escape_html_append(&mut escaped, stripped);
-                    
-                    textStructVal.add_value(std::string_view("data"), builder.make_string_value(builder.allocate_view(escaped.view()), location))
-                    textStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(escaped.size(), location))
-
-                    attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, "Text", textStructVal));
-                }
-
-                // putting the attribute struct val into the array
-                attrValues.push(attrStructVal)
-                pushedCount++;
-
-            }
-
-            // now lets add value for the data (going to be the array), and size
-            structValue.add_value(std::string_view("data"), arrayValue)
-            structValue.add_value(std::string_view("size"), builder.make_ubigint_value(pushedCount, location))
-        }
-
-        // 1. Generate uId: var uId = page.get_next_u_id();
-        var pageIdWrapp = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+        compCall.get_args().push(compPageId as *mut Value)
+        compCall.get_args().push(builder.make_addr_of_value(attrsVal, true, location) as *mut Value)
+        compCall.get_args().push(childrenVal as *mut Value)
 
         // 2. Emit <span id="u" data-chx-i>  (inline-safe hydration boundary)
-        //    data-chx-i triggers [data-chx-i]{display:contents} so the span
-        //    is layout-invisible — children become direct layout children of
-        //    the parent, fixing table/inline contexts.
         converter.str.append_view("<span id=\"u");
         converter.str.append_uinteger(idLoc);
         converter.str.append_view("\" data-chx-i>");
         converter.put_chain_in();
 
-        // 3. Add attributes address as the second argument
-        args.push(builder.make_addr_of_value(structValue, true, location) as *mut Value)
-
-        if(element.children.empty()) {
-
-            // empty children, we are going to construct an empty ssr text (optimization)
-            var builder2 = converter.builder;
-            const ssrTextStructVal = builder2.make_struct_value(converter.support.ssrTextLinkedNode, location);
-            ssrTextStructVal.add_value("data", builder2.make_null_value(location));
-            ssrTextStructVal.add_value("size", builder2.make_ubigint_value(0, location));
-            args.push(ssrTextStructVal);
-
-        } else {
-
-            // and now the children argument
-            // 1. Capture current HTML size
-            const builder2 = converter.builder;
-            var pageId2 = builder2.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-
-            var getHtmlSizeId = builder2.make_identifier(std::string_view("get_html_size"), converter.support.getHtmlSizeFn, false, location)
-
-            var getSizeCall = builder2.make_function_call_value(
-                builder2.make_access_chain(&std::span<*mut Value>([ pageId2 as *mut Value, getHtmlSizeId ]), location),
-                location
-            );
-
-            var startIdxNameStr = std::string();
-            startIdxNameStr.append_view("startIdx_");
-            startIdxNameStr.append_uinteger(element.loc);
-            var startIdxName = builder2.allocate_view(startIdxNameStr.to_view());
-
-            var startIdxVar = builder2.make_varinit_stmt(false, false, &startIdxName, builder2.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
-            converter.vec.push(startIdxVar as *mut ASTNode);
-
-            // 2. Render children
-            for(var i : uint = 0; i < element.children.size(); i++) {
-                 converter.convertHtmlChild(element.children.get(i));
-            }
-
-            // flush the chain (important)
-            converter.put_chain_in()
-
-            // 3. Extract range and truncate
-            var pageId3 = builder2.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-            var pageHtmlId = builder2.make_identifier(view("pageHtml"), converter.support.pageHtmlNode, false, location)
-            var pageHtmlAccess = builder2.make_access_chain(&std::span<*mut Value>([ pageId3, pageHtmlId ]), location);
-
-            var childrenHtmlNameStr = std::string();
-            childrenHtmlNameStr.append_view("childrenHtml_");
-            childrenHtmlNameStr.append_uinteger(element.loc);
-            var childrenHtmlName = builder2.allocate_view(childrenHtmlNameStr.to_view());
-
-            var childrenHtmlVar = builder2.make_varinit_stmt(false, false, &childrenHtmlName, null,
-                builder2.make_function_call_value(builder2.make_identifier(view("std::string"), converter.support.stringNodeMake, false, location), location),
-                AccessSpecifier.Internal, converter.parent, location);
-            converter.vec.push(childrenHtmlVar as *mut ASTNode);
-
-            var childrenHtmlId = builder2.make_identifier(&childrenHtmlName, childrenHtmlVar as *mut ASTNode, false, location);
-            var appendWithLenId = builder2.make_identifier(view("append_with_len"), converter.support.appendWithLenFn, false, location)
-            var appendCall = builder2.make_function_call_node(
-                builder2.make_access_chain(&std::span<*mut Value>([ childrenHtmlId, appendWithLenId ]), location),
-                converter.parent,
-                location
-            );
-            var startIdxId = builder2.make_identifier(&startIdxName, startIdxVar as *mut ASTNode, false, location);
-            var dataId = builder2.make_identifier(view("data"), converter.support.dataFn, false, location)
-            var dataCall = builder2.make_function_call_value(
-                builder2.make_access_chain(&std::span<*mut Value>([ pageHtmlAccess as *mut Value, dataId ]), location),
-                location
-            );
-            var sizeId = builder2.make_identifier(view("size"), converter.support.sizeFn, false, location)
-            var sizeCall = builder2.make_function_call_value(
-                builder2.make_access_chain(&std::span<*mut Value>([ pageHtmlAccess as *mut Value, sizeId ]), location),
-                location
-            );
-
-            appendCall.get_args().push(builder2.make_expression_value(dataCall as *mut Value, startIdxId as *mut Value, Operation.Addition, dataCall.getType(), location));
-            appendCall.get_args().push(builder2.make_expression_value(sizeCall as *mut Value, startIdxId as *mut Value, Operation.Subtraction, sizeCall.getType(), location));
-            converter.vec.push(appendCall as *mut ASTNode);
-
-            var pageId4 = builder2.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-            var truncateHtmlId = builder2.make_identifier(view("truncate_html"), converter.support.truncateHtmlFn, false, location)
-            var truncateCall = builder2.make_function_call_node(
-                builder2.make_access_chain(&std::span<*mut Value>([ pageId4 as *mut Value, truncateHtmlId ]), location),
-                converter.parent,
-                location
-            );
-            truncateCall.get_args().push(builder2.make_identifier(&startIdxName, startIdxVar as *mut ASTNode, false, location));
-            converter.vec.push(truncateCall as *mut ASTNode);
-
-            // 4. Construct SsrText and pass as 3rd arg
-            const ssrTextStructVal = builder2.make_struct_value(converter.support.ssrTextLinkedNode, location);
-            // var childrenHtmlId = builder2.make_identifier(view("childrenHtml"), childrenHtmlVar as *mut ASTNode, false, location);
-
-            var dataCall2 = builder2.make_function_call_value(
-                builder2.make_access_chain(&std::span<*mut Value>([ childrenHtmlId, dataId ]), location),
-                location
-            );
-            var sizeCall2 = builder2.make_function_call_value(
-                builder2.make_access_chain(&std::span<*mut Value>([ childrenHtmlId as *mut Value, sizeId ]), location),
-                location
-            );
-
-            ssrTextStructVal.add_value("data", dataCall2);
-            ssrTextStructVal.add_value("size", sizeCall2);
-
-            args.push(ssrTextStructVal as *mut Value);
-
-        }
-
-        // put the call in the vec
         converter.vec.push(compCall as *mut ASTNode)
         converter.put_chain_in(); // Flush any pending HTML before </div>
 
@@ -300,15 +301,15 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         return;
     }
 
+    var s = &mut converter.str
+
     s.append_view("<script>")
 
     if(signature.mountStrategy == MountStrategy.Universal) {
-        // Universal Mount Strategy (HTML-first, no framework dependency)
         s.append_view("$_um(document.currentScript, ")
         get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, &mut *s)
         s.append_view(", {")
     } else {
-        // Default Mount Strategy
         s.append_view("$_dm(document.currentScript, ")
         get_module_scoped_name(signature.functionNode as *mut ASTNode, signature.name, &mut *s)
         s.append_view(", {")

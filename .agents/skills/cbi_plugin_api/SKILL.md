@@ -140,8 +140,8 @@ These are the plugins shipped with the compiler. Each demonstrates different CBI
 
 | Plugin | Location | Purpose | Key Features |
 |--------|----------|---------|--------------|
-| `html_cbi` | `lang/libs/html_cbi/` | `#html` macro | Parses HTML/JSX, generates page.append_html_view() calls |
-| `css_cbi` | `lang/libs/css_cbi/` | `#css` macro | Parses CSS properties, generates style strings |
+| `html_cbi` | `lang/libs/html_cbi/` | `#html` macro | Parses HTML/JSX, generates page.append_html_view() calls; resolves `#styled` components (MountStrategy.Styled) in `#html` |
+| `css_cbi` | `lang/libs/css_cbi/` | `#css`, `#styled` macros | `#css` parses CSS properties into style strings; `#styled` declares scoped, CSS-injecting components usable in `#html` |
 | `js_cbi` | `lang/libs/js_cbi/` | `#js` macro | Inlines JavaScript code into the JS bundle |
 | `universal_cbi` | `lang/libs/universal_cbi/` | `#universal` component | SSR + hydration — generates server function + JS hydration |
 

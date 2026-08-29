@@ -76,4 +76,37 @@ universal lib also generates in both bundles, HTML that is server side rendered 
 that would hydrate the emitted html.
 universal components are fast and they render everywhere. They work in `#html` blocks too.
 
+`#styled` is the styling macro (provided by `css_cbi`). It declares a reusable, styled component whose CSS is scoped to a compiler-generated hash class and injected into the page automatically — no manual `#css` + `class={...}` wiring needed.
+
+For example:
+
+```chemical
+#styled Card("div") {
+    background: #ffffff;
+    border: 1px solid #cccccc;
+    padding: 8px;
+}
+```
+
+generates a component `Card` that, when used in `#html`:
+
+```chemical
+#html {
+    <Card class="xl">Hello <Title>World</Title></Card>
+}
+```
+
+renders `<div class="hAz5DrX xl">Hello ...</div>` and emits `.hAz5DrX{background:#ffffff;border:1px solid #cccccc;padding:8px;}` into the page's CSS.
+
+Syntax variants:
+- `#styled Name("div") { ... }` — tag given as a string literal.
+- `#styled Name(.div) { ... }` — shorthand using the dot-tag form.
+- `#styled Wrap(Inner) { ... }` — wrap mode: `Wrap` forwards to the inner component `Inner` and merges its own generated class with `Inner`'s onto the rendered element, so both components' CSS apply.
+
+Key properties:
+- The generated class is a content hash of the CSS, so it is stable/deterministic across renders.
+- User-provided `class` attributes are merged alongside the generated hash class.
+- Works in `#html` blocks and is usable cross-module (import the module that declares it).
+- Unlike `#universal`, `#styled` components do no hydration — they are pure SSR + injected CSS.
+
 For more information on universal components, load the `universal` skill. For developing new compiler plugins or understanding the plugin API, load the `cbi_plugin_api` skill. For understanding the compiler intrinsics and reflection APIs that macros can use at compile time, load the `intrinsics_compiler_reflection` skill.

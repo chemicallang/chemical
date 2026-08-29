@@ -8,7 +8,8 @@ public enum MountStrategy {
     Preact,
     React,
     Solid,
-    Universal
+    Universal,
+    Styled
 }
 
 public struct ComponentSignature {
@@ -19,6 +20,7 @@ public struct ComponentSignature {
     var mountStrategy : MountStrategy = MountStrategy.Default
     var access : AccessSpecifier = AccessSpecifier.Private
     var rootNodeCount : uint = 0
+    var className : std::string_view
 }
 
 public func get_module_scoped_name(functionNode : *mut ASTNode, name : std::string_view, str : &mut std::string) {

@@ -433,6 +433,51 @@ public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
     }
 }
 
+// Like `renderHtmlAttrs`, but prepends `baseClass` to the element's class list.
+// Used by #styled components so the generated CSS class is applied alongside any
+// user-provided `class` attribute.
+public func renderHtmlAttrsWithBase(page : &mut HtmlPage, list : &SsrAttributeList, baseClass : SsrText) {
+    var special = zeroed<SpecialAttrs>()
+    page.renderHtmlAttrsInternal(list, &mut special)
+
+    var output = &mut page.pageHtml
+
+    // 1. Render merged classes (baseClass first, then user classes)
+    if (special.class_count > 0 || baseClass.size > 0) {
+        output.append_view(" class=\"")
+        var first = true
+        if (baseClass.size > 0) {
+            output.append_with_len(baseClass.data, baseClass.size)
+            first = false
+        }
+        for (var i = 0; i < special.class_count; i++) {
+            if (!first) output.append(' ') // Space-separated classes
+            first = false
+            writePrimitiveAttrValue(page, output, &*special.classes[i])
+        }
+        output.append_view("\"")
+    }
+
+    // 2. Render merged styles
+    if (special.style_count > 0) {
+        output.append_view(" style=\"")
+        for (var i = 0; i < special.style_count; i++) {
+            if (i > 0) output.append(';') // Semicolon-separated styles
+            writePrimitiveAttrValue(page, &mut *output, &*special.styles[i])
+        }
+        output.append_view("\"")
+    }
+
+    // 3. Render deferred non-special attributes (already dedup'd, last-wins)
+    for (var i = 0; i < special.others_count; i++) {
+        output.append(' ')
+        output.append_with_len(special.others_names[i].data, special.others_names[i].size)
+        output.append_view("=\"")
+        writePrimitiveAttrValue(page, &mut *output, &mut *special.others_values[i])
+        output.append_view("\"")
+    }
+}
+
 func writeJsPrimitiveAttrValue(page : &mut HtmlPage, output : &mut std::string, attrVal : &SsrAttributeValue) {
     switch(attrVal) {
         None() => {

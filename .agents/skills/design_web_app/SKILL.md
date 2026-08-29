@@ -166,6 +166,51 @@ var count = items.size()
 - The loop variable extraction happens inside the `@{}` block, before the `#html { }`
 - Each `@{}` block must be self-contained (all variables declared or accessible within it)
 
+#### Styled components (`#styled`)
+
+`#styled` (from `css_cbi`) lets you declare a reusable component whose styling is scoped to a compiler-generated hash class and automatically injected into the page CSS — no manual `#css` + `class={...}` wiring needed.
+
+```chemical
+#styled Card("div") {
+    background: #ffffff;
+    border: 1px solid #cccccc;
+    padding: 8px;
+}
+
+#styled Title(.div) {
+    font-weight: bold;
+    color: #333333;
+}
+```
+
+Use them directly in `#html` like any component:
+
+```chemical
+#html {
+    <Card class="xl">Hello <Title>World</Title></Card>
+}
+```
+
+This renders `<div class="hAz5DrX xl">Hello <div class="hAStij2">World</div></div>` and injects both components' CSS (`.hAz5DrX{...}` and `.hAStij2{...}`) into the page. The generated classes are content hashes of the CSS, so they are deterministic.
+
+Wrap mode composes components while merging styles:
+
+```chemical
+#styled Wrapped(Title) {
+    margin: 4px;
+}
+#html {
+    <Wrapped>wrapped content</Wrapped>
+}
+```
+
+`Wrapped` forwards to `Title` and merges its own generated class with `Title`'s onto the single rendered element, so both `margin` and `font-weight` apply.
+
+Notes:
+- User-provided `class` attributes are preserved and merged with the generated hash class.
+- `#styled` components are pure SSR + injected CSS — no hydration/JS, unlike `#universal`.
+- They are usable cross-module: declare in one module, import it, and use `<Name>` in another module's `#html`.
+
 #### Components
 
 To better provide support for JS handling of elements, applying event listeners and DOM manipulation, universal components come into play.

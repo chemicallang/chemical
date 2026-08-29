@@ -13,7 +13,7 @@ using namespace tls
 
 @test
 public func UNIT_record_consume_single(env : &mut TestEnv) {
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
 
     // Create a simulated TLS record: content_type(1) + version(2) + length(2) + payload
     // ServerHello: content_type=22 (0x16), version=0x0303, length=3, payload=[0x02, 0x00, 0x01, 0x00]
@@ -40,17 +40,17 @@ public func UNIT_record_consume_single(env : &mut TestEnv) {
     ctx.in_buf[6] = record_data[6]
     ctx.in_buf[7] = record_data[7]
     ctx.in_buf[8] = record_data[8]
-    ctx.in_left = 9
-    ctx.in_msglen = 4  // 4 bytes payload
+    unsafe { ctx.in_left = 9 }
+    unsafe { ctx.in_msglen = 4 }  // 4 bytes payload
 
     // Consume the record
-    ssl_consume_record(&raw mut ctx)
+    ssl_consume_record(unsafe(&raw mut ctx))
 
     // After consuming: in_left should be 0 (no more data)
-    if(ctx.in_left != 0) {
+    if(unsafe(ctx.in_left) != 0) {
         env.error("UNIT_record_consume_single: in_left should be 0 after consuming single record")
     }
-    if(ctx.in_msglen != 0) {
+    if(unsafe(ctx.in_msglen) != 0) {
         env.error("UNIT_record_consume_single: in_msglen should be 0 after consuming")
     }
 }
@@ -61,7 +61,7 @@ public func UNIT_record_consume_single(env : &mut TestEnv) {
 
 @test
 public func UNIT_record_consume_two_records(env : &mut TestEnv) {
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
 
     // First record: ServerHello (content_type=22), length=4
     // Bytes: 16 03 03 00 04 [payload: 02 00 00 01]
@@ -82,8 +82,8 @@ public func UNIT_record_consume_two_records(env : &mut TestEnv) {
     var pos : size_t = 0
     while(pos < 9) { ctx.in_buf[pos] = rec1[pos]; pos += 1 }
     while(pos < 17) { ctx.in_buf[pos] = rec2[pos - 9]; pos += 1 }
-    ctx.in_left = 17
-    ctx.in_msglen = 4  // first record payload length = 4
+    unsafe { ctx.in_left = 17 }
+    unsafe { ctx.in_msglen = 4 }  // first record payload length = 4
 
     // Capture header for first record
     ctx.in_hdr[0] = rec1[0]
@@ -93,10 +93,10 @@ public func UNIT_record_consume_two_records(env : &mut TestEnv) {
     ctx.in_hdr[4] = rec1[4]
 
     // Consume first record (5 header + 4 payload = 9 bytes)
-    ssl_consume_record(&raw mut ctx)
+    ssl_consume_record(unsafe(&raw mut ctx))
 
     // After consuming: in_left should be 8 (the second record)
-    if(ctx.in_left != 8) {
+    if(unsafe(ctx.in_left) != 8) {
         env.error("UNIT_record_consume_two_records: in_left should be 8 after consuming first record")
         return
     }
@@ -104,7 +104,7 @@ public func UNIT_record_consume_two_records(env : &mut TestEnv) {
     // The second record should now be at the start of the buffer
     var i : size_t = 0
     while(i < 5) {
-        if(ctx.in_buf[i] != rec2[i]) {
+        if(unsafe(ctx.in_buf[i]) != rec2[i]) {
             env.error("UNIT_record_consume_two_records: second record header mismatch")
             return
         }
@@ -112,7 +112,7 @@ public func UNIT_record_consume_two_records(env : &mut TestEnv) {
     }
 
     // Verify the second record's content_type is HANDSHAKE (22 = 0x16)
-    if(ctx.in_buf[0] != 0x16 as u8) {
+    if(unsafe(ctx.in_buf[0]) != 0x16 as u8) {
         env.error("UNIT_record_consume_two_records: second record content_type should be 0x16")
     }
 }
@@ -123,7 +123,7 @@ public func UNIT_record_consume_two_records(env : &mut TestEnv) {
 
 @test
 public func UNIT_record_consume_ccs_then_handshake(env : &mut TestEnv) {
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
 
     // CCS record: content_type=20 (0x14), version=0x0303, length=1, payload=[0x01]
     var ccs_rec : [6]u8 = [
@@ -141,8 +141,8 @@ public func UNIT_record_consume_ccs_then_handshake(env : &mut TestEnv) {
     var pos : size_t = 0
     while(pos < 6) { ctx.in_buf[pos] = ccs_rec[pos]; pos += 1 }
     while(pos < 15) { ctx.in_buf[pos] = hs_rec[pos - 6]; pos += 1 }
-    ctx.in_left = 15
-    ctx.in_msglen = 1  // CCS payload = 1 byte
+    unsafe { ctx.in_left = 15 }
+    unsafe { ctx.in_msglen = 1 }  // CCS payload = 1 byte
     ctx.in_hdr[0] = ccs_rec[0]
     ctx.in_hdr[1] = ccs_rec[1]
     ctx.in_hdr[2] = ccs_rec[2]
@@ -150,10 +150,10 @@ public func UNIT_record_consume_ccs_then_handshake(env : &mut TestEnv) {
     ctx.in_hdr[4] = ccs_rec[4]
 
     // Consume CCS (5 header + 1 payload = 6 bytes)
-    ssl_consume_record(&raw mut ctx)
+    ssl_consume_record(unsafe(&raw mut ctx))
 
     // After consuming CCS: in_left should be 9 (the handshake record)
-    if(ctx.in_left != 9) {
+    if(unsafe(ctx.in_left) != 9) {
         env.error("UNIT_record_consume_ccs_then_handshake: in_left should be 9 after consuming CCS")
         return
     }
@@ -161,7 +161,7 @@ public func UNIT_record_consume_ccs_then_handshake(env : &mut TestEnv) {
     // Handshake should now be at position 0
     var i : size_t = 0
     while(i < 5) {
-        if(ctx.in_buf[i] != hs_rec[i]) {
+        if(unsafe(ctx.in_buf[i]) != hs_rec[i]) {
             env.error("UNIT_record_consume_ccs_then_handshake: handshake record header mismatch")
             return
         }
@@ -169,7 +169,7 @@ public func UNIT_record_consume_ccs_then_handshake(env : &mut TestEnv) {
     }
 
     // Verify content_type is HANDSHAKE
-    if(ctx.in_buf[0] != 0x16 as u8) {
+    if(unsafe(ctx.in_buf[0]) != 0x16 as u8) {
         env.error("UNIT_record_consume_ccs_then_handshake: content_type should be 0x16")
     }
 }
@@ -179,7 +179,7 @@ public func UNIT_record_consume_ccs_then_handshake(env : &mut TestEnv) {
 
 @test
 public func UNIT_record_consume_exact_boundary(env : &mut TestEnv) {
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
 
     // Single record: length = 0 (empty payload)
     var record : [5]u8 = [
@@ -190,8 +190,8 @@ public func UNIT_record_consume_exact_boundary(env : &mut TestEnv) {
 
     var i : size_t = 0
     while(i < 5) { ctx.in_buf[i] = record[i]; i += 1 }
-    ctx.in_left = 5
-    ctx.in_msglen = 0  // 0 bytes payload
+    unsafe { ctx.in_left = 5 }
+    unsafe { ctx.in_msglen = 0 }  // 0 bytes payload
     ctx.in_hdr[0] = record[0]
     ctx.in_hdr[1] = record[1]
     ctx.in_hdr[2] = record[2]
@@ -199,10 +199,10 @@ public func UNIT_record_consume_exact_boundary(env : &mut TestEnv) {
     ctx.in_hdr[4] = record[4]
 
     // Consume (5 header + 0 payload = 5 bytes)
-    ssl_consume_record(&raw mut ctx)
+    ssl_consume_record(unsafe(&raw mut ctx))
 
     // in_left should be 0
-    if(ctx.in_left != 0) {
+    if(unsafe(ctx.in_left) != 0) {
         env.error("UNIT_record_consume_exact_boundary: in_left should be 0")
     }
 }
@@ -212,15 +212,15 @@ public func UNIT_record_consume_exact_boundary(env : &mut TestEnv) {
 
 @test
 public func UNIT_record_consume_empty(env : &mut TestEnv) {
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
 
-    ctx.in_left = 0
-    ctx.in_msglen = 0
+    unsafe { ctx.in_left = 0 }
+    unsafe { ctx.in_msglen = 0 }
 
-    ssl_consume_record(&raw mut ctx)
+    ssl_consume_record(unsafe(&raw mut ctx))
 
     // Should still be 0
-    if(ctx.in_left != 0) {
+    if(unsafe(ctx.in_left) != 0) {
         env.error("UNIT_record_consume_empty: in_left should still be 0")
     }
 }
@@ -230,16 +230,16 @@ public func UNIT_record_consume_empty(env : &mut TestEnv) {
 
 @test
 public func UNIT_record_consume_capped(env : &mut TestEnv) {
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
 
     // Set in_left to 7 (less than 5 header + 5 payload = 10)
-    ctx.in_left = 7
-    ctx.in_msglen = 5  // claims 5 bytes payload but only 2 available
+    unsafe { ctx.in_left = 7 }
+    unsafe { ctx.in_msglen = 5 }  // claims 5 bytes payload but only 2 available
 
-    ssl_consume_record(&raw mut ctx)
+    ssl_consume_record(unsafe(&raw mut ctx))
 
     // Should consume all 7 bytes (capped)
-    if(ctx.in_left != 0) {
+    if(unsafe(ctx.in_left) != 0) {
         env.error("UNIT_record_consume_capped: in_left should be 0 (capped consumption)")
     }
 }

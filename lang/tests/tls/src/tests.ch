@@ -65,11 +65,11 @@ public func tls_ssl_config_init_works(env : &mut TestEnv) {
 @test
 public func tls_ssl_context_init_works(env : &mut TestEnv) {
     var ctx : tls::SSLContext
-    tls::ssl_init(&raw mut ctx)
-    if(ctx.transport_connected) {
+    tls::ssl_init(unsafe(&raw mut ctx))
+    if(unsafe(ctx.transport_connected)) {
         env.error("new context should not be connected")
     }
-    if(!(ctx.state is tls::SSLState.HELLO_REQUEST)) {
+    if(!(unsafe(ctx.state) is tls::SSLState.HELLO_REQUEST)) {
         env.error("initial state should be HELLO_REQUEST")
     }
 }
@@ -77,9 +77,9 @@ public func tls_ssl_context_init_works(env : &mut TestEnv) {
 @test
 public func tls_set_hostname_works(env : &mut TestEnv) {
     var ctx : tls::SSLContext
-    tls::ssl_init(&raw mut ctx)
-    tls::ssl_set_hostname(&raw mut ctx, "example.com\0" as *char)
-    if(ctx.hostname_len == 0) {
+    tls::ssl_init(unsafe(&raw mut ctx))
+    tls::ssl_set_hostname(unsafe(&raw mut ctx), "example.com\0" as *char)
+    if(unsafe(ctx.hostname_len) == 0) {
         env.error("hostname should be set")
     }
 }
@@ -187,12 +187,12 @@ public func tls_prf_empty_input_works(env : &mut TestEnv) {
 @test
 public func tls_pem_cert_init_and_free_works(env : &mut TestEnv) {
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
+    tls::x509_cert_init(unsafe(&raw mut cert))
 
-    if(cert.version != 0) {
+    if(unsafe(cert.version) != 0) {
         env.error("init should set version to 0")
     }
-    if(cert.subject.size() != 0) {
+    if(unsafe(cert.subject.size()) != 0) {
         env.error("init should set subject to empty")
     }
 }
@@ -203,9 +203,9 @@ public func tls_der_cert_minimal_validation_works(env : &mut TestEnv) {
     // We test that too-short input returns INVALID_FORMAT
     var too_short : [3]u8 = [0x30, 0x01, 0x00]
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
+    tls::x509_cert_init(unsafe(&raw mut cert))
 
-    var ret = tls::parse_cert_der(&raw mut cert, &raw too_short[0], 3)
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw too_short[0], 3)
     if(ret != tls::ERR_X509_INVALID_FORMAT) {
         env.error("too-short DER should return INVALID_FORMAT")
     }
@@ -216,9 +216,9 @@ public func tls_der_cert_non_sequence_returns_error(env : &mut TestEnv) {
     // DER must start with SEQUENCE (0x30)
     var not_seq : [10]u8 = [0x02, 0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
+    tls::x509_cert_init(unsafe(&raw mut cert))
 
-    var ret = tls::parse_cert_der(&raw mut cert, &raw not_seq[0], 10)
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw not_seq[0], 10)
     if(ret != tls::ERR_X509_INVALID_FORMAT) {
         env.error("non-SEQUENCE DER should return INVALID_FORMAT")
     }
@@ -228,10 +228,10 @@ public func tls_der_cert_non_sequence_returns_error(env : &mut TestEnv) {
 public func tls_pem_invalid_marker_returns_error(env : &mut TestEnv) {
     var invalid_pem : [10]u8 = [0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09]
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
+    tls::x509_cert_init(unsafe(&raw mut cert))
 
     // Invalid PEM without BEGIN marker should fall through to DER parsing
-    var ret = tls::parse_cert_pem(&raw mut cert, &raw invalid_pem[0], 10)
+    var ret = tls::parse_cert_pem(unsafe(&raw mut cert), &raw invalid_pem[0], 10)
     // Should return an error since the data is not valid DER
     if(ret == 0) {
         env.error("invalid PEM/DER should not return success")
@@ -241,10 +241,10 @@ public func tls_pem_invalid_marker_returns_error(env : &mut TestEnv) {
 @test
 public func tls_x509_cert_get_cn_empty_subject_works(env : &mut TestEnv) {
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
+    tls::x509_cert_init(unsafe(&raw mut cert))
 
     var cn = string()
-    tls::cert_get_cn(&raw mut cert, &raw mut cn)
+    tls::cert_get_cn(unsafe(&raw mut cert), &raw mut cn)
 
     // With empty subject, CN should be empty
     if(cn.size() != 0) {
@@ -255,14 +255,14 @@ public func tls_x509_cert_get_cn_empty_subject_works(env : &mut TestEnv) {
 @test
 public func tls_x509_cert_init_consistent(env : &mut TestEnv) {
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
+    tls::x509_cert_init(unsafe(&raw mut cert))
 
     // Verify multiple fields have correct defaults
-    if(cert.pk_type != tls::PK_NONE as u8) { env.error("pk_type should be NONE") }
-    if(cert.ext_is_ca) { env.error("is_ca should be false") }
-    if(cert.ext_max_pathlen != -1) { env.error("max_pathlen should be -1") }
-    if(cert.serial != null) { env.error("serial should be null") }
-    if(cert.next != null) { env.error("next should be null") }
+    if(unsafe(cert.pk_type) != tls::PK_NONE as u8) { env.error("pk_type should be NONE") }
+    if(unsafe(cert.ext_is_ca)) { env.error("is_ca should be false") }
+    if(unsafe(cert.ext_max_pathlen) != -1) { env.error("max_pathlen should be -1") }
+    if(unsafe(cert.serial) != null) { env.error("serial should be null") }
+    if(unsafe(cert.next) != null) { env.error("next should be null") }
 }
 
 @test
@@ -312,22 +312,22 @@ public func tls_error_codes_distinct_works(env : &mut TestEnv) {
 @test
 public func tls_der_cert_parses_correctly(env : &mut TestEnv) {
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
+    tls::x509_cert_init(unsafe(&raw mut cert))
 
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) {
         env.error("DER certificate should parse successfully")
         return
     }
 
     // Verify version is 3 (v3 certificate with [0] EXPLICIT tag)
-    if(cert.version != 3) {
+    if(unsafe(cert.version) != 3) {
         env.error("certificate version should be 3")
     }
 
     // Verify subject CN is "test.example.com"
     var cn = string()
-    tls::cert_get_cn(&raw mut cert, &raw mut cn)
+    tls::cert_get_cn(unsafe(&raw mut cert), &raw mut cn)
     if(cn.size() == 0) {
         env.error("CN should not be empty for parsed cert")
     }
@@ -340,35 +340,35 @@ public func tls_der_cert_parses_correctly(env : &mut TestEnv) {
     }
 
     // Verify issuer is not empty
-    if(cert.issuer.size() == 0) {
+    if(unsafe(cert.issuer.size()) == 0) {
         env.error("issuer should be parsed")
     }
 
     // Verify issuer contains "TestOrg"
-    var issuer_view = cert.issuer.to_view()
+    var issuer_view = unsafe(cert.issuer.to_view())
     var expected_iss = string_view("TestOrg")
     if(!issuer_view.contains(&expected_iss)) {
         env.error("issuer should contain TestOrg")
     }
 
     // Verify public key type was detected (RSA or EC, not NONE)
-    if(cert.pk_type == tls::PK_NONE as u8) {
+    if(unsafe(cert.pk_type) == tls::PK_NONE as u8) {
         env.error("public key type should be detected (not NONE)")
     }
 
     // Verify valid_from and valid_to contain UTCTime date strings
-    if(cert.valid_from[0] == 0) {
+    if(unsafe(cert.valid_from[0]) == 0) {
         env.error("valid_from should be populated")
     }
-    if(cert.valid_to[0] == 0) {
+    if(unsafe(cert.valid_to[0]) == 0) {
         env.error("valid_to should be populated")
     }
 
     // Verify raw_pem points to the data
-    if(cert.raw_pem == null) {
+    if(unsafe(cert.raw_pem) == null) {
         env.error("raw_pem should point to parsed data")
     }
-    if(cert.raw_pem_len == 0) {
+    if(unsafe(cert.raw_pem_len) == 0) {
         env.error("raw_pem_len should be non-zero")
     }
 }
@@ -389,13 +389,13 @@ public func tls_aes128_ecb_encrypt_decrypt_works(env : &mut TestEnv) {
                                 0xa8, 0x9e, 0xca, 0xf3, 0x24, 0x66, 0xef, 0x97]
 
     var ctx : tls::AESContext
-    tls::aes_init(&raw mut ctx)
+    tls::aes_init(unsafe(&raw mut ctx))
 
-    var ret = tls::aes_setkey_enc(&raw mut ctx, &raw key[0], 16)
+    var ret = tls::aes_setkey_enc(unsafe(&raw mut ctx), &raw key[0], 16)
     if(ret < 0) { env.error("aes_setkey_enc should succeed"); return }
 
     var ct : [16]u8
-    ret = tls::aes_crypt_ecb(&raw mut ctx, tls::AES_ENCRYPT, &raw pt[0], &raw mut ct[0])
+    ret = tls::aes_crypt_ecb(unsafe(&raw mut ctx), tls::AES_ENCRYPT, &raw pt[0], &raw mut ct[0])
     if(ret < 0) { env.error("aes_crypt_ecb encrypt should succeed"); return }
 
     var matches = true
@@ -411,10 +411,10 @@ public func tls_aes128_ecb_encrypt_decrypt_works(env : &mut TestEnv) {
 
     // Decrypt back
     var pt2 : [16]u8
-    ret = tls::aes_setkey_dec(&raw mut ctx, &raw key[0], 16)
+    ret = tls::aes_setkey_dec(unsafe(&raw mut ctx), &raw key[0], 16)
     if(ret < 0) { env.error("aes_setkey_dec should succeed"); return }
 
-    ret = tls::aes_crypt_ecb(&raw mut ctx, tls::AES_DECRYPT, &raw ct[0], &raw mut pt2[0])
+    ret = tls::aes_crypt_ecb(unsafe(&raw mut ctx), tls::AES_DECRYPT, &raw ct[0], &raw mut pt2[0])
     if(ret < 0) { env.error("aes_crypt_ecb decrypt should succeed"); return }
 
     matches = true
@@ -441,9 +441,9 @@ public func tls_aes128_cbc_encrypt_decrypt_works(env : &mut TestEnv) {
                        0x9e, 0xb7, 0x6f, 0xac, 0x45, 0xaf, 0x8e, 0x51]
 
     var ctx : tls::AESContext
-    tls::aes_init(&raw mut ctx)
+    tls::aes_init(unsafe(&raw mut ctx))
 
-    var ret = tls::aes_setkey_enc(&raw mut ctx, &raw key[0], 16)
+    var ret = tls::aes_setkey_enc(unsafe(&raw mut ctx), &raw key[0], 16)
     if(ret < 0) { env.error("aes_setkey_enc should succeed"); return }
 
     var iv_copy : [16]u8
@@ -451,18 +451,18 @@ public func tls_aes128_cbc_encrypt_decrypt_works(env : &mut TestEnv) {
     while(i < 16) { iv_copy[i] = iv[i]; i += 1 }
 
     var ct : [32]u8
-    ret = tls::aes_crypt_cbc(&raw mut ctx, tls::AES_ENCRYPT, 32, &raw mut iv_copy[0],
+    ret = tls::aes_crypt_cbc(unsafe(&raw mut ctx), tls::AES_ENCRYPT, 32, &raw mut iv_copy[0],
                               &raw pt[0], &raw mut ct[0])
     if(ret < 0) { env.error("aes_crypt_cbc encrypt should succeed"); return }
 
     // Decrypt
-    tls::aes_setkey_dec(&raw mut ctx, &raw key[0], 16)
+    tls::aes_setkey_dec(unsafe(&raw mut ctx), &raw key[0], 16)
     var iv_copy2 : [16]u8
     i = 0
     while(i < 16) { iv_copy2[i] = iv[i]; i += 1 }
 
     var pt2 : [32]u8
-    ret = tls::aes_crypt_cbc(&raw mut ctx, tls::AES_DECRYPT, 32, &raw mut iv_copy2[0],
+    ret = tls::aes_crypt_cbc(unsafe(&raw mut ctx), tls::AES_DECRYPT, 32, &raw mut iv_copy2[0],
                               &raw ct[0], &raw mut pt2[0])
     if(ret < 0) { env.error("aes_crypt_cbc decrypt should succeed"); return }
 
@@ -575,7 +575,7 @@ public func tls12_key_block_derivation_works(env : &mut TestEnv) {
 @test
 public func tls12_transform_population_works(env : &mut TestEnv) {
     var tr : tls::Transform
-    tls::transform_init(&raw mut tr)
+    tls::transform_init(unsafe(&raw mut tr))
 
     var info = tls::get_ciphersuite_info(tls::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 as u16)
     var kb_size = tls::tls12_key_block_size(&raw info)
@@ -585,7 +585,7 @@ public func tls12_transform_population_works(env : &mut TestEnv) {
     var i : size_t = 0
     while(i < kb_size) { key_block[i] = i as u8; i += 1 }
 
-    tls::tls12_populate_transform(&raw mut tr, &raw info, &raw key_block[0], kb_size)
+    tls::tls12_populate_transform(unsafe(&raw mut tr), &raw info, &raw key_block[0], kb_size)
 
     // Verify the transform was populated correctly
     // client_write_key (bytes 0-15, since mac_key_len=0 for GCM)
@@ -727,8 +727,8 @@ public func tls12_key_derivation_full_pipeline_works(env : &mut TestEnv) {
 
     // 5. Populate transform
     var tr : tls::Transform
-    tls::transform_init(&raw mut tr)
-    tls::tls12_populate_transform(&raw mut tr, &raw info, &raw key_block[0], kb_size)
+    tls::transform_init(unsafe(&raw mut tr))
+    tls::tls12_populate_transform(unsafe(&raw mut tr), &raw info, &raw key_block[0], kb_size)
 
     // Verify the transform has sane values
     if(tr.key_len != 16) { env.error("key_len should be 16 for AES-128"); return }
@@ -742,72 +742,72 @@ public func tls12_key_derivation_full_pipeline_works(env : &mut TestEnv) {
 
 @test
 public func tls_bignum_mpi_lset_and_cmp_works(env : &mut TestEnv) {
-    var a : tls::Mpi; tls::mpi_init(&raw mut a)
-    var b : tls::Mpi; tls::mpi_init(&raw mut b)
+    var a : tls::Mpi; tls::mpi_init(unsafe(&raw mut a))
+    var b : tls::Mpi; tls::mpi_init(unsafe(&raw mut b))
 
-    tls::mpi_lset(&raw mut a, 42)
-    if(tls::mpi_cmp_int(&raw mut a, 42) != 0) { env.error("a should be 42"); return }
+    tls::mpi_lset(unsafe(&raw mut a), 42)
+    if(tls::mpi_cmp_int(unsafe(&raw mut a), 42) != 0) { env.error("a should be 42"); return }
 
-    tls::mpi_lset(&raw mut b, -7)
-    if(tls::mpi_cmp_int(&raw mut b, -7) != 0) { env.error("b should be -7"); return }
+    tls::mpi_lset(unsafe(&raw mut b), -7)
+    if(tls::mpi_cmp_int(unsafe(&raw mut b), -7) != 0) { env.error("b should be -7"); return }
 
-    if(tls::mpi_cmp(&raw mut a, &raw mut b) <= 0) { env.error("42 > -7"); return }
+    if(tls::mpi_cmp(unsafe(&raw mut a), unsafe(&raw mut b)) <= 0) { env.error("42 > -7"); return }
 }
 
 @test
 public func tls_bignum_add_sub_works(env : &mut TestEnv) {
-    var a : tls::Mpi; tls::mpi_init(&raw mut a)
-    var b : tls::Mpi; tls::mpi_init(&raw mut b)
-    var c : tls::Mpi; tls::mpi_init(&raw mut c)
+    var a : tls::Mpi; tls::mpi_init(unsafe(&raw mut a))
+    var b : tls::Mpi; tls::mpi_init(unsafe(&raw mut b))
+    var c : tls::Mpi; tls::mpi_init(unsafe(&raw mut c))
 
-    tls::mpi_lset(&raw mut a, 100); tls::mpi_lset(&raw mut b, 200)
+    tls::mpi_lset(unsafe(&raw mut a), 100); tls::mpi_lset(unsafe(&raw mut b), 200)
 
-    tls::mpi_add(&raw mut c, &raw mut a, &raw mut b)
-    if(tls::mpi_cmp_int(&raw mut c, 300) != 0) { env.error("100 + 200 should be 300"); return }
+    tls::mpi_add(unsafe(&raw mut c), unsafe(&raw mut a), unsafe(&raw mut b))
+    if(tls::mpi_cmp_int(unsafe(&raw mut c), 300) != 0) { env.error("100 + 200 should be 300"); return }
 
-    tls::mpi_sub(&raw mut c, &raw mut a, &raw mut b)
-    if(tls::mpi_cmp_int(&raw mut c, -100) != 0) { env.error("100 - 200 should be -100"); return }
+    tls::mpi_sub(unsafe(&raw mut c), unsafe(&raw mut a), unsafe(&raw mut b))
+    if(tls::mpi_cmp_int(unsafe(&raw mut c), -100) != 0) { env.error("100 - 200 should be -100"); return }
 }
 
 @test
 public func tls_bignum_mul_and_bitlen_works(env : &mut TestEnv) {
-    var a : tls::Mpi; tls::mpi_init(&raw mut a)
-    var b : tls::Mpi; tls::mpi_init(&raw mut b)
-    var c : tls::Mpi; tls::mpi_init(&raw mut c)
+    var a : tls::Mpi; tls::mpi_init(unsafe(&raw mut a))
+    var b : tls::Mpi; tls::mpi_init(unsafe(&raw mut b))
+    var c : tls::Mpi; tls::mpi_init(unsafe(&raw mut c))
 
-    tls::mpi_lset(&raw mut a, 0x10000); tls::mpi_lset(&raw mut b, 0x20000)
-    tls::mpi_mul(&raw mut c, &raw mut a, &raw mut b)
-    if(tls::mpi_cmp_int(&raw mut c, 0x200000000) != 0) {
+    tls::mpi_lset(unsafe(&raw mut a), 0x10000); tls::mpi_lset(unsafe(&raw mut b), 0x20000)
+    tls::mpi_mul(unsafe(&raw mut c), unsafe(&raw mut a), unsafe(&raw mut b))
+    if(tls::mpi_cmp_int(unsafe(&raw mut c), 0x200000000) != 0) {
         env.error("0x10000 * 0x20000 should be 0x200000000")
     }
 
-    if(tls::mpi_bitlen(&raw mut a) != 17) { env.error("bitlen of 0x10000 should be 17") }
+    if(tls::mpi_bitlen(unsafe(&raw mut a)) != 17) { env.error("bitlen of 0x10000 should be 17") }
 }
 
 @test
 public func tls_bignum_div_mod_works(env : &mut TestEnv) {
-    var a : tls::Mpi; tls::mpi_init(&raw mut a)
-    var b : tls::Mpi; tls::mpi_init(&raw mut b)
-    var q : tls::Mpi; tls::mpi_init(&raw mut q)
-    var r : tls::Mpi; tls::mpi_init(&raw mut r)
+    var a : tls::Mpi; tls::mpi_init(unsafe(&raw mut a))
+    var b : tls::Mpi; tls::mpi_init(unsafe(&raw mut b))
+    var q : tls::Mpi; tls::mpi_init(unsafe(&raw mut q))
+    var r : tls::Mpi; tls::mpi_init(unsafe(&raw mut r))
 
-    tls::mpi_lset(&raw mut a, 100); tls::mpi_lset(&raw mut b, 7)
+    tls::mpi_lset(unsafe(&raw mut a), 100); tls::mpi_lset(unsafe(&raw mut b), 7)
 
-    tls::mpi_div(&raw mut q, &raw mut r, &raw mut a, &raw mut b)
-    if(tls::mpi_cmp_int(&raw mut q, 14) != 0) { env.error("100/7 should be 14"); return }
-    if(tls::mpi_cmp_int(&raw mut r, 2) != 0) { env.error("100%7 should be 2"); return }
+    tls::mpi_div(unsafe(&raw mut q), unsafe(&raw mut r), unsafe(&raw mut a), unsafe(&raw mut b))
+    if(tls::mpi_cmp_int(unsafe(&raw mut q), 14) != 0) { env.error("100/7 should be 14"); return }
+    if(tls::mpi_cmp_int(unsafe(&raw mut r), 2) != 0) { env.error("100%7 should be 2"); return }
 }
 
 @test
 public func tls_bignum_read_write_binary_works(env : &mut TestEnv) {
-    var m : tls::Mpi; tls::mpi_init(&raw mut m)
+    var m : tls::Mpi; tls::mpi_init(unsafe(&raw mut m))
     var buf : [8]u8 = [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF0]
 
-    var ret = tls::mpi_read_binary(&raw mut m, &raw buf[0], 8)
+    var ret = tls::mpi_read_binary(unsafe(&raw mut m), &raw buf[0], 8)
     if(ret < 0) { env.error("read_binary should succeed"); return }
 
     var out : [8]u8
-    ret = tls::mpi_write_binary(&raw mut m, &raw mut out[0], 8)
+    ret = tls::mpi_write_binary(unsafe(&raw mut m), &raw mut out[0], 8)
     if(ret < 0) { env.error("write_binary should succeed"); return }
 
     var i : size_t = 0
@@ -819,37 +819,37 @@ public func tls_bignum_read_write_binary_works(env : &mut TestEnv) {
 
 @test
 public func tls_bignum_mod_inv_works(env : &mut TestEnv) {
-    var a : tls::Mpi; tls::mpi_init(&raw mut a)
-    var n : tls::Mpi; tls::mpi_init(&raw mut n)
-    var inv : tls::Mpi; tls::mpi_init(&raw mut inv)
+    var a : tls::Mpi; tls::mpi_init(unsafe(&raw mut a))
+    var n : tls::Mpi; tls::mpi_init(unsafe(&raw mut n))
+    var inv : tls::Mpi; tls::mpi_init(unsafe(&raw mut inv))
 
-    tls::mpi_lset(&raw mut a, 3); tls::mpi_lset(&raw mut n, 7)
-    var ret = tls::mpi_mod_inv(&raw mut inv, &raw mut a, &raw mut n)
+    tls::mpi_lset(unsafe(&raw mut a), 3); tls::mpi_lset(unsafe(&raw mut n), 7)
+    var ret = tls::mpi_mod_inv(unsafe(&raw mut inv), unsafe(&raw mut a), unsafe(&raw mut n))
     if(ret < 0) { env.error("mod_inv of 3 mod 7 should succeed"); return }
 
     // 3 * 5 = 15 = 1 mod 7, so inv should be 5
-    if(tls::mpi_cmp_int(&raw mut inv, 5) != 0) {
+    if(tls::mpi_cmp_int(unsafe(&raw mut inv), 5) != 0) {
         env.error("3^-1 mod 7 should be 5")
     }
 }
 
 @test
 public func tls_bignum_exp_mod_works(env : &mut TestEnv) {
-    var a : tls::Mpi; tls::mpi_init(&raw mut a)
-    var e : tls::Mpi; tls::mpi_init(&raw mut e)
-    var n : tls::Mpi; tls::mpi_init(&raw mut n)
-    var res : tls::Mpi; tls::mpi_init(&raw mut res)
+    var a : tls::Mpi; tls::mpi_init(unsafe(&raw mut a))
+    var e : tls::Mpi; tls::mpi_init(unsafe(&raw mut e))
+    var n : tls::Mpi; tls::mpi_init(unsafe(&raw mut n))
+    var res : tls::Mpi; tls::mpi_init(unsafe(&raw mut res))
 
-    tls::mpi_lset(&raw mut a, 4); tls::mpi_lset(&raw mut e, 3); tls::mpi_lset(&raw mut n, 10)
-    var ret = tls::mpi_exp_mod(&raw mut res, &raw mut a, &raw mut e, &raw mut n)
+    tls::mpi_lset(unsafe(&raw mut a), 4); tls::mpi_lset(unsafe(&raw mut e), 3); tls::mpi_lset(unsafe(&raw mut n), 10)
+    var ret = tls::mpi_exp_mod(unsafe(&raw mut res), unsafe(&raw mut a), unsafe(&raw mut e), unsafe(&raw mut n))
     if(ret < 0) { env.error("exp_mod 4^3 mod 10 should succeed"); return }
-    if(tls::mpi_cmp_int(&raw mut res, 4) != 0) { env.error("4^3 mod 10 should be 4"); return }
+    if(tls::mpi_cmp_int(unsafe(&raw mut res), 4) != 0) { env.error("4^3 mod 10 should be 4"); return }
 
     // 7^4 mod 13 = 2401 mod 13 = 9
-    tls::mpi_lset(&raw mut a, 7); tls::mpi_lset(&raw mut e, 4); tls::mpi_lset(&raw mut n, 13)
-    ret = tls::mpi_exp_mod(&raw mut res, &raw mut a, &raw mut e, &raw mut n)
+    tls::mpi_lset(unsafe(&raw mut a), 7); tls::mpi_lset(unsafe(&raw mut e), 4); tls::mpi_lset(unsafe(&raw mut n), 13)
+    ret = tls::mpi_exp_mod(unsafe(&raw mut res), unsafe(&raw mut a), unsafe(&raw mut e), unsafe(&raw mut n))
     if(ret < 0) { env.error("exp_mod 7^4 mod 13 should succeed"); return }
-    if(tls::mpi_cmp_int(&raw mut res, 9) != 0) { env.error("7^4 mod 13 should be 9"); return }
+    if(tls::mpi_cmp_int(unsafe(&raw mut res), 9) != 0) { env.error("7^4 mod 13 should be 9"); return }
 }
 
 // ─── RSA Tests ──────────────────────────────────────────────────────────────
@@ -857,34 +857,34 @@ public func tls_bignum_exp_mod_works(env : &mut TestEnv) {
 @test
 public func tls_rsa_init_and_import_works(env : &mut TestEnv) {
     var ctx : tls::RSAContext
-    tls::rsa_init(&raw mut ctx, tls::RSA_PKCS_V15, 0)
+    tls::rsa_init(unsafe(&raw mut ctx), tls::RSA_PKCS_V15, 0)
 
     // Import a small RSA public key for testing
     var n_buf : [4]u8 = [0x00, 0x00, 0x00, 0x55]  // n = 85 = 5 * 17
     var e_buf : [1]u8 = [0x05]  // e = 5
 
-    var ret = tls::rsa_import_pubkey(&raw mut ctx, &raw n_buf[0], 4, &raw e_buf[0], 1)
+    var ret = tls::rsa_import_pubkey(unsafe(&raw mut ctx), &raw n_buf[0], 4, &raw e_buf[0], 1)
     if(ret < 0) { env.error("import pubkey should succeed"); return }
 
-    if(tls::rsa_get_len(&raw mut ctx) != 4) { env.error("key length should be 4"); return }
+    if(tls::rsa_get_len(unsafe(&raw mut ctx)) != 4) { env.error("key length should be 4"); return }
 }
 
 @test
 public func tls_rsa_pkcs1_encrypt_works(env : &mut TestEnv) {
     var ctx : tls::RSAContext
-    tls::rsa_init(&raw mut ctx, tls::RSA_PKCS_V15, 0)
+    tls::rsa_init(unsafe(&raw mut ctx), tls::RSA_PKCS_V15, 0)
 
     // Small RSA key for testing (n=55, e=3)
     var n_buf : [1]u8 = [0x37]  // n = 55
     var e_buf : [1]u8 = [0x03]  // e = 3
 
-    var ret = tls::rsa_import_pubkey(&raw mut ctx, &raw n_buf[0], 1, &raw e_buf[0], 1)
+    var ret = tls::rsa_import_pubkey(unsafe(&raw mut ctx), &raw n_buf[0], 1, &raw e_buf[0], 1)
     if(ret < 0) { env.error("import pubkey should succeed"); return }
 
     var msg : [2]u8 = [0x01, 0x02]
     var ct : [64]u8
 
-    ret = tls::rsa_pkcs1_encrypt(&raw mut ctx, &raw msg[0], 2, &raw mut ct[0])
+    ret = tls::rsa_pkcs1_encrypt(unsafe(&raw mut ctx), &raw msg[0], 2, &raw mut ct[0])
     if(ret < 0) { env.error("RSA PKCS#1 encrypt should succeed"); return }
 
     // ct[0] should be non-zero (successfully encrypted)
@@ -903,12 +903,12 @@ public func tls_gcm_init_encrypt_decrypt_works(env : &mut TestEnv) {
                        0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00]
 
     var ctx : tls::GCMContext
-    var ret = tls::gcm_init(&raw mut ctx, &raw key[0], 16)
+    var ret = tls::gcm_init(unsafe(&raw mut ctx), &raw key[0], 16)
     if(ret < 0) { env.error("gcm_init should succeed"); return }
 
     var ct : [16]u8
     var tag : [16]u8
-    ret = tls::gcm_crypt_and_tag(&raw mut ctx, &raw iv[0], 12, null, 0,
+    ret = tls::gcm_crypt_and_tag(unsafe(&raw mut ctx), &raw iv[0], 12, null, 0,
                                   &raw pt[0], 16, &raw mut ct[0], &raw mut tag[0])
     if(ret < 0) { env.error("gcm_crypt_and_tag should succeed"); return }
 
@@ -923,7 +923,7 @@ public func tls_gcm_init_encrypt_decrypt_works(env : &mut TestEnv) {
 
     // Decrypt and verify
     var pt2 : [16]u8
-    ret = tls::gcm_auth_decrypt(&raw mut ctx, &raw iv[0], 12, null, 0,
+    ret = tls::gcm_auth_decrypt(unsafe(&raw mut ctx), &raw iv[0], 12, null, 0,
                                  &raw ct[0], 16, &raw tag[0], 16,
                                  &raw mut pt2[0])
     if(ret < 0) { env.error("gcm_auth_decrypt should succeed"); return }
@@ -946,18 +946,18 @@ public func tls_gcm_tag_verification_fails_on_wrong_tag(env : &mut TestEnv) {
     var pt : [8]u8 = [0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00, 0x11]
 
     var ctx : tls::GCMContext
-    tls::gcm_init(&raw mut ctx, &raw key[0], 16)
+    tls::gcm_init(unsafe(&raw mut ctx), &raw key[0], 16)
 
     var ct : [8]u8
     var tag : [16]u8
-    tls::gcm_crypt_and_tag(&raw mut ctx, &raw iv[0], 12, null, 0,
+    tls::gcm_crypt_and_tag(unsafe(&raw mut ctx), &raw iv[0], 12, null, 0,
                             &raw pt[0], 8, &raw mut ct[0], &raw mut tag[0])
 
     // Corrupt the tag
     tag[0] = tag[0] ^ 0xFF
 
     var pt2 : [8]u8
-    var ret = tls::gcm_auth_decrypt(&raw mut ctx, &raw iv[0], 12, null, 0,
+    var ret = tls::gcm_auth_decrypt(unsafe(&raw mut ctx), &raw iv[0], 12, null, 0,
                                      &raw ct[0], 8, &raw tag[0], 16,
                                      &raw mut pt2[0])
     if(ret == 0) {
@@ -971,33 +971,33 @@ public func tls_gcm_tag_verification_fails_on_wrong_tag(env : &mut TestEnv) {
 public func tls_rsa_pubkey_extraction_from_cert_works(env : &mut TestEnv) {
     // Known-answer test: Parse the test certificate, extract its RSA public key
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
+    tls::x509_cert_init(unsafe(&raw mut cert))
 
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("DER certificate should parse"); return }
 
     // Verify it's an RSA key
-    if(cert.pk_type != tls::PK_RSA as u8) {
+    if(unsafe(cert.pk_type) != tls::PK_RSA as u8) {
         env.error("test cert should use RSA public key"); return
     }
 
     // Extract RSA public key
     var rsa_ctx : tls::RSAContext
-    tls::rsa_init(&raw mut rsa_ctx, tls::RSA_PKCS_V15, 0)
-    ret = tls::x509_extract_rsa_pubkey(&raw mut cert, &raw mut rsa_ctx)
+    tls::rsa_init(unsafe(&raw mut rsa_ctx), tls::RSA_PKCS_V15, 0)
+    ret = tls::x509_extract_rsa_pubkey(unsafe(&raw mut cert), unsafe(&raw mut rsa_ctx))
     if(ret != 0) {
         env.error("RSA public key extraction from cert should succeed"); return
     }
 
     // RSA-2048 should have key length of 256 bytes
-    var key_len = tls::rsa_get_len(&raw mut rsa_ctx)
+    var key_len = tls::rsa_get_len(unsafe(&raw mut rsa_ctx))
     if(key_len != 256) {
         env.error("RSA key length should be 256 bytes for RSA-2048"); return
     }
 
     // Verify N modulus is not trivially small (should have > 128 bytes of data)
     var n_bytes : [256]u8
-    ret = tls::mpi_write_binary(&raw mut rsa_ctx.N, &raw mut n_bytes[0], 256)
+    ret = tls::mpi_write_binary(unsafe(&raw mut rsa_ctx.N), &raw mut n_bytes[0], 256)
     if(ret < 0) { env.error("should export N as 256 bytes"); return }
 
     // N should not be all zeros
@@ -1011,7 +1011,7 @@ public func tls_rsa_pubkey_extraction_from_cert_works(env : &mut TestEnv) {
 
     // Verify exponent E = 65537 (0x010001) for the test cert
     var e_bytes : [3]u8
-    ret = tls::mpi_write_binary(&raw mut rsa_ctx.E, &raw mut e_bytes[0], 3)
+    ret = tls::mpi_write_binary(unsafe(&raw mut rsa_ctx.E), &raw mut e_bytes[0], 3)
     if(ret < 0) { env.error("should export E"); return }
     var expected_e0 : u8 = 0x01; var expected_e1 : u8 = 0x00; var expected_e2 : u8 = 0x01
     if(e_bytes[0] != expected_e0 || e_bytes[1] != expected_e1 || e_bytes[2] != expected_e2) {
@@ -1026,16 +1026,16 @@ public func tls_rsa_encrypt_premaster_with_cert_key_works(env : &mut TestEnv) {
 
     // 1. Parse certificate and extract RSA key
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    tls::x509_cert_init(unsafe(&raw mut cert))
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("DER certificate should parse"); return }
 
     var rsa_ctx : tls::RSAContext
-    tls::rsa_init(&raw mut rsa_ctx, tls::RSA_PKCS_V15, 0)
-    ret = tls::x509_extract_rsa_pubkey(&raw mut cert, &raw mut rsa_ctx)
+    tls::rsa_init(unsafe(&raw mut rsa_ctx), tls::RSA_PKCS_V15, 0)
+    ret = tls::x509_extract_rsa_pubkey(unsafe(&raw mut cert), unsafe(&raw mut rsa_ctx))
     if(ret != 0) { env.error("RSA key extraction should succeed"); return }
 
-    var key_len = tls::rsa_get_len(&raw mut rsa_ctx)
+    var key_len = tls::rsa_get_len(unsafe(&raw mut rsa_ctx))
     if(key_len != 256) { env.error("RSA key should be 256 bytes"); return }
 
     // 2. Create a TLS pre-master secret (48 bytes, deterministic for testing)
@@ -1048,7 +1048,7 @@ public func tls_rsa_encrypt_premaster_with_cert_key_works(env : &mut TestEnv) {
 
     // 3. Encrypt the pre-master secret with RSA PKCS#1 v1.5
     var ciphertext : [512]u8
-    ret = tls::rsa_pkcs1_encrypt(&raw mut rsa_ctx, &raw pre_master[0], 48, &raw mut ciphertext[0])
+    ret = tls::rsa_pkcs1_encrypt(unsafe(&raw mut rsa_ctx), &raw pre_master[0], 48, &raw mut ciphertext[0])
     if(ret != 0) {
         env.error("RSA PKCS#1 encrypt of pre-master secret should succeed"); return
     }
@@ -1093,23 +1093,23 @@ public func tls_cert_self_signature_verification_works(env : &mut TestEnv) {
     // 3. Verify the signature using the extracted key
 
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
+    tls::x509_cert_init(unsafe(&raw mut cert))
 
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("DER certificate should parse"); return }
 
-    if(cert.pk_type != tls::PK_RSA as u8) {
+    if(unsafe(cert.pk_type) != tls::PK_RSA as u8) {
         env.error("test cert should use RSA"); return
     }
 
     // Extract the RSA public key from the certificate
     var rsa_ctx : tls::RSAContext
-    tls::rsa_init(&raw mut rsa_ctx, tls::RSA_PKCS_V15, 0)
-    ret = tls::x509_extract_rsa_pubkey(&raw mut cert, &raw mut rsa_ctx)
+    tls::rsa_init(unsafe(&raw mut rsa_ctx), tls::RSA_PKCS_V15, 0)
+    ret = tls::x509_extract_rsa_pubkey(unsafe(&raw mut cert), unsafe(&raw mut rsa_ctx))
     if(ret != 0) { env.error("RSA key extraction should succeed"); return }
 
     // Now verify the certificate's signature using its own public key
-    ret = tls::x509_verify_cert_signature(&raw mut cert, &raw mut rsa_ctx)
+    ret = tls::x509_verify_cert_signature(unsafe(&raw mut cert), unsafe(&raw mut rsa_ctx))
     if(ret != 0) {
         env.error("self-signed cert signature verification should succeed")
     }
@@ -1122,17 +1122,17 @@ public func tls_cert_signature_verification_fails_on_tampered_cert(env : &mut Te
 
     // Use parsed cert from test data - we extract the public key from the original
     var original_cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut original_cert)
-    var ret = tls::parse_cert_der(&raw mut original_cert, &raw tls_tests::test_cert_data[0], 831)
+    tls::x509_cert_init(unsafe(&raw mut original_cert))
+    var ret = tls::parse_cert_der(unsafe(&raw mut original_cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("original cert should parse"); return }
 
     var rsa_ctx : tls::RSAContext
-    tls::rsa_init(&raw mut rsa_ctx, tls::RSA_PKCS_V15, 0)
-    ret = tls::x509_extract_rsa_pubkey(&raw mut original_cert, &raw mut rsa_ctx)
+    tls::rsa_init(unsafe(&raw mut rsa_ctx), tls::RSA_PKCS_V15, 0)
+    ret = tls::x509_extract_rsa_pubkey(unsafe(&raw mut original_cert), unsafe(&raw mut rsa_ctx))
     if(ret != 0) { env.error("RSA key extraction should succeed"); return }
 
     // The signature verification on the original cert should pass
-    ret = tls::x509_verify_cert_signature(&raw mut original_cert, &raw mut rsa_ctx)
+    ret = tls::x509_verify_cert_signature(unsafe(&raw mut original_cert), unsafe(&raw mut rsa_ctx))
     if(ret != 0) { env.error("original cert verification should pass"); return }
 
     // Tamper with the TBSCertificate by parsing again and corrupting tbs_der
@@ -1140,13 +1140,13 @@ public func tls_cert_signature_verification_fails_on_tampered_cert(env : &mut Te
     // that the cert signature verification does NOT pass when we import
     // a different public key (simulating a mismatched issuer)
     var wrong_rsa : tls::RSAContext
-    tls::rsa_init(&raw mut wrong_rsa, tls::RSA_PKCS_V15, 0)
+    tls::rsa_init(unsafe(&raw mut wrong_rsa), tls::RSA_PKCS_V15, 0)
     var wrong_n : [1]u8 = [0x37]  // n = 55 (clearly not the right key)
     var wrong_e : [1]u8 = [0x03]  // e = 3
-    tls::rsa_import_pubkey(&raw mut wrong_rsa, &raw wrong_n[0], 1, &raw wrong_e[0], 1)
+    tls::rsa_import_pubkey(unsafe(&raw mut wrong_rsa), &raw wrong_n[0], 1, &raw wrong_e[0], 1)
 
     // Verification with wrong key should fail
-    ret = tls::x509_verify_cert_signature(&raw mut original_cert, &raw mut wrong_rsa)
+    ret = tls::x509_verify_cert_signature(unsafe(&raw mut original_cert), unsafe(&raw mut wrong_rsa))
     if(ret == 0) {
         env.error("cert signature verification should fail with wrong public key")
     }
@@ -1161,7 +1161,7 @@ public func tls_gcm_record_encrypt_decrypt_roundtrip_works(env : &mut TestEnv) {
 
     // Use AES-128-GCM cipher suite parameters
     var tr : tls::Transform
-    tls::transform_init(&raw mut tr)
+    tls::transform_init(unsafe(&raw mut tr))
 
     // Key block: 16 bytes client_key, 16 bytes server_key, 4 bytes IV each
     // For GCM: fixed_iv is 4 bytes, explicit nonce is 8 bytes from seq_num
@@ -1214,7 +1214,7 @@ public func tls_gcm_record_encrypt_decrypt_roundtrip_works(env : &mut TestEnv) {
     // Encrypt with tls12_encrypt_record
     var ciphertext : [128]u8
     var ct_len = tls::tls12_encrypt_record(
-        &raw mut tr, &raw seq_num[0],
+        unsafe(&raw mut tr), &raw seq_num[0],
         23 as u8,  // application data
         3 as u8, 3 as u8,  // TLS 1.2
         &raw pt[0], 32,
@@ -1234,7 +1234,7 @@ public func tls_gcm_record_encrypt_decrypt_roundtrip_works(env : &mut TestEnv) {
     // Decrypt back with tls12_decrypt_record
     var plaintext_out : [128]u8
     var pt_len = tls::tls12_decrypt_record(
-        &raw mut tr, &raw seq_num[0],
+        unsafe(&raw mut tr), &raw seq_num[0],
         23 as u8,
         3 as u8, 3 as u8,
         &raw ciphertext[0], ct_len as size_t,
@@ -1266,7 +1266,7 @@ public func tls_gcm_record_decrypt_fails_on_tampered_ciphertext(env : &mut TestE
     // Verify GCM authenticated decryption catches tampered ciphertext
 
     var tr : tls::Transform
-    tls::transform_init(&raw mut tr)
+    tls::transform_init(unsafe(&raw mut tr))
 
     var client_key : [16]u8 = [
         0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
@@ -1302,7 +1302,7 @@ public func tls_gcm_record_decrypt_fails_on_tampered_ciphertext(env : &mut TestE
     // Encrypt
     var ciphertext : [128]u8
     var ct_len = tls::tls12_encrypt_record(
-        &raw mut tr, &raw seq_num[0], 23 as u8, 3 as u8, 3 as u8,
+        unsafe(&raw mut tr), &raw seq_num[0], 23 as u8, 3 as u8, 3 as u8,
         &raw pt[0], 16, &raw mut ciphertext[0], 128
     )
     if(ct_len < 0) { env.error("encrypt should succeed"); return }
@@ -1313,7 +1313,7 @@ public func tls_gcm_record_decrypt_fails_on_tampered_ciphertext(env : &mut TestE
     // Decrypt with tampered data should fail
     var pt_out : [128]u8
     var pt_len = tls::tls12_decrypt_record(
-        &raw mut tr, &raw seq_num[0], 23 as u8, 3 as u8, 3 as u8,
+        unsafe(&raw mut tr), &raw seq_num[0], 23 as u8, 3 as u8, 3 as u8,
         &raw ciphertext[0], ct_len as size_t, &raw mut pt_out[0], 128
     )
     if(pt_len >= 0) {
@@ -1328,16 +1328,16 @@ public func tls_alert_fields_stored_on_alert_receive(env : &mut TestEnv) {
     // Verify that when an alert is received, the alert level and description
     // are properly stored in the SSLContext
     var ssl : tls::SSLContext
-    tls::ssl_init(&raw mut ssl)
+    tls::ssl_init(unsafe(&raw mut ssl))
 
     // Simulate receiving an alert by writing directly to last_alert fields
-    ssl.last_alert_level = 2 as u8  // FATAL
-    ssl.last_alert_desc = 42 as u8   // bad_certificate
+    unsafe { ssl.last_alert_level = 2 as u8   }// FATAL
+    unsafe { ssl.last_alert_desc = 42 as u8    }// bad_certificate
 
-    if(ssl.last_alert_level != 2 as u8) {
+    if(unsafe(ssl.last_alert_level) != 2 as u8) {
         env.error("alert level should be 2 (FATAL)")
     }
-    if(ssl.last_alert_desc != 42 as u8) {
+    if(unsafe(ssl.last_alert_desc) != 42 as u8) {
         env.error("alert description should be 42 (bad_certificate)")
     }
 }
@@ -1346,12 +1346,12 @@ public func tls_alert_fields_stored_on_alert_receive(env : &mut TestEnv) {
 public func tls_alert_field_initial_values_are_zero(env : &mut TestEnv) {
     // Verify alert fields are initialized to zero by ssl_init
     var ssl : tls::SSLContext
-    tls::ssl_init(&raw mut ssl)
+    tls::ssl_init(unsafe(&raw mut ssl))
 
-    if(ssl.last_alert_level != 0) {
+    if(unsafe(ssl.last_alert_level) != 0) {
         env.error("initial alert level should be 0")
     }
-    if(ssl.last_alert_desc != 0) {
+    if(unsafe(ssl.last_alert_desc) != 0) {
         env.error("initial alert description should be 0")
     }
 }
@@ -1362,22 +1362,22 @@ public func tls_alert_field_initial_values_are_zero(env : &mut TestEnv) {
 public func tls_rsa2048_key_has_correct_properties(env : &mut TestEnv) {
     // Verify the OpenSSL-generated RSA-2048 key has the expected properties
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
+    tls::x509_cert_init(unsafe(&raw mut cert))
 
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 
-    if(cert.pk_type != tls::PK_RSA as u8) {
+    if(unsafe(cert.pk_type) != tls::PK_RSA as u8) {
         env.error("key should be RSA"); return
     }
 
     var rsa_ctx : tls::RSAContext
-    tls::rsa_init(&raw mut rsa_ctx, tls::RSA_PKCS_V15, 0)
-    ret = tls::x509_extract_rsa_pubkey(&raw mut cert, &raw mut rsa_ctx)
+    tls::rsa_init(unsafe(&raw mut rsa_ctx), tls::RSA_PKCS_V15, 0)
+    ret = tls::x509_extract_rsa_pubkey(unsafe(&raw mut cert), unsafe(&raw mut rsa_ctx))
     if(ret != 0) { env.error("key extraction should succeed"); return }
 
     // RSA-2048 modulus is exactly 256 bytes
-    var key_len = tls::rsa_get_len(&raw mut rsa_ctx)
+    var key_len = tls::rsa_get_len(unsafe(&raw mut rsa_ctx))
     if(key_len != 256) {
         env.error("RSA-2048 key length should be 256 bytes")
         return
@@ -1386,7 +1386,7 @@ public func tls_rsa2048_key_has_correct_properties(env : &mut TestEnv) {
     // Verify N is the expected big-endian value from OpenSSL
     // N = 0x9e36362715e7ef844497f88958fd7ebf...
     var n_bytes : [256]u8
-    ret = tls::mpi_write_binary(&raw mut rsa_ctx.N, &raw mut n_bytes[0], 256)
+    ret = tls::mpi_write_binary(unsafe(&raw mut rsa_ctx.N), &raw mut n_bytes[0], 256)
     if(ret < 0) { env.error("should export N"); return }
 
     // First byte should be 0x9E (matching the OpenSSL output)
@@ -1396,7 +1396,7 @@ public func tls_rsa2048_key_has_correct_properties(env : &mut TestEnv) {
 
     // Exponent should be 0x010001 = 65537
     var e_bytes : [3]u8
-    ret = tls::mpi_write_binary(&raw mut rsa_ctx.E, &raw mut e_bytes[0], 3)
+    ret = tls::mpi_write_binary(unsafe(&raw mut rsa_ctx.E), &raw mut e_bytes[0], 3)
     if(ret < 0) { env.error("should export E"); return }
     if(e_bytes[0] != 0x01 || e_bytes[1] != 0x00 || e_bytes[2] != 0x01) {
         env.error("E should be 65537 (0x010001)")
@@ -1412,43 +1412,43 @@ public func tls_rsa_modular_exponentiation_small_values(env : &mut TestEnv) {
     // Expected: c = 2^3 mod 7 = 8 mod 7 = 1
 
     var ctx : tls::RSAContext
-    tls::rsa_init(&raw mut ctx, tls::RSA_PKCS_V15, 0)
+    tls::rsa_init(unsafe(&raw mut ctx), tls::RSA_PKCS_V15, 0)
 
     // Use small values: n=7 (0x07), e=3 (0x03)
     var n_buf : [1]u8 = [0x07]
     var e_buf : [1]u8 = [0x03]
 
-    var ret = tls::rsa_import_pubkey(&raw mut ctx, &raw n_buf[0], 1, &raw e_buf[0], 1)
+    var ret = tls::rsa_import_pubkey(unsafe(&raw mut ctx), &raw n_buf[0], 1, &raw e_buf[0], 1)
     if(ret < 0) { env.error("import pubkey should succeed"); return }
 
     // Encrypt m=2 (0x02, with PKCS#1 padding)
     // Note: for n=1 byte, we can only encrypt a message of length 1-11 = fail
     // So instead, test the raw RSA math using mpi_exp_mod directly
-    var m : tls::Mpi; tls::mpi_init(&raw mut m)
-    var expected : tls::Mpi; tls::mpi_init(&raw mut expected)
+    var m : tls::Mpi; tls::mpi_init(unsafe(&raw mut m))
+    var expected : tls::Mpi; tls::mpi_init(unsafe(&raw mut expected))
 
-    tls::mpi_lset(&raw mut m, 2)
-    tls::mpi_lset(&raw mut expected, 1)  // 2^3 mod 7 = 1
+    tls::mpi_lset(unsafe(&raw mut m), 2)
+    tls::mpi_lset(unsafe(&raw mut expected), 1)  // 2^3 mod 7 = 1
 
-    var result : tls::Mpi; tls::mpi_init(&raw mut result)
-    ret = tls::mpi_exp_mod(&raw mut result, &raw mut m, &raw mut ctx.E, &raw mut ctx.N)
+    var result : tls::Mpi; tls::mpi_init(unsafe(&raw mut result))
+    ret = tls::mpi_exp_mod(unsafe(&raw mut result), unsafe(&raw mut m), unsafe(&raw mut ctx.E), unsafe(&raw mut ctx.N))
     if(ret < 0) { env.error("mpi_exp_mod should succeed"); return }
 
-    if(tls::mpi_cmp(&raw mut result, &raw mut expected) != 0) {
+    if(tls::mpi_cmp(unsafe(&raw mut result), unsafe(&raw mut expected)) != 0) {
         env.error("2^3 mod 7 should equal 1")
     }
 
     // Test 2: 7^5 mod 13 = 16807 mod 13 = 16807 - 13*1292 = 16807 - 16796 = 11
-    tls::mpi_lset(&raw mut m, 7)
-    tls::mpi_lset(&raw mut expected, 11)
+    tls::mpi_lset(unsafe(&raw mut m), 7)
+    tls::mpi_lset(unsafe(&raw mut expected), 11)
 
     // Re-import with n=13, e=5
     n_buf[0] = 0x0D; e_buf[0] = 0x05
-    tls::rsa_import_pubkey(&raw mut ctx, &raw n_buf[0], 1, &raw e_buf[0], 1)
-    ret = tls::mpi_exp_mod(&raw mut result, &raw mut m, &raw mut ctx.E, &raw mut ctx.N)
+    tls::rsa_import_pubkey(unsafe(&raw mut ctx), &raw n_buf[0], 1, &raw e_buf[0], 1)
+    ret = tls::mpi_exp_mod(unsafe(&raw mut result), unsafe(&raw mut m), unsafe(&raw mut ctx.E), unsafe(&raw mut ctx.N))
     if(ret < 0) { env.error("mpi_exp_mod should succeed"); return }
 
-    if(tls::mpi_cmp(&raw mut result, &raw mut expected) != 0) {
+    if(tls::mpi_cmp(unsafe(&raw mut result), unsafe(&raw mut expected)) != 0) {
         env.error("7^5 mod 13 should equal 11")
     }
 }
@@ -1458,12 +1458,12 @@ public func tls_rsa_modular_exponentiation_small_values(env : &mut TestEnv) {
 @test
 public func tls_ecdh_generate_keypair_works(env : &mut TestEnv) {
     var ctx : tls::ECDHContext
-    tls::ecdh_init(&raw mut ctx)
+    tls::ecdh_init(unsafe(&raw mut ctx))
 
     var priv : [32]u8
     var pub : [65]u8
 
-    var ret = tls::ecdh_generate_keypair(&raw mut ctx, &raw mut priv[0], 32, &raw mut pub[0], 65)
+    var ret = tls::ecdh_generate_keypair(unsafe(&raw mut ctx), &raw mut priv[0], 32, &raw mut pub[0], 65)
     if(ret < 0) { env.error("ecdh_generate_keypair should succeed"); return }
 
     // Private key should not be all zeros
@@ -1514,22 +1514,22 @@ public func tls_ecdh_shared_secret_works(env : &mut TestEnv) {
         0xBA,0x7D,0xAD,0xE6,0x3C,0xE9,0x82,0x29,0x9E,0x04,0xB7,0x9D,0x22,0x78,0x73,0xD1
     ]
 
-    var alice : tls::ECDHContext; tls::ecdh_init(&raw mut alice)
-    var ret = tls::mpi_read_binary(&raw mut alice.priv_key, &raw alice_priv[0], 32)
+    var alice : tls::ECDHContext; tls::ecdh_init(unsafe(&raw mut alice))
+    var ret = tls::mpi_read_binary(unsafe(&raw mut alice.priv_key), &raw alice_priv[0], 32)
     if(ret < 0) { env.error("alice key should succeed"); return }
     alice.is_init = true
 
-    var bob : tls::ECDHContext; tls::ecdh_init(&raw mut bob)
-    ret = tls::mpi_read_binary(&raw mut bob.priv_key, &raw bob_priv[0], 32)
+    var bob : tls::ECDHContext; tls::ecdh_init(unsafe(&raw mut bob))
+    ret = tls::mpi_read_binary(unsafe(&raw mut bob.priv_key), &raw bob_priv[0], 32)
     if(ret < 0) { env.error("bob key should succeed"); return }
     bob.is_init = true
 
     var alice_shared : [32]u8
-    ret = tls::ecdh_compute_shared(&raw mut alice, &raw bob_pub[0], 65, &raw mut alice_shared[0], 32)
+    ret = tls::ecdh_compute_shared(unsafe(&raw mut alice), &raw bob_pub[0], 65, &raw mut alice_shared[0], 32)
     if(ret < 0) { env.error("alice shared secret should succeed"); return }
 
     var bob_shared : [32]u8
-    ret = tls::ecdh_compute_shared(&raw mut bob, &raw alice_pub[0], 65, &raw mut bob_shared[0], 32)
+    ret = tls::ecdh_compute_shared(unsafe(&raw mut bob), &raw alice_pub[0], 65, &raw mut bob_shared[0], 32)
     if(ret < 0) { env.error("bob shared secret should succeed"); return }
 
     var matches = true
@@ -1574,13 +1574,13 @@ public func tls_ecdh_known_answer_rfc5903_shared_secret(env : &mut TestEnv) {
         0xF4, 0xA1, 0x39, 0x45, 0xD8, 0x98, 0xC2, 0x96
     ]
 
-    var alice : tls::ECDHContext; tls::ecdh_init(&raw mut alice)
-    var ret = tls::mpi_read_binary(&raw mut alice.priv_key, &raw alice_priv[0], 32)
+    var alice : tls::ECDHContext; tls::ecdh_init(unsafe(&raw mut alice))
+    var ret = tls::mpi_read_binary(unsafe(&raw mut alice.priv_key), &raw alice_priv[0], 32)
     if(ret < 0) { env.error("import alice private key should succeed"); return }
     alice.is_init = true
 
     var shared : [32]u8
-    ret = tls::ecdh_compute_shared(&raw mut alice, &raw bob_pub[0], 65, &raw mut shared[0], 32)
+    ret = tls::ecdh_compute_shared(unsafe(&raw mut alice), &raw bob_pub[0], 65, &raw mut shared[0], 32)
     if(ret < 0) {
         env.error("ECDH shared secret computation should succeed")
         return
@@ -1648,23 +1648,23 @@ public func tls_ecdh_known_answer_rfc5903_both_sides(env : &mut TestEnv) {
     ]
 
     // Alice computes shared = dA * QB = 1 * 2*G
-    var alice : tls::ECDHContext; tls::ecdh_init(&raw mut alice)
-    var ret = tls::mpi_read_binary(&raw mut alice.priv_key, &raw alice_priv[0], 32)
+    var alice : tls::ECDHContext; tls::ecdh_init(unsafe(&raw mut alice))
+    var ret = tls::mpi_read_binary(unsafe(&raw mut alice.priv_key), &raw alice_priv[0], 32)
     if(ret < 0) { env.error("import alice key"); return }
     alice.is_init = true
 
     var alice_shared : [32]u8
-    ret = tls::ecdh_compute_shared(&raw mut alice, &raw bob_pub[0], 65, &raw mut alice_shared[0], 32)
+    ret = tls::ecdh_compute_shared(unsafe(&raw mut alice), &raw bob_pub[0], 65, &raw mut alice_shared[0], 32)
     if(ret < 0) { env.error("alice shared secret should succeed"); return }
 
     // Bob computes shared = dB * QA = 2 * G
-    var bob : tls::ECDHContext; tls::ecdh_init(&raw mut bob)
-    ret = tls::mpi_read_binary(&raw mut bob.priv_key, &raw bob_priv[0], 32)
+    var bob : tls::ECDHContext; tls::ecdh_init(unsafe(&raw mut bob))
+    ret = tls::mpi_read_binary(unsafe(&raw mut bob.priv_key), &raw bob_priv[0], 32)
     if(ret < 0) { env.error("import bob key"); return }
     bob.is_init = true
 
     var bob_shared : [32]u8
-    ret = tls::ecdh_compute_shared(&raw mut bob, &raw alice_pub[0], 65, &raw mut bob_shared[0], 32)
+    ret = tls::ecdh_compute_shared(unsafe(&raw mut bob), &raw alice_pub[0], 65, &raw mut bob_shared[0], 32)
     if(ret < 0) { env.error("bob shared secret should succeed"); return }
 
     var alice_matches = true
@@ -1697,12 +1697,12 @@ public func tls_cert_date_validity_works(env : &mut TestEnv) {
     // valid_to="360717105214Z" (2036-07-17). Current date is 2026-07-20,
     // so the cert should be valid.
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
+    tls::x509_cert_init(unsafe(&raw mut cert))
 
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 
-    var date_ret = tls::x509_check_date(&raw mut cert)
+    var date_ret = tls::x509_check_date(unsafe(&raw mut cert))
     if(date_ret != 0) {
         if(date_ret == tls::X509_BADCERT_EXPIRED as int) {
             env.error("test cert should not be expired - check system date")
@@ -1718,9 +1718,9 @@ public func tls_cert_date_validity_works(env : &mut TestEnv) {
 public func tls_cert_date_expired_returns_expired(env : &mut TestEnv) {
     // Create a cert with a manually-set expired valid_to date
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
+    tls::x509_cert_init(unsafe(&raw mut cert))
 
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 
     // Override valid_from and valid_to with expired values
@@ -1743,7 +1743,7 @@ public func tls_cert_date_expired_returns_expired(env : &mut TestEnv) {
         i += 1
     }
 
-    var date_ret = tls::x509_check_date(&raw mut cert)
+    var date_ret = tls::x509_check_date(unsafe(&raw mut cert))
     if(date_ret != tls::X509_BADCERT_EXPIRED as int) {
         env.error("cert should be marked as EXPIRED")
     }
@@ -1753,9 +1753,9 @@ public func tls_cert_date_expired_returns_expired(env : &mut TestEnv) {
 public func tls_cert_date_future_returns_future(env : &mut TestEnv) {
     // Create a cert with a future valid_from date
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
+    tls::x509_cert_init(unsafe(&raw mut cert))
 
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 
     // Set valid_from to 2099-12-31 = "993112000000Z"
@@ -1784,7 +1784,7 @@ public func tls_cert_date_future_returns_future(env : &mut TestEnv) {
         i += 1
     }
 
-    var date_ret = tls::x509_check_date(&raw mut cert)
+    var date_ret = tls::x509_check_date(unsafe(&raw mut cert))
     if(date_ret != tls::X509_BADCERT_FUTURE as int) {
         env.error("cert should be marked as FUTURE")
     }
@@ -1797,26 +1797,26 @@ public func tls_cert_chain_verification_with_trusted_ca_works(env : &mut TestEnv
     // Test that x509_verify_chain works when we pass the self-signed cert
     // as both the leaf and the trusted CA.
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
+    tls::x509_cert_init(unsafe(&raw mut cert))
 
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 
     // Parse a second copy to use as trusted CA
     var ca_cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut ca_cert)
-    ret = tls::parse_cert_der(&raw mut ca_cert, &raw tls_tests::test_cert_data[0], 831)
+    tls::x509_cert_init(unsafe(&raw mut ca_cert))
+    ret = tls::parse_cert_der(unsafe(&raw mut ca_cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("CA cert should parse"); return }
 
     // Verify the chain with the self-signed cert as both leaf and trusted CA
     var hostname = "test.example.com\0" as *char
-    ret = tls::x509_verify_chain(&raw mut cert, &raw mut ca_cert, hostname)
+    ret = tls::x509_verify_chain(unsafe(&raw mut cert), unsafe(&raw mut ca_cert), hostname)
     if(ret != 0) {
         env.error("chain verification with self-signed cert as CA should succeed")
     }
 
     // Verify the flags were cleared on success
-    if(cert.flags != 0) {
+    if(unsafe(cert.flags) != 0) {
         env.error("cert flags should be 0 on successful verification")
     }
 }
@@ -1828,8 +1828,8 @@ public func tls_chain_verification_fails_with_wrong_ca(env : &mut TestEnv) {
 
     // Parse the leaf cert
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    tls::x509_cert_init(unsafe(&raw mut cert))
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 
     // Create a fake CA cert by parsing the same data and modifying the key
@@ -1839,13 +1839,13 @@ public func tls_chain_verification_fails_with_wrong_ca(env : &mut TestEnv) {
     // For now, we test that verification fails when hostname doesn't match.
 
     var ca_cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut ca_cert)
-    ret = tls::parse_cert_der(&raw mut ca_cert, &raw tls_tests::test_cert_data[0], 831)
+    tls::x509_cert_init(unsafe(&raw mut ca_cert))
+    ret = tls::parse_cert_der(unsafe(&raw mut ca_cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("CA cert should parse"); return }
 
     // Use a non-matching hostname
     var wrong_hostname = "wrong.example.com\0" as *char
-    ret = tls::x509_verify_chain(&raw mut cert, &raw mut ca_cert, wrong_hostname)
+    ret = tls::x509_verify_chain(unsafe(&raw mut cert), unsafe(&raw mut ca_cert), wrong_hostname)
     if(ret == 0) {
         env.error("chain verification should fail with non-matching hostname")
     }
@@ -1864,15 +1864,15 @@ public func tls_ssl_set_ca_chain_setter_works(env : &mut TestEnv) {
 
     // Parse a cert to use as CA
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    tls::x509_cert_init(unsafe(&raw mut cert))
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 
-    tls::ssl_set_ca_chain(&raw mut config, &raw mut cert)
+    tls::ssl_set_ca_chain(&raw mut config, unsafe(&raw mut cert))
     if(config.ca_chain == null) {
         env.error("ca_chain should be set after ssl_set_ca_chain")
     }
-    if(config.ca_chain != &raw mut cert) {
+    if(config.ca_chain != unsafe(&raw mut cert)) {
         env.error("ca_chain should point to the right certificate")
     }
 }
@@ -1881,13 +1881,13 @@ public func tls_ssl_set_ca_chain_setter_works(env : &mut TestEnv) {
 public func tls_x509_cert_verify_chain_self_signed_no_ca_works(env : &mut TestEnv) {
     // Test that chain verification works for a self-signed cert without a trusted CA
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
+    tls::x509_cert_init(unsafe(&raw mut cert))
 
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 
     var hostname = "test.example.com\0" as *char
-    ret = tls::x509_verify_chain(&raw mut cert, null, hostname)
+    ret = tls::x509_verify_chain(unsafe(&raw mut cert), null, hostname)
     if(ret != 0) {
         env.error("self-signed cert verification without CA should succeed")
     }
@@ -1897,19 +1897,19 @@ public func tls_x509_cert_verify_chain_self_signed_no_ca_works(env : &mut TestEn
 public func tls_x509_cert_verify_chain_rejects_unknown_hostname(env : &mut TestEnv) {
     // Test that chain verification rejects a cert with a non-matching CN
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
+    tls::x509_cert_init(unsafe(&raw mut cert))
 
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 
     var unknown_host = "unknown.example.org\0" as *char
-    ret = tls::x509_verify_chain(&raw mut cert, null, unknown_host)
+    ret = tls::x509_verify_chain(unsafe(&raw mut cert), null, unknown_host)
     if(ret == 0) {
         env.error("cert verification should fail with unknown hostname")
     }
 
     // Check that the flags indicate hostname mismatch
-    if((cert.flags & tls::X509_BADCERT_CN_MISMATCH as u32) == 0) {
+    if((unsafe(cert.flags) & tls::X509_BADCERT_CN_MISMATCH as u32) == 0) {
         env.error("cert flags should include CN_MISMATCH")
     }
 }
@@ -2128,11 +2128,11 @@ public func tls_gcm_constant_time_tag_compare(env : &mut TestEnv) {
                        0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99]
 
     var ctx : tls::GCMContext
-    tls::gcm_init(&raw mut ctx, &raw key[0], 16)
+    tls::gcm_init(unsafe(&raw mut ctx), &raw key[0], 16)
 
     var ct : [16]u8
     var tag : [16]u8
-    var ret = tls::gcm_crypt_and_tag(&raw mut ctx, &raw iv[0], 12, null, 0,
+    var ret = tls::gcm_crypt_and_tag(unsafe(&raw mut ctx), &raw iv[0], 12, null, 0,
                                       &raw pt[0], 16, &raw mut ct[0], &raw mut tag[0])
     if(ret < 0) { env.error("encrypt should succeed"); return }
 
@@ -2147,8 +2147,8 @@ public func tls_gcm_constant_time_tag_compare(env : &mut TestEnv) {
 
         var dec : [16]u8
         var gcm2 : tls::GCMContext
-        tls::gcm_init(&raw mut gcm2, &raw key[0], 16)
-        var dr = tls::gcm_auth_decrypt(&raw mut gcm2, &raw iv[0], 12,
+        tls::gcm_init(unsafe(&raw mut gcm2), &raw key[0], 16)
+        var dr = tls::gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv[0], 12,
                                         null, 0,
                                         &raw ct[0], 16,
                                         &raw tampered_tag[0], 16,
@@ -2165,16 +2165,16 @@ public func tls_gcm_constant_time_tag_compare(env : &mut TestEnv) {
 public func tls_rsa_sha256_verify_self_signed_cert_works(env : &mut TestEnv) {
     // SHA-256 signature verification on the self-signed test cert
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    tls::x509_cert_init(unsafe(&raw mut cert))
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 
     var rsa_ctx : tls::RSAContext
-    tls::rsa_init(&raw mut rsa_ctx, tls::RSA_PKCS_V15, 0)
-    ret = tls::x509_extract_rsa_pubkey(&raw mut cert, &raw mut rsa_ctx)
+    tls::rsa_init(unsafe(&raw mut rsa_ctx), tls::RSA_PKCS_V15, 0)
+    ret = tls::x509_extract_rsa_pubkey(unsafe(&raw mut cert), unsafe(&raw mut rsa_ctx))
     if(ret != 0) { env.error("key extraction should succeed"); return }
 
-    ret = tls::x509_verify_cert_signature(&raw mut cert, &raw mut rsa_ctx)
+    ret = tls::x509_verify_cert_signature(unsafe(&raw mut cert), unsafe(&raw mut rsa_ctx))
     if(ret != 0) { env.error("self-signed cert verification should succeed") }
 }
 
@@ -2185,27 +2185,27 @@ public func tls_rsa_pkcs1_verify_sha256_known_answer(env : &mut TestEnv) {
     // We import d instead since we can't compute d mod phi easily
     // Use known small RSA values: n=33, e=3, d=7 (3*7=21 = 1 mod 20)
     var rsa : tls::RSAContext
-    tls::rsa_init(&raw mut rsa, tls::RSA_PKCS_V15, 0)
+    tls::rsa_init(unsafe(&raw mut rsa), tls::RSA_PKCS_V15, 0)
 
     var n_buf : [1]u8 = [0x21]  // n = 33 = 3 * 11
     var e_buf : [1]u8 = [0x03]  // e = 3
     var d_buf : [1]u8 = [0x07]  // d = 7 (3*7 = 21 = 1 mod 20)
 
-    var ret = tls::rsa_import_pubkey(&raw mut rsa, &raw n_buf[0], 1, &raw e_buf[0], 1)
+    var ret = tls::rsa_import_pubkey(unsafe(&raw mut rsa), &raw n_buf[0], 1, &raw e_buf[0], 1)
     if(ret < 0) { env.error("import pubkey should succeed"); return }
-    ret = tls::mpi_read_binary(&raw mut rsa.D, &raw d_buf[0], 1)
+    ret = tls::mpi_read_binary(unsafe(&raw mut rsa.D), &raw d_buf[0], 1)
     if(ret < 0) { env.error("import d should succeed"); return }
 
     // RSA encrypt: m=5, c = 5^3 mod 33 = 125 mod 33 = 26
     var msg : [1]u8 = [0x05]
     var ct : [64]u8
-    ret = tls::rsa_pkcs1_encrypt(&raw mut rsa, &raw msg[0], 1, &raw mut ct[0])
+    ret = tls::rsa_pkcs1_encrypt(unsafe(&raw mut rsa), &raw msg[0], 1, &raw mut ct[0])
     if(ret < 0) { env.error("encrypt should succeed"); return }
 
     // RSA decrypt: c^d mod 33 = 26^7 mod 33 = 5
     var dec_buf : [64]u8
     var dec_len : size_t = 64
-    ret = tls::rsa_pkcs1_decrypt(&raw mut rsa, &raw ct[0], 1, &raw mut dec_buf[0], &raw mut dec_len, 64)
+    ret = tls::rsa_pkcs1_decrypt(unsafe(&raw mut rsa), &raw ct[0], 1, &raw mut dec_buf[0], &raw mut dec_len, 64)
     if(ret < 0) { env.error("decrypt should succeed"); return }
     if(dec_len != 1) { env.error("decrypted length should be 1"); return }
     if(dec_buf[0] != 0x05) { env.error("decrypted value should be 5") }
@@ -2215,17 +2215,17 @@ public func tls_rsa_pkcs1_verify_sha256_known_answer(env : &mut TestEnv) {
 public func tls_rsa_private_key_import_works(env : &mut TestEnv) {
     // Test rsa_import_privkey imports N and D correctly
     var rsa : tls::RSAContext
-    tls::rsa_init(&raw mut rsa, tls::RSA_PKCS_V15, 0)
-    var key_len = tls::rsa_get_len(&raw mut rsa)
+    tls::rsa_init(unsafe(&raw mut rsa), tls::RSA_PKCS_V15, 0)
+    var key_len = tls::rsa_get_len(unsafe(&raw mut rsa))
     if(key_len != 0) { env.error("initial len should be 0"); return }
 
     var n_data : [4]u8 = [0x12, 0x34, 0x56, 0x78]
     var d_data : [3]u8 = [0x01, 0x00, 0x01]
 
-    var ret = tls::rsa_import_privkey(&raw mut rsa, &raw n_data[0], 4, &raw d_data[0], 3)
+    var ret = tls::rsa_import_privkey(unsafe(&raw mut rsa), &raw n_data[0], 4, &raw d_data[0], 3)
     if(ret < 0) { env.error("import_privkey should succeed"); return }
 
-    key_len = tls::rsa_get_len(&raw mut rsa)
+    key_len = tls::rsa_get_len(unsafe(&raw mut rsa))
     if(key_len != 4) { env.error("key len should be 4 after import") }
 }
 
@@ -2234,13 +2234,13 @@ public func tls_san_hostname_parsing_exists(env : &mut TestEnv) {
     // The test certificate may or may not have SAN entries
     // Just verify that after parsing, san_count/san_entries are consistent
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    tls::x509_cert_init(unsafe(&raw mut cert))
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 
     // If there are SAN entries, san_entries should be non-null
-    if(cert.san_count > 0) {
-        if(cert.san_entries == null) {
+    if(unsafe(cert.san_count) > 0) {
+        if(unsafe(cert.san_entries) == null) {
             env.error("san_entries should be non-null when san_count > 0")
         }
     }
@@ -2250,13 +2250,13 @@ public func tls_san_hostname_parsing_exists(env : &mut TestEnv) {
 public func tls_hostname_verify_cn_match_case_insensitive(env : &mut TestEnv) {
     // CN matching should be case-insensitive for DNS names
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    tls::x509_cert_init(unsafe(&raw mut cert))
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 
     // The CN is "test.example.com" - test case-insensitive match
     var hostname = "TEST.EXAMPLE.COM\0" as *char
-    var verify_ret = tls::x509_verify_hostname(&raw mut cert, hostname)
+    var verify_ret = tls::x509_verify_hostname(unsafe(&raw mut cert), hostname)
     if(verify_ret != 0) {
         env.error("case-insensitive CN matching should succeed")
     }
@@ -2266,12 +2266,12 @@ public func tls_hostname_verify_cn_match_case_insensitive(env : &mut TestEnv) {
 public func tls_hostname_verify_wrong_cn_fails(env : &mut TestEnv) {
     // Non-matching CN should fail
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    tls::x509_cert_init(unsafe(&raw mut cert))
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 
     var hostname = "wrong.example.org\0" as *char
-    var verify_ret = tls::x509_verify_hostname(&raw mut cert, hostname)
+    var verify_ret = tls::x509_verify_hostname(unsafe(&raw mut cert), hostname)
     if(verify_ret == 0) {
         env.error("wrong CN should fail hostname verification")
     }
@@ -2290,7 +2290,7 @@ public func tls_cbc_record_encrypt_decrypt_with_mac_roundtrip(env : &mut TestEnv
                             0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99]
 
     var tr : tls::Transform
-    tls::transform_init(&raw mut tr)
+    tls::transform_init(unsafe(&raw mut tr))
     tr.cipher_type = tls::CIPHER_AES_128_CBC as u8
     tr.key_len = 16 as u8
     tr.iv_len = 16 as u8
@@ -2316,7 +2316,7 @@ public func tls_cbc_record_encrypt_decrypt_with_mac_roundtrip(env : &mut TestEnv
 
     // Encrypt
     var encrypted : [128]u8
-    var enc_len = tls::tls12_encrypt_record(&raw mut tr, &raw seq_num[0],
+    var enc_len = tls::tls12_encrypt_record(unsafe(&raw mut tr), &raw seq_num[0],
         tls::SSL_MSG_APPLICATION_DATA as u8, 3, 3,
         &raw plaintext[0], 10, &raw mut encrypted[0], 128)
     if(enc_len < 0) { env.error("CBC encrypt should succeed"); return }
@@ -2326,7 +2326,7 @@ public func tls_cbc_record_encrypt_decrypt_with_mac_roundtrip(env : &mut TestEnv
 
     // Decrypt
     var decrypted : [64]u8
-    var dec_len = tls::tls12_decrypt_record(&raw mut tr, &raw seq_num[0],
+    var dec_len = tls::tls12_decrypt_record(unsafe(&raw mut tr), &raw seq_num[0],
         tls::SSL_MSG_APPLICATION_DATA as u8, 3, 3,
         &raw encrypted[0], enc_len as size_t, &raw mut decrypted[0], 64)
     if(dec_len < 0) { env.error("CBC decrypt should succeed"); return }
@@ -2355,7 +2355,7 @@ public func tls_cbc_record_tampered_fails_mac(env : &mut TestEnv) {
                             0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99]
 
     var tr : tls::Transform
-    tls::transform_init(&raw mut tr)
+    tls::transform_init(unsafe(&raw mut tr))
     tr.cipher_type = tls::CIPHER_AES_128_CBC as u8
     tr.key_len = 16 as u8
     tr.iv_len = 16 as u8
@@ -2371,7 +2371,7 @@ public func tls_cbc_record_tampered_fails_mac(env : &mut TestEnv) {
     var seq_num : [8]u8 = [0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
 
     var encrypted : [128]u8
-    tls::tls12_encrypt_record(&raw mut tr, &raw seq_num[0],
+    tls::tls12_encrypt_record(unsafe(&raw mut tr), &raw seq_num[0],
         tls::SSL_MSG_APPLICATION_DATA as u8, 3, 3,
         &raw plaintext[0], 16, &raw mut encrypted[0], 128)
 
@@ -2382,7 +2382,7 @@ public func tls_cbc_record_tampered_fails_mac(env : &mut TestEnv) {
     tampered[18] = tampered[18] ^ 0xFF
 
     var decrypted : [64]u8
-    var dec_len = tls::tls12_decrypt_record(&raw mut tr, &raw seq_num[0],
+    var dec_len = tls::tls12_decrypt_record(unsafe(&raw mut tr), &raw seq_num[0],
         tls::SSL_MSG_APPLICATION_DATA as u8, 3, 3,
         &raw tampered[0], 128, &raw mut decrypted[0], 64)
     if(dec_len >= 0) {
@@ -2400,12 +2400,12 @@ public func tls_ssl_config_set_own_key_works(env : &mut TestEnv) {
     }
 
     var rsa : tls::RSAContext
-    tls::rsa_init(&raw mut rsa, tls::RSA_PKCS_V15, 0)
+    tls::rsa_init(unsafe(&raw mut rsa), tls::RSA_PKCS_V15, 0)
     var n_buf : [1]u8 = [0x37]
     var e_buf : [1]u8 = [0x03]
-    tls::rsa_import_pubkey(&raw mut rsa, &raw n_buf[0], 1, &raw e_buf[0], 1)
+    tls::rsa_import_pubkey(unsafe(&raw mut rsa), &raw n_buf[0], 1, &raw e_buf[0], 1)
 
-    tls::ssl_set_own_rsa_key(&raw mut config, &raw mut rsa)
+    tls::ssl_set_own_rsa_key(&raw mut config, unsafe(&raw mut rsa))
     if(config.own_key == null) {
         env.error("own_key should be set after ssl_set_own_rsa_key")
     }
@@ -2415,13 +2415,13 @@ public func tls_ssl_config_set_own_key_works(env : &mut TestEnv) {
 public func tls_no_lcg_fallback_in_client_hello(env : &mut TestEnv) {
     // Generate two ClientHello buffers - should produce different random values
     // since CSPRNG is used (no LCG determinism)
-    var ctx1 : tls::SSLContext; tls::ssl_init(&raw mut ctx1)
-    var ctx2 : tls::SSLContext; tls::ssl_init(&raw mut ctx2)
+    var ctx1 : tls::SSLContext; tls::ssl_init(unsafe(&raw mut ctx1))
+    var ctx2 : tls::SSLContext; tls::ssl_init(unsafe(&raw mut ctx2))
 
     var config1 = tls::ssl_config_init(tls::SSL_IS_CLIENT)
     var config2 = tls::ssl_config_init(tls::SSL_IS_CLIENT)
-    tls::ssl_set_config(&raw mut ctx1, &raw mut config1)
-    tls::ssl_set_config(&raw mut ctx2, &raw mut config2)
+    tls::ssl_set_config(unsafe(&raw mut ctx1), &raw mut config1)
+    tls::ssl_set_config(unsafe(&raw mut ctx2), &raw mut config2)
 
     // build_client_hello is internal, so we test via the existing tests
     // that verify ECDH keys differ (already covered by tls_ecdh_keypair_uses_csprng)
@@ -2438,8 +2438,8 @@ public func tls_ecp_add_jac_computes_valid_point(env : &mut TestEnv) {
         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
         0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01
     ]
-    var alice : tls::ECDHContext; tls::ecdh_init(&raw mut alice)
-    var ret = tls::mpi_read_binary(&raw mut alice.priv_key, &raw alice_priv[0], 32)
+    var alice : tls::ECDHContext; tls::ecdh_init(unsafe(&raw mut alice))
+    var ret = tls::mpi_read_binary(unsafe(&raw mut alice.priv_key), &raw alice_priv[0], 32)
     if(ret < 0) { env.error("import key failed"); return }
     alice.is_init = true
 
@@ -2453,7 +2453,7 @@ public func tls_ecp_add_jac_computes_valid_point(env : &mut TestEnv) {
     ]
 
     var shared : [32]u8
-    ret = tls::ecdh_compute_shared(&raw mut alice, &raw G[0], 65, &raw mut shared[0], 32)
+    ret = tls::ecdh_compute_shared(unsafe(&raw mut alice), &raw G[0], 65, &raw mut shared[0], 32)
     if(ret < 0) { env.error("shared secret computation should succeed"); return }
 
     var all_zero = true
@@ -2492,8 +2492,8 @@ public func tls_alpn_config_setter_works(env : &mut TestEnv) {
 @test
 public func tls_alpn_getter_returns_null_initially(env : &mut TestEnv) {
     var ssl : tls::SSLContext
-    tls::ssl_init(&raw mut ssl)
-    var alpn = tls::ssl_get_alpn_negotiated(&raw mut ssl)
+    tls::ssl_init(unsafe(&raw mut ssl))
+    var alpn = tls::ssl_get_alpn_negotiated(unsafe(&raw mut ssl))
     if(alpn != null) {
         env.error("alpn_negotiated should be null before handshake")
     }
@@ -2507,7 +2507,7 @@ public func tls_alpn_getter_returns_null_initially(env : &mut TestEnv) {
 public func tls13_key_update_send_keys_changes_transform(env : &mut TestEnv) {
     // Simulate a post-handshake scenario: set up keys, then update
     var ssl : tls::SSLContext
-    tls::ssl_init(&raw mut ssl)
+    tls::ssl_init(unsafe(&raw mut ssl))
 
     // Set up application traffic secrets (simulating post-handshake state)
     var secret : [32]u8
@@ -2528,10 +2528,10 @@ public func tls13_key_update_send_keys_changes_transform(env : &mut TestEnv) {
         tr_out_mem.base_iv_enc[i] = 0xBB
         i += 1
     }
-    ssl.transform_out = tr_out_mem
+    unsafe { ssl.transform_out = tr_out_mem }
 
     // Perform key update
-    var ret = tls::tls13_update_send_keys(&raw mut ssl)
+    var ret = tls::tls13_update_send_keys(unsafe(&raw mut ssl))
     if(ret < 0) {
         env.error("tls13_update_send_keys should succeed")
         return
@@ -2541,7 +2541,7 @@ public func tls13_key_update_send_keys_changes_transform(env : &mut TestEnv) {
     var keys_changed = false
     i = 0
     while(i < 16) {
-        if(ssl.transform_out.key_enc[i] != 0xAA) { keys_changed = true }
+        if(unsafe(ssl.transform_out.key_enc[i]) != 0xAA) { keys_changed = true }
         i += 1
     }
     if(!keys_changed) {
@@ -2552,7 +2552,7 @@ public func tls13_key_update_send_keys_changes_transform(env : &mut TestEnv) {
     var seq_zero = true
     i = 0
     while(i < 8) {
-        if(ssl.out_ctr[i] != 0) { seq_zero = false }
+        if(unsafe(ssl.out_ctr[i]) != 0) { seq_zero = false }
         i += 1
     }
     if(!seq_zero) {
@@ -2564,7 +2564,7 @@ public func tls13_key_update_send_keys_changes_transform(env : &mut TestEnv) {
 public func tls13_key_update_recv_keys_changes_transform(env : &mut TestEnv) {
     // Test receive-side key update
     var ssl : tls::SSLContext
-    tls::ssl_init(&raw mut ssl)
+    tls::ssl_init(unsafe(&raw mut ssl))
 
     var i : size_t = 0
     while(i < 32) {
@@ -2582,9 +2582,9 @@ public func tls13_key_update_recv_keys_changes_transform(env : &mut TestEnv) {
         tr_in_mem.base_iv_dec[i] = 0xDD
         i += 1
     }
-    ssl.transform_in = tr_in_mem
+    unsafe { ssl.transform_in = tr_in_mem }
 
-    var ret = tls::tls13_update_recv_keys(&raw mut ssl)
+    var ret = tls::tls13_update_recv_keys(unsafe(&raw mut ssl))
     if(ret < 0) {
         env.error("tls13_update_recv_keys should succeed")
         return
@@ -2593,7 +2593,7 @@ public func tls13_key_update_recv_keys_changes_transform(env : &mut TestEnv) {
     var keys_changed = false
     i = 0
     while(i < 16) {
-        if(ssl.transform_in.key_dec[i] != 0xCC) { keys_changed = true }
+        if(unsafe(ssl.transform_in.key_dec[i]) != 0xCC) { keys_changed = true }
         i += 1
     }
     if(!keys_changed) {
@@ -2604,8 +2604,8 @@ public func tls13_key_update_recv_keys_changes_transform(env : &mut TestEnv) {
 @test
 public func tls13_key_update_deterministic(env : &mut TestEnv) {
     // Two key updates with same starting secret should produce same result
-    var ssl1 : tls::SSLContext; tls::ssl_init(&raw mut ssl1)
-    var ssl2 : tls::SSLContext; tls::ssl_init(&raw mut ssl2)
+    var ssl1 : tls::SSLContext; tls::ssl_init(unsafe(&raw mut ssl1))
+    var ssl2 : tls::SSLContext; tls::ssl_init(unsafe(&raw mut ssl2))
 
     var i : size_t = 0
     while(i < 32) {
@@ -2618,15 +2618,15 @@ public func tls13_key_update_deterministic(env : &mut TestEnv) {
     var tr2 = malloc(sizeof(tls::Transform)) as *mut tls::Transform
     tls::transform_init(tr1); tls::transform_init(tr2)
     tr1.key_len = 16; tr2.key_len = 16
-    ssl1.transform_out = tr1; ssl2.transform_out = tr2
+    unsafe { ssl1.transform_out = tr1 }; unsafe { ssl2.transform_out = tr2 }
 
-    tls::tls13_update_send_keys(&raw mut ssl1)
-    tls::tls13_update_send_keys(&raw mut ssl2)
+    tls::tls13_update_send_keys(unsafe(&raw mut ssl1))
+    tls::tls13_update_send_keys(unsafe(&raw mut ssl2))
 
     var match = true
     i = 0
     while(i < 16) {
-        if(ssl1.transform_out.key_enc[i] != ssl2.transform_out.key_enc[i]) { match = false }
+        if(unsafe(ssl1.transform_out.key_enc[i]) != unsafe(ssl2.transform_out.key_enc[i])) { match = false }
         i += 1
     }
     if(!match) {
@@ -2637,8 +2637,8 @@ public func tls13_key_update_deterministic(env : &mut TestEnv) {
     match = true
     i = 0
     while(i < 32) {
-        if(ssl1.tls13_keys.client_application_traffic_secret[i] !=
-           ssl2.tls13_keys.client_application_traffic_secret[i]) { match = false }
+        if(unsafe(ssl1.tls13_keys.client_application_traffic_secret[i]) !=
+           unsafe(ssl2.tls13_keys.client_application_traffic_secret[i])) { match = false }
         i += 1
     }
     if(!match) {
@@ -2665,8 +2665,8 @@ public func tls13_key_update_send_key_update_builds_message(env : &mut TestEnv) 
 public func tls_rsa_gen_key_returns_error(env : &mut TestEnv) {
     // rsa_gen_key generates a real RSA-2048 key pair.
     var ctx : tls::RSAContext
-    tls::rsa_init(&raw mut ctx, tls::RSA_PKCS_V15, 0)
-    var ret = tls::rsa_gen_key(&raw mut ctx, 2048, 65537u32)
+    tls::rsa_init(unsafe(&raw mut ctx), tls::RSA_PKCS_V15, 0)
+    var ret = tls::rsa_gen_key(unsafe(&raw mut ctx), 2048, 65537u32)
     if(ret != 0) {
         env.error("rsa_gen_key should succeed")
         return
@@ -2677,13 +2677,13 @@ public func tls_rsa_gen_key_returns_error(env : &mut TestEnv) {
     }
     var pt : [16]u8; var i : size_t = 0; while(i < 16) { pt[i] = (i + 1) as u8; i += 1 }
     var ct : [256]u8
-    ret = tls::rsa_pkcs1_encrypt(&raw mut ctx, &raw pt[0], 16, &raw mut ct[0])
+    ret = tls::rsa_pkcs1_encrypt(unsafe(&raw mut ctx), &raw pt[0], 16, &raw mut ct[0])
     if(ret < 0) {
         env.error("rsa_pkcs1_encrypt with generated key failed")
         return
     }
     var dec : [256]u8; var dec_len : size_t = 256
-    ret = tls::rsa_pkcs1_decrypt(&raw mut ctx, &raw ct[0], 256, &raw mut dec[0], &raw mut dec_len, 256)
+    ret = tls::rsa_pkcs1_decrypt(unsafe(&raw mut ctx), &raw ct[0], 256, &raw mut dec[0], &raw mut dec_len, 256)
     if(ret < 0) {
         env.error("rsa_pkcs1_decrypt with generated key failed")
         return
@@ -2702,87 +2702,87 @@ public func tls_rsa_gen_key_math_invariants(env : &mut TestEnv) {
     //   N = P*Q, gcd(E, phi)=1, D*E ≡ 1 (mod phi), CRT params DP/DQ/QP correct,
     //   and correct bit lengths. Uses the public mpi API to re-derive each value.
     var ctx : tls::RSAContext
-    tls::rsa_init(&raw mut ctx, tls::RSA_PKCS_V15, 0)
-    var ret = tls::rsa_gen_key(&raw mut ctx, 2048, 65537u32)
+    tls::rsa_init(unsafe(&raw mut ctx), tls::RSA_PKCS_V15, 0)
+    var ret = tls::rsa_gen_key(unsafe(&raw mut ctx), 2048, 65537u32)
     if(ret != 0) { env.error("rsa_gen_key should succeed"); return }
 
     // N bit length must be exactly 2048, ctx.len = 256 bytes
-    if(tls::mpi_bitlen(&raw mut ctx.N) != 2048) { env.error("N bitlen != 2048"); return }
+    if(tls::mpi_bitlen(unsafe(&raw mut ctx.N)) != 2048) { env.error("N bitlen != 2048"); return }
     if(ctx.len != 256) { env.error("ctx.len != 256"); return }
 
     // P and Q must each be 1024 bits, and distinct
-    if(tls::mpi_bitlen(&raw mut ctx.P) != 1024) { env.error("P bitlen != 1024"); return }
-    if(tls::mpi_bitlen(&raw mut ctx.Q) != 1024) { env.error("Q bitlen != 1024"); return }
-    if(tls::mpi_cmp(&raw mut ctx.P, &raw mut ctx.Q) == 0) { env.error("P == Q"); return }
+    if(tls::mpi_bitlen(unsafe(&raw mut ctx.P)) != 1024) { env.error("P bitlen != 1024"); return }
+    if(tls::mpi_bitlen(unsafe(&raw mut ctx.Q)) != 1024) { env.error("Q bitlen != 1024"); return }
+    if(tls::mpi_cmp(unsafe(&raw mut ctx.P), unsafe(&raw mut ctx.Q)) == 0) { env.error("P == Q"); return }
 
     // N == P * Q
-    var n_calc : tls::Mpi; tls::mpi_init(&raw mut n_calc)
-    ret = tls::mpi_mul(&raw mut n_calc, &raw mut ctx.P, &raw mut ctx.Q)
+    var n_calc : tls::Mpi; tls::mpi_init(unsafe(&raw mut n_calc))
+    ret = tls::mpi_mul(unsafe(&raw mut n_calc), unsafe(&raw mut ctx.P), unsafe(&raw mut ctx.Q))
     if(ret < 0) { env.error("mpi_mul P*Q failed"); return }
-    if(tls::mpi_cmp(&raw mut n_calc, &raw mut ctx.N) != 0) { env.error("N != P*Q"); return }
+    if(tls::mpi_cmp(unsafe(&raw mut n_calc), unsafe(&raw mut ctx.N)) != 0) { env.error("N != P*Q"); return }
 
     // E == 65537
-    var e_calc : tls::Mpi; tls::mpi_init(&raw mut e_calc); tls::mpi_lset(&raw mut e_calc, 65537)
-    if(tls::mpi_cmp(&raw mut e_calc, &raw mut ctx.E) != 0) { env.error("E != 65537"); return }
+    var e_calc : tls::Mpi; tls::mpi_init(unsafe(&raw mut e_calc)); tls::mpi_lset(unsafe(&raw mut e_calc), 65537)
+    if(tls::mpi_cmp(unsafe(&raw mut e_calc), unsafe(&raw mut ctx.E)) != 0) { env.error("E != 65537"); return }
 
     // phi = (P-1)*(Q-1); gcd(E, phi) must be 1
-    var one : tls::Mpi; tls::mpi_init(&raw mut one); tls::mpi_lset(&raw mut one, 1)
-    var p1 : tls::Mpi; tls::mpi_init(&raw mut p1)
-    var q1 : tls::Mpi; tls::mpi_init(&raw mut q1)
-    var phi : tls::Mpi; tls::mpi_init(&raw mut phi)
-    var g : tls::Mpi; tls::mpi_init(&raw mut g)
-    ret = tls::mpi_sub(&raw mut p1, &raw mut ctx.P, &raw mut one)
-    ret = tls::mpi_sub(&raw mut q1, &raw mut ctx.Q, &raw mut one)
+    var one : tls::Mpi; tls::mpi_init(unsafe(&raw mut one)); tls::mpi_lset(unsafe(&raw mut one), 1)
+    var p1 : tls::Mpi; tls::mpi_init(unsafe(&raw mut p1))
+    var q1 : tls::Mpi; tls::mpi_init(unsafe(&raw mut q1))
+    var phi : tls::Mpi; tls::mpi_init(unsafe(&raw mut phi))
+    var g : tls::Mpi; tls::mpi_init(unsafe(&raw mut g))
+    ret = tls::mpi_sub(unsafe(&raw mut p1), unsafe(&raw mut ctx.P), unsafe(&raw mut one))
+    ret = tls::mpi_sub(unsafe(&raw mut q1), unsafe(&raw mut ctx.Q), unsafe(&raw mut one))
     if(ret < 0) { env.error("mpi_sub failed"); return }
-    ret = tls::mpi_mul(&raw mut phi, &raw mut p1, &raw mut q1)
+    ret = tls::mpi_mul(unsafe(&raw mut phi), unsafe(&raw mut p1), unsafe(&raw mut q1))
     if(ret < 0) { env.error("mpi_mul phi failed"); return }
-    ret = tls::mpi_gcd(&raw mut g, &raw mut ctx.E, &raw mut phi)
+    ret = tls::mpi_gcd(unsafe(&raw mut g), unsafe(&raw mut ctx.E), unsafe(&raw mut phi))
     if(ret < 0) { env.error("mpi_gcd failed"); return }
-    if(tls::mpi_cmp_int(&raw mut g, 1) != 0) { env.error("gcd(E, phi) != 1"); return }
+    if(tls::mpi_cmp_int(unsafe(&raw mut g), 1) != 0) { env.error("gcd(E, phi) != 1"); return }
 
     // D * E ≡ 1 (mod phi)
-    var de : tls::Mpi; tls::mpi_init(&raw mut de)
-    ret = tls::mpi_mul(&raw mut de, &raw mut ctx.D, &raw mut ctx.E)
+    var de : tls::Mpi; tls::mpi_init(unsafe(&raw mut de))
+    ret = tls::mpi_mul(unsafe(&raw mut de), unsafe(&raw mut ctx.D), unsafe(&raw mut ctx.E))
     if(ret < 0) { env.error("mpi_mul D*E failed"); return }
-    var de_mod : tls::Mpi; tls::mpi_init(&raw mut de_mod)
-    ret = tls::mpi_mod(&raw mut de_mod, &raw mut de, &raw mut phi)
+    var de_mod : tls::Mpi; tls::mpi_init(unsafe(&raw mut de_mod))
+    ret = tls::mpi_mod(unsafe(&raw mut de_mod), unsafe(&raw mut de), unsafe(&raw mut phi))
     if(ret < 0) { env.error("mpi_mod D*E failed"); return }
-    if(tls::mpi_cmp_int(&raw mut de_mod, 1) != 0) { env.error("(D*E) mod phi != 1"); return }
+    if(tls::mpi_cmp_int(unsafe(&raw mut de_mod), 1) != 0) { env.error("(D*E) mod phi != 1"); return }
 
     // DP == D mod (P-1), DQ == D mod (Q-1)
-    var dp_calc : tls::Mpi; tls::mpi_init(&raw mut dp_calc)
-    var dq_calc : tls::Mpi; tls::mpi_init(&raw mut dq_calc)
-    ret = tls::mpi_mod(&raw mut dp_calc, &raw mut ctx.D, &raw mut p1)
+    var dp_calc : tls::Mpi; tls::mpi_init(unsafe(&raw mut dp_calc))
+    var dq_calc : tls::Mpi; tls::mpi_init(unsafe(&raw mut dq_calc))
+    ret = tls::mpi_mod(unsafe(&raw mut dp_calc), unsafe(&raw mut ctx.D), unsafe(&raw mut p1))
     if(ret < 0) { env.error("mpi_mod DP failed"); return }
-    ret = tls::mpi_mod(&raw mut dq_calc, &raw mut ctx.D, &raw mut q1)
+    ret = tls::mpi_mod(unsafe(&raw mut dq_calc), unsafe(&raw mut ctx.D), unsafe(&raw mut q1))
     if(ret < 0) { env.error("mpi_mod DQ failed"); return }
-    if(tls::mpi_cmp(&raw mut dp_calc, &raw mut ctx.DP) != 0) { env.error("DP != D mod (P-1)"); return }
-    if(tls::mpi_cmp(&raw mut dq_calc, &raw mut ctx.DQ) != 0) { env.error("DQ != D mod (Q-1)"); return }
+    if(tls::mpi_cmp(unsafe(&raw mut dp_calc), unsafe(&raw mut ctx.DP)) != 0) { env.error("DP != D mod (P-1)"); return }
+    if(tls::mpi_cmp(unsafe(&raw mut dq_calc), unsafe(&raw mut ctx.DQ)) != 0) { env.error("DQ != D mod (Q-1)"); return }
 
     // Q * QP ≡ 1 (mod P)
-    var q_qp : tls::Mpi; tls::mpi_init(&raw mut q_qp)
-    ret = tls::mpi_mul(&raw mut q_qp, &raw mut ctx.Q, &raw mut ctx.QP)
+    var q_qp : tls::Mpi; tls::mpi_init(unsafe(&raw mut q_qp))
+    ret = tls::mpi_mul(unsafe(&raw mut q_qp), unsafe(&raw mut ctx.Q), unsafe(&raw mut ctx.QP))
     if(ret < 0) { env.error("mpi_mul Q*QP failed"); return }
-    var q_qp_mod : tls::Mpi; tls::mpi_init(&raw mut q_qp_mod)
-    ret = tls::mpi_mod(&raw mut q_qp_mod, &raw mut q_qp, &raw mut ctx.P)
+    var q_qp_mod : tls::Mpi; tls::mpi_init(unsafe(&raw mut q_qp_mod))
+    ret = tls::mpi_mod(unsafe(&raw mut q_qp_mod), unsafe(&raw mut q_qp), unsafe(&raw mut ctx.P))
     if(ret < 0) { env.error("mpi_mod Q*QP failed"); return }
-    if(tls::mpi_cmp_int(&raw mut q_qp_mod, 1) != 0) { env.error("(Q*QP) mod P != 1"); return }
+    if(tls::mpi_cmp_int(unsafe(&raw mut q_qp_mod), 1) != 0) { env.error("(Q*QP) mod P != 1"); return }
 
     // QP must be < P and DP < P-1, DQ < Q-1, D < phi (standard invariants)
-    if(tls::mpi_cmp(&raw mut ctx.QP, &raw mut ctx.P) >= 0) { env.error("QP >= P"); return }
-    if(tls::mpi_cmp(&raw mut ctx.DP, &raw mut p1) >= 0) { env.error("DP >= P-1"); return }
-    if(tls::mpi_cmp(&raw mut ctx.DQ, &raw mut q1) >= 0) { env.error("DQ >= Q-1"); return }
-    if(tls::mpi_cmp(&raw mut ctx.D, &raw mut phi) >= 0) { env.error("D >= phi"); return }
+    if(tls::mpi_cmp(unsafe(&raw mut ctx.QP), unsafe(&raw mut ctx.P)) >= 0) { env.error("QP >= P"); return }
+    if(tls::mpi_cmp(unsafe(&raw mut ctx.DP), unsafe(&raw mut p1)) >= 0) { env.error("DP >= P-1"); return }
+    if(tls::mpi_cmp(unsafe(&raw mut ctx.DQ), unsafe(&raw mut q1)) >= 0) { env.error("DQ >= Q-1"); return }
+    if(tls::mpi_cmp(unsafe(&raw mut ctx.D), unsafe(&raw mut phi)) >= 0) { env.error("D >= phi"); return }
 
     // A raw exponentiation roundtrip: (x^E)^D mod N == x  (via mpi_exp_mod directly)
-    var x : tls::Mpi; tls::mpi_init(&raw mut x); tls::mpi_lset(&raw mut x, 424242)
-    var xe : tls::Mpi; tls::mpi_init(&raw mut xe)
-    var xed : tls::Mpi; tls::mpi_init(&raw mut xed)
-    ret = tls::mpi_exp_mod(&raw mut xe, &raw mut x, &raw mut ctx.E, &raw mut ctx.N)
+    var x : tls::Mpi; tls::mpi_init(unsafe(&raw mut x)); tls::mpi_lset(unsafe(&raw mut x), 424242)
+    var xe : tls::Mpi; tls::mpi_init(unsafe(&raw mut xe))
+    var xed : tls::Mpi; tls::mpi_init(unsafe(&raw mut xed))
+    ret = tls::mpi_exp_mod(unsafe(&raw mut xe), unsafe(&raw mut x), unsafe(&raw mut ctx.E), unsafe(&raw mut ctx.N))
     if(ret < 0) { env.error("mpi_exp_mod E failed"); return }
-    ret = tls::mpi_exp_mod(&raw mut xed, &raw mut xe, &raw mut ctx.D, &raw mut ctx.N)
+    ret = tls::mpi_exp_mod(unsafe(&raw mut xed), unsafe(&raw mut xe), unsafe(&raw mut ctx.D), unsafe(&raw mut ctx.N))
     if(ret < 0) { env.error("mpi_exp_mod D failed"); return }
-    if(tls::mpi_cmp(&raw mut xed, &raw mut x) != 0) { env.error("(x^E)^D mod N != x"); return }
+    if(tls::mpi_cmp(unsafe(&raw mut xed), unsafe(&raw mut x)) != 0) { env.error("(x^E)^D mod N != x"); return }
 }
 
 @test
@@ -2791,41 +2791,41 @@ public func tls_rsa_gen_key_distinct_keys(env : &mut TestEnv) {
     // Two consecutive keygens must produce different primes/moduli (guards
     // against a deterministic/constant random source).
     var ctx1 : tls::RSAContext
-    tls::rsa_init(&raw mut ctx1, tls::RSA_PKCS_V15, 0)
-    var ret = tls::rsa_gen_key(&raw mut ctx1, 1024, 65537u32)
+    tls::rsa_init(unsafe(&raw mut ctx1), tls::RSA_PKCS_V15, 0)
+    var ret = tls::rsa_gen_key(unsafe(&raw mut ctx1), 1024, 65537u32)
     if(ret != 0) { env.error("rsa_gen_key #1 failed"); return }
 
     var ctx2 : tls::RSAContext
-    tls::rsa_init(&raw mut ctx2, tls::RSA_PKCS_V15, 0)
-    ret = tls::rsa_gen_key(&raw mut ctx2, 1024, 65537u32)
+    tls::rsa_init(unsafe(&raw mut ctx2), tls::RSA_PKCS_V15, 0)
+    ret = tls::rsa_gen_key(unsafe(&raw mut ctx2), 1024, 65537u32)
     if(ret != 0) { env.error("rsa_gen_key #2 failed"); return }
 
-    if(tls::mpi_cmp(&raw mut ctx1.P, &raw mut ctx2.P) == 0) { env.error("P identical across keygens"); return }
-    if(tls::mpi_cmp(&raw mut ctx1.Q, &raw mut ctx2.Q) == 0) { env.error("Q identical across keygens"); return }
-    if(tls::mpi_cmp(&raw mut ctx1.N, &raw mut ctx2.N) == 0) { env.error("N identical across keygens"); return }
-    if(tls::mpi_cmp(&raw mut ctx1.D, &raw mut ctx2.D) == 0) { env.error("D identical across keygens"); return }
+    if(tls::mpi_cmp(unsafe(&raw mut ctx1.P), unsafe(&raw mut ctx2.P)) == 0) { env.error("P identical across keygens"); return }
+    if(tls::mpi_cmp(unsafe(&raw mut ctx1.Q), unsafe(&raw mut ctx2.Q)) == 0) { env.error("Q identical across keygens"); return }
+    if(tls::mpi_cmp(unsafe(&raw mut ctx1.N), unsafe(&raw mut ctx2.N)) == 0) { env.error("N identical across keygens"); return }
+    if(tls::mpi_cmp(unsafe(&raw mut ctx1.D), unsafe(&raw mut ctx2.D)) == 0) { env.error("D identical across keygens"); return }
 }
 
 @test
 public func tls_rsa_gen_key_rejects_bad_nbits(env : &mut TestEnv) {
     // nbits below 256 and non-multiples of 8 must be rejected up front.
     var ctx : tls::RSAContext
-    tls::rsa_init(&raw mut ctx, tls::RSA_PKCS_V15, 0)
+    tls::rsa_init(unsafe(&raw mut ctx), tls::RSA_PKCS_V15, 0)
 
-    var ret = tls::rsa_gen_key(&raw mut ctx, 255, 65537u32)
+    var ret = tls::rsa_gen_key(unsafe(&raw mut ctx), 255, 65537u32)
     if(ret == 0) { env.error("rsa_gen_key(255) should fail"); return }
 
-    ret = tls::rsa_gen_key(&raw mut ctx, 257, 65537u32)
+    ret = tls::rsa_gen_key(unsafe(&raw mut ctx), 257, 65537u32)
     if(ret == 0) { env.error("rsa_gen_key(257) should fail"); return }
 
-    ret = tls::rsa_gen_key(&raw mut ctx, 1020, 65537u32)
+    ret = tls::rsa_gen_key(unsafe(&raw mut ctx), 1020, 65537u32)
     if(ret == 0) { env.error("rsa_gen_key(1020) should fail"); return }
 
-    ret = tls::rsa_gen_key(&raw mut ctx, 128, 65537u32)
+    ret = tls::rsa_gen_key(unsafe(&raw mut ctx), 128, 65537u32)
     if(ret == 0) { env.error("rsa_gen_key(128) should fail"); return }
 
     // Valid boundary: 256 bits is allowed and yields 32-byte keys
-    ret = tls::rsa_gen_key(&raw mut ctx, 256, 65537u32)
+    ret = tls::rsa_gen_key(unsafe(&raw mut ctx), 256, 65537u32)
     if(ret != 0) { env.error("rsa_gen_key(256) should succeed"); return }
     if(ctx.len != 32) { env.error("256-bit key len != 32"); return }
 }
@@ -2835,18 +2835,18 @@ public func tls_rsa_gen_key_rejects_bad_nbits(env : &mut TestEnv) {
 public func tls_rsa_gen_key_1024_roundtrip(env : &mut TestEnv) {
     // RSA-1024 (128-byte modulus) full encrypt/decrypt roundtrip.
     var ctx : tls::RSAContext
-    tls::rsa_init(&raw mut ctx, tls::RSA_PKCS_V15, 0)
-    var ret = tls::rsa_gen_key(&raw mut ctx, 1024, 65537u32)
+    tls::rsa_init(unsafe(&raw mut ctx), tls::RSA_PKCS_V15, 0)
+    var ret = tls::rsa_gen_key(unsafe(&raw mut ctx), 1024, 65537u32)
     if(ret != 0) { env.error("rsa_gen_key(1024) failed"); return }
     if(ctx.len != 128) { env.error("1024-bit key len != 128"); return }
-    if(tls::mpi_bitlen(&raw mut ctx.N) != 1024) { env.error("N bitlen != 1024"); return }
+    if(tls::mpi_bitlen(unsafe(&raw mut ctx.N)) != 1024) { env.error("N bitlen != 1024"); return }
 
     var pt : [48]u8; var i : size_t = 0; while(i < 48) { pt[i] = (i * 7) as u8; i += 1 }
     var ct : [128]u8
-    ret = tls::rsa_pkcs1_encrypt(&raw mut ctx, &raw pt[0], 48, &raw mut ct[0])
+    ret = tls::rsa_pkcs1_encrypt(unsafe(&raw mut ctx), &raw pt[0], 48, &raw mut ct[0])
     if(ret < 0) { env.error("rsa_pkcs1_encrypt (1024) failed"); return }
     var dec : [128]u8; var dec_len : size_t = 128
-    ret = tls::rsa_pkcs1_decrypt(&raw mut ctx, &raw ct[0], 128, &raw mut dec[0], &raw mut dec_len, 128)
+    ret = tls::rsa_pkcs1_decrypt(unsafe(&raw mut ctx), &raw ct[0], 128, &raw mut dec[0], &raw mut dec_len, 128)
     if(ret < 0) { env.error("rsa_pkcs1_decrypt (1024) failed"); return }
     i = 0; var ok = true
     while(i < 48) { if(dec[i] != pt[i]) { ok = false } else {}; i += 1 }
@@ -2854,12 +2854,12 @@ public func tls_rsa_gen_key_1024_roundtrip(env : &mut TestEnv) {
 
     // A different public exponent (3) must also generate a usable key
     var ctx3 : tls::RSAContext
-    tls::rsa_init(&raw mut ctx3, tls::RSA_PKCS_V15, 0)
-    ret = tls::rsa_gen_key(&raw mut ctx3, 1024, 3u32)
+    tls::rsa_init(unsafe(&raw mut ctx3), tls::RSA_PKCS_V15, 0)
+    ret = tls::rsa_gen_key(unsafe(&raw mut ctx3), 1024, 3u32)
     if(ret != 0) { env.error("rsa_gen_key(1024, e=3) failed"); return }
-    ret = tls::rsa_pkcs1_encrypt(&raw mut ctx3, &raw pt[0], 48, &raw mut ct[0])
+    ret = tls::rsa_pkcs1_encrypt(unsafe(&raw mut ctx3), &raw pt[0], 48, &raw mut ct[0])
     if(ret < 0) { env.error("rsa_pkcs1_encrypt (e=3) failed"); return }
-    ret = tls::rsa_pkcs1_decrypt(&raw mut ctx3, &raw ct[0], 128, &raw mut dec[0], &raw mut dec_len, 128)
+    ret = tls::rsa_pkcs1_decrypt(unsafe(&raw mut ctx3), &raw ct[0], 128, &raw mut dec[0], &raw mut dec_len, 128)
     if(ret < 0) { env.error("rsa_pkcs1_decrypt (e=3) failed"); return }
     i = 0; ok = true
     while(i < 48) { if(dec[i] != pt[i]) { ok = false } else {}; i += 1 }
@@ -2873,7 +2873,7 @@ public func tls_rsa_gen_key_1024_roundtrip(env : &mut TestEnv) {
 @test
 public func tls_ecdsa_init_and_import_works(env : &mut TestEnv) {
     var ctx : tls::ECDSAContext
-    tls::ecdsa_init(&raw mut ctx)
+    tls::ecdsa_init(unsafe(&raw mut ctx))
     if(ctx.is_init) {
         env.error("ecdsa should not be init after init")
     }
@@ -2887,7 +2887,7 @@ public func tls_ecdsa_init_and_import_works(env : &mut TestEnv) {
     pub_key[33] = 0x43 as u8; pub_key[34] = 0xD8 as u8; pub_key[35] = 0x7F as u8
     pub_key[64] = 0x21 as u8
 
-    var ret = tls::ecdsa_import_pubkey(&raw mut ctx, &raw pub_key[0], 65, tls::TLS_GROUP_SECP256R1 as u16)
+    var ret = tls::ecdsa_import_pubkey(unsafe(&raw mut ctx), &raw pub_key[0], 65, tls::TLS_GROUP_SECP256R1 as u16)
     if(ret < 0) {
         env.error("ecdsa_import_pubkey should succeed")
         return
@@ -2897,28 +2897,28 @@ public func tls_ecdsa_init_and_import_works(env : &mut TestEnv) {
 @test
 public func tls_ecdsa_import_bad_key_fails(env : &mut TestEnv) {
     var ctx : tls::ECDSAContext
-    tls::ecdsa_init(&raw mut ctx)
+    tls::ecdsa_init(unsafe(&raw mut ctx))
 
     var short_key : [32]u8
-    var ret = tls::ecdsa_import_pubkey(&raw mut ctx, &raw short_key[0], 32, tls::TLS_GROUP_SECP256R1 as u16)
+    var ret = tls::ecdsa_import_pubkey(unsafe(&raw mut ctx), &raw short_key[0], 32, tls::TLS_GROUP_SECP256R1 as u16)
     if(ret == 0) { env.error("should reject short key") }
 
     var bad_key : [65]u8
     var i : size_t = 0
     while(i < 65) { bad_key[i] = 0x00; i += 1 }
-    ret = tls::ecdsa_import_pubkey(&raw mut ctx, &raw bad_key[0], 65, tls::TLS_GROUP_SECP256R1 as u16)
+    ret = tls::ecdsa_import_pubkey(unsafe(&raw mut ctx), &raw bad_key[0], 65, tls::TLS_GROUP_SECP256R1 as u16)
     if(ret == 0) { env.error("should reject non-uncompressed key") }
 }
 
 @test
 public func tls_ecdsa_uninitialized_rejects_verify(env : &mut TestEnv) {
     var ctx : tls::ECDSAContext
-    tls::ecdsa_init(&raw mut ctx)
+    tls::ecdsa_init(unsafe(&raw mut ctx))
 
     var hash : [32]u8
     var sig : [71]u8
 
-    var ret = tls::ecdsa_verify(&raw mut ctx, &raw hash[0], 32, &raw sig[0], 71)
+    var ret = tls::ecdsa_verify(unsafe(&raw mut ctx), &raw hash[0], 32, &raw sig[0], 71)
     if(ret == 0) {
         env.error("uninitialized ECDSA should reject verify")
     }
@@ -2932,8 +2932,8 @@ public func tls_ecdsa_uninitialized_rejects_verify(env : &mut TestEnv) {
 public func tls_session_resumption_key_derivation_works(env : &mut TestEnv) {
     // Verify that resumption_master_secret is populated after application key derivation
     var ssl : tls::SSLContext
-    tls::ssl_init(&raw mut ssl)
-    tls::ssl_set_config(&raw mut ssl, &raw mut tls::ssl_config_init(tls::SSL_IS_CLIENT))
+    tls::ssl_init(unsafe(&raw mut ssl))
+    tls::ssl_set_config(unsafe(&raw mut ssl), &raw mut tls::ssl_config_init(tls::SSL_IS_CLIENT))
 
     // Set up handshake secret (simulating after handshake)
     var i : size_t = 0
@@ -2946,14 +2946,14 @@ public func tls_session_resumption_key_derivation_works(env : &mut TestEnv) {
     var hs_hash : [32]u8
     i = 0
     while(i < 32) { hs_hash[i] = i as u8; i += 1 }
-    var ret = tls::tls13_derive_application_keys(&raw mut ssl, &raw hs_hash[0], 32)
+    var ret = tls::tls13_derive_application_keys(unsafe(&raw mut ssl), &raw hs_hash[0], 32)
     if(ret < 0) { env.error("derive app keys should succeed"); return }
 
     // resumption_master_secret should be non-zero
     var all_zero = true
     i = 0
     while(i < 32) {
-        if(ssl.tls13_keys.resumption_master_secret[i] != 0) { all_zero = false }
+        if(unsafe(ssl.tls13_keys.resumption_master_secret[i]) != 0) { all_zero = false }
         i += 1
     }
     if(all_zero) { env.error("resumption_master_secret should be non-zero") }
@@ -2962,10 +2962,10 @@ public func tls_session_resumption_key_derivation_works(env : &mut TestEnv) {
 @test
 public func tls_psk_key_schedule_changes_early_secret(env : &mut TestEnv) {
     // Verify that PSK-based key schedule produces different keys than no-PSK
-    var ssl1 : tls::SSLContext; tls::ssl_init(&raw mut ssl1)
-    var ssl2 : tls::SSLContext; tls::ssl_init(&raw mut ssl2)
-    tls::ssl_set_config(&raw mut ssl1, &raw mut tls::ssl_config_init(tls::SSL_IS_CLIENT))
-    tls::ssl_set_config(&raw mut ssl2, &raw mut tls::ssl_config_init(tls::SSL_IS_CLIENT))
+    var ssl1 : tls::SSLContext; tls::ssl_init(unsafe(&raw mut ssl1))
+    var ssl2 : tls::SSLContext; tls::ssl_init(unsafe(&raw mut ssl2))
+    tls::ssl_set_config(unsafe(&raw mut ssl1), &raw mut tls::ssl_config_init(tls::SSL_IS_CLIENT))
+    tls::ssl_set_config(unsafe(&raw mut ssl2), &raw mut tls::ssl_config_init(tls::SSL_IS_CLIENT))
 
     var shared_secret : [32]u8
     var i : size_t = 0
@@ -2976,20 +2976,20 @@ public func tls_psk_key_schedule_changes_early_secret(env : &mut TestEnv) {
     while(i < 32) { transcript[i] = (i * 13 + 5) as u8; i += 1 }
 
     // Derive without PSK
-    tls::tls13_derive_handshake_keys(&raw mut ssl1, &raw shared_secret[0], 32, &raw transcript[0])
+    tls::tls13_derive_handshake_keys(unsafe(&raw mut ssl1), &raw shared_secret[0], 32, &raw transcript[0])
 
     // Derive with PSK
     var psk : [32]u8
     i = 0
     while(i < 32) { psk[i] = (i + 0xAB) as u8; i += 1 }
-    tls::tls13_derive_handshake_keys(&raw mut ssl2, &raw shared_secret[0], 32, &raw transcript[0],
+    tls::tls13_derive_handshake_keys(unsafe(&raw mut ssl2), &raw shared_secret[0], 32, &raw transcript[0],
                                      &raw psk[0], 32)
 
     // Handshake secrets should differ (PSK changes early_secret → different derived)
     var match = true
     i = 0
     while(i < 32) {
-        if(ssl1.tls13_keys.handshake_secret[i] != ssl2.tls13_keys.handshake_secret[i]) { match = false }
+        if(unsafe(ssl1.tls13_keys.handshake_secret[i]) != unsafe(ssl2.tls13_keys.handshake_secret[i])) { match = false }
         i += 1
     }
     if(match) {
@@ -3000,10 +3000,10 @@ public func tls_psk_key_schedule_changes_early_secret(env : &mut TestEnv) {
 @test
 public func tls_psk_mode_extension_in_client_hello(env : &mut TestEnv) {
     // Verify that psk_key_exchange_modes extension is included in ClientHello
-    var ctx : tls::SSLContext; tls::ssl_init(&raw mut ctx)
+    var ctx : tls::SSLContext; tls::ssl_init(unsafe(&raw mut ctx))
     var config = tls::ssl_config_init(tls::SSL_IS_CLIENT)
     config.max_tls_version = tls::SSL_VERSION_TLS1_3
-    tls::ssl_set_config(&raw mut ctx, &raw mut config)
+    tls::ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
     // build_client_hello is internal — verify the constant exists
     if(tls::TLS_EXT_PSK_KEY_EXCHANGE_MODES != 45) {
@@ -3020,7 +3020,7 @@ public func tls_ssl_read_nst_function_exists(env : &mut TestEnv) {
     // We can't test actual NST reading without a server connection,
     // but verify the API shape is correct
     var ctx : tls::SSLContext
-    tls::ssl_init(&raw mut ctx)
+    tls::ssl_init(unsafe(&raw mut ctx))
     // Setting state to HANDSHAKE_OVER is not possible from tests,
     // but just verifying the function exists is valuable
     if(tls::SSL_HS_NEW_SESSION_TICKET != 4) {
@@ -3189,7 +3189,7 @@ public func BUG_CRIT_send_record_plaintext_fallback(env : &mut TestEnv) {
     //
     // Verify unknown cipher type is rejected.
     var tr : tls::Transform
-    tls::transform_init(&raw mut tr)
+    tls::transform_init(unsafe(&raw mut tr))
     tr.cipher_type = 0 as u8  // CIPHER_NONE — triggers error
 
     var plaintext : [10]u8
@@ -3198,7 +3198,7 @@ public func BUG_CRIT_send_record_plaintext_fallback(env : &mut TestEnv) {
     var seq_num : [8]u8
     var output : [64]u8
 
-    var ret = tls::tls12_encrypt_record(&raw mut tr, &raw seq_num[0],
+    var ret = tls::tls12_encrypt_record(unsafe(&raw mut tr), &raw seq_num[0],
         tls::SSL_MSG_APPLICATION_DATA as u8, 3 as u8, 3 as u8,
         &raw plaintext[0], 10, &raw mut output[0], 64)
 
@@ -3217,16 +3217,16 @@ public func BUG_CRIT_rsa_verify_unknown_hash_accepts(env : &mut TestEnv) {
     //
     // Verify rejection of unknown hash lengths with a small RSA key.
     var ctx : tls::RSAContext
-    tls::rsa_init(&raw mut ctx, tls::RSA_PKCS_V15, 0)
+    tls::rsa_init(unsafe(&raw mut ctx), tls::RSA_PKCS_V15, 0)
     var n_buf : [1]u8 = [0x37]
     var e_buf : [1]u8 = [0x03]
-    tls::rsa_import_pubkey(&raw mut ctx, &raw n_buf[0], 1, &raw e_buf[0], 1)
+    tls::rsa_import_pubkey(unsafe(&raw mut ctx), &raw n_buf[0], 1, &raw e_buf[0], 1)
 
     // Build a raw PKCS#1 v1.5 signature block with SHA-1 hash (20 bytes, unknown)
     // RSA decrypt it using the public key to get a properly signed block
     var sig : [1]u8 = [0x15]  // dummy signature value
     var hash_20 : [20]u8
-    var ret = tls::rsa_pkcs1_verify(&raw mut ctx, &raw hash_20[0], 20, &raw sig[0], 1)
+    var ret = tls::rsa_pkcs1_verify(unsafe(&raw mut ctx), &raw hash_20[0], 20, &raw sig[0], 1)
     // With a 1-byte key, sig_len != ctx.len triggers BAD_INPUT_DATA first
     // The key point is that the code path for unknown hash lengths rejects
     if(ret == 0) {
@@ -3243,12 +3243,12 @@ public func BUG_HIGH_tls13_no_cert_verify(env : &mut TestEnv) {
     //
     // Verify x509_verify_chain works with the test cert.
     var cert : tls::X509Cert
-    tls::x509_cert_init(&raw mut cert)
-    var ret = tls::parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    tls::x509_cert_init(unsafe(&raw mut cert))
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 
     var hostname = "test.example.com\0" as *char
-    ret = tls::x509_verify_chain(&raw mut cert, null, hostname)
+    ret = tls::x509_verify_chain(unsafe(&raw mut cert), null, hostname)
     if(ret != 0) {
         env.error("x509_verify_chain should succeed for self-signed cert")
     }
@@ -3290,10 +3290,10 @@ public func BUG_HIGH_ecdh_no_curve_validation(env : &mut TestEnv) {
     //
     // Verify tampered points are rejected.
     var ctx : tls::ECDHContext
-    tls::ecdh_init(&raw mut ctx)
+    tls::ecdh_init(unsafe(&raw mut ctx))
     var priv : [32]u8
     var pub : [65]u8
-    var ret = tls::ecdh_generate_keypair(&raw mut ctx, &raw mut priv[0], 32, &raw mut pub[0], 65)
+    var ret = tls::ecdh_generate_keypair(unsafe(&raw mut ctx), &raw mut priv[0], 32, &raw mut pub[0], 65)
     if(ret < 0) { env.error("keygen failed"); return }
 
     var tampered_peer : [65]u8
@@ -3303,7 +3303,7 @@ public func BUG_HIGH_ecdh_no_curve_validation(env : &mut TestEnv) {
     while(i < 65) { tampered_peer[i] = pub[i] ^ 0xFF; i += 1 }
 
     var shared : [32]u8
-    ret = tls::ecdh_compute_shared(&raw mut ctx, &raw tampered_peer[0], 65, &raw mut shared[0], 32)
+    ret = tls::ecdh_compute_shared(unsafe(&raw mut ctx), &raw tampered_peer[0], 65, &raw mut shared[0], 32)
     if(ret == 0) {
         env.error("ECDH compute_shared should reject point not on curve")
     }
@@ -3317,9 +3317,9 @@ public func BUG_HIGH_ecdsa_no_low_s_enforcement(env : &mut TestEnv) {
     // The s value is compared against n/2 and rejected if s > n/2.
     //
     // Verify the curve order n is available for P-256.
-    var n : tls::Mpi; tls::mpi_init(&raw mut n)
-    tls::ecp_curve_n(&raw mut n)
-    if(tls::mpi_cmp_int(&raw mut n, 0) <= 0) {
+    var n : tls::Mpi; tls::mpi_init(unsafe(&raw mut n))
+    tls::ecp_curve_n(unsafe(&raw mut n))
+    if(tls::mpi_cmp_int(unsafe(&raw mut n), 0) <= 0) {
         env.error("P-256 order should be > 0")
     }
 }
@@ -3379,16 +3379,16 @@ public func tls_config_authmode_required_is_default(env : &mut TestEnv) {
 @test
 public func tls_hostname_sni_stored_correctly(env : &mut TestEnv) {
     var ctx : tls::SSLContext
-    tls::ssl_init(&raw mut ctx)
+    tls::ssl_init(unsafe(&raw mut ctx))
     var host = "test.example.com\0" as *char
-    tls::ssl_set_hostname(&raw mut ctx, host)
-    if(ctx.hostname != host) {
+    tls::ssl_set_hostname(unsafe(&raw mut ctx), host)
+    if(unsafe(ctx.hostname) != host) {
         env.error("hostname pointer should match")
     }
-    if(ctx.hostname_len != 16 as size_t) {
+    if(unsafe(ctx.hostname_len) != 16 as size_t) {
         env.error("hostname_len should be 16")
     }
-    if(ctx.hostname_len > 255) {
+    if(unsafe(ctx.hostname_len) > 255) {
         env.error("hostname_len should not exceed 255")
     }
 }
@@ -3442,7 +3442,7 @@ public func tls13_record_encrypt_decrypt_roundtrip(env : &mut TestEnv) {
 
     // Manually set transform_out and transform_in with known keys
     var tr_out : tls::Transform
-    tls::transform_init(&raw mut tr_out)
+    tls::transform_init(unsafe(&raw mut tr_out))
     tr_out.cipher_type = tls::CIPHER_AES_128_GCM as u8
     tr_out.key_len = 16
     tr_out.iv_len = 12
@@ -3461,7 +3461,7 @@ public func tls13_record_encrypt_decrypt_roundtrip(env : &mut TestEnv) {
     while(i < 12) { tr_out.base_iv_enc[i] = client_iv[i]; i += 1 }
 
     var tr_in : tls::Transform
-    tls::transform_init(&raw mut tr_in)
+    tls::transform_init(unsafe(&raw mut tr_in))
     tr_in.cipher_type = tls::CIPHER_AES_128_GCM as u8
     tr_in.key_len = 16
     tr_in.iv_len = 12
@@ -3797,7 +3797,7 @@ public func tls12_gcm_encrypt_decrypt_roundtrip_with_aad(env : &mut TestEnv) {
         0x19, 0x1A, 0x1B, 0x1C
     ]
     var tr : tls::Transform
-    tls::transform_init(&raw mut tr)
+    tls::transform_init(unsafe(&raw mut tr))
     tr.cipher_type = tls::CIPHER_AES_128_GCM as u8
     tr.key_len = 16 as u8
     tr.fixed_iv_len = 4 as u8
@@ -3816,7 +3816,7 @@ public func tls12_gcm_encrypt_decrypt_roundtrip_with_aad(env : &mut TestEnv) {
     var encrypted : [128]u8
 
     var enc_len = tls::tls12_encrypt_record(
-        &raw mut tr, &raw seq_num[0],
+        unsafe(&raw mut tr), &raw seq_num[0],
         tls::SSL_MSG_APPLICATION_DATA as u8, 3, 3,
         &raw plaintext[0], 10, &raw mut encrypted[0], 128)
     if(enc_len < 0) { env.error("tls12_encrypt_record failed"); return }
@@ -3826,7 +3826,7 @@ public func tls12_gcm_encrypt_decrypt_roundtrip_with_aad(env : &mut TestEnv) {
 
     var decrypted : [64]u8
     var dec_len = tls::tls12_decrypt_record(
-        &raw mut tr, &raw seq_num[0],
+        unsafe(&raw mut tr), &raw seq_num[0],
         tls::SSL_MSG_APPLICATION_DATA as u8, 3, 3,
         &raw encrypted[0], enc_len as size_t, &raw mut decrypted[0], 64)
     if(dec_len < 0) { env.error("tls12_decrypt_record failed"); return }
@@ -3859,7 +3859,7 @@ public func tls12_gcm_decrypt_fails_with_wrong_aad(env : &mut TestEnv) {
         0x19, 0x1A, 0x1B, 0x1C
     ]
     var tr : tls::Transform
-    tls::transform_init(&raw mut tr)
+    tls::transform_init(unsafe(&raw mut tr))
     tr.cipher_type = tls::CIPHER_AES_128_GCM as u8
     tr.key_len = 16 as u8
     tr.fixed_iv_len = 4 as u8
@@ -3881,7 +3881,7 @@ public func tls12_gcm_decrypt_fails_with_wrong_aad(env : &mut TestEnv) {
     var encrypted : [128]u8
 
     var enc_len = tls::tls12_encrypt_record(
-        &raw mut tr, &raw seq_num_encrypt[0],
+        unsafe(&raw mut tr), &raw seq_num_encrypt[0],
         tls::SSL_MSG_APPLICATION_DATA as u8, 3, 3,
         &raw plaintext[0], 10, &raw mut encrypted[0], 128)
     if(enc_len < 0) { env.error("tls12_encrypt_record failed"); return }
@@ -3889,7 +3889,7 @@ public func tls12_gcm_decrypt_fails_with_wrong_aad(env : &mut TestEnv) {
     // Decrypt with WRONG sequence number — should fail GCM auth
     var decrypted : [64]u8
     var dec_len = tls::tls12_decrypt_record(
-        &raw mut tr, &raw seq_num_decrypt[0],
+        unsafe(&raw mut tr), &raw seq_num_decrypt[0],
         tls::SSL_MSG_APPLICATION_DATA as u8, 3, 3,
         &raw encrypted[0], enc_len as size_t, &raw mut decrypted[0], 64)
     if(dec_len >= 0) {
@@ -3910,14 +3910,14 @@ public func tls12_gcm_ciphertext_differs_with_different_aad(env : &mut TestEnv) 
     ]
 
     var tr1 : tls::Transform
-    tls::transform_init(&raw mut tr1)
+    tls::transform_init(unsafe(&raw mut tr1))
     tr1.cipher_type = tls::CIPHER_AES_128_GCM as u8
     tr1.key_len = 16 as u8
     tr1.fixed_iv_len = 4 as u8
     tr1.iv_len = 0 as u8
 
     var tr2 : tls::Transform
-    tls::transform_init(&raw mut tr2)
+    tls::transform_init(unsafe(&raw mut tr2))
     tr2.cipher_type = tls::CIPHER_AES_128_GCM as u8
     tr2.key_len = 16 as u8
     tr2.fixed_iv_len = 4 as u8
@@ -3946,13 +3946,13 @@ public func tls12_gcm_ciphertext_differs_with_different_aad(env : &mut TestEnv) 
     var enc_b : [128]u8
 
     var len_a = tls::tls12_encrypt_record(
-        &raw mut tr1, &raw seq_a[0],
+        unsafe(&raw mut tr1), &raw seq_a[0],
         tls::SSL_MSG_APPLICATION_DATA as u8, 3, 3,
         &raw plaintext[0], 10, &raw mut enc_a[0], 128)
     if(len_a < 0) { env.error("encrypt with seq_a failed"); return }
 
     var len_b = tls::tls12_encrypt_record(
-        &raw mut tr2, &raw seq_b[0],
+        unsafe(&raw mut tr2), &raw seq_b[0],
         tls::SSL_MSG_APPLICATION_DATA as u8, 3, 3,
         &raw plaintext[0], 10, &raw mut enc_b[0], 128)
     if(len_b < 0) { env.error("encrypt with seq_b failed"); return }
@@ -3972,7 +3972,7 @@ public func tls12_gcm_ciphertext_differs_with_different_aad(env : &mut TestEnv) 
     // Both decrypt correctly with their own AAD (own seq_num)
     var dec_a : [64]u8
     if(tls::tls12_decrypt_record(
-        &raw mut tr1, &raw seq_a[0],
+        unsafe(&raw mut tr1), &raw seq_a[0],
         tls::SSL_MSG_APPLICATION_DATA as u8, 3, 3,
         &raw enc_a[0], len_a as size_t, &raw mut dec_a[0], 64) < 0
     ) {
@@ -3991,21 +3991,21 @@ public func tls12_gcm_ciphertext_differs_with_different_aad(env : &mut TestEnv) 
 @test
 public func tls_rsa_public_known_answers_work(env : &mut TestEnv) {
     var ctx : tls::RSAContext
-    tls::rsa_init(&raw mut ctx, tls::RSA_PKCS_V15, 0)
+    tls::rsa_init(unsafe(&raw mut ctx), tls::RSA_PKCS_V15, 0)
 
     // n=33, e=3 (n = 3 * 11, phi = 20). rsa_public is the raw RSAVP1: c = m^e mod N.
     var n_buf : [1]u8 = [0x21]  // 33
     var e_buf : [1]u8 = [0x03]  // 3
-    var ret = tls::rsa_import_pubkey(&raw mut ctx, &raw n_buf[0], 1, &raw e_buf[0], 1)
+    var ret = tls::rsa_import_pubkey(unsafe(&raw mut ctx), &raw n_buf[0], 1, &raw e_buf[0], 1)
     if(ret < 0) { env.error("import pubkey should succeed"); return }
 
     // m = 5 → c = 5^3 mod 33 = 125 mod 33 = 26 (0x1A)
     var m : [1]u8 = [0x05]
     var c : [64]u8
     var c_len : size_t = 0
-    ret = tls::rsa_public(&raw mut ctx, &raw m[0], &raw mut c[0])
+    ret = tls::rsa_public(unsafe(&raw mut ctx), &raw m[0], &raw mut c[0])
     if(ret < 0) { env.error("rsa_public should succeed"); return }
-    c_len = tls::rsa_get_len(&raw mut ctx)
+    c_len = tls::rsa_get_len(unsafe(&raw mut ctx))
     if(c_len != 1) { env.error("expected 1-byte key length"); return }
     if(c[0] != 0x1A) {
         printf("[RSA_PUB] c[0]=%02x expected 1a\n", c[0] as int)
@@ -4015,7 +4015,7 @@ public func tls_rsa_public_known_answers_work(env : &mut TestEnv) {
 
     // m = 34 ≥ N = 33 → must be rejected with ERR_RSA_PUBLIC_FAILED
     var big_m : [1]u8 = [0x22]
-    ret = tls::rsa_public(&raw mut ctx, &raw big_m[0], &raw mut c[0])
+    ret = tls::rsa_public(unsafe(&raw mut ctx), &raw big_m[0], &raw mut c[0])
     if(ret >= 0) { env.error("rsa_public should reject M >= N") }
 }
 
@@ -4025,87 +4025,87 @@ public func tls_rsa_public_known_answers_work(env : &mut TestEnv) {
 
 @test
 public func tls_bignum_abs_helpers_work(env : &mut TestEnv) {
-    var a : tls::Mpi; tls::mpi_init(&raw mut a)
-    var b : tls::Mpi; tls::mpi_init(&raw mut b)
-    var x : tls::Mpi; tls::mpi_init(&raw mut x)
+    var a : tls::Mpi; tls::mpi_init(unsafe(&raw mut a))
+    var b : tls::Mpi; tls::mpi_init(unsafe(&raw mut b))
+    var x : tls::Mpi; tls::mpi_init(unsafe(&raw mut x))
 
     // mpi_cmp_abs ignores signs: |-5| vs 3 → 1
-    tls::mpi_lset(&raw mut a, -5); tls::mpi_lset(&raw mut b, 3)
-    if(tls::mpi_cmp_abs(&raw mut a, &raw mut b) != 1) {
+    tls::mpi_lset(unsafe(&raw mut a), -5); tls::mpi_lset(unsafe(&raw mut b), 3)
+    if(tls::mpi_cmp_abs(unsafe(&raw mut a), unsafe(&raw mut b)) != 1) {
         env.error("cmp_abs(-5, 3) should be 1")
         return
     }
-    if(tls::mpi_cmp_abs(&raw mut b, &raw mut a) != -1) {
+    if(tls::mpi_cmp_abs(unsafe(&raw mut b), unsafe(&raw mut a)) != -1) {
         env.error("cmp_abs(3, -5) should be -1")
         return
     }
 
     // mpi_add_abs: |100| + |200| = 300
-    tls::mpi_lset(&raw mut a, 100); tls::mpi_lset(&raw mut b, 200)
-    var ret = tls::mpi_add_abs(&raw mut x, &raw mut a, &raw mut b)
+    tls::mpi_lset(unsafe(&raw mut a), 100); tls::mpi_lset(unsafe(&raw mut b), 200)
+    var ret = tls::mpi_add_abs(unsafe(&raw mut x), unsafe(&raw mut a), unsafe(&raw mut b))
     if(ret < 0) { env.error("add_abs should succeed"); return }
-    if(tls::mpi_cmp_int(&raw mut x, 300) != 0) {
+    if(tls::mpi_cmp_int(unsafe(&raw mut x), 300) != 0) {
         env.error("add_abs(100,200) should be 300")
         return
     }
 
     // mpi_add_abs with a negative operand still sums magnitudes: |-100| + 200 = 300
-    tls::mpi_lset(&raw mut a, -100)
-    ret = tls::mpi_add_abs(&raw mut x, &raw mut a, &raw mut b)
+    tls::mpi_lset(unsafe(&raw mut a), -100)
+    ret = tls::mpi_add_abs(unsafe(&raw mut x), unsafe(&raw mut a), unsafe(&raw mut b))
     if(ret < 0) { env.error("add_abs with negative should succeed"); return }
-    if(tls::mpi_cmp_int(&raw mut x, 300) != 0) {
+    if(tls::mpi_cmp_int(unsafe(&raw mut x), 300) != 0) {
         env.error("add_abs(-100,200) should be 300")
         return
     }
 
     // mpi_sub_abs: |200| - |100| = 100
-    tls::mpi_lset(&raw mut a, 200); tls::mpi_lset(&raw mut b, 100)
-    ret = tls::mpi_sub_abs(&raw mut x, &raw mut a, &raw mut b)
+    tls::mpi_lset(unsafe(&raw mut a), 200); tls::mpi_lset(unsafe(&raw mut b), 100)
+    ret = tls::mpi_sub_abs(unsafe(&raw mut x), unsafe(&raw mut a), unsafe(&raw mut b))
     if(ret < 0) { env.error("sub_abs should succeed"); return }
-    if(tls::mpi_cmp_int(&raw mut x, 100) != 0) {
+    if(tls::mpi_cmp_int(unsafe(&raw mut x), 100) != 0) {
         env.error("sub_abs(200,100) should be 100")
         return
     }
 
     // mpi_sub_abs with |a| < |b| must error (no negative absolute result)
-    tls::mpi_lset(&raw mut a, 100); tls::mpi_lset(&raw mut b, 200)
-    ret = tls::mpi_sub_abs(&raw mut x, &raw mut a, &raw mut b)
+    tls::mpi_lset(unsafe(&raw mut a), 100); tls::mpi_lset(unsafe(&raw mut b), 200)
+    ret = tls::mpi_sub_abs(unsafe(&raw mut x), unsafe(&raw mut a), unsafe(&raw mut b))
     if(ret == 0) { env.error("sub_abs(100,200) should error") }
 }
 
 @test
 public func tls_bignum_grow_and_trim_work(env : &mut TestEnv) {
-    var m : tls::Mpi; tls::mpi_init(&raw mut m)
+    var m : tls::Mpi; tls::mpi_init(unsafe(&raw mut m))
 
-    tls::mpi_lset(&raw mut m, 1)
+    tls::mpi_lset(unsafe(&raw mut m), 1)
     if(m.n != 1) { env.error("1 should have 1 limb"); return }
 
     // mpi_grow pads with zero limbs up to nlimbs
-    var ret = tls::mpi_grow(&raw mut m, 4)
+    var ret = tls::mpi_grow(unsafe(&raw mut m), 4)
     if(ret < 0) { env.error("grow should succeed"); return }
     if(m.n != 4) { env.error("grow should set n to 4"); return }
     var i : size_t = 1
     while(i < 4) { if(m.p[i] != 0) { env.error("grown limbs should be zero"); return }; i += 1 }
 
     // grow below current n is a no-op
-    ret = tls::mpi_grow(&raw mut m, 2)
+    ret = tls::mpi_grow(unsafe(&raw mut m), 2)
     if(ret < 0) { env.error("grow to smaller should succeed"); return }
     if(m.n != 4) { env.error("grow to smaller should not shrink"); return }
 
     // grow beyond MAX_LIMBS errors
-    ret = tls::mpi_grow(&raw mut m, tls::MAX_LIMBS + 1)
+    ret = tls::mpi_grow(unsafe(&raw mut m), tls::MAX_LIMBS + 1)
     if(ret == 0) { env.error("grow beyond MAX_LIMBS should error") }
 
     // mpi_trim drops trailing zero limbs
     m.n = 4; m.p[2] = 0; m.p[3] = 0; m.p[1] = 0x42
-    tls::mpi_trim(&raw mut m)
+    tls::mpi_trim(unsafe(&raw mut m))
     if(m.n != 2) { env.error("trim should drop trailing zero limbs"); return }
     if(m.p[1] != 0x42) { env.error("trim should keep nonzero limbs"); return }
 
     // mpi_trim on zero resets to n == 0 and positive sign
-    tls::mpi_lset(&raw mut m, 0)
+    tls::mpi_lset(unsafe(&raw mut m), 0)
     m.n = 3; m.s = -1; m.p[0] = 0; m.p[1] = 0; m.p[2] = 0
-    tls::mpi_trim(&raw mut m)
+    tls::mpi_trim(unsafe(&raw mut m))
     if(m.n != 0) { env.error("trim of zero should give n==0"); return }
     if(m.s != 1) { env.error("trim of zero should reset sign to +1"); return }
 }
@@ -4187,11 +4187,11 @@ public func tls_random_32_and_48_fill_work(env : &mut TestEnv) {
     var r2 : [32]u8
     var r48 : [48]u8
 
-    var ret = tls::random_32(&raw mut r1)
+    var ret = tls::random_32(unsafe(&raw mut r1))
     if(ret != 0) { env.error("random_32 should succeed"); return }
-    ret = tls::random_32(&raw mut r2)
+    ret = tls::random_32(unsafe(&raw mut r2))
     if(ret != 0) { env.error("random_32 second call should succeed"); return }
-    ret = tls::random_48(&raw mut r48)
+    ret = tls::random_48(unsafe(&raw mut r48))
     if(ret != 0) { env.error("random_48 should succeed"); return }
 
     // Two 32-byte draws should differ (astronomically improbable they collide)
@@ -4209,7 +4209,7 @@ public func tls_init_is_idempotent(env : &mut TestEnv) {
     // tls_init must be callable multiple times without corrupting state
     tls::tls_init()
     tls::tls_init()
-    var ctx : tls::SSLContext; tls::ssl_init(&raw mut ctx)
-    if(ctx.conf != null) { env.error("fresh context should have no config yet") }
+    var ctx : tls::SSLContext; tls::ssl_init(unsafe(&raw mut ctx))
+    if(unsafe(ctx.conf) != null) { env.error("fresh context should have no config yet") }
 }
 

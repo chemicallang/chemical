@@ -31,9 +31,9 @@ func sec_bytes_equal(a : *u8, b : *u8, len : size_t) : bool {
 
 @test
 public func SEC_invalid_curve_attack_rejected(env : &mut TestEnv) {
-    var ctx : ECDHContext; ecdh_init(&raw mut ctx)
+    var ctx : ECDHContext; ecdh_init(unsafe(&raw mut ctx))
     var priv : [32]u8; var pub : [65]u8
-    var ret = ecdh_generate_keypair(&raw mut ctx, &raw mut priv[0], 32, &raw mut pub[0], 65)
+    var ret = ecdh_generate_keypair(unsafe(&raw mut ctx), &raw mut priv[0], 32, &raw mut pub[0], 65)
     if(ret < 0) { env.error("keygen failed"); return }
 
     var invalid_peer : [65]u8; var i : size_t = 0
@@ -41,7 +41,7 @@ public func SEC_invalid_curve_attack_rejected(env : &mut TestEnv) {
     invalid_peer[40] = invalid_peer[40] + 1  // corrupt Y
 
     var shared : [32]u8
-    ret = ecdh_compute_shared(&raw mut ctx, &raw invalid_peer[0], 65, &raw mut shared[0], 32)
+    ret = ecdh_compute_shared(unsafe(&raw mut ctx), &raw invalid_peer[0], 65, &raw mut shared[0], 32)
     if(ret == 0) {
         env.error("SEC FAIL: ECDH accepted point NOT on curve")
     }
@@ -49,9 +49,9 @@ public func SEC_invalid_curve_attack_rejected(env : &mut TestEnv) {
 
 @test
 public func SEC_invalid_curve_64_corruptions_rejected(env : &mut TestEnv) {
-    var ctx : ECDHContext; ecdh_init(&raw mut ctx)
+    var ctx : ECDHContext; ecdh_init(unsafe(&raw mut ctx))
     var priv : [32]u8; var pub : [65]u8
-    ecdh_generate_keypair(&raw mut ctx, &raw mut priv[0], 32, &raw mut pub[0], 65)
+    ecdh_generate_keypair(unsafe(&raw mut ctx), &raw mut priv[0], 32, &raw mut pub[0], 65)
 
     var rejected : size_t = 0; var offset : size_t = 1
     while(offset < 65) {
@@ -59,7 +59,7 @@ public func SEC_invalid_curve_64_corruptions_rejected(env : &mut TestEnv) {
         while(j < 65) { bad_peer[j] = pub[j]; j += 1 }
         bad_peer[offset] = 0xFF as u8
         var shared : [32]u8
-        var r = ecdh_compute_shared(&raw mut ctx, &raw bad_peer[0], 65, &raw mut shared[0], 32)
+        var r = ecdh_compute_shared(unsafe(&raw mut ctx), &raw bad_peer[0], 65, &raw mut shared[0], 32)
         if(r < 0) { rejected += 1 }
         offset += 1
     }
@@ -141,8 +141,8 @@ public func SEC_rsa_padding_valid_accepted(env : &mut TestEnv) {
 
 @test
 public func SEC_cert_expired_rejected(env : &mut TestEnv) {
-    var cert : X509Cert; x509_cert_init(&raw mut cert)
-    var ret = parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    var cert : X509Cert; x509_cert_init(unsafe(&raw mut cert))
+    var ret = parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 
     var expired_to : [15]u8
@@ -154,28 +154,28 @@ public func SEC_cert_expired_rejected(env : &mut TestEnv) {
     var i : size_t = 0
     while(i < 15) { cert.valid_to[i] = expired_to[i]; i += 1 }
 
-    var date_ret = x509_check_date(&raw mut cert)
+    var date_ret = x509_check_date(unsafe(&raw mut cert))
     if(date_ret == 0) { env.error("SEC FAIL: expired certificate accepted") }
 }
 
 @test
 public func SEC_cert_wrong_hostname_rejected(env : &mut TestEnv) {
-    var cert : X509Cert; x509_cert_init(&raw mut cert)
-    var ret = parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    var cert : X509Cert; x509_cert_init(unsafe(&raw mut cert))
+    var ret = parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 
     var evil_host = "evil-phishing-site.com\0" as *char
-    ret = x509_verify_hostname(&raw mut cert, evil_host)
+    ret = x509_verify_hostname(unsafe(&raw mut cert), evil_host)
     if(ret == 0) { env.error("SEC FAIL: wrong hostname accepted") }
 }
 
 @test
 public func SEC_cert_chain_untrusted_rejected(env : &mut TestEnv) {
-    var cert : X509Cert; x509_cert_init(&raw mut cert)
-    parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    var cert : X509Cert; x509_cert_init(unsafe(&raw mut cert))
+    parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
 
     var wrong_host = "malicious.example.com\0" as *char
-    var ret = x509_verify_chain(&raw mut cert, null, wrong_host)
+    var ret = x509_verify_chain(unsafe(&raw mut cert), null, wrong_host)
     if(ret == 0) { env.error("SEC FAIL: wrong host accepted by chain verifier") }
 }
 
@@ -186,12 +186,12 @@ public func SEC_cert_chain_untrusted_rejected(env : &mut TestEnv) {
 @test
 public func SEC_random_keypair_unique(env : &mut TestEnv) {
     var k0 : [32]u8; var k1 : [32]u8; var k2 : [32]u8
-    var c0 : ECDHContext; ecdh_init(&raw mut c0)
-    var p0 : [65]u8; ecdh_generate_keypair(&raw mut c0, &raw mut k0[0], 32, &raw mut p0[0], 65)
-    var c1 : ECDHContext; ecdh_init(&raw mut c1)
-    var p1 : [65]u8; ecdh_generate_keypair(&raw mut c1, &raw mut k1[0], 32, &raw mut p1[0], 65)
-    var c2 : ECDHContext; ecdh_init(&raw mut c2)
-    var p2 : [65]u8; ecdh_generate_keypair(&raw mut c2, &raw mut k2[0], 32, &raw mut p2[0], 65)
+    var c0 : ECDHContext; ecdh_init(unsafe(&raw mut c0))
+    var p0 : [65]u8; ecdh_generate_keypair(unsafe(&raw mut c0), &raw mut k0[0], 32, &raw mut p0[0], 65)
+    var c1 : ECDHContext; ecdh_init(unsafe(&raw mut c1))
+    var p1 : [65]u8; ecdh_generate_keypair(unsafe(&raw mut c1), &raw mut k1[0], 32, &raw mut p1[0], 65)
+    var c2 : ECDHContext; ecdh_init(unsafe(&raw mut c2))
+    var p2 : [65]u8; ecdh_generate_keypair(unsafe(&raw mut c2), &raw mut k2[0], 32, &raw mut p2[0], 65)
 
     var dupes : size_t = 0
     if(sec_bytes_equal(&raw k0[0], &raw k1[0], 32)) { dupes += 1 }
@@ -225,13 +225,13 @@ public func SEC_gcm_different_nonce_different_output(env : &mut TestEnv) {
     fill_bytes(&raw mut iv1[0], 12, 0x01)
     fill_bytes(&raw mut iv2[0], 12, 0x02)
 
-    var g1 : GCMContext; gcm_init(&raw mut g1, &raw key[0], 16)
+    var g1 : GCMContext; gcm_init(unsafe(&raw mut g1), &raw key[0], 16)
     var ct1 : [16]u8; var tag1 : [16]u8
-    gcm_crypt_and_tag(&raw mut g1, &raw iv1[0], 12, null, 0, &raw pt[0], 16, &raw mut ct1[0], &raw mut tag1[0])
+    gcm_crypt_and_tag(unsafe(&raw mut g1), &raw iv1[0], 12, null, 0, &raw pt[0], 16, &raw mut ct1[0], &raw mut tag1[0])
 
-    var g2 : GCMContext; gcm_init(&raw mut g2, &raw key[0], 16)
+    var g2 : GCMContext; gcm_init(unsafe(&raw mut g2), &raw key[0], 16)
     var ct2 : [16]u8; var tag2 : [16]u8
-    gcm_crypt_and_tag(&raw mut g2, &raw iv2[0], 12, null, 0, &raw pt[0], 16, &raw mut ct2[0], &raw mut tag2[0])
+    gcm_crypt_and_tag(unsafe(&raw mut g2), &raw iv2[0], 12, null, 0, &raw pt[0], 16, &raw mut ct2[0], &raw mut tag2[0])
 
     if(sec_bytes_equal(&raw ct1[0], &raw ct2[0], 16)) { env.error("SEC FAIL: same ct with different nonce") }
     if(sec_bytes_equal(&raw tag1[0], &raw tag2[0], 16)) { env.error("SEC FAIL: same tag with different nonce") }
@@ -243,18 +243,18 @@ public func SEC_gcm_tag_16_tamper_positions_detected(env : &mut TestEnv) {
     var iv : [12]u8; fill_bytes(&raw mut iv[0], 12, 0xCA)
     var pt : [8]u8; fill_bytes(&raw mut pt[0], 8, 0x01)
 
-    var g1 : GCMContext; gcm_init(&raw mut g1, &raw key[0], 16)
+    var g1 : GCMContext; gcm_init(unsafe(&raw mut g1), &raw key[0], 16)
     var ct : [8]u8; var tag : [16]u8
-    gcm_crypt_and_tag(&raw mut g1, &raw iv[0], 12, null, 0, &raw pt[0], 8, &raw mut ct[0], &raw mut tag[0])
+    gcm_crypt_and_tag(unsafe(&raw mut g1), &raw iv[0], 12, null, 0, &raw pt[0], 8, &raw mut ct[0], &raw mut tag[0])
 
     var detections : size_t = 0; var pos : size_t = 0
     while(pos < 16) {
         var bad_tag : [16]u8; var j : size_t = 0
         while(j < 16) { bad_tag[j] = tag[j]; j += 1 }
         bad_tag[pos] = bad_tag[pos] ^ 0xFF
-        var g2 : GCMContext; gcm_init(&raw mut g2, &raw key[0], 16)
+        var g2 : GCMContext; gcm_init(unsafe(&raw mut g2), &raw key[0], 16)
         var dec : [8]u8
-        var r = gcm_auth_decrypt(&raw mut g2, &raw iv[0], 12, null, 0,
+        var r = gcm_auth_decrypt(unsafe(&raw mut g2), &raw iv[0], 12, null, 0,
                                   &raw ct[0], 8, &raw bad_tag[0], 16, &raw mut dec[0])
         if(r < 0) { detections += 1 }
         pos += 1
@@ -268,10 +268,10 @@ public func SEC_gcm_tag_16_tamper_positions_detected(env : &mut TestEnv) {
 
 @test
 public func SEC_ecdsa_high_s_signature_rejected(env : &mut TestEnv) {
-    var ctx : ECDSAContext; ecdsa_init(&raw mut ctx)
+    var ctx : ECDSAContext; ecdsa_init(unsafe(&raw mut ctx))
     var pub : [65]u8; fill_bytes(&raw mut pub[0], 65, 0x04)
     pub[0] = 0x04 as u8
-    ecdsa_import_pubkey(&raw mut ctx, &raw pub[0], 65, TLS_GROUP_SECP256R1 as u16)
+    ecdsa_import_pubkey(unsafe(&raw mut ctx), &raw pub[0], 65, TLS_GROUP_SECP256R1 as u16)
 
     // Build a DER signature with s = n-1 (high-S, should be rejected by low-S check)
     var sig : [38]u8
@@ -290,7 +290,7 @@ public func SEC_ecdsa_high_s_signature_rejected(env : &mut TestEnv) {
     // Note: these last bytes should be ...63 25 50 for n-1
 
     var hash : [32]u8
-    var ret = ecdsa_verify(&raw mut ctx, &raw hash[0], 32, &raw sig[0], 38)
+    var ret = ecdsa_verify(unsafe(&raw mut ctx), &raw hash[0], 32, &raw sig[0], 38)
     // If low-S enforced, this signature should fail (s > n/2).
     // It will also likely fail signature verification since we didn't compute
     // the correct s value. Either failure is acceptable for this test.
@@ -301,21 +301,21 @@ public func SEC_ecdsa_high_s_signature_rejected(env : &mut TestEnv) {
 
 @test
 public func SEC_rsa_signature_tampered_rejected(env : &mut TestEnv) {
-    var cert : X509Cert; x509_cert_init(&raw mut cert)
-    var ret = parse_cert_der(&raw mut cert, &raw tls_tests::test_cert_data[0], 831)
+    var cert : X509Cert; x509_cert_init(unsafe(&raw mut cert))
+    var ret = parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 
-    var rsa : RSAContext; rsa_init(&raw mut rsa, RSA_PKCS_V15, 0)
-    ret = x509_extract_rsa_pubkey(&raw mut cert, &raw mut rsa)
+    var rsa : RSAContext; rsa_init(unsafe(&raw mut rsa), RSA_PKCS_V15, 0)
+    ret = x509_extract_rsa_pubkey(unsafe(&raw mut cert), unsafe(&raw mut rsa))
     if(ret != 0) { env.error("RSA extract failed"); return }
 
-    ret = x509_verify_cert_signature(&raw mut cert, &raw mut rsa)
+    ret = x509_verify_cert_signature(unsafe(&raw mut cert), unsafe(&raw mut rsa))
     if(ret != 0) { env.error("original sig should verify"); return }
 
-    if(cert.sig != null && cert.sig_len > 0) {
-        cert.sig[0] = cert.sig[0] ^ 0xFF
-        ret = x509_verify_cert_signature(&raw mut cert, &raw mut rsa)
-        cert.sig[0] = cert.sig[0] ^ 0xFF
+    if(unsafe(cert.sig) != null && unsafe(cert.sig_len) > 0) {
+        unsafe { cert.sig[0] = cert.sig[0] ^ 0xFF }
+        ret = x509_verify_cert_signature(unsafe(&raw mut cert), unsafe(&raw mut rsa))
+        unsafe { cert.sig[0] = cert.sig[0] ^ 0xFF }
         if(ret == 0) { env.error("SEC FAIL: tampered RSA signature accepted") }
     }
 }
@@ -326,7 +326,7 @@ public func SEC_rsa_signature_tampered_rejected(env : &mut TestEnv) {
 
 @test
 public func SEC_gcm_record_tamper_detected_all_positions(env : &mut TestEnv) {
-    var tr : Transform; transform_init(&raw mut tr)
+    var tr : Transform; transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_AES_128_GCM as u8; tr.key_len = 16 as u8
     tr.iv_len = 4 as u8; tr.fixed_iv_len = 4 as u8
     var i : size_t = 0
@@ -336,7 +336,7 @@ public func SEC_gcm_record_tamper_detected_all_positions(env : &mut TestEnv) {
 
     var pt : [32]u8; fill_bytes(&raw mut pt[0], 32, 0)
     var seq : [8]u8; var enc : [128]u8
-    var len = tls12_encrypt_record(&raw mut tr, &raw seq[0], 23 as u8, 3 as u8, 3 as u8,
+    var len = tls12_encrypt_record(unsafe(&raw mut tr), &raw seq[0], 23 as u8, 3 as u8, 3 as u8,
                                     &raw pt[0], 32, &raw mut enc[0], 128)
     if(len < 0) { env.error("encrypt failed"); return }
 
@@ -346,7 +346,7 @@ public func SEC_gcm_record_tamper_detected_all_positions(env : &mut TestEnv) {
         while(j < len as size_t) { bad[j] = enc[j]; j += 1 }
         bad[pos] = bad[pos] ^ 0x01
         var dec : [64]u8
-        var r = tls12_decrypt_record(&raw mut tr, &raw seq[0], 23 as u8, 3 as u8, 3 as u8,
+        var r = tls12_decrypt_record(unsafe(&raw mut tr), &raw seq[0], 23 as u8, 3 as u8, 3 as u8,
                                       &raw bad[0], len as size_t, &raw mut dec[0], 64)
         if(r < 0) { detections += 1 }
         pos += 1
@@ -356,7 +356,7 @@ public func SEC_gcm_record_tamper_detected_all_positions(env : &mut TestEnv) {
 
 @test
 public func SEC_cbc_mac_rejects_tampered_record(env : &mut TestEnv) {
-    var tr : Transform; transform_init(&raw mut tr)
+    var tr : Transform; transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_AES_128_CBC as u8; tr.key_len = 16 as u8
     tr.iv_len = 16 as u8; tr.mac_key_len = 32 as u8
     var i : size_t = 0
@@ -367,7 +367,7 @@ public func SEC_cbc_mac_rejects_tampered_record(env : &mut TestEnv) {
 
     var pt : [16]u8; fill_bytes(&raw mut pt[0], 16, 0)
     var seq : [8]u8; var enc : [128]u8
-    var len = tls12_encrypt_record(&raw mut tr, &raw seq[0], 23 as u8, 3 as u8, 3 as u8,
+    var len = tls12_encrypt_record(unsafe(&raw mut tr), &raw seq[0], 23 as u8, 3 as u8, 3 as u8,
                                     &raw pt[0], 16, &raw mut enc[0], 128)
     if(len < 0) { env.error("CBC encrypt failed"); return }
 
@@ -376,7 +376,7 @@ public func SEC_cbc_mac_rejects_tampered_record(env : &mut TestEnv) {
     bad[18] = bad[18] ^ 0xFF
 
     var dec : [64]u8
-    var r = tls12_decrypt_record(&raw mut tr, &raw seq[0], 23 as u8, 3 as u8, 3 as u8,
+    var r = tls12_decrypt_record(unsafe(&raw mut tr), &raw seq[0], 23 as u8, 3 as u8, 3 as u8,
                                   &raw bad[0], 128, &raw mut dec[0], 64)
     if(r >= 0) { env.error("SEC FAIL: CBC MAC missed tamper — Lucky13/POODLE possible") }
 }
@@ -398,10 +398,10 @@ public func SEC_protocol_constants_distinct(env : &mut TestEnv) {
 
 @test
 public func SEC_gcm_input_too_short_rejected(env : &mut TestEnv) {
-    var tr : Transform; transform_init(&raw mut tr)
+    var tr : Transform; transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_AES_128_GCM as u8; tr.key_len = 16 as u8
     var dummy : [64]u8; var seq : [8]u8
-    var r = tls12_decrypt_record(&raw mut tr, &raw seq[0], 23 as u8, 3 as u8, 3 as u8,
+    var r = tls12_decrypt_record(unsafe(&raw mut tr), &raw seq[0], 23 as u8, 3 as u8, 3 as u8,
                                   &raw dummy[0], 20, &raw mut dummy[0], 64)
     if(r >= 0) { env.error("SEC FAIL: too-short GCM record accepted") }
 }

@@ -78,12 +78,12 @@ public func INT_tls13_app_keys_vs_py(env : &mut TestEnv) {
         env.error("failed to parse Python output"); return
     } else {}
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx, &raw mut cfg)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut cfg)
 
-    var ret = tls13_derive_handshake_keys(&raw mut ctx, &raw shared_secret[0], 32, &raw transcript_hash[0])
+    var ret = tls13_derive_handshake_keys(unsafe(&raw mut ctx), &raw shared_secret[0], 32, &raw transcript_hash[0])
     if(ret < 0) { env.error("tls13_derive_handshake_keys failed"); return } else {}
 
     if(!test_bytes_eq(&raw ctx.tls13_keys.early_secret[0], &raw py_es[0], 32)) { env.error("early_secret mismatch"); return } else {}
@@ -91,7 +91,7 @@ public func INT_tls13_app_keys_vs_py(env : &mut TestEnv) {
     if(!test_bytes_eq(&raw ctx.tls13_keys.client_handshake_traffic_secret[0], &raw py_chts[0], 32)) { env.error("client_hts mismatch"); return } else {}
     if(!test_bytes_eq(&raw ctx.tls13_keys.server_handshake_traffic_secret[0], &raw py_shts[0], 32)) { env.error("server_hts mismatch"); return } else {}
 
-    ret = tls13_derive_application_keys(&raw mut ctx, &raw transcript_hash[0], 32)
+    ret = tls13_derive_application_keys(unsafe(&raw mut ctx), &raw transcript_hash[0], 32)
     if(ret < 0) { env.error("tls13_derive_application_keys failed"); return } else {}
 
     if(!test_bytes_eq(&raw ctx.tls13_keys.master_secret[0], &raw py_ms[0], 32)) { env.error("master_secret mismatch"); return } else {}
@@ -123,11 +123,11 @@ public func INT_ecdsa_verify_py_signature_tls(env : &mut TestEnv) {
     var sig_len = test_parse_py_hex_label(&raw mut py_out, string_view("SIG="), &raw mut py_sig[0], 128)
     if(pub_len != 65 || sig_len < 64) { env.error("failed to parse Python key/sig"); return } else {}
 
-    var ecdsa_ctx : ECDSAContext; ecdsa_init(&raw mut ecdsa_ctx)
-    var ret = ecdsa_import_pubkey(&raw mut ecdsa_ctx, &raw py_pub[0], 65, TLS_GROUP_SECP256R1 as u16)
+    var ecdsa_ctx : ECDSAContext; ecdsa_init(unsafe(&raw mut ecdsa_ctx))
+    var ret = ecdsa_import_pubkey(unsafe(&raw mut ecdsa_ctx), &raw py_pub[0], 65, TLS_GROUP_SECP256R1 as u16)
     if(ret < 0) { env.error("import pubkey failed"); return } else {}
 
-    ret = ecdsa_verify(&raw mut ecdsa_ctx, &raw hash_val[0], 32, &raw py_sig[0], sig_len)
+    ret = ecdsa_verify(unsafe(&raw mut ecdsa_ctx), &raw hash_val[0], 32, &raw py_sig[0], sig_len)
     if(ret < 0) { env.error("Chemical failed to verify Python's ECDSA signature"); return } else {}
 }
 
@@ -168,17 +168,17 @@ public func INT_aes256_gcm_non12iv_vs_py(env : &mut TestEnv) {
     if(ct_len != 37 || tag_len != 16) { env.error("failed to parse Python output"); return } else {}
 
     var gcm : GCMContext
-    var ret = gcm_init(&raw mut gcm, &raw key[0], 32)
+    var ret = gcm_init(unsafe(&raw mut gcm), &raw key[0], 32)
     if(ret < 0) { env.error("gcm_init failed"); return } else {}
     var chem_ct : [64]u8; var chem_tag : [16]u8
-    ret = gcm_crypt_and_tag(&raw mut gcm, &raw iv8[0], 8, &raw aad[0], 13, &raw pt[0], 37, &raw mut chem_ct[0], &raw mut chem_tag[0])
+    ret = gcm_crypt_and_tag(unsafe(&raw mut gcm), &raw iv8[0], 8, &raw aad[0], 13, &raw pt[0], 37, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(ret < 0) { env.error("gcm_crypt_and_tag failed"); return } else {}
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 37)) { env.error("ciphertext mismatch"); return } else {}
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("tag mismatch"); return } else {}
 
-    var gcm2 : GCMContext; gcm_init(&raw mut gcm2, &raw key[0], 32)
+    var gcm2 : GCMContext; gcm_init(unsafe(&raw mut gcm2), &raw key[0], 32)
     var chem_dec : [64]u8
-    ret = gcm_auth_decrypt(&raw mut gcm2, &raw iv8[0], 8, &raw aad[0], 13, &raw py_ct[0], 37, &raw py_tag[0], 16, &raw mut chem_dec[0])
+    ret = gcm_auth_decrypt(unsafe(&raw mut gcm2), &raw iv8[0], 8, &raw aad[0], 13, &raw py_ct[0], 37, &raw py_tag[0], 16, &raw mut chem_dec[0])
     if(ret < 0) { env.error("gcm_auth_decrypt failed"); return } else {}
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 37)) { env.error("decrypt roundtrip mismatch"); return } else {}
 }
@@ -186,14 +186,14 @@ public func INT_aes256_gcm_non12iv_vs_py(env : &mut TestEnv) {
 @test
 @test.timeout(60000)
 public func INT_rsa_cross_encrypt_vs_py(env : &mut TestEnv) {
-    var rsa_ctx : RSAContext; rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
-    var ret = rsa_gen_key(&raw mut rsa_ctx, 2048, 65537)
+    var rsa_ctx : RSAContext; rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
+    var ret = rsa_gen_key(unsafe(&raw mut rsa_ctx), 2048, 65537)
     if(ret < 0) { env.error("rsa_gen_key failed"); return } else {}
 
-    var n_len = rsa_get_len(&raw mut rsa_ctx)
+    var n_len = rsa_get_len(unsafe(&raw mut rsa_ctx))
     var n_buf : [256]u8; var e_buf : [4]u8
-    mpi_write_binary(&raw mut rsa_ctx.N, &raw mut n_buf[0], n_len)
-    mpi_write_binary(&raw mut rsa_ctx.E, &raw mut e_buf[0], 4)
+    mpi_write_binary(unsafe(&raw mut rsa_ctx.N), &raw mut n_buf[0], n_len)
+    mpi_write_binary(unsafe(&raw mut rsa_ctx.E), &raw mut e_buf[0], 4)
 
     var n_hex : [513]char; test_bytes_to_hex(&raw n_buf[0], n_len, &raw mut n_hex[0])
     var e_hex : [9]char; test_bytes_to_hex(&raw e_buf[0], 4, &raw mut e_hex[0])
@@ -222,16 +222,16 @@ public func INT_rsa_cross_encrypt_vs_py(env : &mut TestEnv) {
     if(ct_len != n_len) { env.error("failed to parse Python ciphertext"); return } else {}
 
     var chem_dec : [256]u8; var dec_len : size_t = 256
-    ret = rsa_pkcs1_decrypt(&raw mut rsa_ctx, &raw py_ct[0], n_len, &raw mut chem_dec[0], &raw mut dec_len, 64)
+    ret = rsa_pkcs1_decrypt(unsafe(&raw mut rsa_ctx), &raw py_ct[0], n_len, &raw mut chem_dec[0], &raw mut dec_len, 64)
     if(ret < 0) { env.error("rsa_pkcs1_decrypt failed"); return } else {}
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt_msg[0], 32)) { env.error("decrypted plaintext mismatch"); return } else {}
 
-    var rsa_ctx2 : RSAContext; rsa_init(&raw mut rsa_ctx2, RSA_PKCS_V15, 0)
-    ret = rsa_import_pubkey(&raw mut rsa_ctx2, &raw n_buf[0], n_len, &raw e_buf[0], 4)
+    var rsa_ctx2 : RSAContext; rsa_init(unsafe(&raw mut rsa_ctx2), RSA_PKCS_V15, 0)
+    ret = rsa_import_pubkey(unsafe(&raw mut rsa_ctx2), &raw n_buf[0], n_len, &raw e_buf[0], 4)
     if(ret < 0) { env.error("rsa_import_pubkey failed"); return } else {}
 
     var chem_ct : [256]u8
-    ret = rsa_pkcs1_encrypt(&raw mut rsa_ctx2, &raw pt_msg[0], 32, &raw mut chem_ct[0])
+    ret = rsa_pkcs1_encrypt(unsafe(&raw mut rsa_ctx2), &raw pt_msg[0], 32, &raw mut chem_ct[0])
     if(ret < 0) { env.error("rsa_pkcs1_encrypt failed"); return } else {}
 
     var chem_ct_hex : [513]char; test_bytes_to_hex(&raw chem_ct[0], n_len, &raw mut chem_ct_hex[0])
@@ -240,12 +240,12 @@ public func INT_rsa_cross_encrypt_vs_py(env : &mut TestEnv) {
     // (Python re-encrypting the same plaintext cannot match: PKCS#1 v1.5 padding is randomized.)
     var p_buf : [256]u8; var q_buf : [256]u8; var d_buf : [256]u8
     var dp_buf : [256]u8; var dq_buf : [256]u8; var qp_buf : [256]u8
-    mpi_write_binary(&raw mut rsa_ctx.P, &raw mut p_buf[0], n_len / 2)
-    mpi_write_binary(&raw mut rsa_ctx.Q, &raw mut q_buf[0], n_len / 2)
-    mpi_write_binary(&raw mut rsa_ctx.D, &raw mut d_buf[0], n_len)
-    mpi_write_binary(&raw mut rsa_ctx.DP, &raw mut dp_buf[0], n_len / 2)
-    mpi_write_binary(&raw mut rsa_ctx.DQ, &raw mut dq_buf[0], n_len / 2)
-    mpi_write_binary(&raw mut rsa_ctx.QP, &raw mut qp_buf[0], n_len / 2)
+    mpi_write_binary(unsafe(&raw mut rsa_ctx.P), &raw mut p_buf[0], n_len / 2)
+    mpi_write_binary(unsafe(&raw mut rsa_ctx.Q), &raw mut q_buf[0], n_len / 2)
+    mpi_write_binary(unsafe(&raw mut rsa_ctx.D), &raw mut d_buf[0], n_len)
+    mpi_write_binary(unsafe(&raw mut rsa_ctx.DP), &raw mut dp_buf[0], n_len / 2)
+    mpi_write_binary(unsafe(&raw mut rsa_ctx.DQ), &raw mut dq_buf[0], n_len / 2)
+    mpi_write_binary(unsafe(&raw mut rsa_ctx.QP), &raw mut qp_buf[0], n_len / 2)
     var p_hex : [257]char; test_bytes_to_hex(&raw p_buf[0], n_len / 2, &raw mut p_hex[0])
     var q_hex : [257]char; test_bytes_to_hex(&raw q_buf[0], n_len / 2, &raw mut q_hex[0])
     var d_hex : [513]char; test_bytes_to_hex(&raw d_buf[0], n_len, &raw mut d_hex[0])
@@ -299,8 +299,8 @@ public func INT_rsa_keygen_sign_verify_vs_py(env : &mut TestEnv) {
     // private exponent D to produce a PKCS#1 v1.5 SHA-256 signature that
     // Python (pyca/cryptography) verifies. This exercises the generated key
     // in the signing direction that real servers/clients depend on.
-    var rsa_ctx : RSAContext; rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
-    var ret = rsa_gen_key(&raw mut rsa_ctx, 2048, 65537)
+    var rsa_ctx : RSAContext; rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
+    var ret = rsa_gen_key(unsafe(&raw mut rsa_ctx), 2048, 65537)
     if(ret < 0) { env.error("rsa_gen_key failed"); return } else {}
 
     // 1. Message + SHA-256 digest
@@ -325,20 +325,20 @@ public func INT_rsa_keygen_sign_verify_vs_py(env : &mut TestEnv) {
     while(i < 32) { em[224 + i] = digest[i]; i += 1 }
 
     // 3. Signature = EM^D mod N using the generated private exponent
-    var sig_mpi : Mpi; mpi_init(&raw mut sig_mpi)
-    var em_mpi : Mpi; mpi_init(&raw mut em_mpi)
-    ret = mpi_read_binary(&raw mut em_mpi, &raw em[0], 256)
+    var sig_mpi : Mpi; mpi_init(unsafe(&raw mut sig_mpi))
+    var em_mpi : Mpi; mpi_init(unsafe(&raw mut em_mpi))
+    ret = mpi_read_binary(unsafe(&raw mut em_mpi), &raw em[0], 256)
     if(ret < 0) { env.error("mpi_read_binary EM failed"); return } else {}
-    ret = mpi_exp_mod(&raw mut sig_mpi, &raw mut em_mpi, &raw mut rsa_ctx.D, &raw mut rsa_ctx.N)
+    ret = mpi_exp_mod(unsafe(&raw mut sig_mpi), unsafe(&raw mut em_mpi), unsafe(&raw mut rsa_ctx.D), unsafe(&raw mut rsa_ctx.N))
     if(ret < 0) { env.error("mpi_exp_mod sign failed"); return } else {}
     var sig_buf : [256]u8
-    ret = mpi_write_binary(&raw mut sig_mpi, &raw mut sig_buf[0], 256)
+    ret = mpi_write_binary(unsafe(&raw mut sig_mpi), &raw mut sig_buf[0], 256)
     if(ret < 0) { env.error("mpi_write_binary sig failed"); return } else {}
 
     // 4. Export N, E, sig, msg to Python; Python verifies with PKCS1v15+SHA256.
     var n_buf : [256]u8; var e_buf : [4]u8
-    mpi_write_binary(&raw mut rsa_ctx.N, &raw mut n_buf[0], 256)
-    mpi_write_binary(&raw mut rsa_ctx.E, &raw mut e_buf[0], 4)
+    mpi_write_binary(unsafe(&raw mut rsa_ctx.N), &raw mut n_buf[0], 256)
+    mpi_write_binary(unsafe(&raw mut rsa_ctx.E), &raw mut e_buf[0], 4)
     var n_hex : [513]char; test_bytes_to_hex(&raw n_buf[0], 256, &raw mut n_hex[0])
     var e_hex : [9]char; test_bytes_to_hex(&raw e_buf[0], 4, &raw mut e_hex[0])
     var sig_hex : [513]char; test_bytes_to_hex(&raw sig_buf[0], 256, &raw mut sig_hex[0])
@@ -380,9 +380,9 @@ public func INT_rsa_keygen_sign_verify_vs_py(env : &mut TestEnv) {
     //    Chemical verifies a Python-produced signature — already covered by
     //    INT_rsa_sign_verify. Here we additionally verify the signature with
     //    Chemical's own rsa_pkcs1_verify for a self-consistency roundtrip.
-    var verify_ctx : RSAContext; rsa_init(&raw mut verify_ctx, RSA_PKCS_V15, 0)
-    rsa_import_pubkey(&raw mut verify_ctx, &raw n_buf[0], 256, &raw e_buf[0], 4)
-    ret = rsa_pkcs1_verify(&raw mut verify_ctx, &raw digest[0], 32, &raw sig_buf[0], 256)
+    var verify_ctx : RSAContext; rsa_init(unsafe(&raw mut verify_ctx), RSA_PKCS_V15, 0)
+    rsa_import_pubkey(unsafe(&raw mut verify_ctx), &raw n_buf[0], 256, &raw e_buf[0], 4)
+    ret = rsa_pkcs1_verify(unsafe(&raw mut verify_ctx), &raw digest[0], 32, &raw sig_buf[0], 256)
     if(ret < 0) { env.error("rsa_pkcs1_verify of own signature failed"); return } else {}
 }
 
@@ -399,10 +399,10 @@ public func INT_aes_cbc_hmac_tls12_vs_py(env : &mut TestEnv) {
     var pt_hex : [97]char; test_bytes_to_hex(&raw pt[0], 48, &raw mut pt_hex[0])
 
     var aes_ctx : AESContext
-    aes_setkey_enc(&raw mut aes_ctx, &raw key[0], 16)
+    aes_setkey_enc(unsafe(&raw mut aes_ctx), &raw key[0], 16)
     var chem_iv : [16]u8; var ci : size_t = 0; while(ci < 16) { chem_iv[ci] = iv[ci]; ci += 1 }
     var chem_ct : [64]u8
-    var ret = aes_crypt_cbc(&raw mut aes_ctx, AES_ENCRYPT, 48, &raw mut chem_iv[0], &raw pt[0], &raw mut chem_ct[0])
+    var ret = aes_crypt_cbc(unsafe(&raw mut aes_ctx), AES_ENCRYPT, 48, &raw mut chem_iv[0], &raw pt[0], &raw mut chem_ct[0])
     if(ret < 0) { env.error("aes_crypt_cbc encrypt failed"); return } else {}
 
     var chem_mac : [32]u8
@@ -435,10 +435,10 @@ public func INT_aes_cbc_hmac_tls12_vs_py(env : &mut TestEnv) {
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 48)) { env.error("CBC ciphertext mismatch"); return } else {}
     if(!test_bytes_eq(&raw chem_mac[0], &raw py_mac[0], 32)) { env.error("HMAC mismatch"); return } else {}
 
-    var aes_dec : AESContext; aes_setkey_enc(&raw mut aes_dec, &raw key[0], 128)
+    var aes_dec : AESContext; aes_setkey_enc(unsafe(&raw mut aes_dec), &raw key[0], 128)
     var dec_iv : [16]u8; ci = 0; while(ci < 16) { dec_iv[ci] = iv[ci]; ci += 1 }
     var chem_dec : [64]u8
-    ret = aes_crypt_cbc(&raw mut aes_dec, AES_DECRYPT, 48, &raw mut dec_iv[0], &raw py_ct[0], &raw mut chem_dec[0])
+    ret = aes_crypt_cbc(unsafe(&raw mut aes_dec), AES_DECRYPT, 48, &raw mut dec_iv[0], &raw py_ct[0], &raw mut chem_dec[0])
     if(ret < 0) { env.error("aes_crypt_cbc decrypt failed"); return } else {}
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 48)) { env.error("CBC decrypt roundtrip mismatch"); return } else {}
 }
@@ -462,11 +462,11 @@ public func INT_x509_cert_parse_vs_py(env : &mut TestEnv) {
     var cert_len = fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file)
     fclose(cert_file)
 
-    var crt : X509Cert; x509_cert_init(&raw mut crt)
-    var ret = parse_cert_der(&raw mut crt, &raw cert_buf[0], cert_len)
+    var crt : X509Cert; x509_cert_init(unsafe(&raw mut crt))
+    var ret = parse_cert_der(unsafe(&raw mut crt), &raw cert_buf[0], cert_len)
     if(ret < 0) { env.error("parse_cert_der failed"); return } else {}
-    if(crt.pk_type != PK_ECKEY) { env.error("expected EC key type"); return } else {}
-    if(crt.pk_bitlen != 256) { env.error("expected 256-bit EC key"); return } else {}
+    if(unsafe(crt.pk_type) != PK_ECKEY) { env.error("expected EC key type"); return } else {}
+    if(unsafe(crt.pk_bitlen) != 256) { env.error("expected 256-bit EC key"); return } else {}
 }
 
 @test
@@ -489,23 +489,23 @@ public func INT_x509_hostname_verify_vs_py(env : &mut TestEnv) {
     var cert_len = fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file)
     fclose(cert_file)
 
-    var crt : X509Cert; x509_cert_init(&raw mut crt)
-    var ret = parse_cert_der(&raw mut crt, &raw cert_buf[0], cert_len)
+    var crt : X509Cert; x509_cert_init(unsafe(&raw mut crt))
+    var ret = parse_cert_der(unsafe(&raw mut crt), &raw cert_buf[0], cert_len)
     if(ret < 0) { env.error("parse_cert_der failed"); return } else {}
 
     // SAN wildcard must be parsed (regression: the parser skipped past the
     // extensions block entirely because pos never advanced past the SPKI, so
     // san_entries was null and only the CN fallback ran).
-    if(crt.san_entries == null || crt.san_count == 0) {
+    if(unsafe(crt.san_entries) == null || unsafe(crt.san_count) == 0) {
         env.error("SAN entries were not parsed from X.509 extensions")
         return
     }
 
     // CN is 'myhost.example.com', SAN is '*.example.com'
-    var match_san = x509_verify_hostname(&raw mut crt, "foo.example.com" as *char)
+    var match_san = x509_verify_hostname(unsafe(&raw mut crt), "foo.example.com" as *char)
     if(match_san != 0) { env.error("expected SAN wildcard to match foo.example.com"); return } else {}
 
-    var nomatch = x509_verify_hostname(&raw mut crt, "wrong.example.org" as *char)
+    var nomatch = x509_verify_hostname(unsafe(&raw mut crt), "wrong.example.org" as *char)
     if(nomatch == 0) { env.error("expected hostname mismatch"); return } else {}
 }
 
@@ -534,16 +534,16 @@ public func INT_x509_ecdsa_self_sig_verify(env : &mut TestEnv) {
     var cert_len = fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file)
     fclose(cert_file)
 
-    var crt : X509Cert; x509_cert_init(&raw mut crt)
-    var ret = parse_cert_der(&raw mut crt, &raw cert_buf[0], cert_len)
+    var crt : X509Cert; x509_cert_init(unsafe(&raw mut crt))
+    var ret = parse_cert_der(unsafe(&raw mut crt), &raw cert_buf[0], cert_len)
     if(ret < 0) { env.error("parse_cert_der failed"); return } else {}
-    if(crt.pk_type != PK_ECKEY) { env.error("expected EC key type"); return } else {}
+    if(unsafe(crt.pk_type) != PK_ECKEY) { env.error("expected EC key type"); return } else {}
 
-    var issuer : ECDSAContext; ecdsa_init(&raw mut issuer)
-    ret = ecdsa_import_pubkey(&raw mut issuer, &raw py_pub[0], 65, TLS_GROUP_SECP256R1 as u16)
+    var issuer : ECDSAContext; ecdsa_init(unsafe(&raw mut issuer))
+    ret = ecdsa_import_pubkey(unsafe(&raw mut issuer), &raw py_pub[0], 65, TLS_GROUP_SECP256R1 as u16)
     if(ret < 0) { env.error("import pubkey failed"); return } else {}
 
-    ret = x509_verify_cert_ecdsa_signature(&raw mut crt, &raw mut issuer)
+    ret = x509_verify_cert_ecdsa_signature(unsafe(&raw mut crt), unsafe(&raw mut issuer))
     if(ret < 0) { env.error("self-signature verification failed"); return } else {}
 }
 
@@ -579,10 +579,10 @@ public func INT_hmac_long_key_vs_py(env : &mut TestEnv) {
 
 @test
 public func INT_ecdh_p256_shared_vs_py(env : &mut TestEnv) {
-    var chem_ctx : ECDHContext; ecdh_init(&raw mut chem_ctx)
+    var chem_ctx : ECDHContext; ecdh_init(unsafe(&raw mut chem_ctx))
     var chem_priv : [32]u8; test_random_bytes(&raw mut chem_priv[0], 32)
     var chem_pub : [65]u8
-    var ret = ecdh_generate_keypair(&raw mut chem_ctx, &raw mut chem_priv[0], 32, &raw mut chem_pub[0], 65)
+    var ret = ecdh_generate_keypair(unsafe(&raw mut chem_ctx), &raw mut chem_priv[0], 32, &raw mut chem_pub[0], 65)
     if(ret < 0) { env.error("ecdh_generate_keypair failed"); return } else {}
 
     var pub_hex : [131]char; test_bytes_to_hex(&raw chem_pub[0], 65, &raw mut pub_hex[0])
@@ -605,7 +605,7 @@ public func INT_ecdh_p256_shared_vs_py(env : &mut TestEnv) {
     if(pub_len != 65 || shared_len != 32) { env.error("failed to parse Python output"); return } else {}
 
     var chem_shared : [32]u8
-    ret = ecdh_compute_shared(&raw mut chem_ctx, &raw py_pub[0], 65, &raw mut chem_shared[0], 32)
+    ret = ecdh_compute_shared(unsafe(&raw mut chem_ctx), &raw py_pub[0], 65, &raw mut chem_shared[0], 32)
     if(ret < 0) { env.error("ecdh_compute_shared failed"); return } else {}
 
     if(!test_bytes_eq(&raw chem_shared[0], &raw py_shared[0], 32)) { env.error("ECDH P-256 shared secret mismatch vs Python"); return } else {}
@@ -616,18 +616,18 @@ public func INT_tls13_max_record_roundtrip(env : &mut TestEnv) {
     var pt_len : size_t = 16384
     var pt_data : [16384]u8; test_random_bytes(&raw mut pt_data[0], pt_len)
 
-    var ssl : SSLContext; ssl_init(&raw mut ssl)
+    var ssl : SSLContext; ssl_init(unsafe(&raw mut ssl))
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ssl, &raw mut cfg)
+    ssl_set_config(unsafe(&raw mut ssl), &raw mut cfg)
 
     var ss : [32]u8; test_random_bytes(&raw mut ss[0], 32)
     var hh : [32]u8; test_random_bytes(&raw mut hh[0], 32)
-    tls13_derive_handshake_keys(&raw mut ssl, &raw ss[0], 32, &raw hh[0])
-    tls13_derive_application_keys(&raw mut ssl, &raw hh[0], 32)
+    tls13_derive_handshake_keys(unsafe(&raw mut ssl), &raw ss[0], 32, &raw hh[0])
+    tls13_derive_application_keys(unsafe(&raw mut ssl), &raw hh[0], 32)
 
     var ct_buf : [17408]u8
-    var ct_len = tls13_encrypt_record(&raw mut ssl, 23 as u8, &raw pt_data[0], pt_len, &raw mut ct_buf[0], 17408)
+    var ct_len = tls13_encrypt_record(unsafe(&raw mut ssl), 23 as u8, &raw pt_data[0], pt_len, &raw mut ct_buf[0], 17408)
     if(ct_len < 0) { env.error("encrypt max-size record failed"); return } else {}
 
     ssl.in_hdr[0] = ct_buf[0]
@@ -639,7 +639,7 @@ public func INT_tls13_max_record_roundtrip(env : &mut TestEnv) {
     var ct_payload_len = (ct_len as size_t) - 5
     var inner_ct : u8 = 0
     var dec_buf : [17408]u8
-    var dec_len = tls13_decrypt_record(&raw mut ssl, &raw ct_buf[5], ct_payload_len, &raw mut dec_buf[0], 17408, &raw mut inner_ct)
+    var dec_len = tls13_decrypt_record(unsafe(&raw mut ssl), &raw ct_buf[5], ct_payload_len, &raw mut dec_buf[0], 17408, &raw mut inner_ct)
     if(dec_len < 0) { env.error("decrypt max-size record failed"); return } else {}
     if(inner_ct != 23) { env.error("inner content type mismatch"); return } else {}
     if(dec_len as size_t != pt_len) { env.error("decrypted length mismatch"); return } else {}
@@ -662,18 +662,18 @@ public func INT_tls13_stream_large_with_small_buffers(env : &mut TestEnv) {
     test_py_run_background(string_view("bigsrv /tmp/tls_19970_cert.pem /tmp/tls_19970_key.pem 19970 102400"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19970u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 19970u)
     if(ret < 0) { env.error("tls13 large stream: connect failed"); return } else {}
 
     // Write a request so the server starts streaming.
     var req = "GET / HTTP/1.0\r\n\r\n"
-    ssl_write(&raw mut ctx, req as *u8, 18)
+    ssl_write(unsafe(&raw mut ctx), req as *u8, 18)
 
     // Read with a small 1000-byte buffer so individual 16 KiB records are
     // delivered across many calls (exercises the partial-record path).
@@ -682,7 +682,7 @@ public func INT_tls13_stream_large_with_small_buffers(env : &mut TestEnv) {
     var ok = true
     var guard = 0
     while(total < PAYLOAD && guard < 10000) {
-        var n = ssl_read(&raw mut ctx, &raw mut buf[0], 1000)
+            var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 1000)
         if(n < 0) { ok = false; break }
         if(n == 0) { break }
         total = total + (n as size_t)
@@ -694,8 +694,8 @@ public func INT_tls13_stream_large_with_small_buffers(env : &mut TestEnv) {
         env.error(tstr.data())
         env.error(" want 102400)")
     }
-    ssl_close_notify(&raw mut ctx)
-    ssl_free(&raw mut ctx)
+    ssl_close_notify(unsafe(&raw mut ctx))
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(19970u)
 }
 
@@ -717,17 +717,17 @@ public func INT_tls13_config_connects_tls12_server(env : &mut TestEnv) {
 
     // IMPORTANT: max_tls_version stays at TLS 1.3 (the default), so the client
     // advertises both versions. The server only supports TLS 1.2.
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 19971u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 19971u)
     if(ret < 0) {
         env.error("tls13 config could not connect to TLS 1.2 only server")
     } else {
         var req = "GET / HTTP/1.0\r\n\r\n"
-        ssl_write(&raw mut ctx, req as *u8, 18)
+        ssl_write(unsafe(&raw mut ctx), req as *u8, 18)
         // The server streams 131072 bytes; read with a small buffer to also
         // exercise partial-record delivery over the TLS 1.2 record layer.
         var buf : [1000]u8
@@ -735,7 +735,7 @@ public func INT_tls13_config_connects_tls12_server(env : &mut TestEnv) {
         var ok = true
         var guard = 0
         while(total < 131072 && guard < 10000) {
-            var n = ssl_read(&raw mut ctx, &raw mut buf[0], 1000)
+        var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 1000)
             if(n < 0) { ok = false; break }
             if(n == 0) { break }
             total = total + (n as usize)
@@ -744,10 +744,10 @@ public func INT_tls13_config_connects_tls12_server(env : &mut TestEnv) {
         if(!ok || total != 131072) {
             env.error("tls12 fallback stream incomplete")
         } else {
-            ssl_close_notify(&raw mut ctx)
+            ssl_close_notify(unsafe(&raw mut ctx))
         }
     }
-    ssl_free(&raw mut ctx)
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(19971u)
 }
 
@@ -776,13 +776,13 @@ public func INT_x509_parse_rsa_san_cert(env : &mut TestEnv) {
     var cert_len = fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 4096, cert_file)
     fclose(cert_file)
 
-    var crt : X509Cert; x509_cert_init(&raw mut crt)
-    var ret = parse_cert_der(&raw mut crt, &raw cert_buf[0], cert_len)
+    var crt : X509Cert; x509_cert_init(unsafe(&raw mut crt))
+    var ret = parse_cert_der(unsafe(&raw mut crt), &raw cert_buf[0], cert_len)
     if(ret < 0) { env.error("parse_cert_der failed for 4096-bit RSA SAN cert"); return } else {}
-    if(crt.san_entries == null || crt.san_count == 0) {
+    if(unsafe(crt.san_entries) == null || unsafe(crt.san_count) == 0) {
         env.error("SAN not parsed from 4096-bit RSA cert")
         return
     }
-    var match = x509_verify_hostname(&raw mut crt, "big.test" as *char)
+    var match = x509_verify_hostname(unsafe(&raw mut crt), "big.test" as *char)
     if(match != 0) { env.error("hostname mismatch on 4096-bit RSA cert"); return } else {}
 }

@@ -153,23 +153,23 @@ public namespace tls {
 
     // RSAVP1: c = m^e mod N
     public func rsa_public(ctx : *mut RSAContext, input : *u8, output : *mut u8) : int {
-        var M : Mpi; mpi_init(&raw mut M)
-        var C : Mpi; mpi_init(&raw mut C)
+        var M : Mpi; mpi_init(unsafe(&raw mut M))
+        var C : Mpi; mpi_init(unsafe(&raw mut C))
 
-        var ret = mpi_read_binary(&raw mut M, input, ctx.len)
+        var ret = mpi_read_binary(unsafe(&raw mut M), input, ctx.len)
         if(ret < 0) { return ret }
 
         // Check M >= N
-        if(mpi_cmp_abs(&raw mut M, &raw mut ctx.N) >= 0) {
+        if(mpi_cmp_abs(unsafe(&raw mut M), &raw mut ctx.N) >= 0) {
             return ERR_RSA_PUBLIC_FAILED
         }
 
         // C = M^E mod N
-        ret = mpi_exp_mod(&raw mut C, &raw mut M, &raw mut ctx.E, &raw mut ctx.N)
+        ret = mpi_exp_mod(unsafe(&raw mut C), unsafe(&raw mut M), &raw mut ctx.E, &raw mut ctx.N)
         if(ret < 0) { return ret }
 
         // Export C as big-endian bytes
-        ret = mpi_write_binary(&raw mut C, output, ctx.len)
+        ret = mpi_write_binary(unsafe(&raw mut C), output, ctx.len)
         if(ret < 0) { return ret }
 
         return 0
@@ -257,17 +257,17 @@ public namespace tls {
         if(sig_len != ctx.len) { return ERR_RSA_BAD_INPUT_DATA }
 
         // Decrypt signature: EM = S^E mod N
-        var em : Mpi; mpi_init(&raw mut em)
-        var sig_m : Mpi; mpi_init(&raw mut sig_m)
+        var em : Mpi; mpi_init(unsafe(&raw mut em))
+        var sig_m : Mpi; mpi_init(unsafe(&raw mut sig_m))
 
-        var ret = mpi_read_binary(&raw mut sig_m, sig, sig_len)
+        var ret = mpi_read_binary(unsafe(&raw mut sig_m), sig, sig_len)
         if(ret < 0) { return ret }
 
-        ret = mpi_exp_mod(&raw mut em, &raw mut sig_m, &raw mut ctx.E, &raw mut ctx.N)
+        ret = mpi_exp_mod(unsafe(&raw mut em), unsafe(&raw mut sig_m), &raw mut ctx.E, &raw mut ctx.N)
         if(ret < 0) { return ret }
 
         var em_buf : [512]u8
-        ret = mpi_write_binary(&raw mut em, &raw mut em_buf[0], sig_len)
+        ret = mpi_write_binary(unsafe(&raw mut em), &raw mut em_buf[0], sig_len)
         if(ret < 0) { return ret }
 
         // Check PKCS#1 v1.5 block type (0x01 for signature)
@@ -314,16 +314,16 @@ public namespace tls {
 
     // RSADP: m = c^d mod N (without CRT - simpler, slower)
     func rsa_private(ctx : *mut RSAContext, input : *u8, output : *mut u8) : int {
-        var C : Mpi; mpi_init(&raw mut C)
-        var M : Mpi; mpi_init(&raw mut M)
+        var C : Mpi; mpi_init(unsafe(&raw mut C))
+        var M : Mpi; mpi_init(unsafe(&raw mut M))
 
-        var ret = mpi_read_binary(&raw mut C, input, ctx.len)
+        var ret = mpi_read_binary(unsafe(&raw mut C), input, ctx.len)
         if(ret < 0) { return ret }
 
-        ret = mpi_exp_mod(&raw mut M, &raw mut C, &raw mut ctx.D, &raw mut ctx.N)
+        ret = mpi_exp_mod(unsafe(&raw mut M), unsafe(&raw mut C), &raw mut ctx.D, &raw mut ctx.N)
         if(ret < 0) { return ret }
 
-        ret = mpi_write_binary(&raw mut M, output, ctx.len)
+        ret = mpi_write_binary(unsafe(&raw mut M), output, ctx.len)
         if(ret < 0) { return ret }
 
         return 0
@@ -393,20 +393,20 @@ public namespace tls {
         if((n.p[0] & 1) == 0) { return false }
 
         // Write n-1 = d * 2^s with d odd
-        var one : Mpi; mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
-        var nm1 : Mpi; mpi_init(&raw mut nm1)
-        var ret = mpi_sub(&raw mut nm1, n, &raw mut one)
+        var one : Mpi; mpi_init(unsafe(&raw mut one)); mpi_lset(unsafe(&raw mut one), 1)
+        var nm1 : Mpi; mpi_init(unsafe(&raw mut nm1))
+        var ret = mpi_sub(unsafe(&raw mut nm1), n, unsafe(&raw mut one))
         if(ret < 0) { return false }
-        var d : Mpi; mpi_init(&raw mut d); mpi_copy(&raw mut d, &raw mut nm1)
+        var d : Mpi; mpi_init(unsafe(&raw mut d)); mpi_copy(unsafe(&raw mut d), unsafe(&raw mut nm1))
         var s : size_t = 0
         while((d.p[0] & 1) == 0) {
-            mpi_shift_r(&raw mut d, 1)
+            mpi_shift_r(unsafe(&raw mut d), 1)
             s += 1
         }
 
-        var base : Mpi; mpi_init(&raw mut base)
-        var x : Mpi; mpi_init(&raw mut x)
-        var two : Mpi; mpi_init(&raw mut two); mpi_lset(&raw mut two, 2)
+        var base : Mpi; mpi_init(unsafe(&raw mut base))
+        var x : Mpi; mpi_init(unsafe(&raw mut x))
+        var two : Mpi; mpi_init(unsafe(&raw mut two)); mpi_lset(unsafe(&raw mut two), 2)
 
         var r : size_t = 0
         while(r < rounds) {
@@ -415,26 +415,26 @@ public namespace tls {
             var rbuf : [256]u8
             ret = random_fill(&raw mut rbuf[0], nb)
             if(ret < 0) { return false }
-            mpi_read_binary(&raw mut base, &raw mut rbuf[0], nb)
-            var three : Mpi; mpi_init(&raw mut three); mpi_lset(&raw mut three, 3)
-            var nm3 : Mpi; mpi_init(&raw mut nm3)
-            ret = mpi_sub(&raw mut nm3, n, &raw mut three)
+            mpi_read_binary(unsafe(&raw mut base), &raw mut rbuf[0], nb)
+            var three : Mpi; mpi_init(unsafe(&raw mut three)); mpi_lset(unsafe(&raw mut three), 3)
+            var nm3 : Mpi; mpi_init(unsafe(&raw mut nm3))
+            ret = mpi_sub(unsafe(&raw mut nm3), n, unsafe(&raw mut three))
             if(ret < 0) { return false }
-            mpi_mod(&raw mut base, &raw mut base, &raw mut nm3)
-            mpi_add(&raw mut base, &raw mut base, &raw mut two)
+            mpi_mod(unsafe(&raw mut base), unsafe(&raw mut base), unsafe(&raw mut nm3))
+            mpi_add(unsafe(&raw mut base), unsafe(&raw mut base), unsafe(&raw mut two))
 
             // x = base^d mod n
-            ret = mpi_exp_mod(&raw mut x, &raw mut base, &raw mut d, n)
+            ret = mpi_exp_mod(unsafe(&raw mut x), unsafe(&raw mut base), unsafe(&raw mut d), n)
             if(ret < 0) { return false }
-            if(mpi_cmp_int(&raw mut x, 1) == 0 || mpi_cmp(&raw mut x, &raw mut nm1) == 0) { r += 1; continue }
+            if(mpi_cmp_int(unsafe(&raw mut x), 1) == 0 || mpi_cmp(unsafe(&raw mut x), unsafe(&raw mut nm1)) == 0) { r += 1; continue }
 
             // Repeated squaring: if x never reaches n-1, n is composite
             var composite = true
             var j : size_t = 1
             while(j < s) {
-                ret = mpi_exp_mod(&raw mut x, &raw mut x, &raw mut two, n)
+                ret = mpi_exp_mod(unsafe(&raw mut x), unsafe(&raw mut x), unsafe(&raw mut two), n)
                 if(ret < 0) { return false }
-                if(mpi_cmp(&raw mut x, &raw mut nm1) == 0) { composite = false; break }
+                if(mpi_cmp(unsafe(&raw mut x), unsafe(&raw mut nm1)) == 0) { composite = false; break }
                 j += 1
             }
             if(composite) { return false }
@@ -463,25 +463,25 @@ public namespace tls {
             buf[top_byte] = buf[top_byte] | (1u8 << bit_idx)
             buf[nbytes - 1] = buf[nbytes - 1] | 1u8
 
-            var cand : Mpi; mpi_init(&raw mut cand)
-            ret = mpi_read_binary(&raw mut cand, &raw mut buf[0], nbytes)
+            var cand : Mpi; mpi_init(unsafe(&raw mut cand))
+            ret = mpi_read_binary(unsafe(&raw mut cand), &raw mut buf[0], nbytes)
             if(ret < 0) { return ret }
 
             // Fast trial division by small primes
-            var sm : Mpi; mpi_init(&raw mut sm)
-            var rem : Mpi; mpi_init(&raw mut rem)
+            var sm : Mpi; mpi_init(unsafe(&raw mut sm))
+            var rem : Mpi; mpi_init(unsafe(&raw mut rem))
             var divisible = false
             var j : size_t = 0
             while(j < 63 && small_primes[j] != 0) {
-                mpi_lset(&raw mut sm, small_primes[j] as i64)
-                mpi_mod(&raw mut rem, &raw mut cand, &raw mut sm)
-                if(mpi_is_zero(&raw mut rem)) { divisible = true; break }
+                mpi_lset(unsafe(&raw mut sm), small_primes[j] as i64)
+                mpi_mod(unsafe(&raw mut rem), unsafe(&raw mut cand), unsafe(&raw mut sm))
+                if(mpi_is_zero(unsafe(&raw mut rem))) { divisible = true; break }
                 j += 1
             }
             if(divisible) { attempt += 1; continue }
 
-            if(mpi_is_prime(&raw mut cand, rounds)) {
-                mpi_copy(out, &raw mut cand)
+            if(mpi_is_prime(unsafe(&raw mut cand), rounds)) {
+                mpi_copy(out, unsafe(&raw mut cand))
                 return 0
             }
             attempt += 1
@@ -504,11 +504,11 @@ public namespace tls {
         else if(p_bits >= 256) { mr_rounds = 24 }
         else { mr_rounds = 40 }
 
-        var one : Mpi; mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
-        var p1 : Mpi; mpi_init(&raw mut p1)
-        var q1 : Mpi; mpi_init(&raw mut q1)
-        var phi : Mpi; mpi_init(&raw mut phi)
-        var g : Mpi; mpi_init(&raw mut g)
+        var one : Mpi; mpi_init(unsafe(&raw mut one)); mpi_lset(unsafe(&raw mut one), 1)
+        var p1 : Mpi; mpi_init(unsafe(&raw mut p1))
+        var q1 : Mpi; mpi_init(unsafe(&raw mut q1))
+        var phi : Mpi; mpi_init(unsafe(&raw mut phi))
+        var g : Mpi; mpi_init(unsafe(&raw mut g))
 
         var ret : int = 0
         var phi_gcd_ok = false
@@ -543,24 +543,24 @@ public namespace tls {
             mpi_lset(&raw mut ctx.E, exponent as i64)
 
             // phi = (P-1)(Q-1); require gcd(E, phi) = 1
-            mpi_sub(&raw mut p1, &raw mut ctx.P, &raw mut one)
-            mpi_sub(&raw mut q1, &raw mut ctx.Q, &raw mut one)
-            ret = mpi_mul(&raw mut phi, &raw mut p1, &raw mut q1)
+            mpi_sub(unsafe(&raw mut p1), &raw mut ctx.P, unsafe(&raw mut one))
+            mpi_sub(unsafe(&raw mut q1), &raw mut ctx.Q, unsafe(&raw mut one))
+            ret = mpi_mul(unsafe(&raw mut phi), unsafe(&raw mut p1), unsafe(&raw mut q1))
             if(ret < 0) { return ret }
-            ret = mpi_gcd(&raw mut g, &raw mut ctx.E, &raw mut phi)
+            ret = mpi_gcd(unsafe(&raw mut g), &raw mut ctx.E, unsafe(&raw mut phi))
             if(ret < 0) { return ret }
-            if(mpi_cmp_int(&raw mut g, 1) == 0) { phi_gcd_ok = true; break }
+            if(mpi_cmp_int(unsafe(&raw mut g), 1) == 0) { phi_gcd_ok = true; break }
             attempt += 1
         }
         if(!phi_gcd_ok) { return ERR_RSA_KEY_GEN_FAILED }
 
         // D = E^-1 mod phi
-        ret = mpi_mod_inv(&raw mut ctx.D, &raw mut ctx.E, &raw mut phi)
+        ret = mpi_mod_inv(&raw mut ctx.D, &raw mut ctx.E, unsafe(&raw mut phi))
         if(ret < 0) { return ret }
 
         // CRT parameters
-        mpi_mod(&raw mut ctx.DP, &raw mut ctx.D, &raw mut p1)
-        mpi_mod(&raw mut ctx.DQ, &raw mut ctx.D, &raw mut q1)
+        mpi_mod(&raw mut ctx.DP, &raw mut ctx.D, unsafe(&raw mut p1))
+        mpi_mod(&raw mut ctx.DQ, &raw mut ctx.D, unsafe(&raw mut q1))
         ret = mpi_mod_inv(&raw mut ctx.QP, &raw mut ctx.Q, &raw mut ctx.P)
         if(ret < 0) { return ret }
 

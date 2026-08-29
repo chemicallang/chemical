@@ -25,33 +25,33 @@ public func E2E_tls13_pinned_aes256_gcm_sha384(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20100_cert.pem /tmp/tls_20100_key.pem 20100 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
     config.ciphersuite_list[0] = TLS1_3_AES_256_GCM_SHA384 as u16
     config.ciphersuite_count = 1
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 20100u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 20100u)
     if(ret < 0) {
         env.error("AES256-SHA384: handshake failed")
         if(ret == ERR_SSL_FATAL_ALERT_MESSAGE) {
-            if(ctx.last_alert_desc == 40) { env.error("AES256-SHA384: alert = handshake_failure(40)") }
-            else if(ctx.last_alert_desc == 70) { env.error("AES256-SHA384: alert = protocol_version(70)") }
+            if(unsafe(ctx.last_alert_desc) == 40) { env.error("AES256-SHA384: alert = handshake_failure(40)") }
+            else if(unsafe(ctx.last_alert_desc) == 70) { env.error("AES256-SHA384: alert = protocol_version(70)") }
         }
-        ssl_free(&raw mut ctx)
+        ssl_free(unsafe(&raw mut ctx))
         test_kill_port(20100u)
         return
     }
 
-    if(ctx.negotiated_ciphersuite != TLS1_3_AES_256_GCM_SHA384 as u16) {
+    if(unsafe(ctx.negotiated_ciphersuite) != TLS1_3_AES_256_GCM_SHA384 as u16) {
         env.error("AES256-SHA384: wrong negotiated ciphersuite")
-        ssl_free(&raw mut ctx)
+        ssl_free(unsafe(&raw mut ctx))
         test_kill_port(20100u)
         return
     }
-    if(ctx.tls_version != SSL_VERSION_TLS1_3) {
+    if(unsafe(ctx.tls_version) != SSL_VERSION_TLS1_3) {
         env.error("AES256-SHA384: expected TLS 1.3 negotiated version")
     }
 
@@ -71,14 +71,14 @@ public func E2E_tls13_pinned_aes256_gcm_sha384(env : &mut TestEnv) {
     printf("DIAG_SATS=%s\n", &raw dhex[0])
 
     var req = "GET / HTTP/1.0\r\n\r\n"
-    ssl_write(&raw mut ctx, req as *u8, 18)
+    ssl_write(unsafe(&raw mut ctx), req as *u8, 18)
     var buf : [512]u8
-    var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+    var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("AES256-SHA384: app-data response mismatch")
     }
-    ssl_close_notify(&raw mut ctx)
-    ssl_free(&raw mut ctx)
+    ssl_close_notify(unsafe(&raw mut ctx))
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(20100u)
 }
 
@@ -93,43 +93,43 @@ public func E2E_tls13_pinned_chacha20_poly1305(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20101_cert.pem /tmp/tls_20101_key.pem 20101 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
     config.ciphersuite_list[0] = TLS1_3_CHACHA20_POLY1305_SHA256 as u16
     config.ciphersuite_count = 1
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 20101u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 20101u)
     if(ret < 0) {
         // Legitimate gap if ChaCha20-Poly1305 is not implemented yet: record
         // the failure reason so it is visible in the suite output.
         env.error("CHACHA20: handshake failed")
         if(ret == ERR_SSL_FATAL_ALERT_MESSAGE) {
-            if(ctx.last_alert_desc == 40) { env.error("CHACHA20: alert = handshake_failure(40)") }
+            if(unsafe(ctx.last_alert_desc) == 40) { env.error("CHACHA20: alert = handshake_failure(40)") }
         }
-        ssl_free(&raw mut ctx)
+        ssl_free(unsafe(&raw mut ctx))
         test_kill_port(20101u)
         return
     }
 
-    if(ctx.negotiated_ciphersuite != TLS1_3_CHACHA20_POLY1305_SHA256 as u16) {
+    if(unsafe(ctx.negotiated_ciphersuite) != TLS1_3_CHACHA20_POLY1305_SHA256 as u16) {
         env.error("CHACHA20: wrong negotiated ciphersuite")
-        ssl_free(&raw mut ctx)
+        ssl_free(unsafe(&raw mut ctx))
         test_kill_port(20101u)
         return
     }
 
     var req = "GET / HTTP/1.0\r\n\r\n"
-    ssl_write(&raw mut ctx, req as *u8, 18)
+    ssl_write(unsafe(&raw mut ctx), req as *u8, 18)
     var buf : [512]u8
-    var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+    var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("CHACHA20: app-data response mismatch")
     }
-    ssl_close_notify(&raw mut ctx)
-    ssl_free(&raw mut ctx)
+    ssl_close_notify(unsafe(&raw mut ctx))
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(20101u)
 }
 
@@ -144,36 +144,36 @@ public func E2E_tls13_with_rsa_certificate(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20102_cert.pem /tmp/tls_20102_key.pem 20102 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 20102u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 20102u)
     if(ret < 0) {
         env.error("RSA cert: TLS13 handshake failed")
-        ssl_free(&raw mut ctx)
+        ssl_free(unsafe(&raw mut ctx))
         test_kill_port(20102u)
         return
     }
 
-    if(ctx.peer_cert == null) {
+    if(unsafe(ctx.peer_cert) == null) {
         env.error("RSA cert: peer certificate not populated")
-        ssl_free(&raw mut ctx)
+        ssl_free(unsafe(&raw mut ctx))
         test_kill_port(20102u)
         return
     }
 
     var req = "GET / HTTP/1.0\r\n\r\n"
-    ssl_write(&raw mut ctx, req as *u8, 18)
+    ssl_write(unsafe(&raw mut ctx), req as *u8, 18)
     var buf : [512]u8
-    var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+    var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("RSA cert: app-data response mismatch")
     }
-    ssl_close_notify(&raw mut ctx)
-    ssl_free(&raw mut ctx)
+    ssl_close_notify(unsafe(&raw mut ctx))
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(20102u)
 }
 
@@ -188,41 +188,41 @@ public func E2E_tls12_pinned_rsa_aes256_gcm(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20103_cert.pem /tmp/tls_20103_key.pem 20103 1.2 AES256-GCM-SHA384:@SECLEVEL=0"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_2
     config.ciphersuite_list[0] = TLS_RSA_WITH_AES_256_GCM_SHA384 as u16
     config.ciphersuite_count = 1
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 20103u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 20103u)
     if(ret < 0) {
-        if(ret == ERR_SSL_FATAL_ALERT_MESSAGE && ctx.last_alert_desc == 51) {
+        if(ret == ERR_SSL_FATAL_ALERT_MESSAGE && unsafe(ctx.last_alert_desc) == 51) {
             env.error("TLS12 AES256-GCM: alert = decrypt_error(51)")
         }
         env.error("TLS12 AES256-GCM: handshake failed")
-        ssl_free(&raw mut ctx)
+        ssl_free(unsafe(&raw mut ctx))
         test_kill_port(20103u)
         return
     }
 
-    if(ctx.negotiated_ciphersuite != TLS_RSA_WITH_AES_256_GCM_SHA384 as u16) {
+    if(unsafe(ctx.negotiated_ciphersuite) != TLS_RSA_WITH_AES_256_GCM_SHA384 as u16) {
         env.error("TLS12 AES256-GCM: wrong negotiated ciphersuite")
     }
-    if(ctx.tls_version != SSL_VERSION_TLS1_2) {
+    if(unsafe(ctx.tls_version) != SSL_VERSION_TLS1_2) {
         env.error("TLS12 AES256-GCM: expected TLS 1.2 negotiated version")
     }
 
     var req = "GET / HTTP/1.0\r\n\r\n"
-    ssl_write(&raw mut ctx, req as *u8, 18)
+    ssl_write(unsafe(&raw mut ctx), req as *u8, 18)
     var buf : [512]u8
-    var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+    var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("TLS12 AES256-GCM: app-data response mismatch")
     }
-    ssl_close_notify(&raw mut ctx)
-    ssl_free(&raw mut ctx)
+    ssl_close_notify(unsafe(&raw mut ctx))
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(20103u)
 }
 
@@ -237,35 +237,35 @@ public func E2E_tls12_pinned_rsa_aes256_cbc(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20104_cert.pem /tmp/tls_20104_key.pem 20104 1.2 AES256-SHA256:@SECLEVEL=0"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_2
     config.ciphersuite_list[0] = TLS_RSA_WITH_AES_256_CBC_SHA256 as u16
     config.ciphersuite_count = 1
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 20104u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 20104u)
     if(ret < 0) {
         env.error("TLS12 AES256-CBC: handshake failed")
-        ssl_free(&raw mut ctx)
+        ssl_free(unsafe(&raw mut ctx))
         test_kill_port(20104u)
         return
     }
 
-    if(ctx.negotiated_ciphersuite != TLS_RSA_WITH_AES_256_CBC_SHA256 as u16) {
+    if(unsafe(ctx.negotiated_ciphersuite) != TLS_RSA_WITH_AES_256_CBC_SHA256 as u16) {
         env.error("TLS12 AES256-CBC: wrong negotiated ciphersuite")
     }
 
     var req = "GET / HTTP/1.0\r\n\r\n"
-    ssl_write(&raw mut ctx, req as *u8, 18)
+    ssl_write(unsafe(&raw mut ctx), req as *u8, 18)
     var buf : [512]u8
-    var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+    var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("TLS12 AES256-CBC: app-data response mismatch")
     }
-    ssl_close_notify(&raw mut ctx)
-    ssl_free(&raw mut ctx)
+    ssl_close_notify(unsafe(&raw mut ctx))
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(20104u)
 }
 
@@ -283,7 +283,7 @@ public func E2E_alpn_negotiation_h2(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20105_cert.pem /tmp/tls_20105_key.pem 20105 1.3 DEFAULT h2"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -292,20 +292,20 @@ public func E2E_alpn_negotiation_h2(env : &mut TestEnv) {
         "h2\0" as *char
     ]
     ssl_set_alpn_protocols(&raw mut config, &raw mut protos[0], 2)
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 20105u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 20105u)
     if(ret < 0) {
         env.error("ALPN: handshake failed")
-        ssl_free(&raw mut ctx)
+        ssl_free(unsafe(&raw mut ctx))
         test_kill_port(20105u)
         return
     }
 
-    var alpn = ssl_get_alpn_negotiated(&raw mut ctx)
+    var alpn = ssl_get_alpn_negotiated(unsafe(&raw mut ctx))
     if(alpn == null) {
         env.error("ALPN: no protocol was negotiated")
-        ssl_free(&raw mut ctx)
+        ssl_free(unsafe(&raw mut ctx))
         test_kill_port(20105u)
         return
     }
@@ -314,14 +314,14 @@ public func E2E_alpn_negotiation_h2(env : &mut TestEnv) {
     }
 
     var req = "GET / HTTP/1.0\r\n\r\n"
-    ssl_write(&raw mut ctx, req as *u8, 18)
+    ssl_write(unsafe(&raw mut ctx), req as *u8, 18)
     var buf : [512]u8
-    var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+    var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("ALPN: app-data response mismatch after negotiation")
     }
-    ssl_close_notify(&raw mut ctx)
-    ssl_free(&raw mut ctx)
+    ssl_close_notify(unsafe(&raw mut ctx))
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(20105u)
 }
 
@@ -342,42 +342,42 @@ public func E2E_verified_handshake_trusted_ca(env : &mut TestEnv) {
     var ca = x509_crt_load_pem_file("/tmp/tls_vca20106_root.pem")
     if(ca == null) { env.error("verified CA: could not load root pem"); return }
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.ca_chain = ca
     config.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
     // Connect by name so SNI + hostname verification use "localhost".
-    var ret = tls_connect(&raw mut ctx, "localhost", 20106u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "localhost", 20106u)
     if(ret < 0) {
         env.error("verified CA: handshake with trusted root failed")
         if(ret == ERR_SSL_CERT_VERIFY_FAILED) { env.error("verified CA: ERR_SSL_CERT_VERIFY_FAILED") }
         cert_chain_free(ca)
-        ssl_free(&raw mut ctx)
+        ssl_free(unsafe(&raw mut ctx))
         test_kill_port(20106u)
         return
     }
 
-    if(ctx.peer_cert == null) {
+    if(unsafe(ctx.peer_cert) == null) {
         env.error("verified CA: peer cert missing")
         cert_chain_free(ca)
-        ssl_free(&raw mut ctx)
+        ssl_free(unsafe(&raw mut ctx))
         test_kill_port(20106u)
         return
     }
-    var hret = x509_verify_hostname(ctx.peer_cert, "localhost")
+    var hret = x509_verify_hostname(unsafe(ctx.peer_cert), "localhost")
     if(hret != 0) { env.error("verified CA: hostname did not verify") }
 
     var req = "GET / HTTP/1.0\r\n\r\n"
-    ssl_write(&raw mut ctx, req as *u8, 18)
+    ssl_write(unsafe(&raw mut ctx), req as *u8, 18)
     var buf : [512]u8
-    var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+    var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("verified CA: app-data response mismatch")
     }
-    ssl_close_notify(&raw mut ctx)
-    ssl_free(&raw mut ctx)
+    ssl_close_notify(unsafe(&raw mut ctx))
+    ssl_free(unsafe(&raw mut ctx))
     cert_chain_free(ca)
     test_kill_port(20106u)
 }
@@ -399,30 +399,30 @@ public func E2E_verified_handshake_intermediate_chain(env : &mut TestEnv) {
     var root = x509_crt_load_pem_file("/tmp/tls_vic20107_root.pem")
     if(root == null) { env.error("intermediate CA: could not load root pem"); return }
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.ca_chain = root
     config.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = tls_connect(&raw mut ctx, "localhost", 20107u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "localhost", 20107u)
     if(ret < 0) {
         env.error("intermediate CA: verified handshake through chain failed")
         cert_chain_free(root)
-        ssl_free(&raw mut ctx)
+        ssl_free(unsafe(&raw mut ctx))
         test_kill_port(20107u)
         return
     }
 
     var req = "GET / HTTP/1.0\r\n\r\n"
-    ssl_write(&raw mut ctx, req as *u8, 18)
+    ssl_write(unsafe(&raw mut ctx), req as *u8, 18)
     var buf : [512]u8
-    var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+    var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("intermediate CA: app-data response mismatch")
     }
-    ssl_close_notify(&raw mut ctx)
-    ssl_free(&raw mut ctx)
+    ssl_close_notify(unsafe(&raw mut ctx))
+    ssl_free(unsafe(&raw mut ctx))
     cert_chain_free(root)
     test_kill_port(20107u)
 }
@@ -438,16 +438,16 @@ public func E2E_multi_roundtrip_single_connection(env : &mut TestEnv) {
     test_py_run_background(string_view("mround /tmp/tls_20108_cert.pem /tmp/tls_20108_key.pem 20108 1.3 5 1"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 20108u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 20108u)
     if(ret < 0) {
         env.error("multi roundtrip: connect failed")
-        ssl_free(&raw mut ctx)
+        ssl_free(unsafe(&raw mut ctx))
         test_kill_port(20108u)
         return
     }
@@ -456,25 +456,25 @@ public func E2E_multi_roundtrip_single_connection(env : &mut TestEnv) {
     var round : int = 0
     while(round < 5) {
         var msg = "PING\r\n\0" as *char
-        var wret = ssl_write(&raw mut ctx, msg as *u8, 7)
+        var wret = ssl_write(unsafe(&raw mut ctx), msg as *u8, 7)
         if(wret < 0) {
             env.error("multi roundtrip: write failed mid-connection")
-            ssl_free(&raw mut ctx)
+            ssl_free(unsafe(&raw mut ctx))
             test_kill_port(20108u)
             return
         }
-        var n = ssl_read(&raw mut ctx, &raw mut buf[0], 64)
+        var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 64)
         if(n != 2 || buf[0] != 79 || buf[1] != 75) {
             env.error("multi roundtrip: response mismatch in round")
-            ssl_free(&raw mut ctx)
+            ssl_free(unsafe(&raw mut ctx))
             test_kill_port(20108u)
             return
         }
         round += 1
     }
 
-    ssl_close_notify(&raw mut ctx)
-    ssl_free(&raw mut ctx)
+    ssl_close_notify(unsafe(&raw mut ctx))
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(20108u)
 }
 
@@ -489,16 +489,16 @@ public func E2E_many_small_roundtrips_fifty(env : &mut TestEnv) {
     test_py_run_background(string_view("mround /tmp/tls_20109_cert.pem /tmp/tls_20109_key.pem 20109 1.3 50 1"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 20109u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 20109u)
     if(ret < 0) {
         env.error("small roundtrips: connect failed")
-        ssl_free(&raw mut ctx)
+        ssl_free(unsafe(&raw mut ctx))
         test_kill_port(20109u)
         return
     }
@@ -507,19 +507,19 @@ public func E2E_many_small_roundtrips_fifty(env : &mut TestEnv) {
     var round : int = 0
     while(round < 50) {
         var msg = "x\0" as *char
-        ssl_write(&raw mut ctx, msg as *u8, 1)
-        var n = ssl_read(&raw mut ctx, &raw mut buf[0], 64)
+        ssl_write(unsafe(&raw mut ctx), msg as *u8, 1)
+        var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 64)
         if(n != 2 || buf[0] != 79 || buf[1] != 75) {
             env.error("small roundtrips: mismatch at round; aborting")
-            ssl_free(&raw mut ctx)
+            ssl_free(unsafe(&raw mut ctx))
             test_kill_port(20109u)
             return
         }
         round += 1
     }
 
-    ssl_close_notify(&raw mut ctx)
-    ssl_free(&raw mut ctx)
+    ssl_close_notify(unsafe(&raw mut ctx))
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(20109u)
 }
 
@@ -537,16 +537,16 @@ public func E2E_upload_96kb_pattern_validated(env : &mut TestEnv) {
     test_py_run_background(string_view("echo /tmp/tls_20110_cert.pem /tmp/tls_20110_key.pem 20110 1 98304"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 20110u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 20110u)
     if(ret < 0) {
         env.error("upload 96k: connect failed")
-        ssl_free(&raw mut ctx)
+        ssl_free(unsafe(&raw mut ctx))
         test_kill_port(20110u)
         return
     }
@@ -563,10 +563,10 @@ public func E2E_upload_96kb_pattern_validated(env : &mut TestEnv) {
             chunk[ci] = ((base + ci) % 251) as u8
             ci += 1
         }
-        var wret = ssl_write(&raw mut ctx, &raw chunk[0], 16384)
+        var wret = ssl_write(unsafe(&raw mut ctx), &raw chunk[0], 16384)
         if(wret < 0) {
             env.error("upload 96k: chunk write failed")
-            ssl_free(&raw mut ctx)
+            ssl_free(unsafe(&raw mut ctx))
             test_kill_port(20110u)
             return
         }
@@ -574,13 +574,13 @@ public func E2E_upload_96kb_pattern_validated(env : &mut TestEnv) {
     }
 
     var resp : [16]u8
-    var n = ssl_read(&raw mut ctx, &raw mut resp[0], 16)
+    var n = ssl_read(unsafe(&raw mut ctx), &raw mut resp[0], 16)
     if(n != 2 || resp[0] != 79 || resp[1] != 75) {
         env.error("upload 96k: server rejected payload (BAD or short read)")
     }
 
-    ssl_close_notify(&raw mut ctx)
-    ssl_free(&raw mut ctx)
+    ssl_close_notify(unsafe(&raw mut ctx))
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(20110u)
 }
 
@@ -595,16 +595,16 @@ public func E2E_upload_exact_max_fragment_16k(env : &mut TestEnv) {
     test_py_run_background(string_view("echo /tmp/tls_20111_cert.pem /tmp/tls_20111_key.pem 20111 1 16384"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 20111u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 20111u)
     if(ret < 0) {
         env.error("upload 16k: connect failed")
-        ssl_free(&raw mut ctx)
+        ssl_free(unsafe(&raw mut ctx))
         test_kill_port(20111u)
         return
     }
@@ -613,17 +613,17 @@ public func E2E_upload_exact_max_fragment_16k(env : &mut TestEnv) {
     var ci : size_t = 0
     while(ci < 16384) { chunk[ci] = (ci % 251) as u8; ci += 1 }
 
-    var wret = ssl_write(&raw mut ctx, &raw chunk[0], 16384)
+    var wret = ssl_write(unsafe(&raw mut ctx), &raw chunk[0], 16384)
     if(wret < 0) { env.error("upload 16k: exact-max write failed") }
 
     var resp : [16]u8
-    var n = ssl_read(&raw mut ctx, &raw mut resp[0], 16)
+    var n = ssl_read(unsafe(&raw mut ctx), &raw mut resp[0], 16)
     if(n != 2 || resp[0] != 79 || resp[1] != 75) {
         env.error("upload 16k: server rejected payload")
     }
 
-    ssl_close_notify(&raw mut ctx)
-    ssl_free(&raw mut ctx)
+    ssl_close_notify(unsafe(&raw mut ctx))
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(20111u)
 }
 
@@ -640,47 +640,47 @@ public func E2E_two_connections_interleaved_isolated(env : &mut TestEnv) {
     test_py_run_background(string_view("mround /tmp/tls_20112_cert.pem /tmp/tls_20112_key.pem 20113 1.3 2 1"))
     test_server_wait()
 
-    var ctxA : SSLContext; ssl_init(&raw mut ctxA)
+    var ctxA : SSLContext; ssl_init(unsafe(&raw mut ctxA))
     var cfgA = ssl_config_init(SSL_IS_CLIENT)
     cfgA.authmode = SSL_VERIFY_NONE
     cfgA.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctxA, &raw mut cfgA)
+    ssl_set_config(unsafe(&raw mut ctxA), &raw mut cfgA)
 
-    var ctxB : SSLContext; ssl_init(&raw mut ctxB)
+    var ctxB : SSLContext; ssl_init(unsafe(&raw mut ctxB))
     var cfgB = ssl_config_init(SSL_IS_CLIENT)
     cfgB.authmode = SSL_VERIFY_NONE
     cfgB.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctxB, &raw mut cfgB)
+    ssl_set_config(unsafe(&raw mut ctxB), &raw mut cfgB)
 
-    var retA = tls_connect(&raw mut ctxA, "127.0.0.1", 20112u)
-    var retB = tls_connect(&raw mut ctxB, "127.0.0.1", 20113u)
-    if(retA < 0) { env.error("parallel A: connect failed"); ssl_free(&raw mut ctxB); ssl_free(&raw mut ctxA); test_kill_port(20112u); test_kill_port(20113u); return }
-    if(retB < 0) { env.error("parallel B: connect failed"); ssl_free(&raw mut ctxB); ssl_free(&raw mut ctxA); test_kill_port(20112u); test_kill_port(20113u); return }
+    var retA = tls_connect(unsafe(&raw mut ctxA), "127.0.0.1", 20112u)
+    var retB = tls_connect(unsafe(&raw mut ctxB), "127.0.0.1", 20113u)
+    if(retA < 0) { env.error("parallel A: connect failed"); ssl_free(unsafe(&raw mut ctxB)); ssl_free(unsafe(&raw mut ctxA)); test_kill_port(20112u); test_kill_port(20113u); return }
+    if(retB < 0) { env.error("parallel B: connect failed"); ssl_free(unsafe(&raw mut ctxB)); ssl_free(unsafe(&raw mut ctxA)); test_kill_port(20112u); test_kill_port(20113u); return }
 
     var bufA : [64]u8
     var bufB : [64]u8
     var ping = "p\0" as *char
 
     // Round 1: write A, write B, then read B first (cross order).
-    ssl_write(&raw mut ctxA, ping as *u8, 1)
-    ssl_write(&raw mut ctxB, ping as *u8, 1)
-    var nb = ssl_read(&raw mut ctxB, &raw mut bufB[0], 64)
-    var na = ssl_read(&raw mut ctxA, &raw mut bufA[0], 64)
+    ssl_write(unsafe(&raw mut ctxA), ping as *u8, 1)
+    ssl_write(unsafe(&raw mut ctxB), ping as *u8, 1)
+    var nb = ssl_read(unsafe(&raw mut ctxB), &raw mut bufB[0], 64)
+    var na = ssl_read(unsafe(&raw mut ctxA), &raw mut bufA[0], 64)
     if(na != 2 || bufA[0] != 79 || bufA[1] != 75) { env.error("parallel: A round1 mismatch") }
     if(nb != 2 || bufB[0] != 79 || bufB[1] != 75) { env.error("parallel: B round1 mismatch") }
 
     // Round 2: reverse the write order too.
-    ssl_write(&raw mut ctxB, ping as *u8, 1)
-    ssl_write(&raw mut ctxA, ping as *u8, 1)
-    na = ssl_read(&raw mut ctxA, &raw mut bufA[0], 64)
-    nb = ssl_read(&raw mut ctxB, &raw mut bufB[0], 64)
+    ssl_write(unsafe(&raw mut ctxB), ping as *u8, 1)
+    ssl_write(unsafe(&raw mut ctxA), ping as *u8, 1)
+    na = ssl_read(unsafe(&raw mut ctxA), &raw mut bufA[0], 64)
+    nb = ssl_read(unsafe(&raw mut ctxB), &raw mut bufB[0], 64)
     if(na != 2 || bufA[0] != 79 || bufA[1] != 75) { env.error("parallel: A round2 mismatch") }
     if(nb != 2 || bufB[0] != 79 || bufB[1] != 75) { env.error("parallel: B round2 mismatch") }
 
-    ssl_close_notify(&raw mut ctxA)
-    ssl_close_notify(&raw mut ctxB)
-    ssl_free(&raw mut ctxA)
-    ssl_free(&raw mut ctxB)
+    ssl_close_notify(unsafe(&raw mut ctxA))
+    ssl_close_notify(unsafe(&raw mut ctxB))
+    ssl_free(unsafe(&raw mut ctxA))
+    ssl_free(unsafe(&raw mut ctxB))
     test_kill_port(20112u)
     test_kill_port(20113u)
 }
@@ -696,37 +696,37 @@ public func E2E_clean_close_returns_eof(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20114_cert.pem /tmp/tls_20114_key.pem 20114 1.3"))
     test_server_wait()
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
-    ssl_set_config(&raw mut ctx, &raw mut config)
+    ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = tls_connect(&raw mut ctx, "127.0.0.1", 20114u)
+    var ret = tls_connect(unsafe(&raw mut ctx), "127.0.0.1", 20114u)
     if(ret < 0) {
         env.error("clean close: connect failed")
-        ssl_free(&raw mut ctx)
+        ssl_free(unsafe(&raw mut ctx))
         test_kill_port(20114u)
         return
     }
 
     var req = "GET / HTTP/1.0\r\n\r\n"
-    ssl_write(&raw mut ctx, req as *u8, 18)
+    ssl_write(unsafe(&raw mut ctx), req as *u8, 18)
     var buf : [512]u8
-    var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+    var n = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("clean close: first read mismatch")
-        ssl_free(&raw mut ctx)
+        ssl_free(unsafe(&raw mut ctx))
         test_kill_port(20114u)
         return
     }
 
     // The python server closed cleanly: the next read must surface EOF
     // (close_notify -> 0, or socket FIN -> ERR_SSL_CONN_EOF), never hang.
-    var n2 = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
+    var n2 = ssl_read(unsafe(&raw mut ctx), &raw mut buf[0], 512)
     if(n2 > 0) { env.error("clean close: unexpected extra application data") }
 
-    ssl_free(&raw mut ctx)
+    ssl_free(unsafe(&raw mut ctx))
     test_kill_port(20114u)
 }
 

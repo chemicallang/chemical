@@ -8,21 +8,23 @@ public func INT_tls13_record_against_python(env : &mut TestEnv) {
     var server_iv : [12]u8; test_random_bytes(&raw mut server_iv[0], 12)
     var handshake_data : [23]u8; test_random_bytes(&raw mut handshake_data[0], 23)
 
-    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
 
-    var tr : Transform; transform_init(&raw mut tr)
+    var tr : Transform; transform_init(unsafe(&raw mut tr))
     tr.cipher_type = CIPHER_AES_128_GCM as u8
     tr.key_len = 16; tr.iv_len = 12; tr.fixed_iv_len = 12; tr.mac_key_len = 0
     var i : size_t = 0
     while(i<16) { tr.key_enc[i] = server_key[i]; tr.key_dec[i] = server_key[i]; i+=1 }
     i=0; while(i<12) { tr.base_iv_enc[i] = server_iv[i]; tr.base_iv_dec[i] = server_iv[i]; i+=1 }
 
-    var tr_out = malloc(sizeof(Transform)) as *mut Transform; *tr_out = tr; ctx.transform_out = tr_out
-    var tr_in = malloc(sizeof(Transform)) as *mut Transform; *tr_in = tr; ctx.transform_in = tr_in
+    var tr_out = malloc(sizeof(Transform)) as *mut Transform; *tr_out = tr
+    unsafe { ctx.transform_out = tr_out }
+    var tr_in = malloc(sizeof(Transform)) as *mut Transform; *tr_in = tr
+    unsafe { ctx.transform_in = tr_in }
     i=0; while(i<8){ctx.in_ctr[i]=0; ctx.out_ctr[i]=0; i+=1}
 
     var chem_enc : [256]u8
-    var chem_enc_len = tls13_encrypt_record(&raw mut ctx, SSL_MSG_HANDSHAKE as u8,
+    var chem_enc_len = tls13_encrypt_record(unsafe(&raw mut ctx), SSL_MSG_HANDSHAKE as u8,
                                              &raw handshake_data[0], 23,
                                              &raw mut chem_enc[0], 256)
     if(chem_enc_len < 0) { env.error("tls13_encrypt_record failed"); return } else {}
@@ -121,7 +123,7 @@ public func INT_tls13_record_against_python(env : &mut TestEnv) {
 
     var dec_buf : [256]u8
     var inner_ct : u8 = 0
-    var dec_len = tls13_decrypt_record(&raw mut ctx, &raw rec_bytes[5], 40, &raw mut dec_buf[0], 256, &raw mut inner_ct)
+    var dec_len = tls13_decrypt_record(unsafe(&raw mut ctx), &raw rec_bytes[5], 40, &raw mut dec_buf[0], 256, &raw mut inner_ct)
     if(dec_len < 0) {
         printf("[REC_TEST] tls13_decrypt_record failed ret=%d\n", dec_len)
         env.error("Chemical TLS 1.3 decrypt failed")

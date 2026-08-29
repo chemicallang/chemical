@@ -3,9 +3,9 @@
 #include "Value.h"
 #include "ast/base/TypeBuilder.h"
 #include "ast/values/StructValue.h"
-#include "ast/statements/Assignment.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/values/StructValue.h"
+#include "ast/values/UnsafeValue.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/Negative.h"
@@ -961,6 +961,8 @@ bool Value::is_func_call() {
 
 bool Value::is_ref_moved() {
     switch(val_kind()) {
+        case ValueKind::UnsafeValue:
+            return static_cast<UnsafeValue*>(this)->getValue()->is_ref_moved();
         case ValueKind::AccessChain:
             return as_access_chain_unsafe()->is_moved();
         case ValueKind::Identifier:

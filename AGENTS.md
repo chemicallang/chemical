@@ -1055,6 +1055,56 @@ The `#html { ... }` macro (processed by `html_cbi`):
   4. Emits `window.$_uc_h(htmlString, "ComponentName", props)` into the JS bundle
 - Prop values (`{expr}`) are C++ expressions evaluated at runtime
 
+**Critical rule:** You CANNOT split a `#html` block across multiple blocks. An element opened in one `#html` block must be closed in the same block.
+
+### `@{}` Escape Syntax for Dynamic Content
+
+Use `@{...}` to escape from JSX/HTML mode back to Chemical code inside `#html` blocks. Inside the escape, you can write any Chemical statement (loops, conditionals, variable declarations). Use nested `#html { }` blocks inside the escape to emit HTML elements.
+
+```chemical
+// Looping over data to generate HTML elements
+var items = // ... array of data from DB
+var idx : size_t = 0
+var count = items.size()
+
+#html {
+    <div class="grid-3">
+        @{while(idx < count) {
+            var item = items.get_ptr(idx)
+            var name = // extract field
+            var id = // extract field
+            var link = std::string("/detail/")
+            link.append_string(&int_to_string(id))
+            idx = idx + 1
+            #html {
+                <Card><CardBody>
+                    <CardTitle>{name}</CardTitle>
+                    <Link href={link}>View</Link>
+                </CardBody></Card>
+            }
+        }}
+    </div>
+}
+```
+
+```chemical
+// Conditional rendering
+#html {
+    <div>
+        @{if(has_data) {
+            <div class="grid-3">...</div>
+        } @else {
+            <div>No data available</div>
+        }}
+    </div>
+}
+```
+
+**Key rules:**
+- Always use `@{}` to write Chemical logic inside `#html` blocks
+- The index variable must be incremented BEFORE the nested `#html { }` block
+- Each `@{}` block must be self-contained
+
 ### Prop Serialization Gotchas
 
 When passing C++ values as props to universal components via `#html { <Comp prop={value} /> }`:

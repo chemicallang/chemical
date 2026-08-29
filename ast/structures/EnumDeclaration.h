@@ -82,12 +82,32 @@ public:
     }
 
     /**
-     * this gives the underlying integer type for the enum, it will not return
-     * nullptr, because we initialize enum with int type if no type is given by user
+     * Returns the underlying integer type of this enum.
+     *
+     * Explicit integer-type enums (`: int`, `: u8`, ...) have this resolved at
+     * parse time, and inherited enums get it during the symres pass. This getter
+     * also resolves it on demand as a fallback, by following the enum's actual
+     * underlying type: if it is an integer type we return it directly, and if it
+     * is an inherited enum we follow the parent chain (which always bottoms out
+     * at an explicit integer type). This makes resolution robust to the parallel
+     * per-file symres ordering, where an expression in one file can be
+     * type-checked before the referenced enum's symres pass has run.
      */
     [[nodiscard]]
     inline IntNType* get_underlying_integer_type() const {
-        return underlying_integer_type;
+        if(underlying_integer_type) return underlying_integer_type;
+        BaseType* ut = underlying_type;
+        if(ut) {
+            BaseType* can = ut->canonical();
+            if(can) {
+                if(can->kind() == BaseTypeKind::IntN) {
+                    return can->as_intn_type_unsafe();
+                }
+                EnumDeclaration* ed = can->get_direct_linked_enum();
+                if(ed) return ed->get_underlying_integer_type();
+            }
+        }
+        return nullptr;
     }
 
     /**
@@ -108,6 +128,7 @@ public:
             decl->members[member.first] = member.second->copy(allocator);
         }
         decl->next_start = next_start;
+        decl->underlying_integer_type = underlying_integer_type;
         return decl;
     }
 

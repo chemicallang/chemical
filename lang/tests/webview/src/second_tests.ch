@@ -17,14 +17,14 @@ using std::string_view
 
 // Module-level state is kept non-destructible (bools / pointers) to avoid the
 // top-level-destructor restriction on `string`.
-unsafe var g_method_ok : bool
-unsafe var g_args_ok : bool
-unsafe var g_result_ok : bool
-unsafe var g_eval_ok : bool
-unsafe var g_alpha : bool
-unsafe var g_beta : bool
-unsafe var g_gamma : bool
-unsafe var g_wv : *mut webview::WebView
+var g_method_ok : bool
+var g_args_ok : bool
+var g_result_ok : bool
+var g_eval_ok : bool
+var g_alpha : bool
+var g_beta : bool
+var g_gamma : bool
+var g_wv : *mut webview::WebView
 
 // Result callback for webview_evaluate_js_result: records that JS evaluation
 // produced "5" (2 + 3) and stops the run loop.

@@ -54,8 +54,8 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecl(ASTAllocator& allocator, Acces
             switch(token[1].type) {
                 case TokenType::VarKw:
                 case TokenType::ConstKw:
-                    token++;
-                    return parseVarInitializationTokens(allocator, spec, true, false, true, comptime, true);
+                    error("'unsafe var' / 'unsafe const' is no longer supported; write 'var x : Type' (uninitialized variables don't need the 'unsafe' keyword)");
+                    return nullptr;
                 default:
                     error("expected a variable declaration after 'unsafe' at this position");
                     return nullptr;
@@ -115,8 +115,8 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) 
             switch(token[1].type) {
                 case TokenType::VarKw:
                 case TokenType::ConstKw:
-                    token++;
-                    return parseVarInitializationTokens(allocator, AccessSpecifier::Internal, true, false, true, comptime, true);
+                    error("'unsafe var' / 'unsafe const' is no longer supported; write 'var x : Type' (uninitialized variables don't need the 'unsafe' keyword)");
+                    return nullptr;
                 default:
                     return (ASTNode*) parseUnsafeBlock(allocator);
             }
@@ -181,8 +181,8 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
             switch(token[1].type) {
                 case TokenType::VarKw:
                 case TokenType::ConstKw:
-                    token++;
-                    return parseVarInitializationTokens(allocator, AccessSpecifier::Internal, false, true, true, false, true);
+                    error("'unsafe var' / 'unsafe const' is no longer supported; write 'var x : Type' (uninitialized variables don't need the 'unsafe' keyword)");
+                    return nullptr;
                 default:
                     return (ASTNode*) parseUnsafeBlock(allocator);
             }

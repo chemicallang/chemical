@@ -29,7 +29,7 @@ struct GlobalVariableAutoZero {
     var b : int
 }
 
-unsafe var auto_zero_variable : GlobalVariableAutoZero
+var auto_zero_variable : GlobalVariableAutoZero
 
 namespace wrapped_variable {
     const thing = 3456
@@ -89,7 +89,7 @@ func test_var_init() {
         return x == 6;
     });
     test("can assign to a non initialized variable", () => {
-        unsafe var x : int
+        var x : int
         x = 6;
         return x == 6;
     })

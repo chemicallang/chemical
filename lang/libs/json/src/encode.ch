@@ -76,7 +76,7 @@ public func write_u64(output : &mut std::string, val : u64) {
 }
 
 public func write_double_raw(output : &mut std::string, val : double) {
-    unsafe var buf : char[64]
+    var buf : char[64]
     // %g picks the shortest of %e/%f style for the given precision and never
     // emits trailing zeros, so binary float noise (e.g. 3.14f -> 3.1400001049041748)
     // is trimmed to a clean decimal representation. 6 significant digits keeps

@@ -106,7 +106,7 @@ public namespace tls {
 
     // ─── Lazy Initialization ────────────────────────────────────────────────
 
-    private unsafe var _initialized : int
+    private var _initialized : int
 
     public func ensure_init() {
         if(_initialized == 0) {

@@ -48,7 +48,7 @@ func test_namespaces() {
         return p.a == 1 && p.b == 2;
     })
     test("namespace structs work without values", () => {
-        unsafe var p : cool::Pair2
+        var p : cool::Pair2
         p.a = 1;
         p.b = 2;
         return p.a == 1 && p.b == 2;
@@ -82,7 +82,7 @@ func test_namespaces() {
         return cool::pair2_ext_sum(&raw p) == 3;
     })
     test("typealias from namespace works", () => {
-        unsafe var t : cool::kinda_int
+        var t : cool::kinda_int
         t = 5;
         return t == 5;
     })

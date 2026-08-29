@@ -119,7 +119,7 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
         }
         if(cs == 0 as net::Socket) {
             env.error("python client never connected")
-            unsafe var errbuf : [512]u8
+            var errbuf : [512]u8
             var en = test_read_file("/tmp/sdv_err.txt", &raw mut errbuf[0], 511)
             if(en > 0) {
                 errbuf[en] = 0
@@ -176,7 +176,7 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
     if(ok) {
         srv_check_result_file(env, result_file.data())
     } else {
-        unsafe var errbuf2 : [512]u8
+        var errbuf2 : [512]u8
         var en2 = test_read_file("/tmp/sdv_err.txt", &raw mut errbuf2[0], 511)
         if(en2 > 0) { errbuf2[en2] = 0; printf("[SDV py-stderr] %s\n", &raw errbuf2[0]) }
     }
@@ -194,7 +194,7 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
 // Three GETs over ONE connection ("P:<target>" bodies, keep-alive framing).
 func sdv_loop_keepalive3(env : &mut TestEnv, ssl_mem : *mut SSLContext) : bool {
     const BUF_CAP : size_t = 16384u
-    unsafe var req_buf : [BUF_CAP]u8
+    var req_buf : [BUF_CAP]u8
     var filled : size_t = 0
     var consumed : size_t = 0
 
@@ -204,7 +204,7 @@ func sdv_loop_keepalive3(env : &mut TestEnv, ssl_mem : *mut SSLContext) : bool {
                                             &raw mut filled, &raw mut consumed)
         if(rret != 0) { env.error("keepalive3: request read failed"); return false }
 
-        unsafe var tgt : [256]u8
+        var tgt : [256]u8
         var tlen = sdv_request_target(&raw req_buf[0], consumed, &raw mut tgt[0], 255u)
 
         var resp = string("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: ")
@@ -232,7 +232,7 @@ func sdv_loop_keepalive3(env : &mut TestEnv, ssl_mem : *mut SSLContext) : bool {
 // client (RFC 9110 §9.3.2).
 func sdv_loop_head(env : &mut TestEnv, ssl_mem : *mut SSLContext) : bool {
     const BUF_CAP : size_t = 16384u
-    unsafe var req_buf : [BUF_CAP]u8
+    var req_buf : [BUF_CAP]u8
     var filled : size_t = 0
     var consumed : size_t = 0
 
@@ -253,7 +253,7 @@ func sdv_loop_head(env : &mut TestEnv, ssl_mem : *mut SSLContext) : bool {
 // framing corruption (or undecodable chunks) fails the roundtrip.
 func sdv_loop_chunkup(env : &mut TestEnv, ssl_mem : *mut SSLContext) : bool {
     const BUF_CAP : size_t = 16384u
-    unsafe var req_buf : [BUF_CAP]u8
+    var req_buf : [BUF_CAP]u8
     var filled : size_t = 0
     var consumed : size_t = 0
 
@@ -265,7 +265,7 @@ func sdv_loop_chunkup(env : &mut TestEnv, ssl_mem : *mut SSLContext) : bool {
     if(rret != 0) { env.error("chunkup: header read failed"); return false }
 
     // Accumulate body bytes until quiet.
-    unsafe var raw_body : [4096]u8
+    var raw_body : [4096]u8
     var raw_len : size_t = 0
     while(raw_len < 4096u) {
         var n = ssl_read(ssl_mem, (&raw mut raw_body[0]) + raw_len, (4096u - raw_len) as i32)
@@ -274,7 +274,7 @@ func sdv_loop_chunkup(env : &mut TestEnv, ssl_mem : *mut SSLContext) : bool {
     }
 
     // Dechunk per RFC 9112 §7.1: hex-size [;ext] CRLF data CRLF ... 0 CRLF trailers.
-    unsafe var decoded : [2048]u8
+    var decoded : [2048]u8
     var dlen : size_t = 0
     var pos : size_t = 0
     var done = false
@@ -359,7 +359,7 @@ func sdv_loop_chunkup(env : &mut TestEnv, ssl_mem : *mut SSLContext) : bool {
 // headers validated by python's parser.
 func sdv_loop_strict(env : &mut TestEnv, ssl_mem : *mut SSLContext) : bool {
     const BUF_CAP : size_t = 16384u
-    unsafe var req_buf : [BUF_CAP]u8
+    var req_buf : [BUF_CAP]u8
     var filled : size_t = 0
     var consumed : size_t = 0
 

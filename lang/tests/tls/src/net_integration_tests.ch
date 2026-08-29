@@ -122,7 +122,7 @@ public func NET_recv_partial_on_early_peer_close(env : &mut TestEnv) {
     }
 
     set_recv_timeout(cs, 3, 0)
-    unsafe var buf : [4096]u8
+    var buf : [4096]u8
     var n = recv_all(cs, &raw mut buf[0], 4096)
 
     if(n <= 0) {
@@ -172,7 +172,7 @@ public func NET_dial_resolves_localhost_hostname(env : &mut TestEnv) {
     }
 
     set_recv_timeout(cs, 3, 0)
-    unsafe var buf : [32]u8
+    var buf : [32]u8
     var n = recv_all(cs, &raw mut buf[0], 31)
 
     var ok = true

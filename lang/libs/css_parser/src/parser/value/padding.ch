@@ -22,8 +22,8 @@ func (cssParser : &mut CSSParser) parsePadding(
 
         var i = 0;
         while(i < 4) {
-            unsafe var next : CSSValue
-            if(cssParser.parseLength(parser, builder, &mut next)) {
+            var next : CSSValue
+            if(cssParser.parseLength(parser, builder, unsafe(&mut next))) {
 
                 multiple.values.push(next)
                 i++;

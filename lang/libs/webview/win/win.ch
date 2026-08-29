@@ -598,7 +598,7 @@ public type GetBrowserVersionFn = (browser_dir : LPCWSTR, version : *mut LPWSTR)
 
 func loader_ensure(lib : *mut HMODULE) : HMODULE {
     if(*lib == null) {
-        unsafe var wname : [64]ushort
+        var wname : [64]ushort
         widen_to_buf("WebView2Loader.dll", &raw mut wname[0], 64)
         *lib = LoadLibraryW(&raw wname[0] as LPCWSTR)
     }
@@ -767,7 +767,7 @@ func ctrl_invoke(s : *mut ICoreWebView2CreateCoreWebView2ControllerCompletedHand
     }
 
     var webview : *mut ICoreWebView2 = null
-    unsafe var token : EventRegistrationToken
+    var token : EventRegistrationToken
     controller.lpVtbl.get_CoreWebView2(controller, &raw mut webview)
     webview.lpVtbl.add_PermissionRequested(
         webview,
@@ -905,7 +905,7 @@ public struct WebView {
 
     @make
     func make() : WebView {
-        unsafe var wv : WebView
+        var wv : WebView
         memset(&raw mut wv, 0, sizeof(WebView))
         wv.win = window::Window.make()
         wv.title = string("Chemical WebView")
@@ -950,7 +950,7 @@ func wv_widget_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT
             // Deferred bridge response: execute the saved JS call from the
             // message loop, safe and not inside a COM callback.
             if(wv.pending_js_ready && wv.webview != null) {
-                unsafe var js_buf : [8192]ushort
+                var js_buf : [8192]ushort
                 widen_to_buf(wv.pending_js_call.data(), &raw mut js_buf[0], 8192)
                 wv.webview.lpVtbl.ExecuteScript(wv.webview, &raw js_buf[0], null)
                 wv.pending_js_ready = false
@@ -989,7 +989,7 @@ func wv_win_focus_cb(data : *mut void, focused : bool) {
 // embedded into. The name must stay valid for the lifetime of the window
 // (SetPropW does not copy it), so it lives in a module-level buffer that is
 // filled once before the first attach.
-unsafe var g_embed_prop_name : [32]ushort
+var g_embed_prop_name : [32]ushort
 var g_embed_prop_ready : int = 0
 
 func wv_ensure_embed_prop_name() {
@@ -1101,11 +1101,11 @@ func wv_embed(wv : *mut WebView, debug : int) : int {
     var ec = zeroed<EmbedCtx>()
     ec.wv = wv
 
-    unsafe var currentExePath : [260]ushort
+    var currentExePath : [260]ushort
     GetModuleFileNameW(null, &raw mut currentExePath[0], 260)
     var currentExeName = PathFindFileNameW(&raw currentExePath[0])
 
-    unsafe var dataPath : [260]ushort
+    var dataPath : [260]ushort
     if(FAILED(SHGetFolderPathW(null, CSIDL_APPDATA, null, 0, &raw mut dataPath[0]))) {
         return -4
     }
@@ -1135,7 +1135,7 @@ func wv_embed(wv : *mut WebView, debug : int) : int {
 
     // Pump the message loop until WebView2 has finished initialization.
     var got_quit_msg : int = 0
-    unsafe var msg : MSG
+    var msg : MSG
     while(ec.done == 0 && GetMessageW(&raw mut msg, null, 0, 0) >= 0) {
         if(msg.message == WM_QUIT) {
             got_quit_msg = 1
@@ -1184,7 +1184,7 @@ func wv_embed(wv : *mut WebView, debug : int) : int {
 
 func wv_resize_webview(wv : *mut WebView) {
     if(wv.widget != null && wv.controller != null) {
-        unsafe var bounds : RECT
+        var bounds : RECT
         if(GetClientRect(wv.widget, &raw mut bounds)) {
             wv.controller.lpVtbl.put_Bounds(wv.controller, bounds)
         }
@@ -1508,7 +1508,7 @@ func wv_inject_bridge(wv : *mut WebView) {
     if(wv.webview == null) {
         return
     }
-    unsafe var js_buf : [8192]ushort
+    var js_buf : [8192]ushort
     widen_to_buf(WEBVIEW_BRIDGE_JS, &raw mut js_buf[0], 8192)
     wv.webview.lpVtbl.AddScriptToExecuteOnDocumentCreated(wv.webview, &raw js_buf[0], null)
 }
@@ -1640,7 +1640,7 @@ func wv_init(wv : *mut WebView, debug : int) : int {
     var widget_wc = zeroed<WNDCLASSEXW>()
     widget_wc.cbSize = sizeof(WNDCLASSEXW) as UINT
     widget_wc.hInstance = hInstance
-    unsafe var widget_class_name : [64]ushort
+    var widget_class_name : [64]ushort
     widen_to_buf("webview_widget", &raw mut widget_class_name[0], 64)
     widget_wc.lpszClassName = &raw widget_class_name[0]
     widget_wc.lpfnWndProc = wv_widget_proc as window::WNDPROC
@@ -1704,7 +1704,7 @@ func wv_init(wv : *mut WebView, debug : int) : int {
             return -3
         }
         // size the widget to the window's current client area
-        unsafe var rc : RECT
+        var rc : RECT
         if(GetClientRect(wv.win.hwnd, &raw mut rc)) {
             MoveWindow(wv.widget, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, 1)
         }
@@ -1813,7 +1813,7 @@ public func webview_hide(wv : *mut WebView) {
 }
 
 public func webview_load_url(wv : *mut WebView, url : *char) {
-    unsafe var wbuf : [4096]ushort
+    var wbuf : [4096]ushort
     widen_to_buf(url, &raw mut wbuf[0], 4096)
     if(wv.webview != null) {
         wv.webview.lpVtbl.Navigate(wv.webview, &raw wbuf[0])
@@ -1821,7 +1821,7 @@ public func webview_load_url(wv : *mut WebView, url : *char) {
 }
 
 public func webview_evaluate_js(wv : *mut WebView, js : *char) {
-    unsafe var wbuf : [32768]ushort
+    var wbuf : [32768]ushort
     widen_to_buf(js, &raw mut wbuf[0], 32768)
     if(wv.webview != null) {
         wv.webview.lpVtbl.ExecuteScript(wv.webview, &raw wbuf[0], null)
@@ -1854,7 +1854,7 @@ public func webview_evaluate_js_result(
     // handler when ExecuteScript accepts it and Releases it after Invoke; the
     // Release that brings the count to 0 frees the struct (see js_release).
     h.ref_count = 0
-    unsafe var wbuf : [32768]ushort
+    var wbuf : [32768]ushort
     widen_to_buf(js, &raw mut wbuf[0], 32768)
     var res = wv.webview.lpVtbl.ExecuteScript(
         wv.webview,
@@ -1868,7 +1868,7 @@ public func webview_evaluate_js_result(
 }
 
 public func webview_load_html(wv : *mut WebView, html : *char) {
-    unsafe var wbuf : [65536]ushort
+    var wbuf : [65536]ushort
     widen_to_buf(html, &raw mut wbuf[0], 65536)
     if(wv.webview != null) {
         wv.webview.lpVtbl.NavigateToString(wv.webview, &raw wbuf[0])
@@ -1962,7 +1962,7 @@ public func webview_bind(wv : *mut WebView, handler : JsBindHandler) : std::Resu
     wmh.vtbl = &raw g_wmh_vtbl
     wmh.wv = wv
     wmh.ref_count = 1
-    unsafe var token : EventRegistrationToken
+    var token : EventRegistrationToken
     var reg_hr = wv.webview.lpVtbl.add_WebMessageReceived(
         wv.webview,
         wmh as *mut ICoreWebView2WebMessageReceivedEventHandler,
@@ -1999,7 +1999,7 @@ public func webview_set_size_hints(wv : *mut WebView, width : int, height : int,
 // Unlike evaluate_js which runs once, init scripts persist across navigations.
 public func webview_init(wv : *mut WebView, js : *char) {
     if(wv.webview == null) { return }
-    unsafe var wbuf : [32768]ushort
+    var wbuf : [32768]ushort
     widen_to_buf(js, &raw mut wbuf[0], 32768)
     wv.webview.lpVtbl.AddScriptToExecuteOnDocumentCreated(wv.webview, &raw wbuf[0], null)
 }

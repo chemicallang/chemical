@@ -51,14 +51,28 @@ func neg_uninit_addr_of_with_unsafe_ok(env : &mut TestEnv) {
 }
 
 @test
-func neg_unsafe_var_decl_accepted(env : &mut TestEnv) {
+func neg_uninit_var_decl_accepted(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    // `unsafe var` is accepted for backwards compatibility (it emits a deprecation
-    // warning) and is parsed exactly like `var` — the keyword no longer toggles any
-    // safe/unsafe flag. The uninitialized variable behaves like any other: it must be
-    // initialized before use.
+    // An uninitialized `var` is now accepted directly (no `unsafe` keyword needed).
+    // Assigning a value later fully initializes it.
+    var ch = "public func main() : int {\n    var x : i32\n    x = 5\n    return x\n}\n"
+    expect_compile_success(env, "uninit_var_decl_accepted", ch)
+}
+
+@test
+func neg_unsafe_var_decl_rejected(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // `unsafe var` is no longer supported by the parser.
     var ch = "public func main() : int {\n    unsafe var x : i32\n    x = 5\n    return x\n}\n"
-    expect_compile_success(env, "unsafe_var_decl_accepted", ch)
+    expect_compile_error(env, "unsafe_var_decl_rejected", ch, "no longer supported")
+}
+
+@test
+func neg_unsafe_const_decl_rejected(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // `unsafe const` is no longer supported by the parser.
+    var ch = "public func main() : int {\n    unsafe const x : i32 = 5\n    return x\n}\n"
+    expect_compile_error(env, "unsafe_const_decl_rejected", ch, "no longer supported")
 }
 
 @test

@@ -4,7 +4,7 @@ using namespace std;
 
 @test
 func test_path_basename_simple(env : &mut TestEnv) {
-    unsafe var buf : [4096]char;
+    var buf : [4096]char;
     var r = path::basename("/usr/bin/gcc", &raw mut buf[0], 4096);
     if(r is Result.Err) { env.error("basename failed"); return; }
     var Ok(len) = r else unreachable;
@@ -15,7 +15,7 @@ func test_path_basename_simple(env : &mut TestEnv) {
 
 @test
 func test_path_basename_root(env : &mut TestEnv) {
-    unsafe var buf : [4096]char;
+    var buf : [4096]char;
     var r = path::basename("/", &raw mut buf[0], 4096);
     if(r is Result.Err) { env.error("basename failed"); return; }
     var Ok(len) = r else unreachable;
@@ -26,7 +26,7 @@ func test_path_basename_root(env : &mut TestEnv) {
 
 @test
 func test_path_basename_empty(env : &mut TestEnv) {
-    unsafe var buf : [4096]char;
+    var buf : [4096]char;
     var r = path::basename("", &raw mut buf[0], 4096);
     if(r is Result.Err) { env.error("basename failed"); return; }
     var Ok(len) = r else unreachable;
@@ -37,7 +37,7 @@ func test_path_basename_empty(env : &mut TestEnv) {
 
 @test
 func test_path_dirname_simple(env : &mut TestEnv) {
-    unsafe var buf : [4096]char;
+    var buf : [4096]char;
     var r = path::dirname("/usr/bin/gcc", &raw mut buf[0], 4096);
     if(r is Result.Err) { env.error("dirname failed"); return; }
     var Ok(len) = r else unreachable;
@@ -49,7 +49,7 @@ func test_path_dirname_simple(env : &mut TestEnv) {
 
 @test
 func test_path_dirname_root(env : &mut TestEnv) {
-    unsafe var buf : [4096]char;
+    var buf : [4096]char;
     var r = path::dirname("/", &raw mut buf[0], 4096);
     if(r is Result.Err) { env.error("dirname failed"); return; }
     var Ok(len) = r else unreachable;
@@ -60,7 +60,7 @@ func test_path_dirname_root(env : &mut TestEnv) {
 
 @test
 func test_path_join_simple(env : &mut TestEnv) {
-    unsafe var buf : [4096]char;
+    var buf : [4096]char;
     var r = path::join("/usr", "bin", &raw mut buf[0], 4096);
     if(r is Result.Err) { env.error("join failed"); return; }
     var Ok(len) = r else unreachable;
@@ -72,7 +72,7 @@ func test_path_join_simple(env : &mut TestEnv) {
 
 @test
 func test_path_join_absolute_b(env : &mut TestEnv) {
-    unsafe var buf : [4096]char;
+    var buf : [4096]char;
     var r = path::join("/usr", "/bin", &raw mut buf[0], 4096);
     if(r is Result.Err) { env.error("join failed"); return; }
     var Ok(len) = r else unreachable;
@@ -83,7 +83,7 @@ func test_path_join_absolute_b(env : &mut TestEnv) {
 
 @test
 func test_path_join_trailing_sep(env : &mut TestEnv) {
-    unsafe var buf : [4096]char;
+    var buf : [4096]char;
     var r = path::join("/usr/", "bin", &raw mut buf[0], 4096);
     if(r is Result.Err) { env.error("join failed"); return; }
     var Ok(len) = r else unreachable;
@@ -95,7 +95,7 @@ func test_path_join_trailing_sep(env : &mut TestEnv) {
 
 @test
 func test_path_normalize_dotdot(env : &mut TestEnv) {
-    unsafe var buf : [4096]char;
+    var buf : [4096]char;
     var r = path::normalize("/usr/bin/../lib/file.txt", &raw mut buf[0], 4096);
     if(r is Result.Err) { env.error("normalize failed"); return; }
     var Ok(len) = r else unreachable;
@@ -110,7 +110,7 @@ func test_path_normalize_dotdot(env : &mut TestEnv) {
 
 @test
 func test_path_normalize_dot(env : &mut TestEnv) {
-    unsafe var buf : [4096]char;
+    var buf : [4096]char;
     var r = path::normalize("/usr/./bin", &raw mut buf[0], 4096);
     if(r is Result.Err) { env.error("normalize failed"); return; }
     var Ok(len) = r else unreachable;
@@ -122,7 +122,7 @@ func test_path_normalize_dot(env : &mut TestEnv) {
 
 @test
 func test_path_normalize_double_sep(env : &mut TestEnv) {
-    unsafe var buf : [4096]char;
+    var buf : [4096]char;
     var r = path::normalize("//usr///bin", &raw mut buf[0], 4096);
     if(r is Result.Err) { env.error("normalize failed"); return; }
     var Ok(len) = r else unreachable;
@@ -134,7 +134,7 @@ func test_path_normalize_double_sep(env : &mut TestEnv) {
 
 @test
 func test_path_normalize_relative_dotdot(env : &mut TestEnv) {
-    unsafe var buf : [4096]char;
+    var buf : [4096]char;
     var r = path::normalize("a/b/../c", &raw mut buf[0], 4096);
     if(r is Result.Err) { env.error("normalize failed"); return; }
     var Ok(len) = r else unreachable;
@@ -145,7 +145,7 @@ func test_path_normalize_relative_dotdot(env : &mut TestEnv) {
 
 @test
 func test_path_normalize_trailing_slash(env : &mut TestEnv) {
-    unsafe var buf : [4096]char;
+    var buf : [4096]char;
     var r = path::normalize("/usr/bin/", &raw mut buf[0], 4096);
     if(r is Result.Err) { env.error("normalize failed"); return; }
     var Ok(len) = r else unreachable;
@@ -157,7 +157,7 @@ func test_path_normalize_trailing_slash(env : &mut TestEnv) {
 
 @test
 func test_path_normalize_empty(env : &mut TestEnv) {
-    unsafe var buf : [4096]char;
+    var buf : [4096]char;
     var r = path::normalize("", &raw mut buf[0], 4096);
     if(r is Result.Err) { env.error("normalize failed"); return; }
     var Ok(len) = r else unreachable;
@@ -189,7 +189,7 @@ func test_path_has_root(env : &mut TestEnv) {
 
 @test
 func test_path_extension(env : &mut TestEnv) {
-    unsafe var buf : [256]char;
+    var buf : [256]char;
     var r = path::extension("file.txt", &raw mut buf[0], 256);
     if(r is Result.Err) { env.error("extension failed"); return; }
     var Ok(len) = r else unreachable;
@@ -200,7 +200,7 @@ func test_path_extension(env : &mut TestEnv) {
 
 @test
 func test_path_extension_no_ext(env : &mut TestEnv) {
-    unsafe var buf : [256]char;
+    var buf : [256]char;
     var r = path::extension("file", &raw mut buf[0], 256);
     if(r is Result.Err) { env.error("extension failed"); return; }
     var Ok(len) = r else unreachable;
@@ -211,7 +211,7 @@ func test_path_extension_no_ext(env : &mut TestEnv) {
 
 @test
 func test_path_extension_hidden(env : &mut TestEnv) {
-    unsafe var buf : [256]char;
+    var buf : [256]char;
     var r = path::extension(".gitignore", &raw mut buf[0], 256);
     if(r is Result.Err) { env.error("extension failed"); return; }
     var Ok(len) = r else unreachable;
@@ -222,7 +222,7 @@ func test_path_extension_hidden(env : &mut TestEnv) {
 
 @test
 func test_path_stem(env : &mut TestEnv) {
-    unsafe var buf : [256]char;
+    var buf : [256]char;
     var r = path::stem("file.txt", &raw mut buf[0], 256);
     if(r is Result.Err) { env.error("stem failed"); return; }
     var Ok(len) = r else unreachable;
@@ -233,7 +233,7 @@ func test_path_stem(env : &mut TestEnv) {
 
 @test
 func test_path_stem_no_ext(env : &mut TestEnv) {
-    unsafe var buf : [256]char;
+    var buf : [256]char;
     var r = path::stem("README", &raw mut buf[0], 256);
     if(r is Result.Err) { env.error("stem failed"); return; }
     var Ok(len) = r else unreachable;

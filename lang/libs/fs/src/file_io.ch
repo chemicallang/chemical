@@ -37,7 +37,7 @@ func file_write_all(f : *mut File, buf : *u8, buf_len : size_t) : Result<UnitTy,
 // util
 func int_to_str(v : int, out : *mut char, out_len : size_t) : size_t {
     if(out_len == 0) { return 0; }
-    unsafe var tmp : [32]char;
+    var tmp : [32]char;
     var i : size_t = 0;
     var val = v;
     if(val == 0) { out[0] = '0'; out[1] = 0; return 1; }
@@ -60,12 +60,12 @@ func int_to_str(v : int, out : *mut char, out_len : size_t) : size_t {
 public func atomic_write(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
     // write to temp in same dir then rename
     // compose tmp path: path + ".tmpXXXX"
-    unsafe var dir_buf : [PATH_MAX_BUF]char;
+    var dir_buf : [PATH_MAX_BUF]char;
     var r = dirname(path, &raw mut dir_buf[0], PATH_MAX_BUF as size_t);
     if(r is Result.Err) { var Err(e) = r else unreachable; return Result.Err(e); }
     var Ok(dir_len) = r else unreachable;
-    unsafe var tmpbuf : [PATH_MAX_BUF]char;
-    unsafe var tmpname : [64]char;
+    var tmpbuf : [PATH_MAX_BUF]char;
+    var tmpname : [64]char;
     var p : size_t = 0;
     while(p < dir_len) { tmpbuf[p] = dir_buf[p]; p++ }
     if(p > 0 && tmpbuf[p-1] != '/') { tmpbuf[p++] = '/'; }
@@ -93,7 +93,7 @@ public func atomic_write(path : *char, data : *u8, data_len : size_t) : Result<U
 
 public func read_entire_file(path : *char) : Result<std::vector<u8>, FsError> {
     // open file for reading
-    unsafe var opts : OpenOptions;
+    var opts : OpenOptions;
     opts.read = true;
     opts.write = false;
     opts.append = false;
@@ -162,7 +162,7 @@ public func read_entire_file(path : *char) : Result<std::vector<u8>, FsError> {
 
 
 public func read_to_buffer(path : *char, buf : *mut u8, buf_len : size_t) : Result<size_t, FsError> {
-    unsafe var opts : OpenOptions; 
+    var opts : OpenOptions; 
     opts.read = true; opts.write = false; opts.append = false; opts.create = false; opts.create_new = false; opts.truncate = false; opts.binary = true;
     var fo = file_open(path, opts);
     if(fo is Result.Err) {
@@ -184,7 +184,7 @@ public func read_to_buffer(path : *char, buf : *mut u8, buf_len : size_t) : Resu
 }
 
 public func write_text_file(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
-    unsafe var opts : OpenOptions; 
+    var opts : OpenOptions; 
     opts.read = false; opts.write = true; opts.append = false; opts.create = true; opts.create_new = false; opts.truncate = true; opts.binary = true;
     var fo = file_open(path, opts);
     if(fo is Result.Err) {

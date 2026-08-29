@@ -1,7 +1,7 @@
 public namespace bcrypt {
 
 public func generate_salt(cost : int) : std::string {
-    unsafe var entropy : [16]u8
+    var entropy : [16]u8
     if(!get_random_bytes(&raw mut entropy[0], 16u)) return std::string()
     
     var res = std::string()
@@ -11,7 +11,7 @@ public func generate_salt(cost : int) : std::string {
     res.append('$')
     
     // Entropy needs to be encoded
-    unsafe var entropy_words : [4]uint
+    var entropy_words : [4]uint
     memcpy(&raw mut entropy_words[0], &raw entropy[0], 16)
     // bcrypt expects Big Endian entropy usually, but crypt_blowfish does BF_swap on it
     // Let's just encode it using our bf_encode

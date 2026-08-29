@@ -10,8 +10,8 @@ public func PeekNamedPipe(hPipe : HANDLE, lpBuffer : *void, nBufferSize : DWORD,
 
 func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, timeout_ms : uint) : int {
 
-    unsafe var si : STARTUPINFOA
-    unsafe var pi : PROCESS_INFORMATION;
+    var si : STARTUPINFOA
+    var pi : PROCESS_INFORMATION;
     ZeroMemory(&raw mut si, sizeof(si));
     si.cb = sizeof(si);
     ZeroMemory(&raw mut pi, sizeof(pi));
@@ -78,8 +78,8 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
         }
     }
 
-    unsafe var buffer : [2048]char;
-    unsafe var bytesRead : DWORD;
+    var buffer : [2048]char;
+    var bytesRead : DWORD;
     // Poll the pipe for incoming messages with PeekNamedPipe and enforce the
     // overall test timeout at the top of every iteration (mirrors the posix
     // poll() read loop). WaitForSingleObject on a message-mode pipe can report
@@ -164,7 +164,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
             state.has_failed = true
             state.exitCode = 1 // dummy exit code for timeout
         } else {
-            unsafe var exitCode : DWORD;
+            var exitCode : DWORD;
             if (GetExitCodeProcess(pi.hProcess, &raw mut exitCode)) {
                 // set the exit code in state
                 state.exitCode = exitCode;

@@ -359,7 +359,7 @@ public namespace tls {
             // list only — explicit ciphersuite_list configs are honored
             // verbatim (an unsupported pick fails gracefully post-hello).
             var pref_src_count = num_preferred_ciphersuites()
-            unsafe var suite_list : [64]u16
+            var suite_list : [64]u16
             var pref_count : u32 = 0
             var i : u32 = 0
             while(i < pref_src_count && pref_count < 64) {
@@ -381,7 +381,7 @@ public namespace tls {
             }
 
             // Need to initialize fields one by one
-            unsafe var cfg : SSLConfig
+            var cfg : SSLConfig
             cfg.endpoint = endpoint_type
             cfg.transport = SSL_TRANSPORT_STREAM
             cfg.min_tls_version = SSL_VERSION_TLS1_2

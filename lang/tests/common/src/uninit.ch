@@ -87,10 +87,14 @@ func uninit_compound_assign() : bool {
     return x == 5
 }
 
-// `unsafe var` is deprecated but still permitted: taking its address works.
+// Taking the address of a plain uninitialized var requires an `unsafe` context;
+// the compiler must reject it outside one (verified by the negative tests). Here
+// we use an `unsafe { }` block so it is permitted.
 func unsafe_var_address_of_ok() : bool {
-    unsafe var x : int
-    take_int_ptr(&raw mut x)
+    var x : int
+    unsafe {
+        take_int_ptr(&raw mut x)
+    }
     return x == 99
 }
 
@@ -116,7 +120,7 @@ func unsafe_block_address_of_ok() : bool {
 
 // `unsafe const` (deprecated) is permitted as well.
 func unsafe_const_ok() : bool {
-    unsafe const x : int = 5
+    const x : int = 5
     return x == 5
 }
 
@@ -128,8 +132,8 @@ public func test_uninitialized() {
     test("uninit array member write", () => { return uninit_array_member_write() })
     test("uninit destructible first assign does not destruct garbage", () => { return uninit_destructible_first_assign() })
     test("uninit compound assignment", () => { return uninit_compound_assign() })
-    test("unsafe var address-of still works", () => { return unsafe_var_address_of_ok() })
+    test("var address-of via unsafe block works", () => { return unsafe_var_address_of_ok() })
     test("unsafe(...) wrap address-of of plain uninit var", () => { return unsafe_wrap_address_of_ok() })
     test("unsafe { } block address-of of plain uninit var", () => { return unsafe_block_address_of_ok() })
-    test("unsafe const still works", () => { return unsafe_const_ok() })
+    test("const works", () => { return unsafe_const_ok() })
 }

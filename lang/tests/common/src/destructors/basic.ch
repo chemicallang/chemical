@@ -436,7 +436,7 @@ func test_destructors() {
         var count = 0;
         var data_usable = false;
         if(count == 0){
-            unsafe var d : Destructible;
+            var d : Destructible;
             d.data = 426
             d.count = &raw mut count;
             d.lamb = (count : *mut int) => {
@@ -450,7 +450,7 @@ func test_destructors() {
         var count = 0;
         var data_usable = false;
         if(count == 0){
-            unsafe var d : DestructibleAlias;
+            var d : DestructibleAlias;
             d.data = 426
             d.count = &raw mut count;
             d.lamb = (count : *mut int) => {
@@ -633,12 +633,12 @@ func test_destructors() {
     test("destructor is not called on pointer types - 1", () => {
         var count = 0;
         if(count == 0) {
-            unsafe var d : Destructible
+            var d : Destructible
             d.count = &raw mut count;
             d.lamb = (count : *mut int) => {
                 *count = *count + 1;
             }
-            unsafe var x : *Destructible
+            var x : *Destructible
             x = &raw d;
             var y = &d
         }
@@ -647,7 +647,7 @@ func test_destructors() {
     test("destructor is not called on pointer types - 2", () => {
         var count = 0;
         if(count == 0) {
-            unsafe var d : Destructible
+            var d : Destructible
             d.count = &raw mut count;
             d.lamb = (count : *mut int) => {
                 *count = *count + 1;
@@ -687,7 +687,7 @@ func test_destructors() {
         if(count == 0) {
             var arr : [10]Destructible = [];
             var i = 0;
-            unsafe var ptr : *mut Destructible;
+            var ptr : *mut Destructible;
             while(i < 10) {
                 ptr = &raw mut arr[i];
                 ptr.count = &raw mut count;
@@ -704,7 +704,7 @@ func test_destructors() {
         if(count == 0) {
             var arr : [10]DestructibleAlias = [];
             var i = 0;
-            unsafe var ptr : *mut DestructibleAlias;
+            var ptr : *mut DestructibleAlias;
             while(i < 10) {
                 ptr = &raw mut arr[i];
                 ptr.count = &raw mut count;
@@ -719,9 +719,9 @@ func test_destructors() {
     test("array types are destructed", () => {
         var count = 0;
         if(count == 0) {
-            unsafe var arr : [10]Destructible;
+            var arr : [10]Destructible;
             var i = 0;
-            unsafe var ptr : *mut Destructible;
+            var ptr : *mut Destructible;
             while(i < 10) {
                 ptr = &raw mut arr[i];
                 ptr.count = &raw mut count;
@@ -736,9 +736,9 @@ func test_destructors() {
     test("array typealias types are destructed", () => {
         var count = 0;
         if(count == 0) {
-            unsafe var arr : [10]DestructibleAlias;
+            var arr : [10]DestructibleAlias;
             var i = 0;
-            unsafe var ptr : *mut DestructibleAlias;
+            var ptr : *mut DestructibleAlias;
             while(i < 10) {
                 ptr = &raw mut arr[i];
                 ptr.count = &raw mut count;

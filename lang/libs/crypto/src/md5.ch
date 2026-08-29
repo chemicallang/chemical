@@ -88,7 +88,7 @@ public func md5_final(ctx : *mut Md5Context, digest : *mut u8) {
     var pad_len : size_t = 0;
     if(ctx.buffer_pos < 56) { pad_len = 56 - ctx.buffer_pos; }
     else { pad_len = 120 - ctx.buffer_pos; }
-    unsafe var padding : [128]u8;
+    var padding : [128]u8;
     var i : size_t = 0;
     while(i < pad_len) {
         if(i == 0) { padding[i] = 0x80; }
@@ -96,7 +96,7 @@ public func md5_final(ctx : *mut Md5Context, digest : *mut u8) {
         i += 1;
     }
     md5_update(ctx, &raw padding[0], pad_len);
-    unsafe var count_bytes : [8]u8;
+    var count_bytes : [8]u8;
     count_bytes[0] = (count_bits & 0xFFu32) as u8;
     count_bytes[1] = ((count_bits >> 8) & 0xFFu32) as u8;
     count_bytes[2] = ((count_bits >> 16) & 0xFFu32) as u8;
@@ -118,16 +118,16 @@ public func md5_final(ctx : *mut Md5Context, digest : *mut u8) {
 }
 
 public func md5_hash(data : *u8, data_len : size_t, digest : *mut u8) {
-    unsafe var ctx : Md5Context;
-    md5_init(&raw mut ctx);
-    md5_update(&raw mut ctx, data, data_len);
-    md5_final(&raw mut ctx, digest);
+    var ctx : Md5Context;
+    md5_init(unsafe(&raw mut ctx));
+    md5_update(unsafe(&raw mut ctx), data, data_len);
+    md5_final(unsafe(&raw mut ctx), digest);
 }
 
 func md5_transform(ctx : *mut Md5Context, block : *u8) {
     var a = ctx.state[0]; var b = ctx.state[1];
     var c = ctx.state[2]; var d = ctx.state[3];
-    unsafe var x : [16]u32;
+    var x : [16]u32;
     var j : size_t = 0;
     while(j < 16) {
         x[j] = (block[j*4] as u32) | ((block[j*4+1] as u32) << 8) | ((block[j*4+2] as u32) << 16) | ((block[j*4+3] as u32) << 24);

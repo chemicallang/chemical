@@ -90,14 +90,15 @@ func parse_tar_entries(archive : *mut TarArchive) : std::Result<std::Unit, Archi
             is_dir = true
         }
 
-        unsafe var entry : ArchiveEntry
-        entry.name = full_name
-        entry.size = size
-        entry.compressed_size = size
-        entry.compression_method = 0
-        entry.crc32 = 0
-        entry.is_directory = is_dir
-        entry.offset = (pos + 512) as u64
+        var entry : ArchiveEntry = ArchiveEntry {
+            name: full_name,
+            size: size,
+            compressed_size: size,
+            compression_method: 0,
+            crc32: 0,
+            is_directory: is_dir,
+            offset: (pos + 512) as u64
+        }
 
         archive.entries.push(entry)
 
@@ -172,13 +173,13 @@ public func tar_read_entry(archive : *mut TarArchive, entry : *mut ArchiveEntry,
 }
 
 public func tar_read_file(archive : *mut TarArchive, name : *char) : std::Result<vector<u8>, ArchiveError> {
-    unsafe var entry : ArchiveEntry
-    var entry_result = tar_find_entry(archive, name, &raw mut entry)
+    var entry : ArchiveEntry
+    var entry_result = tar_find_entry(archive, name, unsafe(&raw mut entry))
     if(entry_result is Result.Err) {
         return std.Result.Err(ArchiveError.FileNotFound())
     }
     var content = vector<u8>()
-    var content_result = tar_read_entry(archive, &raw mut entry, &raw mut content)
+    var content_result = tar_read_entry(archive, unsafe(&raw mut entry), &raw mut content)
     if(content_result is Result.Err) {
         return std.Result.Err(ArchiveError.IoError(string("failed to read entry data")))
     }
@@ -186,8 +187,8 @@ public func tar_read_file(archive : *mut TarArchive, name : *char) : std::Result
 }
 
 public func tar_contains(archive : *mut TarArchive, name : *char) : bool {
-    unsafe var entry : ArchiveEntry
-    var r = tar_find_entry(archive, name, &raw mut entry)
+    var entry : ArchiveEntry
+    var r = tar_find_entry(archive, name, unsafe(&raw mut entry))
     return r is Result.Ok
 }
 

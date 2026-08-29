@@ -10,7 +10,7 @@ func test_fs_file_low_level_api(env : &mut TestEnv) {
     var p = make_child_path(&base, "low_level.bin");
     
     // Create and write
-    unsafe var opts : OpenOptions;
+    var opts : OpenOptions;
     opts.read = true;
     opts.write = true;
     opts.create = true;
@@ -37,7 +37,7 @@ func test_fs_file_low_level_api(env : &mut TestEnv) {
     expect_true(env, !(r_open2 is Result.Err), "file_open (read) failed");
     var Ok(f2) = r_open2 else unreachable;
 
-    unsafe var buf : [64]u8;
+    var buf : [64]u8;
     var r_read = fs::file_read(&raw mut f2, &raw mut buf[0], 64);
     expect_true(env, !(r_read is Result.Err), "file_read failed");
     var Ok(n_read) = r_read else unreachable;

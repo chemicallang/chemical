@@ -94,7 +94,7 @@ func test_int_edge_cases() {
     })
 
     test("neg i16 conditional reference", () => {
-        unsafe var check : bool
+        var check : bool
         if(-32768i16 < 30000i16) { check = true } else { check = false }
         return check
     })

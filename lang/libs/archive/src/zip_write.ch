@@ -25,14 +25,15 @@ public struct ZipWriteEntry {
 public func zip_writer_add_file(writer : *mut ZipWriter, name : *char, file_data : *u8, file_len : size_t) {
     var crc = crc32_compute(file_data, file_len)
 
-    unsafe var entry : ZipWriteEntry
-    entry.name = string("")
+    var entry : ZipWriteEntry = ZipWriteEntry {
+        name: string(""),
+        uncompressed_size: file_len as u32,
+        compressed_size: file_len as u32,
+        crc: crc,
+        method: 0, // STORE
+        local_header_offset: writer.data.size() as u32
+    }
     entry.name.append_char_ptr(name)
-    entry.uncompressed_size = file_len as u32
-    entry.compressed_size = file_len as u32
-    entry.crc = crc
-    entry.method = 0 // STORE
-    entry.local_header_offset = writer.data.size() as u32
 
     write_local_header(writer, name, file_len as u32, crc)
 

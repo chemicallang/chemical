@@ -776,7 +776,7 @@ public func FULL_https_streaming_body_small_reads(env : &mut TestEnv) {
 
     var total : size_t = 0
     var bad = false
-    unsafe var chunk : [1000]u8
+    var chunk : [1000]u8
     while(true) {
         var n = r.body.read(&raw mut chunk[0], 1000u)
         if(n < 0) { bad = true; break }
@@ -911,7 +911,7 @@ public func FULL_python_client_method_matrix_over_tls(env : &mut TestEnv) {
         var cs = srv_accept_with_retry(ls)
         if(cs == 0 as net::Socket) {
             env.error("methods matrix: client never connected")
-            unsafe var errbuf : [512]u8
+            var errbuf : [512]u8
             var en = test_read_file("/tmp/fm20_err.txt", &raw mut errbuf[0], 511)
             if(en > 0) { errbuf[en] = 0; printf("[FM20 py-stderr] %s\n", &raw errbuf[0]) }
             served_all = false
@@ -937,7 +937,7 @@ public func FULL_python_client_method_matrix_over_tls(env : &mut TestEnv) {
             dmsg.append_view(" round=")
             dmsg.append_integer(rounds)
             env.error(dmsg.data())
-            unsafe var errbuf2 : [512]u8
+            var errbuf2 : [512]u8
             var en2 = test_read_file("/tmp/fm20_err.txt", &raw mut errbuf2[0], 511)
             if(en2 > 0) { errbuf2[en2] = 0; printf("[FM20 py-stderr] %s\n", &raw errbuf2[0]) }
             ssl_free(ssl_mem); unsafe { dealloc ssl_mem }
@@ -946,7 +946,7 @@ public func FULL_python_client_method_matrix_over_tls(env : &mut TestEnv) {
             break
         }
 
-        unsafe var req_buf : [16384]u8
+        var req_buf : [16384]u8
         var filled : size_t = 0
         var consumed : size_t = 0
         var rret = full_read_request(ssl_mem, &raw mut req_buf[0], 16384u,
@@ -974,7 +974,7 @@ public func FULL_python_client_method_matrix_over_tls(env : &mut TestEnv) {
                          req_buf[3] == 69u && req_buf[4] == 84u && req_buf[5] == 69u)
 
         if(is_get || is_delete) {
-            unsafe var resp : [32]u8
+            var resp : [32]u8
             resp[0] = 77u   // 'M'
             resp[1] = 58u   // ':'
             var mi : size_t = 0

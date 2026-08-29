@@ -40,8 +40,8 @@ public func parse_bmp(data : *u8, data_len : size_t) : std::Result<Image, ImageE
         return std.Result.Err(ImageError.UnsupportedFormat(string("compressed BMP not supported")))
     }
 
-    unsafe var abs_height : int
-    unsafe var top_down : bool
+    var abs_height : int
+    var top_down : bool
     if(height < 0) {
         abs_height = -height
         top_down = true
@@ -66,7 +66,7 @@ public func parse_bmp(data : *u8, data_len : size_t) : std::Result<Image, ImageE
 
     var row : int = 0
     while(row < abs_height) {
-        unsafe var src_row : int
+        var src_row : int
         if(top_down) {
             src_row = row
         } else {
@@ -103,7 +103,7 @@ public func parse_bmp(data : *u8, data_len : size_t) : std::Result<Image, ImageE
 }
 
 public func save_bmp(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
-    unsafe var bpp : int
+    var bpp : int
     if(img.channels == 4) {
         bpp = 32
     } else if(img.channels == 3) {

@@ -106,7 +106,7 @@ func parse_font_header(font : *mut Font) : std::Result<std::Unit, FontError> {
         var table_offset = read_u32_be(font.data.data(), entry_offset + 8)
         var table_length = read_u32_be(font.data.data(), entry_offset + 12)
 
-        unsafe var table : FontTable
+        var table : FontTable
         table.tag = tag
         table.offset = table_offset
         table.length = table_length

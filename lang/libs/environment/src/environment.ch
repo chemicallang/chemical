@@ -31,7 +31,7 @@ public func get(name : string_view) : Option<string> {
         if(needed == 0) {
             return Option.None<string>()
         }
-        unsafe var buf : [4096]char
+        var buf : [4096]char
         var got = GetEnvironmentVariableA(name.data(), &raw mut buf[0], 4096)
         if(got == 0 || got >= 4096) {
             return Option.None<string>()
@@ -118,7 +118,7 @@ public func user_name() : Option<string> {
 /// Get the current working directory.
 public func current_dir() : Option<string> {
     comptime if(def.windows) {
-        unsafe var buf : [1024]char
+        var buf : [1024]char
         var len = GetCurrentDirectoryA(1024, &raw mut buf[0])
         if(len == 0 || len >= 1024) {
             return Option.None<string>()

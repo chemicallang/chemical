@@ -3,7 +3,7 @@ using namespace fs;
 
 @test
 func test_fs_path_basename(env : &mut TestEnv) {
-    unsafe var buf : [PATH_MAX_BUF]char;
+    var buf : [PATH_MAX_BUF]char;
     
     // Simple file
     var r1 = fs::basename("foo/bar/baz.txt", &raw mut buf[0], PATH_MAX_BUF as size_t);
@@ -33,7 +33,7 @@ func test_fs_path_basename(env : &mut TestEnv) {
 
 @test
 func test_fs_path_dirname(env : &mut TestEnv) {
-    unsafe var buf : [PATH_MAX_BUF]char;
+    var buf : [PATH_MAX_BUF]char;
     
     // Simple file
     var r1 = fs::dirname("foo/bar/baz.txt", &raw mut buf[0], PATH_MAX_BUF as size_t);
@@ -58,7 +58,7 @@ func test_fs_path_dirname(env : &mut TestEnv) {
 
 @test
 func test_fs_path_extension(env : &mut TestEnv) {
-    unsafe var buf : [PATH_MAX_BUF]char;
+    var buf : [PATH_MAX_BUF]char;
     
     // Simple extension
     var r1 = fs::extension("foo.txt", &raw mut buf[0], PATH_MAX_BUF as size_t);
@@ -83,7 +83,7 @@ func test_fs_path_extension(env : &mut TestEnv) {
 
 @test
 func test_fs_path_join(env : &mut TestEnv) {
-    unsafe var buf : [PATH_MAX_BUF]char;
+    var buf : [PATH_MAX_BUF]char;
     
     // Simple join
     var r1 = fs::join_path("foo", "bar", &raw mut buf[0], PATH_MAX_BUF as size_t);
@@ -103,7 +103,7 @@ func test_fs_path_join(env : &mut TestEnv) {
 
 @test
 func test_fs_path_normalize(env : &mut TestEnv) {
-    unsafe var buf : [PATH_MAX_BUF]char;
+    var buf : [PATH_MAX_BUF]char;
     
     // Resolve "."
     var r1 = fs::normalize_path("a/./b", &raw mut buf[0], PATH_MAX_BUF as size_t);

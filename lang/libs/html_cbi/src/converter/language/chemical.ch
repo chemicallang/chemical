@@ -4,8 +4,8 @@ func (converter : &mut ASTConverter) make_char_chain(value : char) : *mut Functi
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
 
-    unsafe var name : std::string_view
-    unsafe var fnPtr : *mut ASTNode
+    var name : std::string_view
+    var fnPtr : *mut ASTNode
     if(converter.in_head) {
         name = std::string_view("append_head_char")
         fnPtr = support.appendHeadCharFn
@@ -97,13 +97,13 @@ func (converter : &mut ASTConverter) make_value_call(value : *mut Value, len : s
     const builder = converter.builder
     const location = intrinsics::get_raw_location();
     var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
-    unsafe var name : std::string_view
+    var name : std::string_view
     if(converter.in_head) {
         name = std::string_view("append_head")
     } else {
         name = std::string_view("append_html")
     }
-    unsafe var node : *mut ASTNode
+    var node : *mut ASTNode
     if(converter.in_head) {
         node = converter.support.appendHeadFn
     } else {

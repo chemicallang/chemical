@@ -1,6 +1,6 @@
 func print_last_error(what : *char) {
     const err = GetLastError();
-    unsafe var msg : LPVOID;
+    var msg : LPVOID;
     FormatMessageA(
         (FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS) as DWORD,
         null, err, 0, (&mut msg) as LPSTR, 0, null

@@ -17,7 +17,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
     var id_str = std::string();
     append_integer(&mut id_str, id);
 
-    unsafe var sv : int[2]
+    var sv : int[2]
     if(socketpair(AF_UNIX, SOCK_STREAM as int, 0, sv) < 0) {
         return -1;
     }
@@ -26,7 +26,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
     append_integer(&mut comm_id_str, sv[1])
 
     // argv: [exe_path, "--test-id", "<id>", NULL]
-    unsafe var argv : [6]*char;
+    var argv : [6]*char;
     argv[0] = exe_path;
     argv[1] = "--test-id";
     argv[2] = id_str.data();
@@ -35,9 +35,9 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
     argv[5] = null;
 
    // initialize the spawn file actions
-   unsafe var pid : pid_t
-   unsafe var actions : posix_spawn_file_actions_t
-   var rc = posix_spawn_file_actions_init(&raw mut actions)
+   var pid : pid_t
+   var actions : posix_spawn_file_actions_t
+    var rc = posix_spawn_file_actions_init(unsafe(&raw mut actions))
    if(rc != 0) {
         var saved = get_errno();
         close(sv[0]); close(sv[1]);
@@ -46,16 +46,16 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
    }
 
    // Close original child-end fd in the child's table (optional, good hygiene)
-   posix_spawn_file_actions_addclose(&raw mut actions, sv[0]);
+    posix_spawn_file_actions_addclose(unsafe(&raw mut actions), sv[0]);
 
     // spawn the process. exe_path is always absolute here, so use posix_spawn
     // directly (no PATH search). posix_spawnp runs __execvpe in the child,
     // which uses a large PATH_MAX stack buffer and can overflow the small
     // stack musl allocates for the child (crashes on long PATH environments).
-    rc = posix_spawn(&raw mut pid, exe_path, &raw actions, null, argv, get_environ())
+    rc = posix_spawn(unsafe(&raw mut pid), exe_path, unsafe(&raw actions), null, argv, get_environ())
 
     // destroy the actions
-    posix_spawn_file_actions_destroy(&raw mut actions);
+    posix_spawn_file_actions_destroy(unsafe(&raw mut actions));
     if(rc != 0) {
         var saved = get_errno();
         close(sv[0]); close(sv[1]);
@@ -102,9 +102,9 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
         var poll_res = poll(&raw mut pfd, 1, 100); // 100ms
         if(poll_res == 0) {
             // check if child is still alive
-            unsafe var status : int
+            var status : int
             // WNOHANG = 1
-            if(waitpid(pid, &raw mut status, 1) > 0) {
+            if(waitpid(pid, unsafe(&raw mut status), 1) > 0) {
                 break;
             }
             continue;
@@ -114,13 +114,13 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
             break;
         }
 
-        unsafe var be_len : uint32_t;
-        var r = read_exact(parent_fd, &raw be_len, sizeof(be_len))
+        var be_len : uint32_t;
+            var r = read_exact(parent_fd, unsafe(&raw be_len), sizeof(be_len))
         if(r < 0) {
             var saved_errno = get_errno();
             close(parent_fd);
-            unsafe var status : int
-            waitpid(pid, &raw mut status, 0)
+            var status : int
+            waitpid(pid, unsafe(&raw mut status), 0)
             set_errno(saved_errno);
             return -1;
         }
@@ -135,8 +135,8 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
         var MAX_MSG = 100 * 1024 * 1024;
         if(len > MAX_MSG) {
             close(parent_fd)
-            unsafe var status : int
-            waitpid(pid, &raw mut status, 0)
+            var status : int
+            waitpid(pid, unsafe(&raw mut status), 0)
             set_errno(EPROTO)
             return -1;
         }
@@ -148,8 +148,8 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
             buf = malloc(len + 1) as *mut uint8_t
             if(!buf) {
                 close(parent_fd)
-                unsafe var status : int
-                waitpid(pid, &raw mut status, 0)
+                var status : int
+                waitpid(pid, unsafe(&raw mut status), 0)
                 set_errno(ENOMEM)
                 return -1;
             }
@@ -157,8 +157,8 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
             if(got < 0 || got as uint32_t != len) {
                 free(buf)
                 close(parent_fd)
-                unsafe var status : int
-                waitpid(pid, &raw mut status, 0)
+                var status : int
+                waitpid(pid, unsafe(&raw mut status), 0)
                 if(got >= 0) {
                     set_errno(EPROTO)
                 }
@@ -175,10 +175,10 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
 
     close(parent_fd);
 
-    unsafe var status : int
+    var status : int
     if(!timed_out) {
         // try to reap child to avoid zombie
-        if(waitpid(pid, &raw mut status, 0) < 0) {
+        if(waitpid(pid, unsafe(&raw mut status), 0) < 0) {
             return -1;
         }
 
@@ -189,7 +189,7 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
         }
     } else {
         // reap the killed process
-        waitpid(pid, &raw mut status, 0)
+        waitpid(pid, unsafe(&raw mut status), 0)
         state.exitCode = 1
     }
 

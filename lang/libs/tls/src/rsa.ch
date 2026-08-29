@@ -153,8 +153,8 @@ public namespace tls {
 
     // RSAVP1: c = m^e mod N
     public func rsa_public(ctx : *mut RSAContext, input : *u8, output : *mut u8) : int {
-        unsafe var M : Mpi; mpi_init(&raw mut M)
-        unsafe var C : Mpi; mpi_init(&raw mut C)
+        var M : Mpi; mpi_init(&raw mut M)
+        var C : Mpi; mpi_init(&raw mut C)
 
         var ret = mpi_read_binary(&raw mut M, input, ctx.len)
         if(ret < 0) { return ret }
@@ -257,8 +257,8 @@ public namespace tls {
         if(sig_len != ctx.len) { return ERR_RSA_BAD_INPUT_DATA }
 
         // Decrypt signature: EM = S^E mod N
-        unsafe var em : Mpi; mpi_init(&raw mut em)
-        unsafe var sig_m : Mpi; mpi_init(&raw mut sig_m)
+        var em : Mpi; mpi_init(&raw mut em)
+        var sig_m : Mpi; mpi_init(&raw mut sig_m)
 
         var ret = mpi_read_binary(&raw mut sig_m, sig, sig_len)
         if(ret < 0) { return ret }
@@ -266,7 +266,7 @@ public namespace tls {
         ret = mpi_exp_mod(&raw mut em, &raw mut sig_m, &raw mut ctx.E, &raw mut ctx.N)
         if(ret < 0) { return ret }
 
-        unsafe var em_buf : [512]u8
+        var em_buf : [512]u8
         ret = mpi_write_binary(&raw mut em, &raw mut em_buf[0], sig_len)
         if(ret < 0) { return ret }
 
@@ -282,7 +282,7 @@ public namespace tls {
         }
 
         // Get the DigestInfo prefix for this hash algorithm
-        unsafe var prefix : [19]u8
+        var prefix : [19]u8
         var prefix_len : size_t = 0
         rsa_get_digest_info(digest_len, &raw mut prefix[0], &raw mut prefix_len)
 
@@ -314,8 +314,8 @@ public namespace tls {
 
     // RSADP: m = c^d mod N (without CRT - simpler, slower)
     func rsa_private(ctx : *mut RSAContext, input : *u8, output : *mut u8) : int {
-        unsafe var C : Mpi; mpi_init(&raw mut C)
-        unsafe var M : Mpi; mpi_init(&raw mut M)
+        var C : Mpi; mpi_init(&raw mut C)
+        var M : Mpi; mpi_init(&raw mut M)
 
         var ret = mpi_read_binary(&raw mut C, input, ctx.len)
         if(ret < 0) { return ret }
@@ -337,7 +337,7 @@ public namespace tls {
                                    expected_max_len : size_t) : int {
         if(input_len != ctx.len) { return ERR_RSA_BAD_INPUT_DATA }
 
-        unsafe var buf : [512]u8
+        var buf : [512]u8
         var ret = rsa_private(ctx, input, &raw mut buf[0])
         if(ret < 0) { return ret }
 
@@ -393,31 +393,31 @@ public namespace tls {
         if((n.p[0] & 1) == 0) { return false }
 
         // Write n-1 = d * 2^s with d odd
-        unsafe var one : Mpi; mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
-        unsafe var nm1 : Mpi; mpi_init(&raw mut nm1)
+        var one : Mpi; mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
+        var nm1 : Mpi; mpi_init(&raw mut nm1)
         var ret = mpi_sub(&raw mut nm1, n, &raw mut one)
         if(ret < 0) { return false }
-        unsafe var d : Mpi; mpi_init(&raw mut d); mpi_copy(&raw mut d, &raw mut nm1)
+        var d : Mpi; mpi_init(&raw mut d); mpi_copy(&raw mut d, &raw mut nm1)
         var s : size_t = 0
         while((d.p[0] & 1) == 0) {
             mpi_shift_r(&raw mut d, 1)
             s += 1
         }
 
-        unsafe var base : Mpi; mpi_init(&raw mut base)
-        unsafe var x : Mpi; mpi_init(&raw mut x)
-        unsafe var two : Mpi; mpi_init(&raw mut two); mpi_lset(&raw mut two, 2)
+        var base : Mpi; mpi_init(&raw mut base)
+        var x : Mpi; mpi_init(&raw mut x)
+        var two : Mpi; mpi_init(&raw mut two); mpi_lset(&raw mut two, 2)
 
         var r : size_t = 0
         while(r < rounds) {
             // Random base a in [2, n-2]
             var nb = mpi_size(n)
-            unsafe var rbuf : [256]u8
+            var rbuf : [256]u8
             ret = random_fill(&raw mut rbuf[0], nb)
             if(ret < 0) { return false }
             mpi_read_binary(&raw mut base, &raw mut rbuf[0], nb)
-            unsafe var three : Mpi; mpi_init(&raw mut three); mpi_lset(&raw mut three, 3)
-            unsafe var nm3 : Mpi; mpi_init(&raw mut nm3)
+            var three : Mpi; mpi_init(&raw mut three); mpi_lset(&raw mut three, 3)
+            var nm3 : Mpi; mpi_init(&raw mut nm3)
             ret = mpi_sub(&raw mut nm3, n, &raw mut three)
             if(ret < 0) { return false }
             mpi_mod(&raw mut base, &raw mut base, &raw mut nm3)
@@ -447,7 +447,7 @@ public namespace tls {
     func rsa_gen_prime(out : *mut Mpi, nbits : size_t, rounds : size_t) : int {
         if(nbits < 16) { return ERR_RSA_KEY_GEN_FAILED }
         var nbytes = (nbits + 7) / 8
-        unsafe var buf : [256]u8
+        var buf : [256]u8
 
         var attempt : size_t = 0
         while(attempt < 2000) {
@@ -463,13 +463,13 @@ public namespace tls {
             buf[top_byte] = buf[top_byte] | (1u8 << bit_idx)
             buf[nbytes - 1] = buf[nbytes - 1] | 1u8
 
-            unsafe var cand : Mpi; mpi_init(&raw mut cand)
+            var cand : Mpi; mpi_init(&raw mut cand)
             ret = mpi_read_binary(&raw mut cand, &raw mut buf[0], nbytes)
             if(ret < 0) { return ret }
 
             // Fast trial division by small primes
-            unsafe var sm : Mpi; mpi_init(&raw mut sm)
-            unsafe var rem : Mpi; mpi_init(&raw mut rem)
+            var sm : Mpi; mpi_init(&raw mut sm)
+            var rem : Mpi; mpi_init(&raw mut rem)
             var divisible = false
             var j : size_t = 0
             while(j < 63 && small_primes[j] != 0) {
@@ -504,11 +504,11 @@ public namespace tls {
         else if(p_bits >= 256) { mr_rounds = 24 }
         else { mr_rounds = 40 }
 
-        unsafe var one : Mpi; mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
-        unsafe var p1 : Mpi; mpi_init(&raw mut p1)
-        unsafe var q1 : Mpi; mpi_init(&raw mut q1)
-        unsafe var phi : Mpi; mpi_init(&raw mut phi)
-        unsafe var g : Mpi; mpi_init(&raw mut g)
+        var one : Mpi; mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
+        var p1 : Mpi; mpi_init(&raw mut p1)
+        var q1 : Mpi; mpi_init(&raw mut q1)
+        var phi : Mpi; mpi_init(&raw mut phi)
+        var g : Mpi; mpi_init(&raw mut g)
 
         var ret : int = 0
         var phi_gcd_ok = false

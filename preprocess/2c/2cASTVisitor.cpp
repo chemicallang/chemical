@@ -4676,7 +4676,10 @@ void ToCAstVisitor::visit_scope(Scope *scope, unsigned destruct_begin) {
         destructor.destroy_current_scope = true;
     }
     auto itr = destructor.destruct_jobs.begin() + destruct_begin;
-    destructor.destruct_jobs.erase(itr, destructor.destruct_jobs.end());
+    const auto end_itr = destructor.destruct_jobs.end();
+    if (itr < end_itr) {
+        destructor.destruct_jobs.erase(itr, end_itr);
+    }
     current_scope = prev_scope;
 }
 

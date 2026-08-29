@@ -388,7 +388,7 @@ public struct WindowCtx {
 // array literal at module scope (ArrayValue::element_type() returns null for
 // `[]`), while a type-only global takes the safe zero-init path in both
 // backends. The buffer is filled by win_ctx_key() on first use.
-unsafe var g_win_ctx_key : [32]char
+var g_win_ctx_key : [32]char
 var g_win_ctx_key_ready : int = 0
 
 // g_object_set_data_full stores the key POINTER, not a copy, so the key
@@ -1067,7 +1067,7 @@ public func window_post_empty_event() {
 /// any clipboard call; doing it here (rather than relying on the caller having
 /// created a window first) keeps the clipboard API self-contained while only
 /// paying the init cost a single time per process.
-unsafe var g_gtk_initialized : bool = false
+var g_gtk_initialized : bool = false
 func ensure_gtk_init() {
     if(!g_gtk_initialized) {
         var argc : int = 0
@@ -1112,10 +1112,10 @@ public func window_set_clipboard(text : string_view) : bool {
 @extern public func g_source_remove(tag : u32) : int
 
 comptime const MAX_TIMERS : int = 16
-unsafe var g_timer_cbs : [16]TimerCallback
-unsafe var g_timer_data : [16]*mut void
-unsafe var g_timer_used : [16]bool
-unsafe var g_timer_ids : [16]u32
+var g_timer_cbs : [16]TimerCallback
+var g_timer_data : [16]*mut void
+var g_timer_used : [16]bool
+var g_timer_ids : [16]u32
 
 func linux_timer_wrapper(data : *mut void) : int {
     // data is the timer index (as a pointer)

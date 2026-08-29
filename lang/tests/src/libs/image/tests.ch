@@ -517,7 +517,7 @@ func build_tiny_png_generic(width : int, height : int, bpp : int, color_type : u
     png_write_be32(cp, cpos, chk); cpos += 4
 
     // IHDR
-    unsafe var ihdr : [13]u8
+    var ihdr : [13]u8
     png_write_be32(&raw mut ihdr[0], 0, width as u32)
     png_write_be32(&raw mut ihdr[0], 4, height as u32)
     ihdr[8] = 8; ihdr[9] = color_type; ihdr[10] = 0; ihdr[11] = 0; ihdr[12] = 0
@@ -744,7 +744,7 @@ public func image_bmp_save_load_roundtrip(env : &mut TestEnv) {
 
 @test
 public func image_bmp_invalid_bit_count(env : &mut TestEnv) {
-    unsafe var buf : [54]u8
+    var buf : [54]u8
     buf[0] = 0x42 as u8; buf[1] = 0x4D as u8
     buf[28] = 1 as u8
     var result = image::parse_bmp(&raw buf[0], 54)
@@ -771,7 +771,7 @@ public func image_bmp_parse_8bit_gray(env : &mut TestEnv) {
 
 @test
 public func image_bmp_too_small(env : &mut TestEnv) {
-    unsafe var small : [10]u8
+    var small : [10]u8
     var result = image::parse_bmp(&raw small[0], 10)
     if(result is Result.Ok) { env.error("should fail on <54 bytes") }
 }

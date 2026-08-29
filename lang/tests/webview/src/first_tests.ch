@@ -16,7 +16,7 @@ struct BridgeTestState {
     var wv_ptr : *mut webview::WebView
 }
 
-unsafe var g_state_ptr : *mut BridgeTestState = null
+var g_state_ptr : *mut BridgeTestState = null
 
 func ensure_state() {
     if(g_state_ptr == null) {

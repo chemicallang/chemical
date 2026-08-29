@@ -199,7 +199,7 @@ public namespace std {
         func to_float(&self) : std::Result<float, std::string_view> {
             if (_size == 0) return std::Result.Err(std::string_view("empty string"))
             if (_size < 128) {
-                unsafe var buf : [128]char
+                var buf : [128]char
                 unsafe {
                     memcpy(&raw mut buf[0], _data, _size)
                     buf[_size] = '\0'
@@ -218,7 +218,7 @@ public namespace std {
         func to_double(&self) : std::Result<double, std::string_view> {
             if (_size == 0) return std::Result.Err(std::string_view("empty string"))
             if (_size < 128) {
-                unsafe var buf : [128]char
+                var buf : [128]char
                 unsafe {
                     memcpy(&raw mut buf[0], _data, _size)
                     buf[_size] = '\0'

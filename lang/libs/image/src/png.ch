@@ -129,7 +129,7 @@ struct PngHuffTable {
 }
 
 func png_build_huff(lengths : *u8, num : int, out : *mut PngHuffTable) : Result<std::Unit, ImageError> {
-    unsafe var bl_count : [PNG_MAX_HUFF_BITS + 1]u32
+    var bl_count : [PNG_MAX_HUFF_BITS + 1]u32
     var i : int = 0
     while(i <= PNG_MAX_HUFF_BITS) { bl_count[i] = 0; i += 1 }
 
@@ -147,7 +147,7 @@ func png_build_huff(lengths : *u8, num : int, out : *mut PngHuffTable) : Result<
         i += 1
     }
 
-    unsafe var next_code : [PNG_MAX_HUFF_BITS + 1]u32
+    var next_code : [PNG_MAX_HUFF_BITS + 1]u32
     var code : u32 = 0
     i = 1
     while(i <= PNG_MAX_HUFF_BITS) {
@@ -164,7 +164,7 @@ func png_build_huff(lengths : *u8, num : int, out : *mut PngHuffTable) : Result<
     while(i < num) {
         var l = lengths[i] as int
         if(l > 0) {
-            unsafe var e : PngHuffEntry
+            var e : PngHuffEntry
             e.code = next_code[l] as u16
             e.bits = l as u8
             e.value = i as u16
@@ -227,8 +227,8 @@ func png_raw_deflate(input : *u8, input_len : size_t, output : *mut u8, out_capa
                 i += 1
             }
         } else if(btype == 1 || btype == 2) {
-            unsafe var lit_lens : [PNG_MAX_HUFF]u8
-            unsafe var dist_lens : [32]u8
+            var lit_lens : [PNG_MAX_HUFF]u8
+            var dist_lens : [32]u8
             var num_lit : int = 288
             var num_dist : int = 0
 
@@ -249,7 +249,7 @@ func png_raw_deflate(input : *u8, input_len : size_t, output : *mut u8, out_capa
                 num_dist = hdist
 
                 var cl_order : [19]int = [16,17,18,0,8,7,9,6,10,5,11,4,12,3,13,2,14,1,15]
-                unsafe var cl_lens : [19]u8
+                var cl_lens : [19]u8
                 var k : int = 0
                 while(k < 19) { cl_lens[k] = 0; k += 1 }
                 k = 0
@@ -258,14 +258,14 @@ func png_raw_deflate(input : *u8, input_len : size_t, output : *mut u8, out_capa
                     k += 1
                 }
 
-                unsafe var cl_table : PngHuffTable
-                var cl_res = png_build_huff(&raw cl_lens[0], 19, &raw mut cl_table)
+                var cl_table : PngHuffTable
+                var cl_res = png_build_huff(&raw cl_lens[0], 19, unsafe(&raw mut cl_table))
                 if(cl_res is Result.Err) { return Result.Err(ImageError.InvalidFormat(string("bad code length huffman table"))) }
 
                 var total = hlit + hdist
                 var idx = 0
                 while(idx < total) {
-                    var sym = png_decode_huff(&raw mut reader, &raw mut cl_table) as int
+                    var sym = png_decode_huff(&raw mut reader, unsafe(&raw mut cl_table)) as int
                     if(sym <= 15) {
                         if(idx < hlit) { lit_lens[idx] = sym as u8 }
                         else { dist_lens[idx - hlit] = sym as u8 }
@@ -303,16 +303,16 @@ func png_raw_deflate(input : *u8, input_len : size_t, output : *mut u8, out_capa
                 }
             }
 
-            unsafe var lit_table : PngHuffTable
-            var lit_res = png_build_huff(&raw lit_lens[0], num_lit, &raw mut lit_table)
+            var lit_table : PngHuffTable
+            var lit_res = png_build_huff(&raw lit_lens[0], num_lit, unsafe(&raw mut lit_table))
             if(lit_res is Result.Err) { return Result.Err(ImageError.InvalidFormat(string("bad literal huffman table"))) }
 
-            unsafe var dist_table : PngHuffTable
-            var dist_res = png_build_huff(&raw dist_lens[0], num_dist, &raw mut dist_table)
+            var dist_table : PngHuffTable
+            var dist_res = png_build_huff(&raw dist_lens[0], num_dist, unsafe(&raw mut dist_table))
             if(dist_res is Result.Err) { return Result.Err(ImageError.InvalidFormat(string("bad distance huffman table"))) }
 
             loop {
-                var sym = png_decode_huff(&raw mut reader, &raw mut lit_table)
+                var sym = png_decode_huff(&raw mut reader, unsafe(&raw mut lit_table))
                 if(sym < 256) {
                     if(out_pos >= out_capacity) {
                         return Result.Err(ImageError.InvalidFormat(string("deflate output full")))
@@ -330,7 +330,7 @@ func png_raw_deflate(input : *u8, input_len : size_t, output : *mut u8, out_capa
                     }
                     var length = len_base[li] + reader.read_bits(len_extra[li]) as int
 
-                    var dist_sym = png_decode_huff(&raw mut reader, &raw mut dist_table)
+                    var dist_sym = png_decode_huff(&raw mut reader, unsafe(&raw mut dist_table))
                     var dist_extra : [30]int = [0,0,0,0,1,1,2,2,3,3,4,4,5,5,6,6,7,7,8,8,9,9,10,10,11,11,12,12,13,13]
                     var dist_base : [30]int = [1,2,3,4,5,7,9,13,17,25,33,49,65,97,129,193,257,385,513,769,1025,1537,2049,3073,4097,6145,8193,12289,16385,24577]
                     var di = dist_sym as int
@@ -800,7 +800,7 @@ public func save_png(img : *mut Image, path : *char) : std::Result<std::Unit, Im
     wpos = 8
 
     // IHDR chunk (13 bytes of data)
-    unsafe var ihdr : [13]u8
+    var ihdr : [13]u8
     ihdr[0] = ((img.width as u32) >> 24) as u8; ihdr[1] = ((img.width as u32) >> 16) as u8
     ihdr[2] = ((img.width as u32) >> 8) as u8; ihdr[3] = (img.width as u32) as u8
     ihdr[4] = ((img.height as u32) >> 24) as u8; ihdr[5] = ((img.height as u32) >> 16) as u8

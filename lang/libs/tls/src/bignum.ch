@@ -109,7 +109,7 @@ public namespace tls {
     }
 
     public func mpi_cmp_int(m : *mut Mpi, val : i64) : int {
-        unsafe var tmp : Mpi; mpi_init(&raw mut tmp); mpi_lset(&raw mut tmp, val)
+        var tmp : Mpi; mpi_init(&raw mut tmp); mpi_lset(&raw mut tmp, val)
         return mpi_cmp(m, &raw mut tmp)
     }
 
@@ -207,13 +207,13 @@ public namespace tls {
         mpi_trim(a); mpi_trim(b)
         if(a.n == 0 || b.n == 0) { mpi_lset(x, 0); return 0 }
         // Handle input/output aliasing: save a and b before zeroing x
-        unsafe var a_sav : Mpi; mpi_init(&raw mut a_sav)
-        unsafe var b_sav : Mpi; mpi_init(&raw mut b_sav)
+        var a_sav : Mpi; mpi_init(&raw mut a_sav)
+        var b_sav : Mpi; mpi_init(&raw mut b_sav)
         if(a == x) { mpi_copy(&raw mut a_sav, a); a = &raw mut a_sav }
         if(b == x) { mpi_copy(&raw mut b_sav, b); b = &raw mut b_sav }
         // a * b = sum over j of (a * b.p[j]) * 2^(32*j)
         mpi_lset(x, 0)
-        unsafe var tmp : Mpi; mpi_init(&raw mut tmp)
+        var tmp : Mpi; mpi_init(&raw mut tmp)
         var j : size_t = 0
         while(j < b.n) {
             var ret = mpi_mul_int(&raw mut tmp, a, b.p[j])
@@ -257,8 +257,8 @@ public namespace tls {
         }
 
         var sign = a.s * b.s
-        unsafe var A : Mpi; mpi_init(&raw mut A); mpi_copy(&raw mut A, a); A.s = 1
-        unsafe var B : Mpi; mpi_init(&raw mut B); mpi_copy(&raw mut B, b); B.s = 1
+        var A : Mpi; mpi_init(&raw mut A); mpi_copy(&raw mut A, a); A.s = 1
+        var B : Mpi; mpi_init(&raw mut B); mpi_copy(&raw mut B, b); B.s = 1
 
         if(mpi_cmp_abs(&raw mut A, &raw mut B) < 0) {
             if(q != null) { mpi_lset(q, 0) }
@@ -270,7 +270,7 @@ public namespace tls {
             return 0
         }
 
-        unsafe var Q : Mpi; mpi_init(&raw mut Q)
+        var Q : Mpi; mpi_init(&raw mut Q)
         var a_bits = mpi_bitlen(&raw mut A)
         var b_bits = mpi_bitlen(&raw mut B)
         var shift = a_bits - b_bits
@@ -340,7 +340,7 @@ public namespace tls {
         if(ret < 0) { return ret }
         // If remainder is negative, add |b| to get positive residue
         if(r != null && r.s < 0) {
-            unsafe var tmp : Mpi; mpi_init(&raw mut tmp)
+            var tmp : Mpi; mpi_init(&raw mut tmp)
             ret = mpi_add(&raw mut tmp, r, b)
             if(ret < 0) { return ret }
             mpi_copy(r, &raw mut tmp)
@@ -352,8 +352,8 @@ public namespace tls {
 
     func montgomery_mul(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi, n : *mut Mpi, n_inv0 : u32) : int {
         // Handle input/output aliasing: if a or b alias x, save them first
-        unsafe var a_sav : Mpi; mpi_init(&raw mut a_sav)
-        unsafe var b_sav : Mpi; mpi_init(&raw mut b_sav)
+        var a_sav : Mpi; mpi_init(&raw mut a_sav)
+        var b_sav : Mpi; mpi_init(&raw mut b_sav)
         if(a == x) { mpi_copy(&raw mut a_sav, a); a = &raw mut a_sav }
         if(b == x) { mpi_copy(&raw mut b_sav, b); b = &raw mut b_sav }
 
@@ -425,7 +425,7 @@ public namespace tls {
         //   carry=1 or borrow=0  -> result is X (= T - N)
         //   carry=0 and borrow=1 -> result is T (T < N)
         var carry : u64 = x.p[n.n] as u64
-        unsafe var X : Mpi; mpi_init(&raw mut X)
+        var X : Mpi; mpi_init(&raw mut X)
         var borrow : u64 = 0
         var j : size_t = 0
         while(j < n.n) {
@@ -456,16 +456,16 @@ public namespace tls {
     }
 
     func from_montgomery(x : *mut Mpi, a : *mut Mpi, n : *mut Mpi, n_inv0 : u32) : int {
-        unsafe var one : Mpi; mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
+        var one : Mpi; mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
         return montgomery_mul(x, a, &raw mut one, n, n_inv0)
     }
 
     func compute_r2(r2 : *mut Mpi, n : *mut Mpi) : int {
-        unsafe var R : Mpi; mpi_init(&raw mut R)
+        var R : Mpi; mpi_init(&raw mut R)
         var ret = mpi_grow(&raw mut R, n.n + 1)
         if(ret < 0) { return ret }
         R.p[n.n] = 1; R.n = n.n + 1
-        unsafe var R_mod : Mpi; mpi_init(&raw mut R_mod)
+        var R_mod : Mpi; mpi_init(&raw mut R_mod)
         ret = mpi_mod(&raw mut R_mod, &raw mut R, n)
         if(ret < 0) { return ret }
         ret = mpi_mul(r2, &raw mut R_mod, &raw mut R_mod)
@@ -481,7 +481,7 @@ public namespace tls {
         var i = bitlen
         while(i > 0) {
             i -= 1
-            unsafe var tmp : Mpi; mpi_init(&raw mut tmp)
+            var tmp : Mpi; mpi_init(&raw mut tmp)
             var ret = mpi_mul(&raw mut tmp, x, x)
             if(ret < 0) { return ret }
             ret = mpi_mod(x, &raw mut tmp, n)
@@ -511,7 +511,7 @@ public namespace tls {
         }
 
         // Precompute R^2 mod N
-        unsafe var r2 : Mpi; mpi_init(&raw mut r2)
+        var r2 : Mpi; mpi_init(&raw mut r2)
         var ret = compute_r2(&raw mut r2, n)
         if(ret < 0) { return ret }
 
@@ -526,13 +526,13 @@ public namespace tls {
         var n_inv0 = 0u32 - x0
 
         // Convert A to Montgomery representation
-        unsafe var A_mont : Mpi; mpi_init(&raw mut A_mont)
+        var A_mont : Mpi; mpi_init(&raw mut A_mont)
         ret = to_montgomery(&raw mut A_mont, a, n, n_inv0, &raw mut r2)
         if(ret < 0) { return ret }
 
         // Start with Montgomery form of 1 (which is R mod N)
-        unsafe var result : Mpi; mpi_init(&raw mut result)
-        unsafe var one : Mpi; mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
+        var result : Mpi; mpi_init(&raw mut result)
+        var one : Mpi; mpi_init(&raw mut one); mpi_lset(&raw mut one, 1)
         ret = to_montgomery(&raw mut result, &raw mut one, n, n_inv0, &raw mut r2)
         if(ret < 0) { return ret }
 
@@ -571,28 +571,28 @@ public namespace tls {
         if(mpi_cmp_int(n, 1) <= 0) { return ERR_MPI_BAD_INPUT_DATA }
 
         // r0 = n, r1 = a mod n
-        unsafe var r0 : Mpi; mpi_init(&raw mut r0)
-        unsafe var r1 : Mpi; mpi_init(&raw mut r1)
+        var r0 : Mpi; mpi_init(&raw mut r0)
+        var r1 : Mpi; mpi_init(&raw mut r1)
         mpi_copy(&raw mut r0, n)
         var ret = mpi_mod(&raw mut r1, a, n)
         if(ret < 0) { return ret }
 
         // t0 = 0, t1 = 1  (Bezout coefficients for r0 and r1)
-        unsafe var t0 : Mpi; mpi_init(&raw mut t0); mpi_lset(&raw mut t0, 0)
-        unsafe var t1 : Mpi; mpi_init(&raw mut t1); mpi_lset(&raw mut t1, 1)
+        var t0 : Mpi; mpi_init(&raw mut t0); mpi_lset(&raw mut t0, 0)
+        var t1 : Mpi; mpi_init(&raw mut t1); mpi_lset(&raw mut t1, 1)
 
         while(!mpi_is_zero(&raw mut r1)) {
             // q = r0 / r1, r2 = r0 mod r1
-            unsafe var q : Mpi; mpi_init(&raw mut q)
-            unsafe var r2 : Mpi; mpi_init(&raw mut r2)
+            var q : Mpi; mpi_init(&raw mut q)
+            var r2 : Mpi; mpi_init(&raw mut r2)
             ret = mpi_div(&raw mut q, &raw mut r2, &raw mut r0, &raw mut r1)
             if(ret < 0) { return ret }
 
             // t2 = t0 - q * t1
-            unsafe var qt : Mpi; mpi_init(&raw mut qt)
+            var qt : Mpi; mpi_init(&raw mut qt)
             ret = mpi_mul(&raw mut qt, &raw mut q, &raw mut t1)
             if(ret < 0) { return ret }
-            unsafe var t2 : Mpi; mpi_init(&raw mut t2)
+            var t2 : Mpi; mpi_init(&raw mut t2)
             ret = mpi_sub(&raw mut t2, &raw mut t0, &raw mut qt)
             if(ret < 0) { return ret }
 
@@ -709,10 +709,10 @@ public namespace tls {
     }
 
     public func mpi_gcd(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi) : int {
-        unsafe var A : Mpi; mpi_init(&raw mut A); mpi_copy(&raw mut A, a)
-        unsafe var B : Mpi; mpi_init(&raw mut B); mpi_copy(&raw mut B, b)
+        var A : Mpi; mpi_init(&raw mut A); mpi_copy(&raw mut A, a)
+        var B : Mpi; mpi_init(&raw mut B); mpi_copy(&raw mut B, b)
         while(!mpi_is_zero(&raw mut B)) {
-            unsafe var T : Mpi; mpi_init(&raw mut T)
+            var T : Mpi; mpi_init(&raw mut T)
             mpi_mod(&raw mut T, &raw mut A, &raw mut B)
             mpi_copy(&raw mut A, &raw mut B)
             mpi_copy(&raw mut B, &raw mut T)

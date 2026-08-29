@@ -54,7 +54,7 @@ public func dirname(path : *char, out : *mut char, out_len : size_t) : Result<si
 
 // extension (returns extension starting at '.' or empty)
 public func extension(path : *char, out : *mut char, out_len : size_t) : Result<size_t, FsError> {
-    unsafe var base_buf : [PATH_MAX_BUF]char;
+    var base_buf : [PATH_MAX_BUF]char;
     var r = basename(path, &raw mut base_buf[0], PATH_MAX_BUF as size_t);
     if(r is Result.Err) { var Err(e) = r else unreachable; return Result.Err<size_t, FsError>(e); }
     var Ok(base_len) = r else unreachable;
@@ -101,8 +101,8 @@ public func normalize_path(path_in : *char, out_buf : *mut char, out_len : size_
     var is_abs : bool = false;
     if(len > 0 && (path_in[0] == '/' || path_in[0] == '\\')) { is_abs = true }
     const MAX_COMPS = 512;
-    unsafe var offs : [MAX_COMPS]size_t;
-    unsafe var lens : [MAX_COMPS]size_t;
+    var offs : [MAX_COMPS]size_t;
+    var lens : [MAX_COMPS]size_t;
     var count : size_t = 0;
     var i : size_t = 0;
     while(i < len) {

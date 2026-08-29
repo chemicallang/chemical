@@ -15,9 +15,9 @@ using std::Result;
 using std::concurrent;
 
 // Shared state written by the worker thread and read after join().
-unsafe var g_thread_exec_done : bool = false
-unsafe var g_thread_exec_ok : bool = false
-unsafe var g_thread_exec_code : int = -1
+var g_thread_exec_done : bool = false
+var g_thread_exec_ok : bool = false
+var g_thread_exec_code : int = -1
 
 public func process_execute_thread_entry(arg : *void) : *void {
     var cfg = process::ProcessConfig.default()
@@ -58,8 +58,8 @@ public func test_process_execute_from_thread(env : &mut TestEnv) {
 
 // Also verify that the spawned (async) child API works from a thread, since
 // it shared the same fork()-based code path.
-unsafe var g_thread_spawn_done : bool = false
-unsafe var g_thread_spawn_ok : bool = false
+var g_thread_spawn_done : bool = false
+var g_thread_spawn_ok : bool = false
 
 public func process_spawn_thread_entry(arg : *void) : *void {
     var cfg = process::ProcessConfig.default()

@@ -447,9 +447,9 @@ const LARGE_RESULT_THRESHOLD : size_t = 32768
 // Heap-allocated buffer holding the pending large result.  Protected by
 // the GTK main-loop serialization (all access happens on the main thread
 // inside signal handlers and their pump iterations).
-unsafe var g_lr_buf : *char = null
-unsafe var g_lr_size : size_t = 0
-unsafe var g_lr_alloc : size_t = 0  // capacity of g_lr_buf
+var g_lr_buf : *char = null
+var g_lr_size : size_t = 0
+var g_lr_alloc : size_t = 0  // capacity of g_lr_buf
 var g_lr_ready : bool = false
 
 // Queue a JavaScript snippet for execution on the next GTK main-loop iteration.

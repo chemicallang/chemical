@@ -8,12 +8,12 @@ union u64_double_union {
 }
 
 func dbl_bits(x : double) : u64 {
-    unsafe var u : u64_double_union;
+    var u : u64_double_union;
     u.d = x;
     return u.u;
 }
 func dbl_from_bits(b : u64) : double {
-    unsafe var u : u64_double_union;
+    var u : u64_double_union;
     u.u = b;
     return u.d;
 }
@@ -404,7 +404,7 @@ public struct string {
         }
 
         // temporary buffer for digits (max 20 digits for u64)
-        unsafe var buf : [20]char;
+        var buf : [20]char;
         var bi : int = 0;
         while(value != 0) {
             const digit = (value % 10) as uint;
@@ -503,7 +503,7 @@ public struct string {
         if(precision > 0) {
             append('.');
             // Write frac_part zero-padded to exactly `precision` digits.
-            unsafe var frac_buf : [24]char;
+            var frac_buf : [24]char;
             var fbi : int = 0;
             while(fbi < precision) {
                 frac_buf[precision - 1 - fbi] = (('0' as int) + (frac_part % 10) as int) as char;
@@ -527,30 +527,32 @@ public struct string {
     }
 
     func substring(&self, start : size_t, end : size_t) : string {
-        unsafe var s : string
-        const actual_len : size_t = end - start;
-        if(actual_len < STR_BUFF_SIZE) {
-            s.state = '1'
-            s.storage.sso.length = actual_len as uchar
-            const d = data()
-            for(var i = 0; i < actual_len; i++) {
-                s.storage.sso.buffer[i] = d[start + i]
+        var s : string
+        unsafe {
+            const actual_len : size_t = end - start;
+            if(actual_len < STR_BUFF_SIZE) {
+                s.state = '1'
+                s.storage.sso.length = actual_len as uchar
+                const d = data()
+                for(var i = 0; i < actual_len; i++) {
+                    s.storage.sso.buffer[i] = d[start + i]
+                }
+                s.storage.sso.buffer[actual_len] = '\0'
+            } else {
+                s.state = '2'
+                const new_cap = actual_len * 2
+                var new_heap = malloc(new_cap) as *mut char
+                const d = data()
+                for(var i = 0; i < actual_len; i++) {
+                    new_heap[i] = d[start + i]
+                }
+                s.storage.heap.data = new_heap
+                s.storage.heap.data[actual_len] = '\0'
+                s.storage.heap.length = actual_len
+                s.storage.heap.capacity = new_cap
             }
-            s.storage.sso.buffer[actual_len] = '\0'
-        } else {
-            s.state = '2'
-            const new_cap = actual_len * 2
-            var new_heap = malloc(new_cap) as *mut char
-            const d = data()
-            for(var i = 0; i < actual_len; i++) {
-                new_heap[i] = d[start + i]
-            }
-            s.storage.heap.data = new_heap
-            s.storage.heap.data[actual_len] = '\0'
-            s.storage.heap.length = actual_len
-            s.storage.heap.capacity = new_cap
+            return s;
         }
-        return s;
     }
 
     func append(&mut self, value : char) {

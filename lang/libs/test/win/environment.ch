@@ -1,7 +1,7 @@
 func create_test_env(fn : *mut TestFunction, config : &mut TestRunnerConfig) : TestEnvImpl {
     var pipeName = get_test_pipe_name(fn.id)
     // connect to named pipe of parent executable
-    unsafe var hPipe : HANDLE;
+    var hPipe : HANDLE;
     while(true) {
         hPipe = CreateFileA(
             pipeName.data(),

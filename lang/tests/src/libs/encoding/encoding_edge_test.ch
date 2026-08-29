@@ -6,7 +6,7 @@ using namespace std;
 
 @test
 func test_hex_encode_upper(env : &mut TestEnv) {
-    unsafe var buf : [128]char;
+    var buf : [128]char;
     var data : [3]u8 = [ 0xAB, 0xCD, 0xEF ];
     var r = encoding::hex_encode_upper(&raw data[0], 3, &raw mut buf[0], 128);
     if(r is Result.Err) { env.error("hex_encode_upper failed"); return; }
@@ -19,7 +19,7 @@ func test_hex_encode_upper(env : &mut TestEnv) {
 
 @test
 func test_hex_decode_mixed_case(env : &mut TestEnv) {
-    unsafe var buf : [64]u8;
+    var buf : [64]u8;
     var r = encoding::hex_decode("4aBcDeF1", &raw mut buf[0], 64);
     if(r is Result.Err) { env.error("hex_decode failed"); return; }
     var Ok(len) = r else unreachable;
@@ -30,7 +30,7 @@ func test_hex_decode_mixed_case(env : &mut TestEnv) {
 
 @test
 func test_hex_decode_empty(env : &mut TestEnv) {
-    unsafe var buf : [64]u8;
+    var buf : [64]u8;
     var r = encoding::hex_decode("", &raw mut buf[0], 64);
     if(r is Result.Err) { env.error("hex_decode empty failed"); return; }
     var Ok(len) = r else unreachable;
@@ -63,7 +63,7 @@ func test_hex_decode_to_vec_invalid(env : &mut TestEnv) {
 
 @test
 func test_hex_encode_all_zeros(env : &mut TestEnv) {
-    unsafe var buf : [128]char;
+    var buf : [128]char;
     var data : [4]u8 = [ 0, 0, 0, 0 ];
     var r = encoding::hex_encode(&raw data[0], 4, &raw mut buf[0], 128);
     if(r is Result.Err) { env.error("hex_encode failed"); return; }
@@ -76,7 +76,7 @@ func test_hex_encode_all_zeros(env : &mut TestEnv) {
 
 @test
 func test_url_encode_empty(env : &mut TestEnv) {
-    unsafe var buf : [128]char;
+    var buf : [128]char;
     var r = encoding::url_encode("", 0, &raw mut buf[0], 128);
     if(r is Result.Err) { env.error("url_encode empty failed"); return; }
     var Ok(len) = r else unreachable;
@@ -87,7 +87,7 @@ func test_url_encode_empty(env : &mut TestEnv) {
 
 @test
 func test_url_encode_all_special(env : &mut TestEnv) {
-    unsafe var buf : [128]char;
+    var buf : [128]char;
     var data : [3]u8 = [ 0x00, 0x7F, 0xFF ];
     var r = encoding::url_encode(&raw data[0] as *char, 3, &raw mut buf[0], 128);
     if(r is Result.Err) { env.error("url_encode failed"); return; }
@@ -101,7 +101,7 @@ func test_url_encode_all_special(env : &mut TestEnv) {
 
 @test
 func test_url_encode_query(env : &mut TestEnv) {
-    unsafe var buf : [128]char;
+    var buf : [128]char;
     var r = encoding::url_encode_query("hello world", 11, &raw mut buf[0], 128);
     if(r is Result.Err) { env.error("url_encode_query failed"); return; }
     var Ok(len) = r else unreachable;
@@ -112,7 +112,7 @@ func test_url_encode_query(env : &mut TestEnv) {
 
 @test
 func test_url_decode_invalid_percent(env : &mut TestEnv) {
-    unsafe var buf : [128]char;
+    var buf : [128]char;
     var r = encoding::url_decode("abc%XXdef", 9, &raw mut buf[0], 128);
     if(r is Result.Err) { env.error("url_decode failed"); return; }
     var Ok(len) = r else unreachable;
@@ -124,7 +124,7 @@ func test_url_decode_invalid_percent(env : &mut TestEnv) {
 
 @test
 func test_url_decode_standalone_percent(env : &mut TestEnv) {
-    unsafe var buf : [128]char;
+    var buf : [128]char;
     var r = encoding::url_decode("abc%", 4, &raw mut buf[0], 128);
     if(r is Result.Err) { env.error("url_decode failed"); return; }
     var Ok(len) = r else unreachable;
@@ -181,7 +181,7 @@ func test_utf8_invalid_over_max(env : &mut TestEnv) {
 @test
 func test_utf8_valid_ascii_range(env : &mut TestEnv) {
     // All ASCII bytes 0x01-0x7F should be valid
-    unsafe var bytes : [127]u8;
+    var bytes : [127]u8;
     var i : size_t = 0;
     while(i < 127) { bytes[i] = (i + 1) as u8; i += 1; }
     if(!encoding::utf8_is_valid(&raw bytes[0] as *char, 127)) {

@@ -156,7 +156,7 @@ public func test_window_clipboard_empty(env : &mut TestEnv) {
 // Window: timer
 // ===========================================================================
 
-unsafe var g_timer_counter : int = 0
+var g_timer_counter : int = 0
 
 func timer_increment_cb(data : *mut void) : void {
     g_timer_counter = g_timer_counter + 1

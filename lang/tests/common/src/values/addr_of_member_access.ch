@@ -32,7 +32,7 @@ func test_addr_of_member_access() {
     // --- &raw array element member access ---
 
     test("&raw array element member read works", () => {
-        unsafe var arr : [3]RawAccessPoint
+        var arr : [3]RawAccessPoint
         arr[0] = RawAccessPoint { x : 1, y : 2 }
         arr[1] = RawAccessPoint { x : 10, y : 20 }
         arr[2] = RawAccessPoint { x : 100, y : 200 }
@@ -41,7 +41,7 @@ func test_addr_of_member_access() {
     })
 
     test("&raw array element member read second field works", () => {
-        unsafe var arr : [3]RawAccessPoint
+        var arr : [3]RawAccessPoint
         arr[0] = RawAccessPoint { x : 1, y : 2 }
         arr[1] = RawAccessPoint { x : 10, y : 20 }
         arr[2] = RawAccessPoint { x : 100, y : 200 }
@@ -60,7 +60,7 @@ func test_addr_of_member_access() {
     })
 
     test("&raw array element member in if condition works", () => {
-        unsafe var arr : [3]RawAccessPoint
+        var arr : [3]RawAccessPoint
         arr[0] = RawAccessPoint { x : 0, y : 0 }
         arr[1] = RawAccessPoint { x : 77, y : 0 }
         arr[2] = RawAccessPoint { x : 0, y : 0 }
@@ -72,7 +72,7 @@ func test_addr_of_member_access() {
     })
 
     test("&raw struct bool member in if condition works", () => {
-        unsafe var arr : [3]RawAccessPoint
+        var arr : [3]RawAccessPoint
         arr[0] = RawAccessPoint { x : 0, y : 0 }
         arr[1] = RawAccessPoint { x : 7, y : 0 }
         arr[2] = RawAccessPoint { x : 0, y : 0 }
@@ -87,7 +87,7 @@ func test_addr_of_member_access() {
     // --- &raw in while condition ---
 
     test("&raw member in while loop condition works", () => {
-        unsafe var arr : [3]RawAccessPoint
+        var arr : [3]RawAccessPoint
         arr[0] = RawAccessPoint { x : 5, y : 0 }
         arr[1] = RawAccessPoint { x : 5, y : 0 }
         arr[2] = RawAccessPoint { x : 0, y : 0 }
@@ -124,7 +124,7 @@ func test_addr_of_member_access() {
     })
 
     test("&raw array element member assigned to variable works", () => {
-        unsafe var arr : [2]RawAccessPoint
+        var arr : [2]RawAccessPoint
         arr[0] = RawAccessPoint { x : 11, y : 22 }
         arr[1] = RawAccessPoint { x : 33, y : 44 }
         var i : int = 0
@@ -142,7 +142,7 @@ func test_addr_of_member_access() {
     // --- chained &raw array element access ---
 
     test("multiple &raw array element accesses in same expression", () => {
-        unsafe var arr : [3]RawAccessPoint
+        var arr : [3]RawAccessPoint
         arr[0] = RawAccessPoint { x : 1, y : 2 }
         arr[1] = RawAccessPoint { x : 10, y : 20 }
         arr[2] = RawAccessPoint { x : 100, y : 200 }

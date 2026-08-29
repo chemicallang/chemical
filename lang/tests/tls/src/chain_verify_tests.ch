@@ -19,15 +19,15 @@ using std::string
 
 @test
 public func INT_mpi_mul_4096_vs_python(env : &mut TestEnv) {
-    unsafe var a : [512]u8; test_random_bytes(&raw mut a[0], 512)
-    unsafe var b : [512]u8; test_random_bytes(&raw mut b[0], 512)
+    var a : [512]u8; test_random_bytes(&raw mut a[0], 512)
+    var b : [512]u8; test_random_bytes(&raw mut b[0], 512)
     a[0] = a[0] | 0x80     // force the top bit so it's a real 4096-bit value
     b[0] = b[0] | 0x80
 
-    unsafe var a_hex : [1025]char; test_bytes_to_hex(&raw a[0], 512, &raw mut a_hex[0])
-    unsafe var b_hex : [1025]char; test_bytes_to_hex(&raw b[0], 512, &raw mut b_hex[0])
+    var a_hex : [1025]char; test_bytes_to_hex(&raw a[0], 512, &raw mut a_hex[0])
+    var b_hex : [1025]char; test_bytes_to_hex(&raw b[0], 512, &raw mut b_hex[0])
 
-    unsafe var script : [4096]u8; var sp : size_t = 0
+    var script : [4096]u8; var sp : size_t = 0
     var hdr = "a=int('" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     si=0; while(a_hex[si]!=0){script[sp]=a_hex[si] as u8; sp+=1; si+=1}
@@ -38,13 +38,13 @@ public func INT_mpi_mul_4096_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("mpi_mul4096.py"))
-    unsafe var py_mul : [1024]u8
+    var py_mul : [1024]u8
     var mul_len = test_parse_py_hex_label(&raw mut py_out, string_view("MUL="), &raw mut py_mul[0], 1024)
     if(mul_len != 1024) { env.error("failed to parse Python MUL output"); return }
 
-    unsafe var ma : Mpi; mpi_init(&raw mut ma)
-    unsafe var mb : Mpi; mpi_init(&raw mut mb)
-    unsafe var mx : Mpi; mpi_init(&raw mut mx)
+    var ma : Mpi; mpi_init(&raw mut ma)
+    var mb : Mpi; mpi_init(&raw mut mb)
+    var mx : Mpi; mpi_init(&raw mut mx)
     var ret = mpi_read_binary(&raw mut ma, &raw a[0], 512)
     if(ret < 0) { env.error("mpi_read_binary failed"); return }
     ret = mpi_read_binary(&raw mut mb, &raw b[0], 512)
@@ -52,7 +52,7 @@ public func INT_mpi_mul_4096_vs_python(env : &mut TestEnv) {
     ret = mpi_mul(&raw mut mx, &raw mut ma, &raw mut mb)
     if(ret < 0) { env.error("mpi_mul failed on 4096-bit operands"); return }
 
-    unsafe var chem_mul : [1024]u8
+    var chem_mul : [1024]u8
     ret = mpi_write_binary(&raw mut mx, &raw mut chem_mul[0], 1024)
     if(ret < 0) { env.error("mpi_write_binary failed"); return }
     if(!test_bytes_eq(&raw chem_mul[0], &raw py_mul[0], 1024)) { env.error("mpi_mul 4096 mismatch vs Python"); return }
@@ -65,16 +65,16 @@ public func INT_mpi_mul_4096_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_mpi_exp_mod_4096_vs_python(env : &mut TestEnv) {
-    unsafe var n : [512]u8; test_random_bytes(&raw mut n[0], 512)
-    unsafe var a : [512]u8; test_random_bytes(&raw mut a[0], 512)
+    var n : [512]u8; test_random_bytes(&raw mut n[0], 512)
+    var a : [512]u8; test_random_bytes(&raw mut a[0], 512)
     n[0] = n[0] | 0x80     // 4096-bit modulus
     n[511] = n[511] | 0x01 // make it odd (valid RSA modulus)
     a[0] = a[0] & 0x7F     // base < modulus
 
-    unsafe var n_hex : [1025]char; test_bytes_to_hex(&raw n[0], 512, &raw mut n_hex[0])
-    unsafe var a_hex : [1025]char; test_bytes_to_hex(&raw a[0], 512, &raw mut a_hex[0])
+    var n_hex : [1025]char; test_bytes_to_hex(&raw n[0], 512, &raw mut n_hex[0])
+    var a_hex : [1025]char; test_bytes_to_hex(&raw a[0], 512, &raw mut a_hex[0])
 
-    unsafe var script : [4096]u8; var sp : size_t = 0
+    var script : [4096]u8; var sp : size_t = 0
     var hdr = "n=int('" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     si=0; while(n_hex[si]!=0){script[sp]=n_hex[si] as u8; sp+=1; si+=1}
@@ -85,14 +85,14 @@ public func INT_mpi_exp_mod_4096_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("mpi_expmod4096.py"))
-    unsafe var py_r : [512]u8
+    var py_r : [512]u8
     var r_len = test_parse_py_hex_label(&raw mut py_out, string_view("R="), &raw mut py_r[0], 512)
     if(r_len != 512) { env.error("failed to parse Python R output"); return }
 
-    unsafe var mn : Mpi; mpi_init(&raw mut mn)
-    unsafe var ma : Mpi; mpi_init(&raw mut ma)
-    unsafe var me : Mpi; mpi_init(&raw mut me)
-    unsafe var mr : Mpi; mpi_init(&raw mut mr)
+    var mn : Mpi; mpi_init(&raw mut mn)
+    var ma : Mpi; mpi_init(&raw mut ma)
+    var me : Mpi; mpi_init(&raw mut me)
+    var mr : Mpi; mpi_init(&raw mut mr)
     var ret = mpi_read_binary(&raw mut mn, &raw n[0], 512)
     if(ret < 0) { env.error("mpi_read_binary(n) failed"); return }
     ret = mpi_read_binary(&raw mut ma, &raw a[0], 512)
@@ -101,7 +101,7 @@ public func INT_mpi_exp_mod_4096_vs_python(env : &mut TestEnv) {
     ret = mpi_exp_mod(&raw mut mr, &raw mut ma, &raw mut me, &raw mut mn)
     if(ret < 0) { env.error("mpi_exp_mod failed on 4096-bit modulus"); return }
 
-    unsafe var chem_r : [512]u8
+    var chem_r : [512]u8
     ret = mpi_write_binary(&raw mut mr, &raw mut chem_r[0], 512)
     if(ret < 0) { env.error("mpi_write_binary failed"); return }
     if(!test_bytes_eq(&raw chem_r[0], &raw py_r[0], 512)) { env.error("mpi_exp_mod 4096 mismatch vs Python"); return }
@@ -114,7 +114,7 @@ public func INT_mpi_exp_mod_4096_vs_python(env : &mut TestEnv) {
 @test
 public func INT_rsa4096_cert_signature_vs_python(env : &mut TestEnv) {
     var cert_path = test_tmp_file(string_view("chem_rsa4096_cert.der"))
-    unsafe var script : [2048]u8; var sp : size_t = 0; var si : size_t = 0
+    var script : [2048]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "import datetime\nfrom cryptography import x509\nfrom cryptography.x509.oid import NameOID\nfrom cryptography.hazmat.primitives import hashes\nfrom cryptography.hazmat.primitives.asymmetric import rsa\nfrom cryptography.hazmat.primitives.serialization import Encoding\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "key=rsa.generate_private_key(65537,4096)\npub=key.public_key()\n" as *char; si=0
@@ -131,17 +131,17 @@ public func INT_rsa4096_cert_signature_vs_python(env : &mut TestEnv) {
 
     var cert_file = fopen(cert_path.data() as *char, "rb\0" as *char)
     if(cert_file == null) { env.error("cannot open cert"); return }
-    unsafe var cert_buf : [2048]u8
+    var cert_buf : [2048]u8
     var cert_len = fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file)
     fclose(cert_file)
     if(cert_len < 100) { env.error("cert DER too small"); return }
 
-    unsafe var crt : X509Cert; x509_cert_init(&raw mut crt)
+    var crt : X509Cert; x509_cert_init(&raw mut crt)
     var ret = parse_cert_der(&raw mut crt, &raw cert_buf[0], cert_len)
     if(ret < 0) { env.error("parse_cert_der failed"); return }
     if(crt.pk_type != PK_RSA) { env.error("expected RSA key type"); return }
 
-    unsafe var rsa_ctx : RSAContext; rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
+    var rsa_ctx : RSAContext; rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
     ret = x509_extract_rsa_pubkey(&raw mut crt, &raw mut rsa_ctx)
     if(ret < 0) { env.error("x509_extract_rsa_pubkey failed"); return }
     if(rsa_get_len(&raw mut rsa_ctx) != 512) { env.error("RSA modulus len should be 512 bytes"); return }
@@ -157,7 +157,7 @@ public func INT_rsa4096_cert_signature_vs_python(env : &mut TestEnv) {
 @test
 public func INT_rsa2048_cert_signature_still_verifies(env : &mut TestEnv) {
     var cert_path = test_tmp_file(string_view("chem_rsa2048_cert.der"))
-    unsafe var script : [2048]u8; var sp : size_t = 0; var si : size_t = 0
+    var script : [2048]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "import datetime\nfrom cryptography import x509\nfrom cryptography.x509.oid import NameOID\nfrom cryptography.hazmat.primitives import hashes\nfrom cryptography.hazmat.primitives.asymmetric import rsa\nfrom cryptography.hazmat.primitives.serialization import Encoding\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "key=rsa.generate_private_key(65537,2048)\npub=key.public_key()\n" as *char; si=0
@@ -174,15 +174,15 @@ public func INT_rsa2048_cert_signature_still_verifies(env : &mut TestEnv) {
 
     var cert_file = fopen(cert_path.data() as *char, "rb\0" as *char)
     if(cert_file == null) { env.error("cannot open cert"); return }
-    unsafe var cert_buf : [2048]u8
+    var cert_buf : [2048]u8
     var cert_len = fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file)
     fclose(cert_file)
 
-    unsafe var crt : X509Cert; x509_cert_init(&raw mut crt)
+    var crt : X509Cert; x509_cert_init(&raw mut crt)
     var ret = parse_cert_der(&raw mut crt, &raw cert_buf[0], cert_len)
     if(ret < 0) { env.error("parse_cert_der failed"); return }
 
-    unsafe var rsa_ctx : RSAContext; rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
+    var rsa_ctx : RSAContext; rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
     ret = x509_extract_rsa_pubkey(&raw mut crt, &raw mut rsa_ctx)
     if(ret < 0) { env.error("x509_extract_rsa_pubkey failed"); return }
     ret = x509_verify_cert_signature(&raw mut crt, &raw mut rsa_ctx)
@@ -199,7 +199,7 @@ func test_write_chain_python() {
     var root_path = test_tmp_file(string_view("chem_chain_root.der"))
     var inter_path = test_tmp_file(string_view("chem_chain_inter.der"))
     var leaf_path = test_tmp_file(string_view("chem_chain_leaf.der"))
-    unsafe var script : [8192]u8; var sp : size_t = 0; var si : size_t = 0
+    var script : [8192]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "import datetime\nfrom cryptography import x509\nfrom cryptography.x509.oid import NameOID\nfrom cryptography.hazmat.primitives import hashes\nfrom cryptography.hazmat.primitives.asymmetric import rsa,ec\nfrom cryptography.hazmat.primitives.serialization import Encoding\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "def nm(cn):return x509.Name([x509.NameAttribute(NameOID.COMMON_NAME,cn)])\n" as *char; si=0
@@ -252,14 +252,14 @@ public func INT_x509_chain_leaf_intermediate_root_vs_python(env : &mut TestEnv) 
     var root_path = test_tmp_file(string_view("chem_chain_root.der"))
     var inter_path = test_tmp_file(string_view("chem_chain_inter.der"))
     var leaf_path = test_tmp_file(string_view("chem_chain_leaf.der"))
-    unsafe var root_buf : [2048]u8; var root_len = test_read_der_file(root_path.data() as *char, &raw mut root_buf[0], 2048)
-    unsafe var inter_buf : [2048]u8; var inter_len = test_read_der_file(inter_path.data() as *char, &raw mut inter_buf[0], 2048)
-    unsafe var leaf_buf : [2048]u8; var leaf_len = test_read_der_file(leaf_path.data() as *char, &raw mut leaf_buf[0], 2048)
+    var root_buf : [2048]u8; var root_len = test_read_der_file(root_path.data() as *char, &raw mut root_buf[0], 2048)
+    var inter_buf : [2048]u8; var inter_len = test_read_der_file(inter_path.data() as *char, &raw mut inter_buf[0], 2048)
+    var leaf_buf : [2048]u8; var leaf_len = test_read_der_file(leaf_path.data() as *char, &raw mut leaf_buf[0], 2048)
     if(root_len == 0 || inter_len == 0 || leaf_len == 0) { env.error("failed to read chain DER files"); return }
 
-    unsafe var root : X509Cert; x509_cert_init(&raw mut root)
-    unsafe var inter : X509Cert; x509_cert_init(&raw mut inter)
-    unsafe var leaf : X509Cert; x509_cert_init(&raw mut leaf)
+    var root : X509Cert; x509_cert_init(&raw mut root)
+    var inter : X509Cert; x509_cert_init(&raw mut inter)
+    var leaf : X509Cert; x509_cert_init(&raw mut leaf)
     var ret = parse_cert_der(&raw mut root, &raw root_buf[0], root_len)
     if(ret < 0) { env.error("parse root failed"); return }
     ret = parse_cert_der(&raw mut inter, &raw inter_buf[0], inter_len)
@@ -290,13 +290,13 @@ public func INT_x509_chain_wrong_root_fails_vs_python(env : &mut TestEnv) {
     var inter_path = test_tmp_file(string_view("chem_chain_inter.der"))
     var leaf_path = test_tmp_file(string_view("chem_chain_leaf.der"))
     var wrong_path = test_tmp_file(string_view("chem_chain_wrong.der"))
-    unsafe var root_buf : [2048]u8; var root_len = test_read_der_file(root_path.data() as *char, &raw mut root_buf[0], 2048)
-    unsafe var inter_buf : [2048]u8; var inter_len = test_read_der_file(inter_path.data() as *char, &raw mut inter_buf[0], 2048)
-    unsafe var leaf_buf : [2048]u8; var leaf_len = test_read_der_file(leaf_path.data() as *char, &raw mut leaf_buf[0], 2048)
+    var root_buf : [2048]u8; var root_len = test_read_der_file(root_path.data() as *char, &raw mut root_buf[0], 2048)
+    var inter_buf : [2048]u8; var inter_len = test_read_der_file(inter_path.data() as *char, &raw mut inter_buf[0], 2048)
+    var leaf_buf : [2048]u8; var leaf_len = test_read_der_file(leaf_path.data() as *char, &raw mut leaf_buf[0], 2048)
     if(root_len == 0 || inter_len == 0 || leaf_len == 0) { env.error("failed to read chain DER files"); return }
 
     // Generate an UNRELATED self-signed root.
-    unsafe var script : [8192]u8; var sp : size_t = 0; var si : size_t = 0
+    var script : [8192]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "import datetime\nfrom cryptography import x509\nfrom cryptography.x509.oid import NameOID\nfrom cryptography.hazmat.primitives import hashes\nfrom cryptography.hazmat.primitives.asymmetric import rsa\nfrom cryptography.hazmat.primitives.serialization import Encoding\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "import datetime\nkey=rsa.generate_private_key(65537,2048)\nna=datetime.datetime.utcnow()-datetime.timedelta(days=1)\nnb=datetime.datetime.utcnow()+datetime.timedelta(days=365)\n" as *char; si=0
@@ -310,13 +310,13 @@ public func INT_x509_chain_wrong_root_fails_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     test_python_run_script(&raw script[0], sp, string_view("wrong_root.py"))
 
-    unsafe var wrong_buf : [2048]u8; var wrong_len = test_read_der_file(wrong_path.data() as *char, &raw mut wrong_buf[0], 2048)
+    var wrong_buf : [2048]u8; var wrong_len = test_read_der_file(wrong_path.data() as *char, &raw mut wrong_buf[0], 2048)
     if(wrong_len == 0) { env.error("failed to read wrong root"); return }
 
-    unsafe var root : X509Cert; x509_cert_init(&raw mut root)
-    unsafe var inter : X509Cert; x509_cert_init(&raw mut inter)
-    unsafe var leaf : X509Cert; x509_cert_init(&raw mut leaf)
-    unsafe var wrong : X509Cert; x509_cert_init(&raw mut wrong)
+    var root : X509Cert; x509_cert_init(&raw mut root)
+    var inter : X509Cert; x509_cert_init(&raw mut inter)
+    var leaf : X509Cert; x509_cert_init(&raw mut leaf)
+    var wrong : X509Cert; x509_cert_init(&raw mut wrong)
     var ret = parse_cert_der(&raw mut root, &raw root_buf[0], root_len)
     if(ret < 0) { env.error("parse root failed"); return }
     ret = parse_cert_der(&raw mut inter, &raw inter_buf[0], inter_len)
@@ -342,12 +342,12 @@ public func INT_x509_chain_missing_intermediate_fails_vs_python(env : &mut TestE
 
     var root_path = test_tmp_file(string_view("chem_chain_root.der"))
     var leaf_path = test_tmp_file(string_view("chem_chain_leaf.der"))
-    unsafe var root_buf : [2048]u8; var root_len = test_read_der_file(root_path.data() as *char, &raw mut root_buf[0], 2048)
-    unsafe var leaf_buf : [2048]u8; var leaf_len = test_read_der_file(leaf_path.data() as *char, &raw mut leaf_buf[0], 2048)
+    var root_buf : [2048]u8; var root_len = test_read_der_file(root_path.data() as *char, &raw mut root_buf[0], 2048)
+    var leaf_buf : [2048]u8; var leaf_len = test_read_der_file(leaf_path.data() as *char, &raw mut leaf_buf[0], 2048)
     if(root_len == 0 || leaf_len == 0) { env.error("failed to read chain DER files"); return }
 
-    unsafe var root : X509Cert; x509_cert_init(&raw mut root)
-    unsafe var leaf : X509Cert; x509_cert_init(&raw mut leaf)
+    var root : X509Cert; x509_cert_init(&raw mut root)
+    var leaf : X509Cert; x509_cert_init(&raw mut leaf)
     var ret = parse_cert_der(&raw mut root, &raw root_buf[0], root_len)
     if(ret < 0) { env.error("parse root failed"); return }
     ret = parse_cert_der(&raw mut leaf, &raw leaf_buf[0], leaf_len)
@@ -374,7 +374,7 @@ public func INT_x509_pem_bundle_multicert_vs_python(env : &mut TestEnv) {
     var bundle_path = test_tmp_file(string_view("chem_chain_bundle.pem"))
 
     // Bundle all three PEMs into a single file.
-    unsafe var script : [8192]u8; var sp : size_t = 0; var si : size_t = 0
+    var script : [8192]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "from cryptography import x509\nfrom cryptography.x509 import load_pem_x509_certificate\nfrom cryptography.hazmat.primitives.serialization import Encoding\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "root=x509.load_der_x509_certificate(open('" as *char; si=0

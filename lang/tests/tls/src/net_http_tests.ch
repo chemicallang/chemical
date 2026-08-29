@@ -29,7 +29,7 @@ func test_recv_timeout_on_idle_socket(env : &mut TestEnv) {
     net::set_recv_timeout(client_sock, 1, 0)
 
     // Try to recv — should time out after ~1s instead of hanging forever
-    unsafe var buf : [1]u8
+    var buf : [1]u8
     var n = net::recv_all(client_sock, &raw mut buf[0], 1)
     if(n > 0) {
         env.error("recv should not succeed on idle socket")
@@ -67,7 +67,7 @@ func test_socket_echo(env : &mut TestEnv) {
 
     // Read with timeout
     net::set_recv_timeout(client_sock, 3, 0)
-    unsafe var buf : [16]u8
+    var buf : [16]u8
     var n = net::recv_all(client_sock, &raw mut buf[0], 16)
     if(n <= 0) { env.error("recv failed or timed out"); }
     else if(n < 5) {

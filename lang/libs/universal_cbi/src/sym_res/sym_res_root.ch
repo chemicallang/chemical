@@ -6,7 +6,7 @@ func sym_res_components(
     for (var i : uint = 0; i < components.size(); i += 1) {
         var element = components.get(i);
 
-        unsafe var name : std::string_view;
+        var name : std::string_view;
         if(element.opening.tagName.kind == JsNodeKind.Identifier) {
              const jsId = element.opening.tagName as *mut JsIdentifier
              name = jsId.value;
@@ -14,7 +14,7 @@ func sym_res_components(
              continue;
         }
 
-        const compNode = resolver.resolve(&name);
+        const compNode = resolver.resolve(unsafe(&name));
         if (compNode == null) {
             diagnoser.error("component not found", element.loc);
             return false;

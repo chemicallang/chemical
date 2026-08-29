@@ -26,8 +26,8 @@ using std::string_view
 
 // ---- shared state ----
 
-unsafe var g_create_pat_ok : bool
-unsafe var g_create_pat_wv : *mut webview::WebView
+var g_create_pat_ok : bool
+var g_create_pat_wv : *mut webview::WebView
 
 func create_pat_cb(data : *mut void, result : *char) : void {
     if(result == null) {

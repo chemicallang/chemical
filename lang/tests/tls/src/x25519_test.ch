@@ -3,15 +3,15 @@ using std::string_view
 
 @test
 public func INT_x25519_shared_against_python(env : &mut TestEnv) {
-    unsafe var chem_priv : [32]u8
-    unsafe var chem_pub : [32]u8
+    var chem_priv : [32]u8
+    var chem_pub : [32]u8
     var ret = x25519_generate_keypair(&raw mut chem_priv[0], &raw mut chem_pub[0])
     if(ret < 0) { env.error("keygen failed"); return } else {}
 
-    unsafe var chem_pub_hex : [65]char
+    var chem_pub_hex : [65]char
     test_bytes_to_hex(&raw chem_pub[0], 32, &raw mut chem_pub_hex[0])
 
-    unsafe var script : [1024]u8; var sp : size_t = 0
+    var script : [1024]u8; var sp : size_t = 0
     var hdr = "import os\nfrom cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey,X25519PublicKey\n" as *char
     var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
@@ -33,12 +33,12 @@ public func INT_x25519_shared_against_python(env : &mut TestEnv) {
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("x25519_py.py"))
 
-    unsafe var py_pub : [32]u8; unsafe var py_shared : [32]u8
+    var py_pub : [32]u8; var py_shared : [32]u8
     var pub_len = test_parse_py_hex_label(&raw mut py_out, string_view("PUB="), &raw mut py_pub[0], 32)
     var shared_len = test_parse_py_hex_label(&raw mut py_out, string_view("SHARED="), &raw mut py_shared[0], 32)
     if(pub_len != 32 || shared_len != 32) { env.error("failed to parse Python output"); return } else {}
 
-    unsafe var chem_shared : [32]u8
+    var chem_shared : [32]u8
     ret = x25519_compute_shared(&raw chem_priv[0], &raw py_pub[0], &raw mut chem_shared[0])
     if(ret < 0) { env.error("x25519_compute_shared failed"); return } else {}
 

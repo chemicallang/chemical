@@ -25,7 +25,7 @@ public func E2E_tls13_pinned_aes256_gcm_sha384(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20100_cert.pem /tmp/tls_20100_key.pem 20100 1.3"))
     test_server_wait()
 
-    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -56,7 +56,7 @@ public func E2E_tls13_pinned_aes256_gcm_sha384(env : &mut TestEnv) {
     }
 
     // DIAG
-    unsafe var dhex : [97]char
+    var dhex : [97]char
     test_bytes_to_hex(&raw ctx.tls13_keys.handshake_secret[0], 48, &raw mut dhex[0])
     printf("DIAG_HS=%s\n", &raw dhex[0])
     test_bytes_to_hex(&raw ctx.tls13_keys.master_secret[0], 48, &raw mut dhex[0])
@@ -72,7 +72,7 @@ public func E2E_tls13_pinned_aes256_gcm_sha384(env : &mut TestEnv) {
 
     var req = "GET / HTTP/1.0\r\n\r\n"
     ssl_write(&raw mut ctx, req as *u8, 18)
-    unsafe var buf : [512]u8
+    var buf : [512]u8
     var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("AES256-SHA384: app-data response mismatch")
@@ -93,7 +93,7 @@ public func E2E_tls13_pinned_chacha20_poly1305(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20101_cert.pem /tmp/tls_20101_key.pem 20101 1.3"))
     test_server_wait()
 
-    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -123,7 +123,7 @@ public func E2E_tls13_pinned_chacha20_poly1305(env : &mut TestEnv) {
 
     var req = "GET / HTTP/1.0\r\n\r\n"
     ssl_write(&raw mut ctx, req as *u8, 18)
-    unsafe var buf : [512]u8
+    var buf : [512]u8
     var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("CHACHA20: app-data response mismatch")
@@ -144,7 +144,7 @@ public func E2E_tls13_with_rsa_certificate(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20102_cert.pem /tmp/tls_20102_key.pem 20102 1.3"))
     test_server_wait()
 
-    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -167,7 +167,7 @@ public func E2E_tls13_with_rsa_certificate(env : &mut TestEnv) {
 
     var req = "GET / HTTP/1.0\r\n\r\n"
     ssl_write(&raw mut ctx, req as *u8, 18)
-    unsafe var buf : [512]u8
+    var buf : [512]u8
     var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("RSA cert: app-data response mismatch")
@@ -188,7 +188,7 @@ public func E2E_tls12_pinned_rsa_aes256_gcm(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20103_cert.pem /tmp/tls_20103_key.pem 20103 1.2 AES256-GCM-SHA384:@SECLEVEL=0"))
     test_server_wait()
 
-    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_2
@@ -216,7 +216,7 @@ public func E2E_tls12_pinned_rsa_aes256_gcm(env : &mut TestEnv) {
 
     var req = "GET / HTTP/1.0\r\n\r\n"
     ssl_write(&raw mut ctx, req as *u8, 18)
-    unsafe var buf : [512]u8
+    var buf : [512]u8
     var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("TLS12 AES256-GCM: app-data response mismatch")
@@ -237,7 +237,7 @@ public func E2E_tls12_pinned_rsa_aes256_cbc(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20104_cert.pem /tmp/tls_20104_key.pem 20104 1.2 AES256-SHA256:@SECLEVEL=0"))
     test_server_wait()
 
-    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_2
@@ -259,7 +259,7 @@ public func E2E_tls12_pinned_rsa_aes256_cbc(env : &mut TestEnv) {
 
     var req = "GET / HTTP/1.0\r\n\r\n"
     ssl_write(&raw mut ctx, req as *u8, 18)
-    unsafe var buf : [512]u8
+    var buf : [512]u8
     var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("TLS12 AES256-CBC: app-data response mismatch")
@@ -283,11 +283,11 @@ public func E2E_alpn_negotiation_h2(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20105_cert.pem /tmp/tls_20105_key.pem 20105 1.3 DEFAULT h2"))
     test_server_wait()
 
-    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
-    unsafe var protos : [2]*char = [
+    var protos : [2]*char = [
         "http/1.1\0" as *char,
         "h2\0" as *char
     ]
@@ -315,7 +315,7 @@ public func E2E_alpn_negotiation_h2(env : &mut TestEnv) {
 
     var req = "GET / HTTP/1.0\r\n\r\n"
     ssl_write(&raw mut ctx, req as *u8, 18)
-    unsafe var buf : [512]u8
+    var buf : [512]u8
     var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("ALPN: app-data response mismatch after negotiation")
@@ -342,7 +342,7 @@ public func E2E_verified_handshake_trusted_ca(env : &mut TestEnv) {
     var ca = x509_crt_load_pem_file("/tmp/tls_vca20106_root.pem")
     if(ca == null) { env.error("verified CA: could not load root pem"); return }
 
-    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.ca_chain = ca
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -371,7 +371,7 @@ public func E2E_verified_handshake_trusted_ca(env : &mut TestEnv) {
 
     var req = "GET / HTTP/1.0\r\n\r\n"
     ssl_write(&raw mut ctx, req as *u8, 18)
-    unsafe var buf : [512]u8
+    var buf : [512]u8
     var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("verified CA: app-data response mismatch")
@@ -399,7 +399,7 @@ public func E2E_verified_handshake_intermediate_chain(env : &mut TestEnv) {
     var root = x509_crt_load_pem_file("/tmp/tls_vic20107_root.pem")
     if(root == null) { env.error("intermediate CA: could not load root pem"); return }
 
-    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.ca_chain = root
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -416,7 +416,7 @@ public func E2E_verified_handshake_intermediate_chain(env : &mut TestEnv) {
 
     var req = "GET / HTTP/1.0\r\n\r\n"
     ssl_write(&raw mut ctx, req as *u8, 18)
-    unsafe var buf : [512]u8
+    var buf : [512]u8
     var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("intermediate CA: app-data response mismatch")
@@ -438,7 +438,7 @@ public func E2E_multi_roundtrip_single_connection(env : &mut TestEnv) {
     test_py_run_background(string_view("mround /tmp/tls_20108_cert.pem /tmp/tls_20108_key.pem 20108 1.3 5 1"))
     test_server_wait()
 
-    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -452,7 +452,7 @@ public func E2E_multi_roundtrip_single_connection(env : &mut TestEnv) {
         return
     }
 
-    unsafe var buf : [64]u8
+    var buf : [64]u8
     var round : int = 0
     while(round < 5) {
         var msg = "PING\r\n\0" as *char
@@ -489,7 +489,7 @@ public func E2E_many_small_roundtrips_fifty(env : &mut TestEnv) {
     test_py_run_background(string_view("mround /tmp/tls_20109_cert.pem /tmp/tls_20109_key.pem 20109 1.3 50 1"))
     test_server_wait()
 
-    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -503,7 +503,7 @@ public func E2E_many_small_roundtrips_fifty(env : &mut TestEnv) {
         return
     }
 
-    unsafe var buf : [64]u8
+    var buf : [64]u8
     var round : int = 0
     while(round < 50) {
         var msg = "x\0" as *char
@@ -537,7 +537,7 @@ public func E2E_upload_96kb_pattern_validated(env : &mut TestEnv) {
     test_py_run_background(string_view("echo /tmp/tls_20110_cert.pem /tmp/tls_20110_key.pem 20110 1 98304"))
     test_server_wait()
 
-    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -551,7 +551,7 @@ public func E2E_upload_96kb_pattern_validated(env : &mut TestEnv) {
         return
     }
 
-    unsafe var chunk : [16384]u8
+    var chunk : [16384]u8
     var ci : size_t = 0
     // The pattern is GLOBAL across the whole upload stream (i%251 over total
     // bytes). 16384 % 251 = 114, so each chunk starts at a shifted phase —
@@ -573,7 +573,7 @@ public func E2E_upload_96kb_pattern_validated(env : &mut TestEnv) {
         base += 16384
     }
 
-    unsafe var resp : [16]u8
+    var resp : [16]u8
     var n = ssl_read(&raw mut ctx, &raw mut resp[0], 16)
     if(n != 2 || resp[0] != 79 || resp[1] != 75) {
         env.error("upload 96k: server rejected payload (BAD or short read)")
@@ -595,7 +595,7 @@ public func E2E_upload_exact_max_fragment_16k(env : &mut TestEnv) {
     test_py_run_background(string_view("echo /tmp/tls_20111_cert.pem /tmp/tls_20111_key.pem 20111 1 16384"))
     test_server_wait()
 
-    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -609,14 +609,14 @@ public func E2E_upload_exact_max_fragment_16k(env : &mut TestEnv) {
         return
     }
 
-    unsafe var chunk : [16384]u8
+    var chunk : [16384]u8
     var ci : size_t = 0
     while(ci < 16384) { chunk[ci] = (ci % 251) as u8; ci += 1 }
 
     var wret = ssl_write(&raw mut ctx, &raw chunk[0], 16384)
     if(wret < 0) { env.error("upload 16k: exact-max write failed") }
 
-    unsafe var resp : [16]u8
+    var resp : [16]u8
     var n = ssl_read(&raw mut ctx, &raw mut resp[0], 16)
     if(n != 2 || resp[0] != 79 || resp[1] != 75) {
         env.error("upload 16k: server rejected payload")
@@ -640,13 +640,13 @@ public func E2E_two_connections_interleaved_isolated(env : &mut TestEnv) {
     test_py_run_background(string_view("mround /tmp/tls_20112_cert.pem /tmp/tls_20112_key.pem 20113 1.3 2 1"))
     test_server_wait()
 
-    unsafe var ctxA : SSLContext; ssl_init(&raw mut ctxA)
+    var ctxA : SSLContext; ssl_init(&raw mut ctxA)
     var cfgA = ssl_config_init(SSL_IS_CLIENT)
     cfgA.authmode = SSL_VERIFY_NONE
     cfgA.max_tls_version = SSL_VERSION_TLS1_3
     ssl_set_config(&raw mut ctxA, &raw mut cfgA)
 
-    unsafe var ctxB : SSLContext; ssl_init(&raw mut ctxB)
+    var ctxB : SSLContext; ssl_init(&raw mut ctxB)
     var cfgB = ssl_config_init(SSL_IS_CLIENT)
     cfgB.authmode = SSL_VERIFY_NONE
     cfgB.max_tls_version = SSL_VERSION_TLS1_3
@@ -657,8 +657,8 @@ public func E2E_two_connections_interleaved_isolated(env : &mut TestEnv) {
     if(retA < 0) { env.error("parallel A: connect failed"); ssl_free(&raw mut ctxB); ssl_free(&raw mut ctxA); test_kill_port(20112u); test_kill_port(20113u); return }
     if(retB < 0) { env.error("parallel B: connect failed"); ssl_free(&raw mut ctxB); ssl_free(&raw mut ctxA); test_kill_port(20112u); test_kill_port(20113u); return }
 
-    unsafe var bufA : [64]u8
-    unsafe var bufB : [64]u8
+    var bufA : [64]u8
+    var bufB : [64]u8
     var ping = "p\0" as *char
 
     // Round 1: write A, write B, then read B first (cross order).
@@ -696,7 +696,7 @@ public func E2E_clean_close_returns_eof(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20114_cert.pem /tmp/tls_20114_key.pem 20114 1.3"))
     test_server_wait()
 
-    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_3
@@ -712,7 +712,7 @@ public func E2E_clean_close_returns_eof(env : &mut TestEnv) {
 
     var req = "GET / HTTP/1.0\r\n\r\n"
     ssl_write(&raw mut ctx, req as *u8, 18)
-    unsafe var buf : [512]u8
+    var buf : [512]u8
     var n = ssl_read(&raw mut ctx, &raw mut buf[0], 512)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("clean close: first read mismatch")
@@ -801,7 +801,7 @@ public func E2E_tls13_server_pinned_aes256_gcm(env : &mut TestEnv) {
         if(ssl_mem.negotiated_ciphersuite != TLS1_3_AES_256_GCM_SHA384 as u16) {
             env.error("server aes256: wrong negotiated ciphersuite")
         }
-        unsafe var buf : [512]u8
+        var buf : [512]u8
         var n = ssl_read(ssl_mem, &raw mut buf[0], 512)
         var expect = "GET / HTTP/1.0\r\n\r\n" as *char
         var match = (n == 18)
@@ -894,7 +894,7 @@ public func E2E_tls13_server_pinned_p384_aes256_gcm(env : &mut TestEnv) {
         if(ssl_mem.negotiated_ciphersuite != TLS1_3_AES_256_GCM_SHA384 as u16) {
             env.error("server p384 aes256: wrong negotiated ciphersuite")
         }
-        unsafe var buf : [512]u8
+        var buf : [512]u8
         var n = ssl_read(ssl_mem, &raw mut buf[0], 512)
         var expect = "GET / HTTP/1.0\r\n\r\n" as *char
         var match = (n == 18)
@@ -988,7 +988,7 @@ public func E2E_tls13_server_fragmented_clienthello(env : &mut TestEnv) {
         if(ssl_mem.negotiated_ciphersuite != TLS1_3_AES_128_GCM_SHA256 as u16) {
             env.error("frag ch: wrong negotiated ciphersuite")
         }
-        unsafe var buf : [512]u8
+        var buf : [512]u8
         var n = ssl_read(ssl_mem, &raw mut buf[0], 512)
         var expect = "GET / HTTP/1.0\r\n\r\n" as *char
         var match = (n == 18)

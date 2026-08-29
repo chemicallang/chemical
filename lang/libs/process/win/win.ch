@@ -80,7 +80,7 @@ func win_open_nul() : HANDLE {
 
 /// Read all data from a handle until EOF.
 func win_read_all(h : HANDLE, data : *mut vector<u8>) : bool {
-    unsafe var buf : [4096]u8;
+    var buf : [4096]u8;
     while(true) {
         var bytes_read : DWORD = 0
         var ok = ReadFile(h, &raw mut buf[0], 4096, &raw mut bytes_read, null)

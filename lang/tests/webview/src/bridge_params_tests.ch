@@ -15,13 +15,13 @@ using JsonValue;
 
 // ---- shared state ----
 
-unsafe var g_params_ok : bool
-@never_destructed unsafe var g_params_field : string
-unsafe var g_params_count : int
-unsafe var g_promise_chain_ok : bool
-unsafe var g_promise_chain_count : int
-unsafe var g_eval_reliable_ok : bool
-unsafe var g_wv_params : *mut webview::WebView
+var g_params_ok : bool
+@never_destructed var g_params_field : string
+var g_params_count : int
+var g_promise_chain_ok : bool
+var g_promise_chain_count : int
+var g_eval_reliable_ok : bool
+var g_wv_params : *mut webview::WebView
 
 // ---- helpers ----
 

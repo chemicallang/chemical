@@ -8,13 +8,13 @@ using std::Result
 
 @test
 public func INT_aes128_ecb_vs_python(env : &mut TestEnv) {
-    unsafe var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
-    unsafe var pt : [32]u8; test_random_bytes(&raw mut pt[0], 32)
+    var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
+    var pt : [32]u8; test_random_bytes(&raw mut pt[0], 32)
 
-    unsafe var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
-    unsafe var pt_hex : [65]char; test_bytes_to_hex(&raw pt[0], 32, &raw mut pt_hex[0])
+    var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
+    var pt_hex : [65]char; test_bytes_to_hex(&raw pt[0], 32, &raw mut pt_hex[0])
 
-    unsafe var script : [1024]u8; var sp : size_t = 0
+    var script : [1024]u8; var sp : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.ciphers import Cipher,algorithms,modes\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "cipher=Cipher(algorithms.AES(bytes.fromhex('" as *char; si=0
@@ -27,13 +27,13 @@ public func INT_aes128_ecb_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("aes128_ecb.py"))
-    unsafe var py_ct : [32]u8
+    var py_ct : [32]u8
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 32)
     if(ct_len != 32) { env.error("failed to parse Python output"); return }
 
-    unsafe var ctx : AESContext; aes_init(&raw mut ctx)
+    var ctx : AESContext; aes_init(&raw mut ctx)
     aes_setkey_enc(&raw mut ctx, &raw key[0], 16)
-    unsafe var chem_ct : [32]u8
+    var chem_ct : [32]u8
     aes_crypt_ecb(&raw mut ctx, AES_ENCRYPT, &raw pt[0], &raw mut chem_ct[0])
     aes_crypt_ecb(&raw mut ctx, AES_ENCRYPT, &raw pt[16], &raw mut chem_ct[16])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 32)) { env.error("AES-128-ECB ct mismatch vs Python"); return }
@@ -41,13 +41,13 @@ public func INT_aes128_ecb_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_aes256_ecb_vs_python(env : &mut TestEnv) {
-    unsafe var key : [32]u8; test_random_bytes(&raw mut key[0], 32)
-    unsafe var pt : [32]u8; test_random_bytes(&raw mut pt[0], 32)
+    var key : [32]u8; test_random_bytes(&raw mut key[0], 32)
+    var pt : [32]u8; test_random_bytes(&raw mut pt[0], 32)
 
-    unsafe var key_hex : [65]char; test_bytes_to_hex(&raw key[0], 32, &raw mut key_hex[0])
-    unsafe var pt_hex : [65]char; test_bytes_to_hex(&raw pt[0], 32, &raw mut pt_hex[0])
+    var key_hex : [65]char; test_bytes_to_hex(&raw key[0], 32, &raw mut key_hex[0])
+    var pt_hex : [65]char; test_bytes_to_hex(&raw pt[0], 32, &raw mut pt_hex[0])
 
-    unsafe var script : [1024]u8; var sp : size_t = 0
+    var script : [1024]u8; var sp : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.ciphers import Cipher,algorithms,modes\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "cipher=Cipher(algorithms.AES(bytes.fromhex('" as *char; si=0
@@ -60,13 +60,13 @@ public func INT_aes256_ecb_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("aes256_ecb.py"))
-    unsafe var py_ct : [32]u8
+    var py_ct : [32]u8
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 32)
     if(ct_len != 32) { env.error("failed to parse Python output"); return }
 
-    unsafe var ctx : AESContext; aes_init(&raw mut ctx)
+    var ctx : AESContext; aes_init(&raw mut ctx)
     aes_setkey_enc(&raw mut ctx, &raw key[0], 32)
-    unsafe var chem_ct : [32]u8
+    var chem_ct : [32]u8
     aes_crypt_ecb(&raw mut ctx, AES_ENCRYPT, &raw pt[0], &raw mut chem_ct[0])
     aes_crypt_ecb(&raw mut ctx, AES_ENCRYPT, &raw pt[16], &raw mut chem_ct[16])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 32)) { env.error("AES-256-ECB ct mismatch vs Python"); return }
@@ -76,13 +76,13 @@ public func INT_aes256_ecb_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_aes128_ecb_decrypt_vs_python(env : &mut TestEnv) {
-    unsafe var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
-    unsafe var pt : [16]u8; test_random_bytes(&raw mut pt[0], 16)
+    var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
+    var pt : [16]u8; test_random_bytes(&raw mut pt[0], 16)
 
-    unsafe var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
-    unsafe var pt_hex : [33]char; test_bytes_to_hex(&raw pt[0], 16, &raw mut pt_hex[0])
+    var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
+    var pt_hex : [33]char; test_bytes_to_hex(&raw pt[0], 16, &raw mut pt_hex[0])
 
-    unsafe var script : [1024]u8; var sp : size_t = 0
+    var script : [1024]u8; var sp : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.ciphers import Cipher,algorithms,modes\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "cipher=Cipher(algorithms.AES(bytes.fromhex('" as *char; si=0
@@ -95,14 +95,14 @@ public func INT_aes128_ecb_decrypt_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("aes128_ecb_dec.py"))
-    unsafe var py_ct : [16]u8; unsafe var py_pt2 : [16]u8
+    var py_ct : [16]u8; var py_pt2 : [16]u8
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 16)
     var pt2_len = test_parse_py_hex_label(&raw mut py_out, string_view("PT2="), &raw mut py_pt2[0], 16)
     if(ct_len != 16 || pt2_len != 16) { env.error("failed to parse Python output"); return }
 
-    unsafe var ctx : AESContext; aes_init(&raw mut ctx)
+    var ctx : AESContext; aes_init(&raw mut ctx)
     aes_setkey_dec(&raw mut ctx, &raw key[0], 16)
-    unsafe var chem_dec : [16]u8
+    var chem_dec : [16]u8
     aes_crypt_ecb(&raw mut ctx, AES_DECRYPT, &raw py_ct[0], &raw mut chem_dec[0])
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 16)) { env.error("AES-128-ECB decrypt roundtrip mismatch vs Python"); return }
 }
@@ -111,32 +111,32 @@ public func INT_aes128_ecb_decrypt_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_tls12_record_gcm_vs_python(env : &mut TestEnv) {
-    unsafe var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
-    unsafe var iv : [4]u8; test_random_bytes(&raw mut iv[0], 4)
-    unsafe var pt : [16]u8; test_random_bytes(&raw mut pt[0], 16)
-    unsafe var seq : [8]u8; test_random_bytes(&raw mut seq[0], 8)
+    var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
+    var iv : [4]u8; test_random_bytes(&raw mut iv[0], 4)
+    var pt : [16]u8; test_random_bytes(&raw mut pt[0], 16)
+    var seq : [8]u8; test_random_bytes(&raw mut seq[0], 8)
     seq[0] = 0; seq[1] = 0; seq[2] = 0; seq[3] = 0
 
-    unsafe var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
-    unsafe var iv_hex : [9]char; test_bytes_to_hex(&raw iv[0], 4, &raw mut iv_hex[0])
-    unsafe var pt_hex : [33]char; test_bytes_to_hex(&raw pt[0], 16, &raw mut pt_hex[0])
-    unsafe var seq_hex : [17]char; test_bytes_to_hex(&raw seq[0], 8, &raw mut seq_hex[0])
+    var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
+    var iv_hex : [9]char; test_bytes_to_hex(&raw iv[0], 4, &raw mut iv_hex[0])
+    var pt_hex : [33]char; test_bytes_to_hex(&raw pt[0], 16, &raw mut pt_hex[0])
+    var seq_hex : [17]char; test_bytes_to_hex(&raw seq[0], 8, &raw mut seq_hex[0])
 
-    unsafe var tr : Transform; transform_init(&raw mut tr)
+    var tr : Transform; transform_init(&raw mut tr)
     tr.cipher_type = CIPHER_AES_128_GCM as u8; tr.key_len = 16; tr.iv_len = 4; tr.fixed_iv_len = 4; tr.mac_key_len = 0
     var i : size_t = 0; while(i < 16) { tr.key_enc[i] = key[i]; i += 1 }
     i = 0; while(i < 4) { tr.base_iv_enc[i] = iv[i]; i += 1 }
-    unsafe var ct_out : [64]u8
+    var ct_out : [64]u8
     var enc_len = tls12_encrypt_record(&raw mut tr, &raw seq[0], SSL_MSG_APPLICATION_DATA as u8, 3, 3, &raw pt[0], 16, &raw mut ct_out[0], 64)
     if(enc_len < 0) { env.error("tls12_encrypt_record failed"); return }
 
-    unsafe var ct : [16]u8; i = 0; while(i < 16) { ct[i] = ct_out[8 + i]; i += 1 }
-    unsafe var tag : [16]u8; i = 0; while(i < 16) { tag[i] = ct_out[8 + 16 + i]; i += 1 }
+    var ct : [16]u8; i = 0; while(i < 16) { ct[i] = ct_out[8 + i]; i += 1 }
+    var tag : [16]u8; i = 0; while(i < 16) { tag[i] = ct_out[8 + 16 + i]; i += 1 }
 
-    unsafe var ct_hex : [33]char; test_bytes_to_hex(&raw ct[0], 16, &raw mut ct_hex[0])
-    unsafe var tag_hex : [33]char; test_bytes_to_hex(&raw tag[0], 16, &raw mut tag_hex[0])
+    var ct_hex : [33]char; test_bytes_to_hex(&raw ct[0], 16, &raw mut ct_hex[0])
+    var tag_hex : [33]char; test_bytes_to_hex(&raw tag[0], 16, &raw mut tag_hex[0])
 
-    unsafe var script : [1536]u8; var sp : size_t = 0
+    var script : [1536]u8; var sp : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.ciphers.aead import AESGCM\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "aesgcm=AESGCM(bytes.fromhex('" as *char; si=0
@@ -161,16 +161,16 @@ public func INT_tls12_record_gcm_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("tls12_gcm.py"))
-    unsafe var py_pt : [16]u8
+    var py_pt : [16]u8
     var pt_len = test_parse_py_hex_label(&raw mut py_out, string_view("PT="), &raw mut py_pt[0], 16)
     if(pt_len != 16) { env.error("failed to parse Python output"); return }
     if(!test_bytes_eq(&raw py_pt[0], &raw pt[0], 16)) { env.error("TLS 1.2 GCM record decrypt mismatch vs Python"); return }
 
-    unsafe var tr_dec : Transform; transform_init(&raw mut tr_dec)
+    var tr_dec : Transform; transform_init(&raw mut tr_dec)
     tr_dec.cipher_type = CIPHER_AES_128_GCM as u8; tr_dec.key_len = 16; tr_dec.iv_len = 4; tr_dec.fixed_iv_len = 4; tr_dec.mac_key_len = 0
     i = 0; while(i < 16) { tr_dec.key_dec[i] = key[i]; i += 1 }
     i = 0; while(i < 4) { tr_dec.base_iv_dec[i] = iv[i]; i += 1 }
-    unsafe var dec_out : [64]u8
+    var dec_out : [64]u8
     var dec_ret = tls12_decrypt_record(&raw mut tr_dec, &raw seq[0], SSL_MSG_APPLICATION_DATA as u8, 3, 3, &raw ct_out[0], enc_len as size_t, &raw mut dec_out[0], 64)
     if(dec_ret < 0) { env.error("tls12_decrypt_record failed"); return }
     if(!test_bytes_eq(&raw dec_out[0], &raw pt[0], 16)) { env.error("TLS 1.2 GCM record Chemical decrypt mismatch"); return }
@@ -180,18 +180,18 @@ public func INT_tls12_record_gcm_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_tls12_finished_vs_python(env : &mut TestEnv) {
-    unsafe var ms : [48]u8; test_random_bytes(&raw mut ms[0], 48)
-    unsafe var handshake_hash : [36]u8; test_random_bytes(&raw mut handshake_hash[0], 36)
+    var ms : [48]u8; test_random_bytes(&raw mut ms[0], 48)
+    var handshake_hash : [36]u8; test_random_bytes(&raw mut handshake_hash[0], 36)
 
-    unsafe var ms_hex : [97]char; test_bytes_to_hex(&raw ms[0], 48, &raw mut ms_hex[0])
-    unsafe var hh_hex : [73]char; test_bytes_to_hex(&raw handshake_hash[0], 36, &raw mut hh_hex[0])
+    var ms_hex : [97]char; test_bytes_to_hex(&raw ms[0], 48, &raw mut ms_hex[0])
+    var hh_hex : [73]char; test_bytes_to_hex(&raw handshake_hash[0], 36, &raw mut hh_hex[0])
 
-    unsafe var chem_client_finished : [12]u8
+    var chem_client_finished : [12]u8
     tls12_compute_finished(&raw ms[0], true, &raw handshake_hash[0], 36, &raw mut chem_client_finished[0])
-    unsafe var chem_server_finished : [12]u8
+    var chem_server_finished : [12]u8
     tls12_compute_finished(&raw ms[0], false, &raw handshake_hash[0], 36, &raw mut chem_server_finished[0])
 
-    unsafe var script : [1536]u8; var sp : size_t = 0; var si : size_t = 0
+    var script : [1536]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "import hashlib,hmac\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "ms=bytes.fromhex('" as *char; si=0
@@ -210,7 +210,7 @@ public func INT_tls12_finished_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("tls12_fin.py"))
-    unsafe var py_cf : [12]u8; unsafe var py_sf : [12]u8
+    var py_cf : [12]u8; var py_sf : [12]u8
     var cf_len = test_parse_py_hex_label(&raw mut py_out, string_view("CF="), &raw mut py_cf[0], 12)
     var sf_len = test_parse_py_hex_label(&raw mut py_out, string_view("SF="), &raw mut py_sf[0], 12)
     if(cf_len != 12 || sf_len != 12) { env.error("failed to parse Python output"); return }
@@ -222,7 +222,7 @@ public func INT_tls12_finished_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_x509_rsa_signature_vs_python(env : &mut TestEnv) {
-    unsafe var script : [2048]u8; var sp : size_t = 0; var si : size_t = 0
+    var script : [2048]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "from cryptography import x509\nfrom cryptography.x509.oid import NameOID\nfrom cryptography.hazmat.primitives import hashes\nfrom cryptography.hazmat.primitives.asymmetric import rsa\nimport datetime\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "key=rsa.generate_private_key(65537,2048)\npub=key.public_key()\n" as *char; si=0
@@ -237,23 +237,23 @@ public func INT_x509_rsa_signature_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("cert_rsa.py"))
-    unsafe var pub_der : [294]u8
+    var pub_der : [294]u8
     var pub_len = test_parse_py_hex_label(&raw mut py_out, string_view("PUB="), &raw mut pub_der[0], 294)
     if(pub_len == 0) { env.error("failed to parse Python pubkey"); return }
 
     var cert_file = fopen("/tmp/chem_rsa_cert.der\0" as *char, "rb\0" as *char)
     if(cert_file == null) { env.error("cannot open cert"); return }
-    unsafe var cert_buf : [2048]u8
+    var cert_buf : [2048]u8
     var cert_len = fread(&raw mut cert_buf[0] as *mut void, 1 as size_t, 2048, cert_file)
     fclose(cert_file)
 
-    unsafe var crt : X509Cert; x509_cert_init(&raw mut crt)
+    var crt : X509Cert; x509_cert_init(&raw mut crt)
     var ret = parse_cert_der(&raw mut crt, &raw cert_buf[0], cert_len)
     if(ret < 0) { env.error("parse_cert_der failed"); return }
     if(crt.pk_type != PK_RSA) { env.error("expected RSA key type"); return }
 
     // Import the RSA public key and verify signature
-    unsafe var rsa_ctx : RSAContext; rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
+    var rsa_ctx : RSAContext; rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
     ret = x509_extract_rsa_pubkey(&raw mut crt, &raw mut rsa_ctx)
     if(ret < 0) { env.error("x509_extract_rsa_pubkey failed"); return }
 
@@ -265,12 +265,12 @@ public func INT_x509_rsa_signature_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_tls13_record_bidirectional_python(env : &mut TestEnv) {
-    unsafe var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
-    unsafe var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
-    unsafe var pt : [32]u8; test_random_bytes(&raw mut pt[0], 32)
+    var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
+    var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
+    var pt : [32]u8; test_random_bytes(&raw mut pt[0], 32)
 
-    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
-    unsafe var tr : Transform; transform_init(&raw mut tr)
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var tr : Transform; transform_init(&raw mut tr)
     tr.cipher_type = CIPHER_AES_128_GCM as u8; tr.key_len = 16; tr.iv_len = 12; tr.fixed_iv_len = 12
     var i : size_t = 0
     while(i < 16) { tr.key_enc[i] = key[i]; tr.key_dec[i] = key[i]; i += 1 }
@@ -278,16 +278,16 @@ public func INT_tls13_record_bidirectional_python(env : &mut TestEnv) {
     var tr_out = malloc(sizeof(Transform)) as *mut Transform; *tr_out = tr; ctx.transform_out = tr_out
     var tr_in = malloc(sizeof(Transform)) as *mut Transform; *tr_in = tr; ctx.transform_in = tr_in
 
-    unsafe var ct_buf : [128]u8
+    var ct_buf : [128]u8
     var ct_len = tls13_encrypt_record(&raw mut ctx, SSL_MSG_APPLICATION_DATA as u8, &raw pt[0], 32, &raw mut ct_buf[0], 128)
     if(ct_len < 0) { env.error("tls13_encrypt_record failed"); return }
 
-    unsafe var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
-    unsafe var iv_hex : [25]char; test_bytes_to_hex(&raw iv[0], 12, &raw mut iv_hex[0])
-    unsafe var ct_hex : [250]char; test_bytes_to_hex(&raw ct_buf[5], (ct_len-5) as size_t, &raw mut ct_hex[0])
-    unsafe var aad_hex : [11]char; test_bytes_to_hex(&raw ct_buf[0], 5, &raw mut aad_hex[0])
+    var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
+    var iv_hex : [25]char; test_bytes_to_hex(&raw iv[0], 12, &raw mut iv_hex[0])
+    var ct_hex : [250]char; test_bytes_to_hex(&raw ct_buf[5], (ct_len-5) as size_t, &raw mut ct_hex[0])
+    var aad_hex : [11]char; test_bytes_to_hex(&raw ct_buf[0], 5, &raw mut aad_hex[0])
 
-    unsafe var script : [1024]u8; var sp : size_t = 0; var si : size_t = 0
+    var script : [1024]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.ciphers.aead import AESGCM\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "aesgcm=AESGCM(bytes.fromhex('" as *char; si=0
@@ -306,15 +306,15 @@ public func INT_tls13_record_bidirectional_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("tls13_bidi.py"))
-    unsafe var py_pt : [32]u8
+    var py_pt : [32]u8
     var pt_parse_len = test_parse_py_hex_label(&raw mut py_out, string_view("PT="), &raw mut py_pt[0], 32)
     if(pt_parse_len != 32) { env.error("failed to parse Python output"); return }
     if(!test_bytes_eq(&raw py_pt[0], &raw pt[0], 32)) { env.error("Python decrypted TLS 1.3 record mismatch"); return }
 
     // Python encrypts, Chemical decrypts
     ctx.in_ctr[0]=0;ctx.in_ctr[1]=0;ctx.in_ctr[2]=0;ctx.in_ctr[3]=0;ctx.in_ctr[4]=0;ctx.in_ctr[5]=0;ctx.in_ctr[6]=0;ctx.in_ctr[7]=0
-    unsafe var pt2 : [16]u8; test_random_bytes(&raw mut pt2[0], 16)
-    unsafe var pt2_hex : [33]char; test_bytes_to_hex(&raw pt2[0], 16, &raw mut pt2_hex[0])
+    var pt2 : [16]u8; test_random_bytes(&raw mut pt2[0], 16)
+    var pt2_hex : [33]char; test_bytes_to_hex(&raw pt2[0], 16, &raw mut pt2_hex[0])
     script[0]=0; sp=0; si=0
     l = "from cryptography.hazmat.primitives.ciphers.aead import AESGCM\naesgcm=AESGCM(bytes.fromhex('" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
@@ -329,7 +329,7 @@ public func INT_tls13_record_bidirectional_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     py_out = test_python_run_script(&raw script[0], sp, string_view("tls13_bidi2.py"))
-    unsafe var rec_bytes : [64]u8
+    var rec_bytes : [64]u8
     var rec_len = test_parse_py_hex_label(&raw mut py_out, string_view("REC="), &raw mut rec_bytes[0], 54)
     if(rec_len < 5) { env.error("failed to parse Python encrypted record"); return }
 
@@ -337,7 +337,7 @@ public func INT_tls13_record_bidirectional_python(env : &mut TestEnv) {
     ctx.in_hdr[3] = rec_bytes[3]; ctx.in_hdr[4] = rec_bytes[4]
     i = 0; while(i < 8) { ctx.in_ctr[i] = 0; i += 1 }
 
-    unsafe var dec_buf : [64]u8; var inner_ct : u8 = 0
+    var dec_buf : [64]u8; var inner_ct : u8 = 0
     var dlen = tls13_decrypt_record(&raw mut ctx, &raw rec_bytes[5], (rec_len-5) as size_t, &raw mut dec_buf[0], 64, &raw mut inner_ct)
     if(dlen < 0) { env.error("tls13_decrypt_record failed"); return }
     if(!test_bytes_eq(&raw dec_buf[0], &raw pt2[0], 16)) { env.error("TLS 1.3 bidirectional decrypt mismatch"); return }
@@ -347,13 +347,13 @@ public func INT_tls13_record_bidirectional_python(env : &mut TestEnv) {
 
 @test
 public func INT_hmac_sha256_long_msg_vs_python(env : &mut TestEnv) {
-    unsafe var key : [32]u8; test_random_bytes(&raw mut key[0], 32)
-    unsafe var data : [256]u8; test_random_bytes(&raw mut data[0], 256)
+    var key : [32]u8; test_random_bytes(&raw mut key[0], 32)
+    var data : [256]u8; test_random_bytes(&raw mut data[0], 256)
 
-    unsafe var key_hex : [65]char; test_bytes_to_hex(&raw key[0], 32, &raw mut key_hex[0])
-    unsafe var data_hex : [513]char; test_bytes_to_hex(&raw data[0], 256, &raw mut data_hex[0])
+    var key_hex : [65]char; test_bytes_to_hex(&raw key[0], 32, &raw mut key_hex[0])
+    var data_hex : [513]char; test_bytes_to_hex(&raw data[0], 256, &raw mut data_hex[0])
 
-    unsafe var script : [1024]u8; var sp : size_t = 0
+    var script : [1024]u8; var sp : size_t = 0
     var hdr = "import hmac,hashlib\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "h=hmac.new(bytes.fromhex('" as *char; si=0
@@ -366,11 +366,11 @@ public func INT_hmac_sha256_long_msg_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("hmac256.py"))
-    unsafe var py_mac : [32]u8
+    var py_mac : [32]u8
     var mac_len = test_parse_py_hex_label(&raw mut py_out, string_view("MAC="), &raw mut py_mac[0], 32)
     if(mac_len != 32) { env.error("failed to parse Python output"); return }
 
-    unsafe var chem_mac : [32]u8
+    var chem_mac : [32]u8
     hmac_sha256(&raw key[0], 32, &raw data[0], 256, &raw mut chem_mac[0])
     if(!test_bytes_eq(&raw chem_mac[0], &raw py_mac[0], 32)) { env.error("HMAC-SHA256 long msg mismatch vs Python"); return }
 }
@@ -379,21 +379,21 @@ public func INT_hmac_sha256_long_msg_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_base64_decode_vs_python(env : &mut TestEnv) {
-    unsafe var data : [48]u8; test_random_bytes(&raw mut data[0], 48)
-    unsafe var d_hex : [97]char; test_bytes_to_hex(&raw data[0], 48, &raw mut d_hex[0])
+    var data : [48]u8; test_random_bytes(&raw mut data[0], 48)
+    var d_hex : [97]char; test_bytes_to_hex(&raw data[0], 48, &raw mut d_hex[0])
 
-    unsafe var enc : [72]char; var enc_r = base64_encode(&raw data[0], 48, &raw mut enc[0], 72)
+    var enc : [72]char; var enc_r = base64_encode(&raw data[0], 48, &raw mut enc[0], 72)
     if(enc_r is Result.Err) { env.error("b64 enc failed"); return }
     var Ok(enc_len) = enc_r else unreachable
 
-    unsafe var script : [256]u8; var sp : size_t = 0
+    var script : [256]u8; var sp : size_t = 0
     var hdr = "import base64;d=bytes.fromhex('" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     si=0; while(d_hex[si]!=0){script[sp]=d_hex[si] as u8; sp+=1; si+=1}
     var l = "')\nprint(base64.b64encode(d).decode())\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     var py_out = test_python_run_script(&raw script[0], sp, string_view("b64_enc"))
-    unsafe var py_enc : [72]u8; var pw : size_t = 0; var pi : size_t = 0
+    var py_enc : [72]u8; var pw : size_t = 0; var pi : size_t = 0
     while(pi<py_out.size()&&pw<72){var c=py_out.get(pi)as char;if(c==10||c==13||c==0){break}else{py_enc[pw]=c as u8;pw+=1}pi+=1}
     if(pw!=enc_len||!test_bytes_eq(&raw enc[0] as *u8,&raw py_enc[0],enc_len)){env.error("b64 enc vs py");return}
 
@@ -409,10 +409,10 @@ public func INT_base64_decode_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_md5_hash_vs_python(env : &mut TestEnv) {
-    unsafe var data : [64]u8; test_random_bytes(&raw mut data[0], 64)
-    unsafe var data_hex : [129]char; test_bytes_to_hex(&raw data[0], 64, &raw mut data_hex[0])
+    var data : [64]u8; test_random_bytes(&raw mut data[0], 64)
+    var data_hex : [129]char; test_bytes_to_hex(&raw data[0], 64, &raw mut data_hex[0])
 
-    unsafe var script : [512]u8; var sp : size_t = 0
+    var script : [512]u8; var sp : size_t = 0
     var hdr = "import hashlib\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "h=hashlib.md5(bytes.fromhex('" as *char; si=0
@@ -422,25 +422,25 @@ public func INT_md5_hash_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("md5_hash.py"))
-    unsafe var py_hash : [16]u8
+    var py_hash : [16]u8
     var hash_len = test_parse_py_hex_label(&raw mut py_out, string_view("HASH="), &raw mut py_hash[0], 16)
     if(hash_len != 16) { env.error("failed to parse Python output"); return }
 
-    unsafe var chem_hash : [16]u8
+    var chem_hash : [16]u8
     md5_hash(&raw data[0], 64, &raw mut chem_hash[0])
     if(!test_bytes_eq(&raw chem_hash[0], &raw py_hash[0], 16)) { env.error("MD5 hash mismatch vs Python"); return }
 }
 
 @test
 public func INT_md5_empty_vs_python(env : &mut TestEnv) {
-    unsafe var script : [256]u8; var sp : size_t = 0
+    var script : [256]u8; var sp : size_t = 0
     var hdr = "import hashlib;print('HASH='+hashlib.md5(b'').hexdigest())\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var py_out = test_python_run_script(&raw script[0], sp, string_view("md5_empty.py"))
-    unsafe var py_hash : [16]u8
+    var py_hash : [16]u8
     var hash_len = test_parse_py_hex_label(&raw mut py_out, string_view("HASH="), &raw mut py_hash[0], 16)
     if(hash_len != 16) { env.error("failed to parse Python output"); return }
-    unsafe var chem_hash : [16]u8
+    var chem_hash : [16]u8
     md5_hash(null, 0, &raw mut chem_hash[0])
     if(!test_bytes_eq(&raw chem_hash[0], &raw py_hash[0], 16)) { env.error("MD5 empty hash mismatch vs Python"); return }
 }
@@ -449,15 +449,15 @@ public func INT_md5_empty_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_aes_cbc_128_decrypt_vs_python(env : &mut TestEnv) {
-    unsafe var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
-    unsafe var iv : [16]u8; test_random_bytes(&raw mut iv[0], 16)
-    unsafe var pt : [48]u8; test_random_bytes(&raw mut pt[0], 48)
+    var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
+    var iv : [16]u8; test_random_bytes(&raw mut iv[0], 16)
+    var pt : [48]u8; test_random_bytes(&raw mut pt[0], 48)
 
-    unsafe var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
-    unsafe var iv_hex : [33]char; test_bytes_to_hex(&raw iv[0], 16, &raw mut iv_hex[0])
-    unsafe var pt_hex : [97]char; test_bytes_to_hex(&raw pt[0], 48, &raw mut pt_hex[0])
+    var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
+    var iv_hex : [33]char; test_bytes_to_hex(&raw iv[0], 16, &raw mut iv_hex[0])
+    var pt_hex : [97]char; test_bytes_to_hex(&raw pt[0], 48, &raw mut pt_hex[0])
 
-    unsafe var py_script : [1024]u8; var sp : size_t = 0
+    var py_script : [1024]u8; var sp : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.ciphers import Cipher,algorithms,modes\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){py_script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "cipher=Cipher(algorithms.AES(bytes.fromhex('" as *char; si=0
@@ -473,14 +473,14 @@ public func INT_aes_cbc_128_decrypt_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){py_script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw py_script[0], sp, string_view("cbc128_dec.py"))
-    unsafe var py_ct : [64]u8
+    var py_ct : [64]u8
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 64)
     if(ct_len == 0) { env.error("failed to parse Python output"); return }
 
-    unsafe var ctx : AESContext; aes_init(&raw mut ctx)
+    var ctx : AESContext; aes_init(&raw mut ctx)
     aes_setkey_dec(&raw mut ctx, &raw key[0], 16)
-    unsafe var dec_iv : [16]u8; var di : size_t = 0; while(di < 16) { dec_iv[di] = iv[di]; di += 1 }
-    unsafe var chem_dec : [64]u8
+    var dec_iv : [16]u8; var di : size_t = 0; while(di < 16) { dec_iv[di] = iv[di]; di += 1 }
+    var chem_dec : [64]u8
     var ret = aes_crypt_cbc(&raw mut ctx, AES_DECRYPT, ct_len, &raw mut dec_iv[0], &raw py_ct[0], &raw mut chem_dec[0])
     if(ret < 0) { env.error("aes_crypt_cbc decrypt failed"); return }
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 48)) { env.error("AES-128-CBC decrypt mismatch vs Python"); return }
@@ -488,15 +488,15 @@ public func INT_aes_cbc_128_decrypt_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_aes_cbc_256_decrypt_vs_python(env : &mut TestEnv) {
-    unsafe var key : [32]u8; test_random_bytes(&raw mut key[0], 32)
-    unsafe var iv : [16]u8; test_random_bytes(&raw mut iv[0], 16)
-    unsafe var pt : [48]u8; test_random_bytes(&raw mut pt[0], 48)
+    var key : [32]u8; test_random_bytes(&raw mut key[0], 32)
+    var iv : [16]u8; test_random_bytes(&raw mut iv[0], 16)
+    var pt : [48]u8; test_random_bytes(&raw mut pt[0], 48)
 
-    unsafe var key_hex : [65]char; test_bytes_to_hex(&raw key[0], 32, &raw mut key_hex[0])
-    unsafe var iv_hex : [33]char; test_bytes_to_hex(&raw iv[0], 16, &raw mut iv_hex[0])
-    unsafe var pt_hex : [97]char; test_bytes_to_hex(&raw pt[0], 48, &raw mut pt_hex[0])
+    var key_hex : [65]char; test_bytes_to_hex(&raw key[0], 32, &raw mut key_hex[0])
+    var iv_hex : [33]char; test_bytes_to_hex(&raw iv[0], 16, &raw mut iv_hex[0])
+    var pt_hex : [97]char; test_bytes_to_hex(&raw pt[0], 48, &raw mut pt_hex[0])
 
-    unsafe var py_script : [1024]u8; var sp : size_t = 0
+    var py_script : [1024]u8; var sp : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.ciphers import Cipher,algorithms,modes\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){py_script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "cipher=Cipher(algorithms.AES(bytes.fromhex('" as *char; si=0
@@ -512,14 +512,14 @@ public func INT_aes_cbc_256_decrypt_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){py_script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw py_script[0], sp, string_view("cbc256_dec.py"))
-    unsafe var py_ct : [64]u8
+    var py_ct : [64]u8
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 64)
     if(ct_len == 0) { env.error("failed to parse Python output"); return }
 
-    unsafe var ctx : AESContext; aes_init(&raw mut ctx)
+    var ctx : AESContext; aes_init(&raw mut ctx)
     aes_setkey_dec(&raw mut ctx, &raw key[0], 32)
-    unsafe var dec_iv : [16]u8; var di : size_t = 0; while(di < 16) { dec_iv[di] = iv[di]; di += 1 }
-    unsafe var chem_dec : [64]u8
+    var dec_iv : [16]u8; var di : size_t = 0; while(di < 16) { dec_iv[di] = iv[di]; di += 1 }
+    var chem_dec : [64]u8
     var ret = aes_crypt_cbc(&raw mut ctx, AES_DECRYPT, ct_len, &raw mut dec_iv[0], &raw py_ct[0], &raw mut chem_dec[0])
     if(ret < 0) { env.error("aes_crypt_cbc decrypt failed"); return }
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 48)) { env.error("AES-256-CBC decrypt mismatch vs Python"); return }
@@ -529,10 +529,10 @@ public func INT_aes_cbc_256_decrypt_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_hmac_sha256_empty_key_vs_python(env : &mut TestEnv) {
-    unsafe var data : [32]u8; test_random_bytes(&raw mut data[0], 32)
-    unsafe var data_hex : [65]char; test_bytes_to_hex(&raw data[0], 32, &raw mut data_hex[0])
+    var data : [32]u8; test_random_bytes(&raw mut data[0], 32)
+    var data_hex : [65]char; test_bytes_to_hex(&raw data[0], 32, &raw mut data_hex[0])
 
-    unsafe var script : [512]u8; var sp : size_t = 0
+    var script : [512]u8; var sp : size_t = 0
     var hdr = "import hmac,hashlib\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "h=hmac.new(b'',bytes.fromhex('" as *char; si=0
@@ -541,20 +541,20 @@ public func INT_hmac_sha256_empty_key_vs_python(env : &mut TestEnv) {
     l = "'),hashlib.sha256).hexdigest()\nprint('MAC='+h)\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     var py_out = test_python_run_script(&raw script[0], sp, string_view("hmac_ek.py"))
-    unsafe var py_mac : [32]u8
+    var py_mac : [32]u8
     var mac_len = test_parse_py_hex_label(&raw mut py_out, string_view("MAC="), &raw mut py_mac[0], 32)
     if(mac_len != 32) { env.error("failed to parse Python output"); return }
-    unsafe var chem_mac : [32]u8
+    var chem_mac : [32]u8
     hmac_sha256(null, 0, &raw data[0], 32, &raw mut chem_mac[0])
     if(!test_bytes_eq(&raw chem_mac[0], &raw py_mac[0], 32)) { env.error("HMAC-SHA256 empty key mismatch vs Python"); return }
 }
 
 @test
 public func INT_hmac_sha256_empty_data_vs_python(env : &mut TestEnv) {
-    unsafe var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
-    unsafe var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
+    var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
+    var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
 
-    unsafe var script : [512]u8; var sp : size_t = 0
+    var script : [512]u8; var sp : size_t = 0
     var hdr = "import hmac,hashlib\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "h=hmac.new(bytes.fromhex('" as *char; si=0
@@ -563,10 +563,10 @@ public func INT_hmac_sha256_empty_data_vs_python(env : &mut TestEnv) {
     l = "'),b'',hashlib.sha256).hexdigest()\nprint('MAC='+h)\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     var py_out = test_python_run_script(&raw script[0], sp, string_view("hmac_ed.py"))
-    unsafe var py_mac : [32]u8
+    var py_mac : [32]u8
     var mac_len = test_parse_py_hex_label(&raw mut py_out, string_view("MAC="), &raw mut py_mac[0], 32)
     if(mac_len != 32) { env.error("failed to parse Python output"); return }
-    unsafe var chem_mac : [32]u8
+    var chem_mac : [32]u8
     hmac_sha256(&raw key[0], 16, null, 0, &raw mut chem_mac[0])
     if(!test_bytes_eq(&raw chem_mac[0], &raw py_mac[0], 32)) { env.error("HMAC-SHA256 empty data mismatch vs Python"); return }
 }
@@ -575,17 +575,17 @@ public func INT_hmac_sha256_empty_data_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_gcm_large_plaintext_vs_python(env : &mut TestEnv) {
-    unsafe var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
-    unsafe var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
-    unsafe var aad : [16]u8; test_random_bytes(&raw mut aad[0], 16)
-    unsafe var pt : [1024]u8; test_random_bytes(&raw mut pt[0], 1024)
+    var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
+    var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
+    var aad : [16]u8; test_random_bytes(&raw mut aad[0], 16)
+    var pt : [1024]u8; test_random_bytes(&raw mut pt[0], 1024)
 
-    unsafe var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
-    unsafe var iv_hex : [25]char; test_bytes_to_hex(&raw iv[0], 12, &raw mut iv_hex[0])
-    unsafe var aad_hex : [33]char; test_bytes_to_hex(&raw aad[0], 16, &raw mut aad_hex[0])
-    unsafe var pt_hex : [2049]char; test_bytes_to_hex(&raw pt[0], 1024, &raw mut pt_hex[0])
+    var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
+    var iv_hex : [25]char; test_bytes_to_hex(&raw iv[0], 12, &raw mut iv_hex[0])
+    var aad_hex : [33]char; test_bytes_to_hex(&raw aad[0], 16, &raw mut aad_hex[0])
+    var pt_hex : [2049]char; test_bytes_to_hex(&raw pt[0], 1024, &raw mut pt_hex[0])
 
-    unsafe var script : [4096]u8; var sp : size_t = 0
+    var script : [4096]u8; var sp : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.ciphers.aead import AESGCM\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "aesgcm=AESGCM(bytes.fromhex('" as *char; si=0
@@ -604,12 +604,12 @@ public func INT_gcm_large_plaintext_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("gcm_large.py"))
-    unsafe var py_ct : [1024]u8; unsafe var py_tag : [16]u8
+    var py_ct : [1024]u8; var py_tag : [16]u8
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 1024)
     var tag_len = test_parse_py_hex_label(&raw mut py_out, string_view("TAG="), &raw mut py_tag[0], 16)
     if(ct_len != 1024 || tag_len != 16) { env.error("failed to parse Python output"); return }
-    unsafe var gcm : GCMContext; gcm_init(&raw mut gcm, &raw key[0], 16)
-    unsafe var chem_ct : [2048]u8; unsafe var chem_tag : [16]u8
+    var gcm : GCMContext; gcm_init(&raw mut gcm, &raw key[0], 16)
+    var chem_ct : [2048]u8; var chem_tag : [16]u8
     gcm_crypt_and_tag(&raw mut gcm, &raw iv[0], 12, &raw aad[0], 16, &raw pt[0], 1024, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 1024)) { env.error("GCM large ct mismatch vs Python"); return }
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("GCM large tag mismatch vs Python"); return }
@@ -619,10 +619,10 @@ public func INT_gcm_large_plaintext_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_x25519_clamping_vs_python(env : &mut TestEnv) {
-    unsafe var raw_scalar : [32]u8; test_random_bytes(&raw mut raw_scalar[0], 32)
-    unsafe var rs_hex : [65]char; test_bytes_to_hex(&raw raw_scalar[0], 32, &raw mut rs_hex[0])
+    var raw_scalar : [32]u8; test_random_bytes(&raw mut raw_scalar[0], 32)
+    var rs_hex : [65]char; test_bytes_to_hex(&raw raw_scalar[0], 32, &raw mut rs_hex[0])
 
-    unsafe var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
+    var script : [512]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "s=list(bytes.fromhex('" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     si=0; while(rs_hex[si]!=0){script[sp]=rs_hex[si] as u8; sp+=1; si+=1}
@@ -630,7 +630,7 @@ public func INT_x25519_clamping_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("x25519_clamp"))
-    unsafe var py_scalar : [32]u8
+    var py_scalar : [32]u8
     var s_len = test_parse_py_hex_label(&raw mut py_out, string_view("S="), &raw mut py_scalar[0], 32)
     if(s_len != 32) { env.error("failed to parse Python output"); return }
 
@@ -642,17 +642,17 @@ public func INT_x25519_clamping_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_gcm_iv8_vs_python(env : &mut TestEnv) {
-    unsafe var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
-    unsafe var iv8 : [8]u8; test_random_bytes(&raw mut iv8[0], 8)
-    unsafe var aad : [13]u8; test_random_bytes(&raw mut aad[0], 13)
-    unsafe var pt : [37]u8; test_random_bytes(&raw mut pt[0], 37)
+    var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
+    var iv8 : [8]u8; test_random_bytes(&raw mut iv8[0], 8)
+    var aad : [13]u8; test_random_bytes(&raw mut aad[0], 13)
+    var pt : [37]u8; test_random_bytes(&raw mut pt[0], 37)
 
-    unsafe var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
-    unsafe var iv_hex : [17]char; test_bytes_to_hex(&raw iv8[0], 8, &raw mut iv_hex[0])
-    unsafe var aad_hex : [27]char; test_bytes_to_hex(&raw aad[0], 13, &raw mut aad_hex[0])
-    unsafe var pt_hex : [75]char; test_bytes_to_hex(&raw pt[0], 37, &raw mut pt_hex[0])
+    var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
+    var iv_hex : [17]char; test_bytes_to_hex(&raw iv8[0], 8, &raw mut iv_hex[0])
+    var aad_hex : [27]char; test_bytes_to_hex(&raw aad[0], 13, &raw mut aad_hex[0])
+    var pt_hex : [75]char; test_bytes_to_hex(&raw pt[0], 37, &raw mut pt_hex[0])
 
-    unsafe var script : [1024]u8; var sp : size_t = 0
+    var script : [1024]u8; var sp : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.ciphers.aead import AESGCM\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "aesgcm=AESGCM(bytes.fromhex('" as *char; si=0
@@ -671,13 +671,13 @@ public func INT_gcm_iv8_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("gcm_iv8.py"))
-    unsafe var py_ct : [37]u8; unsafe var py_tag : [16]u8
+    var py_ct : [37]u8; var py_tag : [16]u8
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 37)
     var tag_len = test_parse_py_hex_label(&raw mut py_out, string_view("TAG="), &raw mut py_tag[0], 16)
     if(ct_len != 37 || tag_len != 16) { env.error("failed to parse Python output"); return }
 
-    unsafe var gcm : GCMContext; gcm_init(&raw mut gcm, &raw key[0], 16)
-    unsafe var chem_ct : [64]u8; unsafe var chem_tag : [16]u8
+    var gcm : GCMContext; gcm_init(&raw mut gcm, &raw key[0], 16)
+    var chem_ct : [64]u8; var chem_tag : [16]u8
     gcm_crypt_and_tag(&raw mut gcm, &raw iv8[0], 8, &raw aad[0], 13, &raw pt[0], 37, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 37)) { env.error("GCM 8-byte IV ct mismatch vs Python"); return }
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("GCM 8-byte IV tag mismatch vs Python"); return }
@@ -687,15 +687,15 @@ public func INT_gcm_iv8_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_gcm_iv16_vs_python(env : &mut TestEnv) {
-    unsafe var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
-    unsafe var iv16 : [16]u8; test_random_bytes(&raw mut iv16[0], 16)
-    unsafe var pt : [32]u8; test_random_bytes(&raw mut pt[0], 32)
+    var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
+    var iv16 : [16]u8; test_random_bytes(&raw mut iv16[0], 16)
+    var pt : [32]u8; test_random_bytes(&raw mut pt[0], 32)
 
-    unsafe var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
-    unsafe var iv_hex : [33]char; test_bytes_to_hex(&raw iv16[0], 16, &raw mut iv_hex[0])
-    unsafe var pt_hex : [65]char; test_bytes_to_hex(&raw pt[0], 32, &raw mut pt_hex[0])
+    var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
+    var iv_hex : [33]char; test_bytes_to_hex(&raw iv16[0], 16, &raw mut iv_hex[0])
+    var pt_hex : [65]char; test_bytes_to_hex(&raw pt[0], 32, &raw mut pt_hex[0])
 
-    unsafe var script : [1024]u8; var sp : size_t = 0
+    var script : [1024]u8; var sp : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.ciphers.aead import AESGCM\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "aesgcm=AESGCM(bytes.fromhex('" as *char; si=0
@@ -711,13 +711,13 @@ public func INT_gcm_iv16_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("gcm_iv16.py"))
-    unsafe var py_ct : [32]u8; unsafe var py_tag : [16]u8
+    var py_ct : [32]u8; var py_tag : [16]u8
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 32)
     var tag_len = test_parse_py_hex_label(&raw mut py_out, string_view("TAG="), &raw mut py_tag[0], 16)
     if(ct_len != 32 || tag_len != 16) { env.error("failed to parse Python output"); return }
 
-    unsafe var gcm : GCMContext; gcm_init(&raw mut gcm, &raw key[0], 16)
-    unsafe var chem_ct : [64]u8; unsafe var chem_tag : [16]u8
+    var gcm : GCMContext; gcm_init(&raw mut gcm, &raw key[0], 16)
+    var chem_ct : [64]u8; var chem_tag : [16]u8
     gcm_crypt_and_tag(&raw mut gcm, &raw iv16[0], 16, null, 0, &raw pt[0], 32, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 32)) { env.error("GCM 16-byte IV ct mismatch vs Python"); return }
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("GCM 16-byte IV tag mismatch vs Python"); return }
@@ -727,17 +727,17 @@ public func INT_gcm_iv16_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_aes256_gcm_encrypt_vs_python(env : &mut TestEnv) {
-    unsafe var key : [32]u8; test_random_bytes(&raw mut key[0], 32)
-    unsafe var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
-    unsafe var aad : [8]u8; test_random_bytes(&raw mut aad[0], 8)
-    unsafe var pt : [64]u8; test_random_bytes(&raw mut pt[0], 64)
+    var key : [32]u8; test_random_bytes(&raw mut key[0], 32)
+    var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
+    var aad : [8]u8; test_random_bytes(&raw mut aad[0], 8)
+    var pt : [64]u8; test_random_bytes(&raw mut pt[0], 64)
 
-    unsafe var key_hex : [65]char; test_bytes_to_hex(&raw key[0], 32, &raw mut key_hex[0])
-    unsafe var iv_hex : [25]char; test_bytes_to_hex(&raw iv[0], 12, &raw mut iv_hex[0])
-    unsafe var aad_hex : [17]char; test_bytes_to_hex(&raw aad[0], 8, &raw mut aad_hex[0])
-    unsafe var pt_hex : [129]char; test_bytes_to_hex(&raw pt[0], 64, &raw mut pt_hex[0])
+    var key_hex : [65]char; test_bytes_to_hex(&raw key[0], 32, &raw mut key_hex[0])
+    var iv_hex : [25]char; test_bytes_to_hex(&raw iv[0], 12, &raw mut iv_hex[0])
+    var aad_hex : [17]char; test_bytes_to_hex(&raw aad[0], 8, &raw mut aad_hex[0])
+    var pt_hex : [129]char; test_bytes_to_hex(&raw pt[0], 64, &raw mut pt_hex[0])
 
-    unsafe var script : [1024]u8; var sp : size_t = 0
+    var script : [1024]u8; var sp : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.ciphers.aead import AESGCM\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "aesgcm=AESGCM(bytes.fromhex('" as *char; si=0
@@ -756,13 +756,13 @@ public func INT_aes256_gcm_encrypt_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("aes256gcm.py"))
-    unsafe var py_ct : [64]u8; unsafe var py_tag : [16]u8
+    var py_ct : [64]u8; var py_tag : [16]u8
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 64)
     var tag_len = test_parse_py_hex_label(&raw mut py_out, string_view("TAG="), &raw mut py_tag[0], 16)
     if(ct_len != 64 || tag_len != 16) { env.error("failed to parse Python output"); return }
 
-    unsafe var gcm : GCMContext; gcm_init(&raw mut gcm, &raw key[0], 32)
-    unsafe var chem_ct : [128]u8; unsafe var chem_tag : [16]u8
+    var gcm : GCMContext; gcm_init(&raw mut gcm, &raw key[0], 32)
+    var chem_ct : [128]u8; var chem_tag : [16]u8
     gcm_crypt_and_tag(&raw mut gcm, &raw iv[0], 12, &raw aad[0], 8, &raw pt[0], 64, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 64)) { env.error("AES-256-GCM ct mismatch vs Python"); return }
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("AES-256-GCM tag mismatch vs Python"); return }
@@ -772,18 +772,18 @@ public func INT_aes256_gcm_encrypt_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_tls12_key_block_128_vs_python(env : &mut TestEnv) {
-    unsafe var ms : [48]u8; test_random_bytes(&raw mut ms[0], 48)
-    unsafe var sr : [32]u8; test_random_bytes(&raw mut sr[0], 32)
-    unsafe var cr : [32]u8; test_random_bytes(&raw mut cr[0], 32)
+    var ms : [48]u8; test_random_bytes(&raw mut ms[0], 48)
+    var sr : [32]u8; test_random_bytes(&raw mut sr[0], 32)
+    var cr : [32]u8; test_random_bytes(&raw mut cr[0], 32)
 
-    unsafe var ms_hex : [97]char; test_bytes_to_hex(&raw ms[0], 48, &raw mut ms_hex[0])
-    unsafe var sr_hex : [65]char; test_bytes_to_hex(&raw sr[0], 32, &raw mut sr_hex[0])
-    unsafe var cr_hex : [65]char; test_bytes_to_hex(&raw cr[0], 32, &raw mut cr_hex[0])
+    var ms_hex : [97]char; test_bytes_to_hex(&raw ms[0], 48, &raw mut ms_hex[0])
+    var sr_hex : [65]char; test_bytes_to_hex(&raw sr[0], 32, &raw mut sr_hex[0])
+    var cr_hex : [65]char; test_bytes_to_hex(&raw cr[0], 32, &raw mut cr_hex[0])
 
-    unsafe var chem_kb : [40]u8
+    var chem_kb : [40]u8
     tls12_derive_key_block(&raw ms[0], &raw sr[0], &raw cr[0], &raw mut chem_kb[0], 40)
 
-    unsafe var script : [1024]u8; var sp : size_t = 0; var si : size_t = 0
+    var script : [1024]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "import hashlib,hmac\n" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "ms=bytes.fromhex('" as *char; si=0
@@ -799,7 +799,7 @@ public func INT_tls12_key_block_128_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("tls12kb128"))
-    unsafe var py_kb : [40]u8
+    var py_kb : [40]u8
     if(test_parse_py_hex_label(&raw mut py_out, string_view("KB="), &raw mut py_kb[0], 40)!=40){env.error("kb");return}
     if(!test_bytes_eq(&raw chem_kb[0],&raw py_kb[0],40)){env.error("key block 128");return}
 }
@@ -808,15 +808,15 @@ public func INT_tls12_key_block_128_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_gcm_no_aad_vs_python(env : &mut TestEnv) {
-    unsafe var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
-    unsafe var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
-    unsafe var pt : [32]u8; test_random_bytes(&raw mut pt[0], 32)
+    var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
+    var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
+    var pt : [32]u8; test_random_bytes(&raw mut pt[0], 32)
 
-    unsafe var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
-    unsafe var iv_hex : [25]char; test_bytes_to_hex(&raw iv[0], 12, &raw mut iv_hex[0])
-    unsafe var pt_hex : [65]char; test_bytes_to_hex(&raw pt[0], 32, &raw mut pt_hex[0])
+    var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
+    var iv_hex : [25]char; test_bytes_to_hex(&raw iv[0], 12, &raw mut iv_hex[0])
+    var pt_hex : [65]char; test_bytes_to_hex(&raw pt[0], 32, &raw mut pt_hex[0])
 
-    unsafe var script : [1024]u8; var sp : size_t = 0
+    var script : [1024]u8; var sp : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.ciphers.aead import AESGCM\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "aesgcm=AESGCM(bytes.fromhex('" as *char; si=0
@@ -832,13 +832,13 @@ public func INT_gcm_no_aad_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("gcm_noaad.py"))
-    unsafe var py_ct : [32]u8; unsafe var py_tag : [16]u8
+    var py_ct : [32]u8; var py_tag : [16]u8
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 32)
     var tag_len = test_parse_py_hex_label(&raw mut py_out, string_view("TAG="), &raw mut py_tag[0], 16)
     if(ct_len != 32 || tag_len != 16) { env.error("failed to parse Python output"); return }
 
-    unsafe var gcm : GCMContext; gcm_init(&raw mut gcm, &raw key[0], 16)
-    unsafe var chem_ct : [64]u8; unsafe var chem_tag : [16]u8
+    var gcm : GCMContext; gcm_init(&raw mut gcm, &raw key[0], 16)
+    var chem_ct : [64]u8; var chem_tag : [16]u8
     gcm_crypt_and_tag(&raw mut gcm, &raw iv[0], 12, null, 0, &raw pt[0], 32, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 32)) { env.error("GCM no AAD ct mismatch vs Python"); return }
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("GCM no AAD tag mismatch vs Python"); return }
@@ -848,17 +848,17 @@ public func INT_gcm_no_aad_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_gcm_auth_decrypt_vs_python(env : &mut TestEnv) {
-    unsafe var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
-    unsafe var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
-    unsafe var pt : [48]u8; test_random_bytes(&raw mut pt[0], 48)
-    unsafe var aad : [8]u8; test_random_bytes(&raw mut aad[0], 8)
+    var key : [16]u8; test_random_bytes(&raw mut key[0], 16)
+    var iv : [12]u8; test_random_bytes(&raw mut iv[0], 12)
+    var pt : [48]u8; test_random_bytes(&raw mut pt[0], 48)
+    var aad : [8]u8; test_random_bytes(&raw mut aad[0], 8)
 
-    unsafe var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
-    unsafe var iv_hex : [25]char; test_bytes_to_hex(&raw iv[0], 12, &raw mut iv_hex[0])
-    unsafe var aad_hex : [17]char; test_bytes_to_hex(&raw aad[0], 8, &raw mut aad_hex[0])
-    unsafe var pt_hex : [97]char; test_bytes_to_hex(&raw pt[0], 48, &raw mut pt_hex[0])
+    var key_hex : [33]char; test_bytes_to_hex(&raw key[0], 16, &raw mut key_hex[0])
+    var iv_hex : [25]char; test_bytes_to_hex(&raw iv[0], 12, &raw mut iv_hex[0])
+    var aad_hex : [17]char; test_bytes_to_hex(&raw aad[0], 8, &raw mut aad_hex[0])
+    var pt_hex : [97]char; test_bytes_to_hex(&raw pt[0], 48, &raw mut pt_hex[0])
 
-    unsafe var script : [1024]u8; var sp : size_t = 0
+    var script : [1024]u8; var sp : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.ciphers.aead import AESGCM\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "aesgcm=AESGCM(bytes.fromhex('" as *char; si=0
@@ -877,19 +877,19 @@ public func INT_gcm_auth_decrypt_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("gcm_auth.py"))
-    unsafe var py_ct : [48]u8; unsafe var py_tag : [16]u8
+    var py_ct : [48]u8; var py_tag : [16]u8
     var ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], 48)
     var tag_len = test_parse_py_hex_label(&raw mut py_out, string_view("TAG="), &raw mut py_tag[0], 16)
     if(ct_len != 48 || tag_len != 16) { env.error("failed to parse Python output"); return }
 
-    unsafe var gcm : GCMContext; gcm_init(&raw mut gcm, &raw key[0], 16)
-    unsafe var chem_ct : [64]u8; unsafe var chem_tag : [16]u8
+    var gcm : GCMContext; gcm_init(&raw mut gcm, &raw key[0], 16)
+    var chem_ct : [64]u8; var chem_tag : [16]u8
     gcm_crypt_and_tag(&raw mut gcm, &raw iv[0], 12, &raw aad[0], 8, &raw pt[0], 48, &raw mut chem_ct[0], &raw mut chem_tag[0])
     if(!test_bytes_eq(&raw chem_ct[0], &raw py_ct[0], 48)) { env.error("GCM auth ct mismatch vs Python"); return }
     if(!test_bytes_eq(&raw chem_tag[0], &raw py_tag[0], 16)) { env.error("GCM auth tag mismatch vs Python"); return }
 
-    unsafe var gcm2 : GCMContext; gcm_init(&raw mut gcm2, &raw key[0], 16)
-    unsafe var chem_dec : [64]u8
+    var gcm2 : GCMContext; gcm_init(&raw mut gcm2, &raw key[0], 16)
+    var chem_dec : [64]u8
     var dret = gcm_auth_decrypt(&raw mut gcm2, &raw iv[0], 12, &raw aad[0], 8, &raw chem_ct[0], 48, &raw chem_tag[0], 16, &raw mut chem_dec[0])
     if(dret < 0) { env.error("gcm_auth_decrypt failed"); return }
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 48)) { env.error("GCM auth decrypt roundtrip mismatch"); return }
@@ -899,10 +899,10 @@ public func INT_gcm_auth_decrypt_vs_python(env : &mut TestEnv) {
 
 @test
 public func INT_hmac_md5_empty_key_vs_python(env : &mut TestEnv) {
-    unsafe var data : [16]u8; test_random_bytes(&raw mut data[0], 16)
-    unsafe var data_hex : [33]char; test_bytes_to_hex(&raw data[0], 16, &raw mut data_hex[0])
+    var data : [16]u8; test_random_bytes(&raw mut data[0], 16)
+    var data_hex : [33]char; test_bytes_to_hex(&raw data[0], 16, &raw mut data_hex[0])
 
-    unsafe var script : [512]u8; var sp : size_t = 0
+    var script : [512]u8; var sp : size_t = 0
     var hdr = "import hmac,hashlib\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     var l = "h=hmac.new(b'',bytes.fromhex('" as *char; si=0
@@ -911,10 +911,10 @@ public func INT_hmac_md5_empty_key_vs_python(env : &mut TestEnv) {
     l = "'),hashlib.md5).hexdigest()\nprint('MAC='+h)\n" as *char; si=0
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
     var py_out = test_python_run_script(&raw script[0], sp, string_view("hmac_md5_ek"))
-    unsafe var py_mac : [16]u8
+    var py_mac : [16]u8
     var mac_len = test_parse_py_hex_label(&raw mut py_out, string_view("MAC="), &raw mut py_mac[0], 16)
     if(mac_len != 16) { env.error("failed to parse Python output"); return }
-    unsafe var chem_mac : [16]u8
+    var chem_mac : [16]u8
     hmac_md5(null, 0, &raw data[0], 16, &raw mut chem_mac[0])
     if(!test_bytes_eq(&raw chem_mac[0], &raw py_mac[0], 16)) { env.error("HMAC-MD5 empty key mismatch vs Python"); return }
 }
@@ -924,31 +924,31 @@ public func INT_hmac_md5_empty_key_vs_python(env : &mut TestEnv) {
 @test
 @test.timeout(60000)
 public func INT_rsa_pkcs1_encrypt_determinism_vs_python(env : &mut TestEnv) {
-    unsafe var rsa_ctx : RSAContext; rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
+    var rsa_ctx : RSAContext; rsa_init(&raw mut rsa_ctx, RSA_PKCS_V15, 0)
     var ret = rsa_gen_key(&raw mut rsa_ctx, 2048, 65537)
     if(ret < 0) { env.error("rsa_gen_key failed"); return }
 
     var n_len = rsa_get_len(&raw mut rsa_ctx)
-    unsafe var n_buf : [256]u8; unsafe var e_buf : [4]u8
+    var n_buf : [256]u8; var e_buf : [4]u8
     mpi_write_binary(&raw mut rsa_ctx.N, &raw mut n_buf[0], n_len)
     mpi_write_binary(&raw mut rsa_ctx.E, &raw mut e_buf[0], 4)
 
-    unsafe var n_hex : [513]char; test_bytes_to_hex(&raw n_buf[0], n_len, &raw mut n_hex[0])
-    unsafe var e_hex : [9]char; test_bytes_to_hex(&raw e_buf[0], 4, &raw mut e_hex[0])
+    var n_hex : [513]char; test_bytes_to_hex(&raw n_buf[0], n_len, &raw mut n_hex[0])
+    var e_hex : [9]char; test_bytes_to_hex(&raw e_buf[0], 4, &raw mut e_hex[0])
 
-    unsafe var pt : [16]u8; test_random_bytes(&raw mut pt[0], 16)
-    unsafe var pt_hex : [33]char; test_bytes_to_hex(&raw pt[0], 16, &raw mut pt_hex[0])
+    var pt : [16]u8; test_random_bytes(&raw mut pt[0], 16)
+    var pt_hex : [33]char; test_bytes_to_hex(&raw pt[0], 16, &raw mut pt_hex[0])
 
-    unsafe var chem_ct : [256]u8
+    var chem_ct : [256]u8
     ret = rsa_pkcs1_encrypt(&raw mut rsa_ctx, &raw pt[0], 16, &raw mut chem_ct[0])
     if(ret < 0) { env.error("rsa_pkcs1_encrypt failed"); return }
-    unsafe var chem_ct2 : [256]u8
+    var chem_ct2 : [256]u8
     ret = rsa_pkcs1_encrypt(&raw mut rsa_ctx, &raw pt[0], 16, &raw mut chem_ct2[0])
     if(ret < 0) { env.error("rsa_pkcs1_encrypt failed"); return }
     if(test_bytes_eq(&raw chem_ct[0], &raw chem_ct2[0], 256)) { env.error("RSA PKCS#1 encrypt should be non-deterministic"); return }
 
-    unsafe var ct_hex : [513]char; test_bytes_to_hex(&raw chem_ct[0], n_len, &raw mut ct_hex[0])
-    unsafe var script : [1024]u8; var sp : size_t = 0; var si : size_t = 0
+    var ct_hex : [513]char; test_bytes_to_hex(&raw chem_ct[0], n_len, &raw mut ct_hex[0])
+    var script : [1024]u8; var sp : size_t = 0; var si : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.asymmetric import rsa,padding\nn=int.from_bytes(bytes.fromhex('" as *char; si=0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
     si=0; while(n_hex[si]!=0){script[sp]=n_hex[si] as u8; sp+=1; si+=1}
@@ -962,10 +962,10 @@ public func INT_rsa_pkcs1_encrypt_determinism_vs_python(env : &mut TestEnv) {
     while(l[si]!=0){script[sp]=l[si] as u8; sp+=1; si+=1}
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("rsa_enc_det"))
-    unsafe var py_ct : [256]u8
+    var py_ct : [256]u8
     var py_ct_len = test_parse_py_hex_label(&raw mut py_out, string_view("CT="), &raw mut py_ct[0], n_len)
     if(py_ct_len != n_len) { env.error("failed to parse Python ciphertext"); return }
-    unsafe var chem_dec : [256]u8; var dec_len : size_t = 256
+    var chem_dec : [256]u8; var dec_len : size_t = 256
     ret = rsa_pkcs1_decrypt(&raw mut rsa_ctx, &raw py_ct[0], n_len, &raw mut chem_dec[0], &raw mut dec_len, 64)
     if(ret < 0) { env.error("rsa_pkcs1_decrypt of Python ct failed"); return }
     if(!test_bytes_eq(&raw chem_dec[0], &raw pt[0], 16)) { env.error("decrypted Python ct mismatch"); return }

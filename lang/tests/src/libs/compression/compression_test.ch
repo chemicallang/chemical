@@ -5,11 +5,11 @@ using namespace std;
 @test
 func test_rle_roundtrip_simple(env : &mut TestEnv) {
     var input : [10]u8 = [ 0x41, 0x41, 0x41, 0x41, 0x42, 0x42, 0x43, 0x44, 0x44, 0x44 ];
-    unsafe var compressed : [64]u8;
+    var compressed : [64]u8;
     var comp_len : size_t = 0;
     var r = compression::compress(&raw input[0], 10, &raw mut compressed[0], &raw mut comp_len, 64);
     if(r is Result.Err) { env.error("compress failed"); return; }
-    unsafe var decompressed : [64]u8;
+    var decompressed : [64]u8;
     var dec_len : size_t = 0;
     var r2 = compression::decompress(&raw compressed[0], comp_len, &raw mut decompressed[0], &raw mut dec_len, 64);
     if(r2 is Result.Err) { env.error("decompress failed"); return; }
@@ -24,11 +24,11 @@ func test_rle_roundtrip_simple(env : &mut TestEnv) {
 @test
 func test_rle_roundtrip_single_byte(env : &mut TestEnv) {
     var input : [1]u8 = [ 0x42 ];
-    unsafe var compressed : [64]u8;
+    var compressed : [64]u8;
     var comp_len : size_t = 0;
     var r = compression::compress(&raw input[0], 1, &raw mut compressed[0], &raw mut comp_len, 64);
     if(r is Result.Err) { env.error("compress failed"); return; }
-    unsafe var decompressed : [64]u8;
+    var decompressed : [64]u8;
     var dec_len : size_t = 0;
     var r2 = compression::decompress(&raw compressed[0], comp_len, &raw mut decompressed[0], &raw mut dec_len, 64);
     if(r2 is Result.Err) { env.error("decompress failed"); return; }
@@ -39,14 +39,14 @@ func test_rle_roundtrip_single_byte(env : &mut TestEnv) {
 
 @test
 func test_rle_roundtrip_all_same(env : &mut TestEnv) {
-    unsafe var input : [20]u8;
+    var input : [20]u8;
     var i : size_t = 0;
     while(i < 20) { input[i] = 0xFF; i += 1; }
-    unsafe var compressed : [64]u8;
+    var compressed : [64]u8;
     var comp_len : size_t = 0;
     var r = compression::compress(&raw input[0], 20, &raw mut compressed[0], &raw mut comp_len, 64);
     if(r is Result.Err) { env.error("compress failed"); return; }
-    unsafe var decompressed : [64]u8;
+    var decompressed : [64]u8;
     var dec_len : size_t = 0;
     var r2 = compression::decompress(&raw compressed[0], comp_len, &raw mut decompressed[0], &raw mut dec_len, 64);
     if(r2 is Result.Err) { env.error("decompress failed"); return; }
@@ -61,11 +61,11 @@ func test_rle_roundtrip_all_same(env : &mut TestEnv) {
 @test
 func test_rle_roundtrip_alternating(env : &mut TestEnv) {
     var input : [6]u8 = [ 0x41, 0x42, 0x41, 0x42, 0x41, 0x42 ];
-    unsafe var compressed : [64]u8;
+    var compressed : [64]u8;
     var comp_len : size_t = 0;
     var r = compression::compress(&raw input[0], 6, &raw mut compressed[0], &raw mut comp_len, 64);
     if(r is Result.Err) { env.error("compress failed"); return; }
-    unsafe var decompressed : [64]u8;
+    var decompressed : [64]u8;
     var dec_len : size_t = 0;
     var r2 = compression::decompress(&raw compressed[0], comp_len, &raw mut decompressed[0], &raw mut dec_len, 64);
     if(r2 is Result.Err) { env.error("decompress failed"); return; }
@@ -80,7 +80,7 @@ func test_rle_roundtrip_alternating(env : &mut TestEnv) {
 @test
 func test_rle_decompress_empty(env : &mut TestEnv) {
     var compressed : [8]u8 = [ 0, 0, 0, 0, 0, 0, 0, 0 ];
-    unsafe var decompressed : [8]u8;
+    var decompressed : [8]u8;
     var dec_len : size_t = 0;
     var r = compression::decompress(&raw compressed[0], 1, &raw mut decompressed[0], &raw mut dec_len, 8);
     if(r is Result.Err) { env.error("decompress failed"); return; }

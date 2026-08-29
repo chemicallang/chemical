@@ -41,7 +41,7 @@ func (cssParser : &mut CSSParser) parseOutline(
                 if(token.value.equals("var")) {
                     parser.increment();
                     const colorValue = cssParser.parseCSSVariableFunc(parser, builder)
-                    unsafe var valueRef : *mut CSSValue
+                    var valueRef : *mut CSSValue
                     if(has_length) {
                         if(has_style) {
                             valueRef = &raw mut outline.color

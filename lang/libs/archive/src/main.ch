@@ -77,19 +77,19 @@ public func extract(archive : *mut Archive, dest : *char) : std::Result<std::Uni
 }
 
 public func extract_entry(archive : *mut Archive, name : *char, dest_dir : *char) : std::Result<std::Unit, ArchiveError> {
-    unsafe var entry : ArchiveEntry
+    var entry : ArchiveEntry
     if(archive.archive_type == 1) {
-        var entry_result = zip_find_entry(&raw mut archive.zip_data, name, &raw mut entry)
+        var entry_result = zip_find_entry(&raw mut archive.zip_data, name, unsafe(&raw mut entry))
         if(entry_result is Result.Err) {
             return std.Result.Err(ArchiveError.InvalidFormat(string("entry not found")))
         }
-        return zip_extract_entry(&raw mut archive.zip_data, &raw mut entry, dest_dir)
+        return zip_extract_entry(&raw mut archive.zip_data, unsafe(&raw mut entry), dest_dir)
     } else {
-        var entry_result = tar_find_entry(&raw mut archive.tar_data, name, &raw mut entry)
+        var entry_result = tar_find_entry(&raw mut archive.tar_data, name, unsafe(&raw mut entry))
         if(entry_result is Result.Err) {
             return std.Result.Err(ArchiveError.InvalidFormat(string("entry not found")))
         }
-        return tar_extract_entry(&raw mut archive.tar_data, &raw mut entry, dest_dir)
+        return tar_extract_entry(&raw mut archive.tar_data, unsafe(&raw mut entry), dest_dir)
     }
 }
 

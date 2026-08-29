@@ -28,7 +28,7 @@ public namespace tls {
         if(ret < 0) { return ret }
 
         // Compute H = AES(K, 0^128)
-        unsafe var zero_block : [16]u8
+        var zero_block : [16]u8
         var i : size_t = 0
         while(i < 16) { zero_block[i] = 0; i += 1 }
         aes_crypt_ecb(&raw mut ctx.cipher_ctx, AES_ENCRYPT, &raw zero_block[0], &raw mut ctx.H[0])
@@ -43,8 +43,8 @@ public namespace tls {
     // - Bits are numbered from MSB (bit 0) to LSB (bit 127)
     // - Polynomials are represented with the highest degree coefficient in bit 0 of byte 0
     func ghash_multiply_refined(output : *mut u8, x : *u8, y : *u8) {
-        unsafe var Z : [16]u8
-        unsafe var V : [16]u8
+        var Z : [16]u8
+        var V : [16]u8
         var i : size_t = 0
         while(i < 16) { Z[i] = 0; V[i] = y[i]; i += 1 }
 
@@ -97,7 +97,7 @@ public namespace tls {
     func ghash(ctx : *mut GCMContext, aad : *u8, aad_len : size_t,
                ciphertext : *u8, ct_len : size_t,
                output : *mut u8) {
-        unsafe var Y : [16]u8
+        var Y : [16]u8
         var i : size_t = 0
         while(i < 16) { Y[i] = 0; i += 1 }
 
@@ -112,7 +112,7 @@ public namespace tls {
 
         // Process partial AAD block (if any)
         if(pos < aad_len) {
-            unsafe var block : [16]u8
+            var block : [16]u8
             var j : size_t = 0
             while(j < 16) { block[j] = 0; j += 1 }
             j = 0
@@ -133,7 +133,7 @@ public namespace tls {
 
         // Process partial ciphertext block (if any)
         if(pos < ct_len) {
-            unsafe var block : [16]u8
+            var block : [16]u8
             var j : size_t = 0
             while(j < 16) { block[j] = 0; j += 1 }
             j = 0
@@ -144,7 +144,7 @@ public namespace tls {
         }
 
         // Process length block
-        unsafe var len_block : [16]u8
+        var len_block : [16]u8
         var j : size_t = 0
         while(j < 16) { len_block[j] = 0; j += 1 }
 
@@ -205,7 +205,7 @@ public namespace tls {
                                    plaintext : *u8, pt_len : size_t,
                                    output : *mut u8, tag : *mut u8) : int {
         // For 12-byte IV: J0 = IV || 0x00000001
-        unsafe var J0 : [16]u8
+        var J0 : [16]u8
         var i : size_t = 0
         while(i < 16) { J0[i] = 0; i += 1 }
 
@@ -219,7 +219,7 @@ public namespace tls {
         }
 
         // Encrypt counter blocks and XOR with plaintext
-        unsafe var counter : [16]u8
+        var counter : [16]u8
         i = 0
         while(i < 16) { counter[i] = J0[i]; i += 1 }
 
@@ -229,7 +229,7 @@ public namespace tls {
             gcm_incr(&raw mut counter[0])
 
             // E(K, counter)
-            unsafe var enc_counter : [16]u8
+            var enc_counter : [16]u8
             var ret = aes_crypt_ecb(&raw mut ctx.cipher_ctx, AES_ENCRYPT,
                                      &raw counter[0], &raw mut enc_counter[0])
             if(ret < 0) { return ret }
@@ -247,11 +247,11 @@ public namespace tls {
         }
 
         // Compute GHASH: gh = GHASH(H, AAD, Ciphertext)
-        unsafe var gh : [16]u8
+        var gh : [16]u8
         ghash(ctx, aad, aad_len, output, pt_len, &raw mut gh[0])
 
         // Tag = GHASH XOR E(K, J0)
-        unsafe var enc_J0 : [16]u8
+        var enc_J0 : [16]u8
         var ret = aes_crypt_ecb(&raw mut ctx.cipher_ctx, AES_ENCRYPT,
                                  &raw J0[0], &raw mut enc_J0[0])
         if(ret < 0) { return ret }
@@ -279,7 +279,7 @@ public namespace tls {
         // 3. Decrypt if tags match
 
         var ret : int = 0
-        unsafe var J0 : [16]u8
+        var J0 : [16]u8
         var i : size_t = 0
         while(i < 16) { J0[i] = 0; i += 1 }
 
@@ -295,17 +295,17 @@ public namespace tls {
         }
 
         // Compute GHASH over AAD and ciphertext
-        unsafe var gh : [16]u8
+        var gh : [16]u8
         ghash(ctx, aad, aad_len, ciphertext, ct_len, &raw mut gh[0])
 
         // Encrypt J0
-        unsafe var enc_J0 : [16]u8
+        var enc_J0 : [16]u8
         ret = aes_crypt_ecb(&raw mut ctx.cipher_ctx, AES_ENCRYPT,
                              &raw J0[0], &raw mut enc_J0[0])
         if(ret < 0) { return ret }
 
         // Expected tag = GHASH XOR E(K, J0)
-        unsafe var expected_tag : [16]u8
+        var expected_tag : [16]u8
         i = 0
         while(i < 16) {
             expected_tag[i] = gh[i] ^ enc_J0[i]
@@ -320,7 +320,7 @@ public namespace tls {
             i += 1
         }
         if(diff != 0) {
-            if(tls_config::DEBUG_LOG) { unsafe var _gti : size_t
+            if(tls_config::DEBUG_LOG) { var _gti : size_t
             printf("[GCM_DBG] EXPECTED_TAG: "); _gti = 0; while(_gti < 16) { printf("%02x", expected_tag[_gti] as int); _gti += 1 }; printf("\n")
             printf("[GCM_DBG] RECEIVED_TAG: "); _gti = 0; while(_gti < tag_len) { printf("%02x", tag[_gti] as int); _gti += 1 }; printf("\n")
             printf("[GCM_DBG] GHASH: "); _gti = 0; while(_gti < 16) { printf("%02x", gh[_gti] as int); _gti += 1 }; printf("\n")
@@ -333,7 +333,7 @@ public namespace tls {
         }
 
         // Decrypt (same as encrypt for CTR mode)
-        unsafe var counter : [16]u8
+        var counter : [16]u8
         i = 0
         while(i < 16) { counter[i] = J0[i]; i += 1 }
 
@@ -341,7 +341,7 @@ public namespace tls {
         while(pos < ct_len) {
             gcm_incr(&raw mut counter[0])
 
-            unsafe var enc_counter : [16]u8
+            var enc_counter : [16]u8
             ret = aes_crypt_ecb(&raw mut ctx.cipher_ctx, AES_ENCRYPT,
                                  &raw counter[0], &raw mut enc_counter[0])
             if(ret < 0) { return ret }

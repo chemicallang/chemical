@@ -743,7 +743,7 @@ public struct SOME_FILE_LIKE_STRUCT_IDK {
 }
 
 func some_func_modifies_file_like_struct_idk() {
-    unsafe var f : SOME_FILE_LIKE_STRUCT_IDK;
+    var f : SOME_FILE_LIKE_STRUCT_IDK;
     f.valid = true;
 }
 

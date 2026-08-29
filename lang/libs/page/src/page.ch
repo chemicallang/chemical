@@ -259,7 +259,7 @@ public struct HtmlPage {
         var range_len = fromEnd - fromStart;
         var p_buf = pageJs.mutable_data();
 
-        unsafe var stack_buf : [1024]char;
+        var stack_buf : [1024]char;
         var p_stack = &mut stack_buf[0];
 
         if (index < fromStart) {

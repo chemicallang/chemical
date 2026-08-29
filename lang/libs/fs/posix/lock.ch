@@ -3,7 +3,7 @@ public namespace fs {
 using std::Result;
 
 func lock_file_shared(path : *char) : Result<File, FsError> {
-    unsafe var opts : OpenOptions; opts.read = true; opts.write = false;
+    var opts : OpenOptions; opts.read = true; opts.write = false;
     var fo = file_open(path, opts);
     if(fo is Result.Err) {
         var Err(e) = fo else unreachable;
@@ -16,7 +16,7 @@ func lock_file_shared(path : *char) : Result<File, FsError> {
 }
 
 func lock_file_exclusive(path : *char) : Result<File, FsError> {
-    unsafe var opts : OpenOptions; opts.read = true; opts.write = true;
+    var opts : OpenOptions; opts.read = true; opts.write = true;
     var fo = file_open(path, opts);
     if(fo is Result.Err) {
         var Err(e) = fo else unreachable;

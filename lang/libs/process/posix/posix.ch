@@ -24,9 +24,9 @@ func redirect_to_devnull(fd : int) {
 // process::execute() deadlocks when called from a worker thread while
 // another thread holds a lock (e.g. WebKitGTK/GLib).
 public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool {
-    unsafe var stdout_pipe : [2]int;
-    unsafe var stderr_pipe : [2]int;
-    unsafe var stdin_pipe : [2]int;
+    var stdout_pipe : [2]int;
+    var stderr_pipe : [2]int;
+    var stdin_pipe : [2]int;
     var has_stdin_pipe = false;
 
     if(cfg.capture_stdout) {
@@ -50,10 +50,10 @@ public func posix_execute(cfg : *ProcessConfig, out : *mut ProcessResult) : bool
     // ---- Parent-side setup: build argv/envp and resolve the program path ----
     // This runs BEFORE fork() so the child never has to call getenv()/malloc().
     var argv = build_argv(&raw mut cfg.args);
-    unsafe var resolved : [4096]char;
+    var resolved : [4096]char;
     var prog = lookup_program(argv.ptrs[0], &raw mut resolved[0], 4096);
     var use_envp = false;
-    unsafe var envp : ArgvBuffer;
+    var envp : ArgvBuffer;
     if(cfg.env.size() > 0) {
         envp = build_envp(&raw mut cfg.env);
         use_envp = true;
@@ -188,7 +188,7 @@ func set_nonblock(fd : int) {
 // Read whatever is currently available from a non-blocking fd, stopping on
 // EOF or when no more data is immediately readable (EAGAIN).
 func read_available(fd : int, data : *mut vector<u8>) : bool {
-    unsafe var buf : [4096]u8;
+    var buf : [4096]u8;
     while(true) {
         var n = read(fd, &raw mut buf[0], 4096);
         if(n > 0) {
@@ -210,9 +210,9 @@ func read_available(fd : int, data : *mut vector<u8>) : bool {
 // Same parent-side setup rule as posix_execute() above (no getenv()/malloc()
 // in the forked child) to avoid the multi-threaded deadlock.
 public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool {
-    unsafe var stdout_pipe : [2]int;
-    unsafe var stderr_pipe : [2]int;
-    unsafe var stdin_pipe : [2]int;
+    var stdout_pipe : [2]int;
+    var stderr_pipe : [2]int;
+    var stdin_pipe : [2]int;
 
     if(cfg.capture_stdout) {
         if(pipe(&raw mut stdout_pipe[0]) != 0) { return false } else {}
@@ -234,10 +234,10 @@ public func posix_spawn(cfg : *ProcessConfig, child : *mut ChildProcess) : bool 
     // Build argv/envp and resolve the program path BEFORE fork() so the child
     // never calls getenv()/malloc() (which would deadlock under held locks).
     var argv = build_argv(&raw mut cfg.args);
-    unsafe var resolved : [4096]char;
+    var resolved : [4096]char;
     var prog = lookup_program(argv.ptrs[0], &raw mut resolved[0], 4096);
     var use_envp = false;
-    unsafe var envp : ArgvBuffer;
+    var envp : ArgvBuffer;
     if(cfg.env.size() > 0) {
         envp = build_envp(&raw mut cfg.env);
         use_envp = true;
@@ -356,7 +356,7 @@ struct ArgvBuffer {
 }
 
 func build_argv(args : *vector<string>) : ArgvBuffer {
-    unsafe var buf : ArgvBuffer;
+    var buf : ArgvBuffer;
     buf.count = args.size();
     var i : size_t = 0;
     while(i < args.size()) {
@@ -368,7 +368,7 @@ func build_argv(args : *vector<string>) : ArgvBuffer {
 }
 
 func build_envp(env : *vector<string>) : ArgvBuffer {
-    unsafe var buf : ArgvBuffer;
+    var buf : ArgvBuffer;
     buf.count = env.size();
     var i : size_t = 0;
     while(i < env.size()) {
@@ -380,7 +380,7 @@ func build_envp(env : *vector<string>) : ArgvBuffer {
 }
 
 func read_all_fd(fd : int, data : *mut vector<u8>) : bool {
-    unsafe var buf : [4096]u8;
+    var buf : [4096]u8;
     while(true) {
         var n = read(fd, &raw mut buf[0], 4096);
         if(n < 0) {

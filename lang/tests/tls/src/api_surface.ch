@@ -46,7 +46,7 @@ public func API_ecp_curve_selection_params(env : &mut TestEnv) {
     ecp_select_curve(0)
     if(ecp_curve_id() != 0) { env.error("curve id should be 0 for P-256"); return }
 
-    unsafe var p : Mpi; unsafe var n : Mpi; unsafe var gx : Mpi; unsafe var gy : Mpi; unsafe var b : Mpi
+    var p : Mpi; var n : Mpi; var gx : Mpi; var gy : Mpi; var b : Mpi
     ecp_curve_p(&raw mut p); ecp_curve_n(&raw mut n)
     ecp_curve_gx(&raw mut gx); ecp_curve_gy(&raw mut gy); ecp_curve_b(&raw mut b)
 
@@ -61,9 +61,9 @@ public func API_ecp_curve_selection_params(env : &mut TestEnv) {
     if(mpi_cmp(&raw mut gy, &raw mut p) >= 0) { env.error("P-256 Gy must be < p"); return }
 
     // Curve equation check: y^2 mod p == (x^3 + a*x + b) mod p with a = p-3.
-    unsafe var y2 : Mpi; unsafe var x3 : Mpi; unsafe var ax : Mpi; unsafe var a : Mpi
-    unsafe var rhs : Mpi
-    unsafe var three : Mpi
+    var y2 : Mpi; var x3 : Mpi; var ax : Mpi; var a : Mpi
+    var rhs : Mpi
+    var three : Mpi
     mpi_lset(&raw mut three, 3)
     mpi_sub(&raw mut a, &raw mut p, &raw mut three)
     mpi_mul(&raw mut y2, &raw mut gy, &raw mut gy)
@@ -83,7 +83,7 @@ public func API_ecp_curve_selection_params(env : &mut TestEnv) {
     ecp_select_curve(1)
     if(ecp_curve_id() != 1) { env.error("curve id should be 1 for P-384"); return }
 
-    unsafe var p384 : Mpi; unsafe var gx384 : Mpi; unsafe var b384 : Mpi
+    var p384 : Mpi; var gx384 : Mpi; var b384 : Mpi
     ecp_curve_p(&raw mut p384)
     ecp_curve_gx(&raw mut gx384)
     ecp_curve_b(&raw mut b384)
@@ -100,7 +100,7 @@ public func API_ecp_curve_selection_params(env : &mut TestEnv) {
 // ─── ssl_read_new_session_ticket without a transport fails cleanly ──────────
 @test
 public func API_ssl_read_new_session_ticket_no_socket_fails(env : &mut TestEnv) {
-    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
 
     var ret = ssl_read_new_session_ticket(&raw mut ctx)
     if(ret >= 0) {
@@ -126,7 +126,7 @@ public func E2E_tls12_session_ticket_received_and_stored(env : &mut TestEnv) {
     test_py_run_background(string_view("srv /tmp/tls_20130_cert.pem /tmp/tls_20130_key.pem 20130 1.2 AES128-GCM-SHA256:@SECLEVEL=0"))
     test_server_wait()
 
-    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
     var config = ssl_config_init(SSL_IS_CLIENT)
     config.authmode = SSL_VERIFY_NONE
     config.max_tls_version = SSL_VERSION_TLS1_2
@@ -166,7 +166,7 @@ public func E2E_tls12_session_ticket_received_and_stored(env : &mut TestEnv) {
     // The connection must remain fully usable afterwards.
     var ping = "t\0" as *char
     ssl_write(&raw mut ctx, ping as *u8, 1)
-    unsafe var buf : [64]u8
+    var buf : [64]u8
     var n = ssl_read(&raw mut ctx, &raw mut buf[0], 64)
     if(n != 2 || buf[0] != 79 || buf[1] != 75) {
         env.error("TLS12 ticket: connection unusable after reading NST")

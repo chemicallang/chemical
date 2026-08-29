@@ -37,7 +37,7 @@ public namespace net {
 
     func startup() {
         // WSADATA is ~400 bytes, [32]char is too small and causes stack corruption
-        unsafe var wsaData : [512]char;
+        var wsaData : [512]char;
         WSAStartup(0x202 as ushort, &raw mut wsaData[0]);
     }
     func cleanup() { WSACleanup() }

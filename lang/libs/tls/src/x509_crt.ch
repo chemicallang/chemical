@@ -864,7 +864,7 @@ public namespace tls {
         }
 
         // Copy base64 content without newlines into temporary buffer
-        unsafe var b64_buf : [4096]u8
+        var b64_buf : [4096]u8
         var buf_pos : size_t = 0
         i = b64_start
         while(i < b64_end && buf_pos < 4096) {
@@ -877,7 +877,7 @@ public namespace tls {
         }
 
         // Decode base64 to DER
-        unsafe var der_buf : [4096]u8
+        var der_buf : [4096]u8
         var result = crypto::base64_decode(b64_buf as *char, buf_pos, &raw mut der_buf[0], 4096)
         if(result is Result.Err) {
             return ERR_X509_INVALID_FORMAT

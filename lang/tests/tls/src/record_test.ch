@@ -4,13 +4,13 @@ using std::string_view
 
 @test
 public func INT_tls13_record_against_python(env : &mut TestEnv) {
-    unsafe var server_key : [16]u8; test_random_bytes(&raw mut server_key[0], 16)
-    unsafe var server_iv : [12]u8; test_random_bytes(&raw mut server_iv[0], 12)
-    unsafe var handshake_data : [23]u8; test_random_bytes(&raw mut handshake_data[0], 23)
+    var server_key : [16]u8; test_random_bytes(&raw mut server_key[0], 16)
+    var server_iv : [12]u8; test_random_bytes(&raw mut server_iv[0], 12)
+    var handshake_data : [23]u8; test_random_bytes(&raw mut handshake_data[0], 23)
 
-    unsafe var ctx : SSLContext; ssl_init(&raw mut ctx)
+    var ctx : SSLContext; ssl_init(&raw mut ctx)
 
-    unsafe var tr : Transform; transform_init(&raw mut tr)
+    var tr : Transform; transform_init(&raw mut tr)
     tr.cipher_type = CIPHER_AES_128_GCM as u8
     tr.key_len = 16; tr.iv_len = 12; tr.fixed_iv_len = 12; tr.mac_key_len = 0
     var i : size_t = 0
@@ -21,7 +21,7 @@ public func INT_tls13_record_against_python(env : &mut TestEnv) {
     var tr_in = malloc(sizeof(Transform)) as *mut Transform; *tr_in = tr; ctx.transform_in = tr_in
     i=0; while(i<8){ctx.in_ctr[i]=0; ctx.out_ctr[i]=0; i+=1}
 
-    unsafe var chem_enc : [256]u8
+    var chem_enc : [256]u8
     var chem_enc_len = tls13_encrypt_record(&raw mut ctx, SSL_MSG_HANDSHAKE as u8,
                                              &raw handshake_data[0], 23,
                                              &raw mut chem_enc[0], 256)
@@ -31,13 +31,13 @@ public func INT_tls13_record_against_python(env : &mut TestEnv) {
     var enc_payload = &raw chem_enc[5]
     var enc_payload_len : size_t = (chem_enc_len - 5) as size_t
 
-    unsafe var sk_hex : [33]char; test_bytes_to_hex(&raw server_key[0], 16, &raw mut sk_hex[0])
-    unsafe var siv_hex : [25]char; test_bytes_to_hex(&raw server_iv[0], 12, &raw mut siv_hex[0])
-    unsafe var aad_hex : [11]char; test_bytes_to_hex(outer_hdr, 5, &raw mut aad_hex[0])
-    unsafe var ep_hex : [121]char; test_bytes_to_hex(enc_payload, enc_payload_len, &raw mut ep_hex[0])
+    var sk_hex : [33]char; test_bytes_to_hex(&raw server_key[0], 16, &raw mut sk_hex[0])
+    var siv_hex : [25]char; test_bytes_to_hex(&raw server_iv[0], 12, &raw mut siv_hex[0])
+    var aad_hex : [11]char; test_bytes_to_hex(outer_hdr, 5, &raw mut aad_hex[0])
+    var ep_hex : [121]char; test_bytes_to_hex(enc_payload, enc_payload_len, &raw mut ep_hex[0])
 
     // Python decrypt: pt = aesgcm.decrypt(nonce, ct+tag, aad)
-    unsafe var script : [1024]u8; var sp : size_t = 0
+    var script : [1024]u8; var sp : size_t = 0
     var hdr = "from cryptography.hazmat.primitives.ciphers.aead import AESGCM\n" as *char; var si : size_t = 0
     while(hdr[si]!=0){script[sp]=hdr[si] as u8; sp+=1; si+=1}
 
@@ -62,7 +62,7 @@ public func INT_tls13_record_against_python(env : &mut TestEnv) {
 
     var py_out = test_python_run_script(&raw script[0], sp, string_view("tls13_rec_py.py"))
 
-    unsafe var ic_hex : [4]u8
+    var ic_hex : [4]u8
     var ic_len = test_parse_py_hex_label(&raw mut py_out, string_view("IC=0x"), &raw mut ic_hex[0], 4)
     var ic_val : uint = 0
     if(ic_len > 0) { ic_val = ic_hex[0] as uint } else {
@@ -71,7 +71,7 @@ public func INT_tls13_record_against_python(env : &mut TestEnv) {
         if(ic_len > 0) { ic_val = ic_hex[0] as uint } else { env.error("failed to parse inner content type"); return }
     }
 
-    unsafe var py_data : [64]u8
+    var py_data : [64]u8
     var data_len = test_parse_py_hex_label(&raw mut py_out, string_view("DATA="), &raw mut py_data[0], 23)
     if(data_len != 23) { env.error("failed to parse data from Python output"); return } else {}
 
@@ -86,7 +86,7 @@ public func INT_tls13_record_against_python(env : &mut TestEnv) {
     } else {}
 
     // Python encrypts, Chemical decrypts
-    unsafe var pt_hex : [47]char; test_bytes_to_hex(&raw handshake_data[0], 23, &raw mut pt_hex[0])
+    var pt_hex : [47]char; test_bytes_to_hex(&raw handshake_data[0], 23, &raw mut pt_hex[0])
 
     script[0]=0; sp=0; si=0
     hdr = "from cryptography.hazmat.primitives.ciphers.aead import AESGCM\n" as *char
@@ -111,7 +111,7 @@ public func INT_tls13_record_against_python(env : &mut TestEnv) {
 
     py_out = test_python_run_script(&raw script[0], sp, string_view("tls13_enc_py.py"))
 
-    unsafe var rec_bytes : [128]u8
+    var rec_bytes : [128]u8
     var rec_len = test_parse_py_hex_label(&raw mut py_out, string_view("REC="), &raw mut rec_bytes[0], 45)
     if(rec_len != 45) { env.error("failed to parse REC from Python output"); return } else {}
 
@@ -119,7 +119,7 @@ public func INT_tls13_record_against_python(env : &mut TestEnv) {
     ctx.in_hdr[2] = rec_bytes[2]; ctx.in_hdr[3] = rec_bytes[3]; ctx.in_hdr[4] = rec_bytes[4]
     i=0; while(i<8){ctx.in_ctr[i]=0; i+=1}
 
-    unsafe var dec_buf : [256]u8
+    var dec_buf : [256]u8
     var inner_ct : u8 = 0
     var dec_len = tls13_decrypt_record(&raw mut ctx, &raw rec_bytes[5], 40, &raw mut dec_buf[0], 256, &raw mut inner_ct)
     if(dec_len < 0) {

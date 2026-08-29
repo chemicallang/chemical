@@ -204,7 +204,7 @@ func test_python_run_script_file(py_path : *char) : vector<u8> {
         system(cmd.data())
     }
 
-    unsafe var buf : [4096]u8
+    var buf : [4096]u8
     var n = test_read_file(out_path.data(), &raw mut buf[0], 4096)
     var i : size_t = 0
     while(i < n) { result.push(buf[i]); i += 1 }
@@ -307,7 +307,7 @@ func test_hex_pair_byte(hi : char, lo : char) : u8 {
 // zeros so the caller receives exactly the raw modulus/private exponent.
 func test_parse_n_d_hex_file(path : *char, n_out : *mut u8, n_max : size_t, n_len : *mut size_t,
                              d_out : *mut u8, d_max : size_t, d_len : *mut size_t) {
-    unsafe var buf : [4096]u8
+    var buf : [4096]u8
     var total = test_read_file(path, &raw mut buf[0], 4096)
     *n_len = 0
     *d_len = 0

@@ -182,12 +182,6 @@ void DefiniteAssignment::analyze_var_init(VarInitStatement* init) {
         check_uses(init->value);
         initialized.insert(init);
     }
-    // `unsafe var` / `unsafe const` is deprecated but keeps its legacy behavior:
-    // uninitialized use and taking its address are permitted. Treat it as already
-    // initialized so the definite-assignment checks stay silent.
-    if(init->attrs.is_unsafe) {
-        initialized.insert(init);
-    }
     // No initializer -> variable stays uninitialized until a full assignment.
 }
 

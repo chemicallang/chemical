@@ -119,14 +119,15 @@ func parse_zip_central_dir(archive : *mut ZipArchive) : std::Result<std::Unit, A
             }
         }
 
-        unsafe var entry : ArchiveEntry
-        entry.name = name
-        entry.size = uncomp_size
-        entry.compressed_size = comp_size
-        entry.compression_method = method
-        entry.crc32 = crc
-        entry.is_directory = is_dir
-        entry.offset = local_offset
+        var entry : ArchiveEntry = ArchiveEntry {
+            name: name,
+            size: uncomp_size,
+            compressed_size: comp_size,
+            compression_method: method,
+            crc32: crc,
+            is_directory: is_dir,
+            offset: local_offset
+        }
 
         archive.entries.push(entry)
 
@@ -232,13 +233,13 @@ public func zip_read_entry(archive : *mut ZipArchive, entry : *mut ArchiveEntry,
 }
 
 public func zip_read_file(archive : *mut ZipArchive, name : *char) : std::Result<vector<u8>, ArchiveError> {
-    unsafe var entry : ArchiveEntry
-    var entry_result = zip_find_entry(archive, name, &raw mut entry)
+    var entry : ArchiveEntry
+    var entry_result = zip_find_entry(archive, name, unsafe(&raw mut entry))
     if(entry_result is Result.Err) {
         return std.Result.Err(ArchiveError.FileNotFound())
     }
     var content = vector<u8>()
-    var content_result = zip_read_entry(archive, &raw mut entry, &raw mut content)
+    var content_result = zip_read_entry(archive, unsafe(&raw mut entry), &raw mut content)
     if(content_result is Result.Err) {
         return std.Result.Err(ArchiveError.DecompressionFailed(string("failed to read entry")))
     }
@@ -246,8 +247,8 @@ public func zip_read_file(archive : *mut ZipArchive, name : *char) : std::Result
 }
 
 public func zip_contains(archive : *mut ZipArchive, name : *char) : bool {
-    unsafe var entry : ArchiveEntry
-    var r = zip_find_entry(archive, name, &raw mut entry)
+    var entry : ArchiveEntry
+    var r = zip_find_entry(archive, name, unsafe(&raw mut entry))
     return r is Result.Ok
 }
 

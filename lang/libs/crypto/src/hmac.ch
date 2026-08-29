@@ -15,7 +15,7 @@ using std::Result;
 /// digest: output buffer (at least 32 bytes)
 public func hmac_sha256(key : *u8, key_len : size_t, data : *u8, data_len : size_t, digest : *mut u8) {
     // If key is longer than block size (64 bytes), hash it first
-    unsafe var actual_key : [64]u8;
+    var actual_key : [64]u8;
     var actual_key_len : size_t = key_len;
 
     if(key_len > 64) {
@@ -35,8 +35,8 @@ public func hmac_sha256(key : *u8, key_len : size_t, data : *u8, data_len : size
     }
 
     // Compute inner hash: H((key ^ ipad) || message)
-    unsafe var inner_key : [64]u8;
-    unsafe var outer_key : [64]u8;
+    var inner_key : [64]u8;
+    var outer_key : [64]u8;
     const IPAD : u8 = 0x36;
     const OPAD : u8 = 0x5C;
 
@@ -48,20 +48,20 @@ public func hmac_sha256(key : *u8, key_len : size_t, data : *u8, data_len : size
     }
 
     // Inner hash: SHA256(inner_key || data)
-    unsafe var inner_ctx : Sha256Context;
-    sha256_init(&raw mut inner_ctx);
-    sha256_update(&raw mut inner_ctx, &raw inner_key[0], 64);
-    sha256_update(&raw mut inner_ctx, data, data_len);
+    var inner_ctx : Sha256Context;
+    sha256_init(unsafe(&raw mut inner_ctx));
+    sha256_update(unsafe(&raw mut inner_ctx), &raw inner_key[0], 64);
+    sha256_update(unsafe(&raw mut inner_ctx), data, data_len);
 
-    unsafe var inner_digest : [32]u8;
-    sha256_final(&raw mut inner_ctx, &raw mut inner_digest[0]);
+    var inner_digest : [32]u8;
+    sha256_final(unsafe(&raw mut inner_ctx), &raw mut inner_digest[0]);
 
     // Outer hash: SHA256(outer_key || inner_digest)
-    unsafe var outer_ctx : Sha256Context;
-    sha256_init(&raw mut outer_ctx);
-    sha256_update(&raw mut outer_ctx, &raw outer_key[0], 64);
-    sha256_update(&raw mut outer_ctx, &raw inner_digest[0], 32);
-    sha256_final(&raw mut outer_ctx, digest);
+    var outer_ctx : Sha256Context;
+    sha256_init(unsafe(&raw mut outer_ctx));
+    sha256_update(unsafe(&raw mut outer_ctx), &raw outer_key[0], 64);
+    sha256_update(unsafe(&raw mut outer_ctx), &raw inner_digest[0], 32);
+    sha256_final(unsafe(&raw mut outer_ctx), digest);
 }
 
 // ---------------------------------------------------------------------------
@@ -76,12 +76,12 @@ public func hmac_sha384(key : *u8, key_len : size_t, data : *u8, data_len : size
     // If key is longer than block size (128 bytes for the SHA-512 family),
     // hash it first. All locals are declared up front — mid-function
     // declarations can receive clobbered stack slots in the TCC backend.
-    unsafe var actual_key : [128]u8;
-    unsafe var inner_key : [128]u8;
-    unsafe var outer_key : [128]u8;
-    unsafe var inner_ctx : Sha512Context;
-    unsafe var outer_ctx : Sha512Context;
-    unsafe var inner_digest : [48]u8;
+    var actual_key : [128]u8;
+    var inner_key : [128]u8;
+    var outer_key : [128]u8;
+    var inner_ctx : Sha512Context;
+    var outer_ctx : Sha512Context;
+    var inner_digest : [48]u8;
     var actual_key_len : size_t = key_len;
     var i : size_t = 0;
 
@@ -109,16 +109,16 @@ public func hmac_sha384(key : *u8, key_len : size_t, data : *u8, data_len : size
     }
 
     // Inner hash: SHA384(inner_key || data)
-    sha384_init(&raw mut inner_ctx);
-    sha384_update(&raw mut inner_ctx, &raw inner_key[0], 128);
-    sha384_update(&raw mut inner_ctx, data, data_len);
-    sha384_final(&raw mut inner_ctx, &raw mut inner_digest[0]);
+    sha384_init(unsafe(&raw mut inner_ctx));
+    sha384_update(unsafe(&raw mut inner_ctx), &raw inner_key[0], 128);
+    sha384_update(unsafe(&raw mut inner_ctx), data, data_len);
+    sha384_final(unsafe(&raw mut inner_ctx), &raw mut inner_digest[0]);
 
     // Outer hash: SHA384(outer_key || inner_digest)
-    sha384_init(&raw mut outer_ctx);
-    sha384_update(&raw mut outer_ctx, &raw outer_key[0], 128);
-    sha384_update(&raw mut outer_ctx, &raw inner_digest[0], 48);
-    sha384_final(&raw mut outer_ctx, digest);
+    sha384_init(unsafe(&raw mut outer_ctx));
+    sha384_update(unsafe(&raw mut outer_ctx), &raw outer_key[0], 128);
+    sha384_update(unsafe(&raw mut outer_ctx), &raw inner_digest[0], 48);
+    sha384_final(unsafe(&raw mut outer_ctx), digest);
 }
 
 // ---------------------------------------------------------------------------
@@ -127,7 +127,7 @@ public func hmac_sha384(key : *u8, key_len : size_t, data : *u8, data_len : size
 
 /// Compute HMAC-MD5 (legacy only, not for security).
 public func hmac_md5(key : *u8, key_len : size_t, data : *u8, data_len : size_t, digest : *mut u8) {
-    unsafe var actual_key : [64]u8;
+    var actual_key : [64]u8;
     var actual_key_len : size_t = key_len;
 
     if(key_len > 64) {
@@ -146,8 +146,8 @@ public func hmac_md5(key : *u8, key_len : size_t, data : *u8, data_len : size_t,
         }
     }
 
-    unsafe var inner_key : [64]u8;
-    unsafe var outer_key : [64]u8;
+    var inner_key : [64]u8;
+    var outer_key : [64]u8;
     const IPAD : u8 = 0x36;
     const OPAD : u8 = 0x5C;
 
@@ -159,20 +159,20 @@ public func hmac_md5(key : *u8, key_len : size_t, data : *u8, data_len : size_t,
     }
 
     // Inner MD5
-    unsafe var inner_ctx : Md5Context;
-    md5_init(&raw mut inner_ctx);
-    md5_update(&raw mut inner_ctx, &raw inner_key[0], 64);
-    md5_update(&raw mut inner_ctx, data, data_len);
+    var inner_ctx : Md5Context;
+    md5_init(unsafe(&raw mut inner_ctx));
+    md5_update(unsafe(&raw mut inner_ctx), &raw inner_key[0], 64);
+    md5_update(unsafe(&raw mut inner_ctx), data, data_len);
 
-    unsafe var inner_digest : [16]u8;
-    md5_final(&raw mut inner_ctx, &raw mut inner_digest[0]);
+    var inner_digest : [16]u8;
+    md5_final(unsafe(&raw mut inner_ctx), &raw mut inner_digest[0]);
 
     // Outer MD5
-    unsafe var outer_ctx : Md5Context;
-    md5_init(&raw mut outer_ctx);
-    md5_update(&raw mut outer_ctx, &raw outer_key[0], 64);
-    md5_update(&raw mut outer_ctx, &raw inner_digest[0], 16);
-    md5_final(&raw mut outer_ctx, digest);
+    var outer_ctx : Md5Context;
+    md5_init(unsafe(&raw mut outer_ctx));
+    md5_update(unsafe(&raw mut outer_ctx), &raw outer_key[0], 64);
+    md5_update(unsafe(&raw mut outer_ctx), &raw inner_digest[0], 16);
+    md5_final(unsafe(&raw mut outer_ctx), digest);
 }
 
 // ---------------------------------------------------------------------------

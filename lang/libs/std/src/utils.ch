@@ -3,19 +3,23 @@ public namespace std {
  * safer way to replace and move members, however impacts runtime performance
  */
 public func <T> replace(value : &mut T, repl : T) : T {
-    unsafe var temp : T
-    memcpy(&raw mut temp, &raw value, sizeof(T))
-    memcpy(&raw mut value, &raw repl, sizeof(T))
-    intrinsics::forget(repl)
-    return temp;
+    var temp : T
+    unsafe {
+        memcpy(&raw mut temp, &raw value, sizeof(T))
+        memcpy(&raw mut value, &raw repl, sizeof(T))
+        intrinsics::forget(repl)
+        return temp;
+    }
 }
 
 public func <T> swap(a : &mut T, b : &mut T) {
-    unsafe var temp : T
-    memcpy(&raw mut temp, &raw a, sizeof(T))
-    memcpy(&raw mut a, &raw b, sizeof(T))
-    memcpy(&raw mut b, &raw temp, sizeof(T))
-    intrinsics::forget(temp)
+    var temp : T
+    unsafe {
+        memcpy(&raw mut temp, &raw a, sizeof(T))
+        memcpy(&raw mut a, &raw b, sizeof(T))
+        memcpy(&raw mut b, &raw temp, sizeof(T))
+        intrinsics::forget(temp)
+    }
 }
 
 public comptime const NPOS = (0 as size_t) - 1;
@@ -50,7 +54,7 @@ func internal_view_find(me : &std::string_view, needle : &std::string_view) : si
 
     // ---- Boyer–Moore–Horspool ----
 
-    unsafe var skip : [256]uchar;
+    var skip : [256]uchar;
 
     // default skip = needle length
     var i : int = 0;

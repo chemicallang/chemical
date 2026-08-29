@@ -14,7 +14,7 @@ func access_on_patenthesized_gbi(cc : int) : int {
 func test_failing_code() {
 
     test("parsing succeeds on failing code - 1", () => {
-        unsafe var sv : [2]int
+        var sv : [2]int
         if(failing_socketpair(0) < 0) {
             return false;
         }

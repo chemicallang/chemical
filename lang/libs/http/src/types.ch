@@ -218,7 +218,7 @@ public namespace http {
                 b.seen_total = b.seen_total + want;
                 if(b.max_body > 0u && b.seen_total > b.max_body) { return -1 }
                 if(b.cur_chunk_left == 0u) {
-                    unsafe var tmp : [2]u8;
+                    var tmp : [2]u8;
                     var c = copy_from_buffer(&raw mut b, &raw mut tmp[0], 2);
                     if(c < 2) {
                         var rem = 2 - c;
@@ -256,7 +256,7 @@ public namespace http {
                 }
             }
             while(!found_crlf) {
-                unsafe var tmp : [64]u8;
+                var tmp : [64]u8;
                 var n = body_recv(&raw mut b, &raw mut tmp[0], 64);
                 // Connection: close chunked streams may end without a formal
                 // zero-length chunk. EOF here is a clean end of body.
@@ -312,7 +312,7 @@ public namespace http {
                         }
                     }
                     if(!found) {
-                        unsafe var tmp : [8192u]u8;
+                        var tmp : [8192u]u8;
                         var n = body_recv(&raw mut b, &raw mut tmp[0], 8192u);
                         // EOF after the terminating zero chunk is a clean end of
                         // body (the final CRLF may already have been consumed).
@@ -359,7 +359,7 @@ public namespace http {
     // read all remaining body into a string
     public func (b: &mut Body) read_to_string() : std::Option<std::string> {
         var out = std::string::empty_str();
-        unsafe var tmp : [8192u]u8;
+        var tmp : [8192u]u8;
         while(true) {
             var n = b.read(&raw mut tmp[0], 8192u);
             if(n < 0) { return std::Option.None<std::string>() }
@@ -374,7 +374,7 @@ public namespace http {
         var out = std::string::empty_str();
         out.reserve(n);
         var rem = n;
-        unsafe var tmp : [8192u]u8;
+        var tmp : [8192u]u8;
         while(rem > 0u) {
             var want = if(rem < 8192u) rem else 8192u;
             var r = b.read(&raw mut tmp[0], want);
@@ -388,7 +388,7 @@ public namespace http {
 
     // drain remaining body
     public func (b: &mut Body) drain() : bool {
-        unsafe var tmp : [8192u]u8;
+        var tmp : [8192u]u8;
         while(true) {
             var n = b.read(&raw mut tmp[0], 8192u);
             if(n < 0) { return false }

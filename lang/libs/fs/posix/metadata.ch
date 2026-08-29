@@ -3,10 +3,10 @@ public namespace fs {
 using std::Result;
 
 public func metadata(path : *char) : Result<Metadata, FsError> {
-    unsafe var st : Stat;
-    var r = lstat(path, &raw mut st);
+    var st : Stat;
+    var r = lstat(path, unsafe(&raw mut st));
     if(r != 0) { return Result.Err(posix_errno_to_fs(get_errno())); }
-    unsafe var m : Metadata;
+    var m : Metadata;
     var mode : int = st.st_mode as int;
     m.is_dir = ((mode & 0xF000) == 0x4000);
     m.is_file = ((mode & 0xF000) == 0x8000);

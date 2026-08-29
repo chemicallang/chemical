@@ -89,7 +89,7 @@ func srv_read_request_stream(ssl : *mut SSLContext, buf : *mut u8, buf_size : si
 // Send a complete HTTP/1.1 response with a Content-Length body.
 func srv_send_response(ssl : *mut SSLContext, status_line : *char,
                         body : *u8, body_len : size_t, keep_alive : bool) : int {
-    unsafe var hdr : [256]u8
+    var hdr : [256]u8
     var hp : size_t = 0
     var s : size_t = 0
     while(status_line[s] != 0) { hdr[hp] = status_line[s] as u8; hp += 1; s += 1 }
@@ -97,7 +97,7 @@ func srv_send_response(ssl : *mut SSLContext, status_line : *char,
     s = 0
     while(ct[s] != 0) { hdr[hp] = ct[s] as u8; hp += 1; s += 1 }
 
-    unsafe var lenbuf : [24]u8
+    var lenbuf : [24]u8
     var li : size_t = 24
     var v = body_len
     if(v == 0) { li -= 1; lenbuf[li] = 48 }
@@ -125,7 +125,7 @@ func srv_send_response(ssl : *mut SSLContext, status_line : *char,
 
 // Poll a python-written result file until it contains a verdict.
 func srv_check_result_file(env : &mut TestEnv, path : *char) {
-    unsafe var buf : [160]u8
+    var buf : [160]u8
     var polls : int = 0
     var got : size_t = 0
     while(polls < 50) {
@@ -196,11 +196,11 @@ func srv_serve_one_connection(env : &mut TestEnv, cs : net::Socket, mode : strin
     pk_cmd.append_view(hex_path.to_view())
     test_py_run_foreground(pk_cmd.to_view())
 
-    unsafe var rsa_ctx : RSAContext
+    var rsa_ctx : RSAContext
     var using_rsa = false
     if(tls12_rsa) {
-        unsafe var n_buf : [512]u8
-        unsafe var d_buf : [512]u8
+        var n_buf : [512]u8
+        var d_buf : [512]u8
         var n_len : size_t = 0
         var d_len : size_t = 0
         test_parse_n_d_hex_file(hex_path.data(), &raw mut n_buf[0], 512, &raw mut n_len,
@@ -270,8 +270,8 @@ func srv_serve_http_loop(env : &mut TestEnv, ssl_mem : *mut SSLContext, mode : s
     const SRV_BUF_CAP : size_t = 70000
     var ok = true
 
-    unsafe var req_buf : [SRV_BUF_CAP]u8
-    unsafe var scratch : [64]u8
+    var req_buf : [SRV_BUF_CAP]u8
+    var scratch : [64]u8
     var filled : size_t = 0
     var consumed : size_t = 0
 
@@ -290,7 +290,7 @@ func srv_serve_http_loop(env : &mut TestEnv, ssl_mem : *mut SSLContext, mode : s
             env.error("bigresp: header write failed")
             return false
         }
-        unsafe var chunk : [16384]u8
+        var chunk : [16384]u8
         var base : size_t = 0
         while(base < BIG) {
             var ci : size_t = 0

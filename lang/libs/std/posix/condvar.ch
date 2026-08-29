@@ -34,18 +34,20 @@ public namespace std {
     comptime const CLOCK_REALTIME = 0
 
     func compute_abstime_ms(out : *mut timespec, timeout_ms : ulong) {
-        unsafe var now : timespec
-        var rc = clock_gettime(CLOCK_REALTIME, &raw mut now)
-        if(rc != 0) {
-            panic("clock_gettime failed")
-        }
-        var add_s : i64 = (timeout_ms / 1000) as i64
-        var add_ns : i64 = ((timeout_ms % 1000) * 1000000) as i64
-        out.tv_sec = now.tv_sec + add_s
-        out.tv_nsec = now.tv_nsec + add_ns
-        if(out.tv_nsec >= 1000000000) {
-            out.tv_sec = out.tv_sec + 1
-            out.tv_nsec = out.tv_nsec - 1000000000
+        var now : timespec
+        unsafe {
+            var rc = clock_gettime(CLOCK_REALTIME, &raw mut now)
+            if(rc != 0) {
+                panic("clock_gettime failed")
+            }
+            var add_s : i64 = (timeout_ms / 1000) as i64
+            var add_ns : i64 = ((timeout_ms % 1000) * 1000000) as i64
+            out.tv_sec = now.tv_sec + add_s
+            out.tv_nsec = now.tv_nsec + add_ns
+            if(out.tv_nsec >= 1000000000) {
+                out.tv_sec = out.tv_sec + 1
+                out.tv_nsec = out.tv_nsec - 1000000000
+            }
         }
     }
 
@@ -77,11 +79,13 @@ public namespace std {
         // timed_wait: returns true if signalled, false if timed out.
         // timeout_ms is relative timeout in milliseconds.
         func timed_wait(&mut self, mutex : &mut std::mutex, timeout_ms : ulong) : bool {
-            unsafe var ts : timespec
+        var ts : timespec
+        unsafe {
             compute_abstime_ms(&raw mut ts, timeout_ms)
             var r = pthread_cond_timedwait(&raw mut storage[0], &raw mut mutex.storage[0], &raw ts)
             // pthread_cond_timedwait returns 0 on success, ETIMEDOUT on timeout
             return r == 0
+        }
         }
 
         func notify_one(&mut self) {

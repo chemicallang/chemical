@@ -128,8 +128,7 @@ ASTNode* Parser::parseVarInitializationTokens(
         bool topLevel,
         bool matchExpr,
         bool allowDeclarations,
-        bool comptime,
-        bool is_unsafe
+        bool comptime
 ) {
 
     auto& start_tok = *token;
@@ -203,40 +202,6 @@ ASTNode* Parser::parseVarInitializationTokens(
         // An uninitialized declaration (no initializer) is now allowed without
         // any keyword — the definite-assignment analysis (run in the type-verify
         // pass) will error if such a variable is accessed before it is assigned.
-        //
-        // The old `unsafe var x : Type` syntax is accepted (for backwards
-        // compatibility) but deprecated: `unsafe` at the declaration site no
-        // longer toggles any flag or affects safe/unsafe checking — it is just
-        // parsed through. An uninitialized variable does not need `unsafe` here.
-        // To take a pointer/reference to an uninitialized variable, wrap the
-        // expression in `unsafe(...)` instead, e.g. `unsafe(&raw mut x)`.
-        if(is_unsafe) {
-            // Emit the deprecation warning for user / test code, but keep it
-            // quiet inside the standard library: `lang/libs` still has many
-            // `unsafe var` sites that are migrated in bulk, and warning on every
-            // one would flood every compilation (the std library is auto-imported
-            // into essentially every module).
-            auto fp = get_file_path();
-            bool is_library = false;
-            {
-                const char* needle = "lang/libs";
-                const size_t nlen = 9;
-                if(fp.size() >= nlen) {
-                    for(size_t i = 0; i + nlen <= fp.size(); i++) {
-                        if(std::memcmp(fp.data() + i, needle, nlen) == 0) {
-                            is_library = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            if(!is_library) {
-                warning("'unsafe var' / 'unsafe const' is deprecated; write 'var x : Type' "
-                        "(uninitialized variables no longer need the 'unsafe' keyword — take "
-                        "its address with unsafe(...), e.g. unsafe(&raw mut x))");
-            }
-            stmt->attrs.is_unsafe = true;
-        }
         if(
             // for loop sends false
             allowDeclarations == false ||

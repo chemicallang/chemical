@@ -80,7 +80,9 @@ public func universal_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
             params : params,
             functionNode : null,
             mountStrategy : MountStrategy.Universal, // Important: Set mount strategy
-            access : spec
+            access : spec,
+            rootNodeCount : 0,
+            className : std::string_view()
         },
         body : null,
         support : SymResSupport {},

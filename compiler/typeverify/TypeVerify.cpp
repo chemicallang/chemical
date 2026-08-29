@@ -1,6 +1,7 @@
 
 #include "TypeVerify.h"
 #include "TypeVerifyAPI.h"
+#include "DefiniteAssignment.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/values/ArrayValue.h"
@@ -1196,6 +1197,9 @@ void type_verify(ImplementationsIndex& index, ASTDiagnoser& diagnoser, ASTAlloca
     for(const auto node : nodes) {
         verifier.visit(node);
     }
+    // Definite-assignment analysis: error on use of uninitialized local variables
+    // and mark first-initialization assignments so they do not destroy garbage.
+    definite_assignment_check(index, diagnoser, allocator, nodes);
 }
 
 void TypeVerifier::VisitImplDecl(ImplDefinition* implDecl) {

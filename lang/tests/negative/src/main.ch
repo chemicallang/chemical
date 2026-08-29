@@ -4,11 +4,11 @@
 // (POSIX: /tmp, Windows: %TEMP%). The old hardcoded "/tmp/chemical_neg_tests"
 // resolves to "\tmp\..." on the current drive on Windows, which usually is
 // not writable without admin rights.
-internal unsafe var g_neg_work_dir_buf : [512]char
+internal var g_neg_work_dir_buf : [512]char
 internal var NEG_WORK_DIR : *char = null
 
 internal func neg_init_work_dir() {
-    var r = fs::temp_dir(&raw mut g_neg_work_dir_buf[0], 512 as size_t)
+    var r = fs::temp_dir(unsafe(&raw mut g_neg_work_dir_buf[0]), 512 as size_t)
     var i : size_t = 0
     if(r is std::Result.Ok) {
         var Ok(len) = r else unreachable
@@ -18,7 +18,7 @@ internal func neg_init_work_dir() {
         var fb = "chemical_neg_tests\0"
         while(fb[i] != 0 && i < 511) { g_neg_work_dir_buf[i] = fb[i]; i++ }
         g_neg_work_dir_buf[i] = 0
-        NEG_WORK_DIR = &raw mut g_neg_work_dir_buf[0]
+        NEG_WORK_DIR = unsafe(&raw mut g_neg_work_dir_buf[0])
         return
     }
     // strip any trailing separator (POSIX returns "/tmp", Windows "%TEMP%\\")
@@ -29,7 +29,7 @@ internal func neg_init_work_dir() {
     var k = 0
     while(suffix[k] != 0 && i < 511) { g_neg_work_dir_buf[i] = suffix[k]; i++; k++ }
     g_neg_work_dir_buf[i] = 0
-    NEG_WORK_DIR = &raw mut g_neg_work_dir_buf[0]
+    NEG_WORK_DIR = unsafe(&raw mut g_neg_work_dir_buf[0])
 }
 
 internal func write_file(path : *char, content : *char) {
@@ -60,7 +60,7 @@ internal func string_contains(haystack : *char, needle : *char) : bool {
 }
 
 internal func run_compiler_capture(mod_path : *char, out_path : *char, output_buf : *mut char, buf_size : int) : int {
-    unsafe var cmd : char[2048]
+    var cmd : char[2048]
     // Write the (failed or successful) output executable into the test dir;
     // "/dev/null" is POSIX-only and on Windows would try to create "\dev\null"
     // on the current drive. Quoting every argument keeps paths with spaces working.
@@ -69,18 +69,18 @@ internal func run_compiler_capture(mod_path : *char, out_path : *char, output_bu
         // when the command line starts with a quote. The doubled-quote pattern
         // is the canonical way to quote a command for cmd.exe and keeps paths
         // with spaces working.
-        sprintf(&raw mut cmd[0], "cmd /S /C \"\"%s\" \"%s\" --no-cache -o \"%s\"\" 2>&1", intrinsics::get_compiler_path(), mod_path, out_path)
+        sprintf(unsafe(&raw mut cmd[0]), "cmd /S /C \"\"%s\" \"%s\" --no-cache -o \"%s\"\" 2>&1", intrinsics::get_compiler_path(), mod_path, out_path)
     } else {
-        sprintf(&raw mut cmd[0], "\"%s\" \"%s\" --no-cache -o \"%s\" 2>&1", intrinsics::get_compiler_path(), mod_path, out_path)
+        sprintf(unsafe(&raw mut cmd[0]), "\"%s\" \"%s\" --no-cache -o \"%s\" 2>&1", intrinsics::get_compiler_path(), mod_path, out_path)
     }
-    var pipe = popen(&raw mut cmd[0], "r")
+    var pipe = popen(unsafe(&raw mut cmd[0]), "r")
     if(pipe == null) {
         return -1
     }
     var total = 0
-    unsafe var line_buf : char[4096]
-    while(fgets(&raw mut line_buf[0], 4096, pipe) != null) {
-        var line_len = strlen(&raw line_buf[0])
+    var line_buf : char[4096]
+    while(fgets(unsafe(&raw mut line_buf[0]), 4096, pipe) != null) {
+        var line_len = strlen(unsafe(&raw line_buf[0]))
         var i = 0u
         while(i < line_len && total < buf_size - 1) {
             *(output_buf + total) = line_buf[i]
@@ -94,27 +94,27 @@ internal func run_compiler_capture(mod_path : *char, out_path : *char, output_bu
 }
 
 internal func setup_test_files(work_dir : *char, name : *char, mod_content : *char, ch_content : *char) : bool {
-    unsafe var test_dir : char[512]
-    sprintf(&raw mut test_dir[0], "%s/%s", work_dir, name)
-    fs::mkdir(&raw test_dir[0])
+    var test_dir : char[512]
+    sprintf(unsafe(&raw mut test_dir[0]), "%s/%s", work_dir, name)
+    fs::mkdir(unsafe(&raw test_dir[0]))
 
-    unsafe var mod_path : char[512]
-    sprintf(&raw mut mod_path[0], "%s/chemical.mod", &raw test_dir[0])
-    write_file(&raw mod_path[0], mod_content)
+    var mod_path : char[512]
+    sprintf(unsafe(&raw mut mod_path[0]), "%s/chemical.mod", unsafe(&raw test_dir[0]))
+    write_file(unsafe(&raw mod_path[0]), mod_content)
 
-    unsafe var ch_path : char[512]
-    sprintf(&raw mut ch_path[0], "%s/test.ch", &raw test_dir[0])
-    write_file(&raw ch_path[0], ch_content)
+    var ch_path : char[512]
+    sprintf(unsafe(&raw mut ch_path[0]), "%s/test.ch", unsafe(&raw test_dir[0]))
+    write_file(unsafe(&raw ch_path[0]), ch_content)
 
     return true
 }
 
 internal func cleanup_test_dir(work_dir : *char, name : *char) {
-    unsafe var path : char[512]
-    sprintf(&raw mut path[0], "%s/%s", work_dir, name)
+    var path : char[512]
+    sprintf(unsafe(&raw mut path[0]), "%s/%s", work_dir, name)
     // cross-platform recursive delete (no shelling out to "rm -rf", which
     // does not exist on Windows cmd.exe)
-    fs::remove_dir_all_recursive(&raw path[0])
+    fs::remove_dir_all_recursive(unsafe(&raw path[0]))
 }
 
 internal func neg_debug_print(name : *char, output : *char) {
@@ -138,26 +138,26 @@ internal func expect_compile_error(env : &mut TestEnv, name : *char, ch_content 
 internal func expect_compile_error_with_mod(env : &mut TestEnv, name : *char, ch_content : *char, expected_sub : *char, mod_content : *char) {
     setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
 
-    unsafe var mod_path : char[512]
-    sprintf(&raw mut mod_path[0], "%s/%s/chemical.mod", NEG_WORK_DIR, name)
-    unsafe var out_path : char[512]
-    sprintf(&raw mut out_path[0], "%s/%s/out.exe", NEG_WORK_DIR, name)
+    var mod_path : char[512]
+    sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name)
+    var out_path : char[512]
+    sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
 
-    unsafe var output_buf : char[16384]
-    var rc = run_compiler_capture(&raw mod_path[0], &raw out_path[0], &raw mut output_buf[0], 16384)
+    var output_buf : char[16384]
+    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 16384)
 
-    var has_error = string_contains(&raw output_buf[0], "error:")
-    var has_sub = if(strlen(expected_sub) == 0) true else string_contains(&raw output_buf[0], expected_sub)
+    var has_error = string_contains(unsafe(&raw output_buf[0]), "error:")
+    var has_sub = if(strlen(expected_sub) == 0) true else string_contains(unsafe(&raw output_buf[0]), expected_sub)
 
     if(rc == 0) {
         env.error("expected compiler to fail but it succeeded")
-        neg_debug_print(name, &raw output_buf[0])
+        neg_debug_print(name, unsafe(&raw output_buf[0]))
     } else if(!has_error) {
         env.error("expected compiler error but did not find one")
-        neg_debug_print(name, &raw output_buf[0])
+        neg_debug_print(name, unsafe(&raw output_buf[0]))
     } else if(!has_sub) {
         env.error("expected error substring not found in output")
-        neg_debug_print(name, &raw output_buf[0])
+        neg_debug_print(name, unsafe(&raw output_buf[0]))
     }
 
     cleanup_test_dir(NEG_WORK_DIR, name)
@@ -166,17 +166,17 @@ internal func expect_compile_error_with_mod(env : &mut TestEnv, name : *char, ch
 internal func expect_compile_success(env : &mut TestEnv, name : *char, ch_content : *char) {
     setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
 
-    unsafe var mod_path : char[512]
-    sprintf(&raw mut mod_path[0], "%s/%s/chemical.mod", NEG_WORK_DIR, name)
-    unsafe var out_path : char[512]
-    sprintf(&raw mut out_path[0], "%s/%s/out.exe", NEG_WORK_DIR, name)
+    var mod_path : char[512]
+    sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name)
+    var out_path : char[512]
+    sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
 
-    unsafe var output_buf : char[16384]
-    var rc = run_compiler_capture(&raw mod_path[0], &raw out_path[0], &raw mut output_buf[0], 16384)
+    var output_buf : char[16384]
+    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 16384)
 
     if(rc != 0) {
         env.error("expected compiler to succeed but it failed")
-        neg_debug_print(name, &raw output_buf[0])
+        neg_debug_print(name, unsafe(&raw output_buf[0]))
     }
 
     cleanup_test_dir(NEG_WORK_DIR, name)

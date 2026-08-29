@@ -19,6 +19,15 @@ public:
     Operation assOp;
 
     /**
+     * When true, this assignment is the *first* initialization of a previously
+     * uninitialized local variable (proven by the definite-assignment analysis
+     * in the type-verify pass). The code generators / interpreter must NOT
+     * destroy the previous (garbage) value of `lhs`, because doing so would
+     * read/destruct uninitialized memory.
+     */
+    bool is_first_init = false;
+
+    /**
      * @brief Construct a new AssignStatement object.
      *
      * @param identifier The identifier being assigned.

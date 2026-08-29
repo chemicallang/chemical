@@ -226,7 +226,10 @@ inline void interpret(InterpretScope& scope, AssignStatement* assign) {
     // 4. Clear the RHS source (move, not copy) so it's not destructed twice.
     Value* oldLhsVal = nullptr;
     if(assign->assOp == Operation::Assignment) {
-        if(assign->lhs->val_kind() == ValueKind::Identifier) {
+        if(assign->is_first_init) {
+            // First initialization of a previously uninitialized variable: there is
+            // no previous value to destroy (it would be garbage / uninitialized memory).
+        } else if(assign->lhs->val_kind() == ValueKind::Identifier) {
             auto lhsId = assign->lhs->as_identifier_unsafe();
             auto lhsIt = scope.find_value_iterator(lhsId->value);
             if(lhsIt.first != lhsIt.second.values.end()) {

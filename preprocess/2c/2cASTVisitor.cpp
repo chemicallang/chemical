@@ -36,6 +36,7 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/UnsafeBlock.h"
+#include "ast/values/UnsafeValue.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/TryCatch.h"
 #include "ast/structures/DoWhileLoop.h"
@@ -1875,6 +1876,10 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
         // which means we need to set the drop flag to true again
         set_ref_drop_flag(visitor, assign->lhs, true);
         visitor.new_line_and_indent();
+    } else if(assign->is_first_init) {
+        // First initialization of a previously-uninitialized local variable: there is
+        // no previous (valid) value to destroy, so skip the destructor entirely.
+        visitor.new_line_and_indent();
     } else {
         // Find destructor if it exists
         FunctionDeclaration* destr = nullptr;
@@ -3430,6 +3435,12 @@ void ToCAstVisitor::VisitUnreachableStmt(UnreachableStmt *stmt) {
 
 void ToCAstVisitor::VisitUnsafeBlock(UnsafeBlock *block) {
     visit(&block->scope);
+}
+
+void ToCAstVisitor::VisitUnsafeValue(UnsafeValue *value) {
+    // `unsafe(expr)` is a compile-time safety marker only; it has no runtime
+    // effect, so we simply translate the wrapped expression.
+    if(value->getValue()) visit(value->getValue());
 }
 
 void ToCAstVisitor::VisitImportStmt(ImportStatement *importStatement) {

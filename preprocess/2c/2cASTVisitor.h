@@ -764,8 +764,8 @@ public:
 
     void VisitZeroedValue(ZeroedValue* value);
 
-    // TODO handle unsafe value
-    void VisitUnsafeValue(UnsafeValue* value) {}
+    // `unsafe(expr)` is a compile-time safety marker; implemented in 2cASTVisitor.cpp
+    void VisitUnsafeValue(UnsafeValue* value);
 
     // comptime values are replaced
     // throw error if it exists

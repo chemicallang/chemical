@@ -203,4 +203,7 @@ public func run_common_tests() {
         return char_array_var_exact_fit();
     })
 
+    // Uninitialized variable semantics + unsafe behavior (compiled & interpreted)
+    test_uninitialized();
+
 }

@@ -96,6 +96,14 @@ struct VarInitAttributes {
      */
     bool is_extern = false;
 
+    /**
+     * user wrote `unsafe var` / `unsafe const` — deprecated syntax that still
+     * permits uninitialized use and taking the address of an uninitialized
+     * variable (legacy behavior). Only used to suppress the definite-assignment
+     * checks; emitted as a deprecation warning.
+     */
+    bool is_unsafe = false;
+
 };
 
 class VarInitStatement : public ASTNode {

@@ -577,6 +577,8 @@ set(COMMON_SOURCES
         compiler/typeverify/TypeVerify.h
         compiler/typeverify/TypeVerifyAPI.h
         compiler/typeverify/TypeVerify.cpp
+        compiler/typeverify/DefiniteAssignment.h
+        compiler/typeverify/DefiniteAssignment.cpp
         compiler/generics/InstantiationsContainer.h
         ast/values/PatternMatchExpr.h
         ast/values/PatternMatchExpr.cpp

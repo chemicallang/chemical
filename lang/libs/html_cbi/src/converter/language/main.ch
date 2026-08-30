@@ -251,8 +251,8 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
     // For a styled wrap over a universal component, hydration must target the
     // inner universal component (which owns the client JS); the styled
     // component's own `functionNode` is only used for SSR (to emit its CSS).
-    unsafe var hydrateNode : *mut ASTNode;
-    unsafe var hydrateName : std::string_view;
+    var hydrateNode : *mut ASTNode;
+    var hydrateName : std::string_view;
     if(signature.hydrateFunctionNode != null) {
         hydrateNode = signature.hydrateFunctionNode as *mut ASTNode;
         hydrateName = signature.hydrateName;

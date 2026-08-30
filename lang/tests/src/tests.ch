@@ -64,6 +64,7 @@ func run_executable_tests() {
     test_allocator();
     test_recursive_mutex();
     test_string_expr();
+    test_unsafe_value_semantics();
 
 }
 

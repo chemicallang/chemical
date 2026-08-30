@@ -58,13 +58,18 @@ func test_unsafe_value_semantics() {
 
     // 3) New uninitialized-variable rules: declare without `unsafe`, initialize
     //    via a full assignment (first init), and take the address only inside
-    //    `unsafe(...)`. The value is still destroyed exactly once.
+    //    `unsafe(...)`. The value is still destroyed exactly once, and a
+    //    first-assigned variable holds the assigned value (no garbage).
     g_unsafe_dtor_count = 0
     {
         var t : UnsafeTracked
         t = make_tracked()
+        g_unsafe_last_tag = t.tag
         var p = unsafe(&raw mut t)
         g_unsafe_last_ptr = p
+        test("uninitialized var first-assigned holds the assigned value", () => {
+            return g_unsafe_last_tag == 7
+        })
         test("address of uninitialized var allowed inside unsafe(...)", () => {
             return g_unsafe_last_ptr != null
         })

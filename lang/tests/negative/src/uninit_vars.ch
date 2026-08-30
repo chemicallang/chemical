@@ -106,3 +106,93 @@ func neg_uninit_nondestructor_read_ok(env : &mut TestEnv) {
     var ch = "public func main() : int {\n    var x : i32\n    var y = x + 1\n    return y\n}\n"
     expect_compile_success(env, "uninit_nondestructor_read_ok", ch)
 }
+
+// ============================================================================
+// A variable declared without an initializer can be initialized in many ways.
+// Every one of these is a *first initialization* (full assignment) and must be
+// accepted by the compiler — it must NOT try to destroy the previous (garbage)
+// value, and after the assignment the variable is definitely initialized.
+// ============================================================================
+
+@test
+func neg_uninit_init_primitive_literal(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var x : i32\n    x = 5\n    return x\n}\n"
+    expect_compile_success(env, "uninit_init_primitive_literal", ch)
+}
+
+@test
+func neg_uninit_init_from_function_call(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "func f() : i32 { return 7 }\npublic func main() : int {\n    var x : i32\n    x = f()\n    return x\n}\n"
+    expect_compile_success(env, "uninit_init_from_function_call", ch)
+}
+
+@test
+func neg_uninit_init_from_initialized_var(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // Copying from an already-initialized variable is a valid first init.
+    var ch = "public func main() : int {\n    var a : i32 = 3\n    var b : i32\n    b = a\n    return b\n}\n"
+    expect_compile_success(env, "uninit_init_from_initialized_var", ch)
+}
+
+@test
+func neg_uninit_init_nested_block(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // Assignment inside a nested block initializes the outer variable.
+    var ch = "public func main() : int {\n    var x : i32\n    { x = 9 }\n    return x\n}\n"
+    expect_compile_success(env, "uninit_init_nested_block", ch)
+}
+
+@test
+func neg_uninit_init_reassign(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // A second assignment is a normal assignment once already initialized.
+    var ch = "public func main() : int {\n    var x : i32\n    x = 1\n    x = 2\n    return x\n}\n"
+    expect_compile_success(env, "uninit_init_reassign", ch)
+}
+
+@test
+func neg_uninit_init_destructible_literal(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Container {\n    var field : i32\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    var c : Container\n    c = Container { field : 0 }\n    return c.field\n}\n"
+    expect_compile_success(env, "uninit_init_destructible_literal", ch)
+}
+
+@test
+func neg_uninit_init_destructible_via_func(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Container {\n    var field : i32\n    @delete func delete(&mut self) { }\n}\nfunc mk() : Container { return Container { field : 0 } }\npublic func main() : int {\n    var c : Container\n    c = mk()\n    return c.field\n}\n"
+    expect_compile_success(env, "uninit_init_destructible_via_func", ch)
+}
+
+@test
+func neg_uninit_init_destructible_in_unsafe_block(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Container {\n    var field : i32\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    var c : Container\n    unsafe { c = Container { field : 0 } }\n    return c.field\n}\n"
+    expect_compile_success(env, "uninit_init_destructible_in_unsafe_block", ch)
+}
+
+@test
+func neg_uninit_init_destructible_nested_block(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Container {\n    var field : i32\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    var c : Container\n    { c = Container { field : 0 } }\n    return c.field\n}\n"
+    expect_compile_success(env, "uninit_init_destructible_nested_block", ch)
+}
+
+@test
+func neg_uninit_init_array_in_loop(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // Arrays have no destructor, so writing through them while uninitialized is
+    // allowed; after the loop the array is treated as initialized.
+    var ch = "public func main() : int {\n    var s : [32]i32\n    for(var i : int = 0; i < 32; i++) { s[i] = i }\n    return s[0]\n}\n"
+    expect_compile_success(env, "uninit_init_array_in_loop", ch)
+}
+
+@test
+func neg_uninit_init_read_after_first_init(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // Reading the variable after a full assignment is fine (it is initialized).
+    var ch = "struct Container {\n    var field : i32\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    var c : Container\n    c = Container { field : 4 }\n    var y = c.field\n    return y\n}\n"
+    expect_compile_success(env, "uninit_init_read_after_first_init", ch)
+}

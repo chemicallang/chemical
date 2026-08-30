@@ -129,11 +129,11 @@ comptime const name : type = value
 ```
 
  #### Variable Initialization Rules
- - Local variables must be initialized at declaration
- - Global/top-level variables can be declared without initialization if type is specified
- - **WARNING**: a variable declared **without an initializer** must be prefixed with `unsafe` (e.g. `unsafe var buf : [256]char`). The compiler rejects uninitialized declarations that omit `unsafe` with: `[Parser] error: uninitialized variable declaration requires the 'unsafe' keyword, e.g. 'unsafe var x : Type'`. This applies to local and module-level variables. Struct member declarations are exempt (do not add `unsafe` inside a `struct`/`class`). Global `@extern` declarations and vars inside an `unsafe { }` block are also exempt.
- - `const` variables must be initialized at declaration
- - Type inference available when value is provided
+  - Local variables must be initialized at declaration
+  - Global/top-level variables can be declared without initialization if type is specified
+  - A variable declared **without an initializer** is *uninitialized*. It is written with plain `var x : Type` (NO `unsafe` keyword — the old `unsafe var` syntax was removed). Accessing an uninitialized variable (reading it, taking its address/reference, or writing a member/index) is an error unless wrapped in `unsafe(...)`. A full assignment `x = value` is treated as first initialization. Struct member declarations are exempt. Global `@extern` declarations and vars inside an `unsafe { }` block are also exempt.
+  - `const` variables must be initialized at declaration
+  - Type inference available when value is provided
 
 #### Examples
 ```chemical
@@ -489,37 +489,48 @@ func manual_memory() {
  }
  ```
 
- #### Uninitialized Variable Declarations Require `unsafe`
+  #### Uninitialized Variable Declarations
 
- Any variable/value declared **without an initializer** must be marked `unsafe`. The compiler
- enforces this as a hard error (not a warning). This is commonly needed for buffers that are
- filled later (by `sprintf`, `popen`, `read`, etc.) or for intentionally zero-initialized
- module-level globals.
+  A variable declared **without an initializer** (e.g. `var cmd : char[2048]`) is *uninitialized*.
+  This is written with **plain `var`/`const` — the old `unsafe var` / `unsafe const` declaration
+  syntax was removed** and is now a hard parser error. Uninitialized declarations are commonly
+  needed for buffers filled later (by `sprintf`, `popen`, `read`, etc.) or for intentionally
+  zero-initialized module-level globals.
 
- ```chemical
- // ERROR: uninitialized declaration without 'unsafe'
- var cmd : char[2048]
+  The compiler performs definite-assignment analysis. Accessing the variable while uninitialized
+  is an error unless wrapped in `unsafe(...)` (expression) or `unsafe { }` (block):
 
- // CORRECT:
- unsafe var cmd : char[2048]
+  ```chemical
+  // OK — uninitialized, declared WITHOUT `unsafe`
+  var cmd : char[2048]
+  var s : [32]u16
 
- // With a visibility modifier, `unsafe` follows the modifier:
- internal unsafe var g_work_dir : [512]char
- public unsafe var g_something : SomeType
- ```
+  // ERROR: taking a pointer to an uninitialized variable
+  var p = &raw mut s
+  // FIX:
+  var p = unsafe(&raw mut s)
 
- Exemptions:
- - Global `@extern` declarations (defined elsewhere).
- - `var`/`const` declared inside an `unsafe { }` block.
- - **Struct member declarations** (fields inside a `struct`/`class` body) — do NOT add `unsafe` there.
+  // A full assignment is first initialization (no destruction of garbage):
+  cmd = "command"
+  ```
 
- Compiler error:
- ```
- [Parser] error: uninitialized variable declaration requires the 'unsafe' keyword, e.g. 'unsafe var x : Type'
- ```
+  Exemptions:
+  - Global `@extern` declarations (defined elsewhere).
+  - `var`/`const` declared inside an `unsafe { }` block.
+  - **Struct member declarations** (fields inside a `struct`/`class` body) — do NOT add `unsafe` there.
 
- When migrating existing code, search for type-only declarations (`var <name> :` with no `=`) and
- add `unsafe`. Never add `unsafe` to struct member declarations.
+  Compiler errors:
+  ```
+  [Parser] error: 'unsafe var' / 'unsafe const' is no longer supported; write 'var x : Type' (uninitialized variables don't need the 'unsafe' keyword)
+  [DefiniteAssignment] error: use of uninitialized variable 'x' before it is initialized (use of)
+  [DefiniteAssignment] error: use of uninitialized variable 'x' before it is initialized (taking address of)
+  [DefiniteAssignment] error: use of uninitialized variable 'x' before it is initialized (access of field/index of)
+  ```
+
+  `unsafe(expr)` is a **compile-time-only safety marker**: it never changes runtime behaviour
+  (including destruction). When migrating existing code, do **not** add `unsafe` to the
+  declaration — instead give the variable an initializer, or wrap the specific *access* of the
+  uninitialized value in `unsafe(...)`.
 
 ### Overview of dealloc, destruct and delete
 

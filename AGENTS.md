@@ -372,46 +372,83 @@ LLVM requires `UndefValue` for uninitialized phis in certain lowering patterns. 
 
 These patterns were discovered while implementing 5 pure-Chemical libraries (archive, image, font, audio, webview).
 
-### Uninitialized Variables Require the `unsafe` Keyword
+### Uninitialized Variables and the `unsafe` Marker
 
-The compiler **enforces** that any variable declared **without an initializer** must be
-prefixed with `unsafe`. This is a hard parse/semantic error, not a warning — code that
-compiled before will fail to build until fixed. It applies to local variables and
-module-level (global) variables. Intentional uninitialized declarations (buffers later filled
-by `sprintf`/`popen`, zero-init globals, etc.) must opt in to unsafety.
+A variable may be declared **without an initializer** using plain `var x : Type` (or
+`const x : Type`). No `unsafe` keyword is written on the declaration. The compiler performs
+**definite-assignment analysis**: such a variable is *uninitialized* until it is first
+assigned, and accessing it before that is an error unless the access is wrapped in `unsafe`.
+
+> The old `unsafe var` / `unsafe const` declaration syntax was **removed**. Writing
+> `unsafe var x : Type` is now a hard parser error.
 
 ```chemical
 // OK — has an initializer
 var x : int = 0
 var buf : [256]char = zeroed
 
-// ERROR: uninitialized declaration requires 'unsafe'
+// OK — uninitialized, declared without `unsafe`
 var cmd : char[2048]
-
-// FIX:
-unsafe var cmd : char[2048]
-
-// With a visibility modifier, `unsafe` comes AFTER the visibility keyword:
-internal unsafe var g_work_dir : [512]char
-public unsafe var g_something : SomeType
+var s : [32]u16
 ```
 
-Rules and exemptions:
+**Accessing an uninitialized variable is an error** (the compiler would otherwise try to
+read or destruct garbage memory). Wrap the access in `unsafe(...)` (for an expression) or
+`unsafe { }` (for a block):
+
+```chemical
+var s : [32]u16
+// ERROR: taking a pointer to an uninitialized variable
+var p = &raw mut s
+// FIX:
+var p = unsafe(&raw mut s)
+
+var c : Container          // Container has a destructor
+// ERROR: writing a field of an uninitialized (destructor-bearing) struct
+c.field = 5
+// FIX:
+unsafe { c.field = 5 }
+```
+
+Rules enforced by the definite-assignment pass (`compiler/typeverify/DefiniteAssignment.cpp`):
+- A **full assignment** `x = value` (whole variable, not a member/index) is treated as
+  *first initialization*. It initializes the variable and the code generators / interpreter
+  correctly skip destroying the previous (garbage) value.
+- **Reading** an uninitialized variable whose type has a destructor → error
+  (`use of uninitialized variable 'x' before it is initialized (use of)`).
+- **Taking its address** `&raw mut x` or **reference** `&mut x` → error
+  (`... (taking address of)` / `... (taking reference of)`) unless wrapped in `unsafe(...)`.
+- **Writing a member or index** `x.field = ...` / `x[i] = ...` on an uninitialized
+  *destructor-bearing* type → error (`... (access of field/index of)`) unless wrapped in
+  `unsafe`. (Arrays and other non-destructor types may be written through safely while
+  uninitialized, since there is nothing to destruct.)
+- Branches: a variable is only "definitely initialized" if **every** path assigns it (e.g.
+  both sides of an `if/else`).
+
+`unsafe(expr)` is a **compile-time-only safety marker**. It does **not** change runtime
+behaviour — wrapping a value in `unsafe(...)` never suppresses or alters its destructor, and
+a `return unsafe(x)` is still a normal move (the moved-from local is not destroyed; the
+caller's copy is). Use it only to assert "I am intentionally touching uninitialized memory".
+
+Exemptions:
 - Global `@extern` declarations are exempt (defined elsewhere).
 - A `var`/`const` declared **inside an `unsafe { }` block** is exempt.
-- **Struct member declarations are exempt** — do NOT add `unsafe` to fields inside a `struct`/`class` body (it is invalid there). The rule only targets local and module-level variable statements.
-- `const` without an initializer is also subject to the rule.
+- **Struct member declarations are exempt** — fields inside a `struct`/`class`/`variant` body
+  must never carry `unsafe` (it is invalid there).
 
-Compiler error:
+Compiler errors you may see:
 ```
-[Parser] error: uninitialized variable declaration requires the 'unsafe' keyword, e.g. 'unsafe var x : Type'
+[Parser] error: 'unsafe var' / 'unsafe const' is no longer supported; write 'var x : Type' (uninitialized variables don't need the 'unsafe' keyword)
+[DefiniteAssignment] error: use of uninitialized variable 'x' before it is initialized (use of)
+[DefiniteAssignment] error: use of uninitialized variable 'x' before it is initialized (taking address of)
+[DefiniteAssignment] error: use of uninitialized variable 'x' before it is initialized (access of field/index of)
 ```
 
-When migrating or writing code, search for type-only declarations `var <name> :` (no `=`)
-and add `unsafe`. When fixing a whole suite, prefer the `edit` tool for individual statements;
-only a generated helper script may bulk-apply it, and that script MUST skip `var` inside
-struct/variant/enum bodies (the compiler only flags local/module-level statements, but a naive
-text matcher will wrongly flag struct fields).
+When migrating or writing code, do **not** add `unsafe` to the declaration. Instead, either
+give the variable an initializer, or wrap the specific *access* of the uninitialized value in
+`unsafe(...)`. When fixing a whole suite, prefer the `edit` tool for individual statements;
+only a generated helper script may bulk-apply changes, and that script MUST skip `var` inside
+struct/variant/enum bodies (struct fields are exempt).
 
 ### Struct Initialization Rules
 

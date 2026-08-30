@@ -240,6 +240,20 @@ impl VariantInheritableGiverInterfaceDelegate for VariantInheritedDelegateImpl {
 
 
 
+variant VariantWithMake {
+    Positive(value : int)
+    Negative(value : int)
+
+    @make
+    func make(v : int) : VariantWithMake {
+        if(v >= 0) {
+            return VariantWithMake.Positive(v)
+        } else {
+            return VariantWithMake.Negative(v)
+        }
+    }
+}
+
 func test_variants() {
     test("variants can be passed to functions - 1", () => {
         return get_value(OptVariant.Some(10)) == 10;
@@ -582,6 +596,28 @@ func test_variants() {
     test("variant inherited delegate dynamic dispatch works - 2", () => {
         var v = VariantInheritedDelegateImpl.Some(736)
         return dyn_variant_giver_give(dyn<VariantInheritableGiverInterface>(v)) == 736
+    })
+    test("variant with @make constructor works - 1", () => {
+        var v = VariantWithMake(42)
+        return v is VariantWithMake.Positive
+    })
+    test("variant with @make constructor works - 2", () => {
+        var v = VariantWithMake(-7)
+        return v is VariantWithMake.Negative
+    })
+    test("variant with @make constructor returns correct value - 1", () => {
+        var v = VariantWithMake(42)
+        switch(v) {
+            Positive(value) => return value == 42
+            Negative(value) => return false
+        }
+    })
+    test("variant with @make constructor returns correct value - 2", () => {
+        var v = VariantWithMake(-7)
+        switch(v) {
+            Positive(value) => return false
+            Negative(value) => return value == -7
+        }
     })
 
 }

@@ -4674,8 +4674,10 @@ void ToCAstVisitor::visit_value_scope(Scope* scope, unsigned destruct_begin) {
     } else {
         destructor.destroy_current_scope = true;
     }
-    auto itr = destructor.destruct_jobs.begin() + destruct_begin;
-    destructor.destruct_jobs.erase(itr, destructor.destruct_jobs.end());
+    if(destructor.destruct_jobs.size() > destruct_begin) {
+        auto itr = destructor.destruct_jobs.begin() + destruct_begin;
+        destructor.destruct_jobs.erase(itr, destructor.destruct_jobs.end());
+    }
 }
 
 void ToCAstVisitor::visit_scope(Scope *scope, unsigned destruct_begin) {
@@ -4690,10 +4692,9 @@ void ToCAstVisitor::visit_scope(Scope *scope, unsigned destruct_begin) {
     } else {
         destructor.destroy_current_scope = true;
     }
-    auto itr = destructor.destruct_jobs.begin() + destruct_begin;
-    const auto end_itr = destructor.destruct_jobs.end();
-    if (itr < end_itr) {
-        destructor.destruct_jobs.erase(itr, end_itr);
+    if(destruct_begin < destructor.destruct_jobs.size()) {
+        auto itr = destructor.destruct_jobs.begin() + destruct_begin;
+        destructor.destruct_jobs.erase(itr, destructor.destruct_jobs.end());
     }
     current_scope = prev_scope;
 }
@@ -7271,8 +7272,10 @@ void ToCAstVisitor::VisitRuntimeBlockValue(RuntimeBlockValue *blockVal) {
     // dispatch the destructors of the block's locals before the statement
     // expression closes
     destructor.dispatch_jobs_from_no_clean((int) destruct_begin);
-    auto itr = destructor.destruct_jobs.begin() + destruct_begin;
-    destructor.destruct_jobs.erase(itr, destructor.destruct_jobs.end());
+    if(destructor.destruct_jobs.size() > destruct_begin) {
+        auto itr = destructor.destruct_jobs.begin() + destruct_begin;
+        destructor.destruct_jobs.erase(itr, destructor.destruct_jobs.end());
+    }
     write("})");
 }
 

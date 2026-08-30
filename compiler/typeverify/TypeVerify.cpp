@@ -1,7 +1,6 @@
 
 #include "TypeVerify.h"
 #include "TypeVerifyAPI.h"
-#include "DefiniteAssignment.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/values/ArrayValue.h"
@@ -22,6 +21,87 @@
 #include "ast/structures/WhereClause.h"
 #include "ast/structures/GenericStructDecl.h"
 #include "ast/types/GenericType.h"
+#include "ast/values/VariableIdentifier.h"
+#include "ast/values/AccessChain.h"
+#include "ast/values/AddrOfValue.h"
+#include "ast/values/ReferenceOfValue.h"
+#include "ast/values/UnsafeValue.h"
+#include "ast/statements/VarInit.h"
+#include "ast/statements/Assignment.h"
+#include "ast/structures/Scope.h"
+#include "ast/structures/BlockScope.h"
+#include "ast/structures/If.h"
+#include "ast/structures/WhileLoop.h"
+#include "ast/structures/ForLoop.h"
+#include "ast/structures/DoWhileLoop.h"
+#include "ast/structures/UnsafeBlock.h"
+#include "ast/statements/SwitchStatement.h"
+#include "ast/base/BaseType.h"
+
+// -------- Definite Assignment helpers --------
+
+void TypeVerifier::da_push_scope() {
+    scope_stack.emplace_back();
+}
+
+void TypeVerifier::da_pop_scope() {
+    if(scope_stack.empty()) return;
+    auto& frame = scope_stack.back();
+    for(auto* v : frame) {
+        locals.erase(v);
+        initialized.erase(v);
+    }
+    scope_stack.pop_back();
+}
+
+VarInitStatement* TypeVerifier::da_root_local_var(Value* v) {
+    if(!v) return nullptr;
+    switch(v->val_kind()) {
+        case ValueKind::Identifier: {
+            auto* id = static_cast<VariableIdentifier*>(v);
+            auto* linked = id->linked;
+            if(linked && linked->kind() == ASTNodeKind::VarInitStmt) {
+                auto* var = static_cast<VarInitStatement*>(linked);
+                if(locals.count(var)) return var;
+            }
+            return nullptr;
+        }
+        case ValueKind::AccessChain: {
+            auto* chain = static_cast<AccessChain*>(v);
+            if(!chain->values.empty()) return da_root_local_var(chain->values[0]);
+            return nullptr;
+        }
+        default:
+            return nullptr;
+    }
+}
+
+bool TypeVerifier::da_type_has_destructor(VarInitStatement* v) {
+    auto* t = v->known_type();
+    if(!t) return false;
+    t = t->canonical();
+    return t->get_destructor() != nullptr;
+}
+
+void TypeVerifier::da_report_uninit(VarInitStatement* v, const char* action, SourceLocation loc) {
+    std::string msg = "use of uninitialized variable '";
+    msg.append(v->located_id.data(), v->located_id.size());
+    msg += "' before it is initialized (";
+    msg += action;
+    msg += ")";
+    diagnoser.error(chem::string_view(msg.data(), msg.size()), loc);
+}
+
+void TypeVerifier::da_intersect(
+    const std::unordered_set<VarInitStatement*>& a,
+    const std::unordered_set<VarInitStatement*>& b,
+    std::unordered_set<VarInitStatement*>& out) {
+    out.clear();
+    out.reserve(std::min(a.size(), b.size()));
+    for(auto* v : a) {
+        if(b.count(v)) out.insert(v);
+    }
+}
 
 static GenericTypeParameter* get_generic_param(BaseType* type) {
     if(type->kind() == BaseTypeKind::Linked) {
@@ -270,7 +350,11 @@ void TypeVerifier::VisitAddrOfValue(AddrOfValue* addrOfValue) {
     // when wrapping an index operator or access chain containing one, skip destructible check
     const auto prev_disable = disable_index_destructible_check;
     disable_index_destructible_check = true;
+    // DA: suppress inner read check
+    const auto prev_da_addr_inner = da_addr_inner;
+    da_addr_inner = true;
     RecursiveVisitor::VisitAddrOfValue(addrOfValue);
+    da_addr_inner = prev_da_addr_inner;
     disable_index_destructible_check = prev_disable;
     const auto value = addrOfValue->value;
     if (value->isValueRValueInFrontend() && value->getType()->isStructLikeType() == false) {
@@ -302,7 +386,11 @@ void TypeVerifier::VisitReferenceOfValue(ReferenceOfValue* refValue) {
         // when wrapping an index operator or access chain containing one, skip destructible check
         const auto prev_disable = disable_index_destructible_check;
         disable_index_destructible_check = true;
+        // DA: suppress inner read check
+        const auto prev_da_addr_inner = da_addr_inner;
+        da_addr_inner = true;
         visit_it(refValue->value);
+        da_addr_inner = prev_da_addr_inner;
         disable_index_destructible_check = prev_disable;
     }
     const auto value = refValue->value;
@@ -1167,12 +1255,25 @@ void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
     }
     auto& type = stmt->type;
     const auto value = stmt->value;
+
+    // DA: track local variable
+    if(da_enabled && !scope_stack.empty()) {
+        scope_stack.back().push_back(stmt);
+        locals.insert(stmt);
+    }
+
     if(type) {
         visit(type);
     }
     if(value) {
         visit(value);
     }
+
+    // DA: mark as initialized if it has an initializer
+    if(da_enabled && value) {
+        initialized.insert(stmt);
+    }
+
     if(type && value) {
         // an @implicit constructor converts the value to the variable's type,
         // so the value itself does not need to satisfy the type
@@ -1197,9 +1298,6 @@ void type_verify(ImplementationsIndex& index, ASTDiagnoser& diagnoser, ASTAlloca
     for(const auto node : nodes) {
         verifier.visit(node);
     }
-    // Definite-assignment analysis: error on use of uninitialized local variables
-    // and mark first-initialization assignments so they do not destroy garbage.
-    definite_assignment_check(index, diagnoser, allocator, nodes);
 }
 
 void TypeVerifier::VisitImplDecl(ImplDefinition* implDecl) {
@@ -1252,6 +1350,40 @@ void TypeVerifier::VisitIfStmt(IfStatement *stmt) {
                 visit(scope);
             }
         }
+        return;
+    }
+
+    // DA: visit condition, save state, visit branches, intersect
+    if(da_enabled) {
+        visit_it(stmt->condition);
+        auto before = initialized;
+
+        initialized = before;
+        visit_it(stmt->ifBody);
+        auto result = initialized;
+
+        for(auto& elif : stmt->elseIfs) {
+            visit_it(elif.first);
+            initialized = before;
+            visit_it(elif.second);
+            std::unordered_set<VarInitStatement*> tmp;
+            da_intersect(result, initialized, tmp);
+            result = std::move(tmp);
+        }
+
+        if(stmt->elseBody.has_value()) {
+            initialized = before;
+            visit_it(stmt->elseBody.value());
+            std::unordered_set<VarInitStatement*> tmp;
+            da_intersect(result, initialized, tmp);
+            result = std::move(tmp);
+        } else {
+            std::unordered_set<VarInitStatement*> tmp;
+            da_intersect(result, before, tmp);
+            result = std::move(tmp);
+        }
+
+        initialized = result;
         return;
     }
 
@@ -1332,9 +1464,36 @@ void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
         RecursiveVisitor<TypeVerifier>::VisitIndexOperator(assign->lhs->as_index_op_unsafe());
         disable_index_destructible_check = prev_disable;
     } else {
+        // DA: suppress read checks when visiting LHS (it's a write target, not a read)
+        const auto prev_da_addr_inner = da_addr_inner;
+        da_addr_inner = true;
         visit_it(assign->lhs);
+        da_addr_inner = prev_da_addr_inner;
     }
     visit_it(assign->value);
+
+    // DA: check for first initialization
+    if(da_enabled) {
+        const bool is_full_assignment =
+            assign->assOp == Operation::Assignment &&
+            (assign->lhs->val_kind() == ValueKind::Identifier ||
+             (assign->lhs->val_kind() == ValueKind::AccessChain &&
+              static_cast<AccessChain*>(assign->lhs)->values.size() == 1));
+
+        if(is_full_assignment) {
+            VarInitStatement* root = da_root_local_var(assign->lhs);
+            if(root && !initialized.count(root)) {
+                assign->is_first_init = true;
+                initialized.insert(root);
+            }
+        } else {
+            // member/index write also initializes the root variable
+            VarInitStatement* root = da_root_local_var(assign->lhs);
+            if(root && !initialized.count(root)) {
+                initialized.insert(root);
+            }
+        }
+    }
 
     const auto lhs = assign->lhs;
     const auto value = assign->value;
@@ -1458,7 +1617,26 @@ void TypeVerifier::VisitFunctionDecl(FunctionDeclaration *decl) {
     const auto prev = current_func_type;
     current_func_type = decl;
 
+    // Save DA state for nested function isolation
+    const auto prev_locals = std::move(locals);
+    const auto prev_initialized = std::move(initialized);
+    const auto prev_scope_stack = std::move(scope_stack);
+    const auto prev_da_in_unsafe = da_in_unsafe;
+    const auto prev_da_enabled = da_enabled;
+    locals.clear();
+    initialized.clear();
+    scope_stack.clear();
+    da_in_unsafe = false;
+    da_enabled = true;
+
     RecursiveVisitor::VisitFunctionDecl(decl);
+
+    // Restore DA state
+    locals = std::move(prev_locals);
+    initialized = std::move(prev_initialized);
+    scope_stack = std::move(prev_scope_stack);
+    da_in_unsafe = prev_da_in_unsafe;
+    da_enabled = prev_da_enabled;
 
     current_func_type = prev;
     is_public_comptime_context = prev_pub_comptime;
@@ -1470,6 +1648,113 @@ void TypeVerifier::VisitLambdaFunction(LambdaFunction *func) {
     current_func_type = func;
     RecursiveVisitor::VisitLambdaFunction(func);
     current_func_type = prev;
+}
+
+// -------- Definite Assignment: variable usage checks --------
+
+void TypeVerifier::VisitVariableIdentifier(VariableIdentifier* id) {
+    if(!da_enabled || da_addr_inner) return;
+    auto* v = da_root_local_var(id);
+    if(v && !initialized.count(v) && !da_in_unsafe) {
+        if(da_type_has_destructor(v)) {
+            da_report_uninit(v, "use of", id->encoded_location());
+        }
+    }
+}
+
+void TypeVerifier::VisitUnsafeValue(UnsafeValue* value) {
+    if(da_enabled) {
+        bool prev_inner = da_addr_inner;
+        da_addr_inner = true;
+        RecursiveVisitor<TypeVerifier>::VisitUnsafeValue(value);
+        da_addr_inner = prev_inner;
+        return;
+    }
+    RecursiveVisitor<TypeVerifier>::VisitUnsafeValue(value);
+}
+
+// -------- Definite Assignment: control flow --------
+
+void TypeVerifier::VisitWhileLoopStmt(WhileLoop* loop) {
+    if(da_enabled) {
+        visit_it(loop->condition);
+        auto before = initialized;
+        initialized = before;
+        visit_it(loop->body);
+        initialized = before;
+        return;
+    }
+    RecursiveVisitor<TypeVerifier>::VisitWhileLoopStmt(loop);
+}
+
+void TypeVerifier::VisitDoWhileLoopStmt(DoWhileLoop* loop) {
+    if(da_enabled) {
+        auto before = initialized;
+        initialized = before;
+        visit_it(loop->body);
+        visit_it(loop->condition);
+        return;
+    }
+    RecursiveVisitor<TypeVerifier>::VisitDoWhileLoopStmt(loop);
+}
+
+void TypeVerifier::VisitForLoopStmt(ForLoop* loop) {
+    if(da_enabled) {
+        da_push_scope();
+        if(loop->initializer) visit_it(loop->initializer);
+        auto before = initialized;
+        if(loop->conditionExpr) visit_it(loop->conditionExpr);
+        initialized = before;
+        visit_it(loop->body);
+        initialized = before;
+        if(loop->incrementerExpr) visit_it(loop->incrementerExpr);
+        da_pop_scope();
+        return;
+    }
+    RecursiveVisitor<TypeVerifier>::VisitForLoopStmt(loop);
+}
+
+void TypeVerifier::VisitSwitchStmt(SwitchStatement* stmt) {
+    if(da_enabled) {
+        visit_it(stmt->expression);
+        auto before = initialized;
+        auto result = before;
+        for(auto& scope : stmt->scopes) {
+            initialized = before;
+            visit_it(scope);
+            std::unordered_set<VarInitStatement*> tmp;
+            da_intersect(result, initialized, tmp);
+            result = std::move(tmp);
+        }
+        if(!stmt->has_default_case()) {
+            std::unordered_set<VarInitStatement*> tmp;
+            da_intersect(result, before, tmp);
+            result = std::move(tmp);
+        }
+        initialized = result;
+        return;
+    }
+    RecursiveVisitor<TypeVerifier>::VisitSwitchStmt(stmt);
+}
+
+void TypeVerifier::VisitScope(Scope* scope) {
+    if(da_enabled) {
+        da_push_scope();
+        RecursiveVisitor<TypeVerifier>::VisitScope(scope);
+        da_pop_scope();
+        return;
+    }
+    RecursiveVisitor<TypeVerifier>::VisitScope(scope);
+}
+
+void TypeVerifier::VisitBlockScope(BlockScope* scope) {
+    if(da_enabled) {
+        da_push_scope();
+        RecursiveVisitor<TypeVerifier>::VisitBlockScope(scope);
+        da_pop_scope();
+        return;
+    }
+    RecursiveVisitor<TypeVerifier>::VisitBlockScope(scope);
 }
 
 void TypeVerifier::VisitLinkedType(LinkedType* type) {
@@ -1578,12 +1863,18 @@ void TypeVerifier::VisitUnsafeBlock(UnsafeBlock* block) {
         }
         const auto prev = *flag;
         *flag = true;
+        const auto prev_da = da_in_unsafe;
+        da_in_unsafe = true;
         RecursiveVisitor<TypeVerifier>::VisitUnsafeBlock(block);
+        da_in_unsafe = prev_da;
         *flag = prev;
     } else {
         const auto prev = is_unsafe;
         is_unsafe = true;
+        const auto prev_da = da_in_unsafe;
+        da_in_unsafe = true;
         RecursiveVisitor<TypeVerifier>::VisitUnsafeBlock(block);
+        da_in_unsafe = prev_da;
         is_unsafe = prev;
     }
 }

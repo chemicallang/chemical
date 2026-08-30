@@ -43,7 +43,7 @@ public namespace std {
 
         public func hardware_threads() : usize {
             comptime if (def.windows) {
-                var info : SYSTEM_INFO
+                var info = zeroed<SYSTEM_INFO>()
                 GetSystemInfo(&raw info)
                 return info.dwNumberOfProcessors as usize
             } else {

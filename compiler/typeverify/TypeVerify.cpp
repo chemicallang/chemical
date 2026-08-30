@@ -48,10 +48,30 @@ void TypeVerifier::da_pop_scope() {
     if(scope_stack.empty()) return;
     auto& frame = scope_stack.back();
     for(auto* v : frame) {
-        locals.erase(v);
-        initialized.erase(v);
+        for(size_t i = 0; i < locals.size(); i++) {
+            if(locals[i] == v) {
+                locals.erase(locals.begin() + i);
+                init_bits.erase(init_bits.begin() + i);
+                break;
+            }
+        }
     }
     scope_stack.pop_back();
+}
+
+void TypeVerifier::da_add_local(VarInitStatement* v) {
+    locals.push_back(v);
+    init_bits.push_back(false);
+    if(!scope_stack.empty()) {
+        scope_stack.back().push_back(v);
+    }
+}
+
+bool TypeVerifier::da_is_initialized(VarInitStatement* v) {
+    for(size_t i = 0; i < locals.size(); i++) {
+        if(locals[i] == v) return init_bits[i];
+    }
+    return false;
 }
 
 VarInitStatement* TypeVerifier::da_root_local_var(Value* v) {
@@ -62,7 +82,9 @@ VarInitStatement* TypeVerifier::da_root_local_var(Value* v) {
             auto* linked = id->linked;
             if(linked && linked->kind() == ASTNodeKind::VarInitStmt) {
                 auto* var = static_cast<VarInitStatement*>(linked);
-                if(locals.count(var)) return var;
+                for(auto* local : locals) {
+                    if(local == var) return var;
+                }
             }
             return nullptr;
         }
@@ -93,13 +115,12 @@ void TypeVerifier::da_report_uninit(VarInitStatement* v, const char* action, Sou
 }
 
 void TypeVerifier::da_intersect(
-    const std::unordered_set<VarInitStatement*>& a,
-    const std::unordered_set<VarInitStatement*>& b,
-    std::unordered_set<VarInitStatement*>& out) {
-    out.clear();
-    out.reserve(std::min(a.size(), b.size()));
-    for(auto* v : a) {
-        if(b.count(v)) out.insert(v);
+    const std::vector<bool>& a,
+    const std::vector<bool>& b,
+    std::vector<bool>& out) {
+    out.resize(a.size());
+    for(size_t i = 0; i < a.size(); i++) {
+        out[i] = a[i] && (i < b.size() ? b[i] : false);
     }
 }
 
@@ -1258,8 +1279,7 @@ void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
 
     // DA: track local variable
     if(da_enabled && !scope_stack.empty()) {
-        scope_stack.back().push_back(stmt);
-        locals.insert(stmt);
+        da_add_local(stmt);
     }
 
     if(type) {
@@ -1271,7 +1291,12 @@ void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
 
     // DA: mark as initialized if it has an initializer
     if(da_enabled && value) {
-        initialized.insert(stmt);
+        for(size_t i = 0; i < locals.size(); i++) {
+            if(locals[i] == stmt) {
+                init_bits[i] = true;
+                break;
+            }
+        }
     }
 
     if(type && value) {
@@ -1356,34 +1381,34 @@ void TypeVerifier::VisitIfStmt(IfStatement *stmt) {
     // DA: visit condition, save state, visit branches, intersect
     if(da_enabled) {
         visit_it(stmt->condition);
-        auto before = initialized;
+        auto before = init_bits;
 
-        initialized = before;
+        init_bits = before;
         visit_it(stmt->ifBody);
-        auto result = initialized;
+        auto result = init_bits;
 
         for(auto& elif : stmt->elseIfs) {
             visit_it(elif.first);
-            initialized = before;
+            init_bits = before;
             visit_it(elif.second);
-            std::unordered_set<VarInitStatement*> tmp;
-            da_intersect(result, initialized, tmp);
+            std::vector<bool> tmp;
+            da_intersect(result, init_bits, tmp);
             result = std::move(tmp);
         }
 
         if(stmt->elseBody.has_value()) {
-            initialized = before;
+            init_bits = before;
             visit_it(stmt->elseBody.value());
-            std::unordered_set<VarInitStatement*> tmp;
-            da_intersect(result, initialized, tmp);
+            std::vector<bool> tmp;
+            da_intersect(result, init_bits, tmp);
             result = std::move(tmp);
         } else {
-            std::unordered_set<VarInitStatement*> tmp;
+            std::vector<bool> tmp;
             da_intersect(result, before, tmp);
             result = std::move(tmp);
         }
 
-        initialized = result;
+        init_bits = result;
         return;
     }
 
@@ -1482,15 +1507,25 @@ void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
 
         if(is_full_assignment) {
             VarInitStatement* root = da_root_local_var(assign->lhs);
-            if(root && !initialized.count(root)) {
+            if(root && !da_is_initialized(root)) {
                 assign->is_first_init = true;
-                initialized.insert(root);
+                for(size_t i = 0; i < locals.size(); i++) {
+                    if(locals[i] == root) {
+                        init_bits[i] = true;
+                        break;
+                    }
+                }
             }
         } else {
             // member/index write also initializes the root variable
             VarInitStatement* root = da_root_local_var(assign->lhs);
-            if(root && !initialized.count(root)) {
-                initialized.insert(root);
+            if(root && !da_is_initialized(root)) {
+                for(size_t i = 0; i < locals.size(); i++) {
+                    if(locals[i] == root) {
+                        init_bits[i] = true;
+                        break;
+                    }
+                }
             }
         }
     }
@@ -1619,12 +1654,12 @@ void TypeVerifier::VisitFunctionDecl(FunctionDeclaration *decl) {
 
     // Save DA state for nested function isolation
     const auto prev_locals = std::move(locals);
-    const auto prev_initialized = std::move(initialized);
+    const auto prev_init_bits = std::move(init_bits);
     const auto prev_scope_stack = std::move(scope_stack);
     const auto prev_da_in_unsafe = da_in_unsafe;
     const auto prev_da_enabled = da_enabled;
     locals.clear();
-    initialized.clear();
+    init_bits.clear();
     scope_stack.clear();
     da_in_unsafe = false;
     da_enabled = true;
@@ -1633,7 +1668,7 @@ void TypeVerifier::VisitFunctionDecl(FunctionDeclaration *decl) {
 
     // Restore DA state
     locals = std::move(prev_locals);
-    initialized = std::move(prev_initialized);
+    init_bits = std::move(prev_init_bits);
     scope_stack = std::move(prev_scope_stack);
     da_in_unsafe = prev_da_in_unsafe;
     da_enabled = prev_da_enabled;
@@ -1655,7 +1690,7 @@ void TypeVerifier::VisitLambdaFunction(LambdaFunction *func) {
 void TypeVerifier::VisitVariableIdentifier(VariableIdentifier* id) {
     if(!da_enabled || da_addr_inner) return;
     auto* v = da_root_local_var(id);
-    if(v && !initialized.count(v) && !da_in_unsafe) {
+    if(v && !da_is_initialized(v) && !da_in_unsafe) {
         if(da_type_has_destructor(v)) {
             da_report_uninit(v, "use of", id->encoded_location());
         }
@@ -1678,10 +1713,10 @@ void TypeVerifier::VisitUnsafeValue(UnsafeValue* value) {
 void TypeVerifier::VisitWhileLoopStmt(WhileLoop* loop) {
     if(da_enabled) {
         visit_it(loop->condition);
-        auto before = initialized;
-        initialized = before;
+        auto before = init_bits;
+        init_bits = before;
         visit_it(loop->body);
-        initialized = before;
+        init_bits = before;
         return;
     }
     RecursiveVisitor<TypeVerifier>::VisitWhileLoopStmt(loop);
@@ -1689,8 +1724,8 @@ void TypeVerifier::VisitWhileLoopStmt(WhileLoop* loop) {
 
 void TypeVerifier::VisitDoWhileLoopStmt(DoWhileLoop* loop) {
     if(da_enabled) {
-        auto before = initialized;
-        initialized = before;
+        auto before = init_bits;
+        init_bits = before;
         visit_it(loop->body);
         visit_it(loop->condition);
         return;
@@ -1702,11 +1737,11 @@ void TypeVerifier::VisitForLoopStmt(ForLoop* loop) {
     if(da_enabled) {
         da_push_scope();
         if(loop->initializer) visit_it(loop->initializer);
-        auto before = initialized;
+        auto before = init_bits;
         if(loop->conditionExpr) visit_it(loop->conditionExpr);
-        initialized = before;
+        init_bits = before;
         visit_it(loop->body);
-        initialized = before;
+        init_bits = before;
         if(loop->incrementerExpr) visit_it(loop->incrementerExpr);
         da_pop_scope();
         return;
@@ -1717,21 +1752,21 @@ void TypeVerifier::VisitForLoopStmt(ForLoop* loop) {
 void TypeVerifier::VisitSwitchStmt(SwitchStatement* stmt) {
     if(da_enabled) {
         visit_it(stmt->expression);
-        auto before = initialized;
-        auto result = before;
+        auto before = init_bits;
+        auto result = init_bits;
         for(auto& scope : stmt->scopes) {
-            initialized = before;
+            init_bits = before;
             visit_it(scope);
-            std::unordered_set<VarInitStatement*> tmp;
-            da_intersect(result, initialized, tmp);
+            std::vector<bool> tmp;
+            da_intersect(result, init_bits, tmp);
             result = std::move(tmp);
         }
         if(!stmt->has_default_case()) {
-            std::unordered_set<VarInitStatement*> tmp;
+            std::vector<bool> tmp;
             da_intersect(result, before, tmp);
             result = std::move(tmp);
         }
-        initialized = result;
+        init_bits = result;
         return;
     }
     RecursiveVisitor<TypeVerifier>::VisitSwitchStmt(stmt);

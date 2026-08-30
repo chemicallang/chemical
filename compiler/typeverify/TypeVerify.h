@@ -4,7 +4,6 @@
 
 #include "preprocess/visitors/RecursiveVisitor.h"
 #include <unordered_map>
-#include <unordered_set>
 #include <string>
 #include <vector>
 
@@ -68,12 +67,12 @@ public:
     // -------- Definite Assignment --------
 
     /// Every local variable declaration encountered in the current function.
-    std::unordered_set<VarInitStatement*> locals;
+    std::vector<VarInitStatement*> locals;
 
-    /// Variables that are *definitely initialized* on the current path.
-    std::unordered_set<VarInitStatement*> initialized;
+    /// Parallel boolean array: initialized[i] == true iff locals[i] is definitely initialized.
+    std::vector<bool> init_bits;
 
-    /// Per-block stack of declarations for scope cleanup.
+    /// Per-block stack of declaration counts for scope cleanup.
     std::vector<std::vector<VarInitStatement*>> scope_stack;
 
     /// True while inside an `unsafe { }` block (suppresses DA checks).
@@ -102,12 +101,13 @@ public:
 
     void da_push_scope();
     void da_pop_scope();
+    void da_add_local(VarInitStatement* v);
+    bool da_is_initialized(VarInitStatement* v);
     VarInitStatement* da_root_local_var(Value* v);
     bool da_type_has_destructor(VarInitStatement* v);
     void da_report_uninit(VarInitStatement* v, const char* action, SourceLocation loc);
-    void da_intersect(const std::unordered_set<VarInitStatement*>& a,
-                      const std::unordered_set<VarInitStatement*>& b,
-                      std::unordered_set<VarInitStatement*>& out);
+    void da_intersect(const std::vector<bool>& a, const std::vector<bool>& b,
+                      std::vector<bool>& out);
 
     // ------------- Decls ------------
 

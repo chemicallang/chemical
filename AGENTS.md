@@ -410,18 +410,18 @@ c.field = 5
 unsafe { c.field = 5 }
 ```
 
-Rules enforced by the definite-assignment pass (`compiler/typeverify/DefiniteAssignment.cpp`):
+Rules enforced by the definite-assignment pass (merged into `compiler/typeverify/TypeVerifier`):
 - A **full assignment** `x = value` (whole variable, not a member/index) is treated as
   *first initialization*. It initializes the variable and the code generators / interpreter
   correctly skip destroying the previous (garbage) value.
 - **Reading** an uninitialized variable whose type has a destructor → error
   (`use of uninitialized variable 'x' before it is initialized (use of)`).
-- **Taking its address** `&raw mut x` or **reference** `&mut x` → error
-  (`... (taking address of)` / `... (taking reference of)`) unless wrapped in `unsafe(...)`.
+- **Taking its address** `&raw mut x` or **reference** `&mut x` → these are **not flagged**
+  by the definite-assignment pass (they are legitimate C interop patterns for taking addresses
+  of uninitialized memory).
 - **Writing a member or index** `x.field = ...` / `x[i] = ...` on an uninitialized
-  *destructor-bearing* type → error (`... (access of field/index of)`) unless wrapped in
-  `unsafe`. (Arrays and other non-destructor types may be written through safely while
-  uninitialized, since there is nothing to destruct.)
+  *destructor-bearing* type → also **marks the variable as initialized** (supporting manual
+  struct initialization patterns like `var c : Container; unsafe { c.field = 5 }`).
 - Branches: a variable is only "definitely initialized" if **every** path assigns it (e.g.
   both sides of an `if/else`).
 
@@ -438,10 +438,8 @@ Exemptions:
 
 Compiler errors you may see:
 ```
-[Parser] error: 'unsafe var' / 'unsafe const' is no longer supported; write 'var x : Type' (uninitialized variables don't need the 'unsafe' keyword)
-[DefiniteAssignment] error: use of uninitialized variable 'x' before it is initialized (use of)
-[DefiniteAssignment] error: use of uninitialized variable 'x' before it is initialized (taking address of)
-[DefiniteAssignment] error: use of uninitialized variable 'x' before it is initialized (access of field/index of)
+[TypeVerify] error: use of uninitialized variable 'x' before it is initialized (use of)
+[TypeVerify] error: use of uninitialized variable 'x' before it is initialized (taking address of)
 ```
 
 When migrating or writing code, do **not** add `unsafe` to the declaration. Instead, either

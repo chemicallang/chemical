@@ -521,10 +521,7 @@ func manual_memory() {
 
   Compiler errors:
   ```
-  [Parser] error: 'unsafe var' / 'unsafe const' is no longer supported; write 'var x : Type' (uninitialized variables don't need the 'unsafe' keyword)
-  [DefiniteAssignment] error: use of uninitialized variable 'x' before it is initialized (use of)
-  [DefiniteAssignment] error: use of uninitialized variable 'x' before it is initialized (taking address of)
-  [DefiniteAssignment] error: use of uninitialized variable 'x' before it is initialized (access of field/index of)
+  [TypeVerify] error: use of uninitialized variable 'x' before it is initialized (use of)
   ```
 
   `unsafe(expr)` is a **compile-time-only safety marker**: it never changes runtime behaviour

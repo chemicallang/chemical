@@ -616,7 +616,7 @@ public func INT_tls13_max_record_roundtrip(env : &mut TestEnv) {
     var pt_len : size_t = 16384
     var pt_data : [16384]u8; test_random_bytes(&raw mut pt_data[0], pt_len)
 
-    var ssl : SSLContext; ssl_init(unsafe(&raw mut ssl))
+    var ssl = SSLContext()
     var cfg = ssl_config_init(SSL_IS_CLIENT)
     cfg.max_tls_version = SSL_VERSION_TLS1_3
     ssl_set_config(unsafe(&raw mut ssl), &raw mut cfg)

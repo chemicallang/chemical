@@ -13,7 +13,7 @@ using namespace tls
 
 @test
 public func UNIT_record_consume_single(env : &mut TestEnv) {
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx = SSLContext()
 
     // Create a simulated TLS record: content_type(1) + version(2) + length(2) + payload
     // ServerHello: content_type=22 (0x16), version=0x0303, length=3, payload=[0x02, 0x00, 0x01, 0x00]
@@ -61,7 +61,7 @@ public func UNIT_record_consume_single(env : &mut TestEnv) {
 
 @test
 public func UNIT_record_consume_two_records(env : &mut TestEnv) {
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx = SSLContext()
 
     // First record: ServerHello (content_type=22), length=4
     // Bytes: 16 03 03 00 04 [payload: 02 00 00 01]
@@ -123,7 +123,7 @@ public func UNIT_record_consume_two_records(env : &mut TestEnv) {
 
 @test
 public func UNIT_record_consume_ccs_then_handshake(env : &mut TestEnv) {
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx = SSLContext()
 
     // CCS record: content_type=20 (0x14), version=0x0303, length=1, payload=[0x01]
     var ccs_rec : [6]u8 = [
@@ -179,7 +179,7 @@ public func UNIT_record_consume_ccs_then_handshake(env : &mut TestEnv) {
 
 @test
 public func UNIT_record_consume_exact_boundary(env : &mut TestEnv) {
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx = SSLContext()
 
     // Single record: length = 0 (empty payload)
     var record : [5]u8 = [
@@ -212,7 +212,7 @@ public func UNIT_record_consume_exact_boundary(env : &mut TestEnv) {
 
 @test
 public func UNIT_record_consume_empty(env : &mut TestEnv) {
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx = SSLContext()
 
     unsafe { ctx.in_left = 0 }
     unsafe { ctx.in_msglen = 0 }
@@ -230,7 +230,7 @@ public func UNIT_record_consume_empty(env : &mut TestEnv) {
 
 @test
 public func UNIT_record_consume_capped(env : &mut TestEnv) {
-    var ctx : SSLContext; ssl_init(unsafe(&raw mut ctx))
+    var ctx = SSLContext()
 
     // Set in_left to 7 (less than 5 header + 5 payload = 10)
     unsafe { ctx.in_left = 7 }

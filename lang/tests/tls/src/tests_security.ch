@@ -141,7 +141,7 @@ public func SEC_rsa_padding_valid_accepted(env : &mut TestEnv) {
 
 @test
 public func SEC_cert_expired_rejected(env : &mut TestEnv) {
-    var cert : X509Cert; x509_cert_init(unsafe(&raw mut cert))
+    var cert = X509Cert()
     var ret = parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
 

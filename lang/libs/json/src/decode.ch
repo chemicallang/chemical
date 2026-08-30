@@ -126,7 +126,7 @@ impl std::Decoder for JsonDecoder {
     func object(&self) : std::Result<JsonObjectDecoder, std::SerializationError> {
         if(self.value is JsonValue.Object) {
             var Object(m) = self.value else unreachable
-            return std::Result.Ok(JsonObjectDecoder { iterator : m.iterator() })
+            return std::Result.Ok(JsonObjectDecoder { iterator : m.iterator(), _total : m.size() })
         }
         return std::Result.Err(std::SerializationError {
             kind : std::SerializationErrorKind.Generic,
@@ -137,7 +137,7 @@ impl std::Decoder for JsonDecoder {
     func map(&self) : std::Result<JsonMapDecoder, std::SerializationError> {
         if(self.value is JsonValue.Object) {
             var Object(m) = self.value else unreachable
-            return std::Result.Ok(JsonMapDecoder { iterator : m.iterator() })
+            return std::Result.Ok(JsonMapDecoder { iterator : m.iterator(), _total : m.size() })
         }
         return std::Result.Err(std::SerializationError {
             kind : std::SerializationErrorKind.Generic,
@@ -181,7 +181,8 @@ impl std::ArrayDecoder<JsonValue> for JsonArrayDecoder {
 // ===== JsonObjectDecoder =====
 
 public struct JsonObjectDecoder {
-    var iterator : std::unordered_map_iterator<std::string, JsonValue>
+    var iterator : std::ordered_map_iterator<std::string, JsonValue>
+    var _total : u64
 }
 
 impl std::ObjectDecoder<JsonValue> for JsonObjectDecoder {
@@ -202,7 +203,7 @@ impl std::ObjectDecoder<JsonValue> for JsonObjectDecoder {
     }
 
     func total(&self) : u64 {
-        return self.iterator.size();
+        return self._total;
     }
 
 }
@@ -227,7 +228,8 @@ func <T> (decoder : &JsonDecoder) decode() : std::Result<T, std::SerializationEr
 // ===== JsonMapDecoder =====
 
 public struct JsonMapDecoder {
-    var iterator : std::unordered_map_iterator<std::string, JsonValue>
+    var iterator : std::ordered_map_iterator<std::string, JsonValue>
+    var _total : u64
 }
 
 impl std::MapDecoder<JsonValue> for JsonMapDecoder {
@@ -247,7 +249,7 @@ impl std::MapDecoder<JsonValue> for JsonMapDecoder {
     }
 
     func total(&self) : u64 {
-        return self.iterator.size();
+        return self._total;
     }
 }
 

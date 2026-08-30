@@ -716,7 +716,7 @@ public func window_is_created(w : *mut Window) : bool {
 // --- title ---
 
 public func window_title(w : *mut Window) : string {
-    return w.title
+    return w.title.copy()
 }
 
 public func window_set_title(w : *mut Window, title : *char) {

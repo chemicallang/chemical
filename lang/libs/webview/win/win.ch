@@ -1744,7 +1744,7 @@ public func webview_stop(wv : *mut WebView) {
 }
 
 public func webview_title(wv : *mut WebView) : string {
-    return wv.title
+    return wv.title.copy()
 }
 
 public func webview_set_title(wv : *mut WebView, title : *char) {

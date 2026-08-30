@@ -4,7 +4,9 @@
 
 #include "preprocess/visitors/RecursiveVisitor.h"
 #include <unordered_map>
+#include <unordered_set>
 #include <string>
+#include <vector>
 
 class TypeVerifier : public RecursiveVisitor<TypeVerifier> {
 public:
@@ -63,6 +65,27 @@ public:
      */
     bool is_interpretation_mode = false;
 
+    // -------- Definite Assignment --------
+
+    /// Every local variable declaration encountered in the current function.
+    std::unordered_set<VarInitStatement*> locals;
+
+    /// Variables that are *definitely initialized* on the current path.
+    std::unordered_set<VarInitStatement*> initialized;
+
+    /// Per-block stack of declarations for scope cleanup.
+    std::vector<std::vector<VarInitStatement*>> scope_stack;
+
+    /// True while inside an `unsafe { }` block (suppresses DA checks).
+    bool da_in_unsafe = false;
+
+    /// When false, definite-assignment checks are suppressed (e.g. inside nested functions).
+    bool da_enabled = false;
+
+    /// While true, the next identifier visit belongs to the inner of an
+    /// address/reference-of and must not be reported as a standalone read.
+    bool da_addr_inner = false;
+
     /**
      * constructor
      * the allocator must be an ast allocator
@@ -74,6 +97,17 @@ public:
     ) : index(index), allocator(allocator), diagnoser(diagnoser) {
 
     }
+
+    // -------- Definite Assignment helpers --------
+
+    void da_push_scope();
+    void da_pop_scope();
+    VarInitStatement* da_root_local_var(Value* v);
+    bool da_type_has_destructor(VarInitStatement* v);
+    void da_report_uninit(VarInitStatement* v, const char* action, SourceLocation loc);
+    void da_intersect(const std::unordered_set<VarInitStatement*>& a,
+                      const std::unordered_set<VarInitStatement*>& b,
+                      std::unordered_set<VarInitStatement*>& out);
 
     // ------------- Decls ------------
 
@@ -101,6 +135,18 @@ public:
 
     void VisitDeleteStmt(DestructStmt* stmt);
 
+    void VisitWhileLoopStmt(WhileLoop* loop);
+
+    void VisitDoWhileLoopStmt(DoWhileLoop* loop);
+
+    void VisitForLoopStmt(ForLoop* loop);
+
+    void VisitSwitchStmt(SwitchStatement* stmt);
+
+    void VisitScope(Scope* scope);
+
+    void VisitBlockScope(BlockScope* scope);
+
     // Types
 
     void VisitLinkedType(LinkedType* type);
@@ -115,6 +161,14 @@ public:
 
     void VisitUnsafeBlock(UnsafeBlock* block);
 
+    void VisitVariableIdentifier(VariableIdentifier* id);
+
+    void VisitAddrOfValue(AddrOfValue* value);
+
+    void VisitReferenceOfValue(ReferenceOfValue* value);
+
+    void VisitUnsafeValue(UnsafeValue* value);
+
     void VisitLambdaFunction(LambdaFunction *func);
 
     void VisitPlacementNewValue(PlacementNewValue *value);
@@ -124,10 +178,6 @@ public:
     void VisitIndexOperator(IndexOperator* value);
 
     void VisitDereferenceValue(DereferenceValue* value);
-
-    void VisitAddrOfValue(AddrOfValue* value);
-
-    void VisitReferenceOfValue(ReferenceOfValue* value);
 
     void VisitPatternMatchExpr(PatternMatchExpr* value);
 

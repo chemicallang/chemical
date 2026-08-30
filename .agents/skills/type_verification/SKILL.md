@@ -230,6 +230,51 @@ Some checks are handled in other passes:
 | Recursion limits | Codegen or Runtime | Not a type-level check |
 | Lifetime/borrow checking | N/A | Not yet implemented in Chemical |
 
+## Definite-Assignment Analysis (merged into TypeVerifier)
+
+The definite-assignment (DA) analysis was previously a separate pass (`DefiniteAssignment.cpp`)
+but is now fully merged into `TypeVerifier`. It runs as part of the same AST visit, eliminating
+a redundant full traversal.
+
+### Data Structures
+
+DA uses flat vectors for tracking (not hash sets):
+
+```cpp
+// In TypeVerifier class:
+std::vector<VarInitStatement*> locals;    // Every local variable in current function
+std::vector<bool> init_bits;             // Parallel: init_bits[i] == true iff locals[i] is initialized
+std::vector<std::vector<VarInitStatement*>> scope_stack;  // Per-block stack for scope cleanup
+```
+
+- `da_add_local(stmt)` — push_back to locals + init_bits(false)
+- `da_is_initialized(stmt)` — linear scan of locals, return init_bits[index]
+- `da_mark_initialized(stmt)` — linear scan, set init_bits[index] = true
+- `da_pop_scope()` — truncate locals/init_bits to saved size (O(1) per scope)
+- `da_intersect(a, b, out)` — linear scan of smaller vector, check membership in larger
+
+### Rules
+
+- A **full assignment** `x = value` (whole variable) is treated as first initialization.
+- **Reading** an uninitialized variable whose type has a destructor → error.
+- **Taking its address** `&raw mut x` or `&mut x` → NOT flagged (legitimate C interop).
+- **Writing a member** `x.field = ...` on uninitialized destructor type → marks variable as initialized.
+- Branches: variable is "definitely initialized" only if every path assigns it.
+
+### Nested Function Isolation
+
+When visiting a nested `FunctionDeclaration`, DA state is saved and cleared:
+```cpp
+auto prev_locals = std::move(locals);
+auto prev_init_bits = std::move(init_bits);
+auto prev_scope_stack = std::move(scope_stack);
+locals.clear(); init_bits.clear(); scope_stack.clear();
+// ... visit nested function ...
+locals = std::move(prev_locals);
+init_bits = std::move(prev_init_bits);
+scope_stack = std::move(prev_scope_stack);
+```
+
 ## Diagnostics
 
 Type verification errors follow a standard format:

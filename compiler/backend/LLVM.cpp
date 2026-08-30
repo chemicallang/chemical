@@ -2500,7 +2500,7 @@ void AssignStatement::code_gen(Codegen &gen) {
 
             // destruct old lhs value at original pointer
             if(id != nullptr) {
-                if(!assign->is_first_init) {
+                if(!is_first_init) {
                     const auto node = id->linked;
                     const auto drop_flag = gen.find_drop_flag(node);
                     auto destructible = gen.create_destructible_for(node, drop_flag);
@@ -2508,7 +2508,7 @@ void AssignStatement::code_gen(Codegen &gen) {
                         gen.conditional_destruct(destructible.value(), nullptr, lhs->encoded_location());
                     }
                 }
-            } else if(!lhs_was_moved && !assign->is_first_init) {
+            } else if(!lhs_was_moved && !is_first_init) {
                 if(destructor) {
                     const auto callInst = gen.builder->CreateCall(destructor->llvm_func(gen), { pointer });
                     gen.di.instr(callInst, this);

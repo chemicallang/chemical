@@ -61,6 +61,10 @@ public:
 
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
 
+    llvm::Value* llvm_pointer(Codegen& gen) final {
+        return llvm_value(gen, nullptr);
+    }
+
     bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) final;
 
     bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;

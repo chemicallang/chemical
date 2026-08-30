@@ -785,8 +785,8 @@ if(ENABLE_ASAN AND CMAKE_BUILD_TYPE MATCHES Debug)
         set(ASAN_LINK_FLAG "/fsanitize=address")
     else()
         # GCC/Clang
-        set(ASAN_COMPILE_FLAG "-fsanitize=address -fno-omit-frame-pointer")
-        set(ASAN_LINK_FLAG "-fsanitize=address -fno-omit-frame-pointer")
+        set(ASAN_COMPILE_FLAG "-fsanitize=address" "-fno-omit-frame-pointer")
+        set(ASAN_LINK_FLAG "-fsanitize=address" "-fno-omit-frame-pointer")
     endif()
     # Apply these flags only for targets that do not link against LLVM/Clang libraries.
     # For example, applying to TCCCompiler:

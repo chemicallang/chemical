@@ -121,7 +121,7 @@ impl JsonSaxHandler for ASTJsonHandler {
     }
 
     func on_object_begin(&mut self) {
-        stack.push(JsonValue::Object(std::unordered_map<std::string, JsonValue>()));
+        stack.push(JsonValue::Object(std::ordered_map<std::string, JsonValue>()));
     }
 
     func on_object_end(&mut self) {

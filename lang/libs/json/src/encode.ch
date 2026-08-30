@@ -181,7 +181,7 @@ public func copy_json_value(src : &JsonValue) : JsonValue {
         Number(v) => return JsonValue.Number(v.copy())
         String(v) => return JsonValue.String(v.copy())
         Object(m) => {
-            var out = std::unordered_map<std::string, JsonValue>()
+            var out = std::ordered_map<std::string, JsonValue>()
             var it = m.iterator()
             while(it.valid()) {
                 var key = it.key().copy()

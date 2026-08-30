@@ -1,9 +1,8 @@
 @test
 func test_minimal_json_decodes_fine(env : &mut TestEnv) {
-    // Note: the parser stringifies to compact JSON; object key order follows the
-    // hash iteration order of the internal map (stable for a given build).
+    // Note: the parser stringifies to compact JSON; object keys follow insertion order.
     var input = std::string_view("{\"name\": \"Alice Bob\", \"age\": 30, \"active\": true, \"tags\": [null, false, 1e-2]}");
-    var output = std::string_view("{\"tags\":[null,false,1e-2],\"name\":\"Alice Bob\",\"age\":30,\"active\":true}");
+    var output = std::string_view("{\"name\":\"Alice Bob\",\"age\":30,\"active\":true,\"tags\":[null,false,1e-2]}");
     test_parsed_json_equals(env, &input, &output)
 }
 
@@ -217,21 +216,20 @@ func test_encode_json_empty_array(env : &mut TestEnv) {
 
 @test
 func test_encode_json_object(env : &mut TestEnv) {
-    var map = std::unordered_map<std::string, JsonValue>()
+    var map = std::ordered_map<std::string, JsonValue>()
     map.insert(std::string("a"), JsonValue.Number(std::string("1")))
     map.insert(std::string("b"), JsonValue.String(std::string("two")))
     var v = JsonValue.Object(map)
     var result = encode_json(&v)
     var view = result.to_view()
-    if(!view.equals(std::string_view("{\"a\":1,\"b\":\"two\"}")) &&
-       !view.equals(std::string_view("{\"b\":\"two\",\"a\":1}"))) {
+    if(!view.equals(std::string_view("{\"a\":1,\"b\":\"two\"}"))) {
         env.error("encode_json(object) failed")
     }
 }
 
 @test
 func test_encode_json_empty_object(env : &mut TestEnv) {
-    var map = std::unordered_map<std::string, JsonValue>()
+    var map = std::ordered_map<std::string, JsonValue>()
     var v = JsonValue.Object(map)
     var result = encode_json(&v)
     if(!result.to_view().equals(std::string_view("{}"))) {
@@ -246,15 +244,14 @@ func test_encode_json_nested(env : &mut TestEnv) {
     inner_arr.push(JsonValue.Null())
     var inner = JsonValue.Array(inner_arr)
 
-    var map = std::unordered_map<std::string, JsonValue>()
+    var map = std::ordered_map<std::string, JsonValue>()
     map.insert(std::string("data"), inner)
     map.insert(std::string("count"), JsonValue.Number(std::string("3")))
 
     var v = JsonValue.Object(map)
     var result = encode_json(&v)
     var view = result.to_view()
-    if(!view.equals(std::string_view("{\"data\":[false,null],\"count\":3}")) &&
-       !view.equals(std::string_view("{\"count\":3,\"data\":[false,null]}"))) {
+    if(!view.equals(std::string_view("{\"data\":[false,null],\"count\":3}"))) {
         env.error("encode_json(nested) failed")
     }
 }

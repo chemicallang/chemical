@@ -48,6 +48,10 @@ public:
         );
     }
 
+    ASTNode* linked_node() final {
+        return value->linked_node();
+    }
+
 #ifdef COMPILER_BUILD
 
     // `unsafe(expr)` is a compile-time-only safety marker. It has no runtime

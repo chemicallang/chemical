@@ -265,6 +265,15 @@ void Codegen::module_init(const chem::string_view& scope_name, const chem::strin
     module->setDataLayout(TargetMachine->createDataLayout());
     module->setTargetTriple(llvm::Triple(llvm::Triple::normalize(target_triple)));
 
+    // verify DataLayout has address space 0
+    {
+        auto& DL = module->getDataLayout();
+        (void)DL.getPointerSizeInBits(0);
+    }
+
+    // Clear the IRBuilder insert point so it doesn't reference a destroyed module
+    builder->ClearInsertionPoint();
+
     // debug flags must be added otherwise debug information is ignored (or dropped)
     if(llvm.di.isEnabled) {
         module->setModuleFlag(

@@ -110,6 +110,51 @@ public namespace tls {
         var prev : *mut X509Cert
         var flags : u32
 
+        @constructor
+        func constructor() {
+            var crt : X509Cert
+            crt.raw_pem = null
+            crt.raw_pem_len = 0
+            crt.version = 0
+            crt.serial = null
+            crt.serial_len = 0
+            crt.sig_oid = null
+            crt.sig_oid_len = 0
+            crt.sig_md = 0
+            crt.sig_pk = 0
+            crt.issuer_raw = null
+            crt.issuer_raw_len = 0
+            crt.issuer = string()
+            crt.subject_raw = null
+            crt.subject_raw_len = 0
+            crt.subject = string()
+            var i : size_t = 0
+            while(i < 15) {
+                crt.valid_from[i] = 0
+                crt.valid_to[i] = 0
+                i += 1
+            }
+            crt.pk_type = PK_NONE as u8
+            crt.pk_bitlen = 0
+            crt.pk_raw = null
+            crt.pk_raw_len = 0
+            crt.sig = null
+            crt.sig_len = 0
+            crt.sig_alg = null
+            crt.sig_alg_len = 0
+            crt.tbs_der = null
+            crt.tbs_der_len = 0
+            crt.ext_key_usage = 0
+            crt.ext_is_ca = false
+            crt.ext_max_pathlen = -1
+            crt.san_count = 0
+            crt.san_entries = null
+            crt.next = null
+            crt.prev = null
+            crt.flags = 0
+            return crt
+        }
+
         @delete
         func destruct(&self) {
             var curr = self.next

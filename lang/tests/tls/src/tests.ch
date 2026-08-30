@@ -1717,8 +1717,7 @@ public func tls_cert_date_validity_works(env : &mut TestEnv) {
 @test
 public func tls_cert_date_expired_returns_expired(env : &mut TestEnv) {
     // Create a cert with a manually-set expired valid_to date
-    var cert : tls::X509Cert
-    tls::x509_cert_init(unsafe(&raw mut cert))
+    var cert = tls::X509Cert()
 
     var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
@@ -1752,8 +1751,7 @@ public func tls_cert_date_expired_returns_expired(env : &mut TestEnv) {
 @test
 public func tls_cert_date_future_returns_future(env : &mut TestEnv) {
     // Create a cert with a future valid_from date
-    var cert : tls::X509Cert
-    tls::x509_cert_init(unsafe(&raw mut cert))
+    var cert = tls::X509Cert()
 
     var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw tls_tests::test_cert_data[0], 831)
     if(ret != 0) { env.error("cert should parse"); return }
@@ -2506,8 +2504,7 @@ public func tls_alpn_getter_returns_null_initially(env : &mut TestEnv) {
 @test
 public func tls13_key_update_send_keys_changes_transform(env : &mut TestEnv) {
     // Simulate a post-handshake scenario: set up keys, then update
-    var ssl : tls::SSLContext
-    tls::ssl_init(unsafe(&raw mut ssl))
+    var ssl = tls::SSLContext()
 
     // Set up application traffic secrets (simulating post-handshake state)
     var secret : [32]u8
@@ -2563,8 +2560,7 @@ public func tls13_key_update_send_keys_changes_transform(env : &mut TestEnv) {
 @test
 public func tls13_key_update_recv_keys_changes_transform(env : &mut TestEnv) {
     // Test receive-side key update
-    var ssl : tls::SSLContext
-    tls::ssl_init(unsafe(&raw mut ssl))
+    var ssl = tls::SSLContext()
 
     var i : size_t = 0
     while(i < 32) {
@@ -2604,8 +2600,8 @@ public func tls13_key_update_recv_keys_changes_transform(env : &mut TestEnv) {
 @test
 public func tls13_key_update_deterministic(env : &mut TestEnv) {
     // Two key updates with same starting secret should produce same result
-    var ssl1 : tls::SSLContext; tls::ssl_init(unsafe(&raw mut ssl1))
-    var ssl2 : tls::SSLContext; tls::ssl_init(unsafe(&raw mut ssl2))
+    var ssl1 = tls::SSLContext()
+    var ssl2 = tls::SSLContext()
 
     var i : size_t = 0
     while(i < 32) {
@@ -2931,8 +2927,7 @@ public func tls_ecdsa_uninitialized_rejects_verify(env : &mut TestEnv) {
 @test
 public func tls_session_resumption_key_derivation_works(env : &mut TestEnv) {
     // Verify that resumption_master_secret is populated after application key derivation
-    var ssl : tls::SSLContext
-    tls::ssl_init(unsafe(&raw mut ssl))
+    var ssl = tls::SSLContext()
     tls::ssl_set_config(unsafe(&raw mut ssl), &raw mut tls::ssl_config_init(tls::SSL_IS_CLIENT))
 
     // Set up handshake secret (simulating after handshake)

@@ -538,6 +538,69 @@ public namespace tls {
         // Early data
         var early_data_status : u8
 
+        @constructor
+        func constructor() {
+            ensure_init()
+            var ssl : SSLContext
+            ssl.conf = null
+            ssl.conf_owned = false
+            var sess_mem = malloc(sizeof(Session)) as *mut Session
+            if(sess_mem != null) {
+                sess_mem.ticket = null
+                *sess_mem = Session()
+            }
+            ssl.session = sess_mem
+            ssl.state = SSLState.HELLO_REQUEST()
+            ssl.in_msglen = 0
+            ssl.in_left = 0
+            var i : size_t = 0
+            while(i < 17408) {
+                ssl.in_buf[i] = 0
+                ssl.out_buf[i] = 0
+                i += 1
+            }
+            i = 0
+            while(i < 5) {
+                ssl.in_hdr[i] = 0
+                i += 1
+            }
+            ssl.in_offt = 0
+            ssl.out_msglen = 0
+            ssl.out_left = 0
+            i = 0
+            while(i < 8) {
+                ssl.in_ctr[i] = 0
+                ssl.out_ctr[i] = 0
+                i += 1
+            }
+            ssl.handshake = null
+            ssl.tls_version = 0
+            ssl.major_ver = 0
+            ssl.minor_ver = 0
+            tls13_key_schedule_init(&raw mut ssl.tls13_keys)
+            ssl.peer_cert = null
+            ssl.hostname = null
+            ssl.hostname_len = 0
+            ssl.alpn_negotiated = null
+            ssl.alpn_negotiated_len = 0
+            ssl.transform_in = null
+            ssl.transform_out = null
+            ssl.transform_negotiated = null
+            i = 0
+            while(i < 64) {
+                ssl.handshake_hash[i] = 0
+                i += 1
+            }
+            ssl.handshake_hash_len = 0
+            ssl.transport_socket = 0
+            ssl.transport_connected = false
+            ssl.negotiated_ciphersuite = 0
+            ssl.last_alert_level = 0
+            ssl.last_alert_desc = 0
+            ssl.early_data_status = 0
+            return ssl
+        }
+
         // Destructor: full cleanup so `delete ssl` is safe (same as ssl_free).
         // ssl_free is idempotent, so calling it here does not double-free even
         // if ssl_free() was already invoked explicitly.

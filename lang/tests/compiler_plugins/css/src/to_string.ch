@@ -1821,3 +1821,770 @@ public func safe_area_inset_and_env_vars_works(env : &mut TestEnv) {
     }
     css_equals(env, page.toStringCssOnly(), "padding-top:env(safe-area-inset-top, 20px);");
 }
+@test
+public func box_sizing_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        box-sizing: border-box;
+    }
+    css_equals(env, page.toStringCssOnly(), "box-sizing:border-box;");
+}
+
+@test
+public func visibility_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        visibility: hidden;
+    }
+    css_equals(env, page.toStringCssOnly(), "visibility:hidden;");
+}
+
+@test
+public func z_index_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        z-index: 100;
+    }
+    css_equals(env, page.toStringCssOnly(), "z-index:100;");
+}
+
+@test
+public func text_align_variations_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        text-align: justify;
+    }
+    css_equals(env, page.toStringCssOnly(), "text-align:justify;");
+}
+
+@test
+public func text_align_last_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        text-align-last: right;
+    }
+    css_equals(env, page.toStringCssOnly(), "text-align-last:right;");
+}
+
+@test
+public func text_transform_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        text-transform: capitalize;
+    }
+    css_equals(env, page.toStringCssOnly(), "text-transform:capitalize;");
+}
+
+@test
+public func vertical_align_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        vertical-align: middle;
+    }
+    css_equals(env, page.toStringCssOnly(), "vertical-align:middle;");
+}
+
+@test
+public func pointer_events_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        pointer-events: none;
+    }
+    css_equals(env, page.toStringCssOnly(), "pointer-events:none;");
+}
+
+@test
+public func clear_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        clear: both;
+    }
+    css_equals(env, page.toStringCssOnly(), "clear:both;");
+}
+
+@test
+public func float_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        float: right;
+    }
+    css_equals(env, page.toStringCssOnly(), "float:right;");
+}
+
+@test
+public func direction_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        direction: rtl;
+    }
+    css_equals(env, page.toStringCssOnly(), "direction:rtl;");
+}
+
+@test
+public func unicode_bidi_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        unicode-bidi: bidi-override;
+    }
+    css_equals(env, page.toStringCssOnly(), "unicode-bidi:bidi-override;");
+}
+
+@test
+public func overflow_wrap_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        overflow-wrap: break-word;
+    }
+    css_equals(env, page.toStringCssOnly(), "overflow-wrap:break-word;");
+}
+
+@test
+public func word_break_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        word-break: break-all;
+    }
+    css_equals(env, page.toStringCssOnly(), "word-break:break-all;");
+}
+
+@test
+public func white_space_variations_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        white-space: nowrap;
+    }
+    css_equals(env, page.toStringCssOnly(), "white-space:nowrap;");
+}
+
+@test
+public func isolation_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        isolation: isolate;
+    }
+    css_equals(env, page.toStringCssOnly(), "isolation:isolate;");
+}
+
+@test
+public func contain_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        contain: layout;
+    }
+    css_equals(env, page.toStringCssOnly(), "contain:layout;");
+}
+
+@test
+public func transform_style_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        transform-style: preserve-3d;
+    }
+    css_equals(env, page.toStringCssOnly(), "transform-style:preserve-3d;");
+}
+
+@test
+public func backface_visibility_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        backface-visibility: hidden;
+    }
+    css_equals(env, page.toStringCssOnly(), "backface-visibility:hidden;");
+}
+
+@test
+public func touch_action_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        touch-action: manipulation;
+    }
+    css_equals(env, page.toStringCssOnly(), "touch-action:manipulation;");
+}
+
+@test
+public func overscroll_behavior_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        overscroll-behavior: contain;
+    }
+    css_equals(env, page.toStringCssOnly(), "overscroll-behavior:contain;");
+}
+
+@test
+public func scroll_behavior_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        scroll-behavior: smooth;
+    }
+    css_equals(env, page.toStringCssOnly(), "scroll-behavior:smooth;");
+}
+
+@test
+public func flex_direction_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        flex-direction: column;
+    }
+    css_equals(env, page.toStringCssOnly(), "flex-direction:column;");
+}
+
+@test
+public func flex_wrap_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        flex-wrap: wrap-reverse;
+    }
+    css_equals(env, page.toStringCssOnly(), "flex-wrap:wrap-reverse;");
+}
+
+@test
+public func align_items_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        align-items: center;
+    }
+    css_equals(env, page.toStringCssOnly(), "align-items:center;");
+}
+
+@test
+public func align_self_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        align-self: stretch;
+    }
+    css_equals(env, page.toStringCssOnly(), "align-self:stretch;");
+}
+
+@test
+public func align_content_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        align-content: space-around;
+    }
+    css_equals(env, page.toStringCssOnly(), "align-content:space-around;");
+}
+
+@test
+public func justify_content_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        justify-content: space-evenly;
+    }
+    css_equals(env, page.toStringCssOnly(), "justify-content:space-evenly;");
+}
+
+@test
+public func justify_items_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        justify-items: center;
+    }
+    css_equals(env, page.toStringCssOnly(), "justify-items:center;");
+}
+
+@test
+public func justify_self_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        justify-self: start;
+    }
+    css_equals(env, page.toStringCssOnly(), "justify-self:start;");
+}
+
+@test
+public func grid_auto_flow_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        grid-auto-flow: dense;
+    }
+    css_equals(env, page.toStringCssOnly(), "grid-auto-flow:dense;");
+}
+
+@test
+public func grid_area_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        grid-area: 1 / 2 / 3 / 4;
+    }
+    css_equals(env, page.toStringCssOnly(), "grid-area:1 2 3 4;");
+}
+
+@test
+public func row_gap_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        row-gap: 20px;
+    }
+    css_equals(env, page.toStringCssOnly(), "row-gap:20px;");
+}
+
+@test
+public func column_gap_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        column-gap: 1.5rem;
+    }
+    css_equals(env, page.toStringCssOnly(), "column-gap:1.5rem;");
+}
+
+@test
+public func overflow_x_y_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        overflow-x: auto;
+        overflow-y: scroll;
+    }
+    css_equals(env, page.toStringCssOnly(), "overflow-x:auto;overflow-y:scroll;");
+}
+
+@test
+public func position_sticky_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        position: sticky;
+        top: 0;
+    }
+    css_equals(env, page.toStringCssOnly(), "position:sticky;top:0;");
+}
+
+@test
+public func text_decoration_color_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        text-decoration-color: #ff0000;
+    }
+    css_equals(env, page.toStringCssOnly(), "text-decoration-color:#ff0000;");
+}
+
+@test
+public func text_decoration_style_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        text-decoration-style: wavy;
+    }
+    css_equals(env, page.toStringCssOnly(), "text-decoration-style:wavy;");
+}
+
+@test
+public func text_decoration_line_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        text-decoration-line: line-through;
+    }
+    css_equals(env, page.toStringCssOnly(), "text-decoration-line:line-through;");
+}
+
+@test
+public func text_shadow_single_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    }
+    css_equals(env, page.toStringCssOnly(), "text-shadow:2px 2px 4px rgba(0 0 0 / 0.5);");
+}
+
+@test
+public func box_shadow_inset_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+    }
+    css_equals(env, page.toStringCssOnly(), "box-shadow:inset 0 2px 4px rgba(0 0 0 / 0.3);");
+}
+
+@test
+public func outline_style_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        outline-style: dashed;
+    }
+    css_equals(env, page.toStringCssOnly(), "outline-style:dashed;");
+}
+
+@test
+public func border_style_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        border-style: dotted;
+    }
+    css_equals(env, page.toStringCssOnly(), "border-style:dotted;");
+}
+
+@test
+public func font_style_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        font-style: italic;
+    }
+    css_equals(env, page.toStringCssOnly(), "font-style:italic;");
+}
+
+@test
+public func font_weight_bold_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        font-weight: bold;
+    }
+    css_equals(env, page.toStringCssOnly(), "font-weight:bold;");
+}
+
+@test
+public func font_size_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        font-size: 1.5rem;
+    }
+    css_equals(env, page.toStringCssOnly(), "font-size:1.5rem;");
+}
+
+@test
+public func letter_spacing_em_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        letter-spacing: 0.05em;
+    }
+    css_equals(env, page.toStringCssOnly(), "letter-spacing:0.05em;");
+}
+
+@test
+public func line_height_number_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        line-height: 1.5;
+    }
+    css_equals(env, page.toStringCssOnly(), "line-height:1.5;");
+}
+
+@test
+public func text_indent_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        text-indent: 2em;
+    }
+    css_equals(env, page.toStringCssOnly(), "text-indent:2em;");
+}
+
+@test
+public func list_style_type_circle_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        list-style-type: circle;
+    }
+    css_equals(env, page.toStringCssOnly(), "list-style-type:circle;");
+}
+
+@test
+public func list_style_position_inside_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        list-style-position: inside;
+    }
+    css_equals(env, page.toStringCssOnly(), "list-style-position:inside;");
+}
+
+@test
+public func border_collapse_separate_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        border-collapse: separate;
+    }
+    css_equals(env, page.toStringCssOnly(), "border-collapse:separate;");
+}
+
+@test
+public func caption_side_top_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        caption-side: top;
+    }
+    css_equals(env, page.toStringCssOnly(), "caption-side:top;");
+}
+
+@test
+public func empty_cells_show_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        empty-cells: show;
+    }
+    css_equals(env, page.toStringCssOnly(), "empty-cells:show;");
+}
+
+@test
+public func table_layout_auto_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        table-layout: auto;
+    }
+    css_equals(env, page.toStringCssOnly(), "table-layout:auto;");
+}
+
+@test
+public func resize_horizontal_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        resize: horizontal;
+    }
+    css_equals(env, page.toStringCssOnly(), "resize:horizontal;");
+}
+
+@test
+public func cursor_crosshair_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        cursor: help;
+    }
+    css_equals(env, page.toStringCssOnly(), "cursor:help;");
+}
+
+@test
+public func outline_offset_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        outline-offset: 3px;
+    }
+    css_equals(env, page.toStringCssOnly(), "outline-offset:3px;");
+}
+
+@test
+public func border_image_repeat_round_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        border-image-repeat: round;
+    }
+    css_equals(env, page.toStringCssOnly(), "border-image-repeat:round;");
+}
+
+@test
+public func column_fill_balance_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        column-fill: balance;
+    }
+    css_equals(env, page.toStringCssOnly(), "column-fill:balance;");
+}
+
+@test
+public func column_span_all_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        column-span: all;
+    }
+    css_equals(env, page.toStringCssOnly(), "column-span:all;");
+}
+
+@test
+public func column_rule_width_style_color_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        column-rule: 2px solid blue;
+    }
+    css_equals(env, page.toStringCssOnly(), "column-rule:2px solid blue;");
+}
+
+@test
+public func overflow_hidden_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        overflow: hidden;
+    }
+    css_equals(env, page.toStringCssOnly(), "overflow:hidden;");
+}
+
+@test
+public func content_string_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        content: "hello";
+    }
+    css_equals(env, page.toStringCssOnly(), "content:'hello';");
+}
+
+@test
+public func content_counter_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        counter-increment: step 1;
+    }
+    css_equals(env, page.toStringCssOnly(), "counter-increment:step 1;");
+}
+
+@test
+public func transform_rotate_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        transform: rotate(45deg);
+    }
+    css_equals(env, page.toStringCssOnly(), "transform:rotate(45deg);");
+}
+
+@test
+public func transform_translate_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        transform: translateX(10px);
+    }
+    css_equals(env, page.toStringCssOnly(), "transform:translateX(10px);");
+}
+
+@test
+public func transform_scale_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        transform: scale(1.5);
+    }
+    css_equals(env, page.toStringCssOnly(), "transform:scale(1.5);");
+}
+
+@test
+public func transition_single_property_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        transition: opacity 0.3s ease;
+    }
+    css_equals(env, page.toStringCssOnly(), "transition:opacity 0.3s ease;");
+}
+
+@test
+public func font_family_single_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        font-family: Georgia;
+    }
+    css_equals(env, page.toStringCssOnly(), "font-family:Georgia;");
+}
+
+@test
+public func background_color_simple_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        background-color: #fff;
+    }
+    css_equals(env, page.toStringCssOnly(), "background-color:#fff;");
+}
+
+@test
+public func color_hex_shorthand_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        color: #f00;
+    }
+    css_equals(env, page.toStringCssOnly(), "color:#f00;");
+}
+
+@test
+public func margin_top_auto_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        margin-top: auto;
+    }
+    css_equals(env, page.toStringCssOnly(), "margin-top:auto;");
+}
+
+@test
+public func padding_zero_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        padding: 0;
+    }
+    css_equals(env, page.toStringCssOnly(), "padding:0;");
+}
+
+@test
+public func width_auto_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        width: auto;
+    }
+    css_equals(env, page.toStringCssOnly(), "width:auto;");
+}
+
+@test
+public func height_auto_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        height: auto;
+    }
+    css_equals(env, page.toStringCssOnly(), "height:auto;");
+}
+
+@test
+public func min_width_fit_content_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        min-width: fit-content;
+    }
+    css_equals(env, page.toStringCssOnly(), "min-width:fit-content;");
+}
+
+@test
+public func display_grid_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        display: grid;
+    }
+    css_equals(env, page.toStringCssOnly(), "display:grid;");
+}
+
+@test
+public func display_inline_block_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        display: inline-block;
+    }
+    css_equals(env, page.toStringCssOnly(), "display:inline-block;");
+}
+
+@test
+public func position_relative_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        position: relative;
+    }
+    css_equals(env, page.toStringCssOnly(), "position:relative;");
+}
+
+@test
+public func position_fixed_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        position: fixed;
+    }
+    css_equals(env, page.toStringCssOnly(), "position:fixed;");
+}
+
+@test
+public func position_absolute_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        position: absolute;
+    }
+    css_equals(env, page.toStringCssOnly(), "position:absolute;");
+}
+
+@test
+public func border_top_width_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        border-top-width: 2px;
+    }
+    css_equals(env, page.toStringCssOnly(), "border-top-width:2px;");
+}
+
+@test
+public func margin_left_percent_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        margin-left: 10%;
+    }
+    css_equals(env, page.toStringCssOnly(), "margin-left:10%;");
+}
+
+@test
+public func padding_right_vw_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        padding-right: 5vw;
+    }
+    css_equals(env, page.toStringCssOnly(), "padding-right:5vw;");
+}
+

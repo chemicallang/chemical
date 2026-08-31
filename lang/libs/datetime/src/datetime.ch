@@ -138,6 +138,116 @@ public namespace datetime {
             return result
         }
 
+        // ---- Convenience ----------------------------------------------------
+
+        public func now() : DateTime {
+            var st = std::chrono::SystemTime::now()
+            return DateTime::from_system_time(&st)
+        }
+
+        // ---- ISO-8601 -------------------------------------------------------
+
+        public func to_iso8601(&self) : std::string {
+            var result = std::string()
+            result.reserve(32)
+            // Year
+            if(self.year < 10) { result.append_view("000") }
+            else if(self.year < 100) { result.append_view("00") }
+            else if(self.year < 1000) { result.append_view("0") }
+            result.append_integer(self.year as bigint)
+            result.append('-')
+            // Month
+            if(self.month < 10) { result.append('0') }
+            result.append_integer(self.month as bigint)
+            result.append('-')
+            // Day
+            if(self.day < 10) { result.append('0') }
+            result.append_integer(self.day as bigint)
+            result.append('T')
+            // Hour
+            if(self.hour < 10) { result.append('0') }
+            result.append_integer(self.hour as bigint)
+            result.append(':')
+            // Minute
+            if(self.minute < 10) { result.append('0') }
+            result.append_integer(self.minute as bigint)
+            result.append(':')
+            // Second
+            if(self.second < 10) { result.append('0') }
+            result.append_integer(self.second as bigint)
+            // Timezone offset
+            var offset = self.tz.offset_secs
+            if(offset == 0) {
+                result.append('Z')
+            } else {
+                if(offset < 0) { result.append('-') } else { result.append('+') }
+                var abs_off = if(offset < 0) -offset else offset
+                var off_h = abs_off / 3600
+                var off_m = (abs_off % 3600) / 60
+                if(off_h < 10) { result.append('0') }
+                result.append_integer(off_h as bigint)
+                result.append(':')
+                if(off_m < 10) { result.append('0') }
+                result.append_integer(off_m as bigint)
+            }
+            return result
+        }
+
+        // ---- Parsing ---------------------------------------------------------
+
+        // Parse a date/time string using format specifiers.
+        // Supported: %Y (year), %m (month), %d (day), %H (hour), %M (minute), %S (second)
+        public func parse(fmt : std::string_view, input : std::string_view) : std::Result<DateTime, std::string> {
+            var year : i64 = 1970
+            var month : i64 = 1
+            var day : i64 = 1
+            var hour : i64 = 0
+            var minute : i64 = 0
+            var second : i64 = 0
+            var fi : size_t = 0
+            var si : size_t = 0
+            var fLen = fmt.size()
+            var sLen = input.size()
+            while(fi < fLen && si < sLen) {
+                var fc = fmt.get(fi)
+                if(fc == '%' && fi + 1 < fLen) {
+                    fi = fi + 1
+                    var spec = fmt.get(fi)
+                    if(spec == 'Y') {
+                        // parse 4-digit year
+                        if(si + 4 > sLen) { return std.Result.Err(std.string("insufficient input for year")) }
+                        year = parse_digits_4(input, si)
+                        si = si + 4
+                    } else if(spec == 'm' || spec == 'd' || spec == 'H' || spec == 'M' || spec == 'S') {
+                        if(si + 2 > sLen) { return std.Result.Err(std.string("insufficient input for two-digit field")) }
+                        var val = parse_digits_2(input, si)
+                        si = si + 2
+                        if(spec == 'm') { month = val }
+                        else if(spec == 'd') { day = val }
+                        else if(spec == 'H') { hour = val }
+                        else if(spec == 'M') { minute = val }
+                        else { second = val }
+                    } else {
+                        return std.Result.Err(std.string("unsupported format specifier"))
+                    }
+                } else {
+                    // literal character — must match
+                    if(fc != input.get(si)) {
+                        return std.Result.Err(std.string("literal mismatch in input"))
+                    }
+                    si = si + 1
+                }
+                fi = fi + 1
+            }
+            // Check that the entire format string was consumed
+            if(fi < fLen) { return std.Result.Err(std.string("input too short for format")) }
+            return std.Result.Ok(DateTime{
+                year: year, month: month, day: day,
+                hour: hour, minute: minute, second: second, nanos: 0,
+                tz: TimeZone::utc()
+            })
+        }
+
         // ---- Arithmetic -----------------------------------------------------
 
         public func add_duration(&self, dur : &std::chrono::Duration) : DateTime {
@@ -233,6 +343,22 @@ public namespace datetime {
             }
         }
 
+    }
+
+    // ---- Helper functions for parsing --------------------------------------
+
+    func parse_digits_2(s : std::string_view, pos : size_t) : i64 {
+        var a = s.get(pos) as i64
+        var b = s.get(pos + 1) as i64
+        return (a - 48) * 10 + (b - 48)
+    }
+
+    func parse_digits_4(s : std::string_view, pos : size_t) : i64 {
+        var a = s.get(pos) as i64
+        var b = s.get(pos + 1) as i64
+        var c = s.get(pos + 2) as i64
+        var d = s.get(pos + 3) as i64
+        return (a - 48) * 1000 + (b - 48) * 100 + (c - 48) * 10 + (d - 48)
     }
 
 }

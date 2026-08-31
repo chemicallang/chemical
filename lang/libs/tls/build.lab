@@ -6,6 +6,7 @@ import "@net/build.lab" as netMod
 import "@crypto/build.lab" as cryptoMod
 import "@encoding/build.lab" as encodingMod
 import "@datetime/build.lab" as datetimeMod
+import "@osrand/build.lab" as osrandMod
 
 public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module {
 
@@ -21,10 +22,11 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     var crypto_module = cryptoMod.build(ctx, user_job)
     var encoding_module = encodingMod.build(ctx, user_job)
     var datetime_module = datetimeMod.build(ctx, user_job)
+    var osrand_module = osrandMod.build(ctx, user_job)
 
-    var deps : []*mut Module = [ cstd_module, std_module, net_module, crypto_module, encoding_module, datetime_module ]
+    var deps : []*mut Module = [ cstd_module, std_module, net_module, crypto_module, encoding_module, datetime_module, osrand_module ]
     var srcPath = lab::rel_path_to("src")
-    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("tls"), srcPath.to_view(), std::span<*mut Module>(deps, 6));
+    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("tls"), srcPath.to_view(), std::span<*mut Module>(deps, 7));
 
     comptime if(def.windows) {
         var winPath = lab::rel_path_to("win")

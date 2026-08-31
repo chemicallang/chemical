@@ -2,7 +2,7 @@ public namespace bcrypt {
 
 public func generate_salt(cost : int) : std::string {
     var entropy : [16]u8
-    if(!get_random_bytes(&raw mut entropy[0], 16u)) return std::string()
+    if(osrand::random_fill(&raw mut entropy[0], 16) != 0) return std::string()
     
     var res = std::string()
     res.append_view("$2b$")

@@ -109,6 +109,63 @@ public func parse_wav(data : *u8, data_len : size_t) : std::Result<Audio, AudioE
     return std.Result.Ok(audio)
 }
 
+// encode_wav — encode Audio to in-memory WAV bytes (no file I/O).
+public func encode_wav(audio : *mut Audio) : std::Result<vector<u8>, AudioError> {
+    var bytes_per_sample = (audio.bits_per_sample / 8) as u32
+    var data_size = (audio.samples.size() as u32) * bytes_per_sample
+    var file_size = 36 + data_size
+
+    var file_data = vector<u8>()
+    file_data.resize((file_size + 8) as size_t)
+    var fptr = file_data.data() as *mut u8
+
+    fptr[0] = 'R' as u8
+    fptr[1] = 'I' as u8
+    fptr[2] = 'F' as u8
+    fptr[3] = 'F' as u8
+    write_u32_le(fptr, 4, file_size)
+
+    fptr[8] = 'W' as u8
+    fptr[9] = 'A' as u8
+    fptr[10] = 'V' as u8
+    fptr[11] = 'E' as u8
+
+    fptr[12] = 'f' as u8
+    fptr[13] = 'm' as u8
+    fptr[14] = 't' as u8
+    fptr[15] = ' ' as u8
+    write_u32_le(fptr, 16, 16)
+    write_u16_le(fptr, 20, 1)
+    write_u16_le(fptr, 22, audio.channels)
+    write_u32_le(fptr, 24, audio.sample_rate)
+    write_u32_le(fptr, 28, audio.sample_rate * (audio.channels as u32) * bytes_per_sample)
+    write_u16_le(fptr, 32, audio.channels * (audio.bits_per_sample / 8))
+    write_u16_le(fptr, 34, audio.bits_per_sample)
+
+    fptr[36] = 'd' as u8
+    fptr[37] = 'a' as u8
+    fptr[38] = 't' as u8
+    fptr[39] = 'a' as u8
+    write_u32_le(fptr, 40, data_size)
+
+    var i : size_t = 0
+    while(i < audio.samples.size()) {
+        var offset = 44 + i * (bytes_per_sample as size_t)
+        if(offset < file_data.size()) {
+            var sample = audio.samples.get(i)
+            if(audio.bits_per_sample == 16) {
+                fptr[offset] = (sample & 0xFF) as u8
+                fptr[offset + 1] = ((sample >> 8) & 0xFF) as u8
+            } else if(audio.bits_per_sample == 8) {
+                fptr[offset] = ((sample >> 8) + 128) as u8
+            }
+        }
+        i += 1
+    }
+
+    return std.Result.Ok(file_data)
+}
+
 public func save_wav(audio : *mut Audio, path : *char) : std::Result<std::Unit, AudioError> {
     var bytes_per_sample = (audio.bits_per_sample / 8) as u32
     var data_size = (audio.samples.size() as u32) * bytes_per_sample

@@ -6,5 +6,4 @@ source "posix" if !windows
 
 import cstd
 import std
-
-link "advapi32" if windows
+import osrand

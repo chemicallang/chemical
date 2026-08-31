@@ -118,26 +118,8 @@ public namespace uuid {
         return std::Result.Ok(UUID.from_bytes(bytes));
     }
 
-    if(def.windows) {
-        @extern public func CryptAcquireContextA(phProv : *mut usize, pszContainer : *char, pszProvider : *char, dwProvType : uint, dwFlags : uint) : bool
-        @extern public func CryptGenRandom(hProv : usize, dwLen : uint, pbBuffer : *mut u8) : bool
-        @extern public func CryptReleaseContext(hProv : usize, dwFlags : uint) : bool
-    }
-
     func get_random_bytes(buf : *mut u8, len : uint) : bool {
-        comptime if(def.windows) {
-            var hProv : usize = 0u;
-            if(!CryptAcquireContextA(&raw mut hProv, null, null, 1u, 0xF0000000u)) return false;
-            var ok = CryptGenRandom(hProv, len, buf);
-            CryptReleaseContext(hProv, 0u);
-            return ok;
-        } else {
-            var fd = open("/dev/urandom", O_RDONLY, 0);
-            if(fd < 0) return false;
-            var bytes_read = read(fd, buf as *mut void, len as ulong);
-            close(fd);
-            return bytes_read == (len as ssize_t);
-        }
+        return osrand::random_fill(buf, len as size_t) == 0
     }
 
     public func v4() : UUID {

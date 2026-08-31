@@ -9,6 +9,7 @@ import net
 import crypto
 import encoding
 import datetime
+import osrand
 
 link "bcrypt" if windows
 

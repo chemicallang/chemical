@@ -2588,3 +2588,967 @@ public func padding_right_vw_works(env : &mut TestEnv) {
     css_equals(env, page.toStringCssOnly(), "padding-right:5vw;");
 }
 
+
+@test
+public func animation_delay_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        animation-delay: 0.5s;
+    }
+    css_equals(env, page.toStringCssOnly(), "animation-delay:0.5s;");
+}
+
+@test
+public func animation_direction_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        animation-direction: alternate;
+    }
+    css_equals(env, page.toStringCssOnly(), "animation-direction:alternate;");
+}
+
+@test
+public func animation_fill_mode_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        animation-fill-mode: both;
+    }
+    css_equals(env, page.toStringCssOnly(), "animation-fill-mode:both;");
+}
+
+@test
+public func animation_play_state_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        animation-play-state: paused;
+    }
+    css_equals(env, page.toStringCssOnly(), "animation-play-state:paused;");
+}
+
+@test
+public func animation_timing_function_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        animation-timing-function: ease-in-out;
+    }
+    css_equals(env, page.toStringCssOnly(), "animation-timing-function:ease-in-out;");
+}
+
+@test
+public func appearance_works_standalone(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        appearance: none;
+    }
+    css_equals(env, page.toStringCssOnly(), "appearance:none;");
+}
+
+@test
+public func background_origin_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        background-origin: border-box;
+    }
+    css_equals(env, page.toStringCssOnly(), "background-origin:border-box;");
+}
+
+@test
+public func background_repeat_no_repeat_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        background-repeat: no-repeat;
+    }
+    css_equals(env, page.toStringCssOnly(), "background-repeat:no-repeat;");
+}
+    css_equals(env, page.toStringCssOnly(), "background-repeat:round space;");
+}
+
+@test
+public func caret_color_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        caret-color: red;
+    }
+    css_equals(env, page.toStringCssOnly(), "caret-color:red;");
+}
+
+@test
+public func color_scheme_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        color-scheme: dark;
+    }
+    css_equals(env, page.toStringCssOnly(), "color-scheme:dark;");
+}
+
+@test
+public func column_rule_style_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        column-rule-style: dashed;
+    }
+    css_equals(env, page.toStringCssOnly(), "column-rule-style:dashed;");
+}
+
+@test
+public func font_kerning_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        font-kerning: auto;
+    }
+    css_equals(env, page.toStringCssOnly(), "font-kerning:auto;");
+}
+
+@test
+public func font_optical_sizing_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        font-optical-sizing: none;
+    }
+    css_equals(env, page.toStringCssOnly(), "font-optical-sizing:none;");
+}
+
+@test
+public func font_variant_caps_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        font-variant-caps: small-caps;
+    }
+    css_equals(env, page.toStringCssOnly(), "font-variant-caps:small-caps;");
+}
+
+@test
+public func font_variant_numeric_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        font-variant-numeric: tabular-nums;
+    }
+    css_equals(env, page.toStringCssOnly(), "font-variant-numeric:tabular-nums;");
+}
+
+@test
+public func font_variant_east_asian_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        font-variant-east-asian: full-width;
+    }
+    css_equals(env, page.toStringCssOnly(), "font-variant-east-asian:full-width;");
+}
+
+@test
+public func forced_color_adjust_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        forced-color-adjust: none;
+    }
+    css_equals(env, page.toStringCssOnly(), "forced-color-adjust:none;");
+}
+
+@test
+public func grid_auto_columns_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        grid-auto-columns: minmax(100px, auto);
+    }
+    css_equals(env, page.toStringCssOnly(), "grid-auto-columns:minmax(100px, auto);");
+}
+
+@test
+public func grid_gap_single_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        grid-gap: 10px;
+    }
+    css_equals(env, page.toStringCssOnly(), "grid-gap:10px;");
+}
+
+@test
+public func margin_bottom_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        margin-bottom: 2rem;
+    }
+    css_equals(env, page.toStringCssOnly(), "margin-bottom:2rem;");
+}
+
+@test
+public func margin_right_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        margin-right: 10px;
+    }
+    css_equals(env, page.toStringCssOnly(), "margin-right:10px;");
+}
+
+@test
+public func margin_block_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        margin-block: 1rem;
+    }
+    css_equals(env, page.toStringCssOnly(), "margin-block:1rem;");
+}
+
+@test
+public func margin_block_two_values_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        margin-block: 1rem 2rem;
+    }
+    css_equals(env, page.toStringCssOnly(), "margin-block:1rem 2rem;");
+}
+
+@test
+public func padding_bottom_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        padding-bottom: 12px;
+    }
+    css_equals(env, page.toStringCssOnly(), "padding-bottom:12px;");
+}
+
+@test
+public func padding_left_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        padding-left: 16px;
+    }
+    css_equals(env, page.toStringCssOnly(), "padding-left:16px;");
+}
+
+@test
+public func padding_inline_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        padding-inline: 1rem;
+    }
+    css_equals(env, page.toStringCssOnly(), "padding-inline:1rem;");
+}
+
+@test
+public func break_before_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        break-before: page;
+    }
+    css_equals(env, page.toStringCssOnly(), "break-before:page;");
+}
+
+@test
+public func break_after_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        break-after: avoid;
+    }
+    css_equals(env, page.toStringCssOnly(), "break-after:avoid;");
+}
+
+@test
+public func break_inside_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        break-inside: avoid;
+    }
+    css_equals(env, page.toStringCssOnly(), "break-inside:avoid;");
+}
+
+@test
+public func box_decoration_break_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        box-decoration-break: clone;
+    }
+    css_equals(env, page.toStringCssOnly(), "box-decoration-break:clone;");
+}
+
+@test
+public func mask_mode_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        mask-mode: luminance;
+    }
+    css_equals(env, page.toStringCssOnly(), "mask-mode:luminance;");
+}
+
+@test
+public func mask_repeat_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        mask-repeat: repeat-x;
+    }
+    css_equals(env, page.toStringCssOnly(), "mask-repeat:repeat-x;");
+}
+
+@test
+public func mask_clip_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        mask-clip: border-box;
+    }
+    css_equals(env, page.toStringCssOnly(), "mask-clip:border-box;");
+}
+
+@test
+public func mask_composite_standalone_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        mask-composite: subtract;
+    }
+    css_equals(env, page.toStringCssOnly(), "mask-composite:subtract;");
+}
+
+@test
+public func mask_type_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        mask-type: luminance;
+    }
+    css_equals(env, page.toStringCssOnly(), "mask-type:luminance;");
+}
+
+@test
+public func mask_border_mode_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        mask-border-mode: luminance;
+    }
+    css_equals(env, page.toStringCssOnly(), "mask-border-mode:luminance;");
+}
+
+@test
+public func mask_border_repeat_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        mask-border-repeat: round;
+    }
+    css_equals(env, page.toStringCssOnly(), "mask-border-repeat:round;");
+}
+
+@test
+public func overflow_anchor_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        overflow-anchor: none;
+    }
+    css_equals(env, page.toStringCssOnly(), "overflow-anchor:none;");
+}
+
+@test
+public func overscroll_behavior_x_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        overscroll-behavior-x: none;
+    }
+    css_equals(env, page.toStringCssOnly(), "overscroll-behavior-x:none;");
+}
+
+@test
+public func overscroll_behavior_y_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        overscroll-behavior-y: none;
+    }
+    css_equals(env, page.toStringCssOnly(), "overscroll-behavior-y:none;");
+}
+
+@test
+public func page_break_before_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        page-break-before: always;
+    }
+    css_equals(env, page.toStringCssOnly(), "page-break-before:always;");
+}
+
+@test
+public func page_break_after_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        page-break-after: avoid;
+    }
+    css_equals(env, page.toStringCssOnly(), "page-break-after:avoid;");
+}
+
+@test
+public func page_break_inside_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        page-break-inside: avoid;
+    }
+    css_equals(env, page.toStringCssOnly(), "page-break-inside:avoid;");
+}
+
+@test
+public func print_color_adjust_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        print-color-adjust: exact;
+    }
+    css_equals(env, page.toStringCssOnly(), "print-color-adjust:exact;");
+}
+
+@test
+public func ruby_position_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        ruby-position: over;
+    }
+    css_equals(env, page.toStringCssOnly(), "ruby-position:over;");
+}
+
+@test
+public func scroll_snap_stop_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        scroll-snap-stop: always;
+    }
+    css_equals(env, page.toStringCssOnly(), "scroll-snap-stop:always;");
+}
+
+@test
+public func scrollbar_gutter_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        scrollbar-gutter: stable;
+    }
+    css_equals(env, page.toStringCssOnly(), "scrollbar-gutter:stable;");
+}
+
+@test
+public func text_decoration_skip_ink_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        text-decoration-skip-ink: auto;
+    }
+    css_equals(env, page.toStringCssOnly(), "text-decoration-skip-ink:auto;");
+}
+
+@test
+public func text_underline_position_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        text-underline-position: under;
+    }
+    css_equals(env, page.toStringCssOnly(), "text-underline-position:under;");
+}
+
+@test
+public func text_rendering_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        text-rendering: optimizeLegibility;
+    }
+    css_equals(env, page.toStringCssOnly(), "text-rendering:optimizeLegibility;");
+}
+
+@test
+public func text_justify_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        text-justify: inter-word;
+    }
+    css_equals(env, page.toStringCssOnly(), "text-justify:inter-word;");
+}
+
+@test
+public func transform_box_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        transform-box: fill-box;
+    }
+    css_equals(env, page.toStringCssOnly(), "transform-box:fill-box;");
+}
+
+@test
+public func line_break_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        line-break: strict;
+    }
+    css_equals(env, page.toStringCssOnly(), "line-break:strict;");
+}
+
+@test
+public func text_combine_upright_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        text-combine-upright: all;
+    }
+    css_equals(env, page.toStringCssOnly(), "text-combine-upright:all;");
+}
+    css_equals(env, page.toStringCssOnly(), "text-emphasis-style:filled;");
+}
+    css_equals(env, page.toStringCssOnly(), "text-emphasis-position:over right;");
+}
+
+@test
+public func text_decoration_offset_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        text-decoration-offset: 4px;
+    }
+    css_equals(env, page.toStringCssOnly(), "text-decoration-offset:4px;");
+}
+
+@test
+public func clip_rule_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        clip-rule: nonzero;
+    }
+    css_equals(env, page.toStringCssOnly(), "clip-rule:nonzero;");
+}
+
+@test
+public func shape_rendering_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        shape-rendering: crispEdges;
+    }
+    css_equals(env, page.toStringCssOnly(), "shape-rendering:crispEdges;");
+}
+
+@test
+public func webkit_appearance_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        -webkit-appearance: none;
+    }
+    css_equals(env, page.toStringCssOnly(), "-webkit-appearance:none;");
+}
+
+@test
+public func webkit_text_stroke_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        -webkit-text-stroke: 1px blue;
+    }
+    css_equals(env, page.toStringCssOnly(), "-webkit-text-stroke:1px blue;");
+}
+
+@test
+public func webkit_line_clamp_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        -webkit-line-clamp: 3;
+    }
+    css_equals(env, page.toStringCssOnly(), "-webkit-line-clamp:3;");
+}
+
+@test
+public func webkit_box_orient_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        -webkit-box-orient: vertical;
+    }
+    css_equals(env, page.toStringCssOnly(), "-webkit-box-orient:vertical;");
+}
+
+@test
+public func moz_column_gap_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        -moz-column-gap: 20px;
+    }
+    css_equals(env, page.toStringCssOnly(), "-moz-column-gap:20px;");
+}
+
+    }
+    css_equals(env, page.toStringCssOnly(), "@page{page-orientation:landscape;}");
+}
+
+public func ruby_align_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        ruby-align: center;
+    }
+    css_equals(env, page.toStringCssOnly(), "ruby-align:center;");
+}
+
+public func ruby_merge_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        ruby-merge: separate;
+    }
+    css_equals(env, page.toStringCssOnly(), "ruby-merge:separate;");
+}
+
+public func multi_property_rule_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        .box {
+            width: 100px;
+            height: 200px;
+            background: red;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), ".box{width:100px;height:200px;background:red;}");
+}
+
+public func multiple_selectors_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        h1, h2, h3 {
+            margin: 0;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), "h1,h2,h3{margin:0;}");
+}
+
+public func css_variable_custom_property_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        :root {
+            --primary: #3498db;
+        }
+        .btn {
+            background: var(--primary);
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), ":root{--primary:#3498db;}.btn{background:var(--primary);}");
+}
+
+public func important_declaration_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        .override {
+            color: red !important;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), ".override{color:red !important;}");
+}
+
+public func media_query_basic_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        @media (max-width: 768px) {
+            .container {
+                width: 100%;
+            }
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), "@media (max-width:768px){.container{width:100%;}}");
+}
+    }
+    css_equals(env, page.toStringCssOnly(), "li:nth-child(2n){background:lightgray;}");
+}
+    }
+    css_equals(env, page.toStringCssOnly(), "p:not(.special){color:gray;}");
+}
+
+public func descendant_selector_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        nav ul li a {
+            text-decoration: none;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), "nav ul li a{text-decoration:none;}");
+}
+
+public func child_selector_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        .parent > .child {
+            margin-left: 10px;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), ".parent > .child{margin-left:10px;}");
+}
+
+public func sibling_selector_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        h2 + p {
+            margin-top: 0;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), "h2 + p{margin-top:0;}");
+}
+
+public func general_sibling_selector_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        h2 ~ p {
+            color: blue;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), "h2 ~ p{color:blue;}");
+}
+
+public func pseudo_element_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        p::first-line {
+            font-weight: bold;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), "p::first-line{font-weight:bold;}");
+}
+
+public func hover_pseudo_class_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        a:hover {
+            text-decoration: underline;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), "a:hover{text-decoration:underline;}");
+}
+
+public func focus_visible_pseudo_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        button:focus-visible {
+            outline: 2px solid blue;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), "button:focus-visible{outline:2px solid blue;}");
+}
+        .quote::after {
+            content: "\201D";
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), ".quote::before{content:\"\\201C\";}.quote::after{content:\"\\201D\";}");
+}
+            to {
+                transform: translateX(100px);
+            }
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), "@keyframes slide{from{transform:translateX(0);}to{transform:translateX(100px);}}");
+}
+            50% {
+                opacity: 0.5;
+            }
+            100% {
+                opacity: 1;
+            }
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), "@keyframes fade{0%{opacity:0;}50%{opacity:0.5;}100%{opacity:1;}}");
+}
+    }
+    var expected = "@font-face{font-family:\"Open Sans\";"
+    expected = expected + "src:url(\"fonts/OpenSans.woff2\") format(\"woff2\");"
+    expected = expected + "font-weight:400;font-style:normal;}"
+    css_equals(env, page.toStringCssOnly(), &expected);
+}
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), "@supports (display:grid){.grid{display:grid;}}");
+}
+
+public func layered_background_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        .hero {
+            background:
+                linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)),
+                url("bg.jpg") no-repeat center;
+            background-size: cover;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), ".hero{background:linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.5)),url(\"bg.jpg\") no-repeat center;background-size:cover;}");
+}
+    }
+    css_equals(env, page.toStringCssOnly(), ".responsive{font-size:clamp(1rem,2.5vw,3rem);}");
+}
+    }
+    css_equals(env, page.toStringCssOnly(), ".sizing{width:min(100%,500px);height:max(200px,50vh);}");
+}
+
+public func attr_selector_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        a[target="_blank"] {
+            color: red;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), "a[target=\"_blank\"]{color:red;}");
+}
+
+public func complex_nesting_shorthand_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), ".card{border:1px solid #ddd;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);transition:all 0.3s ease;}");
+}
+
+public func grid_template_columns_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        .layout {
+            display: grid;
+            grid-template-columns: 200px 1fr 200px;
+            grid-template-rows: auto 1fr auto;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), ".layout{display:grid;grid-template-columns:200px 1fr 200px;grid-template-rows:auto 1fr auto;}");
+}
+
+public func transition_shorthand_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        .btn {
+            transition: color 0.2s ease-in-out, background-color 0.3s ease;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), ".btn{transition:color 0.2s ease-in-out, background-color 0.3s ease;}");
+}
+
+public func multiple_backgrounds_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        .pattern {
+            background:
+                url("a.png") repeat,
+                url("b.png") no-repeat,
+                linear-gradient(to bottom, #fff, #000);
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), ".pattern{background:url(\"a.png\") repeat,url(\"b.png\") no-repeat,linear-gradient(to bottom,#fff,#000);}");
+}
+
+public func grid_area_shorthand_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        .header {
+            grid-area: 1 / 1 / 2 / 3;
+        }
+        .sidebar {
+            grid-area: 2 / 1 / 4 / 2;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), ".header{grid-area:1 / 1 / 2 / 3;}.sidebar{grid-area:2 / 1 / 4 / 2;}");
+}
+
+public func flex_gap_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        .flex-container {
+            display: flex;
+            gap: 16px;
+            row-gap: 8px;
+            column-gap: 12px;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), ".flex-container{display:flex;gap:16px;row-gap:8px;column-gap:12px;}");
+}
+
+
+public func scroll_behavior_smooth_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        html {
+            scroll-behavior: smooth;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), "html{scroll-behavior:smooth;}");
+}
+    }
+    css_equals(env, page.toStringCssOnly(), ".animated{will-change:transform, opacity;}");
+}
+
+    }
+    css_equals(env, page.toStringCssOnly(), ".auto-grid{display:grid;grid-auto-flow:row dense;}");
+}
+        h2::before {
+            counter-increment: section;
+            content: counter(section) ". ";
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), "body{counter-reset:section;}h2::before{counter-increment:section;content:counter(section) \". \";}");
+}
+
+
+
+public func outline_shorthand_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        .focus-ring:focus {
+            outline: 3px solid #007bff;
+            outline-offset: 2px;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), ".focus-ring:focus{outline:3px solid #007bff;outline-offset:2px;}");
+}
+
+
+    }
+    css_equals(env, page.toStringCssOnly(), ".video-wrapper{aspect-ratio:16 / 9;}");
+}
+
+public func inset_shorthand_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        .overlay {
+            inset: 0;
+        }
+        .padded-overlay {
+            inset: 10px 20px;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), ".overlay{inset:0;}.padded-overlay{inset:10px 20px;}");
+}
+
+public func place_items_shorthand_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        .centered-grid {
+            display: grid;
+            place-items: center;
+            place-content: space-between;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), ".centered-grid{display:grid;place-items:center;place-content:space-between;}");
+}
+
+public func text_shadow_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        .shadow-text {
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), ".shadow-text{text-shadow:2px 2px 4px rgba(0,0,0,0.5);}");
+}
+
+
+public func grid_repeat_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        .repeating {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(auto-fill, minmax(100px, auto));
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), ".repeating{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(auto-fill,minmax(100px,auto));}");
+}
+    }
+    css_equals(env, page.toStringCssOnly(), "@font-face{font-family:CustomFont;src:url(\"custom.woff2\");font-display:swap;}");
+}
+        .header { grid-area: header; }
+        .sidebar { grid-area: sidebar; }
+        .main { grid-area: main; }
+        .footer { grid-area: footer; }
+    }
+    css_equals(env, page.toStringCssOnly(), ".page-layout{display:grid;grid-template-areas:\"header header\" \"sidebar main\" \"footer footer\";grid-template-columns:250px 1fr;grid-template-rows:auto 1fr auto;}.header{grid-area:header;}.sidebar{grid-area:sidebar;}.main{grid-area:main;}.footer{grid-area:footer;}");
+}
+
+public func all_initial_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        .reset {
+            all: initial;
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), ".reset{all:initial;}");
+}

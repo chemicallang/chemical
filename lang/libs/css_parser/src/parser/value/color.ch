@@ -207,6 +207,23 @@ func parseCssVariableFunc(parser : *mut Parser, builder : *mut ASTBuilder) : std
     const last = parser.getToken()
     if(last.type == TokenType.RParen) {
         parser.increment()
+    } else if(last.type == TokenType.Comma) {
+        // var() with fallback: var(--name, fallback-value)
+        var depth = 1
+        parser.increment()
+        while(depth > 0) {
+            const t = parser.getToken()
+            if(t.type == TokenType.EndOfFile) break
+            if(t.type == TokenType.LParen) depth++
+            else if(t.type == TokenType.RParen) {
+                depth--
+                if(depth == 0) {
+                    parser.increment()
+                    break
+                }
+            }
+            parser.increment()
+        }
     } else {
         parser.error("expected a ')' after 'var' arguments")
     }
@@ -428,6 +445,23 @@ func (cssParser : &mut CSSParser) parseCSSVariableFunc(parser : *mut Parser, bui
     const last = parser.getToken()
     if(last.type == TokenType.RParen) {
         parser.increment()
+    } else if(last.type == TokenType.Comma) {
+        // var() with fallback: var(--name, fallback-value)
+        var depth = 1
+        parser.increment()
+        while(depth > 0) {
+            const t = parser.getToken()
+            if(t.type == TokenType.EndOfFile) break
+            if(t.type == TokenType.LParen) depth++
+            else if(t.type == TokenType.RParen) {
+                depth--
+                if(depth == 0) {
+                    parser.increment()
+                    break
+                }
+            }
+            parser.increment()
+        }
     } else {
         parser.error("expected a ')' after 'var' arguments")
     }

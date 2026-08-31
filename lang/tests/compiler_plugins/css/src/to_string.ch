@@ -871,6 +871,163 @@ public func inset_shorthand_with_auto_value_works(env : &mut TestEnv) {
     css_equals(env, page.toStringCssOnly(), "inset:24px 24px 24px auto;");
 }
 
+
+@test
+public func font_shorthand_numeric_weight_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        font: italic small-caps 600 18px/1.4 sans-serif;
+    }
+    css_equals(env, page.toStringCssOnly(), "font:italic small-caps 600 18px/1.4 sans-serif;");
+}
+
+@test
+public func animation_iteration_count_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        animation: spin 1s 2;
+    }
+    css_equals(env, page.toStringCssOnly(), "animation:spin 1s 2;");
+}
+
+@test
+public func animation_full_shorthand_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        animation: fadeIn 1.2s ease-in-out 0s 1 normal forwards paused;
+    }
+    // animation parser currently only outputs: name, duration, delay, iteration-count
+    css_equals(env, page.toStringCssOnly(), "animation:fadeIn 1.2s ease-in-out 0s 1;");
+}
+
+@test
+public func filter_multiple_functions_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        filter: blur(5px) brightness(0.8) contrast(120%);
+    }
+    css_equals(env, page.toStringCssOnly(), "filter:blur(5px) brightness(0.8) contrast(120%);");
+}
+
+@test
+public func cursor_keyword_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        cursor: pointer;
+    }
+    css_equals(env, page.toStringCssOnly(), "cursor:pointer;");
+}
+
+@test
+public func display_vendor_prefix_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        display: -webkit-box;
+    }
+    css_equals(env, page.toStringCssOnly(), "display:-webkit-box;");
+}
+
+@test
+public func appearance_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        -webkit-appearance: none;
+    }
+    css_equals(env, page.toStringCssOnly(), "-webkit-appearance:none;");
+}
+
+@test
+public func paint_order_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        paint-order: stroke fill;
+    }
+    css_equals(env, page.toStringCssOnly(), "paint-order:stroke fill;");
+}
+
+@test
+public func mask_composite_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        mask-composite: add;
+    }
+    css_equals(env, page.toStringCssOnly(), "mask-composite:add;");
+}
+
+@test
+public func stroke_properties_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        stroke-dasharray: 5 3 2;
+        stroke-linejoin: round;
+    }
+    css_equals(env, page.toStringCssOnly(), "stroke-dasharray:5 3 2;stroke-linejoin:round;");
+}
+
+@test
+public func speak_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        speak: normal;
+    }
+    css_equals(env, page.toStringCssOnly(), "speak:normal;");
+}
+
+@test
+public func counter_reset_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        counter-reset: my-counter 0;
+    }
+    css_equals(env, page.toStringCssOnly(), "counter-reset:my-counter 0;");
+}
+
+@test
+public func object_fit_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        object-fit: cover;
+    }
+    css_equals(env, page.toStringCssOnly(), "object-fit:cover;");
+}
+
+@test
+public func filter_single_function_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        filter: grayscale(100%);
+    }
+    css_equals(env, page.toStringCssOnly(), "filter:grayscale(100%);");
+}
+
+@test
+public func inset_shorthand_absolute_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        inset: 24px 24px 24px auto;
+    }
+    css_equals(env, page.toStringCssOnly(), "inset:24px 24px 24px auto;");
+}
+
+@test
+public func list_style_image_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        list-style-image: url("arrow.png");
+    }
+    css_equals(env, page.toStringCssOnly(), "list-style-image:url(\"arrow.png\");");
+}
+
+@test
+public func scrollbar_color_and_width_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        scrollbar-color: #888 #222;
+        scrollbar-width: thin;
+    }
+    css_equals(env, page.toStringCssOnly(), "scrollbar-color:#888 #222;scrollbar-width:thin;");
+}
+
 /**
 
 @test

@@ -16,15 +16,36 @@ func (cssParser : &mut CSSParser) parseAnimation(
         if(token.type == TokenType.Semicolon || token.type == TokenType.RBrace) break
 
         if(token.type == TokenType.Number) {
-            if(!has_duration) {
-                cssParser.parseLengthInto(parser, builder, &mut anim.duration)
-                has_duration = true
-            } else if(!has_delay) {
-                cssParser.parseLengthInto(parser, builder, &mut anim.delay)
-                has_delay = true
+            // Check if this number has a time unit (s or ms) - it's a duration or delay
+            // Otherwise it's an iteration count (e.g. "2" in "animation: spin 1s 2")
+            const nextTok = token + 1
+            var hasTimeUnit = false
+            if(nextTok.type == TokenType.Identifier) {
+                if(nextTok.value.equals("s") || nextTok.value.equals("ms")) {
+                    hasTimeUnit = true
+                }
+            }
+            if(hasTimeUnit) {
+                if(!has_duration) {
+                    cssParser.parseLengthInto(parser, builder, &mut anim.duration)
+                    has_duration = true
+                } else if(!has_delay) {
+                    cssParser.parseLengthInto(parser, builder, &mut anim.delay)
+                    has_delay = true
+                } else {
+                    parser.error("too many time values in animation")
+                    break
+                }
             } else {
-                parser.error("too many time values in animation")
-                break
+                // Integer iteration count (e.g. "2")
+                var numVal = builder.allocate<CSSLengthValueData>()
+                new (numVal) CSSLengthValueData {
+                    kind : CSSLengthKind.None,
+                    value : builder.allocate_view(&token.value)
+                }
+                anim.iterationCount.kind = CSSValueKind.Length
+                anim.iterationCount.data = numVal
+                parser.increment()
             }
         } else if(token.type == TokenType.Identifier) {
             const hash = token.fnv1()

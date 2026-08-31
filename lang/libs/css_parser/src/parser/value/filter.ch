@@ -60,7 +60,7 @@ func (cssParser : &mut CSSParser) parseBackdropFilter(
                      }
                      
                      var argVal = CSSValue()
-                     if(cssParser.parseLength(parser, builder, &mut argVal)) {
+                     if(cssParser.parseLength(parser, builder, &mut argVal, false)) {
                          filter.arguments.push(argVal)
                      } else if(argTok.type == TokenType.Percentage) {
                          parser.increment()

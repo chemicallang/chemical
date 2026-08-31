@@ -75,17 +75,20 @@ func (cssParser : &mut CSSParser) parseBackdropFilter(
                          new (kVal) CSSKeywordValueData { kind : CSSKeywordKind.Unknown, value : builder.allocate_view(&argTok.value) }
                          argVal.kind = CSSValueKind.Keyword
                          argVal.data = kVal
-                         filter.arguments.push(argVal)
-                     } else if(argTok.type == TokenType.Number) {
+                         filter.arguments.push(argVal)                     } else if(argTok.type == TokenType.Number) {
                           parser.increment();
                           var nVal = builder.allocate<CSSLengthValueData>()
                           new (nVal) CSSLengthValueData { kind : CSSLengthKind.None, value : builder.allocate_view(&argTok.value) }
                           argVal.kind = CSSValueKind.Length
                           argVal.data = nVal
                           filter.arguments.push(argVal)
+                     } else if(argTok.type == TokenType.HexColor) {
+                         parser.increment()
+                         cssParser.parseHexColor(parser, builder, &argTok.value, &mut argVal)
+                         filter.arguments.push(argVal)
                      } else {
-                         // error or skip
-                         break
+                        // error or skip
+                        break
                      }
                      
                      if(parser.increment_if(TokenType.Comma as int)) {
@@ -96,11 +99,14 @@ func (cssParser : &mut CSSParser) parseBackdropFilter(
                  parser.error("expected '(' after filter function")
              }
              
+        } else if(token.type == TokenType.Comma) {
+            parser.increment()
+            continue
         } else {
             break
         }
         
-        // multiple filters separated by space? standard says space-separated list
+        // multiple filters separated by space or comma
         // so we loop
     }
 }

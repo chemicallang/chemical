@@ -693,6 +693,125 @@ public func image_load_png_nonexistent(env : &mut TestEnv) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// In-memory encode roundtrip tests
+// ═══════════════════════════════════════════════════════════════
+
+@test
+public func image_encode_png_roundtrip(env : &mut TestEnv) {
+    // Create a small RGBA image with known pixels
+    var img = image::image_create_rgba(4, 4)
+    var white = image::RGBA8.make(255, 255, 255, 255)
+    image::image_fill(&raw mut img, white)
+    var red = image::RGBA8.make(255, 0, 0, 255)
+    image::image_set_rgba(&raw mut img, 2, 2, red)
+
+    // Encode to in-memory bytes
+    var encode_result = image::encode_png(&raw mut img)
+    if(encode_result is Result.Err) { env.error("encode_png should succeed"); return }
+    var Ok(bytes) = encode_result else unreachable
+
+    // Verify PNG signature
+    if(bytes.size() < 8) { env.error("encoded PNG too small") }
+    if(bytes.get(0) != 0x89u8) { env.error("PNG signature byte 0") }
+    if(bytes.get(1) != 0x50u8) { env.error("PNG signature byte 1 (P)") }
+
+    // Parse back
+    var parse_result = image::parse_png(bytes.data(), bytes.size())
+    if(parse_result is Result.Err) { env.error("parse encoded PNG should succeed"); return }
+    var Ok(parsed) = parse_result else unreachable
+
+    if(image::image_width(&raw mut parsed) != 4) { env.error("roundtrip width") }
+    if(image::image_height(&raw mut parsed) != 4) { env.error("roundtrip height") }
+    if(image::image_channels(&raw mut parsed) != 4) { env.error("roundtrip channels") }
+
+    // Verify pixel at (2,2) is red
+    var px = image::image_get_rgba(&raw mut parsed, 2, 2)
+    if(px is Result.Err) { env.error("get pixel after roundtrip"); return }
+    var Ok(color) = px else unreachable
+    if(color.r != 255) { env.error("roundtrip red channel") }
+    if(color.g != 0) { env.error("roundtrip green channel") }
+    if(color.b != 0) { env.error("roundtrip blue channel") }
+}
+
+@test
+public func image_encode_png_rgb_roundtrip(env : &mut TestEnv) {
+    var img = image::image_create_rgb(3, 3)
+    var green = image::RGBA8.make(0, 255, 0, 255)
+    image::image_fill(&raw mut img, green)
+
+    var encode_result = image::encode_png(&raw mut img)
+    if(encode_result is Result.Err) { env.error("encode_png RGB should succeed"); return }
+    var Ok(bytes) = encode_result else unreachable
+
+    var parse_result = image::parse_png(bytes.data(), bytes.size())
+    if(parse_result is Result.Err) { env.error("parse encoded RGB PNG should succeed"); return }
+    var Ok(parsed) = parse_result else unreachable
+
+    if(image::image_channels(&raw mut parsed) != 3) { env.error("RGB roundtrip channels") }
+    var pix = image::image_pixels(&raw mut parsed)
+    if(pix[0] != 0) { env.error("roundtrip R") }
+    if(pix[1] != 255) { env.error("roundtrip G") }
+    if(pix[2] != 0) { env.error("roundtrip B") }
+}
+
+@test
+public func image_encode_bmp_roundtrip(env : &mut TestEnv) {
+    var img = image::image_create_rgba(8, 8)
+    var blue = image::RGBA8.make(0, 0, 255, 255)
+    image::image_fill(&raw mut img, blue)
+
+    var encode_result = image::encode_bmp(&raw mut img)
+    if(encode_result is Result.Err) { env.error("encode_bmp should succeed"); return }
+    var Ok(bytes) = encode_result else unreachable
+
+    // Verify BMP signature
+    if(bytes.size() < 2) { env.error("encoded BMP too small") }
+    if(bytes.get(0) != 0x42u8 || bytes.get(1) != 0x4Du8) { env.error("BMP signature should be BM") }
+
+    // Parse back
+    var parse_result = image::parse_bmp(bytes.data(), bytes.size())
+    if(parse_result is Result.Err) { env.error("parse encoded BMP should succeed"); return }
+    var Ok(parsed) = parse_result else unreachable
+
+    if(image::image_width(&raw mut parsed) != 8) { env.error("BMP roundtrip width") }
+    if(image::image_height(&raw mut parsed) != 8) { env.error("BMP roundtrip height") }
+
+    // Verify pixel at center is blue
+    var px = image::image_get_rgba(&raw mut parsed, 4, 4)
+    if(px is Result.Err) { env.error("get pixel after BMP roundtrip"); return }
+    var Ok(color) = px else unreachable
+    if(color.b != 255) { env.error("BMP roundtrip blue channel") }
+}
+
+@test
+public func image_encode_ppm_roundtrip(env : &mut TestEnv) {
+    var img = image::image_create_rgb(4, 4)
+    var red = image::RGBA8.make(255, 0, 0, 255)
+    image::image_fill(&raw mut img, red)
+
+    var encode_result = image::encode_ppm(&raw mut img)
+    if(encode_result is Result.Err) { env.error("encode_ppm should succeed"); return }
+    var Ok(bytes) = encode_result else unreachable
+
+    // Verify P6 magic
+    if(bytes.size() < 2) { env.error("encoded PPM too small") }
+    if(bytes.get(0) != 0x50u8 || bytes.get(1) != 0x36u8) { env.error("PPM magic should be P6") }
+
+    // Parse back
+    var parse_result = image::parse_ppm(bytes.data(), bytes.size())
+    if(parse_result is Result.Err) { env.error("parse encoded PPM should succeed"); return }
+    var Ok(parsed) = parse_result else unreachable
+
+    if(image::image_width(&raw mut parsed) != 4) { env.error("PPM roundtrip width") }
+    if(image::image_height(&raw mut parsed) != 4) { env.error("PPM roundtrip height") }
+
+    var pix = image::image_pixels(&raw mut parsed)
+    if(pix[0] != 255) { env.error("PPM roundtrip R") }
+    if(pix[1] != 0) { env.error("PPM roundtrip G") }
+    if(pix[2] != 0) { env.error("PPM roundtrip B") }
+}
+
+// ═══════════════════════════════════════════════════════════════
 // BMP tests
 // ═══════════════════════════════════════════════════════════════
 

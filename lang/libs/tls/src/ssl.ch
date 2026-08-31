@@ -4368,6 +4368,179 @@ public namespace tls {
         conf.ca_chain = ca
     }
 
+    // ─── RSA Private Key PEM Loader ───────────────────────────────────────
+
+    // Load an RSA private key from a PEM file.
+    // Supports:-----BEGIN RSA PRIVATE KEY----- (PKCS#1)
+    // Returns a heap-allocated RSAContext (caller must rsa_free + dealloc).
+    public func rsa_privkey_load_pem_file(path : *char) : *mut RSAContext {
+        var f = fopen(path, "rb")
+        if(f == null) { return null }
+        fseek(f, 0, 2)
+        var file_size = ftell(f)
+        fseek(f, 0, 0)
+        if(file_size <= 0 || file_size > 1048576) { fclose(f); return null }
+        var buf = malloc(file_size as size_t) as *mut u8
+        if(buf == null) { fclose(f); return null }
+        var nread = fread(buf as *mut void, 1 as size_t, file_size as size_t, f)
+        fclose(f)
+        if(nread != file_size as size_t) { free(buf); return null }
+
+        // Find BEGIN marker
+        var begin_marker = "-----BEGIN RSA PRIVATE KEY-----" as *char
+        var begin_len : size_t = 31
+        var scan_pos : size_t = 0
+        var begin_pos : size_t = 0
+        var found = false
+        while(scan_pos + begin_len <= nread) {
+            var match = true
+            var k : size_t = 0
+            while(k < begin_len) {
+                if(buf[scan_pos + k] != (begin_marker[k] as u8)) { match = false; break }
+                k += 1
+            }
+            if(match) { begin_pos = scan_pos; found = true; break }
+            scan_pos += 1
+        }
+        if(!found) { free(buf); return null }
+
+        // Skip past the BEGIN line
+        var data_start = begin_pos + begin_len
+        while(data_start < nread && buf[data_start] != ('\n' as u8)) { data_start += 1 }
+        data_start += 1
+
+        // Find END marker
+        var end_marker = "-----END RSA PRIVATE KEY-----" as *char
+        var end_len : size_t = 29
+        var end_pos : size_t = data_start
+        found = false
+        while(end_pos + end_len <= nread) {
+            var match = true
+            var k : size_t = 0
+            while(k < end_len) {
+                if(buf[end_pos + k] != (end_marker[k] as u8)) { match = false; break }
+                k += 1
+            }
+            if(match) { found = true; break }
+            end_pos += 1
+        }
+        if(!found) { free(buf); return null }
+
+        // Strip whitespace from base64 content
+        var b64_buf : [4096]u8
+        var buf_pos : size_t = 0
+        var i = data_start
+        while(i < end_pos && buf_pos < 4096) {
+            var c = buf[i]
+            if(c != ('\n' as u8) && c != ('\r' as u8) && c != (' ' as u8) && c != ('\t' as u8)) {
+                b64_buf[buf_pos] = c
+                buf_pos += 1
+            }
+            i += 1
+        }
+        free(buf)
+
+        // Decode base64 to DER
+        var der_buf : [4096]u8
+        var result = crypto::base64_decode(b64_buf as *char, buf_pos, &raw mut der_buf[0], 4096)
+        if(result is std::Result.Err) { return null }
+        var Ok(decoded_len) = result else unreachable
+
+        // Parse PKCS#1 RSAPrivateKey DER structure
+        // SEQUENCE { version INTEGER, n INTEGER, e INTEGER, d INTEGER, p INTEGER, q INTEGER, ... }
+        var rsa = malloc(sizeof(RSAContext)) as *mut RSAContext
+        if(rsa == null) { return null }
+        rsa_init(rsa, RSA_PKCS_V15, 0)
+
+        var pos : size_t = 0
+        // SEQUENCE tag
+        if(pos >= decoded_len || der_buf[pos] != 0x30) { unsafe { dealloc rsa }; return null }
+        pos += 1
+        // SEQUENCE length (skip)
+        var seq_len = parse_der_length(&raw der_buf[0], &raw mut pos, decoded_len)
+        if(seq_len < 0) { unsafe { dealloc rsa }; return null }
+
+        // version
+        if(pos >= decoded_len || der_buf[pos] != 0x02) { unsafe { dealloc rsa }; return null }
+        pos += 1
+        var ver_len = parse_der_length(&raw der_buf[0], &raw mut pos, decoded_len)
+        if(ver_len < 0) { unsafe { dealloc rsa }; return null }
+        pos = pos + (ver_len as size_t)
+
+        // n (modulus)
+        var n_data : *u8 = null
+        var n_len = parse_der_integer(&raw der_buf[0], &raw mut pos, decoded_len, &raw mut n_data)
+        if(n_len <= 0) { unsafe { dealloc rsa }; return null }
+
+        // e (public exponent)
+        var e_data : *u8 = null
+        var e_len = parse_der_integer(&raw der_buf[0], &raw mut pos, decoded_len, &raw mut e_data)
+        if(e_len <= 0) { unsafe { dealloc rsa }; return null }
+        rsa_import_pubkey(rsa, n_data, n_len as size_t, e_data, e_len as size_t)
+
+        // d (private exponent)
+        var d_data : *u8 = null
+        var d_len = parse_der_integer(&raw der_buf[0], &raw mut pos, decoded_len, &raw mut d_data)
+        if(d_len <= 0) { unsafe { dealloc rsa }; return null }
+        rsa_import_privkey(rsa, n_data, n_len as size_t, d_data, d_len as size_t)
+
+        // p, q, dp, dq, qinv (CRT params — optional but preferred)
+        var p_data : *u8 = null
+        var p_len = parse_der_integer(&raw der_buf[0], &raw mut pos, decoded_len, &raw mut p_data)
+        if(p_len > 0) { mpi_read_binary(&raw mut rsa.P, p_data, p_len as size_t) }
+
+        var q_data : *u8 = null
+        var q_len = parse_der_integer(&raw der_buf[0], &raw mut pos, decoded_len, &raw mut q_data)
+        if(q_len > 0) { mpi_read_binary(&raw mut rsa.Q, q_data, q_len as size_t) }
+
+        var dp_data : *u8 = null
+        var dp_len = parse_der_integer(&raw der_buf[0], &raw mut pos, decoded_len, &raw mut dp_data)
+        if(dp_len > 0) { mpi_read_binary(&raw mut rsa.DP, dp_data, dp_len as size_t) }
+
+        var dq_data : *u8 = null
+        var dq_len = parse_der_integer(&raw der_buf[0], &raw mut pos, decoded_len, &raw mut dq_data)
+        if(dq_len > 0) { mpi_read_binary(&raw mut rsa.DQ, dq_data, dq_len as size_t) }
+
+        var qinv_data : *u8 = null
+        var qinv_len = parse_der_integer(&raw der_buf[0], &raw mut pos, decoded_len, &raw mut qinv_data)
+        if(qinv_len > 0) { mpi_read_binary(&raw mut rsa.QP, qinv_data, qinv_len as size_t) }
+
+        return rsa
+    }
+
+    // Parse DER length field. Returns the length value and advances pos.
+    func parse_der_length(data : *u8, pos : *mut size_t, data_len : size_t) : int {
+        if(pos[0] >= data_len) { return -1 }
+        var first = data[pos[0]]
+        pos[0] += 1
+        if(first < 0x80) { return first as int }
+        var num_bytes = (first & 0x7Fu8) as int
+        if(num_bytes == 0 || num_bytes > 4) { return -1 }
+        var length : u32 = 0
+        var k : int = 0
+        while(k < num_bytes) {
+            if(pos[0] >= data_len) { return -1 }
+            length = (length << 8) | (data[pos[0]] as u32)
+            pos[0] += 1
+            k += 1
+        }
+        return length as int
+    }
+
+    // Parse DER INTEGER. Returns data pointer and length, advances pos.
+    func parse_der_integer(data : *u8, pos : *mut size_t, data_len : size_t, out_data : *mut *u8) : int {
+        if(pos[0] >= data_len || data[pos[0]] != 0x02) { return -1 }
+        pos[0] += 1
+        var len = parse_der_length(data, pos, data_len)
+        if(len <= 0 || pos[0] + (len as size_t) > data_len) { return -1 }
+        // Skip leading zero byte (sign padding in unsigned integers)
+        var data_start = pos[0]
+        if(len > 1 && data[data_start] == 0) { data_start += 1; len -= 1 }
+        out_data[0] = data + data_start
+        pos[0] = pos[0] + (len as size_t)
+        return len
+    }
+
     // Allocate and initialize a single X509Cert on the heap. malloc'd memory is
     // NOT zeroed, so we memset first: x509_cert_init move-assigns embedded
     // std::string members (issuer/subject) which calls their destructor on the

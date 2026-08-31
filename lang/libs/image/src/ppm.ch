@@ -109,6 +109,45 @@ public func parse_ppm(data : *u8, data_len : size_t) : std::Result<Image, ImageE
     }
 }
 
+// encode_ppm — encode Image to in-memory PPM bytes (no file I/O).
+public func encode_ppm(img : *mut Image) : std::Result<vector<u8>, ImageError> {
+    if(img.channels != 3) {
+        return std.Result.Err(ImageError.InvalidFormat(string("PPM requires 3 channels (RGB)")))
+    }
+
+    var header = string("")
+    header.append('P')
+    header.append('6')
+    header.append(' ')
+    header.append_integer(img.width)
+    header.append(' ')
+    header.append_integer(img.height)
+    header.append(' ')
+    header.append_integer(255)
+    header.append('\n')
+
+    var total_size = header.size() + img.pixels.size()
+    var file_data = vector<u8>()
+    file_data.resize(total_size)
+
+    var fptr = file_data.data() as *mut u8
+    var i : size_t = 0
+    while(i < header.size()) {
+        fptr[i] = header.get(i) as u8
+        i += 1
+    }
+
+    var pix_bytes = image_total_bytes(img)
+    var pix_ptr = img.pixels.data()
+    var j : size_t = 0
+    while(j < pix_bytes) {
+        fptr[header.size() + j] = pix_ptr[j]
+        j += 1
+    }
+
+    return std.Result.Ok(file_data)
+}
+
 public func save_ppm(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
     if(img.channels != 3) {
         return std.Result.Err(ImageError.InvalidFormat(string("PPM requires 3 channels (RGB)")))

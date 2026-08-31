@@ -338,3 +338,102 @@ public func datetime_new_year_boundary(env : &mut TestEnv) {
         env.error("Dec 31 + 1d should be Jan 1 next year")
     }
 }
+
+// ===========================================================================
+// NEW: DateTime::to_iso8601() tests
+// ===========================================================================
+
+@test
+public func datetime_to_iso8601_utc(env : &mut TestEnv) {
+    var tz = datetime::TimeZone::utc()
+    var dt = datetime::DateTime::from_components(2024, 3, 5, 14, 30, 0, 0, tz)
+    var s = dt.to_iso8601()
+    if(s.equals_view(std::string_view("2024-03-05T14:30:00Z"))) { env.success("iso8601 utc") } else { env.error("iso8601 UTC should be 2024-03-05T14:30:00Z") }
+}
+
+@test
+public func datetime_to_iso8601_positive_offset(env : &mut TestEnv) {
+    var tz = datetime::TimeZone::fixed(19800, std::string_view("IST"))
+    var dt = datetime::DateTime::from_components(2024, 12, 25, 10, 5, 9, 0, tz)
+    var s = dt.to_iso8601()
+    if(s.equals_view(std::string_view("2024-12-25T10:05:09+05:30"))) { env.success("iso8601 +05:30") } else { env.error("iso8601 +05:30 format wrong") }
+}
+
+@test
+public func datetime_to_iso8601_negative_offset(env : &mut TestEnv) {
+    var tz = datetime::TimeZone::fixed(-18000, std::string_view("EST"))
+    var dt = datetime::DateTime::from_components(2024, 7, 4, 0, 0, 0, 0, tz)
+    var s = dt.to_iso8601()
+    if(s.equals_view(std::string_view("2024-07-04T00:00:00-05:00"))) { env.success("iso8601 -05:00") } else { env.error("iso8601 -05:00 format wrong") }
+}
+
+@test
+public func datetime_to_iso8601_zero_padded(env : &mut TestEnv) {
+    var tz = datetime::TimeZone::utc()
+    var dt = datetime::DateTime::from_components(2024, 1, 1, 0, 0, 0, 0, tz)
+    var s = dt.to_iso8601()
+    if(s.equals_view(std::string_view("2024-01-01T00:00:00Z"))) { env.success("iso8601 zero pad") } else { env.error("iso8601 should zero-pad month/day/hour/min/sec") }
+}
+
+// ===========================================================================
+// NEW: DateTime::parse() tests
+// ===========================================================================
+
+@test
+public func datetime_parse_basic(env : &mut TestEnv) {
+    var result = datetime::DateTime::parse(std::string_view("%Y-%m-%d %H:%M:%S"), std::string_view("2024-03-05 14:30:00"))
+    if(result is std::Result.Err) { env.error("parse should succeed"); return }
+    var Ok(dt) = result else unreachable
+    if(dt.year_val() != 2024) { env.error("parsed year should be 2024") }
+    if(dt.month_val() != 3) { env.error("parsed month should be 3") }
+    if(dt.day_val() != 5) { env.error("parsed day should be 5") }
+    if(dt.hour_val() != 14) { env.error("parsed hour should be 14") }
+    if(dt.minute_val() != 30) { env.error("parsed minute should be 30") }
+    if(dt.second_val() != 0) { env.error("parsed second should be 0") }
+}
+
+@test
+public func datetime_parse_iso8601_like(env : &mut TestEnv) {
+    var result = datetime::DateTime::parse(std::string_view("%Y-%m-%dT%H:%M:%S"), std::string_view("2024-12-25T10:05:09"))
+    if(result is std::Result.Err) { env.error("parse iso8601-like should succeed"); return }
+    var Ok(dt) = result else unreachable
+    if(dt.year_val() != 2024) { env.error("parsed year 2024") }
+    if(dt.month_val() != 12) { env.error("parsed month 12") }
+    if(dt.day_val() != 25) { env.error("parsed day 25") }
+    if(dt.hour_val() != 10) { env.error("parsed hour 10") }
+    if(dt.minute_val() != 5) { env.error("parsed minute 5") }
+    if(dt.second_val() != 9) { env.error("parsed second 9") }
+}
+
+@test
+public func datetime_parse_literal_mismatch(env : &mut TestEnv) {
+    var result = datetime::DateTime::parse(std::string_view("%Y-%m-%d"), std::string_view("2024/03/05"))
+    if(result is std::Result.Ok) { env.error("parse should fail on literal mismatch") }
+}
+
+@test
+public func datetime_parse_too_short(env : &mut TestEnv) {
+    var result = datetime::DateTime::parse(std::string_view("%Y-%m-%d"), std::string_view("2024"))
+    if(result is std::Result.Ok) { env.error("parse should fail on too-short input") }
+}
+
+@test
+public func datetime_parse_year_only(env : &mut TestEnv) {
+    var result = datetime::DateTime::parse(std::string_view("%Y"), std::string_view("2024"))
+    if(result is std::Result.Err) { env.error("parse year-only should succeed"); return }
+    var Ok(dt) = result else unreachable
+    if(dt.year_val() != 2024) { env.error("parsed year should be 2024") }
+}
+
+// ===========================================================================
+// NEW: DateTime::now() test
+// ===========================================================================
+
+@test
+public func datetime_now_returns_valid(env : &mut TestEnv) {
+    var dt = datetime::DateTime::now()
+    // now() should return a datetime with year >= 2024 (we're in 2026+)
+    if(dt.year_val() < 2024) { env.error("now() year should be >= 2024") }
+    if(dt.month_val() < 1 || dt.month_val() > 12) { env.error("now() month should be 1-12") }
+    if(dt.day_val() < 1 || dt.day_val() > 31) { env.error("now() day should be 1-31") }
+}

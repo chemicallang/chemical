@@ -748,6 +748,83 @@ func png_store_deflate(raw : *u8, raw_len : size_t, out : *mut u8, out_capacity 
     return Result.Ok(pos)
 }
 
+// encode_png — encode an Image to in-memory PNG bytes (no file I/O).
+public func encode_png(img : *mut Image) : std::Result<vector<u8>, ImageError> {
+    // build raw scanline data with filter byte 0 (no filter) per row
+    var bpp = img.channels
+    var row_bytes = img.width * bpp
+    var raw_size = (row_bytes + 1) * img.height
+    var raw_buf = vector<u8>()
+    raw_buf.resize(raw_size as size_t)
+    var raw_ptr = raw_buf.data() as *mut u8
+    var src_ptr = img.pixels.data()
+
+    var y : int = 0
+    while(y < img.height) {
+        var row_off = (y as size_t) * (row_bytes as size_t + 1)
+        raw_ptr[row_off] = 0  // filter: None
+        var c : size_t = 0
+        while(c < row_bytes as size_t) {
+            raw_ptr[row_off + 1 + c] = src_ptr[(y as size_t) * (row_bytes as size_t) + c]
+            c += 1
+        }
+        y += 1
+    }
+
+    // deflate the raw data
+    var deflated_size = raw_size + (raw_size / 1000) + 128 + 6  // conservative estimate
+    var deflated = vector<u8>()
+    deflated.resize(deflated_size as size_t)
+
+    var def_result = png_store_deflate(
+        raw_buf.data(), raw_size as size_t,
+        deflated.data() as *mut u8, deflated_size as size_t
+    )
+    if(def_result is Result.Err) {
+        return std.Result.Err(ImageError.InvalidFormat(string("PNG deflate failed")))
+    }
+    var Ok(def_len) = def_result else unreachable
+
+    // calculate total file size
+    // 8 (signature) + 25 (IHDR chunk) + 12 (IEND chunk)
+    // + 8 + 4 (IDAT chunk header + CRC) + def_len
+    var total_size = 8 + 25 + 12 + 8 + 4 + def_len
+    var file_buf = vector<u8>()
+    file_buf.resize(total_size as size_t)
+    var fptr = file_buf.data() as *mut u8
+    var wpos : size_t = 0
+
+    // PNG signature
+    var sig : [8]u8 = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+    var s : int = 0
+    while(s < 8) { fptr[s] = sig[s]; s += 1 }
+    wpos = 8
+
+    // IHDR chunk (13 bytes of data)
+    var ihdr : [13]u8
+    ihdr[0] = ((img.width as u32) >> 24) as u8; ihdr[1] = ((img.width as u32) >> 16) as u8
+    ihdr[2] = ((img.width as u32) >> 8) as u8; ihdr[3] = (img.width as u32) as u8
+    ihdr[4] = ((img.height as u32) >> 24) as u8; ihdr[5] = ((img.height as u32) >> 16) as u8
+    ihdr[6] = ((img.height as u32) >> 8) as u8; ihdr[7] = (img.height as u32) as u8
+    ihdr[8] = 8  // bit depth
+    if(img.channels == 1) { ihdr[9] = PNG_GRAYSCALE as u8 }
+    else if(img.channels == 2) { ihdr[9] = PNG_GRAY_ALPHA as u8 }
+    else if(img.channels == 3) { ihdr[9] = PNG_RGB as u8 }
+    else { ihdr[9] = PNG_RGBA as u8 }
+    ihdr[10] = 0  // compression method
+    ihdr[11] = 0  // filter method
+    ihdr[12] = 0  // interlace method
+    png_write_chunk(fptr, &raw mut wpos, 0x49484452, &raw ihdr[0], 13)
+
+    // IDAT chunk
+    png_write_chunk(fptr, &raw mut wpos, 0x49444154, deflated.data(), def_len as size_t)
+
+    // IEND chunk
+    png_write_chunk(fptr, &raw mut wpos, 0x49454E44, null, 0)
+
+    return std.Result.Ok(file_buf)
+}
+
 public func save_png(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
     // build raw scanline data with filter byte 0 (no filter) per row
     var bpp = img.channels

@@ -59,8 +59,12 @@ public namespace http {
     }
 
     // Incremental request reader
-    public func read_request_incremental(s: net::Socket, buf: &mut net::Buffer, header_timeout_secs: long, max_header_bytes: usize, max_headers: uint) : std::Option<Request> {
-        net::set_recv_timeout(s, header_timeout_secs, 0);
+    public func read_request_incremental(s: net::Socket, buf: &mut net::Buffer, header_timeout_secs: long, max_header_bytes: usize, max_headers: uint, tls_ctx: *mut tls::SSLContext = null) : std::Option<Request> {
+        if(tls_ctx != null) {
+            net::set_recv_timeout(tls_ctx.transport_socket, header_timeout_secs, 0);
+        } else {
+            net::set_recv_timeout(s, header_timeout_secs, 0);
+        }
         loop {
             var i = 0u; var found = false; var crlfpos = 0u;
             while(i + 3 < buf.len()) {
@@ -82,7 +86,12 @@ public namespace http {
             }
             if(buf.len() > max_header_bytes) { return std::Option.None<Request>() }
             var tmp : [DEFAULT_READ_BUF]u8;
-            var n = net::recv_all(s, &raw mut tmp[0], DEFAULT_READ_BUF);
+            var n : int = 0
+            if(tls_ctx != null) {
+                n = tls::ssl_read(tls_ctx, &raw mut tmp[0], DEFAULT_READ_BUF as i32)
+            } else {
+                n = net::recv_all(s, &raw mut tmp[0], DEFAULT_READ_BUF)
+            }
             if(n <= 0) { return std::Option.None<Request>() }
             buf.append_bytes(&raw mut tmp[0], n as usize);
             if(buf.len() > max_header_bytes) { return std::Option.None<Request>() }

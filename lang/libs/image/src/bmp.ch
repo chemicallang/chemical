@@ -102,6 +102,66 @@ public func parse_bmp(data : *u8, data_len : size_t) : std::Result<Image, ImageE
     return std.Result.Ok(img)
 }
 
+// encode_bmp — encode Image to in-memory BMP bytes (no file I/O).
+public func encode_bmp(img : *mut Image) : std::Result<vector<u8>, ImageError> {
+    var bpp : int
+    if(img.channels == 4) {
+        bpp = 32
+    } else if(img.channels == 3) {
+        bpp = 24
+    } else {
+        bpp = 8
+    }
+    var row_size = (((bpp * img.width + 31) / 32) * 4)
+    var pixel_data_size = row_size * img.height
+    var file_size = 54 + pixel_data_size
+
+    var file_data = vector<u8>()
+    file_data.resize(file_size as size_t)
+
+    var fptr = file_data.data() as *mut u8
+
+    fptr[0] = 'B' as u8
+    fptr[1] = 'M' as u8
+    write_u32_le(fptr, 2, file_size as u32)
+    write_u32_le(fptr, 10, 54)
+    write_u32_le(fptr, 14, 40)
+    write_u32_le(fptr, 18, img.width as u32)
+    write_u32_le(fptr, 22, img.height as u32)
+    write_u16_le(fptr, 26, 1)
+    write_u16_le(fptr, 28, bpp as u16)
+    write_u32_le(fptr, 30, 0)
+
+    var pix_ptr = img.pixels.data()
+    var row : int = 0
+    while(row < img.height) {
+        var src_row = img.height - 1 - row
+        var src_offset = (src_row as size_t) * (img.width as size_t) * (img.channels as size_t)
+        var dst_offset = 54 + (row as size_t) * (row_size as size_t)
+
+        var col : int = 0
+        while(col < img.width) {
+            var px_src = src_offset + (col as size_t) * (img.channels as size_t)
+            var px_dst = dst_offset + (col as size_t) * (bpp as size_t / 8)
+
+            if(img.channels >= 3) {
+                fptr[px_dst] = pix_ptr[px_src + 2]
+                fptr[px_dst + 1] = pix_ptr[px_src + 1]
+                fptr[px_dst + 2] = pix_ptr[px_src]
+                if(img.channels == 4) {
+                    fptr[px_dst + 3] = pix_ptr[px_src + 3]
+                }
+            } else {
+                fptr[px_dst] = pix_ptr[px_src]
+            }
+            col += 1
+        }
+        row += 1
+    }
+
+    return std.Result.Ok(file_data)
+}
+
 public func save_bmp(img : *mut Image, path : *char) : std::Result<std::Unit, ImageError> {
     var bpp : int
     if(img.channels == 4) {

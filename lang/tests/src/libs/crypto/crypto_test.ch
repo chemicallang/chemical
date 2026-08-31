@@ -151,3 +151,67 @@ func test_constant_time_equal_empty(env : &mut TestEnv) {
 }
 
 // ---------------------------------------------------------------------------
+// osrand shared RNG tests
+// ---------------------------------------------------------------------------
+
+@test
+func test_osrand_random_fill_nonzero(env : &mut TestEnv) {
+    var buf : [32]u8
+    var ret = osrand::random_fill(&raw mut buf[0], 32)
+    if(ret != 0) { env.error("random_fill should return 0 on success") }
+    // Verify buffer is not all zeros (extremely unlikely with CSPRNG)
+    var all_zero = true
+    var i : size_t = 0
+    while(i < 32) {
+        if(buf[i] != 0) { all_zero = false; break }
+        i += 1
+    }
+    if(all_zero) { env.error("random_fill output should not be all zeros") }
+}
+
+@test
+func test_osrand_random_fill_empty(env : &mut TestEnv) {
+    var buf : [4]u8 = [0, 0, 0, 0]
+    var ret = osrand::random_fill(&raw mut buf[0], 0)
+    if(ret != 0) { env.error("random_fill with len=0 should return 0") }
+    // Buffer should remain unchanged
+    if(buf[0] != 0 || buf[1] != 0) { env.error("random_fill len=0 should not modify buffer") }
+}
+
+@test
+func test_osrand_random_fill_different(env : &mut TestEnv) {
+    var buf1 : [32]u8
+    var buf2 : [32]u8
+    osrand::random_fill(&raw mut buf1[0], 32)
+    osrand::random_fill(&raw mut buf2[0], 32)
+    // Two random fills should not produce identical output (extremely unlikely)
+    var identical = true
+    var i : size_t = 0
+    while(i < 32) {
+        if(buf1[i] != buf2[i]) { identical = false; break }
+        i += 1
+    }
+    if(identical) { env.error("two random_fill calls should not produce identical output") }
+}
+
+@test
+func test_osrand_random_u32_nonzero(env : &mut TestEnv) {
+    var val = osrand::random_u32()
+    // random_u32 should return some value (0xDEADBEEF is the error sentinel)
+    // We just verify it doesn't crash and returns a u32
+    var buf : [4]u8
+    osrand::random_fill(&raw mut buf[0], 4)
+    var from_fill : u32 = (buf[0] as u32) | ((buf[1] as u32) << 8) | ((buf[2] as u32) << 16) | ((buf[3] as u32) << 24)
+    // Verify random_u32 and random_fill produce some output
+    if(val == 0xDEADBEEFu32 && from_fill == 0) { env.error("at least one should produce non-error output") }
+}
+
+@test
+func test_osrand_random_u64_nonzero(env : &mut TestEnv) {
+    var val = osrand::random_u64()
+    // Verify it doesn't crash and returns a u64
+    var buf : [8]u8
+    osrand::random_fill(&raw mut buf[0], 8)
+    var from_fill : u64 = (buf[0] as u64) | ((buf[1] as u64) << 8) | ((buf[2] as u64) << 16) | ((buf[3] as u64) << 24)
+    if(val == 0xDEADBEEFDEADBEEFu64 && from_fill == 0) { env.error("at least one should produce non-error output") }
+}

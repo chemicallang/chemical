@@ -671,3 +671,73 @@ public func audio_load_wav_nonexistent(env : &mut TestEnv) {
     var result = audio::load_wav(wav_path.data())
     if(result is Result.Ok) { env.error("should fail on nonexistent file") }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// In-memory encode roundtrip test
+// ═══════════════════════════════════════════════════════════════
+
+@test
+public func audio_encode_wav_roundtrip(env : &mut TestEnv) {
+    var a = audio::Audio.make()
+    a.sample_rate = 22050
+    a.channels = 1
+    a.bits_per_sample = 16
+    a.num_samples = 20
+    a.samples.resize(20)
+    var sptr = a.samples.data() as *mut i16
+    sptr[0] = 12345
+    sptr[10] = -10000
+    a.loaded = true
+
+    // Encode to in-memory bytes
+    var encode_result = audio::encode_wav(&raw mut a)
+    if(encode_result is Result.Err) { env.error("encode_wav should succeed"); return }
+    var Ok(bytes) = encode_result else unreachable
+
+    // Verify RIFF signature
+    if(bytes.size() < 12) { env.error("encoded WAV too small") }
+    if(bytes.get(0) != 0x52u8 || bytes.get(1) != 0x49u8 || bytes.get(2) != 0x46u8 || bytes.get(3) != 0x46u8) {
+        env.error("WAV signature should be RIFF")
+    }
+
+    // Parse back
+    var parse_result = audio::parse_wav(bytes.data(), bytes.size())
+    if(parse_result is Result.Err) { env.error("parse encoded WAV should succeed"); return }
+    var Ok(parsed) = parse_result else unreachable
+
+    if(parsed.sample_rate != 22050) { env.error("roundtrip sample rate") }
+    if(parsed.channels != 1) { env.error("roundtrip channels") }
+    if(parsed.bits_per_sample != 16) { env.error("roundtrip bits per sample") }
+    if(parsed.num_samples != 20) { env.error("roundtrip num samples") }
+    if(parsed.samples.get(0) != 12345i16) { env.error("roundtrip sample 0") }
+    if(parsed.samples.get(10) != -10000i16) { env.error("roundtrip sample 10") }
+}
+
+@test
+public func audio_encode_wav_stereo_roundtrip(env : &mut TestEnv) {
+    var a = audio::Audio.make()
+    a.sample_rate = 44100
+    a.channels = 2
+    a.bits_per_sample = 16
+    a.num_samples = 10
+    a.samples.resize(20)
+    var sptr = a.samples.data() as *mut i16
+    sptr[0] = 100   // left
+    sptr[1] = 200   // right
+    sptr[2] = -300  // left
+    sptr[3] = -400  // right
+    a.loaded = true
+
+    var encode_result = audio::encode_wav(&raw mut a)
+    if(encode_result is Result.Err) { env.error("encode_wav stereo should succeed"); return }
+    var Ok(bytes) = encode_result else unreachable
+
+    var parse_result = audio::parse_wav(bytes.data(), bytes.size())
+    if(parse_result is Result.Err) { env.error("parse encoded stereo WAV should succeed"); return }
+    var Ok(parsed) = parse_result else unreachable
+
+    if(parsed.channels != 2) { env.error("roundtrip stereo channels") }
+    if(parsed.num_samples != 10) { env.error("roundtrip stereo num_samples") }
+    if(parsed.samples.get(0) != 100i16) { env.error("roundtrip stereo left") }
+    if(parsed.samples.get(1) != 200i16) { env.error("roundtrip stereo right") }
+}

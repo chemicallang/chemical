@@ -7,6 +7,8 @@ public namespace server {
         var max_header_bytes: usize;
         var max_headers: uint;
         var max_body_bytes: usize;
+        var cert_file: std::string;       // PEM cert file path (empty = plain HTTP)
+        var key_file: std::string;        // PEM RSA private key file path
         @constructor func constructor() {
             return ServerConfig {
                 addr = std::string::make_no_len(":8080");
@@ -14,7 +16,9 @@ public namespace server {
                 header_timeout_secs = 5;
                 max_header_bytes = 64u * 1024u;
                 max_headers = 512u;
-                max_body_bytes = 10u * 1024u * 1024u
+                max_body_bytes = 10u * 1024u * 1024u,
+                cert_file = std::string(),
+                key_file = std::string()
             }
         }
     }
@@ -25,6 +29,8 @@ public namespace server {
         var listen_sock: net::Socket;
         var router: web.Router;
         var run: bool;
+        var tls_cert: *mut tls::X509Cert;      // loaded cert (null = plain HTTP)
+        var tls_rsa_key: *mut void;             // loaded RSA private key (null = plain HTTP)
 
         @constructor func constructor(cfg_: ServerConfig) {
             const count = cfg_.worker_count
@@ -33,7 +39,9 @@ public namespace server {
                 pool : std.concurrent.create_pool(count);
                 listen_sock = 0u;
                 router = web.Router();
-                run = false;
+                run = false,
+                tls_cert = null,
+                tls_rsa_key = null
             }
         }
 
@@ -126,6 +134,20 @@ public namespace server {
             } else {
                 net::set_recv_timeout(self.listen_sock, 0, 100000);
             }
+
+            // Load TLS cert/key if configured
+            if(!self.cfg.cert_file.empty() && !self.cfg.key_file.empty()) {
+                self.tls_cert = tls::x509_crt_load_pem_file(self.cfg.cert_file.data())
+                self.tls_rsa_key = tls::rsa_privkey_load_pem_file(self.cfg.key_file.data()) as *mut void
+                if(self.tls_cert == null || self.tls_rsa_key == null) {
+                    printf("Warning: failed to load TLS cert/key, running plain HTTP\n")
+                    self.tls_cert = null
+                    self.tls_rsa_key = null
+                } else {
+                    printf("HTTPS enabled\n")
+                }
+            }
+
             self.run = true;
         }
 
@@ -266,6 +288,15 @@ public namespace server {
 
         func shutdown(&mut self) {
             run = false;
+            if(self.tls_cert != null) {
+                tls::cert_chain_free(self.tls_cert)
+                self.tls_cert = null
+            }
+            if(self.tls_rsa_key != null) {
+                tls::rsa_free(self.tls_rsa_key as *mut tls::RSAContext)
+                unsafe { dealloc self.tls_rsa_key }
+                self.tls_rsa_key = null
+            }
         }
     }
 }

@@ -51,8 +51,19 @@ public namespace server {
                 net::close_socket(s); return;
             }
 
+            // TLS handshake if cert/key are configured
+            var tls_ctx : *mut tls::SSLContext = null
+            if(self.tls_cert != null && self.tls_rsa_key != null) {
+                tls_ctx = tls::tls_accept(s, self.tls_cert, self.tls_rsa_key)
+                if(tls_ctx == null) {
+                    printf("TLS handshake failed\n")
+                    net::close_socket(s)
+                    return
+                }
+            }
+
             var buf = net::Buffer();
-            var req_opt = http::read_request_incremental(s, &mut buf, self.cfg.header_timeout_secs, self.cfg.max_header_bytes, self.cfg.max_headers);
+            var req_opt = http::read_request_incremental(s, &mut buf, self.cfg.header_timeout_secs, self.cfg.max_header_bytes, self.cfg.max_headers, tls_ctx);
             if (req_opt is std::Option.None) {
                 net::close_socket(s); return;
             }
@@ -73,6 +84,7 @@ public namespace server {
             var route = self.router.match_route(&req.method, &req.path, &raw mut params);
 
             var resw = http::ResponseWriter(s, &req.method);
+            resw.tls_ctx = tls_ctx
 
             if (route != null) {
                 route.handler(req_opt.take(), resw);
@@ -82,6 +94,12 @@ public namespace server {
                 resw.write_string(std::string::make_no_len("Not Found\n"));
             }
 
+            // Free TLS context if allocated
+            if(tls_ctx != null) {
+                tls::ssl_close_notify(tls_ctx)
+                tls::ssl_free(tls_ctx)
+                unsafe { dealloc tls_ctx }
+            }
             net::close_socket(s);
         }
 

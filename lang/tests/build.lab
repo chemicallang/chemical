@@ -24,6 +24,7 @@ import "@archive/build.lab" as archiveMod
 import "@image/build.lab" as imageMod
 import "@compression/build.lab" as compressionMod
 import "@osrand/build.lab" as osrandMod
+import "@mime/build.lab" as mimeMod
 
 import "@docgen/build.lab" as docgenMod
 import "@compiler_runtime/build.lab" as compilerRuntimeMod
@@ -172,8 +173,9 @@ func get_main_module(ctx : *mut AppBuildContext, job : *mut LabJob) : *mut Modul
 
     // the crypto module
     const crypto_module = cryptoMod.build(ctx, job)    // the compression module
-    const compression_module = compressionMod.build(ctx, job)
+    const compression_module = compressionMod.build(ctx, job)
     const osrand_module = osrandMod.build(ctx, job)
+    const mime_module = mimeMod.build(ctx, job)
 
     // the audio module
     const audio_module = audioMod.build(ctx, job)
@@ -188,7 +190,7 @@ func get_main_module(ctx : *mut AppBuildContext, job : *mut LabJob) : *mut Modul
     const image_module = imageMod.build(ctx, job)
 
     // currently the last dependency becomes null if we don't take it out like this
-    const dependencies = [ ext_module, ext_cpp_module, submod, submod2_module, submod3_module, std_module, core_module, bcrypt_module, uuid_module, json_module, atomic_module, datetime_module, regex_module, fs_module, path_module, encoding_module, crypto_module, compression_module, osrand_module, audio_module, font_module, archive_module, image_module, test_env_module, test_module, common_mod, native_common_mod ]
+    const dependencies = [ ext_module, ext_cpp_module, submod, submod2_module, submod3_module, std_module, core_module, bcrypt_module, uuid_module, json_module, atomic_module, datetime_module, regex_module, fs_module, path_module, encoding_module, crypto_module, compression_module, osrand_module, mime_module, audio_module, font_module, archive_module, image_module, test_env_module, test_module, common_mod, native_common_mod ]
 
 
     const main_mod_path = lab::rel_path_to("src");

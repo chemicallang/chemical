@@ -10,19 +10,8 @@ public namespace http {
             }
         }
 
-        func get_mime_type(ext: &std::string) : std::string_view {
-            if (ext.equals_view(".html")) return std::string_view("text/html");
-            if (ext.equals_view(".htm")) return std::string_view("text/html");
-            if (ext.equals_view(".css")) return std::string_view("text/css");
-            if (ext.equals_view(".js")) return std::string_view("application/javascript");
-            if (ext.equals_view(".json")) return std::string_view("application/json");
-            if (ext.equals_view(".png")) return std::string_view("image/png");
-            if (ext.equals_view(".jpg")) return std::string_view("image/jpeg");
-            if (ext.equals_view(".jpeg")) return std::string_view("image/jpeg");
-            if (ext.equals_view(".gif")) return std::string_view("image/gif");
-            if (ext.equals_view(".svg")) return std::string_view("image/svg+xml");
-            if (ext.equals_view(".txt")) return std::string_view("text/plain");
-            return std::string_view("application/octet-stream");
+        func get_mime_type(ext: &std.string) : std.string_view {
+            return mime::get_type(ext.data())
         }
 
         public func serve_http(&self, req: http.Request, res: http.ResponseWriter) {

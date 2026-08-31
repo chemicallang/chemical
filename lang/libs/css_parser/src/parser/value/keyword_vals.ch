@@ -1493,8 +1493,8 @@ func (cssParser : &mut CSSParser) parseCursor(
 
     // Handle url() cursor: url("pointer.png") 4 12, auto
     if(token.type == TokenType.Identifier && token.fnv1() == comptime_fnv1_hash("url")) {
-        parser.increment()
         // Use raw value parsing for the entire cursor value including url, hotspot, fallbacks
+        // Don't increment — let parseRawPropertyValue consume the 'url' token too
         cssParser.parseRawPropertyValue(parser, builder, value)
         return
     }

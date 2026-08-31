@@ -873,6 +873,15 @@ public func inset_shorthand_with_auto_value_works(env : &mut TestEnv) {
 
 
 @test
+public func calc_with_nested_operations_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        width: calc(100% - (2 * 1rem) - 20px);
+    }
+    css_equals(env, page.toStringCssOnly(), "width:calc(100% - (2 * 1rem) - 20px);");
+}
+
+@test
 public func font_shorthand_numeric_weight_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {
@@ -896,8 +905,7 @@ public func animation_full_shorthand_works(env : &mut TestEnv) {
     #css {
         animation: fadeIn 1.2s ease-in-out 0s 1 normal forwards paused;
     }
-    // animation parser currently only outputs: name, duration, delay, iteration-count
-    css_equals(env, page.toStringCssOnly(), "animation:fadeIn 1.2s ease-in-out 0s 1;");
+    css_equals(env, page.toStringCssOnly(), "animation:fadeIn 1.2s ease-in-out 0s 1 normal forwards paused;");
 }
 
 @test
@@ -1026,6 +1034,15 @@ public func scrollbar_color_and_width_works(env : &mut TestEnv) {
         scrollbar-width: thin;
     }
     css_equals(env, page.toStringCssOnly(), "scrollbar-color:#888 #222;scrollbar-width:thin;");
+}
+
+@test
+public func cursor_url_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        cursor: url("cursor.png") 4 12, pointer;
+    }
+    css_equals(env, page.toStringCssOnly(), "cursor:url(\"cursor.png\") 4 12, pointer;");
 }
 
 /**

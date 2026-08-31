@@ -8,7 +8,13 @@ func (cssParser : &mut CSSParser) parseCalcFactor(parser : *mut Parser, builder 
         } else {
             parser.error("expected ')' in calc");
         }
-        return expr;
+        var group = builder.allocate<CSSCalcExpression>();
+        group.kind = expr.kind;
+        group.data = expr.data;
+        return CSSCalcExpression {
+            kind : CSSCalcExpressionKind.Group,
+            data : group
+        };
     }
 
     var value = CSSValue();

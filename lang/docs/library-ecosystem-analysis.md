@@ -363,7 +363,7 @@ Ranked by **impact ÷ cost**, with the bundle/perf constraint in mind:
 | ~~P2~~ | ~~`http`: middleware live~~ | ✅ Done — `Router.apply_middlewares` wired in `Server` | — |
 | **P1** | `webview`+`http` local server | Unblocks serving/embedding media | Low–Med |
 | **P1** | `regex` global-match + flags, `uuid` JSON helpers, generic struct↔JSON | Ergonomics, pure logic | Low–Med |
-| **P1** | Extract & de-dup: `js_parser`/`universal_parser`, shared converters, `archive` reuses `compression` deflate, `lexer_utils`, `color` | Maintenance leverage + composability | Med |
+| **P1** | ~~shared converters~~ ✅, ~~`lexer_utils`~~ ✅, `archive` reuses `compression` deflate, `color` | Maintenance leverage + composability | Med |
 | **P2** | `crypto`: AES/ChaCha, RSA/ed25519, PBKDF2, public RNG, URL-safe base64 | Real security value, but adds code size | Med–High |
 | **P2** | `http`: cookies/sessions, middleware live, websockets, form/multipart parsing, gzip | Completes the web framework | Med–High |
 | **P3** | Media formats (JPEG/WebP/GIF, MP3/OGG, OTF/WOFF), audio playback, `font` rasterizer, async runtime | Heavy, large bundle cost, niche | High |
@@ -401,8 +401,8 @@ to land on top of a clean shared-IO foundation.
 14. `archive`: call `compression`'s deflate so `zip_writer_add_deflate` exists (I8, §5.9). ← TODO
 15. ✅ Extract a `mime` library from `FileServer.get_mime_type` (§5.2) — DONE.
 16. Add a `json_serde` adapter for generic struct ↔ `JsonValue` mapping (§5.6). ← TODO
-17. Extract `lexer_utils` shared by the five parsers (§5.10). ← TODO
-18. Share HTML/CSS/MD converter emitters the way JS already does (§5.5, D5/D6). ← TODO
+17. ✅ Extract `lexer_utils` shared by the five parsers (§5.10) — DONE.
+18. ✅ Share HTML/CSS/MD converter emitters the way JS already does (§5.5, D5/D6) — DONE.
 
 ---
 
@@ -410,4 +410,6 @@ to land on top of a clean shared-IO foundation.
 Updated after completing two batches of P0/P1 items: shared `osrand` RNG,
 in-memory image/audio encoders, `datetime` parse/ISO-8601/now, HTTPS server config
 wiring, `server` dependency fix, `encoding` base64 discoverability, middleware wiring,
-`mime` library extraction, HTTPS accept handshake, `send_json` glue, and 50+ new tests.*
+`mime` library extraction, HTTPS accept handshake, `send_json` glue, 50+ new tests,
+shared CSS/MD/HTML converter emitters across CBI plugins and parser libs, and
+consolidated shared tokenizer readers into `compiler::SourceProviderUtils`.*

@@ -213,7 +213,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             if(html.has_lt) {
                 if(isalpha(c as int)) {
                     if(html.lexed_tag_name) {
-                        provider.read_attr_name();
+                        provider.read_tag_name();
                         return Token {
                             type : TokenType.AttrName as int,
                             value : std::string_view(data_ptr, provider.current_data() - data_ptr),

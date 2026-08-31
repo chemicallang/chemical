@@ -111,3 +111,62 @@ public func (provider : &SourceProvider) skip_whitespaces() {
         }
     }
 }
+
+// ─── Character-class readers ─────────────────────────────────────────────────
+// Shared readers for common character classes used by multiple parsers.
+// Each reader consumes characters matching its predicate until the first
+// non-matching character is encountered.
+
+/** Read consecutive alphabetic characters (a-z, A-Z). */
+public func (provider : &SourceProvider) read_alpha() {
+    while(true) {
+        const c = provider.peek();
+        if(c != '\0' && isalpha(c as int)) {
+            provider.increment();
+        } else {
+            break;
+        }
+    }
+}
+
+/** Read consecutive alphanumeric characters (a-z, A-Z, 0-9). */
+public func (provider : &SourceProvider) read_alpha_num() {
+    while(true) {
+        const c = provider.peek();
+        if(c != '\0' && isalnum(c as int)) {
+            provider.increment();
+        } else {
+            break;
+        }
+    }
+}
+
+/**
+ * Read a CSS-style identifier: alphanumeric characters, hyphens, and underscores.
+ * Used by css_parser for selectors, property names, and class names.
+ */
+public func (provider : &SourceProvider) read_css_id() {
+    while(true) {
+        const c = provider.peek();
+        if(c != '\0' && (isalnum(c as int) || c == '-' || c == '_')) {
+            provider.increment();
+        } else {
+            break;
+        }
+    }
+}
+
+/**
+ * Read an HTML tag or attribute name: alphanumeric characters, underscores,
+ * hyphens, and colons. Used by html_parser for tag/attribute lexing.
+ */
+public func (provider : &SourceProvider) read_tag_name() {
+    while(true) {
+        const c = provider.peek();
+        if(c != '\0' && (isalnum(c as int) || c == '_' || c == '-' || c == ':')) {
+            provider.increment();
+        } else {
+            break;
+        }
+    }
+}

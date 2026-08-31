@@ -1,33 +1,5 @@
-public func (provider : &SourceProvider) read_alpha() {
-    while(true) {
-        const c = provider.peek();
-        if(c != '\0' && (isalpha(c as int))) {
-            provider.increment();
-        } else {
-            break;
-        }
-    }
-}
-
-public func (provider : &SourceProvider) read_alpha_num() {
-    while(true) {
-        const c = provider.peek();
-        if(c != '\0' && (isalnum(c as int))) {
-            provider.increment();
-        } else {
-            break;
-        }
-    }
-}
-
-public func (provider : &SourceProvider) read_css_id() {
-    while(true) {
-        const c = provider.peek();
-        if(c != '\0' && (isalnum(c as int) || c == '-' || c == '_')) {
-            provider.increment();
-        } else {
-            break;
-        }
-    }
-}
+// Parser-specific read helpers for css_parser.
+//
+// The generic character-class readers (read_alpha, read_alpha_num, read_css_id)
+// live in compiler::SourceProviderUtils so they are shared across all parsers.
 

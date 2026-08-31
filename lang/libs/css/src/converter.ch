@@ -591,6 +591,21 @@ func (converter : &mut CSSRuntimeConverter) writeAnimationValueData(value : &mut
         converter.writeValue(&mut value.iterationCount)
         has_val = true
     }
+    if(value.direction.kind != CSSKeywordKind.Unknown) {
+        if(has_val) str.append(' ')
+        str.append_view(&value.direction.value)
+        has_val = true
+    }
+    if(value.fillMode.kind != CSSKeywordKind.Unknown) {
+        if(has_val) str.append(' ')
+        str.append_view(&value.fillMode.value)
+        has_val = true
+    }
+    if(value.playState.kind != CSSKeywordKind.Unknown) {
+        if(has_val) str.append(' ')
+        str.append_view(&value.playState.value)
+        has_val = true
+    }
     if(value.next != null) {
         str.append(',')
         str.append(' ')

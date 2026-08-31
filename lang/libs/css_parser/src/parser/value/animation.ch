@@ -90,9 +90,31 @@ func (cssParser : &mut CSSParser) parseAnimation(
                 parser.increment()
                 anim.name = builder.allocate_view(&token.value)
             } else {
-                // Direction / Fill mode / Play state / etc.
-                parser.increment()
-                // Just consume for now as name is the most important
+                // Direction
+                const dirKind = getAnimationDirectionKeywordKind(hash)
+                if(dirKind != CSSKeywordKind.Unknown) {
+                    parser.increment()
+                    anim.direction.kind = dirKind
+                    anim.direction.value = builder.allocate_view(&token.value)
+                } else {
+                    // Fill mode
+                    const fillKind = getAnimationFillModeKeywordKind(hash)
+                    if(fillKind != CSSKeywordKind.Unknown) {
+                        parser.increment()
+                        anim.fillMode.kind = fillKind
+                        anim.fillMode.value = builder.allocate_view(&token.value)
+                    } else {
+                        // Play state
+                        const playKind = getAnimationPlayStateKeywordKind(hash)
+                        if(playKind != CSSKeywordKind.Unknown) {
+                            parser.increment()
+                            anim.playState.kind = playKind
+                            anim.playState.value = builder.allocate_view(&token.value)
+                        } else {
+                            parser.increment()
+                        }
+                    }
+                }
             }
         } else if(token.type == TokenType.Comma) {
             parser.increment()

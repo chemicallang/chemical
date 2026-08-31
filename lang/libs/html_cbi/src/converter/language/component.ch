@@ -98,7 +98,7 @@ func (converter : &mut ASTConverter) build_ssr_attrs(element : *mut HtmlElement,
             const textStructVal = builder.make_struct_value(ssrTextLinkedNode, location)
             var stripped = strip_js_string_quotes(chemAttrValue.text);
             var escaped = std::string();
-            escape_html_append(&mut escaped, stripped);
+            html_escape_append(&mut escaped, stripped);
             textStructVal.add_value(std::string_view("data"), builder.make_string_value(builder.allocate_view(escaped.view()), location))
             textStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(escaped.size(), location))
             attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, "Text", textStructVal));

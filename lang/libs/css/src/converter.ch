@@ -9,10 +9,6 @@
  */
 using namespace std;
 
-func (str : &std::string) view() : std::string_view {
-    return std::string_view(str.data(), str.size());
-}
-
 public struct CSSRuntimeConverter {
     var str : std::string
 }

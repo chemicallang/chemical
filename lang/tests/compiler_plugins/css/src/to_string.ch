@@ -3552,3 +3552,36 @@ public func all_initial_works(env : &mut TestEnv) {
     }
     css_equals(env, page.toStringCssOnly(), ".reset{all:initial;}");
 }
+
+@test
+public func calc_in_transform_works(env : &mut TestEnv) {
+    // transform: translateX(calc(-100% - 24px)) inside a selector
+    var page = HtmlPage()
+    #css {
+        .slider {
+            transform: translateX(calc(-100% - 24px));
+        }
+    }
+    var got = page.toStringCssOnly();
+    var expected = std::string();
+    var classView = std::string_view(got.data(), 8)
+    expected.append_view(&classView)
+    expected.append_view("{ transform:translateX(calc(-100% - 24px)); }");
+    compl_css_equals(env, &got, expected.to_view());
+}
+
+@test
+public func attribute_selector_combinator_works(env : &mut TestEnv) {
+    // .some-class input[type="checkbox"] — descendant combinator with attribute selector
+    var page = HtmlPage()
+    #css {
+        .some-class input[type="checkbox"] {
+            display: block;
+        }
+    }
+    var got = page.toStringCssOnly();
+    var expected = std::string();
+    var classView = std::string_view(got.data(), 8)
+    expected.append_view(".some-class input[type=\"checkbox\"] { display:block; }");
+    compl_css_equals(env, &got, expected.to_view());
+}

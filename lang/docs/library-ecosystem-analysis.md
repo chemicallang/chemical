@@ -46,7 +46,7 @@ code we already ship.
 | Core / runtime | `core`, `cstd`, `std`, `compiler`, `compiler_runtime`, `lab`, `test`, `test_env`, `refgen`, `docgen`, `transformer`, `minlsp`, `ide`, `environment`, `process`, `path`, `fs`, `atomic`, `crashsave` |
 | Web / network | `net`, `tls`, `http`, `server`, `page`, `html`, `css`, `js`, `json`, `webview`, `window`, `components`, `universal`, `html_comp` |
 | CBI / parser / IDE | `html_cbi`, `css_cbi`, `js_cbi`, `universal_cbi`, `md_cbi`, `html_parser`, `css_parser`, `js_parser`, `md_parser`, `universal_parser`, `html_ide`, `css_ide`, `js_ide`, `md_ide`, `universal_ide` |
-| Data / crypto | `encoding`, `compression`, `archive`, `crypto`, `bcrypt`, `uuid`, `regex`, `datetime`, `md`, `osrand` |
+| Data / crypto | `encoding`, `compression`, `archive`, `crypto`, `bcrypt`, `uuid`, `regex`, `datetime`, `md`, `osrand`, `mime` |
 | Media | `audio`, `image`, `font` |
 
 ---
@@ -60,8 +60,8 @@ This is where the ecosystem is weakest. Each row is a place where two libraries
 
 | # | Integration | Status | Evidence | Cost to fix |
 |---|---|---|---|---|
-| I1 | `http` server ↔ `tls` (HTTPS server) | **Partial** | `ServerConfig` now has `cert_file`/`key_file`; `Server` loads cert/key in `start()` and frees in `shutdown()`; `read_request_incremental` accepts optional `tls_ctx`. Accept handshake not yet wired. | Low — remaining wiring |
-| I2 | `http` ↔ `json` (body parse/serialize) | **Missing** | `json` imports only `std`/`cstd`; no helper to parse `Body` or write a JSON response. | Low — glue functions |
+| I1 | `http` server ↔ `tls` (HTTPS server) | **✅ Fixed** | `ServerConfig` has `cert_file`/`key_file`; `Server` loads cert/key in `start()`; `handle_conn` calls `tls_accept` when configured, sets `tls_ctx` on `ResponseWriter`; `read_request_incremental` uses `tls_ctx` for reads; `shutdown` frees TLS resources. | Done |
+| I2 | `http` ↔ `json` (body parse/serialize) | **Partial** | ✅ `ResponseWriter.send_json(value)` added — serializes `JsonValue` and writes with `application/json` content type. Body parsing (`req.json<T>()`) still TODO. | Low — remaining glue |
 | I3 | `http` ↔ `page` (SSR response) | **Missing** | `page` imports only `std`/`fs`; you must manually `resw.write_string(page.toString())`. | Low — glue function |
 | I4 | `server` ↔ `http` (declared dep) | **✅ Fixed** | `server/chemical.mod` now declares `import http`. | Done |
 | I5 | `image`/`audio` ↔ `http`/`webview` (in-memory encode) | **✅ Fixed** | `encode_png(img)`, `encode_bmp(img)`, `encode_ppm(img)`, `encode_wav(audio)` now return `Result<vector<u8>, Error>`. Tested with roundtrip tests. | Done |
@@ -75,7 +75,7 @@ This is where the ecosystem is weakest. Each row is a place where two libraries
 |---|---|---|
 | D1 | `js_parser` (41 `Js*` nodes) and `universal_parser` (49 `Js*` nodes + JSX) are **separate copies** of the JS AST; `universal_parser` does *not* import `js_parser`. Syntax fixes must be applied twice and the two drift. | Maintenance |
 | D2 | `path` and `fs` both implement `basename`/`dirname`/`extension`/`join`/`normalize` on raw `*char` buffers — duplicated, and neither is a typed `Path`. | Maintenance / ergonomics |
-| D3 | `uuid` has its own `/dev/urandom`/`CryptGenRandom` RNG; `crypto` has **no** RNG at all. Two random sources, no shared one. | **✅ Fixed** | `osrand` library provides shared `random_fill`/`random_u32`/`random_u64`. `uuid`, `tls`, `bcrypt` all delegate to it. Platform-specific code removed from each. |
+| D3 | ~~`uuid` has its own `/dev/urandom`/`CryptGenRandom` RNG; `crypto` has **no** RNG at all.~~ | **✅ Fixed** | `osrand` library provides shared `random_fill`/`random_u32`/`random_u64`. `uuid`, `tls`, `bcrypt` all delegate to it. Platform-specific code removed from each. |
 | D4 | `base64` lives in `crypto`, not `encoding` (which holds hex/url-encode). Placement oddity; `encoding` users must reach into `crypto`. | **✅ Fixed** | `encoding/chemical.mod` now `import crypto`, making `crypto::base64_*` accessible to encoding consumers. |
 | D5 | HTML/CSS/MD *conversion* logic lives only inside the `_cbi` plugins; only JS shares a reusable converter (`js_parser::JsNodeEmitter`). | Consistency |
 | D6 | `html`/`css`/`js` runtime libs round-trip to strings; they don't feed `page`'s SSR model (that's done by the macros). Two paths for the same data. | Consistency |
@@ -223,13 +223,13 @@ adapters.
   `ResponseWriter`, and the compression/archive buffers. Everything else (JSON
   over HTTP, gzip over HTTP, zip-from-any-source) then composes for free.
 
-### 5.2 Extract a `mime` library
+### 5.2 Extract a `mime` library — ✅ DONE
 - **Problem:** `get_mime_type` is private to `FileServer` (§4.2). `http`,
   `server`, `webview`, `fs`, and the media libs all need content-type detection
   but can't reach it.
-- **Proposal:** a standalone `mime` library (extension→type, type→extension,
-  `is_text`, `is_image`, charset inference) imported by `http`, `server`,
-  `webview`, and used by `image`/`audio`/`font` to report their own content type.
+- **Solution:** Standalone `mime` library (`lang/libs/mime/`) with `get_type(ext)`,
+  `extension(path)`, `is_text()`, `is_image()`. `http::FileServer.get_mime_type`
+  now delegates to `mime::get_type`. 16 tests cover all lookup paths.
 
 ### 5.3 Extract a `rand` library — ✅ DONE
 - **Problem:** `uuid` rolls its own `/dev/urandom`/`CryptGenRandom`; `tls` has
@@ -321,10 +321,9 @@ Adopt `Reader`/`Writer`/`Stream` (§5.1) implemented by `fs`, `net`, `http`,
 I2/I5/I8.
 
 ### 6.2 Integration glue functions (pure wrappers, near-zero cost)
-- `http`: `resw.send_json(value)` / `req.json<T>()` using `json` (I2). ← TODO
+- ✅ `http`: `resw.send_json(value)` using `json` (I2 done). `req.json<T>()` still TODO.
 - `http`: `resw.send_page(HtmlPage)` (I3). ← TODO
-- `http`: wire `tls_accept` into `Server` for HTTPS (I1) — ✅ cert/key loading done;
-  accept handshake still TODO.
+- ✅ `http`: wire `tls_accept` into `Server` for HTTPS (I1 done).
 - `image`/`audio`: ✅ `encode_png(image) -> vector<u8>`, `encode_bmp`, `encode_ppm`,
   `encode_wav(audio) -> vector<u8>` all implemented (I5 done).
 - `webview`: a `serve_from(http_server)` / local in-process static server helper (I6). ← TODO
@@ -334,7 +333,7 @@ I2/I5/I8.
 - `uuid.to_json()` / `uuid.from_json()` ← TODO
 - ✅ `datetime.to_iso8601()` and `datetime.parse(fmt, str)` implemented.
   `datetime.now()` convenience also added.
-- `mime` detection as a shared lib (§5.2) instead of `FileServer`-private. ← TODO
+- ✅ `mime` detection as a shared lib (§5.2) — DONE.
 - Unified `Path` type (§5.7) replacing duplicated `*char` free functions (D2). ← TODO
 
 ### 6.4 Shared infrastructure primitives (bundle-neutral, high value)
@@ -353,11 +352,15 @@ Ranked by **impact ÷ cost**, with the bundle/perf constraint in mind:
 | Priority | Work | Why | Cost |
 |---|---|---|---|
 | **P0** | Shared `Reader`/`Writer`/`Stream` interface (`stream` lib) across fs/net/http/compression/archive | Unlocks I2/I5/I8 and "libraries work together" | Low (traits + impls) |
-| **P0** | `http`↔`json`, `http`↔`page`, HTTPS-server accept wiring (config done) | All pieces exist; pure wiring | Low |
-| **P0** | `Logger`, `args` parser, typed `Path`/`read_dir`, `mime` lib | Highest-value missing primitives, zero runtime cost | Low–Med |
+| ~~P0~~ | ~~`http`↔`json` send_json~~ | ✅ Done — `ResponseWriter.send_json` | — |
+| ~~P0~~ | ~~HTTPS-server accept wiring~~ | ✅ Done — `tls_accept` in `handle_conn` | — |
+| **P0** | `http`↔`page`, middleware wiring | ✅ `apply_middlewares` wired; `send_page` TODO | Low |
+| **P0** | `Logger`, `args` parser, typed `Path`/`read_dir` | Highest-value missing primitives, zero runtime cost | Low–Med |
+| ~~P0~~ | ~~`mime` lib~~ | ✅ Done — `lang/libs/mime/` extracted from `FileServer` | — |
 | ~~P0~~ | ~~shared `rand` lib~~ | ✅ Done — `osrand` library | — |
 | ~~P1~~ | ~~In-memory `encode_*` for `image`/`audio`~~ | ✅ Done — `encode_png`/`bmp`/`ppm`/`wav` | — |
 | ~~P1~~ | ~~`datetime.parse`/ISO-8601~~ | ✅ Done — `parse()`, `to_iso8601()`, `now()` | — |
+| ~~P2~~ | ~~`http`: middleware live~~ | ✅ Done — `Router.apply_middlewares` wired in `Server` | — |
 | **P1** | `webview`+`http` local server | Unblocks serving/embedding media | Low–Med |
 | **P1** | `regex` global-match + flags, `uuid` JSON helpers, generic struct↔JSON | Ergonomics, pure logic | Low–Med |
 | **P1** | Extract & de-dup: `js_parser`/`universal_parser`, shared converters, `archive` reuses `compression` deflate, `lexer_utils`, `color` | Maintenance leverage + composability | Med |
@@ -381,11 +384,10 @@ to land on top of a clean shared-IO foundation.
 
 1. Add `core`/`std` `Reader` + `Writer` traits; implement for `fs::File`,
    `net::Buffer`, `http::Body`, `http::ResponseWriter` (§5.1). ← TODO
-2. `http`: `ResponseWriter.send_json(v)` and `Body.json::<T>()` via `json` (I2). ← TODO
+2. ✅ `http`: `ResponseWriter.send_json(v)` via `json` (I2 done). `Body.json::<T>()` still TODO.
 3. `http`: `ResponseWriter.send_page(p: HtmlPage)` via `page` (I3). ← TODO
-4. `http`: call `tls_accept` in `Server.handle_conn` when a cert is configured;
-   set `ResponseWriter.tls_ctx` (I1). ← **Partial** — cert/key loading done;
-   accept handshake TODO.
+4. ✅ `http`: call `tls_accept` in `Server.handle_conn` when a cert is configured;
+   set `ResponseWriter.tls_ctx` (I1 done).
 5. ✅ `server/chemical.mod`: add `import http` (I4 done).
 6. ✅ `image`/`audio`: add `encode_*() -> vector<u8>` alongside `save_*()` (I5 done).
 7. ✅ Extract a `rand` lib; have `uuid`/`tls`/`bcrypt`/`crypto` use it (§5.3, D3 done).
@@ -395,9 +397,9 @@ to land on top of a clean shared-IO foundation.
 10. `universal_parser`: import `js_parser` JS AST instead of copying it (§5.4, D1). ← TODO
 11. `path`: introduce a `Path`/`PathBuf` type; route `fs`/`path` helpers through it (§5.7, D2). ← TODO
 12. Add a `log` library (levels + sink) and a `cli`/`args` parser library. ← TODO
-13. `http`: make `Router.apply_middlewares` actually run in `Server.handle_conn`. ← TODO
+13. ✅ `http`: make `Router.apply_middlewares` actually run in `Server.handle_conn` (done).
 14. `archive`: call `compression`'s deflate so `zip_writer_add_deflate` exists (I8, §5.9). ← TODO
-15. Extract a `mime` library from `FileServer.get_mime_type` (§5.2). ← TODO
+15. ✅ Extract a `mime` library from `FileServer.get_mime_type` (§5.2) — DONE.
 16. Add a `json_serde` adapter for generic struct ↔ `JsonValue` mapping (§5.6). ← TODO
 17. Extract `lexer_utils` shared by the five parsers (§5.10). ← TODO
 18. Share HTML/CSS/MD converter emitters the way JS already does (§5.5, D5/D6). ← TODO
@@ -405,6 +407,7 @@ to land on top of a clean shared-IO foundation.
 ---
 
 *Initially prepared from a full survey of `lang/libs/*` public APIs and dependency graphs.
-Updated after completing the first batch of P0/P1 items: shared `osrand` RNG,
+Updated after completing two batches of P0/P1 items: shared `osrand` RNG,
 in-memory image/audio encoders, `datetime` parse/ISO-8601/now, HTTPS server config
-wiring, `server` dependency fix, `encoding` base64 discoverability, and 21 new tests.*
+wiring, `server` dependency fix, `encoding` base64 discoverability, middleware wiring,
+`mime` library extraction, HTTPS accept handshake, `send_json` glue, and 50+ new tests.*

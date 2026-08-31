@@ -143,9 +143,51 @@ func (cssParser : &mut CSSParser) parseFont(
 
     const token = parser.getToken()
     if(token.type == TokenType.Number) {
-        // Font Size
-        if(!cssParser.parseLength(parser, builder, &mut font.size)) {
-            parser.error("couldn't parse length");
+        // Check if this is a numeric font weight (100-900) or font size
+        // Look ahead: if the next token is a number or identifier that looks like
+        // a font-size keyword, then current token is a weight
+        var isWeight = false
+        if(token.value.size() == 3) {
+            const c0 = token.value.data()[0] as uint
+            const c1 = token.value.data()[1] as uint
+            const c2 = token.value.data()[2] as uint
+            if(c0 >= '1' as uint && c0 <= '9' as uint && c1 == '0' as uint && c2 == '0' as uint) {
+                // Looks like 100-900, check if what follows is a font size
+                const nextTok = token + 1
+                if(nextTok.type == TokenType.Number) {
+                    // Another number follows, so this is weight: "600 18px"
+                    isWeight = true
+                } else if(nextTok.type == TokenType.Identifier) {
+                    // Check if it's NOT a unit (px, em, rem, etc.)
+                    if(!nextTok.value.equals("px") && !nextTok.value.equals("em") &&
+                       !nextTok.value.equals("rem") && !nextTok.value.equals("pt") &&
+                       !nextTok.value.equals("%") && !nextTok.value.equals("/")) {
+                        isWeight = true
+                    }
+                }
+            }
+        }
+        if(isWeight) {
+            font.weight = CSSFontWeight.Absolute(builder.allocate_view(&token.value))
+            parser.increment()
+            // Now parse the font size that follows the weight
+            const sizeToken = parser.getToken()
+            if(sizeToken.type == TokenType.Number) {
+                if(!cssParser.parseLength(parser, builder, &mut font.size)) {
+                    parser.error("couldn't parse font size after weight");
+                }
+            } else if(sizeToken.type == TokenType.Identifier) {
+                const fontSizeKind = getFontSizeKeywordKind(sizeToken.fnv1())
+                if(fontSizeKind != CSSKeywordKind.Unknown) {
+                    parser.increment()
+                    alloc_value_keyword(builder, &mut font.size, fontSizeKind, &sizeToken.value)
+                }
+            }
+        } else {
+            // Font Size
+            if(!cssParser.parseLength(parser, builder, &mut font.size)) {
+                parser.error("couldn't parse length");
+            }
         }
         const next = parser.getToken();
         if(next.type == TokenType.Divide) {

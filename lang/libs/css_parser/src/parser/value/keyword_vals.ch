@@ -1350,7 +1350,24 @@ func (cssParser : &mut CSSParser) parseDisplay(
     builder : *mut ASTBuilder,
     value : &mut CSSValue
 ) {
-    cssParser.parseKeywordProperty(parser, builder, value, "display", getDisplayKeywordKind)
+    const token = parser.getToken();
+    if(token.type == TokenType.LBrace || token.type == TokenType.DollarLBrace) {
+        cssParser.parseChemValueAfterLBrace(parser, builder, value);
+        return;
+    }
+    if(token.type != TokenType.Identifier && token.type != TokenType.PropertyName) {
+        parser.not_id_val_err("display");
+        return;
+    }
+    const kind = getDisplayKeywordKind(token.fnv1());
+    if(kind != CSSKeywordKind.Unknown) {
+        parser.increment();
+        alloc_value_keyword(builder, value, kind, &token.value);
+    } else {
+        // Handle vendor-prefixed values like -webkit-box
+        parser.increment();
+        alloc_value_keyword(builder, value, CSSKeywordKind.Unknown, &token.value);
+    }
 }
 
 func (cssParser : &mut CSSParser) parsePosition(
@@ -1473,6 +1490,15 @@ func (cssParser : &mut CSSParser) parseCursor(
     value : &mut CSSValue
 ) {
     const token = parser.getToken();
+
+    // Handle url() cursor: url("pointer.png") 4 12, auto
+    if(token.type == TokenType.Identifier && token.fnv1() == comptime_fnv1_hash("url")) {
+        parser.increment()
+        // Use raw value parsing for the entire cursor value including url, hotspot, fallbacks
+        cssParser.parseRawPropertyValue(parser, builder, value)
+        return
+    }
+
     if(token.type != TokenType.Identifier) {
         parser.not_id_val_err("cursor");
         return;
@@ -3107,6 +3133,11 @@ func (cssParser : &mut CSSParser) parseImageOrientation(
         value : &mut CSSValue
 ) {
     const token = parser.getToken();
+    // Handle angle values like 90deg
+    if(token.type == TokenType.Number) {
+        cssParser.parseRawPropertyValue(parser, builder, value)
+        return
+    }
     if(token.type != TokenType.Identifier) {
         parser.not_id_val_err("image-orientation")
         return;

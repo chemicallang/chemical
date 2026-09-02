@@ -73,7 +73,7 @@ void diagnoseModuleFileDataUnit(WorkspaceManager& manager, ModuleFileDataUnit* u
 
     if (!diagnoser.diagnostics.empty()) {
         // append all the diagnostics
-        unit->modFileData.diagnostics.insert(unit->modFileData.diagnostics.end(), diagnoser.diagnostics.begin(), diagnoser.diagnostics.end());
+        unit->modFileData.parse_diagnostics.insert(unit->modFileData.parse_diagnostics.end(), diagnoser.diagnostics.begin(), diagnoser.diagnostics.end());
     }
 
 }
@@ -149,7 +149,7 @@ void WorkspaceManager::process_dot_mod_file(const std::string& path) {
 
     // publish diagnotics of parsing
     std::vector<lsp::Diagnostic> diagnostics;
-    add_diagnostics(diagnostics, unit->modFileData.diagnostics);
+    add_diagnostics(diagnostics, unit->modFileData.parse_diagnostics);
     publish_diagnostics(path, diagnostics);
 
 }

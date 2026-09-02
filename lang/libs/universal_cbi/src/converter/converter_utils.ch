@@ -23,6 +23,23 @@ func (converter : &mut JsConverter) escapeJs(text : std::string_view) {
         if (c1 < 0x80) {
             if (c1 == '`' as uint) {
                 str.append_view("\\`");
+            } else if (c1 == '\\' as uint) {
+                str.append_view("\\\\");
+            } else if (c1 == '\n' as uint) {
+                str.append_view("\\n");
+            } else if (c1 == '\r' as uint) {
+                str.append_view("\\r");
+            } else if (c1 == '\t' as uint) {
+                str.append_view("\\t");
+            } else if (c1 == '\"' as uint) {
+                str.append_view("\\\"");
+            } else if (c1 == '\'' as uint) {
+                str.append_view("\\'");
+            } else if (c1 == '$' as uint && i + 1 < text.size() && ((text.data()[i+1] as uint) & 0xFF) == '{' as uint) {
+                str.append_view("\\$");
+                str.append('{');
+                i += 2;
+                continue;
             } else {
                 str.append(c1 as char);
             }

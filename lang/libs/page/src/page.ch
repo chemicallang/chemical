@@ -334,6 +334,8 @@ public struct HtmlPage {
             if(c == '`') pageJs.append_view("\\`")
             else if(c == '$' && i + 1 < delta_size && delta[i+1] == '{') pageJs.append_view("\\$")
             else if(c == '\\') pageJs.append_view("\\\\")
+            else if(c == '\n') pageJs.append_view("\\n")
+            else if(c == '\r') pageJs.append_view("\\r")
             else pageJs.append(c)
         }
         pageHtml.resize(index);

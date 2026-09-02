@@ -97,13 +97,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                     converter.str.append_view(" ");
                     converter.str.append_view(&bin.op);
                     converter.str.append_view(" ");
-                    if(bin.right != null && bin.right.kind == JsNodeKind.Ternary) {
-                        converter.str.append_view("(");
-                        converter.convertJsNode(bin.right);
-                        converter.str.append_view(")");
-                    } else {
-                        converter.convertJsNode(bin.right);
-                    }
+                    converter.convertJsNode(bin.right);
                     converter.skip_reactive_deref = false;
                     return;
                 }
@@ -115,13 +109,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 converter.str.append_view(" ");
                 converter.str.append_view(&bin.op);
                 converter.str.append_view(" ");
-                if(bin.right != null && bin.right.kind == JsNodeKind.Ternary) {
-                    converter.str.append_view("(");
-                    converter.convertJsNode(bin.right);
-                    converter.str.append_view(")");
-                } else {
-                    converter.convertJsNode(bin.right);
-                }
+                converter.convertJsNode(bin.right);
                 return;
             }
             if(bin.left != null && bin.left.kind == JsNodeKind.Identifier) {
@@ -133,50 +121,20 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                     converter.str.append_view(" ");
                     converter.str.append_view(&bin.op);
                     converter.str.append_view(" ");
-                    if(bin.right != null && bin.right.kind == JsNodeKind.Ternary) {
-                        converter.str.append_view("(");
-                        converter.convertJsNode(bin.right);
-                        converter.str.append_view(")");
-                    } else {
-                        converter.convertJsNode(bin.right);
-                    }
+                    converter.convertJsNode(bin.right);
                 } else {
-                    if(bin.left != null && bin.left.kind == JsNodeKind.Ternary) {
-                        converter.str.append_view("(");
-                        converter.convertJsNode(bin.left);
-                        converter.str.append_view(")");
-                    } else {
-                        converter.convertJsNode(bin.left);
-                    }
+                    converter.convertJsNode(bin.left);
                     converter.str.append_view(" ");
                     converter.str.append_view(&bin.op);
                     converter.str.append_view(" ");
-                    if(bin.right != null && bin.right.kind == JsNodeKind.Ternary) {
-                        converter.str.append_view("(");
-                        converter.convertJsNode(bin.right);
-                        converter.str.append_view(")");
-                    } else {
-                        converter.convertJsNode(bin.right);
-                    }
+                    converter.convertJsNode(bin.right);
                 }
             } else {
-                if(bin.left != null && bin.left.kind == JsNodeKind.Ternary) {
-                    converter.str.append_view("(");
-                    converter.convertJsNode(bin.left);
-                    converter.str.append_view(")");
-                } else {
-                    converter.convertJsNode(bin.left);
-                }
+                converter.convertJsNode(bin.left);
                 converter.str.append_view(" ");
                 converter.str.append_view(&bin.op);
                 converter.str.append_view(" ");
-                if(bin.right != null && bin.right.kind == JsNodeKind.Ternary) {
-                    converter.str.append_view("(");
-                    converter.convertJsNode(bin.right);
-                    converter.str.append_view(")");
-                } else {
-                    converter.convertJsNode(bin.right);
-                }
+                converter.convertJsNode(bin.right);
             }
         }
         JsNodeKind.Ternary => {

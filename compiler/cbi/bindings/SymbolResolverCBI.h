@@ -6,6 +6,8 @@
 
 class ASTNode;
 
+class BaseType;
+
 class Value;
 
 class SymbolResolver;
@@ -20,6 +22,7 @@ class ASTBuilder;
 
 class EmbeddedNode;
 class EmbeddedValue;
+class ImplDefinition;
 
 class AnnotationController;
 
@@ -49,6 +52,8 @@ extern "C" {
 
     void SymbolResolvergetFileBuilder(ASTBuilder* out_builder, SymbolResolver* resolver);
 
+    void SymbolResolverindex_impl(SymbolResolver* resolver, ImplDefinition* impl);
+
     // SymResLinkBody
 
     SymbolResolver* SymResLinkBodygetSymbolResolver(SymResLinkBody* visitor);
@@ -58,6 +63,8 @@ extern "C" {
     SymbolTable* SymResLinkBodygetSymbolTable(SymResLinkBody* visitor);
 
     void SymResLinkBodyvisitNode(SymResLinkBody* visitor, ASTNode* node);
+
+    void SymResLinkBodyvisitType(SymResLinkBody* visitor, BaseType* type, uint64_t location);
 
     void SymResLinkBodyvisitValue(SymResLinkBody* visitor, Value* value);
 

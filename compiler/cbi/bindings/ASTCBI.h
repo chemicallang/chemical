@@ -101,9 +101,23 @@ extern "C" {
 
     std::vector<Value*>* ExpressiveStringgetValues(ExpressiveString* value);
 
+    void FunctionCalladd_generic_arg(FunctionCall* value, BaseType* type, uint64_t location);
+
     std::vector<Value*>* FunctionCallget_args(FunctionCall* value);
 
+    PatternMatchExpr* ASTBuildermake_pattern_match_expr(ASTBuilder* builder, bool is_const, bool destructure_by_name, chem::string_view* name, uint64_t location);
+
+    PatternMatchExprNode* ASTBuildermake_pattern_match_node(ASTBuilder* builder, PatternMatchExpr* expr, ASTNode* parent_node, uint64_t location);
+
+    void PatternMatchExprset_expression(PatternMatchExpr* expr, Value* value);
+
+    void PatternMatchExprset_else_unreachable(PatternMatchExpr* expr);
+
+    PatternMatchIdentifier* PatternMatchExpradd_param_name(PatternMatchExpr* expr, ASTBuilder* builder, chem::string_view* name, uint64_t location);
+
     std::vector<Value*>* FunctionCallNodeget_args(AccessChainNode* node);
+
+    void FunctionCallNodeadd_generic_arg(AccessChainNode* node, BaseType* type, uint64_t location);
 
     Value** IndexOperatorget_idx_ptr(IndexOperator* op);
 

@@ -43,3 +43,7 @@ ASTNode* ParserparseNestedLevelStatement(Parser* parser, ASTBuilder* builder) {
 void Parsererror_at(Parser* parser, chem::string_view* view, Token* token) {
     parser->error(*view, token->position);
 }
+
+BaseType* ParserparseType(Parser* parser, ASTBuilder* builder) {
+    return parser->parseType(*builder->allocator);
+}

@@ -32,8 +32,11 @@
 #include "ast/values/IsValue.h"
 #include "ast/values/VariantCaseVariable.h"
 #include "ast/values/NotValue.h"
+#include "ast/values/PatternMatchExpr.h"
+#include "ast/statements/PatternMatchExprNode.h"
 #include "ast/values/BitwiseNot.h"
 #include "ast/values/AddrOfValue.h"
+#include "ast/values/ReferenceOfValue.h"
 #include "ast/values/DereferenceValue.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/statements/Import.h"
@@ -221,6 +224,17 @@ GenericType* ASTBuildermake_generic_type(ASTBuilder* builder, LinkedType* linked
     return new (builder->allocate<GenericType>()) GenericType(linkedType);
 }
 
+// Chemical binding passes std::span as pointer to struct { ptr, size }
+GenericType* ASTBuildermake_generic_type_with_args(ASTBuilder* builder, LinkedType* linkedType, BaseTypeSpan* args, UbigintSpan* locs) {
+    auto count = std::min(args->size, locs->size);
+    std::vector<TypeLoc> types;
+    types.reserve(count);
+    for(std::size_t i = 0; i < count; i++) {
+        types.push_back({args->ptr[i], locs->ptr[i]});
+    }
+    return new (builder->allocate<GenericType>()) GenericType(linkedType, std::move(types));
+}
+
 LinkedType* ASTBuildermake_linked_type(ASTBuilder* builder, chem::string_view* type, ASTNode* linked, uint64_t location) {
     return new (builder->allocate<LinkedType>()) LinkedType(linked);
 }
@@ -275,6 +289,12 @@ ValueWrapperNode* ASTBuildermake_value_wrapper(ASTBuilder* builder, Value* value
 AddrOfValue* ASTBuildermake_addr_of_value(ASTBuilder* builder, Value* value, bool is_mutable, uint64_t location) {
     const auto ptrType = new (builder->allocate<PointerType>()) PointerType(value->getType(), is_mutable);
     return new (builder->allocate<AddrOfValue>()) AddrOfValue(value, is_mutable, ptrType, location);
+}
+
+ReferenceOfValue* ASTBuildermake_reference_of_value(ASTBuilder* builder, Value* value, bool is_mutable, uint64_t location) {
+    // mirror the parser's &mut construction (reference type child resolved later)
+    const auto refType = new (builder->allocate<ReferenceType>()) ReferenceType(nullptr, is_mutable);
+    return new (builder->allocate<ReferenceOfValue>()) ReferenceOfValue(value, is_mutable, refType, location);
 }
 
 ArrayValue* ASTBuildermake_array_value(ASTBuilder* builder, BaseType* type, uint64_t location) {
@@ -449,7 +469,11 @@ ValueNode* ASTBuildermake_value_node(ASTBuilder* builder, Value* value, ASTNode*
 VariableIdentifier* ASTBuildermake_identifier(ASTBuilder* builder, chem::string_view* value, ASTNode* linked, bool is_ns, uint64_t location) {
     const auto id = new (builder->allocate<VariableIdentifier>()) VariableIdentifier(*value, location, is_ns);
     id->linked = linked;
-    id->setType(linked->known_type());
+    if(linked && linked->kind() != ASTNodeKind::PatternMatchId) {
+        // PatternMatchIdentifier::known_type() dereferences member_param which is
+        // only populated during symres linking — skip it for this node kind
+        id->setType(linked->known_type());
+    }
     return id;
 }
 
@@ -526,12 +550,17 @@ ForLoop* ASTBuildermake_for_loop(ASTBuilder* builder, VarInitStatement* initiali
 }
 
 FunctionDeclaration* ASTBuildermake_function(ASTBuilder* builder, chem::string_view* name, BaseType* returnType, bool isVariadic, ASTNode* parent_node, uint64_t location) {
-    return new (builder->allocate<FunctionDeclaration>()) FunctionDeclaration(*name, {returnType, location}, isVariadic, parent_node, location);
+    auto decl = new (builder->allocate<FunctionDeclaration>()) FunctionDeclaration(*name, {returnType, location}, isVariadic, parent_node, location);
+    decl->FunctionType::data.signature_resolved = true;
+    return decl;
 }
 
 FunctionParam* ASTBuildermake_function_param(ASTBuilder* builder, chem::string_view* name, BaseType* type, unsigned int index, Value* value, bool implicit, ASTNode* decl, uint64_t location) {
     // TODO casting function type as parent node, this is wrong
-    return new (builder->allocate<FunctionParam>()) FunctionParam(*name, {type, location}, index, value, implicit, decl, location);
+    auto param = new (builder->allocate<FunctionParam>()) FunctionParam(*name, {type, location}, index, value, implicit, decl, location);
+    // automatically-created params also need their signatures considered resolved
+    // (TypeLoc type here is only for CBI use; FunctionParam has no signature flag)
+    return param;
 }
 
 GenericTypeParameter* ASTBuildermake_generic_param(ASTBuilder* builder, chem::string_view* name, BaseType* def_type, ASTNode* parent_node, unsigned int index, uint64_t location) {
@@ -682,12 +711,59 @@ std::vector<Value*>* ExpressiveStringgetValues(ExpressiveString* value) {
     return &value->values;
 }
 
+void FunctionCalladd_generic_arg(FunctionCall* value, BaseType* type, uint64_t location) {
+    value->generic_list.emplace_back(type, location);
+}
+
+PatternMatchExpr* ASTBuildermake_pattern_match_expr(ASTBuilder* builder, bool is_const, bool destructure_by_name, chem::string_view* name, uint64_t location) {
+    return new (builder->allocate<PatternMatchExpr>()) PatternMatchExpr(is_const, destructure_by_name, *name, location);
+}
+
+PatternMatchExprNode* ASTBuildermake_pattern_match_node(ASTBuilder* builder, PatternMatchExpr* expr, ASTNode* parent_node, uint64_t location) {
+    const auto node = new (builder->allocate<PatternMatchExprNode>()) PatternMatchExprNode(expr->is_const, expr->destructure_by_name, expr->member_name, location, parent_node);
+    // move the configured fields into the node's embedded pattern match expression.
+    // this shares the SAME PatternMatchIdentifier nodes, so identifiers that were
+    // pre-linked to them (via PatternMatchExpradd_param_name) stay valid.
+    node->value.expression = expr->expression;
+    node->value.elseExpression = expr->elseExpression;
+    node->value.param_names = std::move(expr->param_names);
+    // repoint the destructured identifiers at the node's embedded expression:
+    // codegen keys its local_allocated map by the PatternMatchExpr it visits
+    // (&node->value), so an id->matchExpr pointing at the abandoned temp expr
+    // would fail the lookup and the identifier would emit as a bare c name.
+    for(auto* pm_id : node->value.param_names) {
+        if(pm_id) {
+            pm_id->matchExpr = &node->value;
+        }
+    }
+    return node;
+}
+
+void PatternMatchExprset_expression(PatternMatchExpr* expr, Value* value) {
+    expr->expression = value;
+}
+
+void PatternMatchExprset_else_unreachable(PatternMatchExpr* expr) {
+    expr->elseExpression.kind = PatternElseExprKind::Unreachable;
+}
+
+PatternMatchIdentifier* PatternMatchExpradd_param_name(PatternMatchExpr* expr, ASTBuilder* builder, chem::string_view* name, uint64_t location) {
+    const auto pmId = new (builder->allocate<PatternMatchIdentifier>()) PatternMatchIdentifier(expr, *name, nullptr, location);
+    expr->param_names.emplace_back(pmId);
+    return pmId;
+}
+
 std::vector<Value*>* FunctionCallget_args(FunctionCall* value) {
     return &value->values;
 }
 
 std::vector<Value*>* FunctionCallNodeget_args(AccessChainNode* node) {
     return &node->chain.values.back()->as_func_call_unsafe()->values;
+}
+
+void FunctionCallNodeadd_generic_arg(AccessChainNode* node, BaseType* type, uint64_t location) {
+    // proxy to the call embedded as the last chain value, mirroring FunctionCallNodeget_args
+    node->chain.values.back()->as_func_call_unsafe()->generic_list.emplace_back(type, location);
 }
 
 Value** IndexOperatorget_idx_ptr(IndexOperator* op) {

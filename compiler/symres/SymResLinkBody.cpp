@@ -492,6 +492,22 @@ void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, b
 
 void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, bool check_access) {
     auto& value = identifier->value;
+    // CBI-generated identifiers may be pre-linked by the plugin (e.g. a resolved
+    // variant member / generic decl / struct that is not name-resolvable in this
+    // scope). honor the pre-set link instead of re-resolving by name; the parser
+    // only pre-links identifiers under the LSP build, so this primarily affects
+    // plugin-generated ASTs.
+    if(identifier->linked != nullptr) {
+        if(identifier->getType() == nullptr) {
+            identifier->setType(identifier->linked->known_type());
+        }
+        if(check_access) {
+            // check for validity if accessible or assignable (because moved)
+            check_id(identifier, diagnoser);
+        }
+        identifier->process_linked(&diagnoser, current_func_type);
+        return;
+    }
     if(in_lambda_scope) {
         auto sym = tld_resolve_bucket(value);
         if(sym == nullptr || sym->activeNode == nullptr) {

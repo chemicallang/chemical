@@ -36,4 +36,8 @@ public interface SymbolResolver : ASTDiagnoser {
     // use carefully
     func getFileBuilder(&self) : ASTBuilder
 
+    // register + index an impl that was generated after the module's index phase
+    // (e.g. by a macro during LinkBody). must run before the impl is body-linked
+    func index_impl(&self, impl : *mut ImplDefinition)
+
 }

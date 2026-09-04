@@ -3148,6 +3148,12 @@ void CTopLevelDeclarationVisitor::VisitInterfaceDecl(InterfaceDefinition *def) {
     }
 }
 
+void CTopLevelDeclarationVisitor::VisitScope(Scope* scope) {
+    for(const auto node : scope->nodes) {
+        visit(node);
+    }
+}
+
 void CTopLevelDeclarationVisitor::VisitImplDecl(ImplDefinition *def) {
     if(def->struct_type) {
         const auto interface_def = def->interface_type->get_direct_linked_interface();

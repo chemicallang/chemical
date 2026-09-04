@@ -48,6 +48,8 @@ extern "C" {
 
     GenericType* ASTBuildermake_generic_type(ASTBuilder* builder, LinkedType* linkedType);
 
+    GenericType* ASTBuildermake_generic_type_with_args(ASTBuilder* builder, LinkedType* linkedType, BaseTypeSpan* args, UbigintSpan* locs);
+
     LinkedType* ASTBuildermake_linked_type(ASTBuilder* builder, chem::string_view* type, ASTNode* linked, uint64_t location);
 
     LinkedValueType* ASTBuildermake_linked_value_type(ASTBuilder* builder, Value* value, uint64_t location);
@@ -93,6 +95,8 @@ extern "C" {
     ValueWrapperNode* ASTBuildermake_value_wrapper(ASTBuilder* builder, Value* value, ASTNode* parent_node);
 
     AddrOfValue* ASTBuildermake_addr_of_value(ASTBuilder* builder, Value* value, bool is_mutable, uint64_t location);
+
+    ReferenceOfValue* ASTBuildermake_reference_of_value(ASTBuilder* builder, Value* value, bool is_mutable, uint64_t location);
 
     ArrayValue* ASTBuildermake_array_value(ASTBuilder* builder, BaseType* type, uint64_t location);
 

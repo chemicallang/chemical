@@ -32,13 +32,11 @@ improves C output, and lower-level than the AST where precise sequencing,
 storage, and lifetime behavior are needed.
 
 The core MIR must not contain a “write this C text” instruction. During migration
-only, a separate C-translation adapter may contain a `LegacyCFragment` attached
-to a statement boundary. Such a fragment is explicitly C-only, opaque to MIR
+only, a separate C-translation adapter may contain a `LegacyCFragment` for a
+complete legacy function. Such a fragment is explicitly C-only, opaque to MIR
 optimization, interpretation, LLVM, JVM, and Wasm, and cannot share MIR cleanup
-state with surrounding instructions. The adapter must either lower the whole
-containing statement/function through the legacy path or prove that the fragment
-has no ownership/control-flow interaction with the MIR region. This is a
-temporary migration bridge, not a permanent MIR escape hatch.
+state with a MIR function. This is a temporary migration bridge, not a
+permanent MIR escape hatch.
 
 The canonical internal form is a CFG. Structured operations such as `if`,
 `while`, and `switch` may be retained while building MIR, but they must have a
@@ -46,13 +44,14 @@ well-defined lowering to blocks and branches. C emission may choose structured
 C when it is safe and readable; it must never depend on C structure to define
 MIR semantics.
 
-The initial adoption target is the 2c backend. A separate `MIRLowerer` will
-lower one resolved function at a time, and a C emitter will translate that MIR
-to the existing output buffer. `2cASTVisitor.cpp` is the integration point, not
-the MIR implementation: it may invoke `MIRLowerer`, but MIR construction must
-not depend on `BufferedWriter`, `nested_value`, C names, or legacy destructor
-queues. Top-level declaration emission can remain unchanged until function-body
-MIR is proven on the complete test suite.
+The initial adoption target is the 2c backend. `MIRLowerer` lowers selected
+complete functions and a C emitter translates them into the same module output
+as legacy 2c functions. `2cASTVisitor.cpp` is the integration point, not the
+MIR implementation: it may select the backend for a function, but MIR
+construction must not depend on `BufferedWriter`, `nested_value`, C names, or
+legacy destructor queues. Top-level declaration emission can remain unchanged
+initially, but MIR-backed functions must be exercised from the first
+implementation milestone.
 
 ## 2. Why The Current Design Needs A Boundary
 
@@ -1036,6 +1035,28 @@ passed. If it is moved into a local, use `move_init`/`memcpy` according to the
 type's operation table. Never emit a value-block that copies an aggregate merely
 to make expression composition possible.
 
+### 8.6 Incremental MIR/legacy integration
+
+MIR and legacy 2c are expected to run together during the migration, but the
+unit of selection is a complete function. The module coordinator emits shared
+declarations once, then selects either `MIRFunctionEmitter` or
+`ToCAstVisitor` for each function. A function never contains a mixture of MIR
+cleanup state and legacy cleanup queues.
+
+The first MIR-backed functions should be deliberately small and representative:
+primitive arithmetic, locals, calls, and returns. They must be selected through
+the normal C backend/module pipeline, compiled by TinyCC, and included in the
+ordinary test suite. As MIR gains control flow, aggregates, lambdas, and
+lifetime semantics, more existing functions become eligible. Unsupported
+functions remain on legacy 2c until an AI-assisted migration or manual port
+converts them and differential tests pass.
+
+This gives the migration three simultaneous properties:
+
+1. MIR is exercised in production compilation and tests from day one.
+2. Legacy and MIR functions coexist in one module and share declarations/ABI.
+3. The legacy backend shrinks by function coverage until it can be removed.
+
 ## 9. Interpreter Backend
 
 The interpreter executes the same MIR instruction semantics, not a separate
@@ -1364,17 +1385,23 @@ test before being enabled.
 
 ### Stage 8: Make MIR C the default incrementally
 
-Use per-function and per-module feature gates initially. A function containing
-unsupported ownership or control-flow interaction must lower wholly through the
-legacy path; do not mix legacy destructor scheduling with MIR cleanup in one
-function. A statement-level `LegacyCFragment` is permitted only for a proven
-side-effect-free statement boundary that has no ownership, cleanup, control-flow,
-or alias interaction with neighboring MIR instructions. Until such proof exists,
-the statement gate must escalate to whole-function legacy fallback. A fragment
-is never an input to a portable MIR backend. When all functions in a module
-successfully lower and verify, emit that module through MIR. Every fallback must
-be visible in verbose/debug output and must not silently mix lifetime state
-between legacy and MIR code.
+Use per-function and per-module feature gates initially. The normal C backend
+must compile mixed modules from the first MIR integration: selected complete
+functions use MIR C, while unsupported functions use legacy 2c. A function
+containing unsupported ownership or control-flow interaction must lower wholly
+through the legacy path; do not mix legacy destructor scheduling with MIR cleanup
+in one function. A statement-level `LegacyCFragment` is not part of the initial
+migration model. Every fallback must be visible in verbose/debug output and
+must not silently mix lifetime state between legacy and MIR code.
+
+Migrate function families incrementally, using allowlists or annotations at
+first, then capability-based selection. Each migrated function must pass MIR
+verification, compile through the ordinary TinyCC path, and pass differential
+tests against legacy 2c before it is added to the migrated set. AI-assisted
+migration is expected to automate this loop. When all supported functions in a
+module successfully lower and verify, that module has no legacy function
+artifacts; this is an endpoint of the migration, not a prerequisite for using
+MIR in the module.
 
 ### Stage 9: Add LLVM lowering
 

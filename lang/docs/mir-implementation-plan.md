@@ -50,9 +50,11 @@ Revision: v2 — addresses contradictions, gaps, and missing details from v1 rev
    MIR difficult to construct. The verifier is a safety net, not the primary
    correctness mechanism.
 
-5. **One lowering pass.** Semantic decisions (overload resolution, implicit
-   constructors, receiver placement, destructor scheduling) are made once during
-   AST-to-MIR lowering. Backends consume MIR, not AST.
+5. **One lowering pass per adopted function.** Semantic decisions (overload
+   resolution, implicit constructors, receiver placement, destructor scheduling)
+   are made once during AST-to-MIR lowering. The surrounding module may still
+   contain legacy 2c functions, but a selected function is fully represented by
+   MIR before C emission.
 
 6. **Preserve existing evaluation order.** The current 2c visitor already computes
    correct evaluation order for assignments, calls, and constructors. MIR must
@@ -421,17 +423,18 @@ parse → symres (6 passes) → typeverify → 2c/LLVM → link
 ### 3.2 MIR pipeline
 
 ```
-parse → symres (6 passes) → typeverify → [MIR phase] → link
-                                         ┌─────────────────────┐
+parse → symres (6 passes) → typeverify → C backend → link
+                                          ┌─────────────────────┐
                                          │ serial:              │
                                          │   build type table   │
                                          │   build symbol table │
                                          │   enumerate functions│
                                          │   seal context       │
                                          │                      │
-                                         │ parallel (per file): │
-                                         │   lower functions    │
-                                         │   emit C / LLVM      │
+                                          │ parallel (per file): │
+                                          │   select functions   │
+                                          │   lower MIR or 2c    │
+                                          │   emit C artifacts   │
                                          │                      │
                                          │ serial:              │
                                          │   merge artifacts    │
@@ -455,13 +458,14 @@ if(options.use_mir) {
     // Serial prologue — builds tables, enumerates functions
     ctx.prepare_module();
 
-    // Parallel lowering + emission — one task per file
+    // Select complete functions for MIR or legacy 2c. Both artifacts are
+    // emitted into the same module and then passed to the existing C pipeline.
     ctx.lower_and_emit_module();
 
     // Serial merge — concatenates function artifacts into module output
     ctx.merge_module();
 
-    // Pass the merged C output to the existing TinyCC/LLVM pipeline
+    // Pass the merged C output to the existing TinyCC pipeline
 } else {
     processor.declare_module(c_visitor, module);
     processor.implement_module(c_visitor, module);
@@ -527,7 +531,9 @@ LoweringPath select_lowering_path(
 ```
 
 **Critical rule:** A function is either fully MIR or fully legacy. Never mix
-within one function. When a function falls back to legacy:
+MIR cleanup state and legacy cleanup queues within one function. Different
+functions in the same module are expected to use different paths from the first
+integration milestone. When a function falls back to legacy:
 - The entire function body is translated by `ToCAstVisitor` (legacy path).
 - The function's C output is treated as a `LegacyCFragment` for module merge.
 - The fragment must have no ownership/cleanup interaction with surrounding MIR
@@ -562,6 +568,13 @@ MIR and legacy artifacts in source order. This is safe because:
 - Each function is a separate C function body.
 - Module-level declarations (types, prototypes) are shared by both paths.
 - No MIR cleanup state interacts with legacy cleanup state.
+
+This mixed-module mode is the primary migration mode, not a temporary test
+mode. Function selection may initially be an explicit allowlist or annotation,
+then become capability-based, and finally be driven by the remaining legacy
+coverage. An AI-assisted migration can port one function or one family of
+functions at a time, run differential tests, and move only verified functions
+to the MIR allowlist.
 
 ### 3.7 Error Handling During Lowering
 
@@ -1021,6 +1034,12 @@ drop %s                                        ; cleanup after call
 
 **Goal:** Emit C code from MIR for the straight-line subset.
 
+This stage also establishes the real migration path: the MIR emitter is
+invoked by the existing C backend for an allowlisted set of complete
+functions, while other functions in the same module continue through
+`ToCAstVisitor`. MIR is not validated only by a standalone emitter or a
+separate compilation path.
+
 **Files to create:**
 ```
 compiler/mir/cbackend/MIREmitter.h/.cpp        // MIR → C emission
@@ -1135,6 +1154,10 @@ Each nested call gets its own result place. No compound expressions.
 **Tests:**
 - Golden tests: MIR C output must match legacy 2c output for straight-line
   functions.
+- Compile mixed modules containing both MIR-backed and legacy functions, then
+  run them through the normal TinyCC test path.
+- Select MIR functions by explicit allowlist/annotation and report the selected
+  and fallback counts.
 - Evaluation order tests: effectful calls must remain in source order.
 - Expression compaction tests: `take(i * 8, i * 2, i * 4)` produces no temp
   variables.
@@ -1325,23 +1348,32 @@ or a separate place, not the same place as `x`.
 
 ---
 
-### Stage 7: MIR C Default + Legacy Removal (PR 7)
+### Stage 7: MIR C Coverage Migration + Legacy Removal (PR 7)
 
-**Goal:** Make MIR C the default for all functions that can be lowered.
+**Goal:** Make MIR C the default for an increasing set of complete functions,
+while preserving one mixed module pipeline until the legacy coverage reaches
+zero for the supported target.
 
 **Approach:**
-1. Enable MIR by default for all functions.
+1. Enable MIR selection in the normal C backend for an explicit seed set of
+   functions.
 2. Functions with unsupported features fall back to legacy automatically.
-3. Track fallback count in verbose output.
-4. Benchmark MIR vs legacy on full test suite.
-5. Fix remaining fallbacks one by one.
-6. When fallback count = 0, remove legacy path.
+3. Track selected, migrated, and fallback functions in verbose output and a
+   machine-readable migration report.
+4. Benchmark mixed MIR/legacy modules and compare each migrated function with
+   legacy 2c by differential tests.
+5. Use AI-assisted ports to migrate remaining function families one at a time;
+   do not accept a migration without compilation and runtime verification.
+6. Remove the legacy path only when all supported functions are MIR-backed and
+   deliberately excluded jobs (such as CBI/plugin compilation) have an explicit
+   replacement or permanent boundary.
 
 **Feature gates:**
 ```
 --use-mir          Force MIR for all functions (error on unsupported)
 --no-mir           Force legacy for all functions
 --mir-only <fn>    MIR for specific function (debugging)
+--mir-functions <set>  MIR allowlist for migration batches
 --dump-mir         Print MIR for all functions
 --verify-mir       Run full MIR verification
 ```
@@ -1625,10 +1657,13 @@ benchmark, investigate before proceeding to the next stage.
 ### 7.3 Incremental adoption risk (MIR/legacy boundary bugs)
 
 **Mitigation:**
-- A function is either fully MIR or fully legacy. Never mix within one function.
+- A function is either fully MIR or fully legacy. Never mix within one function;
+  different functions in the same C module use different paths from day one.
 - The feature gate is conservative: any unsupported feature → legacy fallback.
-- Fallback count is tracked and visible in verbose output.
-- Legacy path is never removed until fallback count = 0.
+- Selected, migrated, and fallback counts are tracked and visible in verbose
+  output and migration reports.
+- Legacy path is never removed until all supported functions have migrated and
+  explicitly excluded jobs have a documented boundary.
 
 ### 7.4 Parallelism risk (race conditions, nondeterministic output)
 
@@ -1663,8 +1698,9 @@ benchmark, investigate before proceeding to the next stage.
 7. **No JVM, Wasm, or JIT emitters.** Focus on C and LLVM first.
 8. **No shared mutable state in workers.** No mutex in the hot path, ever.
 9. **No MIR for comptime.** Comptime stays on the AST interpreter.
-10. **No statement-level LegacyCFragment.** Whole-function fallback only
-    (until proof that statement-level fragments are safe).
+10. **No statement-level LegacyCFragment in the initial migration.** Whole-
+    function fallback preserves ownership isolation while function coverage is
+    migrated incrementally.
 
 ---
 
@@ -1679,7 +1715,7 @@ benchmark, investigate before proceeding to the next stage.
 | 4 | C emitter (straight-line) | MIR → C for simple functions | PR 2, PR 3 | Golden tests match legacy 2c |
 | 5 | MIR interpreter | Execute straight-line MIR | PR 3 | Compare with compiled output |
 | 6 | CFG + aggregates + cleanup | Full language subset | PR 3, PR 4, PR 5 | All destructor/control flow tests pass |
-| 7 | MIR default | Enable for all, legacy fallback | PR 6 | Full test suite passes |
+| 7 | MIR coverage migration | Mixed MIR/legacy modules, then remove fallback | PR 6 | Full test suite plus migration report |
 | 8 | LLVM lowering | MIR → LLVM IR | PR 6 | All LLVM tests pass |
 | 9 | Parallel lowering | File-level parallelism | PR 7 | Parallel ≥1.5x on 4+ cores |
 
@@ -1690,6 +1726,7 @@ benchmark, investigate before proceeding to the next stage.
 1. **Functional:** All existing tests pass through MIR C output.
 2. **Performance:** `debug_quick` MIR compilation time ≤ legacy 2c time.
 3. **Correctness:** MIR interpreter results match compiled executable output.
-4. **Adoption:** MIR is the default for all functions within 6 months.
+4. **Adoption:** MIR-backed functions are used in the normal C backend from
+   day one, and coverage increases until all supported functions are migrated.
 5. **Parallelism:** File-level parallel MIR lowering is ≥1.5x faster than serial.
 6. **Code quality:** MIR C output is at least as clean as legacy 2c output.

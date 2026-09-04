@@ -216,6 +216,7 @@ The following skills are available in `.agents/skills/`. An AI agent should load
 | Compiler API | `.agents/skills/compiler_api/SKILL.md` | Compiler API bindings in `lang/libs/compiler/`: ASTBuilder, Lexer, Parser, SymbolResolver, SourceProvider, BatchAllocator |
 | Intrinsics & Reflection | `.agents/skills/intrinsics_compiler_reflection/SKILL.md` | Compiler intrinsics: all `intrinsics::*` functions, interpreter-friendly std types (`InterpretVector`), reflection APIs for module/type/function metadata, how to add new intrinsics |
 | Interpreter Internals | `.agents/skills/interpreter/SKILL.md` | AST interpreter: `InterpretScope`, move semantics (`move_clear_source`), temp struct destruction, pointer bounds, function calls, debugging interpretation tests, interpreter-friendly std data structures |
+| JSON Serialization | `.agents/skills/json_serialization/SKILL.md` | JSON via the `json` runtime library (`JsonValue`, `JsonEncoder`/`JsonDecoder`, `TypeDecoder<T>` dispatch) and the `json_cbi` `#json(Struct)` macro that generates `std::Serializer`/`std::Deserializer` impls — full pipeline, CBI bindings it relies on, and codegen/symres gotchas |
 
 ### How to load a skill
 
@@ -256,6 +257,8 @@ The skill name is the directory name under `.agents/skills/`. For example:
 | **Testing components in a real browser / debugging hydration or runtime bugs** | **`components_e2e`**, `universal`, `testing` |
 | **Building CBI macro plugins** | `compiler_bindings`, `macro_code_gen`, `compiler_api` |
 | **Extending libraries (`lang/libs/`)** | `compiler_api`, `cbi_plugin_api` |
+| **Working on the `json` library / the `#json` macro (`json_cbi`)** | **`json_serialization`**, `chemical_source`, `cbi_plugin_api` |
+| **Writing a macro that generates impls via EmbeddedNodes (like `#json`)** | **`json_serialization`** (worked example), `macro_code_gen`, `cbi_plugin_api` |
 | **Implementing TLS/HTTPS** | `chemical_source`, `testing`, `building` |
 | **Integrating TLS with HTTP** | `chemical_source`, `testing` |
 
@@ -280,6 +283,8 @@ Skills in **bold** are the new comprehensive skills. Load them for maximum conte
 | `core/main/CompilerMain.cpp` | CLI entrypoint |
 | `server/` | LSP server implementation |
 | `lang/libs/` | Standard library + CBI macro plugin libs |
+| `lang/libs/json/` | JSON runtime: `JsonValue`, parser, `JsonEncoder`/`JsonDecoder`, `TypeDecoder<T>` decode dispatch, `__non_gen_se_repl` |
+| `lang/libs/json_cbi/` | `#json(Struct)` macro plugin: auto-generates `std::Serializer`/`std::Deserializer` impls |
 | `lang/libs/compiler/` | Compiler API bindings for macros |
 | `lang/tests/` | Test suite |
 

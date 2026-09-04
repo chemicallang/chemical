@@ -20,6 +20,8 @@ public interface Parser {
 
     func parseNestedLevelStatement(&self, builder : *mut ASTBuilder) : *mut ASTNode
 
+    func parseType(&self, builder : *mut ASTBuilder) : *mut BaseType
+
     func error_at(&self, msg : std::string_view, token : *mut Token);
 
 }

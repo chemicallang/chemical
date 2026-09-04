@@ -5,6 +5,20 @@ public struct JsonDecoder {
     var value : &JsonValue
 }
 
+// deliberately NON-GENERIC helper used by the #json compiler plugin's generated
+// deserialize error path: it stores `repl` in `value` and returns the ORIGINAL
+// error value. non-generic so the generated code can call it without needing a
+// generic instantiation of std::replace during codegen.
+public func __non_gen_se_repl(value : &mut std::SerializationError, repl : std::SerializationError) : std::SerializationError {
+    var temp : std::SerializationError
+    unsafe {
+        memcpy(&raw mut temp, &raw value, sizeof(std::SerializationError))
+        memcpy(&raw mut value, &raw repl, sizeof(std::SerializationError))
+        intrinsics::forget(repl)
+        return temp;
+    }
+}
+
 // ===== Decoder Interface Implementation =====
 
 impl std::Decoder for JsonDecoder {

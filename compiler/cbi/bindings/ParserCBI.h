@@ -16,6 +16,8 @@ struct Token;
 
 class ASTNode;
 
+class BaseType;
+
 class FunctionType;
 
 class LoopASTNode;
@@ -48,5 +50,6 @@ extern "C" {
 
     void Parsererror_at(Parser* parser, chem::string_view* view, Token* token);
 
+    BaseType* ParserparseType(Parser* parser, ASTBuilder* builder);
 
 }

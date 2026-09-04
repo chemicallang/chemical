@@ -53,6 +53,10 @@ void SymResLinkBodyvisitNode(SymResLinkBody* visitor, ASTNode* node) {
     visitor->visit(node);
 }
 
+void SymResLinkBodyvisitType(SymResLinkBody* visitor, BaseType* type, uint64_t location) {
+    visitor->visit(type, location);
+}
+
 void SymResLinkBodyvisitValue(SymResLinkBody* visitor, Value* value) {
     visitor->visit(value);
 }

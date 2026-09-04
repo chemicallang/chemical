@@ -1697,3 +1697,19 @@ void sym_res_after_signature(SymbolResolver& resolver, Scope* scope) {
     // calculate interface bits of generic type parameters
     AfterBuildIndexesPass(resolver, nodes);
 }
+
+// CBI hook: plugin-generated impls (e.g. from a #macro) are created during the
+// LinkBody phase, AFTER BuildIndexes has walked the module's top-level nodes, so
+// they never went through index_implementation. This lets the plugin run the
+// same registration/adoption manually: register the impl with its interface,
+// adopt the impl's contained functions into the struct (so concrete calls like
+// `point.serialize(...)` resolve to the override), and store it in implsIndex
+// (so generic dispatch like `decode<T>()` finds it). Must be called BEFORE the
+// impl is body-linked, matching the parsed-code order (index phase then LinkBody).
+extern "C" void SymbolResolverindex_impl(SymbolResolver* resolver, ImplDefinition* impl) {
+    if(!resolver || !impl) {
+        return;
+    }
+    index_implementation(*resolver, impl);
+    build_indexes_of_impl(*resolver, impl);
+}

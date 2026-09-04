@@ -195,9 +195,13 @@ public struct FunctionCallNode : ASTNode {
 
     func get_args(&self) : *mut VecRef<Value>;
 
+    func add_generic_arg(&self, type : *mut BaseType, location : ubigint);
+
 }
 
 public struct AddrOfValue : Value {}
+
+public struct ReferenceOfValue : Value {}
 
 public struct ArrayValue : Value {
 
@@ -231,7 +235,23 @@ public struct FunctionCall : Value {
 
     func get_args(&self) : *mut VecRef<Value>;
 
+    func add_generic_arg(&self, type : *mut BaseType, location : ubigint);
+
 }
+
+public struct PatternMatchIdentifier : ASTNode {}
+
+public struct PatternMatchExpr : Value {
+
+    func set_expression(&self, value : *mut Value);
+
+    func set_else_unreachable(&self);
+
+    func add_param_name(&self, builder : *mut ASTBuilder, name : &string_view, location : ubigint) : *mut PatternMatchIdentifier
+
+}
+
+public struct PatternMatchExprNode : ASTNode {}
 
 public struct IndexOperator : Value {
 
@@ -488,7 +508,7 @@ public struct IfStatement : ASTNode {
 
 public struct ImplDefinition : ASTNode {
 
-    func add_function(builder : *ASTBuilder, decl : *FunctionDeclaration)
+    func add_function(&self, builder : *mut ASTBuilder, decl : *FunctionDeclaration)
 
 }
 
@@ -496,7 +516,7 @@ public struct InterfaceDefinition : VariablesContainer {
 
     func getName(&self) : string_view
 
-    func add_function(builder : *ASTBuilder, decl : *FunctionDeclaration)
+    func add_function(&self, builder : *ASTBuilder, decl : *FunctionDeclaration)
 
     func getFunctions(&self) : *mut VecRef<ASTNode>
 
@@ -526,7 +546,7 @@ public struct StructDefinition : VariablesContainer {
 
     func add_member(name : &string_view, member : *StructMember)
 
-    func add_function(builder : *ASTBuilder, decl : *FunctionDeclaration)
+    func add_function(&self, builder : *ASTBuilder, decl : *FunctionDeclaration)
 
     func getMembers(&self) : *mut VecRef<BaseDefMember>
 
@@ -544,7 +564,7 @@ public struct UnionDef : VariablesContainer {
 
     func add_member(name : &string_view, member : *StructMember)
 
-    func add_function(builder : *ASTBuilder, decl : *FunctionDeclaration)
+    func add_function(&self, builder : *ASTBuilder, decl : *FunctionDeclaration)
     
     func getMembers(&self) : *mut VecRef<BaseDefMember>
 
@@ -719,6 +739,8 @@ public struct ASTBuilder {
 
     func make_generic_type(&self, linkedType : *LinkedType) : *mut GenericType
 
+    func make_generic_type_with_args(&self, linkedType : *LinkedType, args : std::span<*mut BaseType>, locs : std::span<ubigint>) : *mut GenericType
+
     func make_linked_type(&self, type : &string_view, linked : *ASTNode, location : ubigint) : *mut LinkedType
 
     func make_linked_value_type(&self, value : *Value, location : ubigint) : *mut LinkedValueType
@@ -743,6 +765,8 @@ public struct ASTBuilder {
 
     func make_addr_of_value(&self, value : *Value, is_mutable : bool, location : ubigint) : *mut AddrOfValue
 
+    func make_reference_of_value(&self, value : *Value, is_mutable : bool, location : ubigint) : *mut ReferenceOfValue
+
     func make_array_value(&self, type : *BaseType, location : ubigint) : *mut ArrayValue
 
     func make_bigint_value(&self, value : bigint, location : ubigint) : *mut BigIntValue
@@ -760,6 +784,10 @@ public struct ASTBuilder {
     func make_expression_value(&self, first : *Value, second : *Value, op : Operation, type : *mut BaseType, location : ubigint) : *mut Expression
 
     func make_float_value(&self, value : float, location : ubigint) : *mut FloatValue
+
+    func make_pattern_match_expr(&self, is_const : bool, destructure_by_name : bool, name : &string_view, location : ubigint) : *mut PatternMatchExpr
+
+    func make_pattern_match_node(&self, expr : *mut PatternMatchExpr, parent_node : *mut ASTNode, location : ubigint) : *mut PatternMatchExprNode
 
     func make_function_call_value(&self, parent_val : *Value, location : ubigint) : *mut FunctionCall
 

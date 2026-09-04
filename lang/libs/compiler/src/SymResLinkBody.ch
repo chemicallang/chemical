@@ -9,6 +9,8 @@ public interface SymResLinkBody {
 
     func visitNode(&self, node : *mut ASTNode);
 
+    func visitType(&self, type : *mut BaseType, location : ubigint);
+
     func visitValue(&self, value : *mut Value)
 
     func visitEmbeddedNode(&self, node : *mut EmbeddedNode);

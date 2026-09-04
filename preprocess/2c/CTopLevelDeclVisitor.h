@@ -67,6 +67,8 @@ public:
 
     void VisitIfStmt(IfStatement* node);
 
+    void VisitScope(Scope* node);
+
     void VisitTypealiasStmt(TypealiasStatement *statement);
 
     void VisitFunctionDecl(FunctionDeclaration *functionDeclaration);

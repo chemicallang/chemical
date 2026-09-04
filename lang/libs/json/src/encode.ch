@@ -320,15 +320,13 @@ impl std::ArrayEncoder<JsonValue> for JsonArrayEncoder {
 }
 
 impl std::ObjectEncoder<JsonValue> for JsonObjectEncoder {
-    func <V : std::Serializer<JsonValue, JsonEncoder>> field(&self, name : *char, value : V) : std::Result<std::Unit, std::SerializationError> {
+    func <V : std::Serializer<JsonValue, JsonEncoder>> field(&self, name : std::string_view, value : V) : std::Result<std::Unit, std::SerializationError> {
         var cnt = self.counts.get_ptr(self.counts.size() - 1)
         if(*cnt > 0) {
             self.buffer.append(',')
         }
         *cnt += 1
-        var len : u64 = 0
-        while(name[len] != '\0') { len++ }
-        json_escape_into(&mut *self.buffer, name, len)
+        json_escape_into(&mut *self.buffer, name.data(), name.size())
         self.buffer.append(':')
         var encoder = JsonEncoder { buffer : self.buffer, counts : self.counts }
         // TODO: returning value.encode doesn't satisfy the result, compiler bug

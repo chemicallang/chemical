@@ -55,7 +55,7 @@ public interface ArrayEncoder<T> {
 
 public interface ObjectEncoder<T> {
 
-    func <V : Serializer<T>> field(&self, name : *char, value : V) : std::Result<Unit, SerializationError>
+    func <V : Serializer<T>> field(&self, name : std::string_view, value : V) : std::Result<Unit, SerializationError>
 
 }
 

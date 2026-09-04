@@ -315,7 +315,7 @@ impl std::ArrayEncoder<JsonValue> for JsonArrayEncoder {
         *cnt += 1
         var encoder = JsonEncoder { buffer : self.buffer, counts : self.counts }
         // TODO: returning value.encode doesn't satisfy the result, compiler bug
-        return value.encode(__unsafe_cast_json_encoder<JsonValue>(&encoder)) as std::Result<std::Unit, std::SerializationError>
+        return value.serialize(__unsafe_cast_json_encoder<JsonValue>(&encoder)) as std::Result<std::Unit, std::SerializationError>
     }
 }
 
@@ -332,7 +332,7 @@ impl std::ObjectEncoder<JsonValue> for JsonObjectEncoder {
         self.buffer.append(':')
         var encoder = JsonEncoder { buffer : self.buffer, counts : self.counts }
         // TODO: returning value.encode doesn't satisfy the result, compiler bug
-        return value.encode(__unsafe_cast_json_encoder<JsonValue>(&encoder)) as std::Result<std::Unit, std::SerializationError>
+        return value.serialize(__unsafe_cast_json_encoder<JsonValue>(&encoder)) as std::Result<std::Unit, std::SerializationError>
     }
 }
 
@@ -344,19 +344,19 @@ impl std::MapEncoder<JsonValue> for JsonMapEncoder {
         }
         *cnt += 1
         var encoder = JsonEncoder { buffer : self.buffer, counts : self.counts }
-        var r1 = key.encode(__unsafe_cast_json_encoder<JsonValue>(&encoder))
+        var r1 = key.serialize(__unsafe_cast_json_encoder<JsonValue>(&encoder))
         if(!(r1 is std::Result.Ok)) { return r1 as std::Result<std::Unit, std::SerializationError> }
         self.buffer.append(':')
         var encoder2 = JsonEncoder { buffer : self.buffer, counts : self.counts }
         // TODO: returning value.encode doesn't satisfy the result, compiler bug
-        return value.encode(__unsafe_cast_json_encoder<JsonValue>(&encoder2)) as std::Result<std::Unit, std::SerializationError>
+        return value.serialize(__unsafe_cast_json_encoder<JsonValue>(&encoder2)) as std::Result<std::Unit, std::SerializationError>
     }
 }
 
 // Generic encode method — dispatches to Serializer<T, JsonEncoder>
 func <T : std::Serializer<JsonValue, JsonEncoder>> (e : &JsonEncoder) encode(value : T) : std::Result<std::Unit, std::SerializationError> {
     // TODO: returning value.encode doesn't satisfy the result, compiler bug
-    return value.encode(__unsafe_cast_json_encoder<JsonValue>(e)) as std::Result<std::Unit, std::SerializationError>
+    return value.serialize(__unsafe_cast_json_encoder<JsonValue>(e)) as std::Result<std::Unit, std::SerializationError>
 }
 
 // Convenience: encode a JsonValue to a string via append_value

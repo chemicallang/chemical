@@ -129,10 +129,21 @@ public namespace http {
             return self;
         }
 
-        public func build(&self) : std::string {
+        public func build(&self, absolute: bool = false) : std::string {
             var out = std::string();
             out.append_string(&method);
             out.append(' ');
+            if(absolute) {
+                // Proxy requests use an absolute-form request target
+                // (RFC 9110 §7.3.2): METHOD http://host[:port]/path HTTP/1.1
+                out.append_string(&url.scheme);
+                out.append_view("://");
+                out.append_string(&url.host);
+                if((url.scheme.equals_with_len("http", 4) && url.port != 80u) || (url.scheme.equals_with_len("https", 5) && url.port != 443u)) {
+                    out.append(':');
+                    out.append_uinteger(url.port);
+                }
+            }
             out.append_string(&url.path);
             if(!url.query.empty()) {
                 out.append('?');
@@ -188,6 +199,8 @@ public namespace http {
         //                      (self-signed local servers, test harnesses).
         var ca_chain: *mut tls::X509Cert;
         var tls_skip_verify: bool;
+        var proxy_host: std::string;
+        var proxy_port: uint;
 
         @constructor func constructor() {
             return Client {
@@ -195,7 +208,9 @@ public namespace http {
                 max_response_header_bytes = 64u * 1024u,
                 max_body_len = DEFAULT_MAX_BODY_LEN,
                 ca_chain = null,
-                tls_skip_verify = false
+                tls_skip_verify = false,
+                proxy_host = std::string(),
+                proxy_port = 0u
             }
         }
 
@@ -212,13 +227,153 @@ public namespace http {
             return self;
         }
 
+        // Route requests through an HTTP proxy (host:port). HTTPS targets use
+        // a CONNECT tunnel; HTTP targets use an absolute-form request line.
+        public func set_proxy(&mut self, host: &std::string_view, port: uint) : &mut Client {
+            proxy_host = std::string::view_make(host);
+            proxy_port = port;
+            return self;
+        }
+
         public func request(&self, req_builder: &RequestBuilder) : std::Result<Response, std::string> {
             var is_https = req_builder.url.scheme.equals_with_len("https", 5)
+            var use_proxy = proxy_host.size() > 0u && proxy_port > 0u
             var s: net::Socket = 0
             var tls_ctx: *mut tls::SSLContext = null
 
-            // Establish connection (plain or TLS)
-            if(is_https) {
+            // Establish connection (direct or via proxy)
+            if(use_proxy) {
+                // Route through an HTTP proxy. Plain HTTP targets use an
+                // absolute-form request line; HTTPS targets use a CONNECT
+                // tunnel and then a TLS handshake over the tunnel.
+                s = net::dial(proxy_host.data(), proxy_port)
+                if(s == 0u || (s as longlong) < 0) {
+                    return std::Result.Err<Response, std::string>(std::string::make_no_len("failed to connect to proxy"))
+                }
+                if(is_https) {
+                    // CONNECT tunnel (RFC 9110 §9.3.6)
+                    var connect_req = std::string()
+                    connect_req.append_view("CONNECT ")
+                    connect_req.append_string(&req_builder.url.host)
+                    connect_req.append(':')
+                    connect_req.append_uinteger(req_builder.url.port)
+                    connect_req.append_view(" HTTP/1.1\r\nHost: ")
+                    connect_req.append_string(&req_builder.url.host)
+                    connect_req.append(':')
+                    connect_req.append_uinteger(req_builder.url.port)
+                    connect_req.append_view("\r\n\r\n")
+                    net::send_all(s, connect_req.data(), connect_req.size() as int)
+
+                    // Read the CONNECT response headers and verify a 2xx status.
+                    net::set_recv_timeout(s, req_builder.timeout_secs, 0)
+                    var cbuf = net::Buffer()
+                    var connect_ok = false
+                    var reads = 0
+                    while(true) {
+                        var i = 0u; var hdr_end = 0u; var found = false
+                        while(i + 3u < cbuf.len()) {
+                            if(cbuf.get_byte(i) == '\r' as u8 && cbuf.get_byte(i+1u) == '\n' as u8 &&
+                               cbuf.get_byte(i+2u) == '\r' as u8 && cbuf.get_byte(i+3u) == '\n' as u8) {
+                                found = true
+                                hdr_end = i
+                                break
+                            }
+                            i = i + 1u
+                        }
+                        if(found) {
+                            // Parse the status code from the first line.
+                            var j = 0u
+                            while(j < hdr_end && cbuf.get_byte(j) != '\r' as u8) { j = j + 1u }
+                            var sp = 0u
+                            while(sp < j && cbuf.get_byte(sp) != ' ' as u8) { sp = sp + 1u }
+                            sp = sp + 1u
+                            var code = 0u
+                            while(sp < j && cbuf.get_byte(sp) >= '0' as u8 && cbuf.get_byte(sp) <= '9' as u8) {
+                                code = code * 10u + (cbuf.get_byte(sp) as uint - '0' as uint)
+                                sp = sp + 1u
+                            }
+                            if(code >= 200u && code < 300u) { connect_ok = true }
+                            break
+                        }
+                        var tmp : [1024]u8
+                        var n = net::recv_all(s, &raw mut tmp[0], 1024)
+                        if(n <= 0) { break }
+                        cbuf.append_bytes(&raw mut tmp[0], n as usize)
+                        reads = reads + 1
+                        if(reads > 128) { break }
+                    }
+                    if(!connect_ok) {
+                        net::close_socket(s)
+                        return std::Result.Err<Response, std::string>(std::string::make_no_len("proxy CONNECT failed"))
+                    }
+
+                    // TLS handshake over the tunnel (mirrors the direct path,
+                    // except the socket is already connected to the proxy).
+                    var ssl_ptr = malloc(sizeof(tls::SSLContext)) as *mut tls::SSLContext
+                    tls::ssl_init(ssl_ptr)
+
+                    // Create config with auto-loaded CA (or the caller's custom
+                    // chain). The config is heap-allocated so it outlives this
+                    // function (the Body's TLS context keeps pointing at it);
+                    // ssl_free releases it via conf_owned.
+                    var config = tls::ssl_config_init(tls::SSL_IS_CLIENT)
+                    var custom_ca = ca_chain != null
+                    var ca: *mut tls::X509Cert = null
+                    if(custom_ca) {
+                        ca = ca_chain
+                    } else {
+                        ca = tls::load_system_ca_bundle()
+                    }
+                    if(ca != null) {
+                        tls::ssl_set_ca_chain(&raw mut config, ca)
+                    }
+                    if(tls_skip_verify) {
+                        config.authmode = tls::SSL_VERIFY_NONE
+                    }
+                    var config_mem = malloc(sizeof(tls::SSLConfig)) as *mut tls::SSLConfig
+                    if(config_mem == null) {
+                        if(ca != null) { tls::cert_chain_free(ca) }
+                        tls::ssl_free(ssl_ptr)
+                        unsafe { dealloc ssl_ptr }
+                        return std::Result.Err<Response, std::string>(std::string::make_no_len("TLS config alloc failed"))
+                    }
+                    *config_mem = config
+                    tls::ssl_set_config(ssl_ptr, config_mem)
+                    ssl_ptr.conf_owned = true
+
+                    // Set hostname for SNI extension and certificate verification
+                    tls::ssl_set_hostname(ssl_ptr, req_builder.url.host.data())
+
+                    // Handshake over the already-connected proxy tunnel
+                    tls::ssl_set_socket(ssl_ptr, s)
+                    var ret = tls::ssl_handshake(ssl_ptr)
+                    if(ret < 0) {
+                        if(ca != null && !custom_ca) { tls::cert_chain_free(ca) }
+                        tls::ssl_free(ssl_ptr)
+                        unsafe { dealloc ssl_ptr }
+                        return std::Result.Err<Response, std::string>(std::string::make_no_len("TLS handshake failed"))
+                    }
+
+                    // The CA bundle is only needed for handshake-time certificate
+                    // verification, which has completed — release it now (only if
+                    // we loaded it ourselves; custom chains are caller-owned).
+                    if(ca != null && !custom_ca) { tls::cert_chain_free(ca) }
+
+                    // Verify the server's certificate matches the requested hostname
+                    if(!tls_skip_verify && ssl_ptr.peer_cert != null) {
+                        var hostname_nul = std::string(req_builder.url.host.data(), req_builder.url.host.size())
+                        hostname_nul.append('\0')
+                        var hret = tls::x509_verify_hostname(ssl_ptr.peer_cert,
+                                                              hostname_nul.data())
+                        if(hret != 0) {
+                            tls::ssl_free(ssl_ptr)
+                            unsafe { dealloc ssl_ptr }
+                            return std::Result.Err<Response, std::string>(std::string::make_no_len("TLS hostname mismatch"))
+                        }
+                    }
+                    tls_ctx = ssl_ptr
+                }
+            } else if(is_https) {
                 // For HTTPS: heap-allocate TLS context using malloc + ssl_init.
                 // The context is freed by the Body destructor (ssl_free + dealloc).
                 var ssl_ptr = malloc(sizeof(tls::SSLContext)) as *mut tls::SSLContext
@@ -292,8 +447,8 @@ public namespace http {
                 }
             }
 
-            // Send request
-            var req_data = req_builder.build()
+            // Send request (absolute-form target when routing plain HTTP through a proxy)
+            var req_data = req_builder.build(use_proxy && !is_https)
             if(is_https) {
                 tls::ssl_write(tls_ctx, req_data.data() as *u8, req_data.size() as i32)
             } else {

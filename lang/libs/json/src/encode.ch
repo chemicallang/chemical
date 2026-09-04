@@ -264,37 +264,37 @@ impl std::Encoder<JsonValue> for JsonEncoder {
         })
     }
 
-    func array(&self) : std::ArrayEncoder<JsonValue> {
+    func array(&self) : JsonArrayEncoder {
         self.buffer.append('[')
         self.counts.push(0)
         return JsonArrayEncoder { buffer : self.buffer, counts : self.counts }
     }
 
-    func array_of_len(&self, len : u64) : std::ArrayEncoder<JsonValue> {
+    func array_of_len(&self, len : u64) : JsonArrayEncoder {
         self.buffer.append('[')
         self.counts.push(0)
         return JsonArrayEncoder { buffer : self.buffer, counts : self.counts }
     }
 
-    func object(&self) : std::ObjectEncoder<JsonValue> {
+    func object(&self) : JsonObjectEncoder {
         self.buffer.append('{')
         self.counts.push(0)
         return JsonObjectEncoder { buffer : self.buffer, counts : self.counts }
     }
 
-    func object_of_len(&self, len : u64) : std::ObjectEncoder<JsonValue> {
+    func object_of_len(&self, len : u64) : JsonObjectEncoder {
         self.buffer.append('{')
         self.counts.push(0)
         return JsonObjectEncoder { buffer : self.buffer, counts : self.counts }
     }
 
-    func map(&self) : std::MapEncoder<JsonValue> {
+    func map(&self) : JsonMapEncoder {
         self.buffer.append('{')
         self.counts.push(0)
         return JsonMapEncoder { buffer : self.buffer, counts : self.counts }
     }
 
-    func map_of_len(&self, len : u64) : std::MapEncoder<JsonValue> {
+    func map_of_len(&self, len : u64) : JsonMapEncoder {
         self.buffer.append('{')
         self.counts.push(0)
         return JsonMapEncoder { buffer : self.buffer, counts : self.counts }

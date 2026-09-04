@@ -67,7 +67,7 @@ public interface MapEncoder<T> {
 
 public interface Serializer<T, E : Encoder<T>> {
 
-    func encode(&self, encoder : &E) : std::Result<Unit, SerializationError>
+    func serialize(&self, encoder : &E) : std::Result<Unit, SerializationError>
 
 }
 

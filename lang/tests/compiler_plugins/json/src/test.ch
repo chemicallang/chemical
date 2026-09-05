@@ -177,3 +177,126 @@ public func json_macro_decode_missing_field(env : &mut TestEnv) {
     var res = d.decode<JMTwo>()
     if(!(res is std::Result.Err)) { env.error("missing field decode should be Err") }
 }
+
+// ============================================================================
+// Destructible structs (owning members + explicit @delete destructors).
+//
+// #json must support structs whose members (or nested member structs) own
+// resources:
+//   - encode passes members by REFERENCE into ObjectEncoder.field (the field
+//     value must never be moved out of &self or copied), and
+//   - decode MOVES the Ok payload out of each intermediate Result with
+//     take_ok (leaving the Result in an Err state) so destructible values can
+//     be moved into the final aggregate without copying and without the source
+//     being destroyed again.
+// A successful round trip here means: no "cannot move this value without
+// re-initializing memory" compile errors, correct JSON, and no double-destroy
+// of the owning members at scope exit.
+// ============================================================================
+
+struct JMDPoint {
+    var x : int
+    var y : int
+
+    @delete
+    func delete(&mut self) {
+        // explicit destructor over trivial members - the whole struct moves
+        // into/out of the Result payloads without any member copies
+    }
+}
+
+#json(JMDPoint)
+
+struct JMDChild {
+    var num : int
+    var tag : std::string
+
+    @delete
+    func delete(&mut self) {
+        // destructor body runs; owning members (tag) are destroyed by codegen
+    }
+}
+
+#json(JMDChild)
+
+struct JMDHolder {
+    var id : long
+    var child : JMDChild
+    var active : bool
+}
+
+#json(JMDHolder)
+
+@test
+public func json_macro_destructor_scalar_struct_roundtrip(env : &mut TestEnv) {
+    var buffer = std::string()
+    var counts = std::vector<u64>()
+    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var v = JMDPoint { x : 10, y : -20 }
+    var r = v.serialize(&encoder)
+    if(!(r is std::Result.Ok)) { env.error("destructor scalar serialize returned Err"); return }
+    if(!buffer.to_view().equals(std::string_view("{\"x\":10,\"y\":-20}"))) {
+        env.error("destructor scalar exact JSON text mismatch")
+        return
+    }
+
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(256, 8192)
+    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    if(!pr.ok) { env.error("destructor scalar parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var res = d.decode<JMDPoint>()
+    if(res is std::Result.Err) { env.error("destructor scalar decode returned Err"); return }
+    var Ok(out) = res else unreachable
+    if(out.x != 10 || out.y != -20) { env.error("destructor scalar roundtrip mismatch") }
+}
+
+@test
+public func json_macro_owning_string_struct_roundtrip(env : &mut TestEnv) {
+    var buffer = std::string()
+    var counts = std::vector<u64>()
+    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var v = JMDChild { num : 5, tag : std::string("world") }
+    var r = v.serialize(&encoder)
+    if(!(r is std::Result.Ok)) { env.error("owning serialize returned Err"); return }
+    if(!buffer.to_view().equals(std::string_view("{\"num\":5,\"tag\":\"world\"}"))) {
+        env.error("owning exact JSON text mismatch")
+        return
+    }
+
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(256, 8192)
+    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    if(!pr.ok) { env.error("owning parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var res = d.decode<JMDChild>()
+    if(res is std::Result.Err) { env.error("owning decode returned Err"); return }
+    var Ok(out) = res else unreachable
+    if(out.num != 5) { env.error("owning num roundtrip mismatch"); return }
+    if(!out.tag.to_view().equals(std::string_view("world"))) { env.error("owning tag roundtrip mismatch") }
+}
+
+@test
+public func json_macro_nested_destructible_roundtrip(env : &mut TestEnv) {
+    var buffer = std::string()
+    var counts = std::vector<u64>()
+    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var v = JMDHolder { id : 7, child : JMDChild { num : 3, tag : std::string("hello") }, active : true }
+    var r = v.serialize(&encoder)
+    if(!(r is std::Result.Ok)) { env.error("nested destructible serialize returned Err"); return }
+    if(!buffer.to_view().equals(std::string_view("{\"id\":7,\"child\":{\"num\":3,\"tag\":\"hello\"},\"active\":true}"))) {
+        env.error("nested destructible exact JSON text mismatch")
+        return
+    }
+
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(256, 8192)
+    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    if(!pr.ok) { env.error("nested destructible parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var res = d.decode<JMDHolder>()
+    if(res is std::Result.Err) { env.error("nested destructible decode returned Err"); return }
+    var Ok(out) = res else unreachable
+    if(out.id != 7 || out.child.num != 3 || !out.active) { env.error("nested destructible field mismatch"); return }
+    if(!out.child.tag.to_view().equals(std::string_view("hello"))) { env.error("nested destructible child tag mismatch") }
+}

@@ -19,6 +19,36 @@ public func __non_gen_se_repl(value : &mut std::SerializationError, repl : std::
     }
 }
 
+// Moves the Ok payload OUT of a `Result<T, SerializationError>`, leaving the
+// result in a safe `Err` state (so its destructor won't touch the moved-out
+// payload). Mirrors `std::Option.take` semantics: the payload is bitwise moved
+// into a fresh local and the whole variant slot is re-initialized to `Err`
+// WITHOUT destroying the old payload bytes.
+//
+// The #json plugin's generated deserialize uses this instead of binding the
+// Ok payload with a pattern match, because a pattern-bound value cannot be
+// moved onward into an aggregate literal ("cannot move this value without
+// re-initializing memory"); the take leaves an owned local that CAN be moved.
+// NOTE: the struct literal below must be std::qualified - unqualified names
+// inside a generic function fail to resolve during generic instantiation.
+public func <T> take_ok(t : &mut std::Result<T, std::SerializationError>) : T {
+    if(t is std::Result.Err) {
+        panic("take_ok: result is in error state")
+    }
+    var Ok(value) = t else unreachable
+    var temp : T
+    var err_val = std::Result.Err<T, std::SerializationError>(std::SerializationError {
+        kind : std::SerializationErrorKind.Generic,
+        message : std::string("take_ok: payload moved out")
+    })
+    unsafe {
+        memcpy(&raw mut temp, &raw value, sizeof(T))
+        memcpy(&raw mut *t, &raw err_val, sizeof(std::Result<T, std::SerializationError>))
+        intrinsics::forget(err_val)
+        return temp
+    }
+}
+
 // ===== Decoder Interface Implementation =====
 
 impl std::Decoder for JsonDecoder {

@@ -27,7 +27,7 @@ All under `public namespace std`. These are the *interfaces*; the json library p
 | `Encoder<T>` | primitive encoders (`encode_bool`, `encode_i64`, `encode_u64`, `encode_double`, `encode_float`, `encode_str`, `encode_char`, ...) + `array()`/`object()`/`map()` returning `ArrayEncoder<T>`/`ObjectEncoder<T>`/`MapEncoder<T>` |
 | `Serializer<T, E : Encoder<T>>` | `func serialize(&self, encoder : &E) : std::Result<Unit, SerializationError>` — **what `#json` generates an impl of** |
 | `Decoder` | primitive decoders (`decode_bool`, `decode_i64`, `decode_u64`, `decode_double`, `decode_float`, `decode_str`, `decode_char`, ...) + `array()`/`object()`/`map()` returning `std::Result<...Decoder, SerializationError>` |
-| `ObjectEncoder<T>` / `ArrayEncoder<T>` / `MapEncoder<T>` | containers' write side; `ObjectEncoder<T>` has the generic `func <V : Serializer<T>> field(&self, name : std::string_view, value : V) : Result<Unit, SerializationError>` |
+| `ObjectEncoder<T>` / `ArrayEncoder<T>` / `MapEncoder<T>` | containers' write side; the generic encoders take values **by reference**: `func <V : Serializer<T>> field(&self, name : std::string_view, value : &V) : Result<Unit, SerializationError>` (same for `ArrayEncoder.encode(&self, value : &K)` / `MapEncoder.encode(&self, key : &K, value : &V)`). By-reference values mean owning/destructible members encode without copies — moving a member out of `&self` by value is illegal |
 | `ObjectDecoder` / `ArrayDecoder` / `MapDecoder` | containers' read side; `ObjectDecoder.item_decoder(&mut self)` returns `Result<std::pair<std::string_view, Decoder>, SerializationError>` |
 | `Deserializer<T>` | `func deserialize(&self) : std::Result<T, SerializationError>` — **what `#json` generates an impl of for `TypeDecoder<T>`** |
 
@@ -57,6 +57,7 @@ func <T : std::Serializer<JsonValue, JsonEncoder>> (e : &JsonEncoder) encode(val
   - `TypeDecoder<T> { var decoder : &JsonDecoder }` — a placeholder type that exists only so `Deserializer<T>` impls can be attached per `T`.
   - Dispatch chain: `func <T> (decoder : &JsonDecoder) decode() : Result<T, SerializationError>` builds `TypeDecoder<T>` and routes through `decode_it_2<T, TypeDecoder<T>>` → `decode_it_1<T, K : Deserializer<T>>` → `k.deserialize()` (interface dispatch). This is why adding a new `Deserializer<T>` impl (via `#json`) makes `d.decode<T>()` work without touching the runtime.
   - `__non_gen_se_repl(value : &mut std::SerializationError, repl : std::SerializationError) : std::SerializationError` — **non-generic** helper that stores `repl` into `value` and returns the original error. The `#json` macro calls it from generated deserialize error paths instead of generic `std::replace` (see pitfalls).
+  - `take_ok<T>(t : &mut std::Result<T, std::SerializationError>) : T` — mirrors `std::Option.take`: memcpy's the **Ok payload out** of the `Result` and re-initializes the slot to an `Err` state (bitwise, no payload destructor runs), returning an **owned local**. The `#json` macro's generated deserialize uses it for composite/string fields: a pattern-bound Ok payload cannot be moved onward into an aggregate literal ("cannot move this value without re-initializing memory"), but the taken local can — no copies, no double-destroy of the dead `Result`. Inside the generic body the `std::SerializationError` literal must be `std::`-qualified (unqualified names fail to resolve during generic instantiation).
 - **`handler.ch`** — SAX handlers (`ASTJsonHandler` builds a `JsonValue` AST; `DebugJsonSaxHandler` prints).
 - **`json.ch`** — `JsonParser(bufferSize, ...)` → `.parse(text, len, &mut handler)` returning `ParseResult { ok, ... }`.
 
@@ -120,15 +121,15 @@ The macro is wired through `build.lab`/`chemical.mod` in `lang/libs/json_cbi/` (
 impl std::Serializer<JsonValue, JsonEncoder> for Point {
     func serialize(&self, encoder : &JsonEncoder) : std::Result<std::Unit, std::SerializationError> {
         var obj = encoder.object()                       // JsonObjectEncoder
-        obj.field<int>("x", self.x)                      // one per field; T = concrete field type
-        obj.field<int>("y", self.y)
+        obj.field<int>("x", &self.x)                     // one per field; T = concrete field type
+        obj.field<int>("y", &self.y)
         return std::Result.Ok<std::Unit, std::SerializationError>(std::Unit())
     }
 }
 ```
 
 - `self` is `&Point`; `encoder` is `&JsonEncoder`.
-- Field calls are emitted as **`AccessChainNode` statements** built from the method **chain** (`make_function_call_node(chain, ...)`), never by wrapping a pre-built `FunctionCall` (that would nest a second call on the first call's result). The explicit generic arg (`field_stmt.add_generic_arg(field_type, loc)`) is added on the statement; args are the field-name `StringValue` and a `self.<field>` chain.
+- Field calls are emitted as **`AccessChainNode` statements** built from the method **chain** (`make_function_call_node(chain, ...)`), never by wrapping a pre-built `FunctionCall` (that would nest a second call on the first call's result). The explicit generic arg (`field_stmt.add_generic_arg(field_type, loc)`) is added on the statement; args are the field-name `StringValue` and a `&self.<field>` reference (`make_reference_of_value` over the member chain, matching the `value : &V` field signature).
 - Known TODO: unlike the handwritten reference, the generated serialize currently does **not** inspect each `field(...)` result for `Err` — it always returns `Ok(Unit())`. Error propagation on the encode side is unfinished work.
 
 ### Generated `deserialize` (target shape)
@@ -143,11 +144,15 @@ impl std::Deserializer<Point> for TypeDecoder<Point> {
         var __q0 = __obj.item_decoder()                           // consume one key/value pair
         if(__q0 is std::Result.Err) { ...Err-return... }
         var Ok(__p0) = __q0 else unreachable                      // pair<string_view, JsonDecoder>
-        var __v0 = __p0.second.decode_i64()                       // scalar → decode_XXX; nested struct → decode<T>()
+        var __v0 = __p0.second.decode_i64()                       // scalar → decode_XXX
         if(__v0 is std::Result.Err) { ...Err-return... }
         var Ok(__f0) = __v0 else unreachable
+        // composite fields (nested structs + std::string/string_view) instead:
+        var __v1 = __p1.second.decode<T>()                        // decode<T> → Result<T, SE>
+        if(__v1 is std::Result.Err) { ...Err-return... }
+        var __f1 : T = take_ok(&mut __v1)                         // move payload out (owned local)
         ...
-        return std::Result.Ok<Point, std::SerializationError>(Point { x : __f0, y : __f1 })
+        return std::Result.Ok<Point, std::SerializationError>(Point { x : __f0, child : __f1 })
     }
 }
 ```
@@ -155,9 +160,9 @@ impl std::Deserializer<Point> for TypeDecoder<Point> {
 - `self` is `&TypeDecoder<Point>`; `self.decoder` is the member `&JsonDecoder`.
 - **Flat, negative-check-first structure** (early returns), exactly like the handwritten reference — there is no `if Ok { nest next field }` nesting.
 - `append_err_check(...)` is a shared helper that emits the `if(<var> is std::Result.Err) { var Err(__e) = <var> else unreachable; return std::Result.Err<T, SE>(__non_gen_se_repl(&mut __e, SerializationError())) }` block.
-- Scalar fields: `find_decoder_method` maps the field's `BaseType` to a `JsonDecoder.decode_*` method node (ints/longs → `decode_i64` + a cast in the struct init; uints/char → `decode_u64`; float/double/bool/string → their methods).
-- Nested struct fields: no scalar method → build the chain `__p<i>.second.decode<T>()` with an explicit generic arg = the field type. See pitfalls for the **explicit result var type** requirement.
-- Struct construction: `make_struct_value(struct_node)` + `add_value(field_name, casted_value(pattern-var-id, field_type))`, then `Result.Ok<T, SE>(struct)`.
+- Scalar fields: `find_decoder_method` maps the field's `BaseType` to a `JsonDecoder.decode_*` method node (ints/longs → `decode_i64` + a cast in the struct init; uints/char → `decode_u64`; float/double/bool → their methods; note **`std::string`/`string_view` are NOT routed to `decode_str`** — they return null here so they decode through the generic path below).
+- Composite fields (nested structs + strings): no scalar method → build the chain `__p<i>.second.decode<T>()` with an explicit generic arg = the field type, then **`take_ok(&mut __v<i>)`** moves the Ok payload out (the `Result` is left in an `Err` state and its destructor won't touch the payload). A pattern-bound Ok payload cannot be moved onward into an aggregate literal; the taken owned local can. See pitfalls for the **explicit result var type** requirement.
+- Struct construction: `make_struct_value(struct_node)` + `add_value(field_name, ...)` where scalar fields are wrapped in `casted_value(pattern-var-id, field_type)` but **composite fields are added as plain identifiers** — a `CastedValue` around a destructible value makes codegen bitwise-copy it into the member and then still destroy the local at scope end (double free).
 - Per-field temp names are formatted with `snprintf` into allocator buffers (`alloc_indexed_view(builder, "__q%d", i)`).
 
 ## 4. CBI bindings the macro depends on
@@ -194,7 +199,10 @@ Also note the symres change in `compiler/symres/SymResLinkBody.cpp`: `VisitVaria
 9. **Macro impls are not indexed automatically.** Parsed impls get indexed by the module's index phase (`index_implementation` → `container->adopt(impl)` + `implsIndex.add_interface`). Macro-generated impls must be indexed explicitly via `resolver.index_impl` or `p.serialize(...)`/`decode<T>()` resolution fails.
 10. **The 2c declare pass must see the replacement `Scope`.** Without `CTopLevelDeclarationVisitor::VisitScope` recursing into replacement nodes' scopes, generated impls get definitions but no C prototypes → `error: declaration expected` / implicit-declaration clashes in `Translated.c` when json-module instantiated code calls them.
 11. **Field decode order = JSON key order = struct member order.** The decoder consumes pairs by position (`item_decoder()` per field) and never compares the key name — matches the handwritten reference. Keep struct member order stable between encode and decode.
-12. **Unsupported/edge field types** (arrays, maps, custom primitives, `std::string` decode cast) currently skip their decode slot or rely on `decode<T>` — extend `find_decoder_method` + the runtime's `TypeDecoder<T>` primitive impls when adding support.
+12. **Unsupported/edge field types** (arrays, maps, custom primitives) currently skip their decode slot or rely on `decode<T>` — extend `find_decoder_method` + the runtime's `TypeDecoder<T>` primitive impls when adding support. `std::string`/`string_view` and nested struct fields are fully supported: they decode through the generic `decode<T>` + `take_ok` path (owning members need no copy).
+13. **Destructible/owning members are supported end-to-end** (owning strings, nested structs with `@delete`, structs whose members own resources). Encode passes `&self.<field>` by reference (never moves/copies members out of `&self`); decode moves payloads out of their `Result`s with `take_ok` and adds composite members to the final literal **without** a `CastedValue` — a cast around a destructible value bitwise-copies it into the member and the source local is still destructed at scope end (double free). Always verify a destructible round trip with destructor-count checks.
+
+## 6. Testing & debugging
 
 ## 6. Testing & debugging
 

@@ -663,3 +663,23 @@ func test_high_level_typed_encode_decode(env : &mut TestEnv) {
         env.error("JChild typed roundtrip mismatch")
     }
 }
+
+@test
+func test_decode_str_parse_and_decode(env : &mut TestEnv) {
+    // json::decode_str<T> parses the text and typed-decodes in one call
+    var text = std::string_view("{\"num\":5,\"tag\":\"hi\"}")
+    var dr = json::decode_str<JChild>(text)
+    if(dr is std::Result.Err) { env.error("json::decode_str<JChild> failed"); return }
+    var Ok(dec) = dr else unreachable
+    if(dec.num != 5 || !dec.tag.to_view().equals(std::string_view("hi"))) {
+        env.error("JChild decode_str roundtrip mismatch")
+    }
+}
+
+@test
+func test_decode_str_rejects_invalid_json(env : &mut TestEnv) {
+    // invalid JSON text must surface as an Err (mapped from the parse error)
+    var bad = std::string_view("{\"num\":oops}")
+    var dr = json::decode_str<JChild>(bad)
+    if(!(dr is std::Result.Err)) { env.error("decode_str of invalid json should be Err") }
+}

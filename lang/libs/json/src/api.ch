@@ -88,4 +88,35 @@ public func <T> decode(value : &JsonValue) : std::Result<T, std::SerializationEr
     return d.decode<T>()
 }
 
+// parse + typed decode in one call:
+//   var p = json::decode_str<Point>(text) // Result<Point, SerializationError>
+public func <T> decode_str(text : std::string_view) : std::Result<T, std::SerializationError> {
+    // Pattern-matching a Result inside a generic function mis-types the bound
+    // payload (the compiler can't link the concrete variant member), so the
+    // parse + payload extraction happens in the NON-generic __try_parse helper,
+    // which returns an owned Option<JsonValue>.
+    var opt = __try_parse(text)
+    if(opt is std::Option.None) {
+        return std::Result.Err<T, std::SerializationError>(se_err("json parse error"))
+    }
+    // Option.take moves the parsed JsonValue out (opt -> None), giving an owned
+    // value that stays alive for the decode call below
+    var value = opt.take()
+    var d = JsonDecoder { value : &value }
+    return d.decode<T>()
+}
+
 } // end namespace json
+
+// non-generic parse helper used by json::decode_str: parses the text and moves
+// the root JsonValue out of the parse Result on success (None on parse error,
+// whose detail is dropped at this layer). Lives OUTSIDE the generic decode_str
+// so its pattern binds happen in a non-generic context (where they link).
+public func __try_parse(text : std::string_view) : std::Option<JsonValue> {
+    var pr = json::parse(text)
+    if(pr is std::Result.Err) {
+        return std::Option.None<JsonValue>()
+    }
+    var Ok(v) = pr else unreachable
+    return std::Option.Some<JsonValue>(std::replace(&mut v, JsonValue.Null()))
+}

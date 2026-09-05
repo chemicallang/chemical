@@ -13,6 +13,10 @@ struct SerializableInfo {
     var unit_node : *mut ASTNode = null
     var se_repl_node : *mut ASTNode = null
     var serialization_error_node : *mut ASTNode = null
+    var se_err_node : *mut ASTNode = null
+    var std_string_node : *mut ASTNode = null
+    var fnv1_hash_view_node : *mut ASTNode = null
+    var fnv1_hash_view_ret_type : *mut BaseType = null
     // json-lib take_ok helper (moves an Ok payload out of a Result<T, SerializationError>,
     // leaving the result in an Err state so the payload can be moved onward into an
     // aggregate literal - used by generated deserialize for destructible fields)

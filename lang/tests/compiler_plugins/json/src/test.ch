@@ -57,6 +57,24 @@ struct JMTwo {
 
 #json(JMTwo)
 
+// namespaced struct: #json(ns::Type) must resolve through the namespace
+public namespace jmns {
+    public struct JMNs {
+        var x : int
+        var tag : std::string
+    }
+}
+
+#json(jmns::JMNs)
+
+// char / uchar fields: chars are single-char JSON strings on both sides
+struct JMChar {
+    var a : char
+    var b : uchar
+}
+
+#json(JMChar)
+
 @test
 public func json_macro_scalar_struct_roundtrip(env : &mut TestEnv) {
     var buffer = std::string()
@@ -132,6 +150,62 @@ public func json_macro_wide_scalar_struct_roundtrip(env : &mut TestEnv) {
     var Ok(v) = res else unreachable
     if(v.i != -42 || v.lg != -7 || v.u != 4000000000u || !v.b || v.f != 1.5f || v.d != -2.25) {
         env.error("JMWide roundtrip mismatch")
+    }
+}
+
+@test
+public func json_macro_namespaced_struct_roundtrip(env : &mut TestEnv) {
+    // #json(jmns::JMNs) must resolve through the namespace and generate the
+    // impls for the namespaced type (mangled under its real scope).
+    var buffer = std::string()
+    var counts = std::vector<u64>()
+    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var p = jmns::JMNs { x : 7, tag : std::string("ns") }
+    var r = p.serialize(&encoder)
+    if(!(r is std::Result.Ok)) { env.error("namespaced serialize returned Err"); return }
+    if(!buffer.to_view().equals(std::string_view("{\"x\":7,\"tag\":\"ns\"}"))) {
+        env.error("namespaced macro exact JSON text mismatch")
+        return
+    }
+
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(256, 8192)
+    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    if(!pr.ok) { env.error("namespaced parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var res = d.decode<jmns::JMNs>()
+    if(res is std::Result.Err) { env.error("decode<jmns::JMNs> returned Err"); return }
+    var Ok(v) = res else unreachable
+    if(v.x != 7 || !v.tag.to_view().equals(std::string_view("ns"))) {
+        env.error("jmns::JMNs roundtrip mismatch")
+    }
+}
+
+@test
+public func json_macro_char_struct_roundtrip(env : &mut TestEnv) {
+    // chars must encode as single-char JSON strings (not numbers) and decode
+    // back through decode_char - including chars that need JSON escaping.
+    var buffer = std::string()
+    var counts = std::vector<u64>()
+    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var p = JMChar { a : '"', b : 'z' as uchar }
+    var r = p.serialize(&encoder)
+    if(!(r is std::Result.Ok)) { env.error("char serialize returned Err"); return }
+    if(!buffer.to_view().equals(std::string_view("{\"a\":\"\\\"\",\"b\":\"z\"}"))) {
+        env.error("char macro exact JSON text mismatch")
+        return
+    }
+
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(256, 8192)
+    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    if(!pr.ok) { env.error("char parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var res = d.decode<JMChar>()
+    if(res is std::Result.Err) { env.error("decode<JMChar> returned Err"); return }
+    var Ok(v) = res else unreachable
+    if(v.a != '"' || v.b != 'z' as uchar) {
+        env.error("JMChar roundtrip mismatch")
     }
 }
 

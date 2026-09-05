@@ -49,6 +49,16 @@ public func <T> take_ok(t : &mut std::Result<T, std::SerializationError>) : T {
     }
 }
 
+// shared error constructor: most decode errors are a plain generic
+// SerializationError. public because it is called from public generic
+// declarations (retention rule).
+public func se_err(message : std::string_view) : std::SerializationError {
+    return std::SerializationError {
+        kind : std::SerializationErrorKind.Generic,
+        message : std::string(message)
+    }
+}
+
 // ===== Decoder Interface Implementation =====
 
 impl std::Decoder for JsonDecoder {
@@ -56,10 +66,7 @@ impl std::Decoder for JsonDecoder {
         if(self.value is JsonValue.Null) {
             return std::Result.Ok(std::Unit {})
         }
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected null")
-        })
+        return std::Result.Err(se_err("expected null"))
     }
 
     func decode_bool(&self) : std::Result<bool, std::SerializationError> {
@@ -67,10 +74,7 @@ impl std::Decoder for JsonDecoder {
             var Bool(v) = self.value else unreachable
             return std::Result.Ok(v)
         }
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected bool")
-        })
+        return std::Result.Err(se_err("expected bool"))
     }
 
     func decode_char(&self) : std::Result<char, std::SerializationError> {
@@ -79,15 +83,9 @@ impl std::Decoder for JsonDecoder {
             if(s.size() == 1) {
                 return std::Result.Ok(s.get(0))
             }
-            return std::Result.Err(std::SerializationError {
-                kind : std::SerializationErrorKind.Generic,
-                message : std::string("expected single-char string")
-            })
+            return std::Result.Err(se_err("expected single-char string"))
         }
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected string")
-        })
+        return std::Result.Err(se_err("expected string"))
     }
 
     func decode_u64(&self) : std::Result<u64, std::SerializationError> {
@@ -95,10 +93,7 @@ impl std::Decoder for JsonDecoder {
             var Number(s) = self.value else unreachable
             return std::Result.Ok(parse_u64(s.data()))
         }
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected number")
-        })
+        return std::Result.Err(se_err("expected number"))
     }
 
     func decode_i64(&self) : std::Result<i64, std::SerializationError> {
@@ -110,10 +105,7 @@ impl std::Decoder for JsonDecoder {
             var Bool(v) = self.value else unreachable
             return std::Result.Ok(if(v) 1i64 else 0i64)
         }
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected number")
-        })
+        return std::Result.Err(se_err("expected number"))
     }
 
     func decode_double(&self) : std::Result<double, std::SerializationError> {
@@ -121,10 +113,7 @@ impl std::Decoder for JsonDecoder {
             var Number(s) = self.value else unreachable
             return std::Result.Ok(parse_double(s.data()))
         }
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected number")
-        })
+        return std::Result.Err(se_err("expected number"))
     }
 
     func decode_float(&self) : std::Result<float, std::SerializationError> {
@@ -132,10 +121,7 @@ impl std::Decoder for JsonDecoder {
             var Number(s) = self.value else unreachable
             return std::Result.Ok(parse_double(s.data()) as float)
         }
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected number")
-        })
+        return std::Result.Err(se_err("expected number"))
     }
 
     func decode_str(&self) : std::Result<std::string_view, std::SerializationError> {
@@ -143,17 +129,11 @@ impl std::Decoder for JsonDecoder {
             var String(s) = self.value else unreachable
             return std::Result.Ok(s.to_view())
         }
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected string")
-        })
+        return std::Result.Err(se_err("expected string"))
     }
 
     func decode_bytes(&self) : std::Result<std::span<u8>, std::SerializationError> {
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("bytes not supported for JSON decoder")
-        })
+        return std::Result.Err(se_err("bytes not supported for JSON decoder"))
     }
 
     func array(&self) : std::Result<JsonArrayDecoder, std::SerializationError> {
@@ -161,10 +141,7 @@ impl std::Decoder for JsonDecoder {
             var Array(v) = self.value else unreachable
             return std::Result.Ok(JsonArrayDecoder { elements : std::span<JsonValue>(v.data(), v.size()), index : 0u64 })
         }
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected array")
-        })
+        return std::Result.Err(se_err("expected array"))
     }
 
     func object(&self) : std::Result<JsonObjectDecoder, std::SerializationError> {
@@ -172,10 +149,7 @@ impl std::Decoder for JsonDecoder {
             var Object(m) = self.value else unreachable
             return std::Result.Ok(JsonObjectDecoder { iterator : m.iterator(), _total : m.size() })
         }
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected object")
-        })
+        return std::Result.Err(se_err("expected object"))
     }
 
     func map(&self) : std::Result<JsonMapDecoder, std::SerializationError> {
@@ -183,10 +157,7 @@ impl std::Decoder for JsonDecoder {
             var Object(m) = self.value else unreachable
             return std::Result.Ok(JsonMapDecoder { iterator : m.iterator(), _total : m.size() })
         }
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected object")
-        })
+        return std::Result.Err(se_err("expected object"))
     }
 
 }
@@ -202,10 +173,7 @@ impl std::ArrayDecoder<JsonValue> for JsonArrayDecoder {
 
     func item_decoder(&mut self) : std::Result<JsonDecoder, std::SerializationError> {
         if(self.index >= self.elements.size()) {
-            return std::Result.Err(std::SerializationError {
-                kind : std::SerializationErrorKind.Generic,
-                message : std::string("array index out of bounds")
-            })
+        return std::Result.Err(se_err("array index out of bounds"))
         }
         const i = self.index;
         self.index++;
@@ -233,10 +201,7 @@ impl std::ObjectDecoder<JsonValue> for JsonObjectDecoder {
 
     func item_decoder(&mut self) : std::Result<std::pair<std::string_view, JsonDecoder>, std::SerializationError> {
         if(!iterator.valid()) {
-            return std::Result.Err(std::SerializationError {
-                kind : std::SerializationErrorKind.Generic,
-                message : std::string("array index out of bounds")
-            })
+        return std::Result.Err(se_err("array index out of bounds"))
         }
         var r = std::Result.Ok<std::pair<std::string_view, JsonDecoder>, std::SerializationError>(std::pair<std::string_view, JsonDecoder> {
             first : iterator.key().to_view(),
@@ -256,17 +221,21 @@ impl std::ObjectDecoder<JsonValue> for JsonObjectDecoder {
 // based on a generic type
 public struct TypeDecoder<T> { var decoder : &JsonDecoder }
 
-func <T, K : std::Deserializer<T>> decode_it_1(k : &K) : std::Result<T, std::SerializationError> {
+// generic-dispatch internals: JsonDecoder.decode<T>() routes through
+// TypeDecoder<T>, whose Deserializer<T> impls live in types.ch. The entry point
+// is (decoder : &JsonDecoder) decode<T>(). __-prefixed but public: they are
+// called from public generic declarations (retention rule).
+public func <T, K : std::Deserializer<T>> __decode_dispatch_1(k : &K) : std::Result<T, std::SerializationError> {
     return k.deserialize() as std::Result<T, std::SerializationError>
 }
 
-func <T, K : std::Deserializer<T>> decode_it_2(t : &TypeDecoder<T>) : std::Result<T, std::SerializationError> {
-    return decode_it_1<T, K>(t as &K)
+public func <T, K : std::Deserializer<T>> __decode_dispatch_2(t : &TypeDecoder<T>) : std::Result<T, std::SerializationError> {
+    return __decode_dispatch_1<T, K>(t as &K)
 }
 
-func <T> (decoder : &JsonDecoder) decode() : std::Result<T, std::SerializationError> {
+public func <T> (decoder : &JsonDecoder) decode() : std::Result<T, std::SerializationError> {
     var t = TypeDecoder<T> { decoder : decoder }
-    return decode_it_2<T, TypeDecoder<T>>(&t)
+    return __decode_dispatch_2<T, TypeDecoder<T>>(&t)
 }
 
 // ===== JsonMapDecoder =====
@@ -279,10 +248,7 @@ public struct JsonMapDecoder {
 impl std::MapDecoder<JsonValue> for JsonMapDecoder {
     func item_decoder(&mut self) : std::Result<std::pair<JsonStringDecoder, JsonDecoder>, std::SerializationError> {
         if(!iterator.valid()) {
-            return std::Result.Err(std::SerializationError {
-                kind : std::SerializationErrorKind.Generic,
-                message : std::string("array index out of bounds")
-            })
+        return std::Result.Err(se_err("array index out of bounds"))
         }
         var r = std::Result.Ok<std::pair<JsonStringDecoder, JsonDecoder>, std::SerializationError>(std::pair<JsonStringDecoder, JsonDecoder> {
             first : JsonStringDecoder { value : iterator.key().to_view() },
@@ -306,52 +272,31 @@ public struct JsonStringDecoder {
 
 impl std::Decoder for JsonStringDecoder {
     func decode_null(&self) : std::Result<std::Unit, std::SerializationError> {
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected null")
-        })
+        return std::Result.Err(se_err("expected null"))
     }
 
     func decode_bool(&self) : std::Result<bool, std::SerializationError> {
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected bool")
-        })
+        return std::Result.Err(se_err("expected bool"))
     }
 
     func decode_char(&self) : std::Result<char, std::SerializationError> {
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected string")
-        })
+        return std::Result.Err(se_err("expected string"))
     }
 
     func decode_u64(&self) : std::Result<u64, std::SerializationError> {
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected number")
-        })
+        return std::Result.Err(se_err("expected number"))
     }
 
     func decode_i64(&self) : std::Result<i64, std::SerializationError> {
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected number")
-        })
+        return std::Result.Err(se_err("expected number"))
     }
 
     func decode_double(&self) : std::Result<double, std::SerializationError> {
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected number")
-        })
+        return std::Result.Err(se_err("expected number"))
     }
 
     func decode_float(&self) : std::Result<float, std::SerializationError> {
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected number")
-        })
+        return std::Result.Err(se_err("expected number"))
     }
 
     func decode_str(&self) : std::Result<std::string_view, std::SerializationError> {
@@ -359,31 +304,19 @@ impl std::Decoder for JsonStringDecoder {
     }
 
     func decode_bytes(&self) : std::Result<std::span<u8>, std::SerializationError> {
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("bytes not supported for JSON decoder")
-        })
+        return std::Result.Err(se_err("bytes not supported for JSON decoder"))
     }
 
     func array(&self) : std::Result<std::ArrayDecoder, std::SerializationError> {
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected array")
-        })
+        return std::Result.Err(se_err("expected array"))
     }
 
     func object(&self) : std::Result<std::ObjectDecoder, std::SerializationError> {
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected object")
-        })
+        return std::Result.Err(se_err("expected object"))
     }
 
     func map(&self) : std::Result<std::MapDecoder, std::SerializationError> {
-        return std::Result.Err(std::SerializationError {
-            kind : std::SerializationErrorKind.Generic,
-            message : std::string("expected object")
-        })
+        return std::Result.Err(se_err("expected object"))
     }
 
 }

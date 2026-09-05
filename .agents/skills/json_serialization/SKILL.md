@@ -42,7 +42,7 @@ Key consequences:
 
 - **`value.ch`** — `public variant JsonValue { Null(), Bool(value: bool), Number(value: std::string), String(value: std::string), Object(values : std::ordered_map<std::string, JsonValue>), Array(values : std::vector<JsonValue>) }`. Numbers are kept as raw decimal strings; decoding parses them.
 - **`types.ch`** — `impl std::Serializer<JsonValue, JsonEncoder> for bool/int/.../std::string_view/std::string` (each forwards to a primitive `encoder.encode_*`) and `impl std::Deserializer<T> for TypeDecoder<T>` for each primitive (`bool`, `int`, `uint`, `double`, `float`, `string`, ...). These are **handwritten**; the macro only generates impls for **user structs**, and primitive fields are encoded/decoded through `JsonEncoder`/`JsonDecoder` primitives directly.
-- **`encode.ch`** — `JsonEncoder { buffer : *mut std::string, counts : *mut std::vector<u64> }` (raw pointer members: only construct via `JsonEncoder { buffer : &raw mut output, counts : &raw mut counts }`). Contains `impl std::Encoder<JsonValue> for JsonEncoder` (writes into `buffer`), `JsonObjectEncoder`/`JsonArrayEncoder`/`JsonMapEncoder` with the container impls, and the generic entry point:
+- **`encode.ch`** — `JsonEncoder { buffer : *mut std::string, counts : *mut std::vector<u64> }` (raw pointer members: only construct via `JsonEncoder { buffer : &raw mut output, counts : &raw mut counts }`). Contains `impl std::Encoder<JsonValue> for JsonEncoder` (writes into `buffer`), `JsonObjectEncoder`/`JsonArrayEncoder`/`JsonMapEncoder` with the container impls, the single string escaper `json_escape_into` (+ `append_escaped_char`), and the generic entry point:
 
 ```chemical
 func <T : std::Serializer<JsonValue, JsonEncoder>> (e : &JsonEncoder) encode(value : T) : std::Result<std::Unit, std::SerializationError> {
@@ -59,24 +59,47 @@ func <T : std::Serializer<JsonValue, JsonEncoder>> (e : &JsonEncoder) encode(val
   - `__non_gen_se_repl(value : &mut std::SerializationError, repl : std::SerializationError) : std::SerializationError` — **non-generic** helper that stores `repl` into `value` and returns the original error. The `#json` macro calls it from generated deserialize error paths instead of generic `std::replace` (see pitfalls).
   - `take_ok<T>(t : &mut std::Result<T, std::SerializationError>) : T` — mirrors `std::Option.take`: memcpy's the **Ok payload out** of the `Result` and re-initializes the slot to an `Err` state (bitwise, no payload destructor runs), returning an **owned local**. The `#json` macro's generated deserialize uses it for composite/string fields: a pattern-bound Ok payload cannot be moved onward into an aggregate literal ("cannot move this value without re-initializing memory"), but the taken local can — no copies, no double-destroy of the dead `Result`. Inside the generic body the `std::SerializationError` literal must be `std::`-qualified (unqualified names fail to resolve during generic instantiation).
 - **`handler.ch`** — SAX handlers (`ASTJsonHandler` builds a `JsonValue` AST; `DebugJsonSaxHandler` prints).
-- **`json.ch`** — `JsonParser(bufferSize, ...)` → `.parse(text, len, &mut handler)` returning `ParseResult { ok, ... }`.
+- **`json.ch`** — `JsonParser(bufferSize, ...)` → `.parse(text, len, &mut handler)` returning `ParseResult { ok, ... }`. `parse_string_value`/`parse_string_key` free the growable heap buffer on **every** path (including parse errors).
+- **`emit.ch`** — string-based JSON emission: `(output : &mut std::string) append_value(value)` / `append_value_pretty(value, indent)` share one `append_value_inner` (pretty flag + indent). The old `JsonStringEmitter` interface / `JsonStringBuilder` / `JsonStringPrinter` / `escape_string_into` were removed — escaping is the single `json_escape_into` in encode.ch.
+
+### High-level API — `api.ch` (`public namespace json`)
+
+The beginner entry points (called as `json::parse(...)` etc.; the pre-existing types stay module-top-level and unqualified):
+
+```chemical
+var r = json::parse(text)                    // Result<JsonValue, JsonParseError> (JsonParseError { pos, message })
+var s = json::stringify(&value)              // std::string (compact)
+var s = json::stringify_pretty(&value)       // std::string (indented)
+var e = json::encode<Point>(&point)          // Result<std::string, SerializationError> (by-ref, no copies)
+var d = json::decode<Point>(&value)          // Result<Point, SerializationError>
+```
+
+Implementation notes / compiler quirks:
+- `encode<T>` / `decode<T>` are **public generic** functions, so every callee they reach must be public too (retention rule): `__unsafe_cast_json_encoder`, `se_err`, `__decode_dispatch_1/2`, the `decode` extension method are `public` even though `__`-prefixed.
+- `&raw mut` of a generic-instantiation local (`std::vector<u64>`) inside a generic function hits a type-alias quirk — the encoder state is created in non-generic helpers `__new_counts()` / `__new_encoder(&mut output, &mut counts)`.
+- Extracting the `Err` payload of a `Result` inside a generic function leaks the generic `E` and cannot be passed to non-generic code (pattern-match `var Err(e) = r` inside `json::encode<T>` fails). The high-level `encode<T>` therefore returns a **static** error message on failure; the low-level container API (`ObjectEncoder.field` etc.) still propagates real errors.
 
 ### Canonical round-trip usage (what tests do)
 
 ```chemical
-// encode
+// beginner path (new)
+var e = json::encode<Point>(&point)          // Result<string, SerializationError>
+var Ok(text) = e else unreachable
+var r = json::parse(text.to_view())          // Result<JsonValue, JsonParseError>
+var Ok(value) = r else unreachable
+var d = json::decode<Point>(&value)          // Result<Point, SerializationError>
+
+// low-level path (advanced / manual)
 var output = std::string()
 var counts = std::vector<u64>()
 var encoder = JsonEncoder { buffer : &raw mut output, counts : &raw mut counts }
 var e = encoder.encode<Point>(Point { x : 10, y : 20 })   // or p.serialize(&encoder)
 // output now contains {"x":10,"y":20}
 
-// parse text into a JsonValue
 var ph = ASTJsonHandler()
 var parser = JsonParser(128, 4096)
 var r = parser.parse(output.data(), output.size(), &mut ph)   // r.ok
 
-// decode back
 var d = JsonDecoder { value : &ph.root }
 var res = d.decode<Point>()                                   // Result<Point, SerializationError>
 var Ok(v) = res else unreachable
@@ -95,7 +118,7 @@ The macro is wired through `build.lab`/`chemical.mod` in `lang/libs/json_cbi/` (
 
 | Hook (`@no_mangle public func`) | Role |
 |---|---|
-| `json_parseMacroTopLevelNode(parser, builder, spec)` | parse `#json(<name>)`, store `struct_name`, allocate `SerializableInfo`, return `make_top_level_embedded_node(...)` with the 3 no-op callback fns |
+| `json_parseMacroTopLevelNode(parser, builder, spec)` | parse `#json(<type>)`, join the path segments (`Type` or `ns::Type` / `a::b::Type`) into one `::`-separated `struct_name`, allocate `SerializableInfo`, return `make_top_level_embedded_node(...)` with the 3 no-op callback fns |
 | `json_symResDeclareNode` / `json_symResLinkSigNode` | intentionally **empty** — everything happens in the link-body phase |
 | `json_symResNode(visitor, node)` | **does all the work** (see below) |
 | `json_replacementNodeDeclare(builder, node)` | returns `info.replacement_scope` (used by the 2c **declare** pass so prototypes/vtables are emitted) |
@@ -103,9 +126,9 @@ The macro is wired through `build.lab`/`chemical.mod` in `lang/libs/json_cbi/` (
 
 ### `json_symResNode` — step by step
 
-1. **Resolve the target struct** (`resolver.resolve(struct_name)`) and snapshot its members: `field_names` (allocated views), `field_types` (`*mut BaseType` per member).
+1. **Resolve the target struct** via `resolve_type_path(resolver, &struct_name)` — the first path segment through `resolver.resolve` (a namespace resolves to its root scope), remaining segments through `node.child(name)` walking; supports `#json(Point)` and `#json(ns::Point)`. Then snapshot its members: `field_names` (allocated views), `field_types` (`*mut BaseType` per member).
 2. **`resolve_types(resolver, info, loc)`** — resolve every symbol the generated code will reference and cache the AST nodes on `info`:
-   - std nodes: `std::Serializer`, `std::Deserializer`, `std::Result` + `Ok`/`Err` members, `std::Unit`, `std::SerializationError`, `std::Encoder.object`, `std::ObjectEncoder.field`, `std::pair.second`, `std::replace`.
+   - std nodes: `std::Serializer`, `std::Deserializer`, `std::Result` + `Ok`/`Err` members, `std::Unit`, `std::SerializationError`, `std::Encoder.object`, `std::ObjectEncoder.field`, `std::pair.second`. (No `std::replace` — dead since generated error paths use `__non_gen_se_repl`.)
    - json-lib nodes: `JsonEncoder`, `JsonValue`, `JsonDecoder` + its `decode_i64/u64/double/float/str/bool/char`, `object`, and the generic `decode` extension; `JsonObjectDecoder.item_decoder`; `TypeDecoder`; and `__non_gen_se_repl`.
    - Nodes are found with `std_node.child(name)` / `resolver.resolve(name)`; impl-contained methods (e.g. `JsonDecoder.decode_i64`, which lives in `impl std::Decoder for JsonDecoder`) **are** discoverable through `child()` on the struct node.
 3. **Build + visit the generic types** (`visitor.visitType(...)`), caching them on `info` for codegen reuse: `Serializer<JsonValue, JsonEncoder>`, `Result<Struct, SE>`, `Result<Unit, SE>` (fresh LinkedTypes — see pitfalls), `Deserializer<Struct>`, `TypeDecoder<Struct>`, and per-struct-field `Result<field_type, SE>` for fields that decode via `decode<T>` (`info.field_result_types`).
@@ -160,7 +183,7 @@ impl std::Deserializer<Point> for TypeDecoder<Point> {
 - `self` is `&TypeDecoder<Point>`; `self.decoder` is the member `&JsonDecoder`.
 - **Flat, negative-check-first structure** (early returns), exactly like the handwritten reference — there is no `if Ok { nest next field }` nesting.
 - `append_err_check(...)` is a shared helper that emits the `if(<var> is std::Result.Err) { var Err(__e) = <var> else unreachable; return std::Result.Err<T, SE>(__non_gen_se_repl(&mut __e, SerializationError())) }` block.
-- Scalar fields: `find_decoder_method` maps the field's `BaseType` to a `JsonDecoder.decode_*` method node (ints/longs → `decode_i64` + a cast in the struct init; uints/char → `decode_u64`; float/double/bool → their methods; note **`std::string`/`string_view` are NOT routed to `decode_str`** — they return null here so they decode through the generic path below).
+- Scalar fields: `find_decoder_method` maps the field's `BaseType` to a `JsonDecoder.decode_*` method node (ints/longs → `decode_i64` + a cast in the struct init; uints → `decode_u64`; **`char`/`uchar` → `decode_char`** (chars encode as single-char JSON strings, not numbers — routing them to `decode_u64` would reject the encoded form); float/double/bool → their methods; note **`std::string`/`string_view` are NOT routed to `decode_str`** — they return null here so they decode through the generic path below).
 - Composite fields (nested structs + strings): no scalar method → build the chain `__p<i>.second.decode<T>()` with an explicit generic arg = the field type, then **`take_ok(&mut __v<i>)`** moves the Ok payload out (the `Result` is left in an `Err` state and its destructor won't touch the payload). A pattern-bound Ok payload cannot be moved onward into an aggregate literal; the taken owned local can. See pitfalls for the **explicit result var type** requirement.
 - Struct construction: `make_struct_value(struct_node)` + `add_value(field_name, ...)` where scalar fields are wrapped in `casted_value(pattern-var-id, field_type)` but **composite fields are added as plain identifiers** — a `CastedValue` around a destructible value makes codegen bitwise-copy it into the member and then still destroy the local at scope end (double free).
 - Per-field temp names are formatted with `snprintf` into allocator buffers (`alloc_indexed_view(builder, "__q%d", i)`).
@@ -201,8 +224,11 @@ Also note the symres change in `compiler/symres/SymResLinkBody.cpp`: `VisitVaria
 11. **Field decode order = JSON key order = struct member order.** The decoder consumes pairs by position (`item_decoder()` per field) and never compares the key name — matches the handwritten reference. Keep struct member order stable between encode and decode.
 12. **Unsupported/edge field types** (arrays, maps, custom primitives) currently skip their decode slot or rely on `decode<T>` — extend `find_decoder_method` + the runtime's `TypeDecoder<T>` primitive impls when adding support. `std::string`/`string_view` and nested struct fields are fully supported: they decode through the generic `decode<T>` + `take_ok` path (owning members need no copy).
 13. **Destructible/owning members are supported end-to-end** (owning strings, nested structs with `@delete`, structs whose members own resources). Encode passes `&self.<field>` by reference (never moves/copies members out of `&self`); decode moves payloads out of their `Result`s with `take_ok` and adds composite members to the final literal **without** a `CastedValue` — a cast around a destructible value bitwise-copies it into the member and the source local is still destructed at scope end (double free). Always verify a destructible round trip with destructor-count checks.
-
-## 6. Testing & debugging
+14. **`#json` does NOT support `vector`/`map` fields yet.** A struct with a `std::vector<...>`/`std::ordered_map<...>` member breaks the json module's own symres (`unresolved child 'serialize' in parent 'value'` in the MapEncoder impl + `unresolved child 'deserialize' in parent 'k'` cascade) — it predates these changes and needs `Serializer`/`Deserializer` impls for the container types plus macro type detection before it can work.
+15. **Public-generic retention rule.** Public generic functions (the container impl methods, `json::encode<T>`, the `decode` dispatch chain) may only call **public** functions — internal helpers hit "calling a non-retained function in a public generic declaration". The `__`-prefixed helpers (`__unsafe_cast_json_encoder`, `se_err`, `__decode_dispatch_1/2`, `__container_begin_item`) are public for exactly this reason.
+16. **Float/double precision.** `write_double_raw` uses `%.17g` and `write_float_raw` uses `%.9g` — the exact round-trip precisions for IEEE-754 double/float. The old `%.6g` silently corrupted values like `0.1+0.2` (emitted `0.3`). Expect non-pretty float text like `3.1400001` for `3.14f`.
+17. **`encode_char` escapes.** A `char` is a single-char JSON string and the char itself is escaped (quotes/backslashes/control chars) via `json_escape_into` over a 1-char buffer — `'"'` emits `"\""`.
+18. **One container struct cannot implement all three encoder interfaces.** A single `JsonContainerEncoder` implementing `ArrayEncoder`/`ObjectEncoder`/`MapEncoder` breaks interface-constraint resolution for the two-generic-param `MapEncoder.encode<K, V>` (unresolved `serialize` on the `V` param). The three structs stay separate; the shared comma/bookkeeping is the `__container_begin_item` free function.
 
 ## 6. Testing & debugging
 
@@ -212,7 +238,8 @@ Scratch packages live under `lang/compiled/` (git-ignored) so they never pollute
   - `json2.ch` — `#json(Point)` scalar round trip (`ROUND TRIP OK`).
   - `json3.ch` — `#json(Child)` then `#json(Parent)` nested round trip (`NESTED ROUND TRIP OK`). Requires Child's `#json` above Parent's.
 - `lang/compiled/refmod/chemical.mod` — the **handwritten reference** (`Sample`/`SampleChild` impls by hand; no `#json`). Compiles/runs the same checks and validates the runtime library + bindings without the macro.
-- `lang/tests/src/libs/json/` — committed json runtime tests (run inside the standard compiled suite).
+- `lang/tests/src/libs/json/` — committed json runtime tests (`main.ch` parser/encoder/decoder + high-level API; `struct_tests.ch` handwritten impls + `json::encode<T>`/`json::decode<T>`; `utils.ch` helper). Run with `./lang/tests/build/tests-tcc.exe --test-names <comma-separated-func-names>`.
+- `lang/tests/compiler_plugins/json/src/test.ch` — committed `#json` macro tests (scalar/nested/wide structs, error paths, destructible round trips with destructor counters, `#json(jmns::JMNs)` namespaced, char/uchar fields). Built via `./cmake-build-debug/TCCCompiler lang/tests/build.lab -o <exe> --mode debug_complete -arg test-plugins` (the `import "./compiler_plugins/json/build.lab"` is currently dangling — the plugin module links only if a matching build.lab exists; the test module's `@test` fns can also be linked directly from a scratch app importing it + a `test_runner(argc, argv)` main).
 
 Compile + run a scratch package:
 

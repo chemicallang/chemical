@@ -127,7 +127,7 @@ public namespace http {
 
         // Send a JSON response. Sets Content-Type and serializes the value.
         public func send_json(&mut self, value : &JsonValue) {
-            var body = encode_json(value)
+            var body = json::stringify(value)
             set_header_view(std::string_view("Content-Type"), std::string_view("application/json"))
             write_string(&body)
         }

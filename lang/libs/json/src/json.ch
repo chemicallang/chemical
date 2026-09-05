@@ -289,7 +289,7 @@ private:
     func parse_string_value(&mut self) : ParseResult {
         var outlen : size_t = 0;
         var r = self.parse_string_body(&mut outlen);
-        if (!r.ok) return r;
+        if (!r.ok) { self.free_str_buf(); return r; }
         handler.on_string(self.str_buf, outlen);
         self.free_str_buf();
         return ParseResult::Ok();
@@ -298,7 +298,7 @@ private:
     func parse_string_key(&mut self) : ParseResult {
         var outlen : size_t = 0;
         var r = self.parse_string_body(&mut outlen);
-        if (!r.ok) return r;
+        if (!r.ok) { self.free_str_buf(); return r; }
         handler.on_key(self.str_buf, outlen);
         self.free_str_buf();
         return ParseResult::Ok();

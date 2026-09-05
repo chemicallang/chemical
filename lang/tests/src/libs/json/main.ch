@@ -129,65 +129,95 @@ func test_form_urlencoded_fails_gracefully(env : &mut TestEnv) {
     }
 }
 
-// ===== Encoding Tests (encode_json) =====
+// ===== High-Level API Tests (json::parse / json::stringify) =====
+
+@test
+func test_high_level_parse_stringify(env : &mut TestEnv) {
+    var text = std::string_view(" {\"a\": 1, \"b\": [true, null]} ")
+    var r = json::parse(text)
+    if(r is std::Result.Err) { env.error("json::parse failed"); return }
+    var Ok(v) = r else unreachable
+    var compact = json::stringify(&v)
+    if(!compact.to_view().equals(std::string_view("{\"a\":1,\"b\":[true,null]}"))) {
+        env.error("json::stringify mismatch")
+        return
+    }
+    var pretty = json::stringify_pretty(&v)
+    var expected = std::string_view("{\n  \"a\": 1,\n  \"b\": [\n    true,\n    null\n  ]\n}")
+    if(!pretty.to_view().equals(&expected)) {
+        env.error("json::stringify_pretty mismatch")
+    }
+}
+
+@test
+func test_high_level_parse_error(env : &mut TestEnv) {
+    var text = std::string_view("{\"a\":}")
+    var r = json::parse(text)
+    if(r is std::Result.Ok) { env.error("json::parse should fail on invalid json"); return }
+    var Err(e) = r else unreachable
+    if(e.pos == 0) { env.error("json::parse error should carry a position"); return }
+    if(e.message.size() == 0) { env.error("json::parse error should carry a message") }
+}
+
+// ===== Encoding Tests (json::stringify) =====
 
 @test
 func test_encode_json_null(env : &mut TestEnv) {
     var value = JsonValue.Null()
-    var result = encode_json(&value)
+    var result = json::stringify(&value)
     if(!result.to_view().equals(std::string_view("null"))) {
-        env.error("encode_json(Null) failed")
+        env.error("json::stringify(Null) failed")
     }
 }
 
 @test
 func test_encode_json_bool(env : &mut TestEnv) {
     var t = JsonValue.Bool(true)
-    var result_t = encode_json(&t)
+    var result_t = json::stringify(&t)
     if(!result_t.to_view().equals(std::string_view("true"))) {
-        env.error("encode_json(true) failed")
+        env.error("json::stringify(true) failed")
     }
     var f = JsonValue.Bool(false)
-    var result_f = encode_json(&f)
+    var result_f = json::stringify(&f)
     if(!result_f.to_view().equals(std::string_view("false"))) {
-        env.error("encode_json(false) failed")
+        env.error("json::stringify(false) failed")
     }
 }
 
 @test
 func test_encode_json_number(env : &mut TestEnv) {
     var n = JsonValue.Number(std::string("42"))
-    var result = encode_json(&n)
+    var result = json::stringify(&n)
     if(!result.to_view().equals(std::string_view("42"))) {
-        env.error("encode_json(Number 42) failed")
+        env.error("json::stringify(Number 42) failed")
     }
     var neg = JsonValue.Number(std::string("-7"))
-    var result_neg = encode_json(&neg)
+    var result_neg = json::stringify(&neg)
     if(!result_neg.to_view().equals(std::string_view("-7"))) {
-        env.error("encode_json(Number -7) failed")
+        env.error("json::stringify(Number -7) failed")
     }
     var flt = JsonValue.Number(std::string("3.14"))
-    var result_flt = encode_json(&flt)
+    var result_flt = json::stringify(&flt)
     if(!result_flt.to_view().equals(std::string_view("3.14"))) {
-        env.error("encode_json(Number 3.14) failed")
+        env.error("json::stringify(Number 3.14) failed")
     }
 }
 
 @test
 func test_encode_json_string(env : &mut TestEnv) {
     var s = JsonValue.String(std::string("hello"))
-    var result = encode_json(&s)
+    var result = json::stringify(&s)
     if(!result.to_view().equals(std::string_view("\"hello\""))) {
-        env.error("encode_json(\"hello\") failed")
+        env.error("json::stringify(\"hello\") failed")
     }
 }
 
 @test
 func test_encode_json_string_escaped(env : &mut TestEnv) {
     var s = JsonValue.String(std::string("a\"b\\c"))
-    var result = encode_json(&s)
+    var result = json::stringify(&s)
     if(!result.to_view().equals(std::string_view("\"a\\\"b\\\\c\""))) {
-        env.error("encode_json(escaped string) failed")
+        env.error("json::stringify(escaped string) failed")
     }
 }
 
@@ -198,9 +228,9 @@ func test_encode_json_array(env : &mut TestEnv) {
     arr.push(JsonValue.Bool(true))
     arr.push(JsonValue.Number(std::string("123")))
     var v = JsonValue.Array(arr)
-    var result = encode_json(&v)
+    var result = json::stringify(&v)
     if(!result.to_view().equals(std::string_view("[null,true,123]"))) {
-        env.error("encode_json([null,true,123]) failed")
+        env.error("json::stringify([null,true,123]) failed")
     }
 }
 
@@ -208,9 +238,9 @@ func test_encode_json_array(env : &mut TestEnv) {
 func test_encode_json_empty_array(env : &mut TestEnv) {
     var arr = std::vector<JsonValue>()
     var v = JsonValue.Array(arr)
-    var result = encode_json(&v)
+    var result = json::stringify(&v)
     if(!result.to_view().equals(std::string_view("[]"))) {
-        env.error("encode_json([]) failed")
+        env.error("json::stringify([]) failed")
     }
 }
 
@@ -220,10 +250,10 @@ func test_encode_json_object(env : &mut TestEnv) {
     map.insert(std::string("a"), JsonValue.Number(std::string("1")))
     map.insert(std::string("b"), JsonValue.String(std::string("two")))
     var v = JsonValue.Object(map)
-    var result = encode_json(&v)
+    var result = json::stringify(&v)
     var view = result.to_view()
     if(!view.equals(std::string_view("{\"a\":1,\"b\":\"two\"}"))) {
-        env.error("encode_json(object) failed")
+        env.error("json::stringify(object) failed")
     }
 }
 
@@ -231,9 +261,9 @@ func test_encode_json_object(env : &mut TestEnv) {
 func test_encode_json_empty_object(env : &mut TestEnv) {
     var map = std::ordered_map<std::string, JsonValue>()
     var v = JsonValue.Object(map)
-    var result = encode_json(&v)
+    var result = json::stringify(&v)
     if(!result.to_view().equals(std::string_view("{}"))) {
-        env.error("encode_json({}) failed")
+        env.error("json::stringify({}) failed")
     }
 }
 
@@ -249,10 +279,10 @@ func test_encode_json_nested(env : &mut TestEnv) {
     map.insert(std::string("count"), JsonValue.Number(std::string("3")))
 
     var v = JsonValue.Object(map)
-    var result = encode_json(&v)
+    var result = json::stringify(&v)
     var view = result.to_view()
     if(!view.equals(std::string_view("{\"data\":[false,null],\"count\":3}"))) {
-        env.error("encode_json(nested) failed")
+        env.error("json::stringify(nested) failed")
     }
 }
 
@@ -418,25 +448,49 @@ func test_encoder_encode_generic_uint(env : &mut TestEnv) {
 
 @test
 func test_encoder_encode_generic_float(env : &mut TestEnv) {
+    // floats must round-trip exactly: the emitted text is %.9g, which is the
+    // precision required to reproduce the exact float value on decode
     var output = std::string()
     var counts = std::vector<u64>()
     var encoder = JsonEncoder { buffer : &raw mut output, counts : &raw mut counts }
     var r = encoder.encode<float>(3.14f)
     if(!(r is std::Result.Ok)) { env.error("encoder.encode returned error"); return }
-    if(!output.to_view().equals(std::string_view("3.14"))) {
-        env.error("encoder.encode(3.14f) failed")
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(128, 4096)
+    var pr = parser.parse(output.data(), output.size(), &mut ph)
+    if(!pr.ok) { env.error("float re-parse failed"); return }
+    var dec = JsonDecoder { value : &ph.root }
+    var res = dec.decode<float>()
+    if(res is std::Result.Err) { env.error("float re-decode failed"); return }
+    var Ok(v) = res else unreachable
+    if(v != 3.14f) {
+        env.error("float 3.14f did not round-trip exactly")
     }
 }
 
 @test
 func test_encoder_encode_generic_double(env : &mut TestEnv) {
+    // doubles must round-trip exactly: %.17g preserves the exact binary value,
+    // so a value like 0.1+0.2 (0.30000000000000004) is NOT truncated to 0.3
     var output = std::string()
     var counts = std::vector<u64>()
     var encoder = JsonEncoder { buffer : &raw mut output, counts : &raw mut counts }
-    var r = encoder.encode<double>(3.14)
+    var r = encoder.encode<double>(0.1 + 0.2)
     if(!(r is std::Result.Ok)) { env.error("encoder.encode returned error"); return }
-    if(!output.to_view().equals(std::string_view("3.14"))) {
-        env.error("encoder.encode(3.14) failed")
+    if(!output.to_view().equals(std::string_view("0.30000000000000004"))) {
+        env.error("double 0.1+0.2 must emit full precision")
+        return
+    }
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(128, 4096)
+    var pr = parser.parse(output.data(), output.size(), &mut ph)
+    if(!pr.ok) { env.error("double re-parse failed"); return }
+    var dec = JsonDecoder { value : &ph.root }
+    var res = dec.decode<double>()
+    if(res is std::Result.Err) { env.error("double re-decode failed"); return }
+    var Ok(v) = res else unreachable
+    if(v != 0.30000000000000004) {
+        env.error("double 0.1+0.2 did not round-trip exactly")
     }
 }
 
@@ -678,12 +732,12 @@ func test_encode_json_roundtrip_simple(env : &mut TestEnv) {
     var parser = JsonParser(256, 8192)
     var r = parser.parse(input.data(), input.size(), &mut ph)
     if(!r.ok) { env.error("parse failed"); return }
-    var encoded = encode_json(&ph.root)
+    var encoded = json::stringify(&ph.root)
     var ph2 = ASTJsonHandler()
     var parser2 = JsonParser(256, 8192)
     var r2 = parser2.parse(encoded.data(), encoded.size(), &mut ph2)
     if(!r2.ok) { env.error("roundtrip re-parse failed"); return }
-    var encoded2 = encode_json(&ph2.root)
+    var encoded2 = json::stringify(&ph2.root)
     if(!encoded.to_view().equals(encoded2.to_view())) {
         env.error("roundtrip mismatch")
     }
@@ -696,12 +750,12 @@ func test_encode_json_roundtrip_nested(env : &mut TestEnv) {
     var parser = JsonParser(256, 8192)
     var r = parser.parse(input.data(), input.size(), &mut ph)
     if(!r.ok) { env.error("parse failed"); return }
-    var encoded = encode_json(&ph.root)
+    var encoded = json::stringify(&ph.root)
     var ph2 = ASTJsonHandler()
     var parser2 = JsonParser(256, 8192)
     var r2 = parser2.parse(encoded.data(), encoded.size(), &mut ph2)
     if(!r2.ok) { env.error("roundtrip re-parse failed"); return }
-    var encoded2 = encode_json(&ph2.root)
+    var encoded2 = json::stringify(&ph2.root)
     if(!encoded.to_view().equals(encoded2.to_view())) {
         env.error("roundtrip mismatch for nested")
     }
@@ -715,7 +769,7 @@ func test_double_encode_decode_number(env : &mut TestEnv) {
     var r = parser.parse(doc.data(), doc.size(), &mut ph)
     if(!r.ok) { env.error("parse 42 failed"); return }
     if(!(ph.root is JsonValue.Number)) { env.error("expected Number variant"); return }
-    var encoded = encode_json(&ph.root)
+    var encoded = json::stringify(&ph.root)
 
     // also check via direct encoder
     var output = std::string()
@@ -785,11 +839,11 @@ func test_long_string_roundtrip(env : &mut TestEnv) {
     var parser = JsonParser(256, 1048576)
     var r = parser.parse(doc.data(), doc.size(), &mut ph)
     if (!r.ok) { env.error(r.msg); return }
-    var encoded = encode_json(&ph.root)
+    var encoded = json::stringify(&ph.root)
     var ph2 = ASTJsonHandler()
     var parser2 = JsonParser(256, 1048576)
     var r2 = parser2.parse(encoded.data(), encoded.size(), &mut ph2)
     if (!r2.ok) { env.error("roundtrip re-parse failed"); return }
-    var encoded2 = encode_json(&ph2.root)
+    var encoded2 = json::stringify(&ph2.root)
     if (!encoded.to_view().equals(encoded2.to_view())) { env.error("long string roundtrip mismatch") }
 }

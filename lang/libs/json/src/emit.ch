@@ -1,171 +1,77 @@
-public interface JsonStringEmitter {
+// Compact / pretty JSON emission from a JsonValue into a std::string.
+// Escaping shares the single implementation in encode.ch (json_escape_into).
 
-    func append_view(&self, view : &std::string_view)
-
-    func append_char(&self, ch : char)
-
-}
-
-public struct JsonStringPrinter {
-    var stream : CommandLineStream
-    @make
-    func make() {
-        return JsonStringPrinter {
-            stream : CommandLineStream {}
+func (output : &mut std::string) append_value_inner(value : &JsonValue, pretty : bool, indent : int) {
+    switch(value) {
+        default => { output.append_char_ptr("UNKNOWN") }
+        Null() => { output.append_char_ptr("null") }
+        Bool(value) => {
+            if(value) {
+                output.append_char_ptr("true")
+            } else {
+                output.append_char_ptr("false")
+            }
         }
-    }
-}
-
-impl JsonStringEmitter for JsonStringPrinter {
-    func append_view(&self, view : &std::string_view) {
-        stream.writeStr(view.data(), view.size())
-    }
-    func append_char(&self, ch : char) {
-        stream.writeChar(ch)
-    }
-}
-
-public struct JsonStringBuilder {
-    var ptr : &mut std::string
-}
-
-impl JsonStringEmitter for JsonStringBuilder {
-    func append_view(&mut self, view : &std::string_view) {
-        ptr.append_view(view)
-    }
-    func append_char(&mut self, ch : char) {
-        ptr.append(ch)
-    }
-}
-
-public func <T : JsonStringEmitter> escape_string_into(emitter : &T, str: &std::string) {
-    emitter.append_view("\"");
-    var data = str.data();
-    var len = str.size();
-    var i = 0;
-    while (i < len) {
-        var ch = data[i];
-        switch (ch) {
-            '"'  => emitter.append_view("\\\"");
-            '\\' => emitter.append_view("\\\\");
-            '\b' => emitter.append_view("\\b");
-            '\f' => emitter.append_view("\\f");
-            '\n' => emitter.append_view("\\n");
-            '\r' => emitter.append_view("\\r");
-            '\t' => emitter.append_view("\\t");
-            default => {
-                const uch = ch as uchar;
-                if (uch <= 0x1F) {
-                    emitter.append_view("\\u00");
-                    const hex = "0123456789abcdef";
-                    emitter.append_char(hex[(uch >> 4) & 0xF]);
-                    emitter.append_char(hex[uch & 0xF]);
-                } else {
-                    emitter.append_char(ch)
+        Number(value) => { output.append_view(value.to_view()) }
+        String(value) => { json_escape_into(output, value.data(), value.size()) }
+        Object(values) => {
+            if(pretty) { output.append_char_ptr("{\n") } else { output.append('{') }
+            var itr = values.iterator();
+            var first = true;
+            while (itr.valid()) {
+                if (!first) {
+                    if(pretty) { output.append_char_ptr(",\n") } else { output.append(',') }
                 }
-            }
-        }
-        i++;
-    }
-    emitter.append_view("\"");
-}
-
-public func <T : JsonStringEmitter> (emitter : &mut T) append_value(value : &JsonValue) {
-    switch(value) {
-        default => { emitter.append_view("UNKNOWN") }
-        Null() => { emitter.append_view("null") }
-        Bool(value) => {
-            if(value) {
-                emitter.append_view("true")
-            } else {
-                emitter.append_view("false")
-            }
-        }
-        Number(value) => { emitter.append_view(value.to_view()) }
-        String(value) => { escape_string_into(emitter, &value); }
-        Object(values) => {
-            emitter.append_view("{");
-            var itr = values.iterator();
-            var first = true;
-            while (itr.valid()) {
-                if (!first) emitter.append_view(",");
                 first = false;
+
+                if(pretty) {
+                    for (var i = 0; i < indent + 2; i++) { output.append(' ') }
+                }
+
                 var key = itr.key()
-                escape_string_into(emitter, key);
-                emitter.append_view(":");
+                json_escape_into(output, key.data(), key.size())
+                if(pretty) { output.append_char_ptr(": ") } else { output.append(':') }
                 var val = itr.value();
-                emitter.append_value(val);
+                output.append_value_inner(val, pretty, indent + 2);
                 itr.next();
             }
-            emitter.append_view("}");
+            if(pretty) {
+                output.append_char_ptr("\n")
+                for (var i = 0; i < indent; i++) { output.append(' ') }
+            }
+            output.append('}');
         }
         Array(values) => {
-            emitter.append_view("[");
+            if(pretty) { output.append_char_ptr("[\n") } else { output.append('[') }
             var current = values.data();
             const end = current + values.size();
             var first = true;
             while (current != end) {
-                if (!first) emitter.append_view(",");
+                if (!first) {
+                    if(pretty) { output.append_char_ptr(",\n") } else { output.append(',') }
+                }
                 first = false;
-                emitter.append_value(&*current);
+
+                if(pretty) {
+                    for (var i = 0; i < indent + 2; i++) { output.append(' ') }
+                }
+                output.append_value_inner(&*current, pretty, indent + 2);
+
                 current++;
             }
-            emitter.append_view("]");
+            if(pretty) {
+                output.append_char_ptr("\n")
+                for (var i = 0; i < indent; i++) { output.append(' ') }
+            }
+            output.append(']');
         }
     }
 }
 
-public func <T : JsonStringEmitter> (emitter : &mut T) append_value_pretty(value : &JsonValue, indent: int = 0) {
-    switch(value) {
-        default => { emitter.append_view("UNKNOWN") }
-        Null() => { emitter.append_view("null") }
-        Bool(value) => {
-            if(value) {
-                emitter.append_view("true")
-            } else {
-                emitter.append_view("false")
-            }
-        }
-        Number(value) => { emitter.append_view(value.to_view()) }
-        String(value) => { escape_string_into(emitter, &value); }
-        Object(values) => {
-            emitter.append_view("{\n");
-            var itr = values.iterator();
-            var first = true;
-            while (itr.valid()) {
-                if (!first) emitter.append_view(",\n");
-                first = false;
+public func (output : &mut std::string) append_value(value : &JsonValue) {
+    output.append_value_inner(value, false, 0)
+}
 
-                for (var i = 0; i < indent + 2; i++) { emitter.append_view(" "); }
-
-                var key = itr.key()
-                escape_string_into(emitter, key);
-                emitter.append_view(": ");
-                var val = itr.value();
-                emitter.append_value_pretty(val, indent + 2);
-                itr.next();
-            }
-            emitter.append_view("\n");
-            for (var i = 0; i < indent; i++) { emitter.append_view(" "); }
-            emitter.append_view("}");
-        }
-        Array(values) => {
-            emitter.append_view("[\n");
-            var current = values.data();
-            const end = current + values.size();
-            var first = true;
-            while (current != end) {
-                if (!first) emitter.append_view(",\n");
-                first = false;
-
-                for (var i = 0; i < indent + 2; i++) { emitter.append_view(" "); }
-                emitter.append_value_pretty(&*current, indent + 2);
-
-                current++;
-            }
-            emitter.append_view("\n");
-            for (var i = 0; i < indent; i++) { emitter.append_view(" "); }
-            emitter.append_view("]");
-        }
-    }
+public func (output : &mut std::string) append_value_pretty(value : &JsonValue, indent : int = 0) {
+    output.append_value_inner(value, true, indent)
 }

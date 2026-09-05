@@ -26,7 +26,6 @@ func test_parsed_json_equals(env : &mut TestEnv, doc : &std::string_view, other 
         return;
     }
     var output = std::string()
-    var printer = JsonStringBuilder { ptr : &mut output }
-    printer.append_value(&ph.root)
+    output.append_value(&ph.root)
     view_equals(env, output.to_view(), other)
 }

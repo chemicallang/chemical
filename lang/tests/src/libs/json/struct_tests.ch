@@ -637,3 +637,29 @@ func test_manual_json_impl_decode_extra_fields_ignored(env : &mut TestEnv) {
         env.error("extra fields positional decode mismatch")
     }
 }
+
+// ===== High-level API typed encode/decode (json::encode<T> / json::decode<T>) =====
+
+@test
+func test_high_level_typed_encode_decode(env : &mut TestEnv) {
+    // json::encode<T> / json::decode<T> wrap the encoder/decoder plumbing; the
+    // caller never touches JsonEncoder/JsonDecoder/counts directly.
+    var val = JChild { num : 5, tag : std::string("hi") }
+    var er = json::encode<JChild>(&val)
+    if(er is std::Result.Err) { env.error("json::encode<JChild> failed"); return }
+    var Ok(enc) = er else unreachable
+    if(!enc.to_view().equals(std::string_view("{\"num\":5,\"tag\":\"hi\"}"))) {
+        env.error("json::encode<JChild> text mismatch")
+        return
+    }
+
+    var pr = json::parse(enc.to_view())
+    if(pr is std::Result.Err) { env.error("json::parse re-parse failed"); return }
+    var Ok(pv) = pr else unreachable
+    var dr = json::decode<JChild>(&pv)
+    if(dr is std::Result.Err) { env.error("json::decode<JChild> failed"); return }
+    var Ok(dec) = dr else unreachable
+    if(dec.num != 5 || !dec.tag.to_view().equals(std::string_view("hi"))) {
+        env.error("JChild typed roundtrip mismatch")
+    }
+}

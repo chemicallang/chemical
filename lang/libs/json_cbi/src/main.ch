@@ -9,19 +9,51 @@ public func json_parseMacroTopLevelNode(parser : *mut Parser, builder : *mut AST
         return null
     }
 
-    var struct_name = std::string_view()
+    // type path: `Type` or `ns::Type` / `a::b::Type` (namespaced types)
+    var segments = std::vector<std::string_view>()
     if(parser.getToken().type == ChemicalTokenType.Identifier as int) {
-        struct_name = builder.allocate_view(&parser.getToken().value)
+        segments.push(builder.allocate_view(&parser.getToken().value))
         parser.increment()
     } else {
-        parser.error(std::string_view("expected struct name"))
+        parser.error(std::string_view("expected type name in #json"))
         return null
+    }
+    while(parser.increment_if(ChemicalTokenType.DoubleColonSym as int)) {
+        if(parser.getToken().type != ChemicalTokenType.Identifier as int) {
+            parser.error(std::string_view("expected identifier after '::'"))
+            return null
+        }
+        segments.push(builder.allocate_view(&parser.getToken().value))
+        parser.increment()
     }
 
     if(!parser.increment_if(ChemicalTokenType.RParen as int)) {
         parser.error(std::string_view("expected ')'"))
         return null
     }
+
+    // join the segments into one "a::b::Type" path on the AST arena
+    var total : size_t = 0
+    for(var si = 0u; si < segments.size(); si++) {
+        if(si > 0u) { total += 2 } // "::"
+        total += segments.get(si).size()
+    }
+    var path_buf = builder.allocate_str_size(total + 1)
+    var off = 0
+    for(var sj = 0u; sj < segments.size(); sj++) {
+        if(sj > 0u) {
+            path_buf[off] = ':'
+            path_buf[off + 1] = ':'
+            off += 2
+        }
+        var seg = segments.get(sj)
+        for(var c = 0u; c < seg.size(); c++) {
+            path_buf[off] = seg.data()[c]
+            off++
+        }
+    }
+    path_buf[total] = '\0'
+    var struct_name = std::string_view(path_buf, total as size_t)
 
     var info = builder.allocate<SerializableInfo>()
     new (info) SerializableInfo {
@@ -85,9 +117,6 @@ func resolve_types(resolver : *mut SymbolResolver, info : *mut SerializableInfo,
 
     info.serialization_error_node = std_node.child(&std::string_view("SerializationError"))
     if(info.serialization_error_node == null) { resolver.error(std::string_view("std::SerializationError not found"), loc); return false }
-
-    info.replace_node = std_node.child(&std::string_view("replace"))
-    if(info.replace_node == null) { resolver.error(std::string_view("std::replace not found"), loc); return false }
 
     // non-generic SerializationError swap helper living in the json library; used
     // by the generated deserialize error returns instead of generic std::replace,
@@ -161,9 +190,14 @@ func find_decoder_method(info : *mut SerializableInfo, field_type : *mut BaseTyp
         if(intn_kind == IntNTypeKind.UInt || intn_kind == IntNTypeKind.ULong ||
            intn_kind == IntNTypeKind.U64 || intn_kind == IntNTypeKind.U32 ||
            intn_kind == IntNTypeKind.UShort || intn_kind == IntNTypeKind.U16 ||
-           intn_kind == IntNTypeKind.U8 || intn_kind == IntNTypeKind.UChar ||
-           intn_kind == IntNTypeKind.Char) {
+           intn_kind == IntNTypeKind.U8) {
             return info.decoder_decode_u64_method
+        }
+        if(intn_kind == IntNTypeKind.UChar || intn_kind == IntNTypeKind.Char) {
+            // chars encode as single-char JSON strings (encode_char), so they
+            // must decode through decode_char too - decode_u64 would demand a
+            // number and reject the encoded form
+            return info.decoder_decode_char_method
         }
     }
     if(kind == BaseTypeKind.Float) { return info.decoder_decode_float_method }
@@ -174,6 +208,36 @@ func find_decoder_method(info : *mut SerializableInfo, field_type : *mut BaseTyp
     // a view, and string_view fields flow through the same generic decode<T>
     // machinery as struct fields. Both return null here on purpose.
     return null
+}
+
+// resolve a (possibly namespaced) type path "Type" / "ns::Type" / "a::b::Type":
+// the first segment is resolved through the symbol table (a namespace resolves
+// to its root scope), remaining segments via .child() walking. Returns null if
+// any segment fails to resolve.
+func resolve_type_path(resolver : *mut SymbolResolver, path : &std::string_view) : *mut ASTNode {
+    var seg_start : size_t = 0
+    var first = true
+    var node : *mut ASTNode = null
+    loop {
+        var sep = path.size()
+        for(var i = seg_start; i < path.size(); i++) {
+            if(path.data()[i] == ':' && i + 1 < path.size() && path.data()[i + 1] == ':') {
+                sep = i
+                break
+            }
+        }
+        var seg = std::string_view(path.data() + seg_start, sep - seg_start)
+        if(first) {
+            node = resolver.resolve(&seg)
+            first = false
+        } else {
+            if(node == null) { return null }
+            node = node.child(&seg)
+        }
+        if(sep == path.size()) { break }
+        seg_start = sep + 2
+    }
+    return node
 }
 
 // ===== Serialize function generation =====
@@ -555,8 +619,8 @@ public func json_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedN
     const loc = node.getEncodedLocation()
     var builder = resolver.getJobBuilder()
 
-    // resolve the struct
-    info.struct_node = resolver.resolve(&info.struct_name)
+    // resolve the struct (supports namespaced paths like models::Note)
+    info.struct_node = resolve_type_path(resolver, &info.struct_name)
     if(info.struct_node == null) { resolver.error(std::string_view("struct not found"), loc); return }
 
     // read struct members

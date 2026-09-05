@@ -11,7 +11,6 @@ struct SerializableInfo {
     var result_ok_member : *mut ASTNode = null
     var result_err_member : *mut ASTNode = null
     var unit_node : *mut ASTNode = null
-    var replace_node : *mut ASTNode = null
     var se_repl_node : *mut ASTNode = null
     var serialization_error_node : *mut ASTNode = null
     // json-lib take_ok helper (moves an Ok payload out of a Result<T, SerializationError>,

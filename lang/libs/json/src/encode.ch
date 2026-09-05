@@ -307,7 +307,7 @@ public func <T> __unsafe_cast_json_encoder(e : &JsonEncoder) : &std::Encoder<T> 
 }
 
 impl std::ArrayEncoder<JsonValue> for JsonArrayEncoder {
-    func <K : std::Serializer<JsonValue, JsonEncoder>> encode(&self, value : K) : std::Result<std::Unit, std::SerializationError> {
+    func <K : std::Serializer<JsonValue, JsonEncoder>> encode(&self, value : &K) : std::Result<std::Unit, std::SerializationError> {
         var cnt = self.counts.get_ptr(self.counts.size() - 1)
         if(*cnt > 0) {
             self.buffer.append(',')
@@ -320,7 +320,7 @@ impl std::ArrayEncoder<JsonValue> for JsonArrayEncoder {
 }
 
 impl std::ObjectEncoder<JsonValue> for JsonObjectEncoder {
-    func <V : std::Serializer<JsonValue, JsonEncoder>> field(&self, name : std::string_view, value : V) : std::Result<std::Unit, std::SerializationError> {
+    func <V : std::Serializer<JsonValue, JsonEncoder>> field(&self, name : std::string_view, value : &V) : std::Result<std::Unit, std::SerializationError> {
         var cnt = self.counts.get_ptr(self.counts.size() - 1)
         if(*cnt > 0) {
             self.buffer.append(',')
@@ -335,7 +335,7 @@ impl std::ObjectEncoder<JsonValue> for JsonObjectEncoder {
 }
 
 impl std::MapEncoder<JsonValue> for JsonMapEncoder {
-    func <K : std::Serializer<JsonValue, JsonEncoder>, V : std::Serializer<JsonValue, JsonEncoder>> encode(&self, key : K, value : V) : std::Result<std::Unit, std::SerializationError> {
+    func <K : std::Serializer<JsonValue, JsonEncoder>, V : std::Serializer<JsonValue, JsonEncoder>> encode(&self, key : &K, value : &V) : std::Result<std::Unit, std::SerializationError> {
         var cnt = self.counts.get_ptr(self.counts.size() - 1)
         if(*cnt > 0) {
             self.buffer.append(',')

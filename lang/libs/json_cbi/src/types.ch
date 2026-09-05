@@ -14,6 +14,10 @@ struct SerializableInfo {
     var replace_node : *mut ASTNode = null
     var se_repl_node : *mut ASTNode = null
     var serialization_error_node : *mut ASTNode = null
+    // json-lib take_ok helper (moves an Ok payload out of a Result<T, SerializationError>,
+    // leaving the result in an Err state so the payload can be moved onward into an
+    // aggregate literal - used by generated deserialize for destructible fields)
+    var take_ok_node : *mut ASTNode = null
     var encoder_object_method : *mut ASTNode = null
     var object_encoder_field_method : *mut ASTNode = null
     var json_decoder_node : *mut ASTNode = null

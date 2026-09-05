@@ -22,47 +22,47 @@ struct JStructScalar {
 impl std::Serializer<JsonValue, JsonEncoder> for JStructScalar {
     func serialize(&self, encoder : &JsonEncoder) : std::Result<std::Unit, std::SerializationError> {
         var o = encoder.object()
-        var f1 = o.field<int>(std::string_view("i"), i)
+        var f1 = o.field<int>(std::string_view("i"), &i)
         if(f1 is std::Result.Err) {
             var Err(error) = f1 else unreachable
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var f2 = o.field<uint>(std::string_view("u"), u)
+        var f2 = o.field<uint>(std::string_view("u"), &u)
         if(f2 is std::Result.Err) {
             var Err(error) = f2 else unreachable
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var f3 = o.field<long>(std::string_view("lg"), lg)
+        var f3 = o.field<long>(std::string_view("lg"), &lg)
         if(f3 is std::Result.Err) {
             var Err(error) = f3 else unreachable
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var f4 = o.field<ulong>(std::string_view("ulg"), ulg)
+        var f4 = o.field<ulong>(std::string_view("ulg"), &ulg)
         if(f4 is std::Result.Err) {
             var Err(error) = f4 else unreachable
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var f5 = o.field<bool>(std::string_view("b"), b)
+        var f5 = o.field<bool>(std::string_view("b"), &b)
         if(f5 is std::Result.Err) {
             var Err(error) = f5 else unreachable
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var f6 = o.field<char>(std::string_view("c"), c)
+        var f6 = o.field<char>(std::string_view("c"), &c)
         if(f6 is std::Result.Err) {
             var Err(error) = f6 else unreachable
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var f7 = o.field<float>(std::string_view("f"), f)
+        var f7 = o.field<float>(std::string_view("f"), &f)
         if(f7 is std::Result.Err) {
             var Err(error) = f7 else unreachable
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var f8 = o.field<double>(std::string_view("d"), d)
+        var f8 = o.field<double>(std::string_view("d"), &d)
         if(f8 is std::Result.Err) {
             var Err(error) = f8 else unreachable
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var f9 = o.field<std::string>(std::string_view("s"), s.copy())
+        var f9 = o.field<std::string>(std::string_view("s"), &s)
         if(f9 is std::Result.Err) {
             var Err(error) = f9 else unreachable
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
@@ -215,12 +215,12 @@ struct JChild {
 impl std::Serializer<JsonValue, JsonEncoder> for JChild {
     func serialize(&self, encoder : &JsonEncoder) : std::Result<std::Unit, std::SerializationError> {
         var o = encoder.object()
-        var f1 = o.field<int>(std::string_view("num"), num)
+        var f1 = o.field<int>(std::string_view("num"), &num)
         if(f1 is std::Result.Err) {
             var Err(error) = f1 else unreachable
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var f2 = o.field<std::string>(std::string_view("tag"), tag.copy())
+        var f2 = o.field<std::string>(std::string_view("tag"), &tag)
         if(f2 is std::Result.Err) {
             var Err(error) = f2 else unreachable
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
@@ -277,17 +277,17 @@ struct JParent {
 impl std::Serializer<JsonValue, JsonEncoder> for JParent {
     func serialize(&self, encoder : &JsonEncoder) : std::Result<std::Unit, std::SerializationError> {
         var o = encoder.object()
-        var f1 = o.field<long>(std::string_view("id"), id)
+        var f1 = o.field<long>(std::string_view("id"), &id)
         if(f1 is std::Result.Err) {
             var Err(error) = f1 else unreachable
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var f2 = o.field<JChild>(std::string_view("child"), child.copy())
+        var f2 = o.field<JChild>(std::string_view("child"), &child)
         if(f2 is std::Result.Err) {
             var Err(error) = f2 else unreachable
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var f3 = o.field<bool>(std::string_view("active"), active)
+        var f3 = o.field<bool>(std::string_view("active"), &active)
         if(f3 is std::Result.Err) {
             var Err(error) = f3 else unreachable
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
@@ -358,12 +358,12 @@ struct JTwoInt {
 impl std::Serializer<JsonValue, JsonEncoder> for JTwoInt {
     func serialize(&self, encoder : &JsonEncoder) : std::Result<std::Unit, std::SerializationError> {
         var o = encoder.object()
-        var f1 = o.field<int>(std::string_view("a"), a)
+        var f1 = o.field<int>(std::string_view("a"), &a)
         if(f1 is std::Result.Err) {
             var Err(error) = f1 else unreachable
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
         }
-        var f2 = o.field<int>(std::string_view("b"), b)
+        var f2 = o.field<int>(std::string_view("b"), &b)
         if(f2 is std::Result.Err) {
             var Err(error) = f2 else unreachable
             return std::Result.Err<std::Unit, std::SerializationError>(__non_gen_se_repl(&mut error, std::SerializationError()))
@@ -419,13 +419,16 @@ impl std::Deserializer<JTwoInt> for TypeDecoder<JTwoInt> {
 // macro (and any manual impl) must satisfy.
 //
 // Notes on the shape of a handwritten impl (Chemical move/copy rules):
-//   - Encoding a field whose value is an owning type (std::string, or a struct
-//     that owns strings) requires an explicit copy: o.field<std::string>(name,
-//     self.s.copy()). Members cannot be moved out of &self and field<V> takes
-//     V by value, so owning structs need a hand-written copy().
-//   - Decoding an owning field: bind a *view* (decode_str -> std::string_view)
-//     and construct the owning value inline (std::string(r)); a pattern-bound
-//     owning local cannot be moved into a struct literal.
+//   - Encoding: ObjectEncoder.field takes its value BY REFERENCE
+//     (std::ObjectEncoder.field is `value : &V`), so each member is passed as
+//     &self.field - no copy is required even for owning/destructible members
+//     (moving a member OUT of &self by value would be illegal).
+//   - Decoding an owning scalar field: bind a *view* (decode_str ->
+//     std::string_view) and construct the owning value inline (std::string(r));
+//     a pattern-bound owning local cannot be moved into a struct literal.
+//     Composite fields (decode<T>) move their Ok payload out with json's
+//     take_ok helper; these manual impls instead use .copy() where the type
+//     provides one - both avoid moving a pattern-bound value onward.
 //   - Error propagation uses the non-generic json::__non_gen_se_repl helper
 //     (generic std::replace from impl code corrupts under nested generic
 //     instantiation - see .agents/skills/json_serialization/SKILL.md).

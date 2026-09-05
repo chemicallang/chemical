@@ -49,19 +49,19 @@ public interface Encoder<T> {
 
 public interface ArrayEncoder<T> {
 
-    func <K : Serializer<T>> encode(&self, value : K) : std::Result<Unit, SerializationError>
+    func <K : Serializer<T>> encode(&self, value : &K) : std::Result<Unit, SerializationError>
 
 }
 
 public interface ObjectEncoder<T> {
 
-    func <V : Serializer<T>> field(&self, name : std::string_view, value : V) : std::Result<Unit, SerializationError>
+    func <V : Serializer<T>> field(&self, name : std::string_view, value : &V) : std::Result<Unit, SerializationError>
 
 }
 
 public interface MapEncoder<T> {
 
-    func <K : Serializer<T>, V : Serializer<T>> encode(&self, key : K, value : V) : std::Result<Unit, SerializationError>
+    func <K : Serializer<T>, V : Serializer<T>> encode(&self, key : &K, value : &V) : std::Result<Unit, SerializationError>
 
 }
 

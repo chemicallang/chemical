@@ -96,6 +96,12 @@ func resolve_types(resolver : *mut SymbolResolver, info : *mut SerializableInfo,
     info.se_repl_node = resolver.resolve(&std::string_view("__non_gen_se_repl"))
     if(info.se_repl_node == null) { resolver.error(std::string_view("__non_gen_se_repl not found"), loc); return false }
 
+    // take_ok: moves an Ok payload out of a Result<T, SerializationError> (leaving
+    // an Err state), giving generated deserialize an owned local it can move into
+    // the struct literal - pattern-bound Ok values cannot be moved onward
+    info.take_ok_node = resolver.resolve(&std::string_view("take_ok"))
+    if(info.take_ok_node == null) { resolver.error(std::string_view("take_ok not found"), loc); return false }
+
     var encoder_iface = std_node.child(&std::string_view("Encoder"))
     if(encoder_iface == null) { resolver.error(std::string_view("std::Encoder not found"), loc); return false }
     info.encoder_object_method = encoder_iface.child(&std::string_view("object"))
@@ -163,16 +169,23 @@ func find_decoder_method(info : *mut SerializableInfo, field_type : *mut BaseTyp
     if(kind == BaseTypeKind.Float) { return info.decoder_decode_float_method }
     if(kind == BaseTypeKind.Double) { return info.decoder_decode_double_method }
     if(kind == BaseTypeKind.Bool) { return info.decoder_decode_bool_method }
-    if(kind == BaseTypeKind.String) { return info.decoder_decode_str_method }
+    // NOTE: std::string / std::string_view members are NOT decoded via decode_str
+    // here: owning strings must be constructed (or taken) rather than bitcast from
+    // a view, and string_view fields flow through the same generic decode<T>
+    // machinery as struct fields. Both return null here on purpose.
     return null
 }
 
 // ===== Serialize function generation =====
 // func serialize(&self, encoder : &JsonEncoder) : Result<Unit, SerializationError> {
 //     var obj = encoder.object()
-//     obj.field<T0>("x0", self.x0)
-//     obj.field<T1>("x1", self.x1)
+//     obj.field<T0>("x0", &self.x0)
+//     obj.field<T1>("x1", &self.x1)
 // }
+//
+// ObjectEncoder.field takes its value BY REFERENCE (std::ObjectEncoder.field
+// signature is `value : &V`), so owning/destructible members are encoded without
+// moving them out of &self or copying them.
 
 func build_serialize_fn(builder : *mut ASTBuilder, info : *mut SerializableInfo, members : *mut VecRef<BaseDefMember>, parent_node : *mut ASTNode, loc : ubigint) : *mut FunctionDeclaration {
     var struct_type = builder.make_linked_type(&info.struct_name, info.struct_node, loc)
@@ -206,7 +219,7 @@ func build_serialize_fn(builder : *mut ASTBuilder, info : *mut SerializableInfo,
     )
     body.push(obj_var as *mut ASTNode)
 
-    // obj.field<T_i>("name_i", self.name_i) for each field
+    // obj.field<T_i>("name_i", &self.name_i) for each field
     for(var i = 0u; i < info.field_names.size(); i++) {
         var fname = info.field_names.get(i)
 
@@ -229,11 +242,16 @@ func build_serialize_fn(builder : *mut ASTBuilder, info : *mut SerializableInfo,
         var fname_val = builder.make_string_value(&fname_alloc, loc)
         field_stmt.get_args().push(fname_val)
 
-        // arg 2: self.field_name
+        // arg 2: &self.field_name
+        // ObjectEncoder.field takes V by REFERENCE (std::ObjectEncoder.field
+        // signature is `value : &V`), so passing the member itself would try to
+        // MOVE it out of &self - illegal for destructible members. A reference
+        // lets encode work for owning members without copying.
         var self_id = builder.make_identifier(&std::string_view("self"), self_param as *mut ASTNode, false, loc)
         var member_id = builder.make_identifier(&fname, members.get(i) as *mut ASTNode, false, loc)
         var member_chain = builder.make_access_chain(&std::span<*mut Value>([ self_id as *mut Value, member_id as *mut Value ]), loc)
-        field_stmt.get_args().push(member_chain as *mut Value)
+        var member_ref = builder.make_reference_of_value(member_chain as *mut Value, false, loc)
+        field_stmt.get_args().push(member_ref as *mut Value)
 
         body.push(field_stmt as *mut ASTNode)
     }
@@ -257,21 +275,34 @@ func build_serialize_fn(builder : *mut ASTBuilder, info : *mut SerializableInfo,
 // ===== Deserialize function generation =====
 // func deserialize(&self) : Result<Point, SerializationError> {
 //     var dr = self.decoder.object()                    // Result<JsonObjectDecoder, SE>
-//     if(dr is std::Result.Err) {
-//         var Err(e) = dr else unreachable
-//         return std::Result.Err<Point, SerializationError>(std::replace(&mut e, std::SerializationError()))
-//     }
+//     if(dr is std::Result.Err) { ... return Err<Point, SerializationError>(...) }
 //     var Ok(obj) = dr else unreachable
 //     // per field: consume one key/value pair and decode the value
-//     var q0 = obj.item_decoder()
-//     if(q0 is std::Result.Err) { var Err(e) = q0 else unreachable; return Err... }
+//     var q0 = obj.item_decoder()                       // scalar fields
+//     ...
 //     var Ok(p0) = q0 else unreachable
 //     var v0 = p0.second.decode_i64()
-//     if(v0 is std::Result.Err) { ... }
-//     var Ok(x) = v0 else unreachable
 //     ...
-//     return std::Result.Ok<Point, SerializationError>(Point { x: x, y: y })
+//     var Ok(x) = v0 else unreachable                   // scalar: Ok-pattern bind
+//
+//     var q1 = obj.item_decoder()                       // composite fields
+//     ...
+//     var v1 = p1.second.decode<T>()                    // strings + nested structs
+//     ...
+//     var f1 : T = take_ok(&mut v1)                     // move payload out of the
+//                                                       // Result (v1 -> Err state)
+//     ...
+//     return std::Result.Ok<Point, SerializationError>(Point { x: x, child: f1 })
 // }
+//
+// Composite values are decoded via decode<T> and moved out of their Result with
+// json's take_ok helper (like std::Option.take): a pattern-bound Ok payload
+// cannot be moved onward into the aggregate literal ("cannot move this value
+// without re-initializing memory"), but take_ok leaves an OWNED local that can
+// be moved - required for destructible/owning members (strings, nested structs)
+// and avoids copies entirely. The final literal only casts scalar values; a
+// CastedValue around a destructible value would bitwise-copy it and still
+// destruct the local at scope end (double free).
 
 // allocates a "__name<idx>" identifier view on the AST arena
 func alloc_indexed_view(builder : *mut ASTBuilder, fmt : *char, idx : uint) : std::string_view {
@@ -284,7 +315,7 @@ func alloc_indexed_view(builder : *mut ASTBuilder, fmt : *char, idx : uint) : st
 // appends to `body`:
 //   if(<rname> is std::Result.Err) {
 //       var Err(__e) = <rname> else unreachable
-//       return std::Result.Err<T, SerializationError>(std::replace(&mut __e, SerializationError()))
+//       return std::Result.Err<T, SerializationError>(__non_gen_se_repl(&mut __e, SerializationError()))
 //   }
 // this mirrors the negative-check style of the handwritten json.ch impls
 func append_err_check(builder : *mut ASTBuilder, info : *mut SerializableInfo, body : *mut VecRef<ASTNode>, parent_fn : *mut ASTNode, rname : std::string_view, rnode : *mut ASTNode, loc : ubigint) {
@@ -377,9 +408,19 @@ func build_deserialize_fn(builder : *mut ASTBuilder, info : *mut SerializableInf
     var item_decoder_method_id = builder.make_identifier(&std::string_view("item_decoder"), info.object_decoder_item_method, false, loc)
     var second_id = builder.make_identifier(&std::string_view("second"), info.pair_second_member, false, loc)
 
-    // per-field Ok-pattern ids + their names, for the final struct construction
+    // per-field value holders + their names, for the final struct construction.
+    // Scalar fields bind the Ok payload via a pattern match (PatternMatchId);
+    // composite/destructible fields move the Ok payload out with take_ok into a
+    // plain local var (VarInitStatement). Both entries are the AST node the final
+    // struct-init identifier links to.
     var field_val_names = std::vector<std::string_view>()
-    var field_val_ids = std::vector<*mut PatternMatchIdentifier>()
+    var field_val_nodes = std::vector<*mut ASTNode>()
+    // scalar fields are wrapped in a CastedValue in the struct init (decode
+    // produces i64/u64/... but the member needs a cast to its exact type);
+    // composite/string fields are already the exact member type and must be
+    // passed as plain identifiers so the value MOVES into the literal (a cast
+    // would bitwise-copy and leave the local destructed later -> double free)
+    var field_val_is_cast = std::vector<bool>()
 
     for(var i = 0u; i < info.field_names.size(); i++) {
         var field_type = info.field_types.get(i)
@@ -447,25 +488,54 @@ func build_deserialize_fn(builder : *mut ASTBuilder, info : *mut SerializableInf
         body.push(v_var as *mut ASTNode)
         append_err_check(builder, info, body, deserialize_fn as *mut ASTNode, v_name, v_var as *mut ASTNode, loc)
 
-        // var Ok(__f<i>) = __v<i> else unreachable
-        var v_ok_pm = builder.make_pattern_match_expr(false, false, &std::string_view("Ok"), loc)
-        v_ok_pm.set_expression(builder.make_identifier(&v_name, v_var as *mut ASTNode, false, loc) as *mut Value)
-        v_ok_pm.set_else_unreachable()
-        var f_pm_id = v_ok_pm.add_param_name(builder, &f_name, loc)
-        body.push(builder.make_pattern_match_node(v_ok_pm, deserialize_fn as *mut ASTNode, loc) as *mut ASTNode)
+        if(decode_is_generic) {
+            // Composite/destructible field: move the Ok payload out of __v<i> with
+            // take_ok (leaves __v<i> in an Err state). Pattern-bound Ok values
+            // cannot be moved onward into the struct literal ("cannot move this
+            // value without re-initializing memory"), but an owned local CAN.
+            // var __f<i> = take_ok<FieldType>(&mut __v<i>)
+            var v_id = builder.make_identifier(&v_name, v_var as *mut ASTNode, false, loc)
+            var addr_v = builder.make_reference_of_value(v_id as *mut Value, true, loc)
+            var take_ok_call = builder.make_function_call_value(
+                builder.make_identifier(&std::string_view("take_ok"), info.take_ok_node, false, loc) as *mut Value, loc
+            )
+            take_ok_call.add_generic_arg(field_type, loc)
+            take_ok_call.get_args().push(addr_v as *mut Value)
+            var f_var = builder.make_varinit_stmt(
+                false, false, &f_name, field_type, take_ok_call as *mut Value,
+                AccessSpecifier.Internal, deserialize_fn as *mut ASTNode, loc
+            )
+            body.push(f_var as *mut ASTNode)
+            field_val_names.push(f_name)
+            field_val_nodes.push(f_var as *mut ASTNode)
+            field_val_is_cast.push(false)
+        } else {
+            // Scalar field: bind the Ok payload (trivially copyable, no move
+            // restrictions). var Ok(__f<i>) = __v<i> else unreachable
+            var v_ok_pm = builder.make_pattern_match_expr(false, false, &std::string_view("Ok"), loc)
+            v_ok_pm.set_expression(builder.make_identifier(&v_name, v_var as *mut ASTNode, false, loc) as *mut Value)
+            v_ok_pm.set_else_unreachable()
+            var f_pm_id = v_ok_pm.add_param_name(builder, &f_name, loc)
+            body.push(builder.make_pattern_match_node(v_ok_pm, deserialize_fn as *mut ASTNode, loc) as *mut ASTNode)
 
-        field_val_names.push(f_name)
-        field_val_ids.push(f_pm_id)
+            field_val_names.push(f_name)
+            field_val_nodes.push(f_pm_id as *mut ASTNode)
+            field_val_is_cast.push(true)
+        }
     }
 
     // return std::Result.Ok<Point, SerializationError>(Point { x : __f0, y : __f1 })
     var struct_val = builder.make_struct_value(info.struct_node, loc)
-    for(var j = 0u; j < field_val_ids.size(); j++) {
+    for(var j = 0u; j < field_val_nodes.size(); j++) {
         var fname_j = info.field_names.get(j)
         var ftype_j = info.field_types.get(j)
-        var fval_id = builder.make_identifier(&field_val_names.get(j), field_val_ids.get(j) as *mut ASTNode, false, loc)
-        var casted = builder.make_casted_value(fval_id as *mut Value, ftype_j, loc)
-        struct_val.add_value(&fname_j, casted as *mut Value)
+        var fval_id = builder.make_identifier(&field_val_names.get(j), field_val_nodes.get(j), false, loc)
+        if(field_val_is_cast.get(j)) {
+            var casted = builder.make_casted_value(fval_id as *mut Value, ftype_j, loc)
+            struct_val.add_value(&fname_j, casted as *mut Value)
+        } else {
+            struct_val.add_value(&fname_j, fval_id as *mut Value)
+        }
     }
     var ok_call = builder.make_function_call_value(
         builder.make_identifier(&std::string_view("Ok"), info.result_ok_member, false, loc) as *mut Value, loc

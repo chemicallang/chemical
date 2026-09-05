@@ -131,6 +131,16 @@ func resolve_types(resolver : *mut SymbolResolver, info : *mut SerializableInfo,
     info.take_ok_node = resolver.resolve(&std::string_view("take_ok"))
     if(info.take_ok_node == null) { resolver.error(std::string_view("take_ok not found"), loc); return false }
 
+    info.se_err_node = resolver.resolve(&std::string_view("se_err"))
+    if(info.se_err_node == null) { resolver.error(std::string_view("se_err not found"), loc); return false }
+
+    info.std_string_node = std_node.child(&std::string_view("string"))
+    if(info.std_string_node == null) { resolver.error(std::string_view("std::string not found"), loc); return false }
+
+    info.fnv1_hash_view_node = resolver.resolve(&std::string_view("fnv1_hash_view"))
+    if(info.fnv1_hash_view_node == null) { resolver.error(std::string_view("fnv1_hash_view not found"), loc); return false }
+    info.fnv1_hash_view_ret_type = (info.fnv1_hash_view_node as *mut FunctionDeclaration).getReturnType()
+
     var encoder_iface = std_node.child(&std::string_view("Encoder"))
     if(encoder_iface == null) { resolver.error(std::string_view("std::Encoder not found"), loc); return false }
     info.encoder_object_method = encoder_iface.child(&std::string_view("object"))
@@ -210,6 +220,87 @@ func find_decoder_method(info : *mut SerializableInfo, field_type : *mut BaseTyp
     return null
 }
 
+// ===== Enum field support =====
+// Enum fields serialize as a JSON string holding the member name (e.g.
+// Color.Red -> "Red"). Encode resolves the name from the enum's backing int
+// with an if/else chain (see build_serialize_fn); decode hashes the decoded
+// name with std::fnv1_hash_view and dispatches over precomputed name hashes
+// back to the enum value (erroring on unknown names), so lookup never compares
+// strings linearly.
+
+// returns the EnumDeclaration node a field type refers to (null otherwise)
+func field_enum_node(field_type : *mut BaseType) : *mut ASTNode {
+    if(field_type == null) { return null }
+    if(field_type.getKind() != BaseTypeKind.Linked) { return null }
+    var linked = (field_type as *mut LinkedType).getLinkedNode()
+    if(linked == null) { return null }
+    if(linked.getKind() == ASTNodeKind.EnumDecl) { return linked }
+    return null
+}
+
+// returns a reason string_view for field types #json cannot serialize/
+// deserialize (empty = supported). Called at the #json site so unsupported
+// shapes produce a clean error there instead of corrupting the json library's
+// own symres. Literal (static) views only - resolver.error must not receive a
+// view into a stack-local string, and no per-field name is interpolated.
+func unsupported_field_reason(mtype : *mut BaseType) : std::string_view {
+    if(mtype == null) { return std::string_view("") }
+    var k = mtype.getKind()
+    if(k == BaseTypeKind.IntN || k == BaseTypeKind.Bool || k == BaseTypeKind.Float ||
+       k == BaseTypeKind.Double || k == BaseTypeKind.String) {
+        return std::string_view("")
+    }
+    if(k == BaseTypeKind.Generic) {
+        return std::string_view("generic container field types (std::vector / std::ordered_map / Option) are not supported yet")
+    }
+    if(k == BaseTypeKind.Array) {
+        return std::string_view("an array field type (not supported)")
+    }
+    if(k == BaseTypeKind.Pointer) {
+        return std::string_view("a pointer field type (not supported)")
+    }
+    if(k == BaseTypeKind.Reference) {
+        return std::string_view("a reference field type (not supported)")
+    }
+    if(k == BaseTypeKind.Union) {
+        return std::string_view("a union field type (not supported)")
+    }
+    if(k == BaseTypeKind.Linked) {
+        var linked = (mtype as *mut LinkedType).getLinkedNode()
+        if(linked == null) { return std::string_view("") }
+        var lk = linked.getKind()
+        if(lk == ASTNodeKind.StructDecl || lk == ASTNodeKind.EnumDecl) {
+            // structs/enums are handled (structs need their own #json/impl)
+            return std::string_view("")
+        }
+        if(lk == ASTNodeKind.VariantDecl) {
+            return std::string_view("a variant field type (#json variant support is not implemented yet)")
+        }
+        if(lk == ASTNodeKind.UnionDecl) {
+            return std::string_view("a union field type (not supported)")
+        }
+        return std::string_view("")
+    }
+    if(k == BaseTypeKind.Dynamic || k == BaseTypeKind.Function || k == BaseTypeKind.CapturingFunction ||
+       k == BaseTypeKind.Void || k == BaseTypeKind.Complex || k == BaseTypeKind.LongDouble) {
+        return std::string_view("a field type with no Serializer/Deserializer implementation")
+    }
+    // unknown kinds fall through to the generic decode<T> path (status quo);
+    // only shapes known to lack a Serializer/Deserializer are rejected above
+    return std::string_view("")
+}
+
+// fnv1a-64 (same algorithm as std::fnv1_hash_view) computed in the plugin so
+// generated decode dispatch can compare against constant name hashes
+func fnv1a64(name : std::string_view) : u64 {
+    var hash : u64 = 0xcbf29ce484222325 as u64
+    for(var i = 0u; i < name.size(); i++) {
+        hash = hash ^ (name.data()[i] as u64)
+        hash = hash * (0x100000001b3 as u64)
+    }
+    return hash
+}
+
 // resolve a (possibly namespaced) type path "Type" / "ns::Type" / "a::b::Type":
 // the first segment is resolved through the symbol table (a namespace resolves
 // to its root scope), remaining segments via .child() walking. Returns null if
@@ -283,9 +374,93 @@ func build_serialize_fn(builder : *mut ASTBuilder, info : *mut SerializableInfo,
     )
     body.push(obj_var as *mut ASTNode)
 
-    // obj.field<T_i>("name_i", &self.name_i) for each field
+    // obj.field<T_i>("name_i", &self.name_i) for each field. Enum fields first
+    // resolve their member NAME to a std::string (if/else chain over the backing
+    // int) and emit obj.field<std::string>("name", &__en<i>); scalar and
+    // composite fields emit obj.field<T>("name", &self.name) directly.
+    var str_linked_type : *mut LinkedType = null
     for(var i = 0u; i < info.field_names.size(); i++) {
         var fname = info.field_names.get(i)
+        var ftype_i = info.field_types.get(i)
+        var enum_node = field_enum_node(ftype_i)
+
+        // explicit generic arg: the field's concrete type (std::string for enums)
+        var field_generic_type : *mut BaseType = ftype_i
+        // arg 2 value: &self.field_name for scalar/composite members
+        // (ObjectEncoder.field takes V BY REFERENCE, so passing the member itself
+        // would try to MOVE it out of &self - illegal for destructible members)
+        var field_arg : *mut Value = null
+
+        if(enum_node != null) {
+            // var __en<i> : std::string = std::string()
+            var en_name = alloc_indexed_view(builder, "__en%d", i)
+            str_linked_type = builder.make_linked_type(&std::string_view("string"), info.std_string_node, loc)
+            field_generic_type = str_linked_type as *mut BaseType
+            var empty_ctor = builder.make_function_call_value(
+                builder.make_identifier(&std::string_view("string"), info.std_string_node, false, loc) as *mut Value, loc
+            )
+            var en_var = builder.make_varinit_stmt(
+                false, false, &en_name, field_generic_type, empty_ctor as *mut Value,
+                AccessSpecifier.Internal, serialize_fn as *mut ASTNode, loc
+            )
+            body.push(en_var as *mut ASTNode)
+
+            // resolve the member name for each enum value via the backing int:
+            //   if((self.field as int) == 0) { __en<i> = std::string("Red") }
+            //   else if(...) { ... }
+            //   else { __en<i> = std::string("") }
+            var enum_members = (enum_node as *mut EnumDeclaration).getMembers()
+            var first_if : *mut IfStatement = null
+            for(var j = 0u; j < enum_members.size(); j++) {
+                var mem_name = enum_members.get(j).getName()
+                var self_id = builder.make_identifier(&std::string_view("self"), self_param as *mut ASTNode, false, loc)
+                var member_id = builder.make_identifier(&fname, members.get(i) as *mut ASTNode, false, loc)
+                var member_chain = builder.make_access_chain(&std::span<*mut Value>([ self_id as *mut Value, member_id as *mut Value ]), loc)
+                var cond = builder.make_expression_value(
+                    builder.make_casted_value(member_chain as *mut Value, builder.get_int_type(), loc) as *mut Value,
+                    builder.make_int_value(j as int, loc) as *mut Value,
+                    Operation.IsEqual, builder.make_bool_type(), loc
+                )
+                var mem_name_alloc = builder.allocate_view(&mem_name)
+                var name_ctor = builder.make_function_call_value(
+                    builder.make_identifier(&std::string_view("string"), info.std_string_node, false, loc) as *mut Value, loc
+                )
+                name_ctor.get_args().push(builder.make_string_value(&mem_name_alloc, loc))
+                var assign = builder.make_assignment_stmt(
+                    builder.make_identifier(&en_name, en_var as *mut ASTNode, false, loc) as *mut Value,
+                    name_ctor as *mut Value, Operation.Assignment, serialize_fn as *mut ASTNode, loc
+                )
+                if(j == 0u) {
+                    first_if = builder.make_if_stmt(cond as *mut Value, serialize_fn as *mut ASTNode, loc)
+                    first_if.get_body().push(assign as *mut ASTNode)
+                } else {
+                    var else_if_body = first_if.add_else_if(cond as *mut Value)
+                    else_if_body.push(assign as *mut ASTNode)
+                }
+            }
+            // trailing else: unreachable for a valid enum, keeps every path assigned
+            var empty_name_alloc = builder.allocate_view(&std::string_view(""))
+            var empty_ctor2 = builder.make_function_call_value(
+                builder.make_identifier(&std::string_view("string"), info.std_string_node, false, loc) as *mut Value, loc
+            )
+            empty_ctor2.get_args().push(builder.make_string_value(&empty_name_alloc, loc))
+            var else_assign = builder.make_assignment_stmt(
+                builder.make_identifier(&en_name, en_var as *mut ASTNode, false, loc) as *mut Value,
+                empty_ctor2 as *mut Value, Operation.Assignment, serialize_fn as *mut ASTNode, loc
+            )
+            first_if.add_else_body().push(else_assign as *mut ASTNode)
+            body.push(first_if as *mut ASTNode)
+
+            // arg 2 becomes &__en<i> (the computed name), not &self.field
+            field_arg = builder.make_reference_of_value(
+                builder.make_identifier(&en_name, en_var as *mut ASTNode, false, loc) as *mut Value, false, loc
+            )
+        } else {
+            var self_id = builder.make_identifier(&std::string_view("self"), self_param as *mut ASTNode, false, loc)
+            var member_id = builder.make_identifier(&fname, members.get(i) as *mut ASTNode, false, loc)
+            var member_chain = builder.make_access_chain(&std::span<*mut Value>([ self_id as *mut Value, member_id as *mut Value ]), loc)
+            field_arg = builder.make_reference_of_value(member_chain as *mut Value, false, loc)
+        }
 
         var obj_id = builder.make_identifier(&std::string_view("obj"), obj_var as *mut ASTNode, false, loc)
         var field_method_id = builder.make_identifier(&std::string_view("field"), info.object_encoder_field_method, false, loc)
@@ -297,25 +472,14 @@ func build_serialize_fn(builder : *mut ASTBuilder, info : *mut SerializableInfo,
         // make_function_call_node would wrap it in a SECOND call whose parent is
         // that value (i.e. calling the first call's result as a function).
         var field_stmt = builder.make_function_call_node(field_chain as *mut Value, serialize_fn as *mut ASTNode, loc)
-
-        // explicit generic arg: the field's concrete type
-        field_stmt.add_generic_arg(info.field_types.get(i), loc)
+        field_stmt.add_generic_arg(field_generic_type, loc)
 
         // arg 1: field name string literal
         var fname_alloc = builder.allocate_view(&fname)
         var fname_val = builder.make_string_value(&fname_alloc, loc)
         field_stmt.get_args().push(fname_val)
 
-        // arg 2: &self.field_name
-        // ObjectEncoder.field takes V by REFERENCE (std::ObjectEncoder.field
-        // signature is `value : &V`), so passing the member itself would try to
-        // MOVE it out of &self - illegal for destructible members. A reference
-        // lets encode work for owning members without copying.
-        var self_id = builder.make_identifier(&std::string_view("self"), self_param as *mut ASTNode, false, loc)
-        var member_id = builder.make_identifier(&fname, members.get(i) as *mut ASTNode, false, loc)
-        var member_chain = builder.make_access_chain(&std::span<*mut Value>([ self_id as *mut Value, member_id as *mut Value ]), loc)
-        var member_ref = builder.make_reference_of_value(member_chain as *mut Value, false, loc)
-        field_stmt.get_args().push(member_ref as *mut Value)
+        field_stmt.get_args().push(field_arg)
 
         body.push(field_stmt as *mut ASTNode)
     }
@@ -488,16 +652,24 @@ func build_deserialize_fn(builder : *mut ASTBuilder, info : *mut SerializableInf
 
     for(var i = 0u; i < info.field_names.size(); i++) {
         var field_type = info.field_types.get(i)
+        var enum_node = field_enum_node(field_type)
+        var is_enum = enum_node != null
         var decode_method = find_decoder_method(info, field_type)
         var decode_is_generic = false
         if(decode_method == null) {
-            // nested struct / composite field: decode via the generic JsonDecoder.decode<T>()
-            decode_method = info.decoder_decode_generic_method
-            if(decode_method == null) {
-                // unsupported field type: leave its slot undecoded
-                continue
+            if(is_enum) {
+                // enum fields decode their member NAME through decode_str, then
+                // dispatch on the name hash (handled after the __v<i> err check)
+                decode_method = info.decoder_decode_str_method
+            } else {
+                // nested struct / composite field: decode via the generic JsonDecoder.decode<T>()
+                decode_method = info.decoder_decode_generic_method
+                if(decode_method == null) {
+                    // unsupported field type: leave its slot undecoded
+                    continue
+                }
+                decode_is_generic = true
             }
-            decode_is_generic = true
         }
 
         var q_name = alloc_indexed_view(builder, "__q%d", i)
@@ -552,7 +724,97 @@ func build_deserialize_fn(builder : *mut ASTBuilder, info : *mut SerializableInf
         body.push(v_var as *mut ASTNode)
         append_err_check(builder, info, body, deserialize_fn as *mut ASTNode, v_name, v_var as *mut ASTNode, loc)
 
-        if(decode_is_generic) {
+        if(is_enum) {
+            // Enum field: __v<i> holds Result<string_view, SE> (decode_str). Bind
+            // the name, hash it and dispatch over the precomputed name hashes:
+            //
+            //   var Ok(__s<i>) = __v<i> else unreachable
+            //   const __h<i> = std::fnv1_hash_view(&__s<i>)
+            //   var __f<i> : EnumType                      // uninitialized
+            //   if(__h<i> == <hash "Red">) { __f<i> = <0 as EnumType> }
+            //   else if(__h<i> == <hash "Green">) { ... }
+            //   else { return Err<Struct, SE>(se_err(...)) }  // unknown name
+
+            // var Ok(__s<i>) = __v<i> else unreachable
+            var s_name = alloc_indexed_view(builder, "__s%d", i)
+            var v_ok_pm = builder.make_pattern_match_expr(false, false, &std::string_view("Ok"), loc)
+            v_ok_pm.set_expression(builder.make_identifier(&v_name, v_var as *mut ASTNode, false, loc) as *mut Value)
+            v_ok_pm.set_else_unreachable()
+            var s_pm_id = v_ok_pm.add_param_name(builder, &s_name, loc)
+            body.push(builder.make_pattern_match_node(v_ok_pm, deserialize_fn as *mut ASTNode, loc) as *mut ASTNode)
+
+            // const __h<i> = std::fnv1_hash_view(&__s<i>)
+            var h_name = alloc_indexed_view(builder, "__h%d", i)
+            var s_id = builder.make_identifier(&s_name, s_pm_id as *mut ASTNode, false, loc)
+            var s_ref = builder.make_reference_of_value(s_id as *mut Value, false, loc)
+            var hash_call = builder.make_function_call_value(
+                builder.make_identifier(&std::string_view("fnv1_hash_view"), info.fnv1_hash_view_node, false, loc) as *mut Value, loc
+            )
+            hash_call.get_args().push(s_ref as *mut Value)
+            var h_var = builder.make_varinit_stmt(
+                true, false, &h_name, info.fnv1_hash_view_ret_type, hash_call as *mut Value,
+                AccessSpecifier.Internal, deserialize_fn as *mut ASTNode, loc
+            )
+            body.push(h_var as *mut ASTNode)
+
+            // var __f<i> : EnumType (uninitialized; every non-error path assigns)
+            var f_var = builder.make_varinit_stmt(
+                false, false, &f_name, field_type, null,
+                AccessSpecifier.Internal, deserialize_fn as *mut ASTNode, loc
+            )
+            body.push(f_var as *mut ASTNode)
+
+            // if/else-if dispatch on the name hash; final else returns an error
+            var enum_members = (enum_node as *mut EnumDeclaration).getMembers()
+            var first_if : *mut IfStatement = null
+            for(var j = 0u; j < enum_members.size(); j++) {
+                var mem_name = enum_members.get(j).getName()
+                var mem_hash_lit = builder.make_casted_value(
+                    builder.make_ubigint_value(fnv1a64(mem_name) as ubigint, loc) as *mut Value,
+                    info.fnv1_hash_view_ret_type, loc
+                )
+                var cond = builder.make_expression_value(
+                    builder.make_identifier(&h_name, h_var as *mut ASTNode, false, loc) as *mut Value,
+                    mem_hash_lit as *mut Value,
+                    Operation.IsEqual, builder.make_bool_type(), loc
+                )
+                // __f<i> = <j as EnumType>
+                var enum_val = builder.make_casted_value(
+                    builder.make_int_value(j as int, loc) as *mut Value,
+                    field_type, loc
+                )
+                var assign = builder.make_assignment_stmt(
+                    builder.make_identifier(&f_name, f_var as *mut ASTNode, false, loc) as *mut Value,
+                    enum_val as *mut Value, Operation.Assignment, deserialize_fn as *mut ASTNode, loc
+                )
+                if(j == 0u) {
+                    first_if = builder.make_if_stmt(cond as *mut Value, deserialize_fn as *mut ASTNode, loc)
+                    first_if.get_body().push(assign as *mut ASTNode)
+                } else {
+                    var else_if_body = first_if.add_else_if(cond as *mut Value)
+                    else_if_body.push(assign as *mut ASTNode)
+                }
+            }
+
+            // unknown member name: return Err<Struct, SE>(se_err("..."))
+            var unknown_alloc = builder.allocate_view(&std::string_view("unknown enum member name"))
+            var se_err_call = builder.make_function_call_value(
+                builder.make_identifier(&std::string_view("se_err"), info.se_err_node, false, loc) as *mut Value, loc
+            )
+            se_err_call.get_args().push(builder.make_string_value(&unknown_alloc, loc))
+            var err_call = builder.make_function_call_value(
+                builder.make_identifier(&std::string_view("Err"), info.result_err_member, false, loc) as *mut Value, loc
+            )
+            err_call.add_generic_arg(info.result_type.getArgumentType(0), loc)
+            err_call.add_generic_arg(info.result_type.getArgumentType(1), loc)
+            err_call.get_args().push(se_err_call as *mut Value)
+            first_if.add_else_body().push(builder.make_return_stmt(err_call as *mut Value, deserialize_fn as *mut ASTNode, loc) as *mut ASTNode)
+            body.push(first_if as *mut ASTNode)
+
+            field_val_names.push(f_name)
+            field_val_nodes.push(f_var as *mut ASTNode)
+            field_val_is_cast.push(false)
+        } else if(decode_is_generic) {
             // Composite/destructible field: move the Ok payload out of __v<i> with
             // take_ok (leaves __v<i> in an Err state). Pattern-bound Ok values
             // cannot be moved onward into the struct literal ("cannot move this
@@ -623,7 +885,10 @@ public func json_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedN
     info.struct_node = resolve_type_path(resolver, &info.struct_name)
     if(info.struct_node == null) { resolver.error(std::string_view("struct not found"), loc); return }
 
-    // read struct members
+    // read struct members. Field types that have no Serializer/Deserializer
+    // support are rejected HERE with a clean error at the #json site - otherwise
+    // the unresolved generic dispatch corrupts the json library's own symres
+    // with cascade errors reported inside lang/libs/json/src/encode.ch.
     var struct_def = info.struct_node as *StructDefinition
     var members = struct_def.getMembers()
     if(members != null) {
@@ -631,6 +896,13 @@ public func json_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedN
             var member = members.get(i)
             var mname = member.getName()
             var mtype = member.getType()
+            var unsupported = unsupported_field_reason(mtype)
+            if(unsupported.size() > 0) {
+                resolver.error(&unsupported, loc)
+                // abort this #json (no impls built) so the compile fails HERE
+                // with the clean message instead of silently dropping the field
+                return
+            }
             info.field_names.push(builder.allocate_view(&mname))
             info.field_types.push(mtype)
         }

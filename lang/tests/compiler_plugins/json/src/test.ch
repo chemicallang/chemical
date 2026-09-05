@@ -406,6 +406,62 @@ func run_dtor_nested_roundtrip() : int {
     return 0
 }
 
+// enum fields: serialize as the member NAME string ("Red") and decode back by
+// matching the name hash; an unknown member name must decode to an Err
+enum JMColor {
+    Red,
+    Green,
+    Blue,
+}
+
+struct JMEnumPoint {
+    var name : std::string
+    var color : JMColor
+    var x : int
+    var y : int
+}
+
+#json(JMEnumPoint)
+
+@test
+public func json_macro_enum_struct_roundtrip(env : &mut TestEnv) {
+    var buffer = std::string()
+    var counts = std::vector<u64>()
+    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var p = JMEnumPoint { name : std::string("pt"), color : JMColor.Blue, x : 3, y : -4 }
+    var r = p.serialize(&encoder)
+    if(!(r is std::Result.Ok)) { env.error("enum serialize returned Err"); return }
+    if(!buffer.to_view().equals(std::string_view("{\"name\":\"pt\",\"color\":\"Blue\",\"x\":3,\"y\":-4}"))) {
+        env.error("enum macro exact JSON text mismatch")
+        return
+    }
+
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(256, 8192)
+    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    if(!pr.ok) { env.error("enum parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var res = d.decode<JMEnumPoint>()
+    if(res is std::Result.Err) { env.error("decode<JMEnumPoint> returned Err"); return }
+    var Ok(v) = res else unreachable
+    if(v.x != 3 || v.y != -4) { env.error("JMEnumPoint coords mismatch"); return }
+    if(!(v.color == JMColor.Blue)) { env.error("JMEnumPoint color mismatch (expected Blue)"); return }
+    if(!v.name.to_view().equals(std::string_view("pt"))) { env.error("JMEnumPoint name mismatch") }
+}
+
+@test
+public func json_macro_enum_unknown_name_rejected(env : &mut TestEnv) {
+    // a member name with no matching enum value must produce a decode error
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(256, 8192)
+    var doc = std::string_view("{\"name\":\"pt\",\"color\":\"Purple\",\"x\":1,\"y\":2}")
+    var pr = parser.parse(doc.data(), doc.size(), &mut ph)
+    if(!pr.ok) { env.error("unknown enum name parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var res = d.decode<JMEnumPoint>()
+    if(!(res is std::Result.Err)) { env.error("unknown enum member name decode should be Err") }
+}
+
 @test
 public func json_macro_nested_destructible_roundtrip(env : &mut TestEnv) {
     var before = jmd_child_dtors

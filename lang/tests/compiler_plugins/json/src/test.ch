@@ -190,9 +190,17 @@ public func json_macro_decode_missing_field(env : &mut TestEnv) {
 //     be moved into the final aggregate without copying and without the source
 //     being destroyed again.
 // A successful round trip here means: no "cannot move this value without
-// re-initializing memory" compile errors, correct JSON, and no double-destroy
-// of the owning members at scope exit.
+// re-initializing memory" compile errors, correct JSON, and the destructor
+// counters reach EXACTLY the number of constructed objects - any extra call
+// means the macro (or runtime) copied or double-destroyed a value.
 // ============================================================================
+
+// Destructor call counters. Each @test runs in its own process, so these are
+// deterministic per test. A round trip must construct exactly N objects and
+// run their destructors exactly N times: any EXTRA call means the macro (or
+// runtime) copied or double-destroyed a value; any fewer means a leak.
+var jmd_point_dtors : int = 0
+var jmd_child_dtors : int = 0
 
 struct JMDPoint {
     var x : int
@@ -202,6 +210,7 @@ struct JMDPoint {
     func delete(&mut self) {
         // explicit destructor over trivial members - the whole struct moves
         // into/out of the Result payloads without any member copies
+        jmd_point_dtors++
     }
 }
 
@@ -214,11 +223,14 @@ struct JMDChild {
     @delete
     func delete(&mut self) {
         // destructor body runs; owning members (tag) are destroyed by codegen
+        jmd_child_dtors++
     }
 }
 
 #json(JMDChild)
 
+// no own @delete: destruction is the implicit member teardown, which must
+// destroy `child` exactly once per JMDHolder instance (counted via JMDChild)
 struct JMDHolder {
     var id : long
     var child : JMDChild
@@ -227,76 +239,109 @@ struct JMDHolder {
 
 #json(JMDHolder)
 
-@test
-public func json_macro_destructor_scalar_struct_roundtrip(env : &mut TestEnv) {
+// round trips run inside helpers so every local (including the decoded value)
+// is destroyed before the caller inspects the destructor counters
+func run_dtor_scalar_roundtrip() : int {
     var buffer = std::string()
     var counts = std::vector<u64>()
     var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
     var v = JMDPoint { x : 10, y : -20 }
     var r = v.serialize(&encoder)
-    if(!(r is std::Result.Ok)) { env.error("destructor scalar serialize returned Err"); return }
-    if(!buffer.to_view().equals(std::string_view("{\"x\":10,\"y\":-20}"))) {
-        env.error("destructor scalar exact JSON text mismatch")
-        return
-    }
+    if(!(r is std::Result.Ok)) { return 1 }
+    if(!buffer.to_view().equals(std::string_view("{\"x\":10,\"y\":-20}"))) { return 2 }
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
     var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
-    if(!pr.ok) { env.error("destructor scalar parse failed"); return }
+    if(!pr.ok) { return 3 }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMDPoint>()
-    if(res is std::Result.Err) { env.error("destructor scalar decode returned Err"); return }
+    if(res is std::Result.Err) { return 4 }
     var Ok(out) = res else unreachable
-    if(out.x != 10 || out.y != -20) { env.error("destructor scalar roundtrip mismatch") }
+    if(out.x != 10 || out.y != -20) { return 5 }
+    return 0
 }
 
 @test
-public func json_macro_owning_string_struct_roundtrip(env : &mut TestEnv) {
+public func json_macro_destructor_scalar_struct_roundtrip(env : &mut TestEnv) {
+    var before = jmd_point_dtors
+    var rc = run_dtor_scalar_roundtrip()
+    if(rc != 0) { env.error("JMDPoint roundtrip failed"); return }
+    // exactly 2 objects were constructed (the encode source + the decoded
+    // value); encode borrows members by reference and decode moves payloads
+    // out of their Results, so the destructor must run exactly twice
+    var got = jmd_point_dtors - before
+    if(got > 2) { env.error("JMDPoint destructor called MORE than expected - a copy or double-destroy happened"); return }
+    if(got < 2) { env.error("JMDPoint destructor called FEWER times than expected - a value leaked") }
+}
+
+func run_dtor_owning_roundtrip() : int {
     var buffer = std::string()
     var counts = std::vector<u64>()
     var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
     var v = JMDChild { num : 5, tag : std::string("world") }
     var r = v.serialize(&encoder)
-    if(!(r is std::Result.Ok)) { env.error("owning serialize returned Err"); return }
-    if(!buffer.to_view().equals(std::string_view("{\"num\":5,\"tag\":\"world\"}"))) {
-        env.error("owning exact JSON text mismatch")
-        return
-    }
+    if(!(r is std::Result.Ok)) { return 1 }
+    if(!buffer.to_view().equals(std::string_view("{\"num\":5,\"tag\":\"world\"}"))) { return 2 }
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
     var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
-    if(!pr.ok) { env.error("owning parse failed"); return }
+    if(!pr.ok) { return 3 }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMDChild>()
-    if(res is std::Result.Err) { env.error("owning decode returned Err"); return }
+    if(res is std::Result.Err) { return 4 }
     var Ok(out) = res else unreachable
-    if(out.num != 5) { env.error("owning num roundtrip mismatch"); return }
-    if(!out.tag.to_view().equals(std::string_view("world"))) { env.error("owning tag roundtrip mismatch") }
+    if(out.num != 5) { return 5 }
+    if(!out.tag.to_view().equals(std::string_view("world"))) { return 6 }
+    return 0
 }
 
 @test
-public func json_macro_nested_destructible_roundtrip(env : &mut TestEnv) {
+public func json_macro_owning_string_struct_roundtrip(env : &mut TestEnv) {
+    var before = jmd_child_dtors
+    var rc = run_dtor_owning_roundtrip()
+    if(rc != 0) { env.error("JMDChild owning roundtrip failed"); return }
+    // 2 objects: the encode source + the decoded value. decode goes through
+    // take_ok (Result left in Err state), so the owning tag is freed exactly
+    // once per object - any extra call means the payload was copied/double-freed
+    var got = jmd_child_dtors - before
+    if(got > 2) { env.error("JMDChild destructor called MORE than expected - copy or double-destroy of the owning payload"); return }
+    if(got < 2) { env.error("JMDChild destructor called FEWER times than expected - a value leaked") }
+}
+
+func run_dtor_nested_roundtrip() : int {
     var buffer = std::string()
     var counts = std::vector<u64>()
     var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
     var v = JMDHolder { id : 7, child : JMDChild { num : 3, tag : std::string("hello") }, active : true }
     var r = v.serialize(&encoder)
-    if(!(r is std::Result.Ok)) { env.error("nested destructible serialize returned Err"); return }
-    if(!buffer.to_view().equals(std::string_view("{\"id\":7,\"child\":{\"num\":3,\"tag\":\"hello\"},\"active\":true}"))) {
-        env.error("nested destructible exact JSON text mismatch")
-        return
-    }
+    if(!(r is std::Result.Ok)) { return 1 }
+    if(!buffer.to_view().equals(std::string_view("{\"id\":7,\"child\":{\"num\":3,\"tag\":\"hello\"},\"active\":true}"))) { return 2 }
 
     var ph = ASTJsonHandler()
     var parser = JsonParser(256, 8192)
     var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
-    if(!pr.ok) { env.error("nested destructible parse failed"); return }
+    if(!pr.ok) { return 3 }
     var d = JsonDecoder { value : &ph.root }
     var res = d.decode<JMDHolder>()
-    if(res is std::Result.Err) { env.error("nested destructible decode returned Err"); return }
+    if(res is std::Result.Err) { return 4 }
     var Ok(out) = res else unreachable
-    if(out.id != 7 || out.child.num != 3 || !out.active) { env.error("nested destructible field mismatch"); return }
-    if(!out.child.tag.to_view().equals(std::string_view("hello"))) { env.error("nested destructible child tag mismatch") }
+    if(out.id != 7 || out.child.num != 3 || !out.active) { return 5 }
+    if(!out.child.tag.to_view().equals(std::string_view("hello"))) { return 6 }
+    return 0
+}
+
+@test
+public func json_macro_nested_destructible_roundtrip(env : &mut TestEnv) {
+    var before = jmd_child_dtors
+    var rc = run_dtor_nested_roundtrip()
+    if(rc != 0) { env.error("JMDHolder nested roundtrip failed"); return }
+    // 2 JMDChild objects: the one inside the encode source and the one inside
+    // the decoded value. The nested child is moved out of its Result with
+    // take_ok and moved into the parent literal - its destructor must run
+    // exactly twice overall (once per parent teardown), never three times.
+    var got = jmd_child_dtors - before
+    if(got > 2) { env.error("JMDChild destructor called MORE than expected - nested payload copied or double-destroyed"); return }
+    if(got < 2) { env.error("JMDChild destructor called FEWER times than expected - a nested value leaked") }
 }

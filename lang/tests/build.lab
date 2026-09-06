@@ -8,23 +8,9 @@ import "./submod3/build.lab" as submod3
 import "@cstd/build.lab" as cstdMod
 import "@std/build.lab" as stdMod
 import "@core/build.lab" as coreMod
-import "@bcrypt/build.lab" as bcryptMod
-import "@uuid/build.lab" as uuidMod
-import "@json/build.lab" as jsonMod
 import "@atomic/build.lab" as atomicMod
-import "@datetime/build.lab" as datetimeMod
-import "@regex/build.lab" as regexMod
 import "@fs/build.lab" as fsMod
-import "@path/build.lab" as pathMod
-import "@encoding/build.lab" as encodingMod
-import "@crypto/build.lab" as cryptoMod
-import "@audio/build.lab" as audioMod
-import "@font/build.lab" as fontMod
-import "@archive/build.lab" as archiveMod
-import "@image/build.lab" as imageMod
-import "@compression/build.lab" as compressionMod
 import "@osrand/build.lab" as osrandMod
-import "@mime/build.lab" as mimeMod
 
 import "@docgen/build.lab" as docgenMod
 import "@compiler_runtime/build.lab" as compilerRuntimeMod
@@ -51,6 +37,7 @@ import "./compiler_plugins/runner/build.lab" as testPluginsRunner
 import "./tls/chemical.mod" as tlsIntegrationMod
 import "./process/chemical.mod" as processTestMod
 import "./webview/chemical.mod" as webviewTestMod
+import "./libs/chemical.mod" as libTestsMod
 
 func build_dir_path(ctx : *BuildContext, path : &std::string_view) : std::string {
     const new_path = std::string(ctx.build_path());
@@ -133,15 +120,6 @@ func get_main_module(ctx : *mut AppBuildContext, job : *mut LabJob) : *mut Modul
     // the std module
     var std_module = stdMod.build(ctx, job)
 
-    // the bcrypt module
-    var bcrypt_module = bcryptMod.build(ctx, job)
-
-    // the uuid module
-    var uuid_module = uuidMod.build(ctx, job)
-
-    // the json module
-    var json_module = jsonMod.build(ctx, job)
-
     // build imported submod2 module, with it's own build method
     const submod2_module = submod2.build(ctx, job);
 
@@ -157,41 +135,13 @@ func get_main_module(ctx : *mut AppBuildContext, job : *mut LabJob) : *mut Modul
     // the atomic module provides atomic
     const atomic_module = atomicMod.build(ctx, job)
 
-    // the datetime module
-    const datetime_module = datetimeMod.build(ctx, job)
-
-    // the regex module
-    const regex_module = regexMod.build(ctx, job)
-
     // the fs module
     const fs_module = fsMod.build(ctx, job)
 
-    // the path module
-    const path_module = pathMod.build(ctx, job)
-
-    // the encoding module
-    const encoding_module = encodingMod.build(ctx, job)
-
-    // the crypto module
-    const crypto_module = cryptoMod.build(ctx, job)    // the compression module
-    const compression_module = compressionMod.build(ctx, job)
     const osrand_module = osrandMod.build(ctx, job)
-    const mime_module = mimeMod.build(ctx, job)
 
-    // the audio module
-    const audio_module = audioMod.build(ctx, job)
-
-    // the font module
-    const font_module = fontMod.build(ctx, job)
-
-    // the archive module
-    const archive_module = archiveMod.build(ctx, job)
-
-    // the image module
-    const image_module = imageMod.build(ctx, job)
-
-    // currently the last dependency becomes null if we don't take it out like this
-    const dependencies = [ ext_module, ext_cpp_module, submod, submod2_module, submod3_module, std_module, core_module, bcrypt_module, uuid_module, json_module, atomic_module, datetime_module, regex_module, fs_module, path_module, encoding_module, crypto_module, compression_module, osrand_module, mime_module, audio_module, font_module, archive_module, image_module, test_env_module, test_module, common_mod, native_common_mod ]
+    // essential library modules only (extra library tests live in ./libs, see test_libs_exe)
+    const dependencies = [ ext_module, ext_cpp_module, submod, submod2_module, submod3_module, std_module, core_module, atomic_module, fs_module, osrand_module, test_env_module, test_module, common_mod, native_common_mod ]
 
 
     const main_mod_path = lab::rel_path_to("src");
@@ -212,10 +162,7 @@ func get_main_module(ctx : *mut AppBuildContext, job : *mut LabJob) : *mut Modul
         gen_ir(ctx, &exe_name, cstd_module);
         gen_ir(ctx, &exe_name, core_module);
         gen_ir(ctx, &exe_name, std_module);
-        gen_ir(ctx, &exe_name, bcrypt_module);
-        gen_ir(ctx, &exe_name, uuid_module);
         gen_ir(ctx, &exe_name, module);
-        gen_ir(ctx, &exe_name, json_module);
         gen_ir(ctx, &exe_name, test_module);
         gen_ir(ctx, &exe_name, test_env_module);
     }
@@ -292,6 +239,14 @@ func test_plugin_exe(ctx : *mut AppBuildContext, which : &std::string_view) : *m
     return exe_job;
 }
 
+func test_libs_exe(ctx : *mut AppBuildContext) : *mut LabJob {
+    const exe_name = std::string_view("chemical-lib-tests")
+    const exe_job = ctx.build_exe(&exe_name)
+    ctx.set_environment_testing(exe_job, true)
+    ctx.add_module(exe_job, libTestsMod.build(ctx, exe_job))
+    return exe_job
+}
+
 func test_tls_exe(ctx : *mut AppBuildContext) : *mut LabJob {
     const exe_name = std::string_view("chemical-tls-tests")
     const exe_job = ctx.build_exe(&exe_name)
@@ -339,6 +294,8 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
         return test_process_exe(ctx)
     } else if(ctx.has_arg(std::string_view("test-webview"))) {
         return test_webview_exe(ctx)
+    } else if(ctx.has_arg(std::string_view("test-libs"))) {
+        return test_libs_exe(ctx)
     }
 
     const debug = true;

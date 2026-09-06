@@ -42,7 +42,8 @@ Configs saved as JSON in `scripts/tui-configs/`. Last config auto-restored.
 ```bash
 ./scripts/test.sh --tcc            # Build TCCCompiler, compile & run tests
 ./scripts/test.sh --llvm           # Build Compiler (LLVM), compile & run tests
-./scripts/test.sh --tcc --plugins     # Include library tests (html, css, js, etc.)
+./scripts/test.sh --tcc --plugins     # Include compiler plugin tests (html, css, js, etc.)
+./scripts/test.sh --tcc --libs        # Library test suite (bcrypt, uuid, json, fs, crypto, audio, ...)
 ./scripts/test.sh --tcc --negative # Negative tests (compiler failure verification)
 ./scripts/test.sh --tcc --no-run   # Compile only, don't run
 ./scripts/test.sh --tcc --no-build # Use existing compiler binary
@@ -136,7 +137,13 @@ Uses `comptime if(intrinsics::is_interpretation())` to select the `println` path
 - **Inline tests**: manually listed in `tests.ch` via `test(name, () => bool)`.
 - **`@test` annotations**: auto-discovered by `test_runner(argc, argv)` from `test_env` lib.
 - Source dirs: `basic/`, `comptime/`, `core/`, `generic/`, `compiler_plugins/`, `nodes/`, `stdlib/`.
-- Lib tests in `lang/tests/compiler_plugins/*/src/`.
+- Compiler plugin tests in `lang/tests/compiler_plugins/*/src/`.
+- Library tests (bcrypt, uuid, json, datetime, regex, fs, path, encoding, crypto,
+  compression, osrand, mime, audio, font, archive, image + `integration/`) live in
+  `lang/tests/libs/` — a standalone module (`chemical.mod` + `main.ch` entry) dispatched
+  via `--arg-test-libs` / `./scripts/test.sh --tcc --libs`. They are **not** part of the
+  main test suite; keep essential libraries (e.g. anything the language itself relies on,
+  like `std`/`core`/`atomic` tests under `lang/tests/src/stdlib/`) in the main suite.
 - Dedicated library suites (run independently so the main `--tcc` suite stays fast and environment-specific suites can run alone):
   - `lang/tests/process/` (`chemical.mod` + `src/`) — `process` **and** `environment` library tests. Run with `./scripts/test.sh --tcc --process`.
   - `lang/tests/webview/` (`chemical.mod` + `src/`) — `webview` library tests (display-independent API only; requires GTK3 + WebKit2GTK to link/run). Run with `./scripts/test.sh --tcc --webview`.
@@ -600,7 +607,7 @@ public func my_test(env : &mut TestEnv) {
 
 ### Test File Location
 
-Library tests go in `lang/tests/src/libs/<name>/tests.ch`, **not** `lang/tests/compiler_plugins/`. The `lang/tests/src/` module is the compiled test executable's source tree.
+Library tests go in `lang/tests/libs/<name>/` (standalone `chemical.mod` suite, run with `./scripts/test.sh --tcc --libs`), **not** `lang/tests/compiler_plugins/` and not `lang/tests/src/` — the `lang/tests/src/` module is the main test executable's source tree and should only contain tests for essential language/stdlib features.
 
 ### Building Libraries for Testing
 

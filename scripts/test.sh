@@ -21,6 +21,7 @@ TEST_NEGATIVE=false
 TEST_TLS=false
 TEST_PROCESS=false
 TEST_WEBVIEW=false
+TEST_LIBS=false
 COMPILE_TARGET=""
 MODE="debug_quick"
 NO_CACHE="--no-cache"
@@ -52,6 +53,7 @@ usage() {
   echo "  --tls                   Build & run the TLS integration test suite (passes --arg-test-tls)"
   echo "  --process               Build & run the process/environment test suite (passes --arg-test-process)"
   echo "  --webview               Build & run the webview test suite (passes --arg-test-webview)"
+  echo "  --libs                  Build & run the library test suite (passes --arg-test-libs)"
   echo "  --target <triple>       Pass --target <triple> to the compiler (optional, omitted if empty)"
   echo "  -o <path>               Custom output executable path"
   echo "  --no-run                Build test executable only, do not run"
@@ -96,6 +98,7 @@ while [ $# -gt 0 ]; do
     --tls) TEST_TLS=true ;;
     --process) TEST_PROCESS=true ;;
     --webview) TEST_WEBVIEW=true ;;
+    --libs) TEST_LIBS=true ;;
     --target) COMPILE_TARGET="$2"; shift ;;
     -o) TEST_OUT_NAME="$2"; shift ;;
     --no-run) RUN_TESTS=false ;;
@@ -264,6 +267,9 @@ else
   fi
   if [ "$TEST_WEBVIEW" = true ]; then
     CMD+=("--arg-test-webview")
+  fi
+  if [ "$TEST_LIBS" = true ]; then
+    CMD+=("--arg-test-libs")
   fi
   if [ -n "$COMPILE_TARGET" ]; then
     CMD+=("--target" "$COMPILE_TARGET")

@@ -287,7 +287,7 @@ Each library test module has its own `build.lab` in `lang/tests/compiler_plugins
 
 ### Option B2: `@test` with `TestEnv` (for library tests)
 
-Library tests in `lang/tests/src/libs/` use this pattern. The `TestEnv` provides `env.error("msg")` for failure reporting:
+Library tests in `lang/tests/libs/` use this pattern. The `TestEnv` provides `env.error("msg")` for failure reporting:
 
 ```chemical
 @test
@@ -305,7 +305,7 @@ public func my_lib_test(env : &mut TestEnv) {
 - Functions must be `public` (called from test runner in different package)
 - Test file needs `using std::Result;` if using `Result.Err`/`Result.Ok` patterns
 
-**Test file location**: `lang/tests/src/libs/<name>/tests.ch`
+**Test file location**: `lang/tests/libs/<name>/tests.ch` — the `lang/tests/libs/` module is a standalone suite (`chemical.mod` + `main.ch` calling `test_runner`), dispatched via `--arg-test-libs` (i.e. `./scripts/test.sh --tcc --libs`). It is not part of the main `lang/tests/src/` suite.
 
 #### HTTPS Error Path & Integration Test Patterns
 
@@ -365,8 +365,8 @@ public func https_server_test_pattern(env : &mut TestEnv) {
 ```
 
 **Key conventions:**
-- When writing tests in `lang/tests/src/libs/tls/tests.ch` (no `using namespace http;`), fully qualify: `http::server::Server`, `http::URL`, `http::Client`
-- When writing tests in `lang/tests/src/libs/net/net_test.ch` (has `using namespace http;`), `server::Server` works directly
+- When writing tests in `lang/tests/libs/tls/tests.ch` (no `using namespace http;`), fully qualify: `http::server::Server`, `http::URL`, `http::Client`
+- When writing tests in `lang/tests/libs/net/net_test.ch` (has `using namespace http;`), `server::Server` works directly
 - Use high port numbers (49xxx range) to avoid conflicts with other tests
 - Keep test names prefixed with the feature area (e.g., `https_` for HTTPS tests)
 - Always call `srv.shutdown()` + `thread.join()` in that order for clean server teardown
@@ -743,15 +743,16 @@ This approach gives you:
 ### Library Tests
 
 ```bash
-./scripts/test.sh --tcc --plugins                   # All library tests
+./scripts/test.sh --tcc --libs                      # Library tests (bcrypt, uuid, json, fs, crypto, audio, ...)
 ```
 
 
 ### Individual Library Tests
 
 ```bash
-# Using --arg-test-<name> CLI args:
-./scripts/test.sh --tcc --plugins                   # Tests with --arg-test-html etc internally
+# Run the whole library suite, then filter by name with --test-names:
+./scripts/test.sh --tcc --libs
+./lang/tests/build/tests-tcc.exe --test-names test_sha256_hello
 ```
 
 ### Manual Test Execution
@@ -781,22 +782,27 @@ lang/tests/
 │   ├── core/               # Core language tests
 │   ├── generic/            # Generic tests
 │   ├── stdlib/             # Standard library tests
-│   ├── nodes/              # AST node tests
-│   └── libs/               # Standard library @test tests (archive, image, audio, font)
-│       ├── archive/tests.ch
-│       ├── image/tests.ch
-│       ├── audio/tests.ch
-│       └── font/tests.ch
-├── common/src/             # Shared tests (interpret + compiled)
-├── native_common/src/      # Pointer tests (interpret + compiled)
-├── interpret/src/          # Interpretation-only entry point
-├── compiler_plugins/       # CBI plugin tests (html, css, js, universal, md)
-│   ├── html/src/           # html_cbi plugin tests
-│   ├── css/src/            # css_cbi plugin tests
-│   ├── js/src/             # js_cbi plugin tests
-│   ├── universal/src/      # universal_cbi plugin tests
-│   ├── md/src/             # md_cbi plugin tests
-│   └── runner/             # Library test runner
+│   └── compiler_plugins/   # Tests that depend on specific libraries
+├── libs/                       # Library tests (standalone suite, --arg-test-libs)
+│   ├── chemical.mod            # Suite module: imports test, test_env + all tested libs
+│   ├── main.ch                 # Entry point: calls test_runner(argc, argv)
+│   ├── bcrypt/, uuid/, json/, datetime/, regex/, fs/, path/, encoding/
+│   ├── crypto/, compression/, osrand/, mime/
+│   ├── audio/, font/, archive/, image/
+│   └── integration/            # Cross-library integration tests
+├── compiler_plugins/           # CBI plugin tests (html, css, js, universal, md)
+│   ├── html/src/               # html_cbi plugin tests
+│   ├── css/src/                # css_cbi plugin tests
+│   ├── js/src/                 # js_cbi plugin tests
+│   ├── universal/src/          # universal_cbi plugin tests
+│   ├── md/src/                 # md_cbi plugin tests
+│   └── runner/                 # Library test runner
+```
+
+The `lang/tests/libs/` suite is built and run separately from the main test executable:
+
+```bash
+./scripts/test.sh --tcc --libs
 ```
 
 ## Running Specific Tests

@@ -12,7 +12,7 @@ BatchAllocator::BatchAllocator(std::size_t heapBatchSize) : heap_offset(heapBatc
         // otherwise first allocation will fail
         reserve_heap_storage();
     }
-    allocator_mutex = new std::mutex;
+    allocator_mutex = std::make_shared<std::mutex>();
 }
 
 
@@ -26,10 +26,9 @@ ASTAllocator::ASTAllocator(
 BatchAllocator::BatchAllocator(
         BatchAllocator&& other
 ) noexcept : heap_memory(std::move(other.heap_memory)), heap_batch_size(other.heap_batch_size), heap_offset(other.heap_offset),
-    allocator_mutex(other.allocator_mutex)
+    allocator_mutex(std::move(other.allocator_mutex))
 {
     other.heap_offset = 0;
-    other.allocator_mutex = new std::mutex;
 }
 
 ASTAllocator::ASTAllocator(
@@ -46,10 +45,9 @@ BatchAllocator& BatchAllocator::operator =(BatchAllocator&& other) noexcept {
     heap_memory = std::move(other.heap_memory);
     heap_batch_size = other.heap_batch_size;
     heap_offset = other.heap_offset;
-    allocator_mutex = other.allocator_mutex;
+    allocator_mutex = std::move(other.allocator_mutex);
 
     other.heap_offset = 0;
-    other.allocator_mutex = new std::mutex;
 
     return *this;
 }
@@ -62,7 +60,7 @@ ASTAllocator& ASTAllocator::operator =(ASTAllocator&& other) noexcept {
 }
 
 void ASTAllocator::clear() {
-    std::lock_guard<std::mutex> lock(*((std::mutex*) allocator_mutex));
+    std::lock_guard<std::mutex> lock(*allocator_mutex);
     destruct_ptr_storage();
     destruct_cleanup_storage();
     if(heap_memory.empty()) {
@@ -88,7 +86,7 @@ void BatchAllocator::destroy_memory() {
 
 BatchAllocator::~BatchAllocator() {
     destroy_memory();
-    delete ((std::mutex*) allocator_mutex);
+    // mutex is managed by shared_ptr, no need to delete it manually
 }
 
 void ASTAllocator::destruct_ptr_storage() {
@@ -149,21 +147,21 @@ char* BatchAllocator::object_heap_pointer(std::size_t obj_size, std::size_t alig
 }
 
 char* ASTAllocator::allocate_size(std::size_t obj_size, std::size_t alignment) {
-    std::lock_guard<std::mutex> lock(*((std::mutex*) allocator_mutex));
+    std::lock_guard<std::mutex> lock(*allocator_mutex);
     const auto ptr = object_heap_pointer(obj_size, alignment);
     store_ptr((ASTAny*) (void*) ptr);
     return ptr;
 }
 
 char* ASTAllocator::allocate_with_cleanup(std::size_t obj_size, std::size_t alignment, void* cleanup_fn) {
-    std::lock_guard<std::mutex> lock(*((std::mutex*) allocator_mutex));
+    std::lock_guard<std::mutex> lock(*allocator_mutex);
     const auto ptr = object_heap_pointer(obj_size, alignment);
     store_cleanup_fn((void*) ptr, cleanup_fn);
     return ptr;
 }
 
 char* BatchAllocator::allocate_released_size(std::size_t obj_size, std::size_t alignment) {
-    std::lock_guard<std::mutex> lock(*((std::mutex*) allocator_mutex));
+    std::lock_guard<std::mutex> lock(*allocator_mutex);
     return object_heap_pointer(obj_size, alignment);
 }
 

@@ -229,7 +229,8 @@ public:
             ctpl::thread_pool& pool,
             ConcurrentParsingState& state,
             std::vector<ASTFileMetaData>& files,
-            bool use_job_allocator
+            bool use_job_allocator,
+            bool in_task = false
     );
 
     /**
@@ -342,7 +343,8 @@ public:
             ctpl::thread_pool& pool,
             ConcurrentParsingState& state,
             ASTFileMetaData& fileData,
-            bool use_job_allocator
+            bool use_job_allocator,
+            bool in_task = false
     );
 
     /**

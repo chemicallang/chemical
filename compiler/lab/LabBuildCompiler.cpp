@@ -2756,7 +2756,7 @@ TCCState* LabBuildCompiler::built_lab_file(
         // NOTE: we import these files on job allocator, because a build.lab has dependencies on modules
         // that we need to compile, which will free the module allocator, so if we kept on module allocator
         // we will lose everything after processing dependencies
-        lab_processor.import_chemical_files_recursive(pool, state, direct_files_in_lab, true);
+        lab_processor.import_chemical_files_recursive(pool, state, direct_files_in_lab, true, false);
         // wait for all files to parse
         auto fut = state.all_done_promise.get_future();
         fut.wait();

@@ -805,7 +805,8 @@ void ASTProcessor::import_chemical_files_recursive(
         ctpl::thread_pool& pool,
         ConcurrentParsingState& state,
         std::vector<ASTFileMetaData>& files,
-        bool use_job_allocator
+        bool use_job_allocator,
+        bool in_task
 ) {
 
     if(files.empty()) {
@@ -842,13 +843,21 @@ void ASTProcessor::import_chemical_files_recursive(
             cache.emplace(file_id, ptr);
         }
 
-        // this is done inside the mutex lock, so to prevent race conditions when appending
-        // to futures vector
-        state.pushed_task();
-        pool.push([this, &pool, &state, &fileData, use_job_allocator](int){
+        if (in_task) {
+            // When called from within a thread pool task, we must process imports sequentially
+            // to avoid deadlock. If we push more tasks to the pool while all threads are busy,
+            // and those tasks need to wait for subtasks, we deadlock.
+            // Instead, process this file and its imports sequentially in the current thread.
             import_chemical_file_recursive(*fileData.result, pool, state, fileData, use_job_allocator);
-            state.done_task();
-        });
+        } else {
+            // this is done inside the mutex lock, so to prevent race conditions when appending
+            // to futures vector
+            state.pushed_task();
+            pool.push([this, &pool, &state, &fileData, use_job_allocator](int){
+                import_chemical_file_recursive(*fileData.result, pool, state, fileData, use_job_allocator, true);
+                state.done_task();
+            });
+        }
 
     }
 
@@ -1031,7 +1040,8 @@ bool ASTProcessor::import_chemical_file_recursive(
         ctpl::thread_pool& pool,
         ConcurrentParsingState& state,
         ASTFileMetaData& parentFileData,
-        bool use_job_allocator
+        bool use_job_allocator,
+        bool in_task
 ) {
 
     // import the file into result (lex and parse)
@@ -1053,7 +1063,9 @@ bool ASTProcessor::import_chemical_file_recursive(
     }
 
     // handle the imports of this file
-    import_chemical_files_recursive(pool, state, result.imports, use_job_allocator);
+    // We're already in a task (or being called from one), so pass in_task=true to avoid
+    // submitting more tasks to the pool and causing deadlock.
+    import_chemical_files_recursive(pool, state, result.imports, use_job_allocator, true);
     return true;
 
 }

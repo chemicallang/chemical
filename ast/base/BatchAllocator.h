@@ -4,6 +4,7 @@
 
 #include "ASTAny.h"
 #include "utils/inline_attr.h"
+#include <memory>
 
 /**
  * ASTAllocator is supposed to be the simplest class that allows
@@ -20,14 +21,14 @@ public:
     BatchAllocator(std::size_t heapBatchSize);
 
     /**
-     * move constructor
+     * move constructor - shares the mutex with the source
      */
     BatchAllocator(
             BatchAllocator&& other
     ) noexcept;
 
     /**
-     * move assignment
+     * move assignment - shares the mutex with the source
      */
     BatchAllocator& operator =(BatchAllocator&& other) noexcept;
 
@@ -76,9 +77,9 @@ protected:
     std::size_t heap_offset;
 
     /**
-     * this is the pointer to mutex
+     * shared pointer to mutex - ensures all moved-from/copied allocators share the same mutex
      */
-    void* allocator_mutex;
+    std::shared_ptr<std::mutex> allocator_mutex;
 
     /**
      * does what it says

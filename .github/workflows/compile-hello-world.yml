@@ -283,7 +283,7 @@ jobs:
             Set-Content -Path chemical.mod -Value @(
               'application helloworld',
               'source "src"',
-              'link "legacy_stdio_definitions" if windows && !tcc'
+              'link "legacy_stdio_definitions" if windows && !tcc && !mingw64 && !mingw32'
             )
             Set-Content -Path src\main.ch -Value @(
               '@extern',

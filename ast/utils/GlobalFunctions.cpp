@@ -2942,8 +2942,10 @@ void init_target_data(llvm::Triple& triple, TargetData& data) {
         data.isUnix = true;
     }
 
-    // Check for Cygwin
-    if (triple.isOSCygMing()) {
+    // Check for Cygwin (cygwin environment on windows — not mingw).
+    // LLVM 22.1.1 uses Triple::Cygnus for the env; isOSCygMing() returns
+    // true for both Cygwin (env Cygnus) and mingw (env GNU) on Windows.
+    if (triple.isOSCygMing() && triple.getEnvironment() == llvm::Triple::Cygnus) {
         data.cygwin = true;
         data.isUnix = true;
     }
@@ -2966,8 +2968,27 @@ void init_target_data(llvm::Triple& triple, TargetData& data) {
         case llvm::Triple::GNUX32:
             data.gnu = true;
             break;
+        // Note: LLVM 22.1.1 does not have Triple::MinGW32/MinGW64 env values
+        // (mingw-w64 triples use Triple::GNU); the mingw detection below handles
+        // all mingw targets via isWindowsGNUEnvironment().
         default:
             break;
+    }
+
+    // Detect MinGW targets. In LLVM 22.1.1 the common mingw-w64 triple is
+    // "x86_64-w64-windows-gnu" (OS=Windows, env=GNU). LLVM normalizes
+    // "x86_64-w64-mingw32" to the same form, so
+    // isWindowsGNUEnvironment() covers every mingw-w64 target. We set
+    // mingw64/mingw32 so that e.g. cstd's `link ... if windows && !tcc`
+    // conditions can exclude MSVC-only CRT imports on mingw.
+    if (triple.isWindowsGNUEnvironment()) {
+        if (triple.isArch64Bit()) {
+            data.mingw64 = true;
+        } else {
+            data.mingw32 = true;
+        }
+        // mingw triples use glibc-like stdio, not the MSVC CRT
+        data.gnu = true;
     }
 
     // Check for architecture
@@ -3084,13 +3105,25 @@ void prepare_target_data(TargetData& data, const std::string& target_triple) {
             continue; // trailing environment marker, not the OS
         }
         if (p == "linux") { data.isLinux = true; data.isUnix = true; break; }
-        else if (p == "windows") { data.windows = true; break; }
+        else if (p == "windows") {
+            data.windows = true;
+            // Derive mingw64/mingw32 from the environment component (the part after
+            // the OS). A "windows-gnu" triple is a mingw-w64 target (not MSVC).
+            if (parts.size() >= 4) {
+                const auto& env = parts[3];
+                if (env.find("gnu") != std::string::npos) {
+                    if (data.is64Bit) { data.mingw64 = true; } else { data.mingw32 = true; }
+                } else if (env == "mingw32") { data.mingw32 = true; }
+                else if (env == "mingw64") { data.mingw64 = true; }
+            }
+            break;
+        }
         else if (p == "darwin" || p == "macos") { data.macos = true; data.isUnix = true; break; }
         else if (p == "freebsd") { data.freebsd = true; data.isUnix = true; break; }
         else if (p == "android") { data.android = true; data.isUnix = true; break; }
         else if (p == "cygwin") { data.cygwin = true; data.isUnix = true; break; }
         else if (p == "mingw32") { data.mingw32 = true; data.windows = true; break; }
-        else if (p == "mingw64") { data.windows = true; break; }
+        else if (p == "mingw64") { data.mingw64 = true; data.windows = true; break; }
     }
 
     // Windows uses the LLP64 data model on all 64-bit targets (x86_64 and
@@ -3166,6 +3199,7 @@ void declare_def_values(ASTAllocator& allocator, TypeBuilder& typeBuilder, DefTh
     defThing.declare_value(allocator, "android", boolType, boolValue(allocator, typeBuilder, data.android));
     defThing.declare_value(allocator, "cygwin", boolType, boolValue(allocator, typeBuilder, data.cygwin));
     defThing.declare_value(allocator, "mingw32", boolType, boolValue(allocator, typeBuilder, data.mingw32));
+    defThing.declare_value(allocator, "mingw64", boolType, boolValue(allocator, typeBuilder, data.mingw64));
     defThing.declare_value(allocator, "x86_64", boolType, boolValue(allocator, typeBuilder, data.x86_64));
     defThing.declare_value(allocator, "i386", boolType, boolValue(allocator, typeBuilder, data.i386));
     defThing.declare_value(allocator, "arm", boolType, boolValue(allocator, typeBuilder, data.arm));

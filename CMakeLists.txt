@@ -948,6 +948,12 @@ else()
             target_link_options(Compiler PRIVATE -static)
         endif()
     endif()
+    if(NOT MSVC)
+        # TCCCompiler built with a MinGW-clang host dynamically links libc++.dll;
+        # ship a self-contained binary so the release zip runs on hosts without
+        # a matching MSYS2/llvm-mingw installation.
+        target_link_options(TCCCompiler PRIVATE -static)
+    endif()
     target_link_libraries(TCCCompiler ${LIBTCC_LIB})
 endif()
 

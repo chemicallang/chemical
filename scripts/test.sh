@@ -28,6 +28,7 @@ NO_CACHE="--no-cache"
 INCREMENTAL=false
 EMIT_C=false
 USE_C=false
+SANITIZER=""
 DEBUG_FLAG=false
 GDB=false
 BT_MODE="none"
@@ -64,6 +65,7 @@ usage() {
   echo "  --incremental           Use incremental compilation"
   echo "  --emit-c                Emit C translation output"
   echo "  --use-c                 Translate to C and compile with embedded Clang (Compiler only)"
+  echo "  --sanitize <sanitizer>  Enable sanitizer on generated binary: address, thread, memory, undefined, leak (LLVM only)"
   echo "  --cached-plugins        Skip recompiling CBI plugins (default: -frecompile-plugins)"
   echo "  --bm                    Run compilation benchmark (print times per phase)"
   echo "  --bm-files              Run per-file compilation benchmark"
@@ -107,6 +109,7 @@ while [ $# -gt 0 ]; do
     --cache) NO_CACHE="" ;;
     --emit-c) EMIT_C=true ;;
     --use-c) USE_C=true ;;
+    --sanitize) SANITIZER="$2"; shift ;;
     --incremental) INCREMENTAL=true ;;
     --cached-plugins) RECOMPILE_PLUGINS="" ;;
     --bm) BENCHMARK=true ;;
@@ -131,6 +134,11 @@ done
 if [ -z "$TARGET" ]; then
   echo "Error: Specify --tcc or --llvm"
   usage
+fi
+
+if [ -n "$SANITIZER" ] && [ "$TARGET" != "Compiler" ]; then
+  echo "Error: --sanitize requires --llvm (TCC does not support sanitizers)"
+  exit 1
 fi
 
 # ----------------------------------------------------------
@@ -250,6 +258,7 @@ else
   [ "$EMIT_C" = true ] && CMD+=("--emit-c")
   [ "$USE_C" = true ] && CMD+=("--use-c")
   [ "$INCREMENTAL" = true ] && CMD+=("--incremental")
+  [ -n "$SANITIZER" ] && CMD+=("--sanitize" "$SANITIZER")
   [ "$DEBUG_FLAG" = true ] && CMD+=("-g")
   [ "$BENCHMARK" = true ] && CMD+=("-bm")
   [ "$BENCHMARK_FILES" = true ] && CMD+=("-bm-files")

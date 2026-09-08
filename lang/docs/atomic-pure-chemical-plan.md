@@ -1,6 +1,11 @@
 # Pure-Chemical Atomic Library — Compiler Feature & Implementation Plan
 
-Status: implementation plan
+Status: implementation plan — amended for Windows (see **§14 Windows amendments**; the
+amendments are authoritative where they conflict with earlier text). In particular,
+**§13.5 (generic calls + pure-C preamble definitions) is the primary emission strategy on
+all platforms**, which makes every Windows target zero-external-dependency: Windows has no
+usable libatomic (see §14.1), so the §13.4 note "posix ⇒ link `-latomic`" applies to posix
+targets only and only as a fallback to §13.5.
 Scope: make `lang/libs/atomic` shippable with **no C files and no C headers**, by extending
 the Chemical compiler (primarily the C/2c backend) so that generated C is *analogous* to the
 C runtime the library ships today.
@@ -175,7 +180,8 @@ compiler support must reproduce:
    symbols on posix — all three compile and link those) or the pure-C fallback layer (F7)
    where no common form exists (Windows-ARM64+tcc). Link flags (e.g. `-latomic`) are chosen
    by *our driver*, which knows the target and its own backend — they never change the
-   emitted C content.
+   emitted C content. (Windows: since there is no libatomic, the common form on every
+   Windows target is the §13.5 defs form or F7 fallback — see §14.1–§14.2.)
 5. Plain-memory atomics only — Chemical variables are ordinary C objects; we deliberately do
    **not** use C11 `_Atomic` types (TinyCC doesn't support them — that's why `nix/atomic.h`
    bypasses `stdatomic.h` for TCC).
@@ -299,6 +305,12 @@ pointer pointees come with F3. Non-integer, non-struct-sized types error out.
 > §13.5 generic+defs form; synthesize fences via dummy-cell exchange (no
 > `__atomic_thread_fence` under tcc). The statement-expression synthesis pattern below
 > remains valid — build it on suffixed ops.
+>
+> ⚠️ **Windows amendment (§14.2)**: prefer the **§13.5 form** — generic `_n` call sites +
+> pure-C preamble definitions — on **all** platforms. The synthesized ops (RMW synthesis,
+> fence synthesis) must then be built on the preamble **definitions**, not on suffixed
+> libatomic symbols, so the artifact stays self-contained on Windows (no libatomic there,
+> see §14.1).
 
 Let `P` = rendered pointer expression, `V` = rendered value expression, `E` = rendered
 expected-pointer expression, `mo1/mo2` = mapped C11 order literals.
@@ -386,6 +398,12 @@ revisit if nested statement expressions inside struct-return contexts ever confl
 > `__atomic_*_N` family** (or §13.5 generic+defs). The matrix below is retained for the
 > *linking* column reasoning, but its "emitted C form" column is superseded. The
 > best-current recommendation is §13.5: one artifact, no libatomic on any platform.
+>
+> ⚠️ **Windows amendment (§14.1)**: promoted from "recommendation" to **primary strategy** —
+> Windows has no libatomic to link (MSYS2 ships `libatomic-1.dll` only inside
+> `mingw-w64-x86_64-gcc-libs`, a runtime DLL; no static import-lib story). One artifact,
+> zero external dependencies, all platforms. §14.2 defines the exact amended emission
+> recipe; §14.7 lists the verification still owed before this is fully trusted.
 
 `ToCBackendContext` has access to `comptime_scope.target_data`.
 
@@ -400,13 +418,17 @@ current best-estimate matrix:
 | linux/bsd, 64-bit arch | generic `__atomic_*_n` builtins | `-latomic` iff `def.tcc` (tcc emits calls to libatomic; gcc/clang inline the same C) |
 | linux/bsd, 32-bit arch (i386, arm) | generic `__atomic_*_n` builtins | `-latomic` always (gcc/clang call out for 8-byte ops; tcc calls out for all) |
 | macos, x86_64/aarch64 | generic `__atomic_*_n` builtins | **never** `-latomic` (macOS ships no libatomic); tcc-on-macos per probe → F7 fallback if builtins missing |
-| windows x86/x64 (any C compiler) | probe: generic `_n` builtins if tcc accepts them on Windows (evidence: `win/atomic.h` already compiles `__atomic_compare_exchange` under TCC); else F7 fallback | none |
-| windows arm64 (any C compiler) | **F7 fallback layer** (no `__atomic_*` at all) | none |
+| windows x86/x64 (any C compiler) | **§13.5 defs form** (generic `_n` call sites + pure-C preamble defs — Windows amendment §14.2); F7 fallback behind it | **none** (never — no libatomic on Windows) |
+| windows arm64 (any C compiler) | **F7 fallback layer** behind the same §13.5 preamble defs (no `__atomic_*` reliance at all) | **none** (never) |
 
 Notes:
 - The intersection rule means we never mix spellings per compiler — one target, one C
   artifact. Compiler-specific spellings (`_mm_pause`, `__sync_*`, `Interlocked*`, C11
   `_Atomic`) are **never** emitted.
+- **Windows note (§14.1)**: the linux-host probe conclusion "gcc inlines the suffixed
+  family, so `-latomic` is harmless-if-present" does **not** extend to Windows — there is
+  nothing to link there. All Windows rows above therefore use the §13.5 defs form with
+  **zero** link flags.
 - The two universally-constructible floors on every target with all compilers: the
   **empty-asm statement** (`__asm__ __volatile__("" ::: "memory")` — F5) and **pure-C
   fallback code** (F7). Every target's form is either a builtin or something built on these.
@@ -415,10 +437,12 @@ Notes:
   *uses* `__atomic_compare_exchange` under tcc. The probe must determine exactly which
   builtin forms the bundled libtcc accepts, per target.
 
-Size-suffixed symbol mapping (if needed): `__atomic_load_{1,2,4,8}(P, mo)`,
+Size-suffixed symbol mapping (posix fallback only, §13.4): `__atomic_load_{1,2,4,8}(P, mo)`,
 `__atomic_store_{1,2,4,8}(P, V, mo)`, `__atomic_exchange_{N}` → size by `sizeof(pointee)`,
 `__atomic_compare_exchange_{N}(P, E, V, weak, mo1, mo2)` (note: **six** args — see §1.3 bug
-list), `__atomic_fetch_{add,sub,and,or,xor}_{N}(P, V, mo)`.
+list), `__atomic_fetch_{add,sub,and,or,xor}_{N}(P, V, mo)` — **never relied upon on Windows**
+(§14.1). Under the primary §13.5 defs form, none of these appear in emitted C at all (the
+preamble defs are the only place they exist).
 
 #### F1.6 Intrinsic declaration fixes (F9 details)
 
@@ -471,13 +495,19 @@ also call out for 64-bit ops.
   and converted at `compiler/lab/mod_conv/ModToLabConverter.cpp:305-332`, so both module
   declaration styles support conditional linking.)
 
+  > **Windows amendment (§14.3)**: with §13.5 promoted to primary strategy, the posix
+  > `-latomic` branch above is a **posix-only fallback** to the self-contained defs form.
+  > The Windows branch of F2 is `comptime if(def.windows) { /* link nothing */ }` — any
+  > `libatomic` reference on a Windows target is a bug.
+
 - The C backend's spelling choice (F1.5) is derived from the same `target_data` fields
   (`tcc`, `windows`, arch) — one source of truth, no `#ifdef`.
 
 **Acceptance criteria.**
 - `linux-x86_64-tcc` binary links and runs (libatomic linked).
 - `linux-x86_64` clang/gcc builds run with **no** `-latomic` flag.
-- `windows-x86_64` (mingw gcc, clang, tcc) builds never request libatomic.
+- `windows-x86_64` (mingw gcc, clang, tcc) builds never request libatomic — and with the
+  §13.5 defs form primary, they link **zero** external atomic symbols (§14.3).
 
 ---
 
@@ -857,11 +887,12 @@ tcc alike**. The matrix lists what the single emitted C uses — never per-compi
 | linux/bsd x86_64, aarch64 | generic builtins (all 3 compilers compile them) | `__atomic_thread_fence` | `-latomic` only for tcc-driver jobs | no |
 | linux/bsd i386, arm32 | generic builtins | builtin | `-latomic` always | no |
 | macos x86_64, aarch64 | generic builtins | builtin | never `-latomic` (not shipped on macOS) | tcc-on-macos per probe (maybe) |
-| windows x86/x64 | builtins per probe (evidence: `win/atomic.h` compiles `__atomic_compare_exchange` under TCC) | probe | none | probably not |
-| windows arm64 | **F7 fallback** | **F7 synthesis** (compiler barriers today; hardware fence only if the §12 E.6 probe passes) | none | **yes** |
+| windows x86/x64 | **§13.5 defs form** (Windows amendment §14.2); F7 behind it | **synthesized** dummy-cell exchange — never `__atomic_thread_fence` (§13.1) and no libatomic C11 name on Windows | none — **zero external deps** | probably not |
+| windows arm64 | **F7 fallback** behind the §13.5 preamble defs | **F7 synthesis** (compiler barriers; hardware fence only if the §12 E.6 probe passes) | none — **zero external deps** | **yes** |
 | any + interpretation | sequential semantics (F8) | no-op | — | — |
 
-Out of scope (documented non-goals): MSVC as a C compiler for 2c output; float atomics on
+Out of scope (documented non-goals): MSVC as a C compiler for 2c output; cygwin as a C
+compiler for 2c output (`def.cygwin` exists — targeting it is a non-goal); float atomics on
 the C backend; `UIncWrap`/`UDecWrap`/`F*` RMW ops on the C backend; `consume` as a distinct
 ordering (== acquire, as LLVM models it).
 
@@ -954,6 +985,9 @@ Standalone module (`chemical.mod` + `src/main.ch`) following the libs-suite conv
 ### 8.2 Golden-C tests
 
 - Isolated `lang/compiled/temp_atomic.ch` exercised via the standard isolation workflow.
+- **Windows amendment (§14.8)**: on Windows the "every available host compiler" set is
+  MSYS2 mingw-w64 gcc (record ucrt vs msvcrt CRT), clang for Windows, and the bundled
+  `lib/tcc/tcc.exe` — see §14.8 for the exact matrix and mingw warning-clean notes.
 - Snapshot the `--emit-c` output; a test script compiles the snapshot with every available
   host compiler (`gcc`, `clang`, `tcc`) at `-O0` and `-O2` and runs it — same results.
 
@@ -975,6 +1009,7 @@ Standalone module (`chemical.mod` + `src/main.ch`) following the libs-suite conv
 | Synthesized statement expressions interact badly with sret/struct contexts (R5) | Nested `(*({…}))` breakage | RMW synthesis only for integer pointees (no sret involved); golden tests inside struct-returning callers |
 | libatomic absence on unusual posix (musl/Alpine) (R6) | Link failure for tcc/i386 | musl ships libatomic; Alpine needs `libatomic` package — document as dependency for tcc/i386 targets; everything else links nothing |
 | Comptime `while` inside emission-capability branches confuses caching (R7) | Stale C between target flips | Capability branches evaluated per job like existing `def.*` branches (mechanism already proven by `def.windows` usage in libs) |
+| LLP64 typing trap on Windows (R8) | Preamble defs typed with `long`/`unsigned long` mismatch gcc's per-size builtins on Win64 → poisoned builtins (§13.3 probe F/G failure mode) | Defs declared **only** against the preamble's self-provided fixed-width typedefs (`uint64_t` from `is64Bit`/`win64`); never `long`/`unsigned long`. Verified by the §14.8 harness at `-Wall -Wextra` |
 
 ---
 
@@ -982,18 +1017,23 @@ Standalone module (`chemical.mod` + `src/main.ch`) following the libs-suite conv
 
 - [ ] `lang/libs/atomic` contains **zero** `.c`/`.h` files; `cruntime/` deleted.
 - [ ] `build.lab` (or `chemical.mod`) has no `c_file_module`; conditional `-latomic` only on
-      posix targets that need it.
+      posix targets that need it — **never any link flag on Windows targets** (§14.3).
 - [ ] All six intrinsics implemented in `ToCBackendContext` with target-aware spelling;
       LLVM backend bit-identical behavior to today.
 - [ ] Full sequential test matrix passes under `--tcc`, `--llvm` (and `--arg-interpret`
       after F8) on linux-x86_64.
 - [ ] Golden C snapshots compile & run identically under gcc, clang and tcc at `-O0`/`-O2`.
+- [ ] **Golden C snapshots compile & run identically on Windows** under mingw gcc, clang
+      and bundled `lib/tcc/tcc.exe` at `-O0`/`-O2`, warning-clean per §14.8.
 - [ ] Compiler-independence verified: the same target always yields one C artifact; no
       compiler flag influences codegen; every emitted construct is in the gcc/clang/tcc
       intersection for that target (§12 C checklist).
+- [ ] **LLP64 verified**: no emitted def or signature assumes `long` is 8 bytes; the
+      fixed-width typedef set is the only spelling used (§14.2).
 - [ ] `@volatile`, `atomic_signal_fence`, capability queries, pointer atomics landed with
       tests.
-- [ ] Windows-x86_64 passes with gcc/clang/tcc; Windows-ARM64 passes via the pure-Chemical
+- [ ] Windows-x86_64 passes with gcc/clang/tcc with **zero external atomic dependencies**
+      (no `libatomic-1.dll`, no import libs); Windows-ARM64 passes via the pure-Chemical
       fallback layer (or the corner is explicitly documented as the single remaining gap).
 - [ ] Public API of the library unchanged; no `#ifdef` and no C macros in generated C beyond
       the pre-existing preamble guards.
@@ -1076,14 +1116,20 @@ position*. Practical consequences:
 - Platform facts (`def.windows`, `def.posix`, `def.x86_64`, `def.i386`, `def.aarch64`,
   `def.arm`, `def.musl`, …) come from the target triple (`prepare_target_data`,
   `GlobalFunctions.cpp:3020+`, `TargetData.h`) — fully reliable, use freely.
+- **Windows note (§14.2)**: Windows is LLP64 — `long` and `unsigned long` are **4 bytes**
+  on win64, unlike LP64 posix hosts. Any preamble definition or signature spelling must use
+  the self-provided fixed-width typedefs (`uint64_t` etc., emitted by `prepare_translate()`
+  from `is64Bit`/`win64`), never `long`/`unsigned long`. The §13.3 per-size typing
+  observations are LP64 probe data; re-verify on Windows per §13.10.
 
 ### C. Universal-construct checklist (anything we emit must be in this intersection)
 
 | Construct | gcc | clang | tcc | Notes |
 |---|---|---|---|---|
-| `__atomic_*_n` generic builtins | ✅ | ✅ | ❌ **resolved by P0**: tcc does not know them at all (parse warns, link fails) — §13.1 | never emit |
-| `__atomic_*_N` size-suffixed libatomic symbols | ✅ (builtin, inlines with exact sigs) | ✅ (calls → `-latomic`) | ✅ (calls → `-latomic`) | **preferred form** — §13.3 |
-| `__atomic_thread_fence(n)` | ✅ | ✅ | ❌ **resolved by P0**: unresolved under tcc — §13.4 | synthesize via dummy-cell exchange |
+| `__atomic_*_n` generic builtins (call sites) | ✅ | ✅ | ❌ **resolved by P0**: tcc does not know them at all (parse warns, link fails) — §13.1 | emit as call sites **only** with pure-C preamble defs (§14.2) |
+| pure-C preamble defs of `__atomic_*_n` names (§13.5) | ✅ accepted, dead code | ✅ accepted, dead code | ✅ resolves calls to defs | **primary form** — Windows amendment §14.2 |
+| `__atomic_*_N` size-suffixed libatomic symbols | ✅ (builtin, inlines with exact sigs) | ✅ (calls → `-latomic`) | ✅ (calls → `-latomic`) | **posix fallback** — §13.4; **never on Windows** (no libatomic, §14.1) |
+| `__atomic_thread_fence(n)` | ✅ | ✅ | ❌ **resolved by P0**: unresolved under tcc — §13.4 | synthesize via dummy-cell exchange — the only fence form on Windows (§14.7) |
 | `__asm__ __volatile__("" ::: "memory")` | ✅ | ✅ | ✅ (proven: used by `win/atomic.h` compiled under tcc) | signal fence (F5) |
 | GNU statement expressions `({ ... })` | ✅ | ✅ | ✅ (P0-probed: value/pointer/nested/discarded all pass — §13.6) | RMW synthesis (F1.4) |
 | `volatile` qualifier in declarations | ✅ | ✅ | ✅ | F4 |
@@ -1108,6 +1154,14 @@ position*. Practical consequences:
    backends and the sequential context (F8).
 7. **Output purity**: no new `#include` in emitted C; no `#ifdef` beyond the pre-existing
    preamble guards; no C macros emitted.
+8. **LLP64 check (Windows)**: no emitted def or signature spells an 8-byte type as `long`
+   or `unsigned long`; only the self-provided fixed-width typedef set appears (§14.2).
+9. **Windows zero-deps check**: emitted C for Windows targets contains no `libatomic`
+   reference, no `-latomic` link flag, and no `Interlocked*`/`MemoryBarrier` externs
+   (§14.1, §14.6).
+10. **Windows warning-clean**: `-Wall -Wextra` silent on mingw gcc and clang for Windows
+    too; mingw emits `-Wattributes`/dllimport/decorated-name noise the linux harness
+    doesn't — define the baseline per §14.8.
 
 ### E. Open questions the implementer must resolve via the P0 probe (do not guess)
 
@@ -1155,8 +1209,14 @@ forms, all widths, plus fences and asm):
 The `nix/atomic.h` comment ("tcc is not capable to use generic C functions") is **correct**.
 The `win/atomic.h` counter-evidence (`__atomic_compare_exchange` under tcc) refers to the
 **multi-operand no-suffix family**, which tcc parses but with **divergent semantics** — see
-§13.3. **F1's emission matrix must therefore never emit `_n` forms**: gcc/clang inline
+§13.2. **F1's emission matrix must therefore never emit `_n` forms**: gcc/clang inline
 them, tcc breaks. The doc's F1.4 emission table is amended by §13.4 below.
+
+**Windows follow-up (§14.4)**: since tcc resolves `__atomic_*` names as plain undefined
+externs, and `win/atomic.h:39-47` calls `__atomic_compare_exchange`, the current
+`cruntime/` path plausibly **fails to link under Windows tcc** (no libatomic there).
+Probe §13.10 P9 settles this; if confirmed, §1 should be amended to note that Windows is
+broken today, making this plan a fix rather than a nice-to-have (see §14.4).
 
 ### 13.2 The multi-operand no-suffix family (`__atomic_load/store/exchange/compare_exchange`): unusable
 
@@ -1193,6 +1253,13 @@ clang/tcc link against libatomic whose ABI is compatible at call sites we emit).
 Probe F/G evidence: mismatched declarations poison gcc (it disables builtins and emits
 calls → needs `-latomic` too) and poison clang with `-Wbuiltin-declaration-mismatch`
 warnings. **Exact signatures are mandatory.**
+
+> ⚠️ **Windows/LLP64 warning (§14.2)**: the `unsigned long` observations above are **LP64
+> (linux) probe data**. On Windows, `unsigned long` is **4 bytes** — gcc's `_8` builtin
+> there is typed against `uint64_t`-equivalent types, not `unsigned long`. Any preamble
+> def or declaration must therefore spell 8-byte types with the self-provided fixed-width
+> typedefs (`uint64_t` from `is64Bit`/`win64`), never `long`/`unsigned long`. The
+> per-size typing must be re-verified on Windows per §13.10 before relying on it.
 
 ### 13.4 AMENDED F1 emission table (supersedes §F1.4 rows)
 
@@ -1234,6 +1301,12 @@ before adopting in F1 (add to P1 gate):
    identical either way; §1.4.4's "link flags never change emitted C" is about user
    compiler choice — def.tcc-driven preamble additions are compiler-owned emission, still
    one artifact per target).
+4. **Windows amendment (§14.2)**: promoted to **primary strategy on all platforms** —
+   Windows has no libatomic (§14.1), so the §13.4 `-latomic` route exists only as a posix
+   fallback. The verification items above remain P1 gate items; add the §14.7
+   Windows-specific verification list to the same gate. For the synthesized ops (RMW
+   synthesis, fence synthesis), build on the preamble **definitions**, not suffixed
+   libatomic symbols, so the artifact stays self-contained on Windows.
 
 ### 13.5.1 `__sync_*` family: TCC does not support it — confirmed
 
@@ -1285,21 +1358,242 @@ deleted regardless.
 - libatomic exports (nm verified): suffixed family incl. nand, multi-op names,
   `atomic_thread_fence`, `atomic_signal_fence`, `atomic_flag_*`. **No** `__atomic_thread_fence`,
   **no** `__atomic_signal_fence`, **no** `__atomic_*_n` generic names, **no** max/min.
+- **Windows (§14.1)**: there is **no libatomic** to link — MSYS2 ships `libatomic-1.dll`
+  only inside `mingw-w64-x86_64-gcc-libs` (a runtime DLL for gcc-built artifacts, not an
+  import-lib story for clang/tcc). Windows targets are therefore zero-external-dependency
+  by construction under the §13.5 defs form (§14.2); any `-latomic` on a Windows target is
+  a bug.
 
-### 13.9 Remaining probes (unchanged from §12 E, plus new)
+### 13.9 Remaining probes
 
-1. TCC on **windows-x86_64**: does the bundled tcc accept the suffixed forms, and is there
-   any libatomic? (Expected: no libatomic ⇒ the §13.5 defs approach becomes **mandatory**
-   on Windows, or F7 fallback.)
-2. TCC on **macos**: same question (macOS ships no libatomic ⇒ §13.5 defs or F7).
-3. TCC **non-empty inline asm on ARM/ARM64** (E.6) — decides hardware fences on the
+**Windows probes — now locally runnable (this is a Windows machine; results → §13.10):**
+
+1. Bundled **Windows tcc** (`lib/tcc/tcc.exe`, native x86_64, msvcrt): suffixed forms
+   parse/link behavior; §13.5 defs form compile+run; empty-asm + non-empty x86 asm;
+   GNU statement expressions `(*({…}))` (linux-tcc proof may not transfer — different
+   host ABI). Details in §13.10.
+2. **Baseline health**: does the current `cruntime/` path link under Windows tcc at all?
+   (§14.4 — tcc resolves `__atomic_*` names as plain externs; no libatomic on Windows.)
+
+**Cross/other-target probes (unchanged from §12 E):**
+
+3. TCC on **macos**: does it accept the builtins (macOS ships no libatomic ⇒ §13.5 defs or
+   F7)?
+4. TCC **non-empty inline asm on ARM/ARM64** (E.6) — decides hardware fences on the
    Windows-ARM64 corner.
-4. gcc/clang `-Wall -Wextra` silence + dead-code elimination for the §13.5 defs, full
+5. gcc/clang `-Wall -Wextra` silence + dead-code elimination for the §13.5 defs, full
    op × width matrix (P1 gate item).
-5. **NEW**: confirm the §13.5 defs approach under `-O2` code-size inspection (defs fully
+6. **NEW**: confirm the §13.5 defs approach under `-O2` code-size inspection (defs fully
    discarded by gcc/clang).
 
 **Bottom line for F1**: emit suffixed `__atomic_*_N` calls with exact per-size preamble
 declarations (or, preferably, the §13.5 generic+defs form); synthesize fences via dummy-cell
 exchange; synthesize max/min via statement expressions; never emit `_n`/no-suffix/`__sync_*`
 forms; `-latomic` on posix for tcc/clang jobs, never on Windows.
+
+> **Windows amendment (§14.2)**: the "preferably" is now the plan — §13.5 generic+defs is
+> the primary form on **all** platforms, which makes the last sentence automatic (nothing
+> links libatomic anywhere; on Windows there is nothing to link). §14.2 pins the exact
+> recipe; §14.7 the verification owed; §13.10 the Windows probe battery that fills the
+> remaining unknowns.
+
+### 13.10 Windows probe battery (P0-mandatory — this is a Windows machine)
+
+Motivation: the §13 linux-host results do not automatically transfer to Windows — the
+bundled tcc here is a **native Windows build** (`lib/tcc/tcc.exe`, `libtcc.dll`,
+`libtcc1.a`, version 0.9.28rc 2026-08-09 mob@2ba12e8, x86_64 Windows, msvcrt CRT), i.e. a
+different host ABI, different CRT, and a target (Windows) with **no libatomic at all**
+(§14.1). Probes live in `lang/compiled/atomic_probe_win/src/` (gitignored area); results
+are recorded in the table below as they complete.
+
+| # | Probe | Expected | Result |
+|---|---|---|---|
+| P1 | Suffixed `__atomic_*_N` calls under Windows tcc — parse? link? (expect: parse OK, unresolved at link — no libatomic) | parse ✅ / link ❌ | ☐ TODO |
+| P2 | **§13.5 defs form** under Windows tcc — generic `_n` call sites + pure-C defs compile, link, run | ✅ | ☐ TODO |
+| P3 | §13.5 defs form under Windows gcc (MinGW-Builds gcc 13.2.0 on PATH) — exact-sig defs accepted, builtins inlined, `-Wall -Wextra` silent | ✅ | ☐ TODO |
+| P4 | §13.5 defs form under clang for Windows (if installed — ☐ check availability) | ✅ | ☐ TODO |
+| P5 | Empty-asm statement `__asm__ __volatile__("" ::: "memory")` under Windows tcc | ✅ (`win/atomic.h` evidence) | ☐ TODO |
+| P6 | Non-empty x86 asm (`pause`, `mfence`) under Windows tcc | ✅ (`win/atomic.h` uses `pause`) | ☐ TODO |
+| P7 | GNU statement expressions `(*({…}))` under Windows tcc — value/pointer/nested/discarded (linux-tcc §13.6 proof may not transfer; different host ABI + struct-return conventions) | ✅ | ☐ TODO |
+| P8 | `volatile` declarations + ptr-to-volatile under Windows tcc | ✅ | ☐ TODO |
+| P9 | **Baseline health** (§14.4): compile the current library's `cruntime/atomic.c` under Windows tcc — does the shipped code link at all today? | ❌ expected (silent breakage) | ☐ TODO |
+| P10 | LLP64 typing check: exact-sig defs spelled with `unsigned long` under Win64 gcc — confirm the §13.3 mismatch failure mode, then confirm the fixed-width-typedef spelling is silent | mismatch ❌ / typedefs ✅ | ☐ TODO |
+| P11 | Golden-C harness through the full 2c pipeline on this machine (`TCCCompiler --emit-c` → compile snapshot with gcc + tcc at `-O0`/`-O2` → run) | ✅ | ☐ TODO |
+
+Environment note (recorded 2026-09-09): `gcc` on PATH = `x86_64-posix-seh-rev0, Built by
+MinGW-Builds project 13.2.0` (msvcrt-based, `C:/ProgramData/mingw64`); no clang found on
+PATH; no MSYS2 mingw64/ucrt64 installs detected at the standard locations. P4 updates the
+doc if clang appears or is installed.
+
+**Gate**: P2, P3 and P9 must complete before starting P1/F1 implementation on Windows;
+P5–P8 must complete before F7 (fallback layer) work.
+
+---
+
+## 14. Appendix — Windows amendments (2026-09-09)
+
+This appendix amends the plan for Windows as a **first-class development and target
+platform** (development now happens on Windows). Each amendment states what changes and
+why; where an amendment conflicts with earlier text, **this appendix wins**.
+
+### 14.1 There is no usable libatomic on Windows — §13.5 is mandatory there
+
+- MSYS2 ships `libatomic-1.dll`, but only inside `mingw-w64-x86_64-gcc-libs` — a runtime
+  DLL accompanying gcc-built artifacts. There is no static import-lib story worth planning
+  around, and a DLL dependency would violate the self-contained-output philosophy (§1.4)
+  anyway.
+- Therefore: `def.windows` targets **never** link `-latomic`, never reference suffixed
+  libatomic symbols, and get the §13.5 defs form (or F7 fallback behind it). Any libatomic
+  reference in a Windows-target artifact is a bug (§12 D.9).
+- Consequence for F2: the posix `-latomic` branch becomes a posix-only fallback; the
+  Windows branch links nothing (see §14.3).
+- Consequence for §6/§F1.5 matrices: all Windows rows use §13.5 defs form; fences are
+  always synthesized (§14.7); the F1.4 synthesized ops build on preamble **defs**, not
+  suffixed libatomic symbols.
+
+### 14.2 Primary emission recipe (amends §F1.4 / §F1.5 / §13.4–§13.5)
+
+For every target (posix and Windows alike), the C backend emits:
+
+1. **Call sites**: generic `_n` spellings — `__atomic_load_n / __atomic_store_n /
+   __atomic_exchange_n / __atomic_compare_exchange_n / __atomic_fetch_{add,sub,and,or,xor,nand}_n`
+   — plus the §F1.4 statement-expression synthesis for max/min/umax/umin and the
+   dummy-cell exchange for fences.
+2. **Preamble definitions** (§13.5): pure-C, exact-signature definitions of those names,
+   memcpy/loop-based, built on plain (non-atomic) code + the universal primitives already
+   proven (empty-asm, statement expressions, `volatile`). gcc/clang inline their builtins
+   at the call sites and discard the defs; tcc resolves the calls to the defs.
+3. **Typing rule (LLP64)**: every def/signature spells 8-byte types with the
+   self-provided fixed-width typedefs (`uint64_t` emitted by `prepare_translate()` from
+   `is64Bit`/`win64`) — **never** `long`/`unsigned long`/`long long` spellings. Windows is
+   LLP64: `long` is 4 bytes on win64. The §13.3 per-size typing observations are LP64
+   probe data pending Windows re-verification (§13.10 P3/P10).
+4. **Result**: one C artifact per target, zero external dependencies on **all** platforms;
+   `-latomic` disappears from the plan except as a posix fallback to §13.5 (§14.3).
+5. **Sync scope**: unchanged from §F1.1 — only `System` accepted.
+
+### 14.3 F2 linking policy (amends F2 acceptance criteria)
+
+- `def.posix` targets: prefer §13.5 defs (zero deps); the `-latomic` fallback remains
+  available for tcc/clang-driven posix jobs per §13.4, with the §13.8 symlink caveat.
+- `def.windows` targets: **link nothing, ever**. F2's acceptance criterion becomes
+  "Windows builds contain zero external atomic references (verified by inspecting the
+  object/imports for `__atomic_*` / `libatomic`)".
+- The `libatomic-1.dll` presence inside MSYS2 gcc-libs must NOT tempt a link flag — the
+  artifact must not depend on it (users may not have MSYS2 at runtime).
+
+### 14.4 Baseline health probe — the current library may be broken on Windows
+
+Evidence chain: §13.1 (tcc resolves `__atomic_*` names as plain undefined externs) →
+`win/atomic.h:39-47` calls `__atomic_compare_exchange` (multi-op family, pointer-arg
+form) → tcc treats that as an undefined symbol too → and Windows has no libatomic
+(§14.1). Therefore the current `cruntime/` path plausibly **fails to link under Windows
+tcc today** (unless tcc-mob has Windows-specific builtin handling nobody knows about).
+Probe §13.10 P9 settles this.
+
+If confirmed: amend §1 to state that **Windows is broken today** — this plan is then a
+correctness fix for Windows, not merely a portability cleanup. That also raises the
+discovery priority of P9 to "before any other Windows work".
+
+### 14.5 F7 fallback: fix the 64-bit CAS sketch for ARM64 (amends §5)
+
+The §5 sketch `atomic_cas64_fallback(lo_ptr, hi_ptr, …)` as written is **not atomic**: two
+loose "32-bit CAS steps" leave windows where the low half is swapped while the high half
+still matches a stale compare (or vice versa), and any reader observing the cell
+mid-sequence sees a torn value. Pin the semantics:
+
+- The u64 cell is naturally aligned (Chemical guarantees u64 alignment), so a single
+  logical CAS is achievable with the standard **double-CAS loop** pattern (as FFmpeg's
+  `ManualInterlockedCompareExchange64` lineage does):
+  1. read `lo`, `hi` of the target;
+  2. CAS `lo` against `(expected_lo → desired_lo)`;
+  3. re-read and verify `hi` still equals `expected_hi` — if not, retry the whole loop;
+  4. CAS `hi` against `(expected_hi → desired_hi)`;
+  5. re-read and verify `lo` still equals `desired_lo` — if not, **roll back** the first
+     CAS (swap the old lo back) and retry;
+  6. success: the cell now holds `desired` (for the duration between the two steps the
+     cell may transiently hold a mixed value — acceptable **only** for 64-bit RMW/CAS
+     emulation where all parties use the same protocol; single-writer/multi-reader torn
+     reads remain a documented limitation, exactly as in the deleted header).
+- A **signal fence (F5)** between the read and each CAS step inside the loop is mandatory
+  (§F7 `wordtear.ch` note applies to 64-bit emulation too).
+- lo/hi derivation is endianness-dependent — comptime-select via `def.little_endian` /
+  `def.big_endian` (both exist on `TargetData`), as §5 already notes.
+- All parties to a given cell must use the same protocol; document this in the library
+  (mixed native-CAS / fallback access to the same cell is forbidden — enforceable only by
+  convention since both live in one library).
+
+### 14.6 No OS-atomic externs on Windows — document the temptation (amends F7)
+
+Local evidence: `lib/tcc/lib/kernel32.def:437-441` exports **only the 32-bit family**
+(`InterlockedCompareExchange`, `InterlockedDecrement`, `InterlockedExchange`,
+`InterlockedExchangeAdd`, `InterlockedIncrement`) — no `_64` variants, no
+`MemoryBarrier`. Additionally, on 32-bit Windows the `Interlocked*` functions are not
+kernel32 exports at all (they are winbase.h intrinsics). A "just call Interlocked* from
+the fallback" escape hatch is therefore a portability minefield on both sides.
+
+**Rule**: F7 is pure-Chemical → pure-C only. No `Interlocked*`, no `MemoryBarrier`, no
+`_Interlocked*` externs anywhere in emitted C (§12 D.9 adds this to the per-PR checks).
+Everything is built from: plain loads/stores, `volatile` (F4), empty-asm signal fences
+(F5), statement-expression CAS loops (F1.4 synthesis pattern), and the §13.5 preamble
+defs.
+
+### 14.7 Windows fence synthesis + verification owed (amends §6 fence column)
+
+- `__atomic_thread_fence` is unresolved under tcc (§13.1) and Windows has no libatomic to
+  provide the C11-named `atomic_thread_fence` → the **dummy-cell exchange synthesis is
+  the only thread-fence form on Windows** (x86/x64 included, not just ARM64). Under the
+  §13.5 recipe the synthesis calls the preamble **def** of the exchange primitive — fully
+  self-contained.
+- On Windows x86/x64 a full `seq_cst` fence degenerates to the compiler barrier + an
+  atomic exchange (which tcc lowers to our def — see below). Honest capability statement
+  (matching §F7's honesty rule): on **Windows + tcc**, hardware `mfence`/`lock`-prefix
+  ordering comes only if tcc inlines something equivalent — it does not — so seq_cst
+  fences are **compiler-barrier-strength** on that corner, exactly as the deleted header's
+  `MemoryBarrier` shim was. gcc/clang on Windows inline real exchanges and get real
+  ordering. This asymmetry is inherent to "any C compiler" on this target and must be
+  documented in the library, not hidden.
+- Verification owed before trusting this (add to the P1 gate):
+  1. §13.10 P2/P3 — the defs form actually compiles and runs on Windows tcc + gcc.
+  2. A fence litmus test (release-store + signal-fence + acquire-load) under Windows gcc
+     `-O2` — and an explicit documented degradation note for tcc.
+  3. The §13.5 open items (warning silence, op×width matrix, `-O2` dead-code check)
+     re-run with mingw gcc + Windows tcc.
+
+### 14.8 Concrete Windows harness definition (amends P0.4 / §8.2 / §12 D.2–D.3)
+
+- "Every available host compiler" on Windows means: **MSYS2 mingw-w64 gcc** (record the
+  CRT — ucrt vs msvcrt — and pin it in CI), **clang for Windows** (when installed), and
+  the **bundled `lib/tcc/tcc.exe`**. All runnable from the repo's Git Bash environment.
+- Snapshot scripts stay bash (repo convention).
+- Warning-clean gate (§12 D.3) is defined **per platform**: on mingw additionally expect
+  and baseline `-Wattributes`, dllimport/decorated-name noise; the gate is "no NEW
+  warnings from atomic emission", not absolute silence, with the baseline recorded per
+  compiler version.
+- CI note (§7 P5): the Windows smoke job = MSYS2 setup + the golden-C harness from this
+  section + the sequential test matrix from §8.1.
+
+### 14.9 Amendment index (what changed, where)
+
+| Section | Change |
+|---|---|
+| Header/Status | §13.5 promoted to primary strategy; Windows zero-deps stated |
+| §1.4 | Windows self-sufficiency note (no libatomic → defs form or F7) |
+| §F1.4 | Amendment callout: synthesized ops build on preamble defs |
+| §F1.5 | Matrix Windows rows rewritten; linux-note caveat added |
+| F2 | Posix-only `-latomic` fallback; Windows links nothing; acceptance criteria amended |
+| §5 | (pointer to §14.5) — 64-bit fallback CAS semantics pinned in §14.5 |
+| §6 | Windows rows: §13.5 defs form, synthesized fences, zero deps; cygwin added to non-goals |
+| §8.2 | Windows harness pointer to §14.8 |
+| §9 | New risk R8: LLP64 typing trap |
+| §10 | DoD: Windows golden-C, LLP64 verification, zero-deps wording |
+| §12 B | LLP64 `long` = 4 bytes warning |
+| §12 C | Construct table: call-site-only `_n`, defs-form row, posix-fallback status, Windows fence note |
+| §12 D | New checks 8/9/10 (LLP64, Windows zero-deps, Windows warning baseline) |
+| §13.1 | Windows baseline-health follow-up pointer (§14.4, probe P9) |
+| §13.3 | LLP64 warning block |
+| §13.5 | Promotion to primary; verification items stay P1 gate; §14.7 list added |
+| §13.8 | Windows: no libatomic bullet |
+| §13.9 | Split into Windows (local) vs cross-target probes |
+| §13.10 | NEW: Windows probe battery table + gates |
+| §14 | NEW: this appendix |

@@ -321,7 +321,7 @@ public:
     /**
      * this will compile a cbi
      */
-    int compile_cbi(LabJobCBI* job);
+    int compile_cbi(LabJob* job);
 
     /**
      * builds the context from a build.lab or chemical.mod file present in project path

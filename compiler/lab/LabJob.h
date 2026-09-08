@@ -152,6 +152,12 @@ struct LabJob {
     ConflictResolutionStrategy conflict_strategy = ConflictResolutionStrategy::PreferNewerVersion;
 
     /**
+     * CBI function indexes — only meaningful for CBI jobs,
+     * but stored here to avoid polymorphism / virtual destructors
+     */
+    std::vector<CBIFunctionIndex> indexes;
+
+    /**
      * constructor
      */
     inline LabJob(
@@ -187,40 +193,6 @@ struct LabJob {
      */
     void reserve_dependencies(std::size_t size) {
         dependencies.reserve(size);
-    }
-
-};
-
-struct LabJobCBI : public LabJob {
-public:
-
-    /**
-     * indexes are the functions that user asked us to index
-     * these functions would be found when this job is done, these would
-     * be called when required
-     */
-    std::vector<CBIFunctionIndex> indexes;
-
-    /**
-     * constructor
-     */
-    inline LabJobCBI(
-            chem::string name,
-            OutputMode mode
-    ) : LabJob(LabJobType::CBI, std::move(name), mode) {
-
-    }
-
-    /**
-     * constructor
-     */
-    inline LabJobCBI(
-            chem::string name,
-            chem::string abs_path,
-            chem::string build_dir,
-            OutputMode mode
-    ) : LabJob(LabJobType::CBI, std::move(name), std::move(abs_path), std::move(build_dir), mode) {
-
     }
 
 };

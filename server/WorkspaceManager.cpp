@@ -109,13 +109,13 @@ void WorkspaceManager::post_build_lab() {
     // the tcc state will end up inside the compiler binder
     for(auto& job : context_information.jobs) {
         if(job->type == LabJobType::CBI) {
-            compile_cbi((LabJobCBI*) job.get());
+            compile_cbi(job.get());
         }
     }
 
 }
 
-int WorkspaceManager::compile_cbi(LabJobCBI* job) {
+int WorkspaceManager::compile_cbi(LabJob* job) {
 
     // using is64Bit as true
     auto exe_path = compiler_exe_path();

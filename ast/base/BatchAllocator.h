@@ -72,6 +72,11 @@ protected:
     std::size_t heap_batch_size;
 
     /**
+     * the original heap batch size, used to restore after clear() which keeps only block[0]
+     */
+    std::size_t initial_heap_batch_size;
+
+    /**
      * current heap offset
      */
     std::size_t heap_offset;

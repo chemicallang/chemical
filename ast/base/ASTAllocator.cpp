@@ -6,7 +6,7 @@
 #include "cstring"
 #include "libtcc.h"
 
-BatchAllocator::BatchAllocator(std::size_t heapBatchSize) : heap_offset(heapBatchSize), heap_batch_size(heapBatchSize) {
+BatchAllocator::BatchAllocator(std::size_t heapBatchSize) : heap_offset(heapBatchSize), heap_batch_size(heapBatchSize), initial_heap_batch_size(heapBatchSize) {
     if(heapBatchSize > 0) {
         // reserving a single heap batch size allocation for usage
         // otherwise first allocation will fail
@@ -25,7 +25,7 @@ ASTAllocator::ASTAllocator(
 
 BatchAllocator::BatchAllocator(
         BatchAllocator&& other
-) noexcept : heap_memory(std::move(other.heap_memory)), heap_batch_size(other.heap_batch_size), heap_offset(other.heap_offset),
+) noexcept : heap_memory(std::move(other.heap_memory)), heap_batch_size(other.heap_batch_size), initial_heap_batch_size(other.initial_heap_batch_size), heap_offset(other.heap_offset),
     allocator_mutex(std::move(other.allocator_mutex))
 {
     other.heap_offset = 0;
@@ -44,6 +44,7 @@ BatchAllocator& BatchAllocator::operator =(BatchAllocator&& other) noexcept {
 
     heap_memory = std::move(other.heap_memory);
     heap_batch_size = other.heap_batch_size;
+    initial_heap_batch_size = other.initial_heap_batch_size;
     heap_offset = other.heap_offset;
     allocator_mutex = std::move(other.allocator_mutex);
 
@@ -75,6 +76,9 @@ void ASTAllocator::clear() {
         heap_memory.erase(heap_memory.begin() + 1, heap_memory.end());
         // reset offset so that next allocation will start fresh in that one block
         heap_offset = 0;
+        // restore batch size to match the actual size of block[0],
+        // which was allocated with the original batch size
+        heap_batch_size = initial_heap_batch_size;
     }
 }
 

@@ -1454,7 +1454,8 @@ int LabBuildCompiler::tcc_run_invocation(
     char** argv
 ) {
 
-    const auto state = setup_tcc_state(exe_path, "", true, to_tcc_mode(mode, false));
+    const std::string empty_debug_name;
+    const auto state = setup_tcc_state(exe_path, empty_debug_name, true, to_tcc_mode(mode, false));
     if(state == nullptr) {
         std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
         std::cerr << "couldn't create tcc state for jit" << std::endl;
@@ -1537,7 +1538,8 @@ int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& d
     // tiny cc links in some functions when using -b, which is used in debug complete
     // when we use cache, we output object files with -b, now if user changes the mode to release
     // we still use the same cache for plugins and without recompilation, there are link errors
-    const auto state = setup_tcc_state(options->exe_path.data(), "", true, to_tcc_mode(options));
+    const std::string empty_debug_name;
+    const auto state = setup_tcc_state(options->exe_path.data(), empty_debug_name, true, to_tcc_mode(options));
     if(state == nullptr) {
         std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
         std::cerr << "couldn't create tcc state for jit of cbi '" << job_name << '\'' << std::endl;
@@ -2905,7 +2907,8 @@ TCCState* LabBuildCompiler::built_lab_file(
                 std::cout << "[lab] " << "successfully reusing build lab at '" <<  buildLabObj << "'" << std::endl;
             }
 
-            const auto state = setup_tcc_state(options->exe_path.data(), "", true, to_tcc_mode(options));
+            const std::string empty_debug_name;
+            const auto state = setup_tcc_state(options->exe_path.data(), empty_debug_name, true, to_tcc_mode(options));
             if (state == nullptr) {
                 std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset;
                 std::cerr << "couldn't create tcc state for jit of cached build.lab object file" << std::endl;
@@ -3114,7 +3117,8 @@ TCCState* LabBuildCompiler::built_lab_file(
     }
 
     // creating a new tcc state
-    const auto state = setup_tcc_state(options->exe_path.data(), "", true, to_tcc_mode(options));
+    const std::string empty_debug_name;
+    const auto state = setup_tcc_state(options->exe_path.data(), empty_debug_name, true, to_tcc_mode(options));
     if(state == nullptr) {
         // emit c if not, because error occurred
         if(!emit_c) writeToFile(labOutCPath, str);

@@ -28,7 +28,7 @@ public:
 
 
     CastedValue* copy(ASTAllocator& allocator) final {
-        return new CastedValue(
+        return new (allocator.allocate<CastedValue>()) CastedValue(
                 value->copy(allocator),
                 { getType()->copy(allocator), type_location },
                 encoded_location()

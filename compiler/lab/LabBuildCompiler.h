@@ -266,7 +266,7 @@ public:
     /**
      * cbi job
      */
-    int link_cbi_job(LabJobCBI* job, std::vector<LabModule*>& dependencies);
+    int link_cbi_job(LabJob* job, std::vector<LabModule*>& dependencies);
 
     /**
      * use tcc to process the job

@@ -195,9 +195,8 @@ lsp::json::Object labJob_toJson(LabJob* job, const std::unordered_map<LabModule*
     obj["conflict_strategy"] = lsp::toJson(static_cast<int>(job->conflict_strategy));
 
     if (job->type == LabJobType::CBI) {
-        const auto cbiJob = (LabJobCBI*) job;
-        if (!cbiJob->indexes.empty()) {
-            obj["indexes"] = toJsonArray(cbiJob->indexes);
+        if (!job->indexes.empty()) {
+            obj["indexes"] = toJsonArray(job->indexes);
         }
     }
     return std::move(obj);
@@ -502,9 +501,7 @@ LabJob* labJob_fromJson(const lsp::json::Object& obj, BuildContextInformation& c
 
     if (typeFound && typeFound->isInteger() && nameFound && nameFound->isString()) {
         auto labJobType = static_cast<LabJobType>(typeFound->integer());
-        const auto job = labJobType == LabJobType::CBI ?
-                new LabJobCBI(chem::string(nameFound->string()), OutputMode::Debug) :
-                new LabJob(labJobType, chem::string(nameFound->string()), OutputMode::Debug);
+        const auto job = new LabJob(labJobType, chem::string(nameFound->string()), OutputMode::Debug);
 
         if (auto ap = obj.find("abs_path")) {
             if (ap->isString()) {
@@ -621,10 +618,9 @@ LabJob* labJob_fromJson(const lsp::json::Object& obj, BuildContextInformation& c
         }
 
         if (labJobType == LabJobType::CBI) {
-            const auto cbiJob = (LabJobCBI*) job;
             if (auto indexes = obj.find("indexes")) {
                 if (indexes->isArray()) {
-                    indexes_fromJson(indexes->array(), cbiJob->indexes);
+                    indexes_fromJson(indexes->array(), job->indexes);
                 }
             }
         }

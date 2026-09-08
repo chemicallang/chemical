@@ -211,10 +211,10 @@ LabJob* LabBuildContext::build_interpretation(
 LabJob* LabBuildContext::build_cbi(
         chem::string_view* name
 ) {
-    auto exe = new LabJobCBI(chem::string(*name), compiler.options->def_plugin_mode);
+    auto exe = new LabJob(LabJobType::CBI, chem::string(*name), compiler.options->def_plugin_mode);
     // explicitly sending empty target triple
     // job is for host system
-    initialize_job((LabJob*) exe, compiler.options, "");
+    initialize_job(exe, compiler.options, "");
     compiler.executables.emplace_back(exe);
     set_build_dir(exe);
     return exe;

@@ -142,7 +142,7 @@ void BuildContextset_contains_cbi(LabBuildContext* self, chem::string_view* key)
 
 bool BuildContextindex_cbi_fn(LabBuildContext* self, LabJob* job, chem::string_view* key, chem::string_view* fn_name, int func_type) {
     if(job->type == LabJobType::CBI && func_type >= 0) {
-        ((LabJobCBI*) job)->indexes.emplace_back(chem::string(*key), chem::string(*fn_name), static_cast<CBIFunctionType>(func_type));
+        job->indexes.emplace_back(chem::string(*key), chem::string(*fn_name), static_cast<CBIFunctionType>(func_type));
         return true;
     } else {
         return false;

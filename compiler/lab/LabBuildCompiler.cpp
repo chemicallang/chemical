@@ -1529,7 +1529,7 @@ int LabBuildCompiler::launch_tcc_jit_exe(LabJob* job, std::vector<LabModule*>& d
 
 }
 
-int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& dependencies) {
+int LabBuildCompiler::link_cbi_job(LabJob* cbiJob, std::vector<LabModule*>& dependencies) {
 
     auto& job_name = cbiJob->name;
     auto cbiName = cbiJob->name.to_std_string();
@@ -1722,7 +1722,7 @@ int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& d
 
             // for cbi/jit jobs, we need to link and run them
             if (get_job_type == LabJobType::CBI) {
-                const auto cbiJob = (LabJobCBI*) job;
+                const auto cbiJob = job;
                 const auto jobDone = link_cbi_job(cbiJob, dependencies);
                 if (jobDone != 0) {
                     return jobDone;
@@ -1891,7 +1891,7 @@ int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& d
 
     // cbi and jit jobs are here
     if(get_job_type == LabJobType::CBI) {
-        const auto cbiJob = (LabJobCBI*) job;
+        const auto cbiJob = job;
         const auto jobDone = link_cbi_job(cbiJob, dependencies);
         if(jobDone != 0) {
             return jobDone;
@@ -4197,7 +4197,7 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
 
     // the cbi job for the transformer module
     // created so we can store remote imports here
-    LabJobCBI transformer_job(chem::string("main"), options->out_mode);
+    LabJob transformer_job(LabJobType::CBI, chem::string("main"), options->out_mode);
     // explicitly sending empty target triple
     // job is for host system, must not changing target triple
     LabBuildContext::initialize_job(&transformer_job, options, "");

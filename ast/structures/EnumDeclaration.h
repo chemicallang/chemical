@@ -30,6 +30,7 @@ public:
     EnumDeclAttributes attrs;
     chem::string_view located_id; ///< The name of the enum.
     std::unordered_map<chem::string_view, EnumMember*> members; ///< The values of the enum.
+    std::vector<EnumMember*> members_vec; ///< cached vector of members for CBI interface
     TypeLoc underlying_type;
 
     // this is calculated during symbol resolution
@@ -134,6 +135,19 @@ public:
 
     inline BaseType* known_type() {
         return &linked_type;
+    }
+
+    /**
+     * lazily populate and return a vector of enum members for CBI interface
+     */
+    std::vector<EnumMember*>& get_members_vec() {
+        if(members_vec.empty() && !members.empty()) {
+            members_vec.reserve(members.size());
+            for(auto& pair : members) {
+                members_vec.push_back(pair.second);
+            }
+        }
+        return members_vec;
     }
 
     uint64_t byte_size(const TargetData& target) final {

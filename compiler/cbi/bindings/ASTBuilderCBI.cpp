@@ -1002,12 +1002,7 @@ std::vector<ASTNode*>* InterfaceDefinitiongetFunctions(InterfaceDefinition* def)
 }
 
 std::vector<EnumMember*>* EnumDeclarationgetMembers(EnumDeclaration* decl) {
-    auto vec = new std::vector<EnumMember*>();
-    vec->reserve(decl->members.size());
-    for(auto& pair : decl->members) {
-        vec->push_back(pair.second);
-    }
-    return vec;
+    return &decl->get_members_vec();
 }
 
 void FunctionDeclarationgetName(chem::string_view* view, FunctionDeclaration* decl) {

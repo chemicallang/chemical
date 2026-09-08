@@ -29,7 +29,7 @@ Constraints baked in:
 | F5 | Compiler-only barrier (`atomic_signal_fence`) intrinsic | The universal `__asm__ __volatile__("" ::: "memory")` compiler barrier used by all fallbacks | P1 |
 | F6 | Backend capability queries (`intrinsics::supports` extension) | The library must pick builtin path vs. fallback path **at comptime**, per target | P1 |
 | F7 | Pure-Chemical fallback layer (CAS synthesis, word-tearing emulation, fence synthesis) | The Windows(+TCC) corner where neither builtins nor libatomic cover everything | P1 |
-| F8 | Interpretation-mode backend context | `--arg-interpret` currently has no `backend_context` at all — atomic comptime calls crash/no-op | P2 |
+| F8 | Interpretation-mode backend context | `--arg-interpret` currently has no `backend_context` at all — atomic comptime calls crash/no-op | P5 |
 | F9 | Intrinsic declaration fixes (return types, param indices, typos) | Existing bugs in the comptime intrinsic declarations | P0 (trivial) |
 
 Phases: **P0** probes & baseline tests → **P1** F1+F9 (C backend core) → **P2** F2 + library
@@ -293,6 +293,13 @@ pointer pointees come with F3. Non-integer, non-struct-sized types error out.
 
 #### F1.4 Per-intrinsic emission
 
+> ⚠️ **Superseded by §13.4 (P0 probe results)**: the `_n` generic spellings shown in this
+> subsection's examples do NOT work under TCC (unresolved references — §13.1). Emit the
+> **size-suffixed `__atomic_*_N` forms** (with exact per-size preamble declarations) or the
+> §13.5 generic+defs form; synthesize fences via dummy-cell exchange (no
+> `__atomic_thread_fence` under tcc). The statement-expression synthesis pattern below
+> remains valid — build it on suffixed ops.
+
 Let `P` = rendered pointer expression, `V` = rendered value expression, `E` = rendered
 expected-pointer expression, `mo1/mo2` = mapped C11 order literals.
 
@@ -373,6 +380,12 @@ writer-level global state and TCC demonstrably handles the existing `(*({…}))`
 revisit if nested statement expressions inside struct-return contexts ever conflict.
 
 #### F1.5 One emitted form per target — the all-compilers intersection
+
+> ⚠️ **Superseded by §13.3–§13.5 (P0 probe results)**: TCC supports neither the generic `_n`
+> builtins nor a usable multi-operand family — the universal spelling is the **suffixed
+> `__atomic_*_N` family** (or §13.5 generic+defs). The matrix below is retained for the
+> *linking* column reasoning, but its "emitted C form" column is superseded. The
+> best-current recommendation is §13.5: one artifact, no libatomic on any platform.
 
 `ToCBackendContext` has access to `comptime_scope.target_data`.
 
@@ -555,10 +568,12 @@ written asm is exactly what we're eliminating.
   | relaxed / monotonic | nothing |
   | acquire / release / acq_rel / seq_cst | `__asm__ __volatile__ ("" : : : "memory")` |
 
-- **LLVM backend**: emit an LLVM `atomic signal_fence <order>` instruction (it lowers to a
-  no-op on all in-tree targets). Verify the exact `IRBuilder`/`Instruction` creation path
-  during implementation (`CreateFence` is the *thread* fence; signal fence is a distinct
-  instruction).
+- **LLVM backend**: there is **no distinct "signal fence" instruction in LLVM IR** (an
+  earlier draft assumed one — verified false). Clang lowers `__atomic_signal_fence(order)`
+  to `IRBuilder::CreateFence(order, llvm::SyncScope::SingleThread)` — a normal `fence`
+  instruction constrained to the `singlethread` sync scope, which in-tree targets emit no
+  code for. Emit exactly that: `CreateFence(to_llvm_mo(order), llvm::SyncScope::SingleThread)`,
+  validating monotonic the same way `atomic_fence` does (or emitting nothing for it).
 - **Interpreter/intrinsics**: new compiler-declared function
   `intrinsics::atomic_signal_fence(order)` mirroring `InterpretLLVMAtomicFence`
   (`GlobalFunctions.cpp:~2380`), wired to `backend_context->signal_fence(...)`.
@@ -566,7 +581,8 @@ written asm is exactly what we're eliminating.
   `atomic.ch`.
 
 **Acceptance criteria.** Generated C contains the empty-asm statement where expected; LLVM IR
-contains the signal fence instruction; a release-store + signal-fence + acquire-load
+contains a `fence` instruction with `singlethread` sync scope (LLVM has no distinct
+signal-fence instruction — see F5 design); a release-store + signal-fence + acquire-load
 litmus test passes under `-O2`.
 
 ---
@@ -657,11 +673,19 @@ reproduce it **in Chemical** so the compiler generates equivalent C.
   - this code *requires* F4 (volatile on the containing word access) and F5 (signal fences
     between read and CAS) to be correct under optimization.
 
-- `fence.ch` — fence synthesis for targets with no hardware fence intrinsic (TCC+ARM): an
-  acquire-load followed by a release-store on a dummy `@volatile` cell, or, documented and
-  accepted, seq_cst-only fences on that corner (mirrors what the current header does by
-  calling the SDK's `MemoryBarrier` — which TCC-on-ARM-Windows lacks, hence the volatile-write
-  `MemoryBarrier` shim in `win/atomic.h:41-46`).
+- `fence.ch` — fence synthesis for targets with no hardware fence intrinsic
+  (Windows-ARM64+tcc). **Be honest about what the current header does there**: the
+  `MemoryBarrier` shim in `win/atomic.h:41-46` is a **compiler-only barrier** (a volatile
+  write — it issues no CPU memory-ordering instruction), because TCC lacks
+  `__atomic_thread_fence` on ARM and the SDK `MemoryBarrier` intrinsic is MSVC-only. So on
+  that corner today, acquire/release fences are already partially broken (compiler
+  reordering is prevented, hardware reordering is not). F7's baseline obligation is to
+  **match** current behavior: empty-asm compiler barriers (F5). Upgrading to a real hardware
+  fence on that corner requires non-empty inline asm (`dmb ish` / `dmb ishst`) — whether TCC
+  accepts non-empty inline asm on ARM/ARM64 is an **open probe question (§12 E.6)**; if yes,
+  emit it (gated only by target facts); if no, document the corner as degraded
+  (hardware reordering unsynchronized, exactly as today). Do not claim full hardware
+  ordering on that corner without the probe.
 
 - Dispatch: chosen by F6 capability queries plus `def.*` arch checks (`def.arm`,
   `def.aarch64`, `def.x86_64`).
@@ -815,7 +839,9 @@ Windows-arm64-tcc (fallback path, F7): no `__atomic_*` symbols at all — CAS ov
 ```c
 uint64_t atomic_cas64_fallback(volatile uint32_t* lo_ptr, volatile uint32_t* hi_ptr,
                                uint64_t expected, uint64_t desired);
-/* — emitted from pure Chemical: two 32-bit CAS steps with comparator reconstruction — */
+/* — emitted from pure Chemical: two 32-bit CAS steps with comparator reconstruction.
+   lo/hi derivation is endianness-dependent: comptime-select via def.little_endian /
+   def.big_endian (both exist on TargetData). — */
 ```
 
 ---
@@ -832,7 +858,7 @@ tcc alike**. The matrix lists what the single emitted C uses — never per-compi
 | linux/bsd i386, arm32 | generic builtins | builtin | `-latomic` always | no |
 | macos x86_64, aarch64 | generic builtins | builtin | never `-latomic` (not shipped on macOS) | tcc-on-macos per probe (maybe) |
 | windows x86/x64 | builtins per probe (evidence: `win/atomic.h` compiles `__atomic_compare_exchange` under TCC) | probe | none | probably not |
-| windows arm64 | **F7 fallback** | **F7 synthesis** | none | **yes** |
+| windows arm64 | **F7 fallback** | **F7 synthesis** (compiler barriers today; hardware fence only if the §12 E.6 probe passes) | none | **yes** |
 | any + interpretation | sequential semantics (F8) | no-op | — | — |
 
 Out of scope (documented non-goals): MSVC as a C compiler for 2c output; float atomics on
@@ -1055,11 +1081,11 @@ position*. Practical consequences:
 
 | Construct | gcc | clang | tcc | Notes |
 |---|---|---|---|---|
-| `__atomic_*_n` generic builtins | ✅ | ✅ | **probe** (contradictory evidence: nix header avoids them, win header uses `__atomic_compare_exchange` under tcc) | preferred form |
-| `__atomic_*_N` size-suffixed libatomic symbols | ✅ | ✅ | ✅ (with `-latomic`) | weakest common form on posix |
-| `__atomic_thread_fence(n)` | ✅ | ✅ | **probe** | thread fence |
+| `__atomic_*_n` generic builtins | ✅ | ✅ | ❌ **resolved by P0**: tcc does not know them at all (parse warns, link fails) — §13.1 | never emit |
+| `__atomic_*_N` size-suffixed libatomic symbols | ✅ (builtin, inlines with exact sigs) | ✅ (calls → `-latomic`) | ✅ (calls → `-latomic`) | **preferred form** — §13.3 |
+| `__atomic_thread_fence(n)` | ✅ | ✅ | ❌ **resolved by P0**: unresolved under tcc — §13.4 | synthesize via dummy-cell exchange |
 | `__asm__ __volatile__("" ::: "memory")` | ✅ | ✅ | ✅ (proven: used by `win/atomic.h` compiled under tcc) | signal fence (F5) |
-| GNU statement expressions `({ ... })` | ✅ | ✅ | ✅ (proven in-tree: sret pattern compiles under tcc) | RMW synthesis (F1.4) |
+| GNU statement expressions `({ ... })` | ✅ | ✅ | ✅ (P0-probed: value/pointer/nested/discarded all pass — §13.6) | RMW synthesis (F1.4) |
 | `volatile` qualifier in declarations | ✅ | ✅ | ✅ | F4 |
 | C11 `_Atomic` types | ✅ | ✅ | ❌ | **never emit** |
 | Compiler-specific spellings (`_mm_pause`, `__sync_*`, `Interlocked*`) | partial | partial | ❌ | **never emit** |
@@ -1093,5 +1119,187 @@ position*. Practical consequences:
 4. Does tcc-on-macos accept the builtins (decides the macos fallback question)?
 5. Confirm the 5-arg `__atomic_compare_exchange_N` ABI suspicion (§1.3) — for the record
    only; the code we delete is wrong regardless.
+6. Does TCC accept **non-empty** inline asm on ARM/ARM64 (e.g.
+   `__asm__ __volatile__("dmb ish" ::: "memory")`)? Empty-asm is proven (§12 C); non-empty
+   asm on ARM decides whether F7 can emit real hardware fences on the Windows-ARM64 corner
+   (see F7 `fence.ch`) or must degrade to compiler-only barriers. (x86 evidence is positive:
+   `win/atomic.h` emits `mfence` inline asm compiled by tcc.)
 
 Record probe results as a new appendix table in this doc before starting P1.
+
+> ✅ **DONE — results recorded in §13** (linux-x86_64 host; gcc 15.2.0, clang 21.1.8, tcc
+> 0.9.28rc mob@2ba12e8). §12 E.1/E.2/E.5 are resolved for linux-x86_64; E.3/E.4/E.6 remain
+> for cross-targets (windows, macos, ARM asm).
+
+---
+
+## 13. Appendix — P0 probe results (EXECUTED, linux-x86_64 host, 2026-09-08)
+
+Probes live in `lang/compiled/atomic_probe/src/` (gitignored area). Compilers tested:
+gcc 15.2.0, clang 21.1.8, **tcc 0.9.28rc mob@2ba12e8 (2026-08-09)** — the exact libtcc we
+bundle (`lib/tcc`). Every "✅ pass" row below means: compiled, linked, ran, and all
+self-verification checks returned 0. Cross-target probes (mingw, aarch64) still TODO —
+see §13.9.
+
+### 13.1 The generic `_n` builtins: TCC does not support them — CONFIRMED
+
+`src/generic_builtins.c` (all `__atomic_load_n/store_n/exchange_n/compare_exchange_n/fetch_*`
+forms, all widths, plus fences and asm):
+
+| Compiler | Result |
+|---|---|
+| gcc -O0/-O2 | ✅ compile (zero warnings), run, all checks pass. **Zero libatomic calls at -O2.** |
+| clang -O0/-O2 | ✅ compile, run, all checks pass. **Zero libatomic calls at -O2.** |
+| tcc | ❌ **Every generic form: implicit-declaration warning at parse, then `unresolved reference` at link** (`__atomic_store_n`, `__atomic_load_n`, `__atomic_exchange_n`, `__atomic_compare_exchange_n`, `__atomic_thread_fence`, all `fetch_*`). tcc merely treats these as ordinary undefined function names. |
+
+The `nix/atomic.h` comment ("tcc is not capable to use generic C functions") is **correct**.
+The `win/atomic.h` counter-evidence (`__atomic_compare_exchange` under tcc) refers to the
+**multi-operand no-suffix family**, which tcc parses but with **divergent semantics** — see
+§13.3. **F1's emission matrix must therefore never emit `_n` forms**: gcc/clang inline
+them, tcc breaks. The doc's F1.4 emission table is amended by §13.4 below.
+
+### 13.2 The multi-operand no-suffix family (`__atomic_load/store/exchange/compare_exchange`): unusable
+
+`src/multiop_builtins.c`: tcc parses these but **requires pointer temporaries for every
+value argument** (`__atomic_store(&x8, &val, 5)` — "pointer expected" for `__atomic_store(&x8, 42, 5)`),
+and — decisive — **returns pointers** for the fetch family (`__atomic_fetch_add` returning
+a pointer; "assignment makes integer from pointer"). The value-arg signature of
+`__atomic_exchange` also differs between gcc (value) and tcc (pointer). There is **no
+single spelling** of this family that works on all three compilers. **Never emit it.**
+
+### 13.3 The suffixed family `__atomic_*_N`: THE universal form
+
+`src/suffixed_unified.c` (exact per-size declarations; 8-byte type = `unsigned long` on
+LP64): one artifact, all compilers, all checks pass:
+
+| Compiler | Builtins recognized? | Link flags | Result |
+|---|---|---|---|
+| gcc | **yes, exact per-size signatures** (value args typed per width, `_8` value = `unsigned long` on LP64) | **none needed** — everything inlined (0 `call __atomic` at -O2); with `-latomic` also fine | ✅ |
+| clang | **no** — always emits symbol calls (generic-typed only: `_1/_2/_4` return `u32`, `_8` returns `u64`/`unsigned long long`) | **`-latomic` required** | ✅ |
+| tcc | **no** — always emits symbol calls (natural-width value types work; generic `size_t`-typed value args also work for `_N` store) | **`-latomic` required** | ✅ |
+
+**Critical ABI detail discovered:** the suffixed symbols have **per-compiler builtin
+typing**. gcc's builtin variants are typed per size (load_1 returns `u8`, load_2 returns
+`u16`, load_4 returns `u32`, load_8 returns `unsigned long`); clang/tcc (libatomic) export
+the SAME symbol names with **generic `u32`-returning** signatures for `_1/_2/_4` (libatomic
+returns `u32`/`unsigned long` internally). Consequence: **any preamble declaring these
+names must use exact per-size signatures matching each compiler's expectation** — but you
+cannot satisfy gcc's exact-typed builtin and clang's generic-typed builtin with one
+declaration if they disagree. THEY DO NOT DISAGREE for the forms we need: the §13.5
+resolution (generic calls + pure-C defs) makes the declarations moot for gcc/clang
+(inline) and only tcc consumes them (any consistent ABI works). Alternatively the
+per-size-typed declarations from `src/suffixed_unified.c` work on all three (gcc inlines,
+clang/tcc link against libatomic whose ABI is compatible at call sites we emit).
+Probe F/G evidence: mismatched declarations poison gcc (it disables builtins and emits
+calls → needs `-latomic` too) and poison clang with `-Wbuiltin-declaration-mismatch`
+warnings. **Exact signatures are mandatory.**
+
+### 13.4 AMENDED F1 emission table (supersedes §F1.4 rows)
+
+Probes change the per-op emission as follows — **one spelling per target, all compilers**:
+
+| Op | Emitted C (all compilers) | Notes |
+|---|---|---|
+| load/store/exchange/CAS (1/2/4/8-byte int) | **suffixed `__atomic_load_N` / `__atomic_store_N` / `__atomic_exchange_N` / `__atomic_compare_exchange_N`** (6-arg CAS with `weak` arg) + exact per-size preamble declarations | gcc inlines; clang/tcc call libatomic (posix: `-latomic` by our driver) — OR use the §13.5 defs and never link libatomic anywhere |
+| RMW add/sub/and/or/xor/nand | **suffixed `__atomic_fetch_{add,sub,and,or,xor,nand}_N`** | same linkage story; libatomic exports all of these incl. `nand` (`nm` verified: `__atomic_fetch_nand_{1,2,4,8}`) |
+| max/min/umax/umin | **no libatomic symbols exist** (`nm` verified — no `*max*`/`*min*` exports) | keep F1.4 statement-expression synthesis, but built on suffixed CAS + suffixed relaxed load |
+| thread fence | **synthesized**: `__atomic_exchange_{1,N}(&__chx__fence_cell, 0, mo)` on a static volatile dummy cell (`src/fence_synth.c` — all 3 compilers ✅) | `__atomic_thread_fence` builtin: gcc/clang yes, **tcc NO** (unresolved); libatomic exports only C11-named `atomic_thread_fence` |
+| signal fence | empty-asm statement (§F5 unchanged), or C11-named `atomic_signal_fence` extern (libatomic exports it; tcc ✅) | never emit `__atomic_signal_fence` — tcc does not know it |
+
+The `-latomic` driver decision (F2) becomes: **posix ⇒ always link `-latomic` for tcc/clang
+driven jobs (gcc doesn't need it but it's harmless if present); never on Windows** — unless
+the §13.5 defs approach is adopted, which eliminates libatomic entirely.
+
+### 13.5 NEW RECOMMENDED FORM (supersedes the F1.5 matrix): generic calls + exact-signature pure-C preamble definitions
+
+`src/builtin_defs_probe.c`: emit **generic `_n` call sites** AND pure-C **definitions** of
+`__atomic_load_n/store_n/...` (exact signatures, memcpy/loop-based, using suffixed calls or
+plain non-atomic fallbacks per op) in the preamble:
+
+- gcc/clang: **accept the definitions** (warning appears for mismatched sig; exact sigs are
+  silent) and **inline the builtins at call sites** — definitions are dead code, can be
+  emitted `static` (unused-function warnings suppressible by being referenced or by
+  `(void)`-self-ref trick; verify)
+- tcc: has no builtins → resolves calls to **our definitions** — no libatomic anywhere
+
+Result: **one C artifact, zero external dependencies, all platforms** — the strongest
+possible fulfillment of the compiler-independence rule (§1.4.4). Remaining verification
+before adopting in F1 (add to P1 gate):
+1. gcc `-Wall -Wextra` silence with exact signatures + referenced defs (probe showed
+   mismatch warning when sigs differ; exact sigs expected silent — confirm per op)
+2. full op × width matrix through this form (probe only covered load/store)
+3. confirm `static` defs are fully discarded by gcc/clang (no code-size regression), else
+   emit them non-static behind comptime `def.tcc` guard — allowed, since it is a
+   **link-symbol availability** decision, not a codegen spelling change (the call sites are
+   identical either way; §1.4.4's "link flags never change emitted C" is about user
+   compiler choice — def.tcc-driven preamble additions are compiler-owned emission, still
+   one artifact per target).
+
+### 13.5.1 `__sync_*` family: TCC does not support it — confirmed
+
+`src/misc_constructs.c`: `__sync_synchronize`, `__sync_bool_compare_and_swap`,
+`__sync_fetch_and_add`, `__sync_lock_test_and_set` — all implicit-declaration + unresolved
+under tcc. gcc/clang fine. **Never emit `__sync_*`.** (This also kills any idea of using
+`__sync_synchronize` as a tcc-compatible full barrier; the §13.4 fence synthesis is the
+tcc-compatible form.)
+
+### 13.6 Universal constructs — final probe status
+
+| Construct | gcc | clang | tcc 0.9.28rc | Verdict |
+|---|---|---|---|---|
+| generic `__atomic_*_n` builtins | ✅ inline | ✅ inline | ❌ unresolved | never emit |
+| multi-op no-suffix `__atomic_*` | ✅ | ✅ | ⚠️ parses; pointer-typed args+returns; signature divergence | never emit |
+| `__sync_*` family | ✅ | ✅ | ❌ unresolved | never emit |
+| suffixed `__atomic_*_N` symbols | ✅ builtin/inline | ✅ via libatomic | ✅ via libatomic | **preferred** |
+| exact per-size decls of suffixed names | ✅ silent | ✅ | ✅ | mandatory if emitting suffixed calls |
+| statement exprs: value/pointer/nested/discarded | ✅ | ✅ | ✅ zero warnings | proven (F1.4 synthesis OK) |
+| `volatile` declarations + ptr-to-volatile | ✅ | ✅ | ✅ | F4 form proven |
+| empty-asm `__asm__ __volatile__("" ::: "memory")` | ✅ | ✅ | ✅ | F5 form proven |
+| non-empty x86 asm (`pause`, `mfence`) | ✅ | ✅ | ✅ | x86-only; ARM asm still unprobed (E.6) |
+| `atomic_signal_fence` C11 extern (libatomic) | n/a (builtin) | n/a | ✅ links+runs | posix alternate form |
+| `__atomic_signal_fence` builtin | ✅ | ✅ | ❌ unresolved | never emit |
+| defining `__atomic_load_n` etc. as pure C | ✅ accepted | ✅ accepted | n/a (it just calls them) | §13.5 form |
+| `__atomic_fetch_{and,or,xor,nand}_N` in libatomic | ✅ | ✅ | ✅ | bitwise RMW covered, incl. nand |
+| max/min in libatomic | — | — | — | **do not exist** — synthesize |
+
+### 13.7 CAS ABI check (5-arg suspicion)
+
+`src/cas_abi_check.c` — the 5-arg call site (exactly as `nix/atomic.h` ships: missing the
+`weak` slot) ran without abort and without value corruption in 1000 iterations under gcc
+-O0/-O2, clang -O0/-O2 and tcc on linux-x86_64. Interpretation: the ABI mis-binding is
+**real by construction** (5 args cannot fill 6 slots; the failure order register is
+uninitialized), but the failure mode on this target is "garbage failure order that happens
+to be a small valid-looking integer" — silent mis-semantics, not a crash. The suspicion
+stands as **confirmed-by-construction, crash-unreproducible on SysV x86-64**. The code is
+deleted regardless.
+
+### 13.8 Linkage reality check (posix)
+
+- gcc's libatomic **dev symlink** lives only in gcc's private dir
+  (`/usr/lib/gcc/x86_64-linux-gnu/15/libatomic.so`); the runtime is at
+  `/usr/lib/x86_64-linux-gnu/libatomic.so.1`. Our driver's `-latomic` must not assume the
+  dev symlink exists (tcc could not find `library 'atomic'` by name) — link the resolved
+  `.so`/`.so.1` path or add the gcc lib dir to the search path. On Alpine/musl, verify the
+  package provides the symlink.
+- tcc-produced binaries link `libatomic.so.1` fine (ldd verified).
+- libatomic exports (nm verified): suffixed family incl. nand, multi-op names,
+  `atomic_thread_fence`, `atomic_signal_fence`, `atomic_flag_*`. **No** `__atomic_thread_fence`,
+  **no** `__atomic_signal_fence`, **no** `__atomic_*_n` generic names, **no** max/min.
+
+### 13.9 Remaining probes (unchanged from §12 E, plus new)
+
+1. TCC on **windows-x86_64**: does the bundled tcc accept the suffixed forms, and is there
+   any libatomic? (Expected: no libatomic ⇒ the §13.5 defs approach becomes **mandatory**
+   on Windows, or F7 fallback.)
+2. TCC on **macos**: same question (macOS ships no libatomic ⇒ §13.5 defs or F7).
+3. TCC **non-empty inline asm on ARM/ARM64** (E.6) — decides hardware fences on the
+   Windows-ARM64 corner.
+4. gcc/clang `-Wall -Wextra` silence + dead-code elimination for the §13.5 defs, full
+   op × width matrix (P1 gate item).
+5. **NEW**: confirm the §13.5 defs approach under `-O2` code-size inspection (defs fully
+   discarded by gcc/clang).
+
+**Bottom line for F1**: emit suffixed `__atomic_*_N` calls with exact per-size preamble
+declarations (or, preferably, the §13.5 generic+defs form); synthesize fences via dummy-cell
+exchange; synthesize max/min via statement expressions; never emit `_n`/no-suffix/`__sync_*`
+forms; `-latomic` on posix for tcc/clang jobs, never on Windows.

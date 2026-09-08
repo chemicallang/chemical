@@ -30,7 +30,58 @@ on TCCCompiler which would build faster and would compile faster.
 
 # Configure without LLVM (TCCCompiler only)
 ./scripts/configure.sh --no-llvm
+
+# Configure with AddressSanitizer enabled
+cmake -S . -B cmake-build-debug -DENABLE_ASAN=ON
 ```
+
+## AddressSanitizer (ASAN)
+
+ASAN detects memory errors at runtime: heap-buffer-overflow, use-after-free, stack-use-after-scope, new-delete-type-mismatch, and more.
+
+### How it works
+
+ASAN is a **compile-time instrumentation** of the compiler binary itself. When enabled, the compiler's C++ code is instrumented so that every memory access is checked. The compiler can then be used normally — ASAN reports errors while the compiler processes your Chemical project.
+
+### Setup
+
+```bash
+# One-time: configure with ASAN
+cmake -S . -B cmake-build-debug -DENABLE_ASAN=ON
+
+# Build the compiler
+./scripts/build.sh --tcc
+```
+
+### Usage
+
+```bash
+# Run the compiler on any project — ASAN is active automatically
+cmake-build-debug/TCCCompiler lang/compiled/cdm/chemical.mod -o lang/compiled/cdm/bin/cdm --mode debug_quick --no-cache
+
+# Run on tests
+cmake-build-debug/TCCCompiler lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete --no-cache
+
+# Suppress specific error types via environment variable
+ASAN_OPTIONS=new_delete_type_mismatch=0 cmake-build-debug/TCCCompiler ...
+```
+
+### Error types ASAN catches
+
+| Error | What it means |
+|-------|---------------|
+| `heap-buffer-overflow` | Writing past the end of a heap allocation |
+| `stack-use-after-scope` | Reading a local variable after its scope ended |
+| `new-delete-type-mismatch` | `delete` called with wrong type size (missing virtual destructor) |
+| `use-after-free` | Accessing memory after it was freed |
+| `stack-buffer-overflow` | Writing past the end of a stack buffer |
+
+### Tips
+
+- ASAN adds ~2x memory overhead and ~1.5x slowdown — acceptable for debugging
+- `LeakSanitizer` (part of ASAN) reports memory leaks at exit — these are often expected for arena allocators and long-lived compiler objects
+- Combine with `ASAN_OPTIONS` env var to suppress known/non-critical errors while focusing on the real bug
+- The ASAN binary is the same `cmake-build-debug/TCCCompiler` — no separate binary needed
 
 ## Building Compiler
 

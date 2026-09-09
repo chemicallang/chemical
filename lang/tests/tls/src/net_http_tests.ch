@@ -1007,7 +1007,8 @@ func test_route_params_wildcard(env : &mut TestEnv) {
     cfg.addr = std::string::make_no_len("127.0.0.1:8103");
     var srv = server::Server(cfg);
     
-    srv.router.add("GET", "/files/*path", ||(req, res) => {
+    // Use :path* syntax for wildcard (colon + name + asterisk)
+    srv.router.add("GET", "/files/:path*", ||(req, res) => {
         res.write_string(std::string::make_no_len("ok"));
     });
     

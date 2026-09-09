@@ -1480,3 +1480,63 @@ public func components_event_attr_skipped_comma_correctness(env : &mut TestEnv) 
     // But children should still be present
     contains_string_assert(env, js.to_view(), std::string_view("children"))
 }
+
+// Test components for hydration child HTML recursion regression tests
+
+#universal NestedTableComp(props) {
+    return <div>{props.children}</div>
+}
+
+#universal SelfClosingChildComp(props) {
+    return <div>{props.children}</div>
+}
+
+@test
+public func components_hydration_child_html_recurses_nested_elements(env : &mut TestEnv) {
+    // Regression: emit_universal_queue built $_uc_h for children but did NOT
+    // recurse into element children. A <table><tbody><tr><td>X</td></tr></tbody></table>
+    // passed as children became just <table></table> in the hydration JS string,
+    // causing hydration mismatch because the SSR HTML had the full nested structure.
+    var page = HtmlPage()
+    #html { <NestedTableComp><table><tbody><tr><td>inner cell</td></tr></tbody></table></NestedTableComp> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    // The $_uc_h string must contain the full nested HTML, not just empty tags
+    contains_string_assert(env, js.to_view(), std::string_view("<table>"))
+    contains_string_assert(env, js.to_view(), std::string_view("<tbody>"))
+    contains_string_assert(env, js.to_view(), std::string_view("<tr>"))
+    contains_string_assert(env, js.to_view(), std::string_view("<td>"))
+    contains_string_assert(env, js.to_view(), std::string_view("inner cell"))
+    contains_string_assert(env, js.to_view(), std::string_view("</td>"))
+    contains_string_assert(env, js.to_view(), std::string_view("</tr>"))
+    contains_string_assert(env, js.to_view(), std::string_view("</tbody>"))
+    contains_string_assert(env, js.to_view(), std::string_view("</table>"))
+}
+
+@test
+public func components_hydration_child_html_self_closing_elements(env : &mut TestEnv) {
+    // Self-closing elements passed as children to a universal component must be
+    // emitted with the /> syntax in the hydration $_uc_h string.
+    var page = HtmlPage()
+    #html { <SelfClosingChildComp><div><br/><hr/></div></SelfClosingChildComp> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    contains_string_assert(env, js.to_view(), std::string_view("<br/>"))
+    contains_string_assert(env, js.to_view(), std::string_view("<hr/>"))
+}
+
+@test
+public func components_event_attr_with_non_event_attr_mixed(env : &mut TestEnv) {
+    // When a component has both a non-event attribute and an event attribute
+    // with a text value, only the non-event attribute should appear in the
+    // dispatch props. The event attr with text value must be skipped.
+    var page = HtmlPage()
+    #html { <Button data-variant="primary" onclick="handleClick()">Click</Button> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    // data-variant should be present (non-event, text value → emitted as prop)
+    contains_string_assert(env, js.to_view(), std::string_view("\"data-variant\""))
+    contains_string_assert(env, js.to_view(), std::string_view("primary"))
+    // onclick with text value must NOT appear
+    not_contains_string_assert(env, js.to_view(), std::string_view("onclick"))
+}

@@ -146,6 +146,44 @@ func (converter : &mut ASTConverter) emit_append_html_from_str(s : &mut std::str
     converter.emit_append_html_call(value, size)
 }
 
+// Recursively collect the static HTML representation of a child node into childHtml.
+// Used by emit_universal_queue to build the hydration $_uc_h string.
+func collect_child_html(ch : *mut HtmlChild, childHtml : *mut std::string) {
+    if(ch.kind == HtmlChildKind.Text) {
+        const txt = ch as *mut HtmlText;
+        childHtml.append_view(&txt.value);
+    } else if(ch.kind == HtmlChildKind.Element) {
+        const el = ch as *mut HtmlElement;
+        childHtml.append('<');
+        childHtml.append_view(&el.name);
+        for(var ai : uint = 0; ai < el.attributes.size(); ai++) {
+            const attr2 = el.attributes.get(ai);
+            childHtml.append(' ');
+            childHtml.append_view(&attr2.name);
+            if(attr2.value != null && attr2.value.kind == AttributeValueKind.Text) {
+                const tv = attr2.value as *mut TextAttributeValue;
+                childHtml.append_view("=");
+                childHtml.append_view(&tv.text);
+            }
+        }
+        if(el.isSelfClosing) {
+            childHtml.append_view("/>");
+        } else {
+            childHtml.append('>');
+            for(var ci : uint = 0; ci < el.children.size(); ci++) {
+                collect_child_html(el.children.get(ci), childHtml);
+            }
+            childHtml.append_view("</");
+            childHtml.append_view(&el.name);
+            childHtml.append('>');
+        }
+    } else if(ch.kind == HtmlChildKind.ChemicalValue) {
+        childHtml.append_view("${}");
+    } else if(ch.kind == HtmlChildKind.ChemicalNode) {
+        childHtml.append_view("${}");
+    }
+}
+
 func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlElement, signature : *mut ComponentSignature, idStr : &std::string) {
     var js = std::string();
     js.append_view("window.$__uni_dispatch('");
@@ -227,34 +265,7 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
         // Collect static text/element children directly into childHtml
         var childHtml = std::string();
         for(var ci : uint = 0; ci < element.children.size(); ci++) {
-            const ch = element.children.get(ci);
-            if(ch.kind == HtmlChildKind.Text) {
-                const txt = ch as *mut HtmlText;
-                childHtml.append_view(&txt.value);
-            } else if(ch.kind == HtmlChildKind.Element) {
-                const el = ch as *mut HtmlElement;
-                childHtml.append('<');
-                childHtml.append_view(&el.name);
-                // attributes
-                for(var ai : uint = 0; ai < el.attributes.size(); ai++) {
-                    const attr2 = el.attributes.get(ai);
-                    childHtml.append(' ');
-                    childHtml.append_view(&attr2.name);
-                    if(attr2.value != null && attr2.value.kind == AttributeValueKind.Text) {
-                        const tv = attr2.value as *mut TextAttributeValue;
-                        childHtml.append_view("=");
-                        childHtml.append_view(&tv.text);
-                    }
-                }
-                if(el.isSelfClosing) {
-                    childHtml.append_view("/>");
-                } else {
-                    childHtml.append('>');
-                    childHtml.append_view("</");
-                    childHtml.append_view(&el.name);
-                    childHtml.append('>');
-                }
-            }
+            collect_child_html(element.children.get(ci), &raw mut childHtml);
         }
         // Escape childHtml for JS string: replace " -> \" and \ -> \\
         var ci2 : uint = 0;

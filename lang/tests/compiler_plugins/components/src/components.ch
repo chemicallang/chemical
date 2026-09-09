@@ -1395,3 +1395,88 @@ public func components_accordion_arrow_nav(env : &mut TestEnv) {
     contains_string_assert(env, html.to_view(), std::string_view(">A</"))
     contains_string_assert(env, html.to_view(), std::string_view(">B</"))
 }
+
+// ---------------------------------------------------------------------------
+// Event attribute filtering in hydration props (emit_universal_queue)
+//
+// Raw HTML event attributes (onclick="...", onmouseover="...") with text/number
+// values must NOT appear in the JS hydration dispatch props. They are raw HTML
+// attributes, not React-style function handlers. The SSR path (build_ssr_attrs)
+// already skips them; the hydration path (emit_universal_queue) must be
+// consistent.
+// ---------------------------------------------------------------------------
+
+@test
+public func components_event_attr_text_skipped_from_hydration_js(env : &mut TestEnv) {
+    // onclick="window.location.href='...'" is a raw HTML attribute with a text
+    // value. It must NOT appear in the JS hydration dispatch props.
+    var page = HtmlPage()
+    #html { <Button onclick="window.location.href='/test'">Click</Button> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    not_contains_string_assert(env, js.to_view(), std::string_view("\"onclick\""))
+    // The HTML side should still render the button (SSR skips the event attr)
+    var html = std::string()
+    html.append_view(page.getHtml())
+    contains_string_assert(env, html.to_view(), std::string_view("<button"))
+    contains_string_assert(env, html.to_view(), std::string_view(">Click</button>"))
+}
+
+@test
+public func components_event_attr_null_skipped_from_hydration_js(env : &mut TestEnv) {
+    // Bare onclick (no value) is null — must NOT appear in hydration props.
+    var page = HtmlPage()
+    #html { <Button onclick>Click</Button> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    not_contains_string_assert(env, js.to_view(), std::string_view("\"onclick\""))
+}
+
+@test
+public func components_event_attr_number_skipped_from_hydration_js(env : &mut TestEnv) {
+    // onclick={42} is a numeric value — must NOT appear in hydration props.
+    var page = HtmlPage()
+    #html { <Button onclick={42}>Click</Button> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    not_contains_string_assert(env, js.to_view(), std::string_view("\"onclick\""))
+}
+
+@test
+public func components_event_attr_function_preserved_in_hydration_js(env : &mut TestEnv) {
+    // onClick={handler} is a lambda/function — MUST appear in hydration props.
+    var handler = () => { }
+    var page = HtmlPage()
+    #html { <Button onClick={handler}>Click</Button> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    contains_string_assert(env, js.to_view(), std::string_view("\"onClick\""))
+}
+
+@test
+public func components_non_event_attr_not_skipped(env : &mut TestEnv) {
+    // Non-event attributes (style, title, data-*) must still appear in hydration
+    // props — only event attributes with text/number/null are filtered.
+    var page = HtmlPage()
+    #html { <Button style="color:red" title="T" data-x="1">Go</Button> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    contains_string_assert(env, js.to_view(), std::string_view("\"style\""))
+    contains_string_assert(env, js.to_view(), std::string_view("\"title\""))
+    contains_string_assert(env, js.to_view(), std::string_view("\"data-x\""))
+}
+
+@test
+public func components_event_attr_skipped_comma_correctness(env : &mut TestEnv) {
+    // When ALL attributes are event attrs with text values, the JS props object
+    // must be empty (no trailing/leading commas). Regression: the old code used
+    // i>0 for comma which broke when the first attr was skipped.
+    var page = HtmlPage()
+    #html { <Button onclick="doSomething()">Go</Button> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    // The dispatch call should have empty props: {...} not {,} or {...,"children":...}
+    not_contains_string_assert(env, js.to_view(), std::string_view(",\"children\""))
+    // But children should still be present
+    contains_string_assert(env, js.to_view(), std::string_view("children"))
+}

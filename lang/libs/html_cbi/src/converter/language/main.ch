@@ -168,10 +168,18 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
     converter.emit_append_js_from_str(&mut js);
 
     const attrs = element.attributes.size();
+    var emittedCount : uint = 0;
     for(var i : uint = 0; i < attrs; i++) {
-        var s = &mut js;
-        if(i > 0) s.append_view(",");
         const attr = element.attributes.get(i);
+        // Skip event attributes that are not function values.
+        // has_non_ssr_attr_value returns true only for ValueKind.LambdaFunc
+        // (the only valid event handler type in hydration JS).
+        if(is_event_attribute_name(attr.name) && !has_non_ssr_attr_value(attr.value)) {
+            continue;
+        }
+        var s = &mut js;
+        if(emittedCount > 0) s.append_view(",");
+        emittedCount++;
         s.append_view("\"");
         s.append_view(&attr.name);
         s.append_view("\":");
@@ -214,7 +222,7 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
 
     var tail = std::string();
     if(!element.children.empty()) {
-        if(attrs > 0) tail.append_view(",");
+        if(emittedCount > 0) tail.append_view(",");
         tail.append_view("\"children\":window.$__uni_html(\"");
         // Collect static text/element children directly into childHtml
         var childHtml = std::string();

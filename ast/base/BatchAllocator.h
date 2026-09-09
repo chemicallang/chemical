@@ -5,6 +5,7 @@
 #include "ASTAny.h"
 #include "utils/inline_attr.h"
 #include <memory>
+#include <mutex>
 
 /**
  * ASTAllocator is supposed to be the simplest class that allows

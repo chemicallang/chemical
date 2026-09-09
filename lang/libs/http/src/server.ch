@@ -87,6 +87,7 @@ public namespace server {
             resw.tls_ctx = tls_ctx
 
             if (route != null) {
+                req.route_params = params;
                 route.handler(req_opt.take(), resw);
             } else {
                 resw.status = 404u;
@@ -267,6 +268,7 @@ public namespace server {
                              var route = self.router.match_route(&req.method, &req.path, &raw mut params);
                              var resw = http::ResponseWriter(s, req.method.copy());
                              if (route != null) {
+                                 req.route_params = params;
                                  route.handler(req_opt.take(), resw);
                              } else {
                                  resw.status = 404u;

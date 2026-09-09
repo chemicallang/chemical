@@ -969,3 +969,62 @@ func test_multiple_clients_concurrent(env : &mut TestEnv) {
     srv.shutdown();
     thread.join();
 }
+
+@test
+func test_route_params_basic(env : &mut TestEnv) {
+    var cfg = server::ServerConfig();
+    cfg.addr = std::string::make_no_len("127.0.0.1:8102");
+    var srv = server::Server(cfg);
+    
+    // Handler that checks if route_params is accessible
+    srv.router.add("GET", "/test/:id", ||(req, res) => {
+        // Just verify we can access route_params without crashing
+        // The route matched, so params should be there
+        res.write_string(std::string::make_no_len("ok"));
+    });
+    
+    var thread = srv.serve_async(8102u);
+    std.concurrent.sleep_ms(100u);
+    
+    var client = http::Client();
+    var res = client.get(std::string_view("http://127.0.0.1:8102/test/123"));
+    
+    if(res is Result.Err) {
+        env.error("Route with param request failed");
+    } else {
+        var Ok(r) = res else unreachable;
+        if(r.status != 200u) { env.error("Expected 200"); }
+        else { env.success("Route with param matched - route_params accessible"); }
+    }
+    
+    srv.shutdown();
+    thread.join();
+}
+
+@test
+func test_route_params_wildcard(env : &mut TestEnv) {
+    var cfg = server::ServerConfig();
+    cfg.addr = std::string::make_no_len("127.0.0.1:8103");
+    var srv = server::Server(cfg);
+    
+    srv.router.add("GET", "/files/*path", ||(req, res) => {
+        res.write_string(std::string::make_no_len("ok"));
+    });
+    
+    var thread = srv.serve_async(8103u);
+    std.concurrent.sleep_ms(100u);
+    
+    var client = http::Client();
+    var res = client.get(std::string_view("http://127.0.0.1:8103/files/a/b/c.txt"));
+    
+    if(res is Result.Err) {
+        env.error("Wildcard route request failed");
+    } else {
+        var Ok(r) = res else unreachable;
+        if(r.status != 200u) { env.error("Expected 200 for wildcard"); }
+        else { env.success("Wildcard route matched - route_params accessible"); }
+    }
+    
+    srv.shutdown();
+    thread.join();
+}

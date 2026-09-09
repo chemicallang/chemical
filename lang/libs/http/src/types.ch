@@ -437,7 +437,8 @@ public namespace http {
         var headers: HeaderMap;
         var body_len: usize;
         var remote: std::string;
-        var body : Body
+        var body : Body;
+        var route_params : std::vector<std::pair<std::string,std::string>>;
 
         @constructor func constructor() {
             return Request {
@@ -448,7 +449,8 @@ public namespace http {
                 headers = HeaderMap();
                 body_len = 0u;
                 remote = std::string::empty_str();
-                body : Body()
+                body : Body();
+                route_params : std::vector<std::pair<std::string,std::string>>()
             }
         }
     }

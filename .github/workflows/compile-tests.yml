@@ -28,10 +28,6 @@ on:
         default: 10
 
 jobs:
-  # Always runs first; makes the selected mode (debug vs release) visible in the
-  # "All jobs" list and via a notice annotation. Without it, the skipped matrix
-  # job's name shows the raw "${{ matrix.* }}" template (GitHub renders skipped
-  # matrix job names literally), which looks like a bug.
   setup:
     name: "Mode (${{ inputs.use_debug_builds }})"
     runs-on: ubuntu-latest
@@ -48,203 +44,156 @@ jobs:
             echo "::notice::Running RELEASE build tests against chemicallang/chemical. Set the 'use_debug_builds' input to 'debug' to test debug builds instead."
           fi
 
-  test-linux:
-    name: Test on Linux (${{ matrix.arch }})
+  # ─────────────────────────────────────────────────────────────────
+  # Release build tests — one job per asset (platform × variant)
+  # ─────────────────────────────────────────────────────────────────
+  test-release:
+    name: "Test — ${{ matrix.asset }}"
     if: ${{ inputs.use_debug_builds == 'release' }}
     runs-on: ${{ matrix.runner }}
+    container: ${{ matrix.container }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - arch: x64
-            runner: ubuntu-24.04
-            asset_suffix: x64
-          - arch: arm64
-            runner: ubuntu-24.04-arm
-            asset_suffix: arm64
+          # ––– linux (glibc) –––
+          - runner: ubuntu-24.04
+            asset: linux-x64.zip
+            release_root: chemical
+            exe: ./chemical
+            test_exe: chemical-tests
+          - runner: ubuntu-24.04
+            asset: linux-x64-tcc.zip
+            release_root: chemical-tcc
+            exe: ./chemical
+            test_exe: chemical-tests
+          - runner: ubuntu-24.04-arm
+            asset: linux-arm64.zip
+            release_root: chemical
+            exe: ./chemical
+            test_exe: chemical-tests
+          - runner: ubuntu-24.04-arm
+            asset: linux-arm64-tcc.zip
+            release_root: chemical-tcc
+            exe: ./chemical
+            test_exe: chemical-tests
+
+          # ––– linux alpine (musl) –––
+          - runner: ubuntu-24.04
+            container: alpine:3.20
+            asset: linux-alpine-x64.zip
+            release_root: chemical
+            exe: ./chemical
+            test_exe: chemical-tests
+          - runner: ubuntu-24.04
+            container: alpine:3.20
+            asset: linux-alpine-x64-tcc.zip
+            release_root: chemical-tcc
+            exe: ./chemical
+            test_exe: chemical-tests
+          - runner: ubuntu-24.04-arm
+            container: alpine:3.20
+            asset: linux-alpine-arm64.zip
+            release_root: chemical
+            exe: ./chemical
+            test_exe: chemical-tests
+          - runner: ubuntu-24.04-arm
+            container: alpine:3.20
+            asset: linux-alpine-arm64-tcc.zip
+            release_root: chemical-tcc
+            exe: ./chemical
+            test_exe: chemical-tests
+
+          # ––– macos –––
+          - runner: macos-15-intel
+            asset: macos-x64.zip
+            release_root: chemical
+            exe: ./chemical
+            test_exe: chemical-tests
+          - runner: macos-15-intel
+            asset: macos-x64-tcc.zip
+            release_root: chemical-tcc
+            exe: ./chemical
+            test_exe: chemical-tests
+          - runner: macos-26
+            asset: macos-arm64.zip
+            release_root: chemical
+            exe: ./chemical
+            test_exe: chemical-tests
+          - runner: macos-26
+            asset: macos-arm64-tcc.zip
+            release_root: chemical-tcc
+            exe: ./chemical
+            test_exe: chemical-tests
+
+          # ––– windows (msvc) –––
+          - runner: windows-2025
+            asset: windows-x64.zip
+            release_root: chemical
+            exe: .\chemical.exe
+            test_exe: chemical-tests.exe
+          - runner: windows-2025
+            asset: windows-x64-tcc.zip
+            release_root: chemical-tcc
+            exe: .\chemical.exe
+            test_exe: chemical-tests.exe
+          - runner: windows-11-arm
+            asset: windows-arm64.zip
+            release_root: chemical
+            exe: .\chemical.exe
+            test_exe: chemical-tests.exe
+          - runner: windows-11-arm
+            asset: windows-arm64-tcc.zip
+            release_root: chemical-tcc
+            exe: .\chemical.exe
+            test_exe: chemical-tests.exe
+
+          # ––– windows (mingw ucrt) –––
+          - runner: windows-2025
+            asset: windows-mingw-x64.zip
+            release_root: chemical
+            exe: .\chemical.exe
+            test_exe: chemical-tests.exe
+          - runner: windows-2025
+            asset: windows-mingw-x64-tcc.zip
+            release_root: chemical-tcc
+            exe: .\chemical.exe
+            test_exe: chemical-tests.exe
+          - runner: windows-11-arm
+            asset: windows-mingw-arm64.zip
+            release_root: chemical
+            exe: .\chemical.exe
+            test_exe: chemical-tests.exe
+          - runner: windows-11-arm
+            asset: windows-mingw-arm64-tcc.zip
+            release_root: chemical-tcc
+            exe: .\chemical.exe
+            test_exe: chemical-tests.exe
+
+          # ––– windows (mingw msvcrt) –––
+          - runner: windows-2025
+            asset: windows-mingw-msvcrt-x64.zip
+            release_root: chemical
+            exe: .\chemical.exe
+            test_exe: chemical-tests.exe
+          - runner: windows-2025
+            asset: windows-mingw-msvcrt-x64-tcc.zip
+            release_root: chemical-tcc
+            exe: .\chemical.exe
+            test_exe: chemical-tests.exe
+
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      COMPILER_CMD_REGULAR: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o chemical-tests"
-      COMPILER_CMD_TCC: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o chemical-tests"
-      ASSET_REGULAR: "linux-${{ matrix.asset_suffix }}.zip"
-      ASSET_TCC: "linux-${{ matrix.asset_suffix }}-tcc.zip"
+
     steps:
-      - name: Checkout repository (tests)
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
-
-      - name: Resolve release tag
-        id: resolve-tag
-        shell: bash
-        run: |
-          if [ -n "${{ inputs.release_tag }}" ]; then
-            TAG="${{ inputs.release_tag }}"
-            echo "Using user-specified release tag: $TAG"
-          else
-            echo "Resolving latest release tag..."
-            releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
-            TAG=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_REGULAR}"'"))] | .[0].tag_name')
-            if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
-              echo "Error: no release found with asset ${ASSET_REGULAR}."
-              exit 1
-            fi
-          fi
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "TARGET_TAG=$TAG" >> "$GITHUB_ENV"
-          echo "Using release tag: $TAG"
-
-      - name: Clean repository, Keep only lang/tests
-        run: |
-          echo "Cleaning repository: Removing all directories except 'lang'"
-          find . -maxdepth 1 -mindepth 1 -type d ! -name "lang" -exec rm -rf {} +
-          echo "Inside lang, removing all directories except 'tests'"
-          cd lang
-          find . -maxdepth 1 -mindepth 1 -type d ! -name "tests" -exec rm -rf {} +
-          cd ..
-        shell: bash
-
-      - name: Create output directory
-        run: mkdir -p output
-
-      - name: Checkout release test sources
-        if: ${{ !inputs.use_latest_tests }}
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ steps.resolve-tag.outputs.tag }}
-          path: release-tests
-          fetch-depth: 1
-
-      - name: Process Linux Regular Variant
-        run: |
-          echo "== Processing Linux Regular Variant =="
-          echo "Fetching release information..."
-          releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
-          ASSET_URL=$(echo "$releases" | jq -r '.[] | select(.tag_name == "'"$TARGET_TAG"'") | .assets[] | select(.name=="'"${ASSET_REGULAR}"'") | .browser_download_url')
-          if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
-            echo "Error: Asset ${ASSET_REGULAR} not found."
-            exit 1
-          fi
-          echo "Downloading asset from $ASSET_URL"
-          curl -L -o asset.zip "$ASSET_URL"
-          unzip -o -q asset.zip || true
-          # Determine the release root (fixed name inside archive)
-          release_root="chemical"
-          if [ ! -d "$release_root" ]; then
-            echo "Error: expected directory '$release_root' not found."
-            exit 1
-          fi
-          echo "Using release root: $release_root"
-          # If the asset does not already include the tests module, copy it from the repository.
-          if [ ! -d "$release_root/lang/tests" ]; then
-            mkdir -p "$release_root/lang"
-            if [ -d "$GITHUB_WORKSPACE/release-tests/lang/tests" ]; then
-              cp -r "$GITHUB_WORKSPACE/release-tests/lang/tests" "$release_root/lang"
-            else
-              cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
-            fi
-          fi
-          pushd "$release_root"
-          echo "Running compile command for Linux Regular Variant:"
-          echo "${COMPILER_CMD_REGULAR}" | tee compile_output.txt
-          eval ${COMPILER_CMD_REGULAR} | tee -a compile_output.txt
-          echo "== Running compiled test suite executable =="
-          if [ -f "./chemical-tests" ]; then
-            ./chemical-tests 2>&1 | tee -a compile_output.txt
-            exit ${PIPESTATUS[0]}
-          else
-            echo "!! chemical-tests executable not found — compile phase likely failed" | tee -a compile_output.txt
-            exit 1
-          fi
-          popd
-          cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/linux-${{ matrix.arch }}-regular-output.txt"
-        shell: bash
-
-      - name: Process Linux TCC Variant
-        run: |
-          echo "== Processing Linux TCC Variant =="
-          echo "Fetching release information..."
-          releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
-          ASSET_URL=$(echo "$releases" | jq -r '.[] | select(.tag_name == "'"$TARGET_TAG"'") | .assets[] | select(.name=="'"${ASSET_TCC}"'") | .browser_download_url')
-          if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
-            echo "Error: Asset ${ASSET_TCC} not found."
-            exit 1
-          fi
-          echo "Downloading asset from $ASSET_URL"
-          curl -L -o asset.zip "$ASSET_URL"
-          unzip -o -q asset.zip || true
-          # Determine the release root (fixed name inside archive)
-          release_root="chemical-tcc"
-          if [ ! -d "$release_root" ]; then
-            echo "Error: expected directory '$release_root' not found."
-            exit 1
-          fi
-          echo "Using release root: $release_root"
-          if [ ! -d "$release_root/lang/tests" ]; then
-            mkdir -p "$release_root/lang"
-            if [ -d "$GITHUB_WORKSPACE/release-tests/lang/tests" ]; then
-              cp -r "$GITHUB_WORKSPACE/release-tests/lang/tests" "$release_root/lang"
-            else
-              cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
-            fi
-          fi
-          pushd "$release_root"
-          rm -rf lang/tests/build
-          echo "Running compile command for Linux TCC Variant:"
-          echo "${COMPILER_CMD_TCC}" | tee compile_output.txt
-          eval ${COMPILER_CMD_TCC} | tee -a compile_output.txt
-          echo "== Running compiled test suite executable =="
-          if [ -f "./chemical-tests" ]; then
-            ./chemical-tests 2>&1 | tee -a compile_output.txt
-            exit ${PIPESTATUS[0]}
-          else
-            echo "!! chemical-tests executable not found — compile phase likely failed" | tee -a compile_output.txt
-            exit 1
-          fi
-          popd
-          cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/linux-${{ matrix.arch }}-tcc-output.txt"
-        shell: bash
-
-      - name: Upload Linux Outputs
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-${{ matrix.arch }}-tests-output
-          path: output
-
-  test-alpine:
-    name: Test on Alpine Linux (${{ matrix.arch }})
-    if: ${{ inputs.use_debug_builds == 'release' }}
-    runs-on: ${{ matrix.runner }}
-    container:
-      image: alpine:3.20
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x64
-            runner: ubuntu-24.04
-            asset_suffix: x64
-          - arch: arm64
-            runner: ubuntu-24.04-arm
-            asset_suffix: arm64
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      COMPILER_CMD_REGULAR: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o chemical-tests"
-      COMPILER_CMD_TCC: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o chemical-tests"
-      ASSET_REGULAR: "linux-alpine-${{ matrix.asset_suffix }}.zip"
-      ASSET_TCC: "linux-alpine-${{ matrix.asset_suffix }}-tcc.zip"
-    steps:
-      # Alpine arm64 containers cannot run JS actions (checkout + upload-artifact
-      # below) natively. This composite action installs a tweaked gcompat so the
-      # runner's glibc node binary works, and masks /etc/os-release so GHA no
-      # longer detects Alpine. No-op on x64; must run before any JS action
-      # (same pattern as build-and-release.yml's build-alpine job).
-      - name: Enable JavaScript actions in Alpine containers
-        uses: laverdet/alpine-arm64@v1
-
-      - name: Install dependencies
+      - name: Install dependencies (Alpine)
+        if: ${{ matrix.container == 'alpine:3.20' }}
         run: apk add --no-cache bash curl jq zip unzip git build-base
 
+      - name: Enable JavaScript actions in Alpine containers
+        if: ${{ matrix.container == 'alpine:3.20' }}
+        uses: laverdet/alpine-arm64@v1
+
       - name: Checkout repository (tests)
         uses: actions/checkout@v3
         with:
@@ -260,9 +209,9 @@ jobs:
           else
             echo "Resolving latest release tag..."
             releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
-            TAG=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_REGULAR}"'"))] | .[0].tag_name')
+            TAG=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("${{ matrix.asset }}"))] | .[0].tag_name')
             if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
-              echo "Error: no release found with asset ${ASSET_REGULAR}."
+              echo "Error: no release found with asset ${{ matrix.asset }}."
               exit 1
             fi
           fi
@@ -270,7 +219,15 @@ jobs:
           echo "TARGET_TAG=$TAG" >> "$GITHUB_ENV"
           echo "Using release tag: $TAG"
 
-      - name: Clean repository, Keep only lang/tests
+      - name: Checkout release test sources
+        if: ${{ !inputs.use_latest_tests }}
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ steps.resolve-tag.outputs.tag }}
+          path: release-tests
+          fetch-depth: 1
+
+      - name: Clean repository, keep only lang/tests
         run: |
           echo "Cleaning repository: Removing all directories except 'lang'"
           find . -maxdepth 1 -mindepth 1 -type d ! -name "lang" -exec rm -rf {} +
@@ -280,464 +237,100 @@ jobs:
           cd ..
         shell: bash
 
-      - name: Create output directory
-        run: mkdir -p output
-
-      - name: Checkout release test sources
-        if: ${{ !inputs.use_latest_tests }}
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ steps.resolve-tag.outputs.tag }}
-          path: release-tests
-          fetch-depth: 1
-
-      - name: Process Alpine Regular Variant
+      - name: Download and extract release asset
+        shell: bash
         run: |
-          echo "== Processing Alpine Regular Variant =="
           echo "Fetching release information..."
           releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
-          ASSET_URL=$(echo "$releases" | jq -r '.[] | select(.tag_name == "'"$TARGET_TAG"'") | .assets[] | select(.name=="'"${ASSET_REGULAR}"'") | .browser_download_url')
+          ASSET_URL=$(echo "$releases" | jq -r '.[] | select(.tag_name == "'"$TARGET_TAG"'") | .assets[] | select(.name=="${{ matrix.asset }}") | .browser_download_url')
           if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
-            echo "Error: Asset ${ASSET_REGULAR} not found."
+            echo "Error: Asset ${{ matrix.asset }} not found."
             exit 1
           fi
           echo "Downloading asset from $ASSET_URL"
           curl -L -o asset.zip "$ASSET_URL"
           unzip -o -q asset.zip || true
-          # Determine the release root (fixed name inside archive)
-          release_root="chemical"
-          if [ ! -d "$release_root" ]; then
-            echo "Error: expected directory '$release_root' not found."
+          if [ ! -d "${{ matrix.release_root }}" ]; then
+            echo "Error: expected directory '${{ matrix.release_root }}' not found."
             exit 1
           fi
-          echo "Using release root: $release_root"
-          if [ ! -d "$release_root/lang/tests" ]; then
-            mkdir -p "$release_root/lang"
+          echo "Using release root: ${{ matrix.release_root }}"
+          # Copy test sources into the release package if not already present
+          if [ ! -d "${{ matrix.release_root }}/lang/tests" ]; then
+            mkdir -p "${{ matrix.release_root }}/lang"
             if [ -d "$GITHUB_WORKSPACE/release-tests/lang/tests" ]; then
-              cp -r "$GITHUB_WORKSPACE/release-tests/lang/tests" "$release_root/lang"
+              cp -r "$GITHUB_WORKSPACE/release-tests/lang/tests" "${{ matrix.release_root }}/lang"
             else
-              cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
+              cp -r "$GITHUB_WORKSPACE/lang/tests" "${{ matrix.release_root }}/lang"
             fi
           fi
-          pushd "$release_root"
-          echo "Running compile command for Alpine Regular Variant:"
-          echo "${COMPILER_CMD_REGULAR}" | tee compile_output.txt
-          eval ${COMPILER_CMD_REGULAR} | tee -a compile_output.txt
-          echo "== Running compiled test suite executable =="
-          if [ -f "./chemical-tests" ]; then
-            ./chemical-tests 2>&1 | tee -a compile_output.txt
-            exit ${PIPESTATUS[0]}
-          else
-            echo "!! chemical-tests executable not found — compile phase likely failed" | tee -a compile_output.txt
-            exit 1
-          fi
-          popd
-          cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/alpine-${{ matrix.arch }}-regular-output.txt"
-        shell: bash
 
-      - name: Process Alpine TCC Variant
+      - name: Compile test suite (non-Windows)
+        if: runner.os != 'Windows'
         run: |
-          echo "== Processing Alpine TCC Variant =="
-          echo "Fetching release information..."
-          releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
-          ASSET_URL=$(echo "$releases" | jq -r '.[] | select(.tag_name == "'"$TARGET_TAG"'") | .assets[] | select(.name=="'"${ASSET_TCC}"'") | .browser_download_url')
-          if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
-            echo "Error: Asset ${ASSET_TCC} not found."
-            exit 1
-          fi
-          echo "Downloading asset from $ASSET_URL"
-          curl -L -o asset.zip "$ASSET_URL"
-          unzip -o -q asset.zip || true
-          # Determine the release root (fixed name inside archive)
-          release_root="chemical-tcc"
-          if [ ! -d "$release_root" ]; then
-            echo "Error: expected directory '$release_root' not found."
-            exit 1
-          fi
-          echo "Using release root: $release_root"
-          if [ ! -d "$release_root/lang/tests" ]; then
-            mkdir -p "$release_root/lang"
-            if [ -d "$GITHUB_WORKSPACE/release-tests/lang/tests" ]; then
-              cp -r "$GITHUB_WORKSPACE/release-tests/lang/tests" "$release_root/lang"
-            else
-              cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
-            fi
-          fi
-          pushd "$release_root"
-          rm -rf lang/tests/build
-          echo "Running compile command for Alpine TCC Variant:"
-          echo "${COMPILER_CMD_TCC}" | tee compile_output.txt
-          eval ${COMPILER_CMD_TCC} | tee -a compile_output.txt
-          echo "== Running compiled test suite executable =="
-          if [ -f "./chemical-tests" ]; then
-            ./chemical-tests 2>&1 | tee -a compile_output.txt
-            exit ${PIPESTATUS[0]}
-          else
-            echo "!! chemical-tests executable not found — compile phase likely failed" | tee -a compile_output.txt
-            exit 1
-          fi
+          set -o pipefail
+          pushd "${{ matrix.release_root }}"
+          echo "Running compile command:"
+          echo "${{ matrix.exe }} lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o ${{ matrix.test_exe }}"
+          ${{ matrix.exe }} lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o ${{ matrix.test_exe }} 2>&1 | tee compile_output.txt
           popd
-          cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/alpine-${{ matrix.arch }}-tcc-output.txt"
         shell: bash
 
-      - name: Upload Alpine Outputs
+      - name: Compile test suite (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Push-Location "${{ matrix.release_root }}"
+          Write-Host "Running compile command:"
+          Write-Host "${{ matrix.exe }} lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o ${{ matrix.test_exe }}"
+          & ${{ matrix.exe }} lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o ${{ matrix.test_exe }} 2>&1 | Tee-Object -FilePath compile_output.txt
+          $compile_rc = $LASTEXITCODE
+          Write-Host "compiler exit code: $compile_rc"
+          Pop-Location
+          if ($compile_rc -ne 0) { exit $compile_rc }
+        shell: pwsh
+
+      - name: Run test suite (non-Windows)
+        if: runner.os != 'Windows'
+        run: |
+          pushd "${{ matrix.release_root }}"
+          echo "== Running compiled test suite =="
+          set +e
+          ./${{ matrix.test_exe }} 2>&1 | tee -a compile_output.txt
+          RC=${PIPESTATUS[0]}
+          set -e
+          popd
+          exit $RC
+        shell: bash
+
+      - name: Run test suite (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Push-Location "${{ matrix.release_root }}"
+          Write-Host "== Running compiled test suite =="
+          $testExe = ".\${{ matrix.test_exe }}"
+          if (-not (Test-Path $testExe)) {
+            $testExe = ".\chemical-tests"
+          }
+          & $testExe 2>&1 | Tee-Object -FilePath compile_output.txt -Append
+          $run_rc = $LASTEXITCODE
+          Write-Host "test suite exit code: $run_rc"
+          Pop-Location
+          if ($run_rc -ne 0) { exit $run_rc }
+        shell: pwsh
+
+      - name: Upload test output
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: alpine-${{ matrix.arch }}-tests-output
-          path: output
+          name: ${{ matrix.asset }}-output
+          path: ${{ matrix.release_root }}/compile_output.txt
+          if-no-files-found: ignore
 
-  test-macos:
-    name: Test on macOS (${{ matrix.arch }})
-    if: ${{ inputs.use_debug_builds == 'release' }}
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x64
-            runner: macos-15-intel
-            asset_suffix: x64
-          - arch: arm64
-            runner: macos-26
-            asset_suffix: arm64
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      COMPILER_CMD_REGULAR: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o chemical-tests"
-      COMPILER_CMD_TCC: "./chemical lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o chemical-tests"
-      ASSET_REGULAR: "macos-${{ matrix.asset_suffix }}.zip"
-      ASSET_TCC: "macos-${{ matrix.asset_suffix }}-tcc.zip"
-    steps:
-      - name: Checkout repository (tests)
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
-
-      - name: Resolve release tag
-        id: resolve-tag
-        shell: bash
-        run: |
-          if [ -n "${{ inputs.release_tag }}" ]; then
-            TAG="${{ inputs.release_tag }}"
-            echo "Using user-specified release tag: $TAG"
-          else
-            echo "Resolving latest release tag..."
-            releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
-            TAG=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_REGULAR}"'"))] | .[0].tag_name')
-            if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
-              echo "Error: no release found with asset ${ASSET_REGULAR}."
-              exit 1
-            fi
-          fi
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "TARGET_TAG=$TAG" >> "$GITHUB_ENV"
-          echo "Using release tag: $TAG"
-
-      - name: Clean repository, Keep only lang/tests
-        run: |
-          echo "Cleaning repository: Removing all directories except 'lang'"
-          find . -maxdepth 1 -mindepth 1 -type d ! -name "lang" -exec rm -rf {} +
-          echo "Inside lang, removing all directories except 'tests'"
-          cd lang
-          find . -maxdepth 1 -mindepth 1 -type d ! -name "tests" -exec rm -rf {} +
-          cd ..
-        shell: bash
-
-      - name: Create output directory
-        run: mkdir -p output
-
-      - name: Checkout release test sources
-        if: ${{ !inputs.use_latest_tests }}
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ steps.resolve-tag.outputs.tag }}
-          path: release-tests
-          fetch-depth: 1
-
-      - name: Process macOS Regular Variant
-        run: |
-          echo "== Processing macOS Regular Variant =="
-          echo "Fetching release information..."
-          releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
-          ASSET_URL=$(echo "$releases" | jq -r '.[] | select(.tag_name == "'"$TARGET_TAG"'") | .assets[] | select(.name=="'"${ASSET_REGULAR}"'") | .browser_download_url')
-          if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
-            echo "Error: Asset ${ASSET_REGULAR} not found."
-            exit 1
-          fi
-          echo "Downloading asset from $ASSET_URL"
-          curl -L -o asset.zip "$ASSET_URL"
-          unzip -o -q asset.zip || true
-          # Determine the release root (fixed name inside archive)
-          release_root="chemical"
-          if [ ! -d "$release_root" ]; then
-            echo "Error: expected directory '$release_root' not found."
-            exit 1
-          fi
-          echo "Using release root: $release_root"
-          if [ ! -d "$release_root/lang/tests" ]; then
-            mkdir -p "$release_root/lang"
-            if [ -d "$GITHUB_WORKSPACE/release-tests/lang/tests" ]; then
-              cp -r "$GITHUB_WORKSPACE/release-tests/lang/tests" "$release_root/lang"
-            else
-              cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
-            fi
-          fi
-          pushd "$release_root"
-          echo "Running compile command for macOS Regular Variant:"
-          echo "${COMPILER_CMD_REGULAR}" | tee compile_output.txt
-          eval ${COMPILER_CMD_REGULAR} | tee -a compile_output.txt
-          echo "== Running compiled test suite executable =="
-          if [ -f "./chemical-tests" ]; then
-            ./chemical-tests 2>&1 | tee -a compile_output.txt
-            exit ${PIPESTATUS[0]}
-          else
-            echo "!! chemical-tests executable not found — compile phase likely failed" | tee -a compile_output.txt
-            exit 1
-          fi
-          popd
-          cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/macos-${{ matrix.arch }}-regular-output.txt"
-        shell: bash
-
-      - name: Process macOS TCC Variant
-        run: |
-          echo "== Processing macOS TCC Variant =="
-          echo "Fetching release information..."
-          releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
-          ASSET_URL=$(echo "$releases" | jq -r '.[] | select(.tag_name == "'"$TARGET_TAG"'") | .assets[] | select(.name=="'"${ASSET_TCC}"'") | .browser_download_url')
-          if [ -z "$ASSET_URL" ] || [ "$ASSET_URL" = "null" ]; then
-            echo "Error: Asset ${ASSET_TCC} not found."
-            exit 1
-          fi
-          echo "Downloading asset from $ASSET_URL"
-          curl -L -o asset.zip "$ASSET_URL"
-          unzip -o -q asset.zip || true
-          # Determine the release root (fixed name inside archive)
-          release_root="chemical-tcc"
-          if [ ! -d "$release_root" ]; then
-            echo "Error: expected directory '$release_root' not found."
-            exit 1
-          fi
-          echo "Using release root: $release_root"
-          if [ ! -d "$release_root/lang/tests" ]; then
-            mkdir -p "$release_root/lang"
-            if [ -d "$GITHUB_WORKSPACE/release-tests/lang/tests" ]; then
-              cp -r "$GITHUB_WORKSPACE/release-tests/lang/tests" "$release_root/lang"
-            else
-              cp -r "$GITHUB_WORKSPACE/lang/tests" "$release_root/lang"
-            fi
-          fi
-          pushd "$release_root"
-          rm -rf lang/tests/build
-          echo "Running compile command for macOS TCC Variant:"
-          echo "${COMPILER_CMD_TCC}" | tee compile_output.txt
-          eval ${COMPILER_CMD_TCC} | tee -a compile_output.txt
-          echo "== Running compiled test suite executable =="
-          if [ -f "./chemical-tests" ]; then
-            ./chemical-tests 2>&1 | tee -a compile_output.txt
-            exit ${PIPESTATUS[0]}
-          else
-            echo "!! chemical-tests executable not found — compile phase likely failed" | tee -a compile_output.txt
-            exit 1
-          fi
-          popd
-          cp "$release_root/compile_output.txt" "$GITHUB_WORKSPACE/output/macos-${{ matrix.arch }}-tcc-output.txt"
-        shell: bash
-
-      - name: Upload macOS Outputs
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-${{ matrix.arch }}-tests-output
-          path: output
-
-  test-windows:
-    name: Test on Windows (${{ matrix.arch }})
-    if: ${{ inputs.use_debug_builds == 'release' }}
-    runs-on: ${{ matrix.runner }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x64
-            runner: windows-2025
-            asset_suffix: x64
-          - arch: arm64
-            runner: windows-11-arm
-            asset_suffix: arm64
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      COMPILER_CMD_REGULAR: ".\\chemical.exe lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o chemical-tests.exe"
-      COMPILER_CMD_TCC: ".\\chemical.exe lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o chemical-tests.exe"
-      ASSET_REGULAR: "windows-${{ matrix.asset_suffix }}.zip"
-      ASSET_TCC: "windows-${{ matrix.asset_suffix }}-tcc.zip"
-    steps:
-      - name: Checkout repository (tests)
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
-
-      - name: Resolve release tag
-        id: resolve-tag
-        shell: bash
-        run: |
-          if [ -n "${{ inputs.release_tag }}" ]; then
-            TAG="${{ inputs.release_tag }}"
-            echo "Using user-specified release tag: $TAG"
-          else
-            echo "Resolving latest release tag..."
-            releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
-            TAG=$(echo "$releases" | jq -r '[.[] | select(.assets | map(.name) | index("'"${ASSET_REGULAR}"'"))] | .[0].tag_name')
-            if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
-              echo "Error: no release found with asset ${ASSET_REGULAR}."
-              exit 1
-            fi
-          fi
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "TARGET_TAG=$TAG" >> "$GITHUB_ENV"
-          echo "Using release tag: $TAG"
-
-      - name: Clean repository, Keep only lang/tests (Windows)
-        run: |
-          Write-Host "Cleaning repository: Removing all directories except 'lang'"
-          Get-ChildItem -Directory | Where-Object { $_.Name -ne "lang" } | Remove-Item -Recurse -Force
-          Write-Host "Inside 'lang', removing all directories except 'tests'"
-          Set-Location lang
-          Get-ChildItem -Directory | Where-Object { $_.Name -ne "tests" } | Remove-Item -Recurse -Force
-          Set-Location ..
-        shell: pwsh
-
-      - name: Create output directory
-        run: New-Item -ItemType Directory -Path output -Force
-        shell: pwsh
-
-      - name: Checkout release test sources
-        if: ${{ !inputs.use_latest_tests }}
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ steps.resolve-tag.outputs.tag }}
-          path: release-tests
-          fetch-depth: 1
-
-      - name: Process Windows Regular Variant
-        run: |
-          Write-Host "== Processing Windows Regular Variant =="
-          New-Item -ItemType Directory -Path variant-regular -Force | Out-Null
-          Set-Location variant-regular
-          Write-Host "Fetching asset URL for $env:ASSET_REGULAR..."
-          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases" -Headers @{ Authorization = "token $env:GITHUB_TOKEN" } | Where-Object { $_.tag_name -eq $env:TARGET_TAG } | Select-Object -First 1
-          if (-not $release) { Write-Error "Error: release $env:TARGET_TAG not found."; exit 1 }
-          $assetUrl = ($release.assets | Where-Object { $_.name -eq $env:ASSET_REGULAR } | Select-Object -First 1).browser_download_url
-          if (-not $assetUrl) {
-              Write-Error "Error: Asset $env:ASSET_REGULAR not found."
-              exit 1
-          }
-          Write-Host "Downloading asset from $assetUrl"
-          Invoke-WebRequest -Uri $assetUrl -OutFile asset.zip
-          Expand-Archive -Path asset.zip -DestinationPath . -Force
-          # determine release root (fixed name inside archive)
-          $dirName = "chemical"
-          $releaseRoot = (Get-ChildItem -Directory | Where-Object { $_.Name -eq $dirName } | Select-Object -First 1).FullName
-          if (-not $releaseRoot) {
-            Write-Error "Error: expected directory '$dirName' not found."
-            exit 1
-          }
-          Write-Host "Using release root: $releaseRoot"
-          if (-not (Test-Path -Path "$releaseRoot\lang\tests\build.lab")) {
-              $testsSrc = "..\release-tests\lang\tests"
-              if (-not (Test-Path -Path $testsSrc)) { $testsSrc = "..\lang\tests" }
-              Copy-Item -Path $testsSrc -Destination "$releaseRoot\lang\tests" -Recurse
-          }
-          Set-Location $releaseRoot
-          Write-Host "Running compile command for Windows Regular Variant:"
-          Write-Host $env:COMPILER_CMD_REGULAR | Tee-Object -FilePath compile_output.txt
-          Invoke-Expression $env:COMPILER_CMD_REGULAR | Tee-Object -FilePath compile_output.txt -Append
-          Write-Host "== Running compiled test suite executable =="
-          $testExe = ".\chemical-tests.exe"
-          if (-not (Test-Path $testExe)) { $testExe = ".\chemical-tests" }
-          if (Test-Path $testExe) {
-              & $testExe 2>&1 | Tee-Object -FilePath compile_output.txt -Append
-              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          } else {
-              Write-Host "!! chemical-tests executable not found — compile phase likely failed" | Tee-Object -FilePath compile_output.txt -Append
-              exit 1
-          }
-          Copy-Item -Path compile_output.txt -Destination ..\..\output\windows-${{ matrix.arch }}-regular-output.txt
-        shell: pwsh
-
-      - name: Process Windows TCC Variant
-        run: |
-          Write-Host "== Processing Windows TCC Variant =="
-          New-Item -ItemType Directory -Path variant-tcc -Force | Out-Null
-          Set-Location variant-tcc
-          Write-Host "Fetching asset URL for $env:ASSET_TCC..."
-          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases" -Headers @{ Authorization = "token $env:GITHUB_TOKEN" } | Where-Object { $_.tag_name -eq $env:TARGET_TAG } | Select-Object -First 1
-          if (-not $release) { Write-Error "Error: release $env:TARGET_TAG not found."; exit 1 }
-          $assetUrl = ($release.assets | Where-Object { $_.name -eq $env:ASSET_TCC } | Select-Object -First 1).browser_download_url
-          if (-not $assetUrl) {
-              Write-Error "Error: Asset $env:ASSET_TCC not found."
-              exit 1
-          }
-          Write-Host "Downloading asset from $assetUrl"
-          Invoke-WebRequest -Uri $assetUrl -OutFile asset.zip
-          Expand-Archive -Path asset.zip -DestinationPath . -Force
-          # determine release root (fixed name inside archive)
-          $dirName = "chemical-tcc"
-          $releaseRoot = (Get-ChildItem -Directory | Where-Object { $_.Name -eq $dirName } | Select-Object -First 1).FullName
-          if (-not $releaseRoot) {
-            Write-Error "Error: expected directory '$dirName' not found."
-            exit 1
-          }
-          Write-Host "Using release root: $releaseRoot"
-          if (-not (Test-Path -Path "$releaseRoot\lang\tests\build.lab")) {
-              $testsSrc = "..\release-tests\lang\tests"
-              if (-not (Test-Path -Path $testsSrc)) { $testsSrc = "..\lang\tests" }
-              Copy-Item -Path $testsSrc -Destination "$releaseRoot\lang\tests" -Recurse
-          }
-          Set-Location $releaseRoot
-          if (Test-Path "$releaseRoot\lang\tests\build") { Remove-Item "$releaseRoot\lang\tests\build" -Recurse -Force }
-          Write-Host "Running compile command for Windows TCC Variant:"
-          Write-Host $env:COMPILER_CMD_TCC | Tee-Object -FilePath compile_output.txt
-          Invoke-Expression $env:COMPILER_CMD_TCC | Tee-Object -FilePath compile_output.txt -Append
-          Write-Host "== Running compiled test suite executable =="
-          $testExe = ".\chemical-tests.exe"
-          if (-not (Test-Path $testExe)) { $testExe = ".\chemical-tests" }
-          if (Test-Path $testExe) {
-              & $testExe 2>&1 | Tee-Object -FilePath compile_output.txt -Append
-              if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          } else {
-              Write-Host "!! chemical-tests executable not found — compile phase likely failed" | Tee-Object -FilePath compile_output.txt -Append
-              exit 1
-          }
-          Copy-Item -Path compile_output.txt -Destination ..\..\output\windows-${{ matrix.arch }}-tcc-output.txt
-        shell: pwsh
-
-      - name: Upload Windows Outputs
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-${{ matrix.arch }}-tests-output
-          path: output
-
-  # ––– Debug build tests –––
-  # Runs the DEBUG builds (full debug symbols) published to chemicallang/chemical-debug
-  # by the Build and Release workflow with a debug config (RelWithDebInfo/Debug). Debug
-  # releases ship a commit.json recording the source commit; test sources are taken from
-  # that exact chemical commit, because a compiler built at commit X can only compile the
-  # test sources of commit X.
-  #
-  # The compiler always runs, and when a variant exits non-zero the exact same command is
-  # re-run under a debugger (gdb on linux/alpine/windows, lldb on macOS) to capture a full
-  # backtrace (all threads, registers, disassembly at $pc) — the point of shipping debug
-  # symbols. Each variant is also watched by a deadlock watchdog: the suite never takes
-  # more than deadlock_timeout_minutes (default 10); if a run is still alive past that it
-  # is assumed to be DEADLOCKED and a full diagnostic set is captured by attaching the
-  # debugger (modeled on scripts/capture_deadlock.sh): all-thread backtraces, registers,
-  # /proc status/limits/maps/fds/per-thread wait-channels, executable & system info.
-  # All collected data (debugger output, deadlock diagnostics, full logs, system info,
-  # commit.json) is zipped and uploaded ONLY when something crashed/failed/deadlocked,
-  # as a workflow artifact in THIS repo (chemical). chemical-debug is only ever READ
-  # (binary + commit.json downloads); its releases are never written to or polluted.
-  # On success nothing is uploaded; the logs (with the Total/Passed/Failed summary) stay
-  # visible in the run.
+  # ─────────────────────────────────────────────────────────────────
+  # Debug build tests — one job per asset (platform × variant)
+  # ─────────────────────────────────────────────────────────────────
   test-debug:
-    name: Debug build tests — ${{ matrix.name }}
+    name: "Debug — ${{ matrix.asset }}"
     if: ${{ inputs.use_debug_builds == 'debug' }}
     runs-on: ${{ matrix.runner }}
     container: ${{ matrix.container }}
@@ -745,51 +338,117 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: linux-x64
+          - asset: linux-x64-debug.zip
+            exe_root: chemical
             runner: ubuntu-24.04
             platform: linux
             arch: x64
             debugger: gdb
             deps: sudo apt-get update && sudo apt-get install -y jq unzip gdb zip binutils file && (sudo sysctl -w kernel.yama.ptrace_scope=0 || true)
-          - name: linux-arm64
+          - asset: linux-x64-tcc-debug.zip
+            exe_root: chemical-tcc
+            runner: ubuntu-24.04
+            platform: linux
+            arch: x64
+            debugger: gdb
+            deps: sudo apt-get update && sudo apt-get install -y jq unzip gdb zip binutils file && (sudo sysctl -w kernel.yama.ptrace_scope=0 || true)
+          - asset: linux-arm64-debug.zip
+            exe_root: chemical
             runner: ubuntu-24.04-arm
             platform: linux
             arch: arm64
             debugger: gdb
             deps: sudo apt-get update && sudo apt-get install -y jq unzip gdb zip binutils file && (sudo sysctl -w kernel.yama.ptrace_scope=0 || true)
-          - name: alpine-x64
+          - asset: linux-arm64-tcc-debug.zip
+            exe_root: chemical-tcc
+            runner: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            debugger: gdb
+            deps: sudo apt-get update && sudo apt-get install -y jq unzip gdb zip binutils file && (sudo sysctl -w kernel.yama.ptrace_scope=0 || true)
+          - asset: linux-alpine-x64-debug.zip
+            exe_root: chemical
             runner: ubuntu-24.04
             container: alpine:3.20
             platform: linux-alpine
             arch: x64
             debugger: gdb
             deps: apk add --no-cache bash curl jq unzip gdb git coreutils zip build-base file
-          - name: alpine-arm64
+          - asset: linux-alpine-x64-tcc-debug.zip
+            exe_root: chemical-tcc
+            runner: ubuntu-24.04
+            container: alpine:3.20
+            platform: linux-alpine
+            arch: x64
+            debugger: gdb
+            deps: apk add --no-cache bash curl jq unzip gdb git coreutils zip build-base file
+          - asset: linux-alpine-arm64-debug.zip
+            exe_root: chemical
             runner: ubuntu-24.04-arm
             container: alpine:3.20
             platform: linux-alpine
             arch: arm64
             debugger: gdb
             deps: apk add --no-cache bash curl jq unzip gdb git coreutils zip build-base file
-          - name: macos-arm64
+          - asset: linux-alpine-arm64-tcc-debug.zip
+            exe_root: chemical-tcc
+            runner: ubuntu-24.04-arm
+            container: alpine:3.20
+            platform: linux-alpine
+            arch: arm64
+            debugger: gdb
+            deps: apk add --no-cache bash curl jq unzip gdb git coreutils zip build-base file
+          - asset: macos-arm64-debug.zip
+            exe_root: chemical
             runner: macos-26
             platform: macos
             arch: arm64
             debugger: lldb
             deps: brew install jq || true
-          - name: macos-x64
+          - asset: macos-arm64-tcc-debug.zip
+            exe_root: chemical-tcc
+            runner: macos-26
+            platform: macos
+            arch: arm64
+            debugger: lldb
+            deps: brew install jq || true
+          - asset: macos-x64-debug.zip
+            exe_root: chemical
             runner: macos-15-intel
             platform: macos
             arch: x64
             debugger: lldb
             deps: brew install jq || true
-          - name: windows-x64
+          - asset: macos-x64-tcc-debug.zip
+            exe_root: chemical-tcc
+            runner: macos-15-intel
+            platform: macos
+            arch: x64
+            debugger: lldb
+            deps: brew install jq || true
+          - asset: windows-x64-debug.zip
+            exe_root: chemical
             runner: windows-2025
             platform: windows
             arch: x64
             debugger: gdb
             deps: choco install gdb -y --no-progress || true
-          - name: windows-arm64
+          - asset: windows-x64-tcc-debug.zip
+            exe_root: chemical-tcc
+            runner: windows-2025
+            platform: windows
+            arch: x64
+            debugger: gdb
+            deps: choco install gdb -y --no-progress || true
+          - asset: windows-arm64-debug.zip
+            exe_root: chemical
+            runner: windows-11-arm
+            platform: windows
+            arch: arm64
+            debugger: gdb
+            deps: choco install gdb -y --no-progress || true
+          - asset: windows-arm64-tcc-debug.zip
+            exe_root: chemical-tcc
             runner: windows-11-arm
             platform: windows
             arch: arm64
@@ -804,19 +463,11 @@ jobs:
       DEADLOCK_TIMEOUT_MINUTES: ${{ inputs.deadlock_timeout_minutes || 10 }}
 
     steps:
-      # Alpine arm64 containers cannot run JS actions (upload-artifact below)
-      # natively. This composite action installs a tweaked gcompat so the
-      # runner's glibc node binary works, and masks /etc/os-release so GHA no
-      # longer detects Alpine. No-op on x64. Guarded to the alpine matrix
-      # entries — on host/macos/windows jobs apk does not exist.
       - name: Enable JavaScript actions in Alpine containers
-        if: ${{ matrix.platform == 'linux-alpine' }}
+        if: ${{ matrix.container == 'alpine:3.20' }}
         uses: laverdet/alpine-arm64@v1
 
       - name: Install dependencies
-        # No shell key: on the alpine container the runner falls back to sh
-        # (bash doesn't exist yet). bash is installed here before later bash
-        # steps run, exactly like the other alpine jobs in this workflow.
         run: ${{ matrix.deps }}
 
       - name: Resolve debug release
@@ -860,6 +511,8 @@ jobs:
         continue-on-error: true
         run: |
           set -uo pipefail
+          CRASHED=0
+          DEADLOCKED=0
           : > compile_output.txt
           mkdir -p crash-dump
           echo "debug compiler from ${{ env.SOURCE_REPO }} @ ${SOURCE_SHA} (debug release ${DEBUG_TAG})" | tee -a compile_output.txt
@@ -901,8 +554,6 @@ jobs:
             fi
           }
 
-          # Attach to a still-running (deadlocked) process and collect the maximum
-          # diagnostics possible — modeled on scripts/capture_deadlock.sh.
           capture_deadlock() {
             local pid="$1" asset="$2"
             local outdir="crash-dump/deadlock-${asset}"
@@ -951,7 +602,6 @@ jobs:
               echo "no debugger (gdb/lldb) available for deadlock capture" > "$outdir/NO_DEBUGGER.txt"
             fi
 
-            # /proc collection (Linux only)
             if [ -d "/proc/$pid" ]; then
               {
                 echo "===== PROCESS STATUS ====="
@@ -1030,19 +680,12 @@ jobs:
             echo "deadlock diagnostics saved to $outdir" | tee -a compile_output.txt
           }
 
-          # Run a single phase (compile or run) with a deadlock watchdog. If it
-          # exits non-zero the exact command is re-run under gdb for a full
-          # backtrace. `label` is the component we report as crashed: COMPILER
-          # (phase 1, building build.lab -> exe) or TEST SUITE (phase 2, running
-          # the compiled exe).
           run_phase() {
             local label="$1" cmd="$2" exe_root="$3" asset="$4" phase="$5"
             local log=/tmp/${phase}_run.log
             local deadline=$((DEADLOCK_TIMEOUT_MINUTES * 60))
             local status=0
             echo "== [$phase] $label: $cmd (deadlock timeout ${DEADLOCK_TIMEOUT_MINUTES} min) ==" | tee -a compile_output.txt
-            # Run in the background so a watchdog can detect a deadlock. `exec`
-            # replaces the subshell so $pid is the actual process.
             (
               cd "variant_work/$exe_root"
               exec $cmd
@@ -1070,11 +713,7 @@ jobs:
               status=$?
             fi
             cat "$log" | tee -a compile_output.txt
-            # a deadlock was already fully diagnosed (and the process killed) by
-            # the watchdog — re-running under gdb would hang again, so skip it
             if [ "$status" -ne 0 ] && [ "$DEADLOCKED" != "1" ]; then
-              # crash/failure — re-run the exact command under the debugger and
-              # keep everything for the crash dump
               echo "== [$phase] exit $status — the $label CRASHED/FAILED; re-running under ${{ matrix.debugger }} for a backtrace ==" | tee -a compile_output.txt
               local dbgout="crash-dump/${asset}-${phase}.debugger.txt"
               (
@@ -1103,78 +742,66 @@ jobs:
             return $status
           }
 
-          run_variant() {
-            local asset="$1" exe_root="$2"
-            local url
-            echo "== variant: $asset ==" | tee -a compile_output.txt
-            url=$(curl -s "https://api.github.com/repos/${{ env.DEBUG_REPO }}/releases/tags/${DEBUG_TAG}" \
-              | jq -r ".assets[] | select(.name == \"$asset\") | .browser_download_url")
-            if [ -z "$url" ] || [ "$url" = "null" ]; then
-              echo "asset $asset not found in debug release ${DEBUG_TAG}; skipping" | tee -a compile_output.txt
-              return 0
-            fi
-            curl -sL -o "$asset" "$url"
-            rm -rf variant_work
-            mkdir -p variant_work
-            if command -v unzip >/dev/null 2>&1; then
-              unzip -o -q "$asset" -d variant_work
-            elif command -v tar >/dev/null 2>&1; then
-              tar -xf "$asset" -C variant_work
-            else
-              python3 -m zipfile -e "$asset" variant_work
-            fi
-            if [ ! -d "variant_work/$exe_root" ]; then
-              echo "extracted package missing expected root '$exe_root'" | tee -a compile_output.txt
-              ls variant_work >> compile_output.txt
-              return 1
-            fi
-            mkdir -p "variant_work/$exe_root/lang"
-            cp -r lang_tests "variant_work/$exe_root/lang/tests"
-            if [ -f "variant_work/$exe_root/chemical.exe" ]; then
-              local exe="./chemical.exe"
-            else
-              local exe="./chemical"
-            fi
-            local test_exe="chemical-tests"
-            local compile_cmd="$exe lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o $test_exe"
-            local run_cmd="./$test_exe"
+          ASSET="${{ matrix.asset }}"
+          EXE_ROOT="${{ matrix.exe_root }}"
+          echo "== variant: $ASSET ==" | tee -a compile_output.txt
+          url=$(curl -s "https://api.github.com/repos/${{ env.DEBUG_REPO }}/releases/tags/${DEBUG_TAG}" \
+            | jq -r ".assets[] | select(.name == \"$ASSET\") | .browser_download_url")
+          if [ -z "$url" ] || [ "$url" = "null" ]; then
+            echo "asset $ASSET not found in debug release ${DEBUG_TAG}; skipping" | tee -a compile_output.txt
+            echo "CRASHED=0" >> "$GITHUB_ENV"
+            echo "TESTS_RC=0" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          curl -sL -o "$ASSET" "$url"
+          rm -rf variant_work
+          mkdir -p variant_work
+          if command -v unzip >/dev/null 2>&1; then
+            unzip -o -q "$ASSET" -d variant_work
+          elif command -v tar >/dev/null 2>&1; then
+            tar -xf "$ASSET" -C variant_work
+          else
+            python3 -m zipfile -e "$ASSET" variant_work
+          fi
+          if [ ! -d "variant_work/$EXE_ROOT" ]; then
+            echo "extracted package missing expected root '$EXE_ROOT'" | tee -a compile_output.txt
+            ls variant_work >> compile_output.txt
+            echo "CRASHED=0" >> "$GITHUB_ENV"
+            echo "TESTS_RC=1" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          mkdir -p "variant_work/$EXE_ROOT/lang"
+          cp -r lang_tests "variant_work/$EXE_ROOT/lang/tests"
+          if [ -f "variant_work/$EXE_ROOT/chemical.exe" ]; then
+            local exe="./chemical.exe"
+          else
+            local exe="./chemical"
+          fi
+          local test_exe="chemical-tests"
+          local compile_cmd="$exe lang/tests/build.lab -arg-minimal -bm -v --assertions --mode debug_complete -o $test_exe"
+          local run_cmd="./$test_exe"
 
-            echo "##############################################################" | tee -a compile_output.txt
-            echo "# PHASE 1/2 — COMPILING the test suite into $test_exe" | tee -a compile_output.txt
-            echo "# this phase exercises the COMPILER (build.lab -> executable)" | tee -a compile_output.txt
-            echo "##############################################################" | tee -a compile_output.txt
-            local phase1_status=0
-            run_phase "COMPILER" "$compile_cmd" "$exe_root" "$asset" "compile"
-            phase1_status=$?
+          echo "##############################################################" | tee -a compile_output.txt
+          echo "# PHASE 1/2 — COMPILING the test suite into $test_exe" | tee -a compile_output.txt
+          echo "# this phase exercises the COMPILER (build.lab -> executable)" | tee -a compile_output.txt
+          echo "##############################################################" | tee -a compile_output.txt
+          local phase1_status=0
+          run_phase "COMPILER" "$compile_cmd" "$EXE_ROOT" "$ASSET" "compile"
+          phase1_status=$?
 
-            echo "##############################################################" | tee -a compile_output.txt
-            echo "# PHASE 2/2 — RUNNING the compiled test suite executable" | tee -a compile_output.txt
-            echo "# this phase exercises the TEST SUITE (the produced $test_exe)" | tee -a compile_output.txt
-            echo "##############################################################" | tee -a compile_output.txt
-            local phase2_status=0
-            if [ "$phase1_status" -eq 0 ] && [ -f "variant_work/$exe_root/$test_exe" ]; then
-              run_phase "TEST SUITE" "$run_cmd" "$exe_root" "$asset" "run"
-              phase2_status=$?
-            else
-              echo "== skipping phase 2: phase 1 did not produce $test_exe (COMPILER failed)" | tee -a compile_output.txt
-              phase2_status=1
-            fi
+          echo "##############################################################" | tee -a compile_output.txt
+          echo "# PHASE 2/2 — RUNNING the compiled test suite executable" | tee -a compile_output.txt
+          echo "# this phase exercises the TEST SUITE (the produced $test_exe)" | tee -a compile_output.txt
+          echo "##############################################################" | tee -a compile_output.txt
+          local phase2_status=0
+          if [ "$phase1_status" -eq 0 ] && [ -f "variant_work/$EXE_ROOT/$test_exe" ]; then
+            run_phase "TEST SUITE" "$run_cmd" "$EXE_ROOT" "$ASSET" "run"
+            phase2_status=$?
+          else
+            echo "== skipping phase 2: phase 1 did not produce $test_exe (COMPILER failed)" | tee -a compile_output.txt
+            phase2_status=1
+          fi
 
-            if [ "$phase1_status" -eq 0 ] && [ "$phase2_status" -eq 0 ]; then
-              echo "== $asset: COMPILER and TEST SUITE both completed successfully ==" | tee -a compile_output.txt
-              return 0
-            fi
-            echo "== $asset: FAILED (compiler phase=$phase1_status, test-suite phase=$phase2_status) ==" | tee -a compile_output.txt
-            return 1
-          }
-
-          CRASHED=0
-          DEADLOCKED=0
-          rc=0
-          run_variant "${PLATFORM}-${ARCH}-debug.zip" "chemical" || rc=1
-          run_variant "${PLATFORM}-${ARCH}-tcc-debug.zip" "chemical-tcc" || rc=1
-
-          # system info for the crash dump (no secrets)
           {
             echo "=== SYSTEM INFO ==="
             uname -a 2>/dev/null || true
@@ -1188,8 +815,17 @@ jobs:
             echo "  phase2 (tests):   ./chemical-tests"
           } > crash-dump/system-info.txt
 
+          # CRASHED may already be 1 from run_phase (crash/deadlock detected).
+          # Also mark as crashed if either phase exited non-zero.
+          if [ "$phase1_status" -ne 0 ] || [ "$phase2_status" -ne 0 ]; then
+            CRASHED=1
+          fi
           echo "CRASHED=$CRASHED" >> "$GITHUB_ENV"
-          echo "TESTS_RC=$rc" >> "$GITHUB_ENV"
+          TESTS_RC=0
+          if [ "$phase1_status" -ne 0 ] || [ "$phase2_status" -ne 0 ]; then
+            TESTS_RC=1
+          fi
+          echo "TESTS_RC=$TESTS_RC" >> "$GITHUB_ENV"
           if [ "$CRASHED" = "1" ]; then
             echo "== final crash identification =="
             grep -E "CRASH IDENTIFICATION: the .* crashed" compile_output.txt || true
@@ -1218,16 +854,11 @@ jobs:
           fi
           ls -la crash-dump.zip
 
-      # Crash/deadlock data is uploaded ONLY to this repo's workflow-run
-      # artifacts (Actions → artifact debug-crash-<platform>). Nothing is ever
-      # written back to chemicallang/chemical-debug — that repo is used strictly
-      # read-only (downloading the debug binaries and commit.json) so its release
-      # listing stays clean for the download scripts.
       - name: Upload crash dump
         if: env.CRASHED == '1'
         uses: actions/upload-artifact@v4
         with:
-          name: debug-crash-${{ matrix.name }}
+          name: debug-crash-${{ matrix.asset }}
           path: crash-dump.zip
           if-no-files-found: error
 
@@ -1235,7 +866,7 @@ jobs:
         if: env.TESTS_RC != '0'
         shell: bash
         run: |
-          echo "::error::test suite crashed, failed, or deadlocked on ${{ matrix.name }} — see debug-crash-${{ matrix.name }} artifact"
+          echo "::error::test suite crashed, failed, or deadlocked on ${{ matrix.asset }} — see debug-crash-${{ matrix.asset }} artifact"
           exit 1
 
       - name: Write job summary
@@ -1243,7 +874,7 @@ jobs:
         shell: bash
         run: |
           {
-            echo "## Debug compiler tests — ${{ matrix.name }}"
+            echo "## Debug compiler tests — ${{ matrix.asset }}"
             echo ""
             echo "**Compiler commit:** \`${SOURCE_SHA}\`"
             echo "**Debug release:** \`${DEBUG_TAG}\`"

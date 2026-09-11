@@ -5,15 +5,95 @@ description: Diagnose, fix, and implement features in the Chemical universal com
 
 # Universal
 
-Universal library is present in `lang/libs/universal_cbi`, its a macro processing library, it handles
-specifically `#univeral` macros, for examples you can look for components present in `lang/libs/components`
+There are **two** universal-related libraries:
 
-Universal library emits components, Universal library is meant for server side rendering + hydration.
+## 1. Compiler Plugin: `universal_cbi` (`lang/libs/universal_cbi/`)
+
+The `#universal` macro compiler plugin. Processes universal component definitions at compile time, generates:
+- Server-side rendering (SSR) function (C++ → binary)
+- Client-side hydration JavaScript (emitted to `pageJs` bundle)
+- CSS output
+
 Universal components work inside `#html` blocks (processed by `html_cbi`) and are the primary way
 to build interactive UI. They do SSR + hydration for fast initial paint and full interactivity.
 
 > **Note:** React, Preact, and Solid framework bridges (`react_cbi`, `preact_cbi`, `solid_cbi`) have been
 > removed. The universal component system is the only supported component model.
+
+## 2. Runtime Package: `universal` (`lang/libs/universal/`)
+
+A **standalone runtime library** that allows parsing universal component source (JS + JSX) at runtime, **without the compiler**:
+
+```chemical
+var out = universal::parse_universal("<div>hello</div>")
+```
+
+### Architecture
+
+Reuses the shared `universal_parser` package (which powers the `#universal` compiler macro) with runtime implementations of the compiler `Parser` and `BatchAllocator` static interfaces.
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `src/main.ch` | Public API: `tokenize_universal`, `parse_universal`, `convert_universal_node_to_string` |
+| `src/tokenizer.ch` | `UniversalTokenizer` — JSX-aware tokenizer replicating the compiler's JSX state machine (`jsx_depth`, `in_jsx_tag`, `jsx_brace_count`, `tag_mode_stack`, `jsx_brace_stack`) |
+| `src/converter.ch` | `UniversalRuntimeConverter` — Walks parsed AST (`JsBlock` of JS/JSX nodes) and re-emits source text to `std::string` |
+
+### Key Components
+
+#### `UniversalTokenizer` (`tokenizer.ch:13`)
+- **State machine** for JSX: tracks `jsx_depth` (nested JSX elements), `in_jsx_tag` (inside opening tag), `jsx_brace_count` (braces inside JSX expressions), `tag_mode_stack` (stack of `in_jsx_tag` values for nested braces), `jsx_brace_stack` (stack of brace counts per depth)
+- **Tokenizes** into `compiler::Token` values (from `lang/libs/compiler`)
+- **Handles**: JSX text children, JSX tags (`<`, `>`, `/>`, `</`), JS expressions in `{...}`, JS operators, keywords, identifiers, numbers, strings, templates, comments
+
+#### `UniversalRuntimeConverter` (`converter.ch:11`)
+- **Converts** parsed AST back to source text
+- **Visitor pattern** over `JsNodeKind` enum (from `universal_parser`)
+- **Supports**: All JS/JSX constructs — var/const/let, functions, classes, control flow, JSX elements/fragments/attributes/expression-containers/spread, imports/exports, etc.
+- **Ignores**: `ChemicalValue` nodes (embedded Chemical values not re-emitted at runtime)
+
+### Public API (`main.ch`)
+
+```chemical
+// Tokenize JSX/JS source string → vector<Token>
+public func tokenize_universal(view : std::string_view) : std::vector<Token>
+
+// Parse + convert JSX/JS source string → string (round-trip)
+public func parse_universal(view : std::string_view) : std::string
+
+// Convert single parsed node → string
+public func convert_universal_node_to_string(node : *mut JsNode) : std::string
+```
+
+### Internal Flow (`parse_universal`)
+
+1. `tokenize_universal` → `UniversalTokenizer.tokenize()`
+2. Create `RuntimeParser` (implements compiler `Parser` interface)
+3. Create `ASTAllocator` + `ASTBuilder` (implements compiler `BatchAllocator`)
+4. `parseUniversalRoot(&mut parser, &mut builder)` → `*mut JsBlock` (from `universal_parser`)
+5. `convert_universal_root(root, &mut converter)` → writes to output string
+6. `allocator.deinit()` → cleanup
+
+### Dependencies (`chemical.mod`)
+
+```
+module universal
+source "src"
+import cstd
+import std
+import compiler
+import html_comp
+import universal_parser
+import compiler_runtime
+```
+
+### Use Cases
+
+- **Runtime parsing** of universal component source strings
+- **Tooling** that needs to analyze/transform JSX at runtime
+- **Testing** universal component parsing without full compiler
+- **Hot-reload / live-preview** systems
 
 ### How universal performs ssr + hydration.
 

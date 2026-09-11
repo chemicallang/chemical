@@ -29,6 +29,7 @@ public enum ASTNodeKind {
     IncDecNode,
     PatternMatchExprNode,
     PlacementNewNode,
+    InlineAsmStmt,
 
     EnumDecl,
     EnumMember,

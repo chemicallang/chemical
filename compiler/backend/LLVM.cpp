@@ -3,6 +3,7 @@
 #include "compiler/Codegen.h"
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "compiler/llvmimpl.h"
+#include "utils/StringHelpers.h"
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/IR/InlineAsm.h>
@@ -2145,20 +2146,28 @@ void InlineAsmStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index
     // Lower GCC-style extended asm to LLVM's inline asm call, mirroring what
     // clang emits:
     //  - register outputs ('=r', '=a', ...) become result values of the call
-    //  - memory outputs ('=m', '+m') become pointer arguments with an
-    //    elementtype attribute ('m' -> '*m' in the constraint string)
+    //  - memory outputs ('=m', '+m', '+Q', '+A') become pointer arguments with
+    //    an elementtype attribute and a '*' prefix in the constraint string
     //  - a read-write memory output ('+m') is modeled as an '=*m' output
     //    followed by a duplicate tied '*m' input (clang does the same)
     //  - inputs are passed as arguments; numeric tied constraints ('0') pass
     //    through unchanged
-    //  - clobbers become '~{...}' entries plus clang's standard flag clobbers
-    //  - template operand references '%N' become '$N' (constraint indices
-    //    are ordered outputs-then-inputs in both GCC and LLVM, so numbering
-    //    is preserved)
+    //  - clobbers become '~{...}' entries; on x86 clang's implicit
+    //    dirflag/fpsr/flags clobbers are appended
+    //  - template operand references '%N' become '$N' and GCC modifiers
+    //    ('%H0', '%w1', '%b0') become '${N:H}' / '${N:w}' / '${N:b}'
+    //    (constraint indices are ordered outputs-then-inputs in both GCC and
+    //    LLVM, so numbering is preserved)
+    const std::string_view triple(gen.target_triple);
+    const bool is_x86 = triple.find("x86_64") != std::string_view::npos ||
+                        triple.find("i386") != std::string_view::npos ||
+                        triple.find("i686") != std::string_view::npos;
+    const bool is_riscv = triple.find("riscv") != std::string_view::npos;
+
     struct AsmOp {
         std::string constraint;
         llvm::Value* arg = nullptr;      // argument value (nullptr for register outputs)
-        llvm::Type* elem_type = nullptr; // elementtype for memory ('m') arguments
+        llvm::Type* elem_type = nullptr; // elementtype for memory arguments
         llvm::Type* result_type = nullptr; // register output result type
     };
 
@@ -2166,8 +2175,37 @@ void InlineAsmStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index
     std::vector<llvm::Value*> args;
     std::vector<std::pair<AsmOperand*, llvm::Type*>> trailing_mem_inputs;
 
-    auto has_memory = [](const std::string& c) {
-        return c.find('m') != std::string::npos;
+    // 'm' is a memory constraint everywhere; 'Q' is a memory constraint on
+    // arm/arm64/powerpc (an addressable-memory operand) but a register class
+    // on x86; 'A' is a memory (address) constraint on riscv
+    auto is_memory_constraint = [&](const std::string& c) {
+        if(c.find('m') != std::string::npos) return true;
+        if(is_riscv && c.find('A') != std::string::npos) return true;
+        if(!is_x86 && !is_riscv && c.find('Q') != std::string::npos) return true;
+        return false;
+    };
+
+    // expand GCC register aliases to clang's physical '{reg}' form; bare
+    // aliases like '=a' fail LLVM ISel with "couldn't allocate output
+    // register" while '={ax}' works
+    auto expand_reg_constraint = [&](const std::string& c) -> std::string {
+        if(c.empty()) return c;
+        if(!is_x86) return c;
+        // find the constraint letters (after '=', '+', '&' modifiers)
+        size_t i = 0;
+        while(i < c.size() && (c[i] == '=' || c[i] == '+' || c[i] == '&')) i++;
+        if(i != c.size() - 1) return c; // not a single-letter constraint
+        const char letter = c[i];
+        const std::string mods = c.substr(0, i);
+        switch(letter) {
+            case 'a': return mods + "{ax}";
+            case 'b': return mods + "{bx}";
+            case 'c': return mods + "{cx}";
+            case 'd': return mods + "{dx}";
+            case 'S': return mods + "{si}";
+            case 'D': return mods + "{di}";
+            default: return c;
+        }
     };
 
     for(auto& op : output_operands) {
@@ -2175,8 +2213,8 @@ void InlineAsmStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index
         std::string c(op.constraint.str());
         if(!c.empty() && c[0] == '+') {
             c[0] = '=';
-            if(has_memory(c)) {
-                entry.constraint = "=*m";
+            if(is_memory_constraint(c)) {
+                entry.constraint = "=*" + c.substr(1);
                 entry.arg = op.expr->llvm_pointer(gen);
                 entry.elem_type = op.expr->getType()->llvm_type(gen);
                 args.push_back(entry.arg);
@@ -2186,13 +2224,13 @@ void InlineAsmStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index
                 return;
             }
         } else if(!c.empty() && c[0] == '=') {
-            if(has_memory(c)) {
-                entry.constraint = "=*m";
+            if(is_memory_constraint(c)) {
+                entry.constraint = "=*" + c.substr(1);
                 entry.arg = op.expr->llvm_pointer(gen);
                 entry.elem_type = op.expr->getType()->llvm_type(gen);
                 args.push_back(entry.arg);
             } else {
-                entry.constraint = c;
+                entry.constraint = expand_reg_constraint(c);
                 entry.result_type = op.expr->getType()->llvm_type(gen);
             }
         } else {
@@ -2205,11 +2243,12 @@ void InlineAsmStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index
     for(auto& op : input_operands) {
         AsmOp entry;
         entry.constraint = op.constraint.str();
-        if(has_memory(entry.constraint)) {
+        if(is_memory_constraint(entry.constraint)) {
             entry.constraint = "*" + entry.constraint;
             entry.arg = op.expr->llvm_pointer(gen);
             entry.elem_type = op.expr->getType()->llvm_type(gen);
         } else {
+            entry.constraint = expand_reg_constraint(entry.constraint);
             entry.arg = op.expr->llvm_value(gen);
         }
         args.push_back(entry.arg);
@@ -2219,7 +2258,7 @@ void InlineAsmStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index
     // duplicate tied '*m' inputs for read-write memory outputs
     for(auto& [op, elem_type] : trailing_mem_inputs) {
         AsmOp entry;
-        entry.constraint = "*m";
+        entry.constraint = "*" + op->constraint.str();
         entry.arg = op->expr->llvm_pointer(gen);
         entry.elem_type = elem_type;
         args.push_back(entry.arg);
@@ -2238,20 +2277,75 @@ void InlineAsmStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index
         constraints += clobber.str();
         constraints += '}';
     }
-    // clang always emits these standard flag clobbers
-    if(!constraints.empty()) constraints += ',';
-    constraints += "~{dirflag},~{fpsr},~{flags}";
+    // clang emits these implicit x86 flag clobbers (they are x86 registers,
+    // unknown on other targets)
+    if(is_x86) {
+        if(!constraints.empty()) constraints += ',';
+        constraints += "~{dirflag},~{fpsr},~{flags}";
+    }
 
-    // template: convert GCC '%N' operand references to LLVM '$N'
-    std::string converted_template;
-    converted_template.reserve(asm_template.size());
+    // template: the parser keeps raw escape sequences ('\n', '\t') in the
+    // template so the C translation can embed them into a C string literal;
+    // LLVM needs the actual characters, so unescape first
+    std::string unescaped_template;
+    unescaped_template.reserve(asm_template.size());
     for(size_t i = 0; i < asm_template.size(); i++) {
-        char ch = asm_template[i];
-        if(ch == '%' && i + 1 < asm_template.size() && asm_template[i + 1] >= '0' && asm_template[i + 1] <= '9') {
-            converted_template += '$';
-        } else {
-            converted_template += ch;
+        if(asm_template[i] == '\\' && i + 1 < asm_template.size()) {
+            const auto [c, next] = escapable_char(asm_template, i + 1);
+            if(next != -1) {
+                unescaped_template += c;
+                i = next - 1; // next is one past the last consumed char
+                continue;
+            }
         }
+        unescaped_template += asm_template[i];
+    }
+
+    // convert GCC '%N' operand references to LLVM '$N' and GCC modifiers
+    // like '%H0' to '${0:H}'. '%%' is a literal '%' in GCC (not special in
+    // LLVM); a literal '$' in GCC templates would need '$$' in LLVM but our
+    // asm corpus contains none.
+    std::string converted_template;
+    converted_template.reserve(unescaped_template.size());
+    for(size_t i = 0; i < unescaped_template.size(); i++) {
+        const char ch = unescaped_template[i];
+        if(ch != '%') {
+            converted_template += ch;
+            continue;
+        }
+        if(i + 1 < unescaped_template.size() && unescaped_template[i + 1] == '%') {
+            converted_template += '%';
+            i++;
+            continue;
+        }
+        // parse optional modifier (single letter, non-digit) then operand number
+        size_t j = i + 1;
+        char modifier = 0;
+        if(j < unescaped_template.size() && (unescaped_template[j] < '0' || unescaped_template[j] > '9')) {
+            modifier = unescaped_template[j];
+            j++;
+        }
+        if(j >= unescaped_template.size() || unescaped_template[j] < '0' || unescaped_template[j] > '9') {
+            // not an operand reference; pass through
+            converted_template += ch;
+            continue;
+        }
+        std::string number;
+        while(j < unescaped_template.size() && unescaped_template[j] >= '0' && unescaped_template[j] <= '9') {
+            number += unescaped_template[j];
+            j++;
+        }
+        if(modifier) {
+            converted_template += "${";
+            converted_template += number;
+            converted_template += ':';
+            converted_template += modifier;
+            converted_template += '}';
+        } else {
+            converted_template += '$';
+            converted_template += number;
+        }
+        i = j - 1;
     }
 
     // result type: packed from register outputs in output order
@@ -2291,21 +2385,21 @@ void InlineAsmStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index
     }
 
     // store register outputs into their lvalue expressions
+    auto is_reg_output = [&](AsmOperand& op) {
+        const std::string c(op.constraint.str());
+        return !c.empty() && c[0] == '=' && !is_memory_constraint(c);
+    };
     if(result_types.size() == 1) {
-        size_t out_idx = 0;
         for(auto& op : output_operands) {
-            std::string c(op.constraint.str());
-            if(!c.empty() && c[0] == '=' && c.find('m') == std::string::npos) {
+            if(is_reg_output(op)) {
                 gen.builder->CreateStore(call_inst, op.expr->llvm_pointer(gen));
-                out_idx++;
                 break;
             }
         }
     } else if(result_types.size() > 1) {
         unsigned result_idx = 0;
         for(auto& op : output_operands) {
-            std::string c(op.constraint.str());
-            if(!c.empty() && c[0] == '=' && c.find('m') == std::string::npos) {
+            if(is_reg_output(op)) {
                 const auto extracted = gen.builder->CreateExtractValue(call_inst, result_idx);
                 gen.builder->CreateStore(extracted, op.expr->llvm_pointer(gen));
                 result_idx++;

@@ -101,6 +101,7 @@ public enum ChemicalTokenType {
     InKw,
     DynKw,
     ZeroedKw,
+    AsmKw,
     ConstKw,
     WhereKw,
 

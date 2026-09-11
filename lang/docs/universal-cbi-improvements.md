@@ -2,6 +2,10 @@
 
 **Status:** Analysis · **Scope:** `lang/libs/universal_cbi`, `lang/libs/page`, `lang/libs/components`, `lang/libs/html_cbi`, `lang/libs/universal_parser` / `js_parser`
 
+**Execution plan:** See [`universal-runtime-professionalization-plan.md`](universal-runtime-professionalization-plan.md)
+for the prioritized architecture, runtime-size/reachability policy, HTML-free
+hydration design, shared parser migration, and `lang/tests` acceptance gates.
+
 This document is a deep review of the Universal component pipeline (SSR + hydration) with the goal of
 building **large-scale web apps and websites** on top of it. It covers, in order:
 

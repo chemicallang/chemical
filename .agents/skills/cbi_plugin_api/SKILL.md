@@ -297,6 +297,38 @@ class CompilerBinder {
 - **Macro Codegen** (`.agents/skills/macro_code_gen/SKILL.md`) — Examples of how existing plugins (html_cbi, universal_cbi) use the CBI API
 - **Compiler API** (`.agents/skills/compiler_api/SKILL.md`) — Compiler API bindings for AST construction, lexing, parsing
 
+## CRITICAL: Enum Sync Rule
+
+**When adding a new enum value to the C++ compiler, you MUST also add the same value to the corresponding Chemical binding file.** Failing to do so causes a SIGSEGV crash in all CBI plugins because the enum values are off by 1 between the C++ side and the TCC-compiled plugin side.
+
+### Affected Enums (must stay in sync)
+
+| C++ Enum (must match) | Chemical Binding File |
+|------------------------|----------------------|
+| `ASTNodeKind` (in `ast/base/ASTNodeKind.h`) | `lang/libs/compiler/src/ast/base/ASTNodeKind.ch` |
+| `TokenType` (in `lexer/TokenType.h`) | `lang/libs/compiler/src/ChemicalTokenType.ch` |
+
+### How It Works
+
+CBI plugins are compiled by TCC from Chemical source. They import the `compiler` library, which contains `.ch` files defining enum values that mirror the C++ enums. The TCC-compiled plugin code uses these Chemical enum values in switch statements and comparisons. If the Chemical enum is missing a value that was added to the C++ enum, every value after the insertion point is shifted by 1, causing wrong branches and crashes.
+
+### Real Bug Example
+
+Adding `InlineAsmStmt` to `ASTNodeKind` in C++ (between `PlacementNewNode` and `EnumDecl`) without adding it to `ASTNodeKind.ch` caused `EnumDecl` to be 31 in C++ but 32 in the plugin. Every `switch(node.getKind())` statement took wrong branches, dereferencing garbage pointers, and SIGSEGV at `ASTNodegetKind`.
+
+Adding `AsmKw` to `TokenType` in C++ without adding it to `ChemicalTokenType.ch` caused `RBrace` to be off by 1, breaking `#html` macro parsing entirely.
+
+### The Fix
+
+When adding a new enum value to a C++ enum that is exposed to CBI:
+1. Add the value in the C++ enum at the correct position
+2. Add the same value in the corresponding `.ch` file at the same position
+3. Verify both files have identical ordering for all values
+
+### Which Direction Is Safe?
+
+Values at the **end** of an enum can be added without breaking existing plugins (they won't reference the new value). Values inserted in the **middle** break all subsequent values and MUST be synced immediately.
+
 ## Performance Considerations
 
 1. **TinyCC JIT**: Fast compilation but slower generated code — acceptable for build-time plugins

@@ -64,6 +64,28 @@ Configs saved as JSON in `scripts/tui-configs/`. Last config auto-restored.
 
 Internal defaults: `--no-cache`, `-frecompile-plugins`. Pass `--cache`/`--cached-plugins` to opt out.
 
+### Running Specific Tests
+
+Use `--test-ids` to run specific `@test`-annotated functions by their numeric ID, and `--test-names` to run by function name:
+
+```bash
+# Run by ID (comma-separated)
+./scripts/test.sh --tcc --no-build --skip-sequential --test-ids 1073741823,1073741824
+
+# Run by name (comma-separated)
+./scripts/test.sh --tcc --no-build --skip-sequential --test-names font_create_empty_works,test_hex_encode_upper
+```
+
+The `--skip-sequential` flag skips all inline tests (manually called in `run_executable_tests()`) and only dispatches `@test`-annotated functions:
+
+```bash
+# Only @test functions, no inline tests
+./lang/tests/build/tests.exe --skip-sequential
+
+# With test ID filter
+./lang/tests/build/tests.exe --skip-sequential --test-ids 1073741823
+```
+
 > ⚠️ **`--no-build` warning**: This flag **skips rebuilding the C++ compiler binary**.
 > Any changes you make to `.cpp`/`.h` files in the compiler source **will NOT be picked up** —
 > the previously built binary is used unchanged. Only use `--no-build` when you are iterating
@@ -303,6 +325,232 @@ Skills in **bold** are the new comprehensive skills. Load them for maximum conte
 - `#macro` and `#universal` are CBI plugins compiled by TinyCC at build time.
 - AST uses `ASTAllocator` arena — batch-allocated, no per-node `delete`.
 - CLI entry is `LabBuildCompiler` → translates `chemical.mod` → JIT-compiles `build.lab` (TinyCC) → `LabJob` objects → parse → symres → typecheck → codegen → link.
+
+## build.lab Script Helpers
+
+The `build.lab` JIT-compiled build scripts have access to these helpers from the `lab::` namespace:
+
+| Helper | Purpose |
+|--------|---------|
+| `lab::run(cmd)` | Run a shell command (returns output) |
+| `lab::curr_dir()` | Get current working directory |
+| `lab::rel_path_to(path)` | Get path relative to the build script location |
+| `lab::mkdir(path)` | Create directory |
+| `lab::rm(path)` | Remove file/directory |
+| `lab::cp(src, dst)` | Copy file |
+| `lab::exists(path)` | Check if path exists |
+| `lab::read_file(path)` | Read file contents |
+| `lab::write_file(path, content)` | Write content to file |
+| `lab::glob(pattern)` | Find files matching pattern |
+
+## Complete Annotation Reference
+
+All built-in annotations recognized by the compiler:
+
+| Annotation | Target | Purpose |
+|------------|--------|---------|
+| `@extern` | func, struct, var | External definition (no mangle, linked from elsewhere) |
+| `@test` | func | Marks test function (auto-discovered by `test_runner`) |
+| `@deprecated` | func, struct, etc. | Marks item as deprecated (optionally with message: `@deprecated("use new_func")`) |
+| `@no_mangle` | func | Don't mangle the function name |
+| `@static` | func (in struct) | Static member function (no `self` parameter) |
+| `@implicit` | func parameter | Implicit parameter (not passed explicitly by caller) |
+| `@constructor` | func | Marks a constructor method (replaces default init) |
+| `@inline` | func | Hint to inline the function |
+| `@noinline` | func | Prevent inlining of the function |
+| `@make` | struct | Enables `T.make()` constructor; **prevents** `T{}` syntax unless `@direct_init` is also present |
+| `@direct_init` | struct | Enables `T{}` and `T{field: val}` aggregate initialization |
+| `@delete` | func (in struct) | Destructor — called when value goes out of scope or is deleted |
+| `@compiler.interface` | interface | Marks a CBI interface exposed to the compiler (used in `build.lab` for build API) |
+
+**Critical `@make` + `@direct_init` interaction:**
+
+| Annotations | `T{}` works? | `T.make()` works? | `T{field: val}` works? |
+|---|---|---|---|
+| `@direct_init` only | Yes (all fields required) | No | Yes |
+| `@make` only | **No** | Yes | **No** |
+| `@direct_init` + `@make` | Yes (all fields required) | Yes | Yes |
+| Neither | Yes (all fields required) | No | Yes |
+
+> A struct with `@make` but WITHOUT `@direct_init` **cannot** use `{}` syntax at all. Use `T.make()` instead.
+
+## Language Features Quick Reference
+
+### Expressive Strings (Backtick Templates)
+
+```chemical
+var name = "World"
+var msg = `Hello ${name}!`           // String interpolation
+println(`2 + 2 = ${2 + 2}`)         // Expression interpolation
+```
+
+Backtick strings evaluate `${}` expressions inline. Used with `expr_println` in interpretation mode.
+
+### Loop Expressions
+
+```chemical
+var result = loop {
+    if(done) { break value }
+    // ...
+}
+```
+
+`loop { break value }` acts as an expression that evaluates to `value`.
+
+### For-In Loops
+
+```chemical
+for(var x in collection) { ... }        // Forward iteration
+for(var x in collection reversed) { ... } // Reverse iteration
+for(var x, i in collection) { ... }     // With index
+```
+
+Requires implementing `core::iterable::Iterable<T, Cursor>`. For `reversed`, also implement `ReversibleIterable`.
+
+### `using` Declarations
+
+```chemical
+using closed_bro::bring_me_in;      // Single symbol
+using namespace all_closed;          // All symbols from namespace
+```
+
+### Defer
+
+**Not yet implemented.** Chemical does not support `defer`. Use `@delete` destructors for RAII-style cleanup.
+
+### `zeroed<T>()`
+
+Creates a zero-initialized value of type T:
+
+```chemical
+var buf : [256]char = zeroed        // Array zeroed at declaration
+var s = zeroed<MyStruct>()          // Zero-initialized struct (no constructor needed)
+```
+
+### `sizeof()` and `alignof()`
+
+```chemical
+var size = sizeof(int)              // 4 bytes
+var align = alignof(double)         // 8 bytes
+var struct_size = sizeof(MyStruct)  // Size of struct
+var arr_size = sizeof(my_array)     // Total array size
+```
+
+## Standard Library Quick Reference
+
+### Core Types
+
+| Type | Description | Key Methods |
+|------|-------------|-------------|
+| `std::string` | Heap-allocated string | `append()`, `append_view()`, `append_string()`, `copy()`, `size()`, `to_view()` |
+| `std::string_view` | Lightweight string view (no ownership) | `size()`, `get(i)`, implicit from `*char` |
+| `std::vector<T>` | Dynamic array | `push()`, `get(i)`, `get_ptr(i)`, `size()`, `reserve()`, `clear()`, `data()` |
+| `std::unordered_map<K,V>` | Hash map (non-deterministic order) | `insert()`, `get_ptr()`, `contains()`, `erase()`, `size()`, `clear()` |
+| `std::ordered_map<K,V>` | Insertion-order-preserving hash map | Same as `unordered_map` + `for-in` preserves insertion order |
+| `std::function<sig>` | Capturing lambda container | Required for lambdas that capture variables |
+| `std::Option<T>` | Optional value | `Some(value)`, `None()` |
+| `std::Result<T,E>` | Error handling | `Ok(value)`, `Err(error)` |
+| `std::concurrent` | Threading utilities | `sleep_ms(ms)` |
+
+### `std::function` for Capturing Lambdas
+
+```chemical
+var x = 10
+var lambda : std::function<(p : int) => int> = |x|(p : int) : int => {
+    return p + x
+}
+```
+
+Without `std::function`, capturing lambdas cannot capture variables.
+
+### `std::concurrent`
+
+```chemical
+std::concurrent.sleep_ms(100u)   // Sleep for 100 milliseconds
+```
+
+## Compiler Intrinsics Reference
+
+All intrinsics are called via `intrinsics::name()`. Load the `intrinsics_compiler_reflection` skill for full details.
+
+### Print/Debug
+
+| Intrinsic | Signature | Purpose |
+|-----------|-----------|---------|
+| `intrinsics::print` | `print(value : any...)` | Print values (space-separated) |
+| `intrinsics::println` | `println(value : any...)` | Print + newline |
+| `intrinsics::expr_print` | `expr_print(expr : %expressive_string)` | Print backtick template |
+| `intrinsics::expr_println` | `expr_println(expr : %expressive_string)` | Print backtick template + newline |
+
+### Mode Detection
+
+| Intrinsic | Returns | Purpose |
+|-----------|---------|---------|
+| `intrinsics::is_interpretation()` | `bool` | True if running in interpretation mode |
+| `intrinsics::is_runtime()` | `bool` | True if running in codegen (not comptime) |
+| `intrinsics::is_comptime()` | `bool` | True if inside a comptime evaluation |
+
+### Type Reflection
+
+| Intrinsic | Signature | Purpose |
+|-----------|-----------|---------|
+| `intrinsics::satisfies<T, U>()` | `bool` | True if T satisfies interface U |
+| `intrinsics::is<T, U>()` | `bool` | True if T and U are identical types |
+| `intrinsics::type_to_string<T>()` | `string` | Human-readable type name |
+| `intrinsics::size(value)` | `size_t` | Size of string or array |
+| `intrinsics::defined(name)` | `bool` | True if build definition is set |
+| `intrinsics::supports(feature)` | `bool` | True if backend supports the feature |
+
+### Source Location
+
+| Intrinsic | Returns | Purpose |
+|-----------|---------|---------|
+| `intrinsics::get_raw_location()` | `u64` | Encoded SourceLocation of call site |
+| `intrinsics::get_line_no()` | `int` | Line number of call site |
+| `intrinsics::get_char_no()` | `int` | Character offset of call site |
+| `intrinsics::get_current_file_path()` | `*char` | File path of current source file |
+
+### Module/Build
+
+| Intrinsic | Returns | Purpose |
+|-----------|---------|---------|
+| `intrinsics::get_module_name()` | `string` | Module name |
+| `intrinsics::get_module_dir()` | `string` | Module directory path |
+| `intrinsics::get_build_dir()` | `string` | Build output directory |
+| `intrinsics::get_compiler_path()` | `*char` | Path to compiler binary |
+| `intrinsics::get_target()` | `string` | Target triple (e.g., "x86_64-linux-gnu") |
+| `intrinsics::version()` | `string` | Compiler version |
+
+### Function Reflection
+
+| Intrinsic | Signature | Purpose |
+|-----------|-----------|---------|
+| `intrinsics::get_child_fn<T>(name)` | `*T` | Pointer to child function by name |
+| `intrinsics::get_marked_decls<T>(name)` | `[]T` | Array of declarations with given annotation |
+
+## Interpreter Limitations (Current)
+
+The AST interpreter supports most language features but has known gaps:
+
+### Not Yet Interpreter-Friendly
+
+| Standard Library Type | Status | Workaround |
+|----------------------|--------|------------|
+| `std::string` methods | Partial — string literals work, `append`/`append_view`/`copy` NOT implemented | Use `intrinsics::expr_println` with backtick templates |
+| `std::unordered_map<K,V>` | NOT implemented | Use compiled mode for map-heavy code |
+| `std::string_view` | NOT implemented | Use `*char` literals |
+| `std::span<T>` | NOT implemented | Use raw pointer + length |
+| `vector<T>.get()` | Returns copy, not reference | `v.get(i) = val` won't modify vector in interpreter |
+| `vector<T>.get_ptr()` | NOT implemented | Use compiled mode |
+| `vector<T>` iteration | NOT implemented | Use indexed `for` loop |
+| `@test` annotation dispatch | NOT implemented | Use manual `test()` calls in interpret mode |
+
+### Interpreter-Specific Gotchas
+
+- **Pointer bounds enforced**: Interpreter tracks `behind`/`ahead` bytes; compiled mode doesn't. Tests may fail in interpret but pass compiled.
+- **`&raw struct_val`**: Not supported. Use `&mut struct_val` instead.
+- **Struct pointers**: `&raw struct_val` returns error from `AddrOfValue::evaluated_value()`.
+- **Float→Int casts**: Supported. Other cast combinations may fail with "unknown operation between values".
 
 ## TLS / HTTP Integration Patterns
 

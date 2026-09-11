@@ -154,6 +154,12 @@ Key properties:
   functions (`ssrMakeTextValue`, `ssrMultipleGet`, ...) instead of raw index/variant
   operations, or LLVM codegen crashes on unresolved types.
 
+> Known generated-code pitfalls (deep review in the `universal` skill): emitted JS is never
+> re-parsed before shipping; unsupported prop types silently become `UInteger`; layout effects
+> are registered but never executed; per-page runtime duplication (~32 KB inline per page);
+> `</script>` not escaped in captured SSR HTML. Contract tests pin these in
+> `lang/tests/compiler_plugins/universal/src/runtime_contracts.ch`.
+
 For developing new compiler plugins or the plugin API itself, load the `cbi_plugin_api`
 skill. For compile-time intrinsics/reflection used by macros, load
 `intrinsics_compiler_reflection`. For the full universal SSR/hydration model, load `universal`.

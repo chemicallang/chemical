@@ -2142,27 +2142,176 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
 void InlineAsmStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
     auto& ctx = gen.builder->getContext();
 
-    // build constraint string: "output_constraints, input_constraints"
-    std::string constraints;
-    for(size_t i = 0; i < output_operands.size(); i++) {
-        if(i > 0) constraints += ", ";
-        constraints += output_operands[i].constraint.str();
-    }
-    for(size_t i = 0; i < input_operands.size(); i++) {
-        if(!constraints.empty()) constraints += ", ";
-        constraints += input_operands[i].constraint.str();
-    }
+    // Lower GCC-style extended asm to LLVM's inline asm call, mirroring what
+    // clang emits:
+    //  - register outputs ('=r', '=a', ...) become result values of the call
+    //  - memory outputs ('=m', '+m') become pointer arguments with an
+    //    elementtype attribute ('m' -> '*m' in the constraint string)
+    //  - a read-write memory output ('+m') is modeled as an '=*m' output
+    //    followed by a duplicate tied '*m' input (clang does the same)
+    //  - inputs are passed as arguments; numeric tied constraints ('0') pass
+    //    through unchanged
+    //  - clobbers become '~{...}' entries plus clang's standard flag clobbers
+    //  - template operand references '%N' become '$N' (constraint indices
+    //    are ordered outputs-then-inputs in both GCC and LLVM, so numbering
+    //    is preserved)
+    struct AsmOp {
+        std::string constraint;
+        llvm::Value* arg = nullptr;      // argument value (nullptr for register outputs)
+        llvm::Type* elem_type = nullptr; // elementtype for memory ('m') arguments
+        llvm::Type* result_type = nullptr; // register output result type
+    };
 
-    // build operand values for the call
+    std::vector<AsmOp> ops;
     std::vector<llvm::Value*> args;
-    for(auto& op : input_operands) {
-        args.push_back(op.expr->llvm_value(gen));
+    std::vector<std::pair<AsmOperand*, llvm::Type*>> trailing_mem_inputs;
+
+    auto has_memory = [](const std::string& c) {
+        return c.find('m') != std::string::npos;
+    };
+
+    for(auto& op : output_operands) {
+        AsmOp entry;
+        std::string c(op.constraint.str());
+        if(!c.empty() && c[0] == '+') {
+            c[0] = '=';
+            if(has_memory(c)) {
+                entry.constraint = "=*m";
+                entry.arg = op.expr->llvm_pointer(gen);
+                entry.elem_type = op.expr->getType()->llvm_type(gen);
+                args.push_back(entry.arg);
+                trailing_mem_inputs.emplace_back(&op, entry.elem_type);
+            } else {
+                gen.error("'+' register asm constraint is not supported", this);
+                return;
+            }
+        } else if(!c.empty() && c[0] == '=') {
+            if(has_memory(c)) {
+                entry.constraint = "=*m";
+                entry.arg = op.expr->llvm_pointer(gen);
+                entry.elem_type = op.expr->getType()->llvm_type(gen);
+                args.push_back(entry.arg);
+            } else {
+                entry.constraint = c;
+                entry.result_type = op.expr->getType()->llvm_type(gen);
+            }
+        } else {
+            gen.error("output asm constraint must start with '=' or '+'", this);
+            return;
+        }
+        ops.push_back(std::move(entry));
     }
 
-    // for now, always emit as void side-effect asm
-    auto fn_type = llvm::FunctionType::get(llvm::Type::getVoidTy(ctx), false);
-    auto asm_fn = llvm::InlineAsm::get(fn_type, asm_template.str(), constraints, true);
-    gen.builder->CreateCall(asm_fn);
+    for(auto& op : input_operands) {
+        AsmOp entry;
+        entry.constraint = op.constraint.str();
+        if(has_memory(entry.constraint)) {
+            entry.constraint = "*" + entry.constraint;
+            entry.arg = op.expr->llvm_pointer(gen);
+            entry.elem_type = op.expr->getType()->llvm_type(gen);
+        } else {
+            entry.arg = op.expr->llvm_value(gen);
+        }
+        args.push_back(entry.arg);
+        ops.push_back(std::move(entry));
+    }
+
+    // duplicate tied '*m' inputs for read-write memory outputs
+    for(auto& [op, elem_type] : trailing_mem_inputs) {
+        AsmOp entry;
+        entry.constraint = "*m";
+        entry.arg = op->expr->llvm_pointer(gen);
+        entry.elem_type = elem_type;
+        args.push_back(entry.arg);
+        ops.push_back(std::move(entry));
+    }
+
+    // constraint string
+    std::string constraints;
+    for(auto& op : ops) {
+        if(!constraints.empty()) constraints += ',';
+        constraints += op.constraint;
+    }
+    for(auto& clobber : clobbers) {
+        if(!constraints.empty()) constraints += ',';
+        constraints += "~{";
+        constraints += clobber.str();
+        constraints += '}';
+    }
+    // clang always emits these standard flag clobbers
+    if(!constraints.empty()) constraints += ',';
+    constraints += "~{dirflag},~{fpsr},~{flags}";
+
+    // template: convert GCC '%N' operand references to LLVM '$N'
+    std::string converted_template;
+    converted_template.reserve(asm_template.size());
+    for(size_t i = 0; i < asm_template.size(); i++) {
+        char ch = asm_template[i];
+        if(ch == '%' && i + 1 < asm_template.size() && asm_template[i + 1] >= '0' && asm_template[i + 1] <= '9') {
+            converted_template += '$';
+        } else {
+            converted_template += ch;
+        }
+    }
+
+    // result type: packed from register outputs in output order
+    std::vector<llvm::Type*> result_types;
+    for(auto& op : ops) {
+        if(op.result_type) {
+            result_types.push_back(op.result_type);
+        }
+    }
+    llvm::Type* ret_type;
+    if(result_types.empty()) {
+        ret_type = llvm::Type::getVoidTy(ctx);
+    } else if(result_types.size() == 1) {
+        ret_type = result_types[0];
+    } else {
+        ret_type = llvm::StructType::get(ctx, result_types);
+    }
+
+    std::vector<llvm::Type*> param_types;
+    param_types.reserve(args.size());
+    for(auto arg : args) {
+        param_types.push_back(arg->getType());
+    }
+    auto fn_type = llvm::FunctionType::get(ret_type, param_types, false);
+    auto asm_fn = llvm::InlineAsm::get(fn_type, converted_template, constraints, true);
+    auto call_inst = gen.builder->CreateCall(asm_fn, args);
+
+    // elementtype attribute on every memory argument
+    unsigned arg_no = 0;
+    for(auto& op : ops) {
+        if(op.elem_type) {
+            call_inst->addParamAttr(arg_no, llvm::Attribute::get(ctx, llvm::Attribute::ElementType, op.elem_type));
+        }
+        if(op.arg) {
+            arg_no++;
+        }
+    }
+
+    // store register outputs into their lvalue expressions
+    if(result_types.size() == 1) {
+        size_t out_idx = 0;
+        for(auto& op : output_operands) {
+            std::string c(op.constraint.str());
+            if(!c.empty() && c[0] == '=' && c.find('m') == std::string::npos) {
+                gen.builder->CreateStore(call_inst, op.expr->llvm_pointer(gen));
+                out_idx++;
+                break;
+            }
+        }
+    } else if(result_types.size() > 1) {
+        unsigned result_idx = 0;
+        for(auto& op : output_operands) {
+            std::string c(op.constraint.str());
+            if(!c.empty() && c[0] == '=' && c.find('m') == std::string::npos) {
+                const auto extracted = gen.builder->CreateExtractValue(call_inst, result_idx);
+                gen.builder->CreateStore(extracted, op.expr->llvm_pointer(gen));
+                result_idx++;
+            }
+        }
+    }
 }
 
 void TypealiasStatement::code_gen(Codegen &gen) {

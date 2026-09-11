@@ -1279,9 +1279,9 @@ public func atomic_flag_test_and_set(flag : *mut atomic_flag) : bool {
     var expected : u32 = 0
     var val_ptr = flag as *mut u32
     if(atomic_compare_exchange_strong_u32(val_ptr, &raw mut expected, 1, memory_order.seq_cst, memory_order.seq_cst)) {
-        return true
+        return false
     }
-    return false
+    return true
 }
 
 public func atomic_flag_clear(flag : *mut atomic_flag) {

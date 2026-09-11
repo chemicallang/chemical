@@ -560,6 +560,13 @@ public:
     void writeReturnStmtFor(Value* value);
 
     /**
+     * renders an arbitrary value into a standalone C expression string
+     * used by backend-context intrinsics (atomic ops) that need argument
+     * text; the value must be renderable in expression position
+     */
+    std::string render_value(Value* value);
+
+    /**
      * write the if statement as a value
      */
     void writeIfStmtValue(IfStatement& value);
@@ -606,6 +613,8 @@ public:
     void VisitImportStmt(ImportStatement* node);
 
     void VisitReturnStmt(ReturnStatement* node);
+
+    void VisitInlineAsmStmt(InlineAsmStatement* node);
 
     void VisitSwitchStmt(SwitchStatement* node);
 

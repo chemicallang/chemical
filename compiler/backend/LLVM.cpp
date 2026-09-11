@@ -5,6 +5,7 @@
 #include "compiler/llvmimpl.h"
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/IR/InlineAsm.h>
 #include <llvm/TargetParser/Triple.h>
 #include "ast/base/ASTNode.h"
 #include "ast/types/AnyType.h"
@@ -28,6 +29,7 @@
 #include "ast/types/StringType.h"
 #include "ast/types/StructType.h"
 #include "ast/types/VoidType.h"
+#include "ast/statements/InlineAsmStmt.h"
 #include "ast/types/CapturingFunctionType.h"
 #include "ast/types/ComplexType.h"
 #include "ast/values/BoolValue.h"
@@ -2137,6 +2139,32 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
     gen.writeReturnStmtFor(value, encoded_location());
 }
 
+void InlineAsmStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
+    auto& ctx = gen.builder->getContext();
+
+    // build constraint string: "output_constraints, input_constraints"
+    std::string constraints;
+    for(size_t i = 0; i < output_operands.size(); i++) {
+        if(i > 0) constraints += ", ";
+        constraints += output_operands[i].constraint.str();
+    }
+    for(size_t i = 0; i < input_operands.size(); i++) {
+        if(!constraints.empty()) constraints += ", ";
+        constraints += input_operands[i].constraint.str();
+    }
+
+    // build operand values for the call
+    std::vector<llvm::Value*> args;
+    for(auto& op : input_operands) {
+        args.push_back(op.expr->llvm_value(gen));
+    }
+
+    // for now, always emit as void side-effect asm
+    auto fn_type = llvm::FunctionType::get(llvm::Type::getVoidTy(ctx), false);
+    auto asm_fn = llvm::InlineAsm::get(fn_type, asm_template.str(), constraints, true);
+    gen.builder->CreateCall(asm_fn);
+}
+
 void TypealiasStatement::code_gen(Codegen &gen) {
 
 }
@@ -2893,7 +2921,7 @@ Value* pack_llvm_val(ASTAllocator& allocator, llvm::Value* value, BaseType* type
     );
 }
 
-void LLVMBackendContext::atomic_fence(BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope, SourceLocation location) {
+Value* LLVMBackendContext::atomic_fence(BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope, SourceLocation location) {
     auto& gen = *gen_ptr;
     if(order == BackendAtomicMemoryOrder::Monotonic) {
         gen.error("fence cannot use 'monotonic' or 'relaxed' ordering; upgrade to 'acq_rel'", location);
@@ -2905,6 +2933,7 @@ void LLVMBackendContext::atomic_fence(BackendAtomicMemoryOrder order, BackendAto
         to_llvm_ss(scope)
     );
     gen.di.instr(instr, location);
+    return nullptr;
 }
 
 Value* LLVMBackendContext::atomic_load(Value* ptr, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) {
@@ -2921,18 +2950,19 @@ Value* LLVMBackendContext::atomic_load(Value* ptr, BackendAtomicMemoryOrder orde
     return pack_llvm_val(gen.allocator, loadInst, atomic_type, ptr->encoded_location());
 }
 
-void LLVMBackendContext::atomic_store(Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) {
+Value* LLVMBackendContext::atomic_store(Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) {
     auto& gen = *gen_ptr;
     const auto type = ptr->getType();
     const auto atomic_type = get_atomic_op_type(type);
     if(!atomic_type) {
         gen.error("expected a value of pointer to integer type", ptr);
-        return;
+        return nullptr;
     }
     const auto casted_value = gen.implicit_cast(value->llvm_value(gen), atomic_type, atomic_type->llvm_type(gen));
     const auto storeInst = gen.builder->CreateStore(casted_value, ptr->llvm_value(gen));
     gen.di.instr(storeInst, ptr);
     storeInst->setAtomic(to_llvm_mo(order), to_llvm_ss(scope));
+    return nullptr;
 }
 
 Value* LLVMBackendContext::atomic_cmp_exch_weak(Value* ptr, Value* expected, Value* value, BackendAtomicMemoryOrder success_order, BackendAtomicMemoryOrder failure_order, BackendAtomicSyncScope scope) {
@@ -2972,4 +3002,16 @@ Value* LLVMBackendContext::atomic_op(BackendAtomicOp op, Value* ptr, Value* valu
     const auto casted_value = gen.implicit_cast(value->llvm_value(gen), atomic_type, atomic_type->llvm_type(gen));
     const auto atomic_rmw = gen.builder->CreateAtomicRMW(to_llvm_op(op), ptr->llvm_value(gen), casted_value, llvm::MaybeAlign(), to_llvm_mo(order), to_llvm_ss(scope));
     return pack_llvm_val(gen.allocator, atomic_rmw, atomic_type, ptr->encoded_location());
+}
+
+Value* LLVMBackendContext::signal_fence(BackendAtomicMemoryOrder order) {
+    auto& gen = *gen_ptr;
+    // relaxed/monotonic signal fences constrain nothing, emit nothing
+    // (matches clang's __atomic_signal_fence lowering)
+    if(order == BackendAtomicMemoryOrder::NotAtomic || order == BackendAtomicMemoryOrder::Unordered || order == BackendAtomicMemoryOrder::Monotonic) {
+        return nullptr;
+    }
+    const auto instr = gen.builder->CreateFence(to_llvm_mo(order), llvm::SyncScope::SingleThread);
+    gen.di.instr(instr, SourceLocation(ZERO_LOC));
+    return nullptr;
 }

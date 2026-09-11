@@ -36,8 +36,10 @@ public:
 
     /**
      * atomic fence
+     * @return a value the caller should render in place (nullptr — the LLVM
+     * backend emits the fence directly into the IR builder stream)
      */
-    void atomic_fence(BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope, SourceLocation location) final;
+    Value* atomic_fence(BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope, SourceLocation location) final;
 
     /**
      * atomic load instruction intrinsic
@@ -46,8 +48,10 @@ public:
 
     /**
      * atomic store instruction intrinsic
+     * @return a value the caller should render in place (nullptr — the LLVM
+     * backend emits the store directly into the IR builder stream)
      */
-    void atomic_store(Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) final;
+    Value* atomic_store(Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) final;
 
     /**
      * atomic compare exchange weak
@@ -63,5 +67,13 @@ public:
      * atomic operation, supports add, sub, and, or, xor
      */
     Value* atomic_op(BackendAtomicOp op, Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) final;
+
+    /**
+     * compiler-only fence, lowered as a singlethread-scope fence instruction
+     * (targets emit no code for it, exactly like clang's __atomic_signal_fence)
+     * @return a value the caller should render in place (nullptr — emitted
+     * directly)
+     */
+    Value* signal_fence(BackendAtomicMemoryOrder order) final;
 
 };

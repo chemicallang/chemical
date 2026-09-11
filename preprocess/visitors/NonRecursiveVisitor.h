@@ -21,7 +21,7 @@ public:
     }
 
     // overriding this will allow you handle all nodes
-    inline void VisitCommonValue(Value* value) {
+    inline void VisitCommonValue(Value* /*value*/) {
         // does nothing by default
     }
 
@@ -54,6 +54,9 @@ public:
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
     inline void VisitReturnStmt(ReturnStatement* node) {
+        static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
+    }
+    inline void VisitInlineAsmStmt(InlineAsmStatement* node) {
         static_cast<Derived*>(this)->VisitCommonNode((ASTNode*) node);
     }
     inline void VisitAliasStmt(AliasStmt* node) {
@@ -554,6 +557,9 @@ public:
                 return;
             case ASTNodeKind::ReturnStmt:
                 static_cast<Derived*>(this)->VisitReturnStmt((ReturnStatement*) node);
+                return;
+            case ASTNodeKind::InlineAsmStmt:
+                static_cast<Derived*>(this)->VisitInlineAsmStmt((InlineAsmStatement*) node);
                 return;
             case ASTNodeKind::AliasStmt:
                 static_cast<Derived*>(this)->VisitAliasStmt((AliasStmt*) node);

@@ -6,7 +6,11 @@
 #include "backend/atomics.h"
 
 enum class CompilerFeatureKind : int {
-    Float128 = 0
+    Float128 = 0,
+    AtomicBuiltins = 1, /**< suffixed __atomic_*_N calls compile & resolve on the target */
+    InlineAsm = 2,      /**< __asm__ __volatile__ available (signal fence) */
+    Volatile = 3,       /**< volatile qualifier support */
+    Last = Volatile
 };
 
 /**
@@ -54,8 +58,10 @@ public:
 
     /**
      * atomic fence
+     * @return a value the caller should render in place (may be nullptr when
+     * nothing needs rendering, e.g. the LLVM backend emits directly)
      */
-    virtual void atomic_fence(BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope, SourceLocation location) = 0;
+    virtual Value* atomic_fence(BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope, SourceLocation location) = 0;
 
     /**
      * atomic load instruction intrinsic
@@ -64,8 +70,10 @@ public:
 
     /**
      * atomic store instruction intrinsic
+     * @return a value the caller should render in place (may be nullptr when
+     * nothing needs rendering, e.g. the LLVM backend emits directly)
      */
-    virtual void atomic_store(Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) = 0;
+    virtual Value* atomic_store(Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) = 0;
 
     /**
      * atomic compare exchange weak
@@ -81,5 +89,12 @@ public:
      * atomic operation, supports add, sub, and, or, xor
      */
     virtual Value* atomic_op(BackendAtomicOp op, Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) = 0;
+
+    /**
+     * compiler-only fence (does not constrain hardware reordering, only compiler reordering)
+     * @return a value the caller should render in place (may be nullptr when
+     * nothing needs rendering, e.g. the LLVM backend emits directly)
+     */
+    virtual Value* signal_fence(BackendAtomicMemoryOrder order) = 0;
 
 };

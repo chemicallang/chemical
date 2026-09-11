@@ -3,6 +3,7 @@
 #include "ast/statements/Assignment.h"
 #include "ast/statements/UsingStmt.h"
 #include "ast/statements/Export.h"
+#include "ast/statements/InlineAsmStmt.h"
 #include "ast/statements/Break.h"
 #include "ast/statements/DestructStmt.h"
 #include "ast/statements/DeallocStmt.h"
@@ -751,6 +752,15 @@ void SymResLinkBody::VisitReturnStmt(ReturnStatement* node) {
                 return;
             }
         }
+    }
+}
+
+void SymResLinkBody::VisitInlineAsmStmt(InlineAsmStatement* node) {
+    for(auto& op : node->output_operands) {
+        visit(op.expr);
+    }
+    for(auto& op : node->input_operands) {
+        visit(op.expr);
     }
 }
 

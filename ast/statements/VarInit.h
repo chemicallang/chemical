@@ -96,6 +96,11 @@ struct VarInitAttributes {
      */
     bool is_extern = false;
 
+    /**
+     * is volatile (marked with @volatile annotation)
+     */
+    bool is_volatile = false;
+
 };
 
 class VarInitStatement : public ASTNode {
@@ -127,7 +132,7 @@ public:
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal
     ) : ASTNode(ASTNodeKind::VarInitStmt, parent_node, location),
-        attrs(specifier, false, false, false, false, is_const, is_reference, false, false, true, type != nullptr, false),
+        attrs(specifier, false, false, false, false, is_const, is_reference, false, false, true, type != nullptr, false, false),
         located_id(identifier), type(type), value(value) {
 
     }
@@ -264,6 +269,14 @@ public:
 
     inline void set_thread_local(bool local) {
         attrs.is_thread_local = local;
+    }
+
+    inline void set_volatile(bool value) {
+        attrs.is_volatile = value;
+    }
+
+    inline bool is_volatile() const {
+        return attrs.is_volatile;
     }
 
     inline bool is_linkage_public() {

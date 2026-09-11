@@ -28,14 +28,8 @@ public:
 
     void mem_copy(Value *lhs, Value *rhs) final;
 
-    bool supports(CompilerFeatureKind kind) final {
-        switch(kind) {
-            case CompilerFeatureKind::Float128:
-                return false;
-            default:
-                return true;
-        }
-    }
+    bool supports(CompilerFeatureKind kind) final;
+
 
     void destruct_call_site(SourceLocation location) final {
         visitor->destruct_scopes_above(nullptr);
@@ -43,49 +37,43 @@ public:
 
     /**
      * atomic fence
+     * @return a value the caller should render in place (an empty RawLiteral
+     * when the fence was emitted eagerly; never nullptr for the C backend)
      */
-    void atomic_fence(BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope, SourceLocation location) final {
-        // not supported
-    }
+    Value* atomic_fence(BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope, SourceLocation location) final;
 
     /**
      * atomic load instruction intrinsic
      */
-    Value* atomic_load(Value* ptr, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) final {
-        // not supported
-        return ptr;
-    }
+    Value* atomic_load(Value* ptr, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) final;
 
     /**
      * atomic store instruction intrinsic
+     * @return a value the caller should render in place (an empty RawLiteral
+     * when the store was emitted eagerly; never nullptr for the C backend)
      */
-    void atomic_store(Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) final {
-        // not supported
-    }
+    Value* atomic_store(Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) final;
 
     /**
-     * atomic compare exchange weak
+     * atomic compare exchange weak — weak=1 (may spuriously fail)
      */
-    Value* atomic_cmp_exch_weak(Value* ptr, Value* expected, Value* value, BackendAtomicMemoryOrder success_order, BackendAtomicMemoryOrder failure_order, BackendAtomicSyncScope scope) final {
-        // not supported
-        return value;
-    }
+    Value* atomic_cmp_exch_weak(Value* ptr, Value* expected, Value* value, BackendAtomicMemoryOrder success_order, BackendAtomicMemoryOrder failure_order, BackendAtomicSyncScope scope) final;
 
     /**
-     * atomic compare exchange strong
+     * atomic compare exchange strong — weak=0 (never spuriously fails)
      */
-    Value* atomic_cmp_exch_strong(Value* ptr, Value* expected, Value* value, BackendAtomicMemoryOrder success_order, BackendAtomicMemoryOrder failure_order, BackendAtomicSyncScope scope) final {
-        // not supported
-        return value;
-    }
+    Value* atomic_cmp_exch_strong(Value* ptr, Value* expected, Value* value, BackendAtomicMemoryOrder success_order, BackendAtomicMemoryOrder failure_order, BackendAtomicSyncScope scope) final;
 
     /**
      * atomic operation, supports add, sub, and, or, xor
      */
-    Value* atomic_op(BackendAtomicOp op, Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) final {
-        // not supported
-        return value;
-    }
+    Value* atomic_op(BackendAtomicOp op, Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) final;
 
+    /**
+     * compiler-only fence (empty-asm statement)
+     * @return a value the caller should render in place (an empty RawLiteral
+     * when the asm was emitted eagerly; never nullptr for the C backend)
+     */
+    Value* signal_fence(BackendAtomicMemoryOrder order) final;
 
 };

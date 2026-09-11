@@ -243,7 +243,11 @@ func test_libs_exe(ctx : *mut AppBuildContext) : *mut LabJob {
     const exe_name = std::string_view("chemical-lib-tests")
     const exe_job = ctx.build_exe(&exe_name)
     ctx.set_environment_testing(exe_job, true)
-    ctx.add_module(exe_job, libTestsMod.build(ctx, exe_job))
+    const lib_tests_module = libTestsMod.build(ctx, exe_job)
+    ctx.add_module(exe_job, lib_tests_module)
+    // Ensure atomic_runtime C dependency is linked
+    const atomic_mod = atomicMod.build(ctx, exe_job)
+    ctx.add_module(exe_job, atomic_mod)
     return exe_job
 }
 

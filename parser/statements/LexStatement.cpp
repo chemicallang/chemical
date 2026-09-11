@@ -174,6 +174,8 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
             return parseMacroNode(allocator);
         case TokenType::ReturnKw:
             return (ASTNode*) parseReturnStatement(allocator);
+        case TokenType::AsmKw:
+            return (ASTNode*) parseInlineAsmStatement(allocator);
         case TokenType::DeallocKw:
             return (ASTNode*) parseDeallocStatement(allocator);
         case TokenType::DestructKw:

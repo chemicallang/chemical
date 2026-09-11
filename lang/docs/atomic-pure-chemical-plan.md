@@ -1,5 +1,47 @@
 # Pure-Chemical Atomic Library — Compiler Feature & Implementation Plan
 
+## Amended Objectives (2026-09-09)
+
+**What went wrong with the preamble approach:**
+The original §13.5 strategy was implemented as ~560 lines of raw C text written into
+`prepare_translate()` in `2cASTVisitor.cpp`. This is the WRONG approach because:
+
+1. **It's a downgrade, not an upgrade** — if we wanted to write C, we should write a `.c`
+   file and include it (which is what `cruntime/` did). Writing raw C strings in C++ code
+   is harder to maintain, harder to test, and doesn't prove our language is capable.
+
+2. **The C backend's atomic methods already work** — `ToCBackendContext::atomic_load()`,
+   `atomic_store()`, `atomic_cmp_exch_*()`, `atomic_op()` already emit the correct
+   `__atomic_*_N` suffixed C calls as `RawLiteral` values. The preamble was only needed
+   to provide `static inline` definitions for these symbols, bypassing the BackendContext.
+
+3. **If something can be written in C, it should be writable in Chemical** — the goal is
+   to introduce missing language features (like inline assembly) so that the atomic library
+   can implement CAS, fences, and barriers **in `.ch` files**, not in C++ compiler code.
+
+**Corrected approach:**
+
+- **Phase 1**: Revert the preamble. The C backend's atomic methods already emit correct
+  `__atomic_*_N` calls. On posix, link `-latomic` to resolve them. On Windows (no
+  libatomic), the C backend methods need to emit self-contained C code using:
+  - `volatile` accesses for load/store
+  - `__asm__ __volatile__("" ::: "memory")` for compiler barriers
+  - Platform-specific inline asm for CAS (lock cmpxchg on x86, ldxr/stxr on ARM64)
+  - Statement-expression CAS loops for RMW operations
+
+- **Phase 2**: Make the C backend methods emit self-contained code instead of calling
+  external symbols. Each `atomic_*` method builds a C expression string that uses only
+  volatile, compiler barrier, and inline asm — no `@extern`, no `-latomic`.
+
+- **Phase 3**: Delete `cruntime/` and `preamble_posix.ch`. The atomic library becomes
+  pure Chemical, using `intrinsics::llvm::atomic_*` calls that the C backend translates
+  to self-contained C code.
+
+- **Phase 4** (future): Add inline assembly as a Chemical language feature so the atomic
+  library can implement CAS directly in `.ch` files instead of relying on the C backend
+  to generate the right C code. This is the real "upgrade" — making Chemical expressive
+  enough to write everything that C can write.
+
 Status: implementation plan — amended for Windows (see **§14 Windows amendments**; the
 amendments are authoritative where they conflict with earlier text). In particular,
 **§13.5 (generic calls + pure-C preamble definitions) is the primary emission strategy on

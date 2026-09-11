@@ -21,6 +21,11 @@ struct StructMemberAttributes {
      */
     uint32_t required_alignment = 0;
 
+    /**
+     * is volatile (marked with @volatile annotation)
+     */
+    bool is_volatile = false;
+
 };
 
 class StructMember : public BaseDefMember {
@@ -77,6 +82,14 @@ public:
 
     inline void set_required_alignment(uint32_t value) noexcept {
         attrs.required_alignment = value;
+    }
+
+    inline void set_volatile(bool value) {
+        attrs.is_volatile = value;
+    }
+
+    inline bool is_volatile() const {
+        return attrs.is_volatile;
     }
 
     Value *default_value() final {

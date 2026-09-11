@@ -6,6 +6,7 @@ import cstd
 import std
 import test
 import test_env
+import atomic
 import bcrypt
 import uuid
 import json

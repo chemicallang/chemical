@@ -18,6 +18,7 @@
 #include "ast/statements/DeallocStmt.h"
 #include "2cBackendContext.h"
 #include "ast/statements/Return.h"
+#include "ast/statements/InlineAsmStmt.h"
 #include "ast/statements/Assignment.h"
 #include "ast/statements/ValueWrapperNode.h"
 #include "ast/statements/SwitchStatement.h"
@@ -1541,6 +1542,9 @@ void var_init_top_level(ToCAstVisitor& visitor, VarInitStatement* init, BaseType
     } else if(is_extern) {
         visitor.write("extern ");
     }
+    if(init->is_volatile()) {
+        visitor.write("volatile ");
+    }
     // 128 characters allocated on stack, when required more, it will allocate on heap
     ScratchString<128> temp_stream;
     const auto mangled = visitor.mangler.mangle(temp_stream, init);
@@ -1550,6 +1554,9 @@ void var_init_top_level(ToCAstVisitor& visitor, VarInitStatement* init, BaseType
 void var_init(ToCAstVisitor& visitor, VarInitStatement* init, BaseType* init_type) {
     if(init->is_comptime()) {
         return;
+    }
+    if(init->is_volatile()) {
+        visitor.write("volatile ");
     }
     value_alloca_store(visitor, init->name_view(), init_type, init->value);
 }
@@ -3331,6 +3338,7 @@ void ToCAstVisitor::prepare_translate() {
 "#pragma warning(disable: 4047 4024)\n"
 "#endif\n");
 
+
 }
 
 void ToCAstVisitor::end_translate() {
@@ -3638,6 +3646,43 @@ void ToCAstVisitor::writeReturnStmtFor(Value* returnValue) {
 
 void ToCAstVisitor::VisitReturnStmt(ReturnStatement *returnStatement) {
     writeReturnStmtFor(returnStatement->value);
+}
+
+void ToCAstVisitor::VisitInlineAsmStmt(InlineAsmStatement *asmStmt) {
+    write("__asm__ __volatile__(\"");
+    write(asmStmt->asm_template);
+    write("\"");
+    // output operands
+    write(" : ");
+    for(size_t i = 0; i < asmStmt->output_operands.size(); i++) {
+        if(i > 0) write(", ");
+        write("\"");
+        write(asmStmt->output_operands[i].constraint);
+        write("\"(");
+        visit(asmStmt->output_operands[i].expr);
+        write(")");
+    }
+    // input operands
+    write(" : ");
+    for(size_t i = 0; i < asmStmt->input_operands.size(); i++) {
+        if(i > 0) write(", ");
+        write("\"");
+        write(asmStmt->input_operands[i].constraint);
+        write("\"(");
+        visit(asmStmt->input_operands[i].expr);
+        write(")");
+    }
+    // clobbers
+    if(!asmStmt->clobbers.empty()) {
+        write(" : ");
+        for(size_t i = 0; i < asmStmt->clobbers.size(); i++) {
+            if(i > 0) write(", ");
+            write("\"");
+            write(asmStmt->clobbers[i]);
+            write("\"");
+        }
+    }
+    write(");");
 }
 
 void ToCAstVisitor::VisitDoWhileLoopStmt(DoWhileLoop *doWhileLoop) {
@@ -6228,6 +6273,9 @@ void ToCAstVisitor::VisitStructMember(StructMember *member) {
         writer << member->get_required_alignment();
         write(") ");
     }
+    if(member->is_volatile()) {
+        write("volatile ");
+    }
     if(member->type->kind() == BaseTypeKind::Function) {
         const auto func_type = member->type->as_function_type();
         if(func_type->isCapturing()) {
@@ -7950,4 +7998,115 @@ void ToCBackendContext::mem_copy(Value *lhs, Value *rhs) {
     visitor->write(" = ");
     visitor->visit(rhs);
     visitor->write(';');
+}
+
+// ============================================================================
+// render_value (F1) — render any Value to C text via writer snapshot/rollback
+// ============================================================================
+
+std::string ToCAstVisitor::render_value(Value* value) {
+    // snapshot state the value rendering may disturb; rollback after
+    const auto snapshot = writer.getPosition();
+    const auto prev_nested = nested_value;
+    nested_value = true; // no semicolon after nested calls
+    visit(value);
+    const auto end = writer.getPosition();
+    std::string out(writer.data() + snapshot, end - snapshot);
+    writer.setPositionUnsafely(snapshot);
+
+    // rollback disturbed state
+    nested_value = prev_nested;
+    // NOTE: local_allocated / destructor queue entries created by rendering
+    // destructible temporaries are intentionally left in place — the rendered
+    // text references them.
+    return out;
+}
+
+// ============================================================================
+// Atomic intrinsics (F1) — suffixed __atomic_*_N emission
+// ============================================================================
+
+static constexpr unsigned int atomic_int_n_kind_bit_width(IntNTypeKind kind) {
+    switch(kind) {
+        case IntNTypeKind::I8:
+        case IntNTypeKind::U8:
+        case IntNTypeKind::Char:
+        case IntNTypeKind::UChar:
+            return 1;
+        case IntNTypeKind::I16:
+        case IntNTypeKind::U16:
+        case IntNTypeKind::Short:
+        case IntNTypeKind::UShort:
+            return 2;
+        case IntNTypeKind::I32:
+        case IntNTypeKind::U32:
+        case IntNTypeKind::Int:
+        case IntNTypeKind::UInt:
+            return 4;
+        case IntNTypeKind::I64:
+        case IntNTypeKind::U64:
+        case IntNTypeKind::Long:
+        case IntNTypeKind::ULong:
+        case IntNTypeKind::LongLong:
+        case IntNTypeKind::ULongLong:
+            return 8;
+        default:
+            return 0;
+    }
+}
+
+bool ToCBackendContext::supports(CompilerFeatureKind kind) {
+    const auto& target = visitor->comptime_scope.target_data;
+    switch(kind) {
+        case CompilerFeatureKind::Float128:
+            // tcc doesn't support __float128
+            return !target.tcc;
+        case CompilerFeatureKind::AtomicBuiltins:
+            // The C backend handles atomics via inline asm (CAS loops) and
+            // self-contained volatile+barrier patterns for load/store/fence.
+            // Always supported.
+            return true;
+        case CompilerFeatureKind::InlineAsm:
+            // empty-asm statement, proven on gcc/clang/tcc
+            return true;
+        case CompilerFeatureKind::Volatile:
+            return true;
+        default:
+            return false;
+    }
+}
+
+Value* ToCBackendContext::atomic_load(Value* ptr, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) {
+    visitor->error("atomic_load is unsupported on C backend (use %runtime_value() inline asm)", ptr);
+    return nullptr;
+}
+
+Value* ToCBackendContext::atomic_store(Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) {
+    visitor->error("atomic_store is unsupported on C backend (use %runtime_value() inline asm)", ptr);
+    return nullptr;
+}
+
+Value* ToCBackendContext::atomic_fence(BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope, SourceLocation location) {
+    visitor->error("atomic_fence is unsupported on C backend (use %runtime_value() inline asm)", location);
+    return nullptr;
+}
+
+Value* ToCBackendContext::atomic_cmp_exch_weak(Value* ptr, Value* expected, Value* value, BackendAtomicMemoryOrder success_order, BackendAtomicMemoryOrder failure_order, BackendAtomicSyncScope scope) {
+    visitor->error("atomic_cmp_exch_weak is unsupported on C backend (use %runtime_value() inline asm)", ptr);
+    return nullptr;
+}
+
+Value* ToCBackendContext::atomic_cmp_exch_strong(Value* ptr, Value* expected, Value* value, BackendAtomicMemoryOrder success_order, BackendAtomicMemoryOrder failure_order, BackendAtomicSyncScope scope) {
+    visitor->error("atomic_cmp_exch_strong is unsupported on C backend (use %runtime_value() inline asm)", ptr);
+    return nullptr;
+}
+
+Value* ToCBackendContext::atomic_op(BackendAtomicOp op, Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) {
+    visitor->error("atomic_op is unsupported on C backend (use %runtime_value() inline asm)", ptr);
+    return nullptr;
+}
+
+Value* ToCBackendContext::signal_fence(BackendAtomicMemoryOrder order) {
+    visitor->error("signal_fence is unsupported on C backend (use %runtime_value() inline asm)", SourceLocation(ZERO_LOC));
+    return nullptr;
 }

@@ -204,3 +204,17 @@ consteval TargetData create_target_data() {
 
     return d;
 }
+
+/**
+ * creates target data for jobs whose generated C is ALWAYS consumed by
+ * TinyCC : build.lab scripts, chemical.mod build files and CBI plugins
+ * are JIT compiled with libtcc regardless of which backend the outer
+ * compiler binary uses. tcc must stay true on these jobs, otherwise
+ * libraries would emit C that tcc can't parse (like __float128).
+ */
+consteval TargetData create_jit_target_data() {
+    TargetData d = create_target_data();
+    d.c = true;
+    d.tcc = true;
+    return d;
+}

@@ -14,6 +14,7 @@
 #include "ast/structures/UnsafeBlock.h"
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/statements/Return.h"
+#include "ast/statements/InlineAsmStmt.h"
 #include "ast/statements/DestructStmt.h"
 #include "ast/values/NullValue.h"
 #include "ast/base/TypeBuilder.h"
@@ -41,6 +42,199 @@ ReturnStatement* Parser::parseReturnStatement(ASTAllocator& allocator) {
     } else {
         return nullptr;
     }
+}
+
+InlineAsmStatement* Parser::parseInlineAsmStatement(ASTAllocator& allocator) {
+    auto& tok = *token;
+    if(tok.type != TokenType::AsmKw) {
+        return nullptr;
+    }
+    token++;
+    if(token->type != TokenType::LParen) {
+        error("expected '(' after 'asm'");
+        return nullptr;
+    }
+    token++;
+    if(token->type != TokenType::String) {
+        error("expected string literal for asm template");
+        return nullptr;
+    }
+    auto template_str = allocate_view(allocator, token->value);
+    token++;
+    consumeNewLines();
+    auto stmt = new (allocator.allocate<InlineAsmStatement>()) InlineAsmStatement(template_str, parent_node, loc_single(tok));
+    if(token->type == TokenType::RParen) {
+        token++;
+        return stmt;
+    }
+    // must see a colon or :: to enter extended form
+    if(token->type != TokenType::ColonSym && token->type != TokenType::DoubleColonSym) {
+        error("expected ':' or ')' in asm statement");
+        return nullptr;
+    }
+    // Consume the first section separator
+    // :: = skip outputs, : = start outputs
+    bool skip_next = false;
+    if(token->type == TokenType::DoubleColonSym) {
+        skip_next = true; // :: = skip outputs AND skip to inputs
+    }
+    token++;
+    consumeNewLines();
+
+    auto consume_section_colon = [&]() {
+        consumeNewLines();
+        if(token->type == TokenType::DoubleColonSym) {
+            skip_next = true;
+            token++;
+        } else if(token->type == TokenType::ColonSym) {
+            token++;
+        }
+        consumeNewLines();
+    };
+
+    // Parse outputs (unless skipped by ::)
+    if(!skip_next && token->type != TokenType::RParen) {
+        while(true) {
+            consumeNewLines();
+            if(token->type != TokenType::String) {
+                error("expected constraint string for asm operand");
+                return nullptr;
+            }
+            auto constraint = token->value;
+            token++;
+            consumeNewLines();
+            if(token->type != TokenType::LParen) {
+                error("expected '(' after asm operand constraint");
+                return nullptr;
+            }
+            token++;
+            consumeNewLines();
+            auto expr = parseExpression(allocator);
+            if(!expr) {
+                error("expected expression for asm operand");
+                return nullptr;
+            }
+            consumeNewLines();
+            if(token->type != TokenType::RParen) {
+                error("expected ')' after asm operand expression");
+                return nullptr;
+            }
+            token++;
+            stmt->output_operands.emplace_back(allocate_view(allocator, constraint), expr);
+            consumeNewLines();
+            if(token->type == TokenType::CommaSym) {
+                token++;
+                consumeNewLines();
+                continue;
+            }
+            break;
+        }
+    }
+
+    // Consume colon before inputs (if not already skipped)
+    consumeNewLines();
+    // Special case: if skip_next is true (outputs skipped via ::) and the next
+    // token is ':' followed by a bare string (no '('), this is clobber-only asm.
+    // Handle: asm("" ::: "memory") where ::: = DoubleColonSym + ColonSym
+    if(skip_next && token->type == TokenType::ColonSym) {
+        auto* peek = token + 1;
+        if(peek->type == TokenType::String) {
+            auto* peek2 = peek + 1;
+            if(peek2->type != TokenType::LParen) {
+                // This is clobber-only: consume all colons, parse clobbers, skip inputs
+                while(token->type == TokenType::ColonSym) token++;
+                skip_next = false;
+                goto parse_clobbers;
+            }
+        }
+    }
+    skip_next = false;
+    if(!skip_next && token->type != TokenType::RParen) {
+        consume_section_colon();
+    }
+
+    // Parse inputs (unless skipped)
+    if(!skip_next && token->type != TokenType::RParen) {
+        // Handle empty inputs: if we see a ':' instead of a constraint string,
+        // it means inputs are empty and this ':' separates inputs from clobbers
+        consumeNewLines();
+        if(token->type == TokenType::ColonSym) {
+            token++; // consume the ':' before clobbers
+        } else {
+        while(true) {
+            consumeNewLines();
+            if(token->type != TokenType::String) {
+                error("expected constraint string for asm operand");
+                return nullptr;
+            }
+            auto constraint = token->value;
+            token++;
+            consumeNewLines();
+            if(token->type != TokenType::LParen) {
+                error("expected '(' after asm operand constraint");
+                return nullptr;
+            }
+            token++;
+            consumeNewLines();
+            auto expr = parseExpression(allocator);
+            if(!expr) {
+                error("expected expression for asm operand");
+                return nullptr;
+            }
+            consumeNewLines();
+            if(token->type != TokenType::RParen) {
+                error("expected ')' after asm operand expression");
+                return nullptr;
+            }
+            token++;
+            stmt->input_operands.emplace_back(allocate_view(allocator, constraint), expr);
+            consumeNewLines();
+            if(token->type == TokenType::CommaSym) {
+                token++;
+                consumeNewLines();
+                continue;
+            }
+            break;
+        }
+        }
+    }
+
+    // Consume colon before clobbers (if not already skipped)
+    skip_next = false;
+    consumeNewLines();
+    if(!skip_next && token->type == TokenType::ColonSym) {
+        token++;
+    }
+
+    // Parse clobbers
+    parse_clobbers:
+    consumeNewLines();
+    if(!skip_next && token->type != TokenType::RParen && token->type != TokenType::ColonSym) {
+        while(true) {
+            consumeNewLines();
+            if(token->type != TokenType::String) {
+                error("expected clobber string");
+                return nullptr;
+            }
+            stmt->clobbers.emplace_back(allocate_view(allocator, token->value));
+            token++;
+            consumeNewLines();
+            if(token->type == TokenType::CommaSym) {
+                token++;
+                consumeNewLines();
+                continue;
+            }
+            break;
+        }
+    }
+
+    consumeNewLines();
+    if(token->type != TokenType::RParen) {
+        error("expected ')' after asm statement");
+        return nullptr;
+    }
+    token++;
+    return stmt;
 }
 
 UnsafeBlock* Parser::parseUnsafeBlock(ASTAllocator& allocator) {

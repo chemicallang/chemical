@@ -249,7 +249,7 @@ llvm::Value *VarInitStatement::llvm_load(Codegen& gen, SourceLocation location) 
         return gen.builder->getInt32(0);
     }
     const auto& name = name_view();
-    const auto loadInst = gen.builder->CreateLoad(llvm_type(gen), v, llvm::StringRef(name.data(), name.size()));
+    const auto loadInst = gen.builder->CreateLoad(llvm_type(gen), v, llvm::StringRef(name.data(), name.size()), attrs.is_volatile);
     gen.di.instr(loadInst, location);
     return loadInst;
 }

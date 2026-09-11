@@ -821,6 +821,8 @@ public:
      */
     ReturnStatement* parseReturnStatement(ASTAllocator& allocator);
 
+    InlineAsmStatement* parseInlineAsmStatement(ASTAllocator& allocator);
+
     /**
      * parse a unsafe block
      */

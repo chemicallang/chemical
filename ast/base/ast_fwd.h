@@ -44,6 +44,8 @@ class UnsafeBlock;
 
 class ReturnStatement;
 
+class InlineAsmStatement;
+
 class DoWhileLoop;
 
 class EnumDeclaration;

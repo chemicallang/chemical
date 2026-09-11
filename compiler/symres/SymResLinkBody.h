@@ -266,6 +266,8 @@ public:
 
     void VisitVarInitStmt(VarInitStatement* node);
 
+    void VisitInlineAsmStmt(InlineAsmStatement* node);
+
     void VisitComptimeBlock(ComptimeBlock* node);
 
     void VisitDoWhileLoopStmt(DoWhileLoop* node);

@@ -1430,6 +1430,9 @@ void InterpretScope::interpret(ASTNode* node) {
         case ASTNodeKind::ReturnStmt:
             ::interpret(*this, node->as_return_unsafe());
             break;
+        case ASTNodeKind::InlineAsmStmt:
+            // inline asm is a no-op during interpretation
+            break;
         case ASTNodeKind::SwitchStmt:
             ::interpret(*this, node->as_switch_stmt_unsafe());
             break;

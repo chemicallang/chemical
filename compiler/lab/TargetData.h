@@ -53,6 +53,8 @@ struct TargetData {
     bool powerpc = false;
     bool powerpc64 = false;
     bool riscv = false;
+    bool riscv32 = false;
+    bool riscv64 = false;
     bool s390x = false;
     bool wasm32 = false;
     bool wasm64 = false;
@@ -174,6 +176,11 @@ consteval TargetData create_target_data() {
 
 #if defined(__riscv) || defined(__riscv__)
     d.riscv = true;
+#    if defined(__riscv_xlen) && __riscv_xlen == 32
+    d.riscv32 = true;
+#    elif defined(__riscv_xlen) && __riscv_xlen == 64
+    d.riscv64 = true;
+#    endif
 #endif
 
 #if defined(__s390x__)

@@ -8,6 +8,7 @@
 #include "ast/statements/Continue.h"
 #include "ast/statements/Break.h"
 #include "ast/statements/Return.h"
+#include "ast/statements/InlineAsmStmt.h"
 #include "ast/statements/Assignment.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/statements/AccessChainNode.h"
@@ -243,6 +244,15 @@ public:
     void VisitReturnStmt(ReturnStatement *stmt) {
         if(stmt->value) {
             visit_it(stmt->value);
+        }
+    }
+
+    void VisitInlineAsmStmt(InlineAsmStatement *stmt) {
+        for(auto& op : stmt->output_operands) {
+            visit_it(op.expr);
+        }
+        for(auto& op : stmt->input_operands) {
+            visit_it(op.expr);
         }
     }
 

@@ -231,6 +231,26 @@ void annot_handler_thread_local(Parser* parser, ASTNode* node, std::vector<Value
     }
 }
 
+void annot_handler_volatile(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
+    if(!args.empty()) {
+        parser->error("@volatile does not take arguments");
+        return;
+    }
+    if(node->kind() == ASTNodeKind::VarInitStmt) {
+        auto* varInit = node->as_var_init_unsafe();
+        if(varInit) {
+            varInit->set_volatile(true);
+        }
+    } else if(node->kind() == ASTNodeKind::StructMember) {
+        auto* member = node->as_struct_member_unsafe();
+        if(member) {
+            member->set_volatile(true);
+        }
+    } else {
+        parser->error("@volatile can only be applied to variables or struct members");
+    }
+}
+
 void annot_handler_maxalign(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     if(!args.empty()) {
         parser->error("@maxalign does not take arguments, use @align(N) to specify an explicit alignment");
@@ -371,6 +391,7 @@ void AnnotationController::initialize() {
             { "implicit", { annot_handler_implicit, "implicit", AnnotationDefType::Handler } },
             { "direct_init", { annot_handler_direct_init, "direct_init", AnnotationDefType::Handler } },
             { "thread_local", { annot_handler_thread_local, "thread_local", AnnotationDefType::Handler } },
+            { "volatile", { annot_handler_volatile, "volatile", AnnotationDefType::Handler } },
             { "maxalign", { annot_handler_maxalign, "maxalign", AnnotationDefType::Handler } },
             { "no_return", { annot_handler_no_return, "no_return", AnnotationDefType::Handler } },
             { "cpp", { annot_handler_cpp, "cpp", AnnotationDefType::Handler } },

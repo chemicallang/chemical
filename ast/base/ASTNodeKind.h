@@ -42,6 +42,7 @@ enum class ASTNodeKind : uint8_t {
     IncDecNode,
     PatternMatchExprNode,
     PlacementNewNode,
+    InlineAsmStmt,
 
     EnumDecl,
     EnumMember,

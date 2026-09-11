@@ -1119,6 +1119,14 @@ public:
     }
 
     /**
+     * return if this is an inline asm statement
+     */
+    inline InlineAsmStatement *as_inline_asm_unsafe() {
+        CHECK_CAST(ASTNodeKind::InlineAsmStmt);
+        return (InlineAsmStatement*) this;
+    }
+
+    /**
      * as interface definition
      */
     inline InterfaceDefinition *as_interface_def_unsafe() {

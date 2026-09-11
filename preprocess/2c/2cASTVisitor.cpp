@@ -8059,7 +8059,9 @@ bool ToCBackendContext::supports(CompilerFeatureKind kind) {
     const auto& target = visitor->comptime_scope.target_data;
     switch(kind) {
         case CompilerFeatureKind::Float128:
-            // tcc doesn't support __float128
+            // tcc cannot parse __float128, so fall back to long double.
+            // JIT jobs (build.lab, chemical.mod, CBI plugins) always run their
+            // generated C through tcc and construct target data with tcc=true.
             return !target.tcc;
         case CompilerFeatureKind::AtomicBuiltins:
             // The C backend handles atomics via inline asm (CAS loops) and

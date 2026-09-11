@@ -3269,8 +3269,10 @@ TCCState* LabBuildCompiler::built_lab_file(
 
     // this is host target data
     // since we are generating code for the target system
-    // compiler specific target data is fine
-    auto targetData = create_target_data();
+    // compiler specific target data is fine, except that the generated C
+    // for a build.lab/chemical.mod file is always consumed by tcc (the JIT),
+    // so the C backend must see tcc=true (e.g. no __float128 emission)
+    auto targetData = create_jit_target_data();
 
     // a global interpret scope required to evaluate compile time things
     // empty target triple, because we are targeting the current system

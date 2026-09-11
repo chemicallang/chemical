@@ -364,6 +364,33 @@ Fast triage questions:
 > emitted JS, which crashes `std::string::find` (Boyer-Moore skip table sign-extends signed
 > chars). Keep every byte in `page.ch` ASCII.
 
+## Deep design review — mistakes vs React/Solid (verified 2026-09-11)
+
+**Verified bugs (fix first):**
+1. `useLayoutEffect` registers into `inst.layoutEffects` but **nothing ever runs it** — no runner exists, `$__uni_mount` only drains `inst.effects`. Measuring-DOM/sync-focus effects silently no-op. Fix: run layout effects synchronously in `$__uni_mount` (mirror `$__uni_run_effects`). Test: `runtime_contracts.ch::universal_layout_effects_are_ever_run`.
+2. `capture_html_delta_to_js` (page.ch) does NOT escape `</script>`; SSR HTML containing it breaks out of inline `<script>` under `toString()` (XSS). Fix: escape `</` as `\u003C/` like `appendJsEscaped`. Same gap in `move_html_to_js_with_lambda_start`. Test: `universal_captured_html_is_inline_script_safe`.
+3. `universal_runtime_defines_contract_globals` + `universal_state_notify_uses_snapshot` + more in the new `lang/tests/compiler_plugins/universal/src/runtime_contracts.ch` — extend it.
+
+**Design gaps vs React/Solid (where + how to fix):**
+- **No keys / positional hydration** — `$__uni_hydrate_node` walks DOM by index; sorted/filtered lists patch wrong nodes (React has keyed reconcile; Solid keys by nature). Fix: emit `key` attr into vnodes, build a key→node map in `$__uni_hydrate_children`, move instead of in-place patch.
+- **No unmount/disposal** — `$_us`/`$_ucs` subscriptions and `el.addEventListener` are never torn down; `$_ucs` deps of removed nodes leak forever (Solid has `onCleanup`/owner tree). Fix: instance-level registry, `$__uni_unmount(inst)`, dispose on hydration-range removal.
+- **Async context loss** — `$_us` captures `window.$__uni_current_instance` once; async render interleavings land effects on the wrong instance. React uses a dispatcher ref. Fix: thread `inst` explicitly through `$_us(v, inst)`.
+- **Effects are microtask-scheduled only** (`Promise.resolve().then`) — no flush-before-event; Solid batches synchronously. Fix: queue microtask + `$__uni_flush_sync()` before dispatching events.
+- **`function_depth`/`in_jsx_attribute`/`skip_reactive_deref` are mutable flags, not a stack** — nested conversions can leak state (e.g. skip_reactive_deref reset per-arg unconditionally). Fix: EmitContext stack (professionalization plan §2.3).
+- **Three SSR evaluators with different capabilities** (`eval_ssr_js_expr`, `convert_jsx_ssr_expression`, `convert_js_expr_to_ssr_bool_value`) — parity bugs recur. Fix: single `SsrEvaluator` (plan §2.3).
+- **Emitted JS is never re-parsed** — a converter bug ships invalid JS. universal_parser already exists: re-parse `pageJs` per page and emit a compile diagnostic (plan Phase 0). Biggest safety win per line of code.
+- **Per-page runtime duplication**: ~32 KB runtime blob inline in `pageJs` (22 KB after comment strip, ~8–10 KB minified+gzip) on EVERY page; a 20-page site ships 20 copies. Fix: `writeSharedUniversalRuntime(path)` + `<script src>` opt-in; then a `RuntimeRequirements` manifest to strip unused helpers ( portals/context/inert are ~40% of the blob).
+- **SSR HTML duplicated into JS** via `$_uc_h` (~2× page bytes) — plan Phase 2 markers/manifest replaces this; until then it dominates bundle size.
+- **`$__universal_flush` throws via `$__uni_error` when a queued component fn is missing** at flush time — a typo'd component name kills the whole flush loop (dispatch path only queues). Fix: `console.error` + continue.
+- **No `createElementNS`** — SVG/MathML elements are created with `document.createElement` (no namespace) and never render. Fix: per-tag namespace map (React's approach).
+- **`move_js_range` memmove surgery** per component (O(n) each, 4 edge cases) — replace with segmented pageJs sections (Runtime/ComponentDefs/Dispatches) serialized in order (plan §2.2).
+- **Unsupported prop types silently become `UInteger`** (pointer-as-number corruption; `attr_value.ch` default case). Fix: compile diagnostic; require `getSsrAttributeValue` protocol.
+- **Bounds-dropping in `SpecialAttrs`** (32/32/64): attributes beyond limits are silently dropped — should grow or diagnose.
+- **`Yield` emission lacks `;`** and `ArrayDestructuring` converts to array *literal* (not a binding pattern) in `convertJsNode` — destructuring declarations are mis-emitted; add pattern emission or reject.
+- **Spread-SSR of object literals works, but dynamic unresolvable spreads skip silently** — hydration then applies attrs SSR never rendered (divergence). Fine by contract, but document per-component when it matters.
+
+**React/Solid practices worth copying, in order of impact:** keyed reconciliation; unmount cleanup (ownership tree); sync layout-effect pass; external shared runtime asset; compile-error on unsupported constructs instead of silent drop/rename; re-parse own output (already parses JS, so it's ~50 lines); explicit instance context; batched sync flush before events.
+
 ## Known open gaps (verified in source, 2026-09)
 
 - `react/template_builder.ch` + `react/render.ch` (`render_universal_jsx`,

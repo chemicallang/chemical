@@ -49,6 +49,7 @@ Source code → Lexer → Token stream → Parser → AST
 | `parser/structures/Switch.cpp` | Switch statements |
 | `parser/structures/TryCatch.cpp` | Try/catch blocks |
 | `parser/structures/Union.cpp` | Union definitions |
+| `parser/structures/Function.cpp` | Function declarations + **inline asm parsing** (`parseInlineAsmStatement`) |
 | `parser/values/StructValue.cpp` | Struct literal values |
 | `parser/values/LexValue.cpp` | Lexed values (integers, floats, strings) |
 | `parser/values/Expression.cpp` | Binary/unary expressions |
@@ -227,6 +228,7 @@ Statement parsing dispatches based on the first token:
 | `impl` | Implementation |
 | `namespace` | Namespace |
 | `using` | Using declaration |
+| `asm` | Inline assembly statement |
 | Other | Expression statement |
 
 ### Error Recovery
@@ -237,6 +239,58 @@ The parser uses basic error recovery:
 2. **Unexpected tokens**: When a token is unexpected, the parser skips to the next semicolon or closing brace
 3. **Missing closing brackets**: Reports an error but continues parsing (assuming the closing bracket)
 4. **Comptime if**: Both branches are parsed for syntax, but only the selected branch is type-checked
+
+### `consumeNewLines()` — Newline Tolerance
+
+The parser calls `consumeNewLines()` to skip `NewLine` tokens between elements. This enables newline-tolerant parsing in function signatures and asm statements. For example, in `parseInlineAsmStatement`, `consumeNewLines()` is called between operands, constraint strings, and parentheses to allow multi-line asm templates.
+
+### Inline Assembly Parsing (`parseInlineAsmStatement`)
+
+Located in `parser/structures/Function.cpp`. Triggered when the parser sees `TokenType::AsmKw`.
+
+**Syntax**:
+```chemical
+// Simple form — template only
+asm("movq %1, %0")
+
+// Extended form — with outputs, inputs, clobbers
+asm("lock cmpxchgq %3, %2\n\tsete %1"
+    : "=a"(*expected), "=q"(success), "+m"(*ptr)    // outputs
+    : "r"(desired), "0"(*expected)                   // inputs
+    : "cc", "memory")                                // clobbers
+
+// Skip outputs with :: (Go-style)
+asm("" ::: "memory")
+
+// Clobber-only
+asm("" ::: "memory", "cc")
+```
+
+**Parsing steps**:
+1. Consume `asm` keyword and `(`
+2. Parse string literal as asm template
+3. If `)` follows → return (simple form)
+4. If `:` follows → parse output operands: `"constraint"(expr)` separated by `,`
+5. If `:` follows → parse input operands (same format)
+6. If `:` follows → parse clobber strings: `"memory"`, `"cc"`, etc.
+7. Consume `)`
+
+**Output operand constraint strings**:
+- `"=a"(expr)` — write to `eax`/`rax`
+- `"=q"(expr)` — write to any register
+- `"+m"(expr)` — read/write memory operand
+- `"=r"(expr)` — write to any register
+
+**Input operand constraint strings**:
+- `"r"(expr)` — value in any register
+- `"0"(expr)` — same register as operand 0
+- `"m"(expr)` — value in memory
+
+The `InlineAsmStatement` AST node stores:
+- `asm_template` — the template string
+- `output_operands` — vector of `(constraint, expr)` pairs
+- `input_operands` — vector of `(constraint, expr)` pairs
+- `clobbers` — vector of clobber strings
 
 ### The `@` Annotation Macro System
 
@@ -289,6 +343,7 @@ class Lexer {
 | `StructKw` | `struct` |
 | `VarKw` | `var` |
 | `ConstKw` | `const` |
+| `AsmKw` | `asm` |
 | `OpenParen` | `(` |
 | `CloseParen` | `)` |
 | `OpenBrace` | `{` |

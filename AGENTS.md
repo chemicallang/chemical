@@ -361,6 +361,7 @@ All built-in annotations recognized by the compiler:
 | `@make` | struct | Enables `T.make()` constructor; **prevents** `T{}` syntax unless `@direct_init` is also present |
 | `@direct_init` | struct | Enables `T{}` and `T{field: val}` aggregate initialization |
 | `@delete` | func (in struct) | Destructor — called when value goes out of scope or is deleted |
+| `@volatile` | var, const | Marks variable as volatile — prevents compiler optimization of loads/stores |
 | `@compiler.interface` | interface | Marks a CBI interface exposed to the compiler (used in `build.lab` for build API) |
 
 **Critical `@make` + `@direct_init` interaction:**
@@ -434,6 +435,48 @@ var size = sizeof(int)              // 4 bytes
 var align = alignof(double)         // 8 bytes
 var struct_size = sizeof(MyStruct)  // Size of struct
 var arr_size = sizeof(my_array)     // Total array size
+```
+
+### Inline Assembly
+
+Chemical supports GCC extended inline assembly via the `asm` keyword:
+
+```chemical
+// Simple form — template only
+asm("nop")
+
+// Extended form — with outputs, inputs, clobbers
+var old_val : u64 = 0
+var success : bool = false
+asm("lock cmpxchgq %3, %2\n\tsete %1"
+    : "=a"(old_val), "=q"(success), "+m"(*ptr)   // outputs
+    : "r"(desired), "0"(old_val)                   // inputs
+    : "cc", "memory")                              // clobbers
+
+// Compiler barrier (prevents reordering, no hardware fence)
+asm("" ::: "memory")
+```
+
+**Syntax**: `asm("template" : outputs : inputs : clobbers)`
+
+- **Outputs**: `"constraint"(expr)` — where asm writes. `"=a"` = rax, `"=q"` = any GP reg, `"+m"` = read/write memory
+- **Inputs**: `"constraint"(expr)` — values passed to asm. `"r"` = any reg, `"0"` = same reg as operand 0, `"m"` = memory
+- **Clobbers**: `"memory"`, `"cc"` — what asm may trash
+
+**Critical pattern**: `asm(...)` is a **statement**, not an expression. Use output operands to write to local variables. For use in comptime functions, wrap in `@retained` helper + `%runtime_value()`:
+
+```chemical
+@retained func my_asm_helper(ptr : *mut u64) : u64 {
+    var val : u64 = 0
+    asm("movq %1, %0" : "=r"(val) : "m"(*ptr) : "memory")
+    return val
+}
+
+public comptime func atomic_load(x : %runtime<*u64>) : u64 {
+    comptime if(intrinsics::get_backend_name() == "C") {
+        return %runtime_value(my_asm_helper(x)) as u64
+    }
+}
 ```
 
 ## Standard Library Quick Reference
@@ -606,6 +649,25 @@ var client = http::Client()                  // NOT Client
 ```
 
 With `using namespace http;` (as in `net_test.ch`), unqualified names work.
+
+## Compiler API Gotchas
+
+### CRITICAL: Enum Sync Rule for CBI Plugins
+
+**When adding a new enum value to a C++ enum that is exposed to CBI (compiler plugins), you MUST also add the same value to the corresponding Chemical binding file.** Failing to do so causes a SIGSEGV crash in all CBI plugins because the enum values are off by 1 between the C++ side and the TCC-compiled plugin side.
+
+| C++ Enum File | Chemical Binding File |
+|---------------|----------------------|
+| `ast/base/ASTNodeKind.h` | `lang/libs/compiler/src/ast/base/ASTNodeKind.ch` |
+| `lexer/TokenType.h` | `lang/libs/compiler/src/ChemicalTokenType.ch` |
+
+Values inserted in the **middle** of an enum break all subsequent values. Values at the **end** can be added safely. Always verify both files have identical ordering.
+
+**Why this happens**: CBI plugins are compiled by TCC from Chemical source. They import the `compiler` library, which contains `.ch` files defining enum values that mirror the C++ enums. The TCC-compiled plugin code uses these Chemical enum values in switch statements and comparisons. If the Chemical enum is missing a value that was added to the C++ enum, every value after the insertion point is shifted by 1, causing wrong branches and crashes.
+
+**Real bug examples**:
+- Adding `InlineAsmStmt` to `ASTNodeKind` in C++ without adding it to `ASTNodeKind.ch` → all `getKind()` comparisons off by 1 → SIGSEGV in `ASTNodegetKind`
+- Adding `AsmKw` to `TokenType` in C++ without adding it to `ChemicalTokenType.ch` → `RBrace` off by 1 → all `#html` macro parsing fails
 
 ## LLVM Backend Gotchas
 

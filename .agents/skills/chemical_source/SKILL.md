@@ -992,6 +992,11 @@ var lambda_type : std::function<(param : type) => return_type>
 @test               // Test function
 @inline             // Inline function
 @noinline           // Don't inline
+@volatile           // Mark variable as volatile (prevents compiler optimization)
+@make               // Enable T.make() constructor (struct)
+@direct_init        // Enable T{} and T{field: val} syntax (struct)
+@delete             // Destructor method (struct)
+@compiler.interface // CBI interface exposed to compiler
 ```
 
 #### Annotation Usage
@@ -1020,6 +1025,52 @@ comptime if(def.windows) {
     // windows specific code
     // the syntax is still checked
     // however type checking is skipped if def.windows is false
+}
+```
+
+### Inline Assembly
+
+Chemical supports GCC extended inline assembly via the `asm` keyword:
+
+```chemical
+// Simple form — template only
+asm("nop")
+
+// Extended form — with outputs, inputs, clobbers
+var old_val : u64 = 0
+var success : bool = false
+asm("lock cmpxchgq %3, %2\n\tsete %1"
+    : "=a"(old_val), "=q"(success), "+m"(*ptr)
+    : "r"(desired), "0"(old_val)
+    : "cc", "memory")
+
+// Compiler barrier (no hardware fence, just prevents reordering)
+asm("" ::: "memory")
+```
+
+**Syntax**: `asm("template" : outputs : inputs : clobbers)`
+
+- **Outputs**: `"constraint"(expr)` — where asm writes results. `"=a"` = rax, `"=q"` = any GP reg, `"+m"` = read/write memory
+- **Inputs**: `"constraint"(expr)` — values passed to asm. `"r"` = any reg, `"0"` = same reg as operand 0, `"m"` = memory
+- **Clobbers**: `"memory"`, `"cc"` — tells compiler what asm may trash
+
+**Important**: `asm(...)` is a **statement**, not an expression. It cannot be used inline in expressions. Use output operands to write to local variables, then use those variables.
+
+**Pattern for @retained functions with inline asm**:
+```chemical
+@retained func my_asm_helper(ptr : *mut u64, val : u64) : u64 {
+    var old_val : u64 = 0
+    asm("lock xaddq %0, %1" : "=r"(old_val), "+m"(*ptr) : "0"(val) : "cc", "memory")
+    return old_val
+}
+```
+
+Called from comptime functions via `%runtime_value(func(...))`:
+```chemical
+public comptime func my_operation(x : %runtime<*mut u64>, val : u64) : u64 {
+    comptime if(intrinsics::get_backend_name() == "C") {
+        return %runtime_value(my_asm_helper(x, val)) as u64
+    }
 }
 ```
 

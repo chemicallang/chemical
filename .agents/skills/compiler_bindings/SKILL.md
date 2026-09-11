@@ -10,6 +10,17 @@ Those get called and interpreted, but bindings mean real functions in the compil
 We do not use libffi for this, We instead use Tiny CC. All chemical targets (Compiler, TCCCompiler, ChemicalLSP) contain libtcc
 as a dependency.
 
+## CRITICAL: Enum Sync Rule
+
+When adding a new enum value to a C++ enum that is exposed to CBI (compiler plugins), you MUST also add the same value to the corresponding Chemical binding file in `lang/libs/compiler/src/`. Failing to do so causes a SIGSEGV crash in all CBI plugins because the enum values are off by 1 between the C++ side and the TCC-compiled plugin side.
+
+| C++ Enum File | Chemical Binding File |
+|---------------|----------------------|
+| `ast/base/ASTNodeKind.h` | `lang/libs/compiler/src/ast/base/ASTNodeKind.ch` |
+| `lexer/TokenType.h` | `lang/libs/compiler/src/ChemicalTokenType.ch` |
+
+Values inserted in the **middle** of an enum break all subsequent values. Values at the **end** can be added safely. Always verify both files have identical ordering.
+
 ## Basic overview
 
 - Compiler translates user code (chemical) to C

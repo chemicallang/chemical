@@ -5,20 +5,42 @@
 The atomic library (`lang/libs/atomic/`) provides lock-free atomic operations for the Chemical programming language. It replaces all `@extern __atomic_*_N` C runtime calls with pure-Chemical inline asm CAS primitives, eliminating the `-latomic` dependency entirely.
 
 **Key files:**
-- `lang/libs/atomic/src/atomic.ch` — ~3267 lines. All inline asm helpers, dispatch functions, and public API.
-- `lang/libs/atomic/src/types/atomic_u64.ch` — `atomic_u64` struct with method wrappers.
-- `lang/libs/atomic/src/types/atomic_u32.ch` — `atomic_u32` struct with method wrappers.
-- `lang/libs/atomic/src/types/atomic_u16.ch` — `atomic_u16` struct with method wrappers.
-- `lang/libs/atomic/src/types/atomic_u8.ch` — `atomic_u8` struct with method wrappers.
-- `lang/libs/atomic/src/preamble_posix.ch` — `@extern` declarations for `__atomic_*_N` symbols (legacy, dead code on C backend).
-- `lang/libs/atomic/cruntime/` — Old C runtime files (NOT used by new implementation, kept for reference).
-- `lang/libs/atomic/build.lab` — Build script (no `-latomic`).
+- `lang/libs/atomic/chemical.mod` — Module declaration with conditional arch-specific source paths
+- `lang/libs/atomic/src/atomic.ch` — Common code (~1289 lines): enums, dispatch functions, public API
+- `lang/libs/atomic/arch/x86/asm.ch` — x86_64/i386 inline asm primitives (327 lines)
+- `lang/libs/atomic/arch/aarch64/asm.ch` — AArch64 inline asm primitives (395 lines)
+- `lang/libs/atomic/arch/arm/asm.ch` — ARM32 ldrex/strex primitives (419 lines)
+- `lang/libs/atomic/arch/riscv/asm.ch` — RISC-V lr/sc primitives (555 lines)
+- `lang/libs/atomic/arch/powerpc/asm.ch` — PowerPC lwarx/stwcx primitives (277 lines)
+- `lang/libs/atomic/src/types/atomic_u64.ch` — `atomic_u64` struct with method wrappers
+- `lang/libs/atomic/src/types/atomic_u32.ch` — `atomic_u32` struct with method wrappers
+- `lang/libs/atomic/src/types/atomic_u16.ch` — `atomic_u16` struct with method wrappers
+- `lang/libs/atomic/src/types/atomic_u8.ch` — `atomic_u8` struct with method wrappers
+- `lang/libs/atomic/src/preamble_posix.ch` — `@extern` declarations for `__atomic_*_N` symbols (legacy, dead code on C backend)
 
 **Test file:** `lang/tests/libs/atomic/tests.ch` — ~614 tests.
 
 ---
 
 ## Architecture of the Implementation
+
+### chemical.mod Structure
+
+The module uses conditional source paths to compile only the relevant arch-specific file:
+
+```chmod
+module atomic
+import std
+
+source "src"
+source "arch/x86" if x86_64 or i386
+source "arch/aarch64" if aarch64
+source "arch/riscv" if riscv
+source "arch/arm" if arm
+source "arch/powerpc" if powerpc or powerpc64
+```
+
+**CRITICAL**: Arch files are in `arch/<arch>/asm.ch` (sibling to `src/`, NOT child). Using `source "src/x86"` would cause duplicate symbols because `source "src"` is recursive and would also load files under `src/x86/`.
 
 ### Three-tier design
 
@@ -74,6 +96,18 @@ public comptime func atomic_load_u64(x : %runtime<*u64>, order : memory_order = 
 ```
 
 **CRITICAL**: The `else { return false/0/val }` fallback means unsupported architectures silently return wrong values. No error, no panic.
+
+### Function counts per architecture
+
+| Architecture | Inline asm functions | u64 | u32 | u16 | u8 | Notes |
+|-------------|---------------------|-----|-----|-----|----|-------|
+| x86_64/i386 | 32 | ✅ native | ✅ native | ✅ native | ✅ native | `lock cmpxchg`, `xchg`, `lock xadd` |
+| AArch64 | 32 | ✅ native | ✅ native | ✅ CAS loop | ✅ CAS loop | `ldxr/stxr`, `ldar/stlr` |
+| ARM32 | 28 | ✅ `ldrexd/strexd` | ✅ `ldrex/strex` | ✅ CAS loop | ✅ CAS loop | |
+| RISC-V 64 | 38 | ✅ `lr.d/sc.d` | ✅ `lr.w/sc.w` | ✅ CAS loop | ✅ CAS loop | |
+| RISC-V 32 | — | ❌ | ✅ `lr.w/sc.w` | ❌ | ❌ | u16/u8 not implemented |
+| PowerPC 64 | 18 | ✅ `ldarx/stdcx.` | ✅ `lwarx/stwcx.` | ❌ stub | ❌ stub | u16/u8 return wrong values |
+| PowerPC 32 | — | ❌ | ✅ `lwarx/stwcx.` | ❌ | ❌ | u64/u16/u8 not implemented |
 
 ### Inline asm helper naming convention
 
@@ -288,6 +322,27 @@ sync                    # seq_cst
 
 **NOT IMPLEMENTED.** All dispatch functions return `false`/`0`/`val`. Operations silently produce wrong results.
 
+### atomic_flag
+
+`atomic_flag` is implemented using CAS (compare-and-swap) on a `u32` value:
+
+```chemical
+@retained public func atomic_flag_test_and_set(ptr : *mut atomic_flag) : bool {
+    var expected : u32 = 0
+    var desired : u32 = 1
+    var result = __chx__cas_u32_dispatch(ptr as *mut u32, &raw mut expected, desired)
+    return expected == 0  // returns previous value (C11 spec)
+}
+
+@retained public func atomic_flag_clear(ptr : *mut atomic_flag) {
+    var zero : u32 = 0
+    __chx__store_u32_dispatch(ptr as *mut u32, zero)
+    __chx__fence(7)  // seq_cst
+}
+```
+
+**Bug fix (fixed during this session)**: `atomic_flag_test_and_set` originally returned `true` on CAS success (was 0→1) instead of the **previous** value. Per C11 spec, `atomic_flag_test_and_set` must return the value **before** the swap: `false` if the flag was clear (now set), `true` if it was already set. The fix inverted the return logic.
+
 ---
 
 ## Memory Ordering
@@ -477,11 +532,12 @@ To add a new operation (e.g. `atomic_max_u64`):
 
 ### Adding a new architecture
 
-1. Add `def.<arch>` checks to all 36 dispatch functions
-2. Add inline asm helpers `__chx__<op>_<size>_<arch>` for all operations and sizes
-3. Add fence implementation in `__chx__fence`
-4. Add the arch to `TargetData.h` and `declare_def_values()`
-5. Test on real hardware
+1. Create `lang/libs/atomic/arch/<arch>/asm.ch` with all inline asm helpers
+2. Add `source "arch/<arch>"` conditional in `lang/libs/atomic/chemical.mod`
+3. Add `def.<arch>` checks to all 36 dispatch functions in `src/atomic.ch`
+4. Add fence implementation in `__chx__fence` and `__chx__signal_fence`
+5. Add the arch to `TargetData.h` and `declare_def_values()` in the C++ compiler
+6. Test on real hardware (or QEMU for cross-compiled targets)
 
 ---
 
@@ -496,6 +552,8 @@ Value* ToCBackendContext::atomic_load(...) {
 ```
 
 This means the inline asm approach is the **only** code path for the C backend. The old `ensure_atomic_preamble()` and atomic method implementations have been removed.
+
+**Note on `@volatile`**: The `@volatile` annotation is supported on `var` and `const` declarations. On the C backend, it emits `volatile` in the generated C variable declarations, preventing the compiler from optimizing away or reordering loads/stores to the variable.
 
 ---
 

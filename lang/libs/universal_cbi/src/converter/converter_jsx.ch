@@ -199,19 +199,24 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         // We still invoke the child's server function: its body contains the
         // `if(require_component(hash))` guard that emits the child's client JS.
         // That must happen even for components that only render on the client
-        // (inside a runtime conditional). We truncate the SSR markup it appends
-        // to pageHtml -- the HTML pass emits it once, and the client hydrates it.
+        // (inside a runtime conditional). We set `page.render_js_only` around the
+        // call so the child emits its client JS and skips SSR; the HTML pass
+        // renders the SSR markup exactly once. Save/restore keeps the flag
+        // correct while nested components emit their client JS.
         var pageId = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
-        const getHtmlSize = builder.make_identifier(std::string_view("get_html_size"), support.getHtmlSizeFn, false, location);
-        var getSizeCall = builder.make_function_call_value(
-            builder.make_access_chain(&std::span<*mut Value>([ pageId, getHtmlSize ]), location),
-            location
-        );
-        var sIdxNameStr = std::string("sIdx_");
-        sIdxNameStr.append_uinteger(element.loc);
-        var sIdxName = builder.allocate_view(sIdxNameStr.to_view());
-        var sIdxVar = builder.make_varinit_stmt(false, false, &sIdxName, builder.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
-        converter.vec.push(sIdxVar);
+        const renderJsOnlyId = builder.make_identifier(std::string_view("render_js_only"), support.renderJsOnlyNode, false, location);
+
+        var prevNameStr = std::string("prevJsOnly_");
+        prevNameStr.append_uinteger(element.loc);
+        var prevName = builder.allocate_view(prevNameStr.to_view());
+        var prevVar = builder.make_varinit_stmt(false, false, &prevName, builder.make_bool_type(),
+            builder.make_access_chain(&std::span<*mut Value>([ pageId, renderJsOnlyId ]), location),
+            AccessSpecifier.Internal, converter.parent, location);
+        converter.vec.push(prevVar);
+
+        converter.vec.push(builder.make_assignment_stmt(
+            builder.make_access_chain(&std::span<*mut Value>([ pageId, renderJsOnlyId ]), location),
+            builder.make_bool_value(true, location), Operation.Assignment, converter.parent, location));
 
         var base = builder.make_identifier(&signature.name, signature.functionNode, false, location);
         var call = builder.make_function_call_node(base, converter.parent, location);
@@ -224,14 +229,9 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         call.get_args().push(ssrTextStructVal);
         converter.vec.push(call);
 
-        const truncateHtmlId = builder.make_identifier(std::string_view("truncate_html"), support.truncateHtmlFn, false, location);
-        var truncateCall = builder.make_function_call_node(
-            builder.make_access_chain(&std::span<*mut Value>([ pageId, truncateHtmlId ]), location),
-            converter.parent,
-            location
-        );
-        truncateCall.get_args().push(builder.make_identifier(&sIdxName, sIdxVar, false, location));
-        converter.vec.push(truncateCall);
+        converter.vec.push(builder.make_assignment_stmt(
+            builder.make_access_chain(&std::span<*mut Value>([ pageId, renderJsOnlyId ]), location),
+            builder.make_identifier(&prevName, prevVar, false, location), Operation.Assignment, converter.parent, location));
 
         converter.str.append_view("$_uc_c(");
         get_module_scoped_name(signature.functionNode, signature.name, &mut converter.str);

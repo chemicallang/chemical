@@ -159,8 +159,20 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
             const updateHoistPosVal = builder.make_expression_value(builder.make_access_chain(&std::span<*mut Value>([ pageId, jsHoistPosId ]), location), deltaLenVal, Operation.Addition, builder.get_u64_type(), location);
             converter.vec.push(builder.make_assignment_stmt(builder.make_access_chain(&std::span<*mut Value>([ pageId, jsHoistPosId ]), location), updateHoistPosVal, Operation.Assignment, converter.parent, location));
 
-            // 3. HTML emission
-            // Emit the actual component content, going into html buffer
+            // 3. HTML emission (skipped when this call exists only to emit the
+            // component's client JS; see HtmlPage.render_js_only).
+            //
+            // The client-JS pass converts this component body with target
+            // JavaScript and calls each child component's server function to emit
+            // that child's client JS. Without this guard the child would also
+            // render its whole SSR subtree here and then render it again in the
+            // HTML pass below, making server rendering exponential in
+            // component-tree depth.
+            const renderJsOnlyId = builder.make_identifier(std::string_view("render_js_only"), support.renderJsOnlyNode, false, location);
+            const renderJsOnlyAccess = builder.make_access_chain(&std::span<*mut Value>([ pageId, renderJsOnlyId ]), location)
+            var ssrGuardIf = builder.make_if_stmt(renderJsOnlyAccess, converter.parent, location)
+            const outerVec = converter.vec
+            converter.vec = ssrGuardIf.add_else_body()
             converter.target = BufferType.HTML;
             // Emit component body statements (var decls, if/else chains, conditional
             // returns) first so locals referenced by the returned JSX ({variant})
@@ -171,6 +183,8 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
                 converter.convertJsNode(returned);
             }
             converter.put_chain_in();
+            converter.vec = outerVec
+            converter.vec.push(ssrGuardIf)
 
         }
     }

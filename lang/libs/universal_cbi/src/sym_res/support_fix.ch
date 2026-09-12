@@ -163,6 +163,11 @@ func resolve_page_children(
         diagnoser.error("'js_hoist_pos' field is required on 'page' for hoisting to work", loc);
         return false;
     }
+    const renderJsOnlyNode = page.child("render_js_only");
+    if(renderJsOnlyNode == null) {
+        diagnoser.error("'render_js_only' field is required on 'page' for client-js-only rendering", loc);
+        return false;
+    }
 
     support.getHtmlSizeFn = getHtmlSizeFn;
     support.truncateHtmlFn = truncateHtmlFn;
@@ -171,6 +176,7 @@ func resolve_page_children(
     support.getJsPosFn = getJsPosFn;
     support.moveJsRangeFn = moveJsRangeFn;
     support.js_hoist_pos = js_hoist_pos;
+    support.renderJsOnlyNode = renderJsOnlyNode;
 
     return true
 }

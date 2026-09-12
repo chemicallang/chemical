@@ -401,15 +401,26 @@ Fast triage questions:
   `$_uc_h(html, name, props)` path were **removed** (plan Phase 2). The live path
   is `converter/` + `react/ast_replace.ch`; nested components emit
   `$_uc_c(ComponentFn, props)` and hydrate the server-rendered DOM in place.
-  Stable boundary markers + an instance manifest (the rest of plan Phase 2)
-  remain open.
+- **Top-level component children are still transported through JS.**
+  `emit_universal_queue` (`html_cbi/src/converter/language/main.ch`) passes a
+  `#html { <Comp>...children...</Comp> }` block's child markup as
+  `window.$__uni_html("<html>")` in the dispatch props, so that markup exists in
+  both the HTML response and the JS bundle. Replacing it with boundary templates
+  is part of the remaining Phase 2 marker/manifest work.
+- **Redundant nested SSR is fixed.** Generated component server functions skip
+  their SSR subtree when `page.render_js_only` is set (the client-JS pass sets it
+  around child server-function calls), so a subtree is server-rendered once
+  instead of once per pass. See plan "Performance slice".
 - Hydration of lists is keyed (`$__uni_reconcile_list`); unkeyed positional
   hydration still assumes SSR and client ordering match.
-- `$__universal_flush` throws (`$__uni_error`) when a queued component function is still
-  missing at flush time; dispatch-time missing functions just queue.
+- `$__universal_flush` logs and continues on a missing queued component function
+  (it no longer throws and aborts the flush loop).
 - No compile-time diagnostic for unsupported prop types (silent `UInteger` fallback).
 - The professionalization plan's segmented-JS-buffer / two-phase emission (removing
   `move_js_range` surgery) is not implemented.
+- The runtime is intentionally kept **inline in `page.ch`** (offline builds); it
+  will be extracted to a content-hashed CDN asset only after the feature set is
+  frozen.
 
 ## Comprehensive design audit (2026-09-12)
 

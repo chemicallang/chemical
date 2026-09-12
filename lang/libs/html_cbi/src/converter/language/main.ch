@@ -147,7 +147,9 @@ func (converter : &mut ASTConverter) emit_append_html_from_str(s : &mut std::str
 }
 
 // Recursively collect the static HTML representation of a child node into childHtml.
-// Used by emit_universal_queue to build the hydration $_uc_h string.
+// Used by emit_universal_queue, which passes top-level component children to the
+// client as `window.$__uni_html(...)`. That still transports child markup through
+// JS; replacing it with boundary templates is part of the Phase 2 marker work.
 func collect_child_html(ch : *mut HtmlChild, childHtml : *mut std::string) {
     if(ch.kind == HtmlChildKind.Text) {
         const txt = ch as *mut HtmlText;

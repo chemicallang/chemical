@@ -65,4 +65,5 @@ public struct SymResSupport {
     var getJsPosFn : *mut ASTNode = null
     var moveJsRangeFn : *mut ASTNode = null
     var js_hoist_pos : *mut ASTNode = null
+    var renderJsOnlyNode : *mut ASTNode = null
 }

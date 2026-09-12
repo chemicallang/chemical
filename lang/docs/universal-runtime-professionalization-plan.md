@@ -886,6 +886,49 @@ was removed end to end:
 Compiler-plugin suite: 1087/1089 (same 2 unrelated failures; test count dropped
 1095 -> 1089 with the removed tests). Full E2E: 356/356 pass.
 
+### Performance slice — redundant nested-component SSR eliminated
+
+Each universal component's generated server function has two passes: a client-JS
+pass (which calls each child component's server function to emit that child's
+client JS) and an HTML pass. The child call in the client-JS pass used to run the
+child's **full** SSR and then discard it with `truncate_html`, so every component
+subtree was server-rendered once per pass. SSR work therefore grew with
+component-tree depth rather than linearly (a chain of depth N cost O(N^2)
+component renders).
+
+Implemented:
+
+- `HtmlPage` gained `render_js_only : bool = false`.
+- The generated component server function wraps its HTML emission in
+  `if(!page.render_js_only) { ... }`, so a call made only to emit client JS skips
+  the whole SSR subtree (the `require_component` block and JS hoisting still run).
+- `converter_jsx.ch` sets `page.render_js_only = true` around the child
+  server-function call and restores the previous value (save/restore keeps the
+  flag correct while nested components emit their client JS), replacing the
+  `get_html_size` / `truncate_html` pair.
+- `SymResSupport.renderJsOnlyNode` and its `page.child("render_js_only")` binding
+  were added.
+
+Verified: the emitted `index.html` and `index.js` are **byte-identical** to before
+(86,837 / 199,443 bytes) — the change removes work, not output — and all 356 E2E
+and 1087/1089 compiler-plugin tests pass unchanged. In a synthetic 150-deep
+component chain, disabling the guard (so the old double render ran, without the
+now-removed truncation) produced 2.84 MB of intermediate HTML for a 23.8 KB page
+(~120x redundant markup generation); with the guard it is 23.8 KB.
+
+Also removed the last unreachable runtime symbol: `$_uc_h` and its
+`innerHTML`-reconstruction branch in `$_urn` are gone. `$_urn`/`$__uni_hydrate_node`
+still accept a name-only `__uni_uc` vnode defensively, but nothing emits one.
+
+### Runtime extraction (intentionally deferred)
+
+The plan's Phase 1 lists moving the runtime out of `page.ch` into a real `.js`
+asset. This is **deliberately deferred**: keeping the runtime inline lets a site
+be built entirely offline with no external script fetch, and the runtime is still
+changing. Once the feature set is frozen (components working, no new features, no
+major issues), the runtime will be extracted and published as a content-hashed
+CDN asset, with the inline form retained for offline/self-contained builds.
+
 ### Known remaining SSR parity gap
 
 A computed local whose source is a **`.filter()` over runtime props**

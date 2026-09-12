@@ -52,6 +52,14 @@ public struct HtmlPage {
     var pageJsEnd : std::string
     var js_hoist_pos : ubigint = 0
 
+    // When true, a generated universal component server function emits only its
+    // client JS (its `require_component` block + hoisting) and skips SSR markup.
+    // The converter sets this around the child server-function call it makes
+    // during the client-JS pass, so a nested component's subtree is server
+    // rendered exactly once (in the later HTML pass) instead of twice. Without
+    // it, SSR work grows exponentially with component-tree depth.
+    var render_js_only : bool = false
+
     // we track which classes are done through this unordered map
     // TODO using ubigint, instead need to use size_t
     var doneClasses : std::unordered_map<ubigint, bool>
@@ -995,7 +1003,6 @@ window.$__uni_warn_hydration = ((msg, expected, got) => {
     window.$__uni_hydration_warned = true;
     console.warn("[universal] hydration mismatch: " + msg);
 })
-window.$_uc_h = ((html, name, props) => ({ t: "__uni_uc", p: { html, name, props } }))
 // Universal component vnode that references the client component function directly
 // instead of a name + SSR HTML snapshot. This is the Phase 2 hydration boundary:
 // the server-rendered DOM is located and hydrated in place, so no SSR markup is
@@ -1239,7 +1246,7 @@ window.$_urn = ((v) => {
     }
     if(v && v.t !== undefined) {
         if(v.t === "__uni_uc") {
-            const { html, name, props, comp } = v.p;
+            const { name, props, comp } = v.p;
             const container = document.createElement("div");
             if(comp) {
                 window.$__uni_mount(container, comp, props);
@@ -1247,13 +1254,7 @@ window.$_urn = ((v) => {
                 while(container.firstChild) f.appendChild(container.firstChild);
                 return f;
             }
-            if (html) {
-                container.innerHTML = html;
-                window.$__uni_dispatch(name, container, props);
-                const f = document.createDocumentFragment();
-                while(container.firstChild) f.appendChild(container.firstChild);
-                return f;
-            }
+            // Legacy name-dispatch vnode (no client function reference).
             window.$__uni_dispatch(name, container, props);
             return container;
         }

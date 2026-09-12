@@ -1379,6 +1379,7 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             let node = startDom;
             while(node && node !== cur) {
                 const next = node.nextSibling;
+                if(window.$__uni_moving_nodes) window.$__uni_moving_nodes.add(node);
                 container.appendChild(node);
                 node = next;
             }
@@ -1556,12 +1557,21 @@ window.$__uni_dispose = ((inst) => {
 window.$__uni_cleanup_observer = (() => {
     if(typeof MutationObserver === "undefined") return null;
     const observed = new Map();
+    // Nodes that are being relocated on purpose (e.g. portal content moved
+    // into a body-appended container during hydration). A move shows up as a
+    // childList removal, which would otherwise be mistaken for an unmount and
+    // dispose the freshly-hydrated owner instance.
+    window.$__uni_moving_nodes = new Set();
     const observer = new MutationObserver((mutations) => {
         for(let i = 0; i < mutations.length; i++) {
             const removed = mutations[i].removedNodes;
             for(let j = 0; j < removed.length; j++) {
                 const node = removed[j];
                 if(node.nodeType !== 1) continue;
+                if(window.$__uni_moving_nodes.has(node)) {
+                    window.$__uni_moving_nodes.delete(node);
+                    continue;
+                }
                 // Check for component boundary spans
                 const spans = node.querySelectorAll ? node.querySelectorAll("[data-chx-i]") : [];
                 for(let k = 0; k < spans.length; k++) {

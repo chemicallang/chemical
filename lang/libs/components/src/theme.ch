@@ -152,6 +152,19 @@ public func (page : &mut HtmlPage) injectDefaultComponentsTheme() {
             from { height: 0; opacity: 0; }
             to { height: var(--chx-collapsible-height, 20rem); opacity: 1; }
         }
+
+        /* ============ Reduced motion (WCAG 2.3.3) ============ */
+        /* Honor the user's OS-level motion preference: collapse all
+           animations/transitions to a near-instant duration instead of
+           removing them (keeps state changes observable to assistive tech). */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
     """)
 }
 

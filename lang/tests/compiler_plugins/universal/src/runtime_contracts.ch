@@ -55,23 +55,19 @@ public func universal_layout_effect_emitted_in_js(env : &mut TestEnv) {
 }
 
 @test
-public func universal_layout_effects_never_drained_in_runtime(env : &mut TestEnv) {
+public func universal_layout_effects_are_ever_run(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <LayoutEffectComp /> }
     var js = std::string()
     js.append_view(page.getJs())
-    // The runtime should NOT contain a $__uni_run_layout_effects helper.
-    // If it does, the bug may have been fixed — update this test.
-    // Currently the only effect runner is $__uni_run_effects which drains
-    // inst.effects, NOT inst.layoutEffects.
-    //
-    // We verify by checking that the runtime's mount function only calls
-    // __uni_run_effects (not __uni_run_layout_effects).
-    if(js.contains("__uni_run_layout_effects")) {
-        env.error("runtime has $__uni_run_layout_effects — bug #1 may be fixed, update this test")
+    // Layout effects must be drained by the mount path. The runtime runs them
+    // synchronously before paint via $__uni_run_effects(inst, inst.layoutEffects)
+    // (no separate helper is required). Verify the drain call is present.
+    if(js.contains("$__uni_run_effects(inst, inst.layoutEffects)")) {
+        env.success("layout effects are drained synchronously by $__uni_mount")
     } else {
-        // Confirmed: no layout effect runner exists. This IS the bug.
-        env.success("confirmed: no $__uni_run_layout_effects in runtime (layoutEffects never drain)")
+        env.error("layout effects are never drained — useLayoutEffect would silently no-op")
+        env.info(js.data())
     }
 }
 
@@ -207,17 +203,19 @@ public func universal_effects_scheduled_via_microtask(env : &mut TestEnv) {
 }
 
 @test
-public func universal_no_unmount_cleanup_exists(env : &mut TestEnv) {
+public func universal_unmount_cleanup_exists(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <LeakRiskComp /> }
     var js = std::string()
     js.append_view(page.getJs())
-    // The runtime should NOT have a $__uni_unmount function (it doesn't exist).
-    // If it does, the bug is fixed.
-    if(js.contains("$__uni_unmount")) {
-        env.error("runtime has $__uni_unmount — bug #5 may be fixed, update this test")
+    // The runtime must dispose effect cleanups, dep subscriptions, and
+    // render-scoped signals/computeds on unmount so removed components do not
+    // leak. Verify the disposer and the ownership registry are present.
+    if(js.contains("$__uni_dispose") && js.contains("_resources") && js.contains("$_dispose")) {
+        env.success("runtime has ownership-driven disposal ($__uni_dispose + _resources)")
     } else {
-        env.success("confirmed: no $__uni_unmount in runtime (subscriptions leak on removal)")
+        env.error("runtime is missing ownership-driven disposal — subscriptions leak on removal")
+        env.info(js.data())
     }
 }
 

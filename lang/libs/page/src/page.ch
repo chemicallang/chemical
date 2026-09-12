@@ -547,11 +547,17 @@ window.$_ur = {
     Fragment: {},
     createElement: (t, p, ...c) => ({ t, p: p || {}, c })
 }
+window.$__uni_register_resource = ((resource) => {
+    const owner = window.$__uni_render_instance;
+    if(!owner || !resource) return;
+    if(!owner._resources) owner._resources = [];
+    owner._resources.push(resource);
+})
 window.$_us = ((v) => {
     let val = v;
     const subs = [];
     const _inst = window.$__uni_current_instance;
-    return {
+    const signal = {
         get value() {
             if(window.$__uni_current_tracker) window.$__uni_current_tracker(this);
             return val;
@@ -585,8 +591,16 @@ window.$_us = ((v) => {
                 const idx = subs.indexOf(fn);
                 if(idx >= 0) subs.splice(idx, 1);
             };
+        },
+        // Ownership-driven disposal: drop every subscriber so computeds/effects
+        // bound to this signal can be garbage collected when the owning
+        // component instance is unmounted.
+        $_dispose() {
+            subs.length = 0;
         }
     };
+    window.$__uni_register_resource(signal);
+    return signal;
 })
 window.$_ucs = ((fn) => {
     let cached;
@@ -648,11 +662,19 @@ window.$_ucs = ((fn) => {
         }
     };
     signal.$_uc_dispose = dispose;
+    // A signal's own subscribers must also be dropped on disposal so that
+    // effects/computeds holding it do not keep each other alive.
+    signal.$_dispose = () => {
+        subs.length = 0;
+        dispose();
+    };
+    window.$__uni_register_resource(signal);
     if(window.$__uni_child_tracker) window.$__uni_child_tracker(signal);
     return signal;
 })
 window.$__uni_current_instance = null;
 window.$__uni_current_boundary = null;
+window.$__uni_render_instance = null;
 window.$__uni_ctx = {}
 // Shallow equality check for memoization and effect deps
 window.$__uni_shallow_equal = ((a, b) => {
@@ -940,9 +962,13 @@ window.$__uni_run_effects = ((inst, effects) => {
     window.$__uni_current_boundary = inst;
     for(let i = 0; i < effects.length; i++) {
         const eff = effects[i];
+        // Resolve signal deps to their current values for comparison. Comparing
+        // the raw deps array (signal objects) against the previous run's values
+        // would always report "changed" and over-run every effect.
+        const resolved = eff.deps ? eff.deps.map(window.$__uni_value) : null;
         let changed = !eff.lastDeps;
-        if(!changed && eff.deps) {
-            changed = !window.$__uni_shallow_equal(eff.deps, eff.lastDeps);
+        if(!changed && resolved) {
+            changed = !window.$__uni_shallow_equal(resolved, eff.lastDeps);
         }
         if(changed) {
             if(eff.cleanup) {
@@ -954,21 +980,40 @@ window.$__uni_run_effects = ((inst, effects) => {
                 console.error("[universal] effect failed:", err);
                 eff.cleanup = null;
             }
-            if(eff.deps) eff.lastDeps = eff.deps.map(window.$__uni_value);
-            else eff.lastDeps = [];
+            eff.lastDeps = resolved || [];
+            eff.ran = true;
         }
     }
     window.$__uni_current_boundary = prevBoundary;
 })
 window.$__uni_is_state = ((v) => !!(v && typeof v.subscribe === "function" && "value" in v))
+// Development diagnostics toggle. Enabled by default for actionable developer
+// feedback; a production build can set `window.$__uni_prod = true` (or set
+// `window.$__uni_dev = false`) before the runtime loads to get single-shot,
+// no-metadata warnings instead.
+window.$__uni_dev = window.$__uni_prod ? false : (window.$__uni_dev !== false);
+window.$__uni_dev_assert = ((cond, msg) => {
+    if(window.$__uni_dev && !cond) console.warn("[universal] assertion failed: " + msg);
+    return !!cond;
+})
 window.$__uni_warn_hydration = ((msg, expected, got) => {
-    // Hydration mismatches are reported loudly in dev but never crash the
-    // page in production: the runtime already self-corrects below. Guarded so
-    // a busy page with many components doesn't spam thousands of duplicates.
+    if(window.$__uni_dev) {
+        window.$__uni_hydration_warn_count = (window.$__uni_hydration_warn_count || 0) + 1;
+        if(window.$__uni_hydration_warn_count > 25) {
+            if(window.$__uni_hydration_warn_count === 26) {
+                console.warn("[universal] further hydration warnings suppressed (dev build)");
+            }
+            return;
+        }
+        console.warn("[universal] hydration mismatch: " + msg, expected, got);
+        return;
+    }
+    // Hydration mismatches are reported once in production but never crash the
+    // page: the runtime self-corrects below. Guarded so a busy page does not
+    // spam thousands of duplicate messages or leak expected/got values.
     if(window.$__uni_hydration_warned) return;
     window.$__uni_hydration_warned = true;
-    console.warn("[universal] hydration mismatch: " + msg, expected, got);
-    console.warn("[universal] further hydration mismatch warnings suppressed; fix the component source (see components_e2e skill)");
+    console.warn("[universal] hydration mismatch: " + msg);
 })
 window.$_uc_h = ((html, name, props) => ({ t: "__uni_uc", p: { html, name, props } }))
 window.$__uni_value = ((v) => window.$__uni_is_state(v) ? v.value : v)
@@ -1423,14 +1468,26 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
     if(typeof comp !== "function") {
         window.$__uni_error("universal component factory is invalid", typeof comp);
     }
+    // Ownership-driven remount: if this host already owns an instance (e.g. a
+    // re-dispatch of the same boundary), dispose it first so effects and
+    // subscriptions from the previous instance cannot leak.
+    if(host.$__uni_instance) {
+        window.$__uni_dispose(host.$__uni_instance);
+        host.$__uni_instance = null;
+    }
     // Set up instance tracking for effects
     const prevInstance = window.$__uni_current_instance;
-    const inst = { parent: prevInstance, children: [], _disposables: [] };
+    const inst = { parent: prevInstance, children: [], _disposables: [], _resources: [] };
+    host.$__uni_instance = inst;
     if(prevInstance) prevInstance.children.push(inst);
     window.$__uni_current_instance = inst;
     // Set this as the nearest error boundary for child renders
     const prevBoundary = window.$__uni_current_boundary;
     window.$__uni_current_boundary = inst;
+    // Resources (signals/computeds) created while the component renders are
+    // attributed to this instance and disposed on unmount.
+    const prevRenderInstance = window.$__uni_render_instance;
+    window.$__uni_render_instance = inst;
     let out;
     try {
         out = comp(props || {});
@@ -1452,6 +1509,7 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
             out = window.$__uni_default_fallback(props, err);
         }
     }
+    window.$__uni_render_instance = prevRenderInstance;
     window.$__uni_current_boundary = prevBoundary;
     // Ref forwarding: if the parent passed a ref prop, forward it to the
     // component's root DOM element after hydration
@@ -1545,6 +1603,17 @@ window.$__uni_dispose = ((inst) => {
             try { inst._disposables[i](); } catch(err) {}
         }
         inst._disposables = [];
+    }
+    // Dispose render-scoped resources (state signals and computeds created by
+    // this component). Dropping their subscribers lets the whole graph become
+    // unreachable; without this, a long-lived signal would retain every
+    // computed/effect ever bound to a removed component.
+    if(inst._resources) {
+        for(let i = 0; i < inst._resources.length; i++) {
+            const res = inst._resources[i];
+            try { if(res && res.$_dispose) res.$_dispose(); } catch(err) {}
+        }
+        inst._resources = [];
     }
     // Remove from parent
     if(inst.parent && inst.parent.children) {

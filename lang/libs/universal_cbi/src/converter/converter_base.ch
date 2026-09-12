@@ -64,4 +64,11 @@ struct JsConverter {
     var ssr_index_param : std::string_view = ""
     var ssr_index_param_valid : bool = false
     var ssr_index_param_value : SsrJsExprEval
+
+    // Object element bound during compile-time unrolling of a static `.map()`
+    // source: `[{id:"a", label:"Alpha"}].map(item => ...item.label...)`. The
+    // scalar `SsrJsExprEval` cannot represent objects, so the element's literal
+    // text is bound here and `item.<prop>` reads are resolved by parsing it.
+    var ssr_bound_object_valid : bool = false
+    var ssr_bound_object_text : std::string_view = ""
 }

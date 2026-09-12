@@ -746,6 +746,30 @@ Implemented in `lang/libs/page/src/page.ch`:
   can be tested" exit criterion in pragmatic form (the source is still embedded
   in `page.ch`; full extraction remains open).
 
+- **Reactive reads inside callbacks (derived arrays).** `expr_references_reactive_var`
+  and `jsx_expr_needs_reactive_wrapper` now descend into arrow-function bodies
+  (`universal_cbi/src/converter/converter_utils.ch`), so
+  `var filtered = items.filter(it => it.includes(query))` becomes a `$_ucs`
+  computed and `{filtered.map(...)}` stays live. Bare function expressions are
+  explicitly excluded from JSX-expression wrapping in `convert_jsx_runtime_expr`
+  so event handlers/callbacks are emitted as functions, not signals. This
+  unlocks filtering/sorting/data-table/search UIs. E2E:
+  `runtime.spec.ts::derived list: filtered array recomputes reactively`,
+  `::derived list: SSR renders the unfiltered initial value`.
+- **SSR renders object-element `.map()` lists.** `emit_ssr_map_children`
+  previously skipped object-literal elements (`ssr_js_eval_from_text` cannot
+  represent objects), so any keyed list of objects rendered **empty** in the
+  server HTML and only appeared after hydration. The unroller now parses object
+  elements (`parse_js_object_properties`) and binds the element text, and
+  `convert_jsx_ssr_expression` resolves `item.<prop>` reads against it.
+  Verified: keyed list SSR is now `<li>Alpha</li><li>Beta</li><li>Gamma</li>`
+  before JavaScript runs.
+- **SSR assertion suite.** Added
+  `lang/compiled/components-e2e/tests/ssr.spec.ts`, which loads the app with
+  `javaScriptEnabled: false` and asserts server-rendered content directly. This
+  is the plan's "SSR assertion before JavaScript runs" layer; it caught that
+  the E2E suite was only ever exercising post-hydration DOM.
+
 Tests:
 
 - `lang/tests/compiler_plugins/universal/src/runtime_contracts.ch` — the
@@ -754,8 +778,9 @@ Tests:
   `universal_unmount_cleanup_exists`, `universal_keyed_reconciliation_exists`,
   `universal_reconciler_driven_disposal`.
 - `lang/compiled/components-e2e/tests/runtime.spec.ts` — added
-  `effect deps: unrelated state change does not re-run effect` and
-  `keyed list: hydration adopts SSR nodes without removing them` (337 E2E tests pass).
+  `effect deps: unrelated state change does not re-run effect`,
+  `keyed list: hydration adopts SSR nodes without removing them`, and the
+  derived-list tests (349 E2E tests pass).
 
 ### Still open
 

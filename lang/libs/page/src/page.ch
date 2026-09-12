@@ -1373,10 +1373,10 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             return end.nextSibling;
         }
         // List state: adopt the SSR-rendered range in place instead of
-        // re-rendering. Record keys on adopted element nodes so later updates
-        // reconcile by identity (preserving focus/input state), matching the
-        // fresh-render path via the shared $__uni_reconcile_list.
-        if(Array.isArray(stateVal) && dom) {
+        // re-rendering. Only when the first child is an element (a real SSR
+        // list item); an empty server list leaves a text node, which must fall
+        // through to the fresh-render path or the list would double up.
+        if(Array.isArray(stateVal) && dom && dom.nodeType === 1) {
             if(parent) parent.insertBefore(start, dom);
             let cur = dom;
             const adopted = [];

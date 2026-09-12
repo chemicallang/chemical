@@ -188,6 +188,18 @@ func (converter : &mut JsConverter) expr_references_reactive_var(node : *mut JsN
         JsNodeKind.Paren => {
             return converter.expr_references_reactive_var((node as *mut JsParen).expression);
         }
+        JsNodeKind.ArrowFunction => {
+            // A reactive read inside a callback body (e.g. `items.filter(it =>
+            // it.includes(query))`) is still a read of the enclosing computed:
+            // the callback runs synchronously during recompute, so the tracker
+            // observes it. Detect it so the whole expression is wrapped.
+            const arrow = node as *mut JsArrowFunction;
+            for(var i : uint = 0; i < arrow.params.size(); i++) {
+                const def = arrow.params.get(i).default_value;
+                if(def != null && converter.expr_references_reactive_var(def)) return true;
+            }
+            return converter.expr_references_reactive_var(arrow.body);
+        }
         default => return false
     }
 }
@@ -1101,6 +1113,16 @@ func (converter : &mut JsConverter) jsx_expr_needs_reactive_wrapper(node : *mut 
         JsNodeKind.Paren => {
             return converter.jsx_expr_needs_reactive_wrapper((node as *mut JsParen).expression);
         }
+        JsNodeKind.ArrowFunction => {
+            // Reactive reads inside a callback body still make the enclosing
+            // JSX expression reactive (e.g. `{items.filter(it => it.includes(query)).map(...)}`).
+            const arrow = node as *mut JsArrowFunction;
+            for(var i : uint = 0; i < arrow.params.size(); i++) {
+                const def = arrow.params.get(i).default_value;
+                if(def != null && converter.jsx_expr_needs_reactive_wrapper(def)) return true;
+            }
+            return converter.jsx_expr_needs_reactive_wrapper(arrow.body);
+        }
         default => return false
     }
 }
@@ -1135,6 +1157,14 @@ func (converter : &mut JsConverter) convert_jsx_runtime_expr(node : *mut JsNode)
                 return;
             }
         }
+    }
+    // A bare function expression is a callback/handler, not a derived value.
+    // Never wrap it in a computed: we want the function itself, and its body
+    // may legitimately read reactive values later (e.g. an event handler or a
+    // `.map()` callback). Wrapping it would hand a signal to the DOM instead.
+    if(node.kind == JsNodeKind.ArrowFunction || node.kind == JsNodeKind.FunctionDecl) {
+        converter.convertJsNode(node);
+        return;
     }
     if(converter.jsx_expr_needs_reactive_wrapper(node)) {
         converter.str.append_view("$_ucs(() => ");
@@ -1255,6 +1285,27 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
         }
         JsNodeKind.MemberAccess => {
             const mem = node as *mut JsMemberAccess;
+            // Object element bound during static `.map()` unrolling: resolve
+            // `item.<prop>` to the element's property value text.
+            if(converter.ssr_bound_object_valid && mem.object != null && mem.object.kind == JsNodeKind.Identifier) {
+                const objId = mem.object as *mut JsIdentifier;
+                if(objId.value.equals(&converter.ssr_bound_param)) {
+                    var objKeys = std::vector<std::string_view>()
+                    var objValues = std::vector<std::string_view>()
+                    if(parse_js_object_properties(converter.ssr_bound_object_text, &mut objKeys, &mut objValues)) {
+                        for(var pi : uint = 0; pi < objKeys.size(); pi++) {
+                            if(objKeys.get(pi).equals(&mem.property)) {
+                                const propEval = ssr_js_eval_from_text(objValues.get(pi));
+                                if(propEval.valid) {
+                                    converter.append_ssr_eval(propEval);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                    return;
+                }
+            }
             // Array `.length`/`.size` reads (`props.items.length`, `items.length`)
             // render the element count as text, matching the hydrated DOM.
             if(mem.property.equals(view("length")) || mem.property.equals(view("size"))) {
@@ -1438,6 +1489,78 @@ func split_js_array_elements(text : std::string_view, out : &mut std::vector<std
         i++
     }
     if(curStart < end) out.push(text.subview(curStart, end))
+    return true
+}
+
+func trim_js_view(v : std::string_view) : std::string_view {
+    var s : size_t = 0
+    var e : size_t = v.size()
+    while(s < e && (v.get(s) == ' ' || v.get(s) == '\n' || v.get(s) == '\r' || v.get(s) == '\t')) s++
+    while(e > s && (v.get(e - 1) == ' ' || v.get(e - 1) == '\n' || v.get(e - 1) == '\r' || v.get(e - 1) == '\t')) e--
+    return v.subview(s, e)
+}
+
+// Parses a JS object-literal text like `{id: "a", label: "Alpha"}` into
+// parallel key/value text arrays. Used to render object-element `.map()` lists
+// at SSR, which the scalar SsrJsExprEval cannot represent.
+func parse_js_object_properties(text : std::string_view, keys : &mut std::vector<std::string_view>, values : &mut std::vector<std::string_view>) : bool {
+    var start : size_t = 0
+    while(start < text.size() && (text.get(start) == ' ' || text.get(start) == '(' || text.get(start) == '\n' || text.get(start) == '\r' || text.get(start) == '\t')) start++
+    if(start >= text.size() || text.get(start) != '{') return false
+    var end : size_t = text.size()
+    while(end > start && (text.get(end - 1) == ' ' || text.get(end - 1) == ')' || text.get(end - 1) == '\n' || text.get(end - 1) == '\r' || text.get(end - 1) == '\t')) end--
+    if(end <= start || text.get(end - 1) != '}') return false
+    start++
+    end--
+    var i = start
+    var depth : int = 0
+    var curStart = start
+    while(i <= end) {
+        const atEnd = i == end
+        if(!atEnd) {
+            const c = text.get(i)
+            if(c == '"' || c == '\'' || c == '`') {
+                const quote = c
+                i++
+                while(i < end && text.get(i) != quote) {
+                    if(text.get(i) == '\\') i++
+                    i++
+                }
+                if(i < end) i++
+                continue
+            }
+            if(c == '[' || c == '{') depth++
+            else if(c == ']' || c == '}') { if(depth > 0) depth-- }
+        }
+        if(atEnd || (text.get(i) == ',' && depth == 0)) {
+            const part = text.subview(curStart, i)
+            var colon : size_t = 0
+            var found = false
+            var pdepth : int = 0
+            var k : size_t = 0
+            while(k < part.size()) {
+                const pc = part.get(k)
+                if(pc == '[' || pc == '{' || pc == '(') pdepth++
+                else if(pc == ']' || pc == '}' || pc == ')') pdepth--
+                else if(pc == ':' && pdepth == 0) { colon = k; found = true; break }
+                k++
+            }
+            if(found) {
+                var keyView = trim_js_view(part.subview(0, colon))
+                const valView = trim_js_view(part.subview(colon + 1, part.size()))
+                // Strip quotes from the key (e.g. `"id":`).
+                if(keyView.size() >= 2 && (keyView.get(0) == '"' || keyView.get(0) == '\'')) {
+                    keyView = keyView.subview(1, keyView.size() - 1)
+                }
+                keys.push(keyView)
+                values.push(valView)
+            }
+            i++
+            curStart = i
+            continue
+        }
+        i++
+    }
     return true
 }
 
@@ -1645,15 +1768,33 @@ func (converter : &mut JsConverter) emit_ssr_map_children(call : *mut JsFunction
         const oldIdxParam = converter.ssr_index_param
         const oldIdxValid = converter.ssr_index_param_valid
         const oldIdxValue = converter.ssr_index_param_value
+        const oldObjValid = converter.ssr_bound_object_valid
+        const oldObjText = converter.ssr_bound_object_text
         for(var si : uint = 0; si < staticElements.size(); si++) {
-            const ev = ssr_js_eval_from_text(staticElements.get(si))
-            // Unresolvable elements (object literals, expressions referencing
-            // runtime values) render nothing — matching the pre-SSR behavior and
-            // avoiding empty wrappers that would mismatch the hydrated DOM.
-            if(!ev.valid) continue
-            converter.ssr_bound_param = paramName
-            converter.ssr_bound_param_valid = true
-            converter.ssr_bound_param_value = ev
+            const elementText = staticElements.get(si)
+            const ev = ssr_js_eval_from_text(elementText)
+            converter.ssr_bound_object_valid = false
+            if(ev.valid) {
+                converter.ssr_bound_param = paramName
+                converter.ssr_bound_param_valid = true
+                converter.ssr_bound_param_value = ev
+            } else {
+                // Object-literal element: bind its text so `item.<prop>` reads
+                // resolve and object lists render at SSR.
+                var objKeys = std::vector<std::string_view>()
+                var objValues = std::vector<std::string_view>()
+                if(parse_js_object_properties(elementText, &mut objKeys, &mut objValues) && !objKeys.empty()) {
+                    converter.ssr_bound_param = paramName
+                    converter.ssr_bound_param_valid = true
+                    converter.ssr_bound_param_value = ssr_js_eval_invalid()
+                    converter.ssr_bound_object_valid = true
+                    converter.ssr_bound_object_text = elementText
+                } else {
+                    // Truly unresolvable element (expression with runtime refs):
+                    // render nothing rather than an empty wrapper.
+                    continue
+                }
+            }
             if(!indexParam.empty()) {
                 var idxText = std::string()
                 idxText.append_uinteger(si as ubigint)
@@ -1679,6 +1820,8 @@ func (converter : &mut JsConverter) emit_ssr_map_children(call : *mut JsFunction
         converter.ssr_index_param = oldIdxParam
         converter.ssr_index_param_valid = oldIdxValid
         converter.ssr_index_param_value = oldIdxValue
+        converter.ssr_bound_object_valid = oldObjValid
+        converter.ssr_bound_object_text = oldObjText
         return
     }
 
@@ -1906,6 +2049,31 @@ func (converter : &mut JsConverter) convert_js_expr_to_ssr_bool_value(node : *mu
 
 func is_event_attribute_name(name : std::string_view) : bool {
     return name.size() > 2 && name.get(0) == 'o' && name.get(1) == 'n';
+}
+
+// Hook calls return state/handles, not values derived from reactive reads.
+// A `var x = useRef(...)`/`createContext(...)` must NOT be wrapped in a
+// computed, or the returned handle object is replaced by a signal.
+func is_hook_function_name(name : std::string_view) : bool {
+    switch(fnv1_hash_view(&name)) {
+        comptime_fnv1_hash("useState"),
+        comptime_fnv1_hash("useEffect"),
+        comptime_fnv1_hash("useMemo"),
+        comptime_fnv1_hash("useCallback"),
+        comptime_fnv1_hash("useRef"),
+        comptime_fnv1_hash("useContext"),
+        comptime_fnv1_hash("createContext"),
+        comptime_fnv1_hash("useReducer"),
+        comptime_fnv1_hash("useLayoutEffect"),
+        comptime_fnv1_hash("useErrorBoundary"),
+        comptime_fnv1_hash("createPortal") => {
+            return true
+        }
+        default => {
+            return false
+        }
+    }
+    return false
 }
 
 func is_client_only_attribute_name(name : std::string_view) : bool {

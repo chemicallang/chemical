@@ -320,6 +320,7 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                      }
                  }
                  var is_existing_ucs = false;
+                 var is_hook_call = false;
                  if(decl.value != null && decl.value.kind == JsNodeKind.FunctionCall) {
                      var call = decl.value as *mut JsFunctionCall
                      if(call.callee != null && call.callee.kind == JsNodeKind.Identifier) {
@@ -327,10 +328,16 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                          if(id.value.equals(view("$_ucs"))) {
                              is_existing_ucs = true;
                          }
+                         // Hook calls return state/handles (not derived values)
+                         // and must not be wrapped. They are also not computed
+                         // vars: `ctx.value = ...` must target the context entry.
+                         if(is_hook_function_name(id.value)) {
+                             is_hook_call = true;
+                         }
                      }
                  }
                   var should_wrap_in_ucs = converter.function_depth == 0 && decl.value != null && !decl.name.empty() && decl.pattern == null &&
-                      !is_existing_ucs && converter.expr_references_reactive_var(decl.value);
+                      !is_existing_ucs && !is_hook_call && converter.expr_references_reactive_var(decl.value);
                  if(should_wrap_in_ucs) {
                      converter.computed_vars.push(decl.name);
                      converter.str.append_view("const ");

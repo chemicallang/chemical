@@ -486,6 +486,12 @@ window.$__uni_dispatch = ((fnName, target, props, mode = "children") => {
     }
     const fn = window[fnName]
     if(fn) {
+        // Memo check: if component is memoized and props haven't changed, skip mount
+        if(fn.__uni_memo && target.__uni_prev_props) {
+            const eq = fn.__uni_are_equal(target.__uni_prev_props, props || {});
+            if(eq) return;
+        }
+        if(target) target.__uni_prev_props = props ? { ...props } : {};
         try {
             window.$__uni_mount(target, fn, props, mode);
         } catch(err) {
@@ -648,6 +654,20 @@ window.$_ucs = ((fn) => {
 window.$__uni_current_instance = null;
 window.$__uni_current_boundary = null;
 window.$__uni_ctx = {}
+// Shallow equality check for memoization and effect deps
+window.$__uni_shallow_equal = ((a, b) => {
+    if(a === b) return true;
+    if(!a || !b || a.length !== b.length) return false;
+    for(let i = 0; i < a.length; i++) {
+        if(a[i] !== b[i]) return false;
+    }
+    return true;
+})
+// SVG/MathML namespace map
+window.$__uni_ns = {
+    "svg": "http://www.w3.org/2000/svg",
+    "math": "http://www.w3.org/1998/Math/MathML"
+}
 window.$_r = {
     useEffect: (fn, deps) => {
         const inst = window.$__uni_current_instance;
@@ -695,8 +715,34 @@ window.$_r = {
         return [ s, (next) => { s.value = next; } ];
     },
     useRef: (initial) => ({ current: initial }),
-    useMemo: (fn) => window.$_ucs(() => fn()),
-    useCallback: (fn) => fn,
+    useMemo: (fn, deps) => {
+        const inst = window.$__uni_current_instance;
+        if(!inst) return fn();
+        if(!inst._memos) inst._memos = [];
+        const idx = inst._memos.length;
+        inst._memos.push({ fn, deps, value: undefined, initialized: false });
+        const memo = inst._memos[idx];
+        if(!memo.initialized || !window.$__uni_shallow_equal(deps, memo.deps)) {
+            memo.deps = deps ? deps.slice() : null;
+            memo.value = fn();
+            memo.initialized = true;
+        }
+        return memo.value;
+    },
+    useCallback: (fn, deps) => {
+        const inst = window.$__uni_current_instance;
+        if(!inst || !deps) return fn;
+        if(!inst._callbacks) inst._callbacks = [];
+        const idx = inst._callbacks.length;
+        inst._callbacks.push({ fn, deps, cached: fn, initialized: false });
+        const cb = inst._callbacks[idx];
+        if(!cb.initialized || !window.$__uni_shallow_equal(deps, cb.deps)) {
+            cb.deps = deps.slice();
+            cb.cached = fn;
+            cb.initialized = true;
+        }
+        return cb.cached;
+    },
     useUnmount: (fn) => {
         const inst = window.$__uni_current_instance;
         if(inst && inst._disposables) inst._disposables.push(fn);
@@ -749,6 +795,26 @@ window.$_r = {
         inst.errorFallback = typeof fallback === "function" ? fallback : null;
     }
 }
+// Memoization wrapper: wraps a component factory so it only re-renders
+// when props change (shallow comparison). Usage:
+//   window.$__uni_memo((props) => $_ur.createElement(...), areEqual?)
+window.$__uni_memo = ((factory, areEqual) => {
+    const check = areEqual || window.$__uni_shallow_equal;
+    const wrapped = (props) => factory(props);
+    wrapped.__uni_memo = true;
+    wrapped.__uni_are_equal = (prev, next) => {
+        if(!prev || !next) return false;
+        const prevKeys = Object.keys(prev);
+        const nextKeys = Object.keys(next);
+        if(prevKeys.length !== nextKeys.length) return false;
+        for(let i = 0; i < prevKeys.length; i++) {
+            const k = prevKeys[i];
+            if(prev[k] !== next[k]) return false;
+        }
+        return true;
+    };
+    return wrapped;
+})
 // Default fallback UI rendered in place of a universal component whose render
 // threw. Components can supply their own via useErrorBoundary(fallback).
 window.$__uni_default_fallback = ((props, err) => {
@@ -862,11 +928,7 @@ window.$__uni_run_effects = ((inst, effects) => {
         const eff = effects[i];
         let changed = !eff.lastDeps;
         if(!changed && eff.deps) {
-            for(let j = 0; j < eff.deps.length; j++) {
-                if(window.$__uni_value(eff.deps[j]) !== eff.lastDeps[j]) {
-                    changed = true; break;
-                }
-            }
+            changed = !window.$__uni_shallow_equal(eff.deps, eff.lastDeps);
         }
         if(changed) {
             if(eff.cleanup) {
@@ -1154,7 +1216,8 @@ window.$_urn = ((v) => {
             if(v.c && v.c.length) nextProps.children = v.c.length === 1 ? v.c[0] : v.c;
             return window.$_urn(v.t(nextProps));
         }
-        const e = document.createElement(v.t);
+        const ns = window.$__uni_ns[v.t];
+        const e = ns ? document.createElementNS(ns, v.t) : document.createElement(v.t);
         const props = v.p || {};
         for(const k in props) window.$__uni_apply_prop(e, k, props[k]);
         const children = v.c || [];
@@ -1375,6 +1438,9 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
         }
     }
     window.$__uni_current_boundary = prevBoundary;
+    // Ref forwarding: if the parent passed a ref prop, forward it to the
+    // component's root DOM element after hydration
+    const refVal = props && props.ref ? props.ref : null;
     // Keep current_instance = inst during hydration so child components
     // dispatched via $_uni_dispatch correctly parent to this instance
     if(mode === "root") {
@@ -1389,6 +1455,8 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
         // Layout effects run synchronously before paint
         if(inst.layoutEffects && inst.layoutEffects.length) window.$__uni_run_effects(inst, inst.layoutEffects);
         if(inst.effects && inst.effects.length) window.$__uni_run_effects(inst, inst.effects);
+        // Ref forwarding for root mode
+        if(refVal) window.$__uni_assign_ref(host, refVal);
         return;
     }
     window.$__uni_hydrate_children(host, [ out ]);
@@ -1413,6 +1481,10 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
     // Layout effects run synchronously before paint
     if(inst.layoutEffects && inst.layoutEffects.length) window.$__uni_run_effects(inst, inst.layoutEffects);
     if(inst.effects && inst.effects.length) window.$__uni_run_effects(inst, inst.effects);
+    // Ref forwarding: assign the ref prop to the component's root DOM element
+    if(refVal && trackedEl && trackedEl !== host) {
+        window.$__uni_assign_ref(trackedEl, refVal);
+    }
 })
 // Owner tree cleanup: dispose all effects, subscriptions, and child instances
 window.$__uni_dispose = ((inst) => {

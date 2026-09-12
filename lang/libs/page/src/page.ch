@@ -1151,6 +1151,80 @@ window.$__uni_apply_prop = ((el, key, value) => {
         value.subscribe((next) => window.$__uni_set_prop(el, key, next));
     }
 })
+// Remove and dispose every node in the comment-delimited range (start, end).
+window.$__uni_clear_range = ((start, end) => {
+    while(start.nextSibling && start.nextSibling !== end) {
+        const n = start.nextSibling;
+        window.$__uni_dispose_subtree(n);
+        n.remove();
+    }
+})
+// Reconcile a vnode array into the comment-delimited DOM range
+// (start, end). Keyed arrays match old nodes by `__uni_vnode_key` and move them
+// (preserving identity, focus, and input values); unkeyed arrays are replaced.
+// Returns the vnode array to track for the next reconcile. Shared by fresh
+// renders ($_urn) and hydration adoption so both use identical semantics.
+window.$__uni_reconcile_list = ((start, end, next, oldVnodes) => {
+    const isKeyedArray = Array.isArray(next) && next.length > 0 && next[0] && next[0].p && next[0].p.key != null;
+    if(!isKeyedArray) {
+        window.$__uni_clear_range(start, end);
+        start.after(window.$_urn(next));
+        return null;
+    }
+    const oldMap = new Map();
+    if(oldVnodes && start.parentNode) {
+        for(let i = 0; i < oldVnodes.length; i++) {
+            const ov = oldVnodes[i];
+            if(ov && ov.p && ov.p.key != null) {
+                let el = start.nextSibling;
+                while(el && el !== end) {
+                    if(el.__uni_vnode_key === ov.p.key) { oldMap.set(ov.p.key, { vnode: ov, el: el }); break; }
+                    el = el.nextSibling;
+                }
+            }
+        }
+    }
+    let anchor = start;
+    const newVnodes = [];
+    for(let i = 0; i < next.length; i++) {
+        const nv = next[i];
+        const nk = nv && nv.p ? nv.p.key : null;
+        if(nk != null && oldMap.has(nk)) {
+            const entry = oldMap.get(nk);
+            const el = entry.el;
+            oldMap.delete(nk);
+            el.__uni_vnode_key = nk;
+            const props = nv.p || {};
+            for(const pk in props) window.$__uni_set_prop(el, pk, props[pk]);
+            const oldChildren = [];
+            let c = el.firstChild;
+            while(c) { oldChildren.push(c); c = c.nextSibling; }
+            for(let ci = 0; ci < oldChildren.length; ci++) { window.$__uni_dispose_subtree(oldChildren[ci]); oldChildren[ci].remove(); }
+            const children = nv.c || [];
+            for(let ci = 0; ci < children.length; ci++) el.appendChild(window.$_urn(children[ci]));
+            if(el.nextSibling !== anchor.nextSibling) {
+                el.remove();
+                anchor.after(el);
+            }
+            anchor = el;
+            newVnodes.push(nv);
+        } else {
+            const rendered = window.$_urn(nv);
+            if(nk != null) {
+                let tempEl = rendered;
+                if(rendered.nodeType === 11) tempEl = rendered.firstChild;
+                if(tempEl && tempEl.nodeType === 1) tempEl.__uni_vnode_key = nk;
+            }
+            anchor.after(rendered);
+            anchor = anchor.nextSibling;
+            while(anchor && anchor !== end && anchor.nodeType !== 1) anchor = anchor.nextSibling;
+            if(!anchor || anchor === end) anchor = end.previousSibling || start;
+            newVnodes.push(nv);
+        }
+    }
+    oldMap.forEach((entry) => { window.$__uni_dispose_subtree(entry.el); entry.el.remove(); });
+    return newVnodes;
+})
 window.$_urn = ((v) => {
     if(v == null || v === false || v === true) return document.createTextNode("");
     if(window.$__uni_is_state(v)) {
@@ -1160,75 +1234,10 @@ window.$_urn = ((v) => {
         f.appendChild(start);
         f.appendChild(end);
         let oldVnodes = null;
-        const reconcile = (next) => {
-            const isKeyedArray = Array.isArray(next) && next.length > 0 && next[0] && next[0].p && next[0].p.key != null;
-            if(!isKeyedArray) {
-                while(start.nextSibling && start.nextSibling !== end) start.nextSibling.remove();
-                oldVnodes = null;
-                start.after(window.$_urn(next));
-                return;
-            }
-            const oldMap = new Map();
-            if(oldVnodes) {
-                for(let i = 0; i < oldVnodes.length; i++) {
-                    const ov = oldVnodes[i];
-                    if(ov && ov.p && ov.p.key != null) {
-                        let el = start.nextSibling;
-                        while(el && el !== end) {
-                            if(el.__uni_vnode_key === ov.p.key) { oldMap.set(ov.p.key, { vnode: ov, el: el }); break; }
-                            el = el.nextSibling;
-                        }
-                    }
-                }
-            }
-            const newKeys = new Set();
-            for(let i = 0; i < next.length; i++) {
-                const nv = next[i];
-                const nk = nv && nv.p ? nv.p.key : null;
-                if(nk != null) newKeys.add(nk);
-            }
-            let anchor = start;
-            const newVnodes = [];
-            for(let i = 0; i < next.length; i++) {
-                const nv = next[i];
-                const nk = nv && nv.p ? nv.p.key : null;
-                if(nk != null && oldMap.has(nk)) {
-                    const { el } = oldMap.get(nk);
-                    oldMap.delete(nk);
-                    el.__uni_vnode_key = nk;
-                    const props = nv.p || {};
-                    for(const pk in props) window.$__uni_set_prop(el, pk, props[pk]);
-                    const oldChildren = [];
-                    let c = el.firstChild;
-                    while(c) { oldChildren.push(c); c = c.nextSibling; }
-                    for(let ci = 0; ci < oldChildren.length; ci++) oldChildren[ci].remove();
-                    const children = nv.c || [];
-                    for(let ci = 0; ci < children.length; ci++) el.appendChild(window.$_urn(children[ci]));
-                    if(el.nextSibling !== anchor.nextSibling) {
-                        el.remove();
-                        anchor.after(el);
-                    }
-                    anchor = el;
-                    newVnodes.push(nv);
-                } else {
-                    const rendered = window.$_urn(nv);
-                    if(nk != null) {
-                        let tempEl = rendered;
-                        if(rendered.nodeType === 11) tempEl = rendered.firstChild;
-                        if(tempEl && tempEl.nodeType === 1) tempEl.__uni_vnode_key = nk;
-                    }
-                    anchor.after(rendered);
-                    anchor = anchor.nextSibling;
-                    while(anchor && anchor !== end && anchor.nodeType !== 1) anchor = anchor.nextSibling;
-                    if(!anchor || anchor === end) anchor = end.previousSibling || start;
-                    newVnodes.push(nv);
-                }
-            }
-            for(const [key, { el }] of oldMap) el.remove();
-            oldVnodes = newVnodes;
-        };
-        v.subscribe(reconcile);
-        reconcile(v.value);
+        v.subscribe((next) => {
+            oldVnodes = window.$__uni_reconcile_list(start, end, next, oldVnodes);
+        });
+        oldVnodes = window.$__uni_reconcile_list(start, end, v.value, oldVnodes);
         return f;
     }
     if(v.nodeType) return v;
@@ -1328,7 +1337,7 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             while(cur && (cur.nodeType !== 8 || cur.nodeValue !== "e")) cur = cur.nextSibling;
             const end = cur;
             v.subscribe((next) => {
-                while(start.nextSibling && start.nextSibling !== end) start.nextSibling.remove();
+                window.$__uni_clear_range(start, end);
                 start.after(window.$_urn(next));
             });
             return end ? end.nextSibling : null;
@@ -1345,7 +1354,7 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
                 parent.insertBefore(end, dom.nextSibling);
             }
             v.subscribe((next) => {
-                while(start.nextSibling && start.nextSibling !== end) start.nextSibling.remove();
+                window.$__uni_clear_range(start, end);
                 start.after(window.$_urn(next));
             });
             if(stateVal.t === "__uni_uc") {
@@ -1363,18 +1372,42 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             }
             return end.nextSibling;
         }
+        // List state: adopt the SSR-rendered range in place instead of
+        // re-rendering. Record keys on adopted element nodes so later updates
+        // reconcile by identity (preserving focus/input state), matching the
+        // fresh-render path via the shared $__uni_reconcile_list.
+        if(Array.isArray(stateVal) && dom) {
+            if(parent) parent.insertBefore(start, dom);
+            let cur = dom;
+            const adopted = [];
+            for(let i = 0; i < stateVal.length; i++) {
+                const nv = stateVal[i];
+                const node = cur;
+                if(nv && nv.p && nv.p.key != null && node && node.nodeType === 1) {
+                    node.__uni_vnode_key = nv.p.key;
+                }
+                cur = window.$__uni_hydrate_node(parent, cur, nv);
+                adopted.push(nv);
+            }
+            if(parent) parent.insertBefore(end, cur);
+            let tracked = adopted;
+            v.subscribe((next) => {
+                tracked = window.$__uni_reconcile_list(start, end, next, tracked);
+            });
+            return end.nextSibling;
+        }
         if(parent) {
             if(dom) { parent.insertBefore(end, dom); parent.insertBefore(start, end); }
             else { parent.appendChild(start); parent.appendChild(end); }
         }
         v.subscribe((next) => {
-            while(start.nextSibling && start.nextSibling !== end) start.nextSibling.remove();
+            window.$__uni_clear_range(start, end);
             start.after(window.$_urn(next));
         });
         start.after(window.$_urn(v.value));
         // Remove original SSR node that was replaced by state markers to
         // prevent text/element doubling when hydration re-renders the value.
-        if(dom && dom.parentNode === parent) dom.remove();
+        if(dom && dom.parentNode === parent) { window.$__uni_dispose_subtree(dom); dom.remove(); }
         return end.nextSibling;
     }
     if(typeof v === "string" || typeof v === "number") {
@@ -1493,7 +1526,7 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
         out = comp(props || {});
     } catch(err) {
         // Use console.warn (not error) so the error boundary catch doesn't
-        // trigger Playwright's pageerror listener — the boundary handles it.
+        // trigger Playwright's pageerror listener -- the boundary handles it.
         console.warn("[universal] component render failed:", err.message || err);
         // Look for the nearest error boundary: start with this instance,
         // then walk up the parent chain
@@ -1533,13 +1566,13 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
         return;
     }
     window.$__uni_hydrate_children(host, [ out ]);
-    // Restore instance AFTER hydration — child components dispatched during
+    // Restore instance AFTER hydration -- child components dispatched during
     // hydration need $_uni_current_instance set to this inst for parent linking
     window.$__uni_current_instance = prevInstance;
     // Track instance for unmount cleanup via MutationObserver.
     // During SSR hydration, prefer the [data-chx-i] boundary element.
     // During dynamic re-renders (via $_urn), `host` is a temporary container
-    // that never enters the DOM — track its first element child instead.
+    // that never enters the DOM -- track its first element child instead.
     let trackedEl = host;
     if(host.querySelector) {
         trackedEl = host.querySelector("[data-chx-i]");
@@ -1622,6 +1655,28 @@ window.$__uni_dispose = ((inst) => {
     }
     inst.parent = null;
 })
+// Disposal driven by the reconciler: before the reconciler removes DOM it
+// explicitly disposes every component instance in the affected subtree. This
+// makes teardown deterministic (triggered by the operation that removes the
+// nodes) instead of relying solely on the MutationObserver heuristic below.
+// The observer remains as a safety net for removals that bypass the runtime.
+window.$__uni_dispose_subtree = ((node) => {
+    if(!node || node.nodeType !== 1) return;
+    const observed = window.$__uni_cleanup_observer && window.$__uni_cleanup_observer.observed;
+    const disposeHost = (el) => {
+        if(el && el.$__uni_instance) {
+            window.$__uni_dispose(el.$__uni_instance);
+            el.$__uni_instance = null;
+        }
+        if(observed) {
+            const inst = observed.get(el);
+            if(inst) { window.$__uni_dispose(inst); observed.delete(el); }
+        }
+    };
+    disposeHost(node);
+    const spans = node.querySelectorAll ? node.querySelectorAll("[data-chx-i]") : [];
+    for(let i = 0; i < spans.length; i++) disposeHost(spans[i]);
+})
 // MutationObserver to detect DOM removal and clean up owner trees
 window.$__uni_cleanup_observer = (() => {
     if(typeof MutationObserver === "undefined") return null;
@@ -1685,7 +1740,7 @@ window.$__universal_flush = function() {
                 console.error("universal hydration failed for component", obj[0], err);
             }
         } else {
-            // Component function not yet registered — log and continue instead
+            // Component function not yet registered -- log and continue instead
             // of throwing, which would kill the entire flush loop.
             console.error("universal flush: missing component function", obj[0], "- dispatch was queued but fn was never registered");
         }

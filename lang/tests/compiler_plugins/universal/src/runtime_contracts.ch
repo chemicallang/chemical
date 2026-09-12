@@ -132,6 +132,26 @@ public func universal_effect_deps_compared_by_value(env : &mut TestEnv) {
 }
 
 // =============================================================================
+// Reconciler-driven disposal: teardown is triggered by the operation that
+// removes DOM, not only by the MutationObserver safety net.
+// =============================================================================
+
+@test
+public func universal_reconciler_driven_disposal(env : &mut TestEnv) {
+    var page = HtmlPage()
+    page.defaultUniversalSetup()
+    #html { <LeakRiskComp /> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    if(js.contains("$__uni_dispose_subtree") && js.contains("$__uni_clear_range")) {
+        env.success("reconciler disposes removed subtrees deterministically")
+    } else {
+        env.error("reconciler does not dispose removed subtrees — relies on MutationObserver only")
+        env.info(js.data())
+    }
+}
+
+// =============================================================================
 // Bug #3: $_us captures window.$__uni_current_instance at creation time.
 //
 // The state signal creator $_us captures _inst = window.$__uni_current_instance
@@ -271,7 +291,7 @@ public func universal_keyed_reconciliation_exists(env : &mut TestEnv) {
     // The runtime must reconcile keyed arrays by identity (matching old nodes
     // to new vnodes by key and moving them) so reordering preserves DOM nodes,
     // focus, and input values.
-    if(js.contains("__uni_vnode_key") && js.contains("oldMap") && js.contains("newKeys")) {
+    if(js.contains("__uni_vnode_key") && js.contains("oldMap") && js.contains("$__uni_reconcile_list")) {
         env.success("runtime reconciles keyed lists by identity")
     } else {
         env.error("runtime has no keyed reconciliation — reorders would patch the wrong nodes")

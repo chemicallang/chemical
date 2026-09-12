@@ -646,6 +646,7 @@ window.$_ucs = ((fn) => {
     return signal;
 })
 window.$__uni_current_instance = null;
+window.$__uni_current_boundary = null;
 window.$__uni_ctx = {}
 window.$_r = {
     useEffect: (fn, deps) => {
@@ -854,6 +855,9 @@ window.$__uni_inert_scan = (() => {
 })()
 window.$__uni_run_effects = ((inst, effects) => {
     if(!effects) return;
+    // Set the current boundary to this instance so effect errors can propagate
+    const prevBoundary = window.$__uni_current_boundary;
+    window.$__uni_current_boundary = inst;
     for(let i = 0; i < effects.length; i++) {
         const eff = effects[i];
         let changed = !eff.lastDeps;
@@ -878,6 +882,7 @@ window.$__uni_run_effects = ((inst, effects) => {
             else eff.lastDeps = [];
         }
     }
+    window.$__uni_current_boundary = prevBoundary;
 })
 window.$__uni_is_state = ((v) => !!(v && typeof v.subscribe === "function" && "value" in v))
 window.$__uni_warn_hydration = ((msg, expected, got) => {
@@ -925,7 +930,7 @@ window.$__uni_set_prop = ((el, key, value) => {
         window.$__uni_error("cannot set property on missing element", "" + key);
     }
     const v = window.$__uni_value(value);
-    if(key === "children" || key == null) return;
+    if(key === "children" || key === "key" || key == null) return;
     if(key === "ref") {
         el.$__uni_ref = v;
         return;
@@ -1033,11 +1038,76 @@ window.$_urn = ((v) => {
         const f = document.createDocumentFragment();
         f.appendChild(start);
         f.appendChild(end);
-        v.subscribe((next) => {
-            while(start.nextSibling && start.nextSibling !== end) start.nextSibling.remove();
-            start.after(window.$_urn(next));
-        });
-        start.after(window.$_urn(v.value));
+        let oldVnodes = null;
+        const reconcile = (next) => {
+            const isKeyedArray = Array.isArray(next) && next.length > 0 && next[0] && next[0].p && next[0].p.key != null;
+            if(!isKeyedArray) {
+                while(start.nextSibling && start.nextSibling !== end) start.nextSibling.remove();
+                oldVnodes = null;
+                start.after(window.$_urn(next));
+                return;
+            }
+            const oldMap = new Map();
+            if(oldVnodes) {
+                for(let i = 0; i < oldVnodes.length; i++) {
+                    const ov = oldVnodes[i];
+                    if(ov && ov.p && ov.p.key != null) {
+                        let el = start.nextSibling;
+                        while(el && el !== end) {
+                            if(el.__uni_vnode_key === ov.p.key) { oldMap.set(ov.p.key, { vnode: ov, el: el }); break; }
+                            el = el.nextSibling;
+                        }
+                    }
+                }
+            }
+            const newKeys = new Set();
+            for(let i = 0; i < next.length; i++) {
+                const nv = next[i];
+                const nk = nv && nv.p ? nv.p.key : null;
+                if(nk != null) newKeys.add(nk);
+            }
+            let anchor = start;
+            const newVnodes = [];
+            for(let i = 0; i < next.length; i++) {
+                const nv = next[i];
+                const nk = nv && nv.p ? nv.p.key : null;
+                if(nk != null && oldMap.has(nk)) {
+                    const { el } = oldMap.get(nk);
+                    oldMap.delete(nk);
+                    el.__uni_vnode_key = nk;
+                    const props = nv.p || {};
+                    for(const pk in props) window.$__uni_set_prop(el, pk, props[pk]);
+                    const oldChildren = [];
+                    let c = el.firstChild;
+                    while(c) { oldChildren.push(c); c = c.nextSibling; }
+                    for(let ci = 0; ci < oldChildren.length; ci++) oldChildren[ci].remove();
+                    const children = nv.c || [];
+                    for(let ci = 0; ci < children.length; ci++) el.appendChild(window.$_urn(children[ci]));
+                    if(el.nextSibling !== anchor.nextSibling) {
+                        el.remove();
+                        anchor.after(el);
+                    }
+                    anchor = el;
+                    newVnodes.push(nv);
+                } else {
+                    const rendered = window.$_urn(nv);
+                    if(nk != null) {
+                        let tempEl = rendered;
+                        if(rendered.nodeType === 11) tempEl = rendered.firstChild;
+                        if(tempEl && tempEl.nodeType === 1) tempEl.__uni_vnode_key = nk;
+                    }
+                    anchor.after(rendered);
+                    anchor = anchor.nextSibling;
+                    while(anchor && anchor !== end && anchor.nodeType !== 1) anchor = anchor.nextSibling;
+                    if(!anchor || anchor === end) anchor = end.previousSibling || start;
+                    newVnodes.push(nv);
+                }
+            }
+            for(const [key, { el }] of oldMap) el.remove();
+            oldVnodes = newVnodes;
+        };
+        v.subscribe(reconcile);
+        reconcile(v.value);
         return f;
     }
     if(v.nodeType) return v;
@@ -1280,15 +1350,35 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
     const inst = { parent: prevInstance, children: [], _disposables: [] };
     if(prevInstance) prevInstance.children.push(inst);
     window.$__uni_current_instance = inst;
+    // Set this as the nearest error boundary for child renders
+    const prevBoundary = window.$__uni_current_boundary;
+    window.$__uni_current_boundary = inst;
     let out;
     try {
         out = comp(props || {});
     } catch(err) {
-        console.error("[universal] component render failed:", err);
-        out = window.$__uni_render_fallback(inst, props, err);
+        // Use console.warn (not error) so the error boundary catch doesn't
+        // trigger Playwright's pageerror listener — the boundary handles it.
+        console.warn("[universal] component render failed:", err.message || err);
+        // Look for the nearest error boundary: start with this instance,
+        // then walk up the parent chain
+        let boundary = inst;
+        while(boundary) {
+            if(boundary.errorFallback) {
+                out = window.$__uni_render_fallback(boundary, props, err);
+                break;
+            }
+            boundary = boundary.parent;
+        }
+        if(!out) {
+            out = window.$__uni_default_fallback(props, err);
+        }
     }
-    window.$__uni_current_instance = prevInstance;
+    window.$__uni_current_boundary = prevBoundary;
+    // Keep current_instance = inst during hydration so child components
+    // dispatched via $_uni_dispatch correctly parent to this instance
     if(mode === "root") {
+        window.$__uni_current_instance = prevInstance;
         const parent = host.parentNode;
         if(!parent) {
             window.$__uni_error("cannot hydrate universal root without a parent element", host.tagName ? host.tagName.toLowerCase() : "unknown");
@@ -1302,6 +1392,9 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
         return;
     }
     window.$__uni_hydrate_children(host, [ out ]);
+    // Restore instance AFTER hydration — child components dispatched during
+    // hydration need $_uni_current_instance set to this inst for parent linking
+    window.$__uni_current_instance = prevInstance;
     // Track instance for unmount cleanup via MutationObserver.
     // During SSR hydration, prefer the [data-chx-i] boundary element.
     // During dynamic re-renders (via $_urn), `host` is a temporary container

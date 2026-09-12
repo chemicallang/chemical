@@ -1776,6 +1776,37 @@ public func complex_calc_and_clamp_and_min_max_works(env : &mut TestEnv) {
 }
 
 @test
+public func font_size_clamp_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        font-size: clamp(1rem, 2.5vw, 3rem);
+    }
+    css_equals(env, page.toStringCssOnly(), "font-size:clamp(1rem, 2.5vw, 3rem);");
+}
+
+@test
+public func font_size_min_max_var_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        font-size: min(4vw, 18px);
+        font-size: max(12px, 1.2em);
+        font-size: var(--heading-size);
+    }
+    css_equals(env, page.toStringCssOnly(), "font-size:min(4vw, 18px);font-size:max(12px, 1.2em);font-size:var(--heading-size);");
+}
+
+@test
+public func selector_font_size_clamp_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #css {
+        .responsive {
+            font-size: clamp(1rem, 2.5vw, 3rem);
+        }
+    }
+    css_equals(env, page.toStringCssOnly(), ".responsive{font-size:clamp(1rem, 2.5vw, 3rem);}");
+}
+
+@test
 public func animation_and_transition_combined_properties_works(env : &mut TestEnv) {
     var page = HtmlPage()
     #css {

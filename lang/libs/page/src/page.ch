@@ -1016,6 +1016,11 @@ window.$__uni_warn_hydration = ((msg, expected, got) => {
     console.warn("[universal] hydration mismatch: " + msg);
 })
 window.$_uc_h = ((html, name, props) => ({ t: "__uni_uc", p: { html, name, props } }))
+// Universal component vnode that references the client component function directly
+// instead of a name + SSR HTML snapshot. This is the Phase 2 hydration boundary:
+// the server-rendered DOM is located and hydrated in place, so no SSR markup is
+// transported through the JavaScript bundle.
+window.$_uc_c = ((comp, props) => ({ t: "__uni_uc", p: { comp, props } }))
 window.$__uni_value = ((v) => window.$__uni_is_state(v) ? v.value : v)
 window.$__uni_html = ((html) => ({ __uni_html: html || "" }))
 window.$__uni_is_active_editable = ((el) => !!(el && el.isContentEditable && document.activeElement === el))
@@ -1254,8 +1259,14 @@ window.$_urn = ((v) => {
     }
     if(v && v.t !== undefined) {
         if(v.t === "__uni_uc") {
-            const { html, name, props } = v.p;
+            const { html, name, props, comp } = v.p;
             const container = document.createElement("div");
+            if(comp) {
+                window.$__uni_mount(container, comp, props);
+                const f = document.createDocumentFragment();
+                while(container.firstChild) f.appendChild(container.firstChild);
+                return f;
+            }
             if (html) {
                 container.innerHTML = html;
                 window.$__uni_dispatch(name, container, props);
@@ -1358,7 +1369,8 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
                 start.after(window.$_urn(next));
             });
             if(stateVal.t === "__uni_uc") {
-                window.$__uni_dispatch(stateVal.p.name, dom, stateVal.p.props, "root");
+                if(stateVal.p.comp) window.$__uni_mount(dom, stateVal.p.comp, stateVal.p.props, "root");
+                else window.$__uni_dispatch(stateVal.p.name, dom, stateVal.p.props, "root");
             } else if(stateVal.t === window.$_ur.Fragment) {
                 window.$__uni_hydrate_node(parent, dom, stateVal.c || []);
             } else if(typeof stateVal.t === "function") {
@@ -1426,14 +1438,16 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
     if(v && v.__uni_html !== undefined) return dom; // SSRed content handled by parent
     if(v && v.t !== undefined) {
         if(v.t === "__uni_uc") {
-            const { name, props } = v.p;
+            const { name, props, comp } = v.p;
             if(dom && dom.nodeType === 1) {
-                window.$__uni_dispatch(name, dom, props, "root");
+                if(comp) window.$__uni_mount(dom, comp, props, "root");
+                else window.$__uni_dispatch(name, dom, props, "root");
                 return dom.nextSibling;
             }
             const container = document.createElement("div");
             if(parent) parent.insertBefore(container, dom);
-            window.$__uni_dispatch(name, container, props);
+            if(comp) window.$__uni_mount(container, comp, props);
+            else window.$__uni_dispatch(name, container, props);
             return dom;
         }
         if(v.t === "__uni_portal") {

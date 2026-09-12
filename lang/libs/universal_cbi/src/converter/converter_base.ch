@@ -16,6 +16,14 @@ struct JsSsrLocal {
     var varInit : *mut ASTNode
 }
 
+// A component-body variable's initializer source text, tracked so SSR can
+// resolve derived expressions (e.g. `var visible = items.filter(...)` then
+// `{visible.map(...)}`) via static evaluation.
+struct JsVarInitText {
+    var name : std::string_view
+    var init : std::string_view
+}
+
 // A local variable bound to `createContext(name, default)` or `useContext(name)`
 // in a universal component body (`const ctx = createContext("rg-" + props.name,
 // "")`). The name/default expressions let consumers resolve the same registry
@@ -77,4 +85,8 @@ struct JsConverter {
     // accumulator `out = out + ...`) must NOT be wrapped in a computed, or the
     // reassignment targets a signal instead of a plain string.
     var assigned_names : std::vector<std::string_view>
+
+    // Initializer source texts of component-body variables, for SSR resolution
+    // of derived expressions.
+    var var_init_texts : std::vector<JsVarInitText>
 }

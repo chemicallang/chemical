@@ -791,9 +791,19 @@ Implemented in `lang/libs/page/src/page.ch`:
 A computed local whose source is a **`.filter()` over runtime props**
 (e.g. `var visible = props.items.filter(it => ...)`) is reactive on the client
 but renders **empty at SSR**, because the generated server function cannot
-evaluate a JavaScript predicate. Closing this requires predicate codegen /
-evaluator unification (plan Phase 3). The client renders it correctly after
-hydration; only the pre-hydration HTML is affected.
+evaluate a JavaScript predicate. A **static** source is now handled: see
+"Static `.filter()` SSR" below. Closing the runtime-prop case requires
+predicate codegen / evaluator unification (plan Phase 3).
+
+- **Static `.filter()` SSR.** `emit_ssr_map_children` and `emit_ssr_array_count`
+  resolve a derived local's initializer (`resolve_static_array_elements`) and,
+  for `var filtered = items.filter(pred)` over a static state/array-literal
+  source, statically evaluate the predicate per element with a conservative
+  evaluator (`ssr_filter_predicate`: `includes`/`startsWith`/`endsWith`,
+  `==`/`!=`, `!`, case-folding via `toLowerCase`). `append_js_node_text` now
+  emits arrow functions so the initializer text is available. E2E:
+  `ssr.spec.ts::SSR: derived .filter() list renders before JS`.
+  Runtime-prop sources remain client-only (the predicate needs a JS evaluator).
 
 Tests:
 

@@ -400,10 +400,44 @@ public #universal ProgressValue(props) {
 // `defaultValue` is an array of item values open by default.
 // `multiple` allows multiple items open at the same time.
 // Accordion: styled wrapper for a group of AccordionItems.
-// Passes through all props. data-accordion-root enables keyboard nav via JS.
+// Passes through all props. Keyboard navigation: ArrowUp/Down move between
+// triggers, Home/End jump to first/last trigger.
 public #universal Accordion(props) {
     var multiple = props.multiple || false
-    return <div {...props} class={${accordion_styles(page)}} data-accordion-root="true" data-multiple={multiple ? "true" : "false"}>
+    var handleAccordionKeyDown = (e) => {
+        var all = e.currentTarget.querySelectorAll("[data-accordion-trigger]")
+        if(!all || all.length == 0) { return }
+        // Collect non-disabled triggers
+        var triggers = []
+        for(var i = 0; i < all.length; i++) {
+            if(!all[i].disabled) { triggers.push(all[i]) }
+        }
+        if(triggers.length == 0) { return }
+        var current = document.activeElement
+        var idx = -1
+        for(var j = 0; j < triggers.length; j++) {
+            if(triggers[j] == current) { idx = j; break }
+        }
+        if(idx == -1) { return }
+        var next = -1
+        if(e.key == "ArrowDown") {
+            e.preventDefault()
+            next = (idx + 1) % triggers.length
+        } else if(e.key == "ArrowUp") {
+            e.preventDefault()
+            next = (idx - 1 + triggers.length) % triggers.length
+        } else if(e.key == "Home") {
+            e.preventDefault()
+            next = 0
+        } else if(e.key == "End") {
+            e.preventDefault()
+            next = triggers.length - 1
+        } else {
+            return
+        }
+        triggers[next].focus()
+    }
+    return <div {...props} class={${accordion_styles(page)}} data-accordion-root="true" data-multiple={multiple ? "true" : "false"} onKeyDown={handleAccordionKeyDown}>
         {props.children}
     </div>
 }

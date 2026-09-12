@@ -889,7 +889,21 @@ window.$__uni_floating = ((trigger, menu, opts = {}) => {
 // visibility locks the background.
 window.$__uni_tag_portal = ((container, opts = {}) => {
     container.setAttribute("data-uni-portal", "");
-    if(opts && opts.modal) container.setAttribute("data-uni-modal", "");
+    if(opts && opts.modal) {
+        container.setAttribute("data-uni-modal", "");
+        // Recompute inert state whenever the modal's visibility toggles. The
+        // open/close state is applied as a reactive `style` on the modal's
+        // root element, so watching style mutations on the subtree is enough.
+        // Doing this via MutationObserver (not a component effect) keeps it
+        // robust: hydration can remount a component and dispose its effects,
+        // but the DOM binding and this observer survive.
+        if(typeof MutationObserver !== "undefined") {
+            const mo = new MutationObserver(() => window.$__uni_inert_scan());
+            mo.observe(container, { attributes: true, subtree: true, attributeFilter: [ "style" ] });
+            container.$__uni_inert_observer = mo;
+        }
+        window.$__uni_inert_scan();
+    }
 })
 // Modal overlay support (WAI-ARIA dialog pattern): while ANY modal portal is
 // visible, everything in <body> except the portal containers becomes inert

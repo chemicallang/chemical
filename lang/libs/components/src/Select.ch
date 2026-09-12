@@ -290,7 +290,7 @@ public #universal Select(props) {
     var placeholder = props.placeholder || "Select..."
     return <div {...props} class={classes} style="position:relative;display:inline-block;width:100%;">
         <div onClick={close} style={open ? "position:fixed;inset:0;z-index:10;" : "display:none;"}></div>
-        <button ref={triggerRef} type="button" disabled={disabled} onClick={toggle} onKeyDown={handleTriggerKeyDown} data-open={open ? "true" : "false"} data-size={size} class={${select_trigger_styles(page)}} aria-haspopup="listbox" aria-expanded={open ? "true" : "false"} aria-controls="chx-select-listbox" aria-activedescendant={open && props.options && props.options[highlight] != null ? "chx-select-opt-" + highlight : ""} aria-label={props.ariaLabel}>
+        <button ref={triggerRef} type="button" disabled={disabled} onClick={toggle} onKeyDown={handleTriggerKeyDown} data-open={open ? "true" : "false"} data-size={size} class={${select_trigger_styles(page)}} aria-haspopup="listbox" aria-expanded={open ? "true" : "false"} aria-controls="chx-select-listbox" aria-activedescendant={open && props.options && props.options[highlight] != null ? "chx-select-opt-" + highlight : ""} aria-label={props.ariaLabel || placeholder}>
             <span class={current != "" ? "chx-select-value" : "chx-select-value chx-select-placeholder"}>{current ? current : placeholder}</span>
             <span class="chx-select-chevron">▾</span>
         </button>

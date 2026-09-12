@@ -1322,7 +1322,27 @@ func (cssParser : &mut CSSParser) parseFontSize(
 ) {
     const token = parser.getToken();
     if(token.type == TokenType.Identifier) {
-        const kind = getFontSizeKeywordKind(token.fnv1())
+        const hash = token.fnv1();
+        // Functional values: clamp(), min(), max(), var(), calc() are all
+        // valid font-size values (e.g. font-size: clamp(1rem, 2vw, 2rem)).
+        // Consume them as raw function values preserving exact source text.
+        switch(hash) {
+            comptime_fnv1_hash("clamp"),
+            comptime_fnv1_hash("min"),
+            comptime_fnv1_hash("max"),
+            comptime_fnv1_hash("var"),
+            comptime_fnv1_hash("calc"),
+            comptime_fnv1_hash("calc-size"),
+            comptime_fnv1_hash("env"),
+            comptime_fnv1_hash("fit-content") => {
+                cssParser.parseRawFunctionValue(parser, builder, value);
+                return;
+            }
+            default => {
+                // fall through to keyword handling below
+            }
+        }
+        const kind = getFontSizeKeywordKind(hash)
         if(kind == CSSKeywordKind.Unknown) {
             parser.wrong_val_kw_err("font-size");
         }
@@ -1331,6 +1351,9 @@ func (cssParser : &mut CSSParser) parseFontSize(
     } else if(token.type == TokenType.Number) {
         parser.increment();
         alloc_value_length(parser, builder, value, &token.value);
+    } else if(token.type == TokenType.DollarLBrace || token.type == TokenType.LBrace) {
+        // Chemical dynamic value: font-size: {expression}
+        cssParser.parseChemValueAfterLBrace(parser, builder, value);
     } else {
         parser.wrong_val_kw_err("font-size");
         return;

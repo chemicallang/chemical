@@ -2,6 +2,8 @@
 
 **Status:** Proposed architecture and implementation roadmap
 
+**Progress:** Phase 1 foundational runtime contracts implemented (see §8).
+
 **Scope:** `lang/libs/page`, `lang/libs/universal`, `lang/libs/universal_cbi`,
 `lang/libs/universal_parser`, `lang/libs/js_cbi`, `lang/libs/js_parser`, and the
 universal component test suites.
@@ -695,3 +697,48 @@ true:
 
 Until these invariants hold, adding more hooks or visual components should be
 considered feature work on top of an unstable platform, not framework maturity.
+
+---
+
+## 8. Progress log
+
+### Phase 1 (partial) — runtime correctness and ownership
+
+Implemented in `lang/libs/page/src/page.ch`:
+
+- **Correct effect dependency comparison.** `$__uni_run_effects` now resolves
+  the deps array through `$__uni_value` before comparing against `lastDeps`
+  (previously it compared raw signal objects against resolved primitives, so
+  `changed` was always true and every effect re-ran on every instance flush).
+- **Ownership-driven resource tracking.** State signals (`$_us`) and computeds
+  (`$_ucs`) created during a component render register with the owning instance
+  via `$__uni_register_resource`. Each exposes `$_dispose`, and
+  `$__uni_dispose` releases `inst._resources` so a long-lived signal can no
+  longer retain computeds/effects from removed components.
+- **Ownership-driven remount.** `$__uni_mount` disposes a previous instance
+  tracked on the same host before mounting a replacement.
+- **Portal move no longer looks like an unmount.** Hydration-time portal moves
+  are recorded in `window.$__uni_moving_nodes` so the cleanup MutationObserver
+  does not dispose the freshly-hydrated owner (this bug silently disabled every
+  effect in a component, including focus traps and inert backgrounds).
+- **Dev diagnostics toggle.** `window.$__uni_dev` (default on, disable with
+  `window.$__uni_prod`) bounds hydration warnings and exposes
+  `$__uni_dev_assert`.
+
+Tests:
+
+- `lang/tests/compiler_plugins/universal/src/runtime_contracts.ch` — the
+  formerly bug-pinning tests now assert correct behavior; added
+  `universal_effect_deps_compared_by_value`, `universal_layout_effects_are_ever_run`,
+  `universal_unmount_cleanup_exists`, `universal_keyed_reconciliation_exists`.
+- `lang/compiled/components-e2e/tests/runtime.spec.ts` — added
+  `effect deps: unrelated state change does not re-run effect` (336 E2E tests pass).
+
+### Still open
+
+Everything else in Phases 0–5: runtime extraction to a real `.js` asset,
+`RuntimeRequirements` manifest, removal of SSR HTML from the JS bundle,
+keyed SSR→client hydration matching, one SSR evaluator, parser consolidation,
+external/hashed runtime assets, streaming SSR, and the component platform work
+(forms, virtualization, dynamic context, i18n, animation, devtools).
+

@@ -418,24 +418,32 @@ file and line in `lang/libs/page/` or `lang/libs/universal_cbi/src/`.**
 
 ### Production readiness verdict
 
-The universal runtime is **not production-ready**. It is a functioning prototype with correct
-SSR output for static content and a working signal/effect system, but it is missing critical
-infrastructure that every production SSR framework provides. The runtime JS blob is
-untestable (embedded string), unminifiable (no tree-shaking), and duplicated per-page.
-There is no keyed reconciliation, no unmount cleanup, no automatic batching, no layout
-effects, no error boundaries on the server, and no compile-time validation of the emitted JS.
+> **Updated 2026-09-12:** several blocking items below have since been fixed —
+> layout effects run, unmount/disposal is ownership-driven, effect deps compare
+> by resolved value, `</script>` is escaped, and client-side keyed
+> reconciliation/memoization exist. The remaining blockers are the untestable
+> embedded runtime, per-page duplication, SSR HTML in JS, positional
+> hydration, the three SSR evaluators, and no compile-time validation of
+> emitted JS. See the professionalization plan §8.
+
+The universal runtime is **not yet production-ready**. It is a functioning prototype with
+correct SSR output for static content and a working signal/effect system, but it is still
+missing critical infrastructure that every production SSR framework provides. The runtime JS
+blob is untestable (embedded string), unminifiable (no tree-shaking), and duplicated per-page.
+Hydration is positional (no keyed SSR→client matching), there is no compile-time validation of
+the emitted JS, and SSR itself is blocking (no streaming).
 
 Compared to React 19, Solid 2, Preact 10, and Svelte 5:
 
 | Capability | React 19 | Solid 2 | Preact 10 | Svelte 5 | **Chemical** |
 |---|---|---|---|---|---|
-| Keyed list reconciliation | ✅ O(N) diff | ✅ fine-grained | ✅ O(N) diff | ✅ | ❌ positional only |
+| Keyed list reconciliation | ✅ O(N) diff | ✅ fine-grained | ✅ O(N) diff | ✅ | ⚠️ client keyed; hydration positional |
 | Error boundaries (client) | ✅ | ✅ `try` | ✅ | ✅ | ✅ partial (no SSR) |
 | Error boundaries (SSR) | ✅ | ✅ | ❌ | ✅ | ❌ |
-| Unmount / effect cleanup | ✅ owner tree | ✅ owner tree | ✅ | ✅ | ❌ subscriptions leak |
-| Automatic batching | ✅ React 18+ | ✅ `batch` | ✅ | ✅ | ❌ per-signal sync |
-| Layout effects | ✅ | N/A | ✅ | ✅ `bind:` | ❌ registered but never run |
-| Keyed props memoization | ✅ `memo` | ✅ `.memo` | ✅ | ✅ runes | ❌ no memoization |
+| Unmount / effect cleanup | ✅ owner tree | ✅ owner tree | ✅ | ✅ | ✅ ownership-driven (fixed) |
+| Automatic batching | ✅ React 18+ | ✅ `batch` | ✅ | ✅ | ⚠️ microtask batch (no sync flush) |
+| Layout effects | ✅ | N/A | ✅ | ✅ `bind:` | ✅ run before paint (fixed) |
+| Keyed props memoization | ✅ `memo` | ✅ `.memo` | ✅ | ✅ runes | ⚠️ `$__uni_memo` exists |
 | Shared runtime asset | ✅ (single React.js) | ✅ (single solid.js) | ✅ | ✅ | ❌ ~32KB per page |
 | Suspense / async | ✅ | ✅ | ❌ | ✅ (`{#await}`) | ❌ |
 | SSR streaming | ✅ | ✅ | ❌ | ✅ | ❌ blocking only |
@@ -448,27 +456,16 @@ Compared to React 19, Solid 2, Preact 10, and Svelte 5:
 
 ### Critical bugs (verified, blocking production use)
 
-#### 1. `useLayoutEffect` is registered but never executed
+> **Status update (2026-09-12):** items #1, #3, and #4 below are **FIXED**. The
+> original analysis is preserved for traceability. See the professionalization
+> plan §8 progress log for the implementation.
 
-**File:** `page.ch:641-645` (registration), `page.ch:818-831` (runner)
+#### 1. `useLayoutEffect` is registered but never executed — **FIXED**
 
-The runtime registers `useLayoutEffect` into `inst.layoutEffects` but the effect runner
-(`$__uni_mount` → `__uni_run_effects`) only drains `inst.effects`. Layout effects are
-silently discarded. DOM measurement, focus management, and tooltip positioning all depend on
-layout effects running synchronously before paint.
-
-```javascript
-// page.ch — registration works:
-$_r.useLayoutEffect = (fn, deps) => {
-  var inst = window.$__uni_current_instance
-  if(inst) { inst.layoutEffects.push({fn, deps, prev: null}) }
-}
-
-// But $__uni_mount only does:
-__uni_run_effects(inst) // only drains inst.effects, NOT inst.layoutEffects
-```
-
-**Test:** `runtime_contracts.ch::universal_layout_effects_are_ever_run` (fails)
+`$__uni_mount` now drains `inst.layoutEffects` via
+`$__uni_run_effects(inst, inst.layoutEffects)` (and the signal setter drains
+them synchronously on state change). Contract test:
+`runtime_contracts.ch::universal_layout_effects_are_ever_run` passes.
 
 #### 2. No automatic batching — O(N×M) subscriber notification per state update
 
@@ -491,36 +488,25 @@ s.set = function(next) {
 
 **Test:** `runtime_safety.ch::batched_state_updates` (would need runtime test)
 
-#### 3. No unmount cleanup — subscriptions and event listeners leak
+#### 3. No unmount cleanup — subscriptions and event listeners leak — **FIXED**
 
-**File:** `page.ch:818-831` (`__uni_run_effects`), no unmount path exists
+The runtime now has ownership-driven disposal: `$__uni_dispose(inst)` walks the
+instance tree, runs effect cleanups, unsubscribes deps, and disposes
+render-scoped resources. Signals/computeds created during a render register with
+the owning instance via `$__uni_register_resource` and expose `$_dispose`, so
+removed components no longer retain their subscription graph. `$__uni_mount`
+also disposes a previous instance tracked on the same host. Contract test:
+`runtime_contracts.ch::universal_unmount_cleanup_exists` passes.
 
-When a component is removed from the DOM (e.g., conditional rendering hides it), its effects
-are never cleaned up. `addEventListener` calls, `$_us` subscriptions, and `$_ucs` computed
-dependency chains all leak. React and Solid use an owner-tree that disposes all effects when
-the owning component unmounts.
+The original analysis follows (no `$__uni_unmount` symbol was added; the
+existing `$__uni_dispose` is the disposer).
 
-There is no `$__uni_unmount(inst)` function anywhere in the runtime. The only cleanup path is
-when `$__uni_mount` is called again for the same element (re-hydration), which is not the
-same as unmounting.
+#### 4. `capture_html_delta_to_js` misses `</script>` XSS escape — **FIXED**
 
-**Test:** `runtime_contracts.ch::universal_effect_cleanup_runs_on_unmount` (would need runtime test)
-
-#### 4. `capture_html_delta_to_js` misses `</script>` XSS escape
-
-**File:** `page.ch:328-342`
-
-The function escapes backticks, `${`, `\\`, `\n`, `\r` but NOT `</script>`. SSR HTML
-containing `</script>` breaks out of inline `<script>` tags under `toString()`. React's
-equivalent escapes `</script>` and `</style>`.
-
-```javascript
-// page.ch:328-342 — missing case:
-// Escapes: ` ${ \ \n \r
-// Missing: </script> (XSS), \t (minor), \0 (truncation)
-```
-
-**Test:** `runtime_safety.ch::universal_script_tag_not_xss` (fails)
+`capture_html_delta_to_js` now escapes `</script` as `\u003C/script`
+(and `appendJsEscaped` escapes `</`), so SSR HTML cannot break out of an inline
+`<script>`. Contract test:
+`runtime_contracts.ch::universal_captured_html_is_inline_script_safe`.
 
 #### 5. Three separate SSR evaluators with divergent coverage
 

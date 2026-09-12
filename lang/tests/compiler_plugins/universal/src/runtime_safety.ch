@@ -149,7 +149,7 @@ public func universal_html_attr_escapes_double_quotes_not_single(env : &mut Test
 // =============================================================================
 
 @test
-public func universal_js_bool_false_renders_as_string(env : &mut TestEnv) {
+public func universal_js_bool_false_is_skipped(env : &mut TestEnv) {
     var pg = HtmlPage()
     var attrs = std::vector<SsrAttribute>()
     attrs.push(SsrAttribute {
@@ -163,10 +163,13 @@ public func universal_js_bool_false_renders_as_string(env : &mut TestEnv) {
     renderJsAttrs(&mut pg, &list)
     var js = std::string()
     js.append_view(pg.getJs())
-    if(js.contains(&std::string_view("false"))) {
-        env.success("JS renders Boolean(false) as the string 'false'")
+    // React semantics: a false boolean prop is omitted from the JS prop object
+    // (the client treats a missing/false prop as "not set"), it is not
+    // serialized as the string "false".
+    if(!js.contains(&std::string_view("disabled"))) {
+        env.success("JS omits Boolean(false) attributes")
     } else {
-        env.error("JS does not render Boolean(false)")
+        env.error("JS rendered Boolean(false) instead of omitting it")
         env.info(js.data())
     }
 }
@@ -180,7 +183,7 @@ public func universal_js_bool_false_renders_as_string(env : &mut TestEnv) {
 // =============================================================================
 
 @test
-public func universal_js_none_renders_as_undefined(env : &mut TestEnv) {
+public func universal_js_none_is_skipped(env : &mut TestEnv) {
     var pg = HtmlPage()
     var attrs = std::vector<SsrAttribute>()
     attrs.push(SsrAttribute {
@@ -194,10 +197,12 @@ public func universal_js_none_renders_as_undefined(env : &mut TestEnv) {
     renderJsAttrs(&mut pg, &list)
     var js = std::string()
     js.append_view(pg.getJs())
-    if(js.contains(&std::string_view("undefined"))) {
-        env.success("JS renders SsrAttributeValue.None as 'undefined'")
+    // None means "no value": the attribute is omitted from the JS prop object
+    // rather than serialized as the literal `undefined`.
+    if(!js.contains(&std::string_view("data-missing"))) {
+        env.success("JS omits SsrAttributeValue.None attributes")
     } else {
-        env.error("JS does not render None as undefined")
+        env.error("JS rendered None instead of omitting it")
         env.info(js.data())
     }
 }

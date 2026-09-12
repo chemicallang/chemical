@@ -648,25 +648,3 @@ public func renderCssAttrValue(page : &mut HtmlPage, attrVal : &SsrAttributeValu
     writeJsPrimitiveAttrValue(page, &mut page.pageCss, attrVal)
 }
 
-// This function moves rendered html to the js buffer for hydration.
-// Universal components use this to capture SSR HTML and hydrate it on the client.
-public func move_html_to_js_with_lambda_start(page : &mut HtmlPage, index : size_t) {
-    page.pageHeadJs.append_view("\n(() => { const html = `");
-    const delta_size = page.pageHtml.size() - index;
-    const delta = page.pageHtml.data() + index;
-    for(var i = 0u; i < delta_size; i++) {
-        const c = delta[i];
-        if(c == '`') page.pageHeadJs.append_view("\\`")
-        else if(c == '$' && i + 1 < delta_size && delta[i+1] == '{') page.pageHeadJs.append_view("\\$")
-        else if(c == '\\') page.pageHeadJs.append_view("\\\\")
-        else if(c == '<' && i + 6 < delta_size && delta[i+1] == '/' && delta[i+2] == 's' && delta[i+3] == 'c' && delta[i+4] == 'r' && delta[i+5] == 'i' && delta[i+6] == 'p' && delta[i+7] == 't') {
-            page.pageHeadJs.append_view("\\u003C/script>")
-            i += 7
-        }
-        else page.pageHeadJs.append(c)
-    }
-    page.pageHtml.resize(index)
-    page.pageHeadJs.append_view("`;")
-    // after this the caller would write something like
-    // create_and_hydrate(html, ComponentFunction, MissingAttributesObject)
-}

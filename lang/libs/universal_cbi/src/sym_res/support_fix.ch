@@ -148,12 +148,6 @@ func resolve_page_children(
         diagnoser.error("'pageJs' member is required on 'page' for js to work", loc);
         return false;
     }
-    const capture_html_delta_to_js = page.child("capture_html_delta_to_js");
-    if(capture_html_delta_to_js == null) {
-        diagnoser.error("'capture_html_delta_to_js' function is required on 'page' for html capture to work", loc);
-        return false;
-    }
-
     const getJsPosFn = page.child("get_js_pos");
     if(getJsPosFn == null) {
         diagnoser.error("'get_js_pos' function is required on 'page' for hoisting to work", loc);
@@ -174,7 +168,6 @@ func resolve_page_children(
     support.truncateHtmlFn = truncateHtmlFn;
     support.pageHtmlNode = pageHtmlNode;
     support.pageJsNode = pageJsNode;
-    support.capture_html_delta_to_js = capture_html_delta_to_js;
     support.getJsPosFn = getJsPosFn;
     support.moveJsRangeFn = moveJsRangeFn;
     support.js_hoist_pos = js_hoist_pos;

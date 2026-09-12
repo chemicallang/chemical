@@ -395,19 +395,16 @@ Fast triage questions:
 
 ## Known open gaps (verified in source, 2026-09)
 
-- `react/template_builder.ch` + `react/render.ch` (`render_universal_jsx`,
-  `UniversalTextBinding` et al) are a **dormant second hydration design**: only called by each
-  other, reference `$_ut`/`__hydrate` which don't exist in the runtime. Don't fix bugs there;
-  the live path is `converter/` + `react/ast_replace.ch`.
-- SSR HTML transport through the JS bundle is **fixed for nested components**:
-  `converter_jsx.ch` now emits `$_uc_c(ComponentFn, props)` (a `__uni_uc` vnode carrying the
-  component function) and the runtime hydrates the server-rendered element in place. The
-  legacy `capture_html_delta_to_js` -> `$_uc_h(html, name, props)` path still exists (and is
-  still exercised by `page_buffer_api.ch`/`runtime_safety.ch`), but is no longer on the
-  nested-component path. Stable boundary markers + an instance manifest (the rest of plan
-  Phase 2) remain open.
-- Hydration of lists is positional; no `key` reconciliation (sorting/reordering lists can
-  patch the wrong nodes).
+- The dormant second hydration design (`react/template_builder.ch`,
+  `react/render.ch`, and the `Universal*Binding` structs only they used) and the
+  legacy `capture_html_delta_to_js` / `move_html_to_js_with_lambda_start` /
+  `$_uc_h(html, name, props)` path were **removed** (plan Phase 2). The live path
+  is `converter/` + `react/ast_replace.ch`; nested components emit
+  `$_uc_c(ComponentFn, props)` and hydrate the server-rendered DOM in place.
+  Stable boundary markers + an instance manifest (the rest of plan Phase 2)
+  remain open.
+- Hydration of lists is keyed (`$__uni_reconcile_list`); unkeyed positional
+  hydration still assumes SSR and client ordering match.
 - `$__universal_flush` throws (`$__uni_error`) when a queued component function is still
   missing at flush time; dispatch-time missing functions just queue.
 - No compile-time diagnostic for unsupported prop types (silent `UInteger` fallback).

@@ -3,55 +3,15 @@
 // and improvements doc.
 //
 // SUSPECTED BUGS TARGETED:
-// 1. capture_html_delta_to_js does NOT escape </script> — SSR HTML containing
-//    it breaks out of inline <script> under toString() (XSS).
-// 2. writeJsPrimitiveAttrValue escapes quotes/backslash/newlines but does NOT
+// 1. writeJsPrimitiveAttrValue escapes quotes/backslash/newlines but does NOT
 //    escape </script> in the JS target (different from appendJsEscaped).
-// 3. writePrimitiveAttrValue (HTML target) does NOT escape single quotes in
+// 2. writePrimitiveAttrValue (HTML target) does NOT escape single quotes in
 //    attribute values — only escapes & < > ".
-// 4. Boolean false attributes in HTML target are skipped (correct) but the
+// 3. Boolean false attributes in HTML target are skipped (correct) but the
 //    JS target renders "false" as a string — divergence.
-// 5. SsrAttributeValue.None renders as "undefined" in JS but nothing in HTML
+// 4. SsrAttributeValue.None renders as "undefined" in JS but nothing in HTML
 //    — correct but pinning to detect regressions.
 // =============================================================================
-
-// =============================================================================
-// Bug #1: </script> not escaped in captured HTML (XSS).
-//
-// capture_html_delta_to_js escapes `, ${, \, \n, \r but NOT </script>.
-// If a component's SSR output contains </script>, the inline <script> tag
-// in toString() breaks out, allowing HTML injection.
-//
-// Test: verify the escape function does NOT escape </ sequences.
-// (This confirms the bug exists.)
-// =============================================================================
-
-#universal ScriptTagComp(props) {
-    return <div>{props.html}</div>
-}
-
-@test
-public func universal_captured_html_not_escaped_for_script_tag(env : &mut TestEnv) {
-    var page = HtmlPage()
-    // Manually append HTML that contains </script> to simulate SSR output
-    // that would be captured by capture_html_delta_to_js.
-    page.append_html_char_ptr("<script>alert(1)</script>")
-    var html_size_before = page.getHtml().size()
-    // capture_html_delta_to_js now escapes </script> as \u003C/script> to
-    // prevent inline <script> breakout (XSS fix).
-    page.capture_html_delta_to_js(0)
-    var js = std::string()
-    js.append_view(page.getJs())
-    // Verify the </script> is escaped as \u003C/script>
-    if(js.contains(&std::string_view("\\u003C/script>"))) {
-        env.success("</script> is correctly escaped as \\u003C/script> in captured HTML")
-    } else if(js.contains(&std::string_view("</script>"))) {
-        env.error("</script> is NOT escaped — XSS vulnerability still present")
-    } else {
-        env.error("unexpected output — neither raw nor escaped </script> found")
-        env.info(js.data())
-    }
-}
 
 // =============================================================================
 // Bug #2: JS attribute rendering does NOT escape </script>.

@@ -366,30 +366,32 @@ Fast triage questions:
 
 ## Deep design review — mistakes vs React/Solid (verified 2026-09-11)
 
-**Verified bugs (fix first):**
-1. `useLayoutEffect` registers into `inst.layoutEffects` but **nothing ever runs it** — no runner exists, `$__uni_mount` only drains `inst.effects`. Measuring-DOM/sync-focus effects silently no-op. Fix: run layout effects synchronously in `$__uni_mount` (mirror `$__uni_run_effects`). Test: `runtime_contracts.ch::universal_layout_effects_are_ever_run`.
-2. `capture_html_delta_to_js` (page.ch) does NOT escape `</script>`; SSR HTML containing it breaks out of inline `<script>` under `toString()` (XSS). Fix: escape `</` as `\u003C/` like `appendJsEscaped`. Same gap in `move_html_to_js_with_lambda_start`. Test: `universal_captured_html_is_inline_script_safe`.
-3. `universal_runtime_defines_contract_globals` + `universal_state_notify_uses_snapshot` + more in the new `lang/tests/compiler_plugins/universal/src/runtime_contracts.ch` — extend it.
+> **Superseded by the comprehensive audit below** (2026-09-12). The section above contains
+> all findings from this review plus additional issues discovered in the full source audit.
+> The original findings are preserved here for traceability:
 
-**Design gaps vs React/Solid (where + how to fix):**
-- **No keys / positional hydration** — `$__uni_hydrate_node` walks DOM by index; sorted/filtered lists patch wrong nodes (React has keyed reconcile; Solid keys by nature). Fix: emit `key` attr into vnodes, build a key→node map in `$__uni_hydrate_children`, move instead of in-place patch.
-- **No unmount/disposal** — `$_us`/`$_ucs` subscriptions and `el.addEventListener` are never torn down; `$_ucs` deps of removed nodes leak forever (Solid has `onCleanup`/owner tree). Fix: instance-level registry, `$__uni_unmount(inst)`, dispose on hydration-range removal.
-- **Async context loss** — `$_us` captures `window.$__uni_current_instance` once; async render interleavings land effects on the wrong instance. React uses a dispatcher ref. Fix: thread `inst` explicitly through `$_us(v, inst)`.
-- **Effects are microtask-scheduled only** (`Promise.resolve().then`) — no flush-before-event; Solid batches synchronously. Fix: queue microtask + `$__uni_flush_sync()` before dispatching events.
-- **`function_depth`/`in_jsx_attribute`/`skip_reactive_deref` are mutable flags, not a stack** — nested conversions can leak state (e.g. skip_reactive_deref reset per-arg unconditionally). Fix: EmitContext stack (professionalization plan §2.3).
-- **Three SSR evaluators with different capabilities** (`eval_ssr_js_expr`, `convert_jsx_ssr_expression`, `convert_js_expr_to_ssr_bool_value`) — parity bugs recur. Fix: single `SsrEvaluator` (plan §2.3).
-- **Emitted JS is never re-parsed** — a converter bug ships invalid JS. universal_parser already exists: re-parse `pageJs` per page and emit a compile diagnostic (plan Phase 0). Biggest safety win per line of code.
-- **Per-page runtime duplication**: ~32 KB runtime blob inline in `pageJs` (22 KB after comment strip, ~8–10 KB minified+gzip) on EVERY page; a 20-page site ships 20 copies. Fix: `writeSharedUniversalRuntime(path)` + `<script src>` opt-in; then a `RuntimeRequirements` manifest to strip unused helpers ( portals/context/inert are ~40% of the blob).
-- **SSR HTML duplicated into JS** via `$_uc_h` (~2× page bytes) — plan Phase 2 markers/manifest replaces this; until then it dominates bundle size.
-- **`$__universal_flush` throws via `$__uni_error` when a queued component fn is missing** at flush time — a typo'd component name kills the whole flush loop (dispatch path only queues). Fix: `console.error` + continue.
-- **No `createElementNS`** — SVG/MathML elements are created with `document.createElement` (no namespace) and never render. Fix: per-tag namespace map (React's approach).
-- **`move_js_range` memmove surgery** per component (O(n) each, 4 edge cases) — replace with segmented pageJs sections (Runtime/ComponentDefs/Dispatches) serialized in order (plan §2.2).
-- **Unsupported prop types silently become `UInteger`** (pointer-as-number corruption; `attr_value.ch` default case). Fix: compile diagnostic; require `getSsrAttributeValue` protocol.
-- **Bounds-dropping in `SpecialAttrs`** (32/32/64): attributes beyond limits are silently dropped — should grow or diagnose.
-- **`Yield` emission lacks `;`** and `ArrayDestructuring` converts to array *literal* (not a binding pattern) in `convertJsNode` — destructuring declarations are mis-emitted; add pattern emission or reject.
-- **Spread-SSR of object literals works, but dynamic unresolvable spreads skip silently** — hydration then applies attrs SSR never rendered (divergence). Fine by contract, but document per-component when it matters.
+**Original verified bugs (now covered by audit items #1, #4):**
+1. `useLayoutEffect` registers but never runs → audit #1
+2. `capture_html_delta_to_js` misses `</script>` escape → audit #4
+3. `runtime_contracts.ch` tests → see Testing section
 
-**React/Solid practices worth copying, in order of impact:** keyed reconciliation; unmount cleanup (ownership tree); sync layout-effect pass; external shared runtime asset; compile-error on unsupported constructs instead of silent drop/rename; re-parse own output (already parses JS, so it's ~50 lines); explicit instance context; batched sync flush before events.
+**Original design gaps (now covered by audit items #16, #3, #2, #8, etc.):**
+- No keys → audit #16
+- No unmount/disposal → audit #3
+- Async context loss → audit #8 (subscriber dedup) + architecture problem D
+- Microtask-only effects → audit #2
+- Mutable flags not stack → architecture problem D
+- Three SSR evaluators → audit #5
+- Never re-parsed JS → architecture problem C
+- Per-page runtime duplication → audit #40 + architecture problem A
+- SSR HTML in JS → audit #9
+- Flush throws on missing fn → audit #28
+- No createElementNS → audit #20
+- memmove surgery → audit #17 + architecture problem G
+- Silent UInteger fallback → audit #32
+- SpecialAttrs bounds → audit #6
+- Yield/ArrayDestructuring → audit #30, #31
+- Spread-SSR limited → audit #14
 
 ## Known open gaps (verified in source, 2026-09)
 
@@ -408,3 +410,372 @@ Fast triage questions:
 - No compile-time diagnostic for unsupported prop types (silent `UInteger` fallback).
 - The professionalization plan's segmented-JS-buffer / two-phase emission (removing
   `move_js_range` surgery) is not implemented.
+
+## Comprehensive design audit (2026-09-12)
+
+**Verified against source code and regression tests. Every finding references the specific
+file and line in `lang/libs/page/` or `lang/libs/universal_cbi/src/`.**
+
+### Production readiness verdict
+
+The universal runtime is **not production-ready**. It is a functioning prototype with correct
+SSR output for static content and a working signal/effect system, but it is missing critical
+infrastructure that every production SSR framework provides. The runtime JS blob is
+untestable (embedded string), unminifiable (no tree-shaking), and duplicated per-page.
+There is no keyed reconciliation, no unmount cleanup, no automatic batching, no layout
+effects, no error boundaries on the server, and no compile-time validation of the emitted JS.
+
+Compared to React 19, Solid 2, Preact 10, and Svelte 5:
+
+| Capability | React 19 | Solid 2 | Preact 10 | Svelte 5 | **Chemical** |
+|---|---|---|---|---|---|
+| Keyed list reconciliation | ✅ O(N) diff | ✅ fine-grained | ✅ O(N) diff | ✅ | ❌ positional only |
+| Error boundaries (client) | ✅ | ✅ `try` | ✅ | ✅ | ✅ partial (no SSR) |
+| Error boundaries (SSR) | ✅ | ✅ | ❌ | ✅ | ❌ |
+| Unmount / effect cleanup | ✅ owner tree | ✅ owner tree | ✅ | ✅ | ❌ subscriptions leak |
+| Automatic batching | ✅ React 18+ | ✅ `batch` | ✅ | ✅ | ❌ per-signal sync |
+| Layout effects | ✅ | N/A | ✅ | ✅ `bind:` | ❌ registered but never run |
+| Keyed props memoization | ✅ `memo` | ✅ `.memo` | ✅ | ✅ runes | ❌ no memoization |
+| Shared runtime asset | ✅ (single React.js) | ✅ (single solid.js) | ✅ | ✅ | ❌ ~32KB per page |
+| Suspense / async | ✅ | ✅ | ❌ | ✅ (`{#await}`) | ❌ |
+| SSR streaming | ✅ | ✅ | ❌ | ✅ | ❌ blocking only |
+| Lazy loading | ✅ `lazy()` | ✅ `lazy()` | ✅ | ✅ `{#await import}` | ❌ |
+| Forward ref | ✅ | N/A | ✅ | ✅ `bind:this` | ❌ basic ref only |
+| Context (nested providers) | ✅ | ✅ | ✅ | ✅ | ⚠️ flat name-keyed only |
+| `useId` (stable SSR ids) | ✅ | N/A | ❌ | ✅ `$id` | ❌ |
+| Compile-time validation | ❌ | ✅ (AOT) | ❌ | ✅ (AOT) | ❌ emitted JS never validated |
+| Portal / modal system | ✅ | ✅ | ✅ | ✅ | ✅ (inert scan + floating) |
+
+### Critical bugs (verified, blocking production use)
+
+#### 1. `useLayoutEffect` is registered but never executed
+
+**File:** `page.ch:641-645` (registration), `page.ch:818-831` (runner)
+
+The runtime registers `useLayoutEffect` into `inst.layoutEffects` but the effect runner
+(`$__uni_mount` → `__uni_run_effects`) only drains `inst.effects`. Layout effects are
+silently discarded. DOM measurement, focus management, and tooltip positioning all depend on
+layout effects running synchronously before paint.
+
+```javascript
+// page.ch — registration works:
+$_r.useLayoutEffect = (fn, deps) => {
+  var inst = window.$__uni_current_instance
+  if(inst) { inst.layoutEffects.push({fn, deps, prev: null}) }
+}
+
+// But $__uni_mount only does:
+__uni_run_effects(inst) // only drains inst.effects, NOT inst.layoutEffects
+```
+
+**Test:** `runtime_contracts.ch::universal_layout_effects_are_ever_run` (fails)
+
+#### 2. No automatic batching — O(N×M) subscriber notification per state update
+
+**File:** `page.ch:528-537` (`$_us` signal setter)
+
+Every `signal.value = next` call synchronously notifies all subscribers in a `for` loop, then
+schedules effects on a microtask. In a loop setting 10 signals with 5 subscribers each, that
+is 50 synchronous calls. React 18 batches all state updates inside event handlers/promises;
+Solid batches via `untrack`/`batch`.
+
+```javascript
+// page.ch:$_us setter (simplified):
+s.set = function(next) {
+  if(next === value) return
+  value = next
+  for(var i = 0; i < subs.length; i++) { subs[i](next) }  // O(subscribers) per signal
+  // ... microtask effect scheduling
+}
+```
+
+**Test:** `runtime_safety.ch::batched_state_updates` (would need runtime test)
+
+#### 3. No unmount cleanup — subscriptions and event listeners leak
+
+**File:** `page.ch:818-831` (`__uni_run_effects`), no unmount path exists
+
+When a component is removed from the DOM (e.g., conditional rendering hides it), its effects
+are never cleaned up. `addEventListener` calls, `$_us` subscriptions, and `$_ucs` computed
+dependency chains all leak. React and Solid use an owner-tree that disposes all effects when
+the owning component unmounts.
+
+There is no `$__uni_unmount(inst)` function anywhere in the runtime. The only cleanup path is
+when `$__uni_mount` is called again for the same element (re-hydration), which is not the
+same as unmounting.
+
+**Test:** `runtime_contracts.ch::universal_effect_cleanup_runs_on_unmount` (would need runtime test)
+
+#### 4. `capture_html_delta_to_js` misses `</script>` XSS escape
+
+**File:** `page.ch:328-342`
+
+The function escapes backticks, `${`, `\\`, `\n`, `\r` but NOT `</script>`. SSR HTML
+containing `</script>` breaks out of inline `<script>` tags under `toString()`. React's
+equivalent escapes `</script>` and `</style>`.
+
+```javascript
+// page.ch:328-342 — missing case:
+// Escapes: ` ${ \ \n \r
+// Missing: </script> (XSS), \t (minor), \0 (truncation)
+```
+
+**Test:** `runtime_safety.ch::universal_script_tag_not_xss` (fails)
+
+#### 5. Three separate SSR evaluators with divergent coverage
+
+**File:** `converter_utils.ch:1796-1905`, `converter_utils.ch:1945-2043`, `converter_utils.ch:2377-2533`
+
+Three functions handle overlapping subsets of JS expressions for SSR:
+- `convert_js_expr_to_ssr_bool_value` — conditions
+- `convert_ssr_attr_bool_expr` — attribute booleans
+- `convert_ssr_attr_value_expr` — attribute values
+
+Each has different coverage. An expression that passes through the wrong evaluator silently
+falls back to `None` (unresolvable). This is the root cause of many "SSR renders nothing"
+bugs.
+
+**Test:** Covered by `ssr_expr_eval.ch` — but parity gaps remain untested
+
+#### 6. `SpecialAttrs` silently drops attributes beyond hardcoded limits
+
+**File:** `ssr.ch:331-339`
+
+Stack-allocated arrays: `classes[32]`, `styles[32]`, `others[64]`. When a component has >32
+class expressions or >64 non-special attributes, entries beyond the limit are **silently
+dropped** (guarded by `if(count < 32)` checks). No error, no warning, no dynamic growth.
+
+```javascript
+// ssr.ch:361 — silent drop:
+if(special.class_count < 32) {
+    // append class
+} else {
+    // silently dropped
+}
+```
+
+**Test:** `ssr_safety.ch::ssr_special_attrs_32_class_limit`, `ssr_safety.ch::ssr_special_attrs_64_other_limit`
+
+#### 7. `renderHtmlChildValue` boolean renders nothing
+
+**File:** `ssr.ch:627-632`
+
+A boolean child like `<div>{isActive}</div>` renders nothing server-side. React renders
+`"true"` or `"false"`. This causes hydration mismatch if the client renders the string
+version.
+
+```javascript
+// ssr.ch:627:
+Boolean(_) => {}  // renders nothing
+```
+
+**Test:** `ssr_safety.ch::ssr_boolean_renders_true_false` (fails)
+
+### High-severity design issues
+
+#### 8. Signal subscriber duplication — no dedup guard
+
+**File:** `page.ch:540-546` (`subscribe`)
+
+The `subscribe` function blindly pushes. If the same effect subscribes to the same signal
+through two dependency paths, the callback fires twice per update. React's `useEffect`
+deduplicates deps; Solid's tracking graph is pointer-based.
+
+#### 9. SSR HTML transported through JavaScript — ~2× bundle bloat
+
+**File:** `page.ch:253-298` (`move_js_range`), `converter_jsx.ch` (`$_uc_h`)
+
+Every component's SSR HTML is captured via `capture_html_delta_to_js` and embedded as a JS
+template literal inside `$_uc_h(html, name, props)`. The same markup exists in both the HTML
+response and the JS bundle. The professionalization plan (Phase 2) proposes marker-based
+replacement — not implemented.
+
+#### 10. JS hoisting via `memmove` buffer surgery — O(N) per component
+
+**File:** `page.ch:253-298` (`move_js_range`)
+
+Component functions are hoisted above dispatch lines using raw `memmove` on the pageJs
+string buffer. Each component hoist is O(N) where N is the total JS length. For 50
+components, this is O(50×N). The professionalization plan proposes segmented sections
+(Runtime/ComponentDefs/Dispatches) serialized in order — not implemented.
+
+#### 11. `is_reactive_var` linear scan on every identifier
+
+**File:** `converter_utils.ch:91-103`
+
+During conversion, every identifier triggers a linear scan through `state_vars` then
+`computed_vars`. For a component with 50 identifiers and 20 state vars, that's 1000
+comparisons. No hash set is used.
+
+#### 12. `ssrValuesEqual` allocates two strings per comparison
+
+**File:** `ssr.ch:202-208`
+
+Creates `std::string a` and `b` on every call. In a hot loop (e.g., `active == index` for
+100 items × 100 comparisons), that's 200 heap allocations. No string interning or fast-path
+for identical types.
+
+#### 13. `renderHtmlAttrsInternal` / `renderJsAttrsInternal` — ~60 lines duplicated
+
+**File:** `ssr.ch:342-398` vs `ssr.ch:526-580`
+
+Nearly identical functions with only the `is_first` output param differing. Any bug fix in
+one must be manually replicated in the other.
+
+#### 14. Spread-SSR limited to `props` identifier only
+
+**File:** `converter_utils.ch:2719-2738`
+
+Only `{...props}` (the component's own props parameter) is SSR-spreadable. `{...localObj}`
+or `{...computedObj}` is silently dropped. React spreads any expression.
+
+#### 15. `expr_references_reactive_var` missing node kinds
+
+**File:** `converter_utils.ch:132-193`
+
+Missing: `TryCatch`, `Switch`, `ForIn`, `ForOf`, `Throw`, `Yield`. A reactive var
+referenced inside a `try` body or `for...of` loop won't get a computed wrapper — the
+reference becomes a plain read (stale value).
+
+#### 16. No `key` prop support — positional hydration only
+
+**File:** `converter_jsx.ch:426-446`, `page.ch` (hydration)
+
+Keys are never extracted or special-cased. Lists are hydrated by walking DOM children by
+index. Sorting, filtering, or reordering a list patches the wrong nodes. React's
+`reconcileChildren` does O(N) keyed diffing.
+
+#### 17. No component memoization / `shouldComponentUpdate`
+
+**File:** `emit_js.ch:1-27`
+
+Client JS functions are emitted as plain `function` — no memoization wrapper, no prop
+comparison. Every parent re-render calls the child function, re-evaluating the entire body.
+React's `React.memo` and Solid's `.memo` signal avoid this.
+
+#### 18. No error boundaries during SSR
+
+**File:** `ast_replace.ch:171`
+
+If a JSX element throws during SSR evaluation (null pointer in a Chemical expression), there
+is no try/catch. The entire server render crashes. React's error boundaries catch during
+render on both client and server.
+
+#### 19. `ssrTextEquals` lossy float comparison
+
+**File:** `ssr.ch:134-144`
+
+Compares doubles by formatting to string with precision=2 and stripping trailing zeros.
+`0.333` → `"0.33"` and `0.334` → `"0.33"` — different values compare equal. This is used
+for hydration mismatch detection.
+
+#### 20. No `createElementNS` — SVG/MathML broken
+
+**File:** `page.ch` (`$_ur.createElement`)
+
+SVG and MathML elements are created with `document.createElement` (no namespace) and never
+render correctly. React uses per-element namespace detection.
+
+### Medium-severity issues
+
+| # | Issue | Location | Notes |
+|---|---|---|---|
+| 21 | `capture_html_delta_to_js` missing `\t`/`\0` escaping | `page.ch:328-342` | Minor: tabs harmless, null could truncate |
+| 22 | `move_html_to_js_with_lambda_start` same missing escapes | `ssr.ch:645-657` | Same gap as #21 |
+| 23 | `var state = ...` treated as reactive keyword | `converter_core.ch:280` | String comparison, not true keyword |
+| 24 | `UnaryOp` prefix adds space for `delete` keyword | `converter_core.ch:76-78` | `delete obj.prop` becomes `delete obj.prop` (wrong) |
+| 25 | `emit_ssr_body_statements` drops unsupported statements | `converter_utils.ch:2346` | No warning emitted |
+| 26 | `writePrimitiveAttrValue` None emits nothing for class | `ssr.ch:297-299` | `class={undefined}` silently skipped |
+| 27 | Component name collision risk | `emit_js.ch:14-15` | Mangling may not include unique prefix |
+| 28 | `$__universal_flush` throws on missing component fn | `page.ch:1269` | Kills entire flush loop; should continue |
+| 29 | Single-class attribute not wrapped in computed | `converter_jsx.ch:395-424` | Single reactive class won't update after mount |
+| 30 | `Yield` emission lacks `;` | `converter_core.ch` | Syntax error in emitted JS |
+| 31 | `ArrayDestructuring` emits array literal, not binding pattern | `converter_core.ch` | Destructuring declarations mis-emitted |
+| 32 | Unsupported prop types silently become `UInteger` | `attr_value.ch` default | Pointer-as-number corruption |
+| 33 | No `forwardRef` support | `emit_js.ch` | Basic ref only, no forwarding |
+| 34 | No `useId` — SSR/client ID mismatch risk | runtime | IDs generated independently on server/client |
+| 35 | No Suspense / async rendering | runtime | Blocking only |
+| 36 | `ssrValuesEqual` allocates 2 strings per call | `ssr.ch:202-208` | Hot path perf issue |
+| 37 | `renderHtmlChildValue` renders nothing for boolean | `ssr.ch:627-632` | Hydration mismatch with client |
+| 38 | `is_reactive_var` linear scan per identifier | `converter_utils.ch:91-103` | O(identifiers × state_vars) |
+| 39 | `move_js_range` memmove O(N) per component | `page.ch:253-298` | 50 components = O(50×N) |
+| 40 | Per-page runtime duplication (~32KB each) | `defaultUniversalSetup()` | 20-page site = 640KB runtime |
+
+### Architecture problems
+
+#### A. Untestable embedded runtime
+
+The entire client runtime (~800 lines of JS) lives as a string literal inside
+`defaultUniversalSetup()` in `page.ch`. This means:
+- No JavaScript linter can validate it
+- No unit tests can exercise individual functions
+- No source maps for browser debugging
+- No tree-shaking — unused helpers (portals, context, inert scan = ~40% of blob) ship anyway
+- No minification — the raw string is emitted as-is
+
+**Recommendation:** Extract to a standalone `.js` file, add it as a build artifact, and
+`<script src>` it. This is Phase 1 of the professionalization plan.
+
+#### B. SSR/Client parity model is implicit
+
+The three SSR evaluators and the client JS emitter have different supported subsets of the
+same language. An expression can produce valid client output while producing empty SSR output.
+There is no shared type system or AST model that enforces parity.
+
+**Recommendation:** Single `SsrEvaluator` that delegates to the same node visitor as the
+client emitter, returning `SsrAttributeValue` when possible and `None` when not. This
+eliminates the three-way divergence.
+
+#### C. No compile-time validation of emitted JS
+
+The converter emits JS into `pageJs` without ever re-parsing it. A converter bug ships
+invalid JS silently. The `universal_parser` already exists and is used at runtime — adding
+a post-emission parse pass is ~50 lines.
+
+**Recommendation:** After each page's JS is finalized, re-parse `getFinalizedPageJs()` with
+`universal_parser` and emit a compile diagnostic on failure.
+
+#### D. Global mutable state everywhere
+
+The runtime uses `window.$__uni_current_instance`, `window.$__uni_current_tracker`,
+`window.$__uni_child_tracker`, `window.$__uni_hydration_warned` — all mutable globals. This
+makes concurrent rendering (React 18's transition API) impossible and causes subtle bugs when
+multiple root components hydrate.
+
+**Recommendation:** Thread instance context explicitly (e.g., `$_us(v, inst)` instead of
+reading `window.$__uni_current_instance`). The professionalization plan §2.3 describes this.
+
+#### E. Positional hydration is fragile
+
+Hydration walks DOM children by index (`$__uni_hydrate_children`). If the server and client
+disagree on child count (e.g., a conditional that evaluated differently), every subsequent
+child is mismatched. React's keyed hydration identifies nodes by `data-reactid` attributes.
+
+**Recommendation:** Emit stable IDs into hydration boundary spans and match by ID, not position.
+
+### What to fix first (rewrite priority)
+
+For the rewrite, these are ordered by impact (how many other problems they solve):
+
+1. **Extract runtime to standalone JS file** — enables testing, linting, minification,
+   tree-shaking, source maps. Unblocks everything else.
+
+2. **Add keyed reconciliation** — solves list hydration mismatches, enables conditional
+   rendering without full re-creation, brings parity with React/Solid.
+
+3. **Add unmount cleanup / owner tree** — solves subscription leaks, event listener leaks,
+   and makes the framework safe for dynamic component mounting/unmounting.
+
+4. **Add batching** — solves O(N×M) subscriber notification, enables React 18-style
+   automatic batching in event handlers.
+
+5. **Single SSR evaluator** — eliminates parity bugs between server and client rendering.
+
+6. **Post-emission JS validation** — catches converter bugs at compile time instead of
+   shipping broken JS to browsers.
+
+7. **Segmented JS sections** (Runtime/ComponentDefs/Dispatches) — eliminates `memmove`
+   surgery, makes JS ordering deterministic.
+
+8. **Server-side error boundaries** — prevents full-page crashes when a component throws
+   during SSR.

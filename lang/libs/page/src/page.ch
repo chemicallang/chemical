@@ -472,6 +472,8 @@ public struct HtmlPage {
         // universal component hydration runtime
         pageHeadJs.append_view(std::string_view("""
 window.$__uni_hydration_queue = []
+window.$__uni_batch_depth = 0
+window.$__uni_pending_instances = []
 window.$__uni_error = ((message, details = "", cause = null) => {
     const suffix = details ? ": " + details : "";
     const err = new Error(message + suffix);
@@ -491,6 +493,25 @@ window.$__uni_dispatch = ((fnName, target, props, mode = "children") => {
         }
     } else {
         window.$__uni_hydration_queue.push([ fnName, target, props, mode ]);
+    }
+})
+window.$__uni_flush_batch = (() => {
+    const pending = window.$__uni_pending_instances;
+    for(let i = 0; i < pending.length; i++) {
+        const inst = pending[i];
+        inst._pendingEffects = false;
+        if(inst.layoutEffects && inst.layoutEffects.length) window.$__uni_run_effects(inst, inst.layoutEffects);
+        if(inst.effects && inst.effects.length) window.$__uni_run_effects(inst, inst.effects);
+    }
+    pending.length = 0;
+})
+window.$__uni_batch = ((fn) => {
+    window.$__uni_batch_depth++;
+    try {
+        fn();
+    } finally {
+        window.$__uni_batch_depth--;
+        if(window.$__uni_batch_depth === 0) window.$__uni_flush_batch();
     }
 })
 """))
@@ -537,7 +558,13 @@ window.$_us = ((v) => {
             if(_inst && _inst.layoutEffects && _inst.layoutEffects.length) {
                 window.$__uni_run_effects(_inst, _inst.layoutEffects);
             }
-            if(_inst && !_inst._pendingEffects) {
+            // During a batch, defer effect scheduling to batch end
+            if(window.$__uni_batch_depth > 0) {
+                if(_inst && !_inst._pendingEffects) {
+                    _inst._pendingEffects = true;
+                    window.$__uni_pending_instances.push(_inst);
+                }
+            } else if(_inst && !_inst._pendingEffects) {
                 _inst._pendingEffects = true;
                 Promise.resolve().then(() => {
                     _inst._pendingEffects = false;
@@ -636,7 +663,13 @@ window.$_r = {
                 const d = deps[i];
                 if(d && typeof d.subscribe === "function") {
                     eff.depUnsubs.push(d.subscribe(() => {
-                        if(!inst._pendingEffects) {
+                        // During a batch, defer effect scheduling to batch end
+                        if(window.$__uni_batch_depth > 0) {
+                            if(!inst._pendingEffects) {
+                                inst._pendingEffects = true;
+                                window.$__uni_pending_instances.push(inst);
+                            }
+                        } else if(!inst._pendingEffects) {
                             inst._pendingEffects = true;
                             Promise.resolve().then(() => {
                                 inst._pendingEffects = false;
@@ -663,6 +696,10 @@ window.$_r = {
     useRef: (initial) => ({ current: initial }),
     useMemo: (fn) => window.$_ucs(() => fn()),
     useCallback: (fn) => fn,
+    useUnmount: (fn) => {
+        const inst = window.$__uni_current_instance;
+        if(inst && inst._disposables) inst._disposables.push(fn);
+    },
     useReducer: (reducer, initial) => {
         const state = window.$_us(initial);
         const dispatch = (action) => { state.value = reducer(state.value, action); };
@@ -944,9 +981,11 @@ window.$__uni_set_prop = ((el, key, value) => {
         }
         // Wrap handlers so a throwing handler is logged and contained instead
         // of taking down the whole page (error-boundary contract).
+        // Also wrap in automatic batching so multiple state updates in one
+        // event handler are coalesced into a single effect flush.
         const wrapped = (e) => {
             try {
-                v(e);
+                window.$__uni_batch(() => v(e));
             } catch(err) {
                 console.error("[universal] event handler failed:", err);
             }
@@ -1238,7 +1277,8 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
     }
     // Set up instance tracking for effects
     const prevInstance = window.$__uni_current_instance;
-    const inst = {};
+    const inst = { parent: prevInstance, children: [], _disposables: [] };
+    if(prevInstance) prevInstance.children.push(inst);
     window.$__uni_current_instance = inst;
     let out;
     try {
@@ -1254,15 +1294,107 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
             window.$__uni_error("cannot hydrate universal root without a parent element", host.tagName ? host.tagName.toLowerCase() : "unknown");
         }
         window.$__uni_hydrate_node(parent, host, out);
+        // Track instance for unmount cleanup via MutationObserver
+        window.$__uni_track_instance(host, inst);
         // Layout effects run synchronously before paint
         if(inst.layoutEffects && inst.layoutEffects.length) window.$__uni_run_effects(inst, inst.layoutEffects);
         if(inst.effects && inst.effects.length) window.$__uni_run_effects(inst, inst.effects);
         return;
     }
     window.$__uni_hydrate_children(host, [ out ]);
+    // Track instance for unmount cleanup via MutationObserver
+    window.$__uni_track_instance(host, inst);
     // Layout effects run synchronously before paint
     if(inst.layoutEffects && inst.layoutEffects.length) window.$__uni_run_effects(inst, inst.layoutEffects);
     if(inst.effects && inst.effects.length) window.$__uni_run_effects(inst, inst.effects);
+})
+// Owner tree cleanup: dispose all effects, subscriptions, and child instances
+window.$__uni_dispose = ((inst) => {
+    if(!inst) return;
+    // Dispose children first (depth-first)
+    for(let i = 0; i < inst.children.length; i++) {
+        window.$__uni_dispose(inst.children[i]);
+    }
+    inst.children = [];
+    // Run cleanup functions for effects
+    if(inst.effects) {
+        for(let i = 0; i < inst.effects.length; i++) {
+            const eff = inst.effects[i];
+            if(eff.cleanup) {
+                try { eff.cleanup(); } catch(err) { console.error("[universal] effect cleanup failed:", err); }
+            }
+            // Unsubscribe from deps
+            if(eff.depUnsubs) {
+                for(let j = 0; j < eff.depUnsubs.length; j++) {
+                    try { eff.depUnsubs[j](); } catch(err) {}
+                }
+            }
+        }
+        inst.effects = [];
+    }
+    if(inst.layoutEffects) {
+        for(let i = 0; i < inst.layoutEffects.length; i++) {
+            const eff = inst.layoutEffects[i];
+            if(eff.cleanup) {
+                try { eff.cleanup(); } catch(err) { console.error("[universal] layout effect cleanup failed:", err); }
+            }
+            if(eff.depUnsubs) {
+                for(let j = 0; j < eff.depUnsubs.length; j++) {
+                    try { eff.depUnsubs[j](); } catch(err) {}
+                }
+            }
+        }
+        inst.layoutEffects = [];
+    }
+    // Dispose custom disposables (registered via $_r.useUnmount or similar)
+    if(inst._disposables) {
+        for(let i = 0; i < inst._disposables.length; i++) {
+            try { inst._disposables[i](); } catch(err) {}
+        }
+        inst._disposables = [];
+    }
+    // Remove from parent
+    if(inst.parent && inst.parent.children) {
+        const idx = inst.parent.children.indexOf(inst);
+        if(idx >= 0) inst.parent.children.splice(idx, 1);
+    }
+    inst.parent = null;
+})
+// MutationObserver to detect DOM removal and clean up owner trees
+window.$__uni_cleanup_observer = (() => {
+    if(typeof MutationObserver === "undefined") return null;
+    const observed = new Map();
+    const observer = new MutationObserver((mutations) => {
+        for(let i = 0; i < mutations.length; i++) {
+            const removed = mutations[i].removedNodes;
+            for(let j = 0; j < removed.length; j++) {
+                const node = removed[j];
+                if(node.nodeType !== 1) continue;
+                // Check for component boundary spans
+                const spans = node.querySelectorAll ? node.querySelectorAll("[data-chx-i]") : [];
+                for(let k = 0; k < spans.length; k++) {
+                    const inst = observed.get(spans[k]);
+                    if(inst) {
+                        window.$__uni_dispose(inst);
+                        observed.delete(spans[k]);
+                    }
+                }
+                // Check the node itself
+                const inst = observed.get(node);
+                if(inst) {
+                    window.$__uni_dispose(inst);
+                    observed.delete(node);
+                }
+            }
+        }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return { observer, observed };
+})()
+window.$__uni_track_instance = ((host, inst) => {
+    if(window.$__uni_cleanup_observer) {
+        window.$__uni_cleanup_observer.observed.set(host, inst);
+    }
 })
 window.$_uc = ((factory, props) => {
     if(typeof factory !== "function") {

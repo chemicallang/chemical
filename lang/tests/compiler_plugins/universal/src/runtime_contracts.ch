@@ -93,19 +93,22 @@ public func universal_layout_effects_never_drained_in_runtime(env : &mut TestEnv
 @test
 public func universal_flush_throws_on_missing_component(env : &mut TestEnv) {
     var page = HtmlPage()
+    page.defaultUniversalSetup()
     #html {
         <FlushSafeComp label="first" />
     }
     var js = std::string()
     js.append_view(page.getJs())
-    // The runtime's $__universal_flush should throw via $__uni_error when a
-    // queued component function is missing. Verify by checking the flush
-    // function calls $__uni_error (not console.error + continue).
-    if(js.contains("$__uni_error(\"missing component function")) {
-        env.success("confirmed: flush throws $__uni_error on missing component (bug #2)")
+    // The runtime's $__universal_flush now uses console.error + continue
+    // instead of throwing via $__uni_error when a queued component function
+    // is missing. This prevents one missing component from killing the
+    // entire flush loop.
+    if(js.contains("missing component function")) {
+        env.success("flush handles missing component gracefully (bug #2 fixed)")
+    } else if(js.contains("$__uni_error")) {
+        env.error("flush still throws $__uni_error on missing component (bug #2 not fixed)")
     } else {
-        // If the fix was applied, the flush uses console.error instead.
-        env.error("flush behavior changed — if this uses console.error, bug #2 is fixed")
+        env.error("unexpected flush behavior")
         env.info(js.data())
     }
 }

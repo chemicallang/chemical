@@ -70,6 +70,7 @@ public func universal_js_output_valid_structure(env : &mut TestEnv) {
 @test
 public func universal_page_js_end_has_flush(env : &mut TestEnv) {
     var page = HtmlPage()
+    page.defaultUniversalSetup()
     #html { <PosTrackingComp x={1} /> }
     var finalized = page.getFinalizedPageJs()
     if(finalized.contains("$__universal_flush()")) {

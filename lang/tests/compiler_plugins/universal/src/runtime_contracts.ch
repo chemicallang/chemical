@@ -2,19 +2,14 @@
 // These tests verify that the generated JS output contains correct runtime
 // patterns. Failures indicate bugs in the converter or runtime.
 //
-// SUSPECTED BUGS TARGETED:
-// 1. useLayoutEffect registers into inst.layoutEffects but nothing ever runs it
-//    ($__uni_mount only drains inst.effects, not layoutEffects).
-// 2. $__universal_flush throws via $__uni_error when a queued component fn is
-//    missing — a typo'd name kills the whole flush loop.
-// 3. $_us captures window.$__uni_current_instance once — async interleavings
-//    can corrupt "current instance" so effects land on the wrong component.
-// 4. Effects are microtask-scheduled only (Promise.resolve().then) — no
-//    flush-before-event, so events dispatch before pending effects run.
-// 5. No unmount/disposal — subscriptions and el.addEventListener are never
-//    torn down; $_ucs deps of removed nodes leak forever.
-// 6. Keyed reconciliation missing — positional hydration patches wrong nodes
-//    on sort/filter/reorder.
+// CONTRACTS PINNED HERE (updated as runtime bugs are fixed):
+// 1. useLayoutEffect IS drained synchronously by the mount path.
+// 2. $__universal_flush handles a missing component without killing the loop.
+// 3. $_us captures the current instance at creation (async-interleave risk).
+// 4. Effects are microtask-scheduled (no synchronous flush-before-event yet).
+// 5. Unmount disposes effects, dep subscriptions, and render-scoped resources.
+// 6. Keyed arrays reconcile by identity (__uni_vnode_key + oldMap).
+// 7. Effect deps are compared by resolved value (not raw signal objects).
 // =============================================================================
 
 // =============================================================================
@@ -57,6 +52,7 @@ public func universal_layout_effect_emitted_in_js(env : &mut TestEnv) {
 @test
 public func universal_layout_effects_are_ever_run(env : &mut TestEnv) {
     var page = HtmlPage()
+    page.defaultUniversalSetup()
     #html { <LayoutEffectComp /> }
     var js = std::string()
     js.append_view(page.getJs())
@@ -110,6 +106,32 @@ public func universal_flush_throws_on_missing_component(env : &mut TestEnv) {
 }
 
 // =============================================================================
+// Bug #11: effect dependency comparison must compare RESOLVED dep values.
+//
+// The runner previously compared the raw deps array (which contains signal
+// objects) against the previous run's resolved primitives, so `changed` was
+// always true and every effect re-ran on every instance flush. The fix maps
+// deps through $__uni_value before comparing.
+// =============================================================================
+
+@test
+public func universal_effect_deps_compared_by_value(env : &mut TestEnv) {
+    var page = HtmlPage()
+    page.defaultUniversalSetup()
+    #html { <MicrotaskEffectComp /> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    // The runner must resolve deps before comparing and store the resolved
+    // values as lastDeps (not the raw signal objects).
+    if(js.contains("const resolved = eff.deps ? eff.deps.map(window.$__uni_value)") && js.contains("eff.lastDeps = resolved")) {
+        env.success("effect deps are compared by resolved value")
+    } else {
+        env.error("effect deps are not resolved before comparison — effects over-run")
+        env.info(js.data())
+    }
+}
+
+// =============================================================================
 // Bug #3: $_us captures window.$__uni_current_instance at creation time.
 //
 // The state signal creator $_us captures _inst = window.$__uni_current_instance
@@ -134,6 +156,7 @@ public func universal_flush_throws_on_missing_component(env : &mut TestEnv) {
 @test
 public func universal_state_captures_global_instance(env : &mut TestEnv) {
     var page = HtmlPage()
+    page.defaultUniversalSetup()
     #html { <NestedMountComp /> }
     var js = std::string()
     js.append_view(page.getJs())
@@ -170,6 +193,7 @@ public func universal_state_captures_global_instance(env : &mut TestEnv) {
 @test
 public func universal_effects_scheduled_via_microtask(env : &mut TestEnv) {
     var page = HtmlPage()
+    page.defaultUniversalSetup()
     #html { <MicrotaskEffectComp /> }
     var js = std::string()
     js.append_view(page.getJs())
@@ -205,6 +229,7 @@ public func universal_effects_scheduled_via_microtask(env : &mut TestEnv) {
 @test
 public func universal_unmount_cleanup_exists(env : &mut TestEnv) {
     var page = HtmlPage()
+    page.defaultUniversalSetup()
     #html { <LeakRiskComp /> }
     var js = std::string()
     js.append_view(page.getJs())
@@ -237,18 +262,20 @@ public func universal_unmount_cleanup_exists(env : &mut TestEnv) {
 }
 
 @test
-public func universal_hydrate_children_uses_index_not_keys(env : &mut TestEnv) {
+public func universal_keyed_reconciliation_exists(env : &mut TestEnv) {
     var page = HtmlPage()
+    page.defaultUniversalSetup()
     #html { <KeyedListComp /> }
     var js = std::string()
     js.append_view(page.getJs())
-    // The hydrate_children function iterates by index, not by key.
-    // Check that the function does NOT contain a key map lookup pattern
-    // like "keyMap" or "keyToNode".
-    if(js.contains("keyMap") || js.contains("keyToNode")) {
-        env.error("runtime has keyed hydration — bug #6 may be fixed, update this test")
+    // The runtime must reconcile keyed arrays by identity (matching old nodes
+    // to new vnodes by key and moving them) so reordering preserves DOM nodes,
+    // focus, and input values.
+    if(js.contains("__uni_vnode_key") && js.contains("oldMap") && js.contains("newKeys")) {
+        env.success("runtime reconciles keyed lists by identity")
     } else {
-        env.success("confirmed: hydration is positional, no key reconciliation (bug #6)")
+        env.error("runtime has no keyed reconciliation — reorders would patch the wrong nodes")
+        env.info(js.data())
     }
 }
 

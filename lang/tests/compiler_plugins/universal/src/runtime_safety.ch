@@ -37,22 +37,16 @@ public func universal_captured_html_not_escaped_for_script_tag(env : &mut TestEn
     // that would be captured by capture_html_delta_to_js.
     page.append_html_char_ptr("<script>alert(1)</script>")
     var html_size_before = page.getHtml().size()
-    // Simulate what capture_html_delta_to_js does:
-    // It captures the HTML delta and appends it to pageJs as a backtick string.
-    // The function escapes ` ${ \ \n \r but NOT </script>.
-    //
-    // We verify by checking that the page's JS contains the raw </script>
-    // sequence (NOT escaped as <\/script> or \u003C/script).
+    // capture_html_delta_to_js now escapes </script> as \u003C/script> to
+    // prevent inline <script> breakout (XSS fix).
     page.capture_html_delta_to_js(0)
     var js = std::string()
     js.append_view(page.getJs())
-    // If the bug is fixed, </script> should be escaped as <\/script> or
-    // \u003C/script. If the bug exists, the raw </script> is present.
-    if(js.contains(&std::string_view("</script>"))) {
-        // Bug confirmed: </script> is NOT escaped in captured HTML.
-        env.success("confirmed: </script> is not escaped in captured HTML (XSS bug #1)")
-    } else if(js.contains(&std::string_view("\\u003C/")) || js.contains(&std::string_view("<\\/"))) {
-        env.error("</script> is now escaped — bug #1 is fixed, update this test")
+    // Verify the </script> is escaped as \u003C/script>
+    if(js.contains(&std::string_view("\\u003C/script>"))) {
+        env.success("</script> is correctly escaped as \\u003C/script> in captured HTML")
+    } else if(js.contains(&std::string_view("</script>"))) {
+        env.error("</script> is NOT escaped — XSS vulnerability still present")
     } else {
         env.error("unexpected output — neither raw nor escaped </script> found")
         env.info(js.data())

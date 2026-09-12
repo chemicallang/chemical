@@ -651,6 +651,10 @@ public func move_html_to_js_with_lambda_start(page : &mut HtmlPage, index : size
         if(c == '`') page.pageHeadJs.append_view("\\`")
         else if(c == '$' && i + 1 < delta_size && delta[i+1] == '{') page.pageHeadJs.append_view("\\$")
         else if(c == '\\') page.pageHeadJs.append_view("\\\\")
+        else if(c == '<' && i + 6 < delta_size && delta[i+1] == '/' && delta[i+2] == 's' && delta[i+3] == 'c' && delta[i+4] == 'r' && delta[i+5] == 'i' && delta[i+6] == 'p' && delta[i+7] == 't') {
+            page.pageHeadJs.append_view("\\u003C/script>")
+            i += 7
+        }
         else page.pageHeadJs.append(c)
     }
     page.pageHtml.resize(index)

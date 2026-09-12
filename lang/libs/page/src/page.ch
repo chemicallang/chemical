@@ -334,6 +334,10 @@ public struct HtmlPage {
             if(c == '`') pageJs.append_view("\\`")
             else if(c == '$' && i + 1 < delta_size && delta[i+1] == '{') pageJs.append_view("\\$")
             else if(c == '\\') pageJs.append_view("\\\\")
+            else if(c == '<' && i + 6 < delta_size && delta[i+1] == '/' && delta[i+2] == 's' && delta[i+3] == 'c' && delta[i+4] == 'r' && delta[i+5] == 'i' && delta[i+6] == 'p' && delta[i+7] == 't') {
+                pageJs.append_view("\\u003C/script>")
+                i += 7
+            }
             else if(c == '\n') pageJs.append_view("\\n")
             else if(c == '\r') pageJs.append_view("\\r")
             else pageJs.append(c)
@@ -529,6 +533,10 @@ window.$_us = ((v) => {
             val = n;
             const snapshot = subs.slice();
             for(let i = 0; i < snapshot.length; i++) snapshot[i](val);
+            // Layout effects run synchronously before paint (like React useLayoutEffect)
+            if(_inst && _inst.layoutEffects && _inst.layoutEffects.length) {
+                window.$__uni_run_effects(_inst, _inst.layoutEffects);
+            }
             if(_inst && !_inst._pendingEffects) {
                 _inst._pendingEffects = true;
                 Promise.resolve().then(() => {
@@ -538,7 +546,8 @@ window.$_us = ((v) => {
             }
         },
         subscribe(fn) {
-            subs.push(fn);
+            // Deduplicate: if the same function is already subscribed, don't add it again
+            if(subs.indexOf(fn) === -1) subs.push(fn);
             return () => {
                 const idx = subs.indexOf(fn);
                 if(idx >= 0) subs.splice(idx, 1);
@@ -597,7 +606,8 @@ window.$_ucs = ((fn) => {
             return cached;
         },
         subscribe(fn) {
-            subs.push(fn);
+            // Deduplicate: if the same function is already subscribed, don't add it again
+            if(subs.indexOf(fn) === -1) subs.push(fn);
             return () => {
                 const idx = subs.indexOf(fn);
                 if(idx >= 0) subs.splice(idx, 1);
@@ -630,6 +640,8 @@ window.$_r = {
                             inst._pendingEffects = true;
                             Promise.resolve().then(() => {
                                 inst._pendingEffects = false;
+                                // Layout effects run synchronously before regular effects
+                                if(inst.layoutEffects && inst.layoutEffects.length) window.$__uni_run_effects(inst, inst.layoutEffects);
                                 if(inst.effects && inst.effects.length) window.$__uni_run_effects(inst, inst.effects);
                             });
                         }
@@ -1242,10 +1254,14 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
             window.$__uni_error("cannot hydrate universal root without a parent element", host.tagName ? host.tagName.toLowerCase() : "unknown");
         }
         window.$__uni_hydrate_node(parent, host, out);
+        // Layout effects run synchronously before paint
+        if(inst.layoutEffects && inst.layoutEffects.length) window.$__uni_run_effects(inst, inst.layoutEffects);
         if(inst.effects && inst.effects.length) window.$__uni_run_effects(inst, inst.effects);
         return;
     }
     window.$__uni_hydrate_children(host, [ out ]);
+    // Layout effects run synchronously before paint
+    if(inst.layoutEffects && inst.layoutEffects.length) window.$__uni_run_effects(inst, inst.layoutEffects);
     if(inst.effects && inst.effects.length) window.$__uni_run_effects(inst, inst.effects);
 })
 window.$_uc = ((factory, props) => {
@@ -1266,7 +1282,9 @@ window.$__universal_flush = function() {
                 console.error("universal hydration failed for component", obj[0], err);
             }
         } else {
-            window.$__uni_error("missing component function by name", obj[0]);
+            // Component function not yet registered — log and continue instead
+            // of throwing, which would kill the entire flush loop.
+            console.error("universal flush: missing component function", obj[0], "- dispatch was queued but fn was never registered");
         }
     }
 };

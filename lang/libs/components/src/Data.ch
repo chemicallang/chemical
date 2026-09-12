@@ -461,7 +461,7 @@ public #universal AccordionItem(props) {
     return <div {...props} class={${accordion_item_styles(page)}} data-state={open ? "open" : "closed"} data-value={itemValue} data-disabled={disabled ? "true" : "false"}>
         <button type="button" class={"chx-accordion-trigger " + ${accordion_trigger_styles(page)}} onClick={toggle} disabled={disabled} aria-expanded={open ? "true" : "false"} data-accordion-trigger="true">
             <span>{props.trigger || ""}</span>
-            <span class={${accordion_icon_styles(page)}} style={open ? "transform:rotate(180deg)" : ""}>
+            <span class={"chx-accordion-icon " + ${accordion_icon_styles(page)}} style={open ? "transform:rotate(180deg)" : ""}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
             </span>
         </button>
@@ -476,7 +476,7 @@ public #universal AccordionItem(props) {
 public #universal AccordionTrigger(props) {
     return <button type="button" class={"chx-accordion-trigger " + ${accordion_trigger_styles(page)}} data-accordion-trigger="true">
         {props.children}
-        <span class={${accordion_icon_styles(page)}}>
+        <span class={"chx-accordion-icon " + ${accordion_icon_styles(page)}}>
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
         </span>
     </button>

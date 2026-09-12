@@ -736,6 +736,16 @@ Implemented in `lang/libs/page/src/page.ch`:
   operation that removes nodes; the MutationObserver remains only as a safety
   net. Contract test: `runtime_contracts.ch::universal_reconciler_driven_disposal`.
 
+- **Runtime unit-test layer.** Added `lang/compiled/components-e2e/tests/runtime-unit.spec.ts`
+  (10 tests) exercising runtime primitives directly against a real DOM,
+  independent of components: `$_us` subscribe/dedupe/unsubscribe, `$_ucs`
+  dependency tracking and `$_dispose`, `$__uni_run_effects` resolved-value dep
+  comparison and cleanup ordering, `$__uni_reconcile_list` keyed reorder
+  identity/removal, `$__uni_dispose` cleanup ordering, `$__uni_register_resource`
+  attribution, and `$__uni_shallow_equal`. This is the plan's Phase 1 "runtime
+  can be tested" exit criterion in pragmatic form (the source is still embedded
+  in `page.ch`; full extraction remains open).
+
 Tests:
 
 - `lang/tests/compiler_plugins/universal/src/runtime_contracts.ch` — the

@@ -212,7 +212,8 @@ func (cssParser : &mut CSSParser) parseRadialGradient(parser : *mut Parser, buil
                  // Length size
                  cssParser.parseLength(parser, builder, &mut rad_data.size.length)
                  // If ellipse, can have second length
-                 if(rad_data.shape.kind == CSSKeywordKind.Unknown && rad_data.shape.value.equals("ellipse")) { // Ellipse is Unknown kind with value "ellipse"
+                 // If ellipse, can have second length (ellipse takes two lengths: rx ry)
+                 if(rad_data.shape.kind == CSSKeywordKind.Ellipse || rad_data.shape.value.equals("ellipse")) {
                      // Try second length
                      var second = CSSValue()
                      if(cssParser.parseLength(parser, builder, &mut second)) {

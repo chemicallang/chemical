@@ -51,32 +51,47 @@ func (cssParser : &mut CSSParser) parseKeyframesRule(om : &mut CSSOM, parser : *
                 return false;
             }
 
-            // Keyframe selector (from, to, percentage)
-            var selector = std::string_view();
-            if(body_token.type == TokenType.Identifier || body_token.type == TokenType.PropertyName) {
-                selector = body_token.value;
-                parser.increment();
-            } else if(body_token.type == TokenType.Number) {
-                const start = body_token.value.data();
-                var size = body_token.value.size();
-                parser.increment();
-                const next_tok = parser.getToken();
-                if(next_tok.type == TokenType.Percentage) {
-                    size += next_tok.value.size();
+            // Keyframe selector (from, to, percentage) — supports comma-separated
+            // lists like "0%, 80%, 100% { ... }"
+            var selector = std::string();
+            while(true) {
+                const sel_token = parser.getToken();
+                if(sel_token.type == TokenType.Identifier || sel_token.type == TokenType.PropertyName) {
+                    selector.append_view(&sel_token.value);
                     parser.increment();
+                } else if(sel_token.type == TokenType.Number) {
+                    const start = sel_token.value.data();
+                    var size = sel_token.value.size();
+                    parser.increment();
+                    const next_tok = parser.getToken();
+                    if(next_tok.type == TokenType.Percentage) {
+                        size += next_tok.value.size();
+                        parser.increment();
+                    }
+                    var sel_view = std::string_view(start, size);
+                    selector.append_view(&sel_view);
+                } else if(sel_token.type == TokenType.Percentage) {
+                    selector.append_view(&sel_token.value);
+                    parser.increment();
+                } else {
+                    parser.error("expected keyframe selector (e.g., 'from', 'to', or '50%')");
+                    return false;
                 }
-                selector = std::string_view(start, size);
-            } else if(body_token.type == TokenType.Percentage) {
-                selector = body_token.value;
-                parser.increment();
-            } else {
-                parser.error("expected keyframe selector (e.g., 'from', 'to', or '50%')");
-                return false;
+                // A comma means another selector follows in the list
+                const comma_tok = parser.getToken();
+                if(comma_tok.type == TokenType.Comma) {
+                    parser.increment();
+                    selector.append_view(", ");
+                    continue;
+                }
+                break;
             }
+            var selector_arena = selector.to_view();
+            var selector_view = builder.allocate_view(&selector_arena);
 
             var keyframe = builder.allocate<CSSKeyframe>();
             new (keyframe) CSSKeyframe {
-                selector : builder.allocate_view(&selector),
+                selector : selector_view,
                 declarations : std::vector<*mut CSSDeclaration>()
             }
             rule.keyframes.push(keyframe);

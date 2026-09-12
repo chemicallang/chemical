@@ -832,6 +832,40 @@ Still open in Phase 2: stable component boundary markers + instance manifest
 (replacing positional adoption), external/hashed runtime assets, and removing the
 now-unused `capture_html_delta_to_js` path and dormant template-builder design.
 
+### Phase 2 (second slice) — multi-node nested component roots hydrate correctly
+
+The runtime previously assumed every nested universal component rendered a single
+root element: `$__uni_mount(dom, ..., "root")` hydrated the component and returned
+`dom.nextSibling`. That is wrong for a component whose root is a **fragment**
+(`<>{a}{b}</>`) or otherwise multi-node — the parent's sibling hydration then
+shifted and patched the wrong nodes (observed as duplicate/consumed siblings).
+
+Implemented in `lang/libs/page/src/page.ch`:
+
+- **`$__uni_mount` returns the node after the component's entire SSR range.**
+  In `"root"` mode it returns the value from `$__uni_hydrate_node` (the node after
+  the hydrated range) instead of the caller assuming one element.
+- **Hydration no longer requires the component's first SSR node to be an
+  element.** `$__uni_hydrate_node`'s `__uni_uc` branch now calls
+  `$__uni_mount(dom, comp, props, "root")` for any non-null `dom` (text nodes
+  included) and returns the computed end node, falling back to `dom.nextSibling`.
+- **Instance tracking for text-leading roots.** When the component's range starts
+  with a text node, `$__uni_mount` tracks the first element inside the range
+  (falling back to the parent) instead of attempting to track a text node.
+
+This also **removed a pre-existing hydration duplication** of reactive state
+elements (the controlled dialog `<p>` previously appeared twice after hydration;
+it is now adopted in place). The stale test workaround
+(`components.spec.ts::dialog controlled` used `nth(1)`) was updated to assert the
+single, correct node.
+
+Tests: `lang/compiled/components-e2e/tests/root-shapes.spec.ts` (3 tests) —
+SSR-before-JS, hydration adoption with sibling alignment, and fresh client mount
+after a toggle, all against a fragment-root nested component.
+
+Full E2E: 356/356 pass. Compiler-plugin suite: 1093/1095 (same 2 unrelated
+failures).
+
 ### Known remaining SSR parity gap
 
 A computed local whose source is a **`.filter()` over runtime props**

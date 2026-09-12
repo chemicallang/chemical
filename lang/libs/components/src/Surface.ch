@@ -628,22 +628,23 @@ public #universal Tooltip(props) {
             if(hoverTimeout) { clearTimeout(hoverTimeout); hoverTimeout = null }
             visible = false
         }
-        // Position the tooltip relative to the trigger using CSS transforms
-        var tipStyle = "position:absolute;z-index:50;pointer-events:none;white-space:nowrap;"
+        // Position the tooltip relative to the trigger using CSS transforms.
+        // The base positioning is static; the opacity is folded into the JSX
+        // style expression so the universal macro can make it reactive to
+        // `visible` (bare reads in the render body are not tracked).
+        var tipBase = "position:absolute;z-index:50;pointer-events:none;white-space:nowrap;"
         if(side == "bottom") {
-            tipStyle = tipStyle + "top:calc(100% + 8px);left:50%;transform:translateX(-50%);"
+            tipBase = tipBase + "top:calc(100% + 8px);left:50%;transform:translateX(-50%);"
         } else if(side == "left") {
-            tipStyle = tipStyle + "right:calc(100% + 8px);top:50%;transform:translateY(-50%);"
+            tipBase = tipBase + "right:calc(100% + 8px);top:50%;transform:translateY(-50%);"
         } else if(side == "right") {
-            tipStyle = tipStyle + "left:calc(100% + 8px);top:50%;transform:translateY(-50%);"
+            tipBase = tipBase + "left:calc(100% + 8px);top:50%;transform:translateY(-50%);"
         } else {
-            tipStyle = tipStyle + "bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);"
+            tipBase = tipBase + "bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);"
         }
-        if(!visible) { tipStyle = tipStyle + "opacity:0;visibility:hidden;" }
-        else { tipStyle = tipStyle + "opacity:1;visibility:visible;" }
         return <span style="position:relative;display:inline-flex;" onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}>
             {props.children}
-            <span role="tooltip" class={${tooltip_styles(page)} + " " + classes} style={tipStyle}>{tipContent}</span>
+            <span role="tooltip" class={${tooltip_styles(page)} + " " + classes} style={tipBase + (visible ? "opacity:1;" : "opacity:0;")}>{tipContent}</span>
         </span>
     }
     return <span {...props} class={${tooltip_styles(page)} + " " + classes}>{props.children}</span>

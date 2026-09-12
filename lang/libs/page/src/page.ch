@@ -325,26 +325,6 @@ public struct HtmlPage {
         pageHeadJs.append_double(value, 3)
     }
 
-    func capture_html_delta_to_js(&mut self, index : ubigint) {
-        const delta_size = pageHtml.size() - index;
-        if(delta_size == 0) return;
-        const delta = pageHtml.data() + index;
-        for(var i = 0u; i < delta_size; i++) {
-            const c = delta[i];
-            if(c == '`') pageJs.append_view("\\`")
-            else if(c == '$' && i + 1 < delta_size && delta[i+1] == '{') pageJs.append_view("\\$")
-            else if(c == '\\') pageJs.append_view("\\\\")
-            else if(c == '<' && i + 6 < delta_size && delta[i+1] == '/' && delta[i+2] == 's' && delta[i+3] == 'c' && delta[i+4] == 'r' && delta[i+5] == 'i' && delta[i+6] == 'p' && delta[i+7] == 't') {
-                pageJs.append_view("\\u003C/script>")
-                i += 7
-            }
-            else if(c == '\n') pageJs.append_view("\\n")
-            else if(c == '\r') pageJs.append_view("\\r")
-            else pageJs.append(c)
-        }
-        pageHtml.resize(index);
-    }
-
     func appendHtmlTagStart(str : &mut std::string, lang : std::string_view = "", htmlClass : std::string_view = "") {
         if(htmlClass.empty() && lang.empty()) {
             str.append_view("<html>")

@@ -829,8 +829,7 @@ Tests:
   pre-existing, unrelated `css_cbi` and `json_cbi` tests).
 
 Still open in Phase 2: stable component boundary markers + instance manifest
-(replacing positional adoption), external/hashed runtime assets, and removing the
-now-unused `capture_html_delta_to_js` path and dormant template-builder design.
+(replacing positional adoption) and external/hashed runtime assets.
 
 ### Phase 2 (second slice) — multi-node nested component roots hydrate correctly
 
@@ -865,6 +864,27 @@ after a toggle, all against a fragment-root nested component.
 
 Full E2E: 356/356 pass. Compiler-plugin suite: 1093/1095 (same 2 unrelated
 failures).
+
+### Phase 2 (third slice) — dead SSR-HTML-capture path and dormant design removed
+
+The pre-marker hydration protocol (`capture_html_delta_to_js` -> `$_uc_h(html,
+name, props)`) had no remaining production callers after the first slice, so it
+was removed end to end:
+
+- `HtmlPage.capture_html_delta_to_js` removed from `lang/libs/page/src/page.ch`.
+- `move_html_to_js_with_lambda_start` removed from `lang/libs/page/src/ssr.ch`
+  (zero callers; it also carried the unescaped-`</script>` gap).
+- The `capture_html_delta_to_js` requirement/binding removed from
+  `universal_cbi/src/sym_res/support_fix.ch` and the field removed from
+  `universal_parser/src/sym_res/SymResSupport.ch`.
+- The dormant second hydration design (`react/template_builder.ch`,
+  `react/render.ch`, and the four `Universal*Binding` structs only they used)
+  was deleted; `UniversalStateDecl` was kept because `jsx_props.ch` still uses it.
+- The six compiler-plugin tests that exercised the removed capture function were
+  removed with it.
+
+Compiler-plugin suite: 1087/1089 (same 2 unrelated failures; test count dropped
+1095 -> 1089 with the removed tests). Full E2E: 356/356 pass.
 
 ### Known remaining SSR parity gap
 

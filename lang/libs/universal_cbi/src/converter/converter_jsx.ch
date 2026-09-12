@@ -192,9 +192,9 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         // Phase 2 hydration boundary: emit a component vnode that references the
         // client component function directly. The server-rendered DOM for this
         // component already lives in the page HTML, so the client locates and
-        // hydrates it in place. The previous path captured an SSR HTML snapshot
-        // into the JS bundle via capture_html_delta_to_js + $_uc_h(html, ...),
-        // duplicating the markup in both the HTML response and the JS.
+        // hydrates it in place. The previous path embedded an SSR HTML snapshot
+        // in the JS bundle and reparsed it, duplicating the markup in both the
+        // HTML response and the JS.
         //
         // We still invoke the child's server function: its body contains the
         // `if(require_component(hash))` guard that emits the child's client JS.

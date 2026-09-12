@@ -770,6 +770,31 @@ Implemented in `lang/libs/page/src/page.ch`:
   is the plan's "SSR assertion before JavaScript runs" layer; it caught that
   the E2E suite was only ever exercising post-hydration DOM.
 
+- **Props-derived reactive values (with reassignment safety).**
+  `expr_references_reactive_var` treats prop reads as reactive for top-level
+  locals, so `var visible = props.items.filter(...)` becomes a computed that
+  tracks parent updates. Two guards keep this safe: `collect_assigned_names`
+  (a block pre-scan) prevents wrapping any local that is reassigned (Stack's
+  `out = out + ...` accumulator), and `is_hook_function_name` prevents wrapping
+  hook-returning locals (`createContext`, `useRef`, ...). The context-assign
+  path only skips reactive deref for value RHS, not function RHS
+  (`ctx.write = (v) => { if(disabled) ... }`). E2E:
+  `runtime.spec.ts::derived list from props: parent state updates propagate`.
+- **SSR resolves computed aliases of SSR locals.** `emit_ssr_map_children`
+  now falls back to `find_ssr_local` for a reactive/computed identifier with no
+  static state init, so `var items = props.items; {items.map(...)}` renders at
+  SSR via the runtime for-loop instead of rendering nothing. Plugin test:
+  `to_string.ch::universal_ssr_map_local_var`.
+
+### Known remaining SSR parity gap
+
+A computed local whose source is a **`.filter()` over runtime props**
+(e.g. `var visible = props.items.filter(it => ...)`) is reactive on the client
+but renders **empty at SSR**, because the generated server function cannot
+evaluate a JavaScript predicate. Closing this requires predicate codegen /
+evaluator unification (plan Phase 3). The client renders it correctly after
+hydration; only the pre-hydration HTML is affected.
+
 Tests:
 
 - `lang/tests/compiler_plugins/universal/src/runtime_contracts.ch` — the

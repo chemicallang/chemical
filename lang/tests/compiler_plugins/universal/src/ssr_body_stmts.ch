@@ -137,7 +137,9 @@ public func universal_ssr_concat_embed_js_quoted(env : &mut TestEnv) {
     js.append_view(page.getJs())
     // The client bundle must embed the CSS hash as a quoted string literal.
     // A bare mangled identifier here would throw a ReferenceError on hydrate.
-    var needle = std::string_view("\"class\": classes + \" \" + \"")
+    // (The surrounding expression shape may be a computed wrapper, so assert
+    // the hash itself is quoted rather than an exact prefix.)
+    var needle = std::string_view("\"hD7pDyR\"")
     if(js.contains(&needle)) {
         return;
     }

@@ -140,6 +140,11 @@ func (converter : &mut JsConverter) expr_references_reactive_var(node : *mut JsN
             if(mem.object != null && mem.object.kind == JsNodeKind.Identifier) {
                 const objName = (mem.object as *mut JsIdentifier).value;
                 if(converter.is_context_var(objName)) return true;
+                // A prop read may be a signal passed by the parent; a top-level
+                // value derived from props must be a computed so it tracks
+                // parent updates. (Locals that are later reassigned are excluded
+                // by the caller via is_assigned_name.)
+                if(converter.is_component_props_name(objName)) return true;
                 if(mem.property.equals(view("value"))) {
                     return converter.is_reactive_var(objName);
                 }
@@ -1744,7 +1749,11 @@ func (converter : &mut JsConverter) emit_ssr_map_children(call : *mut JsFunction
                 if(!initText.empty()) {
                     split_js_array_elements(initText, &mut staticElements)
                 }
-            } else {
+            }
+            // A reactive/computed var with no static state init may still alias
+            // an SSR local (`var items = props.items`). Resolve it so the list
+            // renders via the runtime for-loop instead of rendering nothing.
+            if(staticElements.empty()) {
                 const local = converter.find_ssr_local(id.value)
                 if(local != null) {
                     sourceVal = builder.make_identifier(&local.name, local.varInit, false, location)
@@ -2049,6 +2058,116 @@ func (converter : &mut JsConverter) convert_js_expr_to_ssr_bool_value(node : *mu
 
 func is_event_attribute_name(name : std::string_view) : bool {
     return name.size() > 2 && name.get(0) == 'o' && name.get(1) == 'n';
+}
+
+func (converter : &mut JsConverter) is_assigned_name(name : std::string_view) : bool {
+    for(var i : uint = 0; i < converter.assigned_names.size(); i++) {
+        if(converter.assigned_names.get(i).equals(&name)) return true;
+    }
+    return false;
+}
+
+// Recursively collects identifiers assigned to anywhere in `node` (plain
+// assignment, compound assignment, ++/--). Used to avoid wrapping a
+// props-derived accumulator local in a computed.
+func collect_assigned_names(node : *mut JsNode, out : &mut std::vector<std::string_view>) {
+    if(node == null) return;
+    switch(node.kind) {
+        JsNodeKind.BinaryOp => {
+            const bin = node as *mut JsBinaryOp;
+            if(bin.left != null && bin.left.kind == JsNodeKind.Identifier &&
+               (bin.op.equals(view("=")) || bin.op.equals(view("+=")) || bin.op.equals(view("-=")) ||
+                bin.op.equals(view("*=")) || bin.op.equals(view("/=")) || bin.op.equals(view("%=")))) {
+                out.push((bin.left as *mut JsIdentifier).value);
+            }
+            collect_assigned_names(bin.left, out);
+            collect_assigned_names(bin.right, out);
+        }
+        JsNodeKind.UnaryOp => {
+            const un = node as *mut JsUnaryOp;
+            if(un.operand != null && un.operand.kind == JsNodeKind.Identifier &&
+               (un.operator.equals(view("++")) || un.operator.equals(view("--")))) {
+                out.push((un.operand as *mut JsIdentifier).value);
+            }
+            collect_assigned_names(un.operand, out);
+        }
+        JsNodeKind.Block => {
+            const block = node as *mut JsBlock;
+            for(var i : uint = 0; i < block.statements.size(); i++) collect_assigned_names(block.statements.get(i), out);
+        }
+        JsNodeKind.ExpressionStatement => {
+            collect_assigned_names((node as *mut JsExpressionStatement).expression, out);
+        }
+        JsNodeKind.VarDecl => {
+            collect_assigned_names((node as *mut JsVarDecl).value, out);
+        }
+        JsNodeKind.If => {
+            const st = node as *mut JsIf;
+            collect_assigned_names(st.condition, out);
+            collect_assigned_names(st.thenBlock, out);
+            collect_assigned_names(st.elseBlock, out);
+        }
+        JsNodeKind.For => {
+            const st = node as *mut JsFor;
+            collect_assigned_names(st.init, out);
+            collect_assigned_names(st.condition, out);
+            collect_assigned_names(st.update, out);
+            collect_assigned_names(st.body, out);
+        }
+        JsNodeKind.ForIn => {
+            const st = node as *mut JsForIn;
+            collect_assigned_names(st.left, out);
+            collect_assigned_names(st.right, out);
+            collect_assigned_names(st.body, out);
+        }
+        JsNodeKind.ForOf => {
+            const st = node as *mut JsForOf;
+            collect_assigned_names(st.left, out);
+            collect_assigned_names(st.right, out);
+            collect_assigned_names(st.body, out);
+        }
+        JsNodeKind.While => {
+            const st = node as *mut JsWhile;
+            collect_assigned_names(st.condition, out);
+            collect_assigned_names(st.body, out);
+        }
+        JsNodeKind.DoWhile => {
+            const st = node as *mut JsDoWhile;
+            collect_assigned_names(st.condition, out);
+            collect_assigned_names(st.body, out);
+        }
+        JsNodeKind.Switch => {
+            const st = node as *mut JsSwitch;
+            collect_assigned_names(st.discriminant, out);
+            for(var ci : uint = 0; ci < st.cases.size(); ci++) {
+                const c = st.cases.get_ptr(ci);
+                collect_assigned_names(c.test, out);
+                for(var bi : uint = 0; bi < c.body.size(); bi++) collect_assigned_names(c.body.get(bi), out);
+            }
+        }
+        JsNodeKind.TryCatch => {
+            const st = node as *mut JsTryCatch;
+            collect_assigned_names(st.tryBlock, out);
+            collect_assigned_names(st.catchBlock, out);
+            collect_assigned_names(st.finallyBlock, out);
+        }
+        JsNodeKind.Return => {
+            collect_assigned_names((node as *mut JsReturn).value, out);
+        }
+        JsNodeKind.Ternary => {
+            const t = node as *mut JsTernary;
+            collect_assigned_names(t.condition, out);
+            collect_assigned_names(t.consequent, out);
+            collect_assigned_names(t.alternate, out);
+        }
+        JsNodeKind.Paren => {
+            collect_assigned_names((node as *mut JsParen).expression, out);
+        }
+        JsNodeKind.ArrowFunction => {
+            collect_assigned_names((node as *mut JsArrowFunction).body, out);
+        }
+        default => {}
+    }
 }
 
 // Hook calls return state/handles, not values derived from reactive reads.

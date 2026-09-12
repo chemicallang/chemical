@@ -71,4 +71,10 @@ struct JsConverter {
     // text is bound here and `item.<prop>` reads are resolved by parsing it.
     var ssr_bound_object_valid : bool = false
     var ssr_bound_object_text : std::string_view = ""
+
+    // Names assigned to (`x = ...`, `x += ...`, `x++`) anywhere in the current
+    // component body. A props-derived local that is reassigned (e.g. Stack's
+    // accumulator `out = out + ...`) must NOT be wrapped in a computed, or the
+    // reassignment targets a signal instead of a plain string.
+    var assigned_names : std::vector<std::string_view>
 }

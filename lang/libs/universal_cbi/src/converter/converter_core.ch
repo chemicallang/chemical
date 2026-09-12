@@ -92,7 +92,11 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                 (bin.op.equals(view("=")) || bin.op.equals(view("+=")) || bin.op.equals(view("-=")) || bin.op.equals(view("*=")) || bin.op.equals(view("/=")))) {
                 const ctxMem = bin.left as *mut JsMemberAccess
                 if(ctxMem.object != null && ctxMem.object.kind == JsNodeKind.Identifier && converter.is_context_var((ctxMem.object as *mut JsIdentifier).value)) {
-                    converter.skip_reactive_deref = true;
+                    // Only skip deref when the RHS is a value/signal. A function
+                    // RHS (`ctx.write = (v) => {...}`) must deref reactive reads
+                    // inside its body normally.
+                    const rhsIsFn = bin.right != null && (bin.right.kind == JsNodeKind.ArrowFunction || bin.right.kind == JsNodeKind.FunctionDecl);
+                    converter.skip_reactive_deref = !rhsIsFn;
                     converter.convertJsNode(bin.left);
                     converter.str.append_view(" ");
                     converter.str.append_view(&bin.op);
@@ -261,15 +265,23 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
              converter.convertJsNode(arrow.body);
              converter.function_depth--;
         }
-        JsNodeKind.Block => {
-             var block = node as *mut JsBlock
-             converter.str.append_view("{ ");
-             for(var i : uint = 0; i < block.statements.size(); i++) {
-                 converter.convertJsNode(block.statements.get(i));
-                 converter.str.append_view(" ");
-             }
-             converter.str.append_view("}");
-        }
+         JsNodeKind.Block => {
+              var block = node as *mut JsBlock
+              // Register every name assigned anywhere in this block before
+              // converting its statements, so a props-derived accumulator
+              // (`out = out + ...`) is not wrapped in a computed.
+              const savedAssigned = converter.assigned_names.size();
+              for(var ai : uint = 0; ai < block.statements.size(); ai++) {
+                  collect_assigned_names(block.statements.get(ai), &mut converter.assigned_names);
+              }
+              converter.str.append_view("{ ");
+              for(var i : uint = 0; i < block.statements.size(); i++) {
+                  converter.convertJsNode(block.statements.get(i));
+                  converter.str.append_view(" ");
+              }
+              converter.str.append_view("}");
+              while(converter.assigned_names.size() > savedAssigned) converter.assigned_names.pop_back();
+         }
         JsNodeKind.ExpressionStatement => {
              var expr = node as *mut JsExpressionStatement
              converter.convertJsNode(expr.expression);
@@ -337,7 +349,8 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                      }
                  }
                   var should_wrap_in_ucs = converter.function_depth == 0 && decl.value != null && !decl.name.empty() && decl.pattern == null &&
-                      !is_existing_ucs && !is_hook_call && converter.expr_references_reactive_var(decl.value);
+                      !is_existing_ucs && !is_hook_call && !converter.is_assigned_name(decl.name) &&
+                      converter.expr_references_reactive_var(decl.value);
                  if(should_wrap_in_ucs) {
                      converter.computed_vars.push(decl.name);
                      converter.str.append_view("const ");

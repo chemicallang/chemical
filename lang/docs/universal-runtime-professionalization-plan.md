@@ -724,21 +724,34 @@ Implemented in `lang/libs/page/src/page.ch`:
 - **Dev diagnostics toggle.** `window.$__uni_dev` (default on, disable with
   `window.$__uni_prod`) bounds hydration warnings and exposes
   `$__uni_dev_assert`.
+- **Keyed hydration adoption.** `$__uni_hydrate_node` now adopts the
+  SSR-rendered list range in place (recording `__uni_vnode_key` on adopted
+  element nodes) instead of discarding and re-rendering it. Both the hydration
+  and fresh-render paths share one keyed reconciler, `$__uni_reconcile_list`.
+  Regression test: `runtime.spec.ts::keyed list: hydration adopts SSR nodes
+  without removing them` (asserts zero SSR list-node removals during hydration).
+- **Reconciler-driven disposal.** The reconciler now disposes component
+  instances in a removed subtree via `$__uni_dispose_subtree` /
+  `$__uni_clear_range` before removing DOM, so teardown is triggered by the
+  operation that removes nodes; the MutationObserver remains only as a safety
+  net. Contract test: `runtime_contracts.ch::universal_reconciler_driven_disposal`.
 
 Tests:
 
 - `lang/tests/compiler_plugins/universal/src/runtime_contracts.ch` — the
   formerly bug-pinning tests now assert correct behavior; added
   `universal_effect_deps_compared_by_value`, `universal_layout_effects_are_ever_run`,
-  `universal_unmount_cleanup_exists`, `universal_keyed_reconciliation_exists`.
+  `universal_unmount_cleanup_exists`, `universal_keyed_reconciliation_exists`,
+  `universal_reconciler_driven_disposal`.
 - `lang/compiled/components-e2e/tests/runtime.spec.ts` — added
-  `effect deps: unrelated state change does not re-run effect` (336 E2E tests pass).
+  `effect deps: unrelated state change does not re-run effect` and
+  `keyed list: hydration adopts SSR nodes without removing them` (337 E2E tests pass).
 
 ### Still open
 
 Everything else in Phases 0–5: runtime extraction to a real `.js` asset,
 `RuntimeRequirements` manifest, removal of SSR HTML from the JS bundle,
-keyed SSR→client hydration matching, one SSR evaluator, parser consolidation,
+single SSR evaluator/IR, parser consolidation, emitted-JS semantic validation,
 external/hashed runtime assets, streaming SSR, and the component platform work
 (forms, virtualization, dynamic context, i18n, animation, devtools).
 

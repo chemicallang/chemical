@@ -1439,15 +1439,26 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
     if(v && v.t !== undefined) {
         if(v.t === "__uni_uc") {
             const { name, props, comp } = v.p;
+            if(comp) {
+                // Hydrate the component's whole SSR node range. `dom` may be a
+                // text node when the component's root is a fragment/multi-node
+                // (e.g. <>{a}{b}</>), so do not require it to be an element.
+                if(dom) {
+                    const next = window.$__uni_mount(dom, comp, props, "root");
+                    return next || dom.nextSibling;
+                }
+                const container = document.createElement("div");
+                if(parent) parent.insertBefore(container, dom);
+                window.$__uni_mount(container, comp, props);
+                return dom;
+            }
             if(dom && dom.nodeType === 1) {
-                if(comp) window.$__uni_mount(dom, comp, props, "root");
-                else window.$__uni_dispatch(name, dom, props, "root");
+                window.$__uni_dispatch(name, dom, props, "root");
                 return dom.nextSibling;
             }
             const container = document.createElement("div");
             if(parent) parent.insertBefore(container, dom);
-            if(comp) window.$__uni_mount(container, comp, props);
-            else window.$__uni_dispatch(name, container, props);
+            window.$__uni_dispatch(name, container, props);
             return dom;
         }
         if(v.t === "__uni_portal") {
@@ -1569,15 +1580,23 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
         if(!parent) {
             window.$__uni_error("cannot hydrate universal root without a parent element", host.tagName ? host.tagName.toLowerCase() : "unknown");
         }
-        window.$__uni_hydrate_node(parent, host, out);
-        // Track instance for unmount cleanup via MutationObserver
-        window.$__uni_track_instance(host, inst);
+        const next = window.$__uni_hydrate_node(parent, host, out);
+        // `host` may be a text node when the component's SSR range starts with
+        // text (a fragment / multi-node root). Track the first element inside
+        // the hydrated range so disposal still works; fall back to the parent.
+        let trackedEl = host;
+        if(host.nodeType !== 1) {
+            let scan = host;
+            while(scan && scan !== next && scan.nodeType !== 1) scan = scan.nextSibling;
+            trackedEl = (scan && scan !== next) ? scan : parent;
+        }
+        window.$__uni_track_instance(trackedEl, inst);
         // Layout effects run synchronously before paint
         if(inst.layoutEffects && inst.layoutEffects.length) window.$__uni_run_effects(inst, inst.layoutEffects);
         if(inst.effects && inst.effects.length) window.$__uni_run_effects(inst, inst.effects);
         // Ref forwarding for root mode
-        if(refVal) window.$__uni_assign_ref(host, refVal);
-        return;
+        if(refVal) window.$__uni_assign_ref(trackedEl, refVal);
+        return next;
     }
     window.$__uni_hydrate_children(host, [ out ]);
     // Restore instance AFTER hydration -- child components dispatched during

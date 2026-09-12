@@ -189,9 +189,20 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         const location = intrinsics::get_raw_location();
         const builder = converter.builder;
         const support = converter.support;
+        // Phase 2 hydration boundary: emit a component vnode that references the
+        // client component function directly. The server-rendered DOM for this
+        // component already lives in the page HTML, so the client locates and
+        // hydrates it in place. The previous path captured an SSR HTML snapshot
+        // into the JS bundle via capture_html_delta_to_js + $_uc_h(html, ...),
+        // duplicating the markup in both the HTML response and the JS.
+        //
+        // We still invoke the child's server function: its body contains the
+        // `if(require_component(hash))` guard that emits the child's client JS.
+        // That must happen even for components that only render on the client
+        // (inside a runtime conditional). We truncate the SSR markup it appends
+        // to pageHtml -- the HTML pass emits it once, and the client hydrates it.
         var pageId = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
-
-        const getHtmlSize = builder.make_identifier(std::string_view("get_html_size"), support.getHtmlSizeFn, false, location)
+        const getHtmlSize = builder.make_identifier(std::string_view("get_html_size"), support.getHtmlSizeFn, false, location);
         var getSizeCall = builder.make_function_call_value(
             builder.make_access_chain(&std::span<*mut Value>([ pageId, getHtmlSize ]), location),
             location
@@ -207,28 +218,24 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         call.get_args().push(pageId);
         const attrs = converter.build_ssr_attributes(element);
         call.get_args().push(builder.make_addr_of_value(attrs, true, location));
-
         const ssrTextStructVal = builder.make_struct_value(support.ssrTextLinkedNode, location);
         ssrTextStructVal.add_value("data", builder.make_null_value(location));
         ssrTextStructVal.add_value("size", builder.make_ubigint_value(0, location));
         call.get_args().push(ssrTextStructVal);
         converter.vec.push(call);
 
-        converter.str.append_view("(() => { const html = `");
-        converter.put_chain_in();
-
-        const captureHtmlDeltaToJsId = builder.make_identifier(std::string_view("capture_html_delta_to_js"), support.capture_html_delta_to_js, false, location)
-        const capCall = builder.make_function_call_node(
-            builder.make_access_chain(&std::span<*mut Value>([ pageId, captureHtmlDeltaToJsId ]), location),
+        const truncateHtmlId = builder.make_identifier(std::string_view("truncate_html"), support.truncateHtmlFn, false, location);
+        var truncateCall = builder.make_function_call_node(
+            builder.make_access_chain(&std::span<*mut Value>([ pageId, truncateHtmlId ]), location),
             converter.parent,
             location
         );
-        capCall.get_args().push(builder.make_identifier(&sIdxName, sIdxVar, false, location));
-        converter.vec.push(capCall);
+        truncateCall.get_args().push(builder.make_identifier(&sIdxName, sIdxVar, false, location));
+        converter.vec.push(truncateCall);
 
-        converter.str.append_view("`; return $_uc_h(html, \"");
+        converter.str.append_view("$_uc_c(");
         get_module_scoped_name(signature.functionNode, signature.name, &mut converter.str);
-        converter.str.append_view("\", {");
+        converter.str.append_view(", {");
         var attrCount = 0u;
         for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
             const attrNode = element.opening.attributes.get(i);
@@ -256,7 +263,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
             }
             converter.str.append(']');
         }
-        converter.str.append_view("}); })()");
+        converter.str.append_view("})");
         return;
     }
 

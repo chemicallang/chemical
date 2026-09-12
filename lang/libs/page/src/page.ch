@@ -1302,8 +1302,21 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
         return;
     }
     window.$__uni_hydrate_children(host, [ out ]);
-    // Track instance for unmount cleanup via MutationObserver
-    window.$__uni_track_instance(host, inst);
+    // Track instance for unmount cleanup via MutationObserver.
+    // During SSR hydration, prefer the [data-chx-i] boundary element.
+    // During dynamic re-renders (via $_urn), `host` is a temporary container
+    // that never enters the DOM — track its first element child instead.
+    let trackedEl = host;
+    if(host.querySelector) {
+        trackedEl = host.querySelector("[data-chx-i]");
+    }
+    if(!trackedEl || trackedEl === host) {
+        // Dynamic component: find the first element child (the component root)
+        let child = host.firstChild;
+        while(child && child.nodeType !== 1) child = child.nextSibling;
+        if(child) trackedEl = child;
+    }
+    window.$__uni_track_instance(trackedEl, inst);
     // Layout effects run synchronously before paint
     if(inst.layoutEffects && inst.layoutEffects.length) window.$__uni_run_effects(inst, inst.layoutEffects);
     if(inst.effects && inst.effects.length) window.$__uni_run_effects(inst, inst.effects);

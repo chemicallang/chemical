@@ -351,7 +351,11 @@ func (page : &mut HtmlPage) renderHtmlAttrsInternal(list : &SsrAttributeList, sp
             }
             default => {
                 if(d.value is SsrAttributeValue.None) {
-                    // Unresolvable values are skipped entirely: never render style="null" etc.
+                    d++;
+                    continue;
+                }
+                // "key" is a reconciliation hint — never rendered to DOM or HTML
+                if(d.name.equals("key")) {
                     d++;
                     continue;
                 }
@@ -534,7 +538,11 @@ func (page : &mut HtmlPage) renderJsAttrsInternal(list : &SsrAttributeList, spec
             }
             default => {
                 if(d.value is SsrAttributeValue.None) {
-                    // Unresolvable values are skipped entirely: never render style="null" etc.
+                    d++;
+                    continue;
+                }
+                // "key" is a reconciliation hint — never rendered to DOM or HTML
+                if(d.name.equals("key")) {
                     d++;
                     continue;
                 }

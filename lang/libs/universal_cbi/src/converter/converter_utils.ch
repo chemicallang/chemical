@@ -782,6 +782,16 @@ func append_js_node_text(node : *mut JsNode, out : &mut std::string) : bool {
             out.append(')');
             return true;
         }
+        JsNodeKind.ArrowFunction => {
+            const arrow = node as *mut JsArrowFunction;
+            out.append('(');
+            for(var i : uint = 0; i < arrow.params.size(); i++) {
+                if(i > 0) out.append_view(", ");
+                out.append_view(&arrow.params.get_ptr(i).name);
+            }
+            out.append_view(") => ");
+            return append_js_node_text(arrow.body, out);
+        }
         JsNodeKind.FunctionCall => {
             const call = node as *mut JsFunctionCall;
             if(!append_js_node_text(call.callee, out)) return false;
@@ -910,6 +920,271 @@ func (converter : &mut JsConverter) find_state_init_text(name : std::string_view
         if(init.name.equals(&name)) return init.init;
     }
     return view("");
+}
+
+func (converter : &mut JsConverter) find_var_init_text(name : std::string_view) : std::string_view {
+    for(var i : uint = 0; i < converter.var_init_texts.size(); i++) {
+        const t = converter.var_init_texts.get_ptr(i);
+        if(t.name.equals(&name)) return t.init;
+    }
+    return view("");
+}
+
+func strip_js_quotes(v : std::string_view) : std::string_view {
+    if(v.size() >= 2) {
+        const q = v.get(0);
+        if((q == '"' || q == '\'' || q == '`') && v.get(v.size() - 1) == q) {
+            return v.subview(1, v.size() - 1);
+        }
+    }
+    return v;
+}
+
+func char_lower(c : char) : char {
+    return if(c >= 'A' && c <= 'Z') (c + 32) as char else c;
+}
+
+// Resolves a static string value from a small expression text at SSR: a quoted
+// literal, a state/var initializer that is itself static, or `X.toLowerCase()`
+// / `X.toUpperCase()` (the case transform is ignored here and handled
+// case-insensitively by the caller). Returns false when not statically known.
+func (converter : &mut JsConverter) ssr_resolve_static_string(text : std::string_view, depth : int, out : &mut std::string_view) : bool {
+    if(depth > 4) return false;
+    var t = trim_js_view(text);
+    const lowerSuffix = std::string_view(".toLowerCase()");
+    const upperSuffix = std::string_view(".toUpperCase()");
+    if(t.size() > lowerSuffix.size() && t.subview(t.size() - lowerSuffix.size(), t.size()).equals(&lowerSuffix)) {
+        return converter.ssr_resolve_static_string(t.subview(0, t.size() - lowerSuffix.size()), depth + 1, out);
+    }
+    if(t.size() > upperSuffix.size() && t.subview(t.size() - upperSuffix.size(), t.size()).equals(&upperSuffix)) {
+        return converter.ssr_resolve_static_string(t.subview(0, t.size() - upperSuffix.size()), depth + 1, out);
+    }
+    if(t.size() >= 2 && (t.get(0) == '"' || t.get(0) == '\'' || t.get(0) == '`') && t.get(t.size() - 1) == t.get(0)) {
+        *out = strip_js_quotes(t);
+        return true;
+    }
+    // Bare identifier: resolve to its static initializer.
+    const initText = converter.find_var_init_text(t);
+    if(!initText.empty()) {
+        return converter.ssr_resolve_static_string(initText, depth + 1, out);
+    }
+    const stateText = converter.find_state_init_text(t);
+    if(!stateText.empty()) {
+        return converter.ssr_resolve_static_string(stateText, depth + 1, out);
+    }
+    if(t.equals(view("undefined")) || t.equals(view("null"))) {
+        *out = view("");
+        return true;
+    }
+    return false;
+}
+
+func text_contains_ci(hay : std::string_view, needle : std::string_view, fold : bool) : bool {
+    if(needle.size() == 0) return true;
+    if(needle.size() > hay.size()) return false;
+    var i : size_t = 0;
+    while(i + needle.size() <= hay.size()) {
+        var match = true;
+        for(var j : size_t = 0; j < needle.size(); j++) {
+            var a = hay.get(i + j);
+            var b = needle.get(j);
+            if(fold) { a = char_lower(a); b = char_lower(b); }
+            if(a != b) { match = false; break; }
+        }
+        if(match) return true;
+        i++;
+    }
+    return false;
+}
+
+func text_starts_ci(hay : std::string_view, needle : std::string_view, fold : bool) : bool {
+    if(needle.size() > hay.size()) return false;
+    for(var j : size_t = 0; j < needle.size(); j++) {
+        var a = hay.get(j);
+        var b = needle.get(j);
+        if(fold) { a = char_lower(a); b = char_lower(b); }
+        if(a != b) return false;
+    }
+    return true;
+}
+
+func text_equals_fold(a : std::string_view, b : std::string_view, fold : bool) : bool {
+    if(a.size() != b.size()) return false;
+    for(var j : size_t = 0; j < a.size(); j++) {
+        var x = a.get(j);
+        var y = b.get(j);
+        if(fold) { x = char_lower(x); y = char_lower(y); }
+        if(x != y) return false;
+    }
+    return true;
+}
+
+// Evaluates a simple `.filter()` predicate against a static element text.
+// Supports `it.includes/startsWith/endsWith(arg)`, `it == / != "x"`, `it`
+// truthiness, `!`, and `&&`/`||` of the above. Returns false and sets
+// `evaluated=false` when the predicate is not statically resolvable.
+func (converter : &mut JsConverter) ssr_filter_predicate(predText : std::string_view, elementText : std::string_view, evaluated : &mut bool) : bool {
+    *evaluated = false;
+    var p = trim_js_view(predText);
+    if(p.empty()) { *evaluated = true; return true; }
+    // Negation
+    if(p.get(0) == '!') {
+        var innerEval = false;
+        const r = converter.ssr_filter_predicate(p.subview(1, p.size()), elementText, &mut innerEval);
+        if(!innerEval) return false;
+        *evaluated = true;
+        return !r;
+    }
+    const element = strip_js_quotes(trim_js_view(elementText));
+    // includes(...) / startsWith(...) / endsWith(...)
+    const includesTok = std::string_view(".includes(");
+    const startsTok = std::string_view(".startsWith(");
+    const endsTok = std::string_view(".endsWith(");
+    var methodKind = -1;
+    var m = includesTok;
+    var pos = index_of_text(p, includesTok);
+    if(pos != UINT64_MAX) {
+        methodKind = 0;
+    } else {
+        pos = index_of_text(p, startsTok);
+        if(pos != UINT64_MAX) { methodKind = 1; m = startsTok; }
+        else {
+            pos = index_of_text(p, endsTok);
+            if(pos != UINT64_MAX) { methodKind = 2; m = endsTok; }
+        }
+    }
+    if(methodKind >= 0) {
+        const callStart = pos + m.size();
+        const closePos = last_index_of_char(p, ')');
+        if(closePos == UINT64_MAX || closePos < callStart) return false;
+        const argText = p.subview(callStart, closePos);
+        const receiver = p.subview(0, pos);
+        const fold = index_of_text(receiver, std::string_view(".toLowerCase()")) != UINT64_MAX || index_of_text(argText, std::string_view(".toLowerCase()")) != UINT64_MAX;
+        var argVal : std::string_view;
+        if(converter.ssr_resolve_static_string(argText, 0, &mut argVal)) {
+            var recvVal = element;
+            // `it.<prop>` etc. are not resolved here (object elements); `it` only.
+            if(methodKind == 0) { *evaluated = true; return text_contains_ci(recvVal, argVal, fold); }
+            if(methodKind == 1) { *evaluated = true; return text_starts_ci(recvVal, argVal, fold); }
+            *evaluated = true; return text_ends_ci(recvVal, argVal, fold);
+        }
+        return false;
+    }
+    // Equality: `it == "x"` / `it != "x"`
+    const eqPos = index_of_text(p, std::string_view("=="));
+    const neqPos = index_of_text(p, std::string_view("!="));
+    if(eqPos != UINT64_MAX || neqPos != UINT64_MAX) {
+        var cmpPos = eqPos;
+        var negate = false;
+        if(neqPos != UINT64_MAX && (eqPos == UINT64_MAX || neqPos < eqPos)) { cmpPos = neqPos; negate = true; }
+        const lhs = trim_js_view(p.subview(0, cmpPos));
+        var rhsStart = cmpPos + 2;
+        const rhs = trim_js_view(p.subview(rhsStart, p.size()));
+        if(lhs.equals(&element) || lhs.equals(view("it"))) {
+            var rhsVal : std::string_view;
+            if(converter.ssr_resolve_static_string(rhs, 0, &mut rhsVal)) {
+                *evaluated = true;
+                const eq = text_equals_fold(element, rhsVal, false);
+                return if(negate) !eq else eq;
+            }
+        }
+        return false;
+    }
+    // Bare `it` truthiness.
+    if(p.equals(view("it"))) {
+        *evaluated = true;
+        return element.size() > 0;
+    }
+    return false;
+}
+
+func text_ends_ci(hay : std::string_view, needle : std::string_view, fold : bool) : bool {
+    if(needle.size() > hay.size()) return false;
+    const start = hay.size() - needle.size();
+    for(var j : size_t = 0; j < needle.size(); j++) {
+        var a = hay.get(start + j);
+        var b = needle.get(j);
+        if(fold) { a = char_lower(a); b = char_lower(b); }
+        if(a != b) return false;
+    }
+    return true;
+}
+
+func index_of_text(hay : std::string_view, needle : std::string_view) : size_t {
+    if(needle.size() == 0 || needle.size() > hay.size()) return UINT64_MAX;
+    var i : size_t = 0;
+    while(i + needle.size() <= hay.size()) {
+        var match = true;
+        for(var j : size_t = 0; j < needle.size(); j++) {
+            if(hay.get(i + j) != needle.get(j)) { match = false; break; }
+        }
+        if(match) return i;
+        i++;
+    }
+    return UINT64_MAX;
+}
+
+func last_index_of_char(hay : std::string_view, c : char) : size_t {
+    var idx = UINT64_MAX;
+    for(var i : size_t = 0; i < hay.size(); i++) {
+        if(hay.get(i) == c) idx = i;
+    }
+    return idx;
+}
+
+func is_identifier_text(t : std::string_view) : bool {
+    if(t.size() == 0) return false;
+    const c0 = t.get(0);
+    if(!((c0 >= 'a' && c0 <= 'z') || (c0 >= 'A' && c0 <= 'Z') || c0 == '_' || c0 == '$')) return false;
+    for(var i : size_t = 1; i < t.size(); i++) {
+        const c = t.get(i);
+        if(!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '$')) return false;
+    }
+    return true;
+}
+
+// Resolves a static array expression to its element texts at SSR. Handles
+// array literals, identifiers aliasing a static array, and
+// `<staticArray>.filter(<predicate>)` when the predicate is statically
+// evaluable. Returns false when any part is not statically known (the caller
+// then falls back to the runtime path or renders nothing).
+func (converter : &mut JsConverter) resolve_static_array_elements(text : std::string_view, out : &mut std::vector<std::string_view>, depth : int) : bool {
+    if(depth > 6) return false;
+    const t = trim_js_view(text);
+    if(t.empty()) return false;
+    if(is_identifier_text(t)) {
+        const varInit = converter.find_var_init_text(t);
+        if(!varInit.empty()) return converter.resolve_static_array_elements(varInit, out, depth + 1);
+        const stateInit = converter.find_state_init_text(t);
+        if(!stateInit.empty()) return converter.resolve_static_array_elements(stateInit, out, depth + 1);
+        return false;
+    }
+    var elems = std::vector<std::string_view>();
+    if(split_js_array_elements(t, &mut elems)) {
+        for(var i : uint = 0; i < elems.size(); i++) out.push(elems.get(i));
+        return true;
+    }
+    const filterTok = std::string_view(".filter(");
+    const fpos = index_of_text(t, filterTok);
+    if(fpos != UINT64_MAX) {
+        const src = t.subview(0, fpos);
+        var srcElems = std::vector<std::string_view>();
+        if(!converter.resolve_static_array_elements(src, &mut srcElems, depth + 1)) return false;
+        const callStart = fpos + filterTok.size();
+        const closePos = last_index_of_char(t, ')');
+        if(closePos == UINT64_MAX || closePos < callStart) return false;
+        var predText = t.subview(callStart, closePos);
+        const arrowPos = index_of_text(predText, std::string_view("=>"));
+        if(arrowPos != UINT64_MAX) predText = predText.subview(arrowPos + 2, predText.size());
+        for(var i : uint = 0; i < srcElems.size(); i++) {
+            var evaluated = false;
+            const keep = converter.ssr_filter_predicate(predText, srcElems.get(i), &mut evaluated);
+            if(!evaluated) return false;
+            if(keep) out.push(srcElems.get(i));
+        }
+        return true;
+    }
+    return false;
 }
 
 func ssr_js_eval_equals(left : SsrJsExprEval, right : SsrJsExprEval) : bool {
@@ -1682,6 +1957,16 @@ func (converter : &mut JsConverter) emit_ssr_array_count(object : *mut JsNode) :
                 converter.vec.push(converter.make_uinteger_value_call(builder.make_ubigint_value(elements.size() as ubigint, location)))
                 return true
             }
+            // Derived static source (`var visible = items.filter(...)`): resolve
+            // and count the surviving elements at compile time.
+            const varInit = converter.find_var_init_text(id.value)
+            if(!varInit.empty()) {
+                var derived = std::vector<std::string_view>()
+                if(converter.resolve_static_array_elements(varInit, &mut derived, 0)) {
+                    converter.vec.push(converter.make_uinteger_value_call(builder.make_ubigint_value(derived.size() as ubigint, location)))
+                    return true
+                }
+            }
             return false
         } else {
             const local = converter.find_ssr_local(id.value)
@@ -1748,6 +2033,14 @@ func (converter : &mut JsConverter) emit_ssr_map_children(call : *mut JsFunction
                 const initText = converter.find_state_init_text(id.value)
                 if(!initText.empty()) {
                     split_js_array_elements(initText, &mut staticElements)
+                }
+            }
+            // Derived static sources: `var visible = items.filter(...)` then
+            // `{visible.map(...)}` resolves and statically evaluates the filter.
+            if(staticElements.empty()) {
+                const varInit = converter.find_var_init_text(id.value)
+                if(!varInit.empty()) {
+                    converter.resolve_static_array_elements(varInit, &mut staticElements, 0)
                 }
             }
             // A reactive/computed var with no static state init may still alias
@@ -2503,6 +2796,12 @@ func (converter : &mut JsConverter) emit_ssr_single_stmt(stmt : *mut JsNode, ski
             // conditions like `active == index` resolve at SSR runtime.
             const decl = stmt as *mut JsVarDecl;
             if(decl.keyword.equals(view("var")) || decl.keyword.equals(view("let")) || decl.keyword.equals(view("const")) || decl.keyword.equals(view("state"))) {
+                if(!decl.name.empty() && decl.pattern == null && decl.value != null) {
+                    const initText = build_js_node_text_view(converter.builder, decl.value)
+                    if(!initText.empty()) {
+                        converter.var_init_texts.push(JsVarInitText { name : decl.name, init : initText })
+                    }
+                }
                 converter.emit_ssr_local_decl(stmt as *mut JsVarDecl);
             }
         }

@@ -786,6 +786,52 @@ Implemented in `lang/libs/page/src/page.ch`:
   SSR via the runtime for-loop instead of rendering nothing. Plugin test:
   `to_string.ch::universal_ssr_map_local_var`.
 
+### Phase 2 (first slice) — nested component SSR HTML removed from the JS bundle
+
+Implemented across `lang/libs/universal_cbi/src/converter/converter_jsx.ch` and
+`lang/libs/page/src/page.ch`:
+
+- **Nested components emit a function-reference vnode, not an HTML snapshot.**
+  When a component body renders another universal component (`<Button .../>`),
+  the client function previously emitted
+  `(() => { const html = \`<SSR markup>\`; return $_uc_h(html, "Name", props) })()`.
+  The same markup already appears in the page HTML, so it was duplicated in the
+  response and reparsed via `innerHTML` during hydration. It now emits
+  `$_uc_c(ComponentFn, props)` — a `__uni_uc` vnode carrying the component
+  function directly. The client locates the server-rendered element and hydrates
+  it in place.
+- **Runtime adoption.** `$_urn`, `$__uni_hydrate_node`, and the SSR'd-state path
+  now handle a `__uni_uc` vnode whose `p.comp` is a function by calling
+  `$__uni_mount(dom, comp, props, "root")` (adopt existing DOM) or
+  `$__uni_mount(container, comp, props)` (fresh client render) instead of
+  dispatching through a name lookup + `innerHTML`. The legacy `$_uc_h` html path
+  is retained for backward compatibility.
+- **Client-only components still get their client function.** The child's server
+  function is still invoked during the client-JS pass because its
+  `if(require_component(hash))` guard is what emits the child's client JS; its
+  SSR output is now discarded with `truncate_html` rather than captured into JS.
+  Without this, a component that only renders inside a runtime conditional
+  (e.g. a lazy error-boundary child) would be undefined at hydration.
+
+Measured on the components E2E app: `index.js` shrank from 283,437 to 197,918
+bytes (**-30.2%**), `index.html` is byte-identical, and `capture_html_delta`
+references in the page JS dropped to zero. `$_uc_h(html, ...)` uses dropped from
+341 to zero (remaining occurrences are the runtime definition only).
+
+Tests:
+
+- `to_string.ch::universal_component_child` updated to assert the
+  `$_uc_c(ComponentFn, {})` emission.
+- `to_string.ch::universal_component_child_does_not_embed_ssr_html` added: asserts
+  the page JS contains no `const html =` / `$_uc_h(html`, references the child by
+  function, and that the SSR markup is still present in the HTML response.
+- Full E2E: 353/353 pass. Compiler-plugin suite: 1093/1095 (the 2 failures are the
+  pre-existing, unrelated `css_cbi` and `json_cbi` tests).
+
+Still open in Phase 2: stable component boundary markers + instance manifest
+(replacing positional adoption), external/hashed runtime assets, and removing the
+now-unused `capture_html_delta_to_js` path and dormant template-builder design.
+
 ### Known remaining SSR parity gap
 
 A computed local whose source is a **`.filter()` over runtime props**

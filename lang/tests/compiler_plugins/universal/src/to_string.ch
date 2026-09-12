@@ -51,8 +51,32 @@ public func universal_component_child(env : &mut TestEnv) {
     var page = HtmlPage()
     #html { <ComponentChild /> }
     var str = std::string()
-    str.append_expr(`function universal_lib_test_Greeting(props) { return $_ur.createElement("span", {}, ${"`Hello`"}); }\nfunction universal_lib_test_ComponentChild(props) { return $_ur.createElement("div", {}, (() => { const html = ${"`<span>Hello</span>`"}; return $_uc_h(html, "universal_lib_test_Greeting", {}); })()); }\nwindow.$__uni_dispatch('universal_lib_test_ComponentChild', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
+    str.append_expr(`function universal_lib_test_Greeting(props) { return $_ur.createElement("span", {}, ${"`Hello`"}); }\nfunction universal_lib_test_ComponentChild(props) { return $_ur.createElement("div", {}, $_uc_c(universal_lib_test_Greeting, {})); }\nwindow.$__uni_dispatch('universal_lib_test_ComponentChild', document.getElementById('u${page.getComponentId(0)}'), {});\n`)
     view_equals(env, page.getJs(), str.to_view());
+}
+
+@test
+public func universal_component_child_does_not_embed_ssr_html(env : &mut TestEnv) {
+    // Phase 2: nested component SSR markup must not be transported through the
+    // JS bundle. The client hydrates the server-rendered DOM by function
+    // reference instead of reparsing an embedded HTML snapshot.
+    var page = HtmlPage()
+    #html { <ComponentChild /> }
+    var js = page.getJs()
+    var html = page.getHtml()
+    if(js.contains("const html =") || js.contains("$_uc_h(html")) {
+        env.error("nested component SSR HTML is still embedded in page JS")
+        return
+    }
+    if(!js.contains("$_uc_c(universal_lib_test_Greeting")) {
+        env.error("nested component is not referenced by function")
+        return
+    }
+    if(!html.contains("<span>Hello</span>")) {
+        env.error("nested component SSR markup missing from HTML response")
+        return
+    }
+    env.success("nested component SSR HTML stays in HTML, not in JS")
 }
 
 #universal ClassMerge(props) {

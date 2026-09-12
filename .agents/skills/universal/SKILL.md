@@ -399,10 +399,13 @@ Fast triage questions:
   `UniversalTextBinding` et al) are a **dormant second hydration design**: only called by each
   other, reference `$_ut`/`__hydrate` which don't exist in the runtime. Don't fix bugs there;
   the live path is `converter/` + `react/ast_replace.ch`.
-- SSR HTML is still transported through the JS bundle (`capture_html_delta_to_js` →
-  `$_uc_h(html, name, props)`; backtick/`${`/`\`/newline escaped). The
-  `lang/docs/universal-runtime-professionalization-plan.md` describes the marker/manifest
-  replacement (Phase 2) — not implemented.
+- SSR HTML transport through the JS bundle is **fixed for nested components**:
+  `converter_jsx.ch` now emits `$_uc_c(ComponentFn, props)` (a `__uni_uc` vnode carrying the
+  component function) and the runtime hydrates the server-rendered element in place. The
+  legacy `capture_html_delta_to_js` -> `$_uc_h(html, name, props)` path still exists (and is
+  still exercised by `page_buffer_api.ch`/`runtime_safety.ch`), but is no longer on the
+  nested-component path. Stable boundary markers + an instance manifest (the rest of plan
+  Phase 2) remain open.
 - Hydration of lists is positional; no `key` reconciliation (sorting/reordering lists can
   patch the wrong nodes).
 - `$__universal_flush` throws (`$__uni_error`) when a queued component function is still
@@ -567,14 +570,15 @@ The `subscribe` function blindly pushes. If the same effect subscribes to the sa
 through two dependency paths, the callback fires twice per update. React's `useEffect`
 deduplicates deps; Solid's tracking graph is pointer-based.
 
-#### 9. SSR HTML transported through JavaScript — ~2× bundle bloat
+#### 9. SSR HTML transported through JavaScript — nested-component path fixed
 
-**File:** `page.ch:253-298` (`move_js_range`), `converter_jsx.ch` (`$_uc_h`)
+**File:** `page.ch:253-298` (`move_js_range`), `converter_jsx.ch` (`$_uc_c`)
 
-Every component's SSR HTML is captured via `capture_html_delta_to_js` and embedded as a JS
-template literal inside `$_uc_h(html, name, props)`. The same markup exists in both the HTML
-response and the JS bundle. The professionalization plan (Phase 2) proposes marker-based
-replacement — not implemented.
+**Status (2026-09-12):** Fixed for nested components. The client component function now emits
+`$_uc_c(ComponentFn, props)` and the runtime adopts the server-rendered element in place, so
+the nested SSR markup appears only in the HTML response. Legacy `capture_html_delta_to_js` ->
+`$_uc_h(html, name, props)` remains for compatibility but is off the nested path. The plan's
+full marker/manifest protocol (Phase 2) is still open.
 
 #### 10. JS hoisting via `memmove` buffer surgery — O(N) per component
 

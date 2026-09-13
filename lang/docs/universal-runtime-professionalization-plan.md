@@ -1143,6 +1143,36 @@ Tests added: `runtime-unit.spec.ts::context: providers are scoped per instance a
 tree`, and E2E `components.spec.ts::toggle group scoping: two unnamed groups keep independent
 selection` (fixture `ToggleGroupScopedFixture` with two unnamed groups).
 
+### Diagnostics: component-usage errors
+
+`sym_res_components` (`universal_cbi/src/sym_res/sym_res_root.ch`) now reports named,
+located diagnostics instead of generic strings and aborts less eagerly:
+
+- Unknown component: `<Foo> is not a known component: no symbol named 'Foo' is in scope`.
+- Non-component symbol: `'Foo' is not a valid component: expected an #universal
+  component declaration` / `'Foo' is not a component: add the #universal annotation to
+  declare it`.
+- Missing required props are collected and reported **all at once** with the component
+  name: `missing required prop 'title' on <Good>` /
+  `missing required props 'title', 'size' on <Good>`. A spread still satisfies the check.
+
+Supporting harness fix: `lang/tests/negative/src/main.ch::run_compiler_capture` kept only
+the first `buf_size-1` bytes of compiler output, but compiling a module that imports
+`std`/`page` emits ~90 KB of warnings *before* the diagnostic, so the error was truncated
+away. It now keeps the **last** `buf_size-1` bytes (ring buffer, linearized at the end),
+so trailing diagnostics survive.
+
+Tests: `neg_universal_missing_prop_names_the_component` and
+`neg_universal_unknown_component_names_the_symbol` in `lang/tests/negative/src/main.ch`
+(new `NEG_MOD_UNIVERSAL`).
+
+Still missing a diagnostic channel at **replacement** time: `put_by_node_js`'s
+unsupported-value fallback still writes a runtime string into the JS bundle
+(`html_cbi/.../js_embedded_value.ch`), because macro replacement functions only receive
+`ASTBuilder` and have no `ASTDiagnoser`. Diagnosing that class needs either a new
+diagnostic entry point on the builder (C++ + binding + ABI change) or a symres-time
+validation pass over the component's typed values.
+
 ### Still open
 
 Everything else in Phases 0–5: runtime extraction to a real `.js` asset,

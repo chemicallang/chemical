@@ -77,18 +77,59 @@ internal func run_compiler_capture(mod_path : *char, out_path : *char, output_bu
     if(pipe == null) {
         return -1
     }
-    var total = 0
+    // Keep only the LAST (buf_size - 1) output bytes. Compiling a module that
+    // imports std/page can emit tens of KB of warnings before the actual
+    // diagnostic; truncating the newest bytes would drop the error entirely.
+    // A ring buffer is linearized (rotated) at the end so callers see the tail.
+    var cap = buf_size - 1
+    var head = 0
+    var count = 0
     var line_buf : char[4096]
     while(fgets(unsafe(&raw mut line_buf[0]), 4096, pipe) != null) {
         var line_len = strlen(unsafe(&raw line_buf[0]))
         var i = 0u
-        while(i < line_len && total < buf_size - 1) {
-            *(output_buf + total) = line_buf[i]
-            total++
+        while(i < line_len) {
+            *(output_buf + head) = line_buf[i]
+            head++
+            if(head >= cap) head = 0
+            if(count < cap) count++
             i++
         }
     }
-    *(output_buf + total) = 0
+    if(count < cap || head == 0) {
+        *(output_buf + count) = 0
+    } else {
+        // wrapped: rotate left by `head` to restore oldest-first order
+        var swap1 : char = 0
+        var lo = 0
+        var hi = cap - 1
+        while(lo < hi) {
+            swap1 = *(output_buf + lo)
+            *(output_buf + lo) = *(output_buf + hi)
+            *(output_buf + hi) = swap1
+            lo++
+            hi--
+        }
+        lo = 0
+        hi = cap - head - 1
+        while(lo < hi) {
+            swap1 = *(output_buf + lo)
+            *(output_buf + lo) = *(output_buf + hi)
+            *(output_buf + hi) = swap1
+            lo++
+            hi--
+        }
+        lo = cap - head
+        hi = cap - 1
+        while(lo < hi) {
+            swap1 = *(output_buf + lo)
+            *(output_buf + lo) = *(output_buf + hi)
+            *(output_buf + hi) = swap1
+            lo++
+            hi--
+        }
+        *(output_buf + cap) = 0
+    }
     var rc = pclose(pipe)
     return rc
 }
@@ -130,6 +171,9 @@ internal const NEG_MOD = "module neg_test\nsource \".\"\n"
 
 // variant that imports core so the `Copy` marker interface is in scope
 internal const NEG_MOD_CORE = "module neg_test\nsource \".\"\nimport core\n"
+
+// variant that imports page + universal_cbi so `#universal` components compile
+internal const NEG_MOD_UNIVERSAL = "module neg_test\nsource \".\"\nimport std\nimport page\nimport universal_cbi\n"
 
 internal func expect_compile_error(env : &mut TestEnv, name : *char, ch_content : *char, expected_sub : *char) {
     expect_compile_error_with_mod(env, name, ch_content, expected_sub, NEG_MOD)
@@ -244,6 +288,18 @@ func neg_get_on_destructible_struct_nested_receiver_errors(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func get(&self, i : int) : T where T : Copy {\n        return *data\n    }\n}\nstruct Row {\n    var p : *char\n    @delete\n    func delete(&mut self) { }\n}\nstruct Outer {\n    var h : Holder<Row>\n}\npublic func main() : int {\n    var outer = Outer { h = Holder<Row> { data = null } }\n    var r = outer.h.get(0)\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "get_on_destructible_struct_nested", ch, "does not satisfy where clause constraint", NEG_MOD_CORE)
+}
+
+@test
+public func neg_universal_missing_prop_names_the_component(env : &mut TestEnv) {
+    var ch = "#universal Good(props : title) {\n    return <span>{props.title}</span>\n}\n#universal Host(props) {\n    return <Good />\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "universal_missing_prop", ch, "missing required prop 'title' on <Good>", NEG_MOD_UNIVERSAL)
+}
+
+@test
+public func neg_universal_unknown_component_names_the_symbol(env : &mut TestEnv) {
+    var ch = "#universal Host(props) {\n    return <NoSuchComponent />\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "universal_unknown_component", ch, "is not a known component", NEG_MOD_UNIVERSAL)
 }
 
 public func main(argc : int, argv : **char) {

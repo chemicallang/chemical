@@ -1096,6 +1096,32 @@ Tests:
   `keyed list: hydration adopts SSR nodes without removing them`, and the
   derived-list tests (349 E2E tests pass).
 
+### Reconciliation increment (list identity preservation)
+
+The list reconciler in `page.ch` was rewritten without touching the runtime
+extraction boundary:
+
+- **O(n) keyed lookup.** `$__uni_reconcile_list` now builds the key -> element
+  map in a single pass over the live DOM (`keyEls`), replacing the previous
+  per-old-vnode sibling rescan (`oldMap`) which was O(n²).
+- **Correct keyed detection.** A list is treated as keyed if *any* new vnode has
+  a `key`, not only when the first one does. Previously a list whose first item
+  was unkeyed took the full-rebuild path and dropped keys entirely.
+- **In-place patching.** New `$__uni_patch_node` / `$__uni_patch_children` patch
+  matched keyed elements and equal-length unkeyed lists in place (props + child
+  reconciliation) instead of disposing and re-rendering the whole subtree. This
+  preserves DOM node identity, input focus/value, and scroll position across
+  list updates and reorders. Unpatchable shapes (fragments, component vnodes,
+  state markers, differing tags) still fall back to a full rebuild, so child
+  component instances inside keyed items are not yet preserved by structural
+  diffing.
+
+Tests added: `runtime-unit.spec.ts` — keyed matching with an unkeyed first item,
+unkeyed equal-length in-place patch, and keyed update preserving a child input's
+identity and typed value. `runtime_contracts.ch::universal_keyed_reconciliation_exists`
+updated to assert the new contract (`$__uni_patch_node`) rather than the removed
+internal `oldMap` variable.
+
 ### Still open
 
 Everything else in Phases 0–5: runtime extraction to a real `.js` asset,

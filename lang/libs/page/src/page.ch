@@ -1156,29 +1156,168 @@ window.$__uni_clear_range = ((start, end) => {
         n.remove();
     }
 })
+// True when the element tag is a real DOM element (not a runtime pseudo-node
+// such as "__uni_uc" / "__uni_portal", nor a Fragment/function component).
+window.$__uni_is_element_tag = ((t) => {
+    return typeof t === "string" && t.charCodeAt(0) !== 95;
+})
+// Patch one existing DOM node in place to match `newV` instead of destroying and
+// re-creating it. This preserves node identity: input focus/value, scroll
+// position, and child component instances survive list updates and re-orders.
+// Falls back to a full rebuild (via $_urn + replaceChild) when the shape is not
+// patchable (different tag, fragment, component vnode, state, primitive change).
+// Returns the node now occupying the old position.
+window.$__uni_patch_node = ((dom, oldV, newV) => {
+    if(dom && dom.nodeType === 3) {
+        if(newV == null || newV === false || newV === true) {
+            if(dom.nodeValue !== "") dom.nodeValue = "";
+            return dom;
+        }
+        if(typeof newV === "string" || typeof newV === "number") {
+            const s = "" + newV;
+            if(dom.nodeValue !== s) dom.nodeValue = s;
+            return dom;
+        }
+    } else if(dom && dom.nodeType === 1 && newV && window.$__uni_is_element_tag(newV.t)
+            && dom.tagName.toLowerCase() === newV.t.toLowerCase()) {
+        const props = newV.p || {};
+        for(const k in props) window.$__uni_apply_prop(dom, k, props[k]);
+        window.$__uni_patch_children(dom, oldV ? oldV.c : null, newV.c || []);
+        if(dom.$__uni_ref !== undefined) {
+            window.$__uni_assign_ref(dom, dom.$__uni_ref);
+            delete dom.$__uni_ref;
+        }
+        return dom;
+    }
+    // Unpatchable: rebuild this single node and splice it in.
+    const parent = dom ? dom.parentNode : null;
+    const before = dom ? dom.previousSibling : null;
+    const rendered = window.$_urn(newV);
+    if(parent && dom) {
+        parent.replaceChild(rendered, dom);
+        const first = before ? before.nextSibling : parent.firstChild;
+        return first;
+    }
+    return rendered;
+})
+// Patch a parent element's children against the previously rendered child vnode
+// array. Keyed children are matched by `__uni_vnode_key` (O(n) map build);
+// unkeyed children are patched positionally when the DOM shape is 1:1.
+// Falls back to clearing and re-rendering when the shape cannot be reconciled.
+window.$__uni_patch_children = ((parent, oldChildren, newChildren) => {
+    oldChildren = oldChildren || [];
+    newChildren = newChildren || [];
+    let anyKey = false;
+    for(let i = 0; i < newChildren.length; i++) {
+        const c = newChildren[i];
+        if(c && c.p && c.p.key != null) { anyKey = true; break; }
+    }
+    if(anyKey) {
+        // One O(n) pass over the DOM to build key -> element.
+        const keyEls = new Map();
+        let ch = parent.firstChild;
+        while(ch) {
+            if(ch.nodeType === 1 && ch.__uni_vnode_key != null) keyEls.set(ch.__uni_vnode_key, ch);
+            ch = ch.nextSibling;
+        }
+        const oldByKey = new Map();
+        for(let i = 0; i < oldChildren.length; i++) {
+            const oc = oldChildren[i];
+            if(oc && oc.p && oc.p.key != null) oldByKey.set(oc.p.key, oc);
+        }
+        let anchor = null;
+        for(let i = 0; i < newChildren.length; i++) {
+            const nc = newChildren[i];
+            const nk = nc && nc.p ? nc.p.key : null;
+            const target = anchor ? anchor.nextSibling : parent.firstChild;
+            if(nk != null && oldByKey.has(nk) && keyEls.has(nk)) {
+                const oc = oldByKey.get(nk);
+                let node = keyEls.get(nk);
+                oldByKey.delete(nk); keyEls.delete(nk);
+                node = window.$__uni_patch_node(node, oc, nc);
+                if(node && node.nodeType === 1) node.__uni_vnode_key = nk;
+                if(node && node !== target) parent.insertBefore(node, target);
+                anchor = node;
+            } else {
+                const rendered = window.$_urn(nc);
+                parent.insertBefore(rendered, target);
+                let first = rendered, last = rendered;
+                if(rendered.nodeType === 11) { first = rendered.firstChild; last = rendered.lastChild; }
+                if(nk != null) {
+                    let fe = first;
+                    while(fe && fe.nodeType !== 1) fe = fe.nextSibling;
+                    if(fe) fe.__uni_vnode_key = nk;
+                }
+                if(last) anchor = last;
+            }
+        }
+        keyEls.forEach((el) => { window.$__uni_dispose_subtree(el); if(el.parentNode) el.remove(); });
+        return;
+    }
+    // Unkeyed: positional patch only when each vnode maps to exactly one DOM
+    // node (no fragments, no state comment markers), otherwise rebuild.
+    if(oldChildren.length === newChildren.length && parent.childNodes.length === newChildren.length && newChildren.length > 0) {
+        let ch = parent.firstChild;
+        for(let i = 0; i < newChildren.length && ch; i++) {
+            const nextCh = ch.nextSibling;
+            window.$__uni_patch_node(ch, oldChildren[i], newChildren[i]);
+            ch = nextCh;
+        }
+        return;
+    }
+    while(parent.firstChild) {
+        window.$__uni_dispose_subtree(parent.firstChild);
+        parent.removeChild(parent.firstChild);
+    }
+    for(let i = 0; i < newChildren.length; i++) parent.appendChild(window.$_urn(newChildren[i]));
+})
 // Reconcile a vnode array into the comment-delimited DOM range
 // (start, end). Keyed arrays match old nodes by `__uni_vnode_key` and move them
-// (preserving identity, focus, and input values); unkeyed arrays are replaced.
+// (preserving identity, focus, and input values); unkeyed arrays with a stable
+// shape are patched in place, otherwise replaced.
 // Returns the vnode array to track for the next reconcile. Shared by fresh
 // renders ($_urn) and hydration adoption so both use identical semantics.
 window.$__uni_reconcile_list = ((start, end, next, oldVnodes) => {
-    const isKeyedArray = Array.isArray(next) && next.length > 0 && next[0] && next[0].p && next[0].p.key != null;
-    if(!isKeyedArray) {
+    if(!Array.isArray(next)) {
         window.$__uni_clear_range(start, end);
         start.after(window.$_urn(next));
         return null;
     }
-    const oldMap = new Map();
-    if(oldVnodes && start.parentNode) {
+    let anyKey = false;
+    for(let i = 0; i < next.length; i++) {
+        const nv = next[i];
+        if(nv && nv.p && nv.p.key != null) { anyKey = true; break; }
+    }
+    if(!anyKey) {
+        // Unkeyed: reuse existing nodes when the previous render had the same
+        // item count, so focus/inputs survive updates.
+        if(Array.isArray(oldVnodes) && oldVnodes.length === next.length) {
+            const doms = [];
+            let n = start.nextSibling;
+            while(n && n !== end) { doms.push(n); n = n.nextSibling; }
+            if(doms.length === next.length) {
+                for(let i = 0; i < next.length; i++) window.$__uni_patch_node(doms[i], oldVnodes[i], next[i]);
+                return next;
+            }
+        }
+        window.$__uni_clear_range(start, end);
+        start.after(window.$_urn(next));
+        return next;
+    }
+    // Keyed: one O(n) pass builds key -> element from the live DOM.
+    const keyEls = new Map();
+    {
+        let n = start.nextSibling;
+        while(n && n !== end) {
+            if(n.nodeType === 1 && n.__uni_vnode_key != null) keyEls.set(n.__uni_vnode_key, n);
+            n = n.nextSibling;
+        }
+    }
+    const oldByKey = new Map();
+    if(Array.isArray(oldVnodes)) {
         for(let i = 0; i < oldVnodes.length; i++) {
             const ov = oldVnodes[i];
-            if(ov && ov.p && ov.p.key != null) {
-                let el = start.nextSibling;
-                while(el && el !== end) {
-                    if(el.__uni_vnode_key === ov.p.key) { oldMap.set(ov.p.key, { vnode: ov, el: el }); break; }
-                    el = el.nextSibling;
-                }
-            }
+            if(ov && ov.p && ov.p.key != null) oldByKey.set(ov.p.key, ov);
         }
     }
     let anchor = start;
@@ -1186,21 +1325,14 @@ window.$__uni_reconcile_list = ((start, end, next, oldVnodes) => {
     for(let i = 0; i < next.length; i++) {
         const nv = next[i];
         const nk = nv && nv.p ? nv.p.key : null;
-        if(nk != null && oldMap.has(nk)) {
-            const entry = oldMap.get(nk);
-            const el = entry.el;
-            oldMap.delete(nk);
-            el.__uni_vnode_key = nk;
-            const props = nv.p || {};
-            for(const pk in props) window.$__uni_set_prop(el, pk, props[pk]);
-            const oldChildren = [];
-            let c = el.firstChild;
-            while(c) { oldChildren.push(c); c = c.nextSibling; }
-            for(let ci = 0; ci < oldChildren.length; ci++) { window.$__uni_dispose_subtree(oldChildren[ci]); oldChildren[ci].remove(); }
-            const children = nv.c || [];
-            for(let ci = 0; ci < children.length; ci++) el.appendChild(window.$_urn(children[ci]));
-            if(el.nextSibling !== anchor.nextSibling) {
-                el.remove();
+        if(nk != null && oldByKey.has(nk) && keyEls.has(nk)) {
+            const ov = oldByKey.get(nk);
+            let el = keyEls.get(nk);
+            oldByKey.delete(nk); keyEls.delete(nk);
+            el = window.$__uni_patch_node(el, ov, nv);
+            if(el && el.nodeType === 1) el.__uni_vnode_key = nk;
+            if(el !== anchor.nextSibling) {
+                if(el.parentNode) el.remove();
                 anchor.after(el);
             }
             anchor = el;
@@ -1219,7 +1351,7 @@ window.$__uni_reconcile_list = ((start, end, next, oldVnodes) => {
             newVnodes.push(nv);
         }
     }
-    oldMap.forEach((entry) => { window.$__uni_dispose_subtree(entry.el); entry.el.remove(); });
+    keyEls.forEach((el) => { window.$__uni_dispose_subtree(el); if(el.parentNode) el.remove(); });
     return newVnodes;
 })
 window.$_urn = ((v) => {

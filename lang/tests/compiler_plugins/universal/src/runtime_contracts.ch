@@ -290,8 +290,9 @@ public func universal_keyed_reconciliation_exists(env : &mut TestEnv) {
     js.append_view(page.getJs())
     // The runtime must reconcile keyed arrays by identity (matching old nodes
     // to new vnodes by key and moving them) so reordering preserves DOM nodes,
-    // focus, and input values.
-    if(js.contains("__uni_vnode_key") && js.contains("oldMap") && js.contains("$__uni_reconcile_list")) {
+    // focus, and input values. It patches matched nodes in place rather than
+    // rebuilding their subtrees.
+    if(js.contains("__uni_vnode_key") && js.contains("$__uni_patch_node") && js.contains("$__uni_reconcile_list")) {
         env.success("runtime reconciles keyed lists by identity")
     } else {
         env.error("runtime has no keyed reconciliation — reorders would patch the wrong nodes")

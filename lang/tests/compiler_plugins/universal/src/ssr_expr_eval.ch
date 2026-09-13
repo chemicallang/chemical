@@ -166,3 +166,74 @@ public func universal_ssr_expr_spread_class_js(env : &mut TestEnv) {
         env.info(js.data())
     }
 }
+
+// --- Unified SSR evaluator parity -------------------------------------------------
+// These pin the behavior that attribute booleans, attribute values, children, and
+// conditions now share one evaluator (eval_ssr_js_expr). Before the unification,
+// a static expression could evaluate in one context but return nothing / the wrong
+// value in another.
+
+// Static arithmetic in an attribute value must render the numeric result ("3"),
+// not a text concatenation of its operands ("12").
+#universal SsrStaticArithmeticAttr(props) {
+    return <div data-n={1 + 2}></div>
+}
+
+@test
+public func universal_ssr_static_arithmetic_attr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrStaticArithmeticAttr /> }
+    var html = std::string()
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><div data-n="3"></div></span>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+// A static comparison used as an attribute boolean condition must evaluate
+// ("yes"), instead of comparing a concatenated "11" against "2" ("no").
+#universal SsrStaticConditionAttr(props) {
+    return <div class={1 + 1 === 2 ? "yes" : "no"}></div>
+}
+
+@test
+public func universal_ssr_static_condition_attr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrStaticConditionAttr /> }
+    var html = std::string()
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><div class="yes"></div></span>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+// A computed body local derived from static state (`var m = n + 1`) must render
+// its folded value, exactly like the client's first render.
+#universal SsrStaticComputedLocal(props) {
+    state n = 5
+    var m = n + 1
+    return <div>{m}</div>
+}
+
+@test
+public func universal_ssr_static_computed_local(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrStaticComputedLocal /> }
+    var html = std::string()
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><div>6</div></span>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+// The same static comparison in a body `if` condition (which goes through the
+// formerly-separate condition evaluator) must also evaluate.
+#universal SsrStaticIfCondition(props) {
+    if(1 + 1 === 2) {
+        return <span>A</span>
+    }
+    return <span>B</span>
+}
+
+@test
+public func universal_ssr_static_if_condition(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrStaticIfCondition /> }
+    var html = std::string()
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><span>A</span></span>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}

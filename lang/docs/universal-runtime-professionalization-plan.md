@@ -1122,6 +1122,27 @@ identity and typed value. `runtime_contracts.ch::universal_keyed_reconciliation_
 updated to assert the new contract (`$__uni_patch_node`) rather than the removed
 internal `oldMap` variable.
 
+#### Generalization: unkeyed insert/remove without rebuild
+
+Both unkeyed reconciliation paths previously fell back to a full clear+re-render
+whenever the item count changed, so appending or removing one item to an unkeyed
+list destroyed every DOM node (losing focus, scroll, and input values). They now
+reconcile positionally whenever the previous render mapped each vnode to exactly
+one DOM node (`oldVnodes.length === live node count`): patch the common prefix in
+place, append the new tail, and dispose+remove the stale tail.
+
+- `$__uni_patch_children` (element children) and `$__uni_reconcile_list` (state
+  marker ranges) share the same strategy. Multi-node shapes (fragments, state
+  marker ranges) fail the 1:1 check and still fall back to a rebuild.
+- Tests: `runtime-unit.spec.ts` — `unkeyed insertion preserves existing node
+  identity`, `unkeyed removal drops only the removed node`. Full E2E: 368/368.
+
+Residual (still open): keyed *fragments* and *component vnodes* matched by key
+still rebuild (single-element key recording), and keyed hydration remains
+positional when the server/client key order differs. A marker/manifest protocol
+is required to give multi-node items a keyed boundary.
+
+
 ### Scoped context (nearest-provider resolution)
 
 Context was a single flat, name-keyed global registry (`window.$__uni_ctx`), so two provider
@@ -1194,4 +1215,78 @@ Everything else in Phases 0–5: runtime extraction to a real `.js` asset,
 single SSR evaluator/IR, parser consolidation, emitted-JS semantic validation,
 external/hashed runtime assets, streaming SSR, and the component platform work
 (forms, virtualization, dynamic context, i18n, animation, devtools).
+
+### Phase 3 (first slice) — one SSR evaluator
+
+The three divergent SSR evaluators were collapsed toward a single model:
+
+- **Duplicate boolean evaluator removed.** `convert_js_expr_to_ssr_bool_value`
+  (conditions/body `if`) was a ~110-line near-copy of `convert_ssr_attr_bool_expr`
+  (attribute booleans). It is now a thin wrapper that delegates to the latter with
+  a fresh `AttrValueConverter`, so the two can no longer diverge.
+- **Canonical evaluator is the shared front door.** `convert_ssr_attr_bool_expr`
+  and `convert_ssr_attr_value_expr` both now first call `eval_ssr_js_expr` (the
+  evaluator JSX children and conditions already used) and convert its result.
+  Anything the canonical evaluator can reduce — literals, static state/computed
+  values, arithmetic, comparisons, ternaries — is answered identically in every
+  context. This also fixes static arithmetic in attributes and conditions, which
+  previously fell through the `+` concatenation path and produced `"12"` for
+  `{1 + 2}` / compared `"11"` against `"2"`.
+- `converter_utils.ch` only (`convert_js_expr_to_ssr_bool_value`,
+  `convert_ssr_attr_bool_expr`, `convert_ssr_attr_value_expr`).
+
+Regression tests (`ssr_expr_eval.ch`):
+`universal_ssr_static_arithmetic_attr` (renders `3`), 
+`universal_ssr_static_condition_attr` (renders `yes`), 
+`universal_ssr_static_computed_local` (`var m = n + 1` renders `6`),
+`universal_ssr_static_if_condition` (body `if` evaluates). Plugin suite
+1092/1094 (2 pre-existing). E2E 368/368.
+
+**Supporting fix (2c backend).** The newly-unified evaluator folds more body
+locals into SSR, which exposed synthesized Chemical identifiers named after JS
+variables (e.g. `var double = count * 2`) being emitted raw into C. `is_c_keyword`
+in `preprocess/2c/2cASTVisitor.cpp` now covers the full C keyword set, so the
+declaration and every reference are escaped consistently (`__chx__double`).
+
+**Not yet unified (item 2 remainder).** The runtime-prop `.filter()`
+predicate case still needs a server-side JS predicate evaluator, and the parser
+split / one component IR (plan Phase 3/4) remains open.
+
+### Program: fundamental gaps 2–6
+
+Tracking the five architectural gaps called out by the production audit.
+
+- **Item 6 (reconciliation) — landed, one residual.** Unkeyed insert/remove now
+  patch in place instead of rebuilding (see "Generalization: unkeyed
+  insert/remove without rebuild"). Residual: keyed fragments/component vnodes
+  still rebuild and keyed hydration is positional when SSR/client key order
+  differs — needs a keyed marker/manifest protocol.
+- **Item 5 (SSR error boundaries) — blocked on a language feature.** There is no
+  usable exception mechanism to build on:
+  - `ThrowStatement::code_gen` in `compiler/backend/LLVM.cpp` is
+    `CHEM_THROW_RUNTIME("[UNIMPLEMENTED]")`.
+  - `ToCAstVisitor::VisitTryStmt` (`preprocess/2c/2cASTVisitor.cpp`) emits
+    `[TryCatch_UNIMPLEMENTED]`.
+  - `TryCatch` is call-based, not block-based (`ast/structures/TryCatch.h`:
+    `FunctionCall* tryCall`), so it cannot wrap a generated server function body
+    even in principle.
+  SSR error boundaries therefore require implementing `throw` + block-level
+  `try/catch` (with unwinding/landing pads) across both backends first. This is a
+  foundational compiler project, not a runtime change.
+- **Item 3 (global render state).** The runtime already saves/restores the
+  instance/boundary/render globals per mount; the audit's concern is concurrency
+  and re-entrancy. Making it a true stack without changing the generated-code
+  interface is a contained runtime-only change, but the full recommendation
+  (thread instance explicitly into `$_us`/hooks) requires converter changes.
+  Practical impact is low until concurrent rendering exists.
+- **Item 2 (SSR/client shared model) — in progress.** First slice landed: the
+  duplicate boolean evaluator was removed and both attribute evaluators now route
+  through the canonical `eval_ssr_js_expr` (see "Phase 3 (first slice) — one SSR
+  evaluator"), so attribute booleans, attribute values, children, and conditions
+  share one coverage. Remainder: a server-side predicate evaluator for the
+  runtime-prop `.filter()` case, and collapsing the SSR/client conversion onto one
+  component IR (Phase 3/4).
+- **Item 4 (async/data) — largest.** No Suspense, async boundaries, or streaming;
+  requires the IR work in item 2 as a base.
+
 

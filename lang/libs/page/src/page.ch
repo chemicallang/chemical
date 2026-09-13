@@ -1282,14 +1282,23 @@ window.$__uni_patch_children = ((parent, oldChildren, newChildren) => {
         keyEls.forEach((el) => { window.$__uni_dispose_subtree(el); if(el.parentNode) el.remove(); });
         return;
     }
-    // Unkeyed: positional patch only when each vnode maps to exactly one DOM
-    // node (no fragments, no state comment markers), otherwise rebuild.
-    if(oldChildren.length === newChildren.length && parent.childNodes.length === newChildren.length && newChildren.length > 0) {
+    // Unkeyed positional reconciliation. When the previous render mapped each
+    // vnode to exactly one DOM node (verified by comparing the live child count
+    // to the previous vnode count), patch the common prefix in place, append the
+    // new tail, and remove the stale tail. This preserves node identity, focus,
+    // and input values across insertions and removals instead of rebuilding the
+    // whole subtree. Shapes where a vnode rendered to multiple DOM nodes (a
+    // fragment or state marker range) fail the 1:1 check and fall back.
+    if(oldChildren.length === parent.childNodes.length && parent.childNodes.length > 0 && newChildren.length > 0) {
+        const doms = [];
         let ch = parent.firstChild;
-        for(let i = 0; i < newChildren.length && ch; i++) {
-            const nextCh = ch.nextSibling;
-            window.$__uni_patch_node(ch, oldChildren[i], newChildren[i]);
-            ch = nextCh;
+        while(ch) { doms.push(ch); ch = ch.nextSibling; }
+        const common = Math.min(doms.length, newChildren.length);
+        for(let i = 0; i < common; i++) window.$__uni_patch_node(doms[i], oldChildren[i], newChildren[i]);
+        for(let i = common; i < newChildren.length; i++) parent.appendChild(window.$_urn(newChildren[i]));
+        for(let i = common; i < doms.length; i++) {
+            window.$__uni_dispose_subtree(doms[i]);
+            doms[i].remove();
         }
         return;
     }
@@ -1317,16 +1326,22 @@ window.$__uni_reconcile_list = ((start, end, next, oldVnodes) => {
         if(nv && nv.p && nv.p.key != null) { anyKey = true; break; }
     }
     if(!anyKey) {
-        // Unkeyed: reuse existing nodes when the previous render had the same
-        // item count, so focus/inputs survive updates.
-        if(Array.isArray(oldVnodes) && oldVnodes.length === next.length) {
-            const doms = [];
-            let n = start.nextSibling;
-            while(n && n !== end) { doms.push(n); n = n.nextSibling; }
-            if(doms.length === next.length) {
-                for(let i = 0; i < next.length; i++) window.$__uni_patch_node(doms[i], oldVnodes[i], next[i]);
-                return next;
+        // Unkeyed: patch positionally when the previous render mapped each vnode
+        // to exactly one DOM node (oldVnodes length === live node count), then
+        // append the new tail / remove the stale tail. Preserves focus/inputs on
+        // insert and remove; falls back to a rebuild for multi-node shapes.
+        const doms = [];
+        let n = start.nextSibling;
+        while(n && n !== end) { doms.push(n); n = n.nextSibling; }
+        if(Array.isArray(oldVnodes) && oldVnodes.length === doms.length) {
+            const common = Math.min(doms.length, next.length);
+            for(let i = 0; i < common; i++) window.$__uni_patch_node(doms[i], oldVnodes[i], next[i]);
+            for(let i = common; i < next.length; i++) end.parentNode.insertBefore(window.$_urn(next[i]), end);
+            for(let i = common; i < doms.length; i++) {
+                window.$__uni_dispose_subtree(doms[i]);
+                doms[i].remove();
             }
+            return next;
         }
         window.$__uni_clear_range(start, end);
         start.after(window.$_urn(next));

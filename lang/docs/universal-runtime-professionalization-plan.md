@@ -1288,6 +1288,33 @@ declaration and every reference are escaped consistently (`__chx__double`).
 predicate case still needs a server-side JS predicate evaluator, and the parser
 split / one component IR (plan Phase 3/4) remains open.
 
+### Render context stack (item 3)
+
+The runtime kept `$__uni_current_instance`, `$__uni_current_boundary`,
+`$__uni_render_instance`, `$__uni_current_tracker`, and `$__uni_child_tracker`
+in flat globals, saved and restored by hand at each entry point. Any entry that
+forgot one, or a nested/re-entrant render, could leave a stale context.
+
+- New `$__uni_render_stack` with `$__uni_push_ctx(overrides)` /
+  `$__uni_pop_ctx()` (and `$__uni_peek_ctx()`). Each frame captures all five
+  values and restores exactly what it replaced, so nested mounts, dispatches,
+  and effect runs cannot clobber each other.
+- `$__uni_mount` now pushes one frame for the component body (instance +
+  boundary + render owner), then drops owner/boundary via `peek` while keeping
+  `current_instance` set through hydration, and pops after hydration.
+- `$_ucs` dependency tracking uses `push_ctx({tracker, childTracker})`.
+- `$__uni_run_effects` runs effects inside the owning instance's context, so
+  signals/hooks created inside an effect are attributed to (and disposed with)
+  that instance instead of leaking.
+
+Tests: runtime-unit `$__uni_push_ctx/$__uni_pop_ctx: nested contexts restore
+exactly`, `$__uni_mount: component body runs under its instance and restores
+after`, `$__uni_run_effects: effects run inside the owning instance context`
+(22/22). Contract `runtime_contracts.ch::universal_render_context_is_stack_based`.
+Plugin 1097/1099, E2E 372/372. The full recommendation from the audit
+(threading instance explicitly into `$_us`/hooks rather than a current-context
+global) remains open; the stack removes the clobbering/leak class first.
+
 ### Program: fundamental gaps 2–6
 
 Tracking the five architectural gaps called out by the production audit.
@@ -1309,12 +1336,11 @@ Tracking the five architectural gaps called out by the production audit.
   SSR error boundaries therefore require implementing `throw` + block-level
   `try/catch` (with unwinding/landing pads) across both backends first. This is a
   foundational compiler project, not a runtime change.
-- **Item 3 (global render state).** The runtime already saves/restores the
-  instance/boundary/render globals per mount; the audit's concern is concurrency
-  and re-entrancy. Making it a true stack without changing the generated-code
-  interface is a contained runtime-only change, but the full recommendation
-  (thread instance explicitly into `$_us`/hooks) requires converter changes.
-  Practical impact is low until concurrent rendering exists.
+- **Item 3 (global render state) — addressed (stack).** Render context is now a
+  stack (`$__uni_push_ctx`/`pop_ctx`) capturing instance/boundary/render-owner
+  and both trackers; effects run inside their owning instance. Remaining: thread
+  the instance explicitly into `$_us`/hooks (removes the last current-context
+  global read) — not required until concurrent rendering.
 - **Item 2 (SSR/client shared model) — in progress.** Slices landed: (1) the
   duplicate boolean evaluator was removed and both attribute evaluators route
   through the canonical `eval_ssr_js_expr`; (2) the runtime-prop `.filter()`

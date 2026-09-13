@@ -772,15 +772,19 @@ a post-emission parse pass is ~50 lines.
 **Recommendation:** After each page's JS is finalized, re-parse `getFinalizedPageJs()` with
 `universal_parser` and emit a compile diagnostic on failure.
 
-#### D. Global mutable state everywhere
+#### D. Global mutable state everywhere — **PARTIALLY FIXED**
 
-The runtime uses `window.$__uni_current_instance`, `window.$__uni_current_tracker`,
-`window.$__uni_child_tracker`, `window.$__uni_hydration_warned` — all mutable globals. This
-makes concurrent rendering (React 18's transition API) impossible and causes subtle bugs when
-multiple root components hydrate.
+**Status:** the render context is now a stack. `window.$__uni_render_stack` with
+`$__uni_push_ctx(overrides)` / `$__uni_pop_ctx()` / `$__uni_peek_ctx()` captures all five
+values (`current_instance`, `current_boundary`, `render_instance`, `current_tracker`,
+`child_tracker`) per frame and restores exactly what it replaced. `$__uni_mount`, `$_ucs`,
+and `$__uni_run_effects` all use it, so nested mounts/dispatches/effects cannot leave a
+stale context. Remaining: `$_us` still reads `window.$__uni_current_instance` at creation
+(threading the instance explicitly is not required until concurrent rendering).
 
-**Recommendation:** Thread instance context explicitly (e.g., `$_us(v, inst)` instead of
-reading `window.$__uni_current_instance`). The professionalization plan §2.3 describes this.
+The runtime uses mutable globals for the above plus `window.$__uni_hydration_warned`. The
+stack removes the clobbering/leak class; concurrent rendering (React 18 transitions) would
+still need explicit instance threading.
 
 #### E. Positional hydration is fragile
 

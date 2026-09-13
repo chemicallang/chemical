@@ -620,17 +620,16 @@ window.$_ucs = ((fn) => {
         for(let i = 0; i < depUnsubs.length; i++) depUnsubs[i]();
         depUnsubs = [];
         const deps = [];
-        const prev = window.$__uni_current_tracker;
-        window.$__uni_current_tracker = (dep) => {
-            if(dep && deps.indexOf(dep) < 0) deps.push(dep);
-        };
-        const prevChild = window.$__uni_child_tracker;
-        window.$__uni_child_tracker = (child) => {
-            if(child && children.indexOf(child) < 0) children.push(child);
-        };
+        window.$__uni_push_ctx({
+            tracker: (dep) => {
+                if(dep && deps.indexOf(dep) < 0) deps.push(dep);
+            },
+            childTracker: (child) => {
+                if(child && children.indexOf(child) < 0) children.push(child);
+            }
+        });
         cached = fn();
-        window.$__uni_child_tracker = prevChild;
-        window.$__uni_current_tracker = prev;
+        window.$__uni_pop_ctx();
         for(let i = 0; i < deps.length; i++) {
             const dep = deps[i];
             if(dep && typeof dep.subscribe === "function") {
@@ -665,9 +664,51 @@ window.$_ucs = ((fn) => {
     if(window.$__uni_child_tracker) window.$__uni_child_tracker(signal);
     return signal;
 })
+// Render context stack. The current instance / boundary / resource owner and
+// the dependency trackers used to live in flat globals that every entry point
+// saved and restored by hand. A stack makes push/pop atomic and re-entrant: a
+// nested mount, dispatch, or effect run cannot leave a stale context behind
+// (each frame captures all five values and restores exactly what it replaced).
 window.$__uni_current_instance = null;
 window.$__uni_current_boundary = null;
 window.$__uni_render_instance = null;
+window.$__uni_current_tracker = null;
+window.$__uni_child_tracker = null;
+window.$__uni_render_stack = [];
+// Pushes a frame capturing the current render context, then applies any
+// overrides (fields left undefined keep their current value). Returns nothing;
+// call $__uni_pop_ctx to restore.
+window.$__uni_push_ctx = ((overrides) => {
+    window.$__uni_render_stack.push({
+        instance: window.$__uni_current_instance,
+        boundary: window.$__uni_current_boundary,
+        renderInstance: window.$__uni_render_instance,
+        tracker: window.$__uni_current_tracker,
+        childTracker: window.$__uni_child_tracker
+    });
+    if(overrides) {
+        if(overrides.instance !== undefined) window.$__uni_current_instance = overrides.instance;
+        if(overrides.boundary !== undefined) window.$__uni_current_boundary = overrides.boundary;
+        if(overrides.renderInstance !== undefined) window.$__uni_render_instance = overrides.renderInstance;
+        if(overrides.tracker !== undefined) window.$__uni_current_tracker = overrides.tracker;
+        if(overrides.childTracker !== undefined) window.$__uni_child_tracker = overrides.childTracker;
+    }
+})
+window.$__uni_pop_ctx = (() => {
+    const frame = window.$__uni_render_stack.pop();
+    if(!frame) return;
+    window.$__uni_current_instance = frame.instance;
+    window.$__uni_current_boundary = frame.boundary;
+    window.$__uni_render_instance = frame.renderInstance;
+    window.$__uni_current_tracker = frame.tracker;
+    window.$__uni_child_tracker = frame.childTracker;
+})
+// The frame at the top of the stack (the values the enclosing context will be
+// restored to). Used by $__uni_mount to drop the render owner/boundary after a
+// component body runs while keeping current_instance set through hydration.
+window.$__uni_peek_ctx = (() => {
+    return window.$__uni_render_stack.length ? window.$__uni_render_stack[window.$__uni_render_stack.length - 1] : null;
+})
 window.$__uni_ctx = {}
 // Builds one context-scope entry. Each provider instance gets its own entry
 // (see $_r.createContext) so two providers that share a name do not collide;
@@ -978,9 +1019,10 @@ window.$__uni_inert_scan = (() => {
 })()
 window.$__uni_run_effects = ((inst, effects) => {
     if(!effects) return;
-    // Set the current boundary to this instance so effect errors can propagate
-    const prevBoundary = window.$__uni_current_boundary;
-    window.$__uni_current_boundary = inst;
+    // Run effects inside the owning instance's render context so error
+    // boundaries resolve to it and any signals/hooks created inside an effect
+    // are attributed to (and disposed with) the same instance.
+    window.$__uni_push_ctx({ instance : inst, boundary : inst, renderInstance : inst });
     for(let i = 0; i < effects.length; i++) {
         const eff = effects[i];
         // Resolve signal deps to their current values for comparison. Comparing
@@ -1005,7 +1047,7 @@ window.$__uni_run_effects = ((inst, effects) => {
             eff.ran = true;
         }
     }
-    window.$__uni_current_boundary = prevBoundary;
+    window.$__uni_pop_ctx();
 })
 window.$__uni_is_state = ((v) => !!(v && typeof v.subscribe === "function" && "value" in v))
 // Development diagnostics toggle. Enabled by default for actionable developer
@@ -1743,14 +1785,9 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
     const inst = { parent: parentInstance, children: [], _disposables: [], _resources: [], _contexts: {}, host: host };
     host.$__uni_instance = inst;
     if(parentInstance) parentInstance.children.push(inst);
-    window.$__uni_current_instance = inst;
-    // Set this as the nearest error boundary for child renders
-    const prevBoundary = window.$__uni_current_boundary;
-    window.$__uni_current_boundary = inst;
-    // Resources (signals/computeds) created while the component renders are
-    // attributed to this instance and disposed on unmount.
-    const prevRenderInstance = window.$__uni_render_instance;
-    window.$__uni_render_instance = inst;
+    // Own the render context for the component body: current instance, error
+    // boundary, and resource owner all become `inst`, saved atomically.
+    window.$__uni_push_ctx({ instance : inst, boundary : inst, renderInstance : inst });
     let out;
     try {
         out = comp(props || {});
@@ -1772,8 +1809,11 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
             out = window.$__uni_default_fallback(props, err);
         }
     }
-    window.$__uni_render_instance = prevRenderInstance;
-    window.$__uni_current_boundary = prevBoundary;
+    // The body has run: drop render ownership and boundary, but keep
+    // current_instance = inst through hydration so child dispatches parent here.
+    const frame = window.$__uni_peek_ctx();
+    window.$__uni_render_instance = frame ? frame.renderInstance : null;
+    window.$__uni_current_boundary = frame ? frame.boundary : null;
     // Ref forwarding: if the parent passed a ref prop, forward it to the
     // component's root DOM element after hydration
     const refVal = props && props.ref ? props.ref : null;
@@ -1788,7 +1828,7 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
         // output so nested child components parent to this instance (needed for
         // scoped context and disposal). Restore afterwards.
         const next = window.$__uni_hydrate_node(parent, host, out);
-        window.$__uni_current_instance = prevInstance;
+        window.$__uni_pop_ctx();
         // `host` may be a text node when the component's SSR range starts with
         // text (a fragment / multi-node root). Track the first element inside
         // the hydrated range so disposal still works; fall back to the parent.
@@ -1809,7 +1849,7 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
     window.$__uni_hydrate_children(host, [ out ]);
     // Restore instance AFTER hydration -- child components dispatched during
     // hydration need $_uni_current_instance set to this inst for parent linking
-    window.$__uni_current_instance = prevInstance;
+    window.$__uni_pop_ctx();
     // Track instance for unmount cleanup via MutationObserver.
     // During SSR hydration, prefer the [data-chx-i] boundary element.
     // During dynamic re-renders (via $_urn), `host` is a temporary container

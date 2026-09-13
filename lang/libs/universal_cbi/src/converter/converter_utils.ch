@@ -1665,6 +1665,24 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
             const builder = converter.builder;
             const location = intrinsics::get_raw_location();
 
+        // `{children}` where `var children = props.children`: render the children
+        // SsrText, exactly like a direct `{props.children}`.
+        if(converter.is_ssr_children_alias(id.value)) {
+            var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location);
+            const childrenId = builder.make_identifier(std::string_view("children"), converter.support.childrenParamNode, false, location);
+            const appendHtmlId = builder.make_identifier(std::string_view("append_html"), converter.support.appendHtmlFn, false, location);
+            var appendCall = builder.make_function_call_node(
+                builder.make_access_chain(&std::span<*mut Value>([ pageId, appendHtmlId ]), location),
+                converter.parent, location
+            );
+            const dataId = builder.make_identifier(view("data"), converter.support.childrenParamNode.child("data"), false, location);
+            const sizeId = builder.make_identifier(view("size"), converter.support.childrenParamNode.child("size"), false, location);
+            appendCall.get_args().push(builder.make_access_chain(&std::span<*mut Value>([ childrenId, dataId ]), location));
+            appendCall.get_args().push(builder.make_access_chain(&std::span<*mut Value>([ childrenId, sizeId ]), location));
+            converter.vec.push(appendCall as *mut ASTNode);
+            return;
+        }
+
         // Reference to a `.map()` callback parameter bound to a static
         // element (compile-time unrolled map): render the element value.
         if(converter.ssr_bound_param_valid && id.value.equals(&converter.ssr_bound_param)) {
@@ -2633,6 +2651,15 @@ func (converter : &mut JsConverter) find_ssr_local(name : std::string_view) : *J
     return null;
 }
 
+// True when `name` is a body local that aliases the component's children
+// (`var children = props.children`); reads of it render the children SsrText.
+func (converter : &mut JsConverter) is_ssr_children_alias(name : std::string_view) : bool {
+    for(var i : uint = 0; i < converter.ssr_children_aliases.size(); i++) {
+        if(converter.ssr_children_aliases.get(i).equals(&name)) return true;
+    }
+    return false;
+}
+
 // Builds an AttrValueConverter for the current converter context.
 func (converter : &mut JsConverter) make_attr_value_converter() : AttrValueConverter {
     const support = converter.support;
@@ -2666,6 +2693,12 @@ func (converter : &mut JsConverter) emit_ssr_local_decl(decl : *mut JsVarDecl) :
             if(chem.value != null) {
                 init = attrValConv.convert_to_attr_value(builder, chem.value.getType(), chem.value);
             }
+        } else if(converter.is_props_children(decl.value)) {
+            // Alias of the component's children (`var children = props.children`).
+            // Record it so `{children}` renders the children SsrText at SSR
+            // (previously this alias silently rendered nothing).
+            converter.ssr_children_aliases.push(decl.name);
+            return true;
         } else {
             init = converter.convert_ssr_attr_value_expr(decl.value, &mut attrValConv);
         }

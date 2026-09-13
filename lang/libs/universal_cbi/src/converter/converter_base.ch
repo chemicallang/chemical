@@ -57,6 +57,9 @@ struct JsConverter {
     // Local variables declared in the current universal component body, tracked
     // so JSX attribute/child expressions can reference them during SSR.
     var ssr_locals : std::vector<JsSsrLocal>
+    // Body locals that alias the component's children (`var children =
+    // props.children`). Reads of these render the children SsrText at SSR.
+    var ssr_children_aliases : std::vector<std::string_view>
     // Context variables bound to createContext/useContext in the current body.
     var context_vars : std::vector<JsContextVar>
 

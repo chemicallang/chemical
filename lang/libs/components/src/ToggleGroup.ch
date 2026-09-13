@@ -19,10 +19,12 @@
 //   disabled       locks all items
 //   className      merged with the group class
 //
-// The group owns selection state via context (keyed by `name`, defaulting to
-// "default"). In single mode the selection is a string; in multiple mode it is
-// an array. SSR renders items unpressed (children render before the provider's
-// SSR function); hydration applies the selection.
+// The group owns selection state via scoped context (resolved to the nearest
+// provider, so two unnamed groups never collide; `name` is optional and only
+// disambiguates when nesting is not expressed in the DOM). In single mode the
+// selection is a string; in multiple mode it is an array. SSR renders items
+// unpressed (children render before the provider's SSR function); hydration
+// applies the selection.
 
 func toggle_group_styles(page : &mut HtmlPage) : *char {
     return #css {

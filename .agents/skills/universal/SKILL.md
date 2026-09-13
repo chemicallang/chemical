@@ -170,8 +170,12 @@ JSX + hooks. Key globals and their jobs:
 
 ### Context (`createContext` / `useContext`)
 
-Component JS functions are emitted only when used, so there are no module-level declarations;
-context is a **name-keyed registry** `window.$__uni_ctx` in the runtime:
+Component JS functions are emitted only when used, so there are no module-level declarations.
+Context is **scoped per provider instance**: `createContext(name, default)` owns an entry on the
+calling component's render instance (`inst._contexts[name]`), and `useContext(name)` resolves the
+**nearest provider by walking the instance parent chain**. Two providers that share a name no
+longer collide (e.g. two unnamed `ToggleGroup`s). A process-wide `window.$__uni_ctx[name]` default
+entry is still created so consumers with no provider in scope resolve to `createContext`'s default.
 
 ```chemical
 // provider: key must be derivable on both sides from a shared prop
@@ -185,8 +189,14 @@ const ctx = useContext("rg-" + (props.__rgName || props.name || "default"))
 <button onClick={() => { if(ctx.write) { ctx.write(props.value) } }} />
 ```
 
-- `createContext(name, default)` is idempotent; assigning a **signal** to `ctx.value` wires the
-  entry to follow it; assigning a plain value sets it directly.
+- `createContext(name, default)` is idempotent **per instance** (a provider nested inside another
+  provider gets its own entry); assigning a **signal** to `ctx.value` wires the entry to follow it;
+  assigning a plain value sets it directly. Non-`value` members (`ctx.mode`, `ctx.write`) live on
+  the same scoped entry, so consumers see the provider's values.
+- **Parent linking**: the mount stack is preferred; when a component is dispatched as an
+  independent top-level boundary, its parent is derived from DOM ancestry
+  (`$__uni_find_parent_instance`). Nested `__uni_uc` children mounted in `"root"` mode keep
+  `$__uni_current_instance` set to the mounting instance during hydration so they parent correctly.
 - **SSR ordering**: a provider's SSR function runs AFTER its children render (children HTML is
   pre-rendered and passed as the 3rd arg), so a consumer can never observe a published value at
   SSR — `ctx.value` resolves to the static `createContext` default (or `None` for useContext).
@@ -461,7 +471,7 @@ Compared to React 19, Solid 2, Preact 10, and Svelte 5:
 | SSR streaming | ✅ | ✅ | ❌ | ✅ | ❌ blocking only |
 | Lazy loading | ✅ `lazy()` | ✅ `lazy()` | ✅ | ✅ `{#await import}` | ❌ |
 | Forward ref | ✅ | N/A | ✅ | ✅ `bind:this` | ❌ basic ref only |
-| Context (nested providers) | ✅ | ✅ | ✅ | ✅ | ⚠️ flat name-keyed only |
+| Context (nested providers) | ✅ | ✅ | ✅ | ✅ | ✅ instance-scoped (nearest provider) |
 | `useId` (stable SSR ids) | ✅ | N/A | ❌ | ✅ `$id` | ❌ |
 | Compile-time validation | ❌ | ✅ (AOT) | ❌ | ✅ (AOT) | ❌ emitted JS never validated |
 | Portal / modal system | ✅ | ✅ | ✅ | ✅ | ✅ (inert scan + floating) |

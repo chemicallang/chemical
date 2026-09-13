@@ -186,6 +186,101 @@ func collect_child_html(ch : *mut HtmlChild, childHtml : *mut std::string) {
     }
 }
 
+// Returns true when every child can be represented as a plain client vnode:
+// text, comments, and non-component elements whose attributes are all literal
+// (Text/Number) and whose descendants are equally static. Dynamic children --
+// Chemical values/statements, @if blocks, or nested universal components -- are
+// not representable as static vnodes and take the legacy $__uni_html fallback.
+func children_are_static(children : &std::vector<*mut HtmlChild>) : bool {
+    for(var i : uint = 0; i < children.size(); i++) {
+        const child = children.get(i);
+        if(child.kind == HtmlChildKind.Text || child.kind == HtmlChildKind.Comment) continue;
+        if(child.kind == HtmlChildKind.Element) {
+            const element = child as *mut HtmlElement;
+            if(element.componentSignature != null) return false;
+            if(element.name.equals(std::string_view("head"))) return false;
+            for(var a : uint = 0; a < element.attributes.size(); a++) {
+                const attr = element.attributes.get(a);
+                if(attr.value != null && attr.value.kind != AttributeValueKind.Text && attr.value.kind != AttributeValueKind.Number) {
+                    return false;
+                }
+            }
+            if(!children_are_static(&element.children)) return false;
+            continue;
+        }
+        return false;
+    }
+    return true;
+}
+
+// Appends a JS string literal for `text` to `out`, escaping quotes, backslashes,
+// control characters, and `</` (so the bundle cannot break out of a <script>).
+func append_js_string_literal(out : &mut std::string, text : std::string_view) {
+    out.append('"');
+    var i : size_t = 0;
+    while(i < text.size()) {
+        const c = text.get(i);
+        if(c == '"') out.append_view("\\\"");
+        else if(c == '\\') out.append_view("\\\\");
+        else if(c == '\n') out.append_view("\\n");
+        else if(c == '\r') out.append_view("\\r");
+        else if(c == '\t') out.append_view("\\t");
+        else if(c == '<' && i + 1 < text.size() && text.get(i + 1) == '/') out.append_view("\\u003C");
+        else out.append(c);
+        i++;
+    }
+    out.append('"');
+}
+
+// Appends client vnodes for static children (see children_are_static) to `out`.
+// Must only be called when children_are_static returned true.
+func append_static_child_vnodes(out : &mut std::string, children : &std::vector<*mut HtmlChild>) {
+    var first = true;
+    for(var i : uint = 0; i < children.size(); i++) {
+        const child = children.get(i);
+        if(child.kind == HtmlChildKind.Comment) continue;
+        if(child.kind == HtmlChildKind.Text) {
+            if(!first) out.append(',');
+            first = false;
+            const text = child as *mut HtmlText;
+            append_js_string_literal(out, text.value);
+        } else if(child.kind == HtmlChildKind.Element) {
+            if(!first) out.append(',');
+            first = false;
+            const element = child as *mut HtmlElement;
+            out.append_view("$_ur.createElement(\"");
+            out.append_view(&element.name);
+            out.append_view("\", {");
+            var afirst = true;
+            for(var a : uint = 0; a < element.attributes.size(); a++) {
+                const attr = element.attributes.get(a);
+                if(!afirst) out.append(',');
+                afirst = false;
+                out.append('"');
+                out.append_view(&attr.name);
+                out.append_view("\":");
+                if(attr.value == null) {
+                    out.append_view("true");
+                } else {
+                    const tv = attr.value as *mut TextAttributeValue;
+                    var rawText = strip_js_string_quotes(tv.text);
+                    if(attr.value.kind == AttributeValueKind.Number) {
+                        out.append_view(&rawText);
+                    } else {
+                        append_js_string_literal(out, rawText);
+                    }
+                }
+            }
+            out.append('}');
+            if(!element.isSelfClosing && !element.children.empty()) {
+                out.append(',');
+                append_static_child_vnodes(out, &element.children);
+            }
+            out.append(')');
+        }
+    }
+}
+
 func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlElement, signature : *mut ComponentSignature, idStr : &std::string) {
     var js = std::string();
     js.append_view("window.$__uni_dispatch('");
@@ -263,25 +358,35 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
     var tail = std::string();
     if(!element.children.empty()) {
         if(emittedCount > 0) tail.append_view(",");
-        tail.append_view("\"children\":window.$__uni_html(\"");
-        // Collect static text/element children directly into childHtml
-        var childHtml = std::string();
-        for(var ci : uint = 0; ci < element.children.size(); ci++) {
-            collect_child_html(element.children.get(ci), &raw mut childHtml);
+        if(children_are_static(&element.children)) {
+            // Phase 2: emit real client vnodes for static children instead of
+            // transporting their SSR HTML through the JS bundle. Dynamic children
+            // (Chemical values/statements, @if blocks, nested universal
+            // components) still fall back to the legacy $__uni_html blob.
+            tail.append_view("\"children\":[");
+            append_static_child_vnodes(&mut tail, &element.children);
+            tail.append_view("]");
+        } else {
+            tail.append_view("\"children\":window.$__uni_html(\"");
+            // Collect static text/element children directly into childHtml
+            var childHtml = std::string();
+            for(var ci : uint = 0; ci < element.children.size(); ci++) {
+                collect_child_html(element.children.get(ci), &raw mut childHtml);
+            }
+            // Escape childHtml for JS string: replace " -> \" and \ -> \\
+            var ci2 : uint = 0;
+            while(ci2 < childHtml.size()) {
+                const c = childHtml.data()[ci2];
+                if(c == '\"') { tail.append_view("\\\""); }
+                else if(c == '\\') { tail.append_view("\\\\"); }
+                else if(c == '\n') { tail.append_view("\\n"); }
+                else if(c == '\r') { tail.append_view("\\r"); }
+                else if(c == '\t') { tail.append_view("\\t"); }
+                else { tail.append(c); }
+                ci2++;
+            }
+            tail.append_view("\")");
         }
-        // Escape childHtml for JS string: replace " -> \" and \ -> \\
-        var ci2 : uint = 0;
-        while(ci2 < childHtml.size()) {
-            const c = childHtml.data()[ci2];
-            if(c == '\"') { tail.append_view("\\\""); }
-            else if(c == '\\') { tail.append_view("\\\\"); }
-            else if(c == '\n') { tail.append_view("\\n"); }
-            else if(c == '\r') { tail.append_view("\\r"); }
-            else if(c == '\t') { tail.append_view("\\t"); }
-            else { tail.append(c); }
-            ci2++;
-        }
-        tail.append_view("\")");
     }
     tail.append_view("});\n");
     converter.emit_append_js_from_str(&mut tail);

@@ -929,6 +929,40 @@ changing. Once the feature set is frozen (components working, no new features, n
 major issues), the runtime will be extracted and published as a content-hashed
 CDN asset, with the inline form retained for offline/self-contained builds.
 
+### Architecture (first step) — static top-level children emitted as client vnodes
+
+The remaining HTML-through-JS transport was the `children` prop of a top-level
+component in a `#html` block: `emit_universal_queue` (`html_cbi`) serialized the
+child markup into the dispatch props as
+`"children":window.$__uni_html("<html>")`, duplicating it in both the HTML
+response and the JS bundle.
+
+Implemented (`html_cbi/src/converter/language/main.ch`):
+
+- `children_are_static` recognizes children consisting only of text/comments and
+  non-component elements whose attributes are all literal (Text/Number) and whose
+  descendants are equally static.
+- For those, `append_static_child_vnodes` emits real client vnodes
+  (`$_ur.createElement("tag", {attrs}, ...)`) into the dispatch props instead of
+  an HTML string; `append_js_string_literal` centralizes JS-string escaping
+  (including `</` -> `\u003C`).
+- Dynamic children (Chemical values/statements, `@if` blocks, nested universal
+  components) still fall back to the legacy `$__uni_html` blob.
+
+This removes the HTML transport for the common static-children case and fixes the
+latent `collect_child_html` placeholder bug (it emitted `${}` for dynamic
+children) for the covered cases.
+
+Tests: `lang/compiled/components-e2e/tests/static-children.spec.ts` (SSR before
+JS, hydration adopts without duplication); `components.ch` child-HTML tests
+updated to assert vnode emission and absence of raw markup. E2E: 358/358.
+Compiler-plugin: 1087/1089 (same 2 unrelated failures).
+
+Still open for this architecture thread: dynamic children (needs the sentinel +
+boundary-marker protocol so the runtime captures the SSR range into a template),
+the instance manifest, and replacing per-instance dispatch snippets with one
+bootstrap.
+
 ### Known remaining SSR parity gap
 
 A computed local whose source is a **`.filter()` over runtime props**

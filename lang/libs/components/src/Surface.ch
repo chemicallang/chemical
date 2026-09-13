@@ -632,7 +632,7 @@ public #universal Tooltip(props) {
     state hoverTimeout = null
     state leaveTimeout = null
     var tipContent = props.content || props.label || ""
-    var side = props.side || "top"
+    var side = props.side || props.position || "top"
     var delay = props.delay || 200
     var classes = (props.className || props.class) || ""
 

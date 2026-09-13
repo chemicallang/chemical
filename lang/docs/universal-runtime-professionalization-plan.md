@@ -1052,8 +1052,21 @@ Fixed after the above diagnosis:
   instead of an `onClose` prop it never received. Verified: one close button, it
   closes the dialog, no console errors.
 
-### Known remaining SSR parity gap
+### Vnode-children attempt (reverted)
 
+Tried emitting nested component children as `$_uc_c(ComponentFn, props)` vnodes
+from `html_cbi` (with a `suppress_child_dispatch` flag so the child's own
+dispatch is skipped), which would make `props.children.map` context threading work
+and remove the `$__uni_html` blob entirely. It compiled and the generated output
+looked right (`"children":[$_uc_c(components_Button, {…})]`), but on the docs page
+it produced 24 element-tag hydration mismatches and broke ToggleGroup item
+rendering — i.e. not every child path correctly suppressed its dispatch /
+reconciled, so double-mounting remained. Reverted to the green state (component
+children stay on the `$__uni_html` path). The scaffolding (`count_child_nodes`,
+the component branch in `append_static_child_vnodes`, `suppress_child_dispatch`)
+is left in place, dormant, for the next attempt.
+
+### Known remaining SSR parity gap
 A computed local whose source is a **`.filter()` over runtime props**
 (e.g. `var visible = props.items.filter(it => ...)`) is reactive on the client
 but renders **empty at SSR**, because the generated server function cannot

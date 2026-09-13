@@ -219,6 +219,9 @@ func children_are_static(children : &std::vector<*mut HtmlChild>) : bool {
         if(child.kind == HtmlChildKind.Text || child.kind == HtmlChildKind.Comment) continue;
         if(child.kind == HtmlChildKind.Element) {
             const element = child as *mut HtmlElement;
+            // Component children stay on the $__uni_html path for now: emitting
+            // them as client vnodes requires suppressing each child's dispatch in
+            // every path and was not reliably correct yet (see plan).
             if(element.componentSignature != null) return false;
             if(element.name.equals(std::string_view("head"))) return false;
             for(var a : uint = 0; a < element.attributes.size(); a++) {
@@ -270,9 +273,18 @@ func append_static_child_vnodes(out : &mut std::string, children : &std::vector<
             if(!first) out.append(',');
             first = false;
             const element = child as *mut HtmlElement;
-            out.append_view("$_ur.createElement(\"");
-            out.append_view(&element.name);
-            out.append_view("\", {");
+            const isComponent = element.componentSignature != null;
+            if(isComponent) {
+                // Nested component child: emit a component vnode the parent mounts,
+                // so hydration/context work like a normal parent/child tree.
+                out.append_view("$_uc_c(");
+                get_module_scoped_name(element.componentSignature.functionNode, element.componentSignature.name, out);
+                out.append_view(", {");
+            } else {
+                out.append_view("$_ur.createElement(\"");
+                out.append_view(&element.name);
+                out.append_view("\", {");
+            }
             var afirst = true;
             for(var a : uint = 0; a < element.attributes.size(); a++) {
                 const attr = element.attributes.get(a);
@@ -293,12 +305,22 @@ func append_static_child_vnodes(out : &mut std::string, children : &std::vector<
                     }
                 }
             }
-            out.append('}');
-            if(!element.isSelfClosing && !element.children.empty()) {
-                out.append(',');
-                append_static_child_vnodes(out, &element.children);
+            if(isComponent) {
+                if(!element.children.empty()) {
+                    if(!afirst) out.append(',');
+                    out.append_view("children:[");
+                    append_static_child_vnodes(out, &element.children);
+                    out.append(']');
+                }
+                out.append_view("})");
+            } else {
+                out.append('}');
+                if(!element.isSelfClosing && !element.children.empty()) {
+                    out.append(',');
+                    append_static_child_vnodes(out, &element.children);
+                }
+                out.append(')');
             }
-            out.append(')');
         }
     }
 }

@@ -96,11 +96,12 @@ func (converter : &mut ASTConverter) build_ssr_attrs(element : *mut HtmlElement,
         } else {
             var chemAttrValue = attrValue as *mut TextAttributeValue
             const textStructVal = builder.make_struct_value(ssrTextLinkedNode, location)
+            // Store the raw text; escaping happens once at render time
+            // (appendHtmlEscaped/appendJsEscaped). Pre-escaping here double-escaped
+            // values when rendered as child text (e.g. "→" -> "&#8594;" -> "&amp;#8594;").
             var stripped = strip_js_string_quotes(chemAttrValue.text);
-            var escaped = std::string();
-            html_escape_append(&mut escaped, stripped);
-            textStructVal.add_value(std::string_view("data"), builder.make_string_value(builder.allocate_view(escaped.view()), location))
-            textStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(escaped.size(), location))
+            textStructVal.add_value(std::string_view("data"), builder.make_string_value(builder.allocate_view(&stripped), location))
+            textStructVal.add_value(std::string_view("size"), builder.make_ubigint_value(stripped.size(), location))
             attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, "Text", textStructVal));
         }
 

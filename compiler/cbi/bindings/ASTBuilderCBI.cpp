@@ -339,7 +339,7 @@ FunctionCall* ASTBuildermake_function_call_value(ASTBuilder* builder, Value* par
     if(func_type) {
         call->setType(func_type->returnType);
     } else {
-        // TODO: user is probably calling a variant member
+        call->setType(parent_val->getType());
     }
     return call;
 }

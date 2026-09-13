@@ -375,23 +375,67 @@ void write_type_post_id(ToCAstVisitor& visitor, BaseType* type) {
 // C/C++ keywords that are NOT Chemical keywords.
 // These can be used as variable names in Chemical but are reserved in C output.
 //
-// Strategy: switch on first char (jump table) for the6 lowercase keywords,
-// then a small table scan for the19 underscore-prefixed ones.
-// Most variable names start with a letter != {a,i,r,v,_} and hit the
-// default case — one comparison total.
+// Note: C keywords that *are* also Chemical keywords (double, int, char, ...)
+// can still reach this function as synthesized identifiers built by compiler
+// plugins/macros (e.g. an SSR local named after a JS variable). They are
+// included here too, so the C output escapes them consistently for both the
+// declaration and every reference.
+//
+// Strategy: switch on first char (jump table) for the lowercase keywords,
+// then a small table scan for the underscore-prefixed ones.
 static bool is_c_keyword(chem::string_view name) {
     const size_t len = name.size();
     switch (name[0]) {
         case 'a': // auto(4), asm(3)
             return (len == 4 && memcmp(name.data(), "auto", 4) == 0)
                 || (len == 3 && memcmp(name.data(), "asm", 3) == 0);
-        case 'i': // inline(6)
-            return len == 6 && memcmp(name.data(), "inline", 6) == 0;
-        case 'r': // register(8), restrict(8)
-            return len == 8 && (memcmp(name.data(), "register", 8) == 0
-                             || memcmp(name.data(), "restrict", 8) == 0);
-        case 'v': // volatile(8)
-            return len == 8 && memcmp(name.data(), "volatile", 8) == 0;
+        case 'b': // break(5)
+            return len == 5 && memcmp(name.data(), "break", 5) == 0;
+        case 'c': // case(4), char(4), const(5), continue(8)
+            return (len == 4 && (memcmp(name.data(), "case", 4) == 0
+                              || memcmp(name.data(), "char", 4) == 0))
+                || (len == 5 && memcmp(name.data(), "const", 5) == 0)
+                || (len == 8 && memcmp(name.data(), "continue", 8) == 0);
+        case 'd': // default(7), do(2), double(6)
+            return (len == 7 && memcmp(name.data(), "default", 7) == 0)
+                || (len == 2 && memcmp(name.data(), "do", 2) == 0)
+                || (len == 6 && memcmp(name.data(), "double", 6) == 0);
+        case 'e': // else(4), enum(4), extern(6)
+            return (len == 4 && (memcmp(name.data(), "else", 4) == 0
+                              || memcmp(name.data(), "enum", 4) == 0))
+                || (len == 6 && memcmp(name.data(), "extern", 6) == 0);
+        case 'f': // float(5), for(3)
+            return (len == 5 && memcmp(name.data(), "float", 5) == 0)
+                || (len == 3 && memcmp(name.data(), "for", 3) == 0);
+        case 'g': // goto(4)
+            return len == 4 && memcmp(name.data(), "goto", 4) == 0;
+        case 'i': // if(2), inline(6), int(3)
+            return (len == 2 && memcmp(name.data(), "if", 2) == 0)
+                || (len == 6 && memcmp(name.data(), "inline", 6) == 0)
+                || (len == 3 && memcmp(name.data(), "int", 3) == 0);
+        case 'l': // long(4)
+            return len == 4 && memcmp(name.data(), "long", 4) == 0;
+        case 'r': // register(8), restrict(8), return(6)
+            return (len == 8 && (memcmp(name.data(), "register", 8) == 0
+                              || memcmp(name.data(), "restrict", 8) == 0))
+                || (len == 6 && memcmp(name.data(), "return", 6) == 0);
+        case 's': // short(5), signed(6), sizeof(6), static(6), struct(6), switch(6)
+            return (len == 5 && memcmp(name.data(), "short", 5) == 0)
+                || (len == 6 && (memcmp(name.data(), "signed", 6) == 0
+                              || memcmp(name.data(), "sizeof", 6) == 0
+                              || memcmp(name.data(), "static", 6) == 0
+                              || memcmp(name.data(), "struct", 6) == 0
+                              || memcmp(name.data(), "switch", 6) == 0));
+        case 't': // typedef(7)
+            return len == 7 && memcmp(name.data(), "typedef", 7) == 0;
+        case 'u': // union(5), unsigned(8)
+            return (len == 5 && memcmp(name.data(), "union", 5) == 0)
+                || (len == 8 && memcmp(name.data(), "unsigned", 8) == 0);
+        case 'v': // void(4), volatile(8)
+            return (len == 4 && memcmp(name.data(), "void", 4) == 0)
+                || (len == 8 && memcmp(name.data(), "volatile", 8) == 0);
+        case 'w': // while(5)
+            return len == 5 && memcmp(name.data(), "while", 5) == 0;
         case '_': {
             // 19 underscore-prefixed C keywords, lengths 5-14
             static const std::string_view udict[] = {

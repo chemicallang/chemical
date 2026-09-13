@@ -2256,115 +2256,14 @@ func (converter : &mut JsConverter) convert_ssr_context_member_read(mem : *mut J
     return converter.make_ssr_make_call(converter.support.ssrNoneValueFn, "ssrNoneValue", null);
 }
 
+// Unified boolean evaluator. Conditions and attribute booleans used to be two
+// near-identical implementations (convert_js_expr_to_ssr_bool_value vs
+// convert_ssr_attr_bool_expr); they now share one path so a construct supported
+// in an attribute is also supported in a condition and vice versa. This wrapper
+// supplies a fresh AttrValueConverter for callers that do not own one.
 func (converter : &mut JsConverter) convert_js_expr_to_ssr_bool_value(node : *mut JsNode) : *mut Value {
-    if(node == null) return null;
-
-    const builder = converter.builder;
-    const location = intrinsics::get_raw_location();
-    const support = converter.support;
-
-    if(node.kind == JsNodeKind.Paren) {
-        return converter.convert_js_expr_to_ssr_bool_value((node as *mut JsParen).expression);
-    }
-
-    if(node.kind == JsNodeKind.MemberAccess) {
-        if(converter.is_component_props_read(node)) {
-            const mem = node as *mut JsMemberAccess;
-            const v = converter.make_ssr_prop_v_call(mem.property);
-            const truthyCall = builder.make_function_call_value(builder.make_identifier("isSsrAttributeValueTruthy", support.isSsrAttributeValueTruthyFn, false, location), location);
-            truthyCall.get_args().push(v);
-            return truthyCall as *mut Value;
-        }
-        const cvMem = node as *mut JsMemberAccess;
-        if(cvMem.object != null && cvMem.object.kind == JsNodeKind.Identifier && converter.is_context_var((cvMem.object as *mut JsIdentifier).value)) {
-            var attrValConv = converter.make_attr_value_converter();
-            const v = converter.convert_ssr_context_member_read(cvMem, &mut attrValConv);
-            if(v != null) {
-                const truthyCall = builder.make_function_call_value(builder.make_identifier("isSsrAttributeValueTruthy", support.isSsrAttributeValueTruthyFn, false, location), location);
-                truthyCall.get_args().push(v);
-                return truthyCall as *mut Value;
-            }
-            return null;
-        }
-    }
-
-    if(node.kind == JsNodeKind.Literal) {
-        var lit = node as *mut JsLiteral;
-        if(lit.value.equals(view("true"))) return builder.make_bool_value(true, location) as *mut Value;
-        if(lit.value.equals(view("false"))) return builder.make_bool_value(false, location) as *mut Value;
-    }
-
-    if(node.kind == JsNodeKind.Identifier) {
-        // Reference to a local variable declared in the component body.
-        const id = node as *mut JsIdentifier;
-        const local = converter.find_ssr_local(id.value);
-        if(local != null) {
-            const localRef = builder.make_identifier(&local.name, local.varInit, false, location);
-            const truthyCall = builder.make_function_call_value(builder.make_identifier("isSsrAttributeValueTruthy", support.isSsrAttributeValueTruthyFn, false, location), location);
-            truthyCall.get_args().push(localRef);
-            return truthyCall as *mut Value;
-        }
-    }
-
-    if(node.kind == JsNodeKind.UnaryOp) {
-        var unary = node as *mut JsUnaryOp;
-        if(unary.operator.equals(view("!"))) {
-            const operandVal = converter.convert_js_expr_to_ssr_bool_value(unary.operand);
-            if(operandVal != null) {
-                return builder.make_not_value(operandVal, location) as *mut Value;
-            }
-        }
-    }
-
-    if(node.kind == JsNodeKind.BinaryOp) {
-        var bin = node as *mut JsBinaryOp;
-        const isEq = bin.op.equals(view("==")) || bin.op.equals(view("==="));
-        const isNe = bin.op.equals(view("!=")) || bin.op.equals(view("!=="));
-        if(isEq || isNe) {
-            var attrValConv = AttrValueConverter {
-                pageNode : support.pageNode,
-                ssrTextNode : support.ssrTextLinkedNode,
-                ssrAttributeValueNode : support.ssrAttributeValueNode,
-                multipleAttributeValueNode : support.multipleAttributeValueNode,
-                parent : converter.parent
-            }
-            const leftVal = converter.convert_ssr_attr_value_expr(bin.left, &mut attrValConv);
-            if(leftVal == null) return null;
-            // Literal right side: compare against its text (fast path).
-            if(bin.right != null && bin.right.kind == JsNodeKind.Literal) {
-                const litText = strip_js_string_quotes((bin.right as *mut JsLiteral).value);
-                const cmpCall = builder.make_function_call_value(builder.make_identifier("ssrTextEquals", support.ssrTextEqualsFn, false, location), location);
-                cmpCall.get_args().push(leftVal);
-                cmpCall.get_args().push(converter.make_ssr_text(&litText, location));
-                if(isNe) return builder.make_not_value(cmpCall as *mut Value, location) as *mut Value;
-                return cmpCall as *mut Value;
-            }
-            // Value-to-value comparison (`active == index`, `page == item`):
-            // both sides convert to SsrAttributeValue expressions.
-            const rightVal = converter.convert_ssr_attr_value_expr(bin.right, &mut attrValConv);
-            if(rightVal == null) return null;
-            const eqCall = builder.make_function_call_value(builder.make_identifier("ssrValuesEqual", support.ssrValuesEqualFn, false, location), location);
-            eqCall.get_args().push(leftVal);
-            eqCall.get_args().push(rightVal);
-            if(isNe) return builder.make_not_value(eqCall as *mut Value, location) as *mut Value;
-            return eqCall as *mut Value;
-        }
-        // Logical && / ||: combine the operand bool values.
-        if(bin.op.equals(view("&&"))) {
-            const leftBool = converter.convert_js_expr_to_ssr_bool_value(bin.left);
-            const rightBool = converter.convert_js_expr_to_ssr_bool_value(bin.right);
-            if(leftBool == null || rightBool == null) return null;
-            return builder.make_expression_value(leftBool, rightBool, Operation.LogicalAND, builder.make_bool_type(), location) as *mut Value;
-        }
-        if(bin.op.equals(view("||"))) {
-            const leftBool = converter.convert_js_expr_to_ssr_bool_value(bin.left);
-            const rightBool = converter.convert_js_expr_to_ssr_bool_value(bin.right);
-            if(leftBool == null || rightBool == null) return null;
-            return builder.make_expression_value(leftBool, rightBool, Operation.LogicalOR, builder.make_bool_type(), location) as *mut Value;
-        }
-    }
-
-    return null;
+    var attrValConv = converter.make_attr_value_converter();
+    return converter.convert_ssr_attr_bool_expr(node, &mut attrValConv);
 }
 
 func is_event_attribute_name(name : std::string_view) : bool {
@@ -2545,6 +2444,16 @@ func (converter : &mut JsConverter) convert_ssr_attr_bool_expr(node : *mut JsNod
     const builder = converter.builder;
     const location = intrinsics::get_raw_location();
     const support = converter.support;
+
+    // Shared static evaluation (the same evaluator JSX children and conditions
+    // use). Any expression the canonical evaluator can reduce - literals, static
+    // state/computed values, arithmetic, comparisons, ternaries - is answered
+    // here, so attribute booleans, conditions, and children cannot diverge on
+    // what they support.
+    const staticEval = converter.eval_ssr_js_expr(node);
+    if(staticEval.valid && staticEval.kind == 1) {
+        return builder.make_bool_value(staticEval.boolValue, location) as *mut Value;
+    }
 
     switch(node.kind) {
         JsNodeKind.Literal => {
@@ -2998,6 +2907,26 @@ func (converter : &mut JsConverter) convert_ssr_attr_value_expr(node : *mut JsNo
     const builder = converter.builder;
     const location = intrinsics::get_raw_location();
     const support = converter.support;
+
+    // Shared static evaluation (same evaluator as conditions and JSX children).
+    // Numbers render as their numeric text, so static arithmetic such as
+    // `{1 + 2}` renders "3" rather than being text-concatenated as "12".
+    const staticEval = converter.eval_ssr_js_expr(node);
+    if(staticEval.valid) {
+        switch(staticEval.kind) {
+            1 => {
+                const boolCall = builder.make_function_call_value(builder.make_identifier("ssrMakeBoolValue", support.ssrMakeBoolValueFn, false, location), location);
+                boolCall.get_args().push(builder.make_bool_value(staticEval.boolValue, location));
+                return boolCall as *mut Value;
+            }
+            2, 3 => {
+                const textCall = builder.make_function_call_value(builder.make_identifier("ssrMakeTextValue", support.ssrMakeTextValueFn, false, location), location);
+                textCall.get_args().push(converter.make_ssr_text(&staticEval.textValue, location));
+                return textCall as *mut Value;
+            }
+            default => { }
+        }
+    }
 
     switch(node.kind) {
         JsNodeKind.Literal => {

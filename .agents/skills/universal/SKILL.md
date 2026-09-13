@@ -267,8 +267,14 @@ Regression tests for this live in `lang/tests/compiler_plugins/universal/src/sta
 
 ### SSR evaluation — what can be server-rendered
 
-The converter has three cooperating SSR engines (attributes, children expressions, bool
-conditions). Supported at SSR time:
+SSR evaluation is unified behind one canonical evaluator, `eval_ssr_js_expr`
+(`converter_utils.ch`), which returns an `SsrJsExprEval` (valid + kind: bool/number/text).
+Attribute booleans (`convert_ssr_attr_bool_expr`), attribute values
+(`convert_ssr_attr_value_expr`), children/conditions (`convert_jsx_ssr_expression`), and
+body `if` conditions (`convert_js_expr_to_ssr_bool_value`, now a thin wrapper over the
+bool evaluator) all consult it first, so an expression the evaluator can fold is handled
+identically in every context (e.g. `{1 + 2}` renders `3` in both an attribute and a
+condition). Supported at SSR time:
 
 - Literals (strings/numbers/booleans/`null`/`undefined` → `None`), `!x`, ternaries,
   `&&`/`||` (rendered as runtime `if` statements), `==`/`!=`/`===`/`!==`
@@ -536,7 +542,13 @@ existing `$__uni_dispose` is the disposer).
 `<script>`. Contract test:
 `runtime_contracts.ch::universal_captured_html_is_inline_script_safe`.
 
-#### 5. Three separate SSR evaluators with divergent coverage
+#### 5. Three separate SSR evaluators with divergent coverage — **PARTIALLY FIXED**
+
+**Status (first slice):** `convert_js_expr_to_ssr_bool_value` is now a thin wrapper over
+`convert_ssr_attr_bool_expr`, and both attribute evaluators consult the canonical
+`eval_ssr_js_expr` first. Attribute booleans, attribute values, children, and conditions
+now share one coverage for foldable expressions. Remaining: the runtime-prop `.filter()`
+predicate case and full SSR/client IR unification.
 
 **File:** `converter_utils.ch:1796-1905`, `converter_utils.ch:1945-2043`, `converter_utils.ch:2377-2533`
 

@@ -401,12 +401,13 @@ Fast triage questions:
   `$_uc_h(html, name, props)` path were **removed** (plan Phase 2). The live path
   is `converter/` + `react/ast_replace.ch`; nested components emit
   `$_uc_c(ComponentFn, props)` and hydrate the server-rendered DOM in place.
-- **Top-level component children are still transported through JS.**
-  `emit_universal_queue` (`html_cbi/src/converter/language/main.ch`) passes a
-  `#html { <Comp>...children...</Comp> }` block's child markup as
-  `window.$__uni_html("<html>")` in the dispatch props, so that markup exists in
-  both the HTML response and the JS bundle. Replacing it with boundary templates
-  is part of the remaining Phase 2 marker/manifest work.
+- **Top-level component children: static ones are now client vnodes.**
+  `emit_universal_queue` (`html_cbi/src/converter/language/main.ch`) emits static
+  children (text/plain elements, literal attributes) as
+  `$_ur.createElement(...)` vnodes instead of `window.$__uni_html("<html>")`.
+  Children that are dynamic (Chemical values/statements, `@if`, nested universal
+  components) still fall back to the `$__uni_html` HTML blob; replacing those
+  needs the sentinel + boundary-marker protocol.
 - **Redundant nested SSR is fixed.** Generated component server functions skip
   their SSR subtree when `page.render_js_only` is set (the client-JS pass sets it
   around child server-function calls), so a subtree is server-rendered once

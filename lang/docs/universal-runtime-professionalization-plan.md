@@ -1001,6 +1001,20 @@ Identified, not yet fixed:
 - Snackbar icon, BottomBar badge, Container size demo (docs-box constrains
   width) — component/CSS review pending.
 
+- **Tooltip (and any top-level component with component children) loses its
+  trigger after hydration.** SSR contains `<span><button>Hover me</button><span
+  role=tooltip>…</span></span>`, but after hydration the button is gone (0 buttons
+  in the section), so hovering does nothing. Cause: a top-level component's
+  component children are passed to the client as an opaque
+  `window.$__uni_html("…")` blob, and `$__uni_hydrate_node`'s `__uni_html` branch
+  returns the DOM cursor unchanged; the following sibling vnode (the tooltip
+  content) then mis-adopts the trigger's DOM. Same root cause as the ToggleGroup
+  context collision — the durable fix is to emit nested component children as
+  `$_uc_c` vnodes from html_cbi so they hydrate in place under the parent.
+- Hydration warning flood (`text node differs from SSR`, e.g. `"\n        "` vs
+  `"\n        \n        "`) is a separate, self-correcting dev-only whitespace
+  mismatch (capped at 25).
+
 Fixed after the above diagnosis:
 - **Card layout** (`components/Card.ch`,
   `lang/compiled/components/src/pages/components.ch`): `CardBody` is now a

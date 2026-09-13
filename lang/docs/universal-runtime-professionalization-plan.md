@@ -963,6 +963,48 @@ boundary-marker protocol so the runtime captures the SSR range into a template),
 the instance manifest, and replacing per-instance dispatch snippets with one
 bootstrap.
 
+### Debugging the components docs page (`lang/compiled/components`)
+
+Three root causes accounted for most "component does nothing / console errors" reports
+on the shipped components docs page:
+
+1. **A single failed dispatch aborted all later hydration (universal runtime,
+   `page.ch`).** `$__uni_dispatch` threw via `$__uni_error` when
+   `document.getElementById(id)` returned null. Dispatches are emitted as
+   sequential statements, so one missing boundary stopped every subsequent
+   component from hydrating — breaking Accordion, Tabs, Collapsible, Pagination,
+   Toast, Tooltip, Popover, etc. after it. `$__uni_dispatch` now logs and returns.
+   Unit test: `runtime-unit.spec.ts::dispatch: a missing target does not throw`.
+2. **`var children = props.children` rendered nothing at SSR (universal_cbi).**
+   The alias was not registered as an SSR local, so components like `AvatarGroup`
+   (`var children = props.children; ... {children}`) server-rendered empty
+   elements; their nested component dispatches then had no target. Body locals
+   whose initializer is `props.children` now record the children SsrText and
+   `{alias}` renders it. Test:
+   `to_string.ch::universal_ssr_children_alias_renders`.
+3. **Non-ASCII prop text was double-escaped (html_cbi).** `build_ssr_attrs`
+   pre-escaped attribute text (`→` → `&#8594;`), then rendering escaped again
+   (`&amp;#8594;`). Attribute values are now stored raw and escaped once at render
+   time, matching universal_cbi (Breadcrumb separator renders `→`).
+
+Verified on the docs page: no load errors; Accordion toggles, Tabs switch panels,
+Collapsible expands, Toast opens, and `$__uni_dispatch` missing-target count went
+3 → 0.
+
+Identified, not yet fixed:
+- **Dialog** (`components/Surface.ch`): `Dialog` wraps `props.children` in its own
+  `DialogContent` while the caller also supplies `DialogContent`, producing two
+  close buttons; the built-in close uses `props.onClose`, which `DialogContent`
+  never receives, so the top-right close does nothing.
+- **ToggleGroup context collision** (`components/ToggleGroup.ch`): context is a
+  global registry keyed by `"tg-" + (name||"default")`, so all unnamed groups
+  share one entry. Threading the group name to items relies on
+  `props.children.map(...)`, which cannot reach children passed as an opaque
+  `$__uni_html` blob (top-level components). The durable fix is emitting nested
+  component children as vnodes (`$_uc_c`) from html_cbi.
+- Layout/spacing reports (Card, Container sizes, form field spacing), Snackbar
+  icon, BottomBar badge — component/CSS review pending.
+
 ### Known remaining SSR parity gap
 
 A computed local whose source is a **`.filter()` over runtime props**

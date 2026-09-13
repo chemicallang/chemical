@@ -713,3 +713,24 @@ window.$__uni_dispatch('universal_lib_test_UseEffectDepsTest', document.getEleme
 `)
     view_equals(env, page.getJs(), js.to_view());
 }
+
+#universal ChildrenAliasHost(props) {
+    var children = props.children
+    return <div>{children}</div>
+}
+
+@test
+public func universal_ssr_children_alias_renders(env : &mut TestEnv) {
+    // `var children = props.children` then `{children}` must render the children
+    // at SSR. Previously the alias was not registered as an SSR local, so the
+    // component rendered an empty element (broke AvatarGroup etc).
+    var page = HtmlPage()
+    #html { <ChildrenAliasHost><span>aliased</span></ChildrenAliasHost> }
+    var html = page.getHtml()
+    if(html.contains("<span>aliased</span>")) {
+        env.success("var children = props.children renders at SSR")
+    } else {
+        env.error("children alias did not render at SSR")
+        env.info(html.data())
+    }
+}

@@ -470,7 +470,12 @@ window.$__uni_error = ((message, details = "", cause = null) => {
 })
 window.$__uni_dispatch = ((fnName, target, props, mode = "children") => {
     if(!target) {
-        window.$__uni_error("universal mount target is missing", fnName);
+        // A dispatch can miss its target when the server did not render the
+        // component's boundary (e.g. an SSR bug, or a client-only subtree).
+        // Never throw here: dispatches are emitted as sequential statements, so
+        // an uncaught error would abort every later component's hydration.
+        console.error("universal dispatch: mount target is missing for " + fnName + " (component was not server-rendered; skipping)");
+        return;
     }
     const fn = window[fnName]
     if(fn) {

@@ -2189,7 +2189,6 @@ func (converter : &mut JsConverter) emit_ssr_filter_map_loop(sourceVal : *mut Va
 // `items.length`, `items.size`) as text, matching the hydrated DOM. Returns
 // false when the object is not a representable array source.
 func (converter : &mut JsConverter) emit_ssr_array_count(object : *mut JsNode) : bool {
-    if(object == null) return false
     const builder = converter.builder
     const location = intrinsics::get_raw_location()
     const support = converter.support

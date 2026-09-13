@@ -427,3 +427,27 @@ public func universal_useMemo_wraps_in_computed(env : &mut TestEnv) {
         env.info(js.data())
     }
 }
+
+// =============================================================================
+// Architecture problem D: global mutable render state.
+//
+// The current instance / boundary / resource owner / dependency trackers must
+// be maintained on an explicit stack so nested mounts, dispatches, and effect
+// runs restore exactly the context they replaced (instead of ad-hoc saves that
+// can leave a stale context behind).
+// =============================================================================
+
+@test
+public func universal_render_context_is_stack_based(env : &mut TestEnv) {
+    var page = HtmlPage()
+    page.defaultUniversalSetup()
+    #html { <KeyedListComp /> }
+    var js = std::string()
+    js.append_view(page.getJs())
+    if(js.contains("$__uni_render_stack") && js.contains("$__uni_push_ctx") && js.contains("$__uni_pop_ctx")) {
+        env.success("runtime keeps render context on a stack")
+    } else {
+        env.error("runtime still uses flat render globals — nested contexts can clobber each other")
+        env.info(js.data())
+    }
+}

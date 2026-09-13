@@ -1,5 +1,5 @@
 @no_mangle
-public func universal_replacementNodeDeclare(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
+public func universal_replacementNodeDeclare(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
     const root = value.getDataPtr() as *mut JsComponentDecl;
     return root.signature.functionNode ;
 }
@@ -27,7 +27,7 @@ func make_set_component_hash_call_static(builder : *mut ASTBuilder, support : &m
 }
 
 @no_mangle
-public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
+public func universal_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
     const root = value.getDataPtr() as *mut JsComponentDecl;
     const funcNode = root.signature.functionNode;
     const body = funcNode.add_body();
@@ -36,6 +36,7 @@ public func universal_replacementNode(builder : *mut ASTBuilder, value : *mut Em
 
     var converter = JsConverter {
         builder : builder,
+        diagnoser : diagnoser,
         support : &raw mut support,
         vec : body,
         parent : funcNode,

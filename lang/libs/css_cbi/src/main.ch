@@ -8,7 +8,7 @@ public func css_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedNo
 }
 
 @no_mangle
-public func css_replacementNode(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
+public func css_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
     const loc = intrinsics::get_raw_location();
     const root = value.getDataPtr() as *mut CSSOM;
     var scope = builder.make_scope(root.parent, loc);
@@ -43,7 +43,7 @@ public func css_symResValue(visitor : *mut SymResLinkBody, value : *mut Embedded
 }
 
 @no_mangle
-public func css_replacementValue(builder : *mut ASTBuilder, value : *EmbeddedValue) : *Value {
+public func css_replacementValue(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *EmbeddedValue) : *Value {
     const loc = intrinsics::get_raw_location();
     const root = value.getDataPtr() as *mut CSSOM;
     var block_val = builder.make_block_value(root.parent, loc)

@@ -8,13 +8,15 @@ public func html_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedN
 }
 
 @no_mangle
-public func html_replacementNode(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
+public func html_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
     const loc = intrinsics::get_raw_location();
     const root = value.getDataPtr() as *mut HtmlRoot;
     var scope = builder.make_scope(root.parent, loc);
     var scope_nodes = scope.getNodes();
     var converter = ASTConverter {
         builder : builder,
+        diagnoser : diagnoser,
+        fallback_loc : value.getEncodedLocation(),
         support : &raw mut root.support,
         vec : scope_nodes,
         parent : root.parent
@@ -43,13 +45,15 @@ public func html_symResValue(visitor : *mut SymResLinkBody, value : *mut Embedde
 }
 
 @no_mangle
-public func html_replacementValue(builder : *mut ASTBuilder, value : *EmbeddedValue) : *Value {
+public func html_replacementValue(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *EmbeddedValue) : *Value {
     const loc = intrinsics::get_raw_location();
     const root = value.getDataPtr() as *mut HtmlRoot;
     var block_val = builder.make_block_value(root.parent, loc)
     var scope_nodes = block_val.get_body()
     var converter = ASTConverter {
         builder : builder,
+        diagnoser : diagnoser,
+        fallback_loc : value.getEncodedLocation(),
         support : &raw mut root.support,
         vec : scope_nodes,
         parent : root.parent

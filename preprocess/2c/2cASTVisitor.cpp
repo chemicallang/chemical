@@ -2711,7 +2711,7 @@ ASTNode* embedded_repl(ToCAstVisitor& visitor, EmbeddedNode* node, CBIFunctionTy
         visitor.error(node) << "couldn't find replacement function for embedded node with name '" << node->name << "'";
         return nullptr;
     }
-    const auto repl = ((EmbeddedNodeReplacementFunc) replacement_fn)(&builder, node);
+    const auto repl = ((EmbeddedNodeReplacementFunc) replacement_fn)(&builder, &visitor, node);
     if(repl) {
         return repl;
     } else {
@@ -7518,7 +7518,7 @@ void ToCAstVisitor::VisitEmbeddedValue(EmbeddedValue* value) {
         error(value) << "couldn't find replacement function for embedded value with name '" << value->name << "'";
         return;
     }
-    const auto repl = ((EmbeddedValueReplacementFunc) replacement_fn)(&builder, value);
+    const auto repl = ((EmbeddedValueReplacementFunc) replacement_fn)(&builder, this, value);
     if(repl) {
         visit(repl);
     } else {

@@ -24,17 +24,31 @@ func (converter : &mut ASTConverter) put_html_error(val : &std::string_view) {
     converter.vec.push(converter.make_char_ptr_value_call(value) as *mut ASTNode);
 }
 
+// Report a value that cannot be serialized, through the live codegen diagnoser.
+// Falls back to the legacy in-bundle error string when there is no diagnoser.
+func (converter : &mut ASTConverter) unsupported_value(value : *mut Value, detail : &std::string_view) {
+    if(converter.diagnoser == null) {
+        converter.put_html_error(std::string_view("Unsupported value cant be written to the page"));
+        return;
+    }
+    var msg = std::string("cannot embed this value: ")
+    msg.append_view(detail)
+    var loc = converter.fallback_loc
+    if(loc == 0) { loc = intrinsics::get_raw_location() }
+    converter.diagnoser.error(msg.to_view(), loc)
+}
+
 func (converter : &mut ASTConverter) put_by_node(type : *mut BaseType, node : *mut ASTNode, value : *mut Value) {
     switch(node.getKind()) {
         ASTNodeKind.StructDecl, ASTNodeKind.UnionDecl, ASTNodeKind.VariantDecl => {
             var fnName = std::string_view("writeToPageHtml")
             const writeFn = node.child(&fnName)
             if(writeFn == null) {
-                converter.put_html_error("'writeToPageHtml' not found on the object");
+                converter.unsupported_value(value, std::string_view("its type has no HTML serialization (define writeToPageHtml on the type, or pass a primitive/string)"));
                 return;
             }
             if(writeFn.getKind() != ASTNodeKind.FunctionDecl) {
-                converter.put_html_error("'writeToPageHtml' not found on the object");
+                converter.unsupported_value(value, std::string_view("'writeToPageHtml' is not a function"));
                 return;
             }
             var bundleName = if(converter.in_head) std::string_view("pageHead") else std::string_view("pageHtml")

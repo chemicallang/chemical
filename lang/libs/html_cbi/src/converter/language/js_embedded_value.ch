@@ -62,6 +62,22 @@ func (converter : &mut ASTConverter) make_js_double_value_call(value : *mut Valu
     return converter.make_js_value_call_with(value, std::string_view("append_js_double"), converter.support.appendJsDoubleFn)
 }
 
+// Report a value that cannot be serialized into the JavaScript bundle through
+// the live codegen diagnoser (instead of writing an error string into the
+// bundle at runtime, which silently produced broken JS).
+func (converter : &mut ASTConverter) js_unsupported(value : *mut Value, detail : &std::string_view) {
+    if(converter.diagnoser == null) {
+        // No diagnoser available (non-codegen caller): keep a visible fallback.
+        converter.put_js_error(std::string_view("Unsupported value cant be written to js bundle"));
+        return;
+    }
+    var msg = std::string("cannot embed this value in the JavaScript bundle: ")
+    msg.append_view(detail)
+    var loc = converter.fallback_loc
+    if(loc == 0) { loc = intrinsics::get_raw_location() }
+    converter.diagnoser.error(msg.to_view(), loc)
+}
+
 func (converter : &mut ASTConverter) put_js_error(val : &std::string_view) {
     const value = converter.builder.make_string_value(converter.builder.allocate_view(val), intrinsics::get_raw_location())
     converter.vec.push(converter.make_js_char_ptr_value_call(value) as *mut ASTNode);
@@ -73,11 +89,11 @@ func (converter : &mut ASTConverter) put_by_node_js(type : *mut BaseType, node :
             var fnName = std::string_view("writeToPageJs")
             const writeFn = node.child(&fnName)
             if(writeFn == null) {
-                converter.put_by_type(type, value)
+                converter.js_unsupported(value, std::string_view("its type has no JS serialization (define writeToPageJs on the type, or pass a primitive/string)"));
                 return;
             }
             if(writeFn.getKind() != ASTNodeKind.FunctionDecl) {
-                converter.put_by_type(type, value)
+                converter.js_unsupported(value, std::string_view("'writeToPageJs' is not a function"));
                 return;
             }
             var bundleName = std::string_view("pageJs")
@@ -92,7 +108,7 @@ func (converter : &mut ASTConverter) put_by_node_js(type : *mut BaseType, node :
             // TODO:
         }
         default => {
-            converter.put_js_error(std::string_view("Unsupported value cant be written to js bundle"))
+            converter.js_unsupported(value, std::string_view("this type has no JS serialization (use a supported primitive, or define writeToPageJs on the type)"))
         }
     }
 }

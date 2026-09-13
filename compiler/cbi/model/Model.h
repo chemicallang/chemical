@@ -18,6 +18,8 @@ class ASTAllocator;
 
 class ASTBuilder;
 
+class ASTDiagnoser;
+
 class EmbeddedNode;
 
 class EmbeddedValue;
@@ -102,12 +104,16 @@ typedef bool(*EmbeddedValueSymbolResolveFunc)(SymResLinkBody* visitor, EmbeddedV
 
 /**
  * replacement function is called to provide ast node that would finally generate code for this
- * given embedded node
+ * given embedded node.
+ *
+ * `diagnoser` is the live codegen ASTDiagnoser (Codegen is one). Macros use it to report
+ * compile-time errors for constructs they cannot translate (previously these were either
+ * silently dropped or emitted as runtime strings).
  */
-typedef ASTNode*(*EmbeddedNodeReplacementFunc)(ASTBuilder* builder, EmbeddedNode* value);
+typedef ASTNode*(*EmbeddedNodeReplacementFunc)(ASTBuilder* builder, ASTDiagnoser* diagnoser, EmbeddedNode* value);
 
 /**
  * replacement function is called to provide ast node that would finally generate code for this
  * given embedded node
  */
-typedef Value*(*EmbeddedValueReplacementFunc)(ASTBuilder* builder, EmbeddedValue* value);
+typedef Value*(*EmbeddedValueReplacementFunc)(ASTBuilder* builder, ASTDiagnoser* diagnoser, EmbeddedValue* value);

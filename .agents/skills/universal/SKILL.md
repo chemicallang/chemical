@@ -290,13 +290,16 @@ condition). Supported at SSR time:
 - **State arrays passed as props serialize**: `items={items}` (reactive array) becomes a
   `Multiple`; object elements become `Spread` attribute lists. Runtime reads `item.text` are
   resolved by `ssrAttrValueProp` (page/ssr.ch), so `props.items.map(it => <li>{it.text}</li>)`
-  renders before JS. (Inline object-array literals as props are still unsupported.)
+  renders before JS. (Inline object-array props inside a `#universal` body are supported;
+  inside `#html` an object literal is a Chemical syntax limitation.)
 - **`.filter(pred).map(cb)` over runtime props/arrays** is evaluated at SSR:
   `convert_ssr_predicate_expr` converts the predicate (property reads, props reads,
   `includes`/`startsWith`/`endsWith` via `ssrTextIncludes`/`ssrTextStartsWith`/`ssrTextEndsWith`,
   `==`/`!=`, `!`, `&&`/`||`), and `emit_ssr_filter_map_loop` emits the loop. Derived locals
-  (`var visible = props.items.filter(pred)`) are registered in `JsFilteredLocal`. Not yet
-  supported: `.length` over a runtime-filtered local, `toLowerCase` predicates.
+  (`var visible = props.items.filter(pred)`) are registered in `JsFilteredLocal` (runtime
+  sources only; static arrays still resolve at compile time). Also supported:
+  `.filter(pred).length` (counter loop), `toLowerCase()` predicates (fold variants), and
+  inline object-array props inside a `#universal` body.
 - `.length` / `.size` on arrays render the count as text.
 - Component-body statements are emitted into the server function: `var`/`let`/`const`/`state`
   decls become SSR locals (`SsrAttributeValue` vars), `x = expr` assignments, `if/else` chains,

@@ -330,3 +330,81 @@ public func universal_ssr_props_filter_inline_chain(env : &mut TestEnv) {
         env.info(html.data())
     }
 }
+
+// --- Runtime `.filter().length` ------------------------------------------------------
+// `{visible.length}` over a props-derived filtered local must count matches at SSR.
+
+#universal SsrFilterCountChild(props) {
+    var visible = props.items.filter((it) => it.text.includes(props.query))
+    return <p data-k="count">{visible.length}</p>
+}
+
+#universal SsrFilterCountParent(props) {
+    state items = [{id: "a", text: "Apple"}, {id: "b", text: "Banana"}, {id: "c", text: "Cherry"}]
+    state query = "an"
+    return <div><SsrFilterCountChild items={items} query={query} /></div>
+}
+
+@test
+public func universal_ssr_props_filter_length(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrFilterCountParent /> }
+    var html = page.getHtml()
+    if(html.contains(">1<") && !html.contains(">3<")) {
+        env.success("props-derived .filter().length counts at SSR")
+    } else {
+        env.error("props-derived .filter().length did not count at SSR")
+        env.info(html.data())
+    }
+}
+
+// --- Runtime `.filter()` with toLowerCase() ------------------------------------------
+// Case-insensitive predicate over runtime props (mirrors the static evaluator).
+
+#universal SsrFilterFoldChild(props) {
+    var visible = props.items.filter((it) => it.toLowerCase().includes(props.query.toLowerCase()))
+    return <ul data-k="fold">{visible.map((it) => <li>{it}</li>)}</ul>
+}
+
+#universal SsrFilterFoldParent(props) {
+    state items = ["Apple", "Banana", "Cherry"]
+    state query = "AN"
+    return <div><SsrFilterFoldChild items={items} query={query} /></div>
+}
+
+@test
+public func universal_ssr_props_filter_tolowercase(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrFilterFoldParent /> }
+    var html = page.getHtml()
+    if(html.contains("<li>Banana</li>") && !html.contains("<li>Apple</li>") && !html.contains("<li>Cherry</li>")) {
+        env.success("case-insensitive props .filter() evaluates at SSR")
+    } else {
+        env.error("case-insensitive props .filter() did not filter at SSR")
+        env.info(html.data())
+    }
+}
+
+// --- Inline object-array literal props ----------------------------------------------
+// `items={[{id, text}, ...]}` must serialize (previously failed to link).
+
+#universal SsrInlineObjChild(props) {
+    return <ul data-k="inlineobj">{props.items.map((it) => <li>{it.id}:{it.text}</li>)}</ul>
+}
+
+#universal SsrInlineObjParent(props) {
+    return <div><SsrInlineObjChild items={[{id: "a", text: "Apple"}, {id: "b", text: "Banana"}]} /></div>
+}
+
+@test
+public func universal_ssr_inline_object_array_prop(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrInlineObjParent /> }
+    var html = page.getHtml()
+    if(html.contains("<li>a:Apple</li>") && html.contains("<li>b:Banana</li>")) {
+        env.success("inline object-array prop maps at SSR")
+    } else {
+        env.error("inline object-array prop did not render at SSR")
+        env.info(html.data())
+    }
+}

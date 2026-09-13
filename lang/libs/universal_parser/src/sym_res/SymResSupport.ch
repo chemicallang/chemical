@@ -18,6 +18,9 @@ public struct SymResSupport {
     var ssrTextIncludesFn : *mut ASTNode = null
     var ssrTextStartsWithFn : *mut ASTNode = null
     var ssrTextEndsWithFn : *mut ASTNode = null
+    var ssrTextIncludesFoldFn : *mut ASTNode = null
+    var ssrTextStartsWithFoldFn : *mut ASTNode = null
+    var ssrTextEndsWithFoldFn : *mut ASTNode = null
     var isSsrAttributeValueTruthyFn : *mut ASTNode = null
     var getMultipleAttributeValuesFn : *mut ASTNode = null
     var ssrMultipleGetFn : *mut ASTNode = null

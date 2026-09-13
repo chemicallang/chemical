@@ -1990,7 +1990,17 @@ func (converter : &mut JsConverter) build_ssr_multiple_from_array_node(node : *m
     var ssrAttrValArr = builder.make_array_value(attrValueType, location)
     var arrValues = ssrAttrValArr.get_values()
     for(var i : uint = 0; i < node.elements.size(); i++) {
-        const elemVal = converter.convert_ssr_attr_value_expr(node.elements.get(i), &mut attrValConv)
+        const elemNode = node.elements.get(i)
+        var elemVal : *mut Value = null
+        // Object-literal elements become Spread attribute lists (so runtime
+        // `item.prop` reads resolve); everything else goes through the standard
+        // value evaluator.
+        if(elemNode != null && elemNode.kind == JsNodeKind.ObjectLiteral) {
+            const elemText = build_js_node_text_view(builder, elemNode)
+            elemVal = converter.build_ssr_element_value_from_text(elemText)
+        } else {
+            elemVal = converter.convert_ssr_attr_value_expr(elemNode, &mut attrValConv)
+        }
         if(elemVal != null) arrValues.push(elemVal)
     }
     if(arrValues.size() == 0) return null
@@ -2015,6 +2025,17 @@ func (converter : &mut JsConverter) find_filtered_local(name : std::string_view)
 // `includes`/`startsWith`/`endsWith`, `==`/`!=`, `!`, `&&`/`||`, and falls back
 // to the shared bool evaluator for anything else it can fold. Returns null when
 // the predicate cannot be represented (the list then renders nothing, as before).
+// If `node` is a `x.toLowerCase()` call, returns `x` so the predicate can use
+// its case-insensitive variant; otherwise null.
+func unwrap_to_lowercase_call(node : *mut JsNode) : *mut JsNode {
+    if(node == null || node.kind != JsNodeKind.FunctionCall) return null
+    const fc = node as *mut JsFunctionCall
+    if(fc.callee == null || fc.callee.kind != JsNodeKind.MemberAccess) return null
+    const mem = fc.callee as *mut JsMemberAccess
+    if(mem.property.equals(view("toLowerCase")) && fc.args.empty()) return mem.object
+    return null
+}
+
 func (converter : &mut JsConverter) convert_ssr_predicate_expr(node : *mut JsNode, attrValConv : &mut AttrValueConverter) : *mut Value {
     if(node == null) return null
     const builder = converter.builder
@@ -2068,9 +2089,23 @@ func (converter : &mut JsConverter) convert_ssr_predicate_expr(node : *mut JsNod
             else if(mem.property.equals(view("startsWith"))) { fnNode = support.ssrTextStartsWithFn; fnName = view("ssrTextStartsWith") }
             else if(mem.property.equals(view("endsWith"))) { fnNode = support.ssrTextEndsWithFn; fnName = view("ssrTextEndsWith") }
             if(fnNode != null) {
-                const recv = converter.convert_ssr_attr_value_expr(mem.object, attrValConv)
+                // `.toLowerCase()` on either side selects the case-insensitive
+                // runtime predicate (mirrors the static predicate evaluator).
+                var fold = false
+                var recvNode = mem.object
+                const lowerRecv = unwrap_to_lowercase_call(mem.object)
+                if(lowerRecv != null) { recvNode = lowerRecv; fold = true }
+                var argNode = fc.args.get(0)
+                const lowerArg = unwrap_to_lowercase_call(argNode)
+                if(lowerArg != null) { argNode = lowerArg; fold = true }
+                if(fold) {
+                    if(mem.property.equals(view("includes"))) { fnNode = support.ssrTextIncludesFoldFn; fnName = view("ssrTextIncludesFold") }
+                    else if(mem.property.equals(view("startsWith"))) { fnNode = support.ssrTextStartsWithFoldFn; fnName = view("ssrTextStartsWithFold") }
+                    else if(mem.property.equals(view("endsWith"))) { fnNode = support.ssrTextEndsWithFoldFn; fnName = view("ssrTextEndsWithFold") }
+                }
+                const recv = converter.convert_ssr_attr_value_expr(recvNode, attrValConv)
                 if(recv == null) return null
-                const arg = converter.convert_ssr_attr_value_expr(fc.args.get(0), attrValConv)
+                const arg = converter.convert_ssr_attr_value_expr(argNode, attrValConv)
                 if(arg == null) return null
                 const call = builder.make_function_call_value(builder.make_identifier(&fnName, fnNode, false, location), location)
                 call.get_args().push(recv)
@@ -2185,19 +2220,123 @@ func (converter : &mut JsConverter) emit_ssr_filter_map_loop(sourceVal : *mut Va
     converter.vec.push(forLoop as *mut ASTNode)
 }
 
+// Counts the elements passing a runtime `.filter()` predicate at SSR and
+// appends the count as text (`{filtered.length}`). Returns false when the
+// predicate or source is not representable.
+func (converter : &mut JsConverter) emit_ssr_filter_count(filterCall : *mut JsFunctionCall) : bool {
+    if(filterCall == null || filterCall.args.empty()) return false
+    const predArg = filterCall.args.get(0)
+    if(predArg == null || predArg.kind != JsNodeKind.ArrowFunction) return false
+    const predArrow = predArg as *mut JsArrowFunction
+    if(predArrow.params.empty() || predArrow.body == null) return false
+    const predParam = predArrow.params.get(0).name
+    if(predParam.empty()) return false
+
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location()
+    const support = converter.support
+
+    const fsrc = (filterCall.callee as *mut JsMemberAccess).object
+    var sourceVal : *mut Value = null
+    if(fsrc != null) {
+        if(fsrc.kind == JsNodeKind.MemberAccess && converter.is_component_props_read(fsrc)) {
+            sourceVal = converter.make_ssr_prop_v_call((fsrc as *mut JsMemberAccess).property)
+        } else if(fsrc.kind == JsNodeKind.Identifier) {
+            const fl = converter.find_ssr_local((fsrc as *mut JsIdentifier).value)
+            if(fl != null) sourceVal = builder.make_identifier(&fl.name, fl.varInit, false, location)
+        }
+    }
+    if(sourceVal == null) return false
+
+    var srcNameS = std::string("__ssr_cs_")
+    srcNameS.append_uinteger(converter.id_counter as ubigint)
+    converter.id_counter++
+    const srcName = builder.allocate_view(srcNameS.to_view())
+    var idxNameS = std::string("__ssr_ci_")
+    idxNameS.append_uinteger(converter.id_counter as ubigint)
+    converter.id_counter++
+    const idxName = builder.allocate_view(idxNameS.to_view())
+    var cntNameS = std::string("__ssr_cc_")
+    cntNameS.append_uinteger(converter.id_counter as ubigint)
+    converter.id_counter++
+    const cntName = builder.allocate_view(cntNameS.to_view())
+
+    const iType = builder.get_u64_type()
+
+    const getMultiCall = builder.make_function_call_value(builder.make_identifier("getMultipleAttributeValues", support.getMultipleAttributeValuesFn, false, location), location)
+    getMultiCall.get_args().push(sourceVal)
+    const srcType = builder.make_linked_type("MultipleAttributeValues", support.multipleAttributeValueNode, location)
+    const srcVar = builder.make_varinit_stmt(false, false, &srcName, srcType, getMultiCall, AccessSpecifier.Internal, converter.parent, location)
+    converter.vec.push(srcVar)
+
+    const cntVar = builder.make_varinit_stmt(false, false, &cntName, iType, builder.make_ubigint_value(0, location), AccessSpecifier.Internal, converter.parent, location)
+    converter.vec.push(cntVar)
+
+    const iVar = builder.make_varinit_stmt(false, false, &idxName, iType, builder.make_ubigint_value(0, location), AccessSpecifier.Internal, converter.parent, location)
+    const srcId = builder.make_identifier(&srcName, srcVar, false, location)
+    const sizeNode = support.multipleAttributeValueNode.child("size")
+    const sizeId = builder.make_identifier("size", sizeNode, false, location)
+    const sizeAccess = builder.make_access_chain(&std::span<*mut Value>([ srcId, sizeId ]), location)
+    const iId = builder.make_identifier(&idxName, iVar, false, location)
+    const cond = builder.make_expression_value(iId, sizeAccess, Operation.LessThan, builder.make_bool_type(), location)
+    const addExpr = builder.make_expression_value(iId, builder.make_ubigint_value(1, location), Operation.Addition, iType, location)
+    const incr = builder.make_assignment_stmt(iId, addExpr, Operation.Assignment, converter.parent, location)
+    const forLoop = builder.make_for_loop(iVar, cond, incr, converter.parent, location)
+    const oldVec = converter.vec
+    converter.vec = forLoop.get_body()
+
+    const getCall = builder.make_function_call_value(builder.make_identifier("ssrMultipleGet", support.ssrMultipleGetFn, false, location), location)
+    getCall.get_args().push(srcId)
+    getCall.get_args().push(iId)
+    const elemType = builder.make_linked_type("SsrAttributeValue", support.ssrAttributeValueNode, location)
+    const elemVar = builder.make_varinit_stmt(false, false, &predParam, elemType, getCall, AccessSpecifier.Internal, converter.parent, location)
+    converter.vec.push(elemVar)
+
+    converter.ssr_locals.push(JsSsrLocal { name : predParam, varInit : elemVar })
+    var attrValConv = converter.make_attr_value_converter()
+    const predExpr = converter.convert_ssr_predicate_expr(predArrow.body, &mut attrValConv)
+    converter.ssr_locals.pop_back()
+    if(predExpr == null) {
+        converter.vec = oldVec
+        return false
+    }
+
+    const ifStmt = builder.make_if_stmt(predExpr, converter.parent, location)
+    const cntId = builder.make_identifier(&cntName, cntVar, false, location)
+    const cntAdd = builder.make_assignment_stmt(cntId, builder.make_expression_value(cntId, builder.make_ubigint_value(1, location), Operation.Addition, iType, location), Operation.Assignment, converter.parent, location)
+    ifStmt.get_body().push(cntAdd as *mut ASTNode)
+    converter.vec.push(ifStmt as *mut ASTNode)
+
+    converter.vec = oldVec
+    converter.vec.push(forLoop as *mut ASTNode)
+    converter.vec.push(converter.make_uinteger_value_call(cntId))
+    return true
+}
+
 // Renders the element count of an array expression (`props.items.length`,
 // `items.length`, `items.size`) as text, matching the hydrated DOM. Returns
 // false when the object is not a representable array source.
 func (converter : &mut JsConverter) emit_ssr_array_count(object : *mut JsNode) : bool {
+    if(object == null) return false
     const builder = converter.builder
     const location = intrinsics::get_raw_location()
     const support = converter.support
 
     var sourceVal : *mut Value = null
+    if(object.kind == JsNodeKind.FunctionCall) {
+        const fc = object as *mut JsFunctionCall
+        if(fc.callee != null && fc.callee.kind == JsNodeKind.MemberAccess && (fc.callee as *mut JsMemberAccess).property.equals(view("filter"))) {
+            if(converter.emit_ssr_filter_count(fc)) return true
+        }
+    }
     if(object.kind == JsNodeKind.MemberAccess && converter.is_component_props_read(object)) {
         sourceVal = converter.make_ssr_prop_v_call((object as *mut JsMemberAccess).property)
     } else if(object.kind == JsNodeKind.Identifier) {
         const id = object as *mut JsIdentifier
+        const fLocal = converter.find_filtered_local(id.value)
+        if(fLocal != null) {
+            if(converter.emit_ssr_filter_count(fLocal.filterCall as *mut JsFunctionCall)) return true
+        }
         if(converter.is_reactive_var(id.value)) {
             // Static state array: count the elements at compile time.
             const initText = converter.find_state_init_text(id.value)
@@ -2852,14 +2991,35 @@ func (converter : &mut JsConverter) emit_ssr_local_decl(decl : *mut JsVarDecl) :
 
     // A local derived from a runtime `.filter()` (`var visible = props.items.filter(pred)`)
     // is not a materialized value; remember the call so `.map()`/`.length` over
-    // it can emit a runtime filter loop.
+    // it can emit a runtime filter loop. Only runtime sources qualify: a filter
+    // over a static array is resolved at compile time (resolve_static_array_elements).
     if(decl.value != null && decl.value.kind == JsNodeKind.FunctionCall) {
         const fc = decl.value as *mut JsFunctionCall
         if(fc.callee != null && fc.callee.kind == JsNodeKind.MemberAccess && (fc.callee as *mut JsMemberAccess).property.equals(view("filter"))) {
-            if(converter.find_filtered_local(decl.name) == null) {
-                converter.filtered_locals.push(JsFilteredLocal { name : decl.name, filterCall : decl.value })
+            const fsrc = (fc.callee as *mut JsMemberAccess).object
+            var isRuntimeSource = false
+            if(fsrc != null) {
+                if(fsrc.kind == JsNodeKind.MemberAccess && converter.is_component_props_read(fsrc)) {
+                    isRuntimeSource = true
+                } else if(fsrc.kind == JsNodeKind.Identifier) {
+                    const srcId = fsrc as *mut JsIdentifier
+                    if(converter.is_reactive_var(srcId.value)) {
+                        // Static state array with an array-literal initializer is
+                        // handled at compile time; anything else is runtime.
+                        const srcInit = converter.find_state_init_text(srcId.value)
+                        var staticSrc = std::vector<std::string_view>()
+                        isRuntimeSource = srcInit.empty() || !split_js_array_elements(srcInit, &mut staticSrc)
+                    } else {
+                        isRuntimeSource = true
+                    }
+                }
             }
-            return true
+            if(isRuntimeSource) {
+                if(converter.find_filtered_local(decl.name) == null) {
+                    converter.filtered_locals.push(JsFilteredLocal { name : decl.name, filterCall : decl.value })
+                }
+                return true
+            }
         }
     }
 

@@ -669,6 +669,38 @@ window.$__uni_current_instance = null;
 window.$__uni_current_boundary = null;
 window.$__uni_render_instance = null;
 window.$__uni_ctx = {}
+// Builds one context-scope entry. Each provider instance gets its own entry
+// (see $_r.createContext) so two providers that share a name do not collide;
+// consumers resolve the nearest provider by walking the instance parent chain.
+window.$__uni_ctx_entry = ((name, defaultValue) => {
+    const sig = window.$_us(defaultValue);
+    const entry = {
+        name,
+        get value() { return sig.value; },
+        set value(n) {
+            if(n && typeof n.subscribe === "function") {
+                if(entry._unsub) entry._unsub();
+                entry._unsub = n.subscribe((v) => { sig.value = v; });
+                sig.value = n.value;
+            } else {
+                sig.value = n;
+            }
+        }
+    };
+    return entry;
+})
+// Nearest ancestor component instance for a host element. The server dispatches
+// some children (e.g. ToggleGroup items) as independent top-level boundaries
+// whose only nesting is in the DOM. Linking them to the nearest ancestor
+// instance lets context resolve down the tree even without a mount-stack parent.
+window.$__uni_find_parent_instance = ((host) => {
+    let el = host && host.parentElement ? host.parentElement : null;
+    while(el) {
+        if(el.$__uni_instance) return el.$__uni_instance;
+        el = el.parentElement;
+    }
+    return null;
+})
 // Shallow equality check for memoization and effect deps
 window.$__uni_shallow_equal = ((a, b) => {
     if(a === b) return true;
@@ -767,39 +799,35 @@ window.$_r = {
         const dispatch = (action) => { state.value = reducer(state.value, action); };
         return [ state, dispatch ];
     },
-    // Name-keyed context registry. Provider and consumer components derive the
-    // same key from a shared `name` prop ("rg-" + props.name), so no module-level
-    // declarations are needed - each component's JS function is only emitted
-    // when used, and the registry itself always lives in the runtime. Reading
-    // `.value` inside a $_ucs() computed subscribes like any other signal;
-    // assigning a signal to `.value` wires the context to follow it (the
-    // provider publishes its state signal).
+    // Scoped context registry. A `createContext(name, default)` call in a
+    // component body owns a provider scope for that component instance
+    // (`inst._contexts[name]`), so two instances of the same provider - or two
+    // providers that share a name - no longer collide. `useContext(name)` walks
+    // the instance parent chain to the nearest provider. When no provider is in
+    // scope it falls back to a process-wide default entry, preserving React's
+    // `createContext(default)` semantics. Reading `.value` inside a $_ucs()
+    // computed subscribes like any other signal; assigning a signal to `.value`
+    // wires the scope to follow it (the provider publishes its state).
     createContext: (name, defaultValue) => {
-        let entry = window.$__uni_ctx[name];
-        if(!entry) {
-            const sig = window.$_us(defaultValue);
-            entry = {
-                name,
-                get value() {
-                    return sig.value;
-                },
-                set value(n) {
-                    if(n && typeof n.subscribe === "function") {
-                        if(entry._unsub) entry._unsub();
-                        entry._unsub = n.subscribe((v) => { sig.value = v; });
-                        sig.value = n.value;
-                    } else {
-                        sig.value = n;
-                    }
-                }
-            };
-            window.$__uni_ctx[name] = entry;
+        if(!window.$__uni_ctx[name]) {
+            window.$__uni_ctx[name] = window.$__uni_ctx_entry(name, defaultValue);
         }
-        return entry;
+        const inst = window.$__uni_current_instance;
+        if(inst) {
+            if(!inst._contexts) inst._contexts = {};
+            if(!inst._contexts[name]) inst._contexts[name] = window.$__uni_ctx_entry(name, defaultValue);
+            return inst._contexts[name];
+        }
+        return window.$__uni_ctx[name];
     },
     useContext: (name) => {
+        let inst = window.$__uni_current_instance;
+        while(inst) {
+            if(inst._contexts && inst._contexts[name]) return inst._contexts[name];
+            inst = inst.parent;
+        }
         if(!window.$__uni_ctx[name]) {
-            window.$__uni_ctx[name] = window.$_r.createContext(name, undefined);
+            window.$__uni_ctx[name] = window.$__uni_ctx_entry(name, undefined);
         }
         return window.$__uni_ctx[name];
     },
@@ -1688,11 +1716,18 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
         window.$__uni_dispose(host.$__uni_instance);
         host.$__uni_instance = null;
     }
-    // Set up instance tracking for effects
+    // Set up instance tracking for effects. Prefer the mount-stack parent; when
+    // a component is dispatched as an independent top-level boundary (no stack
+    // parent), derive the parent from DOM ancestry so context and disposal still
+    // follow the rendered tree.
     const prevInstance = window.$__uni_current_instance;
-    const inst = { parent: prevInstance, children: [], _disposables: [], _resources: [] };
+    let parentInstance = prevInstance;
+    if(!parentInstance && host && host.parentElement) {
+        parentInstance = window.$__uni_find_parent_instance(host);
+    }
+    const inst = { parent: parentInstance, children: [], _disposables: [], _resources: [], _contexts: {}, host: host };
     host.$__uni_instance = inst;
-    if(prevInstance) prevInstance.children.push(inst);
+    if(parentInstance) parentInstance.children.push(inst);
     window.$__uni_current_instance = inst;
     // Set this as the nearest error boundary for child renders
     const prevBoundary = window.$__uni_current_boundary;
@@ -1730,12 +1765,15 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
     // Keep current_instance = inst during hydration so child components
     // dispatched via $_uni_dispatch correctly parent to this instance
     if(mode === "root") {
-        window.$__uni_current_instance = prevInstance;
         const parent = host.parentNode;
         if(!parent) {
             window.$__uni_error("cannot hydrate universal root without a parent element", host.tagName ? host.tagName.toLowerCase() : "unknown");
         }
+        // Keep current_instance = inst while hydrating the component's own
+        // output so nested child components parent to this instance (needed for
+        // scoped context and disposal). Restore afterwards.
         const next = window.$__uni_hydrate_node(parent, host, out);
+        window.$__uni_current_instance = prevInstance;
         // `host` may be a text node when the component's SSR range starts with
         // text (a fragment / multi-node root). Track the first element inside
         // the hydrated range so disposal still works; fall back to the parent.

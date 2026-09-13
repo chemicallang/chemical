@@ -1122,6 +1122,27 @@ identity and typed value. `runtime_contracts.ch::universal_keyed_reconciliation_
 updated to assert the new contract (`$__uni_patch_node`) rather than the removed
 internal `oldMap` variable.
 
+### Scoped context (nearest-provider resolution)
+
+Context was a single flat, name-keyed global registry (`window.$__uni_ctx`), so two provider
+instances that derived the same key collided (the ToggleGroup incident, previously worked around
+by requiring unique `name` props). Now:
+
+- `createContext(name, default)` creates a provider entry owned by the calling component
+  instance (`inst._contexts[name]`) via `$__uni_ctx_entry`; the process-wide
+  `window.$__uni_ctx[name]` entry is retained only as the no-provider default.
+- `useContext(name)` walks the render-instance parent chain to the nearest provider.
+- Parent linking was the enabler: when a component is dispatched as an independent top-level
+  boundary (no mount-stack parent), `$__uni_mount` derives the parent from DOM ancestry
+  (`$__uni_find_parent_instance`). Additionally, `$__uni_mount` in `"root"` mode now keeps
+  `$__uni_current_instance` set to the mounting instance while hydrating the component's output
+  (it previously restored to the parent before hydration, so nested `__uni_uc` children were
+  parented to the grandparent and could not resolve their provider).
+
+Tests added: `runtime-unit.spec.ts::context: providers are scoped per instance and resolve up the
+tree`, and E2E `components.spec.ts::toggle group scoping: two unnamed groups keep independent
+selection` (fixture `ToggleGroupScopedFixture` with two unnamed groups).
+
 ### Still open
 
 Everything else in Phases 0–5: runtime extraction to a real `.js` asset,

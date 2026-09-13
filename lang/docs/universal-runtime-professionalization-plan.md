@@ -998,10 +998,17 @@ Identified, not yet fixed:
   `props.children.map(...)`, which cannot reach children passed as an opaque
   `$__uni_html` blob (top-level components). The durable fix is emitting nested
   component children as vnodes (`$_uc_c`) from html_cbi.
-- Layout/spacing reports (Card, Container sizes, form field spacing), Snackbar
-  icon, BottomBar badge — component/CSS review pending.
+- Snackbar icon, BottomBar badge, Container size demo (docs-box constrains
+  width) — component/CSS review pending.
 
 Fixed after the above diagnosis:
+- **Card layout** (`components/Card.ch`,
+  `lang/compiled/components/src/pages/components.ch`): `CardBody` is now a
+  vertical flex with `gap: 1rem` (form fields no longer touch), `CardFooter`
+  right-aligns actions, `CardHeader` uses symmetric padding (header-only cards no
+  longer clip the title) and `align-items: flex-start` (badges no longer stretch
+  full width), and the Basic Card demo nests its description in the header so it
+  gets padding.
 - **Dialog double close buttons and non-working close** (`components/Surface.ch`,
   `lang/compiled/components/src/demo_wrappers.ch`). `Dialog` already renders the
   overlay, backdrop, and a `DialogContent`; the demos also passed

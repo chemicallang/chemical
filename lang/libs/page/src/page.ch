@@ -1014,7 +1014,7 @@ window.$__uni_warn_hydration = ((msg, expected, got) => {
 // transported through the JavaScript bundle.
 window.$_uc_c = ((comp, props) => ({ t: "__uni_uc", p: { comp, props } }))
 window.$__uni_value = ((v) => window.$__uni_is_state(v) ? v.value : v)
-window.$__uni_html = ((html) => ({ __uni_html: html || "" }))
+window.$__uni_html = ((html, count) => ({ __uni_html: html || "", __uni_count: count || 0 }))
 window.$__uni_is_active_editable = ((el) => !!(el && el.isContentEditable && document.activeElement === el))
 window.$__uni_assign_ref = ((el, refValue) => {
     if(refValue == null || refValue === false) return;
@@ -1449,7 +1449,16 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
         if(parent) { if(dom) parent.insertBefore(n, dom); else parent.appendChild(n); }
         return dom;
     }
-    if(v && v.__uni_html !== undefined) return dom; // SSRed content handled by parent
+    if(v && v.__uni_html !== undefined) {
+        // Adopt the server-rendered children blob. Advance past `__uni_count`
+        // top-level nodes so following sibling vnodes stay aligned (previously
+        // this returned the cursor unchanged, so the next sibling mis-adopted
+        // the children's DOM — e.g. Tooltip lost its trigger button).
+        let n = v.__uni_count || 0;
+        let cur = dom;
+        while(n > 0 && cur) { cur = cur.nextSibling; n--; }
+        return cur;
+    }
     if(v && v.t !== undefined) {
         if(v.t === "__uni_uc") {
             const { name, props, comp } = v.p;

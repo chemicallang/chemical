@@ -191,6 +191,28 @@ func collect_child_html(ch : *mut HtmlChild, childHtml : *mut std::string) {
 // (Text/Number) and whose descendants are equally static. Dynamic children --
 // Chemical values/statements, @if blocks, or nested universal components -- are
 // not representable as static vnodes and take the legacy $__uni_html fallback.
+// Counts the top-level DOM nodes a children list produces at SSR, so the client
+// `$__uni_html` blob can advance past exactly those nodes during hydration.
+// Whitespace-only text between elements is dropped by the HTML parser, so it is
+// not counted.
+func count_child_nodes(children : &std::vector<*mut HtmlChild>) : ubigint {
+    var n : ubigint = 0;
+    for(var i : uint = 0; i < children.size(); i++) {
+        const ch = children.get(i);
+        if(ch.kind == HtmlChildKind.Element) n++;
+        else if(ch.kind == HtmlChildKind.Text) {
+            const t = ch as *mut HtmlText;
+            var has = false;
+            for(var j : size_t = 0; j < t.value.size(); j++) {
+                const c = t.value.get(j);
+                if(c != ' ' && c != '\n' && c != '\t' && c != '\r') { has = true; break; }
+            }
+            if(has) n++;
+        }
+    }
+    return n;
+}
+
 func children_are_static(children : &std::vector<*mut HtmlChild>) : bool {
     for(var i : uint = 0; i < children.size(); i++) {
         const child = children.get(i);
@@ -385,7 +407,9 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
                 else { tail.append(c); }
                 ci2++;
             }
-            tail.append_view("\")");
+            tail.append_view("\", ");
+            tail.append_uinteger(count_child_nodes(&element.children));
+            tail.append_view(")");
         }
     }
     tail.append_view("});\n");

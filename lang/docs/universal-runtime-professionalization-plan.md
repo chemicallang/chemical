@@ -1016,6 +1016,16 @@ Identified, not yet fixed:
   mismatch (capped at 25).
 
 Fixed after the above diagnosis:
+- **`$__uni_html` hydration cursor** (`lang/libs/page/src/page.ch`,
+  `html_cbi/src/converter/language/main.ch`). A top-level component's component
+  children are passed to the client as an opaque `$__uni_html` blob; hydration
+  returned the cursor unchanged, so the next sibling vnode (e.g. Tooltip's
+  tooltip-content span) mis-adopted the children's DOM and the trigger button was
+  destroyed. `$__uni_html(html, count)` now carries the number of top-level server
+  nodes (`count_child_nodes`), and `$__uni_hydrate_node` advances past exactly
+  those nodes. Fixes Tooltip (hover shows the tip) and the last 2 AvatarGroup
+  warnings; docs-page hydration warnings are now **0**. Test:
+  `runtime-unit.spec.ts::$__uni_html hydration consumes its server node count`.
 - **Hydration text-node misalignment** (`lang/libs/page/src/page.ch`). Adjacent
   server text nodes are merged by the HTML parser, but the client vnode tree keeps
   them separate; `$__uni_hydrate_node` used to overwrite the merged node with the

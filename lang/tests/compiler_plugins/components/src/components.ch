@@ -1493,36 +1493,31 @@ public func components_event_attr_skipped_comma_correctness(env : &mut TestEnv) 
 
 @test
 public func components_hydration_child_html_recurses_nested_elements(env : &mut TestEnv) {
-    // Regression: emit_universal_queue built $_uc_h for children but did NOT
-    // recurse into element children. A <table><tbody><tr><td>X</td></tr></tbody></table>
-    // passed as children became just <table></table> in the hydration JS string,
-    // causing hydration mismatch because the SSR HTML had the full nested structure.
+    // Phase 2: static children are emitted as client vnodes, not as an SSR HTML
+    // blob in the JS bundle. The nested element structure must be represented and
+    // the raw markup must not be transported through JS.
     var page = HtmlPage()
     #html { <NestedTableComp><table><tbody><tr><td>inner cell</td></tr></tbody></table></NestedTableComp> }
     var js = std::string()
     js.append_view(page.getJs())
-    // The $_uc_h string must contain the full nested HTML, not just empty tags
-    contains_string_assert(env, js.to_view(), std::string_view("<table>"))
-    contains_string_assert(env, js.to_view(), std::string_view("<tbody>"))
-    contains_string_assert(env, js.to_view(), std::string_view("<tr>"))
-    contains_string_assert(env, js.to_view(), std::string_view("<td>"))
+    contains_string_assert(env, js.to_view(), std::string_view("$_ur.createElement(\"table\""))
+    contains_string_assert(env, js.to_view(), std::string_view("$_ur.createElement(\"tbody\""))
+    contains_string_assert(env, js.to_view(), std::string_view("$_ur.createElement(\"tr\""))
+    contains_string_assert(env, js.to_view(), std::string_view("$_ur.createElement(\"td\""))
     contains_string_assert(env, js.to_view(), std::string_view("inner cell"))
-    contains_string_assert(env, js.to_view(), std::string_view("</td>"))
-    contains_string_assert(env, js.to_view(), std::string_view("</tr>"))
-    contains_string_assert(env, js.to_view(), std::string_view("</tbody>"))
-    contains_string_assert(env, js.to_view(), std::string_view("</table>"))
+    not_contains_string_assert(env, js.to_view(), std::string_view("<table>"))
 }
 
 @test
 public func components_hydration_child_html_self_closing_elements(env : &mut TestEnv) {
-    // Self-closing elements passed as children to a universal component must be
-    // emitted with the /> syntax in the hydration $_uc_h string.
+    // Self-closing static children become vnodes without children.
     var page = HtmlPage()
     #html { <SelfClosingChildComp><div><br/><hr/></div></SelfClosingChildComp> }
     var js = std::string()
     js.append_view(page.getJs())
-    contains_string_assert(env, js.to_view(), std::string_view("<br/>"))
-    contains_string_assert(env, js.to_view(), std::string_view("<hr/>"))
+    contains_string_assert(env, js.to_view(), std::string_view("$_ur.createElement(\"br\""))
+    contains_string_assert(env, js.to_view(), std::string_view("$_ur.createElement(\"hr\""))
+    not_contains_string_assert(env, js.to_view(), std::string_view("<br/>"))
 }
 
 @test

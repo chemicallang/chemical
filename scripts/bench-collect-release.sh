@@ -60,7 +60,9 @@ API="https://api.github.com/repos/${REPO}/releases/tags/${TAG}"
 bm_log "==> Fetching release $TAG from $REPO"
 AUTH=()
 if [ -n "${GITHUB_TOKEN:-}" ]; then AUTH=(-H "Authorization: token $GITHUB_TOKEN"); fi
-RELEASE_JSON="$(curl -s "${AUTH[@]}" "$API")"
+# --max-time caps the whole transfer (a stalled API call would otherwise hang
+# the collection until the job cap — curl has no default timeout)
+RELEASE_JSON="$(curl -s --max-time 60 "${AUTH[@]}" "$API")"
 if ! printf '%s' "$RELEASE_JSON" | jq -e '.tag_name' >/dev/null 2>&1; then
   # GitHub API rate limits / transient failures must NOT clobber good data.
   # If we already have a published info.json with assets for this tag, keep it
@@ -217,7 +219,9 @@ download_asset() { # <asset> <destdir>
   local url
   url="$(printf '%s' "$RELEASE_JSON" | jq -r --arg a "$asset" '.assets[] | select(.name==$a) | .browser_download_url')"
   [ -z "$url" ] && return 1
-  curl -sL -o "$dest/$asset" "$url"
+  # --max-time guards against stalled connections; a failed/stalled download
+  # is recorded as a failure record by the caller, not a hung job
+  curl -sL --max-time 900 -o "$dest/$asset" "$url"
 }
 
 DL_DIR="$WORK/dl"

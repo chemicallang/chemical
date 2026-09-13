@@ -386,19 +386,41 @@ bm_run() {
   local start end
   start="$(bm_now_ms)"
   set +e
-  # On POSIX (linux/macOS runners) GNU coreutils `timeout` reliably kills the
-  # child. On Windows Git Bash / MSYS it CANNOT always terminate a NATIVE
-  # Windows child (MSYS signal emulation is unreliable for native processes),
-  # so a hung compiler/test could outlive its cap and stall the whole
-  # collection. Windows uses a background + poll watchdog that kills the
-  # entire process tree via taskkill, and still reports exit code 124
-  # (timeout) so the existing status logic works unchanged.
+  # Timeout tooling differs per platform (all three paths below report exit
+  # code 124 on timeout so the existing status logic works unchanged):
+  #   1. GNU coreutils `timeout` (linux runners, msys2, homebrew coreutils) —
+  #      the preferred path; it kills the direct child reliably.
+  #   2. On Windows Git Bash / MSYS, coreutils `timeout` CANNOT always
+  #      terminate a NATIVE Windows child (MSYS signal emulation is
+  #      unreliable for native processes), so a hung compiler/test could
+  #      outlive its cap. Use a background + poll watchdog that kills the
+  #      entire process tree via taskkill.
+  #   3. Anything else (notably GitHub's macOS runners, which ship no
+  #      coreutils `timeout` at all) falls back to the same background +
+  #      poll watchdog WITHOUT taskkill. The previous fallback here ran the
+  #      command bare — NO timeout at all — which is how a single hung phase
+  #      burned the whole job cap on macOS (Benchmark Release #18,
+  #      macos-arm64; Benchmark Daily #41, macos-x64 6h burn).
   local is_win=false
   case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) is_win=true ;; esac
-  if [ "$is_win" = false ] && command -v timeout >/dev/null 2>&1; then
-    timeout "$timeout_secs" "$@" > "$log" 2>&1
+  # POSIX: prefer coreutils `timeout`, fall back to homebrew's `gtimeout`
+  # (macOS runner images ship coreutils keg-only, so only the g-prefixed
+  # name is on PATH).
+  local timeout_cmd=""
+  if [ "$is_win" = false ]; then
+    timeout_cmd="$(command -v timeout || command -v gtimeout || true)"
+  fi
+  if [ -n "$timeout_cmd" ]; then
+    "$timeout_cmd" "$timeout_secs" "$@" > "$log" 2>&1
     BM_EXIT_CODE=$?
-  elif [ "$is_win" = true ]; then
+  else
+    # Poll watchdog — used on Windows (coreutils timeout cannot reliably kill
+    # native children; kill the process tree via taskkill) and on any platform
+    # without coreutils timeout/gtimeout (macOS runners without brew
+    # coreutils), where this previously ran the command BARE with no cap at
+    # all: one hung phase then burned the whole job (Benchmark Release #18
+    # macos-arm64/windows-arm64 cancelled at 60:00; Benchmark Daily #41
+    # macos-x64 cancelled at the 6h runner cap).
     "$@" > "$log" 2>&1 &
     local pid=$! waited=0
     while kill -0 "$pid" 2>/dev/null && [ "$waited" -lt "$timeout_secs" ]; do
@@ -409,15 +431,18 @@ bm_run() {
       bm_warn "command did not exit within ${timeout_secs}s; killing process tree (pid $pid)"
       # Git Bash: $! is the MSYS pid, not the Windows pid that taskkill needs;
       # resolve the mapping (MSYS2 exposes /proc/<pid>/winpid) so the TREE
-      # (grandchildren spawned by the compiler/test) can be killed too. The
-      # `kill -9` backstop afterwards is REQUIRED: MSYS kill reliably terminates
-      # native children it spawned, guaranteeing the direct child dies and the
-      # `wait` below returns instead of blocking forever.
-      local winpid
-      winpid="$(cat "/proc/$pid/winpid" 2>/dev/null || echo "$pid")"
-      if command -v taskkill >/dev/null 2>&1; then
-        taskkill //F //T //PID "$winpid" >/dev/null 2>&1
+      # (grandchildren spawned by the compiler/test) can be killed too.
+      if [ "$is_win" = true ]; then
+        local winpid
+        winpid="$(cat "/proc/$pid/winpid" 2>/dev/null || echo "$pid")"
+        if command -v taskkill >/dev/null 2>&1; then
+          taskkill //F //T //PID "$winpid" >/dev/null 2>&1
+        fi
       fi
+      # kill -9 backstop: on MSYS this reliably terminates the native children
+      # it spawned (the direct child), guaranteeing the `wait` below returns
+      # instead of blocking forever; on POSIX it kills the direct child so the
+      # watchdog always reports the timeout instead of hanging.
       kill -9 "$pid" 2>/dev/null
       wait "$pid" 2>/dev/null
       BM_EXIT_CODE=124
@@ -425,9 +450,6 @@ bm_run() {
       wait "$pid"
       BM_EXIT_CODE=$?
     fi
-  else
-    "$@" > "$log" 2>&1
-    BM_EXIT_CODE=$?
   fi
   set -e
   end="$(bm_now_ms)"

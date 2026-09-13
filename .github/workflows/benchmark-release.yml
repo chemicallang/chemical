@@ -26,11 +26,15 @@ jobs:
     runs-on: ${{ matrix.runner }}
     container: ${{ matrix.container }}
     # Release jobs download prebuilt binaries (no compiler build), so they are
-    # fast (sibling jobs finish in ~1 min). Each benchmark/test phase already
-    # has its own watchdog cap inside bm_run (bench-common.sh); this job cap
-    # only bounds the pathological case so a hung phase can never burn hours
-    # of runner time - 60 min is ~30-60x the normal run.
-    timeout-minutes: 60
+    # fast (sibling jobs finish in ~1 min; windows-x64 ~30 min). Each
+    # benchmark/test phase already has its own watchdog cap inside bm_run
+    # (bench-common.sh); this job cap only bounds the pathological case so a
+    # hung phase can never burn hours of runner time. It MUST exceed the sum
+    # of the per-phase caps (600+30+1800+900 s = 66 min per backend, and LLVM
+    # release builds on slow arm64 fleets can legitimately exceed 60 min),
+    # otherwise healthy runs get cancelled mid-collection (Benchmark Release
+    # #18: macos-arm64 + windows-arm64 cancelled at exactly 60:00).
+    timeout-minutes: 100
     strategy:
       fail-fast: false
       matrix:
@@ -74,14 +78,15 @@ jobs:
             arch: arm64
             alpine: false
             workdir: .
-            deps: brew install jq || true
+            # coreutils: provides timeout/gtimeout for bm_run's phase watchdogs
+            deps: brew install coreutils jq || true
           - name: macos-x64
             runner: macos-15-intel
             platform: macos
             arch: x64
             alpine: false
             workdir: .
-            deps: brew install jq || true
+            deps: brew install coreutils jq || true
           - name: windows-x64
             runner: windows-2025
             platform: windows

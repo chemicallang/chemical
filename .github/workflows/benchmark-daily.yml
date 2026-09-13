@@ -160,6 +160,16 @@ jobs:
         # steps run — same pattern as the other alpine jobs in this repo.
         run: ${{ matrix.deps }}
 
+      # Alpine arm64 containers cannot run JS actions natively (the runner's
+      # node is glibc-only on arm64), so upload-artifact below would fail.
+      # This shell-only composite action installs a tweaked gcompat so the
+      # runner's node works, and masks /etc/os-release so GHA no longer
+      # detects Alpine. No-op on x64; must run before any JS action (same
+      # pattern as benchmark-release.yml / compile-tests.yml).
+      - name: Enable JavaScript actions in Alpine containers
+        if: ${{ matrix.alpine }}
+        uses: laverdet/alpine-arm64@v1
+
       - name: Checkout (default branch — scripts + full history)
         if: ${{ !matrix.alpine }}
         uses: actions/checkout@v4
@@ -173,6 +183,12 @@ jobs:
           # alpine containers have no node (musl), so JS actions like
           # actions/checkout cannot run; clone the default branch directly
           # (scripts + full source, we build at HEAD).
+          # The workspace is bind-mounted from the host and owned by the
+          # runner user while the container runs as root — without marking it
+          # safe, every later discovery-based git command (setup.sh's
+          # submodule update, bench-collect-daily.sh's rev-parse/log) aborts
+          # with "detected dubious ownership" (exit 128).
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git clone --depth 1 "https://github.com/${{ github.repository }}.git" .
 
       # ––– toolchain setup (mirrors build-and-release.yml) –––

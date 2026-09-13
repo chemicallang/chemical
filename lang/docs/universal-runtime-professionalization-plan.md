@@ -992,10 +992,6 @@ Collapsible expands, Toast opens, and `$__uni_dispatch` missing-target count wen
 3 → 0.
 
 Identified, not yet fixed:
-- **Dialog** (`components/Surface.ch`): `Dialog` wraps `props.children` in its own
-  `DialogContent` while the caller also supplies `DialogContent`, producing two
-  close buttons; the built-in close uses `props.onClose`, which `DialogContent`
-  never receives, so the top-right close does nothing.
 - **ToggleGroup context collision** (`components/ToggleGroup.ch`): context is a
   global registry keyed by `"tg-" + (name||"default")`, so all unnamed groups
   share one entry. Threading the group name to items relies on
@@ -1004,6 +1000,16 @@ Identified, not yet fixed:
   component children as vnodes (`$_uc_c`) from html_cbi.
 - Layout/spacing reports (Card, Container sizes, form field spacing), Snackbar
   icon, BottomBar badge — component/CSS review pending.
+
+Fixed after the above diagnosis:
+- **Dialog double close buttons and non-working close** (`components/Surface.ch`,
+  `lang/compiled/components/src/demo_wrappers.ch`). `Dialog` already renders the
+  overlay, backdrop, and a `DialogContent`; the demos also passed
+  `DialogBackdrop`/`DialogContent`, producing two (or three) close buttons. The
+  demos now pass inner content directly, and the built-in close button dismisses
+  the active dialog via `window.$__uni_dialog_close` (set by `Dialog` while open)
+  instead of an `onClose` prop it never received. Verified: one close button, it
+  closes the dialog, no console errors.
 
 ### Known remaining SSR parity gap
 

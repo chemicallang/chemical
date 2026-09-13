@@ -33,8 +33,9 @@ func card_header_styles(page : &mut HtmlPage) : *char {
     return #css {
         display: flex;
         flex-direction: column;
+        align-items: flex-start;
         gap: 0.25rem;
-        padding: 1.25rem 1.25rem 0 1.25rem;
+        padding: 1.25rem;
     }
 }
 
@@ -86,6 +87,9 @@ func card_content_styles(page : &mut HtmlPage) : *char {
 
 func card_body_styles(page : &mut HtmlPage) : *char {
     return #css {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
         padding: 1.25rem;
     }
 }
@@ -94,6 +98,7 @@ func card_footer_styles(page : &mut HtmlPage) : *char {
     return #css {
         display: flex;
         align-items: center;
+        justify-content: flex-end;
         gap: 0.5rem;
         padding: 0 1.25rem 1.25rem 1.25rem;
     }

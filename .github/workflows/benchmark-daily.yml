@@ -208,6 +208,7 @@ jobs:
             git
             zip
             unzip
+            jq
             mingw-w64-${{ matrix.msys_env }}-toolchain
             mingw-w64-${{ matrix.msys_env }}-cmake
             mingw-w64-${{ matrix.msys_env }}-ninja

@@ -1016,6 +1016,16 @@ Identified, not yet fixed:
   mismatch (capped at 25).
 
 Fixed after the above diagnosis:
+- **Hydration text-node misalignment** (`lang/libs/page/src/page.ch`). Adjacent
+  server text nodes are merged by the HTML parser, but the client vnode tree keeps
+  them separate; `$__uni_hydrate_node` used to overwrite the merged node with the
+  first vnode's text and misalign everything after it (hundreds of
+  "text node differs" warnings plus a bogus "element tag differs (div vs p)").
+  The text branch now **splits** a longer server text node (consuming only this
+  vnode's prefix and leaving the remainder) or **absorbs** following text siblings
+  when the vnode spans more, so the cursor stays aligned. Docs page warnings went
+  from hundreds to 2 (the 2 remaining are the `__uni_html` cursor bug below).
+  Test: `runtime-unit.spec.ts::hydrate_node splits a merged SSR text node`.
 - **Card layout** (`components/Card.ch`,
   `lang/compiled/components/src/pages/components.ch`): `CardBody` is now a
   vertical flex with `gap: 1rem` (form fields no longer touch), `CardFooter`

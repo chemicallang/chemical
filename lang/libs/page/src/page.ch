@@ -1411,9 +1411,37 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
     if(typeof v === "string" || typeof v === "number") {
         const nextText = "" + v;
         if(dom && dom.nodeType === 3) {
-            if(dom.textContent !== nextText) {
-                window.$__uni_warn_hydration("text node differs from SSR", nextText, dom.textContent);
+            const got = dom.textContent;
+            if(got === nextText) return dom.nextSibling;
+            // The HTML parser merges adjacent server text nodes, so one server
+            // text node can hold several client text vnodes' worth of text.
+            // Consume only this vnode's prefix and leave the remainder for the
+            // next vnode; overwriting here misaligned every following node
+            // (source of the "text node differs" flood and div-vs-p mismatches).
+            if(nextText.length > 0 && got.length > nextText.length && got.indexOf(nextText) === 0) {
+                const rest = dom.nextSibling;
+                dom.textContent = nextText;
+                const remainder = document.createTextNode(got.slice(nextText.length));
+                if(parent) parent.insertBefore(remainder, rest); else dom.after(remainder);
+                return remainder;
             }
+            // The opposite: this vnode's text spans more than the server node
+            // (server kept them separate). Absorb following text siblings.
+            if(nextText.length > got.length && nextText.indexOf(got) === 0) {
+                let acc = got;
+                let cur = dom.nextSibling;
+                while(cur && cur.nodeType === 3 && acc.length < nextText.length) {
+                    acc += cur.textContent;
+                    const nx = cur.nextSibling;
+                    cur.remove();
+                    cur = nx;
+                }
+                if(acc === nextText) {
+                    dom.textContent = nextText;
+                    return dom.nextSibling;
+                }
+            }
+            window.$__uni_warn_hydration("text node differs from SSR", nextText, got);
             dom.textContent = nextText;
             return dom.nextSibling;
         }

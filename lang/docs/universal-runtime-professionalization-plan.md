@@ -1166,12 +1166,26 @@ Tests: `neg_universal_missing_prop_names_the_component` and
 `neg_universal_unknown_component_names_the_symbol` in `lang/tests/negative/src/main.ch`
 (new `NEG_MOD_UNIVERSAL`).
 
-Still missing a diagnostic channel at **replacement** time: `put_by_node_js`'s
-unsupported-value fallback still writes a runtime string into the JS bundle
-(`html_cbi/.../js_embedded_value.ch`), because macro replacement functions only receive
-`ASTBuilder` and have no `ASTDiagnoser`. Diagnosing that class needs either a new
-diagnostic entry point on the builder (C++ + binding + ABI change) or a symres-time
-validation pass over the component's typed values.
+Replacement-time diagnostics no longer write error strings into the bundle. The macro
+replacement hooks now receive the live `ASTDiagnoser` (the codegen object) as a second
+argument, so the converter reports unsupported values through it instead of emitting a
+runtime string. Implementation:
+
+- `EmbeddedNodeReplacementFunc` / `EmbeddedValueReplacementFunc` gained an
+  `ASTDiagnoser*` parameter (`compiler/cbi/model/Model.h`); `LLVM.cpp` passes `&gen`
+  (Codegen is an ASTDiagnoser) and `2cASTVisitor.cpp` passes its visitor.
+- All 14 replacement hooks (`html`, `universal`, `css`, `styled`, `js`, `md`, `json`)
+  accept and forward the diagnoser. `ASTConverter` / `JsConverter` carry it (plus the
+  enclosing macro location as a fallback for values that carry no location).
+- `html_cbi` `put_by_node` (HTML) and `put_by_node_js` (JS) now call
+  `diagnoser.error(...)` when a struct/union/variant lacks `writeToPageHtml` /
+  `writeToPageJs`, with the macro location, instead of writing
+  `"Unsupported value cant be written ..."` into the page/bundle.
+
+Note: the 2c (C translation) phase prints diagnostics and resets them without failing
+the build (`ASTProcessor::translate_to_c`), so on the TCC backend the diagnostic is
+emitted but non-fatal; the negative test asserts the printed message
+(`expect_compile_output_contains`). The LLVM backend checks `gen.has_errors()` and fails.
 
 ### Still open
 

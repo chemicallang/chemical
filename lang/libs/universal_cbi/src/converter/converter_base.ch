@@ -38,6 +38,9 @@ struct JsContextVar {
 
 struct JsConverter {
     var builder : *mut ASTBuilder
+    // Live codegen diagnoser (Codegen is an ASTDiagnoser) for reporting
+    // constructs the converter cannot translate, instead of dropping them.
+    var diagnoser : *mut ASTDiagnoser = null
     var support : *mut SymResSupport
     var vec : *mut VecRef<ASTNode>
     var parent : *mut ASTNode

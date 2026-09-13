@@ -175,6 +175,9 @@ internal const NEG_MOD_CORE = "module neg_test\nsource \".\"\nimport core\n"
 // variant that imports page + universal_cbi so `#universal` components compile
 internal const NEG_MOD_UNIVERSAL = "module neg_test\nsource \".\"\nimport std\nimport page\nimport universal_cbi\n"
 
+// variant that imports page + html_cbi so `#html` macros compile
+internal const NEG_MOD_HTML = "module neg_test\nsource \".\"\nimport std\nimport page\nimport html_cbi\n"
+
 internal func expect_compile_error(env : &mut TestEnv, name : *char, ch_content : *char, expected_sub : *char) {
     expect_compile_error_with_mod(env, name, ch_content, expected_sub, NEG_MOD)
 }
@@ -201,6 +204,30 @@ internal func expect_compile_error_with_mod(env : &mut TestEnv, name : *char, ch
         neg_debug_print(name, unsafe(&raw output_buf[0]))
     } else if(!has_sub) {
         env.error("expected error substring not found in output")
+        neg_debug_print(name, unsafe(&raw output_buf[0]))
+    }
+
+    cleanup_test_dir(NEG_WORK_DIR, name)
+}
+
+// Like expect_compile_error_with_mod, but only asserts that the compiler
+// *printed* the expected diagnostic. Used for the 2c (C translation) phase,
+// whose diagnostics are printed and reset without failing the build.
+internal func expect_compile_output_contains(env : &mut TestEnv, name : *char, ch_content : *char, expected_sub : *char, mod_content : *char) {
+    setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
+
+    var mod_path : char[512]
+    sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name)
+    var out_path : char[512]
+    sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
+
+    var output_buf : char[16384]
+    run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 16384)
+
+    if(string_contains(unsafe(&raw output_buf[0]), expected_sub)) {
+        env.success("compiler emitted the expected diagnostic")
+    } else {
+        env.error("expected diagnostic substring not found in output")
         neg_debug_print(name, unsafe(&raw output_buf[0]))
     }
 
@@ -294,6 +321,15 @@ func neg_get_on_destructible_struct_nested_receiver_errors(env : &mut TestEnv) {
 public func neg_universal_missing_prop_names_the_component(env : &mut TestEnv) {
     var ch = "#universal Good(props : title) {\n    return <span>{props.title}</span>\n}\n#universal Host(props) {\n    return <Good />\n}\npublic func main() : int {\n    return 0\n}\n"
     expect_compile_error_with_mod(env, "universal_missing_prop", ch, "missing required prop 'title' on <Good>", NEG_MOD_UNIVERSAL)
+}
+
+@test
+public func neg_html_unsupported_value_type_is_diagnosed(env : &mut TestEnv) {
+    // A struct with no `writeToPageHtml` cannot be embedded in `#html`; it used
+    // to write an error string into the page silently. Replacement hooks now
+    // report it through the live ASTDiagnoser.
+    var ch = "struct Blob {\n    var x : int\n}\npublic func main() : int {\n    var page = HtmlPage()\n    var blob = Blob { x = 1 }\n    #html { <span>{blob}</span> }\n    return 0\n}\n"
+    expect_compile_output_contains(env, "html_unsupported_value", ch, "has no HTML serialization", NEG_MOD_HTML)
 }
 
 @test

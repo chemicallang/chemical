@@ -321,8 +321,12 @@ conditions). Supported at SSR time:
 
 - Never pass C++ structs with `vector<>` fields as props; pre-serialize to JSON and
   post-process with `js_string_escape` (see AGENTS.md) if the data may contain `'` or `\`.
-- Unsupported prop types (e.g. arbitrary pointers) fall through to `UInteger` — a silent
-  pointer-as-number. There is no diagnostic yet; avoid such props.
+- Passing a struct/union/variant with no `writeToPageHtml`/`writeToPageJs` is now a
+  **compile diagnostic** (replacement hooks receive the live `ASTDiagnoser` and report
+  it with the macro location) instead of silently writing an error string into the
+  page/bundle. On the TCC (2c) backend the diagnostic is printed but non-fatal; the
+  LLVM backend fails. Arbitrary pointers with no writer still fall through where no
+  writer check exists — avoid them.
 - All escaping goes through `appendHtmlEscaped` / `appendJsEscaped` / `escapeJs` / `escapeHtml`
   in the converter — extend those if a new context appears; don't hand-escape at call sites.
 
@@ -426,7 +430,9 @@ Fast triage questions:
   hydration still assumes SSR and client ordering match.
 - `$__universal_flush` logs and continues on a missing queued component function
   (it no longer throws and aborts the flush loop).
-- No compile-time diagnostic for unsupported prop types (silent `UInteger` fallback).
+- Unsupported-value serialization now reports through the live `ASTDiagnoser` at
+  replacement time (see "Prop serialization rules"); other silent converter fallbacks
+  (`convertJsNode` default, some `put_by_type` defaults) remain.
 - The professionalization plan's segmented-JS-buffer / two-phase emission (removing
   `move_js_range` surgery) is not implemented.
 - The runtime is intentionally kept **inline in `page.ch`** (offline builds); it

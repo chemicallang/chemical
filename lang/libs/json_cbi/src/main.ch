@@ -1051,13 +1051,13 @@ public func json_symResNode(visitor : *mut SymResLinkBody, node : *mut EmbeddedN
 // the declare pass writes prototypes/vtables, the body pass writes definitions.
 
 @no_mangle
-public func json_replacementNodeDeclare(builder : *mut ASTBuilder, node : *mut EmbeddedNode) : *ASTNode {
+public func json_replacementNodeDeclare(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, node : *mut EmbeddedNode) : *ASTNode {
     const info = node.getDataPtr() as *mut SerializableInfo
     return info.replacement_scope as *ASTNode
 }
 
 @no_mangle
-public func json_replacementNode(builder : *mut ASTBuilder, node : *mut EmbeddedNode) : *mut ASTNode {
+public func json_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, node : *mut EmbeddedNode) : *mut ASTNode {
     const info = node.getDataPtr() as *mut SerializableInfo
     return info.replacement_scope
 }

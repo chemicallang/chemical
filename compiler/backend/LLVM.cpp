@@ -1416,7 +1416,7 @@ ASTNode* get_repl(EmbeddedNode* node, Codegen& gen, CBIFunctionType type) {
         gen.error(node) << "couldn't find replacement function for embedded node with name '" << node->name << "'";
         return nullptr;
     }
-    const auto repl = ((EmbeddedNodeReplacementFunc) replacement_fn)(&builder, node);
+    const auto repl = ((EmbeddedNodeReplacementFunc) replacement_fn)(&builder, &gen, node);
     if(repl) {
         return repl;
     } else {
@@ -1485,7 +1485,7 @@ Value* replacement_value(EmbeddedValue* value, Codegen& gen) {
         gen.error(value) << "couldn't find replacement function for embedded value with name '" << value->name << "'";
         return nullptr;
     }
-    const auto repl = ((EmbeddedValueReplacementFunc) replacement_fn)(&builder, value);
+    const auto repl = ((EmbeddedValueReplacementFunc) replacement_fn)(&builder, &gen, value);
     if(!repl) {
         gen.error(value) << "couldn't replace embedded value with name '" << value->name << "'";
     }

@@ -313,7 +313,7 @@ public func styled_symResNode(visitor : *mut SymResLinkBody, node : *mut Embedde
 }
 
 @no_mangle
-public func styled_replacementNodeDeclare(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
+public func styled_replacementNodeDeclare(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
     const root = value.getDataPtr() as *mut StyledComponent;
     return root.signature.functionNode;
 }
@@ -357,7 +357,7 @@ func styled_make_children_call(builder : *mut ASTBuilder, pageParam : *mut ASTNo
 }
 
 @no_mangle
-public func styled_replacementNode(builder : *mut ASTBuilder, value : *mut EmbeddedNode) : *ASTNode {
+public func styled_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDiagnoser, value : *mut EmbeddedNode) : *ASTNode {
     const root = value.getDataPtr() as *mut StyledComponent;
     const funcNode = root.signature.functionNode;
     const location = intrinsics::get_raw_location();

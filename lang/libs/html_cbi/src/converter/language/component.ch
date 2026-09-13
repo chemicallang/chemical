@@ -157,10 +157,16 @@ func (converter : &mut ASTConverter) build_ssr_children(element : *mut HtmlEleme
     var startIdxVar = builder.make_varinit_stmt(false, false, &startIdxName, builder.get_u64_type(), getSizeCall, AccessSpecifier.Internal, converter.parent, location);
     converter.vec.push(startIdxVar as *mut ASTNode);
 
-    // 2. Render children
+    // 2. Render children. When the parent will emit these children as client
+    // vnodes (see emit_universal_queue), suppress the children's own hydration
+    // dispatches so they are not mounted twice.
+    const childrenAreVnodes = children_are_static(&element.children);
+    const prevSuppress = converter.suppress_child_dispatch;
+    if(childrenAreVnodes) converter.suppress_child_dispatch = true;
     for(var i : uint = 0; i < element.children.size(); i++) {
          converter.convertHtmlChild(element.children.get(i));
     }
+    converter.suppress_child_dispatch = prevSuppress;
 
     converter.put_chain_in()
 
@@ -300,7 +306,11 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         // 6. Hydration trigger: window.$_uq.push(['u{uId}', 'Name', {props}])
         var hostId = std::string("u");
         hostId.append_uinteger(idLoc);
-        converter.emit_universal_queue(element, signature, &hostId);
+        // A parent that emits us as a client vnode owns our mount; emitting a
+        // dispatch here too would mount the component twice.
+        if(!converter.suppress_child_dispatch) {
+            converter.emit_universal_queue(element, signature, &hostId);
+        }
 
         return;
     }

@@ -14,6 +14,10 @@ public struct SymResSupport {
     var renderHtmlChildValueFn : *mut ASTNode = null
     var renderJsAttrValueFn : *mut ASTNode = null
     var getSsrAttributeValueFn : *mut ASTNode = null
+    var ssrAttrValuePropFn : *mut ASTNode = null
+    var ssrTextIncludesFn : *mut ASTNode = null
+    var ssrTextStartsWithFn : *mut ASTNode = null
+    var ssrTextEndsWithFn : *mut ASTNode = null
     var isSsrAttributeValueTruthyFn : *mut ASTNode = null
     var getMultipleAttributeValuesFn : *mut ASTNode = null
     var ssrMultipleGetFn : *mut ASTNode = null

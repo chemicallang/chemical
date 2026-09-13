@@ -1066,7 +1066,43 @@ children stay on the `$__uni_html` path). The scaffolding (`count_child_nodes`,
 the component branch in `append_static_child_vnodes`, `suppress_child_dispatch`)
 is left in place, dormant, for the next attempt.
 
-### Known remaining SSR parity gap
+### Known remaining SSR parity gap — runtime-prop `.filter()` now closed
+
+A computed local whose source is a **`.filter()` over runtime props**
+(`var visible = props.items.filter(it => it.text.includes(props.query))`) was
+reactive on the client but rendered **empty at SSR**. This is now handled:
+
+- **State arrays passed as props serialize.** A reactive state array in an
+  attribute position (`items={items}`) is converted to a `Multiple`
+  (`build_ssr_attributes`), with object elements serialized as `Spread` attribute
+  lists (`build_ssr_element_value_from_text`). Previously the whole prop was
+  dropped, so the child's `props.items` was empty.
+- **Runtime object property reads.** `item.text` over a runtime array element
+  resolves through the new `ssrAttrValueProp` runtime helper
+  (`lang/libs/page/src/ssr.ch`), used by both child rendering and attribute
+  expressions.
+- **Runtime predicate codegen.** `convert_ssr_predicate_expr` converts a
+  `.filter()` predicate to an SSR bool expression supporting property reads,
+  props reads, `includes`/`startsWith`/`endsWith` (new `ssrTextIncludes` /
+  `ssrTextStartsWith` / `ssrTextEndsWith` runtime helpers), `==`/`!=`, `!`,
+  `&&`/`||`, and delegation to the shared bool evaluator. Both the derived-local
+  form (`var visible = ...filter(...)` then `{visible.map(...)}`) and the inline
+  chained form (`props.items.filter(pred).map(cb)`) emit a filter+map loop
+  (`emit_ssr_filter_map_loop`). Derived filtered locals are registered in
+  `JsFilteredLocal` by `emit_ssr_local_decl`.
+
+Tests: `ssr_expr_eval.ch` — `universal_ssr_prop_scalar_array_renders`,
+`universal_ssr_prop_object_array_renders`,
+`universal_ssr_props_filter_runtime_predicate`,
+`universal_ssr_props_filter_inline_chain`. E2E `ssr.spec.ts` —
+`SSR: props-derived .filter() list renders before JS`. Plugin 1096/1098,
+E2E 369/369.
+
+Still open: `.length` over a runtime-filtered local (needs a counter loop),
+`toLowerCase` predicates (needs runtime case folding), and object/array reads
+outside filter/map contexts.
+
+### Original static-only note (for traceability)
 A computed local whose source is a **`.filter()` over runtime props**
 (e.g. `var visible = props.items.filter(it => ...)`) is reactive on the client
 but renders **empty at SSR**, because the generated server function cannot
@@ -1279,13 +1315,14 @@ Tracking the five architectural gaps called out by the production audit.
   interface is a contained runtime-only change, but the full recommendation
   (thread instance explicitly into `$_us`/hooks) requires converter changes.
   Practical impact is low until concurrent rendering exists.
-- **Item 2 (SSR/client shared model) — in progress.** First slice landed: the
-  duplicate boolean evaluator was removed and both attribute evaluators now route
-  through the canonical `eval_ssr_js_expr` (see "Phase 3 (first slice) — one SSR
-  evaluator"), so attribute booleans, attribute values, children, and conditions
-  share one coverage. Remainder: a server-side predicate evaluator for the
-  runtime-prop `.filter()` case, and collapsing the SSR/client conversion onto one
-  component IR (Phase 3/4).
+- **Item 2 (SSR/client shared model) — in progress.** Slices landed: (1) the
+  duplicate boolean evaluator was removed and both attribute evaluators route
+  through the canonical `eval_ssr_js_expr`; (2) the runtime-prop `.filter()`
+  parity gap is closed (state-array props serialize, `ssrAttrValueProp` resolves
+  runtime object property reads, and `convert_ssr_predicate_expr` +
+  `emit_ssr_filter_map_loop` evaluate predicates at SSR). Remainder: `.length`
+  over runtime-filtered locals, `toLowerCase` predicates, and collapsing the
+  SSR/client conversion onto one component IR (Phase 3/4).
 - **Item 4 (async/data) — largest.** No Suspense, async boundaries, or streaming;
   requires the IR work in item 2 as a base.
 

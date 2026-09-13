@@ -1098,9 +1098,24 @@ Tests: `ssr_expr_eval.ch` — `universal_ssr_prop_scalar_array_renders`,
 `SSR: props-derived .filter() list renders before JS`. Plugin 1096/1098,
 E2E 369/369.
 
-Still open: `.length` over a runtime-filtered local (needs a counter loop),
-`toLowerCase` predicates (needs runtime case folding), and object/array reads
-outside filter/map contexts.
+Also completed in this slice:
+
+- **`.length` over a runtime-filtered local** (`{visible.length}`) — a runtime
+  counter loop (`emit_ssr_filter_count`).
+- **`toLowerCase()` predicates** — case-insensitive runtime predicates
+  (`ssrTextIncludesFold` / `ssrTextStartsWithFold` / `ssrTextEndsWithFold`);
+  `.toLowerCase()` on either side of `includes`/`startsWith`/`endsWith` selects
+  the fold variant.
+- **Inline object-array prop literals inside a `#universal` body**
+  (`<Child items={[{id, text}, ...]} />`) — `build_ssr_multiple_from_array_node`
+  serializes object elements as `Spread` lists.
+
+Tests: `universal_ssr_props_filter_length`,
+`universal_ssr_props_filter_tolowercase`,
+`universal_ssr_inline_object_array_prop`. Plugin 1100/1102, E2E 372/372.
+
+Still open: object/array reads outside filter/map contexts, and the larger
+single component IR / parser consolidation (Phase 3/4).
 
 ### Original static-only note (for traceability)
 A computed local whose source is a **`.filter()` over runtime props**

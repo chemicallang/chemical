@@ -131,6 +131,49 @@ public func ssrTextEndsWith(hay : &SsrAttributeValue, needle : &SsrAttributeValu
     return strncmp(h.data + (h.size - n.size), n.data, n.size) == 0
 }
 
+// ASCII case folding for `.toLowerCase()` predicates evaluated at SSR. Only
+// ASCII A-Z is folded (matching the compile-time static predicate evaluator).
+func ssr_ascii_lower(c : char) : char {
+    if(c >= 'A' && c <= 'Z') return (c + 32) as char
+    return c
+}
+
+func ssr_text_region_fold_equals(a : *char, b : *char, len : u64) : bool {
+    var i : u64 = 0
+    while(i < len) {
+        if(ssr_ascii_lower(a[i]) != ssr_ascii_lower(b[i])) return false
+        i = i + 1
+    }
+    return true
+}
+
+public func ssrTextIncludesFold(hay : &SsrAttributeValue, needle : &SsrAttributeValue) : bool {
+    const h = ssrTextOf(hay)
+    const n = ssrTextOf(needle)
+    if(n.size == 0) return true
+    if(h.size < n.size) return false
+    var i : u64 = 0
+    while(i + n.size <= h.size) {
+        if(ssr_text_region_fold_equals(h.data + i, n.data, n.size)) return true
+        i = i + 1
+    }
+    return false
+}
+
+public func ssrTextStartsWithFold(hay : &SsrAttributeValue, needle : &SsrAttributeValue) : bool {
+    const h = ssrTextOf(hay)
+    const n = ssrTextOf(needle)
+    if(n.size > h.size) return false
+    return ssr_text_region_fold_equals(h.data, n.data, n.size)
+}
+
+public func ssrTextEndsWithFold(hay : &SsrAttributeValue, needle : &SsrAttributeValue) : bool {
+    const h = ssrTextOf(hay)
+    const n = ssrTextOf(needle)
+    if(n.size > h.size) return false
+    return ssr_text_region_fold_equals(h.data + (h.size - n.size), n.data, n.size)
+}
+
 public func isSsrAttributeValueTruthy(val : &SsrAttributeValue) : bool {
     switch(val) {
         None() => return false

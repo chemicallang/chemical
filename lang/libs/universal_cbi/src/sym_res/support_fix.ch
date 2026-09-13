@@ -255,6 +255,24 @@ func sym_res_support(resolver : *mut SymbolResolver, support : &mut SymResSuppor
         return false;
     }
 
+    const ssrTextIncludesFoldFn = resolver.resolve("ssrTextIncludesFold")
+    if(ssrTextIncludesFoldFn == null) {
+        diagnoser.error("couldn't find 'ssrTextIncludesFold' node", loc);
+        return false;
+    }
+
+    const ssrTextStartsWithFoldFn = resolver.resolve("ssrTextStartsWithFold")
+    if(ssrTextStartsWithFoldFn == null) {
+        diagnoser.error("couldn't find 'ssrTextStartsWithFold' node", loc);
+        return false;
+    }
+
+    const ssrTextEndsWithFoldFn = resolver.resolve("ssrTextEndsWithFold")
+    if(ssrTextEndsWithFoldFn == null) {
+        diagnoser.error("couldn't find 'ssrTextEndsWithFold' node", loc);
+        return false;
+    }
+
     const renderHtmlAttrValueFn = resolver.resolve("renderHtmlAttrValue")
     if(renderHtmlAttrValueFn == null) {
         diagnoser.error("couldn't find 'renderHtmlAttrValue' node", loc);
@@ -360,6 +378,9 @@ func sym_res_support(resolver : *mut SymbolResolver, support : &mut SymResSuppor
     support.ssrTextIncludesFn = ssrTextIncludesFn
     support.ssrTextStartsWithFn = ssrTextStartsWithFn
     support.ssrTextEndsWithFn = ssrTextEndsWithFn
+    support.ssrTextIncludesFoldFn = ssrTextIncludesFoldFn
+    support.ssrTextStartsWithFoldFn = ssrTextStartsWithFoldFn
+    support.ssrTextEndsWithFoldFn = ssrTextEndsWithFoldFn
     support.isSsrAttributeValueTruthyFn = isSsrAttributeValueTruthyFn
     support.getMultipleAttributeValuesFn = getMultipleAttributeValuesFn
     support.ssrMultipleGetFn = ssrMultipleGetFn

@@ -287,6 +287,16 @@ condition). Supported at SSR time:
   unrolled at compile time with `item`/`index` params bound; runtime sources (props arrays,
   locals) emit a Chemical for-loop over `MultipleAttributeValues` (`ssrMultipleGet`).
   Unresolvable elements render nothing (never empty wrappers).
+- **State arrays passed as props serialize**: `items={items}` (reactive array) becomes a
+  `Multiple`; object elements become `Spread` attribute lists. Runtime reads `item.text` are
+  resolved by `ssrAttrValueProp` (page/ssr.ch), so `props.items.map(it => <li>{it.text}</li>)`
+  renders before JS. (Inline object-array literals as props are still unsupported.)
+- **`.filter(pred).map(cb)` over runtime props/arrays** is evaluated at SSR:
+  `convert_ssr_predicate_expr` converts the predicate (property reads, props reads,
+  `includes`/`startsWith`/`endsWith` via `ssrTextIncludes`/`ssrTextStartsWith`/`ssrTextEndsWith`,
+  `==`/`!=`, `!`, `&&`/`||`), and `emit_ssr_filter_map_loop` emits the loop. Derived locals
+  (`var visible = props.items.filter(pred)`) are registered in `JsFilteredLocal`. Not yet
+  supported: `.length` over a runtime-filtered local, `toLowerCase` predicates.
 - `.length` / `.size` on arrays render the count as text.
 - Component-body statements are emitted into the server function: `var`/`let`/`const`/`state`
   decls become SSR locals (`SsrAttributeValue` vars), `x = expr` assignments, `if/else` chains,

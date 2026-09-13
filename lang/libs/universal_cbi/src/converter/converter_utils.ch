@@ -1593,6 +1593,29 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
                     return;
                 }
             }
+            // `item.prop` where `item` is an SSR local holding an object value
+            // (a runtime array element): render the property at SSR runtime,
+            // matching the client's property read.
+            if(mem.object != null && mem.object.kind == JsNodeKind.Identifier) {
+                const localObj = converter.find_ssr_local((mem.object as *mut JsIdentifier).value);
+                if(localObj != null) {
+                    const loc = intrinsics::get_raw_location();
+                    const localRef = converter.builder.make_identifier(&localObj.name, localObj.varInit, false, loc);
+                    const propCall = converter.builder.make_function_call_value(converter.builder.make_identifier("ssrAttrValueProp", converter.support.ssrAttrValuePropFn, false, loc), loc);
+                    propCall.get_args().push(localRef);
+                    propCall.get_args().push(converter.make_ssr_text(&mem.property, loc));
+                    var pageIdLocal = converter.builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, loc);
+                    var callLocal = converter.builder.make_function_call_node(
+                        converter.builder.make_identifier("renderHtmlChildValue", converter.support.renderHtmlChildValueFn, false, loc),
+                        converter.parent,
+                        loc
+                    );
+                    callLocal.get_args().push(pageIdLocal);
+                    callLocal.get_args().push(propCall as *mut Value);
+                    converter.vec.push(callLocal as *mut ASTNode);
+                    return;
+                }
+            }
             if(converter.is_component_props_read(node)) {
                 if(converter.is_props_children(node)) {
                     // children handled specially in JSXExpressionContainer or here?
@@ -1898,6 +1921,30 @@ func (converter : &mut JsConverter) build_ssr_element_value_from_text(text : std
     if(stripped.size() < t.size()) {
         return converter.make_ssr_make_call(support.ssrMakeTextValueFn, "ssrMakeTextValue", make_ssr_text_val(builder, &stripped, support.ssrTextLinkedNode, location))
     }
+    // Object literal element (`{id: "a", text: "Apple"}`): serialize as a Spread
+    // of attributes so runtime `item.<prop>` reads resolve via ssrAttrValueProp.
+    if(t.get(0) == '{') {
+        var objKeys = std::vector<std::string_view>()
+        var objValues = std::vector<std::string_view>()
+        if(parse_js_object_properties(t, &mut objKeys, &mut objValues) && !objKeys.empty()) {
+            var attrValConv = converter.make_attr_value_converter()
+            var attrType = builder.make_linked_type("SsrAttribute", support.ssrAttrLinkedNode, location)
+            var attrArr = builder.make_array_value(attrType, location)
+            var attrElems = attrArr.get_values()
+            for(var ki : uint = 0; ki < objKeys.size(); ki++) {
+                const memberVal = converter.build_ssr_element_value_from_text(objValues.get(ki))
+                if(memberVal == null) continue
+                var attrStruct = builder.make_struct_value(support.ssrAttrLinkedNode, location)
+                attrStruct.add_value(std::string_view("name"), converter.make_ssr_text(objKeys.get(ki), location))
+                attrStruct.add_value(std::string_view("value"), memberVal)
+                attrElems.push(attrStruct)
+            }
+            var listStruct = builder.make_struct_value(support.ssrAttributeListNode, location)
+            listStruct.add_value(std::string_view("data"), attrArr)
+            listStruct.add_value(std::string_view("size"), builder.make_ubigint_value(attrElems.size(), location))
+            return attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Spread"), listStruct)
+        }
+    }
     var num : bigint = 0
     if(parse_ssr_bigint(t, &mut num)) {
         if(num >= 0) return converter.make_ssr_make_call(support.ssrMakeUIntegerValueFn, "ssrMakeUIntegerValue", builder.make_ubigint_value(num as ubigint, location))
@@ -1951,6 +1998,191 @@ func (converter : &mut JsConverter) build_ssr_multiple_from_array_node(node : *m
     multiAttrStructVal.add_value("data", ssrAttrValArr)
     multiAttrStructVal.add_value("size", builder.make_ubigint_value(arrValues.size(), location))
     return converter.make_ssr_make_call(support.ssrMakeMultipleValueFn, "ssrMakeMultipleValue", multiAttrStructVal)
+}
+
+// Looks up a body local created from a runtime `.filter()` call.
+func (converter : &mut JsConverter) find_filtered_local(name : std::string_view) : *JsFilteredLocal {
+    for(var i : uint = 0; i < converter.filtered_locals.size(); i++) {
+        if(converter.filtered_locals.get_ptr(i).name.equals(&name)) {
+            return converter.filtered_locals.get_ptr(i)
+        }
+    }
+    return null
+}
+
+// Converts a `.filter()` / array-method predicate body to an SSR bool expression
+// evaluated at runtime. Supports property reads (`item.text`), props reads,
+// `includes`/`startsWith`/`endsWith`, `==`/`!=`, `!`, `&&`/`||`, and falls back
+// to the shared bool evaluator for anything else it can fold. Returns null when
+// the predicate cannot be represented (the list then renders nothing, as before).
+func (converter : &mut JsConverter) convert_ssr_predicate_expr(node : *mut JsNode, attrValConv : &mut AttrValueConverter) : *mut Value {
+    if(node == null) return null
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location()
+    const support = converter.support
+
+    if(node.kind == JsNodeKind.Paren) {
+        return converter.convert_ssr_predicate_expr((node as *mut JsParen).expression, attrValConv)
+    }
+    if(node.kind == JsNodeKind.UnaryOp) {
+        const un = node as *mut JsUnaryOp
+        if(un.operator.equals(view("!"))) {
+            const inner = converter.convert_ssr_predicate_expr(un.operand, attrValConv)
+            if(inner == null) return null
+            return builder.make_not_value(inner, location) as *mut Value
+        }
+        return null
+    }
+    if(node.kind == JsNodeKind.BinaryOp) {
+        const bin = node as *mut JsBinaryOp
+        if(bin.op.equals(view("&&")) || bin.op.equals(view("||"))) {
+            const left = converter.convert_ssr_predicate_expr(bin.left, attrValConv)
+            if(left == null) return null
+            const right = converter.convert_ssr_predicate_expr(bin.right, attrValConv)
+            if(right == null) return null
+            const op = if(bin.op.equals(view("&&"))) Operation.LogicalAND else Operation.LogicalOR
+            return builder.make_expression_value(left, right, op, builder.make_bool_type(), location) as *mut Value
+        }
+        const isEq = bin.op.equals(view("==")) || bin.op.equals(view("==="))
+        const isNe = bin.op.equals(view("!=")) || bin.op.equals(view("!=="))
+        if(isEq || isNe) {
+            const left = converter.convert_ssr_attr_value_expr(bin.left, attrValConv)
+            if(left == null) return null
+            const right = converter.convert_ssr_attr_value_expr(bin.right, attrValConv)
+            if(right == null) return null
+            const eqCall = builder.make_function_call_value(builder.make_identifier("ssrValuesEqual", support.ssrValuesEqualFn, false, location), location)
+            eqCall.get_args().push(left)
+            eqCall.get_args().push(right)
+            if(isNe) return builder.make_not_value(eqCall as *mut Value, location) as *mut Value
+            return eqCall as *mut Value
+        }
+        return null
+    }
+    if(node.kind == JsNodeKind.FunctionCall) {
+        const fc = node as *mut JsFunctionCall
+        if(fc.callee != null && fc.callee.kind == JsNodeKind.MemberAccess && fc.args.size() >= 1) {
+            const mem = fc.callee as *mut JsMemberAccess
+            var fnNode : *mut ASTNode = null
+            var fnName = std::string_view("")
+            if(mem.property.equals(view("includes"))) { fnNode = support.ssrTextIncludesFn; fnName = view("ssrTextIncludes") }
+            else if(mem.property.equals(view("startsWith"))) { fnNode = support.ssrTextStartsWithFn; fnName = view("ssrTextStartsWith") }
+            else if(mem.property.equals(view("endsWith"))) { fnNode = support.ssrTextEndsWithFn; fnName = view("ssrTextEndsWith") }
+            if(fnNode != null) {
+                const recv = converter.convert_ssr_attr_value_expr(mem.object, attrValConv)
+                if(recv == null) return null
+                const arg = converter.convert_ssr_attr_value_expr(fc.args.get(0), attrValConv)
+                if(arg == null) return null
+                const call = builder.make_function_call_value(builder.make_identifier(&fnName, fnNode, false, location), location)
+                call.get_args().push(recv)
+                call.get_args().push(arg)
+                return call as *mut Value
+            }
+        }
+        return null
+    }
+    return converter.convert_ssr_attr_bool_expr(node, attrValConv)
+}
+
+// Emits a runtime `source.filter(pred).map(cb)` loop: iterate the source array,
+// bind the element, evaluate the predicate, and render the map body only for
+// elements that pass. Mirrors emit_ssr_map_children's runtime branch.
+func (converter : &mut JsConverter) emit_ssr_filter_map_loop(sourceVal : *mut Value, filterCall : *mut JsFunctionCall, mapArrow : *mut JsArrowFunction, indexParam : std::string_view) {
+    if(filterCall == null || filterCall.args.empty()) return
+    const predArg = filterCall.args.get(0)
+    if(predArg == null || predArg.kind != JsNodeKind.ArrowFunction) return
+    const predArrow = predArg as *mut JsArrowFunction
+    if(predArrow.params.empty() || predArrow.body == null) return
+    const predParam = predArrow.params.get(0).name
+    if(predParam.empty()) return
+    if(mapArrow == null || mapArrow.params.empty()) return
+    const mapParam = mapArrow.params.get(0).name
+    if(mapParam.empty()) return
+
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location()
+    const support = converter.support
+
+    var srcNameS = std::string("__ssr_fs_")
+    srcNameS.append_uinteger(converter.id_counter as ubigint)
+    converter.id_counter++
+    const srcName = builder.allocate_view(srcNameS.to_view())
+    var idxNameS = std::string("__ssr_fi_")
+    idxNameS.append_uinteger(converter.id_counter as ubigint)
+    converter.id_counter++
+    const idxName = builder.allocate_view(idxNameS.to_view())
+
+    const getMultiCall = builder.make_function_call_value(builder.make_identifier("getMultipleAttributeValues", support.getMultipleAttributeValuesFn, false, location), location)
+    getMultiCall.get_args().push(sourceVal)
+    const srcType = builder.make_linked_type("MultipleAttributeValues", support.multipleAttributeValueNode, location)
+    const srcVar = builder.make_varinit_stmt(false, false, &srcName, srcType, getMultiCall, AccessSpecifier.Internal, converter.parent, location)
+    converter.vec.push(srcVar)
+
+    const iType = builder.get_u64_type()
+    const iVar = builder.make_varinit_stmt(false, false, &idxName, iType, builder.make_ubigint_value(0, location), AccessSpecifier.Internal, converter.parent, location)
+    const srcId = builder.make_identifier(&srcName, srcVar, false, location)
+    const sizeNode = support.multipleAttributeValueNode.child("size")
+    const sizeId = builder.make_identifier("size", sizeNode, false, location)
+    const sizeAccess = builder.make_access_chain(&std::span<*mut Value>([ srcId, sizeId ]), location)
+    const iId = builder.make_identifier(&idxName, iVar, false, location)
+    const cond = builder.make_expression_value(iId, sizeAccess, Operation.LessThan, builder.make_bool_type(), location)
+    const oneVal = builder.make_ubigint_value(1, location)
+    const addExpr = builder.make_expression_value(iId, oneVal, Operation.Addition, iType, location)
+    const incr = builder.make_assignment_stmt(iId, addExpr, Operation.Assignment, converter.parent, location)
+    const forLoop = builder.make_for_loop(iVar, cond, incr, converter.parent, location)
+    const oldVec = converter.vec
+    converter.vec = forLoop.get_body()
+
+    const getCall = builder.make_function_call_value(builder.make_identifier("ssrMultipleGet", support.ssrMultipleGetFn, false, location), location)
+    getCall.get_args().push(srcId)
+    getCall.get_args().push(iId)
+    const elemType = builder.make_linked_type("SsrAttributeValue", support.ssrAttributeValueNode, location)
+    const elemVar = builder.make_varinit_stmt(false, false, &predParam, elemType, getCall, AccessSpecifier.Internal, converter.parent, location)
+    converter.vec.push(elemVar)
+
+    // Convert the predicate with the callback param bound to the element.
+    converter.ssr_locals.push(JsSsrLocal { name : predParam, varInit : elemVar })
+    var attrValConv = converter.make_attr_value_converter()
+    const predExpr = converter.convert_ssr_predicate_expr(predArrow.body, &mut attrValConv)
+    converter.ssr_locals.pop_back()
+    if(predExpr == null) {
+        converter.vec = oldVec
+        return
+    }
+
+    const ifStmt = builder.make_if_stmt(predExpr, converter.parent, location)
+    const preBodyVec = converter.vec
+    converter.vec = ifStmt.get_body()
+
+    // Bind the map callback param (may differ from the predicate param) to the
+    // same element while converting the map body.
+    converter.ssr_locals.push(JsSsrLocal { name : mapParam, varInit : elemVar })
+    var indexVarPushed = false
+    if(!indexParam.empty()) {
+        const idxType = builder.make_linked_type("SsrAttributeValue", support.ssrAttributeValueNode, location)
+        const idxMake = converter.make_ssr_make_call(support.ssrMakeUIntegerValueFn, "ssrMakeUIntegerValue", iId)
+        const idxVar = builder.make_varinit_stmt(false, false, &indexParam, idxType, idxMake, AccessSpecifier.Internal, converter.parent, location)
+        converter.vec.push(idxVar)
+        converter.ssr_locals.push(JsSsrLocal { name : indexParam, varInit : idxVar })
+        indexVarPushed = true
+    }
+
+    if(mapArrow.body != null) {
+        if(mapArrow.body.kind == JsNodeKind.Block) {
+            const block = mapArrow.body as *mut JsBlock
+            for(var bi : uint = 0; bi < block.statements.size(); bi++) {
+                converter.emit_ssr_single_stmt(block.statements.get(bi), null)
+            }
+        } else {
+            converter.convert_jsx_ssr_expression(mapArrow.body)
+        }
+    }
+
+    if(indexVarPushed) converter.ssr_locals.pop_back()
+    converter.ssr_locals.pop_back()
+    converter.vec = preBodyVec
+    converter.vec.push(ifStmt as *mut ASTNode)
+    converter.vec = oldVec
+    converter.vec.push(forLoop as *mut ASTNode)
 }
 
 // Renders the element count of an array expression (`props.items.length`,
@@ -2035,6 +2267,36 @@ func (converter : &mut JsConverter) emit_ssr_map_children(call : *mut JsFunction
     const builder = converter.builder
     const location = intrinsics::get_raw_location()
     const support = converter.support
+
+    // `.filter(pred).map(cb)` over a runtime source (inline, or via a derived
+    // local `var visible = props.items.filter(pred)`). Emit a filter+map loop so
+    // props-derived filtered lists render before JS.
+    var filterCall : *mut JsFunctionCall = null
+    if(mem.object != null && mem.object.kind == JsNodeKind.FunctionCall) {
+        const fc = mem.object as *mut JsFunctionCall
+        if(fc.callee != null && fc.callee.kind == JsNodeKind.MemberAccess && (fc.callee as *mut JsMemberAccess).property.equals(view("filter"))) {
+            filterCall = fc
+        }
+    } else if(mem.object != null && mem.object.kind == JsNodeKind.Identifier) {
+        const fLocal = converter.find_filtered_local((mem.object as *mut JsIdentifier).value)
+        if(fLocal != null) filterCall = fLocal.filterCall as *mut JsFunctionCall
+    }
+    if(filterCall != null) {
+        const fsrc = (filterCall.callee as *mut JsMemberAccess).object
+        var fsourceVal : *mut Value = null
+        if(fsrc != null) {
+            if(fsrc.kind == JsNodeKind.MemberAccess && converter.is_component_props_read(fsrc)) {
+                fsourceVal = converter.make_ssr_prop_v_call((fsrc as *mut JsMemberAccess).property)
+            } else if(fsrc.kind == JsNodeKind.Identifier) {
+                const fl = converter.find_ssr_local((fsrc as *mut JsIdentifier).value)
+                if(fl != null) fsourceVal = builder.make_identifier(&fl.name, fl.varInit, false, location)
+            }
+        }
+        if(fsourceVal != null) {
+            converter.emit_ssr_filter_map_loop(fsourceVal, filterCall, arrow, indexParam)
+            return
+        }
+    }
 
     // Static element texts (state array literal / inline array literal). When
     // non-empty, the map is unrolled at compile time.
@@ -2589,6 +2851,19 @@ func (converter : &mut JsConverter) emit_ssr_local_decl(decl : *mut JsVarDecl) :
     if(decl == null || decl.name.empty()) return false;
     if(converter.find_ssr_local(decl.name) != null) return false;
 
+    // A local derived from a runtime `.filter()` (`var visible = props.items.filter(pred)`)
+    // is not a materialized value; remember the call so `.map()`/`.length` over
+    // it can emit a runtime filter loop.
+    if(decl.value != null && decl.value.kind == JsNodeKind.FunctionCall) {
+        const fc = decl.value as *mut JsFunctionCall
+        if(fc.callee != null && fc.callee.kind == JsNodeKind.MemberAccess && (fc.callee as *mut JsMemberAccess).property.equals(view("filter"))) {
+            if(converter.find_filtered_local(decl.name) == null) {
+                converter.filtered_locals.push(JsFilteredLocal { name : decl.name, filterCall : decl.value })
+            }
+            return true
+        }
+    }
+
     const builder = converter.builder;
     const location = intrinsics::get_raw_location();
     const support = converter.support;
@@ -2976,6 +3251,19 @@ func (converter : &mut JsConverter) convert_ssr_attr_value_expr(node : *mut JsNo
             if(cvMem.object != null && cvMem.object.kind == JsNodeKind.Identifier && converter.is_context_var((cvMem.object as *mut JsIdentifier).value)) {
                 return converter.convert_ssr_context_member_read(cvMem, attrValConv);
             }
+            // `item.prop` where `item` is an SSR local holding an object value
+            // (an element from a runtime array). Resolve the property at SSR
+            // runtime through ssrAttrValueProp, mirroring the client's read.
+            if(cvMem.object != null && cvMem.object.kind == JsNodeKind.Identifier) {
+                const local = converter.find_ssr_local((cvMem.object as *mut JsIdentifier).value);
+                if(local != null) {
+                    const localRef = builder.make_identifier(&local.name, local.varInit, false, location);
+                    const propCall = builder.make_function_call_value(builder.make_identifier("ssrAttrValueProp", support.ssrAttrValuePropFn, false, location), location);
+                    propCall.get_args().push(localRef);
+                    propCall.get_args().push(converter.make_ssr_text(&cvMem.property, location));
+                    return propCall as *mut Value;
+                }
+            }
             return null;
         }
         JsNodeKind.ChemicalValue => {
@@ -3227,6 +3515,23 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                                 }
                             }
                         } else {
+                            // A reactive state array passed as a prop (`items={items}`)
+                            // must be serialized into the attrs, otherwise the child's
+                            // `props.items` is dropped and its map/filter renders empty.
+                            if(container.expression.kind == JsNodeKind.Identifier) {
+                                const idExpr = container.expression as *mut JsIdentifier
+                                if(converter.is_reactive_var(idExpr.value)) {
+                                    const arrInitText = converter.find_state_init_text(idExpr.value)
+                                    if(!arrInitText.empty()) {
+                                        const arrVal = converter.build_ssr_multiple_from_array_text(arrInitText)
+                                        if(arrVal != null) {
+                                            attrStructVal.add_value(std::string_view("value"), arrVal);
+                                            handled = true;
+                                        }
+                                    }
+                                }
+                            }
+                            if(!handled) {
                             const evaluated = converter.eval_ssr_js_expr(container.expression);
                             if(evaluated.valid) {
                                 if(evaluated.kind == 1) {
@@ -3250,6 +3555,7 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                                         handled = true;
                                     }
                                 }
+                            }
                             }
                         }
                     } else {

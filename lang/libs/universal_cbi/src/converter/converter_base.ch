@@ -36,6 +36,15 @@ struct JsContextVar {
     var defaultExpr : *mut JsNode
 }
 
+// A component-body variable declared from a `.filter()` call that cannot be
+// resolved statically (`var visible = props.items.filter(pred)`). The call node
+// is kept so `.map()`/`.length` over `visible` can emit a runtime filter loop
+// instead of rendering nothing.
+struct JsFilteredLocal {
+    var name : std::string_view
+    var filterCall : *mut JsNode
+}
+
 struct JsConverter {
     var builder : *mut ASTBuilder
     // Live codegen diagnoser (Codegen is an ASTDiagnoser) for reporting
@@ -95,4 +104,8 @@ struct JsConverter {
     // Initializer source texts of component-body variables, for SSR resolution
     // of derived expressions.
     var var_init_texts : std::vector<JsVarInitText>
+
+    // Derived locals originating from a runtime `.filter()` call (see
+    // JsFilteredLocal). Resolved by emit_ssr_map_children / emit_ssr_array_count.
+    var filtered_locals : std::vector<JsFilteredLocal>
 }

@@ -237,3 +237,96 @@ public func universal_ssr_static_if_condition(env : &mut TestEnv) {
     html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><span>A</span></span>`)
     view_equals(env, page.getHtml(), html.to_view())
 }
+
+// --- Runtime arrays passed as props ----------------------------------------------
+// A parent's state array passed as a prop must be serialized so the child can
+// map it at SSR. Scalar elements and object elements (resolved via
+// ssrAttrValueProp) must both render before JS.
+
+#universal SsrPropScalarChild(props) {
+    return <ul data-k="scalar">{props.items.map((it) => <li>{it}</li>)}</ul>
+}
+
+#universal SsrPropObjectChild(props) {
+    return <ul data-k="object">{props.items.map((it) => <li>{it.text}</li>)}</ul>
+}
+
+#universal SsrPropArrayParent(props) {
+    state items = ["Apple", "Banana"]
+    state objs = [{id: "a", text: "Alpha"}, {id: "b", text: "Beta"}]
+    return <div><SsrPropScalarChild items={items} /><SsrPropObjectChild items={objs} /></div>
+}
+
+@test
+public func universal_ssr_prop_scalar_array_renders(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrPropArrayParent /> }
+    var html = page.getHtml()
+    if(html.contains("<li>Apple</li>") && html.contains("<li>Banana</li>")) {
+        env.success("scalar state array prop maps at SSR")
+    } else {
+        env.error("scalar state array prop did not render at SSR")
+        env.info(html.data())
+    }
+}
+
+@test
+public func universal_ssr_prop_object_array_renders(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrPropArrayParent /> }
+    var html = page.getHtml()
+    if(html.contains("<li>Alpha</li>") && html.contains("<li>Beta</li>")) {
+        env.success("object state array prop resolves item.prop at SSR")
+    } else {
+        env.error("object state array prop did not render at SSR")
+        env.info(html.data())
+    }
+}
+
+// --- Runtime `.filter()` over props -------------------------------------------------
+// `var visible = props.items.filter(it => it.text.includes(props.query))` then
+// `{visible.map(...)}` must evaluate the predicate at SSR, not render empty.
+
+#universal SsrFilterChild(props) {
+    var visible = props.items.filter((it) => it.text.includes(props.query))
+    return <ul data-k="filter">{visible.map((it) => <li>{it.text}</li>)}</ul>
+}
+
+#universal SsrFilterParent(props) {
+    state items = [{id: "a", text: "Apple"}, {id: "b", text: "Banana"}]
+    state query = "an"
+    return <div><SsrFilterChild items={items} query={query} /></div>
+}
+
+@test
+public func universal_ssr_props_filter_runtime_predicate(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrFilterParent /> }
+    var html = page.getHtml()
+    if(html.contains("<li>Banana</li>") && !html.contains("<li>Apple</li>")) {
+        env.success("props-derived .filter() predicate evaluates at SSR")
+    } else {
+        env.error("props-derived .filter() did not filter at SSR")
+        env.info(html.data())
+    }
+}
+
+// Inline chained form `props.items.filter(pred).map(cb)`.
+#universal SsrFilterInline(props) {
+    return <ul data-k="filter-inline">{props.items.filter((it) => it.includes("an")).map((it) => <li>{it}</li>)}</ul>
+}
+
+@test
+public func universal_ssr_props_filter_inline_chain(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrFilterInline items={["Apple", "Banana"]} /> }
+    var html = page.getHtml()
+    // `items` is an inline string array literal; the filter predicate is applied
+    // to it at SSR runtime.
+    if(html.contains("<li>Banana</li>") && !html.contains("<li>Apple</li>")) {
+        env.success("inline filter+map chain renders at SSR")
+    } else {
+        env.error("inline filter+map chain did not render at SSR")
+        env.info(html.data())
+    }
+}

@@ -231,6 +231,30 @@ func sym_res_support(resolver : *mut SymbolResolver, support : &mut SymResSuppor
         return false;
     }
 
+    const ssrAttrValuePropFn = resolver.resolve("ssrAttrValueProp")
+    if(ssrAttrValuePropFn == null) {
+        diagnoser.error("couldn't find 'ssrAttrValueProp' node", loc);
+        return false;
+    }
+
+    const ssrTextIncludesFn = resolver.resolve("ssrTextIncludes")
+    if(ssrTextIncludesFn == null) {
+        diagnoser.error("couldn't find 'ssrTextIncludes' node", loc);
+        return false;
+    }
+
+    const ssrTextStartsWithFn = resolver.resolve("ssrTextStartsWith")
+    if(ssrTextStartsWithFn == null) {
+        diagnoser.error("couldn't find 'ssrTextStartsWith' node", loc);
+        return false;
+    }
+
+    const ssrTextEndsWithFn = resolver.resolve("ssrTextEndsWith")
+    if(ssrTextEndsWithFn == null) {
+        diagnoser.error("couldn't find 'ssrTextEndsWith' node", loc);
+        return false;
+    }
+
     const renderHtmlAttrValueFn = resolver.resolve("renderHtmlAttrValue")
     if(renderHtmlAttrValueFn == null) {
         diagnoser.error("couldn't find 'renderHtmlAttrValue' node", loc);
@@ -332,6 +356,10 @@ func sym_res_support(resolver : *mut SymbolResolver, support : &mut SymResSuppor
     support.renderHtmlChildValueFn = renderHtmlChildValueFn
     support.renderJsAttrValueFn = renderJsAttrValueFn
     support.getSsrAttributeValueFn = getSsrAttributeValueFn
+    support.ssrAttrValuePropFn = ssrAttrValuePropFn
+    support.ssrTextIncludesFn = ssrTextIncludesFn
+    support.ssrTextStartsWithFn = ssrTextStartsWithFn
+    support.ssrTextEndsWithFn = ssrTextEndsWithFn
     support.isSsrAttributeValueTruthyFn = isSsrAttributeValueTruthyFn
     support.getMultipleAttributeValuesFn = getMultipleAttributeValuesFn
     support.ssrMultipleGetFn = ssrMultipleGetFn

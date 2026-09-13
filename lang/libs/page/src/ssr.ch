@@ -84,6 +84,53 @@ public func getSsrAttributeValue(list : SsrAttributeList, name : SsrText) : SsrA
     return SsrAttributeValue.None()
 }
 
+public func ssrAttrValueProp(val : &SsrAttributeValue, name : SsrText) : SsrAttributeValue {
+    switch(val) {
+        Spread(list) => return getSsrAttributeValue(list, name)
+        default => return SsrAttributeValue.None()
+    }
+}
+
+// Text view of an attribute value for runtime string predicates
+// (`.includes`, `.startsWith`, `.endsWith`). Only text-like values resolve;
+// numeric/other values yield an empty view.
+func ssrTextOf(val : &SsrAttributeValue) : SsrText {
+    switch(val) {
+        Text(v) => return v
+        PtrChar(v) => return SsrText { data: v, size: strlen(v) }
+        default => return SsrText { data: null, size: 0 }
+    }
+}
+
+// Runtime equivalents of the compile-time predicate operations, used when a
+// `.filter()` predicate runs over a props/runtime array at SSR time.
+public func ssrTextIncludes(hay : &SsrAttributeValue, needle : &SsrAttributeValue) : bool {
+    const h = ssrTextOf(hay)
+    const n = ssrTextOf(needle)
+    if(n.size == 0) return true
+    if(h.size < n.size) return false
+    var i : u64 = 0
+    while(i + n.size <= h.size) {
+        if(strncmp(h.data + i, n.data, n.size) == 0) return true
+        i = i + 1
+    }
+    return false
+}
+
+public func ssrTextStartsWith(hay : &SsrAttributeValue, needle : &SsrAttributeValue) : bool {
+    const h = ssrTextOf(hay)
+    const n = ssrTextOf(needle)
+    if(n.size > h.size) return false
+    return strncmp(h.data, n.data, n.size) == 0
+}
+
+public func ssrTextEndsWith(hay : &SsrAttributeValue, needle : &SsrAttributeValue) : bool {
+    const h = ssrTextOf(hay)
+    const n = ssrTextOf(needle)
+    if(n.size > h.size) return false
+    return strncmp(h.data + (h.size - n.size), n.data, n.size) == 0
+}
+
 public func isSsrAttributeValueTruthy(val : &SsrAttributeValue) : bool {
     switch(val) {
         None() => return false

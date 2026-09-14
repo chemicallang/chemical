@@ -822,6 +822,82 @@ the old §9.5 text.
 | `/tmp/opencode/coro/co_raw.ll` | Clang's canonical pre-split coroutine structure (source of the `coro.end` truth). |
 | `/tmp/opencode/coro/state.c` | Portable C state machine under TinyCC (`complete=105`, drops 1/2). |
 
+### 1.9 Library impact: what the shipped `lang/libs` require
+
+A scan of `lang/libs` for *blocking calls* and *event-loop/host-managed*
+patterns shows the async feature is not just for user code — several shipped
+libraries are already structured around blocking I/O or foreign event loops.
+Each pattern below is direct evidence for a feature we must design (F1–F12),
+not a suggestion to rewrite those libraries.
+
+#### Library-by-library
+
+| Library | Pattern in the source today | Async benefit | Feature it drives |
+|---------|----------------------------|---------------|-------------------|
+| `net` | Fully blocking public API: `dial`, `accept_socket`, `recv_all`, `send_all` (`net/src/main.ch`); POSIX has only `set_nonblocking` and a *stub* poll comment (`net/posix/platform_api.ch`). Windows already has a callback/completion queue (`net/win/iocp.ch`, `AsyncContext` + `CompletionPort::poll`). | Non-blocking `connect`/`accept`/`read`/`write`; one thread, many sockets. | **F1**, **F9** |
+| `tls` | `ssl_read`/`ssl_write`/`ssl_handshake` call `net::send_all`/`net::recv_all` **directly** (`tls/src/ssl.ch:2100,2107`); `tls_connect` calls `net::dial` (`:5742`) and may redial for TLS 1.2 (`:5775`). The whole handshake is one blocking multi-RTT call. | Async handshake and record I/O; overlap handshakes across connections. | **F2**, **F1** |
+| `http` | `Client::request` blocks through dial → TLS handshake → send → incremental read (`http/src/client.ch:238-483`), with socket recv timeouts via `net::set_recv_timeout`. `server` uses a `std::concurrent.ThreadPool` + `accept_main` loop, and on Windows already does `net::iocp::async_recv` (`http/src/server.ch:244,292,299`). Parsers `read_request_incremental`/`read_response_incremental` (`http/src/parser.ch:62,193`) are hand-written state machines over `net::Buffer`. | `request_async`, per-connection tasks instead of N worker threads, streaming bodies. | **F3**, **F6**, **F9**, **F12** |
+| `fs` | Blocking syscalls: `read_entire_file`, `atomic_write`, `read_to_buffer`, directory ops (`fs/src/file_io.ch`). | Do not stall the executor on disk. | **F4** |
+| `process` | `execute`, `spawn`, `wait`, `try_wait`, `write_stdin` block on the child and its pipes (`process/src/process.ch`). | Awaitable child + async pipes; `test_env`'s subprocess IPC benefits too. | **F4**, **F10** |
+| `webview`, `window` | Main/UI-thread event loops (GTK3 + WebKit2GTK; `webview/posix/linux.ch`, `window/posix/linux.ch`). Calls must stay on the UI thread. | Not "await the UI", but run background async work without blocking the UI and post results back. | **F8** |
+| `server`, `minlsp`, `ide` | Process/socket/stdio loops; `server` is the static-file executable over `http`. | Same accept-loop benefit as `http`; LSP over stdio/socket. | **F1**, **F9** |
+| `std::concurrent` | **Already has** `Promise<T>`, `Future<T>`, `ThreadPool::submit` returning `Future<T>` (`std/src/concurrency/threadpool.ch:214,268`). | A ready-made blocking pool to build `spawn_blocking` on; needs a name relationship to the new `Future`. | **F4**, **F5** |
+| `lab`, `test_env` | Shell/process execution and IPC. | Awaitable build/process I/O (lower priority). | **F4**, **F10** |
+| `mime`, `encoding`, `json`, `crypto`, `compression`, `archive`, `image`, `font`, `audio`, `regex`, `datetime`, `path`, `uuid`, `bcrypt`, `osrand`, and the `html`/`css`/`js`/`md` parsers | Pure buffer/CPU, no blocking I/O. | None directly. | Stay synchronous; call via **F4** if large |
+
+#### Features the library patterns force
+
+- **F1 — Async socket I/O.** `AsyncRead`/`AsyncWrite` traits plus reactor
+  registration (epoll/kqueue/IOCP) and an async socket with
+  `connect`/`accept`/`read`/`write`. Reuse `net::iocp` on Windows; add a POSIX
+  poll/kqueue registration that produces the `Waker`.
+- **F2 — Async TLS over the transport traits.** Either generalize the transport
+  inside `tls` or accept a `spawn_blocking` bridge. The handshake is the
+  latency-critical part (multiple round-trips), so an async handshake is the
+  high-value target.
+- **F3 — Async buffered reader.** The incremental parsers and `net::Buffer` are
+  already state machines; give them an awaitable "fill" so protocol parsing can
+  suspend instead of spin/timeout.
+- **F4 — `spawn_blocking`.** A bridge to the existing
+  `std::concurrent::ThreadPool` (`ThreadPool::submit`) so `fs`, `process`, CPU
+  codecs, and the pure-CPU libraries never stall the executor.
+- **F5 — Threadpool interop + naming.** `std::concurrent::Future<T>` (and
+  `Promise<T>`) already exist. Decide the relationship: make `submit` results
+  awaitable, and never name the new trait unqualified `Future` (B5). This is an
+  API-compatibility decision, not a rewrite.
+- **F6 — Async timer + timeout + `select`.** Socket-timeout patterns
+  (`http` `timeout_secs`, proxy CONNECT read caps) need an async `sleep`,
+  `timeout`, and `select`; `std::concurrent.sleep_ms` blocks a thread.
+- **F7 — Cancellation runs destructors.** `http::Client::request` heap-allocs a
+  `tls::SSLContext` and relies on `Body`/`ResponseWriter` destructors to
+  `ssl_free` + `dealloc` it (`client.ch:468-483`); `server` does
+  `ssl_close_notify`→`ssl_free`→`dealloc`. Dropping/cancelling an async request
+  **must** run those destructors exactly once — this is the §8.7/§13.3
+  guarantee and is a hard prerequisite for the async I/O wrappers.
+- **F8 — `spawn_local` / current-thread executor.** UI libraries are
+  main-thread-affine; the executor needs a current-thread mode whose
+  `run_until_idle` can be driven by the native event loop, with a `Waker` that
+  posts back to the UI thread. Introduced in §12.5.
+- **F9 — Async accept loop.** Replace the worker-thread accept model in
+  `http::server` with a per-connection task loop — `while run { var s = await
+  listener.accept(); async::spawn(handle(s)) }` — using `select` (F6) for
+  accept-vs-shutdown. Reuse the Windows IOCP path already present.
+- **F10 — Async process wait/pipes.** Awaitable child completion (`wait`) and
+  pipe read/write. May be implemented on **F4** first (blocking pool) before a
+  native reactor.
+- **F11 — Library API convention.** Mirror sync APIs as `_async` methods
+  (`net::AsyncSocket::connect`, `http::Client::request_async`,
+  `fs::read_entire_file_async`, `process::execute_async`) rather than a parallel
+  namespace, so existing signatures and types (`Result`, `Response`) are reused.
+  Fold into the §5.7 public surface.
+- **F12 — Streaming body/chunked transfer.** The HTTP `Body` abstraction should
+  expose an async `read_chunk` so responses/requests stream without buffering
+  the whole body.
+
+**Sequencing.** F4/F5/F6/F7 unblock the rest and should land with the Phase 5
+executor; F1/F2/F3/F12 (socket + TLS + streaming) are the bulk of Phase 5;
+F8/F9/F10 are follow-ons. F11 is a naming rule applied as each wrapper is added.
+
 ---
 
 ## 2. Design Decisions (Normative)
@@ -1318,12 +1394,33 @@ namespace async {
     struct JoinHandle<T> { handle : FutureHandle<T> }
     func yield_now() : FutureHandle<Unit>
     func sleep(millis : u64) : FutureHandle<Unit>
+    func timeout<T>(handle : FutureHandle<T>, millis : u64) : FutureHandle<T>   // F6
+    func spawn_blocking<T>(f : () => T) : FutureHandle<T>                        // F4/F5
+    struct LocalExecutor { ... }                                                 // F8
+    func run_local(exec : *mut LocalExecutor, drive : () => void)               // F8
     namespace test {
         func block_on<T>(handle : FutureHandle<T>) : T      // deterministic, no reactor
         func run_until_idle(exec : *mut LocalExecutor)
     }
 }
 ```
+
+**Library async API convention (F11).** Wrappers added to shipped libraries
+mirror the sync method with an `_async` suffix and reuse the existing result
+types, e.g.:
+
+```chemical
+// net / tls / http / fs / process (v1 wrapper names)
+net::AsyncSocket::connect(host, port)         // awaitable
+net::AsyncSocket::read(buf) : FutureHandle<int>
+http::Client::request_async(req, res)         // same Result<Response, string>
+fs::read_entire_file_async(path) : FutureHandle<Result<vector<u8>, FsError>>
+process::execute_async(cfg) : FutureHandle<PR_Result>
+```
+
+Do **not** create a parallel `async::net` re-implementation of the same types;
+wrap the existing blocking implementation (initially via `spawn_blocking`) and
+replace the internals with the reactor as F1/F2 land.
 
 **Canonical user program (v1):**
 
@@ -2399,12 +2496,18 @@ lang/libs/async/
     ├── frame.ch          // frame alloc/free (task arena + malloc fallback)
     ├── waker.ch          // Waker impls, task waker
     ├── executor.ch       // per-thread run queue, run_until_complete
+    ├── local.ch          // current-thread executor + native-loop driver (F8)
     ├── block_on.ch       // sync->async bridge
+    ├── blocking.ch       // spawn_blocking over std::concurrent::ThreadPool (F4/F5)
     ├── spawn.ch          // spawn / spawn_send / JoinHandle<T>
-    ├── timer.ch          // async::sleep, timer wheel
+    ├── timer.ch          // async::sleep, timeout, timer wheel (F6)
     ├── select.ch         // select combinator (Phase 4)
     └── channel.ch        // mpsc channel (Phase 4)
 ```
+
+The higher layers (`async::net`, `async::tls`, `async::fs`, `async::process`)
+are separate libraries or `_async` methods added to the existing ones (§1.9
+F1/F2/F10/F11), not part of `lang/libs/async`.
 
 The task queue can be `std::vector<FutureHandle<T>>`-shaped; the probe verified
 move-only handles survive `push` and are all dropped when the container dies
@@ -2457,6 +2560,11 @@ materialization path, so `await async::spawn(f)` works.
 - `async::net`/`async::tls` wrappers register interest and produce a `Waker` that
   wakes the task on readiness. These are library additions; the language core
   does not know about them.
+- This is **F1/F9** from §1.9. On Windows the completion queue already exists
+  (`net/win/iocp.ch`); POSIX needs an `epoll`/`kqueue` registration layer that
+  turns readiness into `Waker::wake`. The HTTP server's async accept loop
+  (`while run { await accept }`, with `select` for shutdown) is the first
+  consumer.
 
 ### 12.5 Executor implementation sketch (Phase 5)
 
@@ -2543,6 +2651,12 @@ first `poll`.
   so this path only matters for hand-held futures. Use a `result_taken` flag or a
   distinct `STATE_DONE_CONSUMED` vs `STATE_DONE_UNCONSUMED` state. Choose the
   flag; it is simpler and uniform with 8.4.
+- **Library resources depend on this (F7).** `http::Client::request` heap-allocs a
+  `tls::SSLContext` owned by the response/body's destructor, and the server owns
+  per-connection TLS contexts. Cancelling an in-flight request by dropping its
+  future must therefore run those destructors exactly once (socket close,
+  `ssl_free`, `dealloc`). This is why §8.7's completion-cleanup fix and the
+  drop path are prerequisites for the async I/O wrappers, not optional polish.
 
 ### 13.4 Threads and `Send`
 
@@ -3126,11 +3240,26 @@ LLVM; TinyCC compiles the output.
 
 ### Phase 5 — Executor + I/O + advanced library
 
+Driven by the feature list in §1.9.
+
 1. Per-thread executor, `block_on`, `spawn`, `JoinHandle`.
 2. Timers (`async::sleep`), channels.
 3. `async` net/tls/http wrappers.
 4. `select` combinator.
 5. `spawn_send` + `Send` opt-in.
+6. **F4/F5** `spawn_blocking` over `std::concurrent::ThreadPool`; resolve the
+   `std::concurrent.Future<T>` vs new `Future` naming/interop.
+7. **F6** async timer/timeout built on the same wheel as (2); socket-timeout
+   parity with `net::set_recv_timeout`.
+8. **F1/F9** POSIX reactor registration + async accept loop; reuse
+   `net::iocp` on Windows.
+9. **F2** async TLS handshake/read/write; **F3/F12** async buffered reader and
+   streaming body.
+10. **F8** current-thread executor + native-event-loop driver for
+    `webview`/`window`; **F10** async process wait/pipes (may start on F4).
+11. **F11** apply the `_async` naming convention as each wrapper lands.
+12. **F7** cancellation-drop tests for sockets/sockets+TLS (destructors run
+    exactly once) — the gate for shipping 3/8/9.
 
 ### Phase 6 — Safety hardening
 

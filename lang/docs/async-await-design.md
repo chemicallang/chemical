@@ -1,16 +1,24 @@
 # Async/Await Design for Chemical
 
-> **Status: Implementation Design — revised September 14, 2026**
+> **Status: Implementation Design — revised September 14, 2026 (second review)**
 >
-> **TL;DR for the implementer:** the protocol and runtime handle in this design
-> were **compiled and run** on the real compiler (Section 1.4, probe
-> `lang/compiled/async_probe`). Two compiler blockers were found and have been
-> **fixed** (Section 1.5): **B1** generic loop-expression result types, and
-> **B2** calls to impl-only methods. Both fixes are covered by tests in
-> `lang/tests/src/generic/generic_dispatch.ch`; the full suite passes. The design
-> still mandates that backends emit the poll loop and that `await` goes through a
-> `FutureHandle<T>` vtable (D13). Start with Sections 1.4–1.6, 2 (D13), 4.2–4.4,
-> and 17 (Phase 0).
+> **TL;DR for the implementer:** the protocol, the runtime handle, the
+> `FutureHandle<T>` static-vtable materialization (D13), and the `block_on<T>(
+> FutureHandle<T>)` shape were **compiled and run** on the real compiler under
+> **both backends** (Sections 1.4, 1.7; probes `lang/compiled/async_probe` and
+> `lang/compiled/async_mat`). The LLVM coroutine template was validated with raw
+> IR at `-O0/-O1/-O2` (probe dir `/tmp/opencode/coro`; recipe in §9.0), and the
+> 2c state-machine text was validated with the bundled TinyCC (`state.c`
+> reference in §10.0). Four compiler blockers were found; **all four are fixed**
+> and covered by tests in `lang/tests/src/generic/generic_dispatch.ch`:
+> **B1** generic loop-expression result types, **B2** calls to impl-only methods,
+> **B6** generic destructible structs passed by value into a generic function
+> (the `block_on<T>` shape), and **B7** loop expressions double-destroying
+> in-scope locals in the C backend. The full TCC suite passes (2185/2185). The
+> design still mandates that backends emit the poll loop and that `await` goes
+> through a `FutureHandle<T>` vtable (D13). Start with Sections 1.4–1.7, 2 (D13),
+> 4.2–4.4, §9.0 (corrected coroutine recipe), §10.0, 14 (performance), and 17
+> (Phase 0).
 >
 > This document supersedes the August 25, 2026 draft. The draft was a good
 > outline but contained factual errors about the codebase (wrong method names,
@@ -55,6 +63,9 @@
 20. [Deferred Work and Open Questions](#20-deferred-work-and-open-questions)
 21. [Appendix A: Corrected Examples](#21-appendix-a-corrected-examples)
 22. [Appendix B: File and Symbol Reference Map](#22-appendix-b-file-and-symbol-reference-map)
+23. [Appendix C: The Seven Rules an Implementer Must Not Break](#appendix-c-the-seven-rules-an-implementer-must-not-break)
+24. [Appendix D: Verification Artifacts](#appendix-d-verification-artifacts)
+25. [Appendix E: Verified LLVM Coroutine Reference IR](#appendix-e-verified-llvm-coroutine-reference-ir)
 
 ---
 
@@ -93,8 +104,8 @@ There is **no** async/await in the language today.
 - **Generic synthesis pattern**: to build a `Future<T>` type node the compiler
   uses:
   `new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(decl), { TypeLoc(inner, loc) })`.
-  Real examples: `ast/values/FunctionCall.cpp:2157`,
-  `compiler/symres/SymResLinkBody.cpp:2140`.
+  Real examples: `ast/values/FunctionCall.cpp:2141` (in `determine_type`; line
+  2157 is the plain fallback) and `compiler/symres/SymResLinkBody.cpp:2140,2167`.
 - **Core-node caching**: `CoreNodes` (`compiler/symres/CoreNodes.h`) caches
   handles to core declarations; populated by `SymbolResolver::link_core_nodes`.
   This is where a handle to the `Future`/`Poll`/`FutureHandle` declarations must
@@ -413,6 +424,199 @@ and never add a blanket `using namespace` that merges the two.
 | B4 syntax | Generated frames/vtables follow the correct forms in the table. |
 | B5 collision | Protocol is `core::async::*`; never unqualified `Future`. |
 
+### 1.7 Second Review (September 14, 2026): Blockers B6/B7, Verified Lowerings
+
+A second, deeper verification pass compiled and ran the exact shapes the design
+depends on. It found two more compiler blockers (both fixed) and produced the
+verified LLVM coroutine recipe and the verified 2c state-machine text.
+
+#### B6 — Generic destructible struct passed by value into a generic function (HIGH) — FIXED
+
+**Verified.** Passing a generic struct that has a heap-owning destructor by
+value into a generic function whose parameter type mentions the function's type
+parameter applied to that struct (`H<T>`) failed during symbol resolution:
+
+```
+[SymRes:link] error: unknown value being moved, where the struct types don't match
+```
+
+Minimal form (this is *exactly* the runtime-library signature
+`block_on<T>(handle : FutureHandle<T>) : T`):
+
+```chemical
+@direct_init
+public struct H<T> {
+    var p : *mut void
+    @delete func delete(&mut self) { p = null }
+}
+func <T> take(h : H<T>) : int { return 1 }
+
+public func main() : int {
+    var h = H<int> { p : null }
+    return take<int>(h)          // <-- error here
+}
+```
+
+**Verified scope (probe matrix):**
+
+| Case | Shape | Result |
+|------|-------|--------|
+| A | generic struct, **no** destructor, generic fn | OK |
+| B | generic struct **with** `@delete`, **concrete** fn | OK |
+| C | generic struct with `@delete`, generic fn with `H<T>` param | **FAIL** |
+| D | generic struct with `@delete`, generic fn with `T` param | OK |
+| E | generic struct with `@delete`, generic fn with `*mut H<T>` param | OK |
+| F | **non-generic** struct with `@delete`, generic fn | OK |
+
+**Root cause.** `SymResLinkBody::mark_moved_value` (around
+`compiler/symres/SymResLinkBody.cpp:3652`) only accepts the move when
+`expected_node == linked_def` or `is_generic_instantiation(expected_node,
+linked_def)`. When instantiating `take<int>`, the parameter type `H<int>` and the
+argument's type resolve to **two distinct `StructDefinition` instantiation
+nodes** that share the same generic parent; neither check matches, so the move is
+rejected.
+
+**Fix (September 14, 2026).** Added `is_same_generic_family(a, b)` next to
+`is_generic_instantiation` in `compiler/symres/SymResLinkBody.cpp`: it returns
+true when both nodes are members containers sharing the same non-null
+`generic_parent`. The move acceptance now also checks this (and the reverse
+`is_generic_instantiation` direction):
+
+```cpp
+if(is_generic_instantiation(expected_node, linked_def)
+   || is_generic_instantiation(linked_def, expected_node)
+   || is_same_generic_family(expected_node, linked_def)) {
+    final = mark_moved_value(&value, diagnoser);
+}
+```
+
+Regression tests: `test_generic_struct_by_value_param` in
+`lang/tests/src/generic/generic_dispatch.ch`. Verified on both TCC and LLVM.
+
+#### B7 — `loop { … break … }` expressions double-destroy in-scope locals (HIGH, C backend only) — FIXED
+
+**Verified.** In the C/2c backend, a loop *expression* (`var x = loop { … break v
+… }`) emitted the destructor of every in-scope destructible local and parameter
+on each `break`/`continue` **and** again at scope exit, destroying them two or
+more times. The LLVM backend was correct.
+
+Minimal form:
+
+```chemical
+@direct_init public struct Probe {
+    var p : *mut void
+    @delete func delete(&mut self) { printf("DROP\n") }
+}
+func with_loop_expr(d : Probe) : int {
+    var out : int = loop { if(true) { break 5 } else { continue } }
+    return out
+}
+```
+
+Before the fix, `DROP` printed twice for one call; LLVM printed once.
+
+**Root cause.** `ToCAstVisitor::writeLoopStmtValue`
+(`preprocess/2c/2cASTVisitor.cpp:5191`, the loop-*expression* emitter) called
+`scope(*this, block.body)` instead of `loop_scope(*this, block.body)`. Only
+`loop_scope` updates `destructor.loop_job_begin_index`, which
+`destruct_till_loop_scope_above()` (used by `break`/`continue`) relies on. With a
+stale index, each `break`/`continue` destroyed *all* live locals above the
+enclosing function scope, and the normal function-exit cleanup destroyed them
+again.
+
+**Fix (September 14, 2026).** `writeLoopStmtValue` now uses `loop_scope`.
+
+**Why this matters for async.** The design emits the poll loop in each backend
+(D6/B1), so *generated* await code never goes through a Chemical loop
+expression. But user code and the runtime library (`block_on`, `spawn`) are
+written in Chemical and will use loop expressions; before this fix they would
+double-free destructor-bearing locals (e.g. a `FutureHandle<T>`) on the C
+backend, which is the default fast backend.
+
+Regression test: `test_loop_expression_cleanup_once` in
+`lang/tests/src/generic/generic_dispatch.ch`.
+
+#### Verified LLVM coroutine recipe (corrects Section 9)
+
+Raw `llvm.coro.*` IR was written and run through the linked LLVM 22.1.8 at
+`-O0`, `-O1`, and `-O2`. A **separate** `poll` function calling
+`coro.resume`/`coro.done` (the design's §9.4 shape) lowers correctly at all three
+levels once the recipe is exact. The recipe required by LLVM 22 (and the
+corrections to the current §9 text) is in **§9.0**. The most important
+corrections:
+
+1. The ramp function **must** carry the `presplitcoroutine` attribute, or
+   `CoroSplit` never runs and the intrinsics survive to the backend.
+2. Lazy semantics (D2) require an **explicit initial `coro.suspend`** before the
+   user body. Raw LLVM coroutines otherwise run the body up to the first suspend
+   at call time. The current §9.2 recipe omits this — a real bug for D2.
+3. Every `coro.suspend` needs a preceding `coro.save`.
+4. The `switch` after each `coro.suspend` must route its **default** to a shared
+   `suspend` block (`coro.end(…, i1 false, …)` then `ret`), and `i8 0` to the
+   continuation, `i8 1` to the per-state cleanup. Routing the default to the
+   continuation makes the ramp run the body (observed: extra side effects).
+5. `coro.end` on the destroy/cleanup path must be `i1 false`; `i1 true` marks an
+   unwind path and makes `CoroSplit` emit the destroy function as `unreachable`
+   (observed SIGSEGV).
+6. **Do not blindly `coro.destroy` after `coro.done`.** The destroy function must
+   dispatch on the saved state and, when the coroutine already completed, only
+   free the frame (skip user destructors). Otherwise cleanup runs after
+   completion (design §13.3's `STATE_DONE` rule applies to the LLVM path too).
+7. `coro.alloc` returns **true when the frame must be heap-allocated** (the
+   conventional Clang `br i1 %alloc, label %do_alloc` shape is correct).
+
+#### Verified D13 materialization, end-to-end (both backends)
+
+`lang/compiled/async_mat` implements the whole D13 pipeline in Chemical:
+
+- a user `CountdownFuture` whose `poll` is **only** in an
+  `impl Future<int> for CountdownFuture` block;
+- a compiler-shaped static vtable whose `poll` thunk does
+  `(frame as *mut CountdownFuture).poll(cx)` (the concrete impl call — B2 path)
+  and whose `drop` thunk destroys the frame;
+- a **generic** await loop `func <T> rt_await_generic(fut : FutureHandle<T>, cx)
+  : T { var out : T = loop { … break value … } }` (the `block_on<T>` shape, B1 +
+  B6 paths);
+- a `Poll<Unit>` future (B5 / void path) and a cancellation path that polls once
+  (Pending) then drops the handle.
+
+Observed on **TCC and LLVM**:
+
+```
+materialized await = 42 (expect 42)
+drops after await = 1 (expect 1)
+unit await done, drops = 1 (expect 2)     # see note
+cancellation: pending as expected
+drops after cancel = 2 (expect 3)         # see note
+```
+
+> Note on the drop counts: a `Unit` future uses `frame == null`, and
+> `FutureHandle::@delete` intentionally skips `vtbl.drop` when `frame == null`.
+> So the unit handle adds no drop; the "expect 2/3" labels in the probe are
+> illustrative. The meaningful assertions are: the awaited int frame drops
+> **exactly once**, and the cancelled frame drops **exactly once**.
+
+#### Verified 2c state-machine text (TinyCC)
+
+The design's §10.1 generated-C shape (frame struct + `for(;;) switch(state) goto`
++ per-state drop `switch` + vtable) was compiled and run with the bundled
+`./lib/tcc/tcc` (`/tmp/opencode/coro/state2.c`). Results: complete = 105,
+drops-after-complete = 0, drops-after-cancel = 1. One correction to §10.1:
+`state == STATE_DONE` must be a **case that returns `Ready`** (or asserts), not
+fall into `default: goto L0`; otherwise polling a completed future would re-run
+the body.
+
+#### Compiler regression status
+
+- TCC suite: **2185/2185 pass** after B6 + B7 fixes and the four new regression
+  assertions (B1 ×4, B2 ×2, B6 ×2, B7 ×1).
+- LLVM suite: still aborts on a **pre-existing, unrelated** backend bug — dead
+  code after `break`/`continue` produces an LLVM basic block without a
+  terminator (`lang/compiled/llvm_deadcode`, trigger at
+  `lang/tests/common/src/interp_regressions.ch:318,333`). This is not caused by
+  the async work; the LLVM lowering of the patterns in this design itself
+  (async_mat, b6/b7 probes) was validated individually and works.
+
 ---
 
 ## 2. Design Decisions (Normative)
@@ -467,19 +671,24 @@ it) so it can call `wake()` when progress is possible.
 
 ### 4.2 Core types (normative Chemical signatures)
 
-These live in `lang/libs/core/src/`. Suggested file:
-`lang/libs/core/src/async.ch`, added as a `source` in `lang/libs/core/chemical.mod`.
+These live in `lang/libs/core/`. Suggested file: `lang/libs/core/async.ch`, added
+as a flat `source "async.ch"` line in `lang/libs/core/chemical.mod` (that module
+lists each source file directly — there is **no** `src/` subdirectory, unlike
+`cstd`/`std`).
 
-> **Availability note.** `core` is not imported by every user module today; it
-> is normally brought in through `import std`. The compiler already resolves
-> `core` for operator overloading via `SymbolResolver::link_core_nodes()`
-> (`compiler/symres/SymbolResolver.cpp:55`). For `async` we must guarantee the
-> `core` protocol is resolvable: add `import core` to `lang/libs/cstd/chemical.mod`
-> (which nearly every module imports), or auto-add a `core` dependency to any
-> module that contains an `async` declaration or `await` expression. Prefer the
-> explicit `cstd` import; fall back to auto-add if `cstd` is not present
-> (e.g. freestanding modules). If neither is possible, emit the diagnostic in
-> Section 15 rather than crashing in `link_core_nodes`.
+> **Availability note.** `core` is not imported by every user module today; it is
+> brought in through `import std` (whose `chemical.mod` contains `import core`).
+> The compiler already resolves `core` for operator overloading via
+> `SymbolResolver::link_core_nodes()` (`compiler/symres/SymbolResolver.cpp:55`).
+> For `async` we must guarantee the `core` protocol is resolvable:
+> - **Preferred:** auto-add a `core` dependency to any module that contains an
+>   `async` declaration or `await` expression (mirroring how the compiler already
+>   relies on `core` for operators). This works for freestanding modules too.
+> - Do **not** add `import core` to `cstd`: `cstd` is imported by `core`-adjacent
+>   low-level code and by freestanding modules, and making it depend on `core`
+>   risks an import cycle.
+> - If neither is possible, emit the diagnostic in Section 15 rather than
+>   crashing in `link_core_nodes`.
 
 ```chemical
 public namespace core {
@@ -727,6 +936,51 @@ Two supported forms:
 
 ---
 
+### 5.6 Developer Experience (ergonomics requirements)
+
+The feature is only worth shipping if it is pleasant and hard to misuse. These
+are part of the acceptance bar, not optional polish.
+
+1. **Surface names.** Expose the protocol **unqualified for users** even though
+   it is declared under `core::async`: re-export `Poll`, `Future`,
+   `FutureHandle`, `Context`, `Waker`, `Unit` from a `std` module (suggest
+   `std::async` and `std::task`). Today `import std` is universal, so
+   `import std` + `using namespace std::async;` must be enough. Never make the
+   user remember `core::async::`.
+2. **No `Pin`, no `Send`, no `unsafe` on the happy path.** The design already
+   eliminates `Pin` (frames are stable by construction) and defers `Send`. Keep
+   the first release free of both; a user writing `async func f() : T { … await
+   g() … }` must never mention either.
+3. **`async func main`.** Emit the block-on trampoline automatically (Phase 3)
+   so the simplest program is `async func main() : int { … }`. If the `async`
+   library is absent, emit the diagnostic in Section 15, never an undefined
+   symbol.
+4. **Cancellation is dropping.** Do not add a `cancel()` API in v1. Dropping a
+   `FutureHandle<T>` (scope exit, `return`, early `break`) cancels and runs live
+   destructors exactly once. Document this prominently; it is the single most
+   pleasant thing about the model.
+5. **Deterministic testing executor.** Ship `async::test::block_on` and a
+   single-threaded `LocalExecutor::run_until_idle` that resolves immediately-ready
+   futures without an I/O reactor, so `@test` functions can exercise async code
+   deterministically (no sleeps, no flakiness).
+6. **Never silently drop a future.** A future value whose result is never awaited
+   and whose result has a destructor should warn
+   (`unused future; did you mean to await it?`). This is the async analogue of
+   `must_use`. At minimum emit it for `FutureHandle<T>`.
+7. **Clear diagnostics.** Every diagnostic in Section 15 should include the
+   awaited expression's source span and, when known, the concrete future type.
+   `await` outside `async` must point at the enclosing `func` and suggest adding
+   `async`.
+8. **Explain suspension points.** In debug builds, generate a per-await-site
+   `state` name (e.g. `state "await at fetch.ch:42"`) in the frame so a debugger
+   shows where a task is parked. This is cheap and pays for itself immediately.
+9. **IDE/LSP.** `async`/`await` are already valid semantic-token names
+   (`core/targets/LSPMain.cpp:77`) and the JS-facing `Async`/`Await` tokens are
+   unrelated. Add hover/completion entries for the `std::async` re-exports and a
+   signature help for `block_on`/`spawn`.
+10. **Documented first example.** Ship the Section 21.1 example in the language
+    docs, plus a two-task `select` example and a cancellation example.
+
 ## 6. Compiler Representation
 
 ### 6.1 Lexer
@@ -751,14 +1005,27 @@ Two supported forms:
   `bool is_async = false;` and an accessor pair `is_async()` / `set_async(bool)`.
   The struct has default member initializers and is aggregate-initialized
   positionally in the `FunctionDeclaration` constructor with 18 of its 23
-  fields; a new trailing field with a default is safe.
+  fields (fields 1–18); `is_async` **must be appended at the end** so the
+  positional initializers are unaffected. Verified: 23 members today, no
+  `is_async`.
+  > **CBI note:** `FuncDeclAttributes` is mirrored by `FuncDeclAttributesCBI`
+  > (`compiler/cbi/bindings/ASTCBI.h:14`) with converters in
+  > `ASTBuilderCBI.cpp` (`FunctionDeclarationgetAttributes`/`setAttributes`).
+  > That mirror is **not** auto-updated. Plugins do not need `is_async` for v1,
+  > so it is acceptable to leave the CBI struct unchanged, but if a plugin must
+  > observe it, add the field to **both** and keep the order identical (AGENTS.md
+  > enum-sync rule).
 - `FunctionTypeData` (`ast/types/FunctionType.h:33`): add
   `bool is_async = false;`. The struct grows from 4 to 5 bytes and still
-  satisfies `static_assert(sizeof(...) <= 8)`. Update both constructors'
-  initializer lists (`data(false, isVariadic, signature_resolved, isCapturing)`
-  and the extension variant) to include it, or add a setter used after
-  construction. Prefer a setter `setIsAsync(bool)` to avoid touching every call
-  site, but set it from the parser for declarations and lambdas.
+  satisfies `static_assert(sizeof(...) <= 8)`. Add a setter `setIsAsync(bool)`
+  and set it from the parser for declarations and lambdas. If you instead add it
+  to a constructor parameter, these sites construct/forward `data` and must be
+  updated consistently: `FunctionType.h:75` (4-arg ctor), `FunctionType.h:89`
+  (5-arg/extension ctor), `FunctionType.cpp:250` (`FunctionType::copy`),
+  `FunctionDeclaration.h:239`, `LambdaFunction.h:50`, `LexType.cpp:42`,
+  `CLANG.cpp:199,207`, `ASTBuilderCBI.cpp:220`. Prefer the setter to avoid the
+  blast radius; `copy_into`/`shallow_copy_into` already copy the whole `data`
+  struct, so a setter-propagated bit survives copying.
 
 Why both: `FunctionTypeData` is what `FunctionType::copy_into`/`shallow_copy_into`
 propagate, so lambda types and instantiated function types keep the bit; the
@@ -1062,20 +1329,110 @@ never needs result destruction. Document this as an invariant.
 
 ## 9. LLVM Backend Lowering
 
-Use LLVM's classic coroutine intrinsics. This gives us the state machine, frame
-layout, `resume`/`destroy` splitting, and (critically) `CoroElide`, which
-removes the frame allocation when the coroutine's lifetime is confined to the
-caller — the `await foo()` fast path — for free.
+### 9.0 Corrected, Verified Coroutine Recipe (read this first)
 
-Reference model: Clang's C++20 coroutine lowering (`CGCoroutine.cpp`) and the
-LLVM LangRef coroutine intrinsics. LLVM 22 is linked.
+This subsection supersedes the loose sketches in 9.1–9.6 where they conflict. It
+is the exact structure that was assembled into raw IR and executed through the
+linked LLVM 22.1.8 at `-O0`, `-O1`, and `-O2`
+(`/tmp/opencode/coro/poll7.ll`; the full reference is reproduced in Appendix E).
+Follow it literally. The numbered corrections are in Section 1.7.
+
+IR-level shape for `async func foo(x : i32) : i32` with two suspension points
+(an initial lazy suspend, one real await):
+
+```llvm
+define ptr @foo(i32 %x) presplitcoroutine {          ; (1) attribute is mandatory
+entry:
+  %id    = call token @llvm.coro.id(i32 0, ptr null, ptr null, ptr null)
+  %alloc = call i1   @llvm.coro.alloc(token %id)     ; (7) true == must allocate
+  br i1 %alloc, label %alloca, label %after
+alloca:
+  %size = call i64 @llvm.coro.size.i64()
+  %mem  = call ptr @chemical_async_frame_alloc(i64 %size, i64 <align>)
+  br label %after
+after:
+  %phi = phi ptr [ %mem, %alloca ], [ null, %entry ]
+  %hdl = call ptr @llvm.coro.begin(token %id, ptr %phi)
+  br label %init
+init:                                                ; (2) explicit lazy suspend
+  %save_init = call token @llvm.coro.save(ptr %hdl)  ; (3) save before every suspend
+  %s_init    = call i8    @llvm.coro.suspend(token %save_init, i1 false)
+  switch i8 %s_init, label %suspend [                ; (4) default -> suspend block
+      i8 0, label %body
+      i8 1, label %cleanup ]
+body:                                                ; user body up to first await
+  %save0 = call token @llvm.coro.save(ptr %hdl)
+  %s0    = call i8    @llvm.coro.suspend(token %save0, i1 false)
+  switch i8 %s0, label %suspend [ i8 0, label %cont0  i8 1, label %cleanup ]
+cont0:                                               ; after the await
+  ; ... read result from frame, continue body ...
+  %save1 = call token @llvm.coro.save(ptr %hdl)
+  %s1    = call i8    @llvm.coro.suspend(token %save1, i1 true)  ; final suspend
+  switch i8 %s1, label %suspend [ i8 0, label %fin  i8 1, label %cleanup ]
+fin:
+  br label %suspend
+suspend:                                             ; return to caller
+  call void @llvm.coro.end(ptr %hdl, i1 false, token none)
+  ret ptr %hdl
+cleanup:                                             ; destroy-while-suspended
+  ; run destructors for the *current* state only (see (6) and Section 8.5)
+  call void @llvm.coro.end(ptr %hdl, i1 false, token none)   ; (5) i1 false
+  ret ptr %hdl
+}
+```
+
+The `poll` function (the design's §9.4) is a **separate** function and lowers
+correctly:
+
+```llvm
+define i1 @foo_poll(ptr %hdl) {          ; returns Ready/Pending; read result from frame
+entry:
+  call void @llvm.coro.resume(ptr %hdl)
+  %done = call i1 @llvm.coro.done(ptr %hdl)
+  ; if done: move result out, mark STATE_DONE, free the frame, return Ready
+  ; else:    return Pending
+  ret i1 %done
+}
+```
+
+Rules that are easy to get wrong and were all observed to matter:
+
+1. **`presplitcoroutine`** on the ramp or nothing lowers.
+2. **Initial `coro.suspend`** for laziness (D2). Without it the body runs at call
+   time up to the first real suspend.
+3. **`coro.save` before every `coro.suspend`.** Omitting it made the first
+   suspend silently not suspend at `-O0` while appearing to work at `-O2`.
+4. **Switch default → `suspend` block.** Pointing the default at the
+   continuation made the ramp execute the continuation body.
+5. **`coro.end(..., i1 false, ...)` on the destroy path.** `i1 true` marks
+   unwind; `CoroSplit` then emits the destroy function ending in `unreachable`,
+   which segfaults when called.
+6. **`drop` must not run user destructors for a completed coroutine.** Dispatch
+   on the stored state; completed ⇒ free the frame only. This is the LLVM
+   materialization of §8.5's `STATE_DONE` and §13.3's `result_taken`.
+7. **`coro.alloc` polarity:** true ⇒ heap-allocate via our allocator; false ⇒
+   LLVM may pass `null` and place the frame in the caller (`CoroElide`).
+8. **Debug and release agree.** The corrected recipe behaves identically at
+   `-O0/-O1/-O2`. Do not rely on optimization to make a malformed coroutine
+   "work" — the earlier malformed attempts only appeared to work at `-O2`.
+
+The 2c backend does not use any of this; it emits the state machine text directly
+(§10). A future MIR could share one lowering (Section 20).
+
+### 9.1 Generated functions
+
+Use LLVM's classic coroutine intrinsics. This gives us the state machine, frame
+layout, `resume`/`destroy` splitting, and (critically) `CoroElide`, which removes
+the frame allocation when the coroutine's lifetime is confined to the caller —
+the `await foo()` fast path. Reference model: Clang's C++20 coroutine lowering
+(`CGCoroutine.cpp`) and the LLVM LangRef coroutine intrinsics. LLVM 22 is linked;
+the verified recipe is §9.0.
 
 > **Probe-mandated note (B1):** the poll/suspend loop is emitted here as basic
 > blocks. Do **not** route it through a Chemical `loop` expression in a generic
-> helper — generic loop-expression result types are miscompiled (Section 1.5).
+> helper — generic loop-expression result types were miscompiled (Section 1.5,
+> fixed) and the C backend's loop-expression cleanup was also buggy (B7, fixed).
 > The generated `AwaitExpression::llvm_value` must build the loop inline.
-
-### 9.1 Generated functions
 
 For `async func foo(a: A) : T` the LLVM backend emits:
 
@@ -1110,7 +1467,13 @@ after_alloc:
 ```
 
 The **return object** `Future<T>` is constructed from `%hdl` plus a pointer to
-`foo_vtable` and returned. Because the body is lazy, nothing else runs.
+`foo_vtable` and returned.
+
+> **Correction (see §9.0 item 2):** "because the body is lazy, nothing else runs"
+> is only true if the backend also emits an **explicit initial
+> `coro.save`/`coro.suspend`** right after `coro.begin`, before any user body
+> code. Raw LLVM coroutines otherwise execute the body up to the first suspend at
+> call time. The corrected recipe in §9.0 includes this.
 
 ### 9.3 Promise / frame fields
 
@@ -1132,43 +1495,65 @@ be passed consistently.
 define Poll_T @foo_poll(ptr %hdl, ptr %cx) {
   %frame = /* base */
   store ptr %cx, ptr %frame.cx
-  ; mark that we are resuming
   call void @llvm.coro.resume(ptr %hdl)
   %done = call i1 @llvm.coro.done(ptr %hdl)
   br i1 %done, label %ready, label %pending
 ready:
   %r = load T, ptr %frame.result
-  ; move result out; then destroy the completed coroutine frame
-  call void @llvm.coro.destroy(ptr %hdl)
-  ; build Poll.Ready(%r)
-  ret Poll.Ready(...)
+  ; mark STATE_DONE / result_taken; free the frame (do NOT re-run user
+  ; destructors — see §9.5 and §13.3). If the frame is elided, do not free.
+  ret Poll.Ready(%r)
 pending:
   ret Poll.Pending
 }
 ```
 
 `llvm.coro.resume` runs the body until it hits `coro.suspend` (returns) or runs
-to completion (reaches final suspend). `coro.done` distinguishes the two.
+to completion (reaches the final suspend). `llvm.coro.done` distinguishes the
+two.
+
+> **Correction (verified).** Do **not** unconditionally `coro.destroy` on the
+> `done` branch. Normal completion runs the body's destructors as part of the
+> final path; calling `coro.destroy` afterwards re-enters cleanup (observed) and
+> can crash. Mark the completion in the frame and free the frame only. The
+> result was moved out, so no result destructor runs either (§13.3
+> `STATE_DONE`).
 
 ### 9.5 `foo_drop`
 
 ```
 define void @foo_drop(ptr %hdl) {
-  call void @llvm.coro.destroy(ptr %hdl)   ; runs the destroy path
+  ; if the coroutine completed (STATE_DONE), only free the frame.
+  ; otherwise run llvm.coro.destroy (destroy path) and then free.
+  call void @llvm.coro.destroy(ptr %hdl)   ; runs the per-state cleanup
 }
 ```
 
+> **Correction (verified).** The unconditional `coro.destroy` above is only
+> correct if the generated destroy path treats the completed state specially.
+> Destroying an already-completed coroutine must **not** run user destructors
+> again (they ran during normal completion); it may only free the frame. The
+> design's §8.5 `STATE_DONE`/`result_taken` rule is the contract; the LLVM
+> backend must implement it inside the `cleanup` block by dispatching on the
+> saved state and skipping user destructors for the done state (and when the
+> result was never taken, destroying the result slot instead). This was observed
+> to matter: without the state guard, `coro.destroy` after completion re-enters
+> the cleanup path (and before the `coro.end(i1 false)` fix, segfaulted).
+
 The **destroy path** is where `@delete` destructors for live locals run. They
 must be emitted as part of the coroutine body's cleanup:
-- Around the body, establish a cleanup block that runs `coro.destroy`'s
-  destructor sequence.
+- Around the body, establish a cleanup block that runs the per-state destructor
+  sequence.
 - `coro.suspend` is emitted with `final = false` at normal awaits and
   `final = true` at the final suspend; the destroy branch of each suspend
   (`i8 1` from `coro.suspend`'s switch) jumps to the appropriate per-state
   cleanup sequence generated from `AsyncLoweringPlan::live_drops`.
 - Implement the per-state drop sequence as a chain of cleanup blocks, one per
   await state, mirroring the C `switch` in 8.5. The plan's `live_drops` tells
-  you exactly which destructors to call at each state.
+  you exactly which destructors to call at each state. All `coro.end` calls on
+  this path use `i1 false` (§9.0 items 5–6).
+- Free the frame only if it was heap-allocated (`coro.alloc == true`); an elided
+  frame lives in the caller and must not be freed.
 
 ### 9.6 Await site codegen (`intrinsics::__await_suspend`)
 
@@ -1211,6 +1596,19 @@ survive a suspend).
 ---
 
 ## 10. C / 2c Backend Lowering
+
+### 10.0 Verified by TinyCC
+
+The generated-C shape in §10.1 (frame struct + resumable `for(;;) switch(state)
+goto` body + per-state destructor `switch` in `drop` + function-pointer vtable)
+was compiled and run with the bundled TinyCC
+(`./lib/tcc/tcc -run /tmp/opencode/coro/state2.c`). Observed: `complete=105`,
+`drops_after_complete=0`, `drops_after_cancel=1`. TinyCC handles `switch`,
+`goto`, compound literals, designated initializers, and function pointers in
+structs. The C backend writes text, so no Chemical loop expression or goto AST is
+needed (B7 is therefore irrelevant to generated await code, though it matters for
+hand-written Chemical helpers).
+
 
 The C backend writes text; it can freely emit `switch`, labels and `goto`. TinyCC
 supports these standard C constructs. Since TinyCC is **not** an optimizer, the
@@ -1266,6 +1664,8 @@ static Poll_T foo_poll(FooFrame* f, Context* cx) {
             case 0u: goto L0;
             case 1u: goto L1;
             /* ... one case per await site ... */
+            case STATE_DONE:                       /* do not re-run the body */
+                return (Poll_T){ .tag = POLL_READY, .value = f->result };
             default: goto L0;
         }
     L0:
@@ -1615,6 +2015,50 @@ model and `unsafe` markers.
    this is a real win, but implement after the simple correct version and
    verify with tests.
 
+### 14.4 Codegen cost model (grounded in the generated C/IR)
+
+These are structural costs read directly from the generated output of the
+verification probes, for an `await` whose child returns `Poll<T>`:
+
+| Operation | LLVM (with `llvm.coro`) | 2c / TinyCC |
+|-----------|--------------------------|-------------|
+| Complete future (Ready first poll) | 1 call to `vtbl.poll`, tag branch, move result; **no allocation** when `CoroElide` fires | 1 indirect call (sret), tag branch, move result; no frame alloc if the future was a ready inline frame |
+| Suspend (Pending) | store `cx`, `coro.save`+`coro.suspend`, return Pending | store `state`, return `{PENDING}` |
+| Resume | `coro.resume` → `foo.resume`; state reloaded from frame | `switch(state)` → `goto` the continuation label; locals reloaded from frame |
+| Child handle across await | spilled into the coroutine frame automatically by `CoroSplit` | an explicit `FooFrame.child_N` field |
+| `Poll<T>` return | `sret`/by-value per ABI; LLVM promotes scalars | **hidden sret pointer + a small struct store per poll** (visible in the translated C, e.g. `child_poll(&__chx__lv__4, …)`) |
+| Drop / cancel | `coro.destroy` dispatches on state; per-state cleanup | `switch(state)`; per-state destructor chain |
+
+Practical implications for the implementer:
+
+1. **The ready fast path is the hot path.** Most awaits in a well-written program
+   resolve without suspending. Optimize it first: no allocation, no waker store,
+   no state write on the `Ready` branch. The LLVM recipe's `cori.done`-style
+   check must not allocate.
+2. **Do not box or clone futures on the ready path.** Materialization should
+   reuse a already-heap frame handle directly when the operand already is a
+   `FutureHandle<T>`; only synthesize a vtable when the operand is a user
+   `Future<T>`.
+3. **`Poll<T>` sret on TCC is the main per-poll overhead.** For scalar `T`,
+   consider a specialized `Poll<T>` representation (tag + inline value) rather
+   than a generic struct returned by hidden pointer; the C backend can emit a
+   flat `struct { uint8_t tag; T value; }`. This is a concrete, measurable win
+   under TinyCC and does not change semantics.
+4. **`Waker` is not free.** `Waker` holds a type-erased pointer and runs
+   `vtbl.drop` in `@delete`; on the ready path never construct/store one. Only
+   store the context's waker when actually returning `Pending`.
+5. **Frame footprint.** Keep the frame to `{ state, cx, params, cross-await
+   locals, child handles, result }`. The design's `AsyncLoweringPlan` already
+   computes this; the B7 fix and the verified state machine show it can be
+   emitted without hidden per-poll heap work.
+6. **Destructor-bearing results cost more on cancellation.** `Poll<std::string>`
+   needs a frame slot plus per-state drop. Prefer `string_view`/borrowed results
+   where the lifetime permits.
+7. **No refcounting in the hot path.** `FutureHandle` is move-only and
+   non-atomic; `Waker` refcounting only matters when a waker may be called from
+   another thread (`spawn_send`, Phase 4).
+
+
 ---
 
 ## 15. Diagnostics
@@ -1798,9 +2242,16 @@ before the shared plan exists.
 7. ~~**Fix B2**~~ **DONE** (calls to impl-only methods emitted the interface
    symbol). See Section 1.5 B2. Regression test
    `lang/tests/src/generic/generic_dispatch.ch::test_impl_only_method_call`.
+8. ~~**Fix B6**~~ **DONE** (generic destructible struct passed by value into a
+   generic function — the `block_on<T>` shape). See Section 1.7 B6. Regression
+   test `generic_dispatch.ch::test_generic_struct_by_value_param`.
+9. ~~**Fix B7**~~ **DONE** (2c loop expressions double-destroyed in-scope
+   locals). See Section 1.7 B7. Regression test
+   `generic_dispatch.ch::test_loop_expression_cleanup_once`.
 
 **Acceptance:** compiler builds; full existing test suite unchanged; both repro
-modules compile and run. ✅ (2161/2161 tests pass.)
+modules compile and run. ✅ (2185/2185 TCC tests pass; D13 materialization probe
+`lang/compiled/async_mat` runs identically on TCC and LLVM.)
 
 ### Phase 1 — Surface + type system + interpreter
 
@@ -1829,7 +2280,10 @@ loops/conditionals, destructor-bearing locals, and generic bodies.
 
 ### Phase 3 — LLVM lowering
 
-1. `llvm.coro.*` ramp/begin/promise/suspend/end.
+1. `llvm.coro.*` ramp/begin/promise/suspend/end — follow the **verified recipe
+   in §9.0** exactly (`presplitcoroutine`, initial lazy suspend, `coro.save`
+   before each suspend, switch default → suspend block, `coro.end(i1 false)` on
+   the destroy path, no user destructors when already completed).
 2. `poll`/`drop`/vtable.
 3. Destroy-path destructors from `live_drops`.
 4. `CoroElide` fast path for direct await; no-await fast path.
@@ -1838,7 +2292,9 @@ loops/conditionals, destructor-bearing locals, and generic bodies.
 
 **Acceptance:** async tests run under `./scripts/test.sh --llvm`; generated IR
 contains no frame allocation for direct-await cases (verify IR); cancellation
-and destructor tests pass.
+and destructor tests pass. **Also required:** the pre-existing LLVM
+dead-code-terminator bug (Section 1.7) must be fixed before the LLVM suite can
+run end-to-end; it is independent of async and tracked separately.
 
 ### Phase 4 — C / 2c lowering
 
@@ -2056,7 +2512,7 @@ Frequently needed real symbols (verify line numbers before editing; they move):
 | `LambdaFunction` | `ast/values/LambdaFunction.h:32` |
 | `TypeLoc` | `ast/base/TypeLoc.h` |
 | `GenericType` / `LinkedType` | `ast/types/GenericType.h`, `ast/types/LinkedType.h` |
-| Generic synthesis example | `ast/values/FunctionCall.cpp:2157`, `compiler/symres/SymResLinkBody.cpp:2140` |
+| Generic synthesis example | `ast/values/FunctionCall.cpp:2141`, `compiler/symres/SymResLinkBody.cpp:2140,2167` |
 | Core node caching | `compiler/symres/CoreNodes.h`, `SymbolResolver::link_core_nodes` |
 | Signature linking | `compiler/symres/LinkSignature.cpp:704` (`visit_func_decl`) |
 | Body linking | `compiler/symres/SymResLinkBody.h/.cpp` |
@@ -2076,6 +2532,10 @@ Frequently needed real symbols (verify line numbers before editing; they move):
 | Existing blocking future | `lang/libs/std/src/concurrency/threadpool.ch:106,134` |
 | Verified async probe | `lang/compiled/async_probe/` (Section 1.4, Appendix D) |
 | Generic-loop bug repro | `lang/compiled/generic_loop_bug/` (Section 1.5 B1) |
+| B6 fix (generic struct move) | `compiler/symres/SymResLinkBody.cpp` `is_same_generic_family` + `mark_moved_value` |
+| B7 fix (loop-expression cleanup) | `preprocess/2c/2cASTVisitor.cpp` `writeLoopStmtValue` (`loop_scope`) |
+| D13 end-to-end probe | `lang/compiled/async_mat/` (Section 1.7) |
+| Verified LLVM coroutine recipe | `lang/docs/async-await-design.md` §9.0, Appendix E |
 | Effect proposal | `lang/docs/effect-system-proposal.md` |
 
 ---
@@ -2093,6 +2553,15 @@ Frequently needed real symbols (verify line numbers before editing; they move):
    reference or a generic-constraint call** (D13; probe B2/B3).
 7. **Never write the poll/suspend loop as a Chemical `loop` expression in a
    generic function** (probe B1). Backends emit it.
+8. **The LLVM ramp must follow §9.0 exactly** — `presplitcoroutine`, an explicit
+   initial suspend, `coro.save` before every `coro.suspend`, switch default →
+   `suspend` block, and `coro.end(i1 false)` on the destroy path. Validate at
+   `-O0`, not just `-O2`.
+9. **`drop` never runs user destructors for a completed future** (Section 8.5 /
+   13.3); it only frees the frame. This applies to both backends.
+10. **Do not work around B6/B7.** `block_on`/`spawn` take `FutureHandle<T>` by
+    value and `block_on` may use a Chemical loop expression; both are fixed and
+    covered by tests.
 
 ## Appendix D: Verification Artifacts
 
@@ -2102,7 +2571,15 @@ relevant compiler code changes.
 | Path | What it validates |
 |------|-------------------|
 | `lang/compiled/async_probe/` | Full protocol + runtime handle + vtable + move-only drop + destructor-bearing result + unit + vector-of-handles. Expected output in Section 1.4. |
-| `lang/compiled/generic_loop_bug/` | Minimal repro for B1; must compile and run once B1 is fixed. |
+| `lang/compiled/async_mat/` | **D13 end-to-end**: user `Future<int>` impl → synthesized static vtable (concrete `poll` thunk) → materialized `FutureHandle<int>` → **generic** `rt_await_generic<T>` (B1+B6) → Ready, plus a `Poll<Unit>` future and a cancellation drop. Expected output in Section 1.7. Runs on TCC and LLVM. |
+| `lang/compiled/generic_loop_bug/`, `lang/compiled/b1_probe/` | Minimal repros for B1. |
+| `lang/compiled/b2_probe/`, `lang/compiled/async_generic_poll/` | B2 impl-only method dispatch. |
+| `/tmp/opencode/b6/*` (matrix) | B6 cases A–F (only C failed before the fix). |
+| `/tmp/opencode/b8/` | B7 loop-expression cleanup (TCC printed `DROP` twice before the fix; LLVM once). |
+| `/tmp/opencode/b6/C/` (case C) | B6 minimal repro (`H<T>` by value into a generic fn). |
+| `/tmp/opencode/coro/poll7.ll` | Verified LLVM coroutine recipe (O0/O1/O2). Full text in Appendix E. |
+| `/tmp/opencode/coro/state2.c` | Verified 2c state-machine text compiled by `./lib/tcc/tcc` (complete=105, drops=0/1). |
+| `lang/compiled/llvm_deadcode/` | Pre-existing, unrelated LLVM dead-code-terminator crash (must be fixed before the LLVM suite can run). |
 
 Because `lang/compiled/` is gitignored, the verified probe is reproduced below so
 the working reference survives a clean checkout. `chemical.mod`:
@@ -2297,6 +2774,97 @@ public func main() : int {
 }
 ```
 
-> Note: the probe's `rt_await_*` helpers are intentionally **non-generic**. Their
-> generic equivalent (`func <T> rt_await(fut : FutureHandle<T>, ...)`) hits B1.
-> This is precisely why the real lowering is backend-emitted (D6/B1).
+> Note: the probe's `rt_await_*` helpers are intentionally **non-generic**; they
+> predate the B1/B6 fixes. The generic equivalent now compiles and runs (see
+> `lang/compiled/async_mat`, `rt_await_generic<T>`). The real lowering is still
+> backend-emitted (D6/B1) for the reasons in Section 1.5 and to keep the
+> suspension points under backend control.
+
+---
+
+## Appendix E: Verified LLVM Coroutine Reference IR
+
+This is the exact IR that compiled and ran correctly at `-O0`, `-O1`, and `-O2`
+through the linked LLVM 22.1.8. It is the reference template for
+`AwaitExpression::llvm_value` / the async ramp emission (§9.0). `foo` simulates
+an `async func foo(x : i32) : i32` that awaits one child and returns `x`;
+`foo_poll` is the vtable `poll`. Note the explicit initial suspend in `init`, the
+`presplitcoroutine` attribute, and `coro.end(..., i1 false, ...)` on both exit
+paths. (In a real implementation the cleanup block dispatches on the saved state
+and frees the frame; here it is empty because the toy frame is trivial.)
+
+```llvm
+declare token @llvm.coro.id(i32, ptr, ptr, ptr)
+declare i64 @llvm.coro.size.i64()
+declare i1 @llvm.coro.alloc(token)
+declare ptr @llvm.coro.begin(token, ptr)
+declare token @llvm.coro.save(ptr)
+declare i8 @llvm.coro.suspend(token, i1)
+declare i1 @llvm.coro.done(ptr)
+declare void @llvm.coro.resume(ptr)
+declare void @llvm.coro.end(ptr, i1, token)
+declare ptr @malloc(i64)
+
+define ptr @foo(i32 %x) presplitcoroutine {
+entry:
+  %id = call token @llvm.coro.id(i32 0, ptr null, ptr null, ptr null)
+  %alloc = call i1 @llvm.coro.alloc(token %id)
+  br i1 %alloc, label %alloca, label %after
+alloca:
+  %size = call i64 @llvm.coro.size.i64()
+  %mem = call ptr @malloc(i64 %size)
+  br label %after
+after:
+  %phi = phi ptr [ %mem, %alloca ], [ null, %entry ]
+  %hdl = call ptr @llvm.coro.begin(token %id, ptr %phi)
+  br label %init
+init:
+  ; LAZY: suspend before running user body
+  %save_init = call token @llvm.coro.save(ptr %hdl)
+  %s_init = call i8 @llvm.coro.suspend(token %save_init, i1 false)
+  switch i8 %s_init, label %suspend [ i8 0, label %body  i8 1, label %cleanup ]
+body:
+  %save0 = call token @llvm.coro.save(ptr %hdl)
+  %s0 = call i8 @llvm.coro.suspend(token %save0, i1 false)
+  switch i8 %s0, label %suspend [ i8 0, label %resume0  i8 1, label %cleanup ]
+resume0:
+  ; ... read awaited result from frame, run continuation ...
+  %save1 = call token @llvm.coro.save(ptr %hdl)
+  %s1 = call i8 @llvm.coro.suspend(token %save1, i1 true)   ; final suspend
+  switch i8 %s1, label %fin [ i8 0, label %fin  i8 1, label %cleanup ]
+fin:
+  br label %suspend
+suspend:
+  call void @llvm.coro.end(ptr %hdl, i1 false, token none)
+  ret ptr %hdl
+cleanup:
+  ; destroy-while-suspended: run per-state destructors, then free the frame
+  call void @llvm.coro.end(ptr %hdl, i1 false, token none)
+  ret ptr %hdl
+}
+
+define i1 @foo_poll(ptr %hdl) {
+entry:
+  call void @llvm.coro.resume(ptr %hdl)
+  %done = call i1 @llvm.coro.done(ptr %hdl)
+  ret i1 %done
+}
+```
+
+Compilation and execution (from the repository root, LLVM tools in
+`out/host/bin/`):
+
+```bash
+out/host/bin/llvm-as /tmp/opencode/coro/poll7.ll -o /tmp/opencode/coro/poll7.bc
+for O in O0 O1 O2; do
+  out/host/bin/opt -passes="default<$O>" /tmp/opencode/coro/poll7.bc -o /tmp/opencode/coro/poll7_$O.bc
+  out/host/bin/llc -relocation-model=static /tmp/opencode/coro/poll7_$O.bc -o /tmp/opencode/coro/poll7_$O.s
+  gcc -no-pie /tmp/opencode/coro/poll7_$O.s -o /tmp/opencode/coro/poll7_$O.exe
+  /tmp/opencode/coro/poll7_$O.exe    # prints "done!" then the awaited value
+done
+```
+
+> Reminder: the `-O0` run is the important one. Several malformed variants
+> "worked" only at `-O2` and silently misbehaved or segfaulted at `-O0`. The
+> compiler's debug modes use the `O0` pipeline; an async lowering that only
+> works under optimization is not acceptable.

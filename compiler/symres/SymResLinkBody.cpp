@@ -3528,6 +3528,23 @@ bool is_generic_instantiation(ASTNode* gen_node, ASTNode* inst_node) {
     return false;
 }
 
+// Returns true when `a` and `b` are two distinct instantiations of the same
+// generic struct/union/variant (sharing a non-null `generic_parent`). This
+// happens when a generic function's parameter is written `H<T>` and the call
+// passes an `H<int>`: both sides resolve to *different* StructDefinition nodes
+// that are instantiations of the same generic parent. The move is still valid.
+bool is_same_generic_family(ASTNode* a, ASTNode* b) {
+    if (a == b) return true;
+    if (a == nullptr || b == nullptr) return false;
+    if (!ASTNode::isMembersContainer(a->kind()) || !ASTNode::isMembersContainer(b->kind())) {
+        return false;
+    }
+    const auto a_container = a->as_members_container_unsafe();
+    const auto b_container = b->as_members_container_unsafe();
+    return a_container->generic_parent != nullptr
+        && a_container->generic_parent == b_container->generic_parent;
+}
+
 bool is_movable(VariableIdentifier* id) {
     switch(id->linked->kind()) {
         case ASTNodeKind::StructMember:
@@ -3652,7 +3669,9 @@ bool SymResLinkBody::mark_moved_value(
         if (expected_node == (ASTNode*) linked_def) {
             final = mark_moved_value(&value, diagnoser);
         } else {
-            if(is_generic_instantiation(expected_node, linked_def)) {
+            if(is_generic_instantiation(expected_node, linked_def)
+               || is_generic_instantiation(linked_def, expected_node)
+               || is_same_generic_family(expected_node, linked_def)) {
                 final = mark_moved_value(&value, diagnoser);
             } else {
                 const auto implicit = pure_expected->implicit_constructor_for(&value);

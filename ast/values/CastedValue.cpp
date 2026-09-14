@@ -26,20 +26,29 @@ Value* CastedValue::evaluated_value(InterpretScope &scope) {
     switch(pure_kind) {
         case BaseTypeKind::IntN: {
             const auto intNType = pure->as_intn_type_unsafe();
+            // A cast to a narrower integer type must truncate (and sign extend for
+            // signed types), e.g. `300 as u8 == 44`. coerce_to_type normalizes the
+            // freshly created value to the target width.
+            const auto make_int = [&](uint64_t value) {
+                return scope.coerce_to_type(
+                    intNType->create(scope.allocator, scope.global->typeBuilder, value, encoded_location()),
+                    pure
+                );
+            };
             if(eval->is_value_int_n()) {
-                return intNType->create(scope.allocator, scope.global->typeBuilder, ((IntNumValue*) eval)->get_num_value(), encoded_location());
+                return make_int(((IntNumValue*) eval)->get_num_value());
             } else {
                 // Handle Float/Double to Integer cast
                 const auto eval_kind = eval->val_kind();
                 if(eval_kind == ValueKind::Float) {
                     const auto floatVal = eval->as_float_unsafe();
-                    return intNType->create(scope.allocator, scope.global->typeBuilder, (uint64_t)(int64_t)floatVal->value, encoded_location());
+                    return make_int((uint64_t)(int64_t)floatVal->value);
                 } else if(eval_kind == ValueKind::Double) {
                     const auto doubleVal = eval->as_double_unsafe();
-                    return intNType->create(scope.allocator, scope.global->typeBuilder, (uint64_t)(int64_t)doubleVal->value, encoded_location());
+                    return make_int((uint64_t)(int64_t)doubleVal->value);
                 } else if(eval_kind == ValueKind::PointerValue) {
                     const auto ptrVal = (PointerValue*) eval;
-                    return intNType->create(scope.allocator, scope.global->typeBuilder, (uint64_t)(uintptr_t)ptrVal->data, encoded_location());
+                    return make_int((uint64_t)(uintptr_t)ptrVal->data);
                 }
                 // TODO: cannot error out, we are returning intrinsics::wrap with a cast to integer
                 // scope.error("non integer value cannot be casted to integer type", this);

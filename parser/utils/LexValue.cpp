@@ -1299,7 +1299,9 @@ parse_num_result<Value*> convert_number_to_value(ASTAllocator& alloc, TypeBuilde
             case 8:
                 if(is_unsigned) {
                     const auto num_value = parse_num(value, suffix_index, strtoull);
-                    return { new (alloc.allocate<IntNumValue>()) IntNumValue((char) num_value.result, typeBuilder.getU8Type(), location), num_value.error };
+                    // cast to unsigned char (not char) so the value is zero-extended;
+                    // `(char) 170` would sign-extend to -86 and corrupt u8 literals
+                    return { new (alloc.allocate<IntNumValue>()) IntNumValue((unsigned char) num_value.result, typeBuilder.getU8Type(), location), num_value.error };
                 } else {
                     const auto num_value = parse_num(value, suffix_index, strtoll);
                     return { new (alloc.allocate<IntNumValue>()) IntNumValue((char) num_value.result, typeBuilder.getI8Type(), location), num_value.error };

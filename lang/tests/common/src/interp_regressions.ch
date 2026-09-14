@@ -16,6 +16,8 @@
 
 var interp_side_effect_count = 0
 
+var interp_delete_count = 0
+
 func interp_bump() : int {
     interp_side_effect_count = interp_side_effect_count + 1
     return 100
@@ -45,7 +47,9 @@ struct InterpBox {
     }
 
     @delete
-    func delete(&mut self) {}
+    func delete(&mut self) {
+        interp_delete_count = interp_delete_count + 1
+    }
 }
 
 struct InterpPair {
@@ -404,6 +408,75 @@ func interp_test_control_flow() {
     })
     test("interpreter: for-in continue", () => {
         return interp_forin_continue() == 8
+    })
+}
+
+// --- struct value semantics, copies and destructor timing ----------------------
+
+func interp_struct_copy_param(p : InterpPair) : int {
+    p.a = 999
+    return p.a
+}
+
+func interp_pass_plain_twice() : int {
+    var p = InterpPair { a : 1, b : 2 }
+    return interp_struct_copy_param(p) + interp_struct_copy_param(p)
+}
+
+func interp_returned_struct_field() : int {
+    var b = InterpBox.make(7)
+    return b.value
+}
+
+func interp_nested_struct_read() : int {
+    var inner = InterpBox.make(3)
+    var outer = InterpPair { a : inner.value, b : 0 }
+    return outer.a + inner.value
+}
+
+func interp_move_then_delete_once() : int {
+    interp_delete_count = 0
+    if(true) {
+        var a = InterpBox.make(1)
+        var b = a
+    }
+    return interp_delete_count
+}
+
+func interp_array_of_destructible() : int {
+    var a = [InterpBox.make(1), InterpBox.make(2)]
+    return a[0].value + a[1].value
+}
+
+func interp_loop_local_destructor() : int {
+    interp_delete_count = 0
+    for(var i = 0; i < 3; i++) {
+        var b = InterpBox.make(i)
+    }
+    return interp_delete_count
+}
+
+func test_interp_struct_semantics() {
+    test("interpreter: plain struct passed by value copies", () => {
+        return interp_struct_copy_param(InterpPair { a : 1, b : 2 }) == 999
+    })
+    test("interpreter: plain struct passed twice is unaffected", () => {
+        return interp_pass_plain_twice() == 1998
+    })
+    test("interpreter: returned struct field", () => {
+        return interp_returned_struct_field() == 7
+    })
+    test("interpreter: nested struct field read", () => {
+        return interp_nested_struct_read() == 6
+    })
+    test("interpreter: move then delete once", () => {
+        return interp_move_then_delete_once() == 1
+    })
+    test("interpreter: array of destructible structs", () => {
+        return interp_array_of_destructible() == 3
+    })
+    test("interpreter: loop local destructor runs each iteration", () => {
+        return interp_loop_local_destructor() == 3
     })
 }
 

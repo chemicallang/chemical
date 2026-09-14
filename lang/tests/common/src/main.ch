@@ -208,5 +208,7 @@ public func run_common_tests() {
 
     // Interpreter regression tests (single evaluation, zeroed arrays, etc.)
     test_interp_regressions();
+    test_interp_struct_semantics();
+    test_interp_int_width();
 
 }

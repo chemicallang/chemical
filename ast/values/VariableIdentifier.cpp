@@ -215,8 +215,12 @@ void VariableIdentifier::set_value(InterpretScope &scope, Value *rawValue, Opera
     // first we resolve the value in the current scope
     const auto evalNewValue = rawValue->evaluated_value(scope);
     // now we copy the value onto the scope of the previous value
-    const auto newValue = evalNewValue->scope_value(itr.second);
+    auto newValue = evalNewValue->scope_value(itr.second);
 //    auto newValue = rawValue->scope_value(itr.second);
+    // Normalize integer values to the destination's declared type (e.g. storing
+    // 300 into a `u8` must truncate to 44), matching the compiled backends.
+    const auto destinationType = itr.first->second ? itr.first->second->getType() : getType();
+    newValue = scope.coerce_to_type(newValue, destinationType);
     if (newValue == nullptr) {
         scope.error(this) << "trying to assign null ptr to identifier '" << value << "'";
         return;
@@ -326,6 +330,7 @@ void VariableIdentifier::set_value(InterpretScope &scope, Value *rawValue, Opera
 
         // TODO debug value being passed as this, it should be taken as a parameter
         auto nextValue = itr.second.evaluate(op, prevValue, newValue, passed_loc, this);
+        nextValue = itr.second.coerce_to_type(nextValue, destinationType);
         itr.first->second = nextValue;
 
     } else {

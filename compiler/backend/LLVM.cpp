@@ -3174,9 +3174,9 @@ Value* pack_llvm_val(ASTAllocator& allocator, llvm::Value* value, BaseType* type
 
 Value* LLVMBackendContext::atomic_fence(BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope, SourceLocation location) {
     auto& gen = *gen_ptr;
-    if(order == BackendAtomicMemoryOrder::Monotonic) {
-        gen.error("fence cannot use 'monotonic' or 'relaxed' ordering; upgrade to 'acq_rel'", location);
-    }
+    // a relaxed (monotonic) fence is a no-op semantically, but LLVM's fence instruction
+    // does not accept monotonic ordering, so we upgrade it to acquire-release (a stronger
+    // but still valid ordering)
     auto llvm_mo = to_llvm_mo(order);
     const auto instr = gen.builder->CreateFence(
         // fence cannot use 'monotonic' or 'relaxed' ordering

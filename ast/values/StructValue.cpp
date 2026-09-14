@@ -662,6 +662,16 @@ void StructValue::set_child_value(InterpretScope& scope, const chem::string_view
         values.emplace(name, StructMemberInitializer { name, value });
         return;
     }
+    // Normalize integer values to the field's declared type (e.g. storing 300
+    // into a `u8` field must truncate to 44), matching the compiled backends.
+    if(definition && value) {
+        for(const auto var : definition->variables()) {
+            if(var->name == name) {
+                value = scope.coerce_to_type(value, var->known_type());
+                break;
+            }
+        }
+    }
     ptr.value().value = value;
 }
 

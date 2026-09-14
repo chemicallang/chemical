@@ -19,6 +19,8 @@
 
 class Value;
 
+class BaseType;
+
 class GlobalInterpretScope;
 
 class Scope;
@@ -323,6 +325,20 @@ public:
      * or has been replaced by the compiler during resolution.
      */
     void move_clear_source(Value* initializer, const chem::string_view& new_name);
+
+    /**
+     * Coerces an already-evaluated value to the given target type.
+     *
+     * Currently this normalizes integer values to the target's bit width
+     * (truncation for narrower types, sign extension for signed types), so the
+     * interpreter matches the C and LLVM backends for narrow integer types
+     * (u8/i8/u16/i16/...). Without this, an out-of-range intermediate (e.g. the
+     * literal 300 stored into a `u8`) would keep its full 64-bit value.
+     *
+     * Returns the (possibly newly allocated) coerced value, or `value` unchanged
+     * when the target type is null or no coercion applies.
+     */
+    Value* coerce_to_type(Value* value, BaseType* type);
 
     /**
      * Values that want to be deleted when the scope ends

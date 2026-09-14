@@ -1056,7 +1056,13 @@ void FunctionDeclaration::set_return(InterpretScope& func_scope, Value *value) {
         // not in the function-level scope (*target). Variables like variant case
         // variables are declared in nested scopes inside the function body and
         // would not be found when evaluating from the function-level scope.
-        const auto evaluated = value->evaluated_value(func_scope);
+        auto evaluated = value->evaluated_value(func_scope);
+        // Normalize integer return values to the declared return type (e.g.
+        // returning 300 from a function returning `u8` must yield 44), matching
+        // the compiled backends.
+        if(returnType) {
+            evaluated = func_scope.coerce_to_type(evaluated, returnType);
+        }
         // Walk up the scope chain to find the function-level scope
         // (created by call() with the global as parent).
         // set_return may be called with a nested scope (inside if/block/etc.),
@@ -1113,6 +1119,12 @@ Value *FunctionDeclaration::call(
                     param_val = sv->copy(fn_scope->allocator);
                 }
             }
+        }
+        // Normalize integer arguments to the parameter's declared type (e.g.
+        // passing 300 to a `u8` parameter must truncate to 44), matching the
+        // compiled backends.
+        if(param && param->type && param_val) {
+            param_val = call_scope->coerce_to_type(param_val, param->type);
         }
         // Move semantics: if the argument references an existing destructible struct
         // variable in the caller's scope, clear the source so it's not destructed

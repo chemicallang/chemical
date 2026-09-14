@@ -285,7 +285,10 @@ void IndexOperator::set_value(InterpretScope& scope, Value* rawValue, Operation 
     // Evaluate the new value
     auto newVal = rawValue->evaluated_value(scope);
     if (!newVal) return;
-    
+    // Normalize integer values to the element's declared type (e.g. storing 300
+    // into a `u8` element must truncate to 44), matching the compiled backends.
+    newVal = scope.coerce_to_type(newVal, getType());
+
     switch (parentEval->val_kind()) {
         case ValueKind::ArrayValue: {
             auto arrVal = (ArrayValue*)parentEval;

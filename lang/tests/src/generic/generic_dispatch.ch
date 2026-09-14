@@ -86,3 +86,79 @@ func test_impl_only_method_call() {
         return call_impl_probe_generic<ImplDispatchCounter>(&raw mut c) == 9
     })
 }
+
+// ---------------------------------------------------------------------------
+// B6: a generic struct with a destructor passed by value into a generic
+//     function whose parameter is written with the generic parameter applied
+//     (`H<T>`) reported "unknown value being moved". This is the exact
+//     `block_on<T>(handle : FutureHandle<T>)` shape.
+// ---------------------------------------------------------------------------
+
+@direct_init
+struct MoveProbe<T> {
+    var value : T
+    var drops : *mut int
+
+    @delete
+    func delete(&mut self) {
+        if(self.drops != null) {
+            unsafe { *self.drops = *self.drops + 1 }
+        }
+    }
+}
+
+func <T> consume_move_probe(h : MoveProbe<T>) : int {
+    return 1
+}
+
+func test_generic_struct_by_value_param() {
+    test("generic destructible struct moves into a generic fn (H<T> param)", () => {
+        var drops = 0
+        var h = MoveProbe<int> { value : 5, drops : &raw mut drops }
+        var r = consume_move_probe<int>(h)
+        return r == 1 && drops == 1
+    })
+    test("generic destructible struct moves for another instantiation", () => {
+        var drops = 0
+        var h = MoveProbe<u64> { value : 9u64, drops : &raw mut drops }
+        var r = consume_move_probe<u64>(h)
+        return r == 1 && drops == 1
+    })
+}
+
+// ---------------------------------------------------------------------------
+// B7: a `loop { ... break ... }` expression emitted the destructor of every
+//     in-scope destructible local/parameter on each `break`/`continue` *and*
+//     at scope exit (C backend only), destroying them more than once.
+// ---------------------------------------------------------------------------
+
+struct LoopDropProbe {
+    var counter : *mut int
+
+    @delete
+    func delete(&mut self) {
+        if(self.counter != null) {
+            unsafe { *self.counter = *self.counter + 1 }
+        }
+    }
+}
+
+func loop_drop_count(counter : *mut int) : int {
+    var p = LoopDropProbe { counter : counter }
+    var out : int = loop {
+        if(true) {
+            break 5
+        } else {
+            continue
+        }
+    }
+    return out
+}
+
+func test_loop_expression_cleanup_once() {
+    test("loop expression destroys in-scope locals exactly once", () => {
+        var counter = 0
+        var r = loop_drop_count(&raw mut counter)
+        return counter == 1 && r == 5
+    })
+}

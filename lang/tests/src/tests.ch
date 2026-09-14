@@ -30,6 +30,8 @@ func run_executable_tests() {
     test_native_generic_specifics();
     test_generic_loop_expression_result();
     test_impl_only_method_call();
+    test_generic_struct_by_value_param();
+    test_loop_expression_cleanup_once();
     test_imported_modules();
     test_modules_import();
     test_external_interfaces();

@@ -5197,7 +5197,13 @@ void ToCAstVisitor::writeLoopStmtValue(LoopBlock& block, BaseType* type) {
     write(' ');
     write(tempVar);
     write("; while(1)");
-    scope(*this, block.body);
+    // Use loop_scope (not scope): a `loop { ... break ... }` value is a loop, so
+    // `break`/`continue` must only run the destructors of jobs created *inside*
+    // the loop body. Using plain `scope` left `loop_job_begin_index` stale, so
+    // `destruct_till_loop_scope_above()` destroyed every live local/parameter in
+    // the enclosing function on each `break`/`continue` (and again at scope
+    // exit), double-destroying them.
+    loop_scope(*this, block.body);
     write(' ');
     write(tempVar);
     write("; })");

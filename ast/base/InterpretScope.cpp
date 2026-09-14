@@ -23,6 +23,7 @@
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/WrapValue.h"
 #include "ast/values/CastedValue.h"
+#include "ast/types/IntNType.h"
 #include "std/except.h"
 #include "compiler/lab/LabBuildCompiler.h"
 
@@ -720,6 +721,31 @@ void InterpretScope::move_clear_source(Value* initializer, const chem::string_vi
         }
         scanScope = scanScope->parent;
     }
+}
+
+Value* InterpretScope::coerce_to_type(Value* value, BaseType* type) {
+    if(!value || !type) return value;
+    if(value->val_kind() != ValueKind::IntN) return value;
+    const auto canon = type->canonical();
+    if(!canon || canon->kind() != BaseTypeKind::IntN) return value;
+    const auto target = canon->as_intn_type_unsafe();
+    const auto src = value->as_int_num_value_unsafe();
+    const auto bits = target->num_bits(global->target_data);
+    uint64_t coerced = src->get_num_value();
+    if(bits > 0 && bits < 64) {
+        const uint64_t mask = (1ULL << bits) - 1ULL;
+        coerced &= mask;
+        if(!target->is_unsigned()) {
+            const uint64_t sign_bit = 1ULL << (bits - 1);
+            if(coerced & sign_bit) {
+                coerced |= ~mask;
+            }
+        }
+    }
+    if(src->getType() == target && coerced == src->get_num_value()) {
+        return value;
+    }
+    return new (allocate<IntNumValue>()) IntNumValue(coerced, target, value->encoded_location());
 }
 
 void InterpretScope::print_values() {

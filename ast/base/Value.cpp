@@ -639,6 +639,7 @@ bool Value::isValueRValueInBackend() {
         case ValueKind::NullValue:
         case ValueKind::InValue:
         case ValueKind::IsValue:
+        case ValueKind::AwaitExpr:
             return true;
         case ValueKind::FunctionCall:
             return isTypeRValue(getType());
@@ -713,6 +714,7 @@ bool Value::isValueRValueInFrontend() {
         case ValueKind::InValue:
         case ValueKind::IsValue:
         case ValueKind::ArrayValue:
+        case ValueKind::AwaitExpr:
             return true;
         case ValueKind::FunctionCall:
             return isTypeRValueFrontend(getType());
@@ -865,6 +867,9 @@ bool Value::is_ref_l_value() {
     switch(kind) {
         case ValueKind::StructValue:
             return true;
+        case ValueKind::AwaitExpr:
+            // `await e` yields an rvalue result, it is never an l-value
+            return false;
         case ValueKind::AccessChain:
             if(as_access_chain_unsafe()->values.back()->kind() == ValueKind::IndexOperator) {
                 return true;

@@ -6,6 +6,7 @@
 
 #include "parser/Parser.h"
 #include "ast/values/NotValue.h"
+#include "ast/values/AwaitExpression.h"
 #include "ast/values/BitwiseNot.h"
 #include "ast/values/Negative.h"
 #include "ast/values/CastedValue.h"
@@ -321,6 +322,22 @@ NotValue* Parser::parseNotValue(ASTAllocator& allocator) {
     } else {
         return nullptr;
     }
+}
+
+AwaitExpression* Parser::parseAwaitValue(ASTAllocator& allocator) {
+    auto& tok = *token;
+    if(tok.type != TokenType::AwaitKw) {
+        return nullptr;
+    }
+    token++;
+    // parse the operand at unary precedence so `await f()` and `await x.m()`
+    // bind correctly (tighter than any binary operator)
+    auto inner = parseAccessChainOrValueNoAfter(allocator, false);
+    if(!inner) {
+        error("expected an expression after 'await'");
+        return nullptr;
+    }
+    return new (allocator.allocate<AwaitExpression>()) AwaitExpression(inner, loc_single(tok));
 }
 
 BitwiseNot* Parser::parseBitwiseNot(ASTAllocator& allocator) {

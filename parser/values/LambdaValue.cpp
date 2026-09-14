@@ -39,6 +39,19 @@ bool Parser::parseLambdaAfterParamsList(ASTAllocator& allocator, LambdaFunction*
     return true;
 }
 
+LambdaFunction* Parser::parseAsyncClosureValue(ASTAllocator& allocator) {
+    if(!consumeToken(TokenType::AsyncKw)) {
+        return nullptr;
+    }
+    auto lambda = parseLambdaValue(allocator);
+    if(lambda) {
+        lambda->setIsAsync(true);
+    } else {
+        error("expected a lambda after the 'async' keyword");
+    }
+    return lambda;
+}
+
 LambdaFunction* Parser::parseLambdaValue(ASTAllocator& allocator) {
 
     auto lambda = new (allocator.allocate<LambdaFunction>()) LambdaFunction(false, parent_node, loc_single(token));

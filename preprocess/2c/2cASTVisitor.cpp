@@ -38,6 +38,7 @@
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/UnsafeBlock.h"
 #include "ast/values/UnsafeValue.h"
+#include "ast/values/AwaitExpression.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/TryCatch.h"
 #include "ast/structures/DoWhileLoop.h"
@@ -3527,6 +3528,13 @@ void ToCAstVisitor::VisitUnsafeValue(UnsafeValue *value) {
     // `unsafe(expr)` is a compile-time safety marker only; it has no runtime
     // effect, so we simply translate the wrapped expression.
     if(value->getValue()) visit(value->getValue());
+}
+
+void ToCAstVisitor::VisitAwaitExpression(AwaitExpression* value) {
+    // Phase 1 bootstrap: `await` is eager/transparent, so we translate the
+    // inner expression directly. The lazy coroutine lowering replaces this in
+    // Phase 4.
+    if(value->getInner()) visit(value->getInner());
 }
 
 void ToCAstVisitor::VisitImportStmt(ImportStatement *importStatement) {

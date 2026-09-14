@@ -17,6 +17,7 @@
 #include "ast/base/TypeBuilder.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/NullValue.h"
+#include "ast/values/AwaitExpression.h"
 
 AccessSpecifier get_specifier_from(TokenType type) {
     switch(type) {
@@ -35,6 +36,7 @@ AccessSpecifier get_specifier_from(TokenType type) {
 ASTNode* Parser::parseTopLevelAccessSpecifiedDecl(ASTAllocator& allocator, AccessSpecifier spec, bool comptime) {
     switch (token->type) {
         case TokenType::FuncKw:
+        case TokenType::AsyncKw:
             return (ASTNode*) parseFunctionStructureTokens(allocator, mod_allocator, spec, true, comptime);
         case TokenType::ComptimeKw:
             if(comptime) {
@@ -132,6 +134,7 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) 
         case TokenType::IfKw:
             return (ASTNode*) parseIfStatement(allocator, false, false, true, true);
         case TokenType::FuncKw:
+        case TokenType::AsyncKw:
             return (ASTNode*) parseFunctionStructureTokens(allocator, mod_allocator, AccessSpecifier::Internal, true, comptime);
         case TokenType::NamespaceKw:
             return (ASTNode*) parseNamespace(allocator, AccessSpecifier::Internal);
@@ -335,6 +338,10 @@ Value* Parser::parseProvideValue(ASTAllocator& allocator) {
             return (Value*) parseNegativeValue(allocator);
         case TokenType::HashMacro:
             return (Value*) parseMacroValue(allocator);
+        case TokenType::AwaitKw:
+            return (Value*) parseAwaitValue(allocator);
+        case TokenType::AsyncKw:
+            return (Value*) parseAsyncClosureValue(allocator);
         case TokenType::AmpersandSym:
             return parseReferenceOfValue(allocator);
         case TokenType::MultiplySym:

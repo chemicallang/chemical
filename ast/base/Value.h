@@ -1169,4 +1169,9 @@ public:
         return ((ExpressiveString*) this);
     }
 
+    inline AwaitExpression* as_await_expression_unsafe() {
+        CHECK_CAST(ValueKind::AwaitExpr);
+        return ((AwaitExpression*) this);
+    }
+
 };

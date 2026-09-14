@@ -33,6 +33,7 @@
 #include "ast/values/ComptimeValue.h"
 #include "ast/values/RuntimeBlockValue.h"
 #include "ast/values/UnsafeValue.h"
+#include "ast/values/AwaitExpression.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/AlignOfValue.h"
 #include "ast/values/OffsetOfValue.h"
@@ -859,6 +860,8 @@ Value* Parser::parseAccessChainOrValueNoAfter(ASTAllocator& allocator, bool pars
         case TokenType::LogicalOrSym:
         case TokenType::PipeSym:
             return parseLambdaValue(allocator);
+        case TokenType::AsyncKw:
+            return (Value*) parseAsyncClosureValue(allocator);
         case TokenType::Number:
             return (Value*) parseNumberValue(allocator);
         case TokenType::LParen:
@@ -873,6 +876,8 @@ Value* Parser::parseAccessChainOrValueNoAfter(ASTAllocator& allocator, bool pars
             return (Value*) parseNegativeValue(allocator);
         case TokenType::HashMacro:
             return parseMacroValue(allocator);
+        case TokenType::AwaitKw:
+            return (Value*) parseAwaitValue(allocator);
         default:
             return parseAccessChainOrAddrOf(allocator, parseStruct);
     }
@@ -903,6 +908,8 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
         case TokenType::LogicalOrSym:
         case TokenType::PipeSym:
             return parseLambdaValue(allocator);
+        case TokenType::AsyncKw:
+            return parseAfterValue(allocator, (Value*) parseAsyncClosureValue(allocator));
         case TokenType::Number:
             return parseAfterValue(allocator, (Value*) parseNumberValue(allocator));
         case TokenType::LParen:
@@ -917,6 +924,8 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
             return parseAfterValue(allocator, (Value*) parseNegativeValue(allocator));
         case TokenType::HashMacro:
             return parseAfterValue(allocator, parseMacroValue(allocator));
+        case TokenType::AwaitKw:
+            return parseAfterValue(allocator, (Value*) parseAwaitValue(allocator));
         default:
             auto ac = parseAccessChainOrAddrOf(allocator, parseStruct);
             if(ac) {

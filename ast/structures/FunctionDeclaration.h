@@ -182,6 +182,13 @@ struct FuncDeclAttributes {
      */
     bool contract_enable_value = false;
 
+    /**
+     * is this an async function. Appended at the end on purpose so the
+     * positional aggregate initialization in FunctionDeclaration's constructor
+     * (18 args for fields 1-18) is unaffected.
+     */
+    bool is_async = false;
+
 };
 
 class FunctionDeclaration : public ASTNode, public FunctionTypeBody {
@@ -251,6 +258,14 @@ public:
 
     inline void set_comptime(bool value) {
         attrs.is_comptime = value;
+    }
+
+    inline bool is_async() {
+        return attrs.is_async;
+    }
+
+    inline void set_async(bool value) {
+        attrs.is_async = value;
     }
 
     inline bool is_compiler_decl() {

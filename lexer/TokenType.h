@@ -242,6 +242,13 @@ enum class TokenType {
     StringExprStart,
     StringExprEnd,
 
+    // async / await keywords. Appended at the very end (outside the IndexKw
+    // range) on purpose: appending does not shift Identifier or any punctuation
+    // value, avoiding the CBI off-by-one hazard. The parser dispatches on these
+    // explicitly.
+    AsyncKw,
+    AwaitKw,
+
     IndexKwStart = ForKw,
     IndexKwEnd = ConstKw,
 

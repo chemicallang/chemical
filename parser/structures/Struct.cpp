@@ -112,6 +112,7 @@ ASTNode* parseAccessSpecifiedMemberStmt(Parser& parser, ASTAllocator& allocator,
         case TokenType::UnionKw:
             return parser.parseUnnamedUnion(allocator, specifier);
         case TokenType::FuncKw:
+        case TokenType::AsyncKw:
             return parser.parseFunctionStructureTokens(allocator, body_allocator, specifier, false, comptime);
         default:
             return nullptr;
@@ -148,7 +149,8 @@ ASTNode* parseMemberStmt(Parser& parser, ASTAllocator& allocator, ASTAllocator& 
         case TokenType::UnionKw:{
             return parser.parseUnnamedUnion(allocator, specifier);
         }
-        case TokenType::FuncKw: {
+        case TokenType::FuncKw:
+        case TokenType::AsyncKw: {
             return parser.parseFunctionStructureTokens(allocator, body_allocator, specifier, false, comptime);
         }
         default:

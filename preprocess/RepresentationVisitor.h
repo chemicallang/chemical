@@ -318,6 +318,8 @@ public:
 
     void VisitUnsafeValue(UnsafeValue* value);
 
+    void VisitAwaitExpression(AwaitExpression* value);
+
     void VisitComptimeValue(ComptimeValue* value);
 
     void VisitVariantCase(VariantCase* value);

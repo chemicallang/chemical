@@ -18,6 +18,7 @@
 #include "ast/values/AccessChain.h"
 
 #include "ast/values/AddrOfValue.h"
+#include "ast/values/AwaitExpression.h"
 #include "ast/values/ReferenceOfValue.h"
 #include "ast/values/DereferenceValue.h"
 #include "ast/values/SizeOfValue.h"
@@ -165,6 +166,10 @@ Value* Parser::parseLhsValue(ASTAllocator& allocator) {
             token++;
             return parseComptimeValue(allocator);
         }
+        case TokenType::AwaitKw: {
+            error("cannot assign to an await expression");
+            return nullptr;
+        }
         default:
             return nullptr;
     }
@@ -223,6 +228,10 @@ Value* Parser::parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruc
             token++;
             return parseZeroedValue(allocator);
         }
+        case TokenType::AwaitKw:
+            return (Value*) parseAwaitValue(allocator);
+        case TokenType::AsyncKw:
+            return (Value*) parseAsyncClosureValue(allocator);
         case TokenType::StructKw: {
             auto& t = *token;
             token++;

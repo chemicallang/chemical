@@ -64,5 +64,7 @@ enum class ValueKind : uint8_t {
 
     RawLiteral,
 
+    // new values appended at the end (do not insert in the middle: CBI mirror)
+    AwaitExpr,
 
 };

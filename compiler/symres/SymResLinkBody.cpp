@@ -50,6 +50,7 @@
 #include "ast/types/VoidType.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/UnsafeValue.h"
+#include "ast/values/AwaitExpression.h"
 #include "ast/values/RuntimeValue.h"
 #include "ast/values/StringValue.h"
 #include "ast/types/LinkedValueType.h"
@@ -2798,6 +2799,19 @@ void SymResLinkBody::VisitUnsafeValue(UnsafeValue* value) {
     visit(value->getValue(), expected_type);
     safe_context = prev;
     value->setType(value->getValue()->getType());
+}
+
+void SymResLinkBody::VisitAwaitExpression(AwaitExpression* value) {
+    visit(value->getInner(), expected_type);
+    auto inner_type = value->getInner()->getType();
+    if(inner_type == nullptr) {
+        value->setAwaitResultType(getTypeBuilder().getVoidType());
+        return;
+    }
+    // Phase 1 bootstrap: `await` is eager/transparent, so its result is the
+    // inner expression's own type. When the lazy FutureHandle<T> protocol lands
+    // this is where the inner type is unwrapped to T.
+    value->setAwaitResultType(inner_type);
 }
 
 void SymResLinkBody::VisitNewValue(NewValue* value) {

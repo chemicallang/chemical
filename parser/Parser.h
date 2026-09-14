@@ -1148,6 +1148,12 @@ public:
     LambdaFunction* parseLambdaValue(ASTAllocator& allocator);
 
     /**
+     * parses an async closure: async |x|(a : int) : int => { ... }
+     * consumes the 'async' keyword, parses the lambda and marks it async
+     */
+    LambdaFunction* parseAsyncClosureValue(ASTAllocator& allocator);
+
+    /**
      * parses remaining expression, this is used by parseExpressionTokens
      * this parses the expression tokens after the first identifier / value
      * for example in expression a + b, after parseing a + b will parseed by this function
@@ -1182,6 +1188,12 @@ public:
      * parses a single not value
      */
     NotValue* parseNotValue(ASTAllocator& allocator);
+
+    /**
+     * parses an await expression: await expr
+     * binds at unary precedence (tighter than binary operators)
+     */
+    AwaitExpression* parseAwaitValue(ASTAllocator& allocator);
 
     /**
      * parses a single bitwise not value

@@ -104,3 +104,49 @@ func test_html_parse_empty(env : &mut TestEnv) {
         env.error("empty html should parse to empty string")
     }
 }
+
+@test
+func test_html_text_starting_with_slash(env : &mut TestEnv) {
+    var input = std::string_view("<p>/etc/ld.so.cache</p>")
+    test_html_roundtrip(env, &input)
+}
+
+@test
+func test_html_text_starting_with_slash_in_li(env : &mut TestEnv) {
+    var input = std::string_view("<li>/lib and /usr/lib: default paths</li>")
+    test_html_roundtrip(env, &input)
+}
+
+@test
+func test_html_text_starting_with_gt(env : &mut TestEnv) {
+    var input = std::string_view("<p>> is a comparison operator</p>")
+    test_html_roundtrip(env, &input)
+}
+
+@test
+func test_html_text_with_slash_and_gt(env : &mut TestEnv) {
+    var input = std::string_view("<p>/path/to/file > other</p>")
+    test_html_roundtrip(env, &input)
+}
+
+@test
+func test_html_text_with_multiple_slashes(env : &mut TestEnv) {
+    var input = std::string_view("<p>/a /b /c</p>")
+    test_html_roundtrip(env, &input)
+}
+
+@test
+func test_html_text_with_gt_between_tags(env : &mut TestEnv) {
+    var input = std::string_view("<b>bold</b> &gt; <i>italic</i>")
+    var out = html::parse_html(input)
+    var expected = std::string_view("<b>bold</b> &gt; <i>italic</i>")
+    html_view_equals(env, out.to_view(), &expected)
+}
+
+@test
+func test_html_preserves_path_content(env : &mut TestEnv) {
+    var input = std::string_view("<td>/usr/lib/x86_64-linux-gnu/libc.so.6</td>")
+    var out = html::parse_html(input)
+    var expected = std::string_view("<td>/usr/lib/x86_64-linux-gnu/libc.so.6</td>")
+    html_view_equals(env, out.to_view(), &expected)
+}

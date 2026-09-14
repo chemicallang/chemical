@@ -87,6 +87,57 @@ static void raise_loop_continue(InterpretScope& scope) {
 
 Value* evaluate(InterpretScope& scope, Scope* body);
 
+// Returns true when overwriting the LHS of an assignment may need to run a user
+// destructor on the previous value. Only destructible struct-like types require
+// the scope lookup that fetches the old value; primitives (the common case in
+// hot interpreted loops) can skip it entirely.
+static bool lhs_may_need_destroy(Value* lhs) {
+    if(!lhs) return true;
+    const auto type = lhs->getType();
+    if(!type) return true;
+    const auto canon = type->canonical();
+    if(!canon) return true;
+    switch(canon->kind()) {
+        case BaseTypeKind::Struct:
+        case BaseTypeKind::Union:
+        case BaseTypeKind::Linked: {
+            const auto node = canon->get_direct_linked_canonical_node();
+            if(!node) return true;
+            switch(node->kind()) {
+                case ASTNodeKind::StructDecl:
+                case ASTNodeKind::UnionDecl:
+                case ASTNodeKind::VariantDecl:
+                    return ((ExtendableMembersContainerNode*) node)->has_destructor();
+                default:
+                    return false;
+            }
+        }
+        default:
+            return false;
+    }
+}
+
+// Destroys temporary structs created while evaluating the arguments of a call
+// that were wrapped in `&`/`&raw` (ReferenceOfValue / AddrOfValue), e.g.
+// take(&create_destructible(...)). The inner call's result is not tracked by any
+// scope, so it must be destroyed once the outer call has completed.
+static void destroy_wrapped_arg_temps(InterpretScope& scope, FunctionCall* call) {
+    if(!call) return;
+    for(auto arg : call->values) {
+        if(arg->val_kind() == ValueKind::ReferenceOfValue) {
+            auto refOf = arg->as_reference_of_value_unsafe();
+            if(refOf->innerEvaluatedResult) {
+                scope.destroy_value(refOf->innerEvaluatedResult);
+            }
+        } else if(arg->val_kind() == ValueKind::AddrOfValue) {
+            auto addrOf = arg->as_addr_of_value_unsafe();
+            if(addrOf->innerEvaluatedResult) {
+                scope.destroy_value(addrOf->innerEvaluatedResult);
+            }
+        }
+    }
+}
+
 inline void interpret(InterpretScope& scope, BreakStatement* stmt) {
     if(stmt->value) {
         // Store the break value on the nearest enclosing loop-value scope so it
@@ -219,7 +270,7 @@ inline void interpret(InterpretScope& scope, AssignStatement* assign) {
         if(assign->is_first_init) {
             // First initialization of a previously uninitialized variable: there is
             // no previous value to destroy (it would be garbage / uninitialized memory).
-        } else if(assign->lhs->val_kind() == ValueKind::Identifier) {
+        } else if(assign->lhs->val_kind() == ValueKind::Identifier && lhs_may_need_destroy(assign->lhs)) {
             auto lhsId = assign->lhs->as_identifier_unsafe();
             auto lhsIt = scope.find_value_iterator(lhsId->value);
             if(lhsIt.first != lhsIt.second.values.end()) {
@@ -829,22 +880,7 @@ inline void interpret(InterpretScope& scope, ValueWrapperNode* node) {
         auto call = node->value->as_func_call_unsafe();
         auto result = node->value->evaluated_value(scope);
         scope.destroy_value(result);
-        // Also destruct temps created by arguments wrapped in ReferenceOfValue/AddrOfValue.
-        // E.g. take_gen_destruct_ref(&create_short_gen_dest(...)) — the inner FunctionCall
-        // creates a temp struct that must be destructed after the outer call completes.
-                for(auto arg : call->values) {
-                    if(arg->val_kind() == ValueKind::ReferenceOfValue) {
-                        auto refOf = arg->as_reference_of_value_unsafe();
-                        if(refOf->innerEvaluatedResult) {
-                            scope.destroy_value(refOf->innerEvaluatedResult);
-                        }
-                    } else if(arg->val_kind() == ValueKind::AddrOfValue) {
-                        auto addrOf = arg->as_addr_of_value_unsafe();
-                        if(addrOf->innerEvaluatedResult) {
-                            scope.destroy_value(addrOf->innerEvaluatedResult);
-                        }
-                    }
-                }
+        destroy_wrapped_arg_temps(scope, call);
     } else if(node->value->val_kind() == ValueKind::AccessChain) {
         auto chain = node->value->as_access_chain_unsafe();
         if(chain->values.empty()) return;
@@ -890,20 +926,7 @@ inline void interpret(InterpretScope& scope, AccessChainNode* node) {
         // E.g. take_gen_destruct_ref(&create_short_gen_dest(...)) — the inner FunctionCall
         // creates a temp struct that must be destructed after the outer call completes.
         if(val->val_kind() == ValueKind::FunctionCall) {
-            auto call = val->as_func_call_unsafe();
-            for(auto arg : call->values) {
-                if(arg->val_kind() == ValueKind::ReferenceOfValue) {
-                    auto refOf = arg->as_reference_of_value_unsafe();
-                    if(refOf->innerEvaluatedResult) {
-                        scope.destroy_value(refOf->innerEvaluatedResult);
-                    }
-                } else if(arg->val_kind() == ValueKind::AddrOfValue) {
-                    auto addrOf = arg->as_addr_of_value_unsafe();
-                    if(addrOf->innerEvaluatedResult) {
-                        scope.destroy_value(addrOf->innerEvaluatedResult);
-                    }
-                }
-            }
+            destroy_wrapped_arg_temps(scope, val->as_func_call_unsafe());
         }
         return;
     }

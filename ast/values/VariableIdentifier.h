@@ -7,6 +7,7 @@
 #pragma once
 
 #include <utility>
+#include <atomic>
 #include "ast/base/Value.h"
 #include "ast/statements/VarInit.h"
 
@@ -29,6 +30,16 @@ public:
     ASTNode *linked = nullptr;
     bool is_ns;
     bool is_moved = false;
+
+    /**
+     * Interpreter inline cache: number of parent-scope hops from the evaluation
+     * point to the scope that owns this identifier's binding. The syntactic
+     * nesting of a given identifier is fixed, so this depth is stable across
+     * loop iterations and recursive calls, letting us skip re-scanning ancestor
+     * scopes on every read/write. Reset (to false) on copy.
+     */
+    std::atomic<unsigned> cached_value_depth{0};
+    std::atomic<bool> value_depth_cached{false};
 
     /**
      * constructor

@@ -13,6 +13,15 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
+static bool has_master_function_named(InterfaceDefinition* linked, const chem::string_view& name) {
+    for (const auto func : linked->master_functions()) {
+        if (func->name_view() == name) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void ImplDefinition::code_gen_function(Codegen& gen, FunctionDeclaration* decl, InterfaceDefinition* linked, ExtendableMembersContainerNode* struct_def) {
     // TODO: this is not the best way to get the base function
     auto overridden = linked->get_func_with_signature(decl);
@@ -39,6 +48,18 @@ void ImplDefinition::code_gen_function(Codegen& gen, FunctionDeclaration* decl, 
             decl->set_llvm_data(gen, func_pointer);
             decl->code_gen_override(gen, func_pointer);
         }
+    } else if (has_master_function_named(linked, decl->name_view())) {
+        // The interface declares a generic method with this name (for example
+        // ObjectEncoder<T>.field<V>) but no concrete instantiation of it exists, so there
+        // is no interface function pointer to override. This happens when the generic
+        // method is only ever called directly on the concrete implementing type.
+        //
+        // Implementation functions are never declared on their own (see
+        // FunctionDeclaration::code_gen_declare), so we must first create the actual
+        // function definition (this allocates its entry block) before generating the
+        // body, otherwise the builder would have no valid insertion point.
+        decl->code_gen_declare_normal(gen);
+        decl->code_gen_body(gen);
     } else {
         gen.error("failed to override function in impl because not found", (AnnotableNode*) decl);
     }

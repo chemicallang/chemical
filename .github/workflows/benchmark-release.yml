@@ -14,8 +14,11 @@ on:
       # always benchmarked, and the full test suite always runs alongside the
       # hello benchmarks (hello takes seconds, the test suite ~20 s; splitting
       # them into separate workflow runs would download the compiler twice).
-  release:
-    types: [published]
+      #
+      # This workflow is manual-only: it deliberately does NOT trigger on
+      # `release: [published]`, so publishing a release does not kick off
+      # benchmarking. Run it from the Actions tab when you want release
+      # benchmarks.
 
 permissions:
   contents: write

@@ -1178,4 +1178,33 @@ public func webview_version() : WebViewVersion {
     return WebViewVersion { major : 0, minor : 12, patch : 1 }
 }
 
+// --- Native folder picker (GTK) ---
+
+@no_init @extern public struct GtkFileChooserNative {}
+
+@extern public func gtk_file_chooser_native_new(title : *char, parent : *mut GtkWindow, action : int, accept_label : *char, cancel_label : *char) : *mut GtkFileChooserNative
+@extern public func gtk_native_dialog_run(dialog : *mut GtkFileChooserNative) : int
+@extern public func gtk_file_chooser_get_filename(chooser : *mut void) : *char
+
+@extern public func g_object_unref(object : *mut void)
+
+const GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER = 2
+const GTK_RESPONSE_ACCEPT = -3
+
+// Show a native folder-picker dialog. Returns the selected path or empty string.
+public func webview_browse_folder(title : *char) : string {
+    var dlg = gtk_file_chooser_native_new(title, null, GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER, "_Open", "_Cancel")
+    if(dlg == null) { return string() }
+    var resp = gtk_native_dialog_run(dlg)
+    var result = string()
+    if(resp == GTK_RESPONSE_ACCEPT) {
+        var path = gtk_file_chooser_get_filename(dlg as *mut void)
+        if(path != null) {
+            result = string(path)
+        }
+    }
+    g_object_unref(dlg as *mut void)
+    return result
+}
+
 } // end namespace webview

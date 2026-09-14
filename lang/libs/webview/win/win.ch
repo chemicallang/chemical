@@ -2068,5 +2068,107 @@ public func webview_version() : WebViewVersion {
     return WebViewVersion { major : 0, minor : 12, patch : 1 }
 }
 
+// --- Native folder picker (Windows IFileOpenDialog COM) ---
+
+@extern @stdcall @dllimport public func CoCreateInstance(rclsid : REFIID, pUnkOuter : *mut void, dwClsContext : DWORD, riid : REFIID, ppv : *mut *mut void) : HRESULT
+
+public struct IShellItemVtbl {
+    var QueryInterface : (s : *mut void, riid : REFIID, ppv : *mut *mut void) => HRESULT
+    var AddRef : (s : *mut void) => u32
+    var Release : (s : *mut void) => u32
+    var BindToHandler : (s : *mut void, pbc : *mut void, bhid : REFIID, riid : REFIID, ppv : *mut *mut void) => HRESULT
+    var GetParent : (s : *mut void, ppsi : *mut *mut void) => HRESULT
+    var GetDisplayName : (s : *mut void, sigdnName : u32, ppszName : *mut LPWSTR) => HRESULT
+    var GetAttributes : (s : *mut void, sfgaoMask : u32, psfgaoAttribs : *mut u32) => HRESULT
+    var Compare : (s : *mut void, psi : *mut void, hint : u32, piOrder : *mut int) => HRESULT
+}
+
+public struct IShellItem {
+    var vtbl : *mut IShellItemVtbl
+}
+
+public struct IFileOpenDialogVtbl {
+    var QueryInterface : (s : *mut void, riid : REFIID, ppv : *mut *mut void) => HRESULT
+    var AddRef : (s : *mut void) => u32
+    var Release : (s : *mut void) => u32
+    var SetClientGuid : (s : *mut void, guid : *mut GUID) => HRESULT
+    var ClearClientData : (s : *mut void) => HRESULT
+    var SetFilter : (s : *mut void, pFilter : *mut void) => HRESULT
+    var GetResults : (s : *mut void, ppenum : *mut *mut void) => HRESULT
+    var GetSelectedItems : (s : *mut void, ppsai : *mut *mut void) => HRESULT
+    var GetFileName : (s : *mut void, ppszName : *mut LPWSTR) => HRESULT
+    var SetTitle : (s : *mut void, pszTitle : LPCWSTR) => HRESULT
+    var SetOkButtonLabel : (s : *mut void, pszText : LPCWSTR) => HRESULT
+    var SetFileNameLabel : (s : *mut void, pszLabel : LPCWSTR) => HRESULT
+    var GetResult : (s : *mut void, ppsi : *mut *mut IShellItem) => HRESULT
+    var AddPlace : (s : *mut void, psi : *mut void, fdap : int) => HRESULT
+    var SetDefaultExtension : (s : *mut void, pszDefaultExtension : LPCWSTR) => HRESULT
+    var Close : (s : *mut void, hr : HRESULT) => HRESULT
+    var SetClientGuid2 : (s : *mut void, guid : *mut GUID) => HRESULT
+    var ClearClientData2 : (s : *mut void) => HRESULT
+    var SetFilter2 : (s : *mut void, pFilter : *mut void) => HRESULT
+    var SetOptions : (s : *mut void, fos : u32) => HRESULT
+    var GetOptions : (s : *mut void, pfos : *mut u32) => HRESULT
+    var SetDefaultFolder : (s : *mut void, psi : *mut void) => HRESULT
+    var SetFolder : (s : *mut void, psi : *mut void) => HRESULT
+    var GetFolder : (s : *mut void, ppsi : *mut *mut void) => HRESULT
+    var GetCurrentSelection : (s : *mut void, ppsi : *mut *mut void) => HRESULT
+    var SetFileName : (s : *mut void, pszName : LPCWSTR) => HRESULT
+}
+
+public struct IFileOpenDialog {
+    var vtbl : *mut IFileOpenDialogVtbl
+}
+
+const CLSCTX_INPROC_SERVER : DWORD = 0x1
+const FOS_PICKFOLDERS : u32 = 0x20
+const FOS_FORCEFILESYSTEM : u32 = 0x40
+const SIGDN_FILESYSPATH : u32 = 0x80058000
+
+// CLSID_FileOpenDialog {DC1C5A9C-E8EF-4D5E-8C19-EB5D7928C192}
+var CLSID_FileOpenDialog : GUID = GUID { data1 : 0xDC1C5A9C, data2 : 0xE8EF, data3 : 0x4D5E, data4 : [0x8C, 0x19, 0xEB, 0x5D, 0x79, 0x28, 0xC1, 0x92] }
+// IID_IFileOpenDialog {D57C7288-D4AD-4768-87C0-B0834F4146D1}
+var IID_IFileOpenDialog : GUID = GUID { data1 : 0xD57C7288, data2 : 0xD4AD, data3 : 0x4768, data4 : [0x87, 0xC0, 0xB0, 0x83, 0x4F, 0x41, 0x46, 0xD1] }
+// IID_IShellItem {43826D1E-E718-42EE-BC55-A1E261C37BFE}
+var IID_IShellItem : GUID = GUID { data1 : 0x43826D1E, data2 : 0xE718, data3 : 0x42EE, data4 : [0xBC, 0x55, 0xA1, 0xE2, 0x61, 0xC3, 0x7B, 0xFE] }
+
+// Show a native folder-picker dialog. Returns the selected path or empty string.
+public func webview_browse_folder(title : *char) : string {
+    var dialog : *mut IFileOpenDialog = null
+    var hr = CoCreateInstance(&raw mut CLSID_FileOpenDialog, null, CLSCTX_INPROC_SERVER, &raw mut IID_IFileOpenDialog, &(dialog as *mut void))
+    if(!SUCCEEDED(hr) || dialog == null) { return string() }
+
+    dialog.vtbl.SetOptions(dialog as *mut void, FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM)
+
+    hr = dialog.vtbl.Show(dialog as *mut void, null as HWND)
+    if(!SUCCEEDED(hr)) { dialog.vtbl.Release(dialog as *mut void); return string() }
+
+    var item : *mut IShellItem = null
+    hr = dialog.vtbl.GetResult(dialog as *mut void, &raw mut item)
+    if(!SUCCEEDED(hr) || item == null) { dialog.vtbl.Release(dialog as *mut void); return string() }
+
+    var pathPtr : LPWSTR = null
+    hr = item.vtbl.GetDisplayName(item as *mut void, SIGDN_FILESYSPATH, &raw mut pathPtr)
+    var result = string()
+    if(SUCCEEDED(hr) && pathPtr != null) {
+        // Convert wide string to Chemical string
+        var i : int = 0
+        while(pathPtr[i] != 0) { i = i + 1 }
+        if(i > 0) {
+            result = string::make_no_len("")
+            var j : int = 0
+            while(j < i) {
+                result.append(pathPtr[j] as u8)
+                j = j + 1
+            }
+        }
+        CoTaskMemFree(pathPtr as *mut void)
+    }
+
+    item.vtbl.Release(item as *mut void)
+    dialog.vtbl.Release(dialog as *mut void)
+    return result
+}
+
 } // end namespace webview
 

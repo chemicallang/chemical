@@ -456,7 +456,12 @@ bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<Gen
 
 ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& allocator, ASTAllocator& body_allocator, AccessSpecifier specifier, bool allow_extensions, bool is_comptime) {
 
+    const bool is_async = consumeToken(TokenType::AsyncKw);
+
     if(!consumeToken(TokenType::FuncKw)) {
+        if(is_async) {
+            error("expected 'func' after the 'async' keyword");
+        }
         return nullptr;
     }
 
@@ -465,6 +470,11 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& allocator, ASTAlloca
 
     if(is_comptime) {
         decl->set_comptime(true);
+    }
+
+    if(is_async) {
+        decl->set_async(true);
+        decl->data.is_async = true;
     }
 
     ASTNode* final_node = decl;

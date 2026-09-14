@@ -226,6 +226,8 @@ class MultipleValue;
 
 class RawLiteral;
 
+class AwaitExpression;
+
 class SizeOfValue;
 
 class AlignOfValue;

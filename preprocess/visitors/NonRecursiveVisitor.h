@@ -350,6 +350,10 @@ public:
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
+    inline void VisitAwaitExpression(AwaitExpression* value) {
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
+    }
+
     inline void VisitComptimeValue(ComptimeValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
@@ -889,6 +893,9 @@ public:
             case ValueKind::DynamicValue:
                 static_cast<Derived*>(this)->VisitDynamicValue((DynamicValue*) value);
                 return;
+            case ValueKind::AwaitExpr:
+                static_cast<Derived*>(this)->VisitAwaitExpression((AwaitExpression*) value);
+                return;
 #ifdef DEBUG
             default:
                 CHEM_THROW_RUNTIME("UNHANDLED: value kind in non recursive visitor");
@@ -1229,6 +1236,9 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(UnsafeValue* value) {
         static_cast<Derived*>(this)->VisitUnsafeValue(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(AwaitExpression* value) {
+        static_cast<Derived*>(this)->VisitAwaitExpression(value);
     }
     inline void VisitByPtrTypeNoNullCheck(ComptimeValue* value) {
         static_cast<Derived*>(this)->VisitComptimeValue(value);

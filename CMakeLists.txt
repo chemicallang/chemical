@@ -500,6 +500,8 @@ set(COMMON_SOURCES
         ast/values/IncDecValue.h
         ast/values/ComptimeValue.h
         ast/values/UnsafeValue.h
+        ast/values/AwaitExpression.h
+        ast/values/AwaitExpression.cpp
         ast/types/ExpressionType.h
         ast/values/PointerValue.h
         ast/values/PointerValue.cpp

@@ -47,6 +47,10 @@ struct FunctionTypeData {
      * is the function capturing
      */
     bool isCapturing = false;
+    /**
+     * is this an async function/closure
+     */
+    bool is_async = false;
 };
 
 static_assert(sizeof(FunctionTypeData) <= 8);
@@ -117,6 +121,15 @@ public:
 
     inline void setIsVariadic(bool variadic) {
         data.isVariadic = variadic;
+    }
+
+    [[nodiscard]]
+    inline bool isAsync() const {
+        return data.is_async;
+    }
+
+    inline void setIsAsync(bool value) {
+        data.is_async = value;
     }
 
     unsigned int getStructReturnArgIndex() {

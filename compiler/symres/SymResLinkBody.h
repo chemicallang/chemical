@@ -402,6 +402,8 @@ public:
 
     void VisitUnsafeValue(UnsafeValue* value);
 
+    void VisitAwaitExpression(AwaitExpression* value);
+
     void VisitTypeInsideValue(TypeInsideValue* value);
 
     void VisitNewValue(NewValue* value);

@@ -31,6 +31,9 @@ public func run_common_tests() {
         return traditional_for_loop_with_sum();
     })
 
+    // Async/await (eager bootstrap; transparent await)
+    test_async_common();
+
     // Basic language tests (no pointers — compatible with all backends)
     test_numbers();
     test_floating_expr();

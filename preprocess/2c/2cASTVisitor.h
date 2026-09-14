@@ -776,6 +776,8 @@ public:
     // `unsafe(expr)` is a compile-time safety marker; implemented in 2cASTVisitor.cpp
     void VisitUnsafeValue(UnsafeValue* value);
 
+    void VisitAwaitExpression(AwaitExpression* value);
+
     // comptime values are replaced
     // throw error if it exists
     void VisitComptimeValue(ComptimeValue* value);

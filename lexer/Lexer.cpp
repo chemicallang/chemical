@@ -178,6 +178,10 @@ const std::unordered_map<chem::string_view, TokenType> keywords = {
                 { "asm", TokenType::AsmKw },
                 { "const", TokenType::ConstKw },
                 { "where", TokenType::WhereKw },
+
+                // async / await
+                { "async", TokenType::AsyncKw },
+                { "await", TokenType::AwaitKw },
         }
 };
 

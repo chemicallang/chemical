@@ -93,6 +93,7 @@
 #include "ast/values/NullValue.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/UnsafeValue.h"
+#include "ast/values/AwaitExpression.h"
 #include "ast/values/ComptimeValue.h"
 #include "ast/values/IfValue.h"
 #include "ast/values/SwitchValue.h"
@@ -1226,6 +1227,11 @@ void RepresentationVisitor::VisitUnsafeValue(UnsafeValue* value) {
     write("unsafe {");
     visit(value->getValue());
     write('}');
+}
+
+void RepresentationVisitor::VisitAwaitExpression(AwaitExpression* value) {
+    write("await ");
+    visit(value->getInner());
 }
 
 void RepresentationVisitor::VisitComptimeValue(ComptimeValue* value) {

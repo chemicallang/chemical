@@ -26,6 +26,7 @@
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/ReferenceOfValue.h"
 #include "ast/values/UnsafeValue.h"
+#include "ast/values/AwaitExpression.h"
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Assignment.h"
 #include "ast/structures/Scope.h"
@@ -1635,6 +1636,17 @@ void TypeVerifier::VisitDeleteStmt(DestructStmt* node) {
 }
 
 void TypeVerifier::VisitFunctionDecl(FunctionDeclaration *decl) {
+    if(decl->is_async()) {
+        if(decl->attrs.is_delete_fn) {
+            diagnoser.error(decl) << "an async function cannot be a destructor (suspension is forbidden in `@delete`)";
+        }
+        if(decl->attrs.is_constructor_fn) {
+            diagnoser.error(decl) << "an async function cannot be a constructor";
+        }
+        if(decl->attrs.is_extern) {
+            diagnoser.error(decl) << "an `@extern` function cannot be `async`; declare it with an explicit `FutureHandle<T>` ABI";
+        }
+    }
     // visiting the signature of the function
     for(auto param : decl->params) {
         // default values aren't verified during link signature
@@ -1706,6 +1718,15 @@ void TypeVerifier::VisitUnsafeValue(UnsafeValue* value) {
         return;
     }
     RecursiveVisitor<TypeVerifier>::VisitUnsafeValue(value);
+}
+
+void TypeVerifier::VisitAwaitExpression(AwaitExpression* value) {
+    // `await` is only legal inside an async function / closure / block.
+    const bool in_async = current_func_type != nullptr && current_func_type->isAsync();
+    if(!in_async) {
+        diagnoser.error(value) << "`await` can only be used inside an `async` function, `async` closure, or `async` block";
+    }
+    RecursiveVisitor<TypeVerifier>::VisitAwaitExpression(value);
 }
 
 // -------- Definite Assignment: control flow --------

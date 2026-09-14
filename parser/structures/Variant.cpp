@@ -107,7 +107,8 @@ bool Parser::parseAnyVariantMember(ASTAllocator& allocator, ASTAllocator& body_a
                 error("couldn't parse impl declaration");
             }
         }
-        case TokenType::FuncKw: {
+        case TokenType::FuncKw:
+        case TokenType::AsyncKw: {
             const auto func = parseFunctionStructureTokens(allocator, body_allocator, specifier, false, comptime);
             if(func) {
                 def->get_parsed_nodes_container().emplace_back(func);

@@ -169,6 +169,8 @@ public:
 
     void VisitUnsafeValue(UnsafeValue* value);
 
+    void VisitAwaitExpression(AwaitExpression* value);
+
     void VisitLambdaFunction(LambdaFunction *func);
 
     void VisitPlacementNewValue(PlacementNewValue *value);

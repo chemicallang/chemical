@@ -1612,10 +1612,34 @@ Tracking the five architectural gaps called out by the production audit.
   change still rebuilding that item (see "Keyed ranges: fragments and component
   vnodes move, not rebuild"). Tests: runtime-unit `keyed fragment items move as
   a unit`, `keyed component items move without re-mount`, `$__uni_range_move`
-  (25 runtime-unit tests), full E2E 377/377. Residual: order-independent
+  (25 runtime-unit tests), full E2E 379/379. Residual: order-independent
   hydration needs a server-side key marker (SSR lists already share the client
-  order, so this is a rare edge); SSR of component elements inside `.map()` does
-  not resolve their props yet.
+  order, so this is a rare edge).**
+
+### SSR: component props inside `.map()`
+
+Components rendered inside a statically-unrolled `.map()` over an object array
+lost their props at SSR (`<li data-testid="row-">` with empty values) because
+`convert_ssr_attr_value_expr` resolved `props.*`, context vars, and runtime
+SSR-local elements but not the **static `.map()` bound object**. It now resolves
+`item.<prop>` against the bound object literal (`ssr_bound_object_text`) and
+emits the value (`ssrMakeTextValue`/`ssrMakeBoolValue`). The runtime-props path
+(`props.items.map(...)`) already resolved through SSR locals. Plugin test:
+`ssr_expr_eval.ch::universal_ssr_component_props_in_map`; E2E:
+`ssr.spec.ts::SSR: keyed component list rows render with resolved props` +
+`runtime.spec.ts::keyed component list: reorder preserves item state and order`.
+
+### SSR: state-object property reads
+
+`{obj.prop}` and `attr={obj.prop}` where `obj` is a `state obj = {..}` object
+literal rendered **empty** at SSR (`<span class="n"></span>`), because the JSX
+children and attribute evaluators only resolved `X.value`, `.length`/`.size`,
+context vars, and SSR locals. They now parse the static object initializer
+(`find_state_init_text` + `parse_js_object_properties`) and emit the property
+value (`append_ssr_eval` for children; `ssrMakeTextValue`/`ssrMakeBoolValue` for
+attributes). Plugin test:
+`ssr_expr_eval.ch::universal_ssr_state_object_property_reads`.
+
 - **Item 5 (SSR error boundaries) — blocked on a language feature.** There is no
   usable exception mechanism to build on:
   - `ThrowStatement::code_gen` in `compiler/backend/LLVM.cpp` is

@@ -1538,6 +1538,30 @@ func (converter : &mut JsConverter) convert_jsx_ssr_expression(node : *mut JsNod
                     return;
                 }
             }
+            // `state obj = {..}` property read: resolve `obj.<prop>` from the
+            // static object initializer so the value renders at SSR, matching
+            // the client's `obj.value.<prop>` read.
+            if(mem.object != null && mem.object.kind == JsNodeKind.Identifier) {
+                const objVarId = mem.object as *mut JsIdentifier;
+                if(converter.is_reactive_var(objVarId.value)) {
+                    const objInitText = converter.find_state_init_text(objVarId.value);
+                    if(!objInitText.empty()) {
+                        var stateKeys = std::vector<std::string_view>();
+                        var stateValues = std::vector<std::string_view>();
+                        if(parse_js_object_properties(objInitText, &mut stateKeys, &mut stateValues)) {
+                            for(var ski : uint = 0; ski < stateKeys.size(); ski++) {
+                                if(stateKeys.get(ski).equals(&mem.property)) {
+                                    const statePropEval = ssr_js_eval_from_text(stateValues.get(ski));
+                                    if(statePropEval.valid) {
+                                        converter.append_ssr_eval(statePropEval);
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             // Array `.length`/`.size` reads (`props.items.length`, `items.length`)
             // render the element count as text, matching the hydrated DOM.
             if(mem.property.equals(view("length")) || mem.property.equals(view("size"))) {
@@ -3387,6 +3411,64 @@ func (converter : &mut JsConverter) convert_ssr_attr_value_expr(node : *mut JsNo
             const cvMem = node as *mut JsMemberAccess;
             if(cvMem.object != null && cvMem.object.kind == JsNodeKind.Identifier && converter.is_context_var((cvMem.object as *mut JsIdentifier).value)) {
                 return converter.convert_ssr_context_member_read(cvMem, attrValConv);
+            }
+            // `item.prop` where `item` is the callback parameter of a statically
+            // unrolled `.map()` over an object array. Resolve the property from
+            // the bound object literal so components in a list receive their
+            // props at SSR (e.g. `<Row id={item.id} label={item.label} />`).
+            if(converter.ssr_bound_object_valid && cvMem.object != null && cvMem.object.kind == JsNodeKind.Identifier) {
+                const objId = cvMem.object as *mut JsIdentifier;
+                if(objId.value.equals(&converter.ssr_bound_param)) {
+                    var objKeys = std::vector<std::string_view>();
+                    var objValues = std::vector<std::string_view>();
+                    if(parse_js_object_properties(converter.ssr_bound_object_text, &mut objKeys, &mut objValues)) {
+                        for(var pi : uint = 0; pi < objKeys.size(); pi++) {
+                            if(objKeys.get(pi).equals(&cvMem.property)) {
+                                const propEval = ssr_js_eval_from_text(objValues.get(pi));
+                                if(propEval.valid) {
+                                    if(propEval.kind == 1) {
+                                        const boolCall = builder.make_function_call_value(builder.make_identifier("ssrMakeBoolValue", support.ssrMakeBoolValueFn, false, location), location);
+                                        boolCall.get_args().push(builder.make_bool_value(propEval.boolValue, location));
+                                        return boolCall as *mut Value;
+                                    }
+                                    const textCall = builder.make_function_call_value(builder.make_identifier("ssrMakeTextValue", support.ssrMakeTextValueFn, false, location), location);
+                                    textCall.get_args().push(converter.make_ssr_text(&propEval.textValue, location));
+                                    return textCall as *mut Value;
+                                }
+                            }
+                        }
+                    }
+                    return null;
+                }
+            }
+            // `state obj = {..}` property read: resolve `obj.<prop>` from the
+            // static object initializer (e.g. `class={state.kind}`).
+            if(cvMem.object != null && cvMem.object.kind == JsNodeKind.Identifier) {
+                const svId = cvMem.object as *mut JsIdentifier;
+                if(converter.is_reactive_var(svId.value)) {
+                    const svInitText = converter.find_state_init_text(svId.value);
+                    if(!svInitText.empty()) {
+                        var svKeys = std::vector<std::string_view>();
+                        var svValues = std::vector<std::string_view>();
+                        if(parse_js_object_properties(svInitText, &mut svKeys, &mut svValues)) {
+                            for(var svki : uint = 0; svki < svKeys.size(); svki++) {
+                                if(svKeys.get(svki).equals(&cvMem.property)) {
+                                    const svEval = ssr_js_eval_from_text(svValues.get(svki));
+                                    if(svEval.valid) {
+                                        if(svEval.kind == 1) {
+                                            const svBool = builder.make_function_call_value(builder.make_identifier("ssrMakeBoolValue", support.ssrMakeBoolValueFn, false, location), location);
+                                            svBool.get_args().push(builder.make_bool_value(svEval.boolValue, location));
+                                            return svBool as *mut Value;
+                                        }
+                                        const svText = builder.make_function_call_value(builder.make_identifier("ssrMakeTextValue", support.ssrMakeTextValueFn, false, location), location);
+                                        svText.get_args().push(converter.make_ssr_text(&svEval.textValue, location));
+                                        return svText as *mut Value;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
             // `item.prop` where `item` is an SSR local holding an object value
             // (an element from a runtime array). Resolve the property at SSR

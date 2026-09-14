@@ -502,6 +502,9 @@ set(COMMON_SOURCES
         ast/values/UnsafeValue.h
         ast/values/AwaitExpression.h
         ast/values/AwaitExpression.cpp
+        compiler/async/AsyncLoweringPlan.h
+        compiler/async/AwaitNormalizePass.h
+        compiler/async/AwaitNormalizePass.cpp
         ast/types/ExpressionType.h
         ast/values/PointerValue.h
         ast/values/PointerValue.cpp

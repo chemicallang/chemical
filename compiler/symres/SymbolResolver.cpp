@@ -2,6 +2,8 @@
 
 
 #include "ast/base/ASTNode.h"
+#include <iostream>
+#include <cstdlib>
 #include "SymbolResolver.h"
 #include "ast/values/AccessChain.h"
 #include "ast/structures/Namespace.h"
@@ -152,6 +154,18 @@ void SymbolResolver::link_core_nodes() {
     coreNodes.stream.stream_write_double = func_of_interface(streamNode, "Stream", "writeDouble");
     coreNodes.stream.stream_write_char = func_of_interface(streamNode, "Stream", "writeChar");
     coreNodes.stream.stream_write_uchar = func_of_interface(streamNode, "Stream", "writeUChar");
+
+    // async protocol (core::async) — optional: only present in newer core
+    const auto asyncNode = coreNode->child("async");
+    if(asyncNode != nullptr && asyncNode->kind() == ASTNodeKind::NamespaceDecl) {
+        coreNodes.async.future_handle = asyncNode->child("FutureHandle");
+        coreNodes.async.future_table = asyncNode->child("FutureTable");
+        coreNodes.async.future_interface = asyncNode->child("Future");
+        coreNodes.async.poll_variant = asyncNode->child("Poll");
+        coreNodes.async.context = asyncNode->child("Context");
+        coreNodes.async.waker = asyncNode->child("Waker");
+        coreNodes.async.unit = asyncNode->child("Unit");
+    }
 
 }
 

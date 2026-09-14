@@ -3204,6 +3204,30 @@ modes; negative tests for all diagnostics.
 **Acceptance:** plan is correct on a corpus including nested awaits, awaits in
 loops/conditionals, destructor-bearing locals, and generic bodies.
 
+> **Status (implemented).** `compiler/async/AwaitNormalizePass.{h,cpp}` and
+> `compiler/async/AsyncLoweringPlan.h` exist. The normalizer hoists every await
+> that is not already a `VarInitStatement` initializer into a fresh
+> `__chx_await_N` local placed before the enclosing statement, preserving
+> left-to-right order, and is idempotent. It runs per-function at codegen time
+> in **both** backends (`preprocess/2c/2cASTVisitor.cpp::func_decl_with_name`
+> and `write_lambda_function` for 2c; `FunctionDeclaration::code_gen_body` for
+> LLVM). `build_async_plan` produces `sites` (program order), `slot_count`,
+> `needs_frame`, `result_has_destructor`; `frame_size`/`frame_align`/`live_drops`
+> are Phase 3 refinements. Set `CHEMICAL_DUMP_ASYNC=1` to print the plan.
+>
+> **Deliberate limitation:** loop *headers* (`while(await c)`, `do { } while(await
+> c)`, `for` condition/increment, `for-in` range) are **not** hoisted, because
+> hoisting them out of the loop makes them constant (a semantic change). Those
+> awaits stay transparent for the bootstrap and are converted to the
+> `loop { t = await c; if(!t) break; ... }` shape with the coroutine lowering
+> (Phase 4). Loop *bodies* are normalized normally. Await in `&`/`&raw`/`sizeof`
+> is not yet diagnosed.
+>
+> **Tests:** `lang/tests/src/async/async_basic.ch` (return-await, binop, call
+> arg, if-condition, while-condition, left-to-right order) and
+> `lang/tests/common/src/async_common.ch`; all pass compiled (TCC + LLVM) and
+> interpreted.
+
 ### Phase 3 — LLVM lowering
 
 1. `llvm.coro.*` ramp/begin/promise/suspend/end — follow the **corrected,
@@ -3227,6 +3251,55 @@ frame allocation for same-function direct-await cases. **Blocked by B9
 (destructor-bearing returns) and the dead-code-terminator bug; both are
 independent of async and tracked separately.**
 
+> **Status (prerequisite done; lowering not started).**
+> - B9 no longer reproduces at current HEAD (verified: a `std::string`-returning
+>   function and the full `--llvm` suite both build and run). The dead-code
+>   terminator bug likewise no longer blocks the suite (`--llvm` is
+>   **2205/2205**).
+> - The exact frame/live-drop planner (Section 8.3/8.8) is implemented:
+>   `AsyncLoweringPlan::slots` (parameters first, then locals, with a
+>   `destructible` bit) and `AwaitSite::live_drops` (destructible slots live at
+>   the site, reverse creation order). Verified via `CHEMICAL_DUMP_ASYNC=1`, e.g.
+>   `with_str` yields `site 0 live_drops=[s]`, `site 1 live_drops=[t,s]`.
+> - **Hard dependency before the coroutine IR can land.** Turning on
+>   `llvm.coro.*` semantics requires the *whole* lazy pipeline at once: the
+>   `core::async` protocol types (`FutureHandle`, `FutureTable`, `Poll`,
+>   `Waker`, `Context`), symres return-type wrapping to `FutureHandle<T>`
+>   (Section 16.6), D13 materialization (Section 16.7), and an executor +
+>   `block_on`/`spawn`. With only the lowering landed, every `async` call would
+>   return a *lazy* handle that nothing polls, and the existing async tests would
+>   break. The current eager/transparent bootstrap is what keeps the compiled
+>   semantics correct until that pipeline exists.
+> - The `core::async` protocol lives in `lang/libs/core` (a language-core
+>   addition, not a shipped I/O library); it is the first artifact of the
+>   wrapping step.
+>
+> **Status update (protocol landed).** `lang/libs/core/async.ch` now declares
+> `Poll<T>`, `WakerVTable`, `Waker`, `Context`, `Future<T>`, `FutureTable<T>`,
+> `FutureHandle<T>`, `Unit`, and the `chemical_async_frame_alloc/free` hooks;
+> `core/chemical.mod` lists it. `CoreNodesAsync` (`compiler/symres/CoreNodes.h`)
+> holds the resolved `FutureHandle`/`FutureTable`/`Future`/`Poll`/`Context`/
+> `Waker`/`Unit` nodes and is populated in `SymbolResolver::link_core_nodes`.
+> Nothing consumes these yet, so behavior is unchanged and all suites stay
+> green (`--tcc` 2204/2204, `--llvm` 2205/2205).
+>
+> **Keyword/namespace conflict (discovered here).** `async` is a hard keyword,
+> so `namespace async { ... }` does not parse by default. Resolved by making
+> `async`/`await` **contextual**: `Parser::consumeIdentifierOrKeyword`
+> (`parser/Parser.h`) now accepts `AsyncKw`/`AwaitKw`, letting them serve as
+> namespace/identifier names in name/path position while expression dispatch
+> still treats them as keywords. User-facing `std::async` re-exports (Section
+> 5.7) are unblocked by the same change, but `async::method(...)` in *expression*
+> position still routes to the closure parser and must be avoided or given an
+> explicit `async::` path case when the executor library lands.
+>
+> **Remaining Phase 3 work (coupled, not yet started).** symres return-type
+> wrapping to `FutureHandle<T>` (Section 16.6), D13 materialization
+> (Section 16.7), a runtime executor with `block_on`, and then the
+> `llvm.coro.*` lowering itself (Section 9.0). These must land together; landing
+> the lowering alone would make every async call return a lazy handle that
+> nothing polls and would break the current suite.
+
 ### Phase 4 — C / 2c lowering
 
 1. Frame struct emission, ramp, `poll`, `drop`, vtable (Section 10).
@@ -3237,6 +3310,76 @@ independent of async and tracked separately.**
 
 **Acceptance:** `./scripts/test.sh --tcc` runs the async tests; behavior matches
 LLVM; TinyCC compiles the output.
+
+> **Status (C-first, foundation landed).** Per direction, the C backend is the
+> reference implementation. The runtime foundation is now real and tested on
+> TinyCC:
+> - `lang/libs/async/` exists (`chemical.mod` + `src/block_on.ch` +
+>   `src/main.ch`). `block_on<T>` polls a `FutureHandle<T>` until `Ready` and
+>   moves the result out; the handle is consumed by value so its `@delete`
+>   cancels exactly once on every path.
+> - `src/main.ch` re-exports the `core::async` protocol.
+> - Verified end-to-end with `lang/compiled/async_exec`: a hand-authored future
+>   (static `FutureTable<int>` + poll/drop functions) is driven by
+>   `async::block_on<int>` and returns 42 (`exec ok`). This exercises
+>   `Poll.Ready` construction, variant pattern matching, function-pointer
+>   vtables, and `FutureHandle`'s `@delete`.
+> - Contextual-keyword plumbing was required and is in place: `async`/`await`
+>   are accepted as identifiers in name/path/type position
+>   (`Token::isKeywordOrId`, `Parser::consumeIdentifierOrKeyword`,
+>   `read_type_involving_token`) while remaining keywords in expression
+>   position (with an explicit `async::path` disambiguation in the value
+>   dispatch).
+>
+> **Remaining C-backend work (the actual state machine).** symres return-type
+> wrapping to `FutureHandle<T>`; a lowering pass that turns an `async func` into
+> a generated frame struct + ramp + `poll` + `drop` + static vtable (the C
+> equivalent of `llvm.coro.*`); `await` sites becoming `switch`+`goto`
+> suspension points driven by `block_on`; and updating the async tests to the
+> lazy API. These are the next chunk and are scoped to the C backend first.
+>
+> **Progress (return-type wrapping landed, gated).** symres now wraps an async
+> function's return type into `FutureHandle<T>` when `CHEMICAL_ASYNC_LAZY` is
+> set (Section 16.6): `LinkSignature.cpp::visit_func_decl` builds the
+> `GenericType` over `coreNodes.async.future_handle` after linking the inner
+> type. `FunctionDeclaration::inner_return_type()` unwraps `T`, and
+> `TypeVerifier::VisitReturnStmt` compares `return expr` against the inner `T`
+> rather than the handle. Verified: under the flag, `return x + 1` in
+> `async func f(x:int):int` type-checks and `f`'s type is
+> `FutureHandle<int>`; with the flag off the eager bootstrap is unchanged
+> (`--tcc` 2204/2204).
+>
+> **Next required piece.** The ramp must actually build the handle. Today the
+> body still returns `T` where the C signature is `FutureHandle<T>`, so lazy
+> mode compiles but crashes at runtime (garbage handle). The C lowering must
+> emit, per async function: a frame struct holding `T` (and later the live
+> locals/drop flags from `AsyncLoweringPlan`), a `poll` that returns
+> `Poll.Ready(frame->result)`, a `drop`, a static `FutureTable<T>`, and a ramp
+> that allocates the frame, runs the body (redirecting its `return e` to
+> `frame->result = e`), and returns `FutureHandle<T>{ frame, &vtbl }`. `await`
+> then drives the handle. This is purely 2c codegen and is the immediate next
+> step; the flag stays off until it is complete.
+>
+> **Discovered blocker for the library-side shortcut (must be a compiler
+> lowering pass, not a library helper).** A generic function reference cannot
+> satisfy a function-pointer field when instantiated. Minimal repro:
+> ```chemical
+> struct FP { var f : (x : int) => int }
+> func <T> ident(x : T) : T { return x }
+> func <T> make_fp() : FP { return FP { f : ident } }   // also `ident<int>`
+> ```
+> fails with *"value with type '(x : T) => T' does not satisfy type
+> '(x : int) => int'"* — the bare generic function reference is never
+> specialized for the active `T`, and explicit turbo-fish in value position is
+> not parsed (`parser/utils/Expression.cpp` has the code commented out). This
+> rules out the clean approach of writing `make_ready<T>`/`ready_poll<T>` in
+> `lang/libs/async` and assigning generic function pointers into a
+> `FutureTable<T>`. The lowering pass must therefore generate **concrete**
+> (non-generic) per-function `poll`/`drop` functions and a `FutureTable<T>`
+> whose fields reference those concrete functions — which is verified to work
+> (`lang/compiled/async_exec` assigns concrete functions to these exact
+> fields). The `async` library was reverted to `block_on` only so it still
+> compiles.
 
 ### Phase 5 — Executor + I/O + advanced library
 

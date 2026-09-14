@@ -153,7 +153,11 @@ public:
     Token* consumeIdentifierOrKeyword() {
         auto& t = *token;
         const auto type = t.type;
-        if(type == TokenType::Identifier || Token::isKeyword(type)) {
+        // AsyncKw/AwaitKw are contextual: in name/path position they may be
+        // used as identifiers (e.g. the `core::async` namespace). Expression
+        // dispatch handles them as keywords before this is reached.
+        if(type == TokenType::Identifier || Token::isKeyword(type)
+           || type == TokenType::AsyncKw || type == TokenType::AwaitKw) {
             token++;
             return &t;
         } else {

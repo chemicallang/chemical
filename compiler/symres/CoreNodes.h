@@ -105,6 +105,47 @@ public:
 
 };
 
+class CoreNodesAsync {
+public:
+
+    /**
+     * `core::async::FutureHandle<T>` (a generic struct decl). An `async func`'s
+     * return type is wrapped in this (design Section 4.6 / D14).
+     */
+    ASTNode* future_handle = nullptr;
+
+    /**
+     * `core::async::FutureTable<T>` (a generic struct decl).
+     */
+    ASTNode* future_table = nullptr;
+
+    /**
+     * `core::async::Future<T>` (an interface).
+     */
+    ASTNode* future_interface = nullptr;
+
+    /**
+     * `core::async::Poll<T>` (a generic variant decl).
+     */
+    ASTNode* poll_variant = nullptr;
+
+    /**
+     * `core::async::Context`.
+     */
+    ASTNode* context = nullptr;
+
+    /**
+     * `core::async::Waker`.
+     */
+    ASTNode* waker = nullptr;
+
+    /**
+     * `core::async::Unit`.
+     */
+    ASTNode* unit = nullptr;
+
+};
+
 class CoreNodes {
 public:
 
@@ -113,6 +154,8 @@ public:
     CoreNodesIterable iterable;
 
     CoreNodesStream stream;
+
+    CoreNodesAsync async;
 
     /**
      * the Copy interface from core.ops — a marker for trivially copyable types.

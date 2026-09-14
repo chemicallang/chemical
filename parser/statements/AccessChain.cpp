@@ -229,8 +229,14 @@ Value* Parser::parseAccessChainOrAddrOf(ASTAllocator& allocator, bool parseStruc
             return parseZeroedValue(allocator);
         }
         case TokenType::AwaitKw:
-            return (Value*) parseAwaitValue(allocator);
         case TokenType::AsyncKw:
+            // `async::` / `await::` are namespace-qualified names
+            if((token + 1)->type == TokenType::DoubleColonSym) {
+                return (Value*) parseAccessChain(allocator, parseStruct);
+            }
+            if(token->type == TokenType::AwaitKw) {
+                return (Value*) parseAwaitValue(allocator);
+            }
             return (Value*) parseAsyncClosureValue(allocator);
         case TokenType::StructKw: {
             auto& t = *token;

@@ -2,6 +2,7 @@
 
 #include <memory>
 
+#include "ast/types/GenericType.h"
 #include "FunctionParam.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/ImplDefinition.h"
@@ -40,9 +41,24 @@
 #include "ast/types/IntNType.h"
 #include "ast/base/TypeBuilder.h"
 
+BaseType* FunctionDeclaration::inner_return_type() {
+    auto rt = const_cast<BaseType*>(returnType.getType());
+    if(!attrs.is_async) {
+        return rt;
+    }
+    if(rt != nullptr && rt->kind() == BaseTypeKind::Generic) {
+        const auto gen = rt->as_generic_type_unsafe();
+        if(!gen->types.empty()) {
+            return const_cast<BaseType*>(gen->types[0].getType());
+        }
+    }
+    return rt;
+}
+
 #ifdef COMPILER_BUILD
 
 #include "compiler/Codegen.h"
+#include "compiler/async/AwaitNormalizePass.h"
 #include "compiler/llvmimpl.h"
 #include "ast/values/LambdaFunction.h"
 #include "ast/utils/ASTUtils.h"
@@ -253,6 +269,9 @@ void func_body_gen_no_scope(FunctionDeclaration* decl, Codegen& gen) {
 void FunctionDeclaration::code_gen_body(Codegen &gen) {
     if(!exists_at_runtime()) {
         return;
+    }
+    if(is_async()) {
+        normalize_async_body(gen.allocator, this);
     }
     body_gen(gen, this, llvm_func(gen));
 }

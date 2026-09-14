@@ -277,6 +277,24 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
 
         const idLoc = element.loc
 
+        // Emit the hydration dispatch BEFORE compiling the children. The
+        // dispatch is a client-side statement, and child components nested in
+        // this element's children are compiled (and get their own dispatch)
+        // while build_ssr_children runs below. Emitting the parent first makes
+        // it mount before its independently-dispatched children, so scoped
+        // context (useContext) resolves down the tree and disposal follows it.
+        //
+        // Inside table structure a wrapper element is invalid: the browser
+        // foster-parents it and destroys the table. There we emit a comment
+        // boundary and let the client hydrate the component's own root element.
+        const markerBoundary = converter.in_table_context;
+
+        var hostIdEarly = std::string("u");
+        hostIdEarly.append_uinteger(idLoc);
+        if(!converter.suppress_child_dispatch) {
+            converter.emit_universal_queue(element, signature, &hostIdEarly, markerBoundary);
+        }
+
         // `signature.className` carries the generated class name for a styled
         // wrap over a universal component (set by css_cbi during symres). For
         // plain universal components it is empty, so this is a no-op there.
@@ -290,28 +308,31 @@ func (converter : &mut ASTConverter) convertHtmlComponent(element : *mut HtmlEle
         compCall.get_args().push(builder.make_addr_of_value(attrsVal, true, location) as *mut Value)
         compCall.get_args().push(childrenVal as *mut Value)
 
-        // 2. Emit <span id="u" data-chx-i>  (inline-safe hydration boundary)
-        converter.str.append_view("<span id=\"u");
-        converter.str.append_uinteger(idLoc);
-        converter.str.append_view("\" data-chx-i>");
-        converter.put_chain_in();
+        if(markerBoundary) {
+            // Comment boundary: valid in any HTML context (including <tr>).
+            converter.str.append_view("<!--u");
+            converter.str.append_uinteger(idLoc);
+            converter.str.append_view("-->");
+            converter.put_chain_in();
+            converter.vec.push(compCall as *mut ASTNode)
+            converter.put_chain_in();
+        } else {
+            // 2. Emit <span id="u" data-chx-i>  (inline-safe hydration boundary)
+            converter.str.append_view("<span id=\"u");
+            converter.str.append_uinteger(idLoc);
+            converter.str.append_view("\" data-chx-i>");
+            converter.put_chain_in();
 
-        converter.vec.push(compCall as *mut ASTNode)
-        converter.put_chain_in(); // Flush any pending HTML before </div>
+            converter.vec.push(compCall as *mut ASTNode)
+            converter.put_chain_in(); // Flush any pending HTML before </div>
 
-        // 5. Emit </span>
-        converter.str.append_view("</span>");
-        converter.put_chain_in();
-
-        // 6. Hydration trigger: window.$_uq.push(['u{uId}', 'Name', {props}])
-        var hostId = std::string("u");
-        hostId.append_uinteger(idLoc);
-        // A parent that emits us as a client vnode owns our mount; emitting a
-        // dispatch here too would mount the component twice.
-        if(!converter.suppress_child_dispatch) {
-            converter.emit_universal_queue(element, signature, &hostId);
+            // 5. Emit </span>
+            converter.str.append_view("</span>");
+            converter.put_chain_in();
         }
 
+        // 6. Hydration dispatch was emitted before the children were compiled
+        // (see the top of this branch) so mount order is parent-before-child.
         return;
     }
 

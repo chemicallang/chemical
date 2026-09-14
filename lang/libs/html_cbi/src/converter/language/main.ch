@@ -14,6 +14,100 @@ func strip_js_string_quotes(value : std::string_view) : std::string_view {
     return value;
 }
 
+func html_named_entity_code(name : std::string_view) : int {
+    if(name.equals(std::string_view("lt"))) { return 60; }
+    if(name.equals(std::string_view("gt"))) { return 62; }
+    if(name.equals(std::string_view("amp"))) { return 38; }
+    if(name.equals(std::string_view("quot"))) { return 34; }
+    if(name.equals(std::string_view("apos"))) { return 39; }
+    if(name.equals(std::string_view("#39"))) { return 39; }
+    if(name.equals(std::string_view("nbsp"))) { return 160; }
+    return -1;
+}
+
+func html_entity_numeric_code(name : std::string_view) : int {
+    if(name.size() < 2 || name.get(0) != '#') { return -1; }
+    var hex = false;
+    if(name.get(1) == 'x' || name.get(1) == 'X') { hex = true; }
+    var start : size_t = 1;
+    if(hex) { start = 2; }
+    if(start >= name.size()) { return -1; }
+    var value : int = 0;
+    var i : size_t = start;
+    while(i < name.size()) {
+        const c = name.get(i);
+        var d : int = -1;
+        if(c >= '0' && c <= '9') { d = (c as int) - 48; }
+        else if(hex && c >= 'a' && c <= 'f') { d = (c as int) - 87; }
+        else if(hex && c >= 'A' && c <= 'F') { d = (c as int) - 55; }
+        else { return -1; }
+        var base : int = 10;
+        if(hex) { base = 16; }
+        value = value * base + d;
+        i++;
+    }
+    return value;
+}
+
+func append_utf8_codepoint_html(str : &mut std::string, cp : int) {
+    const c = cp as uint32_t;
+    if(c < 0x80) {
+        str.append(c as char);
+    } else if(c < 0x800) {
+        str.append((0xC0 | (c >> 6)) as char);
+        str.append((0x80 | (c & 0x3F)) as char);
+    } else if(c < 0x10000) {
+        str.append((0xE0 | (c >> 12)) as char);
+        str.append((0x80 | ((c >> 6) & 0x3F)) as char);
+        str.append((0x80 | (c & 0x3F)) as char);
+    } else {
+        str.append((0xF0 | (c >> 18)) as char);
+        str.append((0x80 | ((c >> 12) & 0x3F)) as char);
+        str.append((0x80 | ((c >> 6) & 0x3F)) as char);
+        str.append((0x80 | (c & 0x3F)) as char);
+    }
+}
+
+// Decodes HTML character references in #html text/attribute source so that the
+// emitted client vnode strings match what the browser renders from the SSR
+// markup (e.g. "&lt;" -> "<", "&#8594;" -> "->"). A bare "&" and unknown
+// references are preserved. Only known named and numeric forms are replaced.
+func decode_html_entities(text : std::string_view) : std::string {
+    var out = std::string();
+    out.reserve(text.size());
+    var i : size_t = 0;
+    while(i < text.size()) {
+        const ch = text.get(i);
+        if(ch != '&') { out.append(ch); i++; continue; }
+        var semi : size_t = i + 1;
+        var maxi : size_t = i + 12;
+        if(maxi > text.size()) { maxi = text.size(); }
+        while(semi < maxi && text.get(semi) != ';') { semi++; }
+        if(semi >= maxi) { out.append(ch); i++; continue; }
+        const name = std::string_view(text.data() + i + 1, semi - i - 1);
+        var code = html_named_entity_code(name);
+        if(code < 0) { code = html_entity_numeric_code(name); }
+        if(code < 0) { out.append(ch); i++; continue; }
+        append_utf8_codepoint_html(&mut out, code);
+        i = semi + 1;
+    }
+    return out;
+}
+
+// Table-structure elements whose direct children must not be generic wrapper
+// elements (a <span> inside <tr>/<table> is foster-parented and corrupts the
+// table). Universal components directly inside one of these use a comment
+// hydration boundary instead of a <span>.
+func is_table_structure_element(name : std::string_view) : bool {
+    if(name.equals(std::string_view("table"))) { return true; }
+    if(name.equals(std::string_view("thead"))) { return true; }
+    if(name.equals(std::string_view("tbody"))) { return true; }
+    if(name.equals(std::string_view("tfoot"))) { return true; }
+    if(name.equals(std::string_view("tr"))) { return true; }
+    if(name.equals(std::string_view("colgroup"))) { return true; }
+    return false;
+}
+
 func find_attribute(element : *mut HtmlElement, name : std::string_view) : *mut HtmlAttribute {
     for(var i : uint = 0; i < element.attributes.size(); i++) {
         const attr = element.attributes.get(i);
@@ -268,7 +362,8 @@ func append_static_child_vnodes(out : &mut std::string, children : &std::vector<
             if(!first) out.append(',');
             first = false;
             const text = child as *mut HtmlText;
-            append_js_string_literal(out, text.value);
+            const decoded = decode_html_entities(text.value);
+            append_js_string_literal(out, decoded.to_view());
         } else if(child.kind == HtmlChildKind.Element) {
             if(!first) out.append(',');
             first = false;
@@ -301,7 +396,8 @@ func append_static_child_vnodes(out : &mut std::string, children : &std::vector<
                     if(attr.value.kind == AttributeValueKind.Number) {
                         out.append_view(&rawText);
                     } else {
-                        append_js_string_literal(out, rawText);
+                        const decodedAttr = decode_html_entities(rawText);
+                        append_js_string_literal(out, decodedAttr.to_view());
                     }
                 }
             }
@@ -325,7 +421,7 @@ func append_static_child_vnodes(out : &mut std::string, children : &std::vector<
     }
 }
 
-func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlElement, signature : *mut ComponentSignature, idStr : &std::string) {
+func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlElement, signature : *mut ComponentSignature, idStr : &std::string, markerBoundary : bool = false) {
     var js = std::string();
     js.append_view("window.$__uni_dispatch('");
     // For a styled wrap over a universal component, hydration must target the
@@ -341,7 +437,13 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
         hydrateName = signature.name;
     }
     get_module_scoped_name(hydrateNode, hydrateName, &mut js);
-    js.append_view("', document.getElementById('");
+    if(markerBoundary) {
+        // Table-context components have no wrapper element; the id names a
+        // comment boundary resolved at hydration time.
+        js.append_view("', window.$__uni_boundary('");
+    } else {
+        js.append_view("', document.getElementById('");
+    }
     js.append_view(idStr.view());
     js.append_view("'), {");
     converter.emit_append_js_from_str(&mut js);
@@ -434,7 +536,13 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
             tail.append_view(")");
         }
     }
-    tail.append_view("});\n");
+    if(markerBoundary) {
+        // Root-mode hydration: the comment resolves to the component's own root
+        // element, which is hydrated in place (no wrapper container).
+        tail.append_view("}, \"root\");\n");
+    } else {
+        tail.append_view("});\n");
+    }
     converter.emit_append_js_from_str(&mut tail);
 }
 
@@ -507,7 +615,12 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
             str.append('>')
 
             // doing children
+            const prevInTable = converter.in_table_context;
+            if(is_table_structure_element(element.name)) {
+                converter.in_table_context = true;
+            }
             converter.convertChildren(element);
+            converter.in_table_context = prevInTable;
 
             if(!element.isSelfClosing) {
                 str.append('<')

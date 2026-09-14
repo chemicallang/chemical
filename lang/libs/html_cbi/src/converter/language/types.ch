@@ -26,4 +26,10 @@ struct ASTConverter {
     // emit their own hydration dispatch (that would double-mount).
     var suppress_child_dispatch : bool = false
 
+    // True while converting the children of a table-structure element
+    // (table/thead/tbody/tfoot/tr/colgroup). A wrapper element there is invalid
+    // HTML (the browser foster-parents it and corrupts the table), so universal
+    // components in this context emit a comment hydration boundary instead.
+    var in_table_context : bool = false
+
 }

@@ -448,6 +448,10 @@ public struct HtmlPage {
     func defaultPrepare(&mut self) {
         appendCharsetUTF8Meta();
         appendViewportMeta();
+        // Default no-op favicon so the browser does not auto-request
+        // /favicon.ico (a 404 with no asset). A page that calls appendFavicon
+        // later appends its own link, which takes precedence.
+        pageHead.append_view(std::string_view("<link rel=\"icon\" href=\"data:,\">"));
     }
 
     func defaultUniversalSetup(&mut self) {
@@ -1085,6 +1089,28 @@ window.$__uni_warn_hydration = ((msg, expected, got) => {
 window.$_uc_c = ((comp, props) => ({ t: "__uni_uc", p: { comp, props } }))
 window.$__uni_value = ((v) => window.$__uni_is_state(v) ? v.value : v)
 window.$__uni_html = ((html, count) => ({ __uni_html: html || "", __uni_count: count || 0 }))
+// Resolves a hydration boundary id to either an element (the legacy
+// `<span data-chx-i>` wrapper) or a comment marker (`<!--u{id}-->`). Comment
+// boundaries are used inside table structure, where a wrapper element is
+// invalid HTML and would be foster-parented by the parser. The marker index is
+// built once; SSR markers are all present before the page JS runs.
+window.$__uni_boundary = ((id) => {
+    const el = document.getElementById(id);
+    if(el) return el;
+    let map = window.$__uni_boundary_map;
+    if(!map) {
+        map = Object.create(null);
+        if(typeof document.createTreeWalker === "function") {
+            const w = document.createTreeWalker(document.documentElement, 128 /* SHOW_COMMENT */);
+            while(w.nextNode()) {
+                const v = w.currentNode.nodeValue;
+                if(v && v.charCodeAt(0) === 117 /* 'u' */) map[v] = w.currentNode;
+            }
+        }
+        window.$__uni_boundary_map = map;
+    }
+    return map[id] || null;
+})
 window.$__uni_is_active_editable = ((el) => !!(el && el.isContentEditable && document.activeElement === el))
 window.$__uni_assign_ref = ((el, refValue) => {
     if(refValue == null || refValue === false) return;
@@ -1587,6 +1613,24 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             }
             return end.nextSibling;
         }
+        // Reactive value that is an SSR children blob (`window.$__uni_html`):
+        // adopt the server-rendered nodes in place and wrap them in markers.
+        // Fresh-rendering the blob (the generic path below) sets innerHTML from
+        // the blob's template text, which replaces the real SSR DOM -- including
+        // nested component boundary elements -- with literal template tags, so
+        // the nested components' dispatches then find no target.
+        if(stateVal && stateVal.__uni_html !== undefined && dom && dom.nodeType === 1) {
+            if(parent) parent.insertBefore(start, dom);
+            let cur = dom;
+            let nblob = stateVal.__uni_count || 0;
+            while(nblob > 0 && cur) { cur = cur.nextSibling; nblob--; }
+            if(parent) parent.insertBefore(end, cur);
+            v.subscribe((next) => {
+                window.$__uni_clear_range(start, end);
+                start.after(window.$_urn(next));
+            });
+            return end.nextSibling;
+        }
         // List state: adopt the SSR-rendered range in place instead of
         // re-rendering. Only when the first child is an element (a real SSR
         // list item); an empty server list leaves a text node, which must fall
@@ -1824,20 +1868,29 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
         if(!parent) {
             window.$__uni_error("cannot hydrate universal root without a parent element", host.tagName ? host.tagName.toLowerCase() : "unknown");
         }
+        // Comment boundary (table-context components): the component's own root
+        // element starts right after the marker. Text-node hosts (fragment /
+        // multi-node root) and element hosts hydrate from the host itself.
+        const isCommentHost = host.nodeType === 8;
+        const startDom = isCommentHost ? host.nextSibling : host;
         // Keep current_instance = inst while hydrating the component's own
         // output so nested child components parent to this instance (needed for
         // scoped context and disposal). Restore afterwards.
-        const next = window.$__uni_hydrate_node(parent, host, out);
+        const next = window.$__uni_hydrate_node(parent, startDom, out);
         window.$__uni_pop_ctx();
-        // `host` may be a text node when the component's SSR range starts with
-        // text (a fragment / multi-node root). Track the first element inside
-        // the hydrated range so disposal still works; fall back to the parent.
-        let trackedEl = host;
-        if(host.nodeType !== 1) {
-            let scan = host;
+        // `startDom` may be a text node when the component's SSR range starts
+        // with text (a fragment / multi-node root). Track the first element
+        // inside the hydrated range so disposal still works; fall back to the
+        // parent.
+        let trackedEl = startDom;
+        if(!startDom || startDom.nodeType !== 1) {
+            let scan = startDom;
             while(scan && scan !== next && scan.nodeType !== 1) scan = scan.nextSibling;
             trackedEl = (scan && scan !== next) ? scan : parent;
         }
+        // Expose the instance on the tracked root element so descendant
+        // components resolve their parent via DOM ancestry (context/disposal).
+        if(trackedEl && trackedEl.nodeType === 1) trackedEl.$__uni_instance = inst;
         window.$__uni_track_instance(trackedEl, inst);
         // Layout effects run synchronously before paint
         if(inst.layoutEffects && inst.layoutEffects.length) window.$__uni_run_effects(inst, inst.layoutEffects);
@@ -1941,11 +1994,16 @@ window.$__uni_dispose = ((inst) => {
 // makes teardown deterministic (triggered by the operation that removes the
 // nodes) instead of relying solely on the MutationObserver heuristic below.
 // The observer remains as a safety net for removals that bypass the runtime.
-window.$__uni_dispose_subtree = ((node) => {
-    if(!node || node.nodeType !== 1) return;
+// Disposes every component instance owned by `node`'s subtree. Instances are
+// found via the `$__uni_instance` property (set on the hydration boundary or
+// the component's root element), so this works for both the `<span data-chx-i>`
+// wrapper and a comment/table boundary. Falls back to the observer map for
+// instances whose host element is no longer reachable.
+window.$__uni_dispose_deep = ((node) => {
     const observed = window.$__uni_cleanup_observer && window.$__uni_cleanup_observer.observed;
-    const disposeHost = (el) => {
-        if(el && el.$__uni_instance) {
+    const walk = (el) => {
+        if(!el || el.nodeType !== 1) return;
+        if(el.$__uni_instance) {
             window.$__uni_dispose(el.$__uni_instance);
             el.$__uni_instance = null;
         }
@@ -1953,10 +2011,15 @@ window.$__uni_dispose_subtree = ((node) => {
             const inst = observed.get(el);
             if(inst) { window.$__uni_dispose(inst); observed.delete(el); }
         }
+        for(let c = el.firstChild; c; c = c.nextSibling) {
+            if(c.nodeType === 1) walk(c);
+        }
     };
-    disposeHost(node);
-    const spans = node.querySelectorAll ? node.querySelectorAll("[data-chx-i]") : [];
-    for(let i = 0; i < spans.length; i++) disposeHost(spans[i]);
+    walk(node);
+})
+window.$__uni_dispose_subtree = ((node) => {
+    if(!node || node.nodeType !== 1) return;
+    window.$__uni_dispose_deep(node);
 })
 // MutationObserver to detect DOM removal and clean up owner trees
 window.$__uni_cleanup_observer = (() => {
@@ -1977,21 +2040,9 @@ window.$__uni_cleanup_observer = (() => {
                     window.$__uni_moving_nodes.delete(node);
                     continue;
                 }
-                // Check for component boundary spans
-                const spans = node.querySelectorAll ? node.querySelectorAll("[data-chx-i]") : [];
-                for(let k = 0; k < spans.length; k++) {
-                    const inst = observed.get(spans[k]);
-                    if(inst) {
-                        window.$__uni_dispose(inst);
-                        observed.delete(spans[k]);
-                    }
-                }
-                // Check the node itself
-                const inst = observed.get(node);
-                if(inst) {
-                    window.$__uni_dispose(inst);
-                    observed.delete(node);
-                }
+                // Dispose every component instance in the removed subtree
+                // (wrapper spans and comment/table boundaries alike).
+                window.$__uni_dispose_deep(node);
             }
         }
     });

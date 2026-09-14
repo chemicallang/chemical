@@ -25,16 +25,17 @@ Source code → Lexer → Token stream → Parser → AST
 | `lexer/Lexer.cpp` | Lexer implementation |
 | `lexer/Token.h` | Token structure and types |
 | `lexer/TokenType.h` | Token type enum |
-| `parser/structures/` | Per-construct parsers (one file per AST construct) |
-| `parser/values/` | Value parsers (expressions, literals, etc.) |
-| `parser/statements/` | Statement parsers |
-| `parser/utils/` | Parsing utilities |
+| `lexer/LexUnit.h` | Lexed token unit (whole-file token buffer) |
+| `parser/structures/` | Per-construct parsers (functions, structs, control flow, etc.) |
+| `parser/values/` | Lambda and struct-value parsers (`LambdaValue.cpp`, `StructValue.cpp`) |
+| `parser/statements/` | Statement parsers (dispatch, imports, assignments, annotations, etc.) |
+| `parser/utils/` | Expression, literal and helper parsing (`Expression.cpp`, `LexValue.cpp`, `Helpers.cpp`) |
 
 ### Per-Construct Parser Files
 
 | File | Construct |
 |------|-----------|
-| `parser/structures/Function.cpp` | Function declarations |
+| `parser/structures/Function.cpp` | Function declarations + **inline asm parsing** (`parseInlineAsmStatement`) |
 | `parser/structures/Struct.cpp` | Struct definitions |
 | `parser/structures/Variant.cpp` | Variant definitions |
 | `parser/structures/Enum.cpp` | Enum definitions |
@@ -49,88 +50,100 @@ Source code → Lexer → Token stream → Parser → AST
 | `parser/structures/Switch.cpp` | Switch statements |
 | `parser/structures/TryCatch.cpp` | Try/catch blocks |
 | `parser/structures/Union.cpp` | Union definitions |
-| `parser/structures/Function.cpp` | Function declarations + **inline asm parsing** (`parseInlineAsmStatement`) |
+| `parser/values/LambdaValue.cpp` | Lambda function values |
 | `parser/values/StructValue.cpp` | Struct literal values |
-| `parser/values/LexValue.cpp` | Lexed values (integers, floats, strings) |
-| `parser/values/Expression.cpp` | Binary/unary expressions |
-| `parser/utils/Helpers.cpp` | Helper functions |
+| `parser/utils/LexValue.cpp` | Lexed values (integers, floats, strings, chars) |
+| `parser/utils/Expression.cpp` | Binary/unary expression parsing (shunting-yard) |
+| `parser/utils/Helpers.cpp` | Helper functions (access specifiers, generics lookahead) |
+| `parser/statements/LexStatement.cpp` | Statement dispatch (top-level & nested) |
+| `parser/statements/LexAssignment.cpp` | Assignment statements |
 | `parser/statements/Import.cpp` | Import statements |
 | `parser/statements/Export.cpp` | Export statements |
 | `parser/statements/VarInitialization.cpp` | Variable initialization |
 | `parser/statements/Typealias.cpp` | Type alias statements |
 | `parser/statements/AccessChain.cpp` | Access chain parsing (a.b.c) |
 | `parser/statements/AnnotationMacro.cpp` | Annotation/macro parsing |
+| `parser/statements/OptionStmt.cpp` | `option` statements in `.mod` files |
 
 ## Parser State
 
 The Parser class holds:
 
 ```cpp
-class Parser {
-    Lexer& lexer;                           // Token source
-    ASTAllocator& allocator;                 // Arena allocator for AST nodes
-    ASTDiagnoser& diagnoser;                 // Error reporting
-    Token current;                           // Current token
-    Token peeked;                            // Lookahead token (optional)
-    bool has_peeked;                         // Whether peeked token is valid
-    
-    // Methods:
-    Token& consume();                        // Advance to next token
-    Token& peek();                           // Look at next token without consuming
-    bool consume_if(TokenType type);         // Consume if matches type
-    bool expect(TokenType type);             // Expect specific type or error
-    
-    // Entry points:
-    Scope* parse_scope();                    // Parse a { } scope
-    ASTNode* parse_declaration();            // Parse a top-level declaration
-    Value* parse_expression();               // Parse an expression
-    Value* parse_value();                    // Parse a value
-    BaseType* parse_type();                  // Parse a type
+class BasicParser : public ASTDiagnoser {
+    unsigned int file_id;                    // file id for the location manager
+    Token* token;                            // pointer to the current token
+    ASTNode* parent_node = nullptr;          // current parent node
+
+    // Token consumption helpers:
+    void consumeAny();                       // advance to the next token
+    bool consumeToken(TokenType type);       // advance if the current token matches
+    Token* consumeOfType(TokenType type);    // like consumeToken, but returns the token
+    Token* consumeIdentifier();              // consume strictly an Identifier
+    Token* consumeIdentifierOrKeyword();     // consume an Identifier or a keyword
+    void consumeNewLines();                   // skip NewLine tokens
+};
+
+class Parser : public BasicParser {
+    CompilerBinder* const binder;            // CBI binder (nullptr when disabled)
+    AnnotationController& controller;        // annotation definitions and handlers
+    ASTAllocator& global_allocator;          // global (job) arena allocator
+    ASTAllocator& mod_allocator;             // module arena allocator
+    TypeBuilder& typeBuilder;                // cached type builder
+    bool is64Bit;                            // target bitness
+    int pending_greater_count = 0;           // handles '>>' inside nested generics
+    std::vector<SavedAnnotation> annotations;// annotations awaiting the next node
+
+    // Entry points / dispatch:
+    void parse(std::vector<ASTNode*>& nodes);                       // parse all top-level nodes
+    ASTNode* parseTopLevelStatement(ASTAllocator&, bool comptime);
+    ASTNode* parseNestedLevelStatementTokens(ASTAllocator&, bool is_value = false, bool parse_value_node = false);
+    Value* parseExpression(ASTAllocator&, bool parseStruct = false, bool parseLambda = true);
+    TypeLoc parseTypeLoc(ASTAllocator&);
 };
 ```
 
+Note: the parser is not a separate token-stream class — the header is tokenized into a `LexUnit`/`std::vector<Token>` up front and the Parser walks a `Token*` pointer through it (with `isGenericEndAhead()` for limited lookahead).
+
 ## Recursive Descent Pattern
 
-The parser uses standard recursive descent with one-token lookahead:
+The parser walks a `Token*` through the pre-lexed token vector with a small amount of lookahead (`isGenericEndAhead()` disambiguates `<` as generic vs. less-than):
 
 ```cpp
-// Example: parsing a function declaration
-FunctionDeclaration* Parser::parse_func_decl() {
+// Simplified illustration — the real entry point is
+// Parser::parseFunctionStructureTokens in parser/structures/Function.cpp
+ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& allocator, ASTAllocator& body_allocator,
+                                              AccessSpecifier specifier, bool allow_extensions, bool comptime) {
     // 1. Check for 'func' keyword
-    if(!consume_if(TokenType::FuncKw)) return nullptr;
-    
+    if(!consumeToken(TokenType::FuncKw)) return nullptr;
+
     // 2. Parse function name
-    auto name = expect_identifier();
-    
+    auto* name = consumeIdentifierOrKeyword();
+
     // 3. Parse generic parameters (optional)
     std::vector<GenericTypeParameter*> generic_params;
-    if(consume_if(TokenType::LessThan)) {
-        generic_params = parse_generic_params();
-        expect(TokenType::GreaterThan);
+    if(token->type == TokenType::LessThanSym) {
+        parseGenericParametersList(allocator, generic_params);
     }
-    
+
     // 4. Parse parameters
-    expect(TokenType::OpenParen);
-    auto params = parse_params();
-    expect(TokenType::CloseParen);
-    
+    if(!consumeToken(TokenType::LParen)) { /* error */ }
+    std::vector<FunctionParam*> params;
+    bool variadic = parseParameterList(allocator, params);
+    consumeToken(TokenType::RParen);
+
     // 5. Parse return type (optional)
-    BaseType* return_type = nullptr;
-    if(consume_if(TokenType::Colon)) {
-        return_type = parse_type();
+    if(consumeToken(TokenType::ColonSym)) {
+        auto return_type = parseTypeLoc(allocator);
     }
-    
-    // 6. Parse function body
-    Scope* body = nullptr;
-    if(current.type == TokenType::OpenBrace) {
-        body = parse_scope();
-    } else if(consume_if(TokenType::EqualsGreater)) {
-        // Lambda-style: () => expr
-        body = parse_lambda_body();
+
+    // 6. Parse function body (declarations may omit it)
+    if(token->type == TokenType::LBrace) {
+        auto body = parseBraceBlock("function", nullptr, body_allocator);
     }
-    
-    // 7. Create AST node
-    return create_func_decl(name, params, return_type, body, generic_params);
+
+    // 7. The function node is then created / annotated
+    return nullptr; // (node construction omitted)
 }
 ```
 
@@ -138,10 +151,12 @@ FunctionDeclaration* Parser::parse_func_decl() {
 
 ### Expressions
 
-Expressions are parsed with precedence climbing:
+Expressions are parsed with a shunting-yard algorithm (`shunting_yard_on_operator` / `Parser::parseExpressionWith` in `parser/utils/Expression.cpp`). Operator precedence is defined by `to_precedence()` in `ast/utils/Operation.cpp`; left/right associativity by `is_assoc_left_to_right()`. Higher precedence numbers bind tighter:
 
 ```cpp
 // Precedence levels (lowest to highest):
+Assignment    (=, +=, -=, *=, /=, ...)
+Conditional   (?:)
 LogicalOr     (||)
 LogicalAnd    (&&)
 BitwiseOr     (|)
@@ -152,51 +167,53 @@ Comparison    (<, >, <=, >=)
 Shift         (<<, >>)
 Additive      (+, -)
 Multiplicative (*, /, %)
-Unary         (!, -, ~, &, *, ++, --)
-Postfix       (), [], ., ?,
+Unary         (!, -, ~, &, *, &raw, ++, --)
+Postfix       (), [], ., ->
 ```
 
 ### Types
 
-Types are parsed with a recursive type parser:
+Types are parsed with a recursive type parser. `Parser::parseTypeLocNoPostOps` handles leading type constructors, and `Parser::parseArrayAndPointerTypesAfterTypeId` handles post-ops (`*`, `&`, `[]`) that follow a named type:
 
 ```cpp
-BaseType* Parser::parse_type() {
-    // Handle pointer types: *int, **int, *mut int
-    if(consume_if(TokenType::Star)) {
-        auto mutable_ = consume_if(TokenType::MutKw);
-        auto inner = parse_type();
-        return allocator.create<PointerType>(inner, mutable_);
+// Simplified illustration — see Parser::parseTypeLocNoPostOps in parser/statements/LexType.cpp
+TypeLoc Parser::parseTypeLocNoPostOps(ASTAllocator& allocator) {
+    switch(token->type) {
+        // Pointer types: *int, *mut int
+        case TokenType::MultiplySym: {
+            const auto ptrToken = token; token++;
+            auto is_mutable = token->type == TokenType::MutKw;
+            if(is_mutable) token++;
+            return { new(allocator.allocate<PointerType>()) PointerType(parseType(allocator), is_mutable), loc_single(ptrToken) };
+        }
+        // Reference types: &int, &mut int
+        case TokenType::AmpersandSym: {
+            const auto refToken = token; token++;
+            auto is_mutable = token->type == TokenType::MutKw;
+            if(is_mutable) token++;
+            return { new(allocator.allocate<ReferenceType>()) ReferenceType(parseType(allocator), is_mutable), loc_single(refToken) };
+        }
+        // Array types: [10]int
+        case TokenType::LBracket: {
+            const auto& t = *token; token++;
+            auto size = parseExpression(allocator);
+            consumeToken(TokenType::RBracket);
+            auto child = parseTypeLoc(allocator);
+            return { new(allocator.allocate<ArrayType>()) ArrayType(child, size), loc_single(&t) };
+        }
+        // Function types: (int) => bool
+        case TokenType::LParen:
+            return parseLambdaTypeLoc(allocator, false);
+        // Named types: int, string, MyStruct, GenericType<int>
+        default:
+            return { parseLinkedOrGenericType(allocator), loc_single(token) };
     }
-    
-    // Handle reference types: &int, &mut int
-    if(consume_if(TokenType::Ampersand)) {
-        auto mutable_ = consume_if(TokenType::MutKw);
-        auto inner = parse_type();
-        return allocator.create<ReferenceType>(inner, mutable_);
-    }
-    
-    // Handle array types: [10]int
-    if(consume_if(TokenType::OpenBracket)) {
-        auto size = parse_expression();
-        expect(TokenType::CloseBracket);
-        auto inner = parse_type();
-        return allocator.create<ArrayType>(inner, size);
-    }
-    
-    // Handle function types: (int) => bool
-    if(consume_if(TokenType::OpenParen)) {
-        return parse_function_type();
-    }
-    
-    // Handle named types: int, string, MyStruct, GenericType<int>
-    return parse_named_type();
 }
 ```
 
 ### Statements
 
-Statement parsing dispatches based on the first token:
+Statement parsing dispatches on the first token. Top-level dispatch lives in `Parser::parseTopLevelStatement` / `parseTopLevelAccessSpecifiedDecl`, and nested dispatch in `Parser::parseNestedLevelStatementTokens` (both in `parser/statements/LexStatement.cpp`) — some constructs are only valid at top level:
 
 | Token | Statement |
 |-------|-----------|
@@ -205,6 +222,7 @@ Statement parsing dispatches based on the first token:
 | `while` | While loop |
 | `do` | Do-while loop |
 | `for` | For loop |
+| `loop` | Loop block (loop expression) |
 | `switch` | Switch statement |
 | `return` | Return statement |
 | `break` | Break statement |
@@ -213,23 +231,29 @@ Statement parsing dispatches based on the first token:
 | `comptime` | Comptime block |
 | `{` | Scope block |
 | `import` | Import statement |
-| `export` | Export statement |
-| `typealias` | Type alias |
+| `export` | Export statement (top level) |
+| `type` | Type alias |
 | `throw` | Throw statement |
-| `delete` | Delete statement |
+| `try` | Try/catch |
+| `delete` / `destruct` | Destruct statement |
 | `dealloc` | Dealloc statement |
-| `@` | Annotation/macro |
-| `func` | Function |
-| `struct` | Struct |
-| `variant` | Variant |
-| `union` | Union |
-| `enum` | Enum |
-| `interface` | Interface |
-| `impl` | Implementation |
-| `namespace` | Namespace |
+| `new` | Placement new |
+| `unreachable` | Unreachable statement |
+| `alias` | Alias statement |
+| `provide` | Provide statement |
+| `@` | Annotation (buffered for the next node) |
+| `#` | Macro node/macro value |
+| `func` | Function (top level) |
+| `struct` | Struct (top level) |
+| `variant` | Variant (top level) |
+| `union` | Union (top level) |
+| `enum` | Enum (top level) |
+| `interface` | Interface (top level) |
+| `impl` | Implementation (top level) |
+| `namespace` | Namespace (top level) |
 | `using` | Using declaration |
 | `asm` | Inline assembly statement |
-| Other | Expression statement |
+| Other | Expression / assignment statement |
 
 ### Error Recovery
 
@@ -294,24 +318,26 @@ The `InlineAsmStatement` AST node stores:
 
 ### The `@` Annotation Macro System
 
-The `@` prefix triggers annotation parsing, which can either:
+The `@` prefix (`TokenType::Annotation`) triggers annotation parsing, which can either:
 
-1. **Built-in annotations**: `@extern`, `@test`, `@deprecated`, `@no_mangle`, `@inline`, `@noinline`, etc.
-2. **Plugin annotations**: Any `@name` that isn't a built-in is forwarded to CBI plugin handlers
+1. **Registered annotations**: annotations are looked up by name in the `AnnotationController` (`controller.get_definition(name)`). Built-in annotations such as `@extern`, `@test`, `@deprecated`, `@no_mangle`, `@inline`, `@noinline`, etc. register intrinsic handlers; CBI plugins register their own definitions too.
+2. **Unknown annotations**: an unregistered `@name` is reported as an error (`unknown annotation found '...'`).
+
+Annotations are buffered on the Parser (`std::vector<SavedAnnotation> annotations`) and applied to the next node by `Parser::annotate(node)`, which calls `controller.handle_annotation(...)`.
 
 ```cpp
-void Parser::parse_annotation() {
-    consume();  // consume @
-    auto name = expect_identifier();
-    
-    // Check built-in annotations
-    if(name == "extern") { /* handle @extern */ }
-    else if(name == "test") { /* handle @test */ }
-    // ... built-in annotations ...
-    else {
-        // Forward to CBI plugin
-        binder.dispatch_annotation(name, ...);
+bool Parser::parseAnnotation(ASTAllocator& allocator) {
+    if(token->type != TokenType::Annotation) return false;
+    const auto annot = token;
+    token++;
+    auto name_view = chem::string_view(annot->value.data() + 1, annot->value.size() - 1);
+    auto definition = controller.get_definition(name_view);
+    if(definition == nullptr) {
+        error() << "unknown annotation found '" << annot->value << "'";
+        return true;
     }
+    annotations.emplace_back(*definition, std::vector<Value*>{});
+    // ... parse optional (args) and store them on the SavedAnnotation ...
 }
 ```
 
@@ -320,13 +346,17 @@ void Parser::parse_annotation() {
 The lexer is in `lexer/Lexer.cpp` and produces tokens consumed by the parser:
 
 ```cpp
-class Lexer {
-    InputSource& source;       // Source file
-    Token current;             // Current token
-    SourceLocation location;   // Current location
-    
-    Token next();              // Get next token
-    Token peek();              // Lookahead
+class Lexer : public LexerState {
+    SourceProvider provider;                    // reads source input
+    std::string file_path;                      // file being lexed
+    CompilerBinder* const binder;               // CBI binder (nullptr when disabled)
+    BatchAllocator& file_allocator;             // allocator for token strings
+    bool lex_whitespace = false;                // LSP: keep Whitespace tokens
+    bool keep_comments = false;                 // LSP: keep comment tokens
+
+    Token getNextToken();                       // get the next token
+    void getTokens(std::vector<Token>& tokens); // lex the whole file
+    void getUnit(LexUnit& outUnit);             // lex the whole file into a LexUnit
 };
 ```
 
@@ -335,39 +365,40 @@ class Lexer {
 | Token Type | Example |
 |------------|---------|
 | `Identifier` | `foo`, `Bar`, `_baz` |
-| `IntegerLiteral` | `42`, `0xFF`, `0b1010` |
-| `FloatLiteral` | `3.14`, `1e10` |
-| `StringLiteral` | `"hello"`, `"\"escaped\""` |
-| `CharLiteral` | `'a'`, `'\n'` |
+| `Number` | `42`, `0xFF`, `0b1010`, `3.14`, `1e10` |
+| `String` | `"hello"`, `"\"escaped\""` |
+| `Char` | `'a'`, `'\n'` |
 | `FuncKw` | `func` |
 | `StructKw` | `struct` |
 | `VarKw` | `var` |
 | `ConstKw` | `const` |
 | `AsmKw` | `asm` |
-| `OpenParen` | `(` |
-| `CloseParen` | `)` |
-| `OpenBrace` | `{` |
-| `CloseBrace` | `}` |
-| `OpenBracket` | `[` |
-| `CloseBracket` | `]` |
-| `Semicolon` | `;` |
-| `Colon` | `:` |
-| `EqualsGreater` | `=>` |
-| `Ampersand` | `&` |
-| `Star` | `*` |
-| `Arrow` | `->` |
-| `Dot` | `.` |
-| `Comma` | `,` |
+| `LParen` | `(` |
+| `RParen` | `)` |
+| `LBrace` | `{` |
+| `RBrace` | `}` |
+| `LBracket` | `[` |
+| `RBracket` | `]` |
+| `SemiColonSym` | `;` |
+| `ColonSym` | `:` |
+| `LambdaSym` | `=>` |
+| `AmpersandSym` | `&` |
+| `MultiplySym` | `*` |
+| `DotSym` | `.` |
+| `CommaSym` | `,` |
+| `Annotation` | `@extern` |
+| `HashMacro` | `#html` |
 | ... | ... |
 
 ## AST Allocator
 
-All AST nodes are allocated through `ASTAllocator`, an arena allocator:
+All AST nodes are allocated through `ASTAllocator`, a `BatchAllocator` subclass:
 
 ```cpp
-class ASTAllocator {
-    void* allocate(size_t size);     // Arena allocation — no individual free
-    void reset();                     // Reset entire arena
+class ASTAllocator final : public BatchAllocator {
+    template<typename T> T* allocate();              // Arena allocation — no individual free
+    char* allocate_size(size_t size, size_t align);
+    void clear();                                     // Free everything, reuse the arena
 };
 ```
 
@@ -381,8 +412,8 @@ This means:
 
 | Issue | Cause | Fix |
 |-------|-------|-----|
-| Ambiguous grammar | Expression vs. declaration confusion | Use `consume_if()` with careful token checking |
+| Ambiguous grammar | Expression vs. declaration confusion | Use `consumeToken()` with careful token checking |
 | Left recursion | Direct/indirect left-recursive rules | Rewrite as iteration (e.g., `a + b + c`) |
-| Operator precedence | Wrong binding strength | Use precedence climbing or Pratt parsing |
+| Operator precedence | Wrong binding strength | Use the shunting-yard algorithm (`to_precedence()`) |
 | Lookahead limit | Need >1 token to disambiguate | Buffer tokens or use backtracking |
 | Generic parsing | `<` vs. less-than ambiguity | Use context tracking to distinguish |

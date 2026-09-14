@@ -69,7 +69,7 @@ Chemical functions become C functions with name mangling applied:
 |-------------------|--------|
 | `func foo()` | `foo` (no mangling for plain names) |
 | `func Namespace::foo()` | `Namespace_foo` (scope prefix) |
-| `generic foo<T>()` | `foo__cgs__N` or `foo__cfg__N` (generic suffix) |
+| `generic foo<T>()` | `foo__cgs__N` (generic container) / `foo__cfg_N` (generic function) |
 | `@extern func printf()` | `printf` (no mangling at all) |
 | `@no_mangle func bar()` | `bar` (no mangling) |
 
@@ -123,24 +123,23 @@ variant Option<int> {
 ```
 
 ```c
-typedef struct Option_i32 {
-    uint8_t __disc;  // discriminator
+struct Option__cgs__N {          // N = generic instantiation id
+    int __chx__vt_621827;        // discriminator (0-based case index)
     union {
         struct { int32_t value; } Some;
         struct { } None;
-    } __data;
-} Option_i32;
+    };                           // anonymous union, not a named `__data` member
+};
 ```
 
 ### 7. Name Generation
 
-The `BufferedWriter` and `CTopLevelDeclVisitor` handle:
-
-- **Unique names**: Generated names use `__chx__` prefix to avoid collisions
-- **Temp variables**: `__chx__temp__N` for intermediate values
-- **Result pointers**: `__chx__result` for sret pointers
-- **Receiver variables**: `__chx__recv__N` for method chain receivers
-- **Loop labels**: `__chx__for__N`, `__chx__while__N` for break/continue targets
+- **C keyword escaping**: `write_c_id` prefixes `__chx__` (e.g. a Chemical name that is a C keyword becomes `__chx__int`); C keywords that are also Chemical keywords are included (`2cASTVisitor.cpp:464`)
+- **Temp variables**: `__chx__lv__N` from `get_local_temp_var_name()` (`2cASTVisitor.cpp:3434`)
+- **Struct-return parameter**: `__chx_struct_ret_param_xx` for sret pointers; constructors use `this` (`2cASTVisitor.cpp:372`, `2cASTVisitor.cpp:510`)
+- **Variant discriminator**: `__chx__vt_621827` (`2cASTVisitor.cpp:1408`)
+- **Destructor cleanup block**: `__chx__dstctr_clnup_blk__` (`2cASTVisitor.cpp:4541`)
+- **Loop continue labels**: `continue_<encoded_location>` for `for-in` loops (`2cASTVisitor.cpp:3505`)
 
 ### 8. Control Flow Translation
 
@@ -151,22 +150,20 @@ The `BufferedWriter` and `CTopLevelDeclVisitor` handle:
 | `do-while` | `do { ... } while(...)` |
 | `for` | `for(...; ...; ...) { ... }` |
 | `switch` | `switch(...) { case ...: ... }` |
-| `break` | `goto __chx__break__N;` (for nested loops) |
-| `continue` | `goto __chx__continue__N;` |
+| `break` | `break;` after destroying in-loop locals |
+| `continue` | `continue;` (inside `for-in`: `goto continue_<encoded_location>;`) |
 | Defer | N/A (no defer in Chemical) |
 
-**Break/continue implementation**: Because C's `break`/`continue` only works for the innermost loop, Chemical's break/continue are implemented as `goto` to unique labels. Each loop gets a `__chx__break__N` and `__chx__continue__N` label.
+**Break/continue implementation**: `break` first runs `destruct_till_loop_scope_above()` to destroy locals created inside the loop, then emits a plain C `break;`. `continue` emits a plain C `continue;`, except inside a `for-in` loop where the lowered loop body needs a `goto` to a unique `continue_<encoded_location>` label (`2cASTVisitor.cpp:3468`, `2cASTVisitor.cpp:3501`).
 
 ## Codegen State Management
 
 ### ToCBackendContext
 
 ```cpp
-class ToCBackendContext {
-    BufferedWriter writer;              // Output buffer
-    std::vector<ASTNode*> currentScope; // Scope stack
-    bool hasReturnType;                  // Current function has non-void return
-    // ... encoding state, name counters, etc.
+class ToCBackendContext : public BackendContext {
+    ToCAstVisitor* visitor;  // all output/scope/name-counter state lives on the visitor
+    // emit(), mem_copy(), supports(), destruct_call_site(), atomic_*() ...
 };
 ```
 
@@ -174,7 +171,7 @@ class ToCBackendContext {
 
 The backend maintains scope information for:
 1. **Variable names** — ensuring unique C identifiers
-2. **Label names** — for goto-based break/continue
+2. **Label names** — for `for-in` continue targets
 3. **Struct names** — for nested/anonymous structs
 4. **Function names** — name mangling
 
@@ -249,6 +246,14 @@ Chemical supports hex float literals. C99+ supports `0x` prefix for floats:
 // C: 0x1.921fb6p+1f
 ```
 
+### 7. `loop` Value Must Emit with `loop_scope`
+
+A `loop { ... break }` value is lowered inside a compound expression. Its body must be emitted with `loop_scope` (not plain `scope`) so that `loop_job_begin_index` is set and `break`/`continue` destroy only the jobs created *inside* the loop body. Using `scope` left that index stale, so `destruct_till_loop_scope_above()` destroyed every live local/parameter in the enclosing function on each `break`/`continue` (and again at scope exit) — see `writeLoopStmtValue` (`2cASTVisitor.cpp:5197`).
+
+### 8. `impl` Blocks Nested Inside a Struct Need Explicit Declaration
+
+`impl Interface for T` blocks written inside a struct body are not top-level nodes, so the top-level declaration pass never reaches them. `CTopLevelDeclarationVisitor::VisitStructDecl` walks `def->evaluated_nodes()` and calls `VisitImplDecl` for each nested `ImplDecl`, emitting prototypes before any caller (e.g. a generic instantiation) references them (`2cASTVisitor.cpp:2938`).
+
 ## Performance Optimization
 
 ### Output Efficiency
@@ -293,7 +298,7 @@ When adding a new AST node to the 2c backend:
 1. **Add a visitor method** in `2cASTVisitor.cpp`
 2. **Declare the visitor** in `2cASTVisitor.h`
 3. **Add any new helper** in `CDestructionVisitor.h` or `CTopLevelDeclVisitor.h` if needed
-4. **Register in `SubVisitor.h`** — add the node type to the dispatch table
+4. **Register in `preprocess/visitors/NonRecursiveVisitor.h`** — add a default `VisitXxx` method and a `case` in `VisitNodeNoNullCheck` / `VisitValueNoNullCheck`
 
 ### Template for a New Visitor
 

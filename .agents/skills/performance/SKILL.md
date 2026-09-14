@@ -20,30 +20,20 @@ The Chemical compiler is designed for speed. This document describes the key per
 The most impactful optimization. All AST nodes are allocated from arena allocators:
 
 ```cpp
-class ASTAllocator {
-    // Simple pointer-bump arena
-    std::vector<char*> blocks;  // 4KB+ blocks
-    char* current;              // Current position
-    size_t remaining;           // Bytes left in current block
-    
-    void* allocate(size_t size) {
-        if(size > remaining) {
-            allocate_new_block(std::max(size, BLOCK_SIZE));
-        }
-        auto* ptr = current;
-        current += size;
-        remaining -= size;
-        return ptr;
-    }
-    
-    void reset() {
-        for(auto* block : blocks) {
-            free(block);
-        }
-        blocks.clear();
-        current = nullptr;
-        remaining = 0;
-    }
+// ASTAllocator derives from BatchAllocator, a pointer-bump arena:
+class BatchAllocator {
+    std::vector<char*> heap_memory;   // heap batches (configurable size, e.g. 100 KB)
+    std::size_t heap_batch_size;      // bytes per batch
+    std::size_t heap_offset;          // current position within current batch
+
+    char* reserve_heap_storage();                     // grab a new batch
+    char* object_heap_pointer(size_t size, size_t align);
+};
+
+class ASTAllocator final : public BatchAllocator {
+    template<typename T> T* allocate();                 // typed allocation
+    char* allocate_size(size_t obj_size, size_t align); // raw allocation
+    void clear();   // frees everything, allocator becomes reusable
 };
 ```
 
@@ -72,8 +62,7 @@ The compiler avoids `std::string` for performance:
 ```
 
 **Key properties**:
-- **Small String Optimization (SSO)**: Strings < ~24 bytes stored inline, no heap allocation
-- **Custom allocator**: Can use arena allocator for bulk string allocation
+- **Small String Optimization (SSO)**: Strings up to `STR_BUFF_SIZE` (16) bytes stored inline in the object, no heap allocation
 - **No COW**: Copy-on-write is unpredictable; Chemical strings use eager copying
 - **Integral hash**: `chem::string_view` can be used as a hash map key without copying
 
@@ -110,12 +99,12 @@ Each thread gets its own:
 Multiple instantiations of the same generic are processed with fine-grained locking:
 
 ```cpp
-// Thread-safe registration:
+// Thread-safe registration (guarded by resolver.generic_inst_reg_mutex):
 {
-    std::lock_guard lock(registration_mutex);
-    auto* existing = container.find(genDecl, args);
-    if(existing) return existing;
-    auto* info = container.register_instantiation(genDecl, args);
+    std::lock_guard lock(resolver.generic_inst_reg_mutex);
+    auto existing = container.getInstantiationTypesFor(key);
+    if(!existing.empty()) return existing;
+    container.registerInstantiation(key, types, implData, current_file_id);
 }
 
 // Signature finalization with notify/wait:
@@ -127,13 +116,13 @@ thread 2: waitSignatureFinalized(genDecl, 0) → FinalizeBody(genDecl, inst1, 0)
 
 | Stage | Current | Future |
 |-------|---------|--------|
-| Lexing | Serial per file | Parallel per file |
-| Parsing | Serial per file | Parallel per file |
+| Lexing | Parallel per file (current) | — |
+| Parsing | Parallel per file (current) | — |
 | Top-level decl | Serial across files | Parallel with scoped locking |
 | Link signatures | Parallel per file | Parallel per file (current) |
 | Generic instantiation | Parallel per instantiation | More granular parallel |
 | Link bodies | Parallel per file | Parallel per function |
-| Type verification | Serial per module | Parallel per file |
+| Type verification | Parallel per file (current) | — |
 | C codegen | Serial per function | Parallel per function |
 | LLVM codegen | Serial per function | Parallel per function (thread-safe contexts) |
 | Linking | Serial | Linker can be parallel |
@@ -142,38 +131,42 @@ thread 2: waitSignatureFinalized(genDecl, 0) → FinalizeBody(genDecl, inst1, 0)
 
 ### Object File Cache
 
-The compiler can cache compiled object files:
+The compiler caches compiled object files using a timestamp file written to the build directory:
 
 ```
-Cache key = hash(source file content + compiler flags)
-Cache value = object file (.o)
+Cache record = { output mode, [(source path, file size, last_write_time), ...] }
+Cache hit    = same file set, sizes, mtimes and output mode
+Cache value  = object file (.o)
 ```
+
+See `compiler/lab/timestamp/Timestamp.{h,cpp}` (`save_mod_timestamp` / `compare_mod_timestamp`).
 
 ### Generic Instantiation Cache
 
 `InstantiationsContainer` ensures each unique combination of generic args is only processed once:
 
 ```cpp
-// Key: (BaseGenericDecl*, concrete type arguments)
-// Value: concrete instantiation
-std::unordered_map<decl_key, InstantiationInfo*> cache;
+// Key: generic declaration pointer
+// Value: declared instantiations (type argument spans + impl data)
+std::unordered_map<void*, DeclInstantiations> instantiations;
 ```
 
 ### Module Cache
 
-Compiled modules are cached based on their dependency DAG hash:
+Compiled modules are cached based on their source timestamps and their dependency DAG:
 
 ```
-Cache key = hash(module source timestamps + dependency hashes)
+Cache key = module source timestamps + dependency has_changed flags
 ```
 
 ### Cache Invalidation
 
 Invalidation triggers:
-- Source file timestamp change
-- Dependency recompilation
-- Compiler flag change
-- Plugin version change
+- Source file `last_write_time` or size change
+- Added/removed source files (file count mismatch)
+- Output mode change
+- Dependency recompilation (`has_changed` propagation)
+- Plugin recompilation (`--frecompile-plugins`)
 
 ## 5. Memory Optimization
 
@@ -226,14 +219,15 @@ AST nodes use minimal memory:
 
 ### Profiling Tips
 
-1. **Benchmark support** in `test.sh`:
+1. **Benchmark support** in `test.sh` (benchmark flags are `--bm`, `--bm-files`, `--bm-modules`):
    ```bash
-   ./scripts/test.sh --tcc --benchmark
+   ./scripts/test.sh --tcc --bm
    ```
 
 2. **Timing flags**:
    ```bash
-   ./chemical build.lab -v --timings  # Print per-phase timing
+   ./chemical build.lab -v -bm            # per-phase benchmark
+   ./chemical build.lab -v -bm-modules    # per-module breakdown
    ```
 
 3. **Manual timing**:
@@ -270,4 +264,4 @@ AST nodes use minimal memory:
 | `compiler/generics/InstantiationsContainer.h` | Generic instantiation deduplication |
 | `preprocess/visitors/NonRecursiveVisitor.h` | Iterative AST walking |
 | `preprocess/2c/BufferedWriter.h` | Buffered C output |
-| `server/model/LRUCache.h` | LRU cache for LSP operations |
+| `server/utils/LRUCache.h` | LRU cache for LSP operations |

@@ -20,38 +20,43 @@ Type-checked AST → LLVM.cpp (expression/value lowering) → LLVMGen.cpp (IR bu
 | File | Purpose |
 |------|---------|
 | `compiler/backend/LLVM.cpp` | Main codegen — converts AST values, types, and expressions to LLVM IR |
-| `compiler/backend/LLVMGen.cpp` | IR builder utilities — allocation, GEP, stores, function creation |
+| `compiler/backend/LLVMGen.cpp` | IR builder utilities — allocation, GEP, stores |
 | `compiler/backend/LLVMGen.h` | LLVMGen class declaration |
-| `compiler/backend/LLVMBackendContext.h` | Backend context — holds LLVMContext, Module, IRBuilder, target machine |
-| `compiler/backend/LLVMBackendContext.cpp` | Context implementation |
+| `compiler/backend/LLVMBackendContext.h` | `BackendContext` shim for the build system (mem_copy, atomics, forget) |
 | `compiler/backend/DebugInfoBuilder.h/.cpp` | Debug info (DWARF) generation |
 | `compiler/backend/include/LLVMArrayDestructor.h` | Array destructor helpers |
 | `compiler/backend/CLANG.cpp` | Clang integration for C driver mode |
-| `compiler/backend/LLVMTypes.cpp` | Type mapping from Chemical types to LLVM types |
-| `compiler/backend/LLVMModuleEmitter.cpp` | Module emission (writing IR/object files) |
-| `compiler/backend/LLVMTargetHelper.cpp` | Target architecture helpers |
+| `compiler/Codegen.h/.cpp` | Holds the LLVM state (`ctx`, `module`, `builder`, `TargetMachine`, `DebugInfoBuilder`, `LLVMGen`) and drives codegen |
 
-## LLVMBackendContext
+Chemical → LLVM type mapping is implemented by `BaseType::llvm_type(Codegen&)` / `Value::llvm_type(Codegen&)` methods spread across `ast/` (e.g. `ast/structures/VariantDefinition.cpp`, `ast/values/StructValue.cpp`).
 
-The `LLVMBackendContext` class manages all LLVM state for compilation:
+## Codegen / LLVMBackendContext
+
+The actual LLVM state is held by `Codegen` (`compiler/Codegen.h`), not by `LLVMBackendContext`:
 
 ```cpp
-class LLVMBackendContext {
-    llvm::LLVMContext llvmContext;        // LLVM context
-    std::unique_ptr<llvm::Module> module;  // LLVM module
-    llvm::IRBuilder<> builder;             // IR builder
-    llvm::TargetMachine* targetMachine;    // Target machine description
-    // ... plus debug info, function maps, type maps, etc.
+class Codegen : public ASTDiagnoser {
+    std::unique_ptr<llvm::LLVMContext> ctx;     // LLVM context
+    std::unique_ptr<llvm::Module> module;        // LLVM module
+    llvm::IRBuilder<...>* builder;               // IR builder
+    llvm::TargetMachine* TargetMachine;          // Target machine description
+    DebugInfoBuilder di;                         // Debug info
+    LLVMGen llvm;                                // IR builder helpers
+    std::unordered_map<ASTNode*, llvm::Value*> mod_ptr_cache;  // node -> llvm value
+    std::unordered_map<ASTNode*, llvm::Type*> ctx_ptr_cache;   // node -> llvm type
+    // ... plus current function/blocks, destruct job stack, etc.
 };
 ```
 
-### Key Responsibilities
+`LLVMBackendContext` (`compiler/backend/LLVMBackendContext.h`) is only a `BackendContext` implementation used by the build system and macros — it holds a `Codegen* gen_ptr` and implements `emit`, `mem_copy`, `supports`, `destruct_call_site`, and the `atomic_*` / `signal_fence` helpers (defined in `LLVM.cpp`).
+
+### Key Responsibilities (Codegen)
 
 1. **Creating LLVM functions** — mapping Chemical functions to LLVM functions
 2. **Creating LLVM global variables** — `llvm::GlobalVariable` with proper linkage
 3. **Managing IR builder** — insertion point, current function
 4. **Debug info** — managing `DIBuilder` for source-level debugging
-5. **Type cache** — memoizing Chemical → LLVM type conversions
+5. **Caches** — `mod_ptr_cache` (node → llvm value) and `ctx_ptr_cache` (node → llvm type)
 
 ## LLVM Codegen: Key Patterns
 
@@ -70,7 +75,7 @@ Chemical types are mapped to LLVM types via a visitor pattern:
 | `&T` | `T*` | Lowered to pointer |
 | `[N]T` | `[N x T]` | LLVM array type |
 | `struct S` | `{ T1, T2, ... }` | LLVM struct type |
-| `variant V` | `{ i8, { ... } }` | Tagged union (discriminator + payload) |
+| `variant V` | `{ i32, { ... } }` | Tagged union (i32 discriminator + payload struct) |
 | `func (P) → R` | `R(*)(P)` | Function pointer |
 | `void` | `void` | Only for function returns |
 
@@ -87,7 +92,7 @@ Structs are the most complex lowering target:
 
 Chemical functions are lowered following C ABI conventions:
 
-1. **Name mangling**: Scoped → `scope_name` prefix, generics → `__cgs__N`/`__cfg__N` suffix
+1. **Name mangling**: Scoped → `scope_name` prefix, generic containers → `__cgs__N`, generic functions → `__cfg_N` suffix
 2. **Parameters**: Direct mapping, with sret for struct returns
 3. **Main function**: Not mangled for `application` packages
 4. **External functions**: `@extern` → no mangling, external linkage
@@ -159,15 +164,16 @@ phi->addIncoming(UndefValue::get(type), block2);  // uninitialized path
 
 Check `IRBuilder::CreatePHI` usage in `LLVM.cpp` when adding new PHI-based constructs.
 
-### 4. Alloca Placement
+### 4. Alloca Creation
 
-All `alloca` instructions should be at the start of the entry block, not scattered throughout the function. Use `LLVMGen::CreateEntryBlockAlloca()`:
+Allocas are created where codegen needs them via `LLVMGen::CreateAlloca`, which forwards to the extern-C helper `LLVMGenCreateAlloca` (and `LLVMGenCreateAllocaTyped`, which also applies `@maxalign` alignment). These insert at the current `IRBuilder` insertion point — there is no `CreateEntryBlockAlloca`/entry-block hoisting helper:
 
 ```cpp
 // In LLVMGen.cpp:
-AllocaInst* CreateEntryBlockAlloca(Function* function, Type* type, const Twine& name = "") {
-    IRBuilder<> tmpBuilder(&function->getEntryBlock(), function->getEntryBlock().begin());
-    return tmpBuilder.CreateAlloca(type, nullptr, name);
+llvm::Value* LLVMGenCreateAlloca(LLVMGen* gen, llvm::Type* type, SourceLocation location) {
+    const auto allocaInst = gen->builder->CreateAlloca(type);
+    gen->di.instr(allocaInst, location);
+    return allocaInst;
 }
 ```
 
@@ -184,17 +190,18 @@ auto* gep = builder.CreateStructGEP(ptr, 1);  // field index 1 = b
 
 ### 6. Variant (Tagged Union) Lowering
 
-Variants are lowered as:
+A variant's canonical LLVM type is a struct laid out as `[ inherited structs..., i32 discriminator, { <payload> } ]`:
 
 ```llvm
-%variant = type { i8, %union_data }  ; i8 = discriminator, union_data = payload
+; canonical layout (the largest member determines the payload/alignment):
+%variant = type { i32, { <largest member's fields> } }
 ```
 
-- `i8 discriminator` at offset 0 — which case is active
-- `%union_data` at offset aligned to largest member — the payload is a `{T1, T2, ...}` union
+- `i32 discriminator` — which case is active (an enum index), placed after any inherited struct fields, not at offset 0
+- payload — a struct wrapping the member's raw struct; the canonical layout uses the largest member and each variant member's payload is accessed via GEP/bitcast
 
 Pattern matching generates:
-1. Load discriminator
+1. Load discriminator (`i32`)
 2. `icmp eq` with case value
 3. `br` to matching case block
 
@@ -208,9 +215,9 @@ The `DebugInfoBuilder` generates DWARF debug information:
 - **Type debug info**: `DIDerivedType`, `DICompositeType` for structs, arrays, pointers
 
 ```cpp
-// Pattern:
-DILocalVariable* var = debugInfo->createLocalVariable(name, fn, line, type, true, 0);
-debugInfo->insertValue(var, alloca, location);
+// Pattern (DebugInfoBuilder::declare, DebugInfoBuilder.cpp:483):
+llvm::DILocalVariable* var = builder->createAutoVariable(scope, name, file, line, type);
+builder->insertDeclare(alloca, var, builder->createExpression(), loc, inst);
 ```
 
 ## Parallelization Strategies
@@ -247,7 +254,7 @@ IR is written to `lang/compiled/modules/main/llvm_ir.ll`.
 
 ### Quick Checks
 
-1. **Alloca in wrong block**: All allocas must be in entry block
+1. **Alloca created at wrong insertion point**: `LLVMGen::CreateAlloca` inserts at the current builder position
 2. **GEP wrong indices**: Verify field indices match struct layout
 3. **Type mismatch**: Check `CreateCall` arg types match function signature
 4. **Phi missing incoming**: Every predecessor must have an incoming value

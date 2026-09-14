@@ -219,7 +219,16 @@ llvm::Value *StructValue::llvm_value(Codegen &gen, BaseType* expected_type) {
             }
 
             if (value_ptr) {
-                const auto final_val = value_ptr->llvm_value(gen, var->known_type());
+                auto final_val = value_ptr->llvm_value(gen, var->known_type());
+                if (final_val != nullptr) {
+                    // the value may be of a different (narrower) integer type than the
+                    // member type (e.g. an int literal stored in a long field), so cast
+                    // it to the member's type before folding it into the constant struct
+                    const auto member_type = var->llvm_type(gen);
+                    if (member_type != nullptr && final_val->getType() != member_type) {
+                        final_val = gen.implicit_cast(final_val, var->known_type(), member_type);
+                    }
+                }
                 if (llvm::isa<llvm::Constant>(final_val)) {
                     llvm_vals.emplace_back((llvm::Constant*) final_val);
                 } else {

@@ -15,9 +15,11 @@ The symbol resolution pipeline is the semantic analysis backbone of the Chemical
 1. Import Resolution        — ImportPathHandler resolves module dependencies
 2. Top-Level Declaration    — TopLevelDeclSymDeclare visits all files, declares top-level symbols
 3. Link Signatures          — TopLevelLinkSignature resolves type signatures (no bodies)
-4. Generic Instantiation    — GenericInstantiationPass creates concrete instantiations
-5. Link Bodies              — SymResLinkBody resolves function bodies, statements, and expressions
-6. Type Verify              — type_verify() validates types (separate pass, in compiler/typeverify/)
+4. Automatic Function Gen   — generate_automatic_functions_for_module() creates implicit ctors/dtors
+5. Generic Instantiation    — GenericInstantiationPass registers concrete instantiations
+6. After Link Signature     — sym_res_after_signature() builds container indexes, links exports, computes generic param bits
+7. Link Bodies              — sym_res_link_body_generic_decls_pass() then sym_res_link_body_pass() resolve all bodies
+8. Type Verify              — type_verify() validates types (separate pass, in compiler/typeverify/)
 ```
 
 ### Key Files
@@ -25,7 +27,7 @@ The symbol resolution pipeline is the semantic analysis backbone of the Chemical
 | File | Purpose |
 |------|---------|
 | `compiler/symres/SymbolResolver.h` | Core `SymbolResolver` class — owns `SymbolTable`, `ChildResolver`, manages the per-phase API |
-| `compiler/symres/SymbolResolver.cpp` | Implementation — `tld_declare_file()`, `declare_and_link_file()`, `import_file()` |
+| `compiler/symres/SymbolResolver.cpp` | Implementation — `tld_declare_file()`, `link_signature_file()`, `generic_instantiation_file()`, `after_link_signature_file()`, `declare_and_link_file()`, `import_file()` |
 | `compiler/symres/DeclareTopLevel.h` | `TopLevelDeclSymDeclare` visitor — declares symbols without linking types |
 | `compiler/symres/LinkSignature.h` | `TopLevelLinkSignature` visitor — links type signatures only (no bodies) |
 | `compiler/symres/SymResLinkBody.h` | `SymResLinkBody` visitor — links function bodies, statements, expressions |
@@ -64,10 +66,12 @@ SymbolRange SymbolResolver::tld_declare_file(Scope& scope, unsigned int fileId, 
 }
 
 void SymbolResolver::declare_and_link_file(Scope& scope, unsigned int fileId, const std::string& abs_path) {
-    // 1. Call tld_declare_file() to declare all symbols
-    // 2. Create a TopLevelLinkSignature visitor — link type signatures
-    // 3. Create a SymResLinkBody visitor — link function bodies
-    // 4. Merge diagnostics back
+    // 1. TopLevelDeclSymDeclare — declare all file symbols
+    // 2. sym_res_signature() — link type signatures
+    // 3. sym_res_generic_instantiation() — register/finalize generic instantiations
+    // 4. sym_res_after_signature() — build container indexes, link exports, compute generic param bits
+    // 5. sym_res_link_body_pass() — link all function bodies
+    // 6. Merge diagnostics back
 }
 ```
 
@@ -85,7 +89,9 @@ This design allows N files in a module to be processed concurrently without muta
 
 1. **Declaration phase (serial)**: `tld_declare_file()` runs serially — only one file declares symbols at a time
 2. **Signature phase (parallel)**: Each file gets its own `TopLevelLinkSignature` with its own `SymbolTable`. The shared resolver is only queried (read-only)
-3. **Body phase (parallel)**: Each file gets its own `SymResLinkBody` with per-file `SymbolTable` and `GenericInstantiatorAPI`
+3. **Generic instantiation phase (parallel)**: Each file gets its own `GenericInstantiationPass` with a per-file `GenericInstantiatorAPI`
+4. **After-link-signature phase (serial)**: `sym_res_after_signature()` builds container indexes, then links `export` statements and computes generic-param interface bits
+5. **Body phase (parallel, two passes)**: `sym_res_link_body_generic_decls_pass()` resolves generic master bodies first, then `sym_res_link_body_pass()` resolves non-generic bodies. Each file gets its own `SymResLinkBody` with per-file `SymbolTable` and `GenericInstantiatorAPI`
 
 The shared state that IS mutated:
 - `generic_inst_reg_mutex` — protects generic instantiation registration maps
@@ -100,7 +106,7 @@ This visitor walks top-level declarations and registers them in the symbol table
 
 | Node Type | Declaration Behavior |
 |-----------|---------------------|
-| `FunctionDeclaration` | Declares with overload support — multiple functions with the same name in the same scope become `MultiFunctionNode` |
+| `FunctionDeclaration` | Declares by name with its access specifier; a duplicate name in the same scope reports a duplicate-symbol error |
 | `StructDefinition` | Declares the struct name |
 | `VariantDefinition` | Declares the variant name |
 | `UnionDef` | Declares the union name |
@@ -159,21 +165,32 @@ This visitor resolves **type signatures only** — never enters function bodies:
 
 ### GenericInstantiationPass
 
-This pass runs BETWEEN link signatures and link bodies. It:
+This pass runs BETWEEN link signatures and link bodies (after automatic function generation). It:
 
 1. Finalizes inline instantiations from the link signature phase (calls `GenericTypeDecl::finalize_signature()`)
-2. Visits all generic type declarations and ensures their instantiations are registered
-3. Does NOT visit function bodies — only signatures
+2. Visits scopes, namespaces, comptime-if scopes, struct values, and function signatures, requesting registration of each `GenericType` it encounters (`InstantiationRequirement::Registration`)
+3. Explicitly does NOT visit generic declarations themselves, and does NOT visit function bodies — only signatures
 
 This separation allows the generic instantiation pass to use a parallel model where each instantiation can be finalized independently.
 
 See [generics skill](./.agents/skills/generics/SKILL.md) for detailed generic instantiation internals.
 
-## Phase 4: Link Bodies
+## Phase 4: After Link Signature
+
+### sym_res_after_signature
+
+This pass runs after generic instantiation and before link bodies (`sym_res_after_signature()` in `compiler/symres/LinkSignature.cpp`). It:
+
+1. Calls `BuildIndexes()` — builds container→children indexes so bodies can look up members
+2. Runs `AfterBuildIndexesPass()` — links `export` statements (which can't be linked during signature) and computes interface bits of generic type parameters
+
+## Phase 5: Link Bodies
 
 ### SymResLinkBody
 
 This is the most complex visitor. It resolves ALL remaining symbols in function bodies, statements, and expressions.
+
+In the parallel module pipeline it runs in two passes: `sym_res_link_body_generic_decls_pass()` resolves the master bodies of generic declarations first, then `sym_res_link_body_pass()` resolves all non-generic bodies.
 
 #### What it resolves
 
@@ -208,7 +225,7 @@ When a variable is moved (assigned to another variable that has a destructor), i
 | `mark_moved_no_check(id/chain)` | Marks a value as moved |
 | `un_move_id(id)` | Unmarks a moved identifier (for reassignment) |
 | `find_moved_id(id)` | Checks if an identifier has been moved |
-| `check_chain(chain, assigning)` | Validates access chain is not accessing a moved value |
+| `check_chain(chain, assigning, diagnoser)` | Validates access chain is not accessing a moved value |
 | `check_id(id, diagnoser)` | Validates identifier is not accessing a moved value |
 | `find_partially_matching_moved_chain(chain, ...)` | Find moved chains matching a prefix/path |
 | `is_value_movable(value, type)` | Checks if a value can be moved (has destructor) |
@@ -227,9 +244,9 @@ Operator overloading is resolved in `SymResLinkBody` via `ImplementationsIndex`:
 // 4. Replace the Expression AST node with a FunctionCall to the resolved 'add' method
 ```
 
-The `ImplementationsIndex` uses a key of `(Interface*, ASTAny*)` where:
-- `Interface*` is the interface declaration (e.g., `core::ops::Add`)
-- `ASTAny*` is the type the impl is for (e.g., a `StructDefinition*` or `BaseType*`)
+The `ImplementationsIndex` uses an `ImplementationIndexKey` of `(ASTNode*, ASTAny*)` where:
+- `ASTNode*` is the interface declaration — an `InterfaceDefinition*` or a `GenericInterfaceDecl*` (`add_interface` normalizes a generic interface to its parent declaration)
+- `ASTAny*` is the type the impl is for (e.g., a `BaseType*`, `StructDefinition*`, `VariantDefinition*`, or `UnionDef*`)
 
 Thread safety: uses `std::shared_mutex` for concurrent reads (shared_lock) and exclusive writes (unique_lock).
 
@@ -239,10 +256,14 @@ Thread safety: uses `std::shared_mutex` for concurrent reads (shared_lock) and e
 
 ```cpp
 class SymbolTable {
-    std::vector<ScopeEntry> scopes;           // Nested scopes
-    std::unordered_map<chem::string_view, BucketSymbol*> symbols;  // Hash map
+    std::vector<SymbolEntry> symbols;    // Contiguous metadata for declared symbols
+    std::vector<Bucket> buckets;         // Open-addressed hash table (BucketSymbol chains)
+    size_t bucketMask;                   // buckets.size() - 1 (bucket count is a power of two)
+    std::vector<SymbolScope> scopeStack; // Scope markers (SymResScopeKind + start index)
 };
 ```
+
+`SymResScopeKind` only distinguishes `Global`, `Module`, `File`, and `Default`; namespaces, struct members, function parameters, and blocks all use `Default` scopes.
 
 ### Scope Nesting
 
@@ -289,7 +310,7 @@ Located in `compiler/symres/CoreNodes.h`, this provides all the core interfaces 
 
 ### The Binding Mechanism
 
-`link_core_nodes()` is called after a module completes symbol resolution, but only if the module name is `"core"` (checked in `ASTProcessor::sym_res_module()`). It looks up interfaces by name in the symbol table and stores function pointers in the `CoreNodes` struct:
+`link_core_nodes()` is called after a module completes symbol resolution, but only for the top-level `core` module (`module->scope_name.empty() && module->name == "core"`, checked in `ASTProcessor::sym_res_module()`). It looks up interfaces by name in the symbol table and stores function pointers in the `CoreNodes` struct:
 
 ```cpp
 void SymbolResolver::link_core_nodes() {
@@ -369,7 +390,7 @@ The `Copy` interface is a special marker interface. When a struct implements `co
 
 ### How Operator Overloads Use CoreNodes
 
-During SymResLinkBody (Phase 4), when an expression like `a + b` is encountered:
+During SymResLinkBody (Phase 5), when an expression like `a + b` is encountered:
 
 ```cpp
 // In SymResLinkBody expression handling:
@@ -431,7 +452,7 @@ The `ImplementationsIndex` provides methods like:
 
 ### Why `link_core_nodes()` is Called Per-Core-Module
 
-CoreNodes are bound only when the compiler processes the `core` module (checked in `ASTProcessor::sym_res_module()`). This is because the core interfaces are defined in Chemical source code in `lang/libs/core/`. The binding happens AFTER symbol resolution of the core module is complete, so all interfaces are visible in the symbol table.
+CoreNodes are bound only when the compiler processes the top-level `core` module (`module->scope_name.empty() && module->name == "core"`, checked in `ASTProcessor::sym_res_module()`). This is because the core interfaces are defined in Chemical source code in `lang/libs/core/`. The binding happens AFTER symbol resolution of the core module is complete, so all interfaces are visible in the symbol table.
 
 ## Common Issues and Debugging
 
@@ -467,16 +488,16 @@ result.diagnostics.insert(result.diagnostics.end(),
 
 | File | Lines (approx) | Purpose |
 |------|---------------|---------|
-| `compiler/symres/SymbolResolver.h` | ~250 | Core class declaration |
-| `compiler/symres/SymbolResolver.cpp` | ~800 | `tld_declare_file`, `declare_and_link_file`, `import_file` |
-| `compiler/symres/DeclareTopLevel.h` | ~40 | Top-level declaration visitor |
-| `compiler/symres/SymResLinkBody.h` | ~300 | Body linking visitor + move API |
-| `compiler/symres/SymResLinkBody.cpp` | ~4000 | Body linking implementation |
-| `compiler/symres/LinkSignature.h` | ~200 | Signature linking visitor |
-| `compiler/symres/LinkSignature.cpp` | ~2000 | Signature linking implementation |
-| `compiler/symres/GenericInstantiationPass.h` | ~120 | Generic instantiation pass |
-| `compiler/symres/GenericInstantiationPass.cpp` | ~120 | Generic instantiation pass impl |
-| `compiler/symres/SymbolTable.h` | ~300 | Symbol table with scope nesting |
-| `compiler/symres/ImplementationsIndex.h` | ~150 | Impl block index |
-| `compiler/symres/CoreNodes.h` | ~100 | Core interfaces for operators |
+| `compiler/symres/SymbolResolver.h` | ~510 | Core class declaration |
+| `compiler/symres/SymbolResolver.cpp` | ~430 | `tld_declare_file`, `link_signature_file`, `generic_instantiation_file`, `after_link_signature_file`, `declare_and_link_file`, `import_file` |
+| `compiler/symres/DeclareTopLevel.h` | ~60 | Top-level declaration visitor |
+| `compiler/symres/SymResLinkBody.h` | ~640 | Body linking visitor + move API |
+| `compiler/symres/SymResLinkBody.cpp` | ~3750 | Body linking implementation |
+| `compiler/symres/LinkSignature.h` | ~270 | Signature linking visitor |
+| `compiler/symres/LinkSignature.cpp` | ~1730 | Signature linking implementation (incl. `sym_res_after_signature`) |
+| `compiler/symres/GenericInstantiationPass.h` | ~110 | Generic instantiation pass |
+| `compiler/symres/GenericInstantiationPass.cpp` | ~70 | Generic instantiation pass impl |
+| `compiler/symres/SymbolTable.h` | ~770 | Symbol table with scope nesting |
+| `compiler/symres/ImplementationsIndex.h` | ~140 | Impl block index |
+| `compiler/symres/CoreNodes.h` | ~200 | Core interfaces for operators |
 | `compiler/symres/ChildResolver.h` | ~100 | Extension method resolver |

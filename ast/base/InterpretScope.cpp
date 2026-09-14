@@ -38,21 +38,23 @@ void InterpretScope::declare(const chem::string_view& name, Value* value) {
     values[name] = value;
 }
 
-Value* InterpretScope::find_value(const chem::string_view& name) {
+Value* InterpretScope::find_value(const chem::string_view& name, unsigned* out_depth) {
     auto found = values.find(name);
     if (found == values.end()) {
         if(parent == nullptr) return nullptr;
-        return parent->find_value(name);
+        if(out_depth) ++(*out_depth);
+        return parent->find_value(name, out_depth);
     } else {
         return found->second;
     }
 }
 
-std::pair<value_iterator, InterpretScope&> InterpretScope::find_value_iterator(const chem::string_view& name) {
+std::pair<value_iterator, InterpretScope&> InterpretScope::find_value_iterator(const chem::string_view& name, unsigned* out_depth) {
     auto found = values.find(name);
     if (found == values.end()) {
         if(parent == nullptr) return { values.end(), *this };
-        return parent->find_value_iterator(name);
+        if(out_depth) ++(*out_depth);
+        return parent->find_value_iterator(name, out_depth);
     } else {
         return { found, *this };
     }
@@ -591,54 +593,62 @@ void InterpretScope::destroy_value(Value* val) {
     global->current_func_type = prev_func;
 }
 
+/**
+ * Recursively destroys a value held in an interpret scope.
+ *
+ * Structs run their user `@delete` destructor (via InterpretScope::destroy_value)
+ * and then recursively destroy their members, matching the C backend (which calls
+ * the user destructor and then emits member destruction). Arrays destroy each
+ * struct element, resolving Identifier elements (produced by move semantics) to
+ * the actual value first. This is a free function so it is not re-instantiated
+ * for every entry of every scope.
+ */
+static void destroy_value_recursive(InterpretScope& scope, Value* target_val) {
+    if(!target_val) return;
+    if(target_val->val_kind() == ValueKind::StructValue) {
+        // Run the user-defined destructor (if any) via the centralized helper.
+        scope.destroy_value(target_val);
+        // Always recursively destruct member values, matching C backend behavior:
+        // the C codegen calls the user destructor first, then generates member
+        // destruction code. With proper move semantics in struct literal initialization,
+        // the source variable is cleared before it's stored as a member, so there's
+        // no double-destruction risk.
+        auto structVal = target_val->as_struct_value_unsafe();
+        for(auto& [member_name, member_init] : structVal->values) {
+            if(member_init.value) {
+                destroy_value_recursive(scope, member_init.value);
+            }
+        }
+    } else if(target_val->val_kind() == ValueKind::ArrayValue) {
+        auto arrVal = target_val->as_array_value_unsafe();
+        // Destruct each element that is a struct value with a destructor.
+        // Elements were populated by evaluated_value() or by set_value() and
+        // AddrOfValue already creates PointerValues pointing directly into this
+        // vector, so modifications through &arr[i] affect the actual elements.
+        for(size_t ei = 0; ei < arrVal->values.size(); ei++) {
+            auto elemVal = arrVal->values[ei];
+            if(!elemVal) continue;
+            // Resolve Identifier elements (from move semantics like [d])
+            // to the actual struct value so the destructor can run.
+            if(elemVal->val_kind() == ValueKind::Identifier) {
+                auto idVal = elemVal->as_identifier_unsafe();
+                auto resolved = scope.find_value(idVal->value);
+                if(resolved) {
+                    elemVal = resolved;
+                    arrVal->values[ei] = resolved;
+                }
+            }
+            destroy_value_recursive(scope, elemVal);
+        }
+    }
+}
+
 void InterpretScope::destroy_values() {
     for(auto& [name, val] : values) {
         if (val == nullptr) continue;
         // Skip the return value (it's been moved to the caller)
         if(val == returnValue) continue;
-
-        // Recursive helper to destruct a single value (struct, array, or nested)
-        auto destruct_value = [this](Value* target_val, auto& self_ref) -> void {
-            if (!target_val) return;
-            if(target_val->val_kind() == ValueKind::StructValue) {
-                // Run the user-defined destructor (if any) via the centralized helper.
-                destroy_value(target_val);
-                // Always recursively destruct member values, matching C backend behavior:
-                // the C codegen calls the user destructor first, then generates member
-                // destruction code. With proper move semantics in struct literal initialization,
-                // the source variable is cleared before it's stored as a member, so there's
-                // no double-destruction risk.
-                auto structVal = target_val->as_struct_value_unsafe();
-                for(auto& [member_name, member_init] : structVal->values) {
-                    if(member_init.value) {
-                        self_ref(member_init.value, self_ref);
-                    }
-                }
-            } else if(target_val->val_kind() == ValueKind::ArrayValue) {
-                auto arrVal = target_val->as_array_value_unsafe();
-                // Destruct each element that is a struct value with a destructor.
-                // Elements were populated by evaluated_value() or by set_value() and
-                // AddrOfValue already creates PointerValues pointing directly into this
-                // vector, so modifications through &arr[i] affect the actual elements.
-                for(size_t ei = 0; ei < arrVal->values.size(); ei++) {
-                    auto elemVal = arrVal->values[ei];
-                    if(!elemVal) continue;
-                    // Resolve Identifier elements (from move semantics like [d])
-                    // to the actual struct value so the destructor can run.
-                    if(elemVal->val_kind() == ValueKind::Identifier) {
-                        auto idVal = elemVal->as_identifier_unsafe();
-                        auto resolved = find_value(idVal->value);
-                        if(resolved) {
-                            elemVal = resolved;
-                            arrVal->values[ei] = resolved;
-                        }
-                    }
-                    self_ref(elemVal, self_ref);
-                }
-            }
-        };
-
-        destruct_value(val, destruct_value);
+        destroy_value_recursive(*this, val);
     }
 }
 

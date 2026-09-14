@@ -277,27 +277,39 @@ Value *Expression::evaluate(InterpretScope &scope) {
     FunctionDeclaration* overloaded = nullptr;
     auto glob = scope.global;
     if(glob && glob->build_compiler) {
-        overloaded = get_overloaded_func(
-            glob->build_compiler->coreNodes,
-            glob->build_compiler->implsIndex
-        );
-        // If not found via first value, try second value's type
-        if(!overloaded) {
-            // Use a temporary swap approach to check second value's type
-            auto tempFirst = firstValue;
-            firstValue = secondValue;
-            auto tempSecond = secondValue;
-            secondValue = tempFirst;
+        const auto firstType = firstValue->getType();
+        const auto secondType = secondValue->getType();
+        if(overload_resolution_cached.load(std::memory_order_acquire) &&
+           cached_overload_first_type.load(std::memory_order_relaxed) == firstType &&
+           cached_overload_second_type.load(std::memory_order_relaxed) == secondType) {
+            // Fast path: AST operand types are stable, reuse the resolved overload.
+            overloaded = cached_overloaded_func.load(std::memory_order_relaxed);
+        } else {
             overloaded = get_overloaded_func(
                 glob->build_compiler->coreNodes,
                 glob->build_compiler->implsIndex
             );
-            // Restore original order — if overloaded is found, it's called
-            // with self=sEvl and rhs=fEvl below
-            firstValue = tempFirst;
-            secondValue = tempSecond;
+            // If not found via first value, try second value's type
+            if(!overloaded) {
+                // Use a temporary swap approach to check second value's type
+                auto tempFirst = firstValue;
+                firstValue = secondValue;
+                auto tempSecond = secondValue;
+                secondValue = tempFirst;
+                overloaded = get_overloaded_func(
+                    glob->build_compiler->coreNodes,
+                    glob->build_compiler->implsIndex
+                );
+                // Restore original order — if overloaded is found, it's called
+                // with self=sEvl and rhs=fEvl below
+                firstValue = tempFirst;
+                secondValue = tempSecond;
+            }
+            cached_overloaded_func.store(overloaded, std::memory_order_relaxed);
+            cached_overload_first_type.store(firstType, std::memory_order_relaxed);
+            cached_overload_second_type.store(secondType, std::memory_order_relaxed);
+            overload_resolution_cached.store(true, std::memory_order_release);
         }
-
     }
     
     auto fEvl = firstValue->evaluated_value(scope);

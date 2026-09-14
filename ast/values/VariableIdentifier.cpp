@@ -186,9 +186,32 @@ void VariableIdentifier::set_value_in(InterpretScope &scope, Value *parent, Valu
 
 void VariableIdentifier::set_value(InterpretScope &scope, Value *rawValue, Operation op, SourceLocation passed_loc) {
 
-    // iterator for previous value
-    auto itr = scope.find_value_iterator(value);
-    if(itr.first == itr.second.values.end()) {
+    // Resolve the scope slot that holds this identifier's previous value.
+    // Fast path: reuse the cached parent-hop depth recorded by a previous
+    // lookup (see VariableIdentifier.h). This avoids re-scanning ancestor
+    // scopes on every access, which dominated interpreted loop time.
+    value_iterator it = scope.values.end();
+    InterpretScope* owner = nullptr;
+    if(value_depth_cached.load(std::memory_order_acquire)) {
+        if(auto* cached_owner = scope.ancestor_at(cached_value_depth.load(std::memory_order_relaxed))) {
+            auto found = cached_owner->values.find(value);
+            if(found != cached_owner->values.end()) {
+                it = found;
+                owner = cached_owner;
+            }
+        }
+    }
+    if(owner == nullptr) {
+        unsigned depth = 0;
+        auto itr = scope.find_value_iterator(value, &depth);
+        it = itr.first;
+        owner = &itr.second;
+        if(it != owner->values.end()) {
+            cached_value_depth.store(depth, std::memory_order_relaxed);
+            value_depth_cached.store(true, std::memory_order_release);
+        }
+    }
+    if(it == owner->values.end()) {
         // Try looking up through self (for struct member access like `a *= 2` in a method)
         auto linkedNode = linked_node();
         if(linkedNode && linkedNode->kind() == ASTNodeKind::StructMember) {
@@ -215,11 +238,11 @@ void VariableIdentifier::set_value(InterpretScope &scope, Value *rawValue, Opera
     // first we resolve the value in the current scope
     const auto evalNewValue = rawValue->evaluated_value(scope);
     // now we copy the value onto the scope of the previous value
-    auto newValue = evalNewValue->scope_value(itr.second);
-//    auto newValue = rawValue->scope_value(itr.second);
+    auto newValue = evalNewValue->scope_value(*owner);
+//    auto newValue = rawValue->scope_value(*owner);
     // Normalize integer values to the destination's declared type (e.g. storing
     // 300 into a `u8` must truncate to 44), matching the compiled backends.
-    const auto destinationType = itr.first->second ? itr.first->second->getType() : getType();
+    const auto destinationType = it->second ? it->second->getType() : getType();
     newValue = scope.coerce_to_type(newValue, destinationType);
     if (newValue == nullptr) {
         scope.error(this) << "trying to assign null ptr to identifier '" << value << "'";
@@ -229,7 +252,7 @@ void VariableIdentifier::set_value(InterpretScope &scope, Value *rawValue, Opera
     if (op != Operation::Assignment) {
 
         // get the previous value, perform operation on it
-        auto prevValue = itr.first->second;
+        auto prevValue = it->second;
 
         // Handle operator overloads for compound assignments on struct-like values
         // First, try to get the actual struct value by evaluating (resolves AccessChain, Identifier, etc.)
@@ -321,7 +344,7 @@ void VariableIdentifier::set_value(InterpretScope &scope, Value *rawValue, Opera
                         auto result = overloaded->call(&scope, opArgs, prevValue, &fn_scope, true, this);
                         glob->call_stack.pop_back();
                         glob->current_func_type = prev_func;
-                        itr.first->second = result;
+                        it->second = result;
                         return;
                     }
                 }
@@ -329,12 +352,12 @@ void VariableIdentifier::set_value(InterpretScope &scope, Value *rawValue, Opera
         }
 
         // TODO debug value being passed as this, it should be taken as a parameter
-        auto nextValue = itr.second.evaluate(op, prevValue, newValue, passed_loc, this);
-        nextValue = itr.second.coerce_to_type(nextValue, destinationType);
-        itr.first->second = nextValue;
+        auto nextValue = owner->evaluate(op, prevValue, newValue, passed_loc, this);
+        nextValue = owner->coerce_to_type(nextValue, destinationType);
+        it->second = nextValue;
 
     } else {
-        itr.first->second = newValue;
+        it->second = newValue;
     }
 
 }
@@ -348,8 +371,20 @@ VariableIdentifier* VariableIdentifier::copy(ASTAllocator& allocator) {
 }
 
 Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
-    auto found = scope.find_value(value);
+    // Fast path: use the cached parent-hop depth recorded by a previous lookup.
+    if(value_depth_cached.load(std::memory_order_acquire)) {
+        if(auto* owner = scope.ancestor_at(cached_value_depth.load(std::memory_order_relaxed))) {
+            auto cached = owner->values.find(value);
+            if(cached != owner->values.end()) {
+                return cached->second;
+            }
+        }
+    }
+    unsigned depth = 0;
+    auto found = scope.find_value(value, &depth);
     if (found != nullptr) {
+        cached_value_depth.store(depth, std::memory_order_relaxed);
+        value_depth_cached.store(true, std::memory_order_release);
         return found;
     }
     auto linkedNode = linked_node();

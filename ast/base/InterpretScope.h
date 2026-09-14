@@ -12,6 +12,7 @@
 
 #include "ASTNode.h"
 #include "ast/base/ASTAllocator.h"
+#include "ast/base/ScopeValueMap.h"
 #include "std/chem_string_view.h"
 #include "ast/utils/Operation.h"
 #include "ast/base/ValueKind.h"
@@ -31,9 +32,7 @@ class LocationManager;
 
 class ASTDiagnoser;
 
-using node_map = std::unordered_map<chem::string_view, ASTNode*>;
-using node_iterator = node_map::iterator;
-using value_map = std::unordered_map<chem::string_view, Value*>;
+using value_map = ScopeValueMap;
 using value_iterator = value_map::iterator;
 
 class FunctionType;
@@ -42,9 +41,11 @@ class InterpretScope {
 public:
 
     /**
-      * This contains a map between identifiers and its values, of the current scope
+      * This contains a map between identifiers and its values, of the current scope.
+      * Backed by ScopeValueMap (flat vector for small scopes, lazily indexed for
+      * large ones) to avoid a heap allocation per declared variable.
       */
-    std::unordered_map<chem::string_view, Value*> values;
+    ScopeValueMap values;
 
     /**
      * a pointer to the parent scope, If this is a global scope, it will be a nullptr
@@ -193,14 +194,32 @@ public:
     void erase_value(const chem::string_view& name);
 
     /**
-     * return value with name, or nullptr
+     * return value with name, or nullptr.
+     * If out_depth is non-null, it receives the number of parent hops taken to
+     * reach the owning scope (0 = this scope). Used by identifier inline caching.
      */
-    Value* find_value(const chem::string_view& name);
+    Value* find_value(const chem::string_view& name, unsigned* out_depth = nullptr);
 
     /**
-     * @return iterator for found value, the map that it was found in
+     * @return iterator for found value, the map that it was found in.
+     * If out_depth is non-null, it receives the number of parent hops taken to
+     * reach the owning scope (0 = this scope).
      */
-    std::pair<value_iterator, InterpretScope&> find_value_iterator(const chem::string_view& name);
+    std::pair<value_iterator, InterpretScope&> find_value_iterator(const chem::string_view& name, unsigned* out_depth = nullptr);
+
+    /**
+     * Returns the ancestor scope `depth` hops up the parent chain, or nullptr if
+     * the chain is shorter than `depth`.
+     */
+    InterpretScope* ancestor_at(unsigned depth) noexcept {
+        auto* s = this;
+        while(depth > 0) {
+            if(!s->parent) return nullptr;
+            s = s->parent;
+            --depth;
+        }
+        return s;
+    }
 
     /**
      * perform an operation between two values

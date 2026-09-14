@@ -184,9 +184,11 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     position : position
                 }
             } else {
+                const start = data_ptr;
+                provider.read_text()
                 return Token {
-                    type : TokenType.Unexpected as int,
-                    value : view("lt is not open"),
+                    type : TokenType.Text as int,
+                    value : std::string_view(start, provider.current_data() - start),
                     position : position
                 }
             }
@@ -202,9 +204,11 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     position : position
                 }
             } else {
+                const start = data_ptr;
+                provider.read_text()
                 return Token {
-                    type : TokenType.Unexpected as int,
-                    value : view("lt is not open"),
+                    type : TokenType.Text as int,
+                    value : std::string_view(start, provider.current_data() - start),
                     position : position
                 }
             }

@@ -408,3 +408,42 @@ public func universal_ssr_inline_object_array_prop(env : &mut TestEnv) {
         env.info(html.data())
     }
 }
+
+// Components inside a statically-unrolled `.map()` must receive their props at
+// SSR, resolved from the bound object element. Regression: the component's
+// `item.<prop>` attribute expressions were dropped, so list rows rendered with
+// empty props in the server HTML and only appeared correct after hydration.
+#universal SsrMapRow(props) {
+    return <li data-id={props.id} data-n={props.n}>{props.label}</li>
+}
+
+#universal SsrMapList(props) {
+    state items = [{id: "a", label: "Alpha", n: 1}, {id: "b", label: "Beta", n: 2}]
+    return <ul>{items.map(item => <SsrMapRow key={item.id} id={item.id} n={item.n} label={item.label} />)}</ul>
+}
+
+@test
+public func universal_ssr_component_props_in_map(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrMapList /> }
+    var html = std::string()
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><ul><li data-id="a" data-n="1">Alpha</li><li data-id="b" data-n="2">Beta</li></ul></span>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}
+
+// `state obj = {..}` property reads must resolve at SSR for both children and
+// attributes. Regression: they rendered empty server-side (only the attribute
+// or text placeholder) and only appeared after hydration.
+#universal SsrStateObjComp(props) {
+    state user = {name: "Ada", role: "eng", active: true}
+    return <div class="user"><span class="n">{user.name}</span><span class="r" data-role={user.role} data-active={user.active}></span></div>
+}
+
+@test
+public func universal_ssr_state_object_property_reads(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <SsrStateObjComp /> }
+    var html = std::string()
+    html.append_expr(`<span id="u${page.getComponentId(0)}" data-chx-i><div class="user"><span class="n">Ada</span><span class="r" data-role="eng" data-active="true"></span></div></span>`)
+    view_equals(env, page.getHtml(), html.to_view())
+}

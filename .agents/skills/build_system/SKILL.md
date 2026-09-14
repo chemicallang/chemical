@@ -17,7 +17,7 @@ User Input
     └── build.lab → [2c backend] → C code → [TinyCC JIT] → executable build script
                         │
                         ▼
-              LabBuildCompiler::execute_job()
+              LabBuildCompiler::process_modules()
                         │
                         ▼
               ┌─────────────────────────────────┐
@@ -91,12 +91,17 @@ public func build(ctx : *mut BuildContext, __chx_job : *mut LabJob) : *mut Modul
     });
 
     // Source paths
-    mod.add_source("src");
+    {
+        var rel_path = lab::rel_path_to("src");
+        ctx.add_path(mod, rel_path.to_view());
+    }
 
     // Link statements
-    mod.add_link_path("./my_libs");
-    mod.add_link("mylib");
-    mod.add_link_c("helper.c");
+    ctx.link_system_lib(__chx_job, "mylib", mod);
+
+    const c_file_path_0 = lab::rel_path_to("helper.c");
+    const c_file_mod_0 = ctx.c_file_module("", "my_app_cfile_0", c_file_path_0.to_view(), std::span<*mut Module>());
+    ctx.add_dependency(__chx_job, c_file_mod_0, null);
 
     return mod;
 }
@@ -108,8 +113,8 @@ public func build(ctx : *mut BuildContext, __chx_job : *mut LabJob) : *mut Modul
 2. **Dependency list**: Each import generates a `ModuleDependency` entry calling the imported module's `build()` function
 3. **Module creation**: `ctx.new_package()` with the correct `ModuleType` and `PackageKind`
 4. **Remote imports**: `ctx.fetch_mod_dependency()` with `ImportRepo` struct
-5. **Source paths**: `mod.add_source(path)` for each source directory
-6. **Link statements**: `mod.add_link_path()`, `mod.add_link()`, `mod.add_link_c()` for each link directive
+5. **Source paths**: `ctx.add_path(mod, path)` for each source directory (path resolved via `lab::rel_path_to`)
+6. **Link statements**: `ctx.link_system_lib()` for named libs, `ctx.add_lib_search_path()` for link paths, and `ctx.c_file_module()` + `ctx.add_dependency()` for C files
 7. **Conditional imports**: `if(windows)` generates an `if(__chx_job.getTarget().windows)` block
 8. **Symbol info**: For `import Foo from "..."` style, generates `DependencySymbolInfo` with alias and symbol list
 
@@ -123,8 +128,8 @@ The build script itself is Chemical code that must be compiled and executed:
 4. **Symbols exposed**: LabBuildCompiler exposes CBI functions to the build script:
    - `ctx.new_package()` — create a module
    - `ctx.set_cached()` — cache the module
-   - `mod.add_source()` — add source files
-   - `mod.add_link()` — add link libraries
+   - `ctx.add_path()` — add source paths
+   - `ctx.link_system_lib()` — add link libraries
    - `ctx.fetch_mod_dependency()` — handle remote imports
    - etc.
 
@@ -147,7 +152,7 @@ struct LabModule {
 };
 ```
 
-`LabBuildCompiler::execute_job()` iterates jobs and processes each module's files through the full pipeline.
+`LabBuildCompiler::do_job_allocating()` (via `do_job`) and `process_modules()` / `process_job_tcc()` / `process_job_gen()` process each module's files through the full pipeline.
 
 ## Phase 3: ASTProcessor — The Compilation Orchestrator
 
@@ -167,7 +172,7 @@ struct LabModule {
 | `mod_allocator` | `ASTAllocator` | Per-module arena allocator |
 | `job_allocator` | `ASTAllocator` | Per-job arena allocator |
 | `mod_storage` | `ModuleStorage&` | Module storage and lookup |
-| `cache` | `std::unordered_map<unsigned, ASTFileResult*>` | File result cache |
+| `cache` | `std::unordered_map<unsigned int, std::unique_ptr<ASTFileResult>>` | File result cache |
 | `import_mutex` | `std::mutex` | Thread safety for imports |
 | `print_mutex` | `std::mutex` | Thread safety for printing |
 
@@ -207,6 +212,8 @@ for(auto& file_ptr : module->direct_files) {
 - **Key detail**: Uses `sym_res_signature()` which creates a per-file `TopLevelLinkSignature` with its own `SymbolTable` for file-private symbols (generic type params, using-imports, aliases)
 - **Output**: `SymResSignatureResult` with inline instantiations collected
 - **Allocator cleared**: `file_allocator.clear()` after pass
+
+> **Between Pass 2 and Pass 3**: `generate_automatic_functions_for_module()` runs a single serial recursive pass that generates automatic functions (constructors/destructors) for every container before generic instantiation, ensuring member destructors exist before dependent container destructors.
 
 #### Pass 3: Generic Instantiation (Parallel per file)
 
@@ -340,7 +347,7 @@ container.clear_current_module_instantiations();
 
 The `cache` map in ASTProcessor stores parsed file results:
 ```cpp
-std::unordered_map<unsigned, ASTFileResult*> cache;
+std::unordered_map<unsigned int, std::unique_ptr<ASTFileResult>> cache;
 ```
 
 When a file is first imported, it's:
@@ -403,7 +410,7 @@ int LabBuildCompiler::do_interpretation_job(LabJob* job) {
 
 Compiles a compiler plugin:
 ```cpp
-int LabBuildCompiler::link_cbi_job(LabJobCBI* cbiJob, std::vector<LabModule*>& dependencies) {
+int LabBuildCompiler::link_cbi_job(LabJob* job, std::vector<LabModule*>& dependencies) {
     // 1. Parse plugin source
     // 2. Symbol resolve
     // 3. Type verify
@@ -447,17 +454,17 @@ ast_allocator;            // Lifetime = entire compilation session
 
 | File | Lines | Role |
 |------|-------|------|
-| `compiler/lab/LabBuildCompiler.cpp` | ~5000+ | Full build system: job creation, execution, link, interpretation, plugin compilation |
-| `compiler/lab/LabBuildCompiler.h` | ~200 | Core build compiler class declaration |
-| `compiler/ASTProcessor.cpp` | ~1500 | The pass orchestration: sym_res_module, type_verify_module, declare/implement module |
-| `compiler/ASTProcessor.h` | ~200 | ASTProcessor class declaration |
-| `compiler/lab/mod_conv/ModToLabConverter.cpp` | ~300 | chemical.mod → build.lab conversion |
-| `compiler/lab/mod_conv/ModToLabConverter.h` | ~50 | ModToLabConverter header |
-| `compiler/lab/LabJob.cpp` | ~100 | Job implementation |
-| `compiler/lab/LabBuildContext.cpp` | ~300 | Module and resource management |
-| `compiler/lab/LabBuildContext.h` | ~200 | LabBuildContext header |
-| `compiler/lab/LabModule.h` | ~50 | Module structure |
-| `compiler/lab/ModuleStorage.h` | ~50 | Module storage and lookup |
+| `compiler/lab/LabBuildCompiler.cpp` | ~5000 | Full build system: job creation, execution, link, interpretation, plugin compilation |
+| `compiler/lab/LabBuildCompiler.h` | ~610 | Core build compiler class declaration |
+| `compiler/ASTProcessor.cpp` | ~1780 | The pass orchestration: sym_res_module, type_verify_module, declare/implement module |
+| `compiler/ASTProcessor.h` | ~645 | ASTProcessor class declaration |
+| `compiler/lab/mod_conv/ModToLabConverter.cpp` | ~390 | chemical.mod → build.lab conversion |
+| `compiler/lab/mod_conv/ModToLabConverter.h` | ~11 | ModToLabConverter header |
+| `compiler/lab/LabJob.cpp` | ~125 | Job implementation |
+| `compiler/lab/LabBuildContext.cpp` | ~240 | Module and resource management |
+| `compiler/lab/LabBuildContext.h` | ~195 | LabBuildContext header |
+| `compiler/lab/LabModule.h` | ~210 | Module structure |
+| `compiler/lab/ModuleStorage.h` | ~105 | Module storage and lookup |
 
 ## The build.lab API (Lab Module)
 
@@ -659,22 +666,23 @@ The CLI entry point is the single `compiler_main(int argc, char* argv[])` functi
 
 ```cpp
 struct CmdOption {
-    std::string_view name;           // Long name (e.g., "verbose")
-    std::string_view short_name;     // Short alias (e.g., "v")
+    std::string_view large_opt;      // Long name (e.g., "verbose")
+    std::string_view small_opt;      // Short alias (e.g., "v")
     CmdOptionType type;              // NoValue, SingleValue, MultiValued, SubCommand
 };
 
 class CmdOptions {
-    std::vector<CmdOption> options;  // Registered options
-    std::vector<std::string_view> arguments;  // Positional arguments
+    std::unordered_map<std::string_view, CmdOption&> data;  // Registered options
+    std::vector<std::string_view> arguments;                // Positional arguments
+    tsl::ordered_map<std::string_view, std::string_view> options;  // Parsed values
     
-    void register_options(CmdOption* data, size_t count);
-    void parse_cmd_options(int argc, char* argv[], int start_index);
+    void register_options(CmdOption options_data[], unsigned size);
+    void parse_cmd_options(int argc, char* argv[], int skip = 0);
     
     // Access parsed values:
-    bool has_value(const std::string_view& name, const std::string_view& alt = "");
-    std::optional<std::string_view> option_new(const std::string_view& name, const std::string_view& alt = "");
-    CmdOptionValue& cmd_opt(const std::string_view& name);  // For subcommands / multi-values
+    bool has_value(const std::string_view& opt, const std::string_view& small_opt = "");
+    std::optional<std::string_view>& option_new(const std::string_view& opt, const std::string_view& small_opt = "");
+    CmdOption& cmd_opt(const std::string_view& opt);  // For subcommands / multi-values
 };
 ```
 
@@ -725,8 +733,7 @@ Options are registered in `CompilerMain.cpp` as a `CmdOption[]` array:
 | `--benchmark-files` | `-bm-files` | NoValue | Per-file benchmark breakdown |
 | `--benchmark-modules` | `-bm-modules` | NoValue | Per-module benchmark breakdown |
 | `--test` | `--test` | NoValue | Set `is_testing_env` flag |
-| `--no-cache` | — | NoValue | Disable module caching (default in CLI mode) |
-| `--no-cbi` | — | NoValue | Ignore CBI annotations in translation |
+| `--no-cache` | — | NoValue | Disable module caching |
 | `--frecompile-plugins` | `--frecompile-plugins` | NoValue | Force recompilation of all CBI plugins |
 | `--sanitize` | `-fsanitize` | SingleValue | Enable sanitizers: `address`, `memory`, `thread`, `undefined`, `leak`, `hwaddress`, `dataflow` (comma-separated) |
 | `--tsan` | — | NoValue | Enable ThreadSanitizer |
@@ -748,7 +755,6 @@ Options are registered in `CompilerMain.cpp` as a `CmdOption[]` array:
 | `--fno-unwind-tables` | — | NoValue | Disable unwind tables (cleaner IR) |
 | `--fno-asynchronous-unwind-tables` | — | NoValue | Disable async unwind tables |
 | `--arg-<name>` | `-arg-<name>` | String | Pass arbitrary args to build.lab scripts (e.g., `--arg-interpret`) |
-| `--cpp-like` | — | NoValue | C translation output similar to C++ |
 | `--res <dir>` | `-res <dir>` | SingleValue | Resources directory |
 
 ### How CLI Args Flow Through the Pipeline
@@ -791,27 +797,29 @@ In `CompilerMain.cpp`, the `prepare_options` lambda maps CLI flags to `LabBuildC
 ```cpp
 auto prepare_options = [&](LabBuildCompilerOptions* opts) -> void {
     opts->benchmark = options.has_value("benchmark", "bm");
+    opts->benchmark_files = options.has_value("benchmark-files", "bm-files");
+    opts->benchmark_modules = options.has_value("benchmark-modules", "bm-modules");
     opts->verbose = verbose;
     opts->verbose_link = options.has_value("verbose-link", "vl");
     opts->minify_c = options.has_value("minify-c");
-    opts->emit_c = options.has_value("emit-c", "emit-c");
-    opts->debug_info = options.has_value("", "g");
-    opts->use_c = options.has_value("use-c", "use-c");
-    opts->use_tcc = options.has_value("use-tcc", "use-tcc");
+    opts->emit_c = options.has_value("emit-c", "emit-c") || options.has_value("keepc", "keep-c");
+    opts->debug_info = options.has_value("", "g") || (opts->out_mode == OutputMode::Debug || opts->out_mode == OutputMode::DebugComplete);
+    if (options.has_value("use-tcc", "use-tcc")) { opts->use_tcc = true; opts->use_c = true; }
+    else if (options.has_value("use-c", "use-c")) { opts->use_c = true; }
     opts->use_lld = options.has_value("use-lld", "use-lld");
     opts->is_testing_env = options.has_value("test");
     opts->ignore_errors = options.has_value("ignore-errors", "ignore-errors");
-    opts->is_caching_enabled = !options.has_value("no-cache");
-    opts->force_recompile_plugins = options.has_value("frecompile-plugins");
-    opts->debug_ir = options.has_value("debug-ir");
-    opts->def_lto_on = options.has_value("lto");
-    opts->def_assertions_on = options.has_value("assertions");
+    if(options.has_value("no-cache")) { opts->is_caching_enabled = false; }
+    if(options.has_value("frecompile-plugins")) { opts->force_recompile_plugins = true; }
+    if(options.has_value("debug-ir")) { opts->debug_ir = true; }
+    if(options.has_value("lto")) { opts->def_lto_on = true; }
+    if(options.has_value("assertions")) { opts->def_assertions_on = true; }
     opts->fno_unwind_tables = options.has_value("", "fno-unwind-tables");
     opts->no_pie = options.has_value("no-pie", "no-pie");
-    opts->def_plugin_mode = parsed_plugin_mode;
+    auto mode_opt = options.option_new("plugin-mode", "pm");
+    if(mode_opt.has_value()) { opts->def_plugin_mode = get_output_mode(mode_opt, false); }
 
-    // Sanitizers — parsed from --sanitize=addr,undef format
-    opts->sanitizers = parse_sanitizers(options.option_new("sanitize", "fsanitize"));
+    // Sanitizers — parsed inline from --sanitize=addr,undef format
 };
 ```
 
@@ -819,48 +827,51 @@ auto prepare_options = [&](LabBuildCompilerOptions* opts) -> void {
 
 **File:** `compiler/lab/LabBuildCompilerOptions.h`
 
+It inherits the processing flags (`benchmark`, `benchmark_files`, `benchmark_modules`, `verbose`,
+`verbose_link`, `ignore_errors`, `debug_info`, `emit_c`, `stop_on_file_error`, `is64Bit`,
+`target_triple`, `resources_path`, `exe_path`) from `ASTProcessorOptions`.
+
 ```cpp
-struct LabBuildCompilerOptions {
-    chem::string chemical_exe_path;   // Path to the compiler binary
-    chem::string target_triple;        // Target architecture triple
-    chem::string build_dir;            // Build output directory
-    chem::string resources_path;       // Resources directory
-    
-    bool is64Bit = false;
-    bool verbose = false;
-    bool verbose_link = false;
-    bool benchmark = false;
-    bool benchmark_files = false;
-    bool benchmark_modules = false;
-    bool minify_c = false;
-    bool emit_c = false;
-    bool translate_to_single_file = true;
-    bool debug_info = true;
-    bool use_c = false;                // Translate to C + compile
-    bool use_tcc = false;              // Use TinyCC backend
-    bool use_lld = false;              // Use LLD linker
-    bool debug_ir = false;
-    bool fno_unwind_tables = false;
-    bool fno_asynchronous_unwind_tables = false;
-    bool no_pie = false;
-    bool out_ll_all = false;
-    bool out_asm_all = false;
-    bool use_mod_obj_format = true;    // .o vs .bc format
-    bool is_testing_env = false;
-    bool ignore_errors = false;
+class LabBuildCompilerOptions : public ASTProcessorOptions {
+public:
+    std::string build_dir;                 // Build output directory
+    LabJobAttributes default_job_attrs;    // download_only / check_only
+
+#ifdef COMPILER_BUILD
+    bool use_c = false;                    // Translate to C (+ embedded Clang on the LLVM build)
+#else
+    bool use_c = true;
+#endif
+#ifdef COMPILER_BUILD
+    bool use_tcc = false;                  // Force TinyCC (implies use_c)
+#else
+    bool use_tcc = true;
+#endif
     bool is_caching_enabled = true;
+    bool is_build_lab_caching_enabled = true;
     bool force_recompile_plugins = false;
-    bool def_lto_on = false;
-    bool def_assertions_on = false;
-    bool prefer_tcc = false;
-    bool make_executable = false;
-    
+    bool translate_to_single_file = true;
+    bool use_mod_obj_format = true;        // .o vs .bc format
     OutputMode out_mode = OutputMode::Debug;
     OutputMode def_out_mode = OutputMode::Debug;
-    OutputMode def_plugin_mode = OutputMode::Debug;
-    
-    int sanitizers = 0;               // Bitmask of SanitizerType
-    int thread_count = 0;              // Parallel thread count
+    OutputMode def_plugin_mode = OutputMode::Debug;   // ReleaseFast in non-DEBUG builds
+    bool minify_c = false;
+    bool debug_ir = false;
+    bool def_lto_on = false;
+    bool def_assertions_on = false;
+#ifdef COMPILER_BUILD
+    bool no_pie = false;
+    SanitizerType sanitizers = SanitizerType::None;
+    bool use_lld = false;
+    bool out_ll_all = false;
+    bool out_asm_all = false;
+    bool fno_unwind_tables = false;
+    bool fno_asynchronous_unwind_tables = false;
+#endif
+    bool is_testing_env = false;
+
+    LabBuildCompilerOptions(std::string exe_path, std::string target_triple,
+        std::string build_dir, bool is64Bit);
 };
 ```
 

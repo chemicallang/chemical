@@ -2603,6 +2603,14 @@ void Scope::code_gen_no_scope(Codegen &gen, unsigned destruct_begin) {
     while(i < nodes.size()) {
         nodes[i]->code_gen(gen, this, i);
         i++;
+        if(gen.has_current_block_ended) {
+            // the current block was terminated (by a return, break, continue or an
+            // if whose branches all terminate), so any remaining statements in this
+            // scope are unreachable. Emitting them would append instructions after
+            // the terminator and produce invalid IR (a block with no terminator),
+            // which crashes LLVM passes like the always-inliner.
+            break;
+        }
     }
     if(gen.destroy_current_scope) {
         if(gen.has_current_block_ended) {

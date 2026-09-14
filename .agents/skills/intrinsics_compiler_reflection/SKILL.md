@@ -75,7 +75,7 @@ public:
 **Key implementation details:**
 - `is_interpretation()` checks `call_scope->global->interpretation_mode`
 - `is_runtime()`/`is_comptime()` use the `call_stack` — non-empty means we're inside a comptime evaluation
-- These have `ContractFlag::IsInterpretation` set so the compiler can optimize `comptime if` branches
+- `is_interpretation()` and `is_comptime()` set `ContractFlag::IsInterpretation = true`, while `is_runtime()` sets it to false — the compiler uses this to optimize `comptime if` branches
 
 ### 3. Type Reflection
 
@@ -112,7 +112,7 @@ public:
 | `intrinsics::get_current_file_path()` | `InterpretGetCurrentFilePath` | Returns the file path of the current source file |
 
 **Key implementation details:**
-- `SourceLocation` is a 64-bit encoded value (file_id:32, line:16, column:16)
+- `SourceLocation` is a compact 64-bit encoded value (10-bit file id, 18-bit line start, 12-bit char start, 11-bit line-end offset, 12-bit char end; see `core/source/LocationManager.h` and the Compiler API skill)
 - `decode_location<T>` requires a generic argument specifying the struct to decode into (the struct must have `filename`, `line`, and `character` fields)
 - `get_caller_line_no` uses `get_runtime_call()` to find the outermost comptime call site
 
@@ -139,12 +139,12 @@ public:
 | Intrinsic | Class | Purpose |
 |-----------|-------|---------|
 | `intrinsics::get_child_fn<T>(name)` | `InterpretGetChildFunction` | Returns a pointer to a child function of type T by name |
-| `intrinsics::get_single_marked_decl_ptr(name)` | `InterpretGetSingleMarkedDeclPointer` | Returns a pointer to a declaration marked with the given annotation name |
-| `intrinsics::get_marked_decls<T>(name)` | `InterpretGetMarkedDeclarations` | Returns an array of declarations marked with the given annotation name |
+| `intrinsics::get_single_marked_decl_ptr(name)` | `InterpretGetSingleMarkedDeclPointer` | Returns a pointer to a single declaration marked with the given annotation name |
+| `intrinsics::get_tests<T>()` | `InterpretGetTests` | Returns the generated table of `@test` functions for test struct T |
 
 **Key implementation details:**
 - `get_child_fn<T>` uses `type->get_members_container()` → `direct_child_function(name)` to find functions
-- `get_marked_decls` uses `AnnotationController::get_marked()` to find all declarations with a specific annotation
+- `get_single_marked_decl_ptr` uses `build_compiler->controller.get_single_marked(name)` to find a declaration with a specific annotation
 
 ### 7. Compile-Time Computation
 
@@ -152,8 +152,9 @@ public:
 |-----------|-------|---------|
 | `intrinsics::error(message)` | `InterpretError` | Forces a compile-time error with the given message |
 | `intrinsics::forget(thing)` | `InterpretForget` | Tells the codegen to forget a variable (used for manual memory management) |
-| `intrinsics::copy(dest, src)` | `InterpretMemCopy` | Memory copy intrinsic (calls backend_context->mem_copy()) |
-| `intrinsics::wrap(expr)` | (via `runtime_value_of`) | Wraps an expression for runtime evaluation; in interpretation mode, evaluates immediately |
+| `intrinsics::mem::copy(dest, src)` | `InterpretMemCopy` | Memory copy intrinsic (calls backend_context->mem_copy()); registered under the `mem` sub-namespace |
+
+> `%runtime_value(expr)` is a **value-level construct** parsed by the lexer (`parser/utils/LexValue.cpp`, producing `ValueKind::RuntimeValue`), not an intrinsic function. It wraps an expression for runtime evaluation.
 
 ### 8. Interpreter-Friendly Standard Library
 

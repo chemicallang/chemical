@@ -35,33 +35,45 @@ void type_verify(
 );
 ```
 
-This is called once per module, after symbol resolution completes:
+This is called once per file of a module, after symbol resolution completes, in parallel across the module's files:
 
 ```cpp
-// In the compilation pipeline:
-after_symres(module) {
-    type_verify(implsIndex, diagnoser, allocator, module->topLevelNodes);
-}
+// compiler/ASTProcessor.cpp — ASTProcessor::type_verify_module_parallel
+// iterates module->direct_files, each task calls type_verify_file_task:
+type_verify(processor->resolver->implsIndex, diagnoser,
+            processor->file_allocator, file->unit.scope.body.nodes);
 ```
+
+Diagnostics from this pass are printed under the `TypeCheck` phase.
 
 ## TypeVerifier Class
 
 ```cpp
-class TypeVerifier {
-    ImplementationsIndex& index;       // For operator overload resolution
-    ASTDiagnoser& diagnoser;           // Error reporting
+class TypeVerifier : public RecursiveVisitor<TypeVerifier> {
+    ImplementationsIndex& index;       // For operator / interface impl lookup
     ASTAllocator& allocator;           // Arena for temporary allocations
-    
-    // Visitor methods — one per AST node type
-    void VisitFunctionDecl(FunctionDeclaration* node);
-    void VisitVarInitStmt(VarInitStatement* node);
-    void VisitAssignStmt(AssignStatement* node);
-    void VisitExpression(Expression* node);
-    void VisitFunctionCall(FunctionCall* node);
-    void VisitReturnStmt(ReturnStatement* node);
-    void VisitStructValue(StructValue* node);
-    void VisitIfStmt(IfStatement* node);
-    void VisitWhileStmt(WhileLoop* node);
+    ASTDiagnoser& diagnoser;           // Error reporting
+
+    FunctionTypeBody* current_func_type = nullptr;  // for return statement checks
+    bool is_unsafe = false;                          // inside unsafe { }
+    bool is_no_lifetime_check = false;               // `no_lifetime_check` unsafe flag
+    bool disable_index_destructible_check = false;   // IndexOperator on LHS / &raw
+
+    // DA state (see below): locals, init_bits, scope_stack,
+    //                       da_in_unsafe, da_enabled, da_addr_inner
+
+    // Visitor methods — one per AST node type (representative subset)
+    void VisitFunctionDecl(FunctionDeclaration* decl);
+    void VisitVarInitStmt(VarInitStatement* stmt);
+    void VisitAssignmentStmt(AssignStatement* assign);
+    void VisitFunctionCall(FunctionCall* call);
+    void VisitReturnStmt(ReturnStatement* stmt);
+    void VisitStructValue(StructValue* val);
+    void VisitArrayValue(ArrayValue* val);
+    void VisitIfStmt(IfStatement* stmt);
+    void VisitWhileLoopStmt(WhileLoop* loop);
+    void VisitIndexOperator(IndexOperator* value);
+    void VisitUnsafeBlock(UnsafeBlock* block);
     // ... etc
 };
 ```
@@ -70,89 +82,99 @@ class TypeVerifier {
 
 ### 1. Function Return Types
 
-Verifies that the returned value type matches the function's declared return type:
+Return values are checked in `VisitReturnStmt` against `current_func_type->returnType` (the function declaration visit only verifies default parameter values and sets up state):
 
 ```cpp
-void TypeVerifier::VisitFunctionDecl(FunctionDeclaration* node) {
-    BaseType* declaredReturn = node->returnType;
-    for(auto& stmt : node->body.nodes) {
-        if(auto* retStmt = stmt->as_return_stmt_unsafe()) {
-            BaseType* actualReturn = retStmt->value->get_type();
-            if(!types_match(declaredReturn, actualReturn)) {
-                diagnoser.error(retStmt->location(),
-                    "expected return type '" + declaredReturn->representation() +
-                    "', got '" + actualReturn->representation() + "'");
+void TypeVerifier::VisitReturnStmt(ReturnStatement* node) {
+    RecursiveVisitor::VisitReturnStmt(node);
+    if(node->value) {
+        const auto func_type = current_func_type;
+        if(func_type->data.signature_resolved && func_type->returnType) {
+            // constructors / matching implicit constructors skip the check
+            if(!func_type->returnType->satisfies(node->value, false)) {
+                unsatisfied_type_err(diagnoser, node->value, func_type->returnType);
             }
         }
+    } else if(func_type->returnType->kind() != BaseTypeKind::Void) {
+        diagnoser.error(node) << "function expects a non void return of type '"
+                              << func_type->returnType->representation() << "'";
     }
 }
 ```
 
 ### 2. Variable Type Compatibility
 
-Verifies that a variable's initializer type matches the declared type:
+Verifies that a variable's initializer satisfies the declared type (an `@implicit` constructor is allowed to convert it):
 
 ```cpp
-void TypeVerifier::VisitVarInitStmt(VarInitStatement* node) {
-    BaseType* declaredType = node->get_type();
-    BaseType* initializerType = node->initialValue->get_type();
-    if(!types_match(declaredType, initializerType)) {
-        // Report type mismatch
-        unsatisfied_type_err(diagnoser, node->initialValue, declaredType);
+void TypeVerifier::VisitVarInitStmt(VarInitStatement* stmt) {
+    auto& type = stmt->type;
+    const auto value = stmt->value;
+    const auto implicit = type->implicit_constructor_for(value);
+    if(implicit == nullptr && !type->satisfies(value, false)) {
+        unsatisfied_type_err(diagnoser, allocator, value, type);
     }
 }
 ```
 
 ### 3. Assignment Type Checking
 
-Verifies that the RHS type is compatible with the LHS type:
+Verifies that the RHS is assignable to the (mutable, assignable) LHS:
 
 ```cpp
-void TypeVerifier::VisitAssignStmt(AssignStatement* node) {
-    BaseType* lhsType = node->lhs->get_type();
-    BaseType* rhsType = node->value->get_type();
-    if(!types_match(lhsType, rhsType)) {
-        unsatisfied_type_err(diagnoser, node->value, lhsType);
+void TypeVerifier::VisitAssignmentStmt(AssignStatement* assign) {
+    const auto lhs = assign->lhs;
+    const auto value = assign->value;
+    const auto lhsType = lhs->getType();
+
+    if(!is_assignable(lhs)) {
+        diagnoser.error("Expression is not assignable", lhs);
+    }
+    if(!lhs->check_is_mutable(true)) {
+        diagnoser.error("cannot assign to a non mutable value", lhs);
+    }
+    if(assign->assOp == Operation::Assignment) {
+        if(lhsType->implicit_constructor_for(value) == nullptr && !lhsType->satisfies(value, true)) {
+            unsatisfied_type_err(diagnoser, value, lhsType);
+        }
     }
 }
 ```
 
 ### 4. Expression Type Checking
 
-For binary/unary expressions, verifies that the operator is valid for the operand types:
+Binary/unary operator validity is checked during type inference in `Expression::get_determined_type()` (`ast/values/Expression.cpp`), not inside `TypeVerifier` (which inherits the plain `RecursiveVisitor::VisitExpression`). Primitive operands are required unless the `ImplementationsIndex` has an operator overload:
 
 ```cpp
-void TypeVerifier::VisitExpression(Expression* node) {
-    BaseType* lhsType = node->lhs->get_type();
-    BaseType* rhsType = node->rhs->get_type();
-    
-    // Check operator overload availability
-    if(!is_valid_operator(node->op, lhsType, rhsType)) {
-        // Check if an impl for the operator exists
-        auto* impl = index.get_expr_op_impl(coreNodes, lhsType->get_container(), node->op);
-        if(!impl) {
-            diagnoser.error(node->location(),
-                "operator '" + operation_str(node->op) + "' not supported for types '" +
-                lhsType->representation() + "' and '" + rhsType->representation() + "'");
-        }
-    }
+// ast/values/Expression.cpp
+const auto func = implsIndex.get_expr_op_impl(coreNodes, container, expr->operation);
+if (func == nullptr) {
+    diagnoser.error("expected the value to have primitive type or have operator overloaded", expr->firstValue);
+} else if (func->params.size() != 2) {
+    diagnoser.error(expr) << "expected operator implementation function to have exactly two parameters";
 }
 ```
 
 ### 5. Function Call Argument Types
 
-Verifies that argument types match parameter types:
+`VisitFunctionCall` verifies call mutability, comptime arguments, where-clause constraints, variant member arguments, and regular parameters:
 
 ```cpp
-void TypeVerifier::VisitFunctionCall(FunctionCall* node) {
-    auto* func = node->resolved_function();
-    for(size_t i = 0; i < func->params.size(); i++) {
-        BaseType* paramType = func->params[i]->get_type();
-        BaseType* argType = node->args[i]->get_type();
-        if(!types_match(paramType, argType)) {
-            diagnoser.error(node->args[i]->location(),
-                "argument " + std::to_string(i) + " type mismatch: expected '" +
-                paramType->representation() + "', got '" + argType->representation() + "'");
+void TypeVerifier::VisitFunctionCall(FunctionCall* call) {
+    RecursiveVisitor<TypeVerifier>::VisitFunctionCall(call);
+    verify_call_mutability(*this, call);
+    verifyArguments(call, diagnoser, current_func_type, is_interpretation_mode);
+
+    // variant member args are checked against variant_mem->values ...
+    // then regular parameters:
+    for(unsigned i = 0; i < call->values.size(); i++) {
+        const auto param = func_type->func_param_for_arg_at(i);
+        if(param) {
+            auto implicit = param->type->implicit_constructor_for(call->values[i]);
+            if(implicit) { /* handle implicit constructor */ }
+            else if(!param->type->satisfies(call->values[i], false)) {
+                unsatisfied_type_err(diagnoser, allocator, call->values[i], param->type);
+            }
         }
     }
 }
@@ -160,16 +182,26 @@ void TypeVerifier::VisitFunctionCall(FunctionCall* node) {
 
 ### 6. Struct Field Types
 
-Verifies that struct literal field values match the struct member types:
+Verifies that struct literal field values match the resolved struct member types:
 
 ```cpp
-void TypeVerifier::VisitStructValue(StructValue* node) {
-    auto* structDecl = node->linked_struct();
-    for(auto& [name, value] : node->values) {
-        BaseType* memberType = structDecl->get_member_type(name);
-        BaseType* valueType = value->get_type();
-        if(!types_match(memberType, valueType)) {
-            unsatisfied_type_err(diagnoser, value, memberType);
+void TypeVerifier::VisitStructValue(StructValue* structValue) {
+    RecursiveVisitor<TypeVerifier>::VisitStructValue(structValue);
+    for (auto &val : structValue->values) {
+        const auto value = val.second.value;
+        const auto child_node = structValue->linked_member_or_struct_of(val.first);
+        if(!child_node) {
+            diagnoser.error(structValue) << "unresolved child '" << val.first << "' in struct declaration";
+            continue;
+        }
+        const auto member = structValue->direct_variable(val.first);
+        if(member) {
+            const auto mem_type = member->known_type();
+            auto implicit = mem_type->implicit_constructor_for(value);
+            if(implicit) { /* handle implicit constructor */ }
+            else if(!mem_type->satisfies(value, false)) {
+                unsatisfied_type_err(diagnoser, allocator, value, mem_type);
+            }
         }
     }
 }
@@ -191,29 +223,34 @@ Some implicit conversions are allowed, and the type verifier validates them:
 ## The `unsatisfied_type_err` Helper
 
 ```cpp
+// compiler/typeverify/TypeVerify.cpp
 void unsatisfied_type_err(ASTDiagnoser& diagnoser, Value* value, BaseType* type) {
-    diagnoser.error(value->encoded_location(),
-        "type mismatch: expected '" + type->representation() + 
-        "', but value has type '" + value->get_type()->representation() + "'");
+    const auto val_type = value->getType();
+    if(val_type) {
+        diagnoser.error(value) << "value with type '" << val_type->representation()
+                               << "' does not satisfy type '" << type->representation() << "'";
+    } else {
+        diagnoser.error(value) << "value does not satisfy type '" << type->representation() << "'";
+    }
 }
 ```
 
+`TypeVerifyAPI.h` also declares an inline overload `unsatisfied_type_err(diagnoser, allocator, value, type)` that forwards to the above (the `allocator` argument is currently unused).
+
 ## Integration with Operator Overloads
 
-The type verifier uses `ImplementationsIndex` to check if operator overloads exist:
+Operator-overload lookup uses `ImplementationsIndex::get_expr_op_impl(coreNodes, container, op)` (declared in `compiler/symres/ImplementationsIndex.h`). It is invoked from `Expression::get_overloaded_func` / `Expression::get_determined_type` (`ast/values/Expression.cpp`), not from a `TypeVerifier` method:
 
 ```cpp
-bool TypeVerifier::has_operator_overload(Operation op, BaseType* lhs, BaseType* rhs) {
-    // Get the container (struct/interface) for the LHS type
-    auto* container = lhs->get_container();
-    if(!container) return false;
-    
-    // Look up the operation in the implementations index
-    auto* implFunc = index.get_expr_op_impl(coreNodes, container, op);
-    if(!implFunc) return false;
-    
-    // Check that the RHS type matches the impl parameter
-    return types_match(implFunc->params[0]->get_type(), rhs);
+// ast/values/Expression.cpp
+FunctionDeclaration* Expression::get_overloaded_func(const CoreNodes& coreNodes,
+                                                     const ImplementationsIndex& implsIndex) {
+    const auto first_canonical = firstValue->getType()->canonical();
+    const auto node = first_canonical->get_linked_canonical_node(true, false);
+    if(node == nullptr) return nullptr;
+    const auto container = node->get_members_container();
+    if(container == nullptr) return nullptr;
+    return implsIndex.get_expr_op_impl(coreNodes, container, operation);
 }
 ```
 
@@ -226,9 +263,9 @@ Some checks are handled in other passes:
 | Move semantics | SymResLinkBody | Must be checked during linking, not after |
 | Access control (public/private) | SymResLinkBody | Checked during symbol lookup |
 | Generic type bounds | GenericInstantiation | Checked during monomorphization |
-| Unsafe block violations | SymResLinkBody | Tracked via context flags |
+| Unsafe block violations | TypeVerify (+ SymResLinkBody) | `is_unsafe` gates destructible deref/index checks; `da_in_unsafe` suppresses DA checks |
 | Recursion limits | Codegen or Runtime | Not a type-level check |
-| Lifetime/borrow checking | N/A | Not yet implemented in Chemical |
+| Lifetime/borrow checking | TypeVerify (partial) | Temporary-lifetime check in `VisitFunctionCall`; `no_lifetime_check` unsafe flag |
 
 ## Definite-Assignment Analysis (merged into TypeVerifier)
 
@@ -245,13 +282,19 @@ DA uses flat vectors for tracking (not hash sets):
 std::vector<VarInitStatement*> locals;    // Every local variable in current function
 std::vector<bool> init_bits;             // Parallel: init_bits[i] == true iff locals[i] is initialized
 std::vector<std::vector<VarInitStatement*>> scope_stack;  // Per-block stack for scope cleanup
+bool da_in_unsafe = false;               // inside unsafe { } — suppresses DA checks
+bool da_enabled = false;                 // disabled at file scope, enabled inside functions
+bool da_addr_inner = false;              // next identifier is the inner of &raw/& — not a read
 ```
 
-- `da_add_local(stmt)` — push_back to locals + init_bits(false)
-- `da_is_initialized(stmt)` — linear scan of locals, return init_bits[index]
-- `da_mark_initialized(stmt)` — linear scan, set init_bits[index] = true
-- `da_pop_scope()` — truncate locals/init_bits to saved size (O(1) per scope)
-- `da_intersect(a, b, out)` — linear scan of smaller vector, check membership in larger
+- `da_push_scope()` — push an empty frame onto `scope_stack`
+- `da_pop_scope()` — erase the frame's variables from `locals`/`init_bits`, then pop the frame (linear, not O(1))
+- `da_add_local(v)` — append `v` to `locals` + `init_bits(false)` and record it in the current frame
+- `da_is_initialized(v)` — linear scan of `locals`, return `init_bits[index]`
+- `da_root_local_var(v)` — resolve an `Identifier`/`AccessChain` to the tracked local `VarInitStatement`
+- `da_type_has_destructor(v)` — true if the variable's canonical type has a destructor
+- `da_report_uninit(v, action, loc)` — emit `use of uninitialized variable '...' before it is initialized (...)`
+- `da_intersect(a, b, out)` — `out[i] = a[i] && (i < b.size() ? b[i] : false)`
 
 ### Rules
 
@@ -268,26 +311,33 @@ When visiting a nested `FunctionDeclaration`, DA state is saved and cleared:
 auto prev_locals = std::move(locals);
 auto prev_init_bits = std::move(init_bits);
 auto prev_scope_stack = std::move(scope_stack);
+auto prev_da_in_unsafe = da_in_unsafe;
+auto prev_da_enabled = da_enabled;
 locals.clear(); init_bits.clear(); scope_stack.clear();
+da_in_unsafe = false; da_enabled = true;
 // ... visit nested function ...
 locals = std::move(prev_locals);
 init_bits = std::move(prev_init_bits);
 scope_stack = std::move(prev_scope_stack);
+da_in_unsafe = prev_da_in_unsafe;
+da_enabled = prev_da_enabled;
 ```
 
 ## Diagnostics
 
-Type verification errors follow a standard format:
+Type verification diagnostics are printed under the `TypeCheck` phase. Representative messages:
 
 ```
-file.ch:line:col: error: type mismatch: expected 'int', but value has type 'float'
-file.ch:line:col: error: cannot assign 'string' to 'int'
-file.ch:line:col: error: operator '+' not supported for types 'bool' and 'int'
+[TypeCheck] error: value with type 'float' does not satisfy type 'int'
+[TypeCheck] error: Expression is not assignable
+[TypeCheck] error: expected the value to have primitive type or have operator overloaded
+[TypeCheck] error: use of uninitialized variable 'x' before it is initialized (use of)
+[TypeCheck] error: index operator on a destructible type is not allowed, use `&raw` to take a pointer to the element instead
 ```
 
 ## Performance Considerations
 
 1. **Single pass**: Type verification is a single pass over the AST — no backtracking
-2. **No AST mutation**: The type verifier does not modify the AST (read-only)
-3. **Early exit on errors**: If symbol resolution had errors, type verification may be skipped
-4. **Per-module**: Type verification runs per module, enabling parallel execution
+2. **Limited AST mutation**: Mostly read-only, but `VisitAssignmentStmt` marks `AssignStatement::is_first_init`, and type inference (`Expression::get_determined_type`) may coerce literal value types
+3. **Early exit on errors**: If symbol resolution fails, `LabBuildCompiler` returns before type verification runs
+4. **Per-file, parallel**: `ASTProcessor::type_verify_module_parallel` dispatches one task per direct file of a module

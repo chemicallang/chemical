@@ -15,7 +15,8 @@ The AST interpreter (`compiler/Interpreter/`) evaluates Chemical code directly w
 
 | Class | File | Purpose |
 |-------|------|---------|
-| `InterpretScope` | `ast/base/InterpretScope.h` | Per-function/per-block scope with value map, parent chain, global pointer |
+| `InterpretScope` | `ast/base/InterpretScope.h` | Per-function/per-block scope with a `ScopeValueMap values`, parent chain, global pointer |
+| `ScopeValueMap` | `ast/base/ScopeValueMap.h` | Storage for a scope's variable bindings — insertion-ordered flat vector for small scopes, lazily hash-indexed above 12 entries |
 | `GlobalInterpretScope` | `ast/base/GlobalInterpretScope.h` | Global state — allocator, type builder, call stack, backend context |
 | `Value` | `ast/base/Value.h` | Base class for all interpreted values (IntN, Bool, Float, String, StructValue, PointerValue, etc.) |
 | `PointerValue` | `ast/values/PointerValue.h` | Simulates C pointers with `data`, `behind`, `ahead` for bounds checking |
@@ -40,6 +41,24 @@ GlobalInterpretScope (global)
 - `parent == global` means the scope is a function-level scope (return values are stored here)
 - `should_destruct_values` is `true` by default, `false` for the global scope
 
+### Scope Value Map (`ScopeValueMap`)
+
+`InterpretScope::values` is a `ScopeValueMap` (`ast/base/ScopeValueMap.h`), not a
+`std::unordered_map`. It keeps bindings in an insertion-ordered flat vector: scopes with
+`<= INDEX_THRESHOLD` (12) entries are scanned linearly with no heap allocation per variable,
+and larger scopes build a lazy `name -> vector index` hash index. It exposes the subset of the
+old map API the interpreter used: `operator[]`, `find`, `end`, `erase(key)`/`erase(iterator)`,
+`clear`, and iteration yielding `std::pair<chem::string_view, Value*>`.
+
+Because interpreted loops create a fresh scope (and map) on every iteration, this avoids a
+`malloc`/`free` per declared variable in hot loops.
+
+`InterpretScope` also keeps two small inline caches to avoid re-walking scope chains:
+`VariableIdentifier::cached_value_depth` / `value_depth_cached` (recorded via the optional
+`unsigned* out_depth` parameter on `find_value` / `find_value_iterator`), and
+`Expression::cached_overloaded_func` (+ the two operand types) for operator-overload
+resolution. `InterpretScope::ancestor_at(depth)` returns the owning scope for a cached depth.
+
 ## Move Semantics
 
 ### The Problem
@@ -58,24 +77,43 @@ Defined in `ast/base/InterpretScope.cpp`. Uses **pointer-matching** instead of A
 
 ```cpp
 void InterpretScope::move_clear_source(Value* initializer, const chem::string_view& new_name) {
-    if(!initializer || initializer->val_kind() != ValueKind::StructValue) return;
-    auto structVal = initializer->as_struct_value_unsafe();
-    auto ext = structVal->linked_extendable();
-    if(!ext || ext->kind() != ASTNodeKind::StructDecl) return;
-    auto sd = (StructDefinition*)ext;
-    if(!sd->has_destructor()) return;  // Only destructible types need clearing
+    if(!initializer) return;
+
+    // Does the initializer own a destructible struct/variant (directly or via array elements)?
+    bool shouldClear = false;
+    if(initializer->val_kind() == ValueKind::StructValue) {
+        auto structVal = initializer->as_struct_value_unsafe();
+        auto ext = structVal->linked_extendable();
+        if(ext && (ext->kind() == ASTNodeKind::StructDecl || ext->kind() == ASTNodeKind::VariantDecl)) {
+            auto container = (ExtendableMembersContainerNode*) ext;
+            if(container->has_destructor()) shouldClear = true;
+        }
+    } else if(initializer->val_kind() == ValueKind::ArrayValue) {
+        // Array literal: clear if any element is a destructible struct/variant.
+        // Identifier elements are resolved to their actual value first.
+        // ...
+    }
+    if(!shouldClear) return;
+
+    // Pointer-match scan up the parent chain; clears the binding equal to the initializer.
+    // For ArrayValue initializers, bindings pointing at an element are also cleared
+    // (identifier elements are replaced in the array with their resolved value).
     InterpretScope* scanScope = this;
     while(scanScope) {
         for(auto& [name, val] : scanScope->values) {
-            if(name != new_name && val == initializer) {
-                val = nullptr;  // Clear the source — it's been moved
-                return;
+            if(name != new_name) {
+                if(val == initializer) { val = nullptr; return; }
+                // ... ArrayValue element matching ...
             }
         }
         scanScope = scanScope->parent;
     }
 }
 ```
+
+The current implementation handles `ASTNodeKind::VariantDecl` in addition to `StructDecl`, and
+also accepts `ArrayValue` initializers (clearing any scope binding that matches an element, and
+resolving `Identifier` elements such as `[d]` to their actual struct value).
 
 #### Why pointer-matching?
 
@@ -94,6 +132,12 @@ The compiler may replace `VariableIdentifier` AST nodes with the resolved `Struc
 When `new_name` is **empty**, the function will clear **any** matching variable in the scope chain. This is used for function arguments, variant constructor args, and struct member initialization, where there's no named variable being declared.
 
 When `new_name` is **non-empty** (e.g., the variable being declared), the function skips that name to avoid self-clearing (`var x = x` shouldn't nullify `x`).
+
+Move *validity* for generics is decided during symres by `SymResLinkBody::mark_moved_value`.
+`is_same_generic_family()` (`compiler/symres/SymResLinkBody.cpp`) accepts two distinct
+instantiations of the same generic parent (sharing a non-null `generic_parent`) as movable, so
+passing `H<int>` to a parameter written `H<T>` does not report "unknown value being moved".
+Regressions: `lang/tests/src/generic/generic_dispatch.ch` (`MoveProbe<T>`/`consume_move_probe`).
 
 ## Temp Struct Destruction
 
@@ -150,7 +194,11 @@ scope so it's not destructed a second time when the temp scope is destroyed.
 ### Temp Destruction Call Sites
 
 1. `ValueWrapperNode::interpret()` / `AccessChainNode::interpret()` — bare expression
-   statements and method chains; collect `FunctionCall` results and destruct them.
+   statements and method chains; collect `FunctionCall` results and destruct them. Both
+   also call the static helper `destroy_wrapped_arg_temps()` (in `Core.cpp`), which
+   destructs temps created by arguments wrapped in `&`/`&raw` (e.g.
+   `take(&create_destructible(...))`), via `ReferenceOfValue::innerEvaluatedResult` /
+   `AddrOfValue::innerEvaluatedResult`.
 2. `AccessChain::evaluated_value()` / `IndexOperator::evaluated_value()` — chain/index
    in expression context; destruct the intermediate parent temp.
 3. `FunctionCall::evaluated_value()` — destruct a nested-call receiver temp.
@@ -159,7 +207,14 @@ scope so it's not destructed a second time when the temp scope is destroyed.
 
 ### Interaction with `Scope::destroy_values()`
 
-The normal scope destructor (`InterpretScope::~InterpretScope()`) calls `destroy_values()`, which iterates all values in the scope and calls `destroy_value()` for structs/variants, then recursively destructs member values. However, this only works for **named variables** in the scope. Bare expression temps aren't named variables, so they must be handled explicitly via `scope.destroy_value()`.
+The normal scope destructor (`InterpretScope::~InterpretScope()`) calls `destroy_values()`.
+`destroy_values()` is implemented on top of a file-local free function
+`destroy_value_recursive(InterpretScope&, Value*)`: for structs it runs the user `@delete`
+destructor via `destroy_value()` and then recursively destructs member values; for arrays it
+destructs each element, resolving `Identifier` elements (produced by move semantics such as
+`[d]`) to the actual value first. However, this only works for **named variables** in the
+scope. Bare expression temps aren't named variables, so they must be handled explicitly via
+`scope.destroy_value()`.
 
 ## AssignStatement: Single Evaluation + Old-Value Destruction
 
@@ -168,7 +223,9 @@ Assignment evaluates the RHS exactly **once**, passes the evaluated value to
 
 ```cpp
 void interpret(InterpretScope& scope, AssignStatement* assign) {
-    // Step 1: Save the old LHS value pointer (identifier assignment only)
+    // Step 1: Save the old LHS value pointer (identifier assignment only).
+    // Skipped for first initialization (`is_first_init`) and when the LHS type
+    // cannot need a destructor (lhs_may_need_destroy() fast-path for primitives).
     Value* oldLhsVal = nullptr;
     ...
 
@@ -196,6 +253,33 @@ void interpret(InterpretScope& scope, AssignStatement* assign) {
 **Why destruct AFTER set_value?** For `x = f(x.get_ptr(), N)`, the RHS function `f` takes a pointer to `x`'s data. If we destruct `x` before evaluating `f`, the pointer becomes dangling. By destructing after `set_value()`, the RHS evaluation sees valid data.
 
 **Why save old value BEFORE set_value?** `set_value()` overwrites the scope entry, losing the old pointer. Without saving, we'd leak the old struct.
+
+## Integer Width Coercion
+
+The interpreter stores every integer as an `IntNumValue` holding a full 64-bit `value`. To match
+the C/LLVM backends (which truncate on store and sign-extend for signed types), it normalizes
+values through `InterpretScope::coerce_to_type(Value* value, BaseType* type)`
+(`ast/base/InterpretScope.cpp`). For a target `IntNType` narrower than 64 bits it masks to the
+bit width and sign-extends when the target is signed; it returns a new `IntNumValue` tagged with
+the target type (or `value` unchanged if there is nothing to do).
+
+Coercion is applied at every store/pass boundary:
+
+| Boundary | Location |
+|----------|----------|
+| `var` initialization | `compiler/Interpreter/Core.cpp` (`VarInitStatement`) |
+| Identifier assignment / compound assignment | `ast/values/VariableIdentifier.cpp` (`set_value`) |
+| Index element assignment | `ast/values/IndexOperator.cpp` |
+| Struct field assignment | `ast/values/StructValue.cpp` (`set_child_value`) |
+| Function arguments | `ast/structures/FunctionDecl.cpp` |
+| Return values | `ast/structures/FunctionDecl.cpp` (`set_return`, uses `returnType`) |
+| `as` casts | `ast/values/CastedValue.cpp` |
+| Fixed-width literals | `parser/utils/LexValue.cpp` (e.g. `u8` literal zero-extended) |
+
+So `var x : u8 = 300` yields `44`, `200 as i8` yields `-56`, and `x += 100` wraps at the
+declared width — identical to the compiled backends. Regression coverage lives in
+`lang/tests/common/src/interp_int_width.ch`, registered via `test_interp_int_width()` in
+`lang/tests/common/src/main.ch`.
 
 ## Pointer Model
 
@@ -279,9 +363,13 @@ Called by the destructor (`~InterpretScope()`) when `should_destruct_values` is 
    - Calls `destroy_value()` (runs the user `@delete` destructor, if any)
    - Recursively destructs all member values
 3. For each `ArrayValue`:
-   - Destructs each element that is a struct with a destructor
+   - Destructs each element that is a struct with a destructor, resolving `Identifier`
+     elements (from move semantics like `[d]`) to the actual value first
 4. Skips `returnValue` (it's been moved to the caller)
 5. Skips `nullptr` entries (cleared by move semantics)
+
+The recursion is performed by the file-local free function `destroy_value_recursive()` so it is
+not re-instantiated for every entry of every scope.
 
 ### Interaction with Move Semantics
 
@@ -362,8 +450,9 @@ Tests use `comptime if(intrinsics::is_interpretation())` to branch between `expr
 
 ### Fixed Bug Classes (interpreter regression suite)
 
-The interpreter suite currently passes fully (`--tcc --interpret`: all tests).
-Regression tests live in `lang/tests/common/src/interp_regressions.ch` and cover:
+The interpreter suite currently passes fully (`--tcc --interpret`: 1810/1810 at the time of writing).
+Regression tests live in `lang/tests/common/src/interp_regressions.ch` (plus
+`interp_int_width.ch`) and cover:
 
 | Bug class | Fix |
 |-----------|-----|
@@ -372,6 +461,8 @@ Regression tests live in `lang/tests/common/src/interp_regressions.ch` and cover
 | Assignment RHS evaluated twice (identifier / chain / index) | evaluate RHS once, pass evaluated value to `set_value` + `move_clear_source` (`Core.cpp`) |
 | Duplicated destruction logic (5 copies) | centralized in `InterpretScope::destroy_value` |
 | Loop control state on AST nodes | moved to `InterpretScope` (`is_loop_scope` / `loop_signal`); `break value` uses `is_loop_value_scope` |
+| Integers never narrowed to declared width | `InterpretScope::coerce_to_type` applied at every store/pass boundary (`interp_int_width.ch`) |
+| Move of a generic struct via an `H<T>` parameter reported "unknown value being moved" | `is_same_generic_family` in `compiler/symres/SymResLinkBody.cpp` |
 
 ### Quick Debugging Tips
 
@@ -555,9 +646,10 @@ Make the following `std` types work in interpreter mode:
 
 ### 4. Interpretation Test Status
 All interpretation tests pass. When adding a suspected-bug test, put it in
-`lang/tests/common/src/interp_regressions.ch` (registered via
-`test_interp_regressions()` in `common/src/main.ch`) so it runs in both compiled
-(`--tcc`) and interpreted (`--tcc --interpret`) modes.
+`lang/tests/common/src/interp_regressions.ch` or `lang/tests/common/src/interp_int_width.ch`
+(registered via `test_interp_regressions()` / `test_interp_int_width()` in
+`common/src/main.ch`) so it runs in both compiled (`--tcc`) and interpreted
+(`--tcc --interpret`) modes.
 
 ## Code Map
 
@@ -566,8 +658,9 @@ All interpretation tests pass. When adding a suspected-bug test, put it in
 | File | Purpose |
 |------|---------|
 | `compiler/Interpreter/Core.cpp` | Statement interpretation (assign, var init, loops, if, switch, value wrapper, access chain) |
-| `ast/base/InterpretScope.h` | Scope class, value management, `move_clear_source()` |
-| `ast/base/InterpretScope.cpp` | Value operations, destroy_values, move_clear_source implementation |
+| `ast/base/InterpretScope.h` | Scope class, value management, `move_clear_source()`, `coerce_to_type()` |
+| `ast/base/InterpretScope.cpp` | Value operations, destroy_values, move_clear_source, coerce_to_type implementation |
+| `ast/base/ScopeValueMap.h` | Scope variable-binding storage (flat vector + lazy hash index) |
 | `ast/base/GlobalInterpretScope.h` | Global interpreter state |
 | `ast/utils/GlobalFunctions.cpp` | All intrinsics AND interpreter-friendly std types (InterpretVector, etc.) |
 | `ast/values/StructValue.cpp` | Struct initialization, `initialized_value()`, move semantics |
@@ -583,6 +676,12 @@ All interpretation tests pass. When adding a suspected-bug test, put it in
 // In InterpretScope.h
 void move_clear_source(Value* initializer, const chem::string_view& new_name);
 void destroy_value(Value* val);
+Value* coerce_to_type(Value* value, BaseType* type);
+
+// Scope lookup — out_depth receives the number of parent hops to the owning scope
+Value* find_value(const chem::string_view& name, unsigned* out_depth = nullptr);
+std::pair<value_iterator, InterpretScope&> find_value_iterator(const chem::string_view& name, unsigned* out_depth = nullptr);
+InterpretScope* ancestor_at(unsigned depth) noexcept;
 
 // In FunctionDecl.cpp
 Value* call(InterpretScope* call_scope, std::vector<Value*>& call_args,

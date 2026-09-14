@@ -42,17 +42,18 @@ Chemical supports generics on:
 
 ```cpp
 class BaseGenericDecl : public ASTNode {
-    std::vector<GenericTypeParameter*> generic_params;  // <T, U, ...>
-    GenericTypeParamsInfo paramsInfo;                    // Metadata about params
-    ASTNode* generic_parent;                             // The AST node being specialized
+    std::vector<GenericTypeParameter*> generic_params;            // <T, U, ...>
+    std::vector<InstantiationStatusEntry> instantiation_statuses;  // Per-instantiation sync state
     // ...
 };
 ```
 
 Each `GenericXxxDecl` holds:
-1. **Generic type parameters** — the `<T, U, ...>` list
-2. **The parent declaration** — the actual AST node (function body, struct members, etc.)
-3. **Instantiation statuses** — tracks which instantiations are in progress/completed
+1. **Generic type parameters** — the `<T, U, ...>` list (`generic_params`)
+2. **The master declaration** — `master_impl`, the AST node being specialized (function body, struct members, etc.)
+3. **Instantiation statuses** — `instantiation_statuses`, tracking each instantiation's registration/signature progress
+
+Concrete instantiations (e.g. a `StructDefinition` created from a `GenericStructDecl`) store a back-pointer `generic_parent` to the `GenericXxxDecl` that produced them.
 
 ## InstantiationsContainer
 
@@ -60,16 +61,25 @@ The `InstantiationsContainer` deduplicates generic instantiations:
 
 ```cpp
 class InstantiationsContainer {
-    // For each generic declaration, maps (concrete types) → concrete instantiation
-    std::unordered_map<BaseGenericDecl*, std::vector<TypeInfo*>> instantiations;
-    
-    // Check if an instantiation already exists
-    InstantiationInfo* find(BaseGenericDecl* gen, std::span<BaseType*> args);
-    
-    // Register a new instantiation
-    InstantiationInfo* register_instantiation(BaseGenericDecl* gen, BaseType* result);
+    // Generic declaration (or type) key → its registered instantiations
+    std::unordered_map<void*, DeclInstantiations> instantiations;
+    // File id → records of which instantiations that file created (for invalidation)
+    std::unordered_map<unsigned int, std::vector<RegistryEntry>> fileIdRegistry;
+
+    // Types already registered for a key
+    std::span<InstantiationType> getInstantiationTypesFor(void* key);
+
+    // Register a new instantiation, returns its index within the key's list
+    size_t registerInstantiation(void* key, InstantiationType types,
+                                 std::vector<void*>& instVec, unsigned int current_file_id);
+
+    // Remove instantiations for a decl key / for a file
+    void removeInstantiationsFor(void* key);
+    void removeInstantiationsFor(unsigned int fileId);
 };
 ```
+
+Deduplication is performed by `register_generic_usage()` (`ast/utils/ASTUtils.cpp`): it calls `get_iteration_for()` to reuse an existing index when the args match, otherwise registers a new one via `registerInstantiation()`. The file registry lets the IDE drop instantiations created by an edited file.
 
 ## Instantiation Process
 
@@ -80,21 +90,16 @@ When a `GenericType` (e.g., `Option<int>`) is encountered in a signature:
 ```cpp
 // In GenericInstantiator::VisitGenericType():
 void GenericInstantiator::VisitGenericType(GenericType* type) {
-    // 1. Resolve the generic declaration
-    auto* genDecl = type->resolveGenericDecl();
-    
-    // 2. Check if an instantiation with these args already exists
-    auto* existing = container.find(genDecl, type->generic_args);
-    if(existing) {
-        type->setLinked(existing->result);  // Reuse existing
-        return;
-    }
-    
-    // 3. Register new instantiation
-    auto* info = container.register(genDecl, type->generic_args);
-    type->setLinked(info->result);
-    
-    // 4. Later: FinalizeSignature and FinalizeBody
+    // 1. Instantiate the type arguments first (visit each type->types entry)
+
+    // 2. Switch on the linked declaration's kind (GenericStructDecl, GenericUnionDecl,
+    //    GenericInterfaceDecl, GenericVariantDecl, GenericTypeDecl) and call
+    //    linked->instantiate_type(genApi, type->types, location, requirement)
+
+    // 3. The returned concrete node replaces type->referenced->linked
+
+    // 4. Self-referential case: when linked == current_gen and the args are still the
+    //    generic params, relink to current_impl_ptr instead of recursing
 }
 ```
 
@@ -105,17 +110,17 @@ void GenericInstantiator::FinalizeSignature(GenericFuncDecl* genDecl, FunctionDe
     // 1. Activate type parameter mapping for this instantiation
     activateIteration(genDecl, itr);
     
-    // 2. Visit function signature (parameter types, return type)
-    visit(concrete->returnType);
+    // 2. Visit function signature (parameter types, then return type)
     for(auto& param : concrete->params) {
         visit(param);
     }
+    visit(concrete->returnType);
     
     // 3. Replace generic types with concrete types in the signature
     // (This modifies the concrete function's type in-place)
     
-    // 4. Notify waiters that signature is finalized
-    notifySignatureFinalized(genDecl, itr);
+    // 4. Waiters are notified by Generic*Decl::register_generic_args() via
+    //    notifySignatureFinalized() — not by FinalizeSignature itself
 }
 ```
 
@@ -123,14 +128,22 @@ void GenericInstantiator::FinalizeSignature(GenericFuncDecl* genDecl, FunctionDe
 
 ```cpp
 void GenericInstantiator::FinalizeBody(GenericFuncDecl* genDecl, FunctionDeclaration* concrete, size_t itr) {
-    // 1. Re-activate the type parameter mapping
+    // 1. Re-activate the type parameter mapping and set the current context
+    current_gen = genDecl;
+    current_impl_ptr = concrete;
     activateIteration(genDecl, itr);
-    
-    // 2. Visit function body
-    for(auto& stmt : concrete->body.nodes) {
-        visit(stmt);
+
+    // 2. Visit function body (if present) inside a fresh symbol scope with params declared
+    if(concrete->body.has_value()) {
+        table.scope_start();
+        for(const auto param : concrete->params) {
+            table.declare(param->name_view(), param);
+        }
+        current_func_type = concrete;
+        visit(concrete->body.value());
+        table.scope_end();
     }
-    
+
     // 3. All generic type references in the body are now replaced
     // with concrete type references
 }
@@ -138,32 +151,44 @@ void GenericInstantiator::FinalizeBody(GenericFuncDecl* genDecl, FunctionDeclara
 
 ### Thread Safety
 
-Generic instantiation uses a **registration mutex** and **per-instantiation status**:
+Generic instantiation uses a **registration mutex** and **per-instantiation status entries**. The status mutex and condition variable are shared, owned by the `InstantiationsContainer` (a single mutex + a single condition variable for all instantiations):
 
 ```cpp
-struct InstantiationStatus {
-    std::atomic<bool> signature_finalized{false};
-    std::mutex status_mutex;
-    std::condition_variable status_cv;
+enum class InstantiationStatus : uint8_t {
+    Registered,
+    SignatureFinalized
+};
+
+struct InstantiationStatusEntry {
+    InstantiationStatus status;
+    std::thread::id builder_thread;   // thread that registered this instantiation
 };
 ```
 
 ```cpp
-// Wait until signature is finalized (called from FinalizeBody):
+// Wait until signature is finalized (called before body finalization):
 void GenericInstantiator::waitSignatureFinalized(BaseGenericDecl* decl, size_t index) {
-    auto& status = decl->instantiation_statuses[index];
-    std::unique_lock lock(status.status_mutex);
-    status.status_cv.wait(lock, [&] { return status.signature_finalized.load(); });
+    auto& status_mutex = container.getInstantiationStatusMutex();
+    auto& cv = container.getInstantiationCv();
+    std::unique_lock<std::mutex> lock(status_mutex);
+
+    // do not wait on ourselves: recursive generics would deadlock against this thread
+    if(decl->instantiation_statuses[index].builder_thread == std::this_thread::get_id()) return;
+
+    cv.wait(lock, [decl, index]() {
+        return decl->instantiation_statuses[index].status == InstantiationStatus::SignatureFinalized;
+    });
 }
 
-// Notify that signature is finalized (called from FinalizeSignature):
+// Notify that signature is finalized (called from register_generic_args):
 void GenericInstantiator::notifySignatureFinalized(BaseGenericDecl* decl, size_t index) {
-    auto& status = decl->instantiation_statuses[index];
+    auto& status_mutex = container.getInstantiationStatusMutex();
+    auto& cv = container.getInstantiationCv();
     {
-        std::lock_guard lock(status.status_mutex);
-        status.signature_finalized.store(true);
+        std::lock_guard<std::mutex> lock(status_mutex);
+        decl->instantiation_statuses[index].status = InstantiationStatus::SignatureFinalized;
     }
-    status.status_cv.notify_all();
+    cv.notify_all();
 }
 ```
 
@@ -207,14 +232,16 @@ This is the thread-local mapping from `GenericTypeParameter*` to `BaseType*`:
 
 ```cpp
 void GenericInstantiator::activateIteration(BaseGenericDecl* genDecl, size_t itr) {
-    // 1. Get the concrete type arguments for this iteration
-    auto* typeInfo = container.get_type_info(genDecl, itr);
-    
+    // 1. Under registration_mutex, get this iteration's concrete type arguments
+    std::lock_guard<std::recursive_mutex> lock(registration_mutex);
+    auto instantiations = container.getInstantiationTypesFor(genDecl);
+    auto types = instantiations[itr];
+
     // 2. Map each generic parameter to its concrete type
     current_gen = genDecl;
     active_type_map.clear();
     for(size_t i = 0; i < genDecl->generic_params.size(); i++) {
-        active_type_map[genDecl->generic_params[i]] = typeInfo->args[i];
+        active_type_map[genDecl->generic_params[i]] = types[i];
     }
 }
 ```
@@ -234,7 +261,7 @@ These are processed after the link signature pass by `GenericInstantiationPass`.
 
 ## GenericInstantiationPass
 
-This pass runs between link signatures and link bodies:
+This pass runs between link signatures and link bodies (a subsequent `sym_res_after_signature()` pass runs after it, before body linking):
 
 ```cpp
 GenInstSignatureResult sym_res_generic_instantiation(SymbolResolver& resolver, Scope* scope, SymResSignatureResult& result, const SymbolRange& range) {
@@ -260,18 +287,16 @@ GenInstSignatureResult sym_res_generic_instantiation(SymbolResolver& resolver, S
 ## InstantiationRequirements
 
 ```cpp
-enum class InstantiationRequirement {
-    Registration,      // Only register the instantiation
-    Signature,         // Also finalize the signature
-    BodyComplete       // Also finalize the body
+enum class InstantiationRequirement : uint8_t {
+    Registration,          // Only register the instantiation
+    SignatureFinalization  // Register + finalize the signature (and wait for deps)
 };
 ```
 
 These control how deeply the instantiation is processed:
 
-- **Registration**: Just record that this combination exists — no codegen yet
-- **Signature**: Resolve all type references — needed for type checking
-- **BodyComplete**: Full monomorphization — needed for codegen
+- **Registration**: Just record that this combination exists — no signature finalization (used by `GenericInstantiationPass`)
+- **SignatureFinalization**: Register plus resolve all type references in the signature; body finalization follows automatically once the generic declaration's body has been linked (`body_linked`)
 
 ## CoreNodes and Impl Index
 

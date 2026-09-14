@@ -36,99 +36,114 @@ public:
 ```cpp
 // ast/base/ASTNode.h
 class ASTNode : public ASTAny {
-    ASTNodeKind nodeKind;           // The node discriminator
-    ASTNode* parent_node;           // Parent in the AST tree
-    SourceLocation encoded_location; // Source location (file:line:col)
+private:
+    ASTNodeKind const _kind;         // The node discriminator
+    ASTNode* _parent;                // Parent in the AST tree
+    SourceLocation _location;        // Encoded source location
+public:
     // ...
     
-    inline ASTNodeKind kind() const noexcept { return nodeKind; }
+    inline ASTNodeKind kind() const noexcept { return _kind; }
+    inline ASTNode* parent() const noexcept { return _parent; }
+    inline SourceLocation encoded_location() const noexcept { return _location; }
     
     // Smart casting — checked in DEBUG, fast in release:
-    ASTNode* as_function_unsafe();           // CHECK_COND(kind == FunctionDecl)
-    StructDefinition* as_struct_def_unsafe();// CHECK_COND(kind == StructDecl)
-    ImplDefinition* as_impl_def_unsafe();    // CHECK_COND(kind == ImplDecl)
+    FunctionDeclaration* as_function_unsafe(); // CHECK_CAST(ASTNodeKind::FunctionDecl)
+    StructDefinition* as_struct_def_unsafe();  // CHECK_CAST(ASTNodeKind::StructDecl)
+    ImplDefinition* as_impl_def_unsafe();      // CHECK_CAST(ASTNodeKind::ImplDecl)
     // ... and 50+ more
 };
 ```
 
 **ASTNodeKind** values include (from `ast/base/ASTNodeKind.h`):
-- `FileScope`, `Scope`, `NamespaceDecl`
-- `FunctionDecl`, `FuncPrototype`, `MultiFunctionNode`
-- `StructDecl`, `UnionDef`, `VariantDecl`, `EnumDecl`
+- `FileScope`, `ModuleScope`, `Scope`, `NamespaceDecl`
+- `FunctionDecl`, `FunctionParam`, `GenericFuncDecl`
+- `StructDecl`, `UnionDecl`, `VariantDecl`, `EnumDecl`
 - `InterfaceDecl`, `ImplDecl`
-- `VarInitStmt`, `AssignStmt`, `ReturnStmt`, `BreakStmt`, `ContinueStmt`
+- `VarInitStmt`, `AssignmentStmt`, `ReturnStmt`, `BreakStmt`, `ContinueStmt`
 - `IfStmt`, `WhileLoopStmt`, `DoWhileLoopStmt`, `ForLoopStmt`, `ForInLoopStmt`
-- `SwitchStmt`, `TryCatchStmt`, `ThrowStmt`
+- `SwitchStmt`, `TryStmt`, `ThrowStmt`
 - `ImportStmt`, `ExportStmt`, `TypealiasStmt`, `UsingStmt`
 - `GenericFuncDecl`, `GenericStructDecl`, `GenericVariantDecl`, `GenericImplDecl`, etc.
-- `ValueNode`, `ValueWrapperNode`, `AccessChainNode`
-- `AnnotableNode`, `CapturedVariable`, `UnreachableStmt`
+- `ValueNode`, `ValueWrapper`, `AccessChainNode`, `InlineAsmStmt`
+- `CapturedVariable`, `CapturedComptimeVariable`, `UnreachableStmt`
 
 **Unsafe Casting Pattern:**
 
 ```cpp
 // All as_*_unsafe() methods follow this pattern:
 inline FunctionDeclaration* as_function_unsafe() {
-    CHECK_COND(kind() == ASTNodeKind::FunctionDecl);
+    CHECK_CAST(ASTNodeKind::FunctionDecl);
     return static_cast<FunctionDeclaration*>(this);
 }
 ```
 
-`CHECK_COND` is a debug-only assertion that verifies the kind matches. In release builds, it's a no-op — just a `static_cast`. This is why debugging reveals cast errors that release builds silently ignore.
+`CHECK_CAST` (defined in `ast/base/DebugCast.h`) is a debug-only assertion that verifies the kind matches. In release builds, it's a no-op — just a cast. This is why debugging reveals cast errors that release builds silently ignore.
 
 ### Value — Expressions and Values
 
 ```cpp
 // ast/base/Value.h
 class Value : public ASTAny {
-    ValueKind valueKind;            // The value discriminator
-    BaseType* type;                 // The resolved type of this value
+private:
+    ValueKind const _kind;          // The value discriminator
+    BaseType* _type;                // The resolved type of this value
+    SourceLocation _location;       // Encoded source location
+public:
     // ...
     
-    inline ValueKind kind() const noexcept { return valueKind; }
-    inline ValueKind val_kind() const noexcept { return valueKind; }
+    inline ValueKind kind() const noexcept { return _kind; }
+    inline ValueKind val_kind() const noexcept { return _kind; }
+    inline BaseType* getType() const noexcept { return _type; }
+    inline void setType(BaseType* type) noexcept { _type = type; }
     
-    // Runtime type checking: (all inline bool methods)
-    bool is_intn() const;           // Kind == ValueKind::IntN
-    bool is_float() const;          // ValueKind::Float
-    bool is_bool() const;           // ValueKind::Bool
-    bool is_string() const;         // ValueKind::String
-    bool is_struct() const;         // ValueKind::StructValue
-    bool is_identifier() const;     // ValueKind::Identifier
-    bool is_func_call() const;      // ValueKind::FunctionCall
-    bool is_expression() const;     // ValueKind::Expression
-    bool is_access_chain() const;   // ValueKind::AccessChain
-    bool is_array_value() const;    // ValueKind::ArrayValue
+    // Compile-time kind checks (static constexpr helpers taking a ValueKind):
+    static constexpr bool isIntN(ValueKind k);        // ValueKind::IntN
+    static constexpr bool isFloat(ValueKind k);       // ValueKind::Float
+    static constexpr bool isBool(ValueKind k);        // ValueKind::Bool
+    static constexpr bool isString(ValueKind k);      // ValueKind::String
+    static constexpr bool isStructValue(ValueKind k); // ValueKind::StructValue
+    static constexpr bool isIdentifier(ValueKind k);  // ValueKind::Identifier
+    static constexpr bool isFunctionCall(ValueKind k);// ValueKind::FunctionCall
+    static constexpr bool isExpression(ValueKind k);  // ValueKind::Expression
+    static constexpr bool isAccessChain(ValueKind k); // ValueKind::AccessChain
+    static constexpr bool isArrayValue(ValueKind k);  // ValueKind::ArrayValue
     // ... and many more
     
-    // Unsafe casts — same CHECK_COND pattern:
+    // Nullable casts — return nullptr when the kind doesn't match:
+    inline StructValue* as_struct_value();
+    inline FunctionCall* as_func_call();
+    inline VariableIdentifier* as_identifier();
+    // ... and many more
+    
+    // Unsafe casts — same CHECK_CAST pattern:
     inline Expression* as_expression_unsafe() {
-        CHECK_COND(kind() == ValueKind::Expression);
+        CHECK_CAST(ValueKind::Expression);
         return static_cast<Expression*>(this);
     }
     
     inline StructValue* as_struct_value_unsafe() {
-        CHECK_COND(kind() == ValueKind::StructValue);
+        CHECK_CAST(ValueKind::StructValue);
         return static_cast<StructValue*>(this);
     }
     
     inline FunctionCall* as_func_call_unsafe() {
-        CHECK_COND(kind() == ValueKind::FunctionCall);
+        CHECK_CAST(ValueKind::FunctionCall);
         return static_cast<FunctionCall*>(this);
     }
     
     inline AccessChain* as_access_chain_unsafe() {
-        CHECK_COND(kind() == ValueKind::AccessChain);
+        CHECK_CAST(ValueKind::AccessChain);
         return static_cast<AccessChain*>(this);
     }
     
     inline VariableIdentifier* as_identifier_unsafe() {
-        CHECK_COND(kind() == ValueKind::Identifier);
+        CHECK_CAST(ValueKind::Identifier);
         return static_cast<VariableIdentifier*>(this);
     }
     
     inline CastedValue* as_casted_value_unsafe() {
-        CHECK_COND(kind() == ValueKind::CastedValue);
+        CHECK_CAST(ValueKind::CastedValue);
         return static_cast<CastedValue*>(this);
     }
     
@@ -137,8 +152,7 @@ class Value : public ASTAny {
     // Key virtual methods:
     virtual Value* evaluated_value(InterpretScope& scope);   // Evaluate at comptime
     virtual Value* scope_value(InterpretScope& scope);       // Copy for scope storage
-    virtual BaseType* getType();                             // Resolved type
-    virtual bool set_value(InterpretScope& scope, Value* value, Operation op, SourceLocation loc);
+    virtual void set_value(InterpretScope& scope, Value* value, Operation op, SourceLocation loc);
 };
 ```
 
@@ -148,7 +162,6 @@ class Value : public ASTAny {
 - `Double` — double literal
 - `Bool` — boolean
 - `String` — string literal
-- `Char` — character literal
 - `NullValue` — null pointer
 - `StructValue` — struct literal `{ field: val }`
 - `ArrayValue` — array literal `[1, 2, 3]`
@@ -161,7 +174,7 @@ class Value : public ASTAny {
 - `DereferenceValue` — pointer deref (`*ptr`)
 - `AddrOfValue` — address-of (`&raw mut`)
 - `ReferenceOfValue` — reference (`&mut`)
-- `LambdaFunction` — lambda expression
+- `LambdaFunc` — lambda expression
 - `IsValue` — `is` operator
 - `PatternMatchExpr` — pattern matching
 - `NegativeValue`, `NotValue`, `BitwiseNot` — unary operators
@@ -180,19 +193,16 @@ class BaseType : public ASTAny {
     inline BaseTypeKind kind() const noexcept;
     
     // Runtime type checking:
-    bool is_pointer() const;
-    bool is_reference() const;
-    bool is_int() const;       // BaseTypeKind::IntN
-    bool is_float() const;
-    bool is_bool() const;
-    bool is_string() const;
-    bool is_void() const;
-    bool is_function() const;
-    bool is_struct() const;    // BaseTypeKind::StructType
-    bool is_array() const;
-    bool is_generic() const;   // Generic type parameter
-    bool is_linked() const;    // Linked to a concrete type
-    bool is_dynamic() const;
+    inline bool is_pointer();   // Pointer or String kind
+    inline bool is_reference(); // BaseTypeKind::Reference
+    bool is_pointer_or_ref();
+    bool is_mutable();
+    bool is_reference_to(ASTNode* node);
+    bool isCharType();
+    bool isStringType();
+    bool isStructLikeType();    // struct/union/generic/dynamic (struct-like)
+    bool isUnionType();
+    bool isPrimitive(bool isAnyPrimitive = true);
     // ... and many more
     
     // Unsafe casts:
@@ -217,16 +227,15 @@ class BaseType : public ASTAny {
 };
 ```
 
-**BaseTypeKind** values include:
-- `IntN`, `Float`, `Double`, `Bool`, `Char`, `Void`
+**BaseTypeKind** values include (from `ast/base/BaseTypeKind.h`):
+- `IntN`, `Float`, `Double`, `Bool`, `Void` (note: `char` is an `IntN` kind; `Bool` is its own kind)
 - `Pointer`, `Reference`, `Array`
-- `StructType`, `UnionType`, `FunctionType`
-- `LinkedType` — linked to a `StructDefinition`/`InterfaceDefinition`/etc.
-- `GenericType` — a generic parameter `T`
-- `StringType`, `LiteralType`, `ExprStringType`
-- `AnyType`, `RuntimeType`, `MaybeRuntimeType`
-- `DynamicType`, `IfType`
-- `EnumType`
+- `Struct`, `Union`, `Function`, `CapturingFunction`
+- `Linked` — linked to a `StructDefinition`/`InterfaceDefinition`/etc.
+- `Generic` — a generic parameter `T`
+- `String`, `Literal`, `ExpressiveString`, `ExpressionType`
+- `Any`, `Runtime`, `MaybeRuntime`, `Dynamic`
+- `IfType`, `NullPtr`, `Unknown`
 - `LongDouble`, `Float128`, `Complex`
 
 ### ASTAllocator — Arena Allocation
@@ -459,7 +468,7 @@ public:
 
 #### b) ToCAstVisitor (C Codegen)
 
-**Files:** `preprocess/2c/2cASTVisitor.h`, `preprocess/2c/2cASTVisitor.cpp` (~3000 lines)
+**Files:** `preprocess/2c/2cASTVisitor.h`, `preprocess/2c/2cASTVisitor.cpp` (~8000 lines)
 
 The C translation backend. Inherits from both `NonRecursiveVisitor<ToCAstVisitor>` and `ASTDiagnoser`.
 
@@ -507,7 +516,7 @@ public:
 
 #### c) CDestructionVisitor (Destructor Management)
 
-**Files:** `preprocess/2c/CDestructionVisitor.h`, `preprocess/2c/CDestructionVisitor.cpp`
+**File:** `preprocess/2c/CDestructionVisitor.h`
 
 Manages destructor calls in C codegen. Works with `ToCAstVisitor` to emit cleanup code when scopes end, returns happen, or statements throw:
 
@@ -544,7 +553,7 @@ public:
 };
 ```
 
-**Used by:** `CTopLevelDeclarationVisitor`, `CDestructionVisitor`, `CValueDeclarationVisitor`
+**Used by:** `CTopLevelDeclarationVisitor`, `CDestructionVisitor`
 
 #### e) CTopLevelDeclarationVisitor (Forward Declarations)
 
@@ -560,8 +569,8 @@ Handles C forward declarations. Called BEFORE `translate_after_declaration()` to
 | `RecursiveVisitor<D>` | Deep AST traversal | NonRecursiveVisitor | Yes (via visit_it) |
 | `RepresentationVisitor` | AST → Chemical text | NonRecursiveVisitor | Manual |
 | `ToCAstVisitor` | AST → C code | NonRecursiveVisitor + ASTDiagnoser | Manual |
-| `TypeVerifier` | Type checking | NonRecursiveVisitor | Manual |
-| `GenericInstantiationPass` | Generic monomorphization | NonRecursiveVisitor | Manual |
+| `TypeVerifier` | Type checking | RecursiveVisitor | Yes (base) |
+| `GenericInstantiationPass` | Generic monomorphization | RecursiveVisitor | Yes (base) |
 | `SymResLinkBody` | Body symbol resolution | NonRecursiveVisitor | Manual |
 
 ### How to Create a New Visitor
@@ -737,24 +746,27 @@ error: path/to/file.ch:42:10: cannot assign to immutable variable
 | `FileInputSource` | `stream/FileInputSource.h` | Concrete file-backed input source |
 | `SourceProvider` | `stream/SourceProvider.h` | Reads from InputSource, tracks line/char numbers |
 
-### The CHECK_COND Debug Macro
+### The CHECK_CAST / CHECK_COND Debug Macros
+
+**File:** `ast/base/DebugCast.h`
 
 ```cpp
 #ifdef DEBUG
-#define CHECK_COND(cond) \
-    if(!(cond)) { \
-        std::cerr << "FATAL: " #cond " failed in " << __FILE__ << ":" << __LINE__ << std::endl; \
-        std::terminate(); \
-    }
+#define CHECK_CAST(expected) if(kind() != (expected)) abort()
+#define CHECK_COND(expected) if(!(expected)) abort()
 #else
-#define CHECK_COND(cond) ((void)0)
+#define CHECK_CAST(expected)
+#define CHECK_COND(expected)
 #endif
+
+// Always resolves to a C-style cast (both debug and release):
+#define CHECK_DYN_CAST(Type) ((Type*) this)
 ```
 
 This means:
-- **Debug builds**: Every unsafe cast checks the discriminator — catches bugs early. The `NonRecursiveVisitor` `default:` case also throws in DEBUG, catching unhandled node kinds.
-- **Release builds**: Just a static_cast — maximum performance. The `default:` case is unreachable.
-- If you see a "FATAL" message in CI, it means an `as_*_unsafe()` cast was used on the wrong type, or a visitor method was not overridden for a new node kind.
+- **Debug builds**: Every unsafe cast checks the discriminator and calls `abort()` on mismatch — catches bugs early. The `NonRecursiveVisitor` `default:` case also throws in DEBUG, catching unhandled node kinds.
+- **Release builds**: `CHECK_CAST`/`CHECK_COND` expand to nothing, leaving only the cast — maximum performance. The `default:` case is unreachable.
+- If you see an abort in CI, it means an `as_*_unsafe()` cast was used on the wrong type, or a visitor method was not overridden for a new node kind.
 
 ### Type Hierarchy Summary
 
@@ -804,6 +816,12 @@ The compiler API bindings are in `lang/libs/compiler/src/`. These are Chemical s
 | `ChemicalTokenType.ch` | Token type enum |
 | `AccessSpecifier.ch` | Public/private/internal access specifiers |
 | `ASTVisitor.ch` | Base AST visitor |
+| `AnnotationController.ch` | Annotation / marked-declaration lookup |
+| `ast/base/ASTNodeKind.ch` | AST node kind enum (must mirror `ast/base/ASTNodeKind.h`) |
+| `ast/base/ValueKind.ch` | Value kind enum (must mirror `ast/base/ValueKind.h`) |
+| `ast/base/BaseTypeKind.ch` | Base type kind enum (must mirror `ast/base/BaseTypeKind.h`) |
+
+Additional bindings include `LocationData.ch`, `PtrVec.ch`, `SourceProviderUtils.ch`, and the symres passes `SymResLinkSignature.ch` / `SymResLinkBody.ch`.
 
 See the [CBI Plugin API](./.agents/skills/cbi_plugin_api/SKILL.md) skill for how to use these bindings.
 

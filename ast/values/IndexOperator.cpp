@@ -260,20 +260,7 @@ Value* IndexOperator::evaluated_value(InterpretScope &scope) {
     // it via the &self parameter. Without this, temps from expressions like
     // create_indexable(...)[0] would be leaked.
     if(parent_val && parent_val->val_kind() == ValueKind::FunctionCall && eval->val_kind() == ValueKind::StructValue) {
-        auto structVal = eval->as_struct_value_unsafe();
-        auto ext = structVal->linked_extendable();
-        if(ext && ext->has_destructor()) {
-            auto destructor_fn = ext->destructor_func();
-            if(destructor_fn && destructor_fn->body.has_value()) {
-                InterpretScope child_scope(scope.global, scope.allocator, scope.global);
-                child_scope.declare("self", eval);
-                child_scope.interpret(&destructor_fn->body.value());
-                auto self_it = child_scope.values.find("self");
-                if(self_it != child_scope.values.end()) {
-                    child_scope.values.erase(self_it);
-                }
-            }
-        }
+        scope.destroy_value(eval);
     }
     return result;
 }

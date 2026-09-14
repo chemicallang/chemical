@@ -14,7 +14,6 @@ class WhileLoop : public LoopASTNode {
 public:
 
     Value* condition;
-    bool stoppedInterpretation = false;
 
     /**
      * constructor
@@ -38,7 +37,5 @@ public:
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) final;
 #endif
-
-    void stopInterpretation() final;
 
 };

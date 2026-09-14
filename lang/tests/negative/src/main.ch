@@ -178,6 +178,9 @@ internal const NEG_MOD_UNIVERSAL = "module neg_test\nsource \".\"\nimport std\ni
 // variant that imports page + html_cbi so `#html` macros compile
 internal const NEG_MOD_HTML = "module neg_test\nsource \".\"\nimport std\nimport page\nimport html_cbi\n"
 
+// variant that imports both, so a `#universal` component can be used in `#html`
+internal const NEG_MOD_UNIVERSAL_HTML = "module neg_test\nsource \".\"\nimport std\nimport page\nimport universal_cbi\nimport html_cbi\n"
+
 internal func expect_compile_error(env : &mut TestEnv, name : *char, ch_content : *char, expected_sub : *char) {
     expect_compile_error_with_mod(env, name, ch_content, expected_sub, NEG_MOD)
 }
@@ -330,6 +333,15 @@ public func neg_html_unsupported_value_type_is_diagnosed(env : &mut TestEnv) {
     // report it through the live ASTDiagnoser.
     var ch = "struct Blob {\n    var x : int\n}\npublic func main() : int {\n    var page = HtmlPage()\n    var blob = Blob { x = 1 }\n    #html { <span>{blob}</span> }\n    return 0\n}\n"
     expect_compile_output_contains(env, "html_unsupported_value", ch, "has no HTML serialization", NEG_MOD_HTML)
+}
+
+@test
+public func neg_universal_unsupported_attribute_value_is_diagnosed(env : &mut TestEnv) {
+    // A pointer (non-char) attribute value has no SsrAttributeValue
+    // representation; it used to be silently emitted as a number. The converter
+    // now reports it through the live ASTDiagnoser.
+    var ch = "func unsupported_ptr(page : &mut HtmlPage) : *mut int {\n    return null\n}\n#universal PtrAttr(props) {\n    return <div data-p={${unsupported_ptr(page)}}>x</div>\n}\npublic func main() : int {\n    var page = HtmlPage()\n    #html { <PtrAttr /> }\n    return 0\n}\n"
+    expect_compile_output_contains(env, "universal_unsupported_attr", ch, "only char pointers have an SSR representation", NEG_MOD_UNIVERSAL_HTML)
 }
 
 @test

@@ -74,7 +74,7 @@ public func escape_js_text(text : std::string_view, emitter : &mut JsNodeEmitter
     }
 }
 
-public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
+public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter, universal_mode : bool = false) {
     switch(node.kind) {
         JsNodeKind.VarDecl => {
             var varDecl = node as *mut JsVarDecl
@@ -85,13 +85,13 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
                 emitter.emit_text(" ")
             }
             if(varDecl.pattern != null) {
-                convert_js_node(varDecl.pattern, emitter)
+                convert_js_node(varDecl.pattern, emitter, universal_mode)
             } else {
                 emitter.emit_text(&varDecl.name)
             }
             if(varDecl.value != null) {
                 emitter.emit_text(" = ")
-                convert_js_node(varDecl.value, emitter)
+                convert_js_node(varDecl.value, emitter, universal_mode)
             }
             emitter.emit_text(";")
         }
@@ -100,7 +100,13 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
             const val = literal.value
             if (val.size() >= 2 && (val.get(0) == '\'' || val.get(0) == '\"' || val.get(0) == '`')) {
                 emitter.emit_char(val.get(0));
-                escape_js_text(std::string_view(val.data() + 1, val.size() - 2), emitter);
+                if(universal_mode) {
+                    // universal round-trips raw literal text
+                    const innerText = std::string_view(val.data() + 1, val.size() - 2)
+                    emitter.emit_text(&innerText);
+                } else {
+                    escape_js_text(std::string_view(val.data() + 1, val.size() - 2), emitter);
+                }
                 emitter.emit_char(val.get(0));
             } else {
                 emitter.emit_text(&val)
@@ -117,7 +123,7 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
         }
         JsNodeKind.FunctionCall => {
             var call = node as *mut JsFunctionCall
-            convert_js_node(call.callee, emitter)
+            convert_js_node(call.callee, emitter, universal_mode)
             emitter.emit_text("(")
             var i = 0u
             while(i < call.args.size()) {
@@ -140,12 +146,12 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
         JsNodeKind.If => {
             var ifStmt = node as *mut JsIf
             emitter.emit_text("if(")
-            convert_js_node(ifStmt.condition, emitter)
+            convert_js_node(ifStmt.condition, emitter, universal_mode)
             emitter.emit_text(")")
-            convert_js_node(ifStmt.thenBlock, emitter)
+            convert_js_node(ifStmt.thenBlock, emitter, universal_mode)
             if(ifStmt.elseBlock != null) {
                 emitter.emit_text(" else ")
-                convert_js_node(ifStmt.elseBlock, emitter)
+                convert_js_node(ifStmt.elseBlock, emitter, universal_mode)
             }
         }
         JsNodeKind.Return => {
@@ -153,30 +159,30 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
             emitter.emit_text("return")
             if(ret.value != null) {
                 emitter.emit_text(" ")
-                convert_js_node(ret.value, emitter)
-            } else if(emitter.has_jsx_parent()) {
+                convert_js_node(ret.value, emitter, universal_mode)
+            } else if(!universal_mode && emitter.has_jsx_parent()) {
                 emitter.emit_text(" $c_root")
             }
             emitter.emit_text(";")
         }
         JsNodeKind.BinaryOp => {
             var binOp = node as *mut JsBinaryOp
-            if(binOp.left != null && binOp.left.kind == JsNodeKind.Ternary) {
+            if(!universal_mode && binOp.left != null && binOp.left.kind == JsNodeKind.Ternary) {
                 emitter.emit_text("(")
-                convert_js_node(binOp.left, emitter)
+                convert_js_node(binOp.left, emitter, universal_mode)
                 emitter.emit_text(")")
             } else {
-                convert_js_node(binOp.left, emitter)
+                convert_js_node(binOp.left, emitter, universal_mode)
             }
             emitter.emit_text(" ")
             emitter.emit_text(&binOp.op)
             emitter.emit_text(" ")
-            if(binOp.right != null && binOp.right.kind == JsNodeKind.Ternary) {
+            if(!universal_mode && binOp.right != null && binOp.right.kind == JsNodeKind.Ternary) {
                 emitter.emit_text("(")
-                convert_js_node(binOp.right, emitter)
+                convert_js_node(binOp.right, emitter, universal_mode)
                 emitter.emit_text(")")
             } else {
-                convert_js_node(binOp.right, emitter)
+                convert_js_node(binOp.right, emitter, universal_mode)
             }
         }
         JsNodeKind.FunctionDecl => {
@@ -198,23 +204,23 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
                 emitter.emit_text(&param.name)
                 if(param.default_value != null) {
                     emitter.emit_text(" = ")
-                    convert_js_node(param.default_value, emitter)
+                    convert_js_node(param.default_value, emitter, universal_mode)
                 }
                 i++
             }
             emitter.emit_text(")")
-            convert_js_node(func_decl.body, emitter)
+            convert_js_node(func_decl.body, emitter, universal_mode)
             if(is_anon) emitter.emit_char(')');
         }
         JsNodeKind.MemberAccess => {
             var access = node as *mut JsMemberAccess
-            convert_js_node(access.object, emitter)
+            convert_js_node(access.object, emitter, universal_mode)
             emitter.emit_text(".")
             emitter.emit_text(&access.property)
         }
         JsNodeKind.ExpressionStatement => {
             var stmt = node as *mut JsExpressionStatement
-            convert_js_node(stmt.expression, emitter)
+            convert_js_node(stmt.expression, emitter, universal_mode)
             emitter.emit_text(";")
         }
         JsNodeKind.ArrowFunction => {
@@ -228,7 +234,7 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
                 emitter.emit_text(&param.name)
                 if(param.default_value != null) {
                     emitter.emit_text(" = ")
-                    convert_js_node(param.default_value, emitter)
+                    convert_js_node(param.default_value, emitter, universal_mode)
                 }
                 i++
             }
@@ -238,9 +244,9 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
             if(arrow.body != null) {
                 var bodyNode = arrow.body as *mut JsNode
                 if(bodyNode.kind == JsNodeKind.Block) {
-                    convert_js_node(arrow.body, emitter)
+                    convert_js_node(arrow.body, emitter, universal_mode)
                 } else {
-                    convert_js_node(arrow.body, emitter)
+                    convert_js_node(arrow.body, emitter, universal_mode)
                 }
             }
         }
@@ -252,7 +258,7 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
                 if(i > 0) emitter.emit_text(", ")
                 var elem = arr.elements.get(i)
                 if(elem != null) {
-                    convert_js_node(elem, emitter)
+                    convert_js_node(elem, emitter, universal_mode)
                 }
                 i++
             }
@@ -266,7 +272,7 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
                 if(i > 0) emitter.emit_text(", ")
                 var elem = arr.elements.get(i)
                 if(elem != null) {
-                    convert_js_node(elem, emitter)
+                    convert_js_node(elem, emitter, universal_mode)
                 }
                 i++
             }
@@ -274,9 +280,9 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
         }
         JsNodeKind.IndexAccess => {
             var access = node as *mut JsIndexAccess
-            convert_js_node(access.object, emitter)
+            convert_js_node(access.object, emitter, universal_mode)
             emitter.emit_text("[")
-            convert_js_node(access.index, emitter)
+            convert_js_node(access.index, emitter, universal_mode)
             emitter.emit_text("]")
         }
         JsNodeKind.ObjectLiteral => {
@@ -287,11 +293,11 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
                 if(i > 0) emitter.emit_text(", ")
                 var prop = obj.properties.get(i)
                 if(prop.value != null && prop.value.kind == JsNodeKind.Spread) {
-                    convert_js_node(prop.value, emitter)
+                    convert_js_node(prop.value, emitter, universal_mode)
                 } else {
                     emitter.emit_text(&prop.key)
                     emitter.emit_text(": ")
-                    convert_js_node(prop.value, emitter)
+                    convert_js_node(prop.value, emitter, universal_mode)
                 }
                 i++
             }
@@ -309,31 +315,31 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
                     emitter.emit_text(&decl.keyword)
                     emitter.emit_text(" ")
                     if(decl.pattern != null) {
-                        convert_js_node(decl.pattern, emitter)
+                        convert_js_node(decl.pattern, emitter, universal_mode)
                     } else {
-                        if(decl.pattern != null) { convert_js_node(decl.pattern, emitter) } else { emitter.emit_text(&decl.name) }
+                        if(decl.pattern != null) { convert_js_node(decl.pattern, emitter, universal_mode) } else { emitter.emit_text(&decl.name) }
                     }
                     if(decl.value != null) {
                         emitter.emit_text(" = ")
-                        convert_js_node(decl.value, emitter)
+                        convert_js_node(decl.value, emitter, universal_mode)
                     }
                 } else if(initNode.kind == JsNodeKind.ExpressionStatement) {
                     var stmt = forStmt.init as *mut JsExpressionStatement
-                    convert_js_node(stmt.expression, emitter)
+                    convert_js_node(stmt.expression, emitter, universal_mode)
                 } else {
-                    convert_js_node(forStmt.init, emitter)
+                    convert_js_node(forStmt.init, emitter, universal_mode)
                 }
             }
             emitter.emit_text("; ")
             if(forStmt.condition != null) {
-                convert_js_node(forStmt.condition, emitter)
+                convert_js_node(forStmt.condition, emitter, universal_mode)
             }
             emitter.emit_text("; ")
             if(forStmt.update != null) {
-                convert_js_node(forStmt.update, emitter)
+                convert_js_node(forStmt.update, emitter, universal_mode)
             }
             emitter.emit_text(")")
-            convert_js_node(forStmt.body, emitter)
+            convert_js_node(forStmt.body, emitter, universal_mode)
         }
         JsNodeKind.ForIn => {
             var forIn = node as *mut JsForIn
@@ -344,17 +350,17 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
                  var decl = initNode as *mut JsVarDecl
                  emitter.emit_text(&decl.keyword)
                  emitter.emit_text(" ")
-                 if(decl.pattern != null) { convert_js_node(decl.pattern, emitter) } else { emitter.emit_text(&decl.name) }
+                 if(decl.pattern != null) { convert_js_node(decl.pattern, emitter, universal_mode) } else { emitter.emit_text(&decl.name) }
             } else if(initNode.kind == JsNodeKind.ExpressionStatement) {
                  var stmt = initNode as *mut JsExpressionStatement
-                 convert_js_node(stmt.expression, emitter)
+                 convert_js_node(stmt.expression, emitter, universal_mode)
             } else {
-                 convert_js_node(initNode, emitter)
+                 convert_js_node(initNode, emitter, universal_mode)
             }
             emitter.emit_text(" in ")
-            convert_js_node(forIn.right, emitter)
+            convert_js_node(forIn.right, emitter, universal_mode)
             emitter.emit_text(")")
-            convert_js_node(forIn.body, emitter)
+            convert_js_node(forIn.body, emitter, universal_mode)
         }
         JsNodeKind.ForOf => {
             var forOf = node as *mut JsForOf
@@ -364,31 +370,31 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
                  var decl = initNode as *mut JsVarDecl
                  emitter.emit_text(&decl.keyword)
                  emitter.emit_text(" ")
-                 if(decl.pattern != null) { convert_js_node(decl.pattern, emitter) } else { emitter.emit_text(&decl.name) }
+                 if(decl.pattern != null) { convert_js_node(decl.pattern, emitter, universal_mode) } else { emitter.emit_text(&decl.name) }
             } else if(initNode.kind == JsNodeKind.ExpressionStatement) {
                  var stmt = initNode as *mut JsExpressionStatement
-                 convert_js_node(stmt.expression, emitter)
+                 convert_js_node(stmt.expression, emitter, universal_mode)
             } else {
-                 convert_js_node(initNode, emitter)
+                 convert_js_node(initNode, emitter, universal_mode)
             }
             emitter.emit_text(" of ")
-            convert_js_node(forOf.right, emitter)
+            convert_js_node(forOf.right, emitter, universal_mode)
             emitter.emit_text(")")
-            convert_js_node(forOf.body, emitter)
+            convert_js_node(forOf.body, emitter, universal_mode)
         }
         JsNodeKind.While => {
             var whileStmt = node as *mut JsWhile
             emitter.emit_text("while(")
-            convert_js_node(whileStmt.condition, emitter)
+            convert_js_node(whileStmt.condition, emitter, universal_mode)
             emitter.emit_text(")")
-            convert_js_node(whileStmt.body, emitter)
+            convert_js_node(whileStmt.body, emitter, universal_mode)
         }
         JsNodeKind.DoWhile => {
             var doWhile = node as *mut JsDoWhile
             emitter.emit_text("do ")
-            convert_js_node(doWhile.body, emitter)
+            convert_js_node(doWhile.body, emitter, universal_mode)
             emitter.emit_text(" while(")
-            convert_js_node(doWhile.condition, emitter)
+            convert_js_node(doWhile.condition, emitter, universal_mode)
             emitter.emit_text(");")
         }
         JsNodeKind.Break => {
@@ -400,7 +406,7 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
         JsNodeKind.Switch => {
             var switchStmt = node as *mut JsSwitch
             emitter.emit_text("switch(")
-            convert_js_node(switchStmt.discriminant, emitter)
+            convert_js_node(switchStmt.discriminant, emitter, universal_mode)
             emitter.emit_text(") {")
             var i = 0u
             while(i < switchStmt.cases.size()) {
@@ -409,7 +415,7 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
                     emitter.emit_text("default:")
                 } else {
                     emitter.emit_text("case ")
-                    convert_js_node(c.test, emitter)
+                    convert_js_node(c.test, emitter, universal_mode)
                     emitter.emit_text(":")
                 }
                 var j = 0u
@@ -424,13 +430,13 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
         JsNodeKind.Throw => {
             var throwStmt = node as *mut JsThrow
             emitter.emit_text("throw ")
-            convert_js_node(throwStmt.argument, emitter)
+            convert_js_node(throwStmt.argument, emitter, universal_mode)
             emitter.emit_text(";")
         }
         JsNodeKind.TryCatch => {
             var tryCatch = node as *mut JsTryCatch
             emitter.emit_text("try ")
-            convert_js_node(tryCatch.tryBlock, emitter)
+            convert_js_node(tryCatch.tryBlock, emitter, universal_mode)
             if(tryCatch.catchBlock != null) {
                 emitter.emit_text(" catch")
                 if(!tryCatch.catchParam.empty()) {
@@ -439,21 +445,21 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
                     emitter.emit_text(")")
                 }
                 emitter.emit_text(" ")
-                convert_js_node(tryCatch.catchBlock, emitter)
+                convert_js_node(tryCatch.catchBlock, emitter, universal_mode)
             }
             if(tryCatch.finallyBlock != null) {
                 emitter.emit_text(" finally ")
-                convert_js_node(tryCatch.finallyBlock, emitter)
+                convert_js_node(tryCatch.finallyBlock, emitter, universal_mode)
             }
         }
         JsNodeKind.Ternary => {
             var tern = node as *mut JsTernary
             emitter.emit_text("(");
-            convert_js_node(tern.condition, emitter);
+            convert_js_node(tern.condition, emitter, universal_mode);
             emitter.emit_text(" ? ");
-            convert_js_node(tern.consequent, emitter);
+            convert_js_node(tern.consequent, emitter, universal_mode);
             emitter.emit_text(" : ");
-            convert_js_node(tern.alternate, emitter);
+            convert_js_node(tern.alternate, emitter, universal_mode);
             emitter.emit_text(")");
         }
         JsNodeKind.UnaryOp => {
@@ -464,16 +470,16 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
                 if(unary.operator.size() > 2 && isalpha(unary.operator.get(0) as int)) {
                      emitter.emit_text(" ")
                 }
-                convert_js_node(unary.operand, emitter)
+                convert_js_node(unary.operand, emitter, universal_mode)
             } else {
-                convert_js_node(unary.operand, emitter)
+                convert_js_node(unary.operand, emitter, universal_mode)
                 emitter.emit_text(&unary.operator)
             }
         }
         JsNodeKind.Spread => {
             var spread = node as *mut JsSpread
             emitter.emit_text("...")
-            convert_js_node(spread.argument, emitter)
+            convert_js_node(spread.argument, emitter, universal_mode)
         }
         JsNodeKind.ClassDecl => {
             var cls = node as *mut JsClassDecl
@@ -501,12 +507,12 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
                     emitter.emit_text(&param.name)
                     if(param.default_value != null) {
                         emitter.emit_text(" = ")
-                        convert_js_node(param.default_value, emitter)
+                        convert_js_node(param.default_value, emitter, universal_mode)
                     }
                     j++
                 }
                 emitter.emit_text(") ")
-                convert_js_node(method.body, emitter)
+                convert_js_node(method.body, emitter, universal_mode)
                 i++
             }
             emitter.emit_text("}")
@@ -567,7 +573,7 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
              emitter.emit_text("export ")
              if(jsExp.is_default) emitter.emit_text("default ")
              if(jsExp.declaration != null) {
-                 convert_js_node(jsExp.declaration, emitter)
+                 convert_js_node(jsExp.declaration, emitter, universal_mode)
                  if(jsExp.is_default &&
                     jsExp.declaration.kind != JsNodeKind.FunctionDecl &&
                     jsExp.declaration.kind != JsNodeKind.ClassDecl) {
@@ -581,8 +587,74 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
              if(yld.delegate) emitter.emit_text("*")
              if(yld.argument != null) {
                  emitter.emit_text(" ")
-                 convert_js_node(yld.argument, emitter)
+                 convert_js_node(yld.argument, emitter, universal_mode)
              }
+        }
+        JsNodeKind.JSXText => {
+            var text = node as *mut JsJSXText
+            emitter.emit_text(&text.value)
+        }
+        JsNodeKind.JSXExpressionContainer => {
+            var container = node as *mut JsJSXExpressionContainer
+            emitter.emit_char('{')
+            if(container.expression != null) {
+                convert_js_node(container.expression, emitter, universal_mode)
+            }
+            emitter.emit_char('}')
+        }
+        JsNodeKind.JSXAttribute => {
+            var attr = node as *mut JsJSXAttribute
+            emitter.emit_text(&attr.name)
+            if(attr.value != null) {
+                emitter.emit_char('=')
+                convert_js_node(attr.value, emitter, universal_mode)
+            }
+        }
+        JsNodeKind.JSXSpreadAttribute => {
+            var spread = node as *mut JsJSXSpreadAttribute
+            emitter.emit_text("{...")
+            convert_js_node(spread.argument, emitter, universal_mode)
+            emitter.emit_char('}')
+        }
+        JsNodeKind.JSXElement => {
+            var elem = node as *mut JsJSXElement
+            emitter.emit_char('<')
+            convert_js_node(elem.opening.tagName, emitter, universal_mode)
+            var i = 0u
+            while(i < elem.opening.attributes.size()) {
+                emitter.emit_char(' ')
+                convert_js_node(elem.opening.attributes.get(i), emitter)
+                i++
+            }
+            if(elem.opening.selfClosing) {
+                emitter.emit_text(" />")
+                return
+            }
+            emitter.emit_char('>')
+            i = 0u
+            while(i < elem.children.size()) {
+                convert_js_node(elem.children.get(i), emitter)
+                i++
+            }
+            emitter.emit_text("</")
+            convert_js_node(elem.closing.tagName, emitter, universal_mode)
+            emitter.emit_char('>')
+        }
+        JsNodeKind.JSXFragment => {
+            var frag = node as *mut JsJSXFragment
+            emitter.emit_text("<>")
+            var i = 0u
+            while(i < frag.children.size()) {
+                convert_js_node(frag.children.get(i), emitter)
+                i++
+            }
+            emitter.emit_text("</>")
+        }
+        JsNodeKind.Paren => {
+            var paren = node as *mut JsParen
+            emitter.emit_char('(')
+            convert_js_node(paren.expression, emitter, universal_mode)
+            emitter.emit_char(')')
         }
     }
 }
@@ -590,7 +662,7 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter) {
 public func convert_js_root(root : *mut JsRoot, emitter : &mut JsNodeEmitter) {
     var i = 0u
     while(i < root.statements.size()) {
-        convert_js_node(root.statements.get(i), emitter)
+        convert_js_node(root.statements.get(i), emitter, false)
         i++
     }
     emitter.flush()

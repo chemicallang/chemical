@@ -2936,6 +2936,16 @@ void CTopLevelDeclarationVisitor::early_declare_union_def(UnionDef* def) {
 
 void CTopLevelDeclarationVisitor::VisitStructDecl(StructDefinition* def) {
     declare_struct_iterations(def);
+    // `impl Interface for T` blocks nested inside the struct are not top level
+    // nodes, so they are not reached by this declaration pass. Declare the
+    // functions of those implementations here, otherwise a call emitted before
+    // their definition (for example from a generic instantiation) has no
+    // prototype and C rejects the implicit declaration at the definition.
+    for (const auto child : def->evaluated_nodes()) {
+        if (child->kind() == ASTNodeKind::ImplDecl) {
+            VisitImplDecl(child->as_impl_def_unsafe());
+        }
+    }
 }
 
 void CTopLevelDeclarationVisitor::declare_variant_def_only(VariantDefinition* def) {

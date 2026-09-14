@@ -3,7 +3,9 @@
 #include "ZeroedValue.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/values/StructValue.h"
+#include "ast/values/ArrayValue.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/types/ArrayType.h"
 #include "ast/base/InterpretScope.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/TypeBuilder.h"
@@ -83,6 +85,25 @@ Value* ZeroedValue::evaluated_value(InterpretScope& scope) {
                 }
             }
             return structVal;
+        }
+        // For array types, materialize an ArrayValue so that indexing and
+        // element assignment work (`IndexOperator` only understands ArrayValue /
+        // PointerValue / StructValue). ArrayValue::evaluated_value allocates
+        // zero-filled contiguous storage for primitive element types and default
+        // elements for struct/variant/nested-array element types.
+        auto canonical = type->canonical();
+        if(canonical && canonical->kind() == BaseTypeKind::Array) {
+            auto arrType = canonical->as_array_type_unsafe();
+            auto size = arrType->get_array_size();
+            if(size > 0) {
+                auto arrVal = new (scope.allocate<ArrayValue>()) ArrayValue(
+                    encoded_location(),
+                    (ArrayType*) arrType->copy(scope.allocator)
+                );
+                arrVal->explicit_size = (unsigned int) size;
+                arrVal->evaluated_value(scope);
+                return arrVal;
+            }
         }
     }
     // For primitive types, return the ZeroedValue itself

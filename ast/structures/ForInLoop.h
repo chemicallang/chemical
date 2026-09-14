@@ -22,8 +22,6 @@ struct ForInLoopAttributes {
 
     bool is_reference = false;
 
-    bool stoppedInterpretation = false;
-
 };
 
 enum class ForInLoopIterationKind : uint8_t {
@@ -138,7 +136,5 @@ public:
     bool add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, const chem::string_view& name) override;
 
 #endif
-
-    void stopInterpretation() final;
 
 };

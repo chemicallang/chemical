@@ -60,65 +60,55 @@
 #include "ast/types/PointerType.h"
 
 
-void stop_interpretation_above(ASTNode* node) {
-    if(ASTNode::isLoopASTNode(node->kind())) {
-        node->as_loop_node_unsafe()->stopInterpretation();
+// Walk up the scope chain to the nearest loop frame, stopping interpretation of
+// every scope we pass through (the current scope included). The loop frame
+// itself is left running so it can observe the signal. If no loop frame is
+// active (e.g. `break` outside a loop), the current scope is stopped.
+static void raise_loop_signal(InterpretScope& scope, int signal) {
+    InterpretScope* s = &scope;
+    while(s && !s->is_loop_scope) {
+        s->stopInterpretation = true;
+        s = s->parent;
     }
-    const auto parent = node->parent();
-    if(parent) {
-        stop_interpretation_above(parent);
+    if(s) {
+        s->loop_signal = signal;
+    } else {
+        scope.stopInterpretation = true;
     }
 }
 
-void stop_interpretation_above_once(ASTNode* node) {
-    const auto loop_node = node->get_loop_node_above();
-    if(loop_node) {
-        loop_node->body.stopInterpretOnce();
-        loop_node->stopInterpretation();
-    }
+static void raise_loop_break(InterpretScope& scope) {
+    raise_loop_signal(scope, 1);
 }
 
-void skip_interpretation_above_once(ASTNode* node) {
-    const auto loop_node = node->get_loop_node_above();
-    if(loop_node) {
-        loop_node->body.stopInterpretOnce();
-    }
+static void raise_loop_continue(InterpretScope& scope) {
+    raise_loop_signal(scope, 2);
 }
 
 Value* evaluate(InterpretScope& scope, Scope* body);
 
-// Helper: destruct a temp struct value in the given scope by calling its destructor body
-static void destruct_temp_struct(InterpretScope& scope, Value* val) {
-    if(!val || val->val_kind() != ValueKind::StructValue) return;
-    auto structVal = val->as_struct_value_unsafe();
-    auto ext = structVal->linked_extendable();
-    if(!ext) return;
-    auto container = ext;
-    if(!container->has_destructor()) return;
-    auto destructor_fn = container->destructor_func();
-    if(!destructor_fn || !destructor_fn->body.has_value()) return;
-    InterpretScope temp_scope(scope.global, scope.allocator, scope.global);
-    temp_scope.declare("self", val);
-    temp_scope.interpret(&destructor_fn->body.value());
-    // Remove self so it's not destructed again when temp_scope is destroyed
-    auto self_it = temp_scope.values.find("self");
-    if(self_it != temp_scope.values.end()) {
-        temp_scope.values.erase(self_it);
-    }
-}
-
 inline void interpret(InterpretScope& scope, BreakStatement* stmt) {
     if(stmt->value) {
-        // Store the break value on the global scope so it survives child scope destruction.
-        // When break is inside a nested scope (if body, switch case, etc.), the child scope
-        // is destroyed before the loop's body_scope can read it. The global scope outlives all.
-        scope.global->loop_break_value = stmt->value->evaluated_value(scope);
+        // Store the break value on the nearest enclosing loop-value scope so it
+        // survives destruction of intermediate child scopes (if bodies, switch
+        // cases) and is not clobbered by nested loops. Falls back to the global
+        // scope only if no loop-value scope is active.
+        auto v = stmt->value->evaluated_value(scope);
+        InterpretScope* target = &scope;
+        while(target && !target->is_loop_value_scope) {
+            target = target->parent;
+        }
+        if(target) {
+            target->loop_break_value = v;
+        } else {
+            scope.global->loop_break_value = v;
+        }
     }
-    stop_interpretation_above_once(stmt->parent());
+    raise_loop_break(scope);
 }
 
 inline void interpret(InterpretScope& scope, ContinueStatement* stmt) {
-    skip_interpretation_above_once(stmt->parent());
+    raise_loop_continue(scope);
 }
 
 inline void interpret(InterpretScope& scope, AssignStatement* assign) {
@@ -237,36 +227,55 @@ inline void interpret(InterpretScope& scope, AssignStatement* assign) {
             }
         }
     }
-    assign->lhs->set_value(scope, assign->value, assign->assOp, assign->encoded_location());
-    if(oldLhsVal) {
-        destruct_temp_struct(scope, oldLhsVal);
+    // Evaluate the RHS exactly once. We pass the evaluated value to set_value
+    // (instead of the AST node) so that side-effecting expressions — function
+    // calls, access chains, index operators — are not executed twice, and we
+    // reuse the same value as the move source below. The compiler may replace
+    // identifier AST nodes with resolved values, so resolving by kind is not
+    // reliable; evaluating here is the single authoritative evaluation.
+    Value* rhsEvaluated = nullptr;
+    Value* rhsForSet = assign->value;
+    if(assign->assOp == Operation::Assignment) {
+        rhsEvaluated = assign->value->evaluated_value(scope);
+        if(rhsEvaluated) {
+            rhsForSet = rhsEvaluated;
+        }
     }
-    // Clear the RHS source (move semantics)
+    assign->lhs->set_value(scope, rhsForSet, assign->assOp, assign->encoded_location());
+    if(oldLhsVal) {
+        scope.destroy_value(oldLhsVal);
+    }
+    // Clear the RHS source (move semantics) using the single evaluated value.
     if(assign->assOp == Operation::Assignment) {
         chem::string_view lhsName;
         if(assign->lhs->val_kind() == ValueKind::Identifier) {
             lhsName = assign->lhs->as_identifier_unsafe()->value;
         }
-        auto rhsVal = assign->value->evaluated_value(scope);
-        if(rhsVal) {
-            scope.move_clear_source(rhsVal, lhsName);
+        if(rhsEvaluated) {
+            scope.move_clear_source(rhsEvaluated, lhsName);
         }
     }
 }
 
 void interpret(InterpretScope& scope, ForLoop* loop) {
-    InterpretScope child(&scope, scope.allocator, scope.global);
-    child.interpret(loop->initializer);
-    while (loop->conditionExpr->evaluated_bool(child)) {
+    InterpretScope loop_scope(&scope, scope.allocator, scope.global);
+    loop_scope.is_loop_scope = true;
+    loop_scope.interpret(loop->initializer);
+    while (loop->conditionExpr->evaluated_bool(loop_scope)) {
         {
-            InterpretScope body_scope(&child, scope.allocator, scope.global);
+            InterpretScope body_scope(&loop_scope, scope.allocator, scope.global);
             body_scope.interpret(&loop->body);
         } // body_scope destroyed here, calling destructors on iteration-local variables
-        if (loop->stoppedInterpretation) {
-            loop->stoppedInterpretation = false;
+        if (loop_scope.stopInterpretation) {
+            // A `return` unwound through this loop; leave the flag set.
             break;
         }
-        child.interpret(loop->incrementerExpr);
+        if (loop_scope.loop_signal == 1) { // break
+            loop_scope.loop_signal = 0;
+            break;
+        }
+        loop_scope.loop_signal = 0; // continue or normal
+        loop_scope.interpret(loop->incrementerExpr);
     }
 }
 
@@ -277,6 +286,21 @@ void interpret(InterpretScope& scope, ForInLoop* loop) {
         return;
     }
 
+    InterpretScope loop_scope(&scope, scope.allocator, scope.global);
+    loop_scope.is_loop_scope = true;
+
+    // Stops the loop on `break` or `return`; `continue` resets the signal and
+    // lets the next iteration proceed.
+    auto should_stop = [&]() -> bool {
+        if(loop_scope.stopInterpretation) return true;
+        if(loop_scope.loop_signal == 1) {
+            loop_scope.loop_signal = 0;
+            return true;
+        }
+        loop_scope.loop_signal = 0;
+        return false;
+    };
+
     const auto kind = evalExpr->val_kind();
 
     if(kind == ValueKind::String) {
@@ -284,7 +308,7 @@ void interpret(InterpretScope& scope, ForInLoop* loop) {
         const auto& str = strVal->value;
 
         for(uint64_t i = 0; i < str.size(); i++) {
-            InterpretScope child(&scope, scope.allocator, scope.global);
+            InterpretScope child(&loop_scope, scope.allocator, scope.global);
 
             // declare the loop variable (char)
             auto charVal = new (scope.allocate<IntNumValue>()) IntNumValue(
@@ -306,16 +330,13 @@ void interpret(InterpretScope& scope, ForInLoop* loop) {
 
             child.interpret(&loop->body);
 
-            if(loop->attrs.stoppedInterpretation) {
-                loop->attrs.stoppedInterpretation = false;
-                break;
-            }
+            if(should_stop()) break;
         }
     } else if(kind == ValueKind::ArrayValue) {
         const auto arrVal = evalExpr->as_array_value_unsafe();
 
         for(uint64_t i = 0; i < arrVal->values.size(); i++) {
-            InterpretScope child(&scope, scope.allocator, scope.global);
+            InterpretScope child(&loop_scope, scope.allocator, scope.global);
 
             const auto elemVal = arrVal->values[i]->evaluated_value(scope);
             if(elemVal) {
@@ -334,10 +355,7 @@ void interpret(InterpretScope& scope, ForInLoop* loop) {
 
             child.interpret(&loop->body);
 
-            if(loop->attrs.stoppedInterpretation) {
-                loop->attrs.stoppedInterpretation = false;
-                break;
-            }
+            if(should_stop()) break;
         }
     } else if(loop->iteration_kind == ForInLoopIterationKind::Linear) {
         if(evalExpr->val_kind() != ValueKind::StructValue) {
@@ -384,7 +402,7 @@ void interpret(InterpretScope& scope, ForInLoop* loop) {
             bool stopped = false;
             auto iterate = [&](uint64_t idx) {
                 if(idx >= arrayVal->values.size()) return;
-                InterpretScope child_scope(&scope, scope.allocator, scope.global);
+                InterpretScope child_scope(&loop_scope, scope.allocator, scope.global);
                 if(loop->is_reference()) {
                     if(arrayVal->contiguousData) {
                         auto elemPtr = new (scope.allocate<PointerValue>()) PointerValue(
@@ -407,10 +425,7 @@ void interpret(InterpretScope& scope, ForInLoop* loop) {
                     child_scope.declare(loop->index_init->name_view(), indexVal);
                 }
                 child_scope.interpret(&loop->body);
-                if(loop->attrs.stoppedInterpretation) {
-                    loop->attrs.stoppedInterpretation = false;
-                    stopped = true;
-                }
+                if(should_stop()) stopped = true;
             };
 
             if(reversed) {
@@ -436,7 +451,7 @@ void interpret(InterpretScope& scope, ForInLoop* loop) {
 
             if(reversed) {
                 for(uint64_t idx = size; idx-- > 0; ) {
-                    InterpretScope child_scope(&scope, scope.allocator, scope.global);
+                    InterpretScope child_scope(&loop_scope, scope.allocator, scope.global);
                     auto elemPtr = new (scope.allocate<PointerValue>()) PointerValue(
                         (void*)((uint8_t*)dataPtr->data + idx * elemSize),
                         elemType,
@@ -461,14 +476,11 @@ void interpret(InterpretScope& scope, ForInLoop* loop) {
                     child_scope.declare(loop->index_init->name_view(), indexVal);
                 }
                 child_scope.interpret(&loop->body);
-                if(loop->attrs.stoppedInterpretation) {
-                    loop->attrs.stoppedInterpretation = false;
-                    break;
-                }
+                if(should_stop()) break;
             }
         } else {
             for(uint64_t idx = 0; idx < size; idx++) {
-                InterpretScope child_scope(&scope, scope.allocator, scope.global);
+                InterpretScope child_scope(&loop_scope, scope.allocator, scope.global);
                 auto elemPtr = new (scope.allocate<PointerValue>()) PointerValue(
                     (void*)((uint8_t*)dataPtr->data + idx * elemSize),
                     elemType,
@@ -493,10 +505,7 @@ void interpret(InterpretScope& scope, ForInLoop* loop) {
                     child_scope.declare(loop->index_init->name_view(), indexVal);
                 }
                 child_scope.interpret(&loop->body);
-                if(loop->attrs.stoppedInterpretation) {
-                    loop->attrs.stoppedInterpretation = false;
-                    break;
-                }
+                if(should_stop()) break;
             }
         }
         }
@@ -506,12 +515,13 @@ void interpret(InterpretScope& scope, ForInLoop* loop) {
 }
 
 void interpret(InterpretScope& scope, ReturnStatement* stmt) {
+    // set_return() records the return value on the function-level scope and
+    // propagates stopInterpretation up the scope chain (including active loop
+    // frames), which unwinds every nested scope.
     scope.global->current_func_type->set_return(scope, stmt->value);
-    stop_interpretation_above(stmt->parent());
 }
 
-Scope* eval_switch_stmt_block(InterpretScope& scope, SwitchStatement* stmt) {
-    const auto cond = stmt->expression->evaluated_value(scope);
+Scope* eval_switch_stmt_block(InterpretScope& scope, SwitchStatement* stmt, Value* cond) {
     if(!cond) {
         scope.error("couldn't evaluate the expression", stmt->expression);
         return nullptr;
@@ -684,12 +694,14 @@ static std::vector<chem::string_view> declare_variant_case_vars(
 }
 
 void interpret(InterpretScope& scope, SwitchStatement* stmt) {
-    const auto body = eval_switch_stmt_block(scope, stmt);
+    // Evaluate the switch subject exactly once. It is shared by case selection
+    // and variant-case variable declaration.
+    const auto cond = stmt->expression->evaluated_value(scope);
+    const auto body = eval_switch_stmt_block(scope, stmt, cond);
     if(body) {
         // Use a child scope for variant switch cases to keep variable declarations clean
         InterpretScope child(&scope, scope.allocator, scope.global);
         std::vector<chem::string_view> caseVarNames;
-        const auto cond = stmt->expression->evaluated_value(scope);
         caseVarNames = declare_variant_case_vars(child, stmt, body, cond);
         child.interpret(body);
         // Erase pattern-matched case variables from child scope to prevent
@@ -705,10 +717,11 @@ void interpret(InterpretScope& scope, SwitchStatement* stmt) {
 }
 
 Value* evaluated_value(InterpretScope &scope, SwitchStatement* stmt) {
-    const auto body = eval_switch_stmt_block(scope, stmt);
+    // Evaluate the switch subject exactly once.
+    const auto cond = stmt->expression->evaluated_value(scope);
+    const auto body = eval_switch_stmt_block(scope, stmt, cond);
     if(body) {
         // For variant switches, need to declare case variables before evaluating
-        const auto cond = stmt->expression->evaluated_value(scope);
         declare_variant_case_vars(scope, stmt, body, cond);
         return evaluate(scope, body);
     }
@@ -815,7 +828,7 @@ inline void interpret(InterpretScope& scope, ValueWrapperNode* node) {
     if(node->value->val_kind() == ValueKind::FunctionCall) {
         auto call = node->value->as_func_call_unsafe();
         auto result = node->value->evaluated_value(scope);
-        destruct_temp_struct(scope, result);
+        scope.destroy_value(result);
         // Also destruct temps created by arguments wrapped in ReferenceOfValue/AddrOfValue.
         // E.g. take_gen_destruct_ref(&create_short_gen_dest(...)) — the inner FunctionCall
         // creates a temp struct that must be destructed after the outer call completes.
@@ -823,12 +836,12 @@ inline void interpret(InterpretScope& scope, ValueWrapperNode* node) {
                     if(arg->val_kind() == ValueKind::ReferenceOfValue) {
                         auto refOf = arg->as_reference_of_value_unsafe();
                         if(refOf->innerEvaluatedResult) {
-                            destruct_temp_struct(scope, refOf->innerEvaluatedResult);
+                            scope.destroy_value(refOf->innerEvaluatedResult);
                         }
                     } else if(arg->val_kind() == ValueKind::AddrOfValue) {
                         auto addrOf = arg->as_addr_of_value_unsafe();
                         if(addrOf->innerEvaluatedResult) {
-                            destruct_temp_struct(scope, addrOf->innerEvaluatedResult);
+                            scope.destroy_value(addrOf->innerEvaluatedResult);
                         }
                     }
                 }
@@ -851,7 +864,7 @@ inline void interpret(InterpretScope& scope, ValueWrapperNode* node) {
             }
         }
         for(auto t : temps) {
-            destruct_temp_struct(scope, t);
+            scope.destroy_value(t);
         }
     } else {
         node->value->evaluated_value(scope);
@@ -872,7 +885,7 @@ inline void interpret(InterpretScope& scope, AccessChainNode* node) {
     if(chain.values.size() == 1) {
         auto val = chain.values[0];
         auto result = val->evaluated_value(scope);
-        destruct_temp_struct(scope, result);
+        scope.destroy_value(result);
         // Also destruct temps created by arguments wrapped in ReferenceOfValue/AddrOfValue.
         // E.g. take_gen_destruct_ref(&create_short_gen_dest(...)) — the inner FunctionCall
         // creates a temp struct that must be destructed after the outer call completes.
@@ -882,12 +895,12 @@ inline void interpret(InterpretScope& scope, AccessChainNode* node) {
                 if(arg->val_kind() == ValueKind::ReferenceOfValue) {
                     auto refOf = arg->as_reference_of_value_unsafe();
                     if(refOf->innerEvaluatedResult) {
-                        destruct_temp_struct(scope, refOf->innerEvaluatedResult);
+                        scope.destroy_value(refOf->innerEvaluatedResult);
                     }
                 } else if(arg->val_kind() == ValueKind::AddrOfValue) {
                     auto addrOf = arg->as_addr_of_value_unsafe();
                     if(addrOf->innerEvaluatedResult) {
-                        destruct_temp_struct(scope, addrOf->innerEvaluatedResult);
+                        scope.destroy_value(addrOf->innerEvaluatedResult);
                     }
                 }
             }
@@ -914,7 +927,7 @@ inline void interpret(InterpretScope& scope, AccessChainNode* node) {
     
     // Destruct all collected temps — for a bare statement, everything is discarded
     for(auto t : temps) {
-        destruct_temp_struct(scope, t);
+        scope.destroy_value(t);
     }
 }
 
@@ -957,16 +970,15 @@ inline void interpret(InterpretScope& scope, PatternMatchExprNode* node) {
         const auto& elseExpr = node->value.elseExpression;
         switch(elseExpr.kind) {
             case PatternElseExprKind::Break:
-                stop_interpretation_above_once(node);
+                raise_loop_break(scope);
                 break;
             case PatternElseExprKind::Continue:
-                skip_interpretation_above_once(node);
+                raise_loop_continue(scope);
                 break;
             case PatternElseExprKind::Return: {
-                if(elseExpr.value) {
-                    scope.global->current_func_type->set_return(scope, elseExpr.value);
-                }
-                stop_interpretation_above(node->parent());
+                // set_return handles a null value too: it still propagates the
+                // stop signal up the scope chain.
+                scope.global->current_func_type->set_return(scope, elseExpr.value);
                 break;
             }
             case PatternElseExprKind::DefValue: {
@@ -995,38 +1007,43 @@ inline void interpret(InterpretScope& scope, PlacementNewNode* node) {
 }
 
 void interpret(InterpretScope& scope, LoopBlock* loop) {
-    InterpretScope child(&scope, scope.allocator, scope.global);
+    InterpretScope loop_scope(&scope, scope.allocator, scope.global);
+    loop_scope.is_loop_scope = true;
     while (true) {
         {
-            InterpretScope body_scope(&child, scope.allocator, scope.global);
+            InterpretScope body_scope(&loop_scope, scope.allocator, scope.global);
             body_scope.interpret(&loop->body);
         } // body_scope destroyed here, calling destructors on iteration-local variables
-        if (loop->stoppedInterpretation) {
-            loop->stoppedInterpretation = false;
+        if (loop_scope.stopInterpretation) break; // return unwinds
+        if (loop_scope.loop_signal == 1) { // break
+            loop_scope.loop_signal = 0;
             break;
         }
+        loop_scope.loop_signal = 0; // continue
     }
 }
 
 Value* LoopValue::evaluated_value(InterpretScope& scope) {
     InterpretScope child(&scope, scope.allocator, scope.global);
+    // Mark this frame so `break value` statements inside the body store their
+    // value here (walking up the scope chain) instead of in a global slot, and
+    // so `break`/`continue` signal this loop.
+    child.is_loop_value_scope = true;
+    child.is_loop_scope = true;
     while (true) {
         {
             InterpretScope body_scope(&child, scope.allocator, scope.global);
             body_scope.interpret(&stmt.body);
-            // Capture break value from global scope (survives nested scope destruction)
-            if(scope.global->loop_break_value) {
-                scope.loop_break_value = scope.global->loop_break_value;
-                scope.global->loop_break_value = nullptr;
-            }
         }
-        if (stmt.stoppedInterpretation) {
-            stmt.stoppedInterpretation = false;
+        if (child.stopInterpretation) break; // return unwinds
+        if (child.loop_signal == 1) { // break
+            child.loop_signal = 0;
             break;
         }
+        child.loop_signal = 0; // continue
     }
-    auto result = scope.loop_break_value;
-    scope.loop_break_value = nullptr;
+    auto result = child.loop_break_value;
+    child.loop_break_value = nullptr;
     return result ? result : scope.getNullValue();
 }
 
@@ -1037,11 +1054,11 @@ void interpret(InterpretScope& scope, ProvideStmt* stmt) {
         // Store the implicit arg in the current scope's map.
         // The provide body is interpreted in-place (same scope, no new scope),
         // so the implicit arg is available for any function called within.
-        scope.implicit_args[stmt->identifier] = val;
+        scope.implicit_args_ref()[stmt->identifier] = val;
     }
     scope.interpret(&stmt->body);
     // Clean up
-    scope.implicit_args.erase(stmt->identifier);
+    scope.implicit_args_ref().erase(stmt->identifier);
 }
 
 void interpret(InterpretScope& scope, VarInitStatement* stmt) {
@@ -1056,7 +1073,7 @@ void interpret(InterpretScope& scope, VarInitStatement* stmt) {
                 auto chainTemp = chain->values[0]->evaluated_value(scope);
                 auto chainResult = evaluate_from(chain->values, scope, chainTemp, 1);
                 scope.declare(stmt->name_view(), chainResult);
-                destruct_temp_struct(scope, chainTemp);
+                scope.destroy_value(chainTemp);
                 return;
             }
         }
@@ -1307,53 +1324,55 @@ void interpret(InterpretScope& scope, VarInitStatement* stmt) {
 }
 
 void interpret(InterpretScope& scope, DoWhileLoop* loop) {
-    InterpretScope child(&scope, scope.allocator, scope.global);
+    InterpretScope loop_scope(&scope, scope.allocator, scope.global);
+    loop_scope.is_loop_scope = true;
     do {
         {
-            InterpretScope body_scope(&child, scope.allocator, scope.global);
+            InterpretScope body_scope(&loop_scope, scope.allocator, scope.global);
             body_scope.interpret(&loop->body);
         } // body_scope destroyed here, calling destructors on iteration-local variables
-        if (loop->stoppedInterpretation) {
-            loop->stoppedInterpretation = false;
+        if (loop_scope.stopInterpretation) break; // return unwinds
+        if (loop_scope.loop_signal == 1) { // break
+            loop_scope.loop_signal = 0;
             break;
         }
-    } while (loop->condition->evaluated_bool(child));
+        loop_scope.loop_signal = 0; // continue: fall through to condition
+    } while (loop->condition->evaluated_bool(loop_scope));
 }
 
 void interpret(InterpretScope& scope, WhileLoop* loop) {
-    InterpretScope child(&scope, scope.allocator, scope.global);
-    while (loop->condition->evaluated_bool(child)) {
+    InterpretScope loop_scope(&scope, scope.allocator, scope.global);
+    loop_scope.is_loop_scope = true;
+    while (loop->condition->evaluated_bool(loop_scope)) {
         {
-            InterpretScope body_scope(&child, scope.allocator, scope.global);
+            InterpretScope body_scope(&loop_scope, scope.allocator, scope.global);
             body_scope.interpret(&loop->body);
         } // body_scope destroyed here, calling destructors on iteration-local variables
-        if (loop->stoppedInterpretation) {
-            loop->stoppedInterpretation = false;
+        if (loop_scope.stopInterpretation) break; // return unwinds
+        if (loop_scope.loop_signal == 1) { // break
+            loop_scope.loop_signal = 0;
             break;
         }
+        loop_scope.loop_signal = 0; // continue
     }
 }
 
-void interpret(InterpretScope& scope, std::vector<ASTNode*>& nodes, bool& stoppedInterpretOnce) {
+void interpret(InterpretScope& scope, std::vector<ASTNode*>& nodes) {
     for (const auto &node: nodes) {
         scope.interpret(node);
-        if (stoppedInterpretOnce || scope.stopInterpretation) {
-            stoppedInterpretOnce = false;
+        if (scope.stopInterpretation) {
             return;
         }
     }
 }
 
 inline void interpret(InterpretScope& scope, Scope* body) {
-    interpret(scope, body->nodes, body->stoppedInterpretOnce);
+    interpret(scope, body->nodes);
 }
 
 inline void interpret(InterpretScope& scope, BlockScope* body) {
-    // TODO: stoppedInterpretOnce flag should be removed from Scope
-    // TODO: BlockScope never stops, even if a return happens in the body
     InterpretScope child_scope(&scope, scope.allocator, scope.global);
-    bool stopped = false; // never stops
-    interpret(child_scope, body->nodes, stopped);
+    interpret(child_scope, body->nodes);
 }
 
 Value* evaluate(InterpretScope& scope, Scope* body);
@@ -1364,6 +1383,7 @@ Value* evaluate(InterpretScope& scope, BlockScope* body) {
     if(nodes.size() > 1) {
         for(unsigned i = 0; i < nodes.size() - 1; i++) {
             scope.interpret(nodes[i]);
+            if(scope.stopInterpretation) return scope.getNullValue();
         }
     }
     const auto last = nodes.back();
@@ -1390,6 +1410,7 @@ Value* evaluate(InterpretScope& scope, Scope* body) {
         const auto end = start + (nodes.size() - 1);
         while(start != end) {
             scope.interpret(*start);
+            if(scope.stopInterpretation) return scope.getNullValue();
             start++;
         }
     }
@@ -1513,7 +1534,7 @@ void InterpretScope::interpret(ASTNode* node) {
                             );
                             auto elemVal = elemPtr->deref(*this, stmt->encoded_location(), stmt->identifier);
                             if(elemVal) {
-                                destruct_temp_struct(*this, elemVal);
+                                destroy_value(elemVal);
                             }
                         }
                     }
@@ -1522,7 +1543,7 @@ void InterpretScope::interpret(ASTNode* node) {
                     // Single pointer destruct
                     auto structVal = pv->deref(*this, stmt->encoded_location(), stmt->identifier);
                     if(structVal) {
-                        destruct_temp_struct(*this, structVal);
+                        destroy_value(structVal);
                     }
                     if(stmt->getFreeAfter()) {
                         pv->data = nullptr;

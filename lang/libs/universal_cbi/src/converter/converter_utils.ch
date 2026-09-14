@@ -129,85 +129,96 @@ func (converter : &mut JsConverter) add_context_var(name : std::string_view, nam
     });
 }
 
-func (converter : &mut JsConverter) expr_references_reactive_var(node : *mut JsNode) : bool {
+// Single dependency analysis for reactive wrapping. Returns true when the
+// expression reads a reactive source (state/computed, context, or - when
+// `props_reactive` is set - a component prop). Used for JSX expressions
+// (props_reactive follows attribute/child context) and for computed `var`
+// declarations (props are always reactive there). This replaces the two former
+// near-duplicate recursions.
+func (converter : &mut JsConverter) expr_reads_reactive(node : *mut JsNode, props_reactive : bool) : bool {
     if(node == null) return false;
     switch(node.kind) {
         JsNodeKind.Identifier => {
-            return converter.is_reactive_var((node as *mut JsIdentifier).value);
+            const name = (node as *mut JsIdentifier).value;
+            if(converter.is_reactive_var(name)) return true;
+            return props_reactive && converter.is_component_props_name(name);
         }
         JsNodeKind.MemberAccess => {
             const mem = node as *mut JsMemberAccess;
             if(mem.object != null && mem.object.kind == JsNodeKind.Identifier) {
                 const objName = (mem.object as *mut JsIdentifier).value;
                 if(converter.is_context_var(objName)) return true;
-                // A prop read may be a signal passed by the parent; a top-level
-                // value derived from props must be a computed so it tracks
-                // parent updates. (Locals that are later reassigned are excluded
-                // by the caller via is_assigned_name.)
-                if(converter.is_component_props_name(objName)) return true;
+                if(converter.is_component_props_name(objName)) return props_reactive;
                 if(mem.property.equals(view("value"))) {
                     return converter.is_reactive_var(objName);
                 }
             }
-            return converter.expr_references_reactive_var(mem.object);
+            if(props_reactive && converter.is_component_props_read(node)) return true;
+            return converter.expr_reads_reactive(mem.object, props_reactive);
         }
         JsNodeKind.IndexAccess => {
             const idx = node as *mut JsIndexAccess;
-            return converter.expr_references_reactive_var(idx.object) || converter.expr_references_reactive_var(idx.index);
+            if(props_reactive && converter.is_component_props_read(node)) return true;
+            return converter.expr_reads_reactive(idx.object, props_reactive) || converter.expr_reads_reactive(idx.index, props_reactive);
         }
         JsNodeKind.UnaryOp => {
-            return converter.expr_references_reactive_var((node as *mut JsUnaryOp).operand);
+            return converter.expr_reads_reactive((node as *mut JsUnaryOp).operand, props_reactive);
         }
         JsNodeKind.BinaryOp => {
             const bin = node as *mut JsBinaryOp;
-            return converter.expr_references_reactive_var(bin.left) || converter.expr_references_reactive_var(bin.right);
+            return converter.expr_reads_reactive(bin.left, props_reactive) || converter.expr_reads_reactive(bin.right, props_reactive);
         }
         JsNodeKind.Ternary => {
             const tern = node as *mut JsTernary;
-            return converter.expr_references_reactive_var(tern.condition) ||
-                converter.expr_references_reactive_var(tern.consequent) ||
-                converter.expr_references_reactive_var(tern.alternate);
+            return converter.expr_reads_reactive(tern.condition, props_reactive) ||
+                converter.expr_reads_reactive(tern.consequent, props_reactive) ||
+                converter.expr_reads_reactive(tern.alternate, props_reactive);
         }
         JsNodeKind.FunctionCall => {
             const call = node as *mut JsFunctionCall;
-            if(converter.expr_references_reactive_var(call.callee)) return true;
+            if(converter.expr_reads_reactive(call.callee, props_reactive)) return true;
             for(var i : uint = 0; i < call.args.size(); i++) {
-                if(converter.expr_references_reactive_var(call.args.get(i))) return true;
+                if(converter.expr_reads_reactive(call.args.get(i), props_reactive)) return true;
             }
             return false;
         }
         JsNodeKind.ArrayLiteral, JsNodeKind.ArrayDestructuring => {
             const arr = node as *mut JsArrayLiteral;
             for(var i : uint = 0; i < arr.elements.size(); i++) {
-                if(converter.expr_references_reactive_var(arr.elements.get(i))) return true;
+                if(converter.expr_reads_reactive(arr.elements.get(i), props_reactive)) return true;
             }
             return false;
         }
         JsNodeKind.ObjectLiteral => {
             const obj = node as *mut JsObjectLiteral;
             for(var i : uint = 0; i < obj.properties.size(); i++) {
-                if(converter.expr_references_reactive_var(obj.properties.get(i).value)) return true;
+                if(converter.expr_reads_reactive(obj.properties.get(i).value, props_reactive)) return true;
             }
             return false;
         }
         JsNodeKind.Paren => {
-            return converter.expr_references_reactive_var((node as *mut JsParen).expression);
+            return converter.expr_reads_reactive((node as *mut JsParen).expression, props_reactive);
         }
         JsNodeKind.ArrowFunction => {
             // A reactive read inside a callback body (e.g. `items.filter(it =>
-            // it.includes(query))`) is still a read of the enclosing computed:
-            // the callback runs synchronously during recompute, so the tracker
-            // observes it. Detect it so the whole expression is wrapped.
+            // it.includes(query))`) still makes the enclosing expression
+            // reactive: the callback runs synchronously during recompute.
             const arrow = node as *mut JsArrowFunction;
             for(var i : uint = 0; i < arrow.params.size(); i++) {
                 const def = arrow.params.get(i).default_value;
-                if(def != null && converter.expr_references_reactive_var(def)) return true;
+                if(def != null && converter.expr_reads_reactive(def, props_reactive)) return true;
             }
-            return converter.expr_references_reactive_var(arrow.body);
+            return converter.expr_reads_reactive(arrow.body, props_reactive);
         }
         default => return false
     }
 }
+
+func (converter : &mut JsConverter) expr_references_reactive_var(node : *mut JsNode) : bool {
+    return converter.expr_reads_reactive(node, true);
+}
+
+
 
 func (converter : &mut JsConverter) is_component_props_name(name : std::string_view) : bool {
     return !converter.component_props_name.empty() && converter.component_props_name.equals(&name);
@@ -365,18 +376,29 @@ func (converter : &mut JsConverter) make_value_call(value : *mut Value, len : si
     return call;
 }
 
+// Builds a dereferenced reference to the generated server function's `attrs`
+// parameter (the component's props as an `SsrAttributeList`). Returns null when
+// the component isn't a generated server function. This is the single place
+// that assumes the server signature `(page, attrs, children)`.
+func (converter : &mut JsConverter) make_ssr_props_ref(location : ubigint) : *mut Value {
+    if(converter.current_func == null) return null;
+    const params = converter.current_func.get_params();
+    const propsParam = params.get(1);
+    if(propsParam == null) return null;
+    const builder = converter.builder;
+    const propsId = builder.make_identifier("attrs", propsParam, false, location);
+    const propsType = propsParam.getType();
+    return builder.make_dereference_value(propsId, (propsType as *mut PointerType).getChildType(), location);
+}
+
 func (converter : &mut JsConverter) make_ssr_prop_v_call(propName : std::string_view) : *mut Value {
     const builder = converter.builder
     const location = intrinsics::get_raw_location();
     const support = converter.support;
 
-    const params = converter.current_func.get_params();
-    const propsParam = params.get(1);
-    if(propsParam == null) return builder.make_null_value(location);
+    const derefProps = converter.make_ssr_props_ref(location);
+    if(derefProps == null) return builder.make_null_value(location);
 
-    const propsId = builder.make_identifier("attrs", propsParam, false, location);
-    const propsType = propsParam.getType();
-    const derefProps = builder.make_dereference_value(propsId, (propsType as *mut PointerType).getChildType(), location);
     const nameVal = converter.make_ssr_text(&propName, location);
     const call = builder.make_function_call_value(builder.make_identifier("getSsrAttributeValue", support.getSsrAttributeValueFn, false, location), location);
     call.get_args().push(derefProps);
@@ -1331,80 +1353,10 @@ func (converter : &mut JsConverter) eval_ssr_js_expr(node : *mut JsNode) : SsrJs
 }
 
 func (converter : &mut JsConverter) jsx_expr_needs_reactive_wrapper(node : *mut JsNode) : bool {
-    if(node == null) return false;
-    switch(node.kind) {
-        JsNodeKind.Identifier => {
-            const name = (node as *mut JsIdentifier).value;
-            if(converter.is_reactive_var(name)) return true;
-            return converter.in_jsx_attribute && converter.is_component_props_name(name);
-        }
-        JsNodeKind.MemberAccess => {
-            const mem = node as *mut JsMemberAccess;
-            if(mem.object != null && mem.object.kind == JsNodeKind.Identifier) {
-                const objName = (mem.object as *mut JsIdentifier).value;
-                if(converter.is_context_var(objName)) return true;
-                if(mem.property.equals(view("value"))) {
-                    return converter.is_reactive_var(objName);
-                }
-            }
-            if(converter.in_jsx_attribute && converter.is_component_props_read(node)) return true;
-            return converter.jsx_expr_needs_reactive_wrapper(mem.object);
-        }
-        JsNodeKind.IndexAccess => {
-            const idx = node as *mut JsIndexAccess;
-            if(converter.in_jsx_attribute && converter.is_component_props_read(node)) return true;
-            return converter.jsx_expr_needs_reactive_wrapper(idx.object) || converter.jsx_expr_needs_reactive_wrapper(idx.index);
-        }
-        JsNodeKind.UnaryOp => {
-            return converter.jsx_expr_needs_reactive_wrapper((node as *mut JsUnaryOp).operand);
-        }
-        JsNodeKind.BinaryOp => {
-            const bin = node as *mut JsBinaryOp;
-            return converter.jsx_expr_needs_reactive_wrapper(bin.left) || converter.jsx_expr_needs_reactive_wrapper(bin.right);
-        }
-        JsNodeKind.Ternary => {
-            const tern = node as *mut JsTernary;
-            return converter.jsx_expr_needs_reactive_wrapper(tern.condition) ||
-                converter.jsx_expr_needs_reactive_wrapper(tern.consequent) ||
-                converter.jsx_expr_needs_reactive_wrapper(tern.alternate);
-        }
-        JsNodeKind.FunctionCall => {
-            const call = node as *mut JsFunctionCall;
-            if(converter.jsx_expr_needs_reactive_wrapper(call.callee)) return true;
-            for(var i : uint = 0; i < call.args.size(); i++) {
-                if(converter.jsx_expr_needs_reactive_wrapper(call.args.get(i))) return true;
-            }
-            return false;
-        }
-        JsNodeKind.ArrayLiteral, JsNodeKind.ArrayDestructuring => {
-            const arr = node as *mut JsArrayLiteral;
-            for(var i : uint = 0; i < arr.elements.size(); i++) {
-                if(converter.jsx_expr_needs_reactive_wrapper(arr.elements.get(i))) return true;
-            }
-            return false;
-        }
-        JsNodeKind.ObjectLiteral => {
-            const obj = node as *mut JsObjectLiteral;
-            for(var i : uint = 0; i < obj.properties.size(); i++) {
-                if(converter.jsx_expr_needs_reactive_wrapper(obj.properties.get(i).value)) return true;
-            }
-            return false;
-        }
-        JsNodeKind.Paren => {
-            return converter.jsx_expr_needs_reactive_wrapper((node as *mut JsParen).expression);
-        }
-        JsNodeKind.ArrowFunction => {
-            // Reactive reads inside a callback body still make the enclosing
-            // JSX expression reactive (e.g. `{items.filter(it => it.includes(query)).map(...)}`).
-            const arrow = node as *mut JsArrowFunction;
-            for(var i : uint = 0; i < arrow.params.size(); i++) {
-                const def = arrow.params.get(i).default_value;
-                if(def != null && converter.jsx_expr_needs_reactive_wrapper(def)) return true;
-            }
-            return converter.jsx_expr_needs_reactive_wrapper(arrow.body);
-        }
-        default => return false
-    }
+    // Props are reactive in both attributes and children: a JSX child such as
+    // `{props.loading ? a : b}` must re-evaluate when the parent's prop signal
+    // changes, exactly like an attribute binding.
+    return converter.expr_reads_reactive(node, true);
 }
 
 func (converter : &mut JsConverter) convert_jsx_runtime_expr(node : *mut JsNode) {
@@ -2670,6 +2622,31 @@ func is_event_attribute_name(name : std::string_view) : bool {
     return name.size() > 2 && name.get(0) == 'o' && name.get(1) == 'n';
 }
 
+// Single classification of a JSX attribute, shared by the SSR and client
+// emitters so both agree on what an attribute IS (the component-IR seam). Value
+// emission still differs per target, but the kind and the normalized name do
+// not. `className` normalizes to `class` on both sides.
+enum JsxAttrKind {
+    Event,
+    Style,
+    Class,
+    ClientOnly,
+    Value
+}
+
+func jsx_attr_kind(name : std::string_view) : JsxAttrKind {
+    if(is_event_attribute_name(name)) return JsxAttrKind.Event
+    if(is_client_only_attribute_name(name)) return JsxAttrKind.ClientOnly
+    if(name.equals("style")) return JsxAttrKind.Style
+    if(name.equals("class") || name.equals("className")) return JsxAttrKind.Class
+    return JsxAttrKind.Value
+}
+
+func jsx_attr_normalized_name(name : std::string_view) : std::string_view {
+    if(name.equals("className")) return std::string_view("class")
+    return name
+}
+
 func (converter : &mut JsConverter) is_assigned_name(name : std::string_view) : bool {
     for(var i : uint = 0; i < converter.assigned_names.size(); i++) {
         if(converter.assigned_names.get(i).equals(&name)) return true;
@@ -2977,7 +2954,8 @@ func (converter : &mut JsConverter) make_attr_value_converter() : AttrValueConve
         ssrTextNode : support.ssrTextLinkedNode,
         ssrAttributeValueNode : support.ssrAttributeValueNode,
         multipleAttributeValueNode : support.multipleAttributeValueNode,
-        parent : converter.parent
+        parent : converter.parent,
+        diagnoser : converter.diagnoser
     }
 }
 
@@ -3569,20 +3547,19 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
             ssrTextNode : support.ssrTextLinkedNode,
             ssrAttributeValueNode : support.ssrAttributeValueNode,
             multipleAttributeValueNode : support.multipleAttributeValueNode,
-            parent : converter.parent
+            parent : converter.parent,
+            diagnoser : converter.diagnoser
         }
 
-        const attributes = &element.opening.attributes;
+        const resolvedAttrs = converter.resolve_attributes(element);
         var pushedCount : ubigint = 0;
-        for(var i : uint = 0; i < attributes.size(); i++) {
-            const attrNode = attributes.get(i);
-            if(attrNode == null) continue;
+        for(var i : uint = 0; i < resolvedAttrs.size(); i++) {
+            const resolvedAttr = resolvedAttrs.get_ptr(i);
+            if(resolvedAttr.kind == JsxAttrKind.Event || resolvedAttr.kind == JsxAttrKind.ClientOnly) continue;
 
-            if(attrNode.kind == JsNodeKind.JSXAttribute) {
+            if(resolvedAttr.original != null) {
 
-                const attr = attrNode as *mut JsJSXAttribute;
-                if(is_event_attribute_name(attr.name)) continue;
-                if(is_client_only_attribute_name(attr.name)) continue;
+                const attr = resolvedAttr.original;
 
                 if(attr.value != null && attr.value.kind == JsNodeKind.JSXExpressionContainer) {
                     const container = attr.value as *mut JsJSXExpressionContainer;
@@ -3592,8 +3569,7 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                 }
 
                 const attrStructVal = builder.make_struct_value(support.ssrAttrLinkedNode, location);
-                const isClass = attr.name.equals("className") || attr.name.equals("class")
-                const attrName = if(isClass) std::string_view("class") else attr.name;
+                const attrName = jsx_attr_normalized_name(attr.name);
                 attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text(&attrName, location));
 
                 if(attr.value == null) {
@@ -3633,12 +3609,8 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                         } else if(container.expression.kind == JsNodeKind.MemberAccess) {
                             const mem = container.expression as *mut JsMemberAccess;
                             if(mem.object.kind == JsNodeKind.Identifier && converter.is_component_props_name((mem.object as *mut JsIdentifier).value)) {
-                                const params = converter.current_func.get_params();
-                                const propsParam = params.get(1);
-                                if(propsParam != null) {
-                                    const propsId = builder.make_identifier("attrs", propsParam, false, location);
-                                    const propsType = propsParam.getType();
-                                    const derefProps = builder.make_dereference_value(propsId, (propsType as *mut PointerType).getChildType(), location);
+                                const derefProps = converter.make_ssr_props_ref(location);
+                                if(derefProps != null) {
                                     const nameVal = converter.make_ssr_text(&mem.property, location);
                                     const call = builder.make_function_call_value(builder.make_identifier("getSsrAttributeValue", support.getSsrAttributeValueFn, false, location), location);
                                     call.get_args().push(derefProps);
@@ -3729,25 +3701,23 @@ func (converter : &mut JsConverter) build_ssr_attributes(element : *mut JsJSXEle
                 }
                 attrValues.push(attrStructVal);
                 pushedCount++;
-            } else if(attrNode.kind == JsNodeKind.JSXSpreadAttribute){
-                const attr = attrNode as *mut JsJSXSpreadAttribute
-                const arg = attr.argument
+            } else {
+                const arg = resolvedAttr.spreadArgument
                 if(arg != null && arg.kind == JsNodeKind.Identifier) {
                     const argId = arg as *mut JsIdentifier
                     if(converter.is_component_props_name(argId.value)) {
                         // Only the component's own props parameter is SSR-spreadable.
                         // Anything else (local objects, function results) cannot be
                         // resolved at SSR time and must not silently spread `props`.
-                        const params = converter.current_func.get_params()
-                        const propsParam = params.get(1)
-                        const spread_props = builder.make_identifier("attrs", propsParam, false, location);
-                        const deref_spread_props = builder.make_dereference_value(spread_props, spread_props.getType(), location)
-                        const attrStructVal = builder.make_struct_value(support.ssrAttrLinkedNode, location);
+                        const deref_spread_props = converter.make_ssr_props_ref(location)
+                        if(deref_spread_props != null) {
+                            const attrStructVal = builder.make_struct_value(support.ssrAttrLinkedNode, location);
 
-                        attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text("spread", location));
-                        attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Spread"), deref_spread_props));
-                        attrValues.push(attrStructVal);
-                        pushedCount++;
+                            attrStructVal.add_value(std::string_view("name"), converter.make_ssr_text("spread", location));
+                            attrStructVal.add_value(std::string_view("value"), attrValConv.wrapArgAttrValueVariantCall(builder, std::string_view("Spread"), deref_spread_props));
+                            attrValues.push(attrStructVal);
+                            pushedCount++;
+                        }
                     }
                 } else if(arg != null && arg.kind == JsNodeKind.ObjectLiteral) {
                     // Spread of an object literal: enumerate statically-known members

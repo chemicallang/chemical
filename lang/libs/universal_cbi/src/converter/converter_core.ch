@@ -96,13 +96,14 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                     // RHS (`ctx.write = (v) => {...}`) must deref reactive reads
                     // inside its body normally.
                     const rhsIsFn = bin.right != null && (bin.right.kind == JsNodeKind.ArrowFunction || bin.right.kind == JsNodeKind.FunctionDecl);
+                    converter.push_context();
                     converter.skip_reactive_deref = !rhsIsFn;
                     converter.convertJsNode(bin.left);
                     converter.str.append_view(" ");
                     converter.str.append_view(&bin.op);
                     converter.str.append_view(" ");
                     converter.convertJsNode(bin.right);
-                    converter.skip_reactive_deref = false;
+                    converter.pop_context();
                     return;
                 }
             }
@@ -179,11 +180,12 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
             converter.str.append_view("(");
             for(var i : uint = 0; i < call.args.size(); i++) {
                 if(i > 0) converter.str.append_view(", ");
+                converter.push_context();
                 if(is_hook && i == call.args.size() - 1 && call.args.size() >= 2) {
                     converter.skip_reactive_deref = true;
                 }
                 converter.convertJsNode(call.args.get(i));
-                converter.skip_reactive_deref = false;
+                converter.pop_context();
             }
             converter.str.append_view(")");
         }

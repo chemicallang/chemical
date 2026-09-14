@@ -1020,9 +1020,12 @@ Value *FunctionDeclaration::call(
     {
         InterpretScope* propagate = call_scope;
         while(propagate) {
-            for(auto& [name, val] : propagate->implicit_args) {
-                if(fn_scope.implicit_args.find(name) == fn_scope.implicit_args.end()) {
-                    fn_scope.implicit_args[name] = val;
+            if(auto* map = propagate->implicit_args_if_any()) {
+                auto& dst = fn_scope.implicit_args_ref();
+                for(auto& [name, val] : *map) {
+                    if(dst.find(name) == dst.end()) {
+                        dst[name] = val;
+                    }
                 }
             }
             propagate = propagate->parent;
@@ -1064,7 +1067,6 @@ void FunctionDeclaration::set_return(InterpretScope& func_scope, Value *value) {
         }
         target->returnValue = evaluated;
     }
-    body->stopInterpretOnce();
     // Propagate the stop signal up the InterpretScope chain so that
     // non-loop scopes (e.g. if-block bodies) also stop iterating.
     // Without this, nested scopes continue interpreting sibling nodes
@@ -1179,17 +1181,21 @@ Value *FunctionDeclaration::call(
         Value* implicit_val = nullptr;
         InterpretScope* lookup_scope = call_scope;
         while(lookup_scope) {
-            auto found = lookup_scope->implicit_args.find(param->name);
-            if(found != lookup_scope->implicit_args.end()) {
-                implicit_val = found->second;
-                break;
+            if(auto* map = lookup_scope->implicit_args_if_any()) {
+                auto found = map->find(param->name);
+                if(found != map->end()) {
+                    implicit_val = found->second;
+                    break;
+                }
             }
             lookup_scope = lookup_scope->parent;
         }
         if(!implicit_val && fn_scope) {
-            auto found = fn_scope->implicit_args.find(param->name);
-            if(found != fn_scope->implicit_args.end()) {
-                implicit_val = found->second;
+            if(auto* map = fn_scope->implicit_args_if_any()) {
+                auto found = map->find(param->name);
+                if(found != map->end()) {
+                    implicit_val = found->second;
+                }
             }
         }
         if(implicit_val) {

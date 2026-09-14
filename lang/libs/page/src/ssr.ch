@@ -382,31 +382,63 @@ func appendJsEscaped(output : &mut std::string, text : &std::string_view) {
     }
 }
 
-func writePrimitiveAttrValue(page : &mut HtmlPage, output : &mut std::string, attrVal : &SsrAttributeValue) {
+enum AttrValueTarget {
+    Html,
+    Js
+}
+
+// Single attribute-value writer, parameterized by output target and escaping
+// policy. HTML emits unquoted, HTML-escaped text (the caller adds the attribute
+// quotes); JS emits quoted JS-escaped text / char literals and `undefined` for
+// None. This replaces the two near-duplicate writers.
+func writeAttrValue(page : &mut HtmlPage, output : &mut std::string, attrVal : &SsrAttributeValue, target : AttrValueTarget) {
     switch(attrVal) {
         None() => {
-            // Unresolvable value: degrade to nothing instead of the literal "null"
+            // Unresolvable value: HTML degrades to nothing; JS props become undefined
+            if(target == AttrValueTarget.Js) output.append_view("undefined")
         }
         Boolean(value) => {
             if(value) output.append_view("true") else output.append_view("false")
         }
-        Char(value) => output.append(value)
+        Char(value) => {
+            if(target == AttrValueTarget.Js) {
+                output.append('\'')
+                if(value == '\'') output.append_view("\\'")
+                else if(value == '\\') output.append_view("\\\\")
+                else output.append(value)
+                output.append('\'')
+            } else {
+                output.append(value)
+            }
+        }
         UInteger(value) => output.append_uinteger(value)
         Integer(value) => output.append_integer(value)
         Double(value, precision) => output.append_double(value, precision)
         Text(value) => {
             const view = std::string_view(value.data, value.size)
-            appendHtmlEscaped(output, &view)
+            if(target == AttrValueTarget.Js) {
+                output.append('"')
+                appendJsEscaped(output, &view)
+                output.append('"')
+            } else {
+                appendHtmlEscaped(output, &view)
+            }
         }
         PtrChar(value) => {
             const view = std::string_view(value, strlen(value))
-            appendHtmlEscaped(output, &view)
+            if(target == AttrValueTarget.Js) {
+                output.append('"')
+                appendJsEscaped(output, &view)
+                output.append('"')
+            } else {
+                appendHtmlEscaped(output, &view)
+            }
         }
         Multiple(value) => {
             var curr = value.data
             const end = curr + value.size
             while(curr != end) {
-                writePrimitiveAttrValue(page, output, &*curr)
+                writeAttrValue(page, output, &*curr, target)
                 curr++
             }
         }
@@ -417,112 +449,115 @@ func writePrimitiveAttrValue(page : &mut HtmlPage, output : &mut std::string, at
     }
 }
 
-// Stack-allocated accumulator for maximum speed.
-struct SpecialAttrs {
-    var classes : [32]*SsrAttributeValue
-    var class_count : u32 = 0
-    var styles : [32]*SsrAttributeValue
-    var style_count : u32 = 0
-    // Deferred non-special attributes with last-wins dedup
-    var others_names : [64]SsrText
-    var others_values : [64]*SsrAttributeValue
-    var others_count : u32 = 0
+func writePrimitiveAttrValue(page : &mut HtmlPage, output : &mut std::string, attrVal : &SsrAttributeValue) {
+    writeAttrValue(page, output, attrVal, AttrValueTarget.Html)
 }
 
-func (page : &mut HtmlPage) renderHtmlAttrsInternal(list : &SsrAttributeList, special : &mut SpecialAttrs) {
+func writeJsPrimitiveAttrValue(page : &mut HtmlPage, output : &mut std::string, attrVal : &SsrAttributeValue) {
+    writeAttrValue(page, output, attrVal, AttrValueTarget.Js)
+}
+
+// Attribute accumulator: merges class/style and deduplicates the rest
+// (last-wins). Growable storage — no fixed limits, no silent truncation.
+struct SpecialAttrs {
+    var classes : std::vector<*SsrAttributeValue>
+    var styles : std::vector<*SsrAttributeValue>
+    var others_names : std::vector<SsrText>
+    var others_values : std::vector<*SsrAttributeValue>
+}
+
+func make_special_attrs() : SpecialAttrs {
+    return SpecialAttrs {
+        classes : std::vector<*SsrAttributeValue>(),
+        styles : std::vector<*SsrAttributeValue>(),
+        others_names : std::vector<SsrText>(),
+        others_values : std::vector<*SsrAttributeValue>()
+    }
+}
+
+func accumulateAttrs(list : &SsrAttributeList, special : &mut SpecialAttrs) {
     var d = list.data
     const end = d + list.size
-
     while(d != end) {
         switch(d.value) {
             Spread(value) => {
-                // Recursively pass the accumulator down the spread tree
-                page.renderHtmlAttrsInternal(&value, special)
+                // Recursively accumulate the spread's attributes
+                accumulateAttrs(&value, special)
             }
             default => {
                 if(d.value is SsrAttributeValue.None) {
-                    d++;
-                    continue;
+                    d++
+                    continue
                 }
                 // "key" is a reconciliation hint — never rendered to DOM or HTML
                 if(d.name.equals("key")) {
-                    d++;
-                    continue;
+                    d++
+                    continue
                 }
-                // Accumulate special attributes; defer the rest for dedup
-                if (d.name.equals("class")) {
-                    if(special.class_count < 32) {
-                        special.classes[special.class_count] = &raw d.value
-                        special.class_count++
-                    }
-                } else if (d.name.equals("style")) {
-                    if(special.style_count < 32) {
-                        special.styles[special.style_count] = &raw d.value
-                        special.style_count++
-                    }
+                if(d.name.equals("class")) {
+                    special.classes.push(&raw d.value)
+                } else if(d.name.equals("style")) {
+                    special.styles.push(&raw d.value)
                 } else {
                     if(d.value is SsrAttributeValue.Boolean) {
-                        var Boolean(value) = d.value else unreachable;
+                        var Boolean(value) = d.value else unreachable
                         if(!value) {
-                            d++;
-                            continue;
+                            d++
+                            continue
                         }
                     }
                     // Last-wins dedup: replace existing or append
                     var found = false
-                    for(var j = 0; j < special.others_count; j++) {
-                        if(special.others_names[j].equals_text(&d.name)) {
-                            special.others_values[j] = &raw d.value
+                    for(var j : size_t = 0; j < special.others_names.size(); j++) {
+                        if(special.others_names.get(j).equals_text(&d.name)) {
+                            special.others_values.set(j, &raw d.value)
                             found = true
                             break
                         }
                     }
                     if(!found) {
-                        if(special.others_count < 64) {
-                            special.others_names[special.others_count] = d.name
-                            special.others_values[special.others_count] = &raw d.value
-                            special.others_count++
-                        }
+                        special.others_names.push(d.name)
+                        special.others_values.push(&raw d.value)
                     }
                 }
             }
         }
-        d++;
+        d++
     }
 }
 
 public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
-    var special = zeroed<SpecialAttrs>()
-    page.renderHtmlAttrsInternal(list, &mut special)
+    var special = make_special_attrs()
+    accumulateAttrs(list, &mut special)
 
     var output = &mut page.pageHtml
 
     // 1. Render merged classes
-    if (special.class_count > 0) {
+    if (special.classes.size() > 0) {
         output.append_view(" class=\"")
-        for (var i = 0; i < special.class_count; i++) {
+        for (var i : size_t = 0; i < special.classes.size(); i++) {
             if (i > 0) output.append(' ') // Space-separated classes
-            writePrimitiveAttrValue(page, output, &*special.classes[i])
+            writePrimitiveAttrValue(page, output, &*special.classes.get(i))
         }
         output.append_view("\"")
     }
 
     // 2. Render merged styles
-    if (special.style_count > 0) {
+    if (special.styles.size() > 0) {
         output.append_view(" style=\"")
-        for (var i = 0; i < special.style_count; i++) {
+        for (var i : size_t = 0; i < special.styles.size(); i++) {
             if (i > 0) output.append(';') // Semicolon-separated styles
-            writePrimitiveAttrValue(page, &mut *output, &*special.styles[i])
+            writePrimitiveAttrValue(page, &mut *output, &*special.styles.get(i))
         }
         output.append_view("\"")
     }
 
     // 3. Render deferred non-special attributes (already dedup'd, last-wins)
-    for (var i = 0; i < special.others_count; i++) {
+    for (var i : size_t = 0; i < special.others_names.size(); i++) {
         output.append(' ')
-        output.append_with_len(special.others_names[i].data, special.others_names[i].size)
+        output.append_with_len(special.others_names.get(i).data, special.others_names.get(i).size)
         output.append_view("=\"")
-        writePrimitiveAttrValue(page, &mut *output, &mut *special.others_values[i])
+        writePrimitiveAttrValue(page, &mut *output, &*special.others_values.get(i))
         output.append_view("\"")
     }
 }
@@ -531,190 +566,85 @@ public func renderHtmlAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
 // Used by #styled components so the generated CSS class is applied alongside any
 // user-provided `class` attribute.
 public func renderHtmlAttrsWithBase(page : &mut HtmlPage, list : &SsrAttributeList, baseClass : SsrText) {
-    var special = zeroed<SpecialAttrs>()
-    page.renderHtmlAttrsInternal(list, &mut special)
+    var special = make_special_attrs()
+    accumulateAttrs(list, &mut special)
 
     var output = &mut page.pageHtml
 
     // 1. Render merged classes (baseClass first, then user classes)
-    if (special.class_count > 0 || baseClass.size > 0) {
+    if (special.classes.size() > 0 || baseClass.size > 0) {
         output.append_view(" class=\"")
         var first = true
         if (baseClass.size > 0) {
             output.append_with_len(baseClass.data, baseClass.size)
             first = false
         }
-        for (var i = 0; i < special.class_count; i++) {
+        for (var i : size_t = 0; i < special.classes.size(); i++) {
             if (!first) output.append(' ') // Space-separated classes
             first = false
-            writePrimitiveAttrValue(page, output, &*special.classes[i])
+            writePrimitiveAttrValue(page, output, &*special.classes.get(i))
         }
         output.append_view("\"")
     }
 
     // 2. Render merged styles
-    if (special.style_count > 0) {
+    if (special.styles.size() > 0) {
         output.append_view(" style=\"")
-        for (var i = 0; i < special.style_count; i++) {
+        for (var i : size_t = 0; i < special.styles.size(); i++) {
             if (i > 0) output.append(';') // Semicolon-separated styles
-            writePrimitiveAttrValue(page, &mut *output, &*special.styles[i])
+            writePrimitiveAttrValue(page, &mut *output, &*special.styles.get(i))
         }
         output.append_view("\"")
     }
 
     // 3. Render deferred non-special attributes (already dedup'd, last-wins)
-    for (var i = 0; i < special.others_count; i++) {
+    for (var i : size_t = 0; i < special.others_names.size(); i++) {
         output.append(' ')
-        output.append_with_len(special.others_names[i].data, special.others_names[i].size)
+        output.append_with_len(special.others_names.get(i).data, special.others_names.get(i).size)
         output.append_view("=\"")
-        writePrimitiveAttrValue(page, &mut *output, &mut *special.others_values[i])
+        writePrimitiveAttrValue(page, &mut *output, &*special.others_values.get(i))
         output.append_view("\"")
-    }
-}
-
-func writeJsPrimitiveAttrValue(page : &mut HtmlPage, output : &mut std::string, attrVal : &SsrAttributeValue) {
-    switch(attrVal) {
-        None() => {
-            output.append_view("undefined")
-        }
-        Boolean(value) => {
-            if(value) output.append_view("true") else output.append_view("false")
-        }
-        Char(value) => {
-            output.append('\'');
-            if(value == '\'') output.append_view("\\'")
-            else if(value == '\\') output.append_view("\\\\")
-            else output.append(value)
-            output.append('\'');
-        }
-        UInteger(value) => output.append_uinteger(value)
-        Integer(value) => output.append_integer(value)
-        Double(value, precision) => output.append_double(value, precision)
-        Text(value) => {
-            output.append('"');
-            const view = std::string_view(value.data, value.size)
-            appendJsEscaped(output, &view)
-            output.append('"');
-        }
-        PtrChar(value) => {
-            output.append('"');
-            const view = std::string_view(value, strlen(value))
-            appendJsEscaped(output, &view)
-            output.append('"');
-        }
-        Multiple(value) => {
-            var curr = value.data
-            const end = curr + value.size
-            while(curr != end) {
-                writeJsPrimitiveAttrValue(page, output, &*curr)
-                curr++
-            }
-        }
-        Callable(value) => {
-            value.fn_ptr(value.object, page, output)
-        }
-        Spread(value) => {} // Unreachable for primitive values
-    }
-}
-
-func (page : &mut HtmlPage) renderJsAttrsInternal(list : &SsrAttributeList, special : &mut SpecialAttrs, is_first : &mut bool) {
-    var d = list.data
-    const end = d + list.size
-
-    while(d != end) {
-        switch(d.value) {
-            Spread(value) => {
-                page.renderJsAttrsInternal(&value, special, is_first)
-            }
-            default => {
-                if(d.value is SsrAttributeValue.None) {
-                    d++;
-                    continue;
-                }
-                // "key" is a reconciliation hint — never rendered to DOM or HTML
-                if(d.name.equals("key")) {
-                    d++;
-                    continue;
-                }
-                if (d.name.equals("class")) {
-                    if(special.class_count < 32) {
-                        special.classes[special.class_count] = &raw d.value
-                        special.class_count++
-                    }
-                } else if (d.name.equals("style")) {
-                    if(special.style_count < 32) {
-                        special.styles[special.style_count] = &raw d.value
-                        special.style_count++
-                    }
-                } else {
-                    if(d.value is SsrAttributeValue.Boolean) {
-                        var Boolean(value) = d.value else unreachable;
-                        if(!value) {
-                            d++;
-                            continue;
-                        }
-                    }
-                    // Last-wins dedup: replace existing or append
-                    var found = false
-                    for(var j = 0; j < special.others_count; j++) {
-                        if(special.others_names[j].equals_text(&d.name)) {
-                            special.others_values[j] = &raw d.value
-                            found = true
-                            break
-                        }
-                    }
-                    if(!found) {
-                        if(special.others_count < 64) {
-                            special.others_names[special.others_count] = d.name
-                            special.others_values[special.others_count] = &raw d.value
-                            special.others_count++
-                        }
-                    }
-                }
-            }
-        }
-        d++;
     }
 }
 
 public func renderJsAttrs(page : &mut HtmlPage, list : &SsrAttributeList) {
-    var special = zeroed<SpecialAttrs>()
-    var is_first = true
-    page.renderJsAttrsInternal(list, &mut special, &mut is_first)
+    var special = make_special_attrs()
+    accumulateAttrs(list, &mut special)
 
     var output = &mut page.pageJs
+    var is_first = true
 
     // 1. Render merged classes
-    if (special.class_count > 0) {
+    if (special.classes.size() > 0) {
         if (!is_first) output.append_view(", ")
         output.append_view("class:\"")
-        for (var i = 0; i < special.class_count; i++) {
+        for (var i : size_t = 0; i < special.classes.size(); i++) {
             if (i > 0) output.append(' ')
-            writeJsPrimitiveAttrValue(page, &mut *output, &mut *special.classes[i])
+            writeJsPrimitiveAttrValue(page, &mut *output, &*special.classes.get(i))
         }
         output.append('"')
         is_first = false
     }
 
     // 2. Render merged styles
-    if (special.style_count > 0) {
+    if (special.styles.size() > 0) {
         if (!is_first) output.append_view(", ")
         output.append_view("style:\"")
-        for (var i = 0; i < special.style_count; i++) {
+        for (var i : size_t = 0; i < special.styles.size(); i++) {
             if (i > 0) output.append(';')
-            writeJsPrimitiveAttrValue(page, &mut *output, &*special.styles[i])
+            writeJsPrimitiveAttrValue(page, &mut *output, &*special.styles.get(i))
         }
         output.append('"')
         is_first = false
     }
 
     // 3. Render deferred non-special attributes (already dedup'd, last-wins)
-    for (var i = 0; i < special.others_count; i++) {
+    for (var i : size_t = 0; i < special.others_names.size(); i++) {
         if (!is_first) output.append_view(", ")
         is_first = false
-        output.append_with_len(special.others_names[i].data, special.others_names[i].size)
+        output.append_with_len(special.others_names.get(i).data, special.others_names.get(i).size)
         output.append(':')
-        writeJsPrimitiveAttrValue(page, &mut *output, &*special.others_values[i])
+        writeJsPrimitiveAttrValue(page, &mut *output, &*special.others_values.get(i))
     }
 }
 

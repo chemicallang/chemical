@@ -45,6 +45,24 @@ struct JsFilteredLocal {
     var filterCall : *mut JsNode
 }
 
+// Explicit conversion context. These flags used to be mutated ad hoc during
+// conversion; push_context()/pop_context() save and restore ALL of them
+// atomically, so a nested conversion cannot clobber an enclosing one.
+struct ConversionContext {
+    var in_jsx_attribute : bool = false
+    var skip_reactive_deref : bool = false
+}
+
+// One resolved JSX attribute: the shared component-IR unit consumed by both the
+// SSR builder and the client emitter. `kind`/`name` are target-neutral; the
+// value is emitted per target from `original` (named) or `spreadArgument`.
+struct ResolvedAttr {
+    var kind : JsxAttrKind
+    var name : std::string_view
+    var original : *mut JsJSXAttribute
+    var spreadArgument : *mut JsNode
+}
+
 struct JsConverter {
     var builder : *mut ASTBuilder
     // Live codegen diagnoser (Codegen is an ASTDiagnoser) for reporting
@@ -65,6 +83,8 @@ struct JsConverter {
     var component_props_name : std::string_view
     var in_jsx_attribute : bool = false
     var skip_reactive_deref : bool = false
+    // Save/restore stack for the conversion context flags (see ConversionContext).
+    var ctx_stack : std::vector<ConversionContext>
     var function_depth : int = 0
     // Local variables declared in the current universal component body, tracked
     // so JSX attribute/child expressions can reference them during SSR.
@@ -108,4 +128,18 @@ struct JsConverter {
     // Derived locals originating from a runtime `.filter()` call (see
     // JsFilteredLocal). Resolved by emit_ssr_map_children / emit_ssr_array_count.
     var filtered_locals : std::vector<JsFilteredLocal>
+}
+
+func (converter : &mut JsConverter) push_context() {
+    converter.ctx_stack.push(ConversionContext {
+        in_jsx_attribute : converter.in_jsx_attribute,
+        skip_reactive_deref : converter.skip_reactive_deref
+    })
+}
+
+func (converter : &mut JsConverter) pop_context() {
+    if(converter.ctx_stack.empty()) return
+    const ctx = converter.ctx_stack.take_last()
+    converter.in_jsx_attribute = ctx.in_jsx_attribute
+    converter.skip_reactive_deref = ctx.skip_reactive_deref
 }

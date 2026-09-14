@@ -369,6 +369,11 @@ void GenericInstantiator::VisitSwitchValue(SwitchValue* value) {
 
 void GenericInstantiator::VisitLoopValue(LoopValue* value) {
     RecursiveVisitor<GenericInstantiator>::VisitLoopBlock(&value->stmt);
+    // the broken value's type may have been specialized by the visit above, so
+    // invalidate the cached first-broken value and recompute it from the body.
+    // Otherwise a loop whose result type is a generic parameter keeps that
+    // (unspecialized) parameter as its type.
+    value->stmt.first_broken = nullptr;
     const auto first = value->stmt.get_first_broken();
     if(first) {
         value->setType(first->getType());

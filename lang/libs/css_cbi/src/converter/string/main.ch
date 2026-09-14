@@ -205,6 +205,22 @@ func (converter : &mut ASTConverter) put_class_name_chain(hash : uint32_t, prefi
 
 func generate_random_32bit() : uint32_t { return (rand() as uint32_t << 16) | rand() as uint32_t; }
 
+// Deterministic class seed for non-hashable CSSOMs (those with dynamic values,
+// media queries, nested rules, or keyframes). Previously this used rand(), which
+// made generated class names differ between otherwise-identical builds. Derive
+// the seed from the CSS block's source location (via its parent node) so the
+// output is reproducible; distinct source locations still get distinct classes.
+func cssom_stable_hash(seed : ubigint) : uint32_t {
+    var hash : uint32_t = 0x811C9DC5
+    var i : uint = 0
+    while(i < 8) {
+        hash = hash ^ (((seed >> (i * 8)) & 0xFF) as uint32_t)
+        hash = hash * 0x01000193
+        i++
+    }
+    return hash
+}
+
 func (converter : &mut ASTConverter) make_func_call_with_arg(value : *mut Value, fn_name : std::string_view, fnPtr : *mut ASTNode) : *mut FunctionCall {
     const builder = converter.builder
     const location = intrinsics::get_raw_location();
@@ -335,7 +351,31 @@ func (converter : &mut ASTConverter) generate_css_root(om : *mut CSSOM, root_sel
      }
 }
 
-func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
+// Stable structural serialization used as part of the deterministic class-name
+// seed (nested-rule selectors + declaration property names + nested rules).
+func cssom_seed_append_nested(nr : *mut CSSNestedRule, out : &mut std::string) {
+    if(nr.selector != null) {
+        var p : uint = 0
+        while(p < nr.selector.selectors.size()) {
+            css_serialize_complex(nr.selector.selectors.get(p), out, std::string_view("&"))
+            out.append(';')
+            p++
+        }
+    }
+    var d : uint = 0
+    while(d < nr.declarations.size()) { out.append_view(&nr.declarations.get(d).property.name); out.append(';'); d++ }
+    var n : uint = 0
+    while(n < nr.nested_rules.size()) { cssom_seed_append_nested(nr.nested_rules.get(n), out); n++ }
+}
+
+func cssom_seed_append_media(mr : *mut CSSMediaRule, out : &mut std::string) {
+    var d : uint = 0
+    while(d < mr.declarations.size()) { out.append_view(&mr.declarations.get(d).property.name); out.append(';'); d++ }
+    var n : uint = 0
+    while(n < mr.nested_rules.size()) { cssom_seed_append_nested(mr.nested_rules.get(n), out); n++ }
+}
+
+func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM, seed : ubigint) {
     const builder = converter.builder
     const str = &mut converter.str
     var size = om.declarations.size()
@@ -344,8 +384,25 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM) {
 
     const location = intrinsics::get_raw_location();
 
-    if(!om.is_hashable()) {
-        const hash = generate_random_32bit();
+    if(!om.is_hashable()) {
+        // Deterministic class seed from the CSS content when it has no dynamic
+        // (Chemical) values: serialize the declarations plus nested/media/
+        // keyframe structure and hash it. Dynamic-value blocks (whose values
+        // interleave with the emitter) keep the location seed. Previously this
+        // used rand(), which made class names differ between identical builds.
+        var hash : uint32_t = cssom_stable_hash(seed)
+        if(om.dyn_values.empty()) {
+            var seedStr = std::string()
+            var si : uint = 0
+            while(si < size) { css_write_declaration_text(om.declarations.get(si), &mut seedStr, converter.as_emitter()); si++ }
+            var ni : uint = 0
+            while(ni < om.nested_rules.size()) { cssom_seed_append_nested(om.nested_rules.get(ni), &mut seedStr); ni++ }
+            var mi : uint = 0
+            while(mi < om.media_queries.size()) { cssom_seed_append_media(om.media_queries.get(mi), &mut seedStr); mi++ }
+            var ki : uint = 0
+            while(ki < om.keyframes.size()) { seedStr.append_view(&om.keyframes.get(ki).name); seedStr.append(';'); ki++ }
+            if(!seedStr.empty()) { hash = fnv1a_hash_32(seedStr.data()) as uint32_t }
+        }
         var ifStmt = builder.make_if_stmt(converter.make_require_random_css_hash_call(hash), converter.parent, location);
         var body = ifStmt.get_body();
         body.push(converter.make_set_random_css_hash_call(hash));

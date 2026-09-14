@@ -15,7 +15,7 @@ using namespace std;
 public namespace universal {
 
 public func tokenize_universal(view : std::string_view) : std::vector<Token> {
-    var tokenizer = UniversalTokenizer { src : view, pos : 0, line : 0, character : 0 }
+    var tokenizer = JsSyntaxTokenizer { src : view, pos : 0, line : 0, character : 0, jsx_enabled : true }
     return tokenizer.tokenize()
 }
 
@@ -35,7 +35,7 @@ public func parse_universal(view : std::string_view) : std::string {
     }
 
     var out = std::string()
-    var converter = UniversalRuntimeConverter { str : &raw mut out }
+    var converter = JsRuntimeConverter { str : &raw mut out }
     convert_universal_root(root, &mut converter)
     allocator.deinit()
     return out
@@ -43,7 +43,7 @@ public func parse_universal(view : std::string_view) : std::string {
 
 public func convert_universal_node_to_string(node : *mut JsNode) : std::string {
     var out = std::string()
-    var converter = UniversalRuntimeConverter { str : &raw mut out }
+    var converter = JsRuntimeConverter { str : &raw mut out }
     convert_universal_node(node, &mut converter)
     return out
 }

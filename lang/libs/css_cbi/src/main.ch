@@ -20,7 +20,7 @@ public func css_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTD
         parent : root.parent,
         str : std::string()
     }
-    converter.convertCSSOM(root);
+    converter.convertCSSOM(root, value.getEncodedLocation());
     return scope;
 }
 
@@ -55,7 +55,7 @@ public func css_replacementValue(builder : *mut ASTBuilder, diagnoser : *mut AST
         parent : root.parent,
         str : std::string()
     }
-    converter.convertCSSOM(root);
+    converter.convertCSSOM(root, value.getEncodedLocation());
     // const view2 = builder.allocate_view(converter.str.to_view())
     const classNameVal = builder.make_string_value(&root.className, loc)
     block_val.setCalculatedValue(classNameVal)

@@ -14,7 +14,7 @@ using namespace std;
 public namespace js {
 
 public func tokenize_js(view : std::string_view) : std::vector<Token> {
-    var tokenizer = JsTokenizer { src : view, pos : 0, line : 0, character : 0 }
+    var tokenizer = JsSyntaxTokenizer { src : view, pos : 0, line : 0, character : 0, jsx_enabled : false }
     return tokenizer.tokenize()
 }
 

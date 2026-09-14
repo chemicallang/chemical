@@ -32,7 +32,3 @@ void DoWhileLoop::code_gen(Codegen &gen) {
 }
 
 #endif
-
-void DoWhileLoop::stopInterpretation() {
-    stoppedInterpretation = true;
-}

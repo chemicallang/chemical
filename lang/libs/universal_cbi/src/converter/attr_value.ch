@@ -10,6 +10,10 @@ struct AttrValueConverter {
 
     var parent : *mut ASTNode
 
+    // Live codegen diagnoser: reports attribute values that have no SSR
+    // representation instead of silently emitting them as numbers.
+    var diagnoser : *mut ASTDiagnoser = null
+
 }
 
 func (converter : &mut AttrValueConverter) wrapArgAttrValueVariantCall(builder : *mut ASTBuilder, name : &std::string_view, value : *mut Value) : *mut Value {
@@ -192,8 +196,12 @@ func (converter : &mut AttrValueConverter) convert_to_attr_value(builder : *mut 
                     return converter.wrapArgAttrValueVariantCall(builder, "PtrChar", value);
                 }
             }
-            // putting a pointer as integer
-            // a pointer to other than char, or uchar, we cannot handle it
+            // A pointer to anything other than char has no attribute
+            // representation. Emitting it as a UInteger would silently put a
+            // pointer-sized number into the DOM/JS, so report it.
+            if(converter.diagnoser != null) {
+                converter.diagnoser.error("cannot serialize a pointer attribute value: only char pointers have an SSR representation (it would be emitted as a number)", value.getEncodedLocation());
+            }
             return converter.wrapArgAttrValueVariantCall(builder, "UInteger", value);
         }        BaseTypeKind.String => {
             return converter.wrapArgAttrValueVariantCall(builder, "PtrChar", value);
@@ -224,7 +232,11 @@ func (converter : &mut AttrValueConverter) convert_to_attr_value(builder : *mut 
             return converter.wrapArgAttrValueVariantCall(builder, "Multiple", multiAttrStructVal);
         }
         default => {
-            // unknown type of value being appended
+            // A value of a type the attribute model cannot represent: report it
+            // rather than silently emitting a number.
+            if(converter.diagnoser != null) {
+                converter.diagnoser.error("cannot serialize this value to an attribute: its type has no SSR representation", value.getEncodedLocation());
+            }
             return converter.wrapArgAttrValueVariantCall(builder, "UInteger", value);
         }
     }

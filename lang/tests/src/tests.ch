@@ -28,6 +28,8 @@ func run_executable_tests() {
     // -------------------------------------------
     test_temp_view_lifetime()
     test_native_generic_specifics();
+    test_generic_loop_expression_result();
+    test_impl_only_method_call();
     test_imported_modules();
     test_modules_import();
     test_external_interfaces();

@@ -7,3 +7,5 @@ import std
 import compiler
 import js_parser
 import compiler_runtime
+
+import js_syntax

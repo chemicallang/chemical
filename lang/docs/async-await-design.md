@@ -1,1623 +1,2010 @@
 # Async/Await Design for Chemical
 
-> **Status: Design Document — August 25, 2026**
+> **Status: Implementation Design — revised September 14, 2026**
 >
-> This document specifies how to add first-class async/await to Chemical.
-> Chemical is a native language that compiles to LLVM IR and C.
-> This design is written for implementers (other AIs or humans) who will
-> carry out the actual compiler and library changes.
+> **TL;DR for the implementer:** the protocol and runtime handle in this design
+> were **compiled and run** on the real compiler (Section 1.4, probe
+> `lang/compiled/async_probe`). Two compiler blockers were found and have been
+> **fixed** (Section 1.5): **B1** generic loop-expression result types, and
+> **B2** calls to impl-only methods. Both fixes are covered by tests in
+> `lang/tests/src/generic/generic_dispatch.ch`; the full suite passes. The design
+> still mandates that backends emit the poll loop and that `await` goes through a
+> `FutureHandle<T>` vtable (D13). Start with Sections 1.4–1.6, 2 (D13), 4.2–4.4,
+> and 17 (Phase 0).
+>
+> This document supersedes the August 25, 2026 draft. The draft was a good
+> outline but contained factual errors about the codebase (wrong method names,
+> wrong file paths, invalid Chemical syntax) and, most importantly, recommended
+> a **blocking thread-per-await** implementation as the destination. That is not
+> performant and does not meet the language's zero-cost goal.
+>
+> This revision is written to be followed literally by an implementer. It
+> contains the exact extension points in the real codebase, the exact runtime
+> protocol, the exact frame layout rules, the exact lowering recipes for both
+> backends, and the exact safety rules. Where the previous draft and reality
+> disagreed, reality wins and the correction is called out.
+>
+> **Read this whole document before writing code.** Several decisions interact
+> (lazy vs eager, heap frames vs pinned frames, two lowerings vs one, `Send`
+> and thread model). Implementing a piece without understanding the interacting
+> pieces will create work that must be thrown away.
 
 ---
 
 ## Table of Contents
 
-1. [Goals and Non-Goals](#1-goals-and-non-goals)
-2. [Language Syntax](#2-language-syntax)
-3. [AST Node Changes](#3-ast-node-changes)
-4. [Lexer Changes](#4-lexer-changes)
-5. [Parser Changes](#5-parser-changes)
-6. [Symbol Resolution Changes](#6-symbol-resolution-changes)
-7. [Type Verification Changes](#7-type-verification-changes)
-8. [LLVM Backend Changes](#8-llvm-backend-changes)
-9. [C Codegen (2c) Backend Changes](#9-c-codegen-2c-backend-changes)
-10. [Interpreter Changes](#10-interpreter-changes)
-11. [Runtime Library: `lang/libs/async/`](#11-runtime-library-langlibsasync)
-12. [Built-in Async Types](#12-built-in-async-types)
-13. [Platform-Specific Implementations](#13-platform-specific-implementations)
-14. [Library Benefits and Migration](#14-library-benefits-and-migration)
-15. [Implementation Phases](#15-implementation-phases)
-16. [Edge Cases and Gotchas](#16-edge-cases-and-gotchas)
-17. [Examples](#17-examples)
+1. [Current Codebase Assessment](#1-current-codebase-assessment)
+2. [Design Decisions (Normative)](#2-design-decisions-normative)
+3. [Requirements and How They Are Satisfied](#3-requirements-and-how-they-are-satisfied)
+4. [Execution Model and Core Protocol](#4-execution-model-and-core-protocol)
+5. [Language Surface](#5-language-surface)
+6. [Compiler Representation](#6-compiler-representation)
+7. [Await Normalization Pass](#7-await-normalization-pass)
+8. [Frame Layout and Drop Planning](#8-frame-layout-and-drop-planning)
+9. [LLVM Backend Lowering](#9-llvm-backend-lowering)
+10. [C / 2c Backend Lowering](#10-c--2c-backend-lowering)
+11. [Interpreter and Comptime](#11-interpreter-and-comptime)
+12. [Runtime Library](#12-runtime-library)
+13. [Safety Model](#13-safety-model)
+14. [Performance Model](#14-performance-model)
+15. [Diagnostics](#15-diagnostics)
+16. [Extension-Point Checklist (Exact Files)](#16-extension-point-checklist-exact-files)
+17. [Implementation Phases](#17-implementation-phases)
+18. [Testing Plan](#18-testing-plan)
+19. [Edge Cases and Gotchas](#19-edge-cases-and-gotchas)
+20. [Deferred Work and Open Questions](#20-deferred-work-and-open-questions)
+21. [Appendix A: Corrected Examples](#21-appendix-a-corrected-examples)
+22. [Appendix B: File and Symbol Reference Map](#22-appendix-b-file-and-symbol-reference-map)
 
 ---
 
-## 1. Goals and Non-Goals
+## 1. Current Codebase Assessment
 
-### Goals
+This section is the ground truth as of September 14, 2026.
 
-1. **Zero-cost abstraction** — async/await compiles to efficient C code or LLVM IR
-   with no hidden allocations beyond what the user explicitly writes.
-2. **Ergonomic API** — writing async code should feel like writing synchronous code.
-3. **No runtime requirement** — Chemical is native; async should not require a
-   garbage collector or a specific runtime. A lightweight executor is optional.
-4. **Interop with existing libraries** — async functions must be callable from
-   synchronous code and vice versa.
-5. **Works on both LLVM and TCC backends** — the 2c (C translation) backend must
-   also support async/await, using platform-specific primitives.
+### 1.1 What does not exist
 
-### Non-Goals
+There is **no** async/await in the language today.
 
-1. **No green threads** — async/await is cooperative, not preemptive.
-2. **No structured concurrency (initially)** — can be added later as a library feature.
-3. **No effect system integration (initially)** — the effect system proposal
-   (`FX_SUSPENDS`) can be integrated later. Async functions are implicitly
-   suspendable.
+- `lexer/TokenType.h` has no `AsyncKw` / `AwaitKw`.
+- `ast/base/ValueKind.h` has no `AwaitExpr`.
+- No `AwaitExpression` node, no `is_async` flag anywhere.
+- No `compiler/effects/` directory; `FX_SUSPENDS` is only mentioned in
+  `effect-system-proposal.md`. The effect system is **unimplemented**.
+- No `lang/libs/async/` directory.
+- No `llvm.coro.*` usage, no coroutine transform. The only `coro` mentions in
+  C++ are in `compiler/chem_clang.cpp`, which enumerates Clang AST kinds while
+  parsing C headers and is unrelated.
 
----
+### 1.2 What does exist and must be used
 
-## 2. Language Syntax
+- **`std.concurrent.Future<T>` / `Promise<T>` / `ThreadPool`** live in
+  `lang/libs/std/src/concurrency/threadpool.ch`. They are **blocking,
+  thread-pool based** and are *not* the async future. They are useful as a
+  blocking interop adaptor and as a source of platform threading code.
+- **`FunctionDeclaration`** (`ast/structures/FunctionDeclaration.h`) inherits
+  `FunctionTypeBody`. Its flags live in `FuncDeclAttributes`. It stores
+  `TypeLoc returnType` (public, assignable) inherited from `FunctionType`.
+- **`FunctionTypeData`** (`ast/types/FunctionType.h:33`) is a 4-bool struct with
+  `static_assert(sizeof(...) <= 8)`. It is the shared flag bag for both
+  declarations and lambda function types.
+- **`LambdaFunction`** (`ast/values/LambdaFunction.h`) also inherits
+  `FunctionTypeBody`, so a single `is_async` bit covers both.
+- **Generic synthesis pattern**: to build a `Future<T>` type node the compiler
+  uses:
+  `new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(decl), { TypeLoc(inner, loc) })`.
+  Real examples: `ast/values/FunctionCall.cpp:2157`,
+  `compiler/symres/SymResLinkBody.cpp:2140`.
+- **Core-node caching**: `CoreNodes` (`compiler/symres/CoreNodes.h`) caches
+  handles to core declarations; populated by `SymbolResolver::link_core_nodes`.
+  This is where a handle to the `Future`/`Poll`/`FutureHandle` declarations must
+  live.
+- **Value extension machinery**: `preprocess/visitors/NonRecursiveVisitor.h`
+  `VisitValueNoNullCheck` is the master `ValueKind` switch. `RepresentationVisitor`
+  provides `representation()`. `RecursiveVisitor`, `ToCAstVisitor`,
+  `SymResLinkBody`, `TopLevelLinkSignature`, `TypeVerifier`,
+  `GenericInstantiator` all dispatch through it.
+- **`Value` API**: `getType()` / `setType()` (not `known_type()` /
+  `set_known_type()` as the old draft wrote). Constructor is
+  `Value(ValueKind, BaseType*, SourceLocation)`. Allocation is
+  `new (allocator.allocate<T>()) T(...)`.
+- **`TypeLoc`** (`ast/base/TypeLoc.h`) wraps `BaseType const*` + location, and is
+  freely assignable. Replacing a return type is `func->returnType = TypeLoc(...)`.
+- **TCC backend compiles generated C with TinyCC**, not Clang. See
+  `LabBuildCompiler::process_module_tcc` →
+  `compile_c_to_obj_w_opts` → `compile_adding_file` / `compile_c_string` in
+  `compiler/lab/LabBuildCompiler.cpp`. TinyCC is fast but not an optimizer, so
+  generated C for the C backend must be efficient *by construction*.
 
-### 2.1 Declaring an Async Function
+### 1.3 The one hard architectural constraint
 
-An async function is declared with the `async` keyword before `func`:
+Chemical's AST has **no `goto`/label statement** (see `ast/statements/`). LLVM
+builds basic blocks internally; the C backend writes `goto` text directly. This
+means an async→state-machine transform **cannot be expressed as an AST rewrite**.
+It must live either in a CFG-bearing IR (MIR, not yet implemented) or in each
+backend. This document therefore specifies a **small, shared front-end analysis
+(the Async Lowering Plan) plus two backend emissions**. A future MIR can unify
+them (Section 20).
+
+### 1.4 Empirically Verified Protocol (Phase 0 probe)
+
+Before designing further, the protocol and the runtime handle shape were
+**compiled and executed** on the real compiler. Probe modules live in
+`lang/compiled/async_probe/` (gitignored). Build/run:
+
+```bash
+./cmake-build-debug/TCCCompiler lang/compiled/async_probe/chemical.mod \
+    -o lang/compiled/async_probe/probe.exe --mode debug_quick --no-cache
+./lang/compiled/async_probe/probe.exe
+```
+
+Observed output:
+
+```
+[drop] int frame
+int await = 99
+[drop] string frame
+string await = hello-future
+unit await done
+handles = 2
+[drop] int frame
+[drop] int frame
+```
+
+The probe proves **all** of the following compile and run today on the 2c/TCC
+backend:
+
+1. **Protocol types**: `WakerVTable` (function-pointer fields), `Waker` (owns a
+   type-erased pointer, `@delete`), `Context`, and the generic variant
+   `Poll<T> { Ready(value: T) Pending() }`.
+2. **Generic variant construction** `Poll.Ready<T>(v)` and pattern matching
+   (`r is Poll.Ready`, `var Ready(value) = r else unreachable`).
+3. **Moving a result out of `&mut self`** via
+   `std::replace(&mut self.value, zeroed<T>())`.
+4. **The runtime handle + vtable exactly as proposed** — a generic
+   `FutureHandle<T> { frame: *mut void, vtbl: *mut FutureTable<T> }` with a
+   `@delete` that calls `vtbl.drop(frame)`; a generic `FutureTable<T>` holding
+   `poll`/`drop` function pointers; and the lowered await loop calling
+   `fut.vtbl.poll(fut.frame, cx)`.
+5. **Move-only handles**: the handle's `@delete` runs the frame drop **exactly
+   once** on scope exit (and not on the return path).
+6. **Destructor-bearing results**: a `Poll<std::string>` whose `Ready` value is
+   moved out and returned; the frame's `StringFrame` is destroyed via
+   `delete f` in its drop function.
+7. **Unit futures**: `Poll<Unit>` with a user-defined empty `struct Unit {}`.
+8. **Executor-queue shape**: `std::vector<FutureHandle<int>>` accepts move-only
+   elements and drops every element when the vector dies.
+9. **Placement new / delete** for frames: `new(f) StringFrame { value: v }` and
+   `delete f`.
+
+**Design consequence:** the protocol in Section 4.2 and the handle in Section
+4.3 are not hypothetical — they are the shapes to implement. Rename the handle
+types to avoid colliding with user code (the compiler generates them
+internally; suggested internal names `__chx_future_handle<T>` /
+`__chx_future_vtable<T>`).
+
+### 1.5 Phase 0 Blockers Found (must fix or design around)
+
+Compiling the probe exposed real compiler limitations. They are recorded here
+because they change the implementation plan.
+
+#### B1 — Generic loop-expression result type is not specialized (HIGH)
+
+**Verified.** A `loop { break value }` used as a value (initializer **or**
+`return` operand) inside a generic function leaves the loop's result type as the
+unspecialized type parameter.
+
+Minimal reproduction: `lang/compiled/b1_probe/` and `lang/compiled/generic_loop_bug/`
 
 ```chemical
-async func fetch_data(url: *char) : std::Result<std::string, std::string> {
-    var client = http::Client()
-    var response = await client.get(url)     // suspends here
-    if(response is std::Result.Err) {
-        return std::Result.Err(response.error)
-    }
-    var Ok(res) = response else unreachable
-    return std::Result.Ok(res.body.read_all())
-}
-```
-
-**Syntax rule:** `async` can appear before `func` at any position where `func`
-is valid (top-level, inside struct, inside namespace, inside impl block).
-
-```chemical
-// Top-level async function
-async func main() : int {
-    var data = await fetch_data("https://example.com")
-    return 0
-}
-
-// Struct method async function
-struct HttpClient {
-    var pool: *mut ConnectionPool
-
-    async func request(&self, url: *char) : std::Result<Response, std::string> {
-        var conn = await self.pool.acquire()
-        return await conn.send(url)
-    }
-}
-
-// Async function with generics
-async func <T> fetch_as(url: *char) : std::Result<T, std::string> {
-    var data = await fetch_data(url)
-    // ... deserialize T from data
-}
-```
-
-### 2.2 The `await` Expression
-
-`await` is a unary prefix expression that can only appear inside an `async` function:
-
-```chemical
-var value = await some_async_call()    // suspend, resume when ready
-var result = await future.get()         // suspend until future completes
-```
-
-**Semantic:** `await expr` evaluates `expr`, which must produce a `Future<T>`.
-The current function is suspended until the future completes. The result of
-the `await` expression is `T`.
-
-### 2.3 The `Future<T>` Type
-
-`Future<T>` is a built-in generic type. It represents a value that will be
-available later. The compiler knows about `Future<T>` for type checking and
-code generation.
-
-```chemical
-// Future<T> is returned by async functions
-async func compute() : int {
-    return 42
-}
-// compute() returns Future<int>
-
-// Future<T> can be stored and awaited
-var f = compute()
-var result = await f
-```
-
-### 2.4 Creating Futures Manually
-
-Users can create `Future<T>` values without `async`/`await`:
-
-```chemical
-// From a callback-based API
-func fetch_async(url: *char) : Future<Response> {
-    var promise = std::async::Promise<Response>()
-    // ... start async work, set promise when done ...
-    return promise.future()
-}
-
-// From a thread pool
-func compute_async(data: *mut WorkData) : Future<Result> {
-    return std::async::spawn(|data|() : Result => {
-        return heavy_computation(data)
-    })
-}
-```
-
-### 2.5 Async Blocks (Closures)
-
-Async closures/lambdas allow creating futures inline:
-
-```chemical
-var future = async |data|() : int => {
-    return await heavy_work(data)
-}
-
-// Or with a block body:
-var future = async |data|() : int => {
-    var result = await fetch(data.url)
-    return result.status_code
-}
-```
-
-**Parser rule:** `async` before `|` or `() =>` triggers async closure parsing.
-The resulting type is `Future<T>` where `T` is the closure's return type.
-
-### 2.6 `select` Statement (Optional, Phase 2)
-
-A `select` statement awaits multiple futures simultaneously (like Go's `select`
-or Rust's `tokio::select!`):
-
-```chemical
-select {
-    response = await fetch(url1) => {
-        handle_response(response)
-    }
-    timeout = await sleep(5000) => {
-        handle_timeout()
-    }
-    default => {
-        // no future ready yet, continue
-    }
-}
-```
-
-**Note:** `select` is a Phase 2 feature. The initial implementation does not
-require it.
-
----
-
-## 3. AST Node Changes
-
-### 3.1 New AST Node: `AsyncFuncDecl`
-
-**File:** `ast/structures/AsyncFuncDecl.h` (new file)
-
-```cpp
-#pragma once
-#include "ast/structures/FunctionDeclaration.h"
-
-class AsyncFuncDecl : public FunctionDeclaration {
-public:
-    AsyncFuncDecl(
-        chem::string_view identifier,
-        TypeLoc returnType,
-        bool isVariadic,
-        ASTNode* parent_node,
-        SourceLocation location,
-        AccessSpecifier specifier = AccessSpecifier::Internal
-    ) : FunctionDeclaration(
-            identifier,
-            returnType,
-            isVariadic,
-            parent_node,
-            location,
-            specifier
-        ) {
-        // Mark as async
-        attrs.is_async = true;
-    }
-};
-```
-
-**Decision:** Rather than creating a separate node class, you can also add
-a boolean flag `is_async` to `FuncDeclAttributes`. This is simpler and avoids
-changing the visitor dispatch everywhere. **Recommended approach: add
-`bool is_async = false;` to `FuncDeclAttributes` in
-`ast/structures/FunctionDeclaration.h`.**
-
-### 3.2 New Value Node: `AwaitExpression`
-
-**File:** `ast/values/AwaitExpression.h` (new file)
-
-```cpp
-#pragma once
-#include "ast/base/Value.h"
-
-class AwaitExpression : public Value {
-public:
-    Value* inner;   // the expression producing a Future<T>
-
-    AwaitExpression(Value* inner, SourceLocation location)
-        : Value(ValueKind::AwaitExpr, inner->known_type(), location),
-          inner(inner) {}
-
-    // The resolved type is T, where inner produces Future<T>
-    BaseType* resolved_type = nullptr;
-
-    // During symres: extract T from Future<T> and set resolved_type
-    // During codegen: generate the suspension/resumption code
-};
-```
-
-### 3.3 `ValueKind` Addition
-
-In `ast/base/ValueKind.h`, add:
-
-```cpp
-AwaitExpr,       // await <expression>
-```
-
-### 3.4 `ASTNodeKind` Addition (if using separate node)
-
-In `ast/base/ASTNodeKind.h`, add only if creating a separate `AsyncFuncDecl`:
-
-```cpp
-AsyncFuncDecl,
-```
-
-### 3.5 `FunctionTypeBody` Changes
-
-The function type must carry the async flag so that `Future<T>` return types
-are correctly inferred:
-
-```cpp
-// In ast/types/FunctionType.h or ast/structures/FunctionTypeBody.h
-struct FunctionTypeBody {
-    // ... existing fields ...
-    bool is_async = false;  // NEW: marks this function as async
-};
-```
-
----
-
-## 4. Lexer Changes
-
-### 4.1 New Token: `AsyncKw`
-
-In `lexer/TokenType.h`, add:
-
-```cpp
-AsyncKw,    // the 'async' keyword
-AwaitKw,    // the 'await' keyword
-```
-
-### 4.2 Lexer Keyword Table
-
-In `lexer/Lexer.cpp`, add to the keyword lookup table:
-
-```cpp
-{"async", TokenType::AsyncKw},
-{"await", TokenType::AwaitKw},
-```
-
-### 4.3 Reserved Words
-
-`async` and `await` become reserved keywords. This means they cannot be used
-as variable names, function names, or identifiers in existing code. A
-compatibility migration may be needed if any user code uses these names.
-
-**Check:** Search the codebase for `async` and `await` used as identifiers.
-Currently, `async` is used in the HTTP server (`serve_async` method), but as a
-method name suffix, not a standalone identifier — this is fine. The `await` name
-is not currently used anywhere in the language code.
-
----
-
-## 5. Parser Changes
-
-### 5.1 Function Declaration Parsing
-
-**File:** `parser/structures/Function.cpp`
-
-In `parse_func_decl()`, add a check for `async` before the `func` keyword:
-
-```cpp
-FunctionDeclaration* Parser::parse_func_decl() {
-    // NEW: check for async keyword
-    bool is_async = consume_if(TokenType::AsyncKw);
-
-    // Existing: check for 'func' keyword
-    if (!consume_if(TokenType::FuncKw)) {
-        // If we consumed 'async' but no 'func' follows, error
-        if (is_async) {
-            diagnoser.error(current, "expected 'func' after 'async'");
+func <T> pick(flag : bool, a : T, b : T) : T {
+    var out : T = loop {
+        if(flag) {
+            break a
+        } else {
+            break b
         }
-        return nullptr;
     }
+    return out
+}
 
-    // ... rest of function parsing ...
-
-    // Set async flag on the created FunctionDeclaration
-    func->attrs.is_async = is_async;
-    // Also set on the FunctionTypeBody:
-    func->FunctionTypeBody::data.is_async = is_async;
-
-    return func;
+public func main() : int {
+    return pick<int>(true, 1, 2)
 }
 ```
 
-**Where async is valid:** Before `func` at:
-- Top level (free function)
-- Inside struct/variant/enum bodies (method)
-- Inside namespace
-- Inside impl blocks
-
-### 5.2 Await Expression Parsing
-
-**File:** `parser/values/Expression.cpp`
-
-In the expression parser, add `await` as a unary prefix operator with the
-same precedence as `!` (logical not):
-
-```cpp
-Value* Parser::parse_unary() {
-    // ... existing unary checks ...
-
-    if (consume_if(TokenType::AwaitKw)) {
-        auto inner = parse_unary();  // right-associative
-        return allocator.create<AwaitExpression>(inner, inner->location());
-    }
-
-    // ... rest of unary parsing ...
-}
-```
-
-**Precedence:** `await` binds tighter than binary operators but weaker than
-function calls and member access. So `await f()` parses as `await (f())`,
-and `await x.method()` parses as `await (x.method())`.
-
-### 5.3 Async Closure Parsing
-
-**File:** `parser/values/LexValue.cpp` or `parser/structures/Block.cpp`
-
-In the lambda/closure parser, add a check for `async` before `|`:
-
-```cpp
-// In the lambda parsing code:
-bool is_async = consume_if(TokenType::AsyncKw);
-
-if (current.type == TokenType::Pipe || current.type == TokenType::OpenParen) {
-    // Parse closure parameters
-    auto closure = parse_closure_body();
-    closure->is_async = is_async;
-    // Return type becomes Future<T> where T is the closure's return type
-    return closure;
-}
-```
-
-### 5.4 Error Recovery
-
-When `await` appears outside an async function, emit:
+Observed:
 
 ```
-error: 'await' can only be used inside an async function
+[2cTranslation] error: generic type parameter not specialized, compiler bug
+  detected at .../b1_probe/src/main.ch:2:7
 ```
 
-When `async` appears on a function that returns a non-async type, the type
-checker handles this (not the parser). The parser just stores the flag.
-
----
-
-## 6. Symbol Resolution Changes
-
-### 6.1 `Future<T>` Type Registration
-
-**File:** `compiler/symres/SymbolResolver.cpp`
-
-During module initialization, register `Future<T>` as a built-in type. The
-`Future<T>` type is defined in `lang/libs/async/` but the compiler needs to
-recognize it for type checking:
-
-```cpp
-// In SymbolResolver::link_core_nodes() or a new link_async_nodes():
-void SymbolResolver::link_async_nodes() {
-    // Find Future<T> in the async module
-    const auto asyncNode = find("async");
-    if (!asyncNode) return;
-
-    const auto futureNode = asyncNode->child("Future");
-    if (!futureNode || futureNode->kind() != ASTNodeKind::GenericStructDecl) return;
-
-    // Store reference for type checking
-    asyncNodes.future_type = futureNode->as_generic_struct_unsafe();
-}
-```
-
-### 6.2 Async Function Return Type Resolution
-
-**File:** `compiler/symres/LinkSignature.h`
-
-When resolving the return type of an async function:
-1. If the user writes `async func foo() : int`, the actual return type is
-   `Future<int>`.
-2. The symres pass wraps the declared return type in `Future<T>`.
-
-```cpp
-// In TopLevelLinkSignature visit FunctionDeclaration:
-if (func->attrs.is_async) {
-    // Wrap return type in Future<T>
-    auto future_type = create_future_type(func->returnType);
-    func->returnType = TypeLoc(future_type, func->returnType.location());
-}
-```
-
-### 6.3 `await` Expression Resolution
-
-**File:** `compiler/symres/SymResLinkBody.h`
-
-When resolving an `AwaitExpression`:
-1. Resolve the inner expression.
-2. Check that the inner expression's type is `Future<T>`.
-3. Extract `T` and set it as the type of the `AwaitExpression`.
-
-```cpp
-// In SymResLinkBody::VisitAwaitExpression:
-void SymResLinkBody::VisitAwaitExpression(AwaitExpression* expr) {
-    // Resolve the inner expression first
-    resolve_value(expr->inner);
-
-    // Get the type of the inner expression
-    auto type = expr->inner->known_type();
-
-    // Check it's a Future<T>
-    if (!is_future_type(type)) {
-        diagnoser.error(expr, "await requires a Future<T>, got %s", type);
-        return;
-    }
-
-    // Extract T from Future<T>
-    expr->resolved_type = extract_future_inner_type(type);
-    expr->set_known_type(expr->resolved_type);
-}
-```
-
-### 6.4 Async Function Body: Implicit Suspension Points
-
-During body resolution, the symres pass must:
-1. Track that we are inside an async function body.
-2. Allow `await` expressions (otherwise error).
-3. Validate that closures captured by async functions do not outlive their
-   captures (this is complex; initial implementation can defer this check
-   and rely on the `unsafe` keyword for raw pointer captures).
-
----
-
-## 7. Type Verification Changes
-
-### 7.1 `await` Type Check
-
-**File:** `compiler/typeverify/TypeVerify.cpp`
-
-```cpp
-// In VisitAwaitExpression:
-void TypeVerify::VisitAwaitExpression(AwaitExpression* expr) {
-    // Verify inner expression produces Future<T>
-    auto inner_type = expr->inner->known_type();
-    if (!is_future_type(inner_type)) {
-        report_error(expr, "expected Future<T>, got %s", inner_type);
-        return;
-    }
-
-    // Verify the type of the await expression matches the context
-    auto expected = expr->expected_type();
-    if (expected && !type_satisfies(expr->resolved_type, expected)) {
-        report_error(expr, "type mismatch: await produces %s, expected %s",
-                     expr->resolved_type, expected);
-    }
-}
-```
-
-### 7.2 Async Function Return Type Check
-
-```cpp
-// In VisitFunctionDeclaration:
-if (func->attrs.is_async) {
-    auto ret_type = func->returnType.get();
-    if (!is_future_type(ret_type)) {
-        // This should not happen — symres wraps it
-        report_error(func, "async function must return Future<T>");
-    }
-}
-```
-
-### 7.3 `await` Inside Non-Async Context
-
-```cpp
-// In VisitAwaitExpression:
-if (!current_function_is_async()) {
-    report_error(expr, "'await' can only be used inside an async function");
-}
-```
-
----
-
-## 8. LLVM Backend Changes
-
-This is the most complex part. There are two viable strategies:
-
-### Strategy A: Stackful Coroutines (Recommended for Initial Implementation)
-
-Use platform threads with stack switching. Each async function runs on its
-own thread. When `await` is called, the thread blocks on a condition variable.
-The executor thread pool resumes it when the future completes.
-
-**Pros:** Simple to implement, works with existing LLVM IR.
-**Cons:** Higher memory usage per task (thread stack), context switch overhead.
-
-### Strategy B: Stackless Coroutines (Recommended for Production)
-
-Use LLVM's coroutine intrinsics (`llvm.coro.*`) to transform async functions
-into state machines that can be resumed on any thread.
-
-**Pros:** Very lightweight (no thread per task), O(1) memory per suspended frame.
-**Cons:** Complex implementation, requires careful handling of destructors and
-captured state.
-
-**Recommendation:** Implement Strategy A first (simpler, faster to ship),
-then migrate to Strategy B for performance.
-
-### 8.1 Strategy A: Stackful Implementation
-
-#### Async Function Codegen
-
-An async function is compiled as a normal function that:
-1. Takes a hidden `Future<T>*` parameter (the output slot).
-2. Runs the body synchronously on whatever thread calls it.
-3. When it hits `await`, submits itself to the executor and returns.
-4. The executor resumes it later.
-
-```cpp
-// In LLVM.cpp — VisitFunctionDeclaration:
-void LLVMBackendContext::code_gen_async_function(FunctionDeclaration* func) {
-    // 1. Create the function with a hidden Future<T>* parameter
-    auto future_type = get_future_type(func->returnType);
-    auto param_types = func->param_types();
-    param_types.insert(param_types.begin(), future_type->pointer_type());  // hidden param
-
-    // 2. Generate function body as normal
-    // 3. At each await expression:
-    //    a. Call the executor to suspend the current task
-    //    b. Store the continuation (resume point) in the Future
-    //    c. Return from the function
-    // 4. The executor resumes by calling back into the function at the
-    //    stored resume point
-}
-```
-
-#### Await Codegen
-
-```llvm
-; await some_future
-%future = call %Future* @create_future()
-call void @executor_suspend(%Future* %future, i8* %resume_label)
-; ... code after await is in a separate basic block ...
-; The executor calls @executor_resume(%Future* %future) which jumps to %resume_label
-```
-
-#### Simplified: Thread-per-Await
-
-For the simplest implementation, `await` simply blocks the current thread:
-
-```llvm
-; Simplified await:
-; 1. Get the Future<T> from the expression
-; 2. Call Future::block_on() which blocks until complete
-; 3. Extract T from the Future
-
-%future = call %Future* @future_expr()
-call void @future_block_on(%Future* %future)
-%result = call %T* @future_get_result(%Future* %future)
-```
-
-This is the simplest possible implementation: `await` just blocks. It's
-equivalent to synchronous code but with the async API surface. The real
-concurrent execution comes from calling async functions from different threads
-via the thread pool.
-
-### 8.2 Strategy B: Stackless Coroutine Implementation
-
-#### Coroutine Frame
-
-Each async function gets a **coroutine frame** — a heap-allocated struct
-containing all local variables and the current suspension point:
-
-```cpp
-// For async func foo(x: int) : int:
-// The compiler generates:
-
-struct FooCoroutineFrame {
-    // Frame header
-    i8 suspend_point;         // which await point are we at?
-    void (*resume_fn)(void*); // function to call to resume
-    void (*destroy_fn)(void*); // function to clean up
-
-    // Saved local variables
-    i32 x;                    // parameter
-    i32 temp_result;          // any temps across suspend points
-    // ... all locals that are live across an await point ...
-};
-```
-
-#### LLVM Coroutine Intrinsics
-
-LLVM provides these built-in intrinsics:
-
-```
-llvm.coro.id      — identify a coroutine
-llvm.coro.suspend — suspend at an await point
-llvm.coro.resume  — resume a suspended coroutine
-llvm.coro.destroy — destroy a coroutine frame
-llvm.coro.done    — check if coroutine is complete
-llvm.coro.alloc   — check if coroutine frame needs allocation
-llvm.coro.begin   — begin coroutine execution
-llvm.coro.end     — end coroutine execution
-llvm.coro.save    — save coroutine state
-llvm.coro.free    — free coroutine frame
-```
-
-#### Codegen Pattern
-
-```llvm
-; Async function: async func add(a: int, b: int) : int
-
-define i32 @add(i32 %a, i32 %b) {
-entry:
-  ; Allocate coroutine frame
-  %id = call token @llvm.coro.id(i32 0, ptr null, ptr null, ptr null)
-  %size = call i64 @llvm.coro.size.i64()
-  %frame = call ptr @malloc(i64 %size)
-  %hdl = call ptr @llvm.coro.begin(token %id, ptr %frame)
-
-  ; Save state and suspend at await point
-  %state = call i8 @llvm.coro.suspend(token none, i1 false)
-  switch i8 %state, label %suspend [
-    i8 0, label %resume    ; resumed
-    i8 1, label %cleanup   ; destroyed
-  ]
-
-resume:
-  ; Code after the await point
-  ; ...
-
-cleanup:
-  call ptr @llvm.coro.free(token %id, ptr %hdl)
-  br label %suspend
-
-suspend:
-  call i1 @llvm.coro.end(ptr %hdl, i1 false, token none)
-  ret i32 0
-}
-```
-
-#### Chemical-Specific Codegen (Strategy B)
-
-**File:** `compiler/backend/LLVM.cpp`
-
-```cpp
-void LLVMBackendContext::code_gen_async_function(FunctionDeclaration* func) {
-    // 1. Mark the LLVM function as a coroutine
-    auto llvm_func = get_or_create_function(func);
-    llvm_func->setDoesNotThrow();
-    llvm_func->setCallingConv(llvm::CallingConv::Fast);
-
-    // 2. Create the coroutine id and frame allocation
-    auto coro_id = builder.CreateCall(
-        Intrinsic::coro_id,
-        {builder.getInt32(0), null_ptr, null_ptr, null_ptr}
-    );
-
-    // 3. Generate the function body normally
-    generate_function_body(func);
-
-    // 4. At each AwaitExpression:
-    //    a. Save current state (coro.save)
-    //    b. Call llvm.coro.suspend
-    //    c. Branch to resume/cleanup/suspend based on return value
-}
-```
-
-### 8.3 Recommendation
-
-**Use Strategy A (simplified blocking) for the initial implementation.** This
-gives users the async/await API immediately. The implementation is:
-
-1. `async func foo() : T` compiles to a normal C function `void foo(Future_T* __future)`.
-2. `await expr` compiles to: call `expr`, then call `Future::block_on()`, then
-   extract the result.
-3. The `Future<T>` is implemented in the runtime library as a mutex+condvar
-   wrapper (like the existing `std::concurrent::Promise<T>`).
-
-Later, when the stackless coroutine implementation is ready:
-1. Functions with `await` get a coroutine frame.
-2. `await` uses `llvm.coro.suspend`.
-3. The executor schedules continuations instead of blocking.
-
----
-
-## 9. C Codegen (2c) Backend Changes
-
-### 9.1 Strategy A (Blocking) — Simple
-
-```c
-// Chemical: async func fetch(url: *char) : int
-// C translation:
-void fetch(int* __result, const char* url) {
-    // ... body ...
-    // await some_future:
-    future_block_on(some_future);     // blocks until ready
-    int value = future_get_int(some_future);  // extract result
-    // ... continue ...
-    *__result = value;                // store in Future<T>
-}
-```
-
-### 9.2 Platform-Specific Coroutine Support
-
-For stackless coroutines (Strategy B), the 2c backend would need to generate
-platform-specific code:
-
-**Linux/macOS (setjmp/longjmp or ucontext):**
-```c
-#include <ucontext.h>
-
-typedef struct {
-    ucontext_t ctx;
-    int suspend_point;
-    char stack[1024 * 1024];  // 1MB stack for the coroutine
-} CoroutineFrame;
-```
-
-**Windows (Fiber API):**
-```c
-#include <windows.h>
-
-typedef struct {
-    LPVOID fiber;
-    int suspend_point;
-} CoroutineFrame;
-```
-
-**Alternative: cooperative scheduler with setjmp/longjmp** (no extra deps):
-```c
-#include <setjmp.h>
-
-typedef struct {
-    jmp_buf env;
-    int suspend_point;
-    // saved locals across suspend points
-} AsyncFrame;
-```
-
-### 9.3 Minimal 2c Changes
-
-For the initial blocking implementation, the 2c backend changes are minimal:
-- Async functions are translated as normal C functions with a `Future<T>*` hidden parameter.
-- `await` calls `future_block_on()` then `future_get_result()`.
-
-```cpp
-// In preprocess/2c/2cASTVisitor.cpp:
-
-void ToCAstVisitor::VisitAwaitExpression(AwaitExpression* expr) {
-    // Generate: future_block_on(<expr>); future_get_result(<expr>)
-    VisitNode(expr->inner);
-    writer.write("future_block_on(");
-    visit_inner(expr->inner);
-    writer.write(");\n");
-
-    // The result is extracted from the future
-    writer.write("future_get_result(");
-    visit_inner(expr->inner);
-    writer.write(")");
-}
-```
-
----
-
-## 10. Interpreter Changes
-
-### 10.1 Strategy A (Blocking) — No Interpreter Changes
-
-In interpretation mode, `await` simply evaluates the inner expression,
-blocks on the result (if it's a `Future<T>`), and returns the value.
-The interpreter already supports blocking operations via the thread pool.
-
-### 10.2 Comptime Compatibility
-
-`async` functions can be called at comptime only if:
-1. They don't actually suspend (no `await` in the body, or the awaited futures
-   are already resolved).
-2. The comptime interpreter runs everything synchronously.
-
-If an `async` function tries to suspend at comptime, the compiler emits:
-
-```
-error: cannot suspend at compile time
-```
-
----
-
-## 11. Runtime Library: `lang/libs/async/`
-
-### 11.1 Module Structure
-
-```
-lang/libs/async/
-├── chemical.mod
-└── src/
-    ├── main.ch           # exports
-    ├── future.ch         # Future<T> type
-    ├── promise.ch        # Promise<T> type (internal)
-    ├── executor.ch       # Task executor
-    ├── spawn.ch          # spawn/spawn_blocking helpers
-    └── channel.ch        # Channel<T> for cross-task communication
-```
-
-### 11.2 `chemical.mod`
-
-```
-application async
-source "src"
-import std
-import cstd
-```
-
-### 11.3 `Future<T>`
-
-**File:** `lang/libs/async/src/future.ch`
+The generated C contains
+`[GENERIC_TYPE_PARAMETER_NOT_SPECIALIZED_COMPILER_BUG] out = ...`, which TinyCC
+then rejects.
+
+**Verified scope (variants compiled individually):**
+
+| Variant | Result |
+|---------|--------|
+| `var out : T = loop { break a }` in `func <T>` | **FAIL** |
+| `return loop { break a }` in `func <T>` (no initializer) | **FAIL** |
+| `loop { break }` (void) in `func <T>` | OK |
+| `var out : int = loop { break 5 }` (concrete result) in `func <T>` | OK |
+| `var out : T = if(flag) a else b` (if-expression, generic result) | OK |
+| concrete `func` with `loop` expression | OK |
+
+So it is specifically **`LoopValue` whose result type is a generic parameter**;
+`if`/`switch` value expressions already handle this correctly.
+
+**Root cause (confirmed by reading the code):** `LoopBlock` caches the first
+broken value and copies that stale pointer during instantiation.
+
+- `ast/structures/LoopBlock.h:32-36` `copy_into` does
+  `blk->first_broken = first_broken;` with the comment
+  `// TODO: should we recalculate in generic instantiation ?`
+- `compiler/generics/GenericInstantiator.cpp:370-378`
+  `VisitLoopValue` then does `value->setType(first->getType())` on the original
+  (uninstantiated) broken value, so the type stays `T`.
+- `ast/structures/Scope.cpp:130` `LoopBlock::get_first_broken()` caches
+  `first_broken`, so the stale pointer is returned.
+- Contrast `VisitIfValue` (`GenericInstantiator.cpp:354`) / `VisitSwitchValue`
+  (`:362`), which re-read `get_value_node()` after visiting and therefore see
+  the instantiated type.
+
+**Impact:** the await poll loop **must not be written as a Chemical `loop`
+expression in generic code**. This is a strong independent justification for
+Decision D6: the suspend/poll loop is emitted by each backend (LLVM/2c), never
+as Chemical source, and never via a generic Chemical helper.
+
+**FIXED (September 14, 2026).** Two changes:
+
+- `ast/structures/LoopBlock.h` `copy_into`: no longer copies the cached
+  `first_broken`; it sets `blk->first_broken = nullptr` so it is recomputed
+  lazily from the copied body.
+- `compiler/generics/GenericInstantiator.cpp` `VisitLoopValue`: invalidates
+  `value->stmt.first_broken = nullptr` after visiting the body, then recomputes
+  it, so the type is taken from the instantiated break value.
+
+Regression test: `lang/tests/src/generic/generic_dispatch.ch`
+(`test_generic_loop_expression_result`), plus `lang/compiled/b1_probe` and
+`lang/compiled/generic_loop_bug`.
+
+#### B2 — Any call to an impl-only method emits the interface symbol (HIGH)
+
+**Verified — broader than originally thought.** A call to a method defined *only*
+inside an `impl Interface for T` block emits a call to the interface's symbol,
+not the concrete impl function — **with or without** a generic constraint.
+
+Minimal reproduction: `lang/compiled/b2_probe/`
 
 ```chemical
-public namespace std {
+public interface Ping {
+    func ping(&mut self) : int
+}
 
+@direct_init
+public struct Counter {
+    var n : int
+
+    impl Ping for Counter {
+        func ping(&mut self) : int {
+            return self.n
+        }
+    }
+}
+
+func call_it(c : *mut Counter) : int {
+    return c.ping()                 // concrete type, no generic constraint
+}
+
+public func main() : int {
+    var c = Counter { n : 7 }
+    return call_it(&raw mut c)
+}
+```
+
+Observed (link failure):
+
+```
+tcc: error: unresolved reference to 'b2_probe_Pingping'
+```
+
+Generated C (from `--emit-c`) shows the exact mismatch:
+
+```c
+// defined (correct):
+int b2_probe_Ping_Counter_ping(struct b2_probe_Counter* self) { ... }
+const __chx_b2_probe_Ping_vt_t b2_probe_Pingb2_probe_Counter = {
+    (int(*)(void* self)) b2_probe_Ping_Counter_ping, ... };
+// called (wrong):
+return b2_probe_Pingping(c);
+```
+
+**Verified scope:**
+
+| Variant | Result |
+|---------|--------|
+| concrete `func call_it(c : *mut Counter) { c.ping() }` | **FAIL** (`b2_probe_Pingping`) |
+| generic `func <P : Ping> call_it(c : *mut P) { c.ping() }` | **FAIL** (same symbol) |
+| direct method on the struct (not in an `impl`) | OK |
+
+So this is a general impl-method-call name-resolution bug, not specific to
+generics or to async. In the earlier async probe it appeared as
+`async_probe_Future__cgs__0poll` vs the correct
+`async_probe_Future__cgs__0_CountdownFuture_poll`.
+
+**Impact:** a user-defined future whose `poll` is defined in
+`impl Future<T> for F` cannot have `poll` invoked by a source-level method call.
+**Mitigation built into the design:** the compiler materializes every future into
+a `FutureHandle<T>` with a compiler-synthesized **static vtable** that references
+the impl's `FunctionDeclaration*` directly (taking its address), not via a
+name-based method call. The await lowering then always calls
+`handle.vtbl.poll(...)`, which is verified working (see 1.4 item 4). This
+sidesteps B2 entirely and is now **Decision D13**.
+
+**FIXED (September 14, 2026).** The root cause was that `impl Interface for T`
+blocks nested inside a container were never indexed during the signature pass, so
+the container's `indexes` only ever received the interface's abstract methods
+(from `SymResLinkBody::VisitImplDecl`'s `struct_linked->adopt(linked)`). Two
+changes:
+
+- `compiler/symres/LinkSignature.cpp` `BuildIndexes`: for `StructDecl` /
+  `UnionDecl` / `VariantDecl`, also run `index_implementation` +
+  `build_indexes_of_impl` for each nested `ImplDecl` in
+  `container->evaluated_nodes()`. The impl's functions are adopted into the
+  container before the interface's methods, so calls resolve to the concrete
+  implementation and mangle with the concrete type.
+- `preprocess/2c/2cASTVisitor.cpp` `CTopLevelDeclarationVisitor::VisitStructDecl`:
+  declare the functions of nested `ImplDecl`s too, so a call emitted before the
+  definition (e.g. from a generic instantiation) has a C prototype. Without this
+  the generated C used an implicit declaration and TCC rejected the later
+  definition as an incompatible redefinition.
+
+Regression tests: `lang/tests/src/generic/generic_dispatch.ch`
+(`test_impl_only_method_call`) and `lang/compiled/async_generic_poll`. Concrete
+and generic-constrained calls to an impl-only method now link and run.
+
+#### B3 — `&mut Concrete` does not coerce to `&mut Interface` (MEDIUM)
+
+```chemical
+func drive(f : &mut Future<int>, cx : *mut Context) : int { ... }
+var cd = CountdownFuture { ... }
+drive(&mut cd, &mut cx)   // TypeCheck error:
+                          // value with type '&mut CountdownFuture' does not
+                          // satisfy type '&mut Future<int>'
+```
+
+**Impact:** do **not** design `await`/`IntoFuture` around passing interface
+references. Use the `FutureHandle<T>` vtable value instead (D13).
+
+#### B4 — Syntax constraints discovered (must be respected in all generated/user code)
+
+| Constraint | Correct form | Wrong form |
+|-----------|--------------|-----------|
+| Function-pointer type parameters must be named | `(data : *mut void) => void` | `(*mut void) => void` |
+| No `const` in pointer types | `var vtbl : *WakerVTable` | `var vtbl : *const WakerVTable` |
+| Generic function declaration | `func <T> name(...)` | `func name<T>(...)` |
+| Generic variant construction | `Poll.Ready<T>(v)` | `Poll<T>.Ready(v)` |
+| Move out of `&mut self` | `std::replace(&mut self.x, zeroed<T>())` | `var v = self.x` (error) |
+| No global unit type | define `public struct Unit {}` | (no builtin `unit`) |
+| `if` not inline in args | assign to a var first | `f(if(c) 1 else 0)` |
+| Mutable pointer to write fields | `*mut T` from `malloc(...) as *mut T` | `*T` then assign field (error) |
+
+#### B5 — Name collision with `std::concurrent.Future<T>` (LOW, but must be decided)
+
+`lang/libs/std/src/concurrency/threadpool.ch` already defines a blocking
+`std.concurrent.Future<T>` / `Promise<T>`. The async protocol must live under a
+distinct qualified name. **Decision:** the compiler protocol is
+`core::async::{Future, Poll, Context, Waker, FutureHandle, FutureTable}`;
+`std::concurrent.Future` remains the blocking interop type. `await` resolves the
+`core::async` types by their fully-qualified `CoreNodes` handles, never by the
+unqualified name `Future`. Document this in user-facing docs to avoid confusion,
+and never add a blanket `using namespace` that merges the two.
+
+### 1.6 Net Design Changes Forced By The Probe
+
+| Finding | Design change |
+|---------|---------------|
+| B1 generic loop bug | Backends emit the poll/suspend loop; no Chemical `loop` helper. Already D6; now mandatory. |
+| B2 impl-only call bug | **D13**: materialize futures into `FutureHandle<T>` with a compiler-synthesized static vtable; `await` always goes through the handle. |
+| B3 no interface coercion | Use `FutureHandle<T>` values, not `&mut Interface`. Reinforces D13. |
+| B4 syntax | Generated frames/vtables follow the correct forms in the table. |
+| B5 collision | Protocol is `core::async::*`; never unqualified `Future`. |
+
+---
+
+## 2. Design Decisions (Normative)
+
+These are decided. Do not re-litigate them mid-implementation.
+
+| # | Decision | Rationale |
+|---|----------|-----------|
+| **D1** | **Poll-based stackless coroutines.** `await` desugars to a poll loop; suspension is `Pending`. No thread per task. | Only model that meets the zero-cost goal and scales to many concurrent I/O tasks. |
+| **D2** | **Lazy futures.** Calling an async function does **not** run the body; the body runs on first `poll`. `spawn` schedules immediately. | Matches LLVM/Clang coroutine default (`initial_suspend`), gives deterministic cancellation, no hidden work at call site. |
+| **D3** | **`Future<T>` is the user interface; the runtime representation is `FutureHandle<T>` = `{ frame: *mut void, vtbl: *mut FutureTable<T> }`.** | One representation usable by compiler-generated futures and materialized user futures. Handle is movable and cheap; verified by probe 1.4. |
+| **D4** | **Frames are stable and never move after allocation** (heap, or caller-owned for the elided fast path). No `Pin` type is required. | Eliminates the entire self-referential-move problem. Moving the *handle* is fine; the *frame* is stable. |
+| **D5** | **Frames are allocated by the async ramp, not by the `await` site**, through a pluggable `frame_alloc`/`frame_free`. Default backend uses a task arena; falls back to `malloc`. | No hidden per-call `malloc` requirement; executor can pool. |
+| **D6** | **Two backend emissions, one shared plan.** LLVM uses `llvm.coro.*`; 2c emits a portable `switch`+`goto` state machine. Both consume the same `AsyncLoweringPlan`. | Each is natural for its backend; shared analysis keeps semantics identical. |
+| **D7** | **Default thread model is thread-per-core with per-thread executors.** Tasks never migrate unless explicitly `spawn_send`. `Send` enforcement is a later phase. | Preserves safety today without a `Send`/auto-trait system, while still allowing I/O concurrency. |
+| **D8** | **`await` is forbidden in destructors, constructors, `@extern` bodies, and comptime unless the future is provably ready.** | Destructors must be infallible and non-suspending; extern functions have no Chemical frame. |
+| **D9** | **Async closures are supported** and produce `Future<T>`. | They fall out of `LambdaFunction`'s shared `FunctionTypeBody`. |
+| **D10** | **The runtime protocol lives in `core`, the executor/IO lives in `lang/libs/async`.** The compiler auto-adds the `core` dependency for modules that use `async` (as it already relies on `core` for operators). | `async` must work without the user importing an executor; no mandatory runtime. |
+| **D11** | **All `await` expressions are normalized to statement position before backends.** Backends implement one node, not arbitrary expression-position suspension. | Bounds backend complexity and fixes evaluation order. |
+| **D12** | **A blocking `block_on` is the only bridge from sync to async**, used by `main` and interop. It is an executor, not a lowering. | Keeps sync/async boundary explicit. |
+| **D13** | **Every awaitable is materialized into a `FutureHandle<T>` with a compiler-synthesized static vtable.** `await e` lowers to a poll loop over the handle's vtable, never to an interface-reference call or a method call on an impl. | Probe B2/B3: impl-only method calls emit the interface symbol in 2c, and `&mut Concrete` does not coerce to `&mut Interface`. The vtable-handle path is verified working (probe 1.4). |
+
+---
+
+## 3. Requirements and How They Are Satisfied
+
+| Requirement | Mechanism |
+|-------------|-----------|
+| **Fast generated code** | No thread per task; one indirect call per `poll`; no allocation on the elided fast path; `Ready`-future fast path skips suspension; LLVM gets `coro` optimization; C state machine written to be efficient. |
+| **Fast compilation** | Async lowering is per-function and linear; normalized awaits remove arbitrary suspension positions; async fns with no `await` compile to plain functions; non-async code paths are untouched; no global whole-program fixpoint. |
+| **Safe** | Lazy + drop runs live-local destructors; frames stable; `await` context restrictions; `Pending` at comptime is an error; thread model avoids accidental migration; no `Pin` footgun. |
+| **Flexible** | `into_future`/`Future` protocol lets users bring their own future and I/O; no mandated runtime; executor pluggable; `select`/channels are libraries. |
+
+---
+
+## 4. Execution Model and Core Protocol
+
+### 4.1 The poll contract
+
+A future is a state machine that is driven by repeated `poll` calls. `poll`
+either produces a value (`Ready`) or registers interest and yields (`Pending`).
+There is no OS thread and no stack switch during a suspension.
+
+```
+poll(future, context):
+    Ready(value)  -> the future completed; value is the result
+    Pending       -> not done; the future has arranged to be woken
+```
+
+The future is responsible for storing the `Waker` from the context (or cloning
+it) so it can call `wake()` when progress is possible.
+
+### 4.2 Core types (normative Chemical signatures)
+
+These live in `lang/libs/core/src/`. Suggested file:
+`lang/libs/core/src/async.ch`, added as a `source` in `lang/libs/core/chemical.mod`.
+
+> **Availability note.** `core` is not imported by every user module today; it
+> is normally brought in through `import std`. The compiler already resolves
+> `core` for operator overloading via `SymbolResolver::link_core_nodes()`
+> (`compiler/symres/SymbolResolver.cpp:55`). For `async` we must guarantee the
+> `core` protocol is resolvable: add `import core` to `lang/libs/cstd/chemical.mod`
+> (which nearly every module imports), or auto-add a `core` dependency to any
+> module that contains an `async` declaration or `await` expression. Prefer the
+> explicit `cstd` import; fall back to auto-add if `cstd` is not present
+> (e.g. freestanding modules). If neither is possible, emit the diagnostic in
+> Section 15 rather than crashing in `link_core_nodes`.
+
+```chemical
+public namespace core {
     public namespace async {
 
-        // Status of a future
-        public enum FutureStatus {
-            Pending,
-            Ready,
-            Cancelled
+        public variant Poll<T> {
+            Ready(value: T)
+            Pending
         }
 
-        // A Future<T> represents a value that will be available later.
-        // It wraps a Promise<T> and provides methods to wait for the result.
-        public struct Future<T> {
-            var promise : *mut PromiseState<T>
-            var status : FutureStatus
+        // A cloneable, type-erased wake callback. `data` is the task handle.
+        public struct Waker {
+            var data  : *mut void
+            var vtbl  : *const WakerVTable
 
-            @constructor
-            func constructor(p : *mut PromiseState<T>) {
-                return Future<T> {
-                    promise = p,
-                    status = FutureStatus.Pending
-                }
+            public func wake(&mut self) {
+                vtbl.wake(data)
             }
 
-            // Block until the future completes and return the value.
-            // This is what `await` compiles to in Strategy A.
-            public func block_on(&mut self) : T {
-                if(self.status == FutureStatus.Ready) {
-                    return self.promise.get_value()
-                }
-                self.promise.wait_until_ready()
-                self.status = FutureStatus.Ready
-                return self.promise.take_value()
-            }
-
-            // Non-blocking check
-            public func is_ready(&self) : bool {
-                return self.status == FutureStatus.Ready
-            }
-
-            // Get a reference to the result (only valid after block_on)
-            public func result(&self) : &T {
-                return self.promise.get_value_ref()
-            }
-
-            // Map/transform the result
-            public func <U> map(&mut self, f : (T) => U) : Future<U> {
-                var new_promise = Promise<U>()
-                var new_state = new_promise.state
-                // When this future completes, apply f and complete new_promise
-                self.promise.set_continuation(|self, new_state, f|() : void => {
-                    var val = self.block_on()
-                    var mapped = f(val)
-                    new_state.set_value(mapped)
-                })
-                return new_promise.future()
-            }
-
-            // Chain two futures sequentially
-            public func <U> then(&mut self, f : (T) => Future<U>) : Future<U> {
-                var new_promise = Promise<U>()
-                var new_state = new_promise.state
-                self.promise.set_continuation(|self, new_state, f|() : void => {
-                    var val = self.block_on()
-                    var next = f(val)
-                    var result = next.block_on()
-                    new_state.set_value(result)
-                })
-                return new_promise.future()
+            public func clone(&self) : Waker {
+                return vtbl.clone(data)
             }
 
             @delete
             func delete(&mut self) {
-                if(promise != null) {
-                    promise.release()
-                    promise = null
-                }
+                if(vtbl != null) { vtbl.drop(data) }
             }
         }
 
-    }  // namespace async
-
-}  // namespace std
-```
-
-### 11.4 `Promise<T>`
-
-**File:** `lang/libs/async/src/promise.ch`
-
-```chemical
-namespace std {
-namespace async {
-
-    // PromiseState is the internal state shared between Promise and Future.
-    // It's heap-allocated and reference-counted.
-    public struct PromiseState<T> {
-        var value : T
-        var ready : bool
-        var mutex : std::mutex
-        var condvar : std::condvar
-        var ref_count : u32
-        var continuation : std::function<() => void>
-
-        @constructor
-        func constructor() {
-            unsafe var default_val : T
-            return PromiseState<T> {
-                value = default_val,
-                ready = false,
-                mutex = std::mutex(),
-                condvar = std::condvar(),
-                ref_count = 2u,
-                continuation = std::function<() => void>()
-            }
+        public struct WakerVTable {
+            var wake        : (*mut void) => void
+            var clone       : (*mut void) => Waker
+            var drop        : (*mut void) => void
         }
 
-        public func set_value(&mut self, val : T) {
-            mutex.lock()
-            value = val
-            ready = true
-            condvar.notify_all()
-            var has_cont = !continuation.is_empty()
-            mutex.unlock()
-            if(has_cont) {
-                continuation()
-            }
+        public struct Context {
+            var waker : Waker
         }
 
-        public func wait_until_ready(&mut self) {
-            mutex.lock()
-            while(!ready) {
-                condvar.wait(&mut mutex)
-            }
-            mutex.unlock()
-        }
-
-        public func get_value(&self) : T {
-            return value
-        }
-
-        public func get_value_ref(&self) : &T {
-            return &value
-        }
-
-        public func take_value(&mut self) : T {
-            var temp : T = value
-            return temp
-        }
-
-        public func set_continuation(&mut self, f : std::function<() => void>) {
-            mutex.lock()
-            continuation = f
-            var is_ready = self.ready
-            mutex.unlock()
-            if(is_ready) {
-                f()
-            }
-        }
-
-        public func release(&mut self) {
-            ref_count = ref_count - 1u
-            if(ref_count == 0u) {
-                // TODO: free self
-            }
-        }
-
-        @delete
-        func delete(&mut self) {
-            // Don't free here — use release()
+        // The contract a user future implements. NOTE: `await` does NOT call
+        // this through an interface reference (probe B3: `&mut Concrete` does
+        // not coerce to `&mut Interface`). The compiler emits a static vtable
+        // thunk that calls the concrete `poll` directly (see 4.3 / 4.4).
+        public interface Future<T> {
+            func poll(&mut self, cx : *mut Context) : Poll<T>
         }
     }
-
-    // Promise<T> is the producer side. Setting a value completes the future.
-    public struct Promise<T> {
-        var state : *mut PromiseState<T>
-
-        @constructor
-        func constructor() {
-            var s = malloc(sizeof(PromiseState<T>)) as *mut PromiseState<T>
-            new(s) PromiseState<T>()
-            return Promise<T> {
-                state = s
-            }
-        }
-
-        public func set_value(&mut self, val : T) {
-            state.set_value(val)
-        }
-
-        public func future(&self) : Future<T> {
-            return Future<T>(state)
-        }
-
-        @delete
-        func delete(&mut self) {
-            if(state != null) {
-                state.release()
-                state = null
-            }
-        }
-    }
-
-}  // namespace async
-}  // namespace std
-```
-
-### 11.5 `spawn` and `spawn_blocking`
-
-**File:** `lang/libs/async/src/spawn.ch`
-
-```chemical
-namespace std {
-namespace async {
-
-    // Spawn an async task on the executor thread pool
-    public func spawn<T>(task : std::function<() => T>) : Future<T> {
-        var promise = Promise<T>()
-        var future = promise.future()
-        std::global_executor.submit(|task, promise|() : void => {
-            var result = task()
-            promise.set_value(result)
-        })
-        return future
-    }
-
-    // Spawn a blocking task on a dedicated blocking thread
-    public func spawn_blocking<T>(task : std::function<() => T>) : Future<T> {
-        var promise = Promise<T>()
-        var future = promise.future()
-        std::global_blocking_executor.submit(|task, promise|() : void => {
-            var result = task()
-            promise.set_value(result)
-        })
-        return future
-    }
-
-    // Sleep for a duration (async version)
-    public async func sleep(ms : u64) : void {
-        // Use the executor's timer facility
-        // For Strategy A, this just blocks the thread
-        std::concurrent::sleep_ms(ms)
-    }
-
-}  // namespace async
-}  // namespace std
-```
-
-### 11.6 Executor
-
-**File:** `lang/libs/async/src/executor.ch`
-
-```chemical
-namespace std {
-namespace async {
-
-    // Global async executor (thread pool based)
-    public var global_executor : std.concurrent.ThreadPool
-    public var global_blocking_executor : std.concurrent.ThreadPool
-
-    // Initialize the global executors
-    func init_executors() {
-        var hw = std::concurrent.hardware_threads()
-        global_executor = std::concurrent.create_pool(hw as uint)
-        global_blocking_executor = std::concurrent.create_pool(
-            (hw * 2u) as uint   // more threads for blocking tasks
-        )
-    }
-
-    // Shutdown the global executors
-    func shutdown_executors() {
-        // ThreadPool destructor handles this
-        delete global_executor
-        delete global_blocking_executor
-    }
-
-}  // namespace async
-}  // namespace std
-```
-
----
-
-## 12. Built-in Async Types
-
-### 12.1 Compiler-Aware Types
-
-The compiler must know about these types for correct type checking:
-
-| Type | Purpose | Compiler Knowledge |
-|------|---------|-------------------|
-| `Future<T>` | Represents an async result | Required for `await` type checking |
-| `Promise<T>` | Producer side of a future | Library type, no compiler magic |
-
-### 12.2 How `async func` Return Type Works
-
-When a user writes:
-```chemical
-async func compute() : int {
-    return 42
 }
 ```
 
-The compiler internally transforms the return type to `Future<int>`. The
-function's actual compiled signature is:
+> **Chemical-syntax notes for whoever writes this file.**
+> - `Poll<T>` is a `variant`; construct with `Poll.Ready<T>(x)` /
+>   `Poll.Pending<T>()` (type args attach after the case name).
+> - Function-pointer parameters must be **named**:
+>   `(data : *mut void) => void`.
+> - There is no `*const T`; immutable pointer is `*T`.
+> - Structs holding a `Waker` need an explicit `@delete` (as shown) because
+>   `Waker` owns a type-erased allocation.
+> - Do **not** write `unsafe var` (removed). Uninitialized locals are declared
+>   plainly and only *access* is wrapped in `unsafe(...)`.
+> - `if` always needs `else`.
+
+> **There is no `IntoFuture` interface in the design.** The earlier draft's
+> `IntoFuture` returning a `Future<T>` interface object cannot work: interface
+> objects returned by value / passed by reference are not coercible (B3) and
+> constraint calls are miscompiled (B2). Instead, `await` **materializes** its
+> operand into the runtime handle below (D13). Adapters like `Result`/`JoinHandle`
+> are ordinary types that implement `Future<T>` (or are already handles).
+
+### 4.3 Runtime future handle (validated)
+
+The compiler-generated future and any materialized future share one concrete,
+move-only representation. Exact shapes were compiled and run (probe 1.4):
+
+```chemical
+// Declared in core/async so generated code can name it. Not user API.
+public struct FutureTable<T> {
+    var poll : (frame : *mut void, cx : *mut Context) => Poll<T>
+    var drop : (frame : *mut void) => void
+}
+
+@direct_init
+public struct FutureHandle<T> {
+    var frame : *mut void
+    var vtbl  : *mut FutureTable<T>
+
+    @delete
+    func delete(&mut self) {
+        if(frame != null) {
+            vtbl.drop(frame)
+            frame = null
+        }
+    }
+}
+```
+
+`@direct_init` is required so `FutureHandle<T>{ frame: ..., vtbl: ... }` is legal
+without a constructor. (See AGENTS.md: `@make` without `@direct_init` forbids
+`{}` entirely.)
+
+Two producers of a handle:
+
+- **Compiler async function** — the ramp allocates the frame and returns
+  `FutureHandle<T>{ frame, vtbl }`; `vtbl.poll`/`drop` are the generated
+  functions (Sections 9/10).
+- **User type satisfying `Future<T>`** — the compiler hoists the value into a
+  compiler-managed slot `__fut` (moved in), synthesizes a **static** vtable whose
+  `poll` thunk does `return (__fut as *mut F).poll(cx)`, sets `frame = &raw mut
+  __fut`, and adds a `drop` thunk that destroys `__fut`. The handle then owns the
+  slot; the normal scope cleanup must not destroy it a second time (the
+  materialization moves it).
+
+> The `@delete` on `FutureHandle<T>` is what makes cancellation work: dropping a
+> suspended handle calls `vtbl.drop(frame)`, which runs the frame's live-local
+> destructors (Sections 8.5, 13.3). Probe 1.4 confirms it runs exactly once.
+
+### 4.4 Await desugaring (normative)
+
+`await E` lowers in three steps:
+
+1. **Normalize** (Section 7): hoist `E` to a statement-boundary temporary.
+2. **Materialize** into a `FutureHandle<T>`:
+   - If `E : FutureHandle<T>` (compiler-generated ramp call), use it directly.
+   - If `E : F` where `F` satisfies `Future<T>`, move `E` into a
+     compiler-managed slot, synthesize a static vtable + `poll` thunk like the
+     probe's (`return (*frame_as_F).poll(cx)`), and build the handle.
+   - Otherwise: diagnostic (Section 15).
+3. **Drive** the handle until ready. This loop is emitted by the backend
+   (LLVM/2c), **never** written as a Chemical `loop` expression (probe B1):
+
+```
+var handle : FutureHandle<T> = <materialized E>
+var result : T
+loop {
+    var r = handle.vtbl.poll(handle.frame, __cx)
+    if(r is Poll.Ready) {
+        result = move r.value
+        break
+    } else {
+        suspend()          // backend: store state, return Poll.Pending
+    }
+}
+// handle dropped here (moves out result first); drop calls vtbl.drop(frame)
+```
+
+The `Poll.Ready` branch is the **fast path**: if the future is already complete,
+no suspension is emitted and the whole `await` is a single indirect call.
+
+`suspend()` is compiler-only:
+- LLVM: `llvm.coro.save` + `llvm.coro.suspend`; on resume, jump after the await.
+- 2c: store the resume state into the frame and `return Poll.Pending`.
+- Interpreter: `Poll.Pending` reached → diagnostic (Section 11).
+
+**Why not `IntoFuture`:** see 4.2. Materialization is a compiler step, not an
+interface method. This is D13.
+
+### 4.5 Executor task model
+
+A task is `{ FutureHandle<T>, Waker }`. The `Waker.data` points to a task slot
+owned by the executor. `wake()` pushes the task back onto the run queue. The
+executor calls `handle.vtbl.poll(handle.frame, &context)` until `Ready`, then
+reads the value and drops the handle (which drops the frame).
+
+The default executor (Section 12) is per-thread; `spawn` uses the current
+thread's executor; `spawn_send` (Phase 4) moves a task to another executor.
+
+---
+
+## 5. Language Surface
+
+### 5.1 Grammar (normative)
+
+```
+function_decl   := [access] [comptime] ["async"] "func" ...     // async before func
+await_expr      := "await" unary_expr
+async_closure   := "async" lambda
+```
+
+- `async` may appear wherever `func` may: top level, struct/variant/interface/
+  impl/union bodies, inside `type {}` blocks.
+- `async` is a hard keyword. Existing uses of the identifier `async` are:
+  the HTTP server method suffix `serve_async` (part of an identifier, fine) and
+  LSP semantic-token names (fine). No source identifier named exactly `async`
+  or `await` exists in the tree, so reserving them is safe.
+- `await` binds tighter than any binary operator and looser than call/member
+  access, exactly like `!`. `await f()` → `await (f())`;
+  `await x.m()` → `await (x.m())`.
+- `await` is right-associative: `await await f()` is legal and means
+  `await (await f())`.
+
+### 5.2 Declaration semantics
+
+```chemical
+async func fetch(url: *char) : std::Result<Response, string> { ... }
+```
+
+- The **user-visible return type is `Future<Result<Response, string>>`**. The
+  word after `:` is the **body result type**; the compiler wraps it.
+- Inside the body, `return expr` requires `expr : Result<Response, string>`
+  (the inner type), **not** `Future<...>`. Return checking must compare against
+  the inner type (Section 15).
+- The function's `FunctionType` is `(*char) => Future<Result<Response,string>>`.
+  Function pointers to it have that type.
+
+### 5.3 Async closures
+
+```chemical
+var fut = async |x: int|() : int => {
+    return await work(x)
+}
+// type: (int) => Future<int>
+```
+
+`LambdaFunction.attrs`-equivalent is `FunctionTypeData::is_async`. A call to an
+async closure returns `Future<T>`.
+
+### 5.4 `select` (Phase 4, library)
+
+`select` is **not** a language statement. It is a library combinator built on
+`Future` + `Waker`:
+
+```chemical
+var winner = await async::select(fut_a, fut_b)   // returns which + value
+```
+
+Do not add `select` to the parser in any early phase.
+
+### 5.5 Entry point
+
+Two supported forms:
+
+1. Sync main, explicit block:
+   ```chemical
+   public func main() : int {
+       return async::block_on(async_main())
+   }
+   ```
+2. Async main with compiler-generated trampoline (Phase 3 convenience):
+   ```chemical
+   async func main() : int { ... }
+   // compiler emits: int main() { return (int) async::block_on(main()); }
+   ```
+   This requires the `async` library to be linked. If it is not linked, emit a
+   diagnostic instead of an undefined symbol.
+
+---
+
+## 6. Compiler Representation
+
+### 6.1 Lexer
+
+- Add to `lexer/TokenType.h`: `AsyncKw`, `AwaitKw`.
+- **Append them at the end of the enum, after the existing last token**, and
+  mirror identically in `lang/libs/compiler/src/ChemicalTokenType.ch`. Do **not**
+  insert them in the keyword block. `Token::isKeyword`
+  (`lexer/Token.h:43`) uses strict `>`/`<` against `IndexKwStart=ForKw` /
+  `IndexKwEnd=ConstKw`; `WhereKw` already sits outside that range and is handled
+  explicitly. Appending avoids shifting `Identifier` and every punctuation
+  value, which is exactly the CBI off-by-one hazard documented in AGENTS.md.
+- Add the two entries to the keyword map in `lexer/Lexer.cpp` (the
+  `std::unordered_map` at ~line 62): `{"async", AsyncKw}`, `{"await", AwaitKw}`.
+  Because they are out of the `isKeyword` range, the parser must dispatch on
+  them explicitly (Sections 6.3 and 16.3), which is what we want: they can never
+  be consumed as identifiers.
+
+### 6.2 AST flags
+
+- `FuncDeclAttributes` (`ast/structures/FunctionDeclaration.h:72`): add
+  `bool is_async = false;` and an accessor pair `is_async()` / `set_async(bool)`.
+  The struct has default member initializers and is aggregate-initialized
+  positionally in the `FunctionDeclaration` constructor with 18 of its 23
+  fields; a new trailing field with a default is safe.
+- `FunctionTypeData` (`ast/types/FunctionType.h:33`): add
+  `bool is_async = false;`. The struct grows from 4 to 5 bytes and still
+  satisfies `static_assert(sizeof(...) <= 8)`. Update both constructors'
+  initializer lists (`data(false, isVariadic, signature_resolved, isCapturing)`
+  and the extension variant) to include it, or add a setter used after
+  construction. Prefer a setter `setIsAsync(bool)` to avoid touching every call
+  site, but set it from the parser for declarations and lambdas.
+
+Why both: `FunctionTypeData` is what `FunctionType::copy_into`/`shallow_copy_into`
+propagate, so lambda types and instantiated function types keep the bit; the
+attribute is what symres/codegen key off on a `FunctionDeclaration`.
+
+### 6.3 Parser
+
+All function parsing funnels through
+`Parser::parseFunctionStructureTokens` (`parser/structures/Function.cpp:457`),
+which currently begins by consuming `FuncKw` at line 459. Callers pass
+`specifier`/`is_comptime` in, so those modifiers are parsed *outside*.
+
+Concrete changes:
+
+1. **Accept `async` before `func`.** At the start of
+   `parseFunctionStructureTokens`, `const bool is_async = consumeToken(AsyncKw);`
+   (or check `token->type == AsyncKw` and advance), then require `FuncKw`.
+   Store on the created declaration via `decl->set_async(is_async)` and
+   `decl->data.is_async = is_async`.
+2. **Add dispatch cases.** Every caller that switches on the leading token must
+   recognize `AsyncKw` and route into the function parser:
+   - Top level: `parser/statements/LexStatement.cpp` (`parseTopLevelStatement`
+     ~74-143 and `parseTopLevelAccessSpecifiedDecl` ~35-72).
+   - Struct members: `parser/structures/Struct.cpp:115,153`.
+   - Variant members: `parser/structures/Variant.cpp:111`.
+   - Interface/impl/union/inline `type`: all go through
+     `Parser::parseContainerMembersInto` (`parser/structures/Struct.cpp:159`).
+   Doing this at each switch site is required because `AsyncKw` is not in the
+   `isKeyword` range and will otherwise fall through to the default case.
+   Alternatively, add a single `peek` helper
+   `is_func_start_async()` used by all sites; either is acceptable, but the
+   switch-site edits are mandatory regardless.
+3. **`await` prefix parsing.** Model it on `Parser::parseNotValue`
+   (`parser/utils/Expression.cpp:305`). Add:
+
+   ```cpp
+   AwaitExpression* Parser::parseAwaitValue(ASTAllocator& allocator) {
+       auto& tok = *token;
+       if(tok.type != TokenType::AwaitKw) return nullptr;
+       token++;
+       // parse the operand at unary precedence so `await f()` and
+       // `await x.m()` bind correctly
+       auto inner = parseAccessChainOrValueNoAfter(allocator);
+       if(!inner) { error("expected an expression after 'await'"); return nullptr; }
+       return new (allocator.allocate<AwaitExpression>())
+           AwaitExpression(inner, loc_single(tok));
+   }
+   ```
+
+   Register it in **all** value entry points, because `await` is a keyword and
+   `consumeIdentifierOrKeyword` will not swallow it:
+   - `parseAccessChainOrValueNoAfter` (`parser/utils/LexValue.cpp:836`)
+   - `parseAccessChainOrValue` (`parser/utils/LexValue.cpp:881`)
+   - `parseAccessChainOrAddrOf` (`parser/statements/AccessChain.cpp:173`)
+   - `parseProvideValue` (`parser/statements/LexStatement.cpp:318`)
+   - `parseLhsValue` (`parser/statements/AccessChain.cpp:141`) — to emit a
+     clean "cannot assign to an await expression" rather than a parse error.
+4. **Async closures.** In `Parser::parseLambdaValue`
+   (`parser/values/LambdaValue.cpp:42`) the callers detect `|`/`||`. Detect
+   `AsyncKw` at the same value-dispatch sites (`LexValue.cpp:859,903`) before
+   the pipe cases: consume `async`, then parse the lambda, then
+   `lambda->data.is_async = true`. `async` without a following lambda is an
+   error.
+
+### 6.4 `AwaitExpression` node
+
+New file `ast/values/AwaitExpression.h` (+ `.cpp`), modelled on `UnsafeValue`
+(transparent, single child) but with a computed result type. It must override
+the complete set of extension points listed in Section 16.4.
+
+Key shape:
+
+```cpp
+class AwaitExpression : public Value {
+public:
+    Value* inner;                       // expression producing a Future/awaitable
+    BaseType* await_result_type = nullptr;  // T, set in symres
+
+    inline AwaitExpression(Value* inner, SourceLocation loc)
+        : Value(ValueKind::AwaitExpr, nullptr, loc), inner(inner) {}
+
+    Value* copy(ASTAllocator& allocator) override {
+        return new (allocator.allocate<AwaitExpression>())
+            AwaitExpression(inner->copy(allocator), encoded_location());
+    }
+
+    ASTNode* linked_node() final { return inner->linked_node(); }
+
+    Value* evaluated_value(InterpretScope& scope) override;  // Section 11
+
+#ifdef COMPILER_BUILD
+    llvm::Value* llvm_value(Codegen& gen, BaseType* expected_type = nullptr) final;
+    llvm::Type*  llvm_type(Codegen& gen) final;
+    // plus assignment/arg/branch/pointer overrides as required by Section 16.4
+#endif
+};
+```
+
+Add `AwaitExpr` to `ValueKind` **at the very end**, and mirror it at the end of
+`lang/libs/compiler/src/ast/base/ValueKind.ch`. Add the forward declaration in
+`ast/base/ast_fwd.h`. Add the header/source to `CMakeLists.txt`.
+
+**Invariant established by Section 7:** after normalization, `AwaitExpression`
+appears only as the initializer of a `VarInitStatement`. Backends may rely on
+this.
+
+### 6.5 Async lowering metadata
+
+Do **not** add fields to `FunctionDeclaration` for frame info; the layout is
+computed at codegen time from the (already resolved) body and is cached per
+`FunctionDeclaration*` in the `Codegen` context, keyed by AST node and generic
+instantiation. This keeps generics and parallel codegen working: each
+instantiation is a distinct `FunctionDeclaration` with its own cache entry.
+
+The shared plan type (lives in the compiler, e.g.
+`compiler/async/AsyncLoweringPlan.h`):
+
+```cpp
+struct AwaitSite {
+    unsigned resume_state;                 // state to jump to on resume
+    std::vector<unsigned> live_drops;      // frame slot ids to drop on cancel
+    BaseType* awaited_type;                // T
+};
+
+struct AsyncLoweringPlan {
+    std::vector<AwaitSite> sites;          // in program order
+    unsigned frame_size = 0;
+    unsigned frame_align = 0;
+    bool needs_frame = false;              // false for non-suspending async fns
+    bool result_has_destructor = false;
+    // slot -> source variable name (for debugging / C naming)
+};
+```
+
+This plan is produced by a single pass over the body (Section 8) and consumed by
+both backends. It is the contract between them.
+
+---
+
+## 7. Await Normalization Pass
+
+**Goal:** make every suspension point a statement so that both backends only
+ever have to handle one shape, and so that evaluation order is unambiguous.
+
+**Placement:** immediately after type verification and generic instantiation,
+before codegen. It is a per-function AST rewrite; it can run in parallel across
+functions. It must run before any backend-specific codegen.
+
+**Algorithm** (post-order over the body):
+
+1. When an `AwaitExpression` is encountered as the sole initializer of a
+   `VarInitStatement`, leave it; it is already normalized.
+2. Otherwise, wrap it: create a fresh `VarInitStatement`
+   `var __awaitN : T = <AwaitExpression>` at the nearest statement boundary
+   before the enclosing statement, and replace the `AwaitExpression` in place
+   with an identifier referencing `__awaitN`. `T` is
+   `AwaitExpression::await_result_type`.
+3. Evaluation order: hoisting must preserve Chemical's left-to-right operand
+   evaluation. Visit operands left to right, emitting hoisted temps in that
+   order. For `f(await a, await b)` the result is
+   `var t1 = await a; var t2 = await b; f(t1, t2)`.
+4. Special forms:
+   - `if(await c) { A } else { B }` → `var t = await c; if(t) { A } else { B }`.
+   - `while(await c) { B }` → `loop { var t = await c; if(!t) { break } B }`.
+   - `return await e` → `var t = await e; return t`.
+   - `await e` as a bare statement → `var t = await e` (the temp is unused and
+     must still be dropped normally).
+5. Run only inside `async` function/closure bodies. An `AwaitExpression` in a
+   non-async body is a verify error (Section 15), not a normalization target.
+
+**Invariant after this pass:**
+> Every `AwaitExpression` node in a compiled body is the initializer of a
+> `VarInitStatement`, has static type `T`, and its operand has static type
+> `S` where `S` satisfies `Future<T>`. The compiler then materializes `S` into a
+> `FutureHandle<T>` (D13) before emitting the poll loop.
+
+This invariant is what lets `AwaitExpression::llvm_value` /
+`VisitAwaitExpression` assume statement context.
+
+**Compile-time cost:** one extra traversal per async function only. Non-async
+functions are skipped entirely (no `AwaitExpression` can exist in them). No
+global analysis.
+
+---
+
+## 8. Frame Layout and Drop Planning
+
+This section is the heart of correctness. Both backends must produce a frame
+and a drop function that obey these rules exactly.
+
+### 8.1 What goes into the frame
+
+For an async function `foo` whose body may suspend:
+
+1. **Header:** `state: u32` (resume index). For LLVM, the coroutine runtime adds
+   its own header before ours; our `state` is a normal field we maintain.
+2. **Context:** `cx: *mut Context` — the most recent context passed to `poll`,
+   stored so nested `poll` calls within a resumption use the current waker.
+3. **Parameters:** all parameters, by value (moved in) or as raw pointer/reference
+   values (copied). Parameters are stored in the frame at ramp time because they
+   are live from state 0.
+4. **Live locals:** every local variable (and every temporary that holds an
+   awaited child future) that is live across **at least one** suspension point.
+   Locals only used within a single resume window stay on the native stack and
+   are recomputed on resume — but **only if they are trivially re-evaluable**;
+   otherwise they must be in the frame. Simplest correct rule: any local whose
+   scope spans an await goes in the frame. (Optimization: locals declared after
+   the last await before a return can stay on the stack; see 14.3.)
+5. **Awaited child futures:** the `Future<T>` handle being awaited at a
+   suspension site. It must be a frame slot because it is read again on resume.
+6. **Result slot:** storage for `T` written by `return expr`. Present only if
+   `T` is non-void.
+7. **Drop flags:** `bool` per ambiguous local (see 8.4).
+
+### 8.2 Slot assignment
+
+- Assign frame slots in declaration/creation order.
+- Each slot has a type, an alignment, and an owning variable name.
+- Frame `size`/`align` are computed with the target `TargetData`, the same way
+  struct layout is computed elsewhere.
+- For **LLVM**, the frame is the memory pointed at by `coro.begin`; our slots
+  are GEPs from `hdl` past the coroutine header. `coro.size` must be set to the
+  full size including the header. (See Section 9 for the exact order of
+  `coro.id`/`coro.alloc`/`coro.begin`/`coro.promise`.)
+- For **2c**, the frame is a generated C `struct` (Section 10.2).
+
+### 8.3 Live-drop sets
+
+The C backend already maintains a **destructor stack per scope**
+(`ToCAstVisitor::visit_value_scope(scope, destruct_begin)`,
+`2cASTVisitor.h:591`). At each await site, snapshot the current destructor
+stack, in reverse order of creation. That snapshot is the `live_drops` list for
+that `AwaitSite`. When the future is cancelled (dropped while suspended at that
+state), exactly those destructors run, then the frame is freed.
+
+When a local is moved out or explicitly destroyed along the normal path, its
+scope handling already removes it from the destructor stack; the snapshot for a
+later await will simply not contain it.
+
+### 8.4 Ambiguous liveness → drop flags
+
+A slot's liveness at drop time is **static** if every path reaching a given
+state has the same set of live destructible slots. Otherwise it is **ambiguous**
+and needs a runtime `bool` drop flag:
+
+- The flag is stored in the frame.
+- Set to `true` immediately after the local is initialized, `false` after it is
+  moved out or dropped.
+- `drop` checks the flag before running the destructor.
+
+This mirrors the existing `set_drop_flag_for_ref` / definite-assignment
+machinery. Prefer static sets; use flags only where branches make it ambiguous.
+
+### 8.5 The drop function
+
+`foo_drop(frame)`:
+
 ```c
-void compute(Future_int* __future);  // C translation
-```
-
-When the user writes `var result = await compute()`:
-1. Call `compute(&temp_future)`.
-2. Call `temp_future.block_on()`.
-3. Extract `int` from the future.
-
----
-
-## 13. Platform-Specific Implementations
-
-### 13.1 Windows
-
-```chemical
-// lang/libs/async/src/platform/windows.ch
-
-// Windows: use IOCP for async I/O
-@extern public func CreateIoCompletionPort(
-    FileHandle: HANDLE,
-    ExistingCompletionPort: HANDLE,
-    CompletionKey: usize,
-    NumberOfConcurrentThreads: u32
-) : HANDLE
-
-@extern public func GetQueuedCompletionStatus(
-    CompletionPort: HANDLE,
-    lpNumberOfBytesTransferred: *mut u32,
-    lpCompletionKey: *mut usize,
-    lpOverlapped: *mut*mut void,
-    dwMilliseconds: u32
-) : int
-```
-
-### 13.2 Linux/macOS
-
-```chemical
-// lang/libs/async/src/platform/posix.ch
-
-// POSIX: use epoll (Linux) or kqueue (macOS)
-@extern public func epoll_create1(flags: int) : int
-@extern public func epoll_ctl(epfd: int, op: int, fd: int, event: *mut void) : int
-@extern public func epoll_wait(epfd: int, events: *mut void, maxevents: int, timeout: int) : int
-```
-
----
-
-## 14. Library Benefits and Migration
-
-### 14.1 `http` Library
-
-**Current state:** The HTTP server uses a thread pool with callback-based
-async. The server's `handle_conn` is synchronous, blocking the worker thread.
-
-**With async/await:**
-
-```chemical
-// Before (current):
-func handle_conn(&self, s: net::Socket) {
-    var req_opt = http::read_request_incremental(s, ...)
-    // ... synchronous processing ...
-    route.handler(req, resw)
-}
-
-// After:
-async func handle_conn(&self, s: net::Socket) {
-    var req = await http::read_request(s)       // async I/O
-    var body = await req.read_body()             // async body read
-    var resw = http::ResponseWriter(s)
-    route.handler(req, resw)                     // sync handler
-    await resw.flush()                           // async write
-}
-```
-
-**Benefits:**
-- Worker threads are not blocked during I/O waits.
-- More concurrent connections with fewer threads.
-- Simpler code (no nested callbacks).
-
-### 14.2 `http` Client
-
-**Current state:** `http::Client::request()` is synchronous and blocks
-until the response is received.
-
-**With async/await:**
-
-```chemical
-// Before:
-var response = client.get(url)
-
-// After:
-var response = await client.get_async(url)
-```
-
-**Benefits:**
-- Non-blocking HTTP requests.
-- Can issue multiple requests concurrently.
-
-### 14.3 `net` Library
-
-**Current state:** `net::dial()`, `net::send_all()`, `net::recv_all()` are
-all blocking.
-
-**With async/await:**
-
-```chemical
-// Before:
-var s = net::dial(host, port)
-net::send_all(s, data, len)
-var n = net::recv_all(s, buf, cap)
-
-// After:
-var s = await net::dial_async(host, port)
-await net::send_all_async(s, data, len)
-var n = await net::recv_all_async(s, buf, cap)
-```
-
-**Benefits:**
-- Non-blocking network I/O.
-- Can multiplex multiple connections on a single thread.
-
-### 14.4 `tls` Library
-
-The TLS handshake is a blocking operation that benefits from async:
-
-```chemical
-// Before:
-tls::tls_connect(ssl, host, port)
-
-// After:
-await tls::tls_connect_async(ssl, host, port)
-```
-
-### 14.5 `fs` Library (Future)
-
-File I/O can be made async with platform-specific APIs:
-- Linux: `io_uring` or `aio`
-- Windows: IOCP
-- macOS: `kqueue`
-
-```chemical
-var content = await fs::read_file_async("data.txt")
-await fs::write_file_async("output.txt", content)
-```
-
-### 14.6 `process` Library
-
-The `process` library can benefit from async for non-blocking process I/O:
-
-```chemical
-var proc = await process::Command::new("git")
-    .arg("status")
-    .spawn_async()
-var output = await proc.read_stdout()
-```
-
-### 14.7 Migration Path
-
-For libraries that are currently callback-based, the migration is:
-
-1. **Add `*_async` variants** alongside existing sync functions.
-2. **Keep backward compatibility** — existing sync functions still work.
-3. **Mark old callbacks as deprecated** when async versions are ready.
-
-Example migration for `http::Client`:
-
-```chemical
-// Phase 1: Add async variants
-async func get_async(&self, url: &std::string_view) : std::Result<Response, std::string> {
-    // ... async implementation ...
-}
-
-// Phase 2: Deprecate sync versions (optional)
-@deprecated("use get_async() instead")
-func get(&self, url: &std::string_view) : std::Result<Response, std::string> {
-    return self.get_async(url).block_on()
-}
-```
-
----
-
-## 15. Implementation Phases
-
-### Phase 1: Language Syntax + Blocking Implementation (4-6 weeks)
-
-1. **Lexer:** Add `AsyncKw` and `AwaitKw` token types.
-2. **Parser:** Parse `async func`, `await expr`, async closures.
-3. **AST:** Add `is_async` flag to `FuncDeclAttributes`, `AwaitExpression` value node.
-4. **Symres:** Register `Future<T>` type, resolve async return types, validate await usage.
-5. **TypeVerify:** Check await produces `Future<T>`, check non-async context.
-6. **LLVM Backend:** Compile `await` as `future.block_on()` (blocking).
-7. **C Codegen:** Translate `await` to `future_block_on()` call.
-8. **Runtime Library:** Create `lang/libs/async/` with `Future<T>`, `Promise<T>`, executor.
-9. **Tests:** Write tests for async functions, await, futures, closures.
-
-### Phase 2: Non-Blocking Executor (2-3 weeks)
-
-1. **Executor:** Implement a proper work-stealing executor.
-2. **I/O Integration:** Add async wrappers for `net`, `tls`, `http`.
-3. **Timer Support:** Add `async::sleep()` using platform timers.
-4. **Channels:** Add `Channel<T>` for cross-task communication.
-
-### Phase 3: Stackless Coroutines (4-8 weeks)
-
-1. **LLVM Coroutines:** Use `llvm.coro.*` intrinsics for stackless suspension.
-2. **Frame Layout:** Compute which locals are live across suspend points.
-3. **Destructor Handling:** Ensure destructors run correctly at suspend points.
-4. **Memory Management:** Implement coroutine frame allocation and deallocation.
-5. **C Codegen:** Use platform-specific primitives (ucontext, fibers, setjmp).
-
-### Phase 4: Advanced Features (Ongoing)
-
-1. **Structured Concurrency:** `async let`, task groups, cancellation.
-2. **Select Statement:** `select {}` for multiplexing.
-3. **Effect System Integration:** `FX_SUSPENDS` effect bit.
-4. **Async Traits:** Interface methods can be async.
-5. **Async Generics:** `async func <T> fetch_as() : T`.
-
----
-
-## 16. Edge Cases and Gotchas
-
-### 16.1 Move Semantics with Futures
-
-`Future<T>` has a destructor (`@delete`). Moving a `Future<T>` is fine
-(Chemical's move semantics handle this). But after moving, the original
-variable becomes invalid:
-
-```chemical
-var f = compute()
-var g = f           // move: f is now invalid
-var result = await g   // OK
-// await f           // ERROR: f was moved
-```
-
-### 16.2 Borrowing Across Await Points
-
-**Critical:** References borrowed before an `await` may become dangling
-after the await resumes, because the function may be resumed on a different
-stack/thread.
-
-```chemical
-// DANGEROUS — don't do this:
-var data = vector<int>()
-var slice = &data          // borrow reference
-await fetch()             // suspend — data might move!
-slice[0]                  // use-after-move potential
-
-// SAFE pattern:
-var data = vector<int>()
-await fetch()             // suspend first
-var slice = &data         // borrow after await
-slice[0]                  // OK
-```
-
-**Compiler enforcement (Phase 3):** The type checker should track borrows
-across await points and reject code where a reference's lifetime crosses
-a suspension point. For Phase 1 (blocking implementation), this is not an
-issue because the stack doesn't move.
-
-### 16.3 Comptime Context
-
-`await` cannot be used at comptime:
-
-```chemical
-comptime func bad() : int {
-    var x = await compute()    // ERROR: cannot suspend at compile time
-    return x
-}
-```
-
-### 16.4 Error Propagation
-
-`await` works with `Result`:
-
-```chemical
-async func fetch(url: *char) : std::Result<Response, std::string> {
-    var client = http::Client()
-    var response = await client.get_async(url)
-    // response is Result<Response, std::string>
-    return response
-}
-
-async func main() : int {
-    var result = await fetch("https://example.com")
-    if(result is std::Result.Err) {
-        printf("Error: %s\n", result.error.data())
-        return 1
+void foo_drop(void* frame) {
+    FooFrame* f = (FooFrame*)frame;
+    if (f->state == STATE_DONE) {
+        // result already moved out; nothing live to destroy
+        free_frame(f);
+        return;
     }
-    var Ok(response) = result else unreachable
-    printf("Status: %d\n", response.status)
-    return 0
+    switch (f->state) {
+        case 0: goto drop0;
+        case 1: goto drop1;
+        ...
+    }
+drop1:
+    // slots live at state 1, reverse order
+    if (f->flag_t) { destroy_T(&f->t); }
+    // fallthrough to earlier scopes
+drop0:
+    destroy_A(&f->a);
+    free_frame(f);
 }
 ```
 
-### 16.5 Async Function Pointers
+`STATE_DONE` means the body completed and the result was handed to the caller,
+so only the (empty) frame is freed. If the result was **not** moved out (e.g.
+the caller drops the future after `Ready` but before reading — not possible in
+our await desugaring, but possible for user-held futures), the result slot is
+still destroyed. Define: the poll fast path that produces `Ready` **moves the
+result out and sets `STATE_DONE`** before returning; therefore `STATE_DONE`
+never needs result destruction. Document this as an invariant.
 
-Function pointers to async functions have type `(args...) => Future<T>`:
+### 8.6 Initialization and completion protocol
 
-```chemical
-var fptr : () => Future<int> = compute
-var result = await fptr()
+- Ramp: allocate frame, `state = 0`, store parameters, return handle. Body not
+  run (D2).
+- `poll` entry: store `cx` into the frame, `switch(state)` dispatch, run until
+  the next suspend or completion.
+- Suspend at site `i`: store `state = i`, return `Poll.Pending`.
+- Resume: `state == i` dispatches to the continuation after site `i`.
+- `return expr`: store `expr` into the result slot, `state = STATE_DONE`,
+  return `Poll.Ready(result_moved_out)`.
+
+---
+
+## 9. LLVM Backend Lowering
+
+Use LLVM's classic coroutine intrinsics. This gives us the state machine, frame
+layout, `resume`/`destroy` splitting, and (critically) `CoroElide`, which
+removes the frame allocation when the coroutine's lifetime is confined to the
+caller — the `await foo()` fast path — for free.
+
+Reference model: Clang's C++20 coroutine lowering (`CGCoroutine.cpp`) and the
+LLVM LangRef coroutine intrinsics. LLVM 22 is linked.
+
+> **Probe-mandated note (B1):** the poll/suspend loop is emitted here as basic
+> blocks. Do **not** route it through a Chemical `loop` expression in a generic
+> helper — generic loop-expression result types are miscompiled (Section 1.5).
+> The generated `AwaitExpression::llvm_value` must build the loop inline.
+
+### 9.1 Generated functions
+
+For `async func foo(a: A) : T` the LLVM backend emits:
+
+1. **`foo` (ramp)** — the user-visible function. Returns `Future<T>` (sret or
+   by-value per the existing ABI rules).
+2. **`foo.resume` and `foo.destroy`** — produced by `CoroSplit` from the body.
+3. **`foo_poll(frame, cx)`** — our vtable `poll`.
+4. **`foo_drop(frame)`** — our vtable `drop`.
+5. A **vtable constant** `foo_vtable`.
+
+### 9.2 Ramp recipe
+
+At the start of the coroutine body (which is `foo` itself):
+
+```
+%id    = call token @llvm.coro.id(i32 0, ptr null, ptr null, ptr null)
+%size  = call i64  @llvm.coro.size.i64()
+%alloc = call i1   @llvm.coro.alloc(token %id)
+
+; conditionally allocate via our allocator
+br i1 %alloc, label %do_alloc, label %after_alloc
+do_alloc:
+  %mem = call ptr @chemical_async_frame_alloc(i64 %size, i64 <align>)
+  br label %after_alloc
+after_alloc:
+  %frame = phi ptr [ null, %entry ], [ %mem, %do_alloc ]
+
+%hdl = call ptr @llvm.coro.begin(token %id, ptr %frame)
+
+; If CoroSplit elides the allocation, %alloc is false and %frame is null;
+; coro.begin then places the frame in the caller's storage.
 ```
 
-### 16.6 Async Methods on Structs
+The **return object** `Future<T>` is constructed from `%hdl` plus a pointer to
+`foo_vtable` and returned. Because the body is lazy, nothing else runs.
 
-```chemical
-struct Database {
-    var pool: *mut ConnectionPool
+### 9.3 Promise / frame fields
 
-    async func query(&self, sql: *char) : std::Result<ResultSet, std::string> {
-        var conn = await self.pool.acquire_async()
-        var result = await conn.execute_async(sql)
-        return result
+`coro.promise` is used to locate our fields. The simplest arrangement is to let
+the coroutine promise **be** our frame header: after `coro.begin`, compute
+`%p = call ptr @llvm.coro.promise(ptr %hdl, i32 <align>, i1 false)` and GEP into
+it for `state`, `cx`, params, locals and result. The exact promise alignment must
+be passed consistently.
+
+> Implementer note: `coro.promise` is a hint that survives splitting; if
+> getting its alignment exactly right proves brittle, an equivalent and often
+> simpler approach is to treat `%hdl` itself as the base and GEP to fields,
+> since for the default coroutine ABI `coro.begin`'s result is the frame base.
+> Pick one and use it consistently; do not mix.
+
+### 9.4 `foo_poll`
+
+```
+define Poll_T @foo_poll(ptr %hdl, ptr %cx) {
+  %frame = /* base */
+  store ptr %cx, ptr %frame.cx
+  ; mark that we are resuming
+  call void @llvm.coro.resume(ptr %hdl)
+  %done = call i1 @llvm.coro.done(ptr %hdl)
+  br i1 %done, label %ready, label %pending
+ready:
+  %r = load T, ptr %frame.result
+  ; move result out; then destroy the completed coroutine frame
+  call void @llvm.coro.destroy(ptr %hdl)
+  ; build Poll.Ready(%r)
+  ret Poll.Ready(...)
+pending:
+  ret Poll.Pending
+}
+```
+
+`llvm.coro.resume` runs the body until it hits `coro.suspend` (returns) or runs
+to completion (reaches final suspend). `coro.done` distinguishes the two.
+
+### 9.5 `foo_drop`
+
+```
+define void @foo_drop(ptr %hdl) {
+  call void @llvm.coro.destroy(ptr %hdl)   ; runs the destroy path
+}
+```
+
+The **destroy path** is where `@delete` destructors for live locals run. They
+must be emitted as part of the coroutine body's cleanup:
+- Around the body, establish a cleanup block that runs `coro.destroy`'s
+  destructor sequence.
+- `coro.suspend` is emitted with `final = false` at normal awaits and
+  `final = true` at the final suspend; the destroy branch of each suspend
+  (`i8 1` from `coro.suspend`'s switch) jumps to the appropriate per-state
+  cleanup sequence generated from `AsyncLoweringPlan::live_drops`.
+- Implement the per-state drop sequence as a chain of cleanup blocks, one per
+  await state, mirroring the C `switch` in 8.5. The plan's `live_drops` tells
+  you exactly which destructors to call at each state.
+
+### 9.6 Await site codegen (`intrinsics::__await_suspend`)
+
+```
+; %child is a Future<T> handle, already created and stored in the frame
+%r = call Poll_T @<child_poll>(ptr %child.frame, ptr %cx)
+; switch on the Poll tag
+switch i8 %tag, label %pending [
+  i8 0, label %ready
+]
+ready:
+  %value = extract T from %r
+  br label %after_await
+pending:
+  %save = call token @llvm.coro.save(ptr %hdl)
+  %is = call i1 @llvm.coro.suspend(token %save, i1 false)
+  switch i8 %is, label %after_await [ i8 1, label %cleanup ]
+cleanup:
+  ; destroy path for this state (cancellation)
+  br label %destroy
+```
+
+On resume, control continues at `after_await`, which computes `Poll.Ready`'s
+value. The awaited child handle must be a frame slot so `%child` is reloaded
+after the suspend rather than kept in an SSA register (the register does not
+survive a suspend).
+
+### 9.7 Fast paths (LLVM)
+
+- **No-await async fn:** if the plan has `needs_frame == false`, do not emit any
+  coro intrinsics. Emit a normal function that computes the result and returns a
+  ready `Future<T>` (a small inline frame with `state = STATE_DONE` and the
+  result). This removes all coroutine overhead for trivial async functions.
+- **Ready child:** the `Poll.Ready` branch is already the fall-through; LLVM
+  will inline/constant-fold if the child poll is known to return Ready.
+- **Direct await + CoroElide:** leverage `coro.alloc`/`coro.begin` so LLVM can
+  elide the frame when `await foo()` confines the coroutine. Do not defeat it
+  with address-taking.
+
+---
+
+## 10. C / 2c Backend Lowering
+
+The C backend writes text; it can freely emit `switch`, labels and `goto`. TinyCC
+supports these standard C constructs. Since TinyCC is **not** an optimizer, the
+generated C must be efficient by construction.
+
+> **Probe-mandated notes.**
+> - Emit the poll loop as text (`while(1){...}` or the `switch` state machine).
+>   Do **not** lower it through a Chemical `loop` expression (B1).
+> - Call `poll` through the handle's vtable (`f->vtbl->poll(f->frame, cx)`), or
+>   directly on a generated frame's poll function. Do **not** emit a call to an
+>   interface's generic `poll` — impl-only method calls currently emit the wrong
+>   symbol (B2).
+> - Function pointer fields in the generated `FutureTable<T>` must have named
+>   parameters in any Chemical surface representation (B4).
+
+### 10.1 Generated C for `async func foo(a: A) : T`
+
+```c
+/* frame */
+typedef struct FooFrame FooFrame;
+struct FooFrame {
+    uint32_t state;
+    Context* cx;
+    A        a;              /* parameters */
+    /* live locals and awaited child futures */
+    Future_T child_0;
+    Maybe_T  tmp_0;
+    bool     flag_tmp_0;     /* only when liveness is ambiguous */
+    T        result;
+};
+
+/* forward decls */
+static Poll_T foo_poll(FooFrame* f, Context* cx);
+static void   foo_drop(FooFrame* f);
+static const FutureTable_T foo_vtable = {
+    (Poll_T(*)(void*,Context*)) foo_poll,
+    (void(*)(void*))            foo_drop,
+    sizeof(FooFrame), _Alignof(FooFrame)
+};
+
+/* ramp (lazy: body does not run) */
+Future_T foo(A a) {
+    FooFrame* f = (FooFrame*) chemical_async_frame_alloc(sizeof(FooFrame), _Alignof(FooFrame));
+    f->state = 0u;
+    f->a = a;
+    return (Future_T){ .frame = (void*)f, .vtbl = &foo_vtable };
+}
+
+static Poll_T foo_poll(FooFrame* f, Context* cx) {
+    f->cx = cx;
+    for(;;) {
+        switch(f->state) {
+            case 0u: goto L0;
+            case 1u: goto L1;
+            /* ... one case per await site ... */
+            default: goto L0;
+        }
+    L0:
+        /* ... body up to first await ... */
+        f->child_0 = child_create(...);
+        f->state = 1u;
+        /* fallthrough into poll of child */
+    L1:
+        {
+            Poll_T r = (Poll_T) child_poll(f->child_0.frame, f->cx);
+            if (r.tag == POLL_PENDING) { return (Poll_T){ .tag = POLL_PENDING }; }
+            f->tmp_0 = r.ready;
+        }
+        /* ... continue body ... */
+        /* on `return expr`: */
+        f->result = expr;
+        f->state = STATE_DONE;
+        return (Poll_T){ .tag = POLL_READY, .value = f->result };
     }
 }
+
+static void foo_drop(FooFrame* f) {
+    if (f->state == STATE_DONE) {
+        chemical_async_frame_free(f, sizeof(FooFrame), _Alignof(FooFrame));
+        return;
+    }
+    switch(f->state) {
+        case 1u: if (f->flag_tmp_0) { destroy_Maybe_T(&f->tmp_0); }
+        case 0u: destroy_A(&f->a);
+            break;
+        default: break;
+    }
+    chemical_async_frame_free(f, sizeof(FooFrame), _Alignof(FooFrame));
+}
 ```
 
-The `&self` parameter is captured in the future. The borrow must not outlive
-the future (handled by the borrow checker in Phase 3).
+Notes:
+- The trailing `for(;;)` + `switch` is the standard resumable-function idiom:
+  the switch runs exactly once per `poll` entry, then the body runs with `goto`
+  dispatch; on resume the switch jumps directly to the last label.
+- The awaited child handle and all cross-await temporaries are frame fields,
+  never C locals.
+- `destroy_*` calls are generated by the existing destructor machinery.
 
-### 16.7 Recursion
+### 10.2 Naming and mangling
 
-Async functions can call themselves recursively. Each recursive call creates
-a new `Future<T>`. The stackful implementation (Strategy A) handles this
-naturally. The stackless implementation (Strategy B) needs to handle
-self-recursive coroutines specially (may need to allocate a new frame on each
-recursive call).
+Frame struct and functions use the existing mangler so that generic
+instantiations and nested scopes get unique names. `foo_poll`/`foo_drop`/frame
+names are derived from the mangled function name plus a suffix (`__frame`,
+`__poll`, `__drop`). Do not hand-roll names.
+
+### 10.3 Where in `2cASTVisitor`
+
+`ToCAstVisitor` is a `NonRecursiveVisitor`. Implement:
+- `VisitAwaitExpression` — by the Section 7 invariant it is always in a
+  `VarInitStatement` initializer, so it can emit the poll/suspend sequence inline
+  and is responsible for registering the child handle as a frame slot.
+- A new per-function prologue/epilogue path used by `VisitFunctionDecl` when
+  `attrs.is_async` is set: emit the frame struct, ramp, `poll`, `drop`, vtable.
+- Hook the existing `visit_value_scope(scope, destruct_begin)` snapshots at await
+  sites to build `live_drops`.
+
+The C translator is stateful and single-threaded per module; the frame slot
+registry should live on the visitor for the duration of one function's body, not
+globally.
+
+### 10.4 Fast paths (2c)
+
+- **No-await async fn:** emit no frame/poll/drop; emit a ramp returning a
+  ready `Future<T>` with an inline result. This is the common case for trivial
+  async helpers.
+- **Direct await with known frame:** optionally stack-allocate the child frame
+  at the await site (`FooFrame __f; foo_init(&__f, ...);`) when the awaited
+  expression is a direct call to a statically known async function and the
+  future does not escape. Guard behind a flag until proven; it changes aliasing
+  and is easy to get subtly wrong. **Phase 2 optimization.**
 
 ---
 
-## 17. Examples
+## 11. Interpreter and Comptime
 
-### 17.1 Simple Async Function
+### 11.1 `AwaitExpression::evaluated_value`
+
+The interpreter cannot suspend. It evaluates `inner`, then drives `poll` with a
+no-op `Context`:
+
+```cpp
+Value* AwaitExpression::evaluated_value(InterpretScope& scope) {
+    Value* fut = inner->evaluated_value(scope);
+    if (fut == nullptr) return nullptr;
+    // Loop poll with a no-op waker.
+    for (;;) {
+        auto poll_result = call_poll(fut, noop_context(scope));
+        if (poll_result is Ready(v)) return v;
+        // Pending:
+        if (scope.global->is_comptime() || is_interpretation) {
+            scope.global->diagnoser.error(this,
+                "'await' cannot suspend during comptime evaluation / interpretation");
+            return nullptr;
+        }
+        // Compiled-interpreter fallback: block on the future if it has
+        // a blocking adaptor, else error.
+        return block_on_fallback(fut, scope);
+    }
+}
+```
+
+Because interpretation tests and comptime code use immediately-ready futures
+(pure async functions with no real I/O), the loop resolves on the first
+iteration. `Pending` at comptime is a hard error (D8).
+
+### 11.2 Async function calls in the interpreter
+
+An async function is still a normal `FunctionDeclaration`; the interpreter can
+call its body directly. For an eager/comptime call, evaluate the body with
+`await` handling as above and return the result. The interpreter does **not**
+build a frame. This means interpreter semantics are "run to completion or fail",
+which is correct for pure async functions.
+
+### 11.3 Comptime rule
+
+- `await` on a future that resolves immediately: allowed.
+- `await` that would suspend: diagnostic
+  `cannot suspend at compile time`.
+- An `async func` used at comptime is only legal if it never actually suspends
+  on the given inputs. The interpreter enforces this at the point `Pending` is
+  observed.
+
+---
+
+## 12. Runtime Library
+
+Two layers, matching D10.
+
+### 12.1 `core` protocol
+
+`lang/libs/core/async.ch` (new source in `core/chemical.mod`) contains the types
+from Section 4.2 plus the runtime handle from Section 4.3 (`FutureHandle<T>`,
+`FutureTable<T>`), a `Unit` type, and the frame allocator hooks:
+
+```chemical
+// implemented by the compiler; lowered per backend
+@extern public func chemical_async_frame_alloc(size: size_t, align: size_t) : *mut void
+@extern public func chemical_async_frame_free(ptr: *mut void, size: size_t, align: size_t)
+```
+
+There is **no `IntoFuture`** — `await` materializes into `FutureHandle<T>` (D13).
+
+These two hooks are the *only* runtime functions the generated frames need. The
+default implementations live in `lang/libs/async` and are linked when the
+executor is used; if a program uses async without the library, the compiler must
+either link a minimal default or error (Section 15).
+
+> **Naming:** expose the protocol as `core::async::*`. Do **not** name anything
+> unqualified `Future` — `std::concurrent.Future<T>` already exists (B5).
+
+### 12.2 `lang/libs/async` executor library
+
+```
+lang/libs/async/
+├── chemical.mod          // module async; import std; import cstd; import core
+└── src/
+    ├── main.ch           // re-exports
+    ├── frame.ch          // frame alloc/free (task arena + malloc fallback)
+    ├── waker.ch          // Waker impls, task waker
+    ├── executor.ch       // per-thread run queue, run_until_complete
+    ├── block_on.ch       // sync->async bridge
+    ├── spawn.ch          // spawn / spawn_send / JoinHandle<T>
+    ├── timer.ch          // async::sleep, timer wheel
+    ├── select.ch         // select combinator (Phase 4)
+    └── channel.ch        // mpsc channel (Phase 4)
+```
+
+The task queue can be `std::vector<FutureHandle<T>>`-shaped; the probe verified
+move-only handles survive `push` and are all dropped when the container dies
+(1.4 item 8). Use concrete per-`T` task queues (or one queue of a fixed
+`FutureHandle<Unit>` plus a result slot) since Chemical generics do not mix
+heterogeneous `T` in one vector.
+
+`block_on` is a tiny executor:
+
+```chemical
+public func block_on<T>(handle : FutureHandle<T>) : T {
+    // poll handle.vtbl.poll(handle.frame, &cx) in a loop;
+    // on Pending, block the thread on a parker; wake when the waker fires.
+}
+```
+
+> **B1 reminder:** do not implement `block_on`'s loop as a generic Chemical
+> `loop` expression returning `T`. Use a mutable `var out : T` plus a
+> `while`/`loop` and assign, or implement `block_on` with an explicit result slot.
+> Test whichever form is chosen; the generic loop-result bug is exactly here.
+
+`spawn` schedules on the current thread's executor:
+
+```chemical
+public func spawn<T>(future: Future<T>) : JoinHandle<T>
+```
+
+`JoinHandle<T>` itself satisfies `Future<T>`, so `await async::spawn(f)` works.
+
+### 12.3 Frame allocation strategy
+
+- While inside a task, `chemical_async_frame_alloc` uses the task's bump arena;
+  all frames for the task are freed together when the task completes/suspends
+  fully. This avoids per-frame `free` in the hot path.
+- Outside a task (`block_on` before the first task, or user-created futures),
+  fall back to `malloc`/`free`.
+- Frames must remain allocated while suspended; a task arena that is only reset
+  on task completion satisfies this.
+
+### 12.4 I/O reactor (Phase 4)
+
+- Linux: `epoll`; macOS: `kqueue`; Windows: IOCP.
+- `async::net`/`async::tls` wrappers register interest and produce a `Waker` that
+  wakes the task on readiness. These are library additions; the language core
+  does not know about them.
+
+---
+
+## 13. Safety Model
+
+### 13.1 `await` context restrictions
+
+Enforced in type verification:
+- `await` only inside `async` functions, async closures, and async blocks.
+- `await` forbidden in `@delete` destructors.
+- `await` forbidden in constructors (`@constructor`).
+- `await` forbidden in `@extern` functions (no Chemical frame).
+- `await` forbidden at comptime unless it resolves immediately (Section 11.3).
+
+### 13.2 Frames are stable (no `Pin`)
+
+Frames are heap- or caller-stable and never move after allocation (D4). The
+`Future<T>` *handle* may move; moving it just copies `{frame, vtbl}`. This
+removes the need for a `Pin`-style type and for "movement after poll" tracking.
+Document explicitly: **never** implement an elision that moves a frame after its
+first `poll`.
+
+### 13.3 Destructors and cancellation
+
+- Dropping a suspended future runs `drop`, which runs the destructors for the
+  live locals at the current state, in reverse creation order (Section 8.5).
+- Dropping a completed future runs no user destructors; the result was already
+  moved out at `Ready`.
+- If a result was never retrieved (user drops a `Ready` future without awaiting),
+  it is still dropped: define `STATE_DONE` such that the result slot is dropped
+  if not moved out. The await desugaring always moves the result out immediately,
+  so this path only matters for hand-held futures. Use a `result_taken` flag or a
+  distinct `STATE_DONE_CONSUMED` vs `STATE_DONE_UNCONSUMED` state. Choose the
+  flag; it is simpler and uniform with 8.4.
+
+### 13.4 Threads and `Send`
+
+- Default: per-thread executors, no migration (D7). This is safe with raw
+  pointers and Chemical's current aliasing model.
+- `spawn` runs on the current thread. `spawn_send` (Phase 4) requires an
+  explicit `Send` opt-in. Do not silently move futures across threads.
+- The `Waker` may be called from another thread only if the task was spawned
+  with `spawn_send`; otherwise wakers are thread-local.
+
+### 13.5 Panics and unwinding
+
+Define: a panic during `poll` unwinds out of `poll` to the executor, which runs
+`drop` and destroys the task. Frames must be registered so the executor can
+destroy them even on panic. If the build uses no-unwind tables
+(`-fno-unwind-tables` is used by tests), a panic aborts; destructors may not run.
+Document this as a known limitation and recommend unwinding builds for async
+servers.
+
+### 13.6 Borrows across await
+
+With stable frames, a reference **into the current frame** stays valid across a
+suspend. The remaining hazard is the ordinary escape hazard: a reference to a
+local of a *non-coroutine* function that has returned. That is caught by the
+existing lifetime/`unsafe` model, not a new async-specific rule.
+
+Rule to document and, later, to enforce:
+> An async function may not capture a reference to a local of a synchronous
+> caller and keep it across an `await`, because the synchronous frame is gone
+> when the future is polled. Pass by value, or use `&mut` only when the referent
+> is guaranteed to outlive the future.
+
+Phase 4 may add a targeted borrow-across-await check; v1 relies on the existing
+model and `unsafe` markers.
+
+### 13.7 What must never happen
+
+- A `Future<T>` value with a null `frame` or null `vtbl` being polled/dropped.
+- A frame used after `drop`/`STATE_DONE` consumption.
+- A suspended future's frame freed by the arena while still suspended.
+- `await` compiled to a busy-wait loop in generated code (only the interpreter
+  may spin, and only on already-resolving futures).
+
+---
+
+## 14. Performance Model
+
+### 14.1 Compilation performance
+
+- **No global analysis.** All async work is per-function and linear in body
+  size: one normalization pass and one frame-plan pass per async function.
+- **No-await fast path removes the feature entirely.** An `async func` with no
+  `await` (including one that only calls async functions without awaiting) has
+  `needs_frame == false`; it compiles to a plain function returning a ready
+  future. This is the majority of small async helpers.
+- **Normalization bounds backend work.** After normalization, backends see at
+  most one new node kind in a fixed shape; no combinatorial expression handling.
+- **Generics parallelize as today.** Each instantiation is a distinct
+  `FunctionDeclaration`; async lowering and frame synthesis run in the existing
+  per-module parallel pipeline. The plan cache is per-node, lock-free per
+  worker.
+- **Non-async code is untouched.** The only shared-table addition is the
+  `ValueKind` case (Section 16) and no new global pass runs when there are no
+  async functions.
+- **Caching.** Generated frames/poll/drop are part of the function's object and
+  are covered by the existing module cache keys.
+- **Avoid recomputation.** Cache `may_suspend` on the declaration once computed;
+  reuse `AsyncLoweringPlan` across re-emission in the same compilation only
+  (do not persist across invocations; the key would be brittle).
+
+### 14.2 Generated-code performance
+
+- **One indirect call per `poll`** on the awaited child. No virtual dispatch for
+  a concrete compiler future in the direct-await case; one vtable call for
+  type-erased futures.
+- **No allocation on the elided fast path** (LLVM `CoroElide`; optional 2c
+  direct-await elision).
+- **Task-arena allocation** otherwise; no `malloc`/`free` per frame in steady
+  state.
+- **Ready fast path** avoids suspension entirely; a chain of already-ready
+  futures runs synchronously with no executor round-trip.
+- **No thread per task**, no context switches for I/O waits.
+- **TinyCC note:** the 2c code is not optimized by TinyCC. Keep the generated
+  state machine tight: no per-poll heap work, no repeated refcount operations,
+  direct field loads/stores, and prefer the no-frame fast path wherever possible.
+
+### 14.3 Optional optimizations (later, behind flags)
+
+1. **Direct-await frame elision in 2c** (10.4).
+2. **Stack allocation of child frames** when the child does not escape.
+3. **Devirtualize** `poll` on concrete compiler futures at the call site.
+4. **Reuse frames across loop iterations** only if provably dead; risky, defer.
+5. **`llvm.coro` accelerations** (already the LLVM base; further flags are
+   compiler-internal).
+6. **Skip frame slots for locals not live across any await** (8.1 rule 4 note) —
+   this is a real win, but implement after the simple correct version and
+   verify with tests.
+
+---
+
+## 15. Diagnostics
+
+Add, using the existing `ASTDiagnoser`:
+
+| Situation | Message (suggested) |
+|-----------|---------------------|
+| `await` outside async | `` `await` can only be used inside an `async` function, `async` closure, or `async` block `` |
+| `await` operand not awaitable | `` `await` requires a `Future<T>` or a `FutureHandle<T>`, found `<type>` `` |
+| `async` in destructor | `` an async function cannot be a destructor (suspension is forbidden in `@delete`) `` |
+| `async` in constructor | `` an async function cannot be a constructor `` |
+| `async` on `@extern` | `` an `@extern` function cannot be `async`; declare it with an explicit `Future<T>` ABI `` |
+| pending at comptime | `` cannot suspend at compile time (the awaited future is not ready) `` |
+| `async` keyword misplaced | `` expected `func` or a closure after `async` `` |
+| async main without runtime | `` `async func main` requires the `async` library to be linked `` |
+| result type mismatch | existing return-type diagnostic, but compared against the **inner** type (unwrap `Future<T>`) |
+| frame has no allocator | `` async code requires `chemical_async_frame_alloc`; link the `async` library `` |
+
+**Critical return-check change:** `ReturnStatement` verification and codegen must
+compare the returned value against the **unwrapped inner type** `T`, not
+`func->returnType` (which is `Future<T>`). Add a helper
+`BaseType* inner_return_type(FunctionDeclaration*)` that, when `is_async`, extracts
+the single generic argument of the `Future<T>` return type. Use it everywhere
+return checking happens (`compiler/typeverify/TypeVerify.cpp`,
+`compiler/symres/SymResLinkBody.cpp` return-statement handling, and LLVM/2c
+return codegen). **This is the single most likely place to introduce a subtle
+bug.**
+
+---
+
+## 16. Extension-Point Checklist (Exact Files)
+
+### 16.1 Enum synchronization (read this first)
+
+Adding a `TokenType` or `ValueKind` value requires changing **both** the C++
+enum and its TCC-compiled Chemical mirror, in the **same order**, or every CBI
+plugin crashes with an off-by-one (AGENTS.md documents the `AsmKw`/`RBrace`
+incident). Append new values at the end; never insert in the middle.
+
+| C++ | Chemical mirror |
+|-----|-----------------|
+| `lexer/TokenType.h` | `lang/libs/compiler/src/ChemicalTokenType.ch` |
+| `ast/base/ValueKind.h` | `lang/libs/compiler/src/ast/base/ValueKind.ch` |
+| `ast/base/ASTNodeKind.h` | `lang/libs/compiler/src/ast/base/ASTNodeKind.ch` |
+
+Our plan adds `AsyncKw`, `AwaitKw` (TokenType) and `AwaitExpr` (ValueKind). We do
+**not** add a new `ASTNodeKind` (we reuse `VarInitStatement`).
+
+### 16.2 Lexer / parser
+
+- `lexer/TokenType.h`: append `AsyncKw`, `AwaitKw`.
+- `lang/libs/compiler/src/ChemicalTokenType.ch`: mirror.
+- `lexer/Lexer.cpp`: keyword map entries.
+- `parser/structures/Function.cpp`: consume `async` before `func`; set flags.
+- `parser/statements/LexStatement.cpp`: dispatch `AsyncKw` (top level, provide).
+- `parser/structures/Struct.cpp`: dispatch `AsyncKw` (members/container).
+- `parser/structures/Variant.cpp`: dispatch `AsyncKw`.
+- `parser/utils/Expression.cpp`: add `parseAwaitValue`.
+- `parser/utils/LexValue.cpp`: register `await` and `async`-closure in the value
+  dispatch sites (`836`, `881`).
+- `parser/statements/AccessChain.cpp`: register `await` (`25`, `141`, `173`).
+- `parser/values/LambdaValue.cpp`: set `is_async` on lambdas.
+- `parser/Parser.h`: declare `parseAwaitValue`.
+
+### 16.3 AST
+
+- `ast/base/ValueKind.h`: append `AwaitExpr`.
+- `lang/libs/compiler/src/ast/base/ValueKind.ch`: mirror.
+- `ast/base/ast_fwd.h`: forward-declare `AwaitExpression`.
+- `ast/values/AwaitExpression.h` + `.cpp`: new node.
+- `ast/structures/FunctionDeclaration.h`: `is_async` attribute + accessors.
+- `ast/types/FunctionType.h`: `FunctionTypeData::is_async` + setter; update
+  constructors and `copy_into`/`shallow_copy_into` flags.
+- `CMakeLists.txt`: add the new value header/source (the list of every value
+  file, ~lines 470-545).
+
+### 16.4 `ValueKind` switch/visitor sites that must handle `AwaitExpr`
+
+Missing any of these compiles but misbehaves at runtime (release) or throws
+(debug):
+
+1. `preprocess/visitors/NonRecursiveVisitor.h` — master switch
+   `VisitValueNoNullCheck` (~738) and a `VisitAwaitExpression` forwarder
+   (~349-450 region).
+2. `preprocess/visitors/RecursiveVisitor.h` — recursion body (recurse into
+   `inner`).
+3. `preprocess/RepresentationVisitor.h` / `.cpp` — `VisitAwaitExpression`
+   (diagnostics and `representation()`).
+4. `ast/base/Value.cpp` — the ~18 `switch(kind())` helpers. At minimum:
+   `isValueRValueInBackend` (628), `isValueRValueInFrontend` (696),
+   `isValueLiteral`, `check_is_mutable` (881), `is_ref_moved` (963),
+   `is_ref_value`, `is_func_call`, `get_chain_id`, `get_single_id`,
+   `get_last_id`. Decide per-helper: `AwaitExpr` is an rvalue that is not
+   assignable, not a ref, not a chain id. Add explicit cases or document the
+   default is correct.
+5. `compiler/symres/SymResLinkBody.h/.cpp` — `VisitAwaitExpression`: link
+   `inner`, resolve the `Future` type, set
+   `await_result_type` and `setType(await_result_type)`; handle move semantics of
+   the inner future (it is consumed).
+6. `compiler/symres/LinkSignature.h/.cpp` — `VisitAwaitExpression`: link the
+   inner signature.
+7. `compiler/typeverify/TypeVerify.h/.cpp` — `VisitAwaitExpression`:
+   context checks (Section 13.1), verify `inner` satisfies `Future<T>` /
+   `Future<T>`, check assignability (`is_assignable` default is `true` — add
+   `AwaitExpr` as **not** assignable), and definite-assignment interactions.
+8. `preprocess/2c/2cASTVisitor.h/.cpp` — `VisitAwaitExpression` per Section 10.
+9. `compiler/backend/LLVM.cpp` — `AwaitExpression::llvm_value` /
+   `llvm_type` and any assign/arg/branch overrides per Section 9 and the
+   `UnsafeValue` forwarding pattern where appropriate.
+10. `compiler/generics/GenericInstantiator.h/.cpp` — `VisitAwaitExpression` to
+    re-monomorphize `inner` (mirror `VisitComptimeValue`/`VisitUnsafeValue`).
+11. `ast/utils/ASTUtils.cpp` — chain helpers
+    (`has_function_call_before`, `get_first_chain_id`, `get_parent_from`,
+    `build_parent_chain`) must treat `AwaitExpr` correctly (likely return the
+    inner chain or stop). Decide and test.
+
+### 16.5 Async lowering pass
+
+- New: `compiler/async/AwaitNormalizePass.{h,cpp}`.
+- New: `compiler/async/AsyncLoweringPlan.{h,cpp}`.
+- Wire it after type verification / generic instantiation in the per-module
+  pipeline (`compiler/ASTProcessor.cpp` / `SymbolResolver.cpp` orchestration),
+  and only for functions/lambdas with `is_async`.
+
+### 16.6 Return-type wrapping (symres)
+
+- `compiler/symres/LinkSignature.cpp` `visit_func_decl` (~704): when
+  `node->attrs.is_async`, build the `Future<inner>` generic via
+  `CoreNodes::future_type` and assign to `node->returnType` **before**
+  `sig.visit(node->returnType)` so the generic gets registered/linked. Verify
+  `TopLevelLinkSignature::VisitGenericType` visits the type arguments (it
+  registers inline instantiations at ~572); if it does not visit args, visit the
+  inner type explicitly first.
+- `compiler/symres/CoreNodes.h` + `SymbolResolver::link_core_nodes`: resolve and
+  cache `core::async::Future`, `core::async::Poll`,
+  `core::async::FutureHandle`, `core::async::FutureTable`, and the
+  `Future::poll` method handle. **Do not** cache or use an unqualified
+  `Future` (B5).
+- Lambda return-type wrapping: `SymResLinkBody.cpp` (~1941, ~2695) where lambda
+  return types are finalized; wrap when `data.is_async`.
+
+### 16.7 Materialization + static vtable (D13)
+
+- New compiler support to turn any expression satisfying `Future<T>` into a
+  `FutureHandle<T>`: hoist the expression into a compiler-managed slot, emit a
+  static `FutureTable<T>` with a `poll` thunk
+  `return (slot as *mut F).poll(cx)` and a `drop` thunk that destroys the slot.
+- This is a **direct call** to the concrete `poll`; it must not go through the
+  interface generic method (B2). Verify the emitted C names the concrete
+  function (`..._F_poll`), not `Interface__cgs__Npoll`.
+
+### 16.8 Diagnostics
+
+- `compiler/typeverify/TypeVerify.cpp`: context restrictions (13.1), return
+  inner-type comparison (15).
+- `compiler/symres/SymResLinkBody.cpp`: return inner-type comparison.
+
+---
+
+## 17. Implementation Phases
+
+Each phase is independently testable. Do not start a later phase's backend work
+before the shared plan exists.
+
+### Phase 0 — Groundwork (no user-visible syntax)
+
+1. Add `AsyncKw`/`AwaitKw` + CBI mirror + lexer map. No parser behavior yet.
+2. Add `ValueKind::AwaitExpr` + CBI mirror + `AwaitExpression` node + all
+   Section 16.4 extension points with "not yet supported" stubs that produce a
+   clear diagnostic.
+3. Add `is_async` flags.
+4. Add `core::async` protocol types in `lang/libs/core` (`Poll`, `Context`,
+   `Waker`, `WakerVTable`, `Future`, `FutureHandle`, `FutureTable`, `Unit`,
+   frame alloc hooks). Keep the probe `lang/compiled/async_probe` compiling as a
+   smoke test.
+5. Add `AsyncLoweringPlan` (empty implementation).
+6. ~~**Fix B1**~~ **DONE** (generic loop-expression result-type substitution).
+   See Section 1.5 B1. Regression test
+   `lang/tests/src/generic/generic_dispatch.ch::test_generic_loop_expression_result`.
+7. ~~**Fix B2**~~ **DONE** (calls to impl-only methods emitted the interface
+   symbol). See Section 1.5 B2. Regression test
+   `lang/tests/src/generic/generic_dispatch.ch::test_impl_only_method_call`.
+
+**Acceptance:** compiler builds; full existing test suite unchanged; both repro
+modules compile and run. ✅ (2161/2161 tests pass.)
+
+### Phase 1 — Surface + type system + interpreter
+
+1. Parse `async func`, `await expr`, `async` closures.
+2. Symres: wrap `async` return type in `Future<T>`; resolve `await` to `T`.
+3. Typeverify: context restrictions, awaitable check, inner return check.
+4. Interpreter: `AwaitExpression::evaluated_value` for ready futures.
+5. A **temporary blocking lowering** for compiled `await` (calls
+   `Future::block_on`) behind a flag, clearly marked as a bootstrap, so the
+   surface can be exercised end-to-end before the real lowering lands. Its
+   semantics match "await until ready"; it is not the shipped performance model.
+
+**Acceptance:** async/await examples compile and run in interpreter and compiled
+modes; negative tests for all diagnostics.
+
+### Phase 2 — Shared analysis + normalization
+
+1. `AwaitNormalizePass` (Section 7).
+2. Frame planning + live-drop analysis (Section 8), producing
+   `AsyncLoweringPlan`.
+3. No-await fast path.
+4. Unit tests for the plan on small functions (states, slots, drop sets).
+
+**Acceptance:** plan is correct on a corpus including nested awaits, awaits in
+loops/conditionals, destructor-bearing locals, and generic bodies.
+
+### Phase 3 — LLVM lowering
+
+1. `llvm.coro.*` ramp/begin/promise/suspend/end.
+2. `poll`/`drop`/vtable.
+3. Destroy-path destructors from `live_drops`.
+4. `CoroElide` fast path for direct await; no-await fast path.
+5. Async main trampoline (optional).
+6. Gate the Phase 1 blocking lowering off by default.
+
+**Acceptance:** async tests run under `./scripts/test.sh --llvm`; generated IR
+contains no frame allocation for direct-await cases (verify IR); cancellation
+and destructor tests pass.
+
+### Phase 4 — C / 2c lowering
+
+1. Frame struct emission, ramp, `poll`, `drop`, vtable (Section 10).
+2. Await sites, live-drop switches.
+3. No-await fast path.
+4. Optional direct-await elision.
+5. Remove the temporary blocking lowering entirely.
+
+**Acceptance:** `./scripts/test.sh --tcc` runs the async tests; behavior matches
+LLVM; TinyCC compiles the output.
+
+### Phase 5 — Executor + I/O + advanced library
+
+1. Per-thread executor, `block_on`, `spawn`, `JoinHandle`.
+2. Timers (`async::sleep`), channels.
+3. `async` net/tls/http wrappers.
+4. `select` combinator.
+5. `spawn_send` + `Send` opt-in.
+
+### Phase 6 — Safety hardening
+
+1. Borrow-across-await check (targeted).
+2. `Send` enforcement for cross-thread.
+3. Panic/unwind behavior for async.
+4. Effect bit `FX_SUSPENDS` propagation (ties into `effect-system-proposal.md`).
+
+---
+
+## 18. Testing Plan
+
+- **Positive (interpret):** async fn with no await; await of a ready future;
+  await in a loop; await in an if/else; await of a generic future; async
+  closures; destructor-bearing locals across await; nested awaits.
+- **Positive (compiled, LLVM and TCC):** the same corpus, plus:
+  - cancellation: drop a suspended future, assert destructors ran exactly once;
+  - ready fast path: assert no executor round-trip (observable via a counter);
+  - frame stability: take the address of a frame local across an await and use
+    it after resume;
+  - generic async functions and async struct methods;
+  - async main trampoline.
+- **Negative:** all Section 15 diagnostics; await outside async; await in a
+  destructor; async extern; pending at comptime; non-awaitable operand.
+- **IR assertions:** for the LLVM backend, a test that compiles `await foo()`
+  and greps the emitted IR to confirm the frame allocation is elided where
+  expected.
+- **C output assertions:** for 2c, compile a sample and check the generated C
+  contains the frame/poll/drop and no unexpected `malloc` in the fast path.
+- **Regression:** the entire existing suite must pass unchanged; async must not
+  slow down compilation of non-async code measurably (add a timing check if
+  feasible).
+
+Follow the testing skill (`.agents/skills/testing/SKILL.md`). Put language-level
+async tests in the main suite only if essential; put heavier ones in a
+standalone module if they need the executor library.
+
+---
+
+## 19. Edge Cases and Gotchas
+
+1. **Return-type wrapping is pervasive.** `func->returnType` is `Future<T>`
+   after symres; every return check must unwrap. This is the #1 bug source.
+2. **`await` in a condition or loop condition** must be hoisted (Section 7.4).
+   Do not let `AwaitExpression` reach a backend inside `If.cpp`/`WhileLoop.cpp`
+   logic unnormalized.
+3. **Evaluation order.** Hoisting changes nothing only if Chemical evaluates
+   operands left to right. Confirm this and encode it in a test.
+4. **Void async.** `async func foo() : void`. `Future<void>` needs a void
+   result representation (`Poll<void>`). Decide: represent `Poll<void>` as
+   `Poll<unit>` where `unit` is a zero-sized type, or special-case void. Prefer a
+   zero-sized `unit` to keep generics uniform. Document the choice.
+5. **`Future<T>` with a destructor.** `Future<T>` owns the frame; it must have a
+   `@delete` that calls `vtbl.drop(frame)`. Moving a `Future<T>` follows normal
+   move semantics. Never let a copy of the handle exist (it would double-drop);
+   `Future<T>` must be move-only. Mark `@delete` and do not provide a copy
+   constructor; confirm Chemical's move semantics null the source.
+6. **`Waker` ownership.** `Waker` is cloneable (`vtbl.clone`) and owns its
+   `data` via `@delete`/`vtbl.drop`. `Context` holds a `Waker`; poll may clone
+   it. Keep the refcount in `data`.
+7. **Child future handle across suspend.** Must be a frame slot; an SSA value
+   does not survive a suspend.
+8. **Nested awaits in the same expression** (`await a + await b`) are hoisted in
+   order; ensure temporaries are distinct and dropped.
+9. **Await in a loop** reuses the same frame slot for the child handle; ensure
+   the previous child is dropped/moved before overwrite.
+10. **Cancellation in a loop** must drop the child whose state is current.
+11. **`return` inside a loop after an await** must set `STATE_DONE` and not fall
+    into loop labels.
+12. **Generic frames** must be unique per instantiation; share the mangler.
+13. **Async methods** (`&self` receivers): the receiver pointer is a frame slot;
+    the frame stability rule keeps it valid. Document the lifetime expectation.
+14. **Async closures capturing** follow the normal closure capture struct, which
+    becomes part of the frame; ensure captures are moved into the frame, not
+    stack-copied after poll starts.
+15. **Interface/`dyn` futures:** `poll` via vtable; the frame is behind the
+    object pointer, so it is stable. `into_future` must not copy a move-only
+    future; take it by value/move.
+16. **`@extern` async** is rejected (no frame/ABI).
+17. **`async` at comptime** only if non-suspending.
+18. **Frame alignment** must be correct for over-aligned `T`; use `TargetData`.
+19. **`STATE_DONE` vs result drop** (13.3): implement the `result_taken` flag.
+20. **Zero-await async fns that call other async fns** return the child future
+    directly (a form of `async fn forward() -> T { return await f() }` is *not*
+    zero-await because it awaits; but `async fn forward() -> T { return f() }`
+    is invalid because the body result must be `T`, not `Future<T>` — it must be
+    `return await f()`. State this clearly.)
+21. **`async` and `where` clauses / generics** must compose; wrapping happens in
+    signature linking where the `where` clause is linked too.
+22. **Never** busy-wait in generated code; `Pending` always returns to the
+    executor.
+23. **Never** allocate in `poll` for a `Pending` result; only the ramp
+    allocates.
+
+---
+
+## 20. Deferred Work and Open Questions
+
+- **MIR unification.** When MIR lands (`mir-design.md`), move the state-machine
+  construction into MIR so both backends share one lowering and can drop their
+  bespoke emissions. Keep `AsyncLoweringPlan` as the analysis feeding MIR.
+- **`Send`/`Sync`.** A full auto-trait system is out of scope. Phase 6 may add an
+  explicit `Send` interface for `spawn_send`.
+- **Structured concurrency.** `async let`, task groups, cancellation scopes are
+  library/phase-6+ features.
+- **`select` syntax.** Kept as a library combinator; no parser work.
+- **Effect system.** `FX_SUSPENDS` should be populated from `is_async` +
+  `may_suspend` when the effect system is implemented; until then, async
+  functions are simply "may suspend".
+- **Async in interfaces.** Whether interface methods can be `async` needs a
+  decision about ABI (returning `Future<T>` is fine; awaiting inside a default
+  method needs a frame). Defer to Phase 6.
+- **Wasm/JVM backends.** Poll model maps naturally; note but do not implement.
+
+---
+
+## 21. Appendix A: Corrected Examples
+
+### 21.1 Simple async function
 
 ```chemical
 import std
 import async
 
-async func greet(name: *char) : std::string {
-    await async::sleep(1000)   // wait 1 second
+async func greet(name: *char) : string {
+    await async::sleep(1000u)          // u64
     var s = std::string("Hello, ")
     s.append_view(name)
     return s
 }
 
 public func main() : int {
-    var greeting = await greet("World")
+    var greeting = async::block_on(greet("World"))
     println(greeting)
     return 0
 }
 ```
 
-### 17.2 Multiple Concurrent Tasks
+Corrections vs. the old draft: `std::string`, not bare `string`; `sleep` takes a
+`u64`; main is sync and calls `block_on` (or use async main in Phase 3). Note
+that the old draft's `unsafe var`, `new(x) T()`, and `known_type()` spellings are
+all invalid in the current codebase.
+
+### 21.2 Awaiting behind an HTTP-like future
 
 ```chemical
-import std
-import async
-
-async func fetch_user(id: int) : std::string {
-    // Simulate async I/O
-    await async::sleep(100)
-    return std::string("User_") + id
-}
-
-async func fetch_orders(user_id: int) : std::string {
-    await async::sleep(200)
-    return std::string("Orders_") + user_id
-}
-
-public func main() : int {
-    // Start both tasks concurrently
-    var user_future = async::spawn(| |() : std::string => {
-        return fetch_user(1)
-    })
-    var orders_future = async::spawn(| |() : std::string => {
-        return fetch_orders(1)
-    })
-
-    // Wait for both
-    var user = await user_future
-    var orders = await orders_future
-
-    println("User: ${user}")
-    println("Orders: ${orders}")
-    return 0
-}
-```
-
-### 17.3 HTTP Server with Async
-
-```chemical
-import std
-import http
-import async
-
-async func handle_request(req: http::Request, res: http::ResponseWriter) {
-    var body = await req.read_body()
-
-    if(req.path.equals_with_len("/api/data", 9)) {
-        var data = await fetch_from_database()
-        res.set_header("Content-Type", "application/json")
-        res.write_string(data)
-    } else if(req.path.equals_with_len("/api/users", 10)) {
-        var users = await fetch_users()
-        res.write_string(users)
-    } else {
-        res.status = 404
-        res.write_string("Not Found")
-    }
-}
-
-public func main() : int {
-    var server = http::server::Server()
-    server.router.add_handler("GET", "/api/*", |req, res|() : void => {
-        async::spawn(|req, res|() : void => {
-            handle_request(req, res)
-        })
-    })
-    server.start(8080)
-    server.serve_non_iocp()
-    return 0
-}
-```
-
-### 17.4 Async with Error Handling
-
-```chemical
-async func safe_fetch(url: *char) : std::Result<std::string, std::string> {
+async func fetch_data(url: *char) : std::Result<Response, string> {
     var client = http::Client()
     var response = await client.get_async(url)
     if(response is std::Result.Err) {
@@ -1626,116 +2013,290 @@ async func safe_fetch(url: *char) : std::Result<std::string, std::string> {
     var Ok(res) = response else unreachable
     return std::Result.Ok(res.body.read_all())
 }
+```
 
-async func main() : int {
-    var result = await safe_fetch("https://api.example.com/data")
-    switch(result) {
-        std::Result.Ok(data) => {
-            println("Data: ${data}")
-        }
-        std::Result.Err(err) => {
-            println("Error: ${err}")
-        }
+### 21.3 Recursion
+
+```chemical
+async func countdown(n: int) : int {
+    if(n <= 0) {
+        return 0
+    } else {
+        await async::yield_now()
+        return await countdown(n - 1)
     }
-    return 0
 }
 ```
 
-### 17.5 Async Generator (Future Enhancement)
+Each call gets its own heap frame; recursion is safe because frames are stable.
+
+### 21.4 Async closure
 
 ```chemical
-// Phase 4 feature
-async func read_lines(path: *char) : AsyncIterator<std::string> {
-    var file = await fs::open_async(path)
-    while(var line = await file.read_line_async()) {
-        yield line
-    }
+var task = async |x: int|() : int => {
+    return await work(x)
 }
-
-public func main() : int {
-    var lines = read_lines("data.txt")
-    for(var line in lines) {
-        println(line)
-    }
-    return 0
-}
+var result = await task(7)
 ```
 
 ---
 
-## Appendix A: Implementation Checklist
+## 22. Appendix B: File and Symbol Reference Map
 
-- [ ] Add `AsyncKw` and `AwaitKw` to `lexer/TokenType.h`
-- [ ] Add keywords to `lexer/Lexer.cpp` keyword table
-- [ ] Add `is_async` to `FuncDeclAttributes` in `ast/structures/FunctionDeclaration.h`
-- [ ] Add `AwaitExpression` to `ast/values/AwaitExpression.h`
-- [ ] Add `AwaitExpr` to `ValueKind` enum in `ast/base/ValueKind.h`
-- [ ] Parse `async func` in `parser/structures/Function.cpp`
-- [ ] Parse `await expr` in `parser/values/Expression.cpp`
-- [ ] Parse async closures in `parser/structures/Block.cpp`
-- [ ] Register `Future<T>` in `compiler/symres/SymbolResolver.cpp`
-- [ ] Resolve async return types in `compiler/symres/LinkSignature.h`
-- [ ] Validate await expressions in `compiler/symres/SymResLinkBody.h`
-- [ ] Type-check await in `compiler/typeverify/TypeVerify.cpp`
-- [ ] Codegen await as blocking in `compiler/backend/LLVM.cpp`
-- [ ] Codegen await as blocking in `preprocess/2c/2cASTVisitor.cpp`
-- [ ] Create `lang/libs/async/chemical.mod`
-- [ ] Create `lang/libs/async/src/future.ch`
-- [ ] Create `lang/libs/async/src/promise.ch`
-- [ ] Create `lang/libs/async/src/spawn.ch`
-- [ ] Create `lang/libs/async/src/executor.ch`
-- [ ] Write tests in `lang/tests/async/`
+Frequently needed real symbols (verify line numbers before editing; they move):
 
-## Appendix B: Files to Modify
+| Symbol | File |
+|--------|------|
+| `ValueKind` enum | `ast/base/ValueKind.h` |
+| `Value` virtuals / `getType`/`setType` | `ast/base/Value.h` |
+| `AwaitExpression` (to add) | `ast/values/AwaitExpression.h/.cpp` |
+| `FuncDeclAttributes` | `ast/structures/FunctionDeclaration.h:72` |
+| `FunctionTypeData` | `ast/types/FunctionType.h:33` |
+| `FunctionTypeBody` | `ast/types/FunctionType.h:286` |
+| `LambdaFunction` | `ast/values/LambdaFunction.h:32` |
+| `TypeLoc` | `ast/base/TypeLoc.h` |
+| `GenericType` / `LinkedType` | `ast/types/GenericType.h`, `ast/types/LinkedType.h` |
+| Generic synthesis example | `ast/values/FunctionCall.cpp:2157`, `compiler/symres/SymResLinkBody.cpp:2140` |
+| Core node caching | `compiler/symres/CoreNodes.h`, `SymbolResolver::link_core_nodes` |
+| Signature linking | `compiler/symres/LinkSignature.cpp:704` (`visit_func_decl`) |
+| Body linking | `compiler/symres/SymResLinkBody.h/.cpp` |
+| Type verification | `compiler/typeverify/TypeVerify.h/.cpp` |
+| Master value switch | `preprocess/visitors/NonRecursiveVisitor.h:738` |
+| Representation visitor | `preprocess/RepresentationVisitor.h/.cpp` |
+| Value kind helpers | `ast/base/Value.cpp` |
+| C backend | `preprocess/2c/2cASTVisitor.h/.cpp` |
+| C destr. scopes | `ToCAstVisitor::visit_value_scope`, `2cASTVisitor.h:591` |
+| LLVM backend | `compiler/backend/LLVM.cpp`, `compiler/Codegen.cpp` |
+| Generics | `compiler/generics/GenericInstantiator.h/.cpp` |
+| Function parser | `parser/structures/Function.cpp:457` |
+| Unary parsers | `parser/utils/Expression.cpp:305` |
+| Lambda parser | `parser/values/LambdaValue.cpp` (`parseLambdaValue:42`) |
+| Lexer keyword map | `lexer/Lexer.cpp:62` |
+| TCC driver / C compile | `compiler/lab/LabBuildCompiler.cpp` (`process_module_tcc`, `compile_c_to_obj_w_opts`) |
+| Existing blocking future | `lang/libs/std/src/concurrency/threadpool.ch:106,134` |
+| Verified async probe | `lang/compiled/async_probe/` (Section 1.4, Appendix D) |
+| Generic-loop bug repro | `lang/compiled/generic_loop_bug/` (Section 1.5 B1) |
+| Effect proposal | `lang/docs/effect-system-proposal.md` |
 
-| File | Change Type | Description |
-|------|-------------|-------------|
-| `lexer/TokenType.h` | Add enum values | `AsyncKw`, `AwaitKw` |
-| `lexer/Lexer.cpp` | Add keyword mapping | `"async"` → `AsyncKw`, `"await"` → `AwaitKw` |
-| `ast/base/ValueKind.h` | Add enum value | `AwaitExpr` |
-| `ast/base/ASTNodeKind.h` | Add enum value (optional) | `AsyncFuncDecl` (only if separate node) |
-| `ast/structures/FunctionDeclaration.h` | Add field | `bool is_async` in `FuncDeclAttributes` |
-| `ast/values/AwaitExpression.h` | New file | `AwaitExpression` AST node |
-| `parser/structures/Function.cpp` | Modify | Parse `async` before `func` |
-| `parser/values/Expression.cpp` | Modify | Parse `await expr` |
-| `parser/structures/Block.cpp` | Modify | Parse `async` closures |
-| `compiler/symres/SymbolResolver.cpp` | Modify | Register `Future<T>` |
-| `compiler/symres/LinkSignature.h` | Modify | Wrap async return type in `Future<T>` |
-| `compiler/symres/SymResLinkBody.h` | Modify | Resolve `AwaitExpression` |
-| `compiler/typeverify/TypeVerify.cpp` | Modify | Type-check `await` |
-| `compiler/backend/LLVM.cpp` | Modify | Codegen for async functions and await |
-| `preprocess/2c/2cASTVisitor.cpp` | Modify | C translation for async/await |
-| `compiler/Interpreter/Core.cpp` | Modify | Interpret `await` (blocking) |
-| `lang/libs/async/` | New directory | Runtime library |
+---
 
-## Appendix C: Reference Material
+## Appendix C: The Seven Rules an Implementer Must Not Break
 
-### Existing Concurrency Primitives
+1. **Append-only enums.** New `TokenType`/`ValueKind` values go at the end and
+   are mirrored in the `.ch` files.
+2. **Frames never move after first poll.** No elision may violate this.
+3. **Every `AwaitExpression` reaching a backend is a `VarInitStatement`
+   initializer** (Section 7 invariant).
+4. **Return checks unwrap `Future<T>`** (Section 15).
+5. **`Pending` never busy-waits and never allocates.**
+6. **`await` goes through a `FutureHandle<T>` vtable, never through an interface
+   reference or a generic-constraint call** (D13; probe B2/B3).
+7. **Never write the poll/suspend loop as a Chemical `loop` expression in a
+   generic function** (probe B1). Backends emit it.
 
-- `std::concurrent::ThreadPool` — `lang/libs/std/src/concurrency/threadpool.ch`
-- `std::concurrent::Future<T>` — `lang/libs/std/src/concurrency/threadpool.ch`
-- `std::concurrent::Promise<T>` — `lang/libs/std/src/concurrency/threadpool.ch`
-- `std::concurrent::Thread` — `lang/libs/std/src/concurrency/threadpool.ch`
-- `std::mutex` — `lang/libs/std/src/mutex.ch` (wraps platform mutex)
-- `std::condvar` — platform condition variable
-- `std::function<T>` — `lang/libs/std/src/function.ch` (closure type)
+## Appendix D: Verification Artifacts
 
-### Key Compiler Files
+Keep these gitignored probes as living smoke tests; recompile them whenever the
+relevant compiler code changes.
 
-- `ast/base/ASTNodeKind.h` — all AST node kinds
-- `ast/base/ValueKind.h` — all value kinds
-- `ast/structures/FunctionDeclaration.h` — function declaration node
-- `ast/values/FunctionCall.h` — function call node
-- `parser/structures/Function.cpp` — function parsing
-- `parser/values/Expression.cpp` — expression parsing
-- `compiler/symres/SymbolResolver.cpp` — symbol resolution orchestration
-- `compiler/symres/SymResLinkBody.h` — body linking
-- `compiler/typeverify/TypeVerify.cpp` — type verification
-- `compiler/backend/LLVM.cpp` — LLVM codegen
-- `preprocess/2c/2cASTVisitor.cpp` — C translation codegen
+| Path | What it validates |
+|------|-------------------|
+| `lang/compiled/async_probe/` | Full protocol + runtime handle + vtable + move-only drop + destructor-bearing result + unit + vector-of-handles. Expected output in Section 1.4. |
+| `lang/compiled/generic_loop_bug/` | Minimal repro for B1; must compile and run once B1 is fixed. |
 
-### Effect System Integration Points
+Because `lang/compiled/` is gitignored, the verified probe is reproduced below so
+the working reference survives a clean checkout. `chemical.mod`:
 
-- `FX_SUSPENDS` bit in `compiler/effects/EffectBits.h` (from effect system proposal)
-- `FunctionDeclaration::attrs.is_async` maps to `FX_SUSPENDS` during effect computation
-- Future: `[pure]` functions cannot call `async` functions (unless also marked `[async]`)
+```
+application async_probe
+source "src"
+import cstd
+import std
+import core
+```
+
+`src/main.ch`:
+
+```chemical
+public struct WakerVTable {
+    var wake  : (data : *mut void) => void
+    var clone : (data : *mut void) => Waker
+    var drop  : (data : *mut void) => void
+}
+
+public struct Waker {
+    var data : *mut void
+    var vtbl : *WakerVTable
+
+    public func wake(&self) {
+        vtbl.wake(data)
+    }
+
+    @delete
+    func delete(&mut self) {
+        if(vtbl != null) {
+            vtbl.drop(data)
+            vtbl = null
+        }
+    }
+}
+
+public struct Context {
+    var waker : Waker
+}
+
+public struct Unit {}
+
+public variant Poll<T> {
+    Ready(value : T)
+    Pending()
+}
+
+public interface Future<T> {
+    func poll(&mut self, cx : *mut Context) : Poll<T>
+}
+
+public struct FutureTable<T> {
+    var poll : (frame : *mut void, cx : *mut Context) => Poll<T>
+    var drop : (frame : *mut void) => void
+}
+
+@direct_init
+public struct FutureHandle<T> {
+    var frame : *mut void
+    var vtbl  : *mut FutureTable<T>
+
+    @delete
+    func delete(&mut self) {
+        if(frame != null) {
+            vtbl.drop(frame)
+            frame = null
+        }
+    }
+}
+
+struct IntFrame {
+    var value : int
+}
+
+func int_frame_poll(frame : *mut void, cx : *mut Context) : Poll<int> {
+    var f = frame as *mut IntFrame
+    var v = std::replace(&mut f.value, 0)
+    return Poll.Ready<int>(v)
+}
+
+func int_frame_drop(frame : *mut void) {
+    printf("[drop] int frame\n")
+    var f = frame as *mut IntFrame
+    dealloc f
+}
+
+func make_int_future(v : int) : FutureHandle<int> {
+    var f = malloc(sizeof(IntFrame)) as *mut IntFrame
+    f.value = v
+    var vtbl : *mut FutureTable<int> = malloc(sizeof(FutureTable<int>)) as *mut FutureTable<int>
+    vtbl.poll = int_frame_poll
+    vtbl.drop = int_frame_drop
+    return FutureHandle<int> { frame : f as *mut void, vtbl : vtbl }
+}
+
+func rt_await_int(fut : FutureHandle<int>, cx : *mut Context) : int {
+    var out : int = loop {
+        var r = fut.vtbl.poll(fut.frame, cx)
+        if(r is Poll.Ready) {
+            var Ready(value) = r else unreachable
+            break value
+        } else {
+            continue
+        }
+    }
+    return out
+}
+
+struct StringFrame {
+    var value : std::string
+}
+
+func string_frame_poll(frame : *mut void, cx : *mut Context) : Poll<std::string> {
+    var f = frame as *mut StringFrame
+    var v = std::replace(&mut f.value, std::string())
+    return Poll.Ready<std::string>(v)
+}
+
+func string_frame_drop(frame : *mut void) {
+    printf("[drop] string frame\n")
+    var f = frame as *mut StringFrame
+    delete f
+}
+
+func make_string_future(v : std::string) : FutureHandle<std::string> {
+    var f = malloc(sizeof(StringFrame)) as *mut StringFrame
+    new(f) StringFrame { value : v }
+    var vtbl : *mut FutureTable<std::string> = malloc(sizeof(FutureTable<std::string>)) as *mut FutureTable<std::string>
+    vtbl.poll = string_frame_poll
+    vtbl.drop = string_frame_drop
+    return FutureHandle<std::string> { frame : f as *mut void, vtbl : vtbl }
+}
+
+func rt_await_string(fut : FutureHandle<std::string>, cx : *mut Context) : std::string {
+    var out : std::string = loop {
+        var r = fut.vtbl.poll(fut.frame, cx)
+        if(r is Poll.Ready) {
+            var Ready(value) = r else unreachable
+            break value
+        } else {
+            continue
+        }
+    }
+    return out
+}
+
+func unit_poll(frame : *mut void, cx : *mut Context) : Poll<Unit> {
+    return Poll.Ready<Unit>(Unit{})
+}
+
+func make_unit_future() : FutureHandle<Unit> {
+    var vtbl : *mut FutureTable<Unit> = malloc(sizeof(FutureTable<Unit>)) as *mut FutureTable<Unit>
+    vtbl.poll = unit_poll
+    vtbl.drop = int_frame_drop
+    return FutureHandle<Unit> { frame : null, vtbl : vtbl }
+}
+
+func rt_await_unit(fut : FutureHandle<Unit>, cx : *mut Context) {
+    var done : bool = loop {
+        var r = fut.vtbl.poll(fut.frame, cx)
+        if(r is Poll.Ready) {
+            break true
+        } else {
+            continue
+        }
+    }
+    if(done) { }
+}
+
+public func main() : int {
+    var cx = Context { waker : Waker { data : null, vtbl : null } }
+
+    var a = make_int_future(99)
+    printf("int await = %d\n", rt_await_int(a, &raw mut cx))
+
+    var b = make_string_future(std::string("hello-future"))
+    var s = rt_await_string(b, &raw mut cx)
+    printf("string await = %s\n", s.data())
+
+    var u = make_unit_future()
+    rt_await_unit(u, &raw mut cx)
+    printf("unit await done\n")
+
+    var handles = std::vector<FutureHandle<int>>()
+    handles.push(make_int_future(1))
+    handles.push(make_int_future(2))
+    printf("handles = %d\n", handles.size() as int)
+
+    return 0
+}
+```
+
+> Note: the probe's `rt_await_*` helpers are intentionally **non-generic**. Their
+> generic equivalent (`func <T> rt_await(fut : FutureHandle<T>, ...)`) hits B1.
+> This is precisely why the real lowering is backend-emitted (D6/B1).

@@ -13,8 +13,6 @@
 class DoWhileLoop : public LoopASTNode {
 public:
 
-    bool stoppedInterpretation = false;
-
     Value* condition;
 
 
@@ -42,7 +40,5 @@ public:
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) final;
 #endif
-
-    void stopInterpretation() final;
 
 };

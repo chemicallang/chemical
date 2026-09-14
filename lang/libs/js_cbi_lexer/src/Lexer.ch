@@ -1,3 +1,7 @@
+// Shared lexer state for the JavaScript / JSX macro lexers.
+//
+// Union of the former per-package JsLexer structs. All fields default so
+// `JsLexer { }` works for both the plain-JS and JSX front ends.
 public struct JsLexer {
     var lb_count : int = 0
     var chem_start_lb : int = 0

@@ -1,25 +1,40 @@
 /**
- * Standalone JS tokenizer for the runtime `js` package.
+ * Shared JavaScript / JSX tokenizer for runtime parsing.
  *
- * Tokenizes a plain JS source string into a sequence of compiler::Token
- * values, so the shared js_parser (which is driven by the compiler `Parser`
- * interface) can be reused at runtime without the compiler lexer.
+ * One implementation with a mode flag, used by the runtime `js` package
+ * (`jsx_enabled = false`) and the runtime `universal` package
+ * (`jsx_enabled = true`). Produces `compiler::Token` values so the shared
+ * parser packages can be reused at runtime without the compiler lexer.
+ *
+ * The JSX state machine is copied from universal_cbi's getNextToken
+ * (jsx_depth / in_jsx_tag / jsx_brace_count), minus the embedded-chemical
+ * mode which only exists in the compiler. When `jsx_enabled` is false, `<` is
+ * always a comparison/shift operator and `state` is a plain identifier.
  */
 using namespace std;
 
-public struct JsTokenizer {
+public struct JsSyntaxTokenizer {
     var src : std::string_view
     var pos : size_t
     var line : uint
     var character : uint
+    // When false, the tokenizer behaves as plain JavaScript (no JSX).
+    var jsx_enabled : bool = false
+
+    // jsx state machine
+    var jsx_depth : int = 0
+    var in_jsx_tag : int = 0
+    var jsx_brace_count : int = 0
+    var tag_mode_stack : ubigint = 0
+    var jsx_brace_stack : ubigint = 0
 }
 
-func (t : &mut JsTokenizer) peek() : char {
+func (t : &mut JsSyntaxTokenizer) peek() : char {
     if(t.pos >= t.src.size()) return '\0'
     return t.src.get(t.pos)
 }
 
-func (t : &mut JsTokenizer) advance() {
+func (t : &mut JsSyntaxTokenizer) advance() {
     if(t.pos >= t.src.size()) return
     const c = t.src.get(t.pos)
     t.pos += 1
@@ -31,11 +46,11 @@ func (t : &mut JsTokenizer) advance() {
     }
 }
 
-func (t : &mut JsTokenizer) position() : Position {
+func (t : &mut JsSyntaxTokenizer) position() : Position {
     return Position { line : t.line, character : t.character }
 }
 
-func (t : &mut JsTokenizer) skip_whitespaces() {
+func (t : &mut JsSyntaxTokenizer) skip_whitespaces() {
     while(true) {
         const c = t.peek()
         switch(c) {
@@ -49,7 +64,7 @@ func (t : &mut JsTokenizer) skip_whitespaces() {
     }
 }
 
-func (t : &mut JsTokenizer) read_identifier() {
+func (t : &mut JsSyntaxTokenizer) read_identifier() {
     while(true) {
         const c = t.peek()
         if(c != '\0' && (isalnum(c as int) || c == '-' || c == '_' || c == '$')) {
@@ -60,7 +75,7 @@ func (t : &mut JsTokenizer) read_identifier() {
     }
 }
 
-func (t : &mut JsTokenizer) read_digits() {
+func (t : &mut JsSyntaxTokenizer) read_digits() {
     while(true) {
         const c = t.peek()
         if(isdigit(c)) {
@@ -71,13 +86,16 @@ func (t : &mut JsTokenizer) read_digits() {
     }
 }
 
-func (t : &mut JsTokenizer) read_quoted(quote : char) {
+func (t : &mut JsSyntaxTokenizer) read_quoted(quote : char) {
     t.advance() // consume the opening quote
     while(true) {
         const c = t.peek()
         if(c == quote) {
             t.advance()
             return
+        } else if(c == '\\') {
+            t.advance()
+            if(t.peek() != '\0') t.advance()
         } else if(c != '\0') {
             t.advance()
         } else {
@@ -86,7 +104,7 @@ func (t : &mut JsTokenizer) read_quoted(quote : char) {
     }
 }
 
-func (t : &mut JsTokenizer) read_template() {
+func (t : &mut JsSyntaxTokenizer) read_template() {
     t.advance() // consume the opening backtick
     while(true) {
         const c = t.peek()
@@ -99,20 +117,37 @@ func (t : &mut JsTokenizer) read_template() {
         }
         if(c == '\\') {
             t.advance()
-            t.advance()
+            if(t.peek() != '\0') t.advance()
             continue
         }
         t.advance()
     }
 }
 
-func (t : &mut JsTokenizer) slice_from(start : size_t) : std::string_view {
+func (t : &mut JsSyntaxTokenizer) slice_from(start : size_t) : std::string_view {
     return std::string_view(t.src.data() + start, t.pos - start)
 }
 
-func (t : &mut JsTokenizer) next_token() : Token {
+func (t : &mut JsSyntaxTokenizer) next_token() : Token {
     const position = t.position()
     const start = t.pos
+
+    // JSX child mode: text until < or { or eof
+    const is_child = t.jsx_depth > 0 && t.in_jsx_tag == 0 && t.jsx_brace_count == 0
+    if(is_child) {
+        const p = t.peek()
+        if(p != '<' && p != '{' && p != '\0') {
+            while(true) {
+                const n = t.peek()
+                if(n == '<' || n == '{' || n == '\0') {
+                    break
+                }
+                t.advance()
+            }
+            return Token { type : JsTokenType.JSXText as int, value : t.slice_from(start), position : position }
+        }
+    }
+
     const c = t.peek()
     switch(c) {
         '\0' => {
@@ -120,10 +155,20 @@ func (t : &mut JsTokenizer) next_token() : Token {
         }
         '{' => {
             t.advance()
+            if(t.jsx_depth > 0) {
+                t.jsx_brace_count++
+                t.tag_mode_stack = (t.tag_mode_stack << 1) | (t.in_jsx_tag as ubigint)
+                t.in_jsx_tag = 0
+            }
             return Token { type : JsTokenType.LBrace as int, value : std::string_view("{"), position : position }
         }
         '}' => {
             t.advance()
+            if(t.jsx_depth > 0 && t.jsx_brace_count > 0) {
+                t.jsx_brace_count--
+                t.in_jsx_tag = (t.tag_mode_stack & 1) as int
+                t.tag_mode_stack = t.tag_mode_stack >> 1
+            }
             return Token { type : JsTokenType.RBrace as int, value : std::string_view("}"), position : position }
         }
         '(' => {
@@ -195,11 +240,29 @@ func (t : &mut JsTokenizer) next_token() : Token {
             }
             return Token { type : JsTokenType.Star as int, value : std::string_view("*"), position : position }
         }
+        '%' => {
+            t.advance()
+            if(t.peek() == '=') {
+                t.advance()
+                return Token { type : JsTokenType.PercentEqual as int, value : std::string_view("%="), position : position }
+            }
+            return Token { type : JsTokenType.Percent as int, value : std::string_view("%"), position : position }
+        }
         '/' => {
             t.advance()
             if(t.peek() == '=') {
                 t.advance()
                 return Token { type : JsTokenType.SlashEqual as int, value : std::string_view("/="), position : position }
+            } else if(t.peek() == '>') {
+                // /> self-closing
+                if(t.in_jsx_tag == 1) {
+                    if(t.jsx_depth > 0) {
+                        t.jsx_depth--
+                        t.jsx_brace_count = (t.jsx_brace_stack & 0xFF) as int
+                        t.jsx_brace_stack >>= 8
+                    }
+                }
+                return Token { type : JsTokenType.Slash as int, value : std::string_view("/"), position : position }
             } else if(t.peek() == '/') {
                 // single line comment
                 t.advance()
@@ -295,6 +358,39 @@ func (t : &mut JsTokenizer) next_token() : Token {
                 t.advance()
                 return Token { type : JsTokenType.LeftShift as int, value : std::string_view("<<"), position : position }
             }
+
+            if(t.jsx_enabled) {
+                // JSX heuristics
+                const p = t.peek()
+                var is_jsx = false
+                var is_closing = false
+
+                if(p == '/') {
+                    is_jsx = true
+                    is_closing = true
+                } else if(p == '>') {
+                    is_jsx = true
+                } else if(isalpha(p as int) || p == '_' || p == '$' || p == '{') {
+                    is_jsx = true
+                }
+
+                if(is_jsx) {
+                    if(is_closing) {
+                        if(t.jsx_depth > 0) {
+                            t.jsx_depth--
+                            t.jsx_brace_count = (t.jsx_brace_stack & 0xFF) as int
+                            t.jsx_brace_stack >>= 8
+                        }
+                    } else {
+                        t.jsx_brace_stack = (t.jsx_brace_stack << 8) | (t.jsx_brace_count as ubigint)
+                        t.jsx_brace_count = 0
+                        t.jsx_depth++
+                    }
+                    t.in_jsx_tag = 1
+                }
+
+
+            }
             return Token { type : JsTokenType.LessThan as int, value : std::string_view("<"), position : position }
         }
         '>' => {
@@ -310,14 +406,13 @@ func (t : &mut JsTokenizer) next_token() : Token {
                 }
                 return Token { type : JsTokenType.RightShift as int, value : std::string_view(">>"), position : position }
             }
+            if(t.in_jsx_tag == 1) {
+                t.in_jsx_tag = 0
+            }
             return Token { type : JsTokenType.GreaterThan as int, value : std::string_view(">"), position : position }
         }
-        '"' => {
-            t.read_quoted('"')
-            return Token { type : JsTokenType.String as int, value : t.slice_from(start), position : position }
-        }
-        '\'' => {
-            t.read_quoted('\'')
+        '"', '\'' => {
+            t.read_quoted(c)
             return Token { type : JsTokenType.String as int, value : t.slice_from(start), position : position }
         }
         '~' => {
@@ -337,6 +432,10 @@ func (t : &mut JsTokenizer) next_token() : Token {
                     comptime_fnv1_hash("var") => { return Token { type : JsTokenType.Var as int, value : val, position : position } }
                     comptime_fnv1_hash("const") => { return Token { type : JsTokenType.Const as int, value : val, position : position } }
                     comptime_fnv1_hash("let") => { return Token { type : JsTokenType.Let as int, value : val, position : position } }
+                    comptime_fnv1_hash("state") => {
+                        if(t.jsx_enabled) { return Token { type : JsTokenType.State as int, value : val, position : position } }
+                        return Token { type : JsTokenType.Identifier as int, value : val, position : position }
+                    }
                     comptime_fnv1_hash("for") => { return Token { type : JsTokenType.For as int, value : val, position : position } }
                     comptime_fnv1_hash("while") => { return Token { type : JsTokenType.While as int, value : val, position : position } }
                     comptime_fnv1_hash("break") => { return Token { type : JsTokenType.Break as int, value : val, position : position } }
@@ -389,7 +488,7 @@ func (t : &mut JsTokenizer) next_token() : Token {
     }
 }
 
-func (t : &mut JsTokenizer) tokenize() : std::vector<Token> {
+public func (t : &mut JsSyntaxTokenizer) tokenize() : std::vector<Token> {
     var tokens = std::vector<Token>()
     while(true) {
         const tok = t.next_token()

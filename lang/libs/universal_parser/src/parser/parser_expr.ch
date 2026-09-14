@@ -534,12 +534,16 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                             base : JsNode { kind : JsNodeKind.Identifier },
                             value : firstId
                         }
-                        var paren = builder.allocate<JsParen>()
-                        new (paren) JsParen {
-                            base : JsNode { kind : JsNodeKind.Paren },
-                            expression : id as *mut JsNode
+                        if(jsParser.jsx_enabled) {
+                            var paren = builder.allocate<JsParen>()
+                            new (paren) JsParen {
+                                base : JsNode { kind : JsNodeKind.Paren },
+                                expression : id as *mut JsNode
+                            }
+                            node = paren as *mut JsNode;
+                        } else {
+                            node = id as *mut JsNode;
                         }
-                        node = paren as *mut JsNode;
                     }
                 } else {
                     // (id + ...) -> Expression
@@ -553,12 +557,14 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                     if(!parser.increment_if(JsTokenType.RParen as int)) {
                         parser.error("expected )");
                     }
-                    var paren = builder.allocate<JsParen>()
-                    new (paren) JsParen {
-                        base : JsNode { kind : JsNodeKind.Paren },
-                        expression : node
+                    if(jsParser.jsx_enabled) {
+                        var paren = builder.allocate<JsParen>()
+                        new (paren) JsParen {
+                            base : JsNode { kind : JsNodeKind.Paren },
+                            expression : node
+                        }
+                        node = paren as *mut JsNode;
                     }
-                    node = paren as *mut JsNode;
                 }
             } else {
                 // (expr)
@@ -566,12 +572,14 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                 if(!parser.increment_if(JsTokenType.RParen as int)) {
                     parser.error("expected )");
                 }
-                var paren = builder.allocate<JsParen>()
-                new (paren) JsParen {
-                    base : JsNode { kind : JsNodeKind.Paren },
-                    expression : node
+                if(jsParser.jsx_enabled) {
+                    var paren = builder.allocate<JsParen>()
+                    new (paren) JsParen {
+                        base : JsNode { kind : JsNodeKind.Paren },
+                        expression : node
+                    }
+                    node = paren as *mut JsNode;
                 }
-                node = paren as *mut JsNode;
             }
         }
     } else {

@@ -121,24 +121,8 @@ void AccessChain::set_value(InterpretScope &scope, Value *rawValue, Operation op
             auto newVal = rawValue->scope_value(scope);
             values[values.size() - 1]->set_value_in(scope, parent, newVal, op, passed_loc);
             // Destruct the old value if it's a destructible struct being replaced
-            if(oldVal && oldVal->val_kind() == ValueKind::StructValue) {
-                auto structVal = oldVal->as_struct_value_unsafe();
-                auto ext = structVal->linked_extendable();
-                if(ext && ext->kind() == ASTNodeKind::StructDecl) {
-                    auto sd = (StructDefinition*)ext;
-                    if(sd->has_destructor()) {
-                        auto destructor_fn = sd->destructor_func();
-                        if(destructor_fn && destructor_fn->body.has_value()) {
-                            InterpretScope temp_scope(scope.global, scope.allocator, scope.global);
-                            temp_scope.declare("self", oldVal);
-                            temp_scope.interpret(&destructor_fn->body.value());
-                            auto self_it = temp_scope.values.find("self");
-                            if(self_it != temp_scope.values.end()) {
-                                temp_scope.values.erase(self_it);
-                            }
-                        }
-                    }
-                }
+            if(oldVal) {
+                scope.destroy_value(oldVal);
             }
         } else {
             scope.error(this) << "(access chain) parent is null for set_value";
@@ -217,23 +201,7 @@ Value* AccessChain::evaluated_value(InterpretScope &scope) {
     // E.g.: create_destructible(...).data → destruct the create_destructible temp.
     if(values.size() > 1 && values[0]->val_kind() == ValueKind::FunctionCall &&
        evaluated && evaluated->val_kind() == ValueKind::StructValue) {
-        auto structVal = evaluated->as_struct_value_unsafe();
-        auto ext = structVal->linked_extendable();
-        if(ext && ext->kind() == ASTNodeKind::StructDecl) {
-            auto sd = (StructDefinition*)ext;
-            if(sd->has_destructor()) {
-                auto destructor_fn = sd->destructor_func();
-                if(destructor_fn && destructor_fn->body.has_value()) {
-                    InterpretScope temp_scope(scope.global, scope.allocator, scope.global);
-                    temp_scope.declare("self", evaluated);
-                    temp_scope.interpret(&destructor_fn->body.value());
-                    auto self_it = temp_scope.values.find("self");
-                    if(self_it != temp_scope.values.end()) {
-                        temp_scope.values.erase(self_it);
-                    }
-                }
-            }
-        }
+        scope.destroy_value(evaluated);
     }
     return result;
 }

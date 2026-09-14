@@ -1,3 +1,8 @@
+// Single shared symbol-resolution support struct.
+//
+// Union of the former per-package SymResSupport structs (universal_parser's SSR
+// fields plus js_parser's plain-JS appendJs* fields). Both front ends import
+// this so `SymResSupport` is declared once.
 public struct SymResSupport {
 
     // ssr types
@@ -73,4 +78,12 @@ public struct SymResSupport {
     var moveJsRangeFn : *mut ASTNode = null
     var js_hoist_pos : *mut ASTNode = null
     var renderJsOnlyNode : *mut ASTNode = null
+    // plain-JS emitter support (formerly js_parser's SymResSupport)
+    var appendJsFn : *mut ASTNode = null
+    var appendJsCharFn : *mut ASTNode = null
+    var appendJsCharPtrFn : *mut ASTNode = null
+    var appendJsIntFn : *mut ASTNode = null
+    var appendJsUIntFn : *mut ASTNode = null
+    var appendJsFloatFn : *mut ASTNode = null
+    var appendJsDoubleFn : *mut ASTNode = null
 }

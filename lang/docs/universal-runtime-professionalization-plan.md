@@ -1188,10 +1188,33 @@ place, append the new tail, and dispose+remove the stale tail.
 - Tests: `runtime-unit.spec.ts` — `unkeyed insertion preserves existing node
   identity`, `unkeyed removal drops only the removed node`. Full E2E: 368/368.
 
-Residual (still open): keyed *fragments* and *component vnodes* matched by key
-still rebuild (single-element key recording), and keyed hydration remains
-positional when the server/client key order differs. A marker/manifest protocol
-is required to give multi-node items a keyed boundary.
+#### Keyed ranges: fragments and component vnodes move, not rebuild
+
+Keyed items are now tracked as DOM *ranges* rather than a single keyed element,
+so multi-node items keep their identity across reorders:
+
+- **Range map.** `$__uni_key_ranges(owner)` stores `key -> {first,last}` on the
+  state `start` comment (list) or the parent element (children). `$__uni_vnode_key`
+  reads a vnode's key from `p.key` (elements/fragments) *or* `p.props.key`
+  (component vnodes emitted by `$_uc_c`, whose JSX props nest one level deeper).
+- **Move, don't rebuild.** `$__uni_update_keyed_range` patches single-element and
+  text items in place, and for a matched **component vnode** with the same factory
+  and equal scalar props (`$__uni_uc_props_equal`, ignoring `children`/`key`/`ref`)
+  or a matched **fragment**, keeps the existing range. `$__uni_range_move` moves
+  every node in the range, so component instances, focus, and input values survive
+  reorders. Changed props still rebuild that item (the runtime re-renders whole
+  components), so content updates remain correct.
+- **Hydration seeds ranges.** The array-state hydration branch records each
+  adopted item's range while advancing the cursor, so the first client update
+  after hydration can move items by key instead of re-rendering the list.
+
+Remaining: keyed **hydration** is still positional, and there is no way to match
+server-rendered nodes to client keys without a server-side key marker. SSR
+unrolls lists from the same source/order as the client, so the initial order
+matches in practice; making it order-independent requires emitting a key marker
+per SSR item (a marker/manifest protocol) and is tracked as future work. Also
+note SSR of **component** elements inside a `.map()` does not resolve their props
+yet (rows render with empty prop values), which is a separate SSR gap.
 
 
 ### Scoped context (nearest-provider resolution)
@@ -1582,11 +1605,17 @@ JS text for client), which is inherent to the two output targets. Plugin
 
 Tracking the five architectural gaps called out by the production audit.
 
-- **Item 6 (reconciliation) — landed, one residual.** Unkeyed insert/remove now
-  patch in place instead of rebuilding (see "Generalization: unkeyed
-  insert/remove without rebuild"). Residual: keyed fragments/component vnodes
-  still rebuild and keyed hydration is positional when SSR/client key order
-  differs — needs a keyed marker/manifest protocol.
+- **Item 6 (reconciliation) — landed.** Unkeyed insert/remove patch in place (see
+  "Generalization: unkeyed insert/remove without rebuild"), and keyed items are
+  now tracked as DOM ranges so keyed **fragments** and **component vnodes** are
+  moved (identity/state preserved) instead of rebuilt, with properties that
+  change still rebuilding that item (see "Keyed ranges: fragments and component
+  vnodes move, not rebuild"). Tests: runtime-unit `keyed fragment items move as
+  a unit`, `keyed component items move without re-mount`, `$__uni_range_move`
+  (25 runtime-unit tests), full E2E 377/377. Residual: order-independent
+  hydration needs a server-side key marker (SSR lists already share the client
+  order, so this is a rare edge); SSR of component elements inside `.map()` does
+  not resolve their props yet.
 - **Item 5 (SSR error boundaries) — blocked on a language feature.** There is no
   usable exception mechanism to build on:
   - `ThrowStatement::code_gen` in `compiler/backend/LLVM.cpp` is

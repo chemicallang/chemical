@@ -1257,6 +1257,110 @@ window.$__uni_clear_range = ((start, end) => {
 window.$__uni_is_element_tag = ((t) => {
     return typeof t === "string" && t.charCodeAt(0) !== 95;
 })
+// Key of a vnode. Element and fragment vnodes carry it in `p.key`; component
+// vnodes emitted by JSX (`$_uc_c` -> `{t:"__uni_uc", p:{comp, props}}`) carry
+// it one level deeper, in `p.props.key`.
+window.$__uni_vnode_key = ((v) => {
+    if(!v || typeof v !== "object" || !v.p) return null;
+    if(v.p.key != null) return v.p.key;
+    if(v.p.props && v.p.props.key != null) return v.p.props.key;
+    return null;
+})
+// Persistent key -> {first,last} (inclusive) DOM range map for a keyed
+// container. Stored on the comment `start` node (state arrays) or the parent
+// element (children) so multi-node keyed items -- fragments and component
+// vnodes whose root is a fragment -- move and are removed as a unit instead of
+// being rebuilt.
+window.$__uni_key_ranges = ((owner) => {
+    if(!owner.__uni_key_ranges) owner.__uni_key_ranges = new Map();
+    return owner.__uni_key_ranges;
+})
+window.$__uni_range_move = ((range, before) => {
+    if(!range || !range.first || !before || before === range.first) return;
+    const parent = before.parentNode;
+    if(!parent) return;
+    let n = range.first;
+    while(n) {
+        const next = n.nextSibling;
+        parent.insertBefore(n, before);
+        if(n === range.last) break;
+        n = next;
+    }
+})
+window.$__uni_range_remove = ((range) => {
+    if(!range || !range.first) return;
+    let n = range.first;
+    while(n) {
+        const next = n.nextSibling;
+        window.$__uni_dispose_subtree(n);
+        if(n.parentNode) n.parentNode.removeChild(n);
+        if(n === range.last) break;
+        n = next;
+    }
+})
+// Two component vnodes are the "same item" when they render the same component
+// factory with equal scalar props. `children`/`key`/`ref` are recreated on every
+// render, so they are excluded. Used to keep a keyed component item's DOM and
+// instance intact across reorders.
+window.$__uni_uc_props_equal = ((ov, nv) => {
+    if(!ov || !nv || ov.t !== "__uni_uc" || nv.t !== "__uni_uc") return false;
+    if(ov.p.comp !== nv.p.comp) return false;
+    const a = ov.p.props || {};
+    const b = nv.p.props || {};
+    for(const k in a) {
+        if(k === "children" || k === "key" || k === "ref") continue;
+        if(a[k] !== b[k]) return false;
+    }
+    for(const k in b) {
+        if(k === "children" || k === "key" || k === "ref") continue;
+        if(a[k] !== b[k]) return false;
+    }
+    return true;
+})
+// Update an existing keyed range's content to `nv`. Returns the (possibly new)
+// range. Patchable single-element/text items are patched in place; same-item
+// component and fragment vnodes keep their range so the item can simply be
+// moved; anything else is rebuilt within the range.
+window.$__uni_update_keyed_range = ((range, ov, nv) => {
+    if(!range || !range.first) return range;
+    const single = range.first === range.last;
+    if(single) {
+        const dom = range.first;
+        if(ov && nv && ov.t === "__uni_uc" && nv.t === "__uni_uc") {
+            // Same component with equal props: keep the DOM and instance so a
+            // reorder moves rather than re-mounts it.
+            if(window.$__uni_uc_props_equal(ov, nv)) return range;
+        } else if(dom.nodeType === 1 && nv && window.$__uni_is_element_tag(nv.t)
+                  && dom.tagName.toLowerCase() === ("" + nv.t).toLowerCase()) {
+            window.$__uni_patch_node(dom, ov, nv);
+            return range;
+        } else if(dom.nodeType === 3 && (typeof nv === "string" || typeof nv === "number")) {
+            window.$__uni_patch_node(dom, ov, nv);
+            return range;
+        }
+    } else if(ov && nv && ov.t === "__uni_uc" && nv.t === "__uni_uc"
+              && window.$__uni_uc_props_equal(ov, nv)) {
+        return range;
+    } else if(ov && nv && ov.t === window.$_ur.Fragment && nv.t === window.$_ur.Fragment) {
+        // Keyed fragment: keep the range so a reorder moves it intact.
+        return range;
+    }
+    // Rebuild the range in place: render the new content before the old range,
+    // then drop the old range.
+    const parent = range.first.parentNode;
+    const rendered = window.$_urn(nv);
+    let first = null, last = null;
+    if(rendered.nodeType === 11) { first = rendered.firstChild; last = rendered.lastChild; }
+    else { first = last = rendered; }
+    if(parent) {
+        parent.insertBefore(rendered, range.first);
+    } else if(first && !first.parentNode) {
+        // No parent (detached list): fall back to returning the old range.
+        return range;
+    }
+    window.$__uni_range_remove(range);
+    return first ? { first, last } : range;
+})
 // Patch one existing DOM node in place to match `newV` instead of destroying and
 // re-creating it. This preserves node identity: input focus/value, scroll
 // position, and child component instances survive list updates and re-orders.
@@ -1305,49 +1409,49 @@ window.$__uni_patch_children = ((parent, oldChildren, newChildren) => {
     newChildren = newChildren || [];
     let anyKey = false;
     for(let i = 0; i < newChildren.length; i++) {
-        const c = newChildren[i];
-        if(c && c.p && c.p.key != null) { anyKey = true; break; }
+        if(window.$__uni_vnode_key(newChildren[i]) != null) { anyKey = true; break; }
     }
     if(anyKey) {
-        // One O(n) pass over the DOM to build key -> element.
-        const keyEls = new Map();
-        let ch = parent.firstChild;
-        while(ch) {
-            if(ch.nodeType === 1 && ch.__uni_vnode_key != null) keyEls.set(ch.__uni_vnode_key, ch);
-            ch = ch.nextSibling;
-        }
+        // Keyed reconciliation over persistent DOM ranges (see
+        // $__uni_reconcile_list). Ranges are stored on the parent element so
+        // multi-node items (fragments, component vnodes) are moved, not
+        // rebuilt, and component instances survive reorders.
+        const ranges = window.$__uni_key_ranges(parent);
         const oldByKey = new Map();
         for(let i = 0; i < oldChildren.length; i++) {
-            const oc = oldChildren[i];
-            if(oc && oc.p && oc.p.key != null) oldByKey.set(oc.p.key, oc);
+            const k = window.$__uni_vnode_key(oldChildren[i]);
+            if(k != null) oldByKey.set(k, oldChildren[i]);
         }
         let anchor = null;
+        const kept = new Set();
         for(let i = 0; i < newChildren.length; i++) {
             const nc = newChildren[i];
-            const nk = nc && nc.p ? nc.p.key : null;
+            const nk = window.$__uni_vnode_key(nc);
             const target = anchor ? anchor.nextSibling : parent.firstChild;
-            if(nk != null && oldByKey.has(nk) && keyEls.has(nk)) {
+            let range = nk != null ? ranges.get(nk) : null;
+            if(nk != null && range && oldByKey.has(nk)) {
                 const oc = oldByKey.get(nk);
-                let node = keyEls.get(nk);
-                oldByKey.delete(nk); keyEls.delete(nk);
-                node = window.$__uni_patch_node(node, oc, nc);
-                if(node && node.nodeType === 1) node.__uni_vnode_key = nk;
-                if(node && node !== target) parent.insertBefore(node, target);
-                anchor = node;
+                oldByKey.delete(nk);
+                range = window.$__uni_update_keyed_range(range, oc, nc);
+                ranges.set(nk, range);
+                if(range.first !== target) window.$__uni_range_move(range, target);
+                if(range.first && range.first.nodeType === 1) range.first.__uni_vnode_key = nk;
+                kept.add(nk);
+                anchor = range.last;
             } else {
                 const rendered = window.$_urn(nc);
-                parent.insertBefore(rendered, target);
                 let first = rendered, last = rendered;
                 if(rendered.nodeType === 11) { first = rendered.firstChild; last = rendered.lastChild; }
-                if(nk != null) {
-                    let fe = first;
-                    while(fe && fe.nodeType !== 1) fe = fe.nextSibling;
-                    if(fe) fe.__uni_vnode_key = nk;
-                }
+                parent.insertBefore(rendered, target);
+                if(nk != null && first) ranges.set(nk, { first, last });
+                if(nk != null && first && first.nodeType === 1) first.__uni_vnode_key = nk;
+                if(nk != null) kept.add(nk);
                 if(last) anchor = last;
             }
         }
-        keyEls.forEach((el) => { window.$__uni_dispose_subtree(el); if(el.parentNode) el.remove(); });
+        const stale = [];
+        ranges.forEach((r, k) => { if(!kept.has(k)) stale.push(k); });
+        for(const k of stale) { window.$__uni_range_remove(ranges.get(k)); ranges.delete(k); }
         return;
     }
     // Unkeyed positional reconciliation. When the previous render mapped each
@@ -1384,14 +1488,14 @@ window.$__uni_patch_children = ((parent, oldChildren, newChildren) => {
 // renders ($_urn) and hydration adoption so both use identical semantics.
 window.$__uni_reconcile_list = ((start, end, next, oldVnodes) => {
     if(!Array.isArray(next)) {
+        if(start.__uni_key_ranges) start.__uni_key_ranges.clear();
         window.$__uni_clear_range(start, end);
         start.after(window.$_urn(next));
         return null;
     }
     let anyKey = false;
     for(let i = 0; i < next.length; i++) {
-        const nv = next[i];
-        if(nv && nv.p && nv.p.key != null) { anyKey = true; break; }
+        if(window.$__uni_vnode_key(next[i]) != null) { anyKey = true; break; }
     }
     if(!anyKey) {
         // Unkeyed: patch positionally when the previous render mapped each vnode
@@ -1411,58 +1515,57 @@ window.$__uni_reconcile_list = ((start, end, next, oldVnodes) => {
             }
             return next;
         }
+        if(start.__uni_key_ranges) start.__uni_key_ranges.clear();
         window.$__uni_clear_range(start, end);
         start.after(window.$_urn(next));
         return next;
     }
-    // Keyed: one O(n) pass builds key -> element from the live DOM.
-    const keyEls = new Map();
-    {
-        let n = start.nextSibling;
-        while(n && n !== end) {
-            if(n.nodeType === 1 && n.__uni_vnode_key != null) keyEls.set(n.__uni_vnode_key, n);
-            n = n.nextSibling;
-        }
-    }
+    // Keyed: match by key against persistent DOM ranges (key -> {first,last}).
+    // Ranges let multi-node items -- fragments and component vnodes whose root
+    // is a fragment or several elements -- move and be removed as a unit, so
+    // component instances, focus, and input values survive reorders instead of
+    // being rebuilt. Ranges are seeded during hydration (see $__uni_hydrate_node)
+    // and created here for fresh renders.
+    const ranges = window.$__uni_key_ranges(start);
     const oldByKey = new Map();
     if(Array.isArray(oldVnodes)) {
         for(let i = 0; i < oldVnodes.length; i++) {
-            const ov = oldVnodes[i];
-            if(ov && ov.p && ov.p.key != null) oldByKey.set(ov.p.key, ov);
+            const k = window.$__uni_vnode_key(oldVnodes[i]);
+            if(k != null) oldByKey.set(k, oldVnodes[i]);
         }
     }
     let anchor = start;
     const newVnodes = [];
+    const kept = new Set();
     for(let i = 0; i < next.length; i++) {
         const nv = next[i];
-        const nk = nv && nv.p ? nv.p.key : null;
-        if(nk != null && oldByKey.has(nk) && keyEls.has(nk)) {
+        const nk = window.$__uni_vnode_key(nv);
+        const before = anchor.nextSibling ? anchor.nextSibling : end;
+        let range = nk != null ? ranges.get(nk) : null;
+        if(nk != null && range && oldByKey.has(nk)) {
             const ov = oldByKey.get(nk);
-            let el = keyEls.get(nk);
-            oldByKey.delete(nk); keyEls.delete(nk);
-            el = window.$__uni_patch_node(el, ov, nv);
-            if(el && el.nodeType === 1) el.__uni_vnode_key = nk;
-            if(el !== anchor.nextSibling) {
-                if(el.parentNode) el.remove();
-                anchor.after(el);
-            }
-            anchor = el;
-            newVnodes.push(nv);
+            oldByKey.delete(nk);
+            range = window.$__uni_update_keyed_range(range, ov, nv);
+            ranges.set(nk, range);
+            if(range.first !== before) window.$__uni_range_move(range, before);
+            if(range.first && range.first.nodeType === 1) range.first.__uni_vnode_key = nk;
+            kept.add(nk);
+            anchor = range.last;
         } else {
             const rendered = window.$_urn(nv);
-            if(nk != null) {
-                let tempEl = rendered;
-                if(rendered.nodeType === 11) tempEl = rendered.firstChild;
-                if(tempEl && tempEl.nodeType === 1) tempEl.__uni_vnode_key = nk;
-            }
-            anchor.after(rendered);
-            anchor = anchor.nextSibling;
-            while(anchor && anchor !== end && anchor.nodeType !== 1) anchor = anchor.nextSibling;
-            if(!anchor || anchor === end) anchor = end.previousSibling || start;
-            newVnodes.push(nv);
+            let first = rendered, last = rendered;
+            if(rendered.nodeType === 11) { first = rendered.firstChild; last = rendered.lastChild; }
+            start.parentNode.insertBefore(rendered, before);
+            if(nk != null && first) ranges.set(nk, { first, last });
+            if(nk != null && first && first.nodeType === 1) first.__uni_vnode_key = nk;
+            if(nk != null) kept.add(nk);
+            anchor = last || anchor;
         }
+        newVnodes.push(nv);
     }
-    keyEls.forEach((el) => { window.$__uni_dispose_subtree(el); if(el.parentNode) el.remove(); });
+    const stale = [];
+    ranges.forEach((r, k) => { if(!kept.has(k)) stale.push(k); });
+    for(const k of stale) { window.$__uni_range_remove(ranges.get(k)); ranges.delete(k); }
     return newVnodes;
 })
 window.$_urn = ((v) => {
@@ -1639,13 +1742,21 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             if(parent) parent.insertBefore(start, dom);
             let cur = dom;
             const adopted = [];
+            // Record each keyed item's adopted DOM range so subsequent client
+            // updates can move/patch items by key instead of rebuild.
+            const ranges = window.$__uni_key_ranges(start);
             for(let i = 0; i < stateVal.length; i++) {
                 const nv = stateVal[i];
-                const node = cur;
-                if(nv && nv.p && nv.p.key != null && node && node.nodeType === 1) {
-                    node.__uni_vnode_key = nv.p.key;
+                const first = cur;
+                const nk = window.$__uni_vnode_key(nv);
+                if(nk != null && first && first.nodeType === 1) {
+                    first.__uni_vnode_key = nk;
                 }
                 cur = window.$__uni_hydrate_node(parent, cur, nv);
+                if(nk != null && first && first.parentNode === parent && cur !== first) {
+                    const last = cur ? cur.previousSibling : parent.lastChild;
+                    if(last && last !== start) ranges.set(nk, { first, last });
+                }
                 adopted.push(nv);
             }
             if(parent) parent.insertBefore(end, cur);

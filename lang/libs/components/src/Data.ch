@@ -222,30 +222,27 @@ func tab_styles(page : &mut HtmlPage) : *char {
                 margin-right: 0;
             }
         }
+        &[data-active="true"] {
+            color: hsl(var(--foreground));
+            border-bottom-color: hsl(var(--primary));
+            font-weight: 600;
+            &[data-variant="pills"] {
+                background: hsl(var(--primary));
+                color: hsl(var(--primary-foreground));
+                border-bottom-color: transparent;
+            }
+            &[data-orientation="vertical"] {
+                border-bottom-color: transparent;
+                border-right-color: hsl(var(--primary));
+                &[data-variant="pills"] {
+                    border-right-color: transparent;
+                }
+            }
+        }
         &[data-disabled="true"] {
             opacity: 0.5;
             cursor: not-allowed;
             pointer-events: none;
-        }
-    }
-}
-
-func tab_active_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        color: hsl(var(--foreground));
-        border-bottom-color: hsl(var(--primary));
-        font-weight: 600;
-        &[data-variant="pills"] {
-            background: hsl(var(--primary));
-            color: hsl(var(--primary-foreground));
-            border-bottom-color: transparent;
-        }
-        &[data-orientation="vertical"] {
-            border-bottom-color: transparent;
-            border-right-color: hsl(var(--primary));
-            &[data-variant="pills"] {
-                border-right-color: transparent;
-            }
         }
     }
 }
@@ -554,7 +551,7 @@ public #universal Tabs(props) {
         return <div {...props} class={${tabs_styles(page)}} data-orientation={orientation}>
             <div ref={tabListRef} class={${tab_list_styles(page)}} data-variant={variant} data-orientation={orientation} role="tablist" aria-label={props.ariaLabel} aria-orientation={orientation} onKeyDown={handleTabKeyDown}>
                 {props.tabs.map((tab, i) => (
-                    <button type="button" onClick={() => select(i)} data-tab-value={i} tabIndex={active == i ? 0 : -1} id={baseId + "-tab-" + i} aria-controls={baseId + "-panel-" + i} data-variant={variant} data-orientation={orientation} data-disabled={disabled ? "true" : "false"} class={${tab_styles(page)}} style={active == i ? "" : ""} role="tab" aria-selected={active == i ? "true" : "false"}>{tab}</button>
+                    <button type="button" onClick={() => select(i)} data-tab-value={i} tabIndex={active == i ? 0 : -1} id={baseId + "-tab-" + i} aria-controls={baseId + "-panel-" + i} data-variant={variant} data-orientation={orientation} data-disabled={disabled ? "true" : "false"} data-active={active == i ? "true" : "false"} class={${tab_styles(page)}} role="tab" aria-selected={active == i ? "true" : "false"}>{tab}</button>
                 ))}
             </div>
             <div>
@@ -577,11 +574,11 @@ public #universal TabList(props) {
 
 public #universal Tab(props) {
     var disabled = props.disabled || false
-    return <button {...props} type="button" data-disabled={disabled ? "true" : "false"} data-variant={props.variant} data-orientation={props.orientation} class={${tab_styles(page)}} role="tab" aria-selected={props.selected ? "true" : "false"} tabIndex={props.selected ? 0 : -1} disabled={disabled}>{props.children}</button>
+    return <button {...props} type="button" data-disabled={disabled ? "true" : "false"} data-active={props.selected ? "true" : "false"} data-variant={props.variant} data-orientation={props.orientation} class={${tab_styles(page)}} role="tab" aria-selected={props.selected ? "true" : "false"} tabIndex={props.selected ? 0 : -1} disabled={disabled}>{props.children}</button>
 }
 
 public #universal TabActive(props) {
-    return <button {...props} type="button" data-variant={props.variant} data-orientation={props.orientation} class={${tab_styles(page)}} role="tab" aria-selected="true" tabIndex={0}>{props.children}</button>
+    return <button {...props} type="button" data-active="true" data-variant={props.variant} data-orientation={props.orientation} class={${tab_styles(page)}} role="tab" aria-selected="true" tabIndex={0}>{props.children}</button>
 }
 
 public #universal TabPanel(props) {

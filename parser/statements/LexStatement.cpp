@@ -339,8 +339,13 @@ Value* Parser::parseProvideValue(ASTAllocator& allocator) {
         case TokenType::HashMacro:
             return (Value*) parseMacroValue(allocator);
         case TokenType::AwaitKw:
-            return (Value*) parseAwaitValue(allocator);
         case TokenType::AsyncKw:
+            if((token + 1)->type == TokenType::DoubleColonSym) {
+                return (Value*) parseAccessChain(allocator, false);
+            }
+            if(token->type == TokenType::AwaitKw) {
+                return (Value*) parseAwaitValue(allocator);
+            }
             return (Value*) parseAsyncClosureValue(allocator);
         case TokenType::AmpersandSym:
             return parseReferenceOfValue(allocator);

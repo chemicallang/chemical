@@ -861,6 +861,10 @@ Value* Parser::parseAccessChainOrValueNoAfter(ASTAllocator& allocator, bool pars
         case TokenType::PipeSym:
             return parseLambdaValue(allocator);
         case TokenType::AsyncKw:
+            // `async::path` is a namespace-qualified name, not a closure
+            if((token + 1)->type == TokenType::DoubleColonSym) {
+                return (Value*) parseAccessChainOrAddrOf(allocator, parseStruct);
+            }
             return (Value*) parseAsyncClosureValue(allocator);
         case TokenType::Number:
             return (Value*) parseNumberValue(allocator);
@@ -909,6 +913,9 @@ Value* Parser::parseAccessChainOrValue(ASTAllocator& allocator, bool parseStruct
         case TokenType::PipeSym:
             return parseLambdaValue(allocator);
         case TokenType::AsyncKw:
+            if((token + 1)->type == TokenType::DoubleColonSym) {
+                return parseAfterValue(allocator, (Value*) parseAccessChainOrAddrOf(allocator, parseStruct));
+            }
             return parseAfterValue(allocator, (Value*) parseAsyncClosureValue(allocator));
         case TokenType::Number:
             return parseAfterValue(allocator, (Value*) parseNumberValue(allocator));

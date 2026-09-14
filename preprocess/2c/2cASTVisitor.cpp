@@ -4,6 +4,7 @@
 #include "ast/values/RuntimeBlockValue.h"
 #include <ostream>
 #include <iostream>
+#include <cstdlib>
 #include <cstdint>
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "compiler/mangler/NameMangler.h"
@@ -39,6 +40,7 @@
 #include "ast/structures/UnsafeBlock.h"
 #include "ast/values/UnsafeValue.h"
 #include "ast/values/AwaitExpression.h"
+#include "compiler/async/AwaitNormalizePass.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/TryCatch.h"
 #include "ast/structures/DoWhileLoop.h"
@@ -2468,6 +2470,9 @@ std::string write_lambda_function(ToCAstVisitor& visitor, LambdaFunction *lamb) 
     auto previous_destruct_jobs = std::move(visitor.destructor.destruct_jobs);
     auto prev_func_type = visitor.current_func_type;
     visitor.current_func_type = lamb;
+    if(lamb->isAsync()) {
+        normalize_async_lambda(visitor.allocator, lamb);
+    }
     scope(visitor, lamb->scope, lamb);
     visitor.current_func_type = prev_func_type;
     visitor.destructor.destruct_jobs = std::move(previous_destruct_jobs);
@@ -4329,6 +4334,27 @@ void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
     }
     auto prev_func_decl = visitor.current_func_type;
     visitor.current_func_type = decl;
+    // Hoist every await into a VarInitStatement before emitting the body
+    // (design Section 7). Idempotent and only touches async functions.
+    if(decl->is_async()) {
+        normalize_async_body(visitor.allocator, decl);
+        if(std::getenv("CHEMICAL_DUMP_ASYNC") != nullptr) {
+            auto plan = build_async_plan(decl);
+            std::cerr << "[async] " << decl->name_str()
+                      << " sites=" << plan.sites.size()
+                      << " slots=" << plan.slot_count
+                      << " needs_frame=" << (plan.needs_frame ? "yes" : "no")
+                      << std::endl;
+            for(auto& site : plan.sites) {
+                std::cerr << "  site " << site.resume_state << " live_drops=[";
+                for(size_t i = 0; i < site.live_drops.size(); i++) {
+                    auto id = site.live_drops[i];
+                    std::cerr << (i ? "," : "") << plan.slots[id].name.str();
+                }
+                std::cerr << "]" << std::endl;
+            }
+        }
+    }
     visitor.new_line_and_indent();
     const auto decl_ret_func = decl->returnType->as_function_type();
     if(decl_ret_func && !decl_ret_func->isCapturing()) {

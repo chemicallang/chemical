@@ -1603,7 +1603,12 @@ void TypeVerifier::VisitReturnStmt(ReturnStatement *node) {
             if(func && func->is_constructor_fn()) {
                 return;
             }
-            const auto implicit = func_type->returnType->implicit_constructor_for(value);
+            // async functions return FutureHandle<T>, but `return expr` must
+            // produce the inner T (design Section 15).
+            BaseType* expected_type = func && func->is_async()
+                ? func->inner_return_type()
+                : (BaseType*) func_type->returnType;
+            const auto implicit = expected_type->implicit_constructor_for(value);
             if (implicit &&
                 // this check means current function is not the implicit constructor we're trying to link for value
                 // basically an implicit constructor can has a value returned of a type for which it's an implicit constructor of (in comptime)
@@ -1615,14 +1620,20 @@ void TypeVerifier::VisitReturnStmt(ReturnStatement *node) {
                 // TODO: handle implicit constructor
                 return;
             }
-            if(!func_type->returnType->satisfies(value, false)) {
-                unsatisfied_type_err(diagnoser, value, func_type->returnType);
+            if(!expected_type->satisfies(value, false)) {
+                unsatisfied_type_err(diagnoser, value, expected_type);
             }
         }
     } else {
         const auto func_type = current_func_type;
         if(func_type->returnType && func_type->returnType->kind() != BaseTypeKind::Void) {
-            diagnoser.error(node) << "function expects a non void return of type '" << func_type->returnType->representation() << "'";
+            const auto func = func_type->as_function();
+            BaseType* expected_type = func && func->is_async()
+                ? func->inner_return_type()
+                : (BaseType*) func_type->returnType;
+            if(expected_type != nullptr && expected_type->kind() != BaseTypeKind::Void) {
+                diagnoser.error(node) << "function expects a non void return of type '" << expected_type->representation() << "'";
+            }
         }
     }
 

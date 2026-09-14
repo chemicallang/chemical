@@ -6,6 +6,9 @@
 #include "ast/statements/AliasStmt.h"
 #include "ast/statements/Typealias.h"
 #include "ast/base/TypeBuilder.h"
+#include "ast/types/GenericType.h"
+#include "ast/types/LinkedType.h"
+#include <cstdlib>
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Export.h"
 #include "ast/structures/EnumDeclaration.h"
@@ -718,6 +721,26 @@ void visit_func_decl(TopLevelLinkSignature& sig, FunctionDeclaration* node) {
         }
     }
     sig.visit(node->returnType);
+
+    // async functions return `FutureHandle<T>` where T is the body result type
+    // (design Section 16.6 / D14). Gated behind CHEMICAL_ASYNC_LAZY while the
+    // lazy lowering is brought up, so the eager bootstrap remains the default.
+    if(node->attrs.is_async && std::getenv("CHEMICAL_ASYNC_LAZY") != nullptr
+       && sig.linker.coreNodes.async.future_handle != nullptr
+       && node->returnType.getType() != nullptr) {
+        auto& allocator = sig.getAstAllocator();
+        const auto inner = node->returnType;
+        const auto loc = inner.getLocation();
+        auto linked = new (allocator.allocate<LinkedType>())
+            LinkedType(sig.linker.coreNodes.async.future_handle);
+        std::vector<TypeLoc> args;
+        args.emplace_back(inner);
+        auto generic = new (allocator.allocate<GenericType>())
+            GenericType(linked, std::move(args));
+        node->returnType = TypeLoc(generic, loc);
+        node->data.is_async = true;
+        sig.visit(node->returnType);
+    }
 
     // visit the where clause to link constraint types
     link_where_clause(sig, node);

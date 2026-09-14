@@ -19,12 +19,14 @@ static bool read_type_involving_token(Parser& parser) {
         read_type_involving_token(parser);
         return true;
     }
-    if(type == TokenType::Identifier || Token::isKeyword(type)) {
+    if(type == TokenType::Identifier || Token::isKeyword(type)
+       || type == TokenType::AsyncKw || type == TokenType::AwaitKw) {
         parser.token++;
         while(parser.token->type == TokenType::DoubleColonSym || parser.token->type == TokenType::DotSym) {
             parser.token++;
             const auto next = parser.token->type;
-            if(next == TokenType::Identifier || Token::isKeyword(next)) {
+            if(next == TokenType::Identifier || Token::isKeyword(next)
+               || next == TokenType::AsyncKw || next == TokenType::AwaitKw) {
                 parser.token++;
             }
         }

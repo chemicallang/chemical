@@ -66,6 +66,62 @@ async func async_nested(x : int) : int {
 }
 
 // ---------------------------------------------------------------------------
+// Normalization: awaits nested inside larger expressions / conditions.
+// These exercise AwaitNormalizePass (hoisting into VarInitStatements).
+// ---------------------------------------------------------------------------
+
+// `return await ...` (hoisted before the return)
+async func async_return_await(x : int) : int {
+    return await async_double(x)
+}
+
+// await in a binary expression
+async func async_await_binop(a : int, b : int) : int {
+    return (await async_double(a)) + (await async_double(b))
+}
+
+// await as a call argument
+async func async_await_arg(x : int) : int {
+    return async_double(await async_double(x))
+}
+
+// await in an if condition
+async func async_await_if(flag : bool) : int {
+    if(await flag) {
+        return 10
+    } else {
+        return 20
+    }
+}
+
+// await in a while condition, expecting immediate termination
+async func async_await_while(limit : int) : int {
+    var i = 0
+    var cond = true
+    while(await cond) {
+        i += 1
+        if(i >= limit) {
+            cond = false
+        }
+    }
+    return i
+}
+
+// left-to-right evaluation order with multiple awaits in one expression
+async func async_eval_order(a : int, b : int, c : int) : int {
+    return (await async_double(a)) * 100 + (await async_double(b)) * 10 + (await async_double(c))
+}
+
+// destructor-bearing locals live across awaits must be tracked and cleaned up
+async func async_strings_across_await(x : int) : int {
+    var s = std::string("hello")
+    var n = await async_double(x)
+    var t = std::string("world")
+    var m = await async_double(n)
+    return (s.size() as int) + (t.size() as int) + m
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -97,5 +153,39 @@ func test_async_basic() {
 
     test("nested async calls", () => {
         return async_nested(5) == 20
+    })
+
+    test("return await is normalized", () => {
+        return async_return_await(21) == 42
+    })
+
+    test("await in a binary expression", () => {
+        return async_await_binop(3, 4) == 14
+    })
+
+    test("await as a call argument", () => {
+        return async_await_arg(5) == 20
+    })
+
+    test("await in an if condition (true)", () => {
+        return async_await_if(true) == 10
+    })
+
+    test("await in an if condition (false)", () => {
+        return async_await_if(false) == 20
+    })
+
+    test("await in a while condition", () => {
+        return async_await_while(3) == 3
+    })
+
+    test("multiple awaits preserve left-to-right order", () => {
+        // doubled: 2*100 + 4*10 + 6 = 246
+        return async_eval_order(1, 2, 3) == 246
+    })
+
+    test("destructible locals live across awaits are cleaned up", () => {
+        // "hello".size() + "world".size() + double(1) doubled = 5 + 5 + 4 = 14
+        return async_strings_across_await(1) == 14
     })
 }

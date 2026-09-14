@@ -371,7 +371,7 @@ public func styled_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut A
         parent : value.getParent(),
         str : std::string()
     }
-    converter.convertCSSOM(root.cssom);
+    converter.convertCSSOM(root.cssom, value.getEncodedLocation());
 
     // For wrap components, publish the generated class name on the signature so that
     // html_cbi's `#html` conversion injects it as a `class` attribute on the attrs it

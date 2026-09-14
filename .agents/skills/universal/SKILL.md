@@ -20,8 +20,10 @@ bridges were removed).
 
 | Stage | Files |
 |---|---|
-| Lexing (JS + JSX hybrid, Chemical `${}` escapes) | `lang/libs/universal_cbi/src/main.ch` (`getNextToken`), `universal_parser` lib |
-| Parsing (statements, expressions, JSX, `state` decls) | `lang/libs/universal_parser/src/*` |
+| Shared JS/JSX contracts (`JsTokenType`, `JsNodeKind`, AST structs) | `lang/libs/js_syntax/src/*` (consumed by both parsers; do NOT redeclare) |
+| Lexing (JS + JSX hybrid, Chemical `${}` escapes) | `lang/libs/js_cbi_lexer/src/CompilerLexer.ch` (`nextJsToken`, mode flag); `js_cbi`/`universal_cbi` `main.ch` are thin wrappers |
+| Parsing (statements, expressions, JSX, `state` decls) | `lang/libs/universal_parser/src/parser/*` (canonical; `js_parser` delegates via `parser/facade.ch::parseJsRoot` with `jsx_enabled = false`) |
+| Runtime re-emit (AST → JS/JSX source) | `lang/libs/js_parser/src/converter/convert.ch::convert_js_node(..., universal_mode)` (single printer); `convert_universal.ch` are wrappers; one `@static interface JsNodeEmitter` impl per program (`js_cbi` compiler / runtime `js` `JsRuntimeConverter`) |
 | `#universal Name(props : a, b?)` macro parse | `universal_cbi/src/react/macro.ch` |
 | Sym-res (server function creation, required-param checks) | `universal_cbi/src/sym_res/*` |
 | JS→native SSR emission (server function body) | `universal_cbi/src/react/ast_replace.ch`, `converter/*` |
@@ -144,6 +146,15 @@ JSX + hooks. Key globals and their jobs:
   parent's boundary does not catch a child's render error. Event handlers and effect
   bodies/cleanups are also wrapped and contained.
 
+### Async data / `Suspense`
+
+Async loading uses the standard hooks: `state loading = true` + `useEffect(() => { load().then(v => { data = v; loading = false }) }, [])`. The `Suspense` component
+(`lang/libs/components/src/Suspense.ch`) renders a text `fallback` while `loading` is truthy,
+else `children`. SSR renders the fallback (initial loading state); the client swaps to content
+when the loading signal flips. Props reads in children are reactive, so the conditional
+`{props.loading ? fallback : children}` updates. **Streaming SSR is not implemented** (no
+request/response server in this architecture); a JSX `fallback` prop is client-only.
+
 ### Portals (`createPortal`)
 
 `createPortal(children, opts)` returns `{t:"__uni_portal", p: opts, c}`.
@@ -218,6 +229,10 @@ const ctx = useContext("rg-" + (props.__rgName || props.name || "default"))
   `const x = $_ucs(() => <expr>)` and `x` becomes reactive (`computed_vars`).
 - Reads of reactive vars in JS output become `x.value` (assignment targets `x.value = ...`,
   `x++`/`x--`, hook last-args skip deref via `skip_reactive_deref`).
+- Mode flags `in_jsx_attribute` and `skip_reactive_deref` live in an explicit
+  `ConversionContext` on `JsConverter`; use `converter.push_context()` /
+  `converter.pop_context()` to change them (both saved/restored atomically) rather than
+  setting them directly.
 - `props` reads in JSX become `window.$__uni_value(props.x)` (unwraps signals transparently);
   assignments `props.x = expr` emit the raw property access (the getter wrapper is not a valid
   assignment target).
@@ -225,8 +240,12 @@ const ctx = useContext("rg-" + (props.__rgName || props.name || "default"))
 ### Reactivity rules (the #1 source of "it doesn't update" bugs)
 
 - Attribute/child expressions that directly read state/props/context are wrapped in
-  `$_ucs(() => ...)` by `jsx_expr_needs_reactive_wrapper` — props reads count **only inside JSX
-  attributes** (`in_jsx_attribute`); context member reads count everywhere.
+  `$_ucs(() => ...)` by one dependency analysis, `expr_reads_reactive(node, props_reactive)`.
+  Props are reactive in **both** attributes and children
+  (`jsx_expr_needs_reactive_wrapper` delegates with `props_reactive = true`), so a
+  conditional child such as `{props.loading ? a : b}` re-evaluates when the parent's prop
+  signal changes. `expr_references_reactive_var` also delegates with `props_reactive = true`.
+  Context member reads count everywhere.
 - A local variable computed before `return` is evaluated **once at render** — its value is
   frozen into the output:
 
@@ -308,7 +327,18 @@ condition). Supported at SSR time:
   `return` semantics; `emit_ssr_return_chain`).
 - `props.children` appends the pre-rendered children HTML (`SsrText`).
 - `${...}` Chemical embeds and user structs (via the `getSsrAttributeValue` protocol) convert
-  through `AttrValueConverter.convert_to_attr_value`.
+  through `AttrValueConverter.convert_to_attr_value`. Types with no `SsrAttributeValue`
+  representation are now a **compile diagnostic** (`AttrValueConverter.diagnoser`, set from
+  `JsConverter.diagnoser`) instead of a silent `UInteger` (pointer-as-number) fallback. A
+  struct/union/variant without `getSsrAttributeValue` recurses through `convert_node_attr_value`
+  and is reported by the default branch; `char`/`uchar` pointers use `PtrChar`.
+- **Resolved attribute IR** (`converter_base.ch` / `converter_jsx.ch`):
+  `ResolvedAttr { kind, name, original, spreadArgument }` + `resolve_attributes(element)`
+  are the single source of truth for attribute classification and name normalization
+  (`enum JsxAttrKind { Event, Style, Class, ClientOnly, Value }`; `className` → `class`).
+  The SSR builder (`build_ssr_attributes`) and the client emitters
+  (`emit_js_props_from_resolved`, `emit_js_attr_object`) both consume it; only value
+  emission differs per target.
 - **Style objects** (`style={{...}}`) are SSR'd statically only: literal values, camelCase →
   kebab (`borderRadius` → `border-radius`), `--vars` kept. Props/state values are skipped in
   the SSR text (the client re-evaluates reactively) — never leak raw JS into the attribute.
@@ -322,15 +352,18 @@ condition). Supported at SSR time:
 - `SsrAttributeValue` variants: `None`, `Boolean`, `Char`, `UInteger`, `Integer`, `Double
   (precision)`, `Text(SsrText)`, `PtrChar`, `Multiple(MultipleAttributeValues)`,
   `Spread(SsrAttributeList)`, `Callable`.
-- `renderHtmlAttrs` / `renderJsAttrs` accumulate into a stack `SpecialAttrs`, merge multiple
-  `class` values (space-joined) and `style` values (semicolon-joined), dedupe other attrs
-  last-wins, skip `false` booleans and `None`.
-- **HTML target**: Text/PtrChar are HTML-escaped (`& < > " '`).
-- **JS target**: Text/PtrChar are JS-escaped via `appendJsEscaped` (`"`, `\`, `\n\r\t`,
-  control chars, and `</` → `\u003C/` so inline `<script>` can't be broken out of).
+- `renderHtmlAttrs` / `renderJsAttrs` both call one accumulator `accumulateAttrs(list, special)`:
+  merge multiple `class` values (space-joined) and `style` values (semicolon-joined), dedupe
+  other attrs last-wins, skip `false` booleans and `None`.
+- One value writer: `writeAttrValue(page, output, attrVal, target)` with
+  `AttrValueTarget { Html, Js }`. `writePrimitiveAttrValue` / `writeJsPrimitiveAttrValue` are
+  thin wrappers over it.
+- **HTML target**: Text/PtrChar are HTML-escaped (`& < > " '`), unquoted (caller adds quotes).
+- **JS target**: Text/PtrChar are quoted and JS-escaped via `appendJsEscaped` (`"`, `\`,
+  `\n\r\t`, control chars, and `</` → `\u003C/` so inline `<script>` can't be broken out of).
   `None` → `undefined` in JS props.
-- **Bounds**: `SpecialAttrs` holds at most 32 classes, 32 styles, 64 other attrs — beyond
-  that entries are silently dropped (bounds-checked, not overflowed).
+- **Storage**: `SpecialAttrs` uses growable `std::vector` (no fixed limits, no silent
+  truncation — previously `[32]`/`[32]`/`[64]`).
 - `renderHtmlChildValue`: `None` and `Boolean` render nothing (React child semantics).
 - Custom serialization for user structs: define
   `func getSsrAttributeValue(&mut self, page : &mut HtmlPage) : SsrAttributeValue` on the

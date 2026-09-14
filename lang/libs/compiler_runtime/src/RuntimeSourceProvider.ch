@@ -8,7 +8,7 @@
  * public fields.
  *
  * The runtime js package does not use a SourceProvider for its own parsing
- * (it uses JsTokenizer), but the shared js_parser package defines public
+ * (it uses JsSyntaxTokenizer), but the shared js_parser package defines public
  * helper functions that reference these methods, so the symbols must exist.
  */
 using namespace std;

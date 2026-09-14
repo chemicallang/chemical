@@ -17,7 +17,6 @@ class LoopBlock : public LoopASTNode {
 public:
 
     Value* first_broken = nullptr;
-    bool stoppedInterpretation = false;
 
     /**
      * constructor
@@ -32,18 +31,16 @@ public:
 
     void copy_into(ASTAllocator& allocator, LoopBlock* blk) {
         body.copy_into(blk->body, allocator, blk);
-        // TODO: should we recalculate in generic instantiation ?
-        blk->first_broken = first_broken;
+        // do not copy the cached first broken value: it points at the original
+        // (uninstantiated) AST and would keep a generic type parameter as the
+        // loop's result type. It is recomputed lazily from the copied body.
+        blk->first_broken = nullptr;
     }
 
     ASTNode* copy(ASTAllocator &allocator) override {
         const auto blk = new (allocator.allocate<LoopBlock>()) LoopBlock(parent(), encoded_location());
         copy_into(allocator, blk);
         return blk;
-    }
-
-    void stopInterpretation() final {
-        stoppedInterpretation = true;
     }
 
     Value* get_first_broken();

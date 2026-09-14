@@ -17,7 +17,6 @@ public:
     ASTNode* initializer;
     Value* conditionExpr;
     ASTNode* incrementerExpr;
-    bool stoppedInterpretation = false;
 
     /**
      * @brief Construct a new ForLoop object.
@@ -52,7 +51,5 @@ public:
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) final;
 #endif
-
-    void stopInterpretation() final;
 
 };

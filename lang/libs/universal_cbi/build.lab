@@ -5,6 +5,8 @@ import "@cstd/build.lab" as cstdMod
 import "@std/build.lab" as stdMod
 import "@html_comp/build.lab" as htmlCompMod
 import "@compiler/build.lab" as compilerMod
+import "@js_syntax/build.lab" as jsSyntaxMod
+import "@js_cbi_lexer/build.lab" as jsCbiLexerMod
 import "@universal_parser/build.lab" as universalParserMod
 import "@universal_ide/build.lab" as universalIdeMod
 
@@ -64,6 +66,18 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
         return null
     }
 
+    // the shared js token enum module
+    var js_syntax = jsSyntaxMod.build(ctx, job)
+    if(js_syntax == null) {
+        return null
+    }
+
+    // the shared compiler-side js lexer module
+    var js_cbi_lexer = jsCbiLexerMod.build(ctx, job)
+    if(js_cbi_lexer == null) {
+        return null
+    }
+
     // only compile html ide module in lsp
     var universalIde : *mut Module = null
     comptime if(def.lsp) {
@@ -75,7 +89,7 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
         universalIde = universal_parser
     }
 
-    const dependencies = [ cstd_module, std_module, html_comp_module, compiler_module, universal_parser, universalIde ]
+    const dependencies = [ cstd_module, std_module, html_comp_module, compiler_module, js_syntax, js_cbi_lexer, universal_parser, universalIde ]
     var src_path = lab::rel_path_to("src")
     const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("universal_cbi"), src_path.to_view(), dependencies);
 

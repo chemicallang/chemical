@@ -1330,6 +1330,254 @@ Plugin 1097/1099, E2E 372/372. The full recommendation from the audit
 (threading instance explicitly into `$_us`/hooks rather than a current-context
 global) remains open; the stack removes the clobbering/leak class first.
 
+### Phase 4 (first slice) — shared `js_syntax` package
+
+The two JavaScript front ends (`js_parser`, used by `js`/`js_ide`/`js_cbi`; and
+`universal_parser`, used by `universal`/`universal_ide`/`universal_cbi`) each
+defined their own `JsTokenType`, `JsNodeKind`, and AST structs. The token enums
+had already diverged in the middle (`JSXText`/`State` inserted; `Regex` vs
+`NullishCoalescing`/`QuestionDot`/`Exponent`) — the exact positional drift
+AGENTS.md flags as a crash source.
+
+New neutral package `lang/libs/js_syntax/` now owns the shared contracts:
+
+- `src/TokenType.ch` — one authoritative `JsTokenType` (union of both enums) and
+  `isIdOrKw`.
+- `src/NodeKind.ch` — one `JsNodeKind` (the two differed only at the tail:
+  `RegexLiteral` vs `Paren`; both are now present).
+- `src/Ast.ch` — the 40 byte-identical AST structs (`JsNode`, `JsParam`,
+  `JsTerm`, ... node structs). `JsArrowFunction` uses the union (adds
+  `contains_jsx`); the 5 `js_parser` constructions set it to `false`.
+
+Both parsers import `js_syntax`; `js_cbi`/`universal_cbi` build.lab files add it
+as a module dependency; `js`/`universal`/`js_ide`/`universal_ide` import it.
+Package-specific nodes remain where they belong: `JsRoot`/`JsRegexLiteral`
+(js_parser) and `JsComponentDecl`/JSX*/`JsParen` (universal_parser).
+
+Verification: plugin suite 1100/1102 (the CBI plugin compilation exercises both
+parsers), E2E 372/372, and the runtime `js` + `universal` packages compile via a
+standalone module.
+
+#### Shared runtime tokenizer
+
+`js/src/tokenizer.ch` and `universal/src/tokenizer.ch` were two ~400/490-line
+copies differing only by the JSX branch and a few operators. They are now one
+implementation, `js_syntax/src/Tokenizer.ch` (`JsSyntaxTokenizer`), with a
+`jsx_enabled` mode:
+
+- `jsx_enabled = false` (runtime `js`): `<` is always a comparison/shift
+  operator and `state` is a plain identifier.
+- `jsx_enabled = true` (runtime `universal`): the JSX state machine runs.
+- Plain JS inherited the universal tokenizer's extra operator coverage (`%`,
+  `??`, `?.`, `**`), which is a superset, so no plain-JS behavior is lost.
+
+The old per-package tokenizer files are deleted. `js_runtime` /
+`universal_runtime` plugin tests pass (1100/1102 overall).
+
+#### Shared compiler-side lexer
+
+`js_cbi/src/main.ch` and `universal_cbi/src/main.ch` each had a ~340-line
+`getNextToken` differing mainly by the JSX branch and a few operators. Both are
+now thin wrappers over one implementation in the new `lang/libs/js_cbi_lexer/`
+package (`CompilerLexer.ch::nextJsToken(js, lexer, jsx_enabled)` plus the shared
+`JsLexer` state in `Lexer.ch`):
+
+- `jsx_enabled = false` (`js_cbi`): no JSX state machine; `<` is
+  comparison/shift; `state` is an identifier; `??`/`?.`/`**` are not produced.
+- `jsx_enabled = true` (`universal_cbi`): the JSX state machine runs.
+- Embedded Chemical `${...}` handling is shared by both modes.
+
+This package is CBI-only (it references the CBI binding `Lexer::getEmbeddedToken`),
+so it is a dependency of `js_cbi`/`universal_cbi` but not of the runtime packages
+(which would fail to link that symbol).
+
+#### Single parser implementation
+
+`js_parser`'s 1,505-line monolithic `parser.ch` was deleted. `js_parser` now
+delegates to the canonical parser in `universal_parser`:
+
+- `js_parser/src/parser/facade.ch::parseJsRoot` loops
+  `JsParser.parseStatement` (made public) to build a `JsRoot`, with
+  `jsx_enabled = false`.
+- `JsParser` gained a `jsx_enabled` mode field. In plain-JS mode, parenthesized
+  expressions are unwrapped (matching the old parser and the `#js` emitter's
+  output); in JSX mode they produce `JsParen` nodes as before. This keeps `#js`
+  output byte-identical for the existing test suite.
+- `SymResSupport` was unified into `js_syntax` (union of the SSR and plain-JS
+  `appendJs*` fields), removing the last duplicate struct between the two
+  packages.
+- `js_parser` keeps only plain-JS-specific pieces: `JsRoot`, `JsRegexLiteral`,
+  and the `#js` node emitter (`converter/*`).
+
+#### Single printer and emitter
+
+The runtime `universal` re-emitter was folded into the shared printer:
+
+- `universal/src/converter.ch` was deleted. Its JSX/`Paren` cases now live in
+  `js_parser/src/converter/convert.ch`, which gained a
+  `universal_mode : bool = false` parameter (all recursive calls threaded).
+  Mode-gated divergences are explicit: string-literal escaping (plain JS) vs raw
+  round-trip text (universal), Ternary-operand parenthesisation (plain JS only,
+  since universal keeps `JsParen` nodes), `return $c_root` (plain-JS compiler
+  mode only), and the trailing `;` on default exports (plain-JS only).
+- `js_parser/src/converter/convert_universal.ch` is now thin wrappers
+  (`convert_universal_node` / `convert_universal_root` → `convert_js_node(...,
+  true)`).
+- The runtime `universal` package uses `JsRuntimeConverter` (the same
+  `impl JsNodeEmitter` defined in the runtime `js` package) and imports
+  `js_parser` + `js`. So there is exactly one parser, one printer, and one
+  runtime emitter implementation shared by the runtime `js` and `universal`
+  front ends.
+- `@static interface JsNodeEmitter` was kept static (removing `@static` breaks
+  CBI relocation — unresolved `js_parser_JsNodeEmitter*` symbols). The
+  single-impl constraint is satisfied because the compiler impl lives only in the
+  `js_cbi` plugin and the runtime impl only in the `js` runtime package.
+
+Regression coverage for the merged parser:
+`lang/tests/compiler_plugins/js/src/to_string.ch::test_operator_precedence_emission`
+(precedence-climbing emission for `+`/`*`, `||`/`&&`, and left assoc `-`).
+
+Remaining Phase 4 work: retire `js_parser`'s lingering plain-JS specifics
+(`JsRoot`, `JsRegexLiteral`, `parseJsRoot` facade, `escape_js_text`) into the
+shared model / rename the canonical package, and (Phase 3) collapse SSR/client
+conversion onto one component IR.
+Plugin 1101/1103 (2 pre-existing).
+
+### Phase 3 (second slice) — one attribute renderer and growable storage
+
+The runtime attribute model (`lang/libs/page/src/ssr.ch`) had two near-identical
+accumulators (`renderHtmlAttrsInternal` / `renderJsAttrsInternal`) and two
+near-identical value writers (`writePrimitiveAttrValue` /
+`writeJsPrimitiveAttrValue`), plus fixed scratch arrays that silently dropped
+attributes (`classes[32]`, `styles[32]`, `others[64]`).
+
+- **One accumulator**: `accumulateAttrs(list, special)` merges `class`/`style`
+  and deduplicates the rest (last-wins); both renderers call it.
+- **One value writer**: `writeAttrValue(page, output, attrVal, target)` with
+  `AttrValueTarget { Html, Js }` selects HTML-unescaped vs JS-quoted-and-escaped
+  output. `writePrimitiveAttrValue` / `writeJsPrimitiveAttrValue` are now thin
+  wrappers, preserving existing callers (`renderHtmlAttrValue`,
+  `renderJsAttrValue`, `renderCssAttrValue`).
+- **Growable storage**: `SpecialAttrs` uses `std::vector` — no fixed limits, no
+  silent truncation.
+
+Tests: `feature_special_attrs_64_others_overflow` (all 70 attrs rendered) and
+`feature_special_attrs_32_classes_overflow` (all 40 classes rendered) were
+flipped from asserting truncation to asserting full preservation (and their
+helpers fixed to use stable name storage). Plugin 1101/1103, E2E 372/372.
+
+Next Phase 3 deliverables: explicit conversion contexts replacing mutable flags
+(`in_jsx_attribute`, `skip_reactive_deref`, `render_js_only`); dependency-driven
+reactive bindings; diagnostics for unsupported constructs; IR-sourced
+`RuntimeRequirements`; static/dynamic lowering; deterministic generated code.
+
+### Phase 3 (third slice) — diagnostics for unrepresentable attribute values
+
+Attribute values whose type has no `SsrAttributeValue` representation were
+silently wrapped as `UInteger` (a pointer-sized number in the DOM/JS — audit
+#32). `AttrValueConverter` now carries the live `diagnoser` (set from
+`JsConverter.diagnoser` in `make_attr_value_converter` and `build_ssr_attributes`)
+and reports both fallback paths with the value's own location:
+
+- non-`char` pointer: *"cannot serialize a pointer attribute value: only char
+  pointers have an SSR representation (it would be emitted as a number)"*
+- unknown type default: *"cannot serialize this value to an attribute: its type
+  has no SSR representation"*
+
+Tests: `lang/tests/negative/src/main.ch::neg_universal_unsupported_attribute_value_is_diagnosed`
+(new `NEG_MOD_UNIVERSAL_HTML` module variant; uses `expect_compile_output_contains`
+because 2c diagnostics are printed non-fatally). Plugin 1101/1103, E2E 372/372,
+docs page clean.
+
+### Phase 3 (fourth slice) — one reactive dependency analysis
+
+There were two near-duplicate recursive AST analyses deciding whether an
+expression needs a `$_ucs` reactive wrapper: `expr_references_reactive_var`
+(used for computed `var` declarations) and `jsx_expr_needs_reactive_wrapper`
+(used for JSX attribute/child expressions). They differed only in whether a
+component-prop read counts as reactive.
+
+They are now one function,
+`expr_reads_reactive(node, props_reactive)`; the two former names are thin
+delegates (`props_reactive = true` for computed locals, `converter.in_jsx_attribute`
+for JSX expressions). This is the single dependency analysis the Phase 3 plan
+asks for instead of ad-hoc per-caller checks. Plugin 1101/1103, E2E 372/372.
+
+### Phase 3 (fifth slice) — explicit conversion context
+
+`JsConverter` had two mutable mode flags (`in_jsx_attribute`,
+`skip_reactive_deref`) set and reset ad hoc by callers — nested conversions could
+clobber an enclosing one (e.g. the hook last-arg `skip_reactive_deref` reset
+unconditionally to `false`).
+
+Added `ConversionContext { in_jsx_attribute, skip_reactive_deref }` and a
+save/restore stack (`JsConverter.ctx_stack`) with `push_context()` /
+`pop_context()` that capture and restore **both** flags atomically. All five
+former set/reset sites now push/pop: JSX attribute expression conversion
+(`converter_jsx.ch`, `jsx_props.ch`), context-publish assignment
+(`ctx.value = <signal>`), and the hook last-arg (deps array) skip. Plugin
+1101/1103, E2E 372/372.
+
+### Phase 3 (sixth slice) — one server-function context accessor
+
+Three places reached directly into the generated server function's parameter
+list (`current_func.get_params().get(1)`) to build the `attrs` reference for
+props reads and `{...props}` spreads, each re-deriving the dereference. They now
+go through one helper:
+
+- `make_ssr_props_ref(location)` returns a dereferenced `*attrs` value (the
+  component's props as `SsrAttributeList`), or null when the converter is not
+  emitting a generated server function. This is the single place that assumes
+  the signature `(page, attrs, children)`.
+
+Used by `make_ssr_prop_v_call`, the props-attribute path in
+`build_ssr_attributes`, and the `{...props}` spread path. Plugin 1101/1103,
+E2E 372/372.
+
+### Phase 3 (seventh slice) — deterministic generated code
+
+Building the components app twice produced byte-different output. Root cause:
+`#styled`/`#css` class names came from `generate_random_32bit()`
+(`rand()` at compile time) for non-hashable CSSOMs (those with dynamic values,
+media queries, nested rules, or keyframes). Even the source-location fallback
+(`getEncodedLocation()`) proved build-unstable, so a location seed is not enough.
+
+`css/cbi` now derives the class seed from the **CSS content** when the block has
+no dynamic (`ChemicalValue`) values: the serialized declarations plus a stable
+structural serialization of nested-rule selectors, media declarations, and
+keyframe names (`cssom_seed_append_nested` / `cssom_seed_append_media`), hashed
+with `fnv1a_hash_32`. Blocks with dynamic values keep the location seed (their
+values interleave with the emitter, so pre-serializing them is unsafe), so they
+remain per-build for now.
+
+Verified: `lang/compiled/components-e2e` built twice with `BUILD_NO_CACHE=1`
+yields **byte-identical** `index.html`, `index.js`, and `index.css`
+(`diff -rq` clean). Plugin 1101/1103, E2E 372/372, docs page clean.
+
+### Phase 3 (eighth slice) — collapsed SSR/client conversion onto one component IR
+
+The SSR and client emitters each classified and iterated JSX attributes
+independently (five separate loops across component/native and SSR/client
+paths). They now share one resolved model:
+
+- `struct ResolvedAttr { kind, name, original, spreadArgument }` with
+  `enum JsxAttrKind { Event, Style, Class, ClientOnly, Value }`;
+  `name` is normalized (`className` → `class`).
+- `resolve_attributes(element)` produces the resolved list once per conversion.
+- **SSR** consumes it: `build_ssr_attributes` iterates `ResolvedAttr` (skips
+  event/client-only by `kind`, uses the normalized `name` and the original value
+  node).
+- **Client** consumes it: one shared emitter
+  `emit_js_props_from_resolved(attrs)` drives the component boundary
+  (`$_uc_c`), the component `createElement` fallback, and (via derived
+  named/spread lists) the native `$_ur.createElement` / `$_um` paths; class
+  grouping in `emit_js_attr_object` uses `kind == Class`.
+
+So classification/normalization has a single source of truth; only *value
+emission* remains target-specific (`SsrAttributeValue` construction for SSR vs
+JS text for client), which is inherent to the two output targets. Plugin
+1101/1103, E2E 372/372, output still byte-identical across builds.
+
 ### Program: fundamental gaps 2–6
 
 Tracking the five architectural gaps called out by the production audit.
@@ -1358,13 +1606,54 @@ Tracking the five architectural gaps called out by the production audit.
   global read) — not required until concurrent rendering.
 - **Item 2 (SSR/client shared model) — in progress.** Slices landed: (1) the
   duplicate boolean evaluator was removed and both attribute evaluators route
-  through the canonical `eval_ssr_js_expr`; (2) the runtime-prop `.filter()`
-  parity gap is closed (state-array props serialize, `ssrAttrValueProp` resolves
-  runtime object property reads, and `convert_ssr_predicate_expr` +
-  `emit_ssr_filter_map_loop` evaluate predicates at SSR). Remainder: `.length`
-  over runtime-filtered locals, `toLowerCase` predicates, and collapsing the
-  SSR/client conversion onto one component IR (Phase 3/4).
-- **Item 4 (async/data) — largest.** No Suspense, async boundaries, or streaming;
-  requires the IR work in item 2 as a base.
+  through the canonical `eval_ssr_js_expr`; (2) all named SSR parity gaps closed
+  (runtime-prop `.filter()`/`.length`, `toLowerCase` predicates, state-array
+  props, inline object-array props); (3) the shared JS/JSX front-end contracts
+  (`JsTokenType`, `JsNodeKind`, 40 AST structs) now live once in `js_syntax`,
+  with one runtime tokenizer (`js_syntax/src/Tokenizer.ch`, mode flag) and one
+  compiler-side lexer (`js_cbi_lexer/src/CompilerLexer.ch`, mode flag) replacing
+  the per-package copies; (4) the two parsers are now one implementation
+  (`js_parser` delegates to `universal_parser`, mode-gated); (5) the runtime
+  re-emitters are one printer (`convert_js_node(..., universal_mode)`) and one
+  `JsNodeEmitter` impl, with `universal/src/converter.ch` deleted; (6) Phase 3
+  in progress: one runtime attribute renderer (`writeAttrValue` +
+  `accumulateAttrs`) with growable storage, diagnostics for unrepresentable
+  attribute values, one reactive dependency analysis (`expr_reads_reactive`),
+  and an explicit conversion context (`ConversionContext` + push/pop) plus one
+  server-function props accessor (`make_ssr_props_ref`); (7) deterministic
+  generated code for styled/CSS classes (content-hashed seed; app builds are now
+  byte-identical); (8) SSR/client conversion collapsed onto one component IR:
+  `ResolvedAttr` + `resolve_attributes` are consumed by both the SSR builder
+  (`build_ssr_attributes`) and the client emitters
+  (`emit_js_props_from_resolved` / `emit_js_attr_object`), so attribute
+  classification and name normalization are single-sourced. Remainder: retire
+  `js_parser`'s lingering plain-JS specifics / rename the canonical package, and
+  the remaining Phase 3 refinements — IR-sourced `RuntimeRequirements`,
+  static/dynamic lowering, dynamic-value class-name determinism.
+### Item 4 (async/data) — Suspense boundary landed
+
+- **Reactivity fix (enabling):** props reads in JSX **children** were never
+  wrapped in a reactive computed (`jsx_expr_needs_reactive_wrapper` gated props
+  on `in_jsx_attribute`), so `{props.loading ? a : b}` froze. Props are now
+  treated as reactive in both attributes and children
+  (`expr_reads_reactive(node, true)`), matching the documented conditional-UI
+  rule. Four golden JS-output tests were updated accordingly.
+- **`Suspense` component** (`lang/libs/components/src/Suspense.ch`): renders
+  `fallback` (text) while `loading` is truthy, otherwise `children`. Pair it with
+  `state loading` + `useEffect` async load. On SSR the initial loading state
+  renders the fallback; the client swaps to the content when the loading signal
+  flips.
+- **Tests:** `lang/compiled/components-e2e` `SuspenseFixture` (40 ms async load):
+  `ssr.spec.ts` asserts the `.chx-suspense-fallback` renders with JS disabled;
+  `runtime.spec.ts` asserts the content replaces it after the load. E2E
+  374/374, plugin 1101/1103, deterministic.
+
+**Streaming SSR is not implemented and is not feasible in this architecture**:
+SSR is a compile-time-generated function that appends to an in-memory
+`pageHtml` and the build writes static files — there is no request/response
+server to stream chunks over. Streaming would require a server runtime plus
+suspending/resumable rendering; tracked as future work. A JSX `fallback` prop is
+also client-only (JSX-as-prop is not SSR-serialized), hence the text fallback.
+
 
 

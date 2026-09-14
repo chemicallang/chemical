@@ -8,3 +8,4 @@ import std
 import compiler
 import js_parser
 import minlsp
+import js_syntax

@@ -1,11 +1,8 @@
-module js
+module js_cbi_lexer
 
 source "src"
 
 import cstd
 import std
 import compiler
-import js_parser
-import compiler_runtime
-
 import js_syntax

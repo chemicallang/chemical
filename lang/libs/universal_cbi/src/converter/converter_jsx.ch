@@ -1,3 +1,51 @@
+// Resolves a JSX element's attributes once into the shared component-IR model.
+// Both the SSR builder (build_ssr_attributes) and the client prop emitters
+// consume this, so classification and name normalization are single-sourced.
+func (converter : &mut JsConverter) resolve_attributes(element : *mut JsJSXElement) : std::vector<ResolvedAttr> {
+    var out = std::vector<ResolvedAttr>()
+    const attributes = &element.opening.attributes
+    for(var i : uint = 0; i < attributes.size(); i++) {
+        const attrNode = attributes.get(i)
+        if(attrNode == null) continue
+        if(attrNode.kind == JsNodeKind.JSXAttribute) {
+            const attr = attrNode as *mut JsJSXAttribute
+            out.push(ResolvedAttr {
+                kind : jsx_attr_kind(attr.name),
+                name : jsx_attr_normalized_name(attr.name),
+                original : attr,
+                spreadArgument : null
+            })
+        } else if(attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
+            out.push(ResolvedAttr {
+                kind : JsxAttrKind.Value,
+                name : std::string_view(""),
+                original : null,
+                spreadArgument : (attrNode as *mut JsJSXSpreadAttribute).argument
+            })
+        }
+    }
+    return out
+}
+
+// Emits `"name": value, ...spread` entries for the shared resolved attributes.
+// Shared by the component and native client emitters.
+func (converter : &mut JsConverter) emit_js_props_from_resolved(attrs : &std::vector<ResolvedAttr>, first : &mut bool) {
+    for(var i : uint = 0; i < attrs.size(); i++) {
+        const a = attrs.get_ptr(i)
+        if(!*first) converter.str.append_view(", ")
+        *first = false
+        if(a.original != null) {
+            converter.str.append_view("\"")
+            converter.str.append_view(&a.original.name)
+            converter.str.append_view("\": ")
+            converter.convertAttributeValue(a.original)
+        } else {
+            converter.str.append_view("...")
+            converter.convertJsNode(a.spreadArgument)
+        }
+    }
+}
+
 func (converter : &mut JsConverter) convertAttributeValue(attr : *mut JsJSXAttribute) {
     if(attr.value != null) {
          if(attr.value.kind == JsNodeKind.JSXExpressionContainer) {
@@ -33,11 +81,12 @@ func (converter : &mut JsConverter) convertAttributeValue(attr : *mut JsJSXAttri
                          }
                      }
                  }
-                if(!is_event_attribute_name(attr.name)) {
+                if(jsx_attr_kind(attr.name) != JsxAttrKind.Event) {
                     // Use convert_jsx_runtime_expr which handles reactivity correctly
+                    converter.push_context();
                     converter.in_jsx_attribute = true;
                     converter.convert_jsx_runtime_expr(container.expression);
-                    converter.in_jsx_attribute = false;
+                    converter.pop_context();
                     return;
                 }
              }
@@ -236,26 +285,11 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         converter.str.append_view("$_uc_c(");
         get_module_scoped_name(signature.functionNode, signature.name, &mut converter.str);
         converter.str.append_view(", {");
-        var attrCount = 0u;
-        for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
-            const attrNode = element.opening.attributes.get(i);
-            if(attrNode.kind == JsNodeKind.JSXAttribute) {
-                if(attrCount > 0) converter.str.append_view(", ");
-                const attr = attrNode as *mut JsJSXAttribute;
-                converter.str.append_view("\"");
-                converter.str.append_view(&attr.name);
-                converter.str.append_view("\": ");
-                converter.convertAttributeValue(attr);
-                attrCount++;
-            } else if (attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
-                if(attrCount > 0) converter.str.append_view(", ");
-                converter.str.append_view("...");
-                converter.convertJsNode((attrNode as *mut JsJSXSpreadAttribute).argument);
-                attrCount++;
-            }
-        }
+        var attrFirst = true;
+        const resolvedAttrs = converter.resolve_attributes(element);
+        converter.emit_js_props_from_resolved(&resolvedAttrs, &mut attrFirst);
         if(!element.children.empty()) {
-            if(attrCount > 0) converter.str.append_view(", ");
+            if(!attrFirst) converter.str.append_view(", ");
             converter.str.append_view("children: [");
             for(var i : uint = 0; i < element.children.size(); i++) {
                 if(i > 0) converter.str.append_view(", ");
@@ -274,24 +308,9 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
     } else converter.convertJsNode(tagNameNode);
 
     converter.str.append_view(", {");
-    var attrCount = 0u;
-    for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
-        const attrNode = element.opening.attributes.get(i)
-        if(attrNode.kind == JsNodeKind.JSXAttribute) {
-            if(attrCount > 0) converter.str.append_view(", ");
-            const attr = attrNode as *mut JsJSXAttribute
-            converter.str.append_view("\"");
-            converter.str.append_view(&attr.name);
-            converter.str.append_view("\": ");
-            converter.convertAttributeValue(attr);
-            attrCount++;
-        } else if (attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
-            if(attrCount > 0) converter.str.append_view(", ");
-            converter.str.append_view("...");
-            converter.convertJsNode((attrNode as *mut JsJSXSpreadAttribute).argument);
-            attrCount++;
-        }
-    }
+    var attrFirst = true;
+    const resolvedAttrs = converter.resolve_attributes(element);
+    converter.emit_js_props_from_resolved(&resolvedAttrs, &mut attrFirst);
     converter.str.append_view("}");
     if(!element.children.empty()) {
         for(var i : uint = 0; i < element.children.size(); i++) {
@@ -342,27 +361,24 @@ func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSX
     converter.str.append_view(&tagName);
     converter.str.append_view("\", ");
 
+     const resolvedAttrs = converter.resolve_attributes(element);
      var hasSpread = false;
      var attrMap = std::vector<*mut JsJSXAttribute>();
-     for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
-         const attrNode = element.opening.attributes.get(i);
-         if(attrNode.kind == JsNodeKind.JSXAttribute) {
-             attrMap.push(attrNode as *mut JsJSXAttribute);
-         } else if(attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
-             hasSpread = true;
-         }
+     for(var i : uint = 0; i < resolvedAttrs.size(); i++) {
+         const a = resolvedAttrs.get_ptr(i);
+         if(a.original != null) attrMap.push(a.original);
+         else hasSpread = true;
      }
 
      if(hasSpread) {
          // Use merge helper $_um
          converter.str.append_view("$_um(");
          var first = true;
-         for(var i : uint = 0; i < element.opening.attributes.size(); i++) {
-             const attrNode = element.opening.attributes.get(i);
-             if(attrNode.kind == JsNodeKind.JSXSpreadAttribute) {
+         for(var i : uint = 0; i < resolvedAttrs.size(); i++) {
+             const a = resolvedAttrs.get_ptr(i);
+             if(a.original == null) {
                  if(!first) converter.str.append_view(", ");
-                 const spread = attrNode as *mut JsJSXSpreadAttribute;
-                 converter.convertJsNode(spread.argument);
+                 converter.convertJsNode(a.spreadArgument);
                  first = false;
              }
          }
@@ -404,7 +420,7 @@ func (converter : &mut JsConverter) emit_js_attr_object(attrs : &std::vector<*mu
     var otherAttrs = std::vector<*mut JsJSXAttribute>();
     for(var i : uint = 0; i < attrs.size(); i++) {
         const attr = attrs.get(i);
-        if(attr.name.equals("class") || attr.name.equals("className")) {
+        if(jsx_attr_kind(attr.name) == JsxAttrKind.Class) {
             classAttrs.push(attr);
         } else {
             otherAttrs.push(attr);

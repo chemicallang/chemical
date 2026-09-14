@@ -206,4 +206,7 @@ public func run_common_tests() {
     // Uninitialized variable semantics + unsafe behavior (compiled & interpreted)
     test_uninitialized();
 
+    // Interpreter regression tests (single evaluation, zeroed arrays, etc.)
+    test_interp_regressions();
+
 }

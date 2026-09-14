@@ -8,3 +8,7 @@ import compiler
 import html_comp
 import universal_parser
 import compiler_runtime
+
+import js_syntax
+import js_parser
+import js

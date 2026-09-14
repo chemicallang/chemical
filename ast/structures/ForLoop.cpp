@@ -440,11 +440,3 @@ bool ForInLoop::add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexe
 }
 
 #endif
-
-void ForLoop::stopInterpretation() {
-    stoppedInterpretation = true;
-}
-
-void ForInLoop::stopInterpretation() {
-    attrs.stoppedInterpretation = true;
-}

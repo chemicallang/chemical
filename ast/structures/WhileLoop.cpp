@@ -34,7 +34,3 @@ void WhileLoop::code_gen(Codegen &gen) {
 }
 
 #endif
-
-void WhileLoop::stopInterpretation() {
-    stoppedInterpretation = true;
-}

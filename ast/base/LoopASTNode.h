@@ -48,14 +48,4 @@ public:
 
     }
 
-    /**
-     * This is called by statements like break
-     * to break the current interpretation, that is run by ASTNode's like loops (for, while)
-     * While this does break the loop, BUT the loop will break on the next iteration
-     * To break the current iteration at current statement inside the loop, this will be called along with stopInterpretation on the body scope
-     */
-    virtual void stopInterpretation() {
-
-    }
-
 };

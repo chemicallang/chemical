@@ -28,7 +28,7 @@ public func (jsParser : &mut JsParser) parseBlock(parser : *mut Parser, builder 
     return block as *mut JsNode;
 }
 
-func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
+public func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
     const token = parser.getToken();
     if(token.type == JsTokenType.Var as int || token.type == JsTokenType.Const as int || token.type == JsTokenType.Let as int || token.type == JsTokenType.State as int) {
         var keyword = builder.allocate_view(&token.value);

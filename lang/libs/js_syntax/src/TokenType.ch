@@ -1,6 +1,14 @@
+// Single authoritative JavaScript/JSX token enum.
+//
+// Both `js_parser` and `universal_parser` consume this enum. It is the union of
+// the two former per-package enums (plain JS plus JSX/state/extended operators),
+// so a token added for one front end no longer shifts the other's values.
+// Do NOT define a second `JsTokenType` anywhere: token enum drift is a known
+// crash source (see AGENTS.md "Enum Sync Rule").
 public enum JsTokenType {
     EndOfFile = 30000,
     Var = 100,
+    JSXText,
     Identifier,
     Equal,
     Number,
@@ -36,6 +44,7 @@ public enum JsTokenType {
     Arrow, // =>
     Const,
     Let,
+    State,
     For,
     While,
     LogicalAnd,      // &&
@@ -91,13 +100,15 @@ public enum JsTokenType {
     Percent, // %
     PercentEqual, // %=
     Regex,
-    JSXText
+    NullishCoalescing, // ??
+    QuestionDot, // ?.
+    Exponent // **
 }
 
 public func isIdOrKw(type : JsTokenType) : bool {
     switch(type) {
         JsTokenType.Identifier, JsTokenType.Function, JsTokenType.Return, JsTokenType.If, JsTokenType.Else, JsTokenType.Const, JsTokenType.Let, JsTokenType.For, JsTokenType.While,
-        JsTokenType.Break, JsTokenType.Continue, JsTokenType.Switch, JsTokenType.Case, JsTokenType.Default, JsTokenType.Do,
+        JsTokenType.Break, JsTokenType.Continue, JsTokenType.Switch, JsTokenType.Case, JsTokenType.Default, JsTokenType.Do, JsTokenType.State,
         JsTokenType.Try, JsTokenType.Catch, JsTokenType.Finally, JsTokenType.Throw,
         JsTokenType.True, JsTokenType.False, JsTokenType.Null, JsTokenType.Undefined,
         JsTokenType.Typeof, JsTokenType.Void, JsTokenType.Delete, JsTokenType.In, JsTokenType.InstanceOf,

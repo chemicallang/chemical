@@ -586,3 +586,15 @@ public func test_arrow_function_multiple_params_with_defaults(env : &mut TestEnv
 }
 
 **/
+
+@test
+public func test_operator_precedence_emission(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #js {
+        var a = x + y * z;
+        var b = x * y + z;
+        var c = x || y && z;
+        var d = x - y - z;
+    }
+    string_equals(env, page.toStringJsOnly(), """var a = x + y * z;var b = x * y + z;var c = x || y && z;var d = x - y - z;""");
+}

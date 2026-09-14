@@ -565,6 +565,31 @@ InterpretScope::~InterpretScope() {
     }
 }
 
+void InterpretScope::destroy_value(Value* val) {
+    if(!val || val->val_kind() != ValueKind::StructValue) return;
+    auto structVal = val->as_struct_value_unsafe();
+    auto ext = structVal->linked_extendable();
+    if(!ext) return;
+    if(ext->kind() != ASTNodeKind::StructDecl && ext->kind() != ASTNodeKind::VariantDecl) return;
+    if(!ext->has_destructor()) return;
+    auto destructor_fn = ext->destructor_func();
+    if(!destructor_fn || !destructor_fn->body.has_value()) return;
+
+    const auto prev_func = global->current_func_type;
+    global->current_func_type = destructor_fn;
+
+    InterpretScope temp_scope(global, allocator, global);
+    temp_scope.declare("self", val);
+    temp_scope.interpret(&destructor_fn->body.value());
+    // Remove self so it is not destructed again when temp_scope is destroyed.
+    auto self_it = temp_scope.values.find("self");
+    if(self_it != temp_scope.values.end()) {
+        temp_scope.values.erase(self_it);
+    }
+
+    global->current_func_type = prev_func;
+}
+
 void InterpretScope::destroy_values() {
     for(auto& [name, val] : values) {
         if (val == nullptr) continue;
@@ -575,34 +600,14 @@ void InterpretScope::destroy_values() {
         auto destruct_value = [this](Value* target_val, auto& self_ref) -> void {
             if (!target_val) return;
             if(target_val->val_kind() == ValueKind::StructValue) {
-                auto structVal = target_val->as_struct_value_unsafe();
-                auto ext = structVal->linked_extendable();
-                if(ext && (ext->kind() == ASTNodeKind::StructDecl || ext->kind() == ASTNodeKind::VariantDecl)) {
-                    ExtendableMembersContainerNode* container = ext;
-                    if(container->has_destructor()) {
-                        auto destructor_fn = container->destructor_func();
-                        if(destructor_fn && destructor_fn->body.has_value()) {
-                            const auto prev_func = global->current_func_type;
-                            global->current_func_type = destructor_fn;
-
-                            InterpretScope child_scope(global, allocator, global);
-                            child_scope.declare("self", target_val);
-                            child_scope.interpret(&destructor_fn->body.value());
-
-                            auto self_it = child_scope.values.find("self");
-                            if(self_it != child_scope.values.end()) {
-                                child_scope.values.erase(self_it);
-                            }
-
-                            global->current_func_type = prev_func;
-                        }
-                    }
-                }
+                // Run the user-defined destructor (if any) via the centralized helper.
+                destroy_value(target_val);
                 // Always recursively destruct member values, matching C backend behavior:
                 // the C codegen calls the user destructor first, then generates member
                 // destruction code. With proper move semantics in struct literal initialization,
                 // the source variable is cleared before it's stored as a member, so there's
                 // no double-destruction risk.
+                auto structVal = target_val->as_struct_value_unsafe();
                 for(auto& [member_name, member_init] : structVal->values) {
                     if(member_init.value) {
                         self_ref(member_init.value, self_ref);

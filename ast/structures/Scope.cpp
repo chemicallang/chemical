@@ -94,10 +94,6 @@ void make_exportable(std::vector<ASTNode*>& nodes) {
     nodes = std::move(public_nodes);
 }
 
-void Scope::stopInterpretOnce() {
-    stoppedInterpretOnce = true;
-}
-
 Value* get_first_broken(Scope* body) {
     Value* value = nullptr;
     for(const auto node : body->nodes) {

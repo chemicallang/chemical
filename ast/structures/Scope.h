@@ -24,7 +24,6 @@ void make_exportable(std::vector<ASTNode*>& nodes);
 class Scope : public ASTNode {
 public:
 
-    bool stoppedInterpretOnce = false;
     std::vector<ASTNode*> nodes;
 
 
@@ -111,11 +110,5 @@ public:
     void external_declare_top_level(Codegen &gen);
 
 #endif
-
-    /**
-     * function is supposed to implemented by other scopes
-     * like loop scope, which can be stopped in the middle of the loop
-     */
-    void stopInterpretOnce();
 
 };

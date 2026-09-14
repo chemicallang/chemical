@@ -106,80 +106,90 @@ d.copy().copy().copy()             // Method chain — ALL intermediate temps mu
 var data = create_destructible(...).data  // Field access — destruct the intermediate struct
 ```
 
-### The Helper: `destruct_temp_struct()`
+### The Helper: `InterpretScope::destroy_value()`
 
-Defined in `compiler/Interpreter/Core.cpp`:
+Defined in `ast/base/InterpretScope.cpp` — this is the **single** place that runs a
+user `@delete` destructor for a temporary value. It is used by every temp-destruction
+site (bare expressions, access chains, index parents, function-call temps, replaced
+old assignment values, and `destroy_values()` during scope teardown).
 
 ```cpp
-static void destruct_temp_struct(InterpretScope& scope, Value* val) {
+void InterpretScope::destroy_value(Value* val) {
     if(!val || val->val_kind() != ValueKind::StructValue) return;
     auto structVal = val->as_struct_value_unsafe();
     auto ext = structVal->linked_extendable();
     if(!ext) return;
-    auto container = static_cast<ExtendableMembersContainerNode*>(ext);
-    if(!container->has_destructor()) return;     // Skip non-destructible types
-    auto destructor_fn = container->destructor_func();
+    if(ext->kind() != ASTNodeKind::StructDecl && ext->kind() != ASTNodeKind::VariantDecl) return;
+    if(!ext->has_destructor()) return;            // Skip non-destructible types
+    auto destructor_fn = ext->destructor_func();
     if(!destructor_fn || !destructor_fn->body.has_value()) return;
-    InterpretScope temp_scope(scope.global, scope.allocator, scope.global);
+
+    const auto prev_func = global->current_func_type;
+    global->current_func_type = destructor_fn;     // so `return` inside the destructor targets it
+
+    InterpretScope temp_scope(global, allocator, global);
     temp_scope.declare("self", val);               // Pass as 'self'
     temp_scope.interpret(&destructor_fn->body.value());
     auto self_it = temp_scope.values.find("self");
     if(self_it != temp_scope.values.end()) {
         temp_scope.values.erase(self_it);          // Prevent double-destruction
     }
+
+    global->current_func_type = prev_func;
 }
 ```
 
-**Critical**: The destructor runs in a temp scope. After running the destructor body, `self` is removed from the temp scope so it's not destructed a second time when the temp scope is destroyed.
+**Critical**: The destructor runs in a temp scope with `current_func_type` temporarily
+pointing at the destructor. After running the body, `self` is removed from the temp
+scope so it's not destructed a second time when the temp scope is destroyed.
 
-### Three Call Sites for Temp Destruction
+> This replaced five copy-pasted helpers (`destruct_temp_struct`,
+> `destruct_func_call_temp`, and three inline blocks). Do not reintroduce local copies —
+> call `scope.destroy_value(val)`.
 
-#### 1. `ValueWrapperNode::interpret()` (bare expression statements)
+### Temp Destruction Call Sites
 
-Handles `create_destructible(...)` as a statement:
-- If value is `FunctionCall` → evaluate, destruct result
-- If value is `AccessChain` → evaluate each step, collect ALL FunctionCall results, destruct all
-
-#### 2. `AccessChainNode::interpret()` (bare expression chains)
-
-Handles `d.copy().copy().copy()` as a statement:
-- Evaluates each value in the chain sequentially
-- Collects FunctionCall results in a `std::vector<Value*> temps`
-- After the loop, destructs ALL collected temps
-
-#### 3. `AccessChain::evaluated_value()` (chain in expression context)
-
-Handles `create_destructible(...).data` inside expressions:
-- After `evaluate_from()` gives the field value, destructs `values[0]` if it was a FunctionCall returning a destructible struct
-- The result (field value) is a separate value from the temp struct, so destruction is safe
+1. `ValueWrapperNode::interpret()` / `AccessChainNode::interpret()` — bare expression
+   statements and method chains; collect `FunctionCall` results and destruct them.
+2. `AccessChain::evaluated_value()` / `IndexOperator::evaluated_value()` — chain/index
+   in expression context; destruct the intermediate parent temp.
+3. `FunctionCall::evaluated_value()` — destruct a nested-call receiver temp.
+4. `interpret(AssignStatement)` — destruct the old value of the assignment target.
+5. `InterpretStmt` `delete` / `destruct[...]` handling.
 
 ### Interaction with `Scope::destroy_values()`
 
-The normal scope destructor (`InterpretScope::~InterpretScope()`) calls `destroy_values()`, which iterates all values in the scope and calls destructors for structs/variants that have them. However, this only works for **named variables** in the scope. Bare expression temps aren't named variables, so they must be handled explicitly via `destruct_temp_struct()`.
+The normal scope destructor (`InterpretScope::~InterpretScope()`) calls `destroy_values()`, which iterates all values in the scope and calls `destroy_value()` for structs/variants, then recursively destructs member values. However, this only works for **named variables** in the scope. Bare expression temps aren't named variables, so they must be handled explicitly via `scope.destroy_value()`.
 
-## AssignStatement: Old-Value Destruction
+## AssignStatement: Single Evaluation + Old-Value Destruction
 
-Assignment uses a precise 3-step approach to handle self-referencing assignments:
+Assignment evaluates the RHS exactly **once**, passes the evaluated value to
+`set_value`, and reuses it to clear the move source:
 
 ```cpp
 void interpret(InterpretScope& scope, AssignStatement* assign) {
-    // Step 1: Save the old LHS value pointer
+    // Step 1: Save the old LHS value pointer (identifier assignment only)
     Value* oldLhsVal = nullptr;
+    ...
+
+    // Step 2: Evaluate the RHS once, pass the evaluated value to set_value.
+    // Passing the AST node would make set_value re-evaluate side effects, and
+    // the move-clear step would evaluate them a THIRD time.
+    Value* rhsEvaluated = nullptr;
+    Value* rhsForSet = assign->value;
     if(assign->assOp == Operation::Assignment) {
-        auto lhsId = assign->lhs->as_identifier_unsafe();
-        auto lhsIt = scope.find_value_iterator(lhsId->value);
-        if(lhsIt.first != lhsIt.second.values.end()) {
-            oldLhsVal = lhsIt.first->second;
-        }
+        rhsEvaluated = assign->value->evaluated_value(scope);
+        if(rhsEvaluated) rhsForSet = rhsEvaluated;
     }
-    // Step 2: Perform the assignment (evaluates RHS, may take pointer to LHS)
-    assign->lhs->set_value(scope, assign->value, assign->assOp, assign->encoded_location());
+    assign->lhs->set_value(scope, rhsForSet, assign->assOp, assign->encoded_location());
+
     // Step 3: Destruct the old LHS value (safe — RHS already resolved)
-    if(oldLhsVal) {
-        destruct_temp_struct(scope, oldLhsVal);
+    if(oldLhsVal) scope.destroy_value(oldLhsVal);
+
+    // Step 4: Clear the RHS source (move semantics) using the single evaluated value
+    if(assign->assOp == Operation::Assignment && rhsEvaluated) {
+        scope.move_clear_source(rhsEvaluated, lhsName);
     }
-    // Step 4: Clear the RHS source (move semantics)
-    scope.move_clear_source(rhsVal, lhsName);
 }
 ```
 
@@ -220,7 +230,43 @@ class PointerValue {
 
 ### `set_return()` — Used by `ReturnStatement`
 
-Sets `fn_scope->returnValue` and propagates `stopInterpretation` flags up the scope chain to prevent sibling node execution after return.
+Sets `fn_scope->returnValue` (on the function-level scope) and propagates
+`stopInterpretation = true` up the `InterpretScope` chain up to (but excluding) the
+global scope. Every scope's node-iteration loop checks its own `stopInterpretation`
+and returns, so a `return` unwinds all nested blocks and loop frames. Loop frames read
+`stopInterpretation` to break out. `set_return` also handles a null return value:
+it still propagates the stop signal.
+
+## Control Flow (break / continue / return)
+
+Control-flow state lives on the **`InterpretScope` execution frame**, not on AST
+nodes. This makes loops reentrancy-safe (a recursive call running the same loop AST
+node has its own frames) and was achieved by removing the old per-AST-node
+`stoppedInterpretation` / `stoppedInterpretOnce` flags.
+
+| Flag on `InterpretScope` | Meaning |
+|--------------------------|---------|
+| `stopInterpretation` | Stop interpreting remaining sibling nodes in this scope (and, when set by `return`, in all enclosing scopes). |
+| `is_loop_scope` | Marks a loop execution frame. |
+| `loop_signal` | `0` none, `1` break, `2` continue — raised on the nearest loop frame. |
+| `is_loop_value_scope` | Marks a `loop { }` value frame; `break value` stores into its `loop_break_value`. |
+
+`break` / `continue` walk the scope chain upward to the nearest `is_loop_scope`
+frame, set `loop_signal` there, and set `stopInterpretation` on every intervening
+scope (the current one included). Each loop interpreter creates an
+`InterpretScope ..._scope` with `is_loop_scope = true`, and after every iteration:
+
+```cpp
+if (loop_scope.stopInterpretation) break;          // return unwinds
+if (loop_scope.loop_signal == 1) {                 // break
+    loop_scope.loop_signal = 0;
+    break;
+}
+loop_scope.loop_signal = 0;                        // continue (fall through to increment/condition)
+```
+
+`for-in` uses the same pattern via a `should_stop()` lambda. `loop { }` value
+expressions set both `is_loop_scope` and `is_loop_value_scope` on their frame.
 
 ## Value Destruction
 
@@ -230,7 +276,7 @@ Called by the destructor (`~InterpretScope()`) when `should_destruct_values` is 
 
 1. Iterates all values in the scope
 2. For each `StructValue`:
-   - Calls destructor body in a temporary scope
+   - Calls `destroy_value()` (runs the user `@delete` destructor, if any)
    - Recursively destructs all member values
 3. For each `ArrayValue`:
    - Destructs each element that is a struct with a destructor
@@ -243,7 +289,7 @@ When a struct is moved (`var y = x`), `move_clear_source()` sets `x`'s entry to 
 
 ### Interaction with Temp Destruction
 
-Temp struct destruction (`destruct_temp_struct()`) runs outside of `destroy_values()` — it creates its own temp scope, runs the destructor, and the temp scope's destructor cleans up. The key is removing `self` from the temp scope to prevent double-destruction.
+Temp struct destruction (`destroy_value()`) runs outside of `destroy_values()` — it creates its own temp scope, runs the destructor, and the temp scope's destructor cleans up. The key is removing `self` from the temp scope to prevent double-destruction.
 
 ## Variant Handling in the Interpreter
 
@@ -314,16 +360,18 @@ Tests use `comptime if(intrinsics::is_interpretation())` to branch between `expr
 
 ## Debugging Guide
 
-### Known Failure Categories (16 tests remain as of last fix session)
+### Fixed Bug Classes (interpreter regression suite)
 
-| Tests | Root Cause | Approach |
-|-------|-----------|----------|
-| 757-760 | Array elements set via pointer aren't tracked for destruction | Track pointer-modified array elements, or use a mark-and-sweep approach |
-| 798-799, 822 | Method chains — `get_parent_from()` returns nullptr for self | Fix method dispatch through chained temporaries |
-| 811-812 | Self-referencing assignment destructor corrupts new value | Delay old-value destruction or use copy-on-write semantics |
-| 722-723, 800 | Generic monomorphization doesn't trigger move-semantic paths | Ensure generic function calls go through the same code paths |
-| 629, 831, 838 | Misc edge cases | Individual investigation needed |
-| 784 | Variant destruct path not fully covered | Ensure variant member destructors are called for all paths |
+The interpreter suite currently passes fully (`--tcc --interpret`: all tests).
+Regression tests live in `lang/tests/common/src/interp_regressions.ch` and cover:
+
+| Bug class | Fix |
+|-----------|-----|
+| `zeroed<[N]T>()` arrays not materialized | `ZeroedValue::evaluated_value` builds an `ArrayValue` (`ast/values/ZeroedValue.cpp`) |
+| `switch` subject evaluated twice | evaluate once, pass into `eval_switch_stmt_block` (`Core.cpp`) |
+| Assignment RHS evaluated twice (identifier / chain / index) | evaluate RHS once, pass evaluated value to `set_value` + `move_clear_source` (`Core.cpp`) |
+| Duplicated destruction logic (5 copies) | centralized in `InterpretScope::destroy_value` |
+| Loop control state on AST nodes | moved to `InterpretScope` (`is_loop_scope` / `loop_signal`); `break value` uses `is_loop_value_scope` |
 
 ### Quick Debugging Tips
 
@@ -505,14 +553,11 @@ Make the following `std` types work in interpreter mode:
 - When user calls `myType.method()`, if `method` comes from a generic impl declaration, automatically instantiate it
 - Deprecate nested `impl` blocks
 
-### 4. Remaining Interpretation Test Fixes
-The 16 remaining test failures (as of last fix session):
-- Tests 757-760: Array element destruction
-- Tests 798-799, 822: Method chain dispatch through temporaries
-- Tests 811-812: Self-referencing assignment destructor
-- Tests 722-723, 800: Generic dispatch move semantics
-- Tests 629, 831, 838: Misc edge cases
-- Test 784: Variant destruct
+### 4. Interpretation Test Status
+All interpretation tests pass. When adding a suspected-bug test, put it in
+`lang/tests/common/src/interp_regressions.ch` (registered via
+`test_interp_regressions()` in `common/src/main.ch`) so it runs in both compiled
+(`--tcc`) and interpreted (`--tcc --interpret`) modes.
 
 ## Code Map
 
@@ -537,9 +582,7 @@ The 16 remaining test failures (as of last fix session):
 ```cpp
 // In InterpretScope.h
 void move_clear_source(Value* initializer, const chem::string_view& new_name);
-
-// In Core.cpp
-static void destruct_temp_struct(InterpretScope& scope, Value* val);
+void destroy_value(Value* val);
 
 // In FunctionDecl.cpp
 Value* call(InterpretScope* call_scope, std::vector<Value*>& call_args,

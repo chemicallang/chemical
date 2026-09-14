@@ -541,19 +541,27 @@ public func feature_js_last_wins_dedup(env : &mut TestEnv) {
     }
 }
 
-// --- SpecialAttrs bounds: >64 other attrs silently dropped ---
+// --- SpecialAttrs: >64 other attrs are all preserved (growable storage) ---
 
 @test
 public func feature_special_attrs_64_others_overflow(env : &mut TestEnv) {
     var page = HtmlPage()
-    var attrs = std::vector<SsrAttribute>()
-    // Create 70 distinct non-class/non-style attributes
+    // Names must outlive the attributes: build them all first, then point at
+    // the stable vector storage (previously names were per-iteration locals).
+    var names = std::vector<std::string>()
     var i = 0
     while(i < 70) {
         var name = std::string("a")
         name.append_integer(i as bigint)
+        names.push(name)
+        i++
+    }
+    var attrs = std::vector<SsrAttribute>()
+    i = 0
+    while(i < 70) {
+        var np = names.get_ptr(i as size_t)
         attrs.push(SsrAttribute {
-            name : make_ssr_text_ut(&name.to_view()),
+            name : make_ssr_text_ut(&np.to_view()),
             value : make_ssr_text_val("v")
         })
         i++
@@ -576,26 +584,35 @@ public func feature_special_attrs_64_others_overflow(env : &mut TestEnv) {
         }
         j++
     }
-    // SpecialAttrs allows 64 others — 65th and beyond silently dropped
-    if(count <= 64) {
-        env.success("SpecialAttrs bounds: attrs count <= 64 (bounded)")
+    // Growable storage: every attribute is rendered (previously truncated at 64)
+    if(count == 70) {
+        env.success("SpecialAttrs: all 70 attrs rendered")
     } else {
-        env.error("SpecialAttrs bounds exceeded: more than 64 attrs rendered")
+        env.error("SpecialAttrs dropped attributes")
+        env.info(html.data())
     }
 }
 
-// --- SpecialAttrs bounds: >32 classes silently dropped ---
+// --- SpecialAttrs: >32 classes are all preserved (growable storage) ---
 
 @test
 public func feature_special_attrs_32_classes_overflow(env : &mut TestEnv) {
     var page = HtmlPage()
-    var attrs = std::vector<SsrAttribute>()
+    // Stable class names (see the others test above for why).
+    var names = std::vector<std::string>()
     var i = 0
     while(i < 40) {
         var name = std::string("c")
         name.append_integer(i as bigint)
+        names.push(name)
+        i++
+    }
+    var attrs = std::vector<SsrAttribute>()
+    i = 0
+    while(i < 40) {
+        var np = names.get_ptr(i as size_t)
         attrs.push(SsrAttribute {
-            name : make_ssr_text_ut(&name.to_view()),
+            name : make_ssr_text_ut(&np.to_view()),
             value : make_ssr_text_val("cls")
         })
         i++
@@ -618,10 +635,12 @@ public func feature_special_attrs_32_classes_overflow(env : &mut TestEnv) {
         }
         j++
     }
-    if(count <= 32) {
-        env.success("SpecialAttrs class bounds: class count <= 32")
+    // Growable storage: every class is rendered (previously truncated at 32)
+    if(count == 40) {
+        env.success("SpecialAttrs classes: all 40 classes rendered")
     } else {
-        env.error("SpecialAttrs class bounds exceeded: more than 32 classes rendered")
+        env.error("SpecialAttrs dropped classes")
+        env.info(html.data())
     }
 }
 

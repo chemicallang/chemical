@@ -432,9 +432,12 @@ Value *Expression::evaluate(InterpretScope &scope) {
         InterpretScope fn_scope(glob, glob->allocator, glob);
         InterpretScope* prop = &scope;
         while(prop) {
-            for(auto& [name, val] : prop->implicit_args) {
-                if(fn_scope.implicit_args.find(name) == fn_scope.implicit_args.end()) {
-                    fn_scope.implicit_args[name] = val;
+            if(auto* src = prop->implicit_args_if_any()) {
+                auto& dst = fn_scope.implicit_args_ref();
+                for(auto& [name, val] : *src) {
+                    if(dst.find(name) == dst.end()) {
+                        dst[name] = val;
+                    }
                 }
             }
             prop = prop->parent;

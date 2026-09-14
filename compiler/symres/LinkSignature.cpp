@@ -1478,9 +1478,23 @@ void BuildIndexes(SymbolResolver& linker, std::vector<ASTNode*>& nodes) {
         switch(node->kind()) {
             case ASTNodeKind::StructDecl:
             case ASTNodeKind::UnionDecl:
-            case ASTNodeKind::VariantDecl:
-                buildContainerIndexes(node->as_members_container_unsafe());
+            case ASTNodeKind::VariantDecl: {
+                const auto container = node->as_members_container_unsafe();
+                buildContainerIndexes(container);
+                // `impl Interface for T` declarations nested inside the
+                // container are not top-level nodes, so they would otherwise
+                // never be indexed during this pass. Index them here so that
+                // the implementation's methods are adopted into the container
+                // and a call like `value.method()` resolves to the concrete
+                // implementation instead of the interface's abstract method.
+                for (const auto child : container->evaluated_nodes()) {
+                    if (child->kind() == ASTNodeKind::ImplDecl) {
+                        index_implementation(linker, child->as_impl_def_unsafe());
+                        build_indexes_of_impl(linker, child->as_impl_def_unsafe());
+                    }
+                }
                 continue;
+            }
             case ASTNodeKind::InterfaceDecl:
                 buildInterfaceIndexes(node->as_interface_def_unsafe());
                 continue;

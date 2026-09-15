@@ -14,7 +14,6 @@ public interface TransformerModule : Module {
     func getDependency(&self, index : uint) : *mut TransformerModule
 }
 
-@compiler.interface
-public interface TransformerFileScope : FileScope {
-    func getBody(&self) : *mut Scope
-}
+// Note: FileScope / Scope are structs provided by the compiler lib
+// (see ASTBuilder.ch) with getBody / getNodes declared on them, so
+// no separate TransformerFileScope interface is needed.

@@ -39,6 +39,7 @@ import "./process/chemical.mod" as processTestMod
 import "./webview/chemical.mod" as webviewTestMod
 import "./libs/chemical.mod" as libTestsMod
 import "./async_lazy/chemical.mod" as asyncLazyMod
+import "./async_suspend/chemical.mod" as asyncSuspendMod
 
 func build_dir_path(ctx : *BuildContext, path : &std::string_view) : std::string {
     const new_path = std::string(ctx.build_path());
@@ -262,6 +263,16 @@ func test_async_lazy_exe(ctx : *mut AppBuildContext) : *mut LabJob {
     return exe_job
 }
 
+func test_async_suspend_exe(ctx : *mut AppBuildContext) : *mut LabJob {
+    // Built with CHEMICAL_ASYNC_LAZY=1 CHEMICAL_ASYNC_SUSPEND=1, exercising the
+    // real suspension state machine (scripts/test.sh --async-suspend).
+    const exe_name = std::string_view("chemical-async-suspend-tests")
+    const exe_job = ctx.build_exe(&exe_name)
+    ctx.set_environment_testing(exe_job, true)
+    ctx.add_module(exe_job, asyncSuspendMod.build(ctx, exe_job))
+    return exe_job
+}
+
 func test_tls_exe(ctx : *mut AppBuildContext) : *mut LabJob {
     const exe_name = std::string_view("chemical-tls-tests")
     const exe_job = ctx.build_exe(&exe_name)
@@ -305,6 +316,8 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
         return test_plugin_exe(ctx, std::string_view("components"))
     } else if(ctx.has_arg(std::string_view("test-async-lazy"))) {
         return test_async_lazy_exe(ctx)
+    } else if(ctx.has_arg(std::string_view("test-async-suspend"))) {
+        return test_async_suspend_exe(ctx)
     } else if(ctx.has_arg(std::string_view("test-tls"))) {
         return test_tls_exe(ctx)
     } else if(ctx.has_arg(std::string_view("test-process"))) {

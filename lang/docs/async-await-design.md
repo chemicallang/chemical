@@ -3364,14 +3364,38 @@ LLVM; TinyCC compiles the output.
 > `lang/libs/async/src/frame.ch`. `SymResLinkBody::VisitAwaitExpression`
 > unwraps the handle to `T`.
 >
-> Semantics are still **eager-ready** (the body runs in the ramp; `poll` is
-> always immediately `Ready`); the state machine that actually suspends
-> (frame-resident params/locals, `switch(state)`/`goto` resumption, `Pending`
-> returns) remains Phase 4.2. This is validated by
+> This eager-ready path is validated by
 > `./scripts/test.sh --tcc --async-lazy` (`lang/tests/async_lazy/`, 10/10) and
 > by `lang/compiled/aprobe` on both `Compiler --use-c` and `TCCCompiler`.
-> The flag stays off by default so the eager bootstrap remains the default until
-> the state machine and the LLVM lowering both land.
+>
+> **Landed: suspension state machine on the C backend (Phase 4.2).** Under
+> `CHEMICAL_ASYNC_LAZY` + `CHEMICAL_ASYNC_SUSPEND`, an async function with
+> awaits is lowered by `emit_async_suspend_function`: the body runs in `poll`,
+> the frame holds `state`, `result`, `cx`, one `__chx_child_i` per await site
+> and one `__chx_slot_k` per parameter/local, and `poll` opens with
+> `switch(state){ case 0: goto L0; case i+1: goto resume_i; default: Ready }`.
+> Each `await e` creates the child future into `frame->__chx_child_i`, polls it,
+> and if it is `Pending` stores the resume state, spills every in-scope slot
+> (`AwaitSite::live_slots`), and returns `Pending`; on resume it reloads the
+> spilled slots and keeps polling. Parameters are stored in the frame by the
+> ramp and reloaded into C locals at `L0`/each resume; locals live across an
+> await are spilled/reloaded. Completion (`return e`) stores the result, runs
+> the normal scope destructors and returns `Ready`.
+>
+> Validated by `./scripts/test.sh --tcc --async-suspend`
+> (`lang/tests/async_suspend/`, 5/5) against a hand-authored future that returns
+> `Pending` several times, including suspension inside loops and branches, plus
+> on `TCCCompiler` and `Compiler --use-c`.
+>
+> **Known limits of the state machine (next).** Slots that are arrays or carry
+> destructors cannot cross a suspension point yet (diagnosed, not miscompiled) —
+> they need frame-resident storage with proper move/drop handling (design 8.7 /
+> 13.3) rather than spill-by-copy. Cancellation (`drop`) currently frees the
+> frame without running the per-state live drops; the drop switch (design 8.5)
+> is still to do. Escaped pointers to cross-await locals are not yet stable
+> (spill/reload relocates them). The eager-ready path stays the default under
+> `--async-lazy`; the state machine is opt-in until those land and until the
+> LLVM (`llvm.coro.*`) lowering exists.
 >
 > **Discovered blocker for the library-side shortcut (must be a compiler
 > lowering pass, not a library helper).** A generic function reference cannot

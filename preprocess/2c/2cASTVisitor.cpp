@@ -339,6 +339,53 @@ struct AsyncCTypes {
 
 static AsyncCTypes resolve_async_c_types_from_handle(BaseType* rt);
 
+/**
+ * Backs the suspension state machine for one lowered async `poll` function
+ * (design Sections 8/10.1). Slot indices refer into `plan.slots`; each slot has
+ * a frame field `__chx_slot_<id>` used for spilling locals across a suspension.
+ */
+struct AsyncSuspendContext {
+    AsyncLoweringPlan plan;
+    BaseType* inner = nullptr;        // T
+    BaseType* handle = nullptr;       // FutureHandle<T>
+    BaseType* poll = nullptr;         // Poll<T>
+    BaseType* context_ptr = nullptr;  // *mut Context
+    std::string frame_var = "__chx__af";
+
+    unsigned await_index = 0;
+
+    std::string child_field(unsigned site) const {
+        return frame_var + "->__chx_child_" + std::to_string(site);
+    }
+
+    std::string slot_field(unsigned id) const {
+        return frame_var + "->__chx_slot_" + std::to_string(id);
+    }
+
+    const AwaitSite* site_for(ASTNode* init) const;
+};
+
+static bool async_suspend_enabled() {
+    return std::getenv("CHEMICAL_ASYNC_SUSPEND") != nullptr;
+}
+
+static bool async_slot_spillable(const AsyncFrameSlot& slot) {
+    // Only plain assignable values can be spilled by copy today. Arrays are not
+    // assignable in C and destructor-bearing values would be double-owned; both
+    // are diagnosed when they cross a suspension point.
+    if(slot.type == nullptr) {
+        return false;
+    }
+    const auto kind = slot.type->kind();
+    if(kind == BaseTypeKind::Array) {
+        return false;
+    }
+    return slot.type->get_destructor() == nullptr;
+}
+
+static void emit_async_await_var_init(ToCAstVisitor& visitor, VarInitStatement* init);
+static void emit_async_suspend_function(ToCAstVisitor& visitor, FunctionDeclaration* decl, AsyncCTypes& types);
+
 // will write a scope to visitor
 inline void visit_scope_only(ToCAstVisitor& visitor, Scope& scope) {
     visitor.visit(&scope);
@@ -3486,6 +3533,11 @@ void ToCAstVisitor::VisitVarInitStmt(VarInitStatement *init) {
         var_init_top_level(*this, init, init_type, !is_link_public, true, false);
         return;
     }
+    if(async_suspend != nullptr && init->value != nullptr && init->value->kind() == ValueKind::AwaitExpr) {
+        // suspension point of the lowered state machine
+        emit_async_await_var_init(*this, init);
+        return;
+    }
     auto init_type = init->known_type();
     var_init(*this, init, init_type);
     destructor.VisitVarInitStmt(init);
@@ -3718,6 +3770,33 @@ void ToCAstVisitor::writeReturnStmtFor(Value* returnValue) {
     // `T`. Store the body result into the frame result slot, run the normal
     // scope cleanup, then jump to the completion label that builds the handle
     // (design Sections 8.6, 8.7 and 10.1).
+    if(async_suspend != nullptr) {
+        // completion of the lowered async poll body: store the result, run the
+        // normal scope destructors, mark the state done and return Ready
+        // (design Sections 8.6, 8.7).
+        if(returnValue != nullptr) {
+            write(async_suspend->frame_var);
+            write("->__result = ");
+            if(async_suspend->inner != nullptr) {
+                accept_mutating_value_explicit(async_suspend->inner, returnValue);
+            } else {
+                visit(returnValue);
+            }
+            write(';');
+            new_line_and_indent();
+        }
+        destruct_scopes_above(returnValue);
+        write(async_suspend->frame_var);
+        write("->__state = 0xFFFFFFFFu;");
+        new_line_and_indent();
+        write("*__chx__async_ret");
+        write(" = ("); visit(async_suspend->poll);
+        write("){ .__chx__vt_621827 = 0, .Ready.value = ");
+        write(async_suspend->frame_var); write("->__result };");
+        new_line_and_indent();
+        write("return;");
+        return;
+    }
     if(async_ramp_body) {
         if(returnValue != nullptr) {
             write("__chx__af->__result = ");
@@ -4603,6 +4682,331 @@ static void emit_async_lowered_function(ToCAstVisitor& visitor, FunctionDeclarat
     visitor.write('}');
 }
 
+const AwaitSite* AsyncSuspendContext::site_for(ASTNode* init) const {
+    for(auto& site : plan.sites) {
+        if(site.var_init == init) {
+            return &site;
+        }
+    }
+    return nullptr;
+}
+
+/**
+ * Saves every in-scope, spillable slot into its frame field just before the
+ * coroutine returns `Pending`, so the values survive the (stack-freed) poll call
+ * (design Sections 8.1, 10.1).
+ */
+static void emit_async_spill(ToCAstVisitor& visitor, AsyncSuspendContext& ctx, const AwaitSite& site) {
+    for(auto id : site.live_slots) {
+        const auto& slot = ctx.plan.slots[id];
+        if(slot.node == site.var_init || !async_slot_spillable(slot)) {
+            continue;
+        }
+        visitor.new_line_and_indent();
+        visitor.write_str(ctx.slot_field(id));
+        visitor.write(" = ");
+        visitor.write(slot.name);
+        visitor.write(';');
+    }
+}
+
+/**
+ * Restores the spilled slots on resume.
+ */
+static void emit_async_reload(ToCAstVisitor& visitor, AsyncSuspendContext& ctx, const AwaitSite& site) {
+    for(auto id : site.live_slots) {
+        const auto& slot = ctx.plan.slots[id];
+        if(slot.node == site.var_init || !async_slot_spillable(slot)) {
+            continue;
+        }
+        visitor.new_line_and_indent();
+        visitor.write(slot.name);
+        visitor.write(" = ");
+        visitor.write_str(ctx.slot_field(id));
+        visitor.write(';');
+    }
+}
+
+/**
+ * Emits one poll of the child future stored at this site. If it is still
+ * `Pending` the coroutine stores its resume state (first pass only) and returns
+ * `Pending`; otherwise the result is moved into `result_name`. The child handle
+ * is dropped once it resolves (design Section 8.6).
+ */
+static void emit_async_poll_child(
+        ToCAstVisitor& visitor,
+        AsyncSuspendContext& ctx,
+        const AwaitSite& site,
+        const std::string& result_name,
+        bool resume
+) {
+    auto child = ctx.child_field(site.resume_state);
+    visitor.write('{');
+    visitor.indentation_level += 1;
+    visitor.new_line_and_indent();
+    visitor.visit(ctx.poll);
+    visitor.write(" __chx__p = (*({ ");
+    visitor.visit(ctx.poll);
+    visitor.write(" __chx__t; ");
+    visitor.write_str(child); visitor.write(".vtbl->poll(&__chx__t, ");
+    visitor.write_str(child); visitor.write(".frame, ");
+    visitor.write(ctx.frame_var); visitor.write("->__cx); &__chx__t; }));");
+    visitor.new_line_and_indent();
+    visitor.write("if(__chx__p.__chx__vt_621827 != 0) {");
+    visitor.indentation_level += 1;
+    visitor.new_line_and_indent();
+    if(!resume) {
+        visitor.write(ctx.frame_var);
+        visitor.write("->__state = ");
+        visitor.write(site.resume_state + 1);
+        visitor.write(';');
+        emit_async_spill(visitor, ctx, site);
+    }
+    visitor.new_line_and_indent();
+    visitor.write("*__chx__async_ret = ("); visitor.visit(ctx.poll);
+    visitor.write("){ .__chx__vt_621827 = 1 };");
+    visitor.new_line_and_indent();
+    visitor.write("return;");
+    visitor.indentation_level -= 1;
+    visitor.new_line_and_indent();
+    visitor.write('}');
+    visitor.new_line_and_indent();
+    visitor.write_str(result_name);
+    visitor.write(" = __chx__p.Ready.value;");
+    visitor.new_line_and_indent();
+    visitor.write_str(child); visitor.write(".vtbl->drop("); visitor.write_str(child); visitor.write(".frame);");
+    visitor.indentation_level -= 1;
+    visitor.new_line_and_indent();
+    visitor.write('}');
+    visitor.new_line_and_indent();
+}
+
+static void emit_async_await_var_init(ToCAstVisitor& visitor, VarInitStatement* init) {
+    auto& ctx = *visitor.async_suspend;
+    const auto site = ctx.site_for(init);
+    if(site == nullptr) {
+        visitor.error("internal error: await site not found during async lowering", init);
+        return;
+    }
+    const auto name = init->name_str();
+    // 1. declare the result local (the poll assigns it on the first pass or on
+    //    resume; it is intentionally uninitialized here)
+    visitor.visit(init->known_type());
+    visitor.space();
+    visitor.write_str(name);
+    visitor.write(';');
+    visitor.new_line_and_indent();
+    // 2. create the child future into the frame so it survives suspension
+    visitor.write_str(ctx.child_field(site->resume_state));
+    visitor.write(" = ");
+    visitor.visit(init->value->as_await_expression_unsafe()->getInner());
+    visitor.write(';');
+    visitor.new_line_and_indent();
+    // 3. poll; may suspend
+    emit_async_poll_child(visitor, ctx, *site, name, false);
+    visitor.write("goto __chx__after_");
+    visitor.write(site->resume_state);
+    visitor.write(';');
+    visitor.new_line_and_indent();
+    // 4. resume path
+    visitor.write("__chx__resume_");
+    visitor.write(site->resume_state);
+    visitor.write(':');
+    visitor.new_line_and_indent();
+    emit_async_reload(visitor, ctx, *site);
+    emit_async_poll_child(visitor, ctx, *site, name, true);
+    visitor.write("__chx__after_");
+    visitor.write(site->resume_state);
+    visitor.write(':');
+    visitor.new_line_and_indent();
+    ++ctx.await_index;
+}
+
+/**
+ * Emits a fully suspending async function (the state machine of design Section
+ * 10.1). The body runs in `poll`; parameters and cross-await locals are kept in
+ * the heap frame, and stored/restored around each suspension.
+ */
+static void emit_async_suspend_function(ToCAstVisitor& visitor, FunctionDeclaration* decl, AsyncCTypes& t) {
+    AsyncSuspendContext ctx;
+    ctx.plan = build_async_plan(decl);
+    ctx.inner = t.inner;
+    ctx.handle = t.handle;
+    ctx.poll = t.poll;
+    ctx.context_ptr = t.context_ptr;
+
+    // Diagnose locals/params we cannot keep across an await yet so we fail
+    // loudly instead of miscompiling.
+    for(auto& site : ctx.plan.sites) {
+        for(auto id : site.live_slots) {
+            const auto& slot = ctx.plan.slots[id];
+            if(slot.node == site.var_init || async_slot_spillable(slot)) {
+                continue;
+            }
+            visitor.error("async suspension cannot keep a destructor-bearing or array local/parameter across an await yet", slot.node);
+        }
+    }
+
+    // ---- frame struct ----
+    visitor.new_line_and_indent();
+    visitor.write("struct "); visitor.mangle(decl); visitor.write("__frame;");
+    visitor.new_line_and_indent();
+    visitor.write("struct "); visitor.mangle(decl);
+    visitor.write("__frame { uint32_t __state; ");
+    visitor.visit(t.inner); visitor.write(" __result; ");
+    visitor.visit(t.context_ptr); visitor.write(" __cx;");
+    for(size_t i = 0; i < ctx.plan.sites.size(); i++) {
+        visitor.space();
+        auto& site = ctx.plan.sites[i];
+        if(site.awaited_handle_type != nullptr) {
+            visitor.visit(site.awaited_handle_type);
+        } else {
+            visitor.write("void*");
+        }
+        visitor.write(" __chx_child_"); visitor.write((unsigned) i); visitor.write(';');
+    }
+    for(size_t id = 0; id < ctx.plan.slots.size(); id++) {
+        visitor.space();
+        auto type = ctx.plan.slots[id].type;
+        if(type != nullptr) { visitor.visit(type); } else { visitor.write("void*"); }
+        visitor.write(" __chx_slot_"); visitor.write((unsigned) id); visitor.write(';');
+    }
+    visitor.write(" };");
+
+    // ---- prototypes and vtable ----
+    visitor.new_line_and_indent();
+    visitor.write("static void "); visitor.mangle(decl); visitor.write("__poll(");
+    visitor.visit(t.poll); visitor.write("* __chx__async_ret, void* __frame, ");
+    visitor.visit(t.context_ptr); visitor.write(" __cx);");
+    visitor.new_line_and_indent();
+    visitor.write("static void "); visitor.mangle(decl); visitor.write("__drop(void* __frame);");
+    visitor.new_line_and_indent();
+    visitor.write("static "); visitor.visit(t.table); visitor.space();
+    visitor.mangle(decl); visitor.write("__vtbl;");
+
+    // ---- poll definition ----
+    visitor.new_line_and_indent();
+    visitor.write("static void "); visitor.mangle(decl); visitor.write("__poll(");
+    visitor.visit(t.poll); visitor.write("* __chx__async_ret, void* __frame, ");
+    visitor.visit(t.context_ptr); visitor.write(" __cx) {");
+    visitor.indentation_level += 1;
+    visitor.new_line_and_indent();
+    visitor.write("struct "); visitor.mangle(decl); visitor.write("__frame* __chx__af = (struct ");
+    visitor.mangle(decl); visitor.write("__frame*) __frame;");
+    // parameter C locals (loaded from frame slots at entry and on every resume)
+    for(size_t id = 0; id < ctx.plan.slots.size(); id++) {
+        const auto& slot = ctx.plan.slots[id];
+        if(slot.node == nullptr || slot.node->kind() != ASTNodeKind::FunctionParam || slot.type == nullptr) {
+            continue;
+        }
+        visitor.new_line_and_indent();
+        visitor.visit(slot.type); visitor.space(); visitor.write(slot.name); visitor.write(';');
+    }
+    visitor.new_line_and_indent();
+    visitor.write("__chx__af->__cx = __cx;");
+    visitor.new_line_and_indent();
+    visitor.write("switch(__chx__af->__state) {");
+    visitor.indentation_level += 1;
+    visitor.new_line_and_indent();
+    visitor.write("case 0: goto __chx__L0;");
+    for(size_t i = 0; i < ctx.plan.sites.size(); i++) {
+        visitor.new_line_and_indent();
+        visitor.write("case "); visitor.write((unsigned) (i + 1)); visitor.write(": goto __chx__resume_");
+        visitor.write((unsigned) i); visitor.write(';');
+    }
+    visitor.new_line_and_indent();
+    visitor.write("default:");
+    visitor.indentation_level += 1;
+    visitor.new_line_and_indent();
+    visitor.write("*__chx__async_ret = ("); visitor.visit(t.poll);
+    visitor.write("){ .__chx__vt_621827 = 0, .Ready.value = __chx__af->__result };");
+    visitor.new_line_and_indent();
+    visitor.write("return;");
+    visitor.indentation_level -= 1;
+    visitor.indentation_level -= 1;
+    visitor.new_line_and_indent();
+    visitor.write('}');
+    visitor.new_line_and_indent();
+    visitor.write("__chx__L0:");
+    visitor.new_line_and_indent();
+    // load parameters from the frame
+    for(size_t id = 0; id < ctx.plan.slots.size(); id++) {
+        const auto& slot = ctx.plan.slots[id];
+        if(slot.node == nullptr || slot.node->kind() != ASTNodeKind::FunctionParam) {
+            continue;
+        }
+        visitor.write(slot.name); visitor.write(" = "); visitor.write_str(ctx.slot_field((unsigned) id)); visitor.write(';');
+        visitor.new_line_and_indent();
+    }
+    // body
+    const auto prev_suspend = visitor.async_suspend;
+    const auto prev_redirect = visitor.return_redirect_block;
+    visitor.async_suspend = &ctx;
+    visitor.return_redirect_block = "";
+    scope(visitor, decl->body.value(), decl);
+    visitor.async_suspend = prev_suspend;
+    visitor.return_redirect_block = prev_redirect;
+    visitor.indentation_level -= 1;
+    visitor.new_line_and_indent();
+    visitor.write('}');
+
+    // ---- drop ----
+    visitor.new_line_and_indent();
+    visitor.write("static void "); visitor.mangle(decl); visitor.write("__drop(void* __frame) {");
+    visitor.indentation_level += 1;
+    visitor.new_line_and_indent();
+    visitor.write("chemical_async_frame_free(__frame, sizeof(struct "); visitor.mangle(decl);
+    visitor.write("__frame), _Alignof(struct "); visitor.mangle(decl); visitor.write("__frame));");
+    visitor.indentation_level -= 1;
+    visitor.new_line_and_indent();
+    visitor.write('}');
+
+    // ---- vtable ----
+    visitor.new_line_and_indent();
+    visitor.write("static "); visitor.visit(t.table); visitor.space(); visitor.mangle(decl);
+    visitor.write("__vtbl = ("); visitor.visit(t.table); visitor.write("){ .poll = ");
+    visitor.mangle(decl); visitor.write("__poll, .drop = "); visitor.mangle(decl); visitor.write("__drop };");
+
+    // ---- ramp ----
+    visitor.new_line_and_indent();
+    const auto decl_ret_func = decl->returnType->as_function_type();
+    if(decl_ret_func && !decl_ret_func->isCapturing()) {
+        func_that_returns_func_proto(visitor, decl, decl_ret_func, true);
+    } else {
+        declare_func_with_return(visitor, decl, true);
+    }
+    visitor.write('{');
+    visitor.indentation_level += 1;
+    visitor.new_line_and_indent();
+    visitor.write("struct "); visitor.mangle(decl); visitor.write("__frame* __chx__af = (struct ");
+    visitor.mangle(decl); visitor.write("__frame*) chemical_async_frame_alloc(sizeof(struct ");
+    visitor.mangle(decl); visitor.write("__frame), _Alignof(struct "); visitor.mangle(decl);
+    visitor.write("__frame));");
+    visitor.new_line_and_indent();
+    visitor.write("__chx__af->__state = 0;");
+    visitor.new_line_and_indent();
+    visitor.write("__chx__af->__cx = 0;");
+    for(size_t id = 0; id < ctx.plan.slots.size(); id++) {
+        const auto& slot = ctx.plan.slots[id];
+        if(slot.node == nullptr || slot.node->kind() != ASTNodeKind::FunctionParam) {
+            continue;
+        }
+        visitor.new_line_and_indent();
+        visitor.write_str(ctx.slot_field((unsigned) id));
+        visitor.write(" = ");
+        visitor.write(slot.name);
+        visitor.write(';');
+    }
+    visitor.new_line_and_indent();
+    visitor.write("*"); visitor.write("__chx_struct_ret_param_xx");
+    visitor.write(" = ("); visitor.visit(t.handle);
+    visitor.write("){ .frame = (void*) __chx__af, .vtbl = &"); visitor.mangle(decl);
+    visitor.write("__vtbl };");
+    visitor.indentation_level -= 1;
+    visitor.new_line_and_indent();
+    visitor.write('}');
+}
+
 void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
     if(!decl->body.has_value() || decl->is_comptime()) {
         return;
@@ -4634,7 +5038,11 @@ void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
         auto types = resolve_async_c_types(decl);
         if(!types.ok) {
             visitor.error("async lowering could not resolve the core::async protocol types for this function", decl);
+        } else if(async_suspend_enabled() && !build_async_plan(decl).sites.empty()) {
+            // real suspension state machine (Phase 4.2)
+            emit_async_suspend_function(visitor, decl, types);
         } else {
+            // eager-ready fast path (no awaits, or suspension disabled)
             emit_async_lowered_function(visitor, decl, types);
         }
         visitor.current_func_type = prev_func_decl;

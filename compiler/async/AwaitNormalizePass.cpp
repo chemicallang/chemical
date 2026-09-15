@@ -309,13 +309,15 @@ struct PlanVisitor : public RecursiveVisitor<PlanVisitor> {
 
     AsyncLoweringPlan plan;
     std::vector<int> live;
+    ASTNode* current_var_init = nullptr;
 
-    int add_slot(chem::string_view name, BaseType* type) {
+    int add_slot(chem::string_view name, BaseType* type, ASTNode* node) {
         const auto id = (int) plan.slots.size();
         AsyncFrameSlot slot;
         slot.name = name;
         slot.type = type;
         slot.destructible = type != nullptr && type->get_destructor() != nullptr;
+        slot.node = node;
         plan.slots.push_back(slot);
         return id;
     }
@@ -333,20 +335,31 @@ struct PlanVisitor : public RecursiveVisitor<PlanVisitor> {
     }
 
     void VisitVarInitStmt(VarInitStatement* stmt) {
-        const auto id = add_slot(stmt->id_view(), stmt->known_type());
+        const auto id = add_slot(stmt->id_view(), stmt->known_type(), stmt);
         live.push_back(id);
+        const auto prev = current_var_init;
+        current_var_init = stmt;
         RecursiveVisitor<PlanVisitor>::VisitVarInitStmt(stmt);
+        current_var_init = prev;
     }
 
     void VisitAwaitExpression(AwaitExpression* value) {
         AwaitSite site;
         site.resume_state = (unsigned) plan.sites.size();
         site.awaited_type = value->await_result_type ? value->await_result_type : value->getType();
+        site.var_init = current_var_init;
+        if(value->getInner() != nullptr) {
+            site.awaited_handle_type = value->getInner()->getType();
+        }
         // live destructible slots, reverse creation order
         for(auto it = live.rbegin(); it != live.rend(); ++it) {
             if(plan.slots[*it].destructible) {
                 site.live_drops.push_back((unsigned) *it);
             }
+        }
+        // every in-scope slot, creation order (for spill / reload)
+        for(auto id : live) {
+            site.live_slots.push_back((unsigned) id);
         }
         plan.sites.push_back(site);
         RecursiveVisitor<PlanVisitor>::VisitAwaitExpression(value);
@@ -370,7 +383,7 @@ AsyncLoweringPlan build_async_plan(FunctionDeclaration* decl) {
 
     // parameters live across the whole body, so they are slots 0..n-1
     for(auto param : decl->params) {
-        const auto id = visitor.add_slot(param->name, param->type);
+        const auto id = visitor.add_slot(param->name, param->type, param);
         visitor.live.push_back(id);
     }
 

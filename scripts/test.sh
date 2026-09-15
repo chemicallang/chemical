@@ -23,6 +23,7 @@ TEST_PROCESS=false
 TEST_WEBVIEW=false
 TEST_LIBS=false
 TEST_ASYNC_LAZY=false
+TEST_ASYNC_SUSPEND=false
 COMPILE_TARGET=""
 MODE="debug_quick"
 NO_CACHE="--no-cache"
@@ -57,6 +58,7 @@ usage() {
   echo "  --webview               Build & run the webview test suite (passes --arg-test-webview)"
   echo "  --libs                  Build & run the library test suite (passes --arg-test-libs)"
   echo "  --async-lazy            Build & run the lazy async/await suite with CHEMICAL_ASYNC_LAZY=1"
+  echo "  --async-suspend         Build & run the suspending async suite (CHEMICAL_ASYNC_LAZY=1 CHEMICAL_ASYNC_SUSPEND=1)"
   echo "  --target <triple>       Pass --target <triple> to the compiler (optional, omitted if empty)"
   echo "  -o <path>               Custom output executable path"
   echo "  --no-run                Build test executable only, do not run"
@@ -104,6 +106,7 @@ while [ $# -gt 0 ]; do
     --webview) TEST_WEBVIEW=true ;;
     --libs) TEST_LIBS=true ;;
     --async-lazy) TEST_ASYNC_LAZY=true; export CHEMICAL_ASYNC_LAZY=1 ;;
+    --async-suspend) TEST_ASYNC_SUSPEND=true; export CHEMICAL_ASYNC_LAZY=1; export CHEMICAL_ASYNC_SUSPEND=1 ;;
     --target) COMPILE_TARGET="$2"; shift ;;
     -o) TEST_OUT_NAME="$2"; shift ;;
     --no-run) RUN_TESTS=false ;;
@@ -285,6 +288,9 @@ else
   fi
   if [ "$TEST_ASYNC_LAZY" = true ]; then
     CMD+=("--arg-test-async-lazy")
+  fi
+  if [ "$TEST_ASYNC_SUSPEND" = true ]; then
+    CMD+=("--arg-test-async-suspend")
   fi
   if [ -n "$COMPILE_TARGET" ]; then
     CMD+=("--target" "$COMPILE_TARGET")

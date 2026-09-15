@@ -31,8 +31,9 @@ public func run_common_tests() {
         return traditional_for_loop_with_sum();
     })
 
-    // Async/await (eager bootstrap; transparent await)
-    test_async_common();
+    // Async/await lives in the compiled-only suite (lang/tests/src/async):
+    // the C backend lowers async functions and the interpreter/LLVM backend use
+    // the eager bootstrap, so the tests are backend-aware there.
 
     // Basic language tests (no pointers — compatible with all backends)
     test_numbers();

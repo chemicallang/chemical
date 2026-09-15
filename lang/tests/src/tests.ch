@@ -32,7 +32,10 @@ func run_executable_tests() {
     test_impl_only_method_call();
     test_generic_struct_by_value_param();
     test_loop_expression_cleanup_once();
-    test_async_basic();
+    // async/await is tested by the dedicated C-backend suites
+    // (lang/tests/async_lazy and lang/tests/async_suspend, run via
+    // ./scripts/test.sh --tcc --async-lazy / --async-suspend), because the
+    // lowering only exists on the C backend.
     test_imported_modules();
     test_modules_import();
     test_external_interfaces();

@@ -3423,20 +3423,40 @@ LLVM; TinyCC compiles the output.
 > destructible results (single and two-per-function, and `block_on<std::string>`)
 > plus a zeroed buffer and a literal array mutated across suspensions.
 >
-> **The state machine is now the default (design 4.5).** Under
-> `CHEMICAL_ASYNC_LAZY`, any async function that awaits is lowered by
-> `emit_async_suspend_function`; only async functions with *no* awaits use the
-> eager-ready ramp. The full `lang/tests/async_lazy` corpus (10/10) passes through
-> the state machine.
+> **The C backend always lowers async functions; the env flag is gone (4.5).**
+> `LinkSignature::visit_func_decl` wraps the return type into `FutureHandle<T>`
+> whenever the active backend is the C backend (`is_c_backend`, read from
+> `GlobalInterpretScope::backend_context`), and `2c` lowers every async function:
+> awaits use the suspension state machine, no-await functions use the eager-ready
+> ramp. The interpreter and the LLVM IR backend report a non-"C" backend and keep
+> the eager/transparent bootstrap, so they are unchanged. `CHEMICAL_ASYNC_LAZY`
+> is no longer read anywhere.
 >
-> **Known limits of the state machine (next).** Arrays of destructor-bearing
-> elements cannot cross a suspension (diagnosed; the init byte copy would
-> duplicate ownership). The cancellation drop switch uses the static `live_drops`
-> set, so a local that was moved out before suspension would need a drop flag
-> (design 8.4) to avoid a double drop; arrays also cannot be default-initialized
-> from a non-literal, non-`zeroed` expression. Escaped pointers to non-resident
-> (spill/reload) locals are not yet stable. The LLVM (`llvm.coro.*`) lowering is
-> still to come, so the state machine is C-only.
+> **All cross-await locals are frame-resident.** Every parameter and every local
+> in scope at a suspension lives at `frame->__chx_slot_k` (not just
+> destructor-bearing ones): `write_identifier` rewrites references, `VisitVarInitStmt`
+> initializes the field, and destructors/moves go through the field. This replaced
+> the old spill/reload (which relocated stack locals and dangling escaped
+> pointers); a pointer to a cross-await local is now stable across resume
+> (`test_async_suspend_escaped_pointer`). Locals that never cross an await stay on
+> the stack. The planner also only creates a site for a genuine `FutureHandle<T>`
+> operand that the normalizer hoisted into a `VarInitStatement`; transparent
+> `await e` and loop-header awaits (`while(await c)`) are driven inline.
+>
+> **Arrays of destructor-bearing elements across a suspension (landed).**
+> `emit_async_array_frame_init` element-wise moves literal initializers (or
+> `memset`s `zeroed`); `emit_async_destroy_slot` destroys elements last-to-first;
+> the normal path uses the existing `queue_destruct_arr`.
+> `lang/tests/async_suspend` is now 13/13 and `lang/tests/async_lazy` 14/14.
+>
+> **Known limits (next).** Async **closures** are not wrapped or lowered yet — a
+> `LambdaFunction` has its own capture struct and is emitted by
+> `write_lambda_function`, so making `async |...|` return a `FutureHandle<T>`
+> needs a closure-specific frame/vtable lowering. They remain eager-transparent.
+> Arrays cannot be default-initialized from a non-literal, non-`zeroed`
+> expression. The cancellation drop switch uses the static `live_drops` set, so a
+> local moved out before suspension would need a runtime drop flag (8.4). The
+> LLVM (`llvm.coro.*`) lowering is still to come, so the state machine is C-only.
 >
 > **Discovered blocker for the library-side shortcut (must be a compiler
 > lowering pass, not a library helper).** A generic function reference cannot

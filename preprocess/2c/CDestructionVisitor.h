@@ -49,6 +49,14 @@ public:
 
     std::vector<DestructionJob> destruct_jobs;
 
+    /**
+     * When non-empty, the next destruction job queued uses this string as its
+     * drop flag instead of a fresh stack `_Bool`. Used for async frame-resident
+     * locals whose drop flag must live in the frame to survive a suspension.
+     * Cleared by the caller after queueing.
+     */
+    std::string pending_drop_flag;
+
     void destruct(
             const chem::string_view& self_name,
             MembersContainer* linked,

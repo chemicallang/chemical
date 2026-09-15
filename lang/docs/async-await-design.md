@@ -3449,14 +3449,65 @@ LLVM; TinyCC compiles the output.
 > the normal path uses the existing `queue_destruct_arr`.
 > `lang/tests/async_suspend` is now 13/13 and `lang/tests/async_lazy` 14/14.
 >
-> **Known limits (next).** Async **closures** are not wrapped or lowered yet — a
-> `LambdaFunction` has its own capture struct and is emitted by
-> `write_lambda_function`, so making `async |...|` return a `FutureHandle<T>`
-> needs a closure-specific frame/vtable lowering. They remain eager-transparent.
-> Arrays cannot be default-initialized from a non-literal, non-`zeroed`
-> expression. The cancellation drop switch uses the static `live_drops` set, so a
-> local moved out before suspension would need a runtime drop flag (8.4). The
-> LLVM (`llvm.coro.*`) lowering is still to come, so the state machine is C-only.
+> **Async methods, child cancellation, and frame-resident drop flags (landed).**
+> The C backend now lowers async struct / variant / interface methods: the
+> method-specific emitter (`contained_func_decl`) delegates an async method to
+> `func_decl_with_name`, which emits the standalone ramp + poll + drop + static
+> vtable (the receiver is an ordinary frame-resident parameter). A struct
+> receiver/parameter is copied through its hidden pointer on entry and the
+> hidden-pointer dereference in `accept_mutating_value_explicit` is skipped for
+> frame-resident slots. Cancelling a suspended future now also drops its live
+> child future (`__chx_child_i`) — not just user locals — so the child's frame is
+> freed and its destructor runs exactly once. Moved-then-cancelled locals no
+> longer double-drop: destructible resident slots get a **frame-resident drop
+> flag** (`uint8_t __chx_drop_<id>`), set when the slot is initialized, cleared
+> when it is moved out (via `CDestructionVisitor::pending_drop_flag`, so the
+> clearing persists across a suspension), and consulted both by the cancellation
+> switch and the normal completion destructor jobs. Verified by
+> `lang/tests/async_suspend` (17/17): async method (suspend + eager), child
+> cancellation, moved local (completion + cancellation), moved parameter.
+>
+> **`async func main` now gets a synchronous trampoline (landed).** The
+> declaration pass renames an application's `async func main` to the internal
+> symbol `__chx_async_main` (`async_trampoline_entries`) before any prototype is
+> emitted, and the translation pass emits a `main` wrapper next to the ramp. The
+> wrapper mirrors the declared parameters, calls the ramp through its hidden sret
+> pointer, drives the returned future to completion (a zeroed `Context`, the same
+> contract as `async::block_on`), drops the handle, and returns the integer
+> result. `int`/`void`/`Unit` results, no-await (eager) entries, and
+> `main(argc, argv)` all work. A void async function now maps its result to the
+> zero-sized `Unit` in symres (so `FutureHandle<void>`/`Poll<void>` are never
+> formed), and the "needs a return" check unwraps the async return type and
+> treats `Unit` as void-like. Verified end-to-end by
+> `lang/tests/negative/src/async.ch::async_main_trampoline_runs` (compiles an
+> application, runs it, asserts exit code 42).
+>
+> **Async closures are still diagnosed, not lowered.** An async closure carries a
+> capture struct emitted by `write_lambda_function`, so lowering it needs
+> closure-specific frame/vtable emission; the C backend keeps a clear diagnostic
+> (LLVM/interpreter keep the eager bootstrap). A module that has `core` but not
+> the `async` library is diagnosed instead of failing to link
+> (`chemical_async_frame_alloc` unresolved). Compiling an `async func` in a
+> module without `core` no longer crashes the compiler: the return type is left
+> unwrapped and the function keeps the eager bootstrap.
+>
+> **Arrays of destructibles are now first-class frame slots (landed).** The
+> planner marks an array slot destructible when its element type has a
+> destructor (`slot_type_is_destructible`), so such arrays appear in
+> `live_drops` and are element-wise destroyed on cancellation
+> (`test_async_suspend_array_cancelled`) and, as before, on completion. An
+> array-to-array initializer across a suspension (`var b = a`) is emitted as a
+> byte-copy **move** (a deep copy of destructor-bearing elements is impossible),
+> clearing the source's frame drop flag
+> (`test_async_suspend_moved_array`). `lang/tests/async_suspend` is now 19/19.
+>
+> **Known limits (next).** Async closures require a closure-specific
+> frame/vtable emitter that stores the capture struct in the frame and binds
+> `this` to it in `poll`; until that lands the C backend keeps the clear
+> diagnostic (above) rather than emitting broken code. Arrays cannot be
+> default-initialized from an arbitrary expression (only `zeroed`, a literal, or
+> another array identifier). The LLVM (`llvm.coro.*`) lowering is still to come,
+> so the state machine is C-only.
 >
 > **Discovered blocker for the library-side shortcut (must be a compiler
 > lowering pass, not a library helper).** A generic function reference cannot

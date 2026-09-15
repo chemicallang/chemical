@@ -54,6 +54,24 @@ static bool is_c_backend(GlobalInterpretScope& scope) {
 }
 
 /**
+ * Whether the `core::async` protocol is reachable by name from the module being
+ * linked. `CoreNodes::async` caches handles into the `core` module, but that
+ * module is only kept alive when the current module actually imports it (or the
+ * `async` library re-exporting it). Wrapping an async return type into
+ * `FutureHandle<T>` from a module that never imported the library produces a
+ * `GenericType` whose backing `StructDefinition` belongs to a freed module, and
+ * instantiating it later is a use-after-free (`GenericStructDecl::
+ * register_generic_args` -> `VariablesContainer::shallow_copy_into`). So async
+ * lowering is only enabled when the protocol is in scope; without the library
+ * the function keeps the eager/transparent bootstrap, like the interpreter and
+ * LLVM backends.
+ */
+static bool async_protocol_in_scope(SymbolResolver& linker) {
+    return linker.find(chem::string_view("core")) != nullptr
+        || linker.find(chem::string_view("async")) != nullptr;
+}
+
+/**
  * Visit the where clause of a function to link constraint types
  */
 static void link_where_clause(TopLevelLinkSignature& signatureLinker, FunctionDeclaration* decl) {
@@ -739,11 +757,32 @@ void visit_func_decl(TopLevelLinkSignature& sig, FunctionDeclaration* node) {
     // that handle protocol by default; other backends (LLVM IR, interpreter)
     // have no lowering yet, so they keep the eager/transparent bootstrap.
     if(node->attrs.is_async && is_c_backend(sig.linker.comptime_scope)
+       && async_protocol_in_scope(sig.linker)
+       && sig.linker.find(chem::string_view("async")) == nullptr
+       && node->returnType.getType() != nullptr && !node->attrs.is_extern
+       && !node->attrs.is_delete_fn && !node->attrs.is_constructor_fn) {
+        // The `core::async` protocol is in scope but the `async` library (which
+        // defines `chemical_async_frame_alloc/free`) is not, so the generated
+        // ramp could not link. Diagnose here instead of emitting an unresolved
+        // symbol. (@extern / destructor / constructor get their own diagnostics.)
+        sig.diagnoser.error(node) << "async functions require the `async` library; add `import async` to this module";
+    }
+    if(node->attrs.is_async && is_c_backend(sig.linker.comptime_scope)
+       && async_protocol_in_scope(sig.linker)
        && sig.linker.coreNodes.async.future_handle != nullptr
        && node->returnType.getType() != nullptr) {
         auto& allocator = sig.getAstAllocator();
-        const auto inner = node->returnType;
+        auto inner = node->returnType;
         const auto loc = inner.getLocation();
+        // `async func f() : void` has no value; use the zero-sized `Unit` so the
+        // `FutureHandle<T>` / `Poll<T>` generics stay well-formed (design 4.2/19.4)
+        if(inner.getType() != nullptr
+           && const_cast<BaseType*>(inner.getType())->canonical()->kind() == BaseTypeKind::Void
+           && sig.linker.coreNodes.async.unit != nullptr) {
+            auto unit_linked = new (allocator.allocate<LinkedType>())
+                LinkedType(sig.linker.coreNodes.async.unit);
+            inner = TypeLoc(unit_linked, loc);
+        }
         auto linked = new (allocator.allocate<LinkedType>())
             LinkedType(sig.linker.coreNodes.async.future_handle);
         std::vector<TypeLoc> args;

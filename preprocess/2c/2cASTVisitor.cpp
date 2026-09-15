@@ -6,6 +6,8 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstdint>
+#include <string>
+#include <unordered_set>
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "compiler/mangler/NameMangler.h"
 #include "compiler/symres/CoreNodes.h"
@@ -201,9 +203,38 @@ void write_escape_encoded(BufferedWriter& stream, char value) {
     }
 }
 
+/**
+ * Renames an application's `async func main` to the internal symbol
+ * `__chx_async_main` before any prototype is emitted, so the synchronous `main`
+ * trampoline can take the entry name (design Section 5.5). Records the
+ * declaration so the translation pass emits the trampoline after the ramp.
+ */
+static void rename_async_entry(ToCAstVisitor& visitor, ASTNode* node) {
+    switch(node->kind()) {
+        case ASTNodeKind::FunctionDecl: {
+            auto decl = node->as_function_unsafe();
+            if(decl->is_async() && decl->is_no_mangle()
+               && decl->name_view() == chem::string_view("main")) {
+                decl->set_identifier(chem::string_view("__chx_async_main"));
+                visitor.async_trampoline_entries.insert(decl);
+            }
+            break;
+        }
+        case ASTNodeKind::NamespaceDecl:
+            for(auto child : node->as_namespace_unsafe()->nodes) {
+                rename_async_entry(visitor, child);
+            }
+            break;
+        default:
+            break;
+    }
+}
+
 void ToCAstVisitor::declare_before_translation(const std::vector<ASTNode*>& nodes) {
+    async_trampoline_entries.clear();
     // declare the top level things with this visitor
     for(const auto node : nodes) {
+        rename_async_entry(*this, node);
         tld.visit(node);
     }
 }
@@ -360,8 +391,30 @@ struct AsyncSuspendContext {
      */
     std::vector<BaseType*> site_poll;
 
+    /**
+     * destructible slots whose destruction is guarded by a frame-resident drop
+     * flag (`__chx_drop_<id>`), so a local that was moved out before a
+     * suspension is not destroyed twice on cancellation or completion.
+     */
+    std::unordered_set<unsigned> drop_flag_slots;
+
     std::string child_field(unsigned site) const {
         return frame_var + "->__chx_child_" + std::to_string(site);
+    }
+
+    std::string drop_flag_field(unsigned id) const {
+        return frame_var + "->__chx_drop_" + std::to_string(id);
+    }
+
+    std::string drop_flag_field_for_node(ASTNode* node) const {
+        if(node == nullptr) {
+            return "";
+        }
+        auto found = resident.find(node);
+        if(found == resident.end() || drop_flag_slots.count(found->second) == 0) {
+            return "";
+        }
+        return drop_flag_field(found->second);
     }
 
     std::string slot_field(unsigned id) const {
@@ -1208,7 +1261,18 @@ void ToCAstVisitor::accept_mutating_value_explicit(BaseType* type, Value* value)
             }
         }
         if (type->get_direct_linked_canonical_node() != nullptr && is_value_param_hidden_pointer_non_ref(value)) {
-            write('*');
+            // A struct parameter is normally passed as a hidden pointer, so the
+            // value must be dereferenced. In a lowered async poll function an
+            // address-stable parameter lives in the frame *by value*, so it is
+            // not a pointer and must not be dereferenced.
+            bool async_resident = false;
+            if(async_suspend != nullptr) {
+                auto linked = value->get_chain_last_linked();
+                async_resident = linked != nullptr && !async_suspend->resident_field(linked).empty();
+            }
+            if(!async_resident) {
+                write('*');
+            }
         }
     }
     // mutating value
@@ -2146,7 +2210,12 @@ void CDestructionVisitor::queue_destruct(std::string self_name, ASTNode* initial
     auto destructorFunc = linked->destructor_func();
     if(destructorFunc) {
         std::string drop_flag;
-        if(has_drop_flag) {
+        if(!pending_drop_flag.empty()) {
+            // frame-resident flag supplied by the async lowering; it is declared
+            // in the frame, not here, so do not emit a stack declaration
+            drop_flag = std::move(pending_drop_flag);
+            pending_drop_flag.clear();
+        } else if(has_drop_flag) {
             drop_flag = visitor.get_local_temp_var_name();
             init_drop_flag(visitor, chem::string_view(drop_flag));
         }
@@ -2233,7 +2302,23 @@ void CDestructionVisitor::destruct(const DestructionJob& job, Value* current_ret
             }
             break;
         case DestructionJobType::Array:
-            destruct_arr(chem::string_view(job.self_name), job.array_job.array_size, job.array_job.linked, job.array_job.destructorFunc);
+            if(job.drop_flag_name.empty()) {
+                destruct_arr(chem::string_view(job.self_name), job.array_job.array_size, job.array_job.linked, job.array_job.destructorFunc);
+            } else {
+                // frame-resident drop flag: skip if the array was moved out
+                if(new_line_before) {
+                    visitor.new_line_and_indent();
+                }
+                visitor.write("if(");
+                visitor.write_str(job.drop_flag_name);
+                visitor.write(") {");
+                visitor.indentation_level += 1;
+                new_line_before = true;
+                destruct_arr(chem::string_view(job.self_name), job.array_job.array_size, job.array_job.linked, job.array_job.destructorFunc);
+                visitor.indentation_level -= 1;
+                visitor.new_line_and_indent();
+                visitor.write('}');
+            }
             break;
     }
 }
@@ -2276,7 +2361,17 @@ void CDestructionVisitor::queue_destruct_decl_params(FunctionType* decl) {
             // name as usual.
             auto field = visitor.async_suspend->resident_field(d_param);
             if(!field.empty()) {
-                queue_destruct_type(std::move(field), d_param, d_param->type->canonical());
+                // A resident parameter lives in the frame *by value*, so it is
+                // destroyed by taking the field's address (not by treating the
+                // field as an already-hidden pointer). Destructible resident
+                // parameters are guarded by a frame drop flag so a moved-out
+                // parameter is not destroyed twice.
+                auto container = d_param->type->canonical()->get_members_container();
+                if(container != nullptr && container->destructor_func() != nullptr) {
+                    pending_drop_flag = visitor.async_suspend->drop_flag_field_for_node(d_param);
+                    queue_destruct(std::move(field), d_param, container, false);
+                    pending_drop_flag.clear();
+                }
                 continue;
             }
         }
@@ -2296,9 +2391,15 @@ bool CDestructionVisitor::queue_destruct_arr(std::string self_name, ASTNode* ini
             if (!destructorFunc) {
                 return false;
             }
+            std::string drop_flag;
+            if(!pending_drop_flag.empty()) {
+                drop_flag = std::move(pending_drop_flag);
+                pending_drop_flag.clear();
+            }
             destruct_jobs.emplace_back(DestructionJob{
                 .type = DestructionJobType::Array,
                 .self_name = std::move(self_name),
+                .drop_flag_name = std::move(drop_flag),
                 .initializer = initializer,
                 .array_job = {
                     array_size,
@@ -3572,20 +3673,50 @@ void ToCAstVisitor::VisitVarInitStmt(VarInitStatement *init) {
             new_line_and_indent(init->encoded_location());
             auto resident_type = init->known_type();
             if(resident_type != nullptr && resident_type->kind() == BaseTypeKind::Array) {
+                if(init->value != nullptr && get_single_id(init->value) != nullptr) {
+                    // An array-to-array initializer cannot deep-copy
+                    // destructor-bearing elements, so it is implemented as a
+                    // byte-copy move: transfer ownership by clearing the
+                    // source's frame drop flag so it is not destroyed twice.
+                    set_moved_ref_drop_flag(*this, init->value);
+                    space();
+                }
                 emit_async_array_frame_init(*this, field, resident_type, init->value);
             } else {
                 write_str(field);
                 write(" = ");
                 if(init->value != nullptr) {
-                    accept_mutating_value_explicit(resident_type, init->value);
+                    if(init->value->is_ref_moved()) {
+                        // moving a frame-resident value into this field: clear
+                        // the source's frame drop flag so it is not destroyed
+                        // again on cancellation or completion
+                        write("({ ");
+                        set_moved_ref_drop_flag(*this, init->value);
+                        space();
+                        accept_mutating_value_explicit(resident_type, init->value);
+                        write("; })");
+                    } else {
+                        accept_mutating_value_explicit(resident_type, init->value);
+                    }
                 } else {
                     write("("); visit(resident_type); write("){0}");
                 }
                 write(';');
             }
+            // the resident slot now owns a live value: mark its frame drop flag
+            // and make the queued destructor job guard on that frame flag so a
+            // later move-out clears it (persisting across a suspension)
+            const auto drop_flag = async_suspend->drop_flag_field_for_node(init);
+            if(!drop_flag.empty()) {
+                new_line_and_indent(init->encoded_location());
+                write_str(drop_flag);
+                write(" = 1;");
+                destructor.pending_drop_flag = drop_flag;
+            }
             // queue the destructor against the frame field (see
             // CDestructionVisitor::VisitVarInitStmt)
             destructor.VisitVarInitStmt(init);
+            destructor.pending_drop_flag.clear();
             return;
         }
     }
@@ -4532,9 +4663,15 @@ void ToCAstVisitor::VisitFunctionParam(FunctionParam *param) {
  * emit a frame + ramp + poll + drop + vtable instead of a plain function.
  */
 static bool async_lowered(FunctionDeclaration* decl) {
-    // The C backend lowers every async function. symres wraps the return type
-    // into `FutureHandle<T>` for this backend (see is_c_backend in LinkSignature).
-    return decl->is_async();
+    // The C backend lowers every async function whose return type symres wrapped
+    // into `FutureHandle<T>` (see is_c_backend / async_protocol_in_scope in
+    // LinkSignature). A module that never imported the `async`/`core` library
+    // keeps the eager bootstrap: symres did not wrap the return type, so the
+    // body already returns a plain `T` and must not be lowered here.
+    if(!decl->is_async()) {
+        return false;
+    }
+    return resolve_async_c_types_from_handle(const_cast<BaseType*>(decl->returnType.getType())).ok;
 }
 
 static bool find_struct_member(MembersContainer* container, const chem::string_view& name, StructMember*& out) {
@@ -4830,6 +4967,8 @@ static void emit_async_poll_child(
     visitor.write(" = __chx__p.Ready.value;");
     visitor.new_line_and_indent();
     visitor.write_str(child); visitor.write(".vtbl->drop("); visitor.write_str(child); visitor.write(".frame);");
+    visitor.new_line_and_indent();
+    visitor.write_str(child); visitor.write(".frame = (void*) 0;");
     visitor.indentation_level -= 1;
     visitor.new_line_and_indent();
     visitor.write('}');
@@ -4876,9 +5015,13 @@ static void emit_async_array_frame_init(ToCAstVisitor& visitor, const std::strin
         return;
     }
     if(value->kind() != ValueKind::ArrayValue) {
-        visitor.error("async suspension supports only `zeroed` or literal initializers for arrays across an await", value);
-        visitor.write("memset(&"); visitor.write_str(field);
-        visitor.write(", 0, sizeof("); visitor.write_str(field); visitor.write("));");
+        // Moving / copying from an existing array value (e.g. `var b = a`). A
+        // byte copy is a valid move because the caller clears the source's drop
+        // flag on a move, transferring ownership to this field.
+        visitor.write("memcpy(&"); visitor.write_str(field);
+        visitor.write(", &");
+        visitor.visit(value);
+        visitor.write(", sizeof("); visitor.write_str(field); visitor.write("));");
         return;
     }
     if(elem_destructible) {
@@ -5039,6 +5182,22 @@ static void emit_async_suspend_function(ToCAstVisitor& visitor, FunctionDeclarat
         }
         ctx.resident[slot.node] = (unsigned) id;
     }
+    // Destructible resident slots need a frame-resident drop flag: a local that
+    // is moved out before a suspension must not be destroyed again on
+    // cancellation or completion (design Section 8.4). Stack drop flags cannot
+    // be used because each `poll` call is a fresh C invocation.
+    for(auto& site : ctx.plan.sites) {
+        for(auto id : site.live_drops) {
+            ctx.drop_flag_slots.insert(id);
+        }
+    }
+    for(size_t id = 0; id < ctx.plan.slots.size(); id++) {
+        const auto& slot = ctx.plan.slots[id];
+        if(slot.node != nullptr && slot.node->kind() == ASTNodeKind::FunctionParam
+           && ctx.resident.count(slot.node) != 0 && slot.destructible) {
+            ctx.drop_flag_slots.insert((unsigned) id);
+        }
+    }
     ctx.site_poll.reserve(ctx.plan.sites.size());
     for(auto& site : ctx.plan.sites) {
         auto site_types = resolve_async_c_types_from_handle(const_cast<BaseType*>(site.awaited_handle_type));
@@ -5067,6 +5226,14 @@ static void emit_async_suspend_function(ToCAstVisitor& visitor, FunctionDeclarat
         visitor.space();
         emit_async_frame_field(visitor, ctx.plan.slots[id].type, (unsigned) id);
         visitor.write(';');
+    }
+    // emit in slot order (the set is unordered) so the generated frame layout is
+    // deterministic
+    for(size_t id = 0; id < ctx.plan.slots.size(); id++) {
+        if(ctx.drop_flag_slots.count((unsigned) id) != 0) {
+            visitor.space();
+            visitor.write("uint8_t __chx_drop_"); visitor.write((unsigned) id); visitor.write(';');
+        }
     }
     visitor.write(" };");
 
@@ -5150,6 +5317,17 @@ static void emit_async_suspend_function(ToCAstVisitor& visitor, FunctionDeclarat
     scope(visitor, decl->body.value(), decl);
     visitor.async_suspend = prev_suspend;
     visitor.return_redirect_block = prev_redirect;
+    // A body that falls off the end (a void async function with no explicit
+    // `return`) still completes: mark the state done and return `Ready` with the
+    // frame result. For a value-returning body this is unreachable dead code.
+    visitor.new_line_and_indent();
+    visitor.write(ctx.frame_var); visitor.write("->__state = 0xFFFFFFFFu;");
+    visitor.new_line_and_indent();
+    visitor.write("*__chx__async_ret = ("); visitor.visit(t.poll);
+    visitor.write("){ .__chx__vt_621827 = 0, .Ready.value = "); visitor.write(ctx.frame_var);
+    visitor.write("->__result };");
+    visitor.new_line_and_indent();
+    visitor.write("return;");
     visitor.indentation_level -= 1;
     visitor.new_line_and_indent();
     visitor.write('}');
@@ -5173,8 +5351,29 @@ static void emit_async_suspend_function(ToCAstVisitor& visitor, FunctionDeclarat
         visitor.write("case "); visitor.write((unsigned) (i + 1)); visitor.write(':');
         visitor.indentation_level += 1;
         for(auto id : ctx.plan.sites[i].live_drops) {
-            emit_async_destroy_slot(visitor, ctx.plan.slots[id], ctx.slot_field(id));
+            if(ctx.drop_flag_slots.count(id) != 0) {
+                // a local moved out before the suspension cleared its flag;
+                // skip destroying it (design Section 8.4)
+                visitor.new_line_and_indent();
+                visitor.write("if("); visitor.write_str(ctx.drop_flag_field(id)); visitor.write(") {");
+                visitor.indentation_level += 1;
+                emit_async_destroy_slot(visitor, ctx.plan.slots[id], ctx.slot_field(id));
+                visitor.indentation_level -= 1;
+                visitor.new_line_and_indent();
+                visitor.write('}');
+            } else {
+                emit_async_destroy_slot(visitor, ctx.plan.slots[id], ctx.slot_field(id));
+            }
         }
+        // Cancelling while suspended inside site `i` must also cancel the child
+        // future that site is waiting on (`__chx_child_i`). Every earlier site's
+        // child was already dropped when it resolved and every later one is still
+        // unset, so only the current state's child is live here (design 13.3/19.10).
+        const auto child = ctx.child_field((unsigned) i);
+        visitor.new_line_and_indent();
+        visitor.write("if("); visitor.write_str(child); visitor.write(".frame != (void*) 0) { ");
+        visitor.write_str(child); visitor.write(".vtbl->drop("); visitor.write_str(child);
+        visitor.write(".frame); "); visitor.write_str(child); visitor.write(".frame = (void*) 0; }");
         visitor.new_line_and_indent();
         visitor.write("break;");
         visitor.indentation_level -= 1;
@@ -5224,14 +5423,130 @@ static void emit_async_suspend_function(ToCAstVisitor& visitor, FunctionDeclarat
         visitor.new_line_and_indent();
         visitor.write_str(ctx.slot_field((unsigned) id));
         visitor.write(" = ");
+        // A struct parameter arrives as a hidden pointer, but the frame stores
+        // it by value, so copy through the pointer.
+        if(slot.type != nullptr && slot.type->kind() != BaseTypeKind::Dynamic && slot.type->isStructLikeType()) {
+            visitor.write('*');
+        }
         visitor.write(slot.name);
         visitor.write(';');
+        if(ctx.drop_flag_slots.count((unsigned) id) != 0) {
+            visitor.new_line_and_indent();
+            visitor.write_str(ctx.drop_flag_field((unsigned) id));
+            visitor.write(" = 1;");
+        }
     }
     visitor.new_line_and_indent();
     visitor.write("*"); visitor.write("__chx_struct_ret_param_xx");
     visitor.write(" = ("); visitor.visit(t.handle);
     visitor.write("){ .frame = (void*) __chx__af, .vtbl = &"); visitor.mangle(decl);
     visitor.write("__vtbl };");
+    visitor.indentation_level -= 1;
+    visitor.new_line_and_indent();
+    visitor.write('}');
+}
+
+/**
+ * Emits a synchronous C `main` trampoline for `async func main` (design Section
+ * 5.5). The caller first renames the async entry to the internal symbol
+ * `__chx_async_main`, so this wrapper calls it, drives the returned future to
+ * completion (the same contract as `async::block_on`), and returns its integer
+ * result. It keeps the standard C entry signature by mirroring the declared
+ * parameters.
+ */
+static void emit_async_main_wrapper(ToCAstVisitor& visitor, FunctionDeclaration* decl, AsyncCTypes& t) {
+    // the `Context` value type (strip the pointer from the poll's `*mut Context`)
+    BaseType* ctx_type = nullptr;
+    if(t.context_ptr != nullptr) {
+        if(t.context_ptr->kind() == BaseTypeKind::Pointer) {
+            ctx_type = const_cast<BaseType*>(t.context_ptr->as_pointer_type_unsafe()->type);
+        } else if(t.context_ptr->kind() == BaseTypeKind::Reference) {
+            ctx_type = const_cast<BaseType*>(t.context_ptr->as_reference_type_unsafe()->type);
+        }
+    }
+    const auto inner_canonical = t.inner != nullptr ? t.inner->canonical() : nullptr;
+    const bool inner_void = inner_canonical == nullptr || inner_canonical->kind() == BaseTypeKind::Void;
+    // `Unit` is the zero-sized result of an async function with no value
+    const auto inner_node = (!inner_void && t.inner != nullptr) ? t.inner->linked_node() : nullptr;
+    const bool inner_unit = inner_node != nullptr && inner_node->kind() == ASTNodeKind::StructDecl
+        && inner_node->as_struct_def_unsafe()->name_view() == chem::string_view("Unit");
+    const bool has_value = !inner_void && !inner_unit;
+
+    visitor.new_line_and_indent();
+    visitor.write("int main(");
+    if(decl->params.empty()) {
+        visitor.write("void");
+    } else {
+        unsigned i = 0;
+        for(auto param : decl->params) {
+            if(i) {
+                visitor.write(", ");
+            }
+            param_type_with_id(visitor, param->type, param->name);
+            i++;
+        }
+    }
+    visitor.write(") {");
+    visitor.indentation_level += 1;
+    // the ramp returns the handle through a hidden sret pointer
+    visitor.new_line_and_indent();
+    visitor.visit(t.handle);
+    visitor.write(" __chx__async_h;");
+    visitor.new_line_and_indent();
+    visitor.mangle(decl);
+    visitor.write("(&__chx__async_h");
+    {
+        for(auto param : decl->params) {
+            visitor.write(", ");
+            visitor.write(param->name);
+        }
+    }
+    visitor.write(");");
+    // a zeroed context is the "no waker" executor context, matching block_on
+    visitor.new_line_and_indent();
+    if(ctx_type != nullptr) {
+        visitor.visit(ctx_type);
+        visitor.write(" __chx__async_cx = {0};");
+    } else {
+        visitor.write("void* __chx__async_cx = 0;");
+    }
+    if(has_value) {
+        visitor.new_line_and_indent();
+        visitor.visit(t.inner);
+        visitor.write(" __chx__async_res;");
+    }
+    visitor.new_line_and_indent();
+    visitor.write("for(;;) {");
+    visitor.indentation_level += 1;
+    visitor.new_line_and_indent();
+    visitor.visit(t.poll);
+    visitor.write(" __chx__async_p;");
+    visitor.new_line_and_indent();
+    visitor.write("__chx__async_h.vtbl->poll(&__chx__async_p, __chx__async_h.frame, &__chx__async_cx);");
+    visitor.new_line_and_indent();
+    // Poll<T> tag: 0 == Ready, 1 == Pending (see emit_async_c_helpers)
+    visitor.write("if(__chx__async_p.__chx__vt_621827 == 0) {");
+    visitor.indentation_level += 1;
+    if(has_value) {
+        visitor.new_line_and_indent();
+        visitor.write("__chx__async_res = __chx__async_p.Ready.value;");
+    }
+    visitor.new_line_and_indent();
+    visitor.write("break;");
+    visitor.indentation_level -= 1;
+    visitor.new_line_and_indent();
+    visitor.write('}');
+    visitor.indentation_level -= 1;
+    visitor.new_line_and_indent();
+    visitor.write('}');
+    visitor.new_line_and_indent();
+    visitor.write("__chx__async_h.vtbl->drop(__chx__async_h.frame);");
+    visitor.new_line_and_indent();
+    if(has_value) {
+        visitor.write("return (int) __chx__async_res;");
+    } else {
+        visitor.write("return 0;");
+    }
     visitor.indentation_level -= 1;
     visitor.new_line_and_indent();
     visitor.write('}');
@@ -5268,13 +5583,21 @@ void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
         auto types = resolve_async_c_types(decl);
         if(!types.ok) {
             visitor.error("async lowering could not resolve the core::async protocol types for this function", decl);
-        } else if(!build_async_plan(decl).sites.empty()) {
-            // suspending state machine (design Phase 4.2/4.5, the default for
-            // any async function that actually awaits)
-            emit_async_suspend_function(visitor, decl, types);
         } else {
-            // eager-ready fast path for async functions with no awaits
-            emit_async_lowered_function(visitor, decl, types);
+            if(!build_async_plan(decl).sites.empty()) {
+                // suspending state machine (design Phase 4.2/4.5, the default for
+                // any async function that actually awaits)
+                emit_async_suspend_function(visitor, decl, types);
+            } else {
+                // eager-ready fast path for async functions with no awaits
+                emit_async_lowered_function(visitor, decl, types);
+            }
+            // An application's `async func main` (renamed to `__chx_async_main`
+            // by the declaration pass) gets a synchronous `main` trampoline that
+            // drives the returned future to completion (design Section 5.5).
+            if(visitor.async_trampoline_entries.count(decl) != 0) {
+                emit_async_main_wrapper(visitor, decl, types);
+            }
         }
         visitor.current_func_type = prev_func_decl;
         return;
@@ -5462,6 +5785,15 @@ void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDe
 }
 
 void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool overrides, InterfaceDefinition* interface, ExtendableMembersContainerNode* def) {
+    // An async method (struct / variant / interface) is lowered exactly like an
+    // async free function: a standalone ramp + poll + drop + static vtable whose
+    // receiver is an ordinary frame-resident parameter. Delegate before the
+    // method-specific body emission so `return e` writes the future handle
+    // instead of the raw inner value.
+    if(async_lowered(decl)) {
+        func_decl_with_name(visitor, decl);
+        return;
+    }
     auto prev_func_decl = visitor.current_func_type;
     visitor.current_func_type = decl;
     visitor.new_line_and_indent(decl->encoded_location());

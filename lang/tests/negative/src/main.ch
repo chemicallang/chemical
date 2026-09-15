@@ -172,6 +172,10 @@ internal const NEG_MOD = "module neg_test\nsource \".\"\n"
 // variant that imports core so the `Copy` marker interface is in scope
 internal const NEG_MOD_CORE = "module neg_test\nsource \".\"\nimport core\n"
 
+// an application importing the async protocol, so `async func main` gets its
+// synchronous trampoline and becomes the program entry point
+internal const NEG_MOD_ASYNC_APP = "application neg_test\nsource \".\"\nimport cstd\nimport core\nimport async\n"
+
 // variant that imports page + universal_cbi so `#universal` components compile
 internal const NEG_MOD_UNIVERSAL = "module neg_test\nsource \".\"\nimport std\nimport page\nimport universal_cbi\n"
 
@@ -253,6 +257,38 @@ internal func expect_compile_success(env : &mut TestEnv, name : *char, ch_conten
         neg_debug_print(name, unsafe(&raw output_buf[0]))
     }
 
+    cleanup_test_dir(NEG_WORK_DIR, name)
+}
+
+// Compiles an application module and runs it, checking the process exit code.
+// Used to exercise the `async func main` trampoline end-to-end.
+internal func expect_compile_and_exit(env : &mut TestEnv, name : *char, ch_content : *char, mod_content : *char, expected_exit : int) {
+    setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
+
+    var mod_path : char[512]
+    sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name)
+    var out_path : char[512]
+    sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
+
+    var output_buf : char[16384]
+    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 16384)
+    if(rc != 0) {
+        env.error("expected compiler to succeed but it failed")
+        neg_debug_print(name, unsafe(&raw output_buf[0]))
+        cleanup_test_dir(NEG_WORK_DIR, name)
+        return
+    }
+
+    var status = system(unsafe(&raw out_path[0]))
+    var exit_code : int
+    comptime if(def.windows) {
+        exit_code = status
+    } else {
+        exit_code = (status >> 8) & 0xff
+    }
+    if(exit_code != expected_exit) {
+        env.error("the program returned the wrong exit code")
+    }
     cleanup_test_dir(NEG_WORK_DIR, name)
 }
 

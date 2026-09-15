@@ -1,5 +1,8 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
+#include "core/source/SourceLocation.h"
+#include "ast/base/ast_fwd.h"
+#include "compiler/lab/BackendContext.h"
 #include "ast/statements/Assignment.h"
 #include "ast/statements/UsingStmt.h"
 #include "ast/statements/Export.h"
@@ -1347,7 +1350,25 @@ void SymResLinkBody::VisitFunctionDecl(FunctionDeclaration* node) {
                 comptime_context = true;
             }
             link_seq(*this, node->body.value());
-            if(node->returnType->canonical()->kind() != BaseTypeKind::Void) {
+            // An async function's return type is `FutureHandle<T>`; the body must
+            // produce the inner `T`, so the "needs a return" check unwraps it. A
+            // void async function uses the zero-sized `Unit` result, which must
+            // not require a `return`.
+            const auto check_ret = node->inner_return_type();
+            bool needs_return = check_ret != nullptr;
+            if(needs_return) {
+                const auto check_canon = check_ret->canonical();
+                if(check_canon->kind() == BaseTypeKind::Void) {
+                    needs_return = false;
+                } else {
+                    const auto linked = check_ret->linked_node();
+                    if(linked != nullptr && linked->kind() == ASTNodeKind::StructDecl
+                       && linked->as_struct_def_unsafe()->name_view() == chem::string_view("Unit")) {
+                        needs_return = false;
+                    }
+                }
+            }
+            if(needs_return) {
                 verify_has_return(diagnoser, node->body.value(), node->encoded_location());
             }
             comptime_context = false;
@@ -2658,6 +2679,15 @@ FunctionType* get_func_type_from_exp_type(BaseType* type) {
 }
 
 void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
+
+    // The C backend lowers `async func` into the FutureHandle protocol, but async
+    // closures carry a capture context and are not lowered yet. Emit a clear
+    // diagnostic instead of generating a body that references a frame that was
+    // never emitted.
+    if(lambVal->isAsync() && linker.comptime_scope.backend_context != nullptr
+       && linker.comptime_scope.backend_context->name() == "C") {
+        diagnoser.error(lambVal) << "async closures are not yet supported by the C backend; use a named `async func` instead";
+    }
 
     auto& scope = lambVal->scope;
     auto& returnType = lambVal->returnType;

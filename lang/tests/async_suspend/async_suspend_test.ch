@@ -298,3 +298,188 @@ func test_async_suspend_poll_counts(env : &mut TestEnv) {
         env.error("suspend_two should take 7 polls of the child futures")
     }
 }
+
+// ---- async methods (the receiver is a frame-resident parameter) ----
+
+struct AsyncCounter {
+    var base : int
+
+    async func add(&self, x : int) : int {
+        var n = await make_countdown(1, x)
+        return self.base + n
+    }
+
+    async func plain(&self, x : int) : int {
+        return self.base + x
+    }
+}
+
+@test
+func test_async_suspend_method(env : &mut TestEnv) {
+    var c = AsyncCounter { base : 40 }
+    if(async::block_on<int>(c.add(2)) != 42) {
+        env.error("a suspending async method should yield 42")
+    }
+    if(async::block_on<int>(c.plain(2)) != 42) {
+        env.error("an eager async method should yield 42")
+    }
+    if(c.base != 40) {
+        env.error("calling an async method must not mutate the receiver")
+    }
+}
+
+// ---- cancellation cancels the child future ----
+
+var child_cancel_drops : int = 0
+
+struct CancelChild {
+    var remaining : int
+}
+
+func cancel_child_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<int> {
+    var f = frame as *mut CancelChild
+    if(f.remaining > 0) {
+        f.remaining = f.remaining - 1
+        return core::async::Poll.Pending<int>()
+    } else {
+        return core::async::Poll.Ready<int>(9)
+    }
+}
+
+func cancel_child_drop(frame : *mut void) {
+    child_cancel_drops = child_cancel_drops + 1
+    free(frame)
+}
+
+func make_cancel_child(n : int) : core::async::FutureHandle<int> {
+    var f = malloc(sizeof(CancelChild)) as *mut CancelChild
+    f.remaining = n
+    var t = malloc(sizeof(core::async::FutureTable<int>)) as *mut core::async::FutureTable<int>
+    t.poll = cancel_child_poll
+    t.drop = cancel_child_drop
+    return core::async::FutureHandle<int> { frame : f as *mut void, vtbl : t }
+}
+
+async func cancel_parent() : int {
+    var v = await make_cancel_child(3)
+    return v
+}
+
+@test
+func test_async_suspend_child_cancelled(env : &mut TestEnv) {
+    var before = child_cancel_drops
+    {
+        var h = cancel_parent()
+        var cx = core::async::Context {
+            waker : core::async::Waker { data : null, vtbl : null }
+        }
+        var p = h.vtbl.poll(h.frame, &raw mut cx)
+        if(p is core::async::Poll.Pending) {
+            // parent is suspended on its child; both are cancelled at block end
+        } else {
+            env.error("expected the parent to be pending on first poll")
+        }
+    }
+    if(child_cancel_drops != before + 1) {
+        env.error("cancelling a suspended parent must cancel its child future exactly once")
+    }
+}
+
+// ---- a moved-out local must not be destroyed twice ----
+
+async func moved_local(x : int) : int {
+    var d = DropCounter { value : 1 }
+    var m = d
+    var n = await make_countdown(2, x)
+    return m.value + n
+}
+
+async func moved_param(p : DropCounter) : int {
+    var m = p
+    var n = await make_countdown(2, 1)
+    return m.value + n
+}
+
+@test
+func test_async_suspend_moved_local(env : &mut TestEnv) {
+    var before = suspend_drops
+    var r = async::block_on<int>(moved_local(1))
+    if(r != 2) {
+        env.error("a moved local should yield 2")
+    }
+    if(suspend_drops != before + 1) {
+        env.error("a moved-out local must be destroyed exactly once on completion")
+    }
+    // cancellation path
+    before = suspend_drops
+    {
+        var h = moved_local(1)
+        var cx = core::async::Context {
+            waker : core::async::Waker { data : null, vtbl : null }
+        }
+        var p = h.vtbl.poll(h.frame, &raw mut cx)
+        if(p is core::async::Poll.Pending) { }
+    }
+    if(suspend_drops != before + 1) {
+        env.error("a moved-out local must be destroyed exactly once on cancellation")
+    }
+}
+
+@test
+func test_async_suspend_moved_param(env : &mut TestEnv) {
+    var before = suspend_drops
+    var r = async::block_on<int>(moved_param(DropCounter { value : 5 }))
+    if(r != 6) {
+        env.error("a moved parameter should yield 6")
+    }
+    if(suspend_drops != before + 1) {
+        env.error("a moved-out parameter must be destroyed exactly once")
+    }
+}
+
+// ---- arrays of destructor-bearing elements across a suspension ----
+
+async func cancel_array() : int {
+    var arr : [2]DropCounter = [DropCounter { value : 1 }, DropCounter { value : 2 }]
+    var n = await make_countdown(3, 1)
+    return arr[0].value + n
+}
+
+async func moved_array() : int {
+    var a : [2]DropCounter = [DropCounter { value : 1 }, DropCounter { value : 2 }]
+    var b = a
+    var n = await make_countdown(2, 1)
+    return b[0].value + n
+}
+
+@test
+func test_async_suspend_array_cancelled(env : &mut TestEnv) {
+    var before = suspend_drops
+    {
+        var h = cancel_array()
+        var cx = core::async::Context {
+            waker : core::async::Waker { data : null, vtbl : null }
+        }
+        var p = h.vtbl.poll(h.frame, &raw mut cx)
+        if(p is core::async::Poll.Pending) {
+            // suspended; the whole array is still live and must be destroyed
+        } else {
+            env.error("expected the array future to be pending on first poll")
+        }
+    }
+    if(suspend_drops != before + 2) {
+        env.error("cancelling must destroy each array element exactly once")
+    }
+}
+
+@test
+func test_async_suspend_moved_array(env : &mut TestEnv) {
+    var before = suspend_drops
+    var r = async::block_on<int>(moved_array())
+    if(r != 2) {
+        env.error("a moved array should yield 2")
+    }
+    if(suspend_drops != before + 2) {
+        env.error("a moved-out array must be destroyed exactly once (only the destination)")
+    }
+}

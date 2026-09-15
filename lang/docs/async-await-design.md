@@ -3520,19 +3520,29 @@ LLVM; TinyCC compiles the output.
 > pointers into the frame after `coro.end`, so `drop` runs `coro.destroy` and
 > then frees the frame once, afterwards.
 >
-> Verified on LLVM (`--llvm` still 2186/2186): `async func` with no awaits,
-> integer results and parameters, multiple sequential awaits, and awaits inside
-> loops all run correctly through `block_on`.
+> **No-await fast path (landed).** An async function whose plan has no sites is
+> lowered eagerly (`gen_llvm_async_eager_fn`, design Section 9.7) with no
+> coroutine intrinsics: a tiny heap frame `{ i32 state, T result }`, an
+> always-`Ready` `poll`, a `drop` that frees the frame, and a ramp that allocates
+> the frame, runs the body and returns the handle.
 >
-> **Remaining LLVM bug: destructor-bearing values.** A coroutine with a
-> destructor-bearing local (`var d = DC{...}`) or a destructor-bearing result
-> (`std::string`) corrupts the heap / segfaults. The frame is correctly sized
-> (includes the spilled struct) and the free pointer is the allocation base, so
-> the corruption comes from the destructor/drop-flag sequence in the split
-> resume; this needs the per-state destructor handling from Section 9.5
-> (mirroring Clang's cleanup) before destructor-bearing async values are trusted
-> on LLVM. Until then, prefer the C backend for async code that moves
-> destructor-bearing values across a suspension.
+> Verified on LLVM (`--llvm` still 2186/2186): `async func` with no awaits
+> (including destructor-bearing locals like `std::string`), integer results and
+> parameters, multiple sequential awaits, awaits inside loops, struct locals
+> across an await, and a `std::string` constructed/used **after** the last await.
+>
+> **Remaining LLVM bug: destructor-bearing structs that cross a suspension.** In
+> an await-bearing coroutine, a destructor-bearing struct (`std::string`) that is
+> live **across** the suspend (declared before an await and used after), or that
+> is the function result, corrupts the promise. Root cause: CoroFrame does not
+> reserve frame space for the promise (no `coro.promise` promise-alloca gets
+> recognized), so the canonical promise slot (`frame + 16`) overlaps the spill
+> area occupied by the struct; `poll`/`drop` then read/write the wrong bytes.
+> Value-type spills (ints, plain structs) happen not to collide, which is why
+> they work. Fixing this needs a promise whose frame slot is reserved correctly
+> (a recognized promise alloca / custom frame ABI) plus the per-state destructor
+> cleanup from Section 9.5. Until then, prefer the C backend for async code that
+> moves destructor-bearing values across a suspension.
 >
 > **Known limits (next).** Async closures require a closure-specific
 > frame/vtable emitter that stores the capture struct in the frame and binds

@@ -5,6 +5,7 @@
 #include "ast/base/ASTAllocator.h"
 #include "ast/base/BaseType.h"
 #include "ast/base/ExtendableMembersContainerNode.h"
+#include "ast/types/ArrayType.h"
 #include "ast/structures/Scope.h"
 #include "ast/structures/BlockScope.h"
 #include "ast/structures/If.h"
@@ -322,6 +323,33 @@ bool normalize_async_lambda(ASTAllocator& allocator, LambdaFunction* lambda) {
 namespace {
 
 /**
+ * Whether a slot's value needs a destructor at scope exit. A direct `@delete`
+ * covers structs; an array of destructor-bearing elements is also destructible
+ * even though the array type itself has no `@delete` (design Section 8.3), so
+ * that arrays crossing a suspension are destroyed on cancellation and can carry
+ * a drop flag.
+ */
+static bool slot_type_is_destructible(BaseType* type) {
+    if(type == nullptr) {
+        return false;
+    }
+    if(type->get_destructor() != nullptr) {
+        return true;
+    }
+    const auto canonical = type->canonical();
+    if(canonical->kind() != BaseTypeKind::Array) {
+        return false;
+    }
+    const auto arr = canonical->as_array_type_unsafe();
+    if(!arr->has_array_size() || arr->elem_type == nullptr) {
+        return false;
+    }
+    const auto elem = arr->elem_type->canonical();
+    const auto container = elem->get_members_container();
+    return container != nullptr && container->destructor_func() != nullptr;
+}
+
+/**
  * Walks the (normalized) body recording frame slots and, at each await, the
  * destructible slots live at that point (design Section 8.3/8.8). Scope
  * boundaries pop the locals introduced inside them.
@@ -337,7 +365,7 @@ struct PlanVisitor : public RecursiveVisitor<PlanVisitor> {
         AsyncFrameSlot slot;
         slot.name = name;
         slot.type = type;
-        slot.destructible = type != nullptr && type->get_destructor() != nullptr;
+        slot.destructible = slot_type_is_destructible(type);
         slot.node = node;
         plan.slots.push_back(slot);
         return id;

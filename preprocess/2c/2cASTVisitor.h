@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include "CTopLevelDeclVisitor.h"
 #include "CDestructionVisitor.h"
 #include "std/chem_string_view.h"
@@ -160,6 +161,14 @@ public:
      * this destruction visitor, calls destructors on things when it's required
      */
     CDestructionVisitor destructor;
+
+    /**
+     * `async func main` entry points whose synchronous `main` trampoline must be
+     * emitted alongside their lowered ramp (design Section 5.5). Populated by
+     * the declaration pass, which renames the entry to `__chx_async_main` before
+     * any prototype is emitted.
+     */
+    std::unordered_set<FunctionDeclaration*> async_trampoline_entries;
 
     /**
      * the function type for which code is being generated

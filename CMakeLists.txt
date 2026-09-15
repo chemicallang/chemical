@@ -737,6 +737,7 @@ set(COMPILER_SOURCES
         compiler/ctranslator/CTranslator.cpp
         compiler/chem_clang.cpp
         compiler/backend/LLVM.cpp
+        compiler/backend/LLVMCoroutine.cpp
         compiler/ASTCompiler.cpp
         compiler/backend/DebugInfoBuilder.h
         compiler/backend/DebugInfoBuilder.cpp

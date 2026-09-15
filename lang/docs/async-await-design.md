@@ -3501,13 +3501,45 @@ LLVM; TinyCC compiles the output.
 > clearing the source's frame drop flag
 > (`test_async_suspend_moved_array`). `lang/tests/async_suspend` is now 19/19.
 >
+> **LLVM coroutine lowering (landed for value types).**
+> `compiler/backend/LLVMCoroutine.{h,cpp}` implements the LLVM lowering
+> (`gen_llvm_async_fn`, `gen_llvm_await`): the coroutine ramp with the
+> `presplitcoroutine` **enum** attribute, `coro.id/alloc/size/begin`, a plain
+> promise alloca in the entry block (materialized into the frame by CoroFrame;
+> `poll`/`drop` recover it with `coro.promise(frame, align, false)`), an initial
+> lazy suspend, per-await saves/suspends (default arm returns to the caller,
+> `i8 0` re-polls, `i8 1` destroys), a final suspend, the shared
+> `coro.end(i1 false)` return path, the `i8 true` destroy path, plus `poll`/`drop`
+> functions and the `FutureTable<T>` vtable. `AwaitExpression` and
+> `writeReturnStmtFor` are hooked when `Codegen::current_coro` is set.
+> `LinkSignature::lowers_async` now returns true for `C` **and** `LLVM`.
+>
+> Frame ownership: the normal-completion path does **not** free the frame (that
+> would double-free when the returned handle is destroyed), and the cleanup does
+> **not** free either — CoroSplit's `coro.end` lowering writes the resume/destroy
+> pointers into the frame after `coro.end`, so `drop` runs `coro.destroy` and
+> then frees the frame once, afterwards.
+>
+> Verified on LLVM (`--llvm` still 2186/2186): `async func` with no awaits,
+> integer results and parameters, multiple sequential awaits, and awaits inside
+> loops all run correctly through `block_on`.
+>
+> **Remaining LLVM bug: destructor-bearing values.** A coroutine with a
+> destructor-bearing local (`var d = DC{...}`) or a destructor-bearing result
+> (`std::string`) corrupts the heap / segfaults. The frame is correctly sized
+> (includes the spilled struct) and the free pointer is the allocation base, so
+> the corruption comes from the destructor/drop-flag sequence in the split
+> resume; this needs the per-state destructor handling from Section 9.5
+> (mirroring Clang's cleanup) before destructor-bearing async values are trusted
+> on LLVM. Until then, prefer the C backend for async code that moves
+> destructor-bearing values across a suspension.
+>
 > **Known limits (next).** Async closures require a closure-specific
 > frame/vtable emitter that stores the capture struct in the frame and binds
 > `this` to it in `poll`; until that lands the C backend keeps the clear
 > diagnostic (above) rather than emitting broken code. Arrays cannot be
 > default-initialized from an arbitrary expression (only `zeroed`, a literal, or
-> another array identifier). The LLVM (`llvm.coro.*`) lowering is still to come,
-> so the state machine is C-only.
+> another array identifier).
 >
 > **Discovered blocker for the library-side shortcut (must be a compiler
 > lowering pass, not a library helper).** A generic function reference cannot

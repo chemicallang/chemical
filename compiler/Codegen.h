@@ -39,6 +39,8 @@ class NameMangler;
 
 class Value;
 
+struct LLVMCoroContext;
+
 class BaseType;
 
 class FunctionType;
@@ -239,6 +241,12 @@ public:
      * The return must be void for this to work
      */
     llvm::BasicBlock *redirect_return = nullptr;
+
+    /**
+     * active LLVM coroutine lowering context (design Section 9); non-null only
+     * while the body of a lowered async function is being generated
+     */
+    LLVMCoroContext* current_coro = nullptr;
 
     /**
      * LLVM context that holds modules

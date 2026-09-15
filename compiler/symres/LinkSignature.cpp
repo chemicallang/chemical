@@ -49,8 +49,18 @@
  * protocol today. The interpreter and the LLVM IR backend keep the eager
  * bootstrap (no wrapping), so their behavior is unchanged.
  */
-static bool is_c_backend(GlobalInterpretScope& scope) {
-    return scope.backend_context != nullptr && scope.backend_context->name() == "C";
+/**
+ * Whether the active backend lowers async functions to the `FutureHandle<T>`
+ * protocol. The C/2c backend does; the LLVM IR backend's coroutine lowering is
+ * still a work in progress (`compiler/backend/LLVMCoroutine.cpp`) and is gated
+ * off, so LLVM keeps the eager/transparent bootstrap like the interpreter.
+ */
+static bool lowers_async(GlobalInterpretScope& scope) {
+    if(scope.backend_context == nullptr) {
+        return false;
+    }
+    const auto name = scope.backend_context->name();
+    return name == "C" || name == "LLVM";
 }
 
 /**
@@ -756,7 +766,7 @@ void visit_func_decl(TopLevelLinkSignature& sig, FunctionDeclaration* node) {
     // (design Section 16.6 / D14). The C/2c backend lowers async functions to
     // that handle protocol by default; other backends (LLVM IR, interpreter)
     // have no lowering yet, so they keep the eager/transparent bootstrap.
-    if(node->attrs.is_async && is_c_backend(sig.linker.comptime_scope)
+    if(node->attrs.is_async && lowers_async(sig.linker.comptime_scope)
        && async_protocol_in_scope(sig.linker)
        && sig.linker.find(chem::string_view("async")) == nullptr
        && node->returnType.getType() != nullptr && !node->attrs.is_extern
@@ -767,7 +777,7 @@ void visit_func_decl(TopLevelLinkSignature& sig, FunctionDeclaration* node) {
         // symbol. (@extern / destructor / constructor get their own diagnostics.)
         sig.diagnoser.error(node) << "async functions require the `async` library; add `import async` to this module";
     }
-    if(node->attrs.is_async && is_c_backend(sig.linker.comptime_scope)
+    if(node->attrs.is_async && lowers_async(sig.linker.comptime_scope)
        && async_protocol_in_scope(sig.linker)
        && sig.linker.coreNodes.async.future_handle != nullptr
        && node->returnType.getType() != nullptr) {

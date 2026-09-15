@@ -3349,16 +3349,29 @@ LLVM; TinyCC compiles the output.
 > `FutureHandle<int>`; with the flag off the eager bootstrap is unchanged
 > (`--tcc` 2204/2204).
 >
-> **Next required piece.** The ramp must actually build the handle. Today the
-> body still returns `T` where the C signature is `FutureHandle<T>`, so lazy
-> mode compiles but crashes at runtime (garbage handle). The C lowering must
-> emit, per async function: a frame struct holding `T` (and later the live
-> locals/drop flags from `AsyncLoweringPlan`), a `poll` that returns
-> `Poll.Ready(frame->result)`, a `drop`, a static `FutureTable<T>`, and a ramp
-> that allocates the frame, runs the body (redirecting its `return e` to
-> `frame->result = e`), and returns `FutureHandle<T>{ frame, &vtbl }`. `await`
-> then drives the handle. This is purely 2c codegen and is the immediate next
-> step; the flag stays off until it is complete.
+> **Landed: C eager-frame lowering + inline `await` drive (Phase 4.1/4.3).**
+> The 2c backend now emits, per async function under `CHEMICAL_ASYNC_LAZY`:
+> a concrete frame struct (`uint32_t __state; T __result;`), a `poll` that
+> returns `Poll.Ready(frame->result)`, a `drop` that frees the frame, a static
+> `FutureTable<T>`, and a ramp that allocates the frame
+> (`chemical_async_frame_alloc`), runs the body (its `return e` is redirected by
+> `async_ramp_body` in `writeReturnStmtFor` to `frame->__result = e; goto done`),
+> then returns `FutureHandle<T>{ frame, &vtbl }`. `await e` where `e` is a
+> `FutureHandle<T>` is lowered inline (`VisitAwaitExpression`) to drive `poll`
+> and move the result out. The protocol type names are resolved structurally by
+> walking the wrapped return type (`resolve_async_c_types_from_handle`), so no
+> mangled name is hard-coded; the allocator hooks are defined in
+> `lang/libs/async/src/frame.ch`. `SymResLinkBody::VisitAwaitExpression`
+> unwraps the handle to `T`.
+>
+> Semantics are still **eager-ready** (the body runs in the ramp; `poll` is
+> always immediately `Ready`); the state machine that actually suspends
+> (frame-resident params/locals, `switch(state)`/`goto` resumption, `Pending`
+> returns) remains Phase 4.2. This is validated by
+> `./scripts/test.sh --tcc --async-lazy` (`lang/tests/async_lazy/`, 10/10) and
+> by `lang/compiled/aprobe` on both `Compiler --use-c` and `TCCCompiler`.
+> The flag stays off by default so the eager bootstrap remains the default until
+> the state machine and the LLVM lowering both land.
 >
 > **Discovered blocker for the library-side shortcut (must be a compiler
 > lowering pass, not a library helper).** A generic function reference cannot

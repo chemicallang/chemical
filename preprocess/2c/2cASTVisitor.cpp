@@ -314,6 +314,31 @@ void ToCAstVisitor::fwd_declare(BaseType* type) {
 
 void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl);
 
+/**
+ * The lazy async lowering (frame + ramp + poll + drop + vtable) is gated behind
+ * CHEMICAL_ASYNC_LAZY, the same switch that makes symres wrap an async
+ * function's return type into `FutureHandle<T>` (design Section 16.6).
+ */
+static bool async_lowering_enabled() {
+    return std::getenv("CHEMICAL_ASYNC_LAZY") != nullptr;
+}
+
+/**
+ * The concrete `core::async` protocol types for one `FutureHandle<T>`, resolved
+ * by walking the handle's `vtbl` field into `FutureTable<T>` and its `poll`
+ * field. `visit()` on each of these emits the correct concrete C type.
+ */
+struct AsyncCTypes {
+    BaseType* inner = nullptr;        // T
+    BaseType* handle = nullptr;       // FutureHandle<T>
+    BaseType* table = nullptr;        // FutureTable<T>
+    BaseType* poll = nullptr;         // Poll<T>
+    BaseType* context_ptr = nullptr;  // *mut Context
+    bool ok = false;
+};
+
+static AsyncCTypes resolve_async_c_types_from_handle(BaseType* rt);
+
 // will write a scope to visitor
 inline void visit_scope_only(ToCAstVisitor& visitor, Scope& scope) {
     visitor.visit(&scope);
@@ -3536,10 +3561,33 @@ void ToCAstVisitor::VisitUnsafeValue(UnsafeValue *value) {
 }
 
 void ToCAstVisitor::VisitAwaitExpression(AwaitExpression* value) {
-    // Phase 1 bootstrap: `await` is eager/transparent, so we translate the
-    // inner expression directly. The lazy coroutine lowering replaces this in
-    // Phase 4.
-    if(value->getInner()) visit(value->getInner());
+    auto inner = value->getInner();
+    if(inner == nullptr) {
+        write('0');
+        return;
+    }
+    // Lazy mode: when the operand is a compiler-generated `FutureHandle<T>`,
+    // drive it to completion and yield its result (design Section 4.4 / 10.1).
+    // The eager bootstrap futures are always ready, so a single poll resolves;
+    // the loop is kept so the same shape survives real suspension later.
+    if(async_lowering_enabled()) {
+        auto types = resolve_async_c_types_from_handle(const_cast<BaseType*>(inner->getType()));
+        if(types.ok) {
+            write("({ ");
+            visit(types.handle); write(" __chx__f = "); visit(inner); write("; ");
+            visit(types.inner); write(" __chx__r; ");
+            write("for(;;) { ");
+            visit(types.poll); write(" __chx__p = (*({ ");
+            visit(types.poll); write(" __chx__t; __chx__f.vtbl->poll(&__chx__t, __chx__f.frame, 0); &__chx__t; })); ");
+            write("if(__chx__p.__chx__vt_621827 == 0) { __chx__r = __chx__p.Ready.value; break; } ");
+            write("} ");
+            write("__chx__f.vtbl->drop(__chx__f.frame); ");
+            write("__chx__r; })");
+            return;
+        }
+    }
+    // Phase 1/bootstrap and non-future operands: `await e` yields `e`.
+    visit(inner);
 }
 
 void ToCAstVisitor::VisitImportStmt(ImportStatement *importStatement) {
@@ -3665,6 +3713,28 @@ void ToCAstVisitor::destruct_till_loop_scope_above() {
 }
 
 void ToCAstVisitor::writeReturnStmtFor(Value* returnValue) {
+    // Compiler-lowered async ramp: the function's C signature returns a
+    // `FutureHandle<T>` (via the hidden sret parameter) but the body computes a
+    // `T`. Store the body result into the frame result slot, run the normal
+    // scope cleanup, then jump to the completion label that builds the handle
+    // (design Sections 8.6, 8.7 and 10.1).
+    if(async_ramp_body) {
+        if(returnValue != nullptr) {
+            write("__chx__af->__result = ");
+            if(async_body_result_type != nullptr) {
+                accept_mutating_value_explicit(async_body_result_type, returnValue);
+            } else {
+                visit(returnValue);
+            }
+            write(';');
+            new_line_and_indent();
+        }
+        destruct_scopes_above(returnValue);
+        write("goto ");
+        write(return_redirect_block);
+        write(';');
+        return;
+    }
     const auto val = returnValue;
     const auto return_type = current_func_type->returnType;
     std::string saved_into_temp_var;
@@ -4328,6 +4398,211 @@ void ToCAstVisitor::VisitFunctionParam(FunctionParam *param) {
     param_type_with_id(*this, param->type, param->name);
 }
 
+/**
+ * Returns true when the lazy async lowering is active for `decl`. The return
+ * type of such a function was already wrapped into `FutureHandle<T>` by symres
+ * (gated behind CHEMICAL_ASYNC_LAZY, design Section 16.6), so the C backend must
+ * emit a frame + ramp + poll + drop + vtable instead of a plain function.
+ */
+static bool async_lowered(FunctionDeclaration* decl) {
+    return decl->is_async() && async_lowering_enabled();
+}
+
+static bool find_struct_member(MembersContainer* container, const chem::string_view& name, StructMember*& out) {
+    for(const auto var : container->variables()) {
+        if(var->name == name) {
+            out = var->as_struct_member_unsafe();
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Resolves the concrete `core::async` protocol types from a `FutureHandle<T>`
+ * type by walking the handle struct's `vtbl` field into `FutureTable<T>` and
+ * its `poll` field (whose return type is `Poll<T>`).
+ */
+static AsyncCTypes resolve_async_c_types_from_handle(BaseType* rt) {
+    AsyncCTypes t;
+    if(rt == nullptr || rt->kind() != BaseTypeKind::Generic) {
+        return t;
+    }
+    auto gen = rt->as_generic_type_unsafe();
+    if(gen->types.empty()) {
+        return t;
+    }
+    t.handle = rt;
+    t.inner = const_cast<BaseType*>(gen->types[0].getType());
+    const auto fh = rt->get_direct_linked_container();
+    if(fh == nullptr) {
+        return t;
+    }
+    StructMember* vtbl_field = nullptr;
+    if(!find_struct_member(fh, "vtbl", vtbl_field)) {
+        return t;
+    }
+    auto vtbl_field_type = const_cast<BaseType*>(vtbl_field->type.getType());
+    BaseType* table = nullptr;
+    if(vtbl_field_type->kind() == BaseTypeKind::Pointer) {
+        table = vtbl_field_type->as_pointer_type_unsafe()->type;
+    } else if(vtbl_field_type->kind() == BaseTypeKind::Reference) {
+        table = vtbl_field_type->as_reference_type_unsafe()->type;
+    }
+    if(table == nullptr) {
+        return t;
+    }
+    t.table = table;
+    const auto table_container = table->get_direct_linked_container();
+    if(table_container == nullptr) {
+        return t;
+    }
+    StructMember* poll_field = nullptr;
+    if(!find_struct_member(table_container, "poll", poll_field)) {
+        return t;
+    }
+    auto poll_field_type = const_cast<BaseType*>(poll_field->type.getType());
+    if(poll_field_type->kind() != BaseTypeKind::Function) {
+        return t;
+    }
+    const auto poll_fn = poll_field_type->as_function_type_unsafe();
+    t.poll = poll_fn->returnType;
+    if(poll_fn->params.size() >= 2) {
+        t.context_ptr = poll_fn->params[1]->type;
+    }
+    // `inner` is the handle's own generic argument T; for a genuine handle this
+    // matches the awaited result type, but we additionally require the struct to
+    // actually be `core::async::FutureHandle` so unrelated generics are ignored.
+    if(gen->referenced == nullptr || gen->referenced->linked == nullptr
+       || gen->referenced->linked->kind() != ASTNodeKind::StructDecl
+       || gen->referenced->linked->as_struct_def_unsafe()->name_view() != "FutureHandle") {
+        return t;
+    }
+    t.ok = t.inner != nullptr && t.poll != nullptr && t.context_ptr != nullptr;
+    return t;
+}
+
+static AsyncCTypes resolve_async_c_types(FunctionDeclaration* decl) {
+    return resolve_async_c_types_from_handle(const_cast<BaseType*>(decl->returnType.getType()));
+}
+
+/**
+ * Emits the frame struct, poll/drop prototypes and definitions and the static
+ * vtable for a lowered async function (design Section 10.1). The generated
+ * frame is heap allocated by the ramp and freed by the vtable's drop hook.
+ */
+static void emit_async_c_helpers(ToCAstVisitor& visitor, FunctionDeclaration* decl, AsyncCTypes& t) {
+    // frame struct (forward declaration + definition)
+    visitor.new_line_and_indent();
+    visitor.write("struct "); visitor.mangle(decl); visitor.write("__frame;");
+    visitor.new_line_and_indent();
+    visitor.write("struct "); visitor.mangle(decl); visitor.write("__frame { uint32_t __state; ");
+    visitor.visit(t.inner);
+    visitor.write(" __result; };");
+
+    // poll / drop prototypes and vtable declaration
+    visitor.new_line_and_indent();
+    visitor.write("static void "); visitor.mangle(decl); visitor.write("__poll(");
+    visitor.visit(t.poll); visitor.write("* __chx__async_ret, void* __frame, ");
+    visitor.visit(t.context_ptr); visitor.write(" __cx);");
+    visitor.new_line_and_indent();
+    visitor.write("static void "); visitor.mangle(decl); visitor.write("__drop(void* __frame);");
+    visitor.new_line_and_indent();
+    visitor.write("static "); visitor.visit(t.table); visitor.space();
+    visitor.mangle(decl); visitor.write("__vtbl;");
+
+    // poll definition — the eager bootstrap future is always ready; the real
+    // state machine will replace this body in Phase 4.2.
+    visitor.new_line_and_indent();
+    visitor.write("static void "); visitor.mangle(decl); visitor.write("__poll(");
+    visitor.visit(t.poll); visitor.write("* __chx__async_ret, void* __frame, ");
+    visitor.visit(t.context_ptr); visitor.write(" __cx) {");
+    visitor.indentation_level += 1;
+    visitor.new_line_and_indent();
+    visitor.write("struct "); visitor.mangle(decl); visitor.write("__frame* __chx__af = (struct ");
+    visitor.mangle(decl); visitor.write("__frame*) __frame;");
+    visitor.new_line_and_indent();
+    visitor.write("(void) __cx;");
+    visitor.new_line_and_indent();
+    visitor.write("*__chx__async_ret = ("); visitor.visit(t.poll);
+    visitor.write("){ .__chx__vt_621827 = 0, .Ready.value = __chx__af->__result };");
+    visitor.new_line_and_indent();
+    visitor.write("return;");
+    visitor.indentation_level -= 1;
+    visitor.new_line_and_indent();
+    visitor.write('}');
+
+    // drop definition
+    visitor.new_line_and_indent();
+    visitor.write("static void "); visitor.mangle(decl); visitor.write("__drop(void* __frame) {");
+    visitor.indentation_level += 1;
+    visitor.new_line_and_indent();
+    visitor.write("chemical_async_frame_free(__frame, sizeof(struct "); visitor.mangle(decl);
+    visitor.write("__frame), _Alignof(struct "); visitor.mangle(decl); visitor.write("__frame));");
+    visitor.indentation_level -= 1;
+    visitor.new_line_and_indent();
+    visitor.write('}');
+
+    // vtable definition
+    visitor.new_line_and_indent();
+    visitor.write("static "); visitor.visit(t.table); visitor.space(); visitor.mangle(decl);
+    visitor.write("__vtbl = ("); visitor.visit(t.table); visitor.write("){ .poll = ");
+    visitor.mangle(decl); visitor.write("__poll, .drop = "); visitor.mangle(decl); visitor.write("__drop };");
+}
+
+/**
+ * Emits a lowered async function: the frame helpers followed by the ramp. The
+ * ramp runs the (currently always-ready) body, redirecting its `return e` into
+ * the frame result slot, then returns a `FutureHandle<T>` pointing at the frame
+ * and the static vtable (design Sections 8.6, 8.7, 10.1).
+ */
+static void emit_async_lowered_function(ToCAstVisitor& visitor, FunctionDeclaration* decl, AsyncCTypes& t) {
+    emit_async_c_helpers(visitor, decl, t);
+
+    visitor.new_line_and_indent();
+    const auto decl_ret_func = decl->returnType->as_function_type();
+    if(decl_ret_func && !decl_ret_func->isCapturing()) {
+        func_that_returns_func_proto(visitor, decl, decl_ret_func, true);
+    } else {
+        declare_func_with_return(visitor, decl, true);
+    }
+    visitor.write('{');
+    visitor.indentation_level += 1;
+
+    visitor.new_line_and_indent();
+    visitor.write("struct "); visitor.mangle(decl); visitor.write("__frame* __chx__af = (struct ");
+    visitor.mangle(decl); visitor.write("__frame*) chemical_async_frame_alloc(sizeof(struct ");
+    visitor.mangle(decl); visitor.write("__frame), _Alignof(struct "); visitor.mangle(decl);
+    visitor.write("__frame));");
+    visitor.new_line_and_indent();
+    visitor.write("__chx__af->__state = 0;");
+
+    const auto prev_redirect = visitor.return_redirect_block;
+    const auto prev_async = visitor.async_ramp_body;
+    const auto prev_inner = visitor.async_body_result_type;
+    visitor.return_redirect_block = "__chx__async_done";
+    visitor.async_ramp_body = true;
+    visitor.async_body_result_type = t.inner;
+    scope(visitor, decl->body.value(), decl);
+    visitor.return_redirect_block = prev_redirect;
+    visitor.async_ramp_body = prev_async;
+    visitor.async_body_result_type = prev_inner;
+
+    visitor.new_line_and_indent();
+    visitor.write("__chx__async_done:");
+    visitor.new_line_and_indent();
+    visitor.write("__chx__af->__state = 1;");
+    visitor.new_line_and_indent();
+    visitor.write("*"); visitor.write("__chx_struct_ret_param_xx");
+    visitor.write(" = ("); visitor.visit(t.handle);
+    visitor.write("){ .frame = (void*) __chx__af, .vtbl = &"); visitor.mangle(decl);
+    visitor.write("__vtbl };");
+
+    visitor.indentation_level -= 1;
+    visitor.new_line_and_indent();
+    visitor.write('}');
+}
+
 void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
     if(!decl->body.has_value() || decl->is_comptime()) {
         return;
@@ -4354,6 +4629,16 @@ void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
                 std::cerr << "]" << std::endl;
             }
         }
+    }
+    if(async_lowered(decl)) {
+        auto types = resolve_async_c_types(decl);
+        if(!types.ok) {
+            visitor.error("async lowering could not resolve the core::async protocol types for this function", decl);
+        } else {
+            emit_async_lowered_function(visitor, decl, types);
+        }
+        visitor.current_func_type = prev_func_decl;
+        return;
     }
     visitor.new_line_and_indent();
     const auto decl_ret_func = decl->returnType->as_function_type();

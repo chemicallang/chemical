@@ -181,6 +181,20 @@ public:
     std::string return_redirect_block;
 
     /**
+     * when true, we are emitting the body of a compiler-lowered async ramp.
+     * `return expr` stores `expr` into the frame result slot and jumps to
+     * `return_redirect_block` instead of returning directly (design Section
+     * 8.7 / 10.1). The frame is a local named `__chx__af`.
+     */
+    bool async_ramp_body = false;
+
+    /**
+     * the body result type of the async function being lowered (the `T` in
+     * `FutureHandle<T>`). Used to emit the correct move into the frame result.
+     */
+    BaseType* async_body_result_type = nullptr;
+
+    /**
      * values or nodes can be used as keys, where as strings can be used to store
      * aliased names, which later can be accessed
      */

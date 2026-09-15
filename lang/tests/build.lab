@@ -38,6 +38,7 @@ import "./tls/chemical.mod" as tlsIntegrationMod
 import "./process/chemical.mod" as processTestMod
 import "./webview/chemical.mod" as webviewTestMod
 import "./libs/chemical.mod" as libTestsMod
+import "./async_lazy/chemical.mod" as asyncLazyMod
 
 func build_dir_path(ctx : *BuildContext, path : &std::string_view) : std::string {
     const new_path = std::string(ctx.build_path());
@@ -251,6 +252,16 @@ func test_libs_exe(ctx : *mut AppBuildContext) : *mut LabJob {
     return exe_job
 }
 
+func test_async_lazy_exe(ctx : *mut AppBuildContext) : *mut LabJob {
+    // Built with CHEMICAL_ASYNC_LAZY=1, so async functions return FutureHandle<T>
+    // and are lowered by the compiler (scripts/test.sh --async-lazy).
+    const exe_name = std::string_view("chemical-async-lazy-tests")
+    const exe_job = ctx.build_exe(&exe_name)
+    ctx.set_environment_testing(exe_job, true)
+    ctx.add_module(exe_job, asyncLazyMod.build(ctx, exe_job))
+    return exe_job
+}
+
 func test_tls_exe(ctx : *mut AppBuildContext) : *mut LabJob {
     const exe_name = std::string_view("chemical-tls-tests")
     const exe_job = ctx.build_exe(&exe_name)
@@ -292,6 +303,8 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
         return test_plugin_exe(ctx, std::string_view("universal"))
     } else if(ctx.has_arg(std::string_view("test-components"))) {
         return test_plugin_exe(ctx, std::string_view("components"))
+    } else if(ctx.has_arg(std::string_view("test-async-lazy"))) {
+        return test_async_lazy_exe(ctx)
     } else if(ctx.has_arg(std::string_view("test-tls"))) {
         return test_tls_exe(ctx)
     } else if(ctx.has_arg(std::string_view("test-process"))) {

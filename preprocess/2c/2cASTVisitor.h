@@ -26,6 +26,7 @@ class CDestructionVisitor;
 
 class FunctionType;
 class MembersContainer;
+struct AsyncSuspendContext;
 
 class ToCAstVisitor : public NonRecursiveVisitor<ToCAstVisitor>, public ASTDiagnoser {
 public:
@@ -193,6 +194,13 @@ public:
      * `FutureHandle<T>`). Used to emit the correct move into the frame result.
      */
     BaseType* async_body_result_type = nullptr;
+
+    /**
+     * non-null while emitting the body of a compiler-lowered async `poll`
+     * function (the suspension state machine, design Sections 8/10.1). It holds
+     * the frame field names, spill/reload metadata and site/state counters.
+     */
+    AsyncSuspendContext* async_suspend = nullptr;
 
     /**
      * values or nodes can be used as keys, where as strings can be used to store

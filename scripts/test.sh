@@ -57,8 +57,8 @@ usage() {
   echo "  --process               Build & run the process/environment test suite (passes --arg-test-process)"
   echo "  --webview               Build & run the webview test suite (passes --arg-test-webview)"
   echo "  --libs                  Build & run the library test suite (passes --arg-test-libs)"
-  echo "  --async-lazy            Build & run the async/await suite (C backend; pass --tcc)"
-  echo "  --async-suspend         Build & run the suspending async suite (C backend; pass --tcc)"
+  echo "  --async-lazy            Build & run the non-suspending async/await suite (C or LLVM)"
+  echo "  --async-suspend         Build & run the suspending async suite (C backend only; pass --tcc)"
   echo "  --target <triple>       Pass --target <triple> to the compiler (optional, omitted if empty)"
   echo "  -o <path>               Custom output executable path"
   echo "  --no-run                Build test executable only, do not run"
@@ -142,8 +142,9 @@ if [ -z "$TARGET" ]; then
   usage
 fi
 
-if { [ "$TEST_ASYNC_LAZY" = true ] || [ "$TEST_ASYNC_SUSPEND" = true ]; } && [ "$TARGET" != "TCCCompiler" ]; then
-  echo "Error: the async suites require the C backend (--tcc); the LLVM IR backend has no async lowering yet"
+if [ "$TEST_ASYNC_SUSPEND" = true ] && [ "$TARGET" != "TCCCompiler" ]; then
+  echo "Error: the suspending async suite currently requires the C backend (--tcc);"
+  echo "       LLVM coroutine suspension fails at object emission (physreg copy)."
   exit 1
 fi
 

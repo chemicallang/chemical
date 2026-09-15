@@ -1,9 +1,9 @@
-// Real-suspension async/await tests (CHEMICAL_ASYNC_LAZY + CHEMICAL_ASYNC_SUSPEND).
+// Real-suspension async/await tests.
 //
 // These drive a hand-authored future that returns `Pending` several times, so
 // the compiler-generated state machine must actually suspend and resume while
 // preserving parameters and locals across the suspension. Run with
-// `./scripts/test.sh --tcc --async-suspend`.
+// `./scripts/test.sh --tcc --async-suspend` (currently C backend only).
 
 var suspend_polls : int = 0;
 var suspend_drops : int = 0;

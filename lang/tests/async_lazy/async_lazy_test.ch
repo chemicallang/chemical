@@ -1,8 +1,8 @@
-// Lazy async/await tests (CHEMICAL_ASYNC_LAZY).
+// Non-suspending async/await tests.
 //
-// Under the lazy protocol an `async func f() : T` returns a `FutureHandle<T>`
-// and `await e` drives the future to completion and yields `T`. These tests are
-// compiled and run with the flag enabled (scripts/test.sh --async-lazy).
+// An `async func f() : T` returns a `FutureHandle<T>` and `await e` drives the
+// future to completion and yields `T`. These tests are compiled and run by
+// scripts/test.sh --async-lazy on both the C and LLVM backends.
 //
 // The compiler currently lowers async functions to an "eager-ready" future: the
 // body runs in the ramp and the generated `poll` is immediately `Ready`. The

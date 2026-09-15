@@ -4657,14 +4657,14 @@ void ToCAstVisitor::VisitFunctionParam(FunctionParam *param) {
 }
 
 /**
- * Returns true when the lazy async lowering is active for `decl`. The return
+ * Returns true when the async lowering is active for `decl`. The return
  * type of such a function was already wrapped into `FutureHandle<T>` by symres
- * (gated behind CHEMICAL_ASYNC_LAZY, design Section 16.6), so the C backend must
- * emit a frame + ramp + poll + drop + vtable instead of a plain function.
+ * whenever the `core`/`async` protocol is in scope, so the C backend must emit
+ * a frame + ramp + poll + drop + vtable instead of a plain function.
  */
 static bool async_lowered(FunctionDeclaration* decl) {
     // The C backend lowers every async function whose return type symres wrapped
-    // into `FutureHandle<T>` (see is_c_backend / async_protocol_in_scope in
+    // into `FutureHandle<T>` (see lowers_async / async_protocol_in_scope in
     // LinkSignature). A module that never imported the `async`/`core` library
     // keeps the eager bootstrap: symres did not wrap the return type, so the
     // body already returns a plain `T` and must not be lowered here.

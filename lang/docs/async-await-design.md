@@ -46,6 +46,18 @@
 > mandates that backends emit the poll loop and that `await` goes through a
 > `FutureHandle<T>` vtable (D13).
 >
+> **Implementation status — September 15, 2026.** The C/2c and LLVM IR backends
+> both lower async functions by default (no flags); the interpreter keeps the
+> eager/transparent bootstrap. Verified: `--async-lazy` 14/14 on C **and** LLVM;
+> `--async-suspend` 19/19 on C; main suites 2186/2186 (LLVM) and 2185/2185 (C);
+> async negative tests pass on both. B9 is fixed (`Codegen::assign_store`
+> memcpys a struct-typed pointer rvalue), so `block_on<std::string>` and string
+> results work on LLVM. An application's `async func main` gets a synchronous
+> `int main` trampoline on both backends. Remaining gaps: real coroutine
+> suspension (`--async-suspend`) still hits LLVM *"Cannot emit physreg copy
+> instruction"* at object emission, and async closures are rejected on both
+> native backends.
+>
 > This document supersedes the August 25, 2026 draft. The draft was a good
 > outline but contained factual errors about the codebase (wrong method names,
 > wrong file paths, invalid Chemical syntax) and, most importantly, recommended

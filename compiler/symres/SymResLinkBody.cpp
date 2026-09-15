@@ -44,6 +44,7 @@
 #include "ast/values/FunctionCall.h"
 #include "ast/types/ArrayType.h"
 #include "ast/types/GenericType.h"
+#include "ast/base/ExtendableMembersContainerNode.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/base/TypeBuilder.h"
@@ -2808,9 +2809,20 @@ void SymResLinkBody::VisitAwaitExpression(AwaitExpression* value) {
         value->setAwaitResultType(getTypeBuilder().getVoidType());
         return;
     }
-    // Phase 1 bootstrap: `await` is eager/transparent, so its result is the
-    // inner expression's own type. When the lazy FutureHandle<T> protocol lands
-    // this is where the inner type is unwrapped to T.
+    // Lazy protocol: when the operand is a compiler-generated `FutureHandle<T>`
+    // (an async call under CHEMICAL_ASYNC_LAZY), `await e` resolves to the inner
+    // `T` rather than the handle (design Section 4.4 / 16.6). Otherwise `await`
+    // is the eager/bootstrap transparent wrapper and yields the operand itself.
+    if(inner_type->kind() == BaseTypeKind::Generic) {
+        auto gen = inner_type->as_generic_type_unsafe();
+        auto linked = gen->referenced != nullptr ? gen->referenced->linked : nullptr;
+        if(linked != nullptr && linked->kind() == ASTNodeKind::StructDecl
+           && linked->as_extendable_members_container_unsafe()->name_view() == "FutureHandle"
+           && !gen->types.empty()) {
+            value->setAwaitResultType(const_cast<BaseType*>(gen->types[0].getType()));
+            return;
+        }
+    }
     value->setAwaitResultType(inner_type);
 }
 

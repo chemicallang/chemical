@@ -354,12 +354,31 @@ struct AsyncSuspendContext {
 
     unsigned await_index = 0;
 
+    /**
+     * slots that cannot be spilled by copy (destructors / arrays) and therefore
+     * live directly in the frame: all identifier references are rewritten to the
+     * frame field, which keeps their address stable across suspension and lets
+     * the normal destructor machinery target the field.
+     */
+    std::unordered_map<ASTNode*, unsigned> resident;
+
     std::string child_field(unsigned site) const {
         return frame_var + "->__chx_child_" + std::to_string(site);
     }
 
     std::string slot_field(unsigned id) const {
         return frame_var + "->__chx_slot_" + std::to_string(id);
+    }
+
+    std::string resident_field(ASTNode* node) const {
+        if(node == nullptr) {
+            return "";
+        }
+        auto found = resident.find(node);
+        if(found == resident.end()) {
+            return "";
+        }
+        return slot_field(found->second);
     }
 
     const AwaitSite* site_for(ASTNode* init) const;
@@ -2268,7 +2287,19 @@ void CDestructionVisitor::queue_destruct_type(std::string self_name, ASTNode* in
 
 void CDestructionVisitor::queue_destruct_decl_params(FunctionType* decl) {
     for(auto& d_param : decl->params) {
-        queue_destruct_type(d_param->name.str(), d_param, d_param->type->canonical());
+        auto self_name = d_param->name.str();
+        if(visitor.async_suspend != nullptr) {
+            // In a lowered async poll function, parameters of a type we cannot
+            // spill by copy live in the frame; destroy them through the field.
+            // Spillable parameters are reloaded into C locals and destroyed by
+            // name as usual.
+            auto field = visitor.async_suspend->resident_field(d_param);
+            if(!field.empty()) {
+                queue_destruct_type(std::move(field), d_param, d_param->type->canonical());
+                continue;
+            }
+        }
+        queue_destruct_type(std::move(self_name), d_param, d_param->type->canonical());
     }
 }
 
@@ -2387,7 +2418,16 @@ void CDestructionVisitor::VisitVarInitStmt(VarInitStatement *init) {
         visitor.error(init) << "couldn't determine type";
         return;
     }
-    queue_destruct_varInit_type(pure_t, init, init->name_str());
+    auto self_name = init->name_str();
+    // frame-resident locals of a lowered async poll function are destroyed
+    // through their frame field, not a stack name
+    if(visitor.async_suspend != nullptr) {
+        auto field = visitor.async_suspend->resident_field(init);
+        if(!field.empty()) {
+            self_name = std::move(field);
+        }
+    }
+    queue_destruct_varInit_type(pure_t, init, std::move(self_name));
 }
 
 // this will also destruct given function type's params at the end of scope
@@ -3537,6 +3577,26 @@ void ToCAstVisitor::VisitVarInitStmt(VarInitStatement *init) {
         // suspension point of the lowered state machine
         emit_async_await_var_init(*this, init);
         return;
+    }
+    if(async_suspend != nullptr) {
+        // destructor-bearing / array local: it lives directly in the frame so
+        // its address stays stable across a suspension
+        auto field = async_suspend->resident_field(init);
+        if(!field.empty()) {
+            new_line_and_indent(init->encoded_location());
+            write_str(field);
+            write(" = ");
+            if(init->value != nullptr) {
+                accept_mutating_value_explicit(init->known_type(), init->value);
+            } else {
+                write("("); visit(init->known_type()); write("){0}");
+            }
+            write(';');
+            // queue the destructor against the frame field (see
+            // CDestructionVisitor::VisitVarInitStmt)
+            destructor.VisitVarInitStmt(init);
+            return;
+        }
     }
     auto init_type = init->known_type();
     var_init(*this, init, init_type);
@@ -4781,6 +4841,23 @@ static void emit_async_poll_child(
     visitor.new_line_and_indent();
 }
 
+/**
+ * Emits a destructor call for one frame-resident slot, used by the `drop`
+ * switch when a suspended future is cancelled (design Section 8.5).
+ */
+static void emit_async_destroy_slot(ToCAstVisitor& visitor, const AsyncFrameSlot& slot, const std::string& field) {
+    if(slot.type == nullptr || slot.type->kind() == BaseTypeKind::Array) {
+        return;
+    }
+    const auto destr = slot.type->get_destructor();
+    if(destr == nullptr) {
+        return;
+    }
+    visitor.new_line_and_indent();
+    visitor.mangle(destr);
+    visitor.write("(&"); visitor.write_str(field); visitor.write(");");
+}
+
 static void emit_async_await_var_init(ToCAstVisitor& visitor, VarInitStatement* init) {
     auto& ctx = *visitor.async_suspend;
     const auto site = ctx.site_for(init);
@@ -4789,13 +4866,19 @@ static void emit_async_await_var_init(ToCAstVisitor& visitor, VarInitStatement* 
         return;
     }
     const auto name = init->name_str();
-    // 1. declare the result local (the poll assigns it on the first pass or on
-    //    resume; it is intentionally uninitialized here)
-    visitor.visit(init->known_type());
-    visitor.space();
-    visitor.write_str(name);
-    visitor.write(';');
-    visitor.new_line_and_indent();
+    // The awaited result is either a stack local (spillable result type) or a
+    // frame field (destructor-bearing result type).
+    const auto resident = ctx.resident_field(init);
+    const std::string target = resident.empty() ? name : resident;
+    if(resident.empty()) {
+        // 1. declare the result local (the poll assigns it on the first pass or
+        //    on resume; it is intentionally uninitialized here)
+        visitor.visit(init->known_type());
+        visitor.space();
+        visitor.write_str(name);
+        visitor.write(';');
+        visitor.new_line_and_indent();
+    }
     // 2. create the child future into the frame so it survives suspension
     visitor.write_str(ctx.child_field(site->resume_state));
     visitor.write(" = ");
@@ -4803,7 +4886,7 @@ static void emit_async_await_var_init(ToCAstVisitor& visitor, VarInitStatement* 
     visitor.write(';');
     visitor.new_line_and_indent();
     // 3. poll; may suspend
-    emit_async_poll_child(visitor, ctx, *site, name, false);
+    emit_async_poll_child(visitor, ctx, *site, target, false);
     visitor.write("goto __chx__after_");
     visitor.write(site->resume_state);
     visitor.write(';');
@@ -4814,7 +4897,7 @@ static void emit_async_await_var_init(ToCAstVisitor& visitor, VarInitStatement* 
     visitor.write(':');
     visitor.new_line_and_indent();
     emit_async_reload(visitor, ctx, *site);
-    emit_async_poll_child(visitor, ctx, *site, name, true);
+    emit_async_poll_child(visitor, ctx, *site, target, true);
     visitor.write("__chx__after_");
     visitor.write(site->resume_state);
     visitor.write(':');
@@ -4835,15 +4918,37 @@ static void emit_async_suspend_function(ToCAstVisitor& visitor, FunctionDeclarat
     ctx.poll = t.poll;
     ctx.context_ptr = t.context_ptr;
 
-    // Diagnose locals/params we cannot keep across an await yet so we fail
-    // loudly instead of miscompiling.
+    // Decide which slots live directly in the frame (address-stable, destructor
+    // aware) instead of being spilled by copy. Any non-spillable slot that is a
+    // parameter or crosses a suspension point must be frame-resident; arrays are
+    // still unsupported (they cannot be assigned in C), and destructor-bearing
+    // await results cannot be moved out of the Poll yet.
+    std::vector<bool> crosses(ctx.plan.slots.size(), false);
     for(auto& site : ctx.plan.sites) {
         for(auto id : site.live_slots) {
-            const auto& slot = ctx.plan.slots[id];
-            if(slot.node == site.var_init || async_slot_spillable(slot)) {
-                continue;
+            if(id < crosses.size()) {
+                crosses[id] = true;
             }
-            visitor.error("async suspension cannot keep a destructor-bearing or array local/parameter across an await yet", slot.node);
+        }
+    }
+    for(size_t id = 0; id < ctx.plan.slots.size(); id++) {
+        const auto& slot = ctx.plan.slots[id];
+        if(slot.node == nullptr || async_slot_spillable(slot)) {
+            continue;
+        }
+        const bool is_param = slot.node->kind() == ASTNodeKind::FunctionParam;
+        if(!crosses[id] && !is_param) {
+            continue;
+        }
+        if(slot.type == nullptr || slot.type->kind() == BaseTypeKind::Array) {
+            visitor.error("async suspension cannot keep an array parameter or local across an await yet", slot.node);
+            continue;
+        }
+        ctx.resident[slot.node] = (unsigned) id;
+    }
+    for(auto& site : ctx.plan.sites) {
+        if(site.awaited_type != nullptr && site.awaited_type->get_destructor() != nullptr) {
+            visitor.error("async suspension cannot yet move a destructor-bearing await result out of the future", decl);
         }
     }
 
@@ -4893,10 +4998,14 @@ static void emit_async_suspend_function(ToCAstVisitor& visitor, FunctionDeclarat
     visitor.new_line_and_indent();
     visitor.write("struct "); visitor.mangle(decl); visitor.write("__frame* __chx__af = (struct ");
     visitor.mangle(decl); visitor.write("__frame*) __frame;");
-    // parameter C locals (loaded from frame slots at entry and on every resume)
+    // parameter C locals (loaded from frame slots at entry and on every resume);
+    // frame-resident parameters are referenced through the frame instead
     for(size_t id = 0; id < ctx.plan.slots.size(); id++) {
         const auto& slot = ctx.plan.slots[id];
         if(slot.node == nullptr || slot.node->kind() != ASTNodeKind::FunctionParam || slot.type == nullptr) {
+            continue;
+        }
+        if(!ctx.resident_field(slot.node).empty()) {
             continue;
         }
         visitor.new_line_and_indent();
@@ -4929,10 +5038,13 @@ static void emit_async_suspend_function(ToCAstVisitor& visitor, FunctionDeclarat
     visitor.new_line_and_indent();
     visitor.write("__chx__L0:");
     visitor.new_line_and_indent();
-    // load parameters from the frame
+    // load spillable parameters from the frame
     for(size_t id = 0; id < ctx.plan.slots.size(); id++) {
         const auto& slot = ctx.plan.slots[id];
         if(slot.node == nullptr || slot.node->kind() != ASTNodeKind::FunctionParam) {
+            continue;
+        }
+        if(!ctx.resident_field(slot.node).empty()) {
             continue;
         }
         visitor.write(slot.name); visitor.write(" = "); visitor.write_str(ctx.slot_field((unsigned) id)); visitor.write(';');
@@ -4950,10 +5062,36 @@ static void emit_async_suspend_function(ToCAstVisitor& visitor, FunctionDeclarat
     visitor.new_line_and_indent();
     visitor.write('}');
 
-    // ---- drop ----
+    // ---- drop (cancellation) ----
+    // If the future is suspended at state i+1, run the destructors of every
+    // destructible slot live at that site (design Section 8.5) before freeing
+    // the frame. The `default` covers DONE (completion already destroyed its
+    // locals) and state 0 (nothing initialized yet).
     visitor.new_line_and_indent();
     visitor.write("static void "); visitor.mangle(decl); visitor.write("__drop(void* __frame) {");
     visitor.indentation_level += 1;
+    visitor.new_line_and_indent();
+    visitor.write("struct "); visitor.mangle(decl); visitor.write("__frame* __chx__af = (struct ");
+    visitor.mangle(decl); visitor.write("__frame*) __frame;");
+    visitor.new_line_and_indent();
+    visitor.write("switch(__chx__af->__state) {");
+    visitor.indentation_level += 1;
+    for(size_t i = 0; i < ctx.plan.sites.size(); i++) {
+        visitor.new_line_and_indent();
+        visitor.write("case "); visitor.write((unsigned) (i + 1)); visitor.write(':');
+        visitor.indentation_level += 1;
+        for(auto id : ctx.plan.sites[i].live_drops) {
+            emit_async_destroy_slot(visitor, ctx.plan.slots[id], ctx.slot_field(id));
+        }
+        visitor.new_line_and_indent();
+        visitor.write("break;");
+        visitor.indentation_level -= 1;
+    }
+    visitor.new_line_and_indent();
+    visitor.write("default: break;");
+    visitor.indentation_level -= 1;
+    visitor.new_line_and_indent();
+    visitor.write('}');
     visitor.new_line_and_indent();
     visitor.write("chemical_async_frame_free(__frame, sizeof(struct "); visitor.mangle(decl);
     visitor.write("__frame), _Alignof(struct "); visitor.mangle(decl); visitor.write("__frame));");
@@ -7533,6 +7671,14 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
         }
     }
     const auto linked = identifier->linked_node();
+    if(async_suspend != nullptr && linked != nullptr) {
+        // frame-resident local/parameter of a lowered async poll function
+        auto field = async_suspend->resident_field(linked);
+        if(!field.empty()) {
+            write_str(field);
+            return;
+        }
+    }
     const auto linked_kind = linked->kind();
     if(ASTNode::isAnyStructMember(linked_kind)) {
         if(is_first) {

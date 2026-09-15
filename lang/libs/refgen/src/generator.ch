@@ -94,7 +94,7 @@ func process_doc_comment(comment : std::string_view, html : &mut std::string) {
             sees.push_back(std::string(line.subview(4, line.size()).trim().data()));
         } else {
             if (!main_desc.empty()) main_desc.append_view("\n");
-            main_desc.append_view(line);
+            main_desc.append_view(&line);
         }
     }
 
@@ -115,7 +115,7 @@ func process_doc_comment(comment : std::string_view, html : &mut std::string) {
                 html.append_view("</b> ");
                 html.append_view(p.subview(space + 1, p.size()));
             } else {
-                html.append_view(p);
+                html.append_view(&p);
                 html.append_view("</b>");
             }
             html.append_view("</li>");
@@ -205,9 +205,11 @@ func is_native_module(mod_name : std::string_view) : bool {
     // List of native modules based on d:\Programming\Cpp\zig-bootstrap\chemical\lang\libs
     var natives = "|atomic|compiler|core|crashsave|css_cbi|css_ide|css_parser|cstd|docgen|fs|html_cbi|html_comp|html_ide|html_parser|ide|js_cbi|json|lab|md|md_cbi|minlsp|net|page|preact_cbi|react_cbi|refgen|solid_cbi|std|test|test_env|transformer|";
     var search = std::string("|");
-    search.append_view(mod_name);
+    search.append_view(&mod_name);
     search.append_view("|");
-    return std::string(natives).to_view().contains(search.to_view());
+        var natives_str = std::string(natives);
+        var natives_view = natives_str.to_view();
+        return natives_view.contains(&search.to_view());
 }
 
 func is_alphanum(c : char) : bool {
@@ -283,17 +285,17 @@ func highlight_chemical(code : std::string_view) : std::string {
             // Very simple keyword/type check (substring search in list for speed)
             // In a real implementation we'd use a set or split the string
             var span_class = std::string_view("");
-            if (kwds_view.contains(word)) span_class = std::string_view("tok-kwd");
-            else if (types_view.contains(word)) span_class = std::string_view("tok-type");
+            if (kwds_view.contains(&word)) span_class = std::string_view("tok-kwd");
+            else if (types_view.contains(&word)) span_class = std::string_view("tok-type");
             
             if (!span_class.empty()) {
                 html.append_view("<span class='");
-                html.append_view(span_class);
+                html.append_view(&span_class);
                 html.append_view("'>");
-                html.append_view(word);
+                html.append_view(&word);
                 html.append_view("</span>");
             } else {
-                html.append_view(word);
+                html.append_view(&word);
             }
         } else {
             html.append(c);
@@ -502,7 +504,7 @@ public struct Generator {
         var mod_name = module.getName();
         var mod_dir = self.output_dir.copy();
         mod_dir.append_view("/");
-        mod_dir.append_view(mod_name);
+        mod_dir.append_view(&mod_name);
         
         res = fs::create_dir_all(mod_dir.data());
         if (res is std::Result.Err) {
@@ -511,13 +513,14 @@ public struct Generator {
             return;
         }
 
+        var mod_dir_view = mod_dir.to_view();
         var count = module.getFileCount();
         for (var i = 0u; i < count; i++) {
             var file_meta = module.getFile(i);
-            self.generate_file_docs(file_meta, mod_dir.to_view(), mod_name);
+            self.generate_file_docs(file_meta, mod_dir_view, mod_name);
         }
 
-        self.generate_module_index(mod_name, mod_dir.to_view());
+        self.generate_module_index(mod_name, mod_dir_view);
     }
 
     func generate_module_index(&mut self, mod_name : std::string_view, mod_dir : std::string_view) {
@@ -529,7 +532,7 @@ public struct Generator {
         var pub_count : uint = 0;
         for (var si = 0u; si < self.index.size(); si++) {
             var ssym = self.index.get_ptr(si);
-            if (ssym.mod_name.to_view().equals(mod_name)) {
+            if (ssym.mod_name.to_view().equals(&mod_name)) {
                 sym_count++;
                 if (ssym.access == AccessSpecifier.Public) pub_count++;
             }
@@ -545,7 +548,8 @@ public struct Generator {
         var crumb = std::string("<a class='crumb' href='../index.html'>Reference</a>");
         var html = self.page_head(mod_name, "Chemical API Documentation for module", "module", crumb.to_view(), mod_name, "", stats.to_view());
 
-        html.append_string(self.generate_sidebar(rel_root.to_view()).copy());
+        var sb = self.generate_sidebar(rel_root.to_view());
+        html.append_string(sb.copy());
 
         html.append_view("<div class='main-content'>");
         
@@ -566,7 +570,7 @@ public struct Generator {
         // Pass 1: Top-level symbols
         for (var i = 0u; i < self.index.size(); i++) {
             var sym = self.index.get_ptr(i);
-            if (sym.mod_name.to_view().equals(mod_name) && sym.parent_name.empty()) {
+            if (sym.mod_name.to_view().equals(&mod_name) && sym.parent_name.empty()) {
                 var is_public = sym.access == AccessSpecifier.Public;
                 html.append_view("<div class='top-level-sym ");
                 if (!is_public) html.append_view("non-public");
@@ -591,7 +595,7 @@ public struct Generator {
                 var has_children = false;
                 for (var j = 0u; j < self.index.size(); j++) {
                     var child = self.index.get_ptr(j);
-                    if (child.mod_name.to_view().equals(mod_name) && child.parent_name.to_view().equals(sym.name.to_view())) {
+                    if (child.mod_name.to_view().equals(&mod_name) && child.parent_name.to_view().equals(&sym.name.to_view())) {
                         has_children = true;
                         break;
                     }
@@ -612,7 +616,7 @@ public struct Generator {
                     html.append_view("<ul class='nav-list' style='margin-left: 1.5rem; margin-top: 0.5rem; border-left: 1px solid var(--border); padding-left: 1rem;'>");
                     for (var j = 0u; j < self.index.size(); j++) {
                         var child = self.index.get_ptr(j);
-                        if (child.mod_name.to_view().equals(mod_name) && child.parent_name.to_view().equals(sym.name.to_view())) {
+                        if (child.mod_name.to_view().equals(&mod_name) && child.parent_name.to_view().equals(&sym.name.to_view())) {
                             html.append_view("<li><a href='./");
                             var cf_id = std::string("");
                             cf_id.append_uinteger(child.file_id as ubigint);
@@ -635,7 +639,8 @@ public struct Generator {
         html.append_view("</div>");
         html.append_view(self.footer_html());
         html.append_view("</div></div>");
-        html.append_string(self.get_js(rel_root.to_view()));
+        var js = self.get_js(rel_root.to_view());
+        html.append_string(js.copy());
         html.append_view("</body></html>");
 
         var out_file = std::string(mod_dir.data(), mod_dir.size());
@@ -672,9 +677,9 @@ public struct Generator {
                         html.append_view("<a class='git-link' href='https://github.com/chemicallang/chemical/tree/");
                         html.append_view(self.git_ref.to_view());
                         html.append_view("/lang/libs/");
-                        html.append_view(m_name);
+                        html.append_view(&m_name);
                         html.append_view("/src/");
-                        html.append_view(rel_path);
+                        html.append_view(&rel_path);
                         html.append_view("#L");
                         var l_str = std::string("");
                         l_str.append_uinteger(line as ubigint);
@@ -692,7 +697,7 @@ public struct Generator {
         var deps = self.ctx.getFlattenedModules();
         for (var i = 0u; i < deps.size(); i++) {
             var m = deps.get(i) as *TransformerModule;
-            if (m.getName().equals(name)) return m;
+            if (m.getName().equals(&name)) return m;
         }
         return null;
     }
@@ -704,16 +709,18 @@ public struct Generator {
             var d = mod.getDependency(i);
             var d_name = d.getName();
             mermaid.append_view("    ");
-            mermaid.append_view(mod_name);
+            mermaid.append_view(&mod_name);
             mermaid.append_view(" --> ");
-            mermaid.append_view(d_name);
+            mermaid.append_view(&d_name);
             mermaid.append_view("[");
-            mermaid.append_view(d_name);
+            mermaid.append_view(&d_name);
             mermaid.append_view("]\n");
             // Check if already visited to avoid infinite recursion
             var already = false;
             for (var j = 0u; j < visited.size(); j++) {
-                if (visited.get(j).to_view().equals(d_name)) {
+                var visited_str = visited.get(j);
+                var visited_view = visited_str.to_view();
+                if (visited_view.equals(&d_name)) {
                     already = true;
                     break;
                 }
@@ -734,20 +741,22 @@ public struct Generator {
         
         var mermaid = std::string("graph LR\n");
         mermaid.append_view("    ");
-        mermaid.append_view(mod_name);
+        mermaid.append_view(&mod_name);
         mermaid.append_view("[");
-        mermaid.append_view(mod_name);
+        mermaid.append_view(&mod_name);
         mermaid.append_view("]\n");
         
         var visited = std::vector<std::string>();
         visited.push_back(std::string(mod_name.data(), mod_name.size()));
-        self.add_module_deps(mod, mermaid, visited);
+        self.add_module_deps(mod, &mut mermaid, &mut visited);
         return mermaid;
     }
 
     func generate_sidebar(&mut self, rel_root : &std::string_view) : &std::string {
-        if (self.sidebar_cache.contains(std::string(rel_root.data(), rel_root.size()))) {
-            return *self.sidebar_cache.get_ptr(std::string(rel_root.data(), rel_root.size()));
+        var key = std::string(rel_root.data(), rel_root.size());
+        if (self.sidebar_cache.contains(&key)) {
+            var cached = self.sidebar_cache.get_ptr(&key);
+            return &*cached;
         }
 
         var html = std::string("<div class='sidebar'>");
@@ -766,7 +775,7 @@ public struct Generator {
         var last_mod = std::string("");
         for (var i = 0u; i < self.index.size(); i++) {
             var sym = self.index.get_ptr(i);
-            if (!sym.mod_name.equals(last_mod)) {
+            if (!sym.mod_name.equals(&last_mod)) {
                 html.append_view("<li><a href='");
                 html.append_view(rel_root);
                 html.append_view("/");
@@ -778,8 +787,9 @@ public struct Generator {
             }
         }
         html.append_view("</ul></div>");
-        self.sidebar_cache.insert(std::string(rel_root.data(), rel_root.size()), html.copy());
-        return *self.sidebar_cache.get_ptr(std::string(rel_root.data(), rel_root.size()));
+        self.sidebar_cache.insert(key.copy(), html.copy());
+        var stored = self.sidebar_cache.get_ptr(&key);
+        return &*stored;
     }
 
     func generate_file_docs(&mut self, file_meta : *ASTFileMetaData, mod_dir : std::string_view, mod_name : std::string_view) {
@@ -823,21 +833,22 @@ public struct Generator {
         stats.append_uinteger(decl_count as ubigint);
         stats.append_view("</b> declarations</span>");
         stats.append_view("<span class='stat-chip'>");
-        stats.append_view(mod_name);
+        stats.append_view(&mod_name);
         stats.append_view("</span>");
 
         var title = std::string("");
-        title.append_view(filename);
+        title.append_view(&filename);
         title.append_view(" - Chemical API");
 
         var sub = std::string("Declarations in <code>");
-        sub.append_view(filename);
+        sub.append_view(&filename);
         sub.append_view("</code>");
         var sub_view = sub.to_view();
 
         var html = self.page_head(title.to_view(), "Chemical API Documentation for", "api", "", "", filename, sub_view);
 
-        html.append_string(self.generate_sidebar(rel_root.to_view()).copy());
+        var sb = self.generate_sidebar(rel_root.to_view());
+        html.append_string(sb.copy());
 
         html.append_view("<div class='main-content'>");
         html.append_view("<div class='symbols-header'><h3>Declarations</h3><div class='filter-box'><label class='switch'><input type='checkbox' id='public-only' onchange='applyFilter()'><span class='slider'></span></label> <span>Public only</span></div></div>");
@@ -849,14 +860,15 @@ public struct Generator {
         var i = 0u;
         while (i < nodes.size()) {
             var node = nodes.get(i);
-            self.document_node(node, html, tokens, rel_root.to_view(), abs_path);
+            var rel_view = rel_root.to_view();
+            self.document_node(node, &mut html, tokens, &rel_view, &abs_path);
             i++;
         }
 
         // Debug Info section
         html.append_view("<button class='debug-toggle' onclick='toggleDebug()'>Show Debug Info</button>");
         html.append_view("<div id='debug-info' style='display:none;'>Generated from: ");
-        html.append_view(abs_path);
+        html.append_view(&abs_path);
         html.append_view("<br>File ID: ");
         var f_id_str = std::string("");
         f_id_str.append_uinteger(file_id as ubigint);
@@ -865,7 +877,8 @@ public struct Generator {
 
         html.append_view(self.footer_html());
         html.append_view("</div></div>");
-        html.append_string(self.get_js(rel_root.to_view()));
+        var js = self.get_js(rel_root.to_view());
+        html.append_string(js.copy());
         html.append_view("</body></html>");
 
         var out_file = std::string(mod_dir.data(), mod_dir.size());
@@ -985,7 +998,7 @@ public struct Generator {
             var node = linked.getLinkedNode();
             if (node != null) {
                 var name = get_node_name(node);
-                var sym = self.find_symbol(name);
+                var sym = self.find_symbol(&name);
                 if (sym != null) {
                     html.append_view("<a href='");
                     html.append_view(rel_root);
@@ -996,12 +1009,12 @@ public struct Generator {
                     f_id.append_uinteger(sym.file_id as ubigint);
                     html.append_view(f_id.to_view());
                     html.append_view(".html#");
-                    html.append_view(name);
+                    html.append_view(&name);
                     html.append_view("'>");
-                    html.append_view(name);
+                    html.append_view(&name);
                     html.append_view("</a>");
                 } else {
-                    html.append_view(name);
+                    html.append_view(&name);
                 }
             } else {
                 html.append_view("unknown");
@@ -1022,7 +1035,7 @@ public struct Generator {
         html.append_view("<div class='node ");
         if (access != AccessSpecifier.Public) html.append_view("non-public ");
         html.append_view("' id='");
-        html.append_view(name);
+        html.append_view(&name);
         html.append_view("'>");
         
         // Header
@@ -1030,10 +1043,10 @@ public struct Generator {
         
         html.append_view("<div style='display: flex; justify-content: space-between; align-items: baseline; width: 100%;'>");
         html.append_view("<span class='node-title'>");
-        html.append_view(name);
+        html.append_view(&name);
         html.append_view("</span>");
         html.append_view("<a class='node-anchor' href='#");
-        html.append_view(name);
+        html.append_view(&name);
         html.append_view("' title='Copy link'>#</a>");
         
         if(true){
@@ -1049,7 +1062,7 @@ public struct Generator {
         if (access == AccessSpecifier.Public) html.append_view("<span class='attr-badge'>Public</span>");
 
         html.append_view("<span class='kind-badge' style='margin-right: 0;'>");
-        html.append_view(kind_label);
+        html.append_view(&kind_label);
         html.append_view("</span>");
 
         if (kind == ASTNodeKind.FunctionDecl || kind == ASTNodeKind.GenericFuncDecl) {
@@ -1060,8 +1073,7 @@ public struct Generator {
                 header_decl = (node as *GenericFuncDecl).getMasterImpl();
             }
             if (header_decl != null) {
-                var attrs : FuncDeclAttributesCBI = zeroed<FuncDeclAttributesCBI>();
-                header_decl.getAttributes(&mut attrs);
+                var attrs : FuncDeclAttributesCBI = header_decl.getAttributes();
 
                 if (header_decl.isExtensionFn()) {
                     html.append_view("<span class='extension-tag' style='margin-left: 0;'>Extension</span>");
@@ -1093,11 +1105,10 @@ public struct Generator {
                 gparams = gdecl.getGenericParams();
             }
 
-            var attrs : FuncDeclAttributesCBI = zeroed<FuncDeclAttributesCBI>();
-            decl.getAttributes(&mut attrs);
+            var attrs : FuncDeclAttributesCBI = decl.getAttributes();
             
             html.append_view("<span class='tok-kwd'>func</span> ");
-            html.append_view(name);
+            html.append_view(&name);
             
             if (gparams != null) {
                 html.append_view("&lt;");
@@ -1167,7 +1178,7 @@ public struct Generator {
                 gparams = gdecl.getGenericParams();
             }
             
-            html.append_view(name);
+            html.append_view(&name);
             
             if (gparams != null) {
                 html.append_view("&lt;");
@@ -1224,7 +1235,7 @@ public struct Generator {
             }
         } else if (kind == ASTNodeKind.EnumDecl) {
             html.append_view("<span class='tok-kwd'>enum</span> ");
-            html.append_view(name);
+            html.append_view(&name);
             html.append_view(" {");
             var enum_decl = node as *EnumDeclaration;
             var members = enum_decl.getMembers();
@@ -1239,7 +1250,7 @@ public struct Generator {
             html.append_view("}");
         } else if (kind == ASTNodeKind.UnionDecl) {
             html.append_view("<span class='tok-kwd'>union</span> ");
-            html.append_view(name);
+            html.append_view(&name);
             html.append_view(" {");
             var union_decl = node as *UnionDef;
             var members = union_decl.getMembers();
@@ -1257,17 +1268,17 @@ public struct Generator {
             html.append_view("}");
         } else if (kind == ASTNodeKind.NamespaceDecl) {
             html.append_view("<span class='tok-kwd'>namespace</span> ");
-            html.append_view(name);
+            html.append_view(&name);
         } else if (kind == ASTNodeKind.TypealiasStmt) {
             var stmt = node as *TypealiasStatement;
             html.append_view("<span class='tok-kwd'>type</span> ");
-            html.append_view(name);
+            html.append_view(&name);
             html.append_view(" = ");
             self.render_type(stmt.getActualType(), html, rel_root);
         } else if (kind == ASTNodeKind.StructMember || kind == ASTNodeKind.VariantMember) {
             var member = node as *BaseDefMember;
             html.append_view("<span class='tok-kwd'>var</span> ");
-            html.append_view(name);
+            html.append_view(&name);
             var t = member.getType();
             if (t != null) {
                 html.append_view(" : ");
@@ -1369,31 +1380,38 @@ public struct Generator {
         var mod_names = std::vector<std::string>();
         for (var i = 0u; i < self.index.size(); i++) {
             var sym = self.index.get_ptr(i);
-            if (mod_names.size() == 0 || !sym.mod_name.equals(mod_names.get(mod_names.size() - 1).to_view())) {
+            if (mod_names.size() == 0) {
                 mod_names.push_back(sym.mod_name.copy());
+            } else {
+                var last_name = mod_names.get_ptr(mod_names.size() - 1);
+                if (!sym.mod_name.equals(&*last_name)) {
+                    mod_names.push_back(sym.mod_name.copy());
+                }
             }
         }
 
         var html = self.page_head("Chemical API Reference", "Chemical Language Core API Reference", "reference", "", "Chemical API Reference", "Documentation for the Chemical Language core libraries and standard modules.", "");
 
-        html.append_string(self.generate_sidebar(rel_root.to_view()).copy());
+        var sb = self.generate_sidebar(rel_root.to_view());
+        html.append_string(sb.copy());
 
         html.append_view("<div class='main-content'>");
         html.append_view("<div class='module-grid'>");
         for (var m = 0u; m < mod_names.size(); m++) {
-            var mname = mod_names.get(m);
+            var mname = mod_names.get_ptr(m);
+            var mname_view = mname.to_view();
             html.append_view("<div class='module-card'>");
             html.append_view("<span class='card-arrow'>&#8594;</span>");
             html.append_view("<div class='kind-badge'>module</div>");
             html.append_view("<br><br><a href='./");
-            html.append_view(mname.to_view());
+            html.append_view(&mname_view);
             html.append_view("/index.html'>");
-            html.append_view(mname.to_view());
+            html.append_view(&mname_view);
             html.append_view("</a>");
             html.append_view("<span class='card-count'>");
             var cnt : uint = 0;
             for (var j = 0u; j < self.index.size(); j++) {
-                if (self.index.get_ptr(j).mod_name.to_view().equals(mname.to_view())) cnt++;
+                if (self.index.get_ptr(j).mod_name.equals(&*mname)) cnt++;
             }
             html.append_uinteger(cnt as ubigint);
             html.append_view(" symbols</span>");
@@ -1402,7 +1420,8 @@ public struct Generator {
         html.append_view("</div>");
         html.append_view(self.footer_html());
         html.append_view("</div></div>");
-        html.append_string(self.get_js(rel_root.to_view()));
+        var js = self.get_js(rel_root.to_view());
+        html.append_string(js.copy());
         html.append_view("</body></html>");
 
         var out_file = self.output_dir.copy();
@@ -1493,11 +1512,11 @@ public struct Generator {
         var html = std::string("<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'>");
         if (desc.size() > 0) {
             html.append_view("<meta name='description' content='");
-            html.append_view(desc);
+            html.append_view(&desc);
             html.append_view("'>");
         }
         html.append_view("<title>");
-        html.append_view(title);
+        html.append_view(&title);
         html.append_view("</title>");
         html.append_view("<link rel='preconnect' href='https://fonts.googleapis.com'><link rel='preconnect' href='https://fonts.gstatic.com' crossorigin><link href='https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap' rel='stylesheet'>");
         html.append_view("<style>");
@@ -1508,11 +1527,13 @@ public struct Generator {
         html.append_view("</head><body>");
         html.append_view("<div class='topbar'>");
         html.append_view("<a class='brand' href='");
-        html.append_view(self.rel_root_for_topbar());
+        var topbar_root = self.rel_root_for_topbar();
+        var topbar_view = topbar_root.to_view();
+        html.append_view(&topbar_view);
         html.append_view("/index.html'>Chemical</a>");
         if (crumb_html.size() > 0) {
             html.append_view("<span class='sep'>/</span>");
-            html.append_view(crumb_html);
+            html.append_view(&crumb_html);
         }
         html.append_view("<div class='topbar-spacer'></div>");
         html.append_view("<select id='theme-select' class='theme-select' aria-label='Theme' onchange='setTheme(this.value)'><option value='dark'>Dark</option><option value='light'>Light</option><option value='paper'>Paper</option><option value='playground'>Playground</option><option value='playground-light'>Playground Light</option></select>");
@@ -1522,20 +1543,20 @@ public struct Generator {
         var head = std::string("<div class='page-head'>");
         if (chip.size() > 0) {
             head.append_view("<span class='page-chip'>");
-            head.append_view(chip);
+            head.append_view(&chip);
             head.append_view("</span>");
         }
         head.append_view("<h1>");
-        head.append_view(title_html);
+        head.append_view(&title_html);
         head.append_view("</h1>");
         if (sub_html.size() > 0) {
             head.append_view("<p class='page-sub'>");
-            head.append_view(sub_html);
+            head.append_view(&sub_html);
             head.append_view("</p>");
         }
         if (stats_html.size() > 0) {
             head.append_view("<div class='stat-row'>");
-            head.append_view(stats_html);
+            head.append_view(&stats_html);
             head.append_view("</div>");
         }
         head.append_view("</div>");
@@ -1548,7 +1569,7 @@ public struct Generator {
     }
 
     func footer_html(&self) : std::string_view {
-        return std::string_view("<div class='doc-footer'><span>Chemical API Reference</span><span><a href='https://chemicallang.com' target='_blank'>chemicallang.com</a> &nbsp;&middot;&nbsp; <a href='https://github.com/chemicallang/chemical' target='_blank'>GitHub</a></span></div><button id='back-top' aria-label='Back to top' onclick='window.scrollTo({top:0,behavior:"smooth"})'>&#8593;</button>");
+        return std::string_view("<div class='doc-footer'><span>Chemical API Reference</span><span><a href='https://chemicallang.com' target='_blank'>chemicallang.com</a> &nbsp;&middot;&nbsp; <a href='https://github.com/chemicallang/chemical' target='_blank'>GitHub</a></span></div><button id='back-top' aria-label='Back to top' onclick='window.scrollTo({top:0,behavior:'smooth'})'>&#8593;</button>");
     }
 
     func get_js(&self, rel_root : &std::string_view) : std::string {
@@ -1754,9 +1775,9 @@ public struct Generator {
         var last_idx = 0u;
         while (true) {
             var sub = raw.subview(last_idx, raw.size());
-            var p_idx = sub.find(placeholder);
+            var p_idx = sub.find(&placeholder);
             if (p_idx == -1u) {
-                res.append_view(sub);
+                res.append_view(&sub);
                 break;
             }
             res.append_view(sub.subview(0, p_idx));

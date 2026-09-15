@@ -3387,15 +3387,29 @@ LLVM; TinyCC compiles the output.
 > `Pending` several times, including suspension inside loops and branches, plus
 > on `TCCCompiler` and `Compiler --use-c`.
 >
-> **Known limits of the state machine (next).** Slots that are arrays or carry
-> destructors cannot cross a suspension point yet (diagnosed, not miscompiled) —
-> they need frame-resident storage with proper move/drop handling (design 8.7 /
-> 13.3) rather than spill-by-copy. Cancellation (`drop`) currently frees the
-> frame without running the per-state live drops; the drop switch (design 8.5)
-> is still to do. Escaped pointers to cross-await locals are not yet stable
-> (spill/reload relocates them). The eager-ready path stays the default under
-> `--async-lazy`; the state machine is opt-in until those land and until the
-> LLVM (`llvm.coro.*`) lowering exists.
+> **Frame-resident destructible locals + cancellation drop switch (landed).**
+> A non-spillable slot (destructor-bearing) that is a parameter or crosses a
+> suspension point is kept directly in the frame: `AsyncSuspendContext::resident`
+> maps its AST node to `frame->__chx_slot_k`, `write_identifier` rewrites every
+> reference to the field (so its address is stable across suspension),
+> `VisitVarInitStmt` initializes the field instead of a stack local, and the
+> destructor machinery targets the field (including parameters via
+> `queue_destruct_decl_params`). `foo__drop` now opens with
+> `switch(frame->state){ case i+1: <destroy live_drops of site i>; break; default: break; }`
+> before freeing the frame, so cancelling a suspended future runs each live
+> local's destructor exactly once (design 8.5). Validated by
+> `lang/tests/async_suspend` (7/7): destructible locals across suspensions, and a
+> `DropCounter`-bearing suspended future dropped without completion whose
+> destructor runs exactly once.
+>
+> **Known limits of the state machine (next).** Arrays still cannot cross a
+> suspension point (diagnosed, not miscompiled), and a destructor-bearing await
+> *result* cannot yet be moved out of the `Poll` (diagnosed). The cancellation
+> drop switch uses the static `live_drops` set, so a local that was moved out
+> before suspension would need a drop flag (design 8.4) to avoid a double drop.
+> Escaped pointers to non-resident (spill/reload) locals are not yet stable. The
+> eager-ready path stays the default under `--async-lazy`; the state machine is
+> opt-in until those land and until the LLVM (`llvm.coro.*`) lowering exists.
 >
 > **Discovered blocker for the library-side shortcut (must be a compiler
 > lowering pass, not a library helper).** A generic function reference cannot

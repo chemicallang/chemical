@@ -6,6 +6,17 @@
 // `./scripts/test.sh --tcc --async-suspend`.
 
 var suspend_polls : int = 0;
+var suspend_drops : int = 0;
+
+// A destructor-bearing payload used to observe cancellation cleanup.
+struct DropCounter {
+    var value : int
+
+    @delete
+    func delete(&mut self) {
+        suspend_drops = suspend_drops + 1
+    }
+}
 
 // A future that is Pending `remaining` times before becoming Ready.
 struct Countdown {
@@ -73,6 +84,16 @@ async func suspend_ready(x : int) : int {
     return v + 1
 }
 
+// Destructor-bearing locals live across suspensions; they must be frame-resident
+// so their address is stable and their destructor runs exactly once.
+async func suspend_strings(x : int) : int {
+    var s = std::string("hello")
+    var n = await make_countdown(2, 10)
+    var t = std::string("world")
+    var m = await make_countdown(1, x)
+    return (s.size() as int) + (t.size() as int) + n + m
+}
+
 @test
 func test_async_suspend_sequential(env : &mut TestEnv) {
     if(async::block_on<int>(suspend_two(1)) != 42) {
@@ -106,6 +127,42 @@ func test_async_suspend_ready_no_suspend(env : &mut TestEnv) {
     }
     if(suspend_polls != before + 1) {
         env.error("a ready future must be polled exactly once")
+    }
+}
+
+@test
+func test_async_suspend_destructible_locals(env : &mut TestEnv) {
+    // "hello".size() + "world".size() + 10 + x  => 5 + 5 + 10 + 22 = 42
+    if(async::block_on<int>(suspend_strings(22)) != 42) {
+        env.error("destructor-bearing locals across suspensions should be 42")
+    }
+}
+
+// A suspended future that holds a destructor-bearing local.
+async func suspend_cancel() : int {
+    var d = DropCounter { value : 7 }
+    var v = await make_countdown(3, 1)
+    return d.value + v
+}
+
+@test
+func test_async_suspend_cancel_destroys_locals(env : &mut TestEnv) {
+    var before = suspend_drops
+    {
+        var h = suspend_cancel()
+        var cx = core::async::Context {
+            waker : core::async::Waker { data : null, vtbl : null }
+        }
+        var p = h.vtbl.poll(h.frame, &raw mut cx)
+        if(p is core::async::Poll.Pending) {
+            // `h` is dropped at the end of this block, cancelling the suspended
+            // future; its frame-resident DropCounter must be destroyed once
+        } else {
+            env.error("expected the future to be pending on the first poll")
+        }
+    }
+    if(suspend_drops != before + 1) {
+        env.error("cancelling a suspended future must destroy its frame-resident local exactly once")
     }
 }
 

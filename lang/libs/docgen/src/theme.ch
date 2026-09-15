@@ -20,8 +20,8 @@ public func get_default_css() : std::string_view {
     --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
     --radius: 6px;
     --transition: 0.15s ease;
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+    --font-sans: 'Sora', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'JetBrains Mono', 'Fira Code', Consolas, monospace;
     --header-height: 64px;
     --sidebar-width: 280px;
     --content-max-width: 900px;
@@ -307,7 +307,7 @@ public func get_default_css() : std::string_view {
     --shadow: 0 0 0 1px #333;
     --radius: 6px;
     --header-height: 64px;
-    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-sans: 'Sora', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --content-max-width: 900px;
     
     /* Reset Visual Params */
@@ -645,10 +645,17 @@ html { scroll-behavior: smooth; }
     line-height: 1.3;
 }
 
-.content h1 { font-size: 2.25rem; margin-top: 0; }
-.content h2 { font-size: 1.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
-.content h3 { font-size: 1.375rem; }
+.content h1 { font-size: 2.25rem; margin-top: 0; letter-spacing: -0.03em; }
+.content h2 { font-size: 1.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; letter-spacing: -0.02em; }
+.content h3 { font-size: 1.375rem; letter-spacing: -0.02em; }
 .content h4 { font-size: 1.125rem; }
+
+/* anchored headings: keep the target clear of the fixed header */
+.content h1, .content h2, .content h3, .content h4 { scroll-margin-top: calc(var(--header-height) + 16px); }
+
+/* fenced code blocks: label + copy affordance space */
+.content pre { position: relative; }
+.content pre code { display: block; }
 
 .content p { margin-bottom: 1rem; color: var(--text-secondary); }
 
@@ -673,7 +680,7 @@ html { scroll-behavior: smooth; }
     background: var(--code-bg);
     padding: 0.2em 0.4em;
     border-radius: 4px;
-    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+    font-family: 'IBM Plex Mono', 'JetBrains Mono', 'Fira Code', Consolas, monospace;
     font-size: 0.9em;
     color: var(--accent);
 }
@@ -685,6 +692,8 @@ html { scroll-behavior: smooth; }
     overflow-x: auto;
     margin-bottom: 1rem;
     border: 1px solid var(--border);
+    font-size: 0.9em;
+    line-height: 1.6;
 }
 
 .content pre code {

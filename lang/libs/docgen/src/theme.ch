@@ -179,6 +179,118 @@ public func get_default_css() : std::string_view {
     --alert-text: #a8a8b8;
 }
 
+/* Playground Theme — matches the chemical-lang.com playground.
+   Precision-instrument look: near-black ink, hairline borders,
+   Sora display type, IBM Plex Mono code, signal blue accent. */
+[data-theme="playground"] {
+    --bg-primary: #0A0A0C;
+    --bg-secondary: #101014;
+    --bg-tertiary: #17171D;
+    --text-primary: #E8E8EC;
+    --text-secondary: #9B9BA6;
+    --text-muted: #63636E;
+    --accent: #4DA3FF;
+    --accent-hover: #6FB5FF;
+    --accent-glow: rgba(77, 163, 255, 0.14);
+    --border: #1D1D23;
+    --code-bg: #060608;
+    --shadow: 0 0 0 1px #1D1D23;
+    --radius: 6px;
+    --header-height: 64px;
+    --sidebar-width: 280px;
+    --content-max-width: 980px;
+    --font-sans: 'Sora', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    /* Reset Visual Params */
+    --bg-gradient: none;
+    --glass-blur: 0px;
+    --header-bg: rgba(10, 10, 12, 0.85);
+    /* Alert Colors */
+    --alert-note: #4DA3FF;
+    --alert-note-bg: rgba(77, 163, 255, 0.08);
+    --alert-tip: #7EE0A3;
+    --alert-tip-bg: rgba(126, 224, 163, 0.08);
+    --alert-important: #B9A3FF;
+    --alert-important-bg: rgba(185, 163, 255, 0.08);
+    --alert-warning: #F0B45C;
+    --alert-warning-bg: rgba(240, 180, 92, 0.08);
+    --alert-caution: #F0705C;
+    --alert-caution-bg: rgba(240, 112, 92, 0.08);
+    --alert-text: #9B9BA6;
+}
+
+[data-theme="playground"] .header {
+    background: rgba(10, 10, 12, 0.85);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
+[data-theme="playground"] .content code {
+    color: #7FD1B9;
+}
+
+[data-theme="playground"] .sidebar-item > a.active {
+    color: var(--accent);
+    background: var(--accent-glow);
+    border-left: 2px solid var(--accent);
+    border-radius: 0;
+}
+
+/* Playground light variant — warm paper, deep blue accent */
+[data-theme="playground-light"] {
+    --bg-primary: #FAFAF7;
+    --bg-secondary: #FFFFFF;
+    --bg-tertiary: #F1F1EC;
+    --text-primary: #17171C;
+    --text-secondary: #57575F;
+    --text-muted: #8A8A93;
+    --accent: #1D5FBF;
+    --accent-hover: #164BA0;
+    --accent-glow: rgba(29, 95, 191, 0.10);
+    --border: #E4E4DD;
+    --code-bg: #F1F1EC;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.06);
+    --radius: 6px;
+    --header-height: 64px;
+    --sidebar-width: 280px;
+    --content-max-width: 980px;
+    --font-sans: 'Sora', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    /* Reset Visual Params */
+    --bg-gradient: none;
+    --glass-blur: 0px;
+    --header-bg: rgba(250, 250, 247, 0.88);
+    /* Alert Colors */
+    --alert-note: #1D5FBF;
+    --alert-note-bg: #EFF5FF;
+    --alert-tip: #1F7A5C;
+    --alert-tip-bg: #EFF9F4;
+    --alert-important: #6D4FC4;
+    --alert-important-bg: #F5F3FF;
+    --alert-warning: #A66A1F;
+    --alert-warning-bg: #FDF6EC;
+    --alert-caution: #B84A38;
+    --alert-caution-bg: #FDF2EF;
+    --alert-text: #57575F;
+}
+
+[data-theme="playground-light"] .header {
+    background: rgba(250, 250, 247, 0.88);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
+[data-theme="playground-light"] .content code {
+    color: #1F7A5C;
+}
+
+[data-theme="playground-light"] .sidebar-item > a.active {
+    color: var(--accent);
+    background: var(--accent-glow);
+    border-left: 2px solid var(--accent);
+    border-radius: 0;
+}
+
 /* Minimal Theme (Dark Modern) */
 [data-theme="minimal"] {
     --bg-primary: #0a0a0a;
@@ -241,6 +353,22 @@ public func get_default_css() : std::string_view {
 
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+
+:focus { outline: none; }
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
 
 body {
     font-family: var(--font-sans);
@@ -743,6 +871,7 @@ html { scroll-behavior: smooth; }
     .search-container { display: none; }
     .header { padding: 0 16px; }
     .content { padding: 24px 16px; }
+    .theme-select { max-width: 130px; font-size: 12px; }
 }
 
 /* Animations */
@@ -811,14 +940,16 @@ public func get_default_js() : std::string_view {
     return std::string_view("""
 document.addEventListener('DOMContentLoaded', () => {
     // Theme management
-    const themes = ['default', 'light', 'sunset', 'minimal', 'cosmic', 'aurora'];
+    const themes = ['default', 'light', 'sunset', 'minimal', 'cosmic', 'aurora', 'playground', 'playground-light'];
     const themeNames = {
         'default': 'Midnight',
         'light': 'Light',
         'sunset': 'Sunset',
         'minimal': 'Minimal',
         'cosmic': 'Cosmic',
-        'aurora': 'Aurora'
+        'aurora': 'Aurora',
+        'playground': 'Playground',
+        'playground-light': 'Playground Light'
     };
     
     // Create theme select

@@ -527,7 +527,7 @@ public struct Generator {
         html.append_view(mod_name);
         html.append_view(" Index</title><style>");
         html.append_view(self.get_css());
-        html.append_view("</style><script>function setTheme(t){document.documentElement.setAttribute('data-theme',t);localStorage.setItem('refgen-theme',t);}const t=localStorage.getItem('refgen-theme')||'dark';document.documentElement.setAttribute('data-theme',t);</script></head><body><div class='layout'>");
+        html.append_view("</style><script>function setTheme(t){document.documentElement.setAttribute('data-theme',t);localStorage.setItem('refgen-theme',t);}const t=localStorage.getItem('refgen-theme')||'dark';if(t==='playground'||t==='playground-light'){var f=document.createElement('link');f.rel='stylesheet';f.href='https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap';document.head.appendChild(f);}document.documentElement.setAttribute('data-theme',t);</script></head><body><div class='layout'>");
         
         html.append_string(self.generate_sidebar(rel_root.to_view()).copy());
 
@@ -742,8 +742,10 @@ public struct Generator {
         html.append_view("<div class='search-box'><input type='text' id='search-input' placeholder='Search...' oninput='searchSymbols()'><div id='search-results'></div></div>");
         
         html.append_view("<h3>Themes</h3><div class='theme-toggles'>");
-        html.append_view("<button class='theme-btn' onclick=\"setTheme('light')\">Light</button>");
         html.append_view("<button class='theme-btn' onclick=\"setTheme('dark')\">Dark</button>");
+        html.append_view("<button class='theme-btn' onclick=\"setTheme('light')\">Light</button>");
+        html.append_view("<button class='theme-btn' onclick=\"setTheme('playground')\">Playground</button>");
+        html.append_view("<button class='theme-btn' onclick=\"setTheme('playground-light')\">Playground Light</button>");
         html.append_view("<button class='theme-btn' onclick=\"setTheme('paper')\">Paper</button>");
         html.append_view("</div>");
         
@@ -799,7 +801,7 @@ public struct Generator {
         html.append_view(filename);
         html.append_view(" - Chemical API</title><style>");
         html.append_view(self.get_css());
-        html.append_view("</style><script>function setTheme(t){document.documentElement.setAttribute('data-theme',t);localStorage.setItem('refgen-theme',t);}const t=localStorage.getItem('refgen-theme')||'dark';document.documentElement.setAttribute('data-theme',t);</script></head><body><div class='layout'>");
+        html.append_view("</style><script>function setTheme(t){document.documentElement.setAttribute('data-theme',t);localStorage.setItem('refgen-theme',t);}const t=localStorage.getItem('refgen-theme')||'dark';if(t==='playground'||t==='playground-light'){var f=document.createElement('link');f.rel='stylesheet';f.href='https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap';document.head.appendChild(f);}document.documentElement.setAttribute('data-theme',t);</script></head><body><div class='layout'>");
 
         html.append_string(self.generate_sidebar(rel_root.to_view()).copy());
 
@@ -1335,9 +1337,9 @@ public struct Generator {
     func generate_index_html(&mut self) {
         var rel_root = std::string(".");
         var html = std::string("<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'><meta name='description' content='Chemical Language Core API Reference'>");
-        html.append_view("<title>Chemical API Documentation</title><style>");
+        html.append_view("<title>Chemical API Documentation</title><link rel='preconnect' href='https://fonts.googleapis.com'><link rel='preconnect' href='https://fonts.gstatic.com' crossorigin><link href='https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap' rel='stylesheet'><style>");
         html.append_view(self.get_css());
-        html.append_view("</style><script>function setTheme(t){document.documentElement.setAttribute('data-theme',t);localStorage.setItem('refgen-theme',t);}const t=localStorage.getItem('refgen-theme')||'dark';document.documentElement.setAttribute('data-theme',t);</script></head><body><div class='layout'>");
+        html.append_view("</style><script>function setTheme(t){document.documentElement.setAttribute('data-theme',t);localStorage.setItem('refgen-theme',t);}const t=localStorage.getItem('refgen-theme')||'dark';if(t==='playground'||t==='playground-light'){var f=document.createElement('link');f.rel='stylesheet';f.href='https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap';document.head.appendChild(f);}document.documentElement.setAttribute('data-theme',t);</script></head><body><div class='layout'>");
         
         html.append_string(self.generate_sidebar(rel_root.to_view()).copy());
 
@@ -1575,6 +1577,16 @@ public struct Generator {
                 --radius: 12px;
             }
             * { box-sizing: border-box; scroll-behavior: smooth; }
+            :focus { outline: none; }
+            :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+            @media (prefers-reduced-motion: reduce) {
+                *, *::before, *::after {
+                    animation-duration: 0.01ms !important;
+                    animation-iteration-count: 1 !important;
+                    transition-duration: 0.01ms !important;
+                    scroll-behavior: auto !important;
+                }
+            }
             :root[data-theme='light'] {
                 --bg: #f8fafc; --bg-card: #ffffff; --border: #e2e8f0; --text: #0f172a; --text-muted: #64748b; --accent: #3b82f6; --code-bg: #f1f5f9; --btn-bg: #ffffff; --btn-text: #0f172a; --nested-bg: rgba(0,0,0,0.02);
             }
@@ -1584,12 +1596,44 @@ public struct Generator {
             :root[data-theme='paper'] {
                 --bg: #f4f1ea; --bg-card: #fdfcf9; --border: #e2ddd3; --text: #433f38; --text-muted: #7c7467; --accent: #8b5e34; --code-bg: #e9e4d9; --btn-bg: #fdfcf9; --btn-text: #433f38; --nested-bg: rgba(0,0,0,0.03);
             }
+            /* Playground theme — matches the chemical-lang.com playground:
+               near-black ink, hairline borders, Sora + IBM Plex Mono, signal blue */
+            :root[data-theme='playground'] {
+                --bg: #0A0A0C; --bg-card: #101014; --border: #1D1D23; --text: #E8E8EC; --text-muted: #63636E; --accent: #4DA3FF; --code-bg: #060608; --btn-bg: #17171D; --btn-text: #E8E8EC; --nested-bg: rgba(77, 163, 255, 0.06);
+                --font-body: 'Sora', system-ui, -apple-system, 'Segoe UI', sans-serif;
+                --radius: 6px;
+            }
+            /* Playground light — warm paper, deep blue */
+            :root[data-theme='playground-light'] {
+                --bg: #FAFAF7; --bg-card: #FFFFFF; --border: #E4E4DD; --text: #17171C; --text-muted: #8A8A93; --accent: #1D5FBF; --code-bg: #F1F1EC; --btn-bg: #F1F1EC; --btn-text: #17171C; --nested-bg: rgba(29, 95, 191, 0.05);
+                --font-body: 'Sora', system-ui, -apple-system, 'Segoe UI', sans-serif;
+                --radius: 6px;
+            }
+            :root[data-theme='playground'] .sidebar, :root[data-theme='playground-light'] .sidebar {
+                box-shadow: none;
+            }
+            :root[data-theme='playground'] .header h1, :root[data-theme='playground-light'] .header h1 {
+                color: var(--text);
+                letter-spacing: -0.03em;
+            }
+            :root[data-theme='playground'] .node, :root[data-theme='playground-light'] .node {
+                border-radius: var(--radius);
+            }
+            :root[data-theme='playground'] .kind-badge, :root[data-theme='playground-light'] .kind-badge {
+                border-radius: 4px;
+            }
+            :root[data-theme='playground'] .tok-str { color: #7FD1B9; }
+            :root[data-theme='playground-light'] .tok-str { color: #1F7A5C; }
+            :root[data-theme='playground'] .tok-kwd { color: #4DA3FF; }
+            :root[data-theme='playground-light'] .tok-kwd { color: #1D5FBF; }
+            :root[data-theme='playground'] .tok-type { color: #B9A3FF; }
+            :root[data-theme='playground-light'] .tok-type { color: #6D4FC4; }
             ::-webkit-scrollbar { width: 10px; height: 10px; }
             ::-webkit-scrollbar-track { background: var(--bg); }
             ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
             ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
             body { 
-                font-family: 'Outfit', 'Inter', system-ui, sans-serif; 
+                font-family: var(--font-body, 'Outfit', 'Inter', system-ui, sans-serif); 
                 background: var(--bg); color: var(--text); padding: 0; margin: 0; line-height: 1.6;
                 transition: background var(--transition), color var(--transition);
                 overflow-x: hidden;
@@ -1601,6 +1645,13 @@ public struct Generator {
                 box-shadow: 4px 0 24px rgba(0,0,0,0.02);
             }
             .main-content { flex: 1; padding: 3rem 5rem; max-width: 1100px; margin: 0 auto; }
+            @media (max-width: 1024px) {
+                .layout { flex-direction: column; }
+                .sidebar { width: 100%; min-width: 0; height: auto; max-height: 40vh; position: static; border-right: none; border-bottom: 1px solid var(--border); }
+                .main-content { padding: 2rem 1.5rem; }
+                .header h1 { font-size: 2rem; }
+                .node { padding: 1.5rem; }
+            }
             .header { 
                 display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 3rem;
                 padding-bottom: 1.5rem; border-bottom: 2px solid var(--border);

@@ -59,6 +59,7 @@ BaseType* FunctionDeclaration::inner_return_type() {
 
 #include "compiler/Codegen.h"
 #include "compiler/async/AwaitNormalizePass.h"
+#include "compiler/backend/LLVMCoroutine.h"
 #include "compiler/llvmimpl.h"
 #include "ast/values/LambdaFunction.h"
 #include "ast/utils/ASTUtils.h"
@@ -272,6 +273,11 @@ void FunctionDeclaration::code_gen_body(Codegen &gen) {
     }
     if(is_async()) {
         normalize_async_body(gen.allocator, this);
+        // lower the async function to an LLVM coroutine (ramp + poll + drop +
+        // vtable) when symres wrapped its return type into `FutureHandle<T>`
+        if(gen_llvm_async_fn(gen, this)) {
+            return;
+        }
     }
     body_gen(gen, this, llvm_func(gen));
 }

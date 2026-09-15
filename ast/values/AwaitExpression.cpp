@@ -15,11 +15,18 @@ Value* AwaitExpression::evaluated_value(InterpretScope& scope) {
 
 #ifdef COMPILER_BUILD
 
+#include "compiler/Codegen.h"
+#include "compiler/backend/LLVMCoroutine.h"
+
 llvm::Value* AwaitExpression::llvm_value(Codegen& gen, BaseType* expected_type) {
-    // Phase 0 placeholder: the normalization pass is expected to replace this
-    // node before code generation. Forwarding keeps the compiler building and
-    // makes the missing lowering obvious (the value produced is the future, not
-    // T) if a body ever reaches codegen un-normalized.
+    // Inside a lowered async function on the LLVM backend, `await` drives the
+    // child future's poll through its vtable and suspends the coroutine when it
+    // is pending (design Section 9.6).
+    if(gen.current_coro != nullptr) {
+        return gen_llvm_await(gen, this);
+    }
+    // Eager/transparent bootstrap (interpreter, non-lowered backends): the
+    // awaited value is the operand itself.
     return inner->llvm_value(gen, expected_type);
 }
 

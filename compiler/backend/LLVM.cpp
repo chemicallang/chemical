@@ -1,6 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "compiler/Codegen.h"
+#include "compiler/backend/LLVMCoroutine.h"
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "compiler/llvmimpl.h"
 #include "utils/StringHelpers.h"
@@ -2072,6 +2073,32 @@ void destruct_current_scope(Codegen& gen, Value* returnValue, SourceLocation loc
 void Codegen::writeReturnStmtFor(Value* value, SourceLocation location) {
 
     auto& gen = *this;
+
+    // Inside a lowered async function, `return e` stores `e` into the coroutine
+    // frame result and jumps to the final suspend instead of returning from the
+    // ramp (design Section 9.6).
+    if(current_coro != nullptr) {
+        auto* coro = current_coro;
+        auto* result_ptr = gen.builder->CreateGEP(
+                coro->promise_ty, coro->promise,
+                {gen.builder->getInt32(0), gen.builder->getInt32(coro->result_field)});
+        if(value != nullptr && !coro->inner_ty->isVoidTy()) {
+            const auto inner = coro->inner;
+            if(value->getType()->canonical()->isStructLikeType() && value->kind() != ValueKind::StructValue) {
+                auto* src = value->llvm_pointer(gen);
+                const auto size = gen.module->getDataLayout().getTypeAllocSize(coro->inner_ty);
+                gen.builder->CreateMemCpy(result_ptr, llvm::MaybeAlign(), src, llvm::MaybeAlign(), size);
+            } else {
+                auto* v = value->llvm_value(gen, inner);
+                v = gen.implicit_cast(v, inner, coro->inner_ty);
+                gen.builder->CreateStore(v, result_ptr);
+            }
+        }
+        gen.builder->CreateStore(gen.builder->getInt32(2), coro->state_ptr);
+        destruct_current_scope(gen, value, location);
+        gen.CreateBr(coro->final_suspend_bb, location);
+        return;
+    }
 
     const auto func_type = gen.current_func_type;
 

@@ -66,7 +66,7 @@ func internal_view_find(me : &std::string_view, needle : &std::string_view) : si
     // fill skip table (ignore last char)
     var j : size_t = 0;
     while(j < nlen - 1) {
-        skip[nd[j] as uint] = (nlen - 1 - j) as uchar;
+        skip[(nd[j] as u8) as uint] = (nlen - 1 - j) as uchar;
         j = j + 1;
     }
 
@@ -84,7 +84,7 @@ func internal_view_find(me : &std::string_view, needle : &std::string_view) : si
             k = k - 1;
         }
 
-        pos = pos + skip[hay[pos + last] as uint];
+        pos = pos + skip[(hay[pos + last] as u8) as uint];
     }
 
     return NPOS;

@@ -5,6 +5,7 @@
 #include "LLVMCoroutine.h"
 
 #include "compiler/Codegen.h"
+#include "compiler/async/AwaitNormalizePass.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/StructMember.h"
@@ -152,9 +153,15 @@ static llvm::Function* emit_drop_fn(
     gen.SetInsertPoint(entry);
     // `coro.destroy` runs the cleanup (which must not free the frame, because
     // CoroSplit's `coro.end` lowering writes the resume/destroy pointers into it
-    // afterwards); free it here, once, after the destroy path has run.
+    // afterwards); free it here, once, after the destroy path has run. The frame
+    // is kept in a volatile stack slot across the call because the split
+    // resume/destroy functions use `fastcc` and may clobber callee-saved
+    // registers that this C-convention function would otherwise rely on.
+    auto* saved = builder.CreateAlloca(ptr_ty);
+    builder.CreateStore(fn->getArg(0), saved, true);
     builder.CreateCall(destroy_fn, {fn->getArg(0)});
-    builder.CreateCall(frame_free_fn, {fn->getArg(0), ConstantInt::get(i64, 0), ConstantInt::get(i64, 0)});
+    auto* reloaded = builder.CreateLoad(ptr_ty, saved, true);
+    builder.CreateCall(frame_free_fn, {reloaded, ConstantInt::get(i64, 0), ConstantInt::get(i64, 0)});
     builder.CreateRetVoid();
     return fn;
 }
@@ -172,6 +179,119 @@ static llvm::Value* emit_vtable(
     auto* init = ConstantStruct::get(cast<llvm::StructType>(table_ty), {poll_fn, drop_fn});
     const auto name = coro.ramp->getName().str() + "__vtbl";
     return new GlobalVariable(*gen.module, table_ty, true, GlobalValue::InternalLinkage, init, name);
+}
+
+/**
+ * Eager frame for an async function with no awaits (design Section 9.7): a
+ * tiny heap frame holding only the result, an always-`Ready` `poll`, a `drop`
+ * that frees the frame, and a ramp that allocates the frame, runs the body and
+ * returns the handle. No coroutine intrinsics are involved.
+ */
+static bool gen_llvm_async_eager_fn(
+        Codegen& gen,
+        FunctionDeclaration* decl,
+        BaseType* inner,
+        BaseType* rt,
+        llvm::Function* ramp,
+        llvm::Type* table_ty,
+        llvm::Type* poll_ty
+) {
+    auto& ctx = *gen.ctx;
+    auto& builder = *gen.builder;
+    auto* ptr_ty = builder.getPtrTy();
+    auto* i32 = builder.getInt32Ty();
+    auto* i64 = builder.getInt64Ty();
+    auto* handle_ty = rt->llvm_type(gen);
+    auto* inner_ty = inner->llvm_type(gen);
+    const bool has_value = !inner_ty->isVoidTy() && !inner_ty->isEmptyTy();
+
+    // frame { i32 state, T result }
+    auto* frame_ty = llvm::StructType::create(ctx, {i32, inner_ty}, ramp->getName().str() + ".frame");
+    const unsigned frame_align = 8;
+    const auto frame_size = gen.module->getDataLayout().getTypeAllocSize(frame_ty);
+
+    auto* alloc_ty = llvm::FunctionType::get(ptr_ty, {i64, i64}, false);
+    auto* frame_alloc_fn = gen.module->getFunction("chemical_async_frame_alloc");
+    if(frame_alloc_fn == nullptr) {
+        frame_alloc_fn = Function::Create(alloc_ty, GlobalValue::ExternalLinkage, "chemical_async_frame_alloc", gen.module.get());
+    }
+    auto* free_ty = llvm::FunctionType::get(builder.getVoidTy(), {ptr_ty, i64, i64}, false);
+    auto* frame_free_fn = gen.module->getFunction("chemical_async_frame_free");
+    if(frame_free_fn == nullptr) {
+        frame_free_fn = Function::Create(free_ty, GlobalValue::ExternalLinkage, "chemical_async_frame_free", gen.module.get());
+    }
+
+    // poll: `Poll.Ready(frame->result)`
+    auto* poll_fn_ty = llvm::FunctionType::get(builder.getVoidTy(), {ptr_ty, ptr_ty, ptr_ty}, false);
+    auto* poll_fn = Function::Create(poll_fn_ty, GlobalValue::InternalLinkage, ramp->getName().str() + "__poll", gen.module.get());
+    {
+        auto* entry = BasicBlock::Create(ctx, "entry", poll_fn);
+        gen.SetInsertPoint(entry);
+        auto* sret = poll_fn->getArg(0);
+        auto* frame = poll_fn->getArg(1);
+        llvm::Value* result = nullptr;
+        if(has_value) {
+            result = builder.CreateLoad(inner_ty, gep_idx(builder, frame_ty, frame, {0, 1}));
+        }
+        emit_poll(gen, sret, poll_ty, true, result);
+        builder.CreateRetVoid();
+    }
+
+    // drop: free the frame
+    auto* drop_ty = llvm::FunctionType::get(builder.getVoidTy(), {ptr_ty}, false);
+    auto* drop_fn = Function::Create(drop_ty, GlobalValue::InternalLinkage, ramp->getName().str() + "__drop", gen.module.get());
+    {
+        auto* entry = BasicBlock::Create(ctx, "entry", drop_fn);
+        gen.SetInsertPoint(entry);
+        builder.CreateCall(frame_free_fn, {drop_fn->getArg(0), ConstantInt::get(i64, frame_size), ConstantInt::get(i64, frame_align)});
+        builder.CreateRetVoid();
+    }
+
+    LLVMCoroContext coro;
+    coro.decl = decl;
+    coro.ramp = ramp;
+    auto* vtbl = emit_vtable(gen, coro, table_ty, poll_fn, drop_fn);
+
+    // ramp
+    const auto prev_coro = gen.current_coro;
+    const auto prev_func = gen.current_function;
+    const auto prev_func_type = gen.current_func_type;
+    gen.current_function = ramp;
+    gen.SetInsertPoint(&ramp->getEntryBlock());
+    auto* frame = builder.CreateCall(frame_alloc_fn, {ConstantInt::get(i64, frame_size), ConstantInt::get(i64, frame_align)});
+    auto* sret = ramp->getArg(decl->getStructReturnArgIndex());
+    builder.CreateStore(frame, gep_idx(builder, handle_ty, sret, {0, 0}));
+    builder.CreateStore(vtbl, gep_idx(builder, handle_ty, sret, {0, 1}));
+
+    coro.promise_ty = frame_ty;
+    coro.promise = frame;
+    coro.result_field = 1;
+    coro.inner = inner;
+    coro.inner_ty = inner_ty;
+    coro.poll_ty = poll_ty;
+    coro.handle_ty = handle_ty;
+    auto* done_bb = BasicBlock::Create(ctx, "eager.done", ramp);
+    auto* state_alloca = builder.CreateAlloca(i32);
+    coro.state_ptr = state_alloca;
+    coro.final_suspend_bb = done_bb;
+    gen.current_coro = &coro;
+    gen.current_func_type = decl;
+    decl->queue_destruct_params(gen);
+    for(auto& param : decl->params) {
+        param->code_gen(gen);
+    }
+    gen.evaluated_func_calls.clear();
+    decl->body.value().code_gen_no_scope(gen, 0);
+    if(!gen.has_current_block_ended) {
+        builder.CreateBr(done_bb);
+    }
+    gen.SetInsertPoint(done_bb);
+    builder.CreateRetVoid();
+
+    gen.current_coro = prev_coro;
+    gen.current_function = prev_func;
+    gen.current_func_type = prev_func_type;
+    return true;
 }
 
 bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
@@ -193,10 +313,6 @@ bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
     if(ramp == nullptr) {
         return false;
     }
-    // the ramp must carry the `presplitcoroutine` enum attribute or the LLVM
-    // coroutine passes will not transform it (design Section 9.0 item 1). Using
-    // the string form adds a *string* attribute that CoroSplit does not match.
-    ramp->addFnAttr(llvm::Attribute::PresplitCoroutine);
     gen.current_function = ramp;
     auto* handle_ty = rt->llvm_type(gen);
     auto* inner_ty = inner->llvm_type(gen);
@@ -235,6 +351,17 @@ bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
     }
     auto* table_ty = table_bt->llvm_type(gen);
     auto* poll_ty = poll_bt->llvm_type(gen);
+
+    // an async function that never awaits has no suspension points: use the
+    // eager frame instead of a coroutine (design Section 9.7)
+    if(build_async_plan(decl).sites.empty()) {
+        return gen_llvm_async_eager_fn(gen, decl, inner, rt, ramp, table_ty, poll_ty);
+    }
+
+    // the ramp must carry the `presplitcoroutine` enum attribute or the LLVM
+    // coroutine passes will not transform it (design Section 9.0 item 1). Using
+    // the string form adds a *string* attribute that CoroSplit does not match.
+    ramp->addFnAttr(llvm::Attribute::PresplitCoroutine);
 
     // promise struct { i32 state, ptr cx, T result }
     auto* promise_ty = llvm::StructType::create(ctx, {i32, ptr_ty, inner_ty}, ramp->getName().str() + ".promise");
@@ -300,11 +427,6 @@ bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
     // after the frame's resume/destroy pointers (`frame + 2 * sizeof(void*)`), so
     // field access uses that fixed offset consistently in the ramp and in
     // `poll`/`drop` (design Section 9.3).
-    // Clang's promise pattern: a plain alloca of the promise type inside the
-    // coroutine is materialized into the frame by CoroFrame, and accessors
-    // outside the coroutine recover its address with `coro.promise(frame, ...)`.
-    auto* promise_alloca = builder.CreateAlloca(promise_ty);
-
     auto* null_ptr = ConstantPointerNull::get(ptr_ty);
     auto* id = builder.CreateCall(id_fn, {ConstantInt::get(i32, 0), null_ptr, null_ptr, null_ptr});
     coro.id = id;
@@ -325,9 +447,13 @@ bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
     auto* handle = builder.CreateCall(begin_fn, {id, frame});
     coro.frame = handle;
     coro.frame_size = size;
-    // inside the coroutine the promise is just the alloca; CoroFrame rewrites it
-    // to the frame slot that `poll`/`drop` read via `coro.promise(frame, ...)`
-    auto* promise = promise_alloca;
+    // `coro.promise(frame, ..., i1 false)` returns the promise address in the
+    // frame; `poll`/`drop` use the identical call with their frame argument.
+    // NOTE: for coroutines with large spill slots CoroFrame may place the
+    // promise after the spills, while this returns the canonical slot — see the
+    // "destructor-bearing structs that cross a suspension" limitation in the
+    // design doc.
+    auto* promise = builder.CreateCall(promise_fn, {handle, ConstantInt::get(i32, promise_align), ConstantInt::get(i1, false)});
     coro.promise = promise;
     coro.state_ptr = gep_idx(builder, promise_ty, promise, {0, 0});
     auto* cx_ptr = gep_idx(builder, promise_ty, promise, {0, (unsigned) coro.cx_field});

@@ -4,6 +4,7 @@
 
 #include "ast/base/ASTAllocator.h"
 #include "ast/base/BaseType.h"
+#include "ast/base/ExtendableMembersContainerNode.h"
 #include "ast/structures/Scope.h"
 #include "ast/structures/BlockScope.h"
 #include "ast/structures/If.h"
@@ -35,6 +36,26 @@
 #include <cstdlib>
 #include <iostream>
 #include <string>
+
+/**
+ * True when `await`'s operand is a compiler-generated `FutureHandle<T>` — the
+ * only real suspension point. `await e` on anything else is the eager/bootstrap
+ * transparent form and must not become a frame site (it is emitted inline).
+ */
+static bool is_await_handle_operand(AwaitExpression* value) {
+    auto inner = value->getInner();
+    if(inner == nullptr) {
+        return false;
+    }
+    auto t = const_cast<BaseType*>(inner->getType());
+    if(t == nullptr || t->kind() != BaseTypeKind::Generic) {
+        return false;
+    }
+    auto gen = t->as_generic_type_unsafe();
+    auto linked = gen->referenced != nullptr ? gen->referenced->linked : nullptr;
+    return linked != nullptr && linked->kind() == ASTNodeKind::StructDecl
+           && linked->as_extendable_members_container_unsafe()->name_view() == "FutureHandle";
+}
 
 namespace {
 
@@ -344,6 +365,12 @@ struct PlanVisitor : public RecursiveVisitor<PlanVisitor> {
     }
 
     void VisitAwaitExpression(AwaitExpression* value) {
+        // Only a real `FutureHandle<T>` operand suspends; transparent awaits are
+        // emitted inline and must not be counted as frame sites.
+        if(!is_await_handle_operand(value)) {
+            RecursiveVisitor<PlanVisitor>::VisitAwaitExpression(value);
+            return;
+        }
         AwaitSite site;
         site.resume_state = (unsigned) plan.sites.size();
         site.awaited_type = value->await_result_type ? value->await_result_type : value->getType();

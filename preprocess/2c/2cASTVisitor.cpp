@@ -3574,9 +3574,14 @@ void ToCAstVisitor::VisitVarInitStmt(VarInitStatement *init) {
         return;
     }
     if(async_suspend != nullptr && init->value != nullptr && init->value->kind() == ValueKind::AwaitExpr) {
-        // suspension point of the lowered state machine
-        emit_async_await_var_init(*this, init);
-        return;
+        // A real suspension site only when the awaited operand is a
+        // FutureHandle<T>; a transparent `await e` falls through to the normal
+        // local initialization below (VisitAwaitExpression forwards it).
+        auto inner = init->value->as_await_expression_unsafe()->getInner();
+        if(inner != nullptr && resolve_async_c_types_from_handle(const_cast<BaseType*>(inner->getType())).ok) {
+            emit_async_await_var_init(*this, init);
+            return;
+        }
     }
     if(async_suspend != nullptr) {
         // destructor-bearing / array local: it lives directly in the frame so

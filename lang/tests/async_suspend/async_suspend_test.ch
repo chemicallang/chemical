@@ -145,6 +145,21 @@ async func suspend_cancel() : int {
     return d.value + v
 }
 
+// A transparent `await e` (operand is not a future) must not become a frame
+// site; it is emitted inline and must coexist with real suspension sites.
+async func suspend_transparent(x : int) : int {
+    var v = await x
+    var n = await make_countdown(1, 10)
+    return v + n
+}
+
+@test
+func test_async_suspend_transparent_await(env : &mut TestEnv) {
+    if(async::block_on<int>(suspend_transparent(32)) != 42) {
+        env.error("a transparent await mixed with a real suspension should be 42")
+    }
+}
+
 @test
 func test_async_suspend_cancel_destroys_locals(env : &mut TestEnv) {
     var before = suspend_drops

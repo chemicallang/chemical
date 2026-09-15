@@ -3382,10 +3382,18 @@ LLVM; TinyCC compiles the output.
 > await are spilled/reloaded. Completion (`return e`) stores the result, runs
 > the normal scope destructors and returns `Ready`.
 >
+> Only an operand whose type is `FutureHandle<T>` is a `AwaitSite`; a
+> transparent `await e` (e.g. `await x` on an int) is emitted inline and does not
+> become a frame site — `is_await_handle_operand` enforces this in the planner
+> and the backend, so mixed transparent/real awaits state-number correctly.
+>
 > Validated by `./scripts/test.sh --tcc --async-suspend`
-> (`lang/tests/async_suspend/`, 5/5) against a hand-authored future that returns
-> `Pending` several times, including suspension inside loops and branches, plus
-> on `TCCCompiler` and `Compiler --use-c`.
+> (`lang/tests/async_suspend/`, 8/8) against a hand-authored future that returns
+> `Pending` several times, including suspension inside loops and branches, mixed
+> transparent awaits, plus on `TCCCompiler` and `Compiler --use-c`. The entire
+> `lang/tests/async_lazy` corpus (10/10) also passes when compiled with
+> `CHEMICAL_ASYNC_SUSPEND=1` (it exercises chained awaits, await-in-loop/if/while
+> and destructible locals through the state machine).
 >
 > **Frame-resident destructible locals + cancellation drop switch (landed).**
 > A non-spillable slot (destructor-bearing) that is a parameter or crosses a

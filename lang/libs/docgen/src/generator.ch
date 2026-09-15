@@ -5,6 +5,7 @@ public struct HtmlGenerator {
     var summary : *Summary
     var search_index : std::string
     var generated_urls : std::vector<std::string>
+    var pages : std::vector<*mut SummaryItem>
 }
 
 func highlight_wrapper(lang : std::string_view, code : std::string_view) : std::string {
@@ -168,7 +169,215 @@ func get_prism_includes(config : *DocConfig) : std::string {
     return html;
 }
 
-func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content : std::string_view, output_path : std::string, relative_depth : int, current_md_path : std::string_view) {
+// Build an on-this-page list from h2/h3 headings in rendered content.
+// The md lib emits <h2 class="md-hg md-h2">Title\n</h2> without ids, so we
+// emit links that match by heading text using text-fragment-free anchors:
+// we assign ids client-side via JS (see get_default_js) keyed by heading text.
+func build_toc(content : std::string_view, depth : int) : std::string {
+    var html = std::string();
+    var i = 0u;
+    var count = 0u;
+    var h2_needle = std::string_view("<h2");
+    var h3_needle = std::string_view("<h3");
+    var gt_needle = std::string_view(">");
+    var end_needle = std::string_view("</");
+    var needle_view = h2_needle;
+    while(i < content.size()) {
+        // find next <h2 or <h3
+        var rest = content.skip(i);
+        var h2r = rest.find(&h2_needle);
+        var h3r = rest.find(&h3_needle);
+        var h2 = (if(h2r == std::NPOS) std::NPOS else h2r + i);
+        var h3 = (if(h3r == std::NPOS) std::NPOS else h3r + i);
+        var next = h2;
+        var is_h3 = false;
+        var h3_exists = (h3 != std::NPOS);
+        var h2_exists = (h2 != std::NPOS);
+        if((!h2_exists && h3_exists) || (h2_exists && h3_exists && h3 < h2)) {
+            next = h3;
+            is_h3 = true;
+            needle_view = h3_needle;
+        } else {
+            needle_view = h2_needle;
+        }
+        if(next == std::NPOS) break;
+        var from_next = content.skip(next);
+        var gt_r = from_next.find(&gt_needle);
+        if(gt_r == std::NPOS) break;
+        var close_tag = gt_r + next;
+        var end_r = content.skip(close_tag).find(&end_needle);
+        if(end_r == std::NPOS) break;
+        var text_end = end_r + close_tag;
+        // heading text region (trim whitespace)
+        var start = close_tag + 1u;
+        while(start < text_end && (content.get(start) == ' ' || content.get(start) == '\n' || content.get(start) == '\r' || content.get(start) == '\t')) start++;
+        var end = text_end;
+        while(end > start) {
+            var c = content.get(end - 1u);
+            if(c == ' ' || c == '\n' || c == '\r' || c == '\t') end--;
+            else break;
+        }
+        if(end > start) {
+            var htext = content.subview(start, end);
+            // slug for anchor (must match the JS side slugger)
+            var slug = std::string();
+            var s2 = 0u;
+            var last_dash = false;
+            while(s2 < htext.size()) {
+                var ch = htext.get(s2);
+                if((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9')) {
+                    slug.append(ch);
+                    last_dash = false;
+                } else if(ch >= 'A' && ch <= 'Z') {
+                    slug.append((ch - 'A' + 'a'));
+                    last_dash = false;
+                } else if(!last_dash && slug.size() > 0) {
+                    slug.append('-');
+                    last_dash = true;
+                }
+                s2++;
+            }
+            html.append_view("<li class=\"");
+            if(is_h3) { html.append_view("toc-l3"); } else { html.append_view("toc-l2"); }
+            html.append_view("\"><a href=\"#");
+            html.append_string(slug.copy());
+            html.append_view("\">");
+            html.append_view(&htext);
+            html.append_view("</a></li>");
+            count++;
+        }
+        i = (next + needle_view.size()) as uint;
+    }
+    if(count == 0) return std::string();
+    var out = std::string("<ul class=\"toc-list\">");
+    out.append_string(html.copy());
+    out.append_view("</ul>");
+    return out;
+}
+
+// Prev/Next pager from the flat reading order
+func pager_html(gen : &mut HtmlGenerator, page_item : *SummaryItem, depth : int) : std::string {
+    var pos = page_position(&gen.pages, page_item.link.to_view());
+    if(pos == -1) return std::string();
+    var rel = get_relative_path_to_root(depth);
+    var html = std::string("<nav class=\"pager\">");
+    if(pos > 0) {
+        var prev_idx = pos - 1;
+        var prev = gen.pages.get(prev_idx as uint);
+        var pl = prev.link.copy();
+        var plink = replace_extension(&pl, ".md", ".html");
+        html.append_view("<a class=\"pager-prev\" href=\"");
+        html.append_view(rel.to_view());
+        html.append_view(plink.to_view());
+        html.append_view("\"><span class=\"pager-dir\">&larr; Previous</span><span class=\"pager-title\">");
+        html.append_view(prev.title.to_view());
+        html.append_view("</span></a>");
+    } else {
+        html.append_view("<span class=\"pager-spacer\"></span>");
+    }
+    var page_total : int = gen.pages.size() as int;
+    if((pos + 1) < page_total) {
+        var next_idx = pos + 1;
+        var next = gen.pages.get(next_idx as uint);
+        var nl = next.link.copy();
+        var nlink = replace_extension(&nl, ".md", ".html");
+        html.append_view("<a class=\"pager-next\" href=\"");
+        html.append_view(rel.to_view());
+        html.append_view(nlink.to_view());
+        html.append_view("\"><span class=\"pager-dir\">Next &rarr;</span><span class=\"pager-title\">");
+        html.append_view(next.title.to_view());
+        html.append_view("</span></a>");
+    } else {
+        html.append_view("<span class=\"pager-spacer\"></span>");
+    }
+    html.append_view("</nav>");
+    return html;
+}
+
+// Flatten the summary tree into an ordered list of pages (for prev/next)
+func collect_pages(items : &std::vector<*mut SummaryItem>, out : &mut std::vector<*mut SummaryItem>) {
+    var i = 0u;
+    while(i < items.size()) {
+        var item = items.get(i);
+        if(item.link.size() > 0) {
+            out.push_back(item);
+        }
+        if(item.children.size() > 0) {
+            collect_pages(&item.children, out);
+        }
+        i++;
+    }
+}
+
+// Find a page's position in the flat reading order; -1 if not a page
+func page_position(pages : &std::vector<*mut SummaryItem>, md_path : std::string_view) : int {
+    var total : int = pages.size() as int;
+    var i = 0;
+    while(i < total) {
+        if(pages.get(i as uint).link.equals_view(&md_path)) return i;
+        i++;
+    }
+    return -1;
+}
+
+// Breadcrumb trail (Home / Section / Page) for the current page
+func breadcrumb_html(item : *SummaryItem, pages_root : &std::vector<*mut SummaryItem>, depth : int) : std::string {
+    var rel = get_relative_path_to_root(depth);
+    var html = std::string("<div class=\"breadcrumb\"><a href=\"");
+    html.append_view(rel.to_view());
+    html.append_view("index.html\">Home</a>");
+    // find the top-level section this page belongs to
+    var i = 0u;
+    while(i < pages_root.size()) {
+        var top = pages_root.get(i);
+        // direct page match
+        var top_link_v = top.link.to_view();
+        if(top.link.size() > 0 && top_link_v.equals(item.link.to_view())) {
+            html.append_view("<span class=\"crumb-sep\">/</span><span class=\"crumb-here\">");
+            html.append_view(top.title.to_view());
+            html.append_view("</span>");
+            break;
+        }
+        // search children
+        var found = false;
+        var j = 0u;
+        while(j < top.children.size()) {
+            var child = top.children.get(j);
+            var child_link_v = child.link.to_view();
+            if(child.link.size() > 0 && child_link_v.equals(item.link.to_view())) {
+                html.append_view("<span class=\"crumb-sep\">/</span><span class=\"crumb-here\">");
+                html.append_view(top.title.to_view());
+                html.append_view("</span>");
+                found = true;
+                break;
+            }
+            // nested one more level
+            var k = 0u;
+            while(k < child.children.size()) {
+                var gc = child.children.get(k);
+                var gc_link_v = gc.link.to_view();
+                if(gc.link.size() > 0 && gc_link_v.equals(item.link.to_view())) {
+                    html.append_view("<span class=\"crumb-sep\">/</span><span class=\"crumb-here\">");
+                    html.append_view(top.title.to_view());
+                    html.append_view("</span><span class=\"crumb-sep\">/</span><span class=\"crumb-here\">");
+                    html.append_view(child.title.to_view());
+                    html.append_view("</span>");
+                    found = true;
+                    break;
+                }
+                k++;
+            }
+            if(found) break;
+            j++;
+        }
+        if(found) break;
+        i++;
+    }
+    html.append_view("</div>");
+    return html;
+}
+
+func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content : std::string_view, output_path : std::string, relative_depth : int, current_md_path : std::string_view, page_item : *SummaryItem) {
     var html = std::string("""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -360,7 +569,36 @@ func (gen : &mut HtmlGenerator) generate_page(title : std::string_view, content 
         
         <main class="content">
 """);
+    // Breadcrumbs
+    var crumbs = breadcrumb_html(page_item, &gen.summary.items, relative_depth);
+    html.append_string(crumbs.copy());
+
+    // On-this-page TOC (h2/h3)
+    var content_copy = std::string(content);
+    var toc = build_toc(content_copy.to_view(), relative_depth);
+    if(toc.size() > 0) {
+        html.append_view("<details class=\"toc\"><summary>On this page</summary>");
+        html.append_string(toc.copy());
+        html.append_view("</details>");
+    }
+
+    html.append_view("<div class=\"page-body\">");
     html.append_view(&content); // Already HTML from md::to_html
+    html.append_view("</div>");
+
+    // Prev / Next pager
+    var pager = pager_html(gen, page_item, relative_depth);
+    if(pager.size() > 0) {
+        html.append_string(pager.copy());
+    }
+
+    // Footer
+    var rel_p = get_relative_path_to_root(relative_depth);
+    html.append_view("<footer class=\"doc-footer\"><span>");
+    html.append_view(gen.config.site_name.to_view());
+    html.append_view("</span><span><a href=\"");
+    html.append_view(rel_p.to_view());
+    html.append_view("index.html\">Home</a> &nbsp;&middot;&nbsp; <a href=\"https://github.com/chemicallang/chemical\" target=\"_blank\">GitHub</a> &nbsp;&middot;&nbsp; <a href=\"https://playground.chemicallang.com\" target=\"_blank\">Playground</a></span></footer>");
     html.append_view("""
         </main>
     </div>
@@ -420,7 +658,7 @@ func (gen : &mut HtmlGenerator) process_item(item : *SummaryItem) {
             var Ok(html) = content_html else unreachable;
             
             // Generate Page
-            gen.generate_page(item.title.to_view(), html.to_view(), out_path, depth, item.link.to_view());
+            gen.generate_page(item.title.to_view(), html.to_view(), out_path, depth, item.link.to_view(), item);
             
             // Add to Sitemap list (the relative URL as seen on web)
             gen.generated_urls.push_back(out_rel.copy());
@@ -494,12 +732,23 @@ public func generate(config : DocConfig, summary : *Summary) {
     // Create build dir
     fs::mkdir(config.build_dir.data());
     
+    var flat_pages = std::vector<*mut SummaryItem>();
+    collect_pages(&summary.items, &mut flat_pages);
+    
     var gen = HtmlGenerator { 
         config : &raw config,
         summary : summary, 
         search_index : std::string("["),
-        generated_urls : std::vector<std::string>()
+        generated_urls : std::vector<std::string>(),
+        pages : std::vector<*mut SummaryItem>()
     };
+    {
+        var pi = 0u;
+        while(pi < flat_pages.size()) {
+            gen.pages.push_back(flat_pages.get(pi));
+            pi++;
+        }
+    }
     
     var i = 0u;
     while(i < summary.items.size()) {

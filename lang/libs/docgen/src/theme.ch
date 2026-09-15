@@ -633,9 +633,125 @@ html { scroll-behavior: smooth; }
 .content {
     flex: 1;
     margin-left: var(--sidebar-width);
-    padding: 48px 64px;
+    padding: 40px 56px 64px;
     max-width: var(--content-max-width);
+    min-width: 0;
 }
+
+/* Breadcrumbs */
+.breadcrumb {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.breadcrumb a { color: var(--text-muted); }
+.breadcrumb a:hover { color: var(--accent); }
+.crumb-sep { color: var(--text-muted); opacity: 0.5; user-select: none; }
+.crumb-here { color: var(--text-secondary); }
+
+/* On this page (TOC) */
+.toc {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-secondary);
+    margin-bottom: 1.75rem;
+    overflow: hidden;
+}
+.toc summary {
+    cursor: pointer;
+    padding: 10px 16px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.toc summary::before { content: '\u203A'; font-size: 0.9em; transition: transform 0.15s; }
+.toc[open] summary::before { transform: rotate(90deg); }
+.toc summary::-webkit-details-marker { display: none; }
+.toc-list {
+    list-style: none;
+    margin: 0;
+    padding: 4px 16px 12px;
+}
+.toc-list li { margin: 2px 0; }
+.toc-list a {
+    display: block;
+    padding: 4px 8px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    border-left: 2px solid var(--border);
+    border-radius: 0 4px 4px 0;
+}
+.toc-list a:hover { color: var(--accent); text-decoration: none; border-left-color: var(--accent); }
+.toc-list a.current { color: var(--accent); border-left-color: var(--accent); }
+.toc-list li.toc-l3 a { padding-left: 22px; font-size: 0.8rem; }
+
+/* Prev / Next pager */
+.pager {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+}
+.pager a {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    min-width: 0;
+    max-width: 48%;
+    text-decoration: none;
+    transition: border-color var(--transition);
+}
+.pager a:hover { border-color: var(--accent); text-decoration: none; }
+.pager .pager-dir {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+.pager a:hover .pager-dir { color: var(--accent); }
+.pager .pager-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.pager a.pager-next { text-align: right; margin-left: auto; }
+.pager-spacer { min-width: 30%; }
+
+/* Docs footer */
+.doc-footer {
+    margin-top: 3rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+.doc-footer a { color: var(--text-muted); }
+.doc-footer a:hover { color: var(--accent); }
+
+/* Page body sits under breadcrumbs/toc */
+.page-body { min-width: 0; }
 
 .content h1, .content h2, .content h3, .content h4 {
     color: var(--text-primary);
@@ -881,6 +997,10 @@ html { scroll-behavior: smooth; }
     .header { padding: 0 16px; }
     .content { padding: 24px 16px; }
     .theme-select { max-width: 130px; font-size: 12px; }
+    .pager { flex-direction: column; }
+    .pager a { max-width: 100%; }
+    .pager a.pager-next { text-align: left; margin-left: 0; }
+    .pager-spacer { display: none; }
 }
 
 /* Animations */
@@ -981,6 +1101,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const activeItem = document.querySelector('.sidebar-item > a.active');
     if (activeItem) {
         activeItem.scrollIntoView({ block: 'center', behavior: 'instant' });
+    }
+
+    // Assign ids to headings so the on-this-page TOC anchors work
+    document.querySelectorAll('.content h2, .content h3').forEach(h => {
+        const text = (h.textContent || '').trim();
+        let slug = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+        if (slug) h.id = slug;
+    });
+
+    // Active TOC highlighting while scrolling
+    const tocLinks = document.querySelectorAll('.toc-list a');
+    if (tocLinks.length > 0 && 'IntersectionObserver' in window) {
+        const map = new Map();
+        tocLinks.forEach(a => {
+            const id = a.getAttribute('href').slice(1);
+            const h = document.getElementById(id);
+            if (h) map.set(h, a);
+        });
+        const obs = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                const link = map.get(entry.target);
+                if (link) link.classList.toggle('current', entry.isIntersecting);
+            });
+        }, { rootMargin: '-80px 0px -70% 0px' });
+        map.forEach((_, h) => obs.observe(h));
     }
     
     // Search Logic

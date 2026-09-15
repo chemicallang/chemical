@@ -7,6 +7,16 @@ public func neg_await_outside_async_errors(env : &mut TestEnv) {
     expect_compile_error(env, "await_outside_async", ch, "can only be used inside")
 }
 
+// Exercises the lowered state machine end-to-end: multiple awaits and a
+// destructor-bearing local across a suspension, plus a `std::string` result.
+// Runs on whichever backend built the test binary (C or LLVM).
+@test
+public func async_coroutine_runs(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Countdown { var remaining : int; var value : int }\nfunc cd_poll(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<int> { var f = frame as *mut Countdown; if(f.remaining > 0) { f.remaining = f.remaining - 1; return core::async::Poll.Pending<int>() } return core::async::Poll.Ready<int>(f.value) }\nfunc cd_drop(frame : *mut void) { }\nfunc make_cd(remaining : int, value : int) : core::async::FutureHandle<int> { var f = malloc(sizeof(Countdown)) as *mut Countdown; f.remaining = remaining; f.value = value; var t = malloc(sizeof(core::async::FutureTable<int>)) as *mut core::async::FutureTable<int>; t.poll = cd_poll; t.drop = cd_drop; return core::async::FutureHandle<int> { frame : f as *mut void, vtbl : t } }\nasync func foo(x : int) : int { var s = std::string(\"hello\"); var a = await make_cd(2, x); var b = await make_cd(1, 1); return (s.size() as int) + a + b }\nasync func bar() : std::string { var n = await make_cd(1, 1); return std::string(\"hi\") }\npublic func main() : int { var r = async::block_on<int>(foo(36)); if(r != 42) { return 1 } var s = async::block_on<std::string>(bar()); if(s.size() != 2) { return 2 } return 0 }\n"
+    expect_compile_and_exit(env, "async_coroutine", ch, NEG_MOD_ASYNC_STD, 0)
+}
+
 @test
 public func async_main_trampoline_runs(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)

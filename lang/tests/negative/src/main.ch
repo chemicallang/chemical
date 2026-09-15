@@ -176,6 +176,9 @@ internal const NEG_MOD_CORE = "module neg_test\nsource \".\"\nimport core\n"
 // synchronous trampoline and becomes the program entry point
 internal const NEG_MOD_ASYNC_APP = "application neg_test\nsource \".\"\nimport cstd\nimport core\nimport async\n"
 
+// same, plus `std` for `std::string` (used by the coroutine regression)
+internal const NEG_MOD_ASYNC_STD = "application neg_test\nsource \".\"\nimport cstd\nimport std\nimport core\nimport async\n"
+
 // variant that imports page + universal_cbi so `#universal` components compile
 internal const NEG_MOD_UNIVERSAL = "module neg_test\nsource \".\"\nimport std\nimport page\nimport universal_cbi\n"
 

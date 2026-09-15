@@ -3526,23 +3526,32 @@ LLVM; TinyCC compiles the output.
 > always-`Ready` `poll`, a `drop` that frees the frame, and a ramp that allocates
 > the frame, runs the body and returns the handle.
 >
-> Verified on LLVM (`--llvm` still 2186/2186): `async func` with no awaits
-> (including destructor-bearing locals like `std::string`), integer results and
-> parameters, multiple sequential awaits, awaits inside loops, struct locals
-> across an await, and a `std::string` constructed/used **after** the last await.
+> **Frame ownership matches the C backend (landed).** The value stored in the
+> returned handle's `frame` field is our **own wrapper**
+> `{ coro, state, cx, result }`; the LLVM coroutine frame is a separate
+> allocation referenced by `coro`. `poll`/`drop` receive the wrapper and use
+> fixed field offsets (`coro` at 0, `state` at 1, `cx` at 2, `result` at 3),
+> calling `coro.resume`/`coro.destroy` on `wrapper->coro`. This is the same
+> "frame with state/result" shape the C backend emits and avoids `coro.promise`
+> entirely, whose slot CoroFrame places *after* large spill slots (which was
+> corrupting destructor-bearing structs). `drop` frees both the LLVM frame and
+> the wrapper once, from volatile stack slots (the `fastcc` split functions
+> clobber callee-saved registers).
 >
-> **Remaining LLVM bug: destructor-bearing structs that cross a suspension.** In
-> an await-bearing coroutine, a destructor-bearing struct (`std::string`) that is
-> live **across** the suspend (declared before an await and used after), or that
-> is the function result, corrupts the promise. Root cause: CoroFrame does not
-> reserve frame space for the promise (no `coro.promise` promise-alloca gets
-> recognized), so the canonical promise slot (`frame + 16`) overlaps the spill
-> area occupied by the struct; `poll`/`drop` then read/write the wrong bytes.
-> Value-type spills (ints, plain structs) happen not to collide, which is why
-> they work. Fixing this needs a promise whose frame slot is reserved correctly
-> (a recognized promise alloca / custom frame ABI) plus the per-state destructor
-> cleanup from Section 9.5. Until then, prefer the C backend for async code that
-> moves destructor-bearing values across a suspension.
+> Verified on LLVM (`--llvm` still 2186/2186): `async func` with no awaits
+> (including `std::string` locals), integer results and parameters, multiple
+> sequential awaits, awaits inside loops, plain-struct locals across an await,
+> destructor-bearing `std::string` locals across one or more awaits
+> (`with_str` = 57, `two_str` = 48), and **`std::string` results**
+> (`block_on<std::string>(f())`), which also required fixing a shared codegen bug.
+>
+> **Fixed alongside: `block_on<T>` for struct `T`.** `block_on`'s
+> `var out : T = loop { … var Ready(value) = r; break value }` was lowered by the
+> LLVM backend storing a *pointer* to the variant payload into the `out` alloca
+> instead of copying the struct. `Codegen::assign_store` now memcpys a
+> struct-typed rvalue that is materialized as a pointer (variant-pattern binding,
+> loop/block result) instead. This also fixes any other loop-expression/struct
+> move on LLVM.
 >
 > **Known limits (next).** Async closures require a closure-specific
 > frame/vtable emitter that stores the capture struct in the frame and binds

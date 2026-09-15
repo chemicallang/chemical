@@ -88,7 +88,6 @@ static void emit_poll(Codegen& gen, llvm::Value* dest, llvm::Type* poll_ty, bool
 static llvm::Function* emit_poll_fn(
         Codegen& gen,
         LLVMCoroContext& coro,
-        llvm::Function* promise_fn,
         llvm::Function* resume_fn,
         llvm::Function* done_fn
 ) {
@@ -101,19 +100,17 @@ static llvm::Function* emit_poll_fn(
     auto* fn_ty = llvm::FunctionType::get(builder.getVoidTy(), {ptr_ty, ptr_ty, ptr_ty}, false);
     auto* fn = Function::Create(fn_ty, GlobalValue::InternalLinkage, name, gen.module.get());
     auto* sret = fn->getArg(0);
-    auto* frame = fn->getArg(1);
+    auto* frame = fn->getArg(1);   // our wrapper
     auto* cx = fn->getArg(2);
 
     auto* entry = BasicBlock::Create(ctx, "entry", fn);
     gen.SetInsertPoint(entry);
 
-    // the same promise CoroFrame materialized for the ramp
-    auto* promise = builder.CreateCall(promise_fn, {frame, builder.getInt32(coro.promise_align), builder.getInt1(false)});
-    auto* cx_ptr = gep_idx(builder, coro.promise_ty, promise, {0, (unsigned) coro.cx_field});
-    builder.CreateStore(cx, cx_ptr);
-
-    builder.CreateCall(resume_fn, {frame});
-    auto* done = builder.CreateCall(done_fn, {frame});
+    // wrapper->coro is the LLVM coroutine frame
+    auto* coro_frame = builder.CreateLoad(ptr_ty, gep_idx(builder, coro.promise_ty, frame, {0, 0}));
+    builder.CreateStore(cx, gep_idx(builder, coro.promise_ty, frame, {0, (unsigned) coro.cx_field}));
+    builder.CreateCall(resume_fn, {coro_frame});
+    auto* done = builder.CreateCall(done_fn, {coro_frame});
     auto* ready_bb = BasicBlock::Create(ctx, "ready", fn);
     auto* pending_bb = BasicBlock::Create(ctx, "pending", fn);
     builder.CreateCondBr(done, ready_bb, pending_bb);
@@ -125,8 +122,7 @@ static llvm::Function* emit_poll_fn(
     gen.SetInsertPoint(ready_bb);
     llvm::Value* result = nullptr;
     if(!coro.inner_ty->isVoidTy()) {
-        auto* result_ptr = gep_idx(builder, coro.promise_ty, promise, {0, (unsigned) coro.result_field});
-        result = builder.CreateLoad(coro.inner_ty, result_ptr);
+        result = builder.CreateLoad(coro.inner_ty, gep_idx(builder, coro.promise_ty, frame, {0, (unsigned) coro.result_field}));
     }
     emit_poll(gen, sret, coro.poll_ty, true, result);
     builder.CreateRetVoid();
@@ -151,17 +147,24 @@ static llvm::Function* emit_drop_fn(
     auto* fn = Function::Create(ty, GlobalValue::InternalLinkage, name, gen.module.get());
     auto* entry = BasicBlock::Create(ctx, "entry", fn);
     gen.SetInsertPoint(entry);
-    // `coro.destroy` runs the cleanup (which must not free the frame, because
-    // CoroSplit's `coro.end` lowering writes the resume/destroy pointers into it
-    // afterwards); free it here, once, after the destroy path has run. The frame
-    // is kept in a volatile stack slot across the call because the split
-    // resume/destroy functions use `fastcc` and may clobber callee-saved
-    // registers that this C-convention function would otherwise rely on.
-    auto* saved = builder.CreateAlloca(ptr_ty);
-    builder.CreateStore(fn->getArg(0), saved, true);
-    builder.CreateCall(destroy_fn, {fn->getArg(0)});
-    auto* reloaded = builder.CreateLoad(ptr_ty, saved, true);
-    builder.CreateCall(frame_free_fn, {reloaded, ConstantInt::get(i64, 0), ConstantInt::get(i64, 0)});
+    // `coro.destroy` runs the per-state cleanup (which must not free the LLVM
+    // frame, because CoroSplit's `coro.end` lowering writes the resume/destroy
+    // pointers into it afterwards); free the LLVM frame and our wrapper here,
+    // once. Both pointers are kept in volatile stack slots across the call
+    // because the split resume/destroy functions use `fastcc` and may clobber
+    // callee-saved registers that this C-convention function would otherwise
+    // rely on.
+    auto* wrapper = fn->getArg(0);
+    auto* wrapper_saved = builder.CreateAlloca(ptr_ty);
+    builder.CreateStore(wrapper, wrapper_saved, true);
+    auto* coro_frame = builder.CreateLoad(ptr_ty, gep_idx(builder, coro.promise_ty, wrapper, {0, 0}));
+    auto* coro_saved = builder.CreateAlloca(ptr_ty);
+    builder.CreateStore(coro_frame, coro_saved, true);
+    builder.CreateCall(destroy_fn, {coro_frame});
+    auto* coro_reloaded = builder.CreateLoad(ptr_ty, coro_saved, true);
+    auto* wrapper_reloaded = builder.CreateLoad(ptr_ty, wrapper_saved, true);
+    builder.CreateCall(frame_free_fn, {coro_reloaded, ConstantInt::get(i64, 0), ConstantInt::get(i64, 0)});
+    builder.CreateCall(frame_free_fn, {wrapper_reloaded, ConstantInt::get(i64, 0), ConstantInt::get(i64, 0)});
     builder.CreateRetVoid();
     return fn;
 }
@@ -363,8 +366,12 @@ bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
     // the string form adds a *string* attribute that CoroSplit does not match.
     ramp->addFnAttr(llvm::Attribute::PresplitCoroutine);
 
-    // promise struct { i32 state, ptr cx, T result }
-    auto* promise_ty = llvm::StructType::create(ctx, {i32, ptr_ty, inner_ty}, ramp->getName().str() + ".promise");
+    // The value in the returned handle's `frame` field is our own wrapper
+    // `{ coro, state, cx, result }`; the LLVM coroutine frame is a *separate*
+    // allocation referenced by `coro`. This mirrors the C backend's frame and
+    // gives `poll`/`drop` fixed field offsets instead of relying on
+    // `coro.promise`, whose slot CoroFrame may place after large spills.
+    auto* promise_ty = llvm::StructType::create(ctx, {ptr_ty, i32, ptr_ty, inner_ty}, ramp->getName().str() + ".frame");
     const unsigned promise_align = 8;
     // the promise always sits right after the frame's resume/destroy pointers
     const unsigned promise_offset = 2 * gen.module->getDataLayout().getPointerSize();
@@ -401,6 +408,8 @@ bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
     coro.promise_ty = promise_ty;
     coro.promise_align = promise_align;
     coro.promise_offset = promise_offset;
+    coro.result_field = 3;
+    coro.cx_field = 2;
     coro.inner = inner;
     coro.inner_ty = inner_ty;
     coro.poll_ty = poll_ty;
@@ -413,7 +422,7 @@ bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
     const auto prev_redirect = gen.redirect_return;
     gen.current_coro = &coro;
 
-    auto* poll_fn = emit_poll_fn(gen, coro, promise_fn, resume_fn, done_fn);
+    auto* poll_fn = emit_poll_fn(gen, coro, resume_fn, done_fn);
     auto* drop_fn = emit_drop_fn(gen, coro, destroy_fn, frame_free_fn);
     auto* vtbl = emit_vtable(gen, coro, table_ty, poll_fn, drop_fn);
 
@@ -421,12 +430,10 @@ bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
     auto* entry = &ramp->getEntryBlock();
     gen.SetInsertPoint(entry);
     coro.handle_sret = ramp->getArg(decl->getStructReturnArgIndex());
+    // pointer to our wrapper, kept in the entry block so CoroFrame spills it
+    // across suspends for the body's `return` to find
+    auto* wrap_alloca = builder.CreateAlloca(ptr_ty);
 
-    // Clang's promise pattern: an alloca of the promise type in the entry block
-    // tells CoroFrame the promise size. The promise itself always sits right
-    // after the frame's resume/destroy pointers (`frame + 2 * sizeof(void*)`), so
-    // field access uses that fixed offset consistently in the ramp and in
-    // `poll`/`drop` (design Section 9.3).
     auto* null_ptr = ConstantPointerNull::get(ptr_ty);
     auto* id = builder.CreateCall(id_fn, {ConstantInt::get(i32, 0), null_ptr, null_ptr, null_ptr});
     coro.id = id;
@@ -447,21 +454,21 @@ bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
     auto* handle = builder.CreateCall(begin_fn, {id, frame});
     coro.frame = handle;
     coro.frame_size = size;
-    // `coro.promise(frame, ..., i1 false)` returns the promise address in the
-    // frame; `poll`/`drop` use the identical call with their frame argument.
-    // NOTE: for coroutines with large spill slots CoroFrame may place the
-    // promise after the spills, while this returns the canonical slot — see the
-    // "destructor-bearing structs that cross a suspension" limitation in the
-    // design doc.
-    auto* promise = builder.CreateCall(promise_fn, {handle, ConstantInt::get(i32, promise_align), ConstantInt::get(i1, false)});
-    coro.promise = promise;
-    coro.state_ptr = gep_idx(builder, promise_ty, promise, {0, 0});
-    auto* cx_ptr = gep_idx(builder, promise_ty, promise, {0, (unsigned) coro.cx_field});
-    builder.CreateStore(ConstantInt::get(i32, 0), coro.state_ptr);
-    builder.CreateStore(null_ptr, cx_ptr);
 
+    // allocate our wrapper, point it at the coroutine frame and initialise its
+    // state/cx fields
+    const auto wrapper_size = gen.module->getDataLayout().getTypeAllocSize(promise_ty);
+    auto* wrapper = builder.CreateCall(frame_alloc_fn, {ConstantInt::get(i64, wrapper_size), ConstantInt::get(i64, promise_align)});
+    builder.CreateStore(handle, gep_idx(builder, promise_ty, wrapper, {0, 0}));
+    coro.state_ptr = gep_idx(builder, promise_ty, wrapper, {0, 1});
+    builder.CreateStore(ConstantInt::get(i32, 0), coro.state_ptr);
+    builder.CreateStore(null_ptr, gep_idx(builder, promise_ty, wrapper, {0, (unsigned) coro.cx_field}));
+    builder.CreateStore(wrapper, wrap_alloca);
+    coro.promise = builder.CreateLoad(ptr_ty, wrap_alloca);
+
+    // the returned handle's frame is our wrapper
     auto* frame_field = gep_idx(builder, handle_ty, coro.handle_sret, {0, 0});
-    builder.CreateStore(handle, frame_field);
+    builder.CreateStore(wrapper, frame_field);
     auto* vtbl_field = gep_idx(builder, handle_ty, coro.handle_sret, {0, 1});
     builder.CreateStore(vtbl, vtbl_field);
 

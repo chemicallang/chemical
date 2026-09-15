@@ -44,3 +44,13 @@ public func neg_async_extern_errors(env : &mut TestEnv) {
     var ch = "@extern\nasync func foreign(x : int) : int\npublic func main() : int {\n    return 0\n}\n"
     expect_compile_error(env, "async_extern", ch, "cannot be `async`")
 }
+
+// `core` is in scope (so the FutureHandle protocol is reachable) but the
+// `async` library that provides the frame allocator is not, so the generated
+// ramp could not link. A clear diagnostic is emitted instead.
+@test
+public func neg_async_missing_library_errors(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "async func f(x : int) : int {\n    return x\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "async_missing_lib", ch, "async functions require the `async` library", NEG_MOD_CORE)
+}

@@ -2680,13 +2680,14 @@ FunctionType* get_func_type_from_exp_type(BaseType* type) {
 
 void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
 
-    // The C backend lowers `async func` into the FutureHandle protocol, but async
-    // closures carry a capture context and are not lowered yet. Emit a clear
-    // diagnostic instead of generating a body that references a frame that was
-    // never emitted.
+    // A lowering backend turns `async func` into the FutureHandle protocol, but
+    // async closures carry a capture context and are not lowered yet. Emit a
+    // clear diagnostic instead of generating a body that references a frame that
+    // was never emitted.
     if(lambVal->isAsync() && linker.comptime_scope.backend_context != nullptr
-       && linker.comptime_scope.backend_context->name() == "C") {
-        diagnoser.error(lambVal) << "async closures are not yet supported by the C backend; use a named `async func` instead";
+       && (linker.comptime_scope.backend_context->name() == "C"
+           || linker.comptime_scope.backend_context->name() == "LLVM")) {
+        diagnoser.error(lambVal) << "async closures are not yet supported; use a named `async func` instead";
     }
 
     auto& scope = lambVal->scope;
@@ -2840,7 +2841,7 @@ void SymResLinkBody::VisitAwaitExpression(AwaitExpression* value) {
         return;
     }
     // Lazy protocol: when the operand is a compiler-generated `FutureHandle<T>`
-    // (an async call under CHEMICAL_ASYNC_LAZY), `await e` resolves to the inner
+    // (an async call on a lowering backend), `await e` resolves to the inner
     // `T` rather than the handle (design Section 4.4 / 16.6). Otherwise `await`
     // is the eager/bootstrap transparent wrapper and yields the operand itself.
     if(inner_type->kind() == BaseTypeKind::Generic) {

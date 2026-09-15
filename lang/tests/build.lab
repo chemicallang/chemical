@@ -254,8 +254,9 @@ func test_libs_exe(ctx : *mut AppBuildContext) : *mut LabJob {
 }
 
 func test_async_lazy_exe(ctx : *mut AppBuildContext) : *mut LabJob {
-    // Built with CHEMICAL_ASYNC_LAZY=1, so async functions return FutureHandle<T>
-    // and are lowered by the compiler (scripts/test.sh --async-lazy).
+    // Async functions return FutureHandle<T> and are lowered by both the C and
+    // LLVM backends (scripts/test.sh --async-lazy). The awaits here resolve
+    // immediately (eager children), so no real suspension occurs.
     const exe_name = std::string_view("chemical-async-lazy-tests")
     const exe_job = ctx.build_exe(&exe_name)
     ctx.set_environment_testing(exe_job, true)
@@ -264,8 +265,8 @@ func test_async_lazy_exe(ctx : *mut AppBuildContext) : *mut LabJob {
 }
 
 func test_async_suspend_exe(ctx : *mut AppBuildContext) : *mut LabJob {
-    // Built with CHEMICAL_ASYNC_LAZY=1 CHEMICAL_ASYNC_SUSPEND=1, exercising the
-    // real suspension state machine (scripts/test.sh --async-suspend).
+    // Exercises the real suspension state machine with futures that stay Pending
+    // (scripts/test.sh --async-suspend). Currently C backend only.
     const exe_name = std::string_view("chemical-async-suspend-tests")
     const exe_job = ctx.build_exe(&exe_name)
     ctx.set_environment_testing(exe_job, true)

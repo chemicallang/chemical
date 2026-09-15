@@ -297,6 +297,104 @@ static bool gen_llvm_async_eager_fn(
     return true;
 }
 
+/**
+ * Emits the synchronous C entry point for an application whose `main` is
+ * `async func main`. The coroutine ramp returns a `FutureHandle<T>` through a
+ * hidden sret pointer; this wrapper drives it with the same "no waker" context
+ * `block_on` uses, drops the handle, and returns the integer result (design
+ * Section 5.5). Mirrors the C backend's `emit_async_main_wrapper`.
+ *
+ * The caller must have renamed the ramp away from `main` (see
+ * `gen_llvm_async_fn`) so this wrapper can own the real symbol.
+ */
+static void emit_llvm_async_main_wrapper(
+        Codegen& gen,
+        FunctionDeclaration* decl,
+        BaseType* inner,
+        BaseType* rt,
+        llvm::Function* ramp,
+        llvm::Type* poll_ty
+) {
+    auto& ctx = *gen.ctx;
+    auto& builder = *gen.builder;
+    auto* ptr_ty = builder.getPtrTy();
+    auto* i32 = builder.getInt32Ty();
+    auto* handle_ty = rt->llvm_type(gen);
+    auto* inner_ty = inner->llvm_type(gen);
+    const bool has_value = !inner_ty->isVoidTy() && !inner_ty->isEmptyTy();
+
+    // entry signature mirrors the declared params, minus the hidden sret slot
+    auto* ramp_ty = ramp->getFunctionType();
+    const auto sret_index = decl->getStructReturnArgIndex();
+    std::vector<llvm::Type*> entry_params;
+    for(unsigned i = 0; i < ramp_ty->getNumParams(); i++) {
+        if(i == (unsigned) sret_index) {
+            continue;
+        }
+        entry_params.push_back(ramp_ty->getParamType(i));
+    }
+    auto* main_ty = llvm::FunctionType::get(i32, entry_params, false);
+    auto* main_fn = gen.module->getFunction("main");
+    if(main_fn != nullptr && main_fn->isDeclaration() && main_fn->use_empty()) {
+        // drop a stale external declaration so the entry point has the right type
+        main_fn->eraseFromParent();
+        main_fn = nullptr;
+    }
+    if(main_fn == nullptr) {
+        main_fn = llvm::Function::Create(main_ty, GlobalValue::ExternalLinkage, "main", gen.module.get());
+    } else {
+        main_fn->setLinkage(GlobalValue::ExternalLinkage);
+    }
+
+    const auto prev_func = gen.current_function;
+    const auto prev_coro = gen.current_coro;
+    const auto prev_func_type = gen.current_func_type;
+    gen.current_function = main_fn;
+    gen.current_coro = nullptr;
+    gen.current_func_type = nullptr;
+
+    auto* entry = BasicBlock::Create(ctx, "entry", main_fn);
+    gen.SetInsertPoint(entry);
+    auto* handle = builder.CreateAlloca(handle_ty);
+    std::vector<llvm::Value*> ramp_args { handle };
+    for(unsigned i = 0; i < entry_params.size(); i++) {
+        ramp_args.push_back(main_fn->getArg(i));
+    }
+    builder.CreateCall(ramp_ty, ramp, ramp_args);
+
+    auto* poll_tmp = builder.CreateAlloca(poll_ty);
+    auto* null_ptr = ConstantPointerNull::get(ptr_ty);
+    auto* loop_bb = BasicBlock::Create(ctx, "main.loop", main_fn);
+    auto* done_bb = BasicBlock::Create(ctx, "main.done", main_fn);
+    builder.CreateBr(loop_bb);
+
+    // poll until Ready, then drop the handle (cancels a suspended frame once)
+    gen.SetInsertPoint(loop_bb);
+    auto* frame = builder.CreateLoad(ptr_ty, gep_idx(builder, handle_ty, handle, {0, 0}));
+    auto* vtbl = builder.CreateLoad(ptr_ty, gep_idx(builder, handle_ty, handle, {0, 1}));
+    auto* poll_fn = builder.CreateLoad(ptr_ty, vtbl);
+    builder.CreateCall(llvm::FunctionType::get(builder.getVoidTy(), {ptr_ty, ptr_ty, ptr_ty}, false), poll_fn, {poll_tmp, frame, null_ptr});
+    auto* tag = builder.CreateLoad(i32, gep_idx(builder, poll_ty, poll_tmp, {0, 0}));
+    auto* is_ready = builder.CreateICmpEQ(tag, builder.getInt32(0));
+    builder.CreateCondBr(is_ready, done_bb, loop_bb);
+
+    gen.SetInsertPoint(done_bb);
+    llvm::Value* result = nullptr;
+    if(has_value && inner_ty->isIntegerTy()) {
+        auto* payload = builder.CreateLoad(inner_ty, gep_idx(builder, poll_ty, poll_tmp, {0, 1}));
+        result = builder.CreateIntCast(payload, i32, true);
+    }
+    auto* frame2 = builder.CreateLoad(ptr_ty, gep_idx(builder, handle_ty, handle, {0, 0}));
+    auto* vtbl2 = builder.CreateLoad(ptr_ty, gep_idx(builder, handle_ty, handle, {0, 1}));
+    auto* drop_fn = builder.CreateLoad(ptr_ty, gep_idx(builder, ptr_ty, vtbl2, {1}));
+    builder.CreateCall(llvm::FunctionType::get(builder.getVoidTy(), {ptr_ty}, false), drop_fn, {frame2});
+    builder.CreateRet(result != nullptr ? result : builder.getInt32(0));
+
+    gen.current_function = prev_func;
+    gen.current_coro = prev_coro;
+    gen.current_func_type = prev_func_type;
+}
+
 bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
     BaseType* inner = nullptr;
     auto* rt = const_cast<BaseType*>(decl->returnType.getType());
@@ -315,6 +413,13 @@ bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
     auto* ramp = decl->llvm_func(gen);
     if(ramp == nullptr) {
         return false;
+    }
+    // An application's `async func main` needs a synchronous `int main` entry
+    // point. Move the coroutine ramp out of the way so the wrapper (emitted at
+    // the end) can own the `main` symbol.
+    const bool is_async_main = decl->is_no_mangle() && decl->name_view() == chem::string_view("main");
+    if(is_async_main) {
+        ramp->setName("__chx_async_main");
     }
     gen.current_function = ramp;
     auto* handle_ty = rt->llvm_type(gen);
@@ -358,7 +463,11 @@ bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
     // an async function that never awaits has no suspension points: use the
     // eager frame instead of a coroutine (design Section 9.7)
     if(build_async_plan(decl).sites.empty()) {
-        return gen_llvm_async_eager_fn(gen, decl, inner, rt, ramp, table_ty, poll_ty);
+        const auto ok = gen_llvm_async_eager_fn(gen, decl, inner, rt, ramp, table_ty, poll_ty);
+        if(ok && is_async_main) {
+            emit_llvm_async_main_wrapper(gen, decl, inner, rt, ramp, poll_ty);
+        }
+        return ok;
     }
 
     // the ramp must carry the `presplitcoroutine` enum attribute or the LLVM
@@ -534,6 +643,9 @@ bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
     gen.current_function = prev_func;
     gen.current_func_type = prev_func_type;
     gen.redirect_return = prev_redirect;
+    if(is_async_main) {
+        emit_llvm_async_main_wrapper(gen, decl, inner, rt, ramp, poll_ty);
+    }
     return true;
 }
 

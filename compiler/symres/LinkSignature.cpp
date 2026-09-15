@@ -44,16 +44,10 @@
 #include "compiler/lab/BackendContext.h"
 
 /**
- * True when the active code generation backend is the C/2c backend, which is
- * the only backend that lowers async functions to the `FutureHandle<T>`
- * protocol today. The interpreter and the LLVM IR backend keep the eager
- * bootstrap (no wrapping), so their behavior is unchanged.
- */
-/**
  * Whether the active backend lowers async functions to the `FutureHandle<T>`
- * protocol. The C/2c backend does; the LLVM IR backend's coroutine lowering is
- * still a work in progress (`compiler/backend/LLVMCoroutine.cpp`) and is gated
- * off, so LLVM keeps the eager/transparent bootstrap like the interpreter.
+ * protocol. Both native backends do: the C/2c backend and the LLVM IR backend
+ * (via `compiler/backend/LLVMCoroutine.cpp`). The interpreter has no lowering,
+ * so it keeps the eager/transparent bootstrap and `await e` stays the operand.
  */
 static bool lowers_async(GlobalInterpretScope& scope) {
     if(scope.backend_context == nullptr) {
@@ -763,9 +757,9 @@ void visit_func_decl(TopLevelLinkSignature& sig, FunctionDeclaration* node) {
     sig.visit(node->returnType);
 
     // async functions return `FutureHandle<T>` where T is the body result type
-    // (design Section 16.6 / D14). The C/2c backend lowers async functions to
-    // that handle protocol by default; other backends (LLVM IR, interpreter)
-    // have no lowering yet, so they keep the eager/transparent bootstrap.
+    // (design Section 16.6 / D14). The C/2c backend and the LLVM IR backend
+    // lower async functions to that handle protocol by default; the interpreter
+    // has no lowering, so it keeps the eager/transparent bootstrap.
     if(node->attrs.is_async && lowers_async(sig.linker.comptime_scope)
        && async_protocol_in_scope(sig.linker)
        && sig.linker.find(chem::string_view("async")) == nullptr

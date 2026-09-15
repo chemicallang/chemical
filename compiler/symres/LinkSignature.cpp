@@ -40,6 +40,18 @@
 #include "ast/utils/GenericUtils.h"
 #include "compiler/SymbolResolver.h"
 #include "compiler/frontend/AnnotationController.h"
+#include "ast/base/GlobalInterpretScope.h"
+#include "compiler/lab/BackendContext.h"
+
+/**
+ * True when the active code generation backend is the C/2c backend, which is
+ * the only backend that lowers async functions to the `FutureHandle<T>`
+ * protocol today. The interpreter and the LLVM IR backend keep the eager
+ * bootstrap (no wrapping), so their behavior is unchanged.
+ */
+static bool is_c_backend(GlobalInterpretScope& scope) {
+    return scope.backend_context != nullptr && scope.backend_context->name() == "C";
+}
 
 /**
  * Visit the where clause of a function to link constraint types
@@ -723,9 +735,10 @@ void visit_func_decl(TopLevelLinkSignature& sig, FunctionDeclaration* node) {
     sig.visit(node->returnType);
 
     // async functions return `FutureHandle<T>` where T is the body result type
-    // (design Section 16.6 / D14). Gated behind CHEMICAL_ASYNC_LAZY while the
-    // lazy lowering is brought up, so the eager bootstrap remains the default.
-    if(node->attrs.is_async && std::getenv("CHEMICAL_ASYNC_LAZY") != nullptr
+    // (design Section 16.6 / D14). The C/2c backend lowers async functions to
+    // that handle protocol by default; other backends (LLVM IR, interpreter)
+    // have no lowering yet, so they keep the eager/transparent bootstrap.
+    if(node->attrs.is_async && is_c_backend(sig.linker.comptime_scope)
        && sig.linker.coreNodes.async.future_handle != nullptr
        && node->returnType.getType() != nullptr) {
         auto& allocator = sig.getAstAllocator();

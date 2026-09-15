@@ -315,15 +315,6 @@ void ToCAstVisitor::fwd_declare(BaseType* type) {
 void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl);
 
 /**
- * The lazy async lowering (frame + ramp + poll + drop + vtable) is gated behind
- * CHEMICAL_ASYNC_LAZY, the same switch that makes symres wrap an async
- * function's return type into `FutureHandle<T>` (design Section 16.6).
- */
-static bool async_lowering_enabled() {
-    return std::getenv("CHEMICAL_ASYNC_LAZY") != nullptr;
-}
-
-/**
  * The concrete `core::async` protocol types for one `FutureHandle<T>`, resolved
  * by walking the handle's `vtbl` field into `FutureTable<T>` and its `poll`
  * field. `visit()` on each of these emits the correct concrete C type.
@@ -390,20 +381,6 @@ struct AsyncSuspendContext {
 
     const AwaitSite* site_for(ASTNode* init) const;
 };
-
-static bool async_slot_spillable(const AsyncFrameSlot& slot) {
-    // Only plain assignable values can be spilled by copy today. Arrays are not
-    // assignable in C and destructor-bearing values would be double-owned; both
-    // are diagnosed when they cross a suspension point.
-    if(slot.type == nullptr) {
-        return false;
-    }
-    const auto kind = slot.type->kind();
-    if(kind == BaseTypeKind::Array) {
-        return false;
-    }
-    return slot.type->get_destructor() == nullptr;
-}
 
 static void emit_async_await_var_init(ToCAstVisitor& visitor, VarInitStatement* init);
 static void emit_async_array_frame_init(ToCAstVisitor& visitor, const std::string& field, BaseType* type, Value* value);
@@ -3692,27 +3669,24 @@ void ToCAstVisitor::VisitAwaitExpression(AwaitExpression* value) {
         write('0');
         return;
     }
-    // Lazy mode: when the operand is a compiler-generated `FutureHandle<T>`,
-    // drive it to completion and yield its result (design Section 4.4 / 10.1).
-    // The eager bootstrap futures are always ready, so a single poll resolves;
-    // the loop is kept so the same shape survives real suspension later.
-    if(async_lowering_enabled()) {
-        auto types = resolve_async_c_types_from_handle(const_cast<BaseType*>(inner->getType()));
-        if(types.ok) {
-            write("({ ");
-            visit(types.handle); write(" __chx__f = "); visit(inner); write("; ");
-            visit(types.inner); write(" __chx__r; ");
-            write("for(;;) { ");
-            visit(types.poll); write(" __chx__p = (*({ ");
-            visit(types.poll); write(" __chx__t; __chx__f.vtbl->poll(&__chx__t, __chx__f.frame, 0); &__chx__t; })); ");
-            write("if(__chx__p.__chx__vt_621827 == 0) { __chx__r = __chx__p.Ready.value; break; } ");
-            write("} ");
-            write("__chx__f.vtbl->drop(__chx__f.frame); ");
-            write("__chx__r; })");
-            return;
-        }
+    // When the operand is a compiler-generated `FutureHandle<T>`, drive it to
+    // completion and yield its result (design Section 4.4 / 10.1). A
+    // non-future operand (transparent `await e`) falls through to `visit(e)`.
+    auto types = resolve_async_c_types_from_handle(const_cast<BaseType*>(inner->getType()));
+    if(types.ok) {
+        write("({ ");
+        visit(types.handle); write(" __chx__f = "); visit(inner); write("; ");
+        visit(types.inner); write(" __chx__r; ");
+        write("for(;;) { ");
+        visit(types.poll); write(" __chx__p = (*({ ");
+        visit(types.poll); write(" __chx__t; __chx__f.vtbl->poll(&__chx__t, __chx__f.frame, 0); &__chx__t; })); ");
+        write("if(__chx__p.__chx__vt_621827 == 0) { __chx__r = __chx__p.Ready.value; break; } ");
+        write("} ");
+        write("__chx__f.vtbl->drop(__chx__f.frame); ");
+        write("__chx__r; })");
+        return;
     }
-    // Phase 1/bootstrap and non-future operands: `await e` yields `e`.
+    // non-future operands: `await e` yields `e`.
     visit(inner);
 }
 
@@ -4558,7 +4532,9 @@ void ToCAstVisitor::VisitFunctionParam(FunctionParam *param) {
  * emit a frame + ramp + poll + drop + vtable instead of a plain function.
  */
 static bool async_lowered(FunctionDeclaration* decl) {
-    return decl->is_async() && async_lowering_enabled();
+    // The C backend lowers every async function. symres wraps the return type
+    // into `FutureHandle<T>` for this backend (see is_c_backend in LinkSignature).
+    return decl->is_async();
 }
 
 static bool find_struct_member(MembersContainer* container, const chem::string_view& name, StructMember*& out) {
@@ -4766,14 +4742,14 @@ const AwaitSite* AsyncSuspendContext::site_for(ASTNode* init) const {
 }
 
 /**
- * Saves every in-scope, spillable slot into its frame field just before the
- * coroutine returns `Pending`, so the values survive the (stack-freed) poll call
- * (design Sections 8.1, 10.1).
+ * Spills slots that are NOT frame-resident into the frame before returning
+ * `Pending`. Since every in-scope local is now frame-resident this is a no-op
+ * today; it remains as the hook for values that cannot live in the frame.
  */
 static void emit_async_spill(ToCAstVisitor& visitor, AsyncSuspendContext& ctx, const AwaitSite& site) {
     for(auto id : site.live_slots) {
         const auto& slot = ctx.plan.slots[id];
-        if(slot.node == site.var_init || !async_slot_spillable(slot)) {
+        if(slot.node == site.var_init || !ctx.resident_field(slot.node).empty()) {
             continue;
         }
         visitor.new_line_and_indent();
@@ -4785,12 +4761,12 @@ static void emit_async_spill(ToCAstVisitor& visitor, AsyncSuspendContext& ctx, c
 }
 
 /**
- * Restores the spilled slots on resume.
+ * Restores non-frame-resident spilled slots on resume.
  */
 static void emit_async_reload(ToCAstVisitor& visitor, AsyncSuspendContext& ctx, const AwaitSite& site) {
     for(auto id : site.live_slots) {
         const auto& slot = ctx.plan.slots[id];
-        if(slot.node == site.var_init || !async_slot_spillable(slot)) {
+        if(slot.node == site.var_init || !ctx.resident_field(slot.node).empty()) {
             continue;
         }
         visitor.new_line_and_indent();
@@ -4885,11 +4861,16 @@ static void emit_async_frame_field(ToCAstVisitor& visitor, BaseType* type, unsig
  * be non-destructor-bearing (checked by the caller), so a byte copy is safe.
  */
 static void emit_async_array_frame_init(ToCAstVisitor& visitor, const std::string& field, BaseType* type, Value* value) {
+    auto arr = type->as_array_type_unsafe();
+    auto elem = arr->elem_type != nullptr ? arr->elem_type->canonical() : nullptr;
+    const bool elem_destructible = elem != nullptr && elem->get_master_destructor() != nullptr;
     if(value == nullptr) {
         visitor.write(';');
         return;
     }
     if(value->kind() == ValueKind::ZeroedValue) {
+        // zero is the "empty" state for the supported destructor-bearing element
+        // types (e.g. std::string), so the destructors below are safe.
         visitor.write("memset(&"); visitor.write_str(field);
         visitor.write(", 0, sizeof("); visitor.write_str(field); visitor.write("));");
         return;
@@ -4900,7 +4881,23 @@ static void emit_async_array_frame_init(ToCAstVisitor& visitor, const std::strin
         visitor.write(", 0, sizeof("); visitor.write_str(field); visitor.write("));");
         return;
     }
-    // copy from a temporary array initializer because C arrays are not assignable
+    if(elem_destructible) {
+        // element-wise move because C arrays are not assignable and a byte copy
+        // would duplicate ownership of destructor-bearing elements
+        visitor.write("{ memset(&"); visitor.write_str(field);
+        visitor.write(", 0, sizeof("); visitor.write_str(field); visitor.write(")); ");
+        auto array = value->as_array_value_unsafe();
+        unsigned i = 0;
+        for(auto& elem_value : array->values) {
+            visitor.write_str(field); visitor.write('['); visitor.write(i); visitor.write("] = ");
+            visitor.accept_mutating_value_explicit(elem, elem_value);
+            visitor.write("; ");
+            i++;
+        }
+        visitor.write('}');
+        return;
+    }
+    // non-destructor elements: copy from a temporary array initializer
     visitor.write("{ ");
     visit_non_arr_type(visitor, type);
     visitor.write(" __chx__arr");
@@ -4917,7 +4914,28 @@ static void emit_async_array_frame_init(ToCAstVisitor& visitor, const std::strin
  * switch when a suspended future is cancelled (design Section 8.5).
  */
 static void emit_async_destroy_slot(ToCAstVisitor& visitor, const AsyncFrameSlot& slot, const std::string& field) {
-    if(slot.type == nullptr || slot.type->kind() == BaseTypeKind::Array) {
+    if(slot.type == nullptr) {
+        return;
+    }
+    if(slot.type->kind() == BaseTypeKind::Array) {
+        // element-wise destruction, last to first, for arrays of destructor-
+        // bearing elements
+        auto arr = slot.type->as_array_type_unsafe();
+        if(!arr->has_array_size() || arr->elem_type == nullptr) {
+            return;
+        }
+        auto elem = arr->elem_type->canonical();
+        auto container = elem->get_members_container();
+        auto destr = container != nullptr ? container->destructor_func() : nullptr;
+        if(destr == nullptr) {
+            return;
+        }
+        visitor.new_line_and_indent();
+        visitor.write("{ for(int __chx__ai = ");
+        visitor.write((unsigned) (arr->get_array_size() - 1));
+        visitor.write("; __chx__ai >= 0; __chx__ai--) { ");
+        visitor.mangle(destr);
+        visitor.write("(&"); visitor.write_str(field); visitor.write("[__chx__ai]); } }");
         return;
     }
     const auto destr = slot.type->get_destructor();
@@ -4993,11 +5011,11 @@ static void emit_async_suspend_function(ToCAstVisitor& visitor, FunctionDeclarat
     ctx.poll = t.poll;
     ctx.context_ptr = t.context_ptr;
 
-    // Decide which slots live directly in the frame (address-stable, destructor
-    // aware) instead of being spilled by copy. Any non-spillable slot that is a
-    // parameter or crosses a suspension point must be frame-resident; arrays are
-    // still unsupported (they cannot be assigned in C), and destructor-bearing
-    // await results cannot be moved out of the Poll yet.
+    // Every parameter and every local that is in scope at a suspension point
+    // lives directly in the frame (design Section 8.1): its address is then
+    // stable across suspend/resume, escaped pointers stay valid, and destructor
+    // and move handling go through the frame field. Locals that never cross an
+    // await stay on the stack as ordinary C locals.
     std::vector<bool> crosses(ctx.plan.slots.size(), false);
     for(auto& site : ctx.plan.sites) {
         for(auto id : site.live_slots) {
@@ -5008,7 +5026,7 @@ static void emit_async_suspend_function(ToCAstVisitor& visitor, FunctionDeclarat
     }
     for(size_t id = 0; id < ctx.plan.slots.size(); id++) {
         const auto& slot = ctx.plan.slots[id];
-        if(slot.node == nullptr || async_slot_spillable(slot)) {
+        if(slot.node == nullptr) {
             continue;
         }
         const bool is_param = slot.node->kind() == ASTNodeKind::FunctionParam;
@@ -5018,15 +5036,6 @@ static void emit_async_suspend_function(ToCAstVisitor& visitor, FunctionDeclarat
         if(slot.type == nullptr) {
             visitor.error("async suspension could not determine the type of this local/parameter", slot.node);
             continue;
-        }
-        if(slot.type->kind() == BaseTypeKind::Array) {
-            // Arrays live in the frame; only non-destructor-bearing elements are
-            // supported (a byte copy at init must not duplicate ownership).
-            auto elem = slot.type->as_array_type_unsafe()->elem_type;
-            if(elem != nullptr && elem->get_master_destructor() != nullptr) {
-                visitor.error("async suspension cannot keep an array of destructor-bearing elements across an await yet", slot.node);
-                continue;
-            }
         }
         ctx.resident[slot.node] = (unsigned) id;
     }

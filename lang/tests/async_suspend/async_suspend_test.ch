@@ -213,6 +213,47 @@ async func suspend_array_literal() : int {
     return arr[0] + arr[1] + arr[2] + n
 }
 
+// Arrays of destructor-bearing elements across a suspension: element-wise init
+// and destruction must not duplicate or leak ownership.
+async func suspend_string_array() : int {
+    var arr : [3]std::string = [std::string("a"), std::string("bb"), std::string("ccc")]
+    var n = await make_countdown(2, 1)
+    return (arr[0].size() + arr[1].size() + arr[2].size()) as int + n
+}
+
+async func suspend_destructible_array() : int {
+    var cs : [2]DropCounter = [DropCounter { value : 1 }, DropCounter { value : 2 }]
+    var n = await make_countdown(1, 5)
+    return cs[0].value + cs[1].value + n
+}
+
+// A pointer to a cross-await local must stay valid after resume (frame-resident
+// locals have a stable address, unlike the old spill/reload approach).
+async func suspend_escaped_ptr() : int {
+    var v = 41
+    var p = &raw mut v
+    var n = await make_countdown(2, 1)
+    p[0] = p[0] + 1
+    return v
+}
+
+@test
+func test_async_suspend_escaped_pointer(env : &mut TestEnv) {
+    if(async::block_on<int>(suspend_escaped_ptr()) != 42) {
+        env.error("a pointer to a cross-await local must remain valid across resume")
+    }
+}
+
+@test
+func test_async_suspend_destructible_arrays(env : &mut TestEnv) {
+    if(async::block_on<int>(suspend_string_array()) != 7) {
+        env.error("an array of strings across a suspension should be 7")
+    }
+    if(async::block_on<int>(suspend_destructible_array()) != 8) {
+        env.error("an array of DropCounters across a suspension should be 8")
+    }
+}
+
 @test
 func test_async_suspend_arrays(env : &mut TestEnv) {
     if(async::block_on<int>(suspend_array_zeroed(37)) != 84) {

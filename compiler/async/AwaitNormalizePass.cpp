@@ -330,7 +330,7 @@ struct PlanVisitor : public RecursiveVisitor<PlanVisitor> {
 
     AsyncLoweringPlan plan;
     std::vector<int> live;
-    ASTNode* current_var_init = nullptr;
+    VarInitStatement* current_var_init = nullptr;
 
     int add_slot(chem::string_view name, BaseType* type, ASTNode* node) {
         const auto id = (int) plan.slots.size();
@@ -368,6 +368,14 @@ struct PlanVisitor : public RecursiveVisitor<PlanVisitor> {
         // Only a real `FutureHandle<T>` operand suspends; transparent awaits are
         // emitted inline and must not be counted as frame sites.
         if(!is_await_handle_operand(value)) {
+            RecursiveVisitor<PlanVisitor>::VisitAwaitExpression(value);
+            return;
+        }
+        // Only awaits the normalizer hoisted into a VarInit are suspension sites
+        // the backend lowers. Awaits that remain inline (e.g. a loop header,
+        // which must be re-evaluated each iteration) are driven inline by the
+        // backend and must not get a state/label.
+        if(current_var_init == nullptr || current_var_init->value != value) {
             RecursiveVisitor<PlanVisitor>::VisitAwaitExpression(value);
             return;
         }

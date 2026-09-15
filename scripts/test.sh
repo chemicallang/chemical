@@ -57,8 +57,8 @@ usage() {
   echo "  --process               Build & run the process/environment test suite (passes --arg-test-process)"
   echo "  --webview               Build & run the webview test suite (passes --arg-test-webview)"
   echo "  --libs                  Build & run the library test suite (passes --arg-test-libs)"
-  echo "  --async-lazy            Build & run the lazy async/await suite with CHEMICAL_ASYNC_LAZY=1"
-  echo "  --async-suspend         Build & run the suspending async suite (CHEMICAL_ASYNC_LAZY=1)"
+  echo "  --async-lazy            Build & run the async/await suite (C backend; pass --tcc)"
+  echo "  --async-suspend         Build & run the suspending async suite (C backend; pass --tcc)"
   echo "  --target <triple>       Pass --target <triple> to the compiler (optional, omitted if empty)"
   echo "  -o <path>               Custom output executable path"
   echo "  --no-run                Build test executable only, do not run"
@@ -105,8 +105,8 @@ while [ $# -gt 0 ]; do
     --process) TEST_PROCESS=true ;;
     --webview) TEST_WEBVIEW=true ;;
     --libs) TEST_LIBS=true ;;
-    --async-lazy) TEST_ASYNC_LAZY=true; export CHEMICAL_ASYNC_LAZY=1 ;;
-    --async-suspend) TEST_ASYNC_SUSPEND=true; export CHEMICAL_ASYNC_LAZY=1 ;;
+    --async-lazy) TEST_ASYNC_LAZY=true ;;
+    --async-suspend) TEST_ASYNC_SUSPEND=true ;;
     --target) COMPILE_TARGET="$2"; shift ;;
     -o) TEST_OUT_NAME="$2"; shift ;;
     --no-run) RUN_TESTS=false ;;
@@ -140,6 +140,11 @@ done
 if [ -z "$TARGET" ]; then
   echo "Error: Specify --tcc or --llvm"
   usage
+fi
+
+if { [ "$TEST_ASYNC_LAZY" = true ] || [ "$TEST_ASYNC_SUSPEND" = true ]; } && [ "$TARGET" != "TCCCompiler" ]; then
+  echo "Error: the async suites require the C backend (--tcc); the LLVM IR backend has no async lowering yet"
+  exit 1
 fi
 
 if [ -n "$SANITIZER" ] && [ "$TARGET" != "Compiler" ]; then

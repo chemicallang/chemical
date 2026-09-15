@@ -81,6 +81,59 @@ async func al_await_while(limit : int) : int {
     return i
 }
 
+// extra cases migrated from the old main-suite async tests
+async func al_return_await(x : int) : int {
+    return await al_double(x)
+}
+
+async func al_await_binop(a : int, b : int) : int {
+    return (await al_double(a)) + (await al_double(b))
+}
+
+async func al_await_arg(x : int) : int {
+    return await al_double(await al_double(x))
+}
+
+async func al_await_condition(flag : bool) : int {
+    var cond = await flag
+    if(cond) {
+        return 1
+    } else {
+        return 0
+    }
+}
+
+@test
+func test_async_lazy_return_await(env : &mut TestEnv) {
+    if(async::block_on<int>(al_return_await(21)) != 42) {
+        env.error("return await should be 42")
+    }
+}
+
+@test
+func test_async_lazy_await_binop(env : &mut TestEnv) {
+    if(async::block_on<int>(al_await_binop(3, 4)) != 14) {
+        env.error("await in a binary expression should be 14")
+    }
+}
+
+@test
+func test_async_lazy_await_arg(env : &mut TestEnv) {
+    if(async::block_on<int>(al_await_arg(5)) != 20) {
+        env.error("await as a call argument should be 20")
+    }
+}
+
+@test
+func test_async_lazy_await_condition_bool(env : &mut TestEnv) {
+    if(async::block_on<int>(al_await_condition(true)) != 1) {
+        env.error("await on a true condition should be 1")
+    }
+    if(async::block_on<int>(al_await_condition(false)) != 0) {
+        env.error("await on a false condition should be 0")
+    }
+}
+
 @test
 func test_async_lazy_returns_handle_result(env : &mut TestEnv) {
     if(async::block_on<int>(al_add(2, 3)) != 5) {

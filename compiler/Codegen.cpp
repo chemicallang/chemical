@@ -853,6 +853,21 @@ void Codegen::assign_store(Value* lhs, llvm::Value* pointer, Value* rhs, llvm::V
         di.instr(storeInst, lhs);
 
     } else {
+        // A struct-typed rvalue materialized as a pointer to its storage (a
+        // variant-pattern binding, a loop/block result, etc.) must be copied,
+        // not stored as a pointer.
+        if(value != nullptr && value->getType()->isPointerTy() && rhs != nullptr && rhs->getType() != nullptr) {
+            const auto rhs_type = rhs->getType()->canonical();
+            if(rhs_type->isStructLikeType()) {
+                const auto struct_llvm = rhs_type->llvm_type(*this);
+                if(struct_llvm != nullptr && struct_llvm->isSized()) {
+                    const auto alloc_size = module->getDataLayout().getTypeAllocSize(struct_llvm);
+                    const auto memcpyInst = builder->CreateMemCpy(pointer, llvm::MaybeAlign(), value, llvm::MaybeAlign(), alloc_size);
+                    di.instr(memcpyInst, location);
+                    return;
+                }
+            }
+        }
         // TODO not using the correct location for debugging
         const auto storeInst = builder->CreateStore(value, pointer);
         di.instr(storeInst, rhs);

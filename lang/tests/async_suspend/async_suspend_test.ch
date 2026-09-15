@@ -160,6 +160,69 @@ func test_async_suspend_transparent_await(env : &mut TestEnv) {
     }
 }
 
+// Awaiting a destructor-bearing result: the value is moved out of the child's
+// `Poll` into a frame-resident result slot, used, then destroyed at scope end.
+async func make_label(x : int) : std::string {
+    var n = await make_countdown(1, x)
+    return std::string("hello-world")
+}
+
+async func use_label() : int {
+    var s = await make_label(3)
+    return s.size() as int
+}
+
+// Two awaits with different result types in one function (per-site Poll<T>).
+async func two_labels() : int {
+    var a = await make_label(1)
+    var b = await make_label(2)
+    return (a.size() + b.size()) as int
+}
+
+@test
+func test_async_suspend_destructible_result(env : &mut TestEnv) {
+    if(async::block_on<int>(use_label()) != 11) {
+        env.error("awaiting a destructor-bearing result should yield 11")
+    }
+    if(async::block_on<int>(two_labels()) != 22) {
+        env.error("two destructor-bearing await results should yield 22")
+    }
+}
+
+@test
+func test_async_suspend_destructible_result_block_on(env : &mut TestEnv) {
+    var s = async::block_on<std::string>(make_label(5))
+    if(s.size() != 11) {
+        env.error("block_on of a destructor-bearing result should yield an 11-char string")
+    }
+}
+
+// Arrays across a suspension: buffers are frame-resident and stay valid across
+// the suspend/resume boundary.
+async func suspend_array_zeroed(x : int) : int {
+    var buf : [8]char = zeroed<[8]char>()
+    buf[0] = 42 as char
+    var n = await make_countdown(1, 5)
+    buf[1] = (x + n) as char
+    return (buf[0] as int) + (buf[1] as int)
+}
+
+async func suspend_array_literal() : int {
+    var arr : [3]int = [1, 2, 3]
+    var n = await make_countdown(1, 4)
+    return arr[0] + arr[1] + arr[2] + n
+}
+
+@test
+func test_async_suspend_arrays(env : &mut TestEnv) {
+    if(async::block_on<int>(suspend_array_zeroed(37)) != 84) {
+        env.error("a zeroed buffer mutated across a suspension should be 84")
+    }
+    if(async::block_on<int>(suspend_array_literal()) != 10) {
+        env.error("a literal array across a suspension should be 10")
+    }
+}
+
 @test
 func test_async_suspend_cancel_destroys_locals(env : &mut TestEnv) {
     var before = suspend_drops

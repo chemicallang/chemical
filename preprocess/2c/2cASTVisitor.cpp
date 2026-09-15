@@ -362,6 +362,13 @@ struct AsyncSuspendContext {
      */
     std::unordered_map<ASTNode*, unsigned> resident;
 
+    /**
+     * the concrete `Poll<T>` type of each await site. Different awaits in one
+     * function can resolve different `T`s, so this cannot be `poll` (which is
+     * the function's own result type).
+     */
+    std::vector<BaseType*> site_poll;
+
     std::string child_field(unsigned site) const {
         return frame_var + "->__chx_child_" + std::to_string(site);
     }
@@ -384,10 +391,6 @@ struct AsyncSuspendContext {
     const AwaitSite* site_for(ASTNode* init) const;
 };
 
-static bool async_suspend_enabled() {
-    return std::getenv("CHEMICAL_ASYNC_SUSPEND") != nullptr;
-}
-
 static bool async_slot_spillable(const AsyncFrameSlot& slot) {
     // Only plain assignable values can be spilled by copy today. Arrays are not
     // assignable in C and destructor-bearing values would be double-owned; both
@@ -403,6 +406,7 @@ static bool async_slot_spillable(const AsyncFrameSlot& slot) {
 }
 
 static void emit_async_await_var_init(ToCAstVisitor& visitor, VarInitStatement* init);
+static void emit_async_array_frame_init(ToCAstVisitor& visitor, const std::string& field, BaseType* type, Value* value);
 static void emit_async_suspend_function(ToCAstVisitor& visitor, FunctionDeclaration* decl, AsyncCTypes& types);
 
 // will write a scope to visitor
@@ -3589,14 +3593,19 @@ void ToCAstVisitor::VisitVarInitStmt(VarInitStatement *init) {
         auto field = async_suspend->resident_field(init);
         if(!field.empty()) {
             new_line_and_indent(init->encoded_location());
-            write_str(field);
-            write(" = ");
-            if(init->value != nullptr) {
-                accept_mutating_value_explicit(init->known_type(), init->value);
+            auto resident_type = init->known_type();
+            if(resident_type != nullptr && resident_type->kind() == BaseTypeKind::Array) {
+                emit_async_array_frame_init(*this, field, resident_type, init->value);
             } else {
-                write("("); visit(init->known_type()); write("){0}");
+                write_str(field);
+                write(" = ");
+                if(init->value != nullptr) {
+                    accept_mutating_value_explicit(resident_type, init->value);
+                } else {
+                    write("("); visit(resident_type); write("){0}");
+                }
+                write(';');
             }
-            write(';');
             // queue the destructor against the frame field (see
             // CDestructionVisitor::VisitVarInitStmt)
             destructor.VisitVarInitStmt(init);
@@ -4806,12 +4815,17 @@ static void emit_async_poll_child(
         bool resume
 ) {
     auto child = ctx.child_field(site.resume_state);
+    // each site may resolve a different Poll<T>, so use the site's own type
+    BaseType* poll_type = ctx.poll;
+    if(site.resume_state < ctx.site_poll.size() && ctx.site_poll[site.resume_state] != nullptr) {
+        poll_type = ctx.site_poll[site.resume_state];
+    }
     visitor.write('{');
     visitor.indentation_level += 1;
     visitor.new_line_and_indent();
-    visitor.visit(ctx.poll);
+    visitor.visit(poll_type);
     visitor.write(" __chx__p = (*({ ");
-    visitor.visit(ctx.poll);
+    visitor.visit(poll_type);
     visitor.write(" __chx__t; ");
     visitor.write_str(child); visitor.write(".vtbl->poll(&__chx__t, ");
     visitor.write_str(child); visitor.write(".frame, ");
@@ -4844,6 +4858,58 @@ static void emit_async_poll_child(
     visitor.new_line_and_indent();
     visitor.write('}');
     visitor.new_line_and_indent();
+}
+
+/**
+ * Emits a frame field declaration `T __chx_slot_<id>[N];` for arrays and
+ * `T __chx_slot_<id>;` otherwise.
+ */
+static void emit_async_frame_field(ToCAstVisitor& visitor, BaseType* type, unsigned id) {
+    if(type != nullptr && type->kind() == BaseTypeKind::Array) {
+        visit_non_arr_type(visitor, type);
+        visitor.write(" __chx_slot_"); visitor.write(id);
+        write_type_post_id(visitor, type);
+        return;
+    }
+    if(type != nullptr) {
+        visitor.visit(type);
+    } else {
+        visitor.write("void*");
+    }
+    visitor.write(" __chx_slot_"); visitor.write(id);
+}
+
+/**
+ * Initializes a frame-resident array slot (C arrays are not assignable). Only
+ * `zeroed` and literal initializers are supported; the array element type must
+ * be non-destructor-bearing (checked by the caller), so a byte copy is safe.
+ */
+static void emit_async_array_frame_init(ToCAstVisitor& visitor, const std::string& field, BaseType* type, Value* value) {
+    if(value == nullptr) {
+        visitor.write(';');
+        return;
+    }
+    if(value->kind() == ValueKind::ZeroedValue) {
+        visitor.write("memset(&"); visitor.write_str(field);
+        visitor.write(", 0, sizeof("); visitor.write_str(field); visitor.write("));");
+        return;
+    }
+    if(value->kind() != ValueKind::ArrayValue) {
+        visitor.error("async suspension supports only `zeroed` or literal initializers for arrays across an await", value);
+        visitor.write("memset(&"); visitor.write_str(field);
+        visitor.write(", 0, sizeof("); visitor.write_str(field); visitor.write("));");
+        return;
+    }
+    // copy from a temporary array initializer because C arrays are not assignable
+    visitor.write("{ ");
+    visit_non_arr_type(visitor, type);
+    visitor.write(" __chx__arr");
+    write_type_post_id(visitor, type);
+    visitor.write(" = ");
+    visitor.visit(value);
+    visitor.write("; ");
+    visitor.write("memcpy(&"); visitor.write_str(field);
+    visitor.write(", &__chx__arr, sizeof(__chx__arr)); }");
 }
 
 /**
@@ -4907,6 +4973,10 @@ static void emit_async_await_var_init(ToCAstVisitor& visitor, VarInitStatement* 
     visitor.write(site->resume_state);
     visitor.write(':');
     visitor.new_line_and_indent();
+    // The awaited result owns its value (destructor-bearing results are
+    // frame-resident). Queue its cleanup like a normal local: it runs at scope
+    // end, and is skipped when the result is moved out by `return`.
+    visitor.destructor.VisitVarInitStmt(init);
     ++ctx.await_index;
 }
 
@@ -4945,16 +5015,25 @@ static void emit_async_suspend_function(ToCAstVisitor& visitor, FunctionDeclarat
         if(!crosses[id] && !is_param) {
             continue;
         }
-        if(slot.type == nullptr || slot.type->kind() == BaseTypeKind::Array) {
-            visitor.error("async suspension cannot keep an array parameter or local across an await yet", slot.node);
+        if(slot.type == nullptr) {
+            visitor.error("async suspension could not determine the type of this local/parameter", slot.node);
             continue;
+        }
+        if(slot.type->kind() == BaseTypeKind::Array) {
+            // Arrays live in the frame; only non-destructor-bearing elements are
+            // supported (a byte copy at init must not duplicate ownership).
+            auto elem = slot.type->as_array_type_unsafe()->elem_type;
+            if(elem != nullptr && elem->get_master_destructor() != nullptr) {
+                visitor.error("async suspension cannot keep an array of destructor-bearing elements across an await yet", slot.node);
+                continue;
+            }
         }
         ctx.resident[slot.node] = (unsigned) id;
     }
+    ctx.site_poll.reserve(ctx.plan.sites.size());
     for(auto& site : ctx.plan.sites) {
-        if(site.awaited_type != nullptr && site.awaited_type->get_destructor() != nullptr) {
-            visitor.error("async suspension cannot yet move a destructor-bearing await result out of the future", decl);
-        }
+        auto site_types = resolve_async_c_types_from_handle(const_cast<BaseType*>(site.awaited_handle_type));
+        ctx.site_poll.push_back(site_types.ok ? site_types.poll : nullptr);
     }
 
     // ---- frame struct ----
@@ -4977,9 +5056,8 @@ static void emit_async_suspend_function(ToCAstVisitor& visitor, FunctionDeclarat
     }
     for(size_t id = 0; id < ctx.plan.slots.size(); id++) {
         visitor.space();
-        auto type = ctx.plan.slots[id].type;
-        if(type != nullptr) { visitor.visit(type); } else { visitor.write("void*"); }
-        visitor.write(" __chx_slot_"); visitor.write((unsigned) id); visitor.write(';');
+        emit_async_frame_field(visitor, ctx.plan.slots[id].type, (unsigned) id);
+        visitor.write(';');
     }
     visitor.write(" };");
 
@@ -5181,11 +5259,12 @@ void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
         auto types = resolve_async_c_types(decl);
         if(!types.ok) {
             visitor.error("async lowering could not resolve the core::async protocol types for this function", decl);
-        } else if(async_suspend_enabled() && !build_async_plan(decl).sites.empty()) {
-            // real suspension state machine (Phase 4.2)
+        } else if(!build_async_plan(decl).sites.empty()) {
+            // suspending state machine (design Phase 4.2/4.5, the default for
+            // any async function that actually awaits)
             emit_async_suspend_function(visitor, decl, types);
         } else {
-            // eager-ready fast path (no awaits, or suspension disabled)
+            // eager-ready fast path for async functions with no awaits
             emit_async_lowered_function(visitor, decl, types);
         }
         visitor.current_func_type = prev_func_decl;

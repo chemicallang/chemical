@@ -3410,14 +3410,33 @@ LLVM; TinyCC compiles the output.
 > `DropCounter`-bearing suspended future dropped without completion whose
 > destructor runs exactly once.
 >
-> **Known limits of the state machine (next).** Arrays still cannot cross a
-> suspension point (diagnosed, not miscompiled), and a destructor-bearing await
-> *result* cannot yet be moved out of the `Poll` (diagnosed). The cancellation
-> drop switch uses the static `live_drops` set, so a local that was moved out
-> before suspension would need a drop flag (design 8.4) to avoid a double drop.
-> Escaped pointers to non-resident (spill/reload) locals are not yet stable. The
-> eager-ready path stays the default under `--async-lazy`; the state machine is
-> opt-in until those land and until the LLVM (`llvm.coro.*`) lowering exists.
+> **Destructor-bearing await results + arrays across a suspension (landed).**
+> A destructor-bearing result (`T` with `@delete`, e.g. `std::string`) is first
+> resolved into a frame-resident slot; the `Poll<T>` temp is never destroyed, so
+> the byte copy out of it is the move, and the result's destructor is queued like
+> a normal local (skipped when `return` moves it out). Each await site resolves
+> its own `Poll<T>` (`AsyncSuspendContext::site_poll`), so two awaits with
+> different `T` in one function work. Arrays are frame-resident when they cross a
+> suspension; `emit_async_frame_field` emits `T __chx_slot_k[N]` and
+> `emit_async_array_frame_init` initializes them from `zeroed` (`memset`) or a
+> literal (temp + `memcpy`). Validated by `lang/tests/async_suspend` (11/11):
+> destructible results (single and two-per-function, and `block_on<std::string>`)
+> plus a zeroed buffer and a literal array mutated across suspensions.
+>
+> **The state machine is now the default (design 4.5).** Under
+> `CHEMICAL_ASYNC_LAZY`, any async function that awaits is lowered by
+> `emit_async_suspend_function`; only async functions with *no* awaits use the
+> eager-ready ramp. The full `lang/tests/async_lazy` corpus (10/10) passes through
+> the state machine.
+>
+> **Known limits of the state machine (next).** Arrays of destructor-bearing
+> elements cannot cross a suspension (diagnosed; the init byte copy would
+> duplicate ownership). The cancellation drop switch uses the static `live_drops`
+> set, so a local that was moved out before suspension would need a drop flag
+> (design 8.4) to avoid a double drop; arrays also cannot be default-initialized
+> from a non-literal, non-`zeroed` expression. Escaped pointers to non-resident
+> (spill/reload) locals are not yet stable. The LLVM (`llvm.coro.*`) lowering is
+> still to come, so the state machine is C-only.
 >
 > **Discovered blocker for the library-side shortcut (must be a compiler
 > lowering pass, not a library helper).** A generic function reference cannot

@@ -689,6 +689,17 @@ llvm::Function *Codegen::create_nested_function(const std::string_view &name, ll
     const auto prev_block = builder->GetInsertBlock();
     const auto prev_current_func = current_function;
     const auto prev_func_type = current_func_type;
+    // A nested function (e.g. a capturing lambda) must not inherit the enclosing
+    // function's coroutine state: `redirect_return` points at a basic block of
+    // the enclosing async ramp's function, and `current_coro` is its coroutine.
+    // If left set, the nested function's `ret` becomes a branch to a block in
+    // another function, producing invalid IR ("Referring to a basic block in
+    // another function") that later crashes LLVM (B14).
+    const auto prev_redirect_return = redirect_return;
+    const auto prev_coro = current_coro;
+
+    redirect_return = nullptr;
+    current_coro = nullptr;
 
     destroy_current_scope = true;
     SetInsertPoint(nullptr);
@@ -712,6 +723,8 @@ llvm::Function *Codegen::create_nested_function(const std::string_view &name, ll
     current_function = prev_current_func;
     destruct_nodes = std::move(prev_destruct_nodes);
     destroy_current_scope = prev_destroy_scope;
+    redirect_return = prev_redirect_return;
+    current_coro = prev_coro;
 
     return nested_function;
 

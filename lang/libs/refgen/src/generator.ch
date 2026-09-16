@@ -336,6 +336,10 @@ public struct Generator {
     var index : std::vector<SymbolInfo>
     var sidebar_cache : std::unordered_map<std::string, std::string>
     var cur_rel_root : std::string
+    // page-head block produced by page_head, appended by the caller inside
+    // .main-content (must come after .sidebar in the DOM so flexbox puts the
+    // sidebar on the left)
+    var head_html : std::string
 
     func index_node_recursive(&mut self, node : *ASTNode, file_id : uint, mod_name : std::string_view, parent_name : std::string_view, filename : std::string_view) {
         var name = get_node_name(node);
@@ -552,6 +556,7 @@ public struct Generator {
         html.append_string(sb.copy());
 
         html.append_view("<div class='main-content'>");
+        html.append_string(self.head_html.copy());
         
         // Dependency Graph Visualization
         html.append_view("<div class='dependency-graph'>");
@@ -764,8 +769,6 @@ public struct Generator {
         html.append_view("<h3>Themes</h3><div class='theme-toggles'>");
         html.append_view("<button class='theme-btn' onclick=\"setTheme('dark')\">Dark</button>");
         html.append_view("<button class='theme-btn' onclick=\"setTheme('light')\">Light</button>");
-        html.append_view("<button class='theme-btn' onclick=\"setTheme('playground')\">Playground</button>");
-        html.append_view("<button class='theme-btn' onclick=\"setTheme('playground-light')\">Playground Light</button>");
         html.append_view("<button class='theme-btn' onclick=\"setTheme('paper')\">Paper</button>");
         html.append_view("</div>");
         
@@ -844,12 +847,13 @@ public struct Generator {
         sub.append_view("</code>");
         var sub_view = sub.to_view();
 
-        var html = self.page_head(title.to_view(), "Chemical API Documentation for", "api", "", "", filename, sub_view);
+        var html = self.page_head(title.to_view(), "Chemical API Documentation for", "api", "", filename, sub_view, stats.to_view());
 
         var sb = self.generate_sidebar(rel_root.to_view());
         html.append_string(sb.copy());
 
         html.append_view("<div class='main-content'>");
+        html.append_string(self.head_html.copy());
         html.append_view("<div class='symbols-header'><h3>Declarations</h3><div class='filter-box'><label class='switch'><input type='checkbox' id='public-only' onchange='applyFilter()'><span class='slider'></span></label> <span>Public only</span></div></div>");
 
         if (decl_count == 0) {
@@ -1395,6 +1399,7 @@ public struct Generator {
         html.append_string(sb.copy());
 
         html.append_view("<div class='main-content'>");
+        html.append_string(self.head_html.copy());
         html.append_view("<div class='module-grid'>");
         for (var m = 0u; m < mod_names.size(); m++) {
             var mname = mod_names.get_ptr(m);
@@ -1507,7 +1512,7 @@ public struct Generator {
 
     // Shared page shell: head, fonts, CSS, theme init, topbar.
     // chip/crumb/title/sub/stats are raw HTML fragments (may be empty).
-    func page_head(&self, title : std::string_view, desc : std::string_view, chip : std::string_view, crumb_html : std::string_view, title_html : std::string_view, sub_html : std::string_view, stats_html : std::string_view) : std::string {
+    func page_head(&mut self, title : std::string_view, desc : std::string_view, chip : std::string_view, crumb_html : std::string_view, title_html : std::string_view, sub_html : std::string_view, stats_html : std::string_view) : std::string {
         var html = std::string("<!DOCTYPE html><html lang='en'><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1.0'>");
         if (desc.size() > 0) {
             html.append_view("<meta name='description' content='");
@@ -1522,7 +1527,7 @@ public struct Generator {
         html.append_view(self.get_css());
         html.append_view("</style>");
         html.append_view("<script>function setTheme(t){document.documentElement.setAttribute('data-theme',t);localStorage.setItem('refgen-theme',t);if(window.__chemOnTheme)window.__chemOnTheme(t);}</script>");
-        html.append_view("<script>try{var t=localStorage.getItem('refgen-theme')||'dark';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','dark');}</script>");
+        html.append_view("<script>try{var t=localStorage.getItem('refgen-theme')||'dark';if(t==='playground')t='dark';if(t==='playground-light')t='light';document.documentElement.setAttribute('data-theme',t);}catch(e){document.documentElement.setAttribute('data-theme','dark');}</script>");
         html.append_view("</head><body>");
         html.append_view("<div class='topbar'>");
         html.append_view("<a class='brand' href='");
@@ -1535,7 +1540,7 @@ public struct Generator {
             html.append_view(&crumb_html);
         }
         html.append_view("<div class='topbar-spacer'></div>");
-        html.append_view("<select id='theme-select' class='theme-select' aria-label='Theme' onchange='setTheme(this.value)'><option value='dark'>Dark</option><option value='light'>Light</option><option value='paper'>Paper</option><option value='playground'>Playground</option><option value='playground-light'>Playground Light</option></select>");
+        html.append_view("<select id='theme-select' class='theme-select' aria-label='Theme' onchange='setTheme(this.value)'><option value='dark'>Dark</option><option value='light'>Light</option><option value='paper'>Paper</option></select>");
         html.append_view("</div>");
         html.append_view("<div class='layout'>");
         // page head block (inside main-content, appended by caller)
@@ -1559,7 +1564,8 @@ public struct Generator {
             head.append_view("</div>");
         }
         head.append_view("</div>");
-        html.append_string(head.copy());
+        // Stored for the caller to append inside .main-content (after .sidebar)
+        self.head_html = head.copy();
         return html;
     }
 
@@ -1792,7 +1798,7 @@ public struct Generator {
                REFGEN — API REFERENCE DESIGN SYSTEM
                Precision instrument: near-black ink, hairline 1px lines,
                Sora display type, IBM Plex Mono code, signal blue accent.
-               Themes: dark / light / paper / playground / playground-light
+               Themes: dark / light / paper
                ============================================================ */
             :root {
                 --transition: 0.18s cubic-bezier(0.22, 1, 0.36, 1);
@@ -1803,24 +1809,18 @@ public struct Generator {
                 --font-code: 'IBM Plex Mono', 'JetBrains Mono', Consolas, monospace;
             }
             * { box-sizing: border-box; scroll-behavior: smooth; }
-            :root[data-theme='light'] {
-                --bg: #f8fafc; --bg-card: #ffffff; --border: #e2e8f0; --border-strong: #cbd5e1; --text: #0f172a; --text-muted: #64748b; --accent: #1d5fbf; --accent-ink: #ffffff; --accent-dim: rgba(29, 95, 191, 0.08); --code-bg: #f1f5f9; --btn-bg: #ffffff; --btn-text: #0f172a; --nested-bg: rgba(0,0,0,0.02);
-            }
             :root[data-theme='dark'] {
-                --bg: #0b0f19; --bg-card: #111827; --border: #1f2937; --border-strong: #374151; --text: #f3f4f6; --text-muted: #9ca3af; --accent: #60a5fa; --accent-ink: #0b0f19; --accent-dim: rgba(96, 165, 250, 0.10); --code-bg: #1f2937; --btn-bg: #1f2937; --btn-text: #f3f4f6; --nested-bg: rgba(255,255,255,0.03);
-            }
-            :root[data-theme='paper'] {
-                --bg: #f4f1ea; --bg-card: #fdfcf9; --border: #e2ddd3; --border-strong: #cfc8ba; --text: #433f38; --text-muted: #7c7467; --accent: #8b5e34; --accent-ink: #fdfcf9; --accent-dim: rgba(139, 94, 52, 0.08); --code-bg: #e9e4d9; --btn-bg: #fdfcf9; --btn-text: #433f38; --nested-bg: rgba(0,0,0,0.03);
-            }
-            :root[data-theme='playground'] {
                 --bg: #0A0A0C; --bg-card: #101014; --border: #1D1D23; --border-strong: #2A2A32; --text: #E8E8EC; --text-muted: #63636E; --accent: #4DA3FF; --accent-ink: #0A0A0C; --accent-dim: rgba(77, 163, 255, 0.12); --code-bg: #060608; --btn-bg: #17171D; --btn-text: #E8E8EC; --nested-bg: rgba(77, 163, 255, 0.05);
                 --font-body: 'Sora', system-ui, -apple-system, 'Segoe UI', sans-serif;
                 --radius: 6px;
             }
-            :root[data-theme='playground-light'] {
+            :root[data-theme='light'] {
                 --bg: #FAFAF7; --bg-card: #FFFFFF; --border: #E4E4DD; --border-strong: #D4D4CB; --text: #17171C; --text-muted: #8A8A93; --accent: #1D5FBF; --accent-ink: #FAFAF7; --accent-dim: rgba(29, 95, 191, 0.08); --code-bg: #F1F1EC; --btn-bg: #F1F1EC; --btn-text: #17171C; --nested-bg: rgba(29, 95, 191, 0.05);
                 --font-body: 'Sora', system-ui, -apple-system, 'Segoe UI', sans-serif;
                 --radius: 6px;
+            }
+            :root[data-theme='paper'] {
+                --bg: #f4f1ea; --bg-card: #fdfcf9; --border: #e2ddd3; --border-strong: #cfc8ba; --text: #433f38; --text-muted: #7c7467; --accent: #8b5e34; --accent-ink: #fdfcf9; --accent-dim: rgba(139, 94, 52, 0.08); --code-bg: #e9e4d9; --btn-bg: #fdfcf9; --btn-text: #433f38; --nested-bg: rgba(0,0,0,0.03);
             }
 
             /* --- ACCESSIBILITY --- */
@@ -2104,8 +2104,8 @@ public struct Generator {
             :root[data-theme='light'] .tok-type, :root[data-theme='paper'] .tok-type { color: #6d4fc4; }
             :root[data-theme='light'] .tok-str, :root[data-theme='paper'] .tok-str { color: #1f7a5c; }
             :root[data-theme='light'] .tok-kwd, :root[data-theme='paper'] .tok-kwd { color: var(--accent); }
-            :root[data-theme='playground'] .tok-str, :root[data-theme='playground-light'] .tok-str { color: #7fd1b9; }
-            :root[data-theme='playground-light'] .tok-str { color: #1f7a5c; }
+            :root[data-theme='dark'] .tok-str, :root[data-theme='light'] .tok-str { color: #7fd1b9; }
+            :root[data-theme='light'] .tok-str { color: #1f7a5c; }
 
             .comment { color: var(--text); font-size: 0.95rem; margin-top: 1.1rem; padding-top: 1rem; border-top: 1px solid var(--border); white-space: pre-wrap; }
             .comment h2, .comment h3 { border: none; margin-top: 1.25rem; padding: 0; font-size: 1.05rem; }

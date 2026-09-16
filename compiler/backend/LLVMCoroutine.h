@@ -65,6 +65,14 @@ struct LLVMCoroContext {
 
     unsigned result_field = 2;
     unsigned cx_field = 1;
+    unsigned state_field = 1;
+
+    /**
+     * Opaque pointer to the `AsyncFrameLayout` computed by `gen_llvm_async_fn`
+     * (valid for the duration of the body generation). Used by `gen_llvm_await`
+     * to store the child future and set the suspension state.
+     */
+    const void* frame_layout = nullptr;
 };
 
 /**

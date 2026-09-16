@@ -627,7 +627,14 @@ std::optional<Destructible> Codegen::create_destructible_for(ASTNode* node, llvm
 }
 
 void Codegen::enqueue_destructible(BaseType* nonCanonType, ASTNode* node, llvm::Value* pointer) {
-    auto destructible = ::create_destructible_for(*this, node, nonCanonType, pointer, nullptr);
+    // a slot pinned into the coroutine frame already has its drop flag there, so
+    // reuse it instead of creating a stack alloca (see Codegen::pinned_drop_flags)
+    llvm::Value* oldDropFlag = nullptr;
+    auto pinned = pinned_drop_flags.find(node);
+    if(pinned != pinned_drop_flags.end()) {
+        oldDropFlag = pinned->second;
+    }
+    auto destructible = ::create_destructible_for(*this, node, nonCanonType, pointer, oldDropFlag);
     if(destructible.has_value()) {
         destruct_nodes.emplace_back(destructible.value());
     }

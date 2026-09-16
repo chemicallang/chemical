@@ -2094,7 +2094,7 @@ void Codegen::writeReturnStmtFor(Value* value, SourceLocation location) {
                 gen.builder->CreateStore(v, result_ptr);
             }
         }
-        gen.builder->CreateStore(gen.builder->getInt32(2), coro->state_ptr);
+        gen.builder->CreateStore(gen.builder->getInt32(0xFFFFFFFFu), coro->state_ptr);
         destruct_current_scope(gen, value, location);
         gen.CreateBr(coro->final_suspend_bb, location);
         return;

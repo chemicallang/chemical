@@ -58,7 +58,7 @@ usage() {
   echo "  --webview               Build & run the webview test suite (passes --arg-test-webview)"
   echo "  --libs                  Build & run the library test suite (passes --arg-test-libs)"
   echo "  --async-lazy            Build & run the non-suspending async/await suite (C or LLVM)"
-  echo "  --async-suspend         Build & run the suspending async suite (C backend only; pass --tcc)"
+  echo "  --async-suspend         Build & run the suspending async suite (C or LLVM)"
   echo "  --target <triple>       Pass --target <triple> to the compiler (optional, omitted if empty)"
   echo "  -o <path>               Custom output executable path"
   echo "  --no-run                Build test executable only, do not run"
@@ -140,12 +140,6 @@ done
 if [ -z "$TARGET" ]; then
   echo "Error: Specify --tcc or --llvm"
   usage
-fi
-
-if [ "$TEST_ASYNC_SUSPEND" = true ] && [ "$TARGET" != "TCCCompiler" ]; then
-  echo "Error: the suspending async suite currently requires the C backend (--tcc);"
-  echo "       LLVM coroutine suspension still misses cancellation cleanup / array move flags."
-  exit 1
 fi
 
 if [ -n "$SANITIZER" ] && [ "$TARGET" != "Compiler" ]; then

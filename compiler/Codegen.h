@@ -162,6 +162,20 @@ public:
     std::vector<Destructible> destruct_nodes;
 
     /**
+     * Storage pinned into the compiler-owned coroutine frame for a cross-await
+     * local (`VarInitStatement` -> frame field pointer). Populated by
+     * `gen_llvm_async_fn` before the body is generated; the cancellation cleanup
+     * relies on these stable, non-aliased fields.
+     */
+    std::unordered_map<ASTNode*, llvm::Value*> pinned_slots;
+
+    /**
+     * Drop flags pinned into the coroutine frame (`node -> i1*`), mirroring
+     * `pinned_slots`, so a moved-out local is not destroyed on cancellation.
+     */
+    std::unordered_map<ASTNode*, llvm::Value*> pinned_drop_flags;
+
+    /**
      * when a function is evaluated, it's value is stored on this map, so it can be looked up for destruction
      */
     std::unordered_map<FunctionCall*, Value*> evaluated_func_calls;

@@ -11,6 +11,7 @@
 #include "ast/structures/VariantMember.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/values/FunctionCall.h"
+#include "ast/values/AccessChain.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/utils/ASTUtils.h"
 #include "preprocess/2c/BufferedWriter.h"
@@ -117,6 +118,60 @@ void VarInitStatement::code_gen(Codegen &gen) {
         global->setInitializer((llvm::Constant*) initializer_value(gen));
         return;
     } else {
+        // Inside a lowered async function, a cross-await local's storage is a
+        // field of the compiler-owned coroutine frame, pre-seeded by
+        // `gen_llvm_async_fn` (Codegen::pinned_slots). Its address is stable
+        // across suspend/resume and is never aliased with a dead local, so the
+        // cancellation cleanup can safely destroy it. The frame drop flag is
+        // initialized live here.
+        if(gen.current_coro != nullptr && llvm_ptr != nullptr) {
+            if(value) {
+                const auto exp_type = known_type_or_err();
+                if(value->requires_memcpy_ref_struct(exp_type)) {
+                    if(!gen.copy_or_move_struct(exp_type, value, llvm_ptr)) {
+                        gen.warn("couldn't copy or move the struct to location", this);
+                    }
+                } else {
+                    // materialize into a temporary (this is the only path that
+                    // handles array literals and struct literals) then move it
+                    // into the pinned frame field
+                    const auto type = exp_type->llvm_type(gen);
+                    const auto tmp = value->llvm_allocate(gen, name_str(), exp_type);
+                    if(tmp != nullptr) {
+                        const auto size = gen.module->getDataLayout().getTypeAllocSize(type);
+                        gen.builder->CreateMemCpy(llvm_ptr, llvm::MaybeAlign(), tmp, llvm::MaybeAlign(), size);
+                    }
+                }
+                // An array has no direct `@delete`, so the generic move machinery
+                // (`set_drop_flag_for_ref`) refuses to clear the source's drop
+                // flag. An array of destructor-bearing elements is move-only, so
+                // a source identifier (possibly wrapped in a single access chain
+                // for array decay) is a move: clear its flag so it is not
+                // destroyed twice (its elements are owned by the destination).
+                if(exp_type->canonical()->kind() == BaseTypeKind::Array) {
+                    ASTNode* src_node = nullptr;
+                    if(value->kind() == ValueKind::Identifier) {
+                        src_node = value->as_identifier_unsafe()->linked;
+                    } else if(value->kind() == ValueKind::AccessChain) {
+                        auto* chain = value->as_access_chain_unsafe();
+                        if(chain->values.size() == 1 && chain->values.front()->kind() == ValueKind::Identifier) {
+                            src_node = chain->values.front()->as_identifier_unsafe()->linked;
+                        }
+                    }
+                    if(src_node != nullptr) {
+                        if(auto* src_flag = gen.find_drop_flag(src_node)) {
+                            gen.builder->CreateStore(gen.builder->getInt1(false), src_flag);
+                        }
+                    }
+                }
+            }
+            put_destructible(gen);
+            if(auto* flag = gen.find_drop_flag(this)) {
+                gen.builder->CreateStore(gen.builder->getInt1(true), flag);
+            }
+            gen.di.declare(this, llvm_ptr);
+            return;
+        }
         if (value) {
 
             // replace the value with a call to the implicit constructor if there is one

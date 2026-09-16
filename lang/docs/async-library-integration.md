@@ -505,15 +505,28 @@ resolution of `active_type_map`, or (b) never sharing the master field
 `FunctionType` with a lambda's expected type. Both are invasive; not attempted
 here.
 
-### B17 — Flaky LLVM compiler crash under parallel codegen with async modules (HIGH)
+### B17 — Order-dependent LLVM crash declaring a comptime-const `StructValue` (HIGH) — ✅ FIXED
 
-Running `./scripts/test.sh --llvm --libs` repeatedly is non-deterministic with
-the async/environment wrappers present: sometimes 624/624, sometimes the compiler
-aborts with `RUNTIME ERROR: invalid memory access` after emitting `lib_tests`.
-This is a race in parallel module codegen (the same class as the `B12`-repro
-LLVM crash), not in the generated program. The async modules increase the number
-of generic instantiations emitted concurrently, raising the hit rate. Needs a
-look at the parallel `ASTProcessor`/generic-instantiation synchronization.
+`./scripts/test.sh --llvm --libs` was flaky (sometimes 624/624, sometimes the
+compiler aborted). It was **not** parallel-codegen related (it still happened
+with `-j 1`); the build.lab file-order seed randomizes module order, and the
+crash depended on that order. Reproduced deterministically with
+`FILE_ORDER_SEED=17491728074826263121`.
+
+Root cause: `VarInitStatement::code_gen_external_declare` materialized a
+non-string comptime constant by calling `initializer_value(gen)`. For a
+`StructValue` initializer that reaches `StructValue::llvm_allocate` →
+`IRBuilder::CreateAlloca`, which is invalid during external declaration (no
+function/insert block) and segfaults in `BasicBlock::getDataLayout`. It only
+triggered when the module referencing the constant was processed before the
+module defining it.
+
+Fix (`ast/statements/VarInit.cpp`): only cache the value when there is a
+function context (`gen.current_function != nullptr && insert block != nullptr`);
+otherwise leave `llvm_ptr` null so the constant is materialized (inlined) at its
+use site, as intended. Verified: the crashing seed passes 5/5 and `--libs
+--llvm` passes 8/8 with random seeds; full matrix green (main 2186/2187,
+main `debug_complete` 2187, libs 624/624, async 33/33).
 
 ### B13 — Retention friction for generic runtime code (LOW)
 

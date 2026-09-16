@@ -243,7 +243,16 @@ void VarInitStatement::code_gen_external_declare(Codegen &gen) {
             // if llvm_ptr is null, since this is a comptime constant string, we'll declare once anyone loads it
             return;
         }
-        llvm_ptr = initializer_value(gen);
+        // A non-string comptime constant is materialized/inlined at each use
+        // site (`llvm_load`), not emitted as a global. Caching it here by
+        // calling `initializer_value` is only safe inside a function: a
+        // `StructValue` initializer needs a stack temporary (`CreateAlloca`),
+        // which is invalid during external declarations (no function context)
+        // and crashed LLVM (`BasicBlock::getDataLayout`). Leave `llvm_ptr` null
+        // so use sites evaluate it in-function instead.
+        if(gen.current_function != nullptr && gen.builder->GetInsertBlock() != nullptr) {
+            llvm_ptr = initializer_value(gen);
+        }
         return;
     }
     code_gen_global_var(gen, false, false);

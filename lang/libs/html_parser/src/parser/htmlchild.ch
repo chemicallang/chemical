@@ -1,4 +1,32 @@
 
+/**
+ * Returns true when the view contains only spaces, tabs, newlines or carriage
+ * returns.
+ */
+func is_whitespace_view(v : &std::string_view) : bool {
+    for(var i : size_t = 0; i < v.size(); i++) {
+        const c = v.get(i);
+        if(c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * Inside <pre> the lexer preserves whitespace-only text runs, including the run
+ * that follows the opening '{' of an @if/@else html block. That whitespace is
+ * code formatting, not content, so the parser skips a single leading
+ * whitespace-only text token right after each block's '{'. Outside <pre> the
+ * lexer already drops it, so this is a no-op there.
+ */
+func skip_leading_whitespace_text(parser : *mut Parser) {
+    const t = parser.getToken();
+    if(t.type == TokenType.Text && is_whitespace_view(&t.value)) {
+        parser.increment();
+    }
+}
+
 func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, builder : *mut ASTBuilder) : *mut HtmlChild {
 
     const current = parser.getToken();
@@ -186,6 +214,7 @@ func (htmlParser : &mut HtmlParser) parseIfStatement(parser : *mut Parser, build
     if(!parser.increment_if(TokenType.LBrace as int)) {
         parser.error("expected '{' after if condition");
     }
+    skip_leading_whitespace_text(parser);
 
     while(true) {
         var child = htmlParser.parseElementChild(parser, builder);
@@ -229,6 +258,7 @@ func (htmlParser : &mut HtmlParser) parseIfStatement(parser : *mut Parser, build
             if(!parser.increment_if(TokenType.LBrace as int)) {
                 parser.error("expected '{' after if condition");
             }
+            skip_leading_whitespace_text(parser);
 
             while(true) {
                 var child = htmlParser.parseElementChild(parser, builder);
@@ -248,6 +278,7 @@ func (htmlParser : &mut HtmlParser) parseIfStatement(parser : *mut Parser, build
             if(!parser.increment_if(TokenType.LBrace as int)) {
                 parser.error("expected '{' after 'else'");
             }
+            skip_leading_whitespace_text(parser);
 
             while(true) {
                 var child = htmlParser.parseElementChild(parser, builder);

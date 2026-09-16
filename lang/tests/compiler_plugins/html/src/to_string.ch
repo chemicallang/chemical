@@ -396,6 +396,81 @@ public func html_entities_in_expression_preserved(env : &mut TestEnv) {
 }
 
 @test
+public func pre_preserves_whitespace_between_elements(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <pre><span>first</span> <span>second</span></pre>
+    }
+    string_equals(env, page.toStringHtmlOnly(), "<pre><span>first</span> <span>second</span></pre>");
+}
+
+@test
+public func pre_preserves_newline_between_elements(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <pre><span>engine</span>
+<span>func</span></pre>
+    }
+    // the test file uses CRLF line endings; the raw newline between the spans
+    // must survive
+    string_equals(env, page.toStringHtmlOnly(), "<pre><span>engine</span>\r\n<span>func</span></pre>");
+}
+
+@test
+public func pre_preserves_indentation_after_open_tag(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <pre>  indented</pre>
+    }
+    string_equals(env, page.toStringHtmlOnly(), "<pre>  indented</pre>");
+}
+
+@test
+public func pre_still_supports_if_else_without_whitespace_breakage(env : &mut TestEnv) {
+    var page = HtmlPage()
+    var condition = true
+    #html {
+        <pre>
+            @if(condition) {
+                <span>yes</span>
+            } @else {
+                <span>no</span>
+            }
+        </pre>
+    }
+    // trailing indentation before </pre> is preserved: <pre> renders all
+    // whitespace, including the run that follows the @else block
+    string_equals(env, page.toStringHtmlOnly(), "<pre><span>yes</span>\r\n        </pre>");
+}
+
+@test
+public func outside_pre_whitespace_between_elements_still_dropped(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div><span>a</span> <span>b</span></div>
+    }
+    string_equals(env, page.toStringHtmlOnly(), "<div><span>a</span><span>b</span></div>");
+}
+
+@test
+public func self_closing_pre_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <pre/><div>x</div>
+    }
+    string_equals(env, page.toStringHtmlOnly(), "<pre/><div>x</div>");
+}
+
+@test
+public func self_closing_div_works(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html {
+        <div/><span>y</span>
+    }
+    string_equals(env, page.toStringHtmlOnly(), "<div/><span>y</span>");
+}
+
+@test
 public func html_entities_in_expression_with_text(env : &mut TestEnv) {
     var page = HtmlPage()
     #html {

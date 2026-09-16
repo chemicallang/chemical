@@ -273,9 +273,19 @@ void FunctionDeclaration::code_gen_body(Codegen &gen) {
     }
     if(is_async()) {
         normalize_async_body(gen.allocator, this);
+        // The async lowering emits the body with `code_gen_no_scope` and then
+        // splits it into poll/drop functions. Debug locations from that body end
+        // up in cloned functions whose scopes don't match, which LLVM rejects
+        // ("location requires a valid scope") in `debug_complete` mode. Generate
+        // the whole async lowering without debug info until the coroutine split
+        // carries per-clone DISubprograms.
+        const bool prev_di_enabled = gen.di.isEnabled;
+        gen.di.isEnabled = false;
         // lower the async function to an LLVM coroutine (ramp + poll + drop +
         // vtable) when symres wrapped its return type into `FutureHandle<T>`
-        if(gen_llvm_async_fn(gen, this)) {
+        const bool lowered = gen_llvm_async_fn(gen, this);
+        gen.di.isEnabled = prev_di_enabled;
+        if(lowered) {
             return;
         }
     }

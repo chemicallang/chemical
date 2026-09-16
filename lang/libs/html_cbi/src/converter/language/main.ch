@@ -287,22 +287,14 @@ func collect_child_html(ch : *mut HtmlChild, childHtml : *mut std::string) {
 // not representable as static vnodes and take the legacy $__uni_html fallback.
 // Counts the top-level DOM nodes a children list produces at SSR, so the client
 // `$__uni_html` blob can advance past exactly those nodes during hydration.
-// Whitespace-only text between elements is dropped by the HTML parser, so it is
-// not counted.
+// All text children count, including whitespace-only runs (which the html parser
+// preserves inside <pre>).
 func count_child_nodes(children : &std::vector<*mut HtmlChild>) : ubigint {
     var n : ubigint = 0;
     for(var i : uint = 0; i < children.size(); i++) {
         const ch = children.get(i);
         if(ch.kind == HtmlChildKind.Element) n++;
-        else if(ch.kind == HtmlChildKind.Text) {
-            const t = ch as *mut HtmlText;
-            var has = false;
-            for(var j : size_t = 0; j < t.value.size(); j++) {
-                const c = t.value.get(j);
-                if(c != ' ' && c != '\n' && c != '\t' && c != '\r') { has = true; break; }
-            }
-            if(has) n++;
-        }
+        else if(ch.kind == HtmlChildKind.Text) n++;
     }
     return n;
 }

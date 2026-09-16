@@ -48,6 +48,31 @@ public struct HtmlLexer {
 
     var after_chem_expr : bool
 
+    /**
+     * nesting depth of <pre> elements. Inside <pre>, whitespace-only text runs
+     * between elements are significant and must be preserved as Text tokens.
+     */
+    var pre_depth : uchar
+
+    /**
+     * we just lexed the '</' of a closing tag, the next TagName token closes it
+     */
+    var in_end_tag : bool
+
+    /**
+     * the last opening tag name was "pre" (used to handle self-closing <pre/>)
+     */
+    var last_tag_pre : bool
+
+    /**
+     * when true, whitespace-only text runs between elements are significant
+     * everywhere (not just inside <pre>) and are preserved as Text tokens.
+     * The runtime html parser sets this for roundtrip fidelity; the #html
+     * compile-time macro keeps it false (JSX-like insignificant whitespace).
+     * Set once at lexer construction; reset() intentionally leaves it alone.
+     */
+    var preserve_whitespace : bool
+
 }
 
 func (lexer : &mut HtmlLexer) reset() {
@@ -61,4 +86,7 @@ func (lexer : &mut HtmlLexer) reset() {
     lexer.chem_start_lb = 0;
     lexer.expecting_html_block = false;
     lexer.after_chem_expr = false;
+    lexer.in_end_tag = false;
+    lexer.last_tag_pre = false;
+    lexer.pre_depth = 0;
 }

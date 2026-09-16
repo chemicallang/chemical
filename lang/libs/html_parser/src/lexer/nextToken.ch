@@ -52,6 +52,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 }
             } else if(p == '/') {
                 html.has_lt = true;
+                html.in_end_tag = true;
                 provider.readCharacter();
                 return Token {
                     type : TokenType.TagEnd as int,
@@ -155,29 +156,52 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             }
         }
         ' ', '\t', '\n', '\r' => {
-            if(html.after_chem_expr && !html.has_lt) {
+            if(!html.has_lt) {
+                const was_after_chem = html.after_chem_expr;
                 html.after_chem_expr = false;
                 provider.skip_whitespaces();
+                const next = provider.peek();
+                if(html.pre_depth > 0 || html.preserve_whitespace) {
+                    // inside <pre> (or when preserve_whitespace is on),
+                    // whitespace-only runs between elements are significant;
+                    // they must survive unless they precede a chemical
+                    // statement ('@...') or the enclosing block/macro close
+                    // ('}'), or an html block is expected (right after
+                    // '@if(...)' or '@else', where whitespace is a separator)
+                    if(next != '@' && next != '}' && !html.expecting_html_block) {
+                        return Token {
+                            type : TokenType.Text as int,
+                            value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                            position : position
+                        }
+                    }
+                    return getNextToken2(html, lexer);
+                }
                 // after a chemical expression we preserve the whitespace that
                 // separates it from following content (e.g. "{value} World"),
                 // but drop whitespace that only precedes a structural boundary
                 // like a closing tag "</...>" or the html macro's closing "}"
                 // (e.g. "<div>{x}Text</div>\n    }")
-                const next = provider.peek();
                 const is_boundary = next == '<' || next == '}';
-                if(!is_boundary) {
+                if(was_after_chem && !is_boundary) {
                     return Token {
                         type : TokenType.Text as int,
                         value : std::string_view(data_ptr, provider.current_data() - data_ptr),
                         position : position
                     }
                 }
+                return getNextToken2(html, lexer);
             }
             provider.skip_whitespaces();
             return getNextToken2(html, lexer);
         }
         '/' => {
             if(html.has_lt) {
+                // self-closing <pre/> : we are leaving the pre context
+                if(html.last_tag_pre) {
+                    html.pre_depth--;
+                    html.last_tag_pre = false;
+                }
                 return Token {
                     type : TokenType.FwdSlash as int,
                     value : view("/"),
@@ -198,6 +222,8 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 // reset back
                 html.has_lt = false;
                 html.lexed_tag_name = false;
+                html.in_end_tag = false;
+                html.last_tag_pre = false;
                 return Token {
                     type : TokenType.GreaterThan as int,
                     value : view(">"),
@@ -226,9 +252,30 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     } else {
                         html.lexed_tag_name = true;
                         provider.read_tag_name();
+                        const tag_value = std::string_view(data_ptr, provider.current_data() - data_ptr);
+                        if(!html.in_end_tag) {
+                            const is_pre = tag_value.size() == 3 &&
+                                tag_value.get(0) == 'p' &&
+                                tag_value.get(1) == 'r' &&
+                                tag_value.get(2) == 'e';
+                            if(is_pre) {
+                                html.pre_depth++;
+                            }
+                            html.last_tag_pre = is_pre;
+                        } else {
+                            // closing tag; match against the currently open <pre>
+                            const is_pre_close = html.pre_depth > 0 && tag_value.size() == 3 &&
+                                tag_value.get(0) == 'p' &&
+                                tag_value.get(1) == 'r' &&
+                                tag_value.get(2) == 'e';
+                            if(is_pre_close) {
+                                html.pre_depth--;
+                            }
+                            html.in_end_tag = false;
+                        }
                         return Token {
                             type : TokenType.TagName as int,
-                            value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                            value : tag_value,
                             position : position
                         }
                     }

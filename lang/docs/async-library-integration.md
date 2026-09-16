@@ -583,24 +583,48 @@ locations. Async debug info can be restored once the coroutine split carries
 per-clone `DISubprogram`s. Verified: `--async --mode debug_complete` 33/33 and
 main `--mode debug_complete` 2187/2187.
 
-### B16 — Async func returning a nested destructible aggregate is miscompiled (HIGH)
+### B16 — `block_on` double-frees a destructible variant payload (HIGH)
 
-An `async func` that returns a deeply nested destructible struct and is called
-from a **non-`main`** function crashes LLVM codegen (`RUNTIME ERROR: invalid
-memory access`), and in the `--libs` test harness the same call instead
-double-frees at runtime (`free(): double free detected in tcache 2`).
+Root cause found by emitting the 2c translation of an async function returning a
+`std::vector<u8>` and reading it with `async::block_on`. In `block_on`:
 
 ```chemical
-async func execute_async(cfg : ProcessConfig) : PR_Result { return execute(cfg) }
-// PR_Result = Result<ProcessResult, ProcessError>
-// ProcessResult = { ProcessOutput{vector<u8>, vector<u8>}, ExitStatus{...}, bool }
+var r = handle.vtbl.poll(handle.frame, &raw mut cx)
+if(r is core::async::Poll.Ready) {
+    var Ready(value) = r else unreachable
+    break value
+}
 ```
 
-Simpler returns are fine: `Result<vector<u8>, FsError>` (fs) and
-`Result<UnitTy, ProcessError>` work. This blocks `process::execute_async` /
-`wait_async` / `try_wait_async`, so Tier 4 `process` is not shipped. Root cause
-is in the async return-value path for aggregate results and needs the same kind
-of investigation as B9.
+`var Ready(value) = r` binds `value` to the payload and `break value` **moves**
+it out, but the generated code still destroys `r` afterwards; `Poll<T>::delete`
+then destroys the (already-moved) payload and frees its heap buffer. The result
+is destroyed a second time when the caller drops it:
+
+```c
+out = r.Ready.value;              // move (bitwise) out of r
+core_coreasyncPoll__cgs__1delete(&r);  // frees the moved buffer  -> double free
+```
+
+A synchronous `var Ok(v) = r` does **not** hit this: there the pattern variable
+binds as a *reference* into `r`, so only `r` owns the value. The bug needs the
+payload to be moved out of the source variant and the source still destroyed —
+exactly the `block_on` shape, which is triggered for any `T` with a heap-backed
+destructor (`vector`, etc.). `std::string` hid it via SSO.
+
+Two separable issues:
+1. **Symres return move-check:** `SymResLinkBody::VisitReturnStmt` used the
+   wrapped `FutureHandle<T>` as the expected type, so `return local_struct` from
+   an async func errored with *"unknown value being moved, where the struct types
+   don't match"*. Unwrapping via `func->inner_return_type()` fixes the compile
+   error (verified), but without (2) it only turns a safe compile error into a
+   silent runtime double-free, so it was **not** landed.
+2. **Codegen move-tracking:** a pattern-match payload moved out of a variant must
+   clear/mark the source payload (or elide the source's destructor). Needs work
+   in the 2c and LLVM `destruct_current_scope` / pattern-match paths.
+
+Blocks `process` async wrappers and any `block_on` of a heap-backed `T`; Tier 4
+`process` is not shipped.
 
 **Consequence.** Until B10/B12/B14 land, the runtime can only create
 `FutureTable` entries for *concrete* `T` (as `yield_now`/`sleep` do with

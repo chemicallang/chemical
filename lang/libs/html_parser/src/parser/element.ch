@@ -60,10 +60,14 @@ func (htmlParser : &mut HtmlParser) parseElement(parser : *mut Parser, builder :
         }
 
         // optional forward slash in self closing tags <br />
+        // the element field must be updated too: it was already initialized
+        // from isTagNameSelfClosing before the attribute loop, and only the
+        // local variable would otherwise change (so <div/> emitted <div></div>)
         const fwdSl = parser.getToken();
         if(fwdSl.type == TokenType.FwdSlash) {
             parser.increment();
             isSelfClosing = true;
+            element.isSelfClosing = true;
         }
 
         const gt = parser.getToken();

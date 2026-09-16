@@ -110,7 +110,7 @@ func process_doc_comment(comment : std::string_view, html : &mut std::string) {
             html.append_view("<li><b>");
             var p = params.get_ptr(i).to_view();
             var space = p.find(" ");
-            if (space != -1u) {
+            if (space != std::NPOS) {
                 html.append_view(p.subview(0, space));
                 html.append_view("</b> ");
                 html.append_view(p.subview(space + 1, p.size()));
@@ -473,8 +473,8 @@ public struct Generator {
             var abs_path = file_meta.getAbsPath();
             var filename = std::string_view("");
             var last_slash = abs_path.find_last("/");
-            if (last_slash == -1u) last_slash = abs_path.find_last("\\");
-            if (last_slash != -1u) {
+            if (last_slash == std::NPOS) last_slash = abs_path.find_last("\\");
+            if (last_slash != std::NPOS) {
                 filename = abs_path.subview(last_slash + 1, abs_path.size());
             } else {
                 filename = abs_path;
@@ -665,13 +665,13 @@ public struct Generator {
         }
 
         var src_idx = path.to_view().find("src/");
-        if (src_idx != -1u) {
+        if (src_idx != std::NPOS) {
             var rel_path = path.to_view().subview(src_idx + 4, path.size());
             var libs_idx = path.to_view().find("libs/");
-            if (libs_idx != -1u) {
+            if (libs_idx != std::NPOS) {
                 var after_libs = path.to_view().subview(libs_idx + 5, path.size());
                 var slash_idx = after_libs.find("/");
-                if (slash_idx != -1u) {
+                if (slash_idx != std::NPOS) {
                     var m_name = after_libs.subview(0, slash_idx);
                     if (is_native_module(m_name)) {
                         html.append_view("<a class='git-link' href='https://github.com/chemicallang/chemical/tree/");
@@ -718,8 +718,7 @@ public struct Generator {
             // Check if already visited to avoid infinite recursion
             var already = false;
             for (var j = 0u; j < visited.size(); j++) {
-                var visited_str = visited.get(j);
-                var visited_view = visited_str.to_view();
+                var visited_view = visited.get_ptr(j).to_view();
                 if (visited_view.equals(&d_name)) {
                     already = true;
                     break;
@@ -811,8 +810,8 @@ public struct Generator {
         // Extract filename from abs_path
         var filename = std::string_view("");
         var last_slash = abs_path.find_last("/");
-        if (last_slash == -1u) last_slash = abs_path.find_last("\\");
-        if (last_slash != -1u) {
+        if (last_slash == std::NPOS) last_slash = abs_path.find_last("\\");
+        if (last_slash != std::NPOS) {
             filename = abs_path.subview(last_slash + 1, abs_path.size());
         } else {
             filename = abs_path;
@@ -1776,7 +1775,7 @@ public struct Generator {
         while (true) {
             var sub = raw.subview(last_idx, raw.size());
             var p_idx = sub.find(&placeholder);
-            if (p_idx == -1u) {
+            if (p_idx == std::NPOS) {
                 res.append_view(&sub);
                 break;
             }

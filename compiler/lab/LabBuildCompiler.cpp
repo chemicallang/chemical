@@ -1568,6 +1568,20 @@ int LabBuildCompiler::link_cbi_job(LabJob* cbiJob, std::vector<LabModule*>& depe
         }
     }
 
+    // add all library search paths
+    for(auto& libSearchPath : cbiJob->lib_search_paths) {
+        if (tcc_add_library_path(state, libSearchPath.data()) == -1) {
+            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't add library search path '" << libSearchPath << "' for cbi '" << job_name << '\'' << std::endl;
+        }
+    }
+
+    // add all the link libraries required
+    for(auto& linkLib : cbiJob->link_libs) {
+        if(tcc_add_library(state, linkLib.data()) == -1) {
+            std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "couldn't link library '" << linkLib << "' for cbi '" << job_name << '\'' << std::endl;
+        }
+    }
+
     // relocate the code before calling
     if(tcc_relocate(state) == -1) {
         std::cerr << "[lab] " << rang::fg::red <<  "error: " << rang::fg::reset << "failed to relocate cbi '" << job_name << '\'' << std::endl;

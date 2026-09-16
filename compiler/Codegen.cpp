@@ -1167,7 +1167,11 @@ inline bool needsMemcpy(llvm::Type* ty) {
 }
 
 void Codegen::aggregate_store(llvm::Type* type, llvm::Value* pointer, llvm::Value* value, SourceLocation location) {
-    if(needsMemcpy(type)) {
+    // `llvm.memcpy` requires the source to be a pointer to the aggregate's
+    // storage. A by-value aggregate (e.g. a struct loaded out of a `Poll<T>`
+    // payload) must be stored directly, otherwise the intrinsic is malformed
+    // (`llvm.memcpy.p0.<struct>.i64` with a non-pointer source).
+    if(needsMemcpy(type) && value != nullptr && value->getType()->isPointerTy()) {
         memcpy_struct(type, pointer, value, location);
     } else {
         llvm.CreateStore(value, pointer, location);

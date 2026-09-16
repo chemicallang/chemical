@@ -932,9 +932,29 @@ llvm::Value* FunctionCall::loadable_llvm_pointer(Codegen& gen, SourceLocation lo
 llvm::Value *FunctionCall::llvm_value(Codegen &gen, BaseType *type) {
     if(gen.current_function == nullptr) {
 
-        // top level function call, only variants are allowed through
+        // top level function call, only variant calls and comptime calls reach here
         const auto parent_linked = parent_val->get_chain_last_linked();
         if(parent_linked->kind() != ASTNodeKind::VariantMember){
+            // a comptime call can be evaluated at compile time, matching what
+            // the C translation does for a top level call (evaluate_comptime_func),
+            // this covers a top level (global) initializer like:
+            // public const HASH : uint = comptime_fnv1_hash("511");
+            const auto parent_linked_node = parent_val->linked_node();
+            const auto linked_decl = parent_linked_node && ASTNode::isFunctionDecl(parent_linked_node->kind()) ? parent_linked_node->as_function_unsafe() : nullptr;
+            if(linked_decl && linked_decl->is_comptime()) {
+                Value* val = nullptr;
+                if(captured_ref_owner && captured_ref_index >= 0 && captured_ref_index < (int) captured_ref_owner->refs.size()) {
+                    val = captured_ref_owner->refs[captured_ref_index].evaluated;
+                }
+                if(!val) {
+                    val = gen.eval_comptime(this, linked_decl);
+                }
+                if(!val) {
+                    gen.error(this) << "couldn't evaluate top level comptime function call to " << representation();
+                    return gen.builder->getInt32(0);
+                }
+                return val->llvm_value(gen, type);
+            }
             gen.error(this) << "only variant calls supported at top level";
             return gen.builder->getInt32(0);
         }

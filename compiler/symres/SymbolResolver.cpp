@@ -287,13 +287,24 @@ void SymbolResolver::declare(const chem::string_view &name, ASTNode *node) {
         return;
     }
 #endif
-    const auto previous = getSymbolTable().declare_no_shadow(name, node);
-    if(previous) {
-        error(node) << "symbol with name '" << name << "' already exists";
-        warn(previous) << "symbol has a conflict";
-        // shadow the symbol
-        getSymbolTable().declare(name, node);
+    const auto previous = getSymbolTable().declare_no_shadow_sym(name, node);
+    if(previous == nullptr) {
+        return;
     }
+    // A member of a namespace may shadow a name from an outer scope: namespaces
+    // are reopened/merged and `a::foo` and `a::b::foo` are distinct symbols.
+    // This mirrors the allowance in `declare_function_quietly`.
+    if(!getSymbolTable().is_in_current_scope(previous)) {
+        const auto p = node->parent();
+        if(p && p->kind() == ASTNodeKind::NamespaceDecl) {
+            getSymbolTable().declare(name, node);
+            return;
+        }
+    }
+    error(node) << "symbol with name '" << name << "' already exists";
+    warn(previous->activeNode) << "symbol has a conflict";
+    // shadow the symbol
+    getSymbolTable().declare(name, node);
 }
 
 void SymbolResolver::declare_file_disposable(const chem::string_view &name, ASTNode *node) {

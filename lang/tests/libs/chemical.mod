@@ -23,3 +23,4 @@ import audio
 import font
 import archive
 import image
+import async

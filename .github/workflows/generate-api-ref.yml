@@ -2,6 +2,9 @@ name: Generate API Ref
 
 # Manual dispatch only — generates the API reference site with the released
 # `refgen` transformer and uploads it as a downloadable zip artifact.
+#
+# The target module (libs/refgen/refgen.mod) ships inside the release package
+# alongside the compiler, so no repository checkout is required.
 on:
   workflow_dispatch:
 
@@ -9,8 +12,9 @@ permissions:
   contents: read
 
 env:
-  # TCC release package: contains the compiler plus the `libs/` (std, refgen,
-  # docgen, page, ...) the transformer resolves relative to the executable.
+  # TCC release package: contains the compiler, the `libs/` (std, refgen,
+  # docgen, page, ...) the transformer resolves relative to the executable,
+  # and the refgen documentation target module.
   RELEASE_ASSET: linux-x64-tcc.zip
   RELEASE_ROOT: chemical-tcc
 
@@ -21,13 +25,6 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-
-      # The target module (lang/othercode/refgen.mod) is not shipped inside the
-      # release package, so check out the repository for it.
-      - name: Checkout repository
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 1
 
       - name: Install dependencies
         run: |
@@ -61,7 +58,7 @@ jobs:
           chmod +x "$RELEASE_ROOT/chemical"
 
       - name: Generate documentation (refgen)
-        run: ./$RELEASE_ROOT/chemical run lang/othercode/refgen.mod
+        run: ./$RELEASE_ROOT/chemical run refgen $RELEASE_ROOT/libs/refgen/refgen.mod
 
       - name: Show generated docs
         run: |

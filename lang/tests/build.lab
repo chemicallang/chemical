@@ -38,8 +38,7 @@ import "./tls/chemical.mod" as tlsIntegrationMod
 import "./process/chemical.mod" as processTestMod
 import "./webview/chemical.mod" as webviewTestMod
 import "./libs/chemical.mod" as libTestsMod
-import "./async_lazy/chemical.mod" as asyncLazyMod
-import "./async_suspend/chemical.mod" as asyncSuspendMod
+import "./async/chemical.mod" as asyncMod
 
 func build_dir_path(ctx : *BuildContext, path : &std::string_view) : std::string {
     const new_path = std::string(ctx.build_path());
@@ -253,24 +252,15 @@ func test_libs_exe(ctx : *mut AppBuildContext) : *mut LabJob {
     return exe_job
 }
 
-func test_async_lazy_exe(ctx : *mut AppBuildContext) : *mut LabJob {
+func test_async_exe(ctx : *mut AppBuildContext) : *mut LabJob {
     // Async functions return FutureHandle<T> and are lowered by both the C and
-    // LLVM backends (scripts/test.sh --async-lazy). The awaits here resolve
-    // immediately (eager children), so no real suspension occurs.
-    const exe_name = std::string_view("chemical-async-lazy-tests")
+    // LLVM backends (scripts/test.sh --async). The suite covers eager awaits
+    // (no real suspension) as well as the real suspension state machine with
+    // futures that stay Pending.
+    const exe_name = std::string_view("chemical-async-tests")
     const exe_job = ctx.build_exe(&exe_name)
     ctx.set_environment_testing(exe_job, true)
-    ctx.add_module(exe_job, asyncLazyMod.build(ctx, exe_job))
-    return exe_job
-}
-
-func test_async_suspend_exe(ctx : *mut AppBuildContext) : *mut LabJob {
-    // Exercises the real suspension state machine with futures that stay Pending
-    // (scripts/test.sh --async-suspend). Currently C backend only.
-    const exe_name = std::string_view("chemical-async-suspend-tests")
-    const exe_job = ctx.build_exe(&exe_name)
-    ctx.set_environment_testing(exe_job, true)
-    ctx.add_module(exe_job, asyncSuspendMod.build(ctx, exe_job))
+    ctx.add_module(exe_job, asyncMod.build(ctx, exe_job))
     return exe_job
 }
 
@@ -315,10 +305,8 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
         return test_plugin_exe(ctx, std::string_view("universal"))
     } else if(ctx.has_arg(std::string_view("test-components"))) {
         return test_plugin_exe(ctx, std::string_view("components"))
-    } else if(ctx.has_arg(std::string_view("test-async-lazy"))) {
-        return test_async_lazy_exe(ctx)
-    } else if(ctx.has_arg(std::string_view("test-async-suspend"))) {
-        return test_async_suspend_exe(ctx)
+    } else if(ctx.has_arg(std::string_view("test-async"))) {
+        return test_async_exe(ctx)
     } else if(ctx.has_arg(std::string_view("test-tls"))) {
         return test_tls_exe(ctx)
     } else if(ctx.has_arg(std::string_view("test-process"))) {

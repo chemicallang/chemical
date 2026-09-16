@@ -32,10 +32,9 @@ func run_executable_tests() {
     test_impl_only_method_call();
     test_generic_struct_by_value_param();
     test_loop_expression_cleanup_once();
-    // async/await is tested by the dedicated suites
-    // (lang/tests/async_lazy and lang/tests/async_suspend, run via
-    // ./scripts/test.sh --async-lazy / --async-suspend), because both lowering
-    // backends need their own build.
+    // async/await is tested by the dedicated suite
+    // (lang/tests/async, run via ./scripts/test.sh --async), because both
+    // lowering backends need their own build.
     test_imported_modules();
     test_modules_import();
     test_external_interfaces();

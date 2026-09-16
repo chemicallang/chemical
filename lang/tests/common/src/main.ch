@@ -31,9 +31,9 @@ public func run_common_tests() {
         return traditional_for_loop_with_sum();
     })
 
-    // Async/await lives in the dedicated suites (lang/tests/async_lazy,
-    // lang/tests/async_suspend, run via `scripts/test.sh --async-lazy` /
-    // `--async-suspend`), because both lowering backends need their own build.
+    // Async/await lives in the dedicated suite (lang/tests/async, run via
+    // `scripts/test.sh --async`), because both lowering backends need their own
+    // build.
 
     // Basic language tests (no pointers — compatible with all backends)
     test_numbers();

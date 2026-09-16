@@ -200,6 +200,22 @@ struct ComptimePointStructMemberAccessTest {
 
 comptime const my_comptime_point = ComptimePointStructMemberAccessTest { a : 382, b : 8373 }
 
+// regression: a top level const whose initializer is a comptime function call
+// must be evaluated at compile time (LLVM backend previously errored with
+// "only variant calls supported at top level")
+@retained
+comptime func compute_comptime_global() : int {
+    var sum = 0;
+    var i = 0;
+    while(i < 4) {
+        sum = sum + i;
+        i++;
+    }
+    return sum * 100;
+}
+
+public const top_level_comptime_call_const : int = compute_comptime_global();
+
 enum testable_comptime_enum {
     First,
     Second,
@@ -396,6 +412,9 @@ func test_comptime() {
             return true;
         }
         return false;
+    })
+    test("top level const initialized by comptime function call", () => {
+        return top_level_comptime_call_const == 600
     })
     test("enums in comptime can be operated on - 1", () => {
         return compare_enums_result1()

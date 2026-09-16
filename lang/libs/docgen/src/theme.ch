@@ -46,39 +46,6 @@ public func get_default_css() : std::string_view {
     --alert-text: var(--text-secondary);
 }
 
-[data-theme="light"] {
-    --bg-primary: #ffffff;
-    --bg-secondary: #f8fafc;
-    --bg-tertiary: #e2e8f0;
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-muted: #94a3b8;
-    --accent: #0284c7;
-    --accent-hover: #0369a1;
-    --accent-glow: rgba(2, 132, 199, 0.1);
-    --border: #e2e8f0;
-    --code-bg: #f1f5f9;
-    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    
-    /* Reset Visual Params */
-    --bg-gradient: none;
-    --glass-blur: 0px;
-    --header-bg: var(--bg-secondary);
-
-    /* Alert Colors */
-    --alert-note: #0284c7;
-    --alert-note-bg: #eff8ff;
-    --alert-tip: #16a34a;
-    --alert-tip-bg: #f0fdf4;
-    --alert-important: #7c3aed;
-    --alert-important-bg: #f5f3ff;
-    --alert-warning: #d97706;
-    --alert-warning-bg: #fffbeb;
-    --alert-caution: #e11d48;
-    --alert-caution-bg: #fff1f2;
-    --alert-text: var(--text-secondary);
-}
-
 [data-theme="sunset"] {
     --bg-primary: #1c1917;
     --bg-secondary: #292524;
@@ -179,10 +146,10 @@ public func get_default_css() : std::string_view {
     --alert-text: #a8a8b8;
 }
 
-/* Playground Theme — matches the chemical-lang.com playground.
+/* Dark Theme — matches the chemical-lang.com playground (default theme).
    Precision-instrument look: near-black ink, hairline borders,
    Sora display type, IBM Plex Mono code, signal blue accent. */
-[data-theme="playground"] {
+[data-theme="dark"] {
     --bg-primary: #0A0A0C;
     --bg-secondary: #101014;
     --bg-tertiary: #17171D;
@@ -219,25 +186,25 @@ public func get_default_css() : std::string_view {
     --alert-text: #9B9BA6;
 }
 
-[data-theme="playground"] .header {
+[data-theme="dark"] .header {
     background: rgba(10, 10, 12, 0.85);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
 }
 
-[data-theme="playground"] .content code {
+[data-theme="dark"] .content code {
     color: #7FD1B9;
 }
 
-[data-theme="playground"] .sidebar-item > a.active {
+[data-theme="dark"] .sidebar-item > a.active {
     color: var(--accent);
     background: var(--accent-glow);
     border-left: 2px solid var(--accent);
     border-radius: 0;
 }
 
-/* Playground light variant — warm paper, deep blue accent */
-[data-theme="playground-light"] {
+/* Light Theme — warm paper, deep blue accent */
+[data-theme="light"] {
     --bg-primary: #FAFAF7;
     --bg-secondary: #FFFFFF;
     --bg-tertiary: #F1F1EC;
@@ -274,17 +241,17 @@ public func get_default_css() : std::string_view {
     --alert-text: #57575F;
 }
 
-[data-theme="playground-light"] .header {
+[data-theme="light"] .header {
     background: rgba(250, 250, 247, 0.88);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
 }
 
-[data-theme="playground-light"] .content code {
+[data-theme="light"] .content code {
     color: #1F7A5C;
 }
 
-[data-theme="playground-light"] .sidebar-item > a.active {
+[data-theme="light"] .sidebar-item > a.active {
     color: var(--accent);
     background: var(--accent-glow);
     border-left: 2px solid var(--accent);
@@ -1054,12 +1021,15 @@ public func get_theme_init_js() : std::string_view {
     }
     window.setTheme = setTheme;
     
-    // Immediate load
-    const saved = localStorage.getItem('theme');
+    // Immediate load (Dark is the default theme)
+    let saved = localStorage.getItem('theme');
+    // migrate old playground theme ids
+    if (saved === 'playground') saved = 'dark';
+    if (saved === 'playground-light') saved = 'light';
     if (saved) {
         setTheme(saved);
-    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
-        setTheme('light');
+    } else {
+        setTheme('dark');
     }
 })();
 """);
@@ -1069,16 +1039,15 @@ public func get_default_js() : std::string_view {
     return std::string_view("""
 document.addEventListener('DOMContentLoaded', () => {
     // Theme management
-    const themes = ['default', 'light', 'sunset', 'minimal', 'cosmic', 'aurora', 'playground', 'playground-light'];
+    const themes = ['dark', 'light', 'default', 'sunset', 'minimal', 'cosmic', 'aurora'];
     const themeNames = {
-        'default': 'Midnight',
+        'dark': 'Dark',
         'light': 'Light',
+        'default': 'Midnight',
         'sunset': 'Sunset',
         'minimal': 'Minimal',
         'cosmic': 'Cosmic',
-        'aurora': 'Aurora',
-        'playground': 'Playground',
-        'playground-light': 'Playground Light'
+        'aurora': 'Aurora'
     };
     
     // Create theme select
@@ -1091,7 +1060,7 @@ document.addEventListener('DOMContentLoaded', () => {
             themeSelect.appendChild(opt);
         });
         
-        const saved = localStorage.getItem('theme') || 'default';
+        const saved = localStorage.getItem('theme') || 'dark';
         themeSelect.value = saved;
         
         themeSelect.addEventListener('change', (e) => window.setTheme(e.target.value));

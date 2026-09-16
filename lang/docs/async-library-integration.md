@@ -92,12 +92,15 @@ depends on (design D10). **No library needs to depend on `async` to use
 | `channel` | ❌ | later phase |
 
 **Landed (this revision).** `async::{yield_now, sleep, test::block_on}` and a
-parking `block_on`; compiler fix B11 (generic type identity); and the first
-library integration — additive `fs::read_entire_file_async`,
-`fs::write_text_file_async`, `fs::atomic_write_async` (v1 blocking bodies).
-Tests: 6 async runtime + 3 fs async, all under `./scripts/test.sh --tcc --libs`
-**and** `--llvm --libs` (623/623 both). The generic vtable, reactor, and true
-non-blocking `spawn_blocking` layers remain blocked by B10/B12/B14 (§12).
+parking `block_on`; compiler fixes B11 (generic type identity) and B15 (async
+works in `debug_complete`); library integration — additive
+`fs::read_entire_file_async` / `write_text_file_async` / `atomic_write_async`
+and `environment::{get_async, set_async, unset_async}` (v1 blocking bodies).
+Tests: 6 async runtime + 3 fs + 1 environment, all under
+`./scripts/test.sh --tcc --libs` **and** `--llvm --libs` (624/624 both), plus
+`--async`/main green in `debug_complete`. Generic vtable, reactor,
+`process` (B16), and true non-blocking `spawn_blocking` remain blocked by
+B10/B12/B14/B16 (§12).
 
 ### 3.4 Libraries
 
@@ -131,9 +134,10 @@ Platform notes already in the tree:
   `font`, `archive`, `image`, `async`. **No `net`/`http`/`tls`/`process`/
   `webview`.**
 - `lang/tests/libs/main.ch` dispatches `@test` functions via `test_runner`.
-- `lang/tests/libs/async/` holds the deterministic runtime tests (6 tests) and
-  `lang/tests/libs/fs/async_test.ch` the fs wrapper tests (3 tests); suite total
-  is now 623 on both backends.
+- `lang/tests/libs/async/` holds the deterministic runtime tests (6 tests),
+  `lang/tests/libs/fs/async_test.ch` the fs wrapper tests (3 tests) and
+  `lang/tests/libs/environment/async_test.ch` (1 test); suite total is now 624
+  on both backends.
 - `net`/`http` have **no dedicated suite**; `tls` → `--tls`, `process` →
   `--process`, `webview` → `--webview`.
 - `fs` currently has 24 lib tests; `integration/` has 17 cross-library tests.
@@ -291,9 +295,14 @@ Deliver, in order:
   `process::wait_async`, `process::execute_async`, async pipe read/write.
 - Keep the sync functions identical; share the same syscall helpers.
 - **Landed (v1):** `fs::read_entire_file_async`, `fs::write_text_file_async`,
-  `fs::atomic_write_async` in `lang/libs/fs/src/async.ch` (concrete-return
-  `async func`s with blocking bodies; `fs` now imports `async`). They become
-  true `spawn_blocking` wrappers once B10/B12/B14 land.
+  `fs::atomic_write_async` (`lang/libs/fs/src/async.ch`);
+  `environment::{get_async, set_async, unset_async}`
+  (`lang/libs/environment/src/async.ch`). Both concrete-return `async func`s with
+  blocking bodies; `fs`/`environment` now import `async`. They become true
+  `spawn_blocking` wrappers once B10/B12/B14 land.
+- **Blocked:** `process` async wrappers (`execute_async`/`wait_async`/…) — the
+  result type `PR_Result` is a nested destructible aggregate, miscompiled by
+  async returns (B16). No process async code is shipped.
 
 ### Tier 5 — `webview`, `window`
 
@@ -517,6 +526,41 @@ LLVM only.
 the default backend). The near-term path for `fs`/`process` stays the
 `async func`-body pattern with direct (non-closure) state updates, or a native
 reactor free of thread-pool closures.
+
+### B15 — Async functions broke LLVM `debug_complete` (HIGH) — ✅ FIXED
+
+Any `async func` generated invalid LLVM debug info in `--mode debug_complete`
+(`location requires a valid scope`, `local variable requires a valid scope`),
+because the coroutine body is emitted via `code_gen_no_scope` (no
+`DISubprogram` pushed) and, once split, cloned resume/destroy functions carry
+locations whose scope is the compile-unit file. This made it impossible to add
+async wrappers to libraries in the main dependency graph (their `async func`s
+are emitted even when unused), and `--async --mode debug_complete` failed.
+
+Fix: `FunctionDeclaration::code_gen_body` disables `gen.di` for the entire async
+lowering (`gen_llvm_async_fn`), so async bodies/frames/poll/drop emit no debug
+locations. Async debug info can be restored once the coroutine split carries
+per-clone `DISubprogram`s. Verified: `--async --mode debug_complete` 33/33 and
+main `--mode debug_complete` 2187/2187.
+
+### B16 — Async func returning a nested destructible aggregate is miscompiled (HIGH)
+
+An `async func` that returns a deeply nested destructible struct and is called
+from a **non-`main`** function crashes LLVM codegen (`RUNTIME ERROR: invalid
+memory access`), and in the `--libs` test harness the same call instead
+double-frees at runtime (`free(): double free detected in tcache 2`).
+
+```chemical
+async func execute_async(cfg : ProcessConfig) : PR_Result { return execute(cfg) }
+// PR_Result = Result<ProcessResult, ProcessError>
+// ProcessResult = { ProcessOutput{vector<u8>, vector<u8>}, ExitStatus{...}, bool }
+```
+
+Simpler returns are fine: `Result<vector<u8>, FsError>` (fs) and
+`Result<UnitTy, ProcessError>` work. This blocks `process::execute_async` /
+`wait_async` / `try_wait_async`, so Tier 4 `process` is not shipped. Root cause
+is in the async return-value path for aggregate results and needs the same kind
+of investigation as B9.
 
 **Consequence.** Until B10/B12/B14 land, the runtime can only create
 `FutureTable` entries for *concrete* `T` (as `yield_now`/`sleep` do with

@@ -86,21 +86,22 @@ depends on (design D10). **No library needs to depend on `async` to use
 | `sleep(millis) : FutureHandle<Unit>` | ✅ | poll-driven clock future |
 | `test::block_on<T>` | ✅ | deterministic executor for `--libs` tests |
 | `spawn` / task queue / executor | ❌ | see §12 compiler blockers |
-| `spawn_blocking` | ❌ | `ThreadPool` bridge ready; prototype works on TCC, blocked on LLVM by §12 B14 |
+| `spawn_blocking` | ❌ | `ThreadPool` bridge ready; prototype works on TCC, B14 fixed; still blocked by B12 (generic vtable) + B16 (block_on double-free) |
 | `timeout` / `select` | ❌ | blocked by §12 (generic future tables) |
 | Reactor (epoll/kqueue/IOCP) | ❌ | needed for async socket I/O |
 | `channel` | ❌ | later phase |
 
 **Landed (this revision).** `async::{yield_now, sleep, test::block_on}` and a
-parking `block_on`; compiler fixes B11 (generic type identity) and B15 (async
-works in `debug_complete`); library integration — additive
+parking `block_on`; compiler fixes B11 (generic type identity), B14 (nested
+lambda inheriting coroutine `redirect_return`) and B15 (async works in
+`debug_complete`); library integration — additive
 `fs::read_entire_file_async` / `write_text_file_async` / `atomic_write_async`
 and `environment::{get_async, set_async, unset_async}` (v1 blocking bodies).
 Tests: 6 async runtime + 3 fs + 1 environment, all under
 `./scripts/test.sh --tcc --libs` **and** `--llvm --libs` (624/624 both), plus
 `--async`/main green in `debug_complete`. Generic vtable, reactor,
 `process` (B16), and true non-blocking `spawn_blocking` remain blocked by
-B10/B12/B14/B16 (§12).
+B10/B12/B16 (§12).
 
 ### 3.4 Libraries
 
@@ -299,7 +300,7 @@ Deliver, in order:
   `environment::{get_async, set_async, unset_async}`
   (`lang/libs/environment/src/async.ch`). Both concrete-return `async func`s with
   blocking bodies; `fs`/`environment` now import `async`. They become true
-  `spawn_blocking` wrappers once B10/B12/B14 land.
+  `spawn_blocking` wrappers once B10/B12 land.
 - **Blocked:** `process` async wrappers (`execute_async`/`wait_async`/…) — the
   result type `PR_Result` is a nested destructible aggregate, miscompiled by
   async returns (B16). No process async code is shipped.
@@ -536,18 +537,17 @@ runtime worked around it by making helpers `public` and wrapping the
 `ThreadPool::submit_void` call in a non-generic shim. Worth documenting for
 library authors; not a hard blocker.
 
-### B14 — Capturing lambda passed to a non-generic function inside a generic async func crashes LLVM (HIGH)
+### B14 — Capturing lambda inside a generic async func crashed LLVM (HIGH) — ✅ FIXED
 
-The following shape crashes the LLVM compiler (`RUNTIME ERROR: invalid memory
-access` in `child_of_self_ptr`/`CreateGEP`, reached from
-`ImplDefinition::code_gen_bodies`):
+A capturing lambda created inside an `async func` (e.g. the `spawn_blocking`
+prototype) crashed the LLVM compiler:
 
 ```chemical
 @retained
 public async func <T> run_on_pool(pool : *mut ThreadPool, f : std::function<() => T>) : T {
     var st = malloc(sizeof(BlockingState<T>)) as *mut BlockingState<T>
     new(st) BlockingState<T>()
-    submit_blocking(pool, |st|() => {   // closure captures generic-typed state
+    submit_blocking(pool, |st|() => {   // capturing lambda
         st.value = 99
         st.done = true
     })
@@ -555,17 +555,20 @@ public async func <T> run_on_pool(pool : *mut ThreadPool, f : std::function<() =
 }
 ```
 
-Reproduced minimal variants: capturing *any* generic-typed state in a closure
-that is passed to a non-generic function from inside a generic `async func`.
-Removing the closure (direct assignment) compiles; a generic `async func` alone
-compiles; a generic `async func` taking `std::function<() => T>` compiles. The
-same prototype **compiles and runs on TCC**, so `spawn_blocking<T>` is blocked on
-LLVM only.
+Root cause (found via `llvm::verifyModule` before the pass pipeline): the nested
+function generated for the lambda inherited the enclosing async function's
+`Codegen::redirect_return` (the ramp's `coro.final` block) and
+`Codegen::current_coro`. Its `ret` was therefore emitted as
+`br label %coro.final` — a branch to a basic block in a *different* function.
+The verifier reported `Referring to a basic block in another function!` and the
+optimization pipeline later crashed in `BranchProbabilityInfo`.
 
-**Consequence.** Until B10/B14 land, `spawn_blocking<T>` cannot ship (LLVM is
-the default backend). The near-term path for `fs`/`process` stays the
-`async func`-body pattern with direct (non-closure) state updates, or a native
-reactor free of thread-pool closures.
+Fix (`compiler/Codegen.cpp::create_nested_function`): save, clear
+(`redirect_return = nullptr; current_coro = nullptr`), and restore both around
+the nested body, so nested functions/lambdas never inherit the enclosing
+coroutine state. Verified on LLVM **and** TCC (`v=99`, exit 0), with no
+regressions (main 2186/2187, main `debug_complete` 2187, async 33/33, libs
+624/624).
 
 ### B15 — Async functions broke LLVM `debug_complete` (HIGH) — ✅ FIXED
 
@@ -626,7 +629,7 @@ Two separable issues:
 Blocks `process` async wrappers and any `block_on` of a heap-backed `T`; Tier 4
 `process` is not shipped.
 
-**Consequence.** Until B10/B12/B14 land, the runtime can only create
+**Consequence.** Until B10/B12 land, the runtime can only create
 `FutureTable` entries for *concrete* `T` (as `yield_now`/`sleep` do with
 `Unit`). A generic `async func` body *can* drive a generic state struct (this was
 prototyped for `spawn_blocking<T>` and runs on TCC), but the thread-pool closure

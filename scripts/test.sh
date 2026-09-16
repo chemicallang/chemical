@@ -22,8 +22,7 @@ TEST_TLS=false
 TEST_PROCESS=false
 TEST_WEBVIEW=false
 TEST_LIBS=false
-TEST_ASYNC_LAZY=false
-TEST_ASYNC_SUSPEND=false
+TEST_ASYNC=false
 COMPILE_TARGET=""
 MODE="debug_quick"
 NO_CACHE="--no-cache"
@@ -57,8 +56,7 @@ usage() {
   echo "  --process               Build & run the process/environment test suite (passes --arg-test-process)"
   echo "  --webview               Build & run the webview test suite (passes --arg-test-webview)"
   echo "  --libs                  Build & run the library test suite (passes --arg-test-libs)"
-  echo "  --async-lazy            Build & run the non-suspending async/await suite (C or LLVM)"
-  echo "  --async-suspend         Build & run the suspending async suite (C or LLVM)"
+  echo "  --async                 Build & run the async/await suite (C or LLVM)"
   echo "  --target <triple>       Pass --target <triple> to the compiler (optional, omitted if empty)"
   echo "  -o <path>               Custom output executable path"
   echo "  --no-run                Build test executable only, do not run"
@@ -105,8 +103,7 @@ while [ $# -gt 0 ]; do
     --process) TEST_PROCESS=true ;;
     --webview) TEST_WEBVIEW=true ;;
     --libs) TEST_LIBS=true ;;
-    --async-lazy) TEST_ASYNC_LAZY=true ;;
-    --async-suspend) TEST_ASYNC_SUSPEND=true ;;
+    --async) TEST_ASYNC=true ;;
     --target) COMPILE_TARGET="$2"; shift ;;
     -o) TEST_OUT_NAME="$2"; shift ;;
     --no-run) RUN_TESTS=false ;;
@@ -286,11 +283,8 @@ else
   if [ "$TEST_LIBS" = true ]; then
     CMD+=("--arg-test-libs")
   fi
-  if [ "$TEST_ASYNC_LAZY" = true ]; then
-    CMD+=("--arg-test-async-lazy")
-  fi
-  if [ "$TEST_ASYNC_SUSPEND" = true ]; then
-    CMD+=("--arg-test-async-suspend")
+  if [ "$TEST_ASYNC" = true ]; then
+    CMD+=("--arg-test-async")
   fi
   if [ -n "$COMPILE_TARGET" ]; then
     CMD+=("--target" "$COMPILE_TARGET")

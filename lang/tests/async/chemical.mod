@@ -1,4 +1,4 @@
-application async_suspend_tests
+application async_tests
 
 source "."
 

@@ -48,9 +48,10 @@
 >
 > **Implementation status — September 16, 2026.** The C/2c and LLVM IR backends
 > both lower async functions by default (no flags); the interpreter keeps the
-> eager/transparent bootstrap. Verified: `--async-lazy` 14/14 and
-> `--async-suspend` 19/19 on **both** C and LLVM; main suites 2186/2186 (LLVM)
-> and 2185/2185 (C); async negative tests pass on both. B9 is fixed
+> eager/transparent bootstrap. Verified: the single `--async` suite
+> (`lang/tests/async`) is 33/33 on **both** C and LLVM (14 eager + 19
+> suspending); main suites 2187/2187 (LLVM) and 2186/2186 (C); async negative
+> tests pass on both. B9 is fixed
 > (`Codegen::assign_store` memcpys a struct-typed pointer rvalue), so
 > `block_on<std::string>` and string results work on LLVM. An application's
 > `async func main` gets a synchronous `int main` trampoline on both backends.
@@ -3386,7 +3387,7 @@ LLVM; TinyCC compiles the output.
 > unwraps the handle to `T`.
 >
 > This eager-ready path is validated by
-> `./scripts/test.sh --tcc --async-lazy` (`lang/tests/async_lazy/`, 10/10) and
+> `./scripts/test.sh --tcc --async` (`lang/tests/async/`, 10/10) and
 > by `lang/compiled/aprobe` on both `Compiler --use-c` and `TCCCompiler`.
 >
 > **Landed: suspension state machine on the C backend (Phase 4.2).** Under
@@ -3408,11 +3409,11 @@ LLVM; TinyCC compiles the output.
 > become a frame site — `is_await_handle_operand` enforces this in the planner
 > and the backend, so mixed transparent/real awaits state-number correctly.
 >
-> Validated by `./scripts/test.sh --tcc --async-suspend`
-> (`lang/tests/async_suspend/`, 8/8) against a hand-authored future that returns
+> Validated by `./scripts/test.sh --tcc --async`
+> (`lang/tests/async/`, 8/8) against a hand-authored future that returns
 > `Pending` several times, including suspension inside loops and branches, mixed
 > transparent awaits, plus on `TCCCompiler` and `Compiler --use-c`. The entire
-> `lang/tests/async_lazy` corpus (10/10) also passes when compiled with
+> `lang/tests/async` corpus (10/10) also passes when compiled with
 > `CHEMICAL_ASYNC_SUSPEND=1` (it exercises chained awaits, await-in-loop/if/while
 > and destructible locals through the state machine).
 >
@@ -3427,7 +3428,7 @@ LLVM; TinyCC compiles the output.
 > `switch(frame->state){ case i+1: <destroy live_drops of site i>; break; default: break; }`
 > before freeing the frame, so cancelling a suspended future runs each live
 > local's destructor exactly once (design 8.5). Validated by
-> `lang/tests/async_suspend` (7/7): destructible locals across suspensions, and a
+> `lang/tests/async` (7/7): destructible locals across suspensions, and a
 > `DropCounter`-bearing suspended future dropped without completion whose
 > destructor runs exactly once.
 >
@@ -3440,7 +3441,7 @@ LLVM; TinyCC compiles the output.
 > different `T` in one function work. Arrays are frame-resident when they cross a
 > suspension; `emit_async_frame_field` emits `T __chx_slot_k[N]` and
 > `emit_async_array_frame_init` initializes them from `zeroed` (`memset`) or a
-> literal (temp + `memcpy`). Validated by `lang/tests/async_suspend` (11/11):
+> literal (temp + `memcpy`). Validated by `lang/tests/async` (11/11):
 > destructible results (single and two-per-function, and `block_on<std::string>`)
 > plus a zeroed buffer and a literal array mutated across suspensions.
 >
@@ -3468,7 +3469,7 @@ LLVM; TinyCC compiles the output.
 > `emit_async_array_frame_init` element-wise moves literal initializers (or
 > `memset`s `zeroed`); `emit_async_destroy_slot` destroys elements last-to-first;
 > the normal path uses the existing `queue_destruct_arr`.
-> `lang/tests/async_suspend` is now 13/13 and `lang/tests/async_lazy` 14/14.
+> `lang/tests/async` is now 13/13 and `lang/tests/async` 14/14.
 >
 > **Async methods, child cancellation, and frame-resident drop flags (landed).**
 > The C backend now lowers async struct / variant / interface methods: the
@@ -3485,7 +3486,7 @@ LLVM; TinyCC compiles the output.
 > when it is moved out (via `CDestructionVisitor::pending_drop_flag`, so the
 > clearing persists across a suspension), and consulted both by the cancellation
 > switch and the normal completion destructor jobs. Verified by
-> `lang/tests/async_suspend` (17/17): async method (suspend + eager), child
+> `lang/tests/async` (17/17): async method (suspend + eager), child
 > cancellation, moved local (completion + cancellation), moved parameter.
 >
 > **`async func main` now gets a synchronous trampoline (landed).** The
@@ -3520,7 +3521,7 @@ LLVM; TinyCC compiles the output.
 > array-to-array initializer across a suspension (`var b = a`) is emitted as a
 > byte-copy **move** (a deep copy of destructor-bearing elements is impossible),
 > clearing the source's frame drop flag
-> (`test_async_suspend_moved_array`). `lang/tests/async_suspend` is now 19/19.
+> (`test_async_suspend_moved_array`). `lang/tests/async` is now 19/19.
 >
 > **LLVM coroutine lowering (landed for value types).**
 > `compiler/backend/LLVMCoroutine.{h,cpp}` implements the LLVM lowering

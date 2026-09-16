@@ -692,6 +692,21 @@ func process_text(text : std::string_view) {
 process_text("hello")  // Works due to implicit constructor
 ```
 
+#### Searching
+
+`find(needle)` / `find_last(needle)` take a `&std::string_view` and return `size_t`, using
+`std::NPOS` (`(0 as size_t) - 1`, i.e. `SIZE_MAX`) as the not-found sentinel:
+
+```chemical
+var pos = haystack.find(&needle)
+if(pos == std::NPOS) { /* not found */ }
+```
+
+**Never compare the result against `-1u`.** `-1u` is a 32-bit `4294967295`; `NPOS` is a
+64-bit `SIZE_MAX`. On a 64-bit target they are never equal, so a `pos == -1u` "not found"
+check silently falls through and the huge `pos` gets used as an offset/length — out-of-bounds
+reads and crashes. Always use `std::NPOS` (or `(0 as size_t) - 1`).
+
 ### std::vector
 
 Dynamic array container similar to C++ std::vector.
@@ -1186,6 +1201,30 @@ variant MyVariant {
 
 These patterns were discovered while implementing pure-Chemical libraries.
 
+### Struct initializers use exact, case-sensitive field names
+
+`T { field: value }` matches members by name (case-sensitive). A wrong name/case is a symres
+error, not a silent default:
+
+```chemical
+struct GUID { var Data1 : DWORD; var Data4 : [8]BYTE }
+// ERROR: couldn't find value for member 'Data1'
+// var g : GUID = GUID { data1 : 1, data4 : [...] }
+var g : GUID = GUID { Data1 : 1, Data4 : [0x8C as BYTE, /* ... */] }   // OK
+```
+
+Array elements must match the field's element type too — `[8]int` does not satisfy `[8]BYTE`,
+so cast each element (`0x8C as BYTE`).
+
+### C ABI / COM vtable structs must match the exact field order
+
+When a C/COM vtable is modelled as a `struct` of function pointers and called through,
+**declaration order is the ABI**: every slot must be present, in the exact SDK order, or a
+call invokes the wrong function. For COM, the IUnknown slots (`QueryInterface`, `AddRef`,
+`Release`) come first, then base-interface methods, then derived ones. Don't bolt on suffixed
+workarounds (`SetClientGuid2`) — insert the real method at its correct index. The receiver is
+passed as the first argument: `obj.vtbl.Show(obj as *mut void, hwnd)`.
+
 ### `.data()` Returns Immutable Pointer
 
 `vector<T>.data()` returns `*T` (immutable). To write through the pointer, cast to `*mut T`:
@@ -1434,6 +1473,21 @@ vec.push(20)
 // CORRECT:
 var x = vec.get(0)
 var px = vec.get_ptr(0)   // returns *mut int
+```
+
+**`.get()` on an element type with a destructor (`std::string`, structs) is a trap.** It
+returns a **bitwise copy** that shares the element's heap buffer; when the temporary goes out
+of scope its destructor frees that buffer, and the `std::vector` later frees it again →
+double-free / heap corruption (`STATUS_HEAP_CORRUPTION`, `c0000374`). Use `.get_ptr(i)` for
+anything with a destructor:
+
+```chemical
+// WRONG — copies + destroys shared buffer
+// var s = vec_of_strings.get(i)
+// var view = s.to_view()
+
+// CORRECT
+var view = vec_of_strings.get_ptr(i).to_view()
 ```
 
 ### 5. Implementing for-in requires Iterable/ReversibleIterable

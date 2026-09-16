@@ -61,6 +61,7 @@ If you only need to react to a `#macro` at a specific site, a **macro plugin** (
 | `compiler/cbi/bindings/BuildContextCBI.cpp` | `BuildContextindex_cbi_fn` — validates the job is CBI and stores the index (`:143-150`) |
 | `lang/libs/transformer/` | The `transformer` module: `chemical.mod` + `TransformerContext.ch` + interface declarations |
 | `lang/libs/refgen/` | Reference transformer: build.lab registration + `transformer_main` + full generator |
+| `lang/libs/refgen/refgen.mod` | The docs target module (`module dummy` + imports) — ships with the release under `libs/refgen/refgen.mod` |
 | `lang/libs/lab/src/lab.ch` | Chemical mirror of `CBIFunctionType` (`:96-113`), `index_cbi_fn` (`:212`), `index_def_cbi_fn` (`:429`) |
 | `compiler/ASTProcessor.h/.cpp` | `import_chemical_files_direct_with_tokens` (`:216`/`:1095`), `determine_module_files` (`:275`/`:133`), `sym_res_module` (`:490`/`:430`), `type_verify_module_parallel` (`:508`/`:775`) |
 | `lang/libs/compiler/src/PtrVec.ch` | `VecRef<T>` used by `getFlattenedModules` (`:20-46`) |
@@ -289,6 +290,44 @@ For a real-world, full traversal + token-based doc-comment extraction example, r
 - `find_comment_before` (`:4-41`) — walks the token stream backwards to find doc comments.
 - `add_module_deps` (`:688-717`) — reconstructs the dependency graph edges.
 
+## The built-in `refgen` transformer
+
+`refgen` is the reference transformer and the one to copy from. It lives in `lang/libs/refgen/`
+and is run with:
+
+```bash
+chemical run refgen libs/refgen/refgen.mod
+```
+
+- `build.lab` registers the `transformer_main` hook; its deps are `std`, `fs`, `compiler`, `transformer`.
+- `src/main.ch` — `transformer_main`: parses args (`--output`, `--github-links`, `--git-ref`,
+  `--no-search`, `--base-url`), then `parseTarget(true)` → `analyzeTarget()` → index → generate.
+- `src/generator.ch` — the `Generator` struct: indexing (`index_module`, `index_node_recursive`),
+  HTML emission, search index, sitemap, dependency graph.
+- **The documentation target module ships with the release** at `lang/libs/refgen/refgen.mod`
+  (`libs/refgen/refgen.mod` in the release layout). It is a `module dummy` whose only content is
+  `import …` lines enumerating every library to document — importing a module is what makes the
+  transformer index it. Because it lives under `libs/` and `release.sh` copies `lang/libs`, it is
+  shipped with the compiler, so the docs workflow needs no repository checkout.
+
+### `refgen` / doc-generator gotchas
+
+- **`find`/`find_last` return `size_t`; compare against `std::NPOS`, never `-1u`.** `std::NPOS`
+  is `(0 as size_t) - 1` (`SIZE_MAX`) while `-1u` is a 32-bit `4294967295`; on a 64-bit target
+  they never compare equal, so a "not found" check silently falls through and e.g.
+  `subview(0, NPOS)` then crashes in `append_view`. This bit `get_js`, the GitHub-link builder,
+  and both `find_last("\\")` filename extractors.
+- **Never `vec.get(i)` a `std::string`/struct element and let it destruct.** `.get()` is a
+  bitwise copy sharing the heap buffer; the generated `delete` frees it → heap corruption
+  (`STATUS_HEAP_CORRUPTION`, `c0000374`). Use `vec.get_ptr(i)`. This bit `add_module_deps`'
+  `visited` scan.
+- **HTML page shell:** `page_head` must return the head block *stored* (not appended) so callers
+  can insert it inside `.main-content`, after `.sidebar`. Emitting `<div class='page-head'>`
+  directly as a child of `.layout` makes it a flex column to the left of the sidebar.
+- **Cache:** deleting `~/.chemical/transformers/refgen` is the reliable way to force the
+  transformer (and its dependency objects) to rebuild after editing its `.ch` sources; a partial
+  `-frecompile-plugins` can leave stale `VecRef__cgs__N` generic-instantiation symbols.
+
 ## Macro hooks vs. a transformer job
 
 Both are CBI plugins built with TCC, but they operate at completely different granularity.
@@ -324,6 +363,16 @@ options->is_build_lab_caching_enabled = false;
 ### `parseTarget` does not resolve imports
 
 `parseTarget` calls `import_chemical_files_direct_with_tokens` (`compiler/ASTProcessor.cpp:1095-1141`), which lexes/parses only the **direct files already registered in each module's `direct_files`**. It does not recursively follow `import` statements. If the target's AST depends on imported files, make sure those modules are part of the flattened dependency graph (they normally are, via `flatten_dedupe_sorted`).
+
+### Macro-based modules cannot be parsed
+
+The transformer job loads **no macro CBI plugins**, so `parseTarget` fails on any module whose sources use `#universal`, `#html`, `#css`, `#js`, `#json`, `#md`, …:
+
+```
+[Parser] error: couldn't find macro parser for '#universal'
+```
+
+`parseTarget` returns false and the transformer cannot proceed. Keep such modules out of the target's import set (e.g. `components` uses `#universal`/`#css` and is deliberately excluded from `refgen.mod`). Documenting them would require loading the corresponding macro plugins into the parser. Note that `#html`/`#css`/… appearing only in comments/strings is harmless — check for real statement-level invocations before excluding a module.
 
 ### `keep_comments` and token lifetime
 

@@ -526,10 +526,19 @@ then calls `link_cbi_job` (`LabBuildCompiler.cpp:1893`).
 4. For each flattened dependency module, imports the compiler interfaces that module
    requested: `CompilerBinder::import_compiler_interface(interface, state)` (`:1564-1569`)
    → `tcc_add_symbol` for every `{name, fnptr}` in the interface map.
-5. `tcc_relocate(state)` (`:1572`).
-6. `binder.store_cbi(cbiName, state)` (`:1581`) — ownership of the TCC state transfers to
+5. Adds the job's library search paths (`tcc_add_library_path`) and **link libraries**
+   (`tcc_add_library`) to the state before relocating (`:1571-1585`).
+   This is required for any plugin whose dependency graph declares `link "…"` in a
+   `chemical.mod`: e.g. `refgen → fs → encoding → crypto → osrand`, and
+   `osrand/chemical.mod` declares `link "bcrypt" if windows` and calls `BCryptGenRandom`.
+   Without this step `tcc_relocate` aborts with
+   `tcc: error: unresolved reference to 'BCryptGenRandom'` and
+   `[lab] error: failed to relocate cbi '…'`. (The `build.lab` JIT path does the same at
+   `:3163-3174`.)
+6. `tcc_relocate(state)` (`:1586`).
+7. `binder.store_cbi(cbiName, state)` (`:1595`) — ownership of the TCC state transfers to
    the binder (so it is eventually `tcc_delete`d exactly once).
-7. For each `CBIFunctionIndex` in the job, `binder.index_function(index, state)` (`:1595`)
+8. For each `CBIFunctionIndex` in the job, `binder.index_function(index, state)` (`:1609`)
    resolves `fn_name` via `tcc_get_symbol` and registers it in `hooks_`.
 
 The cached-job path also links CBI jobs (`:1724-1729`), so even a fully cached build

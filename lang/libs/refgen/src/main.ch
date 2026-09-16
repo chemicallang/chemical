@@ -79,7 +79,8 @@ public func transformer_main(ctx : *TransformerContext, argc : int, argv : **cha
         base_url = base_url.copy(),
         index = std::vector<refgen::SymbolInfo>(),
         sidebar_cache = std::unordered_map<std::string, std::string>(),
-        cur_rel_root = std::string(".")
+        cur_rel_root = std::string("."),
+        head_html = std::string("")
     };
 
     // Pass 1: Indexing

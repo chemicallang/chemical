@@ -86,16 +86,18 @@ depends on (design D10). **No library needs to depend on `async` to use
 | `sleep(millis) : FutureHandle<Unit>` | ✅ | poll-driven clock future |
 | `test::block_on<T>` | ✅ | deterministic executor for `--libs` tests |
 | `spawn` / task queue / executor | ❌ | see §12 compiler blockers |
-| `spawn_blocking` | ❌ | implementation blocked by §12; `ThreadPool` bridge ready |
+| `spawn_blocking` | ❌ | `ThreadPool` bridge ready; prototype works on TCC, blocked on LLVM by §12 B14 |
 | `timeout` / `select` | ❌ | blocked by §12 (generic future tables) |
 | Reactor (epoll/kqueue/IOCP) | ❌ | needed for async socket I/O |
 | `channel` | ❌ | later phase |
 
 **Landed (this revision).** `async::{yield_now, sleep, test::block_on}` and a
-parking `block_on`, tested by 6 new deterministic tests that run under
-`./scripts/test.sh --tcc --libs` **and** `--llvm --libs` (620/620 both). The
-generic, reactor, and blocking layers are blocked by concrete compiler gaps
-documented in §12.
+parking `block_on`; compiler fix B11 (generic type identity); and the first
+library integration — additive `fs::read_entire_file_async`,
+`fs::write_text_file_async`, `fs::atomic_write_async` (v1 blocking bodies).
+Tests: 6 async runtime + 3 fs async, all under `./scripts/test.sh --tcc --libs`
+**and** `--llvm --libs` (623/623 both). The generic vtable, reactor, and true
+non-blocking `spawn_blocking` layers remain blocked by B10/B12/B14 (§12).
 
 ### 3.4 Libraries
 
@@ -129,8 +131,9 @@ Platform notes already in the tree:
   `font`, `archive`, `image`, `async`. **No `net`/`http`/`tls`/`process`/
   `webview`.**
 - `lang/tests/libs/main.ch` dispatches `@test` functions via `test_runner`.
-- `lang/tests/libs/async/` holds the deterministic runtime tests (6 tests) added
-  with the runtime work; suite total is now 620 on both backends.
+- `lang/tests/libs/async/` holds the deterministic runtime tests (6 tests) and
+  `lang/tests/libs/fs/async_test.ch` the fs wrapper tests (3 tests); suite total
+  is now 623 on both backends.
 - `net`/`http` have **no dedicated suite**; `tls` → `--tls`, `process` →
   `--process`, `webview` → `--webview`.
 - `fs` currently has 24 lib tests; `integration/` has 17 cross-library tests.
@@ -287,6 +290,10 @@ Deliver, in order:
   `fs::read_entire_file_async`, `fs::atomic_write_async`,
   `process::wait_async`, `process::execute_async`, async pipe read/write.
 - Keep the sync functions identical; share the same syscall helpers.
+- **Landed (v1):** `fs::read_entire_file_async`, `fs::write_text_file_async`,
+  `fs::atomic_write_async` in `lang/libs/fs/src/async.ch` (concrete-return
+  `async func`s with blocking bodies; `fs` now imports `async`). They become
+  true `spawn_blocking` wrappers once B10/B12/B14 land.
 
 ### Tier 5 — `webview`, `window`
 
@@ -435,20 +442,32 @@ var g : (x : int) => int = ident<int>   // ERROR: value with type '(x : T) => T'
 - Without it, a runtime future cannot name a per-`T` poll function, so every
   generic future table must be built with inline non-capturing lambdas instead.
 
-### B11 — Generic function *type* equality fails with a generic variant result (HIGH)
+### B11 — Generic function *type* equality fails with a generic variant result (HIGH) — ✅ FIXED
 
-An inline non-capturing lambda assigned to a `FutureTable<T>` field is rejected
-even though the printed types are identical:
+An inline non-capturing lambda assigned to a `FutureTable<T>` field was rejected
+even though the printed types were identical:
 
 ```chemical
 vtbl.poll = (frame : *mut void, cx : *mut Context) => { ... Poll<T> ... }
-// ERROR: value with type '(frame : *mut void, cx : *mut Context) => Poll<T>'
-//        does not satisfy type '(frame : *mut void, cx : *mut Context) => Poll<T>'
+// was: value with type '(frame : *mut void, cx : *mut Context) => Poll<T>'
+//      does not satisfy type '(frame : *mut void, cx : *mut Context) => Poll<T>'
 ```
 
-With an explicit annotation the message becomes `expected return type Poll<T>
-but got core.async.Poll<T>` — a `GenericType` vs linked-`Poll<T>` equality bug in
-the function-type satisfaction check. Non-generic lambdas assign correctly.
+Root cause: `GenericType::is_same`/`satisfies` first called `canonical()` on the
+other type, which can unwrap a `GenericType` to a `LinkedType`
+(`BaseType::canonical`, case `Generic`), so the same-declaration branch was never
+reached. Two fixes in `ast/types/GenericType.cpp`:
+
+1. Prefer the direct `Generic` type; only fall back to `canonical()` for
+   wrappers (literals/references/aliases).
+2. Normalize `referenced->linked` to the owning generic declaration
+   (`Generic*Decl`) via `canonical_generic_decl()`, since `Foo<T>` may reference
+   the generic wrapper, its master implementation, or a concrete instantiation.
+
+This makes `Foo<T> == Foo<T>` and `&Foo<T> == &Foo<T>` hold regardless of which
+node each side references; the main suites stay green (2186/2187). It does not,
+by itself, unblock the runtime because B12 and the LLVM function-typed-field
+crash remain for hand-written generic vtables.
 
 ### B12 — Generic structs with generic function-typed fields are not specialized (2c) (MEDIUM)
 
@@ -462,17 +481,51 @@ generic struct. This also blocks `FutureTable<T>`-shaped Chemical types.
 
 ### B13 — Retention friction for generic runtime code (LOW)
 
-Calling a non-`@retained` function from a `public` generic declaration is an
-error (`calling a non-retained function in a public generic declaration`). The
-runtime worked around it by marking helpers `@retained` and wrapping the
-`ThreadPool::submit_void` call in a non-generic `@retained` shim. Worth
-documenting for library authors; not a hard blocker.
+Calling a non-`public` (internal) function from a `public` generic declaration is
+an error (`calling a non-retained function in a public generic declaration`). The
+runtime worked around it by making helpers `public` and wrapping the
+`ThreadPool::submit_void` call in a non-generic shim. Worth documenting for
+library authors; not a hard blocker.
 
-**Consequence.** Until B10/B11/B12 land, the runtime can only create
+### B14 — Capturing lambda passed to a non-generic function inside a generic async func crashes LLVM (HIGH)
+
+The following shape crashes the LLVM compiler (`RUNTIME ERROR: invalid memory
+access` in `child_of_self_ptr`/`CreateGEP`, reached from
+`ImplDefinition::code_gen_bodies`):
+
+```chemical
+@retained
+public async func <T> run_on_pool(pool : *mut ThreadPool, f : std::function<() => T>) : T {
+    var st = malloc(sizeof(BlockingState<T>)) as *mut BlockingState<T>
+    new(st) BlockingState<T>()
+    submit_blocking(pool, |st|() => {   // closure captures generic-typed state
+        st.value = 99
+        st.done = true
+    })
+    ...
+}
+```
+
+Reproduced minimal variants: capturing *any* generic-typed state in a closure
+that is passed to a non-generic function from inside a generic `async func`.
+Removing the closure (direct assignment) compiles; a generic `async func` alone
+compiles; a generic `async func` taking `std::function<() => T>` compiles. The
+same prototype **compiles and runs on TCC**, so `spawn_blocking<T>` is blocked on
+LLVM only.
+
+**Consequence.** Until B10/B14 land, `spawn_blocking<T>` cannot ship (LLVM is
+the default backend). The near-term path for `fs`/`process` stays the
+`async func`-body pattern with direct (non-closure) state updates, or a native
+reactor free of thread-pool closures.
+
+**Consequence.** Until B10/B12/B14 land, the runtime can only create
 `FutureTable` entries for *concrete* `T` (as `yield_now`/`sleep` do with
-`Unit`). The pragmatic near-term path is to keep generic combinators
-(`spawn_blocking<T>`, `timeout<T>`) out of the runtime and implement library
-async wrappers with compiler-lowered `async func` bodies instead.
+`Unit`). A generic `async func` body *can* drive a generic state struct (this was
+prototyped for `spawn_blocking<T>` and runs on TCC), but the thread-pool closure
+path crashes LLVM (B14). The pragmatic near-term path is to keep generic
+combinators (`spawn_blocking<T>`, `timeout<T>`) out of the runtime and implement
+library async wrappers with compiler-lowered `async func` bodies instead (this
+is now done for `fs`, §7 Tier 4).
 
 ---
 

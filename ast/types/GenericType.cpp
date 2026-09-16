@@ -129,12 +129,46 @@ GenericType* GenericType::copy(ASTAllocator& allocator) {
     return gen;
 }
 
+namespace {
+// Two GenericType nodes may reference the same generic declaration through
+// different AST nodes: the Generic*Decl wrapper, its master implementation, or a
+// concrete instantiation. Normalize all of those to the Generic*Decl so
+// `Foo<T>` compares equal regardless of which node it references.
+ASTNode* canonical_generic_decl(ASTNode* n) {
+    if(n == nullptr) {
+        return nullptr;
+    }
+    switch(n->kind()) {
+        case ASTNodeKind::GenericStructDecl:
+        case ASTNodeKind::GenericUnionDecl:
+        case ASTNodeKind::GenericVariantDecl:
+        case ASTNodeKind::GenericInterfaceDecl:
+        case ASTNodeKind::GenericTypeDecl:
+        case ASTNodeKind::GenericFuncDecl:
+            return n;
+        default:
+            break;
+    }
+    const auto container = n->get_members_container();
+    if(container != nullptr && container->generic_parent != nullptr) {
+        return (ASTNode*) container->generic_parent;
+    }
+    return n;
+}
+}
+
 bool GenericType::is_same(BaseType *pure_type) {
-    const auto other = pure_type->canonical();
+    // Prefer the direct type: canonicalizing a GenericType can unwrap it to a
+    // Linked form (BaseType::canonical, case Generic), which would make two
+    // identical `Foo<T>` values compare unequal. Only fall back to canonical()
+    // when the incoming type is a wrapper (literal / reference / alias).
+    const auto other = pure_type->kind() == BaseTypeKind::Generic ? pure_type : pure_type->canonical();
     if(other->kind() == BaseTypeKind::Generic) {
         const auto other_gen = other->as_generic_type_unsafe();
         // same declaration: compare type args pairwise
-        if(referenced->linked && other_gen->referenced->linked && referenced->linked == other_gen->referenced->linked) {
+        const auto this_decl = canonical_generic_decl(referenced->linked);
+        const auto other_decl = canonical_generic_decl(other_gen->referenced->linked);
+        if(this_decl && other_decl && this_decl == other_decl) {
             if (types.size() != other_gen->types.size()) return false;
             const auto min_size = std::min(types.size(), other_gen->types.size());
             for(unsigned i = 0; i < min_size; i++) {
@@ -155,7 +189,9 @@ bool GenericType::satisfies(BaseType *pure_type) {
     if(other->kind() == BaseTypeKind::Generic) {
         const auto other_gen = other->as_generic_type_unsafe();
         // same declaration: compare type args pairwise
-        if(referenced->linked && other_gen->referenced->linked && referenced->linked == other_gen->referenced->linked) {
+        const auto this_decl = canonical_generic_decl(referenced->linked);
+        const auto other_decl = canonical_generic_decl(other_gen->referenced->linked);
+        if(this_decl && other_decl && this_decl == other_decl) {
             const auto min_size = std::min(types.size(), other_gen->types.size());
             for(unsigned i = 0; i < min_size; i++) {
                 BaseType* this_arg = types[i];

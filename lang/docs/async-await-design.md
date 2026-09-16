@@ -49,14 +49,28 @@
 > **Implementation status — September 15, 2026.** The C/2c and LLVM IR backends
 > both lower async functions by default (no flags); the interpreter keeps the
 > eager/transparent bootstrap. Verified: `--async-lazy` 14/14 on C **and** LLVM;
-> `--async-suspend` 19/19 on C; main suites 2186/2186 (LLVM) and 2185/2185 (C);
-> async negative tests pass on both. B9 is fixed (`Codegen::assign_store`
-> memcpys a struct-typed pointer rvalue), so `block_on<std::string>` and string
-> results work on LLVM. An application's `async func main` gets a synchronous
-> `int main` trampoline on both backends. Remaining gaps: real coroutine
-> suspension (`--async-suspend`) still hits LLVM *"Cannot emit physreg copy
-> instruction"* at object emission, and async closures are rejected on both
-> native backends.
+> `--async-suspend` 19/19 on C and **14/19 on LLVM**; main suites 2186/2186
+> (LLVM) and 2185/2185 (C); async negative tests pass on both. B9 is fixed
+> (`Codegen::assign_store` memcpys a struct-typed pointer rvalue), so
+> `block_on<std::string>` and string results work on LLVM. An application's
+> `async func main` gets a synchronous `int main` trampoline on both backends.
+> LLVM suspension now compiles and runs: the old *"Cannot emit physreg copy
+> instruction"* was a malformed `llvm.memcpy` produced by `gen_llvm_await` using
+> the *enclosing* function's `Poll<T>`/inner types instead of the *child*
+> future's (fixed), plus `Codegen::aggregate_store` memcpy'ing a by-value
+> aggregate (fixed). Five `--async-suspend` cases still fail on LLVM because the
+> LLVM coroutine lowering has no equivalent of the C backend's
+> `AsyncSuspendContext` slot machinery: cancellation-time destruction of
+> frame-resident locals, child-future cancellation, and array move drop-flag
+> clearing. A per-suspend destroy block that re-runs the live locals'
+> `conditional_destruct` was tried and **does not work**: `CoroFrame`/the O0
+> pipeline alias the frame slots of locals that are dead after the suspension
+> (e.g. a moved-out `d` shares `m`'s slot), so referencing them in the destroy
+> path double-destroys the live local. The fix is to stop relying on alloca
+> promotion and give every cross-await slot (and its drop flag) an explicit
+> field in the compiler-owned wrapper frame, exactly like the 2c backend's
+> `__chx_slot_<id>` / `__chx_drop_<id>` fields. Async closures are rejected on
+> both native backends.
 >
 > This document supersedes the August 25, 2026 draft. The draft was a good
 > outline but contained factual errors about the codebase (wrong method names,

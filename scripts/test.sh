@@ -144,7 +144,7 @@ fi
 
 if [ "$TEST_ASYNC_SUSPEND" = true ] && [ "$TARGET" != "TCCCompiler" ]; then
   echo "Error: the suspending async suite currently requires the C backend (--tcc);"
-  echo "       LLVM coroutine suspension fails at object emission (physreg copy)."
+  echo "       LLVM coroutine suspension still misses cancellation cleanup / array move flags."
   exit 1
 fi
 

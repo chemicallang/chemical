@@ -60,6 +60,58 @@ static bool is_future_handle_type(BaseType* rt, BaseType*& inner) {
     return inner != nullptr;
 }
 
+/**
+ * Resolves the `FutureTable<T>` BaseType from a `FutureHandle<T>` type by
+ * walking the handle's `vtbl` field. Returns nullptr when the shape cannot be
+ * resolved.
+ */
+static BaseType* resolve_future_table_from_handle(BaseType* rt) {
+    if(rt == nullptr || rt->get_direct_linked_container() == nullptr) {
+        return nullptr;
+    }
+    auto* fh = rt->get_direct_linked_container();
+    for(const auto member : fh->variables()) {
+        if(member->name != chem::string_view("vtbl")) {
+            continue;
+        }
+        auto* vt = const_cast<BaseType*>(member->as_struct_member_unsafe()->type.getType());
+        if(vt->kind() == BaseTypeKind::Pointer) {
+            return const_cast<BaseType*>(vt->as_pointer_type_unsafe()->type);
+        }
+        if(vt->kind() == BaseTypeKind::Reference) {
+            return const_cast<BaseType*>(vt->as_reference_type_unsafe()->type);
+        }
+    }
+    return nullptr;
+}
+
+/**
+ * Resolves the concrete `Poll<T>` LLVM type from a `FutureHandle<T>` type by
+ * walking the handle's vtbl into its `poll` method's return type. The child
+ * future's `Poll<T>` may differ from the enclosing async function's, so await
+ * lowering must use this rather than the enclosing coroutine's `poll_ty`.
+ */
+static llvm::Type* resolve_poll_type_from_handle(Codegen& gen, BaseType* rt) {
+    BaseType* table_bt = resolve_future_table_from_handle(rt);
+    if(table_bt == nullptr || table_bt->get_direct_linked_container() == nullptr) {
+        return nullptr;
+    }
+    auto* table = table_bt->get_direct_linked_container();
+    for(const auto member : table->variables()) {
+        if(member->name != chem::string_view("poll")) {
+            continue;
+        }
+        auto* ft = const_cast<BaseType*>(member->as_struct_member_unsafe()->type.getType());
+        if(ft->kind() == BaseTypeKind::Function) {
+            auto* poll_bt = const_cast<BaseType*>(ft->as_function_type_unsafe()->returnType.getType());
+            if(poll_bt != nullptr) {
+                return poll_bt->llvm_type(gen);
+            }
+        }
+    }
+    return nullptr;
+}
+
 static llvm::Function* coro_intrinsic(Codegen& gen, Intrinsic::ID id, ArrayRef<Type*> types = {}) {
     return Intrinsic::getOrInsertDeclaration(gen.module.get(), id, types);
 }
@@ -629,14 +681,14 @@ bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
 
     // the single normal `coro.end(..., i1 false, ...)`
     gen.SetInsertPoint(ramp_ret_bb);
-    builder.CreateCall(end_fn, {null_ptr, ConstantInt::get(i1, false), ConstantTokenNone::get(ctx)});
+    builder.CreateCall(end_fn, {handle, ConstantInt::get(i1, false), ConstantTokenNone::get(ctx)});
     builder.CreateRetVoid();
 
     // Destroy-while-suspended: `coro.end(i1 true)` only. The frame is freed by
     // `drop` after `coro.destroy` returns — CoroSplit's `coro.end` lowering
     // writes the resume/destroy pointers into the frame, so freeing here is a UAF.
     gen.SetInsertPoint(coro.cleanup_bb);
-    builder.CreateCall(end_fn, {null_ptr, ConstantInt::get(i1, true), ConstantTokenNone::get(ctx)});
+    builder.CreateCall(end_fn, {handle, ConstantInt::get(i1, true), ConstantTokenNone::get(ctx)});
     builder.CreateRetVoid();
 
     gen.current_coro = prev_coro;
@@ -663,25 +715,46 @@ llvm::Value* gen_llvm_await(Codegen& gen, AwaitExpression* await) {
     auto* save_fn = coro_intrinsic(gen, Intrinsic::coro_save);
     auto* suspend_fn = coro_intrinsic(gen, Intrinsic::coro_suspend);
 
+    // The awaited future's result type may differ from the enclosing function's
+    // (e.g. `async func use_label() : int` awaiting `make_label() : std::string`).
+    // All `FutureHandle<T>` share the same `{ frame, vtbl }` layout, but the
+    // `Poll<T>` result and payload are the *child's* types, not the enclosing
+    // coroutine's. Using the enclosing types here emitted a `Poll<int>` for a
+    // `std::string` future, which crashed the backend (memcpy from an i32).
+    auto* child_rt = const_cast<BaseType*>(await->getInner()->getType());
+    BaseType* child_inner = nullptr;
+    llvm::Type* child_handle_ty = coro->handle_ty;
+    llvm::Type* child_poll_ty = coro->poll_ty;
+    llvm::Type* child_inner_ty = coro->inner_ty;
+    if(child_rt != nullptr && is_future_handle_type(child_rt, child_inner)) {
+        child_handle_ty = child_rt->llvm_type(gen);
+        child_inner_ty = child_inner->llvm_type(gen);
+        if(auto* resolved = resolve_poll_type_from_handle(gen, child_rt)) {
+            child_poll_ty = resolved;
+        }
+    }
+
     auto* child_ptr = await->getInner()->llvm_pointer(gen);
     if(child_ptr == nullptr) {
         return nullptr;
     }
-    auto* child_frame = builder.CreateLoad(ptr_ty, gep_idx(builder, coro->handle_ty, child_ptr, {0, 0}));
-    auto* child_vtbl = builder.CreateLoad(ptr_ty, gep_idx(builder, coro->handle_ty, child_ptr, {0, 1}));
+    auto* child_frame = builder.CreateLoad(ptr_ty, gep_idx(builder, child_handle_ty, child_ptr, {0, 0}));
+    auto* child_vtbl = builder.CreateLoad(ptr_ty, gep_idx(builder, child_handle_ty, child_ptr, {0, 1}));
     auto* poll_fn = builder.CreateLoad(ptr_ty, child_vtbl);
+    auto* child_drop_fn = builder.CreateLoad(ptr_ty, gep_idx(builder, ptr_ty, child_vtbl, {1}));
+    auto* child_drop_ty = llvm::FunctionType::get(builder.getVoidTy(), {ptr_ty}, false);
     auto* cx = builder.CreateLoad(ptr_ty, gep_idx(builder, coro->promise_ty, coro->promise, {0, (unsigned) coro->cx_field}));
 
-    auto* poll_tmp = builder.CreateAlloca(coro->poll_ty);
+    auto* poll_tmp = builder.CreateAlloca(child_poll_ty);
     auto* loop_bb = BasicBlock::Create(ctx, "await.loop", gen.current_function);
     auto* suspend_bb = BasicBlock::Create(ctx, "await.suspend", gen.current_function);
     auto* done_bb = BasicBlock::Create(ctx, "await.done", gen.current_function);
     builder.CreateBr(loop_bb);
 
     gen.SetInsertPoint(loop_bb);
-    auto* child_poll_ty = llvm::FunctionType::get(builder.getVoidTy(), {ptr_ty, ptr_ty, ptr_ty}, false);
-    builder.CreateCall(child_poll_ty, poll_fn, {poll_tmp, child_frame, cx});
-    auto* tag = builder.CreateLoad(i32, gep_idx(builder, coro->poll_ty, poll_tmp, {0, 0}));
+    auto* poll_fn_ty = llvm::FunctionType::get(builder.getVoidTy(), {ptr_ty, ptr_ty, ptr_ty}, false);
+    builder.CreateCall(poll_fn_ty, poll_fn, {poll_tmp, child_frame, cx});
+    auto* tag = builder.CreateLoad(i32, gep_idx(builder, child_poll_ty, poll_tmp, {0, 0}));
     auto* is_ready = builder.CreateICmpEQ(tag, builder.getInt32(0));
     builder.CreateCondBr(is_ready, done_bb, suspend_bb);
 
@@ -696,12 +769,11 @@ llvm::Value* gen_llvm_await(Codegen& gen, AwaitExpression* await) {
 
     gen.SetInsertPoint(done_bb);
     llvm::Value* result = nullptr;
-    if(!coro->inner_ty->isVoidTy()) {
-        auto* payload = gep_idx(builder, coro->poll_ty, poll_tmp, {0, 1});
-        result = builder.CreateLoad(coro->inner_ty, payload);
+    if(!child_inner_ty->isVoidTy()) {
+        auto* payload = gep_idx(builder, child_poll_ty, poll_tmp, {0, 1});
+        result = builder.CreateLoad(child_inner_ty, payload);
     }
-    auto* child_drop_fn = builder.CreateLoad(ptr_ty, gep_idx(builder, ptr_ty, child_vtbl, {1}));
-    builder.CreateCall(llvm::FunctionType::get(builder.getVoidTy(), {ptr_ty}, false), child_drop_fn, {child_frame});
+    builder.CreateCall(child_drop_ty, child_drop_fn, {child_frame});
     return result;
 }
 

@@ -481,12 +481,39 @@ crash remain for hand-written generic vtables.
 ### B12 — Generic structs with generic function-typed fields are not specialized (2c) (MEDIUM)
 
 ```chemical
-public struct GT<T> { var p : (x : T) => T }
-// [2cTranslation] error: generic type parameter not specialized, compiler bug detected
+public struct FT<T> {
+    var poll : (frame : *mut void, cx : *mut Context) => Poll<T>
+}
+@retained public func <T> make() : FT<T> {
+    return FT<T> { poll : (frame, cx) => Poll.Pending<T>() }
+}
+// [2cTranslation] error: generic type parameter not specialized ...
 ```
 
-The 2c translator does not substitute `T` inside a function type nested in a
-generic struct. This also blocks `FutureTable<T>`-shaped Chemical types.
+Declaring/`zeroed`-ing `FT<int>` is fine; the failure needs a generic function
+that **constructs the struct and assigns a lambda** to the function-typed field.
+
+Root cause (instrumented): `link_lambda` sets the lambda's `returnType` to the
+**shared master field** `FunctionType` (`Poll<FT_T>`). During instantiation,
+`GenericInstantiator::make_gen_type_concrete` maps `FT_T -> make_T` (the outer
+param) and does **not** follow the chain to the concrete `int`, because nested
+instantiators created by `newGenericInstantiatorFrom` do **not** inherit the
+parent's `active_type_map`. The shared master `FunctionType` is also mutated in
+the `make<T>` master context (`FT_T -> make_T`), which then leaks into the
+concrete instantiation. Fixing this needs either (a) chain/cross-instantiator
+resolution of `active_type_map`, or (b) never sharing the master field
+`FunctionType` with a lambda's expected type. Both are invasive; not attempted
+here.
+
+### B17 — Flaky LLVM compiler crash under parallel codegen with async modules (HIGH)
+
+Running `./scripts/test.sh --llvm --libs` repeatedly is non-deterministic with
+the async/environment wrappers present: sometimes 624/624, sometimes the compiler
+aborts with `RUNTIME ERROR: invalid memory access` after emitting `lib_tests`.
+This is a race in parallel module codegen (the same class as the `B12`-repro
+LLVM crash), not in the generated program. The async modules increase the number
+of generic instantiations emitted concurrently, raising the hit rate. Needs a
+look at the parallel `ASTProcessor`/generic-instantiation synchronization.
 
 ### B13 — Retention friction for generic runtime code (LOW)
 

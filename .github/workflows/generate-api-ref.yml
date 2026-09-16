@@ -1,0 +1,76 @@
+name: Generate API Ref
+
+# Manual dispatch only — generates the API reference site with the released
+# `refgen` transformer and uploads it as a downloadable zip artifact.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # TCC release package: contains the compiler plus the `libs/` (std, refgen,
+  # docgen, page, ...) the transformer resolves relative to the executable.
+  RELEASE_ASSET: linux-x64-tcc.zip
+  RELEASE_ROOT: chemical-tcc
+
+jobs:
+  generate-docs:
+    name: Generate reference docs
+    runs-on: ubuntu-24.04
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+
+      # The target module (lang/othercode/refgen.mod) is not shipped inside the
+      # release package, so check out the repository for it.
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl jq unzip
+
+      - name: Download compiler from latest release
+        shell: bash
+        run: |
+          releases=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases")
+
+          # newest release that actually ships the TCC package
+          TAG=$(echo "$releases" | jq -r \
+            '[.[] | select(.assets | map(.name) | index("'"$RELEASE_ASSET"'"))] | .[0].tag_name')
+          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
+            echo "::error::No release found containing asset '$RELEASE_ASSET'"
+            exit 1
+          fi
+          echo "Using release: $TAG"
+
+          ASSET_URL=$(echo "$releases" | jq -r \
+            '.[] | select(.tag_name == "'"$TAG"'") | .assets[] | select(.name == "'"$RELEASE_ASSET"'") | .browser_download_url')
+          curl -L -o release.zip "$ASSET_URL"
+          unzip -o -q release.zip
+
+          if [ ! -f "$RELEASE_ROOT/chemical" ]; then
+            echo "::error::Expected compiler at '$RELEASE_ROOT/chemical'"
+            exit 1
+          fi
+          chmod +x "$RELEASE_ROOT/chemical"
+
+      - name: Generate documentation (refgen)
+        run: ./$RELEASE_ROOT/chemical run lang/othercode/refgen.mod
+
+      - name: Show generated docs
+        run: |
+          echo "Generated $(find docs -type f | wc -l) files in docs/"
+          du -sh docs
+
+      - name: Upload docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: refgen-docs
+          path: docs
+          if-no-files-found: error

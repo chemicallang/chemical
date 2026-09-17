@@ -19,11 +19,12 @@ public namespace http {
 // ---- client ----------------------------------------------------------------
 //
 // The response is copied into a flat, heap-allocated `HttpResult` and the future
-// carries a pointer to it. Two reasons:
-//   * a large `Result<Response, std::string>` returned through a `FutureHandle`
-//     is corrupted by the LLVM backend (B26);
+// carries a pointer to it:
 //   * it gives callers a non-moving accessor API (`ok`/`status`/`body_view`),
-//     avoiding B18 moves out of a variant payload.
+//     avoiding B18 moves out of a variant payload;
+//   * it also keeps the future payload to a single pointer. (This originally
+//     worked around B26 — a large struct variant through a `FutureHandle` — now
+//     fixed; the flat box is kept as the public API.)
 // The caller owns the box and must `delete` it.
 
 public struct HttpResult {

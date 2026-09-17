@@ -425,15 +425,16 @@ task (B25 — the forwarded `Context`/waker is corrupted). Small variants
 Async **closures** are not lowered here (the C backend emits the diagnostic;
 LLVM keeps the eager bootstrap).
 
-> **B23 fixed.** `Codegen::writeReturnStmtFor`'s coroutine branch used to store
-> a `StructValue` alloca pointer into the frame's struct result slot; it now
-> byte-copies every struct-like return value (`value->llvm_pointer`, materializing
-> a `StructValue` via `llvm_value`). Regression test:
-> `lang/tests/async/struct_payload_test.ch`. **Still pending (worked around, not
-> fixed):** B25 (combinator await in a spawned coroutine loses `Context`), B26
-> (large struct variant through `FutureHandle`), B15-W (async debug info
-> disabled). Read `lang/docs/async-remaining-work.md` before removing a
-> workaround; do not re-enable `gen.di` for async without per-clone
+> **B23 and B26 fixed.** `Codegen::writeReturnStmtFor`'s coroutine branch used
+> to store a `StructValue` alloca pointer into the frame's struct result slot; it
+> now byte-copies every struct-like return value (`value->llvm_pointer`,
+> materializing a `StructValue` via `llvm_value`). This also resolved the large
+> struct-variant payload (B26). Regression tests:
+> `lang/tests/async/struct_payload_test.ch`,
+> `lang/tests/async/variant_payload_test.ch`. **Still pending (worked around, not
+> fixed):** B25 (combinator await in a spawned coroutine loses `Context`), B15-W
+> (async debug info disabled). Read `lang/docs/async-remaining-work.md` before
+> removing a workaround; do not re-enable `gen.di` for async without per-clone
 > `DISubprogram`s.
 
 ## Debug Info Generation

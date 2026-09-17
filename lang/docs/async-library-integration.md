@@ -369,9 +369,9 @@ are unchanged. `http` now imports `core` + `async`.
   `{ ok, status, status_text, headers, body, error }` box with non-moving
   accessors (`is_ok`/`status_code`/`body_view`/`error_view`). This is *not* a
   future of `Result<Response, std::string>` as originally sketched: a large
-  result variant returned through a `FutureHandle` is corrupted on LLVM (B26),
-  and the flat box also avoids moving a destructible payload out of a variant
-  (B18). The caller owns the box (`delete`).
+  result variant used to be corrupted on LLVM (B26, now fixed) and the flat box
+  also avoids moving a destructible payload out of a variant (B18). The box is
+  kept for the accessor API. The caller owns it (`delete`).
 - **Server:** `server::serve_coro(srv, port)` — a coroutine accept loop (R1:
   `serve_async` is the thread variant). It observes `Server::run` for shutdown
   via a bounded blocking `accept` on the pool; a spawned coroutine cannot await
@@ -599,22 +599,21 @@ Building the runtime exposed concrete compiler gaps that block the generic
 layers (`spawn_blocking<T>`, `timeout<T>`, the executor's awaitable
 `JoinHandle<T>`, and any hand-authored `FutureTable<T>`). They are independent
 of the runtime design and must be fixed in the compiler. B10, B11, B12, B14,
-B15, B16, B17, B19, B21, B22 and B23 are **fixed**; B13 and B18 are
+B15, B16, B17, B19, B21, B22, B23 and B26 are **fixed**; B13 and B18 are
 by-design/documented; and B20 (composite generic arguments in a generic body),
-B24 (field access on a struct-typed async parameter), B25 (a spawned coroutine
-awaiting a combinator) and B26 (a large struct variant through a future) are
-**worked around** — the runtime keeps composite generics out of vtable types,
-keeps large structs out of future payloads (futures carry ints/pointers), keeps
-struct parameters out of coroutine bodies, and avoids combinator awaits inside
-spawned coroutines. B27 (globals after an `async func`) and B28 (`size_t find()`
-vs `-1u` in the server runtime) were found later and are **fixed**.
+B24 (field access on a struct-typed async parameter) and B25 (a spawned
+coroutine awaiting a combinator) are **worked around** — the runtime keeps
+composite generics out of vtable types, keeps struct parameters out of coroutine
+bodies, and avoids combinator awaits inside spawned coroutines. B27 (globals
+after an `async func`) and B28 (`size_t find()` vs `-1u` in the server runtime)
+were found later and are **fixed**.
 
 > **Remaining (worked around, not fixed) → actionable worklist:**
 > [`async-remaining-work.md`](./async-remaining-work.md). It lists each pending
-> item (B20, B24, B25, B26, async debug info, async closures, the TLS transport
+> item (B20, B24, B25, async debug info, async closures, the TLS transport
 > vtable, the Windows IOCP reactor, and the POSIX epoll/kqueue reactor) with
 > symptom, root-cause location, current workaround, and a definition of done, in
-> a recommended fix order. B23 was fixed from that list (see below).
+> a recommended fix order. B23 and B26 were fixed from that list (see below).
 
 ### B10 — Generic function *references* are not parsed or instantiated (HIGH) — ✅ FIXED
 
@@ -942,22 +941,26 @@ jumps through it. Minimal repro: a spawned coroutine awaiting
   `compiler/backend/LLVMCoroutine.cpp` (the `Context*` passed to a coroutine
   polled by another future is not preserved when it forwards to a child poll).
 
-### B26 — A large `Result<Response, std::string>` through a `FutureHandle` is corrupted on LLVM (HIGH, worked around)
+### B26 — A large `Result<Response, std::string>` through a `FutureHandle` is corrupted on LLVM (HIGH) — ✅ FIXED
 
-`block_on<Result<Response, std::string>>(http::get_async(...))` corrupted the
-result (the string payload became a garbage pointer and the destructor crashed),
-and in some configurations produced a *broken LLVM module*
+`block_on<Result<Response, std::string>>(http::get_async(...))` used to corrupt
+the result (the string payload became a garbage pointer and the destructor
+crashed), and in some configurations produced a *broken LLVM module*
 (`Global is external, but doesn't have external or weak linkage!` for a `tls`
 global). Small variants (`Result<int, std::string>`) and `fs`/`process`
-`Result<...>` payloads are fine — the trigger is a large struct inside the
+`Result<...>` payloads were fine — the trigger was a large struct inside the
 variant (`Response` contains a `Body` with `std::string`/buffer state).
 
-- **Workaround:** the async client returns `*mut HttpResult` — a pointer to a
-  flat heap box, populated on the pool thread from the `Result`. Pointer
-  payloads are unaffected.
-- **To fix:** the LLVM async result storage/payload lowering for a large
-  struct-shaped `inner_ty` (wrapper `result` field + `Poll<T>` payload load),
-  `compiler/backend/LLVMCoroutine.cpp`.
+- **Resolution:** fixed by the **B23** result-store fix
+  (`Codegen::writeReturnStmtFor`'s coroutine branch no longer stores an aggregate
+  pointer into the frame result) plus the **B27** `current_function` fix (the
+  "broken LLVM module" half). The original shape was re-tested with a faithful
+  large variant across eager, suspended, `return await`, awaited-inside-a-coroutine,
+  `std::Result<...>`, and bare `spawn_blocking<LargeVariant>` paths — all pass on
+  TCC and LLVM. Regression tests: `lang/tests/async/variant_payload_test.ch`.
+- **The workaround stays by choice:** the async client still returns
+  `*mut HttpResult` — a pointer to a flat heap box, populated on the pool thread
+  from the `Result` — for its non-moving accessor API, no longer for safety.
 
 ### B27 — `async func` left `current_function` set → invalid globals after it (HIGH) — ✅ FIXED
 

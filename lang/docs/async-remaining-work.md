@@ -45,18 +45,18 @@ not run it.)
 
 | Order | ID | Title | Area | Effort |
 |-------|----|-------|------|--------|
-| 1 | **B26** | Large struct variant through `FutureHandle` corrupts (LLVM) | `LLVMCoroutine.cpp` | M |
-| 2 | **B24** | Struct-typed async parameter field access (2c) | `2cASTVisitor.cpp` | S |
-| 3 | **B25** | Combinator await inside a spawned coroutine loses `Context` (LLVM) | `LLVMCoroutine.cpp` | M |
-| 4 | **B20** | Composite-generic field access in a generic body | symres/generics | L |
-| 5 | **B15-W** | Async debug info disabled (LLVM `debug_complete`) | `LLVMCoroutine.cpp` | M |
-| 6 | **AC** | Async closures not lowered | parser/symres/codegen | L |
-| 7 | **TLS-VT** | TLS has no non-blocking transport | `tls` | L |
-| 8 | **WIN-IOCP** | Windows async reactor is a stub | `async`/`net` win | L |
-| 9 | **POSIX-EPOLL** | POSIX reactor is `select(2)` | `async` posix | M |
+| 1 | **B24** | Struct-typed async parameter field access (2c) | `2cASTVisitor.cpp` | S |
+| 2 | **B25** | Combinator await inside a spawned coroutine loses `Context` (LLVM) | `LLVMCoroutine.cpp` | M |
+| 3 | **B20** | Composite-generic field access in a generic body | symres/generics | L |
+| 4 | **B15-W** | Async debug info disabled (LLVM `debug_complete`) | `LLVMCoroutine.cpp` | M |
+| 5 | **AC** | Async closures not lowered | parser/symres/codegen | L |
+| 6 | **TLS-VT** | TLS has no non-blocking transport | `tls` | L |
+| 7 | **WIN-IOCP** | Windows async reactor is a stub | `async`/`net` win | L |
+| 8 | **POSIX-EPOLL** | POSIX reactor is `select(2)` | `async` posix | M |
 
-**B23 is fixed** (kept below for reference). Items 1–4 are pure compiler bugs;
-5 is infrastructure; 6–9 are features/gaps. All are independent unless noted.
+**B23 and B26 are fixed** (kept below for reference). Items 1–3 are pure compiler
+bugs; 4 is infrastructure; 5–8 are features/gaps. All are independent unless
+noted.
 
 ---
 
@@ -87,30 +87,32 @@ not run it.)
 
 ---
 
-## B26 — A large struct variant through a `FutureHandle` is corrupted on LLVM
+## B26 — A large struct variant through a `FutureHandle` is corrupted on LLVM — ✅ FIXED
 
-- **Status:** Worked around. **Priority: High.** (Related to the now-fixed B23 — same result-storage neighbourhood; start by checking whether the B23 fix covers part of it.)
-- **Symptom:** `block_on<Result<Response, std::string>>(http::get_async(...))`
+- **Was:** `block_on<Result<Response, std::string>>(http::get_async(...))`
   corrupted the result (string payload became a garbage pointer; destructor
   crashed), and in some configurations produced a *broken LLVM module*
   (`Global is external, but doesn't have external or weak linkage!` for a `tls`
   global). Small variants (`Result<int, std::string>`) and `fs`/`process`
-  payloads are fine — the trigger is a **large struct inside the variant**
+  payloads were fine — the trigger was a **large struct inside the variant**
   (`Response` contains a `Body` with `std::string`/buffer state).
-- **Root cause / where:** `compiler/backend/LLVMCoroutine.cpp` — LLVM async
-  result storage / payload lowering for a large struct-shaped `inner_ty` (the
-  wrapper `result` field + the `Poll<T>` payload load). Same result-storage code
-  path the B23 fix touched, but a *variant/large* payload — re-check after B26's
-  own repro.
-- **Current workaround:** `lang/libs/http/src/async.ch` returns `*mut HttpResult`
-  — a flat heap box populated on the pool thread from the `Result`
-  (`is_ok`/`status_code`/`body_view`/`error_view`; caller `delete`s it). Pointer
-  payloads are unaffected.
-- **Definition of done:** `block_on<Result<Response, std::string>>(...)` works on
-  LLVM without corruption and without emitting an invalid module. Add a test
-  using a large struct variant payload. (Prefer keeping the flat box as a public
-  API decision if desired, but the compiler must not corrupt it.)
-- **Files:** `compiler/backend/LLVMCoroutine.cpp`.
+- **Resolution:** fixed by the **B23** result-store fix in
+  `Codegen::writeReturnStmtFor` (the coroutine branch no longer stores an
+  aggregate pointer into the frame result). The "broken LLVM module" half was the
+  **B27** `current_function` leak (globals after an `async func`), also fixed.
+- **Verification:** the original shape was re-tested with a faithful large
+  variant (`Response` with nested `string`/`vector`/pointer/bool state) across
+  every path — eager, suspended, `return await`, an awaited large variant inside
+  another coroutine, `std::Result<...>`, and a bare
+  `spawn_blocking<LargeVariant>` polled directly by `block_on`. All pass on TCC
+  and LLVM. Regression tests:
+  `lang/tests/async/variant_payload_test.ch` (4 tests; `--async` is 41/41 on both
+  backends). The original corruption could not be re-triggered independently after
+  B23/B27.
+- **The `http` workaround stays** (`*mut HttpResult`, a flat heap box) — it is
+  kept as a public API decision for its non-moving accessor API
+  (`ok`/`status`/`body_view`), not because the payload is unsafe now.
+- **Files:** `compiler/backend/LLVM.cpp` (B23 fix), `compiler/backend/LLVMCoroutine.cpp` (B27 fix).
 
 ---
 

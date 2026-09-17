@@ -8,6 +8,7 @@ import test
 import test_env
 import tls
 import net
+import async
 import http
 import crypto
 import process

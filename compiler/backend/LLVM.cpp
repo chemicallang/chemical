@@ -2085,10 +2085,22 @@ void Codegen::writeReturnStmtFor(Value* value, SourceLocation location) {
                 {gen.builder->getInt32(0), gen.builder->getInt32(coro->result_field)});
         if(value != nullptr && !coro->inner_ty->isVoidTy()) {
             const auto inner = coro->inner;
-            if(value->getType()->canonical()->isStructLikeType() && value->kind() != ValueKind::StructValue) {
+            if(value->getType()->canonical()->isStructLikeType()) {
+                // Aggregates are pointer-represented in LLVM. A `StructValue`
+                // materializes to an alloca via `llvm_value` (its `llvm_pointer`
+                // is null until then); other struct-like values already have a
+                // storage pointer. Copy the bytes into the frame result rather
+                // than storing the value: the old `llvm_value`+store path stored
+                // the alloca pointer itself for `return Pair { ... }`, so the
+                // result read back as pointer halves (B23).
                 auto* src = value->llvm_pointer(gen);
-                const auto size = gen.module->getDataLayout().getTypeAllocSize(coro->inner_ty);
-                gen.builder->CreateMemCpy(result_ptr, llvm::MaybeAlign(), src, llvm::MaybeAlign(), size);
+                if(src == nullptr) {
+                    src = value->llvm_value(gen, inner);
+                }
+                if(src != nullptr) {
+                    const auto size = gen.module->getDataLayout().getTypeAllocSize(coro->inner_ty);
+                    gen.builder->CreateMemCpy(result_ptr, llvm::MaybeAlign(), src, llvm::MaybeAlign(), size);
+                }
             } else {
                 auto* v = value->llvm_value(gen, inner);
                 v = gen.implicit_cast(v, inner, coro->inner_ty);

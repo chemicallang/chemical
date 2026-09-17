@@ -21,7 +21,7 @@ public func <T> block_on(handle : core::async::FutureHandle<T>) : T {
         if(r is core::async::Poll.Ready) {
             // Extract through a pointer+memcpy rather than a variant pattern
             // binding: moving a struct `T` out of a pattern mis-lowers on LLVM
-            // (the payload is treated as a pointer), see B18/B23.
+            // (the payload is treated as a pointer), see B18.
             break poll_take_ready<T>(&raw mut r)
         }
         executor_poll_tasks(e, 4096u)

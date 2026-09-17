@@ -320,8 +320,9 @@ untouched. `net` now imports `core` + `async`.
   an inherently blocking kernel call). `set_nonblocking` already existed.
 - Windows: the whole API falls back to the thread pool (its reactor is a stub);
   real IOCP integration is still open.
-- **Futures carry raw fds (`int`), not `AsyncSocket`** — see B23. `AsyncSocket`
-  is a synchronous wrapper over the fd.
+- **Futures carry raw fds (`int`), not `AsyncSocket`.** This started as a B23
+  workaround (now fixed); it is kept as the ABI because `int` handles are the
+  simplest payload. `AsyncSocket` is a synchronous wrapper over the fd.
 - Tests: `lang/tests/async/net_test.ch` (loopback echo) in the dedicated
   `--async` suite (not `--libs`, which stays hermetic).
 - Still open for a follow-up: an epoll/kqueue registration for scale (the
@@ -338,7 +339,8 @@ untouched. `net` now imports `core` + `async`.
 - All offload their blocking work to the runtime thread pool via
   `async::spawn_blocking` (the handshake is multi-RTT and record I/O blocks),
   so the executor keeps running and many handshakes overlap, bounded by pool
-  size. Pointer/int-only payloads (B23/B24).
+  size. Pointer/int payloads (B23 is fixed; B24 still applies to 2c struct
+  parameters).
 - **Deferred:** the transport vtable (`net::send_all`/`recv_all` →
   function pointers on `SSLContext`). A non-blocking transport can only suspend
   if the handshake itself is a coroutine state machine, which the synchronous
@@ -597,23 +599,22 @@ Building the runtime exposed concrete compiler gaps that block the generic
 layers (`spawn_blocking<T>`, `timeout<T>`, the executor's awaitable
 `JoinHandle<T>`, and any hand-authored `FutureTable<T>`). They are independent
 of the runtime design and must be fixed in the compiler. B10, B11, B12, B14,
-B15, B16, B17, B19, B21 and B22 are **fixed**; B13 and B18 are
+B15, B16, B17, B19, B21, B22 and B23 are **fixed**; B13 and B18 are
 by-design/documented; and B20 (composite generic arguments in a generic body),
-B23 (a future payload that is a plain struct), B24 (field access on a
-struct-typed async parameter), B25 (a spawned coroutine awaiting a combinator)
-and B26 (a large struct variant through a future) are **worked around** — the
-runtime keeps composite generics out of vtable types, keeps plain/large structs
-out of future payloads (futures carry ints/pointers), keeps struct parameters
-out of coroutine bodies, and avoids combinator awaits inside spawned
-coroutines. B27 (globals after an `async func`) and B28 (`size_t find()` vs
-`-1u` in the server runtime) were found later and are **fixed**.
+B24 (field access on a struct-typed async parameter), B25 (a spawned coroutine
+awaiting a combinator) and B26 (a large struct variant through a future) are
+**worked around** — the runtime keeps composite generics out of vtable types,
+keeps large structs out of future payloads (futures carry ints/pointers), keeps
+struct parameters out of coroutine bodies, and avoids combinator awaits inside
+spawned coroutines. B27 (globals after an `async func`) and B28 (`size_t find()`
+vs `-1u` in the server runtime) were found later and are **fixed**.
 
-> **Worked around, not fixed → actionable worklist:**
+> **Remaining (worked around, not fixed) → actionable worklist:**
 > [`async-remaining-work.md`](./async-remaining-work.md). It lists each pending
-> item (B20, B23, B24, B25, B26, async debug info, async closures, the TLS
-> transport vtable, the Windows IOCP reactor, and the POSIX epoll/kqueue
-> reactor) with symptom, root-cause location, current workaround, and a
-> definition of done, in a recommended fix order.
+> item (B20, B24, B25, B26, async debug info, async closures, the TLS transport
+> vtable, the Windows IOCP reactor, and the POSIX epoll/kqueue reactor) with
+> symptom, root-cause location, current workaround, and a definition of done, in
+> a recommended fix order. B23 was fixed from that list (see below).
 
 ### B10 — Generic function *references* are not parsed or instantiated (HIGH) — ✅ FIXED
 
@@ -884,27 +885,33 @@ indexed `func->params[arg_offset]` without checking `arg_offset < params.size()`
 which aborted the compiler on a call whose argument list is longer than the
 parameter list. Guarded. Tests: `lang/tests/libs/async/reactor_test.ch`.
 
-### B23 — A future whose payload is a *plain struct* corrupts it on LLVM (HIGH, worked around)
+### B23 — A future whose payload is a *plain struct* corrupts it on LLVM (HIGH) — ✅ FIXED
 
-An `async func f() : Pair` (plain `@direct_init` struct) driven by
-`block_on<Pair>(f())` yields pointer halves instead of the field values on LLVM
-(e.g. `a=1929545688 b=32767`). Reproduced on both the eager path (no `await`)
-and the real suspension path. 2c is correct.
+An `async func f() : Pair` (plain struct) driven by `block_on<Pair>(f())` yielded
+pointer halves instead of the field values on LLVM (e.g. `a=1929545688 b=32767`),
+on both the eager path and the real suspension path. 2c was always correct.
 
-- Variant payloads are fine: `block_on<Result<...>>` / `Option<...>` work
-  everywhere (`fs`/`process` async funcs), as does `spawn_blocking<std::string>`
-  and a non-coroutine function returning `Poll<Pair>` (see `pat_probe`). So the
-  bug is specific to an `async func` (coroutine) whose `T` is a non-variant
-  struct.
-- **Workaround:** the Tier 1 `net` async futures carry raw fds (`int`);
-  `AsyncSocket` is a synchronous wrapper built around them, so no future payload
-  is a plain struct. `AsyncSocket` methods (`read`/`write`/`accept`) also return
-  `FutureHandle<int>`.
-- **To fix (compiler):** the async ramp/`__poll` result handling in
-  `compiler/backend/LLVMCoroutine.cpp` for a struct `inner_ty` — likely the
-  `Poll<T>` payload is lowered/loaded as a pointer. Until then, keep plain
-  structs out of async return types (wrap them in a variant or pass an int
-  handle).
+- Variant payloads were fine: `block_on<Result<...>>` / `Option<...>` worked
+  everywhere (`fs`/`process` async funcs), as did `spawn_blocking<std::string>`
+  and a non-coroutine function returning `Poll<Pair>`. The bug was specific to an
+  `async func` (coroutine) whose `T` is a non-variant struct. Returning a
+  *variable* was also correct — only `return Pair { ... }` (a `StructValue`)
+  corrupted.
+- **Root cause (confirmed):** `Codegen::writeReturnStmtFor`'s coroutine branch
+  (`compiler/backend/LLVM.cpp`) sent a `StructValue` through
+  `value->llvm_value(...)` + `CreateStore`. In a function context
+  `StructValue::llvm_value` returns its **alloca pointer**, so the pointer's two
+  halves were stored into the frame's struct result field. Opaque pointers make
+  `store ptr, ptr` legal, so the verifier did not catch it.
+- **Fix:** the coroutine branch now byte-copies every struct-like return value
+  into the frame result — `value->llvm_pointer(gen)`, materializing via
+  `llvm_value` when it is null (a not-yet-allocated `StructValue`) — mirroring
+  the non-coroutine aggregate-return path. Scalars keep the
+  `llvm_value`/`implicit_cast`/store path.
+- **Regression tests:** `lang/tests/async/struct_payload_test.ch` (eager,
+  suspending, and destructor-bearing struct). `--async` is 37/37 on TCC and LLVM.
+- The old `net` raw-fd / `http` flat-box workarounds are kept as valid ABI
+  choices; `block_on`'s `poll_take_ready<T>` is still needed for B18.
 
 ### B24 — Field access on a struct-typed async parameter mis-lowers on 2c (MEDIUM, worked around)
 

@@ -45,58 +45,51 @@ not run it.)
 
 | Order | ID | Title | Area | Effort |
 |-------|----|-------|------|--------|
-| 1 | **B23** | Plain-struct future payload corrupts (LLVM) | `LLVMCoroutine.cpp` | S–M |
-| 2 | **B26** | Large struct variant through `FutureHandle` corrupts (LLVM) | `LLVMCoroutine.cpp` | M |
-| 3 | **B24** | Struct-typed async parameter field access (2c) | `2cASTVisitor.cpp` | S |
-| 4 | **B25** | Combinator await inside a spawned coroutine loses `Context` (LLVM) | `LLVMCoroutine.cpp` | M |
-| 5 | **B20** | Composite-generic field access in a generic body | symres/generics | L |
-| 6 | **B15-W** | Async debug info disabled (LLVM `debug_complete`) | `LLVMCoroutine.cpp` | M |
-| 7 | **AC** | Async closures not lowered | parser/symres/codegen | L |
-| 8 | **TLS-VT** | TLS has no non-blocking transport | `tls` | L |
-| 9 | **WIN-IOCP** | Windows async reactor is a stub | `async`/`net` win | L |
-| 10 | **POSIX-EPOLL** | POSIX reactor is `select(2)` | `async` posix | M |
+| 1 | **B26** | Large struct variant through `FutureHandle` corrupts (LLVM) | `LLVMCoroutine.cpp` | M |
+| 2 | **B24** | Struct-typed async parameter field access (2c) | `2cASTVisitor.cpp` | S |
+| 3 | **B25** | Combinator await inside a spawned coroutine loses `Context` (LLVM) | `LLVMCoroutine.cpp` | M |
+| 4 | **B20** | Composite-generic field access in a generic body | symres/generics | L |
+| 5 | **B15-W** | Async debug info disabled (LLVM `debug_complete`) | `LLVMCoroutine.cpp` | M |
+| 6 | **AC** | Async closures not lowered | parser/symres/codegen | L |
+| 7 | **TLS-VT** | TLS has no non-blocking transport | `tls` | L |
+| 8 | **WIN-IOCP** | Windows async reactor is a stub | `async`/`net` win | L |
+| 9 | **POSIX-EPOLL** | POSIX reactor is `select(2)` | `async` posix | M |
 
-Items 1–5 are pure compiler bugs; 6 is infrastructure; 7–10 are features/gaps.
-All are independent unless noted.
+**B23 is fixed** (kept below for reference). Items 1–4 are pure compiler bugs;
+5 is infrastructure; 6–9 are features/gaps. All are independent unless noted.
 
 ---
 
-## B23 — A future whose payload is a *plain struct* corrupts it on LLVM
+## B23 — A future whose payload is a *plain struct* corrupts it on LLVM — ✅ FIXED
 
-- **Status:** Worked around. **Priority: High.**
-- **Symptom:** `async func f() : Pair` (plain `@direct_init` struct; no variant)
-  driven by `block_on<Pair>(f())` yields pointer halves instead of field values
-  (e.g. `a=1929545688 b=32767`). Reproduces on both the eager (no-await) and the
-  real suspension path. **2c is correct.**
-- **What is *not* affected:** variant payloads (`Result<...>`, `Option<...>`),
-  `std::string`, `spawn_blocking<std::string>`, and a non-coroutine function
-  returning `Poll<Pair>`. The bug is specific to an `async func` (coroutine)
-  whose `T` is a non-variant struct.
-- **Root cause / where:** `compiler/backend/LLVMCoroutine.cpp` — the async
-  ramp/`__poll` result handling for a struct `inner_ty`: the wrapper `result`
-  field and/or the `Poll<T>` payload is likely lowered/loaded as a pointer
-  instead of the struct value. Cross-check `emit_poll_fn`, the ramp body, and
-  `gen_llvm_await`'s extraction. Also compare with `Codegen::assign_store`
-  (which already memcpys a struct-typed rvalue materialized as a pointer — that
-  fix may need to be reused here).
-- **Current workaround:**
-  - `lang/libs/async/src/block_on.ch` extracts via pointer + `memcpy`
-    (`poll_take_ready<T>`) rather than a variant pattern binding.
-  - `lang/libs/net/src/async.ch`: futures carry raw fds (`int`); `AsyncSocket` is
-    a synchronous wrapper. No future payload is a plain struct.
-- **Definition of done:** `async func pair() : Pair { return Pair { a: 1, b: 2 } }`
-  returns `a==1, b==2` through `block_on<Pair>` on LLVM, eager and suspending.
-  Add a test to `lang/tests/async/` or `lang/tests/libs/async/`. The workaround
-  in `block_on` may remain, but a struct payload must be usable.
-- **Files:** `compiler/backend/LLVMCoroutine.cpp` (primary),
-  `compiler/backend/LLVM.cpp` (`assign_store`/struct copy),
-  `compiler/async/AwaitNormalizePass.cpp` (slot typing).
+- **Was:** `async func f() : Pair` (plain struct, no variant) driven by
+  `block_on<Pair>(f())` yielded pointer halves instead of field values (e.g.
+  `a=1929545688 b=32767`), on both the eager and suspending paths. Returning a
+  *variable* was already correct.
+- **Root cause (confirmed):** `Codegen::writeReturnStmtFor`'s coroutine branch
+  (`compiler/backend/LLVM.cpp`) sent a `StructValue` through
+  `value->llvm_value(...)` + `CreateStore`. In a function context
+  `StructValue::llvm_value` returns its **alloca pointer**, so the pointer's two
+  halves were stored into the frame's struct result field (opaque pointers make
+  that `store ptr, ptr` legal, so the verifier did not catch it).
+- **Fix:** the coroutine branch now byte-copies every struct-like return value
+  into the frame result — `value->llvm_pointer(gen)`, materializing via
+  `llvm_value` when it is null (a not-yet-allocated `StructValue`) — mirroring the
+  non-coroutine aggregate-return path (`llvm_ret_value`/memcpy). Scalar returns
+  keep the `llvm_value` + `implicit_cast` + store path.
+- **Regression tests:** `lang/tests/async/struct_payload_test.ch`
+  (`test_async_struct_payload_literal`, `..._suspend`, `..._destructible`) —
+  covers the eager path, a real suspension, and a destructor-bearing struct
+  (no double-free). Suite `--async` is 37/37 on TCC and LLVM.
+- **The old workarounds may remain** (they are valid design/ABI choices, and
+  `block_on`'s `poll_take_ready<T>` is still needed for B18): `net` futures keep
+  carrying raw fds, `http` keeps its flat `*mut HttpResult` box.
 
 ---
 
 ## B26 — A large struct variant through a `FutureHandle` is corrupted on LLVM
 
-- **Status:** Worked around. **Priority: High.** (Likely shares a fix with B23.)
+- **Status:** Worked around. **Priority: High.** (Related to the now-fixed B23 — same result-storage neighbourhood; start by checking whether the B23 fix covers part of it.)
 - **Symptom:** `block_on<Result<Response, std::string>>(http::get_async(...))`
   corrupted the result (string payload became a garbage pointer; destructor
   crashed), and in some configurations produced a *broken LLVM module*
@@ -106,8 +99,9 @@ All are independent unless noted.
   (`Response` contains a `Body` with `std::string`/buffer state).
 - **Root cause / where:** `compiler/backend/LLVMCoroutine.cpp` — LLVM async
   result storage / payload lowering for a large struct-shaped `inner_ty` (the
-  wrapper `result` field + the `Poll<T>` payload load). Same neighbourhood as
-  B23.
+  wrapper `result` field + the `Poll<T>` payload load). Same result-storage code
+  path the B23 fix touched, but a *variant/large* payload — re-check after B26's
+  own repro.
 - **Current workaround:** `lang/libs/http/src/async.ch` returns `*mut HttpResult`
   — a flat heap box populated on the pool thread from the `Result`
   (`is_ok`/`status_code`/`body_view`/`error_view`; caller `delete`s it). Pointer

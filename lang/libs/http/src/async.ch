@@ -1,8 +1,8 @@
 // Async HTTP (design §7 Tier 3).
 //
-// Additive: the synchronous client/server APIs are unchanged. Everything here
-// is pointer/int-only so it avoids B23 (`FutureHandle<StructT>` on LLVM) and
-// B24 (struct-typed async parameters on 2c).
+// Additive: the synchronous client/server APIs are unchanged. The payloads are
+// pointer/int-only, the simplest ABI (B23, a plain-struct future payload on
+// LLVM, is now fixed; B24, struct-typed async parameters on 2c, still applies).
 //
 // Client: each request offloads the whole blocking exchange (dial → TLS →
 // write → incremental read) to the runtime thread pool, so requests from many

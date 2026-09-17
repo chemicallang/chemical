@@ -8,9 +8,9 @@
 //
 // A genuinely non-blocking TLS state machine would need the transport to
 // suspend mid-handshake; the synchronous library is not structured for that, so
-// v1 concurrency comes from the pool. Pointers/ints only — no struct payloads —
-// so this avoids B23 (`FutureHandle<StructT>` on LLVM) and B24 (struct-typed
-// async parameters on 2c).
+// v1 concurrency comes from the pool. The payloads are pointers/ints, the
+// simplest ABI (B23, a plain-struct future payload on LLVM, is now fixed; B24,
+// struct-typed async parameters on 2c, still applies).
 public namespace tls {
 
 // Connect + handshake. Returns 0 on success, <0 on failure (`tls_connect`).

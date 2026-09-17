@@ -350,16 +350,17 @@ and definition of done for each item.
 
 Pending items (recommended fix order):
 
-1. **B23** — plain-struct future payload corrupts on LLVM (`LLVMCoroutine.cpp`)
-2. **B26** — large struct variant through `FutureHandle` corrupts on LLVM
-3. **B24** — struct-typed async parameter field access on 2c (`2cASTVisitor.cpp`)
-4. **B25** — combinator await inside a spawned coroutine loses `Context` on LLVM
-5. **B20** — composite-generic field access in a generic body (symres/generics)
-6. **B15-W** — async debug info disabled on LLVM (`debug_complete`)
-7. **AC** — async closures parsed but not lowered
-8. **TLS-VT** — TLS has no non-blocking transport (uses `spawn_blocking`)
-9. **WIN-IOCP** — Windows async reactor is a stub
-10. **POSIX-EPOLL** — POSIX reactor is `select(2)` (~1024 fds)
+1. **B26** — large struct variant through `FutureHandle` corrupts on LLVM
+2. **B24** — struct-typed async parameter field access on 2c (`2cASTVisitor.cpp`)
+3. **B25** — combinator await inside a spawned coroutine loses `Context` on LLVM
+4. **B20** — composite-generic field access in a generic body (symres/generics)
+5. **B15-W** — async debug info disabled on LLVM (`debug_complete`)
+6. **AC** — async closures parsed but not lowered
+7. **TLS-VT** — TLS has no non-blocking transport (uses `spawn_blocking`)
+8. **WIN-IOCP** — Windows async reactor is a stub
+9. **POSIX-EPOLL** — POSIX reactor is `select(2)` (~1024 fds)
+
+**B23** (plain-struct future payload on LLVM) is **fixed** — see the worklist.
 
 Design/assessment: [`async-await-design.md`](lang/docs/async-await-design.md),
 [`async-library-integration.md`](lang/docs/async-library-integration.md).

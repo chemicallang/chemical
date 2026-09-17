@@ -608,6 +608,13 @@ out of coroutine bodies, and avoids combinator awaits inside spawned
 coroutines. B27 (globals after an `async func`) and B28 (`size_t find()` vs
 `-1u` in the server runtime) were found later and are **fixed**.
 
+> **Worked around, not fixed → actionable worklist:**
+> [`async-remaining-work.md`](./async-remaining-work.md). It lists each pending
+> item (B20, B23, B24, B25, B26, async debug info, async closures, the TLS
+> transport vtable, the Windows IOCP reactor, and the POSIX epoll/kqueue
+> reactor) with symptom, root-cause location, current workaround, and a
+> definition of done, in a recommended fix order.
+
 ### B10 — Generic function *references* are not parsed or instantiated (HIGH) — ✅ FIXED
 
 `foo<int>` used as a value (not a call) did not instantiate `T`:

@@ -372,6 +372,10 @@ Known 2c limit: reading a field of a **struct-typed parameter** inside an async
 body emits `frame->slot->field` where the slot is stored by value (B24) — pass a
 pointer/int handle instead.
 
+> **Pending 2c async fixes (worked around, not fixed):** B24 (struct-typed async
+> parameter field access) and async-closure lowering (currently diagnosed). See
+> `lang/docs/async-remaining-work.md` for the actionable worklist.
+
 ## Translation Reference by AST Category
 
 ### Structs, Unions, Variants

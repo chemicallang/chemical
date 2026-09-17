@@ -425,6 +425,13 @@ task (B25 — the forwarded `Context`/waker is corrupted). Small variants
 Async **closures** are not lowered here (the C backend emits the diagnostic;
 LLVM keeps the eager bootstrap).
 
+> **Pending LLVM async fixes (worked around, not fixed):** B23 (plain-struct
+> payload), B25 (combinator await in a spawned coroutine loses `Context`), B26
+> (large struct variant through `FutureHandle`), B15-W (async debug info
+> disabled). Read `lang/docs/async-remaining-work.md` before removing a
+> workaround; do not re-enable `gen.di` for async without per-clone
+> `DISubprogram`s.
+
 ## Debug Info Generation
 
 The `DebugInfoBuilder` generates DWARF debug information:

@@ -1315,6 +1315,11 @@ supported yet, B20).
 - A blocking call left inside an `async func` stalls the executor; route it
   through `spawn_blocking`.
 
+> **These limits are tracked, actionable work.** See
+> `lang/docs/async-remaining-work.md` for each item's symptom, root cause,
+> current workaround, and definition of done (B20/B23/B24/B25/B26, async debug
+> info, async closures, TLS transport, Windows IOCP, POSIX epoll).
+
 ## Library Development Gotchas
 
 These patterns were discovered while implementing pure-Chemical libraries.

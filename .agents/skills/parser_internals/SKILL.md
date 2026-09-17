@@ -275,6 +275,9 @@ distinguishes by position:
   `return await f()` parse; a bare `await f()` **statement** does not — see the
   `chemical_source` skill.
 
+> Async closures parse here but are **not lowered** (symres diagnoses them).
+> See `lang/docs/async-remaining-work.md` (item **AC**) for the fix plan.
+
 ### Error Recovery
 
 The parser uses basic error recovery:

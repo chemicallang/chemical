@@ -607,6 +607,15 @@ bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
     if(ramp == nullptr) {
         return false;
     }
+    // Capture the caller's current function *before* claiming the coroutine
+    // ramp: the async lowering runs at module scope, and every exit path below
+    // must put the caller's (null) function back. The previous code restored
+    // `prev_func` captured *after* the assignment below, so it restored `ramp`
+    // itself and left `current_function` non-null. Module-level variable
+    // initializers that followed an `async func` were then compiled as locals
+    // and their LLVM global was emitted without an initializer (`internal global
+    // i32`), producing invalid IR that crashed a later pass (B27).
+    const auto caller_function = gen.current_function;
     // An application's `async func main` needs a synchronous `int main` entry
     // point. Move the coroutine ramp out of the way so the wrapper (emitted at
     // the end) can own the `main` symbol.
@@ -648,6 +657,7 @@ bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
         }
     }
     if(table_bt == nullptr || poll_bt == nullptr) {
+        gen.current_function = caller_function;
         return false;
     }
     auto* table_ty = table_bt->llvm_type(gen);
@@ -661,6 +671,9 @@ bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
     // eager frame instead of a coroutine (design Section 9.7)
     if(plan.sites.empty()) {
         const auto ok = gen_llvm_async_eager_fn(gen, decl, inner, rt, ramp, table_ty, poll_ty);
+        // the eager helper restores to its own `prev_func` (the ramp); put the
+        // caller's function back instead (B27)
+        gen.current_function = caller_function;
         if(ok && is_async_main) {
             emit_llvm_async_main_wrapper(gen, decl, inner, rt, ramp, poll_ty);
         }
@@ -784,7 +797,6 @@ bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
     coro.frame_layout = &layout;
 
     const auto prev_coro = gen.current_coro;
-    const auto prev_func = gen.current_function;
     const auto prev_func_type = gen.current_func_type;
     const auto prev_redirect = gen.redirect_return;
     gen.current_coro = &coro;
@@ -919,7 +931,9 @@ bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
     builder.CreateRetVoid();
 
     gen.current_coro = prev_coro;
-    gen.current_function = prev_func;
+    // `prev_func` was captured after the ramp was installed, so it is the ramp;
+    // restore the function the caller was compiling (module scope -> nullptr) (B27)
+    gen.current_function = caller_function;
     gen.current_func_type = prev_func_type;
     gen.redirect_return = prev_redirect;
     gen.pinned_slots.clear();

@@ -123,7 +123,7 @@ Tests: `--libs` on **both** backends — 6 async runtime + 10 executor/combinato
 (dedicated; includes the async TLS handshake and async HTTP loopback tests)
 **573 TCC / ~570 passed** (2 pre-existing `BAD_SIGNATURE` failures plus harness
 flakiness under parallel dispatch; the async tests pass in isolation on LLVM);
-`--webview` (dedicated; includes the 4 Tier 5 UI-async tests) **46/46** on both
+`--webview` (dedicated; includes the 5 Tier 5 UI-async tests) **47/47** on both
 backends; `--server` (dedicated; the 2 Tier 6 file-server tests) **2/2** on both
 backends; main suite green (2190 TCC / 2191 LLVM); interpret 1811/1811.
 
@@ -437,14 +437,15 @@ the UI thread too. No callback types, no "await the UI": background work runs on
   `window_run_async` (or `webview_run_async`). Blocking work must still be
   wrapped in `async::spawn_blocking`; the executor tick then resumes the task on
   the UI thread.
-- Tests: `lang/tests/webview/src/async_tests.ch` (4 tests) in the dedicated
-  `--webview` suite — `window_pump` drives a suspended coroutine to completion,
-  the join result is readable, cancellation of dropped handles is clean, and
-  `window_run_async` drives the executor from a real GTK loop. **46/46 on TCC and
-  LLVM.**
-- **Caveat (B27):** a *second* `async func` (one eager, one with `await`) in a
-  large module (`webview_tests`) crashes LLVM's `AlwaysInliner`; the tests
-  therefore use a single coroutine in that module. See §12 B27.
+- Tests: `lang/tests/webview/src/async_tests.ch` (5 tests) in the dedicated
+  `--webview` suite — an eager and a suspending `async func` in the same module,
+  `window_pump` drives the suspended coroutine to completion, the join result is
+  readable, cancellation of dropped handles is clean, and `window_run_async`
+  drives the executor from a real GTK loop. **47/47 on TCC and LLVM.**
+- **B27** (an `async func` leaving `current_function` set, so globals declared
+  after it in the same file were emitted without an initializer and crashed
+  LLVM) was found here and **fixed** in `gen_llvm_async_fn`. The tests use both
+  an eager and a suspending `async func` in the same module.
 
 ### Tier 6 — `server` — ✅ DONE (`minlsp`/`ide` out of scope)
 
@@ -563,7 +564,7 @@ already live in `--negative`.
 | **M4** | `tls` transport vtable + `*_async` | HTTP client | `--tls` async tests |
 | **M5** | `http` `request_async` + coroutine accept loop + streaming | server/minlsp/ide | integration (gated) |
 | **M6** | `fs`/`process`/`environment` `spawn_blocking` wrappers (additive `*_async` signatures landed; bodies become non-blocking here) | user apps | `--libs` / `--process` |
-| **M7** | `webview`/`window` `spawn_local` + UI-thread executor ✅ | UI async | `--webview` 46/46 |
+| **M7** | `webview`/`window` `spawn_local` + UI-thread executor ✅ | UI async | `--webview` 47/47 |
 | **M8** | `server::serve_files_async` + `main --async` ✅ (`minlsp`/`ide` are CBI, out of scope) | runtime file server | `--server` 2/2 |
 
 M1 is shippable immediately: the compiler already supports everything it needs,
@@ -599,13 +600,13 @@ of the runtime design and must be fixed in the compiler. B10, B11, B12, B14,
 B15, B16, B17, B19, B21 and B22 are **fixed**; B13 and B18 are
 by-design/documented; and B20 (composite generic arguments in a generic body),
 B23 (a future payload that is a plain struct), B24 (field access on a
-struct-typed async parameter), B25 (a spawned coroutine awaiting a combinator),
-B26 (a large struct variant through a future) and B27 (a second coroutine in a
-large module) are **worked around** — the runtime keeps composite generics out
-of vtable types, keeps plain/large structs out of future payloads (futures carry
-ints/pointers), keeps struct parameters out of coroutine bodies, avoids
-combinator awaits inside spawned coroutines, and keeps one coroutine per large
-module.
+struct-typed async parameter), B25 (a spawned coroutine awaiting a combinator)
+and B26 (a large struct variant through a future) are **worked around** — the
+runtime keeps composite generics out of vtable types, keeps plain/large structs
+out of future payloads (futures carry ints/pointers), keeps struct parameters
+out of coroutine bodies, and avoids combinator awaits inside spawned
+coroutines. B27 (globals after an `async func`) and B28 (`size_t find()` vs
+`-1u` in the server runtime) were found later and are **fixed**.
 
 ### B10 — Generic function *references* are not parsed or instantiated (HIGH) — ✅ FIXED
 
@@ -944,11 +945,12 @@ variant (`Response` contains a `Body` with `std::string`/buffer state).
   struct-shaped `inner_ty` (wrapper `result` field + `Poll<T>` payload load),
   `compiler/backend/LLVMCoroutine.cpp`.
 
-### B27 — A second coroutine in a large module crashes LLVM's always-inliner (HIGH, worked around)
+### B27 — `async func` left `current_function` set → invalid globals after it (HIGH) — ✅ FIXED
 
-Found implementing Tier 5 (the `webview` async tests). The `webview_tests`
-module (~1 400 functions) compiles on LLVM with **one** `async func` (eager or
-suspending) but SIGSEGVs with **two** — one eager and one containing `await`:
+Found implementing Tier 5 (the `webview` async tests), then reproduced in the
+Tier 6 `server` suite as an intermittent LLVM crash: a large module with an
+`async func` followed (in the same file) by module-level `var`s SIGSEGVs in
+`AlwaysInlinerPass` → `llvm::isInlineViable`:
 
 ```
 Thread 1 "Compiler" received signal SIGSEGV
@@ -958,24 +960,30 @@ Thread 1 "Compiler" received signal SIGSEGV
 #5 save_as_file_type  compiler/Codegen.cpp:1613
 ```
 
-The crash is an LLVM assertion inside `isInlineViable` (the cold block reads a
-null assert-message pointer), reached from `AlwaysInlinerPass`. The module IR
-contains **no** `alwaysinline` attribute anywhere and no `@inline` annotations;
-a small module with the same two coroutines (`lang/compiled/async_two`) compiles
-fine, so the trigger is the module size/composition rather than the coroutine
-kinds. It reproduces for every file-order seed tested, while the single-coroutine
-form is stable across seeds on both backends.
+**Root cause:** `gen_llvm_async_fn` (`compiler/backend/LLVMCoroutine.cpp`) set
+`gen.current_function = ramp` and then restored `prev_func` — but `prev_func` was
+captured *after* installing the ramp, so it restored the ramp itself. Every
+module-level statement compiled after an `async func` in the same file therefore
+ran with a non-null `current_function`. `VarInitStatement::code_gen` branches on
+`current_function == nullptr` to decide between a global and a local, so those
+globals skipped `global->setInitializer(...)` and were emitted with **no
+initializer**:
 
-- **Workaround:** keep one coroutine per large module. `lang/tests/webview/src/async_tests.ch`
-  uses a single `async func` (the suspending one) for all four Tier 5 tests; the
-  non-suspending path is covered by the runtime's own `--async`/`--libs` suites.
-- **To investigate:** whether the always-inliner is running before the coroutine
-  split (`PresplitCoroutine` ramps) and tripping over a function it should skip;
-  a `verifyModule` before the pass (`--assertions`) does not report malformed IR,
-  so this looks like an LLVM-side bug triggered by the size of the module rather
-  than a Chemical IR-emission bug. A defensive fix would be to skip modules
-  containing `presplitcoroutine` functions when building the AlwaysInliner
-  pass (or run the coroutine-split pass earlier).
+```llvm
+@webview_tests_g_ui_await_value = internal global i32      ; invalid: non-extern global with no initializer
+```
+
+`llvm-as`/`opt` rejects that ("global variable reference must have pointer
+type" on the *next* line), and the always-inliner crashes on the malformed
+module. It only needed a `var` after an async func; the "two coroutines" and
+"large module" symptoms were incidental.
+
+**Fix:** `gen_llvm_async_fn` captures the caller's `current_function` at entry
+and restores it on every exit path (eager frame, coroutine, early `return false`).
+`VarInitStatement::code_gen` also zero-initializes a non-extern global if its
+initializer value is null, so a missing initializer can never again emit invalid
+IR. Verified: the two-coroutine `webview_tests` repro compiles and its 5 Tier 5
+tests pass on LLVM, and the `server` suite no longer flakes.
 
 ### B28 — `size_t find()` compared against `-1u` in the server runtime (MEDIUM) — ✅ FIXED
 

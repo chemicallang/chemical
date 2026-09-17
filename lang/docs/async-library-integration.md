@@ -118,14 +118,14 @@ Library integration (all additive):
 Tests: `--libs` on **both** backends — 6 async runtime + 10 executor/combinator +
 5 channel + 3 reactor + 3 fs + 1 environment + 8 `spawn_blocking` = **650/650**;
 `--process` (dedicated suite) — 6 async tests, **127/127** on both backends;
-`--async` **33/33**; main suite green (2190 TCC / 2191 LLVM); interpret
-1811/1811.
+`--async` (dedicated; includes the loopback `net` test) **34/34**; main suite
+green (2190 TCC / 2191 LLVM); interpret 1811/1811.
 
 ### 3.4 Libraries
 
 | Library | Current API (must be preserved) | Blocking on | Async benefit | Tier |
 |---|---|---|---|---|
-| `net` | `dial`, `listen_addr`, `accept_socket`, `recv_all`, `send_all`, `close_socket`, `set_recv_timeout`, `set_keep_alive`; `Socket = usize` | connect/accept/read/write | many sockets on one thread | 1 |
+| `net` | `dial`, `listen_addr`, `accept_socket`, `recv_all`, `send_all`, `close_socket`, `set_recv_timeout`, `set_keep_alive`; `Socket = usize` | connect/accept/read/write | many sockets on one thread | 1 (**done**: `AsyncSocket`, `dial_async`/`accept_async`/`recv_async`/`send_async`) |
 | `tls` | `tls_connect`, `ssl_handshake`, `ssl_read`, `ssl_write`, `ssl_close_notify`, `ssl_free`, `ssl_set_socket`, `tls_accept` | full multi-RTT handshake + records, calling `net::send_all`/`recv_all` directly | overlap handshakes; async record I/O | 2 |
 | `http` | `Client::request/get/post/put/patch/delete/head`; `Server::serve`, `Server::serve_async` (thread), `Body::read/read_to_string/read_exact/drain/close`; parsers `read_request_incremental`, `read_response_incremental` | dial → TLS → send → incremental read; worker-thread accept loop | `request_async`, per-connection tasks, streaming bodies | 3 |
 | `fs` | `read_entire_file`, `atomic_write`, `read_to_buffer`, directory ops | disk syscalls | don't stall the executor | 4 |
@@ -297,13 +297,27 @@ Deliver, in order:
   carries the caller's fallback for the closed case because a bare
   `recv() : FutureHandle<Option<T>>` needs a composite-generic vtable (B20).
 
-### Tier 1 — `net`
+### Tier 1 — `net` — ✅ DONE
 
-- Add `net::AsyncSocket` (`connect`/`accept`/`read`/`write`/`close`) and
-  `dial_async`/`accept_async`/`recv_async`/`send_async`.
-- Preserve every existing function untouched.
-- POSIX: add the real `poll`/`epoll` registration (the current `poll` is a stub)
-  and `set_nonblocking` (already present). Windows: reuse `net::iocp`.
+`lang/libs/net/src/async.ch` (new), additive — every synchronous function is
+untouched. `net` now imports `core` + `async`.
+
+- `net::AsyncSocket` (`valid`/`raw`/`close`/`read`/`write`/`accept`).
+- `async_listener(addr, port) : AsyncSocket` (sync bind+listen),
+  `dial_async(addr, port)`, `accept_async(listener_fd)`, `recv_async(fd, buf,
+  cap)`, `send_async(fd, data, len)`.
+- POSIX: `accept`/`recv`/`send` set the socket non-blocking and retry after
+  `await async::readable`/`writable` (EAGAIN/EINTR), so a single executor drives
+  many sockets. Connect and accept are offloaded to the thread pool (connect is
+  an inherently blocking kernel call). `set_nonblocking` already existed.
+- Windows: the whole API falls back to the thread pool (its reactor is a stub);
+  real IOCP integration is still open.
+- **Futures carry raw fds (`int`), not `AsyncSocket`** — see B23. `AsyncSocket`
+  is a synchronous wrapper over the fd.
+- Tests: `lang/tests/async/net_test.ch` (loopback echo) in the dedicated
+  `--async` suite (not `--libs`, which stays hermetic).
+- Still open for a follow-up: an epoll/kqueue registration for scale (the
+  reactor is `select(2)`, ~1024 fds) and the Windows IOCP path.
 
 ### Tier 2 — `tls`
 
@@ -481,9 +495,11 @@ layers (`spawn_blocking<T>`, `timeout<T>`, the executor's awaitable
 `JoinHandle<T>`, and any hand-authored `FutureTable<T>`). They are independent
 of the runtime design and must be fixed in the compiler. B10, B11, B12, B14,
 B15, B16, B17, B19, B21 and B22 are **fixed**; B13 and B18 are
-by-design/documented, and B20 (composite generic arguments in a generic body)
-is **worked around** — the runtime avoids vtables parameterized by composite
-generic types.
+by-design/documented; and B20 (composite generic arguments in a generic body),
+B23 (a future payload that is a plain struct) and B24 (field access on a
+struct-typed async parameter) are **worked around** — the runtime keeps
+composite generics out of vtable types, keeps plain structs out of async
+futures, and keeps struct parameters out of coroutine bodies.
 
 ### B10 — Generic function *references* are not parsed or instantiated (HIGH) — ✅ FIXED
 
@@ -753,6 +769,41 @@ cases.
 indexed `func->params[arg_offset]` without checking `arg_offset < params.size()`,
 which aborted the compiler on a call whose argument list is longer than the
 parameter list. Guarded. Tests: `lang/tests/libs/async/reactor_test.ch`.
+
+### B23 — A future whose payload is a *plain struct* corrupts it on LLVM (HIGH, worked around)
+
+An `async func f() : Pair` (plain `@direct_init` struct) driven by
+`block_on<Pair>(f())` yields pointer halves instead of the field values on LLVM
+(e.g. `a=1929545688 b=32767`). Reproduced on both the eager path (no `await`)
+and the real suspension path. 2c is correct.
+
+- Variant payloads are fine: `block_on<Result<...>>` / `Option<...>` work
+  everywhere (`fs`/`process` async funcs), as does `spawn_blocking<std::string>`
+  and a non-coroutine function returning `Poll<Pair>` (see `pat_probe`). So the
+  bug is specific to an `async func` (coroutine) whose `T` is a non-variant
+  struct.
+- **Workaround:** the Tier 1 `net` async futures carry raw fds (`int`);
+  `AsyncSocket` is a synchronous wrapper built around them, so no future payload
+  is a plain struct. `AsyncSocket` methods (`read`/`write`/`accept`) also return
+  `FutureHandle<int>`.
+- **To fix (compiler):** the async ramp/`__poll` result handling in
+  `compiler/backend/LLVMCoroutine.cpp` for a struct `inner_ty` — likely the
+  `Poll<T>` payload is lowered/loaded as a pointer. Until then, keep plain
+  structs out of async return types (wrap them in a variant or pass an int
+  handle).
+
+### B24 — Field access on a struct-typed async parameter mis-lowers on 2c (MEDIUM, worked around)
+
+An `async func f(s : SomeStruct)` that reads `s.field` in its body emits
+`frame->slot->field` where the frame slot is stored *by value*
+(`struct SomeStruct slot;`) — a C compile error (`pointer expected`). Variant and
+pointer/primitive parameters are unaffected.
+
+- **Workaround:** pass raw handles (`Socket`, `int`, `*T`) into coroutine bodies
+  and wrap them synchronously outside. The `net` async entry points take `int`
+  fds for this reason.
+- **To fix (compiler):** the 2c async lowering should emit `.field` for
+  by-value frame slots (or store struct parameters as pointers consistently).
 
 ### B14 — Capturing lambda inside a generic async func crashed LLVM (HIGH) — ✅ FIXED
 

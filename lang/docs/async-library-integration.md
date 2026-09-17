@@ -86,25 +86,33 @@ depends on (design D10). **No library needs to depend on `async` to use
 | `sleep(millis) : FutureHandle<Unit>` | ✅ | poll-driven clock future |
 | `test::block_on<T>` | ✅ | deterministic executor for `--libs` tests |
 | `spawn` / task queue / executor | ❌ | generic futures now work (B12 fixed); still to be implemented |
-| `spawn_blocking` | ❌ | `ThreadPool` bridge ready; prototype works on TCC; B14 + B16 + B12 all fixed, implementation pending |
+| `spawn_blocking<T>` | ✅ | `lang/libs/async/src/blocking.ch` — submits to a shared lazily-created `std::concurrent::ThreadPool`; cancellation-safe; see B19 for capture/result limits |
 | `timeout` / `select` | ❌ | blocked by §12 (generic future tables) |
 | Reactor (epoll/kqueue/IOCP) | ❌ | needed for async socket I/O |
 | `channel` | ❌ | later phase |
 
-**Landed (this revision).** `async::{yield_now, sleep, test::block_on}` and a
-parking `block_on`; compiler fixes B10 (generic function references), B11
-(generic type identity), B12 (generic struct with a function typed field not
-specialized), B14 (nested lambda inheriting coroutine `redirect_return`), B16
-(destructible variant payload double-free in `block_on`) and B15 (async works in
-`debug_complete`); library integration — additive
-`fs::read_entire_file_async` / `write_text_file_async` / `atomic_write_async`
-and `environment::{get_async, set_async, unset_async}` (v1 blocking bodies).
-Tests: 6 async runtime + 3 fs + 1 environment, all under
-`./scripts/test.sh --tcc --libs` **and** `--llvm --libs` (624/624 both), plus
-`--async`/main green in `debug_complete`. With B10 and B12 fixed, hand-authored
-generic futures (`FutureTable<T>`, `JoinHandle<T>`, `timeout<T>`,
-`spawn_blocking<T>`) have **no remaining compiler blockers**; the runtime
-executor, reactor and `spawn_blocking` remain to be implemented.
+**Landed.** Runtime: `async::{yield_now, sleep, test::block_on}`, a parking
+`block_on`, and `spawn_blocking<T>` (F4/F5) — a cancellation-safe bridge over a
+shared, lazily-created `std::concurrent::ThreadPool` (`lang/libs/async/src/
+blocking.ch`). Compiler fixes B10, B11, B12, B14, B15, B16, B17 plus a 2c
+nested-lambda fix (a lambda declared inside an `async func` no longer inherits
+the coroutine state, so its `return` is emitted as an ordinary synchronous
+return — the 2c analogue of B14).
+
+Library integration (all additive):
+- `fs::{read_entire_file_async, write_text_file_async, atomic_write_async}` —
+  bodies offload the syscall to `spawn_blocking`, so disk I/O no longer stalls
+  the executor.
+- `environment::{get_async, set_async, unset_async}` — direct bodies (cheap
+  syscalls; avoids capturing a `string_view` into a worker thread).
+- `process::{execute_async, spawn_async, wait_async, try_wait_async,
+  kill_process_async, write_stdin_async, close_stdin_async, is_running_async,
+  sleep_ms_async}` — v1 direct bodies (see B19); `sleep_ms_async` is
+  timer-backed and genuinely suspends.
+
+Tests: `--libs` on **both** backends — 6 async runtime + 3 fs + 1 environment +
+6 `spawn_blocking` = **630/630**; `--process` (dedicated suite) — 5 async tests,
+**126/126** on both backends; `--async` **33/33**; main suite green.
 
 ### 3.4 Libraries
 
@@ -144,6 +152,8 @@ Platform notes already in the tree:
   on both backends.
 - `net`/`http` have **no dedicated suite**; `tls` → `--tls`, `process` →
   `--process`, `webview` → `--webview`.
+- `lang/tests/process/src/async_test.ch` holds the `process` async wrapper tests
+  (5 tests) in the dedicated `--process` suite (126/126 on TCC and LLVM).
 - `fs` currently has 24 lib tests; `integration/` has 17 cross-library tests.
 
 ---
@@ -260,7 +270,8 @@ Deliver, in order:
 - `Executor` + task queue + `spawn<T>(FutureHandle<T>)`; per-thread default
   (design D7).
 - `sleep`/`timeout` (timer wheel), `select`.
-- `spawn_blocking<F, T>(f) : FutureHandle<T>` over `ThreadPool::submit`.
+- `spawn_blocking<T>(f : std::function<() => T>) : FutureHandle<T>` over
+  `ThreadPool::submit` — ✅ landed (`lang/libs/async/src/blocking.ch`).
 - `AsyncSocket`-supporting reactor (epoll/kqueue; IOCP reuse on Windows).
 - Current-thread mode + `spawn_local` (for F8/UI libs).
 - A `channel` (M6, optional for v1).
@@ -298,17 +309,26 @@ Deliver, in order:
   `fs::read_entire_file_async`, `fs::atomic_write_async`,
   `process::wait_async`, `process::execute_async`, async pipe read/write.
 - Keep the sync functions identical; share the same syscall helpers.
-- **Landed (v1):** `fs::read_entire_file_async`, `fs::write_text_file_async`,
-  `fs::atomic_write_async` (`lang/libs/fs/src/async.ch`);
-  `environment::{get_async, set_async, unset_async}`
-  (`lang/libs/environment/src/async.ch`). Both concrete-return `async func`s with
-  blocking bodies; `fs`/`environment` now import `async`. They become true
-  `spawn_blocking` wrappers once the executor lands (all compiler blockers B10,
-  B12 are fixed).
-- **Ready to redo:** `process` async wrappers (`execute_async`/`wait_async`/…)
-  were blocked by B16 (a nested destructible aggregate double-free); B16 is now
-  fixed, so they can be re-added with the same concrete-return `async func`
-  pattern as `fs`.
+- **Landed (true `spawn_blocking`):** `fs::read_entire_file_async`,
+  `fs::write_text_file_async`, `fs::atomic_write_async`
+  (`lang/libs/fs/src/async.ch`) now `await async::spawn_blocking(...)`, so the
+  disk I/O runs on the pool and the executor keeps running. `fs` imports `async`.
+  Tests: 3 in `lang/tests/libs/fs/async_test.ch` (630/630 on both backends).
+- **Landed (v1 direct bodies):** `environment::{get_async, set_async,
+  unset_async}` (`lang/libs/environment/src/async.ch`) — symmetric awaitable
+  surface; kept direct because the syscalls are cheap and an async body would
+  capture a caller `string_view` into a worker thread.
+- **Landed (v1 direct bodies):** `process::{execute_async, spawn_async,
+  wait_async, try_wait_async, kill_process_async, write_stdin_async,
+  close_stdin_async, is_running_async, sleep_ms_async}`
+  (`lang/libs/process/src/async.ch`). `wait_async` reuses `wait` rather than
+  polling `try_wait`, because POSIX `try_wait` reaps without capturing
+  stdout/stderr; this preserves the synchronous result exactly (including
+  wait-after-kill), and `sleep_ms_async` is timer-backed and genuinely suspends.
+  Offloading `execute_async`/`spawn_async`/`wait_async` needs B19 fixed.
+- **Ready to redo:** none — the additive signatures are all in place. The
+  remaining Tier 4 work is converting the `process` bodies to `spawn_blocking`
+  once B19 is fixed.
 
 ### Tier 5 — `webview`, `window`
 
@@ -400,11 +420,11 @@ already live in `--negative`.
 |---|---|---|---|
 | **M0** | this assessment | — | — |
 | **M1** | `async::test::block_on` + deterministic tests | hermetic async testing | async func / await / cancellation |
-| **M2** | executor, `spawn`, timers, `select`, `spawn_blocking`, reactor | all I/O tiers | spawn/select/timeout/spawn_blocking |
+| **M2** | executor, `spawn`, timers, `select`, `spawn_blocking` ✅, reactor | all I/O tiers | spawn/select/timeout/spawn_blocking |
 | **M3** | `net::AsyncSocket` (+ POSIX poll, IOCP reuse) | TLS/HTTP | loopback (gated) |
 | **M4** | `tls` transport vtable + `*_async` | HTTP client | `--tls` async tests |
 | **M5** | `http` `request_async` + coroutine accept loop + streaming | server/minlsp/ide | integration (gated) |
-| **M6** | `fs`/`process`/`environment` `spawn_blocking` wrappers | user apps | `--libs` |
+| **M6** | `fs`/`process`/`environment` `spawn_blocking` wrappers (additive `*_async` signatures landed; bodies become non-blocking here) | user apps | `--libs` / `--process` |
 | **M7** | `webview`/`window` `spawn_local` | UI async | `--webview` |
 
 M1 is shippable immediately: the compiler already supports everything it needs,
@@ -598,6 +618,35 @@ bits). Options for the runtime, not the compiler: bound the parameter
 Documented so the executor's `JoinHandle<T>`/`spawn_blocking<T>` use the
 non-moving idiom.
 
+### B19 — `spawn_blocking` with destructible by-value captures / nested aggregate results (MEDIUM, open)
+
+Found while converting the Tier 4 wrappers to `spawn_blocking`
+(`async::spawn_blocking<T>(f)` stores the worker result by bitwise move and
+takes it out in poll):
+
+- `fs::*_async` (captures only raw pointers, returns
+  `Result<vector<u8>, FsError>`) works on **both** backends — 630/630 `--libs`.
+- `process::execute_async`/`spawn_async` capture a by-value, destructible
+  `ProcessConfig` (a struct defined in another module). On TCC this compiles but
+  the awaited `Result<ProcessResult, ProcessError>` comes back with a corrupt
+  `stdout_data.data_ptr` (the size field is correct, the pointer is
+  uninitialized garbage).
+- `process::wait_async` offloaded to `spawn_blocking` passes in isolation on
+  LLVM but loses the child's stdout when the full `--process` suite runs on LLVM
+  (it passes on TCC).
+
+Root cause is in the C-backend (2c) codegen for moving a destructible aggregate
+through a generic/threaded path; it is independent of the runtime design.
+
+Related latent bug (not async): an application-module `struct` with `vector`
+fields, compiled by `TCCCompiler`, can emit duplicate generic struct definitions
+in the concatenated translation (`struct/union/enum already defined`).
+
+**Workaround (landed):** the `process` wrappers keep v1 direct bodies
+(`wait_async` delegates to `wait`). Their additive signatures and result types
+are unchanged, so the bodies can switch to `spawn_blocking` once B19 is fixed.
+`fs`, whose captures are pointers, remains fully offloaded.
+
 ### B14 — Capturing lambda inside a generic async func crashed LLVM (HIGH) — ✅ FIXED
 
 A capturing lambda created inside an `async func` (e.g. the `spawn_blocking`
@@ -693,7 +742,7 @@ async 33/33, libs 624/624). This unblocks `process` async wrappers.
 `timeout<T>`, `JoinHandle<T>`) using either inline non-capturing lambdas or
 generic function references (`ident<int>`, `ns::ident<T>`). Library async
 wrappers continue to use compiler-lowered `async func` bodies
-(done for `fs`, §7 Tier 4; `process` can follow now that B16 is fixed). Watch
+(done for `fs` and `process`, §7 Tier 4). Watch
 B18 when the future payload is a non-`Copy` `T` owned by the frame.
 
 ---

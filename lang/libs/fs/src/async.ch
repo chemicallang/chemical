@@ -1,27 +1,36 @@
 // Async wrappers for the filesystem library (design §1.9 F11 / §7 Tier 4).
 //
 // These are additive: the synchronous `fs` API is unchanged. Each wrapper is an
-// `async func` with a concrete return type, so the compiler emits its future
-// vtable (no hand-written generic `FutureTable<T>` needed).
+// `async func` with a concrete return type, and its body offloads the blocking
+// syscall to the runtime's thread pool via `async::spawn_blocking`, so the
+// executor keeps running while the disk I/O is in flight.
 //
-// v1 note: the body performs the blocking syscall directly, so it does not yet
-// keep the executor responsive. Once `spawn_blocking` is unblocked (see
-// lang/docs/async-library-integration.md §12), these bodies move to it without
-// changing their signatures.
+// Lifetime note: the arguments are captured into the task, so their pointed-to
+// data must stay alive until the returned future completes (the usual async
+// contract).
 public namespace fs {
 
 using std::Result;
 
 public async func read_entire_file_async(path : *char) : Result<std::vector<u8>, FsError> {
-    return read_entire_file(path)
+    var result = await async::spawn_blocking<Result<std::vector<u8>, FsError>>(
+        |path|() => read_entire_file(path)
+    )
+    return result
 }
 
 public async func write_text_file_async(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
-    return write_text_file(path, data, data_len)
+    var result = await async::spawn_blocking<Result<UnitTy, FsError>>(
+        |path, data, data_len|() => write_text_file(path, data, data_len)
+    )
+    return result
 }
 
 public async func atomic_write_async(path : *char, data : *u8, data_len : size_t) : Result<UnitTy, FsError> {
-    return atomic_write(path, data, data_len)
+    var result = await async::spawn_blocking<Result<UnitTy, FsError>>(
+        |path, data, data_len|() => atomic_write(path, data, data_len)
+    )
+    return result
 }
 
 }

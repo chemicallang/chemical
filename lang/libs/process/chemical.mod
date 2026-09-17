@@ -7,3 +7,4 @@ source "posix" if !windows
 import cstd
 import std
 import environment
+import async

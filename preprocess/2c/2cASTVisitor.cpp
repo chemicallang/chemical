@@ -2678,7 +2678,17 @@ std::string write_lambda_function(ToCAstVisitor& visitor, LambdaFunction *lamb) 
     if(lamb->isAsync()) {
         normalize_async_lambda(visitor.allocator, lamb);
     }
+    // A lambda declared inside a compiler-lowered async function must not
+    // inherit its coroutine state: its `return` is an ordinary synchronous
+    // return, not a frame/poll completion (the 2c analogue of the LLVM
+    // nested-function fix). Save and clear that state for the nested body.
+    auto prev_async_suspend = visitor.async_suspend;
+    auto prev_async_ramp_body = visitor.async_ramp_body;
+    visitor.async_suspend = nullptr;
+    visitor.async_ramp_body = false;
     scope(visitor, lamb->scope, lamb);
+    visitor.async_suspend = prev_async_suspend;
+    visitor.async_ramp_body = prev_async_ramp_body;
     visitor.current_func_type = prev_func_type;
     visitor.destructor.destruct_jobs = std::move(previous_destruct_jobs);
     visitor.destructor.destroy_current_scope = prev_destroy_scope;

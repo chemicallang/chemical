@@ -8,3 +8,5 @@ import test_env
 import process
 import environment
 import window
+import async
+import core

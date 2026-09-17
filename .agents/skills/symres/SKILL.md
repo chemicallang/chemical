@@ -178,6 +178,11 @@ unwraps the handle back to `T`, and `attrs.is_async` marks the declaration for t
 backends and the type verifier. `AwaitExpression` is linked in the body pass via
 `SymResLinkBody::VisitAwaitExpression` (it unwraps the handle to the inner type).
 
+> **Pending symres/generics async fixes (worked around, not fixed):** B20
+> (composite-generic field access inside a generic body; partially fixed) and
+> async-closure lowering. See `lang/docs/async-remaining-work.md` before
+> removing the runtime's type-erasure workarounds.
+
 ## Phase 3: Generic Instantiation Pass
 
 ### GenericInstantiationPass

@@ -340,6 +340,30 @@ Skills in **bold** are the new comprehensive skills. Load them for maximum conte
 | `lang/libs/compiler/` | Compiler API bindings for macros |
 | `lang/tests/` | Test suite |
 
+## Async / Await — Remaining Work
+
+Async/await is shipped and integrated across `lang/libs`, but several compiler and
+platform limitations were **worked around, not fixed**. Before touching async
+internals, read [`lang/docs/async-remaining-work.md`](lang/docs/async-remaining-work.md):
+an actionable, one-item-at-a-time worklist with symptom, root cause, workaround,
+and definition of done for each item.
+
+Pending items (recommended fix order):
+
+1. **B23** — plain-struct future payload corrupts on LLVM (`LLVMCoroutine.cpp`)
+2. **B26** — large struct variant through `FutureHandle` corrupts on LLVM
+3. **B24** — struct-typed async parameter field access on 2c (`2cASTVisitor.cpp`)
+4. **B25** — combinator await inside a spawned coroutine loses `Context` on LLVM
+5. **B20** — composite-generic field access in a generic body (symres/generics)
+6. **B15-W** — async debug info disabled on LLVM (`debug_complete`)
+7. **AC** — async closures parsed but not lowered
+8. **TLS-VT** — TLS has no non-blocking transport (uses `spawn_blocking`)
+9. **WIN-IOCP** — Windows async reactor is a stub
+10. **POSIX-EPOLL** — POSIX reactor is `select(2)` (~1024 fds)
+
+Design/assessment: [`async-await-design.md`](lang/docs/async-await-design.md),
+[`async-library-integration.md`](lang/docs/async-library-integration.md).
+
 ## Conventions
 
 - Custom strings: `chem::string` (SSO, no `std::string`).

@@ -425,7 +425,11 @@ eager/transparent (design §11):
 
 The comptime/interpretation suite does not exercise the executor, the fd
 reactor, `spawn`, or `spawn_blocking`; those are compiled-mode only. See
-`lang/docs/async-library-integration.md` §3.1.
+`lang/docs/async-library-integration.md` §3.1. The eager behavior is locked by
+`lang/tests/interpret/src/main.ch::run_interpret_async_tests`. Do **not** build an
+interpreter executor speculatively — there is no comptime I/O to suspend on; the
+pending async fixes are compiler/platform items in
+`lang/docs/async-remaining-work.md`.
 
 ## Testing Infrastructure
 

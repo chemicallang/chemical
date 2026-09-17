@@ -2,19 +2,28 @@
 // runtime (design F4/F5, §7 Tier 0; integration doc §6).
 //
 // `spawn_blocking(f)` submits `f` to a lazily-created shared pool and returns a
-// `FutureHandle<T>` that becomes `Ready` when the worker finishes. The worker
-// bitwise-moves its result into heap storage and signals a mutex-guarded flag;
-// the consumer's poll takes it out (never moving a `T` field through a pointer —
-// the B18 rule). Cancellation is safe: if the handle is dropped before the task
-// completes, the worker observes `abandoned` and frees the shared state itself,
-// so nothing is leaked and nothing is written after free.
+// `FutureHandle<T>` that becomes `Ready` when the worker finishes. The task and
+// its result both live in the shared state: the worker moves its result into a
+// `std::Option<T>` slot and the consumer's poll `take`s it out. Nothing moves a
+// `T` field out through a pointer (the B18 rule) and there is no separately
+// allocated result buffer that could outlive its owner.
+//
+// The submitted closure captures only the state pointer (a small capture, stored
+// inline by `std::function`), never the `std::function` itself; capturing the
+// function would copy its heap-allocated capture and double-free it.
+//
+// Cancellation is safe: if the handle is dropped before the task completes, the
+// worker observes `abandoned` and frees the shared state itself, so nothing is
+// leaked and nothing is written after free.
 public namespace async {
 
 public struct BlockingState<T> {
     var m : std::mutex
     var ready : bool
+    var consumed : bool
     var abandoned : bool
-    var value : *mut T
+    var value : std::Option<T>
+    var task : std::function<() => T>
     var vtbl : *mut core::async::FutureTable<T>
 }
 
@@ -26,43 +35,39 @@ public func <T> blocking_poll(frame : *mut void, cx : *mut core::async::Context)
         st.m.unlock()
         return core::async::Poll.Pending<T>()
     }
-    var p = st.value
-    st.value = null
+    var taken = st.value.take()
     st.ready = false
+    st.consumed = true
     st.m.unlock()
-    var temp : T
-    unsafe {
-        memcpy(&raw mut temp, p, sizeof(T))
-        free(p)
-        return core::async::Poll.Ready<T>(temp)
-    }
+    return core::async::Poll.Ready<T>(taken)
 }
 
 @retained
 public func <T> blocking_drop(frame : *mut void) {
     var st = frame as *mut BlockingState<T>
     var vtbl = st.vtbl
+    var free_state = false
     st.m.lock()
-    if(st.ready) {
-        // The result was never consumed: destroy it, then the state is ours.
-        var p = st.value
-        st.value = null
+    if(st.consumed) {
+        // consumer already took the value; nothing left to destroy here
+        free_state = true
+    } else if(st.abandoned) {
+        // worker is still running and will free the state itself
+        free_state = false
+    } else if(st.ready) {
+        // worker finished but the result was never consumed; destroy it here
         st.ready = false
-        st.m.unlock()
-        if(p != null) {
-            unsafe {
-                delete p
-                delete st
-            }
-        } else {
-            unsafe {
-                delete st
-            }
-        }
+        free_state = true
     } else {
-        // The worker is still running and owns the state from here on.
+        // worker has not finished yet; hand ownership of the state to it
         st.abandoned = true
-        st.m.unlock()
+        free_state = false
+    }
+    st.m.unlock()
+    if(free_state) {
+        unsafe {
+            delete st
+        }
     }
     if(vtbl != null) {
         unsafe {
@@ -101,25 +106,27 @@ public func <T> spawn_blocking(f : std::function<() => T>) : core::async::Future
     new(st) BlockingState<T> {
         m : std::mutex(),
         ready : false,
+        consumed : false,
         abandoned : false,
-        value : null,
+        value : std::Option.None<T>(),
+        task : f,
         vtbl : vtbl
     }
     var pool = blocking_pool()
-    pool.submit_void(|st, f|() => {
-        var r = f()
+    pool.submit_void(|st|() => {
+        var r = st.task()
         st.m.lock()
         var was_abandoned = st.abandoned
         if(!was_abandoned) {
-            var p = malloc(sizeof(T)) as *mut T
-            memcpy(p, &raw r, sizeof(T))
-            intrinsics::forget(r)
-            st.value = p
+            st.value = std::Option.Some<T>(r)
             st.ready = true
         }
         st.m.unlock()
         if(was_abandoned) {
-            delete st
+            // `r` is destroyed by this scope; the state is ours to free
+            unsafe {
+                delete st
+            }
         }
     })
     return core::async::FutureHandle<T> { frame : st as *mut void, vtbl : vtbl }

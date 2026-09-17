@@ -5,13 +5,10 @@
 // `FutureHandle<...>` vtable - no hand-authored generic future is needed, and
 // callers drive it with `await` / `async::block_on`.
 //
-// v1 note: these entry points perform the blocking syscall directly in the ramp
-// (the same pattern `fs` used before it moved to `spawn_blocking`). Offloading
-// them requires moving a destructible by-value `ProcessConfig` (or a nested
-// `ProcessResult`) into a thread-pool task, which currently hits backend
-// codegen issues tracked as B19 in lang/docs/async-library-integration.md.
-// Signatures and result types are unaffected, so the bodies can switch to
-// `spawn_blocking` once B19 is fixed.
+// The three genuinely blocking entry points (`execute`, `spawn`, `wait`) offload
+// their work to the runtime thread pool via `async::spawn_blocking`, so the
+// executor keeps running while the child process is created or reaped. The
+// remaining calls are quick non-blocking syscalls and keep a direct body.
 //
 // Note: the polling (non-reaping) `try_wait` does not capture stdout/stderr on
 // POSIX, so `wait_async` delegates to `wait`, which shares the same syscall
@@ -22,15 +19,18 @@ using std::Result;
 using std::vector;
 
 public async func execute_async(cfg : ProcessConfig) : PR_Result {
-    return execute(cfg)
+    var result = await async::spawn_blocking<PR_Result>(|cfg|() => execute(cfg))
+    return result
 }
 
 public async func spawn_async(cfg : ProcessConfig) : CP_Result {
-    return spawn(cfg)
+    var result = await async::spawn_blocking<CP_Result>(|cfg|() => spawn(cfg))
+    return result
 }
 
 public async func wait_async(child : *mut ChildProcess) : PR_Result {
-    return wait(child)
+    var result = await async::spawn_blocking<PR_Result>(|child|() => wait(child))
+    return result
 }
 
 public async func try_wait_async(child : *mut ChildProcess) : PR_Result {

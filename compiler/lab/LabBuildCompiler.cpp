@@ -138,13 +138,18 @@ static bool verify_app_build_func_type(FunctionDeclaration* found, const std::st
     return true;
 }
 
-void recursive_dedupe(LabModule* file, std::unordered_map<LabModule*, bool>& imported, std::vector<LabModule*>& flat_map) {
+void recursive_dedupe(LabModule* file, std::unordered_map<std::string, bool>& imported, std::vector<LabModule*>& flat_map) {
     for(auto& nested : file->get_dependencies()) {
         recursive_dedupe(nested.module, imported, flat_map);
     }
-    auto found = imported.find(file);
+    // keyed by scope:name rather than by pointer: the same logical module can be
+    // reachable through multiple LabModule instances (its chemical.mod and its
+    // generated build.lab), and processing both parses every source twice and
+    // produces duplicate generic instantiations with colliding mangled names.
+    auto key = file->format(':');
+    auto found = imported.find(key);
     if(found == imported.end()) {
-        imported[file] = true;
+        imported[key] = true;
         flat_map.emplace_back(file);
     }
 }
@@ -155,7 +160,7 @@ void recursive_dedupe(LabModule* file, std::unordered_map<LabModule*, bool>& imp
  */
 std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<ModuleDependency>& dependencies) {
     std::vector<LabModule*> new_modules;
-    std::unordered_map<LabModule*, bool> imported;
+    std::unordered_map<std::string, bool> imported;
     for(auto& dep : dependencies) {
         recursive_dedupe(dep.module, imported, new_modules);
     }

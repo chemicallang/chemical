@@ -121,3 +121,32 @@ public func test_process_is_running_async(env : &mut TestEnv) {
     }
     process::kill_process(&raw mut child, 9)
 }
+
+// `spawn_async` and `wait_async` both offload to `spawn_blocking`; the config is
+// captured by value into the task and the result (a nested `ProcessResult` with
+// two vectors) is moved back out through the shared state.
+@test
+public func test_process_spawn_async_then_wait_async(env : &mut TestEnv) {
+    var cfg = process::ProcessConfig.default()
+    cfg.args.push(string("echo"))
+    cfg.args.push(string("spawned"))
+    var sp = async::block_on(process::spawn_async(cfg))
+    if(sp is Result.Err) {
+        env.error("process::spawn_async returned Err")
+        return
+    }
+    var Ok(child) = sp else unreachable
+    var wr = async::block_on(process::wait_async(&raw mut child))
+    if(wr is Result.Err) {
+        env.error("wait_async after spawn_async returned Err")
+        return
+    }
+    var Ok(r) = wr else unreachable
+    if(!r.success) {
+        env.error("spawn_async child did not succeed")
+        return
+    }
+    if(!stdout_contains(&raw r.output.stdout_data, "spawned")) {
+        env.error("spawn_async stdout did not contain expected text")
+    }
+}

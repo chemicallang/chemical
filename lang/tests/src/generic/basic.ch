@@ -6,3 +6,23 @@ func test_native_generic_specifics() {
     })
 }
 
+// A generic struct with a function typed field, initialized with a lambda, must be
+// specialized like any other member. The lambda's return type is linked against the
+// master member's function type, so it references the container's own generic
+// parameters; during instantiation those must be replaced by the concrete arguments.
+struct GenericFnField<T> {
+    var produce : () => T
+}
+
+@retained
+func <T> make_generic_fn_field() : GenericFnField<T> {
+    return GenericFnField<T> { produce : () => zeroed<T>() }
+}
+
+func test_native_generic_fn_field() {
+    test("generic struct with a function typed field is specialized (B12)", () => {
+        var holder = make_generic_fn_field<int>()
+        return holder.produce() == 0
+    })
+}
+

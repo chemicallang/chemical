@@ -85,24 +85,26 @@ depends on (design D10). **No library needs to depend on `async` to use
 | `yield_now() : FutureHandle<Unit>` | ✅ | first hand-authored runtime future (no reactor) |
 | `sleep(millis) : FutureHandle<Unit>` | ✅ | poll-driven clock future |
 | `test::block_on<T>` | ✅ | deterministic executor for `--libs` tests |
-| `spawn` / task queue / executor | ❌ | see §12 compiler blockers |
-| `spawn_blocking` | ❌ | `ThreadPool` bridge ready; prototype works on TCC, B14 + B16 fixed; still blocked by B12 (generic vtable) |
+| `spawn` / task queue / executor | ❌ | generic futures now work (B12 fixed); still to be implemented |
+| `spawn_blocking` | ❌ | `ThreadPool` bridge ready; prototype works on TCC; B14 + B16 + B12 all fixed, implementation pending |
 | `timeout` / `select` | ❌ | blocked by §12 (generic future tables) |
 | Reactor (epoll/kqueue/IOCP) | ❌ | needed for async socket I/O |
 | `channel` | ❌ | later phase |
 
 **Landed (this revision).** `async::{yield_now, sleep, test::block_on}` and a
-parking `block_on`; compiler fixes B11 (generic type identity), B14 (nested
-lambda inheriting coroutine `redirect_return`), B16 (destructible variant payload
+parking `block_on`; compiler fixes B11 (generic type identity), B12 (generic
+struct with a function typed field not specialized), B14 (nested lambda
+inheriting coroutine `redirect_return`), B16 (destructible variant payload
 double-free in `block_on`) and B15 (async works in `debug_complete`); library
 integration — additive
 `fs::read_entire_file_async` / `write_text_file_async` / `atomic_write_async`
 and `environment::{get_async, set_async, unset_async}` (v1 blocking bodies).
 Tests: 6 async runtime + 3 fs + 1 environment, all under
 `./scripts/test.sh --tcc --libs` **and** `--llvm --libs` (624/624 both), plus
-`--async`/main green in `debug_complete`. Generic vtable, reactor,
-true non-blocking `spawn_blocking` remains blocked by
-B10/B12 (§12).
+`--async`/main green in `debug_complete`. With B12 fixed, hand-authored generic
+futures (`FutureTable<T>`, `JoinHandle<T>`, `timeout<T>`, `spawn_blocking<T>`)
+can now be written; the runtime executor, reactor and `spawn_blocking` remain to
+be implemented. Only B10 (generic function references) stays open (§12).
 
 ### 3.4 Libraries
 
@@ -301,7 +303,8 @@ Deliver, in order:
   `environment::{get_async, set_async, unset_async}`
   (`lang/libs/environment/src/async.ch`). Both concrete-return `async func`s with
   blocking bodies; `fs`/`environment` now import `async`. They become true
-  `spawn_blocking` wrappers once B10/B12 land.
+  `spawn_blocking` wrappers once the executor lands (B12 is fixed; B10 is only
+  needed if generic function *references* are used).
 - **Ready to redo:** `process` async wrappers (`execute_async`/`wait_async`/…)
   were blocked by B16 (a nested destructible aggregate double-free); B16 is now
   fixed, so they can be re-added with the same concrete-return `async func`
@@ -430,10 +433,12 @@ and it changes **no** public API.
 
 ## 12. Compiler blockers for hand-authored generic futures
 
-Building the runtime exposed three concrete compiler gaps that block the
-generic layers (`spawn_blocking<T>`, `timeout<T>`, the executor's awaitable
+Building the runtime exposed concrete compiler gaps that block the generic
+layers (`spawn_blocking<T>`, `timeout<T>`, the executor's awaitable
 `JoinHandle<T>`, and any hand-authored `FutureTable<T>`). They are independent
-of the runtime design and must be fixed in the compiler.
+of the runtime design and must be fixed in the compiler. B11, B12, B14, B15,
+B16 and B17 are fixed; **B10 remains open** and is the only hard compiler
+blocker left for a fully generic runtime.
 
 ### B10 — Generic function *references* are not parsed or instantiated (HIGH)
 
@@ -481,7 +486,7 @@ node each side references; the main suites stay green (2186/2187). It does not,
 by itself, unblock the runtime because B12 and the LLVM function-typed-field
 crash remain for hand-written generic vtables.
 
-### B12 — Generic structs with generic function-typed fields are not specialized (2c) (MEDIUM)
+### B12 — Generic structs with generic function-typed fields are not specialized (2c) (MEDIUM) — ✅ FIXED
 
 ```chemical
 public struct FT<T> {
@@ -490,23 +495,32 @@ public struct FT<T> {
 @retained public func <T> make() : FT<T> {
     return FT<T> { poll : (frame, cx) => Poll.Pending<T>() }
 }
-// [2cTranslation] error: generic type parameter not specialized ...
+// was: [2cTranslation] error: generic type parameter not specialized ...
 ```
 
-Declaring/`zeroed`-ing `FT<int>` is fine; the failure needs a generic function
+Declaring/`zeroed`-ing `FT<int>` was fine; the failure needed a generic function
 that **constructs the struct and assigns a lambda** to the function-typed field.
 
 Root cause (instrumented): `link_lambda` sets the lambda's `returnType` to the
-**shared master field** `FunctionType` (`Poll<FT_T>`). During instantiation,
-`GenericInstantiator::make_gen_type_concrete` maps `FT_T -> make_T` (the outer
-param) and does **not** follow the chain to the concrete `int`, because nested
-instantiators created by `newGenericInstantiatorFrom` do **not** inherit the
-parent's `active_type_map`. The shared master `FunctionType` is also mutated in
-the `make<T>` master context (`FT_T -> make_T`), which then leaks into the
-concrete instantiation. Fixing this needs either (a) chain/cross-instantiator
-resolution of `active_type_map`, or (b) never sharing the master field
-`FunctionType` with a lambda's expected type. Both are invasive; not attempted
-here.
+**master member's** `FunctionType` return type, which is written in terms of the
+*container's* generic parameters (`FT_T`). During `make<int>` instantiation the
+current instantiator's `active_type_map` only contains the *function's*
+parameters (`make_T -> int`); the container is specialized by a nested
+instantiator whose map is discarded. `FT_T` was therefore never replaced and
+reached 2c unspecialized.
+
+Fix (`compiler/generics/GenericInstantiator.cpp::VisitStructValue`): visit the
+value's referenced type first (so a generic container is specialized before its
+initializers are visited), then — once the concrete container is known — activate
+that container's instantiation (container params → concrete args) in the current
+`active_type_map` while visiting the field initializers, restoring the previous
+mapping afterwards. This replaces the container's parameters inside function
+typed initializers (lambdas) with the concrete types.
+
+Verified: the minimal repro and a real `core::async::FutureTable<T>` built from a
+generic function (both TCC and LLVM), a regression test in
+`lang/tests/src/generic/basic.ch` (confirmed to fail before the fix), and the full
+matrix green (main 2187/2188, libs 624/624, async 33/33).
 
 ### B17 — Order-dependent LLVM crash declaring a comptime-const `StructValue` (HIGH) — ✅ FIXED
 
@@ -538,6 +552,27 @@ an error (`calling a non-retained function in a public generic declaration`). Th
 runtime worked around it by making helpers `public` and wrapping the
 `ThreadPool::submit_void` call in a non-generic shim. Worth documenting for
 library authors; not a hard blocker.
+
+### B18 — Moving a non-`Copy` generic value out of a pointed-to struct (LOW / by design)
+
+Not a B12 case, but discovered while validating the runtime's generic vtable. A
+generic `FutureTable<T>` poll that reads a `T` field out of the heap frame is
+rejected during generic-instantiation symres:
+
+```chemical
+var st = frame as *mut FrameState<T>
+return core::async::Poll.Ready<T>(st.value)   // moves `st.value` out of the pointee
+// error: cannot move this value without re-initializing memory, use std::replace ...
+```
+
+The move check is correct — for a `T` with a destructor this would double-free
+the field when the frame is dropped. It triggers because the parameter has no
+`COPY_BIT` (the master generic body is not specialized with concrete `Copy`
+bits). Options for the runtime, not the compiler: bound the parameter
+(`<T>` where the concrete types are `Copy`), read through a pointer in an
+`unsafe` block, or have the poll mark the payload as taken before returning it.
+Documented so the executor's `JoinHandle<T>`/`spawn_blocking<T>` use the
+non-moving idiom.
 
 ### B14 — Capturing lambda inside a generic async func crashed LLVM (HIGH) — ✅ FIXED
 
@@ -629,14 +664,13 @@ Verified on LLVM **and** TCC: bare `std::vector<u8>` and
 longer double-free; no regressions (main 2186/2187, main `debug_complete` 2187,
 async 33/33, libs 624/624). This unblocks `process` async wrappers.
 
-**Consequence.** Until B10/B12 land, the runtime can only create
-`FutureTable` entries for *concrete* `T` (as `yield_now`/`sleep` do with
-`Unit`). A generic `async func` body *can* drive a generic state struct (this was
-prototyped for `spawn_blocking<T>` and runs on TCC and, since B14, on LLVM). The
-pragmatic near-term path is to keep generic combinators (`spawn_blocking<T>`,
-`timeout<T>`) out of the runtime and implement library async wrappers with
-compiler-lowered `async func` bodies instead (done for `fs`, §7 Tier 4; `process`
-can follow now that B16 is fixed).
+**Consequence.** With B12 fixed, the runtime can construct generic
+`FutureTable<T>` entries and generic combinators (`spawn_blocking<T>`,
+`timeout<T>`, `JoinHandle<T>`) using inline non-capturing lambdas; B10 is only
+needed if they are expressed with generic function *references* (`ident<int>`).
+Library async wrappers continue to use compiler-lowered `async func` bodies
+(done for `fs`, §7 Tier 4; `process` can follow now that B16 is fixed). Watch
+B18 when the future payload is a non-`Copy` `T` owned by the frame.
 
 ---
 

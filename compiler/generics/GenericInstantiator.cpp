@@ -270,17 +270,70 @@ void GenericInstantiator::VisitPatternMatchExpr(PatternMatchExpr* value) {
 }
 
 void GenericInstantiator::VisitStructValue(StructValue *val) {
-    RecursiveVisitor<GenericInstantiator>::VisitStructValue(val);
-    const auto linked = val->linked_extendable();
+    // visit the referenced type first: if it is a generic container, this creates
+    // (and relinks to) its concrete instantiation before the field initializers are
+    // visited, so the specialized member types are available below
+    auto refTypeLoc = val->getRefTypeLoc();
+    if(refTypeLoc) {
+        const auto prev_ref = refTypeLoc.getType();
+        visit(refTypeLoc);
+        if(prev_ref != refTypeLoc.getType()) {
+            val->setRefType(refTypeLoc);
+        }
+    }
+
+    auto linked = val->linked_extendable();
     if(linked && linked->generic_parent != nullptr && linked->generic_instantiation == -1) {
         // we can see that this container is generic and it's the master implementation
         // we only give master implementation generic instantiation equal to -1
-        // so now we will specialize it, the above recursive visitor must have already replaced the refType
+        // so now we will specialize it, the above visit must have already replaced the refType
         auto instantiator = newGenericInstantiatorFrom(*this);
         GenericInstantiatorAPI genApi(&instantiator);
         val->resolve_container(diagnoser);
         // struct values in generic bodies need signature finalization of the specialized container
         val->ensure_specialized_container(genApi, diagnoser, getRequirement());
+        linked = val->linked_extendable();
+    }
+
+    // The members of a specialized generic container are typed in terms of the
+    // container's own generic parameters. A field initializer (for example a lambda
+    // assigned to a function typed member) is linked against the master member type,
+    // so it can still reference those parameters. Activate the container's
+    // instantiation while visiting the initializers, so the parameters are replaced
+    // by their concrete types. Without this, the parameters survive symbol
+    // resolution and reach codegen unspecialized.
+    if(linked != nullptr && linked->generic_parent != nullptr && linked->generic_instantiation >= 0) {
+        auto* gen_decl = linked->generic_parent;
+        const auto itr = (size_t) linked->generic_instantiation;
+        std::lock_guard<std::recursive_mutex> lock(registration_mutex);
+        auto instantiations = container.getInstantiationTypesFor(gen_decl);
+        if(itr < instantiations.size()) {
+            auto types = instantiations[itr];
+            std::vector<std::pair<GenericTypeParameter*, BaseType*>> prev;
+            prev.reserve(gen_decl->generic_params.size());
+            const auto count = gen_decl->generic_params.size() < types.size() ? gen_decl->generic_params.size() : types.size();
+            for(size_t i = 0; i < count; i++) {
+                const auto param = gen_decl->generic_params[i];
+                auto found = active_type_map.find(param);
+                prev.emplace_back(param, found != active_type_map.end() ? found->second : nullptr);
+                active_type_map[param] = types[i];
+            }
+            for(auto& value : val->values) {
+                visit_it(value.second.value);
+            }
+            for(auto& [param, old] : prev) {
+                if(old != nullptr) {
+                    active_type_map[param] = old;
+                } else {
+                    active_type_map.erase(param);
+                }
+            }
+            return;
+        }
+    }
+
+    for(auto& value : val->values) {
+        visit_it(value.second.value);
     }
 }
 

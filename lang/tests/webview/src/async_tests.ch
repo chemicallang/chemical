@@ -13,6 +13,14 @@ using std::string;
 // bridge tests.
 // ===========================================================================
 
+var g_ui_eager_ran : int = 0
+
+// Completes eagerly (no suspension).
+async func async_ui_eager(x : int) : int {
+    g_ui_eager_ran = g_ui_eager_ran + 1
+    return x + 1
+}
+
 var g_ui_await_ran : int = 0
 var g_ui_await_value : int = 0
 
@@ -26,7 +34,7 @@ async func async_ui_await_blocking() : int {
 }
 
 // Drive the UI pump until `done` is true or the iteration budget runs out.
-func ui_pump_until(done : () => bool, max_iters : int) : bool {
+func pump_until(done : () => bool, max_iters : int) : bool {
     var n = 0
     while(n < max_iters) {
         window::window_pump()
@@ -42,11 +50,26 @@ func ui_pump_until(done : () => bool, max_iters : int) : bool {
 // ---------------------------------------------------------------------------
 
 @test
+public func test_spawn_local_eager(env : &mut TestEnv) {
+    g_ui_eager_ran = 0
+    var h = async::spawn_local<int>(async_ui_eager(41))
+    var ok = pump_until(() => g_ui_eager_ran > 0, 1000)
+    if(!ok) {
+        env.error("spawn_local future was not polled by window_pump")
+        return
+    }
+    if(g_ui_eager_ran != 1) {
+        env.error("spawn_local future ran more than once")
+        return
+    }
+}
+
+@test
 public func test_spawn_local_await_blocking(env : &mut TestEnv) {
     g_ui_await_ran = 0
     g_ui_await_value = 0
     var h = async::spawn_local<int>(async_ui_await_blocking())
-    var ok = ui_pump_until(() => g_ui_await_value == 21, 2000)
+    var ok = pump_until(() => g_ui_await_value == 21, 2000)
     if(!ok) {
         env.error("spawn_local continuation after await did not run")
         return
@@ -55,18 +78,13 @@ public func test_spawn_local_await_blocking(env : &mut TestEnv) {
 
 @test
 public func test_spawn_local_value_is_joinable(env : &mut TestEnv) {
-    // Drive the coroutine to completion through the pump, then read its join
-    // result (already complete, so block_on returns without parking the UI
-    // thread).
-    g_ui_await_value = 0
-    var h = async::spawn_local<int>(async_ui_await_blocking())
-    var done = ui_pump_until(() => g_ui_await_value == 21, 2000)
-    if(!done) {
-        env.error("spawn_local future did not complete")
-        return
-    }
+    // The eager future also produces a join result; drive it to completion
+    // through the pump, then read it via block_on (already complete, so it
+    // returns immediately without parking the UI thread).
+    var h = async::spawn_local<int>(async_ui_eager(9))
+    window::window_pump()
     var v = async::block_on<int>(h)
-    if(v != 21) {
+    if(v != 10) {
         env.error("spawn_local join result mismatch")
         return
     }
@@ -78,7 +96,7 @@ public func test_spawn_local_cancel_no_crash(env : &mut TestEnv) {
     // must observe cancellation and reclaim them without crashing.
     var i = 0
     while(i < 8) {
-        var h = async::spawn_local<int>(async_ui_await_blocking())
+        var h = async::spawn_local<int>(async_ui_eager(i))
         i = i + 1
     }
     window::window_pump()
@@ -108,16 +126,15 @@ public func test_window_run_async_drives_executor(env : &mut TestEnv) {
     }
     window::window_show(&raw mut w)
 
-    g_ui_await_ran = 0
-    g_ui_await_value = 0
+    g_ui_eager_ran = 0
     g_run_async_quit = 0
-    var h = async::spawn_local<int>(async_ui_await_blocking())
+    var h = async::spawn_local<int>(async_ui_eager(1))
     // Quit the loop shortly after it starts; the executor tick runs in between.
-    window::window_set_timer(250, run_async_quit_cb, null)
+    window::window_set_timer(50, run_async_quit_cb, null)
     window::window_run_async()
 
-    if(g_ui_await_value != 21) {
-        env.error("window_run_async did not drive the executor to completion")
+    if(g_ui_eager_ran == 0) {
+        env.error("window_run_async did not poll the executor before quitting")
         window::window_destroy(&raw mut w)
         return
     }

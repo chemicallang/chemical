@@ -115,7 +115,15 @@ void VarInitStatement::code_gen(Codegen &gen) {
         // why are we doing this here ?
         // well value can contain something that hasn't been declared yet
         // so we have to wait for all calls to code_gen_declare to complete
-        global->setInitializer((llvm::Constant*) initializer_value(gen));
+        const auto init_v = initializer_value(gen);
+        // Defensive: `setInitializer(nullptr)` would leave a non-extern global
+        // without an initializer, which is invalid IR (B27). A null initializer
+        // here means "no value yet" — zero it rather than emit a declaration.
+        if (init_v == nullptr) {
+            global->setInitializer(llvm::Constant::getNullValue(llvm_type(gen)));
+        } else {
+            global->setInitializer((llvm::Constant*) init_v);
+        }
         return;
     } else {
         // Inside a lowered async function, a cross-await local's storage is a

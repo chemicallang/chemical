@@ -1,28 +1,30 @@
 // The single, explicit bridge from synchronous to asynchronous code
-// (design D12). Blocking `block_on` is the bootstrap executor: it drives a
-// future handle to completion on the current thread, then drops the handle
-// (which cancels/frees the frame).
+// (design D12). Blocking `block_on` drives a future handle to completion on the
+// current thread, draining the executor's spawned tasks between polls, then
+// drops the handle (which cancels/frees the frame).
 //
-// On `Pending` the thread parks for a short interval before re-polling rather
-// than busy-spinning. This makes clock-driven futures (`async::sleep`) and
-// futures completed from another thread (`async::spawn_blocking`) work without
-// requiring the future to own a waker. The full executor/reactor (design
-// Section 12) replaces this with condvar parking + readiness wakeups.
+// On `Pending` it polls each outstanding spawned task once and parks for a
+// short interval (or until a waker notifies the executor) before re-polling.
+// This makes clock-driven futures (`async::sleep`), thread-pool completions
+// (`async::spawn_blocking`) and `spawn`ed tasks all make progress without every
+// future owning a waker. A readiness reactor (Tier 1) replaces the timed park
+// with real readiness wakeups.
 public namespace async {
 
 public func <T> block_on(handle : core::async::FutureHandle<T>) : T {
+    var e = executor()
     var cx = core::async::Context {
-        waker : core::async::Waker { data : null, vtbl : null }
+        waker : exec_make_waker(e)
     }
     var out : T = loop {
         var r = handle.vtbl.poll(handle.frame, &raw mut cx)
         if(r is core::async::Poll.Ready) {
             var Ready(value) = r else unreachable
             break value
-        } else {
-            std::concurrent.sleep_ms(1u)
-            continue
         }
+        executor_poll_tasks(e, 4096u)
+        executor_wait(e, 1u)
+        continue
     }
     return out
 }

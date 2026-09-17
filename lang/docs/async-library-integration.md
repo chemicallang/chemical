@@ -80,24 +80,27 @@ depends on (design D10). **No library needs to depend on `async` to use
 
 | Component | Present? | Notes |
 |---|---|---|
-| `block_on<T>(handle) : T` | ✅ | bootstrap executor; parks ~1ms on `Pending` (not a busy spin) |
+| `block_on<T>(handle) : T` | ✅ | bootstrap executor; also drains the task queue and parks (condvar, ~1ms) on `Pending` |
 | `chemical_async_frame_alloc` / `_free` | ✅ | `malloc`/`free` default |
 | `yield_now() : FutureHandle<Unit>` | ✅ | first hand-authored runtime future (no reactor) |
 | `sleep(millis) : FutureHandle<Unit>` | ✅ | poll-driven clock future |
 | `test::block_on<T>` | ✅ | deterministic executor for `--libs` tests |
-| `spawn` / task queue / executor | ❌ | generic futures now work (B12 fixed); still to be implemented |
+| `spawn<T>` + task queue + executor | ✅ | `lang/libs/async/src/exec.ch` — process-wide polling executor; join handle, cancellation; `spawn_local` alias |
 | `spawn_blocking<T>` | ✅ | `lang/libs/async/src/blocking.ch` — submits to a shared lazily-created `std::concurrent::ThreadPool`; cancellation-safe; see B19 for capture/result limits |
-| `timeout` / `select` | ❌ | blocked by §12 (generic future tables) |
-| Reactor (epoll/kqueue/IOCP) | ❌ | needed for async socket I/O |
+| `select<T>` / `timeout_or<T>` / `block_on_timeout<T>` | ✅ | `lang/libs/async/src/combinators.ch` — same-payload-typed combinators (B20); no `Result`/`Either`-typed vtable |
+| Reactor (epoll/kqueue/IOCP) | ❌ | needed for async socket I/O (Tier 1) |
 | `channel` | ❌ | later phase |
 
 **Landed.** Runtime: `async::{yield_now, sleep, test::block_on}`, a parking
-`block_on`, and `spawn_blocking<T>` (F4/F5) — a cancellation-safe bridge over a
-shared, lazily-created `std::concurrent::ThreadPool` (`lang/libs/async/src/
-blocking.ch`). Compiler fixes B10, B11, B12, B14, B15, B16, B17 plus a 2c
+`block_on`, an executor with `spawn<T>`/`spawn_local<T>`, the `select` /
+`timeout_or` / `block_on_timeout` combinators, and `spawn_blocking<T>` (F4/F5) —
+a cancellation-safe bridge over a shared, lazily-created
+`std::concurrent::ThreadPool` (`lang/libs/async/src/blocking.ch`).
+Compiler fixes B10, B11, B12, B14, B15, B16, B17, B19, B21 plus a 2c
 nested-lambda fix (a lambda declared inside an `async func` no longer inherits
 the coroutine state, so its `return` is emitted as an ordinary synchronous
-return — the 2c analogue of B14).
+return — the 2c analogue of B14). B20 (a vtable whose type argument is a
+composite generic) is worked around, not fixed.
 
 Library integration (all additive):
 - `fs::{read_entire_file_async, write_text_file_async, atomic_write_async}` —
@@ -111,10 +114,10 @@ Library integration (all additive):
   bodies (quick syscalls); `sleep_ms_async` is timer-backed and genuinely
   suspends.
 
-Tests: `--libs` on **both** backends — 6 async runtime + 3 fs + 1 environment +
-8 `spawn_blocking` = **630/630**; `--process` (dedicated suite) — 6 async tests,
-**126/126** on both backends; `--async` **33/33**; main suite green (2190 TCC /
-2191 LLVM); interpret 1811/1811.
+Tests: `--libs` on **both** backends — 6 async runtime + 10 executor/combinator +
+3 fs + 1 environment + 8 `spawn_blocking` = **642/642**; `--process` (dedicated
+suite) — 6 async tests, **127/127** on both backends; `--async` **33/33**; main
+suite green (2190 TCC / 2191 LLVM); interpret 1811/1811.
 
 ### 3.4 Libraries
 
@@ -268,15 +271,22 @@ Additive to a package that is already async-only, so no compatibility risk.
 Deliver, in order:
 
 - `async::test::block_on` — deterministic executor with no reactor (also usable
-  in `@test`).
-- `Executor` + task queue + `spawn<T>(FutureHandle<T>)`; per-thread default
-  (design D7).
-- `sleep`/`timeout` (timer wheel), `select`.
+  in `@test`). ✅
+- `Executor` + task queue + `spawn<T>(FutureHandle<T>)`; process-wide default
+  (design D7). ✅ (`lang/libs/async/src/exec.ch`)
+- `sleep` ✅; `timeout`/`select` ✅ as `combinators.ch` — `select<T>(a, b)`
+  (homogeneous race), `timeout_or<T>(h, millis, fallback)` (cancels on timeout),
+  and the synchronous `block_on_timeout<T>`. They return the child's payload
+  type directly, because a vtable whose argument is a *composite* generic
+  (`FutureTable<Result<T, E>>`) is not yet supported (B20).
 - `spawn_blocking<T>(f : std::function<() => T>) : FutureHandle<T>` over
   `ThreadPool::submit` — ✅ landed (`lang/libs/async/src/blocking.ch`).
-- `AsyncSocket`-supporting reactor (epoll/kqueue; IOCP reuse on Windows).
-- Current-thread mode + `spawn_local` (for F8/UI libs).
-- A `channel` (M6, optional for v1).
+- `AsyncSocket`-supporting reactor (epoll/kqueue; IOCP reuse on Windows). ❌ —
+  the remaining Tier 0 item; it is the prerequisite for Tier 1 (`net`).
+- Current-thread mode + `spawn_local` (for F8/UI libs). ✅ `spawn_local` is an
+  alias of `spawn` (the executor is process-wide and there is no `Send`);
+  a true UI-thread-marshalling executor comes with Tier 5.
+- A `channel` (M6, optional for v1). ❌ deferred.
 
 ### Tier 1 — `net`
 
@@ -330,7 +340,7 @@ Deliver, in order:
   entry points (`try_wait_async`, `kill_process_async`, `write_stdin_async`,
   `close_stdin_async`, `is_running_async`) are quick non-blocking syscalls and
   keep direct bodies; `sleep_ms_async` is timer-backed and genuinely suspends.
-  Tests: 6 in `lang/tests/process/src/async_test.ch` (126/126 both backends).
+  Tests: 6 in `lang/tests/process/src/async_test.ch` (127/127 both backends).
 - **Done:** `fs`, `environment` and `process` are all integrated. The remaining
   Tier 4 work is only the reactor-backed I/O (Tiers 1–3).
 
@@ -460,9 +470,10 @@ and it changes **no** public API.
 Building the runtime exposed concrete compiler gaps that block the generic
 layers (`spawn_blocking<T>`, `timeout<T>`, the executor's awaitable
 `JoinHandle<T>`, and any hand-authored `FutureTable<T>`). They are independent
-of the runtime design and must be fixed in the compiler. **All are fixed** —
-B10, B11, B12, B14, B15, B16 and B17 — so a fully generic runtime is no longer
-blocked by the compiler.
+of the runtime design and must be fixed in the compiler. B10, B11, B12, B14,
+B15, B16, B17, B19 and B21 are **fixed**; B13 and B18 are by-design/documented,
+and B20 (composite generic arguments in a generic body) is **worked around** —
+the runtime avoids vtables parameterized by composite generic types.
 
 ### B10 — Generic function *references* are not parsed or instantiated (HIGH) — ✅ FIXED
 
@@ -661,6 +672,56 @@ With all three fixed, `process::execute_async`/`spawn_async`/`wait_async` offloa
 to `spawn_blocking`. Verified: main 2190/2190 (TCC) 2191/2191 (LLVM), interpret
 1811/1811, `--libs` 630/630 (TCC and LLVM), `--process` 126/126 (TCC and LLVM),
 `--async` 33/33.
+
+### B20 — Field access on a concrete generic type inside a generic body (MEDIUM — worked around)
+
+Found building the Tier 0 executor. Inside a generic function, accessing a field
+of a generic type instantiated with a *composite* argument resolves to the
+master's field type, not the substituted one:
+
+```chemical
+public func <T> spawn_like(h : core::async::FutureHandle<T>) : int {
+    var tt = malloc(sizeof(core::async::FutureTable<core::async::Unit>)) as *mut ...FutureTable<...Unit>
+    tt.poll = unit_ok           // error: '...Poll<Unit>' does not satisfy '...Poll<T>'
+}
+```
+
+The type reported is `Poll<T>` — the master `FutureTable` parameter — because in
+a generic body `SymResLinkBody::VisitGenericType` only calls `instantiate_inline`
+(the full `instantiate` is deferred to the caller's monomorphization), so
+`referenced->linked` stays the master and member accesses link against
+unsubstituted members. It also affects calls: calling a generic function with a
+type argument that contains the caller's generic parameter (or any composite
+generic) from within a generic function returned the callee's parameter type
+(`GenericFuncDecl::instantiate_call` canonicalized explicit args with
+`BaseType::canonical()`, which unwraps an uninstantiated `Foo<X>` to the master
+`Foo<T>`). **Partially fixed:** `GenericFuncDecl::instantiate_call` now preserves
+`GenericType` arguments. **Not fixed:** the field-access resolution; making
+`VisitGenericType` instantiate in a generic context aborts (`unexpected generic
+type parameter usage`) on `std` partially-applied generics.
+
+**Workarounds used by the runtime** (and the rule for library authors):
+- type-erase task/executor bookkeeping through *non-generic* vtable structs
+  (`TaskVTable`, `RawTask` in `exec.ch`);
+- write vtable types with a bare generic parameter (`FutureTable<T>`,
+  `FutureTable<R>`), never a composite of parameters
+  (`FutureTable<Result<T, E>>`). This is why `select`/`timeout_or` return the
+  child payload type directly rather than `Either<A, B>`/`Result<T, TimedOut>`.
+
+### B21 — `await` of a *stored* future handle double-dropped it (HIGH) — ✅ FIXED
+
+`var j = spawn(...); var v = await j` destroyed the handle twice. The 2c
+lowering emitted `frame.__chx_child_i = j;` as a plain copy and left `j`'s frame
+drop flag set, so the child (which the await drops when it resolves) and the
+local both dropped the same frame → `invalid memory access` in
+`FutureHandle.delete`. Awaiting a *temporary* (`await spawn(...)`) was unaffected
+(the temporary has no drop flag). Fix (2c): after storing the child, clear the
+consumed operand's frame drop flag via `set_moved_ref_drop_flag`
+(`preprocess/2c/2cASTVisitor.cpp`, `emit_async_await_var_init`). Fix (LLVM):
+after memcpy-ing the child handle into the frame, null the source handle's
+`{frame, vtbl}` fields so its destructor is a no-op
+(`compiler/backend/LLVMCoroutine.cpp`, `gen_llvm_await`). Tests:
+`lang/tests/libs/async/exec_test.ch::test_async_spawn_await_inside_async`.
 
 ### B14 — Capturing lambda inside a generic async func crashed LLVM (HIGH) — ✅ FIXED
 

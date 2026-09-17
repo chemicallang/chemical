@@ -118,15 +118,18 @@ Library integration (all additive):
 Tests: `--libs` on **both** backends — 6 async runtime + 10 executor/combinator +
 5 channel + 3 reactor + 3 fs + 1 environment + 8 `spawn_blocking` = **650/650**;
 `--process` (dedicated suite) — 6 async tests, **127/127** on both backends;
-`--async` (dedicated; includes the loopback `net` test) **34/34**; main suite
-green (2190 TCC / 2191 LLVM); interpret 1811/1811.
+`--async` (dedicated; includes the loopback `net` test) **34/34**; `--tls`
+(dedicated; includes the async TLS 1.3 handshake test) **572 TCC / 570 passed**
+(2 pre-existing `BAD_SIGNATURE` failures; the LLVM full run is flaky under
+parallel dispatch, the async test passes in isolation); main suite green
+(2190 TCC / 2191 LLVM); interpret 1811/1811.
 
 ### 3.4 Libraries
 
 | Library | Current API (must be preserved) | Blocking on | Async benefit | Tier |
 |---|---|---|---|---|
 | `net` | `dial`, `listen_addr`, `accept_socket`, `recv_all`, `send_all`, `close_socket`, `set_recv_timeout`, `set_keep_alive`; `Socket = usize` | connect/accept/read/write | many sockets on one thread | 1 (**done**: `AsyncSocket`, `dial_async`/`accept_async`/`recv_async`/`send_async`) |
-| `tls` | `tls_connect`, `ssl_handshake`, `ssl_read`, `ssl_write`, `ssl_close_notify`, `ssl_free`, `ssl_set_socket`, `tls_accept` | full multi-RTT handshake + records, calling `net::send_all`/`recv_all` directly | overlap handshakes; async record I/O | 2 |
+| `tls` | `tls_connect`, `ssl_handshake`, `ssl_read`, `ssl_write`, `ssl_close_notify`, `ssl_free`, `ssl_set_socket`, `tls_accept` | full multi-RTT handshake + records, calling `net::send_all`/`recv_all` directly | overlap handshakes; async record I/O | 2 (**done**: `tls_connect_async`/`ssl_handshake_async`/`ssl_read_async`/`ssl_write_async`/`tls_accept_async`) |
 | `http` | `Client::request/get/post/put/patch/delete/head`; `Server::serve`, `Server::serve_async` (thread), `Body::read/read_to_string/read_exact/drain/close`; parsers `read_request_incremental`, `read_response_incremental` | dial → TLS → send → incremental read; worker-thread accept loop | `request_async`, per-connection tasks, streaming bodies | 3 |
 | `fs` | `read_entire_file`, `atomic_write`, `read_to_buffer`, directory ops | disk syscalls | don't stall the executor | 4 |
 | `process` | `execute`, `spawn`, `wait`, `try_wait`, `write_stdin`, `close_stdin`, `kill_process`, `is_running`, `sleep_ms` | child + pipes | awaitable child/pipes; `test_env` IPC | 4 |
@@ -319,14 +322,33 @@ untouched. `net` now imports `core` + `async`.
 - Still open for a follow-up: an epoll/kqueue registration for scale (the
   reactor is `select(2)`, ~1024 fds) and the Windows IOCP path.
 
-### Tier 2 — `tls`
+### Tier 2 — `tls` — ✅ DONE
 
-- Add `tls_connect_async`, `ssl_handshake_async`, `ssl_read_async`,
-  `ssl_write_async`.
-- Internals: replace the direct `net::send_all`/`recv_all` calls
-  (`tls/src/ssl.ch:2100,2107`) with the transport vtable; the default vtable is
-  the current blocking calls. `tls_connect` (`:5742`) keeps calling `net::dial`;
-  async gets a separate entry point.
+`lang/libs/tls/src/async.ch` (new), additive — the synchronous API is unchanged.
+`tls` now depends on `async` (see the build-system note below).
+
+- `tls_connect_async(ssl, host, port)`, `ssl_handshake_async(ssl)`,
+  `ssl_read_async(ssl, buf, len)`, `ssl_write_async(ssl, data, len)`,
+  `tls_accept_async(sock, cert, key)`.
+- All offload their blocking work to the runtime thread pool via
+  `async::spawn_blocking` (the handshake is multi-RTT and record I/O blocks),
+  so the executor keeps running and many handshakes overlap, bounded by pool
+  size. Pointer/int-only payloads (B23/B24).
+- **Deferred:** the transport vtable (`net::send_all`/`recv_all` →
+  function pointers on `SSLContext`). A non-blocking transport can only suspend
+  if the handshake itself is a coroutine state machine, which the synchronous
+  library is not structured for; `spawn_blocking` gives the v1 concurrency.
+  The direct calls remain at `tls/src/ssl.ch:2099,2106`.
+- Tests: `lang/tests/tls/src/async_test.ch` (real TLS 1.3 handshake + request
+  over the async API) in the dedicated `--tls` suite. TCC full suite:
+  572 tests / 570 pass (2 pre-existing `BAD_SIGNATURE` failures); the async
+  test passes on both backends (verified in isolation on LLVM — the LLVM full
+  `--tls` run is flaky under parallel test dispatch).
+
+> **Build-system note:** `lang/libs/tls/` has a hand-written `build.lab` that
+> lists module dependencies explicitly; adding a dependency to `chemical.mod`
+> alone is not enough — it must also be added to `build.lab` (deps array +
+> span count). This is why `tls` initially could not see the `async` namespace.
 - Highest value: the handshake is multi-RTT, so overlapping it is the big win.
 
 ### Tier 3 — `http`

@@ -222,9 +222,13 @@ public func <T> spawn_task_poll(frame : *mut void, cx : *mut core::async::Contex
         if(!cancelled_now) {
             st.result = r
             st.done = true
-            var w = st.waker.clone()
-            st.m.unlock()
-            w.wake()
+            if(st.waker.vtbl != null) {
+                var w = st.waker.clone()
+                st.m.unlock()
+                w.wake()
+            } else {
+                st.m.unlock()
+            }
         } else {
             st.m.unlock()
         }

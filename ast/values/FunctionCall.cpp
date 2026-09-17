@@ -1240,7 +1240,9 @@ void FunctionCall::infer_generic_args(ASTAllocator& allocator, ASTDiagnoser& dia
             }
         }
         const auto values_size = values.size();
-        while(arg_offset < values_size) {
+        // guard against calls whose argument list is longer than the parameter
+        // list (e.g. a member call where `values` includes the receiver)
+        while(arg_offset < values_size && arg_offset < func->params.size()) {
             const auto param = func->params[arg_offset];
             const auto param_type = param->type;
             const auto arg_type_loc = values[arg_offset]->encoded_location();

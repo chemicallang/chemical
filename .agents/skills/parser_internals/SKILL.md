@@ -255,6 +255,26 @@ Statement parsing dispatches on the first token. Top-level dispatch lives in `Pa
 | `asm` | Inline assembly statement |
 | Other | Expression / assignment statement |
 
+### Async / Await Parsing (contextual keywords)
+
+`async` and `await` are **contextual** keywords: they must remain usable as
+identifiers (e.g. the `async` namespace, an `async` field). The parser
+distinguishes by position:
+
+- `Token::isKeywordOrId` accepts `async`/`await` in name/path/type position;
+  `Parser::consumeIdentifierOrKeyword` and `read_type_involving_token` consume
+  them as identifiers. A value dispatch has an explicit `async::path`
+  disambiguation so `async::block_on(...)` parses as a namespaced call.
+- An `async` followed by `func` is an async function declaration
+  (`parser/structures/Function.cpp`); `async` followed by a lambda introduces an
+  async closure (`Parser::parseAsyncClosureValue`,
+  `parser/values/LambdaValue.cpp`, called from `AccessChain.cpp`,
+  `LexStatement.cpp`, `LexValue.cpp`). Async closures parse but are rejected in
+  symres.
+- `await expr` is an expression (`AwaitExpression`), so `var v = await f()` and
+  `return await f()` parse; a bare `await f()` **statement** does not — see the
+  `chemical_source` skill.
+
 ### Error Recovery
 
 The parser uses basic error recovery:

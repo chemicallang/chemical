@@ -161,6 +161,23 @@ This visitor resolves **type signatures only** — never enters function bodies:
 
 3. **Inline instantiations**: When a `GenericType` is encountered in a signature, an inline instantiation is requested. These are stored in `inline_instantiations` for processing after the signature pass.
 
+#### Async return-type wrapping
+
+`LinkSignature::visit_func_decl` wraps an `async func f(...) : T`'s parked return
+type into `FutureHandle<T>` when **all** of these hold:
+
+- the active backend lowers async (`lowers_async()` ∈ {`"C"`, `"LLVM"`});
+- the `core::async` protocol is reachable (`coreNodes.async.future_handle != nullptr`);
+- the `async` library (which supplies `chemical_async_frame_alloc`/`_free`) is
+  imported. If only `core` is in scope, the function is **not** wrapped and the
+  diagnoser emits `async functions require the async library; add import async`.
+
+A `void` async result wraps `core::async::Unit` instead of `void`
+(`FutureHandle<void>` is never formed). `FunctionDeclaration::inner_return_type()`
+unwraps the handle back to `T`, and `attrs.is_async` marks the declaration for the
+backends and the type verifier. `AwaitExpression` is linked in the body pass via
+`SymResLinkBody::VisitAwaitExpression` (it unwraps the handle to the inner type).
+
 ## Phase 3: Generic Instantiation Pass
 
 ### GenericInstantiationPass

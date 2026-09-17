@@ -375,6 +375,56 @@ Per-module instantiations are declared/implemented in dedicated loops
 - `dso_local` is set for **non-extern** globals only (`:42-45`); the external path
   clears it (`:195-202`); `comptime const` strings materialize lazily (`:205-231`).
 
+### Async Functions / Coroutines (LLVM)
+
+Lowered by `compiler/backend/LLVMCoroutine.{h,cpp}` (not `LLVM.cpp`). When symres
+has wrapped an `async func`'s return type to `FutureHandle<T>`,
+`FunctionDeclaration::code_gen_body` calls `gen_llvm_async_fn` before the normal
+body emission; `AwaitExpression::llvm_value` routes to `gen_llvm_await` only when
+`gen.current_coro != nullptr` and the awaited operand's type differs from the
+resolved result type (otherwise `await` is transparent/eager).
+
+Generated functions (design §9):
+
+- **ramp**: `coro.id`/`coro.alloc`/`coro.size`/`coro.begin` with the
+  `presplitcoroutine` **enum** attribute, an initial lazy suspend, the body, a
+  final suspend, and a shared `coro.end(i1 false)` return path;
+- **`foo_poll`**: resumes the coroutine, returns `Poll.Ready(result)` or
+  `Poll.Pending`; on completion the wrapper state becomes `0xFFFFFFFF`;
+- **`foo_drop`**: frees the frame. A **completed** coroutine (`0xFFFFFFFF`) has
+  no live locals, so `emit_drop_fn` frees the wrapper + coroutine frames directly
+  instead of calling `coro.destroy` (B22 — `coro.destroy` re-runs the body);
+  not-started (`0`) and suspended (`site+1`) use `coro.destroy`;
+- a `FutureTable<T>` vtable.
+
+Frame ownership: the returned handle's `frame` field points at **our own
+wrapper** `{ coro, state, cx, result }` (fixed offsets 0/1/2/3); the LLVM
+coroutine frame is separate and referenced by `coro`. Normal-completion does
+**not** free the frame (the returned handle owns it); `drop` frees both once.
+
+- **No-await fast path**: a plan with no await sites lowers eagerly via
+  `gen_llvm_async_eager_fn` (tiny heap frame, always-`Ready` poll, freeing drop,
+  no coroutine intrinsics).
+- **Debug info is disabled for the entire async lowering** (`gen.di` off):
+  the coroutine body is emitted via `code_gen_no_scope` and split clones carry
+  invalid scopes (B15). Restoring it needs per-clone `DISubprogram`s.
+- **B27 gotcha (fixed):** `gen_llvm_async_fn` must capture the caller's
+  `current_function` at entry and restore it on every exit path — capturing it
+  after installing the ramp leaked the coroutine as `current_function`, so
+  module-level `var`s after an `async func` in the same file emitted as *locals*
+  with no initializer (`@x = internal global i32`), an invalid module that
+  crashed `AlwaysInlinerPass`.
+
+Known LLVM limits, all worked around (not fixed) — keep these out of async
+return/parameter types: a plain non-variant struct payload (B23), a large
+struct variant such as `Result<Response, std::string>` through a `FutureHandle`
+(B26), and awaiting a combinator inside a coroutine that is itself polled as a
+task (B25 — the forwarded `Context`/waker is corrupted). Small variants
+(`Result<int, string>`, `Option<...>`) and pointer/int payloads are fine.
+
+Async **closures** are not lowered here (the C backend emits the diagnostic;
+LLVM keeps the eager bootstrap).
+
 ## Debug Info Generation
 
 The `DebugInfoBuilder` generates DWARF debug information:

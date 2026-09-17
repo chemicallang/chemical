@@ -105,14 +105,16 @@ Library integration (all additive):
   the executor.
 - `environment::{get_async, set_async, unset_async}` — direct bodies (cheap
   syscalls; avoids capturing a `string_view` into a worker thread).
-- `process::{execute_async, spawn_async, wait_async, try_wait_async,
-  kill_process_async, write_stdin_async, close_stdin_async, is_running_async,
-  sleep_ms_async}` — v1 direct bodies (see B19); `sleep_ms_async` is
-  timer-backed and genuinely suspends.
+- `process::{execute_async, spawn_async, wait_async}` — offload to
+  `spawn_blocking`; `try_wait_async`, `kill_process_async`,
+  `write_stdin_async`, `close_stdin_async`, `is_running_async` keep direct
+  bodies (quick syscalls); `sleep_ms_async` is timer-backed and genuinely
+  suspends.
 
 Tests: `--libs` on **both** backends — 6 async runtime + 3 fs + 1 environment +
-6 `spawn_blocking` = **630/630**; `--process` (dedicated suite) — 5 async tests,
-**126/126** on both backends; `--async` **33/33**; main suite green.
+8 `spawn_blocking` = **630/630**; `--process` (dedicated suite) — 6 async tests,
+**126/126** on both backends; `--async` **33/33**; main suite green (2190 TCC /
+2191 LLVM); interpret 1811/1811.
 
 ### 3.4 Libraries
 
@@ -318,17 +320,19 @@ Deliver, in order:
   unset_async}` (`lang/libs/environment/src/async.ch`) — symmetric awaitable
   surface; kept direct because the syscalls are cheap and an async body would
   capture a caller `string_view` into a worker thread.
-- **Landed (v1 direct bodies):** `process::{execute_async, spawn_async,
-  wait_async, try_wait_async, kill_process_async, write_stdin_async,
-  close_stdin_async, is_running_async, sleep_ms_async}`
-  (`lang/libs/process/src/async.ch`). `wait_async` reuses `wait` rather than
-  polling `try_wait`, because POSIX `try_wait` reaps without capturing
-  stdout/stderr; this preserves the synchronous result exactly (including
-  wait-after-kill), and `sleep_ms_async` is timer-backed and genuinely suspends.
-  Offloading `execute_async`/`spawn_async`/`wait_async` needs B19 fixed.
-- **Ready to redo:** none — the additive signatures are all in place. The
-  remaining Tier 4 work is converting the `process` bodies to `spawn_blocking`
-  once B19 is fixed.
+- **Landed (true `spawn_blocking`):** `process::{execute_async, spawn_async,
+  wait_async}` (`lang/libs/process/src/async.ch`) now `await
+  async::spawn_blocking(...)`, capturing the `ProcessConfig`/child pointer into
+  the task and moving the nested `ProcessResult` back out of the shared state.
+  `wait_async` reuses `wait` rather than polling `try_wait`, because POSIX
+  `try_wait` reaps without capturing stdout/stderr; this preserves the
+  synchronous result exactly (including wait-after-kill). The remaining process
+  entry points (`try_wait_async`, `kill_process_async`, `write_stdin_async`,
+  `close_stdin_async`, `is_running_async`) are quick non-blocking syscalls and
+  keep direct bodies; `sleep_ms_async` is timer-backed and genuinely suspends.
+  Tests: 6 in `lang/tests/process/src/async_test.ch` (126/126 both backends).
+- **Done:** `fs`, `environment` and `process` are all integrated. The remaining
+  Tier 4 work is only the reactor-backed I/O (Tiers 1–3).
 
 ### Tier 5 — `webview`, `window`
 
@@ -618,34 +622,45 @@ bits). Options for the runtime, not the compiler: bound the parameter
 Documented so the executor's `JoinHandle<T>`/`spawn_blocking<T>` use the
 non-moving idiom.
 
-### B19 — `spawn_blocking` with destructible by-value captures / nested aggregate results (MEDIUM, open)
+### B19 — `spawn_blocking` with destructible by-value captures / nested aggregate results — ✅ FIXED
 
-Found while converting the Tier 4 wrappers to `spawn_blocking`
-(`async::spawn_blocking<T>(f)` stores the worker result by bitwise move and
-takes it out in poll):
+Found while converting the Tier 4 wrappers to `spawn_blocking`. Three distinct
+bugs were involved.
 
-- `fs::*_async` (captures only raw pointers, returns
-  `Result<vector<u8>, FsError>`) works on **both** backends — 630/630 `--libs`.
-- `process::execute_async`/`spawn_async` capture a by-value, destructible
-  `ProcessConfig` (a struct defined in another module). On TCC this compiles but
-  the awaited `Result<ProcessResult, ProcessError>` comes back with a corrupt
-  `stdout_data.data_ptr` (the size field is correct, the pointer is
-  uninitialized garbage).
-- `process::wait_async` offloaded to `spawn_blocking` passes in isolation on
-  LLVM but loses the child's stdout when the full `--process` suite runs on LLVM
-  (it passes on TCC).
+**1. Generic instantiation dedup dropped type arguments.** `get_iteration_for`
+(`ast/utils/ASTUtils.cpp`) compared instantiation args with
+`canonical()->is_same(canonical())`. `BaseType::canonical()` unwraps a
+`GenericType` to a `LinkedType` referring to the generic's *master* declaration,
+so any two instantiations of the same generic compared equal. Concretely,
+`FutureHandle<Result<ProcessResult, E>>`, `FutureHandle<Result<ChildProcess, E>>`
+and `FutureHandle<Result<UnitTy, E>>` all deduped to one `FutureHandle`
+instantiation, so async functions lowered to the wrong `Poll<T>`/`FutureTable<T>`
+(`cannot convert 'Result__cgs__30' to 'int'`). Fix: a
+`canonicalize_instantiation_arg` helper that unwraps type aliases but keeps (stops
+at) a `GenericType` so its arguments still participate in the comparison.
 
-Root cause is in the C-backend (2c) codegen for moving a destructible aggregate
-through a generic/threaded path; it is independent of the runtime design.
+**2. Duplicate module processing.** An app importing both `std` and `process`
+could compile the same logical module through two `LabModule` instances (its
+`chemical.mod` and its generated `build.lab`), parsing every source twice and
+emitting duplicate generic instantiations (`struct ... already defined`). Fix:
+`flatten_dedupe_sorted` now de-duplicates by `scope:name`
+(`compiler/lab/LabBuildCompiler.cpp`).
 
-Related latent bug (not async): an application-module `struct` with `vector`
-fields, compiled by `TCCCompiler`, can emit duplicate generic struct definitions
-in the concatenated translation (`struct/union/enum already defined`).
+**3. `spawn_blocking` result buffer + `std::function` capture.** The old
+implementation stored the worker result in a separate `malloc(sizeof(T))` and had
+the worker closure capture the submitted `std::function`. Two problems: the
+result buffer's first 16 bytes came back overwritten (allocator metadata) and
+tearing down the task double-freed the closure's captured `ProcessConfig`
+(`std::function` heap captures are shallow-copied). Fix: `BlockingState<T>` now
+owns both the task (`task : std::function<() => T>`) and the result
+(`value : std::Option<T>`); the submitted closure captures only the state pointer
+(a small inline capture), and poll `take`s the value out. No separate result
+buffer, no `std::function` capture. (`lang/libs/async/src/blocking.ch`.)
 
-**Workaround (landed):** the `process` wrappers keep v1 direct bodies
-(`wait_async` delegates to `wait`). Their additive signatures and result types
-are unchanged, so the bodies can switch to `spawn_blocking` once B19 is fixed.
-`fs`, whose captures are pointers, remains fully offloaded.
+With all three fixed, `process::execute_async`/`spawn_async`/`wait_async` offload
+to `spawn_blocking`. Verified: main 2190/2190 (TCC) 2191/2191 (LLVM), interpret
+1811/1811, `--libs` 630/630 (TCC and LLVM), `--process` 126/126 (TCC and LLVM),
+`--async` 33/33.
 
 ### B14 — Capturing lambda inside a generic async func crashed LLVM (HIGH) — ✅ FIXED
 

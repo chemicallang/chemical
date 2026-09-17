@@ -8,6 +8,7 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/VariantMember.h"
+#include "ast/statements/Typealias.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/PointerType.h"
@@ -175,6 +176,36 @@ void infer_generic_args(
 
 }
 
+/**
+ * canonicalize a type argument for comparing generic instantiations.
+ *
+ * `BaseType::canonical()` unwraps a `GenericType` to a `LinkedType` referring to
+ * the generic's *master* declaration, dropping the type arguments. Using that as
+ * the instantiation key makes `Foo<Result<int, E>>` and `Foo<Result<bool, E>>`
+ * (or two aliases of the same generic) compare equal, so the second lookup
+ * reuses the first instantiation and its mangled name. Here we unwrap type
+ * aliases but keep (stop at) a `GenericType` so its arguments still take part in
+ * the comparison.
+ */
+static BaseType* canonicalize_instantiation_arg(BaseType* type) {
+    if(type == nullptr) {
+        return nullptr;
+    }
+    if(type->kind() == BaseTypeKind::Generic) {
+        return type;
+    }
+    const auto node = type->get_direct_linked_node();
+    if(node != nullptr && node->kind() == ASTNodeKind::TypealiasStmt) {
+        return canonicalize_instantiation_arg(
+                const_cast<BaseType*>(node->as_typealias_unsafe()->actual_type.getType()));
+    }
+    const auto can = type->canonical();
+    if(can->kind() == BaseTypeKind::Generic) {
+        return can;
+    }
+    return can;
+}
+
 int16_t get_iteration_for(
         const std::span<std::span<BaseType*>>& instantiations,
         std::vector<TypeLoc>& generic_list
@@ -189,7 +220,11 @@ int16_t get_iteration_for(
         j = 0;
         for(const auto instType : instantiation) {
             const auto generic_arg_pure = generic_list[j];
-            if(!generic_arg_pure || !instType->canonical()->is_same(generic_arg_pure->canonical())) {
+            const auto this_arg = canonicalize_instantiation_arg(instType);
+            const auto other_arg = generic_arg_pure
+                    ? canonicalize_instantiation_arg(const_cast<BaseType*>(generic_arg_pure.getType()))
+                    : nullptr;
+            if(other_arg == nullptr || !this_arg->is_same(other_arg)) {
                 all_params_found = false;
                 break;
             }

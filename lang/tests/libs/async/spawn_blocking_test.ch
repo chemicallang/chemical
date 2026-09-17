@@ -32,6 +32,31 @@ func test_async_spawn_blocking_destructible_result(env : &mut TestEnv) {
     }
 }
 
+// A destructible *capture* plus a destructible result: the worker task owns the
+// capture and the result round-trips through the shared state. This is the shape
+// that previously corrupted the heap result buffer (B19).
+@test
+func test_async_spawn_blocking_destructible_capture(env : &mut TestEnv) {
+    var name = std::string("hello-world")
+    var v = async::block_on(async::spawn_blocking<int>(|name|() => name.size() as int))
+    if(v != 11) {
+        env.error("spawn_blocking destructible capture size mismatch")
+    }
+}
+
+async func sb_capture_and_return(name : std::string) : std::string {
+    var r = await async::spawn_blocking<std::string>(|name|() => name.copy())
+    return r
+}
+
+@test
+func test_async_spawn_blocking_capture_and_return(env : &mut TestEnv) {
+    var s = async::block_on<std::string>(sb_capture_and_return(std::string("hello-world")))
+    if(s.size() != 11u) {
+        env.error("spawn_blocking capture+return string size mismatch")
+    }
+}
+
 // Await a blocking task from inside a compiler-lowered async function.
 async func sb_await_in_async(x : int) : int {
     var v = await async::spawn_blocking<int>(|x|() => x * 3)

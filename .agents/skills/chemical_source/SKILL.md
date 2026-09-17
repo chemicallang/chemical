@@ -1298,14 +1298,15 @@ supported yet, B20).
 - **Await a stored handle by value**: `var j = async::spawn(...); var v = await j`
   is correct (the compiler clears `j`'s drop flag). Never await the same handle
   twice.
-- **Keep future payloads simple** (ints, pointers, small variants, small
-  structs). Known LLVM/2c limits, worked around in the libraries but not fixed:
-  a plain non-variant struct payload (B23), a large struct variant such as
-  `Result<Response, std::string>` (B26), reading a struct-typed parameter in the
-  body (B24, 2c), awaiting a combinator inside a task polled on the executor
-  (B25), and composite-generic vtable types like `FutureTable<Result<T, E>>`
-  (B20). The shipped libraries pass raw fds/handles and return flat pointer
-  boxes; follow that pattern when hand-authoring a `Future`.
+- **Future payloads:** ints, pointers, variants, and — since B23 was fixed —
+  plain structs (`return Pair { ... }` from an `async func`) all work. Remaining
+  LLVM/2c limits, worked around in the libraries but not fixed: a large struct
+  variant such as `Result<Response, std::string>` (B26), reading a struct-typed
+  parameter in the body (B24, 2c), awaiting a combinator inside a task polled on
+  the executor (B25), and composite-generic vtable types like
+  `FutureTable<Result<T, E>>` (B20). The shipped libraries pass raw fds/handles
+  and return flat pointer boxes; follow that pattern when hand-authoring a
+  `Future`.
 - **Async closures** (`async |x|(...) => { ... }`) are parsed but **not lowered**
   — the compiler diagnoses them (`async closures are not yet supported; use a
   named async func instead`). Use a named `async func`.
@@ -1317,8 +1318,9 @@ supported yet, B20).
 
 > **These limits are tracked, actionable work.** See
 > `lang/docs/async-remaining-work.md` for each item's symptom, root cause,
-> current workaround, and definition of done (B20/B23/B24/B25/B26, async debug
-> info, async closures, TLS transport, Windows IOCP, POSIX epoll).
+> current workaround, and definition of done (B20/B24/B25/B26, async debug
+> info, async closures, TLS transport, Windows IOCP, POSIX epoll). B23 is
+> fixed.
 
 ## Library Development Gotchas
 

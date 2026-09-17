@@ -11,12 +11,12 @@
 // stub) falls back to the thread pool for all of them.
 //
 // The `*_async` entry points speak raw file descriptors (`int`), and
-// `AsyncSocket` is a thin synchronous wrapper. Two compiler limitations drive
-// this shape:
-//   * B23 — a generic `FutureHandle<StructT>` corrupts a plain-struct payload on
-//     LLVM, so futures never carry `AsyncSocket`;
+// `AsyncSocket` is a thin synchronous wrapper. This shape was originally driven
+// by two compiler limitations:
+//   * B23 — a generic `FutureHandle<StructT>` corrupted a plain-struct payload
+//     on LLVM. This is now fixed; `int` handles are kept as the simplest ABI.
 //   * the 2c async lowering mis-handles field access on a struct-typed async
-//     parameter, so struct arguments stay out of coroutine bodies.
+//     parameter (B24), so struct arguments stay out of coroutine bodies.
 public namespace net {
 
 @direct_init

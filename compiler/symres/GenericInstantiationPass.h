@@ -107,4 +107,15 @@ public:
     // visit type signatures but skip bodies
     void VisitFunctionDecl(FunctionDeclaration* node);
 
+    /**
+     * registers a bare generic function reference used as a value in a global
+     * initializer (`var f = ident<int>`). Function body references are handled by
+     * SymResLinkBody / the generic instantiator instead, because this pass does
+     * not visit function bodies.
+     */
+    void VisitVariableIdentifier(VariableIdentifier* value);
+
+    // refreshes the chain type after the last identifier was instantiated
+    void VisitAccessChain(AccessChain* chain);
+
 };

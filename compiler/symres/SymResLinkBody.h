@@ -242,6 +242,15 @@ public:
 
     void VisitVariableIdentifier(VariableIdentifier* identifier, bool check_access);
 
+    /**
+     * handles a bare generic function reference (`ident<int>`) used as a value.
+     * the identifier is expected to be linked already. inside generic bodies the
+     * instantiation is deferred to the generic instantiator, otherwise the
+     * generic function is instantiated here and the identifier is relinked to the
+     * concrete FunctionDeclaration.
+     */
+    void link_generic_func_reference(VariableIdentifier* identifier);
+
     // Visitor Methods
 
     void VisitAssignmentStmt(AssignStatement *assign);

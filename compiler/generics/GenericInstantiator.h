@@ -179,6 +179,14 @@ public:
 
     bool relink_identifier(VariableIdentifier* identifier);
 
+    /**
+     * instantiates a bare generic function reference (`ident<int>` / `ns::ident<T>`)
+     * and relinks the identifier to the concrete FunctionDeclaration. `identifier`
+     * must already be linked to a GenericFuncDecl. Returns true when the link was
+     * replaced by a concrete instantiation.
+     */
+    bool instantiate_generic_func_reference(VariableIdentifier* identifier);
+
     // We want to override visit, what we want is a BaseType*& so we can replace
     // every BaseType*& with the appropriate concrete implementation if it's referencing a generic type
 

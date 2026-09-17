@@ -426,6 +426,14 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, std::vector<Valu
                         return parseAccessChainAfterId(allocator, values, start, false, false);
                     }
                     default:
+                        // `ident<...>` used as a value (not a call or struct value): the
+                        // generic arguments belong to the last identifier, which becomes a
+                        // reference to a generic function instantiation `ident<int>`
+                        if(!values.empty() && values.back()->kind() == ValueKind::Identifier) {
+                            values.back()->as_identifier_unsafe()->generic_list = std::move(genArgs);
+                        } else {
+                            error("generic arguments are only supported on a function reference or call");
+                        }
                         break;
                 }
             } else {

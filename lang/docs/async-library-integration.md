@@ -92,19 +92,19 @@ depends on (design D10). **No library needs to depend on `async` to use
 | `channel` | ❌ | later phase |
 
 **Landed (this revision).** `async::{yield_now, sleep, test::block_on}` and a
-parking `block_on`; compiler fixes B11 (generic type identity), B12 (generic
-struct with a function typed field not specialized), B14 (nested lambda
-inheriting coroutine `redirect_return`), B16 (destructible variant payload
-double-free in `block_on`) and B15 (async works in `debug_complete`); library
-integration — additive
+parking `block_on`; compiler fixes B10 (generic function references), B11
+(generic type identity), B12 (generic struct with a function typed field not
+specialized), B14 (nested lambda inheriting coroutine `redirect_return`), B16
+(destructible variant payload double-free in `block_on`) and B15 (async works in
+`debug_complete`); library integration — additive
 `fs::read_entire_file_async` / `write_text_file_async` / `atomic_write_async`
 and `environment::{get_async, set_async, unset_async}` (v1 blocking bodies).
 Tests: 6 async runtime + 3 fs + 1 environment, all under
 `./scripts/test.sh --tcc --libs` **and** `--llvm --libs` (624/624 both), plus
-`--async`/main green in `debug_complete`. With B12 fixed, hand-authored generic
-futures (`FutureTable<T>`, `JoinHandle<T>`, `timeout<T>`, `spawn_blocking<T>`)
-can now be written; the runtime executor, reactor and `spawn_blocking` remain to
-be implemented. Only B10 (generic function references) stays open (§12).
+`--async`/main green in `debug_complete`. With B10 and B12 fixed, hand-authored
+generic futures (`FutureTable<T>`, `JoinHandle<T>`, `timeout<T>`,
+`spawn_blocking<T>`) have **no remaining compiler blockers**; the runtime
+executor, reactor and `spawn_blocking` remain to be implemented.
 
 ### 3.4 Libraries
 
@@ -303,8 +303,8 @@ Deliver, in order:
   `environment::{get_async, set_async, unset_async}`
   (`lang/libs/environment/src/async.ch`). Both concrete-return `async func`s with
   blocking bodies; `fs`/`environment` now import `async`. They become true
-  `spawn_blocking` wrappers once the executor lands (B12 is fixed; B10 is only
-  needed if generic function *references* are used).
+  `spawn_blocking` wrappers once the executor lands (all compiler blockers B10,
+  B12 are fixed).
 - **Ready to redo:** `process` async wrappers (`execute_async`/`wait_async`/…)
   were blocked by B16 (a nested destructible aggregate double-free); B16 is now
   fixed, so they can be re-added with the same concrete-return `async func`
@@ -436,28 +436,52 @@ and it changes **no** public API.
 Building the runtime exposed concrete compiler gaps that block the generic
 layers (`spawn_blocking<T>`, `timeout<T>`, the executor's awaitable
 `JoinHandle<T>`, and any hand-authored `FutureTable<T>`). They are independent
-of the runtime design and must be fixed in the compiler. B11, B12, B14, B15,
-B16 and B17 are fixed; **B10 remains open** and is the only hard compiler
-blocker left for a fully generic runtime.
+of the runtime design and must be fixed in the compiler. **All are fixed** —
+B10, B11, B12, B14, B15, B16 and B17 — so a fully generic runtime is no longer
+blocked by the compiler.
 
-### B10 — Generic function *references* are not parsed or instantiated (HIGH)
+### B10 — Generic function *references* are not parsed or instantiated (HIGH) — ✅ FIXED
 
-`foo<int>` used as a value (not a call) does not instantiate `T`.
+`foo<int>` used as a value (not a call) did not instantiate `T`:
 
 ```chemical
 public func <T> ident(x : T) : T { return x }
-var g : (x : int) => int = ident<int>   // ERROR: value with type '(x : T) => T'
+var g : (x : int) => int = ident<int>   // was: value with type '(x : T) => T'
                                         // does not satisfy '(x : int) => int'
 ```
 
-- Parser: `parser/utils/Expression.cpp:415-444` has a **commented-out** block for
-  `ident<...>` in a chain; `parser/statements/AccessChain.cpp:405-434` consumes
-  the generic list but only handles `{` (struct value) and `(` (call). A bare
-  reference falls into `default` and **drops the generic arguments**.
-- `VariableIdentifier` has no place to store generic arguments. Proper support
-  needs a new representation + symres instantiation + codegen (LLVM/2c/interp).
-- Without it, a runtime future cannot name a per-`T` poll function, so every
-  generic future table must be built with inline non-capturing lambdas instead.
+- Parser: `parser/statements/AccessChain.cpp` consumed the generic list for a
+  bare reference then fell into `default` and **dropped the generic arguments**
+  (`parser/utils/Expression.cpp` had a commented-out block for the same reason).
+- `VariableIdentifier` had nowhere to store generic arguments.
+
+Fix, three layers:
+
+1. **Representation** (`ast/values/VariableIdentifier.h`): a bare reference now
+   stores its arguments in `std::vector<TypeLoc> generic_list` (copied by
+   `VariableIdentifier::copy`). Calls/struct values keep theirs on the
+   `FunctionCall`/`StructValue` as before.
+2. **Parser** (`parser/statements/AccessChain.cpp`): when `ident<...>` is not
+   followed by `(` or `{`, the parsed arguments are attached to the last
+   identifier instead of being discarded.
+3. **Symres** (`compiler/symres/SymResLinkBody.cpp`
+   `link_generic_func_reference`, and `GenericInstantiator::relink_identifier` /
+   `instantiate_generic_func_reference` for generic bodies): the argument types
+   are linked, then — unless inside a generic body, where instantiation is
+   deferred — the generic function is instantiated via
+   `GenericFuncDecl::register_generic_args` and the identifier is relinked to the
+   concrete `FunctionDeclaration`. For a reference in a **global initializer**
+   (which the body pass skips), the arguments are linked in
+   `TopLevelLinkSignature::VisitVariableIdentifier` and registered in
+   `GenericInstantiationPass::VisitVariableIdentifier` (with
+   `VisitAccessChain` refreshing the wrapping chain's type). Codegen needed no
+   change: a concrete function reference already lowers correctly.
+
+Verified on TCC **and** LLVM: `ident<int>` in a non-generic body, in a global
+initializer, passed as an argument, `ns::ident<int>` (namespaced), and `ident<T>`
+/ `ns::ident<T>` inside a generic function (including multiple parameters).
+Regression tests in `lang/tests/src/generic/basic.ch`. Full matrix green (main
+2189/2190, libs 624/624, async 33/33, interpret 1811/1811).
 
 ### B11 — Generic function *type* equality fails with a generic variant result (HIGH) — ✅ FIXED
 
@@ -664,11 +688,11 @@ Verified on LLVM **and** TCC: bare `std::vector<u8>` and
 longer double-free; no regressions (main 2186/2187, main `debug_complete` 2187,
 async 33/33, libs 624/624). This unblocks `process` async wrappers.
 
-**Consequence.** With B12 fixed, the runtime can construct generic
+**Consequence.** With B10 and B12 fixed, the runtime can construct generic
 `FutureTable<T>` entries and generic combinators (`spawn_blocking<T>`,
-`timeout<T>`, `JoinHandle<T>`) using inline non-capturing lambdas; B10 is only
-needed if they are expressed with generic function *references* (`ident<int>`).
-Library async wrappers continue to use compiler-lowered `async func` bodies
+`timeout<T>`, `JoinHandle<T>`) using either inline non-capturing lambdas or
+generic function references (`ident<int>`, `ns::ident<T>`). Library async
+wrappers continue to use compiler-lowered `async func` bodies
 (done for `fs`, §7 Tier 4; `process` can follow now that B16 is fixed). Watch
 B18 when the future payload is a non-`Copy` `T` owned by the frame.
 

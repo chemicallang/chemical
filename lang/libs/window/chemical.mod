@@ -6,6 +6,8 @@ source "posix" if !windows
 
 import cstd
 import std
+import core
+import async
 
 // Windows: user32 = windowing; shell32 = drag&drop (DragQueryFileW); the
 // default icon/UI bits come from user32 as well.

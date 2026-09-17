@@ -999,6 +999,26 @@ public func webview_stop(wv : *mut WebView) {
     window::window_quit()
 }
 
+// Like webview_run, but the event loop also drives the async executor
+// (`window_run_async`), so tasks submitted with `async::spawn_local` are polled
+// on the UI thread. Use this when the app's bridge handlers await background
+// work and must touch the webview in the continuation.
+public func webview_run_async(wv : *mut WebView) {
+    if(!wv.attached) {
+        window::window_run_async()
+        if(window::window_quit_by_destroy() != 0) {
+            wv.web_view = null
+            wv.win.created = false
+            wv.win.widget = null
+            wv.win.visible = false
+        }
+    } else {
+        // embed mode: the parent app owns the loop; it calls
+        // window::window_run_async itself (or window::window_pump).
+        window::window_pump()
+    }
+}
+
 // Access the webview's underlying window (from the window library). In
 // standalone mode this is the top-level window the webview created; in embed
 // mode it is the parent window the webview was attached to. Use it to mix

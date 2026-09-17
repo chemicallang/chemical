@@ -90,6 +90,7 @@ depends on (design D10). **No library needs to depend on `async` to use
 | `select<T>` / `timeout_or<T>` / `block_on_timeout<T>` | ✅ | `lang/libs/async/src/combinators.ch` — same-payload-typed combinators (B20); no `Result`/`Either`-typed vtable |
 | Reactor / fd readiness | ✅ | `lang/libs/async/src/reactor.ch` + `posix/reactor.ch` (`select(2)`) / `win/reactor.ch` stub — `readable`/`writable`/`AsyncFd`; epoll/kqueue and `net` wiring are Tier 1 |
 | `channel<T>` (mpsc) | ✅ | `lang/libs/async/src/channel.ch` — `send`/`close`/`try_recv`/`recv_or`/`clone_sender`; linked-list queue |
+| Executor wake hook | ✅ | `ExecWakeHook` + `executor_set_wake_hook` (`lang/libs/async/src/exec.ch`) — lets a native event loop post off-thread wakeups to itself (Tier 5) |
 
 **Landed.** Runtime: `async::{yield_now, sleep, test::block_on}`, a parking
 `block_on`, an executor with `spawn<T>`/`spawn_local<T>`, the `select` /
@@ -122,7 +123,8 @@ Tests: `--libs` on **both** backends — 6 async runtime + 10 executor/combinato
 (dedicated; includes the async TLS handshake and async HTTP loopback tests)
 **573 TCC / ~570 passed** (2 pre-existing `BAD_SIGNATURE` failures plus harness
 flakiness under parallel dispatch; the async tests pass in isolation on LLVM);
-main suite green (2190 TCC / 2191 LLVM); interpret 1811/1811.
+`--webview` (dedicated; includes the 4 Tier 5 UI-async tests) **46/46** on both
+backends; main suite green (2190 TCC / 2191 LLVM); interpret 1811/1811.
 
 ### 3.4 Libraries
 
@@ -134,7 +136,7 @@ main suite green (2190 TCC / 2191 LLVM); interpret 1811/1811.
 | `fs` | `read_entire_file`, `atomic_write`, `read_to_buffer`, directory ops | disk syscalls | don't stall the executor | 4 |
 | `process` | `execute`, `spawn`, `wait`, `try_wait`, `write_stdin`, `close_stdin`, `kill_process`, `is_running`, `sleep_ms` | child + pipes | awaitable child/pipes; `test_env` IPC | 4 |
 | `environment` | get/set env | syscalls | `spawn_blocking` only | 4 |
-| `webview`, `window` | UI-thread event loops (GTK3/WebKit2GTK) | host loop | background async work, post back to UI | 5 |
+| `webview`, `window` | UI-thread event loops (GTK3/WebKit2GTK) | host loop | background async work, resume on UI | 5 (**done**: `spawn_local` + `window_pump`/`window_run_async` + executor wake hook) |
 | `server`, `minlsp`, `ide` | socket/stdio loops over `http` | accept loops | same as `http` | 6 |
 | `std.concurrent` | `Promise<T>`, `Future<T>`, `ThreadPool::submit`, `sleep_ms` | thread pool | substrate for `spawn_blocking` | 0 (interop) |
 | `json`, `crypto`, `compression`, `archive`, `image`, `font`, `audio`, `regex`, `datetime`, `encoding`, `mime`, `path`, `uuid`, `bcrypt`, `osrand`, parsers | pure buffer/CPU | — | none directly; call via `spawn_blocking` if heavy | — |
@@ -292,9 +294,9 @@ Deliver, in order:
   `writable(fd)` / `AsyncFd` are awaitable readiness futures; the executor
   blocks on the reactor while fds are registered. epoll/kqueue and the `net`
   wiring are Tier 1.
-- Current-thread mode + `spawn_local` (for F8/UI libs). ✅ `spawn_local` is an
-  alias of `spawn` (the executor is process-wide and there is no `Send`);
-  a true UI-thread-marshalling executor comes with Tier 5.
+- Current-thread mode + `spawn_local` (for F8/UI libs). ✅ `spawn_local` submits
+  to the process-wide executor; the UI-thread driver + wake hook landed with
+  Tier 5 (`window_run_async`/`window_pump`).
 - A `channel` (M6). ✅ `lang/libs/async/src/channel.ch` — multi-producer /
   single-consumer, `send`/`close`/`try_recv`/`recv_or`/`clone_sender`. `recv_or`
   carries the caller's fallback for the closed case because a bare
@@ -406,10 +408,40 @@ are unchanged. `http` now imports `core` + `async`.
 - **Done:** `fs`, `environment` and `process` are all integrated. The remaining
   Tier 4 work is only the reactor-backed I/O (Tiers 1–3).
 
-### Tier 5 — `webview`, `window`
+### Tier 5 — `webview`, `window` — ✅ DONE
 
-- `spawn_local` + a waker that posts to the UI thread. Not "await the UI"; run
-  background async work and marshal results back.
+The async executor is a cooperative poll loop; a GUI app is parked in the native
+event loop (`gtk_main` / `GetMessage`), so `async::spawn_local` alone would never
+be polled. Tier 5 couples the executor to the native loop so a UI-spawned task is
+polled on the UI thread — and therefore the continuation after an `await` runs on
+the UI thread too. No callback types, no "await the UI": background work runs on
+`spawn_blocking` and the resume happens on the UI thread.
+
+- `async::Executor` gained a wake hook
+  (`ExecWakeHook`, `executor_set_wake_hook`); `exec_wake` runs it outside the
+  executor lock. A native loop installs one so an off-thread completion wakes the
+  loop immediately instead of waiting for the next tick
+  (`lang/libs/async/src/exec.ch`).
+- `window::{window_pump, window_run_async}` (`lang/libs/window/src/async.ch`,
+  new). `window_pump` polls the executor and drains pending native events once;
+  `window_run_async` installs the wake hook + a 1 ms executor tick and runs the
+  native loop. The platform hooks live in `posix/linux.ch` (GTK `g_idle_add` /
+  `g_timeout_add` / `gtk_main_iteration`) and `win/win.ch` (`WM_NULL` wake /
+  `SetTimer` tick / `PeekMessageW` drain).
+- `window` now imports `core` + `async`; `webview::{webview_run_async}` mirrors
+  `webview_run` for apps whose bridge handlers await background work.
+- Usage: submit with `async::spawn_local(future())`, then run the loop with
+  `window_run_async` (or `webview_run_async`). Blocking work must still be
+  wrapped in `async::spawn_blocking`; the executor tick then resumes the task on
+  the UI thread.
+- Tests: `lang/tests/webview/src/async_tests.ch` (4 tests) in the dedicated
+  `--webview` suite — `window_pump` drives a suspended coroutine to completion,
+  the join result is readable, cancellation of dropped handles is clean, and
+  `window_run_async` drives the executor from a real GTK loop. **46/46 on TCC and
+  LLVM.**
+- **Caveat (B27):** a *second* `async func` (one eager, one with `await`) in a
+  large module (`webview_tests`) crashes LLVM's `AlwaysInliner`; the tests
+  therefore use a single coroutine in that module. See §12 B27.
 
 ### Tier 6 — `server`, `minlsp`, `ide`
 
@@ -501,7 +533,7 @@ already live in `--negative`.
 | **M4** | `tls` transport vtable + `*_async` | HTTP client | `--tls` async tests |
 | **M5** | `http` `request_async` + coroutine accept loop + streaming | server/minlsp/ide | integration (gated) |
 | **M6** | `fs`/`process`/`environment` `spawn_blocking` wrappers (additive `*_async` signatures landed; bodies become non-blocking here) | user apps | `--libs` / `--process` |
-| **M7** | `webview`/`window` `spawn_local` | UI async | `--webview` |
+| **M7** | `webview`/`window` `spawn_local` + UI-thread executor ✅ | UI async | `--webview` 46/46 |
 
 M1 is shippable immediately: the compiler already supports everything it needs,
 and it changes **no** public API.
@@ -536,12 +568,13 @@ of the runtime design and must be fixed in the compiler. B10, B11, B12, B14,
 B15, B16, B17, B19, B21 and B22 are **fixed**; B13 and B18 are
 by-design/documented; and B20 (composite generic arguments in a generic body),
 B23 (a future payload that is a plain struct), B24 (field access on a
-struct-typed async parameter), B25 (a spawned coroutine awaiting a combinator)
-and B26 (a large struct variant through a future) are **worked around** — the
-runtime keeps composite generics out of vtable types, keeps plain/large structs
-out of future payloads (futures carry ints/pointers), keeps struct parameters
-out of coroutine bodies, and avoids combinator awaits inside spawned
-coroutines.
+struct-typed async parameter), B25 (a spawned coroutine awaiting a combinator),
+B26 (a large struct variant through a future) and B27 (a second coroutine in a
+large module) are **worked around** — the runtime keeps composite generics out
+of vtable types, keeps plain/large structs out of future payloads (futures carry
+ints/pointers), keeps struct parameters out of coroutine bodies, avoids
+combinator awaits inside spawned coroutines, and keeps one coroutine per large
+module.
 
 ### B10 — Generic function *references* are not parsed or instantiated (HIGH) — ✅ FIXED
 
@@ -879,6 +912,39 @@ variant (`Response` contains a `Body` with `std::string`/buffer state).
 - **To fix:** the LLVM async result storage/payload lowering for a large
   struct-shaped `inner_ty` (wrapper `result` field + `Poll<T>` payload load),
   `compiler/backend/LLVMCoroutine.cpp`.
+
+### B27 — A second coroutine in a large module crashes LLVM's always-inliner (HIGH, worked around)
+
+Found implementing Tier 5 (the `webview` async tests). The `webview_tests`
+module (~1 400 functions) compiles on LLVM with **one** `async func` (eager or
+suspending) but SIGSEGVs with **two** — one eager and one containing `await`:
+
+```
+Thread 1 "Compiler" received signal SIGSEGV
+#0 llvm::isInlineViable(llvm::Function&) [clone .cold]
+#1 (anonymous namespace)::AlwaysInlineImpl(...)
+#2 llvm::AlwaysInlinerPass::run(...)
+#5 save_as_file_type  compiler/Codegen.cpp:1613
+```
+
+The crash is an LLVM assertion inside `isInlineViable` (the cold block reads a
+null assert-message pointer), reached from `AlwaysInlinerPass`. The module IR
+contains **no** `alwaysinline` attribute anywhere and no `@inline` annotations;
+a small module with the same two coroutines (`lang/compiled/async_two`) compiles
+fine, so the trigger is the module size/composition rather than the coroutine
+kinds. It reproduces for every file-order seed tested, while the single-coroutine
+form is stable across seeds on both backends.
+
+- **Workaround:** keep one coroutine per large module. `lang/tests/webview/src/async_tests.ch`
+  uses a single `async func` (the suspending one) for all four Tier 5 tests; the
+  non-suspending path is covered by the runtime's own `--async`/`--libs` suites.
+- **To investigate:** whether the always-inliner is running before the coroutine
+  split (`PresplitCoroutine` ramps) and tripping over a function it should skip;
+  a `verifyModule` before the pass (`--assertions`) does not report malformed IR,
+  so this looks like an LLVM-side bug triggered by the size of the module rather
+  than a Chemical IR-emission bug. A defensive fix would be to skip modules
+  containing `presplitcoroutine` functions when building the AlwaysInliner
+  pass (or run the coroutine-split pass earlier).
 
 ### B14 — Capturing lambda inside a generic async func crashed LLVM (HIGH) — ✅ FIXED
 

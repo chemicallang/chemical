@@ -21,6 +21,7 @@ TEST_NEGATIVE=false
 TEST_TLS=false
 TEST_PROCESS=false
 TEST_WEBVIEW=false
+TEST_SERVER=false
 TEST_LIBS=false
 TEST_ASYNC=false
 COMPILE_TARGET=""
@@ -55,6 +56,7 @@ usage() {
   echo "  --tls                   Build & run the TLS integration test suite (passes --arg-test-tls)"
   echo "  --process               Build & run the process/environment test suite (passes --arg-test-process)"
   echo "  --webview               Build & run the webview test suite (passes --arg-test-webview)"
+  echo "  --server                Build & run the server test suite (passes --arg-test-server)"
   echo "  --libs                  Build & run the library test suite (passes --arg-test-libs)"
   echo "  --async                 Build & run the async/await suite (C or LLVM)"
   echo "  --target <triple>       Pass --target <triple> to the compiler (optional, omitted if empty)"
@@ -102,6 +104,7 @@ while [ $# -gt 0 ]; do
     --tls) TEST_TLS=true ;;
     --process) TEST_PROCESS=true ;;
     --webview) TEST_WEBVIEW=true ;;
+    --server) TEST_SERVER=true ;;
     --libs) TEST_LIBS=true ;;
     --async) TEST_ASYNC=true ;;
     --target) COMPILE_TARGET="$2"; shift ;;
@@ -279,6 +282,9 @@ else
   fi
   if [ "$TEST_WEBVIEW" = true ]; then
     CMD+=("--arg-test-webview")
+  fi
+  if [ "$TEST_SERVER" = true ]; then
+    CMD+=("--arg-test-server")
   fi
   if [ "$TEST_LIBS" = true ]; then
     CMD+=("--arg-test-libs")

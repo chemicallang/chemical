@@ -4,6 +4,7 @@ public func main(argc : int, argv : **char) : int {
     var port = 8080u;
     var root = std::string::make_no_len(".");
     var addr = std::string::make_no_len("0.0.0.0");
+    var async_mode = false;
 
     var i = 1;
     while(i < argc) {
@@ -26,9 +27,12 @@ public func main(argc : int, argv : **char) : int {
                 i++;
             }
         } else if(arg.equals("-h") || arg.equals("--help")) {
-            printf("Usage: server [root_dir] [-p port] [-a address]\n");
+            printf("Usage: server [root_dir] [-p port] [-a address] [--async]\n");
             printf("Default: root='.', port=8080, address=0.0.0.0\n");
+            printf("  --async  serve with the coroutine accept loop (async runtime)\n");
             return 0;
+        } else if(arg.equals("--async")) {
+            async_mode = true;
         } else if(arg.equals("-a") || arg.equals("--addr")) {
             if(i + 1 < argc) {
                 addr = std::string::make_no_len(*argv_offset(argv, i + 1));
@@ -59,6 +63,13 @@ public func main(argc : int, argv : **char) : int {
     S.router.add("GET", "/", |&fs_server|(req, res) => {
         fs_server.serve_http(req, res);
     });
+
+    if(async_mode) {
+        // Tier 6: drive the file server from the coroutine accept loop. The
+        // synchronous `serve` path stays the default for compatibility.
+        async::block_on<int>(serve_files_async(&raw mut S, root.c_str(), port));
+        return 0;
+    }
 
     S.serve(port);
 

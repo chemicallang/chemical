@@ -129,9 +129,13 @@ public namespace server {
             var host : *char = null
             var port = default_port
 
+            // `find` returns `size_t` NPOS (all-ones on 64-bit) when absent;
+            // comparing against `-1u` (32-bit) incorrectly matched `0.0.0.0`
+            // and then `substring(0, NPOS)` read out of bounds. Compare
+            // against the real NPOS.
             var pos = self.cfg.addr.find(":")
             var host_str = std::string()
-            if (pos != -1u) {
+            if (pos != std::NPOS) {
                 if (pos > 0u) {
                     host_str = self.cfg.addr.substring(0u, pos)
                     host = host_str.data()

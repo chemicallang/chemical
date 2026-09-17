@@ -19,8 +19,10 @@ public func <T> block_on(handle : core::async::FutureHandle<T>) : T {
     var out : T = loop {
         var r = handle.vtbl.poll(handle.frame, &raw mut cx)
         if(r is core::async::Poll.Ready) {
-            var Ready(value) = r else unreachable
-            break value
+            // Extract through a pointer+memcpy rather than a variant pattern
+            // binding: moving a struct `T` out of a pattern mis-lowers on LLVM
+            // (the payload is treated as a pointer), see B18/B23.
+            break poll_take_ready<T>(&raw mut r)
         }
         executor_poll_tasks(e, 4096u)
         executor_wait(e, 1u)

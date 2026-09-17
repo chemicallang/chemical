@@ -115,6 +115,12 @@ make -C cmake-build-debug ChemicalLsp -j$(nproc)
 
 ## Building Tests
 
+> ⚠️ **AI agents must NOT run `./scripts/test.sh --all`.** It runs every suite and
+> is only for a human doing a fresh-clone/new-machine sanity check; it takes a
+> very long time (`tls` alone runs for minutes). Run the single suite relevant to
+> your change instead and stop. If a human runs `--all`, note the slow `tls`
+> suite is skipped unless `--include-tls` is passed.
+
 ### Using test script (recommended)
 
 ```bash

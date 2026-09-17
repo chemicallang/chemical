@@ -58,6 +58,29 @@ Configs saved as JSON in `scripts/tui-configs/`. Last config auto-restored.
 ./scripts/test.sh --tcc -bt-full # Full GDB backtrace with registers, disasm, locals
 ```
 
+**Run every suite & get a summary table** (fresh-clone / new-machine sanity check):
+
+> ⚠️ **AI agents: do NOT run `--all`.** It runs every suite and takes a very long
+> time (the `tls` suite alone runs for minutes). It exists only for a human doing
+> a new-machine sanity check. Agents must run the single suite relevant to their
+> change (e.g. `--tcc`, `--libs`, `--async`, `--webview`) and stop.
+
+```bash
+./scripts/test.sh --all            # all suites on TCCCompiler (tls skipped)
+./scripts/test.sh --all --include-tls   # also run the slow tls suite
+./scripts/test.sh --llvm --all     # all suites on Compiler (LLVM)
+./scripts/test.sh --all -v         # stream each suite's output live
+```
+
+`--all` builds the compiler once, then runs main, interpret, negative, plugins,
+async, libs, process, server and webview in turn, printing a per-suite result and
+a final table (`SUITE / STATUS / TOTAL / PASSED / FAILED / TIME`). **The slow
+`tls` suite is skipped by default**; pass `--include-tls` to include it (the run
+tells you this at the top and in the summary). Full per-suite logs are kept in
+`lang/tests/build/all-logs/`. Exits non-zero if any suite failed. Note that some
+suites are environment-sensitive (e.g. `tls` has known `BAD_SIGNATURE` failures;
+`webview` needs GTK3 + a display).
+
 > 🐛 **`-bt` / `-bt-full`**: Wraps the test in `gdb -batch` mode. On crash, prints backtrace.
 > `-bt` gives `bt full`; `-bt-full` adds thread info, registers, `x/16i $pc`, locals, and args.
 > Implies `-g`. Works in compiled, interpret, and negative modes.

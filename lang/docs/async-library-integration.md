@@ -119,10 +119,10 @@ Tests: `--libs` on **both** backends — 6 async runtime + 10 executor/combinato
 5 channel + 3 reactor + 3 fs + 1 environment + 8 `spawn_blocking` = **650/650**;
 `--process` (dedicated suite) — 6 async tests, **127/127** on both backends;
 `--async` (dedicated; includes the loopback `net` test) **34/34**; `--tls`
-(dedicated; includes the async TLS 1.3 handshake test) **572 TCC / 570 passed**
-(2 pre-existing `BAD_SIGNATURE` failures; the LLVM full run is flaky under
-parallel dispatch, the async test passes in isolation); main suite green
-(2190 TCC / 2191 LLVM); interpret 1811/1811.
+(dedicated; includes the async TLS handshake and async HTTP loopback tests)
+**573 TCC / ~570 passed** (2 pre-existing `BAD_SIGNATURE` failures plus harness
+flakiness under parallel dispatch; the async tests pass in isolation on LLVM);
+main suite green (2190 TCC / 2191 LLVM); interpret 1811/1811.
 
 ### 3.4 Libraries
 
@@ -130,7 +130,7 @@ parallel dispatch, the async test passes in isolation); main suite green
 |---|---|---|---|---|
 | `net` | `dial`, `listen_addr`, `accept_socket`, `recv_all`, `send_all`, `close_socket`, `set_recv_timeout`, `set_keep_alive`; `Socket = usize` | connect/accept/read/write | many sockets on one thread | 1 (**done**: `AsyncSocket`, `dial_async`/`accept_async`/`recv_async`/`send_async`) |
 | `tls` | `tls_connect`, `ssl_handshake`, `ssl_read`, `ssl_write`, `ssl_close_notify`, `ssl_free`, `ssl_set_socket`, `tls_accept` | full multi-RTT handshake + records, calling `net::send_all`/`recv_all` directly | overlap handshakes; async record I/O | 2 (**done**: `tls_connect_async`/`ssl_handshake_async`/`ssl_read_async`/`ssl_write_async`/`tls_accept_async`) |
-| `http` | `Client::request/get/post/put/patch/delete/head`; `Server::serve`, `Server::serve_async` (thread), `Body::read/read_to_string/read_exact/drain/close`; parsers `read_request_incremental`, `read_response_incremental` | dial → TLS → send → incremental read; worker-thread accept loop | `request_async`, per-connection tasks, streaming bodies | 3 |
+| `http` | `Client::request/get/post/put/patch/delete/head`; `Server::serve`, `Server::serve_async` (thread), `Body::read/read_to_string/read_exact/drain/close`; parsers `read_request_incremental`, `read_response_incremental` | dial → TLS → send → incremental read; worker-thread accept loop | `request_async`, per-connection tasks, streaming bodies | 3 (**done**: `request_async`/`get_async`/…, `serve_coro`, `read_chunk_async`) |
 | `fs` | `read_entire_file`, `atomic_write`, `read_to_buffer`, directory ops | disk syscalls | don't stall the executor | 4 |
 | `process` | `execute`, `spawn`, `wait`, `try_wait`, `write_stdin`, `close_stdin`, `kill_process`, `is_running`, `sleep_ms` | child + pipes | awaitable child/pipes; `test_env` IPC | 4 |
 | `environment` | get/set env | syscalls | `spawn_blocking` only | 4 |
@@ -351,14 +351,31 @@ untouched. `net` now imports `core` + `async`.
 > span count). This is why `tls` initially could not see the `async` namespace.
 - Highest value: the handshake is multi-RTT, so overlapping it is the big win.
 
-### Tier 3 — `http`
+### Tier 3 — `http` — ✅ DONE
 
-- Client: `Client::request_async` (+ `get_async`, `post_async`, …) returning a
-  future of the **same** `std::Result<Response, std::string>`.
-- Server: a real coroutine accept loop (`while run { var s = await
-  listener.accept(); spawn(handle(s)) }`) using `select` for accept-vs-shutdown.
-  **New name** — `serve_async` is taken (R1).
-- Streaming: `Body::read_chunk_async` (design F12).
+`lang/libs/http/src/async.ch` (new), additive — the synchronous client/server
+are unchanged. `http` now imports `core` + `async`.
+
+- **Client:** `request_async`/`get_async`/`post_async`/`put_async`/`patch_async`/
+  `delete_async`/`head_async`. Each offloads the whole blocking exchange to the
+  pool. They resolve with a `*mut HttpResult` — a flat, heap-allocated
+  `{ ok, status, status_text, headers, body, error }` box with non-moving
+  accessors (`is_ok`/`status_code`/`body_view`/`error_view`). This is *not* a
+  future of `Result<Response, std::string>` as originally sketched: a large
+  result variant returned through a `FutureHandle` is corrupted on LLVM (B26),
+  and the flat box also avoids moving a destructible payload out of a variant
+  (B18). The caller owns the box (`delete`).
+- **Server:** `server::serve_coro(srv, port)` — a coroutine accept loop (R1:
+  `serve_async` is the thread variant). It observes `Server::run` for shutdown
+  via a bounded blocking `accept` on the pool; a spawned coroutine cannot await
+  a combinator (`timeout_or`/`select`) on LLVM today (B25). Each accepted
+  connection is handled on the pool (`spawn_blocking`), so the loop never blocks
+  on a handler.
+- **Streaming:** `read_chunk_async(b, dst, cap)` / `body_read_async` /
+  `read_to_string_async` (design F12) offload `Body::read`.
+- Tests: `lang/tests/tls/src/http_async_test.ch` (coroutine server + async
+  client loopback) in the dedicated `--tls` suite; passes on both backends
+  (LLVM verified in isolation).
 
 ### Tier 4 — `fs`, `process`, `environment`
 
@@ -518,10 +535,13 @@ layers (`spawn_blocking<T>`, `timeout<T>`, the executor's awaitable
 of the runtime design and must be fixed in the compiler. B10, B11, B12, B14,
 B15, B16, B17, B19, B21 and B22 are **fixed**; B13 and B18 are
 by-design/documented; and B20 (composite generic arguments in a generic body),
-B23 (a future payload that is a plain struct) and B24 (field access on a
-struct-typed async parameter) are **worked around** — the runtime keeps
-composite generics out of vtable types, keeps plain structs out of async
-futures, and keeps struct parameters out of coroutine bodies.
+B23 (a future payload that is a plain struct), B24 (field access on a
+struct-typed async parameter), B25 (a spawned coroutine awaiting a combinator)
+and B26 (a large struct variant through a future) are **worked around** — the
+runtime keeps composite generics out of vtable types, keeps plain/large structs
+out of future payloads (futures carry ints/pointers), keeps struct parameters
+out of coroutine bodies, and avoids combinator awaits inside spawned
+coroutines.
 
 ### B10 — Generic function *references* are not parsed or instantiated (HIGH) — ✅ FIXED
 
@@ -826,6 +846,39 @@ pointer/primitive parameters are unaffected.
   fds for this reason.
 - **To fix (compiler):** the 2c async lowering should emit `.field` for
   by-value frame slots (or store struct parameters as pointers consistently).
+
+### B25 — A spawned coroutine that awaits a combinator loses its `Context` on LLVM (HIGH, worked around)
+
+`async::spawn<int>(f())` where `f` awaits `async::timeout_or(...)` /
+`async::select(...)` crashes on LLVM: the combinator polls the inner future with
+a `Context` whose waker has a garbage `vtbl`, and `ready_poll`/`Waker::clone`
+jumps through it. Minimal repro: a spawned coroutine awaiting
+`timeout_or<Unit>(readable(fd), ms, Unit)`. The same future awaited directly from
+`block_on` works, and `await spawn_blocking` inside a spawned coroutine works.
+
+- **Workaround:** do not await a combinator inside a coroutine that is itself
+  polled as a task. `server::serve_coro` uses a bounded blocking `accept` on the
+  pool instead of `timeout_or(accept_async(...))`.
+- **To fix:** the coroutine `__cx`/`Context` forwarding in
+  `compiler/backend/LLVMCoroutine.cpp` (the `Context*` passed to a coroutine
+  polled by another future is not preserved when it forwards to a child poll).
+
+### B26 — A large `Result<Response, std::string>` through a `FutureHandle` is corrupted on LLVM (HIGH, worked around)
+
+`block_on<Result<Response, std::string>>(http::get_async(...))` corrupted the
+result (the string payload became a garbage pointer and the destructor crashed),
+and in some configurations produced a *broken LLVM module*
+(`Global is external, but doesn't have external or weak linkage!` for a `tls`
+global). Small variants (`Result<int, std::string>`) and `fs`/`process`
+`Result<...>` payloads are fine — the trigger is a large struct inside the
+variant (`Response` contains a `Body` with `std::string`/buffer state).
+
+- **Workaround:** the async client returns `*mut HttpResult` — a pointer to a
+  flat heap box, populated on the pool thread from the `Result`. Pointer
+  payloads are unaffected.
+- **To fix:** the LLVM async result storage/payload lowering for a large
+  struct-shaped `inner_ty` (wrapper `result` field + `Poll<T>` payload load),
+  `compiler/backend/LLVMCoroutine.cpp`.
 
 ### B14 — Capturing lambda inside a generic async func crashed LLVM (HIGH) — ✅ FIXED
 

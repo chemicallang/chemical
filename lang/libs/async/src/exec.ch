@@ -186,7 +186,9 @@ public func <T> spawn_join_poll(frame : *mut void, cx : *mut core::async::Contex
         st.m.unlock()
         return r
     }
-    st.waker = cx.waker.clone()
+    if(cx.waker.vtbl != null) {
+        st.waker = cx.waker.clone()
+    }
     st.m.unlock()
     return core::async::Poll.Pending<T>()
 }

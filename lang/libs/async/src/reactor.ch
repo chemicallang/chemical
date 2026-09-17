@@ -154,7 +154,9 @@ public func ready_poll(frame : *mut void, cx : *mut core::async::Context) : core
         return core::async::Poll.Ready<core::async::Unit>(core::async::Unit { })
     }
     st.parked = true
-    reactor_register(st.fd, st.events, cx.waker.clone())
+    if(cx.waker.vtbl != null) {
+        reactor_register(st.fd, st.events, cx.waker.clone())
+    }
     return core::async::Poll.Pending<core::async::Unit>()
 }
 

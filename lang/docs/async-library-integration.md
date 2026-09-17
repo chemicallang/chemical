@@ -88,8 +88,8 @@ depends on (design D10). **No library needs to depend on `async` to use
 | `spawn<T>` + task queue + executor | ✅ | `lang/libs/async/src/exec.ch` — process-wide polling executor; join handle, cancellation; `spawn_local` alias |
 | `spawn_blocking<T>` | ✅ | `lang/libs/async/src/blocking.ch` — submits to a shared lazily-created `std::concurrent::ThreadPool`; cancellation-safe; see B19 for capture/result limits |
 | `select<T>` / `timeout_or<T>` / `block_on_timeout<T>` | ✅ | `lang/libs/async/src/combinators.ch` — same-payload-typed combinators (B20); no `Result`/`Either`-typed vtable |
-| Reactor (epoll/kqueue/IOCP) | ❌ | needed for async socket I/O (Tier 1) |
-| `channel` | ❌ | later phase |
+| Reactor (epoll/kqueue/IOCP) | ❌ | needed for async socket I/O (Tier 1); see B22 |
+| `channel<T>` (mpsc) | ✅ | `lang/libs/async/src/channel.ch` — `send`/`close`/`try_recv`/`recv_or`/`clone_sender`; linked-list queue |
 
 **Landed.** Runtime: `async::{yield_now, sleep, test::block_on}`, a parking
 `block_on`, an executor with `spawn<T>`/`spawn_local<T>`, the `select` /
@@ -115,9 +115,9 @@ Library integration (all additive):
   suspends.
 
 Tests: `--libs` on **both** backends — 6 async runtime + 10 executor/combinator +
-3 fs + 1 environment + 8 `spawn_blocking` = **642/642**; `--process` (dedicated
-suite) — 6 async tests, **127/127** on both backends; `--async` **33/33**; main
-suite green (2190 TCC / 2191 LLVM); interpret 1811/1811.
+5 channel + 3 fs + 1 environment + 8 `spawn_blocking` = **647/647**; `--process`
+(dedicated suite) — 6 async tests, **127/127** on both backends; `--async`
+**33/33**; main suite green (2190 TCC / 2191 LLVM); interpret 1811/1811.
 
 ### 3.4 Libraries
 
@@ -286,7 +286,10 @@ Deliver, in order:
 - Current-thread mode + `spawn_local` (for F8/UI libs). ✅ `spawn_local` is an
   alias of `spawn` (the executor is process-wide and there is no `Send`);
   a true UI-thread-marshalling executor comes with Tier 5.
-- A `channel` (M6, optional for v1). ❌ deferred.
+- A `channel` (M6). ✅ `lang/libs/async/src/channel.ch` — multi-producer /
+  single-consumer, `send`/`close`/`try_recv`/`recv_or`/`clone_sender`. `recv_or`
+  carries the caller's fallback for the closed case because a bare
+  `recv() : FutureHandle<Option<T>>` needs a composite-generic vtable (B20).
 
 ### Tier 1 — `net`
 
@@ -722,6 +725,30 @@ after memcpy-ing the child handle into the frame, null the source handle's
 `{frame, vtbl}` fields so its destructor is a no-op
 (`compiler/backend/LLVMCoroutine.cpp`, `gen_llvm_await`). Tests:
 `lang/tests/libs/async/exec_test.ch::test_async_spawn_await_inside_async`.
+
+### B22 — LLVM coroutine re-runs its body from the start after a suspend (HIGH, open)
+
+Found building the Tier 0 fd reactor. An `async func` that awaits a readiness
+future which becomes `Ready` on the *second* poll (i.e. it suspends exactly
+once) crashed on LLVM: the coroutine body executed twice (a `printf` before the
+await printed twice) and the `destroy` path then re-entered the body, deref'ing
+a stale child handle. The frame's resume `index` stayed at `0`, so the resume
+dispatched to the coroutine body instead of the await's resume landing pad —
+the same class as the destroy-path symptom investigated earlier.
+
+- The 2c backend handles the same program correctly.
+- Polling the same future directly (`block_on(writable(fd))`, no enclosing
+  coroutine) works on both backends, as does awaiting a readiness future that
+  suspends many times (`readable`).
+- **Status:** the reactor (`reactor.ch` + `posix/reactor.ch`) was removed from
+  the shipped module until this is fixed; `readable`/`writable`/`AsyncFd` were
+  TCC-verified. The reactor is wireable to `net` in Tier 1, so it is not
+  blocking the rest of Tier 0.
+- **To investigate:** `compiler/backend/LLVMCoroutine.cpp` — the resume-index
+  store in `gen_llvm_await`'s `suspend_bb` and the `coro.final`/`cleanup`
+  bookkeeping. A likely culprit is that the single await's site is not found in
+  `AsyncFrameLayout::plan->sites` (`site_index == UINT_MAX`), so the index is
+  never advanced.
 
 ### B14 — Capturing lambda inside a generic async func crashed LLVM (HIGH) — ✅ FIXED
 

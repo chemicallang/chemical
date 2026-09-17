@@ -5,6 +5,14 @@ description: Comprehensive guide to the Chemical compiler test infrastructure �
 
 # Testing Guide
 
+> ⚠️ **AI agents must NOT run `./scripts/test.sh --all`.** It runs *every* suite
+> (main, interpret, negative, plugins, async, libs, process, server, tls,
+> webview) and is intended only for a human doing a fresh-clone / new-machine
+> sanity check. It takes a very long time — the `tls` suite alone runs for
+> minutes on a loaded machine. Run only the single suite relevant to your
+> change (e.g. `./scripts/test.sh --tcc`, `--libs`, `--async`, `--webview`),
+> then stop. Never invoke `--all` as a "just to be safe" check.
+
 The Chemical compiler has a multi-layered test infrastructure. Tests can be inline (called manually), annotation-based (auto-dispatched via `@test`), or library-level (for compiler plugins). Understanding these layers is essential for writing effective tests.
 
 ## Test Architecture Overview

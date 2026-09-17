@@ -37,11 +37,18 @@ public struct RawTask {
     var vtbl : *mut TaskVTable
 }
 
+// Invoked (outside the executor lock) every time a waker fires. A native event
+// loop installs one so an off-thread completion wakes the loop immediately
+// instead of waiting for the next poll tick (Tier 5, `window_run_async`).
+public type ExecWakeHook = (arg : *mut void) => void
+
 public struct Executor {
     var m : std::mutex
     var cv : std::condvar
     var queue : std::vector<RawTask>
     var woken : bool
+    var wake_hook : ExecWakeHook
+    var wake_hook_arg : *mut void
 }
 
 @never_destructed
@@ -56,8 +63,15 @@ func exec_wake(data : *mut void) {
     var e = data as *mut Executor
     e.m.lock()
     e.woken = true
+    var hook = e.wake_hook
+    var hook_arg = e.wake_hook_arg
     e.cv.notify_all()
     e.m.unlock()
+    // Run the hook outside the lock: it posts to a native event loop, which
+    // must not be able to re-enter the executor while the lock is held.
+    if(hook != null) {
+        hook(hook_arg)
+    }
 }
 
 func exec_clone_waker(data : *mut void) : core::async::Waker {
@@ -73,7 +87,9 @@ public func executor() : *mut Executor {
             m : std::mutex(),
             cv : std::CondVar(),
             queue : std::vector<RawTask>(),
-            woken : false
+            woken : false,
+            wake_hook : null,
+            wake_hook_arg : null
         }
         g_exec_ready = true
     }
@@ -90,6 +106,16 @@ public func executor() : *mut Executor {
 
 public func exec_make_waker(e : *mut Executor) : core::async::Waker {
     return core::async::Waker { data : e as *mut void, vtbl : &raw mut g_exec_waker_vtbl }
+}
+
+// Install a hook that runs whenever the executor is woken. Used by native event
+// loops (see `window_run_async`) to post a wake to their own queue so a task
+// completing on a worker thread is re-polled promptly. Pass `null` to clear.
+public func executor_set_wake_hook(e : *mut Executor, hook : ExecWakeHook, arg : *mut void) {
+    e.m.lock()
+    e.wake_hook = hook
+    e.wake_hook_arg = arg
+    e.m.unlock()
 }
 
 public func exec_enqueue_task(e : *mut Executor, frame : *mut void, vtbl : *mut TaskVTable) {
@@ -301,9 +327,12 @@ public func <T> spawn(handle : core::async::FutureHandle<T>) : core::async::Futu
     return core::async::FutureHandle<T> { frame : st as *mut void, vtbl : join_vtbl }
 }
 
-// The executor is process-wide, so "local" and "remote" are the same thing
-// today. Kept as a distinct entry point for the UI/`webview` tier, where the
-// task must be marshalled back to the owning thread.
+// Submit a task to the executor for a UI/event loop to drive. The executor is
+// process-wide, so this is currently the same submission as `spawn`; the
+// distinction is the driver. `window_run_async` (Tier 5) drives this executor
+// from the native event loop on the UI thread and posts off-thread wakeups
+// back to that loop, so a task submitted here is polled on the UI thread and
+// its continuation after an `await` runs there too.
 public func <T> spawn_local(handle : core::async::FutureHandle<T>) : core::async::FutureHandle<T> {
     return spawn<T>(handle)
 }

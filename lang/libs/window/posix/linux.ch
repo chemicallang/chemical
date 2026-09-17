@@ -1158,4 +1158,48 @@ public func window_cancel_timer(timer_id : int) {
     }
 }
 
+// ===========================================================================
+// UI-thread async bridge (Tier 5) — GTK backend
+// ===========================================================================
+
+// The native event loop needs non-blocking iteration helpers; declared here so
+// the window module owns its own set of GTK externs (the webview module has an
+// identical declaration, and C treats identical prototypes as benign).
+@extern public func gtk_main_iteration() : int
+@extern public func gtk_events_pending() : int
+
+// Poll the executor once per tick; returns 1 so the GLib timeout stays
+// installed for the lifetime of the loop.
+func linux_async_pump_tick(data : *mut void) : int {
+    async::executor_poll_tasks(async::executor(), 4096u)
+    return 1
+}
+
+// Install the periodic executor tick on the GLib main loop (once per process —
+// GLib timeouts persist across `gtk_main` runs, so installing per run would
+// stack duplicate ticks).
+var g_async_pump_installed : bool = false
+func window_async_platform_install_pump() {
+    if(g_async_pump_installed) { return }
+    ensure_gtk_init()
+    g_timeout_add(1u, linux_async_pump_tick as *mut void, null)
+    g_async_pump_installed = true
+}
+
+// Wake the GLib loop from any thread. An idle source is enough: the installed
+// timeout then polls the executor on the UI thread.
+func window_async_platform_wake(arg : *mut void) {
+    g_idle_add(linux_empty_callback as *mut void, null)
+}
+
+// Drain pending GLib events (idle/wake sources, window events) once.
+func window_async_platform_pump() {
+    ensure_gtk_init()
+    var safety = 0
+    while(gtk_events_pending() != 0 && safety < 100000) {
+        gtk_main_iteration()
+        safety = safety + 1
+    }
+}
+
 } // end namespace window

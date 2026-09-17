@@ -1739,6 +1739,13 @@ public func webview_run(wv : *mut WebView) {
     window::window_run()
 }
 
+// Like webview_run, but the message loop also drives the async executor, so
+// tasks submitted with `async::spawn_local` are polled on the UI thread.
+public func webview_run_async(wv : *mut WebView) {
+    webview_rebind(wv)
+    window::window_run_async()
+}
+
 public func webview_stop(wv : *mut WebView) {
     window::window_quit()
 }

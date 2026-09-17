@@ -1208,4 +1208,41 @@ public func window_cancel_timer(timer_id : int) {
     g_timer_data[idx] = null
 }
 
+// ===========================================================================
+// UI-thread async bridge (Tier 5) — Win32 backend
+// ===========================================================================
+
+@extern @stdcall @dllimport public func PeekMessageW(lpMsg : *mut MSG, hWnd : HWND, wMsgFilterMin : UINT, wMsgFilterMax : UINT, wRemoveMsg : UINT) : BOOL
+
+comptime const PM_REMOVE : UINT = 1
+// A reserved timer id for the executor tick (SetTimer with a NULL hwnd posts
+// WM_TIMER to the calling thread's queue).
+comptime const WIN_ASYNC_TIMER_ID : UINT = 0xFFF1
+
+// Poll the executor once per WM_TIMER.
+func win_async_timer_proc(hwnd : HWND, msg : UINT, timer_id : WPARAM, lp : LPARAM) {
+    async::executor_poll_tasks(async::executor(), 4096u)
+}
+
+// SetTimer with the same id replaces the previous timer, so a simple guard is
+// enough to keep the pump single.
+var g_async_pump_installed : bool = false
+func window_async_platform_install_pump() {
+    if(g_async_pump_installed) { return }
+    SetTimer(null, WIN_ASYNC_TIMER_ID, 1 as UINT, win_async_timer_proc as *mut void)
+    g_async_pump_installed = true
+}
+
+func window_async_platform_wake(arg : *mut void) {
+    window_post_empty_event()
+}
+
+func window_async_platform_pump() {
+    var msg : MSG
+    while(PeekMessageW(&raw mut msg, null, 0u32, 0u32, PM_REMOVE) != 0) {
+        TranslateMessage(&raw mut msg)
+        DispatchMessageW(&raw mut msg)
+    }
+}
+
 } // end namespace window

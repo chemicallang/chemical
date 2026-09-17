@@ -37,6 +37,7 @@ import "./compiler_plugins/runner/build.lab" as testPluginsRunner
 import "./tls/chemical.mod" as tlsIntegrationMod
 import "./process/chemical.mod" as processTestMod
 import "./webview/chemical.mod" as webviewTestMod
+import "./server/chemical.mod" as serverTestMod
 import "./libs/chemical.mod" as libTestsMod
 import "./async/chemical.mod" as asyncMod
 
@@ -289,6 +290,14 @@ func test_webview_exe(ctx : *mut AppBuildContext) : *mut LabJob {
     return exe_job
 }
 
+func test_server_exe(ctx : *mut AppBuildContext) : *mut LabJob {
+    const exe_name = std::string_view("chemical-server-tests")
+    const exe_job = ctx.build_exe(&exe_name)
+    ctx.set_environment_testing(exe_job, true)
+    ctx.add_module(exe_job, serverTestMod.build(ctx, exe_job))
+    return exe_job
+}
+
 func build(ctx : *mut AppBuildContext) : *mut LabJob {
 
     if(ctx.has_arg(std::string_view("test-plugins"))) {
@@ -313,6 +322,8 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
         return test_process_exe(ctx)
     } else if(ctx.has_arg(std::string_view("test-webview"))) {
         return test_webview_exe(ctx)
+    } else if(ctx.has_arg(std::string_view("test-server"))) {
+        return test_server_exe(ctx)
     } else if(ctx.has_arg(std::string_view("test-libs"))) {
         return test_libs_exe(ctx)
     }

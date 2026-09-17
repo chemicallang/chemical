@@ -124,6 +124,7 @@ Tests: `--libs` on **both** backends — 6 async runtime + 10 executor/combinato
 **573 TCC / ~570 passed** (2 pre-existing `BAD_SIGNATURE` failures plus harness
 flakiness under parallel dispatch; the async tests pass in isolation on LLVM);
 `--webview` (dedicated; includes the 4 Tier 5 UI-async tests) **46/46** on both
+backends; `--server` (dedicated; the 2 Tier 6 file-server tests) **2/2** on both
 backends; main suite green (2190 TCC / 2191 LLVM); interpret 1811/1811.
 
 ### 3.4 Libraries
@@ -137,7 +138,8 @@ backends; main suite green (2190 TCC / 2191 LLVM); interpret 1811/1811.
 | `process` | `execute`, `spawn`, `wait`, `try_wait`, `write_stdin`, `close_stdin`, `kill_process`, `is_running`, `sleep_ms` | child + pipes | awaitable child/pipes; `test_env` IPC | 4 |
 | `environment` | get/set env | syscalls | `spawn_blocking` only | 4 |
 | `webview`, `window` | UI-thread event loops (GTK3/WebKit2GTK) | host loop | background async work, resume on UI | 5 (**done**: `spawn_local` + `window_pump`/`window_run_async` + executor wake hook) |
-| `server`, `minlsp`, `ide` | socket/stdio loops over `http` | accept loops | same as `http` | 6 |
+| `server` | file-server runtime: `Server::serve` (blocking accept loop) | accept loop | coroutine accept loop | 6 (**done**: `serve_files_async` + `main --async`) |
+| `minlsp`, `ide` | **compiler-side / CBI** (analyzer hooks), not runtime | — | — | out of scope |
 | `std.concurrent` | `Promise<T>`, `Future<T>`, `ThreadPool::submit`, `sleep_ms` | thread pool | substrate for `spawn_blocking` | 0 (interop) |
 | `json`, `crypto`, `compression`, `archive`, `image`, `font`, `audio`, `regex`, `datetime`, `encoding`, `mime`, `path`, `uuid`, `bcrypt`, `osrand`, parsers | pure buffer/CPU | — | none directly; call via `spawn_blocking` if heavy | — |
 
@@ -163,7 +165,8 @@ Platform notes already in the tree:
   `lang/tests/libs/environment/async_test.ch` (1 test); suite total is now 624
   on both backends.
 - `net`/`http` have **no dedicated suite**; `tls` → `--tls`, `process` →
-  `--process`, `webview` → `--webview`.
+  `--process`, `webview` (Tier 5 UI async) → `--webview`, `server` (Tier 6
+  coroutine file server) → `--server`.
 - `lang/tests/process/src/async_test.ch` holds the `process` async wrapper tests
   (5 tests) in the dedicated `--process` suite (126/126 on TCC and LLVM).
 - `fs` currently has 24 lib tests; `integration/` has 17 cross-library tests.
@@ -443,10 +446,37 @@ the UI thread too. No callback types, no "await the UI": background work runs on
   large module (`webview_tests`) crashes LLVM's `AlwaysInliner`; the tests
   therefore use a single coroutine in that module. See §12 B27.
 
-### Tier 6 — `server`, `minlsp`, `ide`
+### Tier 6 — `server` — ✅ DONE (`minlsp`/`ide` out of scope)
 
-- Adopt the `http` coroutine accept loop / stdio awaitable reads once Tier 3
-  lands.
+**`minlsp` and `ide` are compiler-side / CBI consumers, not runtime libraries.**
+`ide` imports `compiler` and declares `interface LSPAnalyzers`; `minlsp` is a set
+of token-type declarations; both are consumed by the
+`html_ide`/`js_ide`/`css_ide`/`md_ide`/`universal_ide` CBI plugins and run inside
+the analyzer pass on the compiler/LSP thread. They have no sockets or disk I/O of
+their own to suspend on, so the runtime async layer does not apply to them (and
+adding `import async` to a CBI plugin would only grow the plugin). They are
+removed from the runtime-async rollout.
+
+**`server` is the runtime file-server library.** Its synchronous `Server::serve`
+blocks the calling thread in an accept loop (`serve_non_iocp`); IOCP is used on
+Windows. Tier 6 adds the additive coroutine path:
+
+- `server::serve_files_async(srv, root, port)` (`lang/libs/server/src/async.ch`,
+  new) — adds the same static-file routes as `main` and drives the Tier 3
+  `server::serve_coro` accept loop. Drive it with
+  `async::block_on<int>(...)` or submit it with `async::spawn<int>(...)` and stop
+  it with `srv.shutdown()`.
+- `main --async` selects it (the synchronous `serve` path stays the default).
+- `server` now imports `core` + `async`.
+- **Two pre-existing `server`/`http` bugs fixed while wiring this up (B28):**
+  `Server::start` and `FileServer::serve_http` compared a `size_t` `find()`
+  result against `-1u` (32-bit), which on 64-bit is *never* equal to `NPOS`. As a
+  result `Server::start` read out of bounds for any `addr` without a `':'`
+  (including the documented default `0.0.0.0`) and `serve_http` returned `403`
+  for every path. Both now compare against `std::NPOS`.
+- Tests: `lang/tests/server/` (`@test
+  INT_server_async_file_get`/`INT_server_async_404`) in a dedicated `--server`
+  suite. **2/2 on TCC and LLVM.**
 
 ### Explicitly out of scope (stay synchronous)
 
@@ -534,6 +564,7 @@ already live in `--negative`.
 | **M5** | `http` `request_async` + coroutine accept loop + streaming | server/minlsp/ide | integration (gated) |
 | **M6** | `fs`/`process`/`environment` `spawn_blocking` wrappers (additive `*_async` signatures landed; bodies become non-blocking here) | user apps | `--libs` / `--process` |
 | **M7** | `webview`/`window` `spawn_local` + UI-thread executor ✅ | UI async | `--webview` 46/46 |
+| **M8** | `server::serve_files_async` + `main --async` ✅ (`minlsp`/`ide` are CBI, out of scope) | runtime file server | `--server` 2/2 |
 
 M1 is shippable immediately: the compiler already supports everything it needs,
 and it changes **no** public API.
@@ -945,6 +976,26 @@ form is stable across seeds on both backends.
   than a Chemical IR-emission bug. A defensive fix would be to skip modules
   containing `presplitcoroutine` functions when building the AlwaysInliner
   pass (or run the coroutine-split pass earlier).
+
+### B28 — `size_t find()` compared against `-1u` in the server runtime (MEDIUM) — ✅ FIXED
+
+Surfaced by the Tier 6 file server. `std::string::find` returns `size_t` and
+signals "not found" with `NPOS` (`(0 as size_t) - 1`, all-ones on 64-bit), but two
+call sites compared it against `-1u` (`UINT_MAX`, `0xFFFFFFFF`):
+
+```chemical
+var pos = self.cfg.addr.find(":")          // http/src/server.ch, Server::start
+if (pos != -1u) { ... substring(0, pos) ... }
+if (path.find("..") != -1u) { ... 403 ... } // http/src/static.ch, serve_http
+```
+
+On a 64-bit target `NPOS != 0xFFFFFFFF`, so the branch was taken for *every*
+string: `Server::start` called `substring(0, NPOS)` and read out of bounds for
+any `addr` without a `':'` (the documented default `0.0.0.0`), and `serve_http`
+returned `403 Forbidden` for every path. Both now compare against `std::NPOS`.
+The synchronous and coroutine paths were equally affected, so the fix is
+independent of Tier 6; it simply made the async file-server tests possible.
+(`client.ch` already used `std::NPOS` correctly.)
 
 ### B14 — Capturing lambda inside a generic async func crashed LLVM (HIGH) — ✅ FIXED
 

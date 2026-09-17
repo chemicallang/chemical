@@ -16,7 +16,7 @@ public namespace http {
 
         public func serve_http(&self, req: http.Request, res: http.ResponseWriter) {
             var path = req.path.copy();
-            if (path.find(std::string_view("..")) != -1u) {
+            if (path.find(std::string_view("..")) != std::NPOS) {
                 res.status = 403u;
                 res.write_view("Forbidden\n");
                 return;

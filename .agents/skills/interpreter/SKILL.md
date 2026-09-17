@@ -402,6 +402,31 @@ When a variant member constructor is called (e.g., `Option.Some(value)`), `Funct
 - Full variant type matching at comptime (the else-expression path for break/continue/return/defValue IS supported)
 - `@test` annotation dispatch
 
+## Async / Await in the Interpreter
+
+The interpreter has **no executor and cannot suspend**. `async`/`await` is
+eager/transparent (design §11):
+
+- `AwaitExpression::evaluated_value` (`ast/values/AwaitExpression.cpp`) simply
+  evaluates `inner` and returns it — `await e` is exactly `e`. It does **not**
+  drive a `Poll` loop or build a `Context`.
+- An `async func` is an ordinary `FunctionDeclaration` with a body, so a call
+  runs the body to completion and returns the result (not a frame). The
+  interpreter does not build a coroutine frame.
+- Consequently, a future whose first `poll` returns `Poll.Pending` (a real
+  suspension) is **not** driven. Comptime/interpreted code may only use futures
+  that are ready immediately on evaluation.
+- Async closures are not lowered on either compiled backend (symres diagnoses
+  them); the interpreter has no async-closure semantics either — use a named
+  `async func`.
+- `intrinsics::is_interpretation()` returns `true` in the interpreter and is the
+  usual way the test framework picks an interpreter-safe path (see
+  `lang/tests/common/src/test.ch`).
+
+The comptime/interpretation suite does not exercise the executor, the fd
+reactor, `spawn`, or `spawn_blocking`; those are compiled-mode only. See
+`lang/docs/async-library-integration.md` §3.1.
+
 ## Testing Infrastructure
 
 ### Running Interpretation Tests

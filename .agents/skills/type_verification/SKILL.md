@@ -383,6 +383,21 @@ Some implicit conversions are allowed, and the type verifier validates them thro
 - A top-level variable/constant whose type has a destructor must use `@never_destructed` (`top level variables or constants must be non-destructible, or must use @never_destructed annotation`).
 - `VisitArrayValue`: `array element type cannot be void`.
 
+### 13. Async Rules
+
+- `VisitAwaitExpression` (`TypeVerify.cpp:1734`): `await` is legal only when
+  `current_func_type->isAsync()` — otherwise
+  `` `await` can only be used inside an `async` function, `async` closure, or `async` block ``.
+- **Return checks unwrap the await type.** `async func f() : T` has the
+  symres-wrapped static return type `FutureHandle<T>`, but its body returns `T`.
+  `VisitReturnStmt` compares against `FunctionDeclaration::inner_return_type()`
+  (the unwrapped `T`), not `returnType`.
+- `@extern async` is rejected: `an @extern function cannot be async; declare it
+  with an explicit FutureHandle<T> ABI` (`TypeVerify.cpp:1658`).
+- An async function may not be a destructor (`cannot be a destructor`).
+- A `void` async function's inner type is `core::async::Unit`, so the
+  non-void-return check treats it as void-like.
+
 ---
 
 ## Implicit Conversion Rules

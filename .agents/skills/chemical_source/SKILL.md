@@ -14,7 +14,8 @@ This document provides a comprehensive reference for Chemical language syntax, d
 1. [Core C-like Features](#core-c-like-features)
 2. [Standard Library](#standard-library)
 3. [Advanced Features](#advanced-features)
-4. [Best Practices for AI Generation](#best-practices-for-ai-generation)
+4. [Async / Await](#async--await)
+5. [Best Practices for AI Generation](#best-practices-for-ai-generation)
 
 ## Basic Structure
 
@@ -1196,6 +1197,123 @@ variant MyVariant {
     }
 }
 ```
+
+### Async / Await
+
+Chemical has first-class `async`/`await` built on a `Future`/`Poll`/`Waker`
+protocol. `async` is **additive**: every synchronous API keeps working unchanged,
+and an async variant gets an `_async` suffix (`X::foo` → `X::foo_async`).
+
+#### Declaring and awaiting
+
+```chemical
+async func fetch(x : int) : int {
+    var a = await work(x)     // await a FutureHandle<int> → int
+    return a + 1              // the body returns T, not a handle
+}
+
+public func main() : int {
+    return async::block_on<int>(fetch(41))
+}
+```
+
+- `async func f(...) : T` is a normal function whose **static type is
+  `FutureHandle<T>`** — symres wraps the declared return type. You never write
+  `FutureHandle<T>` yourself unless hand-authoring the ABI.
+- `await expr` evaluates a `FutureHandle<T>` to `T`, suspending the task when the
+  future is not ready. It may appear **only inside an `async func`** (or an async
+  closure/block); anywhere else is a compile error (`await can only be used
+  inside an async function, async closure, or async block`).
+- `await` as a bare statement is **not parsed**. Always bind the result:
+
+  ```chemical
+  await fut()            // WRONG (statement form does not parse)
+  var v = await fut()    // CORRECT
+  ```
+
+- Async **methods** are allowed. Async **destructors** and `@extern async`
+  functions are rejected (`@extern` async must declare an explicit
+  `FutureHandle<T>` ABI). A `void` async function's result maps to the zero-sized
+  `core::async::Unit`.
+- `async func main() : int` (optionally `main(argc, argv)`) gets a synchronous
+  `int main` trampoline that drives the future to completion; `int`/`void`/`Unit`
+  results and eager (no-await) entries all work.
+- A module that declares `async func` must `import async` — that library supplies
+  `chemical_async_frame_alloc`/`_free`. `core` alone only has the protocol types.
+
+#### The protocol (`core::async`, re-exported by `async`)
+
+`import async` re-exports the compiler-facing protocol through `namespace async`:
+
+| Type | Meaning |
+|------|---------|
+| `Poll<T>` | `Poll.Ready(v)` / `Poll.Pending()` |
+| `Future<T>` | interface: `func poll(&mut self, cx : *mut Context) : Poll<T>` |
+| `FutureHandle<T>` | move-only runtime future (`frame` + `FutureTable<T>*`); its `@delete` cancels — frame destructors run exactly once |
+| `FutureTable<T>` | vtable: `poll(frame, cx)`, `drop(frame)` |
+| `Context` / `Waker` / `WakerVTable` | task wake callback |
+| `Unit` | zero-sized result of a `void` future |
+
+`std::concurrent::Future<T>` (thread-pool) is a **different type** — do not
+confuse it with `core::async::Future<T>`. Use `spawn_blocking` to bridge.
+
+#### Runtime API (`import async` → `async::…`)
+
+| API | Purpose |
+|-----|---------|
+| `block_on<T>(h) : T` | run the executor until `h` is ready and return its value |
+| `spawn<T>(h) : FutureHandle<T>` | enqueue a task; await the returned join handle for its result |
+| `spawn_local<T>(h) : FutureHandle<T>` | enqueue on the current/UI-thread executor |
+| `spawn_blocking<T>(f : std::function<() => T>) : FutureHandle<T>` | run blocking work on the shared thread pool |
+| `sleep(ms : u64)` / `yield_now()` | timer / yield future (`FutureHandle<Unit>`) |
+| `select<T>(a, b)` | race two same-typed futures |
+| `timeout_or<T>(h, ms, fallback) : FutureHandle<T>` | resolve to `fallback` on timeout |
+| `block_on_timeout<T>(h, ms) : std::Option<T>` | synchronous timed wait |
+| `channel<T>() : Channel<T>` | mpsc (`sender`/`receiver`, `send`, `try_recv`, awaitable `recv_or(fallback)`, `clone_sender`) |
+| `readable(fd)` / `writable(fd)` / `AsyncFd` | fd readiness (POSIX `select(2)`; Win32 is a stub) |
+| `async::test::block_on<T>(h)` | deterministic executor used by tests |
+
+Usage: `var ch = async::channel<int>()`; `ch.sender.send(7)`;
+`var v = await ch.receiver.recv_or(-1)`. `select`/`timeout_or` require both
+futures to have the **same** payload type (composite-generic vtables are not
+supported yet, B20).
+
+#### Library `_async` surface
+
+- `net::AsyncSocket`, `net::async_listener`, `dial_async`/`accept_async`/`recv_async`/`send_async`.
+- `tls::{tls_connect_async, ssl_handshake_async, ssl_read_async, ssl_write_async, tls_accept_async}`.
+- `http::{request_async, get_async, post_async, put_async, patch_async, delete_async, head_async}`;
+  `http::server::serve_coro`. Async client results are a caller-owned
+  `*mut HttpResult` (`is_ok`/`status_code`/`body_view`/`error_view`) — `delete` it.
+- `fs::{read_entire_file_async, write_text_file_async, atomic_write_async}`.
+- `process::{execute_async, spawn_async, wait_async, try_wait_async, kill_process_async, write_stdin_async, close_stdin_async, is_running_async, sleep_ms_async}`.
+- `environment::{get_async, set_async, unset_async}`.
+- `server::serve_files_async`.
+- UI: `window::window_run_async`/`window_pump`, `webview::webview_run_async`.
+  These drive the executor on the GTK/Win32 loop, so a continuation after
+  `await` resumes on the UI thread. Wrap blocking work in `spawn_blocking`.
+
+#### Gotchas and current limits
+
+- **Await a stored handle by value**: `var j = async::spawn(...); var v = await j`
+  is correct (the compiler clears `j`'s drop flag). Never await the same handle
+  twice.
+- **Keep future payloads simple** (ints, pointers, small variants, small
+  structs). Known LLVM/2c limits, worked around in the libraries but not fixed:
+  a plain non-variant struct payload (B23), a large struct variant such as
+  `Result<Response, std::string>` (B26), reading a struct-typed parameter in the
+  body (B24, 2c), awaiting a combinator inside a task polled on the executor
+  (B25), and composite-generic vtable types like `FutureTable<Result<T, E>>`
+  (B20). The shipped libraries pass raw fds/handles and return flat pointer
+  boxes; follow that pattern when hand-authoring a `Future`.
+- **Async closures** (`async |x|(...) => { ... }`) are parsed but **not lowered**
+  — the compiler diagnoses them (`async closures are not yet supported; use a
+  named async func instead`). Use a named `async func`.
+- **No interpreter/comptime async**: the interpreter treats `await` as
+  transparent (it just evaluates the inner expression). Futures that are not
+  ready on the first poll cannot suspend at comptime.
+- A blocking call left inside an `async func` stalls the executor; route it
+  through `spawn_blocking`.
 
 ## Library Development Gotchas
 

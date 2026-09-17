@@ -330,6 +330,48 @@ literal `(struct V) { .__chx__vt_621827 = idx, ... }` (`write_variant_call`, `:1
 
 **Break/continue implementation**: `break` first runs `destruct_till_loop_scope_above()` to destroy locals created inside the loop, then emits a plain C `break;`. `continue` emits a plain C `continue;`, except inside a `for-in` loop where the lowered loop body needs a `goto` to a unique `continue_<encoded_location>` label (`2cASTVisitor.cpp:3468`, `2cASTVisitor.cpp:3501`).
 
+### 9. Async Functions / Coroutines (2c)
+
+`async func f(...) : T` is lowered in `preprocess/2c/2cASTVisitor.cpp` into a
+hand-written C state machine (no `llvm.coro.*`; this is the reference lowering).
+The compiler only does this when symres wrapped the return type to
+`FutureHandle<T>` (see the `symres` skill) and `lowers_async()` includes `"C"`.
+
+Generated per async function:
+
+- a **frame struct** `struct <name>__chx_frame { uint32_t __state; T __result; ... }`
+  plus a **frame-resident drop flag per destructible local**
+  (`uint8_t __chx_drop_<id>`) so a moved-then-cancelled local drops once;
+- a **ramp** that allocates the frame (`chemical_async_frame_alloc`), runs the
+  body, and returns `FutureHandle<T>{ frame, &vtbl }`;
+- a **poll** function that resumes at the saved state and returns
+  `Poll.Ready(frame->__result)` when done;
+- a **drop** function that runs the cancellation switch (live-local
+  destructors) and frees the frame;
+- a **static `FutureTable<T>`** whose `poll`/`drop` fields point at those
+  concrete functions.
+
+Key mechanics:
+
+- `writeReturnStmtFor` redirects the body's `return e` (via `async_ramp_body`) to
+  `frame->__result = e; goto <done>`, so the body is emitted once.
+- `await e` (`VisitAwaitExpression`) drives the child handle's `poll` inline;
+  on `Pending` it saves the state, stores the child in a frame slot, and
+  `return`s to the caller (the executor re-polls). Await sites become
+  `switch`/`goto` suspension points.
+- Cancelling a suspended frame drops live locals **and** the in-flight child
+  future (`__chx_child_i`), then frees the frame.
+- A no-await async function takes an **eager fast path** (an always-`Ready` poll).
+- The frame's protocol type names are resolved structurally from the wrapped
+  return type (`resolve_async_c_types_from_handle`), so no mangled CI name is
+  hard-coded.
+- Async **closures** are *not* lowered: symres emits
+  `async closures are not yet supported; use a named async func instead`.
+
+Known 2c limit: reading a field of a **struct-typed parameter** inside an async
+body emits `frame->slot->field` where the slot is stored by value (B24) — pass a
+pointer/int handle instead.
+
 ## Translation Reference by AST Category
 
 ### Structs, Unions, Variants

@@ -983,6 +983,16 @@ llvm::Value* gen_llvm_await(Codegen& gen, AwaitExpression* await) {
         builder.CreateMemCpy(field, llvm::MaybeAlign(), child_ptr, llvm::MaybeAlign(), size);
     }
 
+    // `await` consumes its operand: clear the source handle so the operand's own
+    // destructor (at scope end / when a temporary is cleaned up) does not drop
+    // the same frame a second time. We already captured `child_frame` above, so
+    // the poll loop and the final `child_drop_fn` below are unaffected.
+    {
+        auto* null = ConstantPointerNull::get(ptr_ty);
+        builder.CreateStore(null, gep_idx(builder, child_handle_ty, child_ptr, {0, 0}));
+        builder.CreateStore(null, gep_idx(builder, child_handle_ty, child_ptr, {0, 1}));
+    }
+
     auto* poll_tmp = builder.CreateAlloca(child_poll_ty);
     auto* loop_bb = BasicBlock::Create(ctx, "await.loop", gen.current_function);
     auto* suspend_bb = BasicBlock::Create(ctx, "await.suspend", gen.current_function);

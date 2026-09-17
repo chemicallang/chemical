@@ -148,14 +148,20 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
         return nullptr;
     }
 
-    // canonicalize the generic arguments
-    // TODO: is there a need for this
-    // TODO: if test suite passes without this, delete canonicalization of generic parameters
+    // canonicalize the generic arguments. A `GenericType` argument must be kept
+    // intact: `BaseType::canonical()` unwraps an *uninstantiated* `Foo<X>` (X a
+    // generic parameter) to the master `Foo<T>`, dropping the arguments. That
+    // made a generic function called with `Foo<X>` inside another generic body
+    // reuse the wrong instantiation and report the callee's parameter type as
+    // the call result.
     unsigned i = 0;
     while(i < generic_args.size()) {
         auto& type = generic_args[i];
         if(type) {
-            type = {type->canonical(), type.getLocation()};
+            auto pure = static_cast<BaseType*>(type);
+            if(pure && pure->kind() != BaseTypeKind::Generic) {
+                type = {pure->canonical(), type.getLocation()};
+            }
         }
         i++;
     }

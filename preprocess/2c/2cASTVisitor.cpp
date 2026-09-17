@@ -5143,12 +5143,19 @@ static void emit_async_await_var_init(ToCAstVisitor& visitor, VarInitStatement* 
         visitor.write(';');
         visitor.new_line_and_indent();
     }
-    // 2. create the child future into the frame so it survives suspension
+    // 2. create the child future into the frame so it survives suspension.
+    //    `await` consumes its operand: if the await's inner is a stored local
+    //    future, clear that local's drop flag so the frame child is its only
+    //    owner (otherwise the local is destroyed again when the frame drops).
+    const auto inner = init->value->as_await_expression_unsafe()->getInner();
     visitor.write_str(ctx.child_field(site->resume_state));
     visitor.write(" = ");
-    visitor.visit(init->value->as_await_expression_unsafe()->getInner());
+    visitor.visit(inner);
     visitor.write(';');
     visitor.new_line_and_indent();
+    if(inner != nullptr) {
+        set_moved_ref_drop_flag(visitor, inner);
+    }
     // 3. poll; may suspend
     emit_async_poll_child(visitor, ctx, *site, target, false);
     visitor.write("goto __chx__after_");

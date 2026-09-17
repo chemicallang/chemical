@@ -88,15 +88,16 @@ depends on (design D10). **No library needs to depend on `async` to use
 | `spawn<T>` + task queue + executor | ✅ | `lang/libs/async/src/exec.ch` — process-wide polling executor; join handle, cancellation; `spawn_local` alias |
 | `spawn_blocking<T>` | ✅ | `lang/libs/async/src/blocking.ch` — submits to a shared lazily-created `std::concurrent::ThreadPool`; cancellation-safe; see B19 for capture/result limits |
 | `select<T>` / `timeout_or<T>` / `block_on_timeout<T>` | ✅ | `lang/libs/async/src/combinators.ch` — same-payload-typed combinators (B20); no `Result`/`Either`-typed vtable |
-| Reactor (epoll/kqueue/IOCP) | ❌ | needed for async socket I/O (Tier 1); see B22 |
+| Reactor / fd readiness | ✅ | `lang/libs/async/src/reactor.ch` + `posix/reactor.ch` (`select(2)`) / `win/reactor.ch` stub — `readable`/`writable`/`AsyncFd`; epoll/kqueue and `net` wiring are Tier 1 |
 | `channel<T>` (mpsc) | ✅ | `lang/libs/async/src/channel.ch` — `send`/`close`/`try_recv`/`recv_or`/`clone_sender`; linked-list queue |
 
 **Landed.** Runtime: `async::{yield_now, sleep, test::block_on}`, a parking
 `block_on`, an executor with `spawn<T>`/`spawn_local<T>`, the `select` /
-`timeout_or` / `block_on_timeout` combinators, and `spawn_blocking<T>` (F4/F5) —
-a cancellation-safe bridge over a shared, lazily-created
+`timeout_or` / `block_on_timeout` combinators, `channel<T>`, the fd reactor
+(`readable`/`writable`/`AsyncFd`), and `spawn_blocking<T>` (F4/F5) — a
+cancellation-safe bridge over a shared, lazily-created
 `std::concurrent::ThreadPool` (`lang/libs/async/src/blocking.ch`).
-Compiler fixes B10, B11, B12, B14, B15, B16, B17, B19, B21 plus a 2c
+Compiler fixes B10, B11, B12, B14, B15, B16, B17, B19, B21, B22 plus a 2c
 nested-lambda fix (a lambda declared inside an `async func` no longer inherits
 the coroutine state, so its `return` is emitted as an ordinary synchronous
 return — the 2c analogue of B14). B20 (a vtable whose type argument is a
@@ -115,9 +116,10 @@ Library integration (all additive):
   suspends.
 
 Tests: `--libs` on **both** backends — 6 async runtime + 10 executor/combinator +
-5 channel + 3 fs + 1 environment + 8 `spawn_blocking` = **647/647**; `--process`
-(dedicated suite) — 6 async tests, **127/127** on both backends; `--async`
-**33/33**; main suite green (2190 TCC / 2191 LLVM); interpret 1811/1811.
+5 channel + 3 reactor + 3 fs + 1 environment + 8 `spawn_blocking` = **650/650**;
+`--process` (dedicated suite) — 6 async tests, **127/127** on both backends;
+`--async` **33/33**; main suite green (2190 TCC / 2191 LLVM); interpret
+1811/1811.
 
 ### 3.4 Libraries
 
@@ -281,8 +283,12 @@ Deliver, in order:
   (`FutureTable<Result<T, E>>`) is not yet supported (B20).
 - `spawn_blocking<T>(f : std::function<() => T>) : FutureHandle<T>` over
   `ThreadPool::submit` — ✅ landed (`lang/libs/async/src/blocking.ch`).
-- `AsyncSocket`-supporting reactor (epoll/kqueue; IOCP reuse on Windows). ❌ —
-  the remaining Tier 0 item; it is the prerequisite for Tier 1 (`net`).
+- `AsyncSocket`-supporting reactor. ✅ `lang/libs/async/src/reactor.ch` with
+  `posix/reactor.ch` (`select(2)`, chosen over `poll` to avoid a C-symbol
+  clash with the `test` library) and a `win/reactor.ch` stub. `readable(fd)` /
+  `writable(fd)` / `AsyncFd` are awaitable readiness futures; the executor
+  blocks on the reactor while fds are registered. epoll/kqueue and the `net`
+  wiring are Tier 1.
 - Current-thread mode + `spawn_local` (for F8/UI libs). ✅ `spawn_local` is an
   alias of `spawn` (the executor is process-wide and there is no `Send`);
   a true UI-thread-marshalling executor comes with Tier 5.
@@ -474,9 +480,10 @@ Building the runtime exposed concrete compiler gaps that block the generic
 layers (`spawn_blocking<T>`, `timeout<T>`, the executor's awaitable
 `JoinHandle<T>`, and any hand-authored `FutureTable<T>`). They are independent
 of the runtime design and must be fixed in the compiler. B10, B11, B12, B14,
-B15, B16, B17, B19 and B21 are **fixed**; B13 and B18 are by-design/documented,
-and B20 (composite generic arguments in a generic body) is **worked around** —
-the runtime avoids vtables parameterized by composite generic types.
+B15, B16, B17, B19, B21 and B22 are **fixed**; B13 and B18 are
+by-design/documented, and B20 (composite generic arguments in a generic body)
+is **worked around** — the runtime avoids vtables parameterized by composite
+generic types.
 
 ### B10 — Generic function *references* are not parsed or instantiated (HIGH) — ✅ FIXED
 
@@ -726,29 +733,26 @@ after memcpy-ing the child handle into the frame, null the source handle's
 (`compiler/backend/LLVMCoroutine.cpp`, `gen_llvm_await`). Tests:
 `lang/tests/libs/async/exec_test.ch::test_async_spawn_await_inside_async`.
 
-### B22 — LLVM coroutine re-runs its body from the start after a suspend (HIGH, open)
+### B22 — LLVM `coro.destroy` re-runs the coroutine body after completion (HIGH) — ✅ FIXED
 
-Found building the Tier 0 fd reactor. An `async func` that awaits a readiness
-future which becomes `Ready` on the *second* poll (i.e. it suspends exactly
-once) crashed on LLVM: the coroutine body executed twice (a `printf` before the
-await printed twice) and the `destroy` path then re-entered the body, deref'ing
-a stale child handle. The frame's resume `index` stayed at `0`, so the resume
-dispatched to the coroutine body instead of the await's resume landing pad —
-the same class as the destroy-path symptom investigated earlier.
+Found building the Tier 0 fd reactor. An `async func` that awaited a future
+completing on the second poll and held a small local array crashed on LLVM when
+the completed handle was dropped: the custom `__drop` called `coro.destroy`, and
+LLVM's split destroy path re-entered the coroutine body (deref'ing a null child
+slot). The 2c backend and direct `block_on(future)` (no enclosing coroutine)
+were unaffected.
 
-- The 2c backend handles the same program correctly.
-- Polling the same future directly (`block_on(writable(fd))`, no enclosing
-  coroutine) works on both backends, as does awaiting a readiness future that
-  suspends many times (`readable`).
-- **Status:** the reactor (`reactor.ch` + `posix/reactor.ch`) was removed from
-  the shipped module until this is fixed; `readable`/`writable`/`AsyncFd` were
-  TCC-verified. The reactor is wireable to `net` in Tier 1, so it is not
-  blocking the rest of Tier 0.
-- **To investigate:** `compiler/backend/LLVMCoroutine.cpp` — the resume-index
-  store in `gen_llvm_await`'s `suspend_bb` and the `coro.final`/`cleanup`
-  bookkeeping. A likely culprit is that the single await's site is not found in
-  `AsyncFrameLayout::plan->sites` (`site_index == UINT_MAX`), so the index is
-  never advanced.
+**Fix:** a *completed* coroutine (wrapper state `0xFFFFFFFF`) has no live locals
+and does not need its coroutine frame destroyed. `emit_drop_fn`
+(`compiler/backend/LLVMCoroutine.cpp`) now routes the `0xFFFFFFFF` case to a
+`drop.free` block that frees the coroutine and wrapper frames directly, and
+reserves `coro.destroy` for the not-started (`0`) and suspended (`site+1`)
+cases.
+
+**Along the way:** `FunctionCall::infer_generic_args` (`ast/values/FunctionCall.cpp`)
+indexed `func->params[arg_offset]` without checking `arg_offset < params.size()`,
+which aborted the compiler on a call whose argument list is longer than the
+parameter list. Guarded. Tests: `lang/tests/libs/async/reactor_test.ch`.
 
 ### B14 — Capturing lambda inside a generic async func crashed LLVM (HIGH) — ✅ FIXED
 

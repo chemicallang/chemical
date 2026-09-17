@@ -272,8 +272,14 @@ static llvm::Function* emit_drop_fn(
     };
 
     auto* done_bb = BasicBlock::Create(ctx, "drop.done", fn);
+    // A *completed* coroutine (state 0xFFFFFFFF) has no live locals and does not
+    // need its coroutine frame destroyed — running `coro.destroy` on it can
+    // re-enter the body when the frame's stored resume index was not advanced
+    // (B22). Free its frames directly instead.
+    auto* free_bb = BasicBlock::Create(ctx, "drop.free", fn);
     auto* state = builder.CreateLoad(i32, wrapper_field((unsigned) coro.state_field));
-    auto* sw = builder.CreateSwitch(state, done_bb, layout.plan != nullptr ? layout.plan->sites.size() : 0);
+    auto* sw = builder.CreateSwitch(state, done_bb, (layout.plan != nullptr ? layout.plan->sites.size() : 0) + 1);
+    sw->addCase(ConstantInt::get(i32, 0xFFFFFFFFu), free_bb);
     if(layout.plan != nullptr) {
         for(unsigned site = 0; site < layout.plan->sites.size(); site++) {
             auto* site_bb = BasicBlock::Create(ctx, "drop.site", fn);
@@ -340,6 +346,16 @@ static llvm::Function* emit_drop_fn(
     auto* wrapper_reloaded = builder.CreateLoad(ptr_ty, wrapper_saved, true);
     builder.CreateCall(frame_free_fn, {coro_reloaded, ConstantInt::get(i64, 0), ConstantInt::get(i64, 0)});
     builder.CreateCall(frame_free_fn, {wrapper_reloaded, ConstantInt::get(i64, 0), ConstantInt::get(i64, 0)});
+    builder.CreateRetVoid();
+
+    // Completed coroutine: free both frames directly, without `coro.destroy`.
+    gen.SetInsertPoint(free_bb);
+    auto* wrapper_saved_free = builder.CreateAlloca(ptr_ty);
+    builder.CreateStore(wrapper, wrapper_saved_free, true);
+    auto* coro_frame_free = builder.CreateLoad(ptr_ty, wrapper_field(0));
+    auto* wrapper_reloaded_free = builder.CreateLoad(ptr_ty, wrapper_saved_free, true);
+    builder.CreateCall(frame_free_fn, {coro_frame_free, ConstantInt::get(i64, 0), ConstantInt::get(i64, 0)});
+    builder.CreateCall(frame_free_fn, {wrapper_reloaded_free, ConstantInt::get(i64, 0), ConstantInt::get(i64, 0)});
     builder.CreateRetVoid();
 
     gen.current_function = prev_func;

@@ -134,9 +134,16 @@ public func executor_poll_tasks(e : *mut Executor, max : uint) : uint {
 // is what keeps futures that do not use their waker (timers, `spawn_blocking`)
 // making progress.
 public func executor_wait(e : *mut Executor, millis : ulong) {
+    var wait_ms = millis
+    if(reactor_has_fds()) {
+        // block on the fd reactor (it wakes tasks via their wakers); the
+        // condvar is then used only to drain non-reactor wakers
+        reactor_poll(millis as int)
+        wait_ms = 0u
+    }
     e.m.lock()
     e.woken = false
-    e.cv.timed_wait(&mut e.m, millis)
+    e.cv.timed_wait(&mut e.m, wait_ms)
     e.m.unlock()
 }
 

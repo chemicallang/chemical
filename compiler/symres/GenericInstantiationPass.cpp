@@ -3,12 +3,16 @@
 #include "GenericInstantiationPass.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/structures/GenericTypeDecl.h"
+#include "ast/structures/GenericFuncDecl.h"
 #include "ast/structures/Namespace.h"
 #include "ast/structures/If.h"
 #include "ast/structures/Scope.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/statements/VarInit.h"
 #include "ast/types/GenericType.h"
+#include "ast/values/VariableIdentifier.h"
+#include "ast/values/AccessChain.h"
+#include "ast/utils/GenericUtils.h"
 #include "GenericInstantiatorPassAPI.h"
 
 GenInstSignatureResult sym_res_generic_instantiation(SymbolResolver& resolver, Scope* scope, SymResSignatureResult& result, const SymbolRange& range) {
@@ -70,4 +74,56 @@ void GenericInstantiationPass::VisitFunctionDecl(FunctionDeclaration* node) {
         visit_it(param);
     }
     visit_it(node->returnType);
+}
+
+void GenericInstantiationPass::VisitVariableIdentifier(VariableIdentifier* value) {
+    // a bare generic function reference used as a value in a global initializer
+    // (`var f : (x : int) => int = ident<int>`) must be registered here, because
+    // function body references are handled by SymResLinkBody / the generic
+    // instantiator and this pass does not visit function bodies. the instantiated
+    // body is finalized once the generic declaration's body is linked.
+    if(value->generic_list.empty()) {
+        return;
+    }
+    const auto linked = value->linked;
+    if(linked == nullptr || linked->kind() != ASTNodeKind::GenericFuncDecl) {
+        return;
+    }
+    const auto gen_decl = linked->as_gen_func_decl_unsafe();
+    for(auto& type : value->generic_list) {
+        visit(type);
+    }
+    std::vector<TypeLoc> generic_args;
+    if(!initialize_generic_args(diagnoser, generic_args, gen_decl->generic_params, value->generic_list)) {
+        return;
+    }
+    if(!check_inferred_generic_args(diagnoser, generic_args, gen_decl->generic_params, value->encoded_location())) {
+        return;
+    }
+    for(auto& type : generic_args) {
+        if(type) {
+            type = { type->canonical(), type.getLocation() };
+        }
+    }
+    const auto concrete = gen_decl->register_generic_args(
+        generic_instantiator, generic_args, value->encoded_location(),
+        InstantiationRequirement::Registration
+    );
+    if(concrete != nullptr) {
+        value->linked = concrete;
+        value->setType(concrete->known_type());
+    }
+}
+
+void GenericInstantiationPass::VisitAccessChain(AccessChain* chain) {
+    RecursiveVisitor<GenericInstantiationPass>::VisitAccessChain(chain);
+    // a chain may end in a generic function reference; VisitVariableIdentifier has
+    // relinked the identifier, so refresh the chain's type from it
+    const auto last = chain->values.back();
+    if(last->kind() == ValueKind::Identifier) {
+        const auto id = last->as_identifier_unsafe();
+        if(!id->generic_list.empty()) {
+            chain->setType(id->getType());
+        }
+    }
 }

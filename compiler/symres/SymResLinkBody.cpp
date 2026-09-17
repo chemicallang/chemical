@@ -487,6 +487,11 @@ void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, b
         i++;
     }
 
+    // a chain may end in a bare generic function reference (ns::ident<int>)
+    if(values[last]->kind() == ValueKind::Identifier) {
+        link_generic_func_reference(values[last]->as_identifier_unsafe());
+    }
+
     // the last item holds the type for this access chain
     chain->setType(values[last]->getType());
 
@@ -494,6 +499,55 @@ void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, b
         // check chain for validity, if it's moved or members have been moved
         check_chain(chain, assignment, diagnoser);
     }
+}
+
+void SymResLinkBody::link_generic_func_reference(VariableIdentifier* identifier) {
+    if(identifier->generic_list.empty()) {
+        return;
+    }
+    const auto linked = identifier->linked;
+    if(linked == nullptr || linked->kind() != ASTNodeKind::GenericFuncDecl) {
+        // generic arguments on something that is not a generic function — leave it
+        // to the type checker to report
+        return;
+    }
+    auto& gen_decl = *linked->as_gen_func_decl_unsafe();
+    // link the generic argument types (they are not linked anywhere else)
+    for(auto& type : identifier->generic_list) {
+        visit(const_cast<BaseType*>(type.getType()), type.getLocation());
+    }
+    // inside a generic declaration the instantiation is deferred to the generic
+    // instantiator, which visits the instantiated body (mirrors generic calls)
+    const auto curr_func = current_func_type ? current_func_type->as_function() : nullptr;
+    if(generic_context || (curr_func != nullptr && curr_func->generic_parent != nullptr)) {
+        identifier->setType(gen_decl.master_impl->known_type());
+        return;
+    }
+    std::vector<TypeLoc> generic_args;
+    if(!initialize_generic_args(diagnoser, generic_args, gen_decl.generic_params, identifier->generic_list)) {
+        return;
+    }
+    if(!check_inferred_generic_args(diagnoser, generic_args, gen_decl.generic_params, identifier->encoded_location())) {
+        return;
+    }
+    // canonicalize the generic arguments (matches GenericFuncDecl::instantiate_call)
+    for(auto& type : generic_args) {
+        if(type) {
+            type = { type->canonical(), type.getLocation() };
+        }
+    }
+    const auto concrete = gen_decl.register_generic_args(
+        generic_instantiator,
+        generic_args,
+        identifier->encoded_location(),
+        InstantiationRequirement::SignatureFinalization
+    );
+    if(concrete == nullptr) {
+        return;
+    }
+    identifier->linked = concrete;
+    identifier->setType(concrete->known_type());
+    identifier->process_linked(&diagnoser, current_func_type);
 }
 
 void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, bool check_access) {
@@ -507,6 +561,7 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
         if(identifier->getType() == nullptr) {
             identifier->setType(identifier->linked->known_type());
         }
+        link_generic_func_reference(identifier);
         if(check_access) {
             // check for validity if accessible or assignable (because moved)
             check_id(identifier, diagnoser);
@@ -564,6 +619,7 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
         } else {
             identifier->linked = sym->activeNode;
             identifier->setType(identifier->linked->known_type());
+            link_generic_func_reference(identifier);
             if (check_access) {
                 // check for validity if accessible or assignable (because moved)
                 check_id(identifier, diagnoser);
@@ -576,6 +632,7 @@ void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, boo
     if(linked) {
         identifier->linked = linked;
         identifier->setType(linked->known_type());
+        link_generic_func_reference(identifier);
         if (check_access) {
             // check for validity if accessible or assignable (because moved)
             check_id(identifier, diagnoser);

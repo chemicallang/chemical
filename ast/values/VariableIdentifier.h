@@ -8,7 +8,9 @@
 
 #include <utility>
 #include <atomic>
+#include <vector>
 #include "ast/base/Value.h"
+#include "ast/base/TypeLoc.h"
 #include "ast/statements/VarInit.h"
 
 #ifdef COMPILER_BUILD
@@ -30,6 +32,16 @@ public:
     ASTNode *linked = nullptr;
     bool is_ns;
     bool is_moved = false;
+
+    /**
+     * generic arguments for a bare generic function reference used as a value,
+     * e.g. the `<int>` in `ident<int>`. Calls (`ident<int>(x)`) store their
+     * generic arguments on the FunctionCall instead, and struct values
+     * (`Foo<int>{...}`) on the StructValue. When non-empty and the identifier
+     * links to a GenericFuncDecl, symbol resolution instantiates the function
+     * and relinks this identifier to the concrete FunctionDeclaration.
+     */
+    std::vector<TypeLoc> generic_list;
 
     /**
      * Interpreter inline cache: number of parent-scope hops from the evaluation

@@ -145,6 +145,13 @@ SymResSignatureResult sym_res_signature(SymbolResolver& resolver, Scope* scope, 
 }
 
 void TopLevelLinkSignature::VisitVariableIdentifier(VariableIdentifier* value) {
+    // link the generic arguments of a bare generic function reference used as a
+    // value (`ident<int>`), they are not linked anywhere else
+    if(!value->generic_list.empty()) {
+        for(auto& type : value->generic_list) {
+            visit(type);
+        }
+    }
     const auto decl = tld_find(value->value);
     if(decl) {
         value->linked = decl;

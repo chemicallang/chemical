@@ -1,10 +1,12 @@
-name: Generate API Ref
+name: Deploy API Reference
 
 # Manual dispatch only — generates the API reference site with the released
-# `refgen` transformer and uploads it as a downloadable zip artifact.
+# `refgen` transformer and deploys it to Cloudflare Workers
+# (https://api.chemicallang.com).
 #
 # The target module (libs/refgen/refgen.mod) ships inside the release package
-# alongside the compiler, so no repository checkout is required.
+# alongside the compiler, so no compiler build is required. The Cloudflare
+# Worker config (`wrangler.toml`) is generated on the fly by the workflow.
 on:
   workflow_dispatch:
 
@@ -19,12 +21,24 @@ env:
   RELEASE_ROOT: chemical-tcc
 
 jobs:
-  generate-docs:
-    name: Generate reference docs
+  deploy-docs:
+    name: Generate and deploy reference docs
     runs-on: ubuntu-24.04
     env:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
+
+      - name: Write wrangler.toml
+        run: |
+          cat > wrangler.toml <<'EOF'
+          name = "reference-docs"
+          compatibility_date = "2024-01-01"
+
+          [assets]
+          directory = "docs"
+          EOF
 
       - name: Install dependencies
         run: |
@@ -65,9 +79,13 @@ jobs:
           echo "Generated $(find docs -type f | wc -l) files in docs/"
           du -sh docs
 
-      - name: Upload docs artifact
-        uses: actions/upload-artifact@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          name: refgen-docs
-          path: docs
-          if-no-files-found: error
+          node-version: '20'
+
+      - name: Install wrangler
+        run: npm install -g wrangler
+
+      - name: Deploy to Cloudflare Workers
+        run: wrangler deploy

@@ -691,6 +691,34 @@ void SymResLinkBody::VisitBreakStmt(BreakStatement* node) {
         // TODO: we may need to pass expected type from
         //    where it is being assigned
         visit(node->value);
+        // Breaking with a value moves it into the loop-expression result slot;
+        // record the move so the source (e.g. a destructured variant payload) has
+        // its drop flag cleared instead of being destroyed twice (B16). Only
+        // destructible values participate in move semantics: a primitive is
+        // copied, so marking it moved would be wrong. A destructured payload may
+        // be exposed as a reference (no destructor on the reference type), so
+        // also accept identifiers bound by a pattern match.
+        bool mark_break_move = false;
+        const auto break_type = node->value->getType();
+        if(break_type != nullptr && break_type->get_destructor() != nullptr) {
+            mark_break_move = true;
+        } else if(auto* break_id = node->value->as_identifier()) {
+            mark_break_move = break_id->linked != nullptr && break_id->linked->kind() == ASTNodeKind::PatternMatchId;
+        } else if(auto* break_chain = node->value->as_access_chain()) {
+            // a destructured payload may be exposed as a single-id access chain
+            if(break_chain->values.size() == 1) {
+                if(auto* chain_id = break_chain->values.front()->as_identifier()) {
+                    mark_break_move = chain_id->linked != nullptr && chain_id->linked->kind() == ASTNodeKind::PatternMatchId;
+                }
+            }
+        }
+        if(mark_break_move) {
+            if(auto* break_id = node->value->as_identifier()) {
+                mark_moved_id(break_id, diagnoser);
+            } else if(auto* break_chain = node->value->as_access_chain()) {
+                mark_moved_no_check(break_chain);
+            }
+        }
     }
     const auto loop_node = node->get_loop_node_above();
     if(loop_node) {
@@ -734,7 +762,18 @@ void SymResLinkBody::VisitReturnStmt(ReturnStatement* node) {
     if (value) {
 
         const auto func_type = current_func_type;
-        const auto exp_type = func_type->returnType ? func_type->returnType : nullptr;
+        BaseType* exp_type = func_type->returnType ? func_type->returnType : nullptr;
+        // An async function's declared return type is `FutureHandle<T>`, but the
+        // body's `return expr` produces the inner `T`. Use the unwrapped type for
+        // linking and the move check, otherwise `return local_struct` fails with
+        // "unknown value being moved, where the struct types don't match" (B16).
+        const auto ret_func = func_type->as_function();
+        if(ret_func != nullptr && ret_func->is_async()) {
+            const auto inner = ret_func->inner_return_type();
+            if(inner != nullptr) {
+                exp_type = inner;
+            }
+        }
         visit(value, exp_type);
 
         mark_moved_value(getAstAllocator(), value, exp_type, diagnoser, true);
@@ -3476,6 +3515,21 @@ bool SymResLinkBody::mark_moved_id(VariableIdentifier* id, ASTDiagnoser& diagnos
         return false;
     }
     mark_moved_no_check(id);
+    // Moving a value destructured out of a variant (`var Ready(value) = r;
+    // move(value)`) also consumes the source variant's payload. Mark the matched
+    // expression as moved so the source's destructor does not free the payload we
+    // just took ownership of (B16).
+    if(id->linked != nullptr && id->linked->kind() == ASTNodeKind::PatternMatchId) {
+        const auto match_id = id->linked->as_patt_match_id_unsafe();
+        auto* const source = match_id->matchExpr != nullptr ? match_id->matchExpr->expression : nullptr;
+        if(source != nullptr) {
+            if(auto* source_id = source->as_identifier()) {
+                mark_moved_no_check(source_id);
+            } else if(auto* source_chain = source->as_access_chain()) {
+                mark_moved_no_check(source_chain);
+            }
+        }
+    }
     return true;
 }
 

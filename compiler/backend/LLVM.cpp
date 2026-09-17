@@ -58,6 +58,7 @@
 #include "ast/values/Expression.h"
 #include "ast/values/CastedValue.h"
 #include "ast/values/AccessChain.h"
+#include "ast/values/PatternMatchExpr.h"
 #include "ast/values/IncDecValue.h"
 #include "ast/values/ValueNode.h"
 #include "ast/values/IndexOperator.h"
@@ -2457,6 +2458,12 @@ llvm::Type* TypealiasStatement::llvm_param_type(Codegen &gen) {
 
 void BreakStatement::code_gen(Codegen &gen) {
     if(value) {
+        // Breaking with a moved value (e.g. a destructured variant payload) into
+        // the loop-expression result: clear the drop flags of what it moves out
+        // of, otherwise the source is destroyed on top of the destination (B16).
+        if(value->is_ref_moved()) {
+            value->set_drop_flag_for_ref(gen, false);
+        }
         auto& assignable = gen.current_assignable;
         if(assignable.second) {
             value->llvm_assign_value(gen, assignable.second, assignable.first, assignable.second);
@@ -2522,6 +2529,30 @@ bool Value::set_drop_flag_for_ref(Codegen& gen, bool flag) {
         // because value is not destructible, no point in moving
         return true;
     }
+    // Moving a value destructured out of a variant also consumes the source
+    // variant's payload: clear the source's drop flag too, otherwise its
+    // destructor frees the payload the destination now owns (B16).
+    const auto clear_pattern_source = [&](VariableIdentifier* id) {
+        if(id == nullptr || id->linked == nullptr || id->linked->kind() != ASTNodeKind::PatternMatchId) {
+            return;
+        }
+        const auto match_id = id->linked->as_patt_match_id_unsafe();
+        auto* const source = match_id->matchExpr != nullptr ? match_id->matchExpr->expression : nullptr;
+        if(source == nullptr) {
+            return;
+        }
+        VariableIdentifier* source_id = source->as_identifier();
+        if(source_id == nullptr) {
+            if(auto* source_chain = source->as_access_chain()) {
+                if(source_chain->values.size() == 1) {
+                    source_id = source_chain->values.front()->as_identifier();
+                }
+            }
+        }
+        if(source_id != nullptr && source_id->linked != nullptr) {
+            gen.set_drop_flag_for_node(source_id->linked, flag, source_id->encoded_location());
+        }
+    };
     const auto value = this;
     switch(value->kind()) {
         case ValueKind::AccessChain: {
@@ -2529,6 +2560,7 @@ bool Value::set_drop_flag_for_ref(Codegen& gen, bool flag) {
                 const auto chain = value->as_access_chain_unsafe();
                 const auto first = chain->values.front();
                 if(first->kind() == ValueKind::Identifier && (chain->is_moved() || first->as_identifier_unsafe()->is_moved)) {
+                    clear_pattern_source(first->as_identifier_unsafe());
                     return gen.set_drop_flag_for_node(first->as_identifier_unsafe()->linked, flag, first->encoded_location());
                 } else {
                     return true;
@@ -2539,6 +2571,7 @@ bool Value::set_drop_flag_for_ref(Codegen& gen, bool flag) {
         }
         case ValueKind::Identifier: {
             if(value->as_identifier_unsafe()->is_moved) {
+                clear_pattern_source(value->as_identifier_unsafe());
                 return gen.set_drop_flag_for_node(value->as_identifier_unsafe()->linked, flag, value->encoded_location());
             } else {
                 return true;

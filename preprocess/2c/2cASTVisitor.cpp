@@ -1140,6 +1140,17 @@ void set_ref_drop_flag(ToCAstVisitor& visitor, Value* value, bool drop_or_not) {
 
 void set_moved_ref_drop_flag(ToCAstVisitor& visitor, Value* value) {
     set_ref_drop_flag(visitor, value, false);
+    // Moving a value destructured out of a variant also consumes the source
+    // variant's payload. Clear the source's drop flag too, otherwise its
+    // destructor frees the payload the destination now owns (B16).
+    const auto id = get_single_id(value);
+    if(id != nullptr && id->linked != nullptr && id->linked->kind() == ASTNodeKind::PatternMatchId) {
+        const auto match_id = id->linked->as_patt_match_id_unsafe();
+        auto* const source = match_id->matchExpr != nullptr ? match_id->matchExpr->expression : nullptr;
+        if(source != nullptr) {
+            set_ref_drop_flag(visitor, source, false);
+        }
+    }
 }
 
 bool isRef(ToCAstVisitor& visitor, Value* value) {
@@ -3741,7 +3752,18 @@ void ToCAstVisitor::writeBreakStmtFor(Value* value) {
         }
         auto prev = nested_value;
         nested_value = true;
-        visit(value);
+        if(value->is_ref_moved()) {
+            // A moved reference (e.g. a destructured payload moved out of a
+            // variant) must clear the drop flags of what it moves out of, so the
+            // source is not destroyed on top of the destination (B16).
+            write("({ ");
+            set_moved_ref_drop_flag(*this, value);
+            space();
+            visit(value);
+            write("; })");
+        } else {
+            visit(value);
+        }
         nested_value = prev;
         write(';');
         new_line_and_indent();

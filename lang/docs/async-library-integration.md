@@ -86,22 +86,23 @@ depends on (design D10). **No library needs to depend on `async` to use
 | `sleep(millis) : FutureHandle<Unit>` | ✅ | poll-driven clock future |
 | `test::block_on<T>` | ✅ | deterministic executor for `--libs` tests |
 | `spawn` / task queue / executor | ❌ | see §12 compiler blockers |
-| `spawn_blocking` | ❌ | `ThreadPool` bridge ready; prototype works on TCC, B14 fixed; still blocked by B12 (generic vtable) + B16 (block_on double-free) |
+| `spawn_blocking` | ❌ | `ThreadPool` bridge ready; prototype works on TCC, B14 + B16 fixed; still blocked by B12 (generic vtable) |
 | `timeout` / `select` | ❌ | blocked by §12 (generic future tables) |
 | Reactor (epoll/kqueue/IOCP) | ❌ | needed for async socket I/O |
 | `channel` | ❌ | later phase |
 
 **Landed (this revision).** `async::{yield_now, sleep, test::block_on}` and a
 parking `block_on`; compiler fixes B11 (generic type identity), B14 (nested
-lambda inheriting coroutine `redirect_return`) and B15 (async works in
-`debug_complete`); library integration — additive
+lambda inheriting coroutine `redirect_return`), B16 (destructible variant payload
+double-free in `block_on`) and B15 (async works in `debug_complete`); library
+integration — additive
 `fs::read_entire_file_async` / `write_text_file_async` / `atomic_write_async`
 and `environment::{get_async, set_async, unset_async}` (v1 blocking bodies).
 Tests: 6 async runtime + 3 fs + 1 environment, all under
 `./scripts/test.sh --tcc --libs` **and** `--llvm --libs` (624/624 both), plus
 `--async`/main green in `debug_complete`. Generic vtable, reactor,
-`process` (B16), and true non-blocking `spawn_blocking` remain blocked by
-B10/B12/B16 (§12).
+true non-blocking `spawn_blocking` remains blocked by
+B10/B12 (§12).
 
 ### 3.4 Libraries
 
@@ -301,9 +302,10 @@ Deliver, in order:
   (`lang/libs/environment/src/async.ch`). Both concrete-return `async func`s with
   blocking bodies; `fs`/`environment` now import `async`. They become true
   `spawn_blocking` wrappers once B10/B12 land.
-- **Blocked:** `process` async wrappers (`execute_async`/`wait_async`/…) — the
-  result type `PR_Result` is a nested destructible aggregate, miscompiled by
-  async returns (B16). No process async code is shipped.
+- **Ready to redo:** `process` async wrappers (`execute_async`/`wait_async`/…)
+  were blocked by B16 (a nested destructible aggregate double-free); B16 is now
+  fixed, so they can be re-added with the same concrete-return `async func`
+  pattern as `fs`.
 
 ### Tier 5 — `webview`, `window`
 
@@ -586,7 +588,7 @@ locations. Async debug info can be restored once the coroutine split carries
 per-clone `DISubprogram`s. Verified: `--async --mode debug_complete` 33/33 and
 main `--mode debug_complete` 2187/2187.
 
-### B16 — `block_on` double-frees a destructible variant payload (HIGH)
+### B16 — `block_on` double-freed a destructible variant payload (HIGH) — ✅ FIXED
 
 Root cause found by emitting the 2c translation of an async function returning a
 `std::vector<u8>` and reading it with `async::block_on`. In `block_on`:
@@ -600,43 +602,41 @@ if(r is core::async::Poll.Ready) {
 ```
 
 `var Ready(value) = r` binds `value` to the payload and `break value` **moves**
-it out, but the generated code still destroys `r` afterwards; `Poll<T>::delete`
-then destroys the (already-moved) payload and frees its heap buffer. The result
-is destroyed a second time when the caller drops it:
+it out, but the generated code still destroyed `r` afterwards; `Poll<T>::delete`
+then freed the (already-moved) payload and freed its heap buffer again. A
+synchronous `var Ok(v) = r` did not hit this because the pattern variable binds
+as a *reference* into `r` (only `r` owns the value). `std::string` hid it via SSO.
 
-```c
-out = r.Ready.value;              // move (bitwise) out of r
-core_coreasyncPoll__cgs__1delete(&r);  // frees the moved buffer  -> double free
-```
+Two fixes, both needed:
 
-A synchronous `var Ok(v) = r` does **not** hit this: there the pattern variable
-binds as a *reference* into `r`, so only `r` owns the value. The bug needs the
-payload to be moved out of the source variant and the source still destroyed —
-exactly the `block_on` shape, which is triggered for any `T` with a heap-backed
-destructor (`vector`, etc.). `std::string` hid it via SSO.
+1. **Symres return move-check** (`SymResLinkBody::VisitReturnStmt`): an async
+   function's declared type is `FutureHandle<T>`, but the body returns inner `T`.
+   Unwrap with `func->inner_return_type()` before linking/`mark_moved_value`, so
+   `return local_struct` from an async func compiles instead of erroring with
+   *"unknown value being moved..."*.
+2. **Move-tracking for destructured payloads:**
+   - `SymResLinkBody::VisitBreakStmt` now records a move for a destructible
+     loop-result value (identifier or access chain bound by a pattern match),
+     and `mark_moved_id` also marks the pattern's source expression
+     (`PatternMatchIdentifier::matchExpr->expression`) as moved.
+   - 2c: `set_moved_ref_drop_flag` clears the pattern source's drop flag, and
+     `writeBreakStmtFor` wraps a moved reference so the flag is cleared.
+   - LLVM: `Value::set_drop_flag_for_ref` clears the pattern source's drop flag,
+     and `BreakStatement::code_gen` clears the drop flags of a moved break value.
 
-Two separable issues:
-1. **Symres return move-check:** `SymResLinkBody::VisitReturnStmt` used the
-   wrapped `FutureHandle<T>` as the expected type, so `return local_struct` from
-   an async func errored with *"unknown value being moved, where the struct types
-   don't match"*. Unwrapping via `func->inner_return_type()` fixes the compile
-   error (verified), but without (2) it only turns a safe compile error into a
-   silent runtime double-free, so it was **not** landed.
-2. **Codegen move-tracking:** a pattern-match payload moved out of a variant must
-   clear/mark the source payload (or elide the source's destructor). Needs work
-   in the 2c and LLVM `destruct_current_scope` / pattern-match paths.
-
-Blocks `process` async wrappers and any `block_on` of a heap-backed `T`; Tier 4
-`process` is not shipped.
+Verified on LLVM **and** TCC: bare `std::vector<u8>` and
+`std::Result<std::vector<u8>, int>` returns from async funcs via `block_on` no
+longer double-free; no regressions (main 2186/2187, main `debug_complete` 2187,
+async 33/33, libs 624/624). This unblocks `process` async wrappers.
 
 **Consequence.** Until B10/B12 land, the runtime can only create
 `FutureTable` entries for *concrete* `T` (as `yield_now`/`sleep` do with
 `Unit`). A generic `async func` body *can* drive a generic state struct (this was
-prototyped for `spawn_blocking<T>` and runs on TCC), but the thread-pool closure
-path crashes LLVM (B14). The pragmatic near-term path is to keep generic
-combinators (`spawn_blocking<T>`, `timeout<T>`) out of the runtime and implement
-library async wrappers with compiler-lowered `async func` bodies instead (this
-is now done for `fs`, §7 Tier 4).
+prototyped for `spawn_blocking<T>` and runs on TCC and, since B14, on LLVM). The
+pragmatic near-term path is to keep generic combinators (`spawn_blocking<T>`,
+`timeout<T>`) out of the runtime and implement library async wrappers with
+compiler-lowered `async func` bodies instead (done for `fs`, §7 Tier 4; `process`
+can follow now that B16 is fixed).
 
 ---
 

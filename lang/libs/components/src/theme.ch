@@ -11,6 +11,12 @@ public func (page : &mut HtmlPage) injectDefaultComponentsTheme() {
     page.append_css_view("""
         /* ============ Shadcn zinc theme ============ */
         :root {
+            /* Native form controls (number spin buttons, select popups,
+               scrollbars, date pickers) are painted by the UA engine using the
+               active color scheme, NOT these tokens — so the scheme must be
+               declared alongside them or WebKit/GTK renders those widgets
+               light-on-dark (white spin arrows on dark inputs). */
+            color-scheme: light;
             --background: 0 0% 100%;
             --foreground: 240 10% 3.9%;
             --card: 0 0% 100%;
@@ -53,6 +59,7 @@ public func (page : &mut HtmlPage) injectDefaultComponentsTheme() {
         }
 
         .dark {
+            color-scheme: dark;
             --background: 240 10% 3.9%;
             --foreground: 0 0% 98%;
             --card: 240 10% 3.9%;

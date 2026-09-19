@@ -9,10 +9,13 @@ func neg_else_without_if(env : &mut TestEnv) {
 }
 
 @test
-func neg_if_condition_not_bool(env : &mut TestEnv) {
+func if_int_condition_allowed(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // Conditions accept integer / boolean / pointer types (see the
+    // "only integer / boolean / pointer types can be used as a condition"
+    // rule), so an integer condition is valid.
     var ch = "func main() {\n    if(42) { }\n}\n"
-    expect_compile_error(env, "if_cond_not_bool", ch, "bool")
+    expect_compile_success(env, "if_int_cond_allowed", ch)
 }
 
 @test

@@ -62,17 +62,19 @@ func neg_uninit_var_decl_accepted(env : &mut TestEnv) {
 @test
 func neg_unsafe_var_decl_rejected(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    // `unsafe var` is no longer supported by the parser.
+    // `unsafe var` is no longer supported: after `unsafe` the parser now
+    // requires a braced block, so this is a hard parser error.
     var ch = "public func main() : int {\n    unsafe var x : i32\n    x = 5\n    return x\n}\n"
-    expect_compile_error(env, "unsafe_var_decl_rejected", ch, "no longer supported")
+    expect_compile_error(env, "unsafe_var_decl_rejected", ch, "expected a braced block after 'unsafe' keyword")
 }
 
 @test
 func neg_unsafe_const_decl_rejected(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    // `unsafe const` is no longer supported by the parser.
+    // `unsafe const` is no longer supported: after `unsafe` the parser now
+    // requires a braced block, so this is a hard parser error.
     var ch = "public func main() : int {\n    unsafe const x : i32 = 5\n    return x\n}\n"
-    expect_compile_error(env, "unsafe_const_decl_rejected", ch, "no longer supported")
+    expect_compile_error(env, "unsafe_const_decl_rejected", ch, "expected a braced block after 'unsafe' keyword")
 }
 
 @test

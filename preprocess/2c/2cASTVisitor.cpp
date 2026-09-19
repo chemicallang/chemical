@@ -1568,6 +1568,23 @@ void write_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
     if(linked && linked->as_namespace()) {
         return;
     }
+    // A frame-resident by-value local/parameter of a lowered async `poll`
+    // function lives in the frame *by value*, so member access on it is `.` —
+    // even for a struct-like parameter that is normally passed as a hidden
+    // pointer and therefore usually needs `->` (B24). Resident *pointer* /
+    // reference slots are unchanged: their frame field is still a pointer.
+    if(linked != nullptr && visitor.async_suspend != nullptr
+       && !visitor.async_suspend->resident_field(linked).empty()) {
+        auto* resident_type = current->getType();
+        if(resident_type != nullptr) {
+            const auto resident_pure = resident_type->pure_type(visitor.allocator);
+            if(resident_pure->kind() != BaseTypeKind::Pointer
+               && resident_pure->kind() != BaseTypeKind::Reference) {
+                visitor.write('.');
+                return;
+            }
+        }
+    }
     if(is_value_type_pointer_like(current)) {
         visitor.write("->");
         return;
@@ -1635,7 +1652,14 @@ void write_self_arg(ToCAstVisitor& visitor, Value* grandpa, FunctionType* func_t
             }
         }
     }
-    if(!grandpa->is_pointer_or_ref() && !is_value_type_pointer_like(grandpa)) {
+    // A frame-resident parameter of a lowered async `poll` function is a
+    // by-value frame field. A struct-like parameter is normally passed as a
+    // hidden pointer, but its value-like form means the address must be taken
+    // explicitly so a method call still receives that hidden pointer (B24).
+    const auto grandpa_linked = grandpa->linked_node();
+    const bool async_resident = grandpa_linked != nullptr && visitor.async_suspend != nullptr
+        && !visitor.async_suspend->resident_field(grandpa_linked).empty();
+    if(!grandpa->is_pointer_or_ref() && (async_resident || !is_value_type_pointer_like(grandpa))) {
         visitor.write('&');
     }
     visitor.visit(grandpa);

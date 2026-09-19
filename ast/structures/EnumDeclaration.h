@@ -15,6 +15,7 @@
 #include "ast/types/LinkedType.h"
 #include "ast/base/TypeLoc.h"
 #include <unordered_map>
+#include <algorithm>
 
 struct EnumDeclAttributes {
 
@@ -139,6 +140,10 @@ public:
 
     /**
      * lazily populate and return a vector of enum members for CBI interface
+     *
+     * Members are stored in an unordered_map (hash order), but CBI consumers
+     * rely on positional ordinal semantics (vector position == member index),
+     * so the cached vector is sorted by each member's index.
      */
     std::vector<EnumMember*>& get_members_vec() {
         if(members_vec.empty() && !members.empty()) {
@@ -146,6 +151,9 @@ public:
             for(auto& pair : members) {
                 members_vec.push_back(pair.second);
             }
+            std::sort(std::begin(members_vec), std::end(members_vec), [](EnumMember* a, EnumMember* b) {
+                return a->get_index_dirty() < b->get_index_dirty();
+            });
         }
         return members_vec;
     }

@@ -921,7 +921,19 @@ bool Value::check_is_mutable(bool assigning) {
                         return false;
                     }
                 } else {
-                    if(!value->check_is_mutable(false)) {
+                    // every value the chain is written *through* must itself be mutable,
+                    // so a write like `s.field = value` through a `const` struct value is
+                    // rejected. Writing through a pointer does not require the pointer
+                    // binding to be mutable (like `T* const`), and writing through a
+                    // reference requires the reference itself to be mutable.
+                    const auto ty = value->getType();
+                    if(ty != nullptr && ty->kind() == BaseTypeKind::Pointer) {
+                        // allowed
+                    } else if(ty != nullptr && ty->kind() == BaseTypeKind::Reference) {
+                        if(!ty->as_reference_type_unsafe()->is_mutable) {
+                            return false;
+                        }
+                    } else if(!value->check_is_mutable(assigning)) {
                         return false;
                     }
                 }

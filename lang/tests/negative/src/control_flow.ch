@@ -33,6 +33,15 @@ func neg_for_loop_bad_range(env : &mut TestEnv) {
 }
 
 @test
+func neg_for_loop_float_condition(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // a C-style for condition must obey the same rule as if/while: only
+    // integer / boolean / pointer types are allowed
+    var ch = "public func main() : int {\n    for(var i = 0; 1.5; i++) { }\n    return 0\n}\n"
+    expect_compile_error(env, "for_cond_float", ch, "can be used as a condition")
+}
+
+@test
 func neg_for_in_non_iterable(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "func main() {\n    for(var x in 42) { }\n}\n"

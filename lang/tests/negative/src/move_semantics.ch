@@ -48,9 +48,19 @@ func neg_deref_non_copy_generic(env : &mut TestEnv) {
 @test
 func neg_index_non_copy_generic(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "struct NonCopy {\n    @delete\n    func delete(&mut self) { }\n}\nfunc main() {\n    var arr : [3]NonCopy = []\n}\n"
-    // Array of non-copy types may be restricted
-    expect_compile_error(env, "arr_non_copy", ch, "Copy")
+    // Indexing a `*T` where `T` is a generic parameter that is not `Copy` is rejected
+    // (the element would be copied out of borrowed memory). Arrays of destructible
+    // element types are supported, so this is the only restricted indexing form.
+    var ch = "struct NonCopy {\n    @delete\n    func delete(&mut self) { }\n}\nfunc <T> get_at(p : *T) : T {\n    return p[0]\n}\nfunc main() {\n    var n = NonCopy {}\n    var p = &raw n\n    var v = get_at(p)\n}\n"
+    expect_compile_error(env, "index_non_copy_generic", ch, "Copy")
+}
+
+@test
+func array_of_destructible_elements_allowed(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // an array of a destructible element type is fine, each element is destroyed
+    var ch = "struct DT {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    var a = DT { x : 1 }\n    var b = DT { x : 2 }\n    var arr : [2]DT = [a, b]\n    return arr[0].x\n}\n"
+    expect_compile_success(env, "array_of_destructible_elements_allowed", ch)
 }
 
 @test

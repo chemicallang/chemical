@@ -384,6 +384,12 @@ ASTNode* Parser::parseStructStructureTokens(ASTAllocator& allocator, AccessSpeci
         while(token->type == TokenType::Lifetime) {
             const auto lifetime_tok = token;
             token++;
+            if(!decl->lifetime_params.empty()) {
+                // the lifetime system tracks a single lifetime dependency per type
+                // (used by types like string_view), so a second one is not supported
+                error("a type can only declare a single lifetime parameter");
+                continue;
+            }
             decl->lifetime_params.emplace_back(allocate_view(allocator, lifetime_tok->value));
         }
 

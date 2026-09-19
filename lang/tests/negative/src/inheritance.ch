@@ -92,13 +92,15 @@ func neg_interface_duplicate_method(env : &mut TestEnv) {
 @test
 func neg_static_interface_multi_impl(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "static interface Unique {\n    func id(&self) : int\n}\nstruct A {}\nimpl Unique for A {\n    func id(&self) : int { return 1 }\n}\nstruct B {}\nimpl Unique for B {\n    func id(&self) : int { return 2 }\n}\nfunc main() {}\n"
+    // `@static` is an annotation, not a `static` keyword
+    var ch = "@static\ninterface Unique {\n    func id(&self) : int\n}\nstruct A {}\nimpl Unique for A {\n    func id(&self) : int { return 1 }\n}\nstruct B {}\nimpl Unique for B {\n    func id(&self) : int { return 2 }\n}\nfunc main() {}\n"
     expect_compile_error(env, "static_interface_multi_impl", ch, "static interface must have only")
 }
 
 @test
-func neg_impl_for_primitive_type(env : &mut TestEnv) {
+func neg_impl_for_array_type(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "interface Foo {\n    func bar(&self)\n}\nimpl Foo for int {\n    func bar(&self) { }\n}\nfunc main() {}\n"
-    expect_compile_error(env, "impl_for_primitive_type", ch, "implementation for type is not allowed")
+    // an array type has no members container, so no interface can be implemented for it
+    var ch = "interface Empty {}\nimpl Empty for [3]int {\n}\nfunc main() {}\n"
+    expect_compile_error(env, "impl_for_array_type", ch, "cannot implement unsupported type")
 }

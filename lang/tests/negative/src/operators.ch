@@ -56,6 +56,45 @@ func neg_op_bitwise_not_bool(env : &mut TestEnv) {
 }
 
 @test
+func neg_op_bitwise_not_float(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // a bitwise not is only meaningful on integer values
+    var ch = "func main() {\n    var x = ~1.5\n}\n"
+    expect_compile_error(env, "bitwise_not_float", ch, "integer")
+}
+
+@test
+func neg_op_sub_bool(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // bool is not an arithmetic type
+    var ch = "func main() {\n    var x = true - false\n}\n"
+    expect_compile_error(env, "sub_bool", ch, "logical operators")
+}
+
+@test
+func neg_op_shift_bool(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "func main() {\n    var x = true << 1\n}\n"
+    expect_compile_error(env, "shift_bool", ch, "logical operators")
+}
+
+@test
+func neg_op_compare_struct(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // a struct value cannot be compared with a relational operator
+    var ch = "struct P { var x : int }\nfunc main() {\n    var a = P { x : 1 }\n    var b = P { x : 2 }\n    var c = a < b\n}\n"
+    expect_compile_error(env, "compare_struct", ch, "operator")
+}
+
+@test
+func neg_op_string_ordering(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // a string only supports the equality operators, there is no ordering on it
+    var ch = "func main() {\n    var c = \"abc\" < \"def\"\n}\n"
+    expect_compile_error(env, "string_ordering", ch, "comparison operator")
+}
+
+@test
 func neg_op_assign_plus_non_mut(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "func main() {\n    const x = 5\n    x += 1\n}\n"

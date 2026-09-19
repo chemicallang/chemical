@@ -2628,8 +2628,6 @@ public func background_repeat_no_repeat_works(env : &mut TestEnv) {
     }
     css_equals(env, page.toStringCssOnly(), "background-repeat:no-repeat;");
 }
-    css_equals(env, page.toStringCssOnly(), "background-repeat:round space;");
-}
 
 @test
 public func caret_color_works(env : &mut TestEnv) {
@@ -3044,10 +3042,6 @@ public func text_combine_upright_works(env : &mut TestEnv) {
     }
     css_equals(env, page.toStringCssOnly(), "text-combine-upright:all;");
 }
-    css_equals(env, page.toStringCssOnly(), "text-emphasis-style:filled;");
-}
-    css_equals(env, page.toStringCssOnly(), "text-emphasis-position:over right;");
-}
 
 @test
 public func text_decoration_offset_works(env : &mut TestEnv) {
@@ -3121,9 +3115,6 @@ public func moz_column_gap_works(env : &mut TestEnv) {
     css_equals(env, page.toStringCssOnly(), "-moz-column-gap:20px;");
 }
 
-    }
-    css_equals(env, page.toStringCssOnly(), "@page{page-orientation:landscape;}");
-}
 
 public func ruby_align_works(env : &mut TestEnv) {
     var page = HtmlPage()
@@ -3197,12 +3188,6 @@ public func media_query_basic_works(env : &mut TestEnv) {
     }
     css_equals(env, page.toStringCssOnly(), "@media (max-width:768px){.container{width:100%;}}");
 }
-    }
-    css_equals(env, page.toStringCssOnly(), "li:nth-child(2n){background:lightgray;}");
-}
-    }
-    css_equals(env, page.toStringCssOnly(), "p:not(.special){color:gray;}");
-}
 
 public func descendant_selector_works(env : &mut TestEnv) {
     var page = HtmlPage()
@@ -3273,39 +3258,6 @@ public func focus_visible_pseudo_works(env : &mut TestEnv) {
     }
     css_equals(env, page.toStringCssOnly(), "button:focus-visible{outline:2px solid blue;}");
 }
-        .quote::after {
-            content: "\201D";
-        }
-    }
-    css_equals(env, page.toStringCssOnly(), ".quote::before{content:\"\\201C\";}.quote::after{content:\"\\201D\";}");
-}
-            to {
-                transform: translateX(100px);
-            }
-        }
-    }
-    css_equals(env, page.toStringCssOnly(), "@keyframes slide{from{transform:translateX(0);}to{transform:translateX(100px);}}");
-}
-            50% {
-                opacity: 0.5;
-            }
-            100% {
-                opacity: 1;
-            }
-        }
-    }
-    css_equals(env, page.toStringCssOnly(), "@keyframes fade{0%{opacity:0;}50%{opacity:0.5;}100%{opacity:1;}}");
-}
-    }
-    var expected = "@font-face{font-family:\"Open Sans\";"
-    expected = expected + "src:url(\"fonts/OpenSans.woff2\") format(\"woff2\");"
-    expected = expected + "font-weight:400;font-style:normal;}"
-    css_equals(env, page.toStringCssOnly(), &expected);
-}
-        }
-    }
-    css_equals(env, page.toStringCssOnly(), "@supports (display:grid){.grid{display:grid;}}");
-}
 
 public func layered_background_works(env : &mut TestEnv) {
     var page = HtmlPage()
@@ -3318,12 +3270,6 @@ public func layered_background_works(env : &mut TestEnv) {
         }
     }
     css_equals(env, page.toStringCssOnly(), ".hero{background:linear-gradient(rgba(0,0,0,0.5),rgba(0,0,0,0.5)),url(\"bg.jpg\") no-repeat center;background-size:cover;}");
-}
-    }
-    css_equals(env, page.toStringCssOnly(), ".responsive{font-size:clamp(1rem,2.5vw,3rem);}");
-}
-    }
-    css_equals(env, page.toStringCssOnly(), ".sizing{width:min(100%,500px);height:max(200px,50vh);}");
 }
 
 public func attr_selector_works(env : &mut TestEnv) {
@@ -3420,20 +3366,7 @@ public func scroll_behavior_smooth_works(env : &mut TestEnv) {
     }
     css_equals(env, page.toStringCssOnly(), "html{scroll-behavior:smooth;}");
 }
-    }
-    css_equals(env, page.toStringCssOnly(), ".animated{will-change:transform, opacity;}");
-}
 
-    }
-    css_equals(env, page.toStringCssOnly(), ".auto-grid{display:grid;grid-auto-flow:row dense;}");
-}
-        h2::before {
-            counter-increment: section;
-            content: counter(section) ". ";
-        }
-    }
-    css_equals(env, page.toStringCssOnly(), "body{counter-reset:section;}h2::before{counter-increment:section;content:counter(section) \". \";}");
-}
 
 
 
@@ -3449,9 +3382,6 @@ public func outline_shorthand_works(env : &mut TestEnv) {
 }
 
 
-    }
-    css_equals(env, page.toStringCssOnly(), ".video-wrapper{aspect-ratio:16 / 9;}");
-}
 
 public func inset_shorthand_works(env : &mut TestEnv) {
     var page = HtmlPage()
@@ -3499,16 +3429,6 @@ public func grid_repeat_works(env : &mut TestEnv) {
         }
     }
     css_equals(env, page.toStringCssOnly(), ".repeating{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(auto-fill,minmax(100px,auto));}");
-}
-    }
-    css_equals(env, page.toStringCssOnly(), "@font-face{font-family:CustomFont;src:url(\"custom.woff2\");font-display:swap;}");
-}
-        .header { grid-area: header; }
-        .sidebar { grid-area: sidebar; }
-        .main { grid-area: main; }
-        .footer { grid-area: footer; }
-    }
-    css_equals(env, page.toStringCssOnly(), ".page-layout{display:grid;grid-template-areas:\"header header\" \"sidebar main\" \"footer footer\";grid-template-columns:250px 1fr;grid-template-rows:auto 1fr auto;}.header{grid-area:header;}.sidebar{grid-area:sidebar;}.main{grid-area:main;}.footer{grid-area:footer;}");
 }
 
 public func all_initial_works(env : &mut TestEnv) {

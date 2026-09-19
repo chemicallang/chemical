@@ -140,8 +140,32 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) 
             return (ASTNode*) parseNamespace(allocator, AccessSpecifier::Internal);
         case TokenType::ExportKw:
             return parseExportStatement(allocator);
-        default:
+        case TokenType::ReturnKw:
+            error("a return statement is only allowed inside a function body");
+            token++;
             return nullptr;
+        case TokenType::Annotation:
+            // annotations are consumed by the caller, so that they can be attached to
+            // the declaration that follows them
+            return nullptr;
+        case TokenType::RBrace:
+        case TokenType::EndOfFile:
+        case TokenType::SemiColonSym:
+            // these terminate the module or a declaration, they are not statements
+            return nullptr;
+        default: {
+            // anything else must be a statement that would execute at runtime, which a
+            // module cannot contain. It is still parsed, so that symbol resolution can
+            // report which construct is not allowed here (for instance a top level
+            // `x++` is reported by the increment value visitor)
+            const auto start = token;
+            const auto stmt = parseNestedLevelStatementTokens(allocator, false, false);
+            if(stmt == nullptr && token == start) {
+                error("unexpected token at the top level of a module");
+                token++;
+            }
+            return stmt;
+        }
     }
 }
 

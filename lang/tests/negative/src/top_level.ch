@@ -39,6 +39,21 @@ func neg_top_level_inc_dec(env : &mut TestEnv) {
 }
 
 @test
+func neg_top_level_assignment(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // a module cannot contain statements that execute at runtime
+    var ch = "var x = 42\nx = 7\nfunc main() {}\n"
+    expect_compile_error(env, "top_level_assignment", ch, "cannot assign to a value at runtime outside function body")
+}
+
+@test
+func neg_top_level_bare_value(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "func f() : int { return 1 }\nf()\nfunc main() {}\n"
+    expect_compile_error(env, "top_level_bare_value", ch, "top level")
+}
+
+@test
 func neg_top_level_index(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "var arr : [3]int = [1, 2, 3]\nvar x = arr[0]\nfunc main() {}\n"
@@ -77,8 +92,9 @@ func neg_empty_access_chain(env : &mut TestEnv) {
 @test
 func neg_top_level_comptime_self_ref(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "func main() {}\ncomptime if(true) {\n    var x = main\n}\n"
-    // comptime if at top level referencing local symbol
+    // a top level `comptime if` is evaluated while the module is still being declared,
+    // so its condition must not reference a symbol the module itself declares
+    var ch = "var runtime_flag = 5\ncomptime if(runtime_flag) {\n    var x = 5\n}\nfunc main() {}\n"
     expect_compile_error(env, "top_level_comptime_self_ref", ch, "top level comptime if")
 }
 

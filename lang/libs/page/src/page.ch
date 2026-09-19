@@ -2254,7 +2254,8 @@ window.$__universal_flush = function() {
 
         // {name}.css
         if(!pageCss.empty()) {
-            const cssFile = std::string(path.data(), path.size())
+            // mutated through `append` below, so must be a `var`
+            var cssFile = std::string(path.data(), path.size())
             cssFile.append('/');
             cssFile.append_view(name)
             cssFile.append_view(".css")
@@ -2263,7 +2264,7 @@ window.$__universal_flush = function() {
 
         // {name}_head.js
         if(!pageHeadJs.empty()) {
-            const jsHeadFile = std::string(path.data(), path.size())
+            var jsHeadFile = std::string(path.data(), path.size())
             jsHeadFile.append('/');
             jsHeadFile.append_view(name)
             jsHeadFile.append_view("_head.js")
@@ -2273,7 +2274,7 @@ window.$__universal_flush = function() {
         // {name}.js
         var finalizedJs = getFinalizedPageJs()
         if(!finalizedJs.empty()) {
-            const jsFile = std::string(path.data(), path.size())
+            var jsFile = std::string(path.data(), path.size())
             jsFile.append('/');
             jsFile.append_view(name)
             jsFile.append_view(".js")

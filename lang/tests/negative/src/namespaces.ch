@@ -62,8 +62,17 @@ func neg_expect_interface_type(env : &mut TestEnv) {
 @test
 func neg_impl_for_unsupported_type(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "interface Empty {}\nimpl Empty for *char {\n    // unsupported\n}\nfunc main() {}\n"
+    // pointer and reference types support interface implementations (see the
+    // external_common / common primitive impl tests), but a function type does not
+    var ch = "interface Empty {}\nimpl Empty for () => void {\n}\nfunc main() {}\n"
     expect_compile_error(env, "impl_unsupported_type", ch, "cannot implement unsupported type")
+}
+
+@test
+func impl_for_pointer_type_allowed(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "interface Identity {\n    func id(&self) : int\n}\nimpl Identity for *int {\n    func id(&self) : int { return **self }\n}\npublic func main() : int {\n    var x = 7\n    var p : *int = &raw x\n    return p.id()\n}\n"
+    expect_compile_success(env, "impl_for_pointer_type_allowed", ch)
 }
 
 @test

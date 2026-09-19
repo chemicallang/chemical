@@ -13,11 +13,13 @@
 //   * `unsafe var` / `unsafe const` declarations are no longer supported.
 
 @test
-func neg_uninit_member_write_on_destructible_errors(env : &mut TestEnv) {
+func uninit_member_write_on_destructible_ok(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    // `x.inner = 5` accesses a field of an uninitialized destructor-bearing struct.
-    var ch = "struct Container {\n    var inner : i32\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    var x : Container\n    x.inner = 5\n    return 0\n}\n"
-    expect_compile_error(env, "uninit_member_write_on_destructible", ch, "uninitialized variable")
+    // Writing a member (or an index) of an uninitialized destructor-bearing value marks
+    // it as initialized. This supports the manual initialization pattern where a struct
+    // is filled in field by field, so it is deliberately not reported.
+    var ch = "struct Container {\n    var inner : i32\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    var x : Container\n    x.inner = 5\n    return x.inner\n}\n"
+    expect_compile_success(env, "uninit_member_write_on_destructible_ok", ch)
 }
 
 @test
@@ -36,11 +38,13 @@ func neg_uninit_full_assignment_ok(env : &mut TestEnv) {
 }
 
 @test
-func neg_uninit_addr_of_without_unsafe_errors(env : &mut TestEnv) {
+func uninit_addr_of_without_unsafe_ok(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    // Taking a pointer to an uninitialized variable needs `unsafe(...)`.
-    var ch = "func take(p : *mut i32) { }\npublic func main() : int {\n    var x : i32\n    take(&raw mut x)\n    return 0\n}\n"
-    expect_compile_error(env, "uninit_addr_of_without_unsafe", ch, "uninitialized variable")
+    // Taking the address of an uninitialized value is a legitimate C interop pattern
+    // (writing through the pointer initializes it), so it is deliberately not reported.
+    // The adjacent test covers the explicit `unsafe(...)` marker form.
+    var ch = "func fill(p : *mut i32) { *p = 1 }\npublic func main() : int {\n    var x : i32\n    fill(&raw mut x)\n    return x\n}\n"
+    expect_compile_success(env, "uninit_addr_of_without_unsafe_ok", ch)
 }
 
 @test

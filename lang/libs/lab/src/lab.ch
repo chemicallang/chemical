@@ -436,7 +436,8 @@ public func (ctx : &BuildContext) index_def_cbi_fn(job : *mut LabJobCBI, name : 
 
 public func (ctx : &BuildContext) build_job_dir_path(job_name : &std::string_view) : std::string {
     var view = ctx.build_path()
-    const new_path = std::string(&view);
+    // `new_path` is mutated through `append`, so it must be a `var`
+    var new_path = std::string(&view);
     new_path.append('/');
     new_path.append_view(job_name);
     new_path.append_view(".dir");

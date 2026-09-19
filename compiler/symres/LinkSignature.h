@@ -256,6 +256,12 @@ public:
 
     void VisitScope(Scope* node);
 
+    void VisitAssignmentStmt(AssignStatement* node);
+
+    void VisitAccessChainNode(AccessChainNode* node);
+
+    void VisitIncDecNode(IncDecNode* node);
+
     void VisitUnnamedStruct(UnnamedStruct* node);
 
     void VisitStructDecl(StructDefinition* node);

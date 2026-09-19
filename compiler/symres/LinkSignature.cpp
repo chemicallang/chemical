@@ -1313,6 +1313,30 @@ void TopLevelLinkSignature::VisitScope(Scope* node) {
     }
 }
 
+void TopLevelLinkSignature::VisitAssignmentStmt(AssignStatement* node) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitAssignmentStmt(node);
+    // an assignment is a statement that runs at runtime, so it cannot appear in a module
+    if(!comptime_context) {
+        diagnoser.error("cannot assign to a value at runtime outside function body", node);
+    }
+}
+
+void TopLevelLinkSignature::VisitAccessChainNode(AccessChainNode* node) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitAccessChainNode(node);
+    // a bare access chain in a module is an expression statement, which would have to
+    // run at runtime
+    if(!comptime_context) {
+        diagnoser.error("cannot access a value at runtime outside function body", node);
+    }
+}
+
+void TopLevelLinkSignature::VisitIncDecNode(IncDecNode* node) {
+    RecursiveVisitor<TopLevelLinkSignature>::VisitIncDecNode(node);
+    if(!comptime_context) {
+        diagnoser.error("cannot increment or decrement value at runtime outside function body", node);
+    }
+}
+
 void TopLevelLinkSignature::VisitUnnamedStruct(UnnamedStruct* node) {
     node->take_variables_from_parsed_nodes(linker, diagnoser);
     LinkVariables(node);

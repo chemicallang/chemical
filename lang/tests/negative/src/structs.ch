@@ -39,8 +39,25 @@ func neg_struct_field_void(env : &mut TestEnv) {
 @test
 func neg_invalid_enum_value(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "enum Color : int {\n    Red = 256\n    Green\n    Blue\n}\nfunc main() {}\n"
-    expect_compile_error(env, "invalid_enum_value", ch, "expected")
+    // 256 does not fit the u8 underlying type of the enum
+    var ch = "enum Color : u8 {\n    Red = 256\n    Green\n    Blue\n}\nfunc main() {}\n"
+    expect_compile_error(env, "invalid_enum_value", ch, "does not fit")
+}
+
+@test
+func neg_invalid_enum_value_signed(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // 200 does not fit a signed i8 underlying type
+    var ch = "enum Small : i8 {\n    A = 200\n}\nfunc main() {}\n"
+    expect_compile_error(env, "invalid_enum_value_signed", ch, "does not fit")
+}
+
+@test
+func neg_enum_value_valid_fits(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // the largest value that does fit the underlying type is accepted
+    var ch = "enum Fits : u8 {\n    Max = 255\n}\npublic func main() : int {\n    return Fits.Max as int\n}\n"
+    expect_compile_success(env, "enum_value_valid_fits", ch)
 }
 
 @test

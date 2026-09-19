@@ -387,15 +387,6 @@ func (cssParser : &mut CSSParser) parseLengthOrAuto(
         }
     }
 }
-        TokenType.LBrace, TokenType.DollarLBrace => {
-            cssParser.parseChemValueAfterLBrace(parser, builder, value)
-            return true;
-        }
-        default => {
-            return false;
-        }
-    }
-}
 
 func (cssParser : &mut CSSParser) parseMarginSingle(
     parser : *mut Parser,

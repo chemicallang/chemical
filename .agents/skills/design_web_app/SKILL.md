@@ -47,6 +47,20 @@ func style_button(page : &mut HtmlPage) : *char {
         }
     }
 }
+#### `#css` in value position vs statement position
+
+- **Value position** (`return #css { ... }`, `var s = #css { ... }`) — the macro's value is a
+  compiler-generated class (`.hXXXXXX` for a plain block, `.rXXXXXX_` when the block has media
+  queries, keyframes or Chemical values), and the block's rules are scoped under it. Attach the
+  returned class to the element you want styled (`class={style_button(page)}`). Top-level
+  declarations describe that element; nested rules without `&` are implicit descendants of it.
+- **Statement position** (`#css { ... }` on its own line) — nothing can receive the generated
+  class, so the block is emitted as a **global stylesheet**: the block's own declarations go to
+  `:root`, `&` anchors to the document root, and nested rules, media queries and keyframes keep
+  the selectors you wrote. This is the form used for page-wide CSS.
+- Media queries are emitted **after** the block's other rules, so a responsive override wins
+  over the base rule it overrides (the cascade breaks ties by source order).
+
 // when we open a {} for the attribute value, it means we are going to write chemical code inside those braces
 // NOT JS, just chemical code that would execute on the server 
 func PutStaticContentInSimplePage(page : &mut HtmlPage) {

@@ -79,26 +79,40 @@ public func string_equals(env : &mut TestEnv, str : &std::string, view : &std::s
     view_equals(env, str.to_view(), view)
 }
 
+// Compare the declarations of a `#css` block, ignoring the wrapper the converter
+// puts around them: `.hXXXXXX{ ... }` for a class-scoped block (`#css` in value
+// position) and `:root{ ... }` for a global block (`#css` as a statement).
 public func css_equals(env : &mut TestEnv, str : &std::string, view : &std::string_view) {
 
-    if(str.size() < 10) {
-        env.error("css less than expected length");
+    var start_offset : size_t = 0
+    var end_offset : size_t = 0
+    if(str.size() > 9 && str.data()[0] == '.' && str.data()[8] == '{') {
+        start_offset = 9
+        end_offset = 1
+    } else if(str.size() > 6 && str.data()[0] == ':' && str.data()[5] == '{') {
+        start_offset = 6
+        end_offset = 1
     }
 
-    const start = str.data() + 9
-    const end = str.data() + str.size() - 1;
+    const start = str.data() + start_offset
+    const end = str.data() + str.size() - end_offset;
 
     view_equals(env, std::string_view(start, end - start), view)
 
 }
 
+// Compare a stylesheet that begins with an at-rule (keyframes). A block that
+// only contains at-rules used to emit an empty root scope (`.rXXXXXX_{}`) in
+// front of them; a global block (statement position) no longer does, so skip
+// that prefix only when it is present.
 public func css_at_rule_equals(env : &mut TestEnv, str : &std::string, view : &std::string_view) {
 
-    if(str.size() < 11) {
-        env.error("css less than expected length");
+    var start_offset : size_t = 0
+    if(str.size() > 10 && str.data()[0] == '.' && str.data()[9] == '}') {
+        start_offset = 10
     }
 
-    const start = str.data() + 10
+    const start = str.data() + start_offset
     const end = str.data() + str.size();
 
     view_equals(env, std::string_view(start, end - start), view)

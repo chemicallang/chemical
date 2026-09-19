@@ -684,7 +684,14 @@ public func css_write_media_nested_rule(rule : *mut CSSNestedRule, str : &mut st
                 }
             } else {
                 var resolved = std::string()
-                css_serialize_complex(sel, &mut resolved, std::string_view("&"))
+                if(css_has_ampersand_complex(sel)) {
+                    // No parent class for the ampersand to anchor to (the media
+                    // query is emitted at the top level): it anchors to the
+                    // document root instead, so `&.blue` becomes `:root.blue`.
+                    css_serialize_complex(sel, &mut resolved, std::string_view(":root"))
+                } else {
+                    css_serialize_complex(sel, &mut resolved, std::string_view("&"))
+                }
                 current_selectors.push(resolved)
             }
             i++
@@ -715,7 +722,11 @@ public func css_write_keyframes_rule(rule : *mut CSSKeyframesRule, str : &mut st
     str.append_view("}")
 }
 
-public func css_write_media_rule(rule : *mut CSSMediaRule, str : &mut std::string, className : std::string_view, emitter : *mut CssEmitter) {
+// `decl_root` names the selector declarations written directly inside the media
+// query belong to when the rule has no root class (a global `#css` block passes
+// `:root`). When empty, such declarations are dropped, which is the behaviour
+// for callers that emit media queries without any root scope.
+public func css_write_media_rule(rule : *mut CSSMediaRule, str : &mut std::string, className : std::string_view, emitter : *mut CssEmitter, decl_root : std::string_view = "") {
     str.append_view("@media ")
     css_write_media_query_list(rule.queryList, str, emitter)
     str.append_view(" { ")
@@ -724,8 +735,13 @@ public func css_write_media_rule(rule : *mut CSSMediaRule, str : &mut std::strin
         var root_selector = std::string()
         css_append_media_root_selector(&mut root_selector, className)
         parent_selectors.push(root_selector)
-        if(!rule.declarations.empty()) {
-            css_append_media_root_selector(str, className); str.append_view(" { ")
+    }
+    if(!rule.declarations.empty()) {
+        var decl_selector = std::string()
+        if(!className.empty()) { css_append_media_root_selector(&mut decl_selector, className) }
+        else if(!decl_root.empty()) { decl_selector.append_view(&decl_root) }
+        if(!decl_selector.empty()) {
+            str.append_view(decl_selector.to_view()); str.append_view(" { ")
             var i : uint = 0
             while(i < rule.declarations.size()) { css_write_declaration_text(rule.declarations.get(i), str, emitter); i++ }
             str.append_view(" } ")

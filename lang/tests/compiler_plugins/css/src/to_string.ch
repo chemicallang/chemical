@@ -1803,7 +1803,8 @@ public func selector_font_size_clamp_works(env : &mut TestEnv) {
             font-size: clamp(1rem, 2.5vw, 3rem);
         }
     }
-    css_equals(env, page.toStringCssOnly(), ".responsive{font-size:clamp(1rem, 2.5vw, 3rem);}");
+    var got = page.toStringCssOnly();
+    compl_css_equals(env, &got, ".responsive { font-size:clamp(1rem, 2.5vw, 3rem); }");
 }
 
 @test

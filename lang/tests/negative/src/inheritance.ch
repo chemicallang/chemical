@@ -58,6 +58,31 @@ func neg_inheritance_self(env : &mut TestEnv) {
 }
 
 @test
+func neg_inheritance_cycle_three(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // a cycle longer than two nodes must be caught too, not just `A : A` / `A : B, B : A`
+    var ch = "struct A : B {}\nstruct B : C {}\nstruct C : A {}\nfunc main() {}\n"
+    expect_compile_error(env, "cycle_three", ch, "recursion in inheritance")
+}
+
+@test
+func neg_inheritance_interface_self(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // interfaces can inherit each other, so their cycle must be rejected as well
+    var ch = "interface I : I {\n    func f(&self)\n}\nfunc main() {}\n"
+    expect_compile_error(env, "interface_self_inheritance", ch, "recursion in inheritance")
+}
+
+@test
+func neg_inherit_pointer_type(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // a pointer type has no linked declaration node; the inheritance check must
+    // report it instead of dereferencing a null node
+    var ch = "struct Derived : *char {}\nfunc main() {}\n"
+    expect_compile_error(env, "inherit_pointer_type", ch, "must be a struct")
+}
+
+@test
 func neg_interface_duplicate_method(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "interface Foo {\n    func do_it(&self)\n    func do_it(&self) : int\n}\nfunc main() {}\n"

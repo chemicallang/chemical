@@ -47,7 +47,7 @@ func neg_extern_with_body(env : &mut TestEnv) {
 func neg_nonretained_call(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct S {\n    @delete func delete(&mut self) { }\n}\nfunc main() {\n    var s = S {}\n    s.delete()\n}\n"
-    expect_compile_error(env, "nonretained_call", ch, "not retained")
+    expect_compile_error(env, "nonretained_call", ch, "cannot be called directly")
 }
 
 @test

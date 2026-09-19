@@ -48,5 +48,13 @@ void BitwiseNot::determine_type(ASTDiagnoser& diagnoser, const CoreNodes& coreNo
             return;
         }
     }
+    // the operand must be an integer value (an enum canonicalizes to its underlying
+    // integer type), as a bitwise not is only meaningful for integers
+    const auto canonical = type->canonical()->canonicalize_enum();
+    if(canonical->kind() != BaseTypeKind::IntN) {
+        diagnoser.error("the '~' operator can only be applied to integer values", this);
+        setType(type);
+        return;
+    }
     setType(type);
 }

@@ -44,10 +44,12 @@ func neg_namespace_conflict(env : &mut TestEnv) {
 }
 
 @test
-func neg_impl_for_non_struct(env : &mut TestEnv) {
+func impl_for_primitive_allowed(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "interface Printable {\n    func print(&self)\n}\nimpl Printable for int {\n    func print(&self) { }\n}\nfunc main() {}\n"
-    expect_compile_error(env, "impl_for_primitive", ch, "cannot")
+    // primitive types intentionally support interface implementations, and the
+    // implementation's methods resolve on values of that primitive type
+    var ch = "interface Printable {\n    func print(&self) : int\n}\nimpl Printable for int {\n    func print(&self) : int { return 1 }\n}\npublic func main() : int {\n    var x = 5\n    return x.print()\n}\n"
+    expect_compile_success(env, "impl_for_primitive_ok", ch)
 }
 
 @test
@@ -93,6 +95,32 @@ func neg_annotation_on_wrong_target(env : &mut TestEnv) {
 @test
 func neg_invalid_number_conversion(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "func main() {\n    var x = \"123\" as int\n}\n"
-    expect_compile_error(env, "string_to_int_cast", ch, "cast")
+    // a struct value cannot be reinterpreted as a primitive type. (A pointer to a string
+    // literal can be cast to an integer, that is a legitimate pointer to integer cast.)
+    var ch = "struct S {\n    var x : int\n}\nfunc main() {\n    var s = S { x : 1 }\n    var y = s as int\n}\n"
+    expect_compile_error(env, "struct_to_int_cast", ch, "cannot be cast")
+}
+
+@test
+func neg_cast_struct_to_pointer(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // a struct value is not a machine representation that a pointer can name. Take its
+    // address first (`&raw s as *void`) if a pointer is wanted.
+    var ch = "struct S {\n    var x : int\n}\nfunc main() {\n    var s = S { x : 1 }\n    var p = s as *void\n}\n"
+    expect_compile_error(env, "struct_to_pointer_cast", ch, "cannot be cast")
+}
+
+@test
+func neg_cast_struct_to_bool(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct S {\n    var x : int\n}\nfunc main() {\n    var s = S { x : 1 }\n    var b = s as bool\n}\n"
+    expect_compile_error(env, "struct_to_bool_cast", ch, "cannot be cast")
+}
+
+@test
+func pointer_to_int_cast_allowed(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // an explicit pointer to integer cast is supported
+    var ch = "public func main() : int {\n    var x = 42\n    var p : *int = &raw x\n    var addr = p as ulong\n    return (addr != 0) as int\n}\n"
+    expect_compile_success(env, "pointer_to_int_cast_allowed", ch)
 }

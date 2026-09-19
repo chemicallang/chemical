@@ -42,7 +42,8 @@ import "./libs/chemical.mod" as libTestsMod
 import "./async/chemical.mod" as asyncMod
 
 func build_dir_path(ctx : *BuildContext, path : &std::string_view) : std::string {
-    const new_path = std::string(ctx.build_path());
+    // `new_path` is mutated through `append`, so it must be a `var`
+    var new_path = std::string(ctx.build_path());
     new_path.append('/')
     new_path.append_view(path);
     return new_path;

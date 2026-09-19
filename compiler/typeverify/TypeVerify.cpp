@@ -525,7 +525,9 @@ bool check_chain_mutability(TypeVerifier& verifier, const std::vector<Value*>& v
         }
 
         // It is a value (struct, field, etc.)
-        if (!val->check_is_mutable(false)) {
+        // `assigning = true` here because the receiver is mutated through a
+        // `&mut self` method, so a `const` local/field must be rejected as well.
+        if (!val->check_is_mutable(true)) {
             return false;
         }
 
@@ -1204,6 +1206,43 @@ static bool is_empty_interface(ASTNode* node) {
     }
 }
 
+// an implementation of an interface member must accept the same parameters the interface
+// declares. parameters that carry a default value are not required of the caller, so they
+// are not counted. the implicit (self) receiver is compared separately
+static bool interface_member_signature_matches(FunctionDeclaration* impl, FunctionDeclaration* base) {
+    if(impl == nullptr || base == nullptr) return false;
+    const auto count_required_params = [](FunctionDeclaration* func) {
+        size_t count = 0;
+        for(const auto param : func->params) {
+            if(param->defValue == nullptr) {
+                count++;
+            }
+        }
+        return count;
+    };
+    if(count_required_params(impl) != count_required_params(base)) {
+        return false;
+    }
+    const auto& impl_params = impl->params;
+    const auto& base_params = base->params;
+    if(impl_params.size() != base_params.size()) {
+        // the implementation may add extra parameters as long as they have a default value
+        // (the required parameter count has already been checked above)
+        return true;
+    }
+    for(size_t i = 0; i < base_params.size(); i++) {
+        const auto base_param = base_params[i];
+        const auto impl_param = impl_params[i];
+        if(base_param->is_implicit() != impl_param->is_implicit()) {
+            return false;
+        }
+        // NOTE: parameter types are not compared, because an interface parameter may refer
+        // to `self`, which is substituted with the implementing type, so the two types are
+        // not expected to be identical here
+    }
+    return true;
+}
+
 void verify_interface_implementation(ImplementationsIndex& index, ASTDiagnoser& diagnoser, ImplDefinition* implementor, InterfaceDefinition* interface_non_master) {
 
     // so why always select the master (template) interface
@@ -1241,7 +1280,12 @@ void verify_interface_implementation(ImplementationsIndex& index, ASTDiagnoser& 
             }
             const auto found = implementor->implementation_of(func_node);
             if (found != nullptr) {
-                // direct implementation present in impl
+                // direct implementation present in impl, but it must match the
+                // signature the interface declares
+                if(interface_member_signature_matches(found, func_node)) {
+                    continue;
+                }
+                diagnoser.error(implementor) << "type does not implement interface member '" << func_node->name_view() << "', the implementation's parameters do not match the interface";
                 continue;
             }
             diagnoser.error(implementor) << "type does not implement interface member '" << func_node->name_view() << "'";
@@ -1312,6 +1356,13 @@ void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
     }
     if(stmt->known_type()->kind() == BaseTypeKind::Void) {
         diagnoser.error(stmt) << "variable with name '" << stmt->name_view() << "' type can't be of type void";
+    }
+    // `null` has the dedicated `nullptr` type, which is not a real type, so a variable
+    // that stores it cannot exist. It only makes sense where a pointer type is expected,
+    // which the annotation of the variable provides. Comptime and extern declarations are
+    // exempt, as they never allocate storage of their own type
+    if(stmt->known_type()->kind() == BaseTypeKind::NullPtr && !stmt->is_comptime() && !stmt->is_extern()) {
+        diagnoser.error(stmt) << "variable with name '" << stmt->name_view() << "' cannot have the type of 'null', annotate it with the pointer type it should have";
     }
     if (stmt->is_top_level()) {
         // check var init is non-destructible type

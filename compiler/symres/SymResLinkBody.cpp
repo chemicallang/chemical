@@ -1139,6 +1139,34 @@ void SymResLinkBody::VisitEnumMember(EnumMember* node) {
     table.declare(node->name, node);
 }
 
+// every member value of an enum is stored in the enum's underlying integer type, so a
+// member whose value does not fit that type would be silently truncated
+static void verify_enum_member_values(ASTDiagnoser& diagnoser, EnumDeclaration* node, const TargetData& target_data) {
+    const auto underlying = node->get_underlying_integer_type();
+    if(underlying == nullptr) {
+        return;
+    }
+    const auto bits = underlying->num_bits(target_data);
+    const auto is_unsigned = underlying->is_unsigned();
+    for(auto& [name, member] : node->members) {
+        const auto index = member->get_index_dirty();
+        if(index < 0) {
+            if(is_unsigned) {
+                diagnoser.error(member) << "enum member '" << name << "' value " << index << " cannot be stored in an unsigned underlying type";
+            }
+            continue;
+        }
+        if(bits >= 64) {
+            continue;
+        }
+        const auto value = static_cast<uint64_t>(index);
+        const auto max_value = is_unsigned ? ((1ULL << bits) - 1) : ((1ULL << (bits - 1)) - 1);
+        if(value > max_value) {
+            diagnoser.error(member) << "enum member '" << name << "' value " << index << " does not fit in the enum's underlying type";
+        }
+    }
+}
+
 void SymResLinkBody::VisitEnumDecl(EnumDeclaration* node) {
     auto& members = node->members;
     table.scope_start();
@@ -1154,6 +1182,7 @@ void SymResLinkBody::VisitEnumDecl(EnumDeclaration* node) {
             visit(value);
         }
     }
+    verify_enum_member_values(diagnoser, node, getTargetData());
     table.scope_end();
 }
 
@@ -1161,6 +1190,11 @@ void SymResLinkBody::VisitForLoopStmt(ForLoop* node) {
     table.scope_start();
     visit(node->initializer);
     visit(node->conditionExpr);
+    // the C-style `for(init; cond; step)` condition must obey the same rule as
+    // `if`/`while` conditions (integer / boolean / pointer types only)
+    if(node->conditionExpr != nullptr && node->conditionExpr->getType() != nullptr) {
+        verify_bool_ptr_condition(diagnoser, node->conditionExpr->getType(), node->conditionExpr->encoded_location());
+    }
     visit(node->incrementerExpr);
     link_seq(*this, node->body);
     table.scope_end();
@@ -1493,6 +1527,11 @@ void SymResLinkBody::VisitStructDecl(StructDefinition* node) {
 
 void SymResLinkBody::VisitVariantDecl(VariantDefinition* node) {
     LinkMembersContainer(node);
+    // a variant is exactly one of its cases, so a variant that declares no case can
+    // never have a value
+    if(!node->is_compiler_decl() && node->variables().empty()) {
+        diagnoser.error(node) << "a variant must declare at least one case";
+    }
 }
 
 void SymResLinkBody::VisitCapturedVariable(CapturedVariable* node) {
@@ -2322,6 +2361,12 @@ void SymResLinkBody::VisitFunctionCall(FunctionCall* call) {
     if (call->getType() == nullptr) {
         call->setType(get_unresolved_decl()->known_type());
     }
+    // a destructor already runs automatically when its value is deleted or goes out of
+    // scope, so calling it directly would run it a second time. use `delete value` instead
+    const auto linked = call->safe_linked_func();
+    if(linked != nullptr && linked->is_delete_fn()) {
+        diagnoser.error(call) << "a destructor function cannot be called directly, it runs automatically when the value is deleted";
+    }
 }
 
 void SymResLinkBody::VisitEmbeddedValue(EmbeddedValue* value) {
@@ -2362,6 +2407,11 @@ void SymResLinkBody::VisitArrayType(ArrayType* arrType) {
         if(number.has_value()) {
             arrType->set_array_size(number.value());
             return;
+        }
+        // the array size must be known at compile time, as the array is a value type
+        // whose size contributes to the size of whatever contains it
+        if(arrType->has_no_array_size()) {
+            diagnoser.error("array size is not known at compile time, it must be a compile time constant", arrType->array_size_value);
         }
         return;
     }
@@ -2569,6 +2619,35 @@ void SymResLinkBody::VisitCastedValue(CastedValue* cValue) {
     auto typeLoc = TypeLoc(type, cValue->type_location);
     visit(typeLoc);
     visit(value, type);
+
+    // a cast can only reinterpret machine representations of types. A struct, variant or
+    // union value cannot be read as a primitive (and a primitive cannot become one),
+    // reporting it here avoids the backend rejecting the generated code instead
+    const auto source_type = value->getType();
+    if(source_type == nullptr || type == nullptr) {
+        return;
+    }
+    const auto source_is_aggregate = source_type->canonical()->get_members_container() != nullptr;
+    if(!source_is_aggregate) {
+        return;
+    }
+    // only the direction with a concretely known target type is checked, as the source of
+    // a cast is resolved later in some intrinsic driven cases
+    switch(type->canonical()->kind()) {
+        case BaseTypeKind::IntN:
+        case BaseTypeKind::Bool:
+        case BaseTypeKind::Float:
+        case BaseTypeKind::Double:
+        case BaseTypeKind::Float128:
+        case BaseTypeKind::LongDouble:
+        case BaseTypeKind::Pointer:
+        case BaseTypeKind::Reference:
+        case BaseTypeKind::NullPtr:
+            diagnoser.error(cValue) << "a value of this type cannot be cast to the given type";
+            break;
+        default:
+            break;
+    }
 }
 
 void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
@@ -3139,6 +3218,15 @@ void SymResLinkBody::VisitOffsetOfValue(OffsetOfValue* value) {
     visit(value->for_type);
 }
 
+// the value node produced by a scope, which for a value scope is the value of its
+// last statement (a nested if statement in the else position is followed down)
+static Value* scope_value_node(Scope& scope) {
+    if(scope.nodes.empty()) {
+        return nullptr;
+    }
+    return Value::get_first_value_from_value_node(scope.nodes.back());
+}
+
 void SymResLinkBody::VisitIfValue(IfValue* value) {
     VisitIfStmt(&value->stmt);
 
@@ -3150,6 +3238,36 @@ void SymResLinkBody::VisitIfValue(IfValue* value) {
     } else {
         diagnoser.error("expected a single value node for the if value", value);
         return;
+    }
+
+    // every branch of an `if` used as a value must produce a value of the same type,
+    // otherwise the branches are joined into a result type that doesn't represent any
+    // of them
+    const auto branch_type = last_val->getType();
+    if(branch_type == nullptr) {
+        return;
+    }
+    const auto check_branch = [this, branch_type](Value* branch_val) {
+        if(branch_val == nullptr || branch_val->getType() == nullptr) {
+            return;
+        }
+        const auto branch_value_type = branch_val->getType();
+        if(branch_value_type->is_same(branch_type)) {
+            return;
+        }
+        // an implicit conversion (or an implicit constructor) into the branch type is
+        // allowed, the same way it would be for a variable declaration
+        if(branch_type->satisfies(branch_val, false) || branch_type->implicit_constructor_for(branch_val) != nullptr) {
+            return;
+        }
+        diagnoser.error("all branches of an if expression must produce a value of the same type", branch_val);
+    };
+    check_branch(scope_value_node(value->stmt.ifBody));
+    for(auto& elif : value->stmt.elseIfs) {
+        check_branch(scope_value_node(elif.second));
+    }
+    if(value->stmt.elseBody.has_value()) {
+        check_branch(scope_value_node(value->stmt.elseBody.value()));
     }
 
 }

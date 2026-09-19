@@ -73,6 +73,14 @@ func neg_mutate_const_field(env : &mut TestEnv) {
 }
 
 @test
+func neg_mutate_const_nested_field(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // the const-ness of the root of the chain must block writes to any depth
+    var ch = "struct Inner { var val : int }\nstruct Outer { var inner : Inner }\npublic func main() : int {\n    const o = Outer { inner : Inner { val : 1 } }\n    o.inner.val = 2\n    return 0\n}\n"
+    expect_compile_error(env, "mutate_const_nested_field", ch, "cannot assign to a non mutable value")
+}
+
+@test
 func neg_missing_return_in_else(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "func get_val(b : bool) : int {\n    if(b) {\n        return 1\n    } else {\n        // missing return\n    }\n}\nfunc main() {}\n"

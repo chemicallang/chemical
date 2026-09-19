@@ -153,6 +153,42 @@ BaseType* Expression::get_determined_type(
         if(!secondType->isPrimitive()) {
             diagnoser.error("expected the value to have primitive type", expr->secondValue);
         }
+        // relational and equality operators only accept operands that have a meaningful
+        // machine comparison. a string value for instance only decays to a pointer where a
+        // pointer is expected, so comparing two of them would compare their addresses
+        if(expr->operation <= Operation::IndexComparisonEnd) {
+            // a string only supports the equality operators, as there is no ordering
+            // defined on it (comparing the addresses of two literals is never intended)
+            const auto equality_only = expr->operation == Operation::IsEqual || expr->operation == Operation::IsNotEqual;
+            const auto is_comparable_kind = [equality_only](BaseTypeKind kind) {
+                switch(kind) {
+                    case BaseTypeKind::IntN:
+                    case BaseTypeKind::Bool:
+                    case BaseTypeKind::Float:
+                    case BaseTypeKind::Double:
+                    case BaseTypeKind::Float128:
+                    case BaseTypeKind::LongDouble:
+                    case BaseTypeKind::Pointer:
+                    case BaseTypeKind::Reference:
+                    case BaseTypeKind::Function:
+                    case BaseTypeKind::CapturingFunction:
+                        // comparing a pointer against `null` is a fundamental operation
+                    case BaseTypeKind::NullPtr:
+                        return true;
+                    case BaseTypeKind::String:
+                    case BaseTypeKind::ExpressiveString:
+                        return equality_only;
+                    default:
+                        return false;
+                }
+            };
+            if(!is_comparable_kind(firstType->canonical()->canonicalize_enum()->kind())) {
+                diagnoser.error("this value cannot be used with the comparison operator", expr->firstValue);
+            }
+            if(!is_comparable_kind(secondType->canonical()->canonicalize_enum()->kind())) {
+                diagnoser.error("this value cannot be used with the comparison operator", expr->secondValue);
+            }
+        }
         return typeBuilder.getBoolType();
     }
     // check if its overloading operator
@@ -184,6 +220,27 @@ BaseType* Expression::get_determined_type(
     // check second type is primitive
     if(!secondType->isPrimitive()) {
         diagnoser.error("expected the value to have primitive type", expr->secondValue);
+    }
+
+    const auto first_op_kind = first_canonical->canonicalize_enum()->kind();
+    const auto second_op_kind = secondType->canonical()->canonicalize_enum()->kind();
+    // `bool` is not an arithmetic type, so it can only take part in logical and
+    // comparison operations (which are handled above)
+    const auto is_arithmetic_operation =
+        expr->operation == Operation::Multiplication || expr->operation == Operation::Division ||
+        expr->operation == Operation::Modulus || expr->operation == Operation::Addition ||
+        expr->operation == Operation::Subtraction || expr->operation == Operation::LeftShift ||
+        expr->operation == Operation::RightShift;
+    if(is_arithmetic_operation &&
+        (first_op_kind == BaseTypeKind::Bool || second_op_kind == BaseTypeKind::Bool)) {
+        diagnoser.error("boolean values cannot be used with this operator, use the logical operators instead", expr);
+        return typeBuilder.getBoolType();
+    }
+    // a negative shift amount is undefined behaviour, so it must be rejected
+    if((expr->operation == Operation::LeftShift || expr->operation == Operation::RightShift)
+        && expr->secondValue->kind() == ValueKind::NegativeValue) {
+        diagnoser.error("the shift operator's amount cannot be a negative value", expr->secondValue);
+        return firstType;
     }
 
     const auto first = first_canonical->canonicalize_enum();

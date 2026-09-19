@@ -36,6 +36,7 @@
 #include "ast/types/IfType.h"
 #include "ast/types/LinkedValueType.h"
 #include "LinkSignatureAPI.h"
+#include <unordered_set>
 #include "ast/statements/UnresolvedDecl.h"
 #include "ast/utils/GenericUtils.h"
 #include "compiler/SymbolResolver.h"
@@ -891,6 +892,29 @@ void TopLevelLinkSignature::LinkVariablesNoScope(VariablesContainerBase* contain
     }
 }
 
+/**
+ * Whether following the inheritance chain from `from` (inclusive) eventually
+ * reaches `target`. Used to reject cyclic inheritance, which would otherwise
+ * make every pass that recursively walks the inheritance chain (index building
+ * here, member declaration in the body-linking pass, ...) recurse forever.
+ */
+static bool inheritance_chain_reaches(MembersContainer* from, MembersContainer* target) {
+    std::vector<MembersContainer*> stack;
+    std::unordered_set<MembersContainer*> visited;
+    stack.push_back(from);
+    while (!stack.empty()) {
+        const auto current = stack.back();
+        stack.pop_back();
+        if (current == nullptr) continue;
+        if (!visited.insert(current).second) continue;
+        if (current == target) return true;
+        for (auto& inh : current->inherited) {
+            stack.push_back(inh.type->get_members_container());
+        }
+    }
+    return false;
+}
+
 void TopLevelLinkSignature::LinkMembersContainerNoScope(MembersContainer* container) {
     // linking inherited types
     auto& inherited = container->inherited;
@@ -1317,7 +1341,34 @@ void TopLevelLinkSignature::VisitUnnamedUnion(UnnamedUnion* node) {
     LinkVariables(node);
 }
 
-void buildContainerIndexes(MembersContainer* container) {
+/**
+ * An inheritance list must never be cyclic (`struct A : A`, or `struct A : B` with
+ * `struct B : A`). Cyclic inheritance is rejected here — in the (serialized)
+ * after-signature phase, where every container in the module is fully linked — by
+ * reporting the offending edge and dropping it, so every later pass (index building
+ * here, member declaration in the body-linking pass, codegen) sees an acyclic graph
+ * and terminates instead of recursing forever.
+ */
+static void reject_cyclic_inheritance(SymbolResolver& linker, MembersContainer* container) {
+    auto& inherited = container->inherited;
+    for(auto it = inherited.begin(); it != inherited.end(); ) {
+        const auto sub_container = it->type->get_members_container();
+        if(sub_container != nullptr && inheritance_chain_reaches(sub_container, container)) {
+            linker.error("recursion in inheritance is not allowed", it->type.encoded_location());
+            it = inherited.erase(it);
+            continue;
+        }
+        ++it;
+    }
+}
+
+static void buildContainerIndexes_impl(MembersContainer* container, std::unordered_set<MembersContainer*>& in_progress) {
+    // defensive guard: a cycle here would make this recursion non-terminating. Cycles
+    // are removed by `reject_cyclic_inheritance` before this runs, so this should only
+    // ever trigger if a cycle is introduced by a later pass (e.g. generic instantiation).
+    if(!in_progress.insert(container).second) {
+        return;
+    }
     bool is_inherited_sizeof_zero = true;
     for(auto& inh : container->inherited) {
         const auto sub_container = inh.type->get_members_container();
@@ -1325,7 +1376,7 @@ void buildContainerIndexes(MembersContainer* container) {
             if (!sub_container->built_indexes) {
                 // first build indexes on inherited containers
                 // since we want to do multi-level inheritance
-                buildContainerIndexes(sub_container);
+                buildContainerIndexes_impl(sub_container, in_progress);
             }
             // check if inherited size of zero
             // we also calculate this flag when building indexes
@@ -1350,9 +1401,18 @@ void buildContainerIndexes(MembersContainer* container) {
     if (is_inherited_sizeof_zero && container->variables().empty()) {
         container->is_sizeof_zero = true;
     }
+    in_progress.erase(container);
 }
 
-void buildInterfaceIndexes(InterfaceDefinition* container) {
+void buildContainerIndexes(MembersContainer* container) {
+    std::unordered_set<MembersContainer*> in_progress;
+    buildContainerIndexes_impl(container, in_progress);
+}
+
+static void buildInterfaceIndexes_impl(InterfaceDefinition* container, std::unordered_set<MembersContainer*>& in_progress) {
+    if(!in_progress.insert(container).second) {
+        return;
+    }
     for(auto& inh : container->inherited) {
         const auto inherited_node = inh.type->get_direct_linked_node();
         // after link signature, the node can only be interface (because monomorphized if it was generic)
@@ -1361,7 +1421,7 @@ void buildInterfaceIndexes(InterfaceDefinition* container) {
         if (!sub_container->built_indexes) {
             // first build indexes on inherited containers
             // since we want to do multi-level inheritance
-            buildInterfaceIndexes(sub_container);
+            buildInterfaceIndexes_impl(sub_container, in_progress);
         }
         // basically or the bits of the inherited interface with the bits of the inheriter
         // for_example: if an interface inherits Copy, copy bit is turned on
@@ -1379,7 +1439,14 @@ void buildInterfaceIndexes(InterfaceDefinition* container) {
     // set indexes to built
     // so we can skip building it again when other containers inherit this container
     container->built_indexes = true;
+    in_progress.erase(container);
 }
+
+void buildInterfaceIndexes(InterfaceDefinition* container) {
+    std::unordered_set<MembersContainer*> in_progress;
+    buildInterfaceIndexes_impl(container, in_progress);
+}
+
 
 void index_implementation(SymbolResolver& linker, ImplDefinition* node) {
     // this code should be moved to type checking pass
@@ -1566,6 +1633,7 @@ void BuildIndexes(SymbolResolver& linker, std::vector<ASTNode*>& nodes) {
             case ASTNodeKind::UnionDecl:
             case ASTNodeKind::VariantDecl: {
                 const auto container = node->as_members_container_unsafe();
+                reject_cyclic_inheritance(linker, container);
                 buildContainerIndexes(container);
                 // `impl Interface for T` declarations nested inside the
                 // container are not top-level nodes, so they would otherwise
@@ -1581,27 +1649,42 @@ void BuildIndexes(SymbolResolver& linker, std::vector<ASTNode*>& nodes) {
                 }
                 continue;
             }
-            case ASTNodeKind::InterfaceDecl:
-                buildInterfaceIndexes(node->as_interface_def_unsafe());
+            case ASTNodeKind::InterfaceDecl: {
+                const auto interface = node->as_interface_def_unsafe();
+                reject_cyclic_inheritance(linker, interface);
+                buildInterfaceIndexes(interface);
                 continue;
+            }
             case ASTNodeKind::ImplDecl:
                 index_implementation(linker, node->as_impl_def_unsafe());
                 build_indexes_of_impl(linker, node->as_impl_def_unsafe());
                 continue;
             // for generic containers, we only need to build indexes of the master container
             // because that's where children are resolved from
-            case ASTNodeKind::GenericStructDecl:
-                buildContainerIndexes(node->as_gen_struct_def_unsafe()->master_impl);
+            case ASTNodeKind::GenericStructDecl: {
+                const auto master = node->as_gen_struct_def_unsafe()->master_impl;
+                reject_cyclic_inheritance(linker, master);
+                buildContainerIndexes(master);
                 continue;
-            case ASTNodeKind::GenericUnionDecl:
-                buildContainerIndexes(node->as_gen_union_decl_unsafe()->master_impl);
+            }
+            case ASTNodeKind::GenericUnionDecl: {
+                const auto master = node->as_gen_union_decl_unsafe()->master_impl;
+                reject_cyclic_inheritance(linker, master);
+                buildContainerIndexes(master);
                 continue;
-            case ASTNodeKind::GenericVariantDecl:
-                buildContainerIndexes(node->as_gen_variant_decl_unsafe()->master_impl);
+            }
+            case ASTNodeKind::GenericVariantDecl: {
+                const auto master = node->as_gen_variant_decl_unsafe()->master_impl;
+                reject_cyclic_inheritance(linker, master);
+                buildContainerIndexes(master);
                 continue;
-            case ASTNodeKind::GenericInterfaceDecl:
-                buildInterfaceIndexes(node->as_gen_interface_decl_unsafe()->master_impl);
+            }
+            case ASTNodeKind::GenericInterfaceDecl: {
+                const auto master = node->as_gen_interface_decl_unsafe()->master_impl;
+                reject_cyclic_inheritance(linker, master);
+                buildInterfaceIndexes(master);
                 continue;
+            }
             case ASTNodeKind::GenericImplDecl:
                 build_indexes_of_impl(linker, node->as_gen_impl_decl_unsafe()->master_impl);
                 continue;

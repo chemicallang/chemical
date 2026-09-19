@@ -142,7 +142,7 @@ void verify_container_inherited(TypeVerifier& verifier, MembersContainer* contai
         // first type can be a struct or interface (shouldn't be variant)
         auto& first_node_type = inherited.front().type;
         const auto first_node = first_node_type->get_direct_linked_canonical_node();
-        if (first_node->kind() != ASTNodeKind::StructDecl && first_node->kind() != ASTNodeKind::GenericStructDecl) {
+        if (first_node == nullptr || (first_node->kind() != ASTNodeKind::StructDecl && first_node->kind() != ASTNodeKind::GenericStructDecl)) {
             diagnoser.error(first_node_type.encoded_location()) << "the type in inheritance list must be a struct";
         }
         if (inherited.size() > 1) {
@@ -151,7 +151,9 @@ void verify_container_inherited(TypeVerifier& verifier, MembersContainer* contai
             const auto end = inherited.data() + inherited.size();
             while (start != end) {
                 const auto node = start->type->get_direct_linked_canonical_node();
-                if (node->kind() == ASTNodeKind::StructDecl) {
+                if (node == nullptr) {
+                    diagnoser.error(start->type.encoded_location()) << "the type in inheritance list must be a struct";
+                } else if (node->kind() == ASTNodeKind::StructDecl) {
                     // check if struct is empty, if empty, we allow it, otherwise error out
                     const auto structDecl = node->as_struct_def_unsafe();
                     if (!structDecl->is_sizeof_zero) {
@@ -226,7 +228,7 @@ void TypeVerifier::VisitInterfaceDecl(InterfaceDefinition* interface) {
     // if this is an interface decl, every inherited type must be an interface
     for(auto& inherits : interface->inherited) {
         const auto node = inherits.type->get_direct_linked_canonical_node();
-        if (node->kind() != ASTNodeKind::InterfaceDecl && node->kind() != ASTNodeKind::GenericInterfaceDecl) {
+        if (node == nullptr || (node->kind() != ASTNodeKind::InterfaceDecl && node->kind() != ASTNodeKind::GenericInterfaceDecl)) {
             diagnoser.error(inherits.type.encoded_location()) << "interfaces can only inherit interfaces";
         }
     }

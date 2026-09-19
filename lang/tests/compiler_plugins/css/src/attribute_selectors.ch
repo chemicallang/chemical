@@ -16,13 +16,9 @@ public func attribute_selector_full_value_preserved(env : &mut TestEnv) {
         }
     }
     var got = page.toStringCssOnly();
-    var expected = std::string();
-    var classView = std::string_view(got.data(), 8)
-    expected.append_view(&classView)
-    expected.append_view("{color:red;}")
-    expected.append_view(&classView)
-    expected.append_view("[data-variant=\"destructive\"] { background-color:red; }")
-    compl_css_equals(env, &got, expected.to_view())
+    // A `#css` block in statement position is a global stylesheet: its own
+    // declarations go to :root and `&` anchors to the document root.
+    compl_css_equals(env, &got, ":root{color:red;}:root[data-variant=\"destructive\"] { background-color:red; }")
 }
 
 @test
@@ -39,21 +35,9 @@ public func attribute_selector_operators_work(env : &mut TestEnv) {
         &[data-z|="pre"] { width: 6rem; }
     }
     var got = page.toStringCssOnly();
-    var expected = std::string();
-    var classView = std::string_view(got.data(), 8)
-    expected.append_view(&classView)
-    expected.append_view("{color:red;}")
-    expected.append_view(&classView)
-    expected.append_view("[data-size^=\"sm\"] { width:2rem; }")
-    expected.append_view(&classView)
-    expected.append_view("[data-type$=\"e\"] { width:3rem; }")
-    expected.append_view(&classView)
-    expected.append_view("[data-x*=\"mid\"] { width:4rem; }")
-    expected.append_view(&classView)
-    expected.append_view("[data-y~=\"word\"] { width:5rem; }")
-    expected.append_view(&classView)
-    expected.append_view("[data-z|=\"pre\"] { width:6rem; }")
-    compl_css_equals(env, &got, expected.to_view())
+    // Global block: the block's declarations land on :root and every `&`
+    // anchored rule resolves to the document root.
+    compl_css_equals(env, &got, ":root{color:red;}:root[data-size^=\"sm\"] { width:2rem; }:root[data-type$=\"e\"] { width:3rem; }:root[data-x*=\"mid\"] { width:4rem; }:root[data-y~=\"word\"] { width:5rem; }:root[data-z|=\"pre\"] { width:6rem; }")
 }
 
 @test
@@ -67,13 +51,7 @@ public func attribute_selector_without_value_works(env : &mut TestEnv) {
         }
     }
     var got = page.toStringCssOnly();
-    var expected = std::string();
-    var classView = std::string_view(got.data(), 8)
-    expected.append_view(&classView)
-    expected.append_view("{color:red;}")
-    expected.append_view(&classView)
-    expected.append_view("[disabled] { opacity:0.5; }")
-    compl_css_equals(env, &got, expected.to_view())
+    compl_css_equals(env, &got, ":root{color:red;}:root[disabled] { opacity:0.5; }")
 }
 
 @test
@@ -118,13 +96,7 @@ public func attribute_selector_with_pseudo_element_stays_compound(env : &mut Tes
         }
     }
     var got = page.toStringCssOnly();
-    var expected = std::string();
-    var classView = std::string_view(got.data(), 8)
-    expected.append_view(&classView)
-    expected.append_view("{color:red;}")
-    expected.append_view(&classView)
-    expected.append_view("[data-variant=\"error\"]::-webkit-progress-value { background: blue; }")
-    expected.append_view(&classView)
-    expected.append_view("[data-variant=\"error\"]:hover { color:green; }")
-    compl_css_equals(env, &got, expected.to_view())
+    // The attribute selector must stay in the same compound as the pseudo
+    // element, anchored to the document root in a global block.
+    compl_css_equals(env, &got, ":root{color:red;}:root[data-variant=\"error\"]::-webkit-progress-value { background: blue; }:root[data-variant=\"error\"]:hover { color:green; }")
 }

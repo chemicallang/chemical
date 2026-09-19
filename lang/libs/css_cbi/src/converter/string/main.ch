@@ -4,6 +4,14 @@ struct ASTConverter {
     var vec : *mut VecRef<ASTNode>
     var parent : *mut ASTNode
     var str : std::string
+    // `#css` is a value macro: in value position it returns the generated class
+    // so the author can attach it (`class={style_button(page)}`), and scoping the
+    // rules under that class is what makes component styles local. In statement
+    // position (`#css { ... }` on its own line) nothing can ever receive the
+    // class, so scoping the rules under it emits CSS that matches no element.
+    // Such a block is a global stylesheet: selectors are emitted as written and
+    // the block's own declarations go to :root.
+    var is_global_block : bool = false
 }
 
 // ─── CssEmitter implementation ──────────────────────────────────────────────
@@ -195,6 +203,24 @@ func allocate_view_with_classname(builder : *mut ASTBuilder, str : &mut std::str
     return std::string_view(ptr, total_size)
 }
 
+// Wrap the declarations accumulated in `str` in `:root { ... }`.
+//
+// Used for `#css` blocks in statement position: the macro's value is the class
+// name, and a statement discards it, so declarations scoped to that class would
+// be dead CSS. Declarations written at the top level of a block describe the
+// document itself, so they belong to :root.
+func allocate_view_with_root_selector(builder : *mut ASTBuilder, str : &mut std::string) : std::string_view {
+    str.append('}')
+    const prefix = std::string_view(":root{")
+    const prefix_size = prefix.size()
+    const total_size = str.size() + prefix_size
+    const ptr = builder.allocate_str_size(total_size + 1)
+    memcpy(ptr, prefix.data(), prefix_size)
+    memcpy(ptr + prefix_size, str.data(), str.size())
+    *(ptr + total_size) = '\0'
+    return std::string_view(ptr, total_size)
+}
+
 func (converter : &mut ASTConverter) put_class_name_chain(hash : uint32_t, prefix : char) {
     var className : char[10] = [];
     className[0] = '.'; className[1] = prefix
@@ -257,12 +283,22 @@ func (converter : &mut ASTConverter) generate_css_recurse(om : *CSSNestedRule, p
         while(i < om.selector.selectors.size()) {
              var sel = om.selector.selectors.get(i);
              if(css_has_ampersand_complex(sel)) {
-                 var p : uint = 0;
-                 while(p < parent_selectors.size()) {
-                     var pdf = parent_selectors.get_ptr(p);
+                 if(parent_selectors.empty()) {
+                     // A global block (`#css` in statement position) has no class
+                     // for the ampersand to anchor to; its scope root is the
+                     // document itself, which is also where the block's own
+                     // declarations go. `&.blue` therefore becomes `:root.blue`.
                      var res = std::string();
-                     css_serialize_complex(sel, &mut res, pdf.view());
-                     current_selectors.push(res); p++;
+                     css_serialize_complex(sel, &mut res, std::string_view(":root"));
+                     current_selectors.push(res);
+                 } else {
+                     var p : uint = 0;
+                     while(p < parent_selectors.size()) {
+                         var pdf = parent_selectors.get_ptr(p);
+                         var res = std::string();
+                         css_serialize_complex(sel, &mut res, pdf.view());
+                         current_selectors.push(res); p++;
+                     }
                  }
              } else if(!parent_selectors.empty()) {
                  var p : uint = 0;
@@ -384,7 +420,7 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM, seed : ubigin
 
     const location = intrinsics::get_raw_location();
 
-    if(!om.is_hashable()) {
+    if(!om.is_hashable()) {
         // Deterministic class seed from the CSS content when it has no dynamic
         // (Chemical) values: serialize the declarations plus nested/media/
         // keyframe structure and hash it. Dynamic-value blocks (whose values
@@ -417,19 +453,26 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM, seed : ubigin
         const classView = std::string_view(total.data() + 1, 7u);
         om.className = classView
 
-        if(size > 0 || !om.media_queries.empty() || !om.keyframes.empty()) {
+        if(converter.is_global_block && size > 0) {
+            // Statement position: nothing can attach the generated class, so
+            // scoping the declarations under it would emit dead CSS. The block's
+            // own declarations describe the document itself: they go to :root.
+            // Nested rules, media queries and keyframes are emitted further down
+            // with the selectors the author wrote.
+            const rootOpen = builder.allocate_view(std::string_view(":root{"))
+            converter.put_view_chain(&rootOpen)
+            var gi : uint = 0
+            while(gi < size) { css_write_declaration_text(om.declarations.get(gi), str, converter.as_emitter()); gi++; }
+            str.append('}')
+            converter.put_chain_in()
+        }
+
+        if(!converter.is_global_block && (size > 0 || !om.media_queries.empty() || !om.keyframes.empty())) {
             converter.put_view_chain(&total)
             var i : uint = 0
             while(i < size) { css_write_declaration_text(om.declarations.get(i), str, converter.as_emitter()); i++; }
             str.append('}')
             converter.put_chain_in();
-        }
-
-        var j : uint = 0
-        while(j < om.media_queries.size()) {
-            converter.writeMediaRule(om.media_queries.get(j), &mut *str, classView)
-            if(!str.empty()) { converter.put_chain_in(); }
-            j++;
         }
 
         var k_idx : uint = 0
@@ -439,8 +482,11 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM, seed : ubigin
             k_idx++;
         }
 
+        // Only a block's own (root) declarations create a class scope, and only
+        // when something can receive that class. Without a scope, nested rules
+        // are emitted with the selectors they were written with.
         var parents = std::vector<std::string>();
-        if(size > 0 || !om.media_queries.empty() || !om.keyframes.empty()) {
+        if(!converter.is_global_block && (size > 0 || !om.media_queries.empty() || !om.keyframes.empty())) {
             var root_sel = std::string();
             root_sel.append('.'); root_sel.append_view(&classView);
             parents.push(root_sel);
@@ -450,6 +496,24 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM, seed : ubigin
         while(n_idx < om.nested_rules.size()) {
             converter.generate_css_recurse(om.nested_rules.get(n_idx), &mut parents);
             n_idx++;
+        }
+
+        // Media queries are emitted after the block's own rules: the cascade
+        // resolves equal-specificity conflicts by source order, so a responsive
+        // override (`@media (max-width: ...) { padding: 1rem }`) only takes over
+        // from the base rule it overrides when it comes after it.
+        var j : uint = 0
+        while(j < om.media_queries.size()) {
+            if(converter.is_global_block) {
+                // No root class here: declarations written directly in the media
+                // query belong to :root, nested rules keep their selectors.
+                const declRoot = std::string_view(":root")
+                converter.writeMediaRule(om.media_queries.get(j), &mut *str, std::string_view(), declRoot)
+            } else {
+                converter.writeMediaRule(om.media_queries.get(j), &mut *str, classView)
+            }
+            if(!str.empty()) { converter.put_chain_in(); }
+            j++;
         }
         
         converter.vec = oldVec;
@@ -466,9 +530,16 @@ func (converter : &mut ASTConverter) convertCSSOM(om : *mut CSSOM, seed : ubigin
         var oldVec = converter.vec;
         converter.vec = body;
 
-        const totalView = allocate_view_with_classname(builder, &mut *str, hash)
-        om.className = std::string_view(totalView.data() + 1, 7u)
-        converter.put_append_css_value_chain(&totalView)
+        if(converter.is_global_block) {
+            // Statement position: the declarations have no element to attach the
+            // generated class to, so they belong to the document root.
+            const rootView = allocate_view_with_root_selector(builder, &mut *str)
+            converter.put_append_css_value_chain(&rootView)
+        } else {
+            const totalView = allocate_view_with_classname(builder, &mut *str, hash)
+            om.className = std::string_view(totalView.data() + 1, 7u)
+            converter.put_append_css_value_chain(&totalView)
+        }
         
         converter.vec = oldVec;
         converter.vec.push(ifStmt);

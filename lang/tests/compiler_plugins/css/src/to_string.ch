@@ -604,13 +604,9 @@ public func media_queries1(env : &mut TestEnv) {
         }
     }
     var got = page.toStringCssOnly();
-    var expected = std::string();
-    var classView = std::string_view(got.data(), 8)
-    expected.append_view(&classView)
-    expected.append_view("{color:red;}@media screen { ");
-    expected.append_view(&classView)
-    expected.append_view(" { background-color:red; } }");
-    compl_css_equals(env, &got, expected.to_view());
+    // A `#css` block in statement position is a global stylesheet: the block's
+    // own declarations go to :root and the media query keeps its own selectors.
+    compl_css_equals(env, &got, ":root{color:red;}@media screen { :root { background-color:red; } }");
 }
 
 @test
@@ -625,19 +621,10 @@ public func media_queries_complex(env : &mut TestEnv) {
         }
     }
     var got = page.toStringCssOnly();
-    var expected = std::string();
-    var classView = std::string_view(got.data(), 8)
-    expected.append_view(&classView)
-    expected.append_view("{");
-    // Note: The parser currently adds a space after every token in the media query.
-    // So "min-width: 480px" becomes "min-width : 480 px "
-    expected.append_view("}@media screen and (min-width: 480px) { ");
-    expected.append_view(&classView)
-    expected.append_view(" { color:blue; } }");
-    expected.append_view("@media only screen and (max-width: 600px) { ");
-    expected.append_view(&classView)
-    expected.append_view(" { color:green; } }");
-    compl_css_equals(env, &got, expected.to_view());
+    // A global block has no class scope at all, so the empty root scope an older
+    // build emitted in front of the media queries is gone, and declarations
+    // written directly inside a media query belong to :root.
+    compl_css_equals(env, &got, "@media screen and (min-width: 480px) { :root { color:blue; } }@media only screen and (max-width: 600px) { :root { color:green; } }");
 }
 
 @test
@@ -653,15 +640,9 @@ public func nested_queries_test(env : &mut TestEnv) {
         }
     }
     var got = page.toStringCssOnly();
-    var expected = std::string();
-    var classView = std::string_view(got.data(), 8)
-    expected.append_view(&classView)
-    expected.append_view("{color:red;}");
-    expected.append_view(&classView)
-    expected.append_view(".blue { color:blue; }");
-    expected.append_view(&classView)
-    expected.append_view("#yellow { color:yellow; }");
-    compl_css_equals(env, &got, expected.to_view());
+    // `&` anchors to the block's scope root; a global block's root is the
+    // document itself, so `&.blue` becomes `:root.blue`.
+    compl_css_equals(env, &got, ":root{color:red;}:root.blue { color:blue; }:root#yellow { color:yellow; }");
 }
 
 @test
@@ -677,15 +658,8 @@ public func nested_queries_test2(env : &mut TestEnv) {
         }
     }
     var got = page.toStringCssOnly();
-    var expected = std::string();
-    var classView = std::string_view(got.data(), 8)
-    expected.append_view(&classView)
-    expected.append_view("{color:red;}");
-    expected.append_view(&classView)
-    expected.append_view(" .blue { color:blue; }");
-    expected.append_view(&classView)
-    expected.append_view(" #yellow { color:yellow; }");
-    compl_css_equals(env, &got, expected.to_view());
+    // `& .blue` anchors to the document root, so it becomes `:root .blue`.
+    compl_css_equals(env, &got, ":root{color:red;}:root .blue { color:blue; }:root #yellow { color:yellow; }");
 }
 
 @test
@@ -701,15 +675,8 @@ public func nested_queries_test3(env : &mut TestEnv) {
         }
     }
     var got = page.toStringCssOnly();
-    var expected = std::string();
-    var classView = std::string_view(got.data(), 8)
-    expected.append_view(&classView)
-    expected.append_view("{color:red;}");
-    expected.append_view(&classView)
-    expected.append_view(" > .blue { color:blue; }");
-    expected.append_view(&classView)
-    expected.append_view(" > #yellow { color:yellow; }");
-    compl_css_equals(env, &got, expected.to_view());
+    // `& > .blue` anchors to the document root: `:root > .blue`.
+    compl_css_equals(env, &got, ":root{color:red;}:root > .blue { color:blue; }:root > #yellow { color:yellow; }");
 }
 
 @test
@@ -725,15 +692,8 @@ public func nested_queries_test4(env : &mut TestEnv) {
         }
     }
     var got = page.toStringCssOnly();
-    var expected = std::string();
-    var classView = std::string_view(got.data(), 8)
-    expected.append_view(&classView)
-    expected.append_view("{color:red;}");
-    expected.append_view(&classView)
-    expected.append_view(" ~ .blue { color:blue; }");
-    expected.append_view(&classView)
-    expected.append_view(" ~ #yellow { color:yellow; }");
-    compl_css_equals(env, &got, expected.to_view());
+    // `& ~ .blue` anchors to the document root: `:root ~ .blue`.
+    compl_css_equals(env, &got, ":root{color:red;}:root ~ .blue { color:blue; }:root ~ #yellow { color:yellow; }");
 }
 
 @test
@@ -749,15 +709,9 @@ public func nested_queries_test5(env : &mut TestEnv) {
         }
     }
     var got = page.toStringCssOnly();
-    var expected = std::string();
-    var classView = std::string_view(got.data(), 8)
-    expected.append_view(&classView)
-    expected.append_view("{color:red;}");
-    expected.append_view(&classView)
-    expected.append_view(":hover { color:red; }");
-    expected.append_view(&classView)
-    expected.append_view("::before { color:blue; }");
-    compl_css_equals(env, &got, expected.to_view());
+    // Pseudo-classes/elements keep riding on the anchor, so `&:hover` becomes
+    // `:root:hover` and `&::before` becomes `:root::before`.
+    compl_css_equals(env, &got, ":root{color:red;}:root:hover { color:red; }:root::before { color:blue; }");
 }
 
 @test
@@ -770,15 +724,10 @@ public func nested_queries_test6(env : &mut TestEnv) {
         }
     }
     var got = page.toStringCssOnly();
-    var expected = std::string();
-    var classView = std::string_view(got.data(), 8)
-    // Nested rules without `&` are implicit descendants of the root class
-    // (CSS nesting semantics): `.class div {}`
-    expected.append_view(&classView)
-    expected.append_view("{color:red;}");
-    expected.append_view(&classView)
-    expected.append_view(" div { color:red; }");
-    compl_css_equals(env, &got, expected.to_view());
+    // In value position a nested rule without `&` is an implicit descendant of
+    // the returned class (`.class div {}`); in a global block there is no class,
+    // so the rule keeps the selector it was written with.
+    compl_css_equals(env, &got, ":root{color:red;}div { color:red; }");
 }
 
 @test
@@ -792,11 +741,8 @@ public func nested_queries_test7(env : &mut TestEnv) {
     }
     var got = page.toStringCssOnly();
     var expected = std::string();
-    var classView = std::string_view(got.data(), 8)
-    expected.append_view(&classView)
-    expected.append_view("{color:red;}div > ");
-    expected.append_view(&classView)
-    expected.append_view(" { color:red; }");
+    // The anchor sits after a combinator, so it resolves to the document root.
+    expected.append_view(":root{color:red;}div > :root { color:red; }");
     compl_css_equals(env, &got, expected.to_view());
 }
 
@@ -814,13 +760,7 @@ public func nested_queries_test8(env : &mut TestEnv) {
     }
     var got = page.toStringCssOnly();
     var expected = std::string();
-    var classView = std::string_view(got.data(), 8)
-    expected.append_view(&classView)
-    expected.append_view("{color:red;}.blue ");
-    expected.append_view(&classView)
-    expected.append_view(" { color:blue; }#yellow ");
-    expected.append_view(&classView)
-    expected.append_view(" { color:yellow; }");
+    expected.append_view(":root{color:red;}.blue :root { color:blue; }#yellow :root { color:yellow; }");
     compl_css_equals(env, &got, expected.to_view());
 }
 
@@ -836,11 +776,7 @@ public func nested_queries_test9(env : &mut TestEnv) {
     }
     var got = page.toStringCssOnly();
     var expected = std::string();
-    var classView = std::string_view(got.data(), 8)
-    expected.append_view(&classView)
-    expected.append_view("{color:red;}.blue ");
-    expected.append_view(&classView)
-    expected.append_view(" { color:blue; }");
+    expected.append_view(":root{color:red;}.blue :root { color:blue; }");
     compl_css_equals(env, &got, expected.to_view());
 }
 

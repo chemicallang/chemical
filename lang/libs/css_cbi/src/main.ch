@@ -17,6 +17,10 @@ public func css_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTD
         builder : builder,
         support : &raw mut root.support,
         vec : scope_nodes,
+        // Statement position (`#css { ... }` on its own line): the macro's value
+        // is the generated class and nothing can receive it, so the block is
+        // emitted as a global stylesheet rather than dead class-scoped CSS.
+        is_global_block : true,
         parent : root.parent,
         str : std::string()
     }

@@ -58,11 +58,12 @@ func neg_invalid_ptr_compare(env : &mut TestEnv) {
 }
 
 @test
-func neg_index_on_pointer(env : &mut TestEnv) {
+func pointer_indexing_allowed(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // Indexing a pointer is a core language operation (used heavily by the
+    // standard libraries, e.g. `vector` writes through `*mut T`).
     var ch = "func main() {\n    var arr : [3]int = [1, 2, 3]\n    var p = &raw arr[0]\n    var v = p[1]\n}\n"
-    // Indexing a pointer may or may not be supported
-    expect_compile_error(env, "index_on_ptr", ch, "operator")
+    expect_compile_success(env, "pointer_indexing_ok", ch)
 }
 
 @test

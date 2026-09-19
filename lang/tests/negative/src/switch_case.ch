@@ -61,8 +61,10 @@ func neg_switch_non_exhaustive_cases(env : &mut TestEnv) {
 }
 
 @test
-func neg_switch_bool_not_int(env : &mut TestEnv) {
+func switch_on_bool_allowed(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // Switch accepts integer-like *and* bool storage (`isIntOrBoolLikeMarkedStorage`),
+    // so switching on a bool is valid.
     var ch = "func main() {\n    var b = true\n    switch(b) {\n        true => { }\n        default => { }\n    }\n}\n"
-    expect_compile_error(env, "switch_bool_not_int", ch, "switch expression should have integer like type")
+    expect_compile_success(env, "switch_bool_allowed", ch)
 }

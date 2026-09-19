@@ -39,8 +39,9 @@ func neg_move_into_fun_twice(env : &mut TestEnv) {
 @test
 func neg_deref_non_copy_generic(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "struct Box 'T {\n    var val : T\n    func get(&self) : T { return val }\n}\nstruct NonCopy {\n    @delete\n    func delete(&mut self) { }\n}\nfunc main() {\n    var b = Box<NonCopy> { val : NonCopy {} }\n}\n"
-    // Accessing a value type that's not Copy through a reference
+    // De-referencing a `*T` where `T` is a generic parameter that is not `Copy`
+    // is rejected (the value would be copied out of borrowed memory).
+    var ch = "struct NonCopy {\n    @delete\n    func delete(&mut self) { }\n}\nfunc <T> get_val(p : *T) : T {\n    return *p\n}\nfunc main() {\n    var n = NonCopy {}\n    var p = &raw n\n    var v = get_val(p)\n}\n"
     expect_compile_error(env, "deref_non_copy_generic", ch, "Copy")
 }
 

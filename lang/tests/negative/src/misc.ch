@@ -69,7 +69,9 @@ func neg_infinite_loop_no_progress(env : &mut TestEnv) {
 @test
 func neg_typealias_invalid(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "typealias MyInt = NonExistentType\nfunc main() {}\n"
+    // The alias must actually be used: an unused typealias is never resolved,
+    // so referencing a non-existent type in one only errors once it is used.
+    var ch = "typealias MyInt = NonExistentType\nvar g : MyInt = 0\nfunc main() {}\n"
     expect_compile_error(env, "typealias_invalid", ch, "unresolved")
 }
 

@@ -167,37 +167,53 @@ bool BaseType::requires_destructor() {
     }
 }
 
+// the number of hops a type chain (aliases, runtime wrappers, generic references) may
+// take before we consider it cyclic. A cyclic chain of typealiases (like `type A = B`
+// with `type B = A`) would otherwise recurse without bound and overflow the stack
+#define CHEM_CANONICAL_MAX_HOPS 256
+
 BaseType* BaseType::canonical() {
-    switch(kind()) {
-        case BaseTypeKind::Literal:
-            return as_literal_type_unsafe()->underlying;
-        case BaseTypeKind::MaybeRuntime:
-            return as_maybe_runtime_type_unsafe()->underlying;
-        case BaseTypeKind::Runtime:
-            return as_runtime_type_unsafe()->underlying;
-        case BaseTypeKind::Linked: {
-            const auto linked = as_linked_type_unsafe()->linked;
-            if (linked) {
+    // this is written as an iterative walk rather than a recursion, so a cyclic chain
+    // terminates instead of overflowing the stack
+    BaseType* current = this;
+    unsigned hops = 0;
+    while(hops++ < CHEM_CANONICAL_MAX_HOPS) {
+        switch(current->kind()) {
+            case BaseTypeKind::Literal:
+                current = current->as_literal_type_unsafe()->underlying;
+                break;
+            case BaseTypeKind::MaybeRuntime:
+                current = current->as_maybe_runtime_type_unsafe()->underlying;
+                break;
+            case BaseTypeKind::Runtime:
+                current = current->as_runtime_type_unsafe()->underlying;
+                break;
+            case BaseTypeKind::Linked: {
+                const auto linked = current->as_linked_type_unsafe()->linked;
+                if (linked == nullptr) return current;
                 const auto known = linked->known_type();
-                return known ? known != this ? known->canonical() : known : this;
-            } else {
-                return this;
+                // `known == current` is the self referencing alias case
+                if (known == nullptr || known == current) return current;
+                current = known;
+                break;
             }
-        }
-        case BaseTypeKind::Generic: {
-            const auto gen = as_generic_type_unsafe();
-            const auto can = gen->referenced->canonical();
-            if(can->kind() == BaseTypeKind::Linked) {
-                // pointing to same declarations
-                if(can->as_linked_type_unsafe()->linked == gen->referenced->linked) {
-                    return this;
+            case BaseTypeKind::Generic: {
+                const auto gen = current->as_generic_type_unsafe();
+                const auto can = gen->referenced->canonical();
+                if(can->kind() == BaseTypeKind::Linked) {
+                    // pointing to same declarations
+                    if(can->as_linked_type_unsafe()->linked == gen->referenced->linked) {
+                        return current;
+                    }
                 }
+                return can;
             }
-            return can;
+            default:
+                return current;
         }
-        default:
-            return this;
     }
+    // the chain is cyclic, report no progress rather than a type from the middle of it
+    return this;
 }
 
 BaseType* BaseType::canonicalize_enum() {

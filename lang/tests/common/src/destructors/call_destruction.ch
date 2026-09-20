@@ -474,10 +474,9 @@ func create_indexable(count : *mut int) : IndexableDestructible {
     }
 }
 
-    // workaround: can't take ref of member directly
-    func take_index_ref(ptr : &int) : &int {
-        return ptr
-    }
+// workaround: can't take ref of member directly
+func take_index_ref(ptr : &int) : &int {
+    return ptr
 }
 
 impl core::ops::Index<int, int> for IndexableDestructible {

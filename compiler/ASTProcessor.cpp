@@ -853,8 +853,14 @@ void ASTProcessor::import_chemical_files_recursive(
             // this is done inside the mutex lock, so to prevent race conditions when appending
             // to futures vector
             state.pushed_task();
-            pool.push([this, &pool, &state, &fileData, use_job_allocator](int){
-                import_chemical_file_recursive(*fileData.result, pool, state, fileData, use_job_allocator, true);
+            // the task must not capture a reference into `files`: that vector can be appended to
+            // (and therefore reallocate) while the task is still pending, which would leave the
+            // captured metadata dangling. The result object is heap allocated and owned by the
+            // import cache for the whole run, so it is stable to capture. It already holds a copy
+            // of the metadata (`*static_cast<ASTFileMetaData*>(ptr) = fileData` above).
+            auto* fileResult = fileData.result;
+            pool.push([this, &pool, &state, fileResult, use_job_allocator](int){
+                import_chemical_file_recursive(*fileResult, pool, state, *static_cast<ASTFileMetaData*>(fileResult), use_job_allocator, true);
                 state.done_task();
             });
         }
@@ -1544,7 +1550,34 @@ bool ASTProcessor::import_chemical_mod_file(
     return import_chemical_mod_file(fileAllocator, modAllocator, loc_man, data, fileId, abs_path, &inp_source);
 }
 
-void ASTProcessor::declare_before_translation(
+bool ASTProcessor::print_translation_diagnostics(ToCAstVisitor& visitor, const std::string& abs_path) {
+    if(visitor.diagnostics.empty()) {
+        return false;
+    }
+    visitor.print_diagnostics(chem::string_view(abs_path), "2cTranslation");
+    std::cout << std::endl;
+    const auto had_errors = visitor.has_errors();
+    visitor.reset_errors();
+    return had_errors;
+}
+
+/**
+ * translation errors mean the generated C cannot be trusted, so the caller must
+ * stop the build instead of continuing with code that no longer matches the
+ * source. Reading the errors out of the visitor also prints them
+ */
+bool ASTProcessor::print_translation_diagnostics(ToCAstVisitor& visitor) {
+    if(visitor.diagnostics.empty()) {
+        return false;
+    }
+    visitor.print_diagnostics("2cTranslation");
+    std::cout << std::endl;
+    const auto had_errors = visitor.has_errors();
+    visitor.reset_errors();
+    return had_errors;
+}
+
+bool ASTProcessor::declare_before_translation(
         ToCAstVisitor& visitor,
         std::vector<ASTNode*>& nodes,
         const std::string& abs_path
@@ -1559,14 +1592,10 @@ void ASTProcessor::declare_before_translation(
         bm_results.benchmark_end();
         print_benchmarks(std::cout, "2cTranslation:declare", &bm_results);
     }
-    if(!visitor.diagnostics.empty()) {
-        visitor.print_diagnostics(chem::string_view(abs_path), "2cTranslation");
-        std::cout << std::endl;
-    }
-    visitor.reset_errors();
+    return print_translation_diagnostics(visitor, abs_path);
 }
 
-void ASTProcessor::translate_after_declaration(
+bool ASTProcessor::translate_after_declaration(
         ToCAstVisitor& visitor,
         std::vector<ASTNode*>& nodes,
         const std::string& abs_path
@@ -1581,14 +1610,10 @@ void ASTProcessor::translate_after_declaration(
         bm_results.benchmark_end();
         print_benchmarks(std::cout, "2cTranslation:translate", abs_path, &bm_results);
     }
-    if(!visitor.diagnostics.empty()) {
-        visitor.print_diagnostics(chem::string_view(abs_path), "2cTranslation");
-        std::cout << std::endl;
-    }
-    visitor.reset_errors();
+    return print_translation_diagnostics(visitor, abs_path);
 }
 
-void ASTProcessor::translate_to_c(
+bool ASTProcessor::translate_to_c(
         ToCAstVisitor& visitor,
         std::vector<ASTNode*>& nodes,
         const std::string& abs_path
@@ -1603,11 +1628,7 @@ void ASTProcessor::translate_to_c(
         bm_results.benchmark_end();
         print_benchmarks(std::cout, "2cTranslation", &bm_results);
     }
-    if(!visitor.diagnostics.empty()) {
-        visitor.print_diagnostics(chem::string_view(abs_path), "2cTranslation");
-        std::cout << std::endl;
-    }
-    visitor.reset_errors();
+    return print_translation_diagnostics(visitor, abs_path);
 }
 
 /**
@@ -1704,6 +1725,9 @@ int ASTProcessor::declare_module(
     // we will declare the direct dependencies of this module
     c_visitor.declare_before_translation(container.get_current_module_instantiations());
 
+    // translation errors of the generics above are printed along with the first file
+    bool had_errors = false;
+
     // The second loop deals with declaring files that are present in this module
     // declaring means (only prototypes, no function bodies, struct prototypes...)
     for(auto& file_ptr : module->direct_files) {
@@ -1720,12 +1744,19 @@ int ASTProcessor::declare_module(
         c_visitor.debug_comment(chem::string_view(("Declare " + file.abs_path)));
 #endif
 
-        declare_before_translation(c_visitor, unit.scope.body.nodes, file.abs_path);
+        if(declare_before_translation(c_visitor, unit.scope.body.nodes, file.abs_path)) {
+            had_errors = true;
+        }
 
     }
 
-    // return for success
-    return 0;
+    // a module without files still collects diagnostics from its generics
+    if(print_translation_diagnostics(c_visitor)) {
+        had_errors = true;
+    }
+
+    // the generated c cannot be trusted when errors were reported
+    return had_errors ? 1 : 0;
 
 }
 
@@ -1737,12 +1768,13 @@ int ASTProcessor::implement_module(
     // comment
 #ifdef DEBUG
     c_visitor.debug_comment(chem::string_view("Implement:Generics " + module->format()));
-#endif
-
-    // we will implement the direct dependencies of this module
+#endif    // we will implement the direct dependencies of this module
     // this loop will implement new generic instantiations
     // this and the fourth loop generates bodies of functions
     c_visitor.translate_after_declaration(container.get_current_module_instantiations());
+
+    // translation errors of the generics above are printed along with the first file
+    bool had_errors = false;
 
     // The fourth loop deals with generating function bodies present in the current module
     for(auto& file_ptr : module->direct_files) {
@@ -1756,12 +1788,19 @@ int ASTProcessor::implement_module(
 #endif
 
         // translating to c
-        translate_after_declaration(c_visitor, unit.scope.body.nodes, file.abs_path);
+        if(translate_after_declaration(c_visitor, unit.scope.body.nodes, file.abs_path)) {
+            had_errors = true;
+        }
 
         // clear everything we allocated using file allocator to make it re-usable
         // and other stuff to re use memory (makes it performant)
         c_visitor.file_level_reset();
 
+    }
+
+    // a module without files still collects diagnostics from its generics
+    if(print_translation_diagnostics(c_visitor)) {
+        had_errors = true;
     }
 
     // this will clear current module instantiations
@@ -1771,7 +1810,7 @@ int ASTProcessor::implement_module(
     // resetting c visitor to use with another module
     c_visitor.reset();
 
-    // return for success
-    return 0;
+    // the generated c cannot be trusted when errors were reported
+    return had_errors ? 1 : 0;
 
 }

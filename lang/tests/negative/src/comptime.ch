@@ -68,3 +68,31 @@ func neg_comptime_fn_runtime_arg(env : &mut TestEnv) {
     var ch = "comptime func compute(x : int) : int { return x * 2 }\nfunc main() {\n    var v = 42\n    compute(v)\n}\n"
     expect_compile_error(env, "comptime_fn_runtime_arg", ch, "comptime")
 }
+
+@test
+func neg_comptime_infinite_recursion(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // the interpreter recurses on the compiler's own stack, so a comptime function
+    // which calls itself forever used to overflow it and crash the compiler
+    var ch = "comptime func f() : int {\n    return f()\n}\npublic func main() : int {\n    return f()\n}\n"
+    expect_compile_error(env, "comptime_infinite_recursion", ch, "ran out of stack space")
+}
+
+@test
+func neg_comptime_unbounded_recursion_depth(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // recursion that is deep enough to exhaust the stack must be reported as well,
+    // there is no way to know that it would never return
+    var ch = "comptime func f(n : int) : int {\n    if(n <= 0) {\n        return 0\n    } else {\n        return f(n - 1)\n    }\n}\npublic func main() : int {\n    return f(1000000)\n}\n"
+    expect_compile_error(env, "comptime_recursion_depth", ch, "ran out of stack space")
+}
+
+@test
+func neg_comptime_error_during_codegen_fails_build(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // an error raised while a comptime function is evaluated during code generation
+    // used to be printed and then dropped, letting the build continue with a value
+    // that no longer matched the source
+    var ch = "comptime func f() : int {\n    intrinsics::error(\"comptime boom\")\n    return 7\n}\npublic func main() : int {\n    return f()\n}\n"
+    expect_compile_error(env, "comptime_error_codegen", ch, "comptime boom")
+}

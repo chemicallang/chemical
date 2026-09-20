@@ -1386,6 +1386,60 @@ static void reject_cyclic_inheritance(SymbolResolver& linker, MembersContainer* 
     }
 }
 
+/**
+ * A type alias must never resolve back to itself (`type A = A`, or `type A = B` with
+ * `type B = A`). Such a chain can never resolve to a real type, and every pass that walks
+ * it — `LinkedType::satisfies`, `BaseType::canonical`, type representation, layout
+ * calculation — recurses without bound and overflows the stack.
+ *
+ * The cycle is reported here (in the serialized after-signature phase, where every alias in
+ * the module is fully linked) and the offending target is replaced with a plain integer type,
+ * so the graph every later pass sees is acyclic.
+ */
+static void reject_cyclic_typealias(SymbolResolver& linker, TypealiasStatement* node) {
+    const auto cycle_error = [&](SourceLocation location) {
+        linker.error("recursion in the type alias is not allowed", location);
+        const auto fallback = linker.comptime_scope.typeBuilder.getIntType();
+        node->actual_type = TypeLoc(fallback, node->actual_type.encoded_location());
+    };
+    // walk `alias -> actual type -> linked alias -> actual type -> ...`, looking for this alias again
+    ASTNode* current = node->actual_type->get_direct_linked_node();
+    unsigned hops = 0;
+    while(current != nullptr && hops++ < 256) {
+        if(current == node) {
+            cycle_error(node->actual_type.encoded_location());
+            return;
+        }
+        if(current->kind() != ASTNodeKind::TypealiasStmt) {
+            return;
+        }
+        current = current->as_typealias_unsafe()->actual_type->get_direct_linked_node();
+    }
+}
+
+/**
+ * An enum must never inherit itself, directly or through other enums (`enum E : E`,
+ * or `enum A : B` with `enum B : A`). Such a chain never reaches an explicit integer type.
+ *
+ * Once the chain is cut with the same bounded walk used by `get_underlying_integer_type`,
+ * this reports the cycle and gives the enum a fallback integer type — otherwise the enum
+ * would be left with a null underlying type, which codegen dereferences.
+ */
+static void reject_cyclic_enum_inheritance(SymbolResolver& linker, EnumDeclaration* node) {
+    EnumDeclaration* current = node->get_inherited_enum_decl();
+    unsigned hops = 0;
+    while(current != nullptr && hops++ < 256) {
+        if(current == node) {
+            linker.error("recursion in inheritance is not allowed, an enum cannot inherit itself", node->encoded_location());
+            const auto fallback = linker.comptime_scope.typeBuilder.getIntType();
+            node->underlying_type = TypeLoc(fallback, node->underlying_type.encoded_location());
+            node->underlying_integer_type = fallback;
+            return;
+        }
+        current = current->get_inherited_enum_decl();
+    }
+}
+
 static void buildContainerIndexes_impl(MembersContainer* container, std::unordered_set<MembersContainer*>& in_progress) {
     // defensive guard: a cycle here would make this recursion non-terminating. Cycles
     // are removed by `reject_cyclic_inheritance` before this runs, so this should only
@@ -1475,6 +1529,10 @@ void buildInterfaceIndexes(InterfaceDefinition* container) {
 void index_implementation(SymbolResolver& linker, ImplDefinition* node) {
     // this code should be moved to type checking pass
     const auto linked_node = node->interface_type->get_direct_linked_node();
+    if (linked_node == nullptr) {
+        linker.error("expected type to be an interface", node->encoded_location());
+        return;
+    }
     if (linked_node->kind() == ASTNodeKind::InterfaceDecl) {
         const auto linked = linked_node->as_interface_def_unsafe();
         if (linked->is_static() && linked->has_implementation()) {
@@ -1551,6 +1609,11 @@ void index_implementation(SymbolResolver& linker, ImplDefinition* node) {
                 break;
             case BaseTypeKind::Linked: {
                 const auto member_node = node->struct_type->as_linked_type_unsafe()->linked;
+                if(member_node == nullptr) {
+                    // the type an implementation is for could not be resolved
+                    linker.error("cannot implement unsupported declaration", node->struct_type.encoded_location());
+                    break;
+                }
                 switch(member_node->kind()) {
                     case ASTNodeKind::StructDecl:
                     case ASTNodeKind::VariantDecl:
@@ -1569,7 +1632,13 @@ void index_implementation(SymbolResolver& linker, ImplDefinition* node) {
                 break;
             }
             case BaseTypeKind::Generic: {
-                const auto member_node = node->struct_type->as_generic_type_unsafe()->referenced->linked;
+                const auto referenced = node->struct_type->as_generic_type_unsafe()->referenced;
+                const auto member_node = referenced != nullptr ? referenced->linked : nullptr;
+                if(member_node == nullptr) {
+                    // the type an implementation is for could not be resolved
+                    linker.error("cannot implement unsupported declaration", node->struct_type.encoded_location());
+                    break;
+                }
                 switch (member_node->kind()) {
                     case ASTNodeKind::StructDecl:
                     case ASTNodeKind::VariantDecl:
@@ -1682,6 +1751,12 @@ void BuildIndexes(SymbolResolver& linker, std::vector<ASTNode*>& nodes) {
             case ASTNodeKind::ImplDecl:
                 index_implementation(linker, node->as_impl_def_unsafe());
                 build_indexes_of_impl(linker, node->as_impl_def_unsafe());
+                continue;
+            case ASTNodeKind::TypealiasStmt:
+                reject_cyclic_typealias(linker, node->as_typealias_unsafe());
+                continue;
+            case ASTNodeKind::EnumDecl:
+                reject_cyclic_enum_inheritance(linker, node->as_enum_decl_unsafe());
                 continue;
             // for generic containers, we only need to build indexes of the master container
             // because that's where children are resolved from

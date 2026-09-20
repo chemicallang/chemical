@@ -814,9 +814,13 @@ Value*& Codegen::eval_comptime(FunctionCall* call, FunctionDeclaration* decl) {
     comptime_scope.is_runtime_call = prev_runtime_call;
     comptime_scope.current_func_type = prev;
 
-    // put all diagnostics for this function inside the diagnoser
+    // put all diagnostics for this function inside the diagnoser. they must be added
+    // through add_diag, so the error count is updated and errors raised while evaluating
+    // the function are not silently lost
     auto& diags = comptime_scope.diagnostics;
-    diagnostics.insert(diagnostics.end(), diags.begin(), diags.end());
+    for(auto& diag : diags) {
+        add_diag(diag);
+    }
     comptime_scope.reset_diagnostics();
 
     if(!ret) {

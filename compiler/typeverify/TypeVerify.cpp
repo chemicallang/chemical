@@ -1,6 +1,7 @@
 
 #include "TypeVerify.h"
 #include "TypeVerifyAPI.h"
+#include <unordered_set>
 #include "ast/values/FunctionCall.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/values/ArrayValue.h"
@@ -206,19 +207,93 @@ void verify_mutation(TypeVerifier& verifier, Value* lhs) {
     }
 }
 
+/**
+ * Returns the container that `type` stores *by value*, so that it is part of the composing
+ * type's layout. Returns nullptr for anything that stores the value indirectly (pointers,
+ * arrays, references), which is what makes `struct Node { var next : *Node }` legal.
+ */
+static MembersContainer* composed_container_of(BaseType* type) {
+    if(type == nullptr) return nullptr;
+    const auto linked = type->get_direct_linked_node();
+    if(linked == nullptr) return nullptr;
+    switch(linked->kind()) {
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::UnionDecl:
+        case ASTNodeKind::VariantDecl:
+            return linked->as_members_container_unsafe();
+        // a generic container composes whatever its instantiation would, so the master
+        // implementation (whose members are the generic parameters) is the value we can inspect
+        case ASTNodeKind::GenericStructDecl:
+            return linked->as_gen_struct_def_unsafe()->master_impl;
+        case ASTNodeKind::GenericUnionDecl:
+            return linked->as_gen_union_decl_unsafe()->master_impl;
+        case ASTNodeKind::GenericVariantDecl:
+            return linked->as_gen_variant_decl_unsafe()->master_impl;
+        default:
+            return nullptr;
+    }
+}
+
+/**
+ * Pushes the containers composed by the value members of `def` into `out`. A variant's
+ * members carry their payload types, a plain container's members are their own type.
+ */
+static void push_composed_containers(VariablesContainerBase* def, std::vector<MembersContainer*>& out) {
+    for(const auto var : def->variables()) {
+        if(var->kind() == ASTNodeKind::VariantMember) {
+            for(auto& value : var->as_variant_member_unsafe()->values) {
+                const auto composed = composed_container_of(value.second->type);
+                if(composed != nullptr) out.push_back(composed);
+            }
+        } else {
+            const auto composed = composed_container_of(var->known_type());
+            if(composed != nullptr) out.push_back(composed);
+        }
+    }
+}
+
+/**
+ * A struct, union or variant must never compose itself by value — directly
+ * (`struct A { var a : A }`) or through a cycle (`struct A { var b : B }` together with
+ * `struct B { var a : A }`) — because such a type would need infinite storage. It also used
+ * to make every pass that walks members (the C translation's early declaration, layout
+ * calculation) recurse until the stack overflowed.
+ */
+void verify_container_composition(TypeVerifier& verifier, MembersContainer* container) {
+    std::vector<MembersContainer*> pending;
+    std::vector<MembersContainer*> composed;
+    std::unordered_set<MembersContainer*> visited;
+    push_composed_containers(container, pending);
+    while(!pending.empty()) {
+        const auto current = pending.back();
+        pending.pop_back();
+        if(current == container) {
+            verifier.diagnoser.error(container->encoded_location()) << "recursion in composition is not allowed";
+            return;
+        }
+        if(!visited.insert(current).second) continue;
+        composed.clear();
+        push_composed_containers(current, composed);
+        for(const auto sub : composed) pending.push_back(sub);
+    }
+}
+
 void TypeVerifier::VisitStructDecl(StructDefinition* def) {
     RecursiveVisitor::VisitStructDecl(def);
     verify_container_inherited(*this, def);
+    verify_container_composition(*this, def);
 }
 
 void TypeVerifier::VisitUnionDecl(UnionDef* def) {
     RecursiveVisitor::VisitUnionDecl(def);
     verify_container_inherited(*this, def);
+    verify_container_composition(*this, def);
 }
 
 void TypeVerifier::VisitVariantDecl(VariantDefinition* def) {
     RecursiveVisitor::VisitVariantDecl(def);
     verify_container_inherited(*this, def);
+    verify_container_composition(*this, def);
 }
 
 void TypeVerifier::VisitInterfaceDecl(InterfaceDefinition* interface) {
@@ -1245,6 +1320,12 @@ static bool interface_member_signature_matches(FunctionDeclaration* impl, Functi
 
 void verify_interface_implementation(ImplementationsIndex& index, ASTDiagnoser& diagnoser, ImplDefinition* implementor, InterfaceDefinition* interface_non_master) {
 
+    // an implementation may have been constructed without a target type (through the
+    // compiler API), in that case there is nothing to verify against
+    if(implementor->struct_type == nullptr) {
+        return;
+    }
+
     // so why always select the master (template) interface
     // because we need to get the base function, which has been indexed, to look up
     // we need to use the function pointers present in the master (template) interface
@@ -1383,7 +1464,9 @@ void TypeVerifier::VisitImplDecl(ImplDefinition* implDecl) {
     RecursiveVisitor::VisitImplDecl(implDecl);
     if (implDecl->interface_type) {
         const auto interface_node = implDecl->interface_type->get_direct_linked_canonical_node();
-        if (interface_node->kind() == ASTNodeKind::InterfaceDecl) {
+        // the implemented interface may not be resolved (or may not be an interface at
+        // all), in which case there is nothing to verify
+        if (interface_node != nullptr && interface_node->kind() == ASTNodeKind::InterfaceDecl) {
             const auto interface = interface_node->as_interface_def_unsafe();
             verify_interface_implementation(index, diagnoser, implDecl, interface);
         }

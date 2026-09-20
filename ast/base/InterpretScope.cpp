@@ -26,12 +26,36 @@
 #include "ast/types/IntNType.h"
 #include "std/except.h"
 #include "compiler/lab/LabBuildCompiler.h"
+#include "utils/StackSpace.h"
 
 #define ANSI_COLOR_RED     "\x1b[91m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
 Value* InterpretScope::getNullValue() {
     return global->typeBuilder.getNullValue();
+}
+
+bool InterpretScope::stack_space_exhausted(ASTNode* node) {
+    // Enough space is kept in reserve to report the diagnostic and unwind the
+    // already nested calls, so the compiler never runs out of stack.
+    constexpr size_t STACK_RESERVE = 512 * 1024;
+    // Only used when the platform cannot tell us how much stack is left, the
+    // observed limit at which a thread crashes is far higher than this
+    constexpr size_t FALLBACK_MAX_DEPTH = 1000;
+
+    const auto remaining = chem::remaining_stack_bytes();
+    bool exhausted;
+    if(remaining != 0) {
+        exhausted = remaining <= STACK_RESERVE;
+    } else {
+        exhausted = global != nullptr && global->call_stack.size() >= FALLBACK_MAX_DEPTH;
+    }
+    if(!exhausted) {
+        return false;
+    }
+    error("the compiler ran out of stack space while evaluating this call, "
+          "a recursive function that never returns is the most likely cause", node);
+    return true;
 }
 
 void InterpretScope::declare(const chem::string_view& name, Value* value) {

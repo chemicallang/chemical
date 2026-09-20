@@ -28,17 +28,18 @@ ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, ASTAllocator& body_all
 
         if(token->type == TokenType::LessThanSym) {
 
-            const auto gen_decl = new(allocator.allocate<GenericImplDecl>()) GenericImplDecl(
-                    impl, prev_parent_node, location
-            );
+            // implementations don't declare their own generic parameters. `impl I for S<T>`
+            // is the supported form, in which the parameters come from the implemented type.
+            // Declaring them here (like `impl <T> I for S<T>`) never produced an usable
+            // implementation, so it is reported instead of being silently ignored
+            error("implementations don't declare generic parameters, the type parameters of "
+                  "the implemented type are used instead (like 'impl I for S<T>')");
 
-            parent_node = gen_decl;
+            // consume the parameter list, so the rest of the declaration parses normally
+            std::vector<GenericTypeParameter*> discarded_params;
+            parseGenericParametersList(allocator, discarded_params);
 
-            parseGenericParametersList(allocator, gen_decl->generic_params);
-
-            final_decl = gen_decl;
-
-            impl->generic_parent = gen_decl;
+            parent_node = impl;
 
         } else {
 
@@ -76,10 +77,16 @@ ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, ASTAllocator& body_all
             if(structType) {
                 impl->struct_type = structType;
             } else {
-                return final_decl;
+                // the 'for' keyword was consumed, so a type must follow. Leaving the
+                // target type null here would make the declaration look like an
+                // implementation without a target type, which no later pass expects.
+                error("expected a type after 'for' in an implementation");
+                impl->struct_type = getErroredType(allocator);
             }
         } else {
-            impl->struct_type = nullptr;
+            // every implementation must name the type it is implemented for
+            error("expected 'for' after the interface name in an implementation");
+            impl->struct_type = getErroredType(allocator);
         }
         if (!consumeToken(TokenType::LBrace)) {
             error("expected a '{' when starting an implementation");

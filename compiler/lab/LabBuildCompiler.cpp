@@ -952,7 +952,10 @@ int LabBuildCompiler::process_module_tcc(
 
     // declare the module
     const auto dec_status = processor.declare_module(c_visitor, mod);
-    if (dec_status != 0) return dec_status;
+    if (dec_status != 0) {
+        std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failure during translation to c in the module " << *mod << std::endl;
+        return dec_status;
+    }
 
     // note starting position of implementation
     // the point where implementations began (the function bodies)
@@ -960,7 +963,10 @@ int LabBuildCompiler::process_module_tcc(
 
     // implement the module
     const auto impl_status = processor.implement_module(c_visitor, mod);
-    if (impl_status != 0) return impl_status;
+    if (impl_status != 0) {
+        std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset << "failure during translation to c in the module " << *mod << std::endl;
+        return impl_status;
+    }
 
     // saving assets related to caching
     if(caching) {

@@ -1452,7 +1452,11 @@ void GenericInstantiator::FinalizeNestedImplSignature(ImplDefinition* impl) {
     // ----
 
     visit_it(impl->interface_type);
-    visit_it(impl->struct_type);
+    // an implementation may have been constructed without a target type
+    // (through the compiler API), so it must not be visited when absent
+    if(impl->struct_type != nullptr) {
+        visit_it(impl->struct_type);
+    }
 
     // visiting variables
     for(auto& var : impl->variables()) {

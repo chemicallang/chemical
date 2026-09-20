@@ -491,14 +491,19 @@ void read_current_line(SourceProvider& provider) {
     }
 }
 
-const char* read_multi_line_comment_text(SourceProvider& provider) {
+// reads a /* ... */ comment. `terminated` is set to false when the end of the file was reached
+// without a closing */ — an unterminated comment used to be swallowed silently, hiding every
+// declaration after it.
+const char* read_multi_line_comment_text(SourceProvider& provider, bool& terminated) {
     while(true) {
         const auto read = provider.readCharacter();
         if(read == '\0') {
+            terminated = false;
             return provider.current_data();
         }
         if(read == '*' && provider.peek() == '/') {
             provider.increment();
+            terminated = true;
             return provider.current_data() - 2;
         }
     }
@@ -916,13 +921,16 @@ Token Lexer::getNextToken() {
                 read_current_line(provider);
                 return getNextToken();
             } else if(p == '*') {
+                provider.increment();
+                const auto start = provider.current_data();
+                auto terminated = true;
+                const auto end = read_multi_line_comment_text(provider, terminated);
+                if(!terminated) {
+                    diagnoser.diagnostic("no closing '*/' for the multi line comment", chem::string_view(file_path), pos, provider.position(), DiagSeverity::Error);
+                }
                 if(keep_comments) {
-                    provider.increment();
-                    const auto start = provider.current_data();
-                    const auto end = read_multi_line_comment_text(provider);
                     return Token(TokenType::MultiLineComment, chem::string_view(start, end - start), pos);
                 }
-                read_multi_line_comment_text(provider);
                 return getNextToken();
             } else {
                 return Token(TokenType::DivideSym, view_str(DivOpCStr), pos);

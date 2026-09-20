@@ -1079,7 +1079,7 @@ llvm::Value* IsValue::llvm_value(Codegen &gen, BaseType* expected_type) {
         result = comp_time.value();
     } else {
         const auto linked = type->get_direct_linked_node();
-        if(linked->kind() == ASTNodeKind::VariantMember) {
+        if(linked != nullptr && linked->kind() == ASTNodeKind::VariantMember) {
             const auto mem = linked->as_variant_member_unsafe();
             const auto variant_def = mem->parent();
 

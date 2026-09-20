@@ -109,6 +109,23 @@ Note: the parser is not a separate token-stream class — the header is tokenize
 
 The parser walks a `Token*` through the pre-lexed token vector with a small amount of lookahead (`isGenericEndAhead()` disambiguates `<` as generic vs. less-than):
 
+### `ident<...>` — generic arguments attach to three different places
+
+In `parseAccessChainAfterId`'s `LessThanSym` arm, after `parseGenericArgsListNoStart` has read
+the arguments, the **next token decides where they go**:
+
+| Followed by | Node | Holds the arguments |
+|---|---|---|
+| `{` | `StructValue` | the `GenericType` reference |
+| `(` | `FunctionCall` | `FunctionCall::generic_list` |
+| anything else | `GenericInstIdentifier` wrapping the last identifier | `GenericInstIdentifier::generic_list` |
+
+The third case is the *bare reference* `var f : (x : int) => int = ident<int>`, and it is the
+only case that must survive into symbol resolution as a value rather than as a type — see the
+[Generics skill](../generics/SKILL.md#generic-function-references-identint-as-a-value). It
+replaces `chain->values.back()`, so the chain's leaf is **not** a `VariableIdentifier`; code
+that consumes chain leaves must unwrap via `Value::as_identifier_of(...)`.
+
 ```cpp
 // Simplified illustration — the real entry point is
 // Parser::parseFunctionStructureTokens in parser/structures/Function.cpp

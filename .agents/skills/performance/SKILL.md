@@ -426,6 +426,28 @@ Use `chem::string` for owning compiler strings (SSO, move-only, FNV hash) and
 `chem::string_view` for parameters/keys. `std::string` still appears at boundaries (filesystem
 paths, CLI options, error formatting) where the standard library API wins.
 
+### Field budget on hot nodes (measured)
+
+High-frequency AST nodes are allocated once per occurrence in *every* module, so a field that
+only a rare syntactic form uses is pure tax. Real example: a `std::vector<TypeLoc>` field
+added to `VariableIdentifier` for the `ident<int>` generic-function-reference feature grew
+**every** identifier by 24 bytes — 96 → 72 once it moved to a dedicated node. The vector was
+only ever non-empty for a handful of identifiers in a whole build.
+
+`gdb` prints the exact layout, including padding waste, from a debug binary — no rebuild or
+instrumentation needed:
+
+```bash
+gdb -batch -ex 'print sizeof(VariableIdentifier)' \
+           -ex 'ptype /o VariableIdentifier' cmake-build-debug/TCCCompiler
+```
+
+`ptype /o` marks holes (`XXX  2-byte hole`, `XXX  7-byte padding`), which is how you spot that
+a field ordering is costing more than its declared size. Identifiers are also allocated
+number-of-chain-segments times (3 per `a.b.c`), so the multiplier is larger than "one per
+expression". See [AST Framework → Transparent wrapper values](../ast_framework/SKILL.md) for
+the pattern that avoids the tax: keep the hot node lean and give the rare form its own node.
+
 ### Compact AST nodes
 
 AST nodes use a 1-byte kind enum for discrimination:

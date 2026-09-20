@@ -669,8 +669,27 @@ initializer, passed as an argument, `ns::ident<int>` (namespaced), parenthesized
 (the singlified single-element chain), multiple explicit parameters, mixed
 parameters, and `ident<T>` / `ns::ident<T>` inside a generic function.
 Regression tests in `lang/tests/src/generic/basic.ch`. Full matrix green (main
-2200/2200, libs 650/650, plugins 1122/1122, negative 290/290, interpret
-1812/1812).
+2195/2195 at the time, libs 650/650, plugins 1122/1122, negative 290/290,
+interpret 1812/1812).
+
+4. **A *function* as a generic argument** (`gen<gen<int>>`, i.e. the reference in
+   **type** position) used to crash the compiler: the argument resolved to the
+   generic function's *master* signature — a `FunctionType` whose own parameter is
+   the outer parameter — so binding it as the outer argument made a type that
+   contains itself and `GenericInstantiator` recursed until the stack overflowed.
+   The argument (`GenericType{referenced: LinkedType(gen), types: [int]}`) is now
+   instantiated where signatures are linked, `GenericType::instantiate` gained a
+   `GenericFuncDecl` case, `GenericInstantiator::VisitGenericType` relinks a
+   deferred one, and `BaseType::canonical()` refuses to canonicalize a `LinkedType`
+   bound to a `GenericFuncDecl`. On the C side this also required real nested
+   declarators for functions that return functions
+   (`int(*(*z)(int(*x)(int x)))(int x)`, `wrap_nested_func_return`) and a way to
+   spell a type whose declaration is a function (`resolved_function_type`). See the
+   [Generics skill](../.agents/skills/generics/SKILL.md#5-a-function-used-as-a-generic-argument-produces-a-self-referencing-type)
+   and the [C codegen skill](../.agents/skills/c_codegen/SKILL.md#nested-function-declarators-function-returning-a-function).
+   `gen<gen<int>>`, `gen<gen<gen<int>>>` and the same shapes with `ident` all
+   build and run — including calling the result. Tests added in
+   `lang/tests/src/generic/basic.ch` (main 2200/2200).
 
 ### B11 — Generic function *type* equality fails with a generic variant result (HIGH) — ✅ FIXED
 

@@ -246,6 +246,80 @@ void GenericInstantiator::activateIteration(BaseGenericDecl* genDecl, size_t itr
 }
 ```
 
+### Generic function *references* (`ident<int>` as a value)
+
+A generic function used as a **value** rather than called — `ident<int>`,
+`ns::ident<int>` — needs somewhere to keep its explicit type arguments. It is the only
+case where an identifier is not just a name:
+
+```chemical
+public func <T> ident(x : T) : T { return x }
+var g : (x : int) => int = ident<int>   // reference, not a call
+var h = ident<int>(41)                  // call — args live on the FunctionCall
+```
+
+**Representation.** The parser (`parser/statements/AccessChain.cpp`, the `default:` arm of
+the `<` case in `parseAccessChainAfterId`) replaces the last chain value with a
+`GenericInstIdentifier` (`ast/values/GenericInstIdentifier.h`) that wraps the identifier and
+holds `std::vector<TypeLoc> generic_list`. Calls keep theirs on the `FunctionCall`, struct
+values on the `StructValue`'s `GenericType` reference, as before.
+
+> The arguments used to live in a `std::vector<TypeLoc> generic_list` field on
+> `VariableIdentifier` itself, which cost 24 bytes on **every** identifier in every module
+> (`sizeof(VariableIdentifier)` 96 instead of 72). `GenericInstIdentifier` is a *transparent
+> wrapper*: it forwards `linked_node`, child lookup, interpreter evaluation and every
+> `llvm_*` entry point to its identifier, so it behaves as the identifier would. Anything
+> that needs the identifier behind a chain leaf uses `Value::as_identifier_of(...)`. See the
+> [AST Framework skill](../ast_framework/SKILL.md) for the wrapper checklist.
+
+**Instantiation**, in every phase that can see one:
+
+| Phase | Entry point |
+|---|---|
+| Link signatures (global initializers) | `TopLevelLinkSignature::VisitGenericInstIdentifier` — links the argument types, then the identifier |
+| Generic instantiation pass (global initializers) | `GenericInstantiationPass::VisitGenericInstIdentifier` — registers the instantiation (`Register`) |
+| Link bodies (function bodies) | `SymResLinkBody::VisitGenericInstIdentifier` / `link_generic_func_reference` — links args, registers (`SignatureFinalization`, unless deferred), relinks the identifier |
+| Inside a generic body (deferred) | `GenericInstantiator::VisitGenericInstIdentifier` → `instantiate_generic_func_reference` (performed once the enclosing instantiation is finalized) |
+
+`initialize_generic_args` + `check_inferred_generic_args` validate the argument list, then
+`GenericFuncDecl::register_generic_args(...)` produces the concrete `FunctionDeclaration` and
+the wrapped identifier is relinked to it (`identifier->linked = concrete`) with its type set
+from `known_type()`. **Codegen needs no special case**: by the time a backend runs, the node
+is a plain reference to a concrete function and the wrapper only forwards.
+
+`GenericInstantiator::relink_identifier` no longer instantiates anything: a plain identifier
+linked to a `GenericFuncDecl` just takes the master implementation's type, because the
+arguments only exist on the wrapper.
+
+**A function used as a generic argument** — `gen<gen<int>>` — is the same syntax in a *type*
+position, so the argument arrives as a `GenericType{referenced: LinkedType(gen), types: [int]}`
+that must be instantiated into the concrete function type before the outer instantiation can
+use it. Otherwise the outer parameter is bound to the generic function's *master* signature
+and becomes self-referential (see
+[Common Issues → 5](#5-a-function-used-as-a-generic-argument-produces-a-self-referencing-type)).
+
+Two places do that instantiation:
+
+* `GenericType::instantiate` (`ast/types/GenericType.cpp`) — a `GenericFuncDecl` reference
+  registers the instantiation with its `types` as the arguments and relinks
+  `referenced->linked` to the concrete `FunctionDeclaration`. `SymResLinkBody::VisitGenericType`
+  calls it while linking types outside a generic context, so by the time an outer
+  instantiation reads the argument it is the concrete function type. Inside a generic body it
+  calls `instantiate_inline` instead, which is a no-op for functions, so the reference stays
+  deferred (as for `GenericInstIdentifier`).
+* `GenericInstantiator::VisitGenericType` — the `GenericFuncDecl` case relinks a deferred
+  reference (one from inside a generic body) once its `types` have been made concrete, by
+  calling the same `instantiate`. Self-referential arguments (`linked == current_gen` with
+  generic `types`) relink to `current_impl_ptr`, mirroring the struct cases.
+
+> **Known limitation (not a crash).** A *nested* function reference inside a generic body —
+> `func <T> f() { return gen<gen<T>> }` — is type checked before instantiation, and the
+> deferral in `SymResLinkBody::link_generic_func_reference` types the outer reference from the
+> declaration's **master** signature, i.e. the flat `(x : T) => T`. A declared return type of
+> the nested function type therefore reports `value with type '(x : T) => T' does not satisfy
+> type '(f : (x : T) => T) => (x : T) => T'`. The instantiator resolves it correctly once the
+> enclosing generic is instantiated, so only the pre-instantiation check is affected.
+
 ## The `SymResSignatureResult`
 
 During link signature, `SymResSignatureResult` collects all the inline generic instantiations encountered:
@@ -346,6 +420,46 @@ var x = foo<bar<baz<int>>>()  // 3 levels of instantiation
 ```
 
 The compiler handles this but may be slow for extremely deep nesting.
+
+### 5. A function used as a generic argument produces a self-referencing type
+
+**Symptom**: `SIGSEGV` (stack overflow) while finalizing a signature. Repro:
+
+```chemical
+func <T> gen(x : T) : T { return x }
+var f = gen<gen<int>>    // a FUNCTION as a generic type argument
+```
+
+`GenericInstantiator` recursed `VisitFunctionType` → `visit_it(param)` → `VisitFunctionParam`
+→ `visit_it(param->type)` → `VisitFunctionType` … until the stack was exhausted.
+
+**Cause**: the cycle, not the recursion itself. The type argument `gen<int>` reached
+`register_generic_args` as the generic function's **master implementation** (a
+`FunctionDeclaration`, which *is* a `FunctionType` — it inherits `FunctionTypeBody`), instead
+of the concrete instantiation. `activateIteration` therefore bound the outer parameter to a
+signature whose own parameter is the outer parameter: `active_type_map[T] = (x : T) => T`,
+where the `T` inside is the same `T`. `make_gen_type_concrete` replaced the parameter's type
+with the type that contains it, so the walk could never terminate.
+
+**Root cause**: `BaseType::canonical()` resolved a `GenericType` by canonicalizing its
+`referenced`, and `LinkedType::canonical()` uses `linked->known_type()`. For a
+`GenericFuncDecl`, `known_type()` is `master_impl->known_type()` — the *uninstantiated*
+signature. Resolving `gen<int>` that way silently dropped the `<int>` and fabricated a
+function type with free generic parameters.
+
+**Fix**:
+
+1. `GenericType::instantiate` instantiates a referenced `GenericFuncDecl` (see the
+   [reference section](#generic-function-references-identint-as-a-value)) so a type-position
+   `gen<int>` links to the concrete declaration. This is what makes the program *work*, not
+   just stop crashing.
+2. `BaseType::canonical()` no longer resolves a `LinkedType` bound to a `GenericFuncDecl`:
+   it returns the linked type unchanged (the generic case then returns the `GenericType`),
+   so an unresolved function reference can never become a self-referencing function type. A
+   properly instantiated reference is bound to the concrete declaration and resolves normally.
+
+**Rule of thumb**: `GenericFuncDecl::known_type()` is only meaningful while that generic's
+instantiation is active. Never let it leak into a `canonical()` type.
 
 ### 4. Thread Safety Issues
 

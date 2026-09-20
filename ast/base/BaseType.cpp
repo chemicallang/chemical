@@ -191,6 +191,16 @@ BaseType* BaseType::canonical() {
             case BaseTypeKind::Linked: {
                 const auto linked = current->as_linked_type_unsafe()->linked;
                 if (linked == nullptr) return current;
+                if (linked->kind() == ASTNodeKind::GenericFuncDecl) {
+                    // a generic function's known type is its *master* implementation — an
+                    // uninstantiated signature whose parameter types reference the
+                    // declaration's own generic parameters. using it as a canonical type
+                    // makes a function type that contains itself (the parameter's type is
+                    // the very type that holds it), so report no progress instead. a
+                    // properly instantiated reference is linked to the concrete
+                    // declaration and resolves normally
+                    return current;
+                }
                 const auto known = linked->known_type();
                 // `known == current` is the self referencing alias case
                 if (known == nullptr || known == current) return current;

@@ -119,5 +119,17 @@ std::optional<bool> IsValue::get_comp_time_result() {
             return is_negating ? !result : result;
         }
     }
-    return get_from_node(type, value->linked_node(), is_negating);
+    const auto result = get_from_node(type, value->linked_node(), is_negating);
+    if(result.has_value()) {
+        return result;
+    }
+    // everything left over is a runtime variant tag check, which requires the checked
+    // type to denote a variant member. a type that has no linked declaration at all (a
+    // function type, a pointer, a primitive, ...) cannot be one, so the check is known
+    // to be false — and true when it is negated (`!is`). both code generators rely on
+    // this, as they read the tag of the checked type's declaration
+    if(type->get_direct_linked_node() == nullptr) {
+        return is_negating;
+    }
+    return std::nullopt;
 }

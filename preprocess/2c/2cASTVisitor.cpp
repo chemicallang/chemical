@@ -613,8 +613,36 @@ void node_parent_name(ToCAstVisitor& visitor, ASTNode* node, bool take_parent = 
 
 void func_type_with_id(ToCAstVisitor& visitor, FunctionType* type, const chem::string_view& id);
 
+// a type can resolve to a function declaration (a generic function instantiation used as
+// a type argument, like `apply<int>`). such a declaration *is* a function type, but its
+// mangled name denotes a function and cannot be used where a type is expected, so callers
+// must write the function type instead
+FunctionType* resolved_function_type(BaseType* type) {
+    if(type == nullptr) {
+        return nullptr;
+    }
+    if(type->kind() == BaseTypeKind::Function) {
+        return type->as_function_type();
+    }
+    ASTNode* linked = nullptr;
+    switch(type->kind()) {
+        case BaseTypeKind::Linked:
+            linked = type->as_linked_type_unsafe()->linked;
+            break;
+        case BaseTypeKind::Generic:
+            linked = type->as_generic_type_unsafe()->referenced->linked;
+            break;
+        default:
+            break;
+    }
+    if(linked != nullptr && linked->kind() == ASTNodeKind::FunctionDecl) {
+        return linked->as_function_unsafe();
+    }
+    return nullptr;
+}
+
 void type_with_id(ToCAstVisitor& visitor, BaseType* type, const chem::string_view& id) {
-    const auto func_type = type->as_function_type();
+    const auto func_type = resolved_function_type(type);
     if(func_type != nullptr && !func_type->isCapturing()) {
         func_type_with_id(visitor, func_type, id);
     } else {
@@ -792,10 +820,57 @@ void func_ptr_array_type(ToCAstVisitor& visitor, ArrayType* arrType, FunctionTyp
     visitor.write(")");
 }
 
+// a function (or function pointer) whose return type is another function type has to be
+// declared with nested declarators. C puts the name in the innermost group, so each
+// further level of function return types wraps the whole declarator, and the final (non
+// function) return type ends up in front of it :
+//   `int(*(*fn)(int(*p)(int x)))(int x)`
+// declaring it the way a single level is written instead (return type as an id-less
+// prototype) produces an invalid declaration such as
+//   `int(*)(int x)(*fn)(int(*p)(int x))`
+//
+// `decl_start` is where the declarator that must be wrapped begins in the writer, and
+// `ret_type` is the first return type that still needs a group of its own
+void wrap_nested_func_return(ToCAstVisitor& visitor, BaseType* ret_type, size_t decl_start) {
+    auto& writer = visitor.writer;
+    auto base_type = ret_type;
+    while(true) {
+        const auto ret_func = resolved_function_type(base_type);
+        if(ret_func == nullptr || ret_func->isCapturing()) {
+            break;
+        }
+        // insert the opening `(*` in front of the declarator, and close it after its params
+        const auto end = writer.getPosition();
+        visitor.write("(*");
+        writer.move_range(end, end + 2, decl_start);
+        visitor.write(")(");
+        func_type_params(visitor, ret_func);
+        visitor.write(')');
+        base_type = ret_func->returnType;
+    }
+    // the final return type belongs in front of the whole declarator
+    const auto base_start = writer.getPosition();
+    accept_func_return(visitor, base_type);
+    const auto base_end = writer.getPosition();
+    writer.move_range(base_start, base_end, decl_start);
+}
+
 void func_type_with_id(ToCAstVisitor& visitor, FunctionType* type, const chem::string_view& id) {
-    func_type_with_id_no_params(visitor, type, id);
+    const auto ret_func = resolved_function_type(type->returnType);
+    if(ret_func == nullptr || ret_func->isCapturing()) {
+        func_type_with_id_no_params(visitor, type, id);
+        func_type_params(visitor, type);
+        visitor.write(")");
+        return;
+    }
+    const auto decl_start = visitor.writer.getPosition();
+    // the innermost group : (*id)(params of the declared function type)
+    visitor.write("(*");
+    write_c_id(visitor, id);
+    visitor.write(")(");
     func_type_params(visitor, type);
-    visitor.write(")");
+    visitor.write(')');
+    wrap_nested_func_return(visitor, type->returnType, decl_start);
 }
 
 void allocate_struct_by_name_no_init(ToCAstVisitor& visitor, ASTNode* def, const chem::string_view& name) {
@@ -1718,9 +1793,18 @@ void value_init_default(ToCAstVisitor& visitor, const chem::string_view& identif
             }
             break;
         }
-        default:
-            visitor.visit(type);
+        default: {
+            // a type resolving to a function declaration is a function pointer, so the
+            // identifier has to go inside the declarator (`int(*z)(int x)`)
+            const auto resolved_func = resolved_function_type(type);
+            if(resolved_func != nullptr && !resolved_func->isCapturing()) {
+                func_type_with_id(visitor, resolved_func, identifier);
+                write_id = false;
+            } else {
+                visitor.visit(type);
+            }
             break;
+        }
     }
     visitor.space();
     value_assign_default(visitor, identifier, type, value, write_id);
@@ -2742,16 +2826,19 @@ void func_that_returns_func_proto(ToCAstVisitor& visitor, FunctionDeclaration* d
         visitor.write("static ");
     }
     write_function_attrs(visitor, decl, is_definition);
-    accept_func_return(visitor, retFunc->returnType);
+    // the declarator covers the return type and one level of its own return type, deeper
+    // function return types wrap it further (and the base type is moved in front)
+    const auto decl_start = visitor.writer.getPosition();
     visitor.write("(");
     func_ret_func_proto_after_l_paren(visitor, decl, retFunc);
+    wrap_nested_func_return(visitor, retFunc->returnType, decl_start);
 }
 
 void declare_func_with_return(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool is_definition = false) {
     if(decl->is_comptime()) {
         return;
     }
-    const auto ret_func = decl->returnType->as_function_type();
+    const auto ret_func = resolved_function_type(decl->returnType);
     if(ret_func && !ret_func->isCapturing()) {
         func_that_returns_func_proto(visitor, decl, ret_func, is_definition);
     } else {
@@ -6323,11 +6410,7 @@ void ToCAstVisitor::VisitIsValue(IsValue *isValue) {
         result = comp_time.value();
     } else {
         const auto linked = isValue->type->get_direct_linked_node();
-//        if(linked == nullptr) {
-//            error(isValue) << "linked is nullptr";
-//            return;
-//        }
-        if(linked->kind() == ASTNodeKind::VariantMember) {
+        if(linked != nullptr && linked->kind() == ASTNodeKind::VariantMember) {
             const auto mem = linked->as_variant_member_unsafe();
             const auto var = mem->parent();
             // turn on the active iteration of the variant
@@ -9209,7 +9292,17 @@ void ToCAstVisitor::VisitCapturingFunctionType(CapturingFunctionType* type) {
 }
 
 void ToCAstVisitor::VisitGenericType(GenericType *gen_type) {
-    const auto gen_struct = gen_type->referenced->linked->as_members_container();
+    const auto linked = gen_type->referenced->linked;
+    if(linked != nullptr && linked->get_members_container() == nullptr) {
+        // the referenced declaration isn't a named type (a generic function
+        // instantiation used as a type), so the mangled name can't be written here —
+        // the canonical type resolves to the concrete function type
+        const auto canonical = gen_type->canonical();
+        if(canonical != nullptr && canonical != gen_type) {
+            visit(canonical);
+            return;
+        }
+    }
     visit(gen_type->referenced);
 }
 
@@ -9363,6 +9456,14 @@ void ToCAstVisitor::VisitLinkedType(LinkedType *type) {
             }
             break;
         };
+        case ASTNodeKind::FunctionDecl: {
+            // the mangled name of a function declaration denotes a function, not a type,
+            // so it cannot be used in a type position. a type that resolves to a function
+            // declaration (a generic function instantiation referenced as a type
+            // argument) is that function's type
+            func_type_with_id(*this, linked.as_function_unsafe(), chem::string_view());
+            return;
+        }
         default:
             break;
     }

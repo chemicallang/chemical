@@ -646,6 +646,24 @@ void GenericInstantiator::VisitGenericType(GenericType* type) {
             linked_ptr = linked->as_gen_type_decl_unsafe()->instantiate_type(genApi, type->types, gen_type_loc(this, type), getRequirement());
             return;
         }
+        case ASTNodeKind::GenericFuncDecl: {
+            if(linked == current_gen) {
+                if (are_types_generic(type->types, current_gen->generic_params)) {
+                    // the generic function refers to itself with its own parameters
+                    linked_ptr = current_impl_ptr;
+                    return;
+                }
+            }
+            // a generic function referenced in a type position (`apply<int>`). the
+            // arguments were replaced with their concrete types above, so instantiate
+            // the function and relink to the concrete declaration, which carries the
+            // function type. leaving it linked to the generic declaration would resolve
+            // the type to the declaration's master signature (a self referencing type)
+            auto instantiator = newGenericInstantiatorFrom(*this);
+            GenericInstantiatorAPI genApi(&instantiator);
+            type->instantiate(genApi, gen_type_loc(this, type), getRequirement());
+            return;
+        }
         default:
             // we only visit the linked type in this case
             visit(type->referenced);

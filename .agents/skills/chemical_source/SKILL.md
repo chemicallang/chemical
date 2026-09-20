@@ -1198,6 +1198,21 @@ variant MyVariant {
 }
 ```
 
+#### `is` / `!is`
+
+`x is SomeVariant.Member` is a **runtime** check of the variant's discriminant, so it only
+means something when the right-hand side denotes a variant member:
+
+```chemical
+if(value is MyVariant.Case1) { ... }
+if(value !is MyVariant.Case1) { ... }
+```
+
+Against any type with no tags to read — a primitive, a pointer, a *function type* — the
+answer is decided at compile time instead of crashing the code generator: `false` for `is`
+and `true` for `!is` (nothing can ever be an instance of that type). `T is U` where the left
+side is a **type** is a separate compile-time identity/`extends` comparison.
+
 ### Async / Await
 
 Chemical has first-class `async`/`await` built on a `Future`/`Poll`/`Waker`

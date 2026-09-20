@@ -751,7 +751,7 @@ void RepresentationVisitor::VisitVariableIdentifier(VariableIdentifier *identifi
 }
 
 void RepresentationVisitor::VisitGenericInstIdentifier(GenericInstIdentifier* value) {
-    write(value->getIdentifier()->value);
+    write(value->value);
     write('<');
     unsigned i = 0;
     for(const auto& arg : value->generic_list) {

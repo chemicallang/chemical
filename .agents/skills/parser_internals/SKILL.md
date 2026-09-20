@@ -118,13 +118,17 @@ the arguments, the **next token decides where they go**:
 |---|---|---|
 | `{` | `StructValue` | the `GenericType` reference |
 | `(` | `FunctionCall` | `FunctionCall::generic_list` |
-| anything else | `GenericInstIdentifier` wrapping the last identifier | `GenericInstIdentifier::generic_list` |
+| anything else | `GenericInstIdentifier` (an identifier that also carries the arguments) | `GenericInstIdentifier::generic_list` |
 
 The third case is the *bare reference* `var f : (x : int) => int = ident<int>`, and it is the
 only case that must survive into symbol resolution as a value rather than as a type — see the
 [Generics skill](../generics/SKILL.md#generic-function-references-identint-as-a-value). It
-replaces `chain->values.back()`, so the chain's leaf is **not** a `VariableIdentifier`; code
-that consumes chain leaves must unwrap via `Value::as_identifier_of(...)`.
+replaces `chain->values.back()` with a node built from the identifier's own `value`, `type`,
+`location` and `is_ns` (there is no wrapper object). `GenericInstIdentifier` **is a**
+`VariableIdentifier` subclass, so `Value::isIdentifier()` reports it and
+`values.back()->as_identifier()` / `as_identifier_unsafe()` return it — code that consumes
+chain leaves keeps working, as long as it tests the predicate instead of
+`kind() == ValueKind::Identifier`.
 
 ```cpp
 // Simplified illustration — the real entry point is

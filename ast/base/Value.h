@@ -210,14 +210,6 @@ public:
     VariableIdentifier* get_last_id();
 
     /**
-     * the identifier behind the given value (may be null). returns the value
-     * itself when it is an identifier, and unwraps a generic function reference
-     * (`ident<int>`), whose generic arguments live on a GenericInstIdentifier that
-     * wraps the identifier. returns nullptr for any other value
-     */
-    static VariableIdentifier* as_identifier_of(Value* value);
-
-    /**
      * get byte size of this value
      */
     virtual uint64_t byte_size(const TargetData& data);
@@ -831,7 +823,10 @@ public:
     }
 
     static constexpr inline bool isIdentifier(ValueKind k) {
-        return k == ValueKind::Identifier;
+        // a GenericInstIdentifier IS a VariableIdentifier (it only adds the generic
+        // arguments of a bare generic function reference), so it is reported as an
+        // identifier here and as_identifier()/as_identifier_unsafe() return it
+        return k == ValueKind::Identifier || k == ValueKind::GenericInstIdentifier;
     }
 
     static constexpr inline bool isGenericInstIdentifier(ValueKind k) {
@@ -1076,7 +1071,7 @@ public:
     }
 
     inline VariableIdentifier* as_identifier_unsafe() {
-        CHECK_CAST(ValueKind::Identifier);
+        CHECK_COND(isIdentifier(kind()));
         return ((VariableIdentifier*) this);
     }
 

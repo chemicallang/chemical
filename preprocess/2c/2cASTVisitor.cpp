@@ -1188,16 +1188,15 @@ VariableIdentifier* get_single_id(Value* value) {
     if(value->kind() == ValueKind::UnsafeValue) {
         return get_single_id(static_cast<UnsafeValue*>(value)->getValue());
     }
-    if(value->kind() == ValueKind::GenericInstIdentifier) {
-        return get_single_id(static_cast<GenericInstIdentifier*>(value)->getIdentifier());
-    }
     switch(value->kind()) {
+        // a generic function reference is an identifier, so it is handled the same
         case ValueKind::Identifier:
+        case ValueKind::GenericInstIdentifier:
             return value->as_identifier_unsafe();
         case ValueKind::AccessChain: {
             auto& values = value->as_access_chain_unsafe()->values;
             if(values.size() == 1) {
-                return Value::as_identifier_of(values.back());
+                return values.back()->as_identifier();
             }
             return nullptr;
         }
@@ -2407,7 +2406,7 @@ void CDestructionVisitor::destruct(const DestructionJob& job, Value* current_ret
         if(returnKind == ValueKind::AccessChain) {
             const auto chain = current_return->as_access_chain_unsafe();
             if(chain->values.size() == 1) {
-                auto id = Value::as_identifier_of(chain->values.back());
+                auto id = chain->values.back()->as_identifier();
                 if(id && id->linked == job.initializer) {
                     return;
                 }
@@ -6944,7 +6943,7 @@ bool write_destructible_call_chain_values(ToCAstVisitor& visitor, std::vector<Va
     // for example give_destructible().call_on_it()
     // we find this by checking if last value is a function decl
     const auto last = values[end-1];
-    const auto last_id = Value::as_identifier_of(last);
+    const auto last_id = last->as_identifier();
     const auto is_call_to_func = last_id != nullptr && last_id->linked->kind() == ASTNodeKind::FunctionDecl;
     if(is_call_to_func) {
         return false;
@@ -7042,7 +7041,7 @@ void access_chain(ToCAstVisitor& visitor, std::vector<Value*>& values, const uns
         return;
     }
     const auto last = values[end - 1];
-    const auto last_id = Value::as_identifier_of(last);
+    const auto last_id = last->as_identifier();
     if(last_id != nullptr) {
         const auto linked = last_id->linked;
         if (linked) {
@@ -7215,7 +7214,8 @@ void calculate_parent_val_destruct_dep(ArgsDestructionInfo& info, Value* parent_
             // when user writes a.b().c(), in this case c is a function, that can't be handled there
             // so this is the only case that must be handled here
             // its very important these two cases are handled separately in their correct positions
-            if (!(Value::as_identifier_of(last) != nullptr && Value::as_identifier_of(last)->linked->kind() == ASTNodeKind::FunctionDecl)) {
+            const auto last_id = last->as_identifier();
+            if (!(last_id != nullptr && last_id->linked->kind() == ASTNodeKind::FunctionDecl)) {
                 return;
             }
             // function call would always be first (because it puts everything in its parent value)
@@ -7262,7 +7262,8 @@ void dep_for_temporary_struct_chain(ArgsDestructionInfo& info, Value* val) {
     if(chain->values.size() > 1) {
         const auto last = chain->values.back();
         // only handle chains ending in a method call, not member access
-        if(!(Value::as_identifier_of(last) != nullptr && Value::as_identifier_of(last)->linked->kind() == ASTNodeKind::FunctionDecl)) {
+        const auto last_id = last->as_identifier();
+        if(!(last_id != nullptr && last_id->linked->kind() == ASTNodeKind::FunctionDecl)) {
             return;
         }
         const auto first = chain->values.front();
@@ -8421,9 +8422,9 @@ void ToCAstVisitor::VisitVariableIdentifier(VariableIdentifier *identifier) {
 
 void ToCAstVisitor::VisitGenericInstIdentifier(GenericInstIdentifier* value) {
     // a generic function reference is instantiated by symbol resolution, which
-    // relinks the wrapped identifier to the concrete function declaration, so the
-    // wrapper generates exactly what its identifier would
-    visit(value->getIdentifier());
+    // relinks this identifier to the concrete function declaration, so it
+    // generates exactly what a plain identifier would
+    write_identifier(value, true);
 }
 
 void ToCAstVisitor::VisitSizeOfValue(SizeOfValue *size_of) {

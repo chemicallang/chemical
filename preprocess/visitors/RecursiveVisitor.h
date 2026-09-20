@@ -519,7 +519,10 @@ public:
     }
 
     void VisitGenericInstIdentifier(GenericInstIdentifier* value) {
-        visit_it(value->getIdentifier());
+        // a generic function reference IS the identifier it instantiates (it only
+        // adds the generic arguments on top), so there is no child identifier to
+        // visit. its generic arguments are visited by the passes that link or
+        // instantiate them (LinkSignature, SymResLinkBody, GenericInstantiator)
     }
 
     void VisitVariantCase(VariantCase* value) {

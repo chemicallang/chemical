@@ -94,6 +94,7 @@
 #include "ast/values/StringValue.h"
 #include "ast/values/UnsafeValue.h"
 #include "ast/values/AwaitExpression.h"
+#include "ast/values/GenericInstIdentifier.h"
 #include "ast/values/ComptimeValue.h"
 #include "ast/values/IfValue.h"
 #include "ast/values/SwitchValue.h"
@@ -747,6 +748,20 @@ void RepresentationVisitor::VisitStructValue(StructValue *val) {
 
 void RepresentationVisitor::VisitVariableIdentifier(VariableIdentifier *identifier) {
     write(identifier->value);
+}
+
+void RepresentationVisitor::VisitGenericInstIdentifier(GenericInstIdentifier* value) {
+    write(value->getIdentifier()->value);
+    write('<');
+    unsigned i = 0;
+    for(const auto& arg : value->generic_list) {
+        if(i > 0) {
+            write(',');
+        }
+        visit(arg);
+        i++;
+    }
+    write('>');
 }
 
 void RepresentationVisitor::VisitExpression(Expression *expr) {

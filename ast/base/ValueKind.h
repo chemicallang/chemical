@@ -67,4 +67,10 @@ enum class ValueKind : uint8_t {
     // new values appended at the end (do not insert in the middle: CBI mirror)
     AwaitExpr,
 
+    /**
+     * a generic function reference with explicit generic arguments used as a value
+     * (`ident<int>`, `ns::ident<int>`). See ast/values/GenericInstIdentifier.h
+     */
+    GenericInstIdentifier,
+
 };

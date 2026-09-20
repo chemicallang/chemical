@@ -632,13 +632,25 @@ var g : (x : int) => int = ident<int>   // was: value with type '(x : T) => T'
 
 Fix, three layers:
 
-1. **Representation** (`ast/values/VariableIdentifier.h`): a bare reference now
-   stores its arguments in `std::vector<TypeLoc> generic_list` (copied by
-   `VariableIdentifier::copy`). Calls/struct values keep theirs on the
+1. **Representation** (`ast/values/GenericInstIdentifier.h`): a bare reference is
+   wrapped in a dedicated `GenericInstIdentifier` value node, which holds the
+   arguments in `std::vector<TypeLoc> generic_list` (copied by
+   `GenericInstIdentifier::copy`). Calls/struct values keep theirs on the
    `FunctionCall`/`StructValue` as before.
+
+   > **Why a node and not a field on the identifier.** The first version of this
+   > fix put `std::vector<TypeLoc> generic_list` on `VariableIdentifier`, which
+   > grew *every* identifier — 24 bytes, ~96 bytes per identifier instead of ~72 —
+   > for a feature used by a tiny fraction of them. The arguments are now stored
+   > on a node that only exists for a generic function reference. The node is a
+   > transparent wrapper (mirroring `UnsafeValue`): it forwards `linked_node`,
+   > every `llvm_*` entry point, child lookup and interpreter evaluation to its
+   > identifier, so it behaves as the identifier would everywhere else. Code that
+   > needs the identifier behind a chain leaf uses `Value::as_identifier_of(...)`,
+   > which unwraps it.
 2. **Parser** (`parser/statements/AccessChain.cpp`): when `ident<...>` is not
-   followed by `(` or `{`, the parsed arguments are attached to the last
-   identifier instead of being discarded.
+   followed by `(` or `{`, the last identifier is replaced by a
+   `GenericInstIdentifier` wrapping it.
 3. **Symres** (`compiler/symres/SymResLinkBody.cpp`
    `link_generic_func_reference`, and `GenericInstantiator::relink_identifier` /
    `instantiate_generic_func_reference` for generic bodies): the argument types
@@ -647,16 +659,18 @@ Fix, three layers:
    `GenericFuncDecl::register_generic_args` and the identifier is relinked to the
    concrete `FunctionDeclaration`. For a reference in a **global initializer**
    (which the body pass skips), the arguments are linked in
-   `TopLevelLinkSignature::VisitVariableIdentifier` and registered in
-   `GenericInstantiationPass::VisitVariableIdentifier` (with
-   `VisitAccessChain` refreshing the wrapping chain's type). Codegen needed no
-   change: a concrete function reference already lowers correctly.
+   `TopLevelLinkSignature::VisitGenericInstIdentifier` and registered in
+   `GenericInstantiationPass::VisitGenericInstIdentifier` (with `VisitAccessChain`
+   refreshing the wrapping chain's type). Codegen needed no change: a concrete
+   function reference already lowers correctly.
 
 Verified on TCC **and** LLVM: `ident<int>` in a non-generic body, in a global
-initializer, passed as an argument, `ns::ident<int>` (namespaced), and `ident<T>`
-/ `ns::ident<T>` inside a generic function (including multiple parameters).
+initializer, passed as an argument, `ns::ident<int>` (namespaced), parenthesized
+(the singlified single-element chain), multiple explicit parameters, mixed
+parameters, and `ident<T>` / `ns::ident<T>` inside a generic function.
 Regression tests in `lang/tests/src/generic/basic.ch`. Full matrix green (main
-2189/2190, libs 624/624, async 33/33, interpret 1811/1811).
+2200/2200, libs 650/650, plugins 1122/1122, negative 290/290, interpret
+1812/1812).
 
 ### B11 — Generic function *type* equality fails with a generic variant result (HIGH) — ✅ FIXED
 

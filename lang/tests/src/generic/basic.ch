@@ -52,5 +52,36 @@ func test_native_generic_fn_reference() {
     test("generic function reference in a global initializer is instantiated (B10)", () => {
         return global_generic_identity(43) == 43
     })
+    test("namespaced generic function reference is instantiated (B10)", () => {
+        var f : (x : int) => int = genref_ns::ident<int>
+        return f(44) == 44
+    })
+    test("parenthesized generic function reference is instantiated (B10)", () => {
+        var f : (x : int) => int = (generic_identity<int>)
+        return f(45) == 45
+    })
+    test("generic function reference passed as an argument is instantiated (B10)", () => {
+        return genref_call(genref_ns::ident<int>, 46) == 46
+    })
+    test("generic function reference with multiple parameters is instantiated (B10)", () => {
+        var f : (x : int, y : int) => int = genref_two<int>
+        return f(47, 0) == 47
+    })
+    test("generic function reference with mixed generic parameters is instantiated (B10)", () => {
+        var f : (x : int, y : long) => int = genref_first<int, long>
+        return f(48, 1l) == 48
+    })
 }
+
+namespace genref_ns {
+
+    func <T> ident(x : T) : T { return x }
+
+}
+
+func <T> genref_two(x : T, y : T) : T { return x }
+
+func <T, U> genref_first(x : T, y : U) : T { return x }
+
+func genref_call(f : (x : int) => int, v : int) : int { return f(v) }
 

@@ -1,6 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "GenericInstantiationPass.h"
+#include "ast/values/GenericInstIdentifier.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/structures/GenericTypeDecl.h"
 #include "ast/structures/GenericFuncDecl.h"
@@ -76,28 +77,30 @@ void GenericInstantiationPass::VisitFunctionDecl(FunctionDeclaration* node) {
     visit_it(node->returnType);
 }
 
-void GenericInstantiationPass::VisitVariableIdentifier(VariableIdentifier* value) {
+void GenericInstantiationPass::VisitGenericInstIdentifier(GenericInstIdentifier* ref) {
     // a bare generic function reference used as a value in a global initializer
     // (`var f : (x : int) => int = ident<int>`) must be registered here, because
     // function body references are handled by SymResLinkBody / the generic
     // instantiator and this pass does not visit function bodies. the instantiated
     // body is finalized once the generic declaration's body is linked.
-    if(value->generic_list.empty()) {
-        return;
-    }
+    RecursiveVisitor<GenericInstantiationPass>::VisitGenericInstIdentifier(ref);
+    const auto value = ref->getIdentifier();
     const auto linked = value->linked;
     if(linked == nullptr || linked->kind() != ASTNodeKind::GenericFuncDecl) {
+        ref->setType(value->getType());
         return;
     }
     const auto gen_decl = linked->as_gen_func_decl_unsafe();
-    for(auto& type : value->generic_list) {
+    for(auto& type : ref->generic_list) {
         visit(type);
     }
     std::vector<TypeLoc> generic_args;
-    if(!initialize_generic_args(diagnoser, generic_args, gen_decl->generic_params, value->generic_list)) {
+    if(!initialize_generic_args(diagnoser, generic_args, gen_decl->generic_params, ref->generic_list)) {
+        ref->setType(value->getType());
         return;
     }
     if(!check_inferred_generic_args(diagnoser, generic_args, gen_decl->generic_params, value->encoded_location())) {
+        ref->setType(value->getType());
         return;
     }
     for(auto& type : generic_args) {
@@ -113,17 +116,15 @@ void GenericInstantiationPass::VisitVariableIdentifier(VariableIdentifier* value
         value->linked = concrete;
         value->setType(concrete->known_type());
     }
+    ref->setType(value->getType());
 }
 
 void GenericInstantiationPass::VisitAccessChain(AccessChain* chain) {
     RecursiveVisitor<GenericInstantiationPass>::VisitAccessChain(chain);
-    // a chain may end in a generic function reference; VisitVariableIdentifier has
-    // relinked the identifier, so refresh the chain's type from it
+    // a chain may end in a generic function reference; VisitGenericInstIdentifier
+    // has resolved it, so refresh the chain's type from the leaf
     const auto last = chain->values.back();
-    if(last->kind() == ValueKind::Identifier) {
-        const auto id = last->as_identifier_unsafe();
-        if(!id->generic_list.empty()) {
-            chain->setType(id->getType());
-        }
+    if(last->kind() == ValueKind::GenericInstIdentifier) {
+        chain->setType(last->getType());
     }
 }

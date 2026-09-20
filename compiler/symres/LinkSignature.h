@@ -146,6 +146,12 @@ public:
 
     void VisitVariableIdentifier(VariableIdentifier* value);
 
+    /**
+     * links the generic arguments of a bare generic function reference used as a
+     * value (`ident<int>`), then the identifier itself
+     */
+    void VisitGenericInstIdentifier(GenericInstIdentifier* ref);
+
     void VisitFunctionCall(FunctionCall* value);
 
     void VisitLinkedType(LinkedType* type);

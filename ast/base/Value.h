@@ -210,6 +210,14 @@ public:
     VariableIdentifier* get_last_id();
 
     /**
+     * the identifier behind the given value (may be null). returns the value
+     * itself when it is an identifier, and unwraps a generic function reference
+     * (`ident<int>`), whose generic arguments live on a GenericInstIdentifier that
+     * wraps the identifier. returns nullptr for any other value
+     */
+    static VariableIdentifier* as_identifier_of(Value* value);
+
+    /**
      * get byte size of this value
      */
     virtual uint64_t byte_size(const TargetData& data);
@@ -826,6 +834,10 @@ public:
         return k == ValueKind::Identifier;
     }
 
+    static constexpr inline bool isGenericInstIdentifier(ValueKind k) {
+        return k == ValueKind::GenericInstIdentifier;
+    }
+
     static constexpr inline bool isIndexOperator(ValueKind k) {
         return k == ValueKind::IndexOperator;
     }
@@ -940,6 +952,10 @@ public:
 
     inline VariableIdentifier* as_identifier() {
         return isIdentifier(val_kind()) ? ((VariableIdentifier*) this) : nullptr;
+    }
+
+    inline GenericInstIdentifier* as_generic_inst_identifier() {
+        return isGenericInstIdentifier(val_kind()) ? ((GenericInstIdentifier*) this) : nullptr;
     }
 
     inline IndexOperator* as_index_op() {
@@ -1062,6 +1078,11 @@ public:
     inline VariableIdentifier* as_identifier_unsafe() {
         CHECK_CAST(ValueKind::Identifier);
         return ((VariableIdentifier*) this);
+    }
+
+    inline GenericInstIdentifier* as_generic_inst_identifier_unsafe() {
+        CHECK_CAST(ValueKind::GenericInstIdentifier);
+        return ((GenericInstIdentifier*) this);
     }
 
     inline AccessChain* as_access_chain_unsafe() {

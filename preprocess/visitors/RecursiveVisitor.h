@@ -99,6 +99,7 @@
 #include "ast/values/NewTypedValue.h"
 #include "ast/values/UnsafeValue.h"
 #include "ast/values/AwaitExpression.h"
+#include "ast/values/GenericInstIdentifier.h"
 #include "ast/values/VariantCase.h"
 #include "ast/values/VariantCaseVariable.h"
 #include "ast/types/DynamicType.h"
@@ -515,6 +516,10 @@ public:
 
     void VisitAwaitExpression(AwaitExpression* value) {
         visit_it(value->getInner());
+    }
+
+    void VisitGenericInstIdentifier(GenericInstIdentifier* value) {
+        visit_it(value->getIdentifier());
     }
 
     void VisitVariantCase(VariantCase* value) {

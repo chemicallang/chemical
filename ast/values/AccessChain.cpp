@@ -22,7 +22,12 @@ void AccessChain::relink_parent() {
     const auto values_size = values.size();
     unsigned i = 1;
     while (i < values_size) {
-        const auto id = values[i]->as_identifier_unsafe();
+        const auto id = Value::as_identifier_of(values[i]);
+        if(id == nullptr) {
+            // every value after the first is an identifier (a generic function
+            // reference wraps its identifier), nothing to relink otherwise
+            break;
+        }
         const auto parent = values[i - 1];
         auto linked_node = parent->linked_node();
         if(linked_node) {
@@ -113,8 +118,8 @@ void AccessChain::set_value(InterpretScope &scope, Value *rawValue, Operation op
             Value* oldVal = nullptr;
             if(op == Operation::Assignment) {
                 auto lastVal = values[values.size() - 1];
-                if(lastVal->val_kind() == ValueKind::Identifier) {
-                    auto id = lastVal->as_identifier_unsafe();
+                auto id = Value::as_identifier_of(lastVal);
+                if(id != nullptr) {
                     oldVal = parent->child(scope, id->value);
                 }
             }
@@ -151,8 +156,8 @@ void copy_from(ASTAllocator& allocator, std::vector<Value*>& destination, std::v
 
 Value* evaluate_it(Value* value, InterpretScope& scope, Value* evaluated) {
     const auto kind = value->val_kind();
-    if(kind == ValueKind::Identifier) {
-        const auto id = value->as_identifier_unsafe();
+    if(kind == ValueKind::Identifier || kind == ValueKind::GenericInstIdentifier) {
+        const auto id = Value::as_identifier_of(value);
         return evaluated ? evaluated->child(scope, id->value) : nullptr;
     } else {
         return value->evaluated_value(scope);
@@ -186,8 +191,8 @@ Value* evaluate_from(std::vector<Value*>& values, InterpretScope& scope, Value* 
 
 Value* AccessChain::evaluated_value(InterpretScope &scope) {
     const auto last = values.back();
-    if(last->kind() == ValueKind::Identifier) {
-        const auto last_id = last->as_identifier_unsafe();
+    const auto last_id = Value::as_identifier_of(last);
+    if(last_id != nullptr) {
         if(last_id->linked && last_id->linked->kind() == ASTNodeKind::EnumMember) {
             return last_id->linked->as_enum_member_unsafe()->evaluate(scope.allocator, scope.global->typeBuilder, encoded_location());
         }

@@ -55,4 +55,8 @@ public enum ValueKind {
 
     RawLiteral,
 
+    // appended at the end, must stay in sync with ast/base/ValueKind.h
+    AwaitExpr,
+    GenericInstIdentifier,
+
 }

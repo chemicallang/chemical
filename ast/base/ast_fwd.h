@@ -228,6 +228,8 @@ class RawLiteral;
 
 class AwaitExpression;
 
+class GenericInstIdentifier;
+
 class SizeOfValue;
 
 class AlignOfValue;

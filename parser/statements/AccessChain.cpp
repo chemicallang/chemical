@@ -9,6 +9,7 @@
 #include "ast/values/BoolValue.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/VariableIdentifier.h"
+#include "ast/values/GenericInstIdentifier.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/IndexOperator.h"
 #include "ast/types/LinkedType.h"
@@ -428,9 +429,15 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, std::vector<Valu
                     default:
                         // `ident<...>` used as a value (not a call or struct value): the
                         // generic arguments belong to the last identifier, which becomes a
-                        // reference to a generic function instantiation `ident<int>`
+                        // reference to a generic function instantiation `ident<int>`.
+                        // the arguments are stored on a GenericInstIdentifier wrapping the
+                        // identifier, so plain identifiers don't carry a vector around
                         if(!values.empty() && values.back()->kind() == ValueKind::Identifier) {
-                            values.back()->as_identifier_unsafe()->generic_list = std::move(genArgs);
+                            const auto last_id = values.back()->as_identifier_unsafe();
+                            values.back() = new (allocator.allocate<GenericInstIdentifier>()) GenericInstIdentifier(
+                                last_id,
+                                std::move(genArgs)
+                            );
                         } else {
                             error("generic arguments are only supported on a function reference or call");
                         }

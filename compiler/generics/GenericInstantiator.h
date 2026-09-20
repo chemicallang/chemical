@@ -185,7 +185,12 @@ public:
      * must already be linked to a GenericFuncDecl. Returns true when the link was
      * replaced by a concrete instantiation.
      */
-    bool instantiate_generic_func_reference(VariableIdentifier* identifier);
+    /**
+     * instantiates the generic function a bare generic function reference
+     * (`ident<int>`) points at, using the explicit arguments stored on the
+     * wrapper, and relinks the wrapped identifier to the concrete declaration
+     */
+    bool instantiate_generic_func_reference(GenericInstIdentifier* ref);
 
     // We want to override visit, what we want is a BaseType*& so we can replace
     // every BaseType*& with the appropriate concrete implementation if it's referencing a generic type
@@ -255,6 +260,8 @@ public:
     inline void VisitVariableIdentifier(VariableIdentifier* value) {
         relink_identifier(value);
     }
+
+    void VisitGenericInstIdentifier(GenericInstIdentifier* ref);
 
     void VisitPatternMatchExpr(PatternMatchExpr* value);
 

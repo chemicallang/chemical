@@ -310,6 +310,10 @@ public:
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
+    inline void VisitGenericInstIdentifier(GenericInstIdentifier* value) {
+        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
+    }
+
     inline void VisitIndexOperator(IndexOperator* value) {
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
@@ -809,6 +813,9 @@ public:
             case ValueKind::Identifier:
                 static_cast<Derived*>(this)->VisitVariableIdentifier((VariableIdentifier*) value);
                 return;
+            case ValueKind::GenericInstIdentifier:
+                static_cast<Derived*>(this)->VisitGenericInstIdentifier((GenericInstIdentifier*) value);
+                return;
             case ValueKind::IndexOperator:
                 static_cast<Derived*>(this)->VisitIndexOperator((IndexOperator*) value);
                 return;
@@ -1212,6 +1219,9 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(VariableIdentifier* value) {
         static_cast<Derived*>(this)->VisitVariableIdentifier(value);
+    }
+    inline void VisitByPtrTypeNoNullCheck(GenericInstIdentifier* value) {
+        static_cast<Derived*>(this)->VisitGenericInstIdentifier(value);
     }
     inline void VisitByPtrTypeNoNullCheck(IndexOperator* value) {
         static_cast<Derived*>(this)->VisitIndexOperator(value);

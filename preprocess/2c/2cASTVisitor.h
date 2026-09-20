@@ -798,6 +798,8 @@ public:
 
     void VisitVariableIdentifier(VariableIdentifier* value);
 
+    void VisitGenericInstIdentifier(GenericInstIdentifier* value);
+
     void VisitIndexOperator(IndexOperator* value);
 
     void VisitFunctionCall(FunctionCall* value);

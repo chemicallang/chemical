@@ -113,7 +113,7 @@ public:
      * SymResLinkBody / the generic instantiator instead, because this pass does
      * not visit function bodies.
      */
-    void VisitVariableIdentifier(VariableIdentifier* value);
+    void VisitGenericInstIdentifier(GenericInstIdentifier* ref);
 
     // refreshes the chain type after the last identifier was instantiated
     void VisitAccessChain(AccessChain* chain);

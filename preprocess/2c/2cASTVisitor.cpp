@@ -42,6 +42,7 @@
 #include "ast/structures/UnsafeBlock.h"
 #include "ast/values/UnsafeValue.h"
 #include "ast/values/AwaitExpression.h"
+#include "ast/values/GenericInstIdentifier.h"
 #include "compiler/async/AwaitNormalizePass.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/TryCatch.h"
@@ -1112,13 +1113,16 @@ VariableIdentifier* get_single_id(Value* value) {
     if(value->kind() == ValueKind::UnsafeValue) {
         return get_single_id(static_cast<UnsafeValue*>(value)->getValue());
     }
+    if(value->kind() == ValueKind::GenericInstIdentifier) {
+        return get_single_id(static_cast<GenericInstIdentifier*>(value)->getIdentifier());
+    }
     switch(value->kind()) {
         case ValueKind::Identifier:
             return value->as_identifier_unsafe();
         case ValueKind::AccessChain: {
             auto& values = value->as_access_chain_unsafe()->values;
             if(values.size() == 1) {
-                return values.back()->as_identifier();
+                return Value::as_identifier_of(values.back());
             }
             return nullptr;
         }
@@ -2319,7 +2323,7 @@ void CDestructionVisitor::destruct(const DestructionJob& job, Value* current_ret
         if(returnKind == ValueKind::AccessChain) {
             const auto chain = current_return->as_access_chain_unsafe();
             if(chain->values.size() == 1) {
-                auto id = chain->values.back()->as_identifier();
+                auto id = Value::as_identifier_of(chain->values.back());
                 if(id && id->linked == job.initializer) {
                     return;
                 }
@@ -6857,7 +6861,8 @@ bool write_destructible_call_chain_values(ToCAstVisitor& visitor, std::vector<Va
     // for example give_destructible().call_on_it()
     // we find this by checking if last value is a function decl
     const auto last = values[end-1];
-    const auto is_call_to_func = last->kind() == ValueKind::Identifier && last->as_identifier_unsafe()->linked->kind() == ASTNodeKind::FunctionDecl;
+    const auto last_id = Value::as_identifier_of(last);
+    const auto is_call_to_func = last_id != nullptr && last_id->linked->kind() == ASTNodeKind::FunctionDecl;
     if(is_call_to_func) {
         return false;
     }
@@ -6954,8 +6959,9 @@ void access_chain(ToCAstVisitor& visitor, std::vector<Value*>& values, const uns
         return;
     }
     const auto last = values[end - 1];
-    if(last->kind() == ValueKind::Identifier) {
-        const auto linked = last->as_identifier_unsafe()->linked;
+    const auto last_id = Value::as_identifier_of(last);
+    if(last_id != nullptr) {
+        const auto linked = last_id->linked;
         if (linked) {
             const auto lastKind = linked->kind();
             if (lastKind == ASTNodeKind::FunctionDecl) {
@@ -7126,7 +7132,7 @@ void calculate_parent_val_destruct_dep(ArgsDestructionInfo& info, Value* parent_
             // when user writes a.b().c(), in this case c is a function, that can't be handled there
             // so this is the only case that must be handled here
             // its very important these two cases are handled separately in their correct positions
-            if (!(last->kind() == ValueKind::Identifier && last->as_identifier_unsafe()->linked->kind() == ASTNodeKind::FunctionDecl)) {
+            if (!(Value::as_identifier_of(last) != nullptr && Value::as_identifier_of(last)->linked->kind() == ASTNodeKind::FunctionDecl)) {
                 return;
             }
             // function call would always be first (because it puts everything in its parent value)
@@ -7173,7 +7179,7 @@ void dep_for_temporary_struct_chain(ArgsDestructionInfo& info, Value* val) {
     if(chain->values.size() > 1) {
         const auto last = chain->values.back();
         // only handle chains ending in a method call, not member access
-        if(!(last->kind() == ValueKind::Identifier && last->as_identifier_unsafe()->linked->kind() == ASTNodeKind::FunctionDecl)) {
+        if(!(Value::as_identifier_of(last) != nullptr && Value::as_identifier_of(last)->linked->kind() == ASTNodeKind::FunctionDecl)) {
             return;
         }
         const auto first = chain->values.front();
@@ -8328,6 +8334,13 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
 
 void ToCAstVisitor::VisitVariableIdentifier(VariableIdentifier *identifier) {
     write_identifier(identifier, true);
+}
+
+void ToCAstVisitor::VisitGenericInstIdentifier(GenericInstIdentifier* value) {
+    // a generic function reference is instantiated by symbol resolution, which
+    // relinks the wrapped identifier to the concrete function declaration, so the
+    // wrapper generates exactly what its identifier would
+    visit(value->getIdentifier());
 }
 
 void ToCAstVisitor::VisitSizeOfValue(SizeOfValue *size_of) {

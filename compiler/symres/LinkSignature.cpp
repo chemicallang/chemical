@@ -1,6 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "LinkSignature.h"
+#include "ast/values/GenericInstIdentifier.h"
 #include "compiler/cbi/model/CompilerBinder.h"
 #include "ast/statements/UsingStmt.h"
 #include "ast/statements/AliasStmt.h"
@@ -145,14 +146,19 @@ SymResSignatureResult sym_res_signature(SymbolResolver& resolver, Scope* scope, 
     };
 }
 
-void TopLevelLinkSignature::VisitVariableIdentifier(VariableIdentifier* value) {
+void TopLevelLinkSignature::VisitGenericInstIdentifier(GenericInstIdentifier* ref) {
     // link the generic arguments of a bare generic function reference used as a
     // value (`ident<int>`), they are not linked anywhere else
-    if(!value->generic_list.empty()) {
-        for(auto& type : value->generic_list) {
-            visit(type);
-        }
+    for(auto& type : ref->generic_list) {
+        visit(type);
     }
+    // then link the identifier itself, as if it appeared on its own
+    const auto identifier = ref->getIdentifier();
+    VisitVariableIdentifier(identifier);
+    ref->setType(identifier->getType());
+}
+
+void TopLevelLinkSignature::VisitVariableIdentifier(VariableIdentifier* value) {
     const auto decl = tld_find(value->value);
     if(decl) {
         value->linked = decl;
@@ -221,6 +227,8 @@ ASTNode* get_chain_item_parent(Value* value) {
     switch(value->kind()) {
         case ValueKind::Identifier:
             return value->as_identifier_unsafe()->linked;
+        case ValueKind::GenericInstIdentifier:
+            return value->as_generic_inst_identifier_unsafe()->getIdentifier()->linked;
         case ValueKind::IndexOperator:
         case ValueKind::FunctionCall:
         case ValueKind::AccessChain:
@@ -265,12 +273,17 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
     unsigned i = 1;
     const auto size = value->values.size();
     while(i < size) {
+        // every value after the first is an identifier; a generic function
+        // reference wraps its identifier in a GenericInstIdentifier
+        const auto child = Value::as_identifier_of(value->values[i]);
 #ifdef DEBUG
-      if (value->values[i]->kind() != ValueKind::Identifier) {
+      if (child == nullptr) {
           CHEM_THROW_RUNTIME("value should be an identifier, but isn't");
       }
 #endif
-        const auto child = value->values[i]->as_identifier_unsafe();
+        if(child == nullptr) {
+            return;
+        }
         // special case check, when accessing a var decl
         // it may have not been linked yet, because of global variable inter-dependence
         // we don't want to force the user to give types, because mostly type can be inferred

@@ -7,6 +7,7 @@
 #include "ast/structures/GenericFuncDecl.h"
 #include "ast/structures/GenericStructDecl.h"
 #include "ast/values/TypeInsideValue.h"
+#include "ast/values/GenericInstIdentifier.h"
 #include "ast/structures/GenericUnionDecl.h"
 #include "ast/structures/GenericInterfaceDecl.h"
 #include "ast/structures/GenericVariantDecl.h"
@@ -113,12 +114,12 @@ bool GenericInstantiator::relink_identifier(VariableIdentifier* val) {
                 id->setType(found->second);
             }
             case ASTNodeKind::GenericFuncDecl: {
-                // a bare generic function reference `ident<int>` used as a value: it
-                // was left linked to the generic declaration by symbol resolution and
-                // now must be instantiated for the concrete arguments of this
-                // instantiation (mirrors GenericFuncDecl::instantiate_call, but with
-                // no call to infer from — the arguments must be explicit)
-                return instantiate_generic_func_reference(id);
+                // a bare generic function reference `ident<int>` used as a value
+                // carries its explicit arguments on a wrapping GenericInstIdentifier,
+                // which is visited separately and does the instantiation. here the
+                // identifier alone just takes the master implementation's type
+                id->setType(node->as_gen_func_decl_unsafe()->master_impl->known_type());
+                return false;
             }
             default:
                 id->setType(node->getType());
@@ -129,26 +130,40 @@ bool GenericInstantiator::relink_identifier(VariableIdentifier* val) {
     }
 }
 
-bool GenericInstantiator::instantiate_generic_func_reference(VariableIdentifier* id) {
+void GenericInstantiator::VisitGenericInstIdentifier(GenericInstIdentifier* ref) {
+    const auto id = ref->getIdentifier();
+    // relink the identifier first, so it is linked to the generic declaration
+    relink_identifier(id);
+    // then instantiate the function with the explicit arguments and relink the
+    // identifier to the concrete declaration
+    instantiate_generic_func_reference(ref);
+    ref->setType(id->getType());
+}
+
+bool GenericInstantiator::instantiate_generic_func_reference(GenericInstIdentifier* ref) {
+    const auto id = ref->getIdentifier();
     const auto linked = id->linked;
     if(linked == nullptr || linked->kind() != ASTNodeKind::GenericFuncDecl) {
         return false;
     }
     const auto gen_decl = linked->as_gen_func_decl_unsafe();
-    if(id->generic_list.empty()) {
+    if(ref->generic_list.empty()) {
         id->setType(gen_decl->master_impl->known_type());
+        ref->setType(id->getType());
         return false;
     }
     // replace the container/function generic parameters inside the arguments with
     // the concrete types of this instantiation
-    for(auto& t : id->generic_list) {
+    for(auto& t : ref->generic_list) {
         visit(t);
     }
     std::vector<TypeLoc> generic_args;
-    if(!initialize_generic_args(diagnoser, generic_args, gen_decl->generic_params, id->generic_list)) {
+    if(!initialize_generic_args(diagnoser, generic_args, gen_decl->generic_params, ref->generic_list)) {
+        ref->setType(id->getType());
         return false;
     }
     if(!check_inferred_generic_args(diagnoser, generic_args, gen_decl->generic_params, id->encoded_location())) {
+        ref->setType(id->getType());
         return false;
     }
     for(auto& type : generic_args) {
@@ -160,10 +175,12 @@ bool GenericInstantiator::instantiate_generic_func_reference(VariableIdentifier*
     GenericInstantiatorAPI genApi(&instantiator);
     const auto concrete = gen_decl->register_generic_args(genApi, generic_args, id->encoded_location(), getRequirement());
     if(concrete == nullptr) {
+        ref->setType(id->getType());
         return false;
     }
     id->linked = concrete;
     id->setType(concrete->known_type());
+    ref->setType(id->getType());
     return true;
 }
 
@@ -172,7 +189,12 @@ void relink_parent(AccessChain* chain, GenericInstantiator& instantiator, Functi
     if (values_size <= 1) return;
     unsigned i = 1;
     while (i < values_size) {
-        const auto id = chain->values[i]->as_identifier_unsafe();
+        const auto id = Value::as_identifier_of(chain->values[i]);
+        if(id == nullptr) {
+            // every value after the first is an identifier (a generic function
+            // reference wraps its identifier)
+            return;
+        }
         const auto parent = chain->values[i - 1];
         // identifiers linked with a CapturedComptimeVariable are a bridge to the
         // master declaration whose type is still generic, so children are
@@ -229,15 +251,13 @@ void GenericInstantiator::VisitAccessChain(AccessChain* value) {
     // type can change because of generics, so we keep track of it in every value
     value->setType(value->values.back()->getType());
 
-    // a chain may end in a bare generic function reference (ns::ident<T>); the
-    // identifier is already linked to the generic declaration by symbol resolution
+    // a chain may end in a bare generic function reference (ns::ident<T>); after
+    // relink_parent the wrapped identifier is linked to the generic declaration, so
+    // it can be instantiated with the explicit arguments the wrapper holds
     const auto last_val = value->values.back();
-    if(last_val->kind() == ValueKind::Identifier) {
-        const auto last_id = last_val->as_identifier_unsafe();
-        if(!last_id->generic_list.empty()) {
-            instantiate_generic_func_reference(last_id);
-            value->setType(last_id->getType());
-        }
+    if(last_val->kind() == ValueKind::GenericInstIdentifier) {
+        instantiate_generic_func_reference(last_val->as_generic_inst_identifier_unsafe());
+        value->setType(last_val->getType());
     }
 
     // NOTE:

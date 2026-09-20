@@ -367,7 +367,6 @@ VariableIdentifier* VariableIdentifier::copy(ASTAllocator& allocator) {
     auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(chem::string_view(view, value.size()), getType(), encoded_location(), is_ns);
     id->linked = linked;
     id->is_moved = is_moved;
-    id->generic_list = generic_list;
     return id;
 }
 

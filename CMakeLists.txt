@@ -504,6 +504,8 @@ set(COMMON_SOURCES
         ast/values/UnsafeValue.h
         ast/values/AwaitExpression.h
         ast/values/AwaitExpression.cpp
+        ast/values/GenericInstIdentifier.h
+        ast/values/GenericInstIdentifier.cpp
         compiler/async/AsyncLoweringPlan.h
         compiler/async/AwaitNormalizePass.h
         compiler/async/AwaitNormalizePass.cpp

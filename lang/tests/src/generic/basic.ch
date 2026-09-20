@@ -85,3 +85,51 @@ func <T, U> genref_first(x : T, y : U) : T { return x }
 
 func genref_call(f : (x : int) => int, v : int) : int { return f(v) }
 
+// A generic function used as a *type argument* (`genref_wrap<genref_wrap<int>>`) refers
+// to the instantiation `genref_wrap<int>`, whose type is a function type. The argument
+// must resolve to that concrete function type — resolving it to the declaration's master
+// signature instead yields a function type whose own parameter is that very type (a self
+// referencing type), which used to recurse until the compiler crashed.
+func <T> genref_wrap(x : T) : T { return x }
+
+func genref_inc(x : int) : int { return x + 1 }
+
+func genref_wrap_fn(f : (x : int) => int) : (x : int) => int { return f }
+
+@retained
+func <T> genref_wrap_ref() : (x : T) => T { return genref_wrap<T> }
+
+// NOTE : a *nested* generic function reference inside a generic body
+// (`genref_wrap<genref_wrap<T>>`) is deliberately not tested here. The generic body is
+// checked before instantiation, where `link_generic_func_reference` defers by taking the
+// declaration's master signature, so the outer reference is typed as the flat
+// `(x : T) => T` and the nested type doesn't type check yet.
+
+func test_native_generic_nested_fn_type() {
+    test("nested generic function reference type is instantiated", () => {
+        var z : (f : (x : int) => int) => (x : int) => int = genref_wrap<genref_wrap<int>>
+        var g = z(genref_inc)
+        return g(50) == 51
+    })
+    test("nested generic function reference is callable", () => {
+        var g = genref_wrap<genref_wrap<int>>(genref_inc)
+        return g(51) == 52
+    })
+    test("function type returning a function type as a local", () => {
+        var f : (p : (x : int) => int) => (x : int) => int = genref_wrap<genref_wrap<int>>
+        var g = f(genref_inc)
+        return g(53) == 54
+    })
+    test("triple nested generic function reference is instantiated", () => {
+        // three levels of function return types : the declarator nests once per level
+        var z = genref_wrap<genref_wrap<genref_wrap<int>>>
+        var g = z(genref_wrap_fn)
+        var h = g(genref_inc)
+        return h(54) == 55
+    })
+    test("is against a function type is deterministically false", () => {
+        var z = genref_inc
+        return !(z is (x : int) => int)
+    })
+}
+

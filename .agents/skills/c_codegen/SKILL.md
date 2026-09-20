@@ -451,6 +451,12 @@ capture struct (`void* this` when capturing). Capturing function *types* are the
 
 - `is` on a variant member → discriminant comparison `(expr.__chx__vt_621827 ==/<!= idx)`
   (`VisitIsValue`, `:4942`).
+- `is` against a type that has **no linked declaration** (a function type, a pointer, a
+  primitive) is false, and true when negated. Both generators read the discriminant of the
+  checked type's declaration, so they must not be reached with a null node:
+  `IsValue::get_comp_time_result()` (`ast/values/IsValue.cpp`) settles those at compile time
+  (`is_negating`), and `VisitIsValue` / `IsValue::llvm_value` also null-check `linked` rather
+  than segfaulting on `linked->kind()`.
 - `if(cond is Member(v))` materializes a pointer to the tested value (`do_patt_mat_expr`,
   `:4588`), then tests the discriminant (`:4605`).
 - `switch(expr)` on a variant switches on `.__chx__vt_621827` (`write_switch_expr`, `:5096`).
@@ -523,7 +529,60 @@ From the `Visit*Type` methods in `2cASTVisitor.cpp`:
 | interface | `void*` (unbound) or `struct <impl>` (active impl) | `:7927`, `:7923` |
 | `dyn Interface` / capturing fn | `__chemical_fat_pointer__` (+ `*` for capturing) | `VisitDynamicType`, `:7982`, `:7806` |
 | function type | `<ret>(*)(<params>)` | `VisitFunctionType`, `:7804` |
-| type alias / opaque | resolved alias / `<mangled>` fallback | `:7964`, `:7975` |
+| function type that returns a function type | nested declarator, see below | `func_type_with_id` |
+| alias / opaque | resolved alias / `<mangled>` fallback | `:7964`, `:7975` |
+
+### Nested function declarators (function returning a function)
+
+A function (or function pointer) whose *return type* is itself a function type cannot be
+written by putting the two declarators next to each other — C puts the name in the innermost
+group, so each level of function return types wraps the whole declarator and the final return
+type ends up in front:
+
+```c
+int(*(*fn)(int(*p)(int x)))(int x)   // fn : (p : (x:int)=>int) => (x:int)=>int
+```
+
+Writing the return type as an id-less prototype instead produces an invalid declaration
+(`int(*)(int x)(*fn)(...)`), which is what `func_type_with_id` used to emit for every such
+declaration — TinyCC then fails with `error: identifier expected` or
+`incompatible types for redefinition`.
+
+Because the base return type goes at the *front* but is only known after walking the chain,
+the declarator is written into the buffer and parts are moved with
+`BufferedWriter::move_range(fromStart, fromEnd, index)`:
+
+- `wrap_nested_func_return(visitor, ret_type, decl_start)` — the single implementation. Walks
+  the function return types, prepending `(*` at `decl_start` and appending `)(<params>)` for
+  each level, then writes the final return type and moves it in front of `decl_start`.
+- `func_type_with_id` calls it with `type->returnType` when the innermost group
+  `(*id)(<params>)` has been written (variables, parameters, struct members, array elements).
+- `func_that_returns_func_proto` calls it with `retFunc->returnType` —
+  `func_ret_func_proto_after_l_paren` already covers the declared function's own list plus one
+  level of its return type.
+
+Any change here must keep the `k = 1` case byte-identical (`int(*fn)(<params>)`): it is the
+path every ordinary function-typed variable takes.
+
+### Types that resolve to a function declaration
+
+`FunctionDeclaration` **is a** `FunctionType` (`FunctionTypeBody → FunctionType → BaseType`)
+and `known_type()` returns `this`, so a generic function instantiation used as a type
+argument (`apply<int>`) has a type whose declaration is a function. Its *mangled name* denotes
+a function and cannot be used where a type is expected (`apply__cfg_0 x` is not a declaration),
+so 2c resolves those types through `resolved_function_type`:
+
+- `resolved_function_type(type)` returns the function type for a plain function type, and for
+a `LinkedType`/`GenericType` whose linked node is a `FunctionDecl` (the instantiation). It
+intentionally does **not** canonicalize through type aliases, so aliases keep their C name.
+- Used by `type_with_id` (parameters, uninitialized locals), `func_type_with_id` (nested
+returns), `value_init_default`'s `default:` arm (function-typed locals), and
+`declare_func_with_return` (a function whose return type is an instantiation).
+- `VisitLinkedType`'s `FunctionDecl` case and `VisitGenericType` (when the referenced node has
+no members container) fall back to an id-less function declarator for genuinely abstract
+positions such as casts.
+
+### Pattern Matching and `is` / `in`
 
 ## Inline Assembly, `@extern` / `@no_mangle`, Static & Global Vars
 

@@ -161,6 +161,12 @@ This visitor resolves **type signatures only** — never enters function bodies:
 
 3. **Inline instantiations**: When a `GenericType` is encountered in a signature, an inline instantiation is requested. These are stored in `inline_instantiations` for processing after the signature pass.
 
+4. **Bare generic function references** (`ident<int>` used as a value, not called) are
+   `GenericInstIdentifier` nodes wrapping an identifier. `VisitGenericInstIdentifier` links
+   the explicit argument types (nothing else links them), then links the wrapped identifier
+   exactly like a plain identifier. The actual instantiation happens later — see Phase 3 and
+   Phase 5, and the [Generics skill](../generics/SKILL.md#generic-function-references-identint-as-a-value).
+
 #### Async return-type wrapping
 
 `LinkSignature::visit_func_decl` wraps an `async func f(...) : T`'s parked return
@@ -192,6 +198,11 @@ This pass runs BETWEEN link signatures and link bodies (after automatic function
 1. Finalizes inline instantiations from the link signature phase (calls `GenericTypeDecl::finalize_signature()`)
 2. Visits scopes, namespaces, comptime-if scopes, struct values, and function signatures, requesting registration of each `GenericType` it encounters (`InstantiationRequirement::Registration`)
 3. Explicitly does NOT visit generic declarations themselves, and does NOT visit function bodies — only signatures
+4. Resolves bare generic function references in **global initializers**
+   (`var f : (x : int) => int = ident<int>`) in `VisitGenericInstIdentifier`, because those
+   live outside any function body and the body pass never sees them. It links the argument
+   types and registers the instantiation; `VisitAccessChain` then refreshes the wrapping
+   chain's type from the leaf.
 
 This separation allows the generic instantiation pass to use a parallel model where each instantiation can be finalized independently.
 
@@ -228,6 +239,13 @@ In the parallel module pipeline it runs in two passes: `sym_res_link_body_generi
 | Pattern matching | `var Some(value) = opt else default` |
 | Lambdas | Closure type, captures |
 | Comptime blocks | Condition evaluation, if/else branch selection |
+| Generic function references | `ident<int>` as a value — `link_generic_func_reference` (`VisitGenericInstIdentifier`, and the leaf case inside `VisitAccessChain`) instantiates the generic function and relinks the wrapped identifier |
+| Generic function references in *type* position | `gen<gen<int>>` — the argument is a `GenericType`, and `SymResLinkBody::VisitGenericType` → `GenericType::instantiate` instantiates it (relinking `referenced->linked` to the concrete declaration) before the outer instantiation reads it |
+
+> When resolving a type to its canonical form, remember that `GenericFuncDecl::known_type()`
+is the generic's **master** signature, not an instantiated type — see
+[canonical()](../ast_framework/SKILL.md#canonical--aliaswrapper-stripping) and
+[Generics → Common Issues 5](../generics/SKILL.md#5-a-function-used-as-a-generic-argument-produces-a-self-referencing-type).
 
 #### Move Semantics Tracking
 

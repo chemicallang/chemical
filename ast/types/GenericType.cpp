@@ -10,6 +10,7 @@
 #include "ast/structures/GenericInterfaceDecl.h"
 #include "ast/structures/GenericVariantDecl.h"
 #include "ast/structures/GenericTypeDecl.h"
+#include "ast/structures/GenericFuncDecl.h"
 #include "ast/utils/GenericUtils.h"
 
 uint64_t GenericType::byte_size(const TargetData& target) {
@@ -113,6 +114,36 @@ bool GenericType::instantiate(GenericInstantiatorAPI& instantiatorApi, SourceLoc
                 return false;
             }
             referenced->linked = impl;
+            break;
+        }
+        case ASTNodeKind::GenericFuncDecl: {
+            // a generic function referenced in a type position (like `apply<int>`)
+            // instantiates the function and becomes the concrete declaration, which
+            // itself carries the function type. Resolving it to the master
+            // implementation instead would leak the declaration's own generic
+            // parameters into the type (a self referencing function type)
+            const auto gen_decl = linked->as_gen_func_decl_unsafe();
+            std::vector<TypeLoc> generic_args;
+            if(!initialize_generic_args(diagnoser, generic_args, gen_decl->generic_params, types)) {
+                diagnoser.error("couldn't instantiate generic function type", loc);
+                return false;
+            }
+            if(!check_inferred_generic_args(diagnoser, generic_args, gen_decl->generic_params, loc)) {
+                diagnoser.error("couldn't instantiate generic function type", loc);
+                return false;
+            }
+            // canonicalize the generic arguments (matches GenericFuncDecl::instantiate_call)
+            for(auto& type : generic_args) {
+                if(type) {
+                    type = { type->canonical(), type.getLocation() };
+                }
+            }
+            const auto concrete = gen_decl->register_generic_args(instantiatorApi, generic_args, loc, requirement);
+            if(concrete == nullptr) {
+                diagnoser.error("couldn't instantiate generic function type", loc);
+                return false;
+            }
+            referenced->linked = concrete;
             break;
         }
         default:

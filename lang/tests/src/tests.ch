@@ -30,6 +30,7 @@ func run_executable_tests() {
     test_native_generic_specifics();
     test_native_generic_fn_field();
     test_native_generic_fn_reference();
+    test_native_generic_nested_fn_type();
     test_generic_loop_expression_result();
     test_impl_only_method_call();
     test_generic_struct_by_value_param();

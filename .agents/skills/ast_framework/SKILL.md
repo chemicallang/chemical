@@ -206,6 +206,11 @@ static inline constexpr bool isLoadableReferencee(BaseTypeKind k) {  // ast/base
 There is **no** `isValue`/`isNode`/`isType` predicate on the roots; the root category comes
 from `any_kind()` and the concrete category from the per-root `is*` helpers.
 
+`Value::isChainValue` deliberately does **not** include `GenericInstIdentifier`, even though
+that node can be the leaf of an access chain (see the transparent-wrapper gotcha below).
+When you need "the identifier at a leaf, whatever shape the leaf has", call
+`Value::as_identifier_of(value)` instead of testing `kind()`.
+
 ### Full enum inventories
 
 | Enum | Values | Source |
@@ -540,40 +545,63 @@ instance of each primitive type on the given allocator in `initialize()`
 
 ### `canonical()` — alias/wrapper stripping
 
-`BaseType::canonical()` (`ast/base/BaseType.cpp:170-201`) strips wrappers **one level deep**
-(despite the `pure_type` alias at `ast/base/BaseType.h:120`):
+`BaseType::canonical()` (`ast/base/BaseType.cpp`) strips wrappers (`Literal`/`MaybeRuntime`/
+`Runtime` → `underlying`, `Linked` → the linked node's `known_type()`, `Generic` → its
+`referenced`). It is an **iterative walk** with a hop limit, not a recursion, so a cyclic
+chain of typealiases terminates instead of overflowing the stack:
 
 ```cpp
+#define CHEM_CANONICAL_MAX_HOPS 256
+
 BaseType* BaseType::canonical() {
-    switch(kind()) {
-        case BaseTypeKind::Literal:     return as_literal_type_unsafe()->underlying;
-        case BaseTypeKind::MaybeRuntime:return as_maybe_runtime_type_unsafe()->underlying;
-        case BaseTypeKind::Runtime:     return as_runtime_type_unsafe()->underlying;
-        case BaseTypeKind::Linked: {
-            const auto linked = as_linked_type_unsafe()->linked;
-            if(linked) {
+    BaseType* current = this;
+    unsigned hops = 0;
+    while(hops++ < CHEM_CANONICAL_MAX_HOPS) {
+        switch(current->kind()) {
+            // Literal / MaybeRuntime / Runtime: current = ...->underlying; break;
+            case BaseTypeKind::Linked: {
+                const auto linked = current->as_linked_type_unsafe()->linked;
+                if (linked == nullptr) return current;
+                if (linked->kind() == ASTNodeKind::GenericFuncDecl) return current;
                 const auto known = linked->known_type();
-                return known ? known != this ? known->canonical() : known : this;
+                if (known == nullptr || known == current) return current;
+                current = known;
+                break;
             }
-            return this;
+            case BaseTypeKind::Generic: {
+                const auto can = current->as_generic_type_unsafe()->referenced->canonical();
+                if(can->kind() == BaseTypeKind::Linked
+                   && can->as_linked_type_unsafe()->linked == gen->referenced->linked) return current;
+                return can;
+            }
+            default: return current;
         }
-        case BaseTypeKind::Generic: {
-            const auto gen = as_generic_type_unsafe();
-            const auto can = gen->referenced->canonical();
-            if(can->kind() == BaseTypeKind::Linked
-               && can->as_linked_type_unsafe()->linked == gen->referenced->linked) return this;
-            return can;
-        }
-        default: return this;
     }
+    return this;   // chain is cyclic : report no progress rather than a type from its middle
 }
 ```
 
 Key points:
 
-- A `LinkedType` canonicalizes to the `known_type()` of its linked node. A pointer to a
-  type alias stays a pointer to the alias — `canonical()` is shallow, as the comment at
-  `ast/base/BaseType.h:104-108` warns.
+- A `LinkedType` canonicalizes to the `known_type()` of its linked node. `known_type()` is
+  overridden per node: `FunctionDeclaration::known_type()` returns **`this`** (it *is* a
+  `FunctionType` — see the `FunctionDeclaration` gotcha below), a `GenericTypeParam` returns
+  its `active_type` (null outside an instantiation), `GenericFuncDecl::known_type()` returns
+  `master_impl->known_type()`.
+- **A `LinkedType` bound to a `GenericFuncDecl` is deliberately left alone.** That node's
+  `known_type()` is the generic's *master* implementation — a signature whose parameter types
+  are the declaration's own generic parameters. Resolving to it yields a function type that
+  contains itself (its parameter's type is the type that holds it), which made
+  `GenericInstantiator` recurse until the stack overflowed (`SIGSEGV`). Returning `current`
+  means an unresolved function reference stays a `LinkedType`/`GenericType` for the type
+  checker to report, while a properly instantiated reference is linked to the concrete
+  declaration and canonicalizes normally. See the
+  [Generics skill](../generics/SKILL.md#5-a-function-used-as-a-generic-argument-produces-a-self-referencing-type).
+- `GenericType` with a `GenericFuncDecl` reference is instantiated where signatures are linked
+  (`GenericType::instantiate`), so it links to the concrete declaration before anything needs
+  its canonical type.
+- A pointer to a type alias stays a pointer to the alias — `canonical()` is shallow, as the
+  comment at `ast/base/BaseType.h:104-108` warns.
 - `canonicalize_enum()` additionally maps an enum to its underlying integer
   (`ast/base/BaseType.cpp:203`).
 - `is_same` / `satisfies` are used for compatibility (`ast/base/BaseType.h:182`/`:187`);
@@ -698,6 +726,44 @@ ASTNode
 9. **Do not mix allocation lifetimes.** A `Value*` allocated on `file_allocator` must not
    survive past that file's processing; move data onto `mod_allocator`/`global_allocator`
    if it must outlive the file.
+10. **Never put a rare payload in a hot node's field.** A `std::vector` field on
+   `VariableIdentifier` (added for the `ident<int>` generic-function-reference fix) grew
+   *every* identifier by 24 bytes — `sizeof(VariableIdentifier)` went 96 → 72 when it was
+   moved onto a dedicated node. Identifiers are allocated for every chain segment in every
+   module, so a field that only a tiny fraction of them use is pure tax. **Rule: if a field
+   is only meaningful for a rare syntactic form, put it on a node that only exists for that
+   form.** Measure with `gdb -batch -ex 'ptype /o VariableIdentifier' <binary>` (it prints
+   the offset/size/hole layout, so padding waste is visible too). See
+   [Memory Optimization](../performance/SKILL.md#compact-ast-nodes).
+11. **Chain leaves are assumed to be identifiers — unwrap, don't cast.** ~10 sites do
+   `chain->values.back()->as_identifier_unsafe()` / `values.back()->as_identifier()`
+   (symres parent linking, `AccessChain::relink_parent`/`evaluated_value`, 2c's
+   function-reference detection, `GenericInstantiator::relink_parent`) and a
+   `CHECK_CAST` abort is the best case. If you introduce a node that can sit at a chain
+   leaf, add an unwrap helper and use it at all of them. The existing helper is
+   `Value::as_identifier_of(Value*)` (nullable, unwraps `GenericInstIdentifier` to its
+   `VariableIdentifier`, returns `nullptr` for anything else) — see the
+   `GenericInstIdentifier` pattern below.
+
+### Transparent wrapper values (the `GenericInstIdentifier` / `UnsafeValue` pattern)
+
+When one value must mean "the same as another value, plus a little extra", wrap it in a
+node that forwards **everything** to the wrapped value rather than duplicating behaviour at
+every call site. `UnsafeValue` (`ast/values/UnsafeValue.h`) and `GenericInstIdentifier`
+(`ast/values/GenericInstIdentifier.h`) are the two examples.
+
+A transparent wrapper must forward all of:
+
+| Surface | Members |
+|---|---|
+| Tree linkage | `linked_node()` |
+| Interpreter | `child`, `find_in`, `set_value`, `set_value_in`, `evaluated_value`, `byte_size`, `compile_time_computable`, `primitive()` |
+| LLVM (`#ifdef COMPILER_BUILD`) | `llvm_value`, `llvm_pointer`, `llvm_type`, `llvm_chain_type`, `llvm_arg_value`, `llvm_ret_value`, `llvm_assign_value`, `llvm_conditional_branch`, `llvm_allocate`, `add_member_index`, `add_child_index`, `access_chain_allocate`, `access_chain_assign_value` |
+| Copy | `copy(ASTAllocator&)` — deep copy the payload and the wrapped value |
+
+Forgetting one produces a silent miscompile (the wrapper's base `Value` default runs
+instead), not a compile error. The C backend needs only a `VisitYourNode` in `ToCAstVisitor`
+that forwards to the wrapped value (mirroring `VisitUnsafeValue`).
 
 ## Extension Checklist: Adding a New AST Node
 
@@ -712,12 +778,23 @@ ASTNode
    it belongs to a category, extend the relevant multi-kind helper
    (`isBaseDefMember`, `isMembersContainer`, …). Add `as_your_node()` (nullable) and
    `as_your_node_unsafe()` (`CHECK_CAST`). Mirror this on `Value`/`BaseType` if applicable.
-5. **Sync the CBI binding.** If the kind is exposed to plugins, append the same value to
+5. **Sync the CBI binding — and verify parity, don't just append.** If the kind is exposed
+   to plugins, append the same value to
    `lang/libs/compiler/src/ast/base/ASTNodeKind.ch` (or `ValueKind.ch` /
-   `BaseTypeKind.ch`). A mismatch causes SIGSEGV in TCC-compiled plugins.
+   `BaseTypeKind.ch`). A mismatch causes SIGSEGV in TCC-compiled plugins. Appending is safe,
+   but **diff both lists**: when `ValueKind::GenericInstIdentifier` was appended, the mirror
+   was found to be missing `AwaitExpr` (the previous append-only change had never been
+   mirrored). A missing *trailing* value is harmless for existing values but means plugins
+   cannot name it; re-compile the plugins (`--plugins` with `-frecompile-plugins`, the
+   default) to prove parity.
 6. **Add visitor handling.** Add a `VisitYourNode` default to
    `preprocess/visitors/NonRecursiveVisitor.h` (forwarding to `VisitCommonNode`/`Value`/
-   `Type`) and a `case` in the matching `*NoNullCheck` switch. If the node has children,
+   `Type`), a `case` in the matching `*NoNullCheck` switch, **and** a
+   `VisitByPtrTypeNoNullCheck(YourNode*)` overload. The last one is easy to miss: the
+   `visit(T* ptr)` / `visit_it(T*)` templates in `SymResLinkBody.h:203` /
+   `RecursiveVisitor.h` dispatch through `VisitByPtrTypeNoNullCheck`, so a kind without it
+   goes through a different overload (or fails to compile) even though the `*NoNullCheck`
+   switch looks complete. If the node has children,
    add a `VisitYourNode` in `preprocess/visitors/RecursiveVisitor.h` that calls `visit_it`
    on each child.
 7. **Handle codegen.** For LLVM: override `code_gen`/`code_gen_declare`/`add_child_index`/

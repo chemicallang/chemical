@@ -82,3 +82,47 @@ public comptime const PIPE_TYPE_BYTE =              0x00000000
 public comptime const PIPE_TYPE_MESSAGE =           0x00000004
 public comptime const PIPE_ACCEPT_REMOTE_CLIENTS =  0x00000000
 public comptime const PIPE_REJECT_REMOTE_CLIENTS =  0x00000008
+
+// --- Anonymous pipe creation ---
+
+/**
+ * @brief Creates an anonymous pipe.
+ * @param lpReadPipe Receives the read handle.
+ * @param lpWritePipe Receives the write handle.
+ * @param lpPipeAttributes Optional security attributes.
+ * @param nSize Buffer size (0 = default).
+ * @return Nonzero on success, zero on failure.
+ */
+@extern
+@dllimport
+@stdcall
+public func CreatePipe(
+    lpReadPipe : *mut HANDLE,
+    lpWritePipe : *mut HANDLE,
+    lpPipeAttributes : LPSECURITY_ATTRIBUTES,
+    nSize : DWORD
+) : BOOL
+
+// --- Pipe peek ---
+
+/**
+ * @brief Peeks at the data in the pipe without removing it.
+ * @param hNamedPipe Handle to the pipe.
+ * @param lpBuffer Buffer to receive data (can be NULL for size query).
+ * @param nBufferSize Size of the buffer.
+ * @param lpBytesRead Receives number of bytes read into buffer.
+ * @param lpTotalBytesAvail Receives total bytes available.
+ * @param lpBytesLeftThisMessage Receives bytes left in message (byte-mode pipes: 0).
+ * @return Nonzero on success, zero on failure.
+ */
+@extern
+@dllimport
+@stdcall
+public func PeekNamedPipe(
+    hNamedPipe : HANDLE,
+    lpBuffer : LPVOID,
+    nBufferSize : DWORD,
+    lpBytesRead : *mut DWORD,
+    lpTotalBytesAvail : *mut DWORD,
+    lpBytesLeftThisMessage : *mut DWORD
+) : BOOL

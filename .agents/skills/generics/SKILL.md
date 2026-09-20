@@ -259,18 +259,23 @@ var h = ident<int>(41)                  // call — args live on the FunctionCal
 ```
 
 **Representation.** The parser (`parser/statements/AccessChain.cpp`, the `default:` arm of
-the `<` case in `parseAccessChainAfterId`) replaces the last chain value with a
-`GenericInstIdentifier` (`ast/values/GenericInstIdentifier.h`) that wraps the identifier and
-holds `std::vector<TypeLoc> generic_list`. Calls keep theirs on the `FunctionCall`, struct
+the `<` case in `parseAccessChainAfterId`) rebuilds the last chain value as a
+`GenericInstIdentifier` (`ast/values/GenericInstIdentifier.h`), which holds
+`std::vector<TypeLoc> generic_list`. Calls keep theirs on the `FunctionCall`, struct
 values on the `StructValue`'s `GenericType` reference, as before.
 
 > The arguments used to live in a `std::vector<TypeLoc> generic_list` field on
 > `VariableIdentifier` itself, which cost 24 bytes on **every** identifier in every module
-> (`sizeof(VariableIdentifier)` 96 instead of 72). `GenericInstIdentifier` is a *transparent
-> wrapper*: it forwards `linked_node`, child lookup, interpreter evaluation and every
-> `llvm_*` entry point to its identifier, so it behaves as the identifier would. Anything
-> that needs the identifier behind a chain leaf uses `Value::as_identifier_of(...)`. See the
-> [AST Framework skill](../ast_framework/SKILL.md) for the wrapper checklist.
+> (`sizeof(VariableIdentifier)` 96 instead of 72). `GenericInstIdentifier` avoids that by
+> being a **`VariableIdentifier` subclass** that adds only the argument list: it sets
+> `ValueKind::GenericInstIdentifier`, so `Value::isIdentifier()` accepts it and
+> `as_identifier()` / `as_identifier_unsafe()` return it directly. Everything an identifier
+> does (`linked_node`, `byte_size`, `evaluated_value`, `byte_size`, every `llvm_*` entry
+> point) is inherited and correct — there is no wrapper object, no second allocation and no
+> forwarding. Passes that must recognise the node test `val_kind() ==
+> ValueKind::GenericInstIdentifier` / `as_generic_inst_identifier()`; everything else treats it
+> as the identifier it is. See the
+> [AST Framework skill](../ast_framework/SKILL.md) for the subclassing rule.
 
 **Instantiation**, in every phase that can see one:
 
@@ -283,13 +288,13 @@ values on the `StructValue`'s `GenericType` reference, as before.
 
 `initialize_generic_args` + `check_inferred_generic_args` validate the argument list, then
 `GenericFuncDecl::register_generic_args(...)` produces the concrete `FunctionDeclaration` and
-the wrapped identifier is relinked to it (`identifier->linked = concrete`) with its type set
-from `known_type()`. **Codegen needs no special case**: by the time a backend runs, the node
-is a plain reference to a concrete function and the wrapper only forwards.
+the node is relinked to it (`ref->linked = concrete`) with its type set from
+`known_type()`. **Codegen needs no special case**: by the time a backend runs, the node is a
+plain reference to a concrete function (2c emits it through `write_identifier`).
 
 `GenericInstantiator::relink_identifier` no longer instantiates anything: a plain identifier
 linked to a `GenericFuncDecl` just takes the master implementation's type, because the
-arguments only exist on the wrapper.
+arguments only exist on a `GenericInstIdentifier`.
 
 **A function used as a generic argument** — `gen<gen<int>>` — is the same syntax in a *type*
 position, so the argument arrives as a `GenericType{referenced: LinkedType(gen), types: [int]}`

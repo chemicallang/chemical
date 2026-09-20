@@ -222,8 +222,8 @@ llvm::Value* Value::access_chain_value(Codegen &gen, std::vector<Value*>& values
     };
     const auto last = values[until];
     const auto kind = last->val_kind();
-    if(kind == ValueKind::Identifier || kind == ValueKind::GenericInstIdentifier) {
-        const auto id = as_identifier_of(last);
+    if(isIdentifier(kind)) {
+        const auto id = last->as_identifier_unsafe();
         const auto linked = id->linked;
         switch(linked->kind()) {
             case ASTNodeKind::EnumMember:
@@ -885,9 +885,6 @@ bool Value::is_ref_l_value() {
 
 bool Value::check_is_mutable(bool assigning) {
     switch(val_kind()) {
-        case ValueKind::GenericInstIdentifier:
-            // transparent wrapper around its identifier
-            return as_generic_inst_identifier_unsafe()->getIdentifier()->check_is_mutable(assigning);
         case ValueKind::Identifier: {
             const auto id = as_identifier_unsafe();
             if(assigning) {
@@ -984,8 +981,6 @@ bool Value::is_ref_moved() {
     switch(val_kind()) {
         case ValueKind::UnsafeValue:
             return static_cast<UnsafeValue*>(this)->getValue()->is_ref_moved();
-        case ValueKind::GenericInstIdentifier:
-            return as_generic_inst_identifier_unsafe()->getIdentifier()->is_ref_moved();
         case ValueKind::AccessChain:
             return as_access_chain_unsafe()->is_moved();
         case ValueKind::Identifier:
@@ -995,28 +990,16 @@ bool Value::is_ref_moved() {
     }
 }
 
-VariableIdentifier* Value::as_identifier_of(Value* value) {
-    if(value == nullptr) {
-        return nullptr;
-    }
-    switch(value->val_kind()) {
-        case ValueKind::Identifier:
-            return value->as_identifier_unsafe();
-        case ValueKind::GenericInstIdentifier:
-            // a bare generic function reference wraps the identifier it instantiates
-            return value->as_generic_inst_identifier_unsafe()->getIdentifier();
-        default:
-            return nullptr;
-    }
-}
-
 VariableIdentifier* Value::get_chain_id() {
     switch(kind()) {
         case ValueKind::AccessChain:
-            return as_access_chain_unsafe()->values.size() == 1 ? as_identifier_of(as_access_chain_unsafe()->values.back()) : nullptr;
+            // the leaf of a chain is not necessarily an identifier (it can be a
+            // call or an index operation), so this one stays nullable
+            return as_access_chain_unsafe()->values.size() == 1 ? as_access_chain_unsafe()->values.back()->as_identifier() : nullptr;
         case ValueKind::Identifier:
         case ValueKind::GenericInstIdentifier:
-            return as_identifier_of(this);
+            // the kind is already established here
+            return as_identifier_unsafe();
         default:
             return nullptr;
     }
@@ -1310,9 +1293,12 @@ bool Value::is_equal(Value* other, ValueKind kind, ValueKind other_kind) {
                 return true;
             }
             case ValueKind::Identifier:
-                return as_identifier()->linked == other->as_identifier()->linked;
-            case ValueKind::GenericInstIdentifier:
-                return as_identifier_of(this)->linked == as_identifier_of(other)->linked;
+            case ValueKind::GenericInstIdentifier: {
+                // this kind is established by the switch, but the other value is
+                // not guaranteed to be an identifier of the same kind
+                const auto other_id = other->as_identifier();
+                return other_id != nullptr && as_identifier_unsafe()->linked == other_id->linked;
+            }
             case ValueKind::IndexOperator: {
                 const auto this_index_op = as_index_op();
                 const auto other_index_op = other->as_index_op();
@@ -1341,11 +1327,12 @@ VariableIdentifier* Value::get_single_id() {
     switch(kind()) {
         case ValueKind::AccessChain: {
             auto& values = as_access_chain_unsafe()->values;
-            return values.size() == 1 ? as_identifier_of(values.back()) : nullptr;
+            return values.size() == 1 ? values.back()->as_identifier() : nullptr;
         }
         case ValueKind::Identifier:
         case ValueKind::GenericInstIdentifier:
-            return as_identifier_of(this);
+            // the kind is already established here
+            return as_identifier_unsafe();
         default:
             return nullptr;
     }
@@ -1354,10 +1341,11 @@ VariableIdentifier* Value::get_single_id() {
 VariableIdentifier* Value::get_last_id() {
     switch(kind()) {
         case ValueKind::AccessChain:
-            return as_identifier_of(as_access_chain_unsafe()->values.back());
+            return as_access_chain_unsafe()->values.back()->as_identifier();
         case ValueKind::Identifier:
         case ValueKind::GenericInstIdentifier:
-            return as_identifier_of(this);
+            // the kind is already established here
+            return as_identifier_unsafe();
         default:
             return nullptr;
     }

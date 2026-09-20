@@ -65,6 +65,26 @@ public:
 
     }
 
+protected:
+
+    /**
+     * constructor for derived values that carry extra front-end state but behave
+     * exactly like an identifier (see GenericInstIdentifier). Such a value is an
+     * identifier with a different ValueKind, so isIdentifier() / as_identifier()
+     * accept it and every identifier method applies to it as it is
+     */
+    constexpr VariableIdentifier(
+            ValueKind kind,
+            chem::string_view value,
+            BaseType* type,
+            SourceLocation location,
+            bool is_ns
+    ) : Value(kind, type, location), value(value), is_ns(is_ns) {
+
+    }
+
+public:
+
     uint64_t byte_size(const TargetData& targetData) final;
 
     Value *child(InterpretScope &scope, const chem::string_view &name) final;
@@ -106,6 +126,6 @@ public:
 
     Value* evaluated_value(InterpretScope &scope) final;
 
-    VariableIdentifier *copy(ASTAllocator& allocator) final;
+    VariableIdentifier *copy(ASTAllocator& allocator) override;
 
 };

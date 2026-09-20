@@ -162,10 +162,12 @@ This visitor resolves **type signatures only** — never enters function bodies:
 3. **Inline instantiations**: When a `GenericType` is encountered in a signature, an inline instantiation is requested. These are stored in `inline_instantiations` for processing after the signature pass.
 
 4. **Bare generic function references** (`ident<int>` used as a value, not called) are
-   `GenericInstIdentifier` nodes wrapping an identifier. `VisitGenericInstIdentifier` links
-   the explicit argument types (nothing else links them), then links the wrapped identifier
-   exactly like a plain identifier. The actual instantiation happens later — see Phase 3 and
-   Phase 5, and the [Generics skill](../generics/SKILL.md#generic-function-references-identint-as-a-value).
+   `GenericInstIdentifier` nodes — a `VariableIdentifier` subclass that adds the explicit
+   arguments. `VisitGenericInstIdentifier` links the argument types (nothing else links
+   them), then passes **the node itself** to `VisitVariableIdentifier`, exactly like a plain
+   identifier (it links to the same declarations and runs the same access checks). The
+   actual instantiation happens later — see Phase 3 and Phase 5, and the
+   [Generics skill](../generics/SKILL.md#generic-function-references-identint-as-a-value).
 
 #### Async return-type wrapping
 

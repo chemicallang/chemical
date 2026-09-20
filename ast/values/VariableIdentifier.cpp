@@ -16,7 +16,7 @@
 #include "TypeInsideValue.h"
 
 VarInitStatement* declaration(Value* value) {
-    if(value->val_kind() == ValueKind::Identifier) {
+    if(Value::isIdentifier(value->val_kind())) {
         const auto linked = value->as_identifier_unsafe()->linked;
         return linked ? linked->as_var_init() : nullptr;
     } else {
@@ -406,7 +406,7 @@ Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
                 if(found_self == this) return this;
                 // getting the child
                 auto childResult = found_self->child(scope, value);
-                if(childResult && childResult->val_kind() == ValueKind::Identifier && childResult != this) {
+                if(childResult && Value::isIdentifier(childResult->val_kind()) && childResult != this) {
                     return static_cast<VariableIdentifier*>(childResult)->evaluated_value(scope);
                 }
                 return childResult;

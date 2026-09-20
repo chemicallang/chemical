@@ -632,31 +632,34 @@ var g : (x : int) => int = ident<int>   // was: value with type '(x : T) => T'
 
 Fix, three layers:
 
-1. **Representation** (`ast/values/GenericInstIdentifier.h`): a bare reference is
-   wrapped in a dedicated `GenericInstIdentifier` value node, which holds the
-   arguments in `std::vector<TypeLoc> generic_list` (copied by
-   `GenericInstIdentifier::copy`). Calls/struct values keep theirs on the
-   `FunctionCall`/`StructValue` as before.
+1. **Representation** (`ast/values/GenericInstIdentifier.h`): a bare reference gets
+   a dedicated `GenericInstIdentifier`, which holds the arguments in
+   `std::vector<TypeLoc> generic_list` (copied by `GenericInstIdentifier::copy`).
+   Calls/struct values keep theirs on the `FunctionCall`/`StructValue` as before.
 
-   > **Why a node and not a field on the identifier.** The first version of this
-   > fix put `std::vector<TypeLoc> generic_list` on `VariableIdentifier`, which
-   > grew *every* identifier — 24 bytes, ~96 bytes per identifier instead of ~72 —
-   > for a feature used by a tiny fraction of them. The arguments are now stored
-   > on a node that only exists for a generic function reference. The node is a
-   > transparent wrapper (mirroring `UnsafeValue`): it forwards `linked_node`,
-   > every `llvm_*` entry point, child lookup and interpreter evaluation to its
-   > identifier, so it behaves as the identifier would everywhere else. Code that
-   > needs the identifier behind a chain leaf uses `Value::as_identifier_of(...)`,
-   > which unwraps it.
+   > **Why a separate node, and why a subclass.** The first version of this fix put
+   > `std::vector<TypeLoc> generic_list` on `VariableIdentifier`, which grew *every*
+   > identifier — 24 bytes, ~96 bytes per identifier instead of ~72 — for a feature
+   > used by a tiny fraction of them. The arguments moved to a node that only exists
+   > for a generic function reference. That node **is a `VariableIdentifier`
+   > subclass** (`ValueKind::GenericInstIdentifier`): `Value::isIdentifier()` accepts
+   > both kinds, so `as_identifier()` / `as_identifier_unsafe()` return it and every
+   > identifier behaviour (`linked_node`, `byte_size`, `evaluated_value`, all
+   > `llvm_*` entry points) is inherited rather than forwarded. An earlier revision
+   > instead *wrapped* an identifier in a `Value` node and forwarded ~20 methods to
+   > it, which needed an `as_identifier_of()` unwrap at every chain-leaf site; the
+   > subclass removes the wrapper object, the second allocation and all the
+   > unwrapping. `sizeof(VariableIdentifier)` is 72, and only the rare reference node
+   > pays for the vector (96).
 2. **Parser** (`parser/statements/AccessChain.cpp`): when `ident<...>` is not
-   followed by `(` or `{`, the last identifier is replaced by a
-   `GenericInstIdentifier` wrapping it.
+   followed by `(` or `{`, the last identifier is rebuilt as a
+   `GenericInstIdentifier`.
 3. **Symres** (`compiler/symres/SymResLinkBody.cpp`
    `link_generic_func_reference`, and `GenericInstantiator::relink_identifier` /
    `instantiate_generic_func_reference` for generic bodies): the argument types
    are linked, then — unless inside a generic body, where instantiation is
    deferred — the generic function is instantiated via
-   `GenericFuncDecl::register_generic_args` and the identifier is relinked to the
+   `GenericFuncDecl::register_generic_args` and the node is relinked to the
    concrete `FunctionDeclaration`. For a reference in a **global initializer**
    (which the body pass skips), the arguments are linked in
    `TopLevelLinkSignature::VisitGenericInstIdentifier` and registered in
@@ -669,8 +672,15 @@ initializer, passed as an argument, `ns::ident<int>` (namespaced), parenthesized
 (the singlified single-element chain), multiple explicit parameters, mixed
 parameters, and `ident<T>` / `ns::ident<T>` inside a generic function.
 Regression tests in `lang/tests/src/generic/basic.ch`. Full matrix green (main
-2195/2195 at the time, libs 650/650, plugins 1122/1122, negative 290/290,
-interpret 1812/1812).
+2200/2200, libs 650/650, plugins 1122/1122, negative 290/290, interpret
+1812/1812).
+
+> **Revision (representation).** The node was first implemented as a `Value`
+> *wrapper* around a `VariableIdentifier`; it is now a `VariableIdentifier`
+> *subclass* that adds only the argument list (see item 1). Re-verified against the
+> same matrix plus a 54-case crash battery diffed against the wrapper revision:
+> only the two intended improvements (`gen<gen<int>>` crash → builds, `sizeof`
+> error → builds), no behavioural change anywhere else.
 
 4. **A *function* as a generic argument** (`gen<gen<int>>`, i.e. the reference in
    **type** position) used to crash the compiler: the argument resolved to the

@@ -152,10 +152,9 @@ void TopLevelLinkSignature::VisitGenericInstIdentifier(GenericInstIdentifier* re
     for(auto& type : ref->generic_list) {
         visit(type);
     }
-    // then link the identifier itself, as if it appeared on its own
-    const auto identifier = ref->getIdentifier();
-    VisitVariableIdentifier(identifier);
-    ref->setType(identifier->getType());
+    // then link the identifier itself, as if it appeared on its own (a generic
+    // function reference IS an identifier, so it is linked as one)
+    VisitVariableIdentifier(ref);
 }
 
 void TopLevelLinkSignature::VisitVariableIdentifier(VariableIdentifier* value) {
@@ -226,9 +225,8 @@ void TopLevelLinkSignature::VisitLinkedType(LinkedType* type) {
 ASTNode* get_chain_item_parent(Value* value) {
     switch(value->kind()) {
         case ValueKind::Identifier:
-            return value->as_identifier_unsafe()->linked;
         case ValueKind::GenericInstIdentifier:
-            return value->as_generic_inst_identifier_unsafe()->getIdentifier()->linked;
+            return value->as_identifier_unsafe()->linked;
         case ValueKind::IndexOperator:
         case ValueKind::FunctionCall:
         case ValueKind::AccessChain:
@@ -273,9 +271,9 @@ void TopLevelLinkSignature::VisitAccessChain(AccessChain* value) {
     unsigned i = 1;
     const auto size = value->values.size();
     while(i < size) {
-        // every value after the first is an identifier; a generic function
-        // reference wraps its identifier in a GenericInstIdentifier
-        const auto child = Value::as_identifier_of(value->values[i]);
+        // every value after the first is expected to be an identifier; a generic
+        // function reference is one (a GenericInstIdentifier subclass)
+        const auto child = value->values[i]->as_identifier();
 #ifdef DEBUG
       if (child == nullptr) {
           CHEM_THROW_RUNTIME("value should be an identifier, but isn't");

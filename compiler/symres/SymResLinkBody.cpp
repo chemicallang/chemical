@@ -535,7 +535,7 @@ void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, b
     const auto last = values_size - 1;
     unsigned i = 1;
     while (i < values_size) {
-        const auto id = Value::as_identifier_of(values[i]);
+        const auto id = values[i]->as_identifier();
         if(id == nullptr) {
             break;
         }
@@ -560,21 +560,19 @@ void SymResLinkBody::VisitAccessChain(AccessChain* chain, bool check_validity, b
 }
 
 void SymResLinkBody::VisitGenericInstIdentifier(GenericInstIdentifier* ref) {
-    // resolve the identifier this reference instantiates, exactly like a bare
-    // identifier would be resolved (this links it to the generic declaration)
-    VisitVariableIdentifier(ref->getIdentifier(), true);
+    // a generic function reference IS an identifier, so resolve it exactly like a
+    // bare identifier would be resolved (this links it to the generic declaration)
+    VisitVariableIdentifier(ref, true);
     // now instantiate the function with the explicit arguments and relink the
     // identifier to the concrete declaration
     link_generic_func_reference(ref);
 }
 
 void SymResLinkBody::link_generic_func_reference(GenericInstIdentifier* ref) {
-    const auto identifier = ref->getIdentifier();
-    const auto linked = identifier->linked;
+    const auto linked = ref->linked;
     if(linked == nullptr || linked->kind() != ASTNodeKind::GenericFuncDecl) {
         // generic arguments on something that is not a generic function — leave it
         // to the type checker to report
-        ref->setType(identifier->getType());
         return;
     }
     auto& gen_decl = *linked->as_gen_func_decl_unsafe();
@@ -586,17 +584,14 @@ void SymResLinkBody::link_generic_func_reference(GenericInstIdentifier* ref) {
     // instantiator, which visits the instantiated body (mirrors generic calls)
     const auto curr_func = current_func_type ? current_func_type->as_function() : nullptr;
     if(generic_context || (curr_func != nullptr && curr_func->generic_parent != nullptr)) {
-        identifier->setType(gen_decl.master_impl->known_type());
-        ref->setType(identifier->getType());
+        ref->setType(gen_decl.master_impl->known_type());
         return;
     }
     std::vector<TypeLoc> generic_args;
     if(!initialize_generic_args(diagnoser, generic_args, gen_decl.generic_params, ref->generic_list)) {
-        ref->setType(identifier->getType());
         return;
     }
-    if(!check_inferred_generic_args(diagnoser, generic_args, gen_decl.generic_params, identifier->encoded_location())) {
-        ref->setType(identifier->getType());
+    if(!check_inferred_generic_args(diagnoser, generic_args, gen_decl.generic_params, ref->encoded_location())) {
         return;
     }
     // canonicalize the generic arguments (matches GenericFuncDecl::instantiate_call)
@@ -608,17 +603,15 @@ void SymResLinkBody::link_generic_func_reference(GenericInstIdentifier* ref) {
     const auto concrete = gen_decl.register_generic_args(
         generic_instantiator,
         generic_args,
-        identifier->encoded_location(),
+        ref->encoded_location(),
         InstantiationRequirement::SignatureFinalization
     );
     if(concrete == nullptr) {
-        ref->setType(identifier->getType());
         return;
     }
-    identifier->linked = concrete;
-    identifier->setType(concrete->known_type());
-    identifier->process_linked(&diagnoser, current_func_type);
-    ref->setType(identifier->getType());
+    ref->linked = concrete;
+    ref->setType(concrete->known_type());
+    ref->process_linked(&diagnoser, current_func_type);
 }
 
 void SymResLinkBody::VisitVariableIdentifier(VariableIdentifier* identifier, bool check_access) {

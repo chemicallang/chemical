@@ -206,10 +206,12 @@ static inline constexpr bool isLoadableReferencee(BaseTypeKind k) {  // ast/base
 There is **no** `isValue`/`isNode`/`isType` predicate on the roots; the root category comes
 from `any_kind()` and the concrete category from the per-root `is*` helpers.
 
-`Value::isChainValue` deliberately does **not** include `GenericInstIdentifier`, even though
-that node can be the leaf of an access chain (see the transparent-wrapper gotcha below).
-When you need "the identifier at a leaf, whatever shape the leaf has", call
-`Value::as_identifier_of(value)` instead of testing `kind()`.
+`Value::isIdentifier` is the interesting one: it accepts **both** `Identifier` and
+`GenericInstIdentifier`, because the latter *is-a* `VariableIdentifier` (see the subclassing
+gotcha below). So `value->as_identifier()` / `as_identifier_unsafe()` are correct for either
+shape, and a raw `kind() == ValueKind::Identifier` test silently misses a generic function
+reference — prefer the predicate/accessor. `Value::isChainValue` still lists only
+`Identifier`, so `as_chain_value()` does **not** match a `GenericInstIdentifier`.
 
 ### Full enum inventories
 
@@ -735,35 +737,40 @@ ASTNode
    form.** Measure with `gdb -batch -ex 'ptype /o VariableIdentifier' <binary>` (it prints
    the offset/size/hole layout, so padding waste is visible too). See
    [Memory Optimization](../performance/SKILL.md#compact-ast-nodes).
-11. **Chain leaves are assumed to be identifiers — unwrap, don't cast.** ~10 sites do
-   `chain->values.back()->as_identifier_unsafe()` / `values.back()->as_identifier()`
-   (symres parent linking, `AccessChain::relink_parent`/`evaluated_value`, 2c's
-   function-reference detection, `GenericInstantiator::relink_parent`) and a
-   `CHECK_CAST` abort is the best case. If you introduce a node that can sit at a chain
-   leaf, add an unwrap helper and use it at all of them. The existing helper is
-   `Value::as_identifier_of(Value*)` (nullable, unwraps `GenericInstIdentifier` to its
-   `VariableIdentifier`, returns `nullptr` for anything else) — see the
-   `GenericInstIdentifier` pattern below.
+11. **A value that behaves like another value should _subclass_ it, not wrap it.** ~10 sites
+   do `values.back()->as_identifier()` / `as_identifier_unsafe()` at chain leaves (symres
+   parent linking, `AccessChain::relink_parent`/`evaluated_value`, 2c's function-reference
+   detection, `GenericInstantiator::relink_parent`). If a new kind can appear there, the
+   cheap fix is to derive from the node it behaves like, widen the kind predicate, and keep
+   the distinct `ValueKind` for the passes that must recognise it:
 
-### Transparent wrapper values (the `GenericInstIdentifier` / `UnsafeValue` pattern)
+   ```cpp
+   // Value.h — one predicate, so every accessor accepts both shapes
+   static constexpr inline bool isIdentifier(ValueKind k) {
+       return k == ValueKind::Identifier || k == ValueKind::GenericInstIdentifier;
+   }
+   inline VariableIdentifier* as_identifier_unsafe() {
+       CHECK_COND(isIdentifier(kind()));   // not CHECK_CAST(single kind)
+       return ((VariableIdentifier*) this);
+   }
+   ```
 
-When one value must mean "the same as another value, plus a little extra", wrap it in a
-node that forwards **everything** to the wrapped value rather than duplicating behaviour at
-every call site. `UnsafeValue` (`ast/values/UnsafeValue.h`) and `GenericInstIdentifier`
-(`ast/values/GenericInstIdentifier.h`) are the two examples.
+   The subclass then only declares its extra state and overrides `copy()`; every
+   identifier method (`linked_node`, `byte_size`, `evaluated_value`, `llvm_value`, ...) is
+   inherited and correct, because the object *is* the identifier. **Do not** make the
+   derived node's `visit`/`copy` delegate to a base-class instance — that reintroduces the
+   wrapper indirection (an extra allocation plus ~15 `getIdentifier()` unwrap sites) that
+   this pattern removes.
 
-A transparent wrapper must forward all of:
+   `GenericInstIdentifier` (`ast/values/GenericInstIdentifier.h`) is the worked example: it
+   derives from `VariableIdentifier` and adds only `std::vector<TypeLoc> generic_list`, so
+   `sizeof(VariableIdentifier)` stays 72 while only the rare generic function reference pays
+   for the vector. The base needs a `protected` constructor taking the `ValueKind` (the
+   public ones hardcode `ValueKind::Identifier`) and its `copy()` must not be `final`.
 
-| Surface | Members |
-|---|---|
-| Tree linkage | `linked_node()` |
-| Interpreter | `child`, `find_in`, `set_value`, `set_value_in`, `evaluated_value`, `byte_size`, `compile_time_computable`, `primitive()` |
-| LLVM (`#ifdef COMPILER_BUILD`) | `llvm_value`, `llvm_pointer`, `llvm_type`, `llvm_chain_type`, `llvm_arg_value`, `llvm_ret_value`, `llvm_assign_value`, `llvm_conditional_branch`, `llvm_allocate`, `add_member_index`, `add_child_index`, `access_chain_allocate`, `access_chain_assign_value` |
-| Copy | `copy(ASTAllocator&)` — deep copy the payload and the wrapped value |
-
-Forgetting one produces a silent miscompile (the wrapper's base `Value` default runs
-instead), not a compile error. The C backend needs only a `VisitYourNode` in `ToCAstVisitor`
-that forwards to the wrapped value (mirroring `VisitUnsafeValue`).
+   Rule of thumb: **wrap only when the payload must stay untouched and you cannot expose a
+   base** (that is `UnsafeValue`, which wraps an arbitrary `Value`); **subclass when the new
+   node is a specialized form of one concrete node kind**.
 
 ## Extension Checklist: Adding a New AST Node
 

@@ -84,10 +84,8 @@ void GenericInstantiationPass::VisitGenericInstIdentifier(GenericInstIdentifier*
     // instantiator and this pass does not visit function bodies. the instantiated
     // body is finalized once the generic declaration's body is linked.
     RecursiveVisitor<GenericInstantiationPass>::VisitGenericInstIdentifier(ref);
-    const auto value = ref->getIdentifier();
-    const auto linked = value->linked;
+    const auto linked = ref->linked;
     if(linked == nullptr || linked->kind() != ASTNodeKind::GenericFuncDecl) {
-        ref->setType(value->getType());
         return;
     }
     const auto gen_decl = linked->as_gen_func_decl_unsafe();
@@ -96,11 +94,9 @@ void GenericInstantiationPass::VisitGenericInstIdentifier(GenericInstIdentifier*
     }
     std::vector<TypeLoc> generic_args;
     if(!initialize_generic_args(diagnoser, generic_args, gen_decl->generic_params, ref->generic_list)) {
-        ref->setType(value->getType());
         return;
     }
-    if(!check_inferred_generic_args(diagnoser, generic_args, gen_decl->generic_params, value->encoded_location())) {
-        ref->setType(value->getType());
+    if(!check_inferred_generic_args(diagnoser, generic_args, gen_decl->generic_params, ref->encoded_location())) {
         return;
     }
     for(auto& type : generic_args) {
@@ -109,14 +105,13 @@ void GenericInstantiationPass::VisitGenericInstIdentifier(GenericInstIdentifier*
         }
     }
     const auto concrete = gen_decl->register_generic_args(
-        generic_instantiator, generic_args, value->encoded_location(),
+        generic_instantiator, generic_args, ref->encoded_location(),
         InstantiationRequirement::Registration
     );
     if(concrete != nullptr) {
-        value->linked = concrete;
-        value->setType(concrete->known_type());
+        ref->linked = concrete;
+        ref->setType(concrete->known_type());
     }
-    ref->setType(value->getType());
 }
 
 void GenericInstantiationPass::VisitAccessChain(AccessChain* chain) {

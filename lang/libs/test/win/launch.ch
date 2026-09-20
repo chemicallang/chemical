@@ -3,11 +3,6 @@
 @stdcall
 public func TerminateProcess(hProcess : HANDLE, uExitCode : UINT) : BOOL;
 
-@dllimport
-@extern
-@stdcall
-public func PeekNamedPipe(hPipe : HANDLE, lpBuffer : *void, nBufferSize : DWORD, lpBytesRead : *mut DWORD, lpTotalBytesAvail : *mut DWORD, lpBytesLeftThisMessage : *mut DWORD) : BOOL;
-
 func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, timeout_ms : uint) : int {
 
     var si : STARTUPINFOA

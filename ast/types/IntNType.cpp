@@ -161,6 +161,10 @@ bool IntNType::satisfies(Value *value, bool assignment) {
     auto otherType = value->getType();
     if(!otherType) return false;
     if(literal && otherType->kind() == BaseTypeKind::IntN) {
+        // note: an integer literal is deliberately accepted for every integer type, no matter
+        // whether its value fits. Narrowing an out of range value is a documented feature —
+        // `var x : u8 = 300` yields 44 — that hashing/checksum/crypto code relies on. See
+        // lang/tests/common/src/interp_int_width.ch
         return true;
     } else {
         return satisfies(otherType);

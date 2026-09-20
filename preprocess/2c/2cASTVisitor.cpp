@@ -1061,9 +1061,13 @@ Value* evaluate_comptime_func(
     const auto value = func_decl->call(&visitor.comptime_scope, visitor.allocator, call, build_parent_chain(call->parent_val, visitor.allocator), false);
     visitor.comptime_scope.is_runtime_call = prev_runtime_call;
     visitor.comptime_scope.current_func_type = prev;
-    // put all diagnostics for this function inside the diagnoser
+    // put all diagnostics for this function inside the diagnoser. they must be added
+    // through add_diag, so the error count is updated and errors raised while evaluating
+    // the function are not silently lost
     auto& diags = visitor.comptime_scope.diagnostics;
-    visitor.diagnostics.insert(visitor.diagnostics.end(), diags.begin(), diags.end());
+    for(auto& diag : diags) {
+        visitor.add_diag(diag);
+    }
     visitor.comptime_scope.reset_diagnostics();
     if(!value) {
         // visitor.error("comptime function call didn't return anything", call);
@@ -2831,20 +2835,36 @@ void early_declare_node(ToCAstVisitor& c_visitor, ASTNode* node) {
             return;
         }
         case ASTNodeKind::StructDecl:
-            early_declare_struct(c_visitor, node->as_struct_def_unsafe());
-            return;
         case ASTNodeKind::VariantDecl:
-            early_declare_variant(c_visitor, node->as_variant_def_unsafe());
-            return;
         case ASTNodeKind::UnionDecl:
-            early_declare_union(c_visitor, node->as_union_def_unsafe());
-            return;
         case ASTNodeKind::UnnamedStruct:
-            early_declare_variables(c_visitor, node->as_unnamed_struct_unsafe(), node);
+        case ASTNodeKind::UnnamedUnion: {
+            // a container that reaches itself through the value members below is composed of
+            // itself, which has an infinite size. Its own declaration is already in progress
+            // on the stack, so skip the re-entry instead of recursing forever.
+            if (!c_visitor.early_declare_in_progress.insert(node).second) {
+                return;
+            }
+            switch(node->kind()) {
+                case ASTNodeKind::StructDecl:
+                    early_declare_struct(c_visitor, node->as_struct_def_unsafe());
+                    break;
+                case ASTNodeKind::VariantDecl:
+                    early_declare_variant(c_visitor, node->as_variant_def_unsafe());
+                    break;
+                case ASTNodeKind::UnionDecl:
+                    early_declare_union(c_visitor, node->as_union_def_unsafe());
+                    break;
+                case ASTNodeKind::UnnamedStruct:
+                    early_declare_variables(c_visitor, node->as_unnamed_struct_unsafe(), node);
+                    break;
+                default:
+                    early_declare_variables(c_visitor, node->as_unnamed_union_unsafe(), node);
+                    break;
+            }
+            c_visitor.early_declare_in_progress.erase(node);
             return;
-        case ASTNodeKind::UnnamedUnion:
-            early_declare_variables(c_visitor, node->as_unnamed_union_unsafe(), node);
-            return;
+        }
         default:
             return;
     }

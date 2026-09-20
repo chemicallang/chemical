@@ -1044,6 +1044,12 @@ Value *FunctionDeclaration::call(
     bool evaluate_refs
 ) {
     const auto global = call_scope->global;
+    // interpreted calls recurse on the C++ stack, so a function which never returns
+    // (like a comptime function calling itself) must be stopped before the stack of
+    // the thread is exhausted, which would crash the compiler
+    if(call_scope->stack_space_exhausted(call_obj != nullptr ? (ASTNode*) call_obj : (ASTNode*) this)) {
+        return call_scope->getNullValue();
+    }
     const auto prev_func = global->current_func_type;
     global->current_func_type = this;
     global->call_stack.emplace_back(call_obj);

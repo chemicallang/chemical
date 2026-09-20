@@ -63,6 +63,9 @@
 #include "SymResLinkBody.h"
 
 #include <iostream>
+#include <vector>
+#include <unordered_map>
+#include <unordered_set>
 
 #include "SymResLinkBodyAPI.h"
 #include "compiler/cbi/model/CompilerBinder.h"
@@ -288,6 +291,53 @@ void link_seq_backing_moves(
     visitor.save_moved_chains_after(moved_chains, if_moved_chains_begin);
 }
 
+// collects the names of every field of a container, including the ones it inherits from
+static void collect_container_field_names(MembersContainer* container, std::vector<chem::string_view>& names, std::unordered_set<MembersContainer*>& visited) {
+    if(!visited.insert(container).second) {
+        return;
+    }
+    for(const auto var : container->variables()) {
+        names.emplace_back(var->name);
+    }
+    for(auto& inherits : container->inherited) {
+        const auto def = inherits.type->get_members_container();
+        if(def) {
+            collect_container_field_names(def, names, visited);
+        }
+    }
+}
+
+// a field declared by a container must not reuse the name of a field inherited from one of
+// its base types. Both fields would still need their own initializer, so the struct value
+// (and the generated C struct) would end up with a duplicate / ambiguous member
+static void reject_inherited_field_collisions(ASTDiagnoser& diagnoser, MembersContainer* container) {
+    if(container->inherited.empty()) {
+        return;
+    }
+    std::vector<chem::string_view> inherited_names;
+    std::unordered_set<MembersContainer*> visited;
+    for(auto& inherits : container->inherited) {
+        const auto def = inherits.type->get_members_container();
+        if(def) {
+            collect_container_field_names(def, inherited_names, visited);
+        }
+    }
+    if(inherited_names.empty()) {
+        return;
+    }
+    for(const auto var : container->variables()) {
+        if(var->name.empty()) {
+            continue;
+        }
+        for(const auto& inherited_name : inherited_names) {
+            if(var->name == inherited_name) {
+                diagnoser.error(var) << "member '" << var->name << "' already exists in an inherited type";
+                break;
+            }
+        }
+    }
+}
+
 void declare_inherited_container_members(MembersContainer* container, SymbolTable& table, ASTDiagnoser& diagnoser) {
     for(const auto var : container->variables()) {
         table.declare(var->name, var);
@@ -373,6 +423,7 @@ void SymResLinkBody::LinkMembersContainerNoScope(MembersContainer* container) {
             declare_inherited_container_members(def, table, diagnoser);
         }
     }
+    reject_inherited_field_collisions(diagnoser, container);
     // this will only declare aliases
     declare_parsed_nodes(*this, container);
     // declare all the variables manually
@@ -1139,9 +1190,91 @@ void SymResLinkBody::VisitEnumMember(EnumMember* node) {
     table.declare(node->name, node);
 }
 
+// collects every enum member referenced by a value expression. An enum member whose
+// initializer (transitively) refers back to itself would send code generation into
+// infinite recursion, so those definitions are rejected
+class EnumMemberRefCollector : public RecursiveVisitor<EnumMemberRefCollector> {
+public:
+
+    std::vector<EnumMember*> refs;
+
+    template<typename T>
+    inline void visit(T* ptr) {
+        VisitByPtrTypeNoNullCheck(ptr);
+    }
+    inline void visit(ASTNode* node) {
+        VisitNodeNoNullCheck(node);
+    }
+    inline void visit(BaseDefMember* node) {
+        VisitNodeNoNullCheck(node);
+    }
+    inline void visit(Value* value) {
+        VisitValueNoNullCheck(value);
+    }
+    inline void visit(BaseType*& type_ref) {
+        VisitTypeNoNullCheck(type_ref);
+    }
+    inline void visit(TypeLoc& type) {
+        auto changed = const_cast<BaseType*>(type.getType());
+        VisitTypeNoNullCheck(changed);
+    }
+    inline void visit(LinkedType*& type_ref) {
+        visit((BaseType*&) type_ref);
+    }
+    inline void visit(Scope& scope) {
+        VisitScope(&scope);
+    }
+
+    void VisitVariableIdentifier(VariableIdentifier* value) {
+        if(value->linked && value->linked->kind() == ASTNodeKind::EnumMember) {
+            refs.emplace_back(value->linked->as_enum_member_unsafe());
+        }
+    }
+
+};
+
+static std::vector<EnumMember*> collect_enum_member_refs(EnumMember* member) {
+    std::vector<EnumMember*> result;
+    if(member->init_value == nullptr) {
+        return result;
+    }
+    EnumMemberRefCollector collector;
+    collector.visit_it(member->init_value);
+    return std::move(collector.refs);
+}
+
+// walks the members referenced by the initializer of `start`, reporting whether that
+// walk reaches `start` again, which means the value definition is cyclic
+static bool enum_member_value_is_cyclic(EnumMember* start) {
+    std::unordered_map<EnumMember*, bool> visited;
+    std::vector<EnumMember*> worklist = collect_enum_member_refs(start);
+    while(!worklist.empty()) {
+        const auto current = worklist.back();
+        worklist.pop_back();
+        if(current == start) {
+            return true;
+        }
+        if(visited.find(current) != visited.end()) {
+            continue;
+        }
+        visited[current] = true;
+        for(const auto next : collect_enum_member_refs(current)) {
+            worklist.emplace_back(next);
+        }
+    }
+    return false;
+}
+
 // every member value of an enum is stored in the enum's underlying integer type, so a
 // member whose value does not fit that type would be silently truncated
 static void verify_enum_member_values(ASTDiagnoser& diagnoser, EnumDeclaration* node, const TargetData& target_data) {
+    // a member value that refers back to itself would send code generation into infinite
+    // recursion, so it is reported regardless of the underlying type
+    for(auto& [name, member] : node->members) {
+        if(enum_member_value_is_cyclic(member)) {
+            diagnoser.error(member) << "value of enum member '" << name << "' refers back to itself (cyclic enum member value)";
+        }
+    }
     const auto underlying = node->get_underlying_integer_type();
     if(underlying == nullptr) {
         return;
@@ -2629,6 +2762,25 @@ void SymResLinkBody::VisitCastedValue(CastedValue* cValue) {
     }
     const auto source_is_aggregate = source_type->canonical()->get_members_container() != nullptr;
     if(!source_is_aggregate) {
+        // the opposite direction: a primitive value cannot be reinterpreted as a struct,
+        // variant or union (the generated C would be an invalid aggregate cast)
+        if(type->canonical()->get_members_container() != nullptr) {
+            switch(source_type->canonical()->kind()) {
+                case BaseTypeKind::IntN:
+                case BaseTypeKind::Bool:
+                case BaseTypeKind::Float:
+                case BaseTypeKind::Double:
+                case BaseTypeKind::Float128:
+                case BaseTypeKind::LongDouble:
+                case BaseTypeKind::Pointer:
+                case BaseTypeKind::Reference:
+                case BaseTypeKind::NullPtr:
+                    diagnoser.error(cValue) << "a value of this type cannot be cast to the given type";
+                    break;
+                default:
+                    break;
+            }
+        }
         return;
     }
     // only the direction with a concretely known target type is checked, as the source of
@@ -3208,10 +3360,19 @@ void SymResLinkBody::VisitPatternMatchExpr(PatternMatchExpr* expr) {
 
 void SymResLinkBody::VisitSizeOfValue(SizeOfValue* value) {
     visit(value->for_type);
+    // `void` is incomplete: it has no size at all. Without this check `sizeof(void)` silently
+    // produced a bogus number (the C backend emits a bare `sizeof(void)`, which is a GNU
+    // extension that evaluates to 1)
+    if(value->for_type->canonical()->kind() == BaseTypeKind::Void) {
+        diagnoser.error("cannot take the size of the void type, it has no size", value->for_type.encoded_location());
+    }
 }
 
 void SymResLinkBody::VisitAlignOfValue(AlignOfValue* value) {
     visit(value->for_type);
+    if(value->for_type->canonical()->kind() == BaseTypeKind::Void) {
+        diagnoser.error("cannot take the alignment of the void type, it has no alignment", value->for_type.encoded_location());
+    }
 }
 
 void SymResLinkBody::VisitOffsetOfValue(OffsetOfValue* value) {

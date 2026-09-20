@@ -179,7 +179,27 @@ bool LinkedType::satisfies(BaseType *other_impure) {
             }
         }
         case ASTNodeKind::TypealiasStmt: {
-            return linked->as_typealias_unsafe()->actual_type->satisfies(other);
+            // the alias chain is followed iteratively (rather than by recursing into
+            // `actual_type->satisfies`) so that a cyclic alias — `type A = A`, which the
+            // symbol resolver reports but does not stop compilation for — terminates here
+            // instead of overflowing the stack
+            const ASTNode* seen = linked;
+            BaseType* current = linked->as_typealias_unsafe()->actual_type;
+            unsigned hops = 0;
+            while(current != nullptr && hops++ < 256) {
+                const auto linked_node = current->get_direct_linked_node();
+                if(linked_node != nullptr && linked_node->kind() == ASTNodeKind::TypealiasStmt) {
+                    if(linked_node == seen) {
+                        // we have returned to an alias we already followed: a cycle
+                        return false;
+                    }
+                    seen = linked_node;
+                    current = linked_node->as_typealias_unsafe()->actual_type;
+                    continue;
+                }
+                return current->satisfies(other);
+            }
+            return false;
         }
         case ASTNodeKind::EnumDecl: {
             return linked == other->get_direct_linked_node();

@@ -56,7 +56,9 @@ public:
 
     [[nodiscard]]
     LinkedType *copy(ASTAllocator& allocator) override {
-        return new (allocator.allocate<LinkedType>()) LinkedType(linked);
+        // the attributes decide how the type is resolved (by name, by value),
+        // and how it is represented, so a copy must keep them
+        return new (allocator.allocate<LinkedType>()) LinkedType(linked, attrs.is_named, attrs.is_value);
     }
 
     inline chem::string_view linked_name() {
@@ -93,6 +95,13 @@ public:
         ASTNode* linked
     ) : LinkedType(linked, true, false), link_name(type) {
 
+    }
+
+    [[nodiscard]]
+    LinkedType *copy(ASTAllocator& allocator) override {
+        // an unresolved named type is resolved by the name it carries, so a copy
+        // without the name would be unresolvable and crash later passes
+        return new (allocator.allocate<NamedLinkedType>()) NamedLinkedType(link_name, linked);
     }
 
     /**

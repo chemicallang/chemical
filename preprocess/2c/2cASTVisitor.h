@@ -74,6 +74,16 @@ public:
     size_t top_level_position = 0;
 
     /**
+     * containers whose `early_declare` walk is currently on the stack. A container that
+     * composes itself by value (directly, `struct A { var a : A }`, or through a cycle,
+     * `struct A { var b : B }` with `struct B { var a : A }`) makes the compose walk recurse
+     * into itself forever, so re-entering a container that is already being declared is
+     * detected here and skipped. Cyclic composition itself is an error reported by the type
+     * verifier.
+     */
+    std::unordered_set<ASTNode*> early_declare_in_progress;
+
+    /**
      * this option is here to support struct initialization in tinyCC compiler
      * llvm uses the same approach whereby if a function returns a struct
      * we change it's return type to void and pass that struct as a pointer parameter to the function

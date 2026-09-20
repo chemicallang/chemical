@@ -98,16 +98,24 @@ public:
     [[nodiscard]]
     inline IntNType* get_underlying_integer_type() const {
         if(underlying_integer_type) return underlying_integer_type;
-        BaseType* ut = underlying_type;
-        if(ut) {
-            BaseType* can = ut->canonical();
-            if(can) {
-                if(can->kind() == BaseTypeKind::IntN) {
-                    return can->as_intn_type_unsafe();
-                }
-                EnumDeclaration* ed = can->get_direct_linked_enum();
-                if(ed) return ed->get_underlying_integer_type();
+        // the chain is walked iteratively with a hop limit, because an enum that inherits
+        // itself (or a cycle of enums) would otherwise recurse without bound
+        const EnumDeclaration* current = this;
+        unsigned hops = 0;
+        while(current != nullptr && hops++ < 256) {
+            if(current != this && current->underlying_integer_type != nullptr) {
+                return current->underlying_integer_type;
             }
+            BaseType* ut = current->underlying_type;
+            if(ut == nullptr) return nullptr;
+            BaseType* can = ut->canonical();
+            if(can == nullptr) return nullptr;
+            if(can->kind() == BaseTypeKind::IntN) {
+                return can->as_intn_type_unsafe();
+            }
+            EnumDeclaration* ed = can->get_direct_linked_enum();
+            if(ed == nullptr || ed == current || ed == this) return nullptr;
+            current = ed;
         }
         return nullptr;
     }

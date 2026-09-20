@@ -242,6 +242,30 @@ BaseType* Expression::get_determined_type(
         diagnoser.error("the shift operator's amount cannot be a negative value", expr->secondValue);
         return firstType;
     }
+    // shifting an operand by an amount greater than or equal to its own width is undefined
+    // behaviour. Only widths of at least 32 bits are checked, because for narrower types the
+    // C backend relies on C's integer promotion to `int` (which is how `u8 << 8` is defined)
+    if((expr->operation == Operation::LeftShift || expr->operation == Operation::RightShift)
+        && expr->secondValue->kind() == ValueKind::IntN) {
+        const auto shifted_type = first_canonical->canonicalize_enum();
+        if(shifted_type->kind() == BaseTypeKind::IntN) {
+            const auto bits = shifted_type->as_intn_type_unsafe()->num_bits(targetData);
+            const auto amount = expr->secondValue->as_int_num_value_unsafe()->get_num_value();
+            if(bits >= 32 && amount >= bits) {
+                diagnoser.error("the shift operator's amount cannot be as large as the width of the shifted type", expr->secondValue);
+                return firstType;
+            }
+        }
+    }
+    // dividing (or taking the modulus of) an integer by the constant zero is undefined
+    // behaviour, which the backends emit as-is, letting the C compiler fold it into garbage
+    if((expr->operation == Operation::Division || expr->operation == Operation::Modulus)
+        && first_op_kind == BaseTypeKind::IntN && second_op_kind == BaseTypeKind::IntN
+        && expr->secondValue->kind() == ValueKind::IntN
+        && expr->secondValue->as_int_num_value_unsafe()->get_num_value() == 0) {
+        diagnoser.error("cannot divide by zero", expr->secondValue);
+        return firstType;
+    }
 
     const auto first = first_canonical->canonicalize_enum();
     const auto second = secondType->canonical()->canonicalize_enum();

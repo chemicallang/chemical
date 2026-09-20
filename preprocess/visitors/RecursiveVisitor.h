@@ -327,7 +327,11 @@ public:
 
     void VisitImplDecl(ImplDefinition* def) {
         visit_it(def->interface_type);
-        visit_it(def->struct_type);
+        // an implementation may have been constructed without a target type
+        // (through the compiler API), so it must not be visited when absent
+        if(def->struct_type != nullptr) {
+            visit_it(def->struct_type);
+        }
         for(const auto func : def->evaluated_nodes()) {
             NonRecursiveVisitor<Derived>::visit(func);
         }

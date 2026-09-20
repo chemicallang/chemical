@@ -118,6 +118,45 @@ func neg_cast_struct_to_bool(env : &mut TestEnv) {
 }
 
 @test
+func neg_cast_primitive_to_struct(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // the opposite direction of the checks above: an integer cannot become a struct.
+    // codegen would emit an invalid aggregate cast (`(struct S) 5`), which tcc accepts
+    // and then produces a program that faults at run time.
+    var ch = "struct S {\n    var x : int\n}\nfunc main() {\n    var s = 5 as S\n}\n"
+    expect_compile_error(env, "primitive_to_struct_cast", ch, "cannot be cast")
+}
+
+@test
+func neg_cast_bool_to_struct(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct S {\n    var x : int\n}\nfunc main() {\n    var s = true as S\n}\n"
+    expect_compile_error(env, "bool_to_struct_cast", ch, "cannot be cast")
+}
+
+@test
+func neg_cast_double_to_struct(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct S {\n    var x : int\n}\nfunc main() {\n    var s = 1.5 as S\n}\n"
+    expect_compile_error(env, "double_to_struct_cast", ch, "cannot be cast")
+}
+
+@test
+func neg_cast_null_to_struct(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct S {\n    var x : int\n}\nfunc main() {\n    var s = null as S\n}\n"
+    expect_compile_error(env, "null_to_struct_cast", ch, "cannot be cast")
+}
+
+@test
+func cast_between_pointer_types_allowed(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // the primitive to aggregate rejection must not break legitimate pointer casts
+    var ch = "struct S {\n    var x : int\n}\npublic func main() : int {\n    var x = 1\n    var p : *int = &raw x\n    var q = p as *mut S\n    return (q != null) as int\n}\n"
+    expect_compile_success(env, "cast_between_pointer_types_allowed", ch)
+}
+
+@test
 func pointer_to_int_cast_allowed(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     // an explicit pointer to integer cast is supported

@@ -80,6 +80,12 @@ void Parser::parseTopLevelMultipleStatements(ASTAllocator& allocator, std::vecto
         } else if(!parseAnnotation(allocator)) {
             if (break_at_no_stmt || token->type == TokenType::EndOfFile) {
                 break;
+            } else if (token->type == TokenType::RBrace) {
+                // a closing brace that does not close a declaration used to be skipped silently,
+                // which let a file with unbalanced braces compile as if it were well formed
+                error("unexpected closing brace '}' at the top level of a module");
+                token++;
+                continue;
             } else {
                 // skip the current token
                 // error("skipped due to invalid syntax before it", token->position);

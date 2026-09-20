@@ -515,8 +515,9 @@ public:
     /**
      * translates given import result to c using visitor
      * doesn't perform symbol resolution
+     * @return true if any error diagnostic was reported while translating
      */
-    void declare_before_translation(
+    bool declare_before_translation(
             ToCAstVisitor& visitor,
             std::vector<ASTNode*>& import_res,
             const std::string& file
@@ -525,8 +526,9 @@ public:
     /**
      * translates given import result to c using visitor
      * doesn't perform symbol resolution
+     * @return true if any error diagnostic was reported while translating
      */
-    void translate_after_declaration(
+    bool translate_after_declaration(
             ToCAstVisitor& visitor,
             std::vector<ASTNode*>& import_res,
             const std::string& file
@@ -535,8 +537,9 @@ public:
     /**
      * translates given import result to c using visitor
      * doesn't perform symbol resolution
+     * @return true if any error diagnostic was reported while translating
      */
-    void translate_to_c(
+    bool translate_to_c(
         ToCAstVisitor& visitor,
         std::vector<ASTNode*>& import_res,
         const std::string& file
@@ -558,6 +561,18 @@ public:
         ToCAstVisitor& visitor,
         LabModule* module
     );
+
+    /**
+     * prints the diagnostics collected while translating a file to C and tells whether
+     * any of them was an error. Errors during translation mean the generated C cannot
+     * be trusted, so the build must be stopped instead of continuing with bad code
+     */
+    bool print_translation_diagnostics(ToCAstVisitor& visitor, const std::string& abs_path);
+
+    /**
+     * same as above, for diagnostics that carry their own file path
+     */
+    bool print_translation_diagnostics(ToCAstVisitor& visitor);
 
     /**
      * this is the ultimate function, it declares and translates

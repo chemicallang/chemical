@@ -184,6 +184,15 @@ public:
     Value* getNullValue();
 
     /**
+     * interpreted calls run on the C++ stack, so a function which never returns —
+     * like a comptime function calling itself — would exhaust the thread's stack and
+     * crash the compiler. This reports an error at the given node and returns true
+     * once too little stack space is left to keep nesting calls, so callers must not
+     * evaluate another nested call.
+     */
+    bool stack_space_exhausted(ASTNode* node);
+
+    /**
      * declares a value with this name in current scope
      */
     void declare(const chem::string_view& name, Value* value);
@@ -248,8 +257,7 @@ public:
      */
     template <typename GS = GlobalInterpretScope>
     inline void error(const chem::string_view& err, ASTNode* node) {
-        const auto diagnoser = static_cast<GS*>(global)->getASTDiagnoser();
-        diagnoser.error(err, node);
+        static_cast<GS*>(global)->getASTDiagnoser().error(err, node);
     }
 
     /**

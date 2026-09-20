@@ -187,6 +187,11 @@ Value* LambdaFunction::call(
     std::vector<Value*>& call_args
 ) {
     const auto global = call_scope->global;
+    // lambdas recurse on the C++ stack as well, so a lambda calling itself must be
+    // stopped before the stack of the thread is exhausted, which would crash the compiler
+    if(call_scope->stack_space_exhausted((ASTNode*) this)) {
+        return call_scope->getNullValue();
+    }
     const auto prev_func = global->current_func_type;
     global->current_func_type = this;
 

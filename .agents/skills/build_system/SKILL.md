@@ -450,6 +450,21 @@ job_allocator;            // Lifetime = entire job
 ast_allocator;            // Lifetime = entire compilation session
 ```
 
+### Shared, unsynchronised build state (known gap)
+`mod_storage`, `coreNodes`, `implsIndex`, `current_job`, `executables` and the
+three AST allocator pointers are build-wide state shared by the top-level build,
+any nested `build.lab`/`chemical.mod` build and every job. Nothing isolates them,
+so a nested build can clear state an enclosing build still uses. This is a known
+structural gap — though it is *not* (as measured, see below) the cause of the
+intermittent `built_lab_file` SIGSEGV.
+
+That crash is still **open**: a byte-shifted pointer / one-byte write into
+`built_lab_file`'s stack frame, ~1 in 250 compiles normally but ~1 in 5 under
+`gdb` (no ASLR). Reproduce with `gdb -batch`, not with a plain loop. Full
+write-up — crash sites, the corruption signature, the reproduction harness, and
+what has already been ruled out — is in
+[`lang/docs/lab-build-crash-investigation.md`](../../../lang/docs/lab-build-crash-investigation.md).
+
 ## Key Files Reference
 
 | File | Lines | Role |

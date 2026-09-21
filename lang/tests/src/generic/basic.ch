@@ -133,3 +133,62 @@ func test_native_generic_nested_fn_type() {
     })
 }
 
+// ---------------------------------------------------------------------------
+// B20: field access on a *concretely instantiated* generic type inside a generic
+// body must use the substituted member type, not the master declaration's
+// generic parameter. Previously `b.value` (b : B20Box<int>) stayed typed `T`,
+// so `b.value == 42` failed; and a function-typed member of `B20Table<int>`
+// stayed `(x : T) => int`. Partially applied types (still mentioning a generic
+// parameter) must stay deferred.
+// ---------------------------------------------------------------------------
+
+struct B20Box<T> {
+    var value : T
+}
+
+struct B20Table<T> {
+    var poll : (x : T) => int
+}
+
+struct B20Wrapper<A, B> {
+    var a : A
+    var b : B
+}
+
+struct B20FutureTable<T> {
+    var cb : (x : T) => int
+}
+
+func b20_unit(x : int) : int { return 0 }
+
+func <T> b20_read_box(b : B20Box<int>) : int {
+    if(b.value == 42) { return 0 } else { return 1 }
+}
+
+func <T> b20_make_table() : int {
+    var t = malloc(sizeof(B20Table<int>)) as *mut B20Table<int>
+    t.poll = b20_unit
+    return t.poll(1)
+}
+
+func b20_wrapper_cb(w : B20Wrapper<int, int>) : int { return w.a + w.b }
+
+func <T> b20_composite(ft : B20FutureTable<B20Wrapper<int, int>>) : int {
+    var f = ft.cb
+    return f(B20Wrapper<int, int> { a : 3, b : 4 })
+}
+
+func test_native_generic_composite_field() {
+    test("field access on a concrete generic instantiation inside a generic body (B20)", () => {
+        var b = B20Box<int> { value : 42 }
+        return b20_read_box<int>(b) == 0
+    })
+    test("function-typed field of a concrete generic instantiation inside a generic body (B20)", () => {
+        return b20_make_table<int>() == 0
+    })
+    test("composite generic argument field access inside a generic body (B20)", () => {
+        var ft = B20FutureTable<B20Wrapper<int, int>> { cb : b20_wrapper_cb }
+        return b20_composite<int>(ft) == 7
+    })
+}
+

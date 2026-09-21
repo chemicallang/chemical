@@ -45,18 +45,17 @@ not run it.)
 
 | Order | ID | Title | Area | Effort |
 |-------|----|-------|------|--------|
-| 1 | **B24** | Struct-typed async parameter field access (2c) | `2cASTVisitor.cpp` | S |
-| 2 | **B25** | Combinator await inside a spawned coroutine loses `Context` (LLVM) | `LLVMCoroutine.cpp` | M |
-| 3 | **B20** | Composite-generic field access in a generic body | symres/generics | L |
+| ~~1~~ | ~~**B24**~~ | ~~Struct-typed async parameter field access (2c)~~ — ✅ FIXED | `2cASTVisitor.cpp` | S |
+| ~~2~~ | ~~**B25**~~ | ~~Combinator await inside a spawned coroutine loses `Context` (LLVM)~~ — ✅ FIXED | `LLVMCoroutine.cpp` | M |
+| ~~3~~ | ~~**B20**~~ | ~~Composite-generic field access in a generic body~~ — ✅ FIXED | symres/generics | L |
 | 4 | **B15-W** | Async debug info disabled (LLVM `debug_complete`) | `LLVMCoroutine.cpp` | M |
 | 5 | **AC** | Async closures not lowered | parser/symres/codegen | L |
 | 6 | **TLS-VT** | TLS has no non-blocking transport | `tls` | L |
 | 7 | **WIN-IOCP** | Windows async reactor is a stub | `async`/`net` win | L |
 | 8 | **POSIX-EPOLL** | POSIX reactor is `select(2)` | `async` posix | M |
 
-**B23 and B26 are fixed** (kept below for reference). Items 1–3 are pure compiler
-bugs; 4 is infrastructure; 5–8 are features/gaps. All are independent unless
-noted.
+**B20, B23, B24, B25 and B26 are fixed** (kept below for reference). Items 4–8
+are infrastructure/features/gaps. All are independent unless noted.
 
 ---
 
@@ -136,35 +135,36 @@ noted.
 
 ---
 
-## B25 — A spawned coroutine that awaits a combinator loses its `Context` on LLVM
+## B25 — A spawned coroutine that awaits a combinator loses its `Context` on LLVM — ✅ FIXED
 
-- **Status:** Worked around. **Priority: High.**
-- **Symptom:** `async::spawn<int>(f())` where `f` awaits `async::timeout_or(...)`
-  or `async::select(...)` crashes on LLVM: the combinator polls the inner future
-  with a `Context` whose waker has a garbage `vtbl`; `ready_poll`/`Waker::clone`
-  jumps through it. Minimal repro: a spawned coroutine awaiting
-  `timeout_or<Unit>(readable(fd), ms, Unit)`. The same future awaited directly
-  from `block_on` works, and `await spawn_blocking` inside a spawned coroutine
-  works.
-- **Root cause / where:** `compiler/backend/LLVMCoroutine.cpp` — the coroutine
-  `__cx`/`Context` forwarding: the `Context*` passed to a coroutine that is
-  itself polled by another future is not preserved when it forwards to a child
-  poll.
-- **Current workaround:** never await a combinator inside a task polled on the
-  executor. `server::serve_coro` (`lang/libs/http/src/async.ch`) uses a bounded
-  blocking `accept` on the pool instead of `timeout_or(accept_async(...))`.
-- **Definition of done:** a spawned coroutine awaiting `select`/`timeout_or`
-  completes correctly on LLVM. Add an executor test.
-- **Files:** `compiler/backend/LLVMCoroutine.cpp`, `compiler/async/AwaitNormalizePass.cpp`.
+- **Was:** `async::spawn<int>(f())` where `f` awaits `async::timeout_or(...)` or
+  `async::select(...)` crashed on LLVM: the combinator polled the inner future
+  with a `Context` whose waker had a garbage `vtbl`, and `ready_poll`/`Waker::clone`
+  jumped through it. Awaiting the same future directly from `block_on` worked.
+- **Root cause (confirmed):** `gen_llvm_await` (`compiler/backend/LLVMCoroutine.cpp`)
+  loaded the caller's `Context*` from the coroutine wrapper **once, before the
+  await poll loop**, and reused it after every resume. The executor
+  (`executor_poll_tasks`) passes a *fresh stack `Context`* on every poll; a resumed
+  coroutine therefore forwarded a stale pointer to its child poll. The first
+  (pre-suspend) poll used a valid `Context`, which is why direct `block_on`
+  (single poll) was unaffected.
+- **Fix:** reload the `Context*` from the wrapper inside the `await.loop` block so
+  each iteration — including the resume path — uses the `Context` stored by
+  `emit_poll_fn` at poll entry.
+- **Regression tests:** `lang/tests/async/spawn_combinator_test.ch`
+  (`test_async_spawn_await_timeout_or`, `test_async_spawn_await_select`). `--async`
+  is 48/48 on TCC and LLVM.
+- **Note:** `server::serve_coro` (`lang/libs/http/src/async.ch`) still uses the
+  bounded blocking `accept` workaround; switching it to `timeout_or(accept_async(...))`
+  is now possible but is a separate behavioural change (needs the `--tls` suite).
+- **Files:** `compiler/backend/LLVMCoroutine.cpp`.
 
 ---
 
-## B20 — Field access on a composite-generic type inside a generic body
+## B20 — Field access on a composite-generic type inside a generic body — ✅ FIXED
 
-- **Status:** Partially fixed (`GenericFuncDecl::instantiate_call` now preserves
-  `GenericType` args); the **field-access** half remains. **Priority: Medium.**
-- **Symptom:** inside a generic function, accessing a field of a generic type
-  instantiated with a *composite* argument resolves to the master's field type,
+- **Was:** inside a generic function, accessing a field of a generic type
+  instantiated with a *composite* argument resolved to the master's field type,
   not the substituted one:
 
   ```chemical
@@ -174,25 +174,36 @@ noted.
   }
   ```
 
-  The reported type is the master `FutureTable` parameter (`Poll<T>`) because
-  `SymResLinkBody::VisitGenericType` only calls `instantiate_inline` in a generic
-  body, so `referenced->linked` stays the master.
-- **Root cause / where:** `compiler/symres/SymResLinkBody.cpp::VisitGenericType`
-  (and the member-access linking that consumes `referenced->linked`). Making it
-  instantiate in a generic context previously aborted with
-  `unexpected generic type parameter usage` on `std` partially-applied generics
-  — that is the real problem to solve (partially-applied generics).
-- **Current workaround:** type-erase bookkeeping through non-generic vtable
-  structs (`TaskVTable`, `RawTask` in `exec.ch`); vtable/state types use a bare
-  generic parameter (`FutureTable<T>`), never a composite of parameters
-  (`FutureTable<Result<T, E>>`). This is why `select`/`timeout_or` return the
-  child payload type directly instead of `Either`/`Result`.
-- **Definition of done:** the minimal repro compiles; `FutureTable<Result<T, E>>`
-  is legal; `select`/`timeout_or` can return a proper `Either`/`Result` if
-  desired. Keep the `std` partially-applied-generic path green.
-- **Files:** `compiler/symres/SymResLinkBody.cpp`,
-  `compiler/generics/GenericInstantiator.cpp`,
-  `ast/types/GenericType.cpp`.
+- **Root cause (confirmed):** a generic type written in a generic body was always
+  deferred (`SymResLinkBody::VisitGenericType` called only `instantiate_inline`,
+  a no-op for structs). Because the signature pass also defers instantiations,
+  `Box<int>`/`FutureTable<Unit>` still pointed at the master declaration while the
+  body was linked, so member access resolved to the master's generic parameter
+  (`T`). Parameter types were additionally never re-visited during the master body
+  link (`SymResLinkBody::VisitFunctionParam` only declared the parameter).
+- **Fix (`compiler/symres/SymResLinkBody.cpp`):**
+  1. In `VisitGenericType`, for a **struct-like** generic (`GenericStructDecl`,
+     `GenericUnionDecl`, `GenericVariantDecl`) whose arguments are all concrete and
+     whose count matches, instantiate it during the generic-context link. Types
+     that still mention a generic parameter (partially applied, e.g. `Box<T>`,
+     `gen_point_existence_t34<() => T>`) stay deferred, so the `std`
+     partially-applied path is unchanged. Interfaces, type aliases and generic
+     functions also stay deferred (early instantiation broke interface dispatch /
+     function references — the `json` library caught this).
+  2. In `VisitFunctionParam`, visit a concrete parameter type during the generic
+     body link so the parameter itself carries the instantiated member types.
+  - `type_mentions_generic_param` recurses through generic args, pointers,
+    references, arrays, function/closure types and `%runtime`/`%maybe_runtime`
+    wrappers.
+- **Definition of done met:** the minimal repro compiles;
+  `FutureTable<Wrapper<int, int>>` (composite argument) is legal and its fields are
+  substituted. The combinators still use the single-payload-type design — that was
+  a deliberate ABI choice, and changing it is optional.
+- **Regression tests:** `lang/tests/src/generic/basic.ch`
+  (`test_native_generic_composite_field`, 3 cases) wired into
+  `lang/tests/src/tests.ch`. TCC 2205/2205, LLVM 2206/2206, `--libs` 650/650,
+  interpret 1814/1814.
+- **Files:** `compiler/symres/SymResLinkBody.cpp`.
 
 ---
 

@@ -254,6 +254,41 @@
     </script>
 }
 
+// Account `PasswordInput` is a component whose ROOT is another component
+// (`InputGroup`). When such a component is nested (mounted in "root" mode on its
+// SSR root element), hydrating its output mounts `InputGroup` on the SAME host
+// element. `$__uni_mount` treats the parent instance stored on that host as a
+// stale remount and disposes it -- clearing the parent's state-signal
+// subscribers. The click handler still runs and mutates `show`, but the input
+// `type` and the button label never update. The account login "Show" button is
+// exactly this shape: a nested PasswordInput (root = InputGroup).
+#universal PwRootInputGroup(props) {
+    state show = false
+    var inputType = show ? "text" : "password"
+    return <InputGroup>
+        <Input data-testid="pw" type={inputType} />
+        <button data-testid="tog" type="button" onClick={() => show = !show}>{show ? "Hide" : "Show"}</button>
+    </InputGroup>
+}
+
+#universal PwRootHost(props) {
+    return <div>
+        <PwRootInputGroup />
+    </div>
+}
+
+#universal_test("component whose root is another component keeps state after hydration") {
+    <PwRootHost />
+    <script>
+        const pw = byTestId('pw')
+        const tog = byTestId('tog')
+        expect(pw.jsProp('type')).toBe('password')
+        tog.click()
+        expect(pw.jsProp('type')).toBe('text')
+        expect(tog.textContent()).toBe('Hide')
+    </script>
+}
+
 
 
 

@@ -308,6 +308,6 @@ a real page) and a raw JS `<script>` of steps run in a real WebView:
 }
 ```
 
-Run with `./scripts/test.sh --tcc --universal-tests`. See the `universal_testing`
+Run with `./scripts/test.sh --tcc --universal`. See the `universal_testing`
 skill for the full API and gotchas; for headless/cross-browser coverage use the
 `components_e2e` Playwright suite instead.

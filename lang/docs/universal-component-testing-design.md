@@ -263,9 +263,9 @@ observed, timeout, captured console errors.
 ### 4.5 CLI
 
 ```
-./scripts/test.sh --tcc --universal-tests          # build + run in a WebView
-./scripts/test.sh --tcc --universal-tests --headed
-./scripts/test.sh --tcc --universal-tests --ut-workers 4
+./scripts/test.sh --tcc --universal          # build + run in a WebView (hidden)
+./scripts/test.sh --tcc --universal --ut-headed   # show the window
+./scripts/test.sh --tcc --all                # --all now includes the universal suite
 ```
 
 Runs from a dedicated module (e.g. `lang/tests/universal_webview/`) so the
@@ -434,7 +434,7 @@ full suites — plugins 1125/1125, libs 650/650, main 2200/2200.
    container.
 4. Filters `--test-names a,b` and `--test-ids 1,2`.
 5. `lang/tests/universal_webview/` (6 tests: SSR, props, click, conditional,
-   typing, isolate) and `--universal-tests` in `scripts/test.sh`.
+   typing, isolate) and `--universal` in `scripts/test.sh`.
 
 Important: `universal_test_runner` is a **comptime** function, so `ut_all()` is
 evaluated at the user call site — after the test module has been parsed and its
@@ -491,10 +491,10 @@ Playwright→harness API mapping are documented in the `universal_testing` skill
 - `lang/tests/universal_webview/` (`chemical.mod`, `src/main.ch`, `src/tests.ch`).
 - `ast/utils/GlobalFunctions.cpp` — `InterpretGetUniversalTests` +
   `IntrinsicsNamespace` registration.
-- `scripts/test.sh` — `--universal-tests` flag.
+- `scripts/test.sh` — `--universal` flag.
 - `lang/tests/build.lab` — `test_universal_webview_exe` + `test-universal-tests`.
 
-Run it with `./scripts/test.sh --tcc --universal-tests` (requires GTK3/WebKit2
+Run it with `./scripts/test.sh --tcc --universal` (requires GTK3/WebKit2
 and a display; for headless CI wrap in `xvfb-run`).
 
 ---

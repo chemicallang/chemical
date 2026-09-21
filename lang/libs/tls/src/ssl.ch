@@ -783,6 +783,10 @@ public namespace tls {
     // Send a KeyUpdate message (TLS 1.3)
     // request_response: if true, requests the peer to also send a KeyUpdate
     public func tls13_send_key_update(ssl : *mut SSLContext, request_response : bool) : int {
+        return async::block_on<int>(tls13_send_key_update_coro(ssl, request_response))
+    }
+
+    public async func tls13_send_key_update_coro(ssl : *mut SSLContext, request_response : bool) : int {
         // Build KeyUpdate message: key_update_request (1 byte)
         var ku_body : [1]u8
         if(request_response) {
@@ -795,7 +799,7 @@ public namespace tls {
         // send all its traffic using the next generation of keys." The KeyUpdate
         // message itself is protected under the OLD keys (the peer only updates
         // its receive keys after processing it), so send FIRST, then rotate.
-        var ret = send_handshake_msg(ssl, SSL_HS_KEY_UPDATE as u8, &raw ku_body[0], 1)
+        var ret = await send_handshake_msg(ssl, SSL_HS_KEY_UPDATE as u8, &raw ku_body[0], 1)
         if(ret < 0) { return ret }
 
         ret = tls13_update_send_keys(ssl)
@@ -1457,7 +1461,7 @@ public namespace tls {
     public comptime const RECORD_HEADER_SIZE = 5
 
     // Send a TLS record
-    func send_record(ssl : *mut SSLContext, content_type : u8,
+    async func send_record(ssl : *mut SSLContext, content_type : u8,
                      data : *u8, data_len : u16) : int {
         if((data_len as int) > MAX_RECORD_PAYLOAD) { return ERR_SSL_INTERNAL_ERROR }
 
@@ -1469,10 +1473,10 @@ public namespace tls {
             header[2] = ssl.minor_ver
             header[3] = ((data_len >> 8) & 0xFF) as u8
             header[4] = (data_len & 0xFF) as u8
-            var ret = ssl_send(ssl, &raw header[0], 5)
+            var ret = await ssl_send(ssl, &raw header[0], 5)
             if(ret < 0) { return ret }
             if(data_len > 0) {
-                ret = ssl_send(ssl, data, data_len as i32)
+                ret = await ssl_send(ssl, data, data_len as i32)
             }
             return ret
         }
@@ -1485,10 +1489,10 @@ public namespace tls {
             header[2] = ssl.minor_ver
             header[3] = ((data_len >> 8) & 0xFF) as u8
             header[4] = (data_len & 0xFF) as u8
-            var ret = ssl_send(ssl, &raw header[0], 5)
+            var ret = await ssl_send(ssl, &raw header[0], 5)
             if(ret < 0) { return ret }
             if(data_len > 0) {
-                ret = ssl_send(ssl, data, data_len as i32)
+                ret = await ssl_send(ssl, data, data_len as i32)
             }
             return ret
         }
@@ -1522,7 +1526,7 @@ public namespace tls {
 
         if(enc_len < 0) { return enc_len }
 
-        var ret = ssl_send(ssl, &raw encrypted[0], enc_len)
+        var ret = await ssl_send(ssl, &raw encrypted[0], enc_len)
         if(ret >= 0 && ssl.tls_version < SSL_VERSION_TLS1_3) {
             ssl_incr_seq_num(&raw mut ssl.out_ctr[0])
         }
@@ -1530,15 +1534,15 @@ public namespace tls {
     }
 
     // Send an alert record
-    func send_alert(ssl : *mut SSLContext, level : u8, description : u8) : int {
+    async func send_alert(ssl : *mut SSLContext, level : u8, description : u8) : int {
         var alert_data : [2]u8
         alert_data[0] = level as u8
         alert_data[1] = description as u8
-        return send_record(ssl, SSL_MSG_ALERT as u8, &raw alert_data[0], 2 as u16)
+        return await send_record(ssl, SSL_MSG_ALERT as u8, &raw alert_data[0], 2 as u16)
     }
 
     // Send a handshake message
-    func send_handshake_msg(ssl : *mut SSLContext, msg_type : u8,
+    async func send_handshake_msg(ssl : *mut SSLContext, msg_type : u8,
                             data : *u8, data_len : u32) : int {
         var hs_header : [4]u8
         hs_header[0] = msg_type
@@ -1558,7 +1562,7 @@ public namespace tls {
             j += 1
         }
 
-        return send_record(ssl, SSL_MSG_HANDSHAKE as u8, &raw buf[0], total_len as u16)
+        return await send_record(ssl, SSL_MSG_HANDSHAKE as u8, &raw buf[0], total_len as u16)
     }
 
     // ─── Buffered Record I/O ──────────────────────────────────────────────
@@ -1569,13 +1573,13 @@ public namespace tls {
     //   - Partial reads
 
     // Fetch more data from the socket into the input buffer
-    func ssl_fetch_input(ssl : *mut SSLContext, min_len : size_t) : int {
+    async func ssl_fetch_input(ssl : *mut SSLContext, min_len : size_t) : int {
         while(ssl.in_left < min_len as i32) {
             var buf_start : i32 = ssl.in_left
             if(buf_start >= 17408 as i32) { return ERR_SSL_BUFFER_TOO_SMALL }
             var max_read : i32 = (17408 as i32) - buf_start
 
-            var n = ssl_recv(ssl, &raw mut ssl.in_buf[buf_start], max_read)
+            var n = await ssl_recv(ssl, &raw mut ssl.in_buf[buf_start], max_read)
             if(n < 0) {
                 if(n == ERR_SSL_CONN_EOF) {
                     if(ssl.in_left == 0) { return ERR_SSL_CONN_EOF }
@@ -1600,9 +1604,9 @@ public namespace tls {
     // Returns 0 on success, negative error code on failure.
     // The record header (5 bytes) is stored in ssl.in_hdr.
     // The record payload (record_len bytes) is stored in ssl.in_buf.
-    func ssl_read_record(ssl : *mut SSLContext) : int {
+    async func ssl_read_record(ssl : *mut SSLContext) : int {
         // Ensure we have at least 5 bytes (record header)
-        var ret = ssl_fetch_input(ssl, 5)
+        var ret = await ssl_fetch_input(ssl, 5)
         if(ret < 0) { return ret }
 
         // Parse record header from buffer
@@ -1619,7 +1623,7 @@ public namespace tls {
         // Note: NOT overwriting ssl.in_left here to preserve any
         // coalesced records that arrived in the same TCP segment.
         var total_needed : size_t = 5 + record_len
-        ret = ssl_fetch_input(ssl, total_needed)
+        ret = await ssl_fetch_input(ssl, total_needed)
         if(ret < 0) { return ret }
 
         ssl.in_msglen = record_len as i32
@@ -1722,8 +1726,8 @@ public namespace tls {
     }
 
     // Read a TLS record header (blocking) - maintains backward compatibility
-    func read_record_header(ssl : *mut SSLContext, hdr : *mut u8) : int {
-        var ret = ssl_read_record(ssl)
+    async func read_record_header(ssl : *mut SSLContext, hdr : *mut u8) : int {
+        var ret = await ssl_read_record(ssl)
         if(ret < 0) { return ret }
         hdr[0] = ssl.in_hdr[0]
         hdr[1] = ssl.in_hdr[1]
@@ -2095,16 +2099,39 @@ public namespace tls {
     // I/O Functions
     // ============================================================================
 
-    func ssl_send(ssl : *mut SSLContext, data : *u8, len : i32) : int {
+    // Transport callbacks (TLS-VT). The blocking transport reads/writes the
+    // socket with blocking syscalls and completes eagerly; the async transport
+    // suspends on fd readiness. Both return a `FutureHandle<int>`.
+    async func transport_recv_blocking(ctx : *mut void, buf : *mut u8, len : size_t) : int {
+        return net::recv_all(ctx as net::Socket, buf, len)
+    }
+
+    async func transport_send_blocking(ctx : *mut void, buf : *u8, len : size_t) : int {
+        return net::send_all(ctx as net::Socket, buf as *char, len as int)
+    }
+
+    async func transport_recv_async(ctx : *mut void, buf : *mut u8, len : size_t) : int {
+        var fd = ctx as net::Socket
+        return await net::recv_async(fd as int, buf, len)
+    }
+
+    async func transport_send_async(ctx : *mut void, buf : *u8, len : size_t) : int {
+        var fd = ctx as net::Socket
+        return await net::send_async(fd as int, buf as *char, len as int)
+    }
+
+    async func ssl_send(ssl : *mut SSLContext, data : *u8, len : i32) : int {
         if(!ssl.transport_connected) { return ERR_SSL_INTERNAL_ERROR }
-        var n = net::send_all(ssl.transport_socket, data as *char, len)
+        var tr = ssl.transport
+        var n = await tr.send_fn(tr.ctx, data, len as size_t)
         if(n < 0) { return ERR_SSL_CONN_EOF }
         return len
     }
 
-    func ssl_recv(ssl : *mut SSLContext, buf : *mut u8, len : i32) : int {
+    async func ssl_recv(ssl : *mut SSLContext, buf : *mut u8, len : i32) : int {
         if(!ssl.transport_connected) { return ERR_SSL_INTERNAL_ERROR }
-        var n = net::recv_all(ssl.transport_socket, buf, len as usize)
+        var tr = ssl.transport
+        var n = await tr.recv_fn(tr.ctx, buf, len as size_t)
         if(n < 0) { return ERR_SSL_CONN_EOF }
         if(n == 0) { return ERR_SSL_CONN_EOF }
         return n
@@ -2115,11 +2142,11 @@ public namespace tls {
     // ============================================================================
 
     // Read a single handshake message from the server
-    func read_handshake_msg(ssl : *mut SSLContext, hs_type : *mut u8,
+    async func read_handshake_msg(ssl : *mut SSLContext, hs_type : *mut u8,
                              hs_len : *mut u32, hs_buf : *mut u8,
                               buf_size : size_t) : int {
         var hdr : [5]u8
-        var ret = read_record_header(ssl, &raw mut hdr[0])
+        var ret = await read_record_header(ssl, &raw mut hdr[0])
         if(ret < 0) { return ret }
 
         var content_type = hdr[0]
@@ -2130,7 +2157,7 @@ public namespace tls {
         var ccs_data : [1]u8
             var n = read_record_payload(ssl, &raw mut ccs_data[0], 1)
             if(n < 0) { return n }
-            ret = read_record_header(ssl, &raw mut hdr[0])
+            ret = await read_record_header(ssl, &raw mut hdr[0])
             if(ret < 0) { return ret }
             content_type = hdr[0]
             record_len = read_u16_be(&raw hdr[3])
@@ -2926,7 +2953,7 @@ public namespace tls {
         return 0
     }
 
-    func do_tls12_client_handshake(ssl : *mut SSLContext) : int {
+    async func do_tls12_client_handshake(ssl : *mut SSLContext) : int {
         ensure_init()
 
         // ── Handshake transcript hash context (dual SHA-256 + SHA-384) ──
@@ -2948,7 +2975,7 @@ public namespace tls {
         // Feed ClientHello into transcript hash (including handshake header)
         tls12_hash_handshake_msg_both(unsafe(&raw mut hash_ctx), unsafe(&raw mut hash_ctx_384), SSL_HS_CLIENT_HELLO as u8, ch_len as u32, &raw ch_buf[0])
 
-        var ret = send_handshake_msg(ssl, SSL_HS_CLIENT_HELLO as u8, &raw ch_buf[0], ch_len as u32)
+        var ret = await send_handshake_msg(ssl, SSL_HS_CLIENT_HELLO as u8, &raw ch_buf[0], ch_len as u32)
         if(ret < 0) { return ret }
 
         // Allocate handshake params on the heap
@@ -2971,7 +2998,7 @@ public namespace tls {
         var hs_type : u8 = 0
         var hs_len : u32 = 0
         var hs_buf : [8192]u8
-        ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
+        ret = await read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                   &raw mut hs_buf[0], 8192)
         if(ret < 0) { return ret }
 
@@ -2993,11 +3020,11 @@ public namespace tls {
         if(cs_info_early.hash == HASH_SHA384 as u8) {
             use_sha384 = true
         } else if(cs_info_early.hash != HASH_SHA256 as u8 && cs_info_early.hash != HASH_NONE as u8) {
-            send_alert(ssl, SSL_ALERT_LEVEL_FATAL as u8, SSL_ALERT_MSG_HANDSHAKE_FAILURE as u8)
+            var alert_sent = await send_alert(ssl, SSL_ALERT_LEVEL_FATAL as u8, SSL_ALERT_MSG_HANDSHAKE_FAILURE as u8)
             return ERR_SSL_HANDSHAKE_FAILURE
         }
         if(cs_info_early.key_exchange != KE_RSA as u8 && cs_info_early.key_exchange != KE_NONE as u8) {
-            send_alert(ssl, SSL_ALERT_LEVEL_FATAL as u8, SSL_ALERT_MSG_HANDSHAKE_FAILURE as u8)
+            var alert_sent = await send_alert(ssl, SSL_ALERT_LEVEL_FATAL as u8, SSL_ALERT_MSG_HANDSHAKE_FAILURE as u8)
             return ERR_SSL_HANDSHAKE_FAILURE
         }
 
@@ -3014,7 +3041,7 @@ public namespace tls {
         // 3. Read Certificate
         ssl.state = SSLState.SERVER_CERTIFICATE()
 
-        ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
+        ret = await read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                   &raw mut hs_buf[0], 8192)
         if(ret < 0) { return ret }
 
@@ -3077,7 +3104,7 @@ public namespace tls {
         // 4. Read ServerKeyExchange (if present) or ServerHelloDone
         var got_shd : bool = false
         if(ssl.state is SSLState.SERVER_KEY_EXCHANGE) {
-            ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
+            ret = await read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                       &raw mut hs_buf[0], 8192)
             if(ret < 0) { return ret }
             tls12_hash_handshake_msg_both(unsafe(&raw mut hash_ctx), unsafe(&raw mut hash_ctx_384), hs_type, hs_len, &raw hs_buf[4])
@@ -3092,13 +3119,13 @@ public namespace tls {
         if(!got_shd) {
             if(ssl.state is SSLState.SERVER_HELLO_DONE) {
                 // For ECDHE: server sends ServerKeyExchange then ServerHelloDone
-                ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
+                ret = await read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                           &raw mut hs_buf[0], 8192)
                 if(ret < 0) { return ret }
                 tls12_hash_handshake_msg_both(unsafe(&raw mut hash_ctx), unsafe(&raw mut hash_ctx_384), hs_type, hs_len, &raw hs_buf[4])
             } else {
                 // Certificate was not present, read ServerHelloDone
-                ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
+                ret = await read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                           &raw mut hs_buf[0], 8192)
                 if(ret < 0) { return ret }
                 tls12_hash_handshake_msg_both(unsafe(&raw mut hash_ctx), unsafe(&raw mut hash_ctx_384), hs_type, hs_len, &raw hs_buf[4])
@@ -3169,7 +3196,7 @@ public namespace tls {
         // 6. Send ClientKeyExchange (must be sent BEFORE transform activation per RFC 5246)
         //    Encryption starts after ChangeCipherSpec, so CKE must be in the clear.
         ssl.state = SSLState.CLIENT_KEY_EXCHANGE()
-        ret = send_handshake_msg(ssl, SSL_HS_CLIENT_KEY_EXCHANGE as u8, &raw cke_data[0], cke_len as u32)
+        ret = await send_handshake_msg(ssl, SSL_HS_CLIENT_KEY_EXCHANGE as u8, &raw cke_data[0], cke_len as u32)
         if(ret < 0) { return ret }
 
         // Feed ClientKeyExchange into transcript hash
@@ -3192,7 +3219,7 @@ public namespace tls {
         ssl.state = SSLState.CLIENT_CHANGE_CIPHER_SPEC()
         var ccs_msg : [1]u8
         ccs_msg[0] = 1 as u8
-        ret = send_record(ssl, SSL_MSG_CHANGE_CIPHER_SPEC as u8, &raw ccs_msg[0], 1 as u16)
+        ret = await send_record(ssl, SSL_MSG_CHANGE_CIPHER_SPEC as u8, &raw ccs_msg[0], 1 as u16)
         if(ret < 0) { return ret }
 
         // ── Populate and activate transforms (AFTER ChangeCipherSpec is sent) ──
@@ -3235,7 +3262,7 @@ public namespace tls {
 
         // 8. Send Finished (with verify_data)
         ssl.state = SSLState.CLIENT_FINISHED()
-        ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw client_finished[0], 12)
+        ret = await send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw client_finished[0], 12)
         if(ret < 0) { return ret }
 
         // Feed Client Finished message into transcript hash for verifying Server Finished
@@ -3252,7 +3279,7 @@ public namespace tls {
         ssl.state = SSLState.SERVER_CHANGE_CIPHER_SPEC()
         var nst_copy : [8192]u8
         var nst_push_len : size_t = 0
-        ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
+        ret = await read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                   &raw mut hs_buf[0], 8192)
         while(ret == 0 && hs_type == SSL_HS_NEW_SESSION_TICKET as u8) {
             tls12_hash_handshake_msg_both(unsafe(&raw mut hash_ctx), unsafe(&raw mut hash_ctx_384), SSL_HS_NEW_SESSION_TICKET as u8,
@@ -3262,7 +3289,7 @@ public namespace tls {
             while(nc < (4 + hs_len) && nc < 8192) { nst_copy[nc] = hs_buf[nc]; nc += 1 }
             nst_push_len = (4 + hs_len) as size_t
             if(nst_push_len > 8192) { nst_push_len = 8192 }
-            ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
+            ret = await read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                       &raw mut hs_buf[0], 8192)
         }
         if(ret < 0) { return ret }
@@ -3308,12 +3335,12 @@ public namespace tls {
                 i += 1
             }
             if(!verify_match) {
-                send_alert(ssl, SSL_ALERT_LEVEL_FATAL as u8, SSL_ALERT_MSG_DECRYPT_ERROR as u8)
+                var alert_sent = await send_alert(ssl, SSL_ALERT_LEVEL_FATAL as u8, SSL_ALERT_MSG_DECRYPT_ERROR as u8)
                 return ERR_SSL_HANDSHAKE_FAILURE
             }
         } else {
             // Unexpected message instead of server Finished
-            send_alert(ssl, SSL_ALERT_LEVEL_FATAL as u8, SSL_ALERT_MSG_UNEXPECTED_MESSAGE as u8)
+            var alert_sent = await send_alert(ssl, SSL_ALERT_LEVEL_FATAL as u8, SSL_ALERT_MSG_UNEXPECTED_MESSAGE as u8)
             return ERR_SSL_UNEXPECTED_MESSAGE
         }
 
@@ -3388,7 +3415,7 @@ public namespace tls {
         return 0
     }
 
-    func do_tls13_client_handshake(ssl : *mut SSLContext) : int {
+    async func do_tls13_client_handshake(ssl : *mut SSLContext) : int {
         ensure_init()
 
         // Ensure handshake params are allocated
@@ -3477,7 +3504,7 @@ public namespace tls {
         tls13_transcript_update(unsafe(&raw mut transcript), &raw ch_hdr[0], 4)
         tls13_transcript_update(unsafe(&raw mut transcript), &raw ch_buf[0], ch_len as size_t)
 
-        ret = send_handshake_msg(ssl, SSL_HS_CLIENT_HELLO as u8, &raw ch_buf[0], ch_len as u32)
+        ret = await send_handshake_msg(ssl, SSL_HS_CLIENT_HELLO as u8, &raw ch_buf[0], ch_len as u32)
         if(ret < 0) { return ret }
 
         // ── ServerHello ───────────────────────────────────────────────
@@ -3489,7 +3516,7 @@ public namespace tls {
 
         while(!got_server_hello) {
             var hdr : [5]u8
-            ret = read_record_header(ssl, &raw mut hdr[0])
+            ret = await read_record_header(ssl, &raw mut hdr[0])
             if(ret < 0) { return ret }
 
             var content_type = hdr[0]
@@ -3601,7 +3628,7 @@ public namespace tls {
                     tls13_transcript_update(unsafe(&raw mut transcript), &raw ch2_hdr[0], 4)
                     tls13_transcript_update(unsafe(&raw mut transcript), &raw ch2_buf[0], ch2_len as size_t)
 
-                    ret = send_handshake_msg(ssl, SSL_HS_CLIENT_HELLO as u8, &raw ch2_buf[0], ch2_len as u32)
+                    ret = await send_handshake_msg(ssl, SSL_HS_CLIENT_HELLO as u8, &raw ch2_buf[0], ch2_len as u32)
                     if(ret < 0) { return ret }
 
                     // Continue loop — read ServerHello next
@@ -3751,7 +3778,7 @@ public namespace tls {
 
         while(!server_finished_verified) {
             var enc_hdr : [5]u8
-            ret = read_record_header(ssl, &raw mut enc_hdr[0])
+            ret = await read_record_header(ssl, &raw mut enc_hdr[0])
             if(ret < 0) { return ret }
 
             var enc_ct = enc_hdr[0]
@@ -4060,7 +4087,7 @@ public namespace tls {
         // ── Send client Finished ─────────────────────────────────────
         // First send ChangeCipherSpec (TLS 1.3 compatibility)
         var ccs_out : [1]u8 = [1]
-        ret = send_record(ssl, SSL_MSG_CHANGE_CIPHER_SPEC as u8, &raw ccs_out[0], 1)
+        ret = await send_record(ssl, SSL_MSG_CHANGE_CIPHER_SPEC as u8, &raw ccs_out[0], 1)
         if(ret < 0) { return ret }
 
         // Derive client finished key
@@ -4108,7 +4135,7 @@ public namespace tls {
         }
         tls13_transcript_update(unsafe(&raw mut transcript), &raw cf_msg_buf[0], 4 + tls13_hash_len)
 
-        ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw cf_body[0], tls13_hash_len)
+        ret = await send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw cf_body[0], tls13_hash_len)
         if(ret < 0) { return ret }
 
         // ── Derive application traffic keys ──
@@ -4139,10 +4166,18 @@ public namespace tls {
     public func tls_accept(sock : net::Socket, cert : *mut X509Cert,
                            priv_key : *mut void,
                            cipher_suite : int = TLS_RSA_WITH_AES_128_GCM_SHA256) : *mut SSLContext {
+        return async::block_on<*mut SSLContext>(tls_accept_coro(sock, cert, priv_key, cipher_suite, false))
+    }
+
+    public async func tls_accept_coro(sock : net::Socket, cert : *mut X509Cert,
+                           priv_key : *mut void,
+                           cipher_suite : int,
+                           transport_async : bool) : *mut SSLContext {
         var ssl_mem = malloc(sizeof(SSLContext)) as *mut SSLContext
         if(ssl_mem == null) { return null }
 
         ssl_init(ssl_mem)
+        ssl_mem.transport_async = transport_async
         ssl_set_socket(ssl_mem, sock)
 
         // Create server config
@@ -4169,7 +4204,7 @@ public namespace tls {
         ssl_mem.conf_owned = true
 
         // Perform server handshake
-        var ret = do_tls12_server_handshake(ssl_mem)
+        var ret = await do_tls12_server_handshake(ssl_mem)
         if(ret < 0) {
             ssl_free(ssl_mem)
             unsafe { dealloc ssl_mem }
@@ -4599,11 +4634,40 @@ public namespace tls {
     public func ssl_set_socket(ssl : *mut SSLContext, socket : net::Socket) {
         ssl.transport_socket = socket
         ssl.transport_connected = true
-        net::set_blocking(socket)
+        if(ssl.transport_async) {
+            // non-blocking transport: record I/O suspends on fd readiness
+            net::set_nonblocking(socket)
+            ssl.transport = Transport {
+                ctx : socket as *mut void,
+                recv_fn : transport_recv_async,
+                send_fn : transport_send_async
+            }
+        } else {
+            net::set_blocking(socket)
+            ssl.transport = Transport {
+                ctx : socket as *mut void,
+                recv_fn : transport_recv_blocking,
+                send_fn : transport_send_blocking
+            }
+            ssl_apply_recv_timeout(ssl)
+        }
         // Set default TLS record version
         ssl.major_ver = 3
         ssl.minor_ver = 3 as u8
-        ssl_apply_recv_timeout(ssl)
+    }
+
+    // Switch an already-connected context to the non-blocking transport (used
+    // by the async entry points). Idempotent; a no-op before a socket is set.
+    public func ssl_use_async_transport(ssl : *mut SSLContext) {
+        ssl.transport_async = true
+        if(ssl.transport_connected && ssl.transport_socket != 0 as net::Socket) {
+            net::set_nonblocking(ssl.transport_socket)
+            ssl.transport = Transport {
+                ctx : ssl.transport_socket as *mut void,
+                recv_fn : transport_recv_async,
+                send_fn : transport_send_async
+            }
+        }
     }
 
     // Set the hostname for SNI and certificate verification
@@ -4686,7 +4750,7 @@ public namespace tls {
         return pos
     }
 
-    func do_tls12_server_handshake(ssl : *mut SSLContext) : int {
+    async func do_tls12_server_handshake(ssl : *mut SSLContext) : int {
         ensure_init()
 
         // Handshake transcript hash
@@ -4705,7 +4769,7 @@ public namespace tls {
         var hs_type : u8 = 0
         var hs_len : u32 = 0
         var hs_buf : [8192]u8
-        var ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
+        var ret = await read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                       &raw mut hs_buf[0], 8192)
         if(ret < 0) { return ret }
         if(hs_type != SSL_HS_CLIENT_HELLO as u8) {
@@ -4729,7 +4793,7 @@ public namespace tls {
         var sh_buf : [256]u8
         var sh_len = build_server_hello(ssl, &raw mut sh_buf[0], 256)
         ssl_hash_handshake_msg(unsafe(&raw mut hash_ctx), SSL_HS_SERVER_HELLO as u8, sh_len as u32, &raw sh_buf[0])
-        ret = send_handshake_msg(ssl, SSL_HS_SERVER_HELLO as u8, &raw sh_buf[0], sh_len as u32)
+        ret = await send_handshake_msg(ssl, SSL_HS_SERVER_HELLO as u8, &raw sh_buf[0], sh_len as u32)
         if(ret < 0) { return ret }
 
         // 3. Send Certificate (if we have one)
@@ -4763,7 +4827,7 @@ public namespace tls {
             cert_buf[2] = (list_len & 0xFF) as u8
 
             ssl_hash_handshake_msg(unsafe(&raw mut hash_ctx), SSL_HS_CERTIFICATE as u8, cert_pos as u32, &raw cert_buf[0])
-            ret = send_handshake_msg(ssl, SSL_HS_CERTIFICATE as u8, &raw cert_buf[0], cert_pos as u32)
+            ret = await send_handshake_msg(ssl, SSL_HS_CERTIFICATE as u8, &raw cert_buf[0], cert_pos as u32)
             if(ret < 0) { return ret }
         }
 
@@ -4771,12 +4835,12 @@ public namespace tls {
         ssl.state = SSLState.SERVER_HELLO_DONE()
         var shd_buf : [1]u8 = [0]
         ssl_hash_handshake_msg(unsafe(&raw mut hash_ctx), SSL_HS_SERVER_HELLO_DONE as u8, 0, &raw shd_buf[0])
-        ret = send_handshake_msg(ssl, SSL_HS_SERVER_HELLO_DONE as u8, &raw shd_buf[0], 0)
+        ret = await send_handshake_msg(ssl, SSL_HS_SERVER_HELLO_DONE as u8, &raw shd_buf[0], 0)
         if(ret < 0) { return ret }
 
         // 5. Read ClientKeyExchange
         ssl.state = SSLState.CLIENT_KEY_EXCHANGE()
-        ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
+        ret = await read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                   &raw mut hs_buf[0], 8192)
         if(ret < 0) { return ret }
         if(hs_type != SSL_HS_CLIENT_KEY_EXCHANGE as u8) {
@@ -4879,7 +4943,7 @@ public namespace tls {
         while(si9 < 8) { ssl.in_ctr[si9] = 0; si9 += 1 }
 
         // 6. Read Finished (read_handshake_msg auto-consumes any preceding CCS record)
-        ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
+        ret = await read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                   &raw mut hs_buf[0], 8192)
         if(ret < 0) { return ret }
         if(hs_type != SSL_HS_FINISHED as u8) {
@@ -4903,7 +4967,7 @@ public namespace tls {
             fi += 1
         }
         if(!fin_match) {
-            send_alert(ssl, SSL_ALERT_LEVEL_FATAL as u8, SSL_ALERT_MSG_DECRYPT_ERROR as u8)
+            var alert_sent = await send_alert(ssl, SSL_ALERT_LEVEL_FATAL as u8, SSL_ALERT_MSG_DECRYPT_ERROR as u8)
             return ERR_SSL_HANDSHAKE_FAILURE
         }
 
@@ -4917,7 +4981,7 @@ public namespace tls {
         ssl.state = SSLState.SERVER_CHANGE_CIPHER_SPEC()
         var ccs_msg : [1]u8
         ccs_msg[0] = 1 as u8
-        ret = send_record(ssl, SSL_MSG_CHANGE_CIPHER_SPEC as u8, &raw ccs_msg[0], 1 as u16)
+        ret = await send_record(ssl, SSL_MSG_CHANGE_CIPHER_SPEC as u8, &raw ccs_msg[0], 1 as u16)
         if(ret < 0) { return ret }
 
         // Activate send-side encryption after ChangeCipherSpec (server key)
@@ -4928,7 +4992,7 @@ public namespace tls {
         // 9. Send Finished (encrypted)
         ssl.state = SSLState.SERVER_FINISHED()
         tls12_compute_finished(&raw master_secret[0], false, &raw server_hs_hash[0], 32, &raw mut hs_buf[0])
-        ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw hs_buf[0], 12)
+        ret = await send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw hs_buf[0], 12)
         if(ret < 0) { return ret }
         ssl.state = SSLState.HANDSHAKE_OVER()
 
@@ -4939,7 +5003,7 @@ public namespace tls {
     // Server Handshake - TLS 1.3
     // ============================================================================
 
-    func do_tls13_server_handshake(ssl : *mut SSLContext) : int {
+    async func do_tls13_server_handshake(ssl : *mut SSLContext) : int {
         ensure_init()
 
         // Ensure handshake params
@@ -4956,7 +5020,7 @@ public namespace tls {
         var hs_len : u32 = 0
         var hs_buf : [8192]u8
 
-        ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
+        ret = await read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                   &raw mut hs_buf[0], 8192)
         if(ret < 0) { return ret }
         if(hs_type != SSL_HS_CLIENT_HELLO as u8) {
@@ -5188,7 +5252,7 @@ public namespace tls {
         tls13_transcript_update(unsafe(&raw mut transcript), &raw sh_buf[0], sh_len)
 
         // Send ServerHello
-        ret = send_handshake_msg(ssl, SSL_HS_SERVER_HELLO as u8, &raw sh_buf[0], sh_len as u32)
+        ret = await send_handshake_msg(ssl, SSL_HS_SERVER_HELLO as u8, &raw sh_buf[0], sh_len as u32)
         if(ret < 0) { return ret }
 
         // ── Derive handshake traffic keys ────────────────────────────
@@ -5204,7 +5268,7 @@ public namespace tls {
 
         // ── Send CCS (ChangeCipherSpec compatibility indicator) ──────
         var ccs_data : [1]u8 = [1]
-        ret = send_record(ssl, SSL_MSG_CHANGE_CIPHER_SPEC as u8, &raw ccs_data[0], 1 as u16)
+        ret = await send_record(ssl, SSL_MSG_CHANGE_CIPHER_SPEC as u8, &raw ccs_data[0], 1 as u16)
         if(ret < 0) { return ret }
 
         // ── Send encrypted server messages ───────────────────────────
@@ -5217,7 +5281,7 @@ public namespace tls {
 
         tls13_transcript_update(unsafe(&raw mut transcript), &raw ee_buf[0], 6)
 
-        ret = send_handshake_msg(ssl, SSL_HS_ENCRYPTED_EXTENSIONS as u8, &raw ee_buf[4], 2)
+        ret = await send_handshake_msg(ssl, SSL_HS_ENCRYPTED_EXTENSIONS as u8, &raw ee_buf[4], 2)
         if(ret < 0) { return ret }
 
         // Certificate (skip if no cert configured or no private key)
@@ -5256,7 +5320,7 @@ public namespace tls {
 
                 tls13_transcript_update(unsafe(&raw mut transcript), &raw cert_buf[0], cert_body_pos)
 
-                ret = send_handshake_msg(ssl, SSL_HS_CERTIFICATE as u8, &raw cert_buf[4], cert_body_pos - 4)
+                ret = await send_handshake_msg(ssl, SSL_HS_CERTIFICATE as u8, &raw cert_buf[4], cert_body_pos - 4)
                 if(ret < 0) { return ret }
             }
         } else {
@@ -5273,7 +5337,7 @@ public namespace tls {
 
             tls13_transcript_update(unsafe(&raw mut transcript), &raw empty_cert_buf[0], 8)
 
-            ret = send_handshake_msg(ssl, SSL_HS_CERTIFICATE as u8, &raw empty_cert_buf[4], 4)
+            ret = await send_handshake_msg(ssl, SSL_HS_CERTIFICATE as u8, &raw empty_cert_buf[4], 4)
             if(ret < 0) { return ret }
         }
 
@@ -5356,7 +5420,7 @@ public namespace tls {
 
             tls13_transcript_update(unsafe(&raw mut transcript), &raw cv_buf[0], cv_total as size_t)
 
-            ret = send_handshake_msg(ssl, SSL_HS_CERTIFICATE_VERIFY as u8, &raw cv_buf[4], cv_body)
+            ret = await send_handshake_msg(ssl, SSL_HS_CERTIFICATE_VERIFY as u8, &raw cv_buf[4], cv_body)
             if(ret < 0) { return ret }
         }
 
@@ -5391,12 +5455,12 @@ public namespace tls {
 
         tls13_transcript_update(unsafe(&raw mut transcript), &raw fin_buf[0], 4 + tls13_hash_len)
 
-        ret = send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw fin_buf[4], tls13_hash_len)
+        ret = await send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw fin_buf[4], tls13_hash_len)
         if(ret < 0) { return ret }
 
         // ── Read client Finished ────────────────────────────────────
         ssl.state = SSLState.CLIENT_FINISHED()
-        ret = read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
+        ret = await read_handshake_msg(ssl, &raw mut hs_type, &raw mut hs_len,
                                   &raw mut hs_buf[0], 8192)
         if(ret < 0) { return ret }
         if(hs_type != SSL_HS_FINISHED as u8) {
@@ -5464,23 +5528,29 @@ public namespace tls {
 
     // Perform the TLS handshake
     public func ssl_handshake(ssl : *mut SSLContext) : int {
+        return async::block_on<int>(ssl_handshake_coro(ssl))
+    }
+
+    public async func ssl_handshake_coro(ssl : *mut SSLContext) : int {
         if(ssl.conf == null) { return ERR_SSL_BAD_CONFIG }
         ensure_init()
 
-        ssl_apply_recv_timeout(ssl)
+        if(!ssl.transport_async) {
+            ssl_apply_recv_timeout(ssl)
+        }
 
         if(ssl.conf.endpoint == SSL_IS_SERVER) {
             if(ssl.tls_version >= SSL_VERSION_TLS1_3) {
-                return do_tls13_server_handshake(ssl)
+                return await do_tls13_server_handshake(ssl)
             } else {
-                return do_tls12_server_handshake(ssl)
+                return await do_tls12_server_handshake(ssl)
             }
         }
 
         if(ssl.tls_version >= SSL_VERSION_TLS1_3) {
-            return do_tls13_client_handshake(ssl)
+            return await do_tls13_client_handshake(ssl)
         } else {
-            return do_tls12_client_handshake(ssl)
+            return await do_tls12_client_handshake(ssl)
         }
     }
 
@@ -5540,7 +5610,7 @@ public namespace tls {
     // Process post-handshake handshake messages in a decrypted record payload.
     // Handles NewSessionTicket and KeyUpdate (RFC 8446 §4.6.3: on
     // update_requested, update receive keys and respond with our own KeyUpdate).
-    func ssl_handle_post_handshake(ssl : *mut SSLContext, buf : *u8, msglen : i32) : int {
+    async func ssl_handle_post_handshake(ssl : *mut SSLContext, buf : *u8, msglen : i32) : int {
         var pos : i32 = 0
         while(pos + 4 <= msglen) {
             var mtype = buf[pos]
@@ -5556,7 +5626,7 @@ public namespace tls {
                 if(ur < 0) { return ur }
                 if(upd_req == 1) {
                     // Must respond with our own KeyUpdate (update_not_requested)
-                    var sr = tls13_send_key_update(ssl, false)
+                    var sr = await tls13_send_key_update_coro(ssl, false)
                     if(sr < 0) { return sr }
                 }
             }
@@ -5567,6 +5637,10 @@ public namespace tls {
 
     // Read application data
     public func ssl_read(ssl : *mut SSLContext, buf : *mut u8, len : i32) : int {
+        return async::block_on<int>(ssl_read_coro(ssl, buf, len))
+    }
+
+    public async func ssl_read_coro(ssl : *mut SSLContext, buf : *mut u8, len : i32) : int {
         if(!ssl.transport_connected) { return ERR_SSL_INTERNAL_ERROR }
 
         // If a transform is active, use the record layer (handles decryption)
@@ -5592,14 +5666,14 @@ public namespace tls {
             }
 
             while(true) {
-                var ret = ssl_read_record(ssl)
+                var ret = await ssl_read_record(ssl)
                 if(ret < 0) { return ret }
 
                 var inner_ct = ssl.in_hdr[0]
 
                 // Post-handshake handshake messages (NewSessionTicket, KeyUpdate, ...)
                 if(inner_ct == SSL_MSG_HANDSHAKE as u8) {
-                    var ph_ret = ssl_handle_post_handshake(ssl, &raw ssl.in_buf[5], ssl.in_msglen)
+                    var ph_ret = await ssl_handle_post_handshake(ssl, &raw ssl.in_buf[5], ssl.in_msglen)
                     ssl_consume_record(ssl)
                     if(ph_ret < 0) { return ph_ret }
                     continue
@@ -5648,11 +5722,15 @@ public namespace tls {
             }
         }
 
-        return ssl_recv(ssl, buf, len)
+        return await ssl_recv(ssl, buf, len)
     }
 
     // Write application data
     public func ssl_write(ssl : *mut SSLContext, data : *u8, len : i32) : int {
+        return async::block_on<int>(ssl_write_coro(ssl, data, len))
+    }
+
+    public async func ssl_write_coro(ssl : *mut SSLContext, data : *u8, len : i32) : int {
         if(!ssl.transport_connected) { return ERR_SSL_INTERNAL_ERROR }
         // Fragment into max-size TLS records; send_record rejects anything
         // larger than MAX_RECORD_PAYLOAD, and a single u16 cast would both
@@ -5661,7 +5739,7 @@ public namespace tls {
         while(off < len) {
             var chunk = len - off
             if(chunk > MAX_RECORD_PAYLOAD as i32) { chunk = MAX_RECORD_PAYLOAD as i32 }
-            var ret = send_record(ssl, SSL_MSG_APPLICATION_DATA as u8, data + off, chunk as u16)
+            var ret = await send_record(ssl, SSL_MSG_APPLICATION_DATA as u8, data + off, chunk as u16)
             if(ret < 0) { return ret }
             off += chunk
         }
@@ -5670,7 +5748,11 @@ public namespace tls {
 
     // Close the SSL connection (send close_notify)
     public func ssl_close_notify(ssl : *mut SSLContext) : int {
-        return send_alert(ssl, SSL_ALERT_LEVEL_WARNING as u8, SSL_ALERT_MSG_CLOSE_NOTIFY as u8)
+        return async::block_on<int>(ssl_close_notify_coro(ssl))
+    }
+
+    public async func ssl_close_notify_coro(ssl : *mut SSLContext) : int {
+        return await send_alert(ssl, SSL_ALERT_LEVEL_WARNING as u8, SSL_ALERT_MSG_CLOSE_NOTIFY as u8)
     }
 
     // Free SSL context resources (closes socket, frees handshake params)
@@ -5736,10 +5818,25 @@ public namespace tls {
     // ============================================================================
 
     // Connect to a TLS server (TCP + TLS handshake)
+    // Dial the peer. The blocking path uses the synchronous `net::dial`; the
+    // async path offloads the (inherently blocking) connect to the thread pool
+    // and awaits it, then installs the non-blocking transport.
+    async func tls_dial(ssl : *mut SSLContext, host : *char, port : uint) : net::Socket {
+        if(ssl.transport_async) {
+            var fd = await net::dial_async(host, port)
+            return fd as net::Socket
+        }
+        return net::dial(host, port)
+    }
+
     public func tls_connect(ssl : *mut SSLContext, host : *char, port : uint) : int {
+        return async::block_on<int>(tls_connect_coro(ssl, host, port))
+    }
+
+    public async func tls_connect_coro(ssl : *mut SSLContext, host : *char, port : uint) : int {
         ensure_init()
 
-        var sock = net::dial(host, port)
+        var sock = await tls_dial(ssl, host, port)
         if(sock == 0 as net::Socket) {
             ssl.transport_connected = false
             return ERR_SSL_INTERNAL_ERROR
@@ -5748,7 +5845,7 @@ public namespace tls {
         ssl_set_socket(ssl, sock)
         ssl_set_hostname(ssl, host)
 
-        var ret = ssl_handshake(ssl)
+        var ret = await ssl_handshake_coro(ssl)
         if(ret < 0) {
             // Some servers only negotiate TLS 1.2. We advertised TLS 1.3 + 1.2
             // in supported_versions, and they answered with a plain legacy
@@ -5772,11 +5869,11 @@ public namespace tls {
                 ssl.minor_ver = 3 as u8
                 ssl.in_msglen = 0
                 ssl.in_left = 0
-                var sock2 = net::dial(host, port)
+                var sock2 = await tls_dial(ssl, host, port)
                 if(sock2 != 0 as net::Socket) {
                     ssl_set_socket(ssl, sock2)
                     ssl.conf.max_tls_version = SSL_VERSION_TLS1_2
-                    var ret2 = ssl_handshake(ssl)
+                    var ret2 = await ssl_handshake_coro(ssl)
                     if(ret2 < 0) {
                         ssl.transport_connected = false
                         net::close_socket(sock2)
@@ -5795,8 +5892,12 @@ public namespace tls {
 
     // Read NewSessionTicket post-handshake message
     public func ssl_read_new_session_ticket(ssl : *mut SSLContext) : int {
+        return async::block_on<int>(ssl_read_new_session_ticket_coro(ssl))
+    }
+
+    public async func ssl_read_new_session_ticket_coro(ssl : *mut SSLContext) : int {
         var hdr : [5]u8
-        var ret = read_record_header(ssl, &raw mut hdr[0])
+        var ret = await read_record_header(ssl, &raw mut hdr[0])
         if(ret < 0) { return ret }
 
         var ct = hdr[0]

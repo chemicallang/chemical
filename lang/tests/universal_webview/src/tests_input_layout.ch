@@ -144,5 +144,119 @@
     </script>
 }
 
+// Exact PasswordInput shape: the `Input` component (a child component) inside
+// `InputGroup` (another component), with the type derived from state. Exercises
+// reactive props passed down *through* a component's `props.children`.
+#universal PwThroughGroup(props) {
+    state show = false
+    var inputType = show ? "text" : "password"
+    return <InputGroup>
+        <Input data-testid="pw" type={inputType} />
+        <button data-testid="tog" type="button" onClick={() => show = !show}>{show ? "Hide" : "Show"}</button>
+    </InputGroup>
+}
+
+#universal_test("Input inside InputGroup updates type on state change") {
+    <PwThroughGroup />
+    <script>
+        const inp = byTestId('pw')
+        expect(inp.jsProp('type')).toBe('password')
+        byTestId('tog').click()
+        expect(inp.jsProp('type')).toBe('text')
+    </script>
+}
+
+// Mirrors the account login form: an empty conditional, a grid with two Fields
+// (the second holding the password cluster), then a submit Button.
+#universal LoginLikeForm(props) {
+    state error = ""
+    state loading = false
+    state show = false
+    var inputType = show ? "text" : "password"
+    return <form style="display:grid;gap:1rem;">
+        {error ? <Alert variant="error" description={error} /> : null}
+        <div style="display:grid;gap:1rem;">
+            <Field label="Email or username">
+                <Input data-testid="email" type="text" name="identity" />
+            </Field>
+            <Field label="Password">
+                <InputGroup>
+                    <Input data-testid="pw" name="password" type={inputType} />
+                    <button data-testid="tog" type="button" onClick={() => show = !show}>{show ? "Hide" : "Show"}</button>
+                </InputGroup>
+            </Field>
+        </div>
+        <Button type="submit" loading={loading}>Sign in</Button>
+    </form>
+}
+
+#universal_test("login-like form password toggle flips the input type") {
+    <LoginLikeForm />
+    <script>
+        const pw = byTestId('pw')
+        expect(pw.jsProp('type')).toBe('password')
+        byTestId('tog').click()
+        expect(pw.jsProp('type')).toBe('text')
+    </script>
+}
+
+// As close as possible to the account LoginPage JSX: onSubmit + empty error
+// conditional + a conditional-style div holding both fields + a hidden MFA div +
+// the submit Button.
+#universal LoginExactForm(props) {
+    state error = ""
+    state loading = false
+    state mfaRequired = false
+    state show = false
+    var inputType = show ? "text" : "password"
+    var handleSubmit = (e) => { e.preventDefault() }
+    return <form onSubmit={handleSubmit} style="display:grid;gap:1rem;">
+        {error ? <Alert variant="error" description={error} /> : null}
+        <div style={mfaRequired ? "display:none;" : "display:grid;gap:1rem;"}>
+            <Field label="Email or username">
+                <Input type="text" name="identity" placeholder="you@example.com" />
+            </Field>
+            <Field label="Password">
+                <InputGroup>
+                    <Input data-testid="pw" name="password" placeholder="pw" type={inputType} />
+                    <button data-testid="tog" type="button" onClick={() => show = !show}>{show ? "Hide" : "Show"}</button>
+                </InputGroup>
+            </Field>
+        </div>
+        <div style={mfaRequired ? "display:grid;gap:1rem;" : "display:none;"}>
+            <Field label="Verification code">
+                <Input type="text" name="passcode" placeholder="000000" />
+            </Field>
+        </div>
+        <Button type="submit" size="lg" loading={loading}>Sign in</Button>
+    </form>
+}
+
+#universal_test("login exact form password toggle flips the input type") {
+    <LoginExactForm />
+    <script>
+        const pw = byTestId('pw')
+        expect(pw.jsProp('type')).toBe('password')
+        byTestId('tog').click()
+        expect(pw.jsProp('type')).toBe('text')
+    </script>
+}
+
+#universal_test("password toggle preserves the typed value and reveals it") {
+    <LoginExactForm />
+    <script>
+        const pw = byTestId('pw')
+        pw.fill('secret123')
+        expect(pw.jsProp('value')).toBe('secret123')
+        byTestId('tog').click()
+        expect(pw.jsProp('type')).toBe('text')
+        expect(pw.jsProp('value')).toBe('secret123')
+    </script>
+}
+
+
+
+
+
 
 

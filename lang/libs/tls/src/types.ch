@@ -470,6 +470,25 @@ public namespace tls {
 
     }
 
+    // ─── Transport (I/O abstraction) ─────────────────────────────────────────
+    //
+    // All record I/O goes through this vtable: two async callbacks returning a
+    // `FutureHandle<int>` (bytes transferred, or a negative error). The default
+    // socket transport performs **blocking** sends/receives, so the synchronous
+    // API (the coroutine driven by `async::block_on`) behaves exactly as the old
+    // direct `net::send_all`/`recv_all` calls did. The async API installs a
+    // non-blocking transport whose callbacks suspend on fd readiness instead, so
+    // the handshake and record I/O are genuine coroutines (TLS-VT).
+
+    public type TransportRecvFn = (ctx : *mut void, buf : *mut u8, len : size_t) => core::async::FutureHandle<int>
+    public type TransportSendFn = (ctx : *mut void, buf : *u8, len : size_t) => core::async::FutureHandle<int>
+
+    public struct Transport {
+        var ctx : *mut void       // user data (the socket for the built-in transport)
+        var recv_fn : TransportRecvFn
+        var send_fn : TransportSendFn
+    }
+
     // ─── SSL Context (Main Connection State) ────────────────────────────────
 
     public struct SSLContext {
@@ -527,6 +546,11 @@ public namespace tls {
         // I/O callbacks
         var transport_socket : net::Socket
         var transport_connected : bool
+
+        // Record I/O transport (blocking socket by default). `transport_async`
+        // selects the non-blocking transport that suspends on fd readiness.
+        var transport : Transport
+        var transport_async : bool
 
         // Negotiated values from handshake
         var negotiated_ciphersuite : u16
@@ -594,6 +618,8 @@ public namespace tls {
             ssl.handshake_hash_len = 0
             ssl.transport_socket = 0
             ssl.transport_connected = false
+            ssl.transport = Transport { ctx : null, recv_fn : null, send_fn : null }
+            ssl.transport_async = false
             ssl.negotiated_ciphersuite = 0
             ssl.last_alert_level = 0
             ssl.last_alert_desc = 0
@@ -665,6 +691,8 @@ public namespace tls {
         ssl.handshake_hash_len = 0
         ssl.transport_socket = 0
         ssl.transport_connected = false
+        ssl.transport = Transport { ctx : null, recv_fn : null, send_fn : null }
+        ssl.transport_async = false
         ssl.negotiated_ciphersuite = 0
         ssl.last_alert_level = 0
         ssl.last_alert_desc = 0

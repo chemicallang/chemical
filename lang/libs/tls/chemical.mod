@@ -5,6 +5,7 @@ source "win" if windows
 
 import cstd
 import std
+import core
 import async
 import net
 import crypto

@@ -255,12 +255,12 @@ These rules are binding for every async integration PR.
 
 Design principles:
 
-- **Transport abstraction first.** `tls` currently calls `net::send_all` /
-  `net::recv_all` directly. Introduce a transport vtable on `SSLContext`
-  (function pointers + user data) whose **default is the current blocking
-  implementation**, so sync behaviour is bit-identical. The async path installs
-  transport callbacks that return `Poll`. This is the single most invasive
-  change and should be a self-contained PR with the sync tests as guardian.
+- **Transport abstraction first — done (TLS-VT).** `tls` no longer calls
+  `net::send_all` / `net::recv_all` directly. `SSLContext` carries a `Transport`
+  vtable (user data + `recv_fn`/`send_fn` returning `core::async::FutureHandle<int>`)
+  whose **default is the blocking socket implementation**, so sync behaviour is
+  unchanged. The async path installs non-blocking callbacks that suspend on fd
+  readiness. See [`async-remaining-work.md`](./async-remaining-work.md) TLS-VT.
 - **One `AsyncSocket`.** Wrap `net::Socket` (`usize`), do not replace it. It
   owns reactor registration and converts readiness into a `Waker` wake.
 - **`spawn_blocking` is the universal escape hatch.** `fs`, `process`,
@@ -336,21 +336,26 @@ untouched. `net` now imports `core` + `async`.
 - `tls_connect_async(ssl, host, port)`, `ssl_handshake_async(ssl)`,
   `ssl_read_async(ssl, buf, len)`, `ssl_write_async(ssl, data, len)`,
   `tls_accept_async(sock, cert, key)`.
-- All offload their blocking work to the runtime thread pool via
-  `async::spawn_blocking` (the handshake is multi-RTT and record I/O blocks),
-  so the executor keeps running and many handshakes overlap, bounded by pool
-  size. Pointer/int payloads (B23 is fixed; B24 still applies to 2c struct
-  parameters).
-- **Deferred:** the transport vtable (`net::send_all`/`recv_all` →
-  function pointers on `SSLContext`). A non-blocking transport can only suspend
-  if the handshake itself is a coroutine state machine, which the synchronous
-  library is not structured for; `spawn_blocking` gives the v1 concurrency.
-  The direct calls remain at `tls/src/ssl.ch:2099,2106`.
+- **TLS-VT fixed:** the transport vtable now exists. `SSLContext` carries a
+  `Transport` (user data + `recv_fn`/`send_fn` returning
+  `core::async::FutureHandle<int>`). The synchronous API keeps its exact
+  signatures and is now a thin `async::block_on` wrapper over the coroutine
+  lowering, driven by the **blocking** socket transport (so it behaves exactly
+  like the old direct `net::send_all`/`recv_all` calls and never suspends). The
+  async entry points install the **non-blocking** transport
+  (`ssl_use_async_transport`) and await the coroutines directly — no
+  `spawn_blocking` — so the handshake and record I/O suspend on fd readiness and
+  many connections overlap on one executor. Connect is still offloaded via
+  `net::dial_async` (an inherently blocking kernel call). On Windows the record
+  callbacks fall back to the thread pool through `net::*_async` until the IOCP
+  reactor lands (WIN-IOCP).
 - Tests: `lang/tests/tls/src/async_test.ch` (real TLS 1.3 handshake + request
-  over the async API) in the dedicated `--tls` suite. TCC full suite:
-  572 tests / 570 pass (2 pre-existing `BAD_SIGNATURE` failures); the async
-  test passes on both backends (verified in isolation on LLVM — the LLVM full
-  `--tls` run is flaky under parallel test dispatch).
+  over the async API) in the dedicated `--tls` suite. TCC full suite after the
+  change: 573 tests / 568 pass; the same 5 environment/Python-server failures
+  occur on the stashed baseline. The async test and the sync TLS 1.2/1.3 client,
+  x25519, server/client, large-payload and cleanup tests all pass on TCC. The
+  LLVM full `--tls` run is pre-existing-broken (the sync client crashes on LLVM
+  with or without this change) and is tracked separately.
 
 > **Build-system note:** `lang/libs/tls/` has a hand-written `build.lab` that
 > lists module dependencies explicitly; adding a dependency to `chemical.mod`

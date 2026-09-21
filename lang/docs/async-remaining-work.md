@@ -59,12 +59,14 @@ the backend verifier:
 | ~~3~~ | ~~**B20**~~ | ~~Composite-generic field access in a generic body~~ — ✅ FIXED | symres/generics | L |
 | ~~4~~ | ~~**B15-W**~~ | ~~Async debug info disabled (LLVM `debug_complete`)~~ — ✅ FIXED | `LLVMCoroutine.cpp` | M |
 | 5 | **AC** | Async closures not lowered | parser/symres/codegen | L |
-| 6 | **TLS-VT** | TLS has no non-blocking transport | `tls` | L |
+| ~~6~~ | ~~**TLS-VT**~~ | ~~TLS has no non-blocking transport~~ — ✅ FIXED | `tls` | L |
 | 7 | **WIN-IOCP** | Windows async reactor is a stub | `async`/`net` win | L |
 | 8 | **POSIX-EPOLL** | POSIX reactor is `select(2)` | `async` posix | M |
 
-**B15-W, B20, B23, B24, B25 and B26 are fixed** (kept below for reference).
-Items 5–8 are infrastructure/features/gaps. All are independent unless noted.
+**B15-W, B20, B23, B24, B25, B26 and TLS-VT are fixed** (kept below for
+reference). Items 5, 7 and 8 are infrastructure/features/gaps (async closures,
+the Windows IOCP reactor, the POSIX epoll/kqueue reactor). All are independent
+unless noted.
 
 ---
 
@@ -278,24 +280,53 @@ Items 5–8 are infrastructure/features/gaps. All are independent unless noted.
 
 ---
 
-## TLS-VT — TLS has no non-blocking transport (async handshake is offloaded)
+## TLS-VT — TLS has no non-blocking transport (async handshake is offloaded) — ✅ FIXED
 
-- **Status:** Deferred design. **Priority: Low–Medium (performance).**
-- **Symptom:** the async TLS path is `spawn_blocking` over the synchronous
-  handshake, so it overlaps work on the thread pool but is not a true coroutine
-  state machine; concurrency is bounded by pool size.
-- **Root cause / where:** `tls` calls `net::send_all`/`net::recv_all` directly
-  (`lang/libs/tls/src/ssl.ch`, the transport read/write sites around the
-  `ssl_write`/`ssl_read` paths). A non-blocking transport can only suspend if the
-  handshake itself is a coroutine state machine.
-- **Current workaround:** `lang/libs/tls/src/async.ch` offloads all work to
-  `async::spawn_blocking`.
-- **Definition of done:** introduce a transport vtable on `SSLContext` (function
-  pointers + user data) whose **default is the current blocking implementation**
-  (bit-identical sync behaviour), with an async path that returns `Poll`.
-  This is the invasive one — guard it with the entire `--tls` suite.
-- **Files:** `lang/libs/tls/src/ssl.ch`, `lang/libs/tls/src/types.ch`,
-  `lang/libs/tls/src/async.ch`.
+- **Was:** the async TLS path was `spawn_blocking` over the synchronous handshake,
+  so it overlapped work on the thread pool but was not a coroutine state machine;
+  concurrency was bounded by pool size.
+- **Root cause:** `tls` called `net::send_all`/`net::recv_all` directly from
+  `ssl_send`/`ssl_recv`, and the whole handshake was straight-line synchronous
+  code — it could not suspend, so a `Poll`-returning transport had nothing to
+  attach to.
+- **Fix (one shared implementation; sync API kept first-class):**
+  1. `types.ch` gains a `Transport` vtable on `SSLContext` — a user-data pointer
+     plus `recv_fn`/`send_fn` returning `core::async::FutureHandle<int>` — and a
+     `transport_async` flag. `ssl_set_socket` installs the **blocking** socket
+     transport by default (exactly `net::recv_all`/`send_all`), or the
+     **non-blocking** one (`net::recv_async`/`send_async`, which suspend on fd
+     readiness) when the context is marked async.
+  2. `ssl.ch`'s I/O layer (`ssl_send`, `ssl_recv`, `ssl_fetch_input`,
+     `ssl_read_record`, `read_record_header`, `send_record`,
+     `send_handshake_msg`, `send_alert`, `read_handshake_msg`), the four
+     handshake drivers, `ssl_handshake`, `ssl_read`, `ssl_write`, `tls_connect`,
+     `tls_accept`, `ssl_close_notify`, `ssl_read_new_session_ticket`,
+     `ssl_handle_post_handshake` and `tls13_send_key_update` are now `async func`s
+     over that transport. The public sync entry points are thin
+     `async::block_on` wrappers (e.g. `ssl_handshake` →
+     `ssl_handshake_coro`), so every existing caller is unchanged.
+  3. `tls/src/async.ch` installs the non-blocking transport
+     (`ssl_use_async_transport`) and awaits the coroutines directly — **no
+     `spawn_blocking`**. `tls_connect_coro` dials via `net::dial_async` (connect
+     is an inherently blocking kernel call) then runs a genuinely suspending
+     handshake. On Windows the record callbacks still fall back to the thread
+     pool through `net::*_async` until the IOCP reactor lands (WIN-IOCP).
+- **Result:** with the blocking transport the coroutine never suspends, so the
+  synchronous API behaves exactly as before; with the non-blocking transport the
+  handshake and record I/O suspend on fd readiness instead of occupying a pool
+  thread. Verified on TCC: `INT_tls13_client_async` (real TLS 1.3 handshake +
+  request over the async API) passes, as do the sync TLS 1.2/1.3 client, x25519,
+  server/client, large-payload and cleanup e2e tests. The full `--tls` suite is
+  573 tests / 568 passed / 5 failed — the same 5 environment/Python-server
+  failures as before the change (confirmed by re-running against the stashed
+  baseline).
+- **Note:** the `lang/tests/tls` sources had UTF-8 BOMs (`http_matrix_tests*.ch`,
+  `http_client_limits_tests.ch`) that the compiler's `link_sig` rejects; the BOMs
+  were stripped so the suite builds.
+- **Files:** `lang/libs/tls/src/types.ch`, `lang/libs/tls/src/ssl.ch`,
+  `lang/libs/tls/src/async.ch`, `lang/libs/tls/build.lab` (adds the `core`
+  dependency for the `core::async::FutureHandle` callback type),
+  `lang/libs/tls/chemical.mod`.
 
 ---
 

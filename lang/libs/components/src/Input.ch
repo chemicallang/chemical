@@ -9,6 +9,7 @@ func input_styles(page : &mut HtmlPage) : *char {
         display: inline-flex;
         align-items: center;
         width: 100%;
+        box-sizing: border-box;
         height: 2.5rem;
         padding: 0 0.9rem;
         border-radius: calc(var(--radius) - 2px);
@@ -72,6 +73,7 @@ func textarea_styles(page : &mut HtmlPage) : *char {
     return #css {
         display: flex;
         width: 100%;
+        box-sizing: border-box;
         min-height: 120px;
         padding: 0.75rem 0.9rem;
         border-radius: calc(var(--radius) - 2px);

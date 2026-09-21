@@ -39,6 +39,15 @@ A fix is not done until the item's own repro passes on **both** TCC and LLVM and
 the suite that exercises it stays green. (`--all` is for humans only; agents must
 not run it.)
 
+Because the suites default to `debug_quick` (debug info off), any change to the
+coroutine lowering must also be compiled with **full debug info**, which turns on
+the backend verifier:
+
+```bash
+./scripts/test.sh --llvm --async --no-build --mode debug_complete
+./scripts/test.sh --tcc  --async --no-build --mode debug_complete
+```
+
 ---
 
 ## Recommended order
@@ -48,14 +57,14 @@ not run it.)
 | ~~1~~ | ~~**B24**~~ | ~~Struct-typed async parameter field access (2c)~~ — ✅ FIXED | `2cASTVisitor.cpp` | S |
 | ~~2~~ | ~~**B25**~~ | ~~Combinator await inside a spawned coroutine loses `Context` (LLVM)~~ — ✅ FIXED | `LLVMCoroutine.cpp` | M |
 | ~~3~~ | ~~**B20**~~ | ~~Composite-generic field access in a generic body~~ — ✅ FIXED | symres/generics | L |
-| 4 | **B15-W** | Async debug info disabled (LLVM `debug_complete`) | `LLVMCoroutine.cpp` | M |
+| ~~4~~ | ~~**B15-W**~~ | ~~Async debug info disabled (LLVM `debug_complete`)~~ — ✅ FIXED | `LLVMCoroutine.cpp` | M |
 | 5 | **AC** | Async closures not lowered | parser/symres/codegen | L |
 | 6 | **TLS-VT** | TLS has no non-blocking transport | `tls` | L |
 | 7 | **WIN-IOCP** | Windows async reactor is a stub | `async`/`net` win | L |
 | 8 | **POSIX-EPOLL** | POSIX reactor is `select(2)` | `async` posix | M |
 
-**B20, B23, B24, B25 and B26 are fixed** (kept below for reference). Items 4–8
-are infrastructure/features/gaps. All are independent unless noted.
+**B15-W, B20, B23, B24, B25 and B26 are fixed** (kept below for reference).
+Items 5–8 are infrastructure/features/gaps. All are independent unless noted.
 
 ---
 
@@ -207,22 +216,44 @@ are infrastructure/features/gaps. All are independent unless noted.
 
 ---
 
-## B15-W — Async debug info is disabled on LLVM (`debug_complete`)
+## B15-W — Async debug info is disabled on LLVM (`debug_complete`) — ✅ FIXED
 
-- **Status:** Workaround in place. **Priority: Medium.**
-- **Symptom (before the workaround):** any `async func` generated invalid LLVM
-  debug info in `--mode debug_complete` (`location requires a valid scope`,
-  `local variable requires a valid scope`), because the coroutine body is emitted
-  via `code_gen_no_scope` (no `DISubprogram` pushed) and cloned resume/destroy
-  functions carry locations whose scope is the compile-unit file.
-- **Current workaround:** `FunctionDeclaration::code_gen_body`
-  (`ast/structures/FunctionDecl.cpp`) disables `gen.di` for the entire async
-  lowering, so async bodies/frames/poll/drop emit **no** debug locations.
-- **Definition of done:** async functions carry correct debug info in
-  `debug_complete`; the coroutine split clones each get their own
-  `DISubprogram`. Do not re-enable `gen.di` globally until the split carries
-  per-clone scopes.
-- **Files:** `compiler/backend/LLVMCoroutine.cpp`, `compiler/Codegen.*`,
+- **Was:** every `async func` emitted **no** debug info in `--mode debug_complete`
+  because `FunctionDeclaration::code_gen_body` disabled `gen.di` for the whole
+  async lowering. Enabling it blindly produced an invalid LLVM module
+  (`location requires a valid scope` / `local variable requires a valid scope`):
+  the coroutine body is emitted via `code_gen_no_scope` with no `DISubprogram`
+  pushed, so `di_loc` fell back to the *file* scope (a `DIFile` is not a
+  `DILocalScope`), and `gen.destruct` in the cancellation `drop` function emitted
+  `alwaysinline` destructor calls without a `!dbg` location
+  (`inlinable function call in a function with debug info must have a !dbg
+  location`).
+- **Fix:**
+  1. `DebugInfoBuilder::start_generated_function_scope(func, location)`
+     (`compiler/backend/DebugInfoBuilder.{h,cpp}`) creates a synthetic
+     `DISubprogram` for a compiler-generated function (no `FunctionTypeBody`),
+     sets it on the function and pushes it.
+  2. `gen_llvm_async_fn` / `gen_llvm_async_eager_fn`
+     (`compiler/backend/LLVMCoroutine.cpp`) now open the async function's own
+     `DISubprogram` (`start_function_scope(decl, ramp)`) around the ramp body, and
+     a generated scope around each emitted `__poll` / `__drop` function.
+  3. `emit_destroy_type` attaches `gen.di.instr(call, loc)` to the destructor
+     call emitted by the cancellation `drop` path.
+  4. The `gen.di.isEnabled = false` workaround in
+     `FunctionDeclaration::code_gen_body` (`ast/structures/FunctionDecl.cpp`) is
+     removed.
+- **Result:** async functions carry correct debug info in `debug_complete`, and
+  `CoroSplit` gives every split clone its own `DISubprogram`. Post-optimization
+  IR for a suspending async func yields `!DISubprogram`s for the ramp (`work`),
+  `work__poll`, `work__drop`, `work.resume`, `work.destroy` and `work.cleanup`,
+  with each clone's instructions remapped to its scope.
+- **Regression test:** `lang/tests/negative/src/async.ch`
+  (`async_coroutine_debug_info_compiles`) compiles the multi-await /
+  destructor-bearing-local coroutine in `--mode debug_complete`, so the LLVM
+  verifier runs on it; it fails if the scopes are wrong. The negative suite is
+  291/291 on TCC (which also exercises the `--mode` compile path).
+- **Files:** `compiler/backend/DebugInfoBuilder.h`,
+  `compiler/backend/DebugInfoBuilder.cpp`, `compiler/backend/LLVMCoroutine.cpp`,
   `ast/structures/FunctionDecl.cpp`.
 
 ---

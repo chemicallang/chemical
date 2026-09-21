@@ -182,6 +182,22 @@ public:
     void end_function_scope();
 
     /**
+     * starts a function scope for a compiler-generated function (a coroutine
+     * `poll` / `drop` / other synthetic function) which has no FunctionTypeBody
+     * of its own. The subprogram is named after the function and carries no
+     * parameters. `location` is used for its line number.
+     *
+     * This is required because the async lowering emits debug locations for
+     * instructions belonging to generated functions; without a DISubprogram
+     * pushed, `di_loc` would fall back to the file scope, and a DILocation whose
+     * scope is a DIFile fails LLVM verification ("location requires a valid
+     * scope").
+     *
+     * a call to end_function_scope must be made to end it
+     */
+    void start_generated_function_scope(llvm::Function* func, SourceLocation location);
+
+    /**
      * start a lexical code block, a end_current_scope call is expected after this
      */
     void start_scope(SourceLocation location);

@@ -59,8 +59,12 @@ internal func string_contains(haystack : *char, needle : *char) : bool {
     return false
 }
 
-internal func run_compiler_capture(mod_path : *char, out_path : *char, output_buf : *mut char, buf_size : int) : int {
+internal func run_compiler_capture(mod_path : *char, out_path : *char, output_buf : *mut char, buf_size : int, mode : *char = "") : int {
     var cmd : char[2048]
+    var mode_flag : *char = ""
+    if(mode[0] != 0) {
+        mode_flag = "--mode "
+    }
     // Write the (failed or successful) output executable into the test dir;
     // "/dev/null" is POSIX-only and on Windows would try to create "\dev\null"
     // on the current drive. Quoting every argument keeps paths with spaces working.
@@ -69,9 +73,17 @@ internal func run_compiler_capture(mod_path : *char, out_path : *char, output_bu
         // when the command line starts with a quote. The doubled-quote pattern
         // is the canonical way to quote a command for cmd.exe and keeps paths
         // with spaces working.
-        sprintf(unsafe(&raw mut cmd[0]), "cmd /S /C \"\"%s\" \"%s\" --no-cache -o \"%s\"\" 2>&1", intrinsics::get_compiler_path(), mod_path, out_path)
+        if(mode[0] != 0) {
+            sprintf(unsafe(&raw mut cmd[0]), "cmd /S /C \"\"%s\" \"%s\" --no-cache %s%s -o \"%s\"\" 2>&1", intrinsics::get_compiler_path(), mod_path, mode_flag, mode, out_path)
+        } else {
+            sprintf(unsafe(&raw mut cmd[0]), "cmd /S /C \"\"%s\" \"%s\" --no-cache -o \"%s\"\" 2>&1", intrinsics::get_compiler_path(), mod_path, out_path)
+        }
     } else {
-        sprintf(unsafe(&raw mut cmd[0]), "\"%s\" \"%s\" --no-cache -o \"%s\" 2>&1", intrinsics::get_compiler_path(), mod_path, out_path)
+        if(mode[0] != 0) {
+            sprintf(unsafe(&raw mut cmd[0]), "\"%s\" \"%s\" --no-cache %s%s -o \"%s\" 2>&1", intrinsics::get_compiler_path(), mod_path, mode_flag, mode, out_path)
+        } else {
+            sprintf(unsafe(&raw mut cmd[0]), "\"%s\" \"%s\" --no-cache -o \"%s\" 2>&1", intrinsics::get_compiler_path(), mod_path, out_path)
+        }
     }
     var pipe = popen(unsafe(&raw mut cmd[0]), "r")
     if(pipe == null) {
@@ -266,6 +278,13 @@ internal func expect_compile_success(env : &mut TestEnv, name : *char, ch_conten
 // Compiles an application module and runs it, checking the process exit code.
 // Used to exercise the `async func main` trampoline end-to-end.
 internal func expect_compile_and_exit(env : &mut TestEnv, name : *char, ch_content : *char, mod_content : *char, expected_exit : int) {
+    expect_compile_and_exit_mode(env, name, ch_content, mod_content, expected_exit, "")
+}
+
+// Like expect_compile_and_exit, but passes `--mode <mode>` to the compiler.
+// Used to compile with debug info (`debug_complete`) so the backend verifier
+// runs on the generated module.
+internal func expect_compile_and_exit_mode(env : &mut TestEnv, name : *char, ch_content : *char, mod_content : *char, expected_exit : int, mode : *char) {
     setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
 
     var mod_path : char[512]
@@ -274,7 +293,7 @@ internal func expect_compile_and_exit(env : &mut TestEnv, name : *char, ch_conte
     sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
 
     var output_buf : char[16384]
-    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 16384)
+    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 16384, mode)
     if(rc != 0) {
         env.error("expected compiler to succeed but it failed")
         neg_debug_print(name, unsafe(&raw output_buf[0]))

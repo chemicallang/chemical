@@ -405,9 +405,15 @@ coroutine frame is separate and referenced by `coro`. Normal-completion does
 - **No-await fast path**: a plan with no await sites lowers eagerly via
   `gen_llvm_async_eager_fn` (tiny heap frame, always-`Ready` poll, freeing drop,
   no coroutine intrinsics).
-- **Debug info is disabled for the entire async lowering** (`gen.di` off):
-  the coroutine body is emitted via `code_gen_no_scope` and split clones carry
-  invalid scopes (B15). Restoring it needs per-clone `DISubprogram`s.
+- **Debug info (B15-W fixed)**: the async lowering emits correct debug info.
+  `gen_llvm_async_fn` / `gen_llvm_async_eager_fn` open the async function's own
+  `DISubprogram` around the ramp body (`start_function_scope(decl, ramp)`) and a
+  synthetic one around each generated `__poll` / `__drop`
+  (`DebugInfoBuilder::start_generated_function_scope`), and the cancellation
+  destructor call carries a `!dbg` location (`emit_destroy_type`). `CoroSplit`
+  then gives every split clone (`resume`/`destroy`/`cleanup`) its own
+  `DISubprogram` and remaps the locations. Previously `gen.di` was disabled for
+  the whole lowering to avoid invalid scopes.
 - **B27 gotcha (fixed):** `gen_llvm_async_fn` must capture the caller's
   `current_function` at entry and restore it on every exit path — capturing it
   after installing the ramp leaked the coroutine as `current_function`, so
@@ -415,29 +421,33 @@ coroutine frame is separate and referenced by `coro`. Normal-completion does
   with no initializer (`@x = internal global i32`), an invalid module that
   crashed `AlwaysInlinerPass`.
 
-Known LLVM limits, all worked around (not fixed) — keep these out of async
-return/parameter types: a plain non-variant struct payload (B23), a large
-struct variant such as `Result<Response, std::string>` through a `FutureHandle`
-(B26), and awaiting a combinator inside a coroutine that is itself polled as a
-task (B25 — the forwarded `Context`/waker is corrupted). Small variants
-(`Result<int, string>`, `Option<...>`) and pointer/int payloads are fine.
+Known LLVM limits, previously worked around and now **fixed**: a plain
+non-variant struct payload (B23), a large struct variant such as
+`Result<Response, std::string>` through a `FutureHandle` (B26), and awaiting a
+combinator inside a coroutine that is itself polled as a task (B25). Small
+variants (`Result<int, string>`, `Option<...>`) and pointer/int payloads are
+fine.
 
 Async **closures** are not lowered here (the C backend emits the diagnostic;
-LLVM keeps the eager bootstrap).
+LLVM keeps the eager bootstrap). See `lang/docs/async-remaining-work.md` for the
+remaining items (AC, TLS-VT, WIN-IOCP, POSIX-EPOLL).
 
-> **B23 and B26 fixed.** `Codegen::writeReturnStmtFor`'s coroutine branch used
-> to store a `StructValue` alloca pointer into the frame's struct result slot; it
-> now byte-copies every struct-like return value (`value->llvm_pointer`,
-> materializing a `StructValue` via `llvm_value`). This also resolved the large
-> struct-variant payload (B26). Regression tests:
+> **B23, B25, B26 and B15-W fixed.** `Codegen::writeReturnStmtFor`'s coroutine
+> branch used to store a `StructValue` alloca pointer into the frame's struct
+> result slot; it now byte-copies every struct-like return value
+> (`value->llvm_pointer`, materializing a `StructValue` via `llvm_value`). This
+> also resolved the large struct-variant payload (B26). Regression tests:
 > `lang/tests/async/struct_payload_test.ch`,
 > `lang/tests/async/variant_payload_test.ch`. **B25 fixed:** `gen_llvm_await`
 > reloads the caller's `Context*` inside the await loop, so a spawned coroutine
 > that awaits a combinator no longer forwards a stale `Context` after a resume
-> (`lang/tests/async/spawn_combinator_test.ch`). **Still pending (worked
-> around, not fixed):** B15-W (async debug info disabled). Read
-> `lang/docs/async-remaining-work.md` before removing a workaround; do not
-> re-enable `gen.di` for async without per-clone `DISubprogram`s.
+> (`lang/tests/async/spawn_combinator_test.ch`). **B15-W fixed:** async debug
+> info is emitted and split clones get their own `DISubprogram`s (see above);
+> regression `async_coroutine_debug_info_compiles` in
+> `lang/tests/negative/src/async.ch` compiles the coroutine shape in
+> `debug_complete`. The remaining async items are only the infrastructure/feature
+> gaps AC, TLS-VT, WIN-IOCP and POSIX-EPOLL — read
+> `lang/docs/async-remaining-work.md`.
 
 ## Debug Info Generation
 

@@ -78,7 +78,11 @@ static void emit_destroy_type(Codegen& gen, BaseType* type, llvm::Value* ptr, So
     if(destr == nullptr) {
         return;
     }
-    gen.builder->CreateCall(destr->llvm_func(gen), {ptr});
+    // attach a debug location: generated destructors are `alwaysinline`, and the
+    // verifier rejects an inlinable call without !dbg inside a function that has
+    // a DISubprogram (the drop function does)
+    auto* call = gen.builder->CreateCall(destr->llvm_func(gen), {ptr});
+    gen.di.instr(call, loc);
 }
 
 static llvm::Value* gep_idx(IRBuilder<>& b, llvm::Type* ty, llvm::Value* ptr, std::initializer_list<unsigned> idxs) {
@@ -204,6 +208,7 @@ static llvm::Function* emit_poll_fn(
     const auto name = coro.ramp->getName().str() + "__poll";
     auto* fn_ty = llvm::FunctionType::get(builder.getVoidTy(), {ptr_ty, ptr_ty, ptr_ty}, false);
     auto* fn = Function::Create(fn_ty, GlobalValue::InternalLinkage, name, gen.module.get());
+    gen.di.start_generated_function_scope(fn, coro.decl->encoded_location());
     auto* sret = fn->getArg(0);
     auto* frame = fn->getArg(1);   // our wrapper
     auto* cx = fn->getArg(2);
@@ -231,6 +236,7 @@ static llvm::Function* emit_poll_fn(
     }
     emit_poll(gen, sret, coro.poll_ty, true, result);
     builder.CreateRetVoid();
+    gen.di.end_function_scope();
     return fn;
 }
 
@@ -260,6 +266,7 @@ static llvm::Function* emit_drop_fn(
     const auto name = coro.ramp->getName().str() + "__drop";
     auto* ty = llvm::FunctionType::get(builder.getVoidTy(), {ptr_ty}, false);
     auto* fn = Function::Create(ty, GlobalValue::InternalLinkage, name, gen.module.get());
+    gen.di.start_generated_function_scope(fn, coro.decl->encoded_location());
     auto* wrapper = fn->getArg(0);
 
     const auto prev_func = gen.current_function;
@@ -358,6 +365,7 @@ static llvm::Function* emit_drop_fn(
     builder.CreateCall(frame_free_fn, {wrapper_reloaded_free, ConstantInt::get(i64, 0), ConstantInt::get(i64, 0)});
     builder.CreateRetVoid();
 
+    gen.di.end_function_scope();
     gen.current_function = prev_func;
     return fn;
 }
@@ -420,6 +428,7 @@ static bool gen_llvm_async_eager_fn(
     // poll: `Poll.Ready(frame->result)`
     auto* poll_fn_ty = llvm::FunctionType::get(builder.getVoidTy(), {ptr_ty, ptr_ty, ptr_ty}, false);
     auto* poll_fn = Function::Create(poll_fn_ty, GlobalValue::InternalLinkage, ramp->getName().str() + "__poll", gen.module.get());
+    gen.di.start_generated_function_scope(poll_fn, decl->encoded_location());
     {
         auto* entry = BasicBlock::Create(ctx, "entry", poll_fn);
         gen.SetInsertPoint(entry);
@@ -432,16 +441,19 @@ static bool gen_llvm_async_eager_fn(
         emit_poll(gen, sret, poll_ty, true, result);
         builder.CreateRetVoid();
     }
+    gen.di.end_function_scope();
 
     // drop: free the frame
     auto* drop_ty = llvm::FunctionType::get(builder.getVoidTy(), {ptr_ty}, false);
     auto* drop_fn = Function::Create(drop_ty, GlobalValue::InternalLinkage, ramp->getName().str() + "__drop", gen.module.get());
+    gen.di.start_generated_function_scope(drop_fn, decl->encoded_location());
     {
         auto* entry = BasicBlock::Create(ctx, "entry", drop_fn);
         gen.SetInsertPoint(entry);
         builder.CreateCall(frame_free_fn, {drop_fn->getArg(0), ConstantInt::get(i64, frame_size), ConstantInt::get(i64, frame_align)});
         builder.CreateRetVoid();
     }
+    gen.di.end_function_scope();
 
     LLVMCoroContext coro;
     coro.decl = decl;
@@ -472,12 +484,14 @@ static bool gen_llvm_async_eager_fn(
     coro.final_suspend_bb = done_bb;
     gen.current_coro = &coro;
     gen.current_func_type = decl;
+    gen.di.start_function_scope(decl, ramp);
     decl->queue_destruct_params(gen);
     for(auto& param : decl->params) {
         param->code_gen(gen);
     }
     gen.evaluated_func_calls.clear();
     decl->body.value().code_gen_no_scope(gen, 0);
+    gen.di.end_function_scope();
     if(!gen.has_current_block_ended) {
         builder.CreateBr(done_bb);
     }
@@ -887,6 +901,7 @@ bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
     gen.SetInsertPoint(body_bb);
     coro.final_suspend_bb = BasicBlock::Create(ctx, "coro.final", ramp);
     gen.redirect_return = coro.final_suspend_bb;
+    gen.di.start_function_scope(decl, ramp);
     {
         const auto prev_ft = gen.current_func_type;
         gen.current_func_type = decl;
@@ -898,6 +913,7 @@ bool gen_llvm_async_fn(Codegen& gen, FunctionDeclaration* decl) {
         decl->body.value().code_gen_no_scope(gen, 0);
         gen.current_func_type = prev_ft;
     }
+    gen.di.end_function_scope();
     if(!gen.has_current_block_ended) {
         builder.CreateBr(coro.final_suspend_bb);
     }

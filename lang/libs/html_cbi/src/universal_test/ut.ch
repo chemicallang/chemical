@@ -311,7 +311,9 @@ func ut_emit_test(
     } else {
         js.append_view("false")
     }
-    js.append_view(", function(t){\n")
+    // No parameter: the harness exposes `t` as a global, so a test may declare
+    // its own `const t = ...` without colliding with a parameter name.
+    js.append_view(", async function(){\n")
     js.append_view(&root.steps)
     js.append_view("\n});\n")
     converter.emit_append_js_from_str(&mut js)

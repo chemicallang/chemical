@@ -240,10 +240,10 @@ Anything not covered is plain JS (`document.querySelector`, `fetch`, etc.).
 - `isolate`: the test is rendered and run in its own page/WebView, created and
   destroyed around it. For portals, globals, timers, navigation, and flaky
   cross-test interference.
-- `--ut-workers N` (later phase): shard tests across N WebViews (N windows) that
-  each own a page with their subset of fixtures. Default `1`.
-- `--headed` opens visible windows (default is a normal window today; a hidden
-  mode is a later platform-dependent nicety).
+- `--ut-workers N` (not implemented): shard tests across N WebViews (N windows)
+  that each own a page with their subset of fixtures. Default `1`.
+- **Hidden by default:** the runner does not call `webview_show`, so no window
+  flashes during a run. `--ut-headed` shows the window for debugging.
 
 ### 4.3 Failure semantics
 
@@ -456,6 +456,14 @@ evaluated at the user call site — after the test module has been parsed and it
 - The default is still one page + one WebView for the shared group.
 - **Not done:** `--ut-workers N` parallel WebViews (GTK main-loop threading is
   risky), and Xvfb CI wiring. Document `xvfb-run` for headless runs.
+
+### Ported suite (components-e2e → `#universal_test`)
+
+`lang/tests/universal_webview/` now ports the Playwright `components-e2e` suite:
+**142 tests** across `tests_core.ch`, `tests_components.ch`, `tests_runtime.ch`,
+`tests_edges.ch`, `tests_reactivity.ch`, using the fixtures copied into
+`fixtures.ch`. Portal tests are `isolate`. The porting workflow and the
+Playwright→harness API mapping are documented in the `universal_testing` skill.
 
 ---
 

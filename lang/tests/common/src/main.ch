@@ -136,6 +136,7 @@ public func run_common_tests() {
     test_self_ref_destruct()
     test_call_destruction()
     test_nullptr_destruct()
+    test_variant_payload_move_value_if()
 
     test_auto_generated_destructors()
 

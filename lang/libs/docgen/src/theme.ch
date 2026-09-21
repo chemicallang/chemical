@@ -1032,11 +1032,10 @@ public func get_default_js() : std::string_view {
     return std::string_view("""
 document.addEventListener('DOMContentLoaded', () => {
     // Theme management
-    const themes = ['dark', 'light', 'default', 'midnight', 'sunset', 'minimal', 'cosmic', 'aurora'];
+    const themes = ['dark', 'light', 'midnight', 'sunset', 'minimal', 'cosmic', 'aurora'];
     const themeNames = {
         'dark': 'Dark',
         'light': 'Light',
-        'default': 'Default',
         'midnight': 'Midnight',
         'sunset': 'Sunset',
         'minimal': 'Minimal',

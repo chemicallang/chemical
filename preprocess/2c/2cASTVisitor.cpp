@@ -6517,24 +6517,35 @@ void ToCAstVisitor::writeIfStmtValue(IfStatement& stmt) {
     }
     nested_value = false;
 
+    // The result of a value-if is produced by moving whichever branch runs.
+    // When a branch yields a moved value (e.g. a payload destructured out of a
+    // variant), clear the drop flag of the source it was moved from inside that
+    // branch, so the source's destructor does not free the payload a second time.
+    const auto write_branch_value = [this](Scope& scope) {
+        write("({ ");
+        auto* const tail = scope.nodes.empty()
+                ? nullptr
+                : Value::get_first_value_from_value_node(scope.nodes.back());
+        if(tail != nullptr && tail->is_ref_moved()) {
+            set_moved_ref_drop_flag(*this, tail);
+            space();
+        }
+        visit_value_scope(&scope, destructor.destruct_jobs.size());
+        write("; })");
+    };
+
     // generating ternary for if statement
     write(" ? ");
-    write("({ ");
-    visit_value_scope(&stmt.ifBody, destructor.destruct_jobs.size());
-    write("; })");
+    write_branch_value(stmt.ifBody);
     for(auto& elseIf : stmt.elseIfs) {
         write(" : ");
         visit(elseIf.first);
         write(" ? ");
-        write("({ ");
-        visit_value_scope(&elseIf.second, destructor.destruct_jobs.size());
-        write("; })");
+        write_branch_value(elseIf.second);
     }
     write(" : ");
     if(stmt.elseBody.has_value()) {
-        write("({ ");
-        visit_value_scope(&stmt.elseBody.value(), destructor.destruct_jobs.size());
-        write("; })");
+        write_branch_value(stmt.elseBody.value());
     } else {
         error("no else block for if value", stmt.encoded_location());
     }

@@ -626,6 +626,12 @@ public:
     bool mark_moved_value(Value* value, ASTDiagnoser& diagnoser);
 
     /**
+     * marks the tail (result) value of a value scope as moved. Used for value-if
+     * branches, where the branch result is moved into the if expression's result
+     */
+    bool mark_moved_scope_tail(Scope& scope, ASTDiagnoser& diagnoser);
+
+    /**
      * check if the given value is movable
      */
     bool is_value_movable(Value* value_ptr, BaseType* type);

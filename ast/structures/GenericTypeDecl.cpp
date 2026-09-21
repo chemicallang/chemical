@@ -34,12 +34,17 @@ TypealiasStatement* GenericTypeDecl::register_generic_args(
     const auto itr = register_generic_usage(allocator, this, container, generic_args, ((std::vector<void*>&) instantiations));
     if(!itr.second) {
         const auto idx = itr.first;
+        // reading the existing instantiation while the registration mutex is still held,
+        // because another thread may be appending to `instantiations` right now, which
+        // reallocates the vector. An unlocked read would be a use after free (handing out
+        // a garbage instantiation pointer into the rest of the compilation)
+        const auto existing = instantiations[idx];
         reg_mutex.unlock();
         // during body finalization, wait for the dependency's signature to be finalized
         if(requirement == InstantiationRequirement::SignatureFinalization) {
             instantiator.waitSignatureFinalized(this, idx);
         }
-        return instantiations[idx];
+        return existing;
     }
 
     const auto impl = master_impl->shallow_copy(allocator);

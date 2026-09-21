@@ -68,19 +68,26 @@ FunctionDeclaration* GenericFuncDecl::register_generic_args(
 
     if(!itr.second) { // existing instantiation — reuse the pointer
         const auto idx = itr.first;
+        // reading the existing instantiation while the registration mutex is still held,
+        // because another thread may be appending to `instantiations` right now, which
+        // reallocates the vector. An unlocked read would be a use after free (handing out
+        // a garbage instantiation pointer into the rest of the compilation)
+        const auto existing = instantiations[idx];
         reg_mutex.unlock();
         // during body finalization, wait for the dependency's signature to be finalized
         if(requirement == InstantiationRequirement::SignatureFinalization) {
             instantiator.waitSignatureFinalized(this, idx);
         }
-        return instantiations[idx];
+        return existing;
     }
 
     if(itr.first != instantiations.size()) {
         // TODO enable this error, currently when a type deduction fails, we expect the type to be specified in argument list
         if(itr.first < instantiations.size()) {
+            // read under the registration mutex (see the note above about reallocation)
+            const auto existing = instantiations[itr.first];
             reg_mutex.unlock();
-            return instantiations[itr.first];
+            return existing;
         }
         CHEM_THROW_RUNTIME("iteration registered, that is not on the expected index");
     }

@@ -1,6 +1,66 @@
 
+func ut_char_lower_ascii(c : char) : char {
+    if(c >= 'A' && c <= 'Z') {
+        return ((c as int) + 32) as char
+    }
+    return c
+}
+
+// Returns true when the provider is positioned at a case-insensitive
+// "</script" followed by a tag terminator. Used to end the raw script text.
+func ut_at_script_close(provider : &SourceProvider) : bool {
+    // need bytes [0..8] available ('<' '/' 's' 'c' 'r' 'i' 'p' 't' and the terminator)
+    if(provider.data_ptr + 9 > provider.data_end) {
+        return false;
+    }
+    const p = provider.data_ptr
+    if(*(p + 0) != '<') { return false; }
+    if(*(p + 1) != '/') { return false; }
+    if(ut_char_lower_ascii(*(p + 2)) != 's') { return false; }
+    if(ut_char_lower_ascii(*(p + 3)) != 'c') { return false; }
+    if(ut_char_lower_ascii(*(p + 4)) != 'r') { return false; }
+    if(ut_char_lower_ascii(*(p + 5)) != 'i') { return false; }
+    if(ut_char_lower_ascii(*(p + 6)) != 'p') { return false; }
+    if(ut_char_lower_ascii(*(p + 7)) != 't') { return false; }
+    const after = *(p + 8)
+    return after == '>' || after == '/' || after == ' ' || after == '\t' || after == '\n' || after == '\r'
+}
+
+func is_script_tag_name(tag_value : std::string_view) : bool {
+    return tag_value.size() == 6 &&
+        ut_char_lower_ascii(tag_value.get(0)) == 's' &&
+        ut_char_lower_ascii(tag_value.get(1)) == 'c' &&
+        ut_char_lower_ascii(tag_value.get(2)) == 'r' &&
+        ut_char_lower_ascii(tag_value.get(3)) == 'i' &&
+        ut_char_lower_ascii(tag_value.get(4)) == 'p' &&
+        ut_char_lower_ascii(tag_value.get(5)) == 't'
+}
+
 public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
     const provider = &mut lexer.provider;
+    // Inside <script>, everything up to </script> is raw text (JS is not HTML).
+    // Emit it as one Text token; when the closing tag is reached, clear the mode
+    // and fall through so the '<' is lexed as a normal end tag.
+    if(html.in_script) {
+        const position = provider.getPosition();
+        const start = provider.current_data();
+        while(!provider.eof()) {
+            if(ut_at_script_close(provider)) {
+                break;
+            }
+            provider.readCharacter();
+        }
+        html.in_script = false;
+        const written = provider.current_data() - start;
+        if(written > 0) {
+            return Token {
+                type : TokenType.Text as int,
+                value : std::string_view(start, written),
+                position : position
+            }
+        }
+        // empty script body: fall through and lex "</script>"
+    }
     // the position of the current symbol
     const position = provider.getPosition();
     const data_ptr = provider.current_data()
@@ -53,6 +113,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             } else if(p == '/') {
                 html.has_lt = true;
                 html.in_end_tag = true;
+                html.pending_script = false;
                 provider.readCharacter();
                 return Token {
                     type : TokenType.TagEnd as int,
@@ -202,6 +263,8 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     html.pre_depth--;
                     html.last_tag_pre = false;
                 }
+                // <script/> is self-closing, not a raw-text element
+                html.pending_script = false;
                 return Token {
                     type : TokenType.FwdSlash as int,
                     value : view("/"),
@@ -224,6 +287,11 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 html.lexed_tag_name = false;
                 html.in_end_tag = false;
                 html.last_tag_pre = false;
+                if(html.pending_script) {
+                    // we just opened a <script>; its content is raw text
+                    html.pending_script = false;
+                    html.in_script = true;
+                }
                 return Token {
                     type : TokenType.GreaterThan as int,
                     value : view(">"),
@@ -262,6 +330,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                                 html.pre_depth++;
                             }
                             html.last_tag_pre = is_pre;
+                            html.pending_script = is_script_tag_name(tag_value);
                         } else {
                             // closing tag; match against the currently open <pre>
                             const is_pre_close = html.pre_depth > 0 && tag_value.size() == 3 &&
@@ -271,6 +340,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                             if(is_pre_close) {
                                 html.pre_depth--;
                             }
+                            html.pending_script = false;
                             html.in_end_tag = false;
                         }
                         return Token {

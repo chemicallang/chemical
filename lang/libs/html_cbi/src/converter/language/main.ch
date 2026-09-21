@@ -567,7 +567,42 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
                 converter.convertHtmlComponent(element)
                 return
             }
-            
+
+            // <script> is a raw-text element: its content is JavaScript, not
+            // HTML, so it must be emitted verbatim (no entity escaping).
+            if(element.name.equals(std::string_view("script"))) {
+                str.append('<')
+                str.append_view(&element.name)
+                var sa : uint = 0
+                var sattrs = element.attributes.size()
+                while(sa < sattrs) {
+                    converter.convertHtmlAttribute(element.attributes.get(sa));
+                    sa++
+                }
+                if(element.isSelfClosing) {
+                    str.append('/');
+                }
+                str.append('>')
+                var sci : uint = 0
+                var scs = element.children.size()
+                while(sci < scs) {
+                    const sc = element.children.get(sci);
+                    if(sc.kind == HtmlChildKind.Text) {
+                        const sct = sc as *mut HtmlText;
+                        str.append_view(&sct.value);
+                    } else {
+                        converter.convertHtmlChild(sc);
+                    }
+                    sci++;
+                }
+                if(!element.isSelfClosing) {
+                    str.append_view("</");
+                    str.append_view(&element.name);
+                    str.append('>');
+                }
+                return;
+            }
+
             if(element.name.equals(std::string_view("head"))) {
                 if(!str.empty()) {
                     converter.put_chain_in();

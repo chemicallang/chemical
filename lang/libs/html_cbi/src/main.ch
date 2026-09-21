@@ -179,7 +179,74 @@ public func html_initializeLexer(lexer : *mut Lexer) {
         pre_depth : 0,
         in_end_tag : false,
         last_tag_pre : false,
-        preserve_whitespace : false
+        preserve_whitespace : false,
+        pending_script : false,
+        in_script : false
     }
     lexer.setUserLexer(ptr, getNextToken as UserLexerSubroutineType)
+}
+
+// ---------------------------------------------------------------------------
+// #universal_test lexer
+//
+// `#universal_test("name", ...) { <fixture JSX/> <script> ...js... </script> }`
+//
+// The macro arguments are ordinary Chemical tokens (`(`, string, `,`,
+// identifiers, `)`), and the body is HTML/JSX with one raw `<script>` element.
+// This lexer therefore delegates to the base Chemical lexer until it consumes
+// the body's opening `{`, then switches to the html lexer (with `lb_count`
+// pre-set to 1 so the body's closing `}` resets and unsets the user lexer).
+// ---------------------------------------------------------------------------
+
+public struct UTLexer {
+    var html : HtmlLexer
+    var started : bool
+}
+
+func make_ut_html_lexer() : HtmlLexer {
+    return HtmlLexer {
+        has_lt : false,
+        lexed_tag_name : false,
+        is_comment : false,
+        other_mode : false,
+        chemical_mode : false,
+        // the macro's opening `{` was consumed by the base lexer, so the body
+        // starts one brace deep: the matching `}` must reset the lexer
+        lb_count : 1,
+        paren_count : 0,
+        chem_start_lb : 0,
+        in_paren_expr : false,
+        expecting_html_block : false,
+        last_token_was_if : false,
+        after_chem_expr : false,
+        pre_depth : 0,
+        in_end_tag : false,
+        last_tag_pre : false,
+        preserve_whitespace : false,
+        pending_script : false,
+        in_script : false
+    }
+}
+
+public func ut_getNextToken(ut : &mut UTLexer, lexer : &mut Lexer) : Token {
+    if(!ut.started) {
+        const t = lexer.getEmbeddedToken()
+        if(t.type == ChemicalTokenType.LBrace as int) {
+            ut.started = true
+            ut.html = make_ut_html_lexer()
+        }
+        return t
+    }
+    return getNextToken(&mut ut.html, lexer)
+}
+
+@no_mangle
+public func ut_initializeLexer(lexer : *mut Lexer) {
+    const file_allocator = lexer.getFileAllocator();
+    const ptr = file_allocator.allocate_size(sizeof(UTLexer), alignof(UTLexer)) as *mut UTLexer;
+    new (ptr) UTLexer {
+        html : make_ut_html_lexer(),
+        started : false
+    }
+    lexer.setUserLexer(ptr, ut_getNextToken as UserLexerSubroutineType)
 }

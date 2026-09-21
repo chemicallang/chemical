@@ -24,6 +24,10 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     }
     ctx.set_contains_cbi(&cbi_name)
 
+    // #universal_test collects its declarations for discovery
+    const ut_controller = ctx.getAnnotationController()
+    ut_controller.createCollectorAnnotation(std::string_view("universal_test"), 0)
+
     var cbi = ctx.build_cbi(&cbi_name)
     const job = cbi;
 
@@ -87,9 +91,19 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
 
     comptime if(def.lsp) {
         // this will let the lsp know that methods are present
-        ctx.index_def_cbi_fn(cbi, std::string_view("html_semanticTokensPut"), CBIFunctionType.SemanticTokensPut);
-        ctx.index_def_cbi_fn(cbi, std::string_view("html_foldingRangesPut"), CBIFunctionType.FoldingRangesPut);
+    ctx.index_def_cbi_fn(cbi, std::string_view("html_semanticTokensPut"), CBIFunctionType.SemanticTokensPut);
+    ctx.index_def_cbi_fn(cbi, std::string_view("html_foldingRangesPut"), CBIFunctionType.FoldingRangesPut);
     }
+
+    // #universal_test macro (Phase 0)
+    ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_initializeLexer"), CBIFunctionType.InitializeLexer);
+    ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_parseMacroNode"), CBIFunctionType.ParseMacroTopLevelNode);
+    ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_parseMacroNodeStatement"), CBIFunctionType.ParseMacroNode);
+    ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_symResDeclareNode"), CBIFunctionType.SymResDeclareTopLevelNode);
+    ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_symResSigNode"), CBIFunctionType.SymResLinkSignatureNode);
+    ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_symResNode"), CBIFunctionType.SymResNode);
+    ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_replacementNodeDeclare"), CBIFunctionType.ReplacementNodeDeclare);
+    ctx.index_cbi_fn(cbi, std::string_view("universal_test"), std::string_view("ut_replacementNode"), CBIFunctionType.ReplacementNode);
 
     return empty_module;
 

@@ -2020,7 +2020,11 @@ public func webview_bind(wv : *mut WebView, handler : JsBindHandler) : std::Resu
         wmh as *mut ICoreWebView2WebMessageReceivedEventHandler,
         &raw mut token
     )
-    printf("[WMH] add_WebMessageReceived returned hr=0x%x token=%d\n", reg_hr as int, token.value as int)
+    if(FAILED(reg_hr)) {
+        // WebView2 never took a reference to the handler; drop our own.
+        wmh_release(wmh as *mut ICoreWebView2WebMessageReceivedEventHandler)
+        return std.Result.Err(WebViewError.InitFailed(string("webview_bind: could not register message handler")))
+    }
     return std.Result.Ok(std::Unit{})
 }
 

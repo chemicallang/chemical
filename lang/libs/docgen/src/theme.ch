@@ -2,48 +2,48 @@ public namespace docgen {
 
 public func get_default_css() : std::string_view {
     return std::string_view(""":root {
-    /* Default: Midnight Theme (Cyberpunk/Dev) */
-    --bg-primary: #030712;
-    --bg-secondary: #0f172a;
-    --bg-tertiary: #1e293b;
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-    --accent: #38bdf8;
-    --accent-hover: #0ea5e9;
-    --accent-glow: rgba(56, 189, 248, 0.1);
-    --border: #1e293b;
-    --code-bg: #0b1221;
+    /* Default: Dark Theme — precision-instrument look */
+    --bg-primary: #0A0A0C;
+    --bg-secondary: #101014;
+    --bg-tertiary: #17171D;
+    --text-primary: #E8E8EC;
+    --text-secondary: #9B9BA6;
+    --text-muted: #63636E;
+    --accent: #4DA3FF;
+    --accent-hover: #6FB5FF;
+    --accent-glow: rgba(77, 163, 255, 0.14);
+    --border: #1D1D23;
+    --code-bg: #060608;
     --success: #22c55e;
     --warning: #f59e0b;
     --error: #ef4444;
-    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    --shadow: 0 0 0 1px #1D1D23;
     --radius: 6px;
     --transition: 0.15s ease;
-    --font-sans: 'Sora', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-mono: 'IBM Plex Mono', 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+    --font-sans: 'Sora', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
     --header-height: 64px;
     --sidebar-width: 280px;
-    --content-max-width: 900px;
+    --content-max-width: 980px;
     
     /* Visual Params */
-    --bg-gradient: linear-gradient(to bottom, #0f172a, #030712);
+    --bg-gradient: none;
     --glass-blur: 0px;
-    --header-bg: rgba(15, 23, 42, 0.8);
+    --header-bg: rgba(10, 10, 12, 0.85);
     --card-border: 1px solid var(--border);
 
     /* Alert Colors */
-    --alert-note: #38bdf8;
-    --alert-note-bg: rgba(56, 189, 248, 0.08);
-    --alert-tip: #22c55e;
-    --alert-tip-bg: rgba(34, 197, 94, 0.08);
-    --alert-important: #a78bfa;
-    --alert-important-bg: rgba(167, 139, 250, 0.08);
-    --alert-warning: #f59e0b;
-    --alert-warning-bg: rgba(245, 158, 11, 0.08);
-    --alert-caution: #f43f5e;
-    --alert-caution-bg: rgba(244, 63, 94, 0.08);
-    --alert-text: var(--text-secondary);
+    --alert-note: #4DA3FF;
+    --alert-note-bg: rgba(77, 163, 255, 0.08);
+    --alert-tip: #7EE0A3;
+    --alert-tip-bg: rgba(126, 224, 163, 0.08);
+    --alert-important: #B9A3FF;
+    --alert-important-bg: rgba(185, 163, 255, 0.08);
+    --alert-warning: #F0B45C;
+    --alert-warning-bg: rgba(240, 180, 92, 0.08);
+    --alert-caution: #F0705C;
+    --alert-caution-bg: rgba(240, 112, 92, 0.08);
+    --alert-text: #9B9BA6;
 }
 
 [data-theme="sunset"] {
@@ -146,57 +146,50 @@ public func get_default_css() : std::string_view {
     --alert-text: #a8a8b8;
 }
 
-/* Dark Theme — matches the chemical-lang.com playground (default theme).
-   Precision-instrument look: near-black ink, hairline borders,
-   Sora display type, IBM Plex Mono code, signal blue accent. */
-[data-theme="dark"] {
-    --bg-primary: #0A0A0C;
-    --bg-secondary: #101014;
-    --bg-tertiary: #17171D;
-    --text-primary: #E8E8EC;
-    --text-secondary: #9B9BA6;
-    --text-muted: #63636E;
-    --accent: #4DA3FF;
-    --accent-hover: #6FB5FF;
-    --accent-glow: rgba(77, 163, 255, 0.14);
-    --border: #1D1D23;
-    --code-bg: #060608;
-    --shadow: 0 0 0 1px #1D1D23;
-    --radius: 6px;
-    --header-height: 64px;
-    --sidebar-width: 280px;
-    --content-max-width: 980px;
-    --font-sans: 'Sora', system-ui, -apple-system, 'Segoe UI', sans-serif;
-    --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
-    /* Reset Visual Params */
-    --bg-gradient: none;
+/* Midnight Theme (Cyberpunk/Dev) */
+[data-theme="midnight"] {
+    --bg-primary: #030712;
+    --bg-secondary: #0f172a;
+    --bg-tertiary: #1e293b;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+    --accent: #38bdf8;
+    --accent-hover: #0ea5e9;
+    --accent-glow: rgba(56, 189, 248, 0.1);
+    --border: #1e293b;
+    --code-bg: #0b1221;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    --bg-gradient: linear-gradient(to bottom, #0f172a, #030712);
     --glass-blur: 0px;
-    --header-bg: rgba(10, 10, 12, 0.85);
-    /* Alert Colors */
-    --alert-note: #4DA3FF;
-    --alert-note-bg: rgba(77, 163, 255, 0.08);
-    --alert-tip: #7EE0A3;
-    --alert-tip-bg: rgba(126, 224, 163, 0.08);
-    --alert-important: #B9A3FF;
-    --alert-important-bg: rgba(185, 163, 255, 0.08);
-    --alert-warning: #F0B45C;
-    --alert-warning-bg: rgba(240, 180, 92, 0.08);
-    --alert-caution: #F0705C;
-    --alert-caution-bg: rgba(240, 112, 92, 0.08);
-    --alert-text: #9B9BA6;
+    --header-bg: rgba(15, 23, 42, 0.8);
+    --card-border: 1px solid var(--border);
+
+    /* Alert Colors */
+    --alert-note: #38bdf8;
+    --alert-note-bg: rgba(56, 189, 248, 0.08);
+    --alert-tip: #22c55e;
+    --alert-tip-bg: rgba(34, 197, 94, 0.08);
+    --alert-important: #a78bfa;
+    --alert-important-bg: rgba(167, 139, 250, 0.08);
+    --alert-warning: #f59e0b;
+    --alert-warning-bg: rgba(245, 158, 11, 0.08);
+    --alert-caution: #f43f5e;
+    --alert-caution-bg: rgba(244, 63, 94, 0.08);
+    --alert-text: var(--text-secondary);
 }
 
-[data-theme="dark"] .header {
-    background: rgba(10, 10, 12, 0.85);
+[data-theme="midnight"] .header {
+    background: rgba(15, 23, 42, 0.8);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
 }
 
-[data-theme="dark"] .content code {
+[data-theme="midnight"] .content code {
     color: #7FD1B9;
 }
 
-[data-theme="dark"] .sidebar-item > a.active {
+[data-theme="midnight"] .sidebar-item > a.active {
     color: var(--accent);
     background: var(--accent-glow);
     border-left: 2px solid var(--accent);
@@ -1023,13 +1016,13 @@ public func get_theme_init_js() : std::string_view {
     
     // Immediate load (Dark is the default theme)
     let saved = localStorage.getItem('theme');
-    // migrate old playground theme ids
+    // migrate old theme ids
     if (saved === 'playground') saved = 'dark';
     if (saved === 'playground-light') saved = 'light';
     if (saved) {
         setTheme(saved);
     } else {
-        setTheme('dark');
+        setTheme('default');
     }
 })();
 """);
@@ -1039,11 +1032,12 @@ public func get_default_js() : std::string_view {
     return std::string_view("""
 document.addEventListener('DOMContentLoaded', () => {
     // Theme management
-    const themes = ['dark', 'light', 'default', 'sunset', 'minimal', 'cosmic', 'aurora'];
+    const themes = ['dark', 'light', 'default', 'midnight', 'sunset', 'minimal', 'cosmic', 'aurora'];
     const themeNames = {
         'dark': 'Dark',
         'light': 'Light',
-        'default': 'Midnight',
+        'default': 'Default',
+        'midnight': 'Midnight',
         'sunset': 'Sunset',
         'minimal': 'Minimal',
         'cosmic': 'Cosmic',
@@ -1060,7 +1054,7 @@ document.addEventListener('DOMContentLoaded', () => {
             themeSelect.appendChild(opt);
         });
         
-        const saved = localStorage.getItem('theme') || 'dark';
+        const saved = localStorage.getItem('theme') || 'default';
         themeSelect.value = saved;
         
         themeSelect.addEventListener('change', (e) => window.setTheme(e.target.value));

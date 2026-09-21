@@ -4,6 +4,21 @@
 
 #if defined(_WIN32)
 
+// `GetCurrentThreadStackLimits` (used below) is only declared when the Windows
+// target version is at least Windows 8 (0x0602). Some MinGW toolchains — notably
+// the msvcrt-based llvm-mingw used for the Windows x64 build — default
+// `_WIN32_WINNT` lower, which hides the declaration and fails the build. Raise it
+// for this translation unit before the first Windows header is pulled in
+// (StackSpace.h only includes <cstddef>).
+#if defined(_WIN32_WINNT)
+#if (_WIN32_WINNT < 0x0602)
+#undef _WIN32_WINNT
+#endif
+#endif
+#if !defined(_WIN32_WINNT)
+#define _WIN32_WINNT 0x0602
+#endif
+
 #include <windows.h>
 
 #if defined(_MSC_VER)

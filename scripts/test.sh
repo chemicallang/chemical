@@ -46,6 +46,7 @@ PRINT_CMD=false
 TEST_IDS=""
 TEST_NAMES=""
 SKIP_SEQUENTIAL=false
+UT_HEADED=false
 
 usage() {
   echo "Usage: $0 [options]"
@@ -60,6 +61,7 @@ usage() {
   echo "  --process               Build & run the process/environment test suite (passes --arg-test-process)"
   echo "  --webview               Build & run the webview test suite (passes --arg-test-webview)"
   echo "  --universal-tests       Build & run the universal component tests in a WebView (passes --arg-test-universal-tests)"
+  echo "  --ut-headed             With --universal-tests, show the WebView window (default: hidden)"
   echo "  --server                Build & run the server test suite (passes --arg-test-server)"
   echo "  --libs                  Build & run the library test suite (passes --arg-test-libs)"
   echo "  --async                 Build & run the async/await suite (C or LLVM)"
@@ -143,6 +145,7 @@ while [ $# -gt 0 ]; do
     --test-ids) TEST_IDS="$2"; shift ;;
     --test-names) TEST_NAMES="$2"; shift ;;
     --skip-sequential) SKIP_SEQUENTIAL=true ;;
+    --ut-headed) UT_HEADED=true ;;
     --help|-h) usage ;;
     *) echo "Unknown option: $1"; usage ;;
   esac
@@ -573,6 +576,9 @@ else
     fi
     if [ "$SKIP_SEQUENTIAL" = true ]; then
       TEST_ARGS+=("--skip-sequential")
+    fi
+    if [ "$UT_HEADED" = true ]; then
+      TEST_ARGS+=("--ut-headed")
     fi
     echo "==> Running tests${TEST_ARGS[*]+ ${TEST_ARGS[*]}}..."
     if [ "$GDB" = true ]; then

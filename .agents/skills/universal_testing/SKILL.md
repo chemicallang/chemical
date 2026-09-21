@@ -75,15 +75,20 @@ Run it:
 ```bash
 ./scripts/test.sh --tcc --universal-tests                 # all tests
 ./scripts/test.sh --tcc --universal-tests --test-names "counter increments"
-./scripts/test.sh --tcc --universal-tests --test-ids 1,2  # (ids are internal)
+# show the WebView window (default is hidden/off-screen):
+./scripts/test.sh --tcc --universal-tests --ut-headed
 # or build the module directly:
 cmake-build-debug/TCCCompiler path/to/chemical.mod -o /tmp/tests \
     --mode debug_quick --no-cache -frecompile-plugins
-/tmp/tests
+/tmp/tests [--test-names a,b] [--ut-headed]
 ```
 
 Output is `PASS <name>` / `FAIL <name>: <message>` plus a summary; exit code is
-non-zero if any test failed.
+non-zero if any test failed. **The WebView is hidden by default** (no window
+flashes); pass `--ut-headed` to watch a run.
+
+> `--test-names` splits on commas, so a test whose *name* contains a comma
+> cannot be selected individually. Keep test names comma-free.
 
 ---
 
@@ -104,6 +109,13 @@ non-zero if any test failed.
 - The steps **must** be the single `<script>` element; its content is captured
   verbatim as JavaScript. It is **not** HTML-escaped and **not** Chemical — write
   plain JS.
+
+### Steps are async
+
+Each `<script>` body is wrapped in `async function(){ ... }`, so you can
+`await t.sleep(ms)` (and return Promises). The context object is the **global
+`t`** (not a parameter) — a test may freely declare its own `const t = ...`
+without colliding, but then it shadows `t` for the rest of that test.
 
 ### How the fixture is rendered
 
@@ -191,8 +203,8 @@ suite continues.
 | Discovery intrinsic `intrinsics::get_universal_tests<UTFunction>()` | `ast/utils/GlobalFunctions.cpp` (`InterpretGetUniversalTests`) |
 | Runner (`UTFunction`, `universal_test_runner`, `run_universal_tests`) | `lang/libs/universal_test/src/runner.ch` |
 | In-page JS harness | `lang/libs/universal_test/src/harness.ch` |
-| Suite | `lang/tests/universal_webview/` |
-| CLI | `./scripts/test.sh --universal-tests` |
+| Suite | `lang/tests/universal_webview/{chemical.mod,src/main.ch,src/fixtures.ch,src/tests_*.ch}` |
+| CLI | `./scripts/test.sh --universal-tests` (`--ut-headed` to show the window) |
 
 **Discovery flow.** `ut_parseMacroNode` creates the fixture function at parse
 time and `controller.collect(...)`s the embedded node with args
@@ -221,6 +233,10 @@ runner.
   fixture_fn, steps`).
 - **Display required.** If `webview_create` fails, the runner prints a hint and
   exits non-zero. Use `xvfb-run -a ./tests` on headless machines.
+- **Debugging the generated page JS:** set `UT_DUMP_JS=1` to print
+  `page.toStringJsOnly()` between `===UT_JS_START===`/`===UT_JS_END===` markers
+  and exit before opening a WebView. A page-script syntax error otherwise hangs
+  the run (the harness never starts); dump + `node --check` finds it.
 - **`--universal-tests` is not in `--all`** (like `tls`, it is opt-in).
 
 ---
@@ -237,6 +253,52 @@ runner.
 Both exercise the same SSR → hydration → interaction contract; keep the
 Playwright suite as the CI backend and use `#universal_test` for engine-native
 verification.
+
+## The ported suite (components-e2e → `#universal_test`)
+
+`lang/tests/universal_webview/` is a port of the Playwright `components-e2e`
+suite (142 tests). Layout:
+
+- `src/main.ch` — the runner `main` + a few small components.
+- `src/fixtures.ch` — all `#universal *Fixture` components copied verbatim from
+  `lang/compiled/components-e2e/app/src/main.ch`.
+- `src/tests_core.ch` — counter/ssr/root-shapes/static-children.
+- `src/tests_components.ch` — the component suite.
+- `src/tests_runtime.ch` — batching/unmount/effect-deps/derived lists/keyed
+  reconciliation/error boundaries/memo/SVG/ref/Suspense.
+- `src/tests_edges.ch` — edge + utility + controlled components.
+- `src/tests_reactivity.ch` — rapid interactions, hydration, ARIA.
+
+### Porting a Playwright test
+
+1. Reuse the existing fixture component (`<XFixture />`) if one exists; otherwise
+   copy it from the e2e app's `main.ch` into `fixtures.ch`.
+2. Write a `#universal_test("...") { <XFixture /> <script>...</script> }`.
+3. Translate the Playwright API to the harness:
+   - `page.getByTestId(x)` → `byTestId(x)`; `f.getByTestId(x)` →
+     `byTestId('f').getByTestId(x)`; `locator(css)` → `find(css)` (first) or
+     `findAll(css)` (collection); `.nth(i)`/`.first()`/`.last()`/`.count()`.
+   - `getByRole(role, {name})` → `byRole(role, { name })` (also matches native
+     tags and `aria-label`/`aria-labelledby`/wrapping-label names).
+   - `expect(...)` assertions map 1:1, including `.not.*`, `toBeDisabled`,
+     `toBeEnabled`, `toBeChecked`, `toBeFocused`, `toHaveValue`, `toHaveAttribute`,
+     `toHaveCSS`, `toHaveJSProperty`, `toBeGreaterThanOrEqual`, …
+   - `page.keyboard.press(k)` → `t.press(k)` (Tab focus movement is emulated);
+     `locator.press(k)` → handle `.press(k)`.
+   - `locator.fill(v)`/`el.value=…; dispatch input` → `.setValue(v)` / `.fill(v)`.
+   - `await page.waitForTimeout(ms)` → `await t.sleep(ms)`.
+   - `page.evaluate(() => window.__x)` → read `window.__x` directly.
+4. **Portals** (Dialog/Sheet/Select/Dropdown/Toast) append to `document.body`,
+   outside the test's container — mark those tests `isolate` so their portal
+   content cannot collide with another test's fixture on the shared page.
+5. Components that do **not** forward `data-testid` (Card, Badge, Avatar,
+   Typography, Tooltip, Alert, Separator, Stack, Grid, Skeleton, Spinner, Text,
+   Collapsible, Slider, Container, Fab) need structural selectors, text/role
+   queries, or an attribute the component *does* render (`[data-variant]`,
+   `[data-size]`, `[data-muted]`, `role`, tag name).
+6. Run and iterate:
+   `cmake-build-debug/TCCCompiler lang/tests/universal_webview/chemical.mod -o /tmp/t \
+       --mode debug_quick --no-cache -frecompile-plugins && /tmp/t --test-names "your test"`
 
 ## Related
 

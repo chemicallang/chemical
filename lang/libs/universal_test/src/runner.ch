@@ -102,6 +102,14 @@ func ut_execute(tests : *mut *mut UTFunction, count : size_t, headed : bool) {
 
     var html = page.toString()
 
+    // Debug: dump the generated page JS (UT_DUMP_JS=1) so it can be syntax-checked.
+    // Returns without opening a WebView.
+    if(getenv("UT_DUMP_JS\0" as *char) != null) {
+        var jsdump = page.toStringJsOnly()
+        printf("===UT_JS_START===\n%.*s\n===UT_JS_END===\n", jsdump.size() as int, jsdump.data())
+        return
+    }
+
     var wv_res = webview::create("universal tests\0" as *char, 900, 700)
     if(wv_res is std::Result.Err) {
         printf("universal_test: failed to create webview (is a display available?)\n")
@@ -115,6 +123,8 @@ func ut_execute(tests : *mut *mut UTFunction, count : size_t, headed : bool) {
     })
 
     webview::webview_load_html(&raw mut wv, html.data() as *char)
+    // Hidden by default: the WebView runs JS off-screen so no window flashes.
+    // `--ut-headed` shows it for debugging.
     if(headed) { webview::webview_show(&raw mut wv) }
     webview::webview_run(&raw mut wv)
     webview::webview_destroy(&raw mut wv)
@@ -181,7 +191,7 @@ func ut_report(tests : *mut *mut UTFunction, count : size_t) : int {
 }
 
 // Parses `--test-names a,b` and `--test-ids 1,2`.
-func ut_parse_args(argc : int, argv : **char, names : &mut vector<string_view>, ids : &mut vector<int>, has_names : &mut bool, has_ids : &mut bool) {
+func ut_parse_args(argc : int, argv : **char, names : &mut vector<string_view>, ids : &mut vector<int>, has_names : &mut bool, has_ids : &mut bool, headed : &mut bool) {
     var i : int = 1
     while(i < argc) {
         const arg = argv[i]
@@ -201,6 +211,8 @@ func ut_parse_args(argc : int, argv : **char, names : &mut vector<string_view>, 
                     if(*p == ',') { p += 1 }
                 }
             }
+        } else if(strcmp(arg, "--ut-headed") == 0 || strcmp(arg, "--headed") == 0) {
+            *headed = true
         } else if(strcmp(arg, "--test-ids") == 0 || strcmp(arg, "-test-ids") == 0) {
             i += 1
             if(i < argc) {
@@ -233,7 +245,8 @@ public func run_universal_tests(tests : std::span<UTFunction>, argc : int, argv 
     var ids = vector<int>()
     var has_names = false
     var has_ids = false
-    ut_parse_args(argc, argv, &mut names, &mut ids, &mut has_names, &mut has_ids)
+    var headed = false
+    ut_parse_args(argc, argv, &mut names, &mut ids, &mut has_names, &mut has_ids, &mut headed)
 
     // select tests, preserving declaration order, and split shared/isolated
     var selected = vector<*mut UTFunction>()
@@ -255,7 +268,7 @@ public func run_universal_tests(tests : std::span<UTFunction>, argc : int, argv 
     }
 
     // run the shared group in one page + webview (the fast default)
-    ut_execute(selected.data() as *mut *mut UTFunction, selected.size(), true)
+    ut_execute(selected.data() as *mut *mut UTFunction, selected.size(), headed)
 
     // each isolated test gets its own page + webview
     var k : size_t = 0
@@ -263,7 +276,7 @@ public func run_universal_tests(tests : std::span<UTFunction>, argc : int, argv 
         var one = vector<*mut UTFunction>()
         const ip = isolated.get_ptr(k)
         one.push(*ip)
-        ut_execute(one.data() as *mut *mut UTFunction, 1 as size_t, true)
+        ut_execute(one.data() as *mut *mut UTFunction, 1 as size_t, headed)
         k += 1
     }
 

@@ -58,6 +58,7 @@
 #include "ast/values/GenericInstIdentifier.h"
 #include "ast/values/RuntimeValue.h"
 #include "ast/values/StringValue.h"
+#include "ast/values/IfValue.h"
 #include "ast/types/LinkedValueType.h"
 #include "compiler/symres/SymbolResolver.h"
 #include "ast/utils/ASTUtils.h"
@@ -3879,12 +3880,39 @@ bool SymResLinkBody::mark_moved_id(VariableIdentifier* id, ASTDiagnoser& diagnos
     return true;
 }
 
+bool SymResLinkBody::mark_moved_scope_tail(Scope& scope, ASTDiagnoser& diagnoser) {
+    if(scope.nodes.empty()) {
+        return false;
+    }
+    auto* const tail = Value::get_first_value_from_value_node(scope.nodes.back());
+    if(tail == nullptr) {
+        return false;
+    }
+    return mark_moved_value(tail, diagnoser);
+}
+
 bool SymResLinkBody::mark_moved_value(Value* value, ASTDiagnoser& diagnoser) {
     // An `unsafe(expr)` wrapper must be transparent to move analysis: the inner
     // value is what actually gets moved out (e.g. `return unsafe(ctx)` should
     // move `ctx`, not copy it and then run its destructor on the local).
     if(value->val_kind() == ValueKind::UnsafeValue) {
         return mark_moved_value(static_cast<UnsafeValue*>(value)->getValue(), diagnoser);
+    }
+    // A value-if (`var t = if(cond) a else b`, `if(var Some(v) = m) v else ...`)
+    // produces its value by moving whichever branch runs. Move analysis must
+    // descend into each branch's tail value so the moved-from source is marked
+    // as moved. Without this, moving a variant payload out (`if(var Some(v) = m) v`)
+    // leaves `m` unmarked, and `m`'s destructor frees the payload a second time.
+    if(value->val_kind() == ValueKind::IfValue) {
+        auto& stmt = value->as_if_value_unsafe()->stmt;
+        bool moved = mark_moved_scope_tail(stmt.ifBody, diagnoser);
+        for(auto& else_if : stmt.elseIfs) {
+            moved = mark_moved_scope_tail(else_if.second, diagnoser) || moved;
+        }
+        if(stmt.elseBody.has_value()) {
+            moved = mark_moved_scope_tail(stmt.elseBody.value(), diagnoser) || moved;
+        }
+        return moved;
     }
     const auto chain = value->as_access_chain();
     if(chain) {

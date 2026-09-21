@@ -17,6 +17,21 @@ llvm::Type* IfValue::llvm_type(Codegen &gen) {
     return node->llvm_type(gen);
 }
 
+// The result of a value-if is produced by moving whichever branch runs, so the
+// branch's tail value must clear the drop flag of the source it was moved from.
+// Without this, `var t = if(var Some(v) = m) v else ...` copies the payload out
+// of `m` but leaves `m`'s drop flag set, so `m`'s destructor frees the payload a
+// second time.
+static void clear_branch_moved_drop_flags(Codegen& gen, Scope& scope) {
+    if(scope.nodes.empty()) {
+        return;
+    }
+    const auto tail = Value::get_first_value_from_value_node(scope.nodes.back());
+    if(tail != nullptr && tail->is_ref_moved()) {
+        tail->set_drop_flag_for_moved_ref(gen);
+    }
+}
+
 llvm::Value* IfValue::llvm_value(Codegen& gen, IfStatement& stmt, bool allocate) {
 
 //    auto scope = stmt.get_or_resolve_scope((InterpretScope&) gen.comptime_scope, gen);
@@ -72,6 +87,9 @@ llvm::Value* IfValue::llvm_value(Codegen& gen, IfStatement& stmt, bool allocate)
     // generating then code
     gen.SetInsertPoint(thenBlock);
     const auto ifBodyValue = stmt.ifBody.code_gen_value_scope(gen, allocate, gen.destruct_nodes.size());
+    if(!gen.has_current_block_ended) {
+        clear_branch_moved_drop_flags(gen, stmt.ifBody);
+    }
     const auto casted = gen.implicit_cast(ifBodyValue, stmt.known_type(),ifBodyValue->getType());
     incoming.emplace_back(casted, gen.builder->GetInsertBlock());
     bool is_then_returns = gen.has_current_block_ended;
@@ -94,6 +112,9 @@ llvm::Value* IfValue::llvm_value(Codegen& gen, IfStatement& stmt, bool allocate)
         // generating block code
         gen.SetInsertPoint(pair.second);
         const auto elseIfVal = elif.second.code_gen_value_scope(gen, allocate, gen.destruct_nodes.size());
+        if(!gen.has_current_block_ended) {
+            clear_branch_moved_drop_flags(gen, elif.second);
+        }
         const auto castedElseIfVal = gen.implicit_cast(elseIfVal, stmt.known_type(),ifBodyValue->getType());
         incoming.emplace_back(castedElseIfVal, gen.builder->GetInsertBlock());
         if(!gen.has_current_block_ended) {
@@ -109,6 +130,9 @@ llvm::Value* IfValue::llvm_value(Codegen& gen, IfStatement& stmt, bool allocate)
     if (elseBlock) {
         gen.SetInsertPoint(elseBlock);
         const auto elseBlockVal = stmt.elseBody.value().code_gen_value_scope(gen, allocate, gen.destruct_nodes.size());
+        if(!gen.has_current_block_ended) {
+            clear_branch_moved_drop_flags(gen, stmt.elseBody.value());
+        }
         const auto castedElseVal = gen.implicit_cast(elseBlockVal, stmt.known_type(),ifBodyValue->getType());
         incoming.emplace_back(castedElseVal, gen.builder->GetInsertBlock());
         is_else_returns = gen.has_current_block_ended;

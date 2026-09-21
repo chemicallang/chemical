@@ -869,7 +869,12 @@ Value* evaluated_value(InterpretScope &scope, IfStatement* stmt) {
         if(stmt->condition->val_kind() == ValueKind::PatternMatchExpr) {
             pm_declare_vars_from_patt(scope, child, static_cast<PatternMatchExpr*>(stmt->condition));
         }
-        return evaluate(child, body);
+        auto result = evaluate(child, body);
+        // The branch result is moved out to the caller. Mark it as this scope's
+        // return value so `child`'s destructor does not destroy the payload that
+        // was just moved out (e.g. a variant payload destructured by the pattern).
+        child.returnValue = result;
+        return result;
     }
     return scope.getNullValue();
 }

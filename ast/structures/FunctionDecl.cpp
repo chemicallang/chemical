@@ -43,14 +43,25 @@
 
 BaseType* FunctionDeclaration::inner_return_type() {
     auto rt = const_cast<BaseType*>(returnType.getType());
-    if(!attrs.is_async) {
+    // A lowered async function has its declared return type rewritten to
+    // `FutureHandle<T>` by TopLevelLinkSignature, while its body still produces the
+    // inner `T`. Only in that case must the type be unwrapped. Checking `is_async`
+    // alone is not sufficient: when the active backend does not lower async (the
+    // interpreter, or a transformer analyzing the module for documentation),
+    // `returnType` stays the source type, which may itself be an ordinary generic
+    // such as `Result<std::vector<u8>, FsError>`. Peeling its first type argument
+    // would corrupt move/type matching ("unknown value being moved").
+    if(!attrs.is_async || rt == nullptr || rt->kind() != BaseTypeKind::Generic) {
         return rt;
     }
-    if(rt != nullptr && rt->kind() == BaseTypeKind::Generic) {
-        const auto gen = rt->as_generic_type_unsafe();
-        if(!gen->types.empty()) {
-            return const_cast<BaseType*>(gen->types[0].getType());
-        }
+    const auto gen = rt->as_generic_type_unsafe();
+    const auto linked = gen->referenced != nullptr ? gen->referenced->linked : nullptr;
+    if(linked == nullptr || linked->kind() != ASTNodeKind::StructDecl
+       || linked->as_extendable_members_container_unsafe()->name_view() != chem::string_view("FutureHandle")) {
+        return rt;
+    }
+    if(!gen->types.empty()) {
+        return const_cast<BaseType*>(gen->types[0].getType());
     }
     return rt;
 }

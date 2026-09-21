@@ -431,11 +431,13 @@ LLVM keeps the eager bootstrap).
 > materializing a `StructValue` via `llvm_value`). This also resolved the large
 > struct-variant payload (B26). Regression tests:
 > `lang/tests/async/struct_payload_test.ch`,
-> `lang/tests/async/variant_payload_test.ch`. **Still pending (worked around, not
-> fixed):** B25 (combinator await in a spawned coroutine loses `Context`), B15-W
-> (async debug info disabled). Read `lang/docs/async-remaining-work.md` before
-> removing a workaround; do not re-enable `gen.di` for async without per-clone
-> `DISubprogram`s.
+> `lang/tests/async/variant_payload_test.ch`. **B25 fixed:** `gen_llvm_await`
+> reloads the caller's `Context*` inside the await loop, so a spawned coroutine
+> that awaits a combinator no longer forwards a stale `Context` after a resume
+> (`lang/tests/async/spawn_combinator_test.ch`). **Still pending (worked
+> around, not fixed):** B15-W (async debug info disabled). Read
+> `lang/docs/async-remaining-work.md` before removing a workaround; do not
+> re-enable `gen.di` for async without per-clone `DISubprogram`s.
 
 ## Debug Info Generation
 

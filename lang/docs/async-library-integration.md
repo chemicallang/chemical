@@ -599,14 +599,16 @@ Building the runtime exposed concrete compiler gaps that block the generic
 layers (`spawn_blocking<T>`, `timeout<T>`, the executor's awaitable
 `JoinHandle<T>`, and any hand-authored `FutureTable<T>`). They are independent
 of the runtime design and must be fixed in the compiler. B10, B11, B12, B14,
-B15, B16, B17, B19, B21, B22, B23 and B26 are **fixed**; B13 and B18 are
-by-design/documented; and B20 (composite generic arguments in a generic body),
-B24 (field access on a struct-typed async parameter) and B25 (a spawned
-coroutine awaiting a combinator) are **worked around** — the runtime keeps
-composite generics out of vtable types, keeps struct parameters out of coroutine
-bodies, and avoids combinator awaits inside spawned coroutines. B27 (globals
-after an `async func`) and B28 (`size_t find()` vs `-1u` in the server runtime)
-were found later and are **fixed**.
+B15, B16, B17, B19, B21, B22, B23, B24, B25, B26, B27 and B28 are **fixed**;
+B13 and B18 are by-design/documented. B20 (composite generic arguments in a
+generic body), B24 (field access on a struct-typed async parameter) and B25 (a
+spawned coroutine awaiting a combinator) are no longer worked around — see
+[`async-remaining-work.md`](./async-remaining-work.md). The runtime may still
+keep composite generics out of vtable types and struct parameters out of
+coroutine bodies where that is the simplest ABI, but it is no longer *required*
+by a compiler limitation. B27 (globals after an `async func`) and B28
+(`size_t find()` vs `-1u` in the server runtime) were found later and are
+**fixed**.
 
 > **Remaining (worked around, not fixed) → actionable worklist:**
 > [`async-remaining-work.md`](./async-remaining-work.md). It lists each pending

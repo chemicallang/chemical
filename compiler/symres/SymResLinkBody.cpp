@@ -52,6 +52,10 @@
 #include "ast/types/ReferenceType.h"
 #include "ast/base/TypeBuilder.h"
 #include "ast/types/VoidType.h"
+#include "ast/types/FunctionType.h"
+#include "ast/types/CapturingFunctionType.h"
+#include "ast/types/MaybeRuntimeType.h"
+#include "ast/types/RuntimeType.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/UnsafeValue.h"
 #include "ast/values/AwaitExpression.h"
@@ -1456,6 +1460,15 @@ void SymResLinkBody::VisitForInLoopStmt(ForInLoop* node) {
 
 void SymResLinkBody::VisitFunctionParam(FunctionParam* node) {
     table.declare(node->name, node);
+    // While linking a generic declaration's body, materialize a fully concrete
+    // parameter type (`Box<int>`) before the body runs. The signature pass defers
+    // generic instantiations, so without this the parameter still refers to the
+    // master declaration and field access resolves against the generic parameter
+    // (B20). Only struct-like containers are materialized here; partially applied
+    // types and interfaces/aliases/functions stay deferred.
+    if(generic_context && node->type) {
+        visit(node->type);
+    }
 }
 
 void SymResLinkBody::VisitGenericTypeParam(GenericTypeParameter* node) {
@@ -2584,13 +2597,115 @@ void SymResLinkBody::VisitFunctionType(FunctionType* type) {
     type->data.signature_resolved = true;
 }
 
+// True when `type` (or a type nested in it) still refers to a generic type
+// parameter. An argument like that makes a generic type *partially applied*
+// (`Box<T>` written inside the body of a generic that declares `T`); such a
+// type must stay deferred to the generic instantiation pass. A fully concrete
+// instantiation (`Box<int>`) contains no generic parameter and can be
+// materialized immediately.
+static bool type_mentions_generic_param(const BaseType* type) {
+    if(type == nullptr) {
+        return false;
+    }
+    auto* t = const_cast<BaseType*>(type);
+    switch(t->kind()) {
+        case BaseTypeKind::Linked: {
+            const auto linked = t->as_linked_type_unsafe()->linked;
+            return linked != nullptr && linked->kind() == ASTNodeKind::GenericTypeParam;
+        }
+        case BaseTypeKind::Generic: {
+            for(const auto& arg : t->as_generic_type_unsafe()->types) {
+                if(type_mentions_generic_param(arg.getType())) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        case BaseTypeKind::Pointer:
+            return type_mentions_generic_param(t->as_pointer_type_unsafe()->type);
+        case BaseTypeKind::Reference:
+            return type_mentions_generic_param(t->as_reference_type_unsafe()->type);
+        case BaseTypeKind::Array:
+            return type_mentions_generic_param(t->as_array_type_unsafe()->elem_type);
+        case BaseTypeKind::Function: {
+            const auto* fn = t->as_function_type_unsafe();
+            for(const auto param : fn->params) {
+                if(type_mentions_generic_param(param->type.getType())) {
+                    return true;
+                }
+            }
+            return type_mentions_generic_param(fn->returnType);
+        }
+        case BaseTypeKind::CapturingFunction: {
+            const auto* cf = t->as_capturing_func_type_unsafe();
+            return type_mentions_generic_param(cf->func_type)
+                || type_mentions_generic_param(cf->instance_type);
+        }
+        case BaseTypeKind::MaybeRuntime:
+            return type_mentions_generic_param(t->as_maybe_runtime_type_unsafe()->underlying);
+        case BaseTypeKind::Runtime:
+            return type_mentions_generic_param(t->as_runtime_type_unsafe()->underlying);
+        default:
+            return false;
+    }
+}
+
+// Number of generic parameters declared by the generic declaration `gen_type`
+// refers to (0 for a non-generic declaration).
+static size_t generic_decl_param_count(ASTNode* linked) {
+    if(linked == nullptr) {
+        return 0;
+    }
+    switch(linked->kind()) {
+        case ASTNodeKind::GenericStructDecl:
+            return linked->as_gen_struct_def_unsafe()->generic_params.size();
+        case ASTNodeKind::GenericUnionDecl:
+            return linked->as_gen_union_decl_unsafe()->generic_params.size();
+        case ASTNodeKind::GenericVariantDecl:
+            return linked->as_gen_variant_decl_unsafe()->generic_params.size();
+        default:
+            // Interfaces, type aliases and generic functions keep the existing
+            // deferred behaviour: instantiating them early (or with an
+            // unresolved parameter) breaks interface dispatch and function
+            // references. Struct-like containers are the case that needs the
+            // early materialization (field access on the instance).
+            return 0;
+    }
+}
+
 void SymResLinkBody::VisitGenericType(GenericType* gen_type) {
     visit(gen_type->referenced, type_location);
     for(auto& type : gen_type->types) {
         visit(type);
     }
     if(generic_context) {
-        gen_type->instantiate_inline(generic_instantiator, type_location);
+        // Type aliases can be expanded inline (their `instantiate_inline` does so).
+        if(!gen_type->instantiate_inline(generic_instantiator, type_location)) {
+            // A fully-concrete instantiation (`Box<int>`) written inside a generic
+            // body must be materialized here. Leaving it deferred (linked to the
+            // master declaration) made member access resolve against the master's
+            // generic parameter instead of the substituted type (B20: field access
+            // on a composite/generic type inside a generic body).
+            //
+            // Only do this when every argument is concrete and the count matches:
+            // a partially-applied type (`Box<T>`, `vector<T>` with `T` from the
+            // enclosing generic) must stay deferred, or instantiating it with an
+            // unresolved parameter poisons the type.
+            const auto linked = gen_type->referenced->linked;
+            const auto params = generic_decl_param_count(linked);
+            if(params > 0 && gen_type->types.size() == params) {
+                bool mentions_param = false;
+                for(const auto& arg : gen_type->types) {
+                    if(type_mentions_generic_param(arg.getType())) {
+                        mentions_param = true;
+                        break;
+                    }
+                }
+                if(!mentions_param) {
+                    gen_type->instantiate(generic_instantiator, type_location, InstantiationRequirement::SignatureFinalization);
+                }
+            }
+        }
     } else {
         gen_type->instantiate(generic_instantiator, type_location, InstantiationRequirement::SignatureFinalization);
     }

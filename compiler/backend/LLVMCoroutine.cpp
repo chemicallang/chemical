@@ -1003,7 +1003,6 @@ llvm::Value* gen_llvm_await(Codegen& gen, AwaitExpression* await) {
     auto* poll_fn = builder.CreateLoad(ptr_ty, child_vtbl);
     auto* child_drop_fn = builder.CreateLoad(ptr_ty, gep_idx(builder, ptr_ty, child_vtbl, {1}));
     auto* child_drop_ty = llvm::FunctionType::get(builder.getVoidTy(), {ptr_ty}, false);
-    auto* cx = builder.CreateLoad(ptr_ty, gep_idx(builder, coro->promise_ty, coro->promise, {0, (unsigned) coro->cx_field}));
 
     // Persist the child future handle in the frame so the cancel path (`drop`)
     // can drop it (the body alloca is not reachable from `drop`).
@@ -1030,6 +1029,13 @@ llvm::Value* gen_llvm_await(Codegen& gen, AwaitExpression* await) {
     builder.CreateBr(loop_bb);
 
     gen.SetInsertPoint(loop_bb);
+    // Reload the Context pointer from the wrapper on *every* iteration, including
+    // after a resume. `emit_poll_fn` stores the caller's Context into the wrapper
+    // at each poll entry; the caller (e.g. `executor_poll_tasks`) passes a fresh
+    // stack Context every time. Caching it before the loop meant a resumed
+    // coroutine forwarded a stale pointer to its child poll, so a combinator read
+    // a garbage waker vtbl and jumped through it (B25).
+    auto* cx = builder.CreateLoad(ptr_ty, gep_idx(builder, coro->promise_ty, coro->promise, {0, (unsigned) coro->cx_field}));
     auto* poll_fn_ty = llvm::FunctionType::get(builder.getVoidTy(), {ptr_ty, ptr_ty, ptr_ty}, false);
     builder.CreateCall(poll_fn_ty, poll_fn, {poll_tmp, child_frame, cx});
     auto* tag = builder.CreateLoad(i32, gep_idx(builder, child_poll_ty, poll_tmp, {0, 0}));

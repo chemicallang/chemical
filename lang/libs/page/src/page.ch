@@ -1766,6 +1766,7 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             });
             return end.nextSibling;
         }
+        const emptyVal = v.value == null || v.value === false || v.value === true;
         if(parent) {
             if(dom) { parent.insertBefore(end, dom); parent.insertBefore(start, end); }
             else { parent.appendChild(start); parent.appendChild(end); }
@@ -1774,10 +1775,17 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             window.$__uni_clear_range(start, end);
             start.after(window.$_urn(next));
         });
-        start.after(window.$_urn(v.value));
-        // Remove original SSR node that was replaced by state markers to
-        // prevent text/element doubling when hydration re-renders the value.
-        if(dom && dom.parentNode === parent) { window.$__uni_dispose_subtree(dom); dom.remove(); }
+        // A reactive value that rendered nothing on the server (a null/false/true
+        // conditional) owns no SSR node, so `dom` belongs to the NEXT client
+        // vnode: place empty markers without consuming it. Removing it here
+        // deleted the following whitespace/Field node and shifted hydration onto
+        // the Button (the Field mounted into the <button> root).
+        if(!emptyVal) {
+            start.after(window.$_urn(v.value));
+            // Remove original SSR node that was replaced by state markers to
+            // prevent text/element doubling when hydration re-renders the value.
+            if(dom && dom.parentNode === parent) { window.$__uni_dispose_subtree(dom); dom.remove(); }
+        }
         return end.nextSibling;
     }
     if(typeof v === "string" || typeof v === "number") {

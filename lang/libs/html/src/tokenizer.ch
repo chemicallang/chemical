@@ -76,7 +76,9 @@ public func tokenize_html_impl(view : std::string_view) : std::vector<Token> {
         pre_depth : 0,
         in_end_tag : false,
         last_tag_pre : false,
-        preserve_whitespace : true
+        preserve_whitespace : true,
+        pending_script : false,
+        in_script : false
     }
 
     while(true) {

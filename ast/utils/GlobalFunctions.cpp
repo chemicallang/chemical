@@ -1795,6 +1795,88 @@ public:
 
 };
 
+/**
+ * `intrinsics::get_universal_tests<UTFunction>()`
+ *
+ * Enumerates the `#universal_test` declarations collected by the html CBI. Each
+ * collected node carries the annotation arguments, in order:
+ *   [ name(string), isolate(bool), group(string), steps(string), fixture_fn(fn ptr) ]
+ * The returned array feeds the `universal_test` runner, which renders every
+ * fixture into one page and drives a single WebView.
+ */
+class InterpretGetUniversalTests : public FunctionDeclaration {
+public:
+
+    explicit InterpretGetUniversalTests(TypeBuilder& cache, ASTNode* parent_node) : FunctionDeclaration(
+            "get_universal_tests",
+            {cache.getAnyType(), ZERO_LOC},
+            false,
+            parent_node,
+            ZERO_LOC,
+            AccessSpecifier::Public,
+            true
+    ) {
+        set_compiler_decl(true);
+    }
+
+    Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+
+        auto& global = *call_scope->global;
+        auto& typeBuilder = global.typeBuilder;
+
+        if(call->generic_list.size() != 1) {
+            call_scope->error("get_universal_tests requires a single generic argument", call);
+            return new (allocator.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), ZERO_LOC);
+        }
+
+        const auto elem_type = call->generic_list[0];
+        const auto test_def = elem_type->get_direct_linked_canonical_node();
+        if(!test_def || test_def->kind() != ASTNodeKind::StructDecl) {
+            call_scope->error("get_universal_tests requires the struct definition representing the test", call);
+            return new (allocator.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), ZERO_LOC);
+        }
+        const auto test_def_struct = test_def->as_struct_def_unsafe();
+
+        auto& controller = global.build_compiler->controller;
+        const auto annot_def = controller.get_definition("universal_test");
+        if(annot_def == nullptr) {
+            const auto emptyType = new (allocator.allocate<ArrayType>()) ArrayType(elem_type, (uint64_t) 0);
+            return new (allocator.allocate<ArrayValue>()) ArrayValue(call->encoded_location(), emptyType);
+        }
+        auto& collection = controller.get_collection(annot_def->collection_id);
+
+        const auto arrType = new (allocator.allocate<ArrayType>()) ArrayType(elem_type, (uint64_t) collection.nodes.size());
+        const auto arrVal = new (allocator.allocate<ArrayValue>()) ArrayValue(call->encoded_location(), arrType);
+
+        const auto emptyStringVal = new (allocator.allocate<StringValue>()) StringValue("", typeBuilder.getStringType(), call->encoded_location());
+        const auto falseVal = new (allocator.allocate<BoolValue>()) BoolValue(false, typeBuilder.getBoolType(), call->encoded_location());
+        const auto nullVal = new (allocator.allocate<NullValue>()) NullValue(typeBuilder.getNullPtrType(), call->encoded_location());
+
+        int i = INT_MAX / 2;
+        for(auto& node : collection.nodes) {
+            const auto value = new (allocator.allocate<StructValue>()) StructValue(elem_type, test_def_struct, test_def_struct, call->encoded_location());
+            arrVal->values.emplace_back(value);
+
+            const auto idVal = new (allocator.allocate<IntNumValue>()) IntNumValue(i, typeBuilder.getIntType(), call->encoded_location());
+            value->values.emplace("id", StructMemberInitializer{"id", idVal});
+
+            // keep member order identical to the UTFunction declaration:
+            // id, name, group, isolate, fixture_fn, steps
+            const auto& args = node.args;
+            value->values.emplace("name", StructMemberInitializer{"name", args.size() > 0 ? args[0] : emptyStringVal});
+            value->values.emplace("group", StructMemberInitializer{"group", args.size() > 2 ? args[2] : emptyStringVal});
+            value->values.emplace("isolate", StructMemberInitializer{"isolate", args.size() > 1 ? args[1] : falseVal});
+            value->values.emplace("fixture_fn", StructMemberInitializer{"fixture_fn", args.size() > 4 ? args[4] : nullVal});
+            value->values.emplace("steps", StructMemberInitializer{"steps", args.size() > 3 ? args[3] : emptyStringVal});
+
+            i++;
+        }
+
+        return arrVal;
+    }
+
+};
+
 class InterpretGetLambdaFnPtr : public FunctionDeclaration {
 public:
 
@@ -2873,6 +2955,7 @@ public:
     InterpretExprPrintLn exprPrintlnFn;
 
     InterpretGetTests get_tests_fn;
+    InterpretGetUniversalTests get_universal_tests_fn;
     InterpretGetSingleMarkedDeclPointer get_single_marked_decl_ptr;
 
     InterpretGetBackendName get_backend_name;
@@ -2898,7 +2981,7 @@ public:
         get_target_fn(cache, this), get_build_dir(cache, this), get_compiler_path(cache, this), get_current_file_path(cache, this), get_raw_location(cache, this), get_raw_loc_of(cache, this),
         get_call_loc(cache, this), decode_location(cache, this), get_char_no(cache, this), get_caller_line_no(cache, this), get_caller_char_no(cache, this),
         get_loc_file_path(cache, this), get_module_scope(cache, this), get_module_name(cache, this), get_module_dir(cache, this),
-        get_child_fn(cache, this), forget_fn(cache, this), error_fn(cache, this), get_tests_fn(cache, this), get_single_marked_decl_ptr(cache, this),
+        get_child_fn(cache, this), forget_fn(cache, this), error_fn(cache, this), get_tests_fn(cache, this), get_universal_tests_fn(cache, this), get_single_marked_decl_ptr(cache, this),
         get_lambda_fn_ptr(cache, this), get_lambda_cap_ptr(cache, this), get_lambda_cap_destructor(cache, this),
         sizeof_lambda_captured(cache, this), alignof_lambda_captured(cache, this),
         expr_str_blk_val(cache, this), exprPrintFn(cache, this), exprPrintlnFn(cache, this),
@@ -2911,7 +2994,7 @@ public:
             &interpretSupports, &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &retStructPtr, &verFn,
             &isTccFn, &isClangFn, &isInterpretationFn, &isRuntimeFn, &isComptimeFn, &sizeFn, &vectorNode, &satisfiesFn, &isFn, &isSameTypeFn, &satisfiesValueFn,
             &get_raw_location, &get_raw_loc_of, &get_call_loc, &decode_location, &get_line_no, &get_char_no, &get_caller_line_no,
-            &get_caller_char_no, &get_target_fn, &get_build_dir, &get_compiler_path, &get_current_file_path, &get_loc_file_path, &get_tests_fn,
+            &get_caller_char_no, &get_target_fn, &get_build_dir, &get_compiler_path, &get_current_file_path, &get_loc_file_path, &get_tests_fn, &get_universal_tests_fn,
             &get_single_marked_decl_ptr, &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,
             &get_lambda_fn_ptr, &get_lambda_cap_ptr, &get_lambda_cap_destructor, &sizeof_lambda_captured, &alignof_lambda_captured,
             &expr_str_blk_val, &exprPrintFn, &exprPrintlnFn,

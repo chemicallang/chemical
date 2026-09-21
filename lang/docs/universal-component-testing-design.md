@@ -356,81 +356,134 @@ public func universal_test_runner(argc : int, argv : **char) : int {
 
 ## 6. Implementation plan (final)
 
-### Phase 0 — De-risk the macro (spike, 1–2 days)
+### Phase 0 — DONE (de-risked the macro, 2026-09)
 
-Goal: prove `#universal_test` parsing + fixture SSR + steps capture **before**
-building the runner.
+Implemented and verified:
 
-1. Add raw `<script>` lexing to `HtmlLexer` (`lang/libs/html_parser/src/lexer/`).
-2. Add `universal_test_parseMacroNode` + `universal_test_symResNode` +
-   `universal_test_replacementNode` to `html_cbi/src/`, registered under macro
-   name `universal_test` in `html_cbi/build.lab`.
-3. For the spike, emit a single fixture function and print the generated
-   `page.toString()` from a small app in `lang/compiled/ut_macro_probe/`.
-4. Success = the output HTML contains the production SSR for the fixture and the
-   page JS contains the test name + the raw steps.
-5. Add a regression test proving `#html { <script>1 < 2</script> }` is unaffected
-   (raw text, no parse errors).
+1. **Raw `<script>` lexing** — `HtmlLexer` gained `pending_script` / `in_script`
+   (`lang/libs/html_parser/src/lexer/HtmlLexer.ch`); `nextToken.ch` now emits the
+   content of a `<script>` element as a single raw text token up to
+   `</script>` (case-insensitive), and `html_cbi`'s converter emits `<script>`
+   content verbatim (no HTML entity escaping). Constructors updated in
+   `html_cbi/src/main.ch` and `html/src/tokenizer.ch`.
+2. **`#universal_test` macro** in `html_cbi`
+   (`lang/libs/html_cbi/src/universal_test/ut.ch`, registered in
+   `html_cbi/build.lab` under macro name `universal_test`):
+   - custom `UTLexer` (`ut_getNextToken`): delegates to the base Chemical lexer
+     for the `("name", options)` arguments, then switches to the html lexer with
+     `lb_count = 1` for the body;
+   - `ut_parse_body` parses the body, splits the single `<script>` (raw steps)
+     from the fixture, and stores both in a `UniversalTestDecl`;
+   - `ut_symResNode` synthesizes `func ut_render_<name>(page : &mut HtmlPage)`,
+     declares `page`, and calls the existing `sym_res_root` — so component
+     references and Chemical interpolations resolve exactly as in `#html`;
+   - `ut_replacementNode` wraps the fixture in `<div data-ut="<name>">`, runs it
+     through the production `ASTConverter.convertHtmlRoot`, and appends
+     `window.__ut_register("<name>", <isolate>, function(t){ <raw steps> });` to
+     the page JS bundle.
+3. **Two forms**: top-level (`ParseMacroTopLevelNode`) synthesizes the
+   `ut_render_<name>` function; statement (`ParseMacroNode`) emits the fixture
+   into the enclosing function's `page`. Phase 0 validates the conversion via the
+   statement form (`lang/compiled/ut_macro_probe/`); the top-level form compiles
+   through type-check but **directly calling `ut_render_<name>` does not resolve
+   yet** — the generated symbol is a `FunctionDeclaration` produced in the
+   replacement pass, so Phase 1 must expose it through a collector annotation +
+   intrinsic instead of relying on symbol resolution.
 
-If step 1 is unexpectedly invasive, fall back to a dedicated `initializeLexer`
-for `universal_test` that installs a lexer with raw-script mode enabled only for
-this macro (same code, gated by a flag).
+Verified output from `lang/compiled/ut_macro_probe/` (exit 0):
+
+```html
+<div data-ut="counter increments"><span id="u3098…" data-chx-i><div>
+        <button data-testid="inc">Increment</button>
+        <span data-testid="count">Count: 0</span>
+    </div></span></div>
+```
+
+```javascript
+function ut_macro_probe_Counter(props) { … }            // client component fn
+window.$__uni_dispatch('ut_macro_probe_Counter', document.getElementById('u3098…'), {"start":0});
+window.__ut_register("counter increments", false, function(t){
+
+            expect($('[data-testid=count]').text()).toBe('Count: 0')
+            $('[data-testid=inc]').click()
+
+});
+```
+
+Tests: `lang/tests/compiler_plugins/html/src/script_raw.ch` (3 tests) and the
+full suites — plugins 1125/1125, libs 650/650, main 2200/2200.
 
 ### Phase 1 — Minimal end-to-end (3–5 days)
 
-1. `lang/libs/universal_test/` with `UTFunction`, `TestHarness` JS, and
-   `universal_test_runner` (single WebView, sequential, no isolation).
-2. `intrinsics::get_universal_tests<UTFunction>()` in
-   `ast/utils/GlobalFunctions.cpp` + CBI binder/`GlobalFunctions` registration +
-   the Chemical binding.
-3. `html_cbi` replacement emits `__ut_fixture_<id>` and `__ut_steps_<id>` and
-   marks the collector.
-4. Fixture wrapper `data-ut="<name>"`; steps scoped to it by the harness.
-5. Reporting via `TestFunctionState`; `--test-names` / `--test-ids`.
-6. Sample test module `lang/tests/universal_webview/` with 5 tests (SSR, click,
-   props, input, no-errors) and `--universal-tests` in `scripts/test.sh`.
+**DONE (2026-09).**
 
-### Phase 2 — Ergonomics and robustness (3–5 days)
+1. **Discovery** — `html_cbi/build.lab` creates a `universal_test` collector
+   annotation; `ut_parseMacroNode` creates `ut_render_<name>` at parse time and
+   `controller.collect(...)`s the embedded node with args
+   `[name, isolate, group, steps, fixture_fn]`. A new C++ intrinsic
+   `intrinsics::get_universal_tests<UTFunction>()` (`InterpretGetUniversalTests`
+   in `ast/utils/GlobalFunctions.cpp`) turns the collection into an array.
+2. **`lang/libs/universal_test/`** — `runner.ch` (`UTFunction`, the comptime
+   `universal_test_runner` + `run_universal_tests`, one-page execution, filters,
+   isolation, reporting) and `harness.ch` (the in-page JS harness).
+3. Fixture wrapper `data-ut="<name>"`; the harness scopes locators to the test's
+   container.
+4. Filters `--test-names a,b` and `--test-ids 1,2`.
+5. `lang/tests/universal_webview/` (6 tests: SSR, props, click, conditional,
+   typing, isolate) and `--universal-tests` in `scripts/test.sh`.
 
-1. Full injected API (§3) and friendly assertion failures (selector + expected/
-   observed + fixture HTML snapshot).
-2. Console/runtime error capture per test; `t.consoleErrors()`.
-3. In-place fixture reset is unnecessary (own container) but add `t.reload()` for
-   tests that need a fresh document in the same WebView.
-4. Timeouts per test (`timeout = N`), `t.skip`.
-5. `--headed`, `--failure-only`, `--no-logs`.
+Important: `universal_test_runner` is a **comptime** function, so `ut_all()` is
+evaluated at the user call site — after the test module has been parsed and its
+`#universal_test` declarations collected (the same pattern as `test_runner`).
 
-### Phase 3 — Isolation, parallelism, CI (3–5 days)
+### Phase 2 — Ergonomics and robustness (DONE, 2026-09)
 
-1. `isolate` (fresh WebView per test).
-2. `--ut-workers N` with N WebViews, each owning a shard of fixtures.
-3. Xvfb support so CI can run the suite headlessly (document `xvfb-run`).
-4. Optional: share the harness with the Playwright suite so one fixture
-   definition can run under either backend.
+- Injected JS API (`$`, `byTestId`, `byRole`, `byText`, `byLabel`, `expect(...)`
+  with text/count/attr/class/visibility assertions, actions incl. `type`,
+  `press`, `check`, `hover`, `selectOption`).
+- Per-test **timeout** (15 s) that fails the test and advances; `t.skip(...)`
+  reported as a pass with the SKIP message.
+- Uncaught errors / unhandled rejections are captured per test and fail it with
+  the message.
+
+### Phase 3 — Isolation and CI (DONE / partial)
+
+- `isolate` runs a test in its own page + WebView (implemented and tested).
+- The default is still one page + one WebView for the shared group.
+- **Not done:** `--ut-workers N` parallel WebViews (GTK main-loop threading is
+  risky), and Xvfb CI wiring. Document `xvfb-run` for headless runs.
 
 ---
 
 ## 7. Files to add / change
 
-**Add**
+**Added (Phase 0, done)**
 
-- `lang/libs/universal_test/build.lab` and `src/` (`types.ch`, `runner.ch`,
-  `harness.ch`, `args.ch`).
-- `lang/tests/universal_webview/chemical.mod`, `src/main.ch`, and test files.
-- `lang/compiled/ut_macro_probe/` (spike, scratch).
+- `lang/libs/html_cbi/src/universal_test/ut.ch` — the `#universal_test` macro.
+- `lang/tests/compiler_plugins/html/src/script_raw.ch` — raw `<script>` tests.
+- `lang/compiled/ut_macro_probe/` — Phase 0 verification app (scratch).
 
-**Change**
+**Changed (Phase 0, done)**
 
-- `lang/libs/html_parser/src/lexer/HtmlLexer.ch` + `nextToken.ch` — raw
-  `<script>` text mode.
-- `lang/libs/html_cbi/src/` — `universal_test` parse/symres/replacement/
-  registration; `build.lab` hook indexes.
-- `ast/utils/GlobalFunctions.cpp` — `get_universal_tests` intrinsic (+ binder
-  registration in `CBI.cpp`/`CompilerBinder` and the Chemical binding).
-- `lang/libs/compiler` / `lang/libs/cstd` bindings if the intrinsic needs a
-  Chemical declaration.
+- `lang/libs/html_parser/src/lexer/HtmlLexer.ch` — `pending_script` / `in_script`.
+- `lang/libs/html_parser/src/lexer/nextToken.ch` — raw `<script>` lexing.
+- `lang/libs/html/src/tokenizer.ch`, `lang/libs/html_cbi/src/main.ch` — HtmlLexer
+  constructor fields + `UTLexer`/`ut_initializeLexer`/`ut_getNextToken`.
+- `lang/libs/html_cbi/src/converter/language/main.ch` — verbatim `<script>`
+  emission.
+- `lang/libs/html_cbi/build.lab` — `universal_test` hook indexes.
+
+**Added (Phase 1–3, done)**
+
+- `lang/libs/universal_test/chemical.mod`, `src/runner.ch`, `src/harness.ch`.
+- `lang/tests/universal_webview/` (`chemical.mod`, `src/main.ch`, `src/tests.ch`).
+- `ast/utils/GlobalFunctions.cpp` — `InterpretGetUniversalTests` +
+  `IntrinsicsNamespace` registration.
 - `scripts/test.sh` — `--universal-tests` flag.
-- `lang/tests/build.lab` — wire the new module (or keep it standalone).
+- `lang/tests/build.lab` — `test_universal_webview_exe` + `test-universal-tests`.
+
+Run it with `./scripts/test.sh --tcc --universal-tests` (requires GTK3/WebKit2
+and a display; for headless CI wrap in `xvfb-run`).
 
 ---
 

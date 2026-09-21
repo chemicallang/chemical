@@ -21,6 +21,7 @@ TEST_NEGATIVE=false
 TEST_TLS=false
 TEST_PROCESS=false
 TEST_WEBVIEW=false
+TEST_UNIVERSAL_TESTS=false
 TEST_SERVER=false
 TEST_LIBS=false
 TEST_ASYNC=false
@@ -58,6 +59,7 @@ usage() {
   echo "  --tls                   Build & run the TLS integration test suite (passes --arg-test-tls)"
   echo "  --process               Build & run the process/environment test suite (passes --arg-test-process)"
   echo "  --webview               Build & run the webview test suite (passes --arg-test-webview)"
+  echo "  --universal-tests       Build & run the universal component tests in a WebView (passes --arg-test-universal-tests)"
   echo "  --server                Build & run the server test suite (passes --arg-test-server)"
   echo "  --libs                  Build & run the library test suite (passes --arg-test-libs)"
   echo "  --async                 Build & run the async/await suite (C or LLVM)"
@@ -111,6 +113,7 @@ while [ $# -gt 0 ]; do
     --tls) TEST_TLS=true ;;
     --process) TEST_PROCESS=true ;;
     --webview) TEST_WEBVIEW=true ;;
+    --universal-tests) TEST_UNIVERSAL_TESTS=true ;;
     --server) TEST_SERVER=true ;;
     --libs) TEST_LIBS=true ;;
     --async) TEST_ASYNC=true ;;
@@ -526,6 +529,9 @@ else
   fi
   if [ "$TEST_WEBVIEW" = true ]; then
     CMD+=("--arg-test-webview")
+  fi
+  if [ "$TEST_UNIVERSAL_TESTS" = true ]; then
+    CMD+=("--arg-test-universal-tests")
   fi
   if [ "$TEST_SERVER" = true ]; then
     CMD+=("--arg-test-server")

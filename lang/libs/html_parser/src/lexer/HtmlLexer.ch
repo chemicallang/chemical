@@ -73,6 +73,18 @@ public struct HtmlLexer {
      */
     var preserve_whitespace : bool
 
+    /**
+     * the current opening tag was a <script>; set when the tag name is lexed,
+     * and consumed when the matching '>' is lexed
+     */
+    var pending_script : bool
+
+    /**
+     * we are inside a <script> element; its content is lexed as a single raw
+     * text token up to the matching </script> (JS is never lexed as HTML)
+     */
+    var in_script : bool
+
 }
 
 func (lexer : &mut HtmlLexer) reset() {
@@ -89,4 +101,6 @@ func (lexer : &mut HtmlLexer) reset() {
     lexer.in_end_tag = false;
     lexer.last_tag_pre = false;
     lexer.pre_depth = 0;
+    lexer.pending_script = false;
+    lexer.in_script = false;
 }

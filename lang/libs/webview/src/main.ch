@@ -17,7 +17,8 @@ public func create(title : *char, width : int, height : int) : std::Result<WebVi
 
     var result = webview_create(&raw mut wv)
     if(result is Result.Err) {
-        return std.Result.Err(WebViewError.InitFailed(string("failed to create webview")))
+        var Err(err) = result else unreachable
+        return std.Result.Err(WebViewError.InitFailed(err.message()))
     }
 
     return std.Result.Ok(wv)

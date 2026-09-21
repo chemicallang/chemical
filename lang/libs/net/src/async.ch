@@ -5,10 +5,11 @@
 // reactor (`async::readable` / `async::writable`); do not pass them to the
 // synchronous helpers.
 //
-// Connect and accept are offloaded to the runtime thread pool (connect is an
-// inherently blocking kernel call). `recv`/`send` are genuinely asynchronous on
-// POSIX: they retry after awaiting fd readiness. Windows (whose reactor is a
-// stub) falls back to the thread pool for all of them.
+// Connect is offloaded to the runtime thread pool (it is an inherently blocking
+// kernel call). `recv`/`send`/`accept` are genuinely asynchronous on POSIX
+// (they retry after awaiting fd readiness) and on Windows (they post overlapped
+// WinSock calls to a process-wide IOCP completion port, whose dispatcher wakes
+// the awaiting coroutine — see `net/win/iocp.ch`).
 //
 // The `*_async` entry points speak raw file descriptors (`int`), and
 // `AsyncSocket` is a thin synchronous wrapper. This shape was originally driven
@@ -82,7 +83,7 @@ public func dial_async(addr_str : *char, port : uint) : core::async::FutureHandl
 // Resolves with the accepted fd (>0), or 0 on failure.
 public async func accept_async(listener : int) : int {
     comptime if(def.windows) {
-        var accepted = await async::spawn_blocking<int>(|listener|() => accept_socket(listener as Socket) as int)
+        var accepted = await net::iocp::async_iocp_accept(listener as Socket)
         return accepted
     } else {
         set_nonblocking(listener as Socket)
@@ -100,7 +101,7 @@ public async func accept_async(listener : int) : int {
 
 public async func recv_async(fd : int, buf : *mut u8, cap : usize) : int {
     comptime if(def.windows) {
-        var n = await async::spawn_blocking<int>(|fd, buf, cap|() => recv_all(fd as Socket, buf, cap))
+        var n = await net::iocp::async_iocp_recv(fd as Socket, buf, cap)
         return n
     } else {
         var n = recv_all(fd as Socket, buf, cap)
@@ -114,8 +115,15 @@ public async func recv_async(fd : int, buf : *mut u8, cap : usize) : int {
 
 public async func send_async(fd : int, data : *char, len : int) : int {
     comptime if(def.windows) {
-        var n = await async::spawn_blocking<int>(|fd, data, len|() => send_all(fd as Socket, data, len))
-        return n
+        var off = 0
+        while(off < len) {
+            var n = await net::iocp::async_iocp_send(fd as Socket, &raw data[off], len - off)
+            if(n <= 0) {
+                return -1
+            }
+            off = off + n
+        }
+        return len
     } else {
         var off = 0
         while(off < len) {

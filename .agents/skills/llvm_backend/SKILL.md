@@ -430,7 +430,7 @@ fine.
 
 Async **closures** are not lowered here (the C backend emits the diagnostic;
 LLVM keeps the eager bootstrap). See `lang/docs/async-remaining-work.md` for the
-remaining items (AC, TLS-VT, WIN-IOCP, POSIX-EPOLL).
+remaining items (AC, POSIX-EPOLL).
 
 > **B23, B25, B26 and B15-W fixed.** `Codegen::writeReturnStmtFor`'s coroutine
 > branch used to store a `StructValue` alloca pointer into the frame's struct
@@ -446,8 +446,7 @@ remaining items (AC, TLS-VT, WIN-IOCP, POSIX-EPOLL).
 > regression `async_coroutine_debug_info_compiles` in
 > `lang/tests/negative/src/async.ch` compiles the coroutine shape in
 > `debug_complete`. The remaining async items are only the infrastructure/feature
-> gaps AC, TLS-VT, WIN-IOCP and POSIX-EPOLL — read
-> `lang/docs/async-remaining-work.md`.
+> gaps AC and POSIX-EPOLL — read `lang/docs/async-remaining-work.md`.
 
 ## Debug Info Generation
 

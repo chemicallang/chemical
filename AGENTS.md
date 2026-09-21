@@ -355,16 +355,18 @@ and definition of done for each item.
 Pending items (recommended fix order):
 
 1. **AC** — async closures parsed but not lowered
-2. **WIN-IOCP** — Windows async reactor is a stub
-3. **POSIX-EPOLL** — POSIX reactor is `select(2)` (~1024 fds)
+2. **POSIX-EPOLL** — POSIX reactor is `select(2)` (~1024 fds)
 
-**B20, B23, B24, B25, B26, B15-W and TLS-VT are fixed** — see the worklist.
-(B15-W was the LLVM `debug_complete` debug-info limitation: the async lowering
-now emits a `DISubprogram` per generated function and `CoroSplit` gives each
-clone its own. TLS-VT replaced the async TLS `spawn_blocking` bridge with a
+**B20, B23, B24, B25, B26, B15-W, TLS-VT and WIN-IOCP are fixed** — see the
+worklist. (B15-W was the LLVM `debug_complete` debug-info limitation: the async
+lowering now emits a `DISubprogram` per generated function and `CoroSplit` gives
+each clone its own. TLS-VT replaced the async TLS `spawn_blocking` bridge with a
 shared `Transport` vtable: the record layer/handshake are coroutines, the sync
 API drives them with `block_on` over a blocking transport, and the async API
-installs a non-blocking transport that suspends on fd readiness.)
+installs a non-blocking transport that suspends on fd readiness. WIN-IOCP wired
+Windows `net` async (`accept`/`recv`/`send`) to a process-wide IOCP completion
+port with a dispatcher thread instead of `spawn_blocking`; `AcceptEx` is resolved
+via the bundled `mswsock.def`.)
 
 Design/assessment: [`async-await-design.md`](lang/docs/async-await-design.md),
 [`async-library-integration.md`](lang/docs/async-library-integration.md).

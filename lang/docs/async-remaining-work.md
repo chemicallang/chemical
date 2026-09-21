@@ -60,13 +60,12 @@ the backend verifier:
 | ~~4~~ | ~~**B15-W**~~ | ~~Async debug info disabled (LLVM `debug_complete`)~~ — ✅ FIXED | `LLVMCoroutine.cpp` | M |
 | 5 | **AC** | Async closures not lowered | parser/symres/codegen | L |
 | ~~6~~ | ~~**TLS-VT**~~ | ~~TLS has no non-blocking transport~~ — ✅ FIXED | `tls` | L |
-| 7 | **WIN-IOCP** | Windows async reactor is a stub | `async`/`net` win | L |
+| ~~7~~ | ~~**WIN-IOCP**~~ | ~~Windows async reactor is a stub~~ — ✅ FIXED | `async`/`net` win | L |
 | 8 | **POSIX-EPOLL** | POSIX reactor is `select(2)` | `async` posix | M |
 
-**B15-W, B20, B23, B24, B25, B26 and TLS-VT are fixed** (kept below for
-reference). Items 5, 7 and 8 are infrastructure/features/gaps (async closures,
-the Windows IOCP reactor, the POSIX epoll/kqueue reactor). All are independent
-unless noted.
+**B15-W, B20, B23, B24, B25, B26, TLS-VT and WIN-IOCP are fixed** (kept below
+for reference). Items 5 and 8 are infrastructure/features/gaps (async closures,
+the POSIX epoll/kqueue reactor). All are independent unless noted.
 
 ---
 
@@ -309,8 +308,9 @@ unless noted.
      (`ssl_use_async_transport`) and awaits the coroutines directly — **no
      `spawn_blocking`**. `tls_connect_coro` dials via `net::dial_async` (connect
      is an inherently blocking kernel call) then runs a genuinely suspending
-     handshake. On Windows the record callbacks still fall back to the thread
-     pool through `net::*_async` until the IOCP reactor lands (WIN-IOCP).
+     handshake. On Windows the record callbacks now go through `net::*_async`,
+     which is IOCP-backed (WIN-IOCP is fixed), so async TLS is event-driven on
+     both platforms.
 - **Result:** with the blocking transport the coroutine never suspends, so the
   synchronous API behaves exactly as before; with the non-blocking transport the
   handshake and record I/O suspend on fd readiness instead of occupying a pool
@@ -330,21 +330,46 @@ unless noted.
 
 ---
 
-## WIN-IOCP — Windows async reactor is a stub
+## WIN-IOCP — Windows async reactor is a stub — ✅ FIXED
 
-- **Status:** Stub. **Priority: Medium (Windows only).**
-- **Symptom:** `lang/libs/async/win/reactor.ch` returns readiness immediately and
-  a no-op poll; `net` async falls back to the thread pool on Windows.
-- **Root cause / where:** `lang/libs/async/win/reactor.ch`. A real
-  IOCP-backed reactor exists in skeleton form at `lang/libs/net/win/iocp.ch`
-  (`CompletionPort`, `AsyncContext`, `async_recv`/`async_send`), already used by
-  `http::server` on Windows.
-- **Current workaround:** Windows `net` async uses the shared thread pool.
-- **Definition of done:** wire `net`/`async` to IOCP on Windows so fd readiness
-  is event-driven; keep the POSIX path unchanged. CI/manual verification on
-  Windows required.
-- **Files:** `lang/libs/async/win/reactor.ch`, `lang/libs/net/win/iocp.ch`,
-  `lang/libs/net/win/platform_api.ch`.
+- **Was:** every Windows `net` async operation (`accept_async`, `recv_async`,
+  `send_async`) was `spawn_blocking` over the synchronous socket calls, so the
+  Windows path consumed a thread-pool thread per in-flight operation and was not
+  event-driven.
+- **Root cause:** the `async` reactor's readiness model is built on CRT file
+  descriptors (`async::pipe` → `_open_osfhandle` → `_get_osfhandle`), which cannot
+  see a raw Winsock `SOCKET`. So `net` could not use `async::readable`/`writable`
+  on Windows and fell back to the thread pool.
+- **Fix:** `net` sockets are now driven by a process-wide **IOCP completion port**
+  (`lang/libs/net/win/iocp.ch`), independent of the fd reactor:
+  1. `IocpOp` stores an `OVERLAPPED` first, so the kernel's `lpOverlapped` is the
+     `IocpOp` pointer; it carries the task's `Waker`, a `std::mutex`, and the
+     done/abandoned/consumed bookkeeping.
+  2. `async_iocp_recv`/`async_iocp_send`/`async_iocp_accept` post one overlapped
+     `WSARecv`/`WSASend`/`AcceptEx` each and return a `FutureHandle<int>`. The
+     socket is associated with the port (`CreateIoCompletionPort`).
+  3. A single lazily-started dispatcher thread drains the port with
+     `GetQueuedCompletionStatus` and, per completion, fills the op result and
+     wakes the awaiting coroutine (so the executor is woken immediately rather
+     than polling). Dropping a suspended handle marks the op *abandoned*; the
+     dispatcher frees it when the completion arrives (no leak, no UAF). AcceptEx
+     is finished with `SO_UPDATE_ACCEPT_CONTEXT`.
+  4. `net/src/async.ch`'s Windows branches now `await` those ops — no
+     `spawn_blocking`. Only `dial_async` (blocking `connect`) stays on the pool,
+     which is inherent to a connect call.
+- **Reactor note:** `lang/libs/async/win/reactor.ch` still exists for
+  pipe/CRT-fd readiness futures (`async::readable`/`writable`/`AsyncFd`, used by
+  the tier-0 reactor tests); it is unchanged. Windows sockets deliberately do not
+  go through it — IOCP is completion-based, not readiness-based, and operates on
+  `SOCKET`s directly.
+- **Requires:** `AcceptEx` exported by the bundled Windows `mswsock.def`
+  (added to the `chemicallang/tcclib` repo; `lib/tcc` is downloaded from it).
+- **Verified on Windows (TCC + LLVM):** `--async` 48/48 (incl.
+  `test_net_async_loopback`), `--server` 2/2 (async HTTP file server/client over
+  IOCP), and `INT_http_async_loopback` (async TLS-over-IOCP). POSIX path
+  unchanged.
+- **Files:** `lang/libs/net/win/iocp.ch`, `lang/libs/net/src/async.ch`,
+  `chemicallang/tcclib` `windows/lib/mswsock.def`.
 
 ---
 

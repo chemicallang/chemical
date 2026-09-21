@@ -455,15 +455,38 @@ ast_allocator;            // Lifetime = entire compilation session
 three AST allocator pointers are build-wide state shared by the top-level build,
 any nested `build.lab`/`chemical.mod` build and every job. Nothing isolates them,
 so a nested build can clear state an enclosing build still uses. This is a known
-structural gap — though it is *not* (as measured, see below) the cause of the
-intermittent `built_lab_file` SIGSEGV.
+structural gap (it was *not* the cause of the `built_lab_file` crash, see below).
 
-That crash is still **open**: a byte-shifted pointer / one-byte write into
-`built_lab_file`'s stack frame, ~1 in 250 compiles normally but ~1 in 5 under
-`gdb` (no ASLR). Reproduce with `gdb -batch`, not with a plain loop. Full
-write-up — crash sites, the corruption signature, the reproduction harness, and
-what has already been ruled out — is in
+### Pooled tasks must not outlive the stack state they point at
+
+`LabBuildCompiler::pool` is the only thread pool. Every function that pushes to it
+must join all of its futures before returning — **on error paths too**. A `std::future`
+from `ctpl::thread_pool` is a packaged task, so destroying it does *not* wait (only
+`std::async` blocks). Tasks capture `ASTProcessor*`, `SymbolResolver*`, the three
+`ASTAllocator`s and `ConcurrentParsingState&` — all stack objects — so a task left
+running after its spawner returns writes into stack memory that deeper calls have since
+reused, which corrupts unrelated locals and crashes far away from the cause.
+
+Rules (these were violated and produced the intermittent `built_lab_file` SIGSEGV,
+fixed in `compiler/ASTProcessor.cpp` / `ASTProcessor.h`):
+
+* Return only after joining: use the `JoinedTasks<T>` RAII guard
+  (`ASTProcessor.cpp`), which joins every valid future in its vector on scope exit, and
+  decide error handling *after* `join_all(futures)` — never `return` from inside the
+  drain loop while futures remain (`stop_on_file_error` used to do exactly that).
+* A task group that signals completion must count the **pushing thread** as a
+  participant: `state.pushed_task()` before pushing, `state.done_task()` after
+  everything is pushed (`import_chemical_files_recursive`). Otherwise the counter hits
+  zero mid-loop, the promise is fulfilled early, and `wait()` returns with tasks still
+  running.
+* Never pass a stack object to a task unless the task is joined before that frame dies.
+
+The full post-mortem (crash sites, corruption signature, the `gdb` harness that made it
+reproduce at ~40 %, why `&ConcurrentParsingState == &local_vector`, and the misleading
+investigation paths) is in
 [`lang/docs/lab-build-crash-investigation.md`](../../../lang/docs/lab-build-crash-investigation.md).
+It is a good template for debugging stack corruption: spin-loop detection, printing
+suspect addresses, and why hardware watchpoints on stack slots lie.
 
 ## Key Files Reference
 

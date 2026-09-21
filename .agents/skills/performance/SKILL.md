@@ -234,7 +234,13 @@ per-file `SymbolTable`s layered on top (see [Symbol Resolution](../symres/SKILL.
 processed sequentially in the current thread rather than pushed to the pool
 (`ASTProcessor.cpp:846-860`), because pushing nested tasks that wait on sub-tasks can exhaust
 the pool. Completion is tracked with `ConcurrentParsingState`, whose `outstanding` counter and
-`all_done_promise` use `std::atomic` and a `std::promise` (`ASTProcessor.h:56-75`).
+`all_done_promise` use `std::atomic` and a `std::promise` (`ASTProcessor.h:56-90`). The
+**pushing thread counts itself as a task** (`pushed_task` before the push loop,
+`done_task` after) — without that the counter hits zero mid-loop, the promise fires
+early and `wait()` returns with tasks still running. Every task spawner must also
+join all futures before returning, even on error paths (`JoinedTasks<T>` guard in
+`ASTProcessor.cpp`); see [build_system](../build_system/SKILL.md) and
+[`lang/docs/lab-build-crash-investigation.md`](../../docs/lab-build-crash-investigation.md).
 
 ### Generic Instantiation Parallelism
 

@@ -57,13 +57,17 @@ struct ConcurrentParsingState {
     std::atomic<int> outstanding;
     std::promise<void> all_done_promise;
     std::atomic_bool has_errors;
+    std::atomic_bool promise_fulfilled;
     void pushed_task() {
         outstanding.fetch_add(1, std::memory_order_relaxed);
     }
     void done_task() {
         // decrement outstanding and possibly set promise
         if (outstanding.fetch_sub(1, std::memory_order_acq_rel) == 1) {
-            all_done_promise.set_value();
+            // set_value may only be called once, a second call throws
+            if(!promise_fulfilled.exchange(true, std::memory_order_acq_rel)) {
+                all_done_promise.set_value();
+            }
         }
     }
     void set_has_errors() {
@@ -71,6 +75,21 @@ struct ConcurrentParsingState {
     }
     bool get_has_errors() {
         return has_errors.load(std::memory_order_relaxed);
+    }
+    /**
+     * waits for every pushed task to finish
+     * NOTE : the thread that pushes tasks must count itself as a task ( pushed_task before
+     * pushing, done_task after it pushed everything ). Without that, the counter drops to
+     * zero while the pushing thread is still pushing - because tasks do run concurrently -
+     * which fulfils the promise early and makes this wait return with tasks still running.
+     * Those tasks would then keep using this state after its owner has left the scope, and
+     * since the stack slot gets reused, they end up writing into unrelated locals.
+     */
+    void wait() {
+        if(outstanding.load(std::memory_order_acquire) == 0) {
+            return;
+        }
+        all_done_promise.get_future().wait();
     }
 };
 

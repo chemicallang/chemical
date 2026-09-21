@@ -23,6 +23,7 @@ for the app-level authoring guide see `design_web_app`.
 | `#universal` | `universal_cbi` | `universal_cbi/build.lab:23-110` | `ParseMacroTopLevelNode` | SSR fn + client JS + hydration |
 | `#json(Type)` | `json_cbi` | `json_cbi/build.lab:18-60` | `ParseMacroTopLevelNode` | Generates `std::Serializer`/`Deserializer` impls |
 | `#md` | `md_cbi` | `md_cbi/build.lab:20-85` | `ParseMacroNode`, `ParseMacroValue` | Markdown → `page.append_html*` |
+| `#universal_test("name")` | `html_cbi` (second macro name) | `html_cbi/build.lab` | `ParseMacroTopLevelNode`, `ParseMacroNode` | Component test: SSR fixture + raw `<script>` steps; see `universal_testing` |
 
 `MountStrategy` (`lang/libs/html_comp/ast.ch:6-13`) still declares `Preact`, `React`, `Solid`
 enum values, but **no plugin registers `#preact`, `#react`, or `#solid`** — only `Universal`

@@ -44,6 +44,7 @@ Configs saved as JSON in `scripts/tui-configs/`. Last config auto-restored.
 ./scripts/test.sh --llvm           # Build Compiler (LLVM), compile & run tests
 ./scripts/test.sh --tcc --plugins     # Include compiler plugin tests (html, css, js, etc.)
 ./scripts/test.sh --tcc --libs        # Library test suite (bcrypt, uuid, json, fs, crypto, audio, ...)
+./scripts/test.sh --tcc --universal-tests  # Universal component tests (#universal_test) in a real WebView
 ./scripts/test.sh --tcc --negative # Negative tests (compiler failure verification)
 ./scripts/test.sh --tcc --no-run   # Compile only, don't run
 ./scripts/test.sh --tcc --no-build # Use existing compiler binary
@@ -192,6 +193,7 @@ Uses `comptime if(intrinsics::is_interpretation())` to select the `println` path
 - Dedicated library suites (run independently so the main `--tcc` suite stays fast and environment-specific suites can run alone):
   - `lang/tests/process/` (`chemical.mod` + `src/`) — `process` **and** `environment` library tests. Run with `./scripts/test.sh --tcc --process`.
   - `lang/tests/webview/` (`chemical.mod` + `src/`) — `webview` library tests (display-independent API only; requires GTK3 + WebKit2GTK to link/run). Run with `./scripts/test.sh --tcc --webview`.
+  - `lang/tests/universal_webview/` (`chemical.mod` + `src/`) — `#universal_test` universal-component tests: each test SSR-renders an inline fixture with the production pipeline and runs raw JS steps in a real WebView. Entry is `universal_test_runner(argc, argv)` (not `test_runner`); discovery is a `universal_test` collector annotation + `intrinsics::get_universal_tests<UTFunction>()`. Requires a display (use `xvfb-run` headless). Run with `./scripts/test.sh --tcc --universal-tests`. Load the `universal_testing` skill.
   - See `## Chemical Library Development Gotchas` → *Uninitialized Variables Require the `unsafe` Keyword* for the migration rule that applies to all of these test sources.
 
 ### Interpretation Mode Details
@@ -259,6 +261,7 @@ The following skills are available in `.agents/skills/`. An AI agent should load
 | Skill | Location | Description |
 |-------|----------|-------------|
 | Universal Components | `.agents/skills/universal/SKILL.md` | Universal component pipeline: SSR + hydration, runtime behavior, prop serialization, subscriber mutation bugs, debugging generated HTML/CSS/JS |
+| Universal Component Testing | `.agents/skills/universal_testing/SKILL.md` | `#universal_test` native WebView tests: macro syntax (inline fixture + raw JS `<script>` steps), injected JS API, isolation/filters, discovery intrinsic + `universal_test` runner library, implementation gotchas |
 | Designing Web Apps | `.agents/skills/design_web_app/SKILL.md` | Web app design in Chemical: static pages, `#html`/`#css`/`#js` macros, `#universal` components, `page` library, server + client rendering |
 
 ### Compiler API (for plugin development)
@@ -307,6 +310,7 @@ The skill name is the directory name under `.agents/skills/`. For example:
 | **Writing and organizing tests** | **`testing`** |
 | **Working on the benchmark dashboard / analytics workflows** | **`benchmark_dashboard`** |
 | **Testing components in a real browser / debugging hydration or runtime bugs** | **`components_e2e`**, `universal`, `testing` |
+| **Writing universal component tests in the native WebView** | **`universal_testing`**, `universal`, `testing` |
 | **Building CBI macro plugins** | `compiler_bindings`, `macro_code_gen`, `compiler_api` |
 | **Extending libraries (`lang/libs/`)** | `compiler_api`, `cbi_plugin_api` |
 | **Working on the `json` library / the `#json` macro (`json_cbi`)** | **`json_serialization`**, `chemical_source`, `cbi_plugin_api` |

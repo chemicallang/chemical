@@ -118,6 +118,10 @@ cannot be sugar over `#html` + a nested `#js`; it needs its own macro/grammar.
 
 ## 3. Final syntax
 
+> **How-to guide:** the `.agents/skills/universal_testing/SKILL.md` skill is the
+> task-oriented reference for writing/running these tests (syntax, injected JS
+> API, gotchas). This document is the design + implementation record.
+
 A component test is a top-level `#universal_test` macro whose body is **HTML/JSX
 (the fixture) plus one `<script>` element containing the raw JS steps**:
 

@@ -291,3 +291,23 @@ in `universal` macro, some things are different
 
 - No guarantee of static content being generated, something can break SSR + hydration (like .map)
 - Not explicitly clear about what gets generated for the runtime code
+## Testing your components
+
+Write component tests next to the app with `#universal_test`. Each test declares
+an inline fixture (rendered with the same production SSR + hydration pipeline as
+a real page) and a raw JS `<script>` of steps run in a real WebView:
+
+```chemical
+#universal_test("counter increments") {
+    <Counter start={0} />
+    <script>
+        expect($('[data-testid=count]').text()).toBe('Count: 0')
+        $('[data-testid=inc]').click()
+        expect($('[data-testid=count]').text()).toBe('Count: 1')
+    </script>
+}
+```
+
+Run with `./scripts/test.sh --tcc --universal-tests`. See the `universal_testing`
+skill for the full API and gotchas; for headless/cross-browser coverage use the
+`components_e2e` Playwright suite instead.

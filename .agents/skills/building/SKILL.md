@@ -139,6 +139,9 @@ make -C cmake-build-debug ChemicalLsp -j$(nproc)
 # Webview library tests (requires GTK3 + WebKit2GTK to link/run)
 ./scripts/test.sh --tcc --webview
 
+# Universal component tests in a real WebView (#universal_test; needs a display)
+./scripts/test.sh --tcc --universal-tests
+
 # Negative (compiler-failure verification) tests
 ./scripts/test.sh --tcc --negative
 

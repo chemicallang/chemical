@@ -10,6 +10,13 @@ HTML/CSS/JS output. They cannot prove that clicking a button updates the DOM, th
 hydration didn't duplicate nodes, or that state actually propagates. This skill covers
 the **browser E2E suite** that verifies real behavior.
 
+> **Native alternative.** Chemical also has a WebView-based component test system,
+> `#universal_test` (`lang/libs/universal_test`, suite `lang/tests/universal_webview`,
+> run with `./scripts/test.sh --tcc --universal-tests`). It renders the fixture with the
+> production SSR/hydration pipeline in the app's real WebView and runs raw JS steps.
+> Use it for engine-native verification; keep this Playwright suite for headless CI and
+> cross-browser coverage. See the `universal_testing` skill.
+
 ## Repo location & GitHub
 
 The suite lives in **`lang/compiled/components-e2e/`** inside the Chemical repo, but it

@@ -422,6 +422,11 @@ Fast triage questions:
 - Parser roundtrips: `lang/tests/compiler_plugins/universal_runtime/` (`universal::parse_universal`).
 - Browser E2E (real SSR → hydration → interaction): the `components_e2e` skill +
   `lang/compiled/components-e2e` (Playwright).
+- **Native WebView component tests**: `#universal_test` + `./scripts/test.sh --tcc
+  --universal-tests` — renders the fixture with this exact SSR/hydration pipeline in a real
+  WebView and runs raw JS steps against the hydrated DOM. Load the `universal_testing` skill;
+  the suite lives in `lang/tests/universal_webview/`. Use it for engine-native verification
+  (needs a display; `xvfb-run` headless).
 - Unit-ish tests of SSR helpers (`renderHtmlAttrs` escaping, None skipping) are plain
   `@test` functions in `ssr_safety.ch` — prefer adding there when the bug is in `page/ssr.ch`.
 

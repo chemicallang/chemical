@@ -530,6 +530,7 @@ independently. These are wired in `lang/tests/build.lab` and gated behind dedica
 | `process` | `lang/tests/process/src/process_test.ch` | `./scripts/test.sh --tcc --process` | POSIX `fork`/`exec` via `process::execute` |
 | `environment` | `lang/tests/process/src/environment_test.ch` | `./scripts/test.sh --tcc --process` | Env var get/set/unset — shares the `--process` suite (a separate `--environment` flag was deemed overkill) |
 | `webview` | `lang/tests/webview/src/webview_test.ch` | `./scripts/test.sh --tcc --webview` | Requires GTK3 + WebKit2GTK to **link/run** |
+| universal components | `lang/tests/universal_webview/src/tests.ch` | `./scripts/test.sh --tcc --universal-tests` | `#universal_test` — SSR fixture in a real WebView + raw JS steps; needs a display |
 
 ### Where to write the tests
 
@@ -579,6 +580,27 @@ and will fail in headless environments.
 # Skip compiler rebuild when only .ch/.lab files changed:
 ./scripts/test.sh --tcc --process --no-build
 ```
+
+### Universal component tests (`#universal_test`)
+
+`lang/tests/universal_webview/` is a different kind of suite: tests are **not**
+`@test` functions. They are `#universal_test` declarations (a `html_cbi` macro)
+that render an inline universal-component fixture with the production SSR +
+hydration pipeline and run raw JavaScript steps in a WebView. See the
+`universal_testing` skill for the full guide.
+
+- Location: `lang/tests/universal_webview/{chemical.mod,src/main.ch,src/tests.ch}`.
+- Entry: `main` calls `universal_test_runner(argc, argv)` from
+  `lang/libs/universal_test` (not `test_runner`).
+- Discovery: a `universal_test` collector annotation + the
+  `intrinsics::get_universal_tests<UTFunction>()` intrinsic. The runner is a
+  **comptime** function, so the tests must be reachable from the module that
+  calls it.
+- Run: `./scripts/test.sh --tcc --universal-tests` (filters: `--test-names a,b`).
+- Requires GTK3 + WebKit2GTK + a display; use `xvfb-run` headless. Not part of
+  `--all`.
+- Adding a test needs **no** build.lab change — just add another
+  `#universal_test` to `src/tests.ch`.
 
 ### `--target` flag
 

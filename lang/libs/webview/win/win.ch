@@ -950,9 +950,14 @@ func wv_widget_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT
             // Deferred bridge response: execute the saved JS call from the
             // message loop, safe and not inside a COM callback.
             if(wv.pending_js_ready && wv.webview != null) {
-                var js_buf : [8192]ushort
-                widen_to_buf(wv.pending_js_call.data(), &raw mut js_buf[0], 8192)
-                wv.webview.lpVtbl.ExecuteScript(wv.webview, &raw js_buf[0], null)
+                // The reply can be arbitrarily large (bridge results are echoed
+                // back in full), so allocate the UTF-16 buffer rather than using
+                // a fixed stack buffer that would silently drop large payloads.
+                var js_wide = widen_alloc(wv.pending_js_call.data())
+                if(js_wide != null) {
+                    wv.webview.lpVtbl.ExecuteScript(wv.webview, js_wide, null)
+                    free(js_wide as *mut void)
+                }
                 wv.pending_js_ready = false
                 wv.pending_js_call = string("")
             }
@@ -1095,6 +1100,26 @@ func widen_to_buf(utf8 : *char, buf : *mut ushort, cap : size_t) {
     if(n <= 0) {
         buf[0] = 0
     }
+}
+
+// UTF-8 narrow string -> newly allocated UTF-16 buffer. Returns null on failure.
+// Unlike widen_to_buf this is not bounded by a fixed capacity, so large bridge
+// replies (e.g. a serialized video-info payload) survive intact. The caller owns
+// the returned buffer and must free it.
+func widen_alloc(utf8 : *char) : *mut ushort {
+    if(utf8 == null) {
+        return null
+    }
+    var needed = MultiByteToWideChar(65001, 0, utf8, -1, null, 0) // CP_UTF8
+    if(needed <= 0) {
+        return null
+    }
+    var buf = malloc((needed as size_t) * sizeof(ushort)) as *mut ushort
+    if(buf == null) {
+        return null
+    }
+    MultiByteToWideChar(65001, 0, utf8, -1, buf, needed)
+    return buf
 }
 
 func wv_embed(wv : *mut WebView, debug : int) : int {

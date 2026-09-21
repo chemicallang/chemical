@@ -65,6 +65,6 @@ func switch_on_bool_allowed(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     // Switch accepts integer-like *and* bool storage (`isIntOrBoolLikeMarkedStorage`),
     // so switching on a bool is valid.
-    var ch = "func main() {\n    var b = true\n    switch(b) {\n        true => { }\n        default => { }\n    }\n}\n"
+    var ch = "public func main() {\n    var b = true\n    switch(b) {\n        true => { }\n        default => { }\n    }\n}\n"
     expect_compile_success(env, "switch_bool_allowed", ch)
 }

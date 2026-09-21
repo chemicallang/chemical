@@ -1845,18 +1845,27 @@ public func webview_hide(wv : *mut WebView) {
 }
 
 public func webview_load_url(wv : *mut WebView, url : *char) {
-    var wbuf : [4096]ushort
-    widen_to_buf(url, &raw mut wbuf[0], 4096)
-    if(wv.webview != null) {
-        wv.webview.lpVtbl.Navigate(wv.webview, &raw wbuf[0])
+    if(wv.webview == null) {
+        return
+    }
+    // Exact-sized buffer: data: URLs and query strings can exceed any fixed cap.
+    var wbuf = widen_alloc(url)
+    if(wbuf != null) {
+        wv.webview.lpVtbl.Navigate(wv.webview, wbuf)
+        free(wbuf as *mut void)
     }
 }
 
 public func webview_evaluate_js(wv : *mut WebView, js : *char) {
-    var wbuf : [32768]ushort
-    widen_to_buf(js, &raw mut wbuf[0], 32768)
-    if(wv.webview != null) {
-        wv.webview.lpVtbl.ExecuteScript(wv.webview, &raw wbuf[0], null)
+    if(wv.webview == null) {
+        return
+    }
+    // Allocate to the exact size: a fixed buffer would silently drop any script
+    // that does not fit and leave the page half-initialized.
+    var wbuf = widen_alloc(js)
+    if(wbuf != null) {
+        wv.webview.lpVtbl.ExecuteScript(wv.webview, wbuf, null)
+        free(wbuf as *mut void)
     }
 }
 
@@ -1886,13 +1895,18 @@ public func webview_evaluate_js_result(
     // handler when ExecuteScript accepts it and Releases it after Invoke; the
     // Release that brings the count to 0 frees the struct (see js_release).
     h.ref_count = 0
-    var wbuf : [32768]ushort
-    widen_to_buf(js, &raw mut wbuf[0], 32768)
+    // Exact-sized buffer (WebView2 copies the script before returning).
+    var wbuf = widen_alloc(js)
+    if(wbuf == null) {
+        js_release(&raw h.vtbl as *mut ICoreWebView2ExecuteScriptCompletedHandler)
+        return
+    }
     var res = wv.webview.lpVtbl.ExecuteScript(
         wv.webview,
-        &raw wbuf[0],
+        wbuf,
         &raw h.vtbl as *mut void
     )
+    free(wbuf as *mut void)
     if(FAILED(res)) {
         // WebView2 never accepted the handler — drop our implied reference.
         js_release(&raw h.vtbl as *mut ICoreWebView2ExecuteScriptCompletedHandler)
@@ -1900,10 +1914,16 @@ public func webview_evaluate_js_result(
 }
 
 public func webview_load_html(wv : *mut WebView, html : *char) {
-    var wbuf : [65536]ushort
-    widen_to_buf(html, &raw mut wbuf[0], 65536)
-    if(wv.webview != null) {
-        wv.webview.lpVtbl.NavigateToString(wv.webview, &raw wbuf[0])
+    if(wv.webview == null) {
+        return
+    }
+    // Do not cap the page size: the universal-test page alone is hundreds of KB,
+    // and a fixed buffer would make MultiByteToWideChar fail and navigate to an
+    // empty document (the harness never runs and the message loop blocks).
+    var wbuf = widen_alloc(html)
+    if(wbuf != null) {
+        wv.webview.lpVtbl.NavigateToString(wv.webview, wbuf)
+        free(wbuf as *mut void)
     }
 }
 
@@ -2031,9 +2051,13 @@ public func webview_set_size_hints(wv : *mut WebView, width : int, height : int,
 // Unlike evaluate_js which runs once, init scripts persist across navigations.
 public func webview_init(wv : *mut WebView, js : *char) {
     if(wv.webview == null) { return }
-    var wbuf : [32768]ushort
-    widen_to_buf(js, &raw mut wbuf[0], 32768)
-    wv.webview.lpVtbl.AddScriptToExecuteOnDocumentCreated(wv.webview, &raw wbuf[0], null)
+    // Exact-sized buffer: init scripts can be arbitrarily large (e.g. a bundled
+    // JS runtime) and must not be silently truncated.
+    var wbuf = widen_alloc(js)
+    if(wbuf != null) {
+        wv.webview.lpVtbl.AddScriptToExecuteOnDocumentCreated(wv.webview, wbuf, null)
+        free(wbuf as *mut void)
+    }
 }
 
 // Remove a binding previously created with webview_bind.

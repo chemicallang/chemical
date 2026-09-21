@@ -499,6 +499,13 @@ func deliver_mouse(w : *mut Window, kind : int, button : int, lp : LPARAM) {
     w.event_cb(w.user_data, &raw mut ev)
 }
 
+// True while a native message loop (window_run) is pumping messages.
+// `WM_DESTROY` only posts WM_QUIT when a loop is running: destroying a window
+// programmatically after the loop has returned must not leave a stray WM_QUIT
+// in the thread queue, or the next loop (e.g. the next WebView's init loop in
+// wv_embed) quits immediately.
+var g_msg_loop_active : bool = false
+
 func win_window_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESULT {
     var w = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut Window
     if(msg == WM_NCCREATE) {
@@ -531,7 +538,9 @@ func win_window_proc(hwnd : HWND, msg : UINT, wp : WPARAM, lp : LPARAM) : LRESUL
             w.created = false
             w.hwnd = null
             SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0)
-            PostQuitMessage(0)
+            if(g_msg_loop_active) {
+                PostQuitMessage(0)
+            }
         }
         WM_GETMINMAXINFO => {
             var lpmmi = lp as *mut MINMAXINFO
@@ -1069,10 +1078,12 @@ public func window_native_handle(w : *mut Window) : *mut void {
 
 public func window_run() {
     var msg : MSG
+    g_msg_loop_active = true
     while(GetMessageW(&raw mut msg, null, 0, 0) > 0) {
         TranslateMessage(&raw mut msg)
         DispatchMessageW(&raw mut msg)
     }
+    g_msg_loop_active = false
 }
 
 public func window_quit() {

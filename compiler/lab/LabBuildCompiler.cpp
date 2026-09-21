@@ -4339,6 +4339,16 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
     // an interpretation scope for interpreting compile time function calls
     GlobalInterpretScope global(other_job.mode, other_job.target_data, nullptr, this, *job_allocator, type_builder, loc_man);
 
+    // The libraries being analyzed (fs/net/http async wrappers) are written against
+    // the async lowering, where an `async func`'s declared return type is rewritten
+    // to `FutureHandle<T>`. Without a backend context, signature linking keeps the
+    // source return type while type verification still expects consistency, so
+    // analyzing e.g. `net/async.ch` fails. Give the analysis the same C backend
+    // context a real build uses so signatures and bodies agree.
+    ToCAstVisitor transformer_c_visitor(binder, global, mangler, *file_allocator, loc_man, coreNodes, implsIndex, options->debug_info, options->minify_c);
+    ToCBackendContext transformer_c_context(&transformer_c_visitor);
+    global.backend_context = (BackendContext*) &transformer_c_context;
+
     // we hold the instantiated types inside this container
     InstantiationsContainer instContainer;
 

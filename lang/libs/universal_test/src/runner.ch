@@ -183,7 +183,7 @@ func ut_report(tests : *mut *mut UTFunction, count : size_t) : int {
         }
         i += 1
     }
-    printf("\nuniversal tests: %d passed, %d failed\n", passed, failed)
+    printf("\nSummary: %d tests - %d passed, %d failed\n", passed + failed, passed, failed)
     if(failed > 0) {
         return 1
     }

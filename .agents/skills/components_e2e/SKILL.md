@@ -12,7 +12,7 @@ the **browser E2E suite** that verifies real behavior.
 
 > **Native alternative.** Chemical also has a WebView-based component test system,
 > `#universal_test` (`lang/libs/universal_test`, suite `lang/tests/universal_webview`,
-> run with `./scripts/test.sh --tcc --universal-tests`). It renders the fixture with the
+> run with `./scripts/test.sh --tcc --universal`). It renders the fixture with the
 > production SSR/hydration pipeline in the app's real WebView and runs raw JS steps.
 > Use it for engine-native verification; keep this Playwright suite for headless CI and
 > cross-browser coverage. See the `universal_testing` skill.

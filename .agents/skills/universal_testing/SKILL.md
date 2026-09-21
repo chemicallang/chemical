@@ -22,7 +22,7 @@ coverage.
 - **Isolation:** `isolate` gives a test its own page + WebView.
 
 > **Requires GTK3 + WebKit2GTK and a display.** It is an opt-in suite
-> (`--universal-tests`) and is **not** part of `./scripts/test.sh --all`. For
+> (`--universal`) and **is** part of `./scripts/test.sh --all`. For
 > headless CI wrap the run in `xvfb-run`.
 
 ---
@@ -73,10 +73,10 @@ import window
 Run it:
 
 ```bash
-./scripts/test.sh --tcc --universal-tests                 # all tests
-./scripts/test.sh --tcc --universal-tests --test-names "counter increments"
+./scripts/test.sh --tcc --universal                 # all tests
+./scripts/test.sh --tcc --universal --test-names "counter increments"
 # show the WebView window (default is hidden/off-screen):
-./scripts/test.sh --tcc --universal-tests --ut-headed
+./scripts/test.sh --tcc --universal --ut-headed
 # or build the module directly:
 cmake-build-debug/TCCCompiler path/to/chemical.mod -o /tmp/tests \
     --mode debug_quick --no-cache -frecompile-plugins
@@ -204,7 +204,7 @@ suite continues.
 | Runner (`UTFunction`, `universal_test_runner`, `run_universal_tests`) | `lang/libs/universal_test/src/runner.ch` |
 | In-page JS harness | `lang/libs/universal_test/src/harness.ch` |
 | Suite | `lang/tests/universal_webview/{chemical.mod,src/main.ch,src/fixtures.ch,src/tests_*.ch}` |
-| CLI | `./scripts/test.sh --universal-tests` (`--ut-headed` to show the window) |
+| CLI | `./scripts/test.sh --universal` (`--ut-headed` to show the window) |
 
 **Discovery flow.** `ut_parseMacroNode` creates the fixture function at parse
 time and `controller.collect(...)`s the embedded node with args
@@ -237,7 +237,7 @@ runner.
   `page.toStringJsOnly()` between `===UT_JS_START===`/`===UT_JS_END===` markers
   and exit before opening a WebView. A page-script syntax error otherwise hangs
   the run (the harness never starts); dump + `node --check` finds it.
-- **`--universal-tests` is not in `--all`** (like `tls`, it is opt-in).
+- **`--universal` is included in `--all`** (it needs a display; use `xvfb-run` headless).
 
 ---
 

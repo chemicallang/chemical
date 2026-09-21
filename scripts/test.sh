@@ -60,13 +60,13 @@ usage() {
   echo "  --tls                   Build & run the TLS integration test suite (passes --arg-test-tls)"
   echo "  --process               Build & run the process/environment test suite (passes --arg-test-process)"
   echo "  --webview               Build & run the webview test suite (passes --arg-test-webview)"
-  echo "  --universal-tests       Build & run the universal component tests in a WebView (passes --arg-test-universal-tests)"
-  echo "  --ut-headed             With --universal-tests, show the WebView window (default: hidden)"
+  echo "  --universal             Build & run the universal component tests in a WebView (alias: --universal-tests)"
+  echo "  --ut-headed             With --universal, show the WebView window (default: hidden)"
   echo "  --server                Build & run the server test suite (passes --arg-test-server)"
   echo "  --libs                  Build & run the library test suite (passes --arg-test-libs)"
   echo "  --async                 Build & run the async/await suite (C or LLVM)"
   echo "  --all                   Run every suite (main, interpret, negative, plugins, async,"
-  echo "                          libs, process, server, webview) and print a summary table."
+  echo "                          libs, process, server, webview, universal) and print a summary table."
   echo "                          Uses --tcc unless --llvm is also given. The slow 'tls'"
   echo "                          suite is SKIPPED unless --include-tls is given."
   echo "  --include-tls           With --all, also run the slow 'tls' suite (minutes)."
@@ -115,7 +115,7 @@ while [ $# -gt 0 ]; do
     --tls) TEST_TLS=true ;;
     --process) TEST_PROCESS=true ;;
     --webview) TEST_WEBVIEW=true ;;
-    --universal-tests) TEST_UNIVERSAL_TESTS=true ;;
+    --universal|--universal-tests) TEST_UNIVERSAL_TESTS=true ;;
     --server) TEST_SERVER=true ;;
     --libs) TEST_LIBS=true ;;
     --async) TEST_ASYNC=true ;;
@@ -291,6 +291,8 @@ run_all_suites() {
   fi
   names+=("webview")
   flags+=("--webview")
+  names+=("universal")
+  flags+=("--universal")
 
   local n_suites=${#names[@]}
   local any_failed=0

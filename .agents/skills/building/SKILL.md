@@ -140,7 +140,7 @@ make -C cmake-build-debug ChemicalLsp -j$(nproc)
 ./scripts/test.sh --tcc --webview
 
 # Universal component tests in a real WebView (#universal_test; needs a display)
-./scripts/test.sh --tcc --universal-tests
+./scripts/test.sh --tcc --universal
 
 # Negative (compiler-failure verification) tests
 ./scripts/test.sh --tcc --negative

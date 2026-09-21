@@ -14,7 +14,7 @@ func if_int_condition_allowed(env : &mut TestEnv) {
     // Conditions accept integer / boolean / pointer types (see the
     // "only integer / boolean / pointer types can be used as a condition"
     // rule), so an integer condition is valid.
-    var ch = "func main() {\n    if(42) { }\n}\n"
+    var ch = "public func main() {\n    if(42) { }\n}\n"
     expect_compile_success(env, "if_int_cond_allowed", ch)
 }
 

@@ -1160,13 +1160,20 @@ comptime const MAX_TIMERS : int = 16
 var g_timer_cbs : [16]TimerCallback
 var g_timer_data : [16]*mut void
 var g_timer_used : [16]bool
+// The Win32 timer id actually returned by SetTimer. With a NULL hwnd the
+// nIDEvent passed in is ignored and a new id is generated, so the callback
+// must map the delivered id back to its slot through this table.
+var g_timer_winids : [16]UINT
 
 func win_timer_proc(hwnd : HWND, msg : UINT, timer_id : WPARAM, lp : LPARAM) : void {
-    var idx = timer_id as int
-    if(idx >= 0 && idx < MAX_TIMERS) {
-        if(g_timer_used[idx] && g_timer_cbs[idx] != null) {
-            g_timer_cbs[idx](g_timer_data[idx])
+    var rid = timer_id as UINT
+    var i : int = 0
+    while(i < MAX_TIMERS) {
+        if(g_timer_used[i] && g_timer_winids[i] == rid && g_timer_cbs[i] != null) {
+            g_timer_cbs[i](g_timer_data[i])
+            return
         }
+        i += 1
     }
 }
 
@@ -1187,14 +1194,14 @@ public func window_set_timer(interval_ms : int, cb : TimerCallback, data : *mut 
     g_timer_cbs[idx] = cb
     g_timer_data[idx] = data
     g_timer_used[idx] = true
-    // Use a hidden window-less timer via SetTimer with a NULL hwnd.
-    // SetTimer with hwnd=NULL and a non-zero nIDEvent creates a timer
-    // that posts WM_TIMER to the calling thread's message queue.
-    var timer_id = SetTimer(null, (idx + 1) as UINT, interval_ms as UINT, win_timer_proc as *mut void)
+    // Use a hidden window-less timer via SetTimer with a NULL hwnd. The nIDEvent
+    // is ignored in that mode and a fresh Win32 id is returned, so remember it.
+    var timer_id = SetTimer(null, 0 as UINT, interval_ms as UINT, win_timer_proc as *mut void)
     if(timer_id == 0) {
         g_timer_used[idx] = false
         return 0
     }
+    g_timer_winids[idx] = timer_id
     return idx + 1
 }
 
@@ -1202,10 +1209,13 @@ public func window_set_timer(interval_ms : int, cb : TimerCallback, data : *mut 
 public func window_cancel_timer(timer_id : int) {
     if(timer_id <= 0 || timer_id > MAX_TIMERS) { return }
     var idx = timer_id - 1
-    KillTimer(null, timer_id as UINT)
+    if(g_timer_used[idx]) {
+        KillTimer(null, g_timer_winids[idx])
+    }
     g_timer_used[idx] = false
     g_timer_cbs[idx] = null
     g_timer_data[idx] = null
+    g_timer_winids[idx] = 0
 }
 
 // ===========================================================================

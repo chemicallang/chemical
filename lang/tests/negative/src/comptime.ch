@@ -14,7 +14,7 @@ func neg_comptime_non_const_expr(env : &mut TestEnv) {
     // a comptime block is evaluated by the interpreter, which evaluates regular
     // function bodies as well, so calling a non-comptime function whose result is
     // computable at compile time is allowed
-    var ch = "comptime func get_val() : int { return 42 }\nfunc main() {\n    comptime {\n        var x = get_val()\n    }\n}\n"
+    var ch = "comptime func get_val() : int { return 42 }\npublic func main() {\n    comptime {\n        var x = get_val()\n    }\n}\n"
     expect_compile_success(env, "comptime_const_call", ch)
 }
 
@@ -23,7 +23,7 @@ func comptime_block_outside_func_allowed(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     // a `comptime { }` block at the top level of a module is legal: its contents are
     // evaluated while the module is being declared
-    var ch = "comptime {\n    var x = 5\n}\nfunc main() {}\n"
+    var ch = "comptime {\n    var x = 5\n}\npublic func main() {}\n"
     expect_compile_success(env, "comptime_block_toplevel", ch)
 }
 

@@ -18,13 +18,18 @@ public namespace process {
 using std::Result;
 using std::vector;
 
+// The config is owned by the closure (it is a by-value capture), so it must not
+// be moved out of the capture directly: the closure would still destroy the
+// (now moved-from) capture when the task is dropped and free its buffers twice.
+// `std::replace` takes the value out and leaves a zeroed capture behind, whose
+// destructor is a no-op.
 public async func execute_async(cfg : ProcessConfig) : PR_Result {
-    var result = await async::spawn_blocking<PR_Result>(|cfg|() => execute(cfg))
+    var result = await async::spawn_blocking<PR_Result>(|cfg|() => execute(std::replace<ProcessConfig>(&mut cfg, zeroed:unsafe<ProcessConfig>())))
     return result
 }
 
 public async func spawn_async(cfg : ProcessConfig) : CP_Result {
-    var result = await async::spawn_blocking<CP_Result>(|cfg|() => spawn(cfg))
+    var result = await async::spawn_blocking<CP_Result>(|cfg|() => spawn(std::replace<ProcessConfig>(&mut cfg, zeroed:unsafe<ProcessConfig>())))
     return result
 }
 

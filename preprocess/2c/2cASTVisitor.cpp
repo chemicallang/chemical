@@ -9167,8 +9167,24 @@ void write_captured_struct(ToCAstVisitor& visitor, LambdaFunction* func, const s
         id.linked = cap->linked;
         if (cap->capture_by_ref && !is_value_param_hidden_pointer(&id)) {
             visitor.write('&');
+            visitor.accept_mutating_value(id.getType(), &id);
+        } else {
+            // Capturing by value moves the value into the closure. Clear the source's
+            // drop flag (using a comma expression so it stays an expression) so the
+            // enclosing scope does not destroy a value the closure now owns - without
+            // this the captured value and the original are both destroyed, freeing the
+            // same buffer twice.
+            const auto flag = id.linked != nullptr ? get_drop_flag(visitor.destructor, id.linked) : nullptr;
+            if (flag != nullptr) {
+                visitor.write('(');
+                visitor.write(*flag);
+                visitor.write(" = false, ");
+                visitor.accept_mutating_value(id.getType(), &id);
+                visitor.write(')');
+            } else {
+                visitor.accept_mutating_value(id.getType(), &id);
+            }
         }
-        visitor.accept_mutating_value(id.getType(), &id);
         if (i != func->captureList.size() - 1) {
             visitor.write(',');
         }

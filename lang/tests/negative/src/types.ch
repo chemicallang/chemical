@@ -34,7 +34,7 @@ func neg_string_multiply(env : &mut TestEnv) {
 func int_to_pointer_cast_allowed(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     // An explicit `as` cast from an integer to a pointer is supported.
-    var ch = "func main() {\n    var x = 42\n    var p = x as *int\n}\n"
+    var ch = "public func main() {\n    var x = 42\n    var p = x as *int\n}\n"
     expect_compile_success(env, "int_to_ptr_cast_ok", ch)
 }
 
@@ -50,7 +50,7 @@ func pointer_arithmetic_allowed(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     // Pointer arithmetic is a core language operation (used across the TLS
     // and archive libraries, e.g. `data + pos`).
-    var ch = "func main() {\n    var x = 42\n    var p : *int = &raw x\n    var y = p + 1\n}\n"
+    var ch = "public func main() {\n    var x = 42\n    var p : *int = &raw x\n    var y = p + 1\n}\n"
     expect_compile_success(env, "ptr_arithmetic_ok", ch)
 }
 

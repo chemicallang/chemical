@@ -207,6 +207,16 @@ int LabBuildCompiler::do_job(LabJob* job) {
     const auto bm = options->benchmark;
     current_job = job;
 
+    // the core nodes (and the implementations index) may still point into an
+    // allocator that has already been cleared - most notably the build.lab/chemical.mod
+    // compilation performed before the user jobs run, which populates them while
+    // compiling its own `core` dependency and frees that memory right after.
+    // Linked nodes are always re-populated while this job processes its dependency
+    // modules (the `core` module links them in sym_res_module), so clear them here
+    // to avoid dereferencing dangling pointers on a fresh job.
+    coreNodes.clear();
+    implsIndex.clear();
+
     // ensure test resources are available in testing environment
     if(job->target_data.test) {
         controller.ensure_test_resources();

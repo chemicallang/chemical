@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // HTTP Client limits and timeouts â€” full stack against live python servers
 // ============================================================================
 // Exercises the Client's own knobs (max_body_len, max_response_header_bytes,

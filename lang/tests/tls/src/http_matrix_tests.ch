@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // HTTP matrix + stress tests (part 1) â€” sizes, byte cycles, headers, queries
 // ============================================================================
 // Each test drives complete HTTP request/response cycles through the whole

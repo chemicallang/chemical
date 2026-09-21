@@ -1,5 +1,6 @@
 import lab
 import std
+import "@core/build.lab" as coreMod
 import "@cstd/build.lab" as cstdMod
 import "@std/build.lab" as stdMod
 import "@net/build.lab" as netMod
@@ -17,6 +18,7 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
         return cached;
     }
 
+    var core_module = coreMod.build(ctx, user_job)
     var cstd_module = cstdMod.build(ctx, user_job)
     var std_module = stdMod.build(ctx, user_job)
     var net_module = netMod.build(ctx, user_job)
@@ -26,9 +28,9 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     var datetime_module = datetimeMod.build(ctx, user_job)
     var osrand_module = osrandMod.build(ctx, user_job)
 
-    var deps : []*mut Module = [ cstd_module, std_module, async_module, net_module, crypto_module, encoding_module, datetime_module, osrand_module ]
+    var deps : []*mut Module = [ core_module, cstd_module, std_module, async_module, net_module, crypto_module, encoding_module, datetime_module, osrand_module ]
     var srcPath = lab::rel_path_to("src")
-    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("tls"), srcPath.to_view(), std::span<*mut Module>(deps, 8));
+    const module = ctx.chemical_dir_module(std::string_view(""), std::string_view("tls"), srcPath.to_view(), std::span<*mut Module>(deps, 9));
 
     comptime if(def.windows) {
         var winPath = lab::rel_path_to("win")

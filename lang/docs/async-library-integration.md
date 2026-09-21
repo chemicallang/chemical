@@ -316,17 +316,21 @@ untouched. `net` now imports `core` + `async`.
   cap)`, `send_async(fd, data, len)`.
 - POSIX: `accept`/`recv`/`send` set the socket non-blocking and retry after
   `await async::readable`/`writable` (EAGAIN/EINTR), so a single executor drives
-  many sockets. Connect and accept are offloaded to the thread pool (connect is
-  an inherently blocking kernel call). `set_nonblocking` already existed.
-- Windows: the whole API falls back to the thread pool (its reactor is a stub);
-  real IOCP integration is still open.
+  many sockets. Connect is offloaded to the thread pool (an inherently blocking
+  kernel call). `set_nonblocking` already existed.
+- **Windows: IOCP (WIN-IOCP fixed).** `accept`/`recv`/`send` post overlapped
+  `WSARecv`/`WSASend`/`AcceptEx` to a process-wide completion port; a single
+  dispatcher thread drains the port and wakes the awaiting coroutine. No
+  `spawn_blocking`, no thread per operation. `AcceptEx` is obtained from the
+  bundled `mswsock.def` (see `chemicallang/tcclib`). Only `dial_async` still uses
+  the thread pool.
 - **Futures carry raw fds (`int`), not `AsyncSocket`.** This started as a B23
   workaround (now fixed); it is kept as the ABI because `int` handles are the
   simplest payload. `AsyncSocket` is a synchronous wrapper over the fd.
 - Tests: `lang/tests/async/net_test.ch` (loopback echo) in the dedicated
   `--async` suite (not `--libs`, which stays hermetic).
-- Still open for a follow-up: an epoll/kqueue registration for scale (the
-  reactor is `select(2)`, ~1024 fds) and the Windows IOCP path.
+- Still open for a follow-up: an epoll/kqueue registration for scale (the POSIX
+  reactor is `select(2)`, ~1024 fds).
 
 ### Tier 2 — `tls` — ✅ DONE
 
@@ -347,8 +351,8 @@ untouched. `net` now imports `core` + `async`.
   `spawn_blocking` — so the handshake and record I/O suspend on fd readiness and
   many connections overlap on one executor. Connect is still offloaded via
   `net::dial_async` (an inherently blocking kernel call). On Windows the record
-  callbacks fall back to the thread pool through `net::*_async` until the IOCP
-  reactor lands (WIN-IOCP).
+  callbacks go through `net::*_async`, which is IOCP-backed (WIN-IOCP is fixed),
+  so async TLS is event-driven on both platforms.
 - Tests: `lang/tests/tls/src/async_test.ch` (real TLS 1.3 handshake + request
   over the async API) in the dedicated `--tls` suite. TCC full suite after the
   change: 573 tests / 568 pass; the same 5 environment/Python-server failures
@@ -615,12 +619,11 @@ by a compiler limitation. B27 (globals after an `async func`) and B28
 (`size_t find()` vs `-1u` in the server runtime) were found later and are
 **fixed**.
 
-> **Remaining (worked around, not fixed) → actionable worklist:**
-> [`async-remaining-work.md`](./async-remaining-work.md). It lists each pending
-> item (B20, B24, B25, async debug info, async closures, the TLS transport
-> vtable, the Windows IOCP reactor, and the POSIX epoll/kqueue reactor) with
-> symptom, root-cause location, current workaround, and a definition of done, in
-> a recommended fix order. B23 and B26 were fixed from that list (see below).
+> **Remaining → actionable worklist:**
+> [`async-remaining-work.md`](./async-remaining-work.md). Only two items are left:
+> **AC** (async closures are parsed but not lowered) and **POSIX-EPOLL** (the
+> POSIX reactor is `select(2)`, ~1024 fds). B15-W (async debug info), B20, B24,
+> B25, TLS-VT and WIN-IOCP have all been fixed from that list (see below).
 
 ### B10 — Generic function *references* are not parsed or instantiated (HIGH) — ✅ FIXED
 

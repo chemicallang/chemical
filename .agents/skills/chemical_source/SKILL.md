@@ -1285,7 +1285,7 @@ confuse it with `core::async::Future<T>`. Use `spawn_blocking` to bridge.
 | `timeout_or<T>(h, ms, fallback) : FutureHandle<T>` | resolve to `fallback` on timeout |
 | `block_on_timeout<T>(h, ms) : std::Option<T>` | synchronous timed wait |
 | `channel<T>() : Channel<T>` | mpsc (`sender`/`receiver`, `send`, `try_recv`, awaitable `recv_or(fallback)`, `clone_sender`) |
-| `readable(fd)` / `writable(fd)` / `AsyncFd` | fd readiness (POSIX `select(2)`; Win32 is a stub) |
+| `readable(fd)` / `writable(fd)` / `AsyncFd` | fd readiness for **CRT file descriptors** (POSIX `select(2)`; Windows probes with `PeekNamedPipe`). Windows `net` sockets do **not** use this — they go through IOCP (see below) |
 | `async::test::block_on<T>(h)` | deterministic executor used by tests |
 
 Usage: `var ch = async::channel<int>()`; `ch.sender.send(7)`;
@@ -1333,8 +1333,14 @@ supported yet, B20).
 > **These limits are tracked, actionable work.** See
 > `lang/docs/async-remaining-work.md` for each item's symptom, root cause,
 > current workaround, and definition of done (B20/B24/B25, async debug info,
-> async closures, TLS transport, Windows IOCP, POSIX epoll). B23 and B26 are
-> fixed.
+> async closures, TLS transport, POSIX epoll). B23 and B26 are fixed.
+
+**Platform note (Windows):** `net`'s async `accept`/`recv`/`send` are driven by a
+process-wide **IOCP** completion port (`lang/libs/net/win/iocp.ch`), not the
+thread pool and not the CRT-fd reactor: each op posts an overlapped
+`WSARecv`/`WSASend`/`AcceptEx` and a dispatcher thread wakes the awaiting
+coroutine on completion. Async TLS rides on top of that, so it is event-driven on
+Windows too. Only `dial_async` (blocking `connect`) uses `spawn_blocking`.
 
 ## Library Development Gotchas
 

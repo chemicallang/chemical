@@ -285,7 +285,7 @@
         expect(pw.jsProp('type')).toBe('password')
         tog.click()
         expect(pw.jsProp('type')).toBe('text')
-        expect(tog.textContent()).toBe('Hide')
+        expect(tog.text()).toBe('Hide')
     </script>
 }
 

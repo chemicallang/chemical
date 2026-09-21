@@ -1929,13 +1929,6 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
     if(typeof comp !== "function") {
         window.$__uni_error("universal component factory is invalid", typeof comp);
     }
-    // Ownership-driven remount: if this host already owns an instance (e.g. a
-    // re-dispatch of the same boundary), dispose it first so effects and
-    // subscriptions from the previous instance cannot leak.
-    if(host.$__uni_instance) {
-        window.$__uni_dispose(host.$__uni_instance);
-        host.$__uni_instance = null;
-    }
     // Set up instance tracking for effects. Prefer the mount-stack parent; when
     // a component is dispatched as an independent top-level boundary (no stack
     // parent), derive the parent from DOM ancestry so context and disposal still
@@ -1944,6 +1937,17 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
     let parentInstance = prevInstance;
     if(!parentInstance && host && host.parentElement) {
         parentInstance = window.$__uni_find_parent_instance(host);
+    }
+    // Ownership-driven remount: if this host already owns an instance (e.g. a
+    // re-dispatch of the same boundary), dispose it first so effects and
+    // subscriptions from the previous instance cannot leak. Exception: when the
+    // existing owner IS the instance currently rendering us, the host element is
+    // shared because this component's root is another component (root = InputGroup).
+    // Disposing it would clear the parent's state-signal subscribers, freezing the
+    // parent's DOM bindings after hydration.
+    if(host.$__uni_instance && host.$__uni_instance !== parentInstance) {
+        window.$__uni_dispose(host.$__uni_instance);
+        host.$__uni_instance = null;
     }
     const inst = { parent: parentInstance, children: [], _disposables: [], _resources: [], _contexts: {}, host: host };
     host.$__uni_instance = inst;

@@ -1110,11 +1110,14 @@ locations whose scope is the compile-unit file. This made it impossible to add
 async wrappers to libraries in the main dependency graph (their `async func`s
 are emitted even when unused), and `--async --mode debug_complete` failed.
 
-Fix: `FunctionDeclaration::code_gen_body` disables `gen.di` for the entire async
-lowering (`gen_llvm_async_fn`), so async bodies/frames/poll/drop emit no debug
-locations. Async debug info can be restored once the coroutine split carries
-per-clone `DISubprogram`s. Verified: `--async --mode debug_complete` 33/33 and
-main `--mode debug_complete` 2187/2187.
+The first fix disabled `gen.di` for the whole async lowering (a workaround; no
+debug info). It was then **properly fixed** as **B15-W** (see
+[`async-remaining-work.md`](./async-remaining-work.md)): the async lowering now
+opens a `DISubprogram` for the ramp body and a synthetic one for each generated
+`__poll` / `__drop`, the cancellation destructor call carries a `!dbg` location,
+and `CoroSplit` gives every split clone its own `DISubprogram`. Verified:
+`--async --mode debug_complete` 48/48 and main `--mode debug_complete` 2206/2206
+(LLVM); regression `async_coroutine_debug_info_compiles` in the negative suite.
 
 ### B16 — `block_on` double-freed a destructible variant payload (HIGH) — ✅ FIXED
 

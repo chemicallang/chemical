@@ -354,17 +354,14 @@ and definition of done for each item.
 
 Pending items (recommended fix order):
 
-1. **B24** — struct-typed async parameter field access on 2c (`2cASTVisitor.cpp`)
-2. **B25** — combinator await inside a spawned coroutine loses `Context` on LLVM
-3. **B20** — composite-generic field access in a generic body (symres/generics)
-4. **B15-W** — async debug info disabled on LLVM (`debug_complete`)
-5. **AC** — async closures parsed but not lowered
-6. **TLS-VT** — TLS has no non-blocking transport (uses `spawn_blocking`)
-7. **WIN-IOCP** — Windows async reactor is a stub
-8. **POSIX-EPOLL** — POSIX reactor is `select(2)` (~1024 fds)
+1. **AC** — async closures parsed but not lowered
+2. **TLS-VT** — TLS has no non-blocking transport (uses `spawn_blocking`)
+3. **WIN-IOCP** — Windows async reactor is a stub
+4. **POSIX-EPOLL** — POSIX reactor is `select(2)` (~1024 fds)
 
-**B23** (plain-struct future payload) and **B26** (large struct variant through
-`FutureHandle`) are **fixed** — see the worklist.
+**B20, B23, B24, B25, B26 and B15-W are fixed** — see the worklist. (B15-W was
+the LLVM `debug_complete` debug-info limitation: the async lowering now emits a
+`DISubprogram` per generated function and `CoroSplit` gives each clone its own.)
 
 Design/assessment: [`async-await-design.md`](lang/docs/async-await-design.md),
 [`async-library-integration.md`](lang/docs/async-library-integration.md).

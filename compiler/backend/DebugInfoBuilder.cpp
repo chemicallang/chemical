@@ -420,6 +420,47 @@ void DebugInfoBuilder::start_function_scope(FunctionTypeBody *decl, llvm::Functi
     diScopes.push_back(create(decl, func));
 }
 
+void DebugInfoBuilder::start_generated_function_scope(llvm::Function* func, SourceLocation location) {
+    if(!isEnabled) {
+        return;
+    }
+    if(func == nullptr) {
+        return;
+    }
+    if(auto* alreadyProgram = func->getSubprogram()) {
+        diScopes.push_back(alreadyProgram);
+        return;
+    }
+    // Prefer the active compile unit; while a module is being generated the
+    // scope stack already holds the compile unit + file, so fall back to the
+    // innermost scope (keeps start/end_function_scope symmetric).
+    llvm::DIScope* parent = diCompileUnit != nullptr
+            ? static_cast<llvm::DIScope*>(diCompileUnit)
+            : (diScopes.empty() ? nullptr : diScopes.back());
+    llvm::DIFile* file = parent != nullptr ? parent->getFile() : nullptr;
+    if(file == nullptr) {
+        // no file scope available (should not happen while generating a module)
+        return;
+    }
+    const auto pos = loc_node(this, location).start;
+    std::vector<llvm::Metadata*> no_params;
+    const auto typeArray = builder->getOrCreateTypeArray(no_params);
+    const auto subroutineType = builder->createSubroutineType(typeArray);
+    llvm::DISubprogram *SP = builder->createFunction(
+            file,
+            func->getName(),
+            func->getName(),  // Linkage name
+            file,
+            pos.line + 1,     // Line number of the function
+            subroutineType,
+            pos.line + 1,
+            llvm::DINode::FlagZero,
+            llvm::DISubprogram::SPFlagDefinition
+    );
+    func->setSubprogram(SP);
+    diScopes.push_back(SP);
+}
+
 void DebugInfoBuilder::end_function_scope() {
     if(!isEnabled) {
         return;

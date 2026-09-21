@@ -478,9 +478,12 @@ Each pass tags its output with the phase string passed to `print_diagnostics`, w
 
 - `ignore_errors = false` (line 42) — when true, passes do **not** abort after reporting; diagnostics
   are still collected.
-- `stop_on_file_error = true` (line 58) — when true, the pass `return 1`s as soon as a file reports
-  errors, "printing less errors to console". This is why the parallel loops check
-  `if(options->stop_on_file_error) return 1;` after each `future.get()`.
+- `stop_on_file_error = true` (line 58) — when true, the pass aborts after the current phase
+  once any file has reported errors, "printing less errors to console". The parallel loops
+  check `if(options->stop_on_file_error) return 1;` **after** draining every future
+  (`join_all(futures)`) — a pending task may never be abandoned, because tasks reference the
+  caller's stack objects (`ASTProcessor`, allocators); see
+  [`lang/docs/lab-build-crash-investigation.md`](../../docs/lab-build-crash-investigation.md).
 - `verbose` (line 32) — only affects progress/`[lab]`/benchmark prints; it does **not** filter or
   change diagnostics. `-v` does not suppress hints either (the "omit hints unless verbose" idea is a
   future improvement, not current behavior).

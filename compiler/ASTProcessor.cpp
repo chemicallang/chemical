@@ -427,6 +427,62 @@ static SymResLinkBodyResult link_body_task(SymbolResolver* resolver, ASTFileResu
     return sym_res_link_body_pass(*resolver, &file->unit.scope.body, file->private_symbol_range);
 }
 
+namespace {
+
+/**
+ * joins every future in the given vector when this object goes out of scope
+ *
+ * why this exists : a task pushed to the thread pool keeps running until it finishes.
+ * Destroying a std::future does NOT wait for it (only std::async does, and this pool
+ * uses packaged tasks). So a function that returns early while some of its futures
+ * are still pending leaves those tasks running against state the caller is about to
+ * leave behind (ASTProcessor is a stack object, so are the allocators, the resolver
+ * and the caller's locals). They then write into stack memory that has been reused by
+ * deeper calls, which corrupts whatever now lives there and produces crashes far away
+ * from the real cause. Holding this object in the spawning function makes it impossible
+ * to return without joining every task that was pushed.
+ */
+template<typename T>
+class JoinedTasks {
+
+    std::vector<std::future<T>>& futures;
+
+public:
+
+    explicit JoinedTasks(std::vector<std::future<T>>& futures) : futures(futures) {
+
+    }
+
+    JoinedTasks(const JoinedTasks&) = delete;
+    JoinedTasks& operator=(const JoinedTasks&) = delete;
+
+    ~JoinedTasks() {
+        for(auto& future : futures) {
+            if(future.valid()) {
+                future.get();
+            }
+        }
+    }
+
+};
+
+/**
+ * waits for all the given futures, returning true if any of them reported errors
+ * the vector is emptied, so a next phase can reuse it
+ */
+inline bool join_all(std::vector<std::future<bool>>& futures) {
+    bool has_errors = false;
+    for(auto& future : futures) {
+        if(future.get()) {
+            has_errors = true;
+        }
+    }
+    futures.clear();
+    return has_errors;
+}
+
+}
+
 int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
 
     const auto prev_mod_scope = resolver->current_mod_scope;
@@ -494,6 +550,10 @@ int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
 
     std::vector<std::future<bool>> futures;
     futures.reserve(module->direct_files.size());
+    // every task pushed in this function must be joined before returning, even when a
+    // file reports errors and we stop early, because the tasks reference this processor
+    // and the allocators owned by our caller's stack frame
+    JoinedTasks<bool> joined(futures);
 
     // link the signature of the files in parallel
     for(auto& file_ptr : module->direct_files) {
@@ -509,14 +569,11 @@ int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
             return has_errors;
         }));
     }
-    for(auto& f : futures) {
-        auto has_errors = f.get();
-        if(has_errors) {
-            if(options->stop_on_file_error) return 1;
-            errored = true;
-        }
+    // join every task before deciding, a pending task may not outlive this function
+    if(join_all(futures)) {
+        if(options->stop_on_file_error) return 1;
+        errored = true;
     }
-    futures.clear();
 
     // clear everything allocated during link signature pass
     file_allocator.clear();
@@ -541,14 +598,11 @@ int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
             return res.has_errors;
         }));
     }
-    for(auto& f : futures) {
-        auto has_errors = f.get();
-        if(has_errors) {
-            if(options->stop_on_file_error) return 1;
-            errored = true;
-        }
+    // join every task before deciding, a pending task may not outlive this function
+    if(join_all(futures)) {
+        if(options->stop_on_file_error) return 1;
+        errored = true;
     }
-    futures.clear();
 
     // clear everything allocated during gen instantiator pass
     file_allocator.clear();
@@ -589,14 +643,11 @@ int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
             return res.has_errors;
         }));
     }
-    for(auto& f : futures) {
-        auto has_errors = f.get();
-        if(has_errors) {
-            if(options->stop_on_file_error) return 1;
-            errored = true;
-        }
+    // join every task before deciding, a pending task may not outlive this function
+    if(join_all(futures)) {
+        if(options->stop_on_file_error) return 1;
+        errored = true;
     }
-    futures.clear();
 
     // pass 2: full link body (parallel)
     for(auto& file_ptr : module->direct_files) {
@@ -610,14 +661,11 @@ int ASTProcessor::sym_res_module(LabModule* module, ctpl::thread_pool& pool) {
             return res.has_errors;
         }));
     }
-    for(auto& f : futures) {
-        auto has_errors = f.get();
-        if(has_errors) {
-            if(options->stop_on_file_error) return 1;
-            errored = true;
-        }
+    // join every task before deciding, a pending task may not outlive this function
+    if(join_all(futures)) {
+        if(options->stop_on_file_error) return 1;
+        errored = true;
     }
-    futures.clear();
 
     // clear everything allocated during pass 2
     file_allocator.clear();
@@ -712,6 +760,8 @@ bool ASTProcessor::import_chemical_files_direct(
 ) {
     std::vector<std::future<ASTFileResult*>> futures;
     futures.reserve(files.size());
+    // safety net : no task pushed here may outlive this function
+    JoinedTasks<ASTFileResult*> joined(futures);
 
     // launch all files concurrently
     for(auto& fileData : files) {
@@ -741,14 +791,19 @@ bool ASTProcessor::import_chemical_files_direct(
     }
 
     // put each file sequentially into the out_files
+    // note : every future is joined, even when a file failed to parse. Returning while
+    // tasks are still pending would leave them writing into this processor and into the
+    // allocators owned by our caller's stack frame, after that frame is gone
+    bool success = true;
     for(auto& wrap : futures) {
         const auto result = wrap.get();
         if(!result->continue_processing) {
-            return false;
+            success = false;
         }
     }
+    futures.clear();
 
-    return true;
+    return success;
 }
 
 struct TypeVerifyFileResult {
@@ -809,7 +864,19 @@ void ASTProcessor::import_chemical_files_recursive(
         bool in_task
 ) {
 
+    // the thread that pushes the tasks counts as a task itself : the completion promise
+    // must only be fulfilled once the pushing thread has pushed every file, otherwise the
+    // counter can reach zero mid loop ( tasks finish while we are still pushing ), the
+    // promise gets fulfilled early and the waiting caller proceeds with tasks still running
+    const bool is_producer = !in_task;
+    if(is_producer) {
+        state.pushed_task();
+    }
+
     if(files.empty()) {
+        if(is_producer) {
+            state.done_task();
+        }
         return;
     }
 
@@ -865,6 +932,11 @@ void ASTProcessor::import_chemical_files_recursive(
             });
         }
 
+    }
+
+    if(is_producer) {
+        // done pushing : once every pushed task also finishes, the counter reaches zero
+        state.done_task();
     }
 
 }
@@ -1106,6 +1178,8 @@ bool ASTProcessor::import_chemical_files_direct_with_tokens(
 ) {
     std::vector<std::future<std::pair<ASTFileResult*, std::vector<Token>>>> futures;
     futures.reserve(files.size());
+    // safety net : no task pushed here may outlive this function
+    JoinedTasks<std::pair<ASTFileResult*, std::vector<Token>>> joined(futures);
 
     // launch all files concurrently
     for(auto& fileData : files) {
@@ -1135,15 +1209,20 @@ bool ASTProcessor::import_chemical_files_direct_with_tokens(
     }
 
     // put each file sequentially into the out_files
+    // note : every future is joined, even when a file failed to parse. Returning while
+    // tasks are still pending would leave them writing into this processor and into the
+    // allocators owned by our caller's stack frame, after that frame is gone
+    bool success = true;
     for(auto& wrap : futures) {
-        const auto result = wrap.get();
+        auto result = wrap.get();
         if(!result.first->continue_processing) {
-            return false;
+            success = false;
         }
         token_map[result.first->file_id] = std::move(result.second);
     }
+    futures.clear();
 
-    return true;
+    return success;
 }
 
 void ASTProcessor::print_file_results(ASTFileResult& result, const chem::string_view& abs_path, bool benchmark) {

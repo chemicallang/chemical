@@ -2784,9 +2784,8 @@ TCCState* LabBuildCompiler::built_lab_file(
         // that we need to compile, which will free the module allocator, so if we kept on module allocator
         // we will lose everything after processing dependencies
         lab_processor.import_chemical_files_recursive(pool, state, direct_files_in_lab, true, false);
-        // wait for all files to parse
-        auto fut = state.all_done_promise.get_future();
-        fut.wait();
+        // wait for all files to parse ( returns at once if nothing had to be pushed )
+        state.wait();
 
         // return failure if parse failed
         if(state.get_has_errors()) {

@@ -1689,31 +1689,41 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
         const end = document.createComment("e");
         const stateVal = v.value;
         // SSR'd vnode (universal child or plain element) rendered inline without
-        // markers: adopt the existing element in place instead of appending a
-        // duplicate copy. Wrap it in markers so later updates can swap it out.
-        if(dom && dom.nodeType === 1 && stateVal && typeof stateVal === "object" && stateVal.t !== undefined) {
-            if(parent) {
-                parent.insertBefore(start, dom);
-                parent.insertBefore(end, dom.nextSibling);
-            }
-            v.subscribe((next) => {
-                window.$__uni_clear_range(start, end);
-                start.after(window.$_urn(next));
-            });
+        // markers: adopt the existing nodes in place instead of appending a
+        // duplicate copy. Wrap them in markers so later updates can swap them out.
+        // A component/fragment value can render SEVERAL SSR nodes for one vnode,
+        // so the end marker must close after the whole range -- hydrating first
+        // and placing `end` at dom.nextSibling cut the range short and shifted
+        // every following sibling onto the wrong node.
+        const stateIsVnode = stateVal && typeof stateVal === "object" && stateVal.t !== undefined;
+        const stateVnodeIsMulti = stateVal && (stateVal.t === "__uni_uc" || stateVal.t === window.$_ur.Fragment || typeof stateVal.t === "function");
+        if(dom && stateIsVnode && (stateVnodeIsMulti || dom.nodeType === 1)) {
+            if(parent) parent.insertBefore(start, dom);
+            let after;
             if(stateVal.t === "__uni_uc") {
-                if(stateVal.p.comp) window.$__uni_mount(dom, stateVal.p.comp, stateVal.p.props, "root");
-                else window.$__uni_dispatch(stateVal.p.name, dom, stateVal.p.props, "root");
+                if(stateVal.p.comp) {
+                    after = window.$__uni_mount(dom, stateVal.p.comp, stateVal.p.props, "root");
+                } else {
+                    window.$__uni_dispatch(stateVal.p.name, dom, stateVal.p.props, "root");
+                }
             } else if(stateVal.t === window.$_ur.Fragment) {
-                window.$__uni_hydrate_node(parent, dom, stateVal.c || []);
+                after = window.$__uni_hydrate_node(parent, dom, stateVal.c || []);
             } else if(typeof stateVal.t === "function") {
                 const nextProps = stateVal.p ? { ...stateVal.p } : {};
                 if(stateVal.c && stateVal.c.length) nextProps.children = stateVal.c.length === 1 ? stateVal.c[0] : stateVal.c;
-                window.$__uni_hydrate_node(parent, dom, stateVal.t(nextProps));
+                after = window.$__uni_hydrate_node(parent, dom, stateVal.t(nextProps));
             } else {
                 const props = stateVal.p || {};
                 for(const k in props) window.$__uni_apply_prop(dom, k, props[k]);
                 if(stateVal.c && stateVal.c.length) window.$__uni_hydrate_children(dom, stateVal.c);
+                after = dom.nextSibling;
             }
+            if(after === undefined) after = dom.nextSibling;
+            if(parent) parent.insertBefore(end, after || null);
+            v.subscribe((next) => {
+                window.$__uni_clear_range(start, end);
+                start.after(window.$_urn(next));
+            });
             return end.nextSibling;
         }
         // Reactive value that is an SSR children blob (`window.$__uni_html`):
@@ -1735,10 +1745,17 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             return end.nextSibling;
         }
         // List state: adopt the SSR-rendered range in place instead of
-        // re-rendering. Only when the first child is an element (a real SSR
-        // list item); an empty server list leaves a text node, which must fall
-        // through to the fresh-render path or the list would double up.
-        if(Array.isArray(stateVal) && dom && dom.nodeType === 1) {
+        // re-rendering. Usually the first SSR node is an element; it can be a
+        // text node when the first item is a component/fragment whose root starts
+        // with text (leading whitespace). A list that SSR did not render at all
+        // (e.g. a computed list the server could not fold) leaves only
+        // whitespace there, so for plain-element items a text node means "no SSR
+        // range" and must fall through to the fresh-render path. Empty lists
+        // render nothing and must not consume the following sibling's node.
+        const firstListItem = (stateVal && stateVal.length > 0) ? stateVal[0] : null;
+        const firstItemCanStartWithText = firstListItem && typeof firstListItem === "object"
+            && (firstListItem.t === "__uni_uc" || firstListItem.t === window.$_ur.Fragment || typeof firstListItem.t === "function");
+        if(Array.isArray(stateVal) && stateVal.length > 0 && dom && (dom.nodeType === 1 || firstItemCanStartWithText)) {
             if(parent) parent.insertBefore(start, dom);
             let cur = dom;
             const adopted = [];
@@ -1766,7 +1783,13 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             });
             return end.nextSibling;
         }
-        const emptyVal = v.value == null || v.value === false || v.value === true;
+        // A reactive value that rendered nothing on the server (a null/false/true
+        // conditional, or an empty list) owns no SSR node, so `dom` belongs to
+        // the NEXT client vnode: place empty markers without consuming it.
+        // Removing it here deleted the following whitespace/Field node and
+        // shifted hydration onto the Button (the Field mounted into the
+        // <button> root).
+        const emptyVal = v.value == null || v.value === false || v.value === true || (Array.isArray(v.value) && v.value.length === 0);
         if(parent) {
             if(dom) { parent.insertBefore(end, dom); parent.insertBefore(start, end); }
             else { parent.appendChild(start); parent.appendChild(end); }
@@ -1775,11 +1798,6 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             window.$__uni_clear_range(start, end);
             start.after(window.$_urn(next));
         });
-        // A reactive value that rendered nothing on the server (a null/false/true
-        // conditional) owns no SSR node, so `dom` belongs to the NEXT client
-        // vnode: place empty markers without consuming it. Removing it here
-        // deleted the following whitespace/Field node and shifted hydration onto
-        // the Button (the Field mounted into the <button> root).
         if(!emptyVal) {
             start.after(window.$_urn(v.value));
             // Remove original SSR node that was replaced by state markers to

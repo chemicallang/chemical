@@ -1022,7 +1022,7 @@ public func get_theme_init_js() : std::string_view {
     if (saved) {
         setTheme(saved);
     } else {
-        setTheme('default');
+        setTheme('dark');
     }
 })();
 """);
@@ -1053,7 +1053,7 @@ document.addEventListener('DOMContentLoaded', () => {
             themeSelect.appendChild(opt);
         });
         
-        const saved = localStorage.getItem('theme') || 'default';
+        const saved = localStorage.getItem('theme') || 'dark';
         themeSelect.value = saved;
         
         themeSelect.addEventListener('change', (e) => window.setTheme(e.target.value));

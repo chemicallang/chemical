@@ -155,8 +155,11 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
     
     var last_line : uint = 0;
     var last_char : uint = 0;
+    var pseudo_end_line : uint = 0;
+    var pseudo_end_char : uint = 0;
     var first = true;
     var attr_parsed = false;
+    var pseudo_parsed = false;
     
     while(true) {
         const token = parser.getToken();
@@ -227,6 +230,9 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
                      simple = builder.allocate<SimpleSelector>();
                      simple.kind = SimpleSelectorKind.PseudoElement;
                      simple.value = builder.allocate_view(&nameToken.value);
+                     pseudo_end_line = nameToken.position.line
+                     pseudo_end_char = nameToken.position.character + nameToken.value.size()
+                     pseudo_parsed = true
                      parser.increment();
                  } else {
                       // Unexpected token after ::
@@ -238,6 +244,9 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
                  simple.kind = SimpleSelectorKind.PseudoClass;
                  
                  var val = std::string(next.value)
+                 pseudo_end_line = next.position.line
+                 pseudo_end_char = next.position.character + next.value.size()
+                 pseudo_parsed = true
                  parser.increment()
                  if(parser.increment_if(TokenType.LParen as int)) {
                      val.append('(')
@@ -245,9 +254,14 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
                          const t2 = parser.getToken()
                          if(t2.type == TokenType.RParen || t2.type == TokenType.EndOfFile) break
                          val.append_view(&t2.value)
+                         pseudo_end_line = t2.position.line
+                         pseudo_end_char = t2.position.character + t2.value.size()
                          parser.increment()
                      }
-                     if(parser.increment_if(TokenType.RParen as int)) {
+                     const rp = parser.get_incrementing_if(TokenType.RParen as int)
+                     if(rp != null) {
+                         pseudo_end_line = rp.position.line
+                         pseudo_end_char = rp.position.character + rp.value.size()
                          val.append(')')
                      }
                  }
@@ -262,7 +276,10 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
         
         if(simple != null) {
             comp.simple_selectors.push(simple);
-            if(!attr_parsed) {
+            if(pseudo_parsed) {
+                last_line = pseudo_end_line;
+                last_char = pseudo_end_char;
+            } else if(!attr_parsed) {
                 last_line = token.position.line;
                 last_char = token.position.character + token.value.size();
                 if(token.type == TokenType.ClassName || token.type == TokenType.Id) {
@@ -270,6 +287,7 @@ func parseCompoundSelector(parser : *mut Parser, builder : *mut ASTBuilder) : *m
                 }
             }
             attr_parsed = false;
+            pseudo_parsed = false;
             first = false;
         } else {
             break; 

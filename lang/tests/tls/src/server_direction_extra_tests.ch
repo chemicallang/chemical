@@ -98,7 +98,14 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
     bg.append_uinteger(port as ubigint)
     bg.append_view(" ")
     bg.append_view(&result_file)
-    bg.append_view(" >nul 2>/tmp/sdv_err.txt")
+    // Discard stdout ("nul" is cmd.exe's /dev/null — using it on POSIX would
+    // create a literal file named `nul` in the working directory).
+    comptime if(def.windows) {
+        bg.append_view(" >nul")
+    } else {
+        bg.append_view(" >/dev/null")
+    }
+    bg.append_view(" 2>/tmp/sdv_err.txt")
     test_run_bg(bg.data())
     test_server_wait()
 

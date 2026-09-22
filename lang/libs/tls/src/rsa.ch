@@ -449,8 +449,15 @@ public namespace tls {
         var nbytes = (nbits + 7) / 8
         var buf : [256]u8
 
+        // The number of candidates that must be tested before hitting a prime is
+        // geometric: for an nbits-bit odd candidate, P(prime) ≈ 2 / (nbits·ln2),
+        // so a 1024-bit prime needs ~355 candidates on average and a 2048-bit
+        // prime ~710. A cap of 2000 was only ~5.6 standard deviations above the
+        // 1024-bit mean, which made rsa_gen_key fail (~0.35% per prime) often
+        // enough to flake the test-suite; 20000 makes exhaustion effectively
+        // impossible while still bounding a genuinely broken RNG.
         var attempt : size_t = 0
-        while(attempt < 2000) {
+        while(attempt < 20000) {
             var ret = random_fill(&raw mut buf[0], nbytes)
             if(ret < 0) { return ERR_RSA_RNG_FAILED }
 

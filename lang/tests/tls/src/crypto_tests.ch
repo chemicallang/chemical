@@ -598,6 +598,62 @@ func bytes_to_lower_hex(data : *u8, len : usize, out : &mut string) {
     }
 }
 
+// Regression: sha384_final / sha384_hash must write exactly 48 bytes.
+// They used to emit the full 64-byte SHA-512 state and then zero
+// digest[48..64), so callers that (correctly) sized the buffer at 48 bytes
+// got 16 bytes written past the end — clobbering adjacent stack slots. In the
+// TLS 1.2 AES_256_GCM_SHA384 path this silently zeroed `sf_hash_len` and made
+// every SHA-384 handshake fail its server Finished check.
+@test public func TEST_sha384_final_writes_exactly_48_bytes(env:&mut TestEnv) {
+    var msg : [100]u8
+    var i : usize = 0
+    while(i < 100) { msg[i] = (i * 3 + 1) as u8; i += 1 }
+
+    // 48 digest bytes followed by a 16-byte guard region.
+    var buf : [64]u8
+    i = 0
+    while(i < 64) { buf[i] = 0xAA; i += 1 }
+    crypto::sha384_hash(&raw msg[0], 100, &raw mut buf[0])
+
+    i = 48
+    while(i < 64) {
+        if(buf[i] != 0xAA) {
+            env.error("sha384_hash wrote past the 48-byte digest")
+            break
+        }
+        i += 1
+    }
+
+    // Same through the incremental API (the path the TLS handshake uses).
+    var buf2 : [64]u8
+    i = 0
+    while(i < 64) { buf2[i] = 0xAA; i += 1 }
+    var ctx : crypto::Sha512Context
+    crypto::sha384_init(unsafe(&raw mut ctx))
+    crypto::sha384_update(unsafe(&raw mut ctx), &raw msg[0], 40)
+    crypto::sha384_update(unsafe(&raw mut ctx), &raw msg[40], 60)
+    crypto::sha384_final(unsafe(&raw mut ctx), &raw mut buf2[0])
+
+    i = 48
+    while(i < 64) {
+        if(buf2[i] != 0xAA) {
+            env.error("sha384_final wrote past the 48-byte digest")
+            break
+        }
+        i += 1
+    }
+
+    // ...and the digest itself must still be correct.
+    var j : usize = 0
+    while(j < 48) {
+        if(buf[j] != buf2[j]) {
+            env.error("sha384 one-shot digest != incremental digest")
+            break
+        }
+        j += 1
+    }
+}
+
 // Incremental update across block boundaries must equal the one-shot hash.
 // SHA-512 uses 128-byte blocks; exercise spans that cross the boundary.
 @test public func TEST_sha512_incremental_matches(env:&mut TestEnv) {

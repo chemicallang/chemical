@@ -125,8 +125,13 @@ func sha512_final_impl(ctx : *mut Sha512Context, digest : *mut u8, digest_len : 
         k += 1; }
     sha512_transform(ctx, &raw ctx.buffer[0]);
 
+    // Only write `digest_len` bytes. SHA-384 truncates the 64-byte state to
+    // its first 48 bytes, and callers only guarantee `digest_len` bytes of
+    // output space (e.g. a [48]u8 for SHA-384). Writing all 8 words — or
+    // zeroing the tail past digest_len — overflows the caller's buffer.
+    var words : size_t = digest_len / 8u;
     var j2 : size_t = 0;
-    while(j2 < 8) {
+    while(j2 < words) {
         var s = ctx.state[j2];
         digest[j2 * 8] = ((s >> 56) & 0xFFu64) as u8;
         digest[j2 * 8 + 1] = ((s >> 48) & 0xFFu64) as u8;
@@ -137,13 +142,6 @@ func sha512_final_impl(ctx : *mut Sha512Context, digest : *mut u8, digest_len : 
         digest[j2 * 8 + 6] = ((s >> 8) & 0xFFu64) as u8;
         digest[j2 * 8 + 7] = (s & 0xFFu64) as u8;
         j2 += 1; }
-
-    // SHA-384 truncates to the first 48 bytes.
-    if(digest_len < 64) {
-        // zero out the tail so callers never read stale bytes
-        var z = digest_len;
-        while(z < 64) { digest[z] = 0; z += 1; }
-    }
 }
 
 public func sha512_final(ctx : *mut Sha512Context, digest : *mut u8) {

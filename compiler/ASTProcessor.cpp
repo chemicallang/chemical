@@ -8,6 +8,7 @@
 #include "compiler/typeverify/TypeVerifyAPI.h"
 #include "preprocess/2c/2cASTVisitor.h"
 #include "utils/Benchmark.h"
+#include "utils/JoinedTasks.h"
 #include <sstream>
 #include "utils/PathUtils.h"
 #include "compiler/lab/LabBuildCompiler.h"
@@ -430,43 +431,6 @@ static SymResLinkBodyResult link_body_task(SymbolResolver* resolver, ASTFileResu
 namespace {
 
 /**
- * joins every future in the given vector when this object goes out of scope
- *
- * why this exists : a task pushed to the thread pool keeps running until it finishes.
- * Destroying a std::future does NOT wait for it (only std::async does, and this pool
- * uses packaged tasks). So a function that returns early while some of its futures
- * are still pending leaves those tasks running against state the caller is about to
- * leave behind (ASTProcessor is a stack object, so are the allocators, the resolver
- * and the caller's locals). They then write into stack memory that has been reused by
- * deeper calls, which corrupts whatever now lives there and produces crashes far away
- * from the real cause. Holding this object in the spawning function makes it impossible
- * to return without joining every task that was pushed.
- */
-template<typename T>
-class JoinedTasks {
-
-    std::vector<std::future<T>>& futures;
-
-public:
-
-    explicit JoinedTasks(std::vector<std::future<T>>& futures) : futures(futures) {
-
-    }
-
-    JoinedTasks(const JoinedTasks&) = delete;
-    JoinedTasks& operator=(const JoinedTasks&) = delete;
-
-    ~JoinedTasks() {
-        for(auto& future : futures) {
-            if(future.valid()) {
-                future.get();
-            }
-        }
-    }
-
-};
-
-/**
  * waits for all the given futures, returning true if any of them reported errors
  * the vector is emptied, so a next phase can reuse it
  */
@@ -830,6 +794,11 @@ TypeVerifyFileResult type_verify_file_task(
 bool ASTProcessor::type_verify_module_parallel(ctpl::thread_pool& pool, LabModule* module) {
     std::vector<std::future<TypeVerifyFileResult>> futures;
     futures.reserve(module->direct_files.size());
+    // safety net : no task pushed here may outlive this function. The loop below joins
+    // every future with get(), but if one of them throws the remaining futures would be
+    // destroyed without waiting, leaving tasks running against this processor and the
+    // allocators owned by our caller's stack frame
+    JoinedTasks<TypeVerifyFileResult> joined(futures);
 
     for(auto& fileData : module->direct_files) {
         // push task

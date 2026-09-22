@@ -21,6 +21,7 @@
 #include "ast/types/NullPtrType.h"
 #include "Utils.h"
 #include "utils/ProcessUtils.h"
+#include "utils/JoinedTasks.h"
 #include "core/source/LocationManager.h"
 #include <fstream>
 #include <span>
@@ -4805,6 +4806,11 @@ int LabBuildCompiler::process_remote_imports(LabBuildContext& context, LabJob* j
 
         std::vector<std::future<int>> futures;
         futures.reserve(wave_ptrs.size());
+        // safety net : no task pushed here may outlive this function. The loop below joins
+        // every future with get(), but if one of them throws the remaining futures would be
+        // destroyed without waiting, leaving tasks running against this compiler and the
+        // context/job/progress they captured
+        JoinedTasks<int> joined(futures);
 
         for(auto import : wave_ptrs) {
             futures.emplace_back(pool.push([this, &context, job, import, &progress](int id) {

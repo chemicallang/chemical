@@ -228,8 +228,10 @@ func test_fuser_available() : bool {
     return test_fuser_state == 1
 }
 
-// True once some process is bound to `port` (POSIX only, via fuser — the same
-// tool test_kill_port relies on).
+// True once some process is listening on `port` (POSIX only, via fuser — the
+// same tool test_kill_port relies on). A socket that is only bound, not yet
+// listening, is not reported, so this does not race servers that bind before
+// they call listen().
 func test_port_listening(port : u16) : bool {
     comptime if(def.windows) {
         return false

@@ -2288,8 +2288,13 @@ public namespace tls {
             e_data += 1; e_data_len -= 1
         }
 
-        // Import into RSA context
+        // Import into RSA context (rejects a modulus beyond RSA_MAX_KEY_BYTES)
         ret = rsa_import_pubkey(rsa, n_data, n_data_len, e_data, e_data_len)
+        if(ret < 0) { return ret }
+
+        // The modulus and exponent came off the wire: reject values that cannot
+        // describe a real RSA key before anything is verified against them.
+        ret = rsa_check_pubkey(rsa)
         if(ret < 0) { return ret }
 
         // Report the actual RSA modulus bit length. The parser sets a default
@@ -2886,9 +2891,19 @@ public namespace tls {
                 }
             }
 
-            // 4c. Self-signed trust anchor: if this cert is self-signed and its
-            //     signature verifies against itself, accept it as the root.
-            if(is_self_signed) {
+            // 4c. Self-signed trust anchor — but ONLY when no trust store was
+            //     configured. In that case there is nothing to chain up to, and
+            //     the certificate is accepted as its own anchor (which is what
+            //     "verification disabled" means here).
+            //
+            //     When a trust store IS configured, the anchor has to come out
+            //     of it: step 4a already accepted a self-signed certificate
+            //     whose subject the store holds and whose signature checks out.
+            //     Accepting a self-signed certificate merely because it verifies
+            //     against its own key would accept EVERY self-signed certificate
+            //     for EVERY name — anyone can mint one — so a configured trust
+            //     store would buy nothing at all.
+            if(is_self_signed && trusted_ca == null) {
                 if(x509_verify_sig_with_issuer(current, current) == 0) {
                     leaf.flags = 0
                     return 0
@@ -3140,11 +3155,15 @@ public namespace tls {
         if(pm_ret < 0) { return ERR_SSL_NO_RNG }
 
         // ── Encrypt pre-master secret with RSA public key ──
-        var cke_data : [512]u8
+        // Sized from RSA_MAX_KEY_BYTES: the peer's certificate decides the key
+        // length, and this used to be a fixed 512 bytes, so a >4096-bit server
+        // key overran both buffers (the two length bytes in cke_data plus the
+        // ciphertext).
+        var cke_data : [RSA_MAX_KEY_BYTES + 2]u8
         var cke_len : size_t = 2  // Default: empty ClientKeyExchange (2 bytes length + 0 data)
 
         if(has_rsa_key) {
-            var encrypted_pms : [512]u8
+            var encrypted_pms : [RSA_MAX_KEY_BYTES]u8
             var ret2 = rsa_pkcs1_encrypt(unsafe(&raw mut rsa_ctx), &raw pre_master[0], 48, &raw mut encrypted_pms[0])
             if(ret2 == 0) {
                 var key_len = rsa_get_len(unsafe(&raw mut rsa_ctx))
@@ -4839,23 +4858,28 @@ public namespace tls {
         var pre_master_set : bool = false
 
         // Try to decrypt the pre-master secret using the server's RSA private key
-        if(hs_len >= 6 && enc_pms_len > 0 && enc_pms_len <= 256 &&
-           ssl.conf.own_key != null) {
+        if(hs_len >= 6 && enc_pms_len > 0 && ssl.conf.own_key != null) {
             var server_rsa = ssl.conf.own_key as *mut RSAContext
-            var enc_pms = &raw hs_buf[6]
-            var decrypted : [256]u8
-            var dec_len : size_t = enc_pms_len
-            var dec_ret = rsa_pkcs1_decrypt(server_rsa,
-                                             enc_pms, enc_pms_len,
-                                             &raw mut decrypted[0], &raw mut dec_len,
-                                             48)
-            if(dec_ret == 0 && dec_len == 48) {
-                var di : size_t = 0
-                while(di < 48) {
-                    pre_master[di] = decrypted[di]
-                    di += 1
+            // rsa_pkcs1_decrypt requires the ciphertext to be exactly one
+            // modulus long. This gate used to be a hardcoded 256 bytes (2048
+            // bits), which silently skipped RSA key exchange for any larger
+            // server key — including keys this library generated itself.
+            if(enc_pms_len == rsa_get_len(server_rsa) && enc_pms_len <= RSA_MAX_KEY_BYTES) {
+                var enc_pms = &raw hs_buf[6]
+                var decrypted : [RSA_MAX_KEY_BYTES]u8
+                var dec_len : size_t = enc_pms_len
+                var dec_ret = rsa_pkcs1_decrypt(server_rsa,
+                                                 enc_pms, enc_pms_len,
+                                                 &raw mut decrypted[0], &raw mut dec_len,
+                                                 48)
+                if(dec_ret == 0 && dec_len == 48) {
+                    var di : size_t = 0
+                    while(di < 48) {
+                        pre_master[di] = decrypted[di]
+                        di += 1
+                    }
+                    pre_master_set = true
                 }
-                pre_master_set = true
             }
         }
 

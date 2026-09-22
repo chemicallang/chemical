@@ -533,6 +533,9 @@ public namespace tls {
     // 11.7ms per candidate — as much as the Miller-Rabin rounds the sieve
     // exists to avoid, and a hard ceiling on how far the sieve can be extended.
     // This is O(limbs) with no allocation. Only the magnitude is used.
+    // The divisor is never zero in practice (only the small-prime table is
+    // passed here), and there is no error channel, so zero is defined as 0
+    // rather than trapping.
     public func mpi_mod_small(a : *mut Mpi, d : u32) : u32 {
         if(d == 0) { return 0 }
         var acc : u64 = 0

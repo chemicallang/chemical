@@ -1067,3 +1067,83 @@
         expect(byTestId('reg-cm').hasClass('off')).toBe(false)
     </script>
 }
+
+// ===========================================================================
+// Class 7: client-rendered SVG (namespace + geometry attributes)
+// ===========================================================================
+
+// An SVG created on the CLIENT (after hydration) must keep its geometry
+// attributes and create its children in the SVG namespace. Regression: the
+// runtime applied `width`/`height`/`viewBox` with `el[key] = v`, which is a
+// silent no-op on SVG's read-only accessor properties, and created child
+// elements with `document.createElement` (HTML namespace). An icon rendered
+// after mount therefore came out as an inert 300x150 blank box.
+#universal RegFreshSvg(props) {
+    state show = false
+    return <div data-testid="reg-fsvg">
+        <button data-testid="reg-fsvg-toggle" onClick={() => show = !show}>t</button>
+        {show ? <svg data-testid="reg-fsvg-root" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path data-testid="reg-fsvg-path" d="M0 0h24v24H0z" />
+        </svg> : null}
+    </div>
+}
+
+#universal_test("regression: client-rendered SVG keeps geometry attrs and SVG-namespace children") {
+    <RegFreshSvg />
+    <script>
+        expect(byTestId('reg-fsvg-root').exists()).toBe(false)
+        byTestId('reg-fsvg-toggle').click()
+        expect(byTestId('reg-fsvg-root')).toHaveAttribute('width', '16')
+        expect(byTestId('reg-fsvg-root')).toHaveAttribute('height', '16')
+        expect(byTestId('reg-fsvg-root')).toHaveAttribute('viewBox', '0 0 24 24')
+        expect(byTestId('reg-fsvg-root').jsProp('namespaceURI')).toBe('http://www.w3.org/2000/svg')
+        expect(byTestId('reg-fsvg-path').jsProp('namespaceURI')).toBe('http://www.w3.org/2000/svg')
+    </script>
+}
+
+// ===========================================================================
+// Class 8: a list that is empty at hydration must reconcile, not rebuild
+// ===========================================================================
+
+// A checklist that is empty at SSR and filled on the client. Regression: the
+// hydration empty-slot path used `clear_range` + `$_urn` for arrays, so every
+// update replaced the item DOM nodes -- a focused input lost focus (and the
+// caret) on each keystroke.
+#universal RegListFocus(props) {
+    state items = []
+    state seq = 0
+    return <div data-testid="reg-lf">
+        <button data-testid="reg-lf-add" onClick={() => { items = items.concat([{ id: "i" + seq, text: "a" }]); seq += 1 }}>add</button>
+        <button data-testid="reg-lf-edit" onClick={() => { items = items.map((it, i) => i == 0 ? { id: it.id, text: it.text + "b" } : it) }}>edit</button>
+        <div data-testid="reg-lf-list">
+            {items.map((it) => <input data-testid={"reg-lf-input-" + it.id} value={it.text} />)}
+        </div>
+    </div>
+}
+
+#universal_test("regression: list empty at hydration patches in place and keeps input focus", isolate) {
+    <RegListFocus />
+    <script>
+        byTestId('reg-lf-add').click()
+        await t.sleep(20)
+        const first = byTestId('reg-lf-input-i0')
+        expect(first.exists()).toBeTruthy()
+        // Mark the live DOM node; the marker survives only if the same node is
+        // patched in place (a clear-and-rebuild creates a fresh, unmarked one).
+        first.el.__lfProbe = 'marked'
+        first.focus()
+        expect(first).toBeFocused()
+        // Adding an item changes the list array: the existing node must be
+        // patched, not replaced.
+        byTestId('reg-lf-add').click()
+        await t.sleep(20)
+        expect(byTestId('reg-lf-input-i0').jsProp('__lfProbe')).toBe('marked')
+        expect(byTestId('reg-lf-input-i0')).toBeFocused()
+        // Changing the first item's text must also patch the node in place.
+        byTestId('reg-lf-edit').click()
+        await t.sleep(20)
+        expect(byTestId('reg-lf-input-i0').jsProp('__lfProbe')).toBe('marked')
+        expect(byTestId('reg-lf-input-i0').value()).toBe('ab')
+        expect(byTestId('reg-lf-input-i0')).toBeFocused()
+    </script>
+}

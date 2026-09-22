@@ -632,7 +632,7 @@ window.$_ucs = ((fn) => {
                 if(child && children.indexOf(child) < 0) children.push(child);
             }
         });
-        cached = fn();
+        const next = fn();
         window.$__uni_pop_ctx();
         for(let i = 0; i < deps.length; i++) {
             const dep = deps[i];
@@ -640,7 +640,14 @@ window.$_ucs = ((fn) => {
                 depUnsubs.push(dep.subscribe(() => recompute()));
             }
         }
-        emit();
+        // Only notify when the value actually changed. Without this a computed
+        // that recomputes to the same value (e.g. a derived string like a note's
+        // type) still notified its subscribers, so a `{cond ? A : B}` reactive
+        // slot re-evaluated, produced a fresh vnode and clear-and-rebuilt its
+        // subtree -- dropping focus/input state on every unrelated update.
+        const changed = next !== cached;
+        cached = next;
+        if(changed) emit();
     };
     recompute();
     const signal = {
@@ -1222,6 +1229,15 @@ window.$__uni_set_prop = ((el, key, value) => {
         el.removeAttribute(key);
         return;
     }
+    // SVG elements expose most geometry/presentation attributes as read-only
+    // accessor properties (`width`, `height`, `viewBox`, `x`, `cx`, `r`, ...),
+    // so `el[key] = v` silently does nothing and the attribute is dropped --
+    // icons then render at the SVG default 300x150. Always set SVG attributes
+    // with `setAttribute` (case-sensitive, which `viewBox` requires).
+    if(el.namespaceURI === "http://www.w3.org/2000/svg") {
+        el.setAttribute(key, "" + v);
+        return;
+    }
     if(key in el && propType === "boolean") {
         el[key] = !!v;
         if(v) el.setAttribute(key, "");
@@ -1568,7 +1584,7 @@ window.$__uni_reconcile_list = ((start, end, next, oldVnodes) => {
     for(const k of stale) { window.$__uni_range_remove(ranges.get(k)); ranges.delete(k); }
     return newVnodes;
 })
-window.$_urn = ((v) => {
+window.$_urn = ((v, parentNs) => {
     if(v == null || v === false || v === true) return document.createTextNode("");
     if(window.$__uni_is_state(v)) {
         const start = document.createComment("s");
@@ -1586,7 +1602,7 @@ window.$_urn = ((v) => {
     if(v.nodeType) return v;
     if(Array.isArray(v)) {
         const f = document.createDocumentFragment();
-        for(let i = 0; i < v.length; i++) f.appendChild(window.$_urn(v[i]));
+        for(let i = 0; i < v.length; i++) f.appendChild(window.$_urn(v[i], parentNs));
         return f;
     }
     if(typeof v === "string" || typeof v === "number") return document.createTextNode("" + v);
@@ -1611,7 +1627,7 @@ window.$_urn = ((v) => {
         }
         if(v.t === window.$_ur.Fragment) {
             const f = document.createDocumentFragment();
-            for(let i = 0; i < (v.c || []).length; i++) f.appendChild(window.$_urn(v.c[i]));
+            for(let i = 0; i < (v.c || []).length; i++) f.appendChild(window.$_urn(v.c[i], parentNs));
             return f;
         }
         if(v.t === "__uni_portal") {
@@ -1625,14 +1641,18 @@ window.$_urn = ((v) => {
         if(typeof v.t === "function") {
             const nextProps = v.p ? { ...v.p } : {};
             if(v.c && v.c.length) nextProps.children = v.c.length === 1 ? v.c[0] : v.c;
-            return window.$_urn(v.t(nextProps));
+            return window.$_urn(v.t(nextProps), parentNs);
         }
-        const ns = window.$__uni_ns[v.t];
+        // Inherit the SVG/MathML namespace from the parent when the tag is not
+        // itself a namespace root, so `<svg><path/></svg>` creates the `path`
+        // in the SVG namespace (otherwise it is an inert HTML element and the
+        // icon renders blank).
+        const ns = window.$__uni_ns[v.t] || parentNs || null;
         const e = ns ? document.createElementNS(ns, v.t) : document.createElement(v.t);
         const props = v.p || {};
         for(const k in props) window.$__uni_apply_prop(e, k, props[k]);
         const children = v.c || [];
-        for(let i = 0; i < children.length; i++) e.appendChild(window.$_urn(children[i]));
+        for(let i = 0; i < children.length; i++) e.appendChild(window.$_urn(children[i], ns));
         if(e.$__uni_ref !== undefined) {
             window.$__uni_assign_ref(e, e.$__uni_ref);
             delete e.$__uni_ref;
@@ -1794,9 +1814,18 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             if(dom) { parent.insertBefore(end, dom); parent.insertBefore(start, end); }
             else { parent.appendChild(start); parent.appendChild(end); }
         }
+        // An array that had no SSR range (e.g. a checklist empty at render) must
+        // reconcile on update instead of clear-and-rebuild: rebuilding replaces
+        // the DOM nodes, so an input inside the list loses focus on every
+        // keystroke. Scalars keep the clear-and-rebuild path.
+        let tracked = Array.isArray(v.value) ? v.value : null;
         v.subscribe((next) => {
-            window.$__uni_clear_range(start, end);
-            start.after(window.$_urn(next));
+            if(Array.isArray(next)) {
+                tracked = window.$__uni_reconcile_list(start, end, next, tracked);
+            } else {
+                window.$__uni_clear_range(start, end);
+                start.after(window.$_urn(next));
+            }
         });
         if(!emptyVal) {
             start.after(window.$_urn(v.value));

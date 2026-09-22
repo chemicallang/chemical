@@ -49,7 +49,12 @@ public func reactor_register(fd : int, events : short, waker : core::async::Wake
             if((events & posix::POLLOUT) != 0) {
                 fe.write_waker = waker.clone()
             }
+            var previous = fe.events
             fe.events = fe.events | events
+            var merged = fe.events
+            if(merged != previous) {
+                posix::reactor_platform_register(fd, merged, false)
+            }
             e.m.unlock()
             return
         }
@@ -72,6 +77,7 @@ public func reactor_register(fd : int, events : short, waker : core::async::Wake
         next : e.head
     }
     e.head = node
+    posix::reactor_platform_register(fd, events, true)
     e.m.unlock()
 }
 

@@ -67,6 +67,10 @@ public namespace posix {
         return ready
     }
 
+    // Windows has no persistent readiness registration: `reactor_platform_poll`
+    // re-probes every fd each pass, so this hook is intentionally a no-op.
+    public func reactor_platform_register(fd : int, events : short, is_new : bool) { }
+
     public func reactor_platform_poll(fds : *mut PollFd, n : ulong, timeout_ms : int) : int {
         var deadline : i64 = 0
         var has_timeout = timeout_ms > 0

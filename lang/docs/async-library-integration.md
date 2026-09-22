@@ -620,10 +620,10 @@ by a compiler limitation. B27 (globals after an `async func`) and B28
 **fixed**.
 
 > **Remaining → actionable worklist:**
-> [`async-remaining-work.md`](./async-remaining-work.md). Only two items are left:
-> **AC** (async closures are parsed but not lowered) and **POSIX-EPOLL** (the
-> POSIX reactor is `select(2)`, ~1024 fds). B15-W (async debug info), B20, B24,
-> B25, TLS-VT and WIN-IOCP have all been fixed from that list (see below).
+> [`async-remaining-work.md`](./async-remaining-work.md). Only **AC** (async
+> closures are parsed but not lowered) is left. B15-W (async debug info), B20,
+> B24, B25, POSIX-EPOLL (the reactor is now epoll/kqueue) and TLS-VT have all
+> been fixed from that list, as has WIN-IOCP (see below).
 
 ### B10 — Generic function *references* are not parsed or instantiated (HIGH) — ✅ FIXED
 

@@ -61,11 +61,11 @@ the backend verifier:
 | 5 | **AC** | Async closures not lowered | parser/symres/codegen | L |
 | ~~6~~ | ~~**TLS-VT**~~ | ~~TLS has no non-blocking transport~~ — ✅ FIXED | `tls` | L |
 | ~~7~~ | ~~**WIN-IOCP**~~ | ~~Windows async reactor is a stub~~ — ✅ FIXED | `async`/`net` win | L |
-| 8 | **POSIX-EPOLL** | POSIX reactor is `select(2)` | `async` posix | M |
+| ~~8~~ | ~~**POSIX-EPOLL**~~ | ~~POSIX reactor is `select(2)`~~ — ✅ FIXED | `async` posix | M |
 
-**B15-W, B20, B23, B24, B25, B26, TLS-VT and WIN-IOCP are fixed** (kept below
-for reference). Items 5 and 8 are infrastructure/features/gaps (async closures,
-the POSIX epoll/kqueue reactor). All are independent unless noted.
+**B15-W, B20, B23, B24, B25, B26, POSIX-EPOLL, TLS-VT and WIN-IOCP are fixed**
+(kept below for reference). The only item left is **AC** (async closures). All are
+independent unless noted.
 
 ---
 
@@ -373,20 +373,42 @@ the POSIX epoll/kqueue reactor). All are independent unless noted.
 
 ---
 
-## POSIX-EPOLL — POSIX reactor is `select(2)` (~1024 fd limit)
+## POSIX-EPOLL — POSIX reactor is `select(2)` (~1024 fd limit) — ✅ FIXED
 
-- **Status:** Deliberate v1. **Priority: Medium (scale).**
-- **Symptom:** `lang/libs/async/posix/reactor.ch` uses `select(2)` (chosen over
-  `poll(2)` to avoid a C-symbol clash with the `test` library), capping the
-  reactor at `FD_SETSIZE` (~1024) fds and rescanning all fds each poll.
-- **Root cause / where:** `lang/libs/async/posix/reactor.ch`
-  (`reactor_platform_poll`).
-- **Current workaround:** the executor blocks on the reactor while fds are
-  registered; fine for current tests.
-- **Definition of done:** add `epoll` (Linux) and `kqueue` (macOS/BSD)
-  registration behind the same `reactor_register`/`reactor_poll` interface, with
-  `select` kept as a portable fallback. No API change.
-- **Files:** `lang/libs/async/posix/reactor.ch`, `lang/libs/async/src/reactor.ch`.
+- **Was:** `lang/libs/async/posix/reactor.ch` used `select(2)`:
+  `reactor_platform_poll` rebuilt an `fd_set` on every poll (O(n) and capped at
+  `FD_SETSIZE`, ~1024), and `reactor_is_ready` had the same cap — `fdset_set`
+  even indexed past the 16-word (1024-bit) `fd_set` for fds >= 1024.
+- **Fix:**
+  1. Linux now registers descriptors once on a persistent `epoll(7)` instance
+     (`epoll_create1` / `epoll_ctl` / `epoll_wait`); macOS/BSD use `kqueue(2)`
+     (`kqueue` / `kevent`). Registration lives in `reactor_platform_register`,
+     called from `reactor_register` under the reactor lock; the executor then
+     blocks in `epoll_wait` / `kevent`, so readiness is O(ready) with no
+     fd-number cap.
+  2. `reactor_is_ready` (the `ready_poll` pre-park probe) uses a throwaway
+     epoll/kqueue instance, so it too works above `FD_SETSIZE`.
+  3. `select(2)` stays as the fallback for other POSIX platforms, and
+     `reactor_platform_poll(fds, n, timeout_ms)` keeps its original signature:
+     the generic layer still builds a snapshot of the registered fds and the
+     ready `revents` are written back into it.
+- **epoll ABI:** `struct epoll_event` is packed on x86 (x86_64 / i386): `events`
+  at offset 0, the 8-byte `data` union at offset 4, size 12; elsewhere the union
+  is naturally aligned at offset 8, size 16. The reactor addresses the buffer by
+  byte offset (`epoll_data_off()` / `epoll_event_size()`) so no struct-layout
+  assumption leaks into codegen.
+- **Cross-platform:** Windows is unchanged — `win/reactor.ch` gains a no-op
+  `reactor_platform_register` and keeps its `PeekNamedPipe` poll.
+- **Regression test:** `lang/tests/async/reactor_test.ch`
+  (`test_posix_reactor_high_fd`): opens pipes until a read end is >= fd 1100,
+  writes a byte, then asserts both `reactor_is_ready` and `reactor_poll` report
+  it readable. It fails on the old `select` path (verified by forcing the
+  fallback) and skips cleanly if the process fd limit is too low to reach 1100.
+- **Verified:** `--async` 49/49 on TCC and LLVM; `--libs` 650/650 (incl.
+  `test_async_reactor_readable` / `_writable` / `_asyncfd`);
+  `--process --server` 127/127 on TCC.
+- **Files:** `lang/libs/async/posix/reactor.ch`,
+  `lang/libs/async/src/reactor.ch`, `lang/libs/async/win/reactor.ch`.
 
 ---
 

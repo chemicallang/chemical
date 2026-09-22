@@ -19,6 +19,19 @@ public namespace tls {
     public comptime const ERR_RSA_OUTPUT_TOO_LARGE = -0x4480
     public comptime const ERR_RSA_RNG_FAILED = -0x4500
 
+    // ─── Key Size Limit ─────────────────────────────────────────────────────
+
+    // Largest modulus this implementation accepts, in bytes (8192 bits).
+    //
+    // Every RSA routine uses fixed-size stack buffers for the padded block, the
+    // ciphertext and the plaintext, and the modulus length is not always
+    // trusted: x509_extract_rsa_pubkey() takes it straight from a peer's
+    // certificate. Import and generation therefore reject anything larger than
+    // this constant, and every buffer below is sized from it, so the bound and
+    // the storage cannot drift apart. 8192 bits matches mbedTLS's default
+    // MBEDTLS_MPI_MAX_SIZE (1024 bytes).
+    public comptime const RSA_MAX_KEY_BYTES : size_t = 1024
+
     // ─── Padding Modes ──────────────────────────────────────────────────────
 
     public comptime const RSA_PKCS_V15 = 0
@@ -63,6 +76,8 @@ public namespace tls {
     public func rsa_import_pubkey(ctx : *mut RSAContext,
                                    n_buf : *u8, n_len : size_t,
                                    e_buf : *u8, e_len : size_t) : int {
+        if(n_len == 0 || n_len > RSA_MAX_KEY_BYTES) { return ERR_RSA_BAD_INPUT_DATA }
+        if(e_len == 0 || e_len > RSA_MAX_KEY_BYTES) { return ERR_RSA_BAD_INPUT_DATA }
         var ret = mpi_read_binary(&raw mut ctx.N, n_buf, n_len)
         if(ret < 0) { return ret }
         ret = mpi_read_binary(&raw mut ctx.E, e_buf, e_len)
@@ -74,6 +89,24 @@ public namespace tls {
     // Check key size
     public func rsa_get_len(ctx : *mut RSAContext) : size_t {
         return ctx.len
+    }
+
+    // Public-key sanity checks (the equivalent of mbedtls_rsa_check_pubkey).
+    //
+    // A zero or even modulus, or an exponent below 3, means the key is corrupt
+    // or chosen adversarially: every RSA operation on such a key is
+    // meaningless, and a verification against one would "succeed" for values a
+    // sender never signed. Import deliberately stays permissive (tests and
+    // hand-built contexts import fragments), so callers that obtained a key
+    // from the outside — the certificate parser, for example — run this.
+    public func rsa_check_pubkey(ctx : *mut RSAContext) : int {
+        mpi_trim(&raw mut ctx.N)
+        mpi_trim(&raw mut ctx.E)
+        if(ctx.N.n == 0 || (ctx.N.p[0] & 1) == 0) { return ERR_RSA_KEY_CHECK_FAILED }
+        if(ctx.E.n == 0 || (ctx.E.p[0] & 1) == 0) { return ERR_RSA_KEY_CHECK_FAILED }
+        if(mpi_cmp_int(&raw mut ctx.E, 1) <= 0) { return ERR_RSA_KEY_CHECK_FAILED }
+        if(mpi_cmp(&raw mut ctx.E, &raw mut ctx.N) >= 0) { return ERR_RSA_KEY_CHECK_FAILED }
+        return 0
     }
 
     // ─── PKCS#1 v1.5 Encoding ────────────────────────────────────────────
@@ -284,7 +317,7 @@ public namespace tls {
         ret = mpi_exp_mod(unsafe(&raw mut em), unsafe(&raw mut sig_m), &raw mut ctx.E, &raw mut ctx.N)
         if(ret < 0) { return ret }
 
-        var em_buf : [512]u8
+        var em_buf : [RSA_MAX_KEY_BYTES]u8
         ret = mpi_write_binary(unsafe(&raw mut em), &raw mut em_buf[0], sig_len)
         if(ret < 0) { return ret }
 
@@ -429,7 +462,7 @@ public namespace tls {
                                    expected_max_len : size_t) : int {
         if(input_len != ctx.len) { return ERR_RSA_BAD_INPUT_DATA }
 
-        var buf : [512]u8
+        var buf : [RSA_MAX_KEY_BYTES]u8
         var ret = rsa_private(ctx, input, &raw mut buf[0])
         if(ret < 0) { return ret }
 
@@ -453,6 +486,8 @@ public namespace tls {
     public func rsa_import_privkey(ctx : *mut RSAContext,
                                     n_buf : *u8, n_len : size_t,
                                     d_buf : *u8, d_len : size_t) : int {
+        if(n_len == 0 || n_len > RSA_MAX_KEY_BYTES) { return ERR_RSA_BAD_INPUT_DATA }
+        if(d_len == 0 || d_len > RSA_MAX_KEY_BYTES) { return ERR_RSA_BAD_INPUT_DATA }
         var ret = mpi_read_binary(&raw mut ctx.N, n_buf, n_len)
         if(ret < 0) { return ret }
         ret = mpi_read_binary(&raw mut ctx.D, d_buf, d_len)
@@ -527,7 +562,7 @@ public namespace tls {
         while(r < rounds) {
             // Random base a in [2, n-2]
             var nb = mpi_size(n)
-            var rbuf : [256]u8
+            var rbuf : [RSA_MAX_KEY_BYTES]u8
             ret = random_fill(&raw mut rbuf[0], nb)
             if(ret < 0) { return false }
             mpi_read_binary(unsafe(&raw mut base), &raw mut rbuf[0], nb)
@@ -562,7 +597,7 @@ public namespace tls {
     func rsa_gen_prime(out : *mut Mpi, nbits : size_t, rounds : size_t) : int {
         if(nbits < 16) { return ERR_RSA_KEY_GEN_FAILED }
         var nbytes = (nbits + 7) / 8
-        var buf : [256]u8
+        var buf : [RSA_MAX_KEY_BYTES]u8
 
         // The number of candidates that must be tested before hitting a prime is
         // geometric: for an nbits-bit odd candidate, P(prime) ≈ 2 / (nbits·ln2),
@@ -615,6 +650,7 @@ public namespace tls {
     // Generate an RSA key pair with the given modulus size (in bits).
     public func rsa_gen_key(ctx : *mut RSAContext, nbits : size_t, exponent : u32) : int {
         if(nbits < 256 || nbits % 8 != 0) { return ERR_RSA_BAD_INPUT_DATA }
+        if(nbits / 8 > RSA_MAX_KEY_BYTES) { return ERR_RSA_BAD_INPUT_DATA }
         var p_bits = nbits / 2
         var q_bits = nbits - p_bits
 

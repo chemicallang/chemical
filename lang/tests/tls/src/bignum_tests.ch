@@ -796,3 +796,146 @@ public func INT_rsa_crt_vs_python(env : &mut TestEnv) {
 
     rsa_free(&raw mut ctx)
 }
+
+// ─── RSA key-size bounds and key validation ───────────────────────────────
+
+// The modulus length reaches RSA straight from a peer's certificate, so the
+// import path enforces RSA_MAX_KEY_BYTES and every internal PKCS#1 block buffer
+// is sized from that same constant.
+//
+// Regression: rsa_pkcs1_verify() wrote sig_len (= the certificate's modulus
+// length) bytes into a fixed 512-byte stack buffer, and rsa_gen_prime()/
+// mpi_is_prime() did the same with 256-byte buffers. A certificate carrying a
+// modulus above 4096 bits overran the first one *remotely, while walking the
+// chain*, and a locally generated key above 2048 bits overran the second. None
+// of those paths had a bound on the size a peer or caller could request.
+@test
+public func TEST_rsa_rejects_oversized_keys(env : &mut TestEnv) {
+    var e_buf : [3]u8 = [0x01 as u8, 0x00 as u8, 0x01 as u8]   // 65537
+
+    // One byte past the supported maximum.
+    var over : [1025]u8
+    var i : size_t = 0
+    while(i < 1025) { over[i] = ((i * 31 + 7) % 256) as u8; i += 1 }
+    over[0] = 0x80
+    over[1024] = 0x01
+
+    var ctx : RSAContext; rsa_init(&raw mut ctx, RSA_PKCS_V15, 0)
+    var nptr = &raw mut over[0]
+    var eptr = &raw mut e_buf[0]
+
+    var rc = rsa_import_pubkey(&raw mut ctx, nptr, 1025, eptr, 3)
+    if(rc != ERR_RSA_BAD_INPUT_DATA) {
+        env.error("an oversized public modulus must be rejected"); return
+    } else {}
+    rc = rsa_import_privkey(&raw mut ctx, nptr, 1025, eptr, 3)
+    if(rc != ERR_RSA_BAD_INPUT_DATA) {
+        env.error("an oversized private modulus must be rejected"); return
+    } else {}
+    if(rsa_gen_key(&raw mut ctx, 8200, 65537) != ERR_RSA_BAD_INPUT_DATA) {
+        env.error("generating a key beyond the bound must be rejected"); return
+    } else {}
+
+    // Degenerate lengths are not keys either.
+    rc = rsa_import_pubkey(&raw mut ctx, nptr, 0, eptr, 3)
+    if(rc != ERR_RSA_BAD_INPUT_DATA) {
+        env.error("a zero-length modulus must be rejected"); return
+    } else {}
+    rc = rsa_import_pubkey(&raw mut ctx, nptr, 256, eptr, 0)
+    if(rc != ERR_RSA_BAD_INPUT_DATA) {
+        env.error("a zero-length exponent must be rejected"); return
+    } else {}
+
+    rsa_free(&raw mut ctx)
+}
+
+// A key that merely *looks* like a public key must not be used to verify
+// anything: with an even modulus or a trivial exponent, signature checks can
+// pass for values the peer never signed.
+@test
+public func TEST_rsa_check_pubkey_rejects_invalid(env : &mut TestEnv) {
+    var ctx : RSAContext; rsa_init(&raw mut ctx, RSA_PKCS_V15, 0)
+
+    var n_buf : [16]u8
+    var i : size_t = 0
+    while(i < 16) { n_buf[i] = ((i * 13 + 5) % 256) as u8; i += 1 }
+    n_buf[0] = 0x80
+    n_buf[15] = 0x01   // odd
+    var e_buf : [3]u8 = [0x01 as u8, 0x00 as u8, 0x01 as u8]
+    if(rsa_import_pubkey(&raw mut ctx, &raw mut n_buf[0], 16, &raw mut e_buf[0], 3) != 0) {
+        env.error("import of a normal public key failed"); return
+    } else {}
+    if(rsa_check_pubkey(&raw mut ctx) != 0) {
+        env.error("a valid public key was rejected"); return
+    } else {}
+
+    // Even exponent, then the degenerate exponents 1 and 0.
+    mpi_lset(&raw mut ctx.E, 2)
+    if(rsa_check_pubkey(&raw mut ctx) == 0) { env.error("even exponent accepted"); return } else {}
+    mpi_lset(&raw mut ctx.E, 1)
+    if(rsa_check_pubkey(&raw mut ctx) == 0) { env.error("exponent 1 accepted"); return } else {}
+    mpi_lset(&raw mut ctx.E, 0)
+    if(rsa_check_pubkey(&raw mut ctx) == 0) { env.error("exponent 0 accepted"); return } else {}
+
+    // Exponent not smaller than the modulus.
+    mpi_lset(&raw mut ctx.N, 3)
+    mpi_lset(&raw mut ctx.E, 3)
+    if(rsa_check_pubkey(&raw mut ctx) == 0) { env.error("E >= N accepted"); return } else {}
+
+    // Even and zero moduli.
+    mpi_lset(&raw mut ctx.N, 4)
+    mpi_lset(&raw mut ctx.E, 3)
+    if(rsa_check_pubkey(&raw mut ctx) == 0) { env.error("even modulus accepted"); return } else {}
+    mpi_lset(&raw mut ctx.N, 0)
+    if(rsa_check_pubkey(&raw mut ctx) == 0) { env.error("zero modulus accepted"); return } else {}
+
+    rsa_free(&raw mut ctx)
+}
+
+// A 5120-bit modulus means a 640-byte signature — more than the 512-byte buffer
+// rsa_pkcs1_verify used to hold the decoded message. This pins that the whole
+// path works at that size, and that nothing adjacent on the stack is written.
+@test
+public func TEST_rsa_verify_handles_large_modulus(env : &mut TestEnv) {
+    var ctx : RSAContext; rsa_init(&raw mut ctx, RSA_PKCS_V15, 0)
+
+    var n_len : size_t = 640
+    var n_buf : [640]u8
+    var i : size_t = 0
+    while(i < n_len) { n_buf[i] = ((i * 37 + 11) % 256) as u8; i += 1 }
+    n_buf[0] = 0x80
+    n_buf[n_len - 1] = 0x01
+    var e_buf : [3]u8 = [0x01 as u8, 0x00 as u8, 0x01 as u8]
+    if(rsa_import_pubkey(&raw mut ctx, &raw mut n_buf[0], n_len, &raw mut e_buf[0], 3) != 0) {
+        env.error("a 5120-bit modulus must be accepted"); return
+    } else {}
+    if(rsa_get_len(&raw mut ctx) != n_len) { env.error("rsa_get_len disagrees"); return } else {}
+    if(rsa_check_pubkey(&raw mut ctx) != 0) { env.error("5120-bit key rejected by check"); return } else {}
+
+    var before : [32]u8
+    var after : [32]u8
+    i = 0
+    while(i < 32) { before[i] = 0xA5 as u8; after[i] = 0x5A as u8; i += 1 }
+
+    var sig : [640]u8
+    var digest : [32]u8
+    i = 0
+    while(i < n_len) { sig[i] = ((i * 7 + 3) % 256) as u8; i += 1 }
+    i = 0
+    while(i < 32) { digest[i] = ((i * 5 + 1) % 256) as u8; i += 1 }
+
+    var ret = rsa_pkcs1_verify(&raw mut ctx, &raw mut digest[0], 32, &raw mut sig[0], n_len)
+    if(ret != ERR_RSA_VERIFY_FAILED) {
+        env.error("a garbage signature must not verify"); return
+    } else {}
+
+    i = 0
+    while(i < 32) {
+        if(before[i] != 0xA5 as u8 || after[i] != 0x5A as u8) {
+            env.error("stack canary overwritten by the verify path"); return
+        } else {}
+        i += 1
+    }
+
+    rsa_free(&raw mut ctx)
+}

@@ -1115,6 +1115,97 @@ public func tls_cert_self_signature_verification_works(env : &mut TestEnv) {
     }
 }
 
+// ─── Parsed certificates must own their bytes ───────────────────────────────
+
+// Every slice parse_cert_der() hands out — tbs_der, sig, sig_alg, sig_oid,
+// serial, pk_raw, issuer_raw, subject_raw — points into the DER it was parsed
+// from, and no caller keeps that buffer alive:
+//
+//   * parse_cert_pem() decodes base64 into a stack local and returns,
+//   * x509_crt_load_pem_file() deallocs its file buffer after parsing,
+//   * the handshake parses the peer chain out of a local record buffer.
+//
+// parse_cert_der therefore keeps a heap copy of the DER (crt.raw_pem) and
+// rebases every slice onto it. This test parses out of a scratch buffer,
+// destroys that buffer, and then requires the certificate to behave exactly as
+// before. Every other test in this file parses out of the never-freed global
+// test_cert_data, so a regression that dropped the rebase would leave them all
+// green — the pointers would simply still happen to be valid.
+@test
+public func tls_parsed_cert_survives_source_buffer_destruction(env : &mut TestEnv) {
+    var src : [1024]u8
+    var i : size_t = 0
+    while(i < 831) { src[i] = tls_tests::test_cert_data[i]; i += 1 }
+
+    var cert : tls::X509Cert
+    tls::x509_cert_init(unsafe(&raw mut cert))
+    var ret = tls::parse_cert_der(unsafe(&raw mut cert), &raw src[0], 831)
+    if(ret != 0) { env.error("DER certificate should parse"); return }
+
+    // The borrowed slices must not land inside the buffer we are about to
+    // destroy — they have to be rebased onto the certificate's own copy.
+    var src_addr = (&raw mut src[0]) as u64
+    var src_end = src_addr + 831
+    var tbs_addr = unsafe(cert.tbs_der) as u64
+    if(tbs_addr >= src_addr && tbs_addr < src_end) {
+        env.error("tbs_der still aliases the caller's buffer")
+        return
+    }
+    var issuer_addr = unsafe(cert.issuer_raw) as u64
+    if(issuer_addr >= src_addr && issuer_addr < src_end) {
+        env.error("issuer_raw still aliases the caller's buffer")
+        return
+    }
+    var pk_addr = unsafe(cert.pk_raw) as u64
+    if(pk_addr >= src_addr && pk_addr < src_end) {
+        env.error("pk_raw still aliases the caller's buffer")
+        return
+    }
+    var sig_addr = unsafe(cert.sig) as u64
+    if(sig_addr >= src_addr && sig_addr < src_end) {
+        env.error("sig still aliases the caller's buffer")
+        return
+    }
+
+    // Destroy it, the way returning from a function would.
+    i = 0
+    while(i < 1024) { src[i] = 0xAA as u8; i += 1 }
+
+    // Nothing read through a slice may show the clobbered bytes...
+    var tbs_ptr = unsafe(cert.tbs_der)
+    if(tbs_ptr[0] != (0x30 as u8)) {
+        env.error("tbs_der reads the destroyed buffer")
+        return
+    }
+    // ...and the certificate's own copy must be the DER we handed in.
+    var der_ptr = unsafe(cert.raw_pem)
+    i = 0
+    while(i < 831) {
+        if(der_ptr[i] != tls_tests::test_cert_data[i]) {
+            env.error("the certificate's own DER copy is not the source DER")
+            return
+        }
+        i += 1
+    }
+
+    // Operations that read the slices must still work.
+    var rsa_ctx : tls::RSAContext
+    tls::rsa_init(unsafe(&raw mut rsa_ctx), tls::RSA_PKCS_V15, 0)
+    ret = tls::x509_extract_rsa_pubkey(unsafe(&raw mut cert), unsafe(&raw mut rsa_ctx))
+    if(ret != 0) { env.error("RSA key extraction should survive"); return }
+
+    ret = tls::x509_verify_cert_signature(unsafe(&raw mut cert), unsafe(&raw mut rsa_ctx))
+    if(ret != 0) { env.error("signature verification should survive"); return }
+
+    ret = tls::x509_verify_hostname(unsafe(&raw mut cert), "test.example.com\0" as *char)
+    if(ret != 0) { env.error("hostname verification should survive"); return }
+
+    ret = tls::x509_check_date(unsafe(&raw mut cert))
+    if(ret != 0) { env.error("date check should survive"); return }
+
+    tls::cert_free(unsafe(&raw mut cert))
+}
+
 @test
 public func tls_cert_signature_verification_fails_on_tampered_cert(env : &mut TestEnv) {
     // Verify that signature verification correctly fails on tampered data
@@ -1846,6 +1937,65 @@ public func tls_chain_verification_fails_with_wrong_ca(env : &mut TestEnv) {
     ret = tls::x509_verify_chain(unsafe(&raw mut cert), unsafe(&raw mut ca_cert), wrong_hostname)
     if(ret == 0) {
         env.error("chain verification should fail with non-matching hostname")
+    }
+}
+
+// ─── A self-signed peer certificate is not its own trust anchor ──────────────
+
+// Chain verification must end at a certificate the configured trust store
+// actually holds. A self-signed certificate always "verifies" against its own
+// public key, so a walk that treats "signature checks out against itself" as a
+// trust anchor accepts every self-signed certificate for every name — with a
+// full system CA bundle configured. That is a complete verification bypass:
+// anyone can mint a self-signed certificate for the hostname being requested.
+//
+// The store here is the certificate's own DER with the subject DN overwritten,
+// which is the sharpest form of the case: the peer certificate is unchanged
+// (self-signed, parses, matches the hostname), and it simply is not in the
+// store.
+@test
+public func tls_self_signed_leaf_is_not_trusted_by_an_unrelated_store(env : &mut TestEnv) {
+    var leaf : tls::X509Cert
+    tls::x509_cert_init(unsafe(&raw mut leaf))
+    var ret = tls::parse_cert_der(unsafe(&raw mut leaf), &raw tls_tests::test_cert_data[0], 831)
+    if(ret != 0) { env.error("leaf cert should parse"); return }
+
+    var hostname = "test.example.com\0" as *char
+
+    // Control: the same certificate in the store is a legitimate anchor.
+    var self_store : tls::X509Cert
+    tls::x509_cert_init(unsafe(&raw mut self_store))
+    ret = tls::parse_cert_der(unsafe(&raw mut self_store), &raw tls_tests::test_cert_data[0], 831)
+    if(ret != 0) { env.error("store cert should parse"); return }
+    ret = tls::x509_verify_chain(unsafe(&raw mut leaf), unsafe(&raw mut self_store), hostname)
+    if(ret != 0) {
+        env.error("a self-signed cert that IS the trust anchor must still verify")
+        return
+    }
+
+    // An unrelated store: same DER, subject DN overwritten inside its CN value.
+    // subject_raw points at the subject DN SEQUENCE, whose CN value starts at
+    // DN offset 13.
+    var other : tls::X509Cert
+    tls::x509_cert_init(unsafe(&raw mut other))
+    ret = tls::parse_cert_der(unsafe(&raw mut other), &raw tls_tests::test_cert_data[0], 831)
+    if(ret != 0) { env.error("other store cert should parse"); return }
+    unsafe {
+        var k : size_t = 13
+        while(k < 25) { other.subject_raw[k] = 0x41; k += 1 }
+    }
+
+    ret = tls::x509_verify_chain(unsafe(&raw mut leaf), unsafe(&raw mut other), hostname)
+    if(ret == 0) {
+        env.error("a self-signed cert must not be trusted by an unrelated store")
+        return
+    }
+
+    // Unchanged: with no trust store configured there is nothing to chain to, so
+    // a self-signed certificate is accepted as its own anchor.
+    ret = tls::x509_verify_chain(unsafe(&raw mut leaf), null, hostname)
+    if(ret != 0) {
+        env.error("self-signed cert with no trust store should be accepted")
     }
 }
 

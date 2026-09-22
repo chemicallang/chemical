@@ -69,6 +69,21 @@ public func <T> channel_release_shared(s : *mut ChannelShared<T>) {
     }
     s.m.unlock()
     if(free_it) {
+        // Destroy any values still queued: the nodes are raw `malloc`
+        // allocations, so move each value into a local (its scope runs the
+        // destructor) and free the node. Without this a channel dropped with
+        // undelivered values leaks them and skips their destructors.
+        var node = s.head
+        while(node != null) {
+            var next = node.next
+            var value = channel_node_take<T>(node)
+            unsafe {
+                dealloc node
+            }
+            node = next
+        }
+        s.head = null
+        s.tail = null
         unsafe {
             delete s
         }

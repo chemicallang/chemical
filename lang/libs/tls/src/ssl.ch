@@ -3036,7 +3036,6 @@ public namespace tls {
         }
 
         // Record negotiated ciphersuite (already set by parse_server_hello)
-        printf("[DBG-TLS12] SH done suite=%d\n", ssl.negotiated_ciphersuite as int)
 
         // 3. Read Certificate
         ssl.state = SSLState.SERVER_CERTIFICATE()
@@ -3132,7 +3131,6 @@ public namespace tls {
             }
         }
 
-        printf("[DBG-TLS12] cert+SHD done\n")
         // ── Generate pre-master secret (TLS_RSA key exchange) ──
         // For TLS 1.2 RSA: pre_master_secret = ClientHello.version (2 bytes) + 46 random bytes
         var pre_master : [48]u8
@@ -3202,19 +3200,6 @@ public namespace tls {
         // Feed ClientKeyExchange into transcript hash
         tls12_hash_handshake_msg_both(unsafe(&raw mut hash_ctx), unsafe(&raw mut hash_ctx_384), SSL_HS_CLIENT_KEY_EXCHANGE as u8, cke_len as u32, &raw cke_data[0])
 
-        printf("[DBG-TLS12] cr=")
-        var dbgi : size_t = 0
-        while(dbgi < 32) { printf("%02x", ssl.handshake.randbytes[dbgi] as int); dbgi += 1 }
-        printf(" sr=")
-        dbgi = 0
-        while(dbgi < 32) { printf("%02x", ssl.handshake.randbytes[32 + dbgi] as int); dbgi += 1 }
-        printf("\n[DBG-TLS12] ms=")
-        dbgi = 0
-        while(dbgi < 48) { printf("%02x", master_secret[dbgi] as int); dbgi += 1 }
-        printf("\n[DBG-TLS12] kb=")
-        dbgi = 0
-        while(dbgi < 72) { printf("%02x", key_block[dbgi] as int); dbgi += 1 }
-
         // 7. Send ChangeCipherSpec (in the clear!)
         ssl.state = SSLState.CLIENT_CHANGE_CIPHER_SPEC()
         var ccs_msg : [1]u8
@@ -3255,11 +3240,6 @@ public namespace tls {
         var client_finished : [12]u8
         tls12_compute_finished(&raw master_secret[0], true, &raw client_hs_hash[0], cf_hash_len, &raw mut client_finished[0], use_sha384)
 
-        printf("[DBG-TLS12] cf=")
-        var dbgj : size_t = 0
-        while(dbgj < 12) { printf("%02x", client_finished[dbgj] as int); dbgj += 1 }
-        printf("\n")
-
         // 8. Send Finished (with verify_data)
         ssl.state = SSLState.CLIENT_FINISHED()
         ret = await send_handshake_msg(ssl, SSL_HS_FINISHED as u8, &raw client_finished[0], 12)
@@ -3268,7 +3248,6 @@ public namespace tls {
         // Feed Client Finished message into transcript hash for verifying Server Finished
         tls12_hash_handshake_msg_both(unsafe(&raw mut hash_ctx), unsafe(&raw mut hash_ctx_384), SSL_HS_FINISHED as u8, 12, &raw client_finished[0])
 
-        printf("[DBG-TLS12] client Finished sent\n")
         // 9. Read Server's ChangeCipherSpec + Finished
         // RFC 5077 §3.3: a session-aware server sends NewSessionTicket
         // BEFORE its ChangeCipherSpec — accept it here instead of treating

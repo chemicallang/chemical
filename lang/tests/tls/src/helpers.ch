@@ -114,6 +114,12 @@ func test_py_run_foreground(args : string_view) {
 
 // Run a python tls_utils.py command in the background (same lifetime care).
 func test_py_run_background(args : string_view) {
+    // Remember which port to poll in test_server_wait(): every backgrounded
+    // command names the port under test (the listen port for `srv`/`httpsrv`/
+    // `mround`/`echo`/`plaintcp`/`srv2`/`bigsrv`, the target port for `cli`/
+    // `rawcli`/`clifrag` — in all cases the server this test must wait for).
+    var port = test_server_port_of(args)
+    if(port != 0u) { test_bg_server_port = port }
     var cmd = test_py_cmd(args)
     test_run_bg(cmd.data())
 }
@@ -127,6 +133,11 @@ func test_kill_port(port : int) {
         cmd.append_view("/tcp 2>/dev/null")
         system(cmd.data())
     }
+    // Nothing left to wait for on the tracked port: a test that kills and then
+    // restarts a server calls test_server_wait() in between to let the socket
+    // be released, and polling a port we just killed would sit out the whole
+    // 5s budget instead of doing the intended 1s settle.
+    test_bg_server_port = 0
 }
 
 // Print a file to stdout (used to surface python client stderr in e2e tests).
@@ -152,11 +163,100 @@ func test_cat_file(path : string_view) {
     }
 }
 
-// Wait ~1s for a background python server to come up.
+// Port under test for the most recent background command launched through
+// test_py_run_background (0 when no port could be parsed out of it).
+//
+// test_server_wait() polls this port instead of blindly sleeping: under a
+// loaded machine python repeatedly needed longer than the old fixed 1s to
+// bind, and the losing tests surfaced as a bogus ERR_SSL_INTERNAL_ERROR from
+// tls_connect (or a failed first request) even though nothing was wrong with
+// the TLS stack.
+var test_bg_server_port : u16 = 0
+
+// The port a tls_utils.py command works on, i.e. its first whitespace-separated
+// all-digit token in the unprivileged range. Command shapes:
+//   srv    cert key 20103 1.2 AES256-SHA256   -> 20103 (listen)
+//   httpsrv cert key 20304 8                 -> 20304 (listen)
+//   bigsrv cert key 19888 131072             -> 19888 (listen)
+//   mround cert key 20108 1.3 5 1            -> 20108 (listen)
+//   echo   cert key 20126 1 20001            -> 20126 (listen)
+//   plaintcp 20124 HELLO 1                   -> 20124 (listen)
+//   cli 127.0.0.1 19880 1.3                  -> 19880 (target server)
+// Certificate/key paths contain letters, '/' and '.', so they never look like a
+// port; only a bare numeric token does.
+func test_server_port_of(args : string_view) : u16 {
+    var i : size_t = 0
+    while(i < args.size()) {
+        while(i < args.size() && args.get(i) == ' ') { i += 1 }
+        var j = i
+        while(j < args.size() && args.get(j) != ' ') { j += 1 }
+
+        var all_digits = (j > i)
+        var k = i
+        while(k < j) {
+            var c = args.get(k)
+            if(c < '0' || c > '9') { all_digits = false; break }
+            k += 1
+        }
+        if(all_digits) {
+            var port : u32 = 0
+            k = i
+            while(k < j) {
+                port = port * 10u + ((args.get(k) as u32) - 48u)
+                k += 1
+            }
+            // Real ports only: this rejects the other numeric arguments these
+            // commands carry ("mround ... 1.3 5 1", "echo ... 1 98304").
+            if(port >= 1024u && port <= 65535u) { return port as u16 }
+        }
+        i = j
+    }
+    return 0
+}
+
+// Cached `fuser` availability: -1 = not probed yet, 0 = absent, 1 = usable.
+// Probing once matters — without it, a machine without fuser would burn the
+// full 5s poll budget on every single server wait.
+var test_fuser_state : int = -1
+
+func test_fuser_available() : bool {
+    if(test_fuser_state < 0) {
+        test_fuser_state = 0
+        // Absent `fuser` makes system() return 127, not a bind failure.
+        if(system("fuser --version >/dev/null 2>&1") == 0) { test_fuser_state = 1 }
+    }
+    return test_fuser_state == 1
+}
+
+// True once some process is bound to `port` (POSIX only, via fuser — the same
+// tool test_kill_port relies on).
+func test_port_listening(port : u16) : bool {
+    comptime if(def.windows) {
+        return false
+    } else {
+        if(port == 0u || !test_fuser_available()) { return false }
+        var cmd = string("fuser -s ")
+        cmd.append_integer(port as int)
+        cmd.append_view("/tcp 2>/dev/null")
+        return system(cmd.data()) == 0
+    }
+}
+
+// Wait for the background python server to actually be listening (bounded at
+// ~5s), falling back to a plain sleep when the port is unknown or fuser is
+// unavailable.
 func test_server_wait() {
     comptime if(def.windows) {
         system("ping -n 2 127.0.0.1 >nul")
     } else {
+        if(test_bg_server_port != 0u && test_fuser_available()) {
+            var attempts : int = 0
+            while(attempts < 100 && !test_port_listening(test_bg_server_port)) {
+                std::concurrent::sleep_ms(50u)
+                attempts += 1
+            }
+            if(test_port_listening(test_bg_server_port)) { return }
+        }
         system("sleep 1")
     }
 }

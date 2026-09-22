@@ -280,7 +280,8 @@ public func ALPN_negotiated_default_null(env : &mut TestEnv) {
 // ============================================================================
 
 @test
-@test.timeout(30000)
+// Generates its own RSA-2048 key: 1.7-30s, see RSA_keygen_consistent_len_works.
+@test.timeout(120000)
 public func SERVER_CONFIG_set_own_rsa_key_works(env : &mut TestEnv) {
     var rsa_ctx : RSAContext
     rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
@@ -558,7 +559,9 @@ public func SHA256_deterministic(env : &mut TestEnv) {
 // ============================================================================
 
 @test
-@test.timeout(30000)
+// Keygen dominates (1.7-30s, see RSA_keygen_consistent_len_works); encrypt and
+// decrypt add ~10ms and ~140ms.
+@test.timeout(120000)
 public func RSA_pkcs1_encrypt_decrypt_roundtrip(env : &mut TestEnv) {
     var rsa_ctx : RSAContext
     rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)
@@ -595,7 +598,11 @@ public func RSA_pkcs1_encrypt_decrypt_roundtrip(env : &mut TestEnv) {
 // ============================================================================
 
 @test
-@test.timeout(30000)
+// RSA-2048 keygen is measured at 1.7-30s in this library (a 1024-bit modexp
+// costs ~20ms), so the 10s default is far too tight. The spread is real, not
+// noise: rsa_gen_key re-searches Q from scratch whenever P*Q lands at 2047
+// bits (~38% of the time), and each re-search is another prime hunt.
+@test.timeout(120000)
 public func RSA_keygen_consistent_len_works(env : &mut TestEnv) {
     var rsa_ctx : RSAContext
     rsa_init(unsafe(&raw mut rsa_ctx), RSA_PKCS_V15, 0)

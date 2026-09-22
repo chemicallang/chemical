@@ -348,6 +348,27 @@ public namespace tls {
         return 0
     }
 
+    // Remainder of |a| modulo a single-limb divisor, without forming a
+    // quotient.
+    //
+    // mpi_div walks one quotient BIT per iteration and re-shifts the whole
+    // divisor each time, so mpi_mod(x, small_prime) costs ~186us on a 1024-bit
+    // x (1024 iterations * ~32-limb shift) no matter how small the divisor is.
+    // Trial-dividing a keygen candidate by 63 small primes therefore cost
+    // 11.7ms per candidate — as much as the Miller-Rabin rounds the sieve
+    // exists to avoid, and a hard ceiling on how far the sieve can be extended.
+    // This is O(limbs) with no allocation. Only the magnitude is used.
+    public func mpi_mod_small(a : *mut Mpi, d : u32) : u32 {
+        if(d == 0) { return 0 }
+        var acc : u64 = 0
+        var i = a.n
+        while(i > 0) {
+            i -= 1
+            acc = ((acc << 32) | (a.p[i] as u64)) % (d as u64)
+        }
+        return acc as u32
+    }
+
     // ─── Montgomery Modular Exponentiation ───────────────────────────────
 
     func montgomery_mul(x : *mut Mpi, a : *mut Mpi, b : *mut Mpi, n : *mut Mpi, n_inv0 : u32) : int {

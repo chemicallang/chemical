@@ -1147,3 +1147,39 @@
         expect(byTestId('reg-lf-input-i0')).toBeFocused()
     </script>
 }
+
+// ===========================================================================
+// Class 9: hydration tag mismatch must self-correct
+// ===========================================================================
+
+// When the server-rendered element's tag differs from the client vnode's tag,
+// the runtime must replace it with a freshly rendered element of the correct
+// tag. Regression: it only warned and then applied the vnode's props/children
+// to the WRONG element, so a rich-text `<div>` stayed the SSR's `<button>`.
+// Pure-JS test: drive `$__uni_hydrate_node` directly with a mismatched host.
+#universal_test("regression: hydration tag mismatch replaces the element with the client tag") {
+    <script>
+        const host = document.createElement('div')
+        host.innerHTML = '<button class="ut-mm" data-testid="ut-mm">ssr</button>'
+        const ssrNode = host.querySelector('[data-testid=ut-mm]')
+        const vnode = $_ur.createElement('div', { class: 'ut-mm', 'data-testid': 'ut-mm' }, 'client')
+        window.$__uni_hydrate_node(host, ssrNode, vnode)
+        const node = host.querySelector('[data-testid=ut-mm]')
+        expect(node.tagName.toLowerCase()).toBe('div')
+        expect(node.textContent).toBe('client')
+        expect(host.querySelectorAll('button').length).toBe(0)
+    </script>
+}
+
+// Control: a matching tag is adopted in place (not rebuilt).
+#universal_test("regression: matching hydration tag is adopted in place") {
+    <script>
+        const host = document.createElement('div')
+        host.innerHTML = '<div class="ut-mm2" data-testid="ut-mm2">ssr</div>'
+        const ssrNode = host.querySelector('[data-testid=ut-mm2]')
+        ssrNode.__mmMarker = 'kept'
+        const vnode = $_ur.createElement('div', { class: 'ut-mm2', 'data-testid': 'ut-mm2' }, 'ssr')
+        window.$__uni_hydrate_node(host, ssrNode, vnode)
+        expect(host.querySelector('[data-testid=ut-mm2]').__mmMarker).toBe('kept')
+    </script>
+}

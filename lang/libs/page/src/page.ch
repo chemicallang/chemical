@@ -1955,6 +1955,15 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
         const expectedTag = typeof v.t === "string" ? v.t : null;
         if(expectedTag && e.tagName && e.tagName.toLowerCase() !== expectedTag) {
             window.$__uni_warn_hydration("element tag differs from SSR (" + expectedTag + " vs " + e.tagName.toLowerCase() + ")", expectedTag, e.tagName.toLowerCase());
+            // Self-correct: replace the wrong SSR element (and its subtree) with
+            // a freshly rendered one so the DOM shape matches the client vnode.
+            // Previously the vnode's props/children were applied to the wrong
+            // tag, so a rich-text <div> stayed the SSR's "Add item" <button>.
+            const fresh = window.$_urn(v);
+            if(e.parentNode) {
+                e.parentNode.replaceChild(fresh, e);
+            }
+            return fresh ? fresh.nextSibling : null;
         }
         const props = v.p || {};
         for(const k in props) window.$__uni_apply_prop(e, k, props[k]);

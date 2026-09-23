@@ -972,3 +972,154 @@
         expect(byTestId('pcs2h').findAll('[data-testid=pcs2]').count()).toBe(2)
     </script>
 }
+
+// ===========================================================================
+// Leak probes: repeated mount/unmount cycles must not retain instances,
+// portal containers, or render-context stack frames.
+// ===========================================================================
+
+#universal LeakChild(props) {
+    useEffect(() => {
+        window.__leakMounts = (window.__leakMounts || 0) + 1
+        return () => { window.__leakCleanups = (window.__leakCleanups || 0) + 1 }
+    }, [])
+    return <div data-testid="leak-child">child</div>
+}
+
+#universal LeakHost(props) {
+    state on = false
+    return <div data-testid="leak-host">
+        <button data-testid="leak-btn" onClick={() => on = !on}>t</button>
+        {on ? <LeakChild /> : null}
+    </div>
+}
+
+#universal_test("leak: effect cleanup runs for every mount across cycles", isolate) {
+    <LeakHost />
+    <script>
+        window.__leakMounts = 0
+        window.__leakCleanups = 0
+        for(let i = 0; i < 10; i++) {
+            byTestId('leak-btn').click()
+            byTestId('leak-btn').click()
+        }
+        await t.sleep(40)
+        expect(byTestId('leak-child').exists()).toBe(false)
+        expect(window.__leakMounts).toBe(10)
+        expect(window.__leakCleanups).toBe(10)
+    </script>
+}
+
+#universal_test("leak: instance map does not grow across mount/unmount cycles", isolate) {
+    <LeakHost />
+    <script>
+        const observed = window.$__uni_cleanup_observer ? window.$__uni_cleanup_observer.observed : null
+        expect(observed ? true : false).toBeTruthy()
+        const base = observed.size
+        for(let i = 0; i < 25; i++) {
+            byTestId('leak-btn').click()
+            byTestId('leak-btn').click()
+        }
+        await t.sleep(40)
+        expect(observed.size).toBeLessThanOrEqual(base)
+    </script>
+}
+
+#universal_test("leak: render context stack returns to baseline after cycles", isolate) {
+    <LeakHost />
+    <script>
+        const base = window.$__uni_render_stack.length
+        for(let i = 0; i < 25; i++) {
+            byTestId('leak-btn').click()
+            byTestId('leak-btn').click()
+        }
+        await t.sleep(40)
+        expect(window.$__uni_render_stack.length).toBe(base)
+    </script>
+}
+
+#universal LeakPortalChild(props) {
+    return createPortal(<span data-testid="leak-portal-mark">p</span>, {})
+}
+
+#universal LeakPortalHost(props) {
+    state on = false
+    return <div data-testid="leak-portal-host">
+        <button data-testid="leak-portal-btn" onClick={() => on = !on}>t</button>
+        {on ? <LeakPortalChild /> : null}
+    </div>
+}
+
+#universal_test("leak: repeated portal mount/unmount leaves no containers", isolate) {
+    <LeakPortalHost />
+    <script>
+        for(let i = 0; i < 10; i++) {
+            byTestId('leak-portal-btn').click()
+            byTestId('leak-portal-btn').click()
+        }
+        await t.sleep(40)
+        expect(document.querySelectorAll('[data-testid=leak-portal-mark]').length).toBe(0)
+        expect(document.querySelectorAll('body > [data-uni-portal]').length).toBe(0)
+    </script>
+}
+
+// A computed whose body throws must still unwind the render-context stack
+// ($_ucs.recompute pushed a frame with no try/finally, so the frame leaked and
+// every later context restore was off by one).
+#universal LeakCompute(props) {
+    state arr = ["a"]
+    return <div data-testid="leak-compute">
+        <button data-testid="leak-compute-empty" onClick={() => arr = []}>e</button>
+        <span data-testid="leak-compute-out">{arr[0].toUpperCase()}</span>
+    </div>
+}
+
+#universal LeakPropChild(props) {
+    return <input data-testid="leak-prop-in" type="checkbox" checked={props.checked} />
+}
+
+#universal LeakPropHost(props) {
+    state c = false
+    state on = false
+    return <div data-testid="leak-prop-host">
+        <button data-testid="leak-prop-toggle" onClick={() => on = !on}>t</button>
+        <button data-testid="leak-prop-set" onClick={() => c = !c}>s</button>
+        {on ? <LeakPropChild checked={c} /> : null}
+    </div>
+}
+
+#universal_test("leak: element prop subscriptions are released on unmount", isolate) {
+    <LeakPropHost />
+    <script>
+        const orig = window.$__uni_set_prop
+        window.__spCount = 0
+        window.$__uni_set_prop = (el, key, value) => { window.__spCount = window.__spCount + 1; return orig(el, key, value) }
+        for(let i = 0; i < 10; i++) {
+            byTestId('leak-prop-toggle').click()
+            byTestId('leak-prop-toggle').click()
+        }
+        await t.sleep(30)
+        expect(byTestId('leak-prop-in').exists()).toBe(false)
+        // With the child unmounted, updating the parent signal that used to feed
+        // it must not touch any (detached) element.
+        window.__spCount = 0
+        byTestId('leak-prop-set').click()
+        await t.sleep(30)
+        expect(window.__spCount).toBe(0)
+    </script>
+}
+
+#universal_test("leak: a throwing computed leaves the render context stack clean", isolate) {
+    <LeakCompute />
+    <script>
+        expect(byTestId('leak-compute-out').text()).toBe('A')
+        expect(window.$__uni_render_stack.length).toBe(0)
+        byTestId('leak-compute-empty').click()
+        await t.sleep(20)
+        expect(window.$__uni_render_stack.length).toBe(0)
+        // A later update must still render normally.
+        byTestId('leak-compute-empty').click()
+        await t.sleep(20)
+        expect(window.$__uni_render_stack.length).toBe(0)
+    </script>
+}

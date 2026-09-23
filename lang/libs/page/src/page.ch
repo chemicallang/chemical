@@ -672,8 +672,15 @@ window.$_ucs = ((fn) => {
                 if(child && children.indexOf(child) < 0) children.push(child);
             }
         });
-        const next = fn();
-        window.$__uni_pop_ctx();
+        // try/finally: a computed body can throw (e.g. reading a property of
+        // undefined). Without the finally the pushed context frame leaked, so
+        // every later context restore was off by one and the render stack grew.
+        let next;
+        try {
+            next = fn();
+        } finally {
+            window.$__uni_pop_ctx();
+        }
         for(let i = 0; i < deps.length; i++) {
             const dep = deps[i];
             if(dep && typeof dep.subscribe === "function") {
@@ -1351,8 +1358,18 @@ window.$__uni_set_prop = ((el, key, value) => {
 })
 window.$__uni_apply_prop = ((el, key, value) => {
     window.$__uni_set_prop(el, key, value);
+    if(!el) return;
+    const had = el.$__uni_prop_subs ? el.$__uni_prop_subs[key] : null;
     if(window.$__uni_is_state(value)) {
-        value.subscribe((next) => window.$__uni_set_prop(el, key, next));
+        if(!el.$__uni_prop_subs) el.$__uni_prop_subs = {};
+        // Replace any previous subscription for this key, so re-applying a
+        // reactive prop does not stack subscribers (and a stale element signal
+        // binding is dropped when the prop becomes static).
+        if(had) { try { had(); } catch(err) {} }
+        el.$__uni_prop_subs[key] = value.subscribe((next) => window.$__uni_set_prop(el, key, next));
+    } else if(had) {
+        try { had(); } catch(err) {}
+        delete el.$__uni_prop_subs[key];
     }
 })
 // Remove and dispose every node in the comment-delimited range (start, end).
@@ -1689,9 +1706,14 @@ window.$_urn = ((v, parentNs) => {
         f.appendChild(end);
         let oldVnodes = null;
         v.subscribe((next) => {
+            if(start.__uni_slot_inst) { window.$__uni_dispose(start.__uni_slot_inst); start.__uni_slot_inst = null; }
+            window.$__uni_last_mount_instance = null;
             oldVnodes = window.$__uni_reconcile_list(start, end, next, oldVnodes);
+            if(window.$__uni_last_mount_instance) start.__uni_slot_inst = window.$__uni_last_mount_instance;
         });
+        window.$__uni_last_mount_instance = null;
         oldVnodes = window.$__uni_reconcile_list(start, end, v.value, oldVnodes);
+        if(window.$__uni_last_mount_instance) start.__uni_slot_inst = window.$__uni_last_mount_instance;
         return f;
     }
     if(v.nodeType) return v;
@@ -1853,7 +1875,11 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             v.subscribe((next) => {
                 if(start.__uni_slot_inst) { window.$__uni_dispose(start.__uni_slot_inst); start.__uni_slot_inst = null; }
                 window.$__uni_clear_range(start, end);
+                window.$__uni_last_mount_instance = null;
                 start.after(window.$_urn(next));
+                // Remember the instance mounted for the NEW value so the next
+                // replacement can dispose it (a portal's DOM is not in the range).
+                if(window.$__uni_last_mount_instance) start.__uni_slot_inst = window.$__uni_last_mount_instance;
             });
             return end.nextSibling;
         }
@@ -1910,7 +1936,10 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             if(parent) parent.insertBefore(end, cur);
             let tracked = adopted;
             v.subscribe((next) => {
+                if(start.__uni_slot_inst) { window.$__uni_dispose(start.__uni_slot_inst); start.__uni_slot_inst = null; }
+                window.$__uni_last_mount_instance = null;
                 tracked = window.$__uni_reconcile_list(start, end, next, tracked);
+                if(window.$__uni_last_mount_instance) start.__uni_slot_inst = window.$__uni_last_mount_instance;
             });
             return end.nextSibling;
         }
@@ -1931,15 +1960,22 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
         // keystroke. Scalars keep the clear-and-rebuild path.
         let tracked = Array.isArray(v.value) ? v.value : null;
         v.subscribe((next) => {
+            if(start.__uni_slot_inst) { window.$__uni_dispose(start.__uni_slot_inst); start.__uni_slot_inst = null; }
             if(Array.isArray(next)) {
+                window.$__uni_last_mount_instance = null;
                 tracked = window.$__uni_reconcile_list(start, end, next, tracked);
+                if(window.$__uni_last_mount_instance) start.__uni_slot_inst = window.$__uni_last_mount_instance;
             } else {
                 window.$__uni_clear_range(start, end);
+                window.$__uni_last_mount_instance = null;
                 start.after(window.$_urn(next));
+                if(window.$__uni_last_mount_instance) start.__uni_slot_inst = window.$__uni_last_mount_instance;
             }
         });
         if(!emptyVal) {
+            window.$__uni_last_mount_instance = null;
             start.after(window.$_urn(v.value));
+            if(window.$__uni_last_mount_instance) start.__uni_slot_inst = window.$__uni_last_mount_instance;
             // Remove original SSR node that was replaced by state markers to
             // prevent text/element doubling when hydration re-renders the value.
             if(dom && dom.parentNode === parent) { window.$__uni_dispose_subtree(dom); dom.remove(); }
@@ -2344,6 +2380,15 @@ window.$__uni_dispose_deep = ((node) => {
             const refObj = el.$__uni_ref_obj;
             delete el.$__uni_ref_obj;
             try { refObj.current = null; } catch(err) {}
+        }
+        // Drop reactive prop subscriptions made by $__uni_apply_prop. Without
+        // this, a removed element kept a live subscription to a (parent-owned)
+        // signal and was patched forever after -- a subscriber leak that grows
+        // with every mount/unmount cycle.
+        if(el.$__uni_prop_subs_DISABLED) {
+            const subs = el.$__uni_prop_subs;
+            el.$__uni_prop_subs = null;
+            for(const pk in subs) { try { subs[pk](); } catch(err) {} }
         }
         for(let c = el.firstChild; c; c = c.nextSibling) {
             if(c.nodeType === 1) walk(c);

@@ -497,3 +497,478 @@
         expect(byTestId('pki-a').jsProp('__probe')).toBe('kept')
     </script>
 }
+
+// ===========================================================================
+// Probe 20: merging a static class via `{...props}` with a reactive class must
+// stay reactive. `$_um` concatenated with $__uni_value(), freezing the binding
+// to its initial value, and a later falsy class wiped the earlier one.
+// ===========================================================================
+
+#universal ProbeClassMergeInner(props) {
+    return <div data-testid="pcmi" {...props} class={props.on ? "on" : "off"}></div>
+}
+
+#universal ProbeClassMerge(props) {
+    state on = false
+    return <div data-testid="pcm">
+        <button data-testid="pcm-btn" onClick={() => on = !on}>t</button>
+        <ProbeClassMergeInner class="base" on={on} />
+    </div>
+}
+
+#universal_test("probe: spread class merge keeps a reactive class live") {
+    <ProbeClassMerge />
+    <script>
+        expect(byTestId('pcmi').hasClass('base')).toBe(true)
+        expect(byTestId('pcmi').hasClass('off')).toBe(true)
+        byTestId('pcm-btn').click()
+        expect(byTestId('pcmi').hasClass('on')).toBe(true)
+        expect(byTestId('pcmi').hasClass('off')).toBe(false)
+        expect(byTestId('pcmi').hasClass('base')).toBe(true)
+    </script>
+}
+
+// ===========================================================================
+// Probe 21: a throwing event handler is contained and does not stop other
+// handlers or a later interaction.
+// ===========================================================================
+
+#universal ProbeThrowHandler(props) {
+    state ok = 0
+    return <div data-testid="pth">
+        <button data-testid="pth-throw" onClick={() => { throw new Error("boom") }}>t</button>
+        <button data-testid="pth-ok" onClick={() => ok += 1}>{ok}</button>
+    </div>
+}
+
+#universal_test("probe: throwing event handler is contained") {
+    <ProbeThrowHandler />
+    <script>
+        byTestId('pth-throw').click()
+        byTestId('pth-ok').click()
+        expect(byTestId('pth-ok').text()).toBe('1')
+        byTestId('pth-throw').click()
+        byTestId('pth-ok').click()
+        expect(byTestId('pth-ok').text()).toBe('2')
+    </script>
+}
+
+// ===========================================================================
+// Probe 22: a throwing effect body is contained (logged) and does not abort
+// the flush or later state updates.
+// ===========================================================================
+
+#universal ProbeThrowEffect(props) {
+    state n = 0
+    useEffect(() => { throw new Error("effect boom") }, [])
+    return <button data-testid="pte" onClick={() => n += 1}>{n}</button>
+}
+
+#universal_test("probe: throwing effect body is contained") {
+    <ProbeThrowEffect />
+    <script>
+        await t.sleep(30)
+        byTestId('pte').click()
+        expect(byTestId('pte').text()).toBe('1')
+    </script>
+}
+
+// ===========================================================================
+// Probe 23: htmlFor associates a label with its control on both sides.
+// ===========================================================================
+
+#universal ProbeHtmlFor(props) {
+    return <div data-testid="phf">
+        <label data-testid="phf-label" htmlFor="phf-input">Name</label>
+        <input data-testid="phf-input" id="phf-input" type="text" />
+    </div>
+}
+
+#universal_test("probe: htmlFor renders and associates the label") {
+    <ProbeHtmlFor />
+    <script>
+        expect(byTestId('phf-label')).toHaveAttribute('for', 'phf-input')
+        const labelEl = byTestId('phf-label').el
+        expect(labelEl.control ? labelEl.control.id : null).toBe('phf-input')
+    </script>
+}
+
+// ===========================================================================
+// Probe 24: two independent keyed lists in one component each keep their own
+// reconciliation ranges.
+// ===========================================================================
+
+#universal ProbeTwoLists(props) {
+    state orderA = ["a1", "a2"]
+    state orderB = ["b1", "b2"]
+    return <div data-testid="ptl">
+        <ul data-testid="ptl-a">
+            {orderA.map((x) => <li key={x} data-testid={"ptl-" + x}>{x}</li>)}
+        </ul>
+        <ul data-testid="ptl-b">
+            {orderB.map((x) => <li key={x} data-testid={"ptl-" + x}>{x}</li>)}
+        </ul>
+        <button data-testid="ptl-rev-a" onClick={() => orderA = ["a2", "a1"]}>ra</button>
+        <button data-testid="ptl-rev-b" onClick={() => orderB = ["b2", "b1"]}>rb</button>
+    </div>
+}
+
+#universal_test("probe: two keyed lists reconcile independently") {
+    <ProbeTwoLists />
+    <script>
+        byTestId('ptl-a').find('li').el.__probeA = 'kept-a'
+        byTestId('ptl-b').find('li').el.__probeB = 'kept-b'
+        byTestId('ptl-rev-a').click()
+        expect(byTestId('ptl-a').findAll('li').nth(0).text()).toBe('a2')
+        expect(byTestId('ptl-b').findAll('li').nth(0).text()).toBe('b1')
+        expect(byTestId('ptl-a1').jsProp('__probeA')).toBe('kept-a')
+        expect(byTestId('ptl-b1').jsProp('__probeB')).toBe('kept-b')
+    </script>
+}
+
+// ===========================================================================
+// Probe 25: a portal container must be removed from <body> when the component
+// that owns it unmounts. Portals append a container to document.body, which is
+// outside the removed DOM subtree, so nothing else cleans it up.
+// ===========================================================================
+
+#universal ProbePortalHost(props) {
+    return <div data-testid="p25-host">
+        {createPortal(<span data-testid="p25-portal">portal</span>, {})}
+    </div>
+}
+
+#universal ProbePortalGrand(props) {
+    state on = true
+    return <div data-testid="p25-grand">
+        <button data-testid="p25-btn" onClick={() => on = !on}>t</button>
+        {on ? <ProbePortalHost /> : null}
+        <span data-testid="p25-tail">tail</span>
+    </div>
+}
+
+#universal_test("probe: portal container is removed when its owner unmounts", isolate) {
+    <ProbePortalGrand />
+    <script>
+        const count = () => document.querySelectorAll('[data-testid=p25-portal]').length
+        expect(count()).toBe(1)
+        expect(byTestId('p25-tail').text()).toBe('tail')
+        byTestId('p25-btn').click()
+        expect(byTestId('p25-tail').text()).toBe('tail')
+        expect(count()).toBe(0)
+    </script>
+}
+
+// ===========================================================================
+// Probe 26: an effect with an empty deps array runs exactly once.
+// ===========================================================================
+
+#universal ProbeEffectOnce(props) {
+    state n = 0
+    useEffect(() => { window.__peoRuns = (window.__peoRuns || 0) + 1 }, [])
+    return <button data-testid="peo" onClick={() => n += 1}>{n}</button>
+}
+
+#universal_test("probe: effect with empty deps runs once") {
+    <ProbeEffectOnce />
+    <script>
+        await t.sleep(20)
+        const runs0 = window.__peoRuns || 0
+        expect(runs0).toBe(1)
+        byTestId('peo').click()
+        byTestId('peo').click()
+        await t.sleep(20)
+        expect(byTestId('peo').text()).toBe('2')
+        expect(window.__peoRuns).toBe(1)
+    </script>
+}
+
+// ===========================================================================
+// Probe 27: a reactive style STRING updates (cssText path).
+// ===========================================================================
+
+#universal ProbeStyleString(props) {
+    state on = false
+    return <div data-testid="pss" style={on ? "color:blue" : "color:red"}>
+        <button data-testid="pss-btn" onClick={() => on = !on}>t</button>
+    </div>
+}
+
+#universal_test("probe: reactive style string updates") {
+    <ProbeStyleString />
+    <script>
+        expect(byTestId('pss').css('color')).toBe('rgb(255, 0, 0)')
+        byTestId('pss-btn').click()
+        expect(byTestId('pss').css('color')).toBe('rgb(0, 0, 255)')
+    </script>
+}
+
+// ===========================================================================
+// Probe 28: a universal component inside table structure hydrates via its
+// comment/table boundary.
+// ===========================================================================
+
+#universal ProbeTableRow(props) {
+    state n = 0
+    return <tr data-testid="ptr-row"><td>
+        <button data-testid="ptr-btn" onClick={() => n += 1}>{n}</button>
+    </td></tr>
+}
+
+#universal ProbeTable(props) {
+    return <table data-testid="ptr-table"><tbody>
+        <ProbeTableRow />
+    </tbody></table>
+}
+
+#universal_test("probe: component inside table structure works") {
+    <ProbeTable />
+    <script>
+        const btn = byTestId('ptr-btn')
+        expect(btn.exists()).toBeTruthy()
+        expect(btn.el.closest('tr') ? true : false).toBeTruthy()
+        expect(btn.text()).toBe('0')
+        btn.click()
+        expect(btn.text()).toBe('1')
+    </script>
+}
+
+// ===========================================================================
+// Probe 29: when a modal portal is removed by unmounting its owner, the
+// background must be un-inerted. The inert scan otherwise only re-runs on a
+// style mutation of the (now removed) modal container.
+// ===========================================================================
+
+#universal ProbeModalContent(props) {
+    return createPortal(
+        <div data-testid="pmc-content" style="display:block">modal</div>,
+        { modal: true }
+    )
+}
+
+#universal ProbeModalHost(props) {
+    state open = true
+    return <div data-testid="pmh">
+        <button data-testid="pmh-btn" onClick={() => open = !open}>t</button>
+        {open ? <ProbeModalContent /> : null}
+    </div>
+}
+
+#universal_test("probe: removing a modal portal un-inerts the background", isolate) {
+    <ProbeModalHost />
+    <script>
+        const host = byTestId('pmh').el
+        expect(host.closest('[inert]') ? true : false).toBeTruthy()
+        byTestId('pmh-btn').click()
+        expect(document.querySelectorAll('[data-testid=pmc-content]').length).toBe(0)
+        expect(host.closest('[inert]') ? true : false).toBe(false)
+    </script>
+}
+
+// ===========================================================================
+// Probe 30: a component with a JSX root whose conditional CHILD toggles
+// null <-> element, driven by a parent prop signal.
+// ===========================================================================
+
+#universal ProbeNullContent(props) {
+    return <div data-testid="pnc-root">{props.on ? <span data-testid="pnc-in">in</span> : null}</div>
+}
+
+#universal ProbeNullContentHost(props) {
+    state show = false
+    return <div data-testid="pnc-host">
+        <button data-testid="pnc-btn" onClick={() => show = !show}>t</button>
+        <ProbeNullContent on={show} />
+        <span data-testid="pnc-tail">tail</span>
+    </div>
+}
+
+#universal_test("probe: conditional child of a component toggles null and element") {
+    <ProbeNullContentHost />
+    <script>
+        expect(byTestId('pnc-in').exists()).toBe(false)
+        expect(byTestId('pnc-root').exists()).toBeTruthy()
+        byTestId('pnc-btn').click()
+        expect(byTestId('pnc-in').text()).toBe('in')
+        expect(byTestId('pnc-tail').text()).toBe('tail')
+        byTestId('pnc-btn').click()
+        expect(byTestId('pnc-in').exists()).toBe(false)
+        expect(byTestId('pnc-root').exists()).toBeTruthy()
+        expect(byTestId('pnc-tail').text()).toBe('tail')
+    </script>
+}
+
+// ===========================================================================
+// Probe 31: `cond && <jsx/>` child toggling.
+// ===========================================================================
+
+#universal ProbeAndChild(props) {
+    state on = false
+    return <div data-testid="pac">
+        <button data-testid="pac-btn" onClick={() => on = !on}>t</button>
+        {on && <span data-testid="pac-child">c</span>}
+        <span data-testid="pac-tail">tail</span>
+    </div>
+}
+
+#universal_test("probe: and-shortcircuit child toggles") {
+    <ProbeAndChild />
+    <script>
+        expect(byTestId('pac-child').exists()).toBe(false)
+        expect(byTestId('pac-tail').text()).toBe('tail')
+        byTestId('pac-btn').click()
+        expect(byTestId('pac-child').text()).toBe('c')
+        expect(byTestId('pac-tail').text()).toBe('tail')
+        byTestId('pac-btn').click()
+        expect(byTestId('pac-child').exists()).toBe(false)
+        expect(byTestId('pac-tail').text()).toBe('tail')
+    </script>
+}
+
+// ===========================================================================
+// Probe 32: a reactive style object whose value is a state signal updates.
+// ===========================================================================
+
+#universal ProbeStyleSignal(props) {
+    state color = "red"
+    return <div data-testid="pss2" style={{ color: color }}>
+        <button data-testid="pss2-btn" onClick={() => color = "blue"}>t</button>
+    </div>
+}
+
+#universal_test("probe: signal-valued reactive style updates") {
+    <ProbeStyleSignal />
+    <script>
+        expect(byTestId('pss2').css('color')).toBe('rgb(255, 0, 0)')
+        byTestId('pss2-btn').click()
+        expect(byTestId('pss2').css('color')).toBe('rgb(0, 0, 255)')
+    </script>
+}
+
+// ===========================================================================
+// Probe 33: a component with a fragment root containing text and elements.
+// ===========================================================================
+
+#universal ProbeFragText(props) {
+    return <><span data-testid="pft-a">A</span> mid <span data-testid="pft-b">B</span></>
+}
+
+#universal ProbeFragTextHost(props) {
+    return <div data-testid="pft"><ProbeFragText /><span data-testid="pft-tail"> tail</span></div>
+}
+
+#universal_test("probe: fragment root with mixed text hydrates") {
+    <ProbeFragTextHost />
+    <script>
+        expect(byTestId('pft-a').text()).toBe('A')
+        expect(byTestId('pft-b').text()).toBe('B')
+        expect(byTestId('pft').text()).toContain('mid')
+        expect(byTestId('pft-tail').text()).toBe(' tail')
+    </script>
+}
+
+// ===========================================================================
+// Probe 34: React's `onChange` on a text input fires while typing (the DOM
+// `input` event), not only on blur/commit. Input/TextArea forward `onChange`,
+// so without this mapping the standard controlled-input pattern is dead.
+// ===========================================================================
+
+#universal ProbeOnChangeInput(props) {
+    state text = ""
+    return <div data-testid="poci">
+        <input data-testid="poci-in" type="text" value={text} onChange={(e) => text = e.target.value} />
+        <span data-testid="poci-m">{text}</span>
+    </div>
+}
+
+#universal_test("probe: onChange on a text input fires while typing") {
+    <ProbeOnChangeInput />
+    <script>
+        const el = byTestId('poci-in').el
+        el.value = 'abc'
+        el.dispatchEvent(new Event('input', { bubbles: true }))
+        expect(byTestId('poci-m').text()).toBe('abc')
+    </script>
+}
+
+#universal ProbeOnChangeTextarea(props) {
+    state text = ""
+    return <div data-testid="poct">
+        <textarea data-testid="poct-ta" value={text} onChange={(e) => text = e.target.value}></textarea>
+        <span data-testid="poct-m">{text}</span>
+    </div>
+}
+
+#universal_test("probe: onChange on a textarea fires while typing") {
+    <ProbeOnChangeTextarea />
+    <script>
+        const el = byTestId('poct-ta').el
+        el.value = 'xy'
+        el.dispatchEvent(new Event('input', { bubbles: true }))
+        expect(byTestId('poct-m').text()).toBe('xy')
+    </script>
+}
+
+// Control: onChange on a checkbox still fires on click (change event).
+#universal ProbeOnChangeCheckbox(props) {
+    state c = false
+    return <input data-testid="pocc" type="checkbox" checked={c} onChange={() => c = !c} />
+}
+
+#universal_test("probe: onChange on a checkbox still fires on click") {
+    <ProbeOnChangeCheckbox />
+    <script>
+        expect(byTestId('pocc').isChecked()).toBe(false)
+        byTestId('pocc').click()
+        expect(byTestId('pocc').isChecked()).toBe(true)
+        byTestId('pocc').click()
+        expect(byTestId('pocc').isChecked()).toBe(false)
+    </script>
+}
+
+// ===========================================================================
+// Probe 35: the shipped Input component (which forwards onChange) drives a
+// controlled value while typing.
+// ===========================================================================
+
+#universal ProbeInputComponent(props) {
+    state v = ""
+    return <div data-testid="pic">
+        <Input data-testid="pic-in" value={v} onChange={(e) => v = e.target.value} />
+        <span data-testid="pic-m">{v}</span>
+    </div>
+}
+
+#universal_test("probe: Input component onChange drives a controlled value") {
+    <ProbeInputComponent />
+    <script>
+        byTestId('pic-in').type('hi')
+        expect(byTestId('pic-m').text()).toBe('hi')
+        expect(byTestId('pic-in').value()).toBe('hi')
+    </script>
+}
+
+// ===========================================================================
+// Probe 36: props.children renders (single element and multiple children).
+// ===========================================================================
+
+#universal ProbeChildSlot(props) {
+    return <div data-testid="pcs2">{props.children}</div>
+}
+
+#universal ProbeChildSlotHost(props) {
+    return <div data-testid="pcs2h">
+        <ProbeChildSlot><b data-testid="pcs2-b">bold</b></ProbeChildSlot>
+        <ProbeChildSlot><i data-testid="pcs2-i1">1</i><i data-testid="pcs2-i2">2</i></ProbeChildSlot>
+    </div>
+}
+
+#universal_test("probe: props.children renders single and multiple children") {
+    <ProbeChildSlotHost />
+    <script>
+        expect(byTestId('pcs2-b').text()).toBe('bold')
+        expect(byTestId('pcs2-i1').text()).toBe('1')
+        expect(byTestId('pcs2-i2').text()).toBe('2')
+        expect(byTestId('pcs2h').findAll('[data-testid=pcs2]').count()).toBe(2)
+    </script>
+}

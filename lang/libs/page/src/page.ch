@@ -519,6 +519,31 @@ window.$__uni_batch = ((fn) => {
 })
 """))
         pageJs.append_view(std::string_view("""
+// Normalizes one class value to a trimmed string (falsy values contribute
+// nothing instead of the literal "false"/"null").
+window.$__uni_class_part = ((v) => {
+    const x = window.$__uni_value(v);
+    return (x == null || x === false || x === "") ? "" : "" + x;
+})
+// Merges two class bindings. When either side is a state/computed signal the
+// result is a combined computed so the binding stays live after the spread
+// merge (previously the values were unwrapped with $__uni_value, freezing the
+// class to its initial value). A falsy later part no longer wipes an earlier
+// one.
+window.$__uni_class_merge = ((a, b) => {
+    if(window.$__uni_is_state(a) || window.$__uni_is_state(b)) {
+        return window.$_ucs(() => {
+            const as = window.$__uni_class_part(a);
+            const bs = window.$__uni_class_part(b);
+            if(as && bs) return as + " " + bs;
+            return as || bs;
+        });
+    }
+    const as = window.$__uni_class_part(a);
+    const bs = window.$__uni_class_part(b);
+    if(as && bs) return as + " " + bs;
+    return as || bs;
+})
 window.$_um = ((...parts) => {
     const out = {};
     for(let i = 0; i < parts.length; i++) {
@@ -531,8 +556,8 @@ window.$_um = ((...parts) => {
             // (style, checked, value, ...) survive the merge and hydrate
             // subscribes to them. Unwrapping here froze the binding at mount.
             const v = window.$__uni_is_state(raw) ? raw : window.$__uni_value(raw);
-            if(key === "class" && out[key] && v) {
-                out[key] = window.$__uni_value(out[key]) + " " + window.$__uni_value(v);
+            if(key === "class" && out[key] != null) {
+                out[key] = window.$__uni_class_merge(out[key], v);
             } else {
                 out[key] = v;
             }
@@ -549,6 +574,16 @@ window.$__uni_register_resource = ((resource) => {
     if(!owner || !resource) return;
     if(!owner._resources) owner._resources = [];
     owner._resources.push(resource);
+})
+// Portal containers are appended to document.body, outside the DOM subtree of
+// the component that owns them, so subtree disposal cannot find them. Register
+// the container with the rendering instance so $__uni_dispose can remove it
+// (otherwise a portaled Dialog/Select leaves its container in <body> forever).
+window.$__uni_register_portal = ((container) => {
+    const owner = window.$__uni_render_instance || window.$__uni_current_instance;
+    if(!owner || !container) return;
+    if(!owner._portals) owner._portals = [];
+    owner._portals.push(container);
 })
 window.$_us = ((v) => {
     let val = v;
@@ -1246,6 +1281,15 @@ window.$__uni_set_prop = ((el, key, value) => {
         // React's `onDoubleClick` maps to the DOM `dblclick` event; lowercasing
         // the prop name produces "doubleclick", which never fires.
         if(eventName === "doubleclick") eventName = "dblclick";
+        // React's `onChange` on an <input>/<textarea> is the DOM `input` event
+        // (fires on every keystroke), not the native `change` event (which only
+        // fires on blur/commit). <select> and everything else keep `change`.
+        // Input/TextArea forward `onChange`, so the standard controlled-input
+        // pattern was otherwise dead until the field lost focus.
+        if(eventName === "change" && el.tagName) {
+            const tag = el.tagName.toLowerCase();
+            if(tag === "input" || tag === "textarea") eventName = "input";
+        }
         if(!el.$__uni_events) el.$__uni_events = {};
         const prev = el.$__uni_events[eventName];
         if(prev) el.removeEventListener(eventName, prev);
@@ -1685,8 +1729,12 @@ window.$_urn = ((v, parentNs) => {
             const container = document.createElement("div");
             document.body.appendChild(container);
             window.$__uni_tag_portal(container, v.p);
+            window.$__uni_register_portal(container);
             const children = v.c || [];
             for(let i = 0; i < children.length; i++) container.appendChild(window.$_urn(children[i]));
+            // Rescan after the children exist: tag_portal's scan ran while the
+            // container was still empty, so a modal would never lock the page.
+            window.$__uni_inert_scan();
             return container;
         }
         if(typeof v.t === "function") {
@@ -1774,6 +1822,10 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             if(stateVal.t === "__uni_uc") {
                 if(stateVal.p.comp) {
                     after = window.$__uni_mount(dom, stateVal.p.comp, stateVal.p.props, "root");
+                    // Record the instance mounted for this slot value so replacing
+                    // the slot can dispose it. A portal moves its DOM out of the
+                    // range, so clear_range alone cannot reach (and unmount) it.
+                    if(window.$__uni_last_mount_instance) start.__uni_slot_inst = window.$__uni_last_mount_instance;
                 } else {
                     window.$__uni_dispatch(stateVal.p.name, dom, stateVal.p.props, "root");
                 }
@@ -1799,6 +1851,7 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             if(after === undefined) after = dom.nextSibling;
             if(parent) parent.insertBefore(end, after || null);
             v.subscribe((next) => {
+                if(start.__uni_slot_inst) { window.$__uni_dispose(start.__uni_slot_inst); start.__uni_slot_inst = null; }
                 window.$__uni_clear_range(start, end);
                 start.after(window.$_urn(next));
             });
@@ -1977,9 +2030,11 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             const container = document.createElement("div");
             document.body.appendChild(container);
             window.$__uni_tag_portal(container, v.p);
+            window.$__uni_register_portal(container);
             const children = v.c || [];
             if(!dom) {
                 for(let i = 0; i < children.length; i++) container.appendChild(window.$_urn(children[i]));
+                window.$__uni_inert_scan();
                 return dom;
             }
             const startDom = dom;
@@ -1994,6 +2049,8 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
                 container.appendChild(node);
                 node = next;
             }
+            // Rescan now that the moved modal content is in place (see $_urn).
+            window.$__uni_inert_scan();
             return cur;
         }
         if(v.t === window.$_ur.Fragment) return window.$__uni_hydrate_node(parent, dom, v.c || []);
@@ -2134,6 +2191,7 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
         if(inst.effects && inst.effects.length) window.$__uni_run_effects(inst, inst.effects);
         // Ref forwarding for root mode
         if(refVal) window.$__uni_assign_ref(trackedEl, refVal);
+        window.$__uni_last_mount_instance = inst;
         return next;
     }
     window.$__uni_hydrate_children(host, [ out ]);
@@ -2162,10 +2220,15 @@ window.$__uni_mount = ((host, comp, props, mode = "children") => {
     if(refVal && trackedEl && trackedEl !== host) {
         window.$__uni_assign_ref(trackedEl, refVal);
     }
+    window.$__uni_last_mount_instance = inst;
 })
 // Owner tree cleanup: dispose all effects, subscriptions, and child instances
 window.$__uni_dispose = ((inst) => {
     if(!inst) return;
+    // Guard against re-entrant/cyclic disposal: removing a portal container
+    // disposes the instances inside it, which can point back at `inst`.
+    if(inst._disposed) return;
+    inst._disposed = true;
     // Dispose children first (depth-first)
     for(let i = 0; i < inst.children.length; i++) {
         window.$__uni_dispose(inst.children[i]);
@@ -2207,6 +2270,28 @@ window.$__uni_dispose = ((inst) => {
             try { inst._disposables[i](); } catch(err) {}
         }
         inst._disposables = [];
+    }
+    // Remove portal containers owned by this component. They live in
+    // document.body, so they are not part of the disposed DOM subtree.
+    if(inst._portals) {
+        let removedAny = false;
+        for(let i = 0; i < inst._portals.length; i++) {
+            const container = inst._portals[i];
+            try {
+                if(container) {
+                    if(container.hasAttribute("data-uni-modal")) removedAny = true;
+                    if(container.$__uni_inert_observer) { container.$__uni_inert_observer.disconnect(); container.$__uni_inert_observer = null; }
+                    window.$__uni_dispose_deep(container);
+                    if(container.parentNode) container.parentNode.removeChild(container);
+                }
+            } catch(err) {}
+        }
+        inst._portals = [];
+        // A removed modal container no longer reports as visible, but nothing
+        // triggers a rescan by itself (the tag-portal observer watched the
+        // container that just left the DOM). Recompute so the background does
+        // not stay inert after the modal is gone.
+        if(removedAny) window.$__uni_inert_scan();
     }
     // Dispose render-scoped resources (state signals and computeds created by
     // this component). Dropping their subscribers lets the whole graph become

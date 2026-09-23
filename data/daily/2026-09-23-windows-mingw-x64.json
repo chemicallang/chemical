@@ -1,0 +1,6179 @@
+{
+  "type": "daily",
+  "id": "2026-09-23-windows-mingw-x64",
+  "date": "2026-09-23",
+  "generated_at": "2026-09-23T09:18:05Z",
+  "duration_ms": 3269573,
+  "status": "success",
+  "status_reason": null,
+  "platform": {
+    "os": "windows-mingw",
+    "arch": "x64",
+    "libc": "ucrt"
+  },
+  "commit": {
+    "sha": "60ba0a121a17aaac4414cded17a666f798da6631",
+    "short": "60ba0a121a17",
+    "subject": "universal tests added and fixes",
+    "author_date": "2026-09-23T13:04:25+05:00"
+  },
+  "compiler_version": {
+    "TCCCompiler": "Chemical v0.5.12",
+    "Compiler": "Chemical v0.5.12"
+  },
+  "backends": {
+    "Interpreter": {
+      "build": {
+        "status": "success",
+        "reason": null
+      },
+      "benchmarks": [
+        {
+          "name": "hello_bare",
+          "status": "unavailable",
+          "reason": "interpreter requires a build.lab interpretation job; standalone hello world is not interpretable via the CLI",
+          "duration_ms": null,
+          "run": null
+        },
+        {
+          "name": "hello_std",
+          "status": "unavailable",
+          "reason": "interpreter requires a build.lab interpretation job; standalone hello world is not interpretable via the CLI",
+          "duration_ms": null,
+          "run": null
+        }
+      ],
+      "modules": [
+        {
+          "tag": "bm:module",
+          "name": "cstd",
+          "nanos": 12407400,
+          "micros": 12407,
+          "millis": 12,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "core",
+          "nanos": 1825000,
+          "micros": 1825,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "std",
+          "nanos": 24649500,
+          "micros": 24649,
+          "millis": 24,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "lab",
+          "nanos": 7834100,
+          "micros": 7834,
+          "millis": 7,
+          "secs": 0
+        }
+      ],
+      "files": [
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 122200,
+          "micros": 122,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 93200,
+          "micros": 93,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 81600,
+          "micros": 81,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 81000,
+          "micros": 81,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 74500,
+          "micros": 74,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 51900,
+          "micros": 51,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 50200,
+          "micros": 50,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 48600,
+          "micros": 48,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 48500,
+          "micros": 48,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 37700,
+          "micros": 37,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 33100,
+          "micros": 33,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 32200,
+          "micros": 32,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 30400,
+          "micros": 30,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 30400,
+          "micros": 30,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 27700,
+          "micros": 27,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 23600,
+          "micros": 23,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 23500,
+          "micros": 23,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 22000,
+          "micros": 22,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 19900,
+          "micros": 19,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 19500,
+          "micros": 19,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 19000,
+          "micros": 19,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 18900,
+          "micros": 18,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 18200,
+          "micros": 18,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 17000,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 16500,
+          "micros": 16,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 14000,
+          "micros": 14,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 13600,
+          "micros": 13,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 10900,
+          "micros": 10,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 9600,
+          "micros": 9,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 9500,
+          "micros": 9,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 9500,
+          "micros": 9,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 8900,
+          "micros": 8,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 8900,
+          "micros": 8,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 7800,
+          "micros": 7,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 7600,
+          "micros": 7,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 7400,
+          "micros": 7,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 7400,
+          "micros": 7,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 7000,
+          "micros": 7,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 6800,
+          "micros": 6,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 6400,
+          "micros": 6,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 5900,
+          "micros": 5,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 5900,
+          "micros": 5,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 5500,
+          "micros": 5,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 5500,
+          "micros": 5,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 5200,
+          "micros": 5,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 4900,
+          "micros": 4,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 4800,
+          "micros": 4,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 4600,
+          "micros": 4,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 4400,
+          "micros": 4,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 4400,
+          "micros": 4,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "lang/tests/build.lab",
+          "nanos": 1812900,
+          "micros": 1812,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\string.ch",
+          "nanos": 920000,
+          "micros": 920,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\lab\\src\\lab.ch",
+          "nanos": 638400,
+          "micros": 638,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\string_view.ch",
+          "nanos": 585900,
+          "micros": 585,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\u16_string.ch",
+          "nanos": 522000,
+          "micros": 522,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\css_cbi\\build.lab",
+          "nanos": 427300,
+          "micros": 427,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\html_cbi\\build.lab",
+          "nanos": 424100,
+          "micros": 424,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\time\\types.ch",
+          "nanos": 385500,
+          "micros": 385,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\json_cbi\\build.lab",
+          "nanos": 324400,
+          "micros": 324,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\universal_cbi\\build.lab",
+          "nanos": 315900,
+          "micros": 315,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\chemical.mod",
+          "nanos": 290400,
+          "micros": 290,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\webview\\chemical.mod",
+          "nanos": 283300,
+          "micros": 283,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\net\\chemical.mod",
+          "nanos": 266200,
+          "micros": 266,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\atomic\\chemical.mod",
+          "nanos": 264200,
+          "micros": 264,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\concurrency\\threadpool.ch",
+          "nanos": 259200,
+          "micros": 259,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\chemical.mod",
+          "nanos": 257900,
+          "micros": 257,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\window\\chemical.mod",
+          "nanos": 255300,
+          "micros": 255,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\js_cbi\\build.lab",
+          "nanos": 251900,
+          "micros": 251,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\md_cbi\\build.lab",
+          "nanos": 238700,
+          "micros": 238,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\async\\chemical.mod",
+          "nanos": 221400,
+          "micros": 221,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\fs\\chemical.mod",
+          "nanos": 206100,
+          "micros": 206,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\alloc.ch",
+          "nanos": 201800,
+          "micros": 201,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\compiler\\chemical.mod",
+          "nanos": 186900,
+          "micros": 186,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\os_string.ch",
+          "nanos": 186600,
+          "micros": 186,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\process\\chemical.mod",
+          "nanos": 174500,
+          "micros": 174,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\stream.ch",
+          "nanos": 172000,
+          "micros": 172,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\universal_webview\\chemical.mod",
+          "nanos": 171900,
+          "micros": 171,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\test\\chemical.mod",
+          "nanos": 171700,
+          "micros": 171,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\environment\\chemical.mod",
+          "nanos": 170800,
+          "micros": 170,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\libs\\chemical.mod",
+          "nanos": 169700,
+          "micros": 169,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\chemical.mod",
+          "nanos": 168600,
+          "micros": 168,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\bcrypt\\chemical.mod",
+          "nanos": 166800,
+          "micros": 166,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\tls\\build.lab",
+          "nanos": 159300,
+          "micros": 159,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\webview\\chemical.mod",
+          "nanos": 156200,
+          "micros": 156,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\universal\\chemical.mod",
+          "nanos": 156100,
+          "micros": 156,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\tls\\chemical.mod",
+          "nanos": 140600,
+          "micros": 140,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\chemical.mod",
+          "nanos": 133100,
+          "micros": 133,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\json\\chemical.mod",
+          "nanos": 132800,
+          "micros": 132,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\submod3\\chemical.mod",
+          "nanos": 132200,
+          "micros": 132,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\css\\chemical.mod",
+          "nanos": 127800,
+          "micros": 127,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\server\\chemical.mod",
+          "nanos": 124100,
+          "micros": 124,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\components\\chemical.mod",
+          "nanos": 123900,
+          "micros": 123,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\osrand\\chemical.mod",
+          "nanos": 121500,
+          "micros": 121,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\process\\chemical.mod",
+          "nanos": 120800,
+          "micros": 120,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\test_env\\chemical.mod",
+          "nanos": 118400,
+          "micros": 118,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\datetime\\chemical.mod",
+          "nanos": 118200,
+          "micros": 118,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\universal\\chemical.mod",
+          "nanos": 117900,
+          "micros": 117,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\http\\chemical.mod",
+          "nanos": 116000,
+          "micros": 116,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\server\\chemical.mod",
+          "nanos": 115400,
+          "micros": 115,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\json\\chemical.mod",
+          "nanos": 115300,
+          "micros": 115,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 2376400,
+          "micros": 2376,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 2344600,
+          "micros": 2344,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 2042300,
+          "micros": 2042,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1893500,
+          "micros": 1893,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1817600,
+          "micros": 1817,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1595000,
+          "micros": 1595,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1463400,
+          "micros": 1463,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1395300,
+          "micros": 1395,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1355800,
+          "micros": 1355,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1160900,
+          "micros": 1160,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1145800,
+          "micros": 1145,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1086900,
+          "micros": 1086,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1068300,
+          "micros": 1068,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 951600,
+          "micros": 951,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 933600,
+          "micros": 933,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 920000,
+          "micros": 920,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 917500,
+          "micros": 917,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 875500,
+          "micros": 875,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 866400,
+          "micros": 866,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 859000,
+          "micros": 859,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 791500,
+          "micros": 791,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 789900,
+          "micros": 789,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 788400,
+          "micros": 788,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 786400,
+          "micros": 786,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 779900,
+          "micros": 779,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 761200,
+          "micros": 761,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 737700,
+          "micros": 737,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 661700,
+          "micros": 661,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 643100,
+          "micros": 643,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 643000,
+          "micros": 643,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 626900,
+          "micros": 626,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 605800,
+          "micros": 605,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 585100,
+          "micros": 585,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 570700,
+          "micros": 570,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 486600,
+          "micros": 486,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 469200,
+          "micros": 469,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 466500,
+          "micros": 466,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 463900,
+          "micros": 463,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 450000,
+          "micros": 450,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 441400,
+          "micros": 441,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 422700,
+          "micros": 422,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 398500,
+          "micros": 398,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 396700,
+          "micros": 396,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 396200,
+          "micros": 396,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 375300,
+          "micros": 375,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 370900,
+          "micros": 370,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 369300,
+          "micros": 369,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 349000,
+          "micros": 349,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 345400,
+          "micros": 345,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 334900,
+          "micros": 334,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 5042300,
+          "micros": 5042,
+          "millis": 5,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 3795400,
+          "micros": 3795,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 3601800,
+          "micros": 3601,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 3545500,
+          "micros": 3545,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 3353500,
+          "micros": 3353,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 3056500,
+          "micros": 3056,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2620600,
+          "micros": 2620,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2303000,
+          "micros": 2303,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1945600,
+          "micros": 1945,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1850300,
+          "micros": 1850,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1742500,
+          "micros": 1742,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1729900,
+          "micros": 1729,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1687000,
+          "micros": 1687,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1635700,
+          "micros": 1635,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1566300,
+          "micros": 1566,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1554100,
+          "micros": 1554,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1430400,
+          "micros": 1430,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1351200,
+          "micros": 1351,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1259600,
+          "micros": 1259,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1204400,
+          "micros": 1204,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1186700,
+          "micros": 1186,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1180200,
+          "micros": 1180,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1147600,
+          "micros": 1147,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1127600,
+          "micros": 1127,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1099500,
+          "micros": 1099,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1077700,
+          "micros": 1077,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1065500,
+          "micros": 1065,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1036200,
+          "micros": 1036,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 985300,
+          "micros": 985,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 968000,
+          "micros": 968,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 967400,
+          "micros": 967,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 927800,
+          "micros": 927,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 907900,
+          "micros": 907,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 905700,
+          "micros": 905,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 898900,
+          "micros": 898,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 898600,
+          "micros": 898,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 842600,
+          "micros": 842,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 835800,
+          "micros": 835,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 823600,
+          "micros": 823,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 820500,
+          "micros": 820,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 768200,
+          "micros": 768,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 763000,
+          "micros": 763,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 743200,
+          "micros": 743,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 736000,
+          "micros": 736,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 691100,
+          "micros": 691,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 663400,
+          "micros": 663,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 658400,
+          "micros": 658,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 651800,
+          "micros": 651,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 645800,
+          "micros": 645,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 620000,
+          "micros": 620,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\functions\\constructors.ch",
+          "nanos": 69800,
+          "micros": 69,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\lab\\src\\lab.ch",
+          "nanos": 47000,
+          "micros": 47,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\ops.ch",
+          "nanos": 42500,
+          "micros": 42,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\nodes\\struct.ch",
+          "nanos": 35100,
+          "micros": 35,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\generic\\basic.ch",
+          "nanos": 31200,
+          "micros": 31,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\external_common\\src\\interface\\primitive_impl.ch",
+          "nanos": 29600,
+          "micros": 29,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\core\\primitive_ops_arith_bin.ch",
+          "nanos": 29500,
+          "micros": 29,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\nodes\\nodes.ch",
+          "nanos": 28700,
+          "micros": 28,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\decls\\variants\\basic.ch",
+          "nanos": 26200,
+          "micros": 26,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\hashing\\hash_impl.ch",
+          "nanos": 25700,
+          "micros": 25,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\core\\structural_ops_arith_bin.ch",
+          "nanos": 25200,
+          "micros": 25,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\ops.ch",
+          "nanos": 23100,
+          "micros": 23,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\decls\\interfaces\\primitive_impl.ch",
+          "nanos": 22400,
+          "micros": 22,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\src\\concurrency\\threads.ch",
+          "nanos": 22200,
+          "micros": 22,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\decls\\interfaces\\static.ch",
+          "nanos": 19500,
+          "micros": 19,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\interfaces.ch",
+          "nanos": 18000,
+          "micros": 18,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\core\\primitive_single_assignment.ch",
+          "nanos": 17400,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\core\\structural_single_assignment.ch",
+          "nanos": 17300,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\core\\unary_arithmetic.ch",
+          "nanos": 14000,
+          "micros": 14,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\destructors\\basic.ch",
+          "nanos": 13700,
+          "micros": 13,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\constructors_init.ch",
+          "nanos": 13100,
+          "micros": 13,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\hashing\\compare_impl.ch",
+          "nanos": 12900,
+          "micros": 12,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\decls\\interfaces\\basic.ch",
+          "nanos": 12900,
+          "micros": 12,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\string.ch",
+          "nanos": 12300,
+          "micros": 12,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\functions\\extension_func.ch",
+          "nanos": 11600,
+          "micros": 11,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\functions\\name_hiding.ch",
+          "nanos": 10800,
+          "micros": 10,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\destructors\\call_destruction.ch",
+          "nanos": 10400,
+          "micros": 10,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\generic\\instantiation.ch",
+          "nanos": 10100,
+          "micros": 10,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\async.ch",
+          "nanos": 9000,
+          "micros": 9,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\decls\\interfaces\\generic_static.ch",
+          "nanos": 9000,
+          "micros": 9,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\generic\\generic_dispatch.ch",
+          "nanos": 8900,
+          "micros": 8,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\stream.ch",
+          "nanos": 8600,
+          "micros": 8,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\semantics\\moves.ch",
+          "nanos": 8600,
+          "micros": 8,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\windows\\windows.ch",
+          "nanos": 8300,
+          "micros": 8,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\nodes\\inheritance.ch",
+          "nanos": 8100,
+          "micros": 8,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\serialization.ch",
+          "nanos": 7600,
+          "micros": 7,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\destructors\\auto_generated.ch",
+          "nanos": 7600,
+          "micros": 7,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\nodes\\var_init.ch",
+          "nanos": 7600,
+          "micros": 7,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\deque.ch",
+          "nanos": 7100,
+          "micros": 7,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\string_view.ch",
+          "nanos": 7100,
+          "micros": 7,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\references\\basic.ch",
+          "nanos": 7100,
+          "micros": 7,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\values\\new.ch",
+          "nanos": 6900,
+          "micros": 6,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\std.ch",
+          "nanos": 6800,
+          "micros": 6,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\iterable.ch",
+          "nanos": 6300,
+          "micros": 6,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\interfaces.ch",
+          "nanos": 6200,
+          "micros": 6,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\decls\\interfaces\\dynamic.ch",
+          "nanos": 5900,
+          "micros": 5,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\src\\concurrency\\stdatomic.ch",
+          "nanos": 5400,
+          "micros": 5,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\concurrency\\threadpool.ch",
+          "nanos": 5400,
+          "micros": 5,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\async.ch",
+          "nanos": 5400,
+          "micros": 5,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\src\\math\\math.ch",
+          "nanos": 5200,
+          "micros": 5,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\nodes\\struct.ch",
+          "nanos": 138000,
+          "micros": 138,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\windows\\io\\stdio.ch",
+          "nanos": 128600,
+          "micros": 128,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\concurrency\\threadpool.ch",
+          "nanos": 88200,
+          "micros": 88,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\nodes\\nodes.ch",
+          "nanos": 84700,
+          "micros": 84,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\src\\math\\math.ch",
+          "nanos": 81900,
+          "micros": 81,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\lab\\src\\lab.ch",
+          "nanos": 73300,
+          "micros": 73,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\windows\\windows.ch",
+          "nanos": 72800,
+          "micros": 72,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\src\\io\\sys_stat.ch",
+          "nanos": 69900,
+          "micros": 69,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\ops.ch",
+          "nanos": 55600,
+          "micros": 55,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\src\\common\\integer_types.ch",
+          "nanos": 54000,
+          "micros": 54,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\ops.ch",
+          "nanos": 51300,
+          "micros": 51,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\string.ch",
+          "nanos": 47600,
+          "micros": 47,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\generic\\basic.ch",
+          "nanos": 47300,
+          "micros": 47,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\os_string.ch",
+          "nanos": 43200,
+          "micros": 43,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\time\\types.ch",
+          "nanos": 43000,
+          "micros": 43,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\serialization.ch",
+          "nanos": 41500,
+          "micros": 41,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\lab\\src\\target_data.ch",
+          "nanos": 39400,
+          "micros": 39,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\stmts\\typealias.ch",
+          "nanos": 39200,
+          "micros": 39,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\ordered_map.ch",
+          "nanos": 32600,
+          "micros": 32,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\generic\\instantiation.ch",
+          "nanos": 32400,
+          "micros": 32,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\destructors\\call_destruction.ch",
+          "nanos": 32300,
+          "micros": 32,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\semantics\\moves.ch",
+          "nanos": 31800,
+          "micros": 31,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\alloc.ch",
+          "nanos": 29800,
+          "micros": 29,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\destructors\\basic.ch",
+          "nanos": 28700,
+          "micros": 28,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\unordered_map2.ch",
+          "nanos": 28400,
+          "micros": 28,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\decls\\variants\\basic.ch",
+          "nanos": 26300,
+          "micros": 26,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\deque.ch",
+          "nanos": 25200,
+          "micros": 25,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\string_view.ch",
+          "nanos": 24500,
+          "micros": 24,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\functions\\external.ch",
+          "nanos": 23500,
+          "micros": 23,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\references\\basic.ch",
+          "nanos": 23500,
+          "micros": 23,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\interp_regressions.ch",
+          "nanos": 23400,
+          "micros": 23,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\src\\math\\complex.ch",
+          "nanos": 23200,
+          "micros": 23,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\vector.ch",
+          "nanos": 22400,
+          "micros": 22,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\iterable.ch",
+          "nanos": 22300,
+          "micros": 22,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\comptime\\basic.ch",
+          "nanos": 22200,
+          "micros": 22,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\u16_string.ch",
+          "nanos": 21900,
+          "micros": 21,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\src\\common\\time_types.ch",
+          "nanos": 20500,
+          "micros": 20,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\iterable.ch",
+          "nanos": 19200,
+          "micros": 19,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\async.ch",
+          "nanos": 18700,
+          "micros": 18,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\win\\condvar.ch",
+          "nanos": 18700,
+          "micros": 18,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\src\\common\\std_types.ch",
+          "nanos": 18600,
+          "micros": 18,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\decls\\interfaces\\static.ch",
+          "nanos": 18500,
+          "micros": 18,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\functions\\constructors.ch",
+          "nanos": 18300,
+          "micros": 18,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\functions\\functions.ch",
+          "nanos": 18000,
+          "micros": 18,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\destructors\\auto_generated.ch",
+          "nanos": 17900,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\comptime_features.ch",
+          "nanos": 17800,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\win\\recursive_mutex.ch",
+          "nanos": 17600,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\src\\core\\stdint.ch",
+          "nanos": 17500,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\async.ch",
+          "nanos": 17500,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\src\\locale\\locale.ch",
+          "nanos": 17100,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "lang/tests/build.lab",
+          "nanos": 1343600,
+          "micros": 1343,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\html_cbi\\build.lab",
+          "nanos": 267400,
+          "micros": 267,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\css_cbi\\build.lab",
+          "nanos": 257800,
+          "micros": 257,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\js_cbi\\build.lab",
+          "nanos": 219700,
+          "micros": 219,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\universal_cbi\\build.lab",
+          "nanos": 214600,
+          "micros": 214,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\md_cbi\\build.lab",
+          "nanos": 195300,
+          "micros": 195,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\json_cbi\\build.lab",
+          "nanos": 194100,
+          "micros": 194,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\libs\\chemical.mod",
+          "nanos": 179300,
+          "micros": 179,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\webview\\chemical.mod",
+          "nanos": 151100,
+          "micros": 151,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\process\\chemical.mod",
+          "nanos": 143500,
+          "micros": 143,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\server\\chemical.mod",
+          "nanos": 143100,
+          "micros": 143,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\window\\chemical.mod",
+          "nanos": 138000,
+          "micros": 138,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\chemical.mod",
+          "nanos": 133200,
+          "micros": 133,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\tls\\chemical.mod",
+          "nanos": 132100,
+          "micros": 132,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\chemical.mod",
+          "nanos": 131500,
+          "micros": 131,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\css\\chemical.mod",
+          "nanos": 126400,
+          "micros": 126,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\html\\chemical.mod",
+          "nanos": 124200,
+          "micros": 124,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\md_runtime\\chemical.mod",
+          "nanos": 120800,
+          "micros": 120,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\net\\chemical.mod",
+          "nanos": 120400,
+          "micros": 120,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\universal_webview\\chemical.mod",
+          "nanos": 118100,
+          "micros": 118,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\universal\\chemical.mod",
+          "nanos": 117600,
+          "micros": 117,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\uuid\\chemical.mod",
+          "nanos": 117300,
+          "micros": 117,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\atomic\\chemical.mod",
+          "nanos": 116900,
+          "micros": 116,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\fs\\chemical.mod",
+          "nanos": 116000,
+          "micros": 116,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\components\\chemical.mod",
+          "nanos": 116000,
+          "micros": 116,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\css\\chemical.mod",
+          "nanos": 115100,
+          "micros": 115,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\tls\\build.lab",
+          "nanos": 113200,
+          "micros": 113,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\universal\\chemical.mod",
+          "nanos": 111900,
+          "micros": 111,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\html_ide\\chemical.mod",
+          "nanos": 110600,
+          "micros": 110,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\md\\chemical.mod",
+          "nanos": 110400,
+          "micros": 110,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\md\\chemical.mod",
+          "nanos": 110000,
+          "micros": 110,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\webview\\chemical.mod",
+          "nanos": 110000,
+          "micros": 110,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\bcrypt\\chemical.mod",
+          "nanos": 109800,
+          "micros": 109,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\compiler\\chemical.mod",
+          "nanos": 107500,
+          "micros": 107,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\http\\chemical.mod",
+          "nanos": 106300,
+          "micros": 106,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\process\\chemical.mod",
+          "nanos": 105700,
+          "micros": 105,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\submod3\\chemical.mod",
+          "nanos": 105500,
+          "micros": 105,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\universal_ide\\chemical.mod",
+          "nanos": 104000,
+          "micros": 104,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\js\\chemical.mod",
+          "nanos": 103900,
+          "micros": 103,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\environment\\chemical.mod",
+          "nanos": 103100,
+          "micros": 103,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\async\\chemical.mod",
+          "nanos": 101300,
+          "micros": 101,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\html\\chemical.mod",
+          "nanos": 101100,
+          "micros": 101,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\css_runtime\\chemical.mod",
+          "nanos": 100300,
+          "micros": 100,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\html_runtime\\chemical.mod",
+          "nanos": 100200,
+          "micros": 100,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\md_ide\\chemical.mod",
+          "nanos": 99700,
+          "micros": 99,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\test\\chemical.mod",
+          "nanos": 99400,
+          "micros": 99,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\chemical.mod",
+          "nanos": 98700,
+          "micros": 98,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\path\\chemical.mod",
+          "nanos": 98000,
+          "micros": 98,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\js_ide\\chemical.mod",
+          "nanos": 97800,
+          "micros": 97,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\universal_runtime\\chemical.mod",
+          "nanos": 97800,
+          "micros": 97,
+          "millis": 0,
+          "secs": 0
+        }
+      ],
+      "tests": {
+        "status": "success",
+        "reason": null,
+        "total": 1814,
+        "passed": 1814,
+        "failed": 0,
+        "succeeded": 1814,
+        "duration_ms": 5106,
+        "complete": true,
+        "sequential": {
+          "total": 1814,
+          "passed": 1814,
+          "failed": 0
+        },
+        "runner": {
+          "total": 0,
+          "passed": 0,
+          "failed": 0
+        },
+        "failed_tests": [],
+        "crashed_tests": [],
+        "timed_out_tests": []
+      },
+      "tests_build_ms": 5105,
+      "tests_build_status": "success"
+    },
+    "Compiler": {
+      "build": {
+        "status": "success",
+        "reason": null
+      },
+      "benchmarks": [
+        {
+          "name": "hello_bare",
+          "status": "failed",
+          "reason": "compiler exited with code 1",
+          "duration_ms": 5118,
+          "run": null
+        },
+        {
+          "name": "hello_std",
+          "status": "timeout",
+          "reason": "compiler exited with code 124",
+          "duration_ms": 604729,
+          "run": null
+        }
+      ],
+      "modules": [],
+      "files": [],
+      "tests": {
+        "status": "build_failure",
+        "reason": "test suite compilation failed with exit code 124",
+        "total": null,
+        "passed": null,
+        "failed": null,
+        "succeeded": null,
+        "duration_ms": 1810259,
+        "complete": false,
+        "sequential": null,
+        "runner": null,
+        "failed_tests": [],
+        "crashed_tests": [],
+        "timed_out_tests": []
+      },
+      "tests_build_ms": 1810259,
+      "tests_build_status": "timeout"
+    },
+    "TCCCompiler": {
+      "build": {
+        "status": "success",
+        "reason": null
+      },
+      "benchmarks": [
+        {
+          "name": "hello_bare",
+          "status": "success",
+          "reason": null,
+          "duration_ms": 5104,
+          "run": {
+            "status": "success",
+            "reason": null,
+            "output": "hello world",
+            "expected": "hello world"
+          }
+        },
+        {
+          "name": "hello_std",
+          "status": "success",
+          "reason": null,
+          "duration_ms": 5128,
+          "run": {
+            "status": "success",
+            "reason": null,
+            "output": "hello world",
+            "expected": "hello world"
+          }
+        }
+      ],
+      "modules": [
+        {
+          "tag": "bm:module",
+          "name": "cstd",
+          "nanos": 14354600,
+          "micros": 14354,
+          "millis": 14,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "core",
+          "nanos": 2083700,
+          "micros": 2083,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "std",
+          "nanos": 26839500,
+          "micros": 26839,
+          "millis": 26,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "lab",
+          "nanos": 8303000,
+          "micros": 8303,
+          "millis": 8,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "submod",
+          "nanos": 1941100,
+          "micros": 1941,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "cstd",
+          "nanos": 10744800,
+          "micros": 10744,
+          "millis": 10,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "core",
+          "nanos": 1775500,
+          "micros": 1775,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "std",
+          "nanos": 23162500,
+          "micros": 23162,
+          "millis": 23,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "submod2",
+          "nanos": 4009100,
+          "micros": 4009,
+          "millis": 4,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "submod_mod",
+          "nanos": 634900,
+          "micros": 634,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "chemicallang:example",
+          "nanos": 431600,
+          "micros": 431,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "submod3",
+          "nanos": 669300,
+          "micros": 669,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "atomic",
+          "nanos": 8950600,
+          "micros": 8950,
+          "millis": 8,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "path",
+          "nanos": 3723800,
+          "micros": 3723,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "osrand",
+          "nanos": 1283500,
+          "micros": 1283,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "crypto",
+          "nanos": 7282500,
+          "micros": 7282,
+          "millis": 7,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "encoding",
+          "nanos": 4992100,
+          "micros": 4992,
+          "millis": 4,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "async",
+          "nanos": 9238200,
+          "micros": 9238,
+          "millis": 9,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "fs",
+          "nanos": 16763100,
+          "micros": 16763,
+          "millis": 16,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "test_env",
+          "nanos": 1243300,
+          "micros": 1243,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "test",
+          "nanos": 12102100,
+          "micros": 12102,
+          "millis": 12,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "external_common",
+          "nanos": 1463600,
+          "micros": 1463,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "common_tests",
+          "nanos": 78383600,
+          "micros": 78383,
+          "millis": 78,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "native_common_tests",
+          "nanos": 2679600,
+          "micros": 2679,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "main",
+          "nanos": 45082500,
+          "micros": 45082,
+          "millis": 45,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "submod",
+          "nanos": 1765800,
+          "micros": 1765,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "cstd",
+          "nanos": 10836300,
+          "micros": 10836,
+          "millis": 10,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "core",
+          "nanos": 1872500,
+          "micros": 1872,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "std",
+          "nanos": 23978900,
+          "micros": 23978,
+          "millis": 23,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "submod2",
+          "nanos": 3975200,
+          "micros": 3975,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "submod_mod",
+          "nanos": 660900,
+          "micros": 660,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "chemicallang:example",
+          "nanos": 439400,
+          "micros": 439,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "submod3",
+          "nanos": 736500,
+          "micros": 736,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "atomic",
+          "nanos": 9184600,
+          "micros": 9184,
+          "millis": 9,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "path",
+          "nanos": 3635500,
+          "micros": 3635,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "osrand",
+          "nanos": 1074100,
+          "micros": 1074,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "crypto",
+          "nanos": 6747300,
+          "micros": 6747,
+          "millis": 6,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "encoding",
+          "nanos": 4674400,
+          "micros": 4674,
+          "millis": 4,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "async",
+          "nanos": 7310600,
+          "micros": 7310,
+          "millis": 7,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "fs",
+          "nanos": 15242400,
+          "micros": 15242,
+          "millis": 15,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "test_env",
+          "nanos": 1048400,
+          "micros": 1048,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "test",
+          "nanos": 11158500,
+          "micros": 11158,
+          "millis": 11,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "external_common",
+          "nanos": 1232400,
+          "micros": 1232,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "common_tests",
+          "nanos": 72702300,
+          "micros": 72702,
+          "millis": 72,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "native_common_tests",
+          "nanos": 2309800,
+          "micros": 2309,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "bm:module",
+          "name": "main",
+          "nanos": 45873600,
+          "micros": 45873,
+          "millis": 45,
+          "secs": 0
+        }
+      ],
+      "files": [
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 148300,
+          "micros": 148,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 121700,
+          "micros": 121,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 121600,
+          "micros": 121,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 119400,
+          "micros": 119,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 114500,
+          "micros": 114,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 91500,
+          "micros": 91,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 90900,
+          "micros": 90,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 81900,
+          "micros": 81,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 81100,
+          "micros": 81,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 80800,
+          "micros": 80,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 78800,
+          "micros": 78,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 77100,
+          "micros": 77,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 74400,
+          "micros": 74,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 72800,
+          "micros": 72,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 72200,
+          "micros": 72,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 66500,
+          "micros": 66,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 65700,
+          "micros": 65,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 65500,
+          "micros": 65,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 58900,
+          "micros": 58,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 55800,
+          "micros": 55,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 55100,
+          "micros": 55,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 52100,
+          "micros": 52,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 51900,
+          "micros": 51,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 51600,
+          "micros": 51,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 49500,
+          "micros": 49,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 48800,
+          "micros": 48,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 47500,
+          "micros": 47,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 46900,
+          "micros": 46,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 46600,
+          "micros": 46,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 45800,
+          "micros": 45,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 44900,
+          "micros": 44,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 44100,
+          "micros": 44,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 42900,
+          "micros": 42,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 42100,
+          "micros": 42,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 41300,
+          "micros": 41,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 40200,
+          "micros": 40,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 40100,
+          "micros": 40,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 39800,
+          "micros": 39,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 39400,
+          "micros": 39,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 39400,
+          "micros": 39,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 39100,
+          "micros": 39,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 36700,
+          "micros": 36,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 36500,
+          "micros": 36,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 36000,
+          "micros": 36,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 34100,
+          "micros": 34,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 33700,
+          "micros": 33,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 33100,
+          "micros": 33,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 32400,
+          "micros": 32,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 32400,
+          "micros": 32,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:declare",
+          "name": null,
+          "nanos": 32200,
+          "micros": 32,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "lang/tests/build.lab",
+          "nanos": 1751600,
+          "micros": 1751,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\src\\stdlib\\datatype\\unordered_map.ch",
+          "nanos": 1571200,
+          "micros": 1571,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\src\\stdlib\\datatype\\unordered_map.ch",
+          "nanos": 1535900,
+          "micros": 1535,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\destructors\\basic.ch",
+          "nanos": 1350000,
+          "micros": 1350,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\destructors\\basic.ch",
+          "nanos": 1311200,
+          "micros": 1311,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\src\\stdlib\\datatype\\strings.ch",
+          "nanos": 1267800,
+          "micros": 1267,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\src\\stdlib\\string_expr\\string_expr.ch",
+          "nanos": 1226700,
+          "micros": 1226,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\src\\stdlib\\datatype\\strings.ch",
+          "nanos": 1209300,
+          "micros": 1209,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\src\\basic\\lambda\\capturing.ch",
+          "nanos": 1203700,
+          "micros": 1203,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\src\\basic\\lambda\\capturing.ch",
+          "nanos": 1157200,
+          "micros": 1157,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\src\\stdlib\\atomics\\atomics.ch",
+          "nanos": 1129600,
+          "micros": 1129,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\src\\stdlib\\atomics\\atomics.ch",
+          "nanos": 1104400,
+          "micros": 1104,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\src\\stdlib\\string_expr\\string_expr.ch",
+          "nanos": 1046400,
+          "micros": 1046,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\string.ch",
+          "nanos": 950400,
+          "micros": 950,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\src\\stdlib\\datatype\\hashing.ch",
+          "nanos": 920200,
+          "micros": 920,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\test\\src\\main.ch",
+          "nanos": 912300,
+          "micros": 912,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\test\\src\\main.ch",
+          "nanos": 907200,
+          "micros": 907,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\string.ch",
+          "nanos": 904000,
+          "micros": 904,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\string.ch",
+          "nanos": 893100,
+          "micros": 893,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\src\\stdlib\\datatype\\hashing.ch",
+          "nanos": 892600,
+          "micros": 892,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\semantics\\moves.ch",
+          "nanos": 772200,
+          "micros": 772,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\nodes\\nodes.ch",
+          "nanos": 771900,
+          "micros": 771,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\src\\stdlib\\threadpool\\basic.ch",
+          "nanos": 756100,
+          "micros": 756,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\src\\stdlib\\threadpool\\basic.ch",
+          "nanos": 752600,
+          "micros": 752,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\generic\\basic.ch",
+          "nanos": 737900,
+          "micros": 737,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\decls\\variants\\basic.ch",
+          "nanos": 737000,
+          "micros": 737,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\nodes\\nodes.ch",
+          "nanos": 736400,
+          "micros": 736,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\src\\stdlib\\datatype\\ordered_map.ch",
+          "nanos": 715200,
+          "micros": 715,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\generic\\basic.ch",
+          "nanos": 708900,
+          "micros": 708,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\semantics\\moves.ch",
+          "nanos": 708200,
+          "micros": 708,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\decls\\variants\\basic.ch",
+          "nanos": 699900,
+          "micros": 699,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\satisfies.ch",
+          "nanos": 661500,
+          "micros": 661,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\src\\stdlib\\datatype\\ordered_map.ch",
+          "nanos": 658100,
+          "micros": 658,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\lab\\src\\lab.ch",
+          "nanos": 657500,
+          "micros": 657,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\satisfies.ch",
+          "nanos": 628400,
+          "micros": 628,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\nodes\\struct.ch",
+          "nanos": 588600,
+          "micros": 588,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\nodes\\struct.ch",
+          "nanos": 563800,
+          "micros": 563,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\destructors\\call_destruction.ch",
+          "nanos": 555100,
+          "micros": 555,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\destructors\\call_destruction.ch",
+          "nanos": 554500,
+          "micros": 554,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\string_view.ch",
+          "nanos": 545700,
+          "micros": 545,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\values\\expression.ch",
+          "nanos": 543300,
+          "micros": 543,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\string_view.ch",
+          "nanos": 540700,
+          "micros": 540,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\comptime\\basic.ch",
+          "nanos": 539800,
+          "micros": 539,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\string_view.ch",
+          "nanos": 537900,
+          "micros": 537,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\u16_string.ch",
+          "nanos": 525300,
+          "micros": 525,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\core\\structural_ops_arith_bin.ch",
+          "nanos": 522500,
+          "micros": 522,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\u16_string.ch",
+          "nanos": 519000,
+          "micros": 519,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\u16_string.ch",
+          "nanos": 512800,
+          "micros": 512,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\comptime\\basic.ch",
+          "nanos": 503400,
+          "micros": 503,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "2cTranslation:translate",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\values\\expression.ch",
+          "nanos": 492500,
+          "micros": 492,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 3487800,
+          "micros": 3487,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 3071000,
+          "micros": 3071,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 2615700,
+          "micros": 2615,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 2489500,
+          "micros": 2489,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 2466400,
+          "micros": 2466,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 2447500,
+          "micros": 2447,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 2445400,
+          "micros": 2445,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 2423300,
+          "micros": 2423,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 2388200,
+          "micros": 2388,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 2363000,
+          "micros": 2363,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 2356700,
+          "micros": 2356,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 2301300,
+          "micros": 2301,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 2245400,
+          "micros": 2245,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 2119700,
+          "micros": 2119,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1900300,
+          "micros": 1900,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1890800,
+          "micros": 1890,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1834800,
+          "micros": 1834,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1826700,
+          "micros": 1826,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1806200,
+          "micros": 1806,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1779400,
+          "micros": 1779,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1709200,
+          "micros": 1709,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1682600,
+          "micros": 1682,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1679500,
+          "micros": 1679,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1641500,
+          "micros": 1641,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1570300,
+          "micros": 1570,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1555600,
+          "micros": 1555,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1548100,
+          "micros": 1548,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1424700,
+          "micros": 1424,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1396500,
+          "micros": 1396,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1381600,
+          "micros": 1381,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1378300,
+          "micros": 1378,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1353400,
+          "micros": 1353,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1325800,
+          "micros": 1325,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1320500,
+          "micros": 1320,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1293800,
+          "micros": 1293,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1270900,
+          "micros": 1270,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1261700,
+          "micros": 1261,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1260300,
+          "micros": 1260,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1260000,
+          "micros": 1260,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1227900,
+          "micros": 1227,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1218100,
+          "micros": 1218,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1168500,
+          "micros": 1168,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1147300,
+          "micros": 1147,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1142800,
+          "micros": 1142,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1132900,
+          "micros": 1132,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1124500,
+          "micros": 1124,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1112600,
+          "micros": 1112,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1092200,
+          "micros": 1092,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1088000,
+          "micros": 1088,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Lexer",
+          "name": null,
+          "nanos": 1083300,
+          "micros": 1083,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 5313900,
+          "micros": 5313,
+          "millis": 5,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 4209300,
+          "micros": 4209,
+          "millis": 4,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 4049800,
+          "micros": 4049,
+          "millis": 4,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 3791400,
+          "micros": 3791,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 3728700,
+          "micros": 3728,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 3471500,
+          "micros": 3471,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 3445200,
+          "micros": 3445,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 3269300,
+          "micros": 3269,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 3219800,
+          "micros": 3219,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 3176900,
+          "micros": 3176,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 3019300,
+          "micros": 3019,
+          "millis": 3,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2910900,
+          "micros": 2910,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2870500,
+          "micros": 2870,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2769700,
+          "micros": 2769,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2762300,
+          "micros": 2762,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2547500,
+          "micros": 2547,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2474600,
+          "micros": 2474,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2459900,
+          "micros": 2459,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2344600,
+          "micros": 2344,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2281200,
+          "micros": 2281,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2234100,
+          "micros": 2234,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2230300,
+          "micros": 2230,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2201200,
+          "micros": 2201,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2199500,
+          "micros": 2199,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2158400,
+          "micros": 2158,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2140100,
+          "micros": 2140,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2137200,
+          "micros": 2137,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2136700,
+          "micros": 2136,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2136300,
+          "micros": 2136,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2123900,
+          "micros": 2123,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2082600,
+          "micros": 2082,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2046600,
+          "micros": 2046,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2042200,
+          "micros": 2042,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 2032500,
+          "micros": 2032,
+          "millis": 2,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1962800,
+          "micros": 1962,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1961400,
+          "micros": 1961,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1950900,
+          "micros": 1950,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1921700,
+          "micros": 1921,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1903000,
+          "micros": 1903,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1863400,
+          "micros": 1863,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1843500,
+          "micros": 1843,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1789300,
+          "micros": 1789,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1785900,
+          "micros": 1785,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1741300,
+          "micros": 1741,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1737900,
+          "micros": 1737,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1722200,
+          "micros": 1722,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1718400,
+          "micros": 1718,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1696300,
+          "micros": 1696,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1672900,
+          "micros": 1672,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "Parser",
+          "name": null,
+          "nanos": 1662200,
+          "micros": 1662,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\decls\\variants\\basic.ch",
+          "nanos": 70500,
+          "micros": 70,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\lab\\src\\lab.ch",
+          "nanos": 36900,
+          "micros": 36,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\nodes\\struct.ch",
+          "nanos": 35700,
+          "micros": 35,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\nodes\\struct.ch",
+          "nanos": 34500,
+          "micros": 34,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\ops.ch",
+          "nanos": 34000,
+          "micros": 34,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\decls\\interfaces\\static.ch",
+          "nanos": 33700,
+          "micros": 33,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\fs\\win\\api.ch",
+          "nanos": 33100,
+          "micros": 33,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\external_common\\src\\interface\\primitive_impl.ch",
+          "nanos": 32400,
+          "micros": 32,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\nodes\\nodes.ch",
+          "nanos": 32400,
+          "micros": 32,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\core\\structural_ops_arith_bin.ch",
+          "nanos": 31800,
+          "micros": 31,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\nodes\\nodes.ch",
+          "nanos": 30400,
+          "micros": 30,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\destructors\\call_destruction.ch",
+          "nanos": 26400,
+          "micros": 26,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\ops.ch",
+          "nanos": 26300,
+          "micros": 26,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\decls\\variants\\basic.ch",
+          "nanos": 25400,
+          "micros": 25,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\external_common\\src\\interface\\primitive_impl.ch",
+          "nanos": 25300,
+          "micros": 25,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\core\\structural_ops_arith_bin.ch",
+          "nanos": 24800,
+          "micros": 24,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\decls\\interfaces\\primitive_impl.ch",
+          "nanos": 24600,
+          "micros": 24,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\test\\src\\types.ch",
+          "nanos": 22100,
+          "micros": 22,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\test\\src\\types.ch",
+          "nanos": 21800,
+          "micros": 21,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\decls\\interfaces\\primitive_impl.ch",
+          "nanos": 21600,
+          "micros": 21,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\ops.ch",
+          "nanos": 21500,
+          "micros": 21,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\generic\\basic.ch",
+          "nanos": 21300,
+          "micros": 21,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\string.ch",
+          "nanos": 20600,
+          "micros": 20,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\generic\\basic.ch",
+          "nanos": 20400,
+          "micros": 20,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\core\\primitive_ops_arith_bin.ch",
+          "nanos": 19900,
+          "micros": 19,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\string.ch",
+          "nanos": 19600,
+          "micros": 19,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\core\\structural_single_assignment.ch",
+          "nanos": 19100,
+          "micros": 19,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\core\\primitive_ops_arith_bin.ch",
+          "nanos": 18900,
+          "micros": 18,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\hashing\\compare_impl.ch",
+          "nanos": 18300,
+          "micros": 18,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\hashing\\hash_impl.ch",
+          "nanos": 17900,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\decls\\interfaces\\static.ch",
+          "nanos": 17500,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\core\\primitive_single_assignment.ch",
+          "nanos": 17300,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\src\\math\\fenv.ch",
+          "nanos": 17200,
+          "micros": 17,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\core\\primitive_single_assignment.ch",
+          "nanos": 16400,
+          "micros": 16,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\decls\\interfaces\\basic.ch",
+          "nanos": 16200,
+          "micros": 16,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\core\\structural_single_assignment.ch",
+          "nanos": 15800,
+          "micros": 15,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\string.ch",
+          "nanos": 15500,
+          "micros": 15,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\decls\\interfaces\\basic.ch",
+          "nanos": 15000,
+          "micros": 15,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\hashing\\hash_impl.ch",
+          "nanos": 14700,
+          "micros": 14,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\submod\\interface\\external_static.ch",
+          "nanos": 14400,
+          "micros": 14,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\decls\\interfaces\\dynamic.ch",
+          "nanos": 14400,
+          "micros": 14,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\functions\\constructors.ch",
+          "nanos": 14300,
+          "micros": 14,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\destructors\\basic.ch",
+          "nanos": 13600,
+          "micros": 13,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\destructors\\basic.ch",
+          "nanos": 13600,
+          "micros": 13,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\core\\unary_arithmetic.ch",
+          "nanos": 13400,
+          "micros": 13,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\functions\\extension_func.ch",
+          "nanos": 13000,
+          "micros": 13,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\core\\unary_arithmetic.ch",
+          "nanos": 12900,
+          "micros": 12,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\stream.ch",
+          "nanos": 12800,
+          "micros": 12,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\stream.ch",
+          "nanos": 12700,
+          "micros": 12,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:after_link_sig",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\hashing\\compare_impl.ch",
+          "nanos": 12700,
+          "micros": 12,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\fs\\win\\api.ch",
+          "nanos": 143400,
+          "micros": 143,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\windows\\windows.ch",
+          "nanos": 122800,
+          "micros": 122,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\os_string.ch",
+          "nanos": 111500,
+          "micros": 111,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\src\\math\\math.ch",
+          "nanos": 101800,
+          "micros": 101,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\src\\math\\math.ch",
+          "nanos": 100500,
+          "micros": 100,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\fs\\win\\api.ch",
+          "nanos": 98300,
+          "micros": 98,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\windows\\minwinbase.ch",
+          "nanos": 94300,
+          "micros": 94,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\src\\common\\integer_types.ch",
+          "nanos": 91300,
+          "micros": 91,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\windows\\windows.ch",
+          "nanos": 80700,
+          "micros": 80,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\ops.ch",
+          "nanos": 70000,
+          "micros": 70,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\destructors\\basic.ch",
+          "nanos": 67500,
+          "micros": 67,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\ops.ch",
+          "nanos": 66400,
+          "micros": 66,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\src\\math\\math.ch",
+          "nanos": 65900,
+          "micros": 65,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\windows\\diagnostics\\signal.ch",
+          "nanos": 59800,
+          "micros": 59,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\windows\\windows.ch",
+          "nanos": 58900,
+          "micros": 58,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\src\\common\\integer_types.ch",
+          "nanos": 58600,
+          "micros": 58,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\ops.ch",
+          "nanos": 57300,
+          "micros": 57,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\lab\\src\\lab.ch",
+          "nanos": 56500,
+          "micros": 56,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\win\\recursive_mutex.ch",
+          "nanos": 54000,
+          "micros": 54,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\test\\src\\types.ch",
+          "nanos": 53900,
+          "micros": 53,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\test\\src\\types.ch",
+          "nanos": 53500,
+          "micros": 53,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\src\\common\\integer_types.ch",
+          "nanos": 52500,
+          "micros": 52,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\generic\\basic.ch",
+          "nanos": 52300,
+          "micros": 52,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\nodes\\struct.ch",
+          "nanos": 52000,
+          "micros": 52,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\deque.ch",
+          "nanos": 51200,
+          "micros": 51,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\concurrency\\threadpool.ch",
+          "nanos": 48700,
+          "micros": 48,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\concurrency\\threadpool.ch",
+          "nanos": 48300,
+          "micros": 48,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\serialization.ch",
+          "nanos": 47600,
+          "micros": 47,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\time\\types.ch",
+          "nanos": 46700,
+          "micros": 46,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\string.ch",
+          "nanos": 45800,
+          "micros": 45,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\concurrency\\threadpool.ch",
+          "nanos": 45600,
+          "micros": 45,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\string.ch",
+          "nanos": 44200,
+          "micros": 44,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\time\\types.ch",
+          "nanos": 44100,
+          "micros": 44,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\fs\\win\\directory.ch",
+          "nanos": 43600,
+          "micros": 43,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\nodes\\nodes.ch",
+          "nanos": 43600,
+          "micros": 43,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\generic\\instantiation.ch",
+          "nanos": 43200,
+          "micros": 43,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\string.ch",
+          "nanos": 42300,
+          "micros": 42,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\nodes\\nodes.ch",
+          "nanos": 41100,
+          "micros": 41,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\fs\\win\\link.ch",
+          "nanos": 39900,
+          "micros": 39,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\fs\\win\\metadata.ch",
+          "nanos": 39400,
+          "micros": 39,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\serialization.ch",
+          "nanos": 39400,
+          "micros": 39,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\nodes\\struct.ch",
+          "nanos": 38800,
+          "micros": 38,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\time\\types.ch",
+          "nanos": 38500,
+          "micros": 38,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\serialization.ch",
+          "nanos": 38300,
+          "micros": 38,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\common\\src\\generic\\basic.ch",
+          "nanos": 38100,
+          "micros": 38,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\src\\unordered_map2.ch",
+          "nanos": 38100,
+          "micros": 38,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\async\\win\\reactor.ch",
+          "nanos": 37400,
+          "micros": 37,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\async\\win\\reactor.ch",
+          "nanos": 37200,
+          "micros": 37,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\src\\math\\complex.ch",
+          "nanos": 36800,
+          "micros": 36,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:declare",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\fs\\src\\types.ch",
+          "nanos": 36300,
+          "micros": 36,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "lang/tests/build.lab",
+          "nanos": 1268200,
+          "micros": 1268,
+          "millis": 1,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\css_cbi\\build.lab",
+          "nanos": 305600,
+          "micros": 305,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\html_cbi\\build.lab",
+          "nanos": 276000,
+          "micros": 276,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\universal_cbi\\build.lab",
+          "nanos": 216600,
+          "micros": 216,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\js_cbi\\build.lab",
+          "nanos": 197000,
+          "micros": 197,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\libs\\chemical.mod",
+          "nanos": 187500,
+          "micros": 187,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\json_cbi\\build.lab",
+          "nanos": 182300,
+          "micros": 182,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\window\\chemical.mod",
+          "nanos": 182000,
+          "micros": 182,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\md_cbi\\build.lab",
+          "nanos": 176500,
+          "micros": 176,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\webview\\chemical.mod",
+          "nanos": 158200,
+          "micros": 158,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\std\\chemical.mod",
+          "nanos": 148500,
+          "micros": 148,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\cstd\\chemical.mod",
+          "nanos": 134100,
+          "micros": 134,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\core\\chemical.mod",
+          "nanos": 130600,
+          "micros": 130,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\tls\\chemical.mod",
+          "nanos": 128500,
+          "micros": 128,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\atomic\\chemical.mod",
+          "nanos": 127700,
+          "micros": 127,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\process\\chemical.mod",
+          "nanos": 126200,
+          "micros": 126,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\fs\\chemical.mod",
+          "nanos": 122400,
+          "micros": 122,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\net\\chemical.mod",
+          "nanos": 121600,
+          "micros": 121,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\universal_webview\\chemical.mod",
+          "nanos": 119300,
+          "micros": 119,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\components\\chemical.mod",
+          "nanos": 118500,
+          "micros": 118,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\server\\chemical.mod",
+          "nanos": 117900,
+          "micros": 117,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\universal\\chemical.mod",
+          "nanos": 116800,
+          "micros": 116,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\tls\\build.lab",
+          "nanos": 116700,
+          "micros": 116,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\html_runtime\\chemical.mod",
+          "nanos": 114600,
+          "micros": 114,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\js\\chemical.mod",
+          "nanos": 112600,
+          "micros": 112,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\http\\chemical.mod",
+          "nanos": 110100,
+          "micros": 110,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\webview\\chemical.mod",
+          "nanos": 109600,
+          "micros": 109,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\css\\chemical.mod",
+          "nanos": 108200,
+          "micros": 108,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\universal\\chemical.mod",
+          "nanos": 107500,
+          "micros": 107,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\compiler\\chemical.mod",
+          "nanos": 106800,
+          "micros": 106,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\process\\chemical.mod",
+          "nanos": 106100,
+          "micros": 106,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\bcrypt\\chemical.mod",
+          "nanos": 102800,
+          "micros": 102,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\js_ide\\chemical.mod",
+          "nanos": 102400,
+          "micros": 102,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\js\\chemical.mod",
+          "nanos": 102200,
+          "micros": 102,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\async\\chemical.mod",
+          "nanos": 101500,
+          "micros": 101,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\md\\chemical.mod",
+          "nanos": 100900,
+          "micros": 100,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\universal_ide\\chemical.mod",
+          "nanos": 100700,
+          "micros": 100,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\test\\chemical.mod",
+          "nanos": 100500,
+          "micros": 100,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\environment\\chemical.mod",
+          "nanos": 100500,
+          "micros": 100,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\html\\chemical.mod",
+          "nanos": 100100,
+          "micros": 100,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\async\\chemical.mod",
+          "nanos": 99900,
+          "micros": 99,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\submod3\\chemical.mod",
+          "nanos": 99800,
+          "micros": 99,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\html_ide\\chemical.mod",
+          "nanos": 99500,
+          "micros": 99,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\tests\\compiler_plugins\\md\\chemical.mod",
+          "nanos": 98400,
+          "micros": 98,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\universal_test\\chemical.mod",
+          "nanos": 97800,
+          "micros": 97,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\md_ide\\chemical.mod",
+          "nanos": 97100,
+          "micros": 97,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\universal_parser\\chemical.mod",
+          "nanos": 96500,
+          "micros": 96,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\uuid\\chemical.mod",
+          "nanos": 96400,
+          "micros": 96,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\server\\chemical.mod",
+          "nanos": 96100,
+          "micros": 96,
+          "millis": 0,
+          "secs": 0
+        },
+        {
+          "tag": "SymRes:link_seq",
+          "name": "D:\\a\\chemical\\chemical\\lang\\libs\\html\\chemical.mod",
+          "nanos": 95300,
+          "micros": 95,
+          "millis": 0,
+          "secs": 0
+        }
+      ],
+      "tests": {
+        "status": "success",
+        "reason": null,
+        "total": 2205,
+        "passed": 2205,
+        "failed": 0,
+        "succeeded": 2205,
+        "duration_ms": 5136,
+        "complete": true,
+        "sequential": {
+          "total": 2205,
+          "passed": 2205,
+          "failed": 0
+        },
+        "runner": {
+          "total": 0,
+          "passed": 0,
+          "failed": 0
+        },
+        "failed_tests": [],
+        "crashed_tests": [],
+        "timed_out_tests": []
+      },
+      "tests_build_ms": 5109,
+      "tests_build_status": "success"
+    }
+  }
+}

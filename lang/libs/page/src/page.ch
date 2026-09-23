@@ -2385,7 +2385,7 @@ window.$__uni_dispose_deep = ((node) => {
         // this, a removed element kept a live subscription to a (parent-owned)
         // signal and was patched forever after -- a subscriber leak that grows
         // with every mount/unmount cycle.
-        if(el.$__uni_prop_subs_DISABLED) {
+        if(el.$__uni_prop_subs) {
             const subs = el.$__uni_prop_subs;
             el.$__uni_prop_subs = null;
             for(const pk in subs) { try { subs[pk](); } catch(err) {} }

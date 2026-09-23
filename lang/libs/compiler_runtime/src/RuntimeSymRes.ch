@@ -53,6 +53,8 @@ impl SymResLinkBody for JsRuntimeSymResLinkBody {
     }
     func visitNode(&self, node : *mut ASTNode) {
     }
+    func visitType(&self, type : *mut BaseType, location : ubigint) {
+    }
     func visitValue(&self, value : *mut Value) {
     }
     func visitEmbeddedNode(&self, node : *mut EmbeddedNode) {
@@ -119,6 +121,8 @@ impl SymbolResolver for JsRuntimeSymbolResolver {
         return ASTBuilder { allocator : null, typeBuilder : null }
     }
     func error(&self, msg : &std::string_view, loc : ubigint) {
+    }
+    func index_impl(&self, impl : *mut ImplDefinition) {
     }
 }
 

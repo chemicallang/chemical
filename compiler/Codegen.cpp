@@ -413,6 +413,12 @@ llvm::ConstantInt* Codegen::implicit_cast_constant(llvm::ConstantInt* value, Bas
 
     // Widen the integer.
     if (srcWidth < dstWidth) {
+        // an i1 is a bool and can only be 0 or 1, so it must be zero extended:
+        // sign extending `true` would produce -1
+        if(srcWidth == 1) {
+            const auto val = llvm::ConstantInt::get(toIntTy, value->getValue().zext(dstWidth));
+            return llvm::dyn_cast<llvm::ConstantInt>(val);
+        }
         const auto is_unsigned = to_type->kind() == BaseTypeKind::IntN && to_type->as_intn_type_unsafe()->is_unsigned();
         if(is_unsigned && !value->isNegative()) {
             const auto val = llvm::ConstantInt::get(toIntTy, value->getValue().zext(dstWidth));
@@ -1309,6 +1315,11 @@ llvm::Value *Codegen::implicit_cast(llvm::Value* value, BaseType* to_type, llvm:
         const auto fromIntTy = (llvm::IntegerType*) value_type;
         const auto toIntTy = (llvm::IntegerType*) exp_type;
         if(fromIntTy->getBitWidth() < toIntTy->getBitWidth()) {
+            // an i1 is a bool and can only be 0 or 1, so it must be zero
+            // extended: sign extending `true` would produce -1
+            if (fromIntTy->getBitWidth() == 1) {
+                return builder->CreateZExt(value, toIntTy);
+            }
             if (to_type->kind() == BaseTypeKind::IntN && to_type->as_intn_type_unsafe()->is_unsigned()) {
                 return builder->CreateZExt(value, toIntTy);
             } else {

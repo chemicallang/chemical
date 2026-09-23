@@ -24,43 +24,43 @@ func test_js_roundtrip(env : &mut TestEnv, input : &std::string_view) {
 }
 
 @test
-func test_js_parse_var_decl(env : &mut TestEnv) {
+public func test_js_parse_var_decl(env : &mut TestEnv) {
     var input = std::string_view("var x = 1 + 2;")
     test_js_roundtrip(env, &input)
 }
 
 @test
-func test_js_parse_function_decl(env : &mut TestEnv) {
+public func test_js_parse_function_decl(env : &mut TestEnv) {
     var input = std::string_view("function add(a, b){return a + b;}")
     test_js_roundtrip(env, &input)
 }
 
 @test
-func test_js_parse_if_else(env : &mut TestEnv) {
+public func test_js_parse_if_else(env : &mut TestEnv) {
     var input = std::string_view("if(x > 5){x = 1;} else {x = 2;}")
     test_js_roundtrip(env, &input)
 }
 
 @test
-func test_js_parse_for_loop(env : &mut TestEnv) {
+public func test_js_parse_for_loop(env : &mut TestEnv) {
     var input = std::string_view("for(var i = 0; i < 10; i++){total += i;}")
     test_js_roundtrip(env, &input)
 }
 
 @test
-func test_js_parse_arrow_func(env : &mut TestEnv) {
+public func test_js_parse_arrow_func(env : &mut TestEnv) {
     var input = std::string_view("const f = (a, b) => a * b;")
     test_js_roundtrip(env, &input)
 }
 
 @test
-func test_js_parse_object_literal(env : &mut TestEnv) {
+public func test_js_parse_object_literal(env : &mut TestEnv) {
     var input = std::string_view("var obj = { name: \"test\", value: 42 };")
     test_js_roundtrip(env, &input)
 }
 
 @test
-func test_js_parse_comment(env : &mut TestEnv) {
+public func test_js_parse_comment(env : &mut TestEnv) {
     var input = std::string_view("// hello\nvar x = 1;")
     var out = js::parse_js(input)
     // comments are not stored in the AST, so they are dropped by the converter
@@ -69,7 +69,7 @@ func test_js_parse_comment(env : &mut TestEnv) {
 }
 
 @test
-func test_js_tokenize(env : &mut TestEnv) {
+public func test_js_tokenize(env : &mut TestEnv) {
     var input = std::string_view("var x = 1;")
     var tokens = js::tokenize_js(input)
     if(tokens.size() == 0) {
@@ -79,7 +79,7 @@ func test_js_tokenize(env : &mut TestEnv) {
 }
 
 @test
-func test_js_parse_empty(env : &mut TestEnv) {
+public func test_js_parse_empty(env : &mut TestEnv) {
     var input = std::string_view("")
     var out = js::parse_js(input)
     if(!out.empty()) {

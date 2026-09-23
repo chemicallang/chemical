@@ -250,6 +250,17 @@ func (converter : &mut JsConverter) is_component_props_read(node : *mut JsNode) 
 }
 
 func (converter : &mut JsConverter) append_component_prop_value(node : *mut JsNode) {
+    // In a reactive position (hook dependency arrays, context publishes) the
+    // RAW prop access must be emitted, not `$__uni_value(props.x)`. A prop can
+    // carry a state/computed signal from the parent; unwrapping it here froze
+    // the dependency to its initial value, so a hook dep on a parent-controlled
+    // prop never re-ran when the parent's state changed.
+    if(converter.skip_reactive_deref) {
+        if(!append_js_node_text(node, &mut converter.str)) {
+            converter.convertJsNode(node);
+        }
+        return;
+    }
     converter.str.append_view("window.$__uni_value(");
     if(!append_js_node_text(node, &mut converter.str)) {
         converter.convertJsNode(node);

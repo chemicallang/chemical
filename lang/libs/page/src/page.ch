@@ -560,6 +560,11 @@ window.$_us = ((v) => {
             return val;
         },
         set value(n) {
+            // Bail out when the value is unchanged (Object.is-ish, like React).
+            // Without this a redundant write (e.g. `n = n` in an event handler)
+            // still notified every subscriber, recomputing dependent slots and
+            // rebuilding their DOM -- dropping focus/input state for no reason.
+            if(n === val) return;
             val = n;
             const snapshot = subs.slice();
             for(let i = 0; i < snapshot.length; i++) snapshot[i](val);
@@ -807,11 +812,41 @@ window.$_r = {
         const inst = window.$__uni_current_instance;
         if(!inst) return;
         if(!inst.layoutEffects) inst.layoutEffects = [];
-        inst.layoutEffects.push({ fn, deps, lastDeps: null, cleanup: null });
+        const eff = { fn, deps, lastDeps: null, cleanup: null, depUnsubs: [] };
+        inst.layoutEffects.push(eff);
+        // Like useEffect, subscribe to every state/computed in the deps array
+        // so a layout effect whose dependency is a PARENT-controlled prop signal
+        // still re-runs when the parent's state changes (the owning instance's
+        // own writes drain layout effects synchronously in the $_us setter, but
+        // a dependency owned by another instance has no such drain).
+        if(deps) {
+            for(let i = 0; i < deps.length; i++) {
+                const d = deps[i];
+                if(d && typeof d.subscribe === "function") {
+                    eff.depUnsubs.push(d.subscribe(() => {
+                        if(window.$__uni_batch_depth > 0) {
+                            if(!inst._pendingEffects) {
+                                inst._pendingEffects = true;
+                                window.$__uni_pending_instances.push(inst);
+                            }
+                        } else if(!inst._pendingEffects) {
+                            inst._pendingEffects = true;
+                            Promise.resolve().then(() => {
+                                inst._pendingEffects = false;
+                                if(inst.layoutEffects && inst.layoutEffects.length) window.$__uni_run_effects(inst, inst.layoutEffects);
+                                if(inst.effects && inst.effects.length) window.$__uni_run_effects(inst, inst.effects);
+                            });
+                        }
+                    }));
+                }
+            }
+        }
     },
     useState: (initial) => {
         const s = window.$_us(initial);
-        return [ s, (next) => { s.value = next; } ];
+        // React-style functional updater: `setN(v => v + 1)`. Without this the
+        // setter stored the function itself as the new state value.
+        return [ s, (next) => { s.value = (typeof next === "function") ? next(s.value) : next; } ];
     },
     useRef: (initial) => ({ current: initial }),
     useMemo: (fn, deps) => {
@@ -1120,12 +1155,17 @@ window.$__uni_boundary = ((id) => {
 })
 window.$__uni_is_active_editable = ((el) => !!(el && el.isContentEditable && document.activeElement === el))
 window.$__uni_assign_ref = ((el, refValue) => {
+    if(!el) return;
     if(refValue == null || refValue === false) return;
     if(typeof refValue === "function") {
+        // Remember the callback on the element so it can be invoked with null
+        // when the element is removed (React ref contract).
+        el.$__uni_ref_fn = refValue;
         refValue(el);
         return;
     }
     if(typeof refValue === "object" && "current" in refValue) {
+        el.$__uni_ref_obj = refValue;
         refValue.current = el;
     }
 })
@@ -1187,14 +1227,25 @@ window.$__uni_set_prop = ((el, key, value) => {
             el.style.cssText = v;
         } else if(typeof v === "object") {
             el.removeAttribute("style");
-            for(const sk in v) el.style[sk] = window.$__uni_value(v[sk]);
+            for(const sk in v) {
+                const sv = window.$__uni_value(v[sk]);
+                if(sv == null || sv === false) continue;
+                // CSS custom properties (`--foo`) are not camelCase JS style
+                // properties: `el.style["--foo"] = v` is a silent no-op. They
+                // must be set through setProperty (and keep their `--` name).
+                if(sk.charCodeAt(0) === 45 /* '-' */) el.style.setProperty(sk, "" + sv);
+                else el.style[sk] = sv;
+            }
         } else {
             window.$__uni_error("invalid style value", typeof v + " on <" + el.tagName.toLowerCase() + ">");
         }
         return;
     }
     if(key.length > 2 && key[0] === "o" && key[1] === "n") {
-        const eventName = key.substring(2).toLowerCase();
+        let eventName = key.substring(2).toLowerCase();
+        // React's `onDoubleClick` maps to the DOM `dblclick` event; lowercasing
+        // the prop name produces "doubleclick", which never fires.
+        if(eventName === "doubleclick") eventName = "dblclick";
         if(!el.$__uni_events) el.$__uni_events = {};
         const prev = el.$__uni_events[eventName];
         if(prev) el.removeEventListener(eventName, prev);
@@ -1736,6 +1787,13 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
                 const props = stateVal.p || {};
                 for(const k in props) window.$__uni_apply_prop(dom, k, props[k]);
                 if(stateVal.c && stateVal.c.length) window.$__uni_hydrate_children(dom, stateVal.c);
+                // An element rendered through a reactive slot needs the same ref
+                // handling as the generic element branch, otherwise a `ref`
+                // callback on such an element is never invoked at hydration.
+                if(dom.$__uni_ref !== undefined) {
+                    window.$__uni_assign_ref(dom, dom.$__uni_ref);
+                    delete dom.$__uni_ref;
+                }
                 after = dom.nextSibling;
             }
             if(after === undefined) after = dom.nextSibling;
@@ -2189,6 +2247,18 @@ window.$__uni_dispose_deep = ((node) => {
         if(observed) {
             const inst = observed.get(el);
             if(inst) { window.$__uni_dispose(inst); observed.delete(el); }
+        }
+        // Release refs held by removed elements: a callback ref is invoked with
+        // null (and an object ref's `.current` cleared), matching React.
+        if(el.$__uni_ref_fn) {
+            const refFn = el.$__uni_ref_fn;
+            delete el.$__uni_ref_fn;
+            try { refFn(null); } catch(err) { console.error("[universal] ref callback failed on unmount:", err); }
+        }
+        if(el.$__uni_ref_obj) {
+            const refObj = el.$__uni_ref_obj;
+            delete el.$__uni_ref_obj;
+            try { refObj.current = null; } catch(err) {}
         }
         for(let c = el.firstChild; c; c = c.nextSibling) {
             if(c.nodeType === 1) walk(c);

@@ -109,6 +109,10 @@ public:
 
     void external_declare_top_level(Codegen &gen);
 
+    void code_gen_declare(Codegen &gen) final;
+
+    void code_gen_external_declare(Codegen &gen) final;
+
 #endif
 
 };

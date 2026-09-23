@@ -368,7 +368,12 @@ public func styled_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut A
         builder : builder,
         support : &raw mut root.cssom.support,
         vec : body,
-        parent : value.getParent(),
+        // generated statements belong to the SSR function, not the styled
+        // declaration site (which is a FileScope at top level). Using the
+        // declaration site would make the generated css hash `if` statements
+        // look top-level, so the LLVM backend would try to resolve them at
+        // comptime instead of emitting them.
+        parent : funcNode,
         str : std::string()
     }
     converter.convertCSSOM(root.cssom, value.getEncodedLocation());

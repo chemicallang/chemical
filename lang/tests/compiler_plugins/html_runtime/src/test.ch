@@ -24,19 +24,19 @@ func test_html_roundtrip(env : &mut TestEnv, input : &std::string_view) {
 }
 
 @test
-func test_html_parse_simple_div(env : &mut TestEnv) {
+public func test_html_parse_simple_div(env : &mut TestEnv) {
     var input = std::string_view("<div class=\"test\">Hello <b>world</b></div>")
     test_html_roundtrip(env, &input)
 }
 
 @test
-func test_html_parse_paragraph(env : &mut TestEnv) {
+public func test_html_parse_paragraph(env : &mut TestEnv) {
     var input = std::string_view("<p>Simple text</p>")
     test_html_roundtrip(env, &input)
 }
 
 @test
-func test_html_parse_self_closing(env : &mut TestEnv) {
+public func test_html_parse_self_closing(env : &mut TestEnv) {
     var input = std::string_view("<img src=\"a.png\" alt=\"pic\" />")
     var out = html::parse_html(input)
     var expected = std::string_view("<img src=\"a.png\" alt=\"pic\"/>")
@@ -44,13 +44,13 @@ func test_html_parse_self_closing(env : &mut TestEnv) {
 }
 
 @test
-func test_html_parse_nested_list(env : &mut TestEnv) {
+public func test_html_parse_nested_list(env : &mut TestEnv) {
     var input = std::string_view("<ul><li>one</li><li>two</li></ul>")
     test_html_roundtrip(env, &input)
 }
 
 @test
-func test_html_parse_void_br(env : &mut TestEnv) {
+public func test_html_parse_void_br(env : &mut TestEnv) {
     var input = std::string_view("<br>")
     var out = html::parse_html(input)
     var expected = std::string_view("<br/>")
@@ -58,13 +58,13 @@ func test_html_parse_void_br(env : &mut TestEnv) {
 }
 
 @test
-func test_html_parse_comment(env : &mut TestEnv) {
+public func test_html_parse_comment(env : &mut TestEnv) {
     var input = std::string_view("<!-- a comment --><span>after</span>")
     test_html_roundtrip(env, &input)
 }
 
 @test
-func test_html_parse_single_quoted_attr(env : &mut TestEnv) {
+public func test_html_parse_single_quoted_attr(env : &mut TestEnv) {
     var input = std::string_view("<a href='https://x.com'>link</a>")
     var out = html::parse_html(input)
     var expected = std::string_view("<a href=\"https://x.com\">link</a>")
@@ -72,7 +72,7 @@ func test_html_parse_single_quoted_attr(env : &mut TestEnv) {
 }
 
 @test
-func test_html_tokenize(env : &mut TestEnv) {
+public func test_html_tokenize(env : &mut TestEnv) {
     var input = std::string_view("<div>hi</div>")
     var tokens = html::tokenize_html(input)
     if(tokens.size() == 0) {
@@ -82,7 +82,7 @@ func test_html_tokenize(env : &mut TestEnv) {
 }
 
 @test
-func test_html_parse_root_api(env : &mut TestEnv) {
+public func test_html_parse_root_api(env : &mut TestEnv) {
     var input = std::string_view("<span>x</span>")
     var allocator = ASTAllocator.make()
     var root = html::parse_html_root(input, &raw mut allocator)
@@ -97,7 +97,7 @@ func test_html_parse_root_api(env : &mut TestEnv) {
 }
 
 @test
-func test_html_parse_empty(env : &mut TestEnv) {
+public func test_html_parse_empty(env : &mut TestEnv) {
     var input = std::string_view("")
     var out = html::parse_html(input)
     if(!out.empty()) {
@@ -106,37 +106,37 @@ func test_html_parse_empty(env : &mut TestEnv) {
 }
 
 @test
-func test_html_text_starting_with_slash(env : &mut TestEnv) {
+public func test_html_text_starting_with_slash(env : &mut TestEnv) {
     var input = std::string_view("<p>/etc/ld.so.cache</p>")
     test_html_roundtrip(env, &input)
 }
 
 @test
-func test_html_text_starting_with_slash_in_li(env : &mut TestEnv) {
+public func test_html_text_starting_with_slash_in_li(env : &mut TestEnv) {
     var input = std::string_view("<li>/lib and /usr/lib: default paths</li>")
     test_html_roundtrip(env, &input)
 }
 
 @test
-func test_html_text_starting_with_gt(env : &mut TestEnv) {
+public func test_html_text_starting_with_gt(env : &mut TestEnv) {
     var input = std::string_view("<p>> is a comparison operator</p>")
     test_html_roundtrip(env, &input)
 }
 
 @test
-func test_html_text_with_slash_and_gt(env : &mut TestEnv) {
+public func test_html_text_with_slash_and_gt(env : &mut TestEnv) {
     var input = std::string_view("<p>/path/to/file > other</p>")
     test_html_roundtrip(env, &input)
 }
 
 @test
-func test_html_text_with_multiple_slashes(env : &mut TestEnv) {
+public func test_html_text_with_multiple_slashes(env : &mut TestEnv) {
     var input = std::string_view("<p>/a /b /c</p>")
     test_html_roundtrip(env, &input)
 }
 
 @test
-func test_html_text_with_gt_between_tags(env : &mut TestEnv) {
+public func test_html_text_with_gt_between_tags(env : &mut TestEnv) {
     var input = std::string_view("<b>bold</b> &gt; <i>italic</i>")
     var out = html::parse_html(input)
     var expected = std::string_view("<b>bold</b> &gt; <i>italic</i>")
@@ -144,7 +144,7 @@ func test_html_text_with_gt_between_tags(env : &mut TestEnv) {
 }
 
 @test
-func test_html_preserves_path_content(env : &mut TestEnv) {
+public func test_html_preserves_path_content(env : &mut TestEnv) {
     var input = std::string_view("<td>/usr/lib/x86_64-linux-gnu/libc.so.6</td>")
     var out = html::parse_html(input)
     var expected = std::string_view("<td>/usr/lib/x86_64-linux-gnu/libc.so.6</td>")

@@ -61,6 +61,10 @@ impl Parser for RuntimeParser {
         return null
     }
 
+    func parseType(&self, builder : *mut ASTBuilder) : *mut BaseType {
+        return null
+    }
+
     func error_at(&self, msg : std::string_view, token : *mut Token) {
     }
 

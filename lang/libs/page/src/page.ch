@@ -602,7 +602,11 @@ window.$_us = ((v) => {
             if(n === val) return;
             val = n;
             const snapshot = subs.slice();
-            for(let i = 0; i < snapshot.length; i++) snapshot[i](val);
+            // Isolate subscribers: one throwing computed must not stop the rest
+            // of the graph from updating.
+            for(let i = 0; i < snapshot.length; i++) {
+                try { snapshot[i](val); } catch(err) { console.error("[universal] signal subscriber failed:", err); }
+            }
             // Layout effects run synchronously before paint (like React useLayoutEffect)
             if(_inst && _inst.layoutEffects && _inst.layoutEffects.length) {
                 window.$__uni_run_effects(_inst, _inst.layoutEffects);
@@ -646,7 +650,9 @@ window.$_ucs = ((fn) => {
     let children = [];
     const emit = () => {
         const snapshot = subs.slice();
-        for(let i = 0; i < snapshot.length; i++) snapshot[i](cached);
+        for(let i = 0; i < snapshot.length; i++) {
+            try { snapshot[i](cached); } catch(err) { console.error("[universal] computed subscriber failed:", err); }
+        }
     };
     const dispose = () => {
         for(let i = 0; i < depUnsubs.length; i++) depUnsubs[i]();
@@ -672,12 +678,18 @@ window.$_ucs = ((fn) => {
                 if(child && children.indexOf(child) < 0) children.push(child);
             }
         });
-        // try/finally: a computed body can throw (e.g. reading a property of
-        // undefined). Without the finally the pushed context frame leaked, so
-        // every later context restore was off by one and the render stack grew.
+        // A computed body can throw (e.g. reading a property of undefined). The
+        // context frame must be unwound, AND the deps collected so far must
+        // still be re-subscribed -- otherwise the computed goes permanently dead
+        // after one bad update and never reacts again. The error is re-thrown
+        // afterwards so the failure is reported (the signal/emit subscriber
+        // loops isolate it so the rest of the graph still updates).
         let next;
+        let err = null;
         try {
             next = fn();
+        } catch(e) {
+            err = e;
         } finally {
             window.$__uni_pop_ctx();
         }
@@ -687,6 +699,7 @@ window.$_ucs = ((fn) => {
                 depUnsubs.push(dep.subscribe(() => recompute()));
             }
         }
+        if(err) throw err;
         // Only notify when the value actually changed. Without this a computed
         // that recomputes to the same value (e.g. a derived string like a note's
         // type) still notified its subscribers, so a `{cond ? A : B}` reactive
@@ -1356,6 +1369,17 @@ window.$__uni_set_prop = ((el, key, value) => {
     }
     el.setAttribute(key, "" + v);
 })
+// A <select>'s `value` is resolved against its <option> children, so a value
+// applied before the options exist is silently lost (and appending the options
+// afterwards does not re-apply it). Re-apply it once the children are in place.
+// This only matters for client-rendered selects; SSR/hydration already has the
+// options present.
+window.$__uni_fix_select_value = ((el, props) => {
+    if(!el || !props || props.value === undefined) return;
+    if(el.tagName && ("" + el.tagName).toUpperCase() === "SELECT") {
+        window.$__uni_set_prop(el, "value", props.value);
+    }
+})
 window.$__uni_apply_prop = ((el, key, value) => {
     window.$__uni_set_prop(el, key, value);
     if(!el) return;
@@ -1511,6 +1535,7 @@ window.$__uni_patch_node = ((dom, oldV, newV) => {
         const props = newV.p || {};
         for(const k in props) window.$__uni_apply_prop(dom, k, props[k]);
         window.$__uni_patch_children(dom, oldV ? oldV.c : null, newV.c || []);
+        window.$__uni_fix_select_value(dom, props);
         if(dom.$__uni_ref !== undefined) {
             window.$__uni_assign_ref(dom, dom.$__uni_ref);
             delete dom.$__uni_ref;
@@ -1774,6 +1799,7 @@ window.$_urn = ((v, parentNs) => {
         for(const k in props) window.$__uni_apply_prop(e, k, props[k]);
         const children = v.c || [];
         for(let i = 0; i < children.length; i++) e.appendChild(window.$_urn(children[i], ns));
+        window.$__uni_fix_select_value(e, props);
         if(e.$__uni_ref !== undefined) {
             window.$__uni_assign_ref(e, e.$__uni_ref);
             delete e.$__uni_ref;
@@ -2121,6 +2147,7 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
         if(v.c && v.c.length) {
             window.$__uni_hydrate_children(e, v.c);
         }
+        window.$__uni_fix_select_value(e, props);
         if(e.$__uni_ref !== undefined) {
             window.$__uni_assign_ref(e, e.$__uni_ref);
             delete e.$__uni_ref;
@@ -2340,6 +2367,13 @@ window.$__uni_dispose = ((inst) => {
         }
         inst._resources = [];
     }
+    // Drop the cleanup-observer registration (keyed on the tracked host, which
+    // may be a detached container the MutationObserver can never see).
+    if(inst._has_tracked && window.$__uni_cleanup_observer) {
+        window.$__uni_cleanup_observer.observed.delete(inst._tracked_el);
+    }
+    inst._has_tracked = false;
+    inst._tracked_el = null;
     // Remove from parent
     if(inst.parent && inst.parent.children) {
         const idx = inst.parent.children.indexOf(inst);
@@ -2429,9 +2463,15 @@ window.$__uni_cleanup_observer = (() => {
     return { observer, observed };
 })()
 window.$__uni_track_instance = ((host, inst) => {
-    if(window.$__uni_cleanup_observer) {
+    // A component with no element in its mount container (portal/fragment-only
+    // root) leaves `trackedEl` null; never key the observer map on null.
+    if(host && window.$__uni_cleanup_observer) {
         window.$__uni_cleanup_observer.observed.set(host, inst);
     }
+    // Record which host keyed this instance so disposal can drop it even when
+    // the host never entered the document (the observer then never sees a
+    // removal and the map entry would leak).
+    if(inst) { inst._tracked_el = host; inst._has_tracked = true; }
 })
 window.$_uc = ((factory, props) => {
     if(typeof factory !== "function") {

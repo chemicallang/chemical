@@ -1109,6 +1109,141 @@
     </script>
 }
 
+// ===========================================================================
+// Probe 37: a client-rendered <select> must apply `value` AFTER its <option>
+// children exist. $_urn applied props first, so setting value on an option-less
+// select was lost and the appended options never re-applied it.
+// ===========================================================================
+
+#universal ProbeSelectFresh(props) {
+    state v = "b"
+    state show = false
+    return <div data-testid="psl">
+        <button data-testid="psl-toggle" onClick={() => show = !show}>t</button>
+        {show ? <select data-testid="psl-sel" value={v}>
+            <option value="a">A</option>
+            <option value="b">B</option>
+        </select> : null}
+    </div>
+}
+
+#universal_test("probe: fresh select applies value after its options exist") {
+    <ProbeSelectFresh />
+    <script>
+        byTestId('psl-toggle').click()
+        expect(byTestId('psl-sel').value()).toBe('b')
+    </script>
+}
+
+// ===========================================================================
+// Probe 38: replacing a list item (patch_node rebuild path) must dispose the
+// old component instance so its effect cleanups run.
+// ===========================================================================
+
+#universal ProbeSwapItemA(props) {
+    useEffect(() => {
+        window.__psaA = (window.__psaA || 0) + 1
+        return () => { window.__psaAC = (window.__psaAC || 0) + 1 }
+    }, [])
+    return <li data-testid={props.tid}>A</li>
+}
+
+#universal ProbeSwapItemB(props) {
+    useEffect(() => {
+        window.__psaB = (window.__psaB || 0) + 1
+        return () => { window.__psaBC = (window.__psaBC || 0) + 1 }
+    }, [])
+    return <li data-testid={props.tid}>B</li>
+}
+
+#universal ProbeSwapHost(props) {
+    state alt = false
+    var items = ["x", "y"]
+    return <ul data-testid="psa">
+        <button data-testid="psa-btn" onClick={() => alt = !alt}>t</button>
+        {items.map((it) => alt ? <ProbeSwapItemB tid={"psa-" + it} /> : <ProbeSwapItemA tid={"psa-" + it} />)}
+    </ul>
+}
+
+#universal_test("probe: replacing a list item disposes the old instance", isolate) {
+    <ProbeSwapHost />
+    <script>
+        await t.sleep(30)
+        expect(window.__psaA).toBeGreaterThanOrEqual(2)
+        expect(byTestId('psa-x').text()).toBe('A')
+        const cleanupsBefore = window.__psaAC || 0
+        const observed = window.$__uni_cleanup_observer.observed
+        const base = observed.size
+        byTestId('psa-btn').click()
+        await t.sleep(40)
+        expect(byTestId('psa-x').text()).toBe('B')
+        expect(window.__psaB).toBeGreaterThanOrEqual(2)
+        expect(window.__psaAC || 0).toBe(cleanupsBefore + 2)
+        expect(observed.size).toBeLessThanOrEqual(base)
+    </script>
+}
+
+// ===========================================================================
+// Probe 39: a component whose root is a portal renders no element into the
+// mount container. The observer map then keys on that detached container, so
+// disposal must remove the entry or it leaks once per mount.
+// ===========================================================================
+
+#universal LeakDetachedRoot(props) {
+    return createPortal(<span data-testid="ldr-p">p</span>, {})
+}
+
+#universal LeakDetachedHost(props) {
+    state on = false
+    return <div data-testid="ldr-h">
+        <button data-testid="ldr-btn" onClick={() => on = !on}>t</button>
+        {on ? <LeakDetachedRoot /> : null}
+    </div>
+}
+
+#universal_test("leak: portal-root component does not leak observer-map entries", isolate) {
+    <LeakDetachedHost />
+    <script>
+        const observed = window.$__uni_cleanup_observer.observed
+        const base = observed.size
+        for(let i = 0; i < 10; i++) {
+            byTestId('ldr-btn').click()
+            byTestId('ldr-btn').click()
+        }
+        await t.sleep(40)
+        expect(document.querySelectorAll('[data-testid=ldr-p]').length).toBe(0)
+        expect(observed.size).toBeLessThanOrEqual(base)
+    </script>
+}
+
+// ===========================================================================
+// Probe 40: a computed that throws once must stay subscribed to its deps so a
+// later valid update recovers. recompute() skipped the subscribe loop when the
+// body threw, leaving the computed permanently dead.
+// ===========================================================================
+
+#universal ProbeComputeRecover(props) {
+    state arr = ["a"]
+    return <div data-testid="pcr">
+        <button data-testid="pcr-empty" onClick={() => arr = []}>e</button>
+        <button data-testid="pcr-restore" onClick={() => arr = ["b"]}>r</button>
+        <span data-testid="pcr-out">{arr[0].toUpperCase()}</span>
+    </div>
+}
+
+#universal_test("probe: computed recovers after a throwing update", isolate) {
+    <ProbeComputeRecover />
+    <script>
+        expect(byTestId('pcr-out').text()).toBe('A')
+        byTestId('pcr-empty').click()
+        await t.sleep(20)
+        expect(byTestId('pcr-out').text()).toBe('A')
+        byTestId('pcr-restore').click()
+        await t.sleep(20)
+        expect(byTestId('pcr-out').text()).toBe('B')
+    </script>
+}
+
 #universal_test("leak: a throwing computed leaves the render context stack clean", isolate) {
     <LeakCompute />
     <script>

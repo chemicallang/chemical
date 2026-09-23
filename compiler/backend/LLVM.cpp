@@ -1038,6 +1038,12 @@ llvm::Value *CastedValue::llvm_value(Codegen &gen, BaseType* expected_type) {
         const auto instr = gen.builder->CreateIntToPtr(llvm_val, pure_type->llvm_type(gen));
         return instr;
     }
+    if(value_type->kind() == BaseTypeKind::Bool && pure_type->kind() == BaseTypeKind::IntN) {
+        // bool to integer cast: bool is i1, so zero extend it. sign extending
+        // `true` would produce -1.
+        auto to_num_type = (IntNType*) pure_type;
+        return gen.builder->CreateZExt(llvm_val, to_num_type->llvm_type(gen));
+    }
     if(value_type->kind() == BaseTypeKind::IntN && pure_type->kind() == BaseTypeKind::IntN) {
         // integer to integer cast
         auto from_num_type = (IntNType*) value_type;

@@ -35,13 +35,15 @@ void perform_implicit_cast_on_integers(IntNType* fIntN, IntNType* secIntN, llvm:
     const auto lhsType = (llvm::IntegerType*) lhs->getType();
     const auto rhsType = (llvm::IntegerType*) rhs->getType();
     if(lhsType->getBitWidth() < rhsType->getBitWidth()) {
-        if(fIntN->is_unsigned()) {
+        // an i1 is a bool and can only be 0 or 1, so it must be zero extended:
+        // sign extending `true` would produce -1
+        if(lhsType->getBitWidth() == 1 || fIntN->is_unsigned()) {
             lhs = gen.builder->CreateZExt(lhs, rhsType);
         } else {
             lhs = gen.builder->CreateSExt(lhs, rhsType);
         }
     } else if(lhsType->getBitWidth() > rhsType->getBitWidth()) {
-        if(secIntN->is_unsigned()) {
+        if(rhsType->getBitWidth() == 1 || secIntN->is_unsigned()) {
             rhs = gen.builder->CreateZExt(rhs, lhsType);
         } else {
             rhs = gen.builder->CreateSExt(rhs, lhsType);

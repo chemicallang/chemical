@@ -105,3 +105,64 @@ func test_casts() {
         return (p as long) == -1L;
     })
 }
+
+// ---------------------------------------------------------------------------
+// bool -> integer widening
+//
+// A `bool` is an i1 and can only be 0 or 1, so widening it to an integer must
+// zero extend. Sign extending `true` produces -1. These casts are explicit, but
+// the result still flows through the implicit cast at the return / assignment,
+// which is where the LLVM backend used to emit `sext i1`.
+// ---------------------------------------------------------------------------
+
+func bool_cast_to_int(value : bool) : int {
+    return value as int
+}
+
+func bool_cast_to_long(value : bool) : long {
+    return value as long
+}
+
+func bool_cast_to_bigint(value : bool) : bigint {
+    return value as bigint
+}
+
+func bool_cast_to_short(value : bool) : short {
+    return value as short
+}
+
+func bool_cast_to_uint(value : bool) : uint {
+    return value as uint
+}
+
+func test_bool_casts() {
+    test("true cast to int is 1", () => {
+        return (true as int) == 1
+    })
+    test("false cast to int is 0", () => {
+        return (false as int) == 0
+    })
+    test("true returned as int is 1", () => {
+        return bool_cast_to_int(true) == 1
+    })
+    test("true returned as long is 1 (no sign extension)", () => {
+        return bool_cast_to_long(true) == 1L
+    })
+    test("true returned as bigint is 1 (no sign extension)", () => {
+        return bool_cast_to_bigint(true) == 1
+    })
+    test("true returned as short is 1 (no sign extension)", () => {
+        return bool_cast_to_short(true) == 1
+    })
+    test("true returned as uint is 1", () => {
+        return bool_cast_to_uint(true) == 1u
+    })
+    test("false returned as long is 0", () => {
+        return bool_cast_to_long(false) == 0L
+    })
+    test("bool widened by assignment is 1", () => {
+        var b : bool = true
+        var widened : long = b as long
+        return widened == 1L
+    })
+}

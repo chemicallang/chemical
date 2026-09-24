@@ -1455,6 +1455,9 @@ void perform_cast_for_interface_pass(ToCAstVisitor& visitor, FunctionType* func_
     }
 }
 
+// defined later in this translation unit (near the arg destruction deps)
+static FunctionCall* get_last_call(Value* value);
+
 void func_call_single_arg(
         ToCAstVisitor& visitor,
         BaseType* non_canon_param_type,
@@ -1517,6 +1520,36 @@ void func_call_single_arg(
     bool accept_value = true;
     auto valTypeNonCanon = val->getType();
     const auto valType = valTypeNonCanon->canonical();
+
+    // A destruction dependency for this argument allocated a temp (keyed on the
+    // inner call) so it can be destructed after the call. Materialize the value
+    // into that exact temp and pass its address, so the temp that is built and
+    // the temp the destructor targets are the same stack slot. Otherwise the
+    // argument's temporary is never destructed and a stray, uninitialized slot
+    // is deleted instead (double free / corruption). This only applies to a
+    // struct-returning call reached through an access chain (the value is a
+    // temporary, not an lvalue/pointer), which is exactly the case the
+    // destruction dependency was created for.
+    if(is_param_type_ref && !is_lambda_conversion && !val->is_ptr_or_ref(visitor.allocator)
+       && !isStructLikeTypeDecl && !is_memcpy_ref_str
+       && val->kind() == ValueKind::AccessChain) {
+        const auto dep_key = get_last_call(val);
+        const auto dep_found = dep_key != nullptr ? visitor.local_allocated.find(dep_key) : visitor.local_allocated.end();
+        if(dep_found != visitor.local_allocated.end()) {
+            // The temp is already declared by write_alloc_vars_for_deps, so this
+            // just assigns into it (no re-declaration) and hands out its address.
+            const auto& dep_name = dep_found->second;
+            visitor.write("({ ");
+            visitor.write_str(dep_name);
+            visitor.write(" = ");
+            visitor.accept_mutating_value_explicit(param_type->as_reference_type_unsafe()->type, val);
+            visitor.write("; &");
+            visitor.write_str(dep_name);
+            visitor.write("; })");
+            return;
+        }
+    }
+
     if(isStructLikeTypePtr && !is_memcpy_ref_str) {
         visitor.write('&');
     } else if(is_param_type_ref && !is_lambda_conversion && !val->is_ptr_or_ref(visitor.allocator)) {

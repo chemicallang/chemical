@@ -237,6 +237,11 @@ window.$__uni_route_visible = ((route, visible) => {
 });
 ```
 
+> **This block is an excerpt, not the emitted source.** The normative, complete
+> runtime is §15.2; it additionally contains the decode/query/title helpers, the
+> `rawUrl` handling, the remote two-step and the URL layer, and it is the copy that
+> gets emitted. Any change lands in §15.2 first.
+
 **Five corrections to the earlier draft of this function, each verified against
 `lang/libs/page/src/page.ch`:**
 
@@ -294,8 +299,12 @@ express both without making every param change re-render every link.
 `"true"` and `"false"`; pageCss carries one rule, appended once:
 
 ```css
-[data-uni-route][data-uni-route-active="false"] { display: none !important; }
+.chx-route[data-uni-route-active="false"] { display: none !important; }
 ```
+
+(The `.chx-route` class is part of the selector, per §12.6 — a bare attribute
+selector is beaten by any user `element`+`!important` rule, and the wrapper always
+carries the router-owned class. §2.3/template 4 emit it.)
 
 **Why an attribute + CSS rule and not `el.style.display = "none"` (pre-mortem,
 §12.3):** the runtime's reactive `style` *object* support writes `cssText` — a
@@ -333,17 +342,17 @@ Each route emits a two-line stub into the page JS (component-definitions section
 
 ```js
 // server renders:
-// <div class="chx-route" data-uni-route="main-router#projects"
-//      data-uni-route-active="false">
+// <div class="chx-route" id="r17" data-uni-route="main-router#projects"
+//      data-uni-route-active="false" tabindex="-1">
 //   <span data-chx-i id="u17">…SSR of <Projects/>…</span>
 // </div>
-(function(){
-    const el = document.querySelector('[data-uni-route="main-router#projects"]');
-    const host = window.$__uni_boundary("u17");      // existing boundary resolver
-    window.$__uni_routers["main-router"].routes["projects"] =
-        { el: el, host: host, comp: Projects, props: {},
-          hydrated: false, visible: false, ssr: true, url: null, inst: null };
-})();
+window.$__uni_route_register("main-router", "projects", {
+    key: "main-router#projects", id: "projects", comp: Projects, baseProps: {},
+    wrapperId: "r17", hostId: "u17",                     // both source-location ids
+    remote: false, isUrl: false, fetchUrl: null,
+    noscroll: false, title: null,
+    beforeActivate: null, onActivate: null, onDeactivate: null
+});
 ```
 
 Points that make this correct:
@@ -352,8 +361,10 @@ Points that make this correct:
   `$__uni_boundary(id)` mechanism (element id, or comment marker for table
   contexts). No repeated attribute scanning; the id is known at compile time.
   `el` is the wrapper the router owns for hide/show — resolved once at bootstrap
-  by its `data-uni-route` attribute (a single `querySelector` per route, at
-  bootstrap only, never in the activation path).
+  by its own id (`getElementById(spec.wrapperId)`), **not** by a constructed
+  `[data-uni-route="…"]` attribute selector: a URL pattern is user text and can
+  contain characters a CSS selector would require escaping (§15.9-Q32). One
+  `getElementById` per route, at bootstrap only, never in the activation path.
 - The wrapper must contain a **real `[data-chx-i]` boundary span** around the SSR
   body (not bare markup) so the host is an element with no leading-text hazard,
   and so the route mount is byte-for-byte the same hydration path a normal
@@ -379,10 +390,11 @@ Points that make this correct:
 
 The route body is server-rendered inside a wrapper that is hidden by attribute:
 
-- The wrapper carries three router-owned attributes/classes and nothing else:
-  `class="chx-route"`, `data-uni-route="name#id"`, `data-uni-route-active`. The
-  route's own markup lives inside the boundary span, never on the wrapper, so no
-  user/component prop can clobber the router's attributes.
+- The wrapper carries only router-owned attributes and nothing else: `id="rN"`
+  (source-location id, used by registration), `class="chx-route"` (the hide rule's
+  hook), `data-uni-route="name#id"`, `data-uni-route-active`, and `tabindex="-1"`
+  (focus target). The route's own markup lives inside the boundary span, never on
+  the wrapper, so no user/component prop can clobber the router's attributes.
 - The wrapper is **not** the mount host; the `[data-chx-i]` span inside it is
   (§2.1 note 2). The wrapper remains in the document for the lifetime of the
   page and is only ever attribute-toggled.
@@ -762,9 +774,15 @@ diagnostic if the name is not declared on the page (§4.4). The handle's methods
 | `deactivate()` | hide current, keep state; `current = null` |
 | `isActive(id)` | bool; also available **reactively** (§5.4) for JSX bindings |
 | `preload(id)` | hydrate without showing (§5.1 `preload` keyword does this at load) |
+| `release(id)` | dispose an **inactive** route's instance and drop its DOM, re-arming it for a fresh mount (§13.3.1) |
 | `current()` | active id or `null` |
+| `currentUrl()` | active normalized path or `null` (URL routes) |
+| `currentRoute` | the active route record — a **field**, not a method (D-7.9) |
+| `replaceRouteByUrl(path)` | `activateRouteByUrl` with `replaceState` (§6.7 redirects) |
+| `normPath(href)` | the router's own path normalization, for comparing a `href` with `$url.value` in JSX (§6.6) |
 | `buildPath(id, params)` | URL routes: reverse-map the emitted match table to a path string (§6.6) |
 | `query()` | URL routes: parsed query params of the current URL (§6.5) |
+| `setQuery(obj)` | URL routes: replace the query string, no navigation, no scroll reset (§6.5) |
 
 The ideation's `router.activateRoute(Projects)` (component-as-id) is intentionally
 **not** the surface: components are not unique per route (two routes may render the
@@ -833,7 +851,7 @@ writes `null` to both.
     // id routes read $current; URL routes read $url (param-aware, D-7.8)
     const active = props.id
         ? r.$current.value == props.id
-        : r.$url.value == props.href
+        : r.$url.value == r.normPath(props.href)   // same rule the matcher uses
     <a class={active ? "active" : ""} aria-current={active ? "page" : null} ... />
 }
 ```
@@ -1192,7 +1210,7 @@ param is a compile diagnostic when literal, a runtime error when dynamic).
     // routes subscribe to $url, id routes to $current)
     const active = props.routeId
         ? r.$current.value == props.routeId
-        : r.$url.value == props.href
+        : r.$url.value == r.normPath(props.href)   // tolerant of base/query/slash
     <a href={props.href}
        aria-current={active ? "page" : null}
        onPointerEnter={() => { if(props.preload) { r.preload(props.routeId) } }}
@@ -1326,8 +1344,8 @@ The performance budget exists to keep us honest, not to lead the design.
 
 Measured budgets (CI gates, following the professionalization plan's policy):
 navigate-to-hydrated-route ≤ 1ms for a 100-node route; 1000 alternating activations
-between two hydrated routes ≤ 50ms; router runtime ≤ 15KB unminified (≤ 4KB
-gzipped) for a URL-routing page, ≤ 9KB/≤ 2.5KB for an id-only router, both
+between two hydrated routes ≤ 50ms; router runtime ≤ 17KB unminified (≤ 4.5KB
+gzipped) for a URL-routing page, ≤ 11KB/≤ 3KB for an id-only router, both
 **measured** in §15.2 — the earlier 2KB/"~40 lines" estimate was wrong by ~7×
 because it ignored the URL layer, the remote path, focus/scroll and the method
 table (§15.9-Q12); zero hydration of non-preloaded
@@ -1920,14 +1938,17 @@ Beyond the corrected matching flow (§6.1) and the response-mode split (§6.3.1)
    (one property check, no polyfill needed — the property is absent where
    unsupported, and the check short-circuits). Actual navigation still fetches;
    only the *speculative* request is suppressed.
-5. **Route props are serialized, so params must be escaped.** §6.4 merges `{id}`
-   into the record's props before mounting; those values become part of the
-   generated JavaScript props object and are subject to the AGENTS.md
-   single-quote/backslash escaping contract. The client matcher must run
-   `js_string_escape` on every param before it enters props (the server path is
-   already escaped at SSR). A param like `he's` otherwise produces a syntax error
-   in the emitted props object, and a param containing `\` produces a wrong value.
-   This is a one-line rule with a real injection-adjacent failure mode.
+5. **Params reach the component as *runtime values*, not as source text — and the
+   escaping rule belongs to whoever emits source.** A client-side match produces a
+   JS string in memory (`params.name = "he's"`), so it needs **no** JS-string
+   escaping: there is no parser between it and the prop. Escaping is required on
+   the *server* path, where param values are interpolated into the generated props
+   object as source literals (`js_string_escape`, the AGENTS.md single-quote/
+   backslash contract §12.7), and for any compile-time attribute value. The earlier
+   text applied the escaping rule to the client matcher, which is both unnecessary
+   and somewhere a future reader would "fix" incorrectly; the corrected split is in
+   INV-9 and §15.9-Q21. Percent-*decoding* is still required client-side (once, at
+   match time) and is the only transformation the client matcher performs.
 6. **The `$current` signal is page-lifetime, on purpose.** It is created at
    bootstrap with no owning component instance, so `$__uni_register_resource`
    (page.ch:571) does not attach it to any instance and it is never auto-disposed.
@@ -2302,11 +2323,13 @@ is preserved by the `r.currentRoute === route` comparison. (The network fetch fo
 
 **D-7.2 — Record fields (authoritative).** Per route: `id`, `key` (`"name#id"`,
 used verbatim in error messages), `el`, `host`, `comp`, `baseProps`, `params`,
-`hydrated`, `visible`, `ssr`, `remote`, `url`, `inst`, `failed`, `scrollY`,
-`focusEl`, `noscroll`, `inFlight`, `beforeActivate`, `onActivate`, `onDeactivate`,
-`title`. Per router: `name`, `currentRoute`, `$current`, `$url`, `routes`,
-`table`, `$query`, plus the method table of §15.2. (`props` is *derived* at mount
-time by `$__uni_route_props` and is deliberately **not** a stored field — §15.9-Q1.)
+`hydrated`, `visible`, `ssr`, `remote`, `isUrl`, `url`, `rawUrl`, `inst`, `failed`,
+`scrollY`, `focusEl`, `noscroll`, `inFlight`, `fragment`, `pendingActivate`,
+`fetchUrl`, `beforeActivate`, `onActivate`, `onDeactivate`, `title`. Per router:
+`name`, `currentRoute`, `$current`, `$url`, `routes`, `table`, `$query`, plus the
+method table of §15.2. (`props` is *derived* at mount time by `$__uni_route_props`
+and is deliberately **not** a stored field — §15.9-Q1. `wrapperId` is a *stub
+argument*, not a stored field, because registration consumes it immediately.)
 
 **D-7.3 — `route_visible` is the only visibility mutator.** It toggles the
 attribute **and** maintains `record.visible`, so the pairing invariant (§12.4) is
@@ -2529,7 +2552,7 @@ it. A phase is **not done** until its Exit gate line is true.
 
 | Kind | Item |
 |---|---|
-| Modify | `lang/libs/page/src/page.ch` — the §15.2 runtime block + the one head-CSS rule |
+| Modify | `lang/libs/page/src/page.ch` — the **CORE** group of §15.2 + the one head-CSS rule |
 | Add | `lang/tests/universal_webview/src/router_runtime.ut.ch` (hand-built registry, raw JS) |
 | Command | `./scripts/test.sh --tcc --universal` |
 | Exit gate | activate→hydrate→show; re-activate is a no-op with zero subscriber runs; unknown id is a contained log; the FIFO queue applies a hook-initiated navigation after the in-flight one; INV-1/INV-2/INV-3/INV-4 green |
@@ -2601,6 +2624,20 @@ page. Order inside the block matters: helpers → registry + queue → activatio
 accessor → URL layer; the initial `$__uni_activate(...)` call is appended to
 `pageJsEnd` after `$__universal_flush()` (D-7.4).
 
+It is written as one block for reviewability but ships in three independently
+landable groups — do not build a later phase's group early, and do not ship a
+later group's symbols in an earlier phase:
+
+| Group | Symbols | Lands in |
+|---|---|---|
+| **CORE** | `$__uni_router_version`, `$__uni_router_error`, registry + queue + `busy`, `$__uni_route_visible`, `$__uni_route_register`, `$__uni_route_props`, `$__uni_HISTORY_*`, `$__uni_norm_path`, `$__uni_base_title`, `$__uni_activate`, `$__uni_activate_now` (id routes only) | Phase 2 |
+| **CONTROL** | `$__uni_preload`, `$__uni_release`, `$__uni_router`, `$__uni_router_null`, `$__uni_router_methods`, the `deactivate()` title/query reset (the `title` write inside `activate_now` is inert until a route declares one, so it stays in CORE) | Phase 4 |
+| **URL** | `$__uni_decode_segment`, `$__uni_parse_query`, `$__uni_query_sig`, `$__uni_initial_url`, `$__uni_router_fragment_url`, `$__uni_url_mem`/`history_ok`, `$__uni_set_url`, `$__uni_match_url`, `$__uni_activate_by_url`, `$__uni_fetch_route`, `$__uni_mount_fragment`, `$__uni_set_query`, `$__uni_build_path`, `$__uni_sync_url`, the `rawUrl`/query branches | Phase 5 (plus `remote` in Phase 5) |
+
+A phase that lands CORE only must not emit the `rawUrl`/query/remote branches of
+`$__uni_activate_now`; they are inert without the URL group but are dead bytes
+(INV-18's spirit: every byte is paid for by a page that uses it).
+
 Names are frozen: changing any of them is a design change, not an implementation
 detail. `window.$__uni_router_version = 1` is emitted with the block so a
 future runtime can detect a page built by an older macro.
@@ -2644,19 +2681,76 @@ window.$__uni_route_visible = ((route, visible) => {
     }
 });
 
-// Percent-decoding of a matched segment.  decodeURIComponent throws URIError on
-// malformed input (a bare "%"), and INV-3 says nothing here throws — so a bad
-// segment degrades to its raw text instead of aborting the navigation.
-window.$__uni_js_escape = ((s) => {
+// Percent-decoding of a matched segment or a query key/value.  decodeURIComponent
+// throws URIError on malformed input (a bare "%"), and INV-3 says nothing here
+// throws — so a bad segment degrades to its raw text instead of aborting the
+// navigation.
+//
+// NOTE: this is *decoding*, not JS-string escaping (the earlier name
+// `$__uni_js_escape` conflated the two).  Client-side params are runtime JS
+// values, so they need no string escaping at all; the single-quote/backslash
+// escaping contract applies only to props the *server* serializes into generated
+// JS (§13.3.5, INV-9, §15.9-Q21).
+window.$__uni_decode_segment = ((s) => {
     try { return decodeURIComponent(s); } catch(_) { return s; }
 });
+
+// The query object of the current URL, held in a signal (§6.5).  Built from the
+// raw URL on every activation, so popstate and Link clicks populate it exactly
+// like setQuery does — the earlier design only ever wrote it from setQuery, so a
+// deep link or a popstate left `r.query()` stale (§15.9-Q24).
+window.$__uni_parse_query = ((s) => {
+    const out = Object.create(null);
+    const i = s ? s.indexOf("?") : -1;
+    if(i < 0) return out;
+    const parts = s.slice(i + 1).split("&");
+    for(let k = 0; k < parts.length; k++) {
+        const p = parts[k];
+        if(!p) continue;
+        const eq = p.indexOf("=");
+        out[window.$__uni_decode_segment(eq < 0 ? p : p.slice(0, eq))] =
+            eq < 0 ? "" : window.$__uni_decode_segment(p.slice(eq + 1));   // last wins (§6.5)
+    }
+    return out;
+});
+
+// INV-11 requires a signal to be written only when its value actually changes,
+// and query objects are new objects every time — so compare signatures, not
+// identities, before writing `$query`.
+window.$__uni_query_sig = ((q) => {
+    if(!q) return "";
+    let s = "";
+    for(const k in q) s += k + "=" + q[k] + "&";
+    return s;
+});
+
+// The URL the page was actually loaded with (deep-link support, §15.3 template 5).
+// On an opaque origin (data:/blob:) `location.pathname` is not a usable path, so
+// anything that does not start with "/" becomes the root.
+window.$__uni_initial_url = (() => {
+    let p = "/";
+    try { p = location.pathname + location.search; } catch(_) {}
+    if(!p || p.charCodeAt(0) !== 47) p = "/";
+    return p;
+});
+
+// The document title a route without `title` falls back to (§13.2.1).  Without
+// this, navigating from a titled route to an untitled one leaves the previous
+// route's title in the tab (§15.9-Q25).
+window.$__uni_base_title = (window.$__uni_base_title === undefined)
+    ? document.title : window.$__uni_base_title;
 
 // Bootstrap-only: resolves the wrapper and its boundary span ONCE per route
 // (§15.6 R-2).  Everything the activation path needs is captured here.
 window.$__uni_route_register = ((routerName, routeId, spec) => {
     const r = window.$__uni_routers[routerName];
     if(!r) { window.$__uni_router_error("route registered for unknown router", routerName); return; }
-    const el = document.querySelector('[data-uni-route="' + spec.key + '"]');
+    // By id, not by `[data-uni-route="…"]`: a URL pattern can legitimately contain
+    // characters that a CSS attribute selector would need escaped (`/`, `{`, `}`,
+    // and a pattern is user text), and `getElementById` is both cheaper and total
+    // (§15.9-Q32).  The wrapper id uses the same source-location scheme as the
+    // boundary id (D-2.5), so it is stable across renders and snapshot-safe.
+    const el = spec.wrapperId ? document.getElementById(spec.wrapperId) : null;
     const host = window.$__uni_boundary(spec.hostId);
     if(el && host && el === host)                    // INV-5: never mount the wrapper
         window.$__uni_router_error("route boundary resolves to the wrapper", spec.key);
@@ -2665,7 +2759,7 @@ window.$__uni_route_register = ((routerName, routeId, spec) => {
         comp: spec.comp, baseProps: spec.baseProps, params: null,
         hydrated: false, visible: false, failed: false,
         ssr: !spec.remote, remote: !!spec.remote, isUrl: !!spec.isUrl,
-        url: null, inst: null, inFlight: null,                    // null | 1 while fetching
+        url: null, rawUrl: null, inst: null, inFlight: null,       // null | 1 while fetching
         fragment: null, pendingActivate: null, fetchUrl: spec.fetchUrl || null,
         scrollY: 0, focusEl: null, noscroll: !!spec.noscroll, title: spec.title || null,
         beforeActivate: spec.beforeActivate || null,
@@ -2692,24 +2786,28 @@ window.$__uni_HISTORY_NONE    = 0;
 window.$__uni_HISTORY_PUSH    = 1;
 window.$__uni_HISTORY_REPLACE = 2;
 
-window.$__uni_activate = ((routerName, routeId, url, params, historyMode) => {
+// `url` is the NORMALIZED path (the record's identity); `rawUrl` is the URL as
+// requested, query included, and is what gets written to history.  They are
+// separate because matching and active-state comparison must ignore the query
+// while the browser URL must keep it (§15.9-Q22).
+window.$__uni_activate = ((routerName, routeId, url, params, historyMode, rawUrl) => {
     if(window.$__uni_router_busy) {
-        window.$__uni_router_queue.push([routerName, routeId, url, params, historyMode]);
+        window.$__uni_router_queue.push([routerName, routeId, url, params, historyMode, rawUrl]);
         return true;
     }
     window.$__uni_router_busy = true;
-    const ok = window.$__uni_activate_now(routerName, routeId, url, params, historyMode);
+    const ok = window.$__uni_activate_now(routerName, routeId, url, params, historyMode, rawUrl);
     window.$__uni_router_busy = false;
     while(window.$__uni_router_queue.length) {
         const q = window.$__uni_router_queue.shift();
         window.$__uni_router_busy = true;
-        window.$__uni_activate_now(q[0], q[1], q[2], q[3], q[4]);
+        window.$__uni_activate_now(q[0], q[1], q[2], q[3], q[4], q[5]);
         window.$__uni_router_busy = false;
     }
     return ok;
 });
 
-window.$__uni_activate_now = ((routerName, routeId, url, params, historyMode) => {
+window.$__uni_activate_now = ((routerName, routeId, url, params, historyMode, raw) => {
     const r = window.$__uni_routers[routerName];
     const route = r && r.routes[routeId];
     if(!route) {                                        // unknown id: contained
@@ -2721,8 +2819,27 @@ window.$__uni_activate_now = ((routerName, routeId, url, params, historyMode) =>
         return false;
     }
     url = (url === undefined) ? route.url : url;
-    if(r.currentRoute === route && route.url === url) return true;   // O(1) no-op
-    if(r.currentRoute === route) {                      // param change (§6.4)
+    // Defaulting `raw` to the record's own rawUrl (when the path is unchanged) is
+    // what makes `deactivate()` then `activateRoute(id)` restore the full URL the
+    // route had, query included, instead of silently dropping it (§15.9-Q33).
+    raw = (raw === undefined)
+        ? ((url === route.url) ? route.rawUrl : url)
+        : raw;                                          // id routes: both are null
+    // O(1) no-op — compared on BOTH the normalized path and the raw URL, because
+    // a same-path navigation with a different query (?tab=1 -> ?tab=2) is a real
+    // navigation that must update the query signal and the history entry
+    // (§15.9-Q22).  For id routes both are null, so this is the original compare.
+    if(r.currentRoute === route && route.url === url && route.rawUrl === raw) return true;
+    // Param change (§6.4): the record was rendered for a DIFFERENT normalized path,
+    // so its SSR'd props and mounted instance belong to the old params.
+    //   - The guard is `route.url !== url` and it must NOT require the record to be
+    //     the *current* one: a route that was visited, hidden, and is now re-entered
+    //     with a new path is still mounted with stale content (§15.9-Q30).
+    //   - It must not fire for a same-path navigation with a different query
+    //     (`?tab=1 -> ?tab=2`), which is not a param change at all (§15.9-Q22).
+    //   - It must not fire on first activation, where `hydrated` is false: there is
+    //     nothing to dispose and the fresh path already applies.
+    if(route.url !== url && (route.hydrated || route.inst)) {
         if(route.inst) window.$__uni_dispose(route.inst);
         route.inst = null;
         route.hydrated = false;
@@ -2733,19 +2850,41 @@ window.$__uni_activate_now = ((routerName, routeId, url, params, historyMode) =>
         window.$__uni_router_error("navigation cancelled", route.key);
         return false;                                   // nothing mutated yet
     }
-    // First activation of a remote route: fetch, then come back.  We do NOT touch
-    // the visible route or the URL here — the previous route stays on screen until
-    // the fragment is adopted (INV-15), and the URL must not change before then.
-    if(route.remote && !route.fragment) {
-        route.pendingActivate = [url, params, historyMode];
-        if(!route.inFlight) window.$__uni_fetch_route(routerName, routeId, false);
-        return true;                                    // accepted (asynchronous)
+    // Remote routes: no SSR markup exists, so they can be neither mounted nor made
+    // visible synchronously.  If the fragment is absent, fetch and come back —
+    // nothing is mutated here, so the previous route stays on screen (INV-15/INV-21).
+    if(route.remote) {
+        if(!route.fragment) {
+            route.pendingActivate = [url, params, historyMode, raw];
+            if(!route.inFlight) window.$__uni_fetch_route(routerName, routeId, false);
+            return true;                                // accepted (asynchronous)
+        }
+        // The fragment is already held (a prefetch, or a fetch from before a
+        // `release`), but its DOM may not be in the host.  Adopt it now; without
+        // this branch a released or prefetched remote route would mount its
+        // component against an empty host (§15.9-Q23).
+        // `!route.host` must be part of the test: `$__uni_mount_fragment` contains
+        // that case and marks the record failed, but reading `.firstChild` here
+        // would throw first (§15.9-Q31).
+        if(!route.host || !route.ssr || !route.host.firstChild) {
+            if(!window.$__uni_mount_fragment(routerName, routeId)) return false;
+        }
     }
     route.url = url;                                    // before mount: props derive from it
+    route.rawUrl = raw;
     route.params = params || null;
     // Hydrate first: a mount failure must not leave zero routes visible (D-7.10a).
     if(!route.hydrated) {
         if(route.comp) {                                // §2.4: static routes have none
+            // A missing host (an SSR/JS mismatch) must be a contained failure, not a
+            // TypeError out of a click handler — the DOM access below is outside the
+            // mount try/catch, and $__uni_route_visible being total (D-7.7) is not
+            // enough on its own (§15.9-Q31).
+            if(!route.host) {
+                route.failed = true;
+                window.$__uni_router_error("route has no mount host", route.key);
+                return false;                           // previous route still visible
+            }
             if(!route.ssr) {                            // $__uni_dispose leaves DOM behind
                 while(route.host.firstChild) route.host.removeChild(route.host.firstChild);
             }
@@ -2770,11 +2909,19 @@ window.$__uni_activate_now = ((routerName, routeId, url, params, historyMode) =>
     if(r.$current.value !== routeId) r.$current.value = routeId;   // D-7.8
     if(r.$url && r.$url.value !== url) r.$url.value = url;
     // The URL is written by the ONE place that owns navigation, not by callers,
-    // so push/replace can never be applied twice or lost (D-6.10).
-    if(route.isUrl && url && historyMode !== window.$__uni_HISTORY_NONE) {
-        window.$__uni_set_url(url, historyMode === window.$__uni_HISTORY_REPLACE);
+    // so push/replace can never be applied twice or lost (D-6.10).  It writes the
+    // RAW url, so a query survives the round trip (§15.9-Q22).
+    if(route.isUrl && historyMode !== window.$__uni_HISTORY_NONE) {
+        window.$__uni_set_url(raw, historyMode === window.$__uni_HISTORY_REPLACE);
     }
-    if(route.title) { try { document.title = route.title; } catch(_) {} }
+    if(r.$query && route.isUrl) {
+        const q = window.$__uni_parse_query(raw);
+        if(window.$__uni_query_sig(r.$query.value) !== window.$__uni_query_sig(q)) {
+            r.$query.value = q;
+        }
+    }
+    // Falls back to the page's own title for routes that declare none (§15.9-Q25).
+    try { document.title = route.title || window.$__uni_base_title; } catch(_) {}
     if(route.onActivate) {
         try { route.onActivate(url); }
         catch(err) { window.$__uni_router_error("onActivate failed", route.key + " " + err); }
@@ -2788,8 +2935,18 @@ window.$__uni_preload = ((routerName, routeId) => {
     const route = r && r.routes[routeId];
     if(!route) { window.$__uni_router_error("preload: unknown route", routerName + "#" + routeId); return false; }
     if(route.hydrated || route.failed || route.inFlight) return true;   // once per route
-    if(route.remote) return window.$__uni_fetch_route(routerName, routeId, true);
+    if(route.remote) {
+        if(!route.fragment) return window.$__uni_fetch_route(routerName, routeId, true);
+        if(!route.host || !route.ssr || !route.host.firstChild) {   // cached fragment: adopt, never refetch
+            if(!window.$__uni_mount_fragment(routerName, routeId)) return false;
+        }
+    }
     if(route.comp) {
+        if(!route.host) {                               // same containment rule (Q31)
+            route.failed = true;
+            window.$__uni_router_error("preload: route has no mount host", route.key);
+            return false;
+        }
         if(!route.ssr) { while(route.host.firstChild) route.host.removeChild(route.host.firstChild); }
         try {
             window.$__uni_mount(route.host, route.comp,
@@ -2846,7 +3003,7 @@ window.$__uni_router_null = ((name) => ({
     replaceRoute: (() => false), replaceRouteByUrl: (() => false),
     deactivate: (() => {}), preload: (() => false),
     release: (() => false), current: (() => null), currentUrl: (() => null),
-    isActive: (() => false), buildPath: (() => null),
+    isActive: (() => false), buildPath: (() => null), normPath: window.$__uni_norm_path,
     query: (() => null), setQuery: (() => {})
 }));
 
@@ -2864,6 +3021,8 @@ window.$__uni_router_methods = ((name) => ({
         r.currentRoute = null;
         if(r.$current.value !== null) r.$current.value = null;
         if(r.$url.value !== null) r.$url.value = null;
+        if(r.$query.value !== null) r.$query.value = null;
+        try { document.title = window.$__uni_base_title; } catch(_) {}
     }),
     preload:  ((id) => window.$__uni_preload(name, id)),
     release:  ((id) => window.$__uni_release(name, id)),
@@ -2871,11 +3030,23 @@ window.$__uni_router_methods = ((name) => ({
     currentUrl:(() => { const r = window.$__uni_routers[name]; return r.currentRoute ? r.currentRoute.url : null; }),
     isActive: ((id) => window.$__uni_routers[name].$current.value === id),
     buildPath:((id, params) => window.$__uni_build_path(name, id, params)),
+    // Public normalization so user JSX can compare a `href` to `$url.value`
+    // without re-implementing the rule (§6.6, §15.9-Q26).
+    normPath: ((p) => window.$__uni_norm_path(p)),
     query:    (() => window.$__uni_routers[name].$query.value),
     setQuery: ((obj) => window.$__uni_set_query(name, obj))
 }));
 
 // ── URL layer.  Emitted only when the page declares a URL route.
+// Where a `remote` route's HTML comes from.  The endpoint is application code
+// (§13.2.4); this is the default convention and it is overridable, so an app that
+// mounts its fragment endpoint elsewhere still works.  A 404 or a network error is
+// a contained failure: the previous route stays visible and the next activation
+// retries (§15.9-Q27).
+window.$__uni_router_fragment_url = window.$__uni_router_fragment_url ||
+    ((name, id) => "/__uni_fragment?router=" + encodeURIComponent(name) +
+                   "&id=" + encodeURIComponent(id));
+
 window.$__uni_url_mem = window.$__uni_url_mem || { path: "/" };
 if(window.$__uni_history_ok === undefined) {
     try { history.replaceState(history.state, "", location.href); window.$__uni_history_ok = true; }
@@ -2917,7 +3088,7 @@ window.$__uni_match_url = ((name, path) => {
             const s = e.pattern[j];
             if(s.charCodeAt(0) === 123) {               // "{name}"
                 if(!params) params = Object.create(null);
-                params[s.slice(1, -1)] = window.$__uni_js_escape(segs[j]);   // §13.3.5
+                params[s.slice(1, -1)] = window.$__uni_decode_segment(segs[j]);
             } else if(s !== segs[j]) { ok = false; break; }
         }
         if(ok) return { id: e.id, fallback: false, params: params };
@@ -2931,8 +3102,10 @@ window.$__uni_activate_by_url = ((name, path, replace) => {
         window.$__uni_router_error("no route matches", name + " " + path);
         return false;
     }
+    // `path` is passed raw as well, so a query on the clicked href is preserved on
+    // the history entry while matching still sees only the path (§15.9-Q22).
     return window.$__uni_activate(name, m.id, window.$__uni_norm_path(path), m.params,
-        replace ? window.$__uni_HISTORY_REPLACE : window.$__uni_HISTORY_PUSH);
+        replace ? window.$__uni_HISTORY_REPLACE : window.$__uni_HISTORY_PUSH, path);
 });
 
 // remote routes (§6.7).  The builder endpoint is user code; the fetch contract is
@@ -2944,8 +3117,9 @@ window.$__uni_fetch_route = ((name, routeId, prefetchOnly) => {
     const route = r && r.routes[routeId];
     if(!route) return false;
     if(route.hydrated || route.failed || route.inFlight) return true;   // collapse double-fetch
-    const url = route.fetchUrl;
-    if(!url) { window.$__uni_router_error("remote route has no fragment url", route.key); return false; }
+    // fetchUrl (declared) wins; otherwise the page-wide convention resolver, so a
+    // `remote` route can actually load instead of failing on a null URL (§15.9-Q27).
+    const url = route.fetchUrl || window.$__uni_router_fragment_url(name, routeId);
     route.inFlight = 1;
     fetch(url, { credentials: "same-origin" }).then((res) => {
         if(!res.ok) throw new Error("HTTP " + res.status);
@@ -2954,9 +3128,12 @@ window.$__uni_fetch_route = ((name, routeId, prefetchOnly) => {
         route.inFlight = null;
         route.fragment = html;
         const pend = route.pendingActivate;
-        route.pendingActivate = null;
-        if(!window.$__uni_mount_fragment(name, routeId)) return;
-        if(pend) window.$__uni_activate(name, routeId, pend[0], pend[1], pend[2]);
+        if(!window.$__uni_mount_fragment(name, routeId)) {
+            route.pendingActivate = null;                        // adoption failed: stay hidden
+            return;
+        }
+        route.pendingActivate = null;                            // cleared only once the DOM is in place
+        if(pend) window.$__uni_activate(name, routeId, pend[0], pend[1], pend[2], pend[3]);
     }).catch((err) => {
         route.inFlight = null;                                  // a later click retries
         route.pendingActivate = null;                           // still hidden, still current-1
@@ -2993,12 +3170,17 @@ window.$__uni_mount_fragment = ((name, routeId) => {
 // setQuery writes the URL with replaceState and never navigates (§6.5).
 window.$__uni_set_query = ((name, obj) => {
     const r = window.$__uni_routers[name];
+    if(!r) { window.$__uni_router_error("setQuery: unknown router", name); return; }
     const parts = [];
     for(const k in obj) parts.push(encodeURIComponent(k) + "=" + encodeURIComponent(obj[k]));
     const q = parts.length ? "?" + parts.join("&") : "";
-    const base = (r.currentRoute && r.currentRoute.url) || window.$__uni_url_mem.path;
+    const base = (r.currentRoute && r.currentRoute.rawUrl) || window.$__uni_url_mem.path;
     const full = window.$__uni_norm_path(base) + q;
-    r.$query.value = obj;
+    // Keep the record's own identity in sync, or navigating away and back would
+    // restore the pre-query URL and silently drop the query (§15.9-Q22).
+    if(r.currentRoute) { r.currentRoute.rawUrl = full; r.currentRoute.url = window.$__uni_norm_path(base); }
+    // INV-11: write the signal only when the query actually changed.
+    if(window.$__uni_query_sig(r.$query.value) !== window.$__uni_query_sig(obj)) r.$query.value = obj;
     window.$__uni_url_mem.path = full;
     if(window.$__uni_history_ok) { try { history.replaceState(null, "", full); } catch(_) { window.$__uni_history_ok = false; } }
 });
@@ -3025,14 +3207,18 @@ window.$__uni_build_path = ((name, id, params) => {
 
 window.$__uni_sync_url = ((name) => {
     window.addEventListener("popstate", () => {
-        const path = window.$__uni_history_ok ? location.pathname : window.$__uni_url_mem.path;
-        const m = window.$__uni_match_url(name, path);
+        // location.search is included so a back/forward onto a query URL repopulates
+        // the query signal instead of clearing it (§15.9-Q24).
+        const raw = window.$__uni_history_ok
+            ? (location.pathname + location.search)
+            : window.$__uni_url_mem.path;
+        const m = window.$__uni_match_url(name, raw);
         if(!m) return;
-        if(!window.$__uni_activate(name, m.id, window.$__uni_norm_path(path), m.params,
-                                   window.$__uni_HISTORY_NONE)) {
+        if(!window.$__uni_activate(name, m.id, window.$__uni_norm_path(raw), m.params,
+                                   window.$__uni_HISTORY_NONE, raw)) {
             // guard denied: the browser already moved.  Put the URL back (§6.2).
             const cur = window.$__uni_routers[name].currentRoute;
-            if(cur && cur.url) window.$__uni_set_url(cur.url, true);
+            if(cur) window.$__uni_set_url(cur.rawUrl || cur.url, true);
         }
     });
     if(window.$__uni_history_ok) history.scrollRestoration = "manual";
@@ -3045,21 +3231,21 @@ never ships the comments above):
 
 | Portion | Lines | Raw | gzip |
 |---|---|---|---|
-| Everything (URL-routing page) | 430 | **14.0 KB** | **3.5 KB** |
-| Id-only router (everything before the URL layer) | 269 | **8.8 KB** | ~2.2 KB |
-| URL + remote + query group | 161 | 5.2 KB | ~1.3 KB |
+| Everything (URL-routing page) | 417 | **16.1 KB** | **3.9 KB** |
+| CORE + CONTROL, id-only router | 271 | **10.5 KB** | **2.6 KB** |
+| URL + remote + query group | 146 | 5.6 KB | ~1.3 KB |
 
 The earlier "~40 lines / ≤ 2 KB" figures in §7 were **wrong by roughly 7×** — they
 counted a switch statement and forgot the registry, the URL layer, the remote
 fetch path, focus/scroll and the method table. The honest position:
 
-- **3.5 KB gzipped** is what an app pays on the wire for the full feature set;
-  **8.8 KB / ~2.2 KB** for an id-only router. That is a normal cost for a router
+- **3.9 KB gzipped** is what an app pays on the wire for the full feature set;
+  **10.5 KB / 2.6 KB** for an id-only router. That is a normal cost for a router
   and it is paid only by pages that declare one (INV-18: zero bytes otherwise).
-- 14 KB uncompressed is a parse cost of roughly 0.3 ms on a typical phone — not a
+- 16 KB uncompressed is a parse cost of roughly 0.35 ms on a typical phone — not a
   budget concern, but the *number* should be the measured one.
-- §15.6 P-4 gates the emitted size at **≤ 15 KB raw / ≤ 4 KB gzip** (URL page) and
-  **≤ 9 KB / ≤ 2.5 KB** (id-only), with a documented levers list if it ever has to
+- §15.6 P-4 gates the emitted size at **≤ 17 KB raw / ≤ 4.5 KB gzip** (URL page) and
+  **≤ 11 KB / ≤ 3 KB** (id-only), with a documented levers list if it ever has to
   shrink: drop the null-object's unused methods, split the URL group into its own
   emitted section (already done for id-only pages), shorten the internal names
   (the `$__uni_` namespace policy costs real bytes and is worth it for
@@ -3074,8 +3260,8 @@ not. Type names in `[·]` are metavariables. Emitted in this order:
 
    ```js
    window.$__uni_routers.name = { name: "name", currentRoute: null, routes: Object.create(null),
-       table: TABLE_OR_NULL, $current: window.$_us(null), $url: window.$_us(null),
-       $query: window.$_us(null) };
+       table: null,                       // filled by template 3, URL routers only
+       $current: window.$_us(null), $url: window.$_us(null), $query: window.$_us(null) };
    Object.assign(window.$__uni_routers.name, window.$__uni_router_methods("name"));
    ```
 
@@ -3084,7 +3270,8 @@ not. Type names in `[·]` are metavariables. Emitted in this order:
    ```js
    window.$__uni_route_register("name", "id", {
        key: "name#id", id: "id", comp: COMP_OR_NULL, baseProps: PROPS_OBJ,
-       hostId: "uN", remote: false, isUrl: true, fetchUrl: null,
+       wrapperId: "rN", hostId: "uN",
+       remote: false, isUrl: true, fetchUrl: null,
        noscroll: false, title: "Title",
        beforeActivate: null, onActivate: null, onDeactivate: null });
    ```
@@ -3116,10 +3303,19 @@ not. Type names in `[·]` are metavariables. Emitted in this order:
    `true` is the default for the selected route — emit `="false"` only):
 
    ```html
-   <div class="chx-route" data-uni-route="name#id" data-uni-route-active="false">
+   <div class="chx-route" id="rN" data-uni-route="name#id"
+        data-uni-route-active="false" tabindex="-1">
      <span data-chx-i id="uN">…SSR body…</span>
    </div>
    ```
+
+   `id="rN"` uses the wrapper element's own source location (`"r" + element.loc`,
+   the same scheme as `uN`), so registration is a `getElementById` with no selector
+   escaping and the id is stable across renders (D-2.5, §15.9-Q32).
+
+   **`tabindex="-1"` is required**, not cosmetic: `$__uni_route_visible` focuses the
+   wrapper on activation (§6.7, G-8), and a `<div>` without it is not focusable, so
+   keyboard focus would silently stay on the old route's DOM (§15.9-Q28).
 
    For a `remote` route the wrapper renders **empty** (the `<span>` placeholder is
    still emitted — a missing host would make the record `failed` per D-7.7).
@@ -3127,8 +3323,15 @@ not. Type names in `[·]` are metavariables. Emitted in this order:
 5. **Activation tail** (`pageJsEnd`, after `$__universal_flush()`):
 
    ```js
+   // Id-only router:
    window.$__uni_activate("name", "default-id");
-   // and, only when the page declared URL routes:
+   // URL router: pass the REAL initial URL, so the deep-linked route gets its
+   // url/rawUrl identity and its nav links are active on first paint.  Without it
+   // the initial route's `url` stays null and every Link renders inactive until the
+   // first client-side navigation (§15.9-Q29).
+   window.$__uni_activate("name", "default-id",
+       window.$__uni_norm_path(window.$__uni_initial_url()), null,
+       window.$__uni_HISTORY_NONE, window.$__uni_initial_url());
    window.$__uni_sync_url("name");
    ```
 
@@ -3216,19 +3419,19 @@ rows are green.** This table is the checklist a reviewer runs against a PR.
 | # | Invariant | Enforced at | Test |
 |---|---|---|---|
 | INV-1 | Per router, at most one record has `visible === true`; after a successful `activateRoute` **exactly one** and it is `currentRoute`; zero only after explicit `deactivate()` | `$__uni_route_visible` is the only mutator (D-7.3) | `router_state.ut.ch` — read `window.$__uni_routers` after every navigation step |
-| INV-2 | A route mounts at most once per (record, url); `preload` then `activate` mounts once | `hydrated` guard inside both entry points | `router_hydration.ut.ch`, effect-counter fixture |
+| INV-2 | A route mounts at most once per (record, url); `preload` then `activate` mounts once; a *different* url for the same record remounts exactly once (Q30) | `hydrated` guard in both entry points + the url-differs branch | `router_hydration.ut.ch` (effect counter) + `router_param_remount.ut.ch`, including the hidden-route case |
 | INV-3 | No router entry point ever throws | every failure path is `$__uni_router_error` + `return false` | `router_error_no_throw.ut.ch` (uncaught errors fail the harness) |
 | INV-4 | The wrapper element is never removed or replaced | mount is `"children"` on the inner boundary span | `router_mount_mode.ut.ch` (`<section>`/`<main>` roots) |
 | INV-5 | The mount host is the `[data-chx-i]` span; the wrapper is never the host | `$__uni_route_register` resolves two distinct elements and asserts `host !== el` | runtime assert + registration test |
 | INV-6 | Boundary ids are source-derived and stable across renders | emitted `hostId`, never a counter | `snapshot.ch` cold-vs-warm id comparison |
 | INV-7 | Route bodies never enter `$__uni_hydration_queue` | `emit_route_registration` instead of `emit_universal_queue` | plugin test asserting the emitted JS contains no dispatch for route ids |
 | INV-8 | Hiding survives reactive style rewrites | attribute + head-CSS rule, never inline `display` | `router_state.ut.ch` — a route root with a reactive style binding stays hidden |
-| INV-9 | Param values are JS-escaped before entering props | `$__uni_js_escape` at match time; `js_string_escape` on the server | `router_url.ut.ch` with `he's` and `a\b` params |
+| INV-9 | Params are **percent-decoded** client-side at match time and **JS-escaped** only where the value is emitted as source (server-serialized props, compile-time attributes) | `$__uni_decode_segment`; `js_string_escape` on the server | `router_url.ut.ch` with `he's`, `a\b` and `%2F` params — the client path must not double-escape |
 | INV-10 | `baseProps` is never mutated | `$__uni_route_props` builds a fresh object | `router_param_remount.ut.ch` — navigate `1 → 2 → 1`, props identical to the first render |
 | INV-11 | Signals are written only when the value changes | explicit `!==` before `$current`/`$url` assignment | `router_state.ut.ch` subscriber counter: same-id activate must not notify #current; param change must notify `$url` only |
 | INV-12 | Route bodies cannot reach `$__uni_*` internals | converter diagnostic R14 | `lang/tests/negative/src/router_diagnostics.ch` |
 | INV-13 | User params cannot occupy `__route_`/`__query_` keys | debug assertion in `add_parameter` | `lang/tests/libs/router/src/store.ch` |
-| INV-14 | No `querySelector` (and no string building) on the activation path | `route_register` resolves at bootstrap; §15.6 R-rules | code review + `performance.now()` budget P-1 |
+| INV-14 | No DOM query on the activation path, and no allocation for **id routes**; a URL route additionally does one query parse + one history write, which is where its cost lives | `$__uni_route_register` resolves both elements at bootstrap; §15.6 R-1/R-2 | code review + `performance.now()` budget P-1, asserted separately for id and URL routes |
 | INV-15 | Every failure leaves the *previous* route visible, never a blank page | hydrate-before-hide ordering (D-7.10a) | `router_error_no_throw.ut.ch` + a throwing-component fixture |
 | INV-16 | Warm (snapshot) render is byte-identical to cold render | snapshot cache | `snapshot.ch` |
 | INV-17 | Snapshot publication is race-free | once-guard per route (§7.5) | `snapshot.ch` 8-thread run |
@@ -3249,7 +3452,7 @@ inside range.
 | P-1 | switch between two hydrated routes ≤ 1 ms (100-node bodies) | `#universal_test`: warm up with one activation, then `performance.now()` around 1000 alternating `activateRoute` calls; report median + p95 via `t.log`; assert the *invariant* (no mount happened: `hydrated` counters unchanged), gate the timing later |
 | P-2 | 1000 alternating activations ≤ 50 ms | same loop, wall-clock total |
 | P-3 | zero hydration of non-preloaded hidden routes at load | property read from `window.$__uni_routers` (§14.9 D-9.3) — a correctness gate today, not a timing one |
-| P-4 | router runtime ≤ 4 KB unminified / ≤ 1.6 KB gzip | `--libs` render test: render the same page twice, once with the registry emission suppressed, and diff `pageJs.length`; report both raw and gzip |
+| P-4 | router runtime ≤ 17 KB unminified / ≤ 4.5 KB gzip (≤ 11 KB / ≤ 3 KB id-only) — the measured baseline is §15.2's table | `--libs` render test: render the same page twice, once with the registry emission suppressed, and diff `pageJs.length`; report both raw and gzip |
 | P-5 | server: URL match + param store ≤ 10 µs at R=50 | `--libs` micro-benchmark over a generated 50-pattern table, 10 000 iterations |
 | P-6 | server: 10-route all-static page with snapshots ≤ 1.2× single-page baseline | `--libs`: render baseline, then the routed page, N times; report ratio |
 | P-7 | snapshot reuse (no re-render) | debug-build render counter: cold render increments, warm renders do not |
@@ -3258,12 +3461,26 @@ inside range.
 Hot-path implementation rules (violating any of these is what turns ≤1 ms into
 10 ms — INV-14 is the enforcement row):
 
-- **R-1** No allocation on the activation path. The runtime's closures are created
-  once with the runtime block; `activate_now` allocates nothing (no `Object.assign`,
-  no array literals, no string concatenation) on the success path. String building
-  appears only in `$__uni_router_error` calls, which are failure paths.
-- **R-2** No DOM queries. All element resolution happens in `$__uni_route_register`
-  at bootstrap; activation only calls `setAttribute`.
+- **R-1** No allocation on the activation path for **id routes**: the runtime's
+  closures are created once with the runtime block, and `activate_now` allocates
+  nothing (no `Object.assign`, no array literals, no string concatenation) on the
+  success path — string building appears only in `$__uni_router_error` calls, which
+  are failure paths. **URL routes are the documented exception**: they build the query
+  signature and the history write string once per navigation, and that is the
+  accepted cost of the URL layer (§15.6 P-1 measures the two separately so a
+  regression in either is visible).
+- **R-2** No DOM queries on the activation path. All element resolution happens in
+  `$__uni_route_register` at bootstrap (one `getElementById` + one boundary lookup
+  per route); activation only calls `setAttribute`. The single query in the whole
+  runtime is `tmp.querySelector('[data-chx-i]')` inside `$__uni_mount_fragment`,
+  which searches a **detached** tree where `getElementById` cannot work and runs
+  once per fetched fragment — never on a warm switch.
+- **R-8** The query signal is only written when its **signature** differs
+  (`$__uni_query_sig`), because a freshly parsed query object is never `===` the
+  old one — comparing identities would make every navigation notify every
+  `query()` subscriber, breaking INV-11. The signature is key-order sensitive
+  (accepted: a reordered query at most re-renders the query consumers once, and
+  sorting keys would cost an allocation on the URL path).
 - **R-3** Null-prototype dictionaries (`Object.create(null)`) for `routes`,
   `params` and the props merge, so V8 keeps them monomorphic and no
   `Object.prototype` keys leak into route ids (`routes["constructor"]` is a real
@@ -3335,17 +3552,30 @@ sections above already; they are listed here so a reviewer can verify them.
 | Q7 | **`route_visible` is where focus/scroll capture actually happens** (it was prose in §6.7 and absent from the only visibility mutator), including the `contains` validity check before restoring focus and the `noscroll` opt-out. | §2.1, D-7.3, §15.2 |
 | Q8 | **`$__uni_route_visible` no longer writes a `null` state inconsistently** — the truth of `visible` is maintained *before* the element check, so a missing wrapper still leaves the registry self-consistent (D-7.7) instead of half-updated. | §15.2 |
 | Q9 | **Precedence is resolved at emission time**, so runtime matching is a straight first-match scan on both sides with no sorting/scoring code that could diverge. New D-6.9. | §15.1 Phase 5, §15.4 |
-| Q10 | **Param escaping happens at one point** (`$__uni_js_escape` client-side, `js_string_escape` server-side) and only for pattern params, never for literal segments — previously the escaping rule was stated for the client path only. | §13.3.5, INV-9 |
+| Q10 | **Escaping/decoding happens at exactly one point per side:** percent-*decoding* once, client-side, for pattern params only (never literal segments); JS-string *escaping* only where a param becomes source text, which is the server's serialized props. (Restated by Q21 after the client-side claim turned out to be wrong.) | §13.3.5, INV-9, §15.9-Q21 |
 | Q11 | **Per-route registration is one shared function**, not a per-route IIFE — ~3× smaller page JS for multi-route pages, and it makes INV-5 (host ≠ wrapper) assertable in one place. | §2.2, §15.3 template 2 |
-| Q12 | **The §7 cost and size rows were too optimistic.** Focus restore, optional scroll restore and the two `!==` compares are real work on the hot path — and the runtime is **14.0 KB raw / 3.5 KB gzipped**, not "~40 lines / ≤2 KB" (that figure was off by ~7× and is now a measured table in §15.2). Both rows are corrected rather than kept as marketing, and §15.6 replaces "≤1 ms" with a harness that measures it. | §7, §15.2, §15.6 |
+| Q12 | **The §7 cost and size rows were too optimistic.** Focus restore, optional scroll restore and the two `!==` compares are real work on the hot path — and the runtime is **16.1 KB raw / 3.9 KB gzipped**, not "~40 lines / ≤2 KB" (that figure was off by ~8× and is now a measured table in §15.2). Both rows are corrected rather than kept as marketing, and §15.6 replaces "≤1 ms" with a harness that measures it. | §7, §15.2, §15.6 |
 | Q13 | **`has_parameter` used `contains(&key)`** — taking the address of a local `string_view` key builds a `*mut` key view, not a value. Corrected to a by-value key. | §3.2, §15.4 |
 | Q14 | **`preload` writes no signal and never touches `currentRoute`**, and the `preload`-then-`activate` ordering is stated as an explicit branch (the `hydrated` fast path), since it is the double-hydration guard. | D-7.5, INV-2 |
 | Q15 | **A `remote` route still renders its placeholder boundary span.** Without it the record's host is `null`, the record is `failed` (D-7.7), and the route can never load. This was implicit in "placeholder" and is now a template requirement. | §6.7, §15.3 template 4 |
 | Q16 | **URL writing is owned by activation, not by the caller.** The earlier text had `$__uni_activate_by_url` write history *after* the activation, which means a direct `activateRoute(id)` on a URL route mounts the route and leaves the URL stale (the §6.2 "URL disagrees with the visible route" class of bug). Now it is one write inside `$__uni_activate_now`, selected by an explicit `historyMode` (0 none / 1 push / 2 replace), so popstate and the initial activation can never push. New decision D-6.10. | §6.2, D-6.10, §15.2 |
-| Q17 | **Malformed percent-encoding cannot abort a navigation.** `decodeURIComponent` throws `URIError` on a bare `%`, which violates INV-3 (nothing in the router throws) for any user who types a broken URL. Decoding now goes through `$__uni_js_escape`, which falls back to the raw segment. | §13.3.5, §15.2 |
+| Q17 | **Malformed percent-encoding cannot abort a navigation.** `decodeURIComponent` throws `URIError` on a bare `%`, which violates INV-3 (nothing in the router throws) for any user who types a broken URL. Decoding now goes through `$__uni_decode_segment`, which falls back to the raw segment. | §13.3.5, §15.2 |
 | Q18 | **The registration spec was incomplete.** The old stub literal listed `{el, host, comp, props, hydrated, visible, ssr, url, inst}` while D-7.2 required `id`, `key`, `baseProps`, `params`, `remote`, `isUrl`, `fetchUrl`, `noscroll`, `title`, `inFlight` and the three hooks. An implementer following §2.2 literally would have shipped records that break INV-5, INV-11 and the remote path. The full spec is now in §15.3 template 2 and one shared `$__uni_route_register` builds it. | §2.2, §15.3 |
+| Q19 | **`prefetch → click` race got an explicit path.** `$__uni_fetch_route` stores the adopted fragment on the record, then re-enters `$__uni_activate` with the recorded `pendingActivate` arguments if a click was waiting; a prefetch-only fetch just leaves the fragment for the activation to consume. Without the re-entry, a hover-prefetch whose click arrives before the response completes adopts the DOM but never becomes visible. | §6.6, §6.7, §15.2 |
 | Q20 | **`remote` first activation was specified as "fetch on activate" with no mechanism, and the naive reading (mount the placeholder) would hydrate an empty host.** Now it is an explicit two-step with a recorded `pendingActivate` and a re-entry, so a click that lands before a hover-prefetch completes still works, and the page never blanks while the fragment is in flight. New D-7.11 / INV-21. | §6.7, D-7.11, §15.2 |
-| Q19 | **`prefetch → click` race got an explicit path.** `$__uni_fetch_route` stores the fetched fragment on the record and `$__uni_mount_fragment` mounts it immediately if the route became current while the fetch was in flight; a prefetch-only fetch leaves the fragment for the activation to consume. Without this branch, a hover-prefetch whose click arrives before the response completes mounts nothing and shows an empty host. | §6.6, §6.7, §15.2 |
+| Q21 | **The escaping rule was applied to the wrong side.** The client matcher was told to run `js_string_escape` on params, but a client match produces a JS *value*, not source text — nothing to escape, and double-escaping is the likely outcome of following the old text. Escaping belongs to the server, which interpolates params into generated JS. The helper was also misnamed (`$__uni_js_escape` for a percent-decoder); it is now `$__uni_decode_segment`. INV-9 and §13.3.5 are corrected. | §13.3.5, INV-9, §15.2 |
+| Q22 | **Three query-related bugs, one root cause: the normalized path was used as if it were the URL.** (a) `Link href="/x?tab=2"` wrote the *stripped* path to history, silently dropping the query; (b) the no-op fast path compared only the normalized path, so navigating `/x?tab=1 → /x?tab=2` was treated as "already active" and did nothing at all; (c) the param-change branch disposed and remounted the component for a *query-only* change. Fixed by separating the record's identity (`url`, normalized, used for matching/active state/no-op) from the requested URL (`rawUrl`, query included, written to history, parsed for the query signal), and by gating the param-change branch on `route.url !== url` instead of identity alone. | §2.1, §6.5, §15.2, D-6.10 |
+| Q23 | **A released or prefetched `remote` route mounted against an empty host.** After `release` the fragment was still cached but `ssr` was false, and the mount path cleared the (already empty) host and mounted the component with no SSR DOM to hydrate — a blank route that looks like a component bug. The remote branch now re-adopts a held fragment before mounting, and `preload` never re-fetches a fragment it already holds. | §6.7, §13.3.1, §15.2 |
+| Q24 | **The query signal was only ever written by `setQuery`.** A deep link, a popstate, or a `Link` click onto a URL with a query left `r.query()` stale (and returning the previous route's query). The query is now parsed from the raw URL on every activation, including popstate, which reads `location.pathname + location.search`. Comparison uses a signature (R-8) so INV-11 still holds. | §6.5, §15.2, R-8 |
+| Q25 | **`<title>` was never reset.** `document.title = route.title` only ran for routes that declared a title, so navigating from a titled route to an untitled one left the previous title in the tab — and the server, which emits the active route's title, disagreed. The runtime captures `$__uni_base_title` and falls back to it; `deactivate()` restores it too. | §13.2.1, §15.2 |
+| Q26 | **Active-link comparison could never match a realistic href.** It compared `$url.value` (the normalized path) with the raw `props.href`, so a base path, a trailing slash, or a query made every link render inactive. `normPath` is now part of the public handle and the snippets use `r.normPath(props.href)` — the same rule the matcher applies. | §5.4, §6.6, §15.2 |
+| Q27 | **`remote` had no fragment URL to fetch.** `route.fetchUrl` was declared but nothing ever set it, so every `remote` route failed at `"remote route has no fragment url"`. Added a documented, overridable page-wide resolver (`$__uni_router_fragment_url`) as the default convention; the endpoint stays application code (§13.2.4) and its failure is contained and retried. | §6.7, §13.2.4, §15.2 |
+| Q28 | **The SSR wrapper lacked `tabindex="-1"`.** `$__uni_route_visible` focuses the wrapper on activation, but a plain `<div>` is not focusable, so focus never moved and G-8 (accessibility) was unsatisfiable. The template now emits it. | §6.7, §15.3 template 4, G-8 |
+| Q32 | **The wrapper was resolved with a CSS attribute selector built from user text.** `document.querySelector('[data-uni-route="name#id"]')` breaks for a URL pattern containing `"`, `]` or a backslash — and patterns are user-written strings. The wrapper now carries a source-location-derived DOM id (`id="rN"`) and registration is a `getElementById`, which is also cheaper and needs no escaping. | §2.2, §15.3 templates 2/4 |
+| Q33 | **`deactivate()` then `activateRoute(id)` silently dropped the query.** With `raw` defaulting to the normalized path, re-activating a route restored `?tab=1` as `/x`. `raw` now defaults to the record's own `rawUrl` when the path is unchanged. | §6.5, §15.2 |
+| Q31 | **A missing mount host threw a `TypeError` out of the click handler.** The host-clearing loop (`while(route.host.firstChild)`) sits *outside* the mount `try/catch`, so the one failure mode D-7.7 was written for (an SSR/JS host mismatch) still violated INV-3 — `$__uni_route_visible` being total did not cover it. Both entry points now check `route.host` first and mark the record `failed`. | §15.2, INV-3, D-7.7 |
+| Q30 | **A hidden, previously-mounted route re-entered with a different path showed stale content.** The param-change branch was gated on `r.currentRoute === route`, so it only fired when the route was *active* when its path changed. A route that was visited (`/p/1`), navigated away from, and then activated as `/p/2` kept `hydrated === true` and its old DOM, so it was shown with the previous record's data. The guard is now "this record was mounted and its url differs", independent of which route is current. | §2.1, §6.4, §15.2 |
+| Q29 | **A deep-linked route had no URL identity on first paint.** The activation tail called `$__uni_activate(name, id)` with no URL, so `route.url`/`rawUrl` stayed `null`: every nav link rendered inactive until the first client-side navigation, and the first click on the already-visible route was treated as a different URL (a needless remount). The tail now passes `$__uni_initial_url()` (with an opaque-origin guard), and template 5 is explicit about it. | §15.3 template 5, §15.2 |
 
 **Net for this pass.** The design now has, for every phase: the exact files and
 symbols, the normative runtime source, byte-exact emission templates, the

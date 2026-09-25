@@ -40,6 +40,7 @@ import "./webview/chemical.mod" as webviewTestMod
 import "./universal_webview/chemical.mod" as universalWebviewTestMod
 import "./server/chemical.mod" as serverTestMod
 import "./libs/chemical.mod" as libTestsMod
+import "./regexp/chemical.mod" as regexpTestMod
 import "./async/chemical.mod" as asyncMod
 
 func build_dir_path(ctx : *BuildContext, path : &std::string_view) : std::string {
@@ -255,6 +256,17 @@ func test_libs_exe(ctx : *mut AppBuildContext) : *mut LabJob {
     return exe_job
 }
 
+func test_regexp_exe(ctx : *mut AppBuildContext) : *mut LabJob {
+    // Extensive regular-expression suite for the `regex` library. It is a
+    // standalone module (like ./async and ./libs) so `./scripts/test.sh
+    // --regexp` can build and run it on its own, and `--all` includes it.
+    const exe_name = std::string_view("chemical-regexp-tests")
+    const exe_job = ctx.build_exe(&exe_name)
+    ctx.set_environment_testing(exe_job, true)
+    ctx.add_module(exe_job, regexpTestMod.build(ctx, exe_job))
+    return exe_job
+}
+
 func test_async_exe(ctx : *mut AppBuildContext) : *mut LabJob {
     // Async functions return FutureHandle<T> and are lowered by both the C and
     // LLVM backends (scripts/test.sh --async). The suite covers eager awaits
@@ -324,6 +336,8 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
         return test_plugin_exe(ctx, std::string_view("universal"))
     } else if(ctx.has_arg(std::string_view("test-components"))) {
         return test_plugin_exe(ctx, std::string_view("components"))
+    } else if(ctx.has_arg(std::string_view("test-regexp"))) {
+        return test_regexp_exe(ctx)
     } else if(ctx.has_arg(std::string_view("test-async"))) {
         return test_async_exe(ctx)
     } else if(ctx.has_arg(std::string_view("test-tls"))) {

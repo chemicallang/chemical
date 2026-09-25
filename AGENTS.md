@@ -44,6 +44,8 @@ Configs saved as JSON in `scripts/tui-configs/`. Last config auto-restored.
 ./scripts/test.sh --llvm           # Build Compiler (LLVM), compile & run tests
 ./scripts/test.sh --tcc --plugins     # Include compiler plugin tests (html, css, js, etc.)
 ./scripts/test.sh --tcc --libs        # Library test suite (bcrypt, uuid, json, fs, crypto, audio, ...)
+./scripts/test.sh --tcc --regexp      # Extensive regex library test suite (dedicated)
+./scripts/test.sh --tcc --async       # Async/await suite
 ./scripts/test.sh --tcc --universal  # Universal component tests (#universal_test) in a real WebView
 ./scripts/test.sh --tcc --negative # Negative tests (compiler failure verification)
 ./scripts/test.sh --tcc --no-run   # Compile only, don't run
@@ -64,7 +66,7 @@ Configs saved as JSON in `scripts/tui-configs/`. Last config auto-restored.
 > ⚠️ **AI agents: do NOT run `--all`.** It runs every suite and takes a very long
 > time (the `tls` suite alone runs for minutes). It exists only for a human doing
 > a new-machine sanity check. Agents must run the single suite relevant to their
-> change (e.g. `--tcc`, `--libs`, `--async`, `--webview`) and stop.
+> change (e.g. `--tcc`, `--libs`, `--regexp`, `--async`, `--webview`) and stop.
 
 ```bash
 ./scripts/test.sh --all            # all suites on TCCCompiler (tls skipped)
@@ -74,7 +76,7 @@ Configs saved as JSON in `scripts/tui-configs/`. Last config auto-restored.
 ```
 
 `--all` builds the compiler once, then runs main, interpret, negative, plugins,
-async, libs, process, server and webview in turn, printing a per-suite result and
+async, libs, regexp, process, server and webview in turn, printing a per-suite result and
 a final table (`SUITE / STATUS / TOTAL / PASSED / FAILED / TIME`). **The slow
 `tls` suite is skipped by default**; pass `--include-tls` to include it (the run
 tells you this at the top and in the summary). Full per-suite logs are kept in
@@ -184,13 +186,14 @@ Uses `comptime if(intrinsics::is_interpretation())` to select the `println` path
 - **`@test` annotations**: auto-discovered by `test_runner(argc, argv)` from `test_env` lib.
 - Source dirs: `basic/`, `comptime/`, `core/`, `generic/`, `compiler_plugins/`, `nodes/`, `stdlib/`.
 - Compiler plugin tests in `lang/tests/compiler_plugins/*/src/`.
-- Library tests (bcrypt, uuid, json, datetime, regex, fs, path, encoding, crypto,
+- Library tests (bcrypt, uuid, json, datetime, fs, path, encoding, crypto,
   compression, osrand, mime, audio, font, archive, image + `integration/`) live in
   `lang/tests/libs/` — a standalone module (`chemical.mod` + `main.ch` entry) dispatched
   via `--arg-test-libs` / `./scripts/test.sh --tcc --libs`. They are **not** part of the
   main test suite; keep essential libraries (e.g. anything the language itself relies on,
   like `std`/`core`/`atomic` tests under `lang/tests/src/stdlib/`) in the main suite.
 - Dedicated library suites (run independently so the main `--tcc` suite stays fast and environment-specific suites can run alone):
+  - `lang/tests/regexp/` (`chemical.mod` + `main.ch`) — the extensive `regex` library suite (literals, dot/escapes, quantifiers, classes, anchors, groups/alternation, captures, find/replace/split, compile errors and realistic patterns). All test files are flat in the module directory and use the shared `helpers.ch` assertions (`rx_match`, `rx_find`, `rx_replace`, `rx_capture_pair`, ...). Run with `./scripts/test.sh --tcc --regexp` (included in `--all` after `libs`).
   - `lang/tests/process/` (`chemical.mod` + `src/`) — `process` **and** `environment` library tests. Run with `./scripts/test.sh --tcc --process`.
   - `lang/tests/webview/` (`chemical.mod` + `src/`) — `webview` library tests (display-independent API only; requires GTK3 + WebKit2GTK to link/run). Run with `./scripts/test.sh --tcc --webview`.
   - `lang/tests/universal_webview/` (`chemical.mod` + `src/`) — `#universal_test` universal-component tests: each test SSR-renders an inline fixture with the production pipeline and runs raw JS steps in a real WebView. Entry is `universal_test_runner(argc, argv)` (not `test_runner`); discovery is a `universal_test` collector annotation + `intrinsics::get_universal_tests<UTFunction>()`. Requires a display (use `xvfb-run` headless). Run with `./scripts/test.sh --tcc --universal`. Load the `universal_testing` skill.

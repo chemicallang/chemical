@@ -610,10 +610,19 @@ public func (page : &mut HtmlPage) activate_route_by_url(
 - `base` strips a mount prefix first (apps served under `/app/`); without it,
   deep links into sub-path deployments would never match.
 - Path normalization before matching: strip trailing slash (except root), decode
-  percent-encoding (a ~30-line decoder in the router lib), reject `..` segments
-  (path traversal into patterns cannot happen — matching is segment-wise against
-  declared patterns — but normalization keeps `//` and dot-segments from matching
-  unexpectedly).
+  percent-encoding, reject `..` segments (matching is segment-wise against
+  declared patterns, so traversal cannot match — normalization keeps `//` and
+  dot-segments from matching unexpectedly).
+  **Decoder source:** the `http` module already ships `http::url_decode` and
+  `http::parse_query` (pure string helpers, no sockets involved). The router
+  library depends on them for decoding/query parsing rather than duplicating
+  ~40 lines — this is a compile-time dependency on string utilities only; the
+  "no `net` dependency" rule (§6.1 header) is about sockets/serving and is
+  unaffected. If that dependency is judged unacceptable, fall back to a local
+  decoder — decide at Phase 5, defaulting to reuse.
+- The router library ships components (`Link`, `NavLink`, `Outlet` — §6.3), so
+  it is a CBI-plugin library like `components`; it imports `page` and the html
+  stack, never `net`.
 - Matches `route "/projects/{id}"` patterns (compile-time-built match table; linear
   scan is fine for realistic route counts, `unordered_map` for static prefixes).
 - On match: `page.add_parameter(router_name, matched_id)` (§3.4) and stores
@@ -660,8 +669,62 @@ window.$__uni_sync_url("main-router");
 }
 ```
 
-Ships in `lang/libs/components/src/Link.ch` after the runtime exists; uses only the
-public control API so it composes with custom routers.
+Ships in the **router library** (`lang/libs/router/src/Link.ch`), together with
+`NavLink` (active-styling variant) and — Phase 6 — `<Outlet />`. One
+`import router` therefore provides the full routing surface: the macro, the
+control API, the extension functions, and the routing components. These
+components use only the public control API, so they compose with custom routers.
+
+### 6.3.1 Complete server setup (all of it — there is nothing else)
+
+The server side is **three lines inside the handler the user already writes**.
+Full example with the real `http` API (from `lang/compiled/docs/src/stdlib/net_http.md`):
+
+```chemical
+import router
+import net
+import net.client          // the http module
+
+public func handle_request(req : &http::Request, res : &mut http::ResponseWriter) {
+    var page = HtmlPage()
+    page.defaultUniversalSetup()                       // existing universal runtime
+
+    // 1. ONE router line: match req.path against the page's declared patterns,
+    //    select the default route, store {id} + query params. Returns false on
+    //    miss with no fallback route (user decides to 404).
+    var matched = page.activate_route_by_url("main", req.path)
+
+    // 2. request context (only if route bodies need it)
+    page.set_request(&RouteRequest.make(req.method, req.path, req.query, ""))
+
+    #html { <App /> }                                  // router declared inside App
+
+    if(matched) {
+        res.write_string(page.htmlPageToString())      // or res.send_file for static export
+    } else {
+        res.status = 404u
+        res.write_string("Not Found")
+    }
+}
+```
+
+That is the whole integration:
+
+| Step | Required? | Cost |
+|---|---|---|
+| `page.activate_route_by_url(...)` | yes for URL routes | one call, µs class (§7.5) |
+| `page.set_request(...)` | only if route bodies read the request | one store insert |
+| `page.add_parameter("main", "id")` | replaces step 1 for id-only routing | one store insert |
+| static export (`writeToDirectory`) | replaces all of the above | zero per request; client match table handles deep links (§6.8) |
+
+The macro and client runtime need **no** server setup: declaring `router` inside
+a component is enough — the compiler emits the registry, wrappers, and stubs
+into the page. `activate_route_by_url` merely tells that machinery which route
+the request wants.
+
+> Static-export deployment (§6.8): a static host serves the pre-built `.html`
+> for the URL's page; the emitted client match table selects the route in the
+> browser. Server router code only exists in per-request deployments.
 
 ### 6.4 Params reach the component on both sides (client-side matching)
 

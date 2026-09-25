@@ -707,6 +707,18 @@ void process_cached_module(ASTProcessor& processor, std::vector<ASTFileMetaData>
             }
         }
     }
+    if(is_tcc) {
+        // the generic instantiations this module registered during symbol resolution
+        // were emitted into the module's cached c (partial file). They don't belong to
+        // any of the module's files, so the loop above never reaches them. Mark them
+        // as generated/declared here, otherwise a dependent module that references one
+        // of them re-emits the same struct/union/variant definition (which c rejects
+        // with 'struct/union/enum already defined' in the concatenated translation unit).
+        for(const auto node : processor.container.get_current_module_instantiations()) {
+            set_generated_instantiations(node);
+            set_defined_declarations(node);
+        }
+    }
 }
 
 void remove_non_public_nodes(ASTProcessor& processor, std::vector<ASTFileMetaData>& module_files) {
@@ -1171,6 +1183,14 @@ int LabBuildCompiler::process_module_gen(
         for(auto& dep : mod->dependencies) {
             process_cached_module(processor, dep.module->direct_files, false);
         }
+
+        // the module was served from cache, so the generic instantiations its symbol
+        // resolution registered were already emitted into its object file. Drop them
+        // here — otherwise they leak into the next (changed) module, which declares and
+        // then generates their bodies. Those nodes are owned by the module allocator
+        // that is cleared right below, so the next module ends up code generating freed
+        // AST memory (LLVM crashes with an invalid memory access).
+        processor.container.clear_current_module_instantiations();
 
         // removing non public nodes, because these would be disposed when allocator clears
         remove_non_public_nodes(processor, mod->direct_files);

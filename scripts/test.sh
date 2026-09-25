@@ -25,6 +25,7 @@ TEST_UNIVERSAL_TESTS=false
 TEST_SERVER=false
 TEST_LIBS=false
 TEST_ASYNC=false
+TEST_REGEXP=false
 RUN_ALL=false
 INCLUDE_TLS=false
 COMPILE_TARGET=""
@@ -65,8 +66,9 @@ usage() {
   echo "  --server                Build & run the server test suite (passes --arg-test-server)"
   echo "  --libs                  Build & run the library test suite (passes --arg-test-libs)"
   echo "  --async                 Build & run the async/await suite (C or LLVM)"
+  echo "  --regexp                Build & run the extensive regular-expression suite (passes --arg-test-regexp)"
   echo "  --all                   Run every suite (main, interpret, negative, plugins, async,"
-  echo "                          libs, process, server, webview, universal) and print a summary table."
+  echo "                          libs, regexp, process, server, webview, universal) and print a summary table."
   echo "                          Uses --tcc unless --llvm is also given. The slow 'tls'"
   echo "                          suite is SKIPPED unless --include-tls is given."
   echo "  --include-tls           With --all, also run the slow 'tls' suite (minutes)."
@@ -119,6 +121,7 @@ while [ $# -gt 0 ]; do
     --server) TEST_SERVER=true ;;
     --libs) TEST_LIBS=true ;;
     --async) TEST_ASYNC=true ;;
+    --regexp) TEST_REGEXP=true ;;
     --all) RUN_ALL=true ;;
     --include-tls) INCLUDE_TLS=true ;;
     --target) COMPILE_TARGET="$2"; shift ;;
@@ -283,8 +286,8 @@ run_all_suites() {
   fi
 
   # The slow `tls` suite is opt-in (`--include-tls`); everything else always runs.
-  local names=("main" "interpret" "negative" "plugins" "async" "libs" "process" "server")
-  local flags=("" "--interpret" "--negative" "--plugins" "--async" "--libs" "--process" "--server")
+  local names=("main" "interpret" "negative" "plugins" "async" "libs" "regexp" "process" "server")
+  local flags=("" "--interpret" "--negative" "--plugins" "--async" "--libs" "--regexp" "--process" "--server")
   if [ "$INCLUDE_TLS" = true ]; then
     names+=("tls")
     flags+=("--tls")
@@ -546,6 +549,9 @@ else
   fi
   if [ "$TEST_ASYNC" = true ]; then
     CMD+=("--arg-test-async")
+  fi
+  if [ "$TEST_REGEXP" = true ]; then
+    CMD+=("--arg-test-regexp")
   fi
   if [ -n "$COMPILE_TARGET" ]; then
     CMD+=("--target" "$COMPILE_TARGET")

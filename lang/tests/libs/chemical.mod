@@ -12,7 +12,6 @@ import bcrypt
 import uuid
 import json
 import datetime
-import regex
 import fs
 import path
 import encoding

@@ -73,6 +73,18 @@ public:
         return attrs.is_moved;
     }
 
+    /**
+     * true when this chain starts with a function call that returns a
+     * destructible struct, for example `f().member` (or deeper, `f().a.b`)
+     *
+     * the temporary returned by the call owns the accessed member, and the code
+     * generators destroy that temporary — and with it the member — while the
+     * chain is loaded. the value the chain produces is therefore a non-owning
+     * alias into an already destroyed temporary, so its consumer must not
+     * destroy it again (that would free the same member twice)
+     */
+    bool is_alias_into_destroyed_temp();
+
     inline void set_is_moved(bool is_moved) {
         attrs.is_moved = is_moved;
     }

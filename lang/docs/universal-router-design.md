@@ -6,6 +6,12 @@ against the runtime source (§13). This document is the implementability-reviewe
 plan for the universal component router: a server-rendered, lazy-hydrating,
 id-based route activation system with an opt-in URL layer.
 
+**Implementation decision record (§14):** the Phase-0 decisions — lexer/grammar,
+AST shape, converter emission points, package graph, URL matching rules, runtime
+state machine, and a frozen diagnostics catalogue — are in §14. Start there before
+writing code; three of those decisions were found because the design as written
+would not have compiled or would have pulled `net`/`tls` into every routed app.
+
 **Second-pass note (§13):** the design was re-checked line-by-line against
 `lang/libs/page/src/page.ch` and the `#html` converter. Four mechanism claims were
 factually wrong (the error path throws; root-mode mount adopts/replaces the host;
@@ -107,6 +113,8 @@ Record fields:
 | `ssr` | the **host currently holds SSR markup for this record's `url`**; `false` → next mount is fresh (clears the host first) |
 | `url` | for URL routes, the resolved path this record serves (record identity for param routes is the *pattern*; `url` is the resolved value, §6.4) |
 | `inst` | the mounted instance handle (`host.$__uni_instance`) for dispose-on-param-change |
+| `failed` | mount/host failure; contained and never retried in a loop (D-7.6) |
+| `scrollY` / `focusEl` | remembered position and focus target for restore (§6.7) |
 | `beforeActivate` / `onActivate` / `onDeactivate` | hook callbacks (§5.3) |
 
 `activateRoute` is a small, monomorphic function:
@@ -219,14 +227,16 @@ write that bails out when the id is unchanged. No DOM queries, no re-render, no
 effect re-runs. (URL routes compare the resolved `url` string instead of the
 identity alone — a short path compare, §6.4.)
 
-**Re-entrancy rule (must be defined before implementing, §12.4):** hooks
+**Re-entrancy rule (must be defined before implementing, §12.4/D-7.1):** hooks
 (`onActivate`/`onDeactivate`) run *after* `r.current` is set, and a call to
-`activateRoute` from inside a hook does not run inline — it is queued on a
-microtask and executed after the in-flight activation completes. Without this,
-an `onDeactivate` that navigates would interleave two activations over the same
-`r.current` field and corrupt the visibility pairing (a route left visible with
-`current` pointing elsewhere). The queue is one array and a scheduled flag — a
-few lines, decided here so it is not discovered as a heisenbug.
+`activateRoute` from inside a hook does not run inline — it is pushed onto a FIFO
+(`$__uni_router_queue`) that is drained after the in-flight activation completes.
+Without this, an `onDeactivate` that navigates would interleave two activations
+over the same `r.current` field and corrupt the visibility pairing (a route left
+visible with `current` pointing elsewhere). Note that the hooks in the code above
+run while the transition is finishing, so the guards are: check `busy` on entry,
+push if set; drain in a loop at the end. A few lines, decided here so it is not
+discovered as a heisenbug.
 
 ### 2.2 Route activation stubs
 
@@ -815,13 +825,17 @@ if(m.matched) {
   percent-encoding, reject `.`/`..` segments as non-matching (matching is
   segment-wise against declared patterns, so traversal cannot match; `..` is
   never resolved against the filesystem — the router has no filesystem concept).
-  **Decoder source:** the `http` module already ships `http::url_decode` and
-  `http::parse_query` (pure string helpers, no sockets involved). The router
-  library depends on them for decoding/query parsing rather than duplicating
-  ~40 lines — a compile-time dependency on string utilities only; the "no `net`
-  dependency" rule is about sockets/serving and is unaffected. If that dependency
-  is judged unacceptable, fall back to a local decoder — decide at Phase 5,
-  defaulting to reuse.
+  **Decoder source (corrected — see §14.4):** do **not** reuse
+  `http::url_decode`/`http::parse_query`. They live in the `http` module, and
+  `lang/libs/http/chemical.mod` imports `net`, `tls`, `async`, `mime` and `json`
+  — importing `http` from the router library would drag the entire networking
+  stack (and a TLS dependency) into every app that routes, breaking §0.5's
+  "the importer pays the cost" rule. The net-free home for percent coding is the
+  `encoding` module (`lang/libs/encoding/src/url.ch`: `url_encode`,
+  `url_encode_query`, `url_decode`), whose module imports only `std` and
+  `crypto`. The router library therefore `import encoding` and implements the
+  ~20-line query splitter itself. This also supplies `buildPath`'s
+  percent-encoding (§6.6) from the same source.
 - The router library ships components (`Link`, `NavLink`, `Outlet` — §6.3), so
   it is a CBI-plugin library like `components`; it imports `page` and the html
   stack, never `net`.
@@ -928,8 +942,7 @@ example with the real `http` API (from `lang/compiled/docs/src/stdlib/net_http.m
 
 ```chemical
 import router
-import net
-import net.client          // the http module
+import http                // provides http::Request / http::ResponseWriter
 
 public func handle_request(req : &http::Request, res : &mut http::ResponseWriter) {
     var page = HtmlPage()
@@ -1243,6 +1256,16 @@ stated, not hidden. Mitigations, in the order they should ship:
 3. **The debug/validation build** (`--mode debug_complete`) skips snapshots and
    renders everything per request, so snapshot corruption surfaces as SSR
    mismatches in tests rather than silent staleness in production.
+4. **Snapshots are id-safe — verified, not assumed (D-2.5).** A cached snapshot
+   contains hydration boundary ids. If those ids came from a *per-request
+   counter*, two snapshots could both contain `u17` and `$__uni_boundary` would
+   resolve the wrong element — a silent cross-route hydration bug. They do not:
+   the boundary id is `"u" + element.loc` (`lang/libs/html_cbi/src/converter/language/component.ch:292`),
+   i.e. **derived from the element's source location**, so it is identical on
+   every render and unique per source position. Two distinct route declarations
+   can never collide, and appending a snapshot never renumbers anything else.
+   This is what makes §7.5 implementable at all; the Phase 7 test asserts it by
+   rendering the same page twice (cold and snapshot-warm) and comparing ids.
 
 **Cost driver 2 — the JS/CSS work is request-independent.** Component JS
 emission, the router registry, match table, and CSS are identical for every
@@ -1432,9 +1455,20 @@ reads request data is classified dynamic (test), never snapshot-stale.
 
 Dependency notes: Phase 3 depends on the enum-sync rule (no `--no-build` traps:
 C++ is untouched — all parser/plugin code is Chemical, so plugin-only rebuilds
-apply). Phase 2's segmented-JS dependency is soft: stubs can be emitted in
-dispatch order today, and the professionalization plan's segmented sections
-improve ordering guarantees without changing this design.
+apply; but the CBI plugins *are* rebuilt from these sources, so `--cached-plugins`
+must not be used while iterating — D-4.4). Phase 2's segmented-JS dependency is
+soft: stubs can be emitted in dispatch order today, and the professionalization
+plan's segmented sections improve ordering guarantees without changing this
+design.
+
+> **Before starting Phase 1, read §14** — the implementation decision record. It
+> fixes the `#` token (D-1.1), contextual-keyword parsing (D-1.2), the AST/emission
+> points (D-2.1–D-2.4), the `router()` handle as a runtime accessor plus a
+> compile-time validation walk (D-3.1), the package graph — including the rule that
+> the router library must import `encoding` and **not** `http` (D-4.2) — the URL
+> grammar/precedence/normalization rules that server and client must share
+> (D-6.1–D-6.6), the runtime records and queue (D-7.1–D-7.5), the frozen diagnostic
+> messages (§14.8), and the testing split (§14.9). Phase 0→1 order is in §14.11.
 
 ## 10. Explicit non-goals (v1)
 
@@ -1620,6 +1654,10 @@ not violate:
   tests not run in interpret mode" question has an answer.
 
 ### 12.9 What we still deliberately don't know (open, resolve at implementation)
+
+Each item below is now a row in §14.10 with a chosen default and the trigger that
+reopens it; this subsection keeps the reasoning for why it is open rather than
+guessed.
 
 - **`content-visibility` vs `display:none`** as the deactivate mechanism: possibly
   better memory/paint behavior for very large routes, but changes layout
@@ -1840,3 +1878,407 @@ as written (server-side URL matching, and static-export deep links without a
 manifest) are specified. The remaining open questions (§12.9) are still
 deliberately measurement-gated; nothing in this pass adds a new open question —
 it closes the ones that were silently load-bearing.
+
+---
+
+## 14. Implementation decision record (Phase 0 — decide before writing code)
+
+Sections 0–13 describe *what* the router is. This section is the decision record
+for *how each piece is built*, verified against the parser, lexer, converter,
+package graph and runtime. Every entry names the constraint that forced it, so a
+future reader does not have to re-derive it. Format: **the gap → the decision →
+the consequence.**
+
+A note on scope: these are not speculative. Three of them (D-1.1 the `#` sigil,
+D-1.2 contextual keywords, D-4.2 the `http` dependency) were discovered *because*
+the design as written would not compile or would pull the networking stack into
+every routed app. They are the most valuable output of this section.
+
+### 14.1 Lexer & grammar
+
+**D-1.1 — The `#` sigil is not lexable inside a `#universal` body.** *DECIDED:
+add a `Hash` token.*
+
+- Verified: `JsTokenType` (`lang/libs/js_syntax/src/TokenType.ch`) has no `#`
+  token. The runtime lexer (`js_syntax/src/Tokenizer.ch`) falls through its
+  `switch(c)` for `'#'` to `Token { type : 0, value : "unexpected" }`; the plugin
+  lexer (`js_cbi_lexer/src/CompilerLexer.ch`, `nextJsToken`, wired by
+  `universal_initializeLexer` in `universal_cbi/src/react/macro.ch:127`) has no
+  `'#'` case either.
+- Verified: **no `#macro` call currently appears inside a `#universal` body.**
+  Every `#css` in `lang/libs/components/src/*.ch` is in a plain Chemical helper
+  (`return #css { … }`), outside the `#universal` components (e.g. `Alert.ch`
+  lines 2–72 vs components from line 104). So `#` inside a universal body is
+  free space today — adding it collides with nothing.
+- Decision: append `JsTokenType.Hash` to the enum (it is *not* mirrored in C++
+  and not part of the CBI enum-sync rule — `JsTokenType` lives entirely in
+  `js_syntax`), add a `'#'` case to **both** lexers, and parse `route #"id"`.
+- Consequence/risk: if nested `#macro` support inside universal bodies is ever
+  wanted, that grammar must reclaim `#`; record it in the macro grammar notes.
+  A zero-lexer-change fallback (`route id "dashboard"` / `route url "/x"`) is
+  recorded and **not** chosen — `#` is the ideation's token and free today.
+
+**D-1.2 — `router`/`route` must not become reserved keywords.** *DECIDED:
+contextual keywords via lookahead.*
+
+- Verified: both are in active use as ordinary identifiers
+  (`lang/libs/http/src/server.ch:30,84`, `lang/libs/server/src/main.ch:59`,
+  `lang/libs/server/src/async.ch:28`).
+- Decision: no new keyword tokens. In `parseStatement`, when the token is an
+  `Identifier` whose value is `router`/`route`, peek the **next** token to decide:
+  `router` + (`String` | `Identifier` | `LBrace`), `route` + (`Hash` | `String` |
+  `Star` | `Default`). Otherwise fall through to the untouched expression path.
+  This mirrors the existing destructuring peek (`parser_stmt.ch:41`).
+- Consequence: `router`/`route` remain usable as variable names; `route(x)` as a
+  function call parses as before.
+
+**D-1.3 — Where each statement is legal.** *DECIDED.* `router` only at the top
+level of a `#universal` component body; `route` only inside a `router` block.
+Enforced by the parser (the hook lives in `parseStatement`, reached only through
+`parseBlock`) and re-checked by the converter, which is what emits the
+diagnostic (R1/R2 in §14.8).
+
+**D-1.4 — Mode placement.** *DECIDED (canonical from §4.5):* mode **after** the
+id — `route #"admin" preload { … }`. The parser reads: optional `default`, then
+(`#id` | `url-string` | `*`), then optional mode keyword, then optional `title`
+string, then the body. Modes: `lazy` | `preload` | `remote`; `remote` requires a
+URL route (diagnostic otherwise).
+
+### 14.2 AST nodes, parser hooks, and converter emission
+
+**D-2.1 — Enum and AST shape.** *DECIDED.*
+- `JsNodeKind` (`js_syntax/src/NodeKind.ch`, tail is `… RegexLiteral, Paren`):
+  append `RouterDecl`, `RouteDecl`, `RouteHook`. Append-only, and safe because
+  `JsNodeKind` is internal to `js_syntax`: the AGENTS.md enum-sync rule covers
+  `ASTNodeKind.h` ↔ `Ast.ch` and `TokenType.h` ↔ `ChemicalTokenType.ch`, neither
+  of which mirrors `JsNodeKind`. (Even so, appending rather than inserting keeps
+  the same discipline everywhere.)
+- Structs in `js_syntax/src/Ast.ch`, matching the existing `JsVarDecl` style:
+  ```
+  JsRouterDecl { name : std::string_view, routes : std::vector<*mut JsNode> }
+  JsRouteDecl  { raw : std::string_view,        // as written: "#x" / "/a/{b}" / "*"
+                 id : std::string_view,          // resolved id (id or normalized pattern)
+                 is_url, is_fallback, is_default, mode : …, title : std::string_view,
+                 hooks : std::vector<*mut JsNode>, body : *mut JsNode }
+  JsRouteHook  { name : std::string_view, fn : *mut JsNode }
+  ```
+
+**D-2.2 — Parser entry points.** *DECIDED.* Add `parseRouterDecl` and
+`parseRouteDecl`; register them in the `parseStatement` chain in
+`lang/libs/universal_parser/src/parser/parser_stmt.ch` (the chain starts at
+line 31 with `var/const/let/state`, then `if`, `return`, `class`, `async`, …).
+Put them in a new `parser_router.ch` in the same package to keep `parser_stmt.ch`
+readable; the chain calls one `tryParseRouterStatement(parser, builder)` helper
+that returns `null` when the lookahead is not a router statement. Route bodies
+parse with the existing `parseBlock`, so anything legal in a component body is
+legal in a route body, and JSX-root cardinality is checked at conversion.
+
+**D-2.3 — Two emission paths, one new.** *DECIDED.* Route bodies must **not** go
+through `emit_universal_queue` (`lang/libs/html_cbi/src/converter/language/main.ch:417`)
+— verified that it is the single dispatcher and it pushes onto
+`$__uni_hydration_queue`, which `$__universal_flush()` drains (§2.2 bullet 5).
+Add `emit_route_registration(...)` beside it, emitting the stub (§2.2) instead of
+a queue push. The SSR wrapper emission is a new `emit_router_server(...)` in
+`universal_cbi/src/converter/`. Both are called from the component-body emission
+in `react/ast_replace.ch` where `#universal` output is produced.
+
+**D-2.4 — Registry dedup.** *DECIDED.* Registry/wrapper emission is keyed by a
+per-router hash through the page's existing dedup map (`HtmlPage.doneComponents`
++ `require_component`, `page.ch:176`) — the same mechanism that dedups component
+JS today — so rendering the declaring component twice on one page does not emit
+`$__uni_routers["m"]` twice. Additionally: **a router is a page singleton**;
+rendering its declaring component more than once is diagnosed when statically
+visible and otherwise contained at runtime (R5, §14.8).
+
+**D-2.5 — Route boundary ids are source-location-derived.** *VERIFIED/FROZEN.*
+The host id follows the existing universal scheme, `"u" + element.loc`
+(`html_cbi/src/converter/language/component.ch:292`; the same id is written into
+the SSR `<span id="uN" data-chx-i>` and passed to `$__uni_boundary`). The router
+must **not** introduce a per-page route counter for ids: source-derived ids are
+stable across renders, which is what lets the §7.5 snapshot cache append cached
+markup without id collisions. Corollary for §2.2: the stub's `$__uni_boundary("uN")`
+argument is a compile-time constant, not a runtime lookup.
+
+**D-2.6 — Route props reuse the existing serialization path.** *DECIDED.* A
+route's JSX-root attributes become its props via the same helper
+`emit_universal_queue` uses to build `{ "attr": value }`
+(`html_cbi/src/converter/language/main.ch:416` onward) — the attribute-name and
+value-escaping rules must live in one function used by both, so route props can
+never diverge from `#html`-embedded props (the AGENTS.md single-quote/backslash
+contract, and the "unsupported prop type is a diagnostic" rule). Do **not**
+write a second props serializer for routes.
+
+### 14.3 The `router()` handle: runtime accessor + compile-time validation
+
+**D-3.1 — `router(name)` is a runtime global, not a compiler-only construct.**
+*DECIDED.*
+
+- Constraint: a `#universal` body is parsed as **JS/JSX**, so
+  `const r = router("main")` and `r.activateRoute("x")` are JS call expressions
+  in the emitted output. There is no expression kind that could make them
+  compiler-only without inventing new syntax.
+- Decision: emit `window.$__uni_router = ((name) => …)` once per page (an
+  accessor that creates the record if absent), and add a **validation walk** over
+  the parsed body collecting literal-argument calls to `router(…)`,
+  `.activateRoute(…)`, `.preload(…)`, `.buildPath(…)` for id checking (§4.4).
+  Dynamic arguments skip validation and take the runtime path.
+- Consequence: the public surface behaves like a normal JS object
+  (`r.$current.value` is a real property read of the `$_us` signal — consistent,
+  not special-cased), while literal typos are still compile errors.
+
+**D-3.2 — Internal symbol namespace.** *DECIDED.* All router internals use the
+established `$__uni_router*` prefix (`$__uni_router_error`, `$__uni_router`,
+`$__uni_route_tables`, `$__uni_sync_url`). Rejecting user references to
+`$__uni_*` in route bodies is diagnostic R14. This is why §4.4's last row exists.
+
+**D-3.3 — `router()` with no name.** *DECIDED.* Resolves at compile time to the
+single router declared on the page; a diagnostic when zero or more than one is
+in scope (§4.5). It is *not* a runtime lookup fallback — a runtime fallback would
+silently pick a router when the app has two.
+
+### 14.4 Package graph and build ownership
+
+**D-4.1 — `lang/libs/router/` is a plain module.** *DECIDED.* Template is
+`lang/libs/components/chemical.mod` (`module components`, `source "src"`, imports
+`page`, `std`, `universal_cbi`, `css_cbi`). The router module imports `page`,
+`std`, `universal_cbi`, `css_cbi`, `encoding`. A plain module (not a CBI) can
+declare `#universal` components and `#css` helpers.
+
+**D-4.2 — Do not import `http`.** *DECIDED.*
+- Verified: `lang/libs/http/chemical.mod` imports `net`, `tls`, `async`, `mime`,
+  `json`. Importing `http` from the router library would make every routed app
+  link TLS + networking — a direct violation of §0.5.
+- Verified: the net-free URL codec is the `encoding` module
+  (`lang/libs/encoding/src/url.ch`: `url_encode`, `url_encode_query`,
+  `url_decode`; module imports only `std`, `crypto`).
+- Decision: `import encoding` for percent coding; implement `parse_query`
+  locally (~20 lines) since `encoding` has none. This also supplies
+  `buildPath`'s encoding (§6.6) from one source. §6.1's decoder paragraph is
+  corrected accordingly.
+- Residual cost, stated honestly: `encoding` imports `crypto` (hashing). That is
+  far lighter than `http`'s `net` + `tls` + `async` + `mime` + `json`, but it is
+  not zero. If it is ever judged too heavy for a routed app, the fallback is to
+  vendor the ~120-line URL codec into `lang/libs/router/src/` — record the
+  measurement, then decide; do not pre-emptively duplicate it.
+
+**D-4.3 — The syntax/codegen belongs to the existing `universal` CBI.**
+*DECIDED.* No new CBI: `universal_cbi/build.lab` builds CBI name `"universal"`
+with dependencies on `js_syntax`, `js_cbi_lexer`, `universal_parser`, `compiler`,
+and `universal_parseMacroNode`/`universal_initializeLexer` are its entry points.
+A second CBI would double-register the annotation controller and split the
+grammar. So the change set is:
+`js_syntax` (TokenType + NodeKind + Ast) → `js_cbi_lexer` (the `#` case) →
+`universal_parser` (the statements) → `universal_cbi` (conversion).
+
+**D-4.4 — What rebuilds while iterating.** *DECIDED/CAUTION.* No C++ changes
+(`--no-build` is safe for the compiler binary), **but** the CBI plugins are
+TinyCC-compiled from these Chemical sources, so `--cached-plugins` must not be
+used and a plugin rebuild happens on every change (AGENTS.md). Every Phase 3
+test run should therefore be `./scripts/test.sh --tcc` without
+`--cached-plugins`.
+
+### 14.5 Parameter store decisions (Phase 1)
+
+**D-5.1 — Container.** `std::unordered_map<std::string_view, PageParameter>`;
+precedent `lang/libs/css_parser/src/parser/value/all.ch` uses
+`unordered_map<std::string_view, T>`, so hash/eq exist. It is node-based, so
+`get_ptr(key)` references stay valid across later inserts — the returned
+`*mut PageParameter` is safe to hold for the render. Document that; it is the
+reason to prefer it over a rehashing flat map.
+
+**D-5.2 — Reserved key namespace.** Router internals use the `__route_` prefix
+(`__route_url`, `__route_base`); query values use `__query_<k>`. **Decision:**
+`add_parameter` asserts in debug (and documents) that user keys do not start with
+`__route_`/`__query_`, so internal state cannot be clobbered by app code. The
+router-name→id key is exempt (it is the user-facing `add_parameter("main", …)`).
+
+**D-5.3 — Lifetime.** `Text` views are page-lifetime; `Object` pointers must
+outlive the render (§3.2). Server URL params are **copied** into page-owned
+storage inside `match_route` before storing views, because the request buffer may
+be reused by the next keep-alive request (§12.8). One copy per param.
+
+**D-5.4 — Server method scope.** `set_route_url` stores the path only; the app
+gates on method (`if(req.method is "GET") …`). Query is stored separately
+(`__query_*`) so the matcher never sees a query string.
+
+### 14.6 URL matching decisions (Phase 5)
+
+**D-6.1 — Pattern grammar (frozen for v1).** Literal segments and `{name}`
+single-segment params only. No mid-pattern `*`, no optional segments, no regex.
+The only catch-all is `route *`. Unsupported forms are diagnostics (R13).
+
+**D-6.2 — Precedence and ambiguity.** Decide order: (1) more literal segments
+first; (2) fewer params; (3) declaration order. Two patterns that can match the
+same path with the same shape are an **ambiguity diagnostic** (R9); otherwise
+precedence resolves deterministically. This rule lives in one function
+(`match_route`) used by **both** the server matcher and the client table, so the
+three delivery paths (§6.4) cannot diverge.
+
+**D-6.3 — Normalization.** Strip one trailing slash (except root); do not
+collapse `//`; percent-decode **after** segment splitting (so `%2F` in a param is
+data, not a separator); literal compare is case-sensitive; `.`/`..` never match.
+Same function both sides.
+
+**D-6.4 — `buildPath` encoding.** `encoding::url_encode` per param segment (not
+`url_encode_query`), so a `/` in a param becomes `%2F` and round-trips under
+D-6.3.
+
+**D-6.5 — Route identity.** The record id for a URL route is a stable
+normalization of the pattern as written; the macro generates it and the client
+table keys on it. `activateRoute(id)` on a param route without a `url` argument
+uses the record's current `url`; if required params are unknown and the id is
+literal, it is a compile diagnostic, otherwise a contained runtime no-op. Param
+routes are normally entered with `activateRouteByUrl(path)` (§6.4).
+
+**D-6.6 — Default/fallback precedence.** Server parameter wins; then
+`route default`; then `route *`; else `mark_route_missing()` (§6.1). A router
+with neither a `default` nor a fallback is a **warning** (R10), not an error —
+an id-only router driven entirely by `add_parameter` is legitimate.
+
+**D-6.7 — `Link`/`NavLink` derive active state from the URL, not from a
+required prop.** *DECIDED.* The §6.6 sketch made `NavLink` need both `href` and
+`routeId`, which is redundant and easy to get wrong (and impossible for a plain
+`<Link>`). Instead, active state is `r.current() !== null && r.current().url ===
+normalize(props.href)` (the same normalization the matcher uses, D-6.3), with
+`props.routeId` accepted only for id routes (where there is no URL). This removes
+a prop, removes a class of bugs, and makes `<Link>` and `<NavLink>` the same
+component with a class function.
+
+**D-6.8 — Multiple URL routers match independently; cross-router overlap is not
+statically detectable.** *DECIDED/DOCUMENTED.* Each router's generated function
+matches its own patterns against the same `__route_url`, so two routers that both
+declare `/projects` will both select it. Declarations can live in different
+modules, so a compile-time cross-router check is not generally possible; the
+design therefore (a) emits the router name into the §13.2 `routes.json` manifest,
+(b) documents "a URL pattern should be owned by exactly one router; scope them by
+prefix", and (c) leaves a page-assembly warning (R10-style, best-effort) as an
+option. This is the same class of decision as §12.9's nested-`$current` note:
+kept simple, documented, revisitable.
+
+### 14.7 Runtime state-machine decisions (Phase 2)
+
+**D-7.1 — Activation queue = FIFO drain, not a microtask.** Simplify §2.1's
+parenthetical: `$__uni_router_queue` + a `busy` flag; `$__uni_activate` sets
+`busy`, performs the transition, clears `busy`, then drains the queue in a loop
+(re-entrant calls push). Hooks run while `busy` is still set, so a hook-initiated
+navigation queues and is applied after the in-flight transition — deterministic
+FIFO, easier to reason about and to test than a scheduled microtask. Last-wins
+is preserved by the `r.current === route` comparison. (The network fetch for a
+`remote` route remains the only async step; the `inFlight` flag guards it.)
+
+**D-7.2 — Record fields (authoritative).** Per route: `el`, `host`, `comp`,
+`props`, `hydrated`, `visible`, `ssr`, `url`, `inst`, `failed`, `scrollY`,
+`focusEl`, `inFlight`, `beforeActivate`, `onActivate`, `onDeactivate`, `title`.
+Per router: `name`, `current`, `$current`, `routes`, `table`, `$query`.
+
+**D-7.3 — `route_visible` is the only visibility mutator.** It toggles the
+attribute **and** maintains `record.visible`, so the pairing invariant (§12.4) is
+assertable from `window.$__uni_routers` without reading the DOM. Focus/scroll
+capture happens in the `false` branch and restore in the `true` branch
+(§6.7).
+
+**D-7.4 — Bootstrap ordering (verified).** Registry + stubs → `pageJs`;
+`window.$__universal_flush();` is appended to `pageJsEnd` by
+`defaultUniversalSetup`; the initial `$__uni_activate(…)` is appended to
+`pageJsEnd` **after** it. `toString`/`getFinalizedPageJs` emit
+`pageJs + pageJsEnd` in that order (`page.ch:2502–2508`), so this needs no
+`move_js_range` and is stable.
+
+**D-7.5 — `preload` is activate-minus-visibility.** Same `hydrated` guard
+(no double mount), never touches `r.current`, never calls `onActivate`.
+
+**D-7.6 — Mount failures are contained, and never retried in a loop.**
+*DECIDED.* `$__uni_mount` catches errors thrown *by the component body* and
+renders the error-boundary fallback (page.ch:2198), but it calls the **throwing**
+`$__uni_error` for a missing host and a non-function factory (page.ch:2160–2165).
+`$__uni_activate` therefore wraps the mount call in `try/catch` and reports via
+`$__uni_router_error`. The route is still marked `hydrated = true` so a broken
+component cannot become a remount storm (navigating back would otherwise retry
+on every switch). If the *host element* is the thing that is missing (an SSR bug),
+mark the record `failed = true` and keep it hidden; the page continues.
+
+**D-7.7 — `route_visible` is total.** *DECIDED.* If a record's `el` is null
+(SSR/JS mismatch, a component rendered without its boundary), `route_visible`
+reports once via `$__uni_router_error` and returns without throwing, and the
+record keeps `visible` in sync with `r.current` so the §12.4 invariant is not
+violated by a missing element. No DOM access in the activation path is
+unguarded.
+
+### 14.8 Diagnostics catalogue (frozen)
+
+All are parser/converter diagnostics with a `SourceLocation` except R5, which is
+a contained runtime report (`console.error`).
+
+| # | Trigger | Severity | Message |
+|---|---|---|---|
+| R1 | `route` outside `router` | error | `'route' declaration is only valid inside a router block` |
+| R2 | `router` not inside a `#universal` component | error | `router must be declared inside a #universal component` |
+| R3 | duplicate route id in one router | error | `route '#x' is declared twice in router "m"` |
+| R4 | duplicate router name in one module | error | `router "m" is declared twice` |
+| R5 | second registration of a router name at runtime | runtime | `router "m" already registered` |
+| R6 | route body with 0 or >1 JSX roots | error | `route body must render exactly one root element` |
+| R7 | `route *` duplicated or not last | error | `fallback route must be the last route` |
+| R8 | literal id in `activateRoute`/`preload`/`buildPath` not declared | error | `no route '#x' in router "m"` |
+| R9 | two patterns can match one path identically | error | `route patterns '/a/{x}' and '/a/{y}' are ambiguous` |
+| R10 | router with no `default` and no `*` | warning | `router "m" has no default route; the page renders inert without a server parameter` |
+| R11 | props read a param not in the pattern | error | `route param 'x' is not declared in '/a/{y}'` |
+| R12 | `dangerouslySetInnerHTML` fed a route param | error | `route params must not be injected as raw HTML` |
+| R13 | unsupported pattern form | error | `unsupported route pattern '…'` |
+| R14 | route body references `$__uni_*` internals | error | `route bodies cannot call runtime internals` |
+
+### 14.9 Testing decisions
+
+**D-9.1 — Deep-link SSR is a `--libs` server test, not a WebView test.**
+The WebView harness loads pages from opaque origins with no real navigation
+(§12.5), so deep-link *server selection* is tested by rendering: build a page,
+`set_route_url("/projects/42")`, `#html { <App/> }`, then assert the rendered
+HTML has the active wrapper and the param value. This is a stronger SSR test than
+a browser check would be, and it avoids the harness's limitations entirely.
+
+**D-9.2 — Client matching is tested by calling the API.** In WebView, call
+`activateRouteByUrl("/projects/42")` directly; history integration gets its own
+`isolate` test that asserts the in-memory fallback (since `pushState` throws).
+Never drive a test through real history.
+
+**D-9.3 — Invariants are read from `window.$__uni_routers`.** Because
+`record.visible` and `record.hydrated` are maintained fields (D-7.2/D-7.3), the
+pairing invariant and the "only the default route hydrated at load" assertion are
+direct property reads — no DOM introspection, no mocking.
+
+**D-9.4 — Timing budgets are reports, not hard gates, at first.** The WebView
+harness is noisy; §7's ≤1ms/≤50ms numbers are logged and tracked, and promoted
+to CI gates only once they are stable across runs. Correctness gates ship first.
+
+### 14.10 Deferred, with triggers
+
+| Question | Resolve when | Default until then |
+|---|---|---|
+| `content-visibility` vs `display:none` | after Phase 2 profiling | `display:none` (§2.1) |
+| Route transition animations | first real request | none; hook queue is the seam |
+| `router.release(id)` shape (D-7.2 wants it in Phase 4) | Phase 4 | not in v1 |
+| Per-route `<meta>`/head diff | first request for per-route meta | `<title>` only (§13.2) |
+| Nested URL ownership of parked inner state | Phase 6 | outer owns prefix; re-derive inner from URL (§13.3) |
+| Back/forward on opaque origins | a real embedded target needs it | in-memory URL (§6.2) |
+| Wildcard/optional URL segments | first real need | not supported (D-6.1) |
+| Streaming / Suspense loaders | architectural | non-goal (§10) |
+
+### 14.11 First implementation steps (Phase 0 → 1)
+
+Ordered so each step is independently verifiable:
+
+1. **Confirm the two lexer/parser facts** by writing the smallest possible
+   `#universal` fixture that contains a `route #"x"` — first with the `Hash`
+   token added, then parsed by `universal_parser` (plugin test in
+   `lang/tests/compiler_plugins/universal/`). This validates D-1.1/D-1.2 before
+   anything else is built on them.
+2. **Phase 1 store**: `PageParameter`, the five `HtmlPage` methods + route-status
+   flag, `RouteRequest`, `set_route_url`/`get_request` extensions; `--libs` unit
+   tests (roundtrip, reserved-key assertion, view lifetime).
+3. **Phase 2 runtime**: the registry, `$__uni_activate` (with the FIFO queue),
+   `$__uni_router_error`, `route_visible`, the head-CSS rule; exercised by
+   hand-written JS in a `#js` block in a WebView fixture.
+4. **Then Phase 3** (D-4.3 file order: enum → lexer → parser → converter), with
+   §14.8's diagnostics landing alongside each construct.
+
+The order matters: steps 1–3 add no user-visible syntax, so a mistake in the
+lexer/parser decision costs nothing to correct before 14.2–14.3 are built on it.

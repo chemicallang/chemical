@@ -28,6 +28,7 @@ func run_executable_tests() {
     // -------------------------------------------
     test_temp_view_lifetime()
     test_temp_arg_destruct()
+    test_temp_member_destruct()
     test_native_generic_specifics();
     test_native_generic_fn_field();
     test_native_generic_fn_reference();

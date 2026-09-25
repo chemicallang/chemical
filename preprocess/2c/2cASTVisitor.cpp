@@ -6979,72 +6979,114 @@ void write_enum(ToCAstVisitor& visitor, EnumMember* member) {
 
 void access_chain(ToCAstVisitor& visitor, std::vector<Value*>& values, const unsigned start, const unsigned end);
 
-// this function is called, with start index to the chain value which is definitely a function call
-// we check if it's a function call to a struct which has a destructor
-// if it does have a destructor, we store the accessed value and destruct the struct afterwards
-bool write_destructible_call_chain_values(ToCAstVisitor& visitor, std::vector<Value*>& values, unsigned int start, unsigned int end) {
+// `a().b` (or a deeper member access) where a() returns a destructible struct :
+// the temporary returned by the call owns the accessed member, and it is destroyed
+// (taking the member with it) while the chain is loaded. returns that temporary's
+// container, or nullptr when the chain isn't such a chain
+MembersContainer* destructible_call_chain_container(ToCAstVisitor& visitor, std::vector<Value*>& values, unsigned int start, unsigned int end) {
+    if(end - start < 2) {
+        return nullptr;
+    }
+    // user is making a function call
+    // and there's a next value meaning call().next <-- next identifier is accessed from returned struct of the function call
+    // we need to check if the function returns a struct that has a destructor so we can generate code to destruct it properly
+    const auto first = values[start];
+    if(first->val_kind() != ValueKind::FunctionCall) {
+        return nullptr;
+    }
     // a function is called on an object that's returned from a function (the object is destructible)
     // for example give_destructible().call_on_it()
     // we find this by checking if last value is a function decl
     const auto last = values[end-1];
     const auto last_id = last->as_identifier();
-    const auto is_call_to_func = last_id != nullptr && last_id->linked->kind() == ASTNodeKind::FunctionDecl;
-    if(is_call_to_func) {
+    if(last_id != nullptr && last_id->linked->kind() == ASTNodeKind::FunctionDecl) {
+        return nullptr;
+    }
+    const auto func_call = first->as_func_call_unsafe();
+    const auto func_type = func_call->function_type();
+    if(!func_type) {
+        return nullptr;
+    }
+    const auto pure_return = func_type->returnType->pure_type(visitor.allocator);
+    const auto memContainer = pure_return->get_members_container();
+    if(!memContainer || !memContainer->destructor_func()) {
+        return nullptr;
+    }
+    return memContainer;
+}
+
+// this function is called, with start index to the chain value which is definitely a function call
+// we check if it's a function call to a struct which has a destructor
+// if it does have a destructor, we store the accessed value and destruct the struct afterwards
+bool write_destructible_call_chain_values(ToCAstVisitor& visitor, std::vector<Value*>& values, unsigned int start, unsigned int end) {
+    const auto func_call = values[start]->as_func_call_unsafe();
+    const auto memContainer = destructible_call_chain_container(visitor, values, start, end);
+    if(!memContainer) {
         return false;
     }
-    // user is making a function call
-    // and there's a next value meaning call().next <-- next identifier is accessed from returned struct of the function call
-    // we need to check if the function returns a struct that has a destructor so we can generate code to destruct it properly
-    const auto func_call = values[start]->as_func_call_unsafe();
-    const auto func_type = func_call->function_type();
-    if(func_type) {
-        const auto pure_return = func_type->returnType->pure_type(visitor.allocator);
-        const auto memContainer = pure_return->get_members_container();
-        if(memContainer) {
-            const auto destructorFn = memContainer->destructor_func();
-            if (destructorFn) {
+    const auto destructorFn = memContainer->destructor_func();
 
-                visitor.write("({ ");
-                visitor.visit(memContainer->known_type());
-                visitor.write("* ");
+    // an enclosing call already allocated this temporary and destroys it after
+    // that call ends. Fill it and read the member straight out of it — copying
+    // the member out would leave a shallow copy of the memory the temporary's
+    // destructor frees, and destroying the temporary here would destroy it a
+    // second time once the enclosing call's cleanup runs
+    auto pre_allocated = visitor.local_allocated.find(func_call);
+    if(pre_allocated != visitor.local_allocated.end()) {
+        visitor.write("({ ");
+        visitor.visit(memContainer->known_type());
+        visitor.write("* ");
 
-                // the pointer to constructed struct
-                const auto temp_struct_ptr = visitor.get_local_temp_var_name();
-                visitor.write_str(temp_struct_ptr);
-                visitor.write(" = &");
-                accept_opt_nestable(visitor, func_call, true);
-                visitor.write("; ");
+        const auto temp_ptr = visitor.get_local_temp_var_name();
+        visitor.write_str(temp_ptr);
+        visitor.write(" = &");
+        accept_opt_nestable(visitor, func_call, true);
+        visitor.write("; ");
 
-                // saving the accessed thing pointer
-                // the pointer to saved variable so we can access it after destruction
-                const auto temp_saved_var = visitor.get_local_temp_var_name();
-                const auto last_type = values[end - 1]->getType();
-                visitor.visit(last_type);
-                visitor.write(' ');
-                visitor.write_str(temp_saved_var);
-                visitor.write(" = ");
-                visitor.write_str(temp_struct_ptr);
-                visitor.write("->");
-                access_chain(visitor, values, start + 1, end);
-                visitor.write("; ");
-
-                // destructing the struct which was accessed
-                visitor.mangle(destructorFn);
-                visitor.write('(');
-                if(destructorFn->has_self_param()) {
-                    visitor.write_str(temp_struct_ptr);
-                }
-                visitor.write("); ");
-
-                // returning the saved temporary variable
-                visitor.write_str(temp_saved_var);
-                visitor.write("; })");
-
-                return true;
-            }
-        }
+        visitor.write_str(temp_ptr);
+        visitor.write("->");
+        access_chain(visitor, values, start + 1, end);
+        visitor.write("; })");
+        return true;
     }
-    return false;
+
+    visitor.write("({ ");
+    visitor.visit(memContainer->known_type());
+    visitor.write("* ");
+
+    // the pointer to constructed struct
+    const auto temp_struct_ptr = visitor.get_local_temp_var_name();
+    visitor.write_str(temp_struct_ptr);
+    visitor.write(" = &");
+    accept_opt_nestable(visitor, func_call, true);
+    visitor.write("; ");
+
+    // saving the accessed thing pointer
+    // the pointer to saved variable so we can access it after destruction
+    const auto temp_saved_var = visitor.get_local_temp_var_name();
+    const auto last_type = values[end - 1]->getType();
+    visitor.visit(last_type);
+    visitor.write(' ');
+    visitor.write_str(temp_saved_var);
+    visitor.write(" = ");
+    visitor.write_str(temp_struct_ptr);
+    visitor.write("->");
+    access_chain(visitor, values, start + 1, end);
+    visitor.write("; ");
+
+    // destructing the struct which was accessed
+    visitor.mangle(destructorFn);
+    visitor.write('(');
+    if(destructorFn->has_self_param()) {
+        visitor.write_str(temp_struct_ptr);
+    }
+    visitor.write("); ");
+
+    // returning the saved temporary variable
+    visitor.write_str(temp_saved_var);
+    visitor.write("; })");
+
+    return true;
 }
 
 void chain_after_func(ToCAstVisitor& visitor, std::vector<Value*>& values, const unsigned start, const unsigned end) {
@@ -9148,6 +9190,16 @@ void ToCAstVisitor::VisitValueNode(ValueNode *node) {
 }
 
 void visit_wrapped_value(ToCAstVisitor& visitor, ASTNode* node, Value* value) {
+    // `f().member` where f() returns a destructible struct : loading the chain
+    // already destroys the temporary returned by the call, and with it the
+    // member. The value the chain produces is therefore a non-owning alias into
+    // that destroyed temporary — destroying it again here would free the same
+    // member twice
+    if(value->val_kind() == ValueKind::AccessChain && value->as_access_chain_unsafe()->is_alias_into_destroyed_temp()) {
+        visitor.visit(value);
+        visitor.write(';');
+        return;
+    }
     const auto val_type = value->getType();
     if(val_type->isStructLikeType()) {
         const auto destr = val_type->get_destructor();

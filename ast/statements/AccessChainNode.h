@@ -33,6 +33,12 @@ public:
 
     void code_gen(Codegen &gen) override {
         const auto inst = chain.llvm_value(gen, nullptr);
+        // `f().member` destroys the call's temporary (and with it the member)
+        // while the chain is loaded, so the chain's value is an alias into that
+        // destroyed temporary and must not be destroyed a second time
+        if(chain.is_alias_into_destroyed_temp()) {
+            return;
+        }
         chain.llvm_destruct(gen, inst);
     }
 

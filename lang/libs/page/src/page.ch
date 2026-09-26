@@ -84,6 +84,48 @@ func append_router_js_quoted(v : std::string_view, out : &mut std::string) {
     }
 }
 
+// ── Static-route SSR snapshot cache (Phase 7, §7.5) ────────────────────────
+//
+// A route whose body is a purely-static native subtree (no components, no
+// expressions, no hooks, no params) renders identically on every request. The
+// generated router renders such a route once, stores the bytes in this
+// process-global cache, and appends them on later requests.
+//
+// The map is node-based, so stored byte ranges stay valid across later inserts.
+// Reads/writes are guarded by one mutex; rendering itself happens per-page
+// (outside the lock), so a concurrent miss simply renders+stores identical bytes.
+// Non-destructible snapshot handle: the bytes are owned by the cache (leaked for
+// process lifetime, bounded by the number of static routes at compile time).
+struct RouteSnapshot {
+    var data : *char
+    var size : ubigint
+}
+
+@never_destructed
+var route_snapshots : std::unordered_map<std::string, RouteSnapshot>
+// A zero-initialized `std::mutex` is a valid default lock on POSIX (a zeroed
+// pthread mutex) and Windows (SRWLOCK_INIT). It is only ever used after
+// `ensure_route_snapshots`, which constructs the map under it.
+@never_destructed
+var route_snapshots_mutex : std::mutex
+var route_snapshots_ready : bool = false
+var route_snapshots_enabled : bool = true
+var route_snapshot_hits : ubigint = 0
+var route_snapshot_misses : ubigint = 0
+
+// Lazily constructs the snapshot map (top-level globals are not auto-constructed).
+func ensure_route_snapshots() {
+    var lk = std::lock_guard(&mut route_snapshots_mutex)
+    if(!route_snapshots_ready) {
+        route_snapshots = std::unordered_map<std::string, RouteSnapshot>()
+        route_snapshots_ready = true
+    }
+}
+
+func route_snapshot_key(key : std::string_view) : std::string {
+    return std::string(key.data(), key.size())
+}
+
 public struct HtmlPage {
 
     var pageHead : std::string
@@ -286,6 +328,47 @@ public struct HtmlPage {
     public func get_parameter_text(&self, key : std::string_view) : SsrText {
         const v = self.get_parameter(key)
         return SsrText { data : v.data(), size : v.size() as u64 }
+    }
+
+    // ── Phase 7: static-route SSR snapshot cache ─────────────────────────────
+    // Appends the cached snapshot for `key`; returns false on a miss (the caller
+    // renders and then stores). Reads are guarded by the process-global mutex.
+    public func route_snapshot_append(&mut self, key : std::string_view) : bool {
+        if(!route_snapshots_enabled) { return false }
+        ensure_route_snapshots()
+        var k = route_snapshot_key(key)
+        var lk = std::lock_guard(&mut route_snapshots_mutex)
+        const p = route_snapshots.get_ptr(&k)
+        if(p == null) { return false }
+        const e = *p
+        pageHtml.append_with_len(e.data, e.size)
+        route_snapshot_hits = route_snapshot_hits + 1
+        return true
+    }
+
+    // Stores `pageHtml[start..]` as this route's snapshot. Published once; later
+    // `route_snapshot_append` calls copy the bytes.
+    public func route_snapshot_store(&mut self, key : std::string_view, start : ubigint) {
+        if(!route_snapshots_enabled) { return }
+        ensure_route_snapshots()
+        const len = pageHtml.size() - start
+        var buf = malloc(len + 1) as *mut char
+        memcpy(buf, pageHtml.data() + start, len)
+        buf[len] = 0
+        var k = route_snapshot_key(key)
+        var lk = std::lock_guard(&mut route_snapshots_mutex)
+        route_snapshots.insert(k, RouteSnapshot { data : buf, size : len })
+        route_snapshot_misses = route_snapshot_misses + 1
+    }
+
+    public func route_snapshot_hits_count(&self) : ubigint { return route_snapshot_hits }
+    public func route_snapshot_misses_count(&self) : ubigint { return route_snapshot_misses }
+    public func reset_route_snapshots(&mut self) {
+        ensure_route_snapshots()
+        var lk = std::lock_guard(&mut route_snapshots_mutex)
+        route_snapshots.clear()
+        route_snapshot_hits = 0
+        route_snapshot_misses = 0
     }
 
     public func has_parameter(&self, key : std::string_view) : bool {

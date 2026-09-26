@@ -10,6 +10,7 @@ import css_cbi
 import js_cbi
 import universal_cbi
 import components
+import router
 import universal_test
 import webview
 import window

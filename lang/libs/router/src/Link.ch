@@ -9,7 +9,7 @@
  * (param-aware), an id route to `$current`. Reading the signal — not
  * `r.currentRoute` — is what makes the link re-render on navigation.
  */
-public #universal Link(props) {
+public #universal RouterLink(props) {
     const r = router(props.router || "main-router")
     const active = props.routeId
         ? r.$current.value == props.routeId

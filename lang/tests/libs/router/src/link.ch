@@ -1,11 +1,14 @@
 using namespace std;
 
 // ---------------------------------------------------------------------------
-// `<Link>` / `<NavLink>` emission tests (Phase 4, design §6.3/§6.6).
+// `<RouterLink>` / `<NavLink>` emission tests (Phase 4, design §6.3/§6.6).
+//
+// The router's navigation link is named `RouterLink` (not `Link`) to avoid a
+// hard collision with the components library's typography `Link`.
 // ---------------------------------------------------------------------------
 
-#universal LinkHost(props) {
-    return <div><Link href="/projects">Projects</Link></div>
+#universal RouterLinkHost(props) {
+    return <div><RouterLink href="/projects">Projects</RouterLink></div>
 }
 
 #universal NavLinkHost(props) {
@@ -13,13 +16,13 @@ using namespace std;
 }
 
 @test
-public func test_router_link_emits_anchor(env : &mut TestEnv) {
+public func test_router_routerlink_emits_anchor(env : &mut TestEnv) {
     var page = HtmlPage()
-    #html { <LinkHost /> }
+    #html { <RouterLinkHost /> }
     var html = page.getHtml()
     const href = std::string_view("href=\"/projects\"")
     if(html.find(&href) == std::NPOS) {
-        env.error("<Link> should render its href")
+        env.error("<RouterLink> should render its href")
         return
     }
     var js = page.getJs()
@@ -31,7 +34,7 @@ public func test_router_link_emits_anchor(env : &mut TestEnv) {
     }
     const intercept = std::string_view("$__uni_should_intercept")
     if(js.find(&intercept) == std::NPOS) {
-        env.error("<Link> should use the shared click predicate")
+        env.error("<RouterLink> should use the shared click predicate")
     }
 }
 

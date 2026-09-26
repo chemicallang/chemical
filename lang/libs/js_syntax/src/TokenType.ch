@@ -102,7 +102,8 @@ public enum JsTokenType {
     Regex,
     NullishCoalescing, // ??
     QuestionDot, // ?.
-    Exponent // **
+    Exponent, // **
+    Hash // # — router id-route sigil (`route #"id"`)
 }
 
 public func isIdOrKw(type : JsTokenType) : bool {

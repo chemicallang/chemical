@@ -3211,6 +3211,17 @@ func (converter : &mut JsConverter) emit_ssr_single_stmt(stmt : *mut JsNode, ski
             const es = stmt as *mut JsExpressionStatement;
             converter.emit_ssr_assignment_stmt(es.expression);
         }
+        JsNodeKind.RouterDecl => {
+            // Universal router declaration: emits the SSR wrappers and the
+            // client registry/stubs (design §4.3). Route bodies never enter the
+            // hydration queue.
+            converter.emit_router_server(stmt as *mut JsRouterDecl);
+        }
+        JsNodeKind.RouteDecl => {
+            // R1: a route outside a router block is a diagnostic, never a silent
+            // drop (design §14.8).
+            converter.router_diag_orphan_route(stmt as *mut JsRouteDecl);
+        }
         default => {}
     }
 }

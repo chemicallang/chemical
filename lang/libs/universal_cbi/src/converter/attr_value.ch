@@ -203,7 +203,8 @@ func (converter : &mut AttrValueConverter) convert_to_attr_value(builder : *mut 
                 converter.diagnoser.error("cannot serialize a pointer attribute value: only char pointers have an SSR representation (it would be emitted as a number)", value.getEncodedLocation());
             }
             return converter.wrapArgAttrValueVariantCall(builder, "UInteger", value);
-        }        BaseTypeKind.String => {
+        }
+        BaseTypeKind.String => {
             return converter.wrapArgAttrValueVariantCall(builder, "PtrChar", value);
 
         }

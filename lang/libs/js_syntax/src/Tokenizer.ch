@@ -423,6 +423,10 @@ func (t : &mut JsSyntaxTokenizer) next_token() : Token {
             t.advance()
             return Token { type : JsTokenType.BitwiseXor as int, value : std::string_view("^"), position : position }
         }
+        '#' => {
+            t.advance()
+            return Token { type : JsTokenType.Hash as int, value : std::string_view("#"), position : position }
+        }
         default => {
             if(isalpha(c as int) || c == '_' || c == '$') {
                 t.read_identifier()

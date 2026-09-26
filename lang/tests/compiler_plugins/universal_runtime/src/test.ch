@@ -71,3 +71,30 @@ public func test_universal_parse_expression_container(env : &mut TestEnv) {
     var expected = std::string_view("<p>{items.map((x) => x.name)}</p>;")
     univ_view_equals(env, out.to_view(), &expected)
 }
+
+// ── Universal router declarations (Phase 0) ─────────────────────────────────
+
+@test
+public func test_router_parse_id_route(env : &mut TestEnv) {
+    const view = std::string_view("router \"m\" { route #\"a\" { <A/> } }")
+    var out = universal::router_decl_summary(view)
+    var expected = std::string_view("router:m;route:#a|id=a|url=0|def=0|fb=0|mode=|title=|hooks=0")
+    univ_view_equals(env, out.to_view(), &expected)
+}
+
+@test
+public func test_router_parse_default_url_fallback(env : &mut TestEnv) {
+    const view = std::string_view("router \"m\" { route default #\"dash\" { <D/> } route \"/p/{id}\" preload title \"P\" { <P/> } route * { <N/> } }")
+    var out = universal::router_decl_summary(view)
+    var expected = std::string_view("router:m;route:#dash|id=dash|url=0|def=1|fb=0|mode=|title=|hooks=0;route:/p/{id}|id=/p/{id}|url=1|def=0|fb=0|mode=preload|title=P|hooks=0;route:*|id=*|url=0|def=0|fb=1|mode=|title=|hooks=0")
+    univ_view_equals(env, out.to_view(), &expected)
+}
+
+@test
+public func test_router_parse_hooks(env : &mut TestEnv) {
+    const view = std::string_view("router \"m\" { route #\"a\" { onActivate(() => { x += 1 }) onDeactivate(() => { y -= 1 }) <A/> } }")
+    var out = universal::router_decl_summary(view)
+    var expected = std::string_view("router:m;route:#a|id=a|url=0|def=0|fb=0|mode=|title=|hooks=1")
+    univ_view_equals(env, out.to_view(), &expected)
+}
+

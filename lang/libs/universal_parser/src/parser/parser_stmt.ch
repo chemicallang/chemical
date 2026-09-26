@@ -30,6 +30,15 @@ public func (jsParser : &mut JsParser) parseBlock(parser : *mut Parser, builder 
 
 public func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, builder : *mut ASTBuilder) : *mut JsNode {
     const token = parser.getToken();
+
+    // Universal router declarations (`router "m" { route ... }`) are contextual
+    // keywords — only recognized in JSX mode and only when the lookahead is a
+    // router shape (D-1.2). Never consumes a token when it is not one.
+    if(jsParser.jsx_enabled) {
+        var routerStmt = tryParseRouterStatement(jsParser, parser, builder)
+        if(routerStmt != null) return routerStmt
+    }
+
     if(token.type == JsTokenType.Var as int || token.type == JsTokenType.Const as int || token.type == JsTokenType.Let as int || token.type == JsTokenType.State as int) {
         var keyword = builder.allocate_view(&token.value);
         parser.increment();

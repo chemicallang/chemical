@@ -3789,3 +3789,36 @@ particular is a reactivity hole that no amount of testing the *happy path* would
 have caught, because the fast path is exactly where it hides). Nothing here opens a
 new design question; the open items remain the deliberately measurement-gated ones
 in §12.9/§14.10.
+
+---
+
+## 16. Implementation status (what has landed)
+
+This section tracks the shipped state against §15.1. It is updated in the same
+change as the code (G-12). Where an implementation deliberately diverges from a
+frozen signature it is called out.
+
+| Phase | State | Landed |
+|---|---|---|
+| 0 — lexer/AST/parser | **Done** | `Hash` token (`js_syntax/src/TokenType.ch`, both lexers), `RouterDecl`/`RouteDecl`/`RouteHook` kinds + structs (`js_syntax/src/Ast.ch`), `universal_parser/src/parser/parser_router.ch`, contextual-keyword dispatch, `router_decl_summary` + parser tests. |
+| 1 — parameter store | **Done** | `PageParameter`, `RouteManifestEntry`, `HtmlPage.parameters`/`route_missing_flag`/`route_manifest` + store/manifest/status methods (`page`), `RouteRequest`, `set_route_url`/`get_route_url`/`get_route_base`, `get_parameter_object<T>`, `query_param`, `parse_query`, `ensure_router_runtime`; `--libs` tests. |
+| 2 — client runtime | **Done** | Normative runtime emitted from `lang/libs/page/src/router_runtime.ch` (CORE + CONTROL + URL groups), one hide rule, `ensure_router_runtime` latch (INV-18); runtime presence tests. |
+| 3 — syntax + codegen | **Done (id routes + `preload`/`remote`)** | `universal_cbi/src/router/emit.ch` (`emit_router_server`/`emit_route_server`), wired through `emit_ssr_single_stmt` and `universal_replacementNode`; SSR wrappers/boundary spans, registry, per-route stubs, manifest entries, `preload` calls, activation tail in `pageJsEnd`; route bodies never enter the hydration queue (INV-7). Diagnostics R1/R3/R4/R6/R7/R13 + negative tests. Emission tests in `compiler_plugins/universal/src/router_emission.ch`; both backends compile a routed app. |
+| 4 — control API, modes, hooks | **Partial** | `router(...)` lowers to `window.$__uni_router(...)` (D-3.1), `preload`/`remote` modes, public `Link`/`NavLink` components in `lang/libs/router/src/`, and `onActivate`/`onDeactivate`/`onBeforeActivate` hooks converted from the parsed `JsRouteHook` nodes into the registration stub. A route-body parser fix avoids greedy expression continuation across a hook call into the following JSX root. `route title` emits a server `<title>`; a route miss emits a robots `noindex` meta. **Not yet:** the literal-id validation walk (R8/R11/R12/R14). |
+| 5 — URL layer | **Partial** | Pure `match_route`/`normalize_path_view`/`normalize_path`/`build_path`/`pattern_segments` (`router/src/match.ch`, `build_path.ch`) with `--libs` tests; **server-side matching** in the generated function via `router::apply_route_url` (deep-link selection, base stripping, fallback, 404 flag, param extraction — `--libs` tests); client match table with `{param}` placeholders and `isUrl` stubs; **emit-time precedence sorting** (D-6.9) shared by the server spec and the client table; `route noscroll`; **server-side percent-decoding** into page-owned storage with client-parity `decodeURIComponent` semantics; **mount-base write-back** into the client table (`$__uni_set_table_base`, Q42); **popstate wiring** for URL routers (`$__uni_sync_url`); the `<name>.routes.json` manifest document (template 6: `name`/`base`/`routers`) written by `writeToDirectory`; runtime URL group (matcher, `setQuery`, remote fetch/adopt). **Not yet:** automatic `{param}` → SSR-prop injection (blocked: a runtime string expression has no `convert_to_attr_value` case, so `props.id` is supplied by the client matcher on hydration) and a site-level URL→page rewrite map aggregate (deploy tooling). |
+| 6 — nested routes / `<Outlet />` | **Not started** | — |
+| 7 — snapshot cache | **Not started** | — |
+
+**Known divergences from the frozen signatures (documented, not silent):**
+
+- `RouteMatch.params` values are views into the caller-owned `path`; the URL
+  layer (`apply_route_url`) percent-decodes them into page-owned storage
+  (`add_parameter_owned`) before they become page parameters, so decoding is a
+  separate step from matching.
+- URL routes currently register as ids (`isUrl` is set, but the default-route
+  identity on the bootstrap still follows the declared default when server
+  matching has not selected another route).
+- `{param}` values are not injected into the route component's SSR props yet:
+  the converter cannot serialize a runtime `std::string_view` attribute value at
+  SSR, so `props.id` is populated by the client matcher on hydration instead.
+

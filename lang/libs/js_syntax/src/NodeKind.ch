@@ -48,5 +48,8 @@ public enum JsNodeKind {
     IndexAccess,
     ArrayDestructuring,
     RegexLiteral,
-    Paren
+    Paren,
+    RouterDecl,
+    RouteDecl,
+    RouteHook
 }

@@ -656,6 +656,11 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter, un
             convert_js_node(paren.expression, emitter, universal_mode)
             emitter.emit_char(')')
         }
+        default => {
+            // Router declaration nodes (RouterDecl/RouteDecl/RouteHook) are
+            // consumed by universal_cbi's dedicated router converter, never by
+            // this generic printer.
+        }
     }
 }
 

@@ -456,6 +456,7 @@ public func nextJsToken(js : &mut JsLexer, lexer : &mut Lexer, jsx_enabled : boo
         }
         '~' => { return Token { type : JsTokenType.BitwiseNot as int, value : std::string_view("~"), position : position } }
         '^' => { return Token { type : JsTokenType.BitwiseXor as int, value : std::string_view("^"), position : position } }
+        '#' => { return Token { type : JsTokenType.Hash as int, value : std::string_view("#"), position : position } }
     }
 }
 

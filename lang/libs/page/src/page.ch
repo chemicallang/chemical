@@ -37,6 +37,53 @@ public func escape_html_view(value : std::string_view) : std::string {
     return out
 }
 
+// ── Router parameter store (lang/docs/universal-router-design.md §3, §14.5)
+//
+// `PageParameter` lives in `page` (not in the `router` library) because the
+// dependency runs `router → page`: a type defined in `router` could not be a
+// field of `HtmlPage`. The router library contributes only extension functions
+// over this type.
+public variant PageParameter {
+    Text(view : std::string_view)
+    Object(ptr : *mut void)
+}
+
+// One declared route pattern collected during render for the static-export
+// `routes.json` manifest (§13.2.3). Page-local, so `page` need not know about
+// `router::RoutePattern`.
+@direct_init
+public struct RouteManifestEntry {
+    var router : std::string_view
+    var pattern : std::string_view    // "/projects/{id}", or "" for a fallback
+    var id : std::string_view
+    var is_fallback : bool
+}
+
+func route_json_escape(v : std::string_view, out : &mut std::string) {
+    for(var i : size_t = 0; i < v.size(); i++) {
+        const c = v.get(i)
+        if(c == '"') { out.append_view(std::string_view("\\\"")) }
+        else if(c == '\\') { out.append_view(std::string_view("\\\\")) }
+        else if(c == '\n') { out.append_view(std::string_view("\\n")) }
+        else if(c == '\r') { out.append_view(std::string_view("\\r")) }
+        else if(c == '\t') { out.append_view(std::string_view("\\t")) }
+        else { out.append(c) }
+    }
+}
+
+// Escapes `v` for embedding inside a double-quoted JS string literal.
+func append_router_js_quoted(v : std::string_view, out : &mut std::string) {
+    for(var i : size_t = 0; i < v.size(); i++) {
+        const c = v.get(i)
+        if(c == '"') { out.append_view(std::string_view("\\\"")) }
+        else if(c == '\\') { out.append_view(std::string_view("\\\\")) }
+        else if(c == '\n') { out.append_view(std::string_view("\\n")) }
+        else if(c == '\r') { out.append_view(std::string_view("\\r")) }
+        else if(c == '\t') { out.append_view(std::string_view("\\t")) }
+        else { out.append(c) }
+    }
+}
+
 public struct HtmlPage {
 
     var pageHead : std::string
@@ -68,6 +115,24 @@ public struct HtmlPage {
     var doneRandomClasses : std::unordered_map<ubigint, bool>
 
     var doneComponents : std::unordered_map<ubigint, bool>
+
+    // ── Router parameter store (§3.2) ────────────────────────────────────────
+    // Node-based map, so `get_ptr(key)` references stay valid across later
+    // inserts for the lifetime of the render (D-5.1).
+    var parameters : std::unordered_map<std::string_view, PageParameter>
+    // Node-based storage for decoded URL params whose views are stored in
+    // `parameters` (§6.1 / D-5.3): decoding produces new bytes that must outlive
+    // the match, and the node addresses are stable across later inserts.
+    var route_param_owned : std::unordered_map<std::string, std::string>
+    // Set when a request URL matched no route and no fallback existed; read by
+    // the handler after render to choose the status code (§6.1). Server-only.
+    var route_missing_flag : bool = false
+    // Patterns declared by generated router functions during render, serialized
+    // by writeToDirectory for static export (§13.2.3).
+    var route_manifest : std::vector<RouteManifestEntry>
+    // Emitted-once latch for the client router runtime (INV-18: zero bytes on
+    // pages that never call ensure_router_runtime).
+    var router_runtime_emitted : bool = false
 
     func getHead(&self) : std::string_view {
         return pageHead.to_view()
@@ -179,6 +244,200 @@ public struct HtmlPage {
 
     func set_component_hash(&mut self, hash : size_t) {
         doneComponents.insert(hash, true)
+    }
+
+    // ── Router parameter store (§3.2) ────────────────────────────────────────
+    // Keys beginning with `__route_`/`__query_` are reserved for router
+    // internals (D-5.2); passing one here is a programming error.
+    public func add_parameter(&mut self, key : std::string_view, value : std::string_view) {
+        parameters.insert(key, PageParameter.Text(value))
+    }
+
+    // Stores a parameter whose value is not backed by page-lifetime memory
+    // (e.g. a freshly percent-decoded URL segment). The bytes are copied into
+    // `route_param_owned`, whose node-based storage keeps the stored view valid
+    // for the rest of the render.
+    public func add_parameter_owned(&mut self, key : std::string_view, value : std::string_view) {
+        route_param_owned.insert(std::string(key.data(), key.size()), std::string(value.data(), value.size()))
+        var lookup = std::string(key.data(), key.size())
+        const p = route_param_owned.get_ptr(&lookup)
+        if(p == null) { return }
+        parameters.insert(key, PageParameter.Text(p.to_view()))
+    }
+
+    public func add_parameter_object(&mut self, key : std::string_view, ptr : *mut void) {
+        parameters.insert(key, PageParameter.Object(ptr))
+    }
+
+    public func get_parameter(&self, key : std::string_view) : std::string_view {
+        const p = parameters.get_ptr(&key)
+        if(p == null) { return std::string_view() }
+        if(p is PageParameter.Text) {
+            var Text(view) = *p else unreachable
+            return view
+        }
+        return std::string_view()
+    }
+
+    public func has_parameter(&self, key : std::string_view) : bool {
+        return parameters.contains(&key)
+    }
+
+    public func mark_route_missing(&mut self) {
+        route_missing_flag = true
+    }
+
+    public func route_missing(&self) : bool {
+        return route_missing_flag
+    }
+
+    public func add_route_pattern(&mut self, router : std::string_view,
+                                  pattern : std::string_view, id : std::string_view,
+                                  is_fallback : bool) {
+        route_manifest.push(RouteManifestEntry {
+            router : router,
+            pattern : pattern,
+            id : id,
+            is_fallback : is_fallback
+        })
+    }
+
+    // Serializes the collected route manifest for static export
+    // (`<name>.routes.json`). Routers appear in first-declaration order, routes
+    // in declaration order. The document form (template 6, §15.3) additionally
+    // carries the exporting page's name and base path.
+    public func route_manifest_json(&self) : std::string {
+        var out = std::string()
+        out.append_view(std::string_view("{\"routers\":"))
+        self.route_manifest_routers_json(&mut out)
+        out.append_view(std::string_view("}"))
+        return out
+    }
+
+    public func route_manifest_document(&self, name : std::string_view, base : std::string_view) : std::string {
+        var out = std::string()
+        out.append_view(std::string_view("{\"name\":\""))
+        route_json_escape(name, &mut out)
+        out.append_view(std::string_view("\",\"base\":\""))
+        route_json_escape(base, &mut out)
+        out.append_view(std::string_view("\",\"routers\":"))
+        self.route_manifest_routers_json(&mut out)
+        out.append_view(std::string_view("}"))
+        return out
+    }
+
+    // The `[ { name, routes: [...] }, ... ]` array body.
+    func route_manifest_routers_json(&self, out : &mut std::string) {
+        out.append_view(std::string_view("["))
+        var emitted = std::unordered_map<std::string_view, bool>()
+        var firstRouter = true
+        for(var i : size_t = 0; i < route_manifest.size(); i++) {
+            const entry = route_manifest.get_ptr(i)
+            if(emitted.contains(&entry.router)) { continue }
+            emitted.insert(entry.router, true)
+            if(!firstRouter) { out.append(',') }
+            firstRouter = false
+            out.append_view(std::string_view("{\"name\":\""))
+            route_json_escape(entry.router, out)
+            out.append_view(std::string_view("\",\"routes\":["))
+            var firstRoute = true
+            for(var j : size_t = 0; j < route_manifest.size(); j++) {
+                const r = route_manifest.get_ptr(j)
+                if(!r.router.equals(&entry.router)) { continue }
+                if(!firstRoute) { out.append(',') }
+                firstRoute = false
+                out.append_view(std::string_view("{\"id\":\""))
+                route_json_escape(r.id, out)
+                out.append_view(std::string_view("\",\"pattern\":"))
+                if(r.is_fallback) {
+                    out.append_view(std::string_view("null"))
+                } else {
+                    out.append('"')
+                    route_json_escape(r.pattern, out)
+                    out.append('"')
+                }
+                out.append_view(std::string_view(",\"fallback\":"))
+                if(r.is_fallback) { out.append_view(std::string_view("true")) }
+                else { out.append_view(std::string_view("false")) }
+                out.append('}')
+            }
+            out.append_view(std::string_view("]}"))
+        }
+        out.append_view(std::string_view("]"))
+    }
+
+    // Appends raw JS to `pageJsEnd`, which the runtime emits *after*
+    // `$__universal_flush()` (D-7.4). Used by the generated router code for the
+    // initial activation tail.
+    public func append_js_end(&mut self, value : *char, len : size_t) {
+        pageJsEnd.append_with_len(value, len);
+    }
+
+    // Server-side route selection (§3.4): the request parameter wins; otherwise
+    // the declared default route. Used by the generated wrapper to render the
+    // selected route already visible (no flash), and by the activation tail.
+    public func route_selected(&self, router : std::string_view, id : std::string_view,
+                               fallback : std::string_view) : bool {
+        const sel = self.get_parameter(router)
+        if(sel.size() > 0) { return sel.equals(&id) }
+        return fallback.size() > 0 && id.equals(&fallback)
+    }
+
+    // Appends the initial `$__uni_activate_initial(...)` (and, for URL routers,
+    // `$__uni_sync_url(...)`) to `pageJsEnd`, after `$__universal_flush()`.
+    // Reads the server-selected route parameter, falling back to `fallback_id`.
+    // Emits nothing when no route could be selected (the page renders inert).
+    public func append_router_initial_activation(&mut self, router : std::string_view,
+                                                 fallback_id : std::string_view,
+                                                 sync_url : bool) {
+        var id = self.get_parameter(router)
+        if(id.size() == 0) { id = fallback_id }
+        if(id.size() == 0) { return }
+        pageJsEnd.append_view(std::string_view("window.$__uni_activate_initial(\""))
+        append_router_js_quoted(router, &mut pageJsEnd)
+        pageJsEnd.append_view(std::string_view("\", \""))
+        append_router_js_quoted(id, &mut pageJsEnd)
+        pageJsEnd.append_view(std::string_view("\", window.$__uni_initial_url());\n"))
+        if(sync_url) {
+            pageJsEnd.append_view(std::string_view("window.$__uni_sync_url(\""))
+            append_router_js_quoted(router, &mut pageJsEnd)
+            pageJsEnd.append_view(std::string_view("\");\n"))
+        }
+    }
+
+    // Server-only: the app may serve the page under a mount prefix
+    // (`set_route_url(path, "/app")`). The client match table is compile-time and
+    // cannot contain it, so write it into the table before the activation tail
+    // (§15.9-Q42). Emits nothing when no base was set.
+    public func append_router_table_base(&mut self, router : std::string_view) {
+        const base = self.get_parameter(std::string_view("__route_base"))
+        if(base.size() == 0) { return }
+        pageJsEnd.append_view(std::string_view("window.$__uni_set_table_base(\""))
+        append_router_js_quoted(router, &mut pageJsEnd)
+        pageJsEnd.append_view(std::string_view("\", \""))
+        append_router_js_quoted(base, &mut pageJsEnd)
+        pageJsEnd.append_view(std::string_view("\");\n"))
+    }
+
+    // Server-only: emits the selected route's `<title>` into the head when it
+    // declares one (§13.2.1). A client-side navigation only updates
+    // `document.title` (the rest of the head is not reactive in v1).
+    public func emit_route_title(&mut self, router : std::string_view, id : std::string_view,
+                                 fallback : std::string_view, title : std::string_view) {
+        if(title.size() == 0) { return }
+        if(!self.route_selected(router, id, fallback)) { return }
+        const esc = escape_html_view(title)
+        pageHead.append_view(std::string_view("<title>"))
+        pageHead.append_view(esc.to_view())
+        pageHead.append_view(std::string_view("</title>"))
+    }
+
+    // Server-only: a 404 (`route_missing`) body must not be indexed; a matched
+    // fallback route should likewise not be indexed as if it were the real page
+    // (§13.2.2).
+    public func emit_route_noindex(&mut self) {
+        if(!route_missing_flag) { return }
+        pageHead.append_view(std::string_view("<meta name=\"robots\" content=\"noindex\">"))
     }
 
     func require_random_css_hash(&self, hash : size_t) : bool {
@@ -2501,6 +2760,16 @@ window.$__universal_flush = function() {
         pageJsEnd.append_view(std::string_view("window.$__universal_flush();"))
     }
 
+    // Emits the universal router runtime and its one hide rule, once per page,
+    // only when a page actually declares a router (§15.2, INV-18). The router
+    // emitter calls this before emitting registry/stub/tail code.
+    public func ensure_router_runtime(&mut self) {
+        if(router_runtime_emitted) { return }
+        router_runtime_emitted = true
+        pageCss.append_view(std::string_view(".chx-route[data-uni-route-active=\"false\"]{display:none !important;}"))
+        pageJs.append_view(router_runtime_js())
+    }
+
     func getFinalizedPageJs(&self) : std::string {
         var str = std::string();
         str.reserve(pageJs.size() + pageJsEnd.size())
@@ -2587,6 +2856,16 @@ window.$__universal_flush = function() {
             jsFile.append_view(name)
             jsFile.append_view(".js")
             fs::write_text_file(jsFile.data(), finalizedJs.data() as *u8, finalizedJs.size())
+        }
+
+        // {name}.routes.json — static-export deep-link manifest (§13.2.3)
+        if(route_manifest.size() > 0) {
+            var manifest = route_manifest_document(*name, std::string_view(""))
+            var manifestFile = std::string(path.data(), path.size())
+            manifestFile.append('/');
+            manifestFile.append_view(name)
+            manifestFile.append_view(".routes.json")
+            fs::write_text_file(manifestFile.data(), manifest.data() as *u8, manifest.size())
         }
 
     }

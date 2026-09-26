@@ -78,6 +78,10 @@ public struct SymResSupport {
     var moveJsRangeFn : *mut ASTNode = null
     var js_hoist_pos : *mut ASTNode = null
     var renderJsOnlyNode : *mut ASTNode = null
+    // universal router: `router::apply_route_url` (optional; only resolved when
+    // the app imports the `router` library). Used by the generated router
+    // function for server-side URL matching (§6.1).
+    var applyRouteUrlFn : *mut ASTNode = null
     // plain-JS emitter support (formerly js_parser's SymResSupport)
     var appendJsFn : *mut ASTNode = null
     var appendJsCharFn : *mut ASTNode = null

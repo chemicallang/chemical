@@ -63,7 +63,12 @@ public func universal_replacementNode(builder : *mut ASTBuilder, diagnoser : *mu
     if(root.body != null && root.body.kind == JsNodeKind.Block) {
         const block = root.body as *mut JsBlock;
         const returned = find_returned_jsx(block);
-        if(returned != null) {
+        // R4: duplicate router names in one component body (diagnostic only).
+        converter.router_validate_block(block);
+        // A router-only component body (the canonical `#universal App() { router ... }`)
+        // has no top-level `return`; it still needs the emission path so the
+        // router wrappers/stubs are generated.
+        if(returned != null || router_has_decl(block)) {
 
             // Each universal component is very simple
             // it generates this in C
@@ -180,7 +185,7 @@ public func universal_replacementNode(builder : *mut ASTBuilder, diagnoser : *mu
             // exist at SSR time. The final return is skipped here — it is converted
             // below unless a conditional-return chain already rendered it.
             const finalRendered = converter.emit_ssr_body_statements(block, returned);
-            if(!finalRendered) {
+            if(!finalRendered && returned != null) {
                 converter.convertJsNode(returned);
             }
             converter.put_chain_in();

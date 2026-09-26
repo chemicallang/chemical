@@ -430,6 +430,11 @@ func sym_res_support(resolver : *mut SymbolResolver, support : &mut SymResSuppor
     support.dataFn = dataFn
     support.sizeFn = sizeFn
 
+    // Universal router server matching: optional, resolved only when the app
+    // imports the `router` library. If absent, the generated function skips
+    // server-side URL matching (client-side matching still works).
+    support.applyRouteUrlFn = resolver.resolve("apply_route_url")
+
     return true;
 
 }

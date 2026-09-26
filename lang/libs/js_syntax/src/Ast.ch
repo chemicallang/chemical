@@ -248,3 +248,38 @@ public struct JsYield {
     var argument : *mut JsNode
     var delegate : bool
 }
+
+// ── Universal router declarations (see lang/docs/universal-router-design.md §14.2)
+
+// `router "name" { route ... }` inside a `#universal` component body.
+public struct JsRouterDecl {
+    var base : JsNode
+    var name : std::string_view
+    var routes : std::vector<*mut JsNode>
+    var decl_loc : ubigint                       // source location of the router keyword
+}
+
+// One `route` inside a router block.
+// raw is exactly as written:  "#id" | "/a/{b}" | "*"
+public struct JsRouteDecl {
+    var base : JsNode
+    var raw : std::string_view
+    var id : std::string_view                    // resolved id / normalized pattern
+    var pattern : std::string_view               // "" for id + fallback routes, "/a/{b}" for URL routes
+    var is_url : bool
+    var is_fallback : bool
+    var is_default : bool
+    var mode : std::string_view                  // "" | "lazy" | "preload" | "remote"
+    var noscroll : bool                          // `route #"x" noscroll`: skip scroll restore
+    var title : std::string_view                 // "" when absent
+    var hooks : std::vector<*mut JsNode>
+    var body : *mut JsNode
+    var decl_loc : ubigint
+}
+
+// `onActivate(() => { ... })` / `onDeactivate` / `onBeforeActivate` next to the route body.
+public struct JsRouteHook {
+    var base : JsNode
+    var name : std::string_view
+    var fn : *mut JsNode
+}

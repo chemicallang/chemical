@@ -155,9 +155,16 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         JsNodeKind.FunctionCall => {
             var call = node as *mut JsFunctionCall
             var is_hook = false
+            var is_router_accessor = false
             if(call.callee.kind == JsNodeKind.Identifier) {
                 var id = call.callee as *mut JsIdentifier
                 var name = id.value
+                // `router("name")` is the compile-time-validated routing handle
+                // (D-3.1): it lowers to the runtime accessor, which returns a
+                // null-object instead of a TypeError when the router is absent.
+                if(name.equals(view("router"))) {
+                    is_router_accessor = true
+                }
                 switch(fnv1_hash_view(&name)) {
                     comptime_fnv1_hash("useState"),
                     comptime_fnv1_hash("useEffect"),
@@ -176,7 +183,11 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                     default => {}
                 }
             }
-            converter.convertJsNode(call.callee);
+            if(is_router_accessor) {
+                converter.str.append_view("window.$__uni_router")
+            } else {
+                converter.convertJsNode(call.callee);
+            }
             converter.str.append_view("(");
             for(var i : uint = 0; i < call.args.size(); i++) {
                 if(i > 0) converter.str.append_view(", ");

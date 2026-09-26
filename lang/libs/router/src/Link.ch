@@ -1,9 +1,16 @@
 /**
- * `<Link href="...">` — an internal navigation link (design §6.3, §6.6).
+ * `<RouterLink href="..." router="..." preload>` — an internal navigation link
+ * (design §6.3, §6.6).
+ *
+ *   <RouterLink href="/projects" router="main-router">Projects</RouterLink>
  *
  * Only plain left-clicks on same-origin paths are intercepted; modified clicks,
  * `target`, `download` and cross-origin/mailto/tel/fragment hrefs fall through to
  * the browser (`$__uni_should_intercept`, emitted with the router runtime).
+ *
+ * Named `RouterLink` (not `Link`) because the `components` library already ships
+ * a typography `Link`; two components named `Link` would collide for any app
+ * importing both.
  *
  * Active state reads the router signals (§5.4): a URL route subscribes to `$url`
  * (param-aware), an id route to `$current`. Reading the signal — not

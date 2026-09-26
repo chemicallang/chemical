@@ -95,10 +95,11 @@ window.$__uni_route_register = ((routerName, routeId, spec) => {
 });
 
 window.$__uni_route_props = ((route) => {
-    if(!route.params) return route.baseProps;
+    if(!route.params && !route.children) return route.baseProps;
     const out = Object.create(null);
     for(const k in route.baseProps) out[k] = route.baseProps[k];
-    for(const k in route.params) out[k] = route.params[k];
+    if(route.params) for(const k in route.params) out[k] = route.params[k];
+    if(route.children) out.children = route.children;
     return out;
 });
 

@@ -1,4 +1,6 @@
 
+using std::Result;
+
 // Explicit HTML escaping. The #html macro does NOT auto-escape interpolated values,
 // so callers must escape any untrusted / user-provided string before embedding it in
 // markup: #html { <div>{escape_html(userValue)}</div> }. Escaping is explicit to keep
@@ -2123,6 +2125,13 @@ window.$_urn = ((v, parentNs) => {
             for(let i = 0; i < (v.c || []).length; i++) f.appendChild(window.$_urn(v.c[i], parentNs));
             return f;
         }
+        if(v.t === "__uni_outlet") {
+            // A router layout's outlet: the nested route wrappers are not part of
+            // this component's vnode tree (the nested router owns them), so a
+            // fresh render contributes nothing here. Hydration adopts the SSR'd
+            // wrappers (see $__uni_hydrate_node).
+            return document.createComment("outlet");
+        }
         if(v.t === "__uni_portal") {
             const container = document.createElement("div");
             document.body.appendChild(container);
@@ -2467,6 +2476,15 @@ window.$__uni_hydrate_node = ((parent, dom, v) => {
             return cur;
         }
         if(v.t === window.$_ur.Fragment) return window.$__uni_hydrate_node(parent, dom, v.c || []);
+        if(v.t === "__uni_outlet") {
+            // Consume the SSR'd nested-route wrappers at the outlet position so
+            // the layout's hydration leaves them in place for the nested router.
+            let cur = dom;
+            while(cur && cur.nodeType === 1 && cur.classList && cur.classList.contains("chx-route")) {
+                cur = cur.nextSibling;
+            }
+            return cur;
+        }
         if(typeof v.t === "function") {
             const nextProps = v.p ? { ...v.p } : {};
             if(v.c && v.c.length) nextProps.children = v.c.length === 1 ? v.c[0] : v.c;
@@ -2962,4 +2980,50 @@ window.$__universal_flush = function() {
 
     }
 
+}
+
+// ── Site-level static-export rewrite aggregate (§13.2.3) ─────────────────────
+// A site is many page files, each with its own `<name>.routes.json`. Deep links
+// need one URL → page-file map, so the build emits a neutral aggregate (a JSON
+// array of the per-page documents) and a deploy tool translates each `{pattern}`
+// into its host's rewrite syntax (nginx, Netlify, ...). Host syntax is
+// deliberately out of scope.
+
+// Builds the aggregate document from already-serialized per-page documents.
+public func site_routes_aggregate(documents : &std::vector<std::string_view>) : std::string {
+    var out = std::string()
+    out.append_view(std::string_view("["))
+    for(var i : size_t = 0; i < documents.size(); i++) {
+        if(i > 0) { out.append(',') }
+        out.append_view(&documents.get(i))
+    }
+    out.append_view(std::string_view("]"))
+    return out
+}
+
+// Reads `<dir>/<name>.routes.json` for each page and writes the aggregate to
+// `<dir>/routes.json`. Pages without a router (no manifest file) are skipped.
+// Returns the number of page manifests aggregated.
+public func write_site_routes(dir : std::string_view, page_names : &std::vector<std::string_view>) : int {
+    var owned = std::vector<std::string>()
+    for(var i : size_t = 0; i < page_names.size(); i++) {
+        var manifestPath = std::string(dir.data(), dir.size())
+        manifestPath.append('/')
+        manifestPath.append_view(&page_names.get(i))
+        manifestPath.append_view(std::string_view(".routes.json"))
+        if(!fs::exists(manifestPath.data())) { continue }
+        var read_result = fs::read_entire_file(manifestPath.data())
+        if(read_result is Result.Err) { continue }
+        var Ok(bytes) = read_result else unreachable
+        owned.push(std::string(bytes.data() as *char, bytes.size()))
+    }
+    var docs = std::vector<std::string_view>()
+    for(var i : size_t = 0; i < owned.size(); i++) {
+        docs.push(owned.get_ptr(i).to_view())
+    }
+    const agg = site_routes_aggregate(&docs)
+    var sitePath = std::string(dir.data(), dir.size())
+    sitePath.append_view(std::string_view("/routes.json"))
+    fs::write_text_file(sitePath.data(), agg.data() as *u8, agg.size())
+    return owned.size() as int
 }

@@ -457,3 +457,77 @@
         expect(byTestId('ut-nfb-settings').text()).toBe('Settings')
     </script>
 }
+
+// ── hydrated outer layout (native layout root gets a client function) ───────
+
+#universal UtHydratedLayoutChild(props) {
+    return <div data-testid="ut-hl-child">Child</div>
+}
+
+#universal UtRouterHydratedLayout(props) {
+    router "ut-hl" {
+        route default #"home" { <div data-testid="ut-hl-home">Home</div> }
+        route "/projects/{id}" {
+            route default #"overview" { <UtHydratedLayoutChild /> }
+            route "/settings" { <div data-testid="ut-hl-settings">Settings</div> }
+            <div data-testid="ut-hl-layout">
+                <button data-testid="ut-hl-btn" onClick={() => { window.__utHlClicks = (window.__utHlClicks || 0) + 1 }}>inc</button>
+                <Outlet />
+            </div>
+        }
+    }
+}
+
+#universal_test("router hydrates a native layout and preserves it across child switches", isolate) {
+    <UtRouterHydratedLayout />
+    <script>
+        const r = window.$__uni_routers['ut-hl']
+        window.__utHlClicks = 0
+        expect(r.activateRouteByUrl('/projects/42')).toBe(true)
+        await t.sleep(50)
+        // the layout is hydrated: its button handler runs
+        byTestId('ut-hl-btn').click()
+        await t.sleep(10)
+        expect(window.__utHlClicks).toBe(1)
+        // the default child is visible and the outlet wrappers were adopted
+        expect(byTestId('ut-hl-child').exists()).toBe(true)
+        const nr = window.$__uni_routers['ut-hl#/projects/{id}']
+        expect(nr.current()).toBe('overview')
+        // switch the child; the layout DOM (and its handler) must survive
+        nr.activateRoute('/settings')
+        await t.sleep(20)
+        expect(byTestId('ut-hl-settings').text()).toBe('Settings')
+        byTestId('ut-hl-btn').click()
+        await t.sleep(10)
+        expect(window.__utHlClicks).toBe(2)
+        expect(byTestId('ut-hl-layout').exists()).toBe(true)
+    </script>
+}
+
+// ── route-root compile-time props reach the client component ───────────────
+
+#universal UtRoutePropPane(props) {
+    return <div data-testid="ut-rp-pane">{props.title}</div>
+}
+
+#universal UtRoutePropPaneB(props) {
+    return <div data-testid="ut-rp-pane-b">{props.title}</div>
+}
+
+#universal UtRoutePropApp(props) {
+    router "ut-rp" {
+        route default #"a" { <UtRoutePropPane title="alpha" /> }
+        route #"b" { <UtRoutePropPaneB title="beta" /> }
+    }
+}
+
+#universal_test("router route-root attributes reach the client component", isolate) {
+    <UtRoutePropApp />
+    <script>
+        const r = window.$__uni_routers['ut-rp']
+        expect(byTestId('ut-rp-pane').text()).toBe('alpha')
+        expect(r.activateRoute('b')).toBe(true)
+        await t.sleep(30)
+        expect(byTestId('ut-rp-pane-b').text()).toBe('beta')
+    </script>
+}

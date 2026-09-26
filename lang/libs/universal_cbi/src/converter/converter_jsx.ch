@@ -309,10 +309,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         if(!element.children.empty()) {
             if(!attrFirst) converter.str.append_view(", ");
             converter.str.append_view("children: [");
-            for(var i : uint = 0; i < element.children.size(); i++) {
-                if(i > 0) converter.str.append_view(", ");
-                converter.convertJsNode(element.children.get(i));
-            }
+            converter.emit_jsx_children_js(&element.children, false);
             converter.str.append(']');
         }
         converter.str.append_view("})");
@@ -330,12 +327,7 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
     const resolvedAttrs = converter.resolve_attributes(element);
     converter.emit_js_props_from_resolved(&resolvedAttrs, &mut attrFirst);
     converter.str.append_view("}");
-    if(!element.children.empty()) {
-        for(var i : uint = 0; i < element.children.size(); i++) {
-             converter.str.append_view(", ");
-             converter.convertJsNode(element.children.get(i));
-        }
-    }
+    converter.emit_jsx_children_js(&element.children, true);
     converter.str.append_view(")");
 }
 
@@ -410,12 +402,7 @@ func (converter : &mut JsConverter) convertJSXNativeElement(element : *mut JsJSX
          converter.emit_js_attr_object(&attrMap);
      }
 
-    if(!element.children.empty()) {
-        for(var i : uint = 0; i < element.children.size(); i++) {
-             converter.str.append_view(", ");
-             converter.convertJsNode(element.children.get(i));
-        }
-    }
+    converter.emit_jsx_children_js(&element.children, true);
 
     converter.str.append_view(")");
 }
@@ -464,6 +451,30 @@ func (converter : &mut JsConverter) emit_js_attr_object(attrs : &std::vector<*mu
     converter.str.append_view("}");
 }
 
+// Emits the JS `createElement` children for a JSX element/fragment. A child that
+// is a bare `${...}` embed is a server-side Chemical expression: it has already
+// run at compile/SSR time and written into the page buffer, so it must not leak
+// into the client bundle (where it would reference compile-time-only names) and
+// must not repeat that side effect. The server-rendered markup is adopted during
+// hydration. `leading_comma` matches the call-site shape: true for
+// `createElement(tag, props, child, ...)`, false for a `children: [ ... ]` array
+// literal.
+func (converter : &mut JsConverter) emit_jsx_children_js(children : &std::vector<*mut JsNode>, leading_comma : bool) {
+    var first = true
+    for(var i : uint = 0; i < children.size(); i++) {
+        const child = children.get(i)
+        if(child == null) continue
+        if(child.kind == JsNodeKind.ChemicalValue) continue
+        if(leading_comma) {
+            converter.str.append_view(", ")
+        } else if(!first) {
+            converter.str.append_view(", ")
+        }
+        first = false
+        converter.convertJsNode(child)
+    }
+}
+
 func (converter : &mut JsConverter) convertJSXElement(element : *mut JsJSXElement) {
     const tagNameNode = element.opening.tagName as *mut JsNode
     var isComponent = false
@@ -496,10 +507,7 @@ func (converter : &mut JsConverter) convertJSXFragment(fragment : *mut JsJSXFrag
 
     converter.str.append_view("$_ur.createElement($_ur.Fragment, null");
 
-    for(var i : uint = 0; i < fragment.children.size(); i++) {
-          converter.str.append_view(", ");
-          converter.convertJsNode(fragment.children.get(i));
-    }
+    converter.emit_jsx_children_js(&fragment.children, true);
 
     converter.str.append_view(")");
 }

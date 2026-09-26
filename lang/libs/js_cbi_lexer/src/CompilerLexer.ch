@@ -33,14 +33,23 @@ public func nextJsToken(js : &mut JsLexer, lexer : &mut Lexer, jsx_enabled : boo
     const is_child = jsx_enabled && js.jsx_depth > 0 && js.in_jsx_tag == 0 && js.jsx_brace_count == 0;
     
     if(is_child) {
-        // If we are here, we check if we are at < or { or content
+        // If we are here, we check if we are at < or { or content. A `${` starts
+        // a Chemical embed and must be lexed as a `ChemicalStart` token (the
+        // switch below), NOT split into a literal `$` text child plus a `{...}`
+        // expression container.
         const p = provider.peek();
-        if(p != '<' && p != '{' && p != '\0') {
+        const starts_chem = p == '$' && *(provider.current_data() + 1) == '{';
+        if(p != '<' && p != '{' && p != '\0' && !starts_chem) {
              // Read text
              const start_ptr = provider.current_data();
              while(true) {
                  const n = provider.peek();
                  if(n == '<' || n == '{' || n == '\0') {
+                     break;
+                 }
+                 // Stop the text run at an embedded `${...}` so the `${` becomes
+                 // its own token instead of being swallowed into the text.
+                 if(n == '$' && *(provider.current_data() + 1) == '{') {
                      break;
                  }
                  provider.readCharacter();

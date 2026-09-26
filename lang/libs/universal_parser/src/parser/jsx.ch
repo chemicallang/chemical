@@ -131,6 +131,13 @@ func (jsParser : &mut JsParser) parseJSXElement(parser : *mut Parser, builder : 
                      expression : expr
                  }
                  children.push(container as *mut JsNode);
+            } else if(t.type == JsTokenType.ChemicalStart as int) {
+                 // A `${...}` embed keeps its whole Chemical expression; the
+                 // converter evaluates it at SSR time instead of splitting it
+                 // into a literal `$` text child plus a `{...}` container.
+                 var chem = jsParser.parsePrimary(parser, builder);
+                 if(chem != null) children.push(chem);
+                 else break;
             } else if(t.type == JsTokenType.LessThan as int) {
                  // Tag or closing tag.
                  // We need to peek if it's </
@@ -273,6 +280,12 @@ func (jsParser : &mut JsParser) parseJSXElementBody(parser : *mut Parser, builde
                      expression : expr
                  }
                  children.push(container as *mut JsNode); 
+            } else if(t.type == JsTokenType.ChemicalStart as int) {
+                 // A `${...}` embed keeps its whole Chemical expression (see the
+                 // fragment loop above for the rationale).
+                 var chem = jsParser.parsePrimary(parser, builder);
+                 if(chem != null) children.push(chem);
+                 else break;
             } else if(t.type == JsTokenType.LessThan as int) {
                  parser.increment(); // <
                  if(parser.getToken().type == JsTokenType.Slash as int) {

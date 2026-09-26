@@ -345,9 +345,10 @@ func router_test_emit_section(page : &mut HtmlPage, who : string_view) {
 #universal RouterEmitRootApp(props) {
     router "mainEmitRoot" {
         route default #"mixed" {
-            // The trailing `;` matters: without it the JS expression parser reads
-            // the following `<` as a less-than operator (see the skill's gotcha).
-            ${router_test_emit_section(page, "MIXED")};
+            // No trailing `;` needed: a statement-position `${...}` now ends at
+            // its own closing `}` (parser fix), so the following `<div>` parses
+            // as a separate JSX root instead of a `<` comparison.
+            ${router_test_emit_section(page, "MIXED")}
             <div class="mixed-root">root</div>
         }
     }

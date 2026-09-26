@@ -2638,10 +2638,11 @@ Consequences:
   `comp: null`: the router is pure show/hide over server-rendered HTML, and the
   section is present in the initial HTML (no-JS and crawlers included). Hidden
   routes ship their HTML too — that is what makes a switch instant.
-- An emitter may be **combined with** a root (`${emit(page)}; <div>…</div>`);
-  the emitter's HTML is written before the root's. The `;` is required there:
-  without it the JS expression parser reads the following `<` as a less-than
-  operator and the body fails to parse.
+- An emitter may be **combined with** a root (`${emit(page)} <div>…</div>`);
+  the emitter's HTML is written before the root's. The `;` is **optional** there:
+  a statement-position `${…}` now terminates at its own closing `}`, so the
+  following `<div>` is parsed as a separate JSX root rather than as a `<`
+  comparison (a trailing `;` is still accepted).
 - A body with any emitter is never snapshot-cached (`router_body_is_static`
   returns false), because the emitter writes request data into the buffer.
 - Body locals (`var x = ${…}`) and conditionals also run in statement order now,

@@ -2872,3 +2872,67 @@
         } finally { window.fetch = origFetch }
     </script>
 }
+
+// ── server-rendered (emitter-only) route bodies ─────────────────────────────
+//
+// A route body may be a bare `${ fn(page) }` emitter instead of a JSX root. The
+// emitter writes real SSR HTML at render time; the route then has `comp: null`
+// and the router is pure show/hide over that shipped markup. This is the shape
+// the easyToDo app needs (it has no client components for its pages).
+
+func ut_route_emit(page : &mut HtmlPage, who : std::string_view) {
+    var msg = std::string("EMIT ")
+    msg.append_view(&who)
+    #html { <div class="ut-route-emit">{msg}</div> }
+}
+
+#universal UtRouterEmit(props) {
+    router "ut-emit" {
+        route default #"dash" { ${ut_route_emit(page, "DASH")} }
+        route #"arch" { ${ut_route_emit(page, "ARCH")} }
+    }
+}
+
+#universal_test("router emitter-only routes ship server HTML and toggle", isolate) {
+    <UtRouterEmit />
+    <script>
+        const r = window.$__uni_routers['ut-emit']
+        const dash = $('[data-uni-route="ut-emit#dash"]')
+        const arch = $('[data-uni-route="ut-emit#arch"]')
+        // Both routes' server-rendered content is already in the document.
+        expect(dash.containsText('EMIT DASH')).toBe(true)
+        expect(arch.containsText('EMIT ARCH')).toBe(true)
+        // No JSX root: the routes register as pure show/hide.
+        expect(r.routes['dash'].comp).toBe(null)
+        expect(r.routes['arch'].comp).toBe(null)
+        // The declared default is active; the other stays hidden.
+        expect(dash.attr('data-uni-route-active')).toBe('true')
+        expect(arch.attr('data-uni-route-active')).toBe('false')
+        // Navigate: the wrapper toggles, the content is never re-rendered.
+        expect(r.activateRoute('arch')).toBe(true)
+        await t.sleep(20)
+        expect(dash.attr('data-uni-route-active')).toBe('false')
+        expect(arch.attr('data-uni-route-active')).toBe('true')
+        expect(r.current()).toBe('arch')
+        expect(arch.containsText('EMIT ARCH')).toBe(true)
+        // Back again.
+        expect(r.activateRoute('dash')).toBe(true)
+        await t.sleep(20)
+        expect(dash.attr('data-uni-route-active')).toBe('true')
+        expect(dash.containsText('EMIT DASH')).toBe(true)
+    </script>
+}
+
+#universal_test("router server-rendered route content survives a round trip", isolate) {
+    <UtRouterEmit />
+    <script>
+        const r = window.$__uni_routers['ut-emit']
+        // Server-only route bodies keep their content across a round trip.
+        r.activateRoute('arch')
+        await t.sleep(20)
+        r.activateRoute('dash')
+        await t.sleep(20)
+        expect($('[data-uni-route="ut-emit#dash"]').containsText('EMIT DASH')).toBe(true)
+        expect($('[data-uni-route="ut-emit#arch"]').containsText('EMIT ARCH')).toBe(true)
+    </script>
+}

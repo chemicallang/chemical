@@ -1542,10 +1542,7 @@ func (converter : &mut JsConverter) emit_route_children_client(route : *mut JsRo
     converter.str.append_view("window.")
     converter.str.append_view(&nameView)
     converter.str.append_view(" = function() { return [")
-    for(var i : uint = 0; i < el.children.size(); i++) {
-        if(i > 0) { converter.str.append_view(", ") }
-        converter.convertJsNode(el.children.get(i))
-    }
+    converter.emit_jsx_children_js(&el.children, false)
     converter.str.append_view("]; };\n")
     converter.put_chain_in()
     converter.target = prevTarget

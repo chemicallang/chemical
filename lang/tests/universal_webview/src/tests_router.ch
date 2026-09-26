@@ -531,3 +531,41 @@
         expect(byTestId('ut-rp-pane-b').text()).toBe('beta')
     </script>
 }
+
+// ── component-rooted layout that forwards children ─────────────────────────
+
+#universal UtForwardLayout(props) {
+    return <div data-testid="ut-fw-layout">
+        <span data-testid="ut-fw-chrome">chrome</span>
+        {props.children}
+    </div>
+}
+
+#universal UtRouterForwardLayout(props) {
+    router "ut-fw" {
+        route default #"home" { <div data-testid="ut-fw-home">Home</div> }
+        route #"shell" {
+            route default #"a" { <div data-testid="ut-fw-a">A</div> }
+            route #"b" { <div data-testid="ut-fw-b">B</div> }
+            <UtForwardLayout><Outlet /></UtForwardLayout>
+        }
+    }
+}
+
+#universal_test("router hydrates a component-rooted layout that forwards children", isolate) {
+    <UtRouterForwardLayout />
+    <script>
+        const r = window.$__uni_routers['ut-fw']
+        expect(r.activateRoute('shell')).toBe(true)
+        await t.sleep(40)
+        expect(byTestId('ut-fw-layout').exists()).toBe(true)
+        expect(byTestId('ut-fw-chrome').text()).toBe('chrome')
+        expect(byTestId('ut-fw-a').text()).toBe('A')
+        const nr = window.$__uni_routers['ut-fw#shell']
+        nr.activateRoute('b')
+        await t.sleep(20)
+        expect(byTestId('ut-fw-b').text()).toBe('B')
+        // the layout survives the child switch
+        expect(byTestId('ut-fw-chrome').text()).toBe('chrome')
+    </script>
+}

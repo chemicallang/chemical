@@ -204,10 +204,11 @@ window.$__uni_activate_now = ((routerName, routeId, url, params, historyMode, ra
     }
     try { document.title = route.title || window.$__uni_base_title; } catch(_) {}
     // Nested routes (Phase 6): activating an outer route also activates its
-    // nested router's default. The nested call queues (busy) and runs after this
-    // transition, so both visibility updates are ordered.
+    // nested router's default, inheriting the outer route's resolved params so a
+    // nested child's `props.id` sees the URL param. The nested call queues (busy)
+    // and runs after this transition.
     if(route.nested) {
-        window.$__uni_activate(route.nested, route.nestedDefault, undefined, null, window.$__uni_HISTORY_NONE);
+        window.$__uni_activate(route.nested, route.nestedDefault, undefined, route.params, window.$__uni_HISTORY_NONE);
     }
     if(route.onActivate) {
         try { route.onActivate(url); }

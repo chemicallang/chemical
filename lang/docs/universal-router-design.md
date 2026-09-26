@@ -3218,9 +3218,10 @@ window.$__uni_match_url = ((name, path) => {
         for(let j = 0; j < e.pattern.length; j++) {
             const s = e.pattern[j];
             if(s.charCodeAt(0) === 123) {               // "{name}"
-                if(segs[j] === "." || segs[j] === "..") { ok = false; break; }  // D-6.1: never route data
+                const dv = window.$__uni_decode_segment(segs[j]);
+                if(dv === "." || dv === "..") { ok = false; break; }  // D-6.1: never route data (incl. %2E)
                 if(!params) params = Object.create(null);
-                params[s.slice(1, -1)] = window.$__uni_decode_segment(segs[j]);
+                params[s.slice(1, -1)] = dv;
             } else if(s !== segs[j]) { ok = false; break; }
         }
         if(ok) return { id: e.id, fallback: false, params: params };

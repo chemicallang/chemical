@@ -109,6 +109,18 @@ func is_dot_segment(s : std::string_view) : bool {
     return false
 }
 
+// Rejects `.`/`..` in either their literal or their percent-encoded form
+// (`%2E` / `%2E%2E`, and mixes such as `%2E.`). The decoded traversal segment
+// is only 1–2 bytes, so the decode is guarded by a short-length + `%` presence
+// test to keep the hot matcher allocation-free for ordinary params.
+func is_traversal_segment(s : std::string_view) : bool {
+    if(is_dot_segment(s)) { return true }
+    if(s.size() > 6) { return false }
+    if(s.find(std::string_view("%")) == std::NPOS) { return false }
+    const decoded = router_decode_segment(s)
+    return is_dot_segment(decoded.to_view())
+}
+
 // Straight first-match scan over `patterns` (already in precedence order,
 // D-6.9). A `route *` entry matches any remaining path (D-6.6).
 public func match_route(patterns : &std::vector<RoutePattern>, path : std::string_view,
@@ -143,7 +155,7 @@ public func match_route(patterns : &std::vector<RoutePattern>, path : std::strin
             const ps = pattern.segments.get(j)
             const seg = segs.get(j)
             if(is_param_segment(ps)) {
-                if(is_dot_segment(seg)) {
+                if(is_traversal_segment(seg)) {
                     ok = false
                     break
                 }

@@ -2096,6 +2096,99 @@
         expect(r.activateRouteByUrl('/projects/.')).toBe(true)
         await t.sleep(10)
         expect(r.current()).toBe('*')
+        // The percent-encoded forms (`%2E`/`%2E%2E`, and a mixed `%2E.`) are also
+        // rejected, matching the server matcher after it decodes the segment.
+        expect(r.activateRouteByUrl('/projects/%2E%2E')).toBe(true)
+        await t.sleep(10)
+        expect(r.current()).toBe('*')
+        expect(r.activateRouteByUrl('/projects/%2e')).toBe(true)
+        await t.sleep(10)
+        expect(r.current()).toBe('*')
+        expect(r.activateRouteByUrl('/projects/%2E.')).toBe(true)
+        await t.sleep(10)
+        expect(r.current()).toBe('*')
+        // A normal percent-encoded param is still captured (no regression).
+        expect(r.activateRouteByUrl('/projects/a%2Eb')).toBe(true)
+        await t.sleep(10)
+        expect(r.current()).toBe('/projects/{id}')
+        expect(byTestId('ut-p2-pane').text()).toBe('a.b')
+    </script>
+}
+
+// ── buildPath edge cases ────────────────────────────────────────────────────
+
+#universal_test("router buildPath for the fallback id reports and returns null on the client", isolate) {
+    <UtP2Url />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        const orig = window.$__uni_router_error
+        let errs = 0
+        window.$__uni_router_error = () => { errs++ }
+        const p = r.buildPath('*', {})
+        window.$__uni_router_error = orig
+        // The client table skips fallback entries when reversing a path, so a
+        // fallback id is an unknown target (null + one contained error).
+        // NB: the server `build_path` returns "/" for the fallback id — see the
+        // `--libs` test — so this is a deliberate, tested client/server split.
+        expect(p).toBe(null)
+        expect(errs).toBe(1)
+        // A real route still reverses normally.
+        expect(r.buildPath('/projects/{id}', { id: '5' })).toBe('/projects/5')
+    </script>
+}
+
+// ── preload / release of a never-hydrated route ─────────────────────────────
+
+#universal_test("router preload and release round-trip a route that was never hydrated", isolate) {
+    <UtP2Dyn />
+    <script>
+        const r = window.$__uni_routers['ut-p2-dyn']
+        const rec = r.routes['b']
+        expect(rec.hydrated).toBe(false)
+        expect(rec.inst).toBe(null)
+        // preload hydrates a hidden route without showing it.
+        expect(r.preload('b')).toBe(true)
+        expect(rec.hydrated).toBe(true)
+        expect(rec.visible).toBe(false)
+        // release disposes it and re-arms it.
+        expect(r.release('b')).toBe(true)
+        expect(rec.hydrated).toBe(false)
+        expect(rec.inst).toBe(null)
+        // Releasing an already-released (never re-hydrated) route is a no-op success.
+        expect(r.release('b')).toBe(true)
+        expect(rec.hydrated).toBe(false)
+        // It can still be activated fresh afterwards.
+        expect(r.activateRoute('b')).toBe(true)
+        await t.sleep(10)
+        expect(rec.visible).toBe(true)
+        expect(rec.hydrated).toBe(true)
+    </script>
+}
+
+// ── relative hrefs on the control components ────────────────────────────────
+
+#universal UtP2RelHost(props) {
+    return <div data-testid="ut-p2rel-wrap"><RouterLink href="sub/page" router="ut-p2-dyn">Rel</RouterLink></div>
+}
+
+#universal_test("router a relative href is rendered verbatim and never intercepted", isolate) {
+    <UtP2Dyn />
+    <UtP2RelHost />
+    <script>
+        const ev = (extra) => Object.assign({ button: 0, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false,
+            defaultPrevented: false, currentTarget: { target: null, hasAttribute: () => false } }, extra)
+        // The component preserves the relative href...
+        const a = byTestId('ut-p2rel-wrap').find('a')
+        expect(a.exists()).toBe(true)
+        expect(a.attr('href')).toBe('sub/page')
+        // ...and relative (non-rooted) paths are left to the browser, so the link
+        // can never be turned into a router activation.
+        expect(window.$__uni_should_intercept(ev({}), 'sub/page')).toBe(false)
+        expect(window.$__uni_should_intercept(ev({}), './a')).toBe(false)
+        expect(window.$__uni_should_intercept(ev({}), '../a')).toBe(false)
+        expect(window.$__uni_should_intercept(ev({}), '?q=1')).toBe(false)
+        // Rooted same-origin paths remain interceptable.
+        expect(window.$__uni_should_intercept(ev({}), '/projects')).toBe(true)
     </script>
 }
 

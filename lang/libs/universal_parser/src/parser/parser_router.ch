@@ -156,9 +156,14 @@ func js_parse_route_decl(parser : *mut Parser, builder : *mut ASTBuilder, jsPars
 
     var mode = std::string_view()
     var noscroll = false
+    var modeCount = 0
     while(parser.getToken().type == JsTokenType.Identifier as int) {
         const mv = parser.getToken().value
         if(mv.equals(std::string_view("lazy")) || mv.equals(std::string_view("preload")) || mv.equals(std::string_view("remote"))) {
+            modeCount = modeCount + 1
+            if(modeCount > 1) {
+                parser.error("route declares more than one mode ('lazy', 'preload', 'remote')")
+            }
             mode = builder.allocate_view(&mv)
             parser.increment()
         } else if(mv.equals(std::string_view("noscroll"))) {

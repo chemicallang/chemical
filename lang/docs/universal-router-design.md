@@ -760,6 +760,12 @@ router "main-router" {
   hidden). Costs its effects immediately — that is the point; document it.
 - `lazy` is what makes the "500 KB Admin" case acceptable: the HTML is in the
   response (instant switch), but the JS effects only run when needed.
+  Since `lazy` *is* the hidden-route default, writing it out asserts that default
+  rather than changing anything (there is no emission difference today), and it is
+  rejected where it would assert something false: on the outermost router's
+  `default` route, which is always hydrated at load (**R15**). A *nested* default
+  is activated with its parent, so `lazy` is accepted there. Writing two mode
+  keywords on one route is **R16**.
 - URL-layer routes (§6) additionally get **fetch-on-demand** (no SSR HTML at all for
   unvisited lazy URL routes when the page is served per-request).
 - A third mode, `remote`, exists only on URL routes (§6.7): no SSR HTML ships at
@@ -1316,46 +1322,55 @@ explicitly set to `null` so they are not rendered as attributes).
 ### 6.7 Fetch-on-demand routes, fragments, redirects, scroll & focus
 
 - **Fetch-on-demand (URL layer, beyond eager/lazy SSR):** a route declared
-  `route "/reports" remote { <Reports /> }` ships **no SSR HTML**; first activation
-  fetches the route's markup from a fragment endpoint. The library ships the
-  *builder* — `page.set_route_fragment(router, id)` before the render, then
-  `page.route_fragment_response(router, id)` after it — while endpoint wiring
-  stays in user code (`net_http`), preserving the "router lib must not depend on
-  `net`" rule. When the page is serving a fragment, the generated router emits
-  **only** the requested route's body, wrapped in `<!--chx-frag-->` markers;
-  `route_fragment_response` returns it as a `<span data-chx-i>…</span>` element
-  and nothing else (the §8.2 byte-exactness contract). On arrival the fragment is
-  mounted fresh (`$_urn` path); the boundary marker for the route is emitted as
-  an empty placeholder on a normal render. This closes the ideation's "500 KB
-  Admin" case completely: remote routes cost bytes only when visited (or
-  hovered). The endpoint recipe (auth-gated by the application, §12.8):
+  `route "/reports" remote { <Reports /> }` ships **no SSR HTML** and registers
+  with `remote: true`. The generated router renders only an empty wrapper + a
+  boundary host for it; the route's markup is fetched on the first activation
+  (or on hover `preload`). The library provides the **client half only** —
+  `$__uni_fetch_route` / `$__uni_mount_fragment` and the default fragment URL
+  `/__uni_fragment?router=&id=` (`$__uni_router_fragment_url`, overridable) — and
+  deliberately **no server-side renderer**: the fragment endpoint is entirely
+  application code, so the router library never depends on `net` and owns no
+  render path the app cannot see (§12.8). The app renders the route body itself,
+  e.g. by rendering the same component the route body uses:
 
   ```chemical
+  #universal Reports(props) { return <div>…</div> }
+  #universal App(props) {
+      router "main-router" {
+          route "/reports" remote { <Reports /> }   // ships no HTML
+          // …
+      }
+  }
+
   func fragment_handler(req : &http::Request, res : &mut http::ResponseWriter) {
-      // Validate router + id against THIS app's declaration and run the same
-      // auth checks the page handler runs before rendering anything.
+      // Validate router + id against THIS app's declaration and run the same auth
+      // checks the page handler runs before rendering anything (§12.8).
       var page = HtmlPage()
       page.defaultUniversalSetup()
-      page.set_route_fragment(req.query_router, req.query_id)   // select + fragment mode
-      #html { <App /> }                                         // normal render
-      var frag = page.route_fragment_response(req.query_router, req.query_id)
-      if(frag.size() == 0) { res.status = 404u; return }        // undeclared route
-      res.write_string(frag)                                    // the route alone
+      #html { <Reports /> }                 // render just the component
+      res.write_string(page.getHtml())      // its boundary + markup
   }
   ```
-  - **Fragment failure is a defined state, not a hang.** The fetch has four
-    outcomes: success (mount + `hydrated = true`), HTTP error, network error, and
-    a page whose router never declared the route (endpoint returns 404 by
-    contract, §12.8). On any failure the router clears the in-flight flag, leaves
-    the previous route active, records the failure on the record, and reports
-    through `$__uni_router_error` (§2.1). A second activation **retries** (the
-    in-flight flag is the only suppression) — a transient network blip must not
-    permanently poison a route. The placeholder boundary stays empty, so a failed
-    navigation shows the old route, never a blank container.
-  - The fragment response is rendered by the *same* SSR pipeline and therefore
-    contains a `[data-chx-i]` boundary (or comment marker) that the client
-    resolves with `$__uni_boundary` before mounting — the fragment is not
-    injected as raw `innerHTML` (§12.7).
+
+  The response must contain an element with `data-chx-i` wrapping the route
+  markup (a normal `#html` render already produces one); the client mounts that
+  element's children into the route's host. On arrival the fragment is mounted
+  fresh (the `$_urn` path). This closes the ideation's "500 KB Admin" case: remote
+  routes cost bytes only when visited (or hovered), while the server half stays
+  explicit user code.
+  - **Fragment failure is a defined state, not a hang — and never permanent.**
+    The fetch has four outcomes: success (mount + `hydrated = true`), HTTP error,
+    network error, and a *malformed* response (no `[data-chx-i]` boundary). On any
+    failure the router clears the in-flight flag, drops any stored bytes, leaves
+    the previous route active, and reports through `$__uni_router_error` (§2.1).
+    A later activation **retries** — a transient blip or a boundary-less 200 must
+    not poison a route forever (`route.failed` is reserved for a structurally
+    broken route, e.g. a missing mount host, and is never set by a fragment
+    failure). The placeholder boundary stays empty, so a failed navigation shows
+    the old route, never a blank container.
+  - The fragment is resolved through its `[data-chx-i]` boundary and mounted by
+    moving that element's children into the route's host — it is not injected as
+    raw `innerHTML` into the route (§12.7).
 - **Redirects:** client — `router("m").replaceRoute(id)` (history `replaceState`,
   no history spam on login→dashboard flows); server — `page.redirect_to(router,
   id, path = "")` selects the target route (an `add_parameter` under the hood) so
@@ -1606,8 +1621,8 @@ plan is built on it, plus the compiler-plugin and negative suites.
 The parameter store and URL matching are pure server code — unit tests in
 `lang/tests/libs/router/`: pattern matching, param extraction, query parsing,
 base stripping, percent decoding, `buildPath` server-side reversal,
-`redirect_to`, and `route_fragment_response` byte-exactness (a fragment response
-must contain the route boundary + markup and nothing else).
+`redirect_to`, and the fallback's `props.__path` delivery (present, absent, and a
+hostile `/<script>…` path that must render escaped).
 
 Required matrix additions (following the professionalization plan §4):
 
@@ -1659,8 +1674,8 @@ active-link reactivity proven in WebView; budgets from §7 measured in CI.
 (§6.4), query params (§6.5), `Link` click interception guards (§6.3),
 `buildPath`, production `Link` with aria-current + hover prefetch (§6.6),
 `$__uni_sync_url` with the opaque-origin fallback (§12.5), scroll/focus
-handling, `replaceRoute`/redirect helpers, `route_fragment_response` for remote
-routes (§6.7).
+handling, `replaceRoute`/redirect helpers, and the **client half** of remote
+routes (§6.7 — fetch + boundary mount only; the endpoint is application code).
 Exit: §6 examples pass in the WebView suite (`router_url*.ut.ch`,
 `router_remote.ut.ch`); server 404 path verified in `--libs`; deep-link +
 client-nav + popstate all deliver identical props.
@@ -1864,10 +1879,12 @@ not violate:
   attribute (props validation). Tests assert a hostile path
   (`/<script>alert(1)</script>`) renders escaped (libs `fallback.ch`) and that a
   client miss delivers/updates it (WebView).
-- **`remote` fragments are HTML over the wire** — the fragment endpoint must
-  serve the same escaped pipeline output (it does: `route_fragment_response`
-  renders through the SSR machinery), and the client must not inject it via
-  raw `innerHTML` on user-controlled routes without the boundary protocol.
+- **`remote` fragments are HTML over the wire, and the endpoint is user code.**
+  The library ships no server renderer (§6.7), so the app owns escaping: it must
+  render the fragment through the normal SSR pipeline (`#html` / `page.getHtml()`)
+  so values are escaped exactly as in the page. The client extracts only the
+  `[data-chx-i]` boundary element's children and moves them into the route host —
+  it never assigns a whole response to `innerHTML`.
 - **The parameter store is server-trusted.** Keys/values come from user *code*
   (plus parsed query/params); nothing client-supplied reaches it unescaped except
   through the §6.1 decode path, which decodes then re-escapes at render time like
@@ -2001,10 +2018,11 @@ Beyond the corrected matching flow (§6.1) and the response-mode split (§6.3.1)
    server-auth-gated route (an admin page) must be gated at the fragment endpoint
    too — the router cannot know your auth policy. The fragment handler must
    (a) validate `router` + `id` against its own declaration, (b) run the same auth
-   checks the page handler runs, and (c) render with `route_fragment_response`
-   so escaping is identical. A fragment that returns the full page (or another
-   route's markup) is a correctness *and* information-disclosure bug; the
-   byte-exactness test in §8.2 exists to catch the first of those.
+   checks the page handler runs, and (c) render the markup through the normal SSR
+   pipeline (`#html` / `page.getHtml()`) so escaping is identical. A fragment that
+   returns the full page (or another route's markup) is a correctness *and*
+   information-disclosure bug. The library provides no server half here (§6.7), so
+   this contract is enforced by the app, not by the router.
 5. **Static assets vs. response bytes.** In per-request mode, `page.toString()`
    inlines CSS and JS into every response. That is correct but not optimal; the
    segmentation work in the professionalization plan is what allows serving
@@ -2590,6 +2608,8 @@ a contained runtime report (`console.error`).
 | R12 | `dangerouslySetInnerHTML` fed a route param | error | `route params must not be injected as raw HTML` |
 | R13 | unsupported pattern form | error | `unsupported route pattern '…'` |
 | R14 | route body references `$__uni_*` internals | error | `route bodies cannot call runtime internals` |
+| R15 | `lazy` on the outermost router's `default` route | error | `'lazy' has no effect on the default route: the default route is always hydrated at load (remove 'lazy', or use 'preload' to say so explicitly)` |
+| R16 | more than one mode keyword on one route | error | `route declares more than one mode ('lazy', 'preload', 'remote')` |
 
 ### 14.9 Testing decisions
 
@@ -2786,7 +2806,7 @@ later group's symbols in an earlier phase:
 
 | Group | Symbols | Lands in |
 |---|---|---|
-| **CORE** | `$__uni_router_version`, `$__uni_router_error`, registry + queue + `busy`, `$__uni_route_visible`, `$__uni_route_register`, `$__uni_route_props`, `$__uni_HISTORY_*`, `$__uni_norm_path`, `$__uni_link_active`, `$__uni_base_title`, `$__uni_activate`, `$__uni_activate_now` (id routes only) | Phase 2 |
+| **CORE** | `$__uni_router_version`, `$__uni_router_error`, registry + queue + `busy`, `$__uni_route_visible`, `$__uni_announce`, `$__uni_route_register`, `$__uni_route_props`, `$__uni_HISTORY_*`, `$__uni_norm_path`, `$__uni_link_active`, `$__uni_base_title`, `$__uni_activate`, `$__uni_activate_now` (id routes only) | Phase 2 |
 | **CONTROL** | `$__uni_preload`, `$__uni_release`, `$__uni_router`, `$__uni_router_null`, `$__uni_router_methods`, `$__uni_should_intercept`, the `deactivate()` title/query reset (the `title` write inside `activate_now` is inert until a route declares one, so it stays in CORE) | Phase 4 |
 | **URL** | `$__uni_decode_segment`, `$__uni_parse_query`, `$__uni_query_sig`, `$__uni_initial_url`, `$__uni_router_fragment_url`, `$__uni_url_mem`/`history_ok`, `$__uni_set_url`, `$__uni_match_url`, `$__uni_activate_by_url`, `$__uni_activate_initial`, `$__uni_fetch_route`, `$__uni_mount_fragment`, `$__uni_set_query`, `$__uni_set_table_base`, `$__uni_build_path`, `$__uni_sync_url`, the `rawUrl`/query branches | Phase 5 (plus `remote` in Phase 5) |
 
@@ -2847,6 +2867,25 @@ window.$__uni_route_visible = ((route, visible) => {
 // values, so they need no string escaping at all; the single-quote/backslash
 // escaping contract applies only to props the *server* serializes into generated
 // JS (§13.3.5, INV-9, §15.9-Q21).
+// Route-change announcement (§12.6, a11y): a polite live region so assistive
+// tech hears the view change. Created lazily on first activation and reused.
+window.$__uni_announce = ((route) => {
+    try {
+        let el = document.getElementById("chx-route-live");
+        if(!el) {
+            el = document.createElement("div");
+            el.id = "chx-route-live";
+            el.setAttribute("aria-live", "polite");
+            el.setAttribute("role", "status");
+            el.style.position = "absolute"; el.style.width = "1px"; el.style.height = "1px";
+            el.style.margin = "-1px"; el.style.padding = "0"; el.style.overflow = "hidden";
+            el.style.clip = "rect(0 0 0 0)"; el.style.whiteSpace = "nowrap"; el.style.border = "0";
+            if(document.body) document.body.appendChild(el);
+        }
+        el.textContent = route ? (route.title || route.id || "") : "";
+    } catch(_) {}
+});
+
 window.$__uni_decode_segment = ((s) => {
     try { return decodeURIComponent(s); } catch(_) { return s; }
 });
@@ -3067,6 +3106,7 @@ window.$__uni_activate_now = ((routerName, routeId, url, params, historyMode, ra
         window.$__uni_route_visible(r.currentRoute, false);
     }
     window.$__uni_route_visible(route, true);
+    window.$__uni_announce(route);
     r.currentRoute = route;
     if(r.$current.value !== routeId) r.$current.value = routeId;   // D-7.8
     if(r.$url && r.$url.value !== url) r.$url.value = url;
@@ -3186,7 +3226,7 @@ window.$__uni_router_null = ((name) => ({
     routes: Object.create(null), table: null,
     activateRoute: (() => false), activateRouteByUrl: (() => false),
     replaceRoute: (() => false), replaceRouteByUrl: (() => false),
-    deactivate: (() => {}), preload: (() => false),
+    deactivate: (() => {}), preload: (() => false), preloadByUrl: (() => false),
     release: (() => false), current: (() => null), currentUrl: (() => null),
     isActive: (() => false), buildPath: (() => null), normPath: window.$__uni_norm_path,
     query: (() => null), setQuery: (() => {})
@@ -3207,9 +3247,15 @@ window.$__uni_router_methods = ((name) => ({
         if(r.$current.value !== null) r.$current.value = null;
         if(r.$url.value !== null) r.$url.value = null;
         if(r.$query.value !== null) r.$query.value = null;
+        window.$__uni_announce(null);
         try { document.title = window.$__uni_base_title; } catch(_) {}
     }),
     preload:  ((id) => window.$__uni_preload(name, id)),
+    preloadByUrl: ((path) => {
+        const m = window.$__uni_match_url(name, path);
+        if(!m) return false;
+        return window.$__uni_preload(name, m.id);
+    }),
     release:  ((id) => window.$__uni_release(name, id)),
     current:  (() => { const r = window.$__uni_routers[name]; return r.currentRoute ? r.currentRoute.id : null; }),
     currentUrl:(() => { const r = window.$__uni_routers[name]; return r.currentRoute ? r.currentRoute.url : null; }),
@@ -3395,7 +3441,8 @@ window.$__uni_mount_fragment = ((name, routeId) => {
     tmp.innerHTML = route.fragment;
     const src = tmp.querySelector('[data-chx-i]');
     if(!src || !route.host) {
-        route.failed = true;
+        // Transient: drop the bytes so a later activation refetches (§6.7).
+        route.fragment = null;
         window.$__uni_router_error("fragment has no boundary", route.key);
         return false;
     }
@@ -3682,11 +3729,6 @@ public func parse_query(raw : std::string_view, out : &mut std::unordered_map<st
 public func (page : &mut HtmlPage) redirect_to(router : std::string_view, id : std::string_view, path : std::string_view = "")
 public func (page : &mut HtmlPage) get_route_redirect() : std::string_view   // reads __route_redirect
 
-// page/src/page.ch — remote-route fragment responses (§6.7, D-6.7)
-public func (page : &mut HtmlPage) set_route_fragment(router : std::string_view, id : std::string_view)
-public func (page : &HtmlPage) route_fragment_requested(router : std::string_view, id : std::string_view) : bool
-public func (page : &HtmlPage) route_fragment_response(router : std::string_view, id : std::string_view) : std::string
-
 // router/src/match.ch — pure; no page, no globals.  Shared by the server matcher
 // and by emit-time validation so both sides can never diverge (D-6.2).
 public struct RoutePattern { var segments : std::vector<std::string_view>   // "projects" | "{id}"
@@ -3740,6 +3782,7 @@ rows are green.** This table is the checklist a reviewer runs against a PR.
 | INV-10 | `baseProps` is never mutated | `$__uni_route_props` builds a fresh object | `router_param_remount.ut.ch` — navigate `1 → 2 → 1`, props identical to the first render |
 | INV-11 | Signals are written only when the value changes | explicit `!==` before `$current`/`$url` assignment | `router_state.ut.ch` subscriber counter: same-id activate must not notify #current; param change must notify `$url` only |
 | INV-12 | Route bodies cannot reach `$__uni_*` internals | converter diagnostic R14 | `lang/tests/negative/src/router_diagnostics.ch` |
+| INV-16 | `lazy` marks a route whose hydration really is deferred (it never appears on the load-hydrated default route) | converter diagnostic R15; two mode keywords are R16 | `lang/tests/negative/src/router_diagnostics.ch` |
 | INV-13 | User params cannot occupy `__route_`/`__query_` keys | debug assertion in `add_parameter` | `lang/tests/libs/router/src/store.ch` |
 | INV-14 | No DOM query on the activation path, and no allocation for **id routes**; a URL route additionally does one query parse + one history write, which is where its cost lives | `$__uni_route_register` resolves both elements at bootstrap; §15.6 R-1/R-2 | code review + `performance.now()` budget P-1, asserted separately for id and URL routes |
 | INV-15 | Every failure leaves the *previous* route visible, never a blank page | hydrate-before-hide ordering (D-7.10a) | `router_error_no_throw.ut.ch` + a throwing-component fixture |
@@ -3931,11 +3974,11 @@ frozen signature it is called out.
 | 1 — parameter store | **Done** | `PageParameter`, `RouteManifestEntry`, `HtmlPage.parameters`/`route_missing_flag`/`route_manifest` + store/manifest/status methods (`page`), `RouteRequest`, `set_route_url`/`get_route_url`/`get_route_base`, `get_parameter_object<T>`, `query_param`, `parse_query`, `ensure_router_runtime`; `--libs` tests. |
 | 2 — client runtime | **Done** | Normative runtime emitted from `lang/libs/page/src/router_runtime.ch` (CORE + CONTROL + URL groups), one hide rule, `ensure_router_runtime` latch (INV-18); runtime presence tests. |
 | 3 — syntax + codegen | **Done (id routes + `preload`/`remote`)** | `universal_cbi/src/router/emit.ch` (`emit_router_server`/`emit_route_server`), wired through `emit_ssr_single_stmt` and `universal_replacementNode`; SSR wrappers/boundary spans, registry, per-route stubs, manifest entries, `preload` calls, activation tail in `pageJsEnd`; route bodies never enter the hydration queue (INV-7). Diagnostics R1/R3/R4/R6/R7/R13 + negative tests. Emission tests in `compiler_plugins/universal/src/router_emission.ch`; both backends compile a routed app. |
-| 4 — control API, modes, hooks | **Partial** | `router(...)` lowers to `window.$__uni_router(...)` (D-3.1), `preload`/`remote`/`noscroll` modes, public `RouterLink`/`NavLink`/`Outlet` components (the navigation link is `RouterLink`, not `Link`, because `components` already ships `Link`), hooks (`onActivate`/`onDeactivate`/`onBeforeActivate`) converted into the registration stub, `route title` + 404 `noindex`, and diagnostics **R8** (literal `activateRoute`/`preload`/`buildPath`/`replaceRoute` ids), **R14** (`$__uni_*` in route bodies/hooks) via a JS-AST walk, **R11** (`props.X` reads in a route root component that are neither a declared root attribute nor a pattern param — the component's parsed JS body is exposed via `ComponentSignature.js_body`) and **R12** (`dangerouslySetInnerHTML` fed a route param). All R1–R14 are implemented. |
+| 4 — control API, modes, hooks | **Partial** | `router(...)` lowers to `window.$__uni_router(...)` (D-3.1), `preload`/`remote`/`noscroll` modes, public `RouterLink`/`NavLink`/`Outlet` components (the navigation link is `RouterLink`, not `Link`, because `components` already ships `Link`), hooks (`onActivate`/`onDeactivate`/`onBeforeActivate`) converted into the registration stub, `route title` + 404 `noindex`, and diagnostics **R8** (literal `activateRoute`/`preload`/`buildPath`/`replaceRoute` ids), **R14** (`$__uni_*` in route bodies/hooks) via a JS-AST walk, **R11** (`props.X` reads in a route root component that are neither a declared root attribute nor a pattern param — the component's parsed JS body is exposed via `ComponentSignature.js_body`) and **R12** (`dangerouslySetInnerHTML` fed a route param), **R15** (`lazy` on the outermost `default` route) and **R16** (two mode keywords). All R1–R16 are implemented. |
 | 5 — URL layer | **Partial** | Pure `match_route`/`normalize_path_view`/`normalize_path`/`build_path`/`pattern_segments` (`router/src/match.ch`, `build_path.ch`) with `--libs` tests; **server-side matching** in the generated function via `router::apply_route_url` (deep-link selection, base stripping, fallback, 404 flag, param extraction — `--libs` tests); client match table with `{param}` placeholders and `isUrl` stubs; **emit-time precedence sorting** (D-6.9) shared by the server spec and the client table; `route noscroll`; **server-side percent-decoding** into page-owned storage with client-parity `decodeURIComponent` semantics; **mount-base write-back** into the client table (`$__uni_set_table_base`, Q42); **popstate wiring** for URL routers (`$__uni_sync_url`); **`{param}` → SSR-prop injection** (D-2.7) via `HtmlPage.get_parameter_text` + an `SsrText.getSsrAttributeValue` impl (this also fixed a latent bug: `AttrValueConverter.convert_node_attr_value` returned the access chain instead of the call); the `<name>.routes.json` manifest document (template 6: `name`/`base`/`routers`) written by `writeToDirectory`; runtime URL group (matcher, `setQuery`, remote fetch/adopt); **R9** (same-shape URL patterns are ambiguous, checked over the flattened entries so nested patterns count); a **site-level rewrite-map aggregate** (`page::site_routes_aggregate`/`write_site_routes`: a JSON array of the per-page `<name>.routes.json` documents, host-syntax-agnostic; `--libs` tests). |
 | 6 — nested routes / `<Outlet />` | **Partial** | A route may declare nested `route` children; the route becomes a layout whose inline `<Outlet />` is expanded in place into the nested router's wrappers. The nested registry name is derived (`outer#route`), the outer route registers `nested`/`nestedDefault` so activation cascades at runtime, each nested level hydrates independently, the outer route's `{param}` values are **inherited by nested children** (both SSR and client), and **full URL nesting works**: nested URL routes are emitted into the outer match table as full accumulated patterns with an activation chain, so `/projects/{id}/settings` selects the outer layout *and* the nested child on both the server (`apply_route_url` stores each chain step's registry/id) and the client (`$__uni_match_url` returns the chain; `$__uni_activate_now` follows it, re-deriving the child from the shared URL on a param change per §13.3.3). A nested `route *` is emitted as a **prefix entry** (matched after every exact entry) so `/projects/{id}/unknown` resolves to the layout + fallback. `buildPath` resolves nested route ids; nested routers get full diagnostic coverage (R3/R6/R7/R8/R9/R10/R13/R14) and their own `<title>`. A **native-rooted layout is hydrated**: an anonymous client function renders the layout body, where `<Outlet />` compiles to an opaque `__uni_outlet` boundary that hydration consumes without touching the SSR'd nested wrappers — so a native layout's own markup is interactive and its DOM survives a child switch. A **component-rooted layout that forwards `{props.children}`** (`<Layout><Outlet/></Layout>`) is hydrated too: the outlet child is emitted as the route record's `children` vnode and passed through `props.children`. A route root component's **compile-time attributes are carried in `baseProps`** (D-2.7) so SSR and the client mount agree. An **`<Outlet />` inside a separate layout component's own body** is supported: the `Outlet` component renders a `data-uni-outlet` slot and the runtime relocates the SSR'd nested wrappers into the nearest slot when the layout activates (the wrappers are server-rendered after the layout so deep links still include the child content). Diagnostics **R11/R12** validate a route root component's `props.X` reads / `dangerouslySetInnerHTML`. `--libs` (SSR deep links incl. an id layout, a nested URL child, a nested fallback, and a separate-component outlet) + WebView (client chain, prefix fallback, buildPath, hydrated native layout, hydrated forwarding layout, separate-component outlet, route-root props) tests. |
 | 7 — snapshot cache / static-route SSR | **Done (conservative classifier)** | Routes whose body is a purely-static native subtree (no components, expressions, spreads, hooks or URL params) render once into a process-global, mutex-guarded cache and append the cached bytes on later requests. Cache lives in `page` (`route_snapshot_append`/`route_snapshot_store`); the emitter's `router_body_is_static` classifier is deliberately conservative (anything uncertain is dynamic, so a snapshot can never be stale). Each `RouteSnapshot` owns its bytes in a `std::string`, so `reset_route_snapshots` (via `clear()`) frees them and an overwrite via `insert` frees the old value — no leak; the map itself is `@never_destructed` (entries live for the process lifetime, bounded by the static-route count). The key is `router#routeId@<route decl location>`, and the encoded location carries a file id, so two distinct route declarations never share a snapshot even when their router names and ids match (regression test with two same-name routers). `--libs` tests: cold/warm byte-identity, component routes excluded, 8-thread concurrent render byte-identical (INV-17), same-name/route-id routers do not collide, reset then re-cold is byte-identical. |
-| 8 — remote fragment responses | **Done** | The server-side half of §6.7 (the client fetch/adopt and the P0 stale-fetch race landed with the URL layer). `page.set_route_fragment(router, id)` (before render) selects the route and marks the page as serving a fragment; the generated router emits a `remote` route's body **only** inside `if(page.route_fragment_requested(router, id))`, wrapped in `<!--chx-frag-->` markers. `page.route_fragment_response(router, id)` (after render) returns the markup alone as a `<span data-chx-i>…</span>` boundary element (or `""`), byte-exact — nothing from the page shell or other routes. Both the emitter probe and the three helpers live in `page` so the emitter resolves them as page methods. `--libs` tests: no body on a normal render, fragment returns only the route, request scoping to router+id, and an undeclared route yields `""`. |
+| 8 — remote routes (client half only) | **Done** | Per §6.7 the library ships the **client** half of fetch-on-demand and intentionally no server-side renderer. A `remote` route registers with `remote: true`; the generated router renders only its empty wrapper + boundary host. On first activation (or hover `preload`) the client fetches `/__uni_fragment?router=&id=` (`$__uni_fetch_route`, `$__uni_mount_fragment`, overridable `$__uni_router_fragment_url`), aborting superseded fetches (`navSeq`/`AbortController`), and mounts the first `[data-chx-i]` element's children into the host. The fragment endpoint is user code that renders the route body itself (e.g. the shared `Reports` component) — the router owns no render path for it. A malformed/boundary-less fragment drops its bytes and leaves `route.failed` untouched, so a later activation retries. WebView tests: no SSR body, fetch-then-activate, prefetch-without-mount, in-flight dedup, failure containment, a boundary-less fragment does not poison the route, and the stale-fetch race. |
 
 **Known divergences from the frozen signatures (documented, not silent):**
 

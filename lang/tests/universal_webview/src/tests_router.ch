@@ -854,6 +854,12 @@
     return <div data-testid="ut-npl-wrap"><RouterLink href="/admin" routeId="admin" router="ut-npl" preload>Admin</RouterLink></div>
 }
 
+// A URL link with `preload` and no `routeId`: the id must be resolved from the
+// href against the match table (regression for a `preload(undefined)`).
+#universal UtP1PreloadUrlHost(props) {
+    return <div data-testid="ut-p1-pu-wrap"><RouterLink href="/projects/5" router="ut-p2-url" preload>P5</RouterLink></div>
+}
+
 #universal UtNNestedStateLayout(props) {
     state n = 0
     return <div data-testid="ut-ns-lay">
@@ -1496,6 +1502,25 @@
     </script>
 }
 
+#universal_test("router RouterLink preload on a URL link warms the route matched from the href", isolate) {
+    <UtP2Url />
+    <UtP1PreloadUrlHost />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        const rec = r.routes['/projects/{id}']
+        const orig = window.$__uni_router_error
+        let errs = 0
+        window.$__uni_router_error = () => { errs++ }
+        expect(rec.hydrated).toBe(false)
+        byTestId('ut-p1-pu-wrap').find('a').hover()
+        await t.sleep(20)
+        expect(rec.hydrated).toBe(true)
+        expect(errs).toBe(0)                 // no "unknown route" log
+        expect(r.current()).toBe('home')     // preload never navigates
+        window.$__uni_router_error = orig
+    </script>
+}
+
 #universal_test("router the shared intercept predicate gates modifiers targets and schemes", isolate) {
     <UtRouterBasic />
     <script>
@@ -2018,6 +2043,24 @@
     </script>
 }
 
+#universal_test("router announces a route change in a polite live region", isolate) {
+    <UtP2Url />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        r.activateRouteByUrl('/about')
+        await t.sleep(20)
+        const live = document.getElementById('chx-route-live')
+        expect(live !== null).toBe(true)
+        expect(live.getAttribute('aria-live')).toBe('polite')
+        expect(live.getAttribute('role')).toBe('status')
+        expect(live.textContent).toBe('About Title')     // the route's title
+        // An id route with no title falls back to its id.
+        r.activateRoute('home')
+        await t.sleep(20)
+        expect(document.getElementById('chx-route-live').textContent).toBe('home')
+    </script>
+}
+
 // ── guards ──────────────────────────────────────────────────────────────────
 
 #universal_test("router a guard flag can deny then allow the same navigation", isolate) {
@@ -2198,6 +2241,39 @@
             expect(rec.visible).toBe(true)
             expect(r.current()).toBe('/heavy')
             expect(byTestId('ut-p2r-heavy').text()).toBe('Heavy')
+        } finally { window.fetch = origFetch }
+    </script>
+}
+
+#universal_test("router a boundary-less fragment fails the activation but does not poison the route", isolate) {
+    <UtP2Remote />
+    <script>
+        const r = window.$__uni_routers['ut-p2-rem']
+        const rec = r.routes['/heavy']
+        const origFetch = window.fetch
+        let call = 0
+        window.fetch = function() {
+            call++
+            const body = (call === 1)
+                ? '<div>no boundary</div>'
+                : '<div data-chx-i><div data-testid="ut-p2r-heavy">Heavy</div></div>'
+            return Promise.resolve({ ok: true, text: function() { return Promise.resolve(body) } })
+        }
+        try {
+            expect(r.activateRouteByUrl('/heavy')).toBe(true)
+            await t.sleep(80)
+            // The malformed fragment must not permanently block the route:
+            // drop the bytes and leave the previous route active.
+            expect(rec.failed).toBe(false)
+            expect(rec.fragment).toBe(null)
+            expect(rec.inFlight).toBe(null)
+            expect(r.current()).toBe('home')
+            // A second activation retries (and refetches).
+            expect(r.activateRouteByUrl('/heavy')).toBe(true)
+            await t.sleep(80)
+            expect(r.current()).toBe('/heavy')
+            expect(byTestId('ut-p2r-heavy').text()).toBe('Heavy')
+            expect(call).toBe(2)
         } finally { window.fetch = origFetch }
     </script>
 }

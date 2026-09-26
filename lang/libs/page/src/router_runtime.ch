@@ -36,6 +36,32 @@ window.$__uni_route_visible = ((route, visible) => {
     }
 });
 
+// Route-change announcement (§12.6, a11y): a polite live region so assistive
+// tech hears the view change. Created lazily on first activation and reused;
+// the text is the route's title, else its id (URL routes announce their url).
+window.$__uni_announce = ((route) => {
+    try {
+        let el = document.getElementById("chx-route-live");
+        if(!el) {
+            el = document.createElement("div");
+            el.id = "chx-route-live";
+            el.setAttribute("aria-live", "polite");
+            el.setAttribute("role", "status");
+            el.style.position = "absolute";
+            el.style.width = "1px";
+            el.style.height = "1px";
+            el.style.margin = "-1px";
+            el.style.padding = "0";
+            el.style.overflow = "hidden";
+            el.style.clip = "rect(0 0 0 0)";
+            el.style.whiteSpace = "nowrap";
+            el.style.border = "0";
+            if(document.body) document.body.appendChild(el);
+        }
+        el.textContent = route ? (route.title || route.id || "") : "";
+    } catch(_) {}
+});
+
 window.$__uni_decode_segment = ((s) => {
     try { return decodeURIComponent(s); } catch(_) { return s; }
 });
@@ -220,6 +246,7 @@ window.$__uni_activate_now = ((routerName, routeId, url, params, historyMode, ra
         window.$__uni_route_visible(r.currentRoute, false);
     }
     window.$__uni_route_visible(route, true);
+    window.$__uni_announce(route);
     r.currentRoute = route;
     if(r.$current.value !== routeId) r.$current.value = routeId;
     if(r.$url && r.$url.value !== url) r.$url.value = url;
@@ -370,7 +397,7 @@ window.$__uni_router_null = ((name) => ({
     routes: Object.create(null), table: null,
     activateRoute: (() => false), activateRouteByUrl: (() => false),
     replaceRoute: (() => false), replaceRouteByUrl: (() => false),
-    deactivate: (() => {}), preload: (() => false),
+    deactivate: (() => {}), preload: (() => false), preloadByUrl: (() => false),
     release: (() => false), current: (() => null), currentUrl: (() => null),
     isActive: (() => false), buildPath: (() => null), normPath: window.$__uni_norm_path,
     query: (() => null), setQuery: (() => {})
@@ -393,9 +420,17 @@ window.$__uni_router_methods = ((name) => ({
         if(r.$current.value !== null) r.$current.value = null;
         if(r.$url.value !== null) r.$url.value = null;
         if(r.$query.value !== null) r.$query.value = null;
+        window.$__uni_announce(null);
         try { document.title = window.$__uni_base_title; } catch(_) {}
     }),
     preload:  ((id) => window.$__uni_preload(name, id)),
+    // Prefetch by URL: resolves the id from the match table first, so a
+    // `<RouterLink preload href="/x">` (no `routeId`) still warms the route.
+    preloadByUrl: ((path) => {
+        const m = window.$__uni_match_url(name, path);
+        if(!m) return false;
+        return window.$__uni_preload(name, m.id);
+    }),
     release:  ((id) => window.$__uni_release(name, id)),
     current:  (() => { const r = window.$__uni_routers[name]; return r.currentRoute ? r.currentRoute.id : null; }),
     currentUrl:(() => { const r = window.$__uni_routers[name]; return r.currentRoute ? r.currentRoute.url : null; }),
@@ -525,7 +560,10 @@ window.$__uni_mount_fragment = ((name, routeId) => {
     tmp.innerHTML = route.fragment;
     const src = tmp.querySelector('[data-chx-i]');
     if(!src || !route.host) {
-        route.failed = true;
+        // A boundary-less fragment is a *transient* failure: drop the bytes so a
+        // later activation refetches and retries, instead of poisoning the route
+        // forever via `failed` (§6.7).
+        route.fragment = null;
         window.$__uni_router_error("fragment has no boundary", route.key);
         return false;
     }

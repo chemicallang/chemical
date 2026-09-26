@@ -214,6 +214,19 @@ window.$__uni_activate_now = ((routerName, routeId, url, params, historyMode, ra
     // instead of the declared nested default. The outer route's resolved params
     // are inherited, so a nested child's `props.id` sees the URL param.
     if(route.nested) {
+        // Separate-component outlet: the layout renders a `data-uni-outlet` slot
+        // from its own body; relocate the SSR'd nested wrappers into it (they are
+        // emitted after the layout so deep links still server-render them).
+        if(route.host) {
+            const slot = route.host.querySelector('[data-uni-outlet="true"]');
+            const nr = slot ? window.$__uni_routers[route.nested] : null;
+            if(slot && nr) {
+                for(const sk in nr.routes) {
+                    const rr = nr.routes[sk];
+                    if(rr.el && rr.el.parentNode !== slot) slot.appendChild(rr.el);
+                }
+            }
+        }
         let childId = route.nestedDefault;
         let childChain = null;
         if(chain && chain.length && chain[0] && chain[0][0] === route.nested) {

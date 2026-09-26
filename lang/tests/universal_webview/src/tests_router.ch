@@ -569,3 +569,44 @@
         expect(byTestId('ut-fw-chrome').text()).toBe('chrome')
     </script>
 }
+
+// ── Outlet inside a separate layout component's own body ───────────────────
+
+#universal UtBodyOutletLayout(props) {
+    return <div data-testid="ut-bo-layout">
+        <span data-testid="ut-bo-chrome">chrome</span>
+        <Outlet />
+    </div>
+}
+
+#universal UtRouterBodyOutlet(props) {
+    router "ut-bo" {
+        route default #"home" { <div data-testid="ut-bo-home">Home</div> }
+        route #"shell" {
+            route default #"a" { <div data-testid="ut-bo-a">A</div> }
+            route #"b" { <div data-testid="ut-bo-b">B</div> }
+            <UtBodyOutletLayout />
+        }
+    }
+}
+
+#universal_test("router renders an Outlet inside a separate layout component", isolate) {
+    <UtRouterBodyOutlet />
+    <script>
+        const r = window.$__uni_routers['ut-bo']
+        expect(r.activateRoute('shell')).toBe(true)
+        await t.sleep(50)
+        expect(byTestId('ut-bo-layout').exists()).toBe(true)
+        expect(byTestId('ut-bo-chrome').text()).toBe('chrome')
+        expect(byTestId('ut-bo-a').text()).toBe('A')
+        // the wrappers were relocated into the layout's own outlet slot
+        const slot = byTestId('ut-bo-layout').find('[data-uni-outlet="true"]')
+        expect(slot.exists()).toBe(true)
+        expect(slot.find('[data-uni-route="ut-bo#shell#a"]').exists()).toBe(true)
+        const nr = window.$__uni_routers['ut-bo#shell']
+        nr.activateRoute('b')
+        await t.sleep(20)
+        expect(byTestId('ut-bo-b').text()).toBe('B')
+        expect(byTestId('ut-bo-chrome').text()).toBe('chrome')
+    </script>
+}

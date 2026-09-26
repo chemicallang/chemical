@@ -99,6 +99,8 @@ public func universal_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
     if(parser.getToken().type == JsTokenType.LBrace as int) {
         var body = jsParser.parseBlock(parser, builder);
         comp.body = body;
+        // Back-pointer for router validation (R11/R12): the parsed JS body.
+        comp.signature.js_body = body as *mut void;
 
         const nodes_arr : []*mut ASTNode = []
 

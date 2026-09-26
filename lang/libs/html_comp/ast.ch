@@ -17,6 +17,11 @@ public struct ComponentSignature {
     var propsName : std::string_view
     var params : std::vector<ComponentParam>
     var functionNode : *mut FunctionDeclaration = null
+    // The parsed JS/JSX body of a `#universal` component, back-pointed so the
+    // router (a consumer) can validate `props.X` reads / `dangerouslySetInnerHTML`
+    // (R11/R12). `*mut void` to avoid an html_comp -> js_syntax dependency;
+    // consumers cast to `*mut JsNode`. Null for non-universal components.
+    var js_body : *mut void = null
     // When a styled component wraps a universal component, the SSR call still
     // goes through the styled component's function (so its generated CSS is
     // emitted), but hydration must target the inner universal component (which

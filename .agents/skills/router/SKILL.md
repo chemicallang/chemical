@@ -88,9 +88,10 @@ A nested URL child also works under a top-level **id** layout. A nested
 A **native-rooted** layout (root is a native element with an inline `<Outlet/>`)
 is hydrated: its own markup is interactive and its DOM survives a child switch.
 A **component-rooted** layout that forwards `{props.children}`
-(`<Layout><Outlet/></Layout>`) is hydrated too. Only an `<Outlet/>` written
-inside a layout component's *own body* (not passed as a child) is still
-unsupported.
+(`<Layout><Outlet/></Layout>`) is hydrated too. An `<Outlet/>` written inside a
+layout component's *own body* is supported as well: the `Outlet` component
+renders a `data-uni-outlet` slot and the runtime relocates the SSR'd nested
+wrappers into it when the layout activates.
 
 ### 1.2 Control API
 
@@ -265,8 +266,12 @@ sole ownership of the wrappers. A **component-rooted** layout that forwards
 `{props.children}` gets `comp` = the root component and a generated
 `$__uni_route_children_<loc>()` vnode array as the route record's `children`
 (merged into props by `$__uni_route_props`); `emit_route_children_client`
-converts the root's children with the outlet boundary. An `<Outlet/>` inside a
-layout component's own body (not a child) is still unsupported.
+converts the root's children with the outlet boundary. An **`<Outlet/>` inside a
+layout component's own body** (no route context) renders a `data-uni-outlet` slot;
+the runtime relocates the nested registry's wrappers into the nearest slot inside
+the activating route's host (they are server-rendered after the layout, so deep
+links still include the child content — the visual position is corrected at
+hydration).
 `baseProps` also carries a route root component's compile-time attributes
 (D-2.7), not just `{param}` placeholders.
 
@@ -286,7 +291,10 @@ layout component's own body (not a child) is still unsupported.
 Emitted by the converter (`emit.ch`) with a source location, except R5 (runtime).
 All are **errors** except R10, which is a **warning** (the CBI
 `ASTDiagnoser.warning` channel; see the change-impact map). R3/R6/R7/R8/R9/R10/
-R13/R14 apply recursively to nested routers under their derived name `parent#id`.
+R11/R12/R13/R14 apply recursively to nested routers under their derived name
+`parent#id` (R11/R12 use the *accumulated* pattern). R11/R12 read the route root
+component's parsed JS body via `ComponentSignature.js_body` (set by the
+`#universal` macro).
 
 | # | Trigger | Message |
 |---|---|---|
@@ -298,6 +306,8 @@ R13/R14 apply recursively to nested routers under their derived name `parent#id`
 | R8 | literal id not declared | `no route 'x' in router "m"` |
 | R9 | two same-shape URL patterns | `route patterns '/a/{x}' and '/a/{y}' are ambiguous` |
 | R10 | router with no `default` and no `*` (warning) | `router "m" has no default route; the page renders inert without a server parameter` |
+| R11 | route-root component `props.X` read not covered by a root attribute or pattern param | `route prop 'x' is not declared: not an attribute of the route root and not a param of '/a/{y}'` |
+| R12 | `dangerouslySetInnerHTML` fed a route param | `route params must not be injected as raw HTML` |
 | R13 | unsupported pattern (mid `*`) | `unsupported route pattern '…'` |
 | R14 | `$__uni_*` in a route body/hook | `route bodies cannot call runtime internals` |
 
@@ -363,6 +373,11 @@ When adding a behaviour:
   for the nested router. `$__uni_route_props` never invents keys: `baseProps`
   must carry every compile-time root attribute and a placeholder for every
   pattern param (D-2.7/INV-20).
+- **A separate-component `<Outlet/>` renders a `data-uni-outlet` slot**; on
+  activation the runtime relocates the nested registry's wrappers into the
+  nearest slot inside the route host. Never SSR the nested wrappers *inside* such
+  a slot (the layout component is compiled independently); the relocation is the
+  contract.
 - **No DOM queries on the activation path** — boundaries/wrappers are resolved at
   bootstrap by source-derived ids.
 - **Route bodies never enter the hydration queue**; only the router mounts them.
@@ -382,20 +397,17 @@ When adding a behaviour:
 
 ## Part 5 — Known limitations / remaining work
 
-- **`<Outlet/>` inside a separate layout component**: only an inline `<Outlet/>`
-  in the route body (or a child of the route root, passed through
-  `props.children`) expands. An `<Outlet/>` written inside a layout component's
-  own body is not supported. Both native-rooted and component-rooted (children-
-  forwarding) layouts *do* hydrate.
-- **R11/R12**: `props.X` / `dangerouslySetInnerHTML` validation — these read the
-  route *component*, a different component from the router declaration, so they
-  need a cross-component pass (the component's JS body is not retained after
-  conversion). (R9 and R10 are implemented.)
+- **SSR position of a separate-component outlet.** When the `<Outlet/>` lives in
+  a layout component's own body, the nested wrappers are server-rendered *after*
+  the layout and relocated into the slot at hydration, so the child content is
+  present in the HTML (crawler-visible) but its pre-hydration DOM position is
+  after the layout rather than inside the slot.
 - Phase 7 caches only the conservative static subset (by design).
 
-The site-level rewrite-map aggregate **is** implemented
-(`page::site_routes_aggregate` / `write_site_routes`); a deploy tool turns the
-per-page patterns into host rewrites.
+Everything else in the design is implemented: full URL nesting, nested
+fallbacks, all R1–R14 diagnostics (R10 as a warning), both hydrated-layout forms,
+the separate-component outlet, and the site-level rewrite-map aggregate
+(`page::site_routes_aggregate` / `write_site_routes`).
 
 ---
 
@@ -406,9 +418,10 @@ per-page patterns into host rewrites.
 | Syntax/keywords/grammar | `parser_router.ch`, this skill §1.1, the design doc §4/§14.1, `router_emission.ch`/negative tests |
 | Emitted artefacts (wrapper, registry, stubs, tail, table) | this skill §2.2/§2.3, design doc §15.3, `router_emission.ch` |
 | Runtime symbols/behaviour | `router_runtime.ch`, this skill §2.3/§4, `tests_router.ch`, design doc §15.2 |
-| Hydrated layout / `__uni_outlet` (universal side) | `converter_jsx.ch`, `emit.ch` (`emit_route_layout_client`/`emit_route_children_client`), `router_runtime.ch` (`$__uni_route_props` children), `page.ch`'s `$__uni_hydrate_node`/`$_urn`, the `universal` skill, this skill §2.4/§4/§5 |
+| Hydrated layout / `__uni_outlet` (universal side) | `converter_jsx.ch`, `emit.ch` (`emit_route_layout_client`/`emit_route_children_client`), `router_runtime.ch` (`$__uni_route_props` children + slot relocation), `page.ch`'s `$__uni_hydrate_node`/`$_urn`, `Outlet.ch` (slot), the `universal` skill, this skill §2.4/§4/§5 |
 | Site rewrite aggregate | `page.ch` (`site_routes_aggregate`/`write_site_routes`), `lang/tests/libs/router/src/site.ch`, this skill §5 |
 | A diagnostic message | `emit.ch`, `router_diagnostics.ch`, this skill §2.6, design doc §14.8 |
+| A route-root-component prop rule (R11/R12) | `emit.ch` (`router_collect_prop_reads`/`router_validate_props`), `html_comp/ast.ch` (`ComponentSignature.js_body`), `universal_cbi/src/react/macro.ch`, `router_diagnostics.ch`, this skill §2.6 |
 | The CBI diagnoser channel (e.g. adding `warning`) | `compiler/cbi/bindings/ASTDiagnoserCBI.{h,cpp}`, `CBI.cpp`'s `ASTDiagnoserSymMap`, `lang/libs/compiler/src/ASTDiagnoser.ch`, `lang/tests/negative/src/main.ch` (`expect_compile_output_contains`), this skill §2.6 |
 | Page server API (`page.ch` router methods) | this skill §2.4/§2.5, `lang/tests/libs/router/*`, design doc §3/§15.4 |
 | Router library public API (`match`/`apply`/components) | this skill §1.3/§1.5, `lang/libs/router/README.md`, `--libs` tests |

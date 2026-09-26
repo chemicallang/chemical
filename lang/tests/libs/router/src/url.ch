@@ -162,3 +162,103 @@ public func test_router_server_table_base_written(env : &mut TestEnv) {
         env.error("a mount base must be written into the client match table")
     }
 }
+
+#universal UrlParamPane(props) {
+    return <div class="proj">{props.id}</div>
+}
+
+#universal UrlParamApp(props) {
+    router "main" {
+        route default #"home" { <div>Home</div> }
+        route "/projects/{id}" { <UrlParamPane /> }
+    }
+}
+
+@test
+public func test_router_server_param_reaches_ssr_props(env : &mut TestEnv) {
+    var page = HtmlPage()
+    page.set_route_url("/projects/42", "")
+    #html { <UrlParamApp /> }
+    var html = page.getHtml()
+    const expected = std::string_view("<div class=\"proj\">42</div>")
+    if(html.find(&expected) == std::NPOS) {
+        env.error("a deep-linked {id} must reach the route component's SSR props")
+        env.info(html.data())
+    }
+}
+
+// ── Phase 6: nested routes / <Outlet /> ─────────────────────────────────────
+
+#universal NestedChildA(props) {
+    return <div class="child-a">A</div>
+}
+
+#universal NestedChildB(props) {
+    return <div class="child-b">B</div>
+}
+
+#universal NestedApp(props) {
+    router "main" {
+        route default #"home" { <div>Home</div> }
+        route #"projects" {
+            route default #"list" { <NestedChildA /> }
+            route #"detail" { <NestedChildB /> }
+            <div class="layout"><main><Outlet /></main></div>
+        }
+    }
+}
+
+@test
+public func test_router_nested_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    page.add_parameter("main", "projects")
+    #html { <NestedApp /> }
+    var html = page.getHtml()
+    const layout = std::string_view("class=\"layout\"")
+    if(html.find(&layout) == std::NPOS) {
+        env.error("nested layout markup missing")
+        return
+    }
+    // The nested default (`list`) is active; `detail` ships hidden (eager SSR).
+    const listActive = std::string_view("data-uni-route=\"main#projects#list\" data-uni-route-active=\"true\"")
+    if(html.find(&listActive) == std::NPOS) {
+        env.error("nested default route should render active")
+        env.info(html.data())
+        return
+    }
+    const detailInactive = std::string_view("data-uni-route=\"main#projects#detail\" data-uni-route-active=\"false\"")
+    if(html.find(&detailInactive) == std::NPOS) {
+        env.error("inactive nested route should render hidden")
+    }
+    // The nested wrappers are registered under the derived router name.
+    const nestedRoute = std::string_view("data-uni-route=\"main#projects#list\"")
+    if(html.find(&nestedRoute) == std::NPOS) {
+        env.error("nested wrapper missing its derived router name")
+    }
+}
+
+@test
+public func test_router_nested_registry_and_activation(env : &mut TestEnv) {
+    var page = HtmlPage()
+    page.add_parameter("main", "projects")
+    #html { <NestedApp /> }
+    var doc = page.toString()
+    const registry = std::string_view("window.$__uni_routers[\"main#projects\"]")
+    if(doc.find(&registry) == std::NPOS) {
+        env.error("nested router registry missing")
+        return
+    }
+    // The outer route registers the nested router, so activation cascades.
+    const nested = std::string_view("nested: \"main#projects\"")
+    if(doc.find(&nested) == std::NPOS) {
+        env.error("outer route should register its nested router")
+    }
+    const nestedDefault = std::string_view("nestedDefault: \"list\"")
+    if(doc.find(&nestedDefault) == std::NPOS) {
+        env.error("outer route should register the nested default")
+    }
+    const nestedStub = std::string_view("window.$__uni_route_register(\"main#projects\", \"list\"")
+    if(doc.find(&nestedStub) == std::NPOS) {
+        env.error("nested router should emit its own registration stub")
+    }
+}

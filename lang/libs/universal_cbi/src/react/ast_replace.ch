@@ -54,7 +54,8 @@ public func universal_replacementNode(builder : *mut ASTBuilder, diagnoser : *mu
         ssr_bound_param_value : ssr_js_eval_invalid(),
         ssr_index_param : std::string_view(),
         ssr_index_param_valid : false,
-        ssr_index_param_value : ssr_js_eval_invalid()
+        ssr_index_param_value : ssr_js_eval_invalid(),
+        router_outlet_routes : std::vector<*mut JsNode>()
     }
 
     const nodeLocation = value.getEncodedLocation()

@@ -87,6 +87,7 @@ window.$__uni_route_register = ((routerName, routeId, spec) => {
         url: null, rawUrl: null, inst: null, inFlight: null,
         fragment: null, pendingActivate: null, fetchUrl: spec.fetchUrl || null,
         scrollY: 0, focusEl: null, noscroll: !!spec.noscroll, title: spec.title || null,
+        nested: spec.nested || null, nestedDefault: spec.nestedDefault || null,
         beforeActivate: spec.beforeActivate || null,
         onActivate: spec.onActivate || null,
         onDeactivate: spec.onDeactivate || null
@@ -202,6 +203,12 @@ window.$__uni_activate_now = ((routerName, routeId, url, params, historyMode, ra
         }
     }
     try { document.title = route.title || window.$__uni_base_title; } catch(_) {}
+    // Nested routes (Phase 6): activating an outer route also activates its
+    // nested router's default. The nested call queues (busy) and runs after this
+    // transition, so both visibility updates are ordered.
+    if(route.nested) {
+        window.$__uni_activate(route.nested, route.nestedDefault, undefined, null, window.$__uni_HISTORY_NONE);
+    }
     if(route.onActivate) {
         try { route.onActivate(url); }
         catch(err) { window.$__uni_router_error("onActivate failed", route.key + " " + err); }

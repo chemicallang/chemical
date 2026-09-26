@@ -98,6 +98,14 @@ func (converter : &mut JsConverter) convertAttributeValue(attr : *mut JsJSXAttri
 }
 
 func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElement, tagName : std::string_view, tagNameNode : *mut JsNode) {
+    // Nested-router outlet (Phase 6): a `<Outlet />` inside a route that declares
+    // nested routes expands in place into the nested router's wrappers.
+    if(converter.target == BufferType.HTML && converter.router_outlet_routes.size() > 0 &&
+       !converter.router_outlet_emitted && element.componentSignature != null &&
+       element.componentSignature.name.equals(std::string_view("Outlet"))) {
+        converter.emit_nested_routes()
+        return
+    }
     if(converter.target == BufferType.HTML) {
         if(element.componentSignature == null) {
              return;

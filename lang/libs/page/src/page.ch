@@ -279,6 +279,15 @@ public struct HtmlPage {
         return std::string_view()
     }
 
+    // The parameter value as an `SsrText`, so it can be injected as an SSR
+    // attribute (a `std::string_view` value has no direct attribute
+    // representation; `SsrText` does, via `getSsrAttributeValue`). Used by the
+    // generated router to pass `{param}` values to a route body (D-2.7).
+    public func get_parameter_text(&self, key : std::string_view) : SsrText {
+        const v = self.get_parameter(key)
+        return SsrText { data : v.data(), size : v.size() as u64 }
+    }
+
     public func has_parameter(&self, key : std::string_view) : bool {
         return parameters.contains(&key)
     }

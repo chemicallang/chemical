@@ -190,6 +190,73 @@ func router_match_spec(rd : *mut JsRouterDecl, out : &mut std::string) {
     }
 }
 
+// Splits a declared pattern into `{param}` names.
+func router_pattern_param_names(pattern : std::string_view) : std::vector<std::string_view> {
+    var out = std::vector<std::string_view>()
+    var i : size_t = 0
+    while(i < pattern.size()) {
+        while(i < pattern.size() && pattern.get(i) == '/') { i = i + 1 }
+        if(i >= pattern.size()) { break }
+        const start = i
+        while(i < pattern.size() && pattern.get(i) != '/') { i = i + 1 }
+        const seg = pattern.subview(start, i)
+        if(seg.size() >= 2 && seg.get(0) == '{' && seg.get(seg.size() - 1) == '}') {
+            out.push(seg.subview(1, seg.size() - 1))
+        }
+    }
+    return out
+}
+
+// Injects one synthetic SSR attribute per `{param}` into a route body's JSX root
+// (D-2.7). SSR-only: the route body root is never client-emitted.
+func (converter : &mut JsConverter) router_inject_param_props(route : *mut JsRouteDecl, root : *mut JsNode) {
+    if(!route.is_url || root == null || root.kind != JsNodeKind.JSXElement) return
+    const names = router_pattern_param_names(route.pattern)
+    if(names.size() == 0) return
+
+    const el = root as *mut JsJSXElement
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location()
+    const getParamFn = converter.support.pageNode.child("get_parameter_text")
+
+    for(var i : uint = 0; i < names.size(); i++) {
+        const name = names.get(i)
+        var already = false
+        for(var a : uint = 0; a < el.opening.attributes.size(); a++) {
+            const existing = el.opening.attributes.get(a)
+            if(existing != null && existing.kind == JsNodeKind.JSXAttribute) {
+                if((existing as *mut JsJSXAttribute).name.equals(&name)) { already = true }
+            }
+        }
+        if(already) continue
+
+        var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
+        var fnId = builder.make_identifier(std::string_view("get_parameter_text"), getParamFn, false, location)
+        const chain = builder.make_access_chain(&std::span<*mut Value>([ pageId, fnId ]), location)
+        var call = builder.make_function_call_value(chain, location)
+        call.get_args().push(converter.router_string_value(name))
+
+        var chem = builder.allocate<JsChemicalValue>()
+        new (chem) JsChemicalValue {
+            base : JsNode { kind : JsNodeKind.ChemicalValue },
+            value : call as *mut Value
+        }
+        var container = builder.allocate<JsJSXExpressionContainer>()
+        new (container) JsJSXExpressionContainer {
+            base : JsNode { kind : JsNodeKind.JSXExpressionContainer },
+            expression : chem as *mut JsNode
+        }
+        var attr = builder.allocate<JsJSXAttribute>()
+        new (attr) JsJSXAttribute {
+            base : JsNode { kind : JsNodeKind.JSXAttribute },
+            name : builder.allocate_view(&name),
+            value : container as *mut JsNode,
+            loc : location
+        }
+        el.opening.attributes.push(attr as *mut JsNode)
+    }
+}
+
 // Emits a declared pattern (`/projects/{id}`) as a JS array of segment strings:
 // `"projects", "{id}"` (used inside the client match table's `pattern: [...]`).
 func router_pattern_segments_js(pattern : std::string_view, out : &mut std::string) {
@@ -313,6 +380,195 @@ func router_count_jsx_roots(route : *mut JsRouteDecl) : int {
 func (converter : &mut JsConverter) router_diag_orphan_route(route : *mut JsRouteDecl) {
     var msg = std::string("'route' declaration is only valid inside a router block")
     converter.router_diag(&msg, route.decl_loc)
+}
+
+// True when a node (or descendant) references a `$__uni_*` runtime internal
+// (R14). Walks the common expression/statement/JSX node kinds; unknown kinds are
+// treated as leaf and cannot contain a reference.
+func router_scan_internals(node : *mut JsNode) : bool {
+    if(node == null) return false
+    switch(node.kind) {
+        JsNodeKind.Identifier => {
+            return (node as *mut JsIdentifier).value.starts_with(&std::string_view("$__uni_"))
+        }
+        JsNodeKind.MemberAccess => {
+            const m = node as *mut JsMemberAccess
+            if(m.property.starts_with(&std::string_view("$__uni_"))) return true
+            return router_scan_internals(m.object)
+        }
+        JsNodeKind.FunctionCall => {
+            const c = node as *mut JsFunctionCall
+            if(router_scan_internals(c.callee)) return true
+            for(var i : uint = 0; i < c.args.size(); i++) {
+                if(router_scan_internals(c.args.get(i))) return true
+            }
+            return false
+        }
+        JsNodeKind.ExpressionStatement => {
+            return router_scan_internals((node as *mut JsExpressionStatement).expression)
+        }
+        JsNodeKind.Block => {
+            const b = node as *mut JsBlock
+            for(var i : uint = 0; i < b.statements.size(); i++) {
+                if(router_scan_internals(b.statements.get(i))) return true
+            }
+            return false
+        }
+        JsNodeKind.If => {
+            const s = node as *mut JsIf
+            if(router_scan_internals(s.condition)) return true
+            if(router_scan_internals(s.thenBlock)) return true
+            return router_scan_internals(s.elseBlock)
+        }
+        JsNodeKind.Return => { return router_scan_internals((node as *mut JsReturn).value) }
+        JsNodeKind.VarDecl => { return router_scan_internals((node as *mut JsVarDecl).value) }
+        JsNodeKind.ArrowFunction => { return router_scan_internals((node as *mut JsArrowFunction).body) }
+        JsNodeKind.BinaryOp => {
+            const s = node as *mut JsBinaryOp
+            return router_scan_internals(s.left) || router_scan_internals(s.right)
+        }
+        JsNodeKind.Ternary => {
+            const s = node as *mut JsTernary
+            return router_scan_internals(s.condition) || router_scan_internals(s.consequent) || router_scan_internals(s.alternate)
+        }
+        JsNodeKind.UnaryOp => { return router_scan_internals((node as *mut JsUnaryOp).operand) }
+        JsNodeKind.Paren => { return router_scan_internals((node as *mut JsParen).expression) }
+        JsNodeKind.Spread => { return router_scan_internals((node as *mut JsSpread).argument) }
+        JsNodeKind.ArrayLiteral => {
+            const a = node as *mut JsArrayLiteral
+            for(var i : uint = 0; i < a.elements.size(); i++) {
+                if(router_scan_internals(a.elements.get(i))) return true
+            }
+            return false
+        }
+        JsNodeKind.ObjectLiteral => {
+            const o = node as *mut JsObjectLiteral
+            for(var i : uint = 0; i < o.properties.size(); i++) {
+                if(router_scan_internals(o.properties.get(i).value)) return true
+            }
+            return false
+        }
+        JsNodeKind.IndexAccess => {
+            const s = node as *mut JsIndexAccess
+            return router_scan_internals(s.object) || router_scan_internals(s.index)
+        }
+        JsNodeKind.JSXElement => {
+            const el = node as *mut JsJSXElement
+            for(var i : uint = 0; i < el.opening.attributes.size(); i++) {
+                if(router_scan_internals(el.opening.attributes.get(i))) return true
+            }
+            for(var i : uint = 0; i < el.children.size(); i++) {
+                if(router_scan_internals(el.children.get(i))) return true
+            }
+            return false
+        }
+        JsNodeKind.JSXExpressionContainer => {
+            return router_scan_internals((node as *mut JsJSXExpressionContainer).expression)
+        }
+        JsNodeKind.JSXAttribute => {
+            return router_scan_internals((node as *mut JsJSXAttribute).value)
+        }
+        JsNodeKind.JSXSpreadAttribute => {
+            return router_scan_internals((node as *mut JsJSXSpreadAttribute).argument)
+        }
+        JsNodeKind.JSXFragment => {
+            const f = node as *mut JsJSXFragment
+            for(var i : uint = 0; i < f.children.size(); i++) {
+                if(router_scan_internals(f.children.get(i))) return true
+            }
+            return false
+        }
+        default => { return false }
+    }
+}
+
+// R8: `router("name").<verb>("literal-id")` calls whose id is not declared.
+// `routerName`/`validIds` are the router currently being validated (same
+// component scope as the call in the common inline case).
+func (converter : &mut JsConverter) router_validate_calls(node : *mut JsNode, routerName : std::string_view,
+                                                         validIds : &std::vector<*mut JsNode>) {
+    if(node == null || converter.diagnoser == null) return
+    switch(node.kind) {
+        JsNodeKind.FunctionCall => {
+            const call = node as *mut JsFunctionCall
+            if(call.callee != null && call.callee.kind == JsNodeKind.MemberAccess) {
+                const mem = call.callee as *mut JsMemberAccess
+                const prop = mem.property
+                if(prop.equals(std::string_view("activateRoute")) || prop.equals(std::string_view("preload")) ||
+                   prop.equals(std::string_view("buildPath")) || prop.equals(std::string_view("replaceRoute"))) {
+                    // `router("name")` receiver
+                    if(mem.object != null && mem.object.kind == JsNodeKind.FunctionCall) {
+                        const recv = mem.object as *mut JsFunctionCall
+                        if(recv.callee != null && recv.callee.kind == JsNodeKind.Identifier &&
+                           (recv.callee as *mut JsIdentifier).value.equals(std::string_view("router")) &&
+                           recv.args.size() > 0 && recv.args.get(0).kind == JsNodeKind.Literal &&
+                           call.args.size() > 0 && call.args.get(0).kind == JsNodeKind.Literal) {
+                            const nameLit = (recv.args.get(0) as *mut JsLiteral).value
+                            const idLit = (call.args.get(0) as *mut JsLiteral).value
+                            // Only validate the router this component declares.
+                            if(nameLit.contains(&routerName) || routerName.contains(&nameLit)) {
+                                var found = false
+                                for(var i : uint = 0; i < validIds.size(); i++) {
+                                    var r = validIds.get(i) as *mut JsRouteDecl
+                                    var quoted = std::string("\"")
+                                    quoted.append_view(&r.id)
+                                    quoted.append('"')
+                                    if(idLit.equals(quoted.to_view())) { found = true }
+                                }
+                                if(!found) {
+                                    var msg = std::string("no route '")
+                                    msg.append_view(&idLit)
+                                    msg.append_view("' in router \"")
+                                    msg.append_view(&routerName)
+                                    msg.append_view("\"")
+                                    converter.router_diag(&msg, call.loc)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if(router_scan_internals(call.callee)) { }
+            for(var i : uint = 0; i < call.args.size(); i++) {
+                converter.router_validate_calls(call.args.get(i), routerName, validIds)
+            }
+            converter.router_validate_calls(call.callee, routerName, validIds)
+        }
+        JsNodeKind.ExpressionStatement => { converter.router_validate_calls((node as *mut JsExpressionStatement).expression, routerName, validIds) }
+        JsNodeKind.Return => { converter.router_validate_calls((node as *mut JsReturn).value, routerName, validIds) }
+        JsNodeKind.VarDecl => { converter.router_validate_calls((node as *mut JsVarDecl).value, routerName, validIds) }
+        JsNodeKind.ArrowFunction => { converter.router_validate_calls((node as *mut JsArrowFunction).body, routerName, validIds) }
+        JsNodeKind.Block => {
+            const b = node as *mut JsBlock
+            for(var i : uint = 0; i < b.statements.size(); i++) {
+                converter.router_validate_calls(b.statements.get(i), routerName, validIds)
+            }
+        }
+        JsNodeKind.If => {
+            const s = node as *mut JsIf
+            converter.router_validate_calls(s.condition, routerName, validIds)
+            converter.router_validate_calls(s.thenBlock, routerName, validIds)
+            converter.router_validate_calls(s.elseBlock, routerName, validIds)
+        }
+        JsNodeKind.JSXElement => {
+            const el = node as *mut JsJSXElement
+            for(var i : uint = 0; i < el.opening.attributes.size(); i++) {
+                converter.router_validate_calls(el.opening.attributes.get(i), routerName, validIds)
+            }
+            for(var i : uint = 0; i < el.children.size(); i++) {
+                converter.router_validate_calls(el.children.get(i), routerName, validIds)
+            }
+        }
+        JsNodeKind.JSXExpressionContainer => { converter.router_validate_calls((node as *mut JsJSXExpressionContainer).expression, routerName, validIds) }
+        JsNodeKind.JSXAttribute => { converter.router_validate_calls((node as *mut JsJSXAttribute).value, routerName, validIds) }
+        JsNodeKind.JSXFragment => {
+            const f = node as *mut JsJSXFragment
+            for(var i : uint = 0; i < f.children.size(); i++) {
+                converter.router_validate_calls(f.children.get(i), routerName, validIds)
+            }
+        }
+        default => {}
+    }
 }
 
 // R3, R6, R7, R13: per-router structural validation.
@@ -440,17 +696,7 @@ func (converter : &mut JsConverter) emit_router_server(rd : *mut JsRouterDecl) {
     }
 
     // 2. Registry object + method table (template 1).
-    var reg = std::string()
-    reg.append_view("window.$__uni_routers[\"")
-    router_js_escape(rd.name, &mut reg)
-    reg.append_view("\"] = { name: \"")
-    router_js_escape(rd.name, &mut reg)
-    reg.append_view("\", currentRoute: null, routes: Object.create(null), table: null, $current: window.$_us(null), $url: window.$_us(null), $query: window.$_us(null) };\nObject.assign(window.$__uni_routers[\"")
-    router_js_escape(rd.name, &mut reg)
-    reg.append_view("\"], window.$__uni_router_methods(\"")
-    router_js_escape(rd.name, &mut reg)
-    reg.append_view("\"));\n")
-    converter.router_emit_js(&reg)
+    converter.emit_router_registry(rd.name)
 
     const defaultId = router_default_id(rd)
 
@@ -494,7 +740,7 @@ func (converter : &mut JsConverter) emit_router_server(rd : *mut JsRouterDecl) {
     for(var i : uint = 0; i < rd.routes.size(); i++) {
         const rn = rd.routes.get(i)
         if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
-        converter.emit_route_server(rd, rn as *mut JsRouteDecl, defaultId)
+        converter.emit_route_server(rd.name, rn as *mut JsRouteDecl, defaultId)
     }
 
     // 4. Route manifest entries (static-export `routes.json`, §13.2.3).
@@ -559,13 +805,86 @@ func (converter : &mut JsConverter) emit_router_server(rd : *mut JsRouterDecl) {
     converter.vec.push(guard)
 }
 
-func (converter : &mut JsConverter) emit_route_server(rd : *mut JsRouterDecl, route : *mut JsRouteDecl,
+// The direct nested `route` declarations of a route body (Phase 6). Empty when
+// the route has none.
+func router_route_nested(route : *mut JsRouteDecl) : std::vector<*mut JsNode> {
+    var out = std::vector<*mut JsNode>()
+    if(route.body == null || route.body.kind != JsNodeKind.Block) return out
+    const block = route.body as *mut JsBlock
+    for(var i : uint = 0; i < block.statements.size(); i++) {
+        const stmt = block.statements.get(i)
+        if(stmt != null && stmt.kind == JsNodeKind.RouteDecl) out.push(stmt)
+    }
+    return out
+}
+
+// The default id of a route list (declared `default`, else the first non-fallback).
+func router_routes_default(routes : &std::vector<*mut JsNode>) : std::string_view {
+    var first = std::string_view()
+    for(var i : uint = 0; i < routes.size(); i++) {
+        var r = routes.get(i) as *mut JsRouteDecl
+        if(r.is_fallback) continue
+        if(r.is_default) return r.id
+        if(first.size() == 0) first = r.id
+    }
+    return first
+}
+
+// Emits the registry object + method table for a router name (template 1).
+func (converter : &mut JsConverter) emit_router_registry(name : std::string_view) {
+    var reg = std::string()
+    reg.append_view("window.$__uni_routers[\"")
+    router_js_escape(name, &mut reg)
+    reg.append_view("\"] = { name: \"")
+    router_js_escape(name, &mut reg)
+    reg.append_view("\", currentRoute: null, routes: Object.create(null), table: null, $current: window.$_us(null), $url: window.$_us(null), $query: window.$_us(null) };\nObject.assign(window.$__uni_routers[\"")
+    router_js_escape(name, &mut reg)
+    reg.append_view("\"], window.$__uni_router_methods(\"")
+    router_js_escape(name, &mut reg)
+    reg.append_view("\"));\n")
+    converter.router_emit_js(&reg)
+}
+
+// Expands the current outlet context: emits the nested router's wrappers and
+// stubs at the `<Outlet />` position. Idempotent (one outlet per route).
+func (converter : &mut JsConverter) emit_nested_routes() {
+    if(converter.router_outlet_emitted) return
+    converter.router_outlet_emitted = true
+    const name = converter.router_outlet_name
+    const def = converter.router_outlet_default
+    for(var i : uint = 0; i < converter.router_outlet_routes.size(); i++) {
+        var r = converter.router_outlet_routes.get(i) as *mut JsRouteDecl
+        converter.emit_route_server(name, r, def)
+    }
+}
+
+func (converter : &mut JsConverter) emit_route_server(routerName : std::string_view, route : *mut JsRouteDecl,
                                                       defaultId : std::string_view) {
     const builder = converter.builder
     const location = intrinsics::get_raw_location()
 
+    // Nested routes (Phase 6): this route owns a nested router whose wrappers
+    // render at its `<Outlet />`. The nested registry is emitted before the body
+    // so its stubs (emitted during body conversion) can resolve it.
+    const nested = router_route_nested(route)
+    var nestedName = std::string()
+    var nestedDefault = std::string_view()
+    if(nested.size() > 0) {
+        nestedName.append_view(&routerName)
+        nestedName.append('#')
+        nestedName.append_view(&route.id)
+        nestedDefault = router_routes_default(&nested)
+        converter.emit_router_registry(nestedName.to_view())
+    }
+
     const root = router_route_root(route)
-    const compName = router_route_comp(root)
+    var compName = std::string()
+    // A route with nested children is a static layout; its client interactivity
+    // would need a generated wrapper that renders the outlet. The nested level
+    // remains independently hydrated, which is the layout-preservation property.
+    if(nested.size() == 0) {
+        compName = router_route_comp(root)
+    }
 
     // Wrapper open tag. The route's own markup lives inside the boundary span,
     // never on the wrapper, so no prop can clobber the router attributes
@@ -574,7 +893,7 @@ func (converter : &mut JsConverter) emit_route_server(rd : *mut JsRouterDecl, ro
     open.append_view("<div class=\"chx-route\" id=\"r")
     open.append_uinteger(route.decl_loc)
     open.append_view("\" data-uni-route=\"")
-    router_html_escape(rd.name, &mut open)
+    router_html_escape(routerName, &mut open)
     open.append('#')
     router_html_escape(route.id, &mut open)
     open.append_view("\" data-uni-route-active=\"")
@@ -583,7 +902,7 @@ func (converter : &mut JsConverter) emit_route_server(rd : *mut JsRouterDecl, ro
     // Selected route renders visible (no flash); the client activation tail is
     // the single source of truth for later navigation.
     var cond = converter.router_page_value(std::string_view("route_selected"))
-    cond.get_args().push(converter.router_string_value(rd.name))
+    cond.get_args().push(converter.router_string_value(routerName))
     cond.get_args().push(converter.router_string_value(route.id))
     cond.get_args().push(converter.router_string_value(defaultId))
     var activeIf = builder.make_if_stmt(cond, converter.parent, location)
@@ -603,28 +922,47 @@ func (converter : &mut JsConverter) emit_route_server(rd : *mut JsRouterDecl, ro
     closeOpen.append_view("\">")
     converter.router_emit_target(&closeOpen)
 
-    // Route body SSR. Converting it also emits any nested component's client JS
-    // (through the child server function), so the name is defined before the
-    // registration stub below. A `remote` route ships no SSR markup (only the
-    // empty placeholder boundary) and fetches its fragment on first activation
-    // (§6.7).
     const isRemote = route.mode.equals(std::string_view("remote"))
     if(root != null && !isRemote) {
-        // NOTE: automatic `{param}` → SSR-prop injection (D-2.7) is not wired:
-        // the converter cannot yet serialize a runtime `std::string_view`
-        // attribute value at SSR (the `BaseTypeKind.String` case assumes a raw
-        // `*char`). Client navigation still supplies params from the matcher, so
-        // `props.id` is correct after hydration; only the SSR text is missing.
+        // Set the outlet context across the body conversion (save/restore for
+        // recursive nesting). Copy the routes vector; do not move the field.
+        var prevRoutes = std::vector<*mut JsNode>()
+        for(var pi : uint = 0; pi < converter.router_outlet_routes.size(); pi++) {
+            prevRoutes.push(converter.router_outlet_routes.get(pi))
+        }
+        const prevName = converter.router_outlet_name
+        const prevDefault = converter.router_outlet_default
+        const prevEmitted = converter.router_outlet_emitted
+        if(nested.size() > 0) {
+            converter.router_outlet_routes = std::vector<*mut JsNode>()
+            for(var ni : uint = 0; ni < nested.size(); ni++) {
+                converter.router_outlet_routes.push(nested.get(ni))
+            }
+            converter.router_outlet_name = builder.allocate_view(nestedName.to_view())
+            converter.router_outlet_default = builder.allocate_view(&nestedDefault)
+            converter.router_outlet_emitted = false
+        }
+        converter.router_inject_param_props(route, root)
         converter.convertJsNode(root)
+        // No `<Outlet />` in the layout: fall back to appending the nested
+        // wrappers after the layout so children are never silently dropped.
+        if(nested.size() > 0 && !converter.router_outlet_emitted) {
+            converter.emit_nested_routes()
+        }
+        converter.router_outlet_routes = std::vector<*mut JsNode>()
+        for(var ri : uint = 0; ri < prevRoutes.size(); ri++) {
+            converter.router_outlet_routes.push(prevRoutes.get(ri))
+        }
+        converter.router_outlet_name = prevName
+        converter.router_outlet_default = prevDefault
+        converter.router_outlet_emitted = prevEmitted
     }
 
     var closeTag = std::string()
     closeTag.append_view("</span></div>")
     converter.router_emit_target(&closeTag)
 
-    // Registration stub (template 2). Built directly in `converter.str` under the
-    // JavaScript target so hook arrow functions can be converted inline (they may
-    // reference component state/props).
+    // Registration stub (template 2).
     var beforeHook = router_find_hook(route, std::string_view("onBeforeActivate"))
     var activateHook = router_find_hook(route, std::string_view("onActivate"))
     var deactivateHook = router_find_hook(route, std::string_view("onDeactivate"))
@@ -634,11 +972,11 @@ func (converter : &mut JsConverter) emit_route_server(rd : *mut JsRouterDecl, ro
     converter.target = BufferType.JavaScript
     var stub = &mut converter.str
     stub.append_view("window.$__uni_route_register(\"")
-    router_js_escape(rd.name, stub)
+    router_js_escape(routerName, stub)
     stub.append_view("\", \"")
     router_js_escape(route.id, stub)
     stub.append_view("\", { key: \"")
-    router_js_escape(rd.name, stub)
+    router_js_escape(routerName, stub)
     stub.append('#')
     router_js_escape(route.id, stub)
     stub.append_view("\", id: \"")
@@ -661,6 +999,22 @@ func (converter : &mut JsConverter) emit_route_server(rd : *mut JsRouterDecl, ro
     if(route.title.size() > 0) {
         stub.append('"')
         router_js_escape(route.title, stub)
+        stub.append('"')
+    } else {
+        stub.append_view("null")
+    }
+    stub.append_view(", nested: ")
+    if(nested.size() > 0) {
+        stub.append('"')
+        router_js_escape(nestedName.to_view(), stub)
+        stub.append('"')
+    } else {
+        stub.append_view("null")
+    }
+    stub.append_view(", nestedDefault: ")
+    if(nestedDefault.size() > 0) {
+        stub.append('"')
+        router_js_escape(nestedDefault, stub)
         stub.append('"')
     } else {
         stub.append_view("null")

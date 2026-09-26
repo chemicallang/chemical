@@ -128,6 +128,15 @@ struct JsConverter {
     // Derived locals originating from a runtime `.filter()` call (see
     // JsFilteredLocal). Resolved by emit_ssr_map_children / emit_ssr_array_count.
     var filtered_locals : std::vector<JsFilteredLocal>
+
+    // Nested-router outlet context (Phase 6). While set, a `<Outlet />` in a
+    // route body is expanded in place into the nested router's wrappers rather
+    // than rendered as a component. `routes` holds the nested `JsRouteDecl`
+    // nodes; `name`/`defaultId` identify the nested router registry.
+    var router_outlet_routes : std::vector<*mut JsNode>
+    var router_outlet_name : std::string_view = ""
+    var router_outlet_default : std::string_view = ""
+    var router_outlet_emitted : bool = false
 }
 
 func (converter : &mut JsConverter) push_context() {

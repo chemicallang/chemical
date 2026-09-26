@@ -360,3 +360,64 @@
         expect(byTestId('ut-nurl-layout').exists()).toBe(true)
     </script>
 }
+
+// ── full URL nesting (Phase 6, flattened patterns + activation chain) ────────
+
+#universal UtNestedUrlDeepChild(props) {
+    return <div data-testid="ut-nud-child">{props.id}</div>
+}
+
+#universal UtRouterNestedUrlDeep(props) {
+    router "ut-nud" {
+        route default #"home" { <div data-testid="ut-nud-home">Home</div> }
+        route "/projects/{id}" {
+            route default #"overview" { <UtNestedUrlDeepChild /> }
+            route "/settings" { <div data-testid="ut-nud-settings">Settings</div> }
+            <div data-testid="ut-nud-layout"><Outlet /></div>
+        }
+    }
+}
+
+#universal_test("router nested URL routes match the full path and activate the chain", isolate) {
+    <UtRouterNestedUrlDeep />
+    <script>
+        const r = window.$__uni_routers['ut-nud']
+        expect(r.activateRouteByUrl('/projects/42/settings')).toBe(true)
+        await t.sleep(40)
+        // the outer layout route is active and owns the full URL
+        expect(r.current()).toBe('/projects/{id}')
+        expect(r.currentUrl()).toBe('/projects/42/settings')
+        expect(byTestId('ut-nud-layout').exists()).toBe(true)
+        expect(byTestId('ut-nud-settings').text()).toBe('Settings')
+        const nr = window.$__uni_routers['ut-nud#/projects/{id}']
+        expect(nr.current()).toBe('/settings')
+        // buildPath resolves both the root route and a nested URL route id
+        expect(r.buildPath('/projects/{id}', { id: 42 })).toBe('/projects/42')
+        expect(r.buildPath('/settings', { id: 42 })).toBe('/projects/42/settings')
+        // navigating to the parent URL re-derives the nested default
+        expect(r.activateRouteByUrl('/projects/7')).toBe(true)
+        await t.sleep(40)
+        expect(nr.current()).toBe('overview')
+        expect(byTestId('ut-nud-layout').exists()).toBe(true)
+        expect(byTestId('ut-nud-child').text()).toBe('7')
+        // back to a nested child on a different param: the layout must survive
+        expect(r.activateRouteByUrl('/projects/9/settings')).toBe(true)
+        await t.sleep(40)
+        expect(nr.current()).toBe('/settings')
+        expect(byTestId('ut-nud-settings').text()).toBe('Settings')
+    </script>
+}
+
+#universal_test("router nested URL renders the child from the URL on first load", isolate) {
+    // The test harness mounts the fixture; drive the initial URL through the
+    // client matcher the same way a deep link does.
+    <UtRouterNestedUrlDeep />
+    <script>
+        const r = window.$__uni_routers['ut-nud']
+        expect(r.activateRouteByUrl('/projects/11/settings')).toBe(true)
+        await t.sleep(30)
+        const nr = window.$__uni_routers['ut-nud#/projects/{id}']
+        expect(nr.current()).toBe('/settings')
+        expect(r.current()).toBe('/projects/{id}')
+    </script>
+}

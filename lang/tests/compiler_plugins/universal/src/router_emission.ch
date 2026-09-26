@@ -305,3 +305,43 @@ public func router_id_router_has_no_popstate_sync(env : &mut TestEnv) {
         env.error("an id-only router must not install popstate sync")
     }
 }
+
+// ── Phase 6: full URL nesting (full pattern + activation chain) ─────────────
+
+#universal RouterNestedUrlPane(props) {
+    return <div class="np">P</div>
+}
+
+#universal RouterNestedUrlApp(props) {
+    router "main" {
+        route "/projects/{id}" {
+            route default #"overview" { <RouterNestedUrlPane /> }
+            route "/settings" { <RouterNestedUrlPane /> }
+            <div class="lay">x</div>
+        }
+    }
+}
+
+@test
+public func router_nested_url_emits_full_pattern_and_chain(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <RouterNestedUrlApp /> }
+    var js = page.getJs()
+    // The nested URL route appears in the single outer table as its full pattern.
+    const full = std::string_view("\"projects\", \"{id}\", \"settings\"")
+    if(js.find(&full) == std::NPOS) {
+        env.error("a nested URL route should emit its full accumulated pattern")
+        env.info(js.data())
+        return
+    }
+    // ...and carries the derived-registry/id activation chain.
+    const chain = std::string_view(", chain: [[\"main#/projects/{id}\", \"/settings\"]]")
+    if(js.find(&chain) == std::NPOS) {
+        env.error("a nested URL route should carry its activation chain")
+    }
+    // The outer exact entry has no chain.
+    const outer = std::string_view("{ pattern: [\"projects\", \"{id}\"], id: \"/projects/{id}\" }")
+    if(js.find(&outer) == std::NPOS) {
+        env.error("a top-level URL entry must not carry a chain")
+    }
+}

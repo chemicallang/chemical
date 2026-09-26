@@ -132,60 +132,227 @@ func router_pattern_score(pattern : std::string_view, literalCount : &mut int, p
     }
 }
 
-// True when URL route `a` must be tried before URL route `b`:
-// more literal segments → fewer params → declaration order (D-6.2).
-func router_route_precedes(rd : *mut JsRouterDecl, a : size_t, b : size_t) : bool {
-    var la = 0
-    var pa = 0
-    router_pattern_score((rd.routes.get(a) as *mut JsRouteDecl).pattern, &mut la, &mut pa)
-    var lb = 0
-    var pb = 0
-    router_pattern_score((rd.routes.get(b) as *mut JsRouteDecl).pattern, &mut lb, &mut pb)
-    if(la != lb) { return la > lb }
-    if(pa != pb) { return pa < pb }
-    return a < b
+// One entry in the emitted URL match table / server spec (§6.4 nested URL
+// ownership). A top-level route has an empty chain; a nested URL route's `id` is
+// the *root* layout route to activate and `chainRegs`/`chainIds` walk from the
+// root down to the leaf. `pattern` is the full accumulated pattern, so the
+// matcher stays a single exact scan on both server and client.
+public struct RouterUrlEntry {
+    var id : std::string_view
+    var pattern : std::string_view
+    var is_fallback : bool
+    var chainRegs : std::vector<std::string_view>
+    var chainIds : std::vector<std::string_view>
+    var order : int
+    var decl_loc : ubigint
 }
 
-// The URL-route indices in emission (precedence) order, with the fallback last
-// (D-6.9). Emitting the table/spec already sorted means both the server matcher
-// and the client matcher are a straight first-match scan.
-func router_url_order(rd : *mut JsRouterDecl) : std::vector<size_t> {
-    var order = std::vector<size_t>()
+// True when two patterns have the same shape: same segment count and, per
+// segment, both literal-and-equal or both a `{param}`. Such patterns can match
+// the same path, so only one is reachable (R9).
+func router_pattern_shape_equal(a : std::string_view, b : std::string_view) : bool {
+    var ia : size_t = 0
+    var ib : size_t = 0
+    while(true) {
+        while(ia < a.size() && a.get(ia) == '/') { ia = ia + 1 }
+        while(ib < b.size() && b.get(ib) == '/') { ib = ib + 1 }
+        const aEnd = ia >= a.size()
+        const bEnd = ib >= b.size()
+        if(aEnd || bEnd) { return aEnd && bEnd }
+        var ja = ia
+        while(ja < a.size() && a.get(ja) != '/') { ja = ja + 1 }
+        var jb = ib
+        while(jb < b.size() && b.get(jb) != '/') { jb = jb + 1 }
+        const sa = a.subview(ia, ja)
+        const sb = b.subview(ib, jb)
+        const pa = sa.size() >= 2 && sa.get(0) == '{' && sa.get(sa.size() - 1) == '}'
+        const pb = sb.size() >= 2 && sb.get(0) == '{' && sb.get(sb.size() - 1) == '}'
+        if(pa != pb) { return false }
+        if(!pa && !sa.equals(&sb)) { return false }
+        ia = ja
+        ib = jb
+    }
+    return false
+}
+
+// R9: two URL patterns with the same shape are ambiguous (only the first can
+// ever match). Checked over the flattened entries, so nested patterns count too.
+func (converter : &mut JsConverter) router_validate_ambiguity(entries : &std::vector<*mut RouterUrlEntry>) {
+    if(converter.diagnoser == null) return
+    for(var i : size_t = 0; i < entries.size(); i++) {
+        var a = entries.get(i)
+        if(a.is_fallback) { continue }
+        for(var j : size_t = i + 1; j < entries.size(); j++) {
+            var b = entries.get(j)
+            if(b.is_fallback) { continue }
+            if(!router_pattern_shape_equal(a.pattern, b.pattern)) { continue }
+            var msg = std::string("route patterns '")
+            msg.append_view(&a.pattern)
+            msg.append_view("' and '")
+            msg.append_view(&b.pattern)
+            msg.append_view("' are ambiguous")
+            converter.router_diag(&msg, b.decl_loc)
+        }
+    }
+}
+
+// Precedence (D-6.2/D-6.9): more literal segments → fewer params → declaration
+// order; the fallback is always last.
+func router_entry_precedes(a : *mut RouterUrlEntry, b : *mut RouterUrlEntry) : bool {
+    if(a.is_fallback != b.is_fallback) { return !a.is_fallback }
+    if(a.is_fallback) { return a.order < b.order }
+    var la = 0
+    var pa = 0
+    router_pattern_score(a.pattern, &mut la, &mut pa)
+    var lb = 0
+    var pb = 0
+    router_pattern_score(b.pattern, &mut lb, &mut pb)
+    if(la != lb) { return la > lb }
+    if(pa != pb) { return pa < pb }
+    return a.order < b.order
+}
+
+// Depth-first walk of the route tree, emitting one `RouterUrlEntry` per URL
+// route. `ownerRegistry` owns `routes` in the client registry; `rootId` is the
+// top-level route every entry activates first (the layout); `pathRegs`/`pathIds`
+// are the chain steps from the root to `ownerRegistry` (empty at the top level).
+func (converter : &mut JsConverter) router_collect_url_entries(routes : &std::vector<*mut JsNode>,
+        ownerRegistry : std::string_view, rootRegistry : std::string_view, rootId : std::string_view,
+        pathRegs : &std::vector<std::string_view>, pathIds : &std::vector<std::string_view>,
+        inherited : std::string_view, out : &mut std::vector<*mut RouterUrlEntry>, order : &mut int) {
+    const builder = converter.builder
+    const isTop = ownerRegistry.equals(&rootRegistry)
+
+    for(var i : uint = 0; i < routes.size(); i++) {
+        var r = routes.get(i) as *mut JsRouteDecl
+
+        if(isTop && r.is_fallback) {
+            const fe = builder.allocate<RouterUrlEntry>()
+            new (fe) RouterUrlEntry {
+                id : builder.allocate_view(&r.id),
+                pattern : std::string_view(),
+                is_fallback : true,
+                chainRegs : std::vector<std::string_view>(),
+                chainIds : std::vector<std::string_view>(),
+                order : *order,
+                decl_loc : r.decl_loc
+            }
+            *order = *order + 1
+            out.push(fe)
+            continue
+        }
+        if(r.is_fallback) { continue }
+
+        var full = std::string()
+        full.append_view(&inherited)
+        full.append_view(&r.pattern)
+        const fullPtr = builder.allocate_str(full.data(), full.size())
+        const fullView = std::string_view(fullPtr, full.size())
+
+        var selfRegs = std::vector<std::string_view>()
+        var selfIds = std::vector<std::string_view>()
+        for(var k : uint = 0; k < pathRegs.size(); k++) {
+            selfRegs.push(pathRegs.get(k))
+            selfIds.push(pathIds.get(k))
+        }
+        if(!isTop) {
+            var regStr = std::string()
+            regStr.append_view(&ownerRegistry)
+            const regPtr = builder.allocate_str(regStr.data(), regStr.size())
+            selfRegs.push(std::string_view(regPtr, regStr.size()))
+            selfIds.push(builder.allocate_view(&r.id))
+        }
+
+        if(r.is_url) {
+            var entryRegs = std::vector<std::string_view>()
+            var entryIds = std::vector<std::string_view>()
+            for(var k : uint = 0; k < selfRegs.size(); k++) {
+                entryRegs.push(selfRegs.get(k))
+                entryIds.push(selfIds.get(k))
+            }
+            const e = builder.allocate<RouterUrlEntry>()
+            new (e) RouterUrlEntry {
+                id : builder.allocate_view(&rootId),
+                pattern : fullView,
+                is_fallback : false,
+                chainRegs : entryRegs,
+                chainIds : entryIds,
+                order : *order,
+                decl_loc : r.decl_loc
+            }
+            *order = *order + 1
+            out.push(e)
+        }
+
+        const nested = router_route_nested(r)
+        if(nested.size() > 0) {
+            var childReg = std::string()
+            childReg.append_view(&ownerRegistry)
+            childReg.append('#')
+            childReg.append_view(&r.id)
+            const childPtr = builder.allocate_str(childReg.data(), childReg.size())
+            const childView = std::string_view(childPtr, childReg.size())
+            converter.router_collect_url_entries(&nested, childView, rootRegistry, rootId,
+                                                 &selfRegs, &selfIds, fullView, out, order)
+        }
+    }
+}
+
+// Builds the sorted URL entry list for a router declaration.
+func (converter : &mut JsConverter) router_url_entries(rd : *mut JsRouterDecl) : std::vector<*mut RouterUrlEntry> {
+    const builder = converter.builder
+    var out = std::vector<*mut RouterUrlEntry>()
+    var order = 0
     for(var i : uint = 0; i < rd.routes.size(); i++) {
         const rn = rd.routes.get(i)
         if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
-        if((rn as *mut JsRouteDecl).is_url) { order.push(i as size_t) }
+        var one = std::vector<*mut JsNode>()
+        one.push(rn)
+        var emptyRegs = std::vector<std::string_view>()
+        var emptyIds = std::vector<std::string_view>()
+        converter.router_collect_url_entries(&one, rd.name, rd.name, (rn as *mut JsRouteDecl).id,
+                                             &emptyRegs, &emptyIds, std::string_view(""), &mut out, &mut order)
     }
-    // insertion sort (stable via the final `a < b` tie-break)
-    for(var a : size_t = 1; a < order.size(); a++) {
-        const key = order.get(a)
+    // insertion sort (pointers; stable via the `order` tie-break)
+    for(var a : size_t = 1; a < out.size(); a++) {
+        const key = out.get(a)
         var b = a
-        while(b > 0 && router_route_precedes(rd, key, order.get(b - 1))) {
-            *order.get_ref(b) = order.get(b - 1)
+        while(b > 0 && router_entry_precedes(key, out.get(b - 1))) {
+            *out.get_ref(b) = out.get(b - 1)
             b = b - 1
         }
-        *order.get_ref(b) = key
+        *out.get_ref(b) = key
     }
-    for(var i : uint = 0; i < rd.routes.size(); i++) {
-        const rn = rd.routes.get(i)
-        if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
-        if((rn as *mut JsRouteDecl).is_fallback) { order.push(i as size_t) }
+    return out
+}
+
+// Encodes the activation chain for the server spec: `reg` US `id` (RS between
+// steps). The converter and `router::parse_route_chain` own this format.
+func router_chain_field(entry : *mut RouterUrlEntry, out : &mut std::string) {
+    const rec = std::string_view("\x1e")
+    const unit = std::string_view("\x1f")
+    for(var i : uint = 0; i < entry.chainRegs.size(); i++) {
+        if(i > 0) { out.append_view(&rec) }
+        const reg = entry.chainRegs.get(i)
+        out.append_view(&reg)
+        out.append_view(&unit)
+        const cid = entry.chainIds.get(i)
+        out.append_view(&cid)
     }
-    return order
 }
 
 // Builds the compact server match spec consumed by `apply_route_url`:
-// one `<id>\t<pattern>\t<is_fallback>\n` line per URL route plus the fallback,
-// in precedence order. Id routes are omitted (they have no URL semantics).
-func router_match_spec(rd : *mut JsRouterDecl, out : &mut std::string) {
-    const order = router_url_order(rd)
-    for(var k : size_t = 0; k < order.size(); k++) {
-        var r = rd.routes.get(order.get(k)) as *mut JsRouteDecl
-        out.append_view(&r.id)
+// `<id>\t<pattern>\t<is_fallback>\t<chain>\n`, in precedence order.
+func router_match_spec(entries : &std::vector<*mut RouterUrlEntry>, out : &mut std::string) {
+    for(var k : size_t = 0; k < entries.size(); k++) {
+        var e = entries.get(k)
+        out.append_view(&e.id)
         out.append('\t')
-        out.append_view(&r.pattern)
+        out.append_view(&e.pattern)
         out.append('\t')
-        if(r.is_fallback) { out.append('1') } else { out.append('0') }
+        if(e.is_fallback) { out.append('1') } else { out.append('0') }
+        out.append('\t')
+        router_chain_field(e, out)
         out.append('\n')
     }
 }
@@ -582,14 +749,20 @@ func (converter : &mut JsConverter) router_validate_calls(node : *mut JsNode, ro
     }
 }
 
-// R3, R6, R7, R13: per-router structural validation.
+// R3, R6, R7, R8, R13, R14: structural validation for a router declaration and,
+// recursively, every nested router (a route body's nested `route` children form
+// a sub-router under a derived name).
 func (converter : &mut JsConverter) router_validate(rd : *mut JsRouterDecl) {
+    converter.router_validate_routes(&rd.routes, rd.name)
+}
+
+func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector<*mut JsNode>, routerName : std::string_view) {
     if(converter.diagnoser == null) return
 
     // R7: at most one fallback, and it must be the last route.
     var sawFallback = false
-    for(var i : uint = 0; i < rd.routes.size(); i++) {
-        const rn = rd.routes.get(i)
+    for(var i : uint = 0; i < routes.size(); i++) {
+        const rn = routes.get(i)
         if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
         var r = rn as *mut JsRouteDecl
         if(r.is_fallback) {
@@ -602,19 +775,19 @@ func (converter : &mut JsConverter) router_validate(rd : *mut JsRouterDecl) {
     }
 
     // R3: duplicate route ids within one router.
-    for(var i : uint = 0; i < rd.routes.size(); i++) {
-        const a = rd.routes.get(i)
+    for(var i : uint = 0; i < routes.size(); i++) {
+        const a = routes.get(i)
         if(a == null || a.kind != JsNodeKind.RouteDecl) continue
         var ra = a as *mut JsRouteDecl
-        for(var j : uint = i + 1; j < rd.routes.size(); j++) {
-            const b = rd.routes.get(j)
+        for(var j : uint = i + 1; j < routes.size(); j++) {
+            const b = routes.get(j)
             if(b == null || b.kind != JsNodeKind.RouteDecl) continue
             var rb = b as *mut JsRouteDecl
             if(ra.id.equals(&rb.id)) {
                 var msg = std::string("route '#")
                 msg.append_view(&ra.id)
                 msg.append_view("' is declared twice in router \"")
-                msg.append_view(&rd.name)
+                msg.append_view(&routerName)
                 msg.append_view("\"")
                 converter.router_diag(&msg, rb.decl_loc)
             }
@@ -622,8 +795,8 @@ func (converter : &mut JsConverter) router_validate(rd : *mut JsRouterDecl) {
     }
 
     // R6: each route body must render exactly one root element.
-    for(var i : uint = 0; i < rd.routes.size(); i++) {
-        const rn = rd.routes.get(i)
+    for(var i : uint = 0; i < routes.size(); i++) {
+        const rn = routes.get(i)
         if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
         var r = rn as *mut JsRouteDecl
         if(router_count_jsx_roots(r) != 1) {
@@ -633,8 +806,8 @@ func (converter : &mut JsConverter) router_validate(rd : *mut JsRouterDecl) {
     }
 
     // R13: mid-pattern wildcards are not supported (the only catch-all is `route *`).
-    for(var i : uint = 0; i < rd.routes.size(); i++) {
-        const rn = rd.routes.get(i)
+    for(var i : uint = 0; i < routes.size(); i++) {
+        const rn = routes.get(i)
         if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
         var r = rn as *mut JsRouteDecl
         if(r.is_url && r.pattern.contains(std::string_view("*"))) {
@@ -646,8 +819,8 @@ func (converter : &mut JsConverter) router_validate(rd : *mut JsRouterDecl) {
     }
 
     // R14: route bodies and hooks must not reach `$__uni_*` internals.
-    for(var i : uint = 0; i < rd.routes.size(); i++) {
-        const rn = rd.routes.get(i)
+    for(var i : uint = 0; i < routes.size(); i++) {
+        const rn = routes.get(i)
         if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
         var r = rn as *mut JsRouteDecl
         if(router_scan_internals(r.body)) {
@@ -665,15 +838,29 @@ func (converter : &mut JsConverter) router_validate(rd : *mut JsRouterDecl) {
 
     // R8: literal ids passed to `router("m").activateRoute("x")` etc. must be
     // declared in this router.
-    for(var i : uint = 0; i < rd.routes.size(); i++) {
-        const rn = rd.routes.get(i)
+    for(var i : uint = 0; i < routes.size(); i++) {
+        const rn = routes.get(i)
         if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
         var r = rn as *mut JsRouteDecl
-        converter.router_validate_calls(r.body, rd.name, &rd.routes, r.decl_loc)
+        converter.router_validate_calls(r.body, routerName, routes, r.decl_loc)
         for(var h : uint = 0; h < r.hooks.size(); h++) {
             const hook = r.hooks.get(h) as *mut JsRouteHook
-            converter.router_validate_calls(hook.fn, rd.name, &rd.routes, r.decl_loc)
+            converter.router_validate_calls(hook.fn, routerName, routes, r.decl_loc)
         }
+    }
+
+    // Recurse: nested routes form a sub-router under a derived name.
+    for(var i : uint = 0; i < routes.size(); i++) {
+        const rn = routes.get(i)
+        if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
+        var r = rn as *mut JsRouteDecl
+        const nested = router_route_nested(r)
+        if(nested.size() == 0) { continue }
+        var nestedName = std::string()
+        nestedName.append_view(&routerName)
+        nestedName.append('#')
+        nestedName.append_view(&r.id)
+        converter.router_validate_routes(&nested, nestedName.to_view())
     }
 }
 
@@ -721,11 +908,15 @@ func (converter : &mut JsConverter) emit_router_server(rd : *mut JsRouterDecl) {
     // 1. The client runtime + hide rule, once per page (INV-18).
     converter.vec.push(converter.router_page_stmt(std::string_view("ensure_router_runtime")))
 
-    // 1b. Server-side URL matching (§6.1): the generated function owns the
+    // 1b. Server-side URL matching (§6.1/§6.4): the generated function owns the
     // compile-time patterns, so it performs the match while it renders and
-    // stores the selected id/params for `route_selected` and the activation tail.
+    // stores the selected id/params (plus the nested activation chain) for
+    // `route_selected` and the activation tail.
+    const entries = converter.router_url_entries(rd)
+    const hasUrl = entries.size() > 0
+    converter.router_validate_ambiguity(&entries)
     var matchSpec = std::string()
-    router_match_spec(rd, &mut matchSpec)
+    router_match_spec(&entries, &mut matchSpec)
     if(matchSpec.size() > 0 && converter.support.applyRouteUrlFn != null) {
         const fnNode = converter.support.applyRouteUrlFn
         var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
@@ -744,38 +935,11 @@ func (converter : &mut JsConverter) emit_router_server(rd : *mut JsRouterDecl) {
 
     // 3. URL match table (template 3), emitted only when URL routes exist. The
     // client matcher (`$__uni_match_url`) scans it in order for Link clicks and
-    // popstate; precedence is declaration order (a straight first-match scan).
-    var hasUrl = false
-    for(var i : uint = 0; i < rd.routes.size(); i++) {
-        const rn = rd.routes.get(i)
-        if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
-        if((rn as *mut JsRouteDecl).is_url) hasUrl = true
-    }
+    // popstate; it is already in precedence order (a straight first-match scan).
+    // Nested URL routes appear here as full patterns with an activation chain,
+    // so a single table drives the whole tree (server and client agree).
     if(hasUrl) {
-        var table = std::string()
-        table.append_view("window.$__uni_routers[\"")
-        router_js_escape(rd.name, &mut table)
-        table.append_view("\"].table = { base: \"\", routes: [")
-        var firstEntry = true
-        const order = router_url_order(rd)
-        for(var k : size_t = 0; k < order.size(); k++) {
-            var r = rd.routes.get(order.get(k)) as *mut JsRouteDecl
-            if(!firstEntry) table.append_view(", ")
-            firstEntry = false
-            if(r.is_fallback) {
-                table.append_view("{ fallback: true, id: \"")
-                router_js_escape(r.id, &mut table)
-                table.append_view("\" }")
-            } else {
-                table.append_view("{ pattern: [")
-                router_pattern_segments_js(r.pattern, &mut table)
-                table.append_view("], id: \"")
-                router_js_escape(r.id, &mut table)
-                table.append_view("\" }")
-            }
-        }
-        table.append_view("] };\n")
-        converter.router_emit_js(&table)
+        converter.router_emit_url_table(rd.name, &entries)
     }
 
     // 4. One wrapper + stub per route.
@@ -798,20 +962,8 @@ func (converter : &mut JsConverter) emit_router_server(rd : *mut JsRouterDecl) {
         converter.vec.push(call)
     }
 
-    // 4b. Per-route `<title>` for the selected route, plus 404 `noindex`
-    // (§13.2.1/§13.2.2). Both are server-only head emissions.
-    for(var i : uint = 0; i < rd.routes.size(); i++) {
-        const rn = rd.routes.get(i)
-        if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
-        var r = rn as *mut JsRouteDecl
-        if(r.title.size() == 0) continue
-        var titleCall = converter.router_page_stmt(std::string_view("emit_route_title"))
-        titleCall.get_args().push(converter.router_string_value(rd.name))
-        titleCall.get_args().push(converter.router_string_value(r.id))
-        titleCall.get_args().push(converter.router_string_value(defaultId))
-        titleCall.get_args().push(converter.router_string_value(r.title))
-        converter.vec.push(titleCall)
-    }
+    // 4b. 404 `noindex` (§13.2.2). Per-route `<title>` is emitted from
+    // `emit_route_server` so nested routes get titles too (§13.2.1).
     converter.vec.push(converter.router_page_stmt(std::string_view("emit_route_noindex")))
 
     // 5. `preload` routes hydrate at load (off the interaction path, §5.1).
@@ -887,6 +1039,49 @@ func (converter : &mut JsConverter) emit_router_registry(name : std::string_view
     converter.router_emit_js(&reg)
 }
 
+// Emits the client URL match table (template 3) for a router: one entry per
+// precedence-ordered URL entry, each carrying the nested activation chain. The
+// chain is omitted when empty to keep the common top-level case byte-identical.
+func (converter : &mut JsConverter) router_emit_url_table(name : std::string_view,
+                                                          entries : &std::vector<*mut RouterUrlEntry>) {
+    var table = std::string()
+    table.append_view("window.$__uni_routers[\"")
+    router_js_escape(name, &mut table)
+    table.append_view("\"].table = { base: \"\", routes: [")
+    var firstEntry = true
+    for(var k : size_t = 0; k < entries.size(); k++) {
+        var e = entries.get(k)
+        if(!firstEntry) table.append_view(", ")
+        firstEntry = false
+        if(e.is_fallback) {
+            table.append_view("{ fallback: true, id: \"")
+            router_js_escape(e.id, &mut table)
+            table.append_view("\" }")
+            continue
+        }
+        table.append_view("{ pattern: [")
+        router_pattern_segments_js(e.pattern, &mut table)
+        table.append_view("], id: \"")
+        router_js_escape(e.id, &mut table)
+        table.append_view("\"")
+        if(e.chainRegs.size() > 0) {
+            table.append_view(", chain: [")
+            for(var c : uint = 0; c < e.chainRegs.size(); c++) {
+                if(c > 0) { table.append_view(", ") }
+                table.append_view("[\"")
+                router_js_escape(e.chainRegs.get(c), &mut table)
+                table.append_view("\", \"")
+                router_js_escape(e.chainIds.get(c), &mut table)
+                table.append_view("\"]")
+            }
+            table.append_view("]")
+        }
+        table.append_view(" }")
+    }
+    table.append_view("] };\n")
+    converter.router_emit_js(&table)
+}
+
 // Expands the current outlet context: emits the nested router's wrappers and
 // stubs at the `<Outlet />` position. Idempotent (one outlet per route).
 func (converter : &mut JsConverter) emit_nested_routes() {
@@ -942,6 +1137,9 @@ func router_body_is_static(route : *mut JsRouteDecl) : bool {
     if(route.is_url) return false
     if(route.mode.equals(std::string_view("remote"))) return false
     if(route.hooks.size() > 0) return false
+    // A layout with nested routes always emits the nested wrappers at (or after)
+    // the outlet, which the snapshot of `root` would omit.
+    if(router_route_nested(route).size() > 0) return false
     const root = router_route_root(route)
     if(root == null || root.kind != JsNodeKind.JSXElement) return false
     if((root as *mut JsJSXElement).componentSignature != null) return false
@@ -958,6 +1156,17 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
     var effectivePattern = std::string()
     effectivePattern.append_view(&inheritedParams)
     effectivePattern.append_view(&route.pattern)
+
+    // Server-only `<title>` for the selected route (§13.2.1), emitted here (not
+    // just at the top level) so a selected nested route contributes its title.
+    if(route.title.size() > 0) {
+        var titleCall = converter.router_page_stmt(std::string_view("emit_route_title"))
+        titleCall.get_args().push(converter.router_string_value(routerName))
+        titleCall.get_args().push(converter.router_string_value(route.id))
+        titleCall.get_args().push(converter.router_string_value(defaultId))
+        titleCall.get_args().push(converter.router_string_value(route.title))
+        converter.vec.push(titleCall)
+    }
 
     // Nested routes (Phase 6): this route owns a nested router whose wrappers
     // render at its `<Outlet />`. The nested registry is emitted before the body

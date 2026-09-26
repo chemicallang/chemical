@@ -11,12 +11,24 @@ public variant RouteParam {
     Param(name : std::string_view, value : std::string_view)
 }
 
+// One activation step *after* a matched route's root (§6.4 nested URL
+// ownership): the router registry `reg` and the route id to activate within it.
+// A top-level route has an empty chain; a nested URL route's chain walks from
+// the root layout down to the leaf, so the runtime can reproduce the nested
+// selection the way the URL spells it (D-2.7 nested params ride along).
+public struct RouteChainStep {
+    var reg : std::string_view
+    var id : std::string_view
+}
+
 // A compiled route pattern. `segments` holds literal segments (`"projects"`) and
-// brace params (`"{id}"`); `is_fallback` marks `route *` (D-6.1).
+// brace params (`"{id}"`); `is_fallback` marks `route *` (D-6.1). `chain` is the
+// nested activation chain (empty for a top-level route).
 public struct RoutePattern {
     var segments : std::vector<std::string_view>
     var id : std::string_view
     var is_fallback : bool
+    var chain : std::vector<RouteChainStep>
 }
 
 public struct RouteMatch {
@@ -24,6 +36,7 @@ public struct RouteMatch {
     var id : std::string_view
     var params : std::vector<RouteParam>
     var is_fallback : bool
+    var chain : std::vector<RouteChainStep>
 }
 
 // Splits a declared pattern (`/projects/{id}`) into segments, dropping empty
@@ -92,7 +105,8 @@ public func match_route(patterns : &std::vector<RoutePattern>, path : std::strin
         matched : false,
         id : std::string_view(),
         params : std::vector<RouteParam>(),
-        is_fallback : false
+        is_fallback : false,
+        chain : std::vector<RouteChainStep>()
     }
     const segs = split_path_segments(path, base)
     for(var i : size_t = 0; i < patterns.size(); i++) {
@@ -102,7 +116,8 @@ public func match_route(patterns : &std::vector<RoutePattern>, path : std::strin
                 matched : true,
                 id : pattern.id,
                 params : std::vector<RouteParam>(),
-                is_fallback : true
+                is_fallback : true,
+                chain : std::vector<RouteChainStep>()
             }
         }
         if(pattern.segments.size() != segs.size()) { continue }
@@ -121,11 +136,16 @@ public func match_route(patterns : &std::vector<RoutePattern>, path : std::strin
             }
         }
         if(ok) {
+            var chain = std::vector<RouteChainStep>()
+            for(var c : uint = 0; c < pattern.chain.size(); c++) {
+                chain.push(pattern.chain.get(c))
+            }
             return RouteMatch {
                 matched : true,
                 id : pattern.id,
                 params : params,
-                is_fallback : false
+                is_fallback : false,
+                chain : chain
             }
         }
     }

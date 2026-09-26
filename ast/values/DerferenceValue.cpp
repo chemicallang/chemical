@@ -150,6 +150,18 @@ void DereferenceValue::set_child_value(InterpretScope& scope, const chem::string
     Value::set_child_value(scope, name, newValue, op);
 }
 
+Value* DereferenceValue::child(InterpretScope& scope, const chem::string_view& name) {
+    // `(*ptr).member` — resolve the member inside the pointee, not in a copy of
+    // it. Evaluating the inner value yields the pointer itself (a PointerValue),
+    // whose child() lookup finds the member in the struct it points at, so
+    // writes through the chain reach the pointee.
+    const auto eval = value->evaluated_value(scope);
+    if(eval == nullptr) {
+        return nullptr;
+    }
+    return eval->child(scope, name);
+}
+
 DereferenceValue *DereferenceValue::copy(ASTAllocator& allocator) {
     return new (allocator.allocate<DereferenceValue>()) DereferenceValue(
             value->copy(allocator),

@@ -60,6 +60,16 @@ public:
 
     void set_child_value(InterpretScope& scope, const chem::string_view& name, Value* value, Operation op) override;
 
+    /**
+     * member lookup on a dereferenced pointer: `(*ptr).member`
+     *
+     * the lookup has to happen inside the *pointee*, so it is delegated to the
+     * evaluated inner value — for a pointer that is the pointer itself, whose
+     * own `child` reads/writes the pointee struct in place. Going through the
+     * dereferenced copy instead would silently lose writes.
+     */
+    Value* child(InterpretScope& scope, const chem::string_view& name) override;
+
     ASTNode* linked_node() override {
         return value->linked_node();
     }

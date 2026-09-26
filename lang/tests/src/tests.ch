@@ -34,10 +34,9 @@ func run_executable_tests() {
     test_native_generic_fn_reference();
     test_native_generic_composite_field();
     test_native_generic_nested_fn_type();
-    test_generic_loop_expression_result();
-    test_impl_only_method_call();
-    test_generic_struct_by_value_param();
-    test_loop_expression_cleanup_once();
+    // the generic/impl-dispatch regressions (loop expressions, impl-only method
+    // calls, by-value generic structs, loop cleanup) are pure language tests and
+    // live in ./common, so every backend covers them
     // async/await is tested by the dedicated suite
     // (lang/tests/async, run via ./scripts/test.sh --async), because both
     // lowering backends need their own build.
@@ -49,7 +48,7 @@ func run_executable_tests() {
     // --------------------------------------
     // Comptime and Compiler Intrinsics Stuff
     // --------------------------------------
-    test_macros();
+    // test_macros() lives in ./common (pure comptime test, covered on all backends)
     test_comptime_intrinsics()
 
     // --------------------------------------

@@ -279,6 +279,29 @@ Each library test module has its own `build.lab` in `lang/tests/compiler_plugins
 
 3. **Source the file** — ensure the file is in the module's source path
 
+#### Where a test belongs: pick the broadest suite it passes on
+
+A test that can run everywhere must live in `common/`, because only that suite is run by
+**all three backends** — the C backend (`./scripts/test.sh --tcc`), the LLVM backend
+(`--llvm`) and the interpreter (`--tcc --interpret`). `src/` is compiled-only.
+
+Rules of thumb when adding or moving a test:
+
+* **Language level, no library, no native interop** → `common/src/` (a new file under the
+  matching directory, registered from `run_common_tests()` in `common/src/main.ch`).
+  This includes plain pointers, `unsafe(...)`, structs/generics/lambdas, comptime. The
+  `(*ptr).field` regression tests in `common/src/references/deref_member.ch` are the model.
+* **Needs `std`/`cstd` (`printf`, `strlen`, `snprintf`, `malloc`), `fs`, `atomic`,
+  `thread`, cross-module deps (`submod2`/`submod3`), or a downloaded module** → `src/`.
+* **Function names must not collide inside one module.** `common` and `src` are different
+  modules, so the same name may exist in both, but a *moved* file keeps its name — check
+  `common` first (`test_lambda`, `test_for_in`, `test_comptime_intrinsics` already exist there).
+* **Known interpreter gaps** (keep these in `src/` for now, they fail under `--interpret`):
+  generic *function references* (`test_native_generic_fn_field`, `..._fn_reference`,
+  `..._nested_fn_type`, `..._composite_field`), `unsafe(...)` value-move semantics with raw
+  pointers escaping the scope (`unsafe_value_tests.ch`), and lambdas stored in struct
+  fields or arrays (`common/src/values/lambda.ch` documents that split).
+
 ### Option B: `@test` Annotation (Auto-Dispatched)
 
 1. **Annotate your function**:

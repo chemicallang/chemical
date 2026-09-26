@@ -108,6 +108,17 @@ public func run_common_tests() {
     test_basic_generics();
     test_generic_type_deduction();
 
+    // Generic/impl-dispatch regression tests moved out of the main-only suite:
+    // they are pure language tests (no std, no native interop), so every backend
+    // runs them now. The generic function reference tests
+    // (`test_native_generic_fn_field` / `fn_reference` / `nested_fn_type` /
+    // `composite_field`) stay in ./src: the interpreter doesn't instantiate
+    // generic function references yet.
+    test_generic_loop_expression_result();
+    test_impl_only_method_call();
+    test_generic_struct_by_value_param();
+    test_loop_expression_cleanup_once();
+
     // Language feature tests moved from native (no variant matching, no raw pointers, no std deps)
     test_unicode();
     test_lambda();
@@ -124,6 +135,7 @@ public func run_common_tests() {
 
     test_comptime();
     test_comptime_intrinsics();
+    test_macros();
     test_compiler_vector();
     test_constructors();
     test_extension_functions();
@@ -148,6 +160,7 @@ public func run_common_tests() {
     test_multi_field_ref();
 
     test_dereferences();
+    test_deref_member_access();
     test_if_switch_loop_value();
     test_arrays();
     test_array_literal_zero_fill();

@@ -507,6 +507,30 @@ written normally and the implicit `self` argument is added at the call site by
 `write_implicit_args` (`:1679`); extension functions (`isExtensionFn()`) are treated like
 methods.
 
+### `(*ptr).member` — an explicit dereference followed by a member access
+
+The parser turns `(*ptr).member` into `AccessChain[ DereferenceValue(ptr), member, ... ]`
+(`parseAccessChainAfterValue` in `parser/utils/Expression.cpp`): the dereference is the chain's
+*first element*, not a wrapper around the member access.
+
+`write_accessor` sees that element as pointer-like (its `linked_node()` delegates to the inner
+value) and writes `->`. So `chain_value_accept` **must not** also write the dereference's own
+`*`: `*ptr->member` is read by C as `*(ptr->member)` and fails to compile whenever the member
+is not itself a pointer (`pointer expected`).
+
+The rule (in `chain_value_accept`, via the `chain_accessor` decision that also backs
+`write_accessor`):
+
+| accessor that follows | emitted |
+|-----------------------|---------|
+| `->` | the pointer itself — the accessor performs the dereference: `ptr->member` |
+| `.`  | `(*ptr)` — parenthesized, so the dereference binds tighter: `(*ptr).member` |
+
+The `*` is still written when the dereference is *not* followed by an accessor (`*ptr` as a
+value) and when it wraps a whole chain (`*(ptr->field)`), so the special case only applies to a
+`DereferenceValue` chain element that has a `next` element.
+Regression tests: `lang/tests/common/src/references/deref_member.ch`.
+
 ## Type Translation Table
 
 From the `Visit*Type` methods in `2cASTVisitor.cpp`:

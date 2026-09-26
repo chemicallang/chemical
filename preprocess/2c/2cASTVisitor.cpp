@@ -1677,11 +1677,16 @@ void value_alloca(ToCAstVisitor& visitor, const chem::string_view& identifier, B
     visitor.write(';');
 }
 
-void write_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
-    if(next && next->as_index_op()) return;
+// The accessor written between two values of an access chain: "->" when the
+// expression on the left is a pointer (the accessor itself performs the
+// dereference), "." when it is already a value, and "" when the pair needs no
+// accessor at all (indexing, namespaces). Callers that need to know what will
+// be written ask here instead of re-deriving the decision.
+const char* chain_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
+    if(next && next->as_index_op()) return "";
     auto linked = current->linked_node();
     if(linked && linked->as_namespace()) {
-        return;
+        return "";
     }
     // A frame-resident by-value local/parameter of a lowered async `poll`
     // function lives in the frame *by value*, so member access on it is `.` —
@@ -1695,23 +1700,27 @@ void write_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
             const auto resident_pure = resident_type->pure_type(visitor.allocator);
             if(resident_pure->kind() != BaseTypeKind::Pointer
                && resident_pure->kind() != BaseTypeKind::Reference) {
-                visitor.write('.');
-                return;
+                return ".";
             }
         }
     }
     if(is_value_type_pointer_like(current)) {
-        visitor.write("->");
-        return;
+        return "->";
     }
     auto type = current->getType();
     const auto pure_type = type->pure_type(visitor.allocator);
     const auto pure_type_kind = pure_type->kind();
     if(pure_type_kind == BaseTypeKind::Pointer || pure_type_kind == BaseTypeKind::Reference) {
-        visitor.write("->");
-        return;
+        return "->";
     }
-    visitor.write('.');
+    return ".";
+}
+
+void write_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
+    const auto accessor = chain_accessor(visitor, current, next);
+    if(accessor[0] != '\0') {
+        visitor.write(accessor);
+    }
 }
 
 //void write_self_arg(ToCAstVisitor& visitor, std::vector<Value*>& values, unsigned int grandpa_index, FunctionCall* call, bool force_no_pointer) {
@@ -6966,6 +6975,28 @@ void chain_value_accept(ToCAstVisitor& visitor, Value* previous, Value* value, V
 //        visitor.write(var_mem->name);
 //        visitor.write('.');
 //    }
+    // `(*ptr).member` — an explicit dereference followed by a member access.
+    // The access chain's accessor already dereferences the pointer (`->`), so
+    // writing the dereference's own `*` as well would dereference twice:
+    // `*ptr->member`, which C reads as `*(ptr->member)` — invalid C whenever
+    // the member is not itself a pointer ("pointer expected").
+    if (value_kind == ValueKind::DereferenceValue && next != nullptr) {
+        const auto inner = value->as_dereference_value_unsafe()->getValue();
+        if (chain_accessor(visitor, value, next)[0] == '-') {
+            // `->` is written next, and it is the dereference: emit the
+            // pointer itself and let the accessor do the load
+            accept_opt_nestable(visitor, inner, true);
+        } else {
+            // `.` is written next, so the dereference has to be explicit — and
+            // parenthesized, otherwise it would bind looser than the member
+            // access: `(*ptr).member`
+            visitor.write("(*");
+            accept_opt_nestable(visitor, inner, true);
+            visitor.write(')');
+        }
+        return;
+    }
+
     accept_opt_nestable(visitor, value, next != nullptr);
 }
 

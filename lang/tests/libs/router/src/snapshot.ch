@@ -58,6 +58,73 @@ public func test_router_snapshot_cold_then_warm(env : &mut TestEnv) {
     }
 }
 
+// Two distinct router declarations that share a name and a route id. The cache
+// key includes the route's encoded declaration location (which carries a file
+// id), so these must never share a snapshot.
+#universal SnapSameNameA(props) {
+    router "ut-snap-same" {
+        route default #"home" { <div class="aaa">AAAA</div> }
+    }
+}
+
+#universal SnapSameNameB(props) {
+    router "ut-snap-same" {
+        route default #"home" { <div class="bbb">BBBB</div> }
+    }
+}
+
+func render_snap_same_a(page : &mut HtmlPage) {
+    #html { <SnapSameNameA /> }
+}
+
+func render_snap_same_b(page : &mut HtmlPage) {
+    #html { <SnapSameNameB /> }
+}
+
+@test
+public func test_router_snapshot_same_name_routers_do_not_collide(env : &mut TestEnv) {
+    var warm = HtmlPage()
+    warm.reset_route_snapshots()
+    var a = HtmlPage()
+    render_snap_same_a(&mut a)
+    var aHtml = a.getHtml()
+    var b = HtmlPage()
+    render_snap_same_b(&mut b)
+    var bHtml = b.getHtml()
+    if(aHtml.find(std::string_view("AAAA")) == std::NPOS) {
+        env.error("router A should render its own snapshot")
+    }
+    if(bHtml.find(std::string_view("BBBB")) == std::NPOS) {
+        env.error("router B should render its own snapshot")
+        env.info(bHtml.data())
+    }
+    if(bHtml.find(std::string_view("AAAA")) != std::NPOS) {
+        env.error("router B must not receive router A's cached bytes")
+        env.info(bHtml.data())
+    }
+}
+
+@test
+public func test_router_snapshot_reset_re_cold_renders_identical(env : &mut TestEnv) {
+    var p1 = HtmlPage()
+    p1.reset_route_snapshots()
+    render_snapshot_app(&mut p1)
+    var cold = p1.getHtml()
+
+    // `reset_route_snapshots` frees the cached bytes and forces a cold render;
+    // the result must still be byte-identical (no use-after-free).
+    p1.reset_route_snapshots()
+    var p2 = HtmlPage()
+    render_snapshot_app(&mut p2)
+    var cold2 = p2.getHtml()
+    if(p2.route_snapshot_misses_count() == 0) {
+        env.error("a render after reset should be cold (populate snapshots again)")
+    }
+    if(cold.size() != cold2.size() || !cold.equals(&cold2)) {
+        env.error("a render after reset must be byte-identical to the original cold render")
+    }
+}
+
 @test
 public func test_router_snapshot_ignores_component_routes(env : &mut TestEnv) {
     // A route whose body renders a component is dynamic: it must never be

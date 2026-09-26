@@ -18,10 +18,17 @@
  */
 public #universal RouterLink(props) {
     const r = router(props.router || "main-router")
+    const cur = r.$url.value
+    const target = r.normPath(props.href)
     const active = props.routeId
         ? r.$current.value == props.routeId
-        : r.$url.value == r.normPath(props.href)
-    return <a href={props.href}
+        : window.$__uni_link_active(cur, target, props.end)
+    return <a {...props}
+        router={null}
+        routeId={null}
+        preload={null}
+        end={null}
+        href={props.href}
         aria-current={active ? "page" : null}
         onMouseEnter={() => { if(props.preload) { r.preload(props.routeId) } }}
         onFocus={() => { if(props.preload) { r.preload(props.routeId) } }}

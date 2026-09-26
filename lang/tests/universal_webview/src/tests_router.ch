@@ -818,6 +818,31 @@
     return <div data-testid="ut-nul-wrap"><RouterLink href="/projects/1" router="ut-nul">P1</RouterLink></div>
 }
 
+#universal UtP1PrefixRouter(props) {
+    router "ut-p1pfx" {
+        route default #"home" { <div data-testid="ut-p1-home">Home</div> }
+        route "/projects" { <div data-testid="ut-p1-proj">Projects</div> }
+        route "/projects/{id}" { <div data-testid="ut-p1-proj-detail">Detail</div> }
+    }
+}
+
+// Ancestor-aware (`end` opt-out) and a segment-boundary sibling (`/pro`).
+#universal UtP1PrefixHost(props) {
+    return <div>
+        <div data-testid="ut-p1-anc-wrap"><RouterLink href="/projects" router="ut-p1pfx">Anc</RouterLink></div>
+        <div data-testid="ut-p1-end-wrap"><RouterLink href="/projects" end router="ut-p1pfx">End</RouterLink></div>
+        <div data-testid="ut-p1-pro-wrap"><RouterLink href="/pro" router="ut-p1pfx">Pro</RouterLink></div>
+    </div>
+}
+
+// Passthrough attributes plus a `NavLink` class merge.
+#universal UtP1AttrHost(props) {
+    return <div>
+        <div data-testid="ut-p1-attr-wrap"><RouterLink href="/projects" router="ut-p1pfx" id="lnk1" class="my-link" data-foo="bar" target="_blank" rel="nofollow noopener">Go</RouterLink></div>
+        <div data-testid="ut-p1-navcls-wrap"><NavLink href="/projects" router="ut-p1pfx" class="my-nav">N</NavLink></div>
+    </div>
+}
+
 #universal UtNPreloadRouter(props) {
     router "ut-npl" {
         route default #"home" { <div data-testid="ut-npl-home">Home</div> }
@@ -1387,6 +1412,73 @@
         r.activateRouteByUrl('/projects/2')
         await t.sleep(20)
         expect(a.attr('aria-current')).toBe(null)
+    </script>
+}
+
+#universal_test("router RouterLink active matching is ancestor-aware with a segment boundary and an end opt-out", isolate) {
+    <UtP1PrefixRouter />
+    <UtP1PrefixHost />
+    <script>
+        const r = window.$__uni_routers['ut-p1pfx']
+        const anc = byTestId('ut-p1-anc-wrap').find('a')
+        const end = byTestId('ut-p1-end-wrap').find('a')
+        const pro = byTestId('ut-p1-pro-wrap').find('a')
+        r.activateRouteByUrl('/projects')
+        await t.sleep(20)
+        expect(anc.attr('aria-current')).toBe('page')
+        expect(end.attr('aria-current')).toBe('page')
+        // A descendant URL keeps the ancestor active, but not an `end` link.
+        r.activateRouteByUrl('/projects/42')
+        await t.sleep(20)
+        expect(anc.attr('aria-current')).toBe('page')
+        expect(end.attr('aria-current')).toBe(null)
+        // `end` opts back to exactly `/projects`.
+        expect(pro.attr('aria-current')).toBe(null)      // `/pro` is not a prefix of `/projects/42`
+        // An id route clears `$url`, so no URL link stays active.
+        r.activateRoute('home')
+        await t.sleep(20)
+        expect(anc.attr('aria-current')).toBe(null)
+        expect(end.attr('aria-current')).toBe(null)
+    </script>
+}
+
+#universal_test("router RouterLink forwards passthrough attributes and omits router-only props", isolate) {
+    <UtP1PrefixRouter />
+    <UtP1AttrHost />
+    <script>
+        const a = byTestId('ut-p1-attr-wrap').find('a')
+        expect(a.attr('id')).toBe('lnk1')
+        expect(a.attr('class')).toBe('my-link')
+        expect(a.attr('data-foo')).toBe('bar')
+        expect(a.attr('target')).toBe('_blank')
+        expect(a.attr('rel')).toBe('nofollow noopener')
+        // Router-only props must not leak into the DOM as attributes.
+        expect(a.attr('router')).toBe(null)
+        expect(a.attr('routeId')).toBe(null)
+        expect(a.attr('preload')).toBe(null)
+        expect(a.attr('end')).toBe(null)
+    </script>
+}
+
+#universal_test("router NavLink merges a caller class with the active class", isolate) {
+    <UtP1PrefixRouter />
+    <UtP1AttrHost />
+    <script>
+        const r = window.$__uni_routers['ut-p1pfx']
+        const a = byTestId('ut-p1-navcls-wrap').find('a')
+        r.activateRouteByUrl('/projects')
+        await t.sleep(20)
+        expect(a.hasClass('chx-navlink')).toBe(true)
+        expect(a.hasClass('my-nav')).toBe(true)
+        expect(a.hasClass('is-active')).toBe(true)
+        r.activateRouteByUrl('/projects/42')
+        await t.sleep(20)
+        expect(a.hasClass('is-active')).toBe(true)       // ancestor-aware
+        r.activateRoute('home')
+        await t.sleep(20)
+        expect(a.hasClass('is-active')).toBe(false)
+        expect(a.hasClass('chx-navlink')).toBe(true)
+        expect(a.hasClass('my-nav')).toBe(true)
     </script>
 }
 

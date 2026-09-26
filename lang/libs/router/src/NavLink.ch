@@ -8,11 +8,20 @@
  */
 public #universal NavLink(props) {
     const r = router(props.router || "main-router")
+    const cur = r.$url.value
+    const target = r.normPath(props.href)
     const active = props.routeId
         ? r.$current.value == props.routeId
-        : r.$url.value == r.normPath(props.href)
-    return <a href={props.href}
-        class={active ? "chx-navlink is-active" : "chx-navlink"}
+        : window.$__uni_link_active(cur, target, props.end)
+    const userClass = props.class || props.className
+    const base = userClass ? ("chx-navlink " + userClass) : "chx-navlink"
+    return <a {...props}
+        router={null}
+        routeId={null}
+        preload={null}
+        end={null}
+        href={props.href}
+        class={active ? (base + " is-active") : base}
         aria-current={active ? "page" : null}
         onMouseEnter={() => { if(props.preload) { r.preload(props.routeId) } }}
         onFocus={() => { if(props.preload) { r.preload(props.routeId) } }}

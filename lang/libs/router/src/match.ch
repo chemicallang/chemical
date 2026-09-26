@@ -101,6 +101,14 @@ func is_param_segment(s : std::string_view) : bool {
     return s.size() >= 2 && s.get(0) == '{' && s.get(s.size() - 1) == '}'
 }
 
+// `.`/`..` are never route data (D-6.1): a `{param}` must not capture a
+// traversal segment, and no literal pattern may declare one.
+func is_dot_segment(s : std::string_view) : bool {
+    if(s.size() == 1) { return s.get(0) == '.' }
+    if(s.size() == 2) { return s.get(0) == '.' && s.get(1) == '.' }
+    return false
+}
+
 // Straight first-match scan over `patterns` (already in precedence order,
 // D-6.9). A `route *` entry matches any remaining path (D-6.6).
 public func match_route(patterns : &std::vector<RoutePattern>, path : std::string_view,
@@ -133,14 +141,16 @@ public func match_route(patterns : &std::vector<RoutePattern>, path : std::strin
         var ok = true
         for(var j : size_t = 0; j < pattern.segments.size(); j++) {
             const ps = pattern.segments.get(j)
+            const seg = segs.get(j)
             if(is_param_segment(ps)) {
-                params.push(RouteParam.Param(ps.subview(1, ps.size() - 1), segs.get(j)))
-            } else {
-                const seg = segs.get(j)
-                if(!ps.equals(&seg)) {
+                if(is_dot_segment(seg)) {
                     ok = false
                     break
                 }
+                params.push(RouteParam.Param(ps.subview(1, ps.size() - 1), seg))
+            } else if(!ps.equals(&seg)) {
+                ok = false
+                break
             }
         }
         if(ok) {

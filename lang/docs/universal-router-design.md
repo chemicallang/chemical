@@ -3094,6 +3094,8 @@ window.$__uni_should_intercept = ((e, href) => {
     if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return false;
     if(!href || href.charCodeAt(0) !== 47) return false;    // "http:", "mailto:", "#frag"
     if(href.charCodeAt(1) === 47) return false;             // "//host": protocol-relative
+    if(href.charCodeAt(1) === 92) return false;             // char 92 (backslash) is a slash in WHATWG URLs
+    if(href.indexOf("#") >= 0) return false;               // hash scrolling is a plain anchor (non-goal)
     const t = e.currentTarget;
     if(t && (t.target || t.hasAttribute("download"))) return false;
     return true;
@@ -3183,6 +3185,7 @@ if(window.$__uni_history_ok === undefined) {
 
 window.$__uni_norm_path = ((p) => {
     if(!p) return "/";
+    const h = p.indexOf("#"); if(h >= 0) p = p.slice(0, h);   // a fragment never participates in a route
     const q = p.indexOf("?"); if(q >= 0) p = p.slice(0, q);
     if(p.length > 1 && p.charCodeAt(p.length - 1) === 47) p = p.slice(0, -1);
     return p || "/";
@@ -3215,6 +3218,7 @@ window.$__uni_match_url = ((name, path) => {
         for(let j = 0; j < e.pattern.length; j++) {
             const s = e.pattern[j];
             if(s.charCodeAt(0) === 123) {               // "{name}"
+                if(segs[j] === "." || segs[j] === "..") { ok = false; break; }  // D-6.1: never route data
                 if(!params) params = Object.create(null);
                 params[s.slice(1, -1)] = window.$__uni_decode_segment(segs[j]);
             } else if(s !== segs[j]) { ok = false; break; }

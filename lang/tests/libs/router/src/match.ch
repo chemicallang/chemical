@@ -152,6 +152,21 @@ public func test_router_match_carries_nested_chain(env : &mut TestEnv) {
 }
 
 @test
+public func test_router_match_rejects_dot_segments(env : &mut TestEnv) {
+    var patterns = std::vector<RoutePattern>()
+    patterns.push(make_pattern("/projects/{id}", "projects"))
+    var m = match_route(&mut patterns, "/projects/..", "")
+    if(m.matched) { env.error("a `..` segment must not be captured by a param") }
+    var m2 = match_route(&mut patterns, "/projects/.", "")
+    if(m2.matched) { env.error("a `.` segment must not be captured by a param") }
+    // Literal matching is unaffected (no regression).
+    var lit = std::vector<RoutePattern>()
+    lit.push(make_pattern("/projects/list", "list"))
+    var m3 = match_route(&mut lit, "/projects/list", "")
+    if(!m3.matched) { env.error("literal matching must be unaffected") }
+}
+
+@test
 public func test_router_match_prefix_fallback(env : &mut TestEnv) {
     var patterns = std::vector<RoutePattern>()
     patterns.push(make_pattern("/a/{x}", "/a/{x}"))

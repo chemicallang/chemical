@@ -304,7 +304,9 @@ window.$__uni_should_intercept = ((e, href) => {
     if(!e || e.defaultPrevented) return false;
     if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return false;
     if(!href || href.charCodeAt(0) !== 47) return false;
-    if(href.charCodeAt(1) === 47) return false;
+    if(href.charCodeAt(1) === 47) return false;            // "//host": protocol-relative
+    if(href.charCodeAt(1) === 92) return false;            // char 92 (backslash): WHATWG treats it as a slash, so protocol-relative
+    if(href.indexOf("#") >= 0) return false;              // hash-fragment scrolling is a plain anchor
     const t = e.currentTarget;
     if(t && (t.target || t.hasAttribute("download"))) return false;
     return true;
@@ -321,6 +323,7 @@ window.$__uni_router = ((name) => {
 
 window.$__uni_norm_path = ((p) => {
     if(!p) return "/";
+    const h = p.indexOf("#"); if(h >= 0) p = p.slice(0, h);   // a fragment never participates in a route
     const q = p.indexOf("?"); if(q >= 0) p = p.slice(0, q);
     if(p.length > 1 && p.charCodeAt(p.length - 1) === 47) p = p.slice(0, -1);
     return p || "/";
@@ -406,6 +409,8 @@ window.$__uni_match_url = ((name, path) => {
         for(let j = 0; j < e.pattern.length; j++) {
             const s = e.pattern[j];
             if(s.charCodeAt(0) === 123) {
+                // `.`/`..` are never route data (D-6.1), mirroring the server matcher.
+                if(segs[j] === "." || segs[j] === "..") { ok = false; break; }
                 if(!params) params = Object.create(null);
                 params[s.slice(1, -1)] = window.$__uni_decode_segment(segs[j]);
             } else if(s !== segs[j]) { ok = false; break; }

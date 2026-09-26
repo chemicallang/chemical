@@ -22,12 +22,16 @@ public struct RouteChainStep {
 }
 
 // A compiled route pattern. `segments` holds literal segments (`"projects"`) and
-// brace params (`"{id}"`); `is_fallback` marks `route *` (D-6.1). `chain` is the
-// nested activation chain (empty for a top-level route).
+// brace params (`"{id}"`); `is_fallback` marks `route *` (D-6.1). `prefix` marks
+// a nested-fallback entry that matches the pattern plus any remaining segments
+// (so `/projects/{id}` catches `/projects/42/unknown`); exact entries always win
+// because they are scanned first. `chain` is the nested activation chain (empty
+// for a top-level route).
 public struct RoutePattern {
     var segments : std::vector<std::string_view>
     var id : std::string_view
     var is_fallback : bool
+    var prefix : bool
     var chain : std::vector<RouteChainStep>
 }
 
@@ -120,7 +124,11 @@ public func match_route(patterns : &std::vector<RoutePattern>, path : std::strin
                 chain : std::vector<RouteChainStep>()
             }
         }
-        if(pattern.segments.size() != segs.size()) { continue }
+        if(pattern.prefix) {
+            if(segs.size() < pattern.segments.size()) { continue }
+        } else if(pattern.segments.size() != segs.size()) {
+            continue
+        }
         var params = std::vector<RouteParam>()
         var ok = true
         for(var j : size_t = 0; j < pattern.segments.size(); j++) {

@@ -386,7 +386,8 @@ window.$__uni_match_url = ((name, path) => {
     for(let i = 0; i < t.routes.length; i++) {
         const e = t.routes[i];
         if(e.fallback) return { id: e.id, fallback: true, params: null, chain: null };
-        if(e.pattern.length !== segs.length) continue;
+        if(e.prefix) { if(segs.length < e.pattern.length) continue; }
+        else if(e.pattern.length !== segs.length) continue;
         let params = null, ok = true;
         for(let j = 0; j < e.pattern.length; j++) {
             const s = e.pattern[j];

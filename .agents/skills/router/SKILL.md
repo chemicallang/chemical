@@ -81,7 +81,9 @@ Nested URL children use **relative** patterns; the full path is the ancestor
 patterns concatenated (`/projects/{id}` + `/settings`). A deep link selects the
 outer layout *and* the nested child on the server and on the client, and the
 ancestor `{param}` values are inherited by the nested child (`props.id`).
-A nested URL child also works under a top-level **id** layout.
+A nested URL child also works under a top-level **id** layout. A nested
+`route *` catches an unknown remainder under the layout (e.g.
+`/projects/{id}/unknown`) and is still shadowed by any exact child.
 
 ### 1.2 Control API
 
@@ -219,10 +221,11 @@ written only when the value actually changes; nested cascade
 ### 2.4 Server matching + URL layer
 
 - `router/src/match.ch` — `RouteParam`, `RouteChainStep` (`reg`,`id`),
-  `RoutePattern` (segments/id/is_fallback/chain), `RouteMatch` (+`chain`),
+  `RoutePattern` (segments/id/is_fallback/prefix/chain), `RouteMatch` (+`chain`),
   `pattern_segments`, `normalize_path_view`, `match_route` (straight first-match
-  scan; precedence is resolved at *emission* time and the matched chain is
-  copied into the result).
+  scan; exact entries precede prefix entries, which precede the fallback, and the
+  matched chain is copied into the result). `prefix` marks a nested-fallback
+  entry that matches the pattern plus any remaining segments.
 - `router/src/build_path.ch` — `build_path` (reverse map, percent-encodes params).
 - `router/src/apply.ch` — `apply_route_url` (called by generated code; matches,
   percent-decodes into page-owned storage, stores the id + params, stores each
@@ -257,6 +260,9 @@ is deliberately *not* segment-prefix matching: the pattern grammar is literal +
 ### 2.6 Diagnostics catalogue (frozen messages)
 
 Emitted by the converter (`emit.ch`) with a source location, except R5 (runtime).
+All are **errors** except R10, which is a **warning** (the CBI
+`ASTDiagnoser.warning` channel; see the change-impact map). R3/R6/R7/R8/R9/R10/
+R13/R14 apply recursively to nested routers under their derived name `parent#id`.
 
 | # | Trigger | Message |
 |---|---|---|
@@ -267,6 +273,7 @@ Emitted by the converter (`emit.ch`) with a source location, except R5 (runtime)
 | R7 | fallback not last | `fallback route must be the last route` |
 | R8 | literal id not declared | `no route 'x' in router "m"` |
 | R9 | two same-shape URL patterns | `route patterns '/a/{x}' and '/a/{y}' are ambiguous` |
+| R10 | router with no `default` and no `*` (warning) | `router "m" has no default route; the page renders inert without a server parameter` |
 | R13 | unsupported pattern (mid `*`) | `unsupported route pattern '…'` |
 | R14 | `$__uni_*` in a route body/hook | `route bodies cannot call runtime internals` |
 
@@ -324,6 +331,9 @@ When adding a behaviour:
   shared URL (§13.3.3).
 - **Nested URL entries are full patterns with a chain.** The outermost table is
   the single source of truth for URL matching; nested registries hold no table.
+- **Exact entries always precede prefix entries**, which precede the fallback, in
+  both the server spec and the client table (`router_entry_precedes`), so a
+  nested `route *` never shadows an exact child.
 - **No DOM queries on the activation path** — boundaries/wrappers are resolved at
   bootstrap by source-derived ids.
 - **Route bodies never enter the hydration queue**; only the router mounts them.
@@ -351,14 +361,10 @@ When adding a behaviour:
   `<Outlet/>` adopts the SSR'd nested wrappers.
 - **`<Outlet/>` from a separate layout component**: only an inline `<Outlet/>`
   in the route body expands; a layout component cannot host it yet.
-- **Nested `route *` fallback**: a nested fallback does not catch an unknown
-  remainder (flattened patterns, not prefix matching); only a top-level fallback
-  does.
 - **R11/R12**: `props.X` / `dangerouslySetInnerHTML` validation — these read the
   route *component*, a different component from the router declaration, so they
-  need a cross-component pass. (R9 is implemented.)
-- **R10** (no default and no fallback) is not emitted: the CBI diagnoser exposes
-  `error` only, and R10 is a warning.
+  need a cross-component pass (the component's JS body is not retained after
+  conversion). (R9 and R10 are implemented.)
 - **Site-level rewrite-map aggregate** (deploy tooling) from the per-page
   `<name>.routes.json`.
 - Phase 7 caches only the conservative static subset (by design).
@@ -373,6 +379,7 @@ When adding a behaviour:
 | Emitted artefacts (wrapper, registry, stubs, tail, table) | this skill §2.2/§2.3, design doc §15.3, `router_emission.ch` |
 | Runtime symbols/behaviour | `router_runtime.ch`, this skill §2.3/§4, `tests_router.ch`, design doc §15.2 |
 | A diagnostic message | `emit.ch`, `router_diagnostics.ch`, this skill §2.6, design doc §14.8 |
+| The CBI diagnoser channel (e.g. adding `warning`) | `compiler/cbi/bindings/ASTDiagnoserCBI.{h,cpp}`, `CBI.cpp`'s `ASTDiagnoserSymMap`, `lang/libs/compiler/src/ASTDiagnoser.ch`, `lang/tests/negative/src/main.ch` (`expect_compile_output_contains`), this skill §2.6 |
 | Page server API (`page.ch` router methods) | this skill §2.4/§2.5, `lang/tests/libs/router/*`, design doc §3/§15.4 |
 | Router library public API (`match`/`apply`/components) | this skill §1.3/§1.5, `lang/libs/router/README.md`, `--libs` tests |
 | Snapshot cache / classifier | this skill §2.5, `snapshot.ch`, design doc §7.5/§16 |

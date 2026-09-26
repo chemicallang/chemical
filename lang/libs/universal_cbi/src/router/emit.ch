@@ -141,6 +141,7 @@ public struct RouterUrlEntry {
     var id : std::string_view
     var pattern : std::string_view
     var is_fallback : bool
+    var prefix : bool
     var chainRegs : std::vector<std::string_view>
     var chainIds : std::vector<std::string_view>
     var order : int
@@ -181,10 +182,10 @@ func (converter : &mut JsConverter) router_validate_ambiguity(entries : &std::ve
     if(converter.diagnoser == null) return
     for(var i : size_t = 0; i < entries.size(); i++) {
         var a = entries.get(i)
-        if(a.is_fallback) { continue }
+        if(a.is_fallback || a.prefix) { continue }
         for(var j : size_t = i + 1; j < entries.size(); j++) {
             var b = entries.get(j)
-            if(b.is_fallback) { continue }
+            if(b.is_fallback || b.prefix) { continue }
             if(!router_pattern_shape_equal(a.pattern, b.pattern)) { continue }
             var msg = std::string("route patterns '")
             msg.append_view(&a.pattern)
@@ -201,6 +202,8 @@ func (converter : &mut JsConverter) router_validate_ambiguity(entries : &std::ve
 func router_entry_precedes(a : *mut RouterUrlEntry, b : *mut RouterUrlEntry) : bool {
     if(a.is_fallback != b.is_fallback) { return !a.is_fallback }
     if(a.is_fallback) { return a.order < b.order }
+    // Prefix (nested-fallback) entries are scanned after every exact entry.
+    if(a.prefix != b.prefix) { return !a.prefix }
     var la = 0
     var pa = 0
     router_pattern_score(a.pattern, &mut la, &mut pa)
@@ -232,6 +235,7 @@ func (converter : &mut JsConverter) router_collect_url_entries(routes : &std::ve
                 id : builder.allocate_view(&r.id),
                 pattern : std::string_view(),
                 is_fallback : true,
+                prefix : false,
                 chainRegs : std::vector<std::string_view>(),
                 chainIds : std::vector<std::string_view>(),
                 order : *order,
@@ -275,6 +279,7 @@ func (converter : &mut JsConverter) router_collect_url_entries(routes : &std::ve
                 id : builder.allocate_view(&rootId),
                 pattern : fullView,
                 is_fallback : false,
+                prefix : false,
                 chainRegs : entryRegs,
                 chainIds : entryIds,
                 order : *order,
@@ -292,10 +297,48 @@ func (converter : &mut JsConverter) router_collect_url_entries(routes : &std::ve
             childReg.append_view(&r.id)
             const childPtr = builder.allocate_str(childReg.data(), childReg.size())
             const childView = std::string_view(childPtr, childReg.size())
+
+            // Nested `route *` fallback: a prefix entry on this route's full
+            // pattern, activating the layout and then the nested fallback, so an
+            // unknown remainder under the layout resolves instead of 404-ing.
+            var nestedFb = router_nested_fallback(&nested)
+            if(r.is_url && nestedFb != null) {
+                var fbRegs = std::vector<std::string_view>()
+                var fbIds = std::vector<std::string_view>()
+                for(var k : uint = 0; k < selfRegs.size(); k++) {
+                    fbRegs.push(selfRegs.get(k))
+                    fbIds.push(selfIds.get(k))
+                }
+                fbRegs.push(childView)
+                fbIds.push(builder.allocate_view(&std::string_view("*")))
+                const fe = builder.allocate<RouterUrlEntry>()
+                new (fe) RouterUrlEntry {
+                    id : builder.allocate_view(&rootId),
+                    pattern : fullView,
+                    is_fallback : false,
+                    prefix : true,
+                    chainRegs : fbRegs,
+                    chainIds : fbIds,
+                    order : *order,
+                    decl_loc : nestedFb.decl_loc
+                }
+                *order = *order + 1
+                out.push(fe)
+            }
+
             converter.router_collect_url_entries(&nested, childView, rootRegistry, rootId,
                                                  &selfRegs, &selfIds, fullView, out, order)
         }
     }
+}
+
+// The `route *` fallback of a nested route list, or null.
+func router_nested_fallback(routes : &std::vector<*mut JsNode>) : *mut JsRouteDecl {
+    for(var i : uint = 0; i < routes.size(); i++) {
+        var r = routes.get(i) as *mut JsRouteDecl
+        if(r.is_fallback) { return r }
+    }
+    return null
 }
 
 // Builds the sorted URL entry list for a router declaration.
@@ -350,7 +393,9 @@ func router_match_spec(entries : &std::vector<*mut RouterUrlEntry>, out : &mut s
         out.append('\t')
         out.append_view(&e.pattern)
         out.append('\t')
-        if(e.is_fallback) { out.append('1') } else { out.append('0') }
+        if(e.is_fallback) { out.append('1') }
+        else if(e.prefix) { out.append('2') }
+        else { out.append('0') }
         out.append('\t')
         router_chain_field(e, out)
         out.append('\n')
@@ -522,6 +567,13 @@ func (converter : &mut JsConverter) router_emit_target(text : &std::string) {
 func (converter : &mut JsConverter) router_diag(msg : &std::string, loc : ubigint) {
     if(converter.diagnoser == null) return
     converter.diagnoser.error(&msg.to_view(), loc)
+}
+
+// R10 is a warning (the page still renders; it just renders inert without a
+// server parameter), so it goes through the CBI warning channel.
+func (converter : &mut JsConverter) router_warn(msg : &std::string, loc : ubigint) {
+    if(converter.diagnoser == null) return
+    converter.diagnoser.warning(&msg.to_view(), loc)
 }
 
 // Counts the JSX roots in a route body (used to detect zero/multiple roots).
@@ -758,6 +810,28 @@ func (converter : &mut JsConverter) router_validate(rd : *mut JsRouterDecl) {
 
 func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector<*mut JsNode>, routerName : std::string_view) {
     if(converter.diagnoser == null) return
+
+    // R10: a router with neither a declared `default` nor a `*` fallback renders
+    // inert until a server parameter selects a route. Warning, not an error.
+    var hasAny = false
+    var hasDefault = false
+    var hasFallback = false
+    var firstLoc : ubigint = 0
+    for(var i : uint = 0; i < routes.size(); i++) {
+        const rn = routes.get(i)
+        if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
+        var r = rn as *mut JsRouteDecl
+        if(!hasAny) { firstLoc = r.decl_loc }
+        hasAny = true
+        if(r.is_default) { hasDefault = true }
+        if(r.is_fallback) { hasFallback = true }
+    }
+    if(hasAny && !hasDefault && !hasFallback) {
+        var msg = std::string("router \"")
+        msg.append_view(&routerName)
+        msg.append_view("\" has no default route; the page renders inert without a server parameter")
+        converter.router_warn(&msg, firstLoc)
+    }
 
     // R7: at most one fallback, and it must be the last route.
     var sawFallback = false
@@ -1064,6 +1138,7 @@ func (converter : &mut JsConverter) router_emit_url_table(name : std::string_vie
         table.append_view("], id: \"")
         router_js_escape(e.id, &mut table)
         table.append_view("\"")
+        if(e.prefix) { table.append_view(", prefix: true") }
         if(e.chainRegs.size() > 0) {
             table.append_view(", chain: [")
             for(var c : uint = 0; c < e.chainRegs.size(); c++) {

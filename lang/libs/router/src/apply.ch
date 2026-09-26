@@ -87,6 +87,7 @@ public func apply_route_url(page : &mut HtmlPage, router : std::string_view, spe
             segments : pattern_segments(pattern),
             id : id,
             is_fallback : fb.size() > 0 && fb.get(0) == '1',
+            prefix : fb.size() > 0 && fb.get(0) == '2',
             chain : parse_route_chain(chainField)
         })
     }

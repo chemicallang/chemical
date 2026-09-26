@@ -6,3 +6,7 @@
 void ASTDiagnosererror(ASTDiagnoser* diagnoser, chem::string_view* msg, uint64_t loc) {
     diagnoser->error(*msg, loc);
 }
+
+void ASTDiagnoserwarning(ASTDiagnoser* diagnoser, chem::string_view* msg, uint64_t loc) {
+    diagnoser->warn(*msg, loc);
+}

@@ -463,9 +463,12 @@ so the plugin parses using the same parser/allocator as the compiler.
 
 `ASTDiagnosererror(diagnoser, msg, loc)` (`ASTDiagnoserCBI.cpp:6`) calls
 `diagnoser->error(...)`. This is how macros report compile-time errors from replacement /
-symres hooks. The `diagnoser` passed to replacement hooks is the **live codegen
-diagnoser**, not a throwaway (see `Model.h:105-113` comment), so errors surface through the
-normal pipeline.
+symres hooks. `ASTDiagnoserwarning(diagnoser, msg, loc)` calls `diagnoser->warn(...)` and
+backs the Chemical-side `diagnoser.warning(...)`; a warning does **not** fail the build, so
+negative tests assert it with `expect_compile_output_contains` (not
+`expect_compile_error_*`). Both are registered in `CBI.cpp`'s `ASTDiagnoserSymMap`. The
+`diagnoser` passed to replacement hooks is the **live codegen diagnoser**, not a throwaway
+(see `Model.h:105-113` comment), so diagnostics surface through the normal pipeline.
 
 ### `AnnotationController`
 

@@ -9,6 +9,7 @@ func make_pattern(pattern : std::string_view, id : std::string_view, is_fallback
         segments : pattern_segments(pattern),
         id : id,
         is_fallback : is_fallback,
+        prefix : false,
         chain : std::vector<RouteChainStep>()
     }
 }
@@ -132,6 +133,7 @@ public func test_router_match_carries_nested_chain(env : &mut TestEnv) {
         segments : pattern_segments("/a/{x}/settings"),
         id : std::string_view("/a/{x}"),
         is_fallback : false,
+        prefix : false,
         chain : chain
     })
     const m = match_route(&mut patterns, "/a/1/settings", "")
@@ -147,4 +149,30 @@ public func test_router_match_carries_nested_chain(env : &mut TestEnv) {
     top.push(make_pattern("/a/{x}", "/a/{x}"))
     const mt = match_route(&mut top, "/a/1", "")
     if(mt.chain.size() != 0) { env.error("a top-level match must have an empty chain") }
+}
+
+@test
+public func test_router_match_prefix_fallback(env : &mut TestEnv) {
+    var patterns = std::vector<RoutePattern>()
+    patterns.push(make_pattern("/a/{x}", "/a/{x}"))
+    var chain = std::vector<RouteChainStep>()
+    chain.push(RouteChainStep { reg : std::string_view("main#/a/{x}"), id : std::string_view("*") })
+    patterns.push(RoutePattern {
+        segments : pattern_segments("/a/{x}"),
+        id : std::string_view("/a/{x}"),
+        is_fallback : false,
+        prefix : true,
+        chain : chain
+    })
+    // An exact entry on the same pattern wins for the bare path.
+    const me = match_route(&mut patterns, "/a/1", "")
+    if(!me.matched || me.chain.size() != 0) {
+        env.error("an exact match must win over a prefix entry")
+    }
+    // The prefix entry catches a longer, otherwise-unmatched path.
+    const mp = match_route(&mut patterns, "/a/1/unknown", "")
+    if(!mp.matched) { env.error("a prefix entry should catch a longer path"); return }
+    if(!mp.id.equals(std::string_view("/a/{x}"))) { env.error("prefix entry id") }
+    if(mp.params.size() != 1) { env.error("prefix entry should capture the prefix params") }
+    if(mp.chain.size() != 1) { env.error("the prefix entry should carry its chain") }
 }

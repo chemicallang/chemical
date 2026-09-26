@@ -439,3 +439,76 @@ public func test_router_nested_without_inline_outlet_still_renders_children(env 
         env.info(html.data())
     }
 }
+
+// ── nested `route *` fallback (prefix match under a URL layout) ─────────────
+
+#universal NestedFbPane(props) {
+    return <div class="nfb-pane">Missing {props.id}</div>
+}
+
+#universal NestedFallbackApp(props) {
+    router "nfb" {
+        route default #"home" { <div>Home</div> }
+        route "/projects/{id}" {
+            route default #"overview" { <NestedUrlPane /> }
+            route "/settings" { <div class="nfb-settings">Settings</div> }
+            route * { <NestedFbPane /> }
+            <div class="nfb-lay"><Outlet /></div>
+        }
+    }
+}
+
+@test
+public func test_router_nested_fallback_catches_unknown_remainder(env : &mut TestEnv) {
+    var page = HtmlPage()
+    page.set_route_url("/projects/42/unknown", "")
+    #html { <NestedFallbackApp /> }
+    var html = page.getHtml()
+    if(page.route_missing()) {
+        env.error("a nested `route *` should catch an unknown remainder")
+    }
+    const fbActive = std::string_view("data-uni-route=\"nfb#/projects/{id}#*\" data-uni-route-active=\"true\"")
+    if(html.find(&fbActive) == std::NPOS) {
+        env.error("the nested fallback wrapper should be active")
+        env.info(html.data())
+        return
+    }
+    const layoutActive = std::string_view("data-uni-route=\"nfb#/projects/{id}\" data-uni-route-active=\"true\"")
+    if(html.find(&layoutActive) == std::NPOS) {
+        env.error("the outer layout should stay active for a nested fallback")
+    }
+    const rendered = std::string_view("class=\"nfb-pane\">Missing 42</div>")
+    if(html.find(&rendered) == std::NPOS) {
+        env.error("the nested fallback should render the inherited {id}")
+        env.info(html.data())
+    }
+}
+
+@test
+public func test_router_nested_exact_still_wins_over_fallback(env : &mut TestEnv) {
+    var page = HtmlPage()
+    page.set_route_url("/projects/42", "")
+    #html { <NestedFallbackApp /> }
+    var html = page.getHtml()
+    const defaultActive = std::string_view("data-uni-route=\"nfb#/projects/{id}#overview\" data-uni-route-active=\"true\"")
+    if(html.find(&defaultActive) == std::NPOS) {
+        env.error("the nested default must win over the fallback for the bare layout URL")
+    }
+    const fbInactive = std::string_view("data-uni-route=\"nfb#/projects/{id}#*\" data-uni-route-active=\"false\"")
+    if(html.find(&fbInactive) == std::NPOS) {
+        env.error("the nested fallback must be hidden for an exact match")
+    }
+}
+
+@test
+public func test_router_nested_url_child_wins_over_fallback(env : &mut TestEnv) {
+    var page = HtmlPage()
+    page.set_route_url("/projects/7/settings", "")
+    #html { <NestedFallbackApp /> }
+    var html = page.getHtml()
+    const settingsActive = std::string_view("data-uni-route=\"nfb#/projects/{id}#/settings\" data-uni-route-active=\"true\"")
+    if(html.find(&settingsActive) == std::NPOS) {
+        env.error("the nested URL child must win over the fallback")
+        env.info(html.data())
+    }
+}

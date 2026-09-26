@@ -421,3 +421,39 @@
         expect(r.current()).toBe('/projects/{id}')
     </script>
 }
+
+// ── nested `route *` fallback (prefix match under a URL layout) ─────────────
+
+#universal UtNestedFbChild(props) {
+    return <div data-testid="ut-nfb-pane">Missing</div>
+}
+
+#universal UtRouterNestedFallback(props) {
+    router "ut-nfb" {
+        route default #"home" { <div data-testid="ut-nfb-home">Home</div> }
+        route "/projects/{id}" {
+            route default #"overview" { <div data-testid="ut-nfb-overview">Overview</div> }
+            route "/settings" { <div data-testid="ut-nfb-settings">Settings</div> }
+            route * { <UtNestedFbChild /> }
+            <div data-testid="ut-nfb-lay"><Outlet /></div>
+        }
+    }
+}
+
+#universal_test("router nested fallback catches an unknown remainder client-side", isolate) {
+    <UtRouterNestedFallback />
+    <script>
+        const r = window.$__uni_routers['ut-nfb']
+        expect(r.activateRouteByUrl('/projects/42/unknown/deeper')).toBe(true)
+        await t.sleep(40)
+        expect(r.current()).toBe('/projects/{id}')
+        const nr = window.$__uni_routers['ut-nfb#/projects/{id}']
+        expect(nr.current()).toBe('*')
+        expect(byTestId('ut-nfb-pane').exists()).toBe(true)
+        // an exact nested child still wins over the fallback
+        expect(r.activateRouteByUrl('/projects/42/settings')).toBe(true)
+        await t.sleep(40)
+        expect(nr.current()).toBe('/settings')
+        expect(byTestId('ut-nfb-settings').text()).toBe('Settings')
+    </script>
+}

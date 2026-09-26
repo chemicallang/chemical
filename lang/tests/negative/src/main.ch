@@ -256,6 +256,30 @@ internal func expect_compile_output_contains(env : &mut TestEnv, name : *char, c
     cleanup_test_dir(NEG_WORK_DIR, name)
 }
 
+// Asserts the compiler did NOT print `unexpected_sub` (e.g. a warning that must
+// not fire for a valid case), while still compiling successfully.
+internal func expect_compile_output_not_contains(env : &mut TestEnv, name : *char, ch_content : *char, unexpected_sub : *char, mod_content : *char) {
+    setup_test_files(NEG_WORK_DIR, name, mod_content, ch_content)
+
+    var mod_path : char[512]
+    sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name)
+    var out_path : char[512]
+    sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
+
+    var output_buf : char[16384]
+    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 16384)
+
+    if(rc != 0) {
+        env.error("expected compiler to succeed")
+        neg_debug_print(name, unsafe(&raw output_buf[0]))
+    } else if(string_contains(unsafe(&raw output_buf[0]), unexpected_sub)) {
+        env.error("unexpected diagnostic substring found in output")
+        neg_debug_print(name, unsafe(&raw output_buf[0]))
+    }
+
+    cleanup_test_dir(NEG_WORK_DIR, name)
+}
+
 internal func expect_compile_success(env : &mut TestEnv, name : *char, ch_content : *char) {
     setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
 

@@ -103,3 +103,18 @@ public func neg_router_ambiguous_nested_patterns(env : &mut TestEnv) {
     expect_compile_error_with_mod(env, "router_ambiguous_nested_patterns", ch,
         "are ambiguous", NEG_MOD_UNIVERSAL)
 }
+
+@test
+public func warn_router_no_default(env : &mut TestEnv) {
+    var ch = "#universal A(props) {\n    return <span>x</span>\n}\n#universal Host(props) {\n    router \"m\" {\n        route #\"a\" { <A /> }\n        route #\"b\" { <A /> }\n    }\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_output_contains(env, "router_no_default", ch,
+        "router \"m\" has no default route; the page renders inert without a server parameter", NEG_MOD_UNIVERSAL)
+}
+
+@test
+public func warn_router_no_default_absent_when_fallback(env : &mut TestEnv) {
+    var ch = "#universal A(props) {\n    return <span>x</span>\n}\n#universal Host(props) {\n    router \"m\" {\n        route #\"a\" { <A /> }\n        route * { <A /> }\n    }\n}\npublic func main() : int {\n    return 0\n}\n"
+    // The compiler still succeeds, and the R10 warning must not be present.
+    expect_compile_output_not_contains(env, "router_no_default_absent", ch,
+        "has no default route", NEG_MOD_UNIVERSAL)
+}

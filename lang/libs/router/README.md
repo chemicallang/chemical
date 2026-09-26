@@ -108,10 +108,10 @@ call differ.
 Implemented: all of Phases 0–7. Phase 6 includes nested `route` + inline
 `<Outlet />`, derived nested registries, cascade activation, **full URL nesting**
 (nested URL routes match on both server and client via full accumulated patterns
-and an activation chain; ancestor params are inherited; nested ids resolve in
+and an activation chain; ancestor params are inherited; a nested `route *`
+catches an unknown remainder via a prefix entry; nested ids resolve in
 `buildPath`; nested routers are fully validated), and Phase 7 (a conservative
 static-route SSR snapshot cache with a mutex-guarded process-global store and a
 concurrent-render test). Not yet implemented: an `<Outlet />` supplied by a
-separate layout component, a **hydrated outer layout**, a nested `route *`
-catching an unknown remainder, R11/R12, R10, and a site-level rewrite map. See the
-design doc §16 for the exact state and known divergences.
+separate layout component, a **hydrated outer layout**, R11/R12, and a site-level
+rewrite map. See the design doc §16 for the exact state and known divergences.

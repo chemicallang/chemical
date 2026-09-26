@@ -463,6 +463,7 @@ const std::pair<chem::string_view, void*> TransformerContextSymMap[] = {
 
 const std::pair<chem::string_view, void*> ASTDiagnoserSymMap[] = {
         {"compiler_ASTDiagnosererror", (void*) ASTDiagnosererror},
+        {"compiler_ASTDiagnoserwarning", (void*) ASTDiagnoserwarning},
 };
 
 #ifdef LSP_BUILD

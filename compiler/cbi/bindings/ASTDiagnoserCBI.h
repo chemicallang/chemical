@@ -11,4 +11,6 @@ extern "C" {
 
     void ASTDiagnosererror(ASTDiagnoser* diagnoser, chem::string_view* msg, uint64_t loc);
 
+    void ASTDiagnoserwarning(ASTDiagnoser* diagnoser, chem::string_view* msg, uint64_t loc);
+
 }

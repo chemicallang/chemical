@@ -38,6 +38,17 @@ public func neg_router_body_no_root(env : &mut TestEnv) {
         "route body must render exactly one root element", NEG_MOD_UNIVERSAL)
 }
 
+// R17: the router mounts a single subtree, so a second JSX root would be
+// silently dropped. (An emitter-only body — no root at all — is legal: see
+// `router_body_emitter_renders_into_route_host` in the emission suite.)
+
+@test
+public func neg_router_body_two_roots(env : &mut TestEnv) {
+    var ch = "#universal A(props) {\n    return <span>x</span>\n}\n#universal Host(props) {\n    router \"m\" {\n        route #\"a\" { <A />; <A /> }\n    }\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "router_body_two_roots", ch,
+        "route body must render at most one root element", NEG_MOD_UNIVERSAL)
+}
+
 @test
 public func neg_router_unsupported_pattern(env : &mut TestEnv) {
     var ch = "#universal A(props) {\n    return <span>x</span>\n}\n#universal Host(props) {\n    router \"m\" {\n        route \"/a/*\" { <A /> }\n    }\n}\npublic func main() : int {\n    return 0\n}\n"

@@ -322,6 +322,94 @@ public func router_id_router_has_no_popstate_sync(env : &mut TestEnv) {
     }
 }
 
+// ── Server-rendered route bodies (bare `${…}` emitters, design §1.1 / R17) ──
+//
+// A route body may be one or more bare `${ fn(page) }` statements instead of a
+// JSX root. The emitter writes straight into the page's HTML buffer at render
+// time, so the route's content is server-rendered; with no root the route has
+// `comp: null` and the router is pure show/hide over that HTML.
+
+func router_test_emit_section(page : &mut HtmlPage, who : string_view) {
+    var msg = string("SECTION ")
+    msg.append_view(&who)
+    #html { <div class="emitted">{msg}</div> }
+}
+
+#universal RouterEmitApp(props) {
+    router "mainEmit" {
+        route default #"dashboard" { ${router_test_emit_section(page, "DASHBOARD")} }
+        route #"archived" { ${router_test_emit_section(page, "ARCHIVED")} }
+    }
+}
+
+#universal RouterEmitRootApp(props) {
+    router "mainEmitRoot" {
+        route default #"mixed" {
+            // The trailing `;` matters: without it the JS expression parser reads
+            // the following `<` as a less-than operator (see the skill's gotcha).
+            ${router_test_emit_section(page, "MIXED")};
+            <div class="mixed-root">root</div>
+        }
+    }
+}
+
+@test
+public func router_body_emitter_renders_into_route_host(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <RouterEmitApp /> }
+    var html = page.getHtml()
+
+    // Both routes' server-rendered sections ship with the page.
+    const dashSection = std::string_view("<div class=\"emitted\">SECTION DASHBOARD</div>")
+    if(html.find(&dashSection) == std::NPOS) {
+        env.error("an emitter-only route body must render its server section")
+        return
+    }
+    const archSection = std::string_view("<div class=\"emitted\">SECTION ARCHIVED</div>")
+    if(html.find(&archSection) == std::NPOS) {
+        env.error("every emitter-only route body must render its server section")
+        return
+    }
+
+    // The section lands inside the route's wrapper + boundary host, so a later
+    // activation only has to show it.
+    const dashWrapper = std::string_view("data-uni-route=\"mainEmit#dashboard\"")
+    const dashAt = html.find(&dashWrapper)
+    const dashSectionAt = html.find(&dashSection)
+    if(dashAt == std::NPOS || dashSectionAt == std::NPOS || dashSectionAt < dashAt) {
+        env.error("the server section must render inside its route wrapper")
+        return
+    }
+    if(html.find(&std::string_view("data-uni-route-active=\"true\"")) == std::NPOS) {
+        env.error("the declared default route should render active")
+        return
+    }
+
+    // No JSX root: the route must register as a pure show/hide route.
+    var js = page.getJs()
+    const stub = std::string_view("window.$__uni_route_register(\"mainEmit\", \"dashboard\", { key: \"mainEmit#dashboard\", id: \"dashboard\", comp: null")
+    if(js.find(&stub) == std::NPOS) {
+        env.error("an emitter-only route body must register with no client root")
+        env.info(js.data())
+    }
+}
+
+@test
+public func router_body_emitter_plus_root_emits_both(env : &mut TestEnv) {
+    var page = HtmlPage()
+    #html { <RouterEmitRootApp /> }
+    var html = page.getHtml()
+    const section = std::string_view("<div class=\"emitted\">SECTION MIXED</div>")
+    if(html.find(&section) == std::NPOS) {
+        env.error("a route body may combine a server emitter with a JSX root")
+        return
+    }
+    const root = std::string_view("<div class=\"mixed-root\">root</div>")
+    if(html.find(&root) == std::NPOS) {
+        env.error("the JSX root of a mixed route body must still render")
+    }
+}
+
 @test
 public func router_nested_url_emits_full_pattern_and_chain(env : &mut TestEnv) {
     var page = HtmlPage()

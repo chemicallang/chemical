@@ -703,7 +703,8 @@ of the macro — the compiler never crashes, and bad code never reaches the brow
 | `router` at top level of `#html` (not inside a component) | "router must be declared inside a #universal component" |
 | duplicate route id in one router | "route '#projects' is declared twice in router \"main-router\"" |
 | duplicate router name on a page | "router \"main-router\" is declared twice" |
-| route body with no / multiple JSX roots | "route body must render exactly one root element" |
+| route body with nothing to render (no JSX root and no `${…}` emitter) | "route body must render exactly one root element" |
+| route body with more than one JSX root | "route body must render at most one root element" |
 | `route *` declared twice, or after it another route | "fallback route must be the last route" |
 | `activateRoute("typo")` in a Chemical expression | "no route '#typo' in router \"main-router\"" (see below) |
 | route body referencing `$` runtime globals directly | "route bodies cannot call runtime internals; use component APIs" |
@@ -2599,7 +2600,7 @@ a contained runtime report (`console.error`).
 | R3 | duplicate route id in one router | error | `route '#x' is declared twice in router "m"` |
 | R4 | duplicate router name in one module | error | `router "m" is declared twice` |
 | R5 | second registration of a router name at runtime | runtime | `router "m" already registered` |
-| R6 | route body with 0 or >1 JSX roots | error | `route body must render exactly one root element` |
+| R6 | route body with nothing to render — no JSX root **and** no `${…}` server emitter | error | `route body must render exactly one root element` |
 | R7 | `route *` duplicated or not last | error | `fallback route must be the last route` |
 | R8 | literal id in `activateRoute`/`preload`/`buildPath` not declared | error | `no route '#x' in router "m"` |
 | R9 | two patterns can match one path identically | error | `route patterns '/a/{x}' and '/a/{y}' are ambiguous` |
@@ -2610,6 +2611,44 @@ a contained runtime report (`console.error`).
 | R14 | route body references `$__uni_*` internals | error | `route bodies cannot call runtime internals` |
 | R15 | `lazy` on the outermost router's `default` route | error | `'lazy' has no effect on the default route: the default route is always hydrated at load (remove 'lazy', or use 'preload' to say so explicitly)` |
 | R16 | more than one mode keyword on one route | error | `route declares more than one mode ('lazy', 'preload', 'remote')` |
+| R17 | more than one JSX root in a route body | error | `route body must render at most one root element` |
+
+**D-14.8.1 — Server-rendered route bodies (emitters).**
+
+A route body does **not** have to be a JSX root. It may be one or more bare
+`${ fn(page) }` statements, which the converter emits into the route's SSR
+output in statement order — the same emission a `${…}` statement gets at a
+`#universal` component body level. This is the server-side-setup form of a
+route: the app's own render function writes complete elements (`#html { … }`
+with its usual `@{…}` sub-emitters) into the page's HTML buffer at render time.
+
+```chemical
+#universal NavRoutes(props) {
+    router "nav" {
+        route default #"dashboard" { ${render_dashboard(page)} }
+        route "/archived"          { ${render_archived(page)} }
+        route "/trash"             { ${render_trash(page)} }
+    }
+}
+```
+
+Consequences:
+
+- A body made **only** of emitters has no JSX root, so the route registers with
+  `comp: null`: the router is pure show/hide over server-rendered HTML, and the
+  section is present in the initial HTML (no-JS and crawlers included). Hidden
+  routes ship their HTML too — that is what makes a switch instant.
+- An emitter may be **combined with** a root (`${emit(page)}; <div>…</div>`);
+  the emitter's HTML is written before the root's. The `;` is required there:
+  without it the JS expression parser reads the following `<` as a less-than
+  operator and the body fails to parse.
+- A body with any emitter is never snapshot-cached (`router_body_is_static`
+  returns false), because the emitter writes request data into the buffer.
+- Body locals (`var x = ${…}`) and conditionals also run in statement order now,
+  so a route body can compute before it renders.
+- An emitter is a **statement**. `${…}` inside a route body's JSX is a *value*
+  interpolation (the usual rule), not an emission; put the emitter at the body
+  level.
 
 ### 14.9 Testing decisions
 

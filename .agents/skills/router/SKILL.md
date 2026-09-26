@@ -59,7 +59,32 @@ Rules and notes:
 - `route #"id"` is an **id route** (no URL semantics). `route "/a/{b}"` is a
   **URL route** (its record id is the normalized pattern). `route *` is the
   fallback; it must be last and there may be at most one.
-- A route body must render exactly **one** JSX root (diagnostic R6).
+- A route body must render **something**: either exactly one JSX root, or one
+  or more bare `${ fn(page) }` statements that render the route's HTML
+  server-side (**R6** errors when it has neither; **R17** when it has more than
+  one root). An emitter-only body has no root, so the route registers with
+  `comp: null` and the router is pure show/hide over server-rendered HTML:
+
+```chemical
+func render_dashboard(page : &mut HtmlPage) {
+    #html { <section class="dash">…</section> }
+}
+
+#universal NavRoutes(props) {
+    router "nav" {
+        route default #"dashboard" { ${render_dashboard(page)} }
+        route "/archived"          { ${render_archived(page)} }
+    }
+}
+```
+
+  An emitter may be combined with a root (`${emit(page)}; <div>…</div>`); the
+  emitter's HTML is written before the root's. **That `;` is required** —
+  without it the JS expression parser reads the following `<` as a less-than
+  operator and the body does not parse. Emitters are statements: `${…}` inside
+  the body's JSX is a value interpolation, not an emission. A body with any
+  emitter is never snapshot-cached, and a route body local (`var x = …`) or
+  conditional now runs in statement order before the root renders.
 - Hooks go next to the root: `onActivate`, `onDeactivate`, `onBeforeActivate`
   (returning `false` cancels before any DOM change).
 - Modes: `preload` | `lazy` | `remote`, optionally `noscroll`, then `title "…"`.
@@ -218,7 +243,20 @@ call differ.
 
 Components (`RouterLink`, `NavLink`, `Outlet`) and the matcher live in the
 `router` library; `page` owns only the generic parameter store and the client
-runtime emission. The library depends on `page` + `std`, **never** on
+runtime emission.
+
+**Server-rendered content (emitters).** A route body may be bare `${ fn(page) }`
+statements instead of (or as well as) a JSX root. The converter emits them into
+the route's SSR output in statement order via `emit_route_body_statements`
+(`emit.ch`), which reuses the component-body emission path (`emit_ssr_single_stmt`
++ `convertChemicalValue`), skipping the body's nested `route` declarations. The
+route then has no root, so `router_route_comp` yields `""` → `comp: null` and the
+route is a pure show/hide wrapper around server-rendered HTML. Two consequences:
+`router_body_is_static` returns false for any body with an emitter (never
+snapshot-cached), and an emitter-only route hydrates nothing — interactive
+pieces inside it still hydrate through their own `$__uni_dispatch` script (they
+are ordinary SSR renders), so keep `lazy`-only expectations for the *route*,
+not for components embedded in an emitted section. The library depends on `page` + `std`, **never** on
 `net`/`tls`/`http`.
 
 ---
@@ -385,7 +423,7 @@ hydration).
 Emitted by the converter (`emit.ch`) with a source location, except R5 (runtime).
 All are **errors** except R10, which is a **warning** (the CBI
 `ASTDiagnoser.warning` channel; see the change-impact map). R3/R6/R7/R8/R9/R10/
-R11/R12/R13/R14 apply recursively to nested routers under their derived name
+R11/R12/R13/R14/R17 apply recursively to nested routers under their derived name
 `parent#id` (R11/R12 use the *accumulated* pattern). R11/R12 read the route root
 component's parsed JS body via `ComponentSignature.js_body` (set by the
 `#universal` macro).
@@ -395,7 +433,7 @@ component's parsed JS body via `ComponentSignature.js_body` (set by the
 | R1 | `route` outside a `router` | `'route' declaration is only valid inside a router block` |
 | R3 | duplicate route id | `route '#x' is declared twice in router "m"` |
 | R4 | duplicate router name in one body | `router "m" is declared twice` |
-| R6 | route body ≠ 1 JSX root | `route body must render exactly one root element` |
+| R6 | route body renders nothing (no JSX root **and** no `${…}` emitter) | `route body must render exactly one root element` |
 | R7 | fallback not last | `fallback route must be the last route` |
 | R8 | literal id not declared | `no route 'x' in router "m"` |
 | R9 | two same-shape URL patterns | `route patterns '/a/{x}' and '/a/{y}' are ambiguous` |
@@ -404,6 +442,9 @@ component's parsed JS body via `ComponentSignature.js_body` (set by the
 | R12 | `dangerouslySetInnerHTML` fed a route param | `route params must not be injected as raw HTML` |
 | R13 | unsupported pattern (mid `*`) | `unsupported route pattern '…'` |
 | R14 | `$__uni_*` in a route body/hook | `route bodies cannot call runtime internals` |
+| R15 | `lazy` on the outermost router's `default` route | `'lazy' has no effect on the default route: the default route is always hydrated at load (remove 'lazy', or use 'preload' to say so explicitly)` |
+| R16 | two mode keywords on one route | `route declares more than one mode ('lazy', 'preload', 'remote')` |
+| R17 | more than one JSX root in a route body | `route body must render at most one root element` |
 
 R5 (second registration of a router name) is prevented at emission time by the
 page-singleton component-dedup guard; the runtime reports a
@@ -419,8 +460,8 @@ throws).
 | Router library + server | `./scripts/test.sh --tcc --libs` | matcher, build_path, query (`parse_query`, `set_route_query`/`query_param` incl. `%XX` key+value decode, `+` literal, bare key, last-wins, leading `?` strip, empty) + `get_route_query`, redirect (`redirect_to` selection, path recording, no-path no-op, redirect-wins-over-URL-match), fallback `props.__path` (delivered + escaped), store, `apply_route_url`/deep links, params, decoding, titles/noindex, nested, snapshot cold/warm, 8-thread concurrent byte-identity, same-name **and same-route-id** routers do not collide, reset-then-re-cold byte-identity (and `reset_route_snapshots` frees the owned bytes — `RouteSnapshot.data` owns a `std::string`) |
 
 There is no server-side fragment suite: `remote` is client-only (§6.7).
-| Compiler emission | `./scripts/test.sh --tcc --plugins` | `router_emission.ch` — SSR wrappers, registry/stubs, modes (`preload` emitted, `lazy`/default not), hooks, precedence, nested, `RouterLink` |
-| Diagnostics | `./scripts/test.sh --tcc --negative` | `router_diagnostics.ch` — one case per R* message string, incl. **R15** (`lazy` on the outermost `default` route, while a hidden route keeps it) and **R16** (two mode keywords, was silent last-wins) |
+| Compiler emission | `./scripts/test.sh --tcc --plugins` | `router_emission.ch` — SSR wrappers, registry/stubs, modes (`preload` emitted, `lazy`/default not), hooks, precedence, nested, `RouterLink`, and **server-rendered route bodies** (`router_body_emitter_renders_into_route_host`: the emitted section lands inside the route host and the route registers `comp: null`; `router_body_emitter_plus_root_emits_both`: an emitter combined with a JSX root) |
+| Diagnostics | `./scripts/test.sh --tcc --negative` | `router_diagnostics.ch` — one case per R* message string, incl. **R15** (`lazy` on the outermost `default` route, while a hidden route keeps it), **R16** (two mode keywords, was silent last-wins) and **R17** (two JSX roots; the emitter-only body it must *not* reject is pinned in the emission suite. Write the two roots as `<A />; <A />` — without the `;` the JS parser reads `<` as less-than and the test never reaches R17). Host note: on a loaded machine the whole negative suite can trip its 10 s per-test timeout on the router cases; run those by name (`--test-names`) to get a true result. |
 | Behaviour (real WebKit) | `./scripts/test.sh --tcc --universal` | `tests_router.ch` — navigation + exactly-one-visible (INV-1), O(1) no-op re-activate + change-only signals (INV-11), unknown-id/error containment (INV-3/INV-15), `deactivate`, multi-router independence, null-object accessor, hydration (`preload`/`lazy`, effects-once, only-default+preload hydrated), `release` re-arm, `noscroll`, focus restore, hook ordering/guard allow+deny/error isolation/re-entrancy queue, link `aria-current` (+ param-aware `$url`), `NavLink`, RouterLink passthrough attributes (id/class/data-*/target/rel forwarded; router-only props stripped) + ancestor-aware active matching with a segment boundary and an `end` opt-out + NavLink class merge, preload-on-hover (+ `preloadByUrl` when the link has only an `href`), the `$__uni_should_intercept` matrix, URL client match (percent-decode, `%2F`/`+`, trailing slash, base), query/`setQuery`/`buildPath`, `replaceRoute(byUrl)`, activateRoute-with-params, param-change remount (INV-2/INV-10), `popstate` fallback + guard-back re-sync, remote failure containment (INV-21) including the transient boundary-less retry (a fragment with no `data-chx-i` does not poison the route), nested layout state + independent signals, title/base-title, the non-div hide rule (INV-8), the fallback `props.__path` per-miss delivery, and the route-change live-region announcement (`#chx-route-live` text = title/id, cleared on deactivate). **Phase 2 hardening:** history push/replace/no-op dispatch (stubbed `pushState`/`replaceState`), `$url`+`$query` change-only fires, query decode parity (`+` literal, bare key, unicode, malformed percent), `setQuery` encode+clear+path preservation, `buildPath` percent round-trips (`%2F`/space/`%`/unicode), duplicate/trailing slash normalization, `normPath` fragment+query stripping, `set_table_base` (match/`buildPath`/`currentUrl`), fragment-bearing activation URLs, guard flag deny→allow, `.`/`..` never a param, nested param inheritance + remount (`/p/1/x/a → /p/2/x/c`), `activate_initial` chain vs id-default fallback, remote prefetch store / in-flight dedup / blocked release / successful-fragment activation / **stale-fetch race (superseded fetch never activates over the newer route; background prefetch not aborted; `deactivate` cancels a pending activation)**, `isActive` on a URL pattern id + id activation nulling `$url`, nested-deactivate state preservation, `%2E`-encoded traversal rejection, `buildPath` for the fallback id (client `null`), preload/release of a never-hydrated route, and relative-href rendering + non-interception. **Remaining edges:** the `$current`-vs-`$url` split on a param change (a param change fires only `$url`), unknown-id containment across all seven mutating methods (`activateRoute`/`replaceRoute`/`activateRouteByUrl`/`replaceRouteByUrl`/`preload`/`release`/`buildPath`), case-sensitive literal segments, `buildPath` ignoring extra params, a query-bearing link href comparing on the normalized path, `NavLink routeId` on an id route, `onBeforeActivate`/`onActivate` receiving the resolved URL, `onDeactivate` firing once for the outgoing route only, remote prefetch-then-activate reusing the fragment (no refetch), releasing an activated remote route clearing its host and re-mounting from the cache, popstate-to-current being a no-op and popstate-after-deactivate re-deriving, `setQuery` on an id-only router, and lowercase `%2f` decoding as data |
 | Both backends | `--llvm --libs` / `--llvm --plugins` | LLVM parity for emission + server tests |
 
@@ -477,6 +518,10 @@ When adding a behaviour:
 - **No DOM queries on the activation path** — boundaries/wrappers are resolved at
   bootstrap by source-derived ids.
 - **Route bodies never enter the hydration queue**; only the router mounts them.
+- **A route body with any `${…}` emitter registers `comp: null`** (no JSX root →
+  no client component) and is never snapshot-cached; its HTML is server-rendered
+  on every request. Emitter statements must be terminated with `;` before a
+  following JSX statement in the same body.
 - **Signals are written only when the value changes** (`$current`, `$url`,
   `$query`); an empty query compares equal to `null`, so `query()` stays `null`
   until the URL actually carries a query.
@@ -533,6 +578,7 @@ the separate-component outlet, and the site-level rewrite-map aggregate
 | Hydrated layout / `__uni_outlet` (universal side) | `converter_jsx.ch`, `emit.ch` (`emit_route_layout_client`/`emit_route_children_client`), `router_runtime.ch` (`$__uni_route_props` children + slot relocation), `page.ch`'s `$__uni_hydrate_node`/`$_urn`, `Outlet.ch` (slot), the `universal` skill, this skill §2.4/§4/§5 |
 | Site rewrite aggregate | `page.ch` (`site_routes_aggregate`/`write_site_routes`), `lang/tests/libs/router/src/site.ch`, this skill §5 |
 | A diagnostic message | `emit.ch`, `router_diagnostics.ch`, this skill §2.6, design doc §14.8 |
+| Server-rendered route content (`emit_route_body_statements`, R6/R17 bounds) | `emit.ch` (`emit_route_body_statements`, `router_count_emitters`, `router_validate_routes`, `router_body_is_static`), `router_emission.ch`, this skill §1.1/§2.2/§2.6/§4, design doc §14.8/§14.8.1 |
 | A route-root-component prop rule (R11/R12) | `emit.ch` (`router_collect_prop_reads`/`router_validate_props`), `html_comp/ast.ch` (`ComponentSignature.js_body`), `universal_cbi/src/react/macro.ch`, `router_diagnostics.ch`, this skill §2.6 |
 | The CBI diagnoser channel (e.g. adding `warning`) | `compiler/cbi/bindings/ASTDiagnoserCBI.{h,cpp}`, `CBI.cpp`'s `ASTDiagnoserSymMap`, `lang/libs/compiler/src/ASTDiagnoser.ch`, `lang/tests/negative/src/main.ch` (`expect_compile_output_contains`), this skill §2.6 |
 | Page server API (`page.ch` router methods) | this skill §2.4/§2.5, `lang/tests/libs/router/*`, design doc §3/§15.4 |

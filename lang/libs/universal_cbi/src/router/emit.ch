@@ -628,6 +628,48 @@ func router_count_jsx_roots(route : *mut JsRouteDecl) : int {
     return count
 }
 
+// Counts the server-emitter statements in a route body. A bare `${ fn(page) }`
+// statement is the server-rendered route-content form (D-14.8.1): the emitter
+// writes straight into the page's HTML buffer at render time, exactly as a
+// `${…}` statement at a `#universal` component body level does.
+func router_count_emitters(route : *mut JsRouteDecl) : int {
+    if(route.body == null || route.body.kind != JsNodeKind.Block) return 0
+    const block = route.body as *mut JsBlock
+    var count = 0
+    for(var i : uint = 0; i < block.statements.size(); i++) {
+        const stmt = block.statements.get(i)
+        if(stmt == null) continue
+        if(stmt.kind != JsNodeKind.ExpressionStatement) continue
+        const es = stmt as *mut JsExpressionStatement
+        if(es.expression != null && es.expression.kind == JsNodeKind.ChemicalValue) count = count + 1
+    }
+    return count
+}
+
+// Emits a route body's own statements into the route's SSR output, in order:
+// bare `${…}` server emitters, body locals, and conditionals. Nested `route`
+// declarations are skipped — they are the route's nested router and are
+// emitted separately at (or after) the outlet. `root` is the route's JSX root;
+// it is the skip value for a trailing `return <root>` so it is not rendered
+// twice.
+func (converter : &mut JsConverter) emit_route_body_statements(route : *mut JsRouteDecl, root : *mut JsNode) {
+    if(route.body == null || route.body.kind != JsNodeKind.Block) return
+    const block = route.body as *mut JsBlock
+    for(var i : uint = 0; i < block.statements.size(); i++) {
+        const stmt = block.statements.get(i)
+        if(stmt == null) continue
+        if(stmt.kind == JsNodeKind.RouteDecl) continue
+        if(stmt.kind == JsNodeKind.ExpressionStatement) {
+            const es = stmt as *mut JsExpressionStatement
+            if(es.expression != null && es.expression.kind == JsNodeKind.ChemicalValue) {
+                converter.convertChemicalValue(es.expression as *mut JsChemicalValue)
+                continue
+            }
+        }
+        converter.emit_ssr_single_stmt(stmt, root)
+    }
+}
+
 // R1: a `route` declaration outside any router block.
 func (converter : &mut JsConverter) router_diag_orphan_route(route : *mut JsRouteDecl) {
     var msg = std::string("'route' declaration is only valid inside a router block")
@@ -900,13 +942,30 @@ func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector
         }
     }
 
-    // R6: each route body must render exactly one root element.
+    // R6: each route body must render something — either exactly one root
+    // element, or (R17 excepted) one or more bare `${…}` server-emitter
+    // statements that render the route's HTML at render time. A body made only
+    // of emitters has no root: the route is pure show/hide (`comp: null`) over
+    // server-rendered HTML, which is the server-side-setup form of §1.1.
     for(var i : uint = 0; i < routes.size(); i++) {
         const rn = routes.get(i)
         if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
         var r = rn as *mut JsRouteDecl
-        if(router_count_jsx_roots(r) != 1) {
+        const roots = router_count_jsx_roots(r)
+        if(roots == 0 && router_count_emitters(r) == 0) {
             var msg = std::string("route body must render exactly one root element")
+            converter.router_diag(&msg, r.decl_loc)
+        }
+    }
+
+    // R17: at most one JSX root per route body. The router mounts a single
+    // subtree, so a second root would be silently dropped.
+    for(var i : uint = 0; i < routes.size(); i++) {
+        const rn = routes.get(i)
+        if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
+        var r = rn as *mut JsRouteDecl
+        if(router_count_jsx_roots(r) > 1) {
+            var msg = std::string("route body must render at most one root element")
             converter.router_diag(&msg, r.decl_loc)
         }
     }
@@ -1549,6 +1608,9 @@ func router_body_is_static(route : *mut JsRouteDecl) : bool {
     if(route.is_url) return false
     if(route.mode.equals(std::string_view("remote"))) return false
     if(route.hooks.size() > 0) return false
+    // A body with built-in server emission is rendered per request: the emitter
+    // writes request data into the page's HTML buffer.
+    if(router_count_emitters(route) > 0) return false
     // A layout with nested routes always emits the nested wrappers at (or after)
     // the outlet, which the snapshot of `root` would omit.
     if(router_route_nested(route).size() > 0) return false
@@ -1645,7 +1707,7 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
     // A `remote` route ships no body: the client fetches its markup from a
     // fragment endpoint the application owns (§6.7). The router renders nothing
     // server-side for it (only the empty wrapper + boundary host).
-    if(root != null && !isRemote) {
+    if(!isRemote && (root != null || router_count_emitters(route) > 0)) {
         if(router_body_is_static(route)) {
             // Phase 7: render once, cache the bytes, append on later requests.
             var snapKey = std::string()
@@ -1721,7 +1783,14 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
             }
         }
         converter.router_inject_param_props(effectivePattern.to_view(), root, route.is_fallback)
-        converter.convertJsNode(root)
+        // Server-rendered route content: bare `${…}` emitters, body locals and
+        // conditionals render into the route's output before the JSX root (if
+        // any). A body of emitters only has `root == null`, so the route is pure
+        // show/hide and `comp: null` in its stub above.
+        converter.emit_route_body_statements(route, root)
+        if(root != null) {
+            converter.convertJsNode(root)
+        }
         // No `<Outlet />` in the layout: fall back to appending the nested
         // wrappers after the layout so children are never silently dropped.
         if(nested.size() > 0 && !converter.router_outlet_emitted) {

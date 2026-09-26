@@ -78,13 +78,15 @@ func render_dashboard(page : &mut HtmlPage) {
 }
 ```
 
-  An emitter may be combined with a root (`${emit(page)}; <div>…</div>`); the
-  emitter's HTML is written before the root's. **That `;` is required** —
-  without it the JS expression parser reads the following `<` as a less-than
-  operator and the body does not parse. Emitters are statements: `${…}` inside
-  the body's JSX is a value interpolation, not an emission. A body with any
-  emitter is never snapshot-cached, and a route body local (`var x = …`) or
-  conditional now runs in statement order before the root renders.
+  An emitter may be combined with a root (`${emit(page)} <div>…</div>`); the
+  emitter's HTML is written before the root's. The `;` after the emitter is
+  **optional**: a statement-position `${…}` ends at its own closing `}`, so the
+  following `<div>` parses as a separate JSX root (a trailing `;` is still
+  accepted). Emitters are statements: `${…}` **inside** the body's JSX is a
+  value interpolation, not an emission — but a bare `${fn(page)}` as a JSX
+  *child* is itself a server-side embed (see Part 4). A body with any emitter is
+  never snapshot-cached, and a route body local (`var x = …`) or conditional now
+  runs in statement order before the root renders.
 - Hooks go next to the root: `onActivate`, `onDeactivate`, `onBeforeActivate`
   (returning `false` cancels before any DOM change).
 - Modes: `preload` | `lazy` | `remote`, optionally `noscroll`, then `title "…"`.
@@ -270,6 +272,7 @@ not for components embedded in an emitted section. The library depends on `page`
 | `#` sigil token | `js_syntax/src/TokenType.ch`, `js_syntax/src/Tokenizer.ch`, `js_cbi_lexer/src/CompilerLexer.ch` | `JsTokenType.Hash` |
 | AST nodes | `js_syntax/src/NodeKind.ch`, `js_syntax/src/Ast.ch` | `RouterDecl`, `RouteDecl`, `RouteHook`; `JsRouterDecl`, `JsRouteDecl`, `JsRouteHook` |
 | Parser | `universal_parser/src/parser/parser_router.ch`, `parser_stmt.ch` | `tryParseRouterStatement`, `js_parse_router_decl`, `js_parse_route_decl`, `js_parse_route_body` |
+| `${…}` embeds | `js_cbi_lexer/src/CompilerLexer.ch` (`is_child` guard), `universal_parser/src/parser/jsx.ch` (ChemicalStart child), `parser_stmt.ch` (statement-position `${…}` stops at its own `}`), `converter_jsx.ch` (`emit_jsx_children_js`) | server-only `${…}` JSX children, optional `;` before a following JSX root |
 | Emission + validation | `universal_cbi/src/router/emit.ch` | `emit_router_server`, `emit_route_server`, `emit_nested_routes`, `router_validate*`, `router_body_is_static`, `router_scan_internals` |
 | Hook points | `universal_cbi/src/converter/converter_utils.ch` (dispatch `RouterDecl`/`RouteDecl`), `converter_jsx.ch` (`<Outlet>` interception), `converter_core.ch` (`router(...)` → `window.$__uni_router`), `react/ast_replace.ch` (router-only bodies) | `emit_ssr_single_stmt`, `convertJSXComponent` |
 | Support resolution | `universal_cbi/src/sym_res/support_fix.ch`, `js_syntax/src/SymResSupport.ch` | `applyRouteUrlFn` |
@@ -486,6 +489,12 @@ When adding a behaviour:
 > router record) to `expect`; compare a primitive instead.
 
 ---
+
+Server-only `${…}` JSX children are supported: `<div>${fn(page)}</div>` runs the
+emitter at SSR time and renders its markup in place; the client bundle omits it
+(the server markup is adopted during hydration). It is *not* split into a `$`
+text node plus a `{…}` container (an old lexer bug). The idiomatic client-side
+child expression remains `{expr}`.
 
 ## Part 4 — Invariants and gotchas (don't regress)
 

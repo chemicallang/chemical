@@ -505,6 +505,22 @@ public func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, buil
         return dbg as *mut JsNode;
     } else if(token.type == JsTokenType.LBrace as int) {
         return jsParser.parseBlock(parser, builder);
+    } else if(token.type == JsTokenType.ChemicalStart as int) {
+        // A statement-position `${...}` is a Chemical embed (a server emitter).
+        // It must terminate at its own closing `}`, so a following `<tag>`
+        // begins a new statement instead of being read as a `<` comparison —
+        // which is why a `${emit(page)}` previously needed a trailing `;` before
+        // JSX. Parse only the primary (not the full expression continuation).
+        var chemStmtExpr = jsParser.parsePrimary(parser, builder);
+        if(chemStmtExpr != null) {
+            parser.increment_if(JsTokenType.SemiColon as int);
+            var chemStmt = builder.allocate<JsExpressionStatement>()
+            new (chemStmt) JsExpressionStatement {
+                base : JsNode { kind : JsNodeKind.ExpressionStatement },
+                expression : chemStmtExpr
+            }
+            return chemStmt as *mut JsNode;
+        }
     } else {
         // Expression statement
         var expr = jsParser.parseExpression(parser, builder);

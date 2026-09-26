@@ -167,6 +167,37 @@ public func test_router_match_rejects_dot_segments(env : &mut TestEnv) {
 }
 
 @test
+public func test_router_match_rejects_percent_encoded_dot_segments(env : &mut TestEnv) {
+    var patterns = std::vector<RoutePattern>()
+    patterns.push(make_pattern("/projects/{id}", "projects"))
+    var m = match_route(&mut patterns, "/projects/%2E%2E", "")
+    if(m.matched) { env.error("percent-encoded `..` must not be captured by a param") }
+    var m2 = match_route(&mut patterns, "/projects/%2e", "")
+    if(m2.matched) { env.error("percent-encoded `.` must not be captured by a param") }
+    var m3 = match_route(&mut patterns, "/projects/%2E.", "")
+    if(m3.matched) { env.error("a mixed encoded/literal `..` must not be captured") }
+    // A normal percent-encoded param is still captured (no regression).
+    var m4 = match_route(&mut patterns, "/projects/a%2Eb", "")
+    if(!m4.matched) { env.error("a normal percent-encoded param must still match") }
+}
+
+@test
+public func test_router_build_path_fallback_returns_root(env : &mut TestEnv) {
+    var patterns = std::vector<RoutePattern>()
+    patterns.push(make_pattern("/projects/{id}", "projects"))
+    patterns.push(make_pattern("/", "*", true))
+    var params = std::unordered_map<std::string_view, std::string_view>()
+    var path = build_path(&mut patterns, "*", &mut params)
+    var expected = std::string_view("/")
+    if(!path.to_view().equals(&expected)) {
+        // Documented client/server split: the client `buildPath` skips fallback
+        // entries (returns `null`); the server reverses the fallback to root.
+        env.error("server build_path for the fallback id should return '/'")
+        env.info(path.data())
+    }
+}
+
+@test
 public func test_router_match_prefix_fallback(env : &mut TestEnv) {
     var patterns = std::vector<RoutePattern>()
     patterns.push(make_pattern("/a/{x}", "/a/{x}"))

@@ -238,8 +238,11 @@ that order) plus one trailing slash, so matching and link-active comparison neve
 see a hash; `$__uni_should_intercept` rejects an href containing `#` (hash
 scrolling is a plain anchor) and one whose second char is a backslash (WHATWG
 treats `\` as `/`, so `/<backslash>host` is protocol-relative); `.`/`..` never
-match a `{param}` on either the client (`$__uni_match_url`) or server
-(`match_route`'s `is_dot_segment`) matcher (D-6.1).
+match a `{param}` on either the client (`$__uni_match_url` decodes + checks) or
+server (`match_route`'s `is_traversal_segment`) matcher, in literal **or**
+percent-encoded (`%2E`) form (D-6.1). The server decodes a short `%`-bearing
+segment only to test it and still returns raw views, so `apply_route_url` keeps
+ownership of decoding.
 
 ### 2.4 Server matching + URL layer
 
@@ -340,7 +343,7 @@ throws).
 | Router library + server | `./scripts/test.sh --tcc --libs` | matcher, build_path, query, store, `apply_route_url`/deep links, params, decoding, titles/noindex, nested, snapshot cold/warm + 8-thread |
 | Compiler emission | `./scripts/test.sh --tcc --plugins` | `router_emission.ch` — SSR wrappers, registry/stubs, modes, hooks, precedence, nested, `RouterLink` |
 | Diagnostics | `./scripts/test.sh --tcc --negative` | `router_diagnostics.ch` — one case per R* |
-| Behaviour (real WebKit) | `./scripts/test.sh --tcc --universal` | `tests_router.ch` — navigation + exactly-one-visible (INV-1), O(1) no-op re-activate + change-only signals (INV-11), unknown-id/error containment (INV-3/INV-15), `deactivate`, multi-router independence, null-object accessor, hydration (`preload`/`lazy`, effects-once, only-default+preload hydrated), `release` re-arm, `noscroll`, focus restore, hook ordering/guard allow+deny/error isolation/re-entrancy queue, link `aria-current` (+ param-aware `$url`), `NavLink`, preload-on-hover, the `$__uni_should_intercept` matrix, URL client match (percent-decode, `%2F`/`+`, trailing slash, base), query/`setQuery`/`buildPath`, `replaceRoute(byUrl)`, activateRoute-with-params, param-change remount (INV-2/INV-10), `popstate` fallback + guard-back re-sync, remote failure containment (INV-21), nested layout state + independent signals, title/base-title, and the non-div hide rule (INV-8). **Phase 2 hardening:** history push/replace/no-op dispatch (stubbed `pushState`/`replaceState`), `$url`+`$query` change-only fires, query decode parity (`+` literal, bare key, unicode, malformed percent), `setQuery` encode+clear+path preservation, `buildPath` percent round-trips (`%2F`/space/`%`/unicode), duplicate/trailing slash normalization, `normPath` fragment+query stripping, `set_table_base` (match/`buildPath`/`currentUrl`), fragment-bearing activation URLs, guard flag deny→allow, `.`/`..` never a param, nested param inheritance + remount (`/p/1/x/a → /p/2/x/c`), `activate_initial` chain vs id-default fallback, remote prefetch store / in-flight dedup / blocked release / successful-fragment activation, `isActive` on a URL pattern id + id activation nulling `$url`, and nested-deactivate state preservation |
+| Behaviour (real WebKit) | `./scripts/test.sh --tcc --universal` | `tests_router.ch` — navigation + exactly-one-visible (INV-1), O(1) no-op re-activate + change-only signals (INV-11), unknown-id/error containment (INV-3/INV-15), `deactivate`, multi-router independence, null-object accessor, hydration (`preload`/`lazy`, effects-once, only-default+preload hydrated), `release` re-arm, `noscroll`, focus restore, hook ordering/guard allow+deny/error isolation/re-entrancy queue, link `aria-current` (+ param-aware `$url`), `NavLink`, preload-on-hover, the `$__uni_should_intercept` matrix, URL client match (percent-decode, `%2F`/`+`, trailing slash, base), query/`setQuery`/`buildPath`, `replaceRoute(byUrl)`, activateRoute-with-params, param-change remount (INV-2/INV-10), `popstate` fallback + guard-back re-sync, remote failure containment (INV-21), nested layout state + independent signals, title/base-title, and the non-div hide rule (INV-8). **Phase 2 hardening:** history push/replace/no-op dispatch (stubbed `pushState`/`replaceState`), `$url`+`$query` change-only fires, query decode parity (`+` literal, bare key, unicode, malformed percent), `setQuery` encode+clear+path preservation, `buildPath` percent round-trips (`%2F`/space/`%`/unicode), duplicate/trailing slash normalization, `normPath` fragment+query stripping, `set_table_base` (match/`buildPath`/`currentUrl`), fragment-bearing activation URLs, guard flag deny→allow, `.`/`..` never a param, nested param inheritance + remount (`/p/1/x/a → /p/2/x/c`), `activate_initial` chain vs id-default fallback, remote prefetch store / in-flight dedup / blocked release / successful-fragment activation, `isActive` on a URL pattern id + id activation nulling `$url`, nested-deactivate state preservation, `%2E`-encoded traversal rejection, `buildPath` for the fallback id (client `null`), preload/release of a never-hydrated route, and relative-href rendering + non-interception |
 | Both backends | `--llvm --libs` / `--llvm --plugins` | LLVM parity for emission + server tests |
 
 Fast iteration on a single WebView test:
@@ -402,7 +405,7 @@ When adding a behaviour:
 - **A fragment never participates in routing.** `$__uni_norm_path` strips `#…`
   (then the query) and `$__uni_should_intercept` falls through for any href with a
   `#`; `/<backslash>` (protocol-relative in WHATWG) also falls through. `.`/`..`
-  are rejected as params on both matchers (D-6.1).
+  (literal or `%2E`-encoded) are rejected as params on both matchers (D-6.1).
 - **`baseProps` is immutable**; params are merged per mount by
   `$__uni_route_props`.
 - **Nothing throws**: all recoverable faults go through `$__uni_router_error`
@@ -418,12 +421,11 @@ When adding a behaviour:
 
 ## Part 5 — Known limitations / remaining work
 
-- **Percent-encoded traversal.** Only *literal* `.`/`..` segments are rejected
-  as params (both matchers check the raw segment, so client and server agree).
-  `%2E%2E` is not rejected on either side; it decodes to a `..` param after
-  matching, which is harmless because a route param is never a filesystem path.
-  Closing this fully would require decoding inside the server matcher (the views
-  `match_route` returns are into the input path), which is why it is left as is.
+- **`buildPath` for the fallback id diverges by design.** The server
+  `build_path` reverses `route *` to `/`; the client `$__uni_build_path` skips
+  fallback entries and returns `null` with a contained error. Both behaviours are
+  pinned by tests (`match.ch` + `tests_router.ch`); pick an explicit route id when
+  you need a real reverse path.
 - **SSR position of a separate-component outlet.** When the `<Outlet/>` lives in
   a layout component's own body, the nested wrappers are server-rendered *after*
   the layout and relocated into the slot at hydration, so the child content is

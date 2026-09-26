@@ -409,10 +409,12 @@ window.$__uni_match_url = ((name, path) => {
         for(let j = 0; j < e.pattern.length; j++) {
             const s = e.pattern[j];
             if(s.charCodeAt(0) === 123) {
-                // `.`/`..` are never route data (D-6.1), mirroring the server matcher.
-                if(segs[j] === "." || segs[j] === "..") { ok = false; break; }
+                // `.`/`..` are never route data (D-6.1), in literal or
+                // percent-encoded (`%2E`) form, mirroring the server matcher.
+                const dv = window.$__uni_decode_segment(segs[j]);
+                if(dv === "." || dv === "..") { ok = false; break; }
                 if(!params) params = Object.create(null);
-                params[s.slice(1, -1)] = window.$__uni_decode_segment(segs[j]);
+                params[s.slice(1, -1)] = dv;
             } else if(s !== segs[j]) { ok = false; break; }
         }
         if(ok) return { id: e.id, fallback: false, params: params, chain: e.chain || null };

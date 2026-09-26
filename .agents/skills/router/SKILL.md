@@ -331,7 +331,7 @@ throws).
 | Router library + server | `./scripts/test.sh --tcc --libs` | matcher, build_path, query, store, `apply_route_url`/deep links, params, decoding, titles/noindex, nested, snapshot cold/warm + 8-thread |
 | Compiler emission | `./scripts/test.sh --tcc --plugins` | `router_emission.ch` — SSR wrappers, registry/stubs, modes, hooks, precedence, nested, `RouterLink` |
 | Diagnostics | `./scripts/test.sh --tcc --negative` | `router_diagnostics.ch` — one case per R* |
-| Behaviour (real WebKit) | `./scripts/test.sh --tcc --universal` | `tests_router.ch` — navigation, state, hooks, guards, URL, links, nested, title, release, preload |
+| Behaviour (real WebKit) | `./scripts/test.sh --tcc --universal` | `tests_router.ch` — navigation + exactly-one-visible (INV-1), O(1) no-op re-activate + change-only signals (INV-11), unknown-id/error containment (INV-3/INV-15), `deactivate`, multi-router independence, null-object accessor, hydration (`preload`/`lazy`, effects-once, only-default+preload hydrated), `release` re-arm, `noscroll`, focus restore, hook ordering/guard allow+deny/error isolation/re-entrancy queue, link `aria-current` (+ param-aware `$url`), `NavLink`, preload-on-hover, the `$__uni_should_intercept` matrix, URL client match (percent-decode, `%2F`/`+`, trailing slash, base), query/`setQuery`/`buildPath`, `replaceRoute(byUrl)`, activateRoute-with-params, param-change remount (INV-2/INV-10), `popstate` fallback + guard-back re-sync, remote failure containment (INV-21), nested layout state + independent signals, title/base-title, and the non-div hide rule (INV-8) |
 | Both backends | `--llvm --libs` / `--llvm --plugins` | LLVM parity for emission + server tests |
 
 Fast iteration on a single WebView test:

@@ -1564,6 +1564,18 @@
     }
 }
 
+#universal UtP2Path404(props) {
+    return <div data-testid="ut-p2f-404">{props.__path}</div>
+}
+
+#universal UtP2Fallback(props) {
+    router "ut-p2-fallback" {
+        route default #"home" { <div data-testid="ut-p2f-home">Home</div> }
+        route "/known" { <div data-testid="ut-p2f-known">Known</div> }
+        route * { <UtP2Path404 /> }
+    }
+}
+
 #universal UtP2GuardFlag(props) {
     router "ut-p2-guard" {
         route default #"home" { <div data-testid="ut-p2g-home">Home</div> }
@@ -1877,6 +1889,27 @@
 }
 
 // ── title ───────────────────────────────────────────────────────────────────
+
+#universal_test("router the fallback receives the requested path as props.__path", isolate) {
+    <UtP2Fallback />
+    <script>
+        const r = window.$__uni_routers['ut-p2-fallback']
+        // A client-side activation to an unmatched URL must hand the fallback the
+        // requested path (§12.7), so a 404 page can echo it.
+        expect(r.activateRouteByUrl('/missing/thing')).toBe(true)
+        await t.sleep(20)
+        expect(r.current()).toBe('*')
+        expect(byTestId('ut-p2f-404').text()).toBe('/missing/thing')
+        // A second, different miss updates the path (a fresh per-match value).
+        expect(r.activateRouteByUrl('/another')).toBe(true)
+        await t.sleep(20)
+        expect(byTestId('ut-p2f-404').text()).toBe('/another')
+        // A known route still wins over the fallback.
+        expect(r.activateRouteByUrl('/known')).toBe(true)
+        await t.sleep(20)
+        expect(byTestId('ut-p2f-known').text()).toBe('Known')
+    </script>
+}
 
 #universal_test("router a URL route title applies on activation and resets on deactivate", isolate) {
     <UtP2Url />
@@ -2566,5 +2599,108 @@
         expect(r.activateRouteByUrl('/projects/%41')).toBe(true)
         await t.sleep(10)
         expect(byTestId('ut-p2-pane').text()).toBe('A')
+    </script>
+}
+
+// ── remote stale-fetch race (P0) ────────────────────────────────────────────
+
+#universal UtP2Race(props) {
+    router "ut-p2-race" {
+        route default #"home" { <div data-testid="ut-p2race-home">Home</div> }
+        route "/heavy" remote { <div data-testid="ut-p2race-heavy">Heavy</div> }
+        route "/stats" { <div data-testid="ut-p2race-stats">Stats</div> }
+    }
+}
+
+#universal_test("router a superseded remote fetch never activates over the newer route", isolate) {
+    <UtP2Race />
+    <script>
+        const r = window.$__uni_routers['ut-p2-race']
+        const rec = r.routes['/heavy']
+        const origFetch = window.fetch
+        let resolveFetch = null
+        let aborted = false
+        window.fetch = function(url, init) {
+            if(init && init.signal && init.signal.addEventListener) {
+                init.signal.addEventListener('abort', function() { aborted = true })
+            }
+            return new Promise(function(res) { resolveFetch = res })
+        }
+        try {
+            expect(r.activateRouteByUrl('/heavy')).toBe(true)
+            expect(rec.pendingActivate !== null).toBe(true)
+            expect(r.current()).toBe('home')
+            // Navigate elsewhere before the fragment lands.
+            expect(r.activateRouteByUrl('/stats')).toBe(true)
+            await t.sleep(10)
+            expect(r.current()).toBe('/stats')
+            // The superseded fetch was cancelled and its pending dropped.
+            expect(aborted).toBe(true)
+            expect(rec.pendingActivate).toBe(null)
+            // Now resolve the stale fetch with a perfectly valid fragment.
+            resolveFetch({ ok: true, text: function() {
+                return Promise.resolve('<div data-chx-i><div data-testid="ut-p2race-heavy">Heavy</div></div>')
+            } })
+            await t.sleep(80)
+            // It must NOT hijack the newer route.
+            expect(r.current()).toBe('/stats')
+            expect(r.routes['/stats'].visible).toBe(true)
+            expect(rec.visible).toBe(false)
+            expect(byTestId('ut-p2race-stats').text()).toBe('Stats')
+        } finally { window.fetch = origFetch }
+    </script>
+}
+
+#universal_test("router a background remote prefetch is not aborted by later navigation", isolate) {
+    <UtP2Race />
+    <script>
+        const r = window.$__uni_routers['ut-p2-race']
+        const rec = r.routes['/heavy']
+        const origFetch = window.fetch
+        let aborted = false
+        window.fetch = function(url, init) {
+            if(init && init.signal && init.signal.addEventListener) {
+                init.signal.addEventListener('abort', function() { aborted = true })
+            }
+            return new Promise(function() {})
+        }
+        try {
+            expect(r.preload('/heavy')).toBe(true)
+            expect(rec.inFlight).not.toBe(null)
+            // A prefetch has no pending activation, so navigation must leave it warming.
+            expect(r.activateRouteByUrl('/stats')).toBe(true)
+            await t.sleep(20)
+            expect(r.current()).toBe('/stats')
+            expect(aborted).toBe(false)
+            expect(rec.inFlight).not.toBe(null)
+        } finally { window.fetch = origFetch }
+    </script>
+}
+
+#universal_test("router deactivate cancels a pending remote activation", isolate) {
+    <UtP2Race />
+    <script>
+        const r = window.$__uni_routers['ut-p2-race']
+        const rec = r.routes['/heavy']
+        const origFetch = window.fetch
+        let resolveFetch = null
+        window.fetch = function(url, init) {
+            return new Promise(function(res) { resolveFetch = res })
+        }
+        try {
+            expect(r.activateRouteByUrl('/heavy')).toBe(true)
+            expect(rec.pendingActivate !== null).toBe(true)
+            r.deactivate()
+            await t.sleep(10)
+            expect(rec.pendingActivate).toBe(null)
+            expect(r.current()).toBe(null)
+            // The stale fragment must not resurrect a route after deactivate.
+            resolveFetch({ ok: true, text: function() {
+                return Promise.resolve('<div data-chx-i><div data-testid="ut-p2race-heavy">Heavy</div></div>')
+            } })
+            await t.sleep(60)
+            expect(r.current()).toBe(null)
+            expect(rec.visible).toBe(false)
+        } finally { window.fetch = origFetch }
     </script>
 }

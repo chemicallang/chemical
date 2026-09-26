@@ -112,9 +112,10 @@ and an activation chain; ancestor params are inherited; a nested `route *`
 catches an unknown remainder via a prefix entry; nested ids resolve in
 `buildPath`; nested routers are fully validated), a **hydrated layout** (a native
 root's own markup is interactive; a component root that forwards
-`{props.children}` hydrates too; `<Outlet/>` is an opaque hydration boundary), a
-route root component's compile-time attributes in `baseProps`, and Phase 7 (a
-conservative static-route SSR snapshot cache). The site-level static-export
-rewrite aggregate is `page::write_site_routes`. Not yet implemented: an
-`<Outlet />` written inside a separate layout component's own body, and R11/R12.
-See the design doc §16 for the exact state and known divergences.
+`{props.children}` hydrates too; `<Outlet/>` is an opaque hydration boundary;
+an `<Outlet/>` inside a layout component's own body renders a slot the runtime
+relocates the nested wrappers into), a route root component's compile-time
+attributes in `baseProps`, and Phase 7 (a conservative static-route SSR snapshot
+cache). All diagnostics R1–R14 are implemented (R10 is a warning). The
+site-level static-export rewrite aggregate is `page::write_site_routes`. See the
+design doc §16 for the exact state and known divergences.

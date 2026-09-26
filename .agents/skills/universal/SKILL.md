@@ -33,6 +33,11 @@ bridges were removed).
 | `#html` ↔ universal integration (boundary span + dispatch) | `lang/libs/html_cbi/src/converter/language/component.ch`, `main.ch` |
 | Component library | `lang/libs/components/src/*` |
 
+`macro.ch` stores the parsed JS body on the signature (`ComponentSignature.js_body`,
+a `*mut void` back-pointer) so downstream consumers can inspect a component's
+`props.X` reads — the universal router uses it for its R11/R12 diagnostics. It is
+null for non-universal components.
+
 ### The generated server function
 
 Each `#universal Button(props) { ... }` generates a native function (built by `sym_res.ch`):

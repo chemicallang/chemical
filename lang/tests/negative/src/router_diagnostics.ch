@@ -118,3 +118,31 @@ public func warn_router_no_default_absent_when_fallback(env : &mut TestEnv) {
     expect_compile_output_not_contains(env, "router_no_default_absent", ch,
         "has no default route", NEG_MOD_UNIVERSAL)
 }
+
+// R11: a route root component reading a prop that is neither a declared root
+// attribute nor a `{param}` of the route pattern.
+
+@test
+public func neg_router_undeclared_prop_read(env : &mut TestEnv) {
+    var ch = "#universal Pane(props) {\n    return <div>{props.missing}</div>\n}\n#universal Host(props) {\n    router \"m\" {\n        route #\"a\" { <Pane /> }\n    }\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "router_undeclared_prop", ch,
+        "route prop 'missing' is not declared", NEG_MOD_UNIVERSAL)
+}
+
+@test
+public func neg_router_declared_prop_is_ok_but_undeclared_is_not(env : &mut TestEnv) {
+    // `title` is a declared attribute on the route root, so reading it is fine;
+    // `other` is not and must error.
+    var ch = "#universal Pane(props) {\n    return <div title={props.title}>{props.other}</div>\n}\n#universal Host(props) {\n    router \"m\" {\n        route #\"a\" { <Pane title=\"x\" /> }\n    }\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "router_undeclared_prop2", ch,
+        "route prop 'other' is not declared", NEG_MOD_UNIVERSAL)
+}
+
+// R12: `dangerouslySetInnerHTML` fed a route param.
+
+@test
+public func neg_router_param_raw_html(env : &mut TestEnv) {
+    var ch = "#universal Pane(props) {\n    return <div dangerouslySetInnerHTML={props.id}></div>\n}\n#universal Host(props) {\n    router \"m\" {\n        route \"/x/{id}\" { <Pane /> }\n    }\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "router_param_raw_html", ch,
+        "route params must not be injected as raw HTML", NEG_MOD_UNIVERSAL)
+}

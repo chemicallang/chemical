@@ -806,10 +806,11 @@ func (converter : &mut JsConverter) router_validate_calls(node : *mut JsNode, ro
 // recursively, every nested router (a route body's nested `route` children form
 // a sub-router under a derived name).
 func (converter : &mut JsConverter) router_validate(rd : *mut JsRouterDecl) {
-    converter.router_validate_routes(&rd.routes, rd.name)
+    converter.router_validate_routes(&rd.routes, rd.name, std::string_view(""))
 }
 
-func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector<*mut JsNode>, routerName : std::string_view) {
+func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector<*mut JsNode>, routerName : std::string_view,
+                                                            inheritedPattern : std::string_view) {
     if(converter.diagnoser == null) return
 
     // R10: a router with neither a declared `default` nor a `*` fallback renders
@@ -924,6 +925,17 @@ func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector
         }
     }
 
+    // R11/R12: route-component prop reads (design §14.8).
+    for(var i : uint = 0; i < routes.size(); i++) {
+        const rn = routes.get(i)
+        if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
+        var r = rn as *mut JsRouteDecl
+        var ep = std::string()
+        ep.append_view(&inheritedPattern)
+        ep.append_view(&r.pattern)
+        converter.router_validate_props(r, ep.to_view())
+    }
+
     // Recurse: nested routes form a sub-router under a derived name.
     for(var i : uint = 0; i < routes.size(); i++) {
         const rn = routes.get(i)
@@ -935,7 +947,233 @@ func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector
         nestedName.append_view(&routerName)
         nestedName.append('#')
         nestedName.append_view(&r.id)
-        converter.router_validate_routes(&nested, nestedName.to_view())
+        var childPattern = std::string()
+        childPattern.append_view(&inheritedPattern)
+        childPattern.append_view(&r.pattern)
+        converter.router_validate_routes(&nested, nestedName.to_view(), childPattern.to_view())
+    }
+}
+
+// ── R11/R12: route-component prop validation (design §14.8) ─────────────────
+//
+// A route root component receives only the route root's compile-time attributes
+// plus the `{param}` values injected by the router; every other `props.X` read is
+// undefined at runtime (R11). A `dangerouslySetInnerHTML` fed one of those params
+// is an XSS footgun (R12). The component's parsed JS body is reachable through
+// `ComponentSignature.js_body` (set by the `#universal` macro).
+
+func router_push_unique(out : &mut std::vector<std::string_view>, name : std::string_view) {
+    for(var i : uint = 0; i < out.size(); i++) {
+        if(out.get(i).equals(&name)) { return }
+    }
+    out.push(name)
+}
+
+// Walks a JS/JSX tree collecting `props.<name>` reads. `dangerousReads` receives
+// the subset that appears under a `dangerouslySetInnerHTML` attribute.
+func router_collect_prop_reads(node : *mut JsNode, propsName : std::string_view,
+                               reads : &mut std::vector<std::string_view>,
+                               dangerousReads : &mut std::vector<std::string_view>,
+                               inDangerous : bool) {
+    if(node == null) return
+    switch(node.kind) {
+        JsNodeKind.MemberAccess => {
+            const m = node as *mut JsMemberAccess
+            if(m.object != null && m.object.kind == JsNodeKind.Identifier) {
+                const id = m.object as *mut JsIdentifier
+                if(id.value.equals(&propsName) && !m.property.equals(std::string_view("children"))) {
+                    router_push_unique(reads, m.property)
+                    if(inDangerous) { router_push_unique(dangerousReads, m.property) }
+                }
+            }
+            router_collect_prop_reads(m.object, propsName, reads, dangerousReads, inDangerous)
+        }
+        JsNodeKind.FunctionCall => {
+            const c = node as *mut JsFunctionCall
+            router_collect_prop_reads(c.callee, propsName, reads, dangerousReads, inDangerous)
+            for(var i : uint = 0; i < c.args.size(); i++) {
+                router_collect_prop_reads(c.args.get(i), propsName, reads, dangerousReads, inDangerous)
+            }
+        }
+        JsNodeKind.ExpressionStatement => { router_collect_prop_reads((node as *mut JsExpressionStatement).expression, propsName, reads, dangerousReads, inDangerous) }
+        JsNodeKind.Block => {
+            const b = node as *mut JsBlock
+            for(var i : uint = 0; i < b.statements.size(); i++) {
+                router_collect_prop_reads(b.statements.get(i), propsName, reads, dangerousReads, inDangerous)
+            }
+        }
+        JsNodeKind.If => {
+            const s = node as *mut JsIf
+            router_collect_prop_reads(s.condition, propsName, reads, dangerousReads, inDangerous)
+            router_collect_prop_reads(s.thenBlock, propsName, reads, dangerousReads, inDangerous)
+            router_collect_prop_reads(s.elseBlock, propsName, reads, dangerousReads, inDangerous)
+        }
+        JsNodeKind.Return => { router_collect_prop_reads((node as *mut JsReturn).value, propsName, reads, dangerousReads, inDangerous) }
+        JsNodeKind.VarDecl => { router_collect_prop_reads((node as *mut JsVarDecl).value, propsName, reads, dangerousReads, inDangerous) }
+        JsNodeKind.ArrowFunction => { router_collect_prop_reads((node as *mut JsArrowFunction).body, propsName, reads, dangerousReads, inDangerous) }
+        JsNodeKind.BinaryOp => {
+            const s = node as *mut JsBinaryOp
+            router_collect_prop_reads(s.left, propsName, reads, dangerousReads, inDangerous)
+            router_collect_prop_reads(s.right, propsName, reads, dangerousReads, inDangerous)
+        }
+        JsNodeKind.Ternary => {
+            const s = node as *mut JsTernary
+            router_collect_prop_reads(s.condition, propsName, reads, dangerousReads, inDangerous)
+            router_collect_prop_reads(s.consequent, propsName, reads, dangerousReads, inDangerous)
+            router_collect_prop_reads(s.alternate, propsName, reads, dangerousReads, inDangerous)
+        }
+        JsNodeKind.UnaryOp => { router_collect_prop_reads((node as *mut JsUnaryOp).operand, propsName, reads, dangerousReads, inDangerous) }
+        JsNodeKind.Paren => { router_collect_prop_reads((node as *mut JsParen).expression, propsName, reads, dangerousReads, inDangerous) }
+        JsNodeKind.Spread => { router_collect_prop_reads((node as *mut JsSpread).argument, propsName, reads, dangerousReads, inDangerous) }
+        JsNodeKind.ArrayLiteral => {
+            const a = node as *mut JsArrayLiteral
+            for(var i : uint = 0; i < a.elements.size(); i++) {
+                router_collect_prop_reads(a.elements.get(i), propsName, reads, dangerousReads, inDangerous)
+            }
+        }
+        JsNodeKind.ObjectLiteral => {
+            const o = node as *mut JsObjectLiteral
+            for(var i : uint = 0; i < o.properties.size(); i++) {
+                router_collect_prop_reads(o.properties.get(i).value, propsName, reads, dangerousReads, inDangerous)
+            }
+        }
+        JsNodeKind.IndexAccess => {
+            const s = node as *mut JsIndexAccess
+            router_collect_prop_reads(s.object, propsName, reads, dangerousReads, inDangerous)
+            router_collect_prop_reads(s.index, propsName, reads, dangerousReads, inDangerous)
+        }
+        JsNodeKind.JSXElement => {
+            const el = node as *mut JsJSXElement
+            for(var i : uint = 0; i < el.opening.attributes.size(); i++) {
+                router_collect_prop_reads(el.opening.attributes.get(i), propsName, reads, dangerousReads, inDangerous)
+            }
+            for(var i : uint = 0; i < el.children.size(); i++) {
+                router_collect_prop_reads(el.children.get(i), propsName, reads, dangerousReads, inDangerous)
+            }
+        }
+        JsNodeKind.JSXExpressionContainer => { router_collect_prop_reads((node as *mut JsJSXExpressionContainer).expression, propsName, reads, dangerousReads, inDangerous) }
+        JsNodeKind.JSXAttribute => {
+            const attr = node as *mut JsJSXAttribute
+            const childDangerous = inDangerous || attr.name.equals(std::string_view("dangerouslySetInnerHTML"))
+            router_collect_prop_reads(attr.value, propsName, reads, dangerousReads, childDangerous)
+        }
+        JsNodeKind.JSXSpreadAttribute => { router_collect_prop_reads((node as *mut JsJSXSpreadAttribute).argument, propsName, reads, dangerousReads, inDangerous) }
+        JsNodeKind.JSXFragment => {
+            const f = node as *mut JsJSXFragment
+            for(var i : uint = 0; i < f.children.size(); i++) {
+                router_collect_prop_reads(f.children.get(i), propsName, reads, dangerousReads, inDangerous)
+            }
+        }
+        JsNodeKind.For => {
+            const s = node as *mut JsFor
+            router_collect_prop_reads(s.init, propsName, reads, dangerousReads, inDangerous)
+            router_collect_prop_reads(s.condition, propsName, reads, dangerousReads, inDangerous)
+            router_collect_prop_reads(s.update, propsName, reads, dangerousReads, inDangerous)
+            router_collect_prop_reads(s.body, propsName, reads, dangerousReads, inDangerous)
+        }
+        JsNodeKind.ForIn => {
+            const s = node as *mut JsForIn
+            router_collect_prop_reads(s.left, propsName, reads, dangerousReads, inDangerous)
+            router_collect_prop_reads(s.right, propsName, reads, dangerousReads, inDangerous)
+            router_collect_prop_reads(s.body, propsName, reads, dangerousReads, inDangerous)
+        }
+        JsNodeKind.ForOf => {
+            const s = node as *mut JsForOf
+            router_collect_prop_reads(s.left, propsName, reads, dangerousReads, inDangerous)
+            router_collect_prop_reads(s.right, propsName, reads, dangerousReads, inDangerous)
+            router_collect_prop_reads(s.body, propsName, reads, dangerousReads, inDangerous)
+        }
+        JsNodeKind.While => {
+            const s = node as *mut JsWhile
+            router_collect_prop_reads(s.condition, propsName, reads, dangerousReads, inDangerous)
+            router_collect_prop_reads(s.body, propsName, reads, dangerousReads, inDangerous)
+        }
+        JsNodeKind.DoWhile => {
+            const s = node as *mut JsDoWhile
+            router_collect_prop_reads(s.condition, propsName, reads, dangerousReads, inDangerous)
+            router_collect_prop_reads(s.body, propsName, reads, dangerousReads, inDangerous)
+        }
+        JsNodeKind.Switch => {
+            const s = node as *mut JsSwitch
+            router_collect_prop_reads(s.discriminant, propsName, reads, dangerousReads, inDangerous)
+            for(var i : uint = 0; i < s.cases.size(); i++) {
+                const c = s.cases.get_ptr(i)
+                router_collect_prop_reads(c.test, propsName, reads, dangerousReads, inDangerous)
+                for(var j : uint = 0; j < c.body.size(); j++) {
+                    router_collect_prop_reads(c.body.get(j), propsName, reads, dangerousReads, inDangerous)
+                }
+            }
+        }
+        JsNodeKind.TryCatch => {
+            const s = node as *mut JsTryCatch
+            router_collect_prop_reads(s.tryBlock, propsName, reads, dangerousReads, inDangerous)
+            router_collect_prop_reads(s.catchBlock, propsName, reads, dangerousReads, inDangerous)
+            router_collect_prop_reads(s.finallyBlock, propsName, reads, dangerousReads, inDangerous)
+        }
+        JsNodeKind.Throw => { router_collect_prop_reads((node as *mut JsThrow).argument, propsName, reads, dangerousReads, inDangerous) }
+        JsNodeKind.Yield => { router_collect_prop_reads((node as *mut JsYield).argument, propsName, reads, dangerousReads, inDangerous) }
+        default => {}
+    }
+}
+
+func router_is_pattern_param(pattern : std::string_view, name : std::string_view) : bool {
+    const names = router_pattern_param_names(pattern)
+    for(var i : uint = 0; i < names.size(); i++) {
+        if(names.get(i).equals(&name)) { return true }
+    }
+    return false
+}
+
+// R11/R12 for one route.
+func (converter : &mut JsConverter) router_validate_props(route : *mut JsRouteDecl,
+                                                           effectivePattern : std::string_view) {
+    if(converter.diagnoser == null) return
+    const root = router_route_root(route)
+    if(root == null || root.kind != JsNodeKind.JSXElement) return
+    const rootEl = root as *mut JsJSXElement
+    const sig = rootEl.componentSignature
+    if(sig == null || sig.js_body == null) return
+
+    // Allowed prop names: the params of the (accumulated) pattern, the route
+    // root's declared attributes, and `children`.
+    var allowed = std::vector<std::string_view>()
+    const paramNames = router_pattern_param_names(effectivePattern)
+    for(var i : uint = 0; i < paramNames.size(); i++) { allowed.push(paramNames.get(i)) }
+    for(var i : uint = 0; i < rootEl.opening.attributes.size(); i++) {
+        const attr = rootEl.opening.attributes.get(i)
+        if(attr != null && attr.kind == JsNodeKind.JSXAttribute) {
+            router_push_unique(&mut allowed, (attr as *mut JsJSXAttribute).name)
+        }
+    }
+    router_push_unique(&mut allowed, std::string_view("children"))
+
+    var reads = std::vector<std::string_view>()
+    var dangerousReads = std::vector<std::string_view>()
+    router_collect_prop_reads(sig.js_body as *mut JsNode, sig.propsName, &mut reads, &mut dangerousReads, false)
+
+    for(var i : uint = 0; i < reads.size(); i++) {
+        const name = reads.get(i)
+        var ok = false
+        for(var a : uint = 0; a < allowed.size(); a++) {
+            if(allowed.get(a).equals(&name)) { ok = true }
+        }
+        if(!ok) {
+            var msg = std::string("route prop '")
+            msg.append_view(&name)
+            msg.append_view("' is not declared: not an attribute of the route root and not a param of '")
+            msg.append_view(&effectivePattern)
+            msg.append_view("'")
+            converter.router_diag(&msg, route.decl_loc)
+        }
+    }
+
+    // R12: a `dangerouslySetInnerHTML` fed one of the route's params.
+    for(var i : uint = 0; i < dangerousReads.size(); i++) {
+        const name = dangerousReads.get(i)
+        if(router_is_pattern_param(effectivePattern, name)) {
+            var msg = std::string("route params must not be injected as raw HTML")
+            converter.router_diag(&msg, route.decl_loc)
+        }
     }
 }
 
@@ -1417,9 +1655,16 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
                 const rootEl = root as *mut JsJSXElement
                 if(rootEl.componentSignature == null) {
                     compName = converter.emit_route_layout_client(route, root)
-                } else if(rootEl.children.size() > 0) {
+                } else {
+                    // Hydrate the layout component. If it takes explicit
+                    // children, pass them through (an inline `<Outlet/>` child
+                    // expands to the outlet boundary); if the `<Outlet/>` lives
+                    // in the component's own body it renders a slot the runtime
+                    // relocates the nested wrappers into.
                     compName = router_route_comp(root)
-                    childrenRefName = converter.emit_route_children_client(route, root)
+                    if(rootEl.children.size() > 0) {
+                        childrenRefName = converter.emit_route_children_client(route, root)
+                    }
                 }
             }
         }

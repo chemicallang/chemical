@@ -417,7 +417,7 @@ public func test_router_nested_url_under_id_layout(env : &mut TestEnv) {
 #universal NestedNoOutletApp(props) {
     router "nno" {
         route #"shell" {
-            route default #"a" { <NestedUrlPane /> }
+            route default #"a" { <div class="nno-child">child</div> }
             <div class="nno">shell</div>
         }
     }
@@ -510,5 +510,45 @@ public func test_router_nested_url_child_wins_over_fallback(env : &mut TestEnv) 
     if(html.find(&settingsActive) == std::NPOS) {
         env.error("the nested URL child must win over the fallback")
         env.info(html.data())
+    }
+}
+
+// ── Outlet inside a separate layout component's own body ───────────────────
+
+#universal BodyOutletLayout(props) {
+    return <div class="bol"><Outlet /></div>
+}
+
+#universal BodyOutletApp(props) {
+    router "bo" {
+        route default #"home" { <div class="bo-home">Home</div> }
+        route #"shell" {
+            route default #"a" { <div class="bo-a">A</div> }
+            <BodyOutletLayout />
+        }
+    }
+}
+
+@test
+public func test_router_separate_component_outlet_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    page.add_parameter("bo", "shell")
+    #html { <BodyOutletApp /> }
+    var html = page.getHtml()
+    const slot = std::string_view("data-uni-outlet=\"true\"")
+    if(html.find(&slot) == std::NPOS) {
+        env.error("a layout's own <Outlet/> should SSR a relocation slot")
+        env.info(html.data())
+        return
+    }
+    // The nested wrappers are emitted after the layout (relocated client-side),
+    // so deep links still server-render the child content.
+    const child = std::string_view("data-uni-route=\"bo#shell#a\"")
+    if(html.find(&child) == std::NPOS) {
+        env.error("the nested wrapper should be SSR'd for a deep link")
+    }
+    const layout = std::string_view("class=\"bol\"")
+    if(html.find(&layout) == std::NPOS) {
+        env.error("the layout component should render")
     }
 }

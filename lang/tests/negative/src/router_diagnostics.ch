@@ -44,3 +44,17 @@ public func neg_router_unsupported_pattern(env : &mut TestEnv) {
     expect_compile_error_with_mod(env, "router_unsupported_pattern", ch,
         "unsupported route pattern '/a/*'", NEG_MOD_UNIVERSAL)
 }
+
+@test
+public func neg_router_runtime_internals(env : &mut TestEnv) {
+    var ch = "#universal A(props) {\n    return <span>x</span>\n}\n#universal Host(props) {\n    router \"m\" {\n        route #\"a\" { <div onClick={() => { window.$__uni_route_visible(1) }}>x</div> }\n    }\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "router_runtime_internals", ch,
+        "route bodies cannot call runtime internals", NEG_MOD_UNIVERSAL)
+}
+
+@test
+public func neg_router_unknown_activate_id(env : &mut TestEnv) {
+    var ch = "#universal A(props) {\n    return <span>x</span>\n}\n#universal Host(props) {\n    router \"m\" {\n        route #\"a\" {\n            onActivate(() => { router(\"m\").activateRoute(\"typo\") })\n            <A />\n        }\n    }\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "router_unknown_activate_id", ch,
+        "no route 'typo' in router \"m\"", NEG_MOD_UNIVERSAL)
+}

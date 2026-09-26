@@ -486,7 +486,7 @@ func router_scan_internals(node : *mut JsNode) : bool {
 // `routerName`/`validIds` are the router currently being validated (same
 // component scope as the call in the common inline case).
 func (converter : &mut JsConverter) router_validate_calls(node : *mut JsNode, routerName : std::string_view,
-                                                         validIds : &std::vector<*mut JsNode>) {
+                                                         validIds : &std::vector<*mut JsNode>, loc : ubigint) {
     if(node == null || converter.diagnoser == null) return
     switch(node.kind) {
         JsNodeKind.FunctionCall => {
@@ -496,7 +496,7 @@ func (converter : &mut JsConverter) router_validate_calls(node : *mut JsNode, ro
                 const prop = mem.property
                 if(prop.equals(std::string_view("activateRoute")) || prop.equals(std::string_view("preload")) ||
                    prop.equals(std::string_view("buildPath")) || prop.equals(std::string_view("replaceRoute"))) {
-                    // `router("name")` receiver
+                    // `router("name").<verb>("literal-id")`
                     if(mem.object != null && mem.object.kind == JsNodeKind.FunctionCall) {
                         const recv = mem.object as *mut JsFunctionCall
                         if(recv.callee != null && recv.callee.kind == JsNodeKind.Identifier &&
@@ -505,8 +505,12 @@ func (converter : &mut JsConverter) router_validate_calls(node : *mut JsNode, ro
                            call.args.size() > 0 && call.args.get(0).kind == JsNodeKind.Literal) {
                             const nameLit = (recv.args.get(0) as *mut JsLiteral).value
                             const idLit = (call.args.get(0) as *mut JsLiteral).value
+                            var nameName = nameLit
+                            if(nameName.size() >= 2 && nameName.get(0) == '"' && nameName.get(nameName.size() - 1) == '"') {
+                                nameName = nameName.subview(1, nameName.size() - 1)
+                            }
                             // Only validate the router this component declares.
-                            if(nameLit.contains(&routerName) || routerName.contains(&nameLit)) {
+                            if(nameName.equals(&routerName)) {
                                 var found = false
                                 for(var i : uint = 0; i < validIds.size(); i++) {
                                     var r = validIds.get(i) as *mut JsRouteDecl
@@ -516,55 +520,60 @@ func (converter : &mut JsConverter) router_validate_calls(node : *mut JsNode, ro
                                     if(idLit.equals(quoted.to_view())) { found = true }
                                 }
                                 if(!found) {
+                                    // Strip the JS string quotes to match the
+                                    // frozen message (single-quoted id).
+                                    var idName = idLit
+                                    if(idName.size() >= 2 && idName.get(0) == '"' && idName.get(idName.size() - 1) == '"') {
+                                        idName = idName.subview(1, idName.size() - 1)
+                                    }
                                     var msg = std::string("no route '")
-                                    msg.append_view(&idLit)
+                                    msg.append_view(&idName)
                                     msg.append_view("' in router \"")
                                     msg.append_view(&routerName)
                                     msg.append_view("\"")
-                                    converter.router_diag(&msg, call.loc)
+                                    converter.router_diag(&msg, loc)
                                 }
                             }
                         }
                     }
                 }
             }
-            if(router_scan_internals(call.callee)) { }
             for(var i : uint = 0; i < call.args.size(); i++) {
-                converter.router_validate_calls(call.args.get(i), routerName, validIds)
+                converter.router_validate_calls(call.args.get(i), routerName, validIds, loc)
             }
-            converter.router_validate_calls(call.callee, routerName, validIds)
+            converter.router_validate_calls(call.callee, routerName, validIds, loc)
         }
-        JsNodeKind.ExpressionStatement => { converter.router_validate_calls((node as *mut JsExpressionStatement).expression, routerName, validIds) }
-        JsNodeKind.Return => { converter.router_validate_calls((node as *mut JsReturn).value, routerName, validIds) }
-        JsNodeKind.VarDecl => { converter.router_validate_calls((node as *mut JsVarDecl).value, routerName, validIds) }
-        JsNodeKind.ArrowFunction => { converter.router_validate_calls((node as *mut JsArrowFunction).body, routerName, validIds) }
+        JsNodeKind.ExpressionStatement => { converter.router_validate_calls((node as *mut JsExpressionStatement).expression, routerName, validIds, loc) }
+        JsNodeKind.Return => { converter.router_validate_calls((node as *mut JsReturn).value, routerName, validIds, loc) }
+        JsNodeKind.VarDecl => { converter.router_validate_calls((node as *mut JsVarDecl).value, routerName, validIds, loc) }
+        JsNodeKind.ArrowFunction => { converter.router_validate_calls((node as *mut JsArrowFunction).body, routerName, validIds, loc) }
         JsNodeKind.Block => {
             const b = node as *mut JsBlock
             for(var i : uint = 0; i < b.statements.size(); i++) {
-                converter.router_validate_calls(b.statements.get(i), routerName, validIds)
+                converter.router_validate_calls(b.statements.get(i), routerName, validIds, loc)
             }
         }
         JsNodeKind.If => {
             const s = node as *mut JsIf
-            converter.router_validate_calls(s.condition, routerName, validIds)
-            converter.router_validate_calls(s.thenBlock, routerName, validIds)
-            converter.router_validate_calls(s.elseBlock, routerName, validIds)
+            converter.router_validate_calls(s.condition, routerName, validIds, loc)
+            converter.router_validate_calls(s.thenBlock, routerName, validIds, loc)
+            converter.router_validate_calls(s.elseBlock, routerName, validIds, loc)
         }
         JsNodeKind.JSXElement => {
             const el = node as *mut JsJSXElement
             for(var i : uint = 0; i < el.opening.attributes.size(); i++) {
-                converter.router_validate_calls(el.opening.attributes.get(i), routerName, validIds)
+                converter.router_validate_calls(el.opening.attributes.get(i), routerName, validIds, loc)
             }
             for(var i : uint = 0; i < el.children.size(); i++) {
-                converter.router_validate_calls(el.children.get(i), routerName, validIds)
+                converter.router_validate_calls(el.children.get(i), routerName, validIds, loc)
             }
         }
-        JsNodeKind.JSXExpressionContainer => { converter.router_validate_calls((node as *mut JsJSXExpressionContainer).expression, routerName, validIds) }
-        JsNodeKind.JSXAttribute => { converter.router_validate_calls((node as *mut JsJSXAttribute).value, routerName, validIds) }
+        JsNodeKind.JSXExpressionContainer => { converter.router_validate_calls((node as *mut JsJSXExpressionContainer).expression, routerName, validIds, loc) }
+        JsNodeKind.JSXAttribute => { converter.router_validate_calls((node as *mut JsJSXAttribute).value, routerName, validIds, loc) }
         JsNodeKind.JSXFragment => {
             const f = node as *mut JsJSXFragment
             for(var i : uint = 0; i < f.children.size(); i++) {
-                converter.router_validate_calls(f.children.get(i), routerName, validIds)
+                converter.router_validate_calls(f.children.get(i), routerName, validIds, loc)
             }
         }
         default => {}
@@ -631,6 +640,37 @@ func (converter : &mut JsConverter) router_validate(rd : *mut JsRouterDecl) {
             msg.append_view(&r.pattern)
             msg.append_view("'")
             converter.router_diag(&msg, r.decl_loc)
+        }
+    }
+
+    // R14: route bodies and hooks must not reach `$__uni_*` internals.
+    for(var i : uint = 0; i < rd.routes.size(); i++) {
+        const rn = rd.routes.get(i)
+        if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
+        var r = rn as *mut JsRouteDecl
+        if(router_scan_internals(r.body)) {
+            var msg = std::string("route bodies cannot call runtime internals")
+            converter.router_diag(&msg, r.decl_loc)
+        }
+        for(var h : uint = 0; h < r.hooks.size(); h++) {
+            const hook = r.hooks.get(h) as *mut JsRouteHook
+            if(router_scan_internals(hook.fn)) {
+                var msg = std::string("route bodies cannot call runtime internals")
+                converter.router_diag(&msg, r.decl_loc)
+            }
+        }
+    }
+
+    // R8: literal ids passed to `router("m").activateRoute("x")` etc. must be
+    // declared in this router.
+    for(var i : uint = 0; i < rd.routes.size(); i++) {
+        const rn = rd.routes.get(i)
+        if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
+        var r = rn as *mut JsRouteDecl
+        converter.router_validate_calls(r.body, rd.name, &rd.routes, r.decl_loc)
+        for(var h : uint = 0; h < r.hooks.size(); h++) {
+            const hook = r.hooks.get(h) as *mut JsRouteHook
+            converter.router_validate_calls(hook.fn, rd.name, &rd.routes, r.decl_loc)
         }
     }
 }

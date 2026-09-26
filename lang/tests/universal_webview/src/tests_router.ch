@@ -1542,3 +1542,620 @@
         expect($('[data-uni-route="ut-mount#t"]').css('display')).not.toBe('none')
     </script>
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase 2 — URL-layer hardening: history dispatch, query decoding parity,
+// percent round-trips, remote prefetch, nested param inheritance, and probes
+// for suspected bugs (design §6.1/§6.3/§6.5/§6.7).
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── fixtures ────────────────────────────────────────────────────────────────
+
+#universal UtP2Pane(props) {
+    return <div data-testid="ut-p2-pane">{props.id}</div>
+}
+
+#universal UtP2Url(props) {
+    router "ut-p2-url" {
+        route default #"home" { <div data-testid="ut-p2-home">Home</div> }
+        route "/projects/{id}" { <UtP2Pane /> }
+        route "/about" title "About Title" { <div data-testid="ut-p2-about">About</div> }
+        route * { <div data-testid="ut-p2-404">404</div> }
+    }
+}
+
+#universal UtP2GuardFlag(props) {
+    router "ut-p2-guard" {
+        route default #"home" { <div data-testid="ut-p2g-home">Home</div> }
+        route "/admin" {
+            onBeforeActivate(() => { return window.__utP2Allow })
+            <div data-testid="ut-p2g-admin">Admin</div>
+        }
+    }
+}
+
+#universal UtP2Dyn(props) {
+    router "ut-p2-dyn" {
+        route default #"home" { <div data-testid="ut-p2d-home">Home</div> }
+        route #"b" { <div data-testid="ut-p2d-b">B</div> }
+    }
+}
+
+#universal UtP2NestId(props) {
+    return <div data-testid="ut-p2-nid">{props.id}</div>
+}
+
+#universal UtP2NestTab(props) {
+    return <div data-testid="ut-p2-ntab">{props.tab}</div>
+}
+
+#universal UtP2Nested(props) {
+    router "ut-p2-nest" {
+        route default #"home" { <div data-testid="ut-p2n-home">Home</div> }
+        route "/p/{id}" {
+            route default #"overview" { <UtP2NestId /> }
+            route "/x/{tab}" { <UtP2NestTab /> }
+            <div data-testid="ut-p2n-layout"><Outlet /></div>
+        }
+    }
+}
+
+#universal UtP2Remote(props) {
+    router "ut-p2-rem" {
+        route default #"home" { <div data-testid="ut-p2r-home">Home</div> }
+        route "/heavy" remote { <div data-testid="ut-p2r-heavy">Heavy</div> }
+    }
+}
+
+// An id layout whose only URL child is nested: the initial tail must fall back
+// to the id default when the URL does not select the child.
+#universal UtP2InitHost(props) {
+    router "ut-p2-init" {
+        route default #"shell" {
+            route "/reports/{id}" { <UtP2Pane /> }
+            <div data-testid="ut-p2i-layout"><Outlet /></div>
+        }
+    }
+}
+
+// ── interception policy ─────────────────────────────────────────────────────
+
+#universal_test("router the intercept predicate rejects fragments backslashes and relative hrefs", isolate) {
+    <UtP2Dyn />
+    <script>
+        const ev = (extra) => Object.assign({ button: 0, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false,
+            defaultPrevented: false, currentTarget: { target: null, hasAttribute: () => false } }, extra)
+        // A bare fragment is never intercepted — the browser owns anchor scrolling.
+        expect(window.$__uni_should_intercept(ev({}), '#section')).toBe(false)
+        // Relative and empty hrefs are left to the browser.
+        expect(window.$__uni_should_intercept(ev({}), 'relative/path')).toBe(false)
+        expect(window.$__uni_should_intercept(ev({}), '')).toBe(false)
+        // Plain same-origin paths are intercepted.
+        expect(window.$__uni_should_intercept(ev({}), '/')).toBe(true)
+        expect(window.$__uni_should_intercept(ev({}), '/a/b')).toBe(true)
+        // A same-origin path carrying a hash is still a plain anchor: hash-fragment
+        // scrolling is a documented non-goal that must "work via plain anchors",
+        // so intercepting it would suppress the scroll entirely.
+        expect(window.$__uni_should_intercept(ev({}), '/page#section')).toBe(false)
+        // WHATWG parses `\` as `/` in special schemes, so a path starting `\` is
+        // protocol-relative and must not be intercepted as an internal route.
+        const backslashPath = String.fromCharCode(47, 92) + 'evil.example.com'
+        expect(window.$__uni_should_intercept(ev({}), backslashPath)).toBe(false)
+    </script>
+}
+
+// ── history dispatch ────────────────────────────────────────────────────────
+
+#universal_test("router push replace and identical-activation dispatch to the right history call", isolate) {
+    <UtP2Url />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        const pushes = [], replaces = []
+        const origPush = history.pushState
+        const origReplace = history.replaceState
+        const savedOk = window.$__uni_history_ok
+        history.pushState = function() { pushes.push(arguments[2]) }
+        history.replaceState = function() { replaces.push(arguments[2]) }
+        window.$__uni_history_ok = true
+        try {
+            expect(r.activateRouteByUrl('/projects/1')).toBe(true)
+            await t.sleep(10)
+            // An identical activation must be an O(1) no-op and write no history.
+            expect(r.activateRouteByUrl('/projects/1')).toBe(true)
+            await t.sleep(10)
+            expect(r.replaceRouteByUrl('/projects/2')).toBe(true)
+            await t.sleep(10)
+            expect(pushes.length).toBe(1)
+            expect(pushes[0]).toBe('/projects/1')
+            expect(replaces.length).toBe(1)
+            expect(replaces[0]).toBe('/projects/2')
+            expect(window.$__uni_url_mem.path).toBe('/projects/2')
+        } finally {
+            history.pushState = origPush
+            history.replaceState = origReplace
+            window.$__uni_history_ok = savedOk
+        }
+    </script>
+}
+
+// ── signals ─────────────────────────────────────────────────────────────────
+
+#universal_test("router the $url and $query signals fire only on a real change", isolate) {
+    <UtP2Url />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        let urlFires = 0, queryFires = 0
+        const uUrl = r.$url.subscribe(() => { urlFires++ })
+        const uQuery = r.$query.subscribe(() => { queryFires++ })
+        r.activateRouteByUrl('/projects/1?a=1')
+        await t.sleep(10)
+        const u1 = urlFires, q1 = queryFires
+        expect(u1).toBeGreaterThan(0)
+        expect(q1).toBeGreaterThan(0)
+        // Identical re-activation is a no-op: no signal write.
+        r.activateRouteByUrl('/projects/1?a=1')
+        await t.sleep(10)
+        expect(urlFires).toBe(u1)
+        expect(queryFires).toBe(q1)
+        // A real URL change fires $url but not $query (query unchanged).
+        r.activateRouteByUrl('/projects/2?a=1')
+        await t.sleep(10)
+        expect(urlFires).toBe(u1 + 1)
+        expect(queryFires).toBe(q1)
+        uUrl(); uQuery()
+    </script>
+}
+
+#universal_test("router $url is the normalized URL and $query is null on an id route", isolate) {
+    <UtP2Url />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        expect(r.$url.value).toBe(null)
+        expect(r.query()).toBe(null)
+        r.activateRouteByUrl('/projects/9?tab=1')
+        await t.sleep(10)
+        expect(r.$url.value).toBe('/projects/9')
+        expect(r.currentUrl()).toBe('/projects/9')
+        expect(r.query().tab).toBe('1')
+        r.deactivate()
+        expect(r.$url.value).toBe(null)
+        expect(r.query()).toBe(null)
+    </script>
+}
+
+// ── query decoding parity ───────────────────────────────────────────────────
+
+#universal_test("router client query decoding keeps plus literal handles bare keys and malformed percent", isolate) {
+    <UtP2Url />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        r.activateRouteByUrl('/projects/1?q=a+b&flag&u=%E2%9C%93&bad=%E0%A4%A')
+        await t.sleep(10)
+        // decodeURIComponent never turns `+` into a space (parity with the server).
+        expect(r.query().q).toBe('a+b')
+        // A bare key is an empty string.
+        expect(r.query().flag).toBe('')
+        // Percent-encoded unicode is decoded.
+        expect(r.query().u).toBe(String.fromCharCode(0x2713))
+        // Malformed percent input degrades to the raw text, never throws.
+        expect(r.query().bad).toBe('%E0%A4%A')
+    </script>
+}
+
+#universal_test("router query stays empty until the URL actually carries a query", isolate) {
+    <UtP2Url />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        expect(r.query()).toBe(null)
+        // A URL route with no query writes no signal (null == empty by signature).
+        r.activateRouteByUrl('/about')
+        await t.sleep(10)
+        expect(r.query() === null || Object.keys(r.query()).length === 0).toBe(true)
+        // A query-bearing URL sets the parsed object...
+        r.activateRouteByUrl('/projects/1?a=1')
+        await t.sleep(10)
+        expect(r.query().a).toBe('1')
+        // ...and moving to a query-less URL empties it again.
+        r.activateRouteByUrl('/projects/2')
+        await t.sleep(10)
+        expect(Object.keys(r.query()).length).toBe(0)
+    </script>
+}
+
+#universal_test("router setQuery encodes clears and preserves the current path", isolate) {
+    <UtP2Url />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        r.activateRouteByUrl('/projects/5')
+        await t.sleep(10)
+        r.setQuery({ q: 'a b/c', 'k&1': 'v=2' })
+        await t.sleep(10)
+        expect(r.query()['q']).toBe('a b/c')
+        expect(r.query()['k&1']).toBe('v=2')
+        expect(r.currentRoute.rawUrl).toBe('/projects/5?q=a%20b%2Fc&k%261=v%3D2')
+        expect(r.currentUrl()).toBe('/projects/5')
+        // An empty object removes the query and leaves the path intact.
+        r.setQuery({})
+        await t.sleep(10)
+        expect(r.currentRoute.rawUrl).toBe('/projects/5')
+        expect(r.currentUrl()).toBe('/projects/5')
+    </script>
+}
+
+// ── path building / normalization ───────────────────────────────────────────
+
+#universal_test("router buildPath percent-encodes and round-trips through the client matcher", isolate) {
+    <UtP2Url />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        const vals = ['a b', 'a/b', 'he%', 'caf' + String.fromCharCode(233), 'sym&=']
+        let i = 0
+        while(i < vals.length) {
+            const v = vals[i]
+            const p = r.buildPath('/projects/{id}', { id: v })
+            expect(r.activateRouteByUrl(p)).toBe(true)
+            await t.sleep(10)
+            // Split-then-decode must recover the exact original param.
+            expect(byTestId('ut-p2-pane').text()).toBe(v)
+            i = i + 1
+        }
+    </script>
+}
+
+#universal_test("router duplicate and trailing slashes still match one route", isolate) {
+    <UtP2Url />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        expect(r.activateRouteByUrl('//projects//7//')).toBe(true)
+        await t.sleep(10)
+        expect(r.current()).toBe('/projects/{id}')
+        expect(byTestId('ut-p2-pane').text()).toBe('7')
+    </script>
+}
+
+#universal_test("router normPath strips query and one trailing slash and never throws", isolate) {
+    <UtP2Dyn />
+    <script>
+        const r = window.$__uni_routers['ut-p2-dyn']
+        expect(r.normPath('/a/?x=1')).toBe('/a')
+        expect(r.normPath('/a//')).toBe('/a/')     // exactly one trailing slash is removed
+        expect(r.normPath('/')).toBe('/')
+        expect(r.normPath('')).toBe('/')
+        expect(r.normPath('a')).toBe('a')          // a leading slash is never invented
+        // A fragment must not survive normalization: `normPath` is used for both
+        // matching and link-active comparison, so a hash would poison both.
+        expect(r.normPath('/a#f')).toBe('/a')
+    </script>
+}
+
+#universal_test("router decode_segment degrades malformed percent input to the raw text", isolate) {
+    <UtP2Dyn />
+    <script>
+        expect(window.$__uni_decode_segment('a%20b')).toBe('a b')
+        expect(window.$__uni_decode_segment('%2F')).toBe('/')
+        expect(window.$__uni_decode_segment('a+b')).toBe('a+b')
+        expect(window.$__uni_decode_segment('%E0%A4%A')).toBe('%E0%A4%A')
+    </script>
+}
+
+#universal_test("router set_table_base affects matching path building and currentUrl", isolate) {
+    <UtP2Url />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        window.$__uni_set_table_base('ut-p2-url', '/app')
+        expect(r.table.base).toBe('/app')
+        expect(r.buildPath('/about', {})).toBe('/app/about')
+        expect(r.activateRouteByUrl('/app/about')).toBe(true)
+        await t.sleep(10)
+        expect(r.current()).toBe('/about')
+        expect(r.currentUrl()).toBe('/app/about')
+        expect(r.$url.value).toBe('/app/about')
+        // A non-base-prefixed URL still matches the same table.
+        expect(r.activateRouteByUrl('/about')).toBe(true)
+        await t.sleep(10)
+        expect(r.current()).toBe('/about')
+        expect(r.currentUrl()).toBe('/about')
+        window.$__uni_set_table_base('ut-p2-url', '')
+        expect(r.table.base).toBe('')
+    </script>
+}
+
+// ── URL miss / fallback ─────────────────────────────────────────────────────
+
+#universal_test("router a fragment on an activation URL does not corrupt the matched param", isolate) {
+    <UtP2Url />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        // A browser strips the hash before the router ever sees a real request,
+        // and `activateRouteByUrl` is also fed hrefs straight from `<RouterLink>`,
+        // which may carry a hash. Matching must ignore it.
+        expect(r.activateRouteByUrl('/projects/42#top')).toBe(true)
+        await t.sleep(10)
+        expect(r.current()).toBe('/projects/{id}')
+        expect(byTestId('ut-p2-pane').text()).toBe('42')
+    </script>
+}
+
+// ── title ───────────────────────────────────────────────────────────────────
+
+#universal_test("router a URL route title applies on activation and resets on deactivate", isolate) {
+    <UtP2Url />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        r.activateRouteByUrl('/about')
+        await t.sleep(10)
+        expect(document.title).toBe('About Title')
+        r.activateRouteByUrl('/projects/3')
+        await t.sleep(10)
+        expect(document.title).toBe(window.$__uni_base_title)
+        r.deactivate()
+        expect(document.title).toBe(window.$__uni_base_title)
+    </script>
+}
+
+// ── guards ──────────────────────────────────────────────────────────────────
+
+#universal_test("router a guard flag can deny then allow the same navigation", isolate) {
+    <UtP2GuardFlag />
+    <script>
+        const r = window.$__uni_routers['ut-p2-guard']
+        const orig = window.$__uni_router_error
+        let errs = 0
+        window.$__uni_router_error = () => { errs++ }
+        window.__utP2Allow = false
+        expect(r.activateRouteByUrl('/admin')).toBe(false)
+        expect(errs).toBe(1)
+        expect(r.current()).toBe('home')
+        expect(r.routes['/admin'].visible).toBe(false)
+        window.__utP2Allow = true
+        expect(r.activateRouteByUrl('/admin')).toBe(true)
+        await t.sleep(10)
+        expect(r.current()).toBe('/admin')
+        expect(r.routes['/admin'].visible).toBe(true)
+        window.$__uni_router_error = orig
+    </script>
+}
+
+// ── deactivate ──────────────────────────────────────────────────────────────
+
+#universal_test("router deactivate without an active route is a silent no-op", isolate) {
+    <UtP2Dyn />
+    <script>
+        const r = window.$__uni_routers['ut-p2-dyn']
+        r.deactivate()
+        r.deactivate()
+        expect(r.current()).toBe(null)
+        expect(r.currentUrl()).toBe(null)
+        expect(r.query()).toBe(null)
+        r.activateRoute('b')
+        await t.sleep(10)
+        r.deactivate()
+        expect(r.current()).toBe(null)
+        expect(r.routes['b'].visible).toBe(false)
+        expect(r.activateRoute('b')).toBe(true)
+        await t.sleep(10)
+        expect(r.current()).toBe('b')
+    </script>
+}
+
+// ── nested params ───────────────────────────────────────────────────────────
+
+#universal_test("router a nested URL child receives its own and the inherited params", isolate) {
+    <UtP2Nested />
+    <script>
+        const r = window.$__uni_routers['ut-p2-nest']
+        expect(r.activateRouteByUrl('/p/7/x/b')).toBe(true)
+        await t.sleep(40)
+        expect(r.current()).toBe('/p/{id}')
+        expect(r.currentUrl()).toBe('/p/7/x/b')
+        const nr = window.$__uni_routers['ut-p2-nest#/p/{id}']
+        expect(nr !== undefined).toBe(true)
+        expect(nr.current()).toBe('/x/{tab}')
+        // The child renders its own {tab}...
+        expect(byTestId('ut-p2-ntab').text()).toBe('b')
+        // ...and inherits the ancestor {id} in its merged params.
+        expect(nr.routes['/x/{tab}'].params.id).toBe('7')
+        expect(nr.routes['/x/{tab}'].params.tab).toBe('b')
+        // buildPath resolves both the root and the nested child to full paths.
+        expect(r.buildPath('/p/{id}', { id: '7' })).toBe('/p/7')
+        expect(r.buildPath('/x/{tab}', { id: '7', tab: 'b' })).toBe('/p/7/x/b')
+    </script>
+}
+
+#universal_test("router a nested param change remounts the child and keeps the layout", isolate) {
+    <UtP2Nested />
+    <script>
+        const r = window.$__uni_routers['ut-p2-nest']
+        r.activateRouteByUrl('/p/1/x/a')
+        await t.sleep(40)
+        const nr = window.$__uni_routers['ut-p2-nest#/p/{id}']
+        expect(byTestId('ut-p2-ntab').text()).toBe('a')
+        expect(byTestId('ut-p2n-layout').exists()).toBe(true)
+        // Change the ancestor param: the layout DOM must survive and the child
+        // must re-derive the new inherited param.
+        r.activateRouteByUrl('/p/2/x/a')
+        await t.sleep(40)
+        expect(byTestId('ut-p2n-layout').exists()).toBe(true)
+        expect(nr.current()).toBe('/x/{tab}')
+        expect(nr.routes['/x/{tab}'].params.id).toBe('2')
+        expect(byTestId('ut-p2-ntab').text()).toBe('a')
+        // A change of the child's own param remounts it with the new value.
+        r.activateRouteByUrl('/p/3/x/c')
+        await t.sleep(40)
+        expect(byTestId('ut-p2-ntab').text()).toBe('c')
+        expect(nr.routes['/x/{tab}'].params.id).toBe('3')
+        // Returning to the bare layout URL re-derives the default child.
+        r.activateRouteByUrl('/p/4')
+        await t.sleep(40)
+        expect(nr.current()).toBe('overview')
+        expect(byTestId('ut-p2-nid').text()).toBe('4')
+    </script>
+}
+
+// ── initial activation tail ─────────────────────────────────────────────────
+
+#universal_test("router activate_initial follows the URL chain and falls back to the id default", isolate) {
+    <UtP2InitHost />
+    <script>
+        const r = window.$__uni_routers['ut-p2-init']
+        expect(r.current()).toBe('shell')
+        // A deep link selects the nested URL child through the emitted chain.
+        expect(window.$__uni_activate_initial('ut-p2-init', 'shell', '/reports/w')).toBe(true)
+        await t.sleep(40)
+        expect(r.current()).toBe('shell')
+        const nr = window.$__uni_routers['ut-p2-init#shell']
+        expect(nr.current()).toBe('/reports/{id}')
+        expect(byTestId('ut-p2-pane').text()).toBe('w')
+        // A URL that does not select the child falls back to the id default.
+        r.deactivate()
+        expect(window.$__uni_activate_initial('ut-p2-init', 'shell', '/')).toBe(true)
+        await t.sleep(40)
+        expect(r.current()).toBe('shell')
+        expect(r.routes['shell'].visible).toBe(true)
+    </script>
+}
+
+// ── remote fetch-on-demand ──────────────────────────────────────────────────
+
+#universal_test("router a remote prefetch stores the fragment without mounting it", isolate) {
+    <UtP2Remote />
+    <script>
+        const r = window.$__uni_routers['ut-p2-rem']
+        const rec = r.routes['/heavy']
+        const origFetch = window.fetch
+        window.fetch = function() {
+            return Promise.resolve({ ok: true, text: function() { return Promise.resolve('<div data-chx-i></div>') } })
+        }
+        try {
+            expect(r.preload('/heavy')).toBe(true)
+            await t.sleep(40)
+            expect(rec.fragment).toBe('<div data-chx-i></div>')
+            expect(rec.inFlight).toBe(null)
+            expect(rec.hydrated).toBe(false)
+            expect(rec.visible).toBe(false)
+        } finally { window.fetch = origFetch }
+    </script>
+}
+
+#universal_test("router a remote prefetch in flight is not started twice and blocks release", isolate) {
+    <UtP2Remote />
+    <script>
+        const r = window.$__uni_routers['ut-p2-rem']
+        const origFetch = window.fetch
+        let calls = 0
+        window.fetch = function() { calls++; return new Promise(function() {}) }
+        try {
+            expect(r.preload('/heavy')).toBe(true)
+            expect(r.preload('/heavy')).toBe(true)
+            expect(calls).toBe(1)
+            // An in-flight route cannot be released.
+            expect(r.release('/heavy')).toBe(false)
+        } finally { window.fetch = origFetch }
+    </script>
+}
+
+#universal_test("router a remote route activates after a successful fragment fetch", isolate) {
+    <UtP2Remote />
+    <script>
+        const r = window.$__uni_routers['ut-p2-rem']
+        const rec = r.routes['/heavy']
+        const origFetch = window.fetch
+        // A remote route ships no client body: the fetched fragment IS the
+        // pre-rendered route markup (the `[data-chx-i]` boundary host aside).
+        const fragment = '<div data-chx-i><div data-testid="ut-p2r-heavy">Heavy</div></div>'
+        window.fetch = function() {
+            return Promise.resolve({ ok: true, text: function() { return Promise.resolve(fragment) } })
+        }
+        try {
+            expect(r.activateRouteByUrl('/heavy')).toBe(true)
+            await t.sleep(80)
+            expect(rec.fragment).toBe(fragment)
+            expect(rec.visible).toBe(true)
+            expect(r.current()).toBe('/heavy')
+            expect(byTestId('ut-p2r-heavy').text()).toBe('Heavy')
+        } finally { window.fetch = origFetch }
+    </script>
+}
+
+// ── traversal segments ──────────────────────────────────────────────────────
+
+#universal_test("router dot and dotdot segments are never captured by a param", isolate) {
+    <UtP2Url />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        expect(r.activateRouteByUrl('/projects/42')).toBe(true)
+        await t.sleep(10)
+        expect(r.current()).toBe('/projects/{id}')
+        expect(byTestId('ut-p2-pane').text()).toBe('42')
+        // `.`/`..` are not route data (D-6.1): the `{id}` param must refuse them,
+        // so the `route *` fallback catches the path instead.
+        expect(r.activateRouteByUrl('/projects/..')).toBe(true)
+        await t.sleep(10)
+        expect(r.current()).toBe('*')
+        expect(byTestId('ut-p2-404').text()).toBe('404')
+        expect(r.activateRouteByUrl('/projects/.')).toBe(true)
+        await t.sleep(10)
+        expect(r.current()).toBe('*')
+    </script>
+}
+
+// ── signal / state semantics ────────────────────────────────────────────────
+
+#universal_test("router isActive accepts a URL pattern id and an id activation nulls $url", isolate) {
+    <UtP2Url />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        expect(r.isActive('home')).toBe(true)
+        r.activateRouteByUrl('/projects/3')
+        await t.sleep(10)
+        expect(r.isActive('/projects/{id}')).toBe(true)
+        expect(r.isActive('home')).toBe(false)
+        expect(r.$url.value).toBe('/projects/3')
+        // Switching back to the id route clears the URL signal.
+        expect(r.activateRoute('home')).toBe(true)
+        await t.sleep(10)
+        expect(r.isActive('home')).toBe(true)
+        expect(r.$url.value).toBe(null)
+        expect(r.currentUrl()).toBe(null)
+    </script>
+}
+
+#universal_test("router setQuery then a same-path different-query activation is a real change", isolate) {
+    <UtP2Url />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        r.activateRouteByUrl('/projects/1?a=1')
+        await t.sleep(10)
+        expect(r.query().a).toBe('1')
+        // Same normalized path but a different raw URL: the O(1) no-op compare
+        // must include rawUrl, so this re-runs and updates the query signal.
+        expect(r.activateRouteByUrl('/projects/1?a=2')).toBe(true)
+        await t.sleep(10)
+        expect(r.query().a).toBe('2')
+        expect(r.currentRoute.rawUrl).toBe('/projects/1?a=2')
+        expect(r.currentUrl()).toBe('/projects/1')
+    </script>
+}
+
+#universal_test("router deactivating a nested layout preserves nested selection for reactivation", isolate) {
+    <UtP2Nested />
+    <script>
+        const r = window.$__uni_routers['ut-p2-nest']
+        r.activateRouteByUrl('/p/9/x/z')
+        await t.sleep(40)
+        const nr = window.$__uni_routers['ut-p2-nest#/p/{id}']
+        expect(nr.current()).toBe('/x/{tab}')
+        r.deactivate()
+        await t.sleep(10)
+        expect(r.current()).toBe(null)
+        expect(r.routes['/p/{id}'].visible).toBe(false)
+        // Deactivation hides the outer route but never disposes nested state.
+        expect(nr.current()).toBe('/x/{tab}')
+        expect(nr.routes['/x/{tab}'].visible).toBe(true)
+        // Reactivating by id (no URL chain) re-derives the nested default.
+        expect(r.activateRoute('/p/{id}')).toBe(true)
+        await t.sleep(40)
+        expect(r.routes['/p/{id}'].visible).toBe(true)
+        expect(nr.current()).toBe('overview')
+    </script>
+}

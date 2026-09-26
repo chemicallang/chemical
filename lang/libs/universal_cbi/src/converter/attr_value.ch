@@ -46,7 +46,7 @@ func (converter : &mut AttrValueConverter) convert_node_attr_value(builder : *mu
             var call = builder.make_function_call_value(chain, location)
             var args = call.get_args();
             args.push(base)
-            return chain;
+            return call;
 
         }
         ASTNodeKind.TypealiasStmt => {

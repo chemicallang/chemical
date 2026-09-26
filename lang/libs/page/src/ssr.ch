@@ -38,6 +38,14 @@ public struct SsrAttribute {
     var value : SsrAttributeValue
 }
 
+// Serializes an `SsrText` payload as an attribute value. Lets a struct-valued
+// expression be used as an SSR attribute (the universal converter looks this
+// method up on the struct declaration). `public` so a backend that drops
+// unreferenced internal functions still emits it for generated call sites.
+public func (t : &SsrText) getSsrAttributeValue(page : &mut HtmlPage) : SsrAttributeValue {
+    return SsrAttributeValue.Text(*t)
+}
+
 public struct SsrAttributeList {
 	var data : *SsrAttribute
 	var size : u64

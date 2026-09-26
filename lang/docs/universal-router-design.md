@@ -1250,28 +1250,40 @@ serves reversal: `router("m").buildPath("projects", { id: "42" })` returns
 `/projects/42` (params are percent-encoded at build time; a missing required
 param is a compile diagnostic when literal, a runtime error when dynamic).
 
-`Link` (the production version) combines the pieces:
+`RouterLink` (the production version) combines the pieces:
 
 ```chemical
-#universal Link(props) {
+#universal RouterLink(props) {
     const r = router(props.router || "main-router")
     // active state comes from the §5.4 signals — no manual wiring (D-7.8: URL
     // routes subscribe to $url, id routes to $current)
+    const cur = r.$url.value
+    const target = r.normPath(props.href)                       // tolerant of base/query/slash
     const active = props.routeId
         ? r.$current.value == props.routeId
-        : r.$url.value == r.normPath(props.href)   // tolerant of base/query/slash
-    <a href={props.href}
-       aria-current={active ? "page" : null}
-       onMouseEnter={() => { if(props.preload) { r.preload(props.routeId) } }}
-       onFocus={() => { if(props.preload) { r.preload(props.routeId) } }}
-       onClick={(e) => {
-           if(!window.$__uni_should_intercept(e, props.href)) { return }   // §6.3
-           e.preventDefault(); r.activateRouteByUrl(props.href)
-       }}>
+        : window.$__uni_link_active(cur, target, props.end)     // ancestor-aware; `end` = exact
+    return <a {...props}                                        // forward target/rel/id/class/data-*
+        router={null} routeId={null} preload={null} end={null}  // strip router-only knobs
+        href={props.href}
+        aria-current={active ? "page" : null}
+        onMouseEnter={() => { if(props.preload) { r.preload(props.routeId) } }}
+        onFocus={() => { if(props.preload) { r.preload(props.routeId) } }}
+        onClick={(e) => {
+            if(!window.$__uni_should_intercept(e, props.href)) { return }   // §6.3
+            e.preventDefault(); r.activateRouteByUrl(props.href)
+        }}>
         {props.children}
     </a>
 }
 ```
+
+Active matching is **ancestor-aware by default**: a link to `/projects` is active
+on `/projects/42` (segment-boundary matched, so `/pro` never matches `/projects`;
+the root `/` matches only exactly). Pass `end` to restore exact matching. `NavLink`
+uses the same rule and merges the caller's `class`/`className` with its own. Both
+components spread their props onto the `<a>` so `target`, `rel`, `id`, `class`,
+`data-*` and other passthrough attributes reach the DOM (the router-only props are
+explicitly set to `null` so they are not rendered as attributes).
 
 - **Hover/focus prefetch** (`<Link preload>`): calls `preload(id)` on
   `mouseenter`/`focus`. (`onMouseEnter`, not `onPointerEnter`: the runtime wires any
@@ -2774,7 +2786,7 @@ later group's symbols in an earlier phase:
 
 | Group | Symbols | Lands in |
 |---|---|---|
-| **CORE** | `$__uni_router_version`, `$__uni_router_error`, registry + queue + `busy`, `$__uni_route_visible`, `$__uni_route_register`, `$__uni_route_props`, `$__uni_HISTORY_*`, `$__uni_norm_path`, `$__uni_base_title`, `$__uni_activate`, `$__uni_activate_now` (id routes only) | Phase 2 |
+| **CORE** | `$__uni_router_version`, `$__uni_router_error`, registry + queue + `busy`, `$__uni_route_visible`, `$__uni_route_register`, `$__uni_route_props`, `$__uni_HISTORY_*`, `$__uni_norm_path`, `$__uni_link_active`, `$__uni_base_title`, `$__uni_activate`, `$__uni_activate_now` (id routes only) | Phase 2 |
 | **CONTROL** | `$__uni_preload`, `$__uni_release`, `$__uni_router`, `$__uni_router_null`, `$__uni_router_methods`, `$__uni_should_intercept`, the `deactivate()` title/query reset (the `title` write inside `activate_now` is inert until a route declares one, so it stays in CORE) | Phase 4 |
 | **URL** | `$__uni_decode_segment`, `$__uni_parse_query`, `$__uni_query_sig`, `$__uni_initial_url`, `$__uni_router_fragment_url`, `$__uni_url_mem`/`history_ok`, `$__uni_set_url`, `$__uni_match_url`, `$__uni_activate_by_url`, `$__uni_activate_initial`, `$__uni_fetch_route`, `$__uni_mount_fragment`, `$__uni_set_query`, `$__uni_set_table_base`, `$__uni_build_path`, `$__uni_sync_url`, the `rawUrl`/query branches | Phase 5 (plus `remote` in Phase 5) |
 
@@ -3244,6 +3256,16 @@ window.$__uni_norm_path = ((p) => {
     const q = p.indexOf("?"); if(q >= 0) p = p.slice(0, q);
     if(p.length > 1 && p.charCodeAt(p.length - 1) === 47) p = p.slice(0, -1);
     return p || "/";
+});
+
+// Active-link matching for `RouterLink`/`NavLink` (§6.6). A URL link is active
+// when the current URL equals the target or is a *descendant* of it, matched on
+// a segment boundary so `/pro` never matches `/projects`; `end` opts back to an
+// exact match. The root target only ever matches exactly.
+window.$__uni_link_active = ((cur, target, end) => {
+    if(cur === target) return true;
+    if(end || target === "/" || !cur || !target) return false;
+    return cur.indexOf(target + "/") === 0;
 });
 
 window.$__uni_set_url = ((path, replace) => {
@@ -3912,7 +3934,7 @@ frozen signature it is called out.
 | 4 — control API, modes, hooks | **Partial** | `router(...)` lowers to `window.$__uni_router(...)` (D-3.1), `preload`/`remote`/`noscroll` modes, public `RouterLink`/`NavLink`/`Outlet` components (the navigation link is `RouterLink`, not `Link`, because `components` already ships `Link`), hooks (`onActivate`/`onDeactivate`/`onBeforeActivate`) converted into the registration stub, `route title` + 404 `noindex`, and diagnostics **R8** (literal `activateRoute`/`preload`/`buildPath`/`replaceRoute` ids), **R14** (`$__uni_*` in route bodies/hooks) via a JS-AST walk, **R11** (`props.X` reads in a route root component that are neither a declared root attribute nor a pattern param — the component's parsed JS body is exposed via `ComponentSignature.js_body`) and **R12** (`dangerouslySetInnerHTML` fed a route param). All R1–R14 are implemented. |
 | 5 — URL layer | **Partial** | Pure `match_route`/`normalize_path_view`/`normalize_path`/`build_path`/`pattern_segments` (`router/src/match.ch`, `build_path.ch`) with `--libs` tests; **server-side matching** in the generated function via `router::apply_route_url` (deep-link selection, base stripping, fallback, 404 flag, param extraction — `--libs` tests); client match table with `{param}` placeholders and `isUrl` stubs; **emit-time precedence sorting** (D-6.9) shared by the server spec and the client table; `route noscroll`; **server-side percent-decoding** into page-owned storage with client-parity `decodeURIComponent` semantics; **mount-base write-back** into the client table (`$__uni_set_table_base`, Q42); **popstate wiring** for URL routers (`$__uni_sync_url`); **`{param}` → SSR-prop injection** (D-2.7) via `HtmlPage.get_parameter_text` + an `SsrText.getSsrAttributeValue` impl (this also fixed a latent bug: `AttrValueConverter.convert_node_attr_value` returned the access chain instead of the call); the `<name>.routes.json` manifest document (template 6: `name`/`base`/`routers`) written by `writeToDirectory`; runtime URL group (matcher, `setQuery`, remote fetch/adopt); **R9** (same-shape URL patterns are ambiguous, checked over the flattened entries so nested patterns count); a **site-level rewrite-map aggregate** (`page::site_routes_aggregate`/`write_site_routes`: a JSON array of the per-page `<name>.routes.json` documents, host-syntax-agnostic; `--libs` tests). |
 | 6 — nested routes / `<Outlet />` | **Partial** | A route may declare nested `route` children; the route becomes a layout whose inline `<Outlet />` is expanded in place into the nested router's wrappers. The nested registry name is derived (`outer#route`), the outer route registers `nested`/`nestedDefault` so activation cascades at runtime, each nested level hydrates independently, the outer route's `{param}` values are **inherited by nested children** (both SSR and client), and **full URL nesting works**: nested URL routes are emitted into the outer match table as full accumulated patterns with an activation chain, so `/projects/{id}/settings` selects the outer layout *and* the nested child on both the server (`apply_route_url` stores each chain step's registry/id) and the client (`$__uni_match_url` returns the chain; `$__uni_activate_now` follows it, re-deriving the child from the shared URL on a param change per §13.3.3). A nested `route *` is emitted as a **prefix entry** (matched after every exact entry) so `/projects/{id}/unknown` resolves to the layout + fallback. `buildPath` resolves nested route ids; nested routers get full diagnostic coverage (R3/R6/R7/R8/R9/R10/R13/R14) and their own `<title>`. A **native-rooted layout is hydrated**: an anonymous client function renders the layout body, where `<Outlet />` compiles to an opaque `__uni_outlet` boundary that hydration consumes without touching the SSR'd nested wrappers — so a native layout's own markup is interactive and its DOM survives a child switch. A **component-rooted layout that forwards `{props.children}`** (`<Layout><Outlet/></Layout>`) is hydrated too: the outlet child is emitted as the route record's `children` vnode and passed through `props.children`. A route root component's **compile-time attributes are carried in `baseProps`** (D-2.7) so SSR and the client mount agree. An **`<Outlet />` inside a separate layout component's own body** is supported: the `Outlet` component renders a `data-uni-outlet` slot and the runtime relocates the SSR'd nested wrappers into the nearest slot when the layout activates (the wrappers are server-rendered after the layout so deep links still include the child content). Diagnostics **R11/R12** validate a route root component's `props.X` reads / `dangerouslySetInnerHTML`. `--libs` (SSR deep links incl. an id layout, a nested URL child, a nested fallback, and a separate-component outlet) + WebView (client chain, prefix fallback, buildPath, hydrated native layout, hydrated forwarding layout, separate-component outlet, route-root props) tests. |
-| 7 — snapshot cache / static-route SSR | **Done (conservative classifier)** | Routes whose body is a purely-static native subtree (no components, expressions, spreads, hooks or URL params) render once into a process-global, mutex-guarded cache and append the cached bytes on later requests. Cache lives in `page` (`route_snapshot_append`/`route_snapshot_store`); the emitter's `router_body_is_static` classifier is deliberately conservative (anything uncertain is dynamic, so a snapshot can never be stale). `--libs` tests: cold/warm byte-identity, component routes excluded, 8-thread concurrent render byte-identical (INV-17). |
+| 7 — snapshot cache / static-route SSR | **Done (conservative classifier)** | Routes whose body is a purely-static native subtree (no components, expressions, spreads, hooks or URL params) render once into a process-global, mutex-guarded cache and append the cached bytes on later requests. Cache lives in `page` (`route_snapshot_append`/`route_snapshot_store`); the emitter's `router_body_is_static` classifier is deliberately conservative (anything uncertain is dynamic, so a snapshot can never be stale). Each `RouteSnapshot` owns its bytes in a `std::string`, so `reset_route_snapshots` (via `clear()`) frees them and an overwrite via `insert` frees the old value — no leak; the map itself is `@never_destructed` (entries live for the process lifetime, bounded by the static-route count). The key is `router#routeId@<route decl location>`, and the encoded location carries a file id, so two distinct route declarations never share a snapshot even when their router names and ids match (regression test with two same-name routers). `--libs` tests: cold/warm byte-identity, component routes excluded, 8-thread concurrent render byte-identical (INV-17), same-name/route-id routers do not collide, reset then re-cold is byte-identical. |
 | 8 — remote fragment responses | **Done** | The server-side half of §6.7 (the client fetch/adopt and the P0 stale-fetch race landed with the URL layer). `page.set_route_fragment(router, id)` (before render) selects the route and marks the page as serving a fragment; the generated router emits a `remote` route's body **only** inside `if(page.route_fragment_requested(router, id))`, wrapped in `<!--chx-frag-->` markers. `page.route_fragment_response(router, id)` (after render) returns the markup alone as a `<span data-chx-i>…</span>` boundary element (or `""`), byte-exact — nothing from the page shell or other routes. Both the emitter probe and the three helpers live in `page` so the emitter resolves them as page methods. `--libs` tests: no body on a normal render, fragment returns only the route, request scoping to router+id, and an undeclared route yields `""`. |
 
 **Known divergences from the frozen signatures (documented, not silent):**

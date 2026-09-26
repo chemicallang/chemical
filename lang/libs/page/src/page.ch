@@ -96,11 +96,13 @@ func append_router_js_quoted(v : std::string_view, out : &mut std::string) {
 // The map is node-based, so stored byte ranges stay valid across later inserts.
 // Reads/writes are guarded by one mutex; rendering itself happens per-page
 // (outside the lock), so a concurrent miss simply renders+stores identical bytes.
-// Non-destructible snapshot handle: the bytes are owned by the cache (leaked for
-// process lifetime, bounded by the number of static routes at compile time).
+// A snapshot owns its bytes in a `std::string`, so `unordered_map.clear()` (and
+// an overwrite via `insert`) frees them and `reset_route_snapshots` cannot leak.
+// The map itself is `@never_destructed`: entries live for the process lifetime
+// (bounded by the number of static routes at compile time), which is the
+// intended cache behaviour.
 struct RouteSnapshot {
-    var data : *char
-    var size : ubigint
+    var data : std::string
 }
 
 @never_destructed
@@ -358,8 +360,9 @@ public struct HtmlPage {
         var lk = std::lock_guard(&mut route_snapshots_mutex)
         const p = route_snapshots.get_ptr(&k)
         if(p == null) { return false }
-        const e = *p
-        pageHtml.append_with_len(e.data, e.size)
+        // Read through the pointer (no copy: a copy of a `std::string` field
+        // would allocate on every hit).
+        pageHtml.append_with_len(p.data.data(), p.data.size())
         route_snapshot_hits = route_snapshot_hits + 1
         return true
     }
@@ -370,17 +373,16 @@ public struct HtmlPage {
         if(!route_snapshots_enabled) { return }
         ensure_route_snapshots()
         const len = pageHtml.size() - start
-        var buf = malloc(len + 1) as *mut char
-        memcpy(buf, pageHtml.data() + start, len)
-        buf[len] = 0
         var k = route_snapshot_key(key)
         var lk = std::lock_guard(&mut route_snapshots_mutex)
-        route_snapshots.insert(k, RouteSnapshot { data : buf, size : len })
+        route_snapshots.insert(k, RouteSnapshot { data : std::string(pageHtml.data() + start, len) })
         route_snapshot_misses = route_snapshot_misses + 1
     }
 
     public func route_snapshot_hits_count(&self) : ubigint { return route_snapshot_hits }
     public func route_snapshot_misses_count(&self) : ubigint { return route_snapshot_misses }
+    // Drops every cached snapshot. `clear()` runs each entry's destructor, so
+    // the owned bytes are freed (no leak), unlike the previous `*char` handle.
     public func reset_route_snapshots(&mut self) {
         ensure_route_snapshots()
         var lk = std::lock_guard(&mut route_snapshots_mutex)

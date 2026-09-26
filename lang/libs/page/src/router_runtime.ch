@@ -354,6 +354,16 @@ window.$__uni_norm_path = ((p) => {
     return p || "/";
 });
 
+// Active-link matching for `RouterLink`/`NavLink` (§6.6). A URL link is active
+// when the current URL equals the target or is a *descendant* of it, matched on
+// a segment boundary so `/pro` never matches `/projects`; `end` opts back to an
+// exact match. The root target only ever matches exactly.
+window.$__uni_link_active = ((cur, target, end) => {
+    if(cur === target) return true;
+    if(end || target === "/" || !cur || !target) return false;
+    return cur.indexOf(target + "/") === 0;
+});
+
 window.$__uni_router_null = ((name) => ({
     name: name, currentRoute: null,
     $current: window.$_us(null), $url: window.$_us(null), $query: window.$_us(null),

@@ -15,9 +15,9 @@ description: How to use the Chemical universal router (server-rendered, lazy-hyd
 > The normative design is
 > [`lang/docs/universal-router-design.md`](../../../lang/docs/universal-router-design.md)
 > (sections §2–§15, with §16 = implementation status). **Where this skill and the
-> design doc disagree, the code wins; fix the skill and the doc.** For an app
-> author's quick reference see
-> [`lang/libs/router/README.md`](../../../lang/libs/router/README.md).
+> design doc disagree, the code wins; fix the skill and the doc.** This skill is
+> also the app-author quick reference (there is no `lang/libs/router/README.md`;
+> library sources ship comment docs above the code, not Markdown).
 
 ## What the router is
 
@@ -150,13 +150,19 @@ props, and the client activation tail.
 
 ### 1.5 Deployment modes
 
-| Mode | Server router code | Deep links |
-|---|---|---|
-| Per-request (`net_http`) | `set_route_url` + `toString()` | matched server-side each request; client table for clicks |
-| Static export | none | rewrite map from the emitted `<name>.routes.json`; client table selects |
-| Hybrid | per-request shell, `remote` heavy routes | shell matched server-side; fragments fetched on demand |
+| Mode | Server router code | Deep links | Cheapest when |
+|---|---|---|---|
+| Per-request (`net_http`) | `set_route_url` + `toString()` | matched server-side each request; client table for clicks | routes depend on request data (auth, personalization) |
+| Static export | none | rewrite map from the emitted `<name>.routes.json` → page `.html`; client table selects | all routes static (recommended default) |
+| Hybrid | per-request shell, `remote` heavy routes | shell matched server-side; `remote` fragments fetched on demand | a few dynamic routes, several heavy static ones |
 
-The router library depends on `page` + `std`, **never** on `net`/`tls`/`http`.
+All three use the same declarations and runtime; only the handler and the emit
+call differ.
+
+Components (`RouterLink`, `NavLink`, `Outlet`) and the matcher live in the
+`router` library; `page` owns only the generic parameter store and the client
+runtime emission. The library depends on `page` + `std`, **never** on
+`net`/`tls`/`http`.
 
 ---
 
@@ -424,7 +430,7 @@ the separate-component outlet, and the site-level rewrite-map aggregate
 | A route-root-component prop rule (R11/R12) | `emit.ch` (`router_collect_prop_reads`/`router_validate_props`), `html_comp/ast.ch` (`ComponentSignature.js_body`), `universal_cbi/src/react/macro.ch`, `router_diagnostics.ch`, this skill §2.6 |
 | The CBI diagnoser channel (e.g. adding `warning`) | `compiler/cbi/bindings/ASTDiagnoserCBI.{h,cpp}`, `CBI.cpp`'s `ASTDiagnoserSymMap`, `lang/libs/compiler/src/ASTDiagnoser.ch`, `lang/tests/negative/src/main.ch` (`expect_compile_output_contains`), this skill §2.6 |
 | Page server API (`page.ch` router methods) | this skill §2.4/§2.5, `lang/tests/libs/router/*`, design doc §3/§15.4 |
-| Router library public API (`match`/`apply`/components) | this skill §1.3/§1.5, `lang/libs/router/README.md`, `--libs` tests |
+| Router library public API (`match`/`apply`/components) | this skill §1.3/§1.5, the library's comment docs above the code, `--libs` tests |
 | Snapshot cache / classifier | this skill §2.5, `snapshot.ch`, design doc §7.5/§16 |
 | An invariant | this skill §4, design doc §15.5 |
 | **Anything above** | **THIS SKILL** — a router change without a skill update is incomplete |

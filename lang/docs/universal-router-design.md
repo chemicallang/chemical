@@ -33,6 +33,11 @@ deployment/perf/SEO/accessibility work that follows from them.
 universal test suites.
 
 Companion reading:
+- `.agents/skills/router/SKILL.md` — the app-author quick reference (route
+  syntax, control API, components, server setup, deployment modes) **and** the
+  build/maintenance map; kept in sync with every router change. Library sources
+  ship **comment docs above the code**, not Markdown, so there is no
+  `lang/libs/router/README.md`.
 - `conversation/RouterFast.txt` — server-parameter ideation (basis for §3).
 - `conversation/Hydrate Routes On Demand.pdf` — lifecycle ideation (basis for §2).
 - `lang/docs/universal-runtime-professionalization-plan.md` — the pipeline plan this

@@ -23,8 +23,8 @@ public #universal NavLink(props) {
         href={props.href}
         class={active ? (base + " is-active") : base}
         aria-current={active ? "page" : null}
-        onMouseEnter={() => { if(props.preload) { r.preload(props.routeId) } }}
-        onFocus={() => { if(props.preload) { r.preload(props.routeId) } }}
+        onMouseEnter={() => { if(props.preload) { if(props.routeId) { r.preload(props.routeId) } else { r.preloadByUrl(props.href) } } }}
+        onFocus={() => { if(props.preload) { if(props.routeId) { r.preload(props.routeId) } else { r.preloadByUrl(props.href) } } }}
         onClick={(e) => {
             if(!window.$__uni_should_intercept(e, props.href)) { return }
             e.preventDefault()

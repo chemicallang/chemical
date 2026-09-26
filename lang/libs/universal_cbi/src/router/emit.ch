@@ -836,11 +836,11 @@ func (converter : &mut JsConverter) router_validate_calls(node : *mut JsNode, ro
 // recursively, every nested router (a route body's nested `route` children form
 // a sub-router under a derived name).
 func (converter : &mut JsConverter) router_validate(rd : *mut JsRouterDecl) {
-    converter.router_validate_routes(&rd.routes, rd.name, std::string_view(""))
+    converter.router_validate_routes(&rd.routes, rd.name, std::string_view(""), 0)
 }
 
 func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector<*mut JsNode>, routerName : std::string_view,
-                                                            inheritedPattern : std::string_view) {
+                                                            inheritedPattern : std::string_view, depth : int) {
     if(converter.diagnoser == null) return
 
     // R10: a router with neither a declared `default` nor a `*` fallback renders
@@ -924,6 +924,23 @@ func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector
         }
     }
 
+    // R15: `lazy` is the implicit default for hidden routes, so it only asserts
+    // anything there. The outermost router's `default` route is hydrated at load
+    // by the initial activation (it behaves like `preload`), so `lazy` on it
+    // states something false. A *nested* default is activated with its parent and
+    // may therefore sit behind a hidden route, so it is left alone.
+    if(depth == 0) {
+        for(var i : uint = 0; i < routes.size(); i++) {
+            const rn = routes.get(i)
+            if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
+            var r = rn as *mut JsRouteDecl
+            if(r.is_default && r.mode.equals(std::string_view("lazy"))) {
+                var msg = std::string("'lazy' has no effect on the default route: the default route is always hydrated at load (remove 'lazy', or use 'preload' to say so explicitly)")
+                converter.router_diag(&msg, r.decl_loc)
+            }
+        }
+    }
+
     // R14: route bodies and hooks must not reach `$__uni_*` internals.
     for(var i : uint = 0; i < routes.size(); i++) {
         const rn = routes.get(i)
@@ -980,7 +997,7 @@ func (converter : &mut JsConverter) router_validate_routes(routes : &std::vector
         var childPattern = std::string()
         childPattern.append_view(&inheritedPattern)
         childPattern.append_view(&r.pattern)
-        converter.router_validate_routes(&nested, nestedName.to_view(), childPattern.to_view())
+        converter.router_validate_routes(&nested, nestedName.to_view(), childPattern.to_view(), depth + 1)
     }
 }
 
@@ -1625,24 +1642,10 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
     converter.router_emit_target(&closeOpen)
 
     const isRemote = route.mode.equals(std::string_view("remote"))
-    if(root != null) {
-    // A `remote` route ships no body with the page. The body is emitted only
-    // when the page is serving a fragment for this route (`set_route_fragment`):
-    // it goes inside `if(page.route_fragment_requested(router, id))`, so a normal
-    // render emits nothing while a fragment request emits exactly this route's
-    // markup. Non-remote routes render unconditionally, as before.
-    var fragIf : *mut IfStatement = null
-    const savedBodyVec = converter.vec
-    const fragStart = std::string("<!--chx-frag-->")
-    const fragEnd = std::string("<!--/chx-frag-->")
-    if(isRemote) {
-        var fragCond = converter.router_page_value(std::string_view("route_fragment_requested"))
-        fragCond.get_args().push(converter.router_string_value(routerName))
-        fragCond.get_args().push(converter.router_string_value(route.id))
-        fragIf = builder.make_if_stmt(fragCond as *mut Value, converter.parent, location)
-        converter.vec = fragIf.get_body()
-        converter.router_emit_target(&fragStart)
-    }
+    // A `remote` route ships no body: the client fetches its markup from a
+    // fragment endpoint the application owns (§6.7). The router renders nothing
+    // server-side for it (only the empty wrapper + boundary host).
+    if(root != null && !isRemote) {
         if(router_body_is_static(route)) {
             // Phase 7: render once, cache the bytes, append on later requests.
             var snapKey = std::string()
@@ -1733,11 +1736,6 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
         converter.router_outlet_inherited = prevInherited
         converter.router_outlet_emitted = prevEmitted
         }
-    if(isRemote) {
-        converter.router_emit_target(&fragEnd)
-        converter.vec = savedBodyVec
-        converter.vec.push(fragIf)
-    }
     }
 
     var closeTag = std::string()

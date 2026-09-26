@@ -90,6 +90,33 @@ public func neg_router_nested_unknown_activate_id(env : &mut TestEnv) {
         "no route 'typo' in router \"m#a\"", NEG_MOD_UNIVERSAL)
 }
 
+// R15: `lazy` asserts the hidden-route default, so it is a no-op on a route that
+// is hydrated at load. The outermost router's `default` route always is.
+
+@test
+public func neg_router_lazy_on_default(env : &mut TestEnv) {
+    var ch = "#universal A(props) {\n    return <span>x</span>\n}\n#universal Host(props) {\n    router \"m\" {\n        route default #\"a\" lazy { <A /> }\n    }\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "router_lazy_on_default", ch,
+        "'lazy' has no effect on the default route", NEG_MOD_UNIVERSAL)
+}
+
+// `lazy` on a genuinely hidden route is fine — it just states the default.
+@test
+public func router_lazy_on_hidden_route_is_ok(env : &mut TestEnv) {
+    var ch = "#universal A(props) {\n    return <span>x</span>\n}\n#universal Host(props) {\n    router \"m\" {\n        route default #\"a\" { <A /> }\n        route #\"b\" lazy { <A /> }\n    }\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_output_not_contains(env, "router_lazy_hidden_ok", ch,
+        "'lazy' has no effect", NEG_MOD_UNIVERSAL)
+}
+
+// Multiple mode keywords used to silently last-win (dropping `remote`).
+
+@test
+public func neg_router_two_modes(env : &mut TestEnv) {
+    var ch = "#universal A(props) {\n    return <span>x</span>\n}\n#universal Host(props) {\n    router \"m\" {\n        route #\"a\" lazy preload { <A /> }\n    }\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "router_two_modes", ch,
+        "route declares more than one mode", NEG_MOD_UNIVERSAL)
+}
+
 @test
 public func neg_router_ambiguous_patterns(env : &mut TestEnv) {
     var ch = "#universal A(props) {\n    return <span>x</span>\n}\n#universal Host(props) {\n    router \"m\" {\n        route \"/a/{x}\" { <A /> }\n        route \"/a/{y}\" { <A /> }\n    }\n}\npublic func main() : int {\n    return 0\n}\n"

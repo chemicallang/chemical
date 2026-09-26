@@ -495,49 +495,6 @@ public struct HtmlPage {
         return fallback.size() > 0 && id.equals(&fallback)
     }
 
-    // ── remote-route fragment responses (§6.7, D-6.7) ────────────────────────
-    // A `remote` route ships no HTML with the page; when the client first
-    // activates it, it fetches the markup from a fragment endpoint (default
-    // `/__uni_fragment?router=&id=`). The endpoint is application code; these
-    // helpers produce its body. Call `set_route_fragment(router, id)` BEFORE the
-    // app render (it selects the route and records the fragment request), render
-    // the page, then return `route_fragment_response(router, id)`.
-    public func set_route_fragment(&mut self, router : std::string_view, id : std::string_view) {
-        self.add_parameter(std::string_view("__route_fragment_router"), router)
-        self.add_parameter(std::string_view("__route_fragment_id"), id)
-        self.add_parameter(router, id)
-    }
-
-    // Whether this page is serving a fragment for `router#id`. Read by the
-    // generated router: only then is a `remote` route's body rendered.
-    public func route_fragment_requested(&self, router : std::string_view, id : std::string_view) : bool {
-        const r = self.get_parameter(std::string_view("__route_fragment_router"))
-        if(r.size() == 0 || !r.equals(&router)) { return false }
-        const i = self.get_parameter(std::string_view("__route_fragment_id"))
-        return i.equals(&id)
-    }
-
-    // The fragment response body (call AFTER the render): the requested route's
-    // markup wrapped in a `data-chx-i` boundary element, which is what
-    // `$__uni_mount_fragment` resolves and mounts, or "" when the route was not
-    // rendered (not a fragment request, or the router never declared it).
-    public func route_fragment_response(&self, router : std::string_view, id : std::string_view) : std::string {
-        if(!self.route_fragment_requested(router, id)) { return std::string() }
-        const open = std::string_view("<!--chx-frag-->")
-        const close = std::string_view("<!--/chx-frag-->")
-        const html = self.getHtml()
-        const start = html.find(&open)
-        if(start == std::NPOS) { return std::string() }
-        const bodyStart = start + open.size()
-        const rel = html.subview(bodyStart, html.size()).find(&close)
-        if(rel == std::NPOS) { return std::string() }
-        const end = bodyStart + rel
-        var out = std::string("<span data-chx-i>")
-        out.append_view(html.subview(bodyStart, end))
-        out.append_view(std::string_view("</span>"))
-        return out
-    }
-
     // Appends the initial `$__uni_activate_initial(...)` (and, for URL routers,
     // `$__uni_sync_url(...)`) to `pageJsEnd`, after `$__universal_flush()`.
     // Reads the server-selected route parameter, falling back to `fallback_id`.

@@ -83,9 +83,13 @@ public func handle_request(req : &http::Request, res : &mut http::ResponseWriter
 }
 ```
 
-Components (`Link`, `NavLink`) and the matcher live in this library; `page` owns
-only the generic parameter store and the client runtime emission. The library
-does **not** depend on `net`/`tls`/`http`.
+Components (`RouterLink`, `NavLink`, `Outlet`) and the matcher live in this library;
+`page` owns only the generic parameter store and the client runtime emission. The
+library does **not** depend on `net`/`tls`/`http`.
+
+> The navigation link is named **`RouterLink`** because the `components` library
+> already ships a typography `Link`; two components named `Link` would collide for
+> any app importing both.
 
 ## Deployment modes
 
@@ -101,9 +105,10 @@ call differ.
 ## Status
 
 Implemented: Phases 0–5 (syntax/codegen, parameter store, client runtime, server
-matching, params, URL table, query, titles, manifest, precedence) and Phase 6
-core (nested `route` + inline `<Outlet />`, derived nested registries, cascade
-activation). Not yet implemented: URL nesting / segment-prefix matching, an
-`<Outlet />` supplied by a separate layout component, and the static-route SSR
-snapshot cache (Phase 7). See the design doc §16 for the exact state and known
-divergences.
+matching, params, URL table, query, titles, manifest, precedence), Phase 6 core
+(nested `route` + inline `<Outlet />`, derived nested registries, cascade
+activation), and Phase 7 (a conservative static-route SSR snapshot cache with a
+mutex-guarded process-global store and a concurrent-render test). Not yet
+implemented: URL nesting / segment-prefix matching, an `<Outlet />` supplied by a
+separate layout component, and a hydrated outer layout. See the design doc §16 for
+the exact state and known divergences.

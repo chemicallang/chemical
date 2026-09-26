@@ -898,6 +898,53 @@ func (converter : &mut JsConverter) emit_nested_routes() {
     }
 }
 
+// True when a JSX subtree is purely static: text and native elements whose
+// attributes are literals only, with no components, expressions or spreads. Any
+// uncertainty makes it dynamic (conservative, never a stale snapshot).
+func router_jsx_is_static(node : *mut JsNode) : bool {
+    if(node == null) return true
+    switch(node.kind) {
+        JsNodeKind.JSXText => { return true }
+        JsNodeKind.JSXElement => {
+            const el = node as *mut JsJSXElement
+            if(el.componentSignature != null) return false
+            for(var i : uint = 0; i < el.opening.attributes.size(); i++) {
+                const attr = el.opening.attributes.get(i)
+                if(attr == null) continue
+                if(attr.kind != JsNodeKind.JSXAttribute) return false
+                const a = attr as *mut JsJSXAttribute
+                if(a.value != null && a.value.kind != JsNodeKind.Literal) return false
+            }
+            for(var i : uint = 0; i < el.children.size(); i++) {
+                if(!router_jsx_is_static(el.children.get(i))) return false
+            }
+            return true
+        }
+        JsNodeKind.JSXFragment => {
+            const f = node as *mut JsJSXFragment
+            for(var i : uint = 0; i < f.children.size(); i++) {
+                if(!router_jsx_is_static(f.children.get(i))) return false
+            }
+            return true
+        }
+        default => { return false }
+    }
+}
+
+// Phase 7: a route is snapshot-cacheable only when its body is a purely-static
+// native subtree (no URL params, no remote, no hooks, no components). This is
+// the conservative half of the static/dynamic split — anything uncertain is
+// treated as dynamic.
+func router_body_is_static(route : *mut JsRouteDecl) : bool {
+    if(route.is_url) return false
+    if(route.mode.equals(std::string_view("remote"))) return false
+    if(route.hooks.size() > 0) return false
+    const root = router_route_root(route)
+    if(root == null || root.kind != JsNodeKind.JSXElement) return false
+    if((root as *mut JsJSXElement).componentSignature != null) return false
+    return router_jsx_is_static(root)
+}
+
 func (converter : &mut JsConverter) emit_route_server(routerName : std::string_view, route : *mut JsRouteDecl,
                                                       defaultId : std::string_view) {
     const builder = converter.builder
@@ -964,6 +1011,37 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
 
     const isRemote = route.mode.equals(std::string_view("remote"))
     if(root != null && !isRemote) {
+        if(router_body_is_static(route)) {
+            // Phase 7: render once, cache the bytes, append on later requests.
+            var snapKey = std::string()
+            snapKey.append_view(&routerName)
+            snapKey.append('#')
+            snapKey.append_view(&route.id)
+            // Disambiguate identical router names across modules: the route's
+            // encoded source location is stable and unique per declaration.
+            snapKey.append('@')
+            snapKey.append_uinteger(route.decl_loc)
+            var appendCall = converter.router_page_value(std::string_view("route_snapshot_append"))
+            appendCall.get_args().push(converter.router_string_value(snapKey.to_view()))
+            var notAppend = builder.make_not_value(appendCall as *mut Value, location)
+            var cacheIf = builder.make_if_stmt(notAppend, converter.parent, location)
+            const cacheBody = cacheIf.get_body()
+            const savedCacheVec = converter.vec
+            converter.vec = cacheBody
+            var startNameStr = std::string("snap_")
+            startNameStr.append_uinteger(route.decl_loc)
+            const startName = builder.allocate_view(startNameStr.to_view())
+            var startCall = converter.router_page_value(std::string_view("get_html_size"))
+            var startVar = builder.make_varinit_stmt(false, false, &startName, builder.get_u64_type(), startCall as *mut Value, AccessSpecifier.Internal, converter.parent, location)
+            converter.vec.push(startVar)
+            converter.convertJsNode(root)
+            var storeCall = converter.router_page_stmt(std::string_view("route_snapshot_store"))
+            storeCall.get_args().push(converter.router_string_value(snapKey.to_view()))
+            storeCall.get_args().push(builder.make_identifier(&startName, startVar, false, location))
+            converter.vec.push(storeCall)
+            converter.vec = savedCacheVec
+            converter.vec.push(cacheIf)
+        } else {
         // Set the outlet context across the body conversion (save/restore for
         // recursive nesting). Copy the routes vector; do not move the field.
         var prevRoutes = std::vector<*mut JsNode>()
@@ -996,6 +1074,7 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
         converter.router_outlet_name = prevName
         converter.router_outlet_default = prevDefault
         converter.router_outlet_emitted = prevEmitted
+        }
     }
 
     var closeTag = std::string()

@@ -85,6 +85,12 @@ A nested URL child also works under a top-level **id** layout. A nested
 `route *` catches an unknown remainder under the layout (e.g.
 `/projects/{id}/unknown`) and is still shadowed by any exact child.
 
+A `route *` fallback body receives the **requested path** as `props.__path` (a
+404 echo): server-side it is injected from `__route_url` as an escaped text
+param, client-side `$__uni_match_url` returns a fresh `{ __path }` per miss. It
+is the only router-provided prop besides the `{param}`s (and `children`); props
+validation allows it on any route root.
+
 A **native-rooted** layout (root is a native element with an inline `<Outlet/>`)
 is hydrated: its own markup is interactive and its DOM survives a child switch.
 A **component-rooted** layout that forwards `{props.children}`
@@ -136,12 +142,39 @@ public func handle_request(req : &http::Request, res : &mut http::ResponseWriter
     var page = HtmlPage()
     page.defaultUniversalSetup()
     page.set_route_url(req.path, "/app")                       // base optional
+    page.set_route_query(req.query)                            // stores decoded __query_<k>
     page.set_request(&RouteRequest.make(req.method, req.path, req.query, ""))
+    if(req.path == "/old") {                                   // server redirect (§6.7)
+        page.redirect_to("main-router", "dashboard", "/dashboard")
+        res.status = 303u
+        res.set_header("Location", page.get_route_redirect())
+        return
+    }
     #html { <App /> }                                          // router declared inside App
     if(page.route_missing()) { res.status = 404u }            // decide after render
     res.write_string(page.toString())
 }
 ```
+
+**`remote` route fragment endpoint (§6.7).** A `route "…" remote { … }` ships
+no HTML with the page; the client fetches it from `/__uni_fragment?router=&id=`
+(or a page-set `$__uni_router_fragment_url`). The endpoint is application code
+(auth-gate it, and validate `router`+`id` against your declaration). Build the
+body with the library:
+
+```chemical
+var page = HtmlPage()
+page.defaultUniversalSetup()
+page.set_route_fragment(router, id)          // before render: select + fragment mode
+#html { <App /> }
+var frag = page.route_fragment_response(router, id)   // after render: route alone
+if(frag.size() == 0) { res.status = 404u; return }    // undeclared route
+res.write_string(frag)
+```
+
+The generated router emits the requested `remote` route's body only in fragment
+mode; `route_fragment_response` returns it as a `<span data-chx-i>…</span>`
+boundary element (what `$__uni_mount_fragment` resolves) and nothing else.
 
 The generated router function performs the match *during* render (it owns the
 compile-time patterns) and stores the selected id and `{param}`s in the page
@@ -221,14 +254,17 @@ Emitted once; nothing here throws. Key globals:
 - URL layer: `$__uni_match_url`, `$__uni_set_url`, `$__uni_sync_url`,
   `$__uni_parse_query`, `$__uni_set_query`, `$__uni_build_path`,
   `$__uni_activate_by_url`, `$__uni_activate_initial`, `$__uni_decode_segment`,
-  `$__uni_norm_path`, `$__uni_set_table_base`, `$__uni_initial_url`,
-  `$__uni_router_fragment_url`, `$__uni_fetch_route`, `$__uni_mount_fragment`.
+  `$__uni_norm_path`, `$__uni_set_table_base`,  `$__uni_initial_url`, `$__uni_router_fragment_url`, `$__uni_fetch_route`,
+  `$__uni_abort_superseded`, `$__uni_mount_fragment`.
 
 Activation highlights (all in `$__uni_activate_now`): exact no-op compare on
 `{route, url, rawUrl}` (so a same-path query change still re-runs); param-change
 dispose (`route.url !== url` → dispose + `ssr=false` + clear host children, but
 **never** for a `nested` layout); guard `beforeActivate` before any mutation;
-remote two-step (`pendingActivate` + fetch + re-entry); **hydrate before hiding**
+remote two-step (`pendingActivate` + fetch + re-entry) guarded by a per-router
+`navSeq` token: every accepted navigation bumps it and `$__uni_abort_superseded`
+aborts stale pending fetches, so a late fragment can never activate over a newer
+route (a plain `preload` is left warming); **hydrate before hiding**
 the outgoing route; focus/scroll capture/restore in `route_visible`; two signals
 written only when the value actually changes; nested cascade
 `$__uni_activate(route.nested, route.nestedDefault, undefined, route.params, 0)`.
@@ -257,8 +293,17 @@ ownership of decoding.
   percent-decodes into page-owned storage, stores the id + params, stores each
   activation-chain step under its derived registry, or `mark_route_missing`);
   `parse_route_chain` decodes the `reg` US `id` (RS separated) chain field.
-- `router/src/params.ch`, `request.ch`, `url.ch` — `get_parameter_object<T>`,
-  `parse_query`, `RouteRequest`, `set_route_url`/`get_route_url`/`get_route_base`.
+- `router/src/params.ch`, `request.ch`, `url.ch`, `redirect.ch` —
+  `get_parameter_object<T>`, `query_param`, `set_route_query`/`get_route_query`,
+  `parse_query`, `RouteRequest`, `set_route_url`/`get_route_url`/`get_route_base`,
+  `redirect_to`/`get_route_redirect`, and (in `page`) `set_route_fragment`/
+  `route_fragment_requested`/`route_fragment_response` for remote-route fragments.
+  `set_route_query` decodes `%XX` in keys
+  **and** values (never `+` → space — client `decodeURIComponent` parity), stores
+  page-owned `__query_<k>` entries read by `query_param`, and keeps the raw
+  string under `__route_query`. `redirect_to(router, id, path)` selects `id` and
+  (when `path` is given) stores it as `__route_url` + `__route_redirect` so the
+  matcher follows it and the handler can emit a 303 `Location`.
 - Client matcher `$__uni_match_url` mirrors `match_route` over `r.table` and
   returns the entry's `chain`; `$__uni_build_path` resolves both a top-level
   entry id and a nested entry whose chain ends with the requested id.
@@ -340,10 +385,10 @@ throws).
 
 | Suite | Command | What it covers |
 |---|---|---|
-| Router library + server | `./scripts/test.sh --tcc --libs` | matcher, build_path, query, store, `apply_route_url`/deep links, params, decoding, titles/noindex, nested, snapshot cold/warm + 8-thread |
+| Router library + server | `./scripts/test.sh --tcc --libs` | matcher, build_path, query (`parse_query`, `set_route_query`/`query_param` incl. `%XX` key+value decode, `+` literal, bare key, last-wins, leading `?` strip, empty) + `get_route_query`, redirect (`redirect_to` selection, path recording, no-path no-op, redirect-wins-over-URL-match), fallback `props.__path` (delivered + escaped + client per-miss), remote fragment responses (`set_route_fragment`/`route_fragment_response`: no normal-render body, route-alone extraction, router+id scoping, undeclared route empty), store, `apply_route_url`/deep links, params, decoding, titles/noindex, nested, snapshot cold/warm + 8-thread |
 | Compiler emission | `./scripts/test.sh --tcc --plugins` | `router_emission.ch` — SSR wrappers, registry/stubs, modes, hooks, precedence, nested, `RouterLink` |
 | Diagnostics | `./scripts/test.sh --tcc --negative` | `router_diagnostics.ch` — one case per R* |
-| Behaviour (real WebKit) | `./scripts/test.sh --tcc --universal` | `tests_router.ch` — navigation + exactly-one-visible (INV-1), O(1) no-op re-activate + change-only signals (INV-11), unknown-id/error containment (INV-3/INV-15), `deactivate`, multi-router independence, null-object accessor, hydration (`preload`/`lazy`, effects-once, only-default+preload hydrated), `release` re-arm, `noscroll`, focus restore, hook ordering/guard allow+deny/error isolation/re-entrancy queue, link `aria-current` (+ param-aware `$url`), `NavLink`, preload-on-hover, the `$__uni_should_intercept` matrix, URL client match (percent-decode, `%2F`/`+`, trailing slash, base), query/`setQuery`/`buildPath`, `replaceRoute(byUrl)`, activateRoute-with-params, param-change remount (INV-2/INV-10), `popstate` fallback + guard-back re-sync, remote failure containment (INV-21), nested layout state + independent signals, title/base-title, and the non-div hide rule (INV-8). **Phase 2 hardening:** history push/replace/no-op dispatch (stubbed `pushState`/`replaceState`), `$url`+`$query` change-only fires, query decode parity (`+` literal, bare key, unicode, malformed percent), `setQuery` encode+clear+path preservation, `buildPath` percent round-trips (`%2F`/space/`%`/unicode), duplicate/trailing slash normalization, `normPath` fragment+query stripping, `set_table_base` (match/`buildPath`/`currentUrl`), fragment-bearing activation URLs, guard flag deny→allow, `.`/`..` never a param, nested param inheritance + remount (`/p/1/x/a → /p/2/x/c`), `activate_initial` chain vs id-default fallback, remote prefetch store / in-flight dedup / blocked release / successful-fragment activation, `isActive` on a URL pattern id + id activation nulling `$url`, nested-deactivate state preservation, `%2E`-encoded traversal rejection, `buildPath` for the fallback id (client `null`), preload/release of a never-hydrated route, and relative-href rendering + non-interception. **Remaining edges:** the `$current`-vs-`$url` split on a param change (a param change fires only `$url`), unknown-id containment across all seven mutating methods (`activateRoute`/`replaceRoute`/`activateRouteByUrl`/`replaceRouteByUrl`/`preload`/`release`/`buildPath`), case-sensitive literal segments, `buildPath` ignoring extra params, a query-bearing link href comparing on the normalized path, `NavLink routeId` on an id route, `onBeforeActivate`/`onActivate` receiving the resolved URL, `onDeactivate` firing once for the outgoing route only, remote prefetch-then-activate reusing the fragment (no refetch), releasing an activated remote route clearing its host and re-mounting from the cache, popstate-to-current being a no-op and popstate-after-deactivate re-deriving, `setQuery` on an id-only router, and lowercase `%2f` decoding as data |
+| Behaviour (real WebKit) | `./scripts/test.sh --tcc --universal` | `tests_router.ch` — navigation + exactly-one-visible (INV-1), O(1) no-op re-activate + change-only signals (INV-11), unknown-id/error containment (INV-3/INV-15), `deactivate`, multi-router independence, null-object accessor, hydration (`preload`/`lazy`, effects-once, only-default+preload hydrated), `release` re-arm, `noscroll`, focus restore, hook ordering/guard allow+deny/error isolation/re-entrancy queue, link `aria-current` (+ param-aware `$url`), `NavLink`, preload-on-hover, the `$__uni_should_intercept` matrix, URL client match (percent-decode, `%2F`/`+`, trailing slash, base), query/`setQuery`/`buildPath`, `replaceRoute(byUrl)`, activateRoute-with-params, param-change remount (INV-2/INV-10), `popstate` fallback + guard-back re-sync, remote failure containment (INV-21), nested layout state + independent signals, title/base-title, the non-div hide rule (INV-8), and the fallback `props.__path` per-miss delivery. **Phase 2 hardening:** history push/replace/no-op dispatch (stubbed `pushState`/`replaceState`), `$url`+`$query` change-only fires, query decode parity (`+` literal, bare key, unicode, malformed percent), `setQuery` encode+clear+path preservation, `buildPath` percent round-trips (`%2F`/space/`%`/unicode), duplicate/trailing slash normalization, `normPath` fragment+query stripping, `set_table_base` (match/`buildPath`/`currentUrl`), fragment-bearing activation URLs, guard flag deny→allow, `.`/`..` never a param, nested param inheritance + remount (`/p/1/x/a → /p/2/x/c`), `activate_initial` chain vs id-default fallback, remote prefetch store / in-flight dedup / blocked release / successful-fragment activation / **stale-fetch race (superseded fetch never activates over the newer route; background prefetch not aborted; `deactivate` cancels a pending activation)**, `isActive` on a URL pattern id + id activation nulling `$url`, nested-deactivate state preservation, `%2E`-encoded traversal rejection, `buildPath` for the fallback id (client `null`), preload/release of a never-hydrated route, and relative-href rendering + non-interception. **Remaining edges:** the `$current`-vs-`$url` split on a param change (a param change fires only `$url`), unknown-id containment across all seven mutating methods (`activateRoute`/`replaceRoute`/`activateRouteByUrl`/`replaceRouteByUrl`/`preload`/`release`/`buildPath`), case-sensitive literal segments, `buildPath` ignoring extra params, a query-bearing link href comparing on the normalized path, `NavLink routeId` on an id route, `onBeforeActivate`/`onActivate` receiving the resolved URL, `onDeactivate` firing once for the outgoing route only, remote prefetch-then-activate reusing the fragment (no refetch), releasing an activated remote route clearing its host and re-mounting from the cache, popstate-to-current being a no-op and popstate-after-deactivate re-deriving, `setQuery` on an id-only router, and lowercase `%2f` decoding as data |
 | Both backends | `--llvm --libs` / `--llvm --plugins` | LLVM parity for emission + server tests |
 
 Fast iteration on a single WebView test:
@@ -410,6 +455,11 @@ When adding a behaviour:
   `$__uni_route_props`.
 - **Nothing throws**: all recoverable faults go through `$__uni_router_error`
   (log + `return false`).
+- **A superseded remote fetch never activates.** Per-router `navSeq` is bumped
+  by every accepted activation (and by `deactivate`); a fetch that no longer owns
+  its route (`route.aborter !== ctl`, or a stale `pendingNavSeq`) drops its
+  fragment and never calls `$__uni_activate`. Aborting a stale pending fetch also
+  clears its `pendingActivate`/`inFlight` synchronously so a re-target can refetch.
 - **Zero cost when unused**: pages that do not declare a router emit no runtime
   bytes.
 - Keep every emitted JS byte **ASCII** (a byte ≥ 0x80 breaks `std::string::find`).

@@ -423,15 +423,48 @@ func router_pattern_param_names(pattern : std::string_view) : std::vector<std::s
 // route body's JSX root (D-2.7). `effectivePattern` accumulates the ancestor
 // patterns for nested routes, so a nested id route under `/projects/{id}` still
 // receives `id`. SSR-only: the route body root is never client-emitted.
-func (converter : &mut JsConverter) router_inject_param_props(effectivePattern : std::string_view, root : *mut JsNode) {
-    if(root == null || root.kind != JsNodeKind.JSXElement) return
-    const names = router_pattern_param_names(effectivePattern)
-    if(names.size() == 0) return
-
-    const el = root as *mut JsJSXElement
+// Injects `propName={page.get_parameter_text(paramName)}` onto a route root, so
+// a server-stored parameter reaches the route component as a prop. `paramName`
+// and `propName` differ only for the fallback's `__path` (read from
+// `__route_url`).
+func (converter : &mut JsConverter) router_inject_text_prop(el : *mut JsJSXElement,
+                                                          propName : std::string_view,
+                                                          paramName : std::string_view) {
     const builder = converter.builder
     const location = intrinsics::get_raw_location()
     const getParamFn = converter.support.pageNode.child("get_parameter_text")
+
+    var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
+    var fnId = builder.make_identifier(std::string_view("get_parameter_text"), getParamFn, false, location)
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ pageId, fnId ]), location)
+    var call = builder.make_function_call_value(chain, location)
+    call.get_args().push(converter.router_string_value(paramName))
+
+    var chem = builder.allocate<JsChemicalValue>()
+    new (chem) JsChemicalValue {
+        base : JsNode { kind : JsNodeKind.ChemicalValue },
+        value : call as *mut Value
+    }
+    var container = builder.allocate<JsJSXExpressionContainer>()
+    new (container) JsJSXExpressionContainer {
+        base : JsNode { kind : JsNodeKind.JSXExpressionContainer },
+        expression : chem as *mut JsNode
+    }
+    var attr = builder.allocate<JsJSXAttribute>()
+    new (attr) JsJSXAttribute {
+        base : JsNode { kind : JsNodeKind.JSXAttribute },
+        name : builder.allocate_view(&propName),
+        value : container as *mut JsNode,
+        loc : location
+    }
+    el.opening.attributes.push(attr as *mut JsNode)
+}
+
+func (converter : &mut JsConverter) router_inject_param_props(effectivePattern : std::string_view, root : *mut JsNode,
+                                                              isFallback : bool) {
+    if(root == null || root.kind != JsNodeKind.JSXElement) return
+    const el = root as *mut JsJSXElement
+    const names = router_pattern_param_names(effectivePattern)
 
     for(var i : uint = 0; i < names.size(); i++) {
         const name = names.get(i)
@@ -443,31 +476,23 @@ func (converter : &mut JsConverter) router_inject_param_props(effectivePattern :
             }
         }
         if(already) continue
+        converter.router_inject_text_prop(el, name, name)
+    }
 
-        var pageId = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
-        var fnId = builder.make_identifier(std::string_view("get_parameter_text"), getParamFn, false, location)
-        const chain = builder.make_access_chain(&std::span<*mut Value>([ pageId, fnId ]), location)
-        var call = builder.make_function_call_value(chain, location)
-        call.get_args().push(converter.router_string_value(name))
-
-        var chem = builder.allocate<JsChemicalValue>()
-        new (chem) JsChemicalValue {
-            base : JsNode { kind : JsNodeKind.ChemicalValue },
-            value : call as *mut Value
+    // The `route *` fallback gets the requested path so a 404 body can show it
+    // (§12.7). It is injected as a text param (escaped at render) and is only
+    // added when the root does not already declare `__path`.
+    if(isFallback) {
+        var already = false
+        for(var a : uint = 0; a < el.opening.attributes.size(); a++) {
+            const existing = el.opening.attributes.get(a)
+            if(existing != null && existing.kind == JsNodeKind.JSXAttribute) {
+                if((existing as *mut JsJSXAttribute).name.equals(std::string_view("__path"))) { already = true }
+            }
         }
-        var container = builder.allocate<JsJSXExpressionContainer>()
-        new (container) JsJSXExpressionContainer {
-            base : JsNode { kind : JsNodeKind.JSXExpressionContainer },
-            expression : chem as *mut JsNode
+        if(!already) {
+            converter.router_inject_text_prop(el, std::string_view("__path"), std::string_view("__route_url"))
         }
-        var attr = builder.allocate<JsJSXAttribute>()
-        new (attr) JsJSXAttribute {
-            base : JsNode { kind : JsNodeKind.JSXAttribute },
-            name : builder.allocate_view(&name),
-            value : container as *mut JsNode,
-            loc : location
-        }
-        el.opening.attributes.push(attr as *mut JsNode)
     }
 }
 
@@ -493,7 +518,7 @@ func router_pattern_segments_js(pattern : std::string_view, out : &mut std::stri
 // (D-2.7): the client matcher overwrites them with the resolved values, but the
 // key must exist so hydration is never handed a missing prop. `firstIn` lets a
 // caller prepend other compile-time props without a leading separator.
-func router_pattern_params_js(pattern : std::string_view, out : &mut std::string, firstIn : bool) {
+func router_pattern_params_js(pattern : std::string_view, isFallback : bool, out : &mut std::string, firstIn : bool) {
     var first = firstIn
     var i : size_t = 0
     while(i < pattern.size()) {
@@ -509,6 +534,11 @@ func router_pattern_params_js(pattern : std::string_view, out : &mut std::string
             router_js_escape(seg.subview(1, seg.size() - 1), out)
             out.append_view("\": null")
         }
+    }
+    // The fallback's requested path placeholder (filled by `$__uni_match_url`).
+    if(isFallback) {
+        if(!first) out.append_view(", ")
+        out.append_view("\"__path\": null")
     }
 }
 
@@ -1146,6 +1176,8 @@ func (converter : &mut JsConverter) router_validate_props(route : *mut JsRouteDe
         }
     }
     router_push_unique(&mut allowed, std::string_view("children"))
+    // The router provides the requested path to the fallback/404 body (§12.7).
+    router_push_unique(&mut allowed, std::string_view("__path"))
 
     var reads = std::vector<std::string_view>()
     var dangerousReads = std::vector<std::string_view>()
@@ -1593,7 +1625,24 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
     converter.router_emit_target(&closeOpen)
 
     const isRemote = route.mode.equals(std::string_view("remote"))
-    if(root != null && !isRemote) {
+    if(root != null) {
+    // A `remote` route ships no body with the page. The body is emitted only
+    // when the page is serving a fragment for this route (`set_route_fragment`):
+    // it goes inside `if(page.route_fragment_requested(router, id))`, so a normal
+    // render emits nothing while a fragment request emits exactly this route's
+    // markup. Non-remote routes render unconditionally, as before.
+    var fragIf : *mut IfStatement = null
+    const savedBodyVec = converter.vec
+    const fragStart = std::string("<!--chx-frag-->")
+    const fragEnd = std::string("<!--/chx-frag-->")
+    if(isRemote) {
+        var fragCond = converter.router_page_value(std::string_view("route_fragment_requested"))
+        fragCond.get_args().push(converter.router_string_value(routerName))
+        fragCond.get_args().push(converter.router_string_value(route.id))
+        fragIf = builder.make_if_stmt(fragCond as *mut Value, converter.parent, location)
+        converter.vec = fragIf.get_body()
+        converter.router_emit_target(&fragStart)
+    }
         if(router_body_is_static(route)) {
             // Phase 7: render once, cache the bytes, append on later requests.
             var snapKey = std::string()
@@ -1668,7 +1717,7 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
                 }
             }
         }
-        converter.router_inject_param_props(effectivePattern.to_view(), root)
+        converter.router_inject_param_props(effectivePattern.to_view(), root, route.is_fallback)
         converter.convertJsNode(root)
         // No `<Outlet />` in the layout: fall back to appending the nested
         // wrappers after the layout so children are never silently dropped.
@@ -1684,6 +1733,11 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
         converter.router_outlet_inherited = prevInherited
         converter.router_outlet_emitted = prevEmitted
         }
+    if(isRemote) {
+        converter.router_emit_target(&fragEnd)
+        converter.vec = savedBodyVec
+        converter.vec.push(fragIf)
+    }
     }
 
     var closeTag = std::string()
@@ -1732,13 +1786,17 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
                     for(var pi : uint = 0; pi < paramNames.size(); pi++) {
                         if(a.original.name.equals(&paramNames.get(pi))) { isParam = true }
                     }
+                    // The router-injected fallback `__path` is a server-provided
+                    // prop, not a compile-time one: the placeholder below
+                    // (`"__path": null`) is what the client reads.
+                    if(a.original.name.equals(std::string_view("__path"))) { isParam = true }
                 }
                 if(!isParam) { filtered.push(*a) }
             }
             converter.emit_js_props_from_resolved(&filtered, &mut baseFirst)
         }
     }
-    router_pattern_params_js(effectivePattern.to_view(), stub, baseFirst)
+    router_pattern_params_js(effectivePattern.to_view(), route.is_fallback, stub, baseFirst)
     stub.append_view("}")
     if(childrenRefName.size() > 0) {
         const childrenView = childrenRefName.to_view()

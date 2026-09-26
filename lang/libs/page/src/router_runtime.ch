@@ -85,7 +85,8 @@ window.$__uni_route_register = ((routerName, routeId, spec) => {
         hydrated: false, visible: false, failed: false,
         ssr: !spec.remote, remote: !!spec.remote, isUrl: !!spec.isUrl,
         url: null, rawUrl: null, inst: null, inFlight: null,
-        fragment: null, pendingActivate: null, fetchUrl: spec.fetchUrl || null,
+        fragment: null, pendingActivate: null, pendingNavSeq: null, aborter: null,
+        fetchUrl: spec.fetchUrl || null,
         scrollY: 0, focusEl: null, noscroll: !!spec.noscroll, title: spec.title || null,
         nested: spec.nested || null, nestedDefault: spec.nestedDefault || null,
         beforeActivate: spec.beforeActivate || null,
@@ -106,6 +107,24 @@ window.$__uni_route_props = ((route) => {
 window.$__uni_HISTORY_NONE    = 0;
 window.$__uni_HISTORY_PUSH    = 1;
 window.$__uni_HISTORY_REPLACE = 2;
+
+// P0: cancel remote fetches that a newer navigation has superseded. Only routes
+// whose fetch was requested by a *pending activation* are aborted (`preload`
+// background warming is left alone). Called with the router's freshly bumped
+// `navSeq`, so any `pendingNavSeq` that no longer matches is stale.
+window.$__uni_abort_superseded = ((r) => {
+    for(const k in r.routes) {
+        const route = r.routes[k];
+        if(!route.aborter || !route.pendingActivate) continue;
+        if(route.pendingNavSeq === r.navSeq) continue;
+        route.pendingActivate = null;
+        route.pendingNavSeq = null;
+        route.inFlight = null;
+        const a = route.aborter;
+        route.aborter = null;
+        try { a.abort(); } catch(_) {}
+    }
+});
 
 window.$__uni_activate = ((routerName, routeId, url, params, historyMode, rawUrl, chain) => {
     if(window.$__uni_router_busy) {
@@ -155,9 +174,15 @@ window.$__uni_activate_now = ((routerName, routeId, url, params, historyMode, ra
         window.$__uni_router_error("navigation cancelled", route.key);
         return false;
     }
+    // A new accepted navigation supersedes any pending remote activation on this
+    // router: bump the token and abort the now-stale fetches so a late fragment
+    // can never activate over the newer route (P0 remote stale-fetch race).
+    r.navSeq = (r.navSeq || 0) + 1;
+    window.$__uni_abort_superseded(r);
     if(route.remote) {
         if(!route.fragment) {
             route.pendingActivate = [url, params, historyMode, raw];
+            route.pendingNavSeq = r.navSeq;
             if(!route.inFlight) window.$__uni_fetch_route(routerName, routeId, false);
             return true;
         }
@@ -348,6 +373,9 @@ window.$__uni_router_methods = ((name) => ({
     replaceRouteByUrl: ((path) => window.$__uni_activate_by_url(name, path, true)),
     deactivate:        (() => {
         const r = window.$__uni_routers[name];
+        // Cancelling the page also cancels any pending remote activation.
+        r.navSeq = (r.navSeq || 0) + 1;
+        window.$__uni_abort_superseded(r);
         if(!r.currentRoute) return;
         if(r.currentRoute.onDeactivate) r.currentRoute.onDeactivate();
         window.$__uni_route_visible(r.currentRoute, false);
@@ -402,7 +430,13 @@ window.$__uni_match_url = ((name, path) => {
     segs.length = n;
     for(let i = 0; i < t.routes.length; i++) {
         const e = t.routes[i];
-        if(e.fallback) return { id: e.id, fallback: true, params: null, chain: null };
+        if(e.fallback) {
+            // The fallback/404 body reads the requested path as `props.__path`
+            // (§12.7). A fresh object per match keeps it per-URL.
+            const p = Object.create(null);
+            p.__path = path;
+            return { id: e.id, fallback: true, params: p, chain: null };
+        }
         if(e.prefix) { if(segs.length < e.pattern.length) continue; }
         else if(e.pattern.length !== segs.length) continue;
         let params = null, ok = true;
@@ -439,23 +473,36 @@ window.$__uni_fetch_route = ((name, routeId, prefetchOnly) => {
     if(route.failed) return false;
     if(route.hydrated || route.inFlight) return true;
     const url = route.fetchUrl || window.$__uni_router_fragment_url(name, routeId);
+    // Capture the navigation token and an aborter. A newer navigation bumps
+    // `r.navSeq` and calls `$__uni_abort_superseded`, which clears `route.aborter`
+    // so a late resolution is dropped instead of activating a stale route.
+    const navSeq = r.navSeq || 0;
+    const ctl = (typeof AbortController !== "undefined") ? new AbortController() : null;
     route.inFlight = 1;
-    fetch(url, { credentials: "same-origin" }).then((res) => {
+    route.aborter = ctl;
+    const init = ctl ? { credentials: "same-origin", signal: ctl.signal }
+                     : { credentials: "same-origin" };
+    fetch(url, init).then((res) => {
         if(!res.ok) throw new Error("HTTP " + res.status);
         return res.text();
     }).then((html) => {
+        if(route.aborter !== ctl) return;      // superseded: not our fetch anymore
         route.inFlight = null;
+        route.aborter = null;
         route.fragment = html;
         const pend = route.pendingActivate;
-        if(!window.$__uni_mount_fragment(name, routeId)) {
-            route.pendingActivate = null;
-            return;
-        }
+        const stillCurrent = (r.navSeq || 0) === navSeq;
         route.pendingActivate = null;
-        if(pend) window.$__uni_activate(name, routeId, pend[0], pend[1], pend[2], pend[3]);
+        route.pendingNavSeq = null;
+        if(!window.$__uni_mount_fragment(name, routeId)) return;
+        if(pend && stillCurrent) window.$__uni_activate(name, routeId, pend[0], pend[1], pend[2], pend[3]);
     }).catch((err) => {
+        if(route.aborter !== ctl) return;      // superseded: aborted before settling
         route.inFlight = null;
+        route.aborter = null;
         route.pendingActivate = null;
+        route.pendingNavSeq = null;
+        if(err && (err.name === "AbortError" || err.message === "The operation was aborted")) return;
         window.$__uni_router_error("fragment fetch failed", route.key + " " + err);
     });
     return true;

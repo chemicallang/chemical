@@ -262,3 +262,32 @@ public func test_router_nested_registry_and_activation(env : &mut TestEnv) {
         env.error("nested router should emit its own registration stub")
     }
 }
+
+// ── Phase 6: nested routes inherit the outer URL route's params ─────────────
+
+#universal NestedParamChild(props) {
+    return <div class="np">{props.id}</div>
+}
+
+#universal NestedParamApp(props) {
+    router "np" {
+        route default #"home" { <div>Home</div> }
+        route "/projects/{id}" {
+            route default #"overview" { <NestedParamChild /> }
+            <div class="npl"><Outlet /></div>
+        }
+    }
+}
+
+@test
+public func test_router_nested_param_reaches_ssr(env : &mut TestEnv) {
+    var page = HtmlPage()
+    page.set_route_url("/projects/42", "")
+    #html { <NestedParamApp /> }
+    var html = page.getHtml()
+    const expected = std::string_view("class=\"np\">42</div>")
+    if(html.find(&expected) == std::NPOS) {
+        env.error("a nested child under /projects/{id} should receive the {id} param at SSR")
+        env.info(html.data())
+    }
+}

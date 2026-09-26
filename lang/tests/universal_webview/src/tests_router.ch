@@ -351,6 +351,8 @@
         expect(nr !== undefined).toBe(true)
         expect(nr.routes['overview'].visible).toBe(true)
         expect(byTestId('ut-nurl-child').exists()).toBe(true)
+        // the nested child inherited the outer URL route's {id} param
+        expect(byTestId('ut-nurl-child').text()).toBe('42')
         // switch the nested child independently; the layout stays in place
         nr.activateRoute('settings')
         await t.sleep(20)

@@ -136,6 +136,7 @@ struct JsConverter {
     var router_outlet_routes : std::vector<*mut JsNode>
     var router_outlet_name : std::string_view = ""
     var router_outlet_default : std::string_view = ""
+    var router_outlet_inherited : std::string_view = ""
     var router_outlet_emitted : bool = false
 }
 

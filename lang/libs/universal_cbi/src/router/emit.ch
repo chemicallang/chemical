@@ -207,11 +207,13 @@ func router_pattern_param_names(pattern : std::string_view) : std::vector<std::s
     return out
 }
 
-// Injects one synthetic SSR attribute per `{param}` into a route body's JSX root
-// (D-2.7). SSR-only: the route body root is never client-emitted.
-func (converter : &mut JsConverter) router_inject_param_props(route : *mut JsRouteDecl, root : *mut JsNode) {
-    if(!route.is_url || root == null || root.kind != JsNodeKind.JSXElement) return
-    const names = router_pattern_param_names(route.pattern)
+// Injects one synthetic SSR attribute per `{param}` in `effectivePattern` into a
+// route body's JSX root (D-2.7). `effectivePattern` accumulates the ancestor
+// patterns for nested routes, so a nested id route under `/projects/{id}` still
+// receives `id`. SSR-only: the route body root is never client-emitted.
+func (converter : &mut JsConverter) router_inject_param_props(effectivePattern : std::string_view, root : *mut JsNode) {
+    if(root == null || root.kind != JsNodeKind.JSXElement) return
+    const names = router_pattern_param_names(effectivePattern)
     if(names.size() == 0) return
 
     const el = root as *mut JsJSXElement
@@ -780,7 +782,7 @@ func (converter : &mut JsConverter) emit_router_server(rd : *mut JsRouterDecl) {
     for(var i : uint = 0; i < rd.routes.size(); i++) {
         const rn = rd.routes.get(i)
         if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
-        converter.emit_route_server(rd.name, rn as *mut JsRouteDecl, defaultId)
+        converter.emit_route_server(rd.name, rn as *mut JsRouteDecl, defaultId, std::string_view(""))
     }
 
     // 4. Route manifest entries (static-export `routes.json`, §13.2.3).
@@ -892,9 +894,10 @@ func (converter : &mut JsConverter) emit_nested_routes() {
     converter.router_outlet_emitted = true
     const name = converter.router_outlet_name
     const def = converter.router_outlet_default
+    const inherited = converter.router_outlet_inherited
     for(var i : uint = 0; i < converter.router_outlet_routes.size(); i++) {
         var r = converter.router_outlet_routes.get(i) as *mut JsRouteDecl
-        converter.emit_route_server(name, r, def)
+        converter.emit_route_server(name, r, def, inherited)
     }
 }
 
@@ -946,9 +949,15 @@ func router_body_is_static(route : *mut JsRouteDecl) : bool {
 }
 
 func (converter : &mut JsConverter) emit_route_server(routerName : std::string_view, route : *mut JsRouteDecl,
-                                                      defaultId : std::string_view) {
+                                                      defaultId : std::string_view, inheritedParams : std::string_view) {
     const builder = converter.builder
     const location = intrinsics::get_raw_location()
+
+    // Accumulated ancestor patterns: nested id routes under a URL ancestor still
+    // receive the ancestor's `{param}` values.
+    var effectivePattern = std::string()
+    effectivePattern.append_view(&inheritedParams)
+    effectivePattern.append_view(&route.pattern)
 
     // Nested routes (Phase 6): this route owns a nested router whose wrappers
     // render at its `<Outlet />`. The nested registry is emitted before the body
@@ -1050,6 +1059,7 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
         }
         const prevName = converter.router_outlet_name
         const prevDefault = converter.router_outlet_default
+        const prevInherited = converter.router_outlet_inherited
         const prevEmitted = converter.router_outlet_emitted
         if(nested.size() > 0) {
             converter.router_outlet_routes = std::vector<*mut JsNode>()
@@ -1058,9 +1068,10 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
             }
             converter.router_outlet_name = builder.allocate_view(nestedName.to_view())
             converter.router_outlet_default = builder.allocate_view(&nestedDefault)
+            converter.router_outlet_inherited = builder.allocate_view(effectivePattern.to_view())
             converter.router_outlet_emitted = false
         }
-        converter.router_inject_param_props(route, root)
+        converter.router_inject_param_props(effectivePattern.to_view(), root)
         converter.convertJsNode(root)
         // No `<Outlet />` in the layout: fall back to appending the nested
         // wrappers after the layout so children are never silently dropped.
@@ -1073,6 +1084,7 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
         }
         converter.router_outlet_name = prevName
         converter.router_outlet_default = prevDefault
+        converter.router_outlet_inherited = prevInherited
         converter.router_outlet_emitted = prevEmitted
         }
     }
@@ -1103,7 +1115,7 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
     stub.append_view("\", comp: ")
     if(compName.size() > 0) { stub.append_view(compName.to_view()) } else { stub.append_view("null") }
     stub.append_view(", baseProps: {")
-    router_pattern_params_js(route.pattern, stub)
+    router_pattern_params_js(effectivePattern.to_view(), stub)
     stub.append_view("}, wrapperId: \"r")
     stub.append_uinteger(route.decl_loc)
     stub.append_view("\", hostId: \"u")

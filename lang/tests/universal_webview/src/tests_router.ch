@@ -2252,3 +2252,319 @@
         expect(nr.current()).toBe('overview')
     </script>
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Remaining edge cases: signal split, API error containment, case sensitivity,
+// buildPath, link/nav active state, hook arguments, remote reuse, popstate
+// no-op, and query on an id-only router.
+// ═══════════════════════════════════════════════════════════════════════════
+
+#universal UtP2QueryLinkHost(props) {
+    return <div data-testid="ut-p2ql-wrap"><RouterLink href="/projects?tab=1" router="ut-links">P</RouterLink></div>
+}
+
+#universal UtP2NavIdHost(props) {
+    return <div data-testid="ut-p2ni-wrap"><NavLink href="/unused" routeId="b" router="ut-p2-dyn">B</NavLink></div>
+}
+
+#universal UtP2HookArg(props) {
+    router "ut-p2-hookarg" {
+        route default #"home" { <div data-testid="ut-p2ha-home">Home</div> }
+        route "/thing/{id}" {
+            onBeforeActivate((url) => { window.__utP2GuardUrl = url; return true })
+            onActivate((url) => { window.__utP2ActUrl = url })
+            <div data-testid="ut-p2ha-thing">Thing</div>
+        }
+    }
+}
+
+#universal UtP2DeactCount(props) {
+    router "ut-p2-dc" {
+        route default #"a" {
+            onDeactivate(() => { window.__utP2DeactA = (window.__utP2DeactA || 0) + 1 })
+            <div data-testid="ut-p2dc-a">A</div>
+        }
+        route #"b" {
+            onDeactivate(() => { window.__utP2DeactB = (window.__utP2DeactB || 0) + 1 })
+            <div data-testid="ut-p2dc-b">B</div>
+        }
+    }
+}
+
+#universal_test("router a param change fires $url but not $current", isolate) {
+    <UtP2Url />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        let cur = 0, url = 0
+        const unsubCur = r.$current.subscribe(() => { cur++ })
+        const unsubUrl = r.$url.subscribe(() => { url++ })
+        r.activateRouteByUrl('/projects/1')
+        await t.sleep(10)
+        const cur1 = cur, url1 = url
+        expect(cur1).toBe(1)
+        expect(url1).toBe(1)
+        // Same pattern id, different param: only $url changes (why the two signals
+        // are split — an id-keyed link must not re-render on a param change).
+        r.activateRouteByUrl('/projects/2')
+        await t.sleep(10)
+        expect(cur).toBe(cur1)
+        expect(url).toBe(url1 + 1)
+        expect(r.current()).toBe('/projects/{id}')
+        unsubCur(); unsubUrl()
+    </script>
+}
+
+#universal_test("router every mutating method contains an unknown id with one error", isolate) {
+    <UtNRouterNoFallback />
+    <script>
+        const r = window.$__uni_routers['ut-unf']
+        const orig = window.$__uni_router_error
+        let errs = 0
+        window.$__uni_router_error = () => { errs++ }
+        expect(r.activateRoute('nope')).toBe(false)
+        expect(r.replaceRoute('nope')).toBe(false)
+        // No fallback on this router, so a miss is an error too.
+        expect(r.activateRouteByUrl('/missing/path')).toBe(false)
+        expect(r.replaceRouteByUrl('/missing/path')).toBe(false)
+        expect(r.preload('nope')).toBe(false)
+        expect(r.release('nope')).toBe(false)
+        expect(r.buildPath('nope', {})).toBe(null)
+        window.$__uni_router_error = orig
+        expect(errs).toBe(7)
+        expect(r.current()).toBe('home')
+        expect(r.routes['home'].visible).toBe(true)
+    </script>
+}
+
+#universal_test("router literal segments are matched case-sensitively", isolate) {
+    <UtP2Url />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        // Wrong case does not match the literal segment; the fallback catches it.
+        expect(r.activateRouteByUrl('/PROJECTS/1')).toBe(true)
+        await t.sleep(10)
+        expect(r.current()).toBe('*')
+        expect(r.activateRouteByUrl('/About')).toBe(true)
+        await t.sleep(10)
+        expect(r.current()).toBe('*')
+        // The exact case matches.
+        expect(r.activateRouteByUrl('/about')).toBe(true)
+        await t.sleep(10)
+        expect(r.current()).toBe('/about')
+    </script>
+}
+
+#universal_test("router buildPath ignores extra params and builds literal routes", isolate) {
+    <UtP2Url />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        expect(r.buildPath('/about', {})).toBe('/about')
+        // Extra keys are ignored: only declared `{name}` slots are substituted.
+        expect(r.buildPath('/projects/{id}', { id: '5', extra: 'x' })).toBe('/projects/5')
+        expect(r.buildPath('/projects/{id}', {})).toBe('/projects/')
+    </script>
+}
+
+#universal_test("router a link href with a query still compares on the normalized path", isolate) {
+    <UtRouterLinks />
+    <UtP2QueryLinkHost />
+    <script>
+        const r = window.$__uni_routers['ut-links']
+        const a = byTestId('ut-p2ql-wrap').find('a')
+        expect(a.attr('aria-current')).toBe(null)
+        r.activateRouteByUrl('/projects?tab=1')
+        await t.sleep(20)
+        expect(a.attr('aria-current')).toBe('page')
+        // A different query on the same path keeps the link active.
+        r.activateRouteByUrl('/projects?tab=2')
+        await t.sleep(20)
+        expect(a.attr('aria-current')).toBe('page')
+    </script>
+}
+
+#universal_test("router NavLink with a routeId tracks an id route", isolate) {
+    <UtP2Dyn />
+    <UtP2NavIdHost />
+    <script>
+        const r = window.$__uni_routers['ut-p2-dyn']
+        const a = byTestId('ut-p2ni-wrap').find('a')
+        expect(a.hasClass('is-active')).toBe(false)
+        r.activateRoute('b')
+        await t.sleep(20)
+        expect(a.hasClass('is-active')).toBe(true)
+        expect(a.attr('aria-current')).toBe('page')
+        r.activateRoute('home')
+        await t.sleep(20)
+        expect(a.hasClass('is-active')).toBe(false)
+        expect(a.attr('aria-current')).toBe(null)
+    </script>
+}
+
+#universal_test("router hooks receive the resolved URL argument", isolate) {
+    <UtP2HookArg />
+    <script>
+        const r = window.$__uni_routers['ut-p2-hookarg']
+        window.__utP2GuardUrl = 'unset'
+        window.__utP2ActUrl = 'unset'
+        expect(r.activateRouteByUrl('/thing/9')).toBe(true)
+        await t.sleep(10)
+        expect(window.__utP2GuardUrl).toBe('/thing/9')
+        expect(window.__utP2ActUrl).toBe('/thing/9')
+    </script>
+}
+
+#universal_test("router onDeactivate fires once for the outgoing route only", isolate) {
+    <UtP2DeactCount />
+    <script>
+        const r = window.$__uni_routers['ut-p2-dc']
+        window.__utP2DeactA = 0
+        window.__utP2DeactB = 0
+        r.activateRoute('b')
+        await t.sleep(20)
+        expect(window.__utP2DeactA).toBe(1)
+        expect(window.__utP2DeactB).toBe(0)
+        r.activateRoute('a')
+        await t.sleep(20)
+        expect(window.__utP2DeactA).toBe(1)
+        expect(window.__utP2DeactB).toBe(1)
+        // An identical re-activation is a no-op: nothing is deactivated.
+        r.activateRoute('a')
+        await t.sleep(10)
+        expect(window.__utP2DeactA).toBe(1)
+        expect(window.__utP2DeactB).toBe(1)
+    </script>
+}
+
+#universal_test("router activating a prefetched remote route reuses the fragment", isolate) {
+    <UtP2Remote />
+    <script>
+        const r = window.$__uni_routers['ut-p2-rem']
+        const rec = r.routes['/heavy']
+        const origFetch = window.fetch
+        let calls = 0
+        const fragment = '<div data-chx-i><div data-testid="ut-p2r-heavy">Heavy</div></div>'
+        window.fetch = function() {
+            calls++
+            return Promise.resolve({ ok: true, text: function() { return Promise.resolve(fragment) } })
+        }
+        try {
+            expect(r.preload('/heavy')).toBe(true)
+            await t.sleep(40)
+            expect(calls).toBe(1)
+            expect(rec.visible).toBe(false)
+            // The prefetched fragment is reused: no second fetch on activation.
+            expect(r.activateRouteByUrl('/heavy')).toBe(true)
+            await t.sleep(60)
+            expect(calls).toBe(1)
+            expect(rec.visible).toBe(true)
+            expect(byTestId('ut-p2r-heavy').text()).toBe('Heavy')
+        } finally { window.fetch = origFetch }
+    </script>
+}
+
+#universal_test("router releasing an activated remote route clears its host and re-mounts", isolate) {
+    <UtP2Remote />
+    <script>
+        const r = window.$__uni_routers['ut-p2-rem']
+        const rec = r.routes['/heavy']
+        const origFetch = window.fetch
+        let calls = 0
+        const fragment = '<div data-chx-i><div data-testid="ut-p2r-heavy">Heavy</div></div>'
+        window.fetch = function() {
+            calls++
+            return Promise.resolve({ ok: true, text: function() { return Promise.resolve(fragment) } })
+        }
+        try {
+            r.activateRouteByUrl('/heavy')
+            await t.sleep(80)
+            expect(rec.visible).toBe(true)
+            r.activateRoute('home')
+            await t.sleep(20)
+            expect(rec.visible).toBe(false)
+            expect(r.release('/heavy')).toBe(true)
+            expect(rec.hydrated).toBe(false)
+            expect(rec.ssr).toBe(false)
+            expect(rec.host.firstChild).toBe(null)
+            // Reactivating re-mounts the cached fragment without a new fetch.
+            r.activateRouteByUrl('/heavy')
+            await t.sleep(40)
+            expect(rec.visible).toBe(true)
+            expect(calls).toBe(1)
+            expect(byTestId('ut-p2r-heavy').text()).toBe('Heavy')
+        } finally { window.fetch = origFetch }
+    </script>
+}
+
+#universal_test("router popstate to the current URL is a no-op", isolate) {
+    <UtP2Url />
+    <script>
+        window.$__uni_history_ok = false
+        const r = window.$__uni_routers['ut-p2-url']
+        r.activateRouteByUrl('/projects/5?tab=1')
+        await t.sleep(10)
+        let cur = 0, url = 0
+        const unsubCur = r.$current.subscribe(() => { cur++ })
+        const unsubUrl = r.$url.subscribe(() => { url++ })
+        window.$__uni_url_mem.path = '/projects/5?tab=1'
+        window.dispatchEvent(new PopStateEvent('popstate'))
+        await t.sleep(10)
+        expect(cur).toBe(0)
+        expect(url).toBe(0)
+        expect(r.current()).toBe('/projects/{id}')
+        expect(r.query().tab).toBe('1')
+        unsubCur(); unsubUrl()
+    </script>
+}
+
+#universal_test("router popstate after deactivate re-derives the route", isolate) {
+    <UtP2Url />
+    <script>
+        window.$__uni_history_ok = false
+        const r = window.$__uni_routers['ut-p2-url']
+        r.activateRouteByUrl('/about')
+        await t.sleep(10)
+        r.deactivate()
+        await t.sleep(10)
+        expect(r.current()).toBe(null)
+        window.$__uni_url_mem.path = '/projects/8'
+        window.dispatchEvent(new PopStateEvent('popstate'))
+        await t.sleep(10)
+        expect(r.current()).toBe('/projects/{id}')
+        expect(byTestId('ut-p2-pane').text()).toBe('8')
+    </script>
+}
+
+#universal_test("router setQuery on an id-only router updates the query signal", isolate) {
+    <UtP2Dyn />
+    <script>
+        const r = window.$__uni_routers['ut-p2-dyn']
+        expect(r.query()).toBe(null)
+        // An id-only router has no URL table, but setQuery is still a plain signal
+        // write plus a replaceState; it must not throw.
+        r.setQuery({ a: '1' })
+        await t.sleep(10)
+        expect(r.query().a).toBe('1')
+        expect(r.current()).toBe('home')
+        expect(window.$__uni_url_mem.path).toBe('/?a=1')
+        // Clearing it restores an empty query on the same route.
+        r.setQuery({})
+        await t.sleep(10)
+        expect(Object.keys(r.query()).length).toBe(0)
+        expect(r.current()).toBe('home')
+    </script>
+}
+
+#universal_test("router lowercase percent hex decodes and an encoded slash stays data", isolate) {
+    <UtP2Url />
+    <script>
+        const r = window.$__uni_routers['ut-p2-url']
+        // `%2f` (lowercase) is an encoded slash: it must decode, not split.
+        expect(r.activateRouteByUrl('/projects/a%2fb')).toBe(true)
+        await t.sleep(10)
+        expect(r.current()).toBe('/projects/{id}')
+        expect(byTestId('ut-p2-pane').text()).toBe('a/b')
+        expect(r.activateRouteByUrl('/projects/%41')).toBe(true)
+        await t.sleep(10)
+        expect(byTestId('ut-p2-pane').text()).toBe('A')
+    </script>
+}

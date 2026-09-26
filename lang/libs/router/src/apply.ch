@@ -74,12 +74,20 @@ public func apply_route_url(page : &mut HtmlPage, router : std::string_view, spe
         const t2 = rest.find(std::string_view("\t"))
         if(t2 == std::NPOS) { continue }
         const pattern = rest.subview(0, t2)
-        const fb = rest.subview(t2 + 1, rest.size())
+        const rest2 = rest.subview(t2 + 1, rest.size())
+        const t3 = rest2.find(std::string_view("\t"))
+        var fb = rest2
+        var chainField = std::string_view()
+        if(t3 != std::NPOS) {
+            fb = rest2.subview(0, t3)
+            chainField = rest2.subview(t3 + 1, rest2.size())
+        }
 
         patterns.push(RoutePattern {
             segments : pattern_segments(pattern),
             id : id,
-            is_fallback : fb.size() > 0 && fb.get(0) == '1'
+            is_fallback : fb.size() > 0 && fb.get(0) == '1',
+            chain : parse_route_chain(chainField)
         })
     }
     if(patterns.size() == 0) { return }
@@ -95,7 +103,40 @@ public func apply_route_url(page : &mut HtmlPage, router : std::string_view, spe
             var decoded = router_decode_segment(value)
             page.add_parameter_owned(name, decoded.to_view())
         }
+        // Nested URL ownership (§6.4/§13.3.3): store each level's selected id
+        // under its derived registry name so the nested wrappers render visible
+        // server-side, mirroring the client activation chain.
+        for(var c : size_t = 0; c < m.chain.size(); c++) {
+            const step = m.chain.get(c)
+            page.add_parameter(step.reg, step.id)
+        }
     } else {
         page.mark_route_missing()
     }
+}
+
+// Parses the unit/record-separated activation chain emitted by the converter:
+// `reg` + US + `id` (RS between steps), e.g. `r#a` US `x` RS ... An empty field
+// yields an empty chain (a top-level route).
+func parse_route_chain(field : std::string_view) : std::vector<RouteChainStep> {
+    var out = std::vector<RouteChainStep>()
+    if(field.size() == 0) { return out }
+    const rec = std::string_view("\x1e")
+    const unit = std::string_view("\x1f")
+    var i : size_t = 0
+    while(i < field.size()) {
+        const rel = field.subview(i, field.size() - i).find(&rec)
+        var end = field.size()
+        if(rel != std::NPOS) { end = i + rel }
+        const step = field.subview(i, end)
+        if(step.size() > 0) {
+            const sep = step.find(&unit)
+            if(sep != std::NPOS) {
+                out.push(RouteChainStep { reg : step.subview(0, sep), id : step.subview(sep + 1, step.size()) })
+            }
+        }
+        if(rel == std::NPOS) { break }
+        i = end + 1
+    }
+    return out
 }

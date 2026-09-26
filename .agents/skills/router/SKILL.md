@@ -72,9 +72,16 @@ Rules and notes:
 route "/projects/{id}" {
     route default #"overview" { <Overview /> }
     route #"settings"          { <Settings /> }
+    route "/settings"          { <Settings /> }   // nested URL child: /projects/{id}/settings
     <div class="layout"><Outlet /></div>
 }
 ```
+
+Nested URL children use **relative** patterns; the full path is the ancestor
+patterns concatenated (`/projects/{id}` + `/settings`). A deep link selects the
+outer layout *and* the nested child on the server and on the client, and the
+ancestor `{param}` values are inherited by the nested child (`props.id`).
+A nested URL child also works under a top-level **id** layout.
 
 ### 1.2 Control API
 
@@ -211,16 +218,30 @@ written only when the value actually changes; nested cascade
 
 ### 2.4 Server matching + URL layer
 
-- `router/src/match.ch` — `RoutePattern`, `RouteMatch`, `pattern_segments`,
-  `normalize_path_view`, `match_route` (straight first-match scan; precedence is
-  resolved at *emission* time).
+- `router/src/match.ch` — `RouteParam`, `RouteChainStep` (`reg`,`id`),
+  `RoutePattern` (segments/id/is_fallback/chain), `RouteMatch` (+`chain`),
+  `pattern_segments`, `normalize_path_view`, `match_route` (straight first-match
+  scan; precedence is resolved at *emission* time and the matched chain is
+  copied into the result).
 - `router/src/build_path.ch` — `build_path` (reverse map, percent-encodes params).
 - `router/src/apply.ch` — `apply_route_url` (called by generated code; matches,
-  percent-decodes into page-owned storage, stores the id + params, or
-  `mark_route_missing`).
+  percent-decodes into page-owned storage, stores the id + params, stores each
+  activation-chain step under its derived registry, or `mark_route_missing`);
+  `parse_route_chain` decodes the `reg` US `id` (RS separated) chain field.
 - `router/src/params.ch`, `request.ch`, `url.ch` — `get_parameter_object<T>`,
   `parse_query`, `RouteRequest`, `set_route_url`/`get_route_url`/`get_route_base`.
-- Client matcher `$__uni_match_url` mirrors `match_route` over `r.table`.
+- Client matcher `$__uni_match_url` mirrors `match_route` over `r.table` and
+  returns the entry's `chain`; `$__uni_build_path` resolves both a top-level
+  entry id and a nested entry whose chain ends with the requested id.
+
+**Nested URL ownership (§6.4, §13.3.3).** Nested URL routes are emitted into the
+*outermost* match table as **full accumulated patterns** with a `chain`
+(`id` = the root layout route; each step = `[derivedRegistry, routeId]` down to
+the leaf). The server spec carries the same chain (control-char encoded) so
+`apply_route_url` stores every level's selection; `$__uni_activate_now` follows
+the chain instead of `nestedDefault` and passes the remaining steps down. This
+is deliberately *not* segment-prefix matching: the pattern grammar is literal +
+`{param}` segments, so full patterns are equivalent and keep one exact scan.
 
 ### 2.5 Static-route SSR snapshot cache (Phase 7)
 
@@ -245,6 +266,7 @@ Emitted by the converter (`emit.ch`) with a source location, except R5 (runtime)
 | R6 | route body ≠ 1 JSX root | `route body must render exactly one root element` |
 | R7 | fallback not last | `fallback route must be the last route` |
 | R8 | literal id not declared | `no route 'x' in router "m"` |
+| R9 | two same-shape URL patterns | `route patterns '/a/{x}' and '/a/{y}' are ambiguous` |
 | R13 | unsupported pattern (mid `*`) | `unsupported route pattern '…'` |
 | R14 | `$__uni_*` in a route body/hook | `route bodies cannot call runtime internals` |
 
@@ -296,6 +318,12 @@ When adding a behaviour:
 - **The wrapper is never the mount host.** The `[data-chx-i]` span inside the
   wrapper is the host and is mounted in `"children"` mode; the wrapper only gets
   its `data-uni-route-active` attribute toggled (so a non-`<div>` root is safe).
+- **A layout with nested routes is never disposed on a param change** (the
+  `route.url !== url` dispose is guarded by `!route.nested`): its DOM contains
+  the nested wrappers, and the activation chain re-derives the child from the
+  shared URL (§13.3.3).
+- **Nested URL entries are full patterns with a chain.** The outermost table is
+  the single source of truth for URL matching; nested registries hold no table.
 - **No DOM queries on the activation path** — boundaries/wrappers are resolved at
   bootstrap by source-derived ids.
 - **Route bodies never enter the hydration queue**; only the router mounts them.
@@ -315,14 +343,22 @@ When adding a behaviour:
 
 ## Part 5 — Known limitations / remaining work
 
-- **Phase 6 remainder**: full URL nesting / segment-prefix matching
-  (`/projects/{id}/settings`); an `<Outlet/>` supplied by a *separate layout
-  component*; a **hydrated outer layout**. The last two need route bodies to
-  compile to an anonymous client function whose Outlet participates in client
-  hydration.
+- **Hydrated outer layout**: a route with nested children compiles to
+  `comp: null`, so its own markup is SSR-only (its `<Outlet/>` still hydrates
+  children independently, and its DOM/scroll survive a child switch). A
+  `RouterLink` placed directly in such a layout is not interactive (a click
+  full-navigates). Hydrating a layout needs an anonymous client function whose
+  `<Outlet/>` adopts the SSR'd nested wrappers.
+- **`<Outlet/>` from a separate layout component**: only an inline `<Outlet/>`
+  in the route body expands; a layout component cannot host it yet.
+- **Nested `route *` fallback**: a nested fallback does not catch an unknown
+  remainder (flattened patterns, not prefix matching); only a top-level fallback
+  does.
 - **R11/R12**: `props.X` / `dangerouslySetInnerHTML` validation — these read the
   route *component*, a different component from the router declaration, so they
-  need a cross-component pass.
+  need a cross-component pass. (R9 is implemented.)
+- **R10** (no default and no fallback) is not emitted: the CBI diagnoser exposes
+  `error` only, and R10 is a warning.
 - **Site-level rewrite-map aggregate** (deploy tooling) from the per-page
   `<name>.routes.json`.
 - Phase 7 caches only the conservative static subset (by design).

@@ -8,7 +8,8 @@ func make_pattern(pattern : std::string_view, id : std::string_view, is_fallback
     return RoutePattern {
         segments : pattern_segments(pattern),
         id : id,
-        is_fallback : is_fallback
+        is_fallback : is_fallback,
+        chain : std::vector<RouteChainStep>()
     }
 }
 
@@ -120,4 +121,30 @@ public func test_router_normalize_path(env : &mut TestEnv) {
     var c = normalize_path("/", "")
     var e3 = std::string_view("/")
     if(!c.to_view().equals(&e3)) { env.error("root should stay root") }
+}
+
+@test
+public func test_router_match_carries_nested_chain(env : &mut TestEnv) {
+    var patterns = std::vector<RoutePattern>()
+    var chain = std::vector<RouteChainStep>()
+    chain.push(RouteChainStep { reg : std::string_view("main#/a/{x}"), id : std::string_view("/settings") })
+    patterns.push(RoutePattern {
+        segments : pattern_segments("/a/{x}/settings"),
+        id : std::string_view("/a/{x}"),
+        is_fallback : false,
+        chain : chain
+    })
+    const m = match_route(&mut patterns, "/a/1/settings", "")
+    if(!m.matched) { env.error("nested full pattern should match"); return }
+    if(!m.id.equals(std::string_view("/a/{x}"))) { env.error("the entry id is the root route id") }
+    if(m.params.size() != 1) { env.error("a full nested pattern captures ancestor params") }
+    if(m.chain.size() != 1) { env.error("the chain should carry one nested step"); return }
+    const s = m.chain.get_ptr(0)
+    if(!s.reg.equals(std::string_view("main#/a/{x}"))) { env.error("chain registry") }
+    if(!s.id.equals(std::string_view("/settings"))) { env.error("chain route id") }
+    // A top-level entry carries no chain.
+    var top = std::vector<RoutePattern>()
+    top.push(make_pattern("/a/{x}", "/a/{x}"))
+    const mt = match_route(&mut top, "/a/1", "")
+    if(mt.chain.size() != 0) { env.error("a top-level match must have an empty chain") }
 }

@@ -106,24 +106,24 @@ window.$__uni_HISTORY_NONE    = 0;
 window.$__uni_HISTORY_PUSH    = 1;
 window.$__uni_HISTORY_REPLACE = 2;
 
-window.$__uni_activate = ((routerName, routeId, url, params, historyMode, rawUrl) => {
+window.$__uni_activate = ((routerName, routeId, url, params, historyMode, rawUrl, chain) => {
     if(window.$__uni_router_busy) {
-        window.$__uni_router_queue.push([routerName, routeId, url, params, historyMode, rawUrl]);
+        window.$__uni_router_queue.push([routerName, routeId, url, params, historyMode, rawUrl, chain]);
         return true;
     }
     window.$__uni_router_busy = true;
-    const ok = window.$__uni_activate_now(routerName, routeId, url, params, historyMode, rawUrl);
+    const ok = window.$__uni_activate_now(routerName, routeId, url, params, historyMode, rawUrl, chain);
     window.$__uni_router_busy = false;
     while(window.$__uni_router_queue.length) {
         const q = window.$__uni_router_queue.shift();
         window.$__uni_router_busy = true;
-        window.$__uni_activate_now(q[0], q[1], q[2], q[3], q[4], q[5]);
+        window.$__uni_activate_now(q[0], q[1], q[2], q[3], q[4], q[5], q[6]);
         window.$__uni_router_busy = false;
     }
     return ok;
 });
 
-window.$__uni_activate_now = ((routerName, routeId, url, params, historyMode, raw) => {
+window.$__uni_activate_now = ((routerName, routeId, url, params, historyMode, raw, chain) => {
     const r = window.$__uni_routers[routerName];
     const route = r && r.routes[routeId];
     if(!route) {
@@ -139,7 +139,11 @@ window.$__uni_activate_now = ((routerName, routeId, url, params, historyMode, ra
         ? ((url === route.url) ? route.rawUrl : url)
         : raw;
     if(r.currentRoute === route && route.url === url && route.rawUrl === raw) return true;
-    if(route.url !== url && (route.hydrated || route.inst)) {
+    // Param-change remount (D-5.4). A layout that owns nested routes must NOT be
+    // disposed: its DOM contains the nested wrappers, so remounting it would
+    // destroy them. The nested activation chain re-derives the children from the
+    // shared URL instead (§13.3.3).
+    if(route.url !== url && (route.hydrated || route.inst) && !route.nested) {
         if(route.inst) window.$__uni_dispose(route.inst);
         route.inst = null;
         route.hydrated = false;
@@ -204,11 +208,21 @@ window.$__uni_activate_now = ((routerName, routeId, url, params, historyMode, ra
     }
     try { document.title = route.title || window.$__uni_base_title; } catch(_) {}
     // Nested routes (Phase 6): activating an outer route also activates its
-    // nested router's default, inheriting the outer route's resolved params so a
-    // nested child's `props.id` sees the URL param. The nested call queues (busy)
-    // and runs after this transition.
+    // nested router. When the URL selected a nested child (§6.4), the match
+    // carries an activation chain: follow it (passing the remaining steps down)
+    // instead of the declared nested default. The outer route's resolved params
+    // are inherited, so a nested child's `props.id` sees the URL param.
     if(route.nested) {
-        window.$__uni_activate(route.nested, route.nestedDefault, undefined, route.params, window.$__uni_HISTORY_NONE);
+        let childId = route.nestedDefault;
+        let childChain = null;
+        if(chain && chain.length && chain[0] && chain[0][0] === route.nested) {
+            childId = chain[0][1];
+            childChain = chain.slice(1);
+        }
+        if(childId) {
+            window.$__uni_activate(route.nested, childId, url, route.params,
+                                   window.$__uni_HISTORY_NONE, raw, childChain);
+        }
     }
     if(route.onActivate) {
         try { route.onActivate(url); }
@@ -371,7 +385,7 @@ window.$__uni_match_url = ((name, path) => {
     segs.length = n;
     for(let i = 0; i < t.routes.length; i++) {
         const e = t.routes[i];
-        if(e.fallback) return { id: e.id, fallback: true, params: null };
+        if(e.fallback) return { id: e.id, fallback: true, params: null, chain: null };
         if(e.pattern.length !== segs.length) continue;
         let params = null, ok = true;
         for(let j = 0; j < e.pattern.length; j++) {
@@ -381,7 +395,7 @@ window.$__uni_match_url = ((name, path) => {
                 params[s.slice(1, -1)] = window.$__uni_decode_segment(segs[j]);
             } else if(s !== segs[j]) { ok = false; break; }
         }
-        if(ok) return { id: e.id, fallback: false, params: params };
+        if(ok) return { id: e.id, fallback: false, params: params, chain: e.chain || null };
     }
     return null;
 });
@@ -393,7 +407,7 @@ window.$__uni_activate_by_url = ((name, path, replace) => {
         return false;
     }
     return window.$__uni_activate(name, m.id, window.$__uni_norm_path(path), m.params,
-        replace ? window.$__uni_HISTORY_REPLACE : window.$__uni_HISTORY_PUSH, path);
+        replace ? window.$__uni_HISTORY_REPLACE : window.$__uni_HISTORY_PUSH, path, m.chain);
 });
 
 window.$__uni_fetch_route = ((name, routeId, prefetchOnly) => {
@@ -463,25 +477,39 @@ window.$__uni_activate_initial = ((name, id, initialUrl) => {
         window.$__uni_router_error("activateInitial: unknown route", name + "#" + id);
         return false;
     }
-    if(!route.isUrl) {
-        return window.$__uni_activate(name, id, undefined, null, window.$__uni_HISTORY_NONE);
+    const hasTable = !!(r.table && r.table.routes && r.table.routes.length);
+    if(!hasTable) {
+        return window.$__uni_activate(name, id, undefined, null, window.$__uni_HISTORY_NONE, undefined, null);
     }
     const m = window.$__uni_match_url(name, initialUrl);
     const matched = !!(m && m.id === id && !m.fallback);
+    // An id default can sit in front of a URL table (a URL child nested under an
+    // id layout); when the URL does not select it, activate it by id.
+    if(!matched && !route.isUrl) {
+        return window.$__uni_activate(name, id, undefined, null, window.$__uni_HISTORY_NONE, undefined, null);
+    }
     return window.$__uni_activate(name, id,
         matched ? window.$__uni_norm_path(initialUrl) : undefined,
         (matched && m.params) ? m.params : null,
         window.$__uni_HISTORY_NONE,
-        matched ? initialUrl : undefined);
+        matched ? initialUrl : undefined,
+        (matched && m.chain) ? m.chain : null);
 });
 
 window.$__uni_build_path = ((name, id, params) => {
     const r = window.$__uni_routers[name];
     const t = r && r.table;
     if(!t) return null;
+    // A top-level entry's `id` is the root route; a nested URL entry's chain
+    // ends with the nested route id, so both forms resolve here.
+    const isTarget = (e) => {
+        if(e.fallback) return false;
+        if(!e.chain && e.id === id) return true;
+        return !!(e.chain && e.chain.length && e.chain[e.chain.length - 1][1] === id);
+    };
     for(let i = 0; i < t.routes.length; i++) {
         const e = t.routes[i];
-        if(e.id !== id) continue;
+        if(!isTarget(e)) continue;
         let out = "";
         for(let j = 0; j < e.pattern.length; j++) {
             const s = e.pattern[j];
@@ -511,7 +539,7 @@ window.$__uni_sync_url = ((name) => {
             return;
         }
         if(!window.$__uni_activate(name, m.id, window.$__uni_norm_path(raw), m.params,
-                                   window.$__uni_HISTORY_NONE, raw)) {
+                                   window.$__uni_HISTORY_NONE, raw, m.chain)) {
             const cur = window.$__uni_routers[name].currentRoute;
             if(cur) window.$__uni_set_url(cur.rawUrl || cur.url, true);
         }

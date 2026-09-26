@@ -291,3 +291,151 @@ public func test_router_nested_param_reaches_ssr(env : &mut TestEnv) {
         env.info(html.data())
     }
 }
+
+// ── Phase 6: full URL nesting (segment ownership + activation chain) ────────
+
+#universal NestedUrlPane(props) {
+    return <div class="nup">{props.id}</div>
+}
+
+#universal NestedUrlApp(props) {
+    router "nurl" {
+        route default #"home" { <div>Home</div> }
+        route "/projects/{id}" {
+            route default #"overview" { <NestedUrlPane /> }
+            route "/settings" title "Settings" { <NestedUrlPane /> }
+            <div class="lay"><Outlet /></div>
+        }
+    }
+}
+
+@test
+public func test_router_nested_url_deeplink_selects_child(env : &mut TestEnv) {
+    var page = HtmlPage()
+    page.set_route_url("/projects/42/settings", "")
+    #html { <NestedUrlApp /> }
+    var html = page.getHtml()
+    // The full nested pattern selects the child; the parent layout is visible too.
+    const childActive = std::string_view("data-uni-route=\"nurl#/projects/{id}#/settings\" data-uni-route-active=\"true\"")
+    if(html.find(&childActive) == std::NPOS) {
+        env.error("a deep link to a nested URL route should select the child server-side")
+        env.info(html.data())
+        return
+    }
+    const parentActive = std::string_view("data-uni-route=\"nurl#/projects/{id}\" data-uni-route-active=\"true\"")
+    if(html.find(&parentActive) == std::NPOS) {
+        env.error("the outer layout should stay visible for a nested deep link")
+    }
+    const defaultInactive = std::string_view("data-uni-route=\"nurl#/projects/{id}#overview\" data-uni-route-active=\"false\"")
+    if(html.find(&defaultInactive) == std::NPOS) {
+        env.error("the nested default should be hidden when a sibling is selected")
+    }
+    // The full pattern captures the ancestor param and the nested child reads it.
+    const id = page.get_parameter("id")
+    if(!id.equals(std::string_view("42"))) {
+        env.error("the ancestor {id} param should be captured by the full nested pattern")
+    }
+    const rendered = std::string_view("class=\"nup\">42</div>")
+    if(html.find(&rendered) == std::NPOS) {
+        env.error("the selected nested child should render the inherited {id}")
+        env.info(html.data())
+    }
+    // The nested route's title is emitted for a nested deep link.
+    const title = std::string_view("<title>Settings</title>")
+    if(page.toString().find(&title) == std::NPOS) {
+        env.error("a nested URL route's title should be emitted server-side")
+    }
+}
+
+@test
+public func test_router_nested_url_parent_selects_default(env : &mut TestEnv) {
+    var page = HtmlPage()
+    page.set_route_url("/projects/7", "")
+    #html { <NestedUrlApp /> }
+    var html = page.getHtml()
+    const parentActive = std::string_view("data-uni-route=\"nurl#/projects/{id}\" data-uni-route-active=\"true\"")
+    if(html.find(&parentActive) == std::NPOS) {
+        env.error("the parent pattern should match exactly")
+        return
+    }
+    const defaultActive = std::string_view("data-uni-route=\"nurl#/projects/{id}#overview\" data-uni-route-active=\"true\"")
+    if(html.find(&defaultActive) == std::NPOS) {
+        env.error("the nested default should be visible for the parent URL")
+    }
+    const childInactive = std::string_view("data-uni-route=\"nurl#/projects/{id}#/settings\" data-uni-route-active=\"false\"")
+    if(html.find(&childInactive) == std::NPOS) {
+        env.error("the nested child should be hidden for the parent URL")
+    }
+}
+
+@test
+public func test_router_nested_url_unknown_remainder_marks_missing(env : &mut TestEnv) {
+    var page = HtmlPage()
+    page.set_route_url("/projects/42/unknown", "")
+    #html { <NestedUrlApp /> }
+    page.getHtml()
+    if(!page.route_missing()) {
+        env.error("an unmatched nested remainder must mark the page route-missing")
+    }
+}
+
+// A nested URL child under a top-level *id* layout (no URL ancestor): the entry
+// id is the id route, so the URL still resolves through the activation chain.
+#universal IdRootNestedUrlApp(props) {
+    router "idroot" {
+        route default #"shell" {
+            route "/reports/{id}" { <NestedUrlPane /> }
+            <div class="idlay"><Outlet /></div>
+        }
+    }
+}
+
+@test
+public func test_router_nested_url_under_id_layout(env : &mut TestEnv) {
+    var page = HtmlPage()
+    page.set_route_url("/reports/weekly", "")
+    #html { <IdRootNestedUrlApp /> }
+    var html = page.getHtml()
+    const shellActive = std::string_view("data-uni-route=\"idroot#shell\" data-uni-route-active=\"true\"")
+    if(html.find(&shellActive) == std::NPOS) {
+        env.error("an id layout should activate for a nested URL child")
+        env.info(html.data())
+        return
+    }
+    const childActive = std::string_view("data-uni-route=\"idroot#shell#/reports/{id}\" data-uni-route-active=\"true\"")
+    if(html.find(&childActive) == std::NPOS) {
+        env.error("the nested URL child under an id layout should be selected")
+    }
+    const rendered = std::string_view("class=\"nup\">weekly</div>")
+    if(html.find(&rendered) == std::NPOS) {
+        env.error("the nested child should render the captured param")
+    }
+}
+
+// A layout without an inline `<Outlet />` still emits its nested wrappers (they
+// are appended after the layout), and must not be snapshot-cached.
+#universal NestedNoOutletApp(props) {
+    router "nno" {
+        route #"shell" {
+            route default #"a" { <NestedUrlPane /> }
+            <div class="nno">shell</div>
+        }
+    }
+}
+
+@test
+public func test_router_nested_without_inline_outlet_still_renders_children(env : &mut TestEnv) {
+    var page = HtmlPage()
+    page.add_parameter("nno", "shell")
+    #html { <NestedNoOutletApp /> }
+    var html = page.getHtml()
+    const layout = std::string_view("class=\"nno\">shell</div>")
+    if(html.find(&layout) == std::NPOS) {
+        env.error("the layout should render")
+    }
+    const child = std::string_view("data-uni-route=\"nno#shell#a\"")
+    if(html.find(&child) == std::NPOS) {
+        env.error("nested wrappers must still be emitted without an inline <Outlet/>")
+        env.info(html.data())
+    }
+}

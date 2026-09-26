@@ -58,3 +58,48 @@ public func neg_router_unknown_activate_id(env : &mut TestEnv) {
     expect_compile_error_with_mod(env, "router_unknown_activate_id", ch,
         "no route 'typo' in router \"m\"", NEG_MOD_UNIVERSAL)
 }
+
+// Nested routers (a route body's nested `route` children) are validated with the
+// same rules under their derived name `parent#routeId`.
+
+@test
+public func neg_router_nested_duplicate_id(env : &mut TestEnv) {
+    var ch = "#universal A(props) {\n    return <span>x</span>\n}\n#universal Host(props) {\n    router \"m\" {\n        route #\"a\" {\n            route #\"x\" { <A /> }\n            route #\"x\" { <A /> }\n            <div>x</div>\n        }\n    }\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "router_nested_duplicate_id", ch,
+        "route '#x' is declared twice in router \"m#a\"", NEG_MOD_UNIVERSAL)
+}
+
+@test
+public func neg_router_nested_body_no_root(env : &mut TestEnv) {
+    var ch = "#universal A(props) {\n    return <span>x</span>\n}\n#universal Host(props) {\n    router \"m\" {\n        route #\"a\" {\n            route #\"x\" { }\n            <div>x</div>\n        }\n    }\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "router_nested_body_no_root", ch,
+        "route body must render exactly one root element", NEG_MOD_UNIVERSAL)
+}
+
+@test
+public func neg_router_nested_fallback_not_last(env : &mut TestEnv) {
+    var ch = "#universal A(props) {\n    return <span>x</span>\n}\n#universal Host(props) {\n    router \"m\" {\n        route #\"a\" {\n            route * { <A /> }\n            route #\"x\" { <A /> }\n            <div>x</div>\n        }\n    }\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "router_nested_fallback_not_last", ch,
+        "fallback route must be the last route", NEG_MOD_UNIVERSAL)
+}
+
+@test
+public func neg_router_nested_unknown_activate_id(env : &mut TestEnv) {
+    var ch = "#universal A(props) {\n    return <span>x</span>\n}\n#universal Host(props) {\n    router \"m\" {\n        route #\"a\" {\n            route #\"x\" {\n                onActivate(() => { router(\"m#a\").activateRoute(\"typo\") })\n                <A />\n            }\n            <div>x</div>\n        }\n    }\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "router_nested_unknown_activate_id", ch,
+        "no route 'typo' in router \"m#a\"", NEG_MOD_UNIVERSAL)
+}
+
+@test
+public func neg_router_ambiguous_patterns(env : &mut TestEnv) {
+    var ch = "#universal A(props) {\n    return <span>x</span>\n}\n#universal Host(props) {\n    router \"m\" {\n        route \"/a/{x}\" { <A /> }\n        route \"/a/{y}\" { <A /> }\n    }\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "router_ambiguous_patterns", ch,
+        "route patterns '/a/{x}' and '/a/{y}' are ambiguous", NEG_MOD_UNIVERSAL)
+}
+
+@test
+public func neg_router_ambiguous_nested_patterns(env : &mut TestEnv) {
+    var ch = "#universal A(props) {\n    return <span>x</span>\n}\n#universal Host(props) {\n    router \"m\" {\n        route \"/a/{x}\" {\n            route \"/b/{p}\" { <A /> }\n            route \"/b/{q}\" { <A /> }\n            <div>x</div>\n        }\n    }\n}\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "router_ambiguous_nested_patterns", ch,
+        "are ambiguous", NEG_MOD_UNIVERSAL)
+}

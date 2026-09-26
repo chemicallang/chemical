@@ -43,6 +43,7 @@ so state, scroll and focus survive.
 | `route "/x" remote { <X/> }` | no SSR body; fetch the fragment on first activation |
 | `route #"id" noscroll { <X/> }` | do not restore scroll on activation |
 | `route #"id" title "Title" { <X/> }` | server `<title>` + client `document.title` |
+| `route "/outer/{id}" { route "/inner/{x}" { … } <Outlet/> }` | nested routes: the outer is a layout; the inner URL child's full path is `/outer/{id}/inner/{x}` and it inherits the outer `{id}` |
 
 Hooks: `onActivate(() => { ... })`, `onDeactivate(() => { ... })`,
 `onBeforeActivate(() => { ... })` (returning `false` cancels the navigation).
@@ -104,11 +105,13 @@ call differ.
 
 ## Status
 
-Implemented: Phases 0–5 (syntax/codegen, parameter store, client runtime, server
-matching, params, URL table, query, titles, manifest, precedence), Phase 6 core
-(nested `route` + inline `<Outlet />`, derived nested registries, cascade
-activation), and Phase 7 (a conservative static-route SSR snapshot cache with a
-mutex-guarded process-global store and a concurrent-render test). Not yet
-implemented: URL nesting / segment-prefix matching, an `<Outlet />` supplied by a
-separate layout component, and a hydrated outer layout. See the design doc §16 for
-the exact state and known divergences.
+Implemented: all of Phases 0–7. Phase 6 includes nested `route` + inline
+`<Outlet />`, derived nested registries, cascade activation, **full URL nesting**
+(nested URL routes match on both server and client via full accumulated patterns
+and an activation chain; ancestor params are inherited; nested ids resolve in
+`buildPath`; nested routers are fully validated), and Phase 7 (a conservative
+static-route SSR snapshot cache with a mutex-guarded process-global store and a
+concurrent-render test). Not yet implemented: an `<Outlet />` supplied by a
+separate layout component, a **hydrated outer layout**, a nested `route *`
+catching an unknown remainder, R11/R12, R10, and a site-level rewrite map. See the
+design doc §16 for the exact state and known divergences.

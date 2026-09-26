@@ -106,6 +106,16 @@ func (converter : &mut JsConverter) convertJSXComponent(element : *mut JsJSXElem
         converter.emit_nested_routes()
         return
     }
+    // Client side of a hydrated route layout: the outlet is an opaque boundary —
+    // the nested route wrappers are SSR'd and owned by the nested router, so the
+    // layout vnode tree emits a marker the hydration walker consumes.
+    if(converter.target == BufferType.JavaScript && converter.router_outlet_routes.size() > 0 &&
+       element.componentSignature != null &&
+       element.componentSignature.name.equals(std::string_view("Outlet"))) {
+        converter.put_chain_in()
+        converter.str.append_view("$_ur.createElement(\"__uni_outlet\", null)")
+        return
+    }
     if(converter.target == BufferType.HTML) {
         if(element.componentSignature == null) {
              return;

@@ -85,6 +85,11 @@ A nested URL child also works under a top-level **id** layout. A nested
 `route *` catches an unknown remainder under the layout (e.g.
 `/projects/{id}/unknown`) and is still shadowed by any exact child.
 
+A **native-rooted** layout (root is a native element with an inline `<Outlet/>`)
+is hydrated: its own markup is interactive and its DOM survives a child switch.
+A **component-rooted** layout (`<Layout><Outlet/></Layout>`) currently renders
+SSR-only — its own interactivity does not hydrate yet.
+
 ### 1.2 Control API
 
 `router("name")` (lowered to `window.$__uni_router("name")`) returns the handle
@@ -246,6 +251,18 @@ the chain instead of `nestedDefault` and passes the remaining steps down. This
 is deliberately *not* segment-prefix matching: the pattern grammar is literal +
 `{param}` segments, so full patterns are equivalent and keep one exact scan.
 
+**Hydrated native layout.** A route with nested children whose body root is a
+native element gets an anonymous client function (`$__uni_route_layout_<loc>`)
+emitted by `emit_route_layout_client`; the route stub's `comp` points at it. In
+the client vnode tree its `<Outlet/>` becomes `$_ur.createElement("__uni_outlet",
+null)`. The universal runtime (`page.ch`) treats `v.t === "__uni_outlet"` as an
+**opaque boundary**: `$__uni_hydrate_node` consumes consecutive `.chx-route`
+siblings (the SSR'd nested wrappers) and returns the node after them, and `$_urn`
+renders nothing. So the layout hydrates in place while the nested router keeps
+sole ownership of the wrappers. A **component-rooted** layout stays SSR-only.
+`baseProps` also carries a route root component's compile-time attributes
+(D-2.7), not just `{param}` placeholders.
+
 ### 2.5 Static-route SSR snapshot cache (Phase 7)
 
 - `page.ch` owns a **process-global**, mutex-guarded store
@@ -334,6 +351,11 @@ When adding a behaviour:
 - **Exact entries always precede prefix entries**, which precede the fallback, in
   both the server spec and the client table (`router_entry_precedes`), so a
   nested `route *` never shadows an exact child.
+- **A native layout's `<Outlet/>` is an opaque `__uni_outlet` boundary**;
+  `$__uni_hydrate_node` consumes the SSR'd `.chx-route` wrappers and leaves them
+  for the nested router. `$__uni_route_props` never invents keys: `baseProps`
+  must carry every compile-time root attribute and a placeholder for every
+  pattern param (D-2.7/INV-20).
 - **No DOM queries on the activation path** — boundaries/wrappers are resolved at
   bootstrap by source-derived ids.
 - **Route bodies never enter the hydration queue**; only the router mounts them.
@@ -353,21 +375,19 @@ When adding a behaviour:
 
 ## Part 5 — Known limitations / remaining work
 
-- **Hydrated outer layout**: a route with nested children compiles to
-  `comp: null`, so its own markup is SSR-only (its `<Outlet/>` still hydrates
-  children independently, and its DOM/scroll survive a child switch). A
-  `RouterLink` placed directly in such a layout is not interactive (a click
-  full-navigates). Hydrating a layout needs an anonymous client function whose
-  `<Outlet/>` adopts the SSR'd nested wrappers.
-- **`<Outlet/>` from a separate layout component**: only an inline `<Outlet/>`
-  in the route body expands; a layout component cannot host it yet.
+- **`<Outlet/>` inside a separate layout component**: only an inline `<Outlet/>`
+  in the route body expands. A **component-rooted** layout
+  (`<Layout><Outlet/></Layout>`) is SSR-only — hydrating it needs the outlet
+  passed through `props.children`. (A native-rooted layout *does* hydrate.)
 - **R11/R12**: `props.X` / `dangerouslySetInnerHTML` validation — these read the
   route *component*, a different component from the router declaration, so they
   need a cross-component pass (the component's JS body is not retained after
   conversion). (R9 and R10 are implemented.)
-- **Site-level rewrite-map aggregate** (deploy tooling) from the per-page
-  `<name>.routes.json`.
 - Phase 7 caches only the conservative static subset (by design).
+
+The site-level rewrite-map aggregate **is** implemented
+(`page::site_routes_aggregate` / `write_site_routes`); a deploy tool turns the
+per-page patterns into host rewrites.
 
 ---
 
@@ -378,6 +398,8 @@ When adding a behaviour:
 | Syntax/keywords/grammar | `parser_router.ch`, this skill §1.1, the design doc §4/§14.1, `router_emission.ch`/negative tests |
 | Emitted artefacts (wrapper, registry, stubs, tail, table) | this skill §2.2/§2.3, design doc §15.3, `router_emission.ch` |
 | Runtime symbols/behaviour | `router_runtime.ch`, this skill §2.3/§4, `tests_router.ch`, design doc §15.2 |
+| Hydrated layout / `__uni_outlet` (universal side) | `converter_jsx.ch`, `emit.ch` (`emit_route_layout_client`), `page.ch`'s `$__uni_hydrate_node`/`$_urn`, the `universal` skill, this skill §2.4/§4/§5 |
+| Site rewrite aggregate | `page.ch` (`site_routes_aggregate`/`write_site_routes`), `lang/tests/libs/router/src/site.ch`, this skill §5 |
 | A diagnostic message | `emit.ch`, `router_diagnostics.ch`, this skill §2.6, design doc §14.8 |
 | The CBI diagnoser channel (e.g. adding `warning`) | `compiler/cbi/bindings/ASTDiagnoserCBI.{h,cpp}`, `CBI.cpp`'s `ASTDiagnoserSymMap`, `lang/libs/compiler/src/ASTDiagnoser.ch`, `lang/tests/negative/src/main.ch` (`expect_compile_output_contains`), this skill §2.6 |
 | Page server API (`page.ch` router methods) | this skill §2.4/§2.5, `lang/tests/libs/router/*`, design doc §3/§15.4 |

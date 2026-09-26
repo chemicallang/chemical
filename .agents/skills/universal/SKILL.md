@@ -123,7 +123,10 @@ JSX + hooks. Key globals and their jobs:
   property-set with `setAttribute` fallback.
 - `$__uni_hydrate_node(parent, dom, v)` adopts SSR'd DOM in place; mismatches are warned
   **once** (`$__uni_warn_hydration` sets `window.$__uni_hydration_warned`) and self-corrected —
-  never fatal.
+  never fatal. The special vnode `{t:"__uni_outlet"}` (emitted by the universal router for a
+  hydrated layout's `<Outlet/>`) is an **opaque boundary**: hydration consumes consecutive
+  `.chx-route` siblings and returns the node after them, leaving the nested router's SSR'd
+  wrappers untouched; `$_urn` renders an empty comment for it.
 - `$__uni_mount(host, comp, props, mode)`: `mode` is `"children"` (default, hydrate into host's
   children) or `"root"` (host itself is the SSR'd root element, used when hydrating an
   existing element from a `__uni_uc` state vnode). Renders `comp(props)` with instance

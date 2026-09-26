@@ -110,8 +110,11 @@ Implemented: all of Phases 0–7. Phase 6 includes nested `route` + inline
 (nested URL routes match on both server and client via full accumulated patterns
 and an activation chain; ancestor params are inherited; a nested `route *`
 catches an unknown remainder via a prefix entry; nested ids resolve in
-`buildPath`; nested routers are fully validated), and Phase 7 (a conservative
-static-route SSR snapshot cache with a mutex-guarded process-global store and a
-concurrent-render test). Not yet implemented: an `<Outlet />` supplied by a
-separate layout component, a **hydrated outer layout**, R11/R12, and a site-level
-rewrite map. See the design doc §16 for the exact state and known divergences.
+`buildPath`; nested routers are fully validated), a **hydrated native layout**
+(its own markup is interactive; `<Outlet/>` is an opaque hydration boundary), a
+route root component's compile-time attributes in `baseProps`, and Phase 7 (a
+conservative static-route SSR snapshot cache). The site-level static-export
+rewrite aggregate is `page::write_site_routes`. Not yet implemented: an
+`<Outlet />` inside a separate layout component's own body / hydrating a
+**component-rooted** layout, and R11/R12. See the design doc §16 for the exact
+state and known divergences.

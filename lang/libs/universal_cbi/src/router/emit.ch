@@ -491,9 +491,10 @@ func router_pattern_segments_js(pattern : std::string_view, out : &mut std::stri
 
 // Emits `{param}` names as `"name": null` placeholders for a route's `baseProps`
 // (D-2.7): the client matcher overwrites them with the resolved values, but the
-// key must exist so hydration is never handed a missing prop.
-func router_pattern_params_js(pattern : std::string_view, out : &mut std::string) {
-    var first = true
+// key must exist so hydration is never handed a missing prop. `firstIn` lets a
+// caller prepend other compile-time props without a leading separator.
+func router_pattern_params_js(pattern : std::string_view, out : &mut std::string, firstIn : bool) {
+    var first = firstIn
     var i : size_t = 0
     while(i < pattern.size()) {
         while(i < pattern.size() && pattern.get(i) == '/') { i = i + 1 }
@@ -1157,6 +1158,55 @@ func (converter : &mut JsConverter) router_emit_url_table(name : std::string_vie
     converter.router_emit_js(&table)
 }
 
+// Generates the anonymous client function for a native-rooted route layout, so a
+// route with nested children is interactive. The body is converted in JavaScript
+// mode (its `<Outlet />` becomes an opaque `__uni_outlet` boundary consumed by
+// hydration); the SSR pass still expands the outlet into the nested wrappers.
+func (converter : &mut JsConverter) emit_route_layout_client(route : *mut JsRouteDecl, root : *mut JsNode) : std::string {
+    var name = std::string("$__uni_route_layout_")
+    name.append_uinteger(route.decl_loc)
+    const nameView = name.to_view()
+
+    converter.put_chain_in()
+    const prevTarget = converter.target
+    converter.target = BufferType.JavaScript
+    converter.str.append_view("window.")
+    converter.str.append_view(&nameView)
+    converter.str.append_view(" = function(props) { return ")
+    converter.convertJsNode(root)
+    converter.str.append_view("; };\n")
+    converter.put_chain_in()
+    converter.target = prevTarget
+
+    return name
+}
+
+// Generates the anonymous client function returning a route root component's
+// children as vnodes, so a layout component that renders `{props.children}` can
+// be hydrated. Its `<Outlet />` becomes an opaque `__uni_outlet` boundary.
+func (converter : &mut JsConverter) emit_route_children_client(route : *mut JsRouteDecl, root : *mut JsNode) : std::string {
+    var name = std::string("$__uni_route_children_")
+    name.append_uinteger(route.decl_loc)
+    const nameView = name.to_view()
+    const el = root as *mut JsJSXElement
+
+    converter.put_chain_in()
+    const prevTarget = converter.target
+    converter.target = BufferType.JavaScript
+    converter.str.append_view("window.")
+    converter.str.append_view(&nameView)
+    converter.str.append_view(" = function() { return [")
+    for(var i : uint = 0; i < el.children.size(); i++) {
+        if(i > 0) { converter.str.append_view(", ") }
+        converter.convertJsNode(el.children.get(i))
+    }
+    converter.str.append_view("]; };\n")
+    converter.put_chain_in()
+    converter.target = prevTarget
+
+    return name
+}
+
 // Expands the current outlet context: emits the nested router's wrappers and
 // stubs at the `<Outlet />` position. Idempotent (one outlet per route).
 func (converter : &mut JsConverter) emit_nested_routes() {
@@ -1259,9 +1309,11 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
 
     const root = router_route_root(route)
     var compName = std::string()
-    // A route with nested children is a static layout; its client interactivity
-    // would need a generated wrapper that renders the outlet. The nested level
-    // remains independently hydrated, which is the layout-preservation property.
+    var childrenRefName = std::string()
+    // A route with nested children is a layout; its client interactivity is a
+    // generated wrapper (native root) or the root component itself with the
+    // outlet passed through children (component root). The nested level remains
+    // independently hydrated, which is the layout-preservation property.
     if(nested.size() == 0) {
         compName = router_route_comp(root)
     }
@@ -1354,6 +1406,22 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
             converter.router_outlet_default = builder.allocate_view(&nestedDefault)
             converter.router_outlet_inherited = builder.allocate_view(effectivePattern.to_view())
             converter.router_outlet_emitted = false
+
+            // Hydrated layout: a native-rooted layout gets an anonymous client
+            // function so its own markup is interactive. A component-rooted
+            // layout that forwards `{props.children}` gets its children passed
+            // through `children` so the outlet boundary hydrates too. Either
+            // way `<Outlet />` is an opaque boundary that hydration consumes,
+            // leaving the SSR'd nested wrappers to the nested router.
+            if(root != null && root.kind == JsNodeKind.JSXElement) {
+                const rootEl = root as *mut JsJSXElement
+                if(rootEl.componentSignature == null) {
+                    compName = converter.emit_route_layout_client(route, root)
+                } else if(rootEl.children.size() > 0) {
+                    compName = router_route_comp(root)
+                    childrenRefName = converter.emit_route_children_client(route, root)
+                }
+            }
         }
         converter.router_inject_param_props(effectivePattern.to_view(), root)
         converter.convertJsNode(root)
@@ -1399,8 +1467,41 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
     stub.append_view("\", comp: ")
     if(compName.size() > 0) { stub.append_view(compName.to_view()) } else { stub.append_view("null") }
     stub.append_view(", baseProps: {")
-    router_pattern_params_js(effectivePattern.to_view(), stub)
-    stub.append_view("}, wrapperId: \"r")
+    var baseFirst = true
+    // Compile-time attributes declared on a route root component (D-2.7) — e.g.
+    // `<Project title="x"/>` — are the component's initial props, so they must be
+    // in `baseProps` alongside the param placeholders (otherwise SSR and the
+    // client mount disagree). Param-named attributes are skipped: the router
+    // injects those server-side, and the `{param}` placeholders + matcher supply
+    // them on the client.
+    if(root != null && root.kind == JsNodeKind.JSXElement && compName.size() > 0) {
+        const rootEl = root as *mut JsJSXElement
+        if(rootEl.componentSignature != null) {
+            const paramNames = router_pattern_param_names(effectivePattern.to_view())
+            var resolved = converter.resolve_attributes(rootEl)
+            var filtered = std::vector<ResolvedAttr>()
+            for(var ri : uint = 0; ri < resolved.size(); ri++) {
+                const a = resolved.get_ptr(ri)
+                var isParam = false
+                if(a.original != null) {
+                    for(var pi : uint = 0; pi < paramNames.size(); pi++) {
+                        if(a.original.name.equals(&paramNames.get(pi))) { isParam = true }
+                    }
+                }
+                if(!isParam) { filtered.push(*a) }
+            }
+            converter.emit_js_props_from_resolved(&filtered, &mut baseFirst)
+        }
+    }
+    router_pattern_params_js(effectivePattern.to_view(), stub, baseFirst)
+    stub.append_view("}")
+    if(childrenRefName.size() > 0) {
+        const childrenView = childrenRefName.to_view()
+        stub.append_view(", children: ")
+        stub.append_view(&childrenView)
+        stub.append_view("()")
+    }
+    stub.append_view(", wrapperId: \"r")
     stub.append_uinteger(route.decl_loc)
     stub.append_view("\", hostId: \"u")
     stub.append_uinteger(route.decl_loc)

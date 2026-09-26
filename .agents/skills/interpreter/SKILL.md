@@ -479,7 +479,7 @@ Tests use `comptime if(intrinsics::is_interpretation())` to branch between `expr
 
 ### Fixed Bug Classes (interpreter regression suite)
 
-The interpreter suite currently passes fully (`--tcc --interpret`: 1810/1810 at the time of writing).
+The interpreter suite currently passes fully (`--tcc --interpret`: 1841/1841 at the time of writing).
 Regression tests live in `lang/tests/common/src/interp_regressions.ch` (plus
 `interp_int_width.ch`) and cover:
 
@@ -492,6 +492,7 @@ Regression tests live in `lang/tests/common/src/interp_regressions.ch` (plus
 | Loop control state on AST nodes | moved to `InterpretScope` (`is_loop_scope` / `loop_signal`); `break value` uses `is_loop_value_scope` |
 | Integers never narrowed to declared width | `InterpretScope::coerce_to_type` applied at every store/pass boundary (`interp_int_width.ch`) |
 | Move of a generic struct via an `H<T>` parameter reported "unknown value being moved" | `is_same_generic_family` in `compiler/symres/SymResLinkBody.cpp` |
+| Writing a nested member through a dereference (`(*ptr).inner.member = v`) silently did nothing — the member lookup ran on a *copy* of the pointee | `DereferenceValue::child` delegates to the evaluated inner value (a `PointerValue`), whose `child`/`set_child_value` resolve the field inside the pointee (`ast/values/DerferenceValue.cpp`); regression tests in `common/src/references/deref_member.ch` |
 
 ### Quick Debugging Tips
 

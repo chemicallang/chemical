@@ -11,6 +11,17 @@ window.__ut_scope = null;
 window.__ut_register = function(name, isolate, fn) { window.__ut_tests[name] = fn; };
 window.addEventListener('error', function(e){ window.__ut_errors.push('' + (e && e.message ? e.message : e)); });
 window.addEventListener('unhandledrejection', function(e){ window.__ut_errors.push('' + (e && e.reason ? e.reason : e)); });
+// Surface console.error/warn emitted during a test (hydration failures, dispatch
+// misses, disposed-signal writes, ...) alongside an actual assertion failure.
+// These are diagnostics only: many tests deliberately exercise error paths that
+// log via console, so console output must never fail a test on its own.
+window.__ut_console = [];
+(function(){
+    var origError = console.error, origWarn = console.warn;
+    var fmt = function(a){ try { return '' + (a && a.message ? a.message : a); } catch(e){ return '' + a; } };
+    console.error = function(){ var m = fmt(arguments[0]); if(window.__ut_console) window.__ut_console.push('console.error: ' + m); return origError.apply(console, arguments); };
+    console.warn = function(){ var m = fmt(arguments[0]); if(window.__ut_console) window.__ut_console.push('console.warn: ' + m); return origWarn.apply(console, arguments); };
+})();
 
 function U(query) { this.el = query; this.desc = ''; }
 function queryIn(sel) {
@@ -54,6 +65,38 @@ U.prototype.isVisible = function() {
     return true;
 };
 U.prototype.click = function() { this._need().click(); };
+// Ancestor that hides `el` (display:none / visibility:hidden / opacity:0), or null.
+function visibilityBlocker(el) {
+    var n = el;
+    while(n && n.nodeType === 1) {
+        if(n.hidden) return n;
+        var st = window.getComputedStyle(n);
+        if(st.display === 'none' || st.visibility === 'hidden' || st.opacity === '0') return n;
+        n = n.parentElement;
+    }
+    return null;
+}
+U.prototype._visInfo = function() {
+    if(!this.el) return 'element not found (' + this.desc + ')';
+    if(!this.el.isConnected) return 'element detached (' + this.el.tagName + ')';
+    var b = visibilityBlocker(this.el);
+    var own = 'tag=' + this.el.tagName + ' style="' + (this.el.getAttribute('style') || '') + '"';
+    if(b === this.el) return own;
+    if(b) return own + ' hiddenBy=<' + b.tagName + ' data-ut=' + (b.getAttribute('data-ut') || '') + ' style="' + (b.getAttribute('style') || '') + '">';
+    return own;
+};
+function checkVisible(neg, actual) {
+    var vis = !!(actual && actual.isVisible());
+    if(neg ? vis : !vis) {
+        throw new Error((neg ? 'not: ' : '') + 'expected element to be visible' + (neg ? '' : ' [' + (actual && actual._visInfo ? actual._visInfo() : 'no element') + ']'));
+    }
+}
+function checkHidden(neg, actual) {
+    var hidden = !(actual && actual.isVisible());
+    if(neg ? hidden : !hidden) {
+        throw new Error((neg ? 'not: ' : '') + 'expected element to be hidden');
+    }
+}
 U.prototype.dblclick = function() { var e = this._need(); e.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); };
 U.prototype.type = function(v) {
     var e = this._need();
@@ -107,19 +150,26 @@ U.prototype.getByText = function(t) {
 U.prototype.getByRole = function(role, opts) {
     if(!this.el) return el(null, 'role=' + role);
     var name = opts && opts.name != null ? opts.name : null;
+    var root = this.el;
     var all = this.el.querySelectorAll(roleSelector(role));
     if(name == null) return all.length ? el(all[0], 'role=' + role) : el(null, 'role=' + role);
-    for(var i = 0; i < all.length; i++) { if(accessibleName(all[i]) === name) return el(all[i], 'role=' + role + ' name=' + name); }
-    for(var j = 0; j < all.length; j++) { if(accessibleName(all[j]).indexOf(name) >= 0) return el(all[j], 'role=' + role + ' name=' + name); }
-    return el(null, 'role=' + role + ' name=' + name);
+    for(var i = 0; i < all.length; i++) { if(accessibleName(all[i], root) === name) return el(all[i], 'role=' + role + ' name=' + name); }
+    for(var j = 0; j < all.length; j++) { if(accessibleName(all[j], root).indexOf(name) >= 0) return el(all[j], 'role=' + role + ' name=' + name); }
+    return el(null, 'role=' + role + ' name=' + name + ' candidates=[' + nameList(all, root) + ']');
 };
+function nameList(list, root) {
+    var out = [];
+    for(var i = 0; i < list.length && i < 8; i++) out.push(accessibleName(list[i], root));
+    return out.join('|');
+}
 U.prototype.getByRoleAll = function(role, opts) {
     if(!this.el) return new UC([], 'role=' + role);
     var name = opts && opts.name != null ? opts.name : null;
+    var root = this.el;
     var all = this.el.querySelectorAll(roleSelector(role));
     var out = [];
     for(var i = 0; i < all.length; i++) {
-        if(name == null || accessibleName(all[i]) === name) out.push(all[i]);
+        if(name == null || accessibleName(all[i], root) === name) out.push(all[i]);
     }
     return new UC(out, 'role=' + role);
 };
@@ -194,7 +244,7 @@ function roleSelector(role) {
     if(tags) sel += ',' + tags;
     return sel;
 }
-function accessibleName(node) {
+function accessibleName(node, root) {
     var direct = node.getAttribute('aria-label') || node.getAttribute('title');
     if(direct) return direct.trim();
     if(node.labels && node.labels.length) {
@@ -208,7 +258,7 @@ function accessibleName(node) {
         var parts = [];
         var ids = labelledby.split(' ');
         for(var i = 0; i < ids.length; i++) {
-            var ref = document.getElementById(ids[i]);
+            var ref = labelledRef(node, ids[i], root);
             if(ref) parts.push(ref.textContent || '');
         }
         var joined = parts.join(' ').trim();
@@ -216,12 +266,35 @@ function accessibleName(node) {
     }
     return (node.textContent || '').trim();
 }
+// Resolves an `aria-labelledby` idref. Component libraries reuse a constant
+// default id across instances (e.g. every `<Tabs>` without an `id` prop emits
+// `id="tabs-tab-0"`), so a document lookup can return a *different* instance's
+// element and give the wrong accessible name. A scoped locator must resolve the
+// reference within its own query root first, then its test scope, then fall back
+// to the document (Playwright's document-wide ARIA semantics).
+function labelledRef(node, id, root) {
+    var sel = '[id="' + id + '"]';
+    if(root && root.querySelector) {
+        var own = root.querySelector(sel);
+        if(own) return own;
+    }
+    var scope = node && node.closest ? node.closest('[data-ut]') : null;
+    if(scope) {
+        var local = scope.querySelector(sel);
+        if(local) return local;
+    }
+    if(window.__ut_scope) {
+        var scoped = window.__ut_scope.querySelector(sel);
+        if(scoped) return scoped;
+    }
+    return document.getElementById(id);
+}
 window.byRole = function(role, opts) {
     var name = opts && opts.name != null ? opts.name : null;
     var all = allIn(roleSelector(role));
     if(name == null) return all.length ? el(all[0], 'role=' + role) : el(null, 'role=' + role);
-    for(var i = 0; i < all.length; i++) { if(accessibleName(all[i]) === name) return el(all[i], 'role=' + role + ' name=' + name); }
-    for(var j = 0; j < all.length; j++) { if(accessibleName(all[j]).indexOf(name) >= 0) return el(all[j], 'role=' + role + ' name=' + name); }
+    for(var i = 0; i < all.length; i++) { if(accessibleName(all[i], null) === name) return el(all[i], 'role=' + role + ' name=' + name); }
+    for(var j = 0; j < all.length; j++) { if(accessibleName(all[j], null).indexOf(name) >= 0) return el(all[j], 'role=' + role + ' name=' + name); }
     return el(null, 'role=' + role + ' name=' + name);
 };
 window.byRoleAll = function(role, opts) {
@@ -229,7 +302,7 @@ window.byRoleAll = function(role, opts) {
     var all = allIn(roleSelector(role));
     var out = [];
     for(var i = 0; i < all.length; i++) {
-        if(name == null || accessibleName(all[i]) === name) out.push(all[i]);
+        if(name == null || accessibleName(all[i], null) === name) out.push(all[i]);
     }
     return new UC(out, 'role=' + role);
 };
@@ -251,12 +324,12 @@ window.expect = function(actual) {
             toHaveAttribute: function(n, v) { var got = actual ? actual.attr(n) : null; check(v === undefined ? got != null : got === v, 'expected attribute ' + n + '=' + v + ', got ' + JSON.stringify(got)); },
             toHaveCount: function(e) { check(actual && actual.count() === e, 'expected count ' + e + ', got ' + (actual ? actual.count() : 0)); },
             toHaveClass: function(c) { check(actual && actual.hasClass && actual.hasClass(c), 'expected class ' + c); },
-            toBeVisible: function() { check(actual && actual.isVisible(), 'expected element to be visible'); },
-            toBeHidden: function() { check(actual && !actual.isVisible(), 'expected element to be hidden'); },
+            toBeVisible: function() { checkVisible(neg, actual); },
+            toBeHidden: function() { checkHidden(neg, actual); },
             toHaveValue: function(e) { check(actual && actual.value() === e, 'expected value ' + JSON.stringify(e) + ', got ' + JSON.stringify(actual ? actual.value() : null)); },
             toBeDisabled: function() { check(actual && actual.isDisabled(), 'expected element to be disabled'); },
             toBeEnabled: function() { check(actual && !actual.isDisabled(), 'expected element to be enabled'); },
-            toBeChecked: function() { check(actual && actual.isChecked(), 'expected element to be checked'); },
+            toBeChecked: function() { var ok = !!(actual && actual.isChecked()); if(neg ? ok : !ok) throw new Error((neg ? 'not: ' : '') + 'expected element to be checked [' + (actual && actual.el ? 'tag=' + actual.el.tagName + ' name=' + actual.el.getAttribute('name') + ' checked=' + actual.el.checked + ' defaultChecked=' + actual.el.defaultChecked : 'element not found') + ']'); },
             toBeFocused: function() { check(actual && actual.isFocused(), 'expected element to be focused'); },
             toHaveCSS: function(prop, v) { check(actual && actual.css(prop) === v, 'expected css ' + prop + '=' + v + ', got ' + (actual ? actual.css(prop) : null)); },
             toHaveJSProperty: function(n, v) { check(actual && actual.jsProp(n) === v, 'expected property ' + n + '=' + v); },
@@ -333,6 +406,7 @@ function runNext() {
         var name = names[i++];
         setScope(name);
         window.__ut_errors = [];
+        window.__ut_console = [];
         var fn = window.__ut_tests[name];
         var finished = false;
         var timer = setTimeout(function() {
@@ -349,6 +423,8 @@ function runNext() {
         function failed(e) {
             var m = '' + (e && e.message ? e.message : e);
             if(m.indexOf('SKIP:') === 0) { finish(true, m); return; }
+            var extra = window.__ut_console;
+            if(extra && extra.length) m += ' | console: ' + extra.join('; ');
             finish(false, m);
         }
         try {

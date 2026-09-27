@@ -296,6 +296,9 @@ Rules of thumb when adding or moving a test:
 * **Function names must not collide inside one module.** `common` and `src` are different
   modules, so the same name may exist in both, but a *moved* file keeps its name — check
   `common` first (`test_lambda`, `test_for_in`, `test_comptime_intrinsics` already exist there).
+* **`#universal_test` component tests** live in `lang/tests/universal_webview/`, not in the
+  `common`/`src` split. Their page-sharing rules (when a test needs `isolate`, and how
+  scoped accessible-name lookup works) are in the `universal_testing` skill.
 * **Known interpreter gaps** (keep these in `src/` for now, they fail under `--interpret`):
   generic *function references* (`test_native_generic_fn_field`, `..._fn_reference`,
   `..._nested_fn_type`, `..._composite_field`), `unsafe(...)` value-move semantics with raw

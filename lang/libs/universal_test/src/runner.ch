@@ -110,6 +110,14 @@ func ut_execute(tests : *mut *mut UTFunction, count : size_t, headed : bool) {
         return
     }
 
+    // Debug: dump the generated page HTML (UT_DUMP_HTML=1) so the SSR markup
+    // (boundary ids, fixture containers, duplicated ids/names) can be inspected.
+    // Returns without opening a WebView.
+    if(getenv("UT_DUMP_HTML\0" as *char) != null) {
+        printf("===UT_HTML_START===\n%.*s\n===UT_HTML_END===\n", html.size() as int, html.data())
+        return
+    }
+
     var wv_res = webview::create("universal tests\0" as *char, 900, 700)
     if(wv_res is std::Result.Err) {
         printf("universal_test: failed to create webview (is a display available?)\n")

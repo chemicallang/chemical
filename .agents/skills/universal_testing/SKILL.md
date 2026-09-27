@@ -103,7 +103,12 @@ flashes); pass `--ut-headed` to watch a run.
 
 - `"name"` is the test name used in reports and `--test-names`.
 - `isolate` runs the test in its own page + WebView (portals, globals, timers,
-  navigation, flaky interference).
+  navigation, flaky interference). **Also required for native form-control
+  groups:** radio inputs are grouped by `name` across the whole document, so two
+  fixtures on the shared page that both emit `<input type=radio name="size">`
+  form one group and uncheck each other (a fixture's hydration clears a sibling
+  fixture's `checked`). Mark such tests `isolate`, or give each fixture a unique
+  `name`.
 - `group = "g"` is stored on the test metadata (reserved for grouping).
 - The fixture may be omitted (empty container) for pure JS assertions.
 - The steps **must** be the single `<script>` element; its content is captured
@@ -226,7 +231,17 @@ runner.
 - **`<script>` is a raw-text element.** Its content is lexed verbatim up to
   `</script>` (case-insensitive) — do not nest `</script>` inside the steps.
 - **Locators are scoped** to the test's `data-ut` container, so `data-testid`
-  collisions across tests are fine.
+  collisions across tests are fine. Accessible-name resolution is scoped too:
+  `aria-labelledby` idrefs resolve inside the locator's own root first, then the
+  `data-ut` container, then the document. This matters because component
+  libraries reuse a constant default id across instances (e.g. every `<Tabs>`
+  without an `id` prop emits `id="tabs-tab-0"`); a document-wide lookup can
+  return a *different* instance's element and produce the wrong accessible name
+  (a `getByRole(..., {name})` lookup then finds nothing, intermittently).
+- **`name`-based lookups with duplicated ids:** if two components on one page
+  emit the same element id, `getByRole(role, { name })` is only reliable when the
+  idref lives inside the locator's own root. Prefer `data-testid`-rooted
+  locators, or give each instance a unique `id`.
 - **`UTFunction` fields are `string_view`** (like `TestFunction`). `std::string`
   fields in the comptime array break the 2c/TCC translation, and the member
   order must match the struct declaration (`id, name, group, isolate,
@@ -237,6 +252,17 @@ runner.
   `page.toStringJsOnly()` between `===UT_JS_START===`/`===UT_JS_END===` markers
   and exit before opening a WebView. A page-script syntax error otherwise hangs
   the run (the harness never starts); dump + `node --check` finds it.
+- **Debugging the generated page HTML:** set `UT_DUMP_HTML=1` to print the full
+  SSR page between `===UT_HTML_START===`/`===UT_HTML_END===` markers and exit.
+  Use it to inspect hydration boundary ids, fixture containers, and duplicated
+  ids/`name`s across fixtures (the usual cause of cross-fixture interference).
+- **Failure diagnostics.** A failed assertion appends context to the message:
+  `toBeVisible` prints the element (or the ancestor that hides it / `element not
+  found`), `toBeChecked` prints `tag`/`name`/`checked`/`defaultChecked`, an
+  unmatched `getByRole(..., {name})` prints the accessible names it did see
+  (`candidates=[...]`), and any `console.error`/`console.warn` emitted during the
+  test is appended as `| console: ...`. Console output is diagnostic only and
+  never fails a test by itself (many tests deliberately exercise error paths).
 - **`--universal` is included in `--all`** (it needs a display; use `xvfb-run` headless).
 
 ---

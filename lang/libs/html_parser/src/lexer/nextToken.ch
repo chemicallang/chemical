@@ -120,11 +120,26 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     value : view("</"),
                     position : position
                 }
-            } else {
+            } else if(isalpha(p as int)) {
                 html.has_lt = true;
                 return Token {
                     type : TokenType.LessThan as int,
                     value : view("<"),
+                    position : position
+                }
+            } else {
+                // A '<' that cannot begin a tag name, an end tag or a markup
+                // declaration is ordinary text. This is the HTML "tag open"
+                // state: a browser enters tag mode only for '!', '/' and an
+                // ASCII letter, and renders every other '<' literally. So
+                // "1 < 2" must be text, not a tag named "2"; without this the
+                // whole #html block fails to parse, because the parser sees a
+                // raw number token where it expected text or an element.
+                const start = data_ptr;
+                provider.read_literal_text();
+                return Token {
+                    type : TokenType.Text as int,
+                    value : std::string_view(start, provider.current_data() - start),
                     position : position
                 }
             }
@@ -139,6 +154,27 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 return Token {
                     type : TokenType.ChemicalNodeStart as int,
                     value : view("@{"),
+                    position : position
+                }
+            } else if(provider.peek() == '(') {
+                // "@(expr)" is the explicit form of a chemical value. It works
+                // everywhere, and inside <pre> it is the only way to write one,
+                // because there a bare '{' is a literal character.
+                //
+                // The '(' is consumed here rather than left for the chemical
+                // lexer (which is what the "@if(" path does), so paren_count
+                // starts at 1 to account for it. lb_count is deliberately left
+                // alone: this region ends at its matching ')' and must not
+                // disturb the brace depth, which is what lets it appear inside
+                // <pre> where '}' is text.
+                provider.readCharacter();
+                html.other_mode = true;
+                html.chemical_mode = true;
+                html.in_paren_value = true;
+                html.paren_count = 1;
+                return Token {
+                    type : TokenType.ChemicalValueStart as int,
+                    value : view("@("),
                     position : position
                 }
             } else if(!html.has_lt && isalpha(provider.peek() as int)) {
@@ -173,6 +209,14 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                         }
                     }
                     default => {
+                        // '@' followed by a name that is not a keyword is
+                        // ordinary text: a decorator, an annotation, an e-mail
+                        // address. Keep reading the text run from here rather
+                        // than stopping at the end of the name, otherwise the
+                        // whitespace between this word and the text after it is
+                        // split off and then dropped as insignificant, which
+                        // turned "@Override and @app" into "@Overrideand".
+                        provider.read_literal_text();
                         return Token {
                             type : TokenType.Text as int,
                             value : std::string_view(data_ptr, provider.current_data() - data_ptr),
@@ -190,6 +234,31 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             }
         }
         '}' => {
+            if(html.pre_depth > 0 &&
+                (html.pre_brace_depth > 0 || html.lb_count <= 1)) {
+                // Inside <pre> a '}' is literal text in two cases:
+                //
+                //  * pre_brace_depth > 0 -- it closes a '{' that was itself
+                //    read as literal text, so the two pair with each other and
+                //    lb_count is never disturbed;
+                //  * lb_count <= 1 -- no html block is open, so this '}' cannot
+                //    be closing one. It is NOT the '}' that ends the #html
+                //    macro either: the macro's own '}' comes after the
+                //    </pre>, where pre_depth is already back to 0.
+                //
+                // Reading a stray '}' as the macro close is what used to drop
+                // the remainder of the file out of the macro.
+                if(html.pre_brace_depth > 0) {
+                    html.pre_brace_depth--;
+                }
+                const start = data_ptr;
+                provider.read_literal_text();
+                return Token {
+                    type : TokenType.Text as int,
+                    value : std::string_view(start, provider.current_data() - start),
+                    position : position
+                }
+            }
             if(html.lb_count == 1) {
                 html.reset();
                 lexer.unsetUserLexer();
@@ -203,6 +272,27 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             }
         }
         '{' => {
+            if(html.pre_depth > 0 && !html.expecting_html_block) {
+                // Inside <pre> the text is displayed verbatim and code is full
+                // of braces, so a '{' that does not open an @if/@else html
+                // block is literal text rather than the start of a chemical
+                // value. Interpolation is still available in the explicit
+                // "@{expr}" form, and @if/@else blocks still work, because
+                // those set expecting_html_block and are matched by this
+                // branch not being taken.
+                //
+                // Counting it keeps literal braces paired with each other so a
+                // '}' later in the same <pre> can be recognised as literal too
+                // (see the '}' case).
+                html.pre_brace_depth++;
+                const start = data_ptr;
+                provider.read_literal_text();
+                return Token {
+                    type : TokenType.Text as int,
+                    value : std::string_view(start, provider.current_data() - start),
+                    position : position
+                }
+            }
             if(html.lb_count >= 1 && !html.expecting_html_block) {
                 html.other_mode = true;
                 html.chemical_mode = true;
@@ -263,6 +353,11 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     html.pre_depth--;
                     html.last_tag_pre = false;
                 }
+                if(html.pre_depth == 0) {
+                    // leaving <pre>: an unbalanced literal '{' must not leak
+                    // past the closing tag
+                    html.pre_brace_depth = 0;
+                }
                 // <script/> is self-closing, not a raw-text element
                 html.pending_script = false;
                 return Token {
@@ -272,7 +367,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 }
             } else {
                 const start = data_ptr;
-                provider.read_text()
+                provider.read_literal_text()
                 return Token {
                     type : TokenType.Text as int,
                     value : std::string_view(start, provider.current_data() - start),
@@ -299,7 +394,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 }
             } else {
                 const start = data_ptr;
-                provider.read_text()
+                provider.read_literal_text()
                 return Token {
                     type : TokenType.Text as int,
                     value : std::string_view(start, provider.current_data() - start),
@@ -339,6 +434,11 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                                 tag_value.get(2) == 'e';
                             if(is_pre_close) {
                                 html.pre_depth--;
+                            }
+                            if(html.pre_depth == 0) {
+                                // leaving <pre>: an unbalanced literal '{' must
+                                // not leak past the closing tag
+                                html.pre_brace_depth = 0;
                             }
                             html.pending_script = false;
                             html.in_end_tag = false;
@@ -394,7 +494,7 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 }
             } else {
                 const start = data_ptr;
-                provider.read_text()
+                provider.read_literal_text()
                 return Token {
                     type : TokenType.Text as int,
                     value : std::string_view(start, provider.current_data() - start),

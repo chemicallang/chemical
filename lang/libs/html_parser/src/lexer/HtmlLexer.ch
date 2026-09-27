@@ -40,6 +40,15 @@ public struct HtmlLexer {
 
     var in_paren_expr : bool
 
+    /**
+     * we are inside an explicit "@(expr)" value. The expression is read by the
+     * chemical lexer and ends at the matching ')' rather than at a '}', so it
+     * is tracked with paren_count instead of lb_count and never disturbs the
+     * brace depth -- which is what lets "@( ... )" work inside <pre>, where a
+     * '}' is a literal character.
+     */
+    var in_paren_value : bool
+
     var last_token_was_if : bool
 
     var chem_start_lb : uchar
@@ -50,9 +59,20 @@ public struct HtmlLexer {
 
     /**
      * nesting depth of <pre> elements. Inside <pre>, whitespace-only text runs
-     * between elements are significant and must be preserved as Text tokens.
+     * between elements are significant and must be preserved as Text tokens,
+     * and '{' / '}' are ordinary text rather than chemical syntax.
      */
     var pre_depth : uchar
+
+    /**
+     * how many '{' that were read as literal text inside <pre> are still
+     * unmatched. A '}' in <pre> closes one of these when the counter is above
+     * zero (it is a literal brace) and is a real chemical block/expression
+     * close when it is zero. This is what lets a <pre> block contain both
+     * literal code braces and an @if/@else html block: the literal braces pair
+     * with each other and never disturb lb_count.
+     */
+    var pre_brace_depth : uchar
 
     /**
      * we just lexed the '</' of a closing tag, the next TagName token closes it
@@ -94,6 +114,7 @@ func (lexer : &mut HtmlLexer) reset() {
     lexer.lb_count = 0;
     lexer.paren_count = 0;
     lexer.in_paren_expr = false;
+    lexer.in_paren_value = false;
     lexer.last_token_was_if = false;
     lexer.chem_start_lb = 0;
     lexer.expecting_html_block = false;
@@ -101,6 +122,7 @@ func (lexer : &mut HtmlLexer) reset() {
     lexer.in_end_tag = false;
     lexer.last_tag_pre = false;
     lexer.pre_depth = 0;
+    lexer.pre_brace_depth = 0;
     lexer.pending_script = false;
     lexer.in_script = false;
 }

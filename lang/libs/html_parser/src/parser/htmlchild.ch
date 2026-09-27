@@ -104,6 +104,38 @@ func (htmlParser : &mut HtmlParser) parseElementChild(parser : *mut Parser, buil
         }
 
         return value_child;
+    } else if(current.type == TokenType.ChemicalValueStart) {
+
+        // "@(expr)" -- the explicit form of a chemical value. It produces the
+        // same child as "{expr}" and is available everywhere, including inside
+        // <pre> where a bare '{' is a literal character.
+        parser.increment();
+
+        var value_child = builder.allocate<HtmlChemValueChild>();
+        new (value_child) HtmlChemValueChild {
+            HtmlChild : HtmlChild {
+                kind : HtmlChildKind.ChemicalValue
+            },
+            value : null
+        }
+
+        const expr = parser.parseExpressionOrArrayOrStruct(builder);
+        if(expr != null) {
+            value_child.value = expr
+            htmlParser.dyn_values.push(expr)
+        } else {
+            parser.error("expected a chemical expression after '@('")
+        }
+
+        const next = parser.getToken();
+        if(next.type == ChemicalTokenType.RParen) {
+            parser.increment();
+        } else {
+            parser.error("expected a ')' to close the chemical expression")
+        }
+
+        return value_child;
+
     } else if(current.type == TokenType.If) {
 
         return htmlParser.parseIfStatement(parser, builder);

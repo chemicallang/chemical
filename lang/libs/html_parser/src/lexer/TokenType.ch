@@ -26,6 +26,9 @@ public enum TokenType {
     // @{
     ChemicalNodeStart,
 
+    // @(
+    ChemicalValueStart,
+
     // <!DOC
     DeclarationStart,
     // <!--

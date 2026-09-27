@@ -62,21 +62,6 @@ impl TestEnv for TestEnvImpl {
     }
 }
 
-struct TestDisplayConfig {
-    /**
-     * display successful tests only
-     */
-    var successful_only : bool = false;
-    /**
-     * display failed tests only
-     */
-    var failure_only : bool = false;
-    /**
-     * when false, no logs will be displayed
-     */
-    var display_logs : bool = true;
-}
-
 struct TestRunnerConfig {
     /**
      * display configuration
@@ -134,18 +119,6 @@ struct TestRunnerConfig {
      * the testing function that should be executed after each test
      */
     var after_each : (env : &mut TestEnv) => void = null
-}
-
-struct TestLog {
-
-    var type : LogType = LogType.Success
-
-    var message : std::string
-
-    var line : ubigint = 0
-
-    var character : ubigint = 0
-
 }
 
 struct TestFunctionState {

@@ -8,3 +8,4 @@ import page
 import json
 import webview
 import window
+import test_report

@@ -146,13 +146,20 @@ func parseCommand(config : &mut TestRunnerConfig, args : **char, end : **char) :
     return null;
 }
 
+/**
+ * Runs the @test-discovered tests, streaming every finished test to `reporter`.
+ *
+ * Returns 1 when this process is a spawned test child (`--comm-id` present):
+ * in that case tests run in-process for IPC and no reporting is performed.
+ * Returns 0 otherwise.
+ */
 @retained
-public func run_test_runner(tests_view : std::span<TestFunction>, argc : int, argv : **char) : int {
+public func run_test_runner_reporting(tests_view : std::span<TestFunction>, reporter : &mut TestReporter, argc : int, argv : **char) : int {
 
     if(argc == 0) {
         // error out, the executable argument not given
         printf("error: expected the first command line argument to be the executable path");
-        return 1;
+        return 0;
     }
 
     // See run_tests logic - it relies on specific sentinel values
@@ -165,19 +172,66 @@ public func run_test_runner(tests_view : std::span<TestFunction>, argc : int, ar
     config.has_test_ids = false
     config.has_test_names = false
 
-    if(argc == 1) {
-        run_tests(&tests_view, *argv, &mut config);
-        return 0;
+    if(argc > 1) {
+        // parse the command line
+        parseCommand(&mut config, argv + 1, argv + argc)
     }
 
-    // parse the command line
-    parseCommand(&mut config, argv + 1, argv + argc)
+    // spawned child: run the single test in-process for IPC, no reporting
+    if(config.comm_id != -1) {
+        run_tests(&tests_view, *argv, &mut config, null);
+        return 1;
+    }
+
+    var disp = config.display
+    reporter.configure(&raw disp)
+    reporter.begin_runner(std::string_view("test"))
 
     // run the tests (it knows which ones to run from configuration)
-    run_tests(&tests_view, *argv, &mut config)
+    run_tests(&tests_view, *argv, &mut config, &raw mut reporter)
 
+    reporter.end_runner()
     return 0;
+}
 
+/** Single-runner entry point: streams to a default console reporter. */
+@retained
+public func run_test_runner(tests_view : std::span<TestFunction>, argc : int, argv : **char) : int {
+    var console = new_console_reporter()
+    const is_child = run_test_runner_reporting(tests_view, &mut console, argc, argv)
+    if(is_child == 0) {
+        finish_reporter(&mut console)
+    }
+    return 0;
+}
+
+type TestHandleRunFn = (h : *mut TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) => int
+
+@retained
+public func test_handle_run(h : *mut TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) : int {
+    var ptr = h.tests_ptr as *mut TestFunction
+    var span = std::span<TestFunction>(ptr, h.tests_count)
+    return run_test_runner_reporting(span, reporter, argc, argv)
+}
+
+@retained
+public func make_test_runner_handle(tests : std::span<TestFunction>) : TestRunnerHandle {
+    return TestRunnerHandle {
+        name : std::string_view("test"),
+        tests_ptr : tests.data() as *void,
+        tests_count : tests.size(),
+        run_fn : test_handle_run as TestHandleRunFn
+    }
+}
+
+/**
+ * Comptime builder for a runnable @test runner handle. Evaluated at the call
+ * site so `get_tests()` sees the caller's @test declarations, mirroring
+ * `test_runner`.
+ */
+public comptime func test_runner_handle() : TestRunnerHandle {
+    const t = get_tests()
+    return %runtime_value(make_test_runner_handle(std::span<TestFunction>(t)))
 }
 
 public comptime func test_runner(argc : %maybe_runtime<int>, argv : %runtime<**char>) : int {

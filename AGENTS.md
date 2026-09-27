@@ -344,6 +344,7 @@ Skills in **bold** are the new comprehensive skills. Load them for maximum conte
 | `lang/libs/` | Standard library + CBI macro plugin libs |
 | `lang/libs/json/` | JSON runtime: `JsonValue`, parser, `JsonEncoder`/`JsonDecoder`, `TypeDecoder<T>` decode dispatch, `__non_gen_se_repl` |
 | `lang/libs/json_cbi/` | `#json(Struct)` macro plugin: auto-generates `std::Serializer`/`std::Deserializer` impls |
+| `lang/libs/test_report/` | Shared test reporting: `TestOutcome`, `TestReporter` interface, `ConsoleReporter`, `TestRunnerHandle` + `MultiTestRunner` for combining runners (see `lang/docs/test-reporting.md`) |
 | `lang/libs/compiler/` | Compiler API bindings for macros |
 | `lang/tests/` | Test suite |
 

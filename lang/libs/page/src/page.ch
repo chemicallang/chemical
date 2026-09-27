@@ -764,6 +764,35 @@ public struct HtmlPage {
         return str;
     }
 
+    // Like `toString`, but the page's JS is NOT inlined: `externalScript` (a
+    // complete `<script src=…></script>` tag, or "") is written in its place.
+    // Used by an app that serves its compiled client JS as a cacheable asset
+    // instead of re-sending it with every response.
+    public func toStringExternalJs(&self, externalScript : std::string_view, lang : std::string_view = "", htmlClass : std::string_view = "", bodyClass : std::string_view = "") : std::string {
+        var str = std::string()
+        str.reserve(pageHead.size() + pageCss.size() + pageHtml.size() + pageHeadJs.size() + externalScript.size() + 100)
+        str.append_view(std::string_view("<!DOCTYPE html>"))
+        appendHtmlTagStart(&mut str, lang, htmlClass)
+        str.append_view("<head>")
+        str.append_string(&pageHead)
+        if(!pageCss.empty()) {
+            str.append_view(std::string_view("<style>"))
+            str.append_string(&pageCss)
+            str.append_view(std::string_view("</style>"))
+        }
+        if(!pageHeadJs.empty()) {
+            str.append_view(std::string_view("<script>"))
+            str.append_string(&pageHeadJs)
+            str.append_view(std::string_view("</script>"))
+        }
+        str.append_view(std::string_view("</head>"))
+        appendBodyTagStart(&mut str, bodyClass)
+        str.append_string(&pageHtml)
+        str.append_view(&externalScript)
+        str.append_view(std::string_view("</body></html>"))
+        return str;
+    }
+
     func toStringHeadOnly(&self) : std::string {
         return pageHead.copy();
     }
@@ -788,6 +817,13 @@ public struct HtmlPage {
 
     func toStringJsOnly(&self) : std::string {
         return pageJs.copy()
+    }
+
+    // The per-page JS tail (activation, initial URL). Not cacheable: it carries
+    // this request's selected route. `render_page` writes it inline after the
+    // external framework script.
+    public func toStringJsEndOnly(&self) : std::string {
+        return pageJsEnd.copy()
     }
 
     func appendTitle(&mut self, view : &std::string_view) {

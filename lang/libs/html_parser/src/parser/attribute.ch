@@ -123,6 +123,80 @@ func (htmlParser : &mut HtmlParser) parseAttribute(parser : *mut Parser, builder
             }
 
         }
+        TokenType.ChemicalValueStart => {
+
+            // "@(expr)" in an attribute value. Same as the "{expr}" form below
+            // but closed by ')' instead of '}', and it also accepts a
+            // comma-separated list so that "@(a, b)" behaves exactly like
+            // "{a, b}".
+            parser.increment();
+
+            var first = parser.parseExpressionOrArrayOrStruct(builder);
+            if(first == null) {
+                parser.error("expected a expression value after '@('");
+                return null;
+            }
+            htmlParser.dyn_values.push(first)
+
+            const sep = parser.getToken();
+
+            if(sep.type == ChemicalTokenType.CommaSym) {
+
+                var many = builder.allocate<ChemicalAttributeValues>()
+                new (many) ChemicalAttributeValues {
+                    AttributeValue : AttributeValue {
+                        kind : AttributeValueKind.ChemicalValues
+                    },
+                    values : std::vector<*mut Value>()
+                }
+
+                many.values.push(first);
+
+                while(true) {
+                    const got = parser.getToken();
+                    if(got.type != ChemicalTokenType.CommaSym) {
+                        break;
+                    }
+                    parser.increment();
+                    const expr = parser.parseExpressionOrArrayOrStruct(builder);
+                    if(expr == null) {
+                        parser.error("expected a chemical expression value");
+                        break;
+                    }
+                    many.values.push(expr)
+                    htmlParser.dyn_values.push(expr)
+                }
+
+                const close = parser.getToken();
+                if(close.type == ChemicalTokenType.RParen) {
+                    parser.increment();
+                } else {
+                    parser.error("expected a ')' after the multiple chemical expressions");
+                }
+
+                attr.value = many;
+
+            } else {
+
+                if(sep.type == ChemicalTokenType.RParen) {
+                    parser.increment();
+                } else {
+                    parser.error("expected a ')' after the chemical expression");
+                }
+
+                var single = builder.allocate<ChemicalAttributeValue>()
+                new (single) ChemicalAttributeValue {
+                    AttributeValue : AttributeValue {
+                        kind : AttributeValueKind.Chemical
+                    },
+                    value : first
+                }
+
+                attr.value = single;
+
+            }
+
+        }
         default => {
             parser.error("expected a value after '=' for attribute");
             return null

@@ -110,7 +110,13 @@ public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 html.lb_count++;
             } else if(nested.type == ChemicalTokenType.RBrace) {
                 html.lb_count--;
-                if(!html.in_paren_expr && html.lb_count == html.chem_start_lb) {
+                if(!html.in_paren_expr && !html.in_paren_value &&
+                    html.lb_count == html.chem_start_lb) {
+                    // The !in_paren_value guard matters: an "@(expr)" region
+                    // never incremented lb_count, so a '}' belonging to a
+                    // struct or array literal inside the expression brings
+                    // lb_count back to chem_start_lb. Without the guard that
+                    // would be mistaken for the end of the region.
                     html.other_mode = false;
                     html.chemical_mode = false;
                     html.after_chem_expr = true;
@@ -119,7 +125,13 @@ public func getNextToken(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 html.paren_count++;
             } else if(nested.type == ChemicalTokenType.RParen) {
                 html.paren_count--;
-                if(html.in_paren_expr && html.paren_count == 0) {
+                if(html.in_paren_value && html.paren_count == 0) {
+                    // this ')' closes an "@(expr)" value
+                    html.in_paren_value = false;
+                    html.other_mode = false;
+                    html.chemical_mode = false;
+                    html.after_chem_expr = true;
+                } else if(html.in_paren_expr && html.paren_count == 0) {
                     html.other_mode = false;
                     html.chemical_mode = false;
                     html.in_paren_expr = false;
@@ -173,10 +185,12 @@ public func html_initializeLexer(lexer : *mut Lexer) {
         paren_count : 0,
         chem_start_lb : 0,
         in_paren_expr : false,
+        in_paren_value : false,
         expecting_html_block : false,
         last_token_was_if : false,
         after_chem_expr : false,
         pre_depth : 0,
+        pre_brace_depth : 0,
         in_end_tag : false,
         last_tag_pre : false,
         preserve_whitespace : false,
@@ -216,10 +230,12 @@ func make_ut_html_lexer() : HtmlLexer {
         paren_count : 0,
         chem_start_lb : 0,
         in_paren_expr : false,
+        in_paren_value : false,
         expecting_html_block : false,
         last_token_was_if : false,
         after_chem_expr : false,
         pre_depth : 0,
+        pre_brace_depth : 0,
         in_end_tag : false,
         last_tag_pre : false,
         preserve_whitespace : false,

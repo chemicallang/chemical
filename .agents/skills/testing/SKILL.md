@@ -172,6 +172,60 @@ The `test` library provides the `TestFunction` struct and related types:
 // Each function must return bool (true = pass, false = fail)
 ```
 
+## The `test_report` Library (`lang/libs/test_report/`) — Streaming & Combining Runners
+
+`test_report` is the shared reporting abstraction used by **every** runner
+(`test`, `universal_test`, and future ones). It owns:
+
+- `TestOutcome` — the per-test event (runner, name, group, id, passed/skipped,
+  exit code, failure message, borrowed `TestLog` array, duration).
+- `TestReporter` (`@static` interface) — `configure` → `begin_runner(name)` →
+  `on_test(*TestOutcome)` (streamed) → `end_runner()` → `finish() : int`.
+- `ConsoleReporter` / `new_console_reporter()` / `finish_reporter()` — the
+  default implementation. It reproduces the historical `test` output
+  (`  - name id`, indented logs, `    PASS/FAIL`, `Test run summary`,
+  `Summary: N tests - P passed, F failed`) and now colours the
+  `universal_test` output too.
+- `TestRunnerHandle` + `MultiTestRunner` (`new_multi_test_runner()`, `add`,
+  `run`).
+
+Each runner exposes a **comptime** handle builder:
+
+```chemical
+test_runner_handle()            // @test runner
+universal_test_runner_handle()  // #universal_test runner
+```
+
+Because they are comptime, `get_tests()` / `ut_all()` are evaluated at the
+caller's call site (same mechanism as `test_runner`).
+
+Combining runners in one executable requires importing `test_report`:
+
+```chemical
+// chemical.mod
+import test
+import universal_test
+import test_report
+
+// main.ch
+public func main(argc : int, argv : **char) : int {
+    var multi = new_multi_test_runner()
+    multi.add(test_runner_handle())
+    multi.add(universal_test_runner_handle())
+    return multi.run(argc, argv)
+}
+```
+
+`MultiTestRunner.run` prints a banner per runner, streams every test through a
+single shared `ConsoleReporter`, then prints the per-runner breakdown and the
+grand `Summary:`. `finish()` (and therefore `run`) returns non-zero when
+anything failed. The `test` runner still spawns child processes; `run` detects
+`--comm-id` and runs only the `test` runner in that child (silently), preserving
+IPC behaviour. `test_runner` / `universal_test_runner` continue to work
+standalone (they drive a default `ConsoleReporter` internally).
+
+See `lang/docs/test-reporting.md` for the full design.
+
 ## How Tests Are Wired in `lang/tests/build.lab`
 
 The master build script (`lang/tests/build.lab`) is the central wiring point:

@@ -73,7 +73,18 @@ func fn_name_match(fn_name : *char, name_list : &std::vector<*char>) : bool {
 
 type TestFunctionPtr = (env : &mut TestEnv) => void
 
-func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config : &mut TestRunnerConfig) {
+func emit_state(reporter : *mut TestReporter, fn_state : *mut TestFunctionState) {
+    const fn = fn_state.fn
+    var outcome = make_test_outcome(std::string_view("test"), fn.name, fn.group, fn.id)
+    outcome.passed = !fn_state.has_failed
+    outcome.exit_code = fn_state.exitCode as int
+    outcome.message = fn_state.failed_msg_parse.to_view()
+    outcome.logs_ptr = fn_state.logs.data()
+    outcome.logs_count = fn_state.logs.size()
+    reporter.on_test(&raw outcome)
+}
+
+func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config : &mut TestRunnerConfig, reporter : *mut TestReporter) {
 
     var filter_by_ids = config.has_test_ids
     var filter_by_names = config.has_test_names
@@ -125,14 +136,14 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
                     var timeout_ms = 10000;
                     if(test_start.timeout > 0) { timeout_ms = test_start.timeout as int }
                     launch_test_with_retries(exe_path, test_id, &mut *fn_state, test_retry, timeout_ms as uint);
+                    if(reporter != null) {
+                        emit_state(reporter, fn_state)
+                    }
                 }
             }
             test_start++;
         }
 
-        if(!is_child) {
-            print_test_results(&mut config.display, state.tests.data(), state.tests.size())
-        }
         return;
 
     } else if(!config.groups_to_launch.empty()) {
@@ -192,8 +203,14 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
             asyncJobsStart++;
         }
 
-        // print the test results
-        print_test_results(&mut config.display, state.tests.data(), state.tests.size())
+        // stream the results to the reporter (in declaration order)
+        if(reporter != null) {
+            var si : size_t = 0
+            while(si < state.tests.size()) {
+                emit_state(reporter, state.tests.get_ptr(si))
+                si += 1
+            }
+        }
 
     }
 

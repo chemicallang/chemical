@@ -159,8 +159,9 @@ func ut_id_selected(ids : &vector<int>, id : int) : bool {
     return false
 }
 
-func ut_report(tests : *mut *mut UTFunction, count : size_t) : int {
-    var passed : int = 0
+// Streams the collected results (in declaration order) to the reporter and
+// returns the number of failed tests.
+func ut_emit(tests : *mut *mut UTFunction, count : size_t, reporter : *mut TestReporter) : int {
     var failed : int = 0
     var i : size_t = 0
     while(i < count) {
@@ -179,23 +180,24 @@ func ut_report(tests : *mut *mut UTFunction, count : size_t) : int {
             }
             j += 1
         }
+
+        var outcome = make_test_outcome(string_view("universal_test"), t.name, t.group, t.id)
         if(!found) {
-            printf("FAIL %.*s (no result)\n", t.name.size() as int, t.name.data())
+            outcome.message = string_view("no result")
             failed += 1
         } else if(ok) {
-            printf("PASS %.*s\n", t.name.size() as int, t.name.data())
-            passed += 1
+            outcome.passed = true
         } else {
-            printf("FAIL %.*s: %.*s\n", t.name.size() as int, t.name.data(), msg.size() as int, msg.data())
+            outcome.message = msg.to_view()
             failed += 1
+        }
+
+        if(reporter != null) {
+            reporter.on_test(&raw outcome)
         }
         i += 1
     }
-    printf("\nSummary: %d tests - %d passed, %d failed\n", passed + failed, passed, failed)
-    if(failed > 0) {
-        return 1
-    }
-    return 0
+    return failed
 }
 
 // Parses `--test-names a,b` and `--test-ids 1,2`.
@@ -240,8 +242,12 @@ public comptime func universal_test_runner(argc : %maybe_runtime<int>, argv : %r
     return %runtime_value(run_universal_tests(std::span<UTFunction>(tests), argc, argv)) as int
 }
 
+/**
+ * Runs the #universal_test tests, streaming every finished test to `reporter`.
+ * Returns the number of failed tests.
+ */
 @retained
-public func run_universal_tests(tests : std::span<UTFunction>, argc : int, argv : **char) : int {
+public func run_universal_tests_reporting(tests : std::span<UTFunction>, reporter : &mut TestReporter, argc : int, argv : **char) : int {
     var span = tests
     if(span.size() == 0) {
         printf("universal_test: no #universal_test declarations found\n")
@@ -275,6 +281,8 @@ public func run_universal_tests(tests : std::span<UTFunction>, argc : int, argv 
         i += 1
     }
 
+    reporter.begin_runner(string_view("universal_test"))
+
     // run the shared group in one page + webview (the fast default)
     ut_execute(selected.data() as *mut *mut UTFunction, selected.size(), headed)
 
@@ -294,5 +302,44 @@ public func run_universal_tests(tests : std::span<UTFunction>, argc : int, argv 
     while(i < selected.size()) { const sp = selected.get_ptr(i); ordered.push(*sp); i += 1 }
     k = 0
     while(k < isolated.size()) { const ip2 = isolated.get_ptr(k); ordered.push(*ip2); k += 1 }
-    return ut_report(ordered.data() as *mut *mut UTFunction, ordered.size())
+
+    var failed = ut_emit(ordered.data() as *mut *mut UTFunction, ordered.size(), &raw mut reporter)
+    reporter.end_runner()
+    return failed
+}
+
+/** Single-runner entry point: streams to a default console reporter. */
+@retained
+public func run_universal_tests(tests : std::span<UTFunction>, argc : int, argv : **char) : int {
+    var console = new_console_reporter()
+    run_universal_tests_reporting(tests, &mut console, argc, argv)
+    return finish_reporter(&mut console)
+}
+
+type UTHandleRunFn = (h : *mut TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) => int
+
+@retained
+public func universal_handle_run(h : *mut TestRunnerHandle, reporter : &mut TestReporter, argc : int, argv : **char) : int {
+    var ptr = h.tests_ptr as *mut UTFunction
+    var span = std::span<UTFunction>(ptr, h.tests_count)
+    return run_universal_tests_reporting(span, reporter, argc, argv)
+}
+
+@retained
+public func make_universal_runner_handle(tests : std::span<UTFunction>) : TestRunnerHandle {
+    return TestRunnerHandle {
+        name : string_view("universal_test"),
+        tests_ptr : tests.data() as *void,
+        tests_count : tests.size(),
+        run_fn : universal_handle_run as UTHandleRunFn
+    }
+}
+
+/**
+ * Comptime builder for a runnable #universal_test runner handle. Evaluated at
+ * the call site so `ut_all()` sees the caller's declarations.
+ */
+public comptime func universal_test_runner_handle() : TestRunnerHandle {
+    const tests = ut_all()
+    return %runtime_value(make_universal_runner_handle(std::span<UTFunction>(tests)))
 }

@@ -239,7 +239,7 @@ The following skills are available in `.agents/skills/`. An AI agent should load
 | Type Verification | `.agents/skills/type_verification/SKILL.md` | Type checking pass: `TypeVerifier` visitor, return type checking, variable/assignment types, expression operator validation, implicit conversions, `unsatisfied_type_err` |
 | Diagnostics | `.agents/skills/diagnostics/SKILL.md` | Error reporting system: `ASTDiagnoser`, `Diag` structure, severity levels, `SourceLocation` encoding, per-phase collection, parallel-safe merging, `ASTDiag.h` helpers |
 | Performance | `.agents/skills/performance/SKILL.md` | Optimization patterns: arena allocation (`ASTAllocator`), SSO strings (`chem::string`), parallelization (file-level, generic instantiation), caching strategies, memory optimization, profiling tips |
-| Testing Guide | `.agents/skills/testing/SKILL.md` | Test infrastructure: manual `test()` calls vs `@test` annotation dispatch, `test_env` library, `lang/tests/build.lab` wiring, inline/compiled/interpret/library tests, writing tests for compiler failures |
+| Testing Guide | `.agents/skills/testing/SKILL.md` | Test infrastructure: manual `test()` calls vs `@test` annotation dispatch, `test_env` library, `lang/tests/build.lab` wiring, inline/compiled/interpret/library tests, writing tests for compiler failures, and **streaming/combining multiple test runners** (`test_report`, `MultiTestRunner`) |
 | Components E2E Testing | `.agents/skills/components_e2e/SKILL.md` | Browser E2E suite for the components/universal libraries (`lang/compiled/components-e2e`, GitHub: chemicallang/components-e2e): how to run, write, and debug Playwright tests against the real SSR→hydration→interaction pipeline |
 
 ### Backends

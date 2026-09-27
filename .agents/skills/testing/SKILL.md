@@ -1,6 +1,6 @@
 ---
 name: Testing Guide
-description: Comprehensive guide to the Chemical compiler test infrastructure — how tests are organized, written, and executed. Covers the test framework, @test annotation dispatch, test_env and test libraries, and how compiler plugins get tested via lang/tests/build.lab.
+description: Comprehensive guide to the Chemical compiler test infrastructure — how tests are organized, written, and executed. Covers the test framework, @test annotation dispatch, test_env/test libraries, streaming and combining multiple test runners (test_report, MultiTestRunner), and how compiler plugins get tested via lang/tests/build.lab.
 ---
 
 # Testing Guide
@@ -172,10 +172,19 @@ The `test` library provides the `TestFunction` struct and related types:
 // Each function must return bool (true = pass, false = fail)
 ```
 
-## The `test_report` Library (`lang/libs/test_report/`) — Streaming & Combining Runners
+## Combining & Streaming Test Runners (`lang/libs/test_report/`)
 
-`test_report` is the shared reporting abstraction used by **every** runner
-(`test`, `universal_test`, and future ones). It owns:
+### Why
+
+Each runner used to own its whole presentation, so `test` and `universal_test`
+looked different and could not be combined. `test_report` is the shared
+reporting abstraction used by **every** runner. A runner discovers and executes
+tests, then streams each finished test to a `TestReporter`. Several runners can
+share one reporter, so one executable can run them back-to-back under a single
+unified, coloured output stream and one final report (per-runner counts +
+grand totals).
+
+It owns:
 
 - `TestOutcome` — the per-test event (runner, name, group, id, passed/skipped,
   exit code, failure message, borrowed `TestLog` array, duration).
@@ -189,7 +198,9 @@ The `test` library provides the `TestFunction` struct and related types:
 - `TestRunnerHandle` + `MultiTestRunner` (`new_multi_test_runner()`, `add`,
   `run`).
 
-Each runner exposes a **comptime** handle builder:
+### The user recipe
+
+Each runner library exposes a **comptime** handle builder:
 
 ```chemical
 test_runner_handle()            // @test runner
@@ -199,30 +210,50 @@ universal_test_runner_handle()  // #universal_test runner
 Because they are comptime, `get_tests()` / `ut_all()` are evaluated at the
 caller's call site (same mechanism as `test_runner`).
 
-Combining runners in one executable requires importing `test_report`:
+To combine runners a user:
+
+1. Declares the runners they want in `chemical.mod` **and** imports
+   `test_report` (the handle builders live in `test` / `universal_test`, but
+   `MultiTestRunner` lives in `test_report`).
+2. Adds the handles to a `MultiTestRunner` in `main` and calls `run`.
 
 ```chemical
 // chemical.mod
+application my_tests
+source "src"
+import cstd
+import std
 import test
 import universal_test
 import test_report
 
-// main.ch
+// src/main.ch
 public func main(argc : int, argv : **char) : int {
     var multi = new_multi_test_runner()
-    multi.add(test_runner_handle())
-    multi.add(universal_test_runner_handle())
+    multi.add(test_runner_handle())           // @test
+    multi.add(universal_test_runner_handle()) // #universal_test
     return multi.run(argc, argv)
 }
 ```
 
+That's the whole API. Any future runner is added the same way (`multi.add(...)`);
+a new runner library just needs to expose a `run_*_reporting(span, reporter,
+argc, argv)` function and a comptime handle builder.
+
+### Behaviour
+
 `MultiTestRunner.run` prints a banner per runner, streams every test through a
 single shared `ConsoleReporter`, then prints the per-runner breakdown and the
 grand `Summary:`. `finish()` (and therefore `run`) returns non-zero when
-anything failed. The `test` runner still spawns child processes; `run` detects
-`--comm-id` and runs only the `test` runner in that child (silently), preserving
-IPC behaviour. `test_runner` / `universal_test_runner` continue to work
-standalone (they drive a default `ConsoleReporter` internally).
+anything failed. When zero tests are reported the reporter stays completely
+silent (this keeps the sequential `--tcc` suite — which registers no `@test`
+functions — free of an empty summary). The `test` runner still spawns child
+processes; `run` detects `--comm-id` and runs only the `test` runner in that
+child (silently), preserving IPC behaviour.
+
+The single-runner entry points (`test_runner`, `universal_test_runner`) are
+unchanged and remain the right choice when only one runner is needed; they drive
+a default `ConsoleReporter` internally.
 
 See `lang/docs/test-reporting.md` for the full design.
 

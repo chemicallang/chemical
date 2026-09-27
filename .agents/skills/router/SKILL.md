@@ -87,8 +87,10 @@ func render_dashboard(page : &mut HtmlPage) {
   *child* is itself a server-side embed (see Part 4). A body with any emitter is
   never snapshot-cached, and a route body local (`var x = …`) or conditional now
   runs in statement order before the root renders.
-- Hooks go next to the root: `onActivate`, `onDeactivate`, `onBeforeActivate`
-  (returning `false` cancels before any DOM change).
+- Hooks go next to the root: `onActivate(url)`, `onDeactivate()`,
+  `onBeforeActivate(url, prevUrl)` (returning `false` cancels before any DOM
+  change; returning `"skip"` proceeds **without** mounting, fetching or
+  disposing — see below).
 - Modes: `preload` | `lazy` | `remote`, optionally `noscroll`, then `title "…"`.
   Order: `route [default] (#id | "/path" | *) [mode] [noscroll] [title "…"] { … }`.
   **`lazy` is the implicit default for every hidden route** — its HTML ships in
@@ -103,6 +105,35 @@ func render_dashboard(page : &mut HtmlPage) {
 - **Nested routes (layout):** a route may declare nested `route` children and an
   inline `<Outlet />`. The children render at the Outlet position; each level
   hydrates independently; a nested child inherits the outer route's `{param}`s.
+
+#### `onBeforeActivate` verdicts: cancel vs. skip
+
+`onBeforeActivate(url, prevUrl)` runs before any DOM change and may return:
+
+| Return | Effect |
+|---|---|
+| `false` | **Cancel**: nothing changes — no dispose, no mount, no fetch, no history/signal write. |
+| `"skip"` | **Skip**: the route becomes current/visible and its resolved `url`/`rawUrl`/`params` are refreshed (so `$url`/`$query`/history stay correct) and `onActivate` still fires — but the param-change **dispose, mount and fragment fetch are all skipped**; the route's DOM and instance are left exactly as they were. |
+| anything else | A normal activation. |
+
+`"skip"` exists for a route whose data the **client owns** (a local resource, a
+cached list): a query-only change (e.g. `?filter=open`) updates the URL without a
+server round-trip, and the app updates the DOM itself. The guard runs *before*
+the param-change dispose, so both `false` and `"skip"` preserve the live
+instance. A `remote` route never fetches on a skip, and a layout's nested
+activation is not cascaded on a skip (the app owns the whole subtree's DOM in
+that case).
+
+```chemical
+route "/projects/{id}" {
+    onBeforeActivate((url, prev) => {
+        // Same project, only the query changed: the store owns the rows.
+        if(prev && sameResource(prev, url)) { return "skip" }
+        return true
+    })
+    <Project />
+}
+```
 
 ```chemical
 route "/projects/{id}" {
@@ -502,6 +533,10 @@ child expression remains `{expr}`.
   maintained by `$__uni_route_visible` (the only mutator).
 - **Deactivation never disposes.** Mount happens before the outgoing route is
   hidden, so a mount failure leaves the previous route visible.
+- **A `"skip"` verdict is a navigation, not a no-op.** It refreshes the route's
+  identity and signals but leaves the instance and DOM untouched; the guard runs
+  before the param-change dispose so the instance survives. It never fetches
+  (a `remote` route included) and never cascades into a nested router.
 - **The wrapper is never the mount host.** The `[data-chx-i]` span inside the
   wrapper is the host and is mounted in `"children"` mode; the wrapper only gets
   its `data-uni-route-active` attribute toggled (so a non-`<div>` root is safe).
@@ -584,6 +619,7 @@ the separate-component outlet, and the site-level rewrite-map aggregate
 | Syntax/keywords/grammar | `parser_router.ch`, this skill §1.1, the design doc §4/§14.1, `router_emission.ch`/negative tests |
 | Emitted artefacts (wrapper, registry, stubs, tail, table) | this skill §2.2/§2.3, design doc §15.3, `router_emission.ch` |
 | Runtime symbols/behaviour | `router_runtime.ch`, this skill §2.3/§4, `tests_router.ch`, design doc §15.2 |
+| `onBeforeActivate` verdicts (cancel `false` / skip `"skip"`) | `router_runtime.ch` (`$__uni_activate_now`: guard before dispose, `guardSkip` gates mount/remote/nested), this skill §1.1/§4, design doc D-7.12, `tests_router.ch` ("skip refreshes identity…", "skip still shows the route…") |
 | Hydrated layout / `__uni_outlet` (universal side) | `converter_jsx.ch`, `emit.ch` (`emit_route_layout_client`/`emit_route_children_client`), `router_runtime.ch` (`$__uni_route_props` children + slot relocation), `page.ch`'s `$__uni_hydrate_node`/`$_urn`, `Outlet.ch` (slot), the `universal` skill, this skill §2.4/§4/§5 |
 | Site rewrite aggregate | `page.ch` (`site_routes_aggregate`/`write_site_routes`), `lang/tests/libs/router/src/site.ch`, this skill §5 |
 | A diagnostic message | `emit.ch`, `router_diagnostics.ch`, this skill §2.6, design doc §14.8 |

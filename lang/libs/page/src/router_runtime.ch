@@ -184,28 +184,49 @@ window.$__uni_activate_now = ((routerName, routeId, url, params, historyMode, ra
     raw = (raw === undefined)
         ? ((url === route.url) ? route.rawUrl : url)
         : raw;
+    var guardSkip = false;
     if(r.currentRoute === route && route.url === url && route.rawUrl === raw) return true;
-    // Param-change remount (D-5.4). A layout that owns nested routes must NOT be
-    // disposed: its DOM contains the nested wrappers, so remounting it would
-    // destroy them. The nested activation chain re-derives the children from the
-    // shared URL instead (§13.3.3).
-    if(route.url !== url && (route.hydrated || route.inst) && !route.nested) {
-        if(route.inst) window.$__uni_dispose(route.inst);
-        route.inst = null;
-        route.hydrated = false;
-        route.ssr = false;
-        route.fragment = null;
+    // `onBeforeActivate(url, prevUrl)` may return:
+    //   false  -> cancel the navigation entirely (nothing changes);
+    //   "skip" -> proceed WITHOUT mounting/fetching/disposing: the route's
+    //             resolved identity (`url`/`rawUrl`/`params`) is refreshed so
+    //             signals, history and query stay correct, but its DOM and
+    //             instance are left as the application rendered them. This is how
+    //             an app that owns its own data (a client-local resource)
+    //             answers a query-only change without a server round-trip;
+    //   anything else -> a normal activation.
+    //
+    // The guard runs BEFORE the param-change dispose: a "skip" must preserve the
+    // live instance, and `false` must not have disposed it either.
+    if(route.beforeActivate) {
+        var verdict = null;
+        try { verdict = route.beforeActivate(url, route.url); }
+        catch(_) { verdict = null; }
+        if(verdict === false) {
+            window.$__uni_router_error("navigation cancelled", route.key);
+            return false;
+        }
+        if(verdict === "skip") guardSkip = true;
     }
-    if(route.beforeActivate && route.beforeActivate(url) === false) {
-        window.$__uni_router_error("navigation cancelled", route.key);
-        return false;
+    if(!guardSkip) {
+        // Param-change remount (D-5.4). A layout that owns nested routes must NOT
+        // be disposed: its DOM contains the nested wrappers, so remounting it
+        // would destroy them. The nested activation chain re-derives the children
+        // from the shared URL instead (§13.3.3).
+        if(route.url !== url && (route.hydrated || route.inst) && !route.nested) {
+            if(route.inst) window.$__uni_dispose(route.inst);
+            route.inst = null;
+            route.hydrated = false;
+            route.ssr = false;
+            route.fragment = null;
+        }
     }
     // A new accepted navigation supersedes any pending remote activation on this
     // router: bump the token and abort the now-stale fetches so a late fragment
     // can never activate over the newer route (P0 remote stale-fetch race).
     r.navSeq = (r.navSeq || 0) + 1;
     window.$__uni_abort_superseded(r);
-    if(route.remote) {
+    if(route.remote && !guardSkip) {
         if(!route.fragment) {
             route.pendingActivate = [url, params, historyMode, raw];
             route.pendingNavSeq = r.navSeq;
@@ -219,7 +240,7 @@ window.$__uni_activate_now = ((routerName, routeId, url, params, historyMode, ra
     route.url = url;
     route.rawUrl = raw;
     route.params = params || null;
-    if(!route.hydrated) {
+    if(!route.hydrated && !guardSkip) {
         if(route.comp) {
             if(!route.host) {
                 route.failed = true;
@@ -265,7 +286,7 @@ window.$__uni_activate_now = ((routerName, routeId, url, params, historyMode, ra
     // carries an activation chain: follow it (passing the remaining steps down)
     // instead of the declared nested default. The outer route's resolved params
     // are inherited, so a nested child's `props.id` sees the URL param.
-    if(route.nested) {
+    if(route.nested && !guardSkip) {
         // Separate-component outlet: the layout renders a `data-uni-outlet` slot
         // from its own body; relocate the SSR'd nested wrappers into it (they are
         // emitted after the layout so deep links still server-render them).

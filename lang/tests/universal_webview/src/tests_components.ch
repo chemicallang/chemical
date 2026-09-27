@@ -286,7 +286,10 @@
     </script>
 }
 
-#universal_test("radio mutual exclusion") {
+// `isolate`: every ToggleFixture instance emits radios with the same
+// `name="choice"`. Native radio groups are page-wide, so on the shared page a
+// sibling fixture's hydration can clear this fixture's `checked` state.
+#universal_test("radio mutual exclusion", isolate) {
     <ToggleFixture />
     <script>
         const a = byTestId('radio-a').find('input')
@@ -366,7 +369,10 @@
     </script>
 }
 
-#universal_test("radio group defaultValue after hydration") {
+// `isolate`: like the sibling RadioGroup fixtures, this one emits radios with
+// `name="size"`; two RadioGroupFixture instances on the shared page form a
+// single native radio group and uncheck one another after hydration.
+#universal_test("radio group defaultValue after hydration", isolate) {
     <RadioGroupFixture />
     <script>
         expect(byTestId('radiogroup-fixture').getByRole('radio', { name: 'Medium' })).toBeChecked()

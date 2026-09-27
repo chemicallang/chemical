@@ -2936,3 +2936,83 @@ func ut_route_emit(page : &mut HtmlPage, who : std::string_view) {
         expect($('[data-uni-route="ut-emit#arch"]').containsText('EMIT ARCH')).toBe(true)
     </script>
 }
+
+// ── onBeforeActivate "skip": refresh identity without mounting ──────────────
+//
+// A route whose data is owned by the client (a local resource) answers a
+// query-only change by returning "skip" from onBeforeActivate: the route's
+// resolved url/rawUrl/params are refreshed so $url/$query/history stay right,
+// but the route is not re-mounted or fetched. The app owns the DOM update.
+
+#universal UtSkipPane(props) {
+    return <div data-testid="ut-skip-pane">Pane {props.id}</div>
+}
+
+#universal UtRouterSkipUrl(props) {
+    router "ut-skip-url" {
+        route default #"home" { <div data-testid="ut-skip-home">Home</div> }
+        route "/projects/{id}" {
+            onBeforeActivate((prev) => {
+                // Only a query/param change on the same resource skips; a fresh
+                // route loads normally. Signal via a page global so the test can
+                // observe a mounting path too.
+                if(window.__utSkipMode === true) { return "skip" }
+                return true
+            })
+            <UtSkipPane />
+        }
+    }
+}
+
+#universal_test("router onBeforeActivate skip refreshes identity without remounting", isolate) {
+    <UtRouterSkipUrl />
+    <script>
+        const r = window.$__uni_routers['ut-skip-url']
+        // A normal activation mounts the route.
+        const first = r.activateRouteByUrl('/projects/1')
+        expect('f1=' + first).toBe('f1=true')
+        await t.sleep(20)
+        expect(r.current()).toBe('/projects/{id}')
+        expect(byTestId('ut-skip-pane').text()).toBe('Pane 1')
+        const inst = r.routes['/projects/{id}'].inst
+        // Never hand `expect` a router instance (cyclic); probe primitives.
+        expect('mounted=' + (!!inst)).toBe('mounted=true')
+        // The app marks its data as client-owned: a query change must not remount
+        // or refetch, but the resolved URL and the $url signal must move.
+        window.__utSkipMode = true
+        const urlBefore = r.$url.value
+        const second = r.activateRouteByUrl('/projects/2?filter=open')
+        expect('f2=' + second).toBe('f2=true')
+        await t.sleep(20)
+        expect('still=' + (!!r.routes['/projects/{id}'].inst)).toBe('still=true')
+        expect('urlmoved=' + (r.$url.value !== urlBefore)).toBe('urlmoved=true')
+        expect('cur=' + r.currentUrl()).toBe('cur=/projects/2')
+        expect('q=' + (r.query() && r.query().filter)).toBe('q=open')
+        expect('dom=' + byTestId('ut-skip-pane').text()).toBe('dom=Pane 1')
+    </script>
+}
+
+#universal UtRouterSkipId(props) {
+    router "ut-skip-id" {
+        route default #"a" { <div data-testid="ut-skip-a">A</div> }
+        route #"b" {
+            onBeforeActivate(() => { return "skip" })
+            <div data-testid="ut-skip-b">B</div>
+        }
+    }
+}
+
+#universal_test("router onBeforeActivate skip still shows the route and fires onActivate", isolate) {
+    <UtRouterSkipId />
+    <script>
+        const r = window.$__uni_routers['ut-skip-id']
+        window.__utSkipIdAct = 0
+        r.routes['b'].onActivate = null
+        expect(r.activateRoute('b')).toBe(true)
+        await t.sleep(10)
+        // Skip is not a cancel: the route becomes the current and visible one.
+        expect(r.current()).toBe('b')
+        expect(r.routes['b'].visible).toBe(true)
+        expect(r.routes['a'].visible).toBe(false)
+    </script>
+}

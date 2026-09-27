@@ -2588,6 +2588,22 @@ leaves `pendingActivate` null, so the later click consumes it immediately. Every
 failure clears `pendingActivate` and leaves the previous route visible; the next
 activation retries, because only an in-flight fetch suppresses a fetch.
 
+**D-7.12 — `onBeforeActivate` has three verdicts: allow, cancel, and skip.**
+*DECIDED (Sept 2026, for an app whose data is client-owned).* The guard runs
+before any DOM change and may return `false` (cancel: nothing changes), a normal
+truthy value (allow), or the string `"skip"`. `"skip"` is not a cancel: the route
+becomes current and visible, its resolved `url`/`rawUrl`/`params` are refreshed
+(so `$url`/`$query`/history are correct) and `onActivate` fires, but the
+param-change dispose, the mount and any fragment fetch are skipped — the
+instance and DOM stay as the application left them. The guard therefore runs
+**before** the param-change dispose (D-5.4), so both `false` and `"skip"`
+preserve the live instance; previously the dispose came first and a cancelled
+navigation still tore the route down. This is the mechanism an app uses to
+answer a query-only change (`?filter=open`) from a client-owned store without a
+server round-trip. `onBeforeActivate` receives `(url, prevUrl)` — `url` first, so
+the pre-existing single-argument guard contract is unchanged. A `"skip"` never
+cascades into a nested router and never fetches a `remote` fragment.
+
 ### 14.8 Diagnostics catalogue (frozen)
 
 All are parser/converter diagnostics with a `SourceLocation` except R5, which is

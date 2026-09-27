@@ -297,6 +297,24 @@ void annot_handler_static(Parser* parser, ASTNode* node, std::vector<Value*>& ar
     }
 }
 
+/**
+ * marks a top level function as overriding a same named function declared
+ * in a different module. this allows the two to coexist during symbol
+ * resolution (they mangle to different runtime names combined with their
+ * module scope), instead of reporting a duplicate symbol error.
+ *
+ * the annotation is only meaningful on top level functions. using it on a
+ * function that has no collision is harmless (it simply has no effect).
+ */
+void annot_handler_override(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
+    const auto func = node->as_function();
+    if(func) {
+        func->set_override(true);
+    } else {
+        parser->error("@override can only be applied to a function");
+    }
+}
+
 void annot_handler_deprecated(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     if(!node->set_deprecated(true)) {
         parser->error("couldn't make the declaration deprecated");
@@ -396,6 +414,7 @@ void AnnotationController::initialize() {
             { "no_return", { annot_handler_no_return, "no_return", AnnotationDefType::Handler } },
             { "cpp", { annot_handler_cpp, "cpp", AnnotationDefType::Handler } },
             { "static", { annot_handler_static, "static", AnnotationDefType::Handler } },
+            { "override", { annot_handler_override, "override", AnnotationDefType::Handler } },
             { "deprecated", { annot_handler_deprecated, "deprecated", AnnotationDefType::Handler } },
             { "align", { annot_handler_align, "align", AnnotationDefType::Handler } },
             { "allow_zeroed", { annot_handler_allow_zeroed, "allow_zeroed", AnnotationDefType::Handler } },

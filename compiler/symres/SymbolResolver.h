@@ -99,6 +99,16 @@ private:
      */
     SymbolTable table;
 
+    /**
+     * returns true when `declaration` (a function marked @override) may
+     * coexist with `previous` (an already declared function of the same name)
+     * because they come from different modules.
+     *
+     * this is only called from the rare collision branch of
+     * declare_function_quietly, so the ancestor walk it performs is never on
+     * the hot path.
+     */
+    bool allows_cross_module_override(FunctionDeclaration* declaration, ASTNode* previous);
 
     inline bool declare_function_quietly(const chem::string_view& name, FunctionDeclaration* declaration) {
         const auto previous = getSymbolTable().declare_no_shadow_sym(name, (ASTNode*) declaration);
@@ -106,6 +116,13 @@ private:
             return true;
         } else {
             if(getSymbolTable().is_in_current_scope(previous)) {
+                // a top level function marked @override may shadow a same named
+                // function declared in a *different* module. same module (or no
+                // @override) still reports a duplicate symbol as before.
+                if(allows_cross_module_override(declaration, previous->activeNode)) {
+                    getSymbolTable().declare(name, (ASTNode*) declaration);
+                    return true;
+                }
                 dup_sym_error(name, previous->activeNode, (ASTNode*) declaration);
                 getSymbolTable().declare(name, (ASTNode*) declaration);
                 return true;
@@ -114,6 +131,12 @@ private:
                 if(p && p->kind() == ASTNodeKind::NamespaceDecl) {
                     getSymbolTable().declare(name, (ASTNode*) declaration);
                 } else {
+                    // cross-module @override also applies here (previous not in
+                    // the current scope, e.g. pulled in by an import)
+                    if(allows_cross_module_override(declaration, previous->activeNode)) {
+                        getSymbolTable().declare(name, (ASTNode*) declaration);
+                        return true;
+                    }
                     dup_sym_error(name, previous->activeNode, (ASTNode*) declaration);
                     getSymbolTable().declare(name, (ASTNode*) declaration);
                 }

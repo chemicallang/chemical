@@ -413,6 +413,7 @@ All built-in annotations recognized by the compiler:
 | `@test` | func | Marks test function (auto-discovered by `test_runner`) |
 | `@deprecated` | func, struct, etc. | Marks item as deprecated (optionally with message: `@deprecated("use new_func")`) |
 | `@no_mangle` | func | Don't mangle the function name |
+| `@override` | func (top-level) | Let a top-level function coexist with a same-named function from a **different module** (no duplicate-symbol error). Used for an application `main` overriding a library's test `main`. Still errors for same-module duplicates, or when both sides are `@no_mangle`/`@extern`. Does **not** remove the library's tests. See [`annotations` skill](.agents/skills/annotations/SKILL.md#top-level-override) |
 | `@static` | func (in struct) | Static member function (no `self` parameter) |
 | `@implicit` | func parameter | Implicit parameter (not passed explicitly by caller) |
 | `@constructor` | func | Marks a constructor method (replaces default init) |

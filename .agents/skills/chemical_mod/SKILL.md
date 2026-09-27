@@ -360,6 +360,47 @@ import "chemicallang/mongodb" orphan branch "linuxmusl-x64" if linux and musl an
 import "chemicallang/mongodb" orphan branch "macos-x64"     if macos and !arm
 ```
 
+### `if test` and library test entry points
+
+`test` is a **global** job flag: it is set when the compiler is invoked with `--test`
+(`CompilerMain.cpp:535` → `job->target_data.test`, `LabBuildContext.cpp:62`), and it applies to
+**every** module in the build — the root application and every imported library alike. Because
+of this, `source "tests" if test` in a *library's* `.mod` will pull that library's test sources
+into **any** consumer's `--test` build.
+
+A common consequence is a **`main` collision**: a library that compiles its own tests under
+`if test` may define a `main` for its test runner, and an application that also runs with
+`--test` has its own `main`. That is a duplicate-symbol error which blocks the application from
+defining its own test entry point.
+
+Mark the **application's** `main` with `@override` to let it coexist with the library's:
+
+```chmod
+application my_app
+source "src"   if !test
+source "tests" if test
+import cstd
+import std
+import "../somelib"
+```
+
+```chemical
+// tests/test_main.ch — the application's own test entry point
+@override
+public func main(argc : int, argv : **char) : int {
+    return test_runner(argc, argv)
+}
+```
+
+This works without a linker error because the library's `main` is mangled with its module scope
+(`somelib_main`) while the application's `main` stays unmangled (`main`). See
+[Top-Level `@override`](../annotations/SKILL.md#top-level-override) for the full semantics.
+
+> ⚠️ **`@override` does not remove library tests.** It only lets the two `main` functions
+> coexist. The library's test sources are still compiled into the application's `--test` build
+> (that is what `source "tests" if test` does). Per-package test scoping — so a library's tests
+> can be *eliminated* or *not pulled in* — is a **separate feature still in development**.
+
 ## Module Names, Versions and Nested Modules
 
 - **Name / scope** — from the package declaration (`module scope.name`), or empty scope for a

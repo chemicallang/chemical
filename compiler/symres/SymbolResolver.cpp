@@ -19,6 +19,7 @@
 #include "ast/statements/ChildrenMapNode.h"
 #include "ast/base/TypeBuilder.h"
 #include "ast/structures/InterfaceDefinition.h"
+#include "ast/structures/ModuleScope.h"
 
 SymbolResolver::SymbolResolver(
     CompilerBinder& binder,
@@ -278,6 +279,29 @@ void SymbolResolver::declare_or_shadow(const chem::string_view &name, ASTNode* n
     // we'll allow it to shadow, since when the scope ends, the previous symbol will become visible
     // we have to see who's calling this method
     getSymbolTable().declare(name, node);
+}
+
+/**
+ * returns true when a top level function marked @override may coexist with a
+ * previously declared function that has the same name, because the two live in
+ * different modules and therefore mangle to different runtime names.
+ *
+ * called only on the rare duplicate-symbol path, never on the hot declaration
+ * path, so the ancestor walk below has no effect on normal compilation.
+ */
+bool SymbolResolver::allows_cross_module_override(FunctionDeclaration* declaration, ASTNode* previous) {
+    if(declaration == nullptr || previous == nullptr) {
+        return false;
+    }
+    // cheap guard: only functions marked @override opt into this behaviour
+    if(!declaration->is_override()) {
+        return false;
+    }
+    // the two functions must be top level functions of different modules.
+    // a collision within the same module must still be reported.
+    const auto decl_scope = declaration->get_mod_scope();
+    const auto prev_scope = previous->get_mod_scope();
+    return decl_scope != nullptr && prev_scope != nullptr && decl_scope->container != prev_scope->container;
 }
 
 void SymbolResolver::declare(const chem::string_view &name, ASTNode *node) {

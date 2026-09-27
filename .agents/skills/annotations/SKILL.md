@@ -176,6 +176,7 @@ All built-ins are registered in `AnnotationController::initialize()` (`compiler/
 | `@no_return` | function | `func->set_noReturn(true)` (`noreturn`) | `AnnotationController.cpp:270` |
 | `@cpp` | function | `set_cpp_mangle(true)` + `set_no_mangle(true)` (C++ mangle TODO) | `AnnotationController.cpp:279` |
 | `@static` | interface | `interface->set_is_static(true)` | `AnnotationController.cpp:291` |
+| `@override` | function | `func->set_override(true)`; lets a top-level function coexist with a same-named function from a **different module** (see [Top-Level `@override`](#top-level-override)) | `AnnotationController.cpp:300` |
 | `@deprecated` | node with `set_deprecated` | `node->set_deprecated(true)` | `AnnotationController.cpp:300` |
 | `@align(N)` | struct or struct member | required alignment from first constant integer arg; errors if absent/zero | `AnnotationController.cpp:306` |
 | `@allow_zeroed` | struct/union/variant | `container->allow_zeroed = true` via `get_master_members_container()` | `AnnotationController.cpp:327` |
@@ -184,6 +185,77 @@ All built-ins are registered in `AnnotationController::initialize()` (`compiler/
 | `@never_destructed` | `var`/`const` | `varInit->set_never_destructed(true)` | `AnnotationController.cpp:356` |
 
 Many flags are declared on the base `ASTNode` as virtuals and overridden per node: `set_deprecated` (`ASTNode.cpp:459`), `set_anonymous` (`ASTNode.cpp:517`), `set_no_mangle` (`ASTNode.cpp:545`).
+
+## Top-Level `@override`
+
+`@override` on a **top-level function** lets it coexist with an existing function of the
+same name that was declared in a **different module**, instead of failing with a
+duplicate-symbol error during symbol resolution.
+
+```chemical
+// a library (module) declares a test entry point
+// sqlite/tests/lib_tests.ch
+public func main(argc : int, argv : **char) : int { ... }
+
+// the application declares its OWN entry point, overriding the library's
+// app/tests/test_main.ch
+@override
+public func main(argc : int, argv : **char) : int { ... }
+```
+
+### Semantics
+
+- **Allowed only across modules.** The overriding function and the previous function must
+  belong to different `LabModule`s (`get_mod_scope()->container` differs). Two same-named
+  top-level functions in the **same module** still produce a duplicate-symbol error, even
+  with `@override`.
+- **`@override` must be on the function that comes *after*** (the one doing the overriding).
+  The earlier declaration needs no annotation.
+- Without `@override`, a same-named function is a duplicate-symbol error exactly as before.
+
+### Why it is safe (and when it still errors)
+
+Symbol resolution is not the whole story: what actually lands in the executable is the
+**mangled** name. A top-level function in a library is mangled with its module scope
+(`write_file_scope` → `sqlite_main`), while the application's own is mangled as `app_main`.
+Because those runtime names differ, the two functions can coexist in one executable —
+`@override` simply stops symbol resolution from rejecting them up front.
+
+Two things therefore **still error**, by design:
+
+| Situation | Result |
+|---|---|
+| Same-named function in the **same module** | duplicate-symbol error |
+| No `@override` on the (later) overriding function | duplicate-symbol error |
+| Both functions `@no_mangle` / `@extern` (same runtime name) | linker error: redefinition of `main` |
+
+The `@no_mangle`/`@extern` case is the important guarantee: `@override` only permits
+coexistence when the mangled runtime names differ. If either side opts out of mangling so
+both emit the literal symbol, the collision is caught at the linker.
+
+### Use case: application `main` overriding a library's test `main`
+
+When a library compiles its own tests under `if test` (i.e. `source "tests" if test`) it may
+define a `main` for its test runner. An application that imports that library and also runs
+with `--test` then has *two* `main`s: the application's and the library's. Without help this
+is a duplicate-symbol error that blocks the application from defining its own test entry
+point.
+
+Marking the **application's** `main` with `@override` resolves this cleanly and with **no
+linker error**, because the library's `main` mangles to `<module>_main` while the
+application's stays `main` (application `main` is made `no_mangle` by the compiler,
+`ASTProcessor.cpp:648`; a library's `main` is mangled). This lets both the library author and
+the application author write their own `main` under the `if test` pattern.
+
+> **Caveat — this does not remove the library's tests.** `@override` only permits the two
+> `main` functions to coexist; it does **not** stop the library's test sources from being
+> compiled in. When the application is built with `--test`, every imported library whose
+> `.mod` contains `source "tests" if test` still pulls its whole test tree into the
+> application's build (test files, test-only imports, fixtures). If you want to *eliminate*
+> or *not pull in* a library's tests, that is a **separate feature which is still in
+> development** — a mechanism to scope `--test` per package / select which libraries' tests
+> are compiled. Until it ships, `@override` is the way to make the `main`-collision problem
+> go away without touching the library.
 
 ### Test-related annotations
 

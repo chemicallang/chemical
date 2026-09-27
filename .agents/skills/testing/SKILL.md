@@ -100,6 +100,61 @@ public func main(argc : int, argv : **char) : int {
 }
 ```
 
+### Library / application test entry points and `@override`
+
+A library and an application can each write their **own** `main` that drives `test_runner`
+(setup, custom arguments, harness configuration), included conditionally under `if test`:
+
+```chmod
+// library chemical.mod
+module somelib
+source "src"
+source "tests" if test      // pull in the library's own tests under --test
+```
+
+```chemical
+// somelib/tests/lib_main.ch — the library's test entry point
+public func main(argc : int, argv : **char) : int {
+    return test_runner(argc, argv)
+}
+```
+
+An application that imports such a library and also builds with `--test` ends up with **two**
+`main` functions — the application's and the library's. Because `test` is a **global** job
+flag, the library's `if test` sources are compiled into the application's build too.
+
+Mark the **application's** `main` with **`@override`** so it can coexist with the library's
+`main` without a linker error:
+
+```chmod
+application my_app
+source "src"   if !test
+source "tests" if test
+import cstd
+import std
+import "../somelib"
+```
+
+```chemical
+// my_app/tests/test_main.ch
+@override
+public func main(argc : int, argv : **char) : int {
+    return test_runner(argc, argv)
+}
+```
+
+`@override` allows the two to coexist at symbol resolution; they then mangle to different
+runtime names (the library's becomes `somelib_main`, the application's stays `main`), so there
+is **no linker collision**. This is the clean way for both the library author and the
+application author to write their own test entry point under `if test`. Full semantics are in
+[Top-Level `@override`](../annotations/SKILL.md#top-level-override).
+
+> ⚠️ **`@override` does not stop the library's tests from being compiled in.** When the
+> application is built with `--test`, every imported library using `source "tests" if test`
+> still pulls its whole test tree into the application's build. If you need to *eliminate* or
+> *not pull in* a library's tests (per-package test scoping), that is a **separate feature
+> still in development**.
+
 ## The Test Framework (`lang/tests/common/src/test.ch`)
 
 ### Core Functions

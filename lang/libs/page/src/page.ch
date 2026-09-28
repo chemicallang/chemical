@@ -145,6 +145,10 @@ public struct HtmlPage {
     var pageJsEnd : std::string
     var js_hoist_pos : ubigint = 0
 
+    var shared : *mut SharedAssets = null
+    var local_js_depth : ubigint = 0
+    var local_css_depth : ubigint = 0
+
     // When true, a generated universal component server function emits only its
     // client JS (its `require_component` block + hoisting) and skips SSR markup.
     // The converter sets this around the child server-function call it makes
@@ -198,6 +202,51 @@ public struct HtmlPage {
 
     func getHeadJs(&self) : std::string_view {
         return pageHeadJs.to_view()
+    }
+
+    // ── Shared JS/CSS sink ────────────────────────────────────────────────
+    public func attach_shared(&mut self, s : *mut SharedAssets) {
+        shared = s
+    }
+
+    public func begin_local_js(&mut self) {
+        local_js_depth = local_js_depth + 1
+    }
+
+    public func end_local_js(&mut self) {
+        if(local_js_depth > 0) { local_js_depth = local_js_depth - 1 }
+    }
+
+    public func begin_local_css(&mut self) {
+        local_css_depth = local_css_depth + 1
+    }
+
+    public func end_local_css(&mut self) {
+        if(local_css_depth > 0) { local_css_depth = local_css_depth - 1 }
+    }
+
+    public func local_js(&self) : std::string {
+        var out = std::string()
+        out.reserve(pageJs.size() + pageJsEnd.size())
+        out.append_view(pageJs.to_view())
+        out.append_view(pageJsEnd.to_view())
+        return out
+    }
+
+    public func local_css(&self) : std::string {
+        return pageCss.copy()
+    }
+
+    func runtime_css(&mut self, v : &std::string_view) {
+        if(shared != null) { shared.css_data.append_view(v) } else { pageCss.append_view(v) }
+    }
+
+    func runtime_js(&mut self, v : &std::string_view) {
+        if(shared != null) { shared.js_data.append_view(v) } else { pageJs.append_view(v) }
+    }
+
+    func runtime_head_js(&mut self, v : &std::string_view) {
+        if(shared != null) { shared.js_data.append_view(v) } else { pageHeadJs.append_view(v) }
     }
 
     func append_html(&mut self, value : *char, len : size_t) {
@@ -269,26 +318,32 @@ public struct HtmlPage {
     }
 
     func append_css(&mut self, value : *char, len : size_t) {
+        if(shared != null && local_css_depth == 0) { shared.css_data.append_with_len(value, len); return }
         pageCss.append_with_len(value, len);
     }
 
     func append_css_view(&mut self, value : &std::string_view) {
+        if(shared != null && local_css_depth == 0) { shared.css_data.append_with_len(value.data(), value.size()); return }
         pageCss.append_with_len(value.data(), value.size())
     }
 
     func require_css_hash(&self, hash : size_t) : bool {
+        if(shared != null) { return !shared.done_classes.contains(&hash) }
         return !doneClasses.contains(&hash)
     }
 
     func set_css_hash(&mut self, hash : size_t) {
+        if(shared != null) { shared.done_classes.insert(hash, true); return }
         doneClasses.insert(hash, true)
     }
 
     func require_component(&self, hash : size_t) : bool {
+        if(shared != null) { return !shared.done_components.contains(&hash) }
         return !doneComponents.contains(&hash)
     }
 
     func set_component_hash(&mut self, hash : size_t) {
+        if(shared != null) { shared.done_components.insert(hash, true); return }
         doneComponents.insert(hash, true)
     }
 
@@ -553,42 +608,52 @@ public struct HtmlPage {
     }
 
     func require_random_css_hash(&self, hash : size_t) : bool {
+        if(shared != null) { return !shared.done_random_classes.contains(&hash) }
         return !doneRandomClasses.contains(&hash)
     }
 
     func set_random_css_hash(&mut self, hash : size_t) {
+        if(shared != null) { shared.done_random_classes.insert(hash, true); return }
         doneRandomClasses.insert(hash, true)
     }
 
     func append_css_char_ptr(&mut self, value : *char) {
+        if(shared != null && local_css_depth == 0) { shared.css_data.append_char_ptr(value); return }
         pageCss.append_char_ptr(value);
     }
 
     func append_css_char(&mut self, value : char) {
+        if(shared != null && local_css_depth == 0) { shared.css_data.append(value); return }
         pageCss.append(value)
     }
 
     func append_css_integer(&mut self, value : bigint) {
+        if(shared != null && local_css_depth == 0) { shared.css_data.append_integer(value); return }
         pageCss.append_integer(value)
     }
 
     func append_css_uinteger(&mut self, value : ubigint) {
+        if(shared != null && local_css_depth == 0) { shared.css_data.append_uinteger(value); return }
         pageCss.append_uinteger(value)
     }
 
     func append_css_float(&mut self, value : float) {
+        if(shared != null && local_css_depth == 0) { shared.css_data.append_float(value, 3); return }
         pageCss.append_float(value, 3)
     }
 
     func append_css_double(&mut self, value : double) {
+        if(shared != null && local_css_depth == 0) { shared.css_data.append_double(value, 3); return }
         pageCss.append_double(value, 3)
     }
 
     func append_js(&mut self, value : *char, len : size_t) {
+        if(shared != null && local_js_depth == 0) { shared.js_data.append_with_len(value, len); return }
         pageJs.append_with_len(value, len);
     }
 
     func append_js_char_ptr(&mut self, value : *char) {
+        if(shared != null && local_js_depth == 0) { shared.js_data.append_char_ptr(value); return }
         pageJs.append_char_ptr(value);
     }
 
@@ -597,31 +662,38 @@ public struct HtmlPage {
     // otherwise break out of an inline <script> block.
     func append_js_escaped_char_ptr(&mut self, value : *char) {
         const view = std::string_view(value, strlen(value))
+        if(shared != null && local_js_depth == 0) { appendJsEscaped(&mut shared.js_data, &view); return }
         appendJsEscaped(&mut pageJs, &view)
     }
 
     func append_js_escaped(&mut self, value : *char, len : size_t) {
         const view = std::string_view(value, len)
+        if(shared != null && local_js_depth == 0) { appendJsEscaped(&mut shared.js_data, &view); return }
         appendJsEscaped(&mut pageJs, &view)
     }
 
     func append_js_char(&mut self, value : char) {
+        if(shared != null && local_js_depth == 0) { shared.js_data.append(value); return }
         pageJs.append(value)
     }
 
     func append_js_integer(&mut self, value : bigint) {
+        if(shared != null && local_js_depth == 0) { shared.js_data.append_integer(value); return }
         pageJs.append_integer(value)
     }
 
     func append_js_uinteger(&mut self, value : ubigint) {
+        if(shared != null && local_js_depth == 0) { shared.js_data.append_uinteger(value); return }
         pageJs.append_uinteger(value)
     }
 
     func append_js_float(&mut self, value : float) {
+        if(shared != null && local_js_depth == 0) { shared.js_data.append_float(value, 3); return }
         pageJs.append_float(value, 3)
     }
 
     func append_js_double(&mut self, value : double) {
+        if(shared != null && local_js_depth == 0) { shared.js_data.append_double(value, 3); return }
         pageJs.append_double(value, 3)
     }
 
@@ -862,14 +934,21 @@ public struct HtmlPage {
     }
 
     func defaultUniversalSetup(&mut self) {
+        // With a shared sink attached the runtime is written into it once for
+        // the whole page set; later pages only get their per-page flush tail.
+        if(shared != null && shared.runtime_emitted) {
+            pageJsEnd.append_view(std::string_view("window.$__universal_flush();"))
+            return
+        }
+        if(shared != null) { shared.runtime_emitted = true }
         // Hydration boundary: [data-chx-i] spans are layout-invisible
         // so their children become direct layout children of the parent.
         // This fixes table/inline contexts where a wrapper element is invalid.
-        pageCss.append_view(std::string_view("[data-chx-i]{display:contents}"))
+        runtime_css(std::string_view("[data-chx-i]{display:contents}"))
         // we must not put anything else in the head js
         // everything else must go into body js
         // universal component hydration runtime
-        pageHeadJs.append_view(std::string_view("""
+        runtime_head_js(std::string_view("""
 window.$__uni_hydration_queue = []
 window.$__uni_batch_depth = 0
 window.$__uni_pending_instances = []
@@ -925,7 +1004,7 @@ window.$__uni_batch = ((fn) => {
     }
 })
 """))
-        pageJs.append_view(std::string_view("""
+        runtime_js(std::string_view("""
 // Normalizes one class value to a trimmed string (falsy values contribute
 // nothing instead of the literal "false"/"null").
 window.$__uni_class_part = ((v) => {
@@ -2930,8 +3009,14 @@ window.$__universal_flush = function() {
     public func ensure_router_runtime(&mut self) {
         if(router_runtime_emitted) { return }
         router_runtime_emitted = true
-        pageCss.append_view(std::string_view(".chx-route[data-uni-route-active=\"false\"]{display:none !important;}"))
-        pageJs.append_view(router_runtime_js())
+        var rr = router_runtime_js()
+        if(shared != null) {
+            shared.css_data.append_view(std::string_view(".chx-route[data-uni-route-active=\"false\"]{display:none !important;}"))
+            shared.js_data.append_view(&rr)
+        } else {
+            pageCss.append_view(std::string_view(".chx-route[data-uni-route-active=\"false\"]{display:none !important;}"))
+            pageJs.append_view(&rr)
+        }
     }
 
     func getFinalizedPageJs(&self) : std::string {

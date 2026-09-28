@@ -291,6 +291,34 @@ in `universal` macro, some things are different
 
 - No guarantee of static content being generated, something can break SSR + hydration (like .map)
 - Not explicitly clear about what gets generated for the runtime code
+## Sharing JS/CSS across pages
+
+If several pages use the same components, render them through one `SharedAssets`
+sink so the hydration runtime, component definitions, and component classes are
+written **once** into a shared, cacheable bundle instead of once per page. Each
+page keeps only its own dispatch statements and SSR HTML.
+
+```chemical
+var shared = shared_assets()
+
+var home = HtmlPage()
+home.attach_shared(shared)
+BuildHome(&mut home)
+
+var about = HtmlPage()
+about.attach_shared(shared)
+BuildAbout(&mut about)
+
+// Render every page first, then take the output out:
+shared.write_to("output", "app")   // output/app.js + output/app.css — serve + cache these
+// per page: home.getHtml() (SSR) + home.local_js() (dispatch statements)
+```
+
+This is opt-in and low level: it does not manage routes or serving. A page that
+never calls `attach_shared()` behaves exactly as before. See the `universal`
+skill section "Shared JS/CSS bundles across pages (`SharedAssets`)" for the routing
+rules, the `begin_local_js()` escape hatch, and gotchas.
+
 ## Testing your components
 
 Write component tests next to the app with `#universal_test`. Each test declares

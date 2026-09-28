@@ -317,6 +317,9 @@ The server function body (`universal_cbi/src/react/ast_replace.ch:29-197`) does,
    hoisted above earlier dispatch lines with `page.get_js_pos()` / `page.move_js_range(...)` /
    `page.js_hoist_pos` (`:80-161`) so component functions are defined before use. JS emission
    itself is `append_universal_component_js` (`universal_cbi/src/react/emit_js.ch:1-27`).
+   **When the page has an attached shared sink** (`page.attach_shared(shared)`), the
+   definition, the runtime, and the registry are routed into `SharedAssets` instead (deduped
+   across pages); see the `universal` skill "Shared JS/CSS bundles across pages".
 2. Inside `if(page.render_js_only) { ... } else { ... }` (`:172-188`): the `else` branch emits
    SSR HTML to `pageHtml` by converting the component body with `target = BufferType.HTML`
    (`:177-186`). `render_js_only` prevents a nested component's subtree from being

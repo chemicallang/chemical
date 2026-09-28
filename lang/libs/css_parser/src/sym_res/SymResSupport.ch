@@ -24,4 +24,10 @@ public struct CssSymResSupport {
 
     var setRandomCssHashFn : *mut ASTNode = null
 
+    // `page.begin_local_css` / `page.end_local_css`: used to force page-level
+    // `#css` (always the page's own CSS, never the shared sink).
+    var beginLocalCssFn : *mut ASTNode = null
+
+    var endLocalCssFn : *mut ASTNode = null
+
 }

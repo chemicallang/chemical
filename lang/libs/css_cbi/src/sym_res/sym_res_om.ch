@@ -94,6 +94,9 @@ func sym_res_root(
     support.requireRandomCssHashFn = requireRandomCssHashFn
     support.setRandomCssHashFn = setRandomCssHashFn
 
+    support.beginLocalCssFn = page.child("begin_local_css")
+    support.endLocalCssFn = page.child("end_local_css")
+
     return true;
 
 }

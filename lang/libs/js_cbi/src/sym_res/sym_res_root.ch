@@ -63,6 +63,8 @@ func sym_res_root(
     support.appendJsUIntFn = appendJsUIntFn;
     support.appendJsFloatFn = appendJsFloatFn;
     support.appendJsDoubleFn = appendJsDoubleFn;
+    support.beginLocalJsFn = page.child("begin_local_js")
+    support.endLocalJsFn = page.child("end_local_js")
 
     return true;
 

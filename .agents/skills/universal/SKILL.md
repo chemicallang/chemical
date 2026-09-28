@@ -153,14 +153,30 @@ serving, and cache headers are the caller's job — this only extracts the bundl
 |---|---|
 | `defaultUniversalSetup` runtime | sink JS (once; `runtime_emitted` latch) |
 | component definition (`function Name(props){…}`) | sink JS |
+| component `style { … }` CSS | sink CSS (deduped via sink maps) |
 | router runtime / registry / match table | sink JS |
+| `#globalcss { … }` | sink CSS, falling back to the page when no sink |
 | dispatch statements `window.$__uni_dispatch('…')` | **page** JS (`begin_local_js`/`end_local_js`) |
+| `#css { … }` | **page** CSS always (`begin_local_css`/`end_local_css`) |
+| `#js { … }` | **page** JS always (`begin_local_js`/`end_local_js`) |
 | `$__universal_flush()`, activation tail | **page** `pageJsEnd` |
-| `#css` classes | sink CSS (deduped via sink maps) |
 | SSR markup, head/meta | **page** |
 
 `require_component`/`set_component_hash` and the CSS dedup helpers use the sink's
 maps when attached, so a definition/class used by N pages is written once.
+
+**Routing rule (explicit, not inferred):**
+
+- `style { }` (component) and `#globalcss { }` (app-wide global CSS) are the only
+  ways to put CSS in the shared bundle; both fall back to the page when no sink
+  is attached. `#globalcss` reuses the `css` embedded value with `CSSOM.shared = true`.
+- `#css { }` / `#js { }` are **always page-local** — they pair with the `#html`
+  block the author wrote in that page's helper, so they belong to that page. They
+  are compiled with `page.begin_local_css()`/`begin_local_js()` around the emission,
+  so an attached sink is never touched.
+- A component's client JS (definitions) follows the component into the sink; the
+  component's `style { }` CSS does too.
+
 
 ### Gotchas
 
@@ -172,8 +188,10 @@ maps when attached, so a definition/class used by N pages is written once.
 - **Detecting a dispatch statement:** search for `window.$__uni_dispatch('` (with
   the quote). The runtime's own internal calls are `window.$__uni_dispatch(name,
   …)` and legitimately live in the sink.
-- **Page-specific `#js`** routes to the sink by default; bracket it with
-  `page.begin_local_js()` / `page.end_local_js()` to keep it on the page.
+- **`#css` / `#js` are always page-local.** Their emission is bracketed with
+  `page.begin_local_css()` / `page.begin_local_js()`, so an attached sink is
+  never touched. Use `#globalcss { }` (global, app-wide) or a component
+  `style { }` block (component-scoped) when CSS should go to the shared sink.
 - **`move_js_range` hoisting is unaffected** — when definitions go to the sink the
   moved range on `pageJs` is empty, so the move is a no-op. The hoisting
   bookkeeping itself now lives **inside** the `if(page.require_component(hash))`

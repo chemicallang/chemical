@@ -1314,28 +1314,26 @@ func (converter : &mut JsConverter) emit_router_server(rd : *mut JsRouterDecl) {
 
     converter.router_validate(rd)
 
-    // A router is a page singleton (D-2.4): guard the whole emission through the
-    // page's component dedup map so rendering the declaring component twice does
-    // not emit the registry/wrappers/stubs twice.
     const routerHash = rd.decl_loc as size_t
-    var check = make_require_component_call_static(builder, &mut *converter.support, routerHash, location)
-    var guard = builder.make_if_stmt(check, converter.parent, location)
-    const guardBody = guard.get_body()
-    guardBody.push(make_set_component_hash_call_static(builder, &mut *converter.support, routerHash, converter.parent, location))
+    const defaultId = router_default_id(rd)
 
-    const outerVec = converter.vec
-    converter.vec = guardBody
+    const entries = converter.router_url_entries(rd)
+    const hasUrl = entries.size() > 0
+    converter.router_validate_ambiguity(&entries)
 
-    // 1. The client runtime + hide rule, once per page (INV-18).
-    converter.vec.push(converter.router_page_stmt(std::string_view("ensure_router_runtime")))
+    // ── Per-page pass (unconditional) ────────────────────────────────────────
+    // The route wrappers, bodies, titles, manifest entries, 404 flag and the
+    // activation tail are page-specific: they must be emitted on EVERY page, even
+    // when the router's client JS is already de-duplicated into a shared sink.
+    // (Bug fix: this used to live inside the `require_component` guard, so a
+    // shared-sink hit on a later page produced an EMPTY router host — no
+    // `chx-route` wrappers at all. A component's SSR must never depend on
+    // whether its client JS is already deduped into the sink.)
 
     // 1b. Server-side URL matching (§6.1/§6.4): the generated function owns the
     // compile-time patterns, so it performs the match while it renders and
     // stores the selected id/params (plus the nested activation chain) for
     // `route_selected` and the activation tail.
-    const entries = converter.router_url_entries(rd)
-    const hasUrl = entries.size() > 0
-    converter.router_validate_ambiguity(&entries)
     var matchSpec = std::string()
     router_match_spec(&entries, &mut matchSpec)
     if(matchSpec.size() > 0 && converter.support.applyRouteUrlFn != null) {
@@ -1349,28 +1347,16 @@ func (converter : &mut JsConverter) emit_router_server(rd : *mut JsRouterDecl) {
         converter.vec.push(matchCall)
     }
 
-    // 2. Registry object + method table (template 1).
-    converter.emit_router_registry(rd.name)
-
-    const defaultId = router_default_id(rd)
-
-    // 3. URL match table (template 3), emitted only when URL routes exist. The
-    // client matcher (`$__uni_match_url`) scans it in order for Link clicks and
-    // popstate; it is already in precedence order (a straight first-match scan).
-    // Nested URL routes appear here as full patterns with an activation chain,
-    // so a single table drives the whole tree (server and client agree).
-    if(hasUrl) {
-        converter.router_emit_url_table(rd.name, &entries)
-    }
-
-    // 4. One wrapper + stub per route.
+    // 4a. One wrapper + SSR body per route (client JS is emitted in the guarded
+    // pass below).
     for(var i : uint = 0; i < rd.routes.size(); i++) {
         const rn = rd.routes.get(i)
         if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
-        converter.emit_route_server(rd.name, rn as *mut JsRouteDecl, defaultId, std::string_view(""))
+        converter.emit_route_server(rd.name, rn as *mut JsRouteDecl, defaultId, std::string_view(""), false)
     }
 
-    // 4. Route manifest entries (static-export `routes.json`, §13.2.3).
+    // 4b. Route manifest entries (static-export `routes.json`, §13.2.3). This is
+    // per-page `HtmlPage` state, so it is emitted on every page.
     for(var i : uint = 0; i < rd.routes.size(); i++) {
         const rn = rd.routes.get(i)
         if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
@@ -1383,9 +1369,59 @@ func (converter : &mut JsConverter) emit_router_server(rd : *mut JsRouterDecl) {
         converter.vec.push(call)
     }
 
-    // 4b. 404 `noindex` (§13.2.2). Per-route `<title>` is emitted from
+    // 4c. 404 `noindex` (§13.2.2). Per-route `<title>` is emitted from
     // `emit_route_server` so nested routes get titles too (§13.2.1).
     converter.vec.push(converter.router_page_stmt(std::string_view("emit_route_noindex")))
+
+    // 6. Activation tail (pageJsEnd, after $__universal_flush()). For URL
+    // routers, write the server's mount base into the client table first (§Q42).
+    // Both are page-specific, so they run on every page.
+    if(hasUrl) {
+        var baseCall = converter.router_page_stmt(std::string_view("append_router_table_base"))
+        baseCall.get_args().push(converter.router_string_value(rd.name))
+        converter.vec.push(baseCall)
+    }
+    var tail = converter.router_page_stmt(std::string_view("append_router_initial_activation"))
+    tail.get_args().push(converter.router_string_value(rd.name))
+    tail.get_args().push(converter.router_string_value(defaultId))
+    tail.get_args().push(builder.make_bool_value(hasUrl, location))
+    converter.vec.push(tail)
+
+    // ── Client-JS pass (once; sink-first) ────────────────────────────────────
+    // Guarded through the page's component dedup map: with a shared sink attached
+    // the guard lives in the sink, so rendering the declaring component on N pages
+    // emits the runtime/registry/stubs exactly once. Only client JS is guarded —
+    // never the SSR above (D-2.4).
+    var check = make_require_component_call_static(builder, &mut *converter.support, routerHash, location)
+    var guard = builder.make_if_stmt(check, converter.parent, location)
+    const guardBody = guard.get_body()
+    guardBody.push(make_set_component_hash_call_static(builder, &mut *converter.support, routerHash, converter.parent, location))
+
+    const outerVec = converter.vec
+    converter.vec = guardBody
+
+    // 1. The client runtime + hide rule, once per page (INV-18).
+    converter.vec.push(converter.router_page_stmt(std::string_view("ensure_router_runtime")))
+
+    // 2. Registry object + method table (template 1).
+    converter.emit_router_registry(rd.name)
+
+    // 3. URL match table (template 3), emitted only when URL routes exist. The
+    // client matcher (`$__uni_match_url`) scans it in order for Link clicks and
+    // popstate; it is already in precedence order (a straight first-match scan).
+    // Nested URL routes appear here as full patterns with an activation chain,
+    // so a single table drives the whole tree (server and client agree).
+    if(hasUrl) {
+        converter.router_emit_url_table(rd.name, &entries)
+    }
+
+    // 4. One registration stub per route (client only; the SSR wrapper/body for
+    // each route was emitted in the per-page pass above).
+    for(var i : uint = 0; i < rd.routes.size(); i++) {
+        const rn = rd.routes.get(i)
+        if(rn == null || rn.kind != JsNodeKind.RouteDecl) continue
+        converter.emit_route_server(rd.name, rn as *mut JsRouteDecl, defaultId, std::string_view(""), true)
+    }
 
     // 5. `preload` routes hydrate at load (off the interaction path, §5.1).
     var preloadJs = std::string()
@@ -1402,19 +1438,6 @@ func (converter : &mut JsConverter) emit_router_server(rd : *mut JsRouterDecl) {
         }
     }
     converter.router_emit_js(&preloadJs)
-
-    // 6. Activation tail (pageJsEnd, after $__universal_flush()). For URL
-    // routers, write the server's mount base into the client table first (§Q42).
-    if(hasUrl) {
-        var baseCall = converter.router_page_stmt(std::string_view("append_router_table_base"))
-        baseCall.get_args().push(converter.router_string_value(rd.name))
-        converter.vec.push(baseCall)
-    }
-    var tail = converter.router_page_stmt(std::string_view("append_router_initial_activation"))
-    tail.get_args().push(converter.router_string_value(rd.name))
-    tail.get_args().push(converter.router_string_value(defaultId))
-    tail.get_args().push(builder.make_bool_value(hasUrl, location))
-    converter.vec.push(tail)
 
     converter.vec = outerVec
     converter.vec.push(guard)
@@ -1560,7 +1583,7 @@ func (converter : &mut JsConverter) emit_nested_routes() {
     const inherited = converter.router_outlet_inherited
     for(var i : uint = 0; i < converter.router_outlet_routes.size(); i++) {
         var r = converter.router_outlet_routes.get(i) as *mut JsRouteDecl
-        converter.emit_route_server(name, r, def, inherited)
+        converter.emit_route_server(name, r, def, inherited, false)
     }
 }
 
@@ -1617,8 +1640,21 @@ func router_body_is_static(route : *mut JsRouteDecl) : bool {
     return router_jsx_is_static(root)
 }
 
+// Emits one route.
+//
+// `client` selects which half of a route's output is emitted:
+//   * `client == true`  — the page-independent client JS: the nested registry,
+//     the hydrated-layout/children client functions, and the
+//     `$__uni_route_register` stub (plus nested client recursion). This runs
+//     inside the router's `require_component` guard, so with a shared sink it
+//     lands there exactly once.
+//   * `client == false` — the per-page SSR: `<title>`, the `chx-route` wrapper,
+//     its boundary host and body markup (plus nested SSR recursion). This runs
+//     UNCONDITIONALLY on every page: a component's SSR must never depend on
+//     whether its client JS is already de-duplicated into a shared sink.
 func (converter : &mut JsConverter) emit_route_server(routerName : std::string_view, route : *mut JsRouteDecl,
-                                                      defaultId : std::string_view, inheritedParams : std::string_view) {
+                                                      defaultId : std::string_view, inheritedParams : std::string_view,
+                                                      client : bool) {
     const builder = converter.builder
     const location = intrinsics::get_raw_location()
 
@@ -1628,20 +1664,8 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
     effectivePattern.append_view(&inheritedParams)
     effectivePattern.append_view(&route.pattern)
 
-    // Server-only `<title>` for the selected route (§13.2.1), emitted here (not
-    // just at the top level) so a selected nested route contributes its title.
-    if(route.title.size() > 0) {
-        var titleCall = converter.router_page_stmt(std::string_view("emit_route_title"))
-        titleCall.get_args().push(converter.router_string_value(routerName))
-        titleCall.get_args().push(converter.router_string_value(route.id))
-        titleCall.get_args().push(converter.router_string_value(defaultId))
-        titleCall.get_args().push(converter.router_string_value(route.title))
-        converter.vec.push(titleCall)
-    }
-
     // Nested routes (Phase 6): this route owns a nested router whose wrappers
-    // render at its `<Outlet />`. The nested registry is emitted before the body
-    // so its stubs (emitted during body conversion) can resolve it.
+    // render at its `<Outlet />`.
     const nested = router_route_nested(route)
     var nestedName = std::string()
     var nestedDefault = std::string_view()
@@ -1650,7 +1674,6 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
         nestedName.append('#')
         nestedName.append_view(&route.id)
         nestedDefault = router_routes_default(&nested)
-        converter.emit_router_registry(nestedName.to_view())
     }
 
     const root = router_route_root(route)
@@ -1662,6 +1685,186 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
     // independently hydrated, which is the layout-preservation property.
     if(nested.size() == 0) {
         compName = router_route_comp(root)
+    }
+
+    // ── Client-JS pass (once; sink-first) ────────────────────────────────────
+    if(client) {
+        if(nested.size() > 0) {
+            // The nested registry is emitted before the nested stubs (emitted by
+            // the recursion below) so they can resolve it.
+            converter.emit_router_registry(nestedName.to_view())
+
+            if(root != null && root.kind == JsNodeKind.JSXElement) {
+                // The layout's `<Outlet />` must convert to the opaque
+                // `__uni_outlet` boundary (see `convertJSXComponent`), which
+                // requires the outlet context to be set during the JS conversion.
+                var prevRoutes = std::vector<*mut JsNode>()
+                for(var pi : uint = 0; pi < converter.router_outlet_routes.size(); pi++) {
+                    prevRoutes.push(converter.router_outlet_routes.get(pi))
+                }
+                const prevName = converter.router_outlet_name
+                const prevDefault = converter.router_outlet_default
+                const prevInherited = converter.router_outlet_inherited
+                const prevEmitted = converter.router_outlet_emitted
+
+                converter.router_outlet_routes = std::vector<*mut JsNode>()
+                for(var ni : uint = 0; ni < nested.size(); ni++) {
+                    converter.router_outlet_routes.push(nested.get(ni))
+                }
+                converter.router_outlet_name = builder.allocate_view(nestedName.to_view())
+                converter.router_outlet_default = builder.allocate_view(&nestedDefault)
+                converter.router_outlet_inherited = builder.allocate_view(effectivePattern.to_view())
+                converter.router_outlet_emitted = false
+
+                const rootEl = root as *mut JsJSXElement
+                if(rootEl.componentSignature == null) {
+                    compName = converter.emit_route_layout_client(route, root)
+                } else {
+                    // Hydrate the layout component. If it takes explicit
+                    // children, pass them through (an inline `<Outlet/>` child
+                    // expands to the outlet boundary); if the `<Outlet/>` lives
+                    // in the component's own body it renders a slot the runtime
+                    // relocates the nested wrappers into.
+                    compName = router_route_comp(root)
+                    if(rootEl.children.size() > 0) {
+                        childrenRefName = converter.emit_route_children_client(route, root)
+                    }
+                }
+
+                converter.router_outlet_routes = std::vector<*mut JsNode>()
+                for(var ri : uint = 0; ri < prevRoutes.size(); ri++) {
+                    converter.router_outlet_routes.push(prevRoutes.get(ri))
+                }
+                converter.router_outlet_name = prevName
+                converter.router_outlet_default = prevDefault
+                converter.router_outlet_inherited = prevInherited
+                converter.router_outlet_emitted = prevEmitted
+            }
+        }
+
+        // Registration stub (template 2).
+        var beforeHook = router_find_hook(route, std::string_view("onBeforeActivate"))
+        var activateHook = router_find_hook(route, std::string_view("onActivate"))
+        var deactivateHook = router_find_hook(route, std::string_view("onDeactivate"))
+
+        converter.put_chain_in()
+        const prevTarget = converter.target
+        converter.target = BufferType.JavaScript
+        var stub = &mut converter.str
+        stub.append_view("window.$__uni_route_register(\"")
+        router_js_escape(routerName, stub)
+        stub.append_view("\", \"")
+        router_js_escape(route.id, stub)
+        stub.append_view("\", { key: \"")
+        router_js_escape(routerName, stub)
+        stub.append('#')
+        router_js_escape(route.id, stub)
+        stub.append_view("\", id: \"")
+        router_js_escape(route.id, stub)
+        stub.append_view("\", comp: ")
+        if(compName.size() > 0) { stub.append_view(compName.to_view()) } else { stub.append_view("null") }
+        stub.append_view(", baseProps: {")
+        var baseFirst = true
+        // Compile-time attributes declared on a route root component (D-2.7) — e.g.
+        // `<Project title="x"/>` — are the component's initial props, so they must be
+        // in `baseProps` alongside the param placeholders (otherwise SSR and the
+        // client mount disagree). Param-named attributes are skipped: the router
+        // injects those server-side, and the `{param}` placeholders + matcher supply
+        // them on the client.
+        if(root != null && root.kind == JsNodeKind.JSXElement && compName.size() > 0) {
+            const rootEl = root as *mut JsJSXElement
+            if(rootEl.componentSignature != null) {
+                const paramNames = router_pattern_param_names(effectivePattern.to_view())
+                var resolved = converter.resolve_attributes(rootEl)
+                var filtered = std::vector<ResolvedAttr>()
+                for(var ri : uint = 0; ri < resolved.size(); ri++) {
+                    const a = resolved.get_ptr(ri)
+                    var isParam = false
+                    if(a.original != null) {
+                        for(var pi : uint = 0; pi < paramNames.size(); pi++) {
+                            if(a.original.name.equals(&paramNames.get(pi))) { isParam = true }
+                        }
+                        // The router-injected fallback `__path` is a server-provided
+                        // prop, not a compile-time one: the placeholder below
+                        // (`"__path": null`) is what the client reads.
+                        if(a.original.name.equals(std::string_view("__path"))) { isParam = true }
+                    }
+                    if(!isParam) { filtered.push(*a) }
+                }
+                converter.emit_js_props_from_resolved(&filtered, &mut baseFirst)
+            }
+        }
+        router_pattern_params_js(effectivePattern.to_view(), route.is_fallback, stub, baseFirst)
+        stub.append_view("}")
+        if(childrenRefName.size() > 0) {
+            const childrenView = childrenRefName.to_view()
+            stub.append_view(", children: ")
+            stub.append_view(&childrenView)
+            stub.append_view("()")
+        }
+        stub.append_view(", wrapperId: \"r")
+        stub.append_uinteger(route.decl_loc)
+        stub.append_view("\", hostId: \"u")
+        stub.append_uinteger(route.decl_loc)
+        stub.append_view("\", remote: ")
+        const isRemoteC = route.mode.equals(std::string_view("remote"))
+        if(isRemoteC) { stub.append_view("true") } else { stub.append_view("false") }
+        stub.append_view(", isUrl: ")
+        if(route.is_url) { stub.append_view("true") } else { stub.append_view("false") }
+        stub.append_view(", fetchUrl: null, noscroll: ")
+        if(route.noscroll) { stub.append_view("true") } else { stub.append_view("false") }
+        stub.append_view(", title: ")
+        if(route.title.size() > 0) {
+            stub.append('"')
+            router_js_escape(route.title, stub)
+            stub.append('"')
+        } else {
+            stub.append_view("null")
+        }
+        stub.append_view(", nested: ")
+        if(nested.size() > 0) {
+            stub.append('"')
+            router_js_escape(nestedName.to_view(), stub)
+            stub.append('"')
+        } else {
+            stub.append_view("null")
+        }
+        stub.append_view(", nestedDefault: ")
+        if(nestedDefault.size() > 0) {
+            stub.append('"')
+            router_js_escape(nestedDefault, stub)
+            stub.append('"')
+        } else {
+            stub.append_view("null")
+        }
+        stub.append_view(", beforeActivate: ")
+        if(beforeHook != null) { converter.convertJsNode(beforeHook) } else { stub.append_view("null") }
+        stub.append_view(", onActivate: ")
+        if(activateHook != null) { converter.convertJsNode(activateHook) } else { stub.append_view("null") }
+        stub.append_view(", onDeactivate: ")
+        if(deactivateHook != null) { converter.convertJsNode(deactivateHook) } else { stub.append_view("null") }
+        stub.append_view(" });\n")
+        converter.put_chain_in()
+        converter.target = prevTarget
+
+        // Nested client recursion: emit the nested registries/stubs.
+        for(var i : uint = 0; i < nested.size(); i++) {
+            var r = nested.get(i) as *mut JsRouteDecl
+            converter.emit_route_server(nestedName.to_view(), r, nestedDefault, effectivePattern.to_view(), true)
+        }
+        return
+    }
+
+    // ── SSR / per-page pass (unconditional) ──────────────────────────────────
+    // Server-only `<title>` for the selected route (§13.2.1), emitted here (not
+    // just at the top level) so a selected nested route contributes its title.
+    if(route.title.size() > 0) {
+        var titleCall = converter.router_page_stmt(std::string_view("emit_route_title"))
+        titleCall.get_args().push(converter.router_string_value(routerName))
+        titleCall.get_args().push(converter.router_string_value(route.id))
+        titleCall.get_args().push(converter.router_string_value(defaultId))
+        titleCall.get_args().push(converter.router_string_value(route.title))
+        converter.vec.push(titleCall)
     }
 
     // Wrapper open tag. The route's own markup lives inside the boundary span,
@@ -1755,38 +1958,30 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
             converter.router_outlet_default = builder.allocate_view(&nestedDefault)
             converter.router_outlet_inherited = builder.allocate_view(effectivePattern.to_view())
             converter.router_outlet_emitted = false
-
-            // Hydrated layout: a native-rooted layout gets an anonymous client
-            // function so its own markup is interactive. A component-rooted
-            // layout that forwards `{props.children}` gets its children passed
-            // through `children` so the outlet boundary hydrates too. Either
-            // way `<Outlet />` is an opaque boundary that hydration consumes,
-            // leaving the SSR'd nested wrappers to the nested router.
-            if(root != null && root.kind == JsNodeKind.JSXElement) {
-                const rootEl = root as *mut JsJSXElement
-                if(rootEl.componentSignature == null) {
-                    compName = converter.emit_route_layout_client(route, root)
-                } else {
-                    // Hydrate the layout component. If it takes explicit
-                    // children, pass them through (an inline `<Outlet/>` child
-                    // expands to the outlet boundary); if the `<Outlet/>` lives
-                    // in the component's own body it renders a slot the runtime
-                    // relocates the nested wrappers into.
-                    compName = router_route_comp(root)
-                    if(rootEl.children.size() > 0) {
-                        childrenRefName = converter.emit_route_children_client(route, root)
-                    }
-                }
-            }
+        }
+        // `router_inject_param_props` mutates the route root by appending
+        // SSR-only param attributes (e.g. `id={get_parameter_text("id")}`). The
+        // client pass must generate the hydrated layout/children functions from
+        // the author's root, not the injected one (the injected param value has
+        // no JS-mode representation), so remember the attribute count and undo
+        // the injection once the SSR codegen has consumed it. Injection only
+        // appends, so a resize is safe (pointer elements have no destructor).
+        var injectedAttrCount : size_t = 0
+        const hasRootEl = root != null && root.kind == JsNodeKind.JSXElement
+        if(hasRootEl) {
+            injectedAttrCount = (root as *mut JsJSXElement).opening.attributes.size()
         }
         converter.router_inject_param_props(effectivePattern.to_view(), root, route.is_fallback)
         // Server-rendered route content: bare `${…}` emitters, body locals and
         // conditionals render into the route's output before the JSX root (if
         // any). A body of emitters only has `root == null`, so the route is pure
-        // show/hide and `comp: null` in its stub above.
+        // show/hide and `comp: null` in its stub.
         converter.emit_route_body_statements(route, root)
         if(root != null) {
             converter.convertJsNode(root)
+        }
+        if(hasRootEl) {
+            (root as *mut JsJSXElement).opening.attributes.resize(injectedAttrCount)
         }
         // No `<Outlet />` in the layout: fall back to appending the nested
         // wrappers after the layout so children are never silently dropped.
@@ -1807,108 +2002,4 @@ func (converter : &mut JsConverter) emit_route_server(routerName : std::string_v
     var closeTag = std::string()
     closeTag.append_view("</span></div>")
     converter.router_emit_target(&closeTag)
-
-    // Registration stub (template 2).
-    var beforeHook = router_find_hook(route, std::string_view("onBeforeActivate"))
-    var activateHook = router_find_hook(route, std::string_view("onActivate"))
-    var deactivateHook = router_find_hook(route, std::string_view("onDeactivate"))
-
-    converter.put_chain_in()
-    const prevTarget = converter.target
-    converter.target = BufferType.JavaScript
-    var stub = &mut converter.str
-    stub.append_view("window.$__uni_route_register(\"")
-    router_js_escape(routerName, stub)
-    stub.append_view("\", \"")
-    router_js_escape(route.id, stub)
-    stub.append_view("\", { key: \"")
-    router_js_escape(routerName, stub)
-    stub.append('#')
-    router_js_escape(route.id, stub)
-    stub.append_view("\", id: \"")
-    router_js_escape(route.id, stub)
-    stub.append_view("\", comp: ")
-    if(compName.size() > 0) { stub.append_view(compName.to_view()) } else { stub.append_view("null") }
-    stub.append_view(", baseProps: {")
-    var baseFirst = true
-    // Compile-time attributes declared on a route root component (D-2.7) — e.g.
-    // `<Project title="x"/>` — are the component's initial props, so they must be
-    // in `baseProps` alongside the param placeholders (otherwise SSR and the
-    // client mount disagree). Param-named attributes are skipped: the router
-    // injects those server-side, and the `{param}` placeholders + matcher supply
-    // them on the client.
-    if(root != null && root.kind == JsNodeKind.JSXElement && compName.size() > 0) {
-        const rootEl = root as *mut JsJSXElement
-        if(rootEl.componentSignature != null) {
-            const paramNames = router_pattern_param_names(effectivePattern.to_view())
-            var resolved = converter.resolve_attributes(rootEl)
-            var filtered = std::vector<ResolvedAttr>()
-            for(var ri : uint = 0; ri < resolved.size(); ri++) {
-                const a = resolved.get_ptr(ri)
-                var isParam = false
-                if(a.original != null) {
-                    for(var pi : uint = 0; pi < paramNames.size(); pi++) {
-                        if(a.original.name.equals(&paramNames.get(pi))) { isParam = true }
-                    }
-                    // The router-injected fallback `__path` is a server-provided
-                    // prop, not a compile-time one: the placeholder below
-                    // (`"__path": null`) is what the client reads.
-                    if(a.original.name.equals(std::string_view("__path"))) { isParam = true }
-                }
-                if(!isParam) { filtered.push(*a) }
-            }
-            converter.emit_js_props_from_resolved(&filtered, &mut baseFirst)
-        }
-    }
-    router_pattern_params_js(effectivePattern.to_view(), route.is_fallback, stub, baseFirst)
-    stub.append_view("}")
-    if(childrenRefName.size() > 0) {
-        const childrenView = childrenRefName.to_view()
-        stub.append_view(", children: ")
-        stub.append_view(&childrenView)
-        stub.append_view("()")
-    }
-    stub.append_view(", wrapperId: \"r")
-    stub.append_uinteger(route.decl_loc)
-    stub.append_view("\", hostId: \"u")
-    stub.append_uinteger(route.decl_loc)
-    stub.append_view("\", remote: ")
-    if(isRemote) { stub.append_view("true") } else { stub.append_view("false") }
-    stub.append_view(", isUrl: ")
-    if(route.is_url) { stub.append_view("true") } else { stub.append_view("false") }
-    stub.append_view(", fetchUrl: null, noscroll: ")
-    if(route.noscroll) { stub.append_view("true") } else { stub.append_view("false") }
-    stub.append_view(", title: ")
-    if(route.title.size() > 0) {
-        stub.append('"')
-        router_js_escape(route.title, stub)
-        stub.append('"')
-    } else {
-        stub.append_view("null")
-    }
-    stub.append_view(", nested: ")
-    if(nested.size() > 0) {
-        stub.append('"')
-        router_js_escape(nestedName.to_view(), stub)
-        stub.append('"')
-    } else {
-        stub.append_view("null")
-    }
-    stub.append_view(", nestedDefault: ")
-    if(nestedDefault.size() > 0) {
-        stub.append('"')
-        router_js_escape(nestedDefault, stub)
-        stub.append('"')
-    } else {
-        stub.append_view("null")
-    }
-    stub.append_view(", beforeActivate: ")
-    if(beforeHook != null) { converter.convertJsNode(beforeHook) } else { stub.append_view("null") }
-    stub.append_view(", onActivate: ")
-    if(activateHook != null) { converter.convertJsNode(activateHook) } else { stub.append_view("null") }
-    stub.append_view(", onDeactivate: ")
-    if(deactivateHook != null) { converter.convertJsNode(deactivateHook) } else { stub.append_view("null") }
-    stub.append_view(" });\n")
-    converter.put_chain_in()
-    converter.target = prevTarget
 }

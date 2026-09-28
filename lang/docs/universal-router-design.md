@@ -2252,13 +2252,26 @@ a queue push. The SSR wrapper emission is a new `emit_router_server(...)` in
 `universal_cbi/src/converter/`. Both are called from the component-body emission
 in `react/ast_replace.ch` where `#universal` output is produced.
 
-**D-2.4 — Registry dedup.** *DECIDED.* Registry/wrapper emission is keyed by a
+**D-2.4 — Registry dedup.** *DECIDED.* Registry emission is keyed by a
 per-router hash through the page's existing dedup map (`HtmlPage.doneComponents`
 + `require_component`, `page.ch:176`) — the same mechanism that dedups component
 JS today — so rendering the declaring component twice on one page does not emit
 `$__uni_routers["m"]` twice. Additionally: **a router is a page singleton**;
 rendering its declaring component more than once is diagnosed when statically
 visible and otherwise contained at runtime (R5, §14.8).
+
+*Refinement (bug fix):* the guard covers **only the client singleton** — the
+runtime, registry, client match table, registration stubs, hydrated-layout client
+functions, and `preload` calls. The **SSR** (route wrappers/bodies, `<title>`,
+manifest entries, `noindex`, and the activation tail) is emitted
+**unconditionally on every page**, because it is page-specific and must not depend
+on whether the client singleton is already de-duplicated into a shared sink.
+`emit_router_server` therefore runs two passes: a per-page pass
+(`emit_route_server(..., client=false)`) and a guarded client pass
+(`emit_route_server(..., client=true)`). See the `router` skill §2.2.
+`router_inject_param_props` appends SSR-only param attributes to the route root;
+the emitter restores the root after the SSR codegen so the client layout functions
+are built from the author's root.
 
 **D-2.5 — Route boundary ids are source-location-derived.** *VERIFIED/FROZEN.*
 The host id follows the existing universal scheme, `"u" + element.loc`

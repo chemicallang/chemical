@@ -29,6 +29,14 @@ struct LabModule {
     PackageKind package_kind = PackageKind::Library;
 
     /**
+     * true when this module was downloaded from a remote source (a git /
+     * remote import). Remote modules' tests are excluded from test runs by
+     * default (the test runner filters them out unless --include-remote is
+     * passed).
+     */
+    bool is_remote = false;
+
+    /**
      * the scope name of the module
      */
     chem::string scope_name;

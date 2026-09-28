@@ -16,6 +16,11 @@ public struct UTFunction {
     var isolate : bool
     var fixture_fn : (page : &mut HtmlPage) => void
     var steps : std::string_view
+    /**
+     * true when this universal test comes from a remote (downloaded) module.
+     * the runner skips remote tests by default; pass --include-remote to run them.
+     */
+    var is_remote : bool
 }
 
 struct UTResult {
@@ -200,8 +205,8 @@ func ut_emit(tests : *mut *mut UTFunction, count : size_t, reporter : *mut TestR
     return failed
 }
 
-// Parses `--test-names a,b` and `--test-ids 1,2`.
-func ut_parse_args(argc : int, argv : **char, names : &mut vector<string_view>, ids : &mut vector<int>, has_names : &mut bool, has_ids : &mut bool, headed : &mut bool) {
+// Parses `--test-names a,b`, `--test-ids 1,2`, and `--include-remote`.
+func ut_parse_args(argc : int, argv : **char, names : &mut vector<string_view>, ids : &mut vector<int>, has_names : &mut bool, has_ids : &mut bool, headed : &mut bool, include_remote : &mut bool) {
     var i : int = 1
     while(i < argc) {
         const arg = argv[i]
@@ -223,6 +228,8 @@ func ut_parse_args(argc : int, argv : **char, names : &mut vector<string_view>, 
             }
         } else if(strcmp(arg, "--ut-headed") == 0 || strcmp(arg, "--headed") == 0) {
             *headed = true
+        } else if(strcmp(arg, "--include-remote") == 0 || strcmp(arg, "-include-remote") == 0) {
+            *include_remote = true
         } else if(strcmp(arg, "--test-ids") == 0 || strcmp(arg, "-test-ids") == 0) {
             i += 1
             if(i < argc) {
@@ -260,7 +267,8 @@ public func run_universal_tests_reporting(tests : std::span<UTFunction>, reporte
     var has_names = false
     var has_ids = false
     var headed = false
-    ut_parse_args(argc, argv, &mut names, &mut ids, &mut has_names, &mut has_ids, &mut headed)
+    var include_remote = false
+    ut_parse_args(argc, argv, &mut names, &mut ids, &mut has_names, &mut has_ids, &mut headed, &mut include_remote)
 
     // select tests, preserving declaration order, and split shared/isolated
     var selected = vector<*mut UTFunction>()
@@ -269,6 +277,11 @@ public func run_universal_tests_reporting(tests : std::span<UTFunction>, reporte
     var i : size_t = 0
     while(i < span.size()) {
         const t = all_ptr + i
+        // remote (downloaded) modules' tests are skipped unless --include-remote
+        if(t.is_remote && !include_remote) {
+            i += 1
+            continue
+        }
         var keep = true
         if(has_names || has_ids) {
             keep = false

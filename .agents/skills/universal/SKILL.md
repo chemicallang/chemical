@@ -103,6 +103,90 @@ Its body (built in `react/ast_replace.ch` → `universal_replacementNode`) does,
 - Floats/doubles appended via the helpers use precision 3 (`append_double(value, 3)`).
 - Dedup maps: `doneClasses`, `doneRandomClasses`, `doneComponents` (`require_*`/`set_*_hash`).
 
+## Shared JS/CSS bundles across pages (`SharedAssets`)
+
+When several pages use the same components, each rendered page normally carries
+its own copy of the runtime, the component definitions it uses, and its component
+CSS. `SharedAssets` extracts the **page-independent** bytes into one sink that all
+pages reference, so a single JS + CSS bundle can be served once and cached while
+each page stays lean.
+
+- The sink receives: the hydration runtime, component definitions, the router
+  registry, and component classes — de-duplicated across every attached page.
+- The **page** keeps: SSR HTML, `window.$__uni_dispatch(...)` statements, and the
+  `pageJsEnd` tail (`$__universal_flush()` / router activation).
+- A page that never calls `attach_shared()` behaves byte-for-byte as before
+  (everything stays on the page). This is opt-in and does not affect the dynamic
+  path.
+
+### API (low level; no site/route abstraction)
+
+```chemical
+var shared = shared_assets()          // *mut SharedAssets (heap, shared by pages)
+
+var home = HtmlPage()
+home.attach_shared(shared)            // opt this page into the sink
+BuildHome(&mut home)
+
+var about = HtmlPage()
+about.attach_shared(shared)
+BuildAbout(&mut about)
+
+// Render every page first, then take the output out:
+shared.js()                           // runtime + defs + registry (NO dispatches)
+shared.css()                          // component classes
+shared.js_size() / shared.css_size()
+home.getHtml()                        // page-specific SSR
+home.local_js()                       // page dispatch statements + pageJsEnd
+home.local_css()                      // page-specific classes (usually empty)
+
+shared.write_to("output", "app")      // optional: output/app.js + output/app.css
+```
+
+`shared_assets()` is heap-allocated; keep it alive for the whole page set. Routing,
+serving, and cache headers are the caller's job — this only extracts the bundle.
+`write_to` uses the `fs` library already imported by `page` (no new dependency).
+
+### What goes where (while attached)
+
+| Emission | Target |
+|---|---|
+| `defaultUniversalSetup` runtime | sink JS (once; `runtime_emitted` latch) |
+| component definition (`function Name(props){…}`) | sink JS |
+| router runtime / registry / match table | sink JS |
+| dispatch statements `window.$__uni_dispatch('…')` | **page** JS (`begin_local_js`/`end_local_js`) |
+| `$__universal_flush()`, activation tail | **page** `pageJsEnd` |
+| `#css` classes | sink CSS (deduped via sink maps) |
+| SSR markup, head/meta | **page** |
+
+`require_component`/`set_component_hash` and the CSS dedup helpers use the sink's
+maps when attached, so a definition/class used by N pages is written once.
+
+### Gotchas
+
+- **Render all pages, then read** `js()`/`css()`. The sink accumulates as pages
+  render; the first page emits the runtime, later pages skip it.
+- **`toString()` is only for unattached pages.** On an attached page the runtime
+  and definitions live in the sink, so assemble the document from
+  `shared.js()`/`css()` + `getHtml()`/`local_js()`, or use `write_to`.
+- **Detecting a dispatch statement:** search for `window.$__uni_dispatch('` (with
+  the quote). The runtime's own internal calls are `window.$__uni_dispatch(name,
+  …)` and legitimately live in the sink.
+- **Page-specific `#js`** routes to the sink by default; bracket it with
+  `page.begin_local_js()` / `page.end_local_js()` to keep it on the page.
+- **`move_js_range` hoisting is unaffected** — when definitions go to the sink the
+  moved range on `pageJs` is empty, so the move is a no-op.
+- `defaultUniversalSetup` uses an early return for "runtime already in the sink";
+  do not wrap the ~32 KB runtime block in an `if` (it trips a symres crash).
+
+Implementation: `lang/libs/page/src/shared_assets.ch` (sink), routing in
+`lang/libs/page/src/page.ch`, dispatch bracketing in
+`lang/libs/html_cbi/src/converter/language/main.ch` (`emit_page_stmt`).
+Design: `lang/docs/universal-shared-js-bundle-design.md`.
+Tests: `lang/tests/compiler_plugins/universal/src/shared_assets.ch`; run with
+`./scripts/test.sh --tcc --plugins --skip-sequential --test-names shared_assets_...`.
+Probe: `lang/compiled/shared_probe/`.
+
 ## Client runtime contract (what generated code may call)
 
 Only generated code and the components library use these; component authors should stick to
@@ -499,10 +583,13 @@ Fast triage questions:
   replacement time (see "Prop serialization rules"); other silent converter fallbacks
   (`convertJsNode` default, some `put_by_type` defaults) remain.
 - The professionalization plan's segmented-JS-buffer / two-phase emission (removing
-  `move_js_range` surgery) is not implemented.
+  `move_js_range` surgery) is not implemented. **Partial mitigation:** the opt-in
+  `SharedAssets` sink (see "Shared JS/CSS bundles across pages") removes cross-page
+  runtime/definition/CSS duplication without changing the unattached path.
 - The runtime is intentionally kept **inline in `page.ch`** (offline builds); it
   will be extracted to a content-hashed CDN asset only after the feature set is
-  frozen.
+  frozen. `SharedAssets` offers per-app sharing now; content-hashing/CDN naming is
+  left to the caller.
 
 ## Comprehensive design audit (2026-09-12)
 

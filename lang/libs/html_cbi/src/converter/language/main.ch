@@ -438,6 +438,9 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
     }
     js.append_view(idStr.view());
     js.append_view("'), {");
+    // Dispatch statements are page-specific: keep them on the page, never in
+    // an attached shared JS sink (see HtmlPage.begin_local_js).
+    converter.emit_page_stmt(std::string_view("begin_local_js"));
     converter.emit_append_js_from_str(&mut js);
 
     const attrs = element.attributes.size();
@@ -536,6 +539,22 @@ func (converter : &mut ASTConverter) emit_universal_queue(element : *mut HtmlEle
         tail.append_view("});\n");
     }
     converter.emit_append_js_from_str(&mut tail);
+    converter.emit_page_stmt(std::string_view("end_local_js"));
+}
+
+// Emits a no-argument call on the page object: `page.<method>()`. No-ops when
+// the method is absent (e.g. an older page library), so this is safe to emit
+// unconditionally.
+func (converter : &mut ASTConverter) emit_page_stmt(method : std::string_view) {
+    const builder = converter.builder
+    const location = intrinsics::get_raw_location()
+    const fnNode = converter.support.pageNode.child(&method)
+    if(fnNode == null) { return }
+    var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, location)
+    var id = builder.make_identifier(&method, fnNode, false, location)
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), location)
+    const call = builder.make_function_call_node(chain, converter.parent, location)
+    converter.vec.push(call as *mut ASTNode)
 }
 
 func (converter : &mut ASTConverter) convertChildren(element : *mut HtmlElement) {

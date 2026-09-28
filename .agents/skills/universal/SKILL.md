@@ -103,6 +103,89 @@ Its body (built in `react/ast_replace.ch` → `universal_replacementNode`) does,
 - Floats/doubles appended via the helpers use precision 3 (`append_double(value, 3)`).
 - Dedup maps: `doneClasses`, `doneRandomClasses`, `doneComponents` (`require_*`/`set_*_hash`).
 
+## Styling components (`style { }`, `#globalcss`, `#css`)
+
+CSS reaches a page through exactly three routes. Pick by **scope**; the compiler
+does not infer it for you:
+
+| Syntax | Where it is written | Scope | Bundle |
+|---|---|---|---|
+| `style { … }` | inside a `#universal` body | component-scoped (generated class) | follows the component (shared sink when attached) |
+| `#globalcss { … }` | page helper (statement) | global selectors | shared sink first, page fallback |
+| `#css { … }` | page helper (value or statement) | scoped class (value) / global selectors (statement) | **always the page** |
+
+### `style { }` — component-scoped CSS
+
+A `style { … }` block inside a `#universal` component is parsed by the CSS parser
+and evaluates to the component's generated (deterministic) class name — a
+compile-time constant. Attach it with `class={…}`; the rules are emitted through
+the same machinery as `#css`/`#styled`.
+
+```chemical
+#universal Badge(props) {
+    var badge = style {
+        color: red;
+        display: inline-flex;
+        &:hover { color: blue; }                 // nested selector (`&` = this element)
+        @media (min-width: 600px) { padding: 8px; }
+    }
+    return <span class={badge}>{props.children}</span>
+}
+```
+
+- Returns a **string** class name, so blocks compose:
+  `class={a + " " + b}` (each `style { }` block gets its own class).
+- All the CSSOM features work: nested rules (`&`), media queries, `@keyframes`,
+  and Chemical interpolation (`${…}`) collected via `dyn_values`.
+- Emitted as the `css` embedded value with `CSSOM.shared = true` — i.e. it follows
+  the component into the shared assets sink, falling back to the page. Parse hook:
+  `universal_cbi/src/main.ch::universal_parse_style_block`, wired as
+  `JsParser.style_fn` in `react/macro.ch`.
+- Deterministic and de-duplicated: repeated instances of the same component emit
+  its rule once. Lexing: the JS lexer hands the body to the CSS lexer on the
+  `style` keyword (`universal_cbi/src/main.ch:9-73`); the opening `{` is consumed
+  by the JS lexer.
+- Tests: `lang/tests/compiler_plugins/universal/src/style_block.ch`.
+
+### `#globalcss { }` — app-wide global CSS
+
+`#globalcss { … }` is the only page-level macro that prefers the **shared bundle**.
+It is a statement block (no value) whose selectors are global:
+
+```chemical
+func GlobalStyles(page : &mut HtmlPage) {
+    #globalcss {
+        body { margin: 0; }
+        .app-header { position: fixed; top: 0; }
+    }
+}
+```
+
+- Registered in `css_cbi/build.lab` as its own macro key (`globalcss`); it reuses
+  the `css` lexer and the `css` embedded value with `CSSOM.shared = true`
+  (`css_cbi/src/main.ch::globalcss_parseMacroNode`).
+- With a shared sink attached → emitted into the sink and de-duplicated via
+  `require_css_hash` (repeating it across pages writes it once). Without a sink →
+  emitted into the page, exactly like `#css`.
+- Use it for themes, resets, and shared chrome. Use `style { }` for component CSS
+  and `#css` for the page's own layout.
+
+### `#css` / `#js` — always page-local
+
+`#css { … }` and `#js { … }` are **always emitted into the page's own bundle**,
+never the shared sink — they pair with the `#html` an author wrote in that page's
+helper. The compiler wraps their emission in `page.begin_local_css()` /
+`page.begin_local_js()` (`css_cbi/src/main.ch`, `js_cbi/src/main.ch`), so an
+attached sink is never touched. `#css` in value position returns a scoped class
+name; in statement position it is a page-local global stylesheet.
+
+> **CSS missing from `shared.css()`?** It is page-local by design if it came from
+> `#css`. Switch it to `#globalcss { }` (app-wide) or move it into the component
+> as `style { }` to share it.
+
+See the routing table under *Shared JS/CSS bundles across pages* for the exact
+attached-page behaviour.
+
 ## Shared JS/CSS bundles across pages (`SharedAssets`)
 
 When several pages use the same components, each rendered page normally carries

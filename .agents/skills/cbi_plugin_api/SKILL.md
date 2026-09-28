@@ -159,7 +159,7 @@ These are the plugins shipped with the compiler. Each demonstrates different CBI
 | Plugin | Location | Purpose | Key Features |
 |--------|----------|---------|--------------|
 | `html_cbi` | `lang/libs/html_cbi/` | `#html` macro | Parses HTML/JSX (shared `html_comp` AST) and emits `page.append_html*` calls; resolves `#styled` components (`MountStrategy.Styled`) in `#html` |
-| `css_cbi` | `lang/libs/css_cbi/` | `#css`, `#styled` macros | `#css` parses CSS properties into style strings; `#styled` declares scoped, CSS-injecting components usable in `#html` |
+| `css_cbi` | `lang/libs/css_cbi/` | `#css`, `#globalcss`, `#styled` macros | `#css` parses CSS properties into style strings and is always page-local; `#globalcss` emits app-wide global CSS to the shared sink (page fallback); `#styled` declares scoped, CSS-injecting components usable in `#html` |
 | `js_cbi` | `lang/libs/js_cbi/` | `#js` macro | Parses JavaScript with the shared `js_syntax` AST / `js_parser` and inlines it into the JS bundle |
 | `universal_cbi` | `lang/libs/universal_cbi/` | `#universal` component | SSR + hydration — generates server function + JS hydration; uses the shared `js_syntax` AST |
 | `json_cbi` | `lang/libs/json_cbi/` | `#json(Struct)` macro | Auto-generates `std::Serializer`/`std::Deserializer` impls; uses a marker annotation and top-level node hooks |

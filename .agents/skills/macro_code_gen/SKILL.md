@@ -17,10 +17,11 @@ for the app-level authoring guide see `design_web_app`.
 | Macro | Plugin | Registration | Parse hook type | Notes |
 |---|---|---|---|---|
 | `#html` | `html_cbi` | `html_cbi/build.lab:21-92` | `ParseMacroNode`, `ParseMacroValue` | JSX/HTML → `page.append_html*` |
-| `#css` | `css_cbi` | `css_cbi/build.lab:21-104` | `ParseMacroNode`, `ParseMacroValue` | CSS → `page.append_css*`, returns class name |
-| `#styled` | `css_cbi` (second CBI name) | `css_cbi/build.lab:91-98` | `ParseMacroTopLevelNode` | SSR-only scoped component |
-| `#js` | `js_cbi` | `js_cbi/build.lab:22-103` | `ParseMacroNode`, `ParseMacroValue` | JS → `page.append_js*` |
-| `#universal` | `universal_cbi` | `universal_cbi/build.lab:23-110` | `ParseMacroTopLevelNode` | SSR fn + client JS + hydration |
+| `#css` | `css_cbi` | `css_cbi/build.lab:21-89` | `ParseMacroNode`, `ParseMacroValue` | CSS → `page.append_css*`, returns class name; **always page-local** |
+| `#globalcss` | `css_cbi` (extra CBI name) | `css_cbi/build.lab:91-94` | `ParseMacroNode` | App-wide global CSS; shared sink first, page fallback |
+| `#styled` | `css_cbi` (second CBI name) | `css_cbi/build.lab:96-103` | `ParseMacroTopLevelNode` | SSR-only scoped component |
+| `#js` | `js_cbi` | `js_cbi/build.lab:22-103` | `ParseMacroNode`, `ParseMacroValue` | JS → `page.append_js*`; **always page-local** |
+| `#universal` | `universal_cbi` | `universal_cbi/build.lab:23-110` | `ParseMacroTopLevelNode` | SSR fn + client JS + hydration; `style { }` = component-scoped CSS |
 | `#json(Type)` | `json_cbi` | `json_cbi/build.lab:18-60` | `ParseMacroTopLevelNode` | Generates `std::Serializer`/`Deserializer` impls |
 | `#md` | `md_cbi` | `md_cbi/build.lab:20-85` | `ParseMacroNode`, `ParseMacroValue` | Markdown → `page.append_html*` |
 | `#universal_test("name")` | `html_cbi` (second macro name) | `html_cbi/build.lab` | `ParseMacroTopLevelNode`, `ParseMacroNode` | Component test: SSR fixture + raw `<script>` steps; see `universal_testing` |
@@ -193,6 +194,54 @@ func style_button(page : &mut HtmlPage) : *char {
   path (`put_class_name`, `main.ch:182-186`; `allocate_view_with_classname`, `:188-196`) and
   `r` for the non-hashable path (`main.ch:413-419`). `om.className` is the 7-char name without
   the leading dot (`main.ch:418-419, 471`).
+
+## `#globalcss` blocks (css_cbi)
+
+`#globalcss { ... }` is the statement-only sibling of `#css`, registered as a separate
+macro key (`globalcss`, `css_cbi/build.lab:91-94`) that reuses `css_initializeLexer` +
+`globalcss_parseMacroNode`. It parses the same CSSOM but sets `root.shared = true`
+before building the `css` embedded node (`css_cbi/src/main.ch`):
+
+```chemical
+func GlobalStyles(page : &mut HtmlPage) {
+    #globalcss {
+        body { margin: 0; }
+        .app-header { position: fixed; top: 0; }
+    }
+}
+```
+
+- With a shared assets sink attached, `append_css*` routes to the sink
+  (`shared != null && local_css_depth == 0`); without a sink it falls back to
+  `pageCss`. De-duplication uses `require_css_hash` (repeating it across pages
+  writes it once).
+- `#css` differs only in `shared = false`: its emission is wrapped in
+  `page.begin_local_css()` / `end_local_css()`, so it **always** lands on the page
+  (`css_cbi/src/main.ch::css_replacementNode` / `css_replacementValue`). The same
+  applies to `#js` (`begin_local_js` / `end_local_js`).
+
+## `style { }` blocks (universal_cbi) — component-scoped CSS
+
+Inside a `#universal` body, `style { ... }` is a JS expression parsed by the CSS
+parser and evaluated to a compile-time class-name string (usable in `class={...}`):
+
+```chemical
+#universal Badge(props) {
+    var badge = style { color: red; &:hover { color: blue; } }
+    return <span class={badge}>{props.children}</span>
+}
+```
+
+- Lexing: the hybrid JS lexer detects the `style` keyword and hands the `{...}` body
+  to the CSS lexer (`universal_cbi/src/main.ch:9-73`, `universal_style_css_next`).
+- Parse: `universal_parse_style_block` (`universal_cbi/src/main.ch:75-101`) builds a
+  `css` embedded value wrapped in a `JsChemicalValue`; wired as `JsParser.style_fn`
+  in `react/macro.ch`.
+- Emission: identical to `#css` (same `CSSOM`, hash/dedup paths), but with
+  `CSSOM.shared = true` so it follows the component into the shared sink
+  (`universal_cbi/src/main.ch:88`).
+- The returned class is a deterministic constant; multiple blocks per component and
+  repeated instances emit each rule once (`lang/tests/compiler_plugins/universal/src/style_block.ch`).
 
 ## `#styled` components (css_cbi, "styled" CBI)
 

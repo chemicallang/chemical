@@ -5,6 +5,13 @@
 // attached). These tests pin that contract.
 // =============================================================================
 
+#universal RoutingStyledBox(props) {
+    var box = style {
+        color: rgb(11 22 33);
+    }
+    return <span class={box}>{props.children}</span>
+}
+
 @test
 public func css_macro_is_always_page_local(env : &mut TestEnv) {
     var shared = shared_assets("routing")
@@ -98,4 +105,30 @@ public func js_macro_is_always_page_local(env : &mut TestEnv) {
         return
     }
     env.success("#js is always page-local")
+}
+
+@test
+public func style_block_follows_component_into_shared_sink(env : &mut TestEnv) {
+    var shared = shared_assets("routing")
+    var page = HtmlPage()
+    page.attach_shared(shared)
+    page.defaultUniversalSetup()
+
+    #html { <RoutingStyledBox>x</RoutingStyledBox> }
+
+    var sink_css = std::string()
+    sink_css.append_view(shared.css())
+    var page_css = std::string()
+    page_css.append_view(page.getCss())
+
+    if(!sink_css.contains("rgb(11 22 33)")) {
+        env.error("component style { } must go into the shared sink when one is attached")
+        env.info(sink_css.data())
+        return
+    }
+    if(page_css.contains("rgb(11 22 33)")) {
+        env.error("component style { } must not also go into the page when a sink is attached")
+        return
+    }
+    env.success("component style { } follows the component into the shared sink")
 }

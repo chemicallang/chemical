@@ -93,6 +93,19 @@ public func universal_replacementNode(builder : *mut ASTBuilder, diagnoser : *mu
             
             var pageId = builder.make_identifier(std::string_view("page"), support.pageNode, false, location);
 
+            var checkRequired = make_require_component_call_static(builder, &mut support, selfHash, location)
+            var ifRequiredStmt = builder.make_if_stmt(checkRequired, converter.parent, location);
+            const ifRequiredBody = ifRequiredStmt.get_body()
+            ifRequiredBody.push(make_set_component_hash_call_static(builder, &mut support, selfHash, converter.parent, location))
+
+            // Emitting the definition, recording its range, and hoisting it above
+            // earlier dispatch lines all live inside the guard. When the component
+            // is already present (e.g. in an attached shared sink) this costs one
+            // `require_component` lookup and nothing else.
+            converter.target = BufferType.JavaScript;
+            const rootBody = converter.vec
+            converter.vec = ifRequiredBody
+
             // Record index and prev_hoist
             var getJsPosId = builder.make_identifier(std::string_view("get_js_pos"), support.getJsPosFn, false, location)
             const getJsPosCall = builder.make_function_call_value(builder.make_access_chain(&std::span<*mut Value>([ pageId, getJsPosId ]), location), location);
@@ -104,21 +117,9 @@ public func universal_replacementNode(builder : *mut ASTBuilder, diagnoser : *mu
             var prevHoistVar = builder.make_varinit_stmt(false, false, &prevHoistName, builder.get_u64_type(), hoistPosAccess, AccessSpecifier.Internal, converter.parent, location);
             converter.vec.push(prevHoistVar);
 
-            var checkRequired = make_require_component_call_static(builder, &mut support, selfHash, location)
-            var ifRequiredStmt = builder.make_if_stmt(checkRequired, converter.parent, location);
-            const ifRequiredBody = ifRequiredStmt.get_body()
-            ifRequiredBody.push(make_set_component_hash_call_static(builder, &mut support, selfHash, converter.parent, location))
-
             // generating the js into the if required body
-            converter.target = BufferType.JavaScript;
-            const rootBody = converter.vec
-            converter.vec = ifRequiredBody
             append_universal_component_js(&mut converter, root);
             converter.put_chain_in();
-            converter.vec = rootBody
-
-            // put the if statement
-            converter.vec.push(ifRequiredStmt)
 
             // Perform hoisting logic
             const currentPosCall = builder.make_function_call_value(builder.make_access_chain(&std::span<*mut Value>([ pageId, getJsPosId ]), location), location);
@@ -165,6 +166,11 @@ public func universal_replacementNode(builder : *mut ASTBuilder, diagnoser : *mu
             const deltaLenVal = builder.make_expression_value(builder.make_identifier(&fromEndName, fromEndVar, false, location), builder.make_identifier(&updatedIndexName, updatedIndexVar, false, location), Operation.Subtraction, builder.get_u64_type(), location);
             const updateHoistPosVal = builder.make_expression_value(builder.make_access_chain(&std::span<*mut Value>([ pageId, jsHoistPosId ]), location), deltaLenVal, Operation.Addition, builder.get_u64_type(), location);
             converter.vec.push(builder.make_assignment_stmt(builder.make_access_chain(&std::span<*mut Value>([ pageId, jsHoistPosId ]), location), updateHoistPosVal, Operation.Assignment, converter.parent, location));
+
+            converter.vec = rootBody
+
+            // put the if statement
+            converter.vec.push(ifRequiredStmt)
 
             // 3. HTML emission (skipped when this call exists only to emit the
             // component's client JS; see HtmlPage.render_js_only).

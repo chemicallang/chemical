@@ -366,7 +366,7 @@ options->is_build_lab_caching_enabled = false;
 
 ### Macro-based modules cannot be parsed
 
-The transformer job loads **no macro CBI plugins**, so `parseTarget` fails on any module whose sources use `#universal`, `#html`, `#css`, `#globalcss`, `#js`, `#json`, `#md`, or a `style { }` block inside a `#universal`, …:
+The transformer job loads **no macro CBI plugins**, so `parseTarget` fails on any module whose sources use `#universal`, `#html`, `#css`, `#globalcss`, `#js`, `#globaljs`, `#json`, `#md`, or a `style { }` block inside a `#universal`, …:
 
 ```
 [Parser] error: couldn't find macro parser for '#universal'

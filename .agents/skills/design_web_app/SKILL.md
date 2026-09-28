@@ -76,6 +76,9 @@ func style_button(page : &mut HtmlPage) : *char {
   shared assets sink attached it is emitted there (served/cached once for all pages);
   without a sink it falls back to the page. Use it for themes, base styles, and shared
   header/footer chrome — not for page-specific layout.
+- `#globaljs { ... }` is the JS analogue: page-independent JS emitted into the shared
+  bundle (page fallback), **once per source location**. Use it for theme bootstrapping,
+  analytics init, and shared helpers — not for JS that touches the current page's DOM.
 - Component styling belongs in a `style { }` block inside the `#universal` component; that
   follows the component (shared sink when attached).
 
@@ -83,6 +86,7 @@ func style_button(page : &mut HtmlPage) : *char {
 |---|---|---|
 | `style { }` (in `#universal`) | component-scoped | follows the component |
 | `#globalcss { }` | global selectors | shared sink first, page fallback |
+| `#globaljs { }` | page-independent JS | shared sink first, page fallback (once) |
 | `#css { }` / `#js { }` | global selectors / page JS | always the page |
 
 #### `style { }` — component-scoped CSS
@@ -367,11 +371,11 @@ shared.write_to("output", "app")   // output/app.js + output/app.css — serve +
 ```
 
 This is opt-in and low level: it does not manage routes or serving. A page that
-never calls `attach_shared()` behaves exactly as before. App-wide CSS written with
-`#globalcss { ... }` goes into the shared CSS when a sink is attached (falling back
-to the page otherwise), while `#css`/`#js` always stay on the page. See the
-`universal` skill section "Shared JS/CSS bundles across pages (`SharedAssets`)" for
-the routing rules and gotchas.
+never calls `attach_shared()` behaves exactly as before. App-wide CSS/JS written
+with `#globalcss { ... }` / `#globaljs { ... }` goes into the shared bundle when a
+sink is attached (falling back to the page otherwise), while `#css`/`#js` always
+stay on the page. See the `universal` skill section "Shared JS/CSS bundles across
+pages (`SharedAssets`)" for the routing rules and gotchas.
 
 ## Testing your components
 

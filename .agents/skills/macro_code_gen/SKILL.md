@@ -20,7 +20,8 @@ for the app-level authoring guide see `design_web_app`.
 | `#css` | `css_cbi` | `css_cbi/build.lab:21-89` | `ParseMacroNode`, `ParseMacroValue` | CSS → `page.append_css*`, returns class name; **always page-local** |
 | `#globalcss` | `css_cbi` (extra CBI name) | `css_cbi/build.lab:91-94` | `ParseMacroNode` | App-wide global CSS; shared sink first, page fallback |
 | `#styled` | `css_cbi` (second CBI name) | `css_cbi/build.lab:96-103` | `ParseMacroTopLevelNode` | SSR-only scoped component |
-| `#js` | `js_cbi` | `js_cbi/build.lab:22-103` | `ParseMacroNode`, `ParseMacroValue` | JS → `page.append_js*`; **always page-local** |
+| `#js` | `js_cbi` | `js_cbi/build.lab:91-97` | `ParseMacroNode`, `ParseMacroValue` | JS → `page.append_js*`; **always page-local** |
+| `#globaljs` | `js_cbi` (extra CBI name) | `js_cbi/build.lab:99-103` | `ParseMacroNode` | App-wide global JS; shared sink first, page fallback, once per source location |
 | `#universal` | `universal_cbi` | `universal_cbi/build.lab:23-110` | `ParseMacroTopLevelNode` | SSR fn + client JS + hydration; `style { }` = component-scoped CSS |
 | `#json(Type)` | `json_cbi` | `json_cbi/build.lab:18-60` | `ParseMacroTopLevelNode` | Generates `std::Serializer`/`Deserializer` impls |
 | `#md` | `md_cbi` | `md_cbi/build.lab:20-85` | `ParseMacroNode`, `ParseMacroValue` | Markdown → `page.append_html*` |
@@ -332,6 +333,42 @@ Key properties:
   and non-ASCII (as `\u{...}`) (`js_cbi/src/converter/converter.ch:29-75`).
 - `js_cbi` also uses the shared statement/expression converter
   `lang/libs/js_parser/src/converter/convert.ch` — the canonical JS printer.
+- `#js` is **always page-local**: `js_replacementNode` / `js_replacementValue`
+  bracket the emission with `page.begin_local_js()` / `page.end_local_js()`
+  (`js_cbi/src/main.ch`), so an attached shared sink is never touched. See
+  `#globaljs` below for the shared route.
+
+## `#globaljs` blocks (js_cbi)
+
+`#globaljs { ... }` is the statement-only JS sibling of `#globalcss`: it reuses the
+`js` lexer and the `js` embedded node, but sets `JsRoot.shared = true`
+(`js_cbi/src/main.ch::globaljs_parseMacroNode`; registered at
+`js_cbi/build.lab:99-103`). Its JS prefers the shared assets sink, falling back to
+the page.
+
+```chemical
+func SetupThemeScript(page : &mut HtmlPage) {
+    #globaljs {
+        document.documentElement.dataset.theme =
+            localStorage.getItem('theme') || 'dark';
+    }
+}
+```
+
+- The replacement wraps the block in
+  `if(page.require_js_hash(loc)) { page.set_js_hash(loc); <emit> }`, where `loc` is
+  the macro's source location (`js_cbi/src/main.ch::js_replacementNode`). Because
+  `require_js_hash`/`set_js_hash` consult the sink's `done_js` map when attached
+  (`page/src/shared_assets.ch`, `page/src/page.ch`), the block is emitted exactly
+  once across pages sharing a sink.
+- No `begin_local_js` bracket is opened, so `append_js*` routes to the sink
+  (`shared != null && local_js_depth == 0`); without a sink it lands on the page.
+- Dedup keys on the **source location**, not content: identical blocks written in
+  different places both emit, and a block must be page-independent (no per-page
+  `${}` values) since only the first render of a call site is kept.
+- `js_replacementValue` is unchanged (`#globaljs` is not a value macro); the value
+  path is `#js` only.
+- Tests: `lang/tests/compiler_plugins/universal/src/css_routing.ch`.
 
 ## `#universal` components (universal_cbi)
 

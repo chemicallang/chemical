@@ -1,7 +1,7 @@
 # Shared JS/CSS Bundles across Pages — Design
 
-**Status:** Implemented (Phases 1–2). Phase 0 (`toStringJsOnly` page-level split)
-and Phase 3 (freeze/diagnostics, content-hashed names) are pending.
+**Status:** Implemented (Phases 1–3). Phase 0 (`toStringJsOnly` page-level split)
+and Phase 4 (freeze/diagnostics, content-hashed names) are pending.
 
 **Scope:** `lang/libs/page` (`HtmlPage` buffers, routing of appends),
 `lang/libs/universal_cbi` (runtime/definition/registry emission),
@@ -121,6 +121,7 @@ When `page.shared != null`:
 | component `style { … }` CSS | shared CSS | follows the component |
 | router runtime / registry / match table | shared JS | compile-time, page-independent |
 | `#globalcss { … }` | shared CSS (page fallback) | app-wide global CSS |
+| `#globaljs { … }` | shared JS (page fallback, once) | page-independent app-wide JS |
 | dispatch statements (`window.$__uni_dispatch(...)`) | **page** JS | keyed by call-site location; page-specific |
 | `$__universal_flush()`, router activation tail | **page** `pageJsEnd` | page/request tail |
 | `#css { … }` | **page** CSS always | pairs with the page's own `#html` |
@@ -142,6 +143,10 @@ Mechanically:
   bracketed and therefore prefer the sink (page fallback when unattached).
 - `#globalcss` reuses the `css` embedded value with `CSSOM.shared = true`;
   component `style { }` sets the same flag (`universal_cbi/src/main.ch`).
+- `#globaljs` sets `JsRoot.shared = true` and wraps its emission in
+  `if(page.require_js_hash(loc)) { page.set_js_hash(loc); … }`, so it prefers the
+  sink and is emitted once per source location (`js_cbi/src/main.ch`,
+  `page/src/shared_assets.ch` `done_js`).
 
 `js_hoist_pos` / `move_js_range` need no change: when definitions are routed to
 the shared sink, the range moved on `pageJs` is empty and the move is a no-op.
@@ -326,17 +331,19 @@ after (§11).
       buffers themselves).
 - [x] `defaultUniversalSetup` split (shared runtime once + per-page flush).
 
-**Phase 3 — `#globalcss` + page-local `#css`/`#js`.** *Implemented.*
+**Phase 3 — `#globalcss`/`#globaljs` + page-local `#css`/`#js`.** *Implemented.*
 - [x] `#css` / `#js` always page-local (`begin_local_css` / `begin_local_js`).
 - [x] `#globalcss { }` macro (css_cbi) + `CSSOM.shared`; sink-first, page fallback.
 - [x] Component `style { }` sets `CSSOM.shared = true` (sink-first).
+- [x] `#globaljs { }` macro (js_cbi) + `JsRoot.shared`; sink-first, page fallback,
+      once per source location (`require_js_hash` / `set_js_hash`).
 
 **Phase 4 — polish.** *Not implemented.*
 - [ ] Optional `freeze()` and diagnostics. The probe
       (`lang/compiled/shared_probe`) asserts the intended contract — after a warm
       pass, request renders must not grow the sink — and demonstrates the ways it
       can still grow: an **incomplete warm set**, and a component `style { }` /
-      `#globalcss` block first emitted at request time.
+      `#globalcss` / `#globaljs` block first emitted at request time.
 - [ ] Content-hash file names; ETag/precompression helpers.
 - [ ] `toStringJsOnly()` page-level split (Phase 0), if still wanted.
 
@@ -352,15 +359,15 @@ after (§11).
    leave it and direct callers to `shared.js()`? *Current: unchanged; the shared
    sink is the dispatch-free artifact.*
 4. **`#js`/`#css` routing.** *Resolved:* `#js` and `#css` are always page-local
-   (bracketed with `begin_local_js`/`begin_local_css`); `#globalcss { }` and
-   component `style { }` are the only shared-CSS routes (sink-first, page
-   fallback).
+   (bracketed with `begin_local_js`/`begin_local_css`); `#globalcss { }`,
+   `#globaljs { }` and component `style { }` are the shared routes (sink-first,
+   page fallback).
 5. **Multiple sinks.** One sink per page; multiple sinks would need a rule for
    where new definitions go. Left out until needed.
 6. **Frozen-sink enforcement.** The intended contract is "warm once, then sink
    size never changes". Two gaps remain: an incomplete warm set silently grows the
-   sink on first request, and a component `style { }` / `#globalcss` block first
-   rendered at request time grows it. Options: an explicit `freeze()` that makes
-   later appends a diagnostic, or a dev-only completeness assertion at startup.
-   The probe (`lang/compiled/shared_probe`) pins the *desired* invariant and
-   demonstrates both failure modes.
+   sink on first request, and a component `style { }` / `#globalcss` / `#globaljs`
+   block first rendered at request time grows it. Options: an explicit `freeze()`
+   that makes later appends a diagnostic, or a dev-only completeness assertion at
+   startup. The probe (`lang/compiled/shared_probe`) pins the *desired* invariant
+   and demonstrates both failure modes.

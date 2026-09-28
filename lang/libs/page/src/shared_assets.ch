@@ -2,9 +2,10 @@
 //
 // A page opts in with `page.attach_shared(shared)`. While attached,
 // page-independent appends (the hydration runtime, component definitions, the
-// router registry, and component classes) are routed into this object and
-// de-duplicated across every attached page. Page-specific bytes (SSR HTML,
-// dispatch statements, and the page JS/CSS tail) stay on the page.
+// router registry, component classes, and `style { }` / `#globalcss` /
+// `#globaljs` blocks) are routed into this object and de-duplicated across every
+// attached page. Page-specific bytes (SSR HTML, dispatch statements, and the
+// page JS/CSS tail) stay on the page.
 //
 // Intended use: render every page first, then read `js()` / `css()` and serve
 // them however the caller likes. `write_to` is an optional convenience.
@@ -22,6 +23,8 @@ public struct SharedAssets {
     var done_components : std::unordered_map<ubigint, bool>
     var done_classes : std::unordered_map<ubigint, bool>
     var done_random_classes : std::unordered_map<ubigint, bool>
+    // Global JS blocks emitted via `#globaljs`, keyed by source location.
+    var done_js : std::unordered_map<ubigint, bool>
 
     // Set once the runtime has been written into `js_data`, so N attached
     // pages emit the hydration runtime exactly once.

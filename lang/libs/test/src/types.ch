@@ -11,6 +11,12 @@ public struct TestFunction {
     var benchmark : bool
     var lineNum : uint
     var charNum : uint
+    /**
+     * true when this test comes from a remote module (a downloaded import).
+     * the test runner skips remote tests by default; pass --include-remote
+     * to run them too.
+     */
+    var is_remote : bool
 }
 
 struct TestEnvImpl {
@@ -98,6 +104,11 @@ struct TestRunnerConfig {
      * explicit flag set when --test-names is used (vector may not be reliable due to zero init)
      */
     var has_test_names : bool = false
+    /**
+     * when true, tests from remote (downloaded) modules are run too.
+     * by default they are skipped (only local / application tests run).
+     */
+    var include_remote : bool = false
     /**
      * the communication id is used for ipc communication between processes
      * it may or may not be required

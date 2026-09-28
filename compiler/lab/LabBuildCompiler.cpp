@@ -4776,6 +4776,9 @@ static int download_remote_import(
         mod->scope_name.clear();
         mod->scope_name.append(import->mod_scope);
     }
+    // this module came from a remote import: mark it so its tests are excluded
+    // from test runs by default
+    mod->is_remote = true;
     // if(mod->name != import->mod_name) {
     //     mod->name.clear();
     //     mod->name.append(import->mod_name);

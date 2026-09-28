@@ -107,6 +107,11 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
         state.tests.reserve(tests_view.size());
 
         while(test_start != test_end) {
+            // remote tests are skipped unless --include-remote is given
+            if(test_start.is_remote && !config.include_remote) {
+                test_start++;
+                continue;
+            }
             var should_run = false
             if(has_single_id && test_start.id == config.single_test_id) {
                 should_run = true
@@ -168,6 +173,12 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
         const test_end = test_start + tests_view.size()
 
         while(test_start != test_end) {
+            // by default, tests coming from remote (downloaded) modules are
+            // skipped. pass --include-remote to run them too.
+            if(test_start.is_remote && !config.include_remote) {
+                test_start++;
+                continue;
+            }
             // creating state for the test function
             var ind = state.tests.size()
             state.tests.push(TestFunctionState(test_start));

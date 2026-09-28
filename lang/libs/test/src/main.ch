@@ -100,6 +100,9 @@ func parseCommand(config : &mut TestRunnerConfig, args : **char, end : **char) :
             comptime_fnv1_hash("--skip-sequential"), comptime_fnv1_hash("-skip-sequential") => {
                 config.skip_sequential = true;
             }
+            comptime_fnv1_hash("--include-remote"), comptime_fnv1_hash("-include-remote") => {
+                config.include_remote = true;
+            }
             comptime_fnv1_hash("--benchmark"), comptime_fnv1_hash("-benchmark") => {
                 config.benchmark = true;
             }

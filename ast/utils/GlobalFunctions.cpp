@@ -1786,6 +1786,16 @@ public:
                 const auto charNumValue = new (allocator.allocate<IntNumValue>()) IntNumValue(locData.charStart, typeBuilder.getUIntType(), call->encoded_location());
                 value->values.emplace("charNum", StructMemberInitializer{"charNum", charNumValue});
 
+                // is_remote : true when the test lives in a remotely imported module.
+                // the test runner skips these by default (--include-remote opts in).
+                bool test_is_remote = false;
+                const auto test_mod_scope = decl->get_mod_scope();
+                if(test_mod_scope && test_mod_scope->container) {
+                    test_is_remote = test_mod_scope->container->is_remote;
+                }
+                const auto isRemoteVal = new (allocator.allocate<BoolValue>()) BoolValue(test_is_remote, typeBuilder.getBoolType(), call->encoded_location());
+                value->values.emplace("is_remote", StructMemberInitializer{"is_remote", isRemoteVal});
+
                 i++;
             }
         }
@@ -1861,13 +1871,23 @@ public:
             value->values.emplace("id", StructMemberInitializer{"id", idVal});
 
             // keep member order identical to the UTFunction declaration:
-            // id, name, group, isolate, fixture_fn, steps
+            // id, name, group, isolate, fixture_fn, steps, is_remote
             const auto& args = node.args;
             value->values.emplace("name", StructMemberInitializer{"name", args.size() > 0 ? args[0] : emptyStringVal});
             value->values.emplace("group", StructMemberInitializer{"group", args.size() > 2 ? args[2] : emptyStringVal});
             value->values.emplace("isolate", StructMemberInitializer{"isolate", args.size() > 1 ? args[1] : falseVal});
             value->values.emplace("fixture_fn", StructMemberInitializer{"fixture_fn", args.size() > 4 ? args[4] : nullVal});
             value->values.emplace("steps", StructMemberInitializer{"steps", args.size() > 3 ? args[3] : emptyStringVal});
+
+            // is_remote : true when the universal test lives in a remotely
+            // imported module. the runner skips these by default.
+            bool ut_is_remote = false;
+            const auto ut_mod_scope = node.node->get_mod_scope();
+            if(ut_mod_scope && ut_mod_scope->container) {
+                ut_is_remote = ut_mod_scope->container->is_remote;
+            }
+            const auto isRemoteVal = new (allocator.allocate<BoolValue>()) BoolValue(ut_is_remote, typeBuilder.getBoolType(), call->encoded_location());
+            value->values.emplace("is_remote", StructMemberInitializer{"is_remote", isRemoteVal});
 
             i++;
         }

@@ -15,6 +15,12 @@ public struct CSSOM {
 
     var className : std::string_view
 
+    // True when the block's CSS belongs in the shared bundle (preferring the
+    // shared assets sink, falling back to the page): `#globalcss` and component
+    // `style { }`. Page-level `#css` leaves this false and is always emitted
+    // into the page's own CSS.
+    var shared : bool = false
+
     var support : CssSymResSupport
 
     func is_hashable(&self) : bool {

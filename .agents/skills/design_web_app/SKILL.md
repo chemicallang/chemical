@@ -61,6 +61,24 @@ func style_button(page : &mut HtmlPage) : *char {
 - Media queries are emitted **after** the block's other rules, so a responsive override wins
   over the base rule it overrides (the cascade breaks ties by source order).
 
+#### `#css`, `#globalcss`, and shared assets
+
+- `#css { ... }` and `#js { ... }` are **always part of the page's own bundle**. They pair
+  with the `#html` you wrote in that page helper, so they are never pushed into a shared
+  bundle — even when the page has one attached.
+- `#globalcss { ... }` is **app-wide global CSS** (global selectors). When the page has a
+  shared assets sink attached it is emitted there (served/cached once for all pages);
+  without a sink it falls back to the page. Use it for themes, base styles, and shared
+  header/footer chrome — not for page-specific layout.
+- Component styling belongs in a `style { }` block inside the `#universal` component; that
+  follows the component (shared sink when attached).
+
+| Syntax | Scope | Bundle |
+|---|---|---|
+| `style { }` (in `#universal`) | component-scoped | follows the component |
+| `#globalcss { }` | global selectors | shared sink first, page fallback |
+| `#css { }` / `#js { }` | global selectors / page JS | always the page |
+
 // when we open a {} for the attribute value, it means we are going to write chemical code inside those braces
 // NOT JS, just chemical code that would execute on the server 
 func PutStaticContentInSimplePage(page : &mut HtmlPage) {
@@ -315,9 +333,11 @@ shared.write_to("output", "app")   // output/app.js + output/app.css — serve +
 ```
 
 This is opt-in and low level: it does not manage routes or serving. A page that
-never calls `attach_shared()` behaves exactly as before. See the `universal`
-skill section "Shared JS/CSS bundles across pages (`SharedAssets`)" for the routing
-rules, the `begin_local_js()` escape hatch, and gotchas.
+never calls `attach_shared()` behaves exactly as before. App-wide CSS written with
+`#globalcss { ... }` goes into the shared CSS when a sink is attached (falling back
+to the page otherwise), while `#css`/`#js` always stay on the page. See the
+`universal` skill section "Shared JS/CSS bundles across pages (`SharedAssets`)" for
+the routing rules and gotchas.
 
 ## Testing your components
 

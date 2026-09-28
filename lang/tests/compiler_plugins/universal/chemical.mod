@@ -7,6 +7,7 @@ import std
 import test_env
 import page
 import css_cbi
+import js_cbi
 import universal_cbi
 import html_cbi
 

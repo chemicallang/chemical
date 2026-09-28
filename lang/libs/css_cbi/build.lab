@@ -88,6 +88,11 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     ctx.index_def_cbi_fn(cbi, std::string_view("css_replacementNode"), CBIFunctionType.ReplacementNode);
     ctx.index_def_cbi_fn(cbi, std::string_view("css_replacementValue"), CBIFunctionType.ReplacementValue);
 
+    // #globalcss: app-wide global CSS, shared-assets-first with page fallback.
+    // Reuses the css lexer and the `css` embedded value/replacement machinery.
+    ctx.index_cbi_fn(cbi, std::string_view("globalcss"), std::string_view("css_initializeLexer"), CBIFunctionType.InitializeLexer);
+    ctx.index_cbi_fn(cbi, std::string_view("globalcss"), std::string_view("globalcss_parseMacroNode"), CBIFunctionType.ParseMacroNode);
+
     // styled components (#styled macro) reuse the css lexer + plugin machinery
     ctx.index_cbi_fn(cbi, std::string_view("styled"), std::string_view("styled_initializeLexer"), CBIFunctionType.InitializeLexer);
     ctx.index_cbi_fn(cbi, std::string_view("styled"), std::string_view("styled_parseMacroNode"), CBIFunctionType.ParseMacroTopLevelNode);

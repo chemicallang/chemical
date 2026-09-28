@@ -90,4 +90,8 @@ public struct SymResSupport {
     var appendJsUIntFn : *mut ASTNode = null
     var appendJsFloatFn : *mut ASTNode = null
     var appendJsDoubleFn : *mut ASTNode = null
+    // `page.begin_local_js` / `page.end_local_js`: used to force page-level
+    // `#js` (always the page's own JS, never the shared bundle).
+    var beginLocalJsFn : *mut ASTNode = null
+    var endLocalJsFn : *mut ASTNode = null
 }

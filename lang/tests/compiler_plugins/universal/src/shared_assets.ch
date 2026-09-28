@@ -8,8 +8,8 @@
 // that contract.
 // =============================================================================
 
-func shared_test_style(page : &mut HtmlPage) : *char {
-    return #css {
+func shared_emit_global_style(page : &mut HtmlPage) {
+    #globalcss {
         color: rgb(7, 8, 9);
     }
 }
@@ -104,11 +104,11 @@ public func shared_assets_dedupes_css_across_pages(env : &mut TestEnv) {
 
     var p1 = HtmlPage()
     p1.attach_shared(shared)
-    shared_test_style(&mut p1)
+    shared_emit_global_style(&mut p1)
 
     var p2 = HtmlPage()
     p2.attach_shared(shared)
-    shared_test_style(&mut p2)
+    shared_emit_global_style(&mut p2)
 
     var css = std::string()
     css.append_view(shared.css())

@@ -20,8 +20,22 @@ public func js_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTDi
         parent : root.parent,
         str : std::string()
     }
+    // `#js` is always the page's own JS (page bundle), never the shared bundle.
+    const beginFn = converter.support.beginLocalJsFn
+    scope_nodes.push(js_page_noarg_call(&mut converter, beginFn, std::string_view("begin_local_js"), loc) as *mut ASTNode)
     converter.convertJsRoot(root);
+    const endFn = converter.support.endLocalJsFn
+    scope_nodes.push(js_page_noarg_call(&mut converter, endFn, std::string_view("end_local_js"), loc) as *mut ASTNode)
     return scope;
+}
+
+// Builds a no-argument call on the page object: `page.<name>()`.
+func js_page_noarg_call(converter : &mut JsConverter, fnNode : *mut ASTNode, fnName : std::string_view, loc : ubigint) : *mut FunctionCallNode {
+    const builder = converter.builder
+    var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, loc)
+    var id = builder.make_identifier(&fnName, fnNode, false, loc)
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), loc)
+    return builder.make_function_call_node(chain, converter.parent, loc)
 }
 
 public func node_known_type_func(value : *EmbeddedNode) : *BaseType {
@@ -57,7 +71,12 @@ public func js_replacementValue(builder : *mut ASTBuilder, diagnoser : *mut ASTD
         str : std::string()
     }
     
+    // `#js` is always the page's own JS (page bundle), never the shared bundle.
+    const beginFn = converter.support.beginLocalJsFn
+    scope_nodes.push(js_page_noarg_call(&mut converter, beginFn, std::string_view("begin_local_js"), loc) as *mut ASTNode)
     converter.convertJsRoot(root);
+    const endFn = converter.support.endLocalJsFn
+    scope_nodes.push(js_page_noarg_call(&mut converter, endFn, std::string_view("end_local_js"), loc) as *mut ASTNode)
     
     const view2 = builder.allocate_view(converter.str.to_view())
     const strValue = builder.make_string_value(&view2, loc)

@@ -24,8 +24,27 @@ public func css_replacementNode(builder : *mut ASTBuilder, diagnoser : *mut ASTD
         parent : root.parent,
         str : std::string()
     }
+    // `#css` is always the page's own CSS. `#globalcss` / component `style { }`
+    // leave `shared` set and may go into the shared assets sink instead.
+    if(!root.shared) {
+        const beginFn = converter.support.beginLocalCssFn
+        scope_nodes.push(css_page_noarg_call(&mut converter, beginFn, std::string_view("begin_local_css"), loc) as *mut ASTNode)
+    }
     converter.convertCSSOM(root, value.getEncodedLocation());
+    if(!root.shared) {
+        const endFn = converter.support.endLocalCssFn
+        scope_nodes.push(css_page_noarg_call(&mut converter, endFn, std::string_view("end_local_css"), loc) as *mut ASTNode)
+    }
     return scope;
+}
+
+// Builds a no-argument call on the page object: `page.<name>()`.
+func css_page_noarg_call(converter : &mut ASTConverter, fnNode : *mut ASTNode, fnName : std::string_view, loc : ubigint) : *mut FunctionCallNode {
+    const builder = converter.builder
+    var base = builder.make_identifier(std::string_view("page"), converter.support.pageNode, false, loc)
+    var id = builder.make_identifier(&fnName, fnNode, false, loc)
+    const chain = builder.make_access_chain(&std::span<*mut Value>([ base, id ]), loc)
+    return builder.make_function_call_node(chain, converter.parent, loc)
 }
 
 public func node_known_type_func(value : *EmbeddedNode) : *BaseType {
@@ -59,7 +78,15 @@ public func css_replacementValue(builder : *mut ASTBuilder, diagnoser : *mut AST
         parent : root.parent,
         str : std::string()
     }
+    if(!root.shared) {
+        const beginFn = converter.support.beginLocalCssFn
+        scope_nodes.push(css_page_noarg_call(&mut converter, beginFn, std::string_view("begin_local_css"), loc) as *mut ASTNode)
+    }
     converter.convertCSSOM(root, value.getEncodedLocation());
+    if(!root.shared) {
+        const endFn = converter.support.endLocalCssFn
+        scope_nodes.push(css_page_noarg_call(&mut converter, endFn, std::string_view("end_local_css"), loc) as *mut ASTNode)
+    }
     // const view2 = builder.allocate_view(converter.str.to_view())
     const classNameVal = builder.make_string_value(&root.className, loc)
     block_val.setCalculatedValue(classNameVal)
@@ -94,6 +121,29 @@ public func css_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) 
         const node = builder.make_embedded_node(AccessSpecifier.Internal, std::string_view("css"), root, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size()), root.parent, loc);
         if(!parser.increment_if(TokenType.RBrace as int)) {
             parser.error("expected a rbrace for ending the css macro");
+        }
+        return node;
+    } else {
+        parser.error("expected a lbrace");
+        return null;
+    }
+}
+
+// `#globalcss { ... }` — app-wide global CSS. Unlike `#css` (always the page's
+// own CSS), a globalcss block prefers the shared assets sink when the page has
+// one attached, falling back to the page. It reuses the `css` embedded value
+// with `shared = true`, so it shares the CSS emission and symres machinery.
+@no_mangle
+public func globalcss_parseMacroNode(parser : *mut Parser, builder : *mut ASTBuilder) : *mut ASTNode {
+    const tok = parser.getToken()
+    const loc = parser.getEncodedLocation(tok)
+    if(parser.increment_if(TokenType.LBrace as int)) {
+        var root = parseCSSOM(parser, builder);
+        root.shared = true
+        const nodes_arr : []*mut ASTNode = []
+        const node = builder.make_embedded_node(AccessSpecifier.Internal, std::string_view("css"), root, node_known_type_func, node_child_res_func, std::span<*mut ASTNode>(nodes_arr), std::span<*mut Value>(root.dyn_values.data(), root.dyn_values.size()), root.parent, loc);
+        if(!parser.increment_if(TokenType.RBrace as int)) {
+            parser.error("expected a rbrace for ending the globalcss macro");
         }
         return node;
     } else {

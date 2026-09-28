@@ -118,24 +118,30 @@ When `page.shared != null`:
 |---|---|---|
 | `defaultUniversalSetup` runtime | shared JS (once) | page-independent |
 | component definition (`function Name(props){…}`) | shared JS | keyed by declaration location; identical on every page |
+| component `style { … }` CSS | shared CSS | follows the component |
 | router runtime / registry / match table | shared JS | compile-time, page-independent |
+| `#globalcss { … }` | shared CSS (page fallback) | app-wide global CSS |
 | dispatch statements (`window.$__uni_dispatch(...)`) | **page** JS | keyed by call-site location; page-specific |
 | `$__universal_flush()`, router activation tail | **page** `pageJsEnd` | page/request tail |
-| `#css` classes | shared CSS (deduped) | hashed classes are shared |
+| `#css { … }` | **page** CSS always | pairs with the page's own `#html` |
+| `#js { … }` | **page** JS always | pairs with the page's own `#html` |
 | `#html` SSR markup | **page** `pageHtml` | always page-specific |
-| user `#js` in `#html` | shared JS by default | page-local via `begin_local_js()` |
 | head/meta | **page** `pageHead` | page-specific |
 
 Mechanically:
 
 - `append_js*`: `page.shared != null && local_js_depth == 0` → shared JS, else
-  page JS.
-- `append_css*`: same with `local_css_depth` / shared CSS.
+  page JS. `append_css*`: same with `local_css_depth` / shared CSS.
 - `require_component` / `set_component_hash` and `require_css_hash` /
   `set_css_hash` / the random-class helpers use the shared maps, so definitions
   and classes are de-duplicated across every attached page.
-- `begin_local_js()` / `end_local_js()` bracket dispatch emission so dispatches
-  never reach the shared sink.
+- `begin_local_js()` / `end_local_js()` bracket `#js` and dispatch emission, so
+  neither reaches the shared sink.
+- `begin_local_css()` / `end_local_css()` bracket `#css`, so page-level CSS never
+  reaches the shared sink. `#globalcss` and component `style { }` are not
+  bracketed and therefore prefer the sink (page fallback when unattached).
+- `#globalcss` reuses the `css` embedded value with `CSSOM.shared = true`;
+  component `style { }` sets the same flag (`universal_cbi/src/main.ch`).
 
 `js_hoist_pos` / `move_js_range` need no change: when definitions are routed to
 the shared sink, the range moved on `pageJs` is empty and the move is a no-op.
@@ -320,14 +326,18 @@ after (§11).
       buffers themselves).
 - [x] `defaultUniversalSetup` split (shared runtime once + per-page flush).
 
-**Phase 3 — polish.** *Not implemented.*
+**Phase 3 — `#globalcss` + page-local `#css`/`#js`.** *Implemented.*
+- [x] `#css` / `#js` always page-local (`begin_local_css` / `begin_local_js`).
+- [x] `#globalcss { }` macro (css_cbi) + `CSSOM.shared`; sink-first, page fallback.
+- [x] Component `style { }` sets `CSSOM.shared = true` (sink-first).
+
+**Phase 4 — polish.** *Not implemented.*
 - [ ] Optional `freeze()` and diagnostics. The probe
       (`lang/compiled/shared_probe`) asserts the intended contract — after a warm
-      pass, request renders must not grow the sink — and demonstrates the two
-      ways it can still grow: an **incomplete warm set**, and **page-level `#js`**
-      (no dedup latch).
+      pass, request renders must not grow the sink — and demonstrates the ways it
+      can still grow: an **incomplete warm set**, and a component `style { }` /
+      `#globalcss` block first emitted at request time.
 - [ ] Content-hash file names; ETag/precompression helpers.
-- [ ] `begin_local_css()` coverage for page-specific `#js`/`#css` opt-outs.
 - [ ] `toStringJsOnly()` page-level split (Phase 0), if still wanted.
 
 ---
@@ -341,15 +351,16 @@ after (§11).
 3. **`toStringJsOnly()` semantics.** Keep it as-is (Phase 0 page-level split) or
    leave it and direct callers to `shared.js()`? *Current: unchanged; the shared
    sink is the dispatch-free artifact.*
-4. **User `#js` default.** Shared by default (leaner, risks leaking page-specific
-   JS) or page-local by default (safer, may duplicate)? *Current: shared by
-   default; `begin_local_js()` / `begin_local_css()` to opt out.*
+4. **`#js`/`#css` routing.** *Resolved:* `#js` and `#css` are always page-local
+   (bracketed with `begin_local_js`/`begin_local_css`); `#globalcss { }` and
+   component `style { }` are the only shared-CSS routes (sink-first, page
+   fallback).
 5. **Multiple sinks.** One sink per page; multiple sinks would need a rule for
    where new definitions go. Left out until needed.
 6. **Frozen-sink enforcement.** The intended contract is "warm once, then sink
    size never changes". Two gaps remain: an incomplete warm set silently grows the
-   sink on first request, and page-level `#js` re-appends every render. Options:
-   an explicit `freeze()` that makes later appends a diagnostic, a `#js` dedup
-   latch, or a dev-only completeness assertion at startup. The probe
-   (`lang/compiled/shared_probe`) currently pins the *desired* invariant and
+   sink on first request, and a component `style { }` / `#globalcss` block first
+   rendered at request time grows it. Options: an explicit `freeze()` that makes
+   later appends a diagnostic, or a dev-only completeness assertion at startup.
+   The probe (`lang/compiled/shared_probe`) pins the *desired* invariant and
    demonstrates both failure modes.

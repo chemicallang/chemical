@@ -83,6 +83,9 @@ public func universal_parse_style_block(parser : *mut Parser, builder : *mut AST
         return null
     }
     var root = parseCSSOM(parser, builder)
+    // Component `style { }` CSS belongs with the component: prefer the shared
+    // assets sink, fall back to the page (unlike page-level `#css`).
+    root.shared = true
     if(!parser.increment_if(TokenType.RBrace as int)) {
         parser.error("expected } to close the style block");
     }

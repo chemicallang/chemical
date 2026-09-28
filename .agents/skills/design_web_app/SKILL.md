@@ -32,9 +32,13 @@ func CreateOneSimplePage() {
     // index.html + any assets it requires (js / css) will be written to current directory
     page.writeToDirectory("./", "index.html")
 }
+```
 
-// this function returns a random class name for the styles we wrote
-// the random class name would be like .h23unfi3
+The `#css` value form returns a compiler-generated class you attach with `class={…}`:
+
+```chemical
+// returns a deterministic, compiler-generated class name (e.g. `.h23unfi3`)
+// for the styles we wrote
 func style_button(page : &mut HtmlPage) : *char {
     return #css {
         color : blue;
@@ -47,6 +51,8 @@ func style_button(page : &mut HtmlPage) : *char {
         }
     }
 }
+```
+
 #### `#css` in value position vs statement position
 
 - **Value position** (`return #css { ... }`, `var s = #css { ... }`) — the macro's value is a
@@ -79,6 +85,34 @@ func style_button(page : &mut HtmlPage) : *char {
 | `#globalcss { }` | global selectors | shared sink first, page fallback |
 | `#css { }` / `#js { }` | global selectors / page JS | always the page |
 
+#### `style { }` — component-scoped CSS
+
+Inside a `#universal` component, a `style { … }` block is parsed by the CSS parser and
+evaluates to the component's generated (deterministic) class name. Attach it with
+`class={…}`; the rules are emitted once per component. This is the preferred place for
+component CSS — it keeps the styles next to the markup they belong to.
+
+```chemical
+#universal Badge(props) {
+    var badge = style {
+        color: red;
+        display: inline-flex;
+        &:hover { color: blue; }
+        @media (min-width: 600px) { padding: 8px; }
+    }
+    return <span class={badge}>{props.children}</span>
+}
+```
+
+Multiple blocks compose (`class={a + " " + b}`), and all CSSOM features work
+(nesting with `&`, media queries, `@keyframes`, Chemical `${…}` values).
+
+#### Pairing CSS with `#html`
+
+The rest of the example pairs page-local JS (`#js`) with `#html`. Use `#css` for CSS
+that only this page's `#html` needs, and `#globalcss` for app-wide/reset/theme CSS.
+
+```chemical
 // when we open a {} for the attribute value, it means we are going to write chemical code inside those braces
 // NOT JS, just chemical code that would execute on the server 
 func PutStaticContentInSimplePage(page : &mut HtmlPage) {

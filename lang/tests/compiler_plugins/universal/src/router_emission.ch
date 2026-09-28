@@ -395,6 +395,82 @@ public func router_body_emitter_renders_into_route_host(env : &mut TestEnv) {
     }
 }
 
+// A router component already present in a shared sink must still server-render
+// its route wrappers on a later page.
+//
+// BUG (expected to FAIL until fixed): the router's SSR wrappers are emitted as
+// part of the component's `require_component`-guarded client-JS block, so once
+// `RouterApp` is in the shared sink the guard is false and a later page renders
+// an EMPTY router host — no `chx-route` wrappers at all. Every Wiqis web app has
+// a router shell, so this blocks serving the shared bundle.
+func router_build_app(page : &mut HtmlPage) {
+    #html { <RouterApp /> }
+}
+
+@test
+public func router_ssr_survives_a_shared_sink_hit(env : &mut TestEnv) {
+    var shared = shared_assets("router")
+    var p1 = HtmlPage()
+    p1.attach_shared(shared)
+    p1.defaultUniversalSetup()
+    router_build_app(&mut p1)
+
+    var p2 = HtmlPage()
+    p2.attach_shared(shared)
+    p2.defaultUniversalSetup()
+    router_build_app(&mut p2)
+
+    var html = std::string()
+    html.append_view(p2.getHtml())
+    const wrapper = std::string_view("class=\"chx-route\"")
+    if(html.find(&wrapper) == std::NPOS) {
+        env.error("a router component already in the shared sink must still SSR its wrappers on a later page")
+        env.info(html.data())
+        return
+    }
+    env.success("router SSR survives a shared-sink hit")
+}
+
+// The SSR wrappers are only half of the contract: the per-page activation tail
+// must also run on a later page, while the page-independent client singleton
+// (runtime, registry, stubs) is de-duplicated into the sink exactly once.
+@test
+public func router_activation_survives_a_shared_sink_hit(env : &mut TestEnv) {
+    var shared = shared_assets("router")
+    var p1 = HtmlPage()
+    p1.attach_shared(shared)
+    p1.defaultUniversalSetup()
+    router_build_app(&mut p1)
+
+    var p2 = HtmlPage()
+    p2.attach_shared(shared)
+    p2.defaultUniversalSetup()
+    router_build_app(&mut p2)
+
+    // The later page must still activate its router.
+    var local = p2.local_js()
+    const tail = std::string_view("window.$__uni_activate_initial(\"main\"")
+    if(local.find(&tail) == std::NPOS) {
+        env.error("a later page must still emit the router activation tail after a shared-sink hit")
+        env.info(local.data())
+        return
+    }
+
+    // The client singleton is emitted once: the registry assignment appears once
+    // even though two pages rendered the router.
+    var bundle = std::string()
+    bundle.append_view(shared.js())
+    var bundle_view = bundle.to_view()
+    const reg = std::string_view("$__uni_routers[\"main\"] = {")
+    const n = shared_count(&bundle_view, &reg)
+    if(n != 1) {
+        env.error("the router registry must be emitted exactly once in a shared sink")
+        env.info(bundle.data())
+        return
+    }
+    env.success("router activation survives a shared-sink hit")
+}
+
 @test
 public func router_body_emitter_plus_root_emits_both(env : &mut TestEnv) {
     var page = HtmlPage()

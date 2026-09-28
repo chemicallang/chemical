@@ -314,24 +314,48 @@ not for components embedded in an emitted section. The library depends on `page`
 
 ### 2.2 What the converter emits (per router)
 
-Emitted into `pageJs` during render, guarded by the page's component-dedup map so
-a router is a page singleton:
+The emission is split into two passes with different lifetimes. (Bug fix: the
+whole emission used to sit inside one `require_component` guard, so once the
+router's client JS was de-duplicated into a shared sink a later page skipped its
+SSR too and rendered an EMPTY router host — no `chx-route` wrappers at all. A
+component's SSR must never depend on whether its client JS is already deduped
+into the sink.)
 
-1. `page.ensure_router_runtime()` — appends `router_runtime_js()` to `pageJs`
-   and the one hide rule `.chx-route[data-uni-route-active="false"]{display:none
-   !important;}` to `pageCss`, once per page (zero bytes otherwise).
-2. Server matching: `apply_route_url(page, name, spec)` where `spec` is
+**Per-page pass — emitted on EVERY page, unconditionally:**
+
+1. Server matching: `apply_route_url(page, name, spec)` where `spec` is
    `"<id>\t<pattern>\t<is_fallback>\n"` per URL route + fallback, in precedence
    order.
-3. Registry: `window.$__uni_routers["name"] = {…}` + `$__uni_router_methods`.
-4. Client match table: `window.$__uni_routers["name"].table = { base:"", routes:[…] }`.
-5. Per route: the SSR wrapper + boundary span, the route body SSR, and the
-   registration stub `window.$__uni_route_register("name","id",{…})`.
-6. Manifest entries (`page.add_route_pattern(...)`), per-route `<title>`, 404
-   `noindex`, `preload` calls.
-7. Activation tail in `pageJsEnd` (after `$__universal_flush()`):
+2. Per route: the `<title>` (selected route only), the `chx-route` wrapper +
+   boundary span, and the route body SSR — including nested-route wrappers at
+   the `<Outlet />`.
+3. Manifest entries (`page.add_route_pattern(...)`) and 404 `noindex`.
+4. Activation tail in `pageJsEnd` (after `$__universal_flush()`):
    `$__uni_set_table_base` (URL routers) + `$__uni_activate_initial(...)` +
    `$__uni_sync_url(...)`.
+
+**Client pass — `if(page.require_component(routerHash)) { … }`, emitted ONCE
+(the sink when a shared sink is attached):**
+
+5. `page.ensure_router_runtime()` — appends `router_runtime_js()` to `pageJs`
+   and the one hide rule `.chx-route[data-uni-route-active="false"]{display:none
+   !important;}` to `pageCss`, once per page (zero bytes otherwise).
+6. Registry: `window.$__uni_routers["name"] = {…}` + `$__uni_router_methods`;
+   client match table `…table = { base:"", routes:[…] }` for URL routers.
+7. Per route: the registration stub `window.$__uni_route_register("name","id",{…})`
+   and the hydrated-layout/children client functions for nested layouts.
+8. `preload` calls.
+
+`emit_route_server(..., client)` selects the half: `client == false` emits the
+per-page SSR, `client == true` the guarded client JS. The
+`require_component(routerHash)` (with `routerHash = rd.decl_loc`) lives in the
+sink when a shared sink is attached, so N pages emit the client singleton once.
+
+`router_inject_param_props` appends SSR-only param attributes to the route root
+(e.g. `id={get_parameter_text("id")}`); `emit_route_server` restores the root's
+attribute list after the SSR codegen so the client layout functions are
+generated from the author's root (the injected param value has no JS-mode
+representation).
 
 Route bodies are registered and mounted **only by the router** — they never go
 through `$__uni_hydration_queue`.

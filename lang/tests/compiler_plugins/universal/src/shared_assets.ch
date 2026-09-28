@@ -189,3 +189,120 @@ public func feature_external_bundle_has_no_page_specific_dispatch(env : &mut Tes
     }
     env.success("external bundle is free of page-specific hydration dispatches")
 }
+
+// =============================================================================
+// Umbrella warm page + frozen sink (the request-time workflow)
+// =============================================================================
+//
+// Build the shared bundle once, before serving, from ONE umbrella component
+// that transitively uses the rest. At request time a page attaches the already
+// complete sink, so the render adds nothing to it — that "sink did not grow"
+// check is the assert an app should run per request (and in tests).
+
+#universal SharedChild(props) {
+    return <span class="shared-child">child</span>
+}
+
+#universal SharedUmbrella(props) {
+    return <div class="shared-umbrella"><SharedChild /></div>
+}
+
+func shared_build_umbrella(page : &mut HtmlPage) {
+    #html { <SharedUmbrella /> }
+}
+
+func shared_build_child(page : &mut HtmlPage) {
+    #html { <SharedChild /> }
+}
+
+@test
+public func shared_assets_umbrella_pulls_transitive_definitions(env : &mut TestEnv) {
+    var shared = shared_assets("umbrella")
+    var page = HtmlPage()
+    page.attach_shared(shared)
+    page.defaultUniversalSetup()
+    #html { <SharedUmbrella /> }
+
+    var bundle = std::string()
+    bundle.append_view(shared.js())
+    var bundle_view = bundle.to_view()
+    if(!bundle_view.contains("SharedUmbrella(props)")) {
+        env.error("the bundle must define the umbrella component")
+        return
+    }
+    if(!bundle_view.contains("SharedChild(props)")) {
+        env.error("rendering the umbrella must pull in the components it uses")
+        return
+    }
+    const dispatch_stmt = std::string_view("window.$__uni_dispatch('")
+    if(bundle_view.contains(&dispatch_stmt)) {
+        env.error("the bundle must stay dispatch-free")
+        return
+    }
+    env.success("umbrella warm brings in transitive component definitions")
+}
+
+@test
+public func shared_assets_request_render_does_not_grow_the_sink(env : &mut TestEnv) {
+    // Warm once from the umbrella ...
+    var shared = shared_assets("frozen")
+    var page = HtmlPage()
+    page.attach_shared(shared)
+    page.defaultUniversalSetup()
+    #html { <SharedUmbrella /> }
+
+    // ... snapshot, then render a real page attached (as a request would).
+    const js_before = shared.js_size()
+    const css_before = shared.css_size()
+
+    var req = HtmlPage()
+    req.attach_shared(shared)
+    req.defaultUniversalSetup()
+    shared_build_child(&mut req)
+
+    if(shared.js_size() != js_before) {
+        env.error("a request render must not add js to the already-warmed sink")
+        return
+    }
+    if(shared.css_size() != css_before) {
+        env.error("a request render must not add css to the already-warmed sink")
+        return
+    }
+    const dispatch_stmt = std::string_view("window.$__uni_dispatch('")
+    var local = req.local_js()
+    if(!local.contains(&dispatch_stmt)) {
+        env.error("the page must still carry its own dispatch statement")
+        return
+    }
+    env.success("request render leaves the warmed sink unchanged")
+}
+
+// A component missing from the warm set is NOT silently fine: its definition is
+// written into the sink by the request render, so the sink grows — and the page
+// has no local copy, so it would have no definition to hydrate from. This pins
+// the failure mode that the "sink did not grow" assert exists to catch.
+@test
+public func shared_assets_missing_component_grows_the_sink(env : &mut TestEnv) {
+    var shared = shared_assets("missing")
+    var page = HtmlPage()
+    page.attach_shared(shared)
+    page.defaultUniversalSetup()
+    #html { <SharedChild /> }
+
+    const js_before = shared.js_size()
+
+    var req = HtmlPage()
+    req.attach_shared(shared)
+    req.defaultUniversalSetup()
+    shared_build_umbrella(&mut req)
+
+    if(shared.js_size() == js_before) {
+        env.error("a missing component should have grown the sink (updating this expectation means the routing changed)")
+        return
+    }
+    if(req.local_js().contains("SharedUmbrella(props)")) {
+        env.error("the missing definition must not be on the page today")
+        return
+    }
+    env.success("a missing component grows the sink — the assert catches it")
+}

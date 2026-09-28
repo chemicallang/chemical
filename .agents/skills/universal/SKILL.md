@@ -175,7 +175,21 @@ maps when attached, so a definition/class used by N pages is written once.
 - **Page-specific `#js`** routes to the sink by default; bracket it with
   `page.begin_local_js()` / `page.end_local_js()` to keep it on the page.
 - **`move_js_range` hoisting is unaffected** — when definitions go to the sink the
-  moved range on `pageJs` is empty, so the move is a no-op.
+  moved range on `pageJs` is empty, so the move is a no-op. The hoisting
+  bookkeeping itself now lives **inside** the `if(page.require_component(hash))`
+  guard (`universal_cbi/src/react/ast_replace.ch`), so a component the sink
+  already has costs one lookup and nothing else.
+- **Warm the sink first, then serve.** Render the pages (or one umbrella page
+  whose component closure covers the set) once *before* request time, then read
+  `shared.js()`/`shared.css()`. A request-time render that attaches the sink must
+  not grow it — `lang/compiled/shared_probe` asserts exactly this ("frozen: js
+  size unchanged after N page renders").
+- **No enforced `freeze()` yet.** Two things can still grow the sink after the
+  warm pass: (a) an **incomplete warm set** — a page dispatches a component the
+  warm render never emitted (the probe's "incomplete warm" negative check), and
+  (b) **page-level `#js`**, which has no dedup latch and re-appends on every
+  attached render (the probe's "page-level #js" caveat) — keep `#js` page-local
+  with `begin_local_js()` if you rely on the frozen invariant.
 - `defaultUniversalSetup` uses an early return for "runtime already in the sink";
   do not wrap the ~32 KB runtime block in an `if` (it trips a symres crash).
 

@@ -309,6 +309,9 @@ after (§11).
 - [x] Sink-backed `require_component` / `set_component_hash` / CSS dedup helpers.
 - [x] `begin_local_js` / `end_local_js` around dispatch emission
       (`html_cbi` `emit_universal_queue`).
+- [x] Hoisting bookkeeping moved **inside** the `require_component` guard
+      (`universal_cbi/src/react/ast_replace.ch`), so a component already in the
+      sink costs one lookup and nothing else.
 
 **Phase 2 — taking the output out.** *Implemented.*
 - [x] `js()` / `css()` / `js_size()` / `css_size()`.
@@ -318,7 +321,11 @@ after (§11).
 - [x] `defaultUniversalSetup` split (shared runtime once + per-page flush).
 
 **Phase 3 — polish.** *Not implemented.*
-- [ ] Optional `freeze()` and diagnostics.
+- [ ] Optional `freeze()` and diagnostics. The probe
+      (`lang/compiled/shared_probe`) asserts the intended contract — after a warm
+      pass, request renders must not grow the sink — and demonstrates the two
+      ways it can still grow: an **incomplete warm set**, and **page-level `#js`**
+      (no dedup latch).
 - [ ] Content-hash file names; ETag/precompression helpers.
 - [ ] `begin_local_css()` coverage for page-specific `#js`/`#css` opt-outs.
 - [ ] `toStringJsOnly()` page-level split (Phase 0), if still wanted.
@@ -339,3 +346,10 @@ after (§11).
    default; `begin_local_js()` / `begin_local_css()` to opt out.*
 5. **Multiple sinks.** One sink per page; multiple sinks would need a rule for
    where new definitions go. Left out until needed.
+6. **Frozen-sink enforcement.** The intended contract is "warm once, then sink
+   size never changes". Two gaps remain: an incomplete warm set silently grows the
+   sink on first request, and page-level `#js` re-appends every render. Options:
+   an explicit `freeze()` that makes later appends a diagnostic, a `#js` dedup
+   latch, or a dev-only completeness assertion at startup. The probe
+   (`lang/compiled/shared_probe`) currently pins the *desired* invariant and
+   demonstrates both failure modes.

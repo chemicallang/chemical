@@ -1,5 +1,9 @@
-func alert_styles(page : &mut HtmlPage) : *char {
-    return #css {
+// Shadcn-style alert. `variant` picks the tone (default/info/success/error/
+// warning/accent); `title`/`description` props render the composed layout in
+// one call; `dismissible` shows a close button that fires `onDismiss`.
+// className merges with the generated style class; other props pass through.
+public #universal Alert(props) {
+    var alert = style {
         position: relative;
         display: flex;
         gap: 0.75rem;
@@ -31,45 +35,11 @@ func alert_styles(page : &mut HtmlPage) : *char {
             background: hsl(var(--accent) / 0.1);
         }
     }
-}
-
-func alert_title_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        font-weight: 600;
-        font-size: 0.9375rem;
-        line-height: 1.375rem;
-        margin: 0;
-        color: hsl(var(--foreground));
-    }
-}
-
-func alert_body_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        color: hsl(var(--muted-foreground));
-        font-size: 0.875rem;
-        line-height: 1.5rem;
-        margin: 0.125rem 0 0 0;
-    }
-}
-
-func alert_icon_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        display: inline-flex;
-        align-items: center;
-        margin-top: 0.125rem;
-        flex-shrink: 0;
-    }
-}
-
-func alert_content_styles(page : &mut HtmlPage) : *char {
-    return #css {
+    var alert_content = style {
         flex: 1;
         min-width: 0;
     }
-}
-
-func alert_dismiss_styles(page : &mut HtmlPage) : *char {
-    return #css {
+    var alert_dismiss = style {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -95,47 +65,53 @@ func alert_dismiss_styles(page : &mut HtmlPage) : *char {
             outline-offset: 2px;
         }
     }
-}
-
-// Shadcn-style alert. `variant` picks the tone (default/info/success/error/
-// warning/accent); `title`/`description` props render the composed layout in
-// one call; `dismissible` shows a close button that fires `onDismiss`.
-// className merges with the generated style class; other props pass through.
-public #universal Alert(props) {
     var classes = props.class || ""
     if(props.className) { classes = props.className }
     var variant = props.variant || "default"
     var dismissible = props.dismissible || false
-    var out = classes + " " + ${alert_styles(page)}
+    var out = classes + " " + alert
     var close = () => {
         if(props.onDismiss) { props.onDismiss() }
     }
     if(props.title !== undefined || props.description !== undefined) {
         return <div role="alert" data-variant={variant} class={out}>
-            <div class={${alert_content_styles(page)}}>
+            <div class={alert_content}>
                 {props.title !== undefined ? <AlertTitle>{props.title}</AlertTitle> : null}
                 {props.description !== undefined ? <AlertDescription>{props.description}</AlertDescription> : null}
             </div>
             {props.children}
-            {dismissible ? <button type="button" class={${alert_dismiss_styles(page)}} onClick={close} aria-label="Dismiss alert">{"×"}</button> : null}
+            {dismissible ? <button type="button" class={alert_dismiss} onClick={close} aria-label="Dismiss alert">{"×"}</button> : null}
         </div>
     }
     return <div role="alert" data-variant={variant} class={out}>
-        <div class={${alert_content_styles(page)}}>{props.children}</div>
-        {dismissible ? <button type="button" class={${alert_dismiss_styles(page)}} onClick={close} aria-label="Dismiss alert">{"×"}</button> : null}
+        <div class={alert_content}>{props.children}</div>
+        {dismissible ? <button type="button" class={alert_dismiss} onClick={close} aria-label="Dismiss alert">{"×"}</button> : null}
     </div>
 }
 
 public #universal AlertTitle(props) {
+    var alert_title = style {
+        font-weight: 600;
+        font-size: 0.9375rem;
+        line-height: 1.375rem;
+        margin: 0;
+        color: hsl(var(--foreground));
+    }
     var classes = props.class || ""
     if(props.className) { classes = props.className }
-    return <h5 class={classes + " " + ${alert_title_styles(page)}}>{props.children}</h5>
+    return <h5 class={classes + " " + alert_title}>{props.children}</h5>
 }
 
 public #universal AlertBody(props) {
+    var alert_body = style {
+        color: hsl(var(--muted-foreground));
+        font-size: 0.875rem;
+        line-height: 1.5rem;
+        margin: 0.125rem 0 0 0;
+    }
     var classes = props.class || ""
     if(props.className) { classes = props.className }
-    return <p class={classes + " " + ${alert_body_styles(page)}}>{props.children}</p>
+    return <p class={classes + " " + alert_body}>{props.children}</p>
 }
 
 // Shadcn name for the body text — AlertBody kept as a legacy alias.
@@ -144,15 +120,25 @@ public #universal AlertDescription(props) {
 }
 
 public #universal AlertIcon(props) {
+    var alert_icon = style {
+        display: inline-flex;
+        align-items: center;
+        margin-top: 0.125rem;
+        flex-shrink: 0;
+    }
     var classes = props.class || ""
     if(props.className) { classes = props.className }
-    return <span class={classes + " " + ${alert_icon_styles(page)}}>{props.children}</span>
+    return <span class={classes + " " + alert_icon}>{props.children}</span>
 }
 
 public #universal AlertContent(props) {
+    var alert_content = style {
+        flex: 1;
+        min-width: 0;
+    }
     var classes = props.class || ""
     if(props.className) { classes = props.className }
-    return <div class={classes + " " + ${alert_content_styles(page)}}>{props.children}</div>
+    return <div class={classes + " " + alert_content}>{props.children}</div>
 }
 
 // Legacy aliases
@@ -178,16 +164,13 @@ public #universal AlertDestructive(props) {
 }
 
 // Shadcn AlertAction: positioned absolutely in the top-right corner of the alert.
-func alert_action_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal AlertAction(props) {
+    var alert_action = style {
         position: absolute;
         top: 0.75rem;
         right: 0.75rem;
     }
-}
-
-public #universal AlertAction(props) {
     var classes = props.class || ""
     if(props.className) { classes = props.className }
-    return <div class={classes + " " + alert_action_styles(page)}>{props.children}</div>
+    return <div class={classes + " " + alert_action}>{props.children}</div>
 }

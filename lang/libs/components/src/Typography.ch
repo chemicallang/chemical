@@ -1,5 +1,5 @@
-func h1_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal H1(props) {
+    var h1 = style {
         font-size: 2.25rem;
         line-height: 2.5rem;
         font-weight: 800;
@@ -7,10 +7,13 @@ func h1_styles(page : &mut HtmlPage) : *char {
         margin: 0;
         color: hsl(var(--foreground));
     }
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <h1 class={classes + " " + h1}>{props.children}</h1>
 }
 
-func h2_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal H2(props) {
+    var h2 = style {
         font-size: 1.875rem;
         line-height: 2.25rem;
         font-weight: 700;
@@ -18,10 +21,13 @@ func h2_styles(page : &mut HtmlPage) : *char {
         margin: 0;
         color: hsl(var(--foreground));
     }
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <h2 class={classes + " " + h2}>{props.children}</h2>
 }
 
-func h3_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal H3(props) {
+    var h3 = style {
         font-size: 1.5rem;
         line-height: 2rem;
         font-weight: 600;
@@ -29,10 +35,13 @@ func h3_styles(page : &mut HtmlPage) : *char {
         margin: 0;
         color: hsl(var(--foreground));
     }
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <h3 class={classes + " " + h3}>{props.children}</h3>
 }
 
-func h4_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal H4(props) {
+    var h4 = style {
         font-size: 1.25rem;
         line-height: 1.75rem;
         font-weight: 600;
@@ -40,136 +49,35 @@ func h4_styles(page : &mut HtmlPage) : *char {
         margin: 0;
         color: hsl(var(--foreground));
     }
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <h4 class={classes + " " + h4}>{props.children}</h4>
 }
 
-func h5_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal H5(props) {
+    var h5 = style {
         font-size: 1.125rem;
         line-height: 1.75rem;
         font-weight: 600;
         margin: 0;
         color: hsl(var(--foreground));
     }
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <h5 class={classes + " " + h5}>{props.children}</h5>
 }
 
-func h6_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal H6(props) {
+    var h6 = style {
         font-size: 1rem;
         line-height: 1.5rem;
         font-weight: 600;
         margin: 0;
         color: hsl(var(--foreground));
     }
-}
-
-func text_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        font-size: 1rem;
-        line-height: 1.75rem;
-        margin: 0;
-        color: hsl(var(--foreground));
-        &[data-muted="true"] {
-            color: hsl(var(--muted-foreground));
-        }
-    }
-}
-
-func lead_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        font-size: 1.25rem;
-        line-height: 1.75rem;
-        margin: 0;
-        color: hsl(var(--foreground));
-    }
-}
-
-func caption_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        font-size: 0.875rem;
-        line-height: 1.25rem;
-        color: hsl(var(--muted-foreground));
-        margin: 0;
-    }
-}
-
-func code_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        font-family: var(--font-mono);
-        font-size: 0.875em;
-        background: hsl(var(--muted));
-        color: hsl(var(--foreground));
-        border-radius: 0.25rem;
-        padding: 0.2em 0.4em;
-    }
-}
-
-func link_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        color: hsl(var(--primary));
-        text-decoration: underline;
-        text-underline-offset: 4px;
-        cursor: pointer;
-        background: none;
-        border: none;
-        padding: 0;
-        font: inherit;
-        &:hover {
-            text-decoration-thickness: 2px;
-        }
-    }
-}
-
-func blockquote_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        margin: 0;
-        border-left: 3px solid hsl(var(--border));
-        padding-left: 1rem;
-        color: hsl(var(--muted-foreground));
-        font-style: italic;
-        .chx-blockquote-cite {
-            display: block;
-            margin-top: 0.5rem;
-            font-size: 0.875rem;
-            color: hsl(var(--muted-foreground));
-            font-style: normal;
-        }
-    }
-}
-
-public #universal H1(props) {
     var classes = props.class || ""
     if(props.className) { classes = props.className }
-    return <h1 class={classes + " " + ${h1_styles(page)}}>{props.children}</h1>
-}
-
-public #universal H2(props) {
-    var classes = props.class || ""
-    if(props.className) { classes = props.className }
-    return <h2 class={classes + " " + ${h2_styles(page)}}>{props.children}</h2>
-}
-
-public #universal H3(props) {
-    var classes = props.class || ""
-    if(props.className) { classes = props.className }
-    return <h3 class={classes + " " + ${h3_styles(page)}}>{props.children}</h3>
-}
-
-public #universal H4(props) {
-    var classes = props.class || ""
-    if(props.className) { classes = props.className }
-    return <h4 class={classes + " " + ${h4_styles(page)}}>{props.children}</h4>
-}
-
-public #universal H5(props) {
-    var classes = props.class || ""
-    if(props.className) { classes = props.className }
-    return <h5 class={classes + " " + ${h5_styles(page)}}>{props.children}</h5>
-}
-
-public #universal H6(props) {
-    var classes = props.class || ""
-    if(props.className) { classes = props.className }
-    return <h6 class={classes + " " + ${h6_styles(page)}}>{props.children}</h6>
+    return <h6 class={classes + " " + h6}>{props.children}</h6>
 }
 
 public #universal Heading(props) {
@@ -183,46 +91,102 @@ public #universal Heading(props) {
 }
 
 public #universal Text(props) {
+    var text = style {
+        font-size: 1rem;
+        line-height: 1.75rem;
+        margin: 0;
+        color: hsl(var(--foreground));
+        &[data-muted="true"] {
+            color: hsl(var(--muted-foreground));
+        }
+    }
     var classes = props.class || ""
     if(props.className) { classes = props.className }
     var tag = props.as || "p"
     var muted = props.muted || false
-    var out = classes + " " + ${text_styles(page)}
+    var out = classes + " " + text
     if(tag == "span") { return <span data-muted={muted ? "true" : "false"} class={out}>{props.children}</span> }
     if(tag == "div") { return <div data-muted={muted ? "true" : "false"} class={out}>{props.children}</div> }
     return <p data-muted={muted ? "true" : "false"} class={out}>{props.children}</p>
 }
 
 public #universal Lead(props) {
+    var lead = style {
+        font-size: 1.25rem;
+        line-height: 1.75rem;
+        margin: 0;
+        color: hsl(var(--foreground));
+    }
     var classes = props.class || ""
     if(props.className) { classes = props.className }
-    return <p class={classes + " " + ${lead_styles(page)}}>{props.children}</p>
+    return <p class={classes + " " + lead}>{props.children}</p>
 }
 
 public #universal Caption(props) {
+    var caption = style {
+        font-size: 0.875rem;
+        line-height: 1.25rem;
+        color: hsl(var(--muted-foreground));
+        margin: 0;
+    }
     var classes = props.class || ""
     if(props.className) { classes = props.className }
-    return <p class={classes + " " + ${caption_styles(page)}}>{props.children}</p>
+    return <p class={classes + " " + caption}>{props.children}</p>
 }
 
 public #universal CodeText(props) {
+    var code = style {
+        font-family: var(--font-mono);
+        font-size: 0.875em;
+        background: hsl(var(--muted));
+        color: hsl(var(--foreground));
+        border-radius: 0.25rem;
+        padding: 0.2em 0.4em;
+    }
     var classes = props.class || ""
     if(props.className) { classes = props.className }
-    return <code class={classes + " " + ${code_styles(page)}}>{props.children}</code>
+    return <code class={classes + " " + code}>{props.children}</code>
 }
 
 public #universal Link(props) {
+    var link = style {
+        color: hsl(var(--primary));
+        text-decoration: underline;
+        text-underline-offset: 4px;
+        cursor: pointer;
+        background: none;
+        border: none;
+        padding: 0;
+        font: inherit;
+        &:hover {
+            text-decoration-thickness: 2px;
+        }
+    }
     var classes = props.class || ""
     if(props.className) { classes = props.className }
-    var out = classes + " " + ${link_styles(page)}
+    var out = classes + " " + link
     return <a class={out} href={props.href} target={props.target} rel={props.rel} id={props.id} onClick={props.onClick}>{props.children}</a>
 }
 
 public #universal Blockquote(props) {
+    var blockquote = style {
+        margin: 0;
+        border-left: 3px solid hsl(var(--border));
+        padding-left: 1rem;
+        color: hsl(var(--muted-foreground));
+        font-style: italic;
+        .chx-blockquote-cite {
+            display: block;
+            margin-top: 0.5rem;
+            font-size: 0.875rem;
+            color: hsl(var(--muted-foreground));
+            font-style: normal;
+        }
+    }
     var classes = props.class || ""
     if(props.className) { classes = props.className }
     var cite = props.cite || ""
-    return <blockquote class={classes + " " + ${blockquote_styles(page)}}>{props.children}{cite ? <cite class="chx-blockquote-cite">{cite}</cite> : null}</blockquote>
+    return <blockquote class={classes + " " + blockquote}>{props.children}{cite ? <cite class="chx-blockquote-cite">{cite}</cite> : null}</blockquote>
 }
 
 // Legacy aliases

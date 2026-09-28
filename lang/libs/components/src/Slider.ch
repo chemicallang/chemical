@@ -17,8 +17,8 @@
 // Note: thumb/range positions use CSS `calc()` with the value embedded as a
 // literal so the SSR HTML matches the hydrated first render exactly.
 
-func slider_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal Slider(props) {
+    var slider = style {
         position: relative;
         display: flex;
         align-items: center;
@@ -71,9 +71,6 @@ func slider_styles(page : &mut HtmlPage) : *char {
             pointer-events: none;
         }
     }
-}
-
-public #universal Slider(props) {
     state value = props.defaultValue != null ? props.defaultValue : (props.min || 0)
     state dragging = false
     var min = props.min || 0
@@ -176,7 +173,7 @@ public #universal Slider(props) {
     // Position via CSS calc so no JS arithmetic is needed at SSR time:
     // left = (current - min) / (max - min) * 100%
     var posStyle = "left:calc((" + current + " - " + min + ") / (" + max + " - " + min + ") * 100%);"
-    return <div class={classes + " " + ${slider_styles(page)}} data-disabled={disabled ? "true" : "false"} style={props.style}>
+    return <div class={classes + " " + slider} data-disabled={disabled ? "true" : "false"} style={props.style}>
         <div class="chx-slider-track" ref={trackRef} onClick={handleTrackClick}>
             <div class="chx-slider-range" style={"width:" + "calc((" + current + " - " + min + ") / (" + max + " - " + min + ") * 100%);"}></div>
             <div class="chx-slider-thumb" role="slider" tabindex="0" aria-valuemin={min} aria-valuemax={max} aria-valuenow={current} aria-label={props.ariaLabel || "Slider"} onKeyDown={handleKeyDown} onMouseDown={handleThumbMouseDown} onTouchStart={handleThumbTouchStart} style={posStyle}></div>

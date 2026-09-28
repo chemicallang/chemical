@@ -15,7 +15,7 @@ public struct CSSOM {
 
     var className : std::string_view
 
-    var support : SymResSupport
+    var support : CssSymResSupport
 
     func is_hashable(&self) : bool {
         return dyn_values.empty() && media_queries.empty() && nested_rules.empty() && keyframes.empty()

@@ -26,8 +26,8 @@
 // unpressed (children render before the provider's SSR function); hydration
 // applies the selection.
 
-func toggle_group_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal ToggleGroup(props) {
+    var toggle_group = style {
         display: inline-flex;
         flex-wrap: wrap;
         align-items: center;
@@ -37,10 +37,54 @@ func toggle_group_styles(page : &mut HtmlPage) : *char {
             opacity: 0.55;
         }
     }
+    var multiple = props.type == "multiple"
+    state selected = props.defaultValue || ""
+    const ctx = createContext("tg-" + (props.name || "default"), "")
+    var disabled = props.disabled || false
+    var variant = props.variant || "default"
+    var size = props.size || "default"
+    // Thread the group name into item children (items resolve their context
+    // key without repeating `name` on every item).
+    if(props.children && props.children.map) {
+        props.children = props.children.map((c) => {
+            if(c && c.p && c.p.props) {
+                c.p.props.__rgName = props.name || "default"
+            }
+            return c
+        })
+    }
+    var current = props.value != null ? props.value : selected
+    var toggle = (v) => {
+        if(disabled) { return }
+        var next = current
+        if(multiple) {
+            if(current.indexOf(v) != -1) {
+                next = current.filter(x => x != v)
+            } else {
+                next = current.concat(v)
+            }
+        } else {
+            next = v
+        }
+        // Publish directly so both modes keep items in sync immediately.
+        ctx.value = next
+        if(props.value != null) {
+            if(props.onValueChange) { props.onValueChange(next) }
+        } else {
+            selected = next
+            if(props.onValueChange) { props.onValueChange(next) }
+        }
+    }
+    ctx.value = current
+    ctx.mode = multiple ? "multiple" : "single"
+    ctx.write = (v) => { toggle(v) }
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <div role="group" {...props} class={classes + " " + toggle_group} data-disabled={disabled ? "true" : "false"}>{props.children}</div>
 }
 
-func toggle_group_item_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal ToggleGroupItem(props) {
+    var toggle_group_item = style {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -95,56 +139,6 @@ func toggle_group_item_styles(page : &mut HtmlPage) : *char {
             pointer-events: none;
         }
     }
-}
-
-public #universal ToggleGroup(props) {
-    var multiple = props.type == "multiple"
-    state selected = props.defaultValue || ""
-    const ctx = createContext("tg-" + (props.name || "default"), "")
-    var disabled = props.disabled || false
-    var variant = props.variant || "default"
-    var size = props.size || "default"
-    // Thread the group name into item children (items resolve their context
-    // key without repeating `name` on every item).
-    if(props.children && props.children.map) {
-        props.children = props.children.map((c) => {
-            if(c && c.p && c.p.props) {
-                c.p.props.__rgName = props.name || "default"
-            }
-            return c
-        })
-    }
-    var current = props.value != null ? props.value : selected
-    var toggle = (v) => {
-        if(disabled) { return }
-        var next = current
-        if(multiple) {
-            if(current.indexOf(v) != -1) {
-                next = current.filter(x => x != v)
-            } else {
-                next = current.concat(v)
-            }
-        } else {
-            next = v
-        }
-        // Publish directly so both modes keep items in sync immediately.
-        ctx.value = next
-        if(props.value != null) {
-            if(props.onValueChange) { props.onValueChange(next) }
-        } else {
-            selected = next
-            if(props.onValueChange) { props.onValueChange(next) }
-        }
-    }
-    ctx.value = current
-    ctx.mode = multiple ? "multiple" : "single"
-    ctx.write = (v) => { toggle(v) }
-    var classes = props.class || ""
-    if(props.className) { classes = props.className }
-    return <div role="group" {...props} class={classes + " " + ${toggle_group_styles(page)}} data-disabled={disabled ? "true" : "false"}>{props.children}</div>
-}
-
-public #universal ToggleGroupItem(props) {
     const ctx = useContext("tg-" + (props.__rgName || props.name || "default"))
     var disabled = props.disabled || false
     var variant = props.variant || "default"
@@ -158,5 +152,5 @@ public #universal ToggleGroupItem(props) {
         if(disabled) { return }
         if(ctx.write) { ctx.write(props.value) }
     }
-    return <button {...props} type="button" aria-pressed={pressed ? "true" : "false"} data-pressed={pressed ? "true" : "false"} data-variant={variant} data-size={size} data-disabled={disabled ? "true" : "false"} disabled={disabled} class={classes + " " + ${toggle_group_item_styles(page)}} onClick={onToggle}>{props.children}</button>
+    return <button {...props} type="button" aria-pressed={pressed ? "true" : "false"} data-pressed={pressed ? "true" : "false"} data-variant={variant} data-size={size} data-disabled={disabled ? "true" : "false"} disabled={disabled} class={classes + " " + toggle_group_item} onClick={onToggle}>{props.children}</button>
 }

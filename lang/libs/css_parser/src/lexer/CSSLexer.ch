@@ -59,7 +59,7 @@ public struct CSSLexer {
 
 }
 
-func (lexer : &mut CSSLexer) reset() {
+public func (lexer : &mut CSSLexer) reset() {
     lexer.other_mode = false;
     lexer.chemical_mode = false;
     lexer.lb_count = 0;

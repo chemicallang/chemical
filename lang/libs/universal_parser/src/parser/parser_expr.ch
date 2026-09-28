@@ -401,6 +401,13 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
              elements : elements
          }
          node = arr as *mut JsNode;
+    } else if(token.type == JsTokenType.Style as int) {
+        if(jsParser.style_fn != null) {
+            node = jsParser.style_fn(parser, builder, jsParser.dyn_values)
+        } else {
+            parser.error("style blocks are not supported here")
+            node = null
+        }
     } else if(token.type == JsTokenType.Identifier as int || token.type == JsTokenType.This as int || token.type == JsTokenType.Super as int) {
         parser.increment();
         var id = builder.allocate<JsIdentifier>()

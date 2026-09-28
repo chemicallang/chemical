@@ -13,8 +13,8 @@
 // a toast inside a viewport when it should appear. Controlled mode: pass
 // `visible` + `onClose` and render the toast conditionally from parent state.
 
-func toast_viewport_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal ToastViewport(props) {
+    var toast_viewport = style {
         position: fixed;
         bottom: 0;
         right: 0;
@@ -30,10 +30,11 @@ func toast_viewport_styles(page : &mut HtmlPage) : *char {
             pointer-events: auto;
         }
     }
+    return <div {...props} class={toast_viewport}>{props.children}</div>
 }
 
-func toast_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal Toast(props) {
+    var toast = style {
         display: grid;
         grid-template-columns: 1fr auto;
         gap: 0.75rem;
@@ -57,35 +58,23 @@ func toast_styles(page : &mut HtmlPage) : *char {
             border-color: hsl(var(--warning) / 0.4);
         }
     }
-}
-
-func toast_body_styles(page : &mut HtmlPage) : *char {
-    return #css {
+    var toast_body = style {
         display: grid;
         gap: 0.25rem;
         min-width: 0;
     }
-}
-
-func toast_title_styles(page : &mut HtmlPage) : *char {
-    return #css {
+    var toast_title = style {
         font-size: 0.875rem;
         font-weight: 600;
         line-height: 1.4;
     }
-}
-
-func toast_description_styles(page : &mut HtmlPage) : *char {
-    return #css {
+    var toast_description = style {
         font-size: 0.8125rem;
         color: hsl(var(--muted-foreground));
         line-height: 1.45;
         word-break: break-word;
     }
-}
-
-func toast_action_styles(page : &mut HtmlPage) : *char {
-    return #css {
+    var toast_action = style {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -103,10 +92,7 @@ func toast_action_styles(page : &mut HtmlPage) : *char {
             background: hsl(var(--accent));
         }
     }
-}
-
-func toast_close_styles(page : &mut HtmlPage) : *char {
-    return #css {
+    var toast_close = style {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -126,13 +112,6 @@ func toast_close_styles(page : &mut HtmlPage) : *char {
             color: hsl(var(--foreground));
         }
     }
-}
-
-public #universal ToastViewport(props) {
-    return <div {...props} class={${toast_viewport_styles(page)}}>{props.children}</div>
-}
-
-public #universal Toast(props) {
     state visible = props.defaultVisible != null ? props.defaultVisible : true
     var isVisible = props.visible != null ? props.visible : visible
     var variant = props.variant || "default"
@@ -154,14 +133,14 @@ public #universal Toast(props) {
         }, duration)
         return () => clearTimeout(timer)
     }, [isVisible, duration])
-    return <div {...props} data-variant={variant} role="status" class={${toast_styles(page)}} style={isVisible ? "" : "display:none;"}>
-        <div class={${toast_body_styles(page)}}>
-            {props.title ? <div class={${toast_title_styles(page)}}>{props.title}</div> : null}
-            {props.description ? <div class={${toast_description_styles(page)}}>{props.description}</div> : null}
+    return <div {...props} data-variant={variant} role="status" class={toast} style={isVisible ? "" : "display:none;"}>
+        <div class={toast_body}>
+            {props.title ? <div class={toast_title}>{props.title}</div> : null}
+            {props.description ? <div class={toast_description}>{props.description}</div> : null}
             {props.children}
         </div>
-        {props.action ? <div class={${toast_action_styles(page)}} onClick={props.actionClick}>{props.action}</div> : null}
-        <button type="button" aria-label="Close" class={${toast_close_styles(page)}} onClick={dismiss}>×</button>
+        {props.action ? <div class={toast_action} onClick={props.actionClick}>{props.action}</div> : null}
+        <button type="button" aria-label="Close" class={toast_close} onClick={dismiss}>×</button>
     </div>
 }
 

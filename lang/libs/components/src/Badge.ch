@@ -1,5 +1,5 @@
-func badge_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal Badge(props) {
+    var badge = style {
         display: inline-flex;
         align-items: center;
         gap: 0.375rem;
@@ -101,14 +101,11 @@ func badge_styles(page : &mut HtmlPage) : *char {
             padding: 0.25rem 0.875rem;
         }
     }
-}
-
-public #universal Badge(props) {
     var classes = props.class || ""
     if(props.className) { classes = props.className }
     var variant = props.variant || "default"
     var size = props.size || "md"
-    var out = classes + " " + ${badge_styles(page)}
+    var out = classes + " " + badge
     return <span data-variant={variant} data-size={size} class={out}>{props.children}</span>
 }
 

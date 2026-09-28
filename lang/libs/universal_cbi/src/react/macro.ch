@@ -93,7 +93,8 @@ public func universal_parseMacroNode(parser : *mut Parser, builder : *mut ASTBui
 
     var jsParser = JsParser {
         dyn_values : &raw mut comp.dyn_values,
-        components : &raw mut comp.components
+        components : &raw mut comp.components,
+        style_fn : universal_parse_style_block
     }
 
     if(parser.getToken().type == JsTokenType.LBrace as int) {

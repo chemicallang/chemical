@@ -1,4 +1,4 @@
-public struct SymResSupport {
+public struct CssSymResSupport {
 
     var pageNode : *mut ASTNode = null
 

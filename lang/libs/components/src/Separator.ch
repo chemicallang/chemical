@@ -8,8 +8,8 @@
 // height from the parent (set `style="height:..."` or wrap in a flex/stack
 // with a set height).
 
-func separator_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal Separator(props) {
+    var separator = style {
         flex-shrink: 0;
         background: hsl(var(--border));
         &[data-orientation="horizontal"] {
@@ -22,11 +22,8 @@ func separator_styles(page : &mut HtmlPage) : *char {
             align-self: stretch;
         }
     }
-}
-
-public #universal Separator(props) {
     var orientation = props.orientation || "horizontal"
     var classes = props.class || ""
     if(props.className) { classes = props.className }
-    return <div role="separator" aria-orientation={orientation} data-orientation={orientation} class={classes + " " + ${separator_styles(page)}} />
+    return <div role="separator" aria-orientation={orientation} data-orientation={orientation} class={classes + " " + separator} />
 }

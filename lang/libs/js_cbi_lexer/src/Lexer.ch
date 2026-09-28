@@ -11,6 +11,12 @@ public struct JsLexer {
     var jsx_brace_count : int = 0
     var tag_mode_stack : ubigint = 0
     var jsx_brace_stack : ubigint = 0
+    // `style { … }` component CSS block: set when a Style token was emitted so
+    // the universal lexer wrapper can hand the next `{` off to the CSS lexer.
+    var style_pending : bool = false
+    // Lazily-allocated CSSLexer used while lexing a style block (stored as void
+    // so this shared lexer package does not depend on css_parser).
+    var style_css : *mut void = null
 }
 
 public func (lexer : &mut JsLexer) reset() {

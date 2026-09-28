@@ -1,11 +1,12 @@
 // Shadcn-style Input family with variant/size props.
 //
-// One `input_styles` block carries the base look plus every variant/size as
-// `[data-variant=...]` / `[data-size=...]` attribute selectors; the component
-// renders matching data attributes so SSR HTML and the client bundle agree.
+// Each component owns a `style { }` block carrying the base look plus every
+// variant/size as `[data-variant=...]` / `[data-size=...]` attribute selectors;
+// the component renders matching data attributes so SSR HTML and the client
+// bundle agree.
 
-func input_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal Input(props) {
+    var input = style {
         display: inline-flex;
         align-items: center;
         width: 100%;
@@ -67,10 +68,26 @@ func input_styles(page : &mut HtmlPage) : *char {
             font-size: 1rem;
         }
     }
+    return <input
+        {...props}
+        type={props.type || "text"}
+        placeholder={props.placeholder}
+        value={props.value}
+        disabled={props.disabled}
+        data-variant={props.variant || "default"}
+        data-size={props.size || "default"}
+        class={input}
+        class={props.className || props.class}
+        onClick={props.onClick}
+        onChange={props.onChange}
+        id={props.id}
+        name={props.name}
+        aria-label={props.ariaLabel}
+    />
 }
 
-func textarea_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal TextArea(props) {
+    var textarea = style {
         display: flex;
         width: 100%;
         box-sizing: border-box;
@@ -110,60 +127,6 @@ func textarea_styles(page : &mut HtmlPage) : *char {
             font-size: 1rem;
         }
     }
-}
-
-func field_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        display: grid;
-        gap: 0.5rem;
-        text-align: left;
-    }
-}
-
-func field_label_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        font-size: 0.875rem;
-        font-weight: 600;
-        line-height: 1;
-        color: hsl(var(--foreground));
-    }
-}
-
-func field_hint_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        font-size: 0.8125rem;
-        color: hsl(var(--muted-foreground));
-    }
-}
-
-func field_error_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        font-size: 0.8125rem;
-        font-weight: 500;
-        color: hsl(var(--destructive));
-    }
-}
-
-public #universal Input(props) {
-    return <input
-        {...props}
-        type={props.type || "text"}
-        placeholder={props.placeholder}
-        value={props.value}
-        disabled={props.disabled}
-        data-variant={props.variant || "default"}
-        data-size={props.size || "default"}
-        class={${input_styles(page)}}
-        class={props.className || props.class}
-        onClick={props.onClick}
-        onChange={props.onChange}
-        id={props.id}
-        name={props.name}
-        aria-label={props.ariaLabel}
-    />
-}
-
-public #universal TextArea(props) {
     return <textarea
         {...props}
         placeholder={props.placeholder}
@@ -171,7 +134,7 @@ public #universal TextArea(props) {
         disabled={props.disabled}
         data-variant={props.variant || "default"}
         data-size={props.size || "default"}
-        class={${textarea_styles(page)}}
+        class={textarea}
         class={props.className || props.class}
         onClick={props.onClick}
         onChange={props.onChange}
@@ -185,13 +148,75 @@ public #universal TextArea(props) {
 // Select.ch). `placeholder` renders a disabled placeholder option; `variant`/
 // `size` mirror the Input props; everything else passes through the spread.
 public #universal NativeSelect(props) {
+    var input = style {
+        display: inline-flex;
+        align-items: center;
+        width: 100%;
+        box-sizing: border-box;
+        height: 2.5rem;
+        padding: 0 0.9rem;
+        border-radius: calc(var(--radius) - 2px);
+        border: 1px solid hsl(var(--input));
+        background: transparent;
+        color: hsl(var(--foreground));
+        font-size: 0.875rem;
+        outline: none;
+        transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+        &::placeholder {
+            color: hsl(var(--muted-foreground));
+        }
+        &:hover {
+            border-color: hsl(var(--input) / 0.8);
+        }
+        &:focus {
+            border-color: hsl(var(--ring));
+            box-shadow: 0 0 0 3px hsl(var(--ring) / 0.22);
+        }
+        &:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            background: hsl(var(--muted) / 0.4);
+        }
+        &[data-variant="filled"] {
+            background: hsl(var(--muted) / 0.55);
+            border-color: transparent;
+            &:hover { border-color: transparent; }
+        }
+        &[data-variant="ghost"] {
+            background: transparent;
+            border-color: transparent;
+            border-bottom: 1px solid hsl(var(--input));
+            border-radius: 0;
+            padding-left: 0;
+            padding-right: 0;
+            &:hover { border-color: hsl(var(--input) / 0.8); }
+        }
+        &[data-variant="error"] {
+            border-color: hsl(var(--destructive) / 0.6);
+            &:focus { box-shadow: 0 0 0 3px hsl(var(--destructive) / 0.14); }
+        }
+        &[data-variant="success"] {
+            border-color: hsl(var(--success) / 0.55);
+            &:focus { box-shadow: 0 0 0 3px hsl(var(--success) / 0.14); }
+        }
+        &[data-size="sm"] {
+            height: 2.25rem;
+            padding: 0 0.75rem;
+            font-size: 0.8125rem;
+        }
+        &[data-size="lg"] {
+            height: 2.75rem;
+            padding: 0 1rem;
+            font-size: 1rem;
+        }
+    }
     return <select
         {...props}
         value={props.value}
         disabled={props.disabled}
         data-variant={props.variant || "default"}
         data-size={props.size || "default"}
-        class={${input_styles(page)}}
+        class={input}
         class={props.className || props.class}
         onChange={props.onChange}
         id={props.id}
@@ -233,7 +258,12 @@ public #universal InputDisabled(props) {
 }
 
 public #universal Field(props) {
-    return <label class={${field_styles(page)}} class={props.className || props.class}>
+    var field = style {
+        display: grid;
+        gap: 0.5rem;
+        text-align: left;
+    }
+    return <label class={field} class={props.className || props.class}>
         {props.label !== undefined ? <FieldLabel>{props.label}</FieldLabel> : null}
         {props.children}
         {props.hint !== undefined ? <FieldHint>{props.hint}</FieldHint> : null}
@@ -242,20 +272,35 @@ public #universal Field(props) {
 }
 
 public #universal FieldLabel(props) {
-    return <span class={${field_label_styles(page)}} class={props.className || props.class}>{props.children}</span>
+    var field_label = style {
+        font-size: 0.875rem;
+        font-weight: 600;
+        line-height: 1;
+        color: hsl(var(--foreground));
+    }
+    return <span class={field_label} class={props.className || props.class}>{props.children}</span>
 }
 
 public #universal FieldHint(props) {
-    return <span class={${field_hint_styles(page)}} class={props.className || props.class}>{props.children}</span>
+    var field_hint = style {
+        font-size: 0.8125rem;
+        color: hsl(var(--muted-foreground));
+    }
+    return <span class={field_hint} class={props.className || props.class}>{props.children}</span>
 }
 
 public #universal FieldError(props) {
-    return <span role="alert" class={${field_error_styles(page)}} class={props.className || props.class}>{props.children}</span>
+    var field_error = style {
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: hsl(var(--destructive));
+    }
+    return <span role="alert" class={field_error} class={props.className || props.class}>{props.children}</span>
 }
 
 // Shadcn InputGroup: wraps an Input with leading/trailing icons or addons
-func input_group_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal InputGroup(props) {
+    var input_group = style {
         display: inline-flex;
         align-items: center;
         width: 100%;
@@ -288,10 +333,13 @@ func input_group_styles(page : &mut HtmlPage) : *char {
             &[data-size="lg"] { height: 2.75rem; font-size: 1rem; }
         }
     }
+    var disabled = props.disabled || false
+    var classes = (props.className || props.class) || ""
+    return <div {...props} class={classes + " " + input_group} data-disabled={disabled ? "true" : "false"}>{props.children}</div>
 }
 
-func input_icon_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal InputIcon(props) {
+    var input_icon = style {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -301,10 +349,14 @@ func input_icon_styles(page : &mut HtmlPage) : *char {
         color: hsl(var(--muted-foreground));
         pointer-events: none;
     }
+    var classes = (props.className || props.class) || ""
+    var position = props.position || "start"
+    var posStyle = position == "end" ? "order:10;" : ""
+    return <span class={classes + " " + input_icon} style={posStyle}>{props.children}</span>
 }
 
-func input_addon_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal InputAddon(props) {
+    var input_addon = style {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -315,22 +367,6 @@ func input_addon_styles(page : &mut HtmlPage) : *char {
         border-left: 1px solid hsl(var(--border));
         background: hsl(var(--muted) / 0.4);
     }
-}
-
-public #universal InputGroup(props) {
-    var disabled = props.disabled || false
     var classes = (props.className || props.class) || ""
-    return <div {...props} class={classes + " " + ${input_group_styles(page)}} data-disabled={disabled ? "true" : "false"}>{props.children}</div>
-}
-
-public #universal InputIcon(props) {
-    var classes = (props.className || props.class) || ""
-    var position = props.position || "start"
-    var posStyle = position == "end" ? "order:10;" : ""
-    return <span class={classes + " " + ${input_icon_styles(page)}} style={posStyle}>{props.children}</span>
-}
-
-public #universal InputAddon(props) {
-    var classes = (props.className || props.class) || ""
-    return <span class={classes + " " + ${input_addon_styles(page)}}>{props.children}</span>
+    return <span class={classes + " " + input_addon}>{props.children}</span>
 }

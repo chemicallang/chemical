@@ -13,114 +13,13 @@
 // Like Dialog, both controlled and uncontrolled modes are supported; the
 // backdrop click and the Escape key dismiss it.
 
-func sheet_overlay_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal Sheet(props) {
+    var sheet_overlay = style {
         position: fixed;
         inset: 0;
         z-index: 50;
         display: flex;
     }
-}
-
-func sheet_backdrop_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        position: absolute;
-        inset: 0;
-        background: rgba(2, 6, 23, 0.6);
-        backdrop-filter: blur(4px);
-        animation: chx-fade-in 0.2s ease;
-    }
-}
-
-func sheet_content_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        position: relative;
-        z-index: 1;
-        display: flex;
-        flex-direction: column;
-        background: hsl(var(--background));
-        color: hsl(var(--foreground));
-        box-shadow: var(--shadow-lg);
-        overflow-y: auto;
-        &[data-side="right"] {
-            margin-left: auto;
-            height: 100%;
-            width: 400px;
-            max-width: 100%;
-            animation: chx-sheet-in-right 0.25s var(--ease);
-        }
-        &[data-side="left"] {
-            margin-right: auto;
-            height: 100%;
-            width: 400px;
-            max-width: 100%;
-            animation: chx-sheet-in-left 0.25s var(--ease);
-        }
-        &[data-side="top"] {
-            margin-bottom: auto;
-            width: 100%;
-            max-height: 60vh;
-            animation: chx-sheet-in-top 0.25s var(--ease);
-        }
-        &[data-side="bottom"] {
-            margin-top: auto;
-            width: 100%;
-            max-height: 60vh;
-            animation: chx-sheet-in-bottom 0.25s var(--ease);
-        }
-    }
-}
-
-func sheet_header_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        padding: 1rem 1.25rem;
-        border-bottom: 1px solid hsl(var(--border));
-    }
-}
-
-func sheet_title_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        font-size: 1.125rem;
-        font-weight: 600;
-        color: hsl(var(--foreground));
-    }
-}
-
-func sheet_close_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 2rem;
-        height: 2rem;
-        border-radius: 6px;
-        border: none;
-        background: transparent;
-        color: hsl(var(--muted-foreground));
-        font-size: 1.25rem;
-        line-height: 1;
-        cursor: pointer;
-        transition: background 0.15s ease, color 0.15s ease;
-        &:hover {
-            background: hsl(var(--accent));
-            color: hsl(var(--foreground));
-        }
-    }
-}
-
-func sheet_body_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        padding: 1.25rem;
-        display: grid;
-        gap: 1rem;
-    }
-}
-
-public #universal Sheet(props) {
     state open = props.defaultOpen ? true : false
     var isOpen = props.open != null ? props.open : open
     var side = props.side || "right"
@@ -212,7 +111,7 @@ public #universal Sheet(props) {
     // fixed-position overlay stays viewport-relative inside transform/overflow
     // ancestors. SSR renders it inline; hydration moves it to body.
     return createPortal(
-        <div class={${sheet_overlay_styles(page)}} style={isOpen ? "" : "display:none;"}>
+        <div class={sheet_overlay} style={isOpen ? "" : "display:none;"}>
             <SheetBackdrop onClick={close}></SheetBackdrop>
             <SheetContent ref={contentRef} side={side} style={style} role="dialog" aria-modal="true" aria-label={props.title}>
                 <SheetHeader>
@@ -227,38 +126,115 @@ public #universal Sheet(props) {
 }
 
 public #universal SheetBackdrop(props) {
-    return <div {...props} class={${sheet_backdrop_styles(page)}}></div>
+    var sheet_backdrop = style {
+        position: absolute;
+        inset: 0;
+        background: rgba(2, 6, 23, 0.6);
+        backdrop-filter: blur(4px);
+        animation: chx-fade-in 0.2s ease;
+    }
+    return <div {...props} class={sheet_backdrop}></div>
 }
 
 public #universal SheetContent(props) {
-    return <div {...props} class={${sheet_content_styles(page)}} data-side={props.side}>{props.children}</div>
+    var sheet_content = style {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        background: hsl(var(--background));
+        color: hsl(var(--foreground));
+        box-shadow: var(--shadow-lg);
+        overflow-y: auto;
+        &[data-side="right"] {
+            margin-left: auto;
+            height: 100%;
+            width: 400px;
+            max-width: 100%;
+            animation: chx-sheet-in-right 0.25s var(--ease);
+        }
+        &[data-side="left"] {
+            margin-right: auto;
+            height: 100%;
+            width: 400px;
+            max-width: 100%;
+            animation: chx-sheet-in-left 0.25s var(--ease);
+        }
+        &[data-side="top"] {
+            margin-bottom: auto;
+            width: 100%;
+            max-height: 60vh;
+            animation: chx-sheet-in-top 0.25s var(--ease);
+        }
+        &[data-side="bottom"] {
+            margin-top: auto;
+            width: 100%;
+            max-height: 60vh;
+            animation: chx-sheet-in-bottom 0.25s var(--ease);
+        }
+    }
+    return <div {...props} class={sheet_content} data-side={props.side}>{props.children}</div>
 }
 
 public #universal SheetHeader(props) {
-    return <div {...props} class={${sheet_header_styles(page)}}>{props.children}</div>
+    var sheet_header = style {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid hsl(var(--border));
+    }
+    return <div {...props} class={sheet_header}>{props.children}</div>
 }
 
 public #universal SheetTitle(props) {
-    return <div {...props} class={${sheet_title_styles(page)}}>{props.children}</div>
+    var sheet_title = style {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: hsl(var(--foreground));
+    }
+    return <div {...props} class={sheet_title}>{props.children}</div>
 }
 
 public #universal SheetClose(props) {
-    return <button {...props} type="button" class={${sheet_close_styles(page)}}>{props.children}</button>
+    var sheet_close = style {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 6px;
+        border: none;
+        background: transparent;
+        color: hsl(var(--muted-foreground));
+        font-size: 1.25rem;
+        line-height: 1;
+        cursor: pointer;
+        transition: background 0.15s ease, color 0.15s ease;
+        &:hover {
+            background: hsl(var(--accent));
+            color: hsl(var(--foreground));
+        }
+    }
+    return <button {...props} type="button" class={sheet_close}>{props.children}</button>
 }
 
 public #universal SheetBody(props) {
-    return <div {...props} class={${sheet_body_styles(page)}}>{props.children}</div>
+    var sheet_body = style {
+        padding: 1.25rem;
+        display: grid;
+        gap: 1rem;
+    }
+    return <div {...props} class={sheet_body}>{props.children}</div>
 }
 
-func sheet_desc_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal SheetDescription(props) {
+    var sheet_desc = style {
         font-size: 0.875rem;
         color: hsl(var(--muted-foreground));
         margin: 0;
     }
-}
-
-public #universal SheetDescription(props) {
     var classes = (props.className || props.class) || ""
-    return <p {...props} class={classes + " " + ${sheet_desc_styles(page)}}>{props.children}</p>
+    return <p {...props} class={classes + " " + sheet_desc}>{props.children}</p>
 }

@@ -1,5 +1,5 @@
-func card_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal Card(props) {
+    var card = style {
         position: relative;
         display: flex;
         flex-direction: column;
@@ -27,20 +27,28 @@ func card_styles(page : &mut HtmlPage) : *char {
             & > [data-slot="card-footer"] { padding: 0 0.75rem 0.75rem; }
         }
     }
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    var size = props.size || "default"
+    var out = classes + " " + card
+    return <div data-interactive={props.onClick ? "true" : "false"} data-size={size != "default" ? size : null} class={out} onClick={props.onClick}>{props.children}</div>
 }
 
-func card_header_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal CardHeader(props) {
+    var card_header = style {
         display: flex;
         flex-direction: column;
         align-items: flex-start;
         gap: 0.25rem;
         padding: 1.25rem;
     }
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <div class={classes + " " + card_header}>{props.children}</div>
 }
 
-func card_title_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal CardTitle(props) {
+    var card_title = style {
         font-size: 1.125rem;
         line-height: 1.5rem;
         font-weight: 600;
@@ -48,27 +56,42 @@ func card_title_styles(page : &mut HtmlPage) : *char {
         margin: 0;
         color: hsl(var(--foreground));
     }
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    var level = props.level || 3
+    if(level == 2) { return <H2 class={classes + " " + card_title}>{props.children}</H2> }
+    if(level == 4) { return <H4 class={classes + " " + card_title}>{props.children}</H4> }
+    return <H3 class={classes + " " + card_title}>{props.children}</H3>
 }
 
-func card_description_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal CardDescription(props) {
+    var card_description = style {
         font-size: 0.875rem;
         line-height: 1.375rem;
         color: hsl(var(--muted-foreground));
         margin: 0;
     }
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <p class={classes + " " + card_description}>{props.children}</p>
 }
 
-func card_meta_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal CardMeta(props) {
+    var card_meta = style {
         font-size: 0.75rem;
         line-height: 1.25rem;
         color: hsl(var(--muted-foreground));
     }
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <div class={classes + " " + card_meta}>{props.children}</div>
 }
 
-func card_action_styles(page : &mut HtmlPage) : *char {
-    return #css {
+// Shadcn v2 header action slot — place a dropdown/button/icon action in the
+// top-right of a CardHeader. Put it FIRST in the header so it sits on its own
+// row above the title/description (the header stacks vertically).
+public #universal CardAction(props) {
+    var card_action = style {
         display: inline-flex;
         align-items: center;
         gap: 0.375rem;
@@ -77,91 +100,41 @@ func card_action_styles(page : &mut HtmlPage) : *char {
         padding-left: 1rem;
         margin-bottom: 0.25rem;
     }
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <div class={classes + " " + card_action}>{props.children}</div>
 }
 
-func card_content_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal CardContent(props) {
+    var card_content = style {
         padding: 0 1.25rem;
     }
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <div class={classes + " " + card_content}>{props.children}</div>
 }
 
-func card_body_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal CardBody(props) {
+    var card_body = style {
         display: flex;
         flex-direction: column;
         gap: 1rem;
         padding: 1.25rem;
     }
+    var classes = props.class || ""
+    if(props.className) { classes = props.className }
+    return <div class={classes + " " + card_body}>{props.children}</div>
 }
 
-func card_footer_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal CardFooter(props) {
+    var card_footer = style {
         display: flex;
         align-items: center;
         justify-content: flex-end;
         gap: 0.5rem;
         padding: 0 1.25rem 1.25rem 1.25rem;
     }
-}
-
-public #universal Card(props) {
     var classes = props.class || ""
     if(props.className) { classes = props.className }
-    var size = props.size || "default"
-    var out = classes + " " + ${card_styles(page)}
-    return <div data-interactive={props.onClick ? "true" : "false"} data-size={size != "default" ? size : null} class={out} onClick={props.onClick}>{props.children}</div>
-}
-
-public #universal CardHeader(props) {
-    var classes = props.class || ""
-    if(props.className) { classes = props.className }
-    return <div class={classes + " " + ${card_header_styles(page)}}>{props.children}</div>
-}
-
-public #universal CardTitle(props) {
-    var classes = props.class || ""
-    if(props.className) { classes = props.className }
-    var level = props.level || 3
-    if(level == 2) { return <H2 class={classes + " " + ${card_title_styles(page)}}>{props.children}</H2> }
-    if(level == 4) { return <H4 class={classes + " " + ${card_title_styles(page)}}>{props.children}</H4> }
-    return <H3 class={classes + " " + ${card_title_styles(page)}}>{props.children}</H3>
-}
-
-public #universal CardDescription(props) {
-    var classes = props.class || ""
-    if(props.className) { classes = props.className }
-    return <p class={classes + " " + ${card_description_styles(page)}}>{props.children}</p>
-}
-
-public #universal CardMeta(props) {
-    var classes = props.class || ""
-    if(props.className) { classes = props.className }
-    return <div class={classes + " " + ${card_meta_styles(page)}}>{props.children}</div>
-}
-
-// Shadcn v2 header action slot — place a dropdown/button/icon action in the
-// top-right of a CardHeader. Put it FIRST in the header so it sits on its own
-// row above the title/description (the header stacks vertically).
-public #universal CardAction(props) {
-    var classes = props.class || ""
-    if(props.className) { classes = props.className }
-    return <div class={classes + " " + ${card_action_styles(page)}}>{props.children}</div>
-}
-
-public #universal CardContent(props) {
-    var classes = props.class || ""
-    if(props.className) { classes = props.className }
-    return <div class={classes + " " + ${card_content_styles(page)}}>{props.children}</div>
-}
-
-public #universal CardBody(props) {
-    var classes = props.class || ""
-    if(props.className) { classes = props.className }
-    return <div class={classes + " " + ${card_body_styles(page)}}>{props.children}</div>
-}
-
-public #universal CardFooter(props) {
-    var classes = props.class || ""
-    if(props.className) { classes = props.className }
-    return <div class={classes + " " + ${card_footer_styles(page)}}>{props.children}</div>
+    return <div class={classes + " " + card_footer}>{props.children}</div>
 }

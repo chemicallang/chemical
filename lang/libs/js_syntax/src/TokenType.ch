@@ -103,7 +103,8 @@ public enum JsTokenType {
     NullishCoalescing, // ??
     QuestionDot, // ?.
     Exponent, // **
-    Hash // # — router id-route sigil (`route #"id"`)
+    Hash, // # — router id-route sigil (`route #"id"`)
+    Style // style { … } — a component-scoped CSS block inside #universal
 }
 
 public func isIdOrKw(type : JsTokenType) : bool {

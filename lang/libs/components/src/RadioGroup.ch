@@ -18,8 +18,8 @@
 // it back reactively. The group threads its `name` into item vnodes so items
 // resolve their key without repeating `name` on every item.
 
-func radio_group_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal RadioGroup(props) {
+    var radio_group = style {
         display: flex;
         gap: 0.75rem 1.25rem;
         &[data-direction="column"] {
@@ -35,10 +35,40 @@ func radio_group_styles(page : &mut HtmlPage) : *char {
             opacity: 0.55;
         }
     }
+    state value = props.defaultValue || ""
+    const ctx = createContext("rg-" + (props.name || "default"), "")
+    var disabled = props.disabled || false
+    var direction = props.direction || "column"
+    // Thread the group name (and input name) into item children so items can
+    // resolve their context key without repeating `name` on every item.
+    if(props.children && props.children.map) {
+        props.children = props.children.map((c) => {
+            if(c && c.p && c.p.props) {
+                c.p.props.__rgName = props.name || "default"
+                if(props.name && !c.p.props.name) { c.p.props.name = props.name }
+            }
+            return c
+        })
+    }
+    // Publish the selection to consumers. Assigning the state signal wires the
+    // context to follow it; writes also update it directly so controlled mode
+    // keeps items in sync.
+    ctx.value = value
+    ctx.write = (v) => {
+        if(disabled) { return }
+        ctx.value = v
+        if(props.value != null) {
+            if(props.onValueChange) { props.onValueChange(v) }
+        } else {
+            value = v
+            if(props.onValueChange) { props.onValueChange(v) }
+        }
+    }
+    return <div role="radiogroup" {...props} class={radio_group} data-direction={direction} data-disabled={disabled ? "true" : "false"}>{props.children}</div>
 }
 
-func radio_item_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal RadioGroupItem(props) {
+    var radio_item = style {
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
@@ -95,42 +125,6 @@ func radio_item_styles(page : &mut HtmlPage) : *char {
             cursor: not-allowed;
         }
     }
-}
-
-public #universal RadioGroup(props) {
-    state value = props.defaultValue || ""
-    const ctx = createContext("rg-" + (props.name || "default"), "")
-    var disabled = props.disabled || false
-    var direction = props.direction || "column"
-    // Thread the group name (and input name) into item children so items can
-    // resolve their context key without repeating `name` on every item.
-    if(props.children && props.children.map) {
-        props.children = props.children.map((c) => {
-            if(c && c.p && c.p.props) {
-                c.p.props.__rgName = props.name || "default"
-                if(props.name && !c.p.props.name) { c.p.props.name = props.name }
-            }
-            return c
-        })
-    }
-    // Publish the selection to consumers. Assigning the state signal wires the
-    // context to follow it; writes also update it directly so controlled mode
-    // keeps items in sync.
-    ctx.value = value
-    ctx.write = (v) => {
-        if(disabled) { return }
-        ctx.value = v
-        if(props.value != null) {
-            if(props.onValueChange) { props.onValueChange(v) }
-        } else {
-            value = v
-            if(props.onValueChange) { props.onValueChange(v) }
-        }
-    }
-    return <div role="radiogroup" {...props} class={${radio_group_styles(page)}} data-direction={direction} data-disabled={disabled ? "true" : "false"}>{props.children}</div>
-}
-
-public #universal RadioGroupItem(props) {
     const ctx = useContext("rg-" + (props.__rgName || props.name || "default"))
     var disabled = props.disabled || false
     var classes = props.class || ""
@@ -139,7 +133,7 @@ public #universal RadioGroupItem(props) {
         if(disabled) { return }
         if(ctx.write) { ctx.write(props.value) }
     }
-    return <label {...props} class={classes + " " + ${radio_item_styles(page)}} data-disabled={disabled ? "true" : "false"}>
+    return <label {...props} class={classes + " " + radio_item} data-disabled={disabled ? "true" : "false"}>
         <input type="radio" class="chx-radio-input" checked={ctx.value == props.value} disabled={disabled} name={props.name} value={props.value} onChange={onSelect} id={props.id} aria-label={props.ariaLabel} />
         <span class="chx-radio-box">
             <span class="chx-radio-dot"></span>

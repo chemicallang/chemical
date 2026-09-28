@@ -453,6 +453,26 @@ public func nextJsToken(js : &mut JsLexer, lexer : &mut Lexer, jsx_enabled : boo
                     comptime_fnv1_hash("export") => { return Token { type : JsTokenType.Export as int, value : val, position : position } }
                     comptime_fnv1_hash("yield") => { return Token { type : JsTokenType.Yield as int, value : val, position : position } }
                     comptime_fnv1_hash("debugger") => { return Token { type : JsTokenType.Debugger as int, value : val, position : position } }
+                    comptime_fnv1_hash("style") => {
+                        if(jsx_enabled) {
+                            // Distinguish a component style block (`style { … }`)
+                            // from the very common `style` identifier used as a
+                            // JSX attribute / object key (`style={…}`) or a
+                            // variable. Only the `{` form becomes a Style token.
+                            const saved_ptr = provider.data_ptr
+                            const saved_line = provider.lineNumber
+                            const saved_char = provider.lineCharacterNumber
+                            provider.readWhitespacesAndNewLines()
+                            const nxt = provider.peek()
+                            provider.data_ptr = saved_ptr
+                            provider.lineNumber = saved_line
+                            provider.lineCharacterNumber = saved_char
+                            if(nxt == '{') {
+                                return Token { type : JsTokenType.Style as int, value : val, position : position }
+                            }
+                        }
+                        return Token { type : JsTokenType.Identifier as int, value : val, position : position }
+                    }
                     default => {
                         return Token { type : JsTokenType.Identifier as int, value : val, position : position }
                     }

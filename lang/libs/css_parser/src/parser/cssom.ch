@@ -14,7 +14,7 @@ public func parseCSSOM(parser : *mut Parser, builder : *mut ASTBuilder) : *CSSOM
         keyframes : std::vector<*mut CSSKeyframesRule>(),
         dyn_values : std::vector<*mut Value>(),
         className : std::string_view(),
-        support : SymResSupport()
+        support : CssSymResSupport()
     }
     var cssParser = CSSParser();
     var keep_parsing = true;

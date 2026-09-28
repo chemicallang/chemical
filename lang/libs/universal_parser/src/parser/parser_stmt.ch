@@ -39,6 +39,14 @@ public func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, buil
         if(routerStmt != null) return routerStmt
     }
 
+    if(token.type == JsTokenType.Style as int) {
+        if(jsParser.style_fn != null) {
+            return jsParser.style_fn(parser, builder, jsParser.dyn_values)
+        }
+        parser.error("style blocks are not supported here")
+        return null
+    }
+
     if(token.type == JsTokenType.Var as int || token.type == JsTokenType.Const as int || token.type == JsTokenType.Let as int || token.type == JsTokenType.State as int) {
         var keyword = builder.allocate_view(&token.value);
         parser.increment();

@@ -1,15 +1,16 @@
-func paper_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal Paper(props) {
+    var paper = style {
         background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 55%), hsl(var(--background));
         border: 1px solid hsl(var(--border));
         border-radius: var(--radius);
         box-shadow: var(--shadow);
         padding: 1.25rem;
     }
+    return <section {...props} class={paper}>{props.children}</section>
 }
 
-func appbar_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal AppBar(props) {
+    var appbar = style {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -20,10 +21,11 @@ func appbar_styles(page : &mut HtmlPage) : *char {
         background: rgba(15, 23, 42, 0.04);
         box-shadow: var(--shadow-sm);
     }
+    return <header {...props} class={appbar}>{props.children}</header>
 }
 
-func drawer_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal Drawer(props) {
+    var drawer = style {
         width: 280px;
         max-width: 100%;
         display: grid;
@@ -34,12 +36,13 @@ func drawer_styles(page : &mut HtmlPage) : *char {
         background: hsl(var(--background));
         box-shadow: var(--shadow);
     }
+    return <aside {...props} class={drawer}>{props.children}</aside>
 }
 
-func menu_styles(page : &mut HtmlPage) : *char {
+public #universal Menu(props) {
     // Portaled into document.body and positioned fixed by $__uni_floating;
     // visibility is driven by data-open (inline style would wipe positioning).
-    return #css {
+    var menu = style {
         min-width: 220px;
         position: fixed;
         top: 0;
@@ -56,10 +59,11 @@ func menu_styles(page : &mut HtmlPage) : *char {
             display: grid;
         }
     }
+    return <div {...props} role="menu" class={menu}>{props.children}</div>
 }
 
-func menu_item_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal MenuItem(props) {
+    var menu_item = style {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -73,10 +77,16 @@ func menu_item_styles(page : &mut HtmlPage) : *char {
             background: hsl(var(--muted));
         }
     }
+    return <a {...props} role="menuitem" class={menu_item}>{props.children}</a>
 }
 
-func popover_styles(page : &mut HtmlPage) : *char {
-    return #css {
+// Shadcn-style Popover with trigger + content composition.
+// Modes:
+// 1. Trigger mode: <Popover trigger={<Button>Open</Button>}><PopoverHeader>...</PopoverHeader></Popover>
+// 2. Simple mode: <Popover>content here</Popover>
+// Props: open, defaultOpen, onClose, side (top/bottom/left/right), align (start/center/end), className
+public #universal Popover(props) {
+    var popover = style {
         width: 280px;
         max-width: 100%;
         display: grid;
@@ -89,291 +99,6 @@ func popover_styles(page : &mut HtmlPage) : *char {
         z-index: 50;
         animation: chx-slide-down 0.15s var(--ease);
     }
-}
-
-func popover_header_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        display: grid;
-        gap: 0.125rem;
-    }
-}
-
-func popover_title_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        font-size: 0.875rem;
-        font-weight: 600;
-        line-height: 1.25rem;
-        color: hsl(var(--foreground));
-        margin: 0;
-    }
-}
-
-func popover_desc_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        font-size: 0.8125rem;
-        color: hsl(var(--muted-foreground));
-        margin: 0;
-    }
-}
-
-func dialog_overlay_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        position: fixed;
-        inset: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 1.5rem;
-        z-index: 50;
-    }
-}
-
-func dialog_backdrop_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        position: absolute;
-        inset: 0;
-        background: rgba(2, 6, 23, 0.62);
-        backdrop-filter: blur(6px);
-    }
-}
-
-func dialog_content_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        width: 420px;
-        max-width: 100%;
-        max-height: calc(100vh - 3rem);
-        position: relative;
-        z-index: 1;
-        border: 1px solid hsl(var(--border));
-        border-radius: 20px;
-        padding: 1.5rem;
-        background: hsl(var(--background));
-        box-shadow: var(--shadow-lg);
-        color: hsl(var(--foreground));
-        display: flex;
-        flex-direction: column;
-        &[data-size="sm"] { width: 360px; padding: 1.25rem; }
-        &[data-size="lg"] { width: 540px; }
-        &[data-scrollable="true"] {
-            overflow: hidden;
-        }
-    }
-}
-
-func dialog_header_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        display: grid;
-        gap: 0.375rem;
-        text-align: left;
-        flex-shrink: 0;
-    }
-}
-
-func dialog_title_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        font-size: 1.125rem;
-        font-weight: 600;
-        line-height: 1.5rem;
-        margin: 0;
-        color: hsl(var(--foreground));
-    }
-}
-
-func dialog_desc_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        font-size: 0.875rem;
-        color: hsl(var(--muted-foreground));
-        margin: 0;
-    }
-}
-
-func dialog_body_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        overflow-y: auto;
-        flex: 1;
-        min-height: 0;
-        padding: 1rem 0;
-    }
-}
-
-func dialog_footer_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 0.5rem;
-        flex-shrink: 0;
-        padding-top: 1rem;
-    }
-}
-
-func dialog_close_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        position: absolute;
-        top: 1rem;
-        right: 1rem;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 1.5rem;
-        height: 1.5rem;
-        border-radius: 9999px;
-        border: 0;
-        background: transparent;
-        color: hsl(var(--muted-foreground));
-        cursor: pointer;
-        padding: 0;
-        transition: color 0.15s ease, background 0.15s ease;
-        z-index: 1;
-        &:hover {
-            color: hsl(var(--foreground));
-            background: hsl(var(--muted));
-        }
-        &:focus-visible {
-            outline: 2px solid hsl(var(--ring));
-            outline-offset: 2px;
-        }
-    }
-}
-
-func dialog_actions_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 0.5rem;
-        flex-shrink: 0;
-        padding-top: 1rem;
-    }
-}
-
-func snackbar_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.8rem;
-        padding: 0.85rem 1rem;
-        border-radius: 999px;
-        border: 1px solid hsl(var(--border));
-        background: hsl(var(--background));
-        color: hsl(var(--foreground));
-        box-shadow: var(--shadow);
-    }
-}
-
-func tooltip_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.375rem 0.625rem;
-        border-radius: calc(var(--radius) - 2px);
-        background: hsl(var(--primary));
-        color: hsl(var(--primary-foreground));
-        font-size: 0.75rem;
-        font-weight: 500;
-        line-height: 1.4;
-        box-shadow: var(--shadow-md);
-        pointer-events: none;
-        white-space: nowrap;
-        z-index: 50;
-        animation: chx-fade-in 0.1s ease;
-    }
-}
-
-func tooltip_arrow_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        position: absolute;
-        width: 8px;
-        height: 8px;
-        background: hsl(var(--primary));
-        transform: rotate(45deg);
-    }
-}
-
-func bottom_bar_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        width: 100%;
-        max-width: 420px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-        padding: 0.85rem 1rem;
-        border: 1px solid hsl(var(--border));
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.85);
-        box-shadow: var(--shadow-lg);
-        backdrop-filter: blur(18px);
-    }
-}
-
-func empty_state_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        display: grid;
-        gap: 0.75rem;
-        justify-items: start;
-        padding: 1.3rem;
-        border: 1px dashed hsl(var(--border));
-        border-radius: var(--radius);
-        background: linear-gradient(180deg, rgba(59, 130, 246, 0.04), transparent 60%), hsl(var(--background));
-    }
-}
-
-func stat_card_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        display: grid;
-        gap: 0.5rem;
-        padding: 1.15rem;
-        border: 1px solid hsl(var(--border));
-        border-radius: 18px;
-        background: hsl(var(--background));
-        box-shadow: var(--shadow-sm);
-    }
-}
-
-func icon_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 2rem;
-        height: 2rem;
-        border-radius: 999px;
-        background: hsl(var(--muted));
-        border: 1px solid hsl(var(--border));
-        color: hsl(var(--foreground));
-        font-weight: 700;
-        line-height: 1;
-        font-family: ui-monospace, "SFMono-Regular", monospace;
-    }
-}
-
-public #universal Paper(props) {
-    return <section {...props} class={${paper_styles(page)}}>{props.children}</section>
-}
-
-public #universal AppBar(props) {
-    return <header {...props} class={${appbar_styles(page)}}>{props.children}</header>
-}
-
-public #universal Drawer(props) {
-    return <aside {...props} class={${drawer_styles(page)}}>{props.children}</aside>
-}
-
-public #universal Menu(props) {
-    return <div {...props} role="menu" class={${menu_styles(page)}}>{props.children}</div>
-}
-
-public #universal MenuItem(props) {
-    return <a {...props} role="menuitem" class={${menu_item_styles(page)}}>{props.children}</a>
-}
-
-// Shadcn-style Popover with trigger + content composition.
-// Modes:
-// 1. Trigger mode: <Popover trigger={<Button>Open</Button>}><PopoverHeader>...</PopoverHeader></Popover>
-// 2. Simple mode: <Popover>content here</Popover>
-// Props: open, defaultOpen, onClose, side (top/bottom/left/right), align (start/center/end), className
-public #universal Popover(props) {
     state open = props.defaultOpen ? true : false
     var isOpen = props.open != null ? props.open : open
     const triggerRef = useRef(null)
@@ -416,14 +141,14 @@ public #universal Popover(props) {
         return <div style="position:relative;display:inline-block;">
             <span ref={triggerRef} onClick={toggle} aria-haspopup="dialog" aria-expanded={isOpen ? "true" : "false"}>{props.trigger}</span>
             {createPortal(
-                <div ref={contentRef} class={${popover_styles(page)}} class={classes} style={isOpen ? "" : "display:none;"} role="dialog" aria-label={props.ariaLabel}>
+                <div ref={contentRef} class={popover} class={classes} style={isOpen ? "" : "display:none;"} role="dialog" aria-label={props.ariaLabel}>
                     {props.children}
                 </div>
             )}
         </div>
     }
     // Simple mode (backward compat)
-    return <div {...props} class={${popover_styles(page)}} class={classes}>{props.children}</div>
+    return <div {...props} class={popover} class={classes}>{props.children}</div>
 }
 
 public #universal PopoverTrigger(props) {
@@ -431,19 +156,48 @@ public #universal PopoverTrigger(props) {
 }
 
 public #universal PopoverContent(props) {
-    return <div {...props} class={${popover_styles(page)}}>{props.children}</div>
+    var popover = style {
+        width: 280px;
+        max-width: 100%;
+        display: grid;
+        gap: 0.55rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid hsl(var(--border));
+        border-radius: 14px;
+        background: hsl(var(--background));
+        box-shadow: var(--shadow);
+        z-index: 50;
+        animation: chx-slide-down 0.15s var(--ease);
+    }
+    return <div {...props} class={popover}>{props.children}</div>
 }
 
 public #universal PopoverHeader(props) {
-    return <div {...props} class={${popover_header_styles(page)}}>{props.children}</div>
+    var popover_header = style {
+        display: grid;
+        gap: 0.125rem;
+    }
+    return <div {...props} class={popover_header}>{props.children}</div>
 }
 
 public #universal PopoverTitle(props) {
-    return <h3 {...props} class={${popover_title_styles(page)}}>{props.children}</h3>
+    var popover_title = style {
+        font-size: 0.875rem;
+        font-weight: 600;
+        line-height: 1.25rem;
+        color: hsl(var(--foreground));
+        margin: 0;
+    }
+    return <h3 {...props} class={popover_title}>{props.children}</h3>
 }
 
 public #universal PopoverDescription(props) {
-    return <p {...props} class={${popover_desc_styles(page)}}>{props.children}</p>
+    var popover_desc = style {
+        font-size: 0.8125rem;
+        color: hsl(var(--muted-foreground));
+        margin: 0;
+    }
+    return <p {...props} class={popover_desc}>{props.children}</p>
 }
 
 // Modal dialog in two modes (shadcn-style `open`/`onOpenChange`):
@@ -453,6 +207,15 @@ public #universal PopoverDescription(props) {
 //   click and the Escape key dismiss via internal state.
 // Both modes fire `props.onClose` on dismissal.
 public #universal Dialog(props) {
+    var dialog_overlay = style {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        z-index: 50;
+    }
     state open = props.defaultOpen ? true : false
     var isOpen = props.open != null ? props.open : open
     const contentRef = useRef(null)
@@ -558,7 +321,7 @@ public #universal Dialog(props) {
     // is viewport-relative even inside transform/overflow ancestors (shadcn does
     // the same). SSR renders it inline; hydration moves it to body.
     return createPortal(
-        <div {...props} class={${dialog_overlay_styles(page)}} style={isOpen ? "" : "display:none;"}>
+        <div {...props} class={dialog_overlay} style={isOpen ? "" : "display:none;"}>
             <DialogBackdrop onClick={close}></DialogBackdrop>
             <DialogContent ref={contentRef} role="dialog" aria-modal="true" aria-label={props.ariaLabel} showCloseButton={props.showCloseButton} style={props.contentStyle}>{props.children}</DialogContent>
         </div>,
@@ -567,41 +330,125 @@ public #universal Dialog(props) {
 }
 
 public #universal DialogBackdrop(props) {
-    return <div {...props} class={${dialog_backdrop_styles(page)}}></div>
+    var dialog_backdrop = style {
+        position: absolute;
+        inset: 0;
+        background: rgba(2, 6, 23, 0.62);
+        backdrop-filter: blur(6px);
+    }
+    return <div {...props} class={dialog_backdrop}></div>
 }
 
 public #universal DialogContent(props) {
+    var dialog_content = style {
+        width: 420px;
+        max-width: 100%;
+        max-height: calc(100vh - 3rem);
+        position: relative;
+        z-index: 1;
+        border: 1px solid hsl(var(--border));
+        border-radius: 20px;
+        padding: 1.5rem;
+        background: hsl(var(--background));
+        box-shadow: var(--shadow-lg);
+        color: hsl(var(--foreground));
+        display: flex;
+        flex-direction: column;
+        &[data-size="sm"] { width: 360px; padding: 1.25rem; }
+        &[data-size="lg"] { width: 540px; }
+        &[data-scrollable="true"] {
+            overflow: hidden;
+        }
+    }
+    var dialog_close = style {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.5rem;
+        height: 1.5rem;
+        border-radius: 9999px;
+        border: 0;
+        background: transparent;
+        color: hsl(var(--muted-foreground));
+        cursor: pointer;
+        padding: 0;
+        transition: color 0.15s ease, background 0.15s ease;
+        z-index: 1;
+        &:hover {
+            color: hsl(var(--foreground));
+            background: hsl(var(--muted));
+        }
+        &:focus-visible {
+            outline: 2px solid hsl(var(--ring));
+            outline-offset: 2px;
+        }
+    }
     var showClose = props.showCloseButton != null ? props.showCloseButton : true
     var scrollable = props.scrollable || false
     var size = props.size || "default"
     var classes = (props.className || props.class) || ""
-    return <div {...props} class={${dialog_content_styles(page)}} class={classes} data-size={size} data-scrollable={scrollable ? "true" : "false"}>
-        {showClose ? <button type="button" data-uni-close="true" class={${dialog_close_styles(page)}} onClick={() => { if(window.$__uni_dialog_close) { window.$__uni_dialog_close() } else if(props.onClose) { props.onClose() } }} aria-label="Close"><svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z" fill="currentColor" fill-rule="evenodd" clip-rule="evenodd"></path></svg></button> : null}
+    return <div {...props} class={dialog_content} class={classes} data-size={size} data-scrollable={scrollable ? "true" : "false"}>
+        {showClose ? <button type="button" data-uni-close="true" class={dialog_close} onClick={() => { if(window.$__uni_dialog_close) { window.$__uni_dialog_close() } else if(props.onClose) { props.onClose() } }} aria-label="Close"><svg width="15" height="15" viewBox="0 0 15 15" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M11.7816 4.03157C12.0062 3.80702 12.0062 3.44295 11.7816 3.2184C11.5571 2.99385 11.193 2.99385 10.9685 3.2184L7.50005 6.68682L4.03164 3.2184C3.80708 2.99385 3.44301 2.99385 3.21846 3.2184C2.99391 3.44295 2.99391 3.80702 3.21846 4.03157L6.68688 7.49999L3.21846 10.9684C2.99391 11.193 2.99391 11.557 3.21846 11.7816C3.44301 12.0061 3.80708 12.0061 4.03164 11.7816L7.50005 8.31316L10.9685 11.7816C11.193 12.0061 11.5571 12.0061 11.7816 11.7816C12.0062 11.557 12.0062 11.193 11.7816 10.9684L8.31322 7.49999L11.7816 4.03157Z" fill="currentColor" fill-rule="evenodd" clip-rule="evenodd"></path></svg></button> : null}
         {props.children}
     </div>
 }
 
 public #universal DialogHeader(props) {
-    return <div {...props} class={${dialog_header_styles(page)}}>{props.children}</div>
+    var dialog_header = style {
+        display: grid;
+        gap: 0.375rem;
+        text-align: left;
+        flex-shrink: 0;
+    }
+    return <div {...props} class={dialog_header}>{props.children}</div>
 }
 
 public #universal DialogTitle(props) {
+    var dialog_title = style {
+        font-size: 1.125rem;
+        font-weight: 600;
+        line-height: 1.5rem;
+        margin: 0;
+        color: hsl(var(--foreground));
+    }
     var classes = (props.className || props.class) || ""
-    return <h2 {...props} class={${dialog_title_styles(page)}} class={classes}>{props.children}</h2>
+    return <h2 {...props} class={dialog_title} class={classes}>{props.children}</h2>
 }
 
 public #universal DialogDescription(props) {
+    var dialog_desc = style {
+        font-size: 0.875rem;
+        color: hsl(var(--muted-foreground));
+        margin: 0;
+    }
     var classes = (props.className || props.class) || ""
-    return <p {...props} class={${dialog_desc_styles(page)}} class={classes}>{props.children}</p>
+    return <p {...props} class={dialog_desc} class={classes}>{props.children}</p>
 }
 
 public #universal DialogBody(props) {
-    return <div {...props} class={${dialog_body_styles(page)}}>{props.children}</div>
+    var dialog_body = style {
+        overflow-y: auto;
+        flex: 1;
+        min-height: 0;
+        padding: 1rem 0;
+    }
+    return <div {...props} class={dialog_body}>{props.children}</div>
 }
 
 public #universal DialogFooter(props) {
+    var dialog_footer = style {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.5rem;
+        flex-shrink: 0;
+        padding-top: 1rem;
+    }
     var classes = (props.className || props.class) || ""
-    return <div {...props} class={${dialog_footer_styles(page)}} class={classes}>{props.children}</div>
+    return <div {...props} class={dialog_footer} class={classes}>{props.children}</div>
 }
 
 // Legacy alias
@@ -610,7 +457,18 @@ public #universal DialogActions(props) {
 }
 
 public #universal Snackbar(props) {
-    return <div {...props} role="status" class={${snackbar_styles(page)}}>{props.children}</div>
+    var snackbar = style {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.8rem;
+        padding: 0.85rem 1rem;
+        border-radius: 999px;
+        border: 1px solid hsl(var(--border));
+        background: hsl(var(--background));
+        color: hsl(var(--foreground));
+        box-shadow: var(--shadow);
+    }
+    return <div {...props} role="status" class={snackbar}>{props.children}</div>
 }
 
 // Shadcn-style Tooltip: shows a tooltip bubble on hover/focus.
@@ -628,6 +486,22 @@ public #universal Snackbar(props) {
 //   <Tooltip content="Add to library"><Button>Hover</Button></Tooltip>
 //   <Tooltip label="Save" side="right"><IconButton /></Tooltip>
 public #universal Tooltip(props) {
+    var tooltip = style {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.375rem 0.625rem;
+        border-radius: calc(var(--radius) - 2px);
+        background: hsl(var(--primary));
+        color: hsl(var(--primary-foreground));
+        font-size: 0.75rem;
+        font-weight: 500;
+        line-height: 1.4;
+        box-shadow: var(--shadow-md);
+        pointer-events: none;
+        white-space: nowrap;
+        z-index: 50;
+        animation: chx-fade-in 0.1s ease;
+    }
     state visible = false
     state hoverTimeout = null
     state leaveTimeout = null
@@ -661,10 +535,10 @@ public #universal Tooltip(props) {
         }
         return <span style="position:relative;display:inline-flex;" onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide}>
             {props.children}
-            <span role="tooltip" class={${tooltip_styles(page)} + " " + classes} style={tipBase + (visible ? "opacity:1;" : "opacity:0;")}>{tipContent}</span>
+            <span role="tooltip" class={tooltip + " " + classes} style={tipBase + (visible ? "opacity:1;" : "opacity:0;")}>{tipContent}</span>
         </span>
     }
-    return <span {...props} class={${tooltip_styles(page)} + " " + classes}>{props.children}</span>
+    return <span {...props} class={tooltip + " " + classes}>{props.children}</span>
 }
 
 // TooltipProvider: wraps the app to configure global tooltip behavior.
@@ -684,19 +558,65 @@ public #universal TooltipTrigger(props) {
 }
 
 public #universal Icon(props) {
-    return <span {...props} class={${icon_styles(page)}}>{props.children}</span>
+    var icon = style {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 999px;
+        background: hsl(var(--muted));
+        border: 1px solid hsl(var(--border));
+        color: hsl(var(--foreground));
+        font-weight: 700;
+        line-height: 1;
+        font-family: ui-monospace, "SFMono-Regular", monospace;
+    }
+    return <span {...props} class={icon}>{props.children}</span>
 }
 
 public #universal BottomBar(props) {
-    return <nav {...props} class={${bottom_bar_styles(page)}}>{props.children}</nav>
+    var bottom_bar = style {
+        width: 100%;
+        max-width: 420px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.85rem 1rem;
+        border: 1px solid hsl(var(--border));
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.85);
+        box-shadow: var(--shadow-lg);
+        backdrop-filter: blur(18px);
+    }
+    return <nav {...props} class={bottom_bar}>{props.children}</nav>
 }
 
 public #universal EmptyState(props) {
-    return <section {...props} class={${empty_state_styles(page)}}>{props.children}</section>
+    var empty_state = style {
+        display: grid;
+        gap: 0.75rem;
+        justify-items: start;
+        padding: 1.3rem;
+        border: 1px dashed hsl(var(--border));
+        border-radius: var(--radius);
+        background: linear-gradient(180deg, rgba(59, 130, 246, 0.04), transparent 60%), hsl(var(--background));
+    }
+    return <section {...props} class={empty_state}>{props.children}</section>
 }
 
 public #universal StatCard(props) {
-    return <section {...props} class={${stat_card_styles(page)}}>{props.children}</section>
+    var stat_card = style {
+        display: grid;
+        gap: 0.5rem;
+        padding: 1.15rem;
+        border: 1px solid hsl(var(--border));
+        border-radius: 18px;
+        background: hsl(var(--background));
+        box-shadow: var(--shadow-sm);
+    }
+    return <section {...props} class={stat_card}>{props.children}</section>
 }
 
 // Dropdown menu in two modes (shadcn-style `open`/`onOpenChange`):
@@ -773,8 +693,16 @@ public #universal DropdownItem(props) {
 //           <DropdownMenuItem>Logout</DropdownMenuItem>
 //       </DropdownMenuContent>
 //   </DropdownMenu>
-func dropdown_content_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal DropdownMenu(props) {
+    return <span {...props}>{props.children}</span>
+}
+
+public #universal DropdownMenuTrigger(props) {
+    return <span {...props} onClick={props.onClick}>{props.children}</span>
+}
+
+public #universal DropdownMenuContent(props) {
+    var dropdown_content = style {
         min-width: 220px;
         position: fixed;
         top: 0;
@@ -793,10 +721,11 @@ func dropdown_content_styles(page : &mut HtmlPage) : *char {
             display: grid;
         }
     }
+    return <div {...props} class={dropdown_content} role="menu">{props.children}</div>
 }
 
-func dropdown_item_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal DropdownMenuItem(props) {
+    var dropdown_item = style {
         display: flex;
         align-items: center;
         gap: 0.5rem;
@@ -822,80 +751,78 @@ func dropdown_item_styles(page : &mut HtmlPage) : *char {
         }
         svg { flex-shrink: 0; opacity: 0.6; }
     }
+    var disabled = props.disabled || false
+    var classes = (props.className || props.class) || ""
+    return <button type="button" role="menuitem" data-disabled={disabled ? "true" : "false"} class={classes + " " + dropdown_item} onClick={props.onClick} disabled={disabled}>{props.children}</button>
 }
 
-func dropdown_check_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        width: 1rem;
-        height: 1rem;
-        flex-shrink: 0;
-    }
-}
-
-func dropdown_separator_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal DropdownMenuSeparator(props) {
+    var dropdown_separator = style {
         height: 1px;
         background: hsl(var(--border));
         margin: 0.25rem -0.25rem;
     }
+    return <div role="separator" class={dropdown_separator}></div>
 }
 
-func dropdown_label_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal DropdownMenuLabel(props) {
+    var dropdown_label = style {
         padding: 0.375rem 0.5rem;
         font-size: 0.75rem;
         font-weight: 600;
         color: hsl(var(--foreground));
     }
+    return <div class={dropdown_label}>{props.children}</div>
 }
 
-func dropdown_shortcut_styles(page : &mut HtmlPage) : *char {
-    return #css {
+public #universal DropdownMenuShortcut(props) {
+    var dropdown_shortcut = style {
         margin-left: auto;
         font-size: 0.75rem;
         letter-spacing: 0.05em;
         color: hsl(var(--muted-foreground));
     }
-}
-
-// DropdownMenu: wraps a trigger + content for context menu behavior.
-// Uses Dropdown (existing) under the hood. Just renders children.
-public #universal DropdownMenu(props) {
-    return <span {...props}>{props.children}</span>
-}
-
-public #universal DropdownMenuTrigger(props) {
-    return <span {...props} onClick={props.onClick}>{props.children}</span>
-}
-
-public #universal DropdownMenuContent(props) {
-    return <div {...props} class={${dropdown_content_styles(page)}} role="menu">{props.children}</div>
-}
-
-public #universal DropdownMenuItem(props) {
-    var disabled = props.disabled || false
-    var classes = (props.className || props.class) || ""
-    return <button type="button" role="menuitem" data-disabled={disabled ? "true" : "false"} class={classes + " " + ${dropdown_item_styles(page)}} onClick={props.onClick} disabled={disabled}>{props.children}</button>
-}
-
-public #universal DropdownMenuSeparator(props) {
-    return <div role="separator" class={${dropdown_separator_styles(page)}}></div>
-}
-
-public #universal DropdownMenuLabel(props) {
-    return <div class={${dropdown_label_styles(page)}}>{props.children}</div>
-}
-
-public #universal DropdownMenuShortcut(props) {
-    return <span class={${dropdown_shortcut_styles(page)}}>{props.children}</span>
+    return <span class={dropdown_shortcut}>{props.children}</span>
 }
 
 public #universal DropdownMenuCheckboxItem(props) {
+    var dropdown_item = style {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        width: 100%;
+        padding: 0.375rem 0.5rem;
+        border-radius: calc(var(--radius) - 2px);
+        border: none;
+        background: transparent;
+        color: hsl(var(--popover-foreground));
+        font-size: 0.875rem;
+        text-align: left;
+        cursor: pointer;
+        user-select: none;
+        transition: background-color 0.1s ease;
+        outline: none;
+        &:hover, &[data-highlighted="true"] {
+            background: hsl(var(--accent));
+            color: hsl(var(--accent-foreground));
+        }
+        &[data-disabled="true"] {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        svg { flex-shrink: 0; opacity: 0.6; }
+    }
+    var dropdown_check = style {
+        width: 1rem;
+        height: 1rem;
+        flex-shrink: 0;
+    }
     var checked = props.checked || false
     var disabled = props.disabled || false
     var classes = (props.className || props.class) || ""
-    return <button type="button" role="menuitemcheckbox" aria-checked={checked ? "true" : "false"} data-disabled={disabled ? "true" : "false"} class={classes + " " + ${dropdown_item_styles(page)}} onClick={props.onClick} disabled={disabled}>
-        <span class={${dropdown_check_styles(page)}}>{checked ? "✓" : ""}</span>
+    return <button type="button" role="menuitemcheckbox" aria-checked={checked ? "true" : "false"} data-disabled={disabled ? "true" : "false"} class={classes + " " + dropdown_item} onClick={props.onClick} disabled={disabled}>
+        <span class={dropdown_check}>{checked ? "✓" : ""}</span>
         {props.children}
     </button>
 }
+

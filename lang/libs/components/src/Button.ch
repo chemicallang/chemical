@@ -5,8 +5,13 @@
 // attribute selectors. The component renders `data-variant={props.variant}` and
 // `data-size={props.size}`, so the same CSS class drives every combination and
 // both SSR HTML and the client bundle stay in sync.
-func button_styles(page : &mut HtmlPage) : *char {
-    return #css {
+// The flagship Button. Every prop is optional; unset variant/size resolve to
+// the shadcn "default" look. className merges with the generated style class.
+// Any other prop (style, data-*, aria-*, id, name, ...) passes through via the
+// spread. `loading` swaps children for a "Loading..." label, disables the
+// button and sets aria-busy.
+public #universal Button(props) {
+    var button = style {
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -130,48 +135,10 @@ func button_styles(page : &mut HtmlPage) : *char {
             padding: 0;
         }
     }
-}
-
-func fab_styles(page : &mut HtmlPage) : *char {
-    return #css {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        height: 3.5rem;
-        padding: 0 1.5rem;
-        border-radius: calc(var(--radius) + 4px);
-        border: none;
-        background-color: hsl(var(--primary));
-        color: hsl(var(--primary-foreground));
-        font-weight: 600;
-        box-shadow: var(--shadow-lg);
-        cursor: pointer;
-        transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
-        &:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 16px 30px rgb(0 0 0 / 0.18);
-        }
-        &:active {
-            transform: translateY(0);
-        }
-        &:disabled {
-            opacity: 0.5;
-            pointer-events: none;
-        }
-    }
-}
-
-// The flagship Button. Every prop is optional; unset variant/size resolve to
-// the shadcn "default" look. className merges with the generated style class.
-// Any other prop (style, data-*, aria-*, id, name, ...) passes through via the
-// spread. `loading` swaps children for a "Loading..." label, disables the
-// button and sets aria-busy.
-public #universal Button(props) {
     var loading = props.loading || false
     return <button
         {...props}
-        class={${button_styles(page)}}
+        class={button}
         class={props.className || props.class}
         data-variant={props.variant || "default"}
         data-size={props.size}
@@ -225,8 +192,35 @@ public #universal IconButton(props) {
 }
 
 public #universal Fab(props) {
+    var fab = style {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        height: 3.5rem;
+        padding: 0 1.5rem;
+        border-radius: calc(var(--radius) + 4px);
+        border: none;
+        background-color: hsl(var(--primary));
+        color: hsl(var(--primary-foreground));
+        font-weight: 600;
+        box-shadow: var(--shadow-lg);
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+        &:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 16px 30px rgb(0 0 0 / 0.18);
+        }
+        &:active {
+            transform: translateY(0);
+        }
+        &:disabled {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+    }
     return <button
-        class={${fab_styles(page)}}
+        class={fab}
         class={props.className}
         onClick={props.onClick}
         disabled={props.disabled}

@@ -6,6 +6,11 @@ public struct JsRoot {
     var parent : *mut ASTNode
     var support : SymResSupport
     var dyn_values : std::vector<*mut Value>
+
+    // True when the block's JS belongs in the shared bundle (preferring the
+    // shared assets sink, falling back to the page): `#globaljs`. Page-level
+    // `#js` leaves this false and is always emitted into the page's own JS.
+    var shared : bool = false
 }
 
 public struct JsRegexLiteral {

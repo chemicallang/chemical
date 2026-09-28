@@ -96,6 +96,12 @@ public func build(ctx : *mut BuildContext, user_job : *mut LabJob) : *mut Module
     ctx.index_def_cbi_fn(cbi, std::string_view("js_replacementNode"), CBIFunctionType.ReplacementNode);
     ctx.index_def_cbi_fn(cbi, std::string_view("js_replacementValue"), CBIFunctionType.ReplacementValue);
 
+    // #globaljs: app-wide JS, shared-assets-first with page fallback (and
+    // emitted once per source location). Reuses the js lexer and the `js`
+    // embedded node/replacement machinery.
+    ctx.index_cbi_fn(cbi, std::string_view("globaljs"), std::string_view("js_initializeLexer"), CBIFunctionType.InitializeLexer);
+    ctx.index_cbi_fn(cbi, std::string_view("globaljs"), std::string_view("globaljs_parseMacroNode"), CBIFunctionType.ParseMacroNode);
+
     comptime if(def.lsp) {
         // this will let the lsp know that methods are present
         ctx.index_def_cbi_fn(cbi, std::string_view("js_semanticTokensPut"), CBIFunctionType.SemanticTokensPut);

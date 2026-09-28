@@ -166,6 +166,9 @@ public struct HtmlPage {
 
     var doneComponents : std::unordered_map<ubigint, bool>
 
+    // Global JS blocks emitted via `#globaljs`, keyed by source location.
+    var doneJs : std::unordered_map<ubigint, bool>
+
     // ── Router parameter store (§3.2) ────────────────────────────────────────
     // Node-based map, so `get_ptr(key)` references stay valid across later
     // inserts for the lifetime of the render (D-5.1).
@@ -345,6 +348,19 @@ public struct HtmlPage {
     func set_component_hash(&mut self, hash : size_t) {
         if(shared != null) { shared.done_components.insert(hash, true); return }
         doneComponents.insert(hash, true)
+    }
+
+    // `#globaljs` de-duplication: keyed by the macro's source location. With a
+    // shared sink attached the map lives in the sink, so N pages emit the block
+    // once; otherwise it lives on the page.
+    func require_js_hash(&self, hash : size_t) : bool {
+        if(shared != null) { return !shared.done_js.contains(&hash) }
+        return !doneJs.contains(&hash)
+    }
+
+    func set_js_hash(&mut self, hash : size_t) {
+        if(shared != null) { shared.done_js.insert(hash, true); return }
+        doneJs.insert(hash, true)
     }
 
     // ── Router parameter store (§3.2) ────────────────────────────────────────

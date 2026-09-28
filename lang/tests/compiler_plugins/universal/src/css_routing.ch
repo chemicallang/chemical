@@ -12,6 +12,12 @@
     return <span class={box}>{props.children}</span>
 }
 
+func routing_emit_global_js(page : &mut HtmlPage) {
+    #globaljs {
+        window.$routing_global_js = 1;
+    }
+}
+
 @test
 public func css_macro_is_always_page_local(env : &mut TestEnv) {
     var shared = shared_assets("routing")
@@ -131,4 +137,71 @@ public func style_block_follows_component_into_shared_sink(env : &mut TestEnv) {
         return
     }
     env.success("component style { } follows the component into the shared sink")
+}
+
+@test
+public func globaljs_prefers_shared_assets(env : &mut TestEnv) {
+    var shared = shared_assets("routing")
+    var page = HtmlPage()
+    page.attach_shared(shared)
+    page.defaultUniversalSetup()
+
+    routing_emit_global_js(&mut page)
+
+    var sink_js = std::string()
+    sink_js.append_view(shared.js())
+    var page_js = std::string()
+    page_js.append_view(page.getJs())
+
+    if(!sink_js.contains("routing_global_js")) {
+        env.error("#globaljs must go into the shared bundle when a sink is attached")
+        return
+    }
+    if(page_js.contains("routing_global_js")) {
+        env.error("#globaljs must not also go into the page when a sink is attached")
+        return
+    }
+    env.success("#globaljs prefers the shared bundle")
+}
+
+@test
+public func globaljs_falls_back_to_page(env : &mut TestEnv) {
+    var page = HtmlPage()
+
+    routing_emit_global_js(&mut page)
+
+    var page_js = std::string()
+    page_js.append_view(page.getJs())
+    if(!page_js.contains("routing_global_js")) {
+        env.error("#globaljs must fall back to the page when no sink is attached")
+        return
+    }
+    env.success("#globaljs falls back to the page")
+}
+
+@test
+public func globaljs_is_emitted_once_across_pages(env : &mut TestEnv) {
+    var shared = shared_assets("routing")
+
+    var p1 = HtmlPage()
+    p1.attach_shared(shared)
+    p1.defaultUniversalSetup()
+    routing_emit_global_js(&mut p1)
+    routing_emit_global_js(&mut p1)
+
+    var p2 = HtmlPage()
+    p2.attach_shared(shared)
+    p2.defaultUniversalSetup()
+    routing_emit_global_js(&mut p2)
+
+    var sink_js = std::string()
+    sink_js.append_view(shared.js())
+    var sink_view = sink_js.to_view()
+    const n = shared_count(&sink_view, &std::string_view("routing_global_js"))
+    if(n != 1) {
+        env.error("#globaljs must be emitted exactly once across pages sharing a sink")
+        env.info(sink_js.data())
+        return
+    }
+    env.success("#globaljs de-duplicated across pages")
 }

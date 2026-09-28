@@ -103,16 +103,18 @@ Its body (built in `react/ast_replace.ch` → `universal_replacementNode`) does,
 - Floats/doubles appended via the helpers use precision 3 (`append_double(value, 3)`).
 - Dedup maps: `doneClasses`, `doneRandomClasses`, `doneComponents` (`require_*`/`set_*_hash`).
 
-## Styling components (`style { }`, `#globalcss`, `#css`)
+## Styling and shared JS (`style { }`, `#globalcss`, `#globaljs`, `#css`, `#js`)
 
-CSS reaches a page through exactly three routes. Pick by **scope**; the compiler
-does not infer it for you:
+CSS and JS reach a page through a small set of routes. Pick by **scope**; the
+compiler does not infer it for you:
 
 | Syntax | Where it is written | Scope | Bundle |
 |---|---|---|---|
 | `style { … }` | inside a `#universal` body | component-scoped (generated class) | follows the component (shared sink when attached) |
 | `#globalcss { … }` | page helper (statement) | global selectors | shared sink first, page fallback |
 | `#css { … }` | page helper (value or statement) | scoped class (value) / global selectors (statement) | **always the page** |
+| `#globaljs { … }` | page helper (statement) | page-independent JS | shared sink first, page fallback (once) |
+| `#js { … }` | page helper (value or statement) | page-specific JS | **always the page** |
 
 ### `style { }` — component-scoped CSS
 
@@ -170,6 +172,40 @@ func GlobalStyles(page : &mut HtmlPage) {
 - Use it for themes, resets, and shared chrome. Use `style { }` for component CSS
   and `#css` for the page's own layout.
 
+### `#globaljs { }` — app-wide global JS
+
+`#globaljs { … }` is the JS analogue of `#globalcss`: a statement block whose JS
+prefers the **shared bundle** when a sink is attached, falling back to the page.
+It is emitted **once per source location** (de-duplicated across pages sharing a
+sink), so a helper called on every page writes its script once.
+
+```chemical
+func SetupThemeScript(page : &mut HtmlPage) {
+    #globaljs {
+        (function () {
+            var t = localStorage.getItem('theme') || 'dark';
+            document.documentElement.dataset.theme = t;
+        })();
+    }
+}
+```
+
+- Registered in `js_cbi/build.lab` as its own macro key (`globaljs`); it reuses the
+  `js` lexer and the `js` embedded node with `JsRoot.shared = true`
+  (`js_cbi/src/main.ch::globaljs_parseMacroNode`).
+- The replacement wraps the block in
+  `if(page.require_js_hash(loc)) { page.set_js_hash(loc); <emit> }`
+  (`js_cbi/src/main.ch::js_replacementNode`). `loc` is the macro's source location,
+  so the guard de-duplicates per call site. The `require_js_hash`/`set_js_hash`
+  maps live in the sink when attached, otherwise on the page
+  (`page/src/shared_assets.ch` `done_js`, `page/src/page.ch`).
+- Because JS emission is a sequence of `page.append_js*` calls, dedup keys on the
+  **source location**, not content — two identical blocks in different places both
+  emit. Keep `#globaljs` blocks **page-independent** (no per-page `${}` values):
+  only the first page's rendering of a given call site is kept.
+- Use it for theme bootstrapping, analytics init, and shared helpers. Use `#js`
+  for JS that belongs to the current page's markup.
+
 ### `#css` / `#js` — always page-local
 
 `#css { … }` and `#js { … }` are **always emitted into the page's own bundle**,
@@ -179,9 +215,9 @@ helper. The compiler wraps their emission in `page.begin_local_css()` /
 attached sink is never touched. `#css` in value position returns a scoped class
 name; in statement position it is a page-local global stylesheet.
 
-> **CSS missing from `shared.css()`?** It is page-local by design if it came from
-> `#css`. Switch it to `#globalcss { }` (app-wide) or move it into the component
-> as `style { }` to share it.
+> **CSS/JS missing from `shared.css()`/`shared.js()`?** It is page-local by design
+> if it came from `#css`/`#js`. Switch it to `#globalcss { }` / `#globaljs { }`
+> (app-wide) or move it into the component as `style { }` to share it.
 
 See the routing table under *Shared JS/CSS bundles across pages* for the exact
 attached-page behaviour.
@@ -239,6 +275,7 @@ serving, and cache headers are the caller's job — this only extracts the bundl
 | component `style { … }` CSS | sink CSS (deduped via sink maps) |
 | router runtime / registry / match table | sink JS |
 | `#globalcss { … }` | sink CSS, falling back to the page when no sink |
+| `#globaljs { … }` | sink JS (once per source location), falling back to the page |
 | dispatch statements `window.$__uni_dispatch('…')` | **page** JS (`begin_local_js`/`end_local_js`) |
 | `#css { … }` | **page** CSS always (`begin_local_css`/`end_local_css`) |
 | `#js { … }` | **page** JS always (`begin_local_js`/`end_local_js`) |
@@ -253,6 +290,8 @@ maps when attached, so a definition/class used by N pages is written once.
 - `style { }` (component) and `#globalcss { }` (app-wide global CSS) are the only
   ways to put CSS in the shared bundle; both fall back to the page when no sink
   is attached. `#globalcss` reuses the `css` embedded value with `CSSOM.shared = true`.
+- `#globaljs { }` puts page-independent JS in the shared bundle (page fallback),
+  emitted once per source location via `page.require_js_hash`/`set_js_hash`.
 - `#css { }` / `#js { }` are **always page-local** — they pair with the `#html`
   block the author wrote in that page's helper, so they belong to that page. They
   are compiled with `page.begin_local_css()`/`begin_local_js()` around the emission,
@@ -273,8 +312,9 @@ maps when attached, so a definition/class used by N pages is written once.
   …)` and legitimately live in the sink.
 - **`#css` / `#js` are always page-local.** Their emission is bracketed with
   `page.begin_local_css()` / `page.begin_local_js()`, so an attached sink is
-  never touched. Use `#globalcss { }` (global, app-wide) or a component
-  `style { }` block (component-scoped) when CSS should go to the shared sink.
+  never touched. Use `#globalcss { }` (global CSS, app-wide), `#globaljs { }`
+  (app-wide JS) or a component `style { }` block (component-scoped) when the
+  bytes should go to the shared sink.
 - **`move_js_range` hoisting is unaffected** — when definitions go to the sink the
   moved range on `pageJs` is empty, so the move is a no-op. The hoisting
   bookkeeping itself now lives **inside** the `if(page.require_component(hash))`
@@ -288,9 +328,9 @@ maps when attached, so a definition/class used by N pages is written once.
 - **No enforced `freeze()` yet.** Two things can still grow the sink after the
   warm pass: (a) an **incomplete warm set** — a page dispatches a component the
   warm render never emitted (the probe's "incomplete warm" negative check), and
-  (b) **page-level `#js`**, which has no dedup latch and re-appends on every
-  attached render (the probe's "page-level #js" caveat) — keep `#js` page-local
-  with `begin_local_js()` if you rely on the frozen invariant.
+  (b) a `style { }` / `#globalcss` / `#globaljs` block first emitted at request
+  time. `#css`/`#js` cannot grow the sink (always page-local) and `#globaljs`
+  de-duplicates per source location (`require_js_hash`/`set_js_hash`).
 - `defaultUniversalSetup` uses an early return for "runtime already in the sink";
   do not wrap the ~32 KB runtime block in an `if` (it trips a symres crash).
 

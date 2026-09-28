@@ -66,6 +66,10 @@ func sym_res_root(
     support.beginLocalJsFn = page.child("begin_local_js")
     support.endLocalJsFn = page.child("end_local_js")
 
+    // Used only by `#globaljs` (emit a block once, keyed by source location).
+    support.requireJsHashFn = page.child("require_js_hash")
+    support.setJsHashFn = page.child("set_js_hash")
+
     return true;
 
 }

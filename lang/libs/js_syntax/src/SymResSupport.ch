@@ -94,4 +94,9 @@ public struct SymResSupport {
     // `#js` (always the page's own JS, never the shared bundle).
     var beginLocalJsFn : *mut ASTNode = null
     var endLocalJsFn : *mut ASTNode = null
+    // `page.require_js_hash` / `page.set_js_hash`: used to emit a `#globaljs`
+    // block exactly once (keyed by its source location), across pages sharing
+    // a shared-assets sink.
+    var requireJsHashFn : *mut ASTNode = null
+    var setJsHashFn : *mut ASTNode = null
 }

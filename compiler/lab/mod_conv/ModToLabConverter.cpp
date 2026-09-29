@@ -131,15 +131,10 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
     output << "\tconst __chx_already_exists = ctx.get_cached(__chx_job, &__curr_lab_path);\n";
     output << "\tif(__chx_already_exists != null) { return __chx_already_exists; }\n";
 
-    output << "\tconst deps : []ModuleDependency = [ ";
-
-    i = 0;
-    unsigned deps_size = 0;
-    // calling get functions on dependencies
-    // identifiers for remote imports: import a from "..." -> a
-    // we need to know which ones are remote. 
-    // We iterate again.
-    
+    // lets allocate the array for total local dependencies
+    // first we figure out how many total local dependencies are there
+    unsigned total_local_imports = 0;
+    bool local_import_has_condition = false;
     for(const auto node : data.scope.body.nodes) {
         switch(node->kind()) {
             case ASTNodeKind::ImportStmt: {
@@ -148,24 +143,111 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
                     // remote import, skip adding to deps list for now
                     continue;
                 }
-                // local import
-                output << "ModuleDependency { module: ";
-                writeAsIdentifier(stmt, i, output);
-                output << ".build(ctx, __chx_job), ";
-                writeSymbolInfo(output, stmt, "\t\t");
-                output << " }, ";
-                deps_size++;
+                // generate an if
+                const auto has_if = stmt->if_condition != nullptr;
+                if(has_if) {
+                    local_import_has_condition = true;
+                }
+                total_local_imports++;
                 break;
             }
             default:
                 break;
         }
-        i++;
     }
 
-    output << " ];\n";
+    if (local_import_has_condition) {
+
+        // now we allocate
+        output << "\tvar deps : [" << total_local_imports << "]ModuleDependency;\n";
+
+        // now we set each item in the array
+        // some items may not make it, because their if condition resolved false
+        // in that case, we won't put them in the array
+        // we need a runtime integer variable to count
+        output << "\tvar __dep_arr_i : uint = 0;\n";
+
+        i = 0;
+        // calling get functions on dependencies
+        // identifiers for remote imports: import a from "..." -> a
+        // we need to know which ones are remote.
+        // We iterate again.
+        for(const auto node : data.scope.body.nodes) {
+            switch(node->kind()) {
+                case ASTNodeKind::ImportStmt: {
+                    const auto stmt = node->as_import_stmt_unsafe();
+                    if(stmt->isRemoteImport()) {
+                        // remote import, skip adding to deps list for now
+                        continue;
+                    }
+                    // generate an if
+                    const auto has_if = stmt->if_condition != nullptr;
+                    if(has_if) {
+                        output << "\tif(";
+                        writeIfConditional(stmt->if_condition, output);
+                        output << ") {\n\t";
+                    }
+                    // local import
+                    output << "\tdeps[__dep_arr_i++] = " << "ModuleDependency { module: ";
+                    writeAsIdentifier(stmt, i, output);
+                    output << ".build(ctx, __chx_job), ";
+                    writeSymbolInfo(output, stmt, "\t\t");
+                    output << " };\n";
+                    if (has_if) {
+                        output << "\t}\n";
+                    }
+                    break;
+                }
+                default:
+                    break;
+            }
+            i++;
+        }
+
+        output << "\tconst deps_view = std::span<ModuleDependency>(deps, __dep_arr_i);\n";
+
+    } else {
+
+        output << "\tconst deps : []ModuleDependency = [ ";
+
+        i = 0;
+        unsigned deps_size = 0;
+        // calling get functions on dependencies
+        // identifiers for remote imports: import a from "..." -> a
+        // we need to know which ones are remote.
+        // We iterate again.
+
+        for(const auto node : data.scope.body.nodes) {
+            switch(node->kind()) {
+                case ASTNodeKind::ImportStmt: {
+                    const auto stmt = node->as_import_stmt_unsafe();
+                    if(stmt->isRemoteImport()) {
+                        // remote import, skip adding to deps list for now
+                        continue;
+                    }
+                    // local import
+                    output << "ModuleDependency { module: ";
+                    writeAsIdentifier(stmt, i, output);
+                    output << ".build(ctx, __chx_job), ";
+                    writeSymbolInfo(output, stmt, "\t\t");
+                    output << " }, ";
+                    deps_size++;
+                    break;
+                }
+                default:
+                    break;
+            }
+            i++;
+        }
+
+        output << " ];\n";
+
+        output << "\tconst deps_view = std::span<ModuleDependency>(deps);\n";
+
+    }
+
     const auto pkg_kind_str = (data.package_kind == PackageKind::Application) ? "PackageKind.Application" : "PackageKind.Library";
-    output << "\tconst mod = ctx.new_package(ModuleType.Directory, " << pkg_kind_str << ", \"" << data.scope_name << "\", \"" << data.module_name << "\", std::span<ModuleDependency>(deps, " << deps_size << "));\n";
+    output << "\tconst mod = ctx.new_package(ModuleType.Directory, " << pkg_kind_str << ", \"" << data.scope_name << "\", \"" << data.module_name << "\", deps_view);\n";
     output << "\tctx.set_cached(__chx_job, &__curr_lab_path, mod)\n";
     
     // Now handle remote imports
@@ -236,15 +318,13 @@ void convertToBuildLab(const ModuleFileData& data, std::ostream& output) {
             if(has_if) {
                 output << "\tif(";
                 writeIfConditional(src.if_cond, output);
-                output << ") {\n\t";
+                output << ") {\n";
+            } else {
+                output << "\t{\n";
             }
-            output << "\t{\n";
-            output << "var rel_path = lab::rel_path_to(\"" << src.path << "\");";
+            output << "\t\tvar rel_path = lab::rel_path_to(\"" << src.path << "\");\n";
             output << "\t\tctx.add_path(mod, rel_path.to_view());\n";
             output << "\t}\n";
-            if(has_if) {
-                output << "\t}\n";
-            }
         }
     }
 

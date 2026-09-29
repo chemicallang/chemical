@@ -7,8 +7,15 @@
 // Usage:
 //   page.injectDefaultComponentsTheme()   // :root + .dark tokens
 //   <html class="dark">                   // opt into dark mode
+//
+// Emitted via `#globalcss`, so it is written once per page/shared bundle
+// regardless of how many times a product calls it (a Wiqis app calls
+// `WiqisTheme` for the shell *and* for every auth page). The old
+// `append_css_view` form appended a fresh copy each time; those later copies
+// landed *after* the product's brand override and silently won, so the brand
+// `--primary` disappeared.
 public func (page : &mut HtmlPage) injectDefaultComponentsTheme() {
-    page.append_css_view("""
+    #globalcss {
         /* ============ Shadcn zinc theme ============ */
         :root {
             /* Native form controls (number spin buttons, select popups,
@@ -172,7 +179,7 @@ public func (page : &mut HtmlPage) injectDefaultComponentsTheme() {
                 scroll-behavior: auto !important;
             }
         }
-    """)
+    }
 }
 
 public func (page : &mut HtmlPage) injectComponentsThemeScope(selector : &std::string_view, vars : &std::string_view) {

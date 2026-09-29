@@ -1535,3 +1535,36 @@ public func components_event_attr_with_non_event_attr_mixed(env : &mut TestEnv) 
     // onclick with text value must NOT appear
     not_contains_string_assert(env, js.to_view(), std::string_view("onclick"))
 }
+
+// The default components theme must be emitted ONCE per page/bundle, however
+// many times a product calls it — a Wiqis app calls `WiqisTheme` for the shell
+// and again for every auth page. Emitting a fresh copy each call put the default
+// tokens *after* the product's brand override, so the brand `--primary` lost and
+// buttons rendered in the default colour.
+@test
+public func components_default_theme_is_emitted_once(env : &mut TestEnv) {
+    var page = HtmlPage()
+    page.injectDefaultComponentsTheme()
+    page.injectDefaultComponentsTheme()
+
+    var css = page.getCss()
+    const needle = std::string_view("--primary:240 5.9% 10%")
+    var count = 0
+    var pos : size_t = 0u
+    while(pos + needle.size() <= css.size()) {
+        var rest = css.subview(pos, css.size())
+        var found = rest.find(&needle)
+        if(found == std::NPOS) { break }
+        count = count + 1
+        pos = pos + found + needle.size()
+    }
+    if(count != 1) {
+        var m = std::string("default --primary emitted ")
+        m.append_integer(count as bigint)
+        m.append_view(std::string_view(" times"))
+        env.error("injectDefaultComponentsTheme must be idempotent (default --primary emitted once)")
+        env.info(m.data())
+        return
+    }
+    env.success("default components theme emitted once across repeated calls")
+}

@@ -80,17 +80,38 @@ void Parser::parseTopLevelMultipleStatements(ASTAllocator& allocator, std::vecto
         } else if(!parseAnnotation(allocator)) {
             if (break_at_no_stmt || token->type == TokenType::EndOfFile) {
                 break;
-            } else if (token->type == TokenType::RBrace) {
-                // a closing brace that does not close a declaration used to be skipped silently,
-                // which let a file with unbalanced braces compile as if it were well formed
-                error("unexpected closing brace '}' at the top level of a module");
-                token++;
-                continue;
             } else {
-                // skip the current token
-                // error("skipped due to invalid syntax before it", token->position);
-                token++;
-                continue;
+                switch (token->type) {
+                    case TokenType::RBrace:
+                        // a closing brace that does not close a declaration used to be skipped silently,
+                        // which let a file with unbalanced braces compile as if it were well formed
+                        error("unexpected closing brace '}' at the top level");
+                        token++;
+                        continue;
+                    case TokenType::SemiColonSym:
+                        // user must have written multiple semicolons for no reason
+                        // we probably should error out here
+                        token++;
+                        continue;
+                    case TokenType::ReturnKw:
+                        error("a return statement is only allowed inside a function body");
+                        token++;
+                        return;
+                    case TokenType::AliasKw:
+                        error("alias statement not supported as a top level declaration");
+                        token++;
+                        return;
+                    default: {
+                        // check if this is a parsable nested statement
+                        const auto nestedStmt = parseNestedLevelStatementTokens(allocator, false, false);
+                        if (nestedStmt) {
+                            error("local statement at top level is not supported");
+                        } else {
+                            error("unexpected token at top level");
+                        }
+                        return;
+                    }
+                }
             }
         }
         consumeToken(TokenType::SemiColonSym);

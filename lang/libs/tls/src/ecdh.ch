@@ -518,6 +518,79 @@ public namespace tls {
         return 0
     }
 
+    // ─── Public Key Validation ───────────────────────────────────────────
+
+    // Check that the affine point (x, y) really lies on the active curve.
+    //
+    // The short Weierstrass equation for both curves this port supports
+    // (P-256 and P-384) is y^2 = x^3 - 3x + b, i.e. a = -3 for both, so one
+    // formula covers them.
+    //
+    // Two separate checks, both of which matter:
+    //   1. range: 0 <= x, y < p. A coordinate >= p is not a field element of
+    //      this curve at all, so the curve equation would be meaningless.
+    //   2. curve: y^2 == x^3 - 3x + b (mod p).
+    //
+    // This is the counterpart of mbedTLS's mbedtls_ecp_check_pubkey, which is
+    // what its mbedtls_ecp_point_read_binary relies on. Skipping it means a
+    // peer-supplied point (e.g. a COSE key arriving from a client) is accepted
+    // as a public key even when it is not a curve point at all.
+    //
+    // Returns 0 when the point is valid, ERR_ECP_INVALID_KEY when it is not.
+    public func ecp_check_affine(x : *mut Mpi, y : *mut Mpi) : int {
+        var ret : int = 0
+        var p : Mpi; ecp_curve_p(unsafe(&raw mut p))
+        var b : Mpi; ecp_curve_b(unsafe(&raw mut b))
+
+        // 1. Range check. mpi_read_binary yields a non-negative value, so only
+        //    the upper bound needs testing here.
+        if(mpi_cmp(x, unsafe(&raw mut p)) >= 0) { return ERR_ECP_INVALID_KEY }
+        if(mpi_cmp(y, unsafe(&raw mut p)) >= 0) { return ERR_ECP_INVALID_KEY }
+
+        // 2. lhs = y^2 mod p
+        var lhs : Mpi; mpi_init(unsafe(&raw mut lhs))
+        ret = mpi_mul(unsafe(&raw mut lhs), y, y)
+        if(ret < 0) { return ret }
+        ret = mpi_mod(unsafe(&raw mut lhs), unsafe(&raw mut lhs), unsafe(&raw mut p))
+        if(ret < 0) { return ret }
+
+        // 3. rhs = (x^3 - 3x + b) mod p
+        var x2 : Mpi; mpi_init(unsafe(&raw mut x2))
+        ret = mpi_mul(unsafe(&raw mut x2), x, x)
+        if(ret < 0) { return ret }
+        ret = mpi_mod(unsafe(&raw mut x2), unsafe(&raw mut x2), unsafe(&raw mut p))
+        if(ret < 0) { return ret }
+
+        var rhs : Mpi; mpi_init(unsafe(&raw mut rhs))
+        ret = mpi_mul(unsafe(&raw mut rhs), unsafe(&raw mut x2), x)
+        if(ret < 0) { return ret }
+        ret = mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
+        if(ret < 0) { return ret }
+
+        // -3x: subtract a multiple of p first so the value stays small and
+        // non-negative, then reduce.
+        var three_x : Mpi; mpi_init(unsafe(&raw mut three_x))
+        ret = mpi_mul_int(unsafe(&raw mut three_x), x, 3)
+        if(ret < 0) { return ret }
+        ret = mpi_mod(unsafe(&raw mut three_x), unsafe(&raw mut three_x), unsafe(&raw mut p))
+        if(ret < 0) { return ret }
+
+        ret = mpi_sub(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut three_x))
+        if(ret < 0) { return ret }
+        ret = mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
+        if(ret < 0) { return ret }
+
+        ret = mpi_add(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut b))
+        if(ret < 0) { return ret }
+        ret = mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
+        if(ret < 0) { return ret }
+
+        if(mpi_cmp(unsafe(&raw mut lhs), unsafe(&raw mut rhs)) != 0) {
+            return ERR_ECP_INVALID_KEY
+        }
+        return 0
+    }
+
     // ─── Point Normalization (Jacobian to Affine) ────────────────────────
 
     // Convert Jacobian coordinates to affine: (X/Z^2, Y/Z^3, 1)
@@ -644,47 +717,16 @@ public namespace tls {
         if(ret < 0) { return ret }
         mpi_lset(unsafe(&raw mut peer_point.Z), 1)
 
-        // Basic sanity checks: reject point-at-infinity and coordinates >= p
+        // Reject the point-at-infinity encoding, then check the point is on the
+        // curve. The check reads the curve constants from the thread-local
+        // selection, so pin P-256 (this function only handles P-256 peers) for
+        // the duration and restore what the caller had active.
         if(peer_point.X.n == 0 && peer_point.Y.n == 0) { return ERR_ECP_INVALID_KEY }
-        var p : Mpi; ecp_curve_p(unsafe(&raw mut p))
-        if(mpi_cmp(unsafe(&raw mut peer_point.X), unsafe(&raw mut p)) >= 0) { return ERR_ECP_INVALID_KEY }
-        if(mpi_cmp(unsafe(&raw mut peer_point.Y), unsafe(&raw mut p)) >= 0) { return ERR_ECP_INVALID_KEY }
-
-        // Point-on-curve validation: y^2 ≡ x^3 - 3x + b (mod p) for P-256
-        var lhs : Mpi; mpi_init(unsafe(&raw mut lhs))
-        var rhs : Mpi; mpi_init(unsafe(&raw mut rhs))
-        var tmp : Mpi; mpi_init(unsafe(&raw mut tmp))
-        var b_m : Mpi; mpi_init(unsafe(&raw mut b_m))
-        // b = P256_B
-        mpi_grow(unsafe(&raw mut b_m), 8); b_m.n = 8
-        var bj : size_t = 0
-        while(bj < 8) { b_m.p[bj] = P256_B[bj]; bj += 1 }
-        // lhs = y^2 mod p
-        ret = mpi_mul(unsafe(&raw mut lhs), unsafe(&raw mut peer_point.Y), unsafe(&raw mut peer_point.Y))
+        var prev_curve = ecp_curve_id()
+        ecp_select_curve(0)
+        ret = ecp_check_affine(unsafe(&raw mut peer_point.X), unsafe(&raw mut peer_point.Y))
+        ecp_select_curve(prev_curve)
         if(ret < 0) { return ret }
-        ret = mpi_mod(unsafe(&raw mut lhs), unsafe(&raw mut lhs), unsafe(&raw mut p))
-        if(ret < 0) { return ret }
-        // rhs = x^3 mod p
-        ret = mpi_mul(unsafe(&raw mut rhs), unsafe(&raw mut peer_point.X), unsafe(&raw mut peer_point.X))
-        if(ret < 0) { return ret }
-        ret = mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
-        ret = mpi_mul(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut peer_point.X))
-        if(ret < 0) { return ret }
-        ret = mpi_mod(unsafe(&raw mut rhs), unsafe(&raw mut rhs), unsafe(&raw mut p))
-        // rhs = x^3 - 3x + b mod p (a = -3 for P-256)
-        ret = mpi_mul_int(unsafe(&raw mut tmp), unsafe(&raw mut peer_point.X), 3)
-        if(ret < 0) { return ret }
-        ret = mpi_mod(unsafe(&raw mut tmp), unsafe(&raw mut tmp), unsafe(&raw mut p))
-        // Use separate temporary to avoid aliasing issues
-        var rhs2 : Mpi; mpi_init(unsafe(&raw mut rhs2))
-        ret = mpi_sub(unsafe(&raw mut rhs2), unsafe(&raw mut rhs), unsafe(&raw mut tmp))
-        if(ret < 0) { return ret }
-        ret = mpi_mod(unsafe(&raw mut rhs2), unsafe(&raw mut rhs2), unsafe(&raw mut p))
-        if(ret < 0) { return ret }
-        ret = mpi_add(unsafe(&raw mut rhs2), unsafe(&raw mut rhs2), unsafe(&raw mut b_m))
-        if(ret < 0) { return ret }
-        ret = mpi_mod(unsafe(&raw mut rhs2), unsafe(&raw mut rhs2), unsafe(&raw mut p))
-        if(mpi_cmp(unsafe(&raw mut lhs), unsafe(&raw mut rhs2)) != 0) { return ERR_ECP_INVALID_KEY }
 
         // Compute shared = private * peer_point
         var shared_point : ECPPoint; ecp_point_init(unsafe(&raw mut shared_point))

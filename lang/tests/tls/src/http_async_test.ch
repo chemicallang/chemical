@@ -1,24 +1,28 @@
 // Tier 3: async HTTP over a coroutine server. Starts the coroutine accept loop
 // (`server::serve_coro`), issues a request with the async client
 // (`http::get_async`) and checks the response, then shuts the server down.
+//
+// Port 19891 is this test's own; it used to share 19878 with INT_x25519_handshake
+// in e2e.ch. Tests here run in parallel, so a shared port meant one test's
+// `fuser -k` tore down the other's server.
 using namespace std;
 
 @test
 @test.timeout(60000)
 public func INT_http_async_loopback(env : &mut TestEnv) {
     var cfg = server::ServerConfig();
-    cfg.addr = std::string::make_no_len("127.0.0.1:19878");
+    cfg.addr = std::string::make_no_len("127.0.0.1:19891");
     var srv = server::Server(cfg);
     srv.router.add("GET", "/hello", ||(req, res) => {
         res.write_string(std::string::make_no_len("world"));
     });
 
-    var server_f = async::spawn<int>(server::serve_coro(&raw mut srv, 19878u));
+    var server_f = async::spawn<int>(server::serve_coro(&raw mut srv, 19891u));
     // Let the server bind + start accepting before the client dials.
     var unit = async::block_on<core::async::Unit>(async::yield_now());
 
     var client = http::Client();
-    var url = std::string_view("http://127.0.0.1:19878/hello");
+    var url = std::string_view("http://127.0.0.1:19891/hello");
     var box = async::block_on<*mut http::HttpResult>(http::get_async(&raw mut client, &raw mut url));
     if(box == null || !box.is_ok()) {
         env.error("async http request failed")

@@ -35,6 +35,12 @@ public namespace tls {
     // ─── Import ECDSA Public Key ──────────────────────────────────────────
 
     // Import an uncompressed ECDSA public key (65 bytes: 04 || X || Y)
+    //
+    // A coordinate pair that is not a point on the curve is rejected with
+    // ERR_ECP_INVALID_KEY. This mirrors mbedTLS, whose
+    // mbedtls_ecp_point_read_binary calls mbedtls_ecp_check_pubkey before
+    // handing the point back: "imported without error" has to mean "this is a
+    // public key", not merely "these are 65 bytes I could parse".
     public func ecdsa_import_pubkey(ctx : *mut ECDSAContext,
                                      pub_key : *u8, pub_key_len : size_t,
                                      curve : u16) : int {
@@ -44,10 +50,45 @@ public namespace tls {
             return ERR_ECP_BAD_INPUT_DATA
         }
 
+        // ecp_check_affine reads the curve constants from the thread-local
+        // selection, so select from the argument and restore what the caller
+        // had active — importing a key must not disturb an in-flight
+        // verification on the same thread.
+        var curve_select : int = -1
+        if(curve == TLS_GROUP_SECP384R1 as u16) {
+            curve_select = 1
+        } else if(curve == TLS_GROUP_SECP256R1 as u16) {
+            curve_select = 0
+        }
+        if(curve_select < 0) {
+            // Not a curve this port can check. Refuse rather than import a key
+            // whose validity we cannot establish; verification already reports
+            // ERR_ECP_FEATURE_UNAVAILABLE for such a curve.
+            return ERR_ECP_FEATURE_UNAVAILABLE
+        }
+
+        var prev_curve = ecp_curve_id()
+        ecp_select_curve(curve_select)
+
         var ret = mpi_read_binary(&raw mut ctx.pub_x, &raw pub_key[1], coord)
-        if(ret < 0) { return ret }
-        ret = mpi_read_binary(&raw mut ctx.pub_y, &raw pub_key[1 + coord], coord)
-        if(ret < 0) { return ret }
+        if(ret >= 0) {
+            ret = mpi_read_binary(&raw mut ctx.pub_y, &raw pub_key[1 + coord], coord)
+        }
+        if(ret == 0) {
+            ret = ecp_check_affine(&raw mut ctx.pub_x, &raw mut ctx.pub_y)
+        }
+
+        ecp_select_curve(prev_curve)
+
+        if(ret < 0) {
+            // Do not leave a rejected point behind in the context. `is_init`
+            // gates verification, but a caller that imported a private key
+            // first would otherwise still have these coordinates sitting in a
+            // context that reports itself as initialized.
+            mpi_lset(&raw mut ctx.pub_x, 0)
+            mpi_lset(&raw mut ctx.pub_y, 0)
+            return ret
+        }
 
         ctx.curve_id = curve
         ctx.is_init = true

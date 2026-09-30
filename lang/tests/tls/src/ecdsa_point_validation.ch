@@ -3,27 +3,27 @@
 //
 // THE GAP THIS PINS
 //
-// `ecdsa_import_pubkey` parses the uncompressed point form (0x04 || X || Y) but
-// does NOT check that the result is a point on the curve. Upstream mbedTLS's
-// `mbedtls_ecp_point_read_binary` does, and answers
-// `MBEDTLS_ERR_ECP_INVALID_KEY` for an off-curve point, so this is a gap in the
-// port rather than a deliberate relaxation.
+// `ecdsa_import_pubkey` used to parse the uncompressed point form (0x04 || X ||
+// Y) without checking that the result is a point on the curve. Upstream
+// mbedTLS's `mbedtls_ecp_point_read_binary` does, and answers
+// `MBEDTLS_ERR_ECP_INVALID_KEY` for an off-curve point, so this was a gap in
+// the port rather than a deliberate relaxation.
 //
 // It was found while building WebAuthn support in Wiqis' account service, where
 // it matters more than it usually would: a COSE key arrives FROM THE CLIENT at
 // registration time, so "imported without error" must never be read as "this is
 // a valid public key".
 //
+// FIXED: `ecp_check_affine` in `lang/libs/tls/src/ecdh.ch` now does the range
+// and curve-equation checks, and `ecdsa_import_pubkey` calls it (pinning the
+// curve from its `curve` argument for the duration). These tests were written
+// to fail before that landed and are now the regression guard for it.
+//
 // Python's `cryptography` is the oracle, in both directions — the same library
 // the rest of this suite already cross-checks ECDSA against. It generates a real
 // key (so we are not asserting a rejection for a point that might legitimately
 // be valid), and it is asked to confirm that the tampered point really is
 // off-curve before the port is asked about it.
-//
-// EXPECTED TO FAIL until the port validates the point. That is the point of it:
-// `ecdsa_import_pubkey` returning 0 for an off-curve point IS the bug, and a
-// green run here means the fix landed. The second test — that such a key
-// verifies nothing — passes today, and is what protects a caller meanwhile.
 //
 // Style note: everything is inlined rather than factored into helpers, because
 // Chemical will not pass a fixed-size array to a `&mut [N]u8` parameter. That is

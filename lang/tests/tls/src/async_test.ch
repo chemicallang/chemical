@@ -1,6 +1,11 @@
 // Tier 2: async TLS wrappers. Drives a real TLS 1.3 handshake + request over
 // the async API (`tls_connect_async`, `ssl_write_async`, `ssl_read_async`) and
 // checks it produces the same result as the synchronous e2e tests.
+//
+// Port 19890 is this test's own; it used to share 19877 with INT_tls12_client
+// in e2e.ch. Tests here run in parallel, so a shared port meant one test's
+// `fuser -k` tore down the other's server and the loser reported a handshake
+// failure that had nothing to do with TLS.
 using namespace tls
 using std::string_view
 
@@ -8,10 +13,10 @@ using std::string_view
 @test.timeout(60000)
 public func INT_tls13_client_async(env : &mut TestEnv) {
     write_tls_python_utils()
-    test_kill_port(19877)
+    test_kill_port(19890)
     test_server_wait()
-    test_py_run_foreground(string_view("cert /tmp/tls_19877_cert.pem /tmp/tls_19877_key.pem test.example.com ec"))
-    test_py_run_background(string_view("srv /tmp/tls_19877_cert.pem /tmp/tls_19877_key.pem 19877 1.3"))
+    test_py_run_foreground(string_view("cert /tmp/tls_19890_cert.pem /tmp/tls_19890_key.pem test.example.com ec"))
+    test_py_run_background(string_view("srv /tmp/tls_19890_cert.pem /tmp/tls_19890_key.pem 19890 1.3"))
     test_server_wait()
 
     var ctx : SSLContext
@@ -21,11 +26,11 @@ public func INT_tls13_client_async(env : &mut TestEnv) {
     config.max_tls_version = SSL_VERSION_TLS1_3
     ssl_set_config(unsafe(&raw mut ctx), &raw mut config)
 
-    var ret = async::block_on<int>(tls_connect_async(unsafe(&raw mut ctx), "127.0.0.1", 19877u))
+    var ret = async::block_on<int>(tls_connect_async(unsafe(&raw mut ctx), "127.0.0.1", 19890u))
     if(ret < 0) {
         env.error("TLS13 async: handshake failed")
         ssl_free(unsafe(&raw mut ctx))
-        test_kill_port(19877)
+        test_kill_port(19890)
         return
     }
 
@@ -43,5 +48,5 @@ public func INT_tls13_client_async(env : &mut TestEnv) {
 
     ssl_close_notify(unsafe(&raw mut ctx))
     ssl_free(unsafe(&raw mut ctx))
-    test_kill_port(19877)
+    test_kill_port(19890)
 }

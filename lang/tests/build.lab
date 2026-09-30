@@ -35,6 +35,7 @@ import "./compiler_plugins/universal_runtime/build.lab" as universalRuntimeTestM
 import "./compiler_plugins/components/build.lab" as componentsTestMod
 import "./compiler_plugins/runner/build.lab" as testPluginsRunner
 import "./tls/chemical.mod" as tlsIntegrationMod
+import "./cbor/chemical.mod" as cborTestMod
 import "./process/chemical.mod" as processTestMod
 import "./webview/chemical.mod" as webviewTestMod
 import "./universal_webview/chemical.mod" as universalWebviewTestMod
@@ -288,6 +289,14 @@ func test_tls_exe(ctx : *mut AppBuildContext) : *mut LabJob {
     return exe_job
 }
 
+func test_cbor_exe(ctx : *mut AppBuildContext) : *mut LabJob {
+    const exe_name = std::string_view("chemical-cbor-tests")
+    const exe_job = ctx.build_exe(&exe_name)
+    ctx.set_environment_testing(exe_job, true)
+    ctx.add_module(exe_job, cborTestMod.build(ctx, exe_job))
+    return exe_job
+}
+
 func test_process_exe(ctx : *mut AppBuildContext) : *mut LabJob {
     const exe_name = std::string_view("chemical-process-tests")
     const exe_job = ctx.build_exe(&exe_name)
@@ -342,6 +351,8 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
         return test_async_exe(ctx)
     } else if(ctx.has_arg(std::string_view("test-tls"))) {
         return test_tls_exe(ctx)
+    } else if(ctx.has_arg(std::string_view("test-cbor"))) {
+        return test_cbor_exe(ctx)
     } else if(ctx.has_arg(std::string_view("test-process"))) {
         return test_process_exe(ctx)
     } else if(ctx.has_arg(std::string_view("test-webview"))) {

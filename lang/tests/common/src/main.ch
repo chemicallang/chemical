@@ -42,6 +42,7 @@ public func run_common_tests() {
     test_in_value();
     test_for_loop();
     test_inc_dec();
+    test_cursor_stride();
     test_int_edge_cases();
     test_unsigned_modulus();
     test_c_codegen_truncation();
@@ -231,3 +232,4 @@ public func run_common_tests() {
     test_interp_int_width();
 
 }
+

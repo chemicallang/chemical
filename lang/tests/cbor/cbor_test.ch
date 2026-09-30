@@ -210,6 +210,85 @@ func test_a_cose_shaped_map_with_negative_integer_keys(env : &mut TestEnv) {
     if(cbor::map_has_int(&mut v, 99)) { env.error("label 99 should be absent") }
 }
 
+// A WebAuthn attestation object, byte for byte as a platform authenticator
+// produces it for `fmt: "none"`. This is the shape the account service decodes
+// on every passkey registration, so it is pinned here rather than only in that
+// service's tests: a decoder that cannot read a real attestation object is a
+// decoder bug, and it belongs next to the vectors that prove it.
+//
+// {"fmt": "none", "attStmt": {}, "authData": h'000102...0f'}
+//
+// The byte string uses a TWO-byte length head (0x59) because a real authData is
+// routinely over 255 bytes once a COSE key is attached. 0x58 (one byte) is what
+// the COSE key's coordinates use, so both forms have to work.
+@test
+func test_a_webauthn_attestation_object_decodes(env : &mut TestEnv) {
+    var d = try_decode("a363666d74646e6f6e656761747453746d74a0686175746844617461590010000102030405060708090a0b0c0d0e0f")
+    if(d is Result.Err) {
+        fail(env, "a363666d74646e6f6e656761747453746d74a0686175746844617461590010000102030405060708090a0b0c0d0e0f", "a WebAuthn attestation object was rejected")
+        return
+    }
+    var Ok(v) = d else unreachable
+    if(!cbor::is_map(&mut v)) {
+        env.error("the attestation object is not a map")
+        return
+    }
+    if(cbor::map_len(&mut v) as u64 != 3u64) {
+        env.error("the attestation object does not have three pairs")
+        return
+    }
+    if(!cbor::map_has_text(&mut v, string_view("fmt"))) { env.error("no fmt key") }
+    if(!cbor::map_has_text(&mut v, string_view("attStmt"))) { env.error("no attStmt key") }
+    if(!cbor::map_has_text(&mut v, string_view("authData"))) { env.error("no authData key") }
+    var fmt = cbor::map_text_by_text(&mut v, string_view("fmt"))
+    if(fmt.to_view().find(&string_view("none")) != 0u) { env.error("fmt is not \"none\"") }
+    // attStmt for fmt:none is an empty MAP, not a null. Getting this wrong is
+    // easy and would reject every platform authenticator.
+    var stmt = cbor::map_value_by_text(&mut v, string_view("attStmt"))
+    if(stmt == null) { env.error("attStmt is not reachable") }
+    else if(!cbor::is_map(&mut *stmt)) { env.error("attStmt is not a map") }
+    else if(cbor::map_len(&mut *stmt) as u64 != 0u64) { env.error("attStmt is not empty") }
+    // The 2-byte-length byte string: 16 bytes, and the right ones.
+    var ad = cbor::map_bytes_by_text(&mut v, string_view("authData"))
+    if(ad.size() != 16u) { env.error("authData is not 16 bytes") }
+    var i = 0u
+    while(i < ad.size() && i < 16u) {
+        if(ad.get(i) != (i as u8)) { env.error("authData has the wrong bytes"); return }
+        i += 1u
+    }
+    // And the one-byte-length form of the same thing, which is what a COSE key's
+    // 32-byte coordinates use inside authenticator data.
+    var narrow_hex = string_view("a263666d74646e6f6e656861757468446174615820000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f")
+    var narrow = try_decode(narrow_hex)
+    if(narrow is Result.Err) {
+        env.error("the 1-byte-length authData form was rejected")
+        return
+    }
+    var Ok(sv) = narrow else unreachable
+    var sad = cbor::map_bytes_by_text(&mut sv, string_view("authData"))
+    if(sad.size() != 32u) { env.error("the 1-byte-length authData is not 32 bytes") }
+}
+
+
+// The exact 176-byte document an account service receives for a passkey
+// registration: a real SHA-256 RP ID hash, a real COSE key with 32-byte
+// coordinates, and a credential id. Added after a 176-byte attestation object
+// was rejected while a hand-simplified 33-byte one was accepted, which points
+// the finger at something about this size rather than this shape.
+@test
+func test_a_full_size_attestation_object_decodes(env : &mut TestEnv) {
+    var d = try_decode("a363666d74646e6f6e656761747453746d74a068617574684461746159009449960de5880e8c687434170f6476605b8fe4aeb9a28632c7995cf3ba831d97634100000000a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1001042434445464748494a4b4c4d4e4f5051a501020326200121582060fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb62258207903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299")
+    if(d is Result.Err) {
+        fail(env, "a363666d74646e6f6e656761747453746d74a068617574684461746159009449960de5880e8c687434170f6476605b8fe4aeb9a28632c7995cf3ba831d97634100000000a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1a1001042434445464748494a4b4c4d4e4f5051a501020326200121582060fed4ba255a9d31c961eb74c6356d68c049b8923b61fa6ce669622e60f29fb62258207903fe1008b8bc99a41ae9e95628bc64f2f1b20c2d7e9f5177a3c294d4462299", "a full-size attestation object was rejected")
+        return
+    }
+    var Ok(v) = d else unreachable
+    if(cbor::map_len(&mut v) as u64 != 3u64) { env.error("wrong pair count") }
+    var fmt = cbor::map_text_by_text(&mut v, string_view("fmt"))
+    if(fmt.to_view().find(&string_view("none")) != 0u) { env.error("fmt is not none") }
+    var ad = cbor::map_bytes_by_text(&mut v, string_view("authData"))
+    if(ad.size() != 148u) { env.error("authData is not 148 bytes") }
+}
 @test
 func test_malformed_input_is_rejected(env : &mut TestEnv) {
     // Truncated: a head promising 4 bytes with none present.
@@ -521,4 +600,9 @@ func expect_same_bytes(env : &mut TestEnv, label : string_view, got : vector<u8>
         }
     }
 }
+
+
+
+
+
 

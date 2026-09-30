@@ -281,11 +281,62 @@ public func map_has_int(v : &CborValue, key : i64) : bool {
     return map_find_int(v, key) >= 0
 }
 
+// Whether a text key is present, for the same reason.
+public func map_has_text(v : &CborValue, key : string_view) : bool {
+    return map_find_text(v, key) >= 0
+}
+
 // The text stored under a text key. Empty when absent.
 public func map_text_by_text(v : &CborValue, key : string_view) : string {
     var i = map_find_text(v, key)
     if(i < 0) { return string("") }
     return text_copy(&mut *map_value_at(v, i as size_t))
+}
+
+// The byte string stored under a text key. Empty when absent.
+//
+// Needed for the shapes WebAuthn hands over, where a text-keyed map holds byte
+// strings: a CBOR attestation object is {"fmt": "none", "attStmt": {},
+// "authData": h'...'}, and the credential public key inside its authData is
+// reached the same way.
+public func map_bytes_by_text(v : &CborValue, key : string_view) : vector<u8> {
+    var i = map_find_text(v, key)
+    if(i < 0) { return vector<u8>() }
+    return bytes_copy(&mut *map_value_at(v, i as size_t))
+}
+
+// A pointer to the value stored under a text key, or null when absent.
+//
+// A POINTER rather than a copy, because a nested value is often a whole
+// sub-document and copying one out is a deep copy the caller almost never
+// wants. The caller reads through it with the same accessors, one level down:
+//
+//   var stmt = cbor::map_value_by_text(&attestation, string_view("attStmt"))
+//   var sig  = cbor::map_bytes_by_text(stmt, string_view("sig"))
+//
+// That is the shape a WebAuthn attestation statement has: a map inside a map.
+// Without this, the accessors above can only ever see the top level, and a
+// caller would be pushed into re-decoding raw bytes it never had.
+public func map_value_by_text(v : &CborValue, key : string_view) : *mut CborValue {
+    var i = map_find_text(v, key)
+    if(i < 0) { return null }
+    return map_value_at(v, i as size_t)
+}
+
+// The same, for an integer key.
+public func map_value_by_int(v : &CborValue, key : i64) : *mut CborValue {
+    var i = map_find_int(v, key)
+    if(i < 0) { return null }
+    return map_value_at(v, i as size_t)
+}
+
+// The value at `index` of an array, as a pointer, so an array of sub-documents
+// can be walked. Null when out of range.
+public func array_value_at(v : &CborValue, index : size_t) : *mut CborValue {
+    if(!(v is CborValue.Array)) { return null }
+    var Array(a) = v else unreachable
+    if(index >= a.size()) { return null }
+    return a.get_ptr(index)
 }
 
 // The byte string at `index` of an array. An attestation certificate chain is
@@ -405,5 +456,7 @@ public func describe(v : &CborValue) : string {
     return string("?")
 }
 } // end namespace cbor
+
+
 
 

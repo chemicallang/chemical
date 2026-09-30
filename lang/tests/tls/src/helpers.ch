@@ -48,7 +48,7 @@ func test_tmp_file(name : string_view) : string {
     return out
 }
 
-// Append a string_view into a byte buffer — used to splice resolved temp paths
+// Append a string_view into a byte buffer â€” used to splice resolved temp paths
 // into the generated Python scripts.
 func test_script_append_view(buf : *mut u8, len : *mut size_t, v : string_view) {
     var i : size_t = 0
@@ -98,7 +98,7 @@ func test_redir() : string {
 // process's stdio, and once the test process exits those handles are dead.
 // A python server that then writes its request log to the inherited stderr
 // (e.g. `python -m http.server`) raises inside the handler and drops the
-// connection without answering — the client sees a truncated response even
+// connection without answering â€” the client sees a truncated response even
 // though the port is still "LISTENING". Redirecting at launch avoids that.
 func test_redir_all() : string {
     comptime if(def.windows) {
@@ -132,7 +132,7 @@ func test_py_run_background(args : string_view) {
     // Remember which port to poll in test_server_wait(): every backgrounded
     // command names the port under test (the listen port for `srv`/`httpsrv`/
     // `mround`/`echo`/`plaintcp`/`srv2`/`bigsrv`, the target port for `cli`/
-    // `rawcli`/`clifrag` — in all cases the server this test must wait for).
+    // `rawcli`/`clifrag` â€” in all cases the server this test must wait for).
     var port = test_server_port_of(args)
     if(port != 0u) { test_bg_server_port = port }
     var cmd = test_py_cmd(args)
@@ -172,7 +172,7 @@ func test_kill_port(port : int) {
 func test_cat_file(path : string_view) {
     comptime if(def.windows) {
         // cmd's `type` treats '/' in paths as command switches and fails with
-        // "The syntax of the command is incorrect." — use backslashes instead.
+        // "The syntax of the command is incorrect." â€” use backslashes instead.
         var win_path = string()
         var i : size_t = 0
         while(i < path.size()) {
@@ -243,7 +243,7 @@ func test_server_port_of(args : string_view) : u16 {
 }
 
 // Cached `fuser` availability: -1 = not probed yet, 0 = absent, 1 = usable.
-// Probing once matters — without it, a machine without fuser would burn the
+// Probing once matters â€” without it, a machine without fuser would burn the
 // full 5s poll budget on every single server wait.
 var test_fuser_state : int = -1
 
@@ -282,7 +282,7 @@ func test_port_listening(port : u16) : bool {
 
 // Poll budget for test_server_wait().
 //
-// POSIX: fuser is a tiny exec, so 100 x 50ms is a cheap ~5s ceiling — the
+// POSIX: fuser is a tiny exec, so 100 x 50ms is a cheap ~5s ceiling â€” the
 // original behaviour, kept as-is because this suite is tuned for it.
 // Windows: each probe spawns netstat (tens of ms of process startup), so a
 // 100-iteration loop spends most of its life creating processes. The budget is
@@ -356,6 +356,56 @@ func test_run_bg_server(cmd : *char, port : u16) {
     test_bg_server_port = port
     test_run_bg(cmd)
     test_server_wait()
+}
+
+// Write a shared helper script, but only when its content actually differs
+// from what is already on disk.
+//
+// Dozens of tests run in parallel and nearly all of them regenerate these same
+// two shared scripts (tls_utils.py, http_extra.py) before using them. The content
+// is byte-identical every time, so the common case is pure contention over a
+// file nobody needed to rewrite: a plain fopen("wb") truncates to zero length
+// and streams the content back in, and a concurrent reader (another test's
+// `python /tmp/tls_utils.py cert ...`) can observe the truncated or half-written
+// file and fail in a way that looks like a TLS or certificate bug.
+//
+// Skipping the no-op write removes the contention entirely, and it is also the
+// only fix that holds on Windows: the OS holds a sharing lock on a file that a
+// process has open, so even write-to-temp-then-rename can fail outright with a
+// sharing violation while a reader is mid-read.
+func test_write_script_if_changed(path : *char, data : *u8, len : size_t) : bool {
+    if(test_file_matches(path, data, len)) { return true }
+    return test_write_file(path, data, len)
+}
+
+// True when the file at `path` already holds exactly `len` bytes equal to
+// `data`. A missing or unreadable file counts as "does not match".
+func test_file_matches(path : *char, data : *u8, len : size_t) : bool {
+    var f = fopen(path, "rb\0" as *char)
+    if(f == null) { return false } else {}
+    var i : size_t = 0
+    var same = true
+    while(i < len) {
+        var b : u8 = 0
+        if(fread((&raw mut b) as *mut void, 1 as size_t, 1 as size_t, f) != 1 as size_t) {
+            same = false
+            break
+        } else {}
+        if(b != data[i]) {
+            same = false
+            break
+        } else {}
+        i += 1
+    }
+    if(same) {
+        // Guard against a longer leftover file matching a prefix.
+        var extra : u8 = 0
+        if(fread((&raw mut extra) as *mut void, 1 as size_t, 1 as size_t, f) == 1 as size_t) {
+            same = false
+        } else {}
+    } else {}
+    fclose(f)
+    return same
 }
 
 // -- Cross-platform Python script runner --
@@ -1056,6 +1106,6 @@ func write_tls_python_utils() {
         // Rename failed (Windows will not replace a file another process has
         // open): fall back to writing the shared path in place so the suite
         // still has a usable script.
-        test_write_file("/tmp/tls_utils.py\0" as *char, py.data() as *u8, py.size())
+        test_write_script_if_changed("/tmp/tls_utils.py\0" as *char, py.data() as *u8, py.size())
     }
 }

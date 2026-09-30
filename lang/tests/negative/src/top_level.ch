@@ -34,16 +34,22 @@ func neg_top_level_deref(env : &mut TestEnv) {
 @test
 func neg_top_level_inc_dec(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // A bare statement cannot appear in a module at all. The parser rejects it
+    // while reading the file, before symbol resolution, so the diagnostic is the
+    // parser's -- not SymRes's "cannot increment or decrement value at runtime
+    // outside function body", which only fires for an increment that reached it
+    // (see neg_top_level_addr_of for that shape).
     var ch = "var x = 42\nx++\nfunc main() {}\n"
-    expect_compile_error(env, "top_level_inc_dec", ch, "cannot increment or decrement value at runtime outside")
+    expect_compile_error(env, "top_level_inc_dec", ch, "local statement at top level is not supported")
 }
 
 @test
 func neg_top_level_assignment(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    // a module cannot contain statements that execute at runtime
+    // a module cannot contain statements that execute at runtime; the parser
+    // rejects a bare statement here for the same reason as neg_top_level_inc_dec
     var ch = "var x = 42\nx = 7\nfunc main() {}\n"
-    expect_compile_error(env, "top_level_assignment", ch, "cannot assign to a value at runtime outside function body")
+    expect_compile_error(env, "top_level_assignment", ch, "local statement at top level is not supported")
 }
 
 @test
@@ -101,6 +107,7 @@ func neg_top_level_comptime_self_ref(env : &mut TestEnv) {
 @test
 func neg_top_level_alias_incompatible(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "struct Foo {}\nstruct Bar {}\ntypealias Alias = Foo\nvar x : Bar = Alias {}\nfunc main() {}\n"
-    expect_compile_error(env, "alias_type_mismatch", ch, "unresolved type")
+    // 'type Alias = Foo' is the alias declaration; 'typealias' is not a keyword
+    var ch = "struct Foo {}\nstruct Bar {}\ntype Alias = Foo\nvar x : Bar = Alias {}\nfunc main() {}\n"
+    expect_compile_error(env, "alias_type_mismatch", ch, "does not satisfy type")
 }

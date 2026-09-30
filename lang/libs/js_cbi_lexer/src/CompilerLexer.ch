@@ -7,6 +7,63 @@
  * `??`/`?.`/`**` are not produced); `jsx_enabled = true` runs the JSX state
  * machine. Embedded Chemical `${...}` handling is shared by both modes.
  */
+
+/**
+ * Read the digits of a numeric literal in `base`, allowing ECMAScript `_`
+ * separators, and report whether at least one digit was read.
+ *
+ * A `_` is only a separator BETWEEN digits, which is what `1_000` needs and
+ * `1__0` is not. The leading digit has already been consumed by the caller, so
+ * this reads the rest - which is why the "at least one" answer is about the WHOLE
+ * literal: `0x` with nothing after it is malformed, and returning false is what
+ * turns that into a lexer error instead of the old behaviour of silently emitting
+ * `0` and then treating `x` as an identifier.
+ */
+func readNumberDigitsInBase(provider : &mut SourceProvider, base : u32) : bool {
+    var seen = false
+    var last_was_digit = false
+    while(true) {
+        const n = provider.peek()
+        if(n == '_') {
+            // A separator is only a separator after a digit. Consuming it otherwise
+            // would accept `1_` as a literal and would eat the `_` of an
+            // identifier that begins with a digit run.
+            if(!last_was_digit) { return seen }
+            provider.readCharacter()
+            last_was_digit = false
+            continue
+        }
+        if(!isDigitInBase(n, base)) { break }
+        provider.readCharacter()
+        seen = true
+        last_was_digit = true
+    }
+    return seen
+}
+
+/**
+ * Is `c` a digit in `base`? Bases above 10 accept `a`-`f` in either case, which is
+ * what makes `0xdeadBEEF` one literal.
+ */
+func isDigitInBase(c : char, base : u32) : bool {
+    if(c >= '0' && c <= '9') {
+        return ((c as u32) - 48u) < base
+    }
+    if(base > 10u && ((c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))) {
+        return true
+    }
+    return false
+}
+
+/**
+ * The error token for a numeric literal that is not one - `0x` with no digits,
+ * `0b2`, `0o9`. Type 0 is the lexer's existing "this is not a token" signal; the
+ * point is that it is a SIGNAL, where before the prefix was dropped and the rest of
+ * the literal was re-lexed as an identifier.
+ */
+func malformedNumber(position : Position) : Token {
+    return Token { type : 0, value : std::string_view("malformed number"), position : position }
+}
 public func nextJsToken(js : &mut JsLexer, lexer : &mut Lexer, jsx_enabled : bool) : Token {
     
     if(js.chemical_mode) {
@@ -478,7 +535,44 @@ public func nextJsToken(js : &mut JsLexer, lexer : &mut Lexer, jsx_enabled : boo
                     }
                 }
             } else if(isdigit(c)) {
-                provider.read_digits();
+                // A numeric literal. Radix prefixes and `_` separators are handled
+                // HERE rather than by `read_digits`, which reads decimal digits only
+                // - so `0x8000` used to come out as the number `0` followed by the
+                // identifier `x8000`: two statements where the source had one, and
+                // *valid* JavaScript that assigns 0 and then throws
+                // `ReferenceError: x8000 is not defined`.
+                //
+                // That is the worst shape a lexer bug can take, and it is why this
+                // went unnoticed for so long. `node --check` passes, the bundle
+                // loads, no test that asserts on substrings fails, and the line
+                // throws only when it executes. It shipped inside Web/account's
+                // passkey client as `var CHUNK = x8000`.
+                //
+                // `0b1010`, `0o777` and `1_000_000` were mangled by the same line,
+                // identically, so they are fixed here rather than one at a time.
+                if(c == '0') {
+                    const n = provider.peek()
+                    if(n == 'x' || n == 'X') {
+                        provider.readCharacter()
+                        if(!readNumberDigitsInBase(provider, 16u)) { return malformedNumber(position) }
+                        return Token { type : JsTokenType.Number as int, value : std::string_view(data_ptr, provider.current_data() - data_ptr), position : position }
+                    }
+                    if(n == 'b' || n == 'B') {
+                        provider.readCharacter()
+                        if(!readNumberDigitsInBase(provider, 2u)) { return malformedNumber(position) }
+                        return Token { type : JsTokenType.Number as int, value : std::string_view(data_ptr, provider.current_data() - data_ptr), position : position }
+                    }
+                    if(n == 'o' || n == 'O') {
+                        provider.readCharacter()
+                        if(!readNumberDigitsInBase(provider, 8u)) { return malformedNumber(position) }
+                        return Token { type : JsTokenType.Number as int, value : std::string_view(data_ptr, provider.current_data() - data_ptr), position : position }
+                    }
+                }
+                // The leading digit was consumed by the caller's switch, so a decimal
+                // literal is already known to have one and the return value does not
+                // matter. Only the radix paths can be empty, because there the prefix
+                // is not a digit.
+                readNumberDigitsInBase(provider, 10u)
                 return Token { type : JsTokenType.Number as int, value : std::string_view(data_ptr, provider.current_data() - data_ptr), position : position }
             }
             return Token { type : 0, value : std::string_view("unexpected"), position : position }
@@ -488,4 +582,6 @@ public func nextJsToken(js : &mut JsLexer, lexer : &mut Lexer, jsx_enabled : boo
         '#' => { return Token { type : JsTokenType.Hash as int, value : std::string_view("#"), position : position } }
     }
 }
+
+
 

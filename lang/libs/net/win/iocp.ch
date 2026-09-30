@@ -229,7 +229,17 @@ public namespace net {
             op.ok = ok
             op.done = true
             var ab = op.abandoned
-            var w = op.waker.clone()
+            // The waker is only installed by iocp_op_poll, and an IocpOp is
+            // zero-initialized, so a completion that lands before the task's
+            // first poll (a fast connect, or a queued AcceptEx) sees a null
+            // vtable here. Cloning it dereferences a null function pointer —
+            // an intermittent "invalid memory access" inside
+            // core::async::Waker::clone. Check first; with no waker there is
+            // nothing to wake, and the task observes op.done on its next poll.
+            var w = core::async::Waker { data : null, vtbl : null }
+            if(op.waker.vtbl != null) {
+                w = op.waker.clone()
+            }
             op.m.unlock()
             if(ab) {
                 iocp_op_free(op)

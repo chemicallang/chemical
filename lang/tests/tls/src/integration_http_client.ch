@@ -446,9 +446,14 @@ public func INT_http_plain_and_https_same_client(env : &mut TestEnv) {
     test_server_wait()
 
     // Plain HTTP target: python's built-in file server (any 200 response works).
+    // http.server logs every request to stderr, so it MUST be launched with both
+    // std handles detached — otherwise it inherits this process's stderr, the
+    // write fails once the test process exits, and the request dies unanswered.
     var plain_cmd = test_py_interp()
     plain_cmd.append_view("-m http.server 20212 --bind 127.0.0.1")
-    test_run_bg(plain_cmd.data())
+    var plain_redir = test_redir_all()
+    plain_cmd.append_view(plain_redir.to_view())
+    test_run_bg_server(plain_cmd.data(), 20212u)
 
     // TLS target: routed HTTPS server with a throwaway self-signed cert.
     test_py_run_foreground(string_view("cert /tmp/tls_ih12_cert.pem /tmp/tls_ih12_key.pem localhost ec"))

@@ -106,6 +106,10 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
         bg.append_view(" >/dev/null")
     }
     bg.append_view(" 2>/tmp/sdv_err.txt")
+    // Clear the verdict file first: this test builds its own launch command, so
+    // it does not inherit srv_launch_hcli's truncation. Without it a leftover
+    // result file from a previous run is read as this run's verdict.
+    srv_clear_result_file(string(&result_file).data())
     test_run_bg(bg.data())
     test_server_wait()
 

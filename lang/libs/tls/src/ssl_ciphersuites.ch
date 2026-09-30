@@ -230,6 +230,28 @@ public namespace tls {
                 key_size: 32, iv_size: 12, tag_size: 16, mac_key_len: 0
             }
         }
+        if(ciphersuite_id == cs(TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256)) {
+            return CipherSuiteInfo {
+                id: cs(TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256),
+                name: null,
+                cipher: CIPHER_AES_128_CBC as u8,
+                hash: HASH_SHA256 as u8,
+                key_exchange: KE_ECDHE_ECDSA as u8,
+                flags: 0, min_tls_version: 3, max_tls_version: 3,
+                key_size: 16, iv_size: 16, tag_size: 16, mac_key_len: 32
+            }
+        }
+        if(ciphersuite_id == cs(TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384)) {
+            return CipherSuiteInfo {
+                id: cs(TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384),
+                name: null,
+                cipher: CIPHER_AES_256_CBC as u8,
+                hash: HASH_SHA384 as u8,
+                key_exchange: KE_ECDHE_ECDSA as u8,
+                flags: 0, min_tls_version: 3, max_tls_version: 3,
+                key_size: 32, iv_size: 16, tag_size: 16, mac_key_len: 48
+            }
+        }
         if(ciphersuite_id == cs(TLS_RSA_WITH_AES_128_CBC_SHA256)) {
             return CipherSuiteInfo {
                 id: cs(TLS_RSA_WITH_AES_128_CBC_SHA256),

@@ -80,6 +80,24 @@ func exec_clone_waker(data : *mut void) : core::async::Waker {
 
 func exec_drop_waker(data : *mut void) { }
 
+// Populate the waker vtable. Split out of executor() because exec_make_waker
+// hands out a pointer to this global and must guarantee it is usable: the
+// struct is zero-initialized, so a Waker built before this runs carries a
+// vtable of null function pointers and the first waker.clone() dereferences
+// one (observed as "invalid memory access" inside core::async::Waker::clone,
+// non-deterministically, depending on which entry point touched the executor
+// first in a given process).
+func ensure_exec_waker_vtbl() {
+    if(!g_exec_waker_vtbl_ready) {
+        g_exec_waker_vtbl = core::async::WakerVTable {
+            wake : exec_wake,
+            clone : exec_clone_waker,
+            drop : exec_drop_waker
+        }
+        g_exec_waker_vtbl_ready = true
+    }
+}
+
 // The process-wide executor. Created lazily; intentionally never torn down.
 public func executor() : *mut Executor {
     if(!g_exec_ready) {
@@ -93,18 +111,12 @@ public func executor() : *mut Executor {
         }
         g_exec_ready = true
     }
-    if(!g_exec_waker_vtbl_ready) {
-        g_exec_waker_vtbl = core::async::WakerVTable {
-            wake : exec_wake,
-            clone : exec_clone_waker,
-            drop : exec_drop_waker
-        }
-        g_exec_waker_vtbl_ready = true
-    }
+    ensure_exec_waker_vtbl()
     return &raw mut g_exec
 }
 
 public func exec_make_waker(e : *mut Executor) : core::async::Waker {
+    ensure_exec_waker_vtbl()
     return core::async::Waker { data : e as *mut void, vtbl : &raw mut g_exec_waker_vtbl }
 }
 

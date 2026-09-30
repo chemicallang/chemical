@@ -103,6 +103,27 @@ func parseCommand(config : &mut TestRunnerConfig, args : **char, end : **char) :
             comptime_fnv1_hash("--include-remote"), comptime_fnv1_hash("-include-remote") => {
                 config.include_remote = true;
             }
+            comptime_fnv1_hash("--serial"), comptime_fnv1_hash("-serial") => {
+                config.serial = true;
+            }
+            comptime_fnv1_hash("--jobs"), comptime_fnv1_hash("-jobs") => {
+                current++;
+                if(current != end) {
+                    const next = *current;
+                    var n : int = 0
+                    if(parse_int(next, &raw mut n) != 0 || n < 1) {
+                        printf("error: invalid job count '%s' for --jobs (expected a positive integer)", next)
+                        return "--jobs requires a positive integer"
+                    }
+                    // 1 means serial; anything higher is handled by the same
+                    // pool path with a narrower width.
+                    config.serial = (n == 1)
+                    if(n > 1) { config.job_limit = n }
+                } else {
+                    printf("error: --jobs requires a single positive integer argument")
+                    return "--jobs requires a positive integer"
+                }
+            }
             comptime_fnv1_hash("--benchmark"), comptime_fnv1_hash("-benchmark") => {
                 config.benchmark = true;
             }

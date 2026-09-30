@@ -166,7 +166,15 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
         state.tests.reserve(tests_view.size());
 
         // creating a thread pool for launching asynchronous tests on it
-        var pool = std.concurrent.create_pool(std.concurrent.hardware_threads());
+        // Width matters: tests that bind TCP ports and spawn helper processes
+        // must not all be in flight at once, or their bounded waits (server
+        // readiness probes, accept windows) expire and report failures that
+        // have nothing to do with the code under test. See
+        // TestRunnerConfig.serial / job_limit.
+        var pool_width = std.concurrent.hardware_threads();
+        if(config.job_limit > 0 && (config.job_limit as usize) < pool_width) { pool_width = config.job_limit as usize };
+        if(config.serial) { pool_width = 1 };
+        var pool = std.concurrent.create_pool(pool_width);
         var asyncJobs = std.vector<std.concurrent.Future<int>>();
 
         var test_start = tests_view.data() as *mut TestFunction

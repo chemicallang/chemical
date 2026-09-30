@@ -110,6 +110,24 @@ struct TestRunnerConfig {
      */
     var include_remote : bool = false
     /**
+     * when true, run @test functions one at a time instead of fanning out over
+     * a hardware_threads()-wide pool (--serial).
+     *
+     * The default parallel launch is right for the main suite, whose tests are
+     * mostly fast and self-contained. It is wrong for a suite like the TLS
+     * integration tests: those bind ~200 distinct TCP ports and spawn a python
+     * helper process per test, so 20-way concurrency means every test competes
+     * for CPU while ~20 interpreters start at once. Bounded waits (server
+     * readiness probes, accept windows) then expire and report failures that
+     * have nothing to do with the code under test.
+     */
+    var serial : bool = false
+    /**
+     * upper bound on concurrent test processes (--jobs N, N > 1).
+     * 0 means "use hardware_threads()", the default.
+     */
+    var job_limit : int = 0
+    /**
      * the communication id is used for ipc communication between processes
      * it may or may not be required
      */

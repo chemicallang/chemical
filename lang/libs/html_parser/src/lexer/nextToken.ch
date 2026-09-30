@@ -319,7 +319,15 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                     // statement ('@...') or the enclosing block/macro close
                     // ('}'), or an html block is expected (right after
                     // '@if(...)' or '@else', where whitespace is a separator)
-                    if(next != '@' && next != '}' && !html.expecting_html_block) {
+                    //
+                    // A '}' that is read back as a literal brace of <pre> code --
+                    // because a literal '{' is still unmatched, which is what the
+                    // '{' branch counted -- is content, not a close, so only a
+                    // '}' that really ends a chemical block or expression is a
+                    // boundary. See the matching '{' case below.
+                    const literal_brace = html.pre_depth > 0 && (html.pre_brace_depth > 0 || html.lb_count <= 1);
+                    const closes_chem = next == '}' && !literal_brace;
+                    if(next != '@' && !closes_chem && !html.expecting_html_block) {
                         return Token {
                             type : TokenType.Text as int,
                             value : std::string_view(data_ptr, provider.current_data() - data_ptr),
@@ -335,6 +343,29 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 // (e.g. "<div>{x}Text</div>\n    }")
                 const is_boundary = next == '<' || next == '}';
                 if(was_after_chem && !is_boundary) {
+                    return Token {
+                        type : TokenType.Text as int,
+                        value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                        position : position
+                    }
+                }
+                // A run of spaces and tabs that stays on the line it started on is
+                // content, and dropping it welded words together -- "</a>is" for
+                // "</a> is". Runs that are still dropped, which is what keeps every
+                // pretty-printed block byte-identical and is pinned by
+                // lang/tests/compiler_plugins/html/src/whitespace_after_tag.ch:
+                //
+                //   * a run containing a newline or carriage return, because that
+                //     is indentation rather than a space somebody typed;
+                //   * a run at a structural boundary -- before a tag, before the
+                //     macro's own '}', or before a chemical construct. That last
+                //     one covers '{' and '@', which open an expression or a block
+                //     whose value follows, so the run only separates them. The
+                //     macro's own opening brace ("#html {") is read through this
+                //     very branch, which is why it has to be dropped here.
+                const opens_chem = next == '{' || next == '@' || html.expecting_html_block;
+                if(!is_boundary && !opens_chem &&
+                    !ut_run_has_newline(data_ptr, provider.current_data())) {
                     return Token {
                         type : TokenType.Text as int,
                         value : std::string_view(data_ptr, provider.current_data() - data_ptr),
@@ -495,9 +526,13 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
             } else {
                 const start = data_ptr;
                 provider.read_literal_text()
+                // the run swallowed the whitespace after its last word, so that
+                // trailing part is judged here rather than by the whitespace
+                // branch above, which only runs when whitespace opens a token
+                const run_end = ut_text_run_end(html, provider, start, provider.current_data());
                 return Token {
                     type : TokenType.Text as int,
-                    value : std::string_view(start, provider.current_data() - start),
+                    value : std::string_view(start, run_end - start),
                     position : position
                 }
             }

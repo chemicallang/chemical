@@ -41,15 +41,22 @@ func neg_symbol_outside_lambda(env : &mut TestEnv) {
 @test
 func neg_alias_incompatible_value(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "typealias MyInt = int\nvar x : MyInt = \"hello\"\nfunc main() {}\n"
-    expect_compile_error(env, "alias_incompatible", ch, "unresolved type")
+    // an alias is declared with 'type' ("type X = Y"); 'alias' declares a value
+    // alias and 'typealias' is not a keyword at all
+    var ch = "type MyInt = int\nvar x : MyInt = \"hello\"\nfunc main() {}\n"
+    expect_compile_error(env, "alias_incompatible", ch, "does not satisfy type")
 }
 
 @test
 func neg_incompatible_alias(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "typealias Number = int\ntypealias Text = *char\nvar x : Number = Text\nfunc main() {}\n"
-    expect_compile_error(env, "incompatible_alias2", ch, "incompatible")
+    var ch = "type Number = int\ntype Text = *char\nvar x : Number = Text\nfunc main() {}\n"
+    // Note: the expectation must be a phrase the diagnostic really contains.
+    // The compiler prints the test's own temp path (which is named after the
+    // case), so an expectation like "incompatible" used to be satisfied by
+    // ".../incompatible_alias2/test.ch" even while the code under test was
+    // rejected for an unrelated reason.
+    expect_compile_error(env, "incompatible_alias2", ch, "does not satisfy type")
 }
 
 @test

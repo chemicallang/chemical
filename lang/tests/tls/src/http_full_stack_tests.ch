@@ -634,11 +634,16 @@ public func FULL_https_plain_tls_alternation_same_client(env : &mut TestEnv) {
     test_kill_port(TLS_PORT as int)
     test_server_wait()
 
+    // http.server logs every request to stderr, so it MUST be launched with both
+    // std handles detached — otherwise it inherits this process's stderr, the
+    // write fails once the test process exits, and the request dies unanswered.
     var plain_cmd = test_py_interp()
     plain_cmd.append_view("-m http.server ")
     plain_cmd.append_uinteger(PLAIN_PORT as ubigint)
     plain_cmd.append_view(" --bind 127.0.0.1")
-    test_run_bg(plain_cmd.data())
+    var plain_redir = test_redir_all()
+    plain_cmd.append_view(plain_redir.to_view())
+    test_run_bg_server(plain_cmd.data(), PLAIN_PORT as u16)
 
     test_py_run_foreground(string_view("cert /tmp/tls_fs11_cert.pem /tmp/tls_fs11_key.pem localhost ec"))
     full_start_httpsrv(env, TLS_PORT, "/tmp/tls_fs11_cert.pem", "/tmp/tls_fs11_key.pem", 8u)
@@ -902,6 +907,11 @@ public func FULL_python_client_method_matrix_over_tls(env : &mut TestEnv) {
     bg.append_uinteger(PORT as ubigint)
     bg.append_view(" /tmp/hcli_fm20.txt methods - -")
     bg.append_view(" 2>/tmp/fm20_err.txt")
+    // Clear the verdict file first: this test builds its own launch command
+    // instead of using srv_launch_hcli, so it does not get that helper's
+    // truncation. Without it a leftover /tmp/hcli_fm20.txt from a previous run
+    // is read as this run's verdict.
+    srv_clear_result_file("/tmp/hcli_fm20.txt\0" as *char)
     test_run_bg(bg.data())
     test_server_wait()
 

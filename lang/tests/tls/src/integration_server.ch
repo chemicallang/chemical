@@ -124,6 +124,19 @@ func srv_send_response(ssl : *mut SSLContext, status_line : *char,
 }
 
 // Poll a python-written result file until it contains a verdict.
+// Truncate a python client's verdict file before the client is launched.
+//
+// srv_check_result_file returns as soon as the file holds a parseable verdict,
+// so a leftover file from a previous run (or from an earlier attempt of the same
+// test) is indistinguishable from this run's result: the check passes on stale
+// data, or fails on a stale RESULT:FAIL before python has even connected. Every
+// caller must clear the file immediately before starting the client.
+func srv_clear_result_file(path : *char) {
+    test_ensure_tmp_dir()
+    var zero : u8 = 0
+    test_write_file(path, &raw zero, 0)
+}
+
 func srv_check_result_file(env : &mut TestEnv, path : *char) {
     var buf : [160]u8
     var polls : int = 0
@@ -379,9 +392,7 @@ func srv_launch_hcli(port : uint, host : string_view, py_mode : string_view,
     test_ensure_tmp_dir()
     // Truncate any stale verdict file so the poller never reads an old
     // RESULT:FAIL from a previous suite run before python finishes writing.
-    var rf = string(&result_file)
-    var zero : u8 = 0
-    test_write_file(rf.data(), &raw zero, 0)
+    srv_clear_result_file(string(&result_file).data())
     var bg = test_py_interp()
     bg.append_view("/tmp/tls_utils.py hcli ")
     bg.append_view(&host)

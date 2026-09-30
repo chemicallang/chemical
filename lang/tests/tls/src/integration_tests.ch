@@ -712,7 +712,15 @@ public func INT_tls13_config_connects_tls12_server(env : &mut TestEnv) {
     // msrv accepts up to 2 connections: the client first tries TLS 1.3 (which
     // the TLS 1.2-only server answers with a legacy ServerHello), then the
     // tls_connect fallback opens a SECOND connection pinned to TLS 1.2.
-    test_py_run_background(string_view("msrv /tmp/tls_19971_cert.pem /tmp/tls_19971_key.pem 19971 1.2 2"))
+    //
+    // The cipher string is REQUIRED, not decoration: this stack implements the
+    // TLS 1.2 RSA key exchange only (no ECDHE), and OpenSSL 3 removed the
+    // static-RSA suites from its default cipher list. Without re-enabling
+    // TLS_RSA_WITH_AES_128_GCM_SHA256 the server has no suite in common with
+    // the client and answers the ClientHello with handshake_failure(40), which
+    // masks the fallback behaviour this test exists to cover. Every other TLS
+    // 1.2 test in this suite passes the same @SECLEVEL=0 opt-in.
+    test_py_run_background(string_view("msrv /tmp/tls_19971_cert.pem /tmp/tls_19971_key.pem 19971 1.2 2 AES128-GCM-SHA256:@SECLEVEL=0"))
     test_server_wait()
 
     // IMPORTANT: max_tls_version stays at TLS 1.3 (the default), so the client

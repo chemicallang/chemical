@@ -3585,6 +3585,50 @@ public func tls_config_ciphersuite_default_count(env : &mut TestEnv) {
     }
 }
 
+// Regression: the AUTO preference list must only advertise suites this stack
+// can actually complete.
+//
+// get_ciphersuite_info() used to have no entry for the ECDHE_ECDSA CBC suites,
+// so they came back as the all-zero default ({id: 0, key_exchange: KE_NONE,
+// hash: HASH_NONE}). The AUTO filter accepted that default, so 0xC023/0xC024
+// were advertised even though do_tls12_client_handshake rejects every non-RSA
+// key exchange right after ServerHello. A server that picked one turned a
+// clean "no shared cipher" rejection into a handshake_failure.
+@test
+public func tls_default_ciphersuites_are_all_negotiable(env : &mut TestEnv) {
+    var cfg = tls::ssl_config_init(tls::SSL_IS_CLIENT)
+    var i : uint = 0u
+    while(i < cfg.ciphersuite_count) {
+        var sid = cfg.ciphersuite_list[i]
+        if(sid != 0u) {
+            var info = tls::get_ciphersuite_info(sid)
+            if(info.id != sid) {
+                env.error("default ciphersuite list contains a suite with no metadata")
+                return
+            }
+            var is_tls13 = (info.max_tls_version >= tls::SSL_VERSION_TLS1_3 as u8)
+            if(!is_tls13 && info.key_exchange != tls::KE_RSA as u8) {
+                env.error("default ciphersuite list advertises a key exchange the client cannot complete")
+                return
+            }
+        }
+        i += 1u
+    }
+}
+
+// The ECDHE_ECDSA CBC suites are in get_preferred_ciphersuite(), so their
+// metadata must be present even though the AUTO filter (correctly) drops them.
+@test
+public func tls_ciphersuite_info_covers_ecdhe_cbc_suites(env : &mut TestEnv) {
+    var a = tls::get_ciphersuite_info(tls::TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 as u16)
+    if(a.id != tls::TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 as u16) { env.error("0xC023 metadata missing"); return }
+    if(a.key_exchange != tls::KE_ECDHE_ECDSA as u8) { env.error("0xC023 key_exchange wrong") }
+
+    var b = tls::get_ciphersuite_info(tls::TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 as u16)
+    if(b.id != tls::TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384 as u16) { env.error("0xC024 metadata missing"); return }
+    if(b.key_exchange != tls::KE_ECDHE_ECDSA as u8) { env.error("0xC024 key_exchange wrong") }
+}
+
 // ─── TLS 1.3 Record Encryption/Decryption Tests ───────────────────────────
 // Tests the TLS 1.3 record layer with proper AAD length and key assignment.
 // This verifies the AAD fix (enc_record_len = inner_len + 16) and key-swap fix.

@@ -366,10 +366,18 @@ public namespace tls {
                 var sid = get_preferred_ciphersuite(i)
                 if(sid != 0) {
                     var sinfo = get_ciphersuite_info(sid)
+                    // Fail closed on missing metadata: the unknown-suite
+                    // default is {id: 0, key_exchange: KE_NONE, hash:
+                    // HASH_NONE}, which satisfies the "supported" test below
+                    // and would silently smuggle an ECDHE suite we cannot
+                    // complete into the offer. Advertising a suite the client
+                    // must then abort on turns a clean "no shared cipher"
+                    // rejection into a post-negotiation handshake_failure.
+                    var known = (sinfo.id == sid)
                     var tls13_only = (sinfo.max_tls_version >= SSL_VERSION_TLS1_3 as u8)
                     var supported_tls12 = ((sinfo.key_exchange == KE_RSA as u8 || sinfo.key_exchange == KE_NONE as u8) &&
                                            (sinfo.hash == HASH_SHA256 as u8 || sinfo.hash == HASH_SHA384 as u8 || sinfo.hash == HASH_NONE as u8))
-                    if(tls13_only || supported_tls12) {
+                    if(known && (tls13_only || supported_tls12)) {
                         suite_list[pref_count] = sid
                         pref_count += 1
                     }

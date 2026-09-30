@@ -3,6 +3,30 @@
 @stdcall
 public func TerminateProcess(hProcess : HANDLE, uExitCode : UINT) : BOOL;
 
+// Read whatever is still buffered on a pipe whose client has gone away.
+// A message-mode pipe keeps delivering already-written messages after the
+// client closes its handle; ReadFile only reports ERROR_BROKEN_PIPE once the
+// buffer is empty. Returns the number of messages processed.
+func drain_pipe_messages(state : &mut TestFunctionState, hPipe : HANDLE) : int {
+    var drained : int = 0
+    while(true) {
+        var avail : DWORD = 0
+        var left : DWORD = 0
+        // Peek may legitimately fail now that the client is gone; if it does we
+        // simply have nothing buffered and stop.
+        if(!PeekNamedPipe(hPipe, null, 0, null, &raw mut avail, &raw mut left)) { return drained }
+        if(avail == 0) { return drained }
+        var buf : [2048]char
+        var n : DWORD = 0
+        if(!ReadFile(hPipe, &raw mut buf[0], sizeof(buf)-1, &raw mut n, null)) { return drained }
+        if(n == 0) { return drained }
+        buf[n] = '\0'
+        process_message(state, &raw mut buf[0])
+        drained += 1
+    }
+    return drained
+}
+
 func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, timeout_ms : uint) : int {
 
     var si : STARTUPINFOA
@@ -125,12 +149,18 @@ func launch_test(exe_path : *char, id : int, state : &mut TestFunctionState, tim
                 process_message(state, &raw mut buffer[0]);
             } else {
                 // 0 bytes means pipe closed gracefully
+                drain_pipe_messages(state, hPipe)
                 break;
             }
         } else {
             var err = GetLastError();
             if (err == ERROR_BROKEN_PIPE) {
-                // closed by the client
+                // Closed by the client. A child that reports a failure and exits
+                // immediately can leave that final message sitting in the pipe
+                // buffer while the handle already reads as broken, and breaking
+                // here would discard it — the test then shows as "[N] FAIL"
+                // with no explanation. Drain whatever is still buffered first.
+                drain_pipe_messages(state, hPipe)
                 break;
             } else if(err == ERROR_MORE_DATA) {
                 fprintf(get_stderr(), "buffer too small for testing data received: %lu\n", err);

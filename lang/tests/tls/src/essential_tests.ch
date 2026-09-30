@@ -619,10 +619,16 @@ public func BUG_tls13_handshake_is_stub(env : &mut TestEnv) {
     // Test: attempt TLS 1.3 handshake to a server that accepts then
     // immediately closes without responding. The handshake must fail.
 
-    var server_sock = net::listen_addr("127.0.0.1" as *char, 49893u)
+    // Port 20993, deliberately outside the ranges Windows reserves for
+    // dynamic allocation (Hyper-V/WSL/Docker add excluded blocks such as
+    // 49727-49926 and 50000-50059 on many machines). Binding an excluded port
+    // fails with WSAEACCES, and net::listen_addr panics on that — which killed
+    // this test process outright rather than reporting a normal failure.
+    const PORT : uint = 20993u
+    var server_sock = net::listen_addr("127.0.0.1" as *char, PORT as u16)
     if(server_sock == 0 as net::Socket) { env.error("listen failed"); return }
 
-    var client_sock = net::dial("127.0.0.1" as *char, 49893u)
+    var client_sock = net::dial("127.0.0.1" as *char, PORT as u16)
     if(client_sock == 0 as net::Socket) { env.error("dial failed"); net::close_socket(server_sock); return }
 
     // Accept the connection then close it — sends clean FIN (not RST)

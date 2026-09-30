@@ -93,6 +93,21 @@ func test_redir() : string {
     }
 }
 
+// Full stdio redirect for a backgrounded server. Both handles must be
+// detached: a child launched with `start /b` / `setsid` inherits the test
+// process's stdio, and once the test process exits those handles are dead.
+// A python server that then writes its request log to the inherited stderr
+// (e.g. `python -m http.server`) raises inside the handler and drops the
+// connection without answering — the client sees a truncated response even
+// though the port is still "LISTENING". Redirecting at launch avoids that.
+func test_redir_all() : string {
+    comptime if(def.windows) {
+        return string(" >nul 2>&1")
+    } else {
+        return string(" >/dev/null 2>&1")
+    }
+}
+
 // Builds: <interp> /tmp/tls_utils.py <args> <redir>
 func test_py_cmd(args : string_view) : string {
     var cmd = test_py_interp()
@@ -124,10 +139,23 @@ func test_py_run_background(args : string_view) {
     test_run_bg(cmd.data())
 }
 
-// Kill whatever is listening on `port` (POSIX only; Windows background python
-// servers exit on their own after a short timeout).
+// Kill whatever is listening on `port`.
+//
+// POSIX: fuser -k. Windows: netstat + taskkill. The Windows arm used to be a
+// no-op, which was not merely "less thorough": a server that outlives the
+// test process (`python -m http.server` has no timeout) keeps the port bound
+// for the rest of the machine's uptime, so every later run of the owning test
+// either races the stale listener or dies on a full backlog. Orphaned servers
+// accumulated one per run until the port was unusable.
 func test_kill_port(port : int) {
-    comptime if(!def.windows) {
+    comptime if(def.windows) {
+        // The trailing space pins the match to the whole local-address column,
+        // so killing port 2021 never takes 20212 down with it.
+        var cmd = string("for /f \"tokens=5\" %a in ('netstat -aon ^| findstr \":")
+        cmd.append_integer(port)
+        cmd.append_view(" \" ^| findstr LISTENING') do @taskkill /F /PID %a >nul 2>&1")
+        system(cmd.data())
+    } else {
         var cmd = string("fuser -k ")
         cmd.append_integer(port)
         cmd.append_view("/tcp 2>/dev/null")
@@ -228,15 +256,23 @@ func test_fuser_available() : bool {
     return test_fuser_state == 1
 }
 
-// True once some process is listening on `port` (POSIX only, via fuser — the
-// same tool test_kill_port relies on). A socket that is only bound, not yet
-// listening, is not reported, so this does not race servers that bind before
-// they call listen().
+// True once some process is listening on `port`. A socket that is only bound,
+// not yet listening, is not reported, so this does not race servers that bind
+// before they call listen().
+//
+// POSIX probes with fuser (cached availability, since a machine without fuser
+// would otherwise burn the whole poll budget on every wait). Windows has no
+// fuser, so use netstat and match the local-address column exactly (the
+// trailing space prevents ":1234" from matching ":12345").
 func test_port_listening(port : u16) : bool {
+    if(port == 0u) { return false }
     comptime if(def.windows) {
-        return false
+        var cmd = string("netstat -aon | findstr \":")
+        cmd.append_uinteger(port as ubigint)
+        cmd.append_view(" \" | findstr LISTENING >nul")
+        return system(cmd.data()) == 0
     } else {
-        if(port == 0u || !test_fuser_available()) { return false }
+        if(!test_fuser_available()) { return false }
         var cmd = string("fuser -s ")
         cmd.append_integer(port as int)
         cmd.append_view("/tcp 2>/dev/null")
@@ -244,21 +280,55 @@ func test_port_listening(port : u16) : bool {
     }
 }
 
-// Wait for the background python server to actually be listening (bounded at
-// ~5s), falling back to a plain sleep when the port is unknown or fuser is
-// unavailable.
-func test_server_wait() {
+// Poll budget for test_server_wait().
+//
+// POSIX: fuser is a tiny exec, so 100 x 50ms is a cheap ~5s ceiling — the
+// original behaviour, kept as-is because this suite is tuned for it.
+// Windows: each probe spawns netstat (tens of ms of process startup), so a
+// 100-iteration loop spends most of its life creating processes. The budget is
+// sized so the whole wait stays at or below the old fixed 1s pause: the probe
+// normally succeeds on the first try and returns early, and a genuine failure
+// costs ~1s rather than ~10s. Overrunning it pushed unrelated tests into the
+// runner's 10s watchdog.
+func test_wait_attempts() : int {
     comptime if(def.windows) {
-        system("ping -n 2 127.0.0.1 >nul")
+        return 6
     } else {
-        if(test_bg_server_port != 0u && test_fuser_available()) {
+        return 100
+    }
+}
+
+// Wait for the background python server to actually be listening, falling back
+// to a plain sleep when the port is unknown or no probe tool is available.
+//
+// Polling matters on Windows for the same reason it matters on POSIX: a cold
+// python start (interpreter startup plus `import cryptography`) regularly
+// outlives a fixed 1s pause, and the losing test then reports a bogus handshake
+// or connection error that looks like a TLS-stack bug.
+func test_server_wait() {
+    if(test_bg_server_port != 0u) {
+        var can_probe = true
+        comptime if(!def.windows) {
+            can_probe = test_fuser_available()
+        }
+        if(can_probe) {
             var attempts : int = 0
-            while(attempts < 100 && !test_port_listening(test_bg_server_port)) {
+            var max_attempts = test_wait_attempts()
+            while(attempts < max_attempts) {
+                if(test_port_listening(test_bg_server_port)) { return }
                 std::concurrent::sleep_ms(50u)
                 attempts += 1
             }
-            if(test_port_listening(test_bg_server_port)) { return }
+            // Budget spent. Stop here rather than stacking the fixed sleep on
+            // top: the port is usually a server that has already exited (a
+            // one-shot `srv` closes after its single accept), so waiting
+            // longer would buy nothing.
+            return
         }
+    }
+    comptime if(def.windows) {
+        system("ping -n 2 127.0.0.1 >nul")
+    } else {
         system("sleep 1")
     }
 }
@@ -275,6 +345,17 @@ func test_run_bg(cmd : *char) {
         full.append_view(" &")
         system(full.data())
     }
+}
+
+// Launch a background server on a known port and wait until it is listening.
+// Use this instead of test_run_bg()+test_server_wait() whenever the port is
+// known up front: test_run_bg on its own leaves test_bg_server_port pointing
+// at whatever the *previous* helper set, so the readiness poll silently
+// watches the wrong socket.
+func test_run_bg_server(cmd : *char, port : u16) {
+    test_bg_server_port = port
+    test_run_bg(cmd)
+    test_server_wait()
 }
 
 // -- Cross-platform Python script runner --

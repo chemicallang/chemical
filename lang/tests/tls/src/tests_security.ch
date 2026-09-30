@@ -269,9 +269,20 @@ public func SEC_gcm_tag_16_tamper_positions_detected(env : &mut TestEnv) {
 @test
 public func SEC_ecdsa_high_s_signature_rejected(env : &mut TestEnv) {
     var ctx : ECDSAContext; ecdsa_init(unsafe(&raw mut ctx))
-    var pub : [65]u8; fill_bytes(&raw mut pub[0], 65, 0x04)
-    pub[0] = 0x04 as u8
-    ecdsa_import_pubkey(unsafe(&raw mut ctx), &raw pub[0], 65, TLS_GROUP_SECP256R1 as u16)
+    // A real P-256 point (RFC 6979 A.2.5 sample key). It has to be: the
+    // importer checks the curve equation, so a key that is merely 65 bytes of
+    // the right shape would be rejected and the verify below would fail for the
+    // wrong reason, passing this test vacuously.
+    var pub : [65]u8 = [
+        0x04,
+        0x60, 0xFE, 0xD4, 0xBA, 0x25, 0x5A, 0x9D, 0x31, 0xC9, 0x61, 0xEB, 0x74, 0xC6, 0x35, 0x6D, 0x68,
+        0xC0, 0x49, 0xB8, 0x92, 0x3B, 0x61, 0xFA, 0x6C, 0xE6, 0x69, 0x62, 0x2E, 0x60, 0xF2, 0x9F, 0xB6,
+        0x79, 0x03, 0xFE, 0x10, 0x08, 0xB8, 0xBC, 0x99, 0xA4, 0x1A, 0xE9, 0xE9, 0x56, 0x28, 0xBC, 0x64,
+        0xF2, 0xF1, 0xB2, 0x0C, 0x2D, 0x7E, 0x9F, 0x51, 0x77, 0xA3, 0xC2, 0x94, 0xD4, 0x46, 0x22, 0x99]
+    if(ecdsa_import_pubkey(unsafe(&raw mut ctx), &raw pub[0], 65, TLS_GROUP_SECP256R1 as u16) != 0) {
+        env.error("SEC FAIL: could not import a known-good P-256 public key")
+        return
+    }
 
     // Build a DER signature with s = n-1 (high-S, should be rejected by low-S check)
     var sig : [38]u8

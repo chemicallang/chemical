@@ -121,9 +121,11 @@ Tests: `--libs` on **both** backends — 6 async runtime + 10 executor/combinato
 `--process` (dedicated suite) — 6 async tests, **127/127** on both backends;
 `--async` (dedicated; includes the loopback `net` test) **34/34**; `--tls`
 (dedicated; includes the async TLS handshake and async HTTP loopback tests)
-**573 TCC / ~570 passed** (2 pre-existing `BAD_SIGNATURE` failures plus harness
-flakiness under parallel dispatch; the async tests pass in isolation on LLVM);
-`--webview` (dedicated; includes the 5 Tier 5 UI-async tests) **47/47** on both
+**597/597** (green on TCC: the ECDSA importer now validates that a public key
+is actually a point on the curve, and the two async tests own their ports
+instead of sharing them with the synchronous e2e tests, which had made them
+fail intermittently under the suite's parallel dispatch); `--webview`
+(dedicated; includes the 5 Tier 5 UI-async tests) **47/47** on both
 backends; `--server` (dedicated; the 2 Tier 6 file-server tests) **2/2** on both
 backends; main suite green (2190 TCC / 2191 LLVM); interpret 1811/1811.
 

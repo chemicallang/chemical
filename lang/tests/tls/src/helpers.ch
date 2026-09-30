@@ -956,5 +956,25 @@ func write_tls_python_utils() {
     py.append_view("    rawsrv(sys.argv[2],sys.argv[3],sys.argv[4],sys.argv[5] if len(sys.argv)>5 else 3)\n")
     py.append_view("elif cmd=='hangsrv':\n")
     py.append_view("    hangsrv(sys.argv[2],sys.argv[3],sys.argv[4])\n")
-    test_write_file("/tmp/tls_utils.py\0" as *char, py.data() as *u8, py.size())
+
+    // Publish the script atomically. Every test in this suite calls this
+    // function and they all run in parallel, so writing /tmp/tls_utils.py in
+    // place meant a concurrently-starting test could exec python3 against a
+    // half-written file. The symptom was a python syntax error, a server that
+    // never came up, and a handshake failure blamed on the TLS stack.
+    //
+    // Each process writes to a private path and then renames it over the shared
+    // one; rename() is atomic, so a reader sees either the previous complete
+    // script or this one, never a partial file. The content is identical either
+    // way, so whichever writer lands last is harmless.
+    var tmp_path = string("/tmp/tls_utils.")
+    tmp_path.append_integer(process::current_pid())
+    tmp_path.append_view(".py")
+    if(!test_write_file(tmp_path.data(), py.data() as *u8, py.size())) { return } else {}
+    if(rename(tmp_path.data(), "/tmp/tls_utils.py\0" as *char) != 0) {
+        // Rename failed (Windows will not replace a file another process has
+        // open): fall back to writing the shared path in place so the suite
+        // still has a usable script.
+        test_write_file("/tmp/tls_utils.py\0" as *char, py.data() as *u8, py.size())
+    }
 }

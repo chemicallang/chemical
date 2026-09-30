@@ -81,8 +81,10 @@ a final table (`SUITE / STATUS / TOTAL / PASSED / FAILED / TIME`). **The slow
 `tls` suite is skipped by default**; pass `--include-tls` to include it (the run
 tells you this at the top and in the summary). Full per-suite logs are kept in
 `lang/tests/build/all-logs/`. Exits non-zero if any suite failed. Note that some
-suites are environment-sensitive (e.g. `tls` has known `BAD_SIGNATURE` failures;
-`webview` needs GTK3 + a display).
+suites are environment-sensitive (`tls` needs python3 with the `cryptography`
+module plus `fuser`, since it cross-checks the port against python's
+`cryptography` and manages its own server processes; `webview` needs GTK3 + a
+display).
 
 > 🐛 **`-bt` / `-bt-full`**: Wraps the test in `gdb -batch` mode. On crash, prints backtrace.
 > `-bt` gives `bt full`; `-bt-full` adds thread info, registers, `x/16i $pc`, locals, and args.

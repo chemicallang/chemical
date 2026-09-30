@@ -10,6 +10,10 @@ debug
 lang/sample/compiled
 lang/compiled
 lang/tests/build
+# Each test project is its own module, so each one gets its own scratch build
+# directory next to its manifest. `lang/tests/build` above only covers the one at
+# the top level.
+lang/tests/*/build
 lib/tcc
 build/mingw
 scripts/tui-configs/last.json

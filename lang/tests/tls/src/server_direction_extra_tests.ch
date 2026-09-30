@@ -105,7 +105,16 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
     } else {
         bg.append_view(" >/dev/null")
     }
-    bg.append_view(" 2>/tmp/sdv_err.txt")
+    // Per-test stderr file. A single shared /tmp/sdv_err.txt had all four SDV
+    // tests racing to write and truncate the same file, so the diagnostic (and,
+    // on some systems, the client's own startup) contended with itself under
+    // parallel execution.
+    var err_path = string("/tmp/sdv_")
+    err_path.append_view(&tag)
+    err_path.append_view("_err.txt")
+    bg.append_view(" 2>")
+    bg.append_view(err_path.to_view())
+    bg.append_view("\0")
     // Clear the verdict file first: this test builds its own launch command, so
     // it does not inherit srv_launch_hcli's truncation. Without it a leftover
     // result file from a previous run is read as this run's verdict.
@@ -131,7 +140,7 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
         if(cs == 0 as net::Socket) {
             env.error("python client never connected")
             var errbuf : [512]u8
-            var en = test_read_file("/tmp/sdv_err.txt", &raw mut errbuf[0], 511)
+            var en = test_read_file(err_path.data(), &raw mut errbuf[0], 511)
             if(en > 0) {
                 errbuf[en] = 0
                 printf("[SDV py-stderr] %s\n", &raw errbuf[0])
@@ -188,7 +197,7 @@ func sdv_serve_mode(env : &mut TestEnv, port : uint, tag : string_view,
         srv_check_result_file(env, result_file.data())
     } else {
         var errbuf2 : [512]u8
-        var en2 = test_read_file("/tmp/sdv_err.txt", &raw mut errbuf2[0], 511)
+        var en2 = test_read_file(err_path.data(), &raw mut errbuf2[0], 511)
         if(en2 > 0) { errbuf2[en2] = 0; printf("[SDV py-stderr] %s\n", &raw errbuf2[0]) }
     }
 

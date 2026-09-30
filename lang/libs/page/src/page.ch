@@ -713,18 +713,21 @@ public struct HtmlPage {
         pageJs.append_double(value, 3)
     }
 
-    func get_js_pos(&self) : ubigint {
-        return pageJs.size();
-    }
-
-    func move_js_range(&mut self, fromStart : ubigint, fromEnd : ubigint, index : ubigint) {
-        if (fromStart >= fromEnd || fromEnd > pageJs.size() || index > pageJs.size()) return;
+    // Move the byte range [fromStart, fromEnd) so that it begins at `index`,
+    // shifting whatever lies between the two.
+    //
+    // A free function over a `string` rather than a method on the page, because
+    // the range being moved lives in DIFFERENT buffers depending on whether a
+    // shared sink is attached (see get_js_pos below). The memmove body is the
+    // same either way; only the buffer changes.
+    public func move_js_range_in(buf : &mut std::string, fromStart : ubigint, fromEnd : ubigint, index : ubigint) {
+        if (fromStart >= fromEnd || fromEnd > buf.size() || index > buf.size()) return;
         if (index >= fromStart && index <= fromEnd) return;
-        
-        pageJs.reserve(pageJs.size());
-        
+
+        buf.reserve(buf.size());
+
         var range_len = fromEnd - fromStart;
-        var p_buf = pageJs.mutable_data();
+        var p_buf = buf.mutable_data();
 
         var stack_buf : [1024]char;
         var p_stack = &mut stack_buf[0];
@@ -734,15 +737,15 @@ public struct HtmlPage {
             var m_len = fromStart - index;
             if (m_len <= range_len) {
                 var temp = if (m_len <= 1024) (p_stack as *mut char) else (malloc(m_len) as *mut char);
-                memcpy(temp as *mut void, (p_buf + m_start) as *void, m_len);
-                memmove((p_buf + m_start) as *mut void, (p_buf + fromStart) as *void, range_len);
-                memcpy((p_buf + m_start + range_len) as *mut void, temp as *void, m_len);
+                memcpy(temp as *mut void, (p_buf + m_start) as *mut void, m_len);
+                memmove((p_buf + m_start) as *mut void, (p_buf + fromStart) as *mut void, range_len);
+                memcpy((p_buf + m_start + range_len) as *mut void, temp as *mut void, m_len);
                 if (m_len > 1024) free(temp as *mut void);
             } else {
                 var temp = if (range_len <= 1024) (p_stack as *mut char) else (malloc(range_len) as *mut char);
-                memcpy(temp as *mut void, (p_buf + fromStart) as *void, range_len);
-                memmove((p_buf + m_start + range_len) as *mut void, (p_buf + m_start) as *void, m_len);
-                memcpy((p_buf + m_start) as *mut void, temp as *void, range_len);
+                memcpy(temp as *mut void, (p_buf + fromStart) as *mut void, range_len);
+                memmove((p_buf + m_start + range_len) as *mut void, (p_buf + m_start) as *mut void, m_len);
+                memcpy((p_buf + m_start) as *mut void, temp as *mut void, range_len);
                 if (range_len > 1024) free(temp as *mut void);
             }
         } else {
@@ -750,18 +753,42 @@ public struct HtmlPage {
             var m_len = index - fromEnd;
             if (range_len <= m_len) {
                 var temp = if (range_len <= 1024) (p_stack as *mut char) else (malloc(range_len) as *mut char);
-                memcpy(temp as *mut void, (p_buf + fromStart) as *void, range_len);
-                memmove((p_buf + fromStart) as *mut void, (p_buf + m_start) as *void, m_len);
-                memcpy((p_buf + fromStart + m_len) as *mut void, temp as *void, range_len);
+                memcpy(temp as *mut void, (p_buf + fromStart) as *mut void, range_len);
+                memmove((p_buf + fromStart) as *mut void, (p_buf + m_start) as *mut void, m_len);
+                memcpy((p_buf + fromStart + m_len) as *mut void, temp as *mut void, range_len);
                 if (range_len > 1024) free(temp as *mut void);
             } else {
                 var temp = if (m_len <= 1024) (p_stack as *mut char) else (malloc(m_len) as *mut char);
-                memcpy(temp as *mut void, (p_buf + m_start) as *void, m_len);
-                memmove((p_buf + fromStart + m_len) as *mut void, (p_buf + fromStart) as *void, range_len);
-                memcpy((p_buf + fromStart) as *mut void, temp as *void, range_len);
+                memcpy(temp as *mut void, (p_buf + m_start) as *mut void, m_len);
+                memmove((p_buf + fromStart + m_len) as *mut void, (p_buf + fromStart) as *mut void, range_len);
+                memcpy((p_buf + fromStart) as *mut void, temp as *mut void, range_len);
                 if (m_len > 1024) free(temp as *mut void);
             }
         }
+    }
+
+    // The end of the buffer a component definition was actually appended to.
+    //
+    // With a shared sink attached, page-independent output - component
+    // definitions above all - is routed into the SINK, not into `pageJs`. A
+    // definition's hoist position is therefore an offset into the sink's
+    // `js_data`, and measuring it against `pageJs` measures the wrong buffer.
+    //
+    // That is not a small mismatch. `move_js_range` bounds-checks its arguments
+    // and returns silently when they are out of range, so with a sink attached
+    // the hoist became a no-op, the definition stayed inline in the middle of
+    // the `createElement(...)` argument list it was emitted into, and the whole
+    // client bundle failed to parse. Every page that attaches a sink and renders
+    // a component which uses another component was affected.
+    func get_js_pos(&self) : ubigint {
+        if (self.shared != null) { return self.shared.js_data.size(); }
+        return pageJs.size();
+    }
+
+    func move_js_range(&mut self, fromStart : ubigint, fromEnd : ubigint, index : ubigint) {
+        // Same reasoning as get_js_pos: move inside the buffer the bytes are in.
+        if (self.shared != null) { move_js_range_in(&mut self.shared.js_data, fromStart, fromEnd, index); return; }
+        move_js_range_in(&mut self.pageJs, fromStart, fromEnd, index);
     }
 
     func append_head_js(&mut self, value : *char, len : size_t) {
@@ -3182,3 +3209,5 @@ public func write_site_routes(dir : std::string_view, page_names : &std::vector<
     fs::write_text_file(sitePath.data(), agg.data() as *u8, agg.size())
     return owned.size() as int
 }
+
+

@@ -442,5 +442,5 @@ func write_http_extra_py() {
     py.append_view("elif cmd=='hstrict':\n")
     py.append_view("    hstrict(sys.argv[2],sys.argv[3],sys.argv[4])\n")
 
-    test_write_file("/tmp/http_extra.py\0" as *char, py.data() as *u8, py.size())
+    test_write_script_if_changed("/tmp/http_extra.py\0" as *char, py.data() as *u8, py.size())
 }

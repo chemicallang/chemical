@@ -411,10 +411,21 @@ func srv_launch_hcli(port : uint, host : string_view, py_mode : string_view,
 
 func srv_accept_with_retry(ls : net::Socket) : net::Socket {
     net::set_nonblocking(ls)
+    // Wait up to ~30s for the client to arrive. The runner launches the whole
+    // suite in parallel, so a python client can sit behind a dozen other
+    // interpreter startups (each ~1-3s of CPU) before it even reaches
+    // connect(). A 10s window was the single largest source of spurious
+    // "client never connected" failures under load.
+    //
+    // This is an upper bound, not a delay: accept returns as soon as the
+    // connection lands, so a healthy test pays nothing extra. Only a test that
+    // is genuinely going to fail waits the full window.
+    const ACCEPT_ATTEMPTS : int = 300
+    const ACCEPT_POLL_MS : uint = 100u
     var cs = net::accept_socket(ls)
     var tries : int = 0
-    while(cs == 0 as net::Socket && tries < 100) {
-        std::concurrent::sleep_ms(100u)
+    while(cs == 0 as net::Socket && tries < ACCEPT_ATTEMPTS) {
+        std::concurrent::sleep_ms(ACCEPT_POLL_MS)
         cs = net::accept_socket(ls)
         tries += 1
     }

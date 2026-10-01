@@ -16,11 +16,34 @@ window.addEventListener('unhandledrejection', function(e){ window.__ut_errors.pu
 // These are diagnostics only: many tests deliberately exercise error paths that
 // log via console, so console output must never fail a test on its own.
 window.__ut_console = [];
+// A SECOND log that is NEVER cleared. `__ut_console` is reset per test, which is
+// right for "what did this test log" and useless for anything that happens at
+// PAGE LOAD: hydration runs before the first test body executes, so a test
+// asserting on hydration saw an empty array and passed while the page was
+// flooding the real console. `__ut_console_all` keeps the load-time output so a
+// test can assert on it.
+window.__ut_console_all = [];
 (function(){
     var origError = console.error, origWarn = console.warn;
     var fmt = function(a){ try { return '' + (a && a.message ? a.message : a); } catch(e){ return '' + a; } };
-    console.error = function(){ var m = fmt(arguments[0]); if(window.__ut_console) window.__ut_console.push('console.error: ' + m); return origError.apply(console, arguments); };
-    console.warn = function(){ var m = fmt(arguments[0]); if(window.__ut_console) window.__ut_console.push('console.warn: ' + m); return origWarn.apply(console, arguments); };
+    var record = function(kind, m, args){
+        var line = kind + ': ' + m;
+        // Keep the EXTRA arguments, quoted so whitespace is visible. A hydration
+        // warning's payload is its expected/got pair, and without them the log says
+        // only THAT something differed - which is the one thing the author already
+        // knows.
+        for (var i = 1; args && i < args.length; i++) {
+            var extra;
+            try { extra = JSON.stringify(args[i]); } catch(e) { extra = '' + args[i]; }
+            if (extra === undefined) extra = 'undefined';
+            line += ' [' + extra + ']';
+        }
+        if(window.__ut_console) window.__ut_console.push(line);
+        if(window.__ut_console_all) window.__ut_console_all.push(line);
+        return line;
+    };
+    console.error = function(){ record('console.error', fmt(arguments[0]), arguments); return origError.apply(console, arguments); };
+    console.warn = function(){ record('console.warn', fmt(arguments[0]), arguments); return origWarn.apply(console, arguments); };
 })();
 
 function U(query) { this.el = query; this.desc = ''; }
@@ -347,6 +370,17 @@ window.expect = function(actual) {
 };
 window.sleep = function(ms) { return new Promise(function(r) { setTimeout(r, ms); }); };
 window.t = {
+    // Everything logged since page load, including before the first test ran.
+    // This is the only way to assert on something that happens during
+    // initialisation -- hydration above all, which completes before any test body
+    // is invoked.
+    consoleAll: function() { return window.__ut_console_all.slice(); },
+    hydrationMismatches: function() {
+        var out = [];
+        var all = window.__ut_console_all || [];
+        for (var i = 0; i < all.length; i++) { if (all[i].indexOf('hydration mismatch') >= 0) out.push(all[i]); }
+        return out;
+    },
     sleep: window.sleep,
     waitFor: window.sleep,
     log: function(m) { console.log('[test] ' + m); },

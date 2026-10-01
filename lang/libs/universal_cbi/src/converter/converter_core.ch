@@ -647,9 +647,24 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
                  converter.escapeHtml(text.value);
                  converter.put_chain_in();
              } else {
+                 // NORMALISED BEFORE IT IS ESCAPED, and this is load-bearing on any
+                 // project whose sources have CRLF endings.
+                 //
+                 // The SSR HTML carries the source's raw bytes, so a JSX whitespace
+                 // child between two elements ships as "\r\n        ". The HTML parser
+                 // then normalises CR and CRLF to LF in text content -- that is the
+                 // spec, not a browser quirk -- so the DOM holds "\n        " while
+                 // the client vnode held "\r\n        ". Every multi-line JSX child on
+                 // such a file then failed hydration with "text node differs from
+                 // SSR", once per gap, until the runtime gave up at 25.
+                 //
+                 // The client has to match what the PARSER produces, not what the
+                 // source contained. The SSR side is left alone: it is correct, and
+                 // the browser is not going to change.
                  var decoded = decode_html_entities(text.value);
+                 var normalized = normalize_jsx_newlines(decoded.to_view());
                  converter.str.append_view("`");
-                 converter.escapeJs(decoded.to_view());
+                 converter.escapeJs(normalized.to_view());
                  converter.str.append_view("`");
              }
         }
@@ -662,6 +677,29 @@ func (converter : &mut JsConverter) convertJsNode(node : *mut JsNode) {
         default => {
         }
     }
+}
+
+// CRLF and lone CR become LF, exactly as an HTML parser does to text content.
+//
+// Applied to the CLIENT half of a JSX text node so it matches the DOM the browser
+// built from the SSR HTML. Without it, any project with CRLF sources hydrates
+// with a mismatch on every whitespace-only child between elements.
+public func normalize_jsx_newlines(value : std::string_view) : std::string {
+    if(value.find(&std::string_view("\r")) == std::NPOS) { return std::string(value) }
+    var out = std::string("")
+    var i = 0u
+    while(i < value.size()) {
+        var c = value.get(i)
+        if(c == 13) {
+            // CRLF is ONE line break; consume both bytes and emit one LF.
+            if(i + 1u < value.size() && value.get(i + 1u) == 10) { i = i + 1u }
+            out.append(10 as char)
+        } else {
+            out.append(c)
+        }
+        i = i + 1u
+    }
+    return out
 }
 
 func (converter : &mut JsConverter) is_props_children(node : *mut JsNode) : bool {

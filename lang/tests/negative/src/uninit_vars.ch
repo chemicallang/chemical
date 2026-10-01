@@ -202,3 +202,53 @@ func neg_uninit_init_read_after_first_init(env : &mut TestEnv) {
     var ch = "struct Container {\n    var field : i32\n    @delete func delete(&mut self) { }\n}\npublic func main() : int {\n    var c : Container\n    c = Container { field : 4 }\n    var y = c.field\n    return y\n}\n"
     expect_compile_success(env, "uninit_init_read_after_first_init", ch)
 }
+
+// ============================================================================
+// TOP-LEVEL variables.
+//
+// A module-scope declaration cannot be initialized by a function call, because
+// there is nowhere to run one -- so a top-level `var` with no initializer has to be
+// filled in by some function before it is read. When nothing ever assigns it, the
+// read is of storage no constructor ever wrote.
+//
+// This is the shape that killed the account service: `login_attempts` was declared
+// at module scope with no initializer, and the only assignment to it lived in a
+// test-only helper. Reading it computed `hash & (capacity - 1)` on a zero capacity,
+// which is `hash & SIZE_MAX`, and indexed a table that was never allocated.
+// ============================================================================
+
+@test
+func neg_uninit_top_level_read_errors(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // Declared at module scope, never initialized and never assigned, then read.
+    var ch = "struct Container {\n    var field : i32\n    @delete func delete(&mut self) { }\n}\n@never_destructed var g_never_init : Container\npublic func main() : int {\n    return g_never_init.field\n}\n"
+    expect_compile_error(env, "uninit_top_level_read", ch, "uninitialized variable")
+}
+
+@test
+func neg_uninit_top_level_never_assigned_unread_ok(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // The converse, and it pins that the check is about USE: a declaration nothing
+    // reads is not an error, so the rule does not turn into a blanket ban on
+    // uninitialized top-level declarations.
+    var ch = "struct Container {\n    var field : i32\n    @delete func delete(&mut self) { }\n}\n@never_destructed var g_never_init : Container\npublic func main() : int {\n    return 0\n}\n"
+    expect_compile_success(env, "uninit_top_level_never_assigned_unread_ok", ch)
+}
+
+@test
+func neg_uninit_top_level_assigned_by_startup_ok(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // THE PATTERN THE CHECK MUST NOT BREAK. A top-level declaration that a startup
+    // function fills in before anything reads it is exactly how `Web/account` is
+    // fixed: `load_from_env()` assigns the rate-limiter maps at boot.
+    var ch = "struct Container {\n    var field : i32\n    @delete func delete(&mut self) { }\n}\n@never_destructed var g_filled : Container\nfunc startup() { g_filled = Container { field : 7 } }\nfunc use() : i32 { return g_filled.field }\npublic func main() : int {\n    startup()\n    return use()\n}\n"
+    expect_compile_success(env, "uninit_top_level_assigned_by_startup_ok", ch)
+}
+
+@test
+func neg_uninit_top_level_initialized_ok(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // An initializer at the declaration is the other way to satisfy it.
+    var ch = "struct Container {\n    var field : i32\n    @delete func delete(&mut self) { }\n}\n@never_destructed var g_ready : Container = Container { field : 1 }\npublic func main() : int {\n    return g_ready.field\n}\n"
+    expect_compile_success(env, "uninit_top_level_initialized_ok", ch)
+}

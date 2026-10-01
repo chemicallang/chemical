@@ -107,6 +107,34 @@ bool TypeVerifier::da_type_has_destructor(VarInitStatement* v) {
     return t->get_destructor() != nullptr;
 }
 
+// The top-level variable an access names, or null.
+//
+// This is the counterpart of `da_root_local_var`, and it exists because the local
+// analysis cannot see these at all: a module-scope declaration is never pushed onto
+// `locals`. `is_top_level()` is the AST's own answer for "inside a file or a
+// namespace", so there is no parent walk here to keep in step with it.
+VarInitStatement* TypeVerifier::da_root_module_var(Value* v) {
+    if(!v) return nullptr;
+    switch(v->val_kind()) {
+        case ValueKind::Identifier: {
+            auto* id = static_cast<VariableIdentifier*>(v);
+            auto* linked = id->linked;
+            if(linked && linked->kind() == ASTNodeKind::VarInitStmt) {
+                auto* var = static_cast<VarInitStatement*>(linked);
+                if(var->is_top_level()) return var;
+            }
+            return nullptr;
+        }
+        case ValueKind::AccessChain: {
+            auto* chain = static_cast<AccessChain*>(v);
+            if(!chain->values.empty()) return da_root_module_var(chain->values[0]);
+            return nullptr;
+        }
+        default:
+            return nullptr;
+    }
+}
+
 void TypeVerifier::da_report_uninit(VarInitStatement* v, const char* action, SourceLocation loc) {
     std::string msg = "use of uninitialized variable '";
     msg.append(v->located_id.data(), v->located_id.size());
@@ -1849,10 +1877,30 @@ void TypeVerifier::VisitLambdaFunction(LambdaFunction *func) {
 void TypeVerifier::VisitVariableIdentifier(VariableIdentifier* id) {
     if(!da_enabled || da_addr_inner) return;
     auto* v = da_root_local_var(id);
-    if(v && !da_is_initialized(v) && !da_in_unsafe) {
-        if(da_type_has_destructor(v)) {
-            da_report_uninit(v, "use of", id->encoded_location());
+    if(v) {
+        if(!da_is_initialized(v) && !da_in_unsafe) {
+            if(da_type_has_destructor(v)) {
+                da_report_uninit(v, "use of", id->encoded_location());
+            }
         }
+        return;
+    }
+
+    // MODULE SCOPE has no flow to analyse, so the rule is the declaration itself.
+    //
+    // A top-level `var` cannot be initialized by a function call -- there is nowhere
+    // to run one -- so if it has no initializer and nothing ever assigns it, the value
+    // being read was never constructed. For a type with a destructor that is not a
+    // stale read, it is a read of memory no constructor ever wrote: exactly the shape
+    // that reached `table[index]` with `capacity == 0`.
+    //
+    // `has_assignment` is what keeps this from firing on the legitimate pattern -- a
+    // top-level declaration that a startup function fills in before it is used. That
+    // is symbol resolution's flag, set by any assignment to the declaration.
+    if(da_in_unsafe) return;
+    auto* g = da_root_module_var(id);
+    if(g && !g->value && !g->attrs.has_assignment && da_type_has_destructor(g)) {
+        da_report_uninit(g, "use of", id->encoded_location());
     }
 }
 

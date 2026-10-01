@@ -104,6 +104,7 @@ public:
     void da_add_local(VarInitStatement* v);
     bool da_is_initialized(VarInitStatement* v);
     VarInitStatement* da_root_local_var(Value* v);
+    VarInitStatement* da_root_module_var(Value* v);
     bool da_type_has_destructor(VarInitStatement* v);
     void da_report_uninit(VarInitStatement* v, const char* action, SourceLocation loc);
     void da_intersect(const std::vector<bool>& a, const std::vector<bool>& b,

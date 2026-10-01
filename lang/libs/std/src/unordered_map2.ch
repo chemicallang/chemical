@@ -8,6 +8,10 @@ public struct unordered_map_node<Key : Hashable + Eq, Value> {
 
 public comptime const LOAD_FACTOR_THRESHOLD2 : float = 0.75f
 
+// The bucket count the first `resize` allocates. It has to be a power of two, because
+// every bucket index is `hash & (capacity - 1)`.
+public comptime const INITIAL_CAPACITY : size_t = 16u
+
 public struct unordered_map<Key : Hashable + Eq, Value> {
 
     var table : *mut *mut unordered_map_node<Key, Value>; // Array of buckets (pointers to linked lists)
@@ -29,6 +33,16 @@ public struct unordered_map<Key : Hashable + Eq, Value> {
     // Resize and rehash
     func resize(&mut self) : void {
         var newCapacity = capacity * 2;
+        // The FIRST resize of an empty map doubles zero, which is still zero, so the
+        // new table was a `malloc(0)` and `capacity` stayed 0. Every bucket index is
+        // `hash & (capacity - 1)`, and at capacity 0 that mask is SIZE_MAX -- so the
+        // index became the whole hash and `table[index]` read one hash out of bounds.
+        //
+        // Seeding the first allocation is the fix. It must be a power of two, for the
+        // same mask.
+        if(newCapacity == 0) {
+            newCapacity = INITIAL_CAPACITY;
+        }
         var newTable = malloc(newCapacity * sizeof(*mut unordered_map_node<Key, Value>)) as *mut *mut unordered_map_node<Key, Value>;
 
         // Initialize new table to nullptr (empty buckets)

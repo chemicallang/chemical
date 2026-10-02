@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-01T10:52:10Z",
+  "generated_at": "2026-10-02T09:42:30Z",
   "daily": [
     "2026-10-01-windows-x64",
     "2026-10-01-windows-mingw-x64",
@@ -720,6 +720,19 @@
       "windows-x64"
     ],
     "v0.5.16": [
+      "linux-alpine-arm64",
+      "linux-alpine-x64",
+      "linux-arm64",
+      "linux-x64",
+      "macos-arm64",
+      "macos-x64",
+      "windows-arm64",
+      "windows-mingw-arm64",
+      "windows-mingw-msvcrt-x64",
+      "windows-mingw-x64",
+      "windows-x64"
+    ],
+    "v0.5.18": [
       "linux-alpine-arm64",
       "linux-alpine-x64",
       "linux-arm64",

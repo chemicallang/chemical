@@ -232,6 +232,13 @@ private:
             free(self.heap_buf);
             self.heap_buf = newbuf;
             self.heap_cap = newcap;
+            // str_buf has to follow the move. parse_string_value hands THIS
+            // pointer to handler.on_string/on_key, and the buffer it pointed at
+            // was just freed, so without this every string longer than the
+            // initial 8 KiB heap block was reported from freed memory - and it
+            // hides behind the default 4096 ceiling, which refuses such a
+            // string long before the grow path is reached.
+            self.str_buf = newbuf;
         }
         return self.heap_buf;
     }

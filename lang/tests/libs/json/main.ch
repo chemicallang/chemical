@@ -847,3 +847,60 @@ func test_long_string_roundtrip(env : &mut TestEnv) {
     var encoded2 = json::stringify(&ph2.root)
     if (!encoded.to_view().equals(encoded2.to_view())) { env.error("long string roundtrip mismatch") }
 }
+// A string long enough to make the heap buffer GROW more than once.
+//
+// ensure_buf hands the handler `str_buf`, and it must follow every realloc: the
+// previous block is freed on the way. Without that assignment this value was
+// read out of freed memory for every string past the first 8 KiB block - which
+// is every string past 8192 bytes, as soon as max_string lets one get that far.
+// The two tests above (5000 and 8000 chars) cannot see it: 8192 is the initial
+// heap capacity, so neither of them reallocates.
+//
+// 3 MiB is chosen over a size just over 8192 because the failure mode is a
+// use-after-free, not a wrong return value: at a few reallocs the freed block
+// may still hold the right bytes, and only a longer string forces the allocator
+// to hand the block out again. This is the shape that crashed with
+// "invalid memory access" in on_string.
+@test
+func test_string_that_outgrows_the_heap_buffer_stays_intact(env : &mut TestEnv) {
+    const BIG = 3u * 1024u * 1024u
+    var doc = std::string()
+    doc.append_view(std::string_view("{\"k\":\""))
+    for (var i = 0u; i < BIG; i++) { doc.append('x') }
+    doc.append_view(std::string_view("\"}"))
+
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(256, 8u * 1024u * 1024u)
+    var r = parser.parse(doc.data(), doc.size(), &mut ph)
+    if (!r.ok) { env.error(r.msg); return }
+    if (!(ph.root is JsonValue.Object)) { env.error("expected object"); return }
+    var Object(map) = ph.root else unreachable
+    var vp = map.get_ptr(std::string("k"))
+    if (vp == null) { env.error("missing k field"); return }
+    if (!(vp is JsonValue.String)) { env.error("expected string value"); return }
+    var String(s) = *vp else unreachable
+    if (s.size() != BIG) { env.error("length mismatch after the buffer grew"); return }
+    // Content, not just length: sample every realloc boundary and both ends.
+    var i = 0u
+    while (i < s.size()) {
+        if (s.get(i) != 'x') { env.error("byte mismatch past a buffer growth"); return }
+        i += 997u
+    }
+    if (s.get(s.size() - 1u) != 'x') { env.error("last byte mismatch"); return }
+}
+
+// The default ceiling is part of the contract, not an accident: a caller that
+// wants a longer single string has to ask for it. This is also what used to
+// hide the grow-path bug above - every long string was refused before it could
+// reach the realloc.
+@test
+func test_the_default_ceiling_still_refuses_a_long_string(env : &mut TestEnv) {
+    var doc = std::string()
+    doc.append_view(std::string_view("{\"k\":\""))
+    for (var i = 0u; i < 5000u; i++) { doc.append('x') }
+    doc.append_view(std::string_view("\"}"))
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(128, 4096)
+    var r = parser.parse(doc.data(), doc.size(), &mut ph)
+    if (r.ok) { env.error("a 5000 char string must not pass the default 4096 ceiling"); return }
+}

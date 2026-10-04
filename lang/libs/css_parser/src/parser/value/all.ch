@@ -22,6 +22,16 @@ func putAllCSSValueParsers(
     map.put(std::string_view("border-top"), CSSParser::parseBorder)
     map.put(std::string_view("border-right"), CSSParser::parseBorder)
     map.put(std::string_view("border-bottom"), CSSParser::parseBorder)
+    // `border-width` is a 1-4 value shorthand (top/right/bottom/left), and the
+    // per-side `border-*-width` longhands take one value each. Without an entry
+    // here the generic single-value fallback consumed only the FIRST value and
+    // then failed with "expected a semicolon after the property's value" on the
+    // second, which made every multi-value border-width unparseable.
+    map.put(std::string_view("border-width"), CSSParser::parseRawPropertyValue)
+    map.put(std::string_view("border-top-width"), CSSParser::parseRawPropertyValue)
+    map.put(std::string_view("border-right-width"), CSSParser::parseRawPropertyValue)
+    map.put(std::string_view("border-bottom-width"), CSSParser::parseRawPropertyValue)
+    map.put(std::string_view("border-left-width"), CSSParser::parseRawPropertyValue)
     map.put(std::string_view("border-radius"), CSSParser::parseBorderRadius)
     map.put(std::string_view("padding"), CSSParser::parsePadding)
     map.put(std::string_view("width"), CSSParser::parseWidth)

@@ -51,21 +51,31 @@ public func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, buil
         var keyword = builder.allocate_view(&token.value);
         parser.increment();
 
-        var name = std::string_view();
-        var pattern : *mut JsNode = null;
+        // `var a = 1, b, c = 3;` — one VarDecl node per declarator, chained
+        // through `next`, all sharing the statement's keyword. Emitting them as
+        // separate statements would also work, but this preserves the source
+        // shape (and the single `var` keyword) on round-trip.
+        var first : *mut JsVarDecl = null;
+        var current : *mut JsVarDecl = null;
+        while(true) {
+            var name = std::string_view();
+            var pattern : *mut JsNode = null;
 
-        if(parser.getToken().type == JsTokenType.LBracket as int) {
-            pattern = jsParser.parseArrayDestructuring(parser, builder);
-        } else if(parser.getToken().type == JsTokenType.Identifier as int) {
-            name = builder.allocate_view(&parser.getToken().value);
-            parser.increment();
-        } else {
-            parser.error("expected identifier or [");
-            return null;
-        }
+            if(parser.getToken().type == JsTokenType.LBracket as int) {
+                pattern = jsParser.parseArrayDestructuring(parser, builder);
+            } else if(parser.getToken().type == JsTokenType.Identifier as int) {
+                name = builder.allocate_view(&parser.getToken().value);
+                parser.increment();
+            } else {
+                parser.error("expected identifier or [");
+                return null;
+            }
 
-        if(parser.increment_if(JsTokenType.Equal as int)) {
-            var val = jsParser.parseExpression(parser, builder);
+            var val : *mut JsNode = null;
+            if(parser.increment_if(JsTokenType.Equal as int)) {
+                val = jsParser.parseExpression(parser, builder);
+            }
+
             var varDecl = builder.allocate<JsVarDecl>()
             new (varDecl) JsVarDecl {
                 base : JsNode { kind : JsNodeKind.VarDecl },
@@ -74,20 +84,17 @@ public func (jsParser : &mut JsParser) parseStatement(parser : *mut Parser, buil
                 value : val,
                 keyword : keyword
             }
-            parser.increment_if(JsTokenType.SemiColon as int);
-            return varDecl as *mut JsNode;
-        } else {
-            var varDecl = builder.allocate<JsVarDecl>()
-            new (varDecl) JsVarDecl {
-                base : JsNode { kind : JsNodeKind.VarDecl },
-                name : name,
-                pattern : pattern,
-                value : null,
-                keyword : keyword
+            if(first == null) { first = varDecl } else { current.next = varDecl }
+            current = varDecl
+
+            if(parser.getToken().type == JsTokenType.Comma as int) {
+                parser.increment();
+            } else {
+                break;
             }
-            parser.increment_if(JsTokenType.SemiColon as int);
-            return varDecl as *mut JsNode;
         }
+        parser.increment_if(JsTokenType.SemiColon as int);
+        return first as *mut JsNode;
     } else if(token.type == JsTokenType.If as int) {
         parser.increment();
         if(!parser.increment_if(JsTokenType.LParen as int)) {

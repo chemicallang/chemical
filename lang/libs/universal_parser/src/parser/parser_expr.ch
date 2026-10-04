@@ -142,6 +142,16 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
             value : builder.allocate_view(&token.value)
         }
         node = literal as *mut JsNode;
+    } else if(token.type == JsTokenType.Regex as int) {
+        // A regular-expression literal is emitted verbatim (`/pattern/flags`);
+        // the lexer has already resolved `/` against division.
+        parser.increment();
+        var literal = builder.allocate<JsLiteral>()
+        new (literal) JsLiteral {
+            base : JsNode { kind : JsNodeKind.Literal },
+            value : builder.allocate_view(&token.value)
+        }
+        node = literal as *mut JsNode;
     } else if(token.type == JsTokenType.Async as int) {
         parser.increment(); // consume async
         // Check for function
@@ -541,16 +551,16 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                             base : JsNode { kind : JsNodeKind.Identifier },
                             value : firstId
                         }
-                        if(jsParser.jsx_enabled) {
-                            var paren = builder.allocate<JsParen>()
-                            new (paren) JsParen {
-                                base : JsNode { kind : JsNodeKind.Paren },
-                                expression : id as *mut JsNode
-                            }
-                            node = paren as *mut JsNode;
-                        } else {
-                            node = id as *mut JsNode;
+                        // Explicit grouping is preserved in every mode. Dropping
+                        // it in plain-JS mode turned `!(id in local)` into
+                        // `!id in local` (i.e. `(!id) in local`), silently
+                        // changing what the emitted bundle means.
+                        var paren = builder.allocate<JsParen>()
+                        new (paren) JsParen {
+                            base : JsNode { kind : JsNodeKind.Paren },
+                            expression : id as *mut JsNode
                         }
+                        node = paren as *mut JsNode;
                     }
                 } else {
                     // (id + ...) -> Expression
@@ -564,22 +574,7 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                     if(!parser.increment_if(JsTokenType.RParen as int)) {
                         parser.error("expected )");
                     }
-                    if(jsParser.jsx_enabled) {
-                        var paren = builder.allocate<JsParen>()
-                        new (paren) JsParen {
-                            base : JsNode { kind : JsNodeKind.Paren },
-                            expression : node
-                        }
-                        node = paren as *mut JsNode;
-                    }
-                }
-            } else {
-                // (expr)
-                node = jsParser.parseExpression(parser, builder);
-                if(!parser.increment_if(JsTokenType.RParen as int)) {
-                    parser.error("expected )");
-                }
-                if(jsParser.jsx_enabled) {
+                    // Preserve the explicit group as an operand (see above).
                     var paren = builder.allocate<JsParen>()
                     new (paren) JsParen {
                         base : JsNode { kind : JsNodeKind.Paren },
@@ -587,6 +582,19 @@ func (jsParser : &mut JsParser) parsePrimary(parser : *mut Parser, builder : *mu
                     }
                     node = paren as *mut JsNode;
                 }
+            } else {
+                // (expr)
+                node = jsParser.parseExpression(parser, builder);
+                if(!parser.increment_if(JsTokenType.RParen as int)) {
+                    parser.error("expected )");
+                }
+                // Preserve the explicit group as an operand (see above).
+                var paren = builder.allocate<JsParen>()
+                new (paren) JsParen {
+                    base : JsNode { kind : JsNodeKind.Paren },
+                    expression : node
+                }
+                node = paren as *mut JsNode;
             }
         }
     } else {

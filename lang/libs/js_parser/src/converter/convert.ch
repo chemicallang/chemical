@@ -74,6 +74,25 @@ public func escape_js_text(text : std::string_view, emitter : &mut JsNodeEmitter
     }
 }
 
+// Emit the declarator list of a `var`/`const`/`let` statement (everything after
+// the keyword): `a = 1, b, c = 3`. Handles chained declarators in `next`.
+public func emit_js_var_decl_items(decl : *mut JsVarDecl, emitter : &mut JsNodeEmitter, universal_mode : bool) {
+    var d = decl
+    while(d != null) {
+        if(d != decl) { emitter.emit_text(", ") }
+        if(d.pattern != null) {
+            convert_js_node(d.pattern, emitter, universal_mode)
+        } else {
+            emitter.emit_text(&d.name)
+        }
+        if(d.value != null) {
+            emitter.emit_text(" = ")
+            convert_js_node(d.value, emitter, universal_mode)
+        }
+        d = d.next
+    }
+}
+
 public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter, universal_mode : bool = false) {
     switch(node.kind) {
         JsNodeKind.VarDecl => {
@@ -84,15 +103,7 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter, un
                 emitter.emit_text(&varDecl.keyword)
                 emitter.emit_text(" ")
             }
-            if(varDecl.pattern != null) {
-                convert_js_node(varDecl.pattern, emitter, universal_mode)
-            } else {
-                emitter.emit_text(&varDecl.name)
-            }
-            if(varDecl.value != null) {
-                emitter.emit_text(" = ")
-                convert_js_node(varDecl.value, emitter, universal_mode)
-            }
+            emit_js_var_decl_items(varDecl, emitter, universal_mode)
             emitter.emit_text(";")
         }
         JsNodeKind.Literal => {
@@ -314,15 +325,7 @@ public func convert_js_node(node : *mut JsNode, emitter : &mut JsNodeEmitter, un
                     var decl = forStmt.init as *mut JsVarDecl
                     emitter.emit_text(&decl.keyword)
                     emitter.emit_text(" ")
-                    if(decl.pattern != null) {
-                        convert_js_node(decl.pattern, emitter, universal_mode)
-                    } else {
-                        if(decl.pattern != null) { convert_js_node(decl.pattern, emitter, universal_mode) } else { emitter.emit_text(&decl.name) }
-                    }
-                    if(decl.value != null) {
-                        emitter.emit_text(" = ")
-                        convert_js_node(decl.value, emitter, universal_mode)
-                    }
+                    emit_js_var_decl_items(decl, emitter, universal_mode)
                 } else if(initNode.kind == JsNodeKind.ExpressionStatement) {
                     var stmt = forStmt.init as *mut JsExpressionStatement
                     convert_js_node(stmt.expression, emitter, universal_mode)

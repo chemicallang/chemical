@@ -3,8 +3,9 @@ public type JsStyleBlockFn = (parser : *mut Parser, builder : *mut ASTBuilder, d
 public struct JsParser {
     var dyn_values : *mut std::vector<*mut Value>
     var components : *mut std::vector<*mut JsJSXElement>
-    // When false (plain-JS mode), parenthesized expressions are unwrapped
-    // instead of producing a JsParen node.
+    // When false, the lexer is plain JavaScript (`<` is comparison/shift,
+    // `state` is an identifier, no `??`/`?.`/`**`). Grouping parentheses are
+    // preserved as `JsParen` nodes in both modes.
     var jsx_enabled : bool = true
     // Set by universal_cbi: parses a `style { … }` CSS block. Lives outside this
     // package so universal_parser need not depend on css_parser.

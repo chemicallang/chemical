@@ -64,7 +64,45 @@ func isDigitInBase(c : char, base : u32) : bool {
 func malformedNumber(position : Position) : Token {
     return Token { type : 0, value : std::string_view("malformed number"), position : position }
 }
+// Escape-aware JS string reader. `provider` sits just after the opening quote;
+// consumes up to and including the matching closing quote, treating `\x` as an
+// escaped pair so `\"` does not terminate the literal (the shared
+// `read_double_quoted_value` stops at the first quote).
+public func (provider : &SourceProvider) read_js_quoted_value(quote : char) {
+    while(true) {
+        const c = provider.peek()
+        if(c == '\0') { return }
+        if(c == '\\') {
+            provider.increment()
+            if(provider.peek() != '\0') { provider.increment() }
+            continue
+        }
+        if(c == quote) { provider.increment(); return }
+        provider.increment()
+    }
+}
+
+// Does a token type END an expression? If so, a following `/` is division;
+// otherwise `/` begins a regular-expression literal.
+func js_token_is_value(type : int) : bool {
+    switch(type as JsTokenType) {
+        JsTokenType.Identifier, JsTokenType.Number, JsTokenType.String, JsTokenType.TemplateLiteral,
+        JsTokenType.RParen, JsTokenType.RBracket, JsTokenType.RBrace,
+        JsTokenType.This, JsTokenType.Super, JsTokenType.True, JsTokenType.False,
+        JsTokenType.Null, JsTokenType.Undefined, JsTokenType.Regex => { return true }
+        default => { return false }
+    }
+}
+
+// `public` entry point: records whether a following `/` may start a regex (based
+// on the token just produced), then returns the token unchanged.
 public func nextJsToken(js : &mut JsLexer, lexer : &mut Lexer, jsx_enabled : bool) : Token {
+    const tok = nextJsToken_inner(js, lexer, jsx_enabled)
+    js.regex_allowed = !js_token_is_value(tok.type)
+    return tok
+}
+
+func nextJsToken_inner(js : &mut JsLexer, lexer : &mut Lexer, jsx_enabled : bool) : Token {
     
     if(js.chemical_mode) {
         var nested = lexer.getEmbeddedToken();
@@ -219,23 +257,10 @@ public func nextJsToken(js : &mut JsLexer, lexer : &mut Lexer, jsx_enabled : boo
             return Token { type : JsTokenType.Percent as int, value : std::string_view("%"), position : position }
         }
         '/' => {
-            if(provider.peek() == '=') {
-                provider.readCharacter();
-                return Token { type : JsTokenType.SlashEqual as int, value : std::string_view("/="), position : position }
-            } else if(jsx_enabled && provider.peek() == '>') {
-                // /> Self-closing!
-                // If we are in_jsx_tag, and we see />, then we should decrement depth because we incremented at <.
-                if(js.in_jsx_tag == 1) {
-                    if(js.jsx_depth > 0) {
-                        js.jsx_depth--;
-                        js.jsx_brace_count = (js.jsx_brace_stack & 0xFF) as int;
-                        js.jsx_brace_stack >>= 8;
-                    }
-                    // Note: we don't change in_jsx_tag here, > will do it.
-                }
-                // Return /
-                return Token { type : JsTokenType.Slash as int, value : std::string_view("/"), position : position }
-            } else if(provider.peek() == '/') {
+            const p = provider.peek()
+            // Comments win over regex literals in every context: `//` and `/*`
+            // are comments even where an expression could begin.
+            if(p == '/') {
                 // Single line comment
                 provider.readCharacter(); // consume /
                 while(true) {
@@ -246,8 +271,8 @@ public func nextJsToken(js : &mut JsLexer, lexer : &mut Lexer, jsx_enabled : boo
                     provider.readCharacter();
                 }
                 // Recursively get next token after comment
-                return nextJsToken(js, lexer, jsx_enabled);
-            } else if(provider.peek() == '*') {
+                return nextJsToken_inner(js, lexer, jsx_enabled);
+            } else if(p == '*') {
                 // Multi line comment
                 provider.readCharacter(); // consume *
                 while(true) {
@@ -264,7 +289,46 @@ public func nextJsToken(js : &mut JsLexer, lexer : &mut Lexer, jsx_enabled : boo
                     provider.readCharacter();
                 }
                 // Recursively get next token after comment
-                return nextJsToken(js, lexer, jsx_enabled);
+                return nextJsToken_inner(js, lexer, jsx_enabled);
+            } else if(jsx_enabled && p == '>') {
+                // /> Self-closing!
+                // If we are in_jsx_tag, and we see />, then we should decrement depth because we incremented at <.
+                if(js.in_jsx_tag == 1) {
+                    if(js.jsx_depth > 0) {
+                        js.jsx_depth--;
+                        js.jsx_brace_count = (js.jsx_brace_stack & 0xFF) as int;
+                        js.jsx_brace_stack >>= 8;
+                    }
+                    // Note: we don't change in_jsx_tag here, > will do it.
+                }
+                // Return /
+                return Token { type : JsTokenType.Slash as int, value : std::string_view("/"), position : position }
+            } else if(js.regex_allowed && !(jsx_enabled && js.in_jsx_tag == 1)) {
+                // Regular-expression literal. Scan to the first unescaped `/`
+                // that is outside a `[...]` character class, then consume any
+                // trailing flags (`g`, `i`, `m`, `s`, `u`, `y`).
+                var in_class = false
+                while(true) {
+                    const n = provider.peek()
+                    if(n == '\0' || n == '\n' || n == '\r') { break }
+                    if(n == '\\') {
+                        provider.readCharacter()
+                        if(provider.peek() != '\0') { provider.readCharacter() }
+                        continue
+                    }
+                    if(n == '[') { in_class = true }
+                    else if(n == ']') { in_class = false }
+                    else if(n == '/' && !in_class) { provider.readCharacter(); break }
+                    provider.readCharacter()
+                }
+                while(true) {
+                    const f = provider.peek()
+                    if(f != '\0' && isalpha(f as int)) { provider.readCharacter() } else { break }
+                }
+                return Token { type : JsTokenType.Regex as int, value : std::string_view(data_ptr, provider.current_data() - data_ptr), position : position }
+            } else if(p == '=') {
+                provider.readCharacter();
+                return Token { type : JsTokenType.SlashEqual as int, value : std::string_view("/="), position : position }
             }
             return Token { type : JsTokenType.Slash as int, value : std::string_view("/"), position : position }
         }
@@ -445,17 +509,8 @@ public func nextJsToken(js : &mut JsLexer, lexer : &mut Lexer, jsx_enabled : boo
             return Token { type : JsTokenType.GreaterThan as int, value : std::string_view(">"), position : position }
         }
         '"', '\'' => {
-            // String literal
-            // TODO: handle escaping
-            // For now simple string
-            // provider.read_string_literal(c);
-            // We don't have read_string_literal exposed maybe?
-            // html_cbi uses read_double_quoted_value
-            if(c == '"') {
-                provider.read_double_quoted_value();
-            } else {
-                provider.read_single_quoted_value();
-            }
+            // String literal, with backslash escapes so `\"` does not end it.
+            provider.read_js_quoted_value(c);
             return Token { type : JsTokenType.String as int, value : std::string_view(data_ptr, provider.current_data() - data_ptr), position : position }
         }
         default => {

@@ -17,6 +17,11 @@ public struct JsLexer {
     // Lazily-allocated CSSLexer used while lexing a style block (stored as void
     // so this shared lexer package does not depend on css_parser).
     var style_css : *mut void = null
+    // Regex-vs-division disambiguation: `/` starts a regular expression when the
+    // previous significant token cannot end an expression (ECMAScript's
+    // `[no LineTerminator here]` rule). True at the start of a file and after
+    // operators/keywords/`(`/`,`; false after a value.
+    var regex_allowed : bool = true
 }
 
 public func (lexer : &mut JsLexer) reset() {
@@ -26,4 +31,5 @@ public func (lexer : &mut JsLexer) reset() {
     lexer.in_jsx_tag = 0
     lexer.jsx_brace_count = 0
     lexer.jsx_brace_stack = 0
+    lexer.regex_allowed = true
 }

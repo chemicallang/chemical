@@ -235,6 +235,9 @@ public struct JsVarDecl {
     var pattern : *mut JsNode
     var value : *mut JsNode
     var keyword : std::string_view
+    // Additional declarators of a comma-separated `var a = 1, b = 2;` statement
+    // (each `next` shares the same keyword). Null for the common single case.
+    var next : *mut JsVarDecl = null
 }
 
 public struct JsWhile {

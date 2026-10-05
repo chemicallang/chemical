@@ -3,8 +3,10 @@
 Status: design proposal
 Revision: MIR-first branch policy — MIR is the only path (no feature flags, no
 legacy fallback, no per-function capability analysis); the release compiler must
-stay under 4 MB. See `mir-implementation-plan.md` §0 for the binding mandate and
-§11 for the measured performance / memory / pass-rate / binary-size contract.
+stay under 4 MB; generated C stays functionally equivalent (not textually
+identical) and is deliberately optimized. See `mir-implementation-plan.md` §0 for
+the binding mandate, §11 for the measured performance / memory / pass-rate /
+binary-size contract, and §19 below for the analysis of the current generated C.
 
 This document defines the design and implementation plan for Chemical's
 middle-level instruction representation (MIR). It is intentionally
@@ -2136,3 +2138,148 @@ That first pull request establishes the architecture and the MIR-first contract.
 The branch is expected to be red for constructs not yet ported; subsequent pull
 requests expand the supported MIR subset, delete the legacy code they replace,
 and re-measure against the baseline.
+
+## 19. Appendix: Analysis of Pre-MIR Generated C (for the MIR redesign)
+
+This records what the current `2c` backend emits, so MIR can deliberately
+replace it. **Functional equivalence is the requirement (§8), not textual
+equality** — the goal is less C, better C, and faster C with the same behavior.
+
+### 19.1 Scope, scale, and pattern counts
+
+Analyzed the generated C already present under `lang/tests/build/` (primary:
+`chemical-tests.dir`), plus `lang/compiled/*/build`. The merged translation unit
+for the test binary is `chemical-tests.dir/Translated.c` (the per-module
+`partial.2c.c` files are its inputs and contain the same content, so counts below
+are from the merged file to avoid double-counting).
+
+**2.38 MB / 58,545 lines.**
+
+| Pattern | Count |
+|---|---:|
+| statement expressions `({ ... })` | 2,293 |
+| — of which struct-return `(*({ ... }))` | 1,284 (~56%) |
+| temp locals `__chx__lv__N` | 8,662 |
+| hidden sret params `__chx_struct_ret_param_xx` | 1,625 |
+| variant tag fields `__chx__vt_...` | 1,099 |
+| destructor calls `...delete(` | 1,336 |
+| destructor cleanup labels `__chx__dstctr_clnup_blk__` | 172 |
+| `goto` | 18 |
+| `memcpy` / `memset` | 57 / 16 |
+
+Takeaways: more than half of all aggregate-producing expressions are GNU
+statement expressions; a temp local exists for almost every value; `goto` is
+already rare (18) so MIR's labels/gotos will not make output dramatically worse;
+variant and destructor machinery is pervasive.
+
+### 19.2 Pattern catalog (with real snippets)
+
+**(1) Struct return via compound expression + hidden result param.** The call
+target takes a hidden first pointer; the caller allocates a temp inside `(*({ }))`
+and yields its address:
+```c
+struct std_stdOption__cgs__4 o = (*({ struct std_stdOption__cgs__4 __chx__lv__379; main_get_optional_int(&__chx__lv__379, 1); &__chx__lv__379; }));
+static void main_make_greeting_from_expr(struct std_stdstring* __chx_struct_ret_param_xx, const char* world);
+```
+
+**(2) Address-of-rvalue / `&mut` argument via a copying statement expression.**
+A copy of the value is made so its address can be taken:
+```c
+main_get_opt_value(({ struct std_stdOption__cgs__4 __chx__lv__380 = o; &__chx__lv__380; }))
+currentNode->value = ({  value; });          /* copy-for-value (implicit copy) */
+```
+
+**(3) Drop flags as `_Bool` locals guarding destructor calls.** Flags are set
+`true` and checked before each cleanup; they are not always folded even when
+obviously constant:
+```c
+_Bool __chx__lv__384 = true;                 /* drop flag for o */
+struct main_Deletable taken = (*({ struct main_Deletable __chx__lv__385; std_stdOption__cgs__5take(&__chx__lv__385, &o); &__chx__lv__385; }));
+_Bool __chx__lv__386 = true;                 /* drop flag for taken */
+if(__chx__lv__386) { main_Deletabledelete(&taken); }
+if(__chx__lv__384) { std_stdOption__cgs__5delete(&o); }
+```
+
+**(4) Destructor cleanup labels.** Every destructor body ends in a (often empty)
+unconditional cleanup block:
+```c
+static void main_Deletabledelete(struct main_Deletable*const self){
+    *self->counter = (*self->counter + 1);
+    __chx__dstctr_clnup_blk__:{
+    }
+}
+```
+
+**(5) Variant construction** via designated initializers plus a numeric tag
+field (`__chx__vt_<hash>`):
+```c
+struct std_stdOption__cgs__5 o = (struct std_stdOption__cgs__5) { .__chx__vt_621827 = 0,
+    .Some.value = (struct main_Deletable){ .counter = &counter } };
+```
+
+**(6) `for-in` lowerings** walk raw pointers with a `while(i != end)` and move
+`break`/`continue` to hashed `goto` labels; the label shares a line with the
+step statements:
+```c
+{
+    struct std_stdspan__cgs__2* __chx__lv__78 = &s;
+    int* i = core_..._span_data(__chx__lv__78);
+    int* __chx__lv__79 = i + core_..._span_size(__chx__lv__78);
+    uint32_t j = 0;
+    while(i != __chx__lv__79) {
+        if((j == 2)){ ... if(... != 0) { goto continue_3260607435953405963; }; }
+        total += (*i);
+    continue_3260607435953405963:;	j++;	i++;
+    }
+}
+```
+
+**(7) Lambda bodies** become static functions named `__chemda_<declId>_<n>`,
+sometimes taking `void* this`, and are passed by name as function pointers:
+```c
+static int __chemda_994_1893(void* this)
+common_tests_test("can iterate over span", __chemda_266_1896);
+```
+
+**(8) Destructors** are `<scope>_<Struct>delete(struct S* self)` and are called
+explicitly (`main_Deletabledelete(&taken)`, `std_stdOption__cgs__5delete(&o)`) —
+never inferred by C scoping.
+
+### 19.3 What MIR must replace or eliminate
+
+| Today (pre-MIR) | MIR target |
+|---|---|
+| `T x = (*({ T t; ctor(&t); &t; }));` | explicit result place: `p = alloca T; ctor(p, ...);` then use `p` |
+| `({ T t = x; &t; })` for `&mut` | explicit temporary place + `address_of` (no silent copy) |
+| `_Bool __chx__lv__N = true;` + `if(flag) dtor(&x);` | explicit drop-flag place + conditional `drop`; fold the flag when provably constant |
+| `__chx__dstctr_clnup_blk__:{ }` | structured cleanup edge / block; no per-destructor label |
+| `goto continue_<hash>` / `break_<hash>` | CFG blocks and branches; C emitter chooses structured `break`/`continue`/`goto` |
+| raw pointer-walk `for-in` body | explicit iterator CFG (`data`/`size`/step) with the same observable semantics |
+| copy-to-address for `&mut` args | `field_addr`/`index_addr`/`address_of` on the real place when legal |
+
+### 19.4 Optimization opportunities (why this is worth doing)
+
+- **Drop-flag folding.** Many flags are assigned once and never mutated; the
+  emitter can drop the flag and the `if` when the MIR state is provably constant
+  (§14.5 quick-path rules; full proof is opt-in).
+- **Temp reuse / fewer locals.** 8,662 `__chx__lv__` locals for 58,545 lines is
+  roughly one temp per ~7 lines; explicit MIR places plus expression compaction
+  should reduce live temps substantially.
+- **No compound-expressions.** Removing `(*({ }))` removes hidden copies and the
+  temporaries TinyCC cannot optimize away, which is the main lever for smaller
+  and faster C.
+- **Safer optimization.** Because MIR makes evaluation order, ownership, and
+  cleanup explicit, the emitter can restructure/optimize C behind the verifier
+  and evaluation-order tests instead of guessing from text (§8.3, §8.6).
+
+### 19.5 Reproducing this analysis
+
+```bash
+# Regenerate the C for the test suite, then analyze:
+./scripts/test.sh --tcc --emit-c --no-run
+# The generated C lands under lang/tests/build/<target>.dir/**/partial.2c.c
+```
+
+Keep this appendix current as the emitter changes: it is the record of what MIR
+is replacing, and the source of the concrete before/after C examples used in
+review.

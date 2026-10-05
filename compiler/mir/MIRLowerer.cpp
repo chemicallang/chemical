@@ -231,7 +231,8 @@ MIRExprResult MIRLowerer::lower_method_call(Value* receiver, FunctionCall* call,
         if (rr.kind != MIRTypeKind::Pointer && rr.kind != MIRTypeKind::Reference) {
             error = "method receiver must be addressable (recv kind " +
                     std::to_string(static_cast<int>(recv.kind)) + ", type kind " +
-                    std::to_string(static_cast<int>(rr.kind)) + ")";
+                    std::to_string(static_cast<int>(rr.kind)) + ", ast kind " +
+                    std::to_string(static_cast<int>(receiver->val_kind())) + ")";
             return MIRExprResult::error();
         }
         args.push_back(MIROperand::value(static_cast<ValueId>(recv.id), recv.type));
@@ -1073,11 +1074,22 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     const TypeId ret = decl->returnType ? types_.map(decl->returnType) : types_.void_type();
     sret_ = needs_aggregate_path(module_, ret);
     sret_ret_type_ = ret;
+    FunctionParam* self_param = decl->has_self_param() ? decl->get_self_param() : nullptr;
+    bool self_in_params = false;
+    for (FunctionParam* p : decl->params) {
+        if (p == self_param) { self_in_params = true; break; }
+    }
+    if (self_in_params) self_param = nullptr; // already bound by the params loop
     {
         std::vector<TypeId> ptypes;
         if (sret_) {
             sret_ptr_type_ = types_.pointer_type(ret, true);
             ptypes.push_back(sret_ptr_type_);
+        }
+        if (self_param) {
+            TypeId pt = self_param->type ? types_.map(self_param->type) : types_.opaque_type();
+            if (needs_aggregate_path(module_, pt)) pt = types_.pointer_type(pt, true);
+            ptypes.push_back(pt);
         }
         for (FunctionParam* p : decl->params) {
             TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
@@ -1098,6 +1110,15 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
 
     if (sret_) {
         sret_ptr_ = b.param(sret_ptr_type_);
+    }
+
+    if (self_param) {
+        TypeId pt = self_param->type ? types_.map(self_param->type) : types_.opaque_type();
+        if (needs_aggregate_path(module_, pt)) pt = types_.pointer_type(pt, true);
+        ValueId pv = b.param(pt);
+        PlaceId place = b.alloca(pt, MIRStorageClass::Parameter);
+        b.store(place, pv);
+        bind(self_param, place);
     }
 
     // parameters: materialize an SSA param value, spill to a place, bind it

@@ -668,6 +668,13 @@ set(COMMON_SOURCES
         compiler/lab/LabJobAttributes.h
         compiler/symres/GenericInstantiatorPassAPI.h
         ast/structures/CapturedComptimeVariable.h
+        # ── MIR (mid-level IR) ────────────────────────────────────────────
+        compiler/mir/MIRArena.cpp
+        compiler/mir/MIRInstruction.cpp
+        compiler/mir/MIRBuilder.cpp
+        compiler/mir/MIRDump.cpp
+        compiler/mir/MIRVerifier.cpp
+        compiler/mir/MIRTypeBuilder.cpp
 )
 
 # Chemical LSP Executable Target

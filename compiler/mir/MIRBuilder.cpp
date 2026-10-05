@@ -206,6 +206,26 @@ void MIRBuilder::store(PlaceId place, ValueId value) {
          {MIROperand::place(place, vt), MIROperand::value(value, vt)});
 }
 
+ValueId MIRBuilder::field_load(PlaceId base, ConstantId field_name, TypeId field_type) {
+    ValueId v = new_value(field_type, VF_NONE);
+    TypeId bt = base < func_.places.size() ? func_.places[base].type : MIR_INVALID_ID;
+    uint32_t i = emit(MIROpcode::Load, v,
+                      {MIROperand::place(base, bt),
+                       MIROperand::constant(field_name, MIR_INVALID_ID),
+                       MIROperand::type(field_type)});
+    note_result_value(v, i);
+    return v;
+}
+
+void MIRBuilder::field_store(PlaceId base, ConstantId field_name, ValueId value) {
+    TypeId bt = base < func_.places.size() ? func_.places[base].type : MIR_INVALID_ID;
+    TypeId vt = value < func_.values.size() ? func_.values[value].type : MIR_INVALID_ID;
+    emit(MIROpcode::Store, MIR_NULL,
+         {MIROperand::place(base, bt),
+          MIROperand::constant(field_name, MIR_INVALID_ID),
+          MIROperand::value(value, vt)});
+}
+
 ValueId MIRBuilder::address_of(PlaceId place, TypeId pointer_type) {
     ValueId v = new_value(pointer_type, VF_ADDRESSABLE);
     TypeId pt = place < func_.places.size() ? func_.places[place].type : MIR_INVALID_ID;

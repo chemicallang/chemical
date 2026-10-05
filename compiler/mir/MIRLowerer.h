@@ -82,6 +82,8 @@ private:
     bool lower_while(WhileLoop* loop, std::string& error);
     bool lower_for(ForLoop* loop, std::string& error);
     bool lower_incdec_value(Value* target, bool increment, std::string& error, ValueId& out);
+    PlaceId resolve_place(Value* v, std::string& error);
+    bool member_name(Value* v, std::string& out, std::string& error);
 
     SymbolId intern_function(FunctionDeclaration* decl);
     PlaceId place_for_linked(ASTNode* linked) const;

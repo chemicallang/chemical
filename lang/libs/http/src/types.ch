@@ -294,21 +294,37 @@ public namespace http {
             }
             if(!hex_ok) { return -1 }
             if(hex_val == 0u) {
+                // RFC 9112 §7.1: after the last-chunk (`0\r\n`) comes an
+                // optional trailer section — zero or more `Header-Field CRLF`
+                // lines — and then a final CRLF. So the end of a chunked body
+                // is an EMPTY LINE, not a fixed 4-byte `\r\n\r\n`: a bare
+                // `0\r\n\r\n` (no trailer section) leaves only 2 bytes here,
+                // and scanning for 4 could never match a message that was
+                // already complete, so control fell through to body_recv() and
+                // blocked for the whole body timeout.
+                //
+                // Scan for the first CRLF that terminates an empty line: either
+                // the buffer starts with one, or one immediately follows
+                // another. Anything before that is the trailer section (or a
+                // partial one — body_recv below tops the buffer up and the
+                // scan runs again).
                 var found = false;
                 while(!found) {
                     if(b.buf != null) {
                         var L = b.buf.len();
-                        if(L >= 4u) {
-                            var i = 0u;
-                            while(i + 3u < L) {
-                                if(b.buf.get_byte(i) == '\r' as u8 && b.buf.get_byte(i+1u) == '\n' as u8 &&
-                                   b.buf.get_byte(i+2u) == '\r' as u8 && b.buf.get_byte(i+3u) == '\n' as u8) {
-                                    b.buf.consume(i + 4u);
+                        var i = 0u;
+                        while(i + 1u < L) {
+                            if(b.buf.get_byte(i) == '\r' as u8 && b.buf.get_byte(i + 1u) == '\n' as u8) {
+                                // An empty line: a CRLF at the very start of the
+                                // trailer section, or one that directly follows
+                                // the CRLF ending the previous trailer field.
+                                if(i == 0u || (i >= 2u && b.buf.get_byte(i - 2u) == '\r' as u8 && b.buf.get_byte(i - 1u) == '\n' as u8)) {
+                                    b.buf.consume(i + 2u);
                                     found = true;
                                     break;
                                 }
-                                i = i + 1u;
                             }
+                            i = i + 1u;
                         }
                     }
                     if(!found) {

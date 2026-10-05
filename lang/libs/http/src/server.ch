@@ -69,7 +69,17 @@ public namespace server {
             }
             var Some(req) = req_opt else unreachable;
 
-            var body_len: isize = -1;
+            // RFC 9112 §6.3: a request's body length comes from
+            // Transfer-Encoding, else Content-Length, and if NEITHER is present
+            // the message has NO body. There is no close-delimited request, so
+            // `-1` ("read until EOF") is never correct here: it sends Body::read
+            // down the close-delimited path, which blocks in body_recv() until
+            // the peer closes — and a keep-alive peer is never going to. Every
+            // bodyless request therefore stalled for the whole body timeout
+            // before the handler was handed the "" it should have had at once.
+            // `Content-Length: 0` and an absent Content-Length both arrive as
+            // `req.body_len == 0`, so one default covers both.
+            var body_len: isize = 0;
             var chunked = false;
             if(req.body_len > 0u) { body_len = req.body_len as isize; }
             var te_opt = req.headers.get("Transfer-Encoding");
@@ -254,7 +264,12 @@ public namespace server {
                                  net::close_socket(s); free(ctx.buffer.buf); delete ctx; return;
                              }
                              var Some(req) = req_opt else unreachable;
-                             var body_len: isize = -1;
+                             // Same framing rule as handle_conn above: RFC 9112
+                             // §6.3 — a request with neither Transfer-Encoding
+                             // nor Content-Length has no body, so the default is
+                             // 0 ("empty"), never -1 ("read until EOF", which
+                             // blocks in body_recv() until the peer closes).
+                             var body_len: isize = 0;
                              var chunked = false;
                              if(req.body_len > 0u) { body_len = req.body_len as isize; }
                              var te_opt = req.headers.get("Transfer-Encoding");

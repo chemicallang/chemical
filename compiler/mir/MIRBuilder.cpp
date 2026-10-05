@@ -170,6 +170,20 @@ ValueId MIRBuilder::const_double(TypeId type, ConstantId constant) {
     return v;
 }
 
+ValueId MIRBuilder::const_string(TypeId type, ConstantId constant) {
+    ValueId v = new_value(type, VF_CONSTANT | VF_PURE);
+    uint32_t i = emit(MIROpcode::ConstString, v, {MIROperand::constant(constant, type)});
+    note_result_value(v, i);
+    return v;
+}
+
+ValueId MIRBuilder::param(TypeId type) {
+    ValueId v = new_value(type, VF_NONE);
+    uint32_t i = emit(MIROpcode::Param, v, {MIROperand::type(type)});
+    note_result_value(v, i);
+    return v;
+}
+
 // ── storage ────────────────────────────────────────────────────────────────
 
 PlaceId MIRBuilder::alloca(TypeId type, MIRStorageClass sc) {

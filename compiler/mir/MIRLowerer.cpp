@@ -33,6 +33,7 @@
 #include "ast/statements/Break.h"
 #include "ast/statements/Continue.h"
 #include "ast/statements/IncDecNode.h"
+#include "ast/statements/AccessChainNode.h"
 #include "ast/values/IncDecValue.h"
 #include "ast/statements/ValueWrapperNode.h"
 
@@ -121,6 +122,79 @@ bool MIRLowerer::member_name(Value* v, std::string& out, std::string& error) {
     return true;
 }
 
+bool MIRLowerer::lower_call_args(const std::vector<Value*>& values,
+                                 std::vector<MIROperand>& args, std::string& error) {
+    for (Value* a : values) {
+        MIRExprResult r = lower_expr(a, error);
+        if (!r.ok()) return false;
+        if (r.kind == MIRExprKind::Place) {
+            const PlaceId pid = static_cast<PlaceId>(r.id);
+            const TypeId pt = builder_->function().places[pid].type;
+            const MIRTypeRecord& prec = module_.types.get(pt);
+            if (prec.kind == MIRTypeKind::Pointer || prec.kind == MIRTypeKind::Reference) {
+                args.push_back(MIROperand::value(builder_->load(pid, pt), pt));
+            } else {
+                const TypeId ptrt = types_.pointer_type(pt, false);
+                args.push_back(MIROperand::value(builder_->address_of(pid, ptrt), ptrt));
+            }
+        } else if (r.kind == MIRExprKind::Address) {
+            args.push_back(MIROperand::value(static_cast<ValueId>(r.id), r.type));
+        } else if (r.kind == MIRExprKind::Void) {
+            error = "void expression used as a call argument";
+            return false;
+        } else {
+            args.push_back(MIROperand::value(static_cast<ValueId>(r.id), r.type));
+        }
+    }
+    return true;
+}
+
+MIRExprResult MIRLowerer::lower_method_call(Value* receiver, FunctionCall* call, std::string& error) {
+    ASTNode* lk = call->parent_val ? call->parent_val->linked_node() : nullptr;
+    FunctionDeclaration* fd = lk ? lk->as_function() : nullptr;
+    if (!fd) {
+        error = "method call to unresolved function";
+        return MIRExprResult::error();
+    }
+
+    MIRExprResult recv = lower_expr(receiver, error);
+    if (!recv.ok()) return recv;
+    if (recv.kind != MIRExprKind::Place) {
+        error = "method receiver must be an addressable place";
+        return MIRExprResult::error();
+    }
+
+    std::vector<MIROperand> args;
+    const PlaceId rp = static_cast<PlaceId>(recv.id);
+    const TypeId rt = builder_->function().places[rp].type;
+    const MIRTypeRecord& rr = module_.types.get(rt);
+    if (rr.kind == MIRTypeKind::Pointer || rr.kind == MIRTypeKind::Reference) {
+        args.push_back(MIROperand::value(builder_->load(rp, rt), rt));
+    } else {
+        const TypeId ptrt = types_.pointer_type(rt, true);
+        args.push_back(MIROperand::value(builder_->address_of(rp, ptrt), ptrt));
+    }
+    if (!lower_call_args(call->values, args, error)) return MIRExprResult::error();
+
+    const SymbolId sym = intern_function(fd);
+    const TypeId type = types_.map(call->getType());
+    if (is_void_type(module_, type)) {
+        builder_->call_scalar(sym, type, args.data(), static_cast<uint32_t>(args.size()));
+        return MIRExprResult::void_result();
+    }
+    if (needs_aggregate_path(module_, type)) {
+        const PlaceId res = builder_->alloca(type, MIRStorageClass::Temporary);
+        if (res == MIR_INVALID_ID) {
+            error = "failed to allocate method result place";
+            return MIRExprResult::error();
+        }
+        builder_->call_sret(sym, res, args.data(), static_cast<uint32_t>(args.size()));
+        return MIRExprResult::place(res, type);
+    }
+    const ValueId v = builder_->call_scalar(sym, type, args.data(), static_cast<uint32_t>(args.size()));
+    return MIRExprResult::value(v, type);
+}
+
 SymbolId MIRLowerer::intern_function(FunctionDeclaration* decl) {
     auto it = func_symbols_.find(decl);
     if (it != func_symbols_.end()) return it->second;
@@ -140,7 +214,12 @@ SymbolId MIRLowerer::intern_function(FunctionDeclaration* decl) {
 
     // NOTE: mangled name is filled by the serial symbol builder (PR3b) using
     // NameMangler; MIR must not retain FunctionDeclaration pointers.
-    const chem::string_view name = decl->name_view();
+    std::string name;
+    if (mangler_) name = mangler_(decl);
+    if (name.empty()) {
+        const chem::string_view nv = decl->name_view();
+        name.assign(nv.data(), nv.size());
+    }
     SymbolId s = module_.symbols.add(rec, name.data(), static_cast<uint32_t>(name.size()),
                                      name.data(), static_cast<uint32_t>(name.size()));
     func_symbols_[decl] = s;
@@ -280,16 +359,31 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         }
         case ValueKind::FunctionCall: {
             auto* call = value->as_func_call_unsafe();
-            ASTNode* linked = call->parent_val ? call->parent_val->linked_node() : nullptr;
-            FunctionDeclaration* fd = linked ? linked->as_function() : nullptr;
-            if (!fd) {
-                error = "call to unresolved function";
-                return MIRExprResult::error();
+            FunctionDeclaration* fd = nullptr;
+            std::vector<MIROperand> args;
+
+            // method call: `receiver.method(args)`
+            if (call->parent_val && call->parent_val->val_kind() == ValueKind::AccessChain) {
+                auto* chain = call->parent_val->as_access_chain_unsafe();
+                if (chain->values.size() >= 2) {
+                    if (chain->values.size() != 2) {
+                        error = "chained method calls are not yet supported";
+                        return MIRExprResult::error();
+                    }
+                    return lower_method_call(chain->values[0], call, error);
+                }
+            }
+            {
+                ASTNode* linked = call->parent_val ? call->parent_val->linked_node() : nullptr;
+                fd = linked ? linked->as_function() : nullptr;
+                if (!fd) {
+                    error = "call to unresolved function";
+                    return MIRExprResult::error();
+                }
             }
             SymbolId sym = intern_function(fd);
 
-            std::vector<MIROperand> args;
-            args.reserve(call->values.size());
+            args.reserve(args.size() + call->values.size());
             for (Value* a : call->values) {
                 MIRExprResult r = lower_expr(a, error);
                 if (!r.ok()) return r;
@@ -498,8 +592,19 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             ValueId out = MIR_NULL;
             return lower_incdec_value(n->value.getValue(), n->value.increment, error, out);
         }
+        case ASTNodeKind::AccessChainNode: {
+            auto* acn = node->as_access_chain_node_unsafe();
+            auto& vals = acn->chain.values;
+            if (vals.size() == 2 && vals[1] && vals[1]->val_kind() == ValueKind::FunctionCall) {
+                MIRExprResult r = lower_method_call(vals[0], vals[1]->as_func_call_unsafe(), error);
+                return r.ok();
+            }
+            MIRExprResult r = lower_expr(&acn->chain, error);
+            return r.ok();
+        }
         default:
-            error = "unsupported statement kind during MIR lowering";
+            error = "unsupported statement kind during MIR lowering (kind " +
+                    std::to_string(static_cast<int>(node->kind())) + ")";
             return false;
     }
 }

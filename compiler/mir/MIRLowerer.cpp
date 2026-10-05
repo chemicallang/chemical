@@ -30,6 +30,8 @@
 #include "ast/statements/Assignment.h"
 #include "ast/statements/Break.h"
 #include "ast/statements/Continue.h"
+#include "ast/statements/IncDecNode.h"
+#include "ast/values/IncDecValue.h"
 #include "ast/statements/ValueWrapperNode.h"
 
 namespace mir {
@@ -244,6 +246,14 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             ValueId v = builder_->call_scalar(sym, type, args.data(), static_cast<uint32_t>(args.size()));
             return MIRExprResult::value(v, type);
         }
+        case ValueKind::IncDecValue: {
+            auto* n = value->as_inc_dec_value_unsafe();
+            ValueId out = MIR_NULL;
+            if (!lower_incdec_value(n->getValue(), n->increment, error, out)) {
+                return MIRExprResult::error();
+            }
+            return MIRExprResult::value(out, type);
+        }
         default:
             error = "unsupported value kind during MIR lowering (kind " +
                     std::to_string(static_cast<int>(value->val_kind())) + ")";
@@ -370,10 +380,42 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             builder_->br(continue_targets_.back());
             return true;
         }
+        case ASTNodeKind::IncDecNode: {
+            auto* n = node->as_inc_dec_node_unsafe();
+            ValueId out = MIR_NULL;
+            return lower_incdec_value(n->value.getValue(), n->value.increment, error, out);
+        }
         default:
             error = "unsupported statement kind during MIR lowering";
             return false;
     }
+}
+
+bool MIRLowerer::lower_incdec_value(Value* target, bool increment, std::string& error, ValueId& out) {
+    Value* t = target;
+    if (t && t->val_kind() == ValueKind::AccessChain) {
+        auto* c = t->as_access_chain_unsafe();
+        if (c->values.size() == 1) t = c->values[0];
+    }
+    if (!t || t->val_kind() != ValueKind::Identifier) {
+        error = "increment/decrement target must be a local variable";
+        return false;
+    }
+    auto* id = t->as_identifier_unsafe();
+    const PlaceId place = place_for_linked(id->linked);
+    if (place == MIR_INVALID_ID) {
+        error = "increment/decrement target does not resolve to a local place";
+        return false;
+    }
+    const TypeId vt = types_.map(t->getType());
+    const ValueId cur = builder_->load(place, vt);
+    const ConstantId opc = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(increment ? MIRBinaryOp::Add : MIRBinaryOp::Sub));
+    const ValueId one = builder_->const_int(vt, module_.constants.add_int(vt, 1));
+    const ValueId nv = builder_->binary(cur, one, opc, vt);
+    builder_->store(place, nv);
+    out = nv;
+    return true;
 }
 
 bool MIRLowerer::lower_scope(Scope& scope, std::string& error) {

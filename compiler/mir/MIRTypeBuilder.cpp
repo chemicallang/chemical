@@ -216,6 +216,18 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
             }
             break;
         }
+        case BaseTypeKind::Generic: {
+            if (auto* v = type->get_direct_linked_variant()) {
+                id = aggregate_type(MIRTypeKind::Variant, v, type);
+            } else if (auto* e = type->get_direct_linked_enum()) {
+                id = aggregate_type(MIRTypeKind::Int, e, type);
+            } else if (auto* s = type->get_direct_linked_struct()) {
+                id = aggregate_type(MIRTypeKind::Struct, s, type);
+            } else {
+                id = opaque_type();
+            }
+            break;
+        }
         case BaseTypeKind::Function:
         case BaseTypeKind::CapturingFunction:
             id = function_type(type);

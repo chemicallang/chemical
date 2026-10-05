@@ -36,6 +36,7 @@
 #include "ast/statements/Continue.h"
 #include "ast/statements/IncDecNode.h"
 #include "ast/statements/AccessChainNode.h"
+#include "ast/statements/SwitchStatement.h"
 #include "ast/values/IncDecValue.h"
 #include "ast/statements/ValueWrapperNode.h"
 
@@ -374,6 +375,27 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         }
         case ValueKind::Expression: {
             auto* e = value->as_expression_unsafe();
+            if (e->operation == Operation::LogicalAND || e->operation == Operation::LogicalOR) {
+                const TypeId bool_t = types_.bool_type();
+                MIRExprResult a = lower_expr(e->firstValue, error);
+                if (!a.ok()) return a;
+                const PlaceId res = builder_->alloca(bool_t, MIRStorageClass::Temporary);
+                builder_->store(res, a.id);
+                const BlockId rhs_b = builder_->create_block();
+                const BlockId end_b = builder_->create_block();
+                if (e->operation == Operation::LogicalAND) {
+                    builder_->cond_br(a.id, rhs_b, end_b);
+                } else {
+                    builder_->cond_br(a.id, end_b, rhs_b);
+                }
+                builder_->set_block(rhs_b);
+                MIRExprResult b = lower_expr(e->secondValue, error);
+                if (!b.ok()) return b;
+                builder_->store(res, b.id);
+                builder_->br(end_b);
+                builder_->set_block(end_b);
+                return MIRExprResult::value(builder_->load(res, bool_t), bool_t);
+            }
             MIRExprResult lhs = lower_expr(e->firstValue, error);
             if (!lhs.ok()) return lhs;
             MIRExprResult rhs = lower_expr(e->secondValue, error);
@@ -795,6 +817,52 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             }
             MIRExprResult r = lower_expr(&acn->chain, error);
             return r.ok();
+        }
+        case ASTNodeKind::SwitchStmt: {
+            auto* sw = node->as_switch_stmt_unsafe();
+            MIRExprResult scrut = lower_expr(sw->expression, error);
+            if (!scrut.ok()) return false;
+
+            const BlockId end_b = builder_->create_block();
+            std::vector<BlockId> scope_blocks(sw->scopes.size());
+            for (size_t i = 0; i < sw->scopes.size(); ++i) {
+                scope_blocks[i] = builder_->create_block();
+            }
+            const BlockId default_b =
+                (sw->defScopeInd >= 0) ? scope_blocks[sw->defScopeInd] : end_b;
+
+            const TypeId bool_t = types_.bool_type();
+            const ConstantId eqc = module_.constants.add_int(
+                MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq));
+
+            const size_t n = sw->cases.size();
+            for (size_t i = 0; i < n; ++i) {
+                auto& c = sw->cases[i];
+                const BlockId target = (c.second >= 0) ? scope_blocks[c.second] : default_b;
+                if (c.first == nullptr) {
+                    builder_->br(target);
+                    break;
+                }
+                const BlockId next_b = (i + 1 < n) ? builder_->create_block() : default_b;
+                MIRExprResult cv = lower_expr(c.first, error);
+                if (!cv.ok()) return false;
+                const ValueId cond = builder_->compare(scrut.id, cv.id, eqc, bool_t);
+                builder_->cond_br(cond, target, next_b);
+                if (i + 1 < n) {
+                    builder_->set_block(next_b);
+                } else {
+                    break;
+                }
+            }
+            if (n == 0) builder_->br(default_b);
+
+            for (size_t i = 0; i < sw->scopes.size(); ++i) {
+                builder_->set_block(scope_blocks[i]);
+                if (!lower_scope(sw->scopes[i], error)) return false;
+                if (!builder_->current_block_terminated()) builder_->br(end_b);
+            }
+            builder_->set_block(end_b);
+            return true;
         }
         default:
             error = "unsupported statement kind during MIR lowering (kind " +

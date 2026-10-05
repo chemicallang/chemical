@@ -1,0 +1,147 @@
+// Copyright (c) Chemical Language Foundation 2025.
+//
+// Standalone unit tests for the MIR core (PR 1): arena, instruction encoding,
+// module tables, textual dump and structural verifier. Built as the `MIRTests`
+// target; independent of the compiler pipeline. See
+// mir-implementation-plan.md §9 Stage 1.
+
+#include "compiler/mir/MIR.h"
+
+#include <cassert>
+#include <cstdint>
+#include <iostream>
+
+using namespace mir;
+
+static int g_checks = 0;
+#define CHECK(x)                                                              \
+    do {                                                                      \
+        ++g_checks;                                                           \
+        if (!(x)) {                                                           \
+            std::cerr << "FAILED: " << #x << " (" << __FILE__ << ":"          \
+                      << __LINE__ << ")\n";                                   \
+            return false;                                                     \
+        }                                                                     \
+    } while (0)
+
+// ── arena ──────────────────────────────────────────────────────────────────
+static bool test_arena() {
+    MIRArena arena(1024);
+    void* a = arena.allocate(16);
+    void* b = arena.allocate(64, 16);
+    CHECK(a != nullptr);
+    CHECK(b != nullptr);
+    CHECK(reinterpret_cast<uintptr_t>(b) % 16 == 0);
+    CHECK(arena.bytes_used() >= 80);
+
+    // many small allocations reuse the inline chunk
+    for (int i = 0; i < 1000; ++i) {
+        CHECK(arena.allocate(8) != nullptr);
+    }
+    size_t used = arena.bytes_used();
+    arena.reset();
+    CHECK(arena.bytes_used() == 0);
+    CHECK(arena.capacity() > 0);
+    (void) used;
+    return true;
+}
+
+// ── instruction encoding ───────────────────────────────────────────────────
+static bool test_instruction_encoding() {
+    MIRInstruction inst = MIRInstruction::make(MIROpcode::Binary);
+    CHECK(inst.opcode() == MIROpcode::Binary);
+    CHECK((inst.flags() & OF_Pure) != 0);
+    CHECK((inst.flags() & OF_Terminator) == 0);
+    CHECK(!is_terminator(MIROpcode::Binary));
+    CHECK(is_terminator(MIROpcode::Return));
+    CHECK(opcode_flags(MIROpcode::Call) & OF_Call);
+    CHECK(opcode_portability(MIROpcode::SizeOf) == MIRPortability::TargetLayoutDependent);
+
+    MIROperand op = MIROperand::value(7, 3);
+    CHECK(op.kind() == MIROperandKind::Value);
+    CHECK(op.id == 7);
+    CHECK(op.type() == 3);
+    static_assert(sizeof(MIRInstruction) == 16, "MIRInstruction must stay 16 bytes");
+    return true;
+}
+
+// ── build a tiny function by hand and verify + dump it ─────────────────────
+static bool test_function_build_dump() {
+    MIRModule module;
+
+    MIRTypeRecord ir;
+    ir.kind = MIRTypeKind::Int;
+    ir.flags = TF_SIGNED;
+    ir.size = 4;
+    ir.alignment = 4;
+    const TypeId i32 = module.types.intern(ir);
+    CHECK(module.types.intern(ir) == i32); // canonical interning
+
+    MIRArena arena;
+    MIRFunction fn;
+    fn.symbol = 0;
+    fn.function_type = i32;
+
+    // %v0 = const.int c0
+    MIRValueDef vd;
+    vd.type = i32;
+    vd.def_inst = 0;
+    vd.flags = VF_CONSTANT | VF_PURE;
+    fn.values.push_back(vd);
+
+    const ConstantId c0 = module.constants.add_int(i32, 42);
+    const uint32_t op_off = static_cast<uint32_t>(fn.operands.size());
+    CHECK(fn.operands.push(arena, MIROperand::constant(c0, i32)));
+
+    MIRInstruction ci = MIRInstruction::make(MIROpcode::ConstInt);
+    ci.result_or_place = 0;
+    ci.operand_offset = op_off;
+    ci.operand_count = 1;
+    CHECK(fn.instructions.push(arena, ci));
+
+    // return %v0
+    const uint32_t ret_op = static_cast<uint32_t>(fn.operands.size());
+    CHECK(fn.operands.push(arena, MIROperand::value(0, i32)));
+    MIRInstruction ret = MIRInstruction::make(MIROpcode::Return);
+    ret.operand_offset = ret_op;
+    ret.operand_count = 1;
+    CHECK(fn.instructions.push(arena, ret));
+
+    MIRBlock blk;
+    blk.id = 0;
+    blk.inst_start = 0;
+    blk.inst_count = 1; // the const; terminator follows at index 1
+    CHECK(fn.blocks.push(arena, blk));
+    fn.entry_block = 0;
+
+    module.functions.push_back(fn);
+
+    MIRVerifyResult res = verify_function(module.functions[0]);
+    if (!res.ok()) {
+        for (const auto& d : res.diagnostics) std::cerr << "  diag: " << d.message << "\n";
+    }
+    CHECK(res.ok());
+
+    std::string dump = dump_function_str(module.functions[0], module);
+    CHECK(dump.find("const.int") != std::string::npos);
+    CHECK(dump.find("return") != std::string::npos);
+
+    // an intentionally malformed function must be rejected
+    MIRFunction bad = module.functions[0];
+    bad.blocks[0].inst_count = 99;
+    CHECK(!verify_function(bad).ok());
+    return true;
+}
+
+int main() {
+    bool ok = true;
+    ok &= test_arena();
+    ok &= test_instruction_encoding();
+    ok &= test_function_build_dump();
+    if (!ok) {
+        std::cerr << "mir_tests: FAILED\n";
+        return 1;
+    }
+    std::cout << "mir_tests: OK (" << g_checks << " checks)\n";
+    return 0;
+}

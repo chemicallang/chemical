@@ -49,12 +49,54 @@ bash -lc "source scripts/msvc_env.sh && cmake --build cmake-build-debug --target
 ./cmake-build-debug/MIRTests.exe     # -> mir_tests: OK (N checks)
 ```
 
-## Remaining (PR 3 → PR 9)
+### PR 3a — AST→MIR type mapper (commit `f4189f3fa`)
+
+`MIRTypeBuilder.h/.cpp` maps resolved `BaseType` to canonical `TypeId`
+(void/bool/intN/float/double/pointer/reference/array/function; structs/
+variants/unions/enums get a per-declaration `TypeId` until the aggregate
+milestone). This is the only MIR component that includes AST headers. MIR core
+`.cpp` were added to `COMMON_SOURCES` so the real compiler build compiles them.
+
+### PR 3b — straight-line lowerer (commit `965a70a25`)
+
+`MIRLowerer.h/.cpp` with `MIRExprResult`: primitives, identifiers/loads, unary,
+binary/compare, casts, direct scalar calls, var init, assignment, return, and
+bare-expression statements. Params are spilled to places. Unsupported constructs
+return a structured error (no fallback).
+
+### PR 4a — straight-line C emitter (commit `52a86b9eb`)
+
+`MIREmitter.h/.cpp` emits C from MIR for the straight-line subset, instruction
+per line, no GNU statement expressions; unsupported opcodes fail
+transactionally. `MIRBinaryOp`/`MIRUnaryOp` keep the emitter AST-free. Tested in
+`MIRTests` (emits a hand-built `add(a,b)`).
+
+## Remaining
 
 The pipeline is **not** switched yet; MIR is isolated infrastructure. The switch
-happens at PR 4 and must not be gated by a flag.
+happens at PR 4b and must not be gated by a flag.
 
-### PR 3 — AST→MIR lowerer (next)
+### PR 3c / 4b — module builder + pipeline switch (next)
+
+1. `MIRModuleBuilder`: walk a module's `Scope::nodes`, enumerate concrete
+   functions (free functions, then generic instantiations and lambda bodies),
+   and build `MIRModule::{types,symbols}`. Mangled names must be produced with
+   `NameMangler` (into a temporary `BufferedWriter`) and copied into
+   `MIRSymbolTable`; MIR must not retain `FunctionDeclaration*`.
+2. In `ASTProcessor::implement_module`, replace the per-node
+   `c_visitor.translate_after_declaration(nodes)` body loop: lower each
+   top-level `FunctionDeclaration` through MIR and emit its C into
+   `c_visitor.writer`; keep declaration emission (`declare_module`) and
+   non-function top-level nodes on the legacy visitor for now. Then extend to
+   methods/impls/generics/lambdas.
+3. The branch is expected to go red here; fix forward, never fall back.
+
+### PR 5–9 (unchanged)
+
+MIR interpreter; CFG + aggregates + cleanup (merged); delete the legacy
+translator; LLVM lowering; parallel lowering. See the plan §9.
+
+## Invariants to preserve
 
 Exact AST API map (verified):
 

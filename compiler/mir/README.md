@@ -71,25 +71,49 @@ per line, no GNU statement expressions; unsupported opcodes fail
 transactionally. `MIRBinaryOp`/`MIRUnaryOp` keep the emitter AST-free. Tested in
 `MIRTests` (emits a hand-built `add(a,b)`).
 
+### PR 4b — pipeline switch (commit `70b78f4e6`)
+
+`ASTProcessor::implement_module` lowers each eligible top-level
+`FunctionDeclaration` through MIR and emits its C body from MIR into the module
+writer; declarations and non-function top-level nodes still use the legacy
+visitor (temporary coverage boundary). Symbols are pre-declared with mangled
+names. Verified: `add(2,3)+mul(4,5)` -> exit 25.
+
+### PR 6a — control flow (commit `151293fbe`)
+
+Lowerer: if/else-if/else, while, for, break, continue. Emitter: per-block
+`__chx_bbN` labels, `br`->goto, `cond_br`->if/goto. Verified:
+`classify(5)+sum_to(4)+add(2,3)` -> exit 12.
+
+### Named aggregate types (commits `61059a843`, `2a91a3b29`)
+
+`MIRTypeTable` has an interned name pool; the integration driver names top-level
+struct/variant/enum types from `declare_module` so `c_type_of` spells them
+exactly as the legacy declarations.
+
 ## Remaining
 
-The pipeline is **not** switched yet; MIR is isolated infrastructure. The switch
-happens at PR 4b and must not be gated by a flag.
+The pipeline lowers **top-level scalar and control-flow functions** through MIR.
+Still on the legacy path (branch red for these): struct/array/variant
+construction and member access, method/impl calls, strings and destructors,
+generics, lambdas, and the LLVM backend.
 
-### PR 3c / 4b — module builder + pipeline switch (next)
+### Aggregates + methods (next)
 
-1. `MIRModuleBuilder`: walk a module's `Scope::nodes`, enumerate concrete
-   functions (free functions, then generic instantiations and lambda bodies),
-   and build `MIRModule::{types,symbols}`. Mangled names must be produced with
-   `NameMangler` (into a temporary `BufferedWriter`) and copied into
-   `MIRSymbolTable`; MIR must not retain `FunctionDeclaration*`.
-2. In `ASTProcessor::implement_module`, replace the per-node
-   `c_visitor.translate_after_declaration(nodes)` body loop: lower each
-   top-level `FunctionDeclaration` through MIR and emit its C into
-   `c_visitor.writer`; keep declaration emission (`declare_module`) and
-   non-function top-level nodes on the legacy visitor for now. Then extend to
-   methods/impls/generics/lambdas.
-3. The branch is expected to go red here; fix forward, never fall back.
+1. Extend `MIRTypeRecord` with field metadata (names, types, offsets) populated
+   from `StructDefinition`/`VariantDefinition` by the integration driver.
+2. Lower `StructValue`/`ArrayValue`/`VariantCase` construction to explicit
+   result places + `init`/`field_addr`/`index_addr`; lower `AccessChain` of
+   length > 1 as `field_addr` with a field index.
+3. Lower method/impl calls: resolve the receiver (`FunctionCall::parent_val`) to
+   a `self` argument and emit `address_of` on it.
+4. Destructors/moves/cleanup (drop flags, cleanup scopes) — the merged PR 6
+   scope, using `MIRBuilder`'s lifetime and cleanup-scope APIs.
+
+### Deleting the legacy function-body path
+
+Once aggregate/method coverage lands and the suite is green, remove the legacy
+`translate_after_declaration` body loop for functions (see plan §3.6).
 
 ### PR 5–9 (unchanged)
 

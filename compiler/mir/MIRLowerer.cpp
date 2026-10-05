@@ -19,6 +19,8 @@
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/DereferenceValue.h"
 #include "ast/values/IndexOperator.h"
+#include "ast/values/AddrOfValue.h"
+#include "ast/values/ReferenceOfValue.h"
 #include "ast/values/StructValue.h"
 #include "ast/values/StructMemberInitializer.h"
 #include "ast/values/ValueNode.h"
@@ -29,6 +31,7 @@
 #include "ast/structures/If.h"
 #include "ast/structures/WhileLoop.h"
 #include "ast/structures/ForLoop.h"
+#include "ast/structures/EnumMember.h"
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Return.h"
 #include "ast/statements/Assignment.h"
@@ -120,10 +123,44 @@ PlaceId MIRLowerer::resolve_place(Value* v, std::string& error) {
     auto* id = t->as_identifier_unsafe();
     const PlaceId p = place_for_linked(id->linked);
     if (p == MIR_INVALID_ID) {
-        error = "identifier does not resolve to a local place";
+        error = "identifier '" + std::string(id->value.data(), id->value.size()) +
+                "' does not resolve to a local place";
         return MIR_INVALID_ID;
     }
     return p;
+}
+
+MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
+    Value* t = inner;
+    if (t && t->val_kind() == ValueKind::AccessChain) {
+        auto* c = t->as_access_chain_unsafe();
+        if (c->values.size() == 1) t = c->values[0];
+    }
+    if (t && t->val_kind() == ValueKind::Identifier) {
+        auto* id = t->as_identifier_unsafe();
+        const PlaceId p = place_for_linked(id->linked);
+        if (p != MIR_INVALID_ID) {
+            const TypeId pt = builder_->function().places[p].type;
+            const TypeId ptrt = types_.pointer_type(pt, true);
+            return MIRExprResult::value(builder_->address_of(p, ptrt), ptrt);
+        }
+        if (id->linked && id->linked->kind() == ASTNodeKind::VarInitStmt) {
+            auto* vi = id->linked->as_var_init();
+            const SymbolId gs = intern_global(vi);
+            const TypeId vt = types_.map(id->getType());
+            const TypeId ptrt = types_.pointer_type(vt, false);
+            return MIRExprResult::address(builder_->global_addr(gs, ptrt), ptrt);
+        }
+        const std::string gname(id->value.data(), id->value.size());
+        if (!gname.empty()) {
+            const SymbolId gs = intern_named_global(gname);
+            const TypeId vt = types_.map(id->getType());
+            const TypeId ptrt = types_.pointer_type(vt, false);
+            return MIRExprResult::address(builder_->global_addr(gs, ptrt), ptrt);
+        }
+    }
+    MIRExprResult in = lower_expr(inner, error);
+    return in;
 }
 
 bool MIRLowerer::member_name(Value* v, std::string& out, std::string& error) {
@@ -192,7 +229,9 @@ MIRExprResult MIRLowerer::lower_method_call(Value* receiver, FunctionCall* call,
     } else if (recv.kind == MIRExprKind::Value || recv.kind == MIRExprKind::Address) {
         const MIRTypeRecord& rr = module_.types.get(recv.type);
         if (rr.kind != MIRTypeKind::Pointer && rr.kind != MIRTypeKind::Reference) {
-            error = "method receiver must be addressable";
+            error = "method receiver must be addressable (recv kind " +
+                    std::to_string(static_cast<int>(recv.kind)) + ", type kind " +
+                    std::to_string(static_cast<int>(rr.kind)) + ")";
             return MIRExprResult::error();
         }
         args.push_back(MIROperand::value(static_cast<ValueId>(recv.id), recv.type));
@@ -424,6 +463,15 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             if (chain->values.size() == 1) {
                 return lower_expr(chain->values[0], error);
             }
+            // enum member access: `EnumName.Member` -> its constant value
+            if (ASTNode* lk = chain->linked_node()) {
+                if (lk->kind() == ASTNodeKind::EnumMember) {
+                    auto* em = lk->as_enum_member();
+                    if (em && em->init_value) return lower_expr(em->init_value, error);
+                    const ConstantId c = module_.constants.add_int(type, 0);
+                    return MIRExprResult::value(builder_->const_int(type, c), type);
+                }
+            }
             // member access: base must resolve to a place; field name is the
             // last chain element's identifier text
             const PlaceId base = resolve_place(chain->values[0], error);
@@ -524,6 +572,14 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             }
             ValueId v = builder_->call_scalar(sym, type, args.data(), static_cast<uint32_t>(args.size()));
             return MIRExprResult::value(v, type);
+        }
+        case ValueKind::AddrOfValue: {
+            auto* a = value->as_addr_of_value_unsafe();
+            return lower_address_of(a->value, error);
+        }
+        case ValueKind::ReferenceOfValue: {
+            auto* r = value->as_reference_of_value_unsafe();
+            return lower_address_of(r->value, error);
         }
         case ValueKind::IndexOperator: {
             auto* io = value->as_index_op_unsafe();

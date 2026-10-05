@@ -95,6 +95,7 @@ private:
     bool lower_for(ForLoop* loop, std::string& error);
     bool lower_incdec_value(Value* target, bool increment, std::string& error, ValueId& out);
     PlaceId resolve_place(Value* v, std::string& error);
+    MIRExprResult lower_address_of(Value* inner, std::string& error);
     bool member_name(Value* v, std::string& out, std::string& error);
     bool lower_call_args(const std::vector<Value*>& values, std::vector<MIROperand>& args,
                          std::string& error);

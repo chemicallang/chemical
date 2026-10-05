@@ -38,6 +38,8 @@
 #include "ast/structures/Namespace.h"
 #include "ast/base/BaseType.h"
 #include "ast/structures/EnumDeclaration.h"
+#include "ast/structures/If.h"
+#include "ast/structures/Scope.h"
 
 #include "compiler/mir/MIRModule.h"
 #include "compiler/mir/MIRArena.h"
@@ -1931,6 +1933,14 @@ int ASTProcessor::implement_module(
     mir::MIRLowerer mir_lowerer(mir_module, mir_types);
     mir_lowerer.set_mangler([&c_visitor](ASTNode* n) {
         return mir_mangle_name(c_visitor.mangler, n);
+    });
+    mir_lowerer.set_comptime_if_resolver([&c_visitor](IfStatement* stmt, std::string& err) -> Scope* {
+        auto resolved = stmt->get_or_resolve_scope(c_visitor.comptime_scope, c_visitor);
+        if (!resolved.has_value()) {
+            err = "failed to resolve comptime if";
+            return nullptr;
+        }
+        return resolved.value();
     });
     mir::MIRArena mir_arena;
 

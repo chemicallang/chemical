@@ -303,6 +303,10 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                         out += c_type_of(module, function.values[v].type) + " " + vname(v) +
                                " = *" + operand_expr(function, module, *p) + ";\n";
                     }
+                } else if (fld && fld->kind() == MIROperandKind::Value) {
+                    out += c_type_of(module, function.values[v].type) + " " + vname(v) +
+                           " = " + pname(p->id) + "[" +
+                           operand_expr(function, module, *fld) + "];\n";
                 } else if (fld && fld->kind() == MIROperandKind::Constant) {
                     std::string fname;
                     if (!constant_string(module, fld->id, fname)) {
@@ -331,6 +335,9 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                         out += "*" + operand_expr(function, module, *p) + " = " +
                                operand_expr(function, module, *a) + ";\n";
                     }
+                } else if (a->kind() == MIROperandKind::Value && b) {
+                    out += pname(p->id) + "[" + operand_expr(function, module, *a) +
+                           "] = " + operand_expr(function, module, *b) + ";\n";
                 } else if (a->kind() == MIROperandKind::Constant && b) {
                     std::string fname;
                     if (!constant_string(module, a->id, fname)) {
@@ -450,6 +457,42 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 symbol_name(module, s->id, name);
                 out += c_type_of(module, function.values[v].type) + " " + vname(v) +
                        " = &" + name + ";\n";
+                break;
+            }
+            case MIROpcode::Init: {
+                const MIROperand* dest = operand_at(function, inst, 0);
+                const MIROperand* ctor = operand_at(function, inst, 1);
+                if (!dest || !ctor || ctor->kind() != MIROperandKind::Symbol) {
+                    error = "init missing destination/constructor";
+                    return false;
+                }
+                std::string cname;
+                symbol_name(module, ctor->id, cname);
+                out += cname + "(&" + pname(dest->id);
+                for (uint32_t a = 2; a < inst.operand_count; ++a) {
+                    out += ", " + operand_expr(function, module, *operand_at(function, inst, a));
+                }
+                out += ");\n";
+                break;
+            }
+            case MIROpcode::CallIndirect: {
+                const MIROperand* fn = operand_at(function, inst, 0);
+                if (!fn) { error = "call_indirect missing callee"; return false; }
+                std::string call = operand_expr(function, module, *fn) + "(";
+                for (uint32_t a = 1; a < inst.operand_count; ++a) {
+                    if (a > 1) call += ", ";
+                    call += operand_expr(function, module, *operand_at(function, inst, a));
+                }
+                call += ")";
+                const bool is_void = inst.result_or_place == MIR_NULL ||
+                    inst.result_or_place >= function.values.size() ||
+                    c_type_of(module, function.values[inst.result_or_place].type) == "void";
+                if (is_void) {
+                    out += call + ";\n";
+                } else {
+                    out += c_type_of(module, function.values[inst.result_or_place].type) + " " +
+                           vname(inst.result_or_place) + " = " + call + ";\n";
+                }
                 break;
             }
             case MIROpcode::Br: {

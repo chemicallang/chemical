@@ -270,6 +270,26 @@ void MIRBuilder::index_store(ValueId base, ValueId index, ValueId value) {
           MIROperand::value(value, vt)});
 }
 
+ValueId MIRBuilder::element_load(PlaceId base, ValueId index, TypeId element_type) {
+    ValueId v = new_value(element_type, VF_NONE);
+    TypeId bt = base < func_.places.size() ? func_.places[base].type : MIR_INVALID_ID;
+    TypeId it = index < func_.values.size() ? func_.values[index].type : MIR_INVALID_ID;
+    uint32_t i = emit(MIROpcode::Load, v,
+                      {MIROperand::place(base, bt), MIROperand::value(index, it),
+                       MIROperand::type(element_type)});
+    note_result_value(v, i);
+    return v;
+}
+
+void MIRBuilder::element_store(PlaceId base, ValueId index, ValueId value) {
+    TypeId bt = base < func_.places.size() ? func_.places[base].type : MIR_INVALID_ID;
+    TypeId it = index < func_.values.size() ? func_.values[index].type : MIR_INVALID_ID;
+    TypeId vt = value < func_.values.size() ? func_.values[value].type : MIR_INVALID_ID;
+    emit(MIROpcode::Store, MIR_NULL,
+         {MIROperand::place(base, bt), MIROperand::value(index, it),
+          MIROperand::value(value, vt)});
+}
+
 ValueId MIRBuilder::address_of(PlaceId place, TypeId pointer_type) {
     ValueId v = new_value(pointer_type, VF_ADDRESSABLE);
     TypeId pt = place < func_.places.size() ? func_.places[place].type : MIR_INVALID_ID;

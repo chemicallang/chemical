@@ -81,6 +81,10 @@ public:
     ValueId index_load(ValueId base, ValueId index, TypeId element_type);
     /** Store through an index: `base[index] = value`. */
     void index_store(ValueId base, ValueId index, ValueId value);
+    /** Load from a local array place: `result = base[index]`. */
+    ValueId element_load(PlaceId base, ValueId index, TypeId element_type);
+    /** Store to a local array place: `base[index] = value`. */
+    void element_store(PlaceId base, ValueId index, ValueId value);
     /** Store a struct field by name: `base.<field> = value`. */
     void field_store(PlaceId base, ConstantId field_name, ValueId value);
     ValueId address_of(PlaceId place, TypeId pointer_type);

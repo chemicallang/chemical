@@ -881,6 +881,19 @@ target_include_directories(TCCCompiler PRIVATE
         ${COMMON_INCLUDE_DIRS}
 )
 
+# ── MIR core unit tests ───────────────────────────────────────────────────────
+# Standalone, dependency-light tests for compiler/mir/. They compile only the
+# MIR core translation units and never link LLVM. Build and run with:
+#   cmake --build cmake-build-debug --target MIRTests && ./cmake-build-debug/MIRTests
+add_executable(MIRTests
+        compiler/mir/tests/mir_tests.cpp
+        compiler/mir/MIRArena.cpp
+        compiler/mir/MIRInstruction.cpp
+        compiler/mir/MIRDump.cpp
+        compiler/mir/MIRVerifier.cpp
+)
+target_include_directories(MIRTests PRIVATE ${COMMON_INCLUDE_DIRS})
+
 if (MSVC)
     # Disable warning C4267: 'argument': conversion from 'size_t' to '...', possible loss of data
     # For Microsoft Visual Studio Compiler Only

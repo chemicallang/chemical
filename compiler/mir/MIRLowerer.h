@@ -81,6 +81,7 @@ private:
     bool lower_if(IfStatement* stmt, BlockId merge, std::string& error);
     bool lower_while(WhileLoop* loop, std::string& error);
     bool lower_for(ForLoop* loop, std::string& error);
+    bool lower_incdec_value(Value* target, bool increment, std::string& error, ValueId& out);
 
     SymbolId intern_function(FunctionDeclaration* decl);
     PlaceId place_for_linked(ASTNode* linked) const;

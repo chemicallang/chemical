@@ -17,6 +17,8 @@
 #include "ast/values/CastedValue.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/VariableIdentifier.h"
+#include "ast/values/DereferenceValue.h"
+#include "ast/values/IndexOperator.h"
 #include "ast/values/StructValue.h"
 #include "ast/values/StructMemberInitializer.h"
 #include "ast/values/ValueNode.h"
@@ -71,6 +73,22 @@ bool map_binary(Operation op, MIROpcode& out, MIRBinaryOp& bop) {
         case Operation::LessThanOrEqual: out = MIROpcode::Compare; bop = MIRBinaryOp::Le; return true;
         case Operation::IsEqual: out = MIROpcode::Compare; bop = MIRBinaryOp::Eq; return true;
         case Operation::IsNotEqual: out = MIROpcode::Compare; bop = MIRBinaryOp::Ne; return true;
+        default: return false;
+    }
+}
+
+bool compound_binary(Operation op, MIRBinaryOp& out) {
+    switch (op) {
+        case Operation::AddTo: out = MIRBinaryOp::Add; return true;
+        case Operation::SubtractFrom: out = MIRBinaryOp::Sub; return true;
+        case Operation::MultiplyBy: out = MIRBinaryOp::Mul; return true;
+        case Operation::DivideBy: out = MIRBinaryOp::Div; return true;
+        case Operation::ModuloBy: out = MIRBinaryOp::Rem; return true;
+        case Operation::ShiftLeftBy: out = MIRBinaryOp::Shl; return true;
+        case Operation::ShiftRightBy: out = MIRBinaryOp::Shr; return true;
+        case Operation::ANDWith: out = MIRBinaryOp::BitAnd; return true;
+        case Operation::ExclusiveORWith: out = MIRBinaryOp::BitXor; return true;
+        case Operation::InclusiveORWith: out = MIRBinaryOp::BitOr; return true;
         default: return false;
     }
 }
@@ -159,20 +177,27 @@ MIRExprResult MIRLowerer::lower_method_call(Value* receiver, FunctionCall* call,
 
     MIRExprResult recv = lower_expr(receiver, error);
     if (!recv.ok()) return recv;
-    if (recv.kind != MIRExprKind::Place) {
+    std::vector<MIROperand> args;
+    if (recv.kind == MIRExprKind::Place) {
+        const PlaceId rp = static_cast<PlaceId>(recv.id);
+        const TypeId rt = builder_->function().places[rp].type;
+        const MIRTypeRecord& rr = module_.types.get(rt);
+        if (rr.kind == MIRTypeKind::Pointer || rr.kind == MIRTypeKind::Reference) {
+            args.push_back(MIROperand::value(builder_->load(rp, rt), rt));
+        } else {
+            const TypeId ptrt = types_.pointer_type(rt, true);
+            args.push_back(MIROperand::value(builder_->address_of(rp, ptrt), ptrt));
+        }
+    } else if (recv.kind == MIRExprKind::Value || recv.kind == MIRExprKind::Address) {
+        const MIRTypeRecord& rr = module_.types.get(recv.type);
+        if (rr.kind != MIRTypeKind::Pointer && rr.kind != MIRTypeKind::Reference) {
+            error = "method receiver must be addressable";
+            return MIRExprResult::error();
+        }
+        args.push_back(MIROperand::value(static_cast<ValueId>(recv.id), recv.type));
+    } else {
         error = "method receiver must be an addressable place";
         return MIRExprResult::error();
-    }
-
-    std::vector<MIROperand> args;
-    const PlaceId rp = static_cast<PlaceId>(recv.id);
-    const TypeId rt = builder_->function().places[rp].type;
-    const MIRTypeRecord& rr = module_.types.get(rt);
-    if (rr.kind == MIRTypeKind::Pointer || rr.kind == MIRTypeKind::Reference) {
-        args.push_back(MIROperand::value(builder_->load(rp, rt), rt));
-    } else {
-        const TypeId ptrt = types_.pointer_type(rt, true);
-        args.push_back(MIROperand::value(builder_->address_of(rp, ptrt), ptrt));
     }
     if (!lower_call_args(call->values, args, error)) return MIRExprResult::error();
 
@@ -193,6 +218,36 @@ MIRExprResult MIRLowerer::lower_method_call(Value* receiver, FunctionCall* call,
     }
     const ValueId v = builder_->call_scalar(sym, type, args.data(), static_cast<uint32_t>(args.size()));
     return MIRExprResult::value(v, type);
+}
+
+SymbolId MIRLowerer::intern_global(VarInitStatement* vi) {
+    auto it = global_symbols_.find(vi);
+    if (it != global_symbols_.end()) return it->second;
+    MIRSymbolRecord rec;
+    rec.kind = MIRSymbolKind::Global;
+    rec.linkage = vi->is_extern() ? MIRLinkage::External : MIRLinkage::Internal;
+    std::string name;
+    if (mangler_) name = mangler_(vi);
+    if (name.empty()) {
+        const chem::string_view nv = vi->name_view();
+        name.assign(nv.data(), nv.size());
+    }
+    SymbolId s = module_.symbols.add(rec, name.data(), static_cast<uint32_t>(name.size()),
+                                     name.data(), static_cast<uint32_t>(name.size()));
+    global_symbols_[vi] = s;
+    return s;
+}
+
+SymbolId MIRLowerer::intern_named_global(const std::string& name) {
+    auto it = named_globals_.find(name);
+    if (it != named_globals_.end()) return it->second;
+    MIRSymbolRecord rec;
+    rec.kind = MIRSymbolKind::Global;
+    rec.linkage = MIRLinkage::External;
+    SymbolId s = module_.symbols.add(rec, name.data(), static_cast<uint32_t>(name.size()),
+                                     name.data(), static_cast<uint32_t>(name.size()));
+    named_globals_[name] = s;
+    return s;
 }
 
 SymbolId MIRLowerer::intern_function(FunctionDeclaration* decl) {
@@ -263,14 +318,38 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         case ValueKind::Identifier: {
             auto* id = value->as_identifier_unsafe();
             PlaceId place = place_for_linked(id->linked);
-            if (place == MIR_INVALID_ID) {
-                error = "identifier does not resolve to a local place (unsupported: globals/params)";
-                return MIRExprResult::error();
+            if (place != MIR_INVALID_ID) {
+                if (needs_aggregate_path(module_, type)) {
+                    return MIRExprResult::place(place, type);
+                }
+                return MIRExprResult::value(builder_->load(place, type), type);
             }
-            if (needs_aggregate_path(module_, type)) {
-                return MIRExprResult::place(place, type);
+            if (id->linked && id->linked->kind() == ASTNodeKind::VarInitStmt) {
+                auto* vi = id->linked->as_var_init();
+                const SymbolId gs = intern_global(vi);
+                const TypeId ptrt = types_.pointer_type(type, false);
+                const ValueId addr = builder_->global_addr(gs, ptrt);
+                if (needs_aggregate_path(module_, type)) {
+                    return MIRExprResult::address(addr, ptrt);
+                }
+                return MIRExprResult::value(builder_->load_indirect(addr, type), type);
             }
-            return MIRExprResult::value(builder_->load(place, type), type);
+            // unresolved identifier: treat as a module-level / extern global
+            {
+                const std::string gname(id->value.data(), id->value.size());
+                if (!gname.empty()) {
+                    const SymbolId gs = intern_named_global(gname);
+                    const TypeId ptrt = types_.pointer_type(type, false);
+                    const ValueId addr = builder_->global_addr(gs, ptrt);
+                    if (needs_aggregate_path(module_, type)) {
+                        return MIRExprResult::address(addr, ptrt);
+                    }
+                    return MIRExprResult::value(builder_->load_indirect(addr, type), type);
+                }
+            }
+            error = "identifier does not resolve to a local place (name '" +
+                    std::string(id->value.data(), id->value.size()) + "')";
+            return MIRExprResult::error();
         }
         case ValueKind::NegativeValue: {
             auto* n = value->as_negative_value_unsafe();
@@ -424,6 +503,42 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             ValueId v = builder_->call_scalar(sym, type, args.data(), static_cast<uint32_t>(args.size()));
             return MIRExprResult::value(v, type);
         }
+        case ValueKind::IndexOperator: {
+            auto* io = value->as_index_op_unsafe();
+            MIRExprResult base = lower_expr(io->parent_val, error);
+            if (!base.ok()) return base;
+            MIRExprResult idx = lower_expr(io->idx, error);
+            if (!idx.ok()) return idx;
+            if (base.kind != MIRExprKind::Value && base.kind != MIRExprKind::Address) {
+                error = "index base is not a pointer value";
+                return MIRExprResult::error();
+            }
+            if (needs_aggregate_path(module_, type)) {
+                error = "indexing to an aggregate element is not yet supported";
+                return MIRExprResult::error();
+            }
+            return MIRExprResult::value(
+                builder_->index_load(static_cast<ValueId>(base.id),
+                                     static_cast<ValueId>(idx.id), type), type);
+        }
+        case ValueKind::NullValue: {
+            const ConstantId c = module_.constants.add_null(type);
+            return MIRExprResult::value(builder_->const_null(type, c), type);
+        }
+        case ValueKind::DereferenceValue: {
+            auto* d = value->as_dereference_value_unsafe();
+            MIRExprResult in = lower_expr(d->getValue(), error);
+            if (!in.ok()) return in;
+            if (in.kind != MIRExprKind::Value && in.kind != MIRExprKind::Address) {
+                error = "dereference operand is not a pointer value";
+                return MIRExprResult::error();
+            }
+            if (needs_aggregate_path(module_, type)) {
+                return MIRExprResult::address(static_cast<ValueId>(in.id), in.type);
+            }
+            return MIRExprResult::value(
+                builder_->load_indirect(static_cast<ValueId>(in.id), type), type);
+        }
         case ValueKind::IncDecValue: {
             auto* n = value->as_inc_dec_value_unsafe();
             ValueId out = MIR_NULL;
@@ -472,10 +587,6 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
         }
         case ASTNodeKind::AssignmentStmt: {
             auto* as = node->as_assignment();
-            if (as->assOp != Operation::Assignment) {
-                error = "compound assignment not yet supported";
-                return false;
-            }
             if (!as->lhs) {
                 error = "assignment has no target";
                 return false;
@@ -502,6 +613,35 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     return true;
                 }
             }
+            if (lhs->val_kind() == ValueKind::DereferenceValue) {
+                auto* d = lhs->as_dereference_value_unsafe();
+                MIRExprResult p = lower_expr(d->getValue(), error);
+                if (!p.ok()) return false;
+                MIRExprResult r = lower_expr(as->value, error);
+                if (!r.ok()) return false;
+                if (r.kind != MIRExprKind::Value) {
+                    error = "aggregate dereference assignment not yet supported";
+                    return false;
+                }
+                builder_->store_indirect(static_cast<ValueId>(p.id), r.id);
+                return true;
+            }
+            if (lhs->val_kind() == ValueKind::IndexOperator) {
+                auto* io = lhs->as_index_op_unsafe();
+                MIRExprResult base = lower_expr(io->parent_val, error);
+                if (!base.ok()) return false;
+                MIRExprResult idx = lower_expr(io->idx, error);
+                if (!idx.ok()) return false;
+                MIRExprResult r = lower_expr(as->value, error);
+                if (!r.ok()) return false;
+                if (r.kind != MIRExprKind::Value) {
+                    error = "aggregate index assignment not yet supported";
+                    return false;
+                }
+                builder_->index_store(static_cast<ValueId>(base.id),
+                                      static_cast<ValueId>(idx.id), r.id);
+                return true;
+            }
             if (lhs->val_kind() != ValueKind::Identifier) {
                 error = "assignment target is not a simple local variable yet";
                 return false;
@@ -509,6 +649,36 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             auto* id = lhs->as_identifier_unsafe();
             PlaceId place = place_for_linked(id->linked);
             if (place == MIR_INVALID_ID) {
+                if (id->linked && id->linked->kind() == ASTNodeKind::VarInitStmt) {
+                    auto* vi = id->linked->as_var_init();
+                    const SymbolId gs = intern_global(vi);
+                    const TypeId vt = types_.map(id->getType());
+                    const TypeId ptrt = types_.pointer_type(vt, true);
+                    const ValueId addr = builder_->global_addr(gs, ptrt);
+                    MIRExprResult r = lower_expr(as->value, error);
+                    if (!r.ok()) return false;
+                    if (r.kind != MIRExprKind::Value) {
+                        error = "aggregate global assignment not yet supported";
+                        return false;
+                    }
+                    builder_->store_indirect(addr, r.id);
+                    return true;
+                }
+                const std::string gname(id->value.data(), id->value.size());
+                if (!gname.empty()) {
+                    const SymbolId gs = intern_named_global(gname);
+                    const TypeId vt = types_.map(id->getType());
+                    const TypeId ptrt = types_.pointer_type(vt, true);
+                    const ValueId addr = builder_->global_addr(gs, ptrt);
+                    MIRExprResult r = lower_expr(as->value, error);
+                    if (!r.ok()) return false;
+                    if (r.kind != MIRExprKind::Value) {
+                        error = "aggregate global assignment not yet supported";
+                        return false;
+                    }
+                    builder_->store_indirect(addr, r.id);
+                    return true;
+                }
                 error = "assignment target does not resolve to a local place";
                 return false;
             }
@@ -521,6 +691,20 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             const TypeId place_type = builder_->function().places[place].type;
             ValueId val = r.id;
             if (r.type != place_type) val = builder_->cast(val, place_type);
+            if (as->assOp != Operation::Assignment) {
+                MIROpcode cop = MIROpcode::Nop;
+                MIRBinaryOp bop = MIRBinaryOp::Add;
+                if (!(map_binary(as->assOp, cop, bop) && cop == MIROpcode::Binary) &&
+                    !compound_binary(as->assOp, bop)) {
+                    error = "unsupported compound assignment operator (" +
+                            std::to_string(static_cast<int>(as->assOp)) + ")";
+                    return false;
+                }
+                const ValueId cur = builder_->load(place, place_type);
+                const ConstantId opc = module_.constants.add_int(
+                    MIR_INVALID_ID, static_cast<uint64_t>(bop));
+                val = builder_->binary(cur, val, opc, place_type);
+            }
             builder_->store(place, val);
             return true;
         }
@@ -562,6 +746,16 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
         }
         case ASTNodeKind::IfStmt: {
             auto* ifs = node->as_if_stmt_unsafe();
+            if (ifs->is_comptime()) {
+                // compile-time condition: lower only the taken scope
+                std::string rerr;
+                Scope* taken = comptime_if_resolver_ ? comptime_if_resolver_(ifs, rerr) : nullptr;
+                if (!taken) {
+                    error = rerr.empty() ? "comptime if could not be resolved" : rerr;
+                    return false;
+                }
+                return lower_scope(*taken, error);
+            }
             const BlockId merge = builder_->create_block();
             if (!lower_if(ifs, merge, error)) return false;
             builder_->set_block(merge);

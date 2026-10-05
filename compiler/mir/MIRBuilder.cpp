@@ -193,6 +193,23 @@ void MIRBuilder::store_indirect(ValueId address, ValueId value) {
          {MIROperand::value(address, at), MIROperand::value(value, vt)});
 }
 
+ValueId MIRBuilder::load_indirect(ValueId address, TypeId type) {
+    ValueId v = new_value(type, VF_NONE);
+    TypeId at = address < func_.values.size() ? func_.values[address].type : MIR_INVALID_ID;
+    uint32_t i = emit(MIROpcode::Load, v,
+                      {MIROperand::value(address, at), MIROperand::type(type)});
+    note_result_value(v, i);
+    return v;
+}
+
+ValueId MIRBuilder::global_addr(SymbolId symbol, TypeId pointer_type) {
+    ValueId v = new_value(pointer_type, VF_ADDRESSABLE);
+    uint32_t i = emit(MIROpcode::GlobalAddr, v,
+                      {MIROperand::symbol(symbol, MIR_INVALID_ID), MIROperand::type(pointer_type)});
+    note_result_value(v, i);
+    return v;
+}
+
 PlaceId MIRBuilder::alloca(TypeId type, MIRStorageClass sc) {
     PlaceId p = new_place(type, sc);
     emit(MIROpcode::Alloca, p, {MIROperand::type(type)});
@@ -230,6 +247,26 @@ void MIRBuilder::field_store(PlaceId base, ConstantId field_name, ValueId value)
     emit(MIROpcode::Store, MIR_NULL,
          {MIROperand::place(base, bt),
           MIROperand::constant(field_name, MIR_INVALID_ID),
+          MIROperand::value(value, vt)});
+}
+
+ValueId MIRBuilder::index_load(ValueId base, ValueId index, TypeId element_type) {
+    ValueId v = new_value(element_type, VF_NONE);
+    TypeId bt = base < func_.values.size() ? func_.values[base].type : MIR_INVALID_ID;
+    TypeId it = index < func_.values.size() ? func_.values[index].type : MIR_INVALID_ID;
+    uint32_t i = emit(MIROpcode::Load, v,
+                      {MIROperand::value(base, bt), MIROperand::value(index, it),
+                       MIROperand::type(element_type)});
+    note_result_value(v, i);
+    return v;
+}
+
+void MIRBuilder::index_store(ValueId base, ValueId index, ValueId value) {
+    TypeId bt = base < func_.values.size() ? func_.values[base].type : MIR_INVALID_ID;
+    TypeId it = index < func_.values.size() ? func_.values[index].type : MIR_INVALID_ID;
+    TypeId vt = value < func_.values.size() ? func_.values[value].type : MIR_INVALID_ID;
+    emit(MIROpcode::Store, MIR_NULL,
+         {MIROperand::value(base, bt), MIROperand::value(index, it),
           MIROperand::value(value, vt)});
 }
 

@@ -81,6 +81,11 @@ public:
         mangler_ = std::move(fn);
     }
 
+    /** Resolve the taken scope of a `comptime if` (evaluated by the interpreter). */
+    void set_comptime_if_resolver(std::function<Scope*(IfStatement*, std::string&)> fn) {
+        comptime_if_resolver_ = std::move(fn);
+    }
+
 private:
     MIRExprResult lower_expr(Value* value, std::string& error);
     bool lower_stmt(ASTNode* node, std::string& error);
@@ -96,6 +101,8 @@ private:
     MIRExprResult lower_method_call(Value* receiver, FunctionCall* call, std::string& error);
 
     SymbolId intern_function(FunctionDeclaration* decl);
+    SymbolId intern_global(VarInitStatement* vi);
+    SymbolId intern_named_global(const std::string& name);
     PlaceId place_for_linked(ASTNode* linked) const;
     void bind(ASTNode* linked, PlaceId place) { var_places_[linked] = place; }
 
@@ -104,7 +111,10 @@ private:
     MIRBuilder* builder_ = nullptr;
     std::unordered_map<ASTNode*, PlaceId> var_places_;
     std::unordered_map<FunctionDeclaration*, SymbolId> func_symbols_;
+    std::unordered_map<ASTNode*, SymbolId> global_symbols_;
+    std::unordered_map<std::string, SymbolId> named_globals_;
     std::function<std::string(ASTNode*)> mangler_;
+    std::function<Scope*(IfStatement*, std::string&)> comptime_if_resolver_;
     std::vector<BlockId> break_targets_;
     std::vector<BlockId> continue_targets_;
     bool sret_ = false;

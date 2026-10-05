@@ -276,7 +276,8 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
             case MIROpcode::ConstBool:
             case MIROpcode::ConstFloat:
             case MIROpcode::ConstDouble:
-            case MIROpcode::ConstString: {
+            case MIROpcode::ConstString:
+            case MIROpcode::ConstNull: {
                 const ValueId v = inst.result_or_place;
                 const MIROperand* c = operand_at(function, inst, 0);
                 std::string lit;
@@ -293,7 +294,16 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const MIROperand* p = operand_at(function, inst, 0);
                 const MIROperand* fld = operand_at(function, inst, 1);
                 if (!p) { error = "load missing place"; return false; }
-                if (fld && fld->kind() == MIROperandKind::Constant) {
+                if (p->kind() == MIROperandKind::Value) {
+                    if (fld && fld->kind() == MIROperandKind::Value) {
+                        out += c_type_of(module, function.values[v].type) + " " + vname(v) +
+                               " = " + operand_expr(function, module, *p) + "[" +
+                               operand_expr(function, module, *fld) + "];\n";
+                    } else {
+                        out += c_type_of(module, function.values[v].type) + " " + vname(v) +
+                               " = *" + operand_expr(function, module, *p) + ";\n";
+                    }
+                } else if (fld && fld->kind() == MIROperandKind::Constant) {
                     std::string fname;
                     if (!constant_string(module, fld->id, fname)) {
                         error = "field load has invalid field name";
@@ -313,8 +323,14 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const MIROperand* b = operand_at(function, inst, 2);
                 if (!p || !a) { error = "store missing operands"; return false; }
                 if (p->kind() == MIROperandKind::Value) {
-                    out += "*" + operand_expr(function, module, *p) + " = " +
-                           operand_expr(function, module, *a) + ";\n";
+                    if (a->kind() == MIROperandKind::Value && b) {
+                        out += operand_expr(function, module, *p) + "[" +
+                               operand_expr(function, module, *a) + "] = " +
+                               operand_expr(function, module, *b) + ";\n";
+                    } else {
+                        out += "*" + operand_expr(function, module, *p) + " = " +
+                               operand_expr(function, module, *a) + ";\n";
+                    }
                 } else if (a->kind() == MIROperandKind::Constant && b) {
                     std::string fname;
                     if (!constant_string(module, a->id, fname)) {
@@ -424,6 +440,16 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 if (!dest || !src) { error = "copy/move_init missing operands"; return false; }
                 out += pname(dest->id) + " = " +
                        (src->kind() == MIROperandKind::Place ? pname(src->id) : vname(src->id)) + ";\n";
+                break;
+            }
+            case MIROpcode::GlobalAddr: {
+                const ValueId v = inst.result_or_place;
+                const MIROperand* s = operand_at(function, inst, 0);
+                if (!s) { error = "global_addr missing symbol"; return false; }
+                std::string name;
+                symbol_name(module, s->id, name);
+                out += c_type_of(module, function.values[v].type) + " " + vname(v) +
+                       " = &" + name + ";\n";
                 break;
             }
             case MIROpcode::Br: {

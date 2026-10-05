@@ -68,11 +68,19 @@ public:
     // ── storage ────────────────────────────────────────────────────────────
     /** Store through a pointer: `*address = value`. */
     void store_indirect(ValueId address, ValueId value);
+    /** Load through a pointer: `result = *address`. */
+    ValueId load_indirect(ValueId address, TypeId type);
+    /** Address of a module-level global: `&symbol`. */
+    ValueId global_addr(SymbolId symbol, TypeId pointer_type);
     PlaceId alloca(TypeId type, MIRStorageClass sc = MIRStorageClass::Local);
     ValueId load(PlaceId place, TypeId type);
     void store(PlaceId place, ValueId value);
     /** Load a struct field by name: `result = base.<field>`. */
     ValueId field_load(PlaceId base, ConstantId field_name, TypeId field_type);
+    /** Load through an index: `result = base[index]`. */
+    ValueId index_load(ValueId base, ValueId index, TypeId element_type);
+    /** Store through an index: `base[index] = value`. */
+    void index_store(ValueId base, ValueId index, ValueId value);
     /** Store a struct field by name: `base.<field> = value`. */
     void field_store(PlaceId base, ConstantId field_name, ValueId value);
     ValueId address_of(PlaceId place, TypeId pointer_type);

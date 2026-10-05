@@ -1929,6 +1929,9 @@ int ASTProcessor::implement_module(
     mir::MIRModule mir_module;
     mir::MIRTypeBuilder mir_types(mir_module);
     mir::MIRLowerer mir_lowerer(mir_module, mir_types);
+    mir_lowerer.set_mangler([&c_visitor](ASTNode* n) {
+        return mir_mangle_name(c_visitor.mangler, n);
+    });
     mir::MIRArena mir_arena;
 
     // The fourth loop deals with generating function bodies present in the current module

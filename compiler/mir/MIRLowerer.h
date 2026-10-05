@@ -11,6 +11,7 @@
 #include "MIRTypeBuilder.h"
 #include "MIRBuilder.h"
 
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -24,6 +25,7 @@ class Scope;
 class IfStatement;
 class WhileLoop;
 class ForLoop;
+class FunctionCall;
 
 namespace mir {
 
@@ -74,6 +76,11 @@ public:
         func_symbols_[decl] = symbol;
     }
 
+    /** On-demand mangler for symbols not pre-registered (e.g. methods). */
+    void set_mangler(std::function<std::string(ASTNode*)> fn) {
+        mangler_ = std::move(fn);
+    }
+
 private:
     MIRExprResult lower_expr(Value* value, std::string& error);
     bool lower_stmt(ASTNode* node, std::string& error);
@@ -84,6 +91,9 @@ private:
     bool lower_incdec_value(Value* target, bool increment, std::string& error, ValueId& out);
     PlaceId resolve_place(Value* v, std::string& error);
     bool member_name(Value* v, std::string& out, std::string& error);
+    bool lower_call_args(const std::vector<Value*>& values, std::vector<MIROperand>& args,
+                         std::string& error);
+    MIRExprResult lower_method_call(Value* receiver, FunctionCall* call, std::string& error);
 
     SymbolId intern_function(FunctionDeclaration* decl);
     PlaceId place_for_linked(ASTNode* linked) const;
@@ -94,6 +104,7 @@ private:
     MIRBuilder* builder_ = nullptr;
     std::unordered_map<ASTNode*, PlaceId> var_places_;
     std::unordered_map<FunctionDeclaration*, SymbolId> func_symbols_;
+    std::function<std::string(ASTNode*)> mangler_;
     std::vector<BlockId> break_targets_;
     std::vector<BlockId> continue_targets_;
     bool sret_ = false;

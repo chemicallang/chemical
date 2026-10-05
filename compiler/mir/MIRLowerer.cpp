@@ -18,6 +18,7 @@
 #include "ast/values/FunctionCall.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/ValueNode.h"
+#include "ast/values/AccessChain.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/Scope.h"
@@ -192,13 +193,17 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             if (in.type == type) return in;
             return MIRExprResult::value(builder_->cast(in.id, type), type);
         }
+        case ValueKind::AccessChain: {
+            auto* chain = value->as_access_chain_unsafe();
+            if (chain->values.size() == 1) {
+                return lower_expr(chain->values[0], error);
+            }
+            error = "field/index access chains are not yet supported in MIR";
+            return MIRExprResult::error();
+        }
         case ValueKind::FunctionCall: {
             auto* call = value->as_func_call_unsafe();
-            if (!call->parent_val || call->parent_val->val_kind() != ValueKind::Identifier) {
-                error = "only direct function calls are supported yet (method/indirect calls pending)";
-                return MIRExprResult::error();
-            }
-            ASTNode* linked = call->parent_val->linked_node();
+            ASTNode* linked = call->parent_val ? call->parent_val->linked_node() : nullptr;
             FunctionDeclaration* fd = linked ? linked->as_function() : nullptr;
             if (!fd) {
                 error = "call to unresolved function";
@@ -235,7 +240,8 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             return MIRExprResult::value(v, type);
         }
         default:
-            error = "unsupported value kind during MIR lowering";
+            error = "unsupported value kind during MIR lowering (kind " +
+                    std::to_string(static_cast<int>(value->val_kind())) + ")";
             return MIRExprResult::error();
     }
 }
@@ -276,11 +282,20 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 error = "compound assignment not yet supported";
                 return false;
             }
-            if (!as->lhs || as->lhs->val_kind() != ValueKind::Identifier) {
+            if (!as->lhs) {
+                error = "assignment has no target";
+                return false;
+            }
+            Value* lhs = as->lhs;
+            if (lhs->val_kind() == ValueKind::AccessChain) {
+                auto* chain = lhs->as_access_chain_unsafe();
+                if (chain->values.size() == 1) lhs = chain->values[0];
+            }
+            if (lhs->val_kind() != ValueKind::Identifier) {
                 error = "assignment target is not a simple local variable yet";
                 return false;
             }
-            auto* id = as->lhs->as_identifier_unsafe();
+            auto* id = lhs->as_identifier_unsafe();
             PlaceId place = place_for_linked(id->linked);
             if (place == MIR_INVALID_ID) {
                 error = "assignment target does not resolve to a local place";
@@ -332,10 +347,22 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
 bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
                                 MIRFunction& func, std::string& error) {
     var_places_.clear();
-    func_symbols_.clear();
+    // func_symbols_ persists across functions in a module so callees keep stable ids
 
     func.symbol = intern_function(decl);
-    func.function_type = module_.symbols.get(func.symbol).type;
+    {
+        // ensure the symbol's signature type is set even when the symbol was
+        // pre-declared by the module builder (which does not know the types yet)
+        TypeId ret = decl->returnType ? types_.map(decl->returnType) : types_.void_type();
+        std::vector<TypeId> ptypes;
+        ptypes.reserve(decl->params.size());
+        for (FunctionParam* p : decl->params) {
+            ptypes.push_back(p && p->type ? types_.map(p->type) : types_.opaque_type());
+        }
+        const TypeId ftype = types_.function_signature(ret, ptypes);
+        module_.symbols.symbols[func.symbol].type = ftype;
+        func.function_type = ftype;
+    }
 
     MIRBuilder b(arena, module_, func);
     builder_ = &b;

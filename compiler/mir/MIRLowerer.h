@@ -65,6 +65,11 @@ public:
     MIRTypeBuilder& types() { return types_; }
     MIRModule& module() { return module_; }
 
+    /** Pre-register a callee symbol (mangled name) so calls resolve to it. */
+    void set_function_symbol(FunctionDeclaration* decl, SymbolId symbol) {
+        func_symbols_[decl] = symbol;
+    }
+
 private:
     MIRExprResult lower_expr(Value* value, std::string& error);
     bool lower_stmt(ASTNode* node, std::string& error);

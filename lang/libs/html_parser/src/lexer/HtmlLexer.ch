@@ -100,7 +100,23 @@ public struct HtmlLexer {
     var pending_script : bool
 
     /**
-     * we are inside a <script> element; its content is lexed as a single raw
+     * the `type` attribute of the current opening tag was seen and its value
+     * said the content is NOT script data, so this <script> is a data block
+     * (application/json, text/template, ...) whose content takes the ordinary
+     * text/interpolation path instead of the raw-text one. Only meaningful
+     * while pending_script is set.
+     */
+    var pending_script_is_data : bool
+
+    /**
+     * the attribute name most recently lexed was "type"; the next quoted value
+     * token is that attribute's value. Attributes arrive as separate tokens
+     * (AttrName, '=', quoted value), so the pairing is tracked here.
+     */
+    var attr_name_is_type : bool
+
+    /**
+     * we are inside a <script> element whose content is lexed as a single raw
      * text token up to the matching </script> (JS is never lexed as HTML)
      */
     var in_script : bool
@@ -124,5 +140,7 @@ func (lexer : &mut HtmlLexer) reset() {
     lexer.pre_depth = 0;
     lexer.pre_brace_depth = 0;
     lexer.pending_script = false;
+    lexer.pending_script_is_data = false;
+    lexer.attr_name_is_type = false;
     lexer.in_script = false;
 }

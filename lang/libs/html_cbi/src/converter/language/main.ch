@@ -3,15 +3,11 @@ func (str : &std::string) view() : std::string_view {
     return std::string_view(str.data(), str.size());
 }
 
+// The lexer hands attribute values over with their delimiters still attached, so
+// both attribute emission and the <script> type classification have to unquote
+// them. One definition of that lives in html_parser so the two cannot drift.
 func strip_js_string_quotes(value : std::string_view) : std::string_view {
-    if(value.size() >= 2) {
-        const first = value.data()[0];
-        const last = value.data()[value.size() - 1];
-        if((first == '"' || first == '\'' || first == '`') && first == last) {
-            return std::string_view(value.data() + 1, value.size() - 2);
-        }
-    }
-    return value;
+    return html_unquote_attribute_value(value)
 }
 
 func html_named_entity_code(name : std::string_view) : int {
@@ -567,6 +563,38 @@ func (converter : &mut ASTConverter) convertChildren(element : *mut HtmlElement)
     }
 }
 
+// True when this <script>'s body must be emitted verbatim, i.e. when its
+// content really is script data (JS is not HTML, so it must be neither
+// entity-escaped nor interpolated). A <script> whose `type` names a data block
+// -- application/json, application/ld+json, text/template -- is NOT raw text:
+// its content takes the ordinary text/interpolation path, exactly like every
+// other element, so `{expr}` in it is a chemical value rather than literal
+// source text.
+//
+// This must agree with the lexer's decision to enter raw-text mode for the same
+// element; both call html_script_type_is_script_data. When the two disagreed the
+// value was silently dropped: attributes on the element still interpolated,
+// content did not.
+func converter_script_body_is_raw(element : *mut HtmlElement) : bool {
+    var i : uint = 0
+    const n = element.attributes.size()
+    while(i < n) {
+        const attr = element.attributes.get(i)
+        if(attr != null && html_view_iequals(attr.name, std::string_view("type"))) {
+            // A boolean `type` (no value) states no type at all, and a
+            // computed one ({type}) cannot be known here; both leave the content
+            // as script data.
+            if(attr.value == null) { return true }
+            if(attr.value.kind != AttributeValueKind.Text && attr.value.kind != AttributeValueKind.Number) { return true }
+            const tv = attr.value as *mut TextAttributeValue
+            return html_script_type_is_script_data(html_unquote_attribute_value(tv.text))
+        }
+        i = i + 1
+    }
+    // No `type` attribute at all: JavaScript.
+    return true
+}
+
 func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
 
     var str = &mut converter.str
@@ -587,9 +615,11 @@ func (converter : &mut ASTConverter) convertHtmlChild(child : *mut HtmlChild) {
                 return
             }
 
-            // <script> is a raw-text element: its content is JavaScript, not
-            // HTML, so it must be emitted verbatim (no entity escaping).
-            if(element.name.equals(std::string_view("script"))) {
+            // <script> whose content is script data is a raw-text element: its content is
+            // JavaScript, not HTML, so it must be emitted verbatim (no entity
+            // escaping, no interpolation). A <script> with a data `type` takes
+            // the ordinary path below instead.
+            if(element.name.equals(std::string_view("script")) && converter_script_body_is_raw(element)) {
                 str.append('<')
                 str.append_view(&element.name)
                 var sa : uint = 0

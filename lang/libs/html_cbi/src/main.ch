@@ -195,6 +195,8 @@ public func html_initializeLexer(lexer : *mut Lexer) {
         last_tag_pre : false,
         preserve_whitespace : false,
         pending_script : false,
+        pending_script_is_data : false,
+        attr_name_is_type : false,
         in_script : false
     }
     lexer.setUserLexer(ptr, getNextToken as UserLexerSubroutineType)
@@ -240,6 +242,8 @@ func make_ut_html_lexer() : HtmlLexer {
         last_tag_pre : false,
         preserve_whitespace : false,
         pending_script : false,
+        pending_script_is_data : false,
+        attr_name_is_type : false,
         in_script : false
     }
 }

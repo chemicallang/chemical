@@ -36,11 +36,37 @@ func is_script_tag_name(tag_value : std::string_view) : bool {
         ut_char_lower_ascii(tag_value.get(5)) == 't'
 }
 
+func ut_attr_name_is_type(name : std::string_view) : bool {
+    return name.size() == 4 &&
+        ut_char_lower_ascii(name.get(0)) == 't' &&
+        ut_char_lower_ascii(name.get(1)) == 'y' &&
+        ut_char_lower_ascii(name.get(2)) == 'p' &&
+        ut_char_lower_ascii(name.get(3)) == 'e'
+}
+
+// Called with the value of a quoted attribute value token. When that attribute
+// is the `type` of a <script> we are still opening, it decides whether the
+// element's content is script data (raw text) or a data block (interpolating).
+func ut_note_script_type_value(html : &mut HtmlLexer, value : std::string_view) {
+    if(!html.attr_name_is_type) { return }
+    html.attr_name_is_type = false
+    if(!html.pending_script) { return }
+    html.pending_script_is_data = !html_script_type_is_script_data(html_unquote_attribute_value(value))
+}
+
 public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
     const provider = &mut lexer.provider;
-    // Inside <script>, everything up to </script> is raw text (JS is not HTML).
-    // Emit it as one Text token; when the closing tag is reached, clear the mode
-    // and fall through so the '<' is lexed as a normal end tag.
+    // Inside a <script> whose content really is JavaScript, everything up to
+    // </script> is raw text (JS is not HTML). Emit it as one Text token; when the
+    // closing tag is reached, clear the mode and fall through so the '<' is lexed
+    // as a normal end tag.
+    //
+    // A <script> whose `type` says the content is a data block
+    // (application/json, text/template, ...) is NOT in this mode: its content
+    // goes through the ordinary text/interpolation path, so '{' is chemical
+    // syntax there like it is everywhere else in the macro. Keying the mode on
+    // the element name alone meant such a value was emitted as its literal
+    // source text -- no diagnostic, no error -- which is the bug this guards.
     if(html.in_script) {
         const position = provider.getPosition();
         const start = provider.current_data();
@@ -414,9 +440,14 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 html.in_end_tag = false;
                 html.last_tag_pre = false;
                 if(html.pending_script) {
-                    // we just opened a <script>; its content is raw text
+                    // We just opened a <script>. Its content is raw text only
+                    // when that content is actually script data; a `type` naming
+                    // a data block (application/json, ...) gets the ordinary
+                    // text/interpolation path instead. Same predicate as
+                    // html_cbi's converter uses to emit the body verbatim.
+                    html.in_script = !html.pending_script_is_data;
                     html.pending_script = false;
-                    html.in_script = true;
+                    html.pending_script_is_data = false;
                 }
                 return Token {
                     type : TokenType.GreaterThan as int,
@@ -438,9 +469,14 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                 if(isalpha(c as int)) {
                     if(html.lexed_tag_name) {
                         provider.read_tag_name();
+                        const attr_value = std::string_view(data_ptr, provider.current_data() - data_ptr);
+                        // Remember a `type` attribute so its value token (below)
+                        // can be classified. Only meaningful for a <script>, but
+                        // harmless to record for every tag.
+                        html.attr_name_is_type = ut_attr_name_is_type(attr_value);
                         return Token {
                             type : TokenType.AttrName as int,
-                            value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                            value : attr_value,
                             position : position
                         }
                     } else {
@@ -456,7 +492,11 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                                 html.pre_depth++;
                             }
                             html.last_tag_pre = is_pre;
+                            // A fresh opening tag starts with no `type` seen, so a
+                            // <script> is raw text until an attribute proves
+                            // otherwise.
                             html.pending_script = is_script_tag_name(tag_value);
+                            html.pending_script_is_data = false;
                         } else {
                             // closing tag; match against the currently open <pre>
                             const is_pre_close = html.pre_depth > 0 && tag_value.size() == 3 &&
@@ -491,17 +531,21 @@ public func getNextToken2(html : &mut HtmlLexer, lexer : &mut Lexer) : Token {
                         }
                         '\'' => {
                             provider.read_single_quoted_value()
+                            const sq = std::string_view(data_ptr, provider.current_data() - data_ptr);
+                            ut_note_script_type_value(html, sq);
                             return Token {
                                 type : TokenType.SingleQuotedValue as int,
-                                value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                                value : sq,
                                 position : position
                             }
                         }
                         '"' => {
                             provider.read_double_quoted_value()
+                            const dq = std::string_view(data_ptr, provider.current_data() - data_ptr);
+                            ut_note_script_type_value(html, dq);
                             return Token {
                                 type : TokenType.DoubleQuotedValue as int,
-                                value : std::string_view(data_ptr, provider.current_data() - data_ptr),
+                                value : dq,
                                 position : position
                             }
                         }

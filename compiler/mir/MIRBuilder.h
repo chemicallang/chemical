@@ -61,6 +61,9 @@ public:
     ValueId const_null(TypeId type, ConstantId constant);
     ValueId const_float(TypeId type, ConstantId constant);
     ValueId const_double(TypeId type, ConstantId constant);
+    ValueId const_string(TypeId type, ConstantId constant);
+    /** A function parameter, materialized as an SSA value. */
+    ValueId param(TypeId type);
 
     // ── storage ────────────────────────────────────────────────────────────
     PlaceId alloca(TypeId type, MIRStorageClass sc = MIRStorageClass::Local);

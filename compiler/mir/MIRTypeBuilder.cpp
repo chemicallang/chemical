@@ -120,6 +120,18 @@ TypeId MIRTypeBuilder::function_type(BaseType* type) {
     return intern(r);
 }
 
+TypeId MIRTypeBuilder::function_signature(TypeId return_type, const std::vector<TypeId>& params) {
+    MIRTypeRecord r;
+    r.kind = MIRTypeKind::Function;
+    r.size = module_.layout.pointer_size;
+    r.alignment = module_.layout.pointer_alignment;
+    r.element = return_type;
+    uint32_t n = static_cast<uint32_t>(params.size());
+    if (n) r.data_offset = module_.types.append_data(params.data(), n);
+    r.data_count = n;
+    return intern(r);
+}
+
 TypeId MIRTypeBuilder::map(BaseType* type) {
     if (!type) return opaque_type();
 

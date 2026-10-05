@@ -22,6 +22,9 @@ public:
     /** Map an AST type to a canonical MIR type id. Never returns INVALID. */
     TypeId map(BaseType* type);
 
+    /** Build a function type from a return type and parameter type ids. */
+    TypeId function_signature(TypeId return_type, const std::vector<TypeId>& params);
+
     /** The module type table this maps into. */
     MIRModule& module() { return module_; }
 

@@ -1,14 +1,17 @@
 # Chemical MIR Design
 
 Status: design proposal
-Revision: semantic and implementation clarifications added after design review
+Revision: MIR-first branch policy — MIR is the only path (no feature flags, no
+legacy fallback); see `mir-implementation-plan.md` §0 for the binding mandate and
+§11 for the measured performance / memory / pass-rate contract.
 
-This document defines the design and adoption plan for Chemical's middle-level
-instruction representation (MIR). It is intentionally implementation-oriented.
-An implementer must treat the invariants in this document as part of the MIR
-contract, not as suggestions. The first implementation should be small and
-boring, but it must establish the correct ownership, sequencing, and validation
-boundaries from the beginning.
+This document defines the design and implementation plan for Chemical's
+middle-level instruction representation (MIR). It is intentionally
+implementation-oriented. An implementer must treat the invariants in this
+document as part of the MIR contract, not as suggestions. The binding adoption
+rules (`mir-implementation-plan.md` §0) override anything here that reads as
+"optional", "staged", or "behind a flag": MIR is always on, and unsupported
+constructs are compile errors fixed forward, never fallbacks.
 
 ## 1. Decision Summary
 
@@ -31,12 +34,14 @@ backends. It is higher-level than LLVM where that preserves source semantics or
 improves C output, and lower-level than the AST where precise sequencing,
 storage, and lifetime behavior are needed.
 
-The core MIR must not contain a “write this C text” instruction. During migration
-only, a separate C-translation adapter may contain a `LegacyCFragment` for a
-complete legacy function. Such a fragment is explicitly C-only, opaque to MIR
-optimization, interpretation, LLVM, JVM, and Wasm, and cannot share MIR cleanup
-state with a MIR function. This is a temporary migration bridge, not a
-permanent MIR escape hatch.
+The core MIR must not contain a “write this C text” instruction. There is no
+`LegacyCFragment` in the production pipeline and no mixed MIR/legacy module mode.
+MIR is the compiler's path from day one on the dedicated `mir` branch: every
+concrete runtime function is lowered to MIR and emitted from MIR. A construct MIR
+cannot yet represent is a structured compile error fixed forward, never a
+fallback. While legacy source-translation code still exists, it may be used only
+by a dev-only differential harness, never by the compiler's normal path. See
+`mir-implementation-plan.md` §0 and §3.6 for the binding rules.
 
 The canonical internal form is a CFG. Structured operations such as `if`,
 `while`, and `switch` may be retained while building MIR, but they must have a
@@ -44,14 +49,13 @@ well-defined lowering to blocks and branches. C emission may choose structured
 C when it is safe and readable; it must never depend on C structure to define
 MIR semantics.
 
-The initial adoption target is the 2c backend. `MIRLowerer` lowers selected
-complete functions and a C emitter translates them into the same module output
-as legacy 2c functions. `2cASTVisitor.cpp` is the integration point, not the
-MIR implementation: it may select the backend for a function, but MIR
-construction must not depend on `BufferedWriter`, `nested_value`, C names, or
-legacy destructor queues. Top-level declaration emission can remain unchanged
-initially, but MIR-backed functions must be exercised from the first
-implementation milestone.
+The initial emission target is the C backend. `MIRLowerer` lowers every
+concrete function and a C emitter translates it into the module output.
+`2cASTVisitor.cpp` is **not** an integration point: MIR construction must not
+depend on `BufferedWriter`, `nested_value`, C names, or legacy destructor
+queues, and the production pipeline must not call it. Top-level declaration
+emission may be reused while it is being folded into `CModuleEmitter`, but
+MIR-backed functions are exercised from the first implementation milestone.
 
 ## 2. Why The Current Design Needs A Boundary
 
@@ -135,25 +139,28 @@ struct result places, and returns in the C emitter, interpreter, and LLVM
 emitter. The first implementation must also define canonical CFG containers,
 block arguments, and terminators, but the first PR may restrict lowering and
 emission to straight-line functions. Add CFG lowering immediately after the
-straight-line subset, followed by aggregate lifetime operations, before
-enabling MIR by default for library code. This distinction is intentional:
-the representation has CFG support from the beginning, while the first
-lowering milestone is smaller.
+straight-line subset, followed by aggregate lifetime operations. The branch is
+MIR-only from the first switch; while a construct is unimplemented it is a
+compile error (see `mir-implementation-plan.md` §0), not a reason to keep the
+legacy path. The representation has CFG support from the beginning, while the
+first lowering milestone is smaller.
 
-The following matrix is normative for staged adoption:
+The following matrix is normative for staged implementation. “Initial status”
+describes when a backend must support it; it no longer describes an adoption
+gate, because MIR is always on:
 
 | Feature | MIR | C | Interpreter | LLVM | Initial status |
 |---|---:|---:|---:|---:|---|
 | Primitive values and arithmetic | yes | yes | yes | yes | first subset |
 | Locals, places, load/store | yes | yes | yes | yes | first subset |
 | Scalar calls and function pointers | yes | yes | yes | yes | first subset |
-| Struct result places and ABI metadata | yes | yes | partial | yes | before aggregate default |
+| Struct result places and ABI metadata | yes | yes | partial | yes | before aggregate support |
 | Struct/array/variant lifetime | yes | staged | staged | staged | capability-gated |
-| CFG branches and loops | yes | staged after straight-line subset | staged after straight-line subset | staged after straight-line subset | required before default |
+| CFG branches and loops | yes | staged after straight-line subset | staged after straight-line subset | staged after straight-line subset | required for coverage |
 | Lambdas and captures | yes | staged | staged | staged | capability-gated |
 | Atomics and TLS | yes | staged | target-dependent | yes | capability-gated |
 | Exceptions/throw/provide | yes | unsupported/staged | staged | unsupported/staged | diagnostic required |
-| CBI/plugin jobs | yes, if lowered | legacy initially | no | no | remain legacy initially |
+| CBI/plugin jobs | yes, if lowered | separate TinyCC job class | no | no | documented boundary |
 
 The matrix must be kept current in the implementation. “MIR: yes” means the
 operation has a semantic definition, verifier rule, and dump format. It does not
@@ -908,8 +915,9 @@ no-crash policy and matters when several workers exhaust memory concurrently.
 Emission is transactional. A backend writes an artifact into a private buffer,
 runs its backend verifier or syntax validation where available, and publishes
 the buffer only on success. A diagnostic or unsupported operation discards the
-artifact and selects the configured fallback; it must not leave half a function
-in module output. The same rule applies to parallel function artifacts.
+artifact and fails the compilation with a source-linked error; it must not leave
+half a function in module output and must not select a legacy fallback. The same
+rule applies to parallel function artifacts.
 
 ### 8.2 C names are assigned after MIR construction
 
@@ -1035,27 +1043,31 @@ passed. If it is moved into a local, use `move_init`/`memcpy` according to the
 type's operation table. Never emit a value-block that copies an aggregate merely
 to make expression composition possible.
 
-### 8.6 Incremental MIR/legacy integration
+### 8.6 MIR-first pipeline and legacy removal
 
-MIR and legacy 2c are expected to run together during the migration, but the
-unit of selection is a complete function. The module coordinator emits shared
-declarations once, then selects either `MIRFunctionEmitter` or
-`ToCAstVisitor` for each function. A function never contains a mixture of MIR
-cleanup state and legacy cleanup queues.
+MIR is the only production path. The module coordinator emits shared declarations
+once and then emits **every** function through `MIRFunctionEmitter`. There is no
+selection between MIR and `ToCAstVisitor`, no mixed module mode, and no
+per-function flag.
 
-The first MIR-backed functions should be deliberately small and representative:
-primitive arithmetic, locals, calls, and returns. They must be selected through
-the normal C backend/module pipeline, compiled by TinyCC, and included in the
-ordinary test suite. As MIR gains control flow, aggregates, lambdas, and
-lifetime semantics, more existing functions become eligible. Unsupported
-functions remain on legacy 2c until an AI-assisted migration or manual port
-converts them and differential tests pass.
+The first MIR-backed functions are deliberately small and representative:
+primitive arithmetic, locals, calls, and returns. They are compiled by TinyCC
+through the normal pipeline and included in the ordinary test suite from the
+first switch. As MIR gains control flow, aggregates, lambdas, and lifetime
+semantics, each construct's legacy translation code is deleted. Unsupported
+constructs fail compilation with a diagnostic and are ported in the next commit;
+they are never routed to the legacy translator.
 
-This gives the migration three simultaneous properties:
+This gives the pipeline three properties:
 
 1. MIR is exercised in production compilation and tests from day one.
-2. Legacy and MIR functions coexist in one module and share declarations/ABI.
-3. The legacy backend shrinks by function coverage until it can be removed.
+2. There is exactly one semantic model (MIR); no dual-model boundary bugs.
+3. The legacy translator shrinks monotonically and is deleted construct by
+   construct until nothing remains.
+
+While legacy translation code is still present, it may be exercised only by a
+dev-only differential harness to compare output during the port. That harness is
+never reachable from the compiler pipeline.
 
 ## 9. Interpreter Backend
 
@@ -1149,13 +1161,15 @@ plugin transformation as a hidden side effect. This keeps parallel body
 resolution and generic instantiation ahead of backend work and gives all
 backends the same semantic input.
 
-MIR is applicable to executable, library, and ordinary C/LLVM translation jobs.
-CBI/plugin jobs, build.lab compilation, and translation-only jobs may remain on
-the legacy AST path initially, but that decision must be explicit in the job
-configuration and diagnostics. A plugin must not accidentally receive a partial
-MIR module and then call AST-only APIs. Interpretation jobs must use MIR for all
-MIR-supported runtime functions; comptime evaluation remains a separate
-compile-time phase until its AST interpreter is replaced or can consume MIR.
+MIR is applicable to executable, library, and ordinary C/LLVM translation jobs,
+and it is the only path for those jobs. CBI/plugin jobs, build.lab compilation,
+and translation-only jobs are a **separate job class** compiled by TinyCC from
+generated C; they do not enter the MIR C pipeline. That boundary is explicit in
+the job configuration and diagnostics and is not a per-function feature gate. A
+plugin must not accidentally receive a partial MIR module and then call AST-only
+APIs. Interpretation jobs must use MIR for all runtime functions; comptime
+evaluation remains a separate compile-time phase until its AST interpreter is
+replaced or can consume MIR.
 
 The initial MIR project targets C, the interpreter, and LLVM. C++ output is
 explicitly out of scope for this design and must not be used to justify a core
@@ -1179,12 +1193,12 @@ Globals cannot remain an unmodeled exception forever. MIR must represent:
 * external declarations versus definitions and their linkage/visibility;
 * interpretation-time initialization using the same dependency order.
 
-The initial implementation may leave global declaration spelling in the legacy
-module emitter, but it must create a `MIRGlobal` record containing type, linkage,
-visibility, TLS, constant/runtime initializer, source location, and destructor
-metadata. Runtime initializers must be lowered into an explicit ordered init
-sequence before MIR becomes the default for modules with non-constant globals.
-Do not infer global order from C translation-unit order or thread scheduling.
+The initial implementation may leave global declaration spelling in the module
+emitter while it is being folded into `CModuleEmitter`, but it must create a
+`MIRGlobal` record containing type, linkage, visibility, TLS, constant/runtime
+initializer, source location, and destructor metadata. Runtime initializers must
+be lowered into an explicit ordered init sequence. Do not infer global order
+from C translation-unit order or thread scheduling.
 
 ## 11. Future JVM, WebAssembly, And JIT Backends
 
@@ -1293,124 +1307,99 @@ For each MIR feature, maintain:
 * C output golden tests where spelling matters;
 * compiled C runtime tests under TinyCC and a stronger C compiler when available;
 * LLVM verification/runtime tests;
-* source-to-source differential tests comparing legacy 2c and MIR 2c behavior;
+* dev-only source-to-source differential tests comparing the legacy translator
+  and MIR C behavior while the legacy code still exists (never a production path);
 * evaluation-order tests with observable calls and destructors.
 
 Do not rely on only output text. A C file can look reasonable and still destroy
 the wrong object or evaluate a constructor too early.
 
-## 13. Incremental Adoption Plan
+## 13. Adoption Plan (MIR-First Branch)
 
-The adoption plan is deliberately staged. Every stage must preserve the existing
-test commands and run the relevant complete suite before moving on.
+This is not an incremental adoption plan: MIR is adopted in full at the switch and
+the legacy path is removed behind it. The plan below is the implementation order
+on the `mir` branch. The binding rules are in `mir-implementation-plan.md` §0;
+the measured acceptance contract is in its §11.
 
-### Stage 0: Freeze behavior and add probes
+### Stage 0: Record the baseline
 
-Record current C output and runtime behavior for representative cases:
-
-* scalar arithmetic and nested calls;
-* struct-return calls;
-* `&raw` and reference arguments;
-* constructor/destructor temporaries;
-* move and assignment from self-derived views;
-* arrays and variants;
-* lambdas and nested lambdas;
-* loops, switch, break, continue, return cleanup;
-* TLS, atomics, weak interfaces, externs, and globals.
-
-Add a legacy-vs-MIR comparison mode that can be enabled per function. Do not
-change default output yet.
+Before switching, record the current compiler's pass/fail counts, per-suite
+compile times, peak memory, and phase timings on an idle machine (see
+`mir-implementation-plan.md` §11). The baseline is committed on the `mir` branch
+and is the contract every later stage must match.
 
 ### Stage 1: Introduce core MIR and verifier
 
-Add a new isolated subsystem, for example `compiler/mir/`, containing types,
-IDs, instructions, blocks, module/function arenas, verifier, dump printer, and
-source-location metadata. It must have no dependency on `BufferedWriter`, LLVM,
-or the C AST visitor.
+Add `compiler/mir/` containing types, IDs, instructions, blocks,
+module/function arenas, verifier, dump printer, and source-location metadata. It
+must have no dependency on `BufferedWriter`, LLVM, or the C AST visitor.
 
 Implement `MIRFunctionBuilder` with helpers for constants, places, blocks,
 terminators, and diagnostics. Add unit tests that build MIR directly.
 
-### Stage 2: Add a separate AST-to-MIR lowerer
+### Stage 2: Add the AST-to-MIR lowerer and switch the pipeline
 
-Add `MIRLowerer`, owned by the MIR subsystem or a thin 2c integration layer. It
-must consume resolved AST nodes and produce MIR without writing C. Start with a
-mode for functions containing only primitive locals, arithmetic, return, and no
-calls or destructors. `ToCAstVisitor` invokes the lowerer and then the C emitter;
-it does not reproduce the lowering decisions itself.
+Add `MIRLowerer`. It consumes resolved AST nodes and produces MIR without writing
+C. Start with the straight-line subset (primitive locals, arithmetic, return,
+calls, references, struct result places), then add control flow and lifetime
+operations immediately after.
 
-The important seam is inside function translation, not in the whole compiler:
-top-level declarations and type emission remain unchanged.
+Crucially, the production pipeline is switched to MIR as soon as a C emitter
+exists: `implement_module()` calls the lowerer and the C emitter for every
+function, and `ToCAstVisitor` is no longer on the production path. Constructs not
+yet lowered are compile errors to be ported, not legacy fallbacks. The branch is
+expected to be red until coverage catches up.
+
+The important seam is inside function translation: top-level declarations and
+type emission may still be reused while being folded into `CModuleEmitter`.
 
 ### Stage 3: Add the MIR interpreter alongside the first emitter
 
-Before enabling MIR C for broader code, execute the Stage 2 MIR with the MIR
-interpreter. Interpretation must be a first-class backend for every MIR feature
-that is enabled for C. The existing AST interpreter remains available for
-comptime and as a migration fallback, but it is not an equivalence oracle for
-MIR-generated C. Add tests that run one lowered function through interpreter and
-C and compare results and observable event order.
+Execute the MIR with the MIR interpreter. Interpretation must be a first-class
+backend for every MIR feature enabled for C. The existing AST interpreter remains
+for comptime only; it is not an equivalence oracle for MIR-generated C and is not
+a fallback for runtime code. Add tests that run lowered functions through the
+interpreter and C and compare results and observable event order.
 
-### Stage 4: Add ordered calls and places
+### Stage 4: Add ordered calls, places, aggregates, and cleanup
 
 Lower identifiers, loads/stores, address-of, references, scalar calls, implicit
-parameters, extension receivers, and function pointers. Add explicit result
-places for struct-return calls even if aggregate values are not yet supported.
+parameters, extension receivers, function pointers, and explicit result places
+for struct-return calls. Then lower structs, arrays, variants, constructors,
+implicit constructors, moves, copies, destructors, drop flags, temporary regions,
+assignment, and return cleanup, replacing `CDestructionVisitor` scheduling with
+MIR cleanup scopes. Run evaluation-order tests before enabling any C expression
+compaction, including `check(some_runtime_func(), create_str())` and
+self-referencing assignment.
 
-Run evaluation-order tests before enabling any C expression compaction.
+### Stage 5: Add control flow
 
-### Stage 5: Add aggregate initialization and cleanup
+Lower if/else, loops, switch, break/continue, short-circuit operators, and returns
+to CFG. First emit labels/gotos in C because that is the direct and unambiguous
+mapping. Add structured-C reconstruction only after CFG output is stable.
 
-Lower structs, arrays, variants, constructors, implicit constructors, moves,
-copies, destructors, drop flags, temporary regions, assignment, and return
-cleanup. Replace `CDestructionVisitor` scheduling for MIR functions with MIR
-cleanup scopes. Keep the legacy destructor visitor for legacy functions.
-
-This stage must include tests that specifically catch the ordering bug:
-`check(some_runtime_func(), create_str())`, and self-referencing assignment tests.
-
-### Stage 6: Add control flow
-
-Lower if/else, loops, switch, break/continue, short-circuit operators, and
-returns to CFG. First emit labels/gotos in C because that is the direct and
-unambiguous mapping. Add structured-C reconstruction only after CFG output is
-stable.
-
-### Stage 7: Add lambdas, interfaces, runtime blocks, and intrinsics
+### Stage 6: Add lambdas, interfaces, runtime blocks, and intrinsics
 
 Lower capturing environments, nested lambdas, static/weak interface dispatch,
 embedded values, runtime blocks, compiler/runtime intrinsics, atomics, TLS, and
 special ABI cases. Every feature gets a MIR operation contract and capability
-test before being enabled.
+test.
 
-### Stage 8: Make MIR C the default incrementally
+### Stage 7: Delete the legacy translator
 
-Use per-function and per-module feature gates initially. The normal C backend
-must compile mixed modules from the first MIR integration: selected complete
-functions use MIR C, while unsupported functions use legacy 2c. A function
-containing unsupported ownership or control-flow interaction must lower wholly
-through the legacy path; do not mix legacy destructor scheduling with MIR cleanup
-in one function. A statement-level `LegacyCFragment` is not part of the initial
-migration model. Every fallback must be visible in verbose/debug output and
-must not silently mix lifetime state between legacy and MIR code.
+Once MIR covers every construct, delete the legacy AST→C translator,
+`CDestructionVisitor`, the legacy `implement_module()` C path, and the dev-only
+differential harness. See `mir-implementation-plan.md` §3.6 for the ordered
+checklist. This is pure removal; there is no gate to remove because there was
+never one.
 
-Migrate function families incrementally, using allowlists or annotations at
-first, then capability-based selection. Each migrated function must pass MIR
-verification, compile through the ordinary TinyCC path, and pass differential
-tests against legacy 2c before it is added to the migrated set. AI-assisted
-migration is expected to automate this loop. When all supported functions in a
-module successfully lower and verify, that module has no legacy function
-artifacts; this is an endpoint of the migration, not a prerequisite for using
-MIR in the module.
+### Stage 8: Add LLVM lowering
 
-### Stage 9: Add LLVM lowering
+Switch the LLVM backend to consume MIR (no flag), using existing LLVM helpers
+where possible. Then delete the AST-based `Codegen` logic as its MIR replacement
+lands.
 
-LLVM lowering should initially target the same subset as MIR C and the MIR
-interpreter, using existing LLVM helpers. Once parity is established, migrate
-more LLVM AST lowering decisions to MIR and eventually remove duplicate AST
-backend logic.
-
-### Stage 10: Parallel translation
+### Stage 9: Parallel translation
 
 Only parallelize after function-local MIR construction and emission are proven
 independent. Then process independent files/functions concurrently and merge
@@ -1611,23 +1600,23 @@ Function artifacts are sorted by the existing source/module ordering before bein
 appended to the final module buffer. Diagnostics are merged in the same order.
 Output must not depend on thread scheduling.
 
-### 14.3 C translator migration
+### 14.3 Replacing the C translator
 
 The current `ASTProcessor` already visits module files and resets a visitor after
-translation. Replace the single shared `ToCAstVisitor` output path in stages:
+translation. Replace the single shared `ToCAstVisitor` output path entirely:
 
-1. Keep declaration traversal serial and unchanged.
+1. Keep declaration traversal serial during the transition.
 2. Collect function-body AST nodes for a module.
 3. Create one lowering/emitter context per worker.
 4. Emit each function into an independent `BufferedWriter`.
 5. Merge function buffers at the position reserved by declaration ordering.
 6. Keep global initialization and runtime support emission serial until explicitly
-   made thread-safe.
+   made thread-safe, then fold it into MIR.
 
-Do not call one `ToCAstVisitor` concurrently. Its fields such as current scope,
-temporary counters, aliases, local allocations, and destructor jobs are not
-thread-safe. The MIR design removes these shared mutable concerns from function
-emission.
+Do not call one `ToCAstVisitor` concurrently; it is deleted, not locked. Its
+fields such as current scope, temporary counters, aliases, local allocations, and
+destructor jobs are not thread-safe, and the MIR design removes these shared
+mutable concerns from function emission.
 
 ### 14.4 Performance rules
 
@@ -1638,9 +1627,9 @@ emission.
 * Do not serialize MIR merely to pass it between C++ objects in the same process.
 * Keep the verifier configurable: it is enabled in debug/validation modes and
   disabled by default in production quick paths.
-* Benchmark legacy direct C, MIR construction, MIR C emission, and total compile
-  time separately. A faster emitter does not compensate for an unnecessarily
-  expensive MIR builder.
+* Benchmark the recorded pre-MIR baseline, MIR construction, MIR C emission, and
+  total compile time separately. A faster emitter does not compensate for an
+  unnecessarily expensive MIR builder.
 
 The performance goal is low constant overhead, not a literal nanosecond promise
 for arbitrary functions. The representation must avoid per-instruction heap
@@ -1824,8 +1813,8 @@ maximum acceptable copy in the initial implementation.
 Do not optimize only for instruction count. A pass that removes three MIR
 instructions but performs a hash-map lookup, allocates an expression node, or
 formats a string can make `debug_quick` slower. Every proposed fast-path change
-must be benchmarked against direct legacy 2c translation on small functions,
-large library modules, and many-function modules.
+must be benchmarked against the recorded baseline (small functions, large library
+modules, and many-function modules).
 
 ### 14.9 Scheduling and parallelism thresholds
 
@@ -1870,27 +1859,30 @@ instead of attempting partial reuse.
 For the current `ASTProcessor`, this means retaining the serial declaration,
 type-alias, generic, and prototype phases. Replace the serial
 `implement_module()` body loop only after constructing the sealed context and a
-stable list of function bodies. The existing `ToCAstVisitor` remains a serial
-module-prologue visitor during migration. It must not be made concurrently
-callable by adding locks: its `current_scope`, `nested_value`, temporary
-counters, aliases, `local_allocated`, `destructible_refs`, and destructor jobs
-are logically per-function state mixed into one object.
+stable list of function bodies. `ToCAstVisitor` is not a fallback and is not kept
+as a module-prologue visitor; it is deleted as its remaining declaration duties
+move to `CModuleEmitter`. It must never be made concurrently callable by adding
+locks: its `current_scope`, `nested_value`, temporary counters, aliases,
+`local_allocated`, `destructible_refs`, and destructor jobs are logically
+per-function state mixed into one object.
 
-### 14.10 Performance gates
+### 14.10 Performance and memory gates
 
-MIR must not become the default merely because it passes functional tests. Add
-performance gates to adoption:
+MIR is not adopted because it passes functional tests; it must also meet the
+recorded baseline (`mir-implementation-plan.md` §11). Gates:
 
-* MIR `debug_quick` construction and C emission are measured against legacy 2c.
-* The benchmark reports allocation count/bytes and not only wall-clock time.
+* MIR `debug_quick` construction and C emission are measured against the recorded
+  baseline, per suite and per phase.
+* The benchmark reports allocation count/bytes and peak memory, not only
+  wall-clock time.
 * A small scalar function must not pay for debug metadata, full verification,
   hash maps, or a heap allocation per instruction.
 * A function with no aggregates must not create cleanup side tables or drop flags.
 * A function with no branches must not run CFG analysis.
 * A C artifact must not be copied more than once before final module output.
-* Any regression beyond an agreed threshold blocks enabling MIR for that path.
+* Any regression beyond the §11 threshold blocks the change.
 
-Keep the thresholds in benchmark output/configuration rather than hard-coding a
+Keep the thresholds with the recorded baseline rather than hard-coding a
 machine-specific nanosecond number. CPU, allocator, filesystem, TinyCC version,
 and module size affect absolute time; the invariant is that MIR adds minimal
 constant work and no unnecessary phase.
@@ -1949,13 +1941,14 @@ attributing its overhead to MIR gives misleading results.
 Parallelism must be introduced as a sequence of independently testable changes,
 not as a rewrite of `ASTProcessor`. The required order is:
 
-1. Add a worker-local MIR lowerer and C function emitter, but invoke it from
-   the existing serial `implement_module()` loop. Keep the existing module
-   prologue, prototypes, globals, generic declaration emission, and final
-   writer unchanged. Compare MIR C and legacy C on the complete TCC suite.
+1. Add a worker-local MIR lowerer and C function emitter, and invoke it from the
+   serial `implement_module()` loop (which is now MIR-only). Keep the existing
+   module prologue, prototypes, globals, generic declaration emission, and final
+   writer unchanged. Compare MIR C with the dev-only legacy oracle on the complete
+   TCC suite while the oracle still exists.
 2. Change the loop to produce one private artifact at a time, still serially.
-   This proves artifact ownership, stable names, cleanup, fallible output, and
-   legacy fallback without introducing scheduling nondeterminism.
+   This proves artifact ownership, stable names, cleanup, and fallible output
+   without introducing scheduling nondeterminism.
 3. Pre-enumerate and assign stable function slots, then submit independent
    file tasks to the existing thread pool. Each task reads the sealed module
    context and returns artifacts plus local diagnostics. Merge slots in source
@@ -1968,15 +1961,12 @@ not as a rewrite of `ASTProcessor`. The required order is:
    compilation. Each compiler invocation must own its compiler state; the
    final linker and output publication remain coordinated separately.
 
-Every step must be independently selectable by a feature flag and must retain
-the whole-function legacy fallback. A worker failure, unsupported MIR feature,
-or failed artifact validation must discard that artifact and choose the legacy
-whole-function path when the configured migration mode permits it. Do not mix
-legacy destructor scheduling with MIR cleanup inside one function.
+There is no feature flag and no legacy fallback at any step. A worker failure,
+unsupported MIR feature, or failed artifact validation fails the compilation
+with a diagnostic; it never selects a legacy path.
 
 The minimum verification matrix for each step is:
 
-* serial legacy C versus serial MIR C;
 * serial MIR C versus parallel MIR C;
 * TinyCC execution versus a stronger C compiler when available;
 * deterministic output with debug file shuffling and repeated runs;
@@ -2017,9 +2007,10 @@ entry:
 }
 ```
 
-Add `--dump-mir`, `--verify-mir`, and a per-function debug switch. When a backend
-fails, print MIR IDs and source locations, not only generated C line numbers.
-Keep a way to dump legacy C and MIR C side by side.
+Add `--dump-mir` and `--verify-mir`. When a backend fails, print MIR IDs and
+source locations, not only generated C line numbers. While the dev-only legacy
+oracle still exists, keep a way to dump legacy C and MIR C side by side for
+differential debugging; it is never a production path.
 
 ## 16. Design Rules For Future Implementers
 
@@ -2039,7 +2030,8 @@ These rules should be repeated in code-review checklists and contributor docs:
    on backend-detected malformed input.
 9. Prefer conservative materialization over an unsafe expression optimization.
 10. Add a regression test before changing lifetime or evaluation-order lowering.
-11. Keep legacy and MIR paths independently valid during migration.
+11. Never keep a second semantic path alive as a fallback: legacy translation is
+    deleted as MIR replaces it, not kept selectable.
 12. If a construct cannot be represented correctly, stop with a diagnostic rather
     than emit plausible but incorrect code.
 
@@ -2079,18 +2071,21 @@ Primary references:
 The first implementation pull request should not attempt to lower the whole
 language. It should contain:
 
+* a recorded baseline of pass/fail counts, per-suite compile times, peak memory,
+  and phase timings (see `mir-implementation-plan.md` §11);
 * `compiler/mir/` core IDs, types, instruction tags, blocks, function/module
   containers, arena allocation, and textual dump;
 * a structural/type/lifetime verifier with diagnostics;
 * a direct MIR builder unit-test suite;
 * a C emitter for constants, primitive locals, arithmetic, scalar loads/stores,
   calls, and returns;
-* a small `ToCAstVisitor` feature gate for trivial functions;
+* the pipeline switched to MIR for the C backend (no feature gate): every
+  function goes through MIR, and unsupported constructs are compile errors;
 * golden tests proving `take(i * 8, i * 2, i * 4)` emits no arithmetic temporaries;
 * evaluation-order tests proving effectful calls and destructible temporaries
-  remain ordered;
-* no changes to the default backend unless the feature gate is explicitly set.
+  remain ordered.
 
-That first pull request establishes the architecture without risking the large
-existing library surface. Subsequent pull requests can expand the supported MIR
-subset while every step remains testable, verifiable, and reversible.
+That first pull request establishes the architecture and the MIR-first contract.
+The branch is expected to be red for constructs not yet ported; subsequent pull
+requests expand the supported MIR subset, delete the legacy code they replace,
+and re-measure against the baseline.

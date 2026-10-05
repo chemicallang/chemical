@@ -2,16 +2,18 @@
 
 Status: design proposal
 Revision: MIR-first branch policy — MIR is the only path (no feature flags, no
-legacy fallback); see `mir-implementation-plan.md` §0 for the binding mandate and
-§11 for the measured performance / memory / pass-rate contract.
+legacy fallback, no per-function capability analysis); the release compiler must
+stay under 4 MB. See `mir-implementation-plan.md` §0 for the binding mandate and
+§11 for the measured performance / memory / pass-rate / binary-size contract.
 
 This document defines the design and implementation plan for Chemical's
 middle-level instruction representation (MIR). It is intentionally
 implementation-oriented. An implementer must treat the invariants in this
 document as part of the MIR contract, not as suggestions. The binding adoption
 rules (`mir-implementation-plan.md` §0) override anything here that reads as
-"optional", "staged", or "behind a flag": MIR is always on, and unsupported
-constructs are compile errors fixed forward, never fallbacks.
+"optional", "staged", or "behind a flag": MIR is always on, unsupported
+constructs are compile errors fixed forward, and the compiler never asks whether
+a construct is MIR-supported before choosing a path.
 
 ## 1. Decision Summary
 
@@ -131,7 +133,7 @@ matrix are defined below. A represented operation with no backend implementation
 must fail with a structured diagnostic; it must never silently degrade to an
 incorrect operation.
 
-### 3.2 Initial implementation subset and capability matrix
+### 3.2 Initial implementation subset and coverage matrix
 
 The first implementation subset supports primitives, scalar arithmetic and
 comparison, locals, places, loads/stores, address-of, scalar calls, explicit
@@ -145,26 +147,30 @@ compile error (see `mir-implementation-plan.md` §0), not a reason to keep the
 legacy path. The representation has CFG support from the beginning, while the
 first lowering milestone is smaller.
 
-The following matrix is normative for staged implementation. “Initial status”
-describes when a backend must support it; it no longer describes an adoption
-gate, because MIR is always on:
+The following matrix is a **coverage and test matrix**, not a runtime decision.
+The compiler never queries it: it does not ask "is this construct supported?"
+and branch. An unimplemented case fails with a diagnostic (and appears in the
+worklist); there is no capability-gated fallback. “Target” below means the
+milestone at which the feature becomes covered by tests:
 
-| Feature | MIR | C | Interpreter | LLVM | Initial status |
+| Feature | MIR | C | Interpreter | LLVM | Coverage target |
 |---|---:|---:|---:|---:|---|
 | Primitive values and arithmetic | yes | yes | yes | yes | first subset |
 | Locals, places, load/store | yes | yes | yes | yes | first subset |
 | Scalar calls and function pointers | yes | yes | yes | yes | first subset |
 | Struct result places and ABI metadata | yes | yes | partial | yes | before aggregate support |
-| Struct/array/variant lifetime | yes | staged | staged | staged | capability-gated |
-| CFG branches and loops | yes | staged after straight-line subset | staged after straight-line subset | staged after straight-line subset | required for coverage |
-| Lambdas and captures | yes | staged | staged | staged | capability-gated |
-| Atomics and TLS | yes | staged | target-dependent | yes | capability-gated |
-| Exceptions/throw/provide | yes | unsupported/staged | staged | unsupported/staged | diagnostic required |
+| Struct/array/variant lifetime | yes | yes | yes | yes | aggregate milestone |
+| CFG branches and loops | yes | yes | yes | yes | control-flow milestone |
+| Lambdas and captures | yes | yes | yes | yes | lambda milestone |
+| Atomics and TLS | yes | yes | target-dependent | yes | atomics milestone |
+| Exceptions/throw/provide | yes | yes | yes | yes | exception milestone |
 | CBI/plugin jobs | yes, if lowered | separate TinyCC job class | no | no | documented boundary |
 
 The matrix must be kept current in the implementation. “MIR: yes” means the
 operation has a semantic definition, verifier rule, and dump format. It does not
-mean that a backend may claim support without tests.
+mean that a backend may claim support without tests. A feature is either fully
+handled by the lowerer/emitter or it is a compile error; there is no middle
+“partially supported, choose another path” state.
 
 ### 3.3 Deliberately deferred
 
@@ -364,7 +370,8 @@ does not change the lifetime of an owned temporary.
 
 ### 4.6 Effects are metadata, not a substitute for order
 
-Each instruction has an `EffectSummary` with at least:
+Each **opcode** has an `EffectSummary` (a static mask; it is not stored per
+instruction) with at least:
 
 * `Pure`: no observable state or control effect.
 * `Read`: reads memory or an external state.
@@ -372,6 +379,11 @@ Each instruction has an `EffectSummary` with at least:
 * `Call`: may call unknown code.
 * `Allocate`, `Free`, `Construct`, `Destroy`.
 * `Atomic`, `Volatile`, `MayThrow`, `MayTrap`, `ControlFlow`.
+
+Effects are declared for each opcode, so an instruction's effects are computed
+as `effect_mask(opcode)` with no per-instruction storage and no allocation. The
+same static-table approach carries each opcode's portability classification
+(portable / native-only / target-layout-dependent).
 
 Effects enable later optimization and C expression folding. They do not permit
 reordering by themselves. Unknown calls are barriers. The safe default for a new
@@ -453,8 +465,13 @@ Every instruction has:
 
 ```text
 kind, result type (optional), result id (optional), operands, optional source
-location, effect summary, flags/attributes, and optional debug identity
+location, flags/attributes, and optional debug identity
 ```
+
+The effect summary and portability classification are derived from the opcode
+(static tables), not stored per instruction. Source locations are compact indices
+into an optional side table, present only when `-g`, `--dump-mir`, or validation
+requests them.
 
 Instructions that produce a place use `PlaceId`; instructions that produce an
 SSA result use `ValueId`. Terminators never produce ordinary results.
@@ -486,20 +503,18 @@ opaque pointer  backend/runtime handle that cannot be dereferenced in core MIR
 ```
 
 Pointer arithmetic, integer-pointer casts, dereference, and `sizeof`/`offsetof`
-must be classified as portable, native-only, target-layout-dependent, or
-unsupported. The interpreter may attach bounds/provenance metadata to raw
-pointers, while C and LLVM lower them to their native representations. This
-classification is required in core MIR now so JVM and WebAssembly backends do
-not discover incompatibilities only after lowering.
+carry a static portability class on their opcode (portable, native-only, or
+target-layout-dependent). The classification is a property of the operation, not
+of any particular function, so the compiler never runs a per-function capability
+analysis. The interpreter may attach bounds/provenance metadata to raw pointers,
+while C and LLVM lower them to their native representations.
 
-The selected target capability set is available to the lowerer as read-only
-context. Lowering must attach the classification to every native-only or
-target-layout-dependent operation. If the selected target cannot represent an
-operation, lowering reports a source-linked capability diagnostic before
-backend emission; a backend may still reject malformed or unexpectedly
-unsupported MIR as a second line of defense. Portable MIR must not silently
-acquire a native pointer interpretation merely because the C or LLVM backend
-has one.
+There is no target-capability pre-scan. If a backend cannot represent an
+operation it rejects it with a source-linked diagnostic at emission time. The
+lowerer does not consult a capability set to decide what to lower, and it never
+selects a different path based on the target. Portable MIR must not silently
+acquire a native pointer interpretation merely because the C or LLVM backend has
+one.
 
 Constants should be immutable interned records. A string literal is a constant
 plus its addressable global representation, not an arbitrary C string fragment.
@@ -919,11 +934,17 @@ artifact and fails the compilation with a source-linked error; it must not leave
 half a function in module output and must not select a legacy fallback. The same
 rule applies to parallel function artifacts.
 
-### 8.2 C names are assigned after MIR construction
+### 8.2 C names are assigned lazily, after MIR construction
 
 MIR IDs are not C identifiers. Assign names in the C emitter using a local name
 map. Names must be collision-free, deterministic, and prefixed (for example
 `__chx_mir_v17`). User/source symbols continue to use `NameMangler` output.
+
+Names are assigned **on demand**, only when a value or place is actually
+materialized in the output; a value that is inlined (single-use pure scalar)
+never receives a name. Store a dense `uint32_t` name id with a sentinel, not a
+`chem::string` per value. Write generated names directly into the output buffer;
+do not allocate a temporary string per reference.
 
 Do not store C spelling in MIR operands. LLVM names, JVM slots, and interpreter
 locations are different backend concerns.
@@ -1272,7 +1293,8 @@ MIR verifier must check:
   every path;
 * every destructible initialized place has a cleanup or an explicit transfer;
 * no instruction occurs after a terminator;
-* unsupported target capabilities are diagnosed before emission.
+* an operation a backend cannot represent is rejected with a source-linked
+  diagnostic at emission (not by a pre-lowering capability analysis).
 
 The verifier is not run on every production compilation by default. The MIR
 builder's typed APIs and internal assertions must make it difficult to construct
@@ -1317,9 +1339,11 @@ the wrong object or evaluate a constructor too early.
 ## 13. Adoption Plan (MIR-First Branch)
 
 This is not an incremental adoption plan: MIR is adopted in full at the switch and
-the legacy path is removed behind it. The plan below is the implementation order
-on the `mir` branch. The binding rules are in `mir-implementation-plan.md` §0;
-the measured acceptance contract is in its §11.
+the legacy path is removed behind it. No new functionality or bug fix is added to
+the legacy translator; a legacy construct that must change is ported instead. The
+plan below is the implementation order on the `mir` branch. The binding rules are
+in `mir-implementation-plan.md` §0; the measured acceptance contract is in its
+§11.
 
 ### Stage 0: Record the baseline
 
@@ -1596,9 +1620,10 @@ types, symbols, mangling tables, layout descriptions, and runtime declarations.
 
 ### 14.2 Deterministic merge
 
-Function artifacts are sorted by the existing source/module ordering before being
-appended to the final module buffer. Diagnostics are merged in the same order.
-Output must not depend on thread scheduling.
+Each concrete function is preassigned a stable source-order slot before workers
+start. A worker writes its artifact into that slot; the merge walks slots in
+order and appends their bytes. No sort and no map are needed, so ordering cannot
+depend on thread scheduling. Diagnostics are merged in the same slot order.
 
 ### 14.3 Replacing the C translator
 
@@ -1630,6 +1655,8 @@ mutable concerns from function emission.
 * Benchmark the recorded pre-MIR baseline, MIR construction, MIR C emission, and
   total compile time separately. A faster emitter does not compensate for an
   unnecessarily expensive MIR builder.
+* Track compiler binary size at each milestone; delete replaced legacy code in
+  the same change so size does not creep. Release stays under 4 MB.
 
 The performance goal is low constant overhead, not a literal nanosecond promise
 for arbitrary functions. The representation must avoid per-instruction heap
@@ -1646,25 +1673,27 @@ policy is:
 |---|---|
 | MIR construction | one direct AST-to-MIR pass; no temporary AST wrapper nodes |
 | Allocation | one thread-owned function arena; no allocation mutex in the hot path |
-| Instruction storage | packed records and contiguous operand storage |
+| Instruction storage | packed records and contiguous operand storage; metadata derived from the opcode, not stored |
 | IDs | dense 32-bit function-local IDs |
 | Debug data | absent unless `-g`, `--dump-mir`, or validation explicitly requests it |
 | Verification | cheap local shape checks by default; full structural/lifetime verification only when requested |
 | MIR optimization | none |
 | CFG processing | construct blocks directly; no global canonicalization/dominance pass |
+| Straight-line functions | may use the fused lower→emit path and drop the instruction array after emission |
 | C emission | direct sequential emission with TinyCC-compatible spellings; no separate global optimization pass |
-| Output | private function buffer, then one deterministic merge |
+| Output | private function buffer; slot-direct deterministic merge (no sort) |
 | Diagnostics | collect only errors that are needed to continue/fail; do not format source snippets eagerly |
 
 The quick path must not run full dominance, alias, lifetime, dead-code, cleanup,
 expression-tree, or block-merging passes. This does not permit malformed MIR:
 the builder API must make invalid IDs and malformed payloads difficult to create.
 Cheap local checks remain mandatory: opcode payload shape, ID bounds, operand
-types, terminator placement, and backend capability checks. The emitter must
-return failure rather than crash if defensive checks detect bad input. Full
-CFG-dominance and ownership data-flow verification is enabled by
-`--verify-mir`, assertions, and validation modes, not by default in
-`debug_quick`.
+types, and terminator placement. The emitter must return failure rather than
+crash if defensive checks detect bad input, and a backend that cannot represent
+an operation fails the compilation with a diagnostic — it never consults a
+capability analysis to select another path. Full CFG-dominance and ownership
+data-flow verification is enabled by `--verify-mir`, assertions, and validation
+modes, not by default in `debug_quick`.
 
 The C emitter may print a pure MIR result inline when that requires no
 reordering. This is a representation choice, not a MIR optimization pass. To
@@ -1722,6 +1751,13 @@ The exact fields may change, but the following properties are mandatory:
 * variable operands are appended to one contiguous function-owned array;
 * flags such as purity, volatility, atomicity, and terminator status are bit
   fields or opcode properties, not heap objects;
+* effect masks, portability classes, and compaction-safety are derived from the
+  opcode via static tables; nothing per-instruction is stored when it can be
+  computed;
+* opcode names live in one static `const char*` table used by the dump only,
+  never stored per instruction;
+* C names are assigned lazily, only for materialized values, and written directly
+  to the output buffer (no per-value string);
 * calls, switches, ABI records, and debug records use side tables referenced by
   compact indices;
 * source locations are compact indices into optional tables, not copied strings
@@ -1866,7 +1902,7 @@ locks: its `current_scope`, `nested_value`, temporary counters, aliases,
 `local_allocated`, `destructible_refs`, and destructor jobs are logically
 per-function state mixed into one object.
 
-### 14.10 Performance and memory gates
+### 14.10 Performance, memory, and binary-size gates
 
 MIR is not adopted because it passes functional tests; it must also meet the
 recorded baseline (`mir-implementation-plan.md` §11). Gates:
@@ -1877,9 +1913,13 @@ recorded baseline (`mir-implementation-plan.md` §11). Gates:
   wall-clock time.
 * A small scalar function must not pay for debug metadata, full verification,
   hash maps, or a heap allocation per instruction.
-* A function with no aggregates must not create cleanup side tables or drop flags.
-* A function with no branches must not run CFG analysis.
+* A function with no aggregates must not create cleanup side tables, move-path
+  trees, or drop flags.
+* A function with no branches must not run CFG analysis, and a straight-line
+  function may use the fused lower→emit fast path.
 * A C artifact must not be copied more than once before final module output.
+* The compiled compiler binary must not grow by more than 2% net, and the
+  release binary must stay under 4 MB.
 * Any regression beyond the §11 threshold blocks the change.
 
 Keep the thresholds with the recorded baseline rather than hard-coding a
@@ -2023,7 +2063,7 @@ These rules should be repeated in code-review checklists and contributor docs:
 4. Never reorder effectful instructions to make C declarations prettier.
 5. Never infer cleanup from variable names or C scopes.
 6. Never add a backend-specific operation to core MIR without interpreter and C
-   semantics, or a documented capability rejection.
+   semantics, or a documented rejection.
 7. Never use raw pointers as long-lived MIR identity.
 8. Verify after each lowering pass and before each backend in debug/validation
    builds; production builds must still use typed construction and fail safely
@@ -2034,6 +2074,13 @@ These rules should be repeated in code-review checklists and contributor docs:
     deleted as MIR replaces it, not kept selectable.
 12. If a construct cannot be represented correctly, stop with a diagnostic rather
     than emit plausible but incorrect code.
+13. Never add per-function or per-construct support analysis. The compiler does
+    not ask whether MIR supports something; it lowers or it diagnoses.
+14. Keep the compiler small. No virtual instruction hierarchy, no `std::variant`,
+    no `std::function` in the hot path, no new heavyweight dependency, and no
+    per-instruction strings. Release binary stays under 4 MB.
+15. Derive effects, portability, and compaction safety from static opcode
+    tables; never store per-instruction metadata that can be computed.
 
 ## 17. Research Basis
 

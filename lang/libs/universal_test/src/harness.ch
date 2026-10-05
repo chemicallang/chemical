@@ -1,5 +1,9 @@
 // The in-page JavaScript harness for #universal_test. It is appended to the
-// page's JS bundle before the per-test __ut_register calls. Keep every byte
+// page's HEAD script block (see runner.ch `ut_execute`), which `toString` emits
+// as its own `<script>` before the body bundle that carries the fixtures' own
+// `__ut_register` calls. That separation is load-bearing: a script that fails to
+// PARSE is skipped in its entirety, so a harness sharing the fixture bundle's
+// block would be lost with it and the host would block forever. Keep every byte
 // ASCII (the page JS buffer is scanned with signed chars elsewhere).
 
 public const UT_HARNESS : *char = """
@@ -7,9 +11,26 @@ public const UT_HARNESS : *char = """
 'use strict';
 window.__ut_tests = {};
 window.__ut_errors = [];
+// Page-level errors, never cleared. A script that fails to parse reports a
+// SyntaxError to the window and is then skipped entirely, so every statement
+// in that block -- including the fixtures' `__ut_register` calls -- is lost.
+// Recording them here is what turns that silent breakage into a reported
+// failure instead of a hang.
+window.__ut_page_errors = [];
+// The names the host expects to run, injected by the runner just before this
+// harness. Lets us tell "this test failed" apart from "this test never got to
+// run because the bundle that registers it did not parse".
+if(!window.__ut_expected) { window.__ut_expected = []; }
 window.__ut_scope = null;
 window.__ut_register = function(name, isolate, fn) { window.__ut_tests[name] = fn; };
-window.addEventListener('error', function(e){ window.__ut_errors.push('' + (e && e.message ? e.message : e)); });
+window.addEventListener('error', function(e){
+    var m = '' + (e && e.message ? e.message : e);
+    // Keep the source position: it is the only pointer to the offending byte in
+    // the emitted bundle.
+    if(e && e.filename) { m += ' (' + e.filename + ':' + (e.lineno || 0) + ':' + (e.colno || 0) + ')'; }
+    if(window.__ut_page_errors) window.__ut_page_errors.push(m);
+    if(window.__ut_errors) window.__ut_errors.push(m);
+});
 window.addEventListener('unhandledrejection', function(e){ window.__ut_errors.push('' + (e && e.reason ? e.reason : e)); });
 // Surface console.error/warn emitted during a test (hydration failures, dispatch
 // misses, disposed-signal writes, ...) alongside an actual assertion failure.
@@ -428,20 +449,51 @@ function setScope(name) {
         if(all[i].getAttribute('data-ut') === name) { window.__ut_scope = all[i]; return; }
     }
 }
+// Report one result and continue. Never throws and never stalls the chain: the
+// bridge is the only thing that ends the host's message loop, so a failure here
+// would hang the whole suite.
 function report(name, ok, msg, next) {
-    window.__webview__.call('result', name, !!ok, '' + msg).then(next, next);
+    var done = function() { if(next) next(); };
+    try {
+        if(!window.__webview__ || typeof window.__webview__.call !== 'function') { done(); return; }
+        window.__webview__.call('result', name, !!ok, '' + msg).then(done, done);
+    } catch(e) {
+        done();
+    }
+}
+function finishAll() {
+    try { if(window.__webview__) window.__webview__.call('all_done', true); } catch(e) {}
+}
+// The order to run in. The host's expected list wins over what registered:
+// it is what the user asked for, and it survives a fixture failing to register.
+function utExpected() {
+    var exp = window.__ut_expected;
+    if(exp && exp.length) return exp;
+    return Object.keys(window.__ut_tests);
+}
+function utMissingMessage() {
+    var errs = window.__ut_page_errors;
+    if(errs && errs.length) {
+        return 'the page script failed to run, so this test never registered: ' + errs.join('; ') +
+               ' -- dump the bundle with UT_DUMP_JS=1 and check it with `node --check`';
+    }
+    return 'the page script never registered this test (its JS bundle probably fails to parse -- dump it with UT_DUMP_JS=1 and check it with `node --check`)';
 }
 var UT_TIMEOUT_MS = 15000;
 function runNext() {
-    var names = Object.keys(window.__ut_tests);
+    var names = utExpected();
     var i = 0;
     function step() {
-        if(i >= names.length) { window.__webview__.call('all_done', true); return; }
+        if(i >= names.length) { finishAll(); return; }
         var name = names[i++];
+        var fn = window.__ut_tests[name];
+        // Its `__ut_register` never ran, i.e. the bundle that registers it did
+        // not parse (or threw before reaching it). Fail it by name and move on:
+        // staying silent here is what left the host blocked forever.
+        if(typeof fn !== 'function') { report(name, false, utMissingMessage(), step); return; }
         setScope(name);
         window.__ut_errors = [];
         window.__ut_console = [];
-        var fn = window.__ut_tests[name];
         var finished = false;
         var timer = setTimeout(function() {
             if(finished) return;
@@ -474,6 +526,10 @@ function runNext() {
     }
     step();
 }
-window.addEventListener('load', function() { setTimeout(runNext, 120); });
+// The harness runs from the head, so `load` has not fired yet in the normal
+// case. The already-loaded branch covers a host that injects the page into a
+// live document, where waiting for `load` would never start the run.
+function utKick() { setTimeout(runNext, 120); }
+if(document.readyState === 'complete') { utKick(); } else { window.addEventListener('load', utKick); }
 })();
 """

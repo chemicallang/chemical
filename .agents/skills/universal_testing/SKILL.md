@@ -131,10 +131,12 @@ The macro desugars to `ut_render_<name>(page : &mut HtmlPage)`, which:
    converter `#html` uses — so SSR markup, the `<span data-chx-i>` hydration
    boundary, the client component functions and the `window.$__uni_dispatch(...)`
    calls are byte-for-byte what a production page emits,
-3. appends `</div>` and `window.__ut_register("<name>", <isolate>, function(t){ <steps> });`.
+3. appends `</div>` and `window.__ut_register("<name>", <isolate>, async function(){ <steps> });`.
 
-The runner builds one `HtmlPage`, appends the JS harness, calls every fixture
-function, loads the page into one WebView, and the in-page harness runs the
+The runner builds one `HtmlPage`, calls every fixture function (SSR markup and
+the `__ut_register` calls land in the body bundle), then emits
+`window.__ut_expected = [...]` and the JS harness into the **head** script
+block, loads the page into one WebView, and the in-page harness runs the
 registered tests sequentially.
 
 ---
@@ -248,10 +250,20 @@ runner.
   fixture_fn, steps`).
 - **Display required.** If `webview_create` fails, the runner prints a hint and
   exits non-zero. Use `xvfb-run -a ./tests` on headless machines.
-- **Debugging the generated page JS:** set `UT_DUMP_JS=1` to print
-  `page.toStringJsOnly()` between `===UT_JS_START===`/`===UT_JS_END===` markers
-  and exit before opening a WebView. A page-script syntax error otherwise hangs
-  the run (the harness never starts); dump + `node --check` finds it.
+- **A broken page JS bundle is reported, not hung.** The harness is emitted into
+  the page **head** `<script>` (via `HtmlPage.append_head_js_view`), separate from
+  the body bundle holding the fixtures' `__ut_register` calls — a script that
+  fails to parse is skipped whole, so a shared element would take the harness
+  down with it. The harness therefore survives a broken bundle, catches its
+  `SyntaxError`, and fails the affected tests **by name** (it iterates the
+  runner-injected `window.__ut_expected`, not `Object.keys(__ut_tests)`). A host
+  watchdog (`window_set_timer`, refilled by every bridge call) additionally stops
+  the loop after 60 s of total bridge silence, so no page behaviour can hang a
+  run — override with `UT_TIMEOUT_MS` (ms).
+- **Debugging the generated page JS:** set `UT_DUMP_JS=1` to print every script
+  element the page emits (head block, body bundle, body tail) between
+  `===UT_JS_START===`/`===UT_JS_END===` markers, then exit before opening a
+  WebView. `node --check` each dump to locate a syntax error.
 - **Debugging the generated page HTML:** set `UT_DUMP_HTML=1` to print the full
   SSR page between `===UT_HTML_START===`/`===UT_HTML_END===` markers and exit.
   Use it to inspect hydration boundary ids, fixture containers, and duplicated

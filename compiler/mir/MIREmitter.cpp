@@ -104,6 +104,15 @@ std::string c_type_of(const MIRModule& module, TypeId type) {
             return c_type_of(module, r.element) + "*";
         case MIRTypeKind::Array:
             return c_type_of(module, r.element) + "[" + std::to_string(r.data_count) + "]";
+        case MIRTypeKind::Struct:
+        case MIRTypeKind::Variant: {
+            const std::string n = module.types.name_of(type);
+            return n.empty() ? "void*" : ("struct " + n);
+        }
+        case MIRTypeKind::Union: {
+            const std::string n = module.types.name_of(type);
+            return n.empty() ? "void*" : ("union " + n);
+        }
         default:
             return "void*"; // aggregates are emitted by the aggregate milestone
     }

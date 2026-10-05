@@ -8,6 +8,7 @@
 #include "MIRTypes.h"
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace mir {
@@ -50,11 +51,31 @@ struct MIRTypeRecord {
     uint32_t data_count = 0;  // field/element type count
     TypeId element = MIR_INVALID_ID; // pointee / element / return type
     uint32_t decl = MIR_INVALID_ID;  // source declaration id (struct/variant)
+    uint32_t name_offset = 0;        // index into MIRTypeTable::names (aggregates)
+    uint32_t name_length = 0;
 };
 
 struct MIRTypeTable {
     std::vector<MIRTypeRecord> types;
     std::vector<TypeId> data;
+    std::vector<char> names;
+
+    /** Attach a C-emittable name to a (named aggregate) type. */
+    void set_name(TypeId id, const char* name, uint32_t len) {
+        if (id >= types.size()) return;
+        types[id].name_offset = static_cast<uint32_t>(names.size());
+        types[id].name_length = len;
+        if (len) names.insert(names.end(), name, name + len);
+    }
+    const char* name_data(const MIRTypeRecord& r) const {
+        return names.data() + r.name_offset;
+    }
+    std::string name_of(TypeId id) const {
+        if (id >= types.size()) return {};
+        const MIRTypeRecord& r = types[id];
+        if (r.name_length == 0) return {};
+        return std::string(names.data() + r.name_offset, r.name_length);
+    }
 
     const MIRTypeRecord& get(TypeId id) const { return types[id]; }
     uint32_t size() const { return static_cast<uint32_t>(types.size()); }

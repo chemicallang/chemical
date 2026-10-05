@@ -139,11 +139,15 @@ measure_wrapped() {
   fi
   if command -v /usr/bin/time >/dev/null 2>&1 && /usr/bin/time -v true >/dev/null 2>&1; then
     local tf; tf="$(mktemp)"
+    local start end
+    start="$(date +%s%N)"
     /usr/bin/time -v -o "$tf" bash -c "$cmdline" > "$logfile" 2>&1
     local rc=$?
+    end="$(date +%s%N)"
     local kb; kb="$(grep -E 'Maximum resident set size' "$tf" | grep -oE '[0-9]+' | head -n1 || echo 0)"
     rm -f "$tf"
-    printf '{"exit":%s,"peak_bytes":%s,"ms":null}\n' "$rc" "$(( ${kb:-0} * 1024 ))"
+    local ms=$(( (end - start) / 1000000 ))
+    printf '{"exit":%s,"peak_bytes":%s,"ms":%s}\n' "$rc" "$(( ${kb:-0} * 1024 ))" "$ms"
     return 0
   fi
   local start end rc

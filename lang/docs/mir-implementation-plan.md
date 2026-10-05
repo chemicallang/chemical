@@ -998,7 +998,7 @@ See §11 for the exact commands, the recorded numbers, and the thresholds AIs
 must match. PR 0 also adds the reusable recording script
 (`scripts/mir-baseline.sh`) and the measurement notes.
 
-**Gate:** the baseline is recorded in §11.3 (W1) and the Linux pass is pending (§11.4).
+**Gate:** the baseline is recorded in §11.3 (W1) and §11.4 (L1).
 
 
 ### Stage 1: Core MIR Types + Arena (PR 1)
@@ -2059,7 +2059,7 @@ no "accept the regression" option and no flag to sidestep it.
 
 | PR | Stage | Scope | Dependencies | Gate |
 |----|-------|-------|--------------|------|
-| 0 | Baseline capture | Record pass/fail, suite times, peak memory (W1 done, L1 pending); `scripts/mir-baseline.sh` | None | §11 recorded |
+| 0 | Baseline capture | Record pass/fail, suite times, peak memory (W1 done, L1 done); `scripts/mir-baseline.sh` | None | §11 recorded |
 | 1 | Core types + arena | Data structures, arena, dump | PR 0 | Arena benchmark ≥10x vs ASTAllocator |
 | 2 | Builder | Typed construction API | PR 1 | Build simple MIR manually |
 | 3 | Lowerer (straight-line) | AST → MIR for primitives + calls + lambdas | PR 2 | Lower arithmetic, verify dump |
@@ -2112,7 +2112,7 @@ the thresholds on **both** recorded baselines.
 | Machine | OS | CPU | RAM | Status |
 |---------|----|-----|-----|--------|
 | W1 | Microsoft Windows 11 Pro (10.0.26200), `MINGW64_NT` (`DESKTOP-L3LL2DJ`) | Intel Core i9-12900H, 14C/20T | 31.7 GB | **recorded — §11.3** |
-| L1 | (fill in after Linux run) | (fill in) | (fill in) | pending — §11.4 |
+| L1 | Ubuntu 26.04.1 LTS (kernel 7.0.0-34-generic), x86_64, host `wakaztahir` | AMD Ryzen 5 7430U, 6C/12T | 14 GiB | **recorded — §11.4** |
 
 Common settings for both machines:
 
@@ -2184,39 +2184,61 @@ peak RSS is the sampled peak working set of `TCCCompiler`.
 other three; treat them as flaky boundary tests and require equal-or-better
 counts, not exact equality.
 
-### 11.4 Recorded baseline — L1 (Linux) — PENDING
+### 11.4 Recorded baseline — L1 (Linux)
 
-To be filled after the branch is pulled on the Linux machine and
-`./scripts/test.sh --all --tcc` is run 3 times. Use the same table shape as
-§11.3.
+Measured `2026-10-05`. Time is the mean of 3 runs
+(`./scripts/mir-baseline.sh --tcc --all --repeat 3`, which drives
+`./scripts/test.sh --tcc --no-build` per suite under `-bm`-equivalent
+`debug_quick`); peak RSS is the maximum observed across the 3 runs via GNU
+`time -v`. Measured at commit
+`21255125eb075b933a39bb5c2d6f7dec4e428b4c` (`main`), which is 5 commits past the
+W1 pre-MIR commit `6ef088fd`; those commits touch only docs, tests, and library
+code (html/html_parser/html_runtime/http), so the compiler under test is the same
+pre-MIR compiler as W1. The `server` (+7) and `plugins` (+20) totals are higher
+than W1 because `http_framing_test.ch` and additional html plugin tests were added
+after the W1 run.
 
 | Suite | Status | Total | Passed | Failed | Mean time | Peak RSS |
 |-------|--------|------:|-------:|-------:|----------:|---------:|
-| main | _pending_ | | | | | |
-| interpret | _pending_ | | | | | |
-| negative | _pending_ | | | | | |
-| plugins | _pending_ | | | | | |
-| async | _pending_ | | | | | |
-| libs | _pending_ | | | | | |
-| regexp | _pending_ | | | | | |
-| process | _pending_ | | | | | |
-| server | _pending_ | | | | | |
-| webview | _pending_ | | | | | |
-| universal | _pending_ | | | | | |
-| **TOTAL** | _pending_ | | | | | |
+| main | ok | 2234 | 2234 | 0 | 1.29s | 42.8 MB |
+| interpret | fail | 1846 | 1843 | 3 | 0.25s | 22.1 MB |
+| negative | ok | 318 | 318 | 0 | 10.45s | 45.9 MB |
+| plugins | ok | 1296 | 1296 | 0 | 2.23s | 94.0 MB |
+| async | ok | 53 | 53 | 0 | 0.29s | 22.0 MB |
+| libs | ok | 719 | 719 | 0 | 5.41s | 65.0 MB |
+| regexp | ok | 143 | 143 | 0 | 0.28s | 22.9 MB |
+| process | ok | 127 | 127 | 0 | 0.94s | 38.5 MB |
+| server | ok | 9 | 9 | 0 | 8.80s | 34.7 MB |
+| webview | ok | 51 | 51 | 0 | 4.23s | 171.6 MB |
+| universal | ok | 368 | 368 | 0 | 49.04s | 221.7 MB |
+| **TOTAL** | **fail** | **7164** | **7161** | **3** | **~83s** | — |
+
+`tls` was skipped (slow, opt-in).
+
+**Known pre-MIR failures (the baseline pass set):**
+
+- `interpret` (3, stable): the same three cursor tests as W1 — Test 96 *a read at
+  cursor + i sees the index the source names (stride 2, not 1)*, Test 97 *a cursor
+  alone walks consecutive elements*, Test 100 *a cursor advanced in the loop
+  reaches the end exactly once per step*.
+- `negative`, `process` and `server` were clean (0 failures) on Linux in all 3
+  runs. The W1 failures in these suites are Windows-flaky (compiler-spawning
+  timeouts); on Linux they pass.
 
 ### 11.5 Compiler binary size
 
-Measured on W1. The hard requirement is a **release** `TCCCompiler` under **4 MB**.
-The debug build below is recorded as a reference; the release sizes must be
-recorded before the branch is complete.
+Measured on W1 and L1. The hard requirement is a **release** `TCCCompiler` under
+**4 MB**. The debug builds below are recorded as a reference; the release sizes
+must be recorded before the branch is complete. Linux debug binaries carry full
+DWARF debug info, so they are much larger than the Windows debug numbers; the
+hard limit applies to the release build, not to these debug figures.
 
-| Binary | Config | Size (W1) | Hard limit |
-|--------|--------|----------:|-----------:|
-| `TCCCompiler` | debug | 8,956,416 B (8.5 MiB) | — |
-| `Compiler` | debug | 223,013,376 B (213 MiB) | — |
-| `TCCCompiler` | release | _pending_ | **< 4 MB** |
-| `Compiler` | release | _pending_ | MIR delta ≤ 2% (LLVM link dominates) |
+| Binary | Config | Size (W1) | Size (L1) | Hard limit |
+|--------|--------|----------:|----------:|-----------:|
+| `TCCCompiler` | debug | 8,956,416 B (8.5 MiB) | 65,113,136 B (62.1 MiB) | — |
+| `Compiler` | debug | 223,013,376 B (213 MiB) | 334,610,368 B (319.1 MiB) | — |
+| `TCCCompiler` | release | _pending_ | _pending_ | **< 4 MB** |
+| `Compiler` | release | _pending_ | _pending_ | MIR delta ≤ 2% (LLVM link dominates) |
 
 ### 11.6 Thresholds (adherence rules)
 
@@ -2252,8 +2274,8 @@ ls -l cmake-build-debug/TCCCompiler
 ```
 
 Record the results **in this section** (it is the single source of truth).
-Raw logs are transient and are not committed. When the Linux measurement is
-done, fill §11.4 and keep both baselines.
+Raw logs are transient and are not committed. Both baselines (§11.3 W1, §11.4
+L1) are recorded and kept side by side.
 
 ---
 

@@ -92,6 +92,21 @@ uint16_t opcode_flags(MIROpcode op);
 const char* opcode_name(MIROpcode op);
 MIRPortability opcode_portability(MIROpcode op);
 
+/**
+ * Arithmetic/comparison operators for Unary/Binary/Compare. Encoded (as an
+ * integer) in a Constant operand, so the emitter never needs the AST Operation
+ * enum. Kept in sync with the lowerer.
+ */
+enum class MIRBinaryOp : uint8_t {
+    Add, Sub, Mul, Div, Rem, Shl, Shr,
+    BitAnd, BitOr, BitXor,
+    Lt, Le, Gt, Ge, Eq, Ne,
+};
+
+enum class MIRUnaryOp : uint8_t {
+    Neg, Plus, Not, BitNot,
+};
+
 inline bool is_terminator(MIROpcode op) {
     return (opcode_flags(op) & OF_Terminator) != 0;
 }

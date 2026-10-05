@@ -30,7 +30,7 @@ while (-not $proc.HasExited) {
       } catch { }
     }
   }
-  Start-Sleep -Milliseconds 20
+  Start-Sleep -Milliseconds 150
 }
 $proc.WaitForExit()
 $sw.Stop()

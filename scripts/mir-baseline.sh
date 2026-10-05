@@ -9,16 +9,25 @@
 #
 # Usage:
 #   ./scripts/mir-baseline.sh --tcc --all
+#   ./scripts/mir-baseline.sh --tcc --all --repeat 3      # average 3 runs
 #   ./scripts/mir-baseline.sh --tcc --suite main --suite libs
 #   ./scripts/mir-baseline.sh --tcc --all --no-build
 #   ./scripts/mir-baseline.sh --llvm --all
 #
-# Outputs (default dir: lang/docs/baseline/):
-#   <backend>-<suite>.log        raw suite output
-#   <backend>-<suite>.json       machine-readable {suite,status,total,passed,failed,seconds,peak_bytes}
+# Outputs (default dir: lang/tests/build/mir-baseline, which is gitignored):
+#   <backend>-<suite>.log        raw suite output (last run when --repeat > 1)
+#   <backend>-<suite>.runN.log   per-run output when --repeat > 1
+#   <backend>-<suite>.json       machine-readable summary (incl. per-run times)
 #   <backend>-summary.md         Markdown table for mir-implementation-plan.md §11.3
+#   <backend>-size.txt           compiler binary sizes
 #
 # Notes:
+#   * Record the OS/host in the report. Baselines are machine-specific; this
+#     project records at least one Windows and one Linux measurement and the
+#     final MIR result must stay under both.
+#   * With --repeat N, per-suite time is reported as min/median/mean/max across
+#     the N runs so a single slow run does not set the baseline; peak memory is
+#     the maximum observed (memory must not be trimmed by averaging).
 #   * Do NOT change the measurement procedure to make numbers look better;
 #     update the baseline only with an explicit recorded decision.
 #   * Memory is measured as the peak working set of the compiler process(es)
@@ -34,14 +43,16 @@ TARGET="TCCCompiler"
 COMPILER_BIN="cmake-build-debug/TCCCompiler"
 BACKEND="tcc"
 MODE="debug_quick"
-OUT_DIR="lang/docs/baseline"
+OUT_DIR="lang/tests/build/mir-baseline"
 BUILD=true
 JOBS="$(nproc 2>/dev/null || echo 4)"
 SUITES=()
 ALL=false
+PARSE_ONLY=false
+REPEAT=1
 
 usage() {
-  sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,45p' "$0" | sed 's/^# \{0,1\}//'
   exit 1
 }
 
@@ -51,6 +62,8 @@ while [ $# -gt 0 ]; do
     --llvm)  TARGET="Compiler";    COMPILER_BIN="cmake-build-debug/Compiler";    BACKEND="llvm"; shift ;;
     --suite) SUITES+=("$2"); shift 2 ;;
     --all)   ALL=true; shift ;;
+    --parse-only) PARSE_ONLY=true; shift ;;
+    --repeat) REPEAT="$2"; shift 2 ;;
     --no-build) BUILD=false; shift ;;
     --mode)  MODE="$2"; shift 2 ;;
     --out)   OUT_DIR="$2"; shift 2 ;;
@@ -93,24 +106,23 @@ suite_flag() {
 }
 
 # Parse "total passed failed" from a log, or "".
+# Mirrors scripts/test.sh's preference: the dedicated-suite "Summary:" line
+# first, then the main/interpret "Total N Passed N Failed N" line. Strips ANSI
+# escapes, CR, and NUL bytes (the compiler can emit NULs in warnings).
 parse_counts() {
-  local log="$1" line t p f
+  local log="$1" line
   [ -f "$log" ] || return 0
-  local clean
-  clean="$(sed -E $'s/\033\\[[0-9;]*[A-Za-z]//g' < "$log")"
-  line="$(printf '%s\n' "$clean" | grep -E 'Summary: [0-9]+ tests' | tail -n 1 || true)"
-  if [ -n "$line" ]; then
-    t="$(printf '%s\n' "$line" | sed -E 's/.*Summary: ([0-9]+) tests.*/\1/')"
-    p="$(printf '%s\n' "$line" | sed -E 's/.* ([0-9]+) passed.*/\1/')"
-    f="$(printf '%s\n' "$line" | sed -E 's/.* ([0-9]+) failed.*/\1/')"
-    echo "$t $p $f"; return 0
-  fi
-  line="$(printf '%s\n' "$clean" | grep -E 'Total [0-9]+ Passed [0-9]+ Failed [0-9]+' | tail -n 1 || true)"
-  if [ -n "$line" ]; then
-    t="$(printf '%s\n' "$line" | sed -E 's/.*Total ([0-9]+).*/\1/')"
-    p="$(printf '%s\n' "$line" | sed -E 's/.*Passed ([0-9]+).*/\1/')"
-    f="$(printf '%s\n' "$line" | sed -E 's/.*Failed ([0-9]+).*/\1/')"
-    echo "$t $p $f"; return 0
+  line="$(
+    tr -d '\000' < "$log" \
+      | sed -e $'s/\033\\[[0-9;]*[A-Za-z]//g' -e 's/\r$//' \
+      | grep -aE 'Summary: [0-9]+ tests|Total [0-9]+ Passed [0-9]+ Failed [0-9]+' \
+      | tail -n 1 || true
+  )"
+  [ -n "$line" ] || return 0
+  if [[ "$line" =~ Summary:[[:space:]]+([0-9]+)[[:space:]]+tests[[:space:]]*-[[:space:]]+([0-9]+)[[:space:]]+passed[[:space:]]*,[[:space:]]*([0-9]+)[[:space:]]+failed ]]; then
+    echo "${BASH_REMATCH[1]} ${BASH_REMATCH[2]} ${BASH_REMATCH[3]}"
+  elif [[ "$line" =~ Total[[:space:]]+([0-9]+)[[:space:]]+Passed[[:space:]]+([0-9]+)[[:space:]]+Failed[[:space:]]+([0-9]+) ]]; then
+    echo "${BASH_REMATCH[1]} ${BASH_REMATCH[2]} ${BASH_REMATCH[3]}"
   fi
 }
 
@@ -141,6 +153,18 @@ measure_wrapped() {
   printf '{"exit":%s,"peak_bytes":null,"ms":%s}\n' "$rc" "$(( (end - start) * 1000 ))"
 }
 
+# --parse-only: re-parse existing per-suite logs without re-running anything.
+# Useful for regenerating the summary after a parser fix.
+if [ "$PARSE_ONLY" = true ]; then
+  echo "suite      total passed failed"
+  for suite in "${SUITES[@]}"; do
+    log="$OUT_DIR/${BACKEND}-${suite}.log"
+    counts="$(parse_counts "$log")"
+    printf '%-10s %s\n' "$suite" "${counts:-?}"
+  done
+  exit 0
+fi
+
 if [ "$BUILD" = true ]; then
   echo "==> Building $TARGET ..."
   cmake --build cmake-build-debug --config Debug --target "$TARGET" -j "$JOBS" || {
@@ -156,27 +180,44 @@ SUMMARY="$OUT_DIR/${BACKEND}-summary.md"
 {
   echo "# MIR baseline summary ($BACKEND, $MODE)"
   echo
-  echo "Recorded $(date -u +%Y-%m-%dT%H:%M:%SZ) on $(uname -s) $(uname -m)"
+  echo "Recorded $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo
-  echo "| Suite | Status | Total | Passed | Failed | Seconds | Peak bytes |"
-  echo "|-------|--------|------:|-------:|-------:|--------:|-----------:|"
+  echo "- Host OS: \`$(uname -s) $(uname -m)\`"
+  echo "- Host: \`${HOSTNAME:-unknown}\`"
+  echo "- Runs per suite: $REPEAT"
+  echo
+  echo "| Suite | Status | Total | Passed | Failed | Min s | Median s | Mean s | Max s | Peak MB |"
+  echo "|-------|--------|------:|-------:|-------:|------:|---------:|-------:|------:|--------:|"
 } > "$SUMMARY"
 
 failures=0
 for suite in "${SUITES[@]}"; do
   flag="$(suite_flag "$suite")"
-  log="$OUT_DIR/${BACKEND}-${suite}.log"
+  canonical="$OUT_DIR/${BACKEND}-${suite}.log"
   echo ""
-  echo "==> suite: $suite"
+  echo "==> suite: $suite (x$REPEAT)"
   cmdline="bash '$SCRIPT_DIR/test.sh' --$BACKEND --no-build --mode $MODE"
   [ -n "$flag" ] && cmdline="$cmdline $flag"
 
-  measured="$(measure_wrapped "$cmdline" "$log")"
-  exit_code="$(printf '%s' "$measured" | sed -E 's/.*"exit":([0-9-]+).*/\1/')"
-  peak="$(printf '%s' "$measured" | sed -E 's/.*"peak_bytes":([0-9]+|null).*/\1/')"
-  ms="$(printf '%s' "$measured" | sed -E 's/.*"ms":([0-9]+|null).*/\1/')"
+  times=()
+  peaks=()
+  last_exit="null"
+  for ((r=1; r<=REPEAT; r++)); do
+    if [ "$REPEAT" -gt 1 ]; then log="$OUT_DIR/${BACKEND}-${suite}.run${r}.log"; else log="$canonical"; fi
+    measured="$(measure_wrapped "$cmdline" "$log")"
+    cexit="$(printf '%s' "$measured" | sed -E 's/.*"exit":([0-9-]+).*/\1/')"
+    cpeak="$(printf '%s' "$measured" | sed -E 's/.*"peak_bytes":([0-9]+|null).*/\1/')"
+    cms="$(printf '%s' "$measured" | sed -E 's/.*"ms":([0-9]+|null).*/\1/')"
+    [ -n "$cexit" ] && last_exit="$cexit"
+    t="null"
+    if [ -n "$cms" ] && [ "$cms" != "null" ]; then t="$(awk "BEGIN{printf \"%.2f\", $cms/1000.0}")"; fi
+    times+=("$t")
+    if [ -n "$cpeak" ] && [ "$cpeak" != "null" ]; then peaks+=("$cpeak"); fi
+    echo "    run $r: ${t}s, peak ${cpeak} bytes"
+  done
+  if [ "$REPEAT" -gt 1 ]; then cp "$OUT_DIR/${BACKEND}-${suite}.run${REPEAT}.log" "$canonical"; fi
 
-  counts="$(parse_counts "$log")"
+  counts="$(parse_counts "$canonical")"
   total=""; passed=""; failed=""
   if [ -n "$counts" ]; then read -r total passed failed <<< "$counts"; fi
   if [ -z "$total" ]; then
@@ -188,17 +229,32 @@ for suite in "${SUITES[@]}"; do
   fi
   [ "$status" != "ok" ] && failures=$((failures + 1))
 
-  secs="null"
-  if [ -n "$ms" ] && [ "$ms" != "null" ]; then secs="$(awk "BEGIN{printf \"%.2f\", $ms/1000.0}")"; fi
+  # Time aggregation across runs (nulls ignored): min / median / mean / max.
+  vals="$(printf '%s\n' "${times[@]}" | grep -v '^null$' || true)"
+  tmin="$(printf '%s\n' "$vals" | awk 'NR==1{m=$1} {if($1<m)m=$1} END{if(NR)printf "%.2f",m}')"
+  tmax="$(printf '%s\n' "$vals" | awk '{if(NR==1||$1>m)m=$1} END{if(NR)printf "%.2f",m}')"
+  tmean="$(printf '%s\n' "$vals" | awk '{s+=$1} END{if(NR)printf "%.2f",s/NR}')"
+  tmed="$(printf '%s\n' "$vals" | sort -n | awk '{a[NR]=$1} END{if(NR==0)exit; if(NR%2)printf "%.2f",a[(NR+1)/2]; else printf "%.2f",(a[NR/2]+a[NR/2+1])/2}')"
 
-  printf '{"suite":"%s","status":"%s","total":%s,"passed":%s,"failed":%s,"seconds":%s,"peak_bytes":%s,"exit":%s}\n' \
-    "$suite" "$status" "${total:-null}" "${passed:-null}" "${failed:-null}" "${secs}" "${peak:-null}" "${exit_code:-null}" \
-    > "$OUT_DIR/${BACKEND}-${suite}.json"
+  # Peak memory is the maximum observed, never averaged.
+  peakmax="null"
+  for p in ${peaks[@]+"${peaks[@]}"}; do
+    if [ "$peakmax" = "null" ] || [ "$p" -gt "$peakmax" ]; then peakmax="$p"; fi
+  done
 
-  printf '| %s | %s | %s | %s | %s | %s | %s |\n' \
-    "$suite" "$status" "${total:-?}" "${passed:-?}" "${failed:-?}" "${secs:-?}" "${peak:-?}" >> "$SUMMARY"
+  runs_json="$(printf '%s,' "${times[@]}" | sed 's/,$//')"
+  printf '{"suite":"%s","status":"%s","total":%s,"passed":%s,"failed":%s,"seconds_min":%s,"seconds_median":%s,"seconds_mean":%s,"seconds_max":%s,"seconds_runs":[%s],"peak_bytes":%s,"exit":%s}\n' \
+    "$suite" "$status" "${total:-null}" "${passed:-null}" "${failed:-null}" \
+    "${tmin:-null}" "${tmed:-null}" "${tmean:-null}" "${tmax:-null}" "$runs_json" \
+    "${peakmax:-null}" "${last_exit:-null}" > "$OUT_DIR/${BACKEND}-${suite}.json"
 
-  echo "    $suite: $status ${passed:-?}/${total:-?} (${secs:-?}s, peak ${peak:-?} bytes)"
+  peak_mb="?"
+  [ "$peakmax" != "null" ] && peak_mb="$(awk "BEGIN{printf \"%.1f\", $peakmax/1048576.0}")"
+  printf '| %s | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n' \
+    "$suite" "$status" "${total:-?}" "${passed:-?}" "${failed:-?}" \
+    "${tmin:-?}" "${tmed:-?}" "${tmean:-?}" "${tmax:-?}" "$peak_mb" >> "$SUMMARY"
+
+  echo "    $suite: $status ${passed:-?}/${total:-?} (mean ${tmean:-?}s, range ${tmin:-?}-${tmax:-?}s, peak ${peak_mb} MB)"
 done
 
 echo ""

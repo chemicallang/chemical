@@ -1,12 +1,83 @@
-# MIR Implementation Plan (v2)
+# MIR Implementation Plan (v3)
 
 Status: implementation plan (derived from mir-design.md)
-Constraint: compilation speed is the primary non-functional requirement — MIR must not be a bottleneck
-Revision: v2 — addresses contradictions, gaps, and missing details from v1 review
+Constraint: compilation speed and peak memory are the primary non-functional
+requirements — MIR must not be a bottleneck
+Revision: v3 — MIR-first branch mandate (no feature flags, no legacy fallback),
+plus a measured performance / memory / pass-rate contract AIs must match
 
 ---
 
-## Revision Notes: What Changed From v1
+## 0. MIR-First Mandate (READ FIRST — BINDING)
+
+This work happens on the dedicated `mir` branch. Every rule below is binding on
+every human and AI implementer and overrides any earlier statement in this
+document, in `mir-design.md`, or in the current codebase. When in doubt, the
+rule in this section wins.
+
+1. **MIR is the compiler's path from day one.** There is no `--use-mir` flag, no
+   `--no-mir` flag, no `--mir-only` allowlist, no per-function feature gate, no
+   `if(options.use_mir)` branch, and no environment variable that enables or
+   disables MIR. The production pipeline always lowers the resolved,
+   type-checked AST to MIR and always emits C (and later LLVM) from MIR.
+
+2. **No legacy fallback.** A function or construct MIR cannot yet lower is a
+   compiler failure, not a silent fallback. Never add an "unsupported → run the
+   old 2c translator" path to make a build or test pass. When something breaks,
+   fix the MIR lowering, verifier, or emitter. Progress is made by fixing, never
+   by hiding work behind a flag or a fallback branch.
+   *Rationale:* a fallback keeps two semantic models alive, masks coverage
+   gaps, and silently hides MIR bugs. We deliberately do not keep that net.
+
+3. **Legacy code is replaced, not wrapped.** The existing AST→C translator is
+   deleted construct-by-construct as MIR takes over each one. While a piece of
+   legacy code still exists in the tree, it may be referenced only by dev-time
+   differential tests; it must **never** be reachable from the production
+   pipeline. Deleting the last legacy code path is the end state, not a
+   prerequisite.
+
+4. **Tests, build, and runtime are allowed to break — that is expected.** The
+   branch invariant is not "always green"; it is "every break is fixed forward,
+   in-branch, with no flag, and without reducing coverage." Do not skip a suite
+   to make CI pass, weaken an assertion, or delete a test to hide a failure.
+
+5. **Performance and memory are hard constraints.** MIR must not regress the
+   recorded baseline in §11. Match the recorded suite compile times, pass/fail
+   counts, and peak memory. A functional fix that doubles compile time is not a
+   fix until the regression is resolved.
+
+6. **No silent degradation, no undocumented exception.** A construct that
+   genuinely cannot be represented yet must produce a structured compile-error
+   diagnostic with a source location, and must be listed in the worklist in
+   §10. It must not emit plausible-but-wrong code and must not branch to
+   legacy.
+
+### AI implementer checklist (copy into every PR description)
+
+- [ ] I did not add or use any flag to enable/disable MIR.
+- [ ] I did not add a legacy fallback or an `else { run legacy }` branch.
+- [ ] Unsupported input produces a diagnostic, not a silent fallback.
+- [ ] I did not skip, weaken, or delete a test to get green.
+- [ ] I ran the suites in §11 and compared the measured numbers to the baseline.
+- [ ] Compile time and peak memory stayed within the §11 thresholds.
+- [ ] I deleted the legacy code that my change replaces (if it is now dead).
+
+---
+
+## Revision Notes: What Changed From v2
+
+| Issue | v2 | v3 |
+|-------|----|----|
+| Adoption model | MIR behind `--use-mir`; legacy default | MIR is the only path; no flags (§0) |
+| Legacy fallback | Whole-function fallback to 2c | No fallback; unsupported input is a compile error to fix forward |
+| Migration | Allowlists/annotations grow MIR coverage, remove legacy later | Legacy constructs are replaced one at a time on the `mir` branch; legacy code is deleted as replaced |
+| Reversibility | "revert any PR; the feature gate falls back to legacy" | Revert commits on the branch, or fix forward; there is no runtime gate |
+| Stage 7 | "MIR C coverage migration + legacy removal" | "Delete the legacy C translator" (pure removal) |
+| Success criteria | functional + qualitative perf gates | functional + **measured** perf / memory / pass-rate vs the §11 baseline |
+| Baselines | described as targets | recorded, machine-specific numbers AIs must match (§11) |
+| Differential testing | a migration selector | a dev-only oracle; never a production path (§3.6) |
+
+## Revision Notes: What Changed From v1 (historical)
 
 | Issue | v1 Problem | v2 Fix |
 |-------|-----------|--------|
@@ -38,9 +109,10 @@ Revision: v2 — addresses contradictions, gaps, and missing details from v1 rev
    `debug_quick` compilation time. If a pass does not pay for itself in correctness
    or required semantics, it does not exist in the quick path.
 
-2. **Incremental adoption.** Each stage is independently testable, reversible, and
-   shippable. The legacy 2c and LLVM paths remain the default until MIR proves
-   faster or equal on the full test suite.
+2. **MIR-first on a dedicated branch.** `mir` is the integration branch. The
+   production pipeline lowers to MIR and emits from MIR from the first commit;
+   nothing is gated by a flag (§0). The branch may be red while a construct is
+   being ported; it is fixed forward, in-branch.
 
 3. **No shared mutable state in hot paths.** Every parallel worker owns its arena,
    builder, emitter, and diagnostics. Module-level tables are immutable after
@@ -50,16 +122,17 @@ Revision: v2 — addresses contradictions, gaps, and missing details from v1 rev
    MIR difficult to construct. The verifier is a safety net, not the primary
    correctness mechanism.
 
-5. **One lowering pass per adopted function.** Semantic decisions (overload
-   resolution, implicit constructors, receiver placement, destructor scheduling)
-   are made once during AST-to-MIR lowering. The surrounding module may still
-   contain legacy 2c functions, but a selected function is fully represented by
-   MIR before C emission.
+5. **One lowering pass per function.** Semantic decisions (overload resolution,
+   implicit constructors, receiver placement, destructor scheduling) are made
+   once during AST-to-MIR lowering. Every concrete runtime function is fully
+   represented by MIR before C emission; there is no partial-function or
+   fallback exception.
 
 6. **Preserve existing evaluation order.** The current 2c visitor already computes
    correct evaluation order for assignments, calls, and constructors. MIR must
-   produce identical order. The lowerer is validated by differential testing against
-   the legacy 2c output.
+   produce identical order. While legacy code still exists it is used as a
+   **dev-only differential oracle** (§3.6), never as a production path; the MIR
+   interpreter and the §11 measured suite are the durable correctness gates.
 
 ---
 
@@ -444,7 +517,8 @@ parse → symres (6 passes) → typeverify → C backend → link
 
 ### 3.3 Insertion point in ASTProcessor
 
-The MIR layer integrates at the same point as `declare_module()`/`implement_module()`:
+The MIR layer replaces `implement_module()` for the C backend entirely. There is
+no conditional: the MIR path is the C path (§0).
 
 ```cpp
 // In process_module_tcc() or process_module_gen():
@@ -452,25 +526,24 @@ processor.import_module_files_direct(job, module);
 processor.sym_res_module(job, module);
 processor.type_verify_module_parallel(job, module);
 
-if(options.use_mir) {
-    MIRLowerContext ctx(processor, module, options);
+// MIR is unconditional. `options.use_mir` does not exist and must not be added.
+MIRLowerContext ctx(processor, module, options);
 
-    // Serial prologue — builds tables, enumerates functions
-    ctx.prepare_module();
+// Serial prologue — builds tables, enumerates functions
+ctx.prepare_module();
 
-    // Select complete functions for MIR or legacy 2c. Both artifacts are
-    // emitted into the same module and then passed to the existing C pipeline.
-    ctx.lower_and_emit_module();
+// Parallel workers lower every concrete function to MIR and emit C.
+ctx.lower_and_emit_module();
 
-    // Serial merge — concatenates function artifacts into module output
-    ctx.merge_module();
+// Serial merge — concatenates function artifacts into module output
+ctx.merge_module();
 
-    // Pass the merged C output to the existing TinyCC pipeline
-} else {
-    processor.declare_module(c_visitor, module);
-    processor.implement_module(c_visitor, module);
-}
+// Pass the merged C output to the existing TinyCC pipeline.
 ```
+
+The legacy `declare_module()` / `implement_module()` pair is not called for the
+C backend. As each construct moves to MIR, the corresponding legacy translation
+code is deleted (see §3.6).
 
 ### 3.4 `prepare_module()` — Serial Prologue
 
@@ -510,71 +583,65 @@ void MIRLowerContext::prepare_module() {
 }
 ```
 
-### 3.5 Feature Gate and Legacy Fallback
+### 3.5 No Feature Gate; Legacy Replacement Policy
 
-```cpp
-enum class LoweringPath { Legacy, MIR };
+MIR is not selected; it is simply what the C backend is. There is no
+`LoweringPath` enum, no `select_lowering_path()` function, and no
+`options.use_mir`. Such a function must not exist in the tree. If you find
+yourself adding one, stop.
 
-LoweringPath select_lowering_path(
-    FunctionDeclaration* fn,
-    const MIRModuleContext& ctx) {
-    if(!ctx.options.use_mir) return LoweringPath::Legacy;
+What is a boundary and what is **not** a flag:
 
-    // Check for unsupported features
-    if(fn->is_comptime()) return LoweringPath::Legacy;        // comptime stays AST
-    if(fn->has_cbi_annotation()) return LoweringPath::Legacy;  // CBI needs TinyCC
-    if(fn->has_exception_throw()) return LoweringPath::Legacy; // throw not yet supported
-    // ... other checks
+- **comptime is not a legacy fallback.** `comptime` blocks/functions are
+  evaluated by the AST interpreter during compilation (§3.8). They produce no
+  runtime code on any backend. That is a semantic phase, not a gate.
+- **CBI / `build.lab` / plugin jobs are a job-class boundary, not a flag.** The
+  build system compiles `build.lab` and macro plugins with TinyCC in separate
+  job types (`LabJobType::CBIPlugin`, `Transformer`, build-script compilation).
+  Those jobs never enter the MIR C pipeline. This boundary is explicit in the
+  job configuration and diagnostics — it is not a per-function feature gate.
+- **Everything else lowers through MIR.** There is no "unsupported → legacy"
+  option. Unsupported constructs fail the compile and are fixed forward.
 
-    return LoweringPath::MIR;
-}
-```
+When a construct is not yet implemented:
 
-**Critical rule:** A function is either fully MIR or fully legacy. Never mix
-MIR cleanup state and legacy cleanup queues within one function. Different
-functions in the same module are expected to use different paths from the first
-integration milestone. When a function falls back to legacy:
-- The entire function body is translated by `ToCAstVisitor` (legacy path).
-- The function's C output is treated as a `LegacyCFragment` for module merge.
-- The fragment must have no ownership/cleanup interaction with surrounding MIR
-  code (this is guaranteed by the whole-function fallback).
+1. The lowerer emits a structured diagnostic with a source location.
+2. The compilation fails; no artifact is published.
+3. The construct is added to the replacement worklist in §10.
+4. The next commit implements it. Do not add a fallback, and do not skip the
+   test that exercises it.
 
-### 3.6 `LegacyCFragment` Bridge
+### 3.6 Legacy Translator Removal and the Dev-Only Differential Oracle
 
-The design doc §1 explicitly requires a `LegacyCFragment` for incremental
-adoption. In v2, this is handled at the function level (not statement level):
+The production pipeline never emits `LegacyCFragment`/`LegacyArtifact` and has no
+mixed MIR/legacy module mode. The v2 `LegacyCFragment` bridge is **removed as a
+production concept**.
 
-```cpp
-struct MIRFunctionArtifact {
-    enum Kind { MIRArtifact, LegacyArtifact };
+The existing AST→C translator may remain in the tree only while its constructs
+are still being replaced. While present, it may be exercised by a **dev-only
+differential harness** (a separate test-only target) that compares its C output
+with MIR C for the same function. That harness:
 
-    Kind kind;
-    SymbolId symbol;
-    uint32_t source_order;
+- is never invoked by the compiler's normal pipeline;
+- is never a user-facing compiler flag;
+- exists only to catch ordering/lifetime regressions during the port;
+- is deleted together with the legacy translator when the last construct is
+  replaced.
 
-    // MIR path
-    MIRArena* arena;                    // null after emission in debug_quick
-    std::vector<char> c_bytes;
+Removal checklist (delete as MIR covers each construct; see §9 Stage 7):
 
-    // Legacy path
-    // c_bytes contains the legacy 2c output directly
-    // No MIR arena needed
-};
-```
+- [ ] scalar arithmetic / locals / loads / stores / casts
+- [ ] scalar and struct-return calls, references, `&raw`, function pointers
+- [ ] if/else, loops, switch, break/continue, short-circuit
+- [ ] struct/array/variant construction and destruction
+- [ ] moves/copies/drop flags/temporaries/assignment/return cleanup
+- [ ] lambdas/captures, interfaces/vtables, runtime blocks, intrinsics
+- [ ] atomics/TLS/globals/weak externs
+- [ ] last `ToCAstVisitor` / `CDestructionVisitor` call site for the C backend,
+      then the classes themselves
 
-When a function falls back to legacy, `ToCAstVisitor` translates it normally
-and the output is wrapped in a `LegacyArtifact`. The merge step concatenates
-MIR and legacy artifacts in source order. This is safe because:
-- Each function is a separate C function body.
-- Module-level declarations (types, prototypes) are shared by both paths.
-- No MIR cleanup state interacts with legacy cleanup state.
-
-This mixed-module mode is the primary migration mode, not a temporary test
-mode. Function selection may initially be an explicit allowlist or annotation,
-then become capability-based, and finally be driven by the remaining legacy
-coverage. An AI-assisted migration can port one function or one family of
-functions at a time, run differential tests, and move only verified functions
-to the MIR allowlist.
+Do not delete legacy code before its MIR replacement is measured against the §11
+baseline; do not keep it after.
 
 ### 3.7 Error Handling During Lowering
 
@@ -587,15 +654,18 @@ MIRExprResult MIRLowerer::lower_expr(Value* val) {
         // ... known cases
         default:
             // Report diagnostic: "unsupported MIR lowering for <node kind>"
-            // Return error result — caller escalates to legacy fallback
+            // Return an error result. This FAILS the compile; there is no
+            // legacy fallback (§0). The construct goes on the §10 worklist.
             return MIRExprResult::error();
     }
 }
 ```
 
-The lowerer returns an error result. The caller (`lower_function`) catches
-this and returns a `LoweringResult::Fallback` status. The orchestrator then
-runs legacy 2c on this function and wraps the output as a `LegacyArtifact`.
+The lowerer returns an error result. The caller (`lower_function`) propagates a
+`LoweringResult::Error`; module compilation fails after the parallel workers
+finish. The orchestrator does **not** run legacy 2c on the function and does not
+publish a partial artifact. The construct is added to the replacement worklist
+in §10 and implemented in the next commit.
 
 Error diagnostics are collected in the worker's scratch diagnostic buffer.
 They are NOT printed from the worker (that would race on `print_mutex`).
@@ -716,25 +786,40 @@ never mutate it.
 ### Dependency Graph
 
 ```
-PR 1 (types + arena)
-  └─→ PR 2 (builder)
-       ├─→ PR 3 (lowerer straight-line + lambda)
-       │    └─→ PR 4 (C emitter straight-line)
-       │         └─→ PR 5 (MIR interpreter)
-       │              └─→ PR 6 (CFG + aggregates + cleanup)  ← merged stage
-       │                   ├─→ PR 7 (MIR default + legacy removal)
-       │                   ├─→ PR 8 (LLVM lowering)
-       │                   └─→ PR 9 (parallel lowering)
-       └─→ PR 3.5 (module-level declarations)
+PR 0 (baseline capture + recording harness)      ← required before PR 4
+  └─→ PR 1 (types + arena)
+       └─→ PR 2 (builder)
+            ├─→ PR 3 (lowerer straight-line + lambda)
+            │    └─→ PR 4 (C emitter straight-line)
+            │         └─→ PR 5 (MIR interpreter)
+            │              └─→ PR 6 (CFG + aggregates + cleanup)  ← merged stage
+            │                   ├─→ PR 7 (delete legacy C translator)
+            │                   ├─→ PR 8 (LLVM lowering)
+            │                   └─→ PR 9 (parallel lowering)
+            └─→ PR 3.5 (module-level declarations)
 ```
 
 **Not all PRs are independent.** PRs 6-9 depend on the full instruction set
-from PRs 1-5. PR 9 depends on PR 7 (MIR must be default before parallelizing).
-The dependency chain is: 1 → 2 → 3+3.5 → 4 → 5 → 6 → 7 → 8 → 9.
+from PRs 1-5. PR 9 depends on PR 7. The dependency chain is:
+0 → 1 → 2 → 3+3.5 → 4 → 5 → 6 → 7 → 8 → 9.
 
-However, each PR is independently **testable** and **reversible** — you can
-revert any PR without breaking the others (the feature gate falls back to
-legacy).
+PRs are **testable**, not independently reversible via a feature gate. There is
+no flag to fall back to. If a PR breaks the branch, fix forward or revert that
+PR's commits on the `mir` branch. §11 defines which measured numbers must be
+restored before the branch is considered healthy.
+
+### Stage 0: Baseline Capture (PR 0)
+
+**Goal:** Record the pre-MIR compiler's pass/fail counts, compile times, and peak
+memory so the MIR work has objective targets. This must be done **before** the
+pipeline is switched, on an idle machine.
+
+See §11 for the exact commands, the recorded numbers, and the thresholds AIs
+must match. PR 0 also adds the reusable recording script
+(`scripts/mir-baseline.sh`) and the measurement notes.
+
+**Gate:** the §11 baseline file exists and is committed on the `mir` branch.
+
 
 ### Stage 1: Core MIR Types + Arena (PR 1)
 
@@ -930,13 +1015,16 @@ before parallel lowering starts.
 - Simple assignments (no destructors)
 - Lambda definitions (calls to lambdas treated as opaque function pointers)
 
-**NOT yet supported (falls back to legacy):**
+**NOT yet supported at this stage (compile error until Stage 6; no fallback):**
 - Control flow (if/else, while, for, switch) → Stage 6
 - Destructors, moves, copies, cleanup → Stage 6
 - Aggregates (struct/array/variant construction) → Stage 6
 - Variant pattern matching → Stage 6
 - Atomics, TLS → later stages
-- Comptime → stays on AST interpreter
+- Comptime → handled by the AST interpreter before MIR (§3.8), not a fallback
+
+At this stage the branch will fail to compile most of the test suite. That is the
+expected state of a MIR-first branch (§0 rule 4); the failures are the worklist.
 
 **Files to create:**
 ```
@@ -1032,13 +1120,15 @@ drop %s                                        ; cleanup after call
 
 ### Stage 4: C Emitter from MIR (PR 4)
 
-**Goal:** Emit C code from MIR for the straight-line subset.
+**Goal:** Emit C code from MIR for the straight-line subset, and switch the
+production pipeline to MIR-only.
 
-This stage also establishes the real migration path: the MIR emitter is
-invoked by the existing C backend for an allowlisted set of complete
-functions, while other functions in the same module continue through
-`ToCAstVisitor`. MIR is not validated only by a standalone emitter or a
-separate compilation path.
+This stage is where the branch becomes MIR-first in practice: the C backend
+invokes the MIR emitter for **every** function it encounters. `ToCAstVisitor`
+is no longer called from the production path. Constructs MIR does not yet cover
+become compile errors and are ported in later stages (Stages 5/6/7); they are
+never routed back to legacy. The branch is expected to be red until coverage
+catches up (§0 rule 4).
 
 **Files to create:**
 ```
@@ -1152,12 +1242,10 @@ use_point(&__chx_p0);
 Each nested call gets its own result place. No compound expressions.
 
 **Tests:**
-- Golden tests: MIR C output must match legacy 2c output for straight-line
-  functions.
-- Compile mixed modules containing both MIR-backed and legacy functions, then
-  run them through the normal TinyCC test path.
-- Select MIR functions by explicit allowlist/annotation and report the selected
-  and fallback counts.
+- Golden tests: MIR C output must match the dev-only legacy oracle (§3.6) for
+  straight-line functions while that oracle exists.
+- The pipeline emits all functions through MIR; compile the suite through the
+  normal TinyCC test path.
 - Evaluation order tests: effectful calls must remain in source order.
 - Expression compaction tests: `take(i * 8, i * 2, i * 4)` produces no temp
   variables.
@@ -1348,48 +1436,54 @@ or a separate place, not the same place as `x`.
 
 ---
 
-### Stage 7: MIR C Coverage Migration + Legacy Removal (PR 7)
+### Stage 7: Delete the Legacy C Translator (PR 7)
 
-**Goal:** Make MIR C the default for an increasing set of complete functions,
-while preserving one mixed module pipeline until the legacy coverage reaches
-zero for the supported target.
+**Goal:** Delete the legacy AST→C translator. This is pure removal, not a
+migration: MIR has been the only C path since PR 4 (§0). Every legacy construct
+that MIR now covers is dead code and must be removed.
 
 **Approach:**
-1. Enable MIR selection in the normal C backend for an explicit seed set of
-   functions.
-2. Functions with unsupported features fall back to legacy automatically.
-3. Track selected, migrated, and fallback functions in verbose output and a
-   machine-readable migration report.
-4. Benchmark mixed MIR/legacy modules and compare each migrated function with
-   legacy 2c by differential tests.
-5. Use AI-assisted ports to migrate remaining function families one at a time;
-   do not accept a migration without compilation and runtime verification.
-6. Remove the legacy path only when all supported functions are MIR-backed and
-   deliberately excluded jobs (such as CBI/plugin compilation) have an explicit
-   replacement or permanent boundary.
+1. Walk the removal checklist in §3.6 top to bottom. For each construct: confirm
+   MIR covers it, confirm the §11 suites exercise it, then delete the legacy
+   code and any AST helpers it exclusively used.
+2. After each deletion, rebuild and re-run the relevant §11 suites. The branch
+   may be temporarily red while a deletion exposes a missing MIR case; fix the
+   MIR lowering, never restore the legacy code.
+3. Delete the dev-only differential harness once the last construct is gone.
+4. Delete `ToCAstVisitor`, `CDestructionVisitor`, and the legacy
+   `implement_module()` C path when the final call site is removed.
+5. Keep the CBI/`build.lab`/plugin job boundary (§3.5): those jobs use TinyCC on
+   generated C sources and are not part of this translator. Document the boundary
+   in the code, not with a flag.
 
-**Feature gates:**
+**Diagnostics flags (all still allowed — these observe, they do not select a
+path):**
 ```
---use-mir          Force MIR for all functions (error on unsupported)
---no-mir           Force legacy for all functions
---mir-only <fn>    MIR for specific function (debugging)
---mir-functions <set>  MIR allowlist for migration batches
---dump-mir         Print MIR for all functions
---verify-mir       Run full MIR verification
+--dump-mir         Print MIR for all functions (debug output)
+--verify-mir       Run full MIR verification (validation)
 ```
+There is intentionally no `--use-mir`, `--no-mir`, `--mir-only`, or
+`--mir-functions` flag. Adding one violates §0.
 
-**Legacy removal checklist:**
-- [ ] All functions in test suite lower through MIR
+**Legacy removal checklist (all must be checked before the branch is done):**
+- [ ] All test-suite functions lower through MIR
 - [ ] All library code (std, net, http, tls, etc.) lowers through MIR
-- [ ] All CBI plugin code lowers through MIR (or is explicitly excluded)
-- [ ] Fallback count = 0 in verbose output for full test suite
-- [ ] Performance: MIR ≤ legacy on all benchmarks
+- [ ] CBI/plugin/build.lab jobs documented as an explicit job-class boundary
+- [ ] No fallback count exists because there is no fallback
+- [ ] `ToCAstVisitor`/`CDestructionVisitor` deleted
+- [ ] Performance and memory match §11 (within thresholds)
+- [ ] Pass/fail counts match or exceed the §11 baseline
 
 ---
 
 ### Stage 8: LLVM Lowering (PR 8)
 
 **Goal:** Lower MIR to LLVM IR, replacing the current AST-based LLVM codegen.
+
+> Under the MIR-first mandate, LLVM is switched over in the same branch without a
+> flag: the LLVM backend lowers MIR directly from day one of this stage. The old
+> AST-based `Codegen` is deleted as its MIR replacement lands, not kept behind a
+> selector.
 
 **Mapping rules:**
 - MIR SSA values → LLVM SSA values (1:1 mapping).
@@ -1638,32 +1732,35 @@ point.
 
 ## 7. Risk Mitigation
 
-### 7.1 Performance regression risk
+### 7.1 Performance and memory regression risk
 
-**Mitigation:** Benchmark at every stage. The performance gates in §1.3 are
-mandatory. If MIR construction + C emission is slower than legacy 2c for any
-benchmark, investigate before proceeding to the next stage.
+**Mitigation:** Measure at every stage against the recorded §11 baseline. The
+gates in §1.3 and §11 are mandatory. If MIR construction + C emission is slower
+than the baseline, or peak memory is higher, fix it before continuing. There is
+no "accept the regression" option and no flag to sidestep it.
 
 ### 7.2 Correctness risk (subtle behavior differences)
 
 **Mitigation:**
-- Differential testing: run legacy 2c and MIR 2c on the same input, compare
-  C output and runtime behavior.
-- The MIR interpreter provides an independent correctness oracle.
-- Evaluation order tests with observable side effects (calls, constructors,
+- The MIR interpreter provides an independent correctness oracle and must execute
+  the same MIR the emitter consumes.
+- The dev-only differential harness (§3.6) compares legacy C and MIR C on the same
+  function while legacy code still exists; it is never a production path.
+- Evaluation-order tests with observable side effects (calls, constructors,
   destructors).
-- The test suite in `lang/tests/` is the primary regression gate.
+- The §11 suites are the durable regression gate and their pass/fail counts are
+  recorded.
 
-### 7.3 Incremental adoption risk (MIR/legacy boundary bugs)
+### 7.3 Forced-migration risk (branch breaks while porting)
 
 **Mitigation:**
-- A function is either fully MIR or fully legacy. Never mix within one function;
-  different functions in the same C module use different paths from day one.
-- The feature gate is conservative: any unsupported feature → legacy fallback.
-- Selected, migrated, and fallback counts are tracked and visible in verbose
-  output and migration reports.
-- Legacy path is never removed until all supported functions have migrated and
-  explicitly excluded jobs have a documented boundary.
+- Accept breakage as the working state (§0 rule 4). Track every break as a named
+  worklist item with the construct, the failing suite, and the fix commit.
+- Never make the build green by re-adding legacy code or a gate.
+- Prefer small, construct-sized commits so a break is easy to attribute and
+  revert on the `mir` branch.
+- CBI/`build.lab`/plugin jobs are an explicit job-class boundary (§3.5), not a
+  fallback: they are compiled by TinyCC as generated C regardless of MIR.
 
 ### 7.4 Parallelism risk (race conditions, nondeterministic output)
 
@@ -1698,35 +1795,152 @@ benchmark, investigate before proceeding to the next stage.
 7. **No JVM, Wasm, or JIT emitters.** Focus on C and LLVM first.
 8. **No shared mutable state in workers.** No mutex in the hot path, ever.
 9. **No MIR for comptime.** Comptime stays on the AST interpreter.
-10. **No statement-level LegacyCFragment in the initial migration.** Whole-
-    function fallback preserves ownership isolation while function coverage is
-    migrated incrementally.
+10. **No feature flag.** No `--use-mir`/`--no-mir`/allowlist and no
+    `options.use_mir`. MIR is always the path (§0).
+11. **No legacy fallback, and no `LegacyCFragment` in production.** Unsupported
+    input is a diagnostic and a worklist item, never a silent fallback (§3.6).
+12. **No skipping tests to get green.** A red suite is fixed, not skipped.
 
 ---
 
 ## 9. Implementation Order Summary
 
-| PR | Stage | Scope | Dependencies | Test Gate |
-|----|-------|-------|--------------|-----------|
-| 1 | Core types + arena | Data structures, arena, dump | None | Arena benchmark ≥10x vs ASTAllocator |
+| PR | Stage | Scope | Dependencies | Gate |
+|----|-------|-------|--------------|------|
+| 0 | Baseline capture | Record pass/fail, suite times, peak memory; add `scripts/mir-baseline.sh` | None | §11 baseline file committed |
+| 1 | Core types + arena | Data structures, arena, dump | PR 0 | Arena benchmark ≥10x vs ASTAllocator |
 | 2 | Builder | Typed construction API | PR 1 | Build simple MIR manually |
 | 3 | Lowerer (straight-line) | AST → MIR for primitives + calls + lambdas | PR 2 | Lower arithmetic, verify dump |
 | 3.5 | Module declarations | Type/symbol table construction | PR 1 | Build module context from resolved AST |
-| 4 | C emitter (straight-line) | MIR → C for simple functions | PR 2, PR 3 | Golden tests match legacy 2c |
+| 4 | C emitter (straight-line) | MIR → C for simple functions; pipeline switched to MIR-only | PR 2, PR 3 | Branch compiles through MIR; §11 suites re-measured |
 | 5 | MIR interpreter | Execute straight-line MIR | PR 3 | Compare with compiled output |
-| 6 | CFG + aggregates + cleanup | Full language subset | PR 3, PR 4, PR 5 | All destructor/control flow tests pass |
-| 7 | MIR coverage migration | Mixed MIR/legacy modules, then remove fallback | PR 6 | Full test suite plus migration report |
-| 8 | LLVM lowering | MIR → LLVM IR | PR 6 | All LLVM tests pass |
+| 6 | CFG + aggregates + cleanup | Full language subset | PR 3, PR 4, PR 5 | Destructor/control-flow tests pass |
+| 7 | Delete legacy translator | Pure removal per §3.6; no fallback | PR 6 | §11 tests pass with legacy code deleted |
+| 8 | LLVM lowering | MIR → LLVM IR | PR 6 | LLVM tests pass |
 | 9 | Parallel lowering | File-level parallelism | PR 7 | Parallel ≥1.5x on 4+ cores |
 
 ---
 
 ## 10. Success Criteria
 
-1. **Functional:** All existing tests pass through MIR C output.
-2. **Performance:** `debug_quick` MIR compilation time ≤ legacy 2c time.
-3. **Correctness:** MIR interpreter results match compiled executable output.
-4. **Adoption:** MIR-backed functions are used in the normal C backend from
-   day one, and coverage increases until all supported functions are migrated.
-5. **Parallelism:** File-level parallel MIR lowering is ≥1.5x faster than serial.
-6. **Code quality:** MIR C output is at least as clean as legacy 2c output.
+1. **Functional:** All §11 suites pass with the same or higher pass count as the
+   recorded baseline, and the legacy AST→C translator is deleted.
+2. **Performance:** `debug_quick` compile time per suite is within the §11
+   threshold of the baseline; no phase regresses.
+3. **Memory:** Peak compiler memory per suite is within the §11 threshold of the
+   baseline.
+4. **Adoption:** MIR is the only path in the normal pipeline from PR 4 onward;
+   there is no feature flag and no fallback anywhere in the tree.
+5. **Correctness:** MIR interpreter results match compiled executable output.
+6. **Parallelism:** File-level parallel MIR lowering is ≥1.5x faster than serial.
+7. **Code quality:** MIR C output is at least as clean as the legacy 2c output.
+8. **No hidden gates:** A tree-wide search finds no `use_mir`, `--use-mir`,
+   `--no-mir`, `LoweringPath`, or `LegacyCFragment` used as a production selector.
+
+---
+
+## 11. Baseline Contract (Performance / Memory / Pass Rate)
+
+This section is the **adherence contract**. An AI or human working on MIR must
+match these numbers. Do not "improve" them by changing the measurement
+procedure; update the baseline only with an explicit, recorded decision that
+explains why (for example, a new required library), and re-record on the same
+type of idle machine.
+
+### 11.1 Measurement machine (record on an idle machine)
+
+| Property | Value |
+|----------|-------|
+| OS | Microsoft Windows 11 Pro (10.0.26200) |
+| CPU | 12th Gen Intel Core i9-12900H, 14 cores / 20 logical |
+| RAM | 31.7 GB |
+| Compiler commit (pre-MIR baseline) | `6ef088fd2c2cfbc6fc2032d6c57e88e4d3eb28aa` |
+| Branch | `mir` (baseline recorded from `main` @ the commit above) |
+| Build | `cmake --build cmake-build-debug --target TCCCompiler -j 8` (`Debug`) |
+| Mode | `debug_quick` |
+| Test driver | `scripts/test.sh --tcc` / `--all --tcc` |
+
+> **Machine-specific.** Absolute numbers are not portable. On a different
+> machine, re-record the baseline first, then apply the same **relative**
+> thresholds.
+
+### 11.2 What to measure
+
+For every suite (main, interpret, negative, plugins, async, libs, regexp,
+process, server, webview, universal; `tls` separately because it is slow):
+
+1. **Pass/fail counts** — total, passed, failed (and failed test names).
+2. **Build/compile wall time** — the compiler building the suite, not the test
+   run time.
+3. **Peak compiler memory** — peak working set of the compiler process while
+   building the suite.
+4. **Phase timings** — `-bm-modules` / `-bm-files` compiler phase breakdown.
+
+### 11.3 Recorded baseline (TCCCompiler, `debug_quick`)
+
+Filled by PR 0. See `lang/docs/baseline/` for the raw logs and JSON.
+
+| Suite | Status | Total | Passed | Failed | Build+Run | Compiler peak RSS |
+|-------|--------|------:|-------:|-------:|----------:|------------------:|
+| main | _pending_ | | | | | |
+| interpret | _pending_ | | | | | |
+| negative | _pending_ | | | | | |
+| plugins | _pending_ | | | | | |
+| async | _pending_ | | | | | |
+| libs | _pending_ | | | | | |
+| regexp | _pending_ | | | | | |
+| process | _pending_ | | | | | |
+| server | _pending_ | | | | | |
+| webview | _pending_ | | | | | |
+| universal | _pending_ | | | | | |
+| tls (separate, slow) | _pending_ | | | | | |
+
+### 11.4 Thresholds (adherence rules)
+
+| Metric | Rule |
+|--------|------|
+| Pass count | Must be ≥ baseline for every suite. Any new failure is a blocker. |
+| Failed tests | Must be ≤ baseline. Name every new failure in the PR. |
+| Suite build+run time | ≤ baseline × **1.05** per suite; total ≤ baseline × **1.05**. |
+| Single-phase time (`-bm-modules`) | ≤ baseline × **1.10** per phase. |
+| Peak compiler RSS | ≤ baseline × **1.05** per suite. |
+| C output size | ≤ baseline × **1.10** (same function set). |
+
+If a threshold cannot be met, the change is not done. Do not relax the threshold
+in the same PR that causes the regression.
+
+### 11.5 How to record / re-record
+
+```bash
+# Full pass/fail + per-suite timing table (skip the slow tls suite):
+./scripts/test.sh --all --tcc          # write the summary to lang/docs/baseline/
+
+# Per-suite manual (isolated timing + peak memory):
+./scripts/mir-baseline.sh --tcc --suite main
+
+# Compiler phase timings (module + file level):
+./scripts/test.sh --tcc --no-build --bm-modules
+./scripts/test.sh --tcc --no-build --bm-files
+
+# Optional: LLVM backend baseline:
+./scripts/test.sh --all --llvm
+```
+
+`scripts/mir-baseline.sh` records raw logs and a machine-readable JSON summary
+(`lang/docs/baseline/<backend>-<suite>.json`) and prints the Markdown rows used
+in §11.3. The pre-MIR baseline must be committed on the `mir` branch before the
+C pipeline is switched to MIR.
+
+---
+
+## 12. Replacement Worklist (open constructs)
+
+Track every construct that is not yet lowered by MIR here. Each entry is a
+compile error until implemented; none is a fallback.
+
+| Construct | Regex/Case | Suite that exercises it | Status |
+|-----------|-----------|-------------------------|--------|
+| _nothing yet — created empty at PR 0_ | | | |
+
+When an item is implemented: remove it from this list, delete the corresponding
+legacy code (§3.6), and re-run the named suite against §11.

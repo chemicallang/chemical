@@ -94,6 +94,13 @@ bool constant_string(const MIRModule& module, ConstantId cid, std::string& out) 
     return true;
 }
 
+std::string member_access(const MIRFunction& fn, const MIRModule& module, PlaceId base,
+                          const std::string& fname) {
+    const MIRTypeRecord& bt = module.types.get(fn.places[base].type);
+    const bool arrow = bt.kind == MIRTypeKind::Pointer || bt.kind == MIRTypeKind::Reference;
+    return pname(base) + (arrow ? "->" : ".") + fname;
+}
+
 } // namespace
 
 std::string c_type_of(const MIRModule& module, TypeId type) {
@@ -293,7 +300,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                         return false;
                     }
                     out += c_type_of(module, function.values[v].type) + " " + vname(v) +
-                           " = " + pname(p->id) + "." + fname + ";\n";
+                           " = " + member_access(function, module, p->id, fname) + ";\n";
                 } else {
                     out += c_type_of(module, function.values[v].type) + " " + vname(v) +
                            " = " + pname(p->id) + ";\n";
@@ -305,13 +312,16 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const MIROperand* a = operand_at(function, inst, 1);
                 const MIROperand* b = operand_at(function, inst, 2);
                 if (!p || !a) { error = "store missing operands"; return false; }
-                if (a->kind() == MIROperandKind::Constant && b) {
+                if (p->kind() == MIROperandKind::Value) {
+                    out += "*" + operand_expr(function, module, *p) + " = " +
+                           operand_expr(function, module, *a) + ";\n";
+                } else if (a->kind() == MIROperandKind::Constant && b) {
                     std::string fname;
                     if (!constant_string(module, a->id, fname)) {
                         error = "field store has invalid field name";
                         return false;
                     }
-                    out += pname(p->id) + "." + fname + " = " + vname(b->id) + ";\n";
+                    out += member_access(function, module, p->id, fname) + " = " + vname(b->id) + ";\n";
                 } else {
                     out += pname(p->id) + " = " + vname(a->id) + ";\n";
                 }

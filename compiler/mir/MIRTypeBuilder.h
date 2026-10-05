@@ -25,6 +25,9 @@ public:
     /** Build a function type from a return type and parameter type ids. */
     TypeId function_signature(TypeId return_type, const std::vector<TypeId>& params);
 
+    /** Pointer to `pointee`. */
+    TypeId pointer_type(TypeId pointee, bool is_mutable = false);
+
     /** The module type table this maps into. */
     MIRModule& module() { return module_; }
 

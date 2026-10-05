@@ -120,6 +120,10 @@ TypeId MIRTypeBuilder::function_type(BaseType* type) {
     return intern(r);
 }
 
+TypeId MIRTypeBuilder::pointer_type(TypeId pointee, bool is_mutable) {
+    return pointer_like(MIRTypeKind::Pointer, pointee, is_mutable);
+}
+
 TypeId MIRTypeBuilder::function_signature(TypeId return_type, const std::vector<TypeId>& params) {
     MIRTypeRecord r;
     r.kind = MIRTypeKind::Function;

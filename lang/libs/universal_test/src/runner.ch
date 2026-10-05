@@ -36,6 +36,83 @@ comptime func ut_all() : []UTFunction {
 var g_wv : *mut webview::WebView = null
 @never_destructed var g_results : vector<UTResult>
 
+// ── Host-side watchdog ──────────────────────────────────────────────────────
+//
+// `webview_run` blocks in the platform message loop and returns only when the
+// page calls the `all_done` bridge method. Nothing else ends it, and the
+// page-side per-test timeout cannot cover the gap: it is itself JavaScript, so
+// it is exactly what a bundle that fails to parse cannot run. Without a host
+// bound, one broken fixture leaves the whole suite blocked with no output.
+//
+// The bound is a SILENCE budget rather than a total-runtime budget: every
+// bridge call proves the page is alive and resets it, so the budget only ever
+// has to cover one test's worth of inactivity. That keeps it independent of how
+// many tests share the page.
+comptime const UT_SILENCE_MS : int = 60000
+comptime const UT_WATCHDOG_TICK_MS : int = 500
+
+var g_silence_ms : int = 0          // resolved lazily by ut_silence_budget_ms()
+var g_silence_left_ms : int = 0     // remaining budget; 0 = disarmed
+var g_watchdog_id : int = 0
+// Names on the page currently running, so a stall can be charged to them.
+@never_destructed var g_page_names : vector<string>
+
+// Milliseconds of bridge silence before a page is declared stalled.
+// `UT_TIMEOUT_MS` overrides it (ms) for slow machines.
+func ut_silence_budget_ms() : int {
+    if(g_silence_ms > 0) { return g_silence_ms }
+    var budget = UT_SILENCE_MS
+    const env = getenv("UT_TIMEOUT_MS\0" as *char)
+    if(env != null) {
+        const parsed = atoi(env)
+        if(parsed > 0) { budget = parsed }
+    }
+    g_silence_ms = budget
+    return g_silence_ms
+}
+
+func ut_stall_message() : string {
+    var m = string("no result: the page sent no bridge call for ")
+    m.append_integer(ut_silence_budget_ms() / 1000)
+    m.append_view("s and was stopped (its JS bundle probably fails to parse -- dump it with UT_DUMP_JS=1 and check it with `node --check`)")
+    return m
+}
+
+// Runs from the platform timer inside `webview_run`'s message loop.
+func ut_watchdog_tick(data : *mut void) {
+    if(g_silence_left_ms <= 0) { return }
+    g_silence_left_ms -= UT_WATCHDOG_TICK_MS
+    if(g_silence_left_ms > 0) { return }
+    g_silence_left_ms = 0
+    printf("universal_test: page sent no bridge call for %d s -- stopping the webview and failing its tests\n",
+        ut_silence_budget_ms() / 1000)
+    // Synthesize a result for every test on the stalled page. Tests that did
+    // report already have one, and the report keeps the first result per name,
+    // so only the genuinely silent ones are charged with the stall.
+    const reason = ut_stall_message()
+    var i : size_t = 0
+    while(i < g_page_names.size()) {
+        const nm = g_page_names.get_ptr(i)
+        var r = UTResult { name : nm.copy(), ok : false, msg : reason.copy() }
+        g_results.push(r)
+        i += 1
+    }
+    if(g_wv != null) { webview::webview_stop(g_wv) }
+}
+
+// Escapes `v` for embedding inside a double-quoted JS string literal.
+func ut_js_quote(v : std::string_view, out : &mut std::string) {
+    for(var i : size_t = 0; i < v.size(); i++) {
+        const c = v.get(i)
+        if(c == '"') { out.append_view(std::string_view("\\\"")) }
+        else if(c == '\\') { out.append_view(std::string_view("\\\\")) }
+        else if(c == '\n') { out.append_view(std::string_view("\\n")) }
+        else if(c == '\r') { out.append_view(std::string_view("\\r")) }
+        else if(c == '\t') { out.append_view(std::string_view("\\t")) }
+        else { out.append(c) }
+    }
+}
+
 func ut_sv_eq(a : &string, b : string_view) : bool {
     if(a.size() != b.size()) { return false }
     var i : size_t = 0
@@ -77,7 +154,9 @@ func ut_parse_result(args : string_view, out : *mut UTResult) {
 
 func ut_bridge(method : string_view, args : string_view) : string {
     if(method.size() == 6) {
-        // "result" — one test finished
+        // "result" — one test finished. Any bridge call is proof the page is
+        // alive, so it refills the watchdog's silence budget.
+        g_silence_left_ms = ut_silence_budget_ms()
         var r = UTResult { name : string(), ok : false, msg : string() }
         ut_parse_result(args, &raw mut r)
         g_results.push(r)
@@ -96,21 +175,56 @@ func ut_execute(tests : *mut *mut UTFunction, count : size_t, headed : bool) {
     page.appendTitle("universal tests")
     page.defaultPrepare()
     page.defaultUniversalSetup()
-    page.append_js_char_ptr(UT_HARNESS)
 
+    // Fixtures render into the body: SSR markup plus the client bundle and the
+    // `__ut_register` call that hands each test's steps to the harness.
     var i : size_t = 0
+    g_page_names = vector<string>()
     while(i < count) {
         const t = tests[i]
         t.fixture_fn(&mut page)
+        var nm = string()
+        nm.append_view(&t.name)
+        g_page_names.push(nm)
         i += 1
     }
+
+    // The harness goes into the HEAD script block, which `toString` emits as its
+    // own `<script>` BEFORE the body bundle holding the fixtures' steps. Keeping
+    // it out of that bundle is what makes a broken fixture survivable: a script
+    // that fails to parse is skipped whole, so anything sharing its block -- the
+    // harness's own error handler and `all_done` included -- would be lost, and
+    // the host would block forever. The head block has already run, so it can
+    // report the failure and end the loop instead.
+    //
+    // Names the page is expected to run go in just ahead of it, so a fixture
+    // whose `__ut_register` never executed is still reported by name.
+    var expected = std::string("\nwindow.__ut_expected = [")
+    i = 0
+    while(i < count) {
+        const t = tests[i]
+        if(i > 0) { expected.append_view(",") }
+        expected.append_view("\"")
+        ut_js_quote(t.name, &mut expected)
+        expected.append_view("\"")
+        i += 1
+    }
+    expected.append_view("];\n;\n")
+    page.append_head_js_view(expected.to_view())
+    page.append_head_js_view(std::string_view(UT_HARNESS))
 
     var html = page.toString()
 
     // Debug: dump the generated page JS (UT_DUMP_JS=1) so it can be syntax-checked.
-    // Returns without opening a WebView.
+    // Returns without opening a WebView. Covers every script element `toString`
+    // emits -- head block, body bundle and body tail -- since a syntax error in
+    // any of them is the failure this dump exists to find.
     if(getenv("UT_DUMP_JS\0" as *char) != null) {
-        var jsdump = page.toStringJsOnly()
+        var jsdump = page.toStringHeadJsOnly()
+        jsdump.append_view("\n/* ==== body js bundle ==== */\n")
+        jsdump.append_string(&page.toStringJsOnly())
+        jsdump.append_view("\n/* ==== body js tail ==== */\n")
+        jsdump.append_string(&page.toStringJsEndOnly())
         printf("===UT_JS_START===\n%.*s\n===UT_JS_END===\n", jsdump.size() as int, jsdump.data())
         return
     }
@@ -139,7 +253,23 @@ func ut_execute(tests : *mut *mut UTFunction, count : size_t, headed : bool) {
     // Hidden by default: the WebView runs JS off-screen so no window flashes.
     // `--ut-headed` shows it for debugging.
     if(headed) { webview::webview_show(&raw mut wv) }
+
+    // Arm the watchdog so a page that never reports cannot block forever.
+    g_silence_left_ms = ut_silence_budget_ms()
+    g_watchdog_id = window::window_set_timer(UT_WATCHDOG_TICK_MS, ut_watchdog_tick as window::TimerCallback, null)
+    if(g_watchdog_id == 0) {
+        // Every timer slot is taken. The page-side error reporting still holds,
+        // but say so rather than leaving the host unbounded and unexplained.
+        printf("universal_test: could not arm the webview watchdog (no free timer slot) -- a silent page will hang this run\n")
+        g_silence_left_ms = 0
+    }
+
     webview::webview_run(&raw mut wv)
+
+    if(g_watchdog_id > 0) {
+        window::window_cancel_timer(g_watchdog_id)
+        g_watchdog_id = 0
+    }
     webview::webview_destroy(&raw mut wv)
     g_wv = null
 }
@@ -188,7 +318,8 @@ func ut_emit(tests : *mut *mut UTFunction, count : size_t, reporter : *mut TestR
 
         var outcome = make_test_outcome(string_view("universal_test"), t.name, t.group, t.id)
         if(!found) {
-            outcome.message = string_view("no result")
+            msg.append_view("no result: the page never reported this test")
+            outcome.message = msg.to_view()
             failed += 1
         } else if(ok) {
             outcome.passed = true

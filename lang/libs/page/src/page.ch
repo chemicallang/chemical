@@ -799,6 +799,19 @@ public struct HtmlPage {
         pageHeadJs.append_char_ptr(value);
     }
 
+    // Appends raw JS to `pageHeadJs`, which `toString` emits as its OWN
+    // `<script>` inside `<head>` -- before `pageHtml` and before the body JS
+    // bundle. A test harness (see lang/libs/universal_test) uses this so it
+    // lives in a separate script element from the page bundle it drives: a
+    // script that fails to parse is skipped in its entirety, so anything
+    // sharing its block (including the harness's own test registrations) is
+    // lost with it, while the head block has already run and can still report.
+    //
+    // Always writes to this page's own head sink, never to a shared one.
+    public func append_head_js_view(&mut self, value : &std::string_view) {
+        pageHeadJs.append_view(value);
+    }
+
     func append_head_js_char(&mut self, value : char) {
         pageHeadJs.append(value)
     }

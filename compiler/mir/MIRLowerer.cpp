@@ -22,9 +22,14 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/Scope.h"
+#include "ast/structures/If.h"
+#include "ast/structures/WhileLoop.h"
+#include "ast/structures/ForLoop.h"
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Return.h"
 #include "ast/statements/Assignment.h"
+#include "ast/statements/Break.h"
+#include "ast/statements/Continue.h"
 #include "ast/statements/ValueWrapperNode.h"
 
 namespace mir {
@@ -338,10 +343,147 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             MIRExprResult r = lower_expr(vn->value, error);
             return r.ok();
         }
+        case ASTNodeKind::IfStmt: {
+            auto* ifs = node->as_if_stmt_unsafe();
+            const BlockId merge = builder_->create_block();
+            if (!lower_if(ifs, merge, error)) return false;
+            builder_->set_block(merge);
+            return true;
+        }
+        case ASTNodeKind::WhileLoopStmt:
+            return lower_while(node->as_while_loop_unsafe(), error);
+        case ASTNodeKind::ForLoopStmt:
+            return lower_for(node->as_for_loop_unsafe(), error);
+        case ASTNodeKind::BreakStmt: {
+            if (break_targets_.empty()) {
+                error = "break outside a loop";
+                return false;
+            }
+            builder_->br(break_targets_.back());
+            return true;
+        }
+        case ASTNodeKind::ContinueStmt: {
+            if (continue_targets_.empty()) {
+                error = "continue outside a loop";
+                return false;
+            }
+            builder_->br(continue_targets_.back());
+            return true;
+        }
         default:
             error = "unsupported statement kind during MIR lowering";
             return false;
     }
+}
+
+bool MIRLowerer::lower_scope(Scope& scope, std::string& error) {
+    for (ASTNode* n : scope.nodes) {
+        if (!lower_stmt(n, error)) return false;
+    }
+    return true;
+}
+
+bool MIRLowerer::lower_if(IfStatement* stmt, BlockId merge, std::string& error) {
+    const BlockId then_b = builder_->create_block();
+    const BlockId else_b = builder_->create_block();
+
+    MIRExprResult c = lower_expr(stmt->condition, error);
+    if (!c.ok()) return false;
+    builder_->cond_br(c.id, then_b, else_b);
+
+    builder_->set_block(then_b);
+    if (!lower_scope(stmt->ifBody, error)) return false;
+    if (!builder_->current_block_terminated()) builder_->br(merge);
+
+    BlockId current = else_b;
+    for (size_t i = 0; i < stmt->elseIfs.size(); ++i) {
+        const BlockId body_b = builder_->create_block();
+        const BlockId next_else = builder_->create_block();
+        builder_->set_block(current);
+        MIRExprResult ec = lower_expr(stmt->elseIfs[i].first, error);
+        if (!ec.ok()) return false;
+        builder_->cond_br(ec.id, body_b, next_else);
+        builder_->set_block(body_b);
+        if (!lower_scope(stmt->elseIfs[i].second, error)) return false;
+        if (!builder_->current_block_terminated()) builder_->br(merge);
+        current = next_else;
+    }
+
+    builder_->set_block(current);
+    if (stmt->elseBody.has_value()) {
+        if (!lower_scope(stmt->elseBody.value(), error)) return false;
+    }
+    if (!builder_->current_block_terminated()) builder_->br(merge);
+    return true;
+}
+
+bool MIRLowerer::lower_while(WhileLoop* loop, std::string& error) {
+    const BlockId cond_b = builder_->create_block();
+    const BlockId body_b = builder_->create_block();
+    const BlockId exit_b = builder_->create_block();
+
+    builder_->br(cond_b);
+    builder_->set_block(cond_b);
+    MIRExprResult c = lower_expr(loop->condition, error);
+    if (!c.ok()) return false;
+    builder_->cond_br(c.id, body_b, exit_b);
+
+    builder_->set_block(body_b);
+    break_targets_.push_back(exit_b);
+    continue_targets_.push_back(cond_b);
+    if (!lower_scope(loop->body, error)) {
+        break_targets_.pop_back();
+        continue_targets_.pop_back();
+        return false;
+    }
+    if (!builder_->current_block_terminated()) builder_->br(cond_b);
+    break_targets_.pop_back();
+    continue_targets_.pop_back();
+
+    builder_->set_block(exit_b);
+    return true;
+}
+
+bool MIRLowerer::lower_for(ForLoop* loop, std::string& error) {
+    if (loop->initializer) {
+        if (!lower_stmt(loop->initializer, error)) return false;
+    }
+
+    const BlockId cond_b = builder_->create_block();
+    const BlockId body_b = builder_->create_block();
+    const BlockId step_b = builder_->create_block();
+    const BlockId exit_b = builder_->create_block();
+
+    builder_->br(cond_b);
+    builder_->set_block(cond_b);
+    if (loop->conditionExpr) {
+        MIRExprResult c = lower_expr(loop->conditionExpr, error);
+        if (!c.ok()) return false;
+        builder_->cond_br(c.id, body_b, exit_b);
+    } else {
+        builder_->br(body_b);
+    }
+
+    builder_->set_block(body_b);
+    break_targets_.push_back(exit_b);
+    continue_targets_.push_back(step_b);
+    if (!lower_scope(loop->body, error)) {
+        break_targets_.pop_back();
+        continue_targets_.pop_back();
+        return false;
+    }
+    if (!builder_->current_block_terminated()) builder_->br(step_b);
+    break_targets_.pop_back();
+    continue_targets_.pop_back();
+
+    builder_->set_block(step_b);
+    if (loop->incrementerExpr) {
+        if (!lower_stmt(loop->incrementerExpr, error)) return false;
+    }
+    if (!builder_->current_block_terminated()) builder_->br(cond_b);
+
+    builder_->set_block(exit_b);
+    return true;
 }
 
 bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,

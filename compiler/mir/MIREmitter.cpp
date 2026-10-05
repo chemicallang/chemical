@@ -218,8 +218,21 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
     }
     out += ") {\n";
 
+    // Block labels: blocks are emitted in creation order, so their inst_start
+    // offsets are monotonic. A label is emitted at each block start.
+    std::vector<BlockId> label_at(function.instructions.size(), MIR_INVALID_ID);
+    for (uint32_t b = 0; b < function.blocks.size(); ++b) {
+        const MIRBlock& blk = function.blocks[b];
+        if (blk.inst_start != MIR_INVALID_ID && blk.inst_start < label_at.size()) {
+            label_at[blk.inst_start] = blk.id;
+        }
+    }
+
     uint32_t param_index = 0;
     for (uint32_t idx = 0; idx < function.instructions.size(); ++idx) {
+        if (label_at[idx] != MIR_INVALID_ID) {
+            out += "__chx_bb" + std::to_string(label_at[idx]) + ":;\n";
+        }
         const MIRInstruction& inst = function.instructions[idx];
         out += "    ";
 
@@ -354,6 +367,25 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     const MIROperand* v = operand_at(function, inst, 0);
                     out += "return " + operand_expr(function, module, *v) + ";\n";
                 }
+                break;
+            }
+            case MIROpcode::Br: {
+                const MIROperand* target = operand_at(function, inst, 0);
+                if (!target) { error = "br missing target"; return false; }
+                out += "goto __chx_bb" + std::to_string(target->id) + ";\n";
+                break;
+            }
+            case MIROpcode::CondBr: {
+                const MIROperand* cond = operand_at(function, inst, 0);
+                const MIROperand* t = operand_at(function, inst, 1);
+                const MIROperand* f = operand_at(function, inst, 2);
+                if (!cond || !t || !f) { error = "cond_br missing operands"; return false; }
+                out += "if (" + operand_expr(function, module, *cond) + ") goto __chx_bb" +
+                       std::to_string(t->id) + "; else goto __chx_bb" + std::to_string(f->id) + ";\n";
+                break;
+            }
+            case MIROpcode::Unreachable: {
+                out += "; /* unreachable */\n";
                 break;
             }
             default:

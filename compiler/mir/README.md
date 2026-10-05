@@ -91,29 +91,34 @@ Lowerer: if/else-if/else, while, for, break, continue. Emitter: per-block
 struct/variant/enum types from `declare_module` so `c_type_of` spells them
 exactly as the legacy declarations.
 
+### Aggregates slice 1 (commit `9494d8c34`)
+
+Struct construction (`Point{x:1,y:2}`), member read (`p.x`), and member write
+(`p.x = ...`) lower to explicit temporary places + `field_load`/`field_store`
+(`base.field` in C); aggregate var-init moves the temporary. Verified end to end:
+`Point{3,4}; p.x=p.x+1; p.x+p.y` -> exit 8.
+
 ## Remaining
 
-The pipeline lowers **top-level scalar and control-flow functions** through MIR.
-Still on the legacy path (branch red for these): struct/array/variant
-construction and member access, method/impl calls, strings and destructors,
-generics, lambdas, and the LLVM backend.
+Working through MIR: scalar + control-flow top-level functions, `++`/`--`, and
+simple struct construction/member access. Still legacy (branch red): struct
+parameters/returns (sret), method/impl calls, arrays, variants, strings and
+destructors, generics, lambdas, LLVM.
 
-### Aggregates + methods (next)
+### Aggregates slice 2 / methods (next)
 
-1. Extend `MIRTypeRecord` with field metadata (names, types, offsets) populated
-   from `StructDefinition`/`VariantDefinition` by the integration driver.
-2. Lower `StructValue`/`ArrayValue`/`VariantCase` construction to explicit
-   result places + `init`/`field_addr`/`index_addr`; lower `AccessChain` of
-   length > 1 as `field_addr` with a field index.
-3. Lower method/impl calls: resolve the receiver (`FunctionCall::parent_val`) to
-   a `self` argument and emit `address_of` on it.
-4. Destructors/moves/cleanup (drop flags, cleanup scopes) — the merged PR 6
-   scope, using `MIRBuilder`'s lifetime and cleanup-scope APIs.
+1. Struct-returning functions (sret): hidden result pointer, `call_sret`, return
+   copies into the result place; match the legacy prototype spelling.
+2. Struct parameters passed by pointer: lower a `Place` aggregate argument to
+   `address_of`; make the C signature param a pointer.
+3. Method/impl calls: receiver (`FunctionCall::parent_val`) -> `self` argument;
+   use the impl method's mangled name (legacy emits the body).
+4. Destructors/moves/cleanup (drop flags, cleanup scopes) — merged PR 6 scope.
 
-### Deleting the legacy function-body path
+### Then
 
-Once aggregate/method coverage lands and the suite is green, remove the legacy
-`translate_after_declaration` body loop for functions (see plan §3.6).
+Delete the legacy function-body path once coverage is green (plan §3.6); MIR
+interpreter; LLVM lowering; parallel lowering.
 
 ### PR 5–9 (unchanged)
 

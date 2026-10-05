@@ -329,6 +329,27 @@ static bool test_control_flow_emitter() {
     return true;
 }
 
+// ── emitter: named aggregate types ─────────────────────────────────────────
+static bool test_type_names() {
+    MIRModule module;
+    MIRTypeRecord sr;
+    sr.kind = MIRTypeKind::Struct;
+    sr.size = 8;
+    sr.alignment = 4;
+    const TypeId s = module.types.intern(sr);
+    module.types.set_name(s, "main_Point", 10);
+    CHECK(c_type_of(module, s) == "struct main_Point");
+
+    MIRTypeRecord pr;
+    pr.kind = MIRTypeKind::Pointer;
+    pr.size = 8;
+    pr.alignment = 8;
+    pr.element = s;
+    const TypeId ptr = module.types.intern(pr);
+    CHECK(c_type_of(module, ptr) == "struct main_Point*");
+    return true;
+}
+
 int main() {
     bool ok = true;
     ok &= test_arena();
@@ -337,6 +358,7 @@ int main() {
     ok &= test_builder();
     ok &= test_emitter();
     ok &= test_control_flow_emitter();
+    ok &= test_type_names();
     if (!ok) {
         std::cerr << "mir_tests: FAILED\n";
         return 1;

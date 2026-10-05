@@ -20,6 +20,10 @@ class Value;
 class FunctionDeclaration;
 class FunctionParam;
 class VarInitStatement;
+class Scope;
+class IfStatement;
+class WhileLoop;
+class ForLoop;
 
 namespace mir {
 
@@ -73,6 +77,10 @@ public:
 private:
     MIRExprResult lower_expr(Value* value, std::string& error);
     bool lower_stmt(ASTNode* node, std::string& error);
+    bool lower_scope(Scope& scope, std::string& error);
+    bool lower_if(IfStatement* stmt, BlockId merge, std::string& error);
+    bool lower_while(WhileLoop* loop, std::string& error);
+    bool lower_for(ForLoop* loop, std::string& error);
 
     SymbolId intern_function(FunctionDeclaration* decl);
     PlaceId place_for_linked(ASTNode* linked) const;
@@ -83,6 +91,8 @@ private:
     MIRBuilder* builder_ = nullptr;
     std::unordered_map<ASTNode*, PlaceId> var_places_;
     std::unordered_map<FunctionDeclaration*, SymbolId> func_symbols_;
+    std::vector<BlockId> break_targets_;
+    std::vector<BlockId> continue_targets_;
 };
 
 } // namespace mir

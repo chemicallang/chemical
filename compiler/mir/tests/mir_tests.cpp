@@ -264,6 +264,71 @@ static bool test_emitter() {
     return true;
 }
 
+// ── emitter: control flow (labels + gotos) ─────────────────────────────────
+static bool test_control_flow_emitter() {
+    MIRModule module;
+    MIRTypeRecord ir;
+    ir.kind = MIRTypeKind::Int;
+    ir.flags = TF_SIGNED;
+    ir.size = 4;
+    ir.alignment = 4;
+    const TypeId i32 = module.types.intern(ir);
+    MIRTypeRecord br;
+    br.kind = MIRTypeKind::Bool;
+    br.size = 1;
+    br.alignment = 1;
+    const TypeId bool_t = module.types.intern(br);
+
+    MIRTypeRecord fr;
+    fr.kind = MIRTypeKind::Function;
+    fr.element = i32;
+    fr.size = 8;
+    fr.alignment = 8;
+    const TypeId ftype = module.types.intern(fr);
+
+    MIRSymbolRecord srec;
+    srec.kind = MIRSymbolKind::Function;
+    srec.linkage = MIRLinkage::Internal;
+    srec.type = ftype;
+    const SymbolId sym = module.symbols.add(srec, "pick", 4, "pick", 4);
+
+    MIRArena arena;
+    MIRFunction fn;
+    fn.symbol = sym;
+    fn.function_type = ftype;
+    MIRBuilder b(arena, module, fn);
+    const BlockId entry = b.create_block();
+    const BlockId then_b = b.create_block();
+    const BlockId else_b = b.create_block();
+    const BlockId join = b.create_block();
+    b.set_block(entry);
+    fn.entry_block = entry;
+    const ValueId ten = b.const_int(i32, module.constants.add_int(i32, 10));
+    const ValueId zero = b.const_int(i32, module.constants.add_int(i32, 0));
+    const ValueId cond = b.compare(ten, zero, module.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq)), bool_t);
+    const PlaceId p = b.alloca(i32, MIRStorageClass::Local);
+    b.cond_br(cond, then_b, else_b);
+    b.set_block(then_b);
+    b.store(p, ten);
+    b.br(join);
+    b.set_block(else_b);
+    b.store(p, zero);
+    b.br(join);
+    b.set_block(join);
+    b.ret(b.load(p, i32));
+
+    CHECK(b.ok());
+    std::string out, err;
+    if (!emit_function_c(fn, module, out, err)) {
+        std::cerr << "  cf emit error: " << err << "\n";
+        return false;
+    }
+    CHECK(out.find("goto __chx_bb") != std::string::npos);
+    CHECK(out.find("if (") != std::string::npos);
+    CHECK(out.find("__chx_bb0:;") != std::string::npos);
+    return true;
+}
+
 int main() {
     bool ok = true;
     ok &= test_arena();
@@ -271,6 +336,7 @@ int main() {
     ok &= test_function_build_dump();
     ok &= test_builder();
     ok &= test_emitter();
+    ok &= test_control_flow_emitter();
     if (!ok) {
         std::cerr << "mir_tests: FAILED\n";
         return 1;

@@ -889,6 +889,7 @@ add_executable(MIRTests
         compiler/mir/tests/mir_tests.cpp
         compiler/mir/MIRArena.cpp
         compiler/mir/MIRInstruction.cpp
+        compiler/mir/MIRBuilder.cpp
         compiler/mir/MIRDump.cpp
         compiler/mir/MIRVerifier.cpp
 )

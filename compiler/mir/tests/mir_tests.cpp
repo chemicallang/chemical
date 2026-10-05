@@ -6,6 +6,7 @@
 // mir-implementation-plan.md §9 Stage 1.
 
 #include "compiler/mir/MIR.h"
+#include "compiler/mir/MIRBuilder.h"
 
 #include <cassert>
 #include <cstdint>
@@ -133,11 +134,79 @@ static bool test_function_build_dump() {
     return true;
 }
 
+// ── builder: control flow + storage + calls ────────────────────────────────
+static bool test_builder() {
+    MIRModule module;
+    MIRTypeRecord ir;
+    ir.kind = MIRTypeKind::Int;
+    ir.flags = TF_SIGNED;
+    ir.size = 4;
+    ir.alignment = 4;
+    const TypeId i32 = module.types.intern(ir);
+
+    MIRTypeRecord br;
+    br.kind = MIRTypeKind::Bool;
+    br.size = 1;
+    br.alignment = 1;
+    const TypeId bool_t = module.types.intern(br);
+
+    MIRArena arena;
+    MIRFunction fn;
+    fn.function_type = i32;
+    MIRBuilder b(arena, module, fn);
+
+    const BlockId entry = b.create_block();
+    const BlockId then_b = b.create_block();
+    const BlockId else_b = b.create_block();
+    const BlockId join = b.create_block();
+    fn.entry_block = entry;
+
+    b.set_block(entry);
+    const ValueId ten = b.const_int(i32, module.constants.add_int(i32, 10));
+    const ValueId zero = b.const_int(i32, module.constants.add_int(i32, 0));
+    const ValueId cond = b.compare(ten, zero, module.constants.add_int(i32, 1), bool_t);
+    const PlaceId p = b.alloca(i32, MIRStorageClass::Local);
+    b.cond_br(cond, then_b, else_b);
+
+    b.set_block(then_b);
+    b.store(p, ten);
+    b.br(join);
+
+    b.set_block(else_b);
+    b.store(p, zero);
+    b.br(join);
+
+    b.set_block(join);
+    const ValueId r = b.load(p, i32);
+    b.ret(r);
+
+    if (!b.ok()) std::cerr << "builder error: " << (b.error() ? b.error() : "?") << "\n";
+    CHECK(b.ok());
+    CHECK(fn.blocks.size() == 4);
+    CHECK(fn.instructions.size() > 0);
+    // ten is used by compare + store
+    CHECK(fn.values[ten].use_count == 2);
+    CHECK(fn.blocks[entry].inst_count >= 3);
+
+    MIRVerifyResult res = verify_function(fn);
+    if (!res.ok()) {
+        for (const auto& d : res.diagnostics) std::cerr << "  diag: " << d.message << "\n";
+    }
+    CHECK(res.ok());
+
+    std::string dump = dump_function_str(fn, module);
+    CHECK(dump.find("cond_br") != std::string::npos);
+    CHECK(dump.find("alloca") != std::string::npos);
+    CHECK(dump.find("return") != std::string::npos);
+    return true;
+}
+
 int main() {
     bool ok = true;
     ok &= test_arena();
     ok &= test_instruction_encoding();
     ok &= test_function_build_dump();
+    ok &= test_builder();
     if (!ok) {
         std::cerr << "mir_tests: FAILED\n";
         return 1;

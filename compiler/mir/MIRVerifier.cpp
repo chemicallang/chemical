@@ -57,6 +57,10 @@ MIRVerifyResult verify_function(const MIRFunction& function) {
         if (block.id != b) {
             diag(r, MIR_INVALID_ID, b, MIR_INVALID_ID, "block.id does not match its index");
         }
+        if (block.inst_start == MIR_INVALID_ID) {
+            diag(r, MIR_INVALID_ID, b, MIR_INVALID_ID, "block was never positioned (no set_block)");
+            continue;
+        }
         if (block.inst_start > n_inst || block.inst_start + block.inst_count > n_inst) {
             diag(r, MIR_INVALID_ID, b, MIR_INVALID_ID, "block instruction range out of bounds");
             continue;

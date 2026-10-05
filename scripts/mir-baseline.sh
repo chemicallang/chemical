@@ -203,4 +203,21 @@ done
 
 echo ""
 echo "==> summary written to $SUMMARY"
+
+# --- compiler binary sizes (hard < 4 MB release requirement) ---
+SIZE_FILE="$OUT_DIR/${BACKEND}-size.txt"
+{
+  echo "backend=$BACKEND"
+  echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  for b in TCCCompiler Compiler; do
+    for p in "cmake-build-debug/$b" "cmake-build-debug/$b.exe"; do
+      if [ -f "$p" ]; then
+        echo "$b $(wc -c < "$p" | tr -d ' ') bytes ($p)"
+      fi
+    done
+  done
+} > "$SIZE_FILE"
+cat "$SIZE_FILE"
+echo "==> binary sizes written to $SIZE_FILE"
+
 exit "$(( failures > 0 ? 1 : 0 ))"

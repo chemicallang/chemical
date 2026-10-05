@@ -1,10 +1,12 @@
-# MIR Implementation Plan (v3)
+# MIR Implementation Plan (v3.1)
 
 Status: implementation plan (derived from mir-design.md)
-Constraint: compilation speed and peak memory are the primary non-functional
-requirements — MIR must not be a bottleneck
-Revision: v3 — MIR-first branch mandate (no feature flags, no legacy fallback),
-plus a measured performance / memory / pass-rate contract AIs must match
+Constraint: compilation speed, peak memory, and compiler binary size are the
+primary non-functional requirements — MIR must not be a bottleneck and the
+release compiler must stay under 4 MB
+Revision: v3.1 — MIR-first branch mandate (no feature flags, no legacy fallback,
+no capability analysis), a measured performance / memory / pass-rate / binary-size
+contract AIs must match, and performance improvements to the MIR hot path
 
 ---
 
@@ -29,40 +31,133 @@ rule in this section wins.
    *Rationale:* a fallback keeps two semantic models alive, masks coverage
    gaps, and silently hides MIR bugs. We deliberately do not keep that net.
 
-3. **Legacy code is replaced, not wrapped.** The existing AST→C translator is
+3. **No capability analysis.** The compiler must not contain code that asks
+   "does MIR support this function/construct?" and then chooses a path. There is
+   no `select_lowering_path`, no per-function capability query, no
+   `supports_mir(node)` guard, and no `if(feature not supported)` branch in the
+   pipeline. The lowerer simply handles the node; if a case is unimplemented, it
+   emits a diagnostic and the compile fails. A capability *matrix* may exist in
+   documentation and tests to track coverage, but it must never be a runtime
+   decision in the compiler.
+   *Rationale:* support-checking code is exactly the compromise that lets a
+   project drift: every new construct gets a graceful "not yet" path, the legacy
+   code never dies, and the two models diverge. We want the straight, honest
+   failure instead.
+
+4. **Legacy code is replaced, not wrapped.** The existing AST→C translator is
    deleted construct-by-construct as MIR takes over each one. While a piece of
    legacy code still exists in the tree, it may be referenced only by dev-time
    differential tests; it must **never** be reachable from the production
    pipeline. Deleting the last legacy code path is the end state, not a
    prerequisite.
 
-4. **Tests, build, and runtime are allowed to break — that is expected.** The
+5. **Tests, build, and runtime are allowed to break — that is expected.** The
    branch invariant is not "always green"; it is "every break is fixed forward,
    in-branch, with no flag, and without reducing coverage." Do not skip a suite
    to make CI pass, weaken an assertion, or delete a test to hide a failure.
 
-5. **Performance and memory are hard constraints.** MIR must not regress the
-   recorded baseline in §11. Match the recorded suite compile times, pass/fail
-   counts, and peak memory. A functional fix that doubles compile time is not a
-   fix until the regression is resolved.
+6. **Performance, memory, and binary size are hard constraints.** MIR must not
+   regress the recorded baseline in §11. Match the recorded suite compile times,
+   pass/fail counts, peak memory, and compiler binary size. A functional fix that
+   doubles compile time or grows the binary is not a fix until the regression is
+   resolved. The release compiler must remain **under 4 MB**.
 
-6. **No silent degradation, no undocumented exception.** A construct that
+7. **No silent degradation, no undocumented exception.** A construct that
    genuinely cannot be represented yet must produce a structured compile-error
    diagnostic with a source location, and must be listed in the worklist in
-   §10. It must not emit plausible-but-wrong code and must not branch to
+   §12. It must not emit plausible-but-wrong code and must not branch to
    legacy.
+
+8. **No new investment in legacy.** Do not add a feature, fix a bug, or extend
+   the legacy AST→C translator. If a legacy construct must change, port it to
+   MIR as part of that change. Every commit on the branch should do at least one
+   of: port a construct to MIR, delete legacy code made dead by a port, or fix a
+   break caused by a port. The replacement is monotone: the legacy footprint only
+   shrinks.
+
+### Why not a flag? (the deliberate trade)
+
+The conventional approach — keep the old backend behind a flag, add MIR
+incrementally, keep every test green — looks safe but smuggles in costs:
+
+- It forces per-construct support analysis (`can_lower(fn)`, fallback branches),
+  which is precedence for "not yet" everywhere and guarantees the legacy path
+  never dies.
+- It keeps two semantic models alive, so lifetime/cleanup bugs hide in the
+  boundary between them and are attributed to the wrong side.
+- It makes "green" the goal instead of "MIR is complete", so the migration has no
+  forcing function and can stall indefinitely.
+- Test-suite continuity becomes a constraint that biases design toward the
+  legacy model's quirks.
+
+With current tooling, breakage is cheap to fix. So the branch deliberately keeps
+no net: MIR is the only path, breakage is the working state, and the only way to
+make the suite pass is to actually finish the port. This is a conscious decision,
+not an oversight.
+
+
+### Non-functional requirements (quick reference)
+
+| ID | Requirement |
+|----|-------------|
+| NFR-1 | `debug_quick` compile time per suite ≤ baseline × 1.05 |
+| NFR-2 | peak compiler RSS per suite ≤ baseline × 1.05 |
+| NFR-3 | release `TCCCompiler` binary < 4 MB; net growth ≤ 2% |
+| NFR-4 | pass/fail counts ≥ baseline for every suite |
+| NFR-5 | deterministic output independent of thread scheduling |
+| NFR-6 | no new mandatory phase in `debug_quick` (no full verify, no global opt) |
+| NFR-7 | no feature flag, no legacy fallback, no capability analysis |
+| NFR-8 | unsupported input is a source-linked diagnostic, never wrong code |
+| NFR-9 | no crash / no silent partial artifact on malformed input |
+
+### Branch workflow (operational rules)
+
+- **Branch:** all MIR work happens on `mir`, forked from `main` at the baseline
+  commit recorded in §11.1. `main` remains the pre-MIR reference; `mir` is where
+  the replacement happens.
+- **CI posture:** the branch may be red. A red build is a work item, not a reason
+  to gate MIR. Do not add a flag to make CI green.
+- **Per change:** keep commits construct-sized. Each change ports a construct,
+  deletes legacy code made dead by a port, or fixes a break caused by a port.
+- **Breakage protocol:** when a suite fails, add a §12 worklist row naming the
+  construct, the exact diagnostic, and the failing suite; fix it forward. If a
+  break cannot be fixed in the same change, say so explicitly in the PR body —
+  never hide it by skipping or weakening a test.
+- **Merging from `main`:** merge periodically to limit divergence, but resolve
+  conflicts in favor of the MIR-first rules. Never resolve a conflict by
+  reintroducing a flag, a capability check, or a legacy fallback.
+- **Definition of done for the branch:** the legacy AST→C translator is deleted,
+  every §11 suite meets or beats the baseline, and the release binary is under
+  4 MB.
 
 ### AI implementer checklist (copy into every PR description)
 
 - [ ] I did not add or use any flag to enable/disable MIR.
 - [ ] I did not add a legacy fallback or an `else { run legacy }` branch.
+- [ ] I did not add capability analysis (`can_lower`, `supports_mir`, ...).
 - [ ] Unsupported input produces a diagnostic, not a silent fallback.
+- [ ] I did not add new functionality to the legacy translator.
 - [ ] I did not skip, weaken, or delete a test to get green.
 - [ ] I ran the suites in §11 and compared the measured numbers to the baseline.
-- [ ] Compile time and peak memory stayed within the §11 thresholds.
+- [ ] Compile time, peak memory, and binary size stayed within the §11 thresholds.
+- [ ] The release compiler binary is still under 4 MB.
 - [ ] I deleted the legacy code that my change replaces (if it is now dead).
 
 ---
+
+## Revision Notes: What Changed From v3 to v3.1
+
+| Issue | v3 | v3.1 |
+|-------|----|------|
+| Capability analysis | Not explicitly forbidden | **Banned outright** in §0 rule 3 — no `can_lower`/`supports_mir`/`select_*` |
+| Rationale | Brief note | Dedicated "Why not a flag?" section |
+| Non-functional reqs | scattered | Consolidated NFR-1..NFR-9 table in §0 |
+| Binary size | Not tracked | Hard budget: release compiler **< 4 MB**; added to §1.4 and §11 |
+| Hot-path performance | Data structures described | Added §6.9–§6.13: lazy naming, no `vector<bool>`, static opcode metadata, slot-direct merge, fused fast path, worker reuse |
+| Performance analysis | none | Added §1.5 risk→rule table |
+| Memory | Peak RSS mentioned | Per-worker/arena budgets and no-over-allocation rules in §1.2/§2 |
+| Cache correctness | not addressed | Added §3.12 build-cache keys |
+| Measurement script | Basic | Records peak RSS and binary size too |
 
 ## Revision Notes: What Changed From v2
 
@@ -103,11 +198,12 @@ rule in this section wins.
 
 ---
 
-## 0. Guiding Principles
+## Guiding Principles
 
-1. **Speed first.** Every data structure and algorithm choice is evaluated against
-   `debug_quick` compilation time. If a pass does not pay for itself in correctness
-   or required semantics, it does not exist in the quick path.
+1. **Speed, memory, and size first.** Every data structure and algorithm choice
+   is evaluated against `debug_quick` compilation time, peak memory, and compiler
+   binary size. If a pass does not pay for itself in correctness or required
+   semantics, it does not exist in the quick path.
 
 2. **MIR-first on a dedicated branch.** `mir` is the integration branch. The
    production pipeline lowers to MIR and emits from MIR from the first commit;
@@ -170,11 +266,18 @@ The savings are:
 | MIR operands | Contiguous array in function arena | Packed with instructions |
 | Value/Place tables | Dense ID-indexed vectors | Sized by AST node estimate |
 | C emission buffer | Per-function, inline + chunks | 16-64 KiB inline |
+| Move-path tree | Lazy, only for owned aggregates | no allocation for scalar-only functions |
 | Module tables | Sealed immutable, allocated once | Small, long-lived |
 | Diagnostics | Per-worker scratch, moved to coordinator | Small |
 
 No `std::unordered_map` in the instruction hot path. No `std::string` per
 instruction. No heap allocation per instruction.
+
+**No over-allocation.** Capacity estimates must be cheap and must not hoard
+memory: a scalar-only function must not allocate cleanup tables, move-path
+trees, drop flags, or debug tables. Growth beyond an estimate must fall back to
+geometric growth, never to per-item allocation. A worker's arena and side tables
+are reused across functions by resetting lengths, not reallocated per function.
 
 ### 1.3 Measurement targets
 
@@ -199,6 +302,64 @@ mir_operands_created
 mir_arena_bytes_used
 c_bytes_emitted
 ```
+
+### 1.4 Binary size budget (hard requirement)
+
+The released compiler must remain **under 4 MB**. MIR is new code added to a
+binary that already has a small release footprint; every MIR addition must be
+offset by deleted legacy code so the size stays flat or shrinks.
+
+Rules:
+
+- **No new heavyweight dependency.** No MLIR, no Boost, no regex/JSON/ICU pulling
+  into the compiler core. MIR headers must not include LLVM headers; the LLVM
+  emitter is a separate translation unit linked only into `Compiler`, never into
+  `TCCCompiler`.
+- **No virtual instruction hierarchy, no `std::variant`, no `std::function` in
+  the MIR hot path.** These bloat both code and binary. Use tagged POD records
+  and plain switch dispatch.
+- **No per-instruction strings.** Opcode names live in one static `const char*`
+  table used only by the dump, not stored per instruction.
+- **Keep the dump small.** `--dump-mir` is a debug aid; its formatter must be a
+  compact switch, not a generic serialization framework.
+- **Delete as you add.** When a legacy construct is ported, its translator and
+  exclusive helpers are deleted in the same PR family. Net binary growth across
+  the whole branch must stay within the §11 threshold.
+- **Header hygiene.** MIR types shared with the emitter and interpreter must be
+  self-contained and dependency-light; avoid including the full AST or compiler
+  headers in MIR headers.
+
+Measurement: record the size of the release `TCCCompiler` and `Compiler`
+binaries before and after each milestone (`lang/docs/baseline/*-size.txt`), and
+treat a >2% net growth (or any crossing of the 4 MB line) as a blocker.
+
+The size-sensitive release artifact is the TinyCC-based `chemical`
+(`TCCCompiler`); it must remain **under 4 MB**. The LLVM-based `Compiler` links
+LLVM/Clang/LLD, so its absolute size is dominated by that dependency — record its
+pre-MIR size and hold MIR's *delta* to the same 2% rule. MIR must never be the
+reason a release binary crosses 4 MB.
+
+### 1.5 Performance analysis: where MIR could lose, and the rule that prevents it
+
+MIR adds an explicit representation and a second walk (lower then emit). Those
+are the two places it can lose. The rest of the plan is built to keep both cheap.
+
+| Risk | Why it would hurt | Rule that prevents it |
+|------|-------------------|-----------------------|
+| Second AST walk + retained MIR | allocation and an extra instruction traversal | §6.12 fused lower→emit for straight-line `debug_quick`; arena dropped after emit |
+| Hash maps per function/instruction | cache misses, allocation | dense ID-indexed tables; no hash in the hot path (§6.1) |
+| Per-instruction metadata | 16-byte instruction bloats to 32+ and adds writes | effects/portability/safety are static opcode tables (§6.10) |
+| Eager C names | work for values never materialized; strings allocated | lazy naming, direct buffer writes (§6.9) |
+| Arena growth copying | large functions re-copy instruction arrays | one cheap AST estimate + geometric growth; no per-item alloc (§1.2) |
+| Move-path trees for scalar code | wasted nodes/flags | lazy, owned-aggregate only (§1.2, §2.8) |
+| Full verifier in `debug_quick` | domination/lifetime dataflow on every compile | cheap local checks only; full verify is opt-in (§1.3) |
+| Artifact sort at merge | n log n + nondeterminism fear | preassigned slots, slot-direct append (§6.11) |
+| Worker context churn | per-function heap allocation/nondeterminism | reusable worker storage, reset lengths (§6.13) |
+| Scheduling tiny functions | task overhead exceeds work | measured threshold; batch small files (§4 Stage 9) |
+| Binary creep | new MIR code on top of old legacy code | delete replaced legacy in the same change; <4 MB hard |
+
+If a proposed MIR feature cannot be made to fit one of these rules, it needs a
+recorded exception with a measurement — not a silent permanent cost.
 
 ---
 
@@ -243,8 +404,10 @@ class MIRArena {
 ```
 
 The inline buffer is the first chunk. For functions that fit in 32 KiB of MIR
-data (the majority), no heap allocation occurs. Chunks are never freed during
-lowering — they are freed all at once when the function artifact is complete.
+data (the majority), no heap allocation occurs. Chunks are retained and reset
+(`reset()` zeroes the used counts) for the next function on the same worker, and
+freed once when the worker is destroyed. They are never individually freed during
+lowering.
 
 ### 2.2 MIRArray<T>
 
@@ -335,7 +498,8 @@ struct MIRFunction {
     // Block metadata — each block knows its instruction range
     MIRArray<MIRBlock> blocks;
 
-    // Dense ID-indexed tables — sized at function start, never resized
+    // Dense ID-indexed tables — sized to a cheap AST estimate at function start;
+    // grown geometrically if the estimate is exceeded (never per-item alloc)
     MIRValueTable values;           // ValueId -> MIRValueDef
     MIRPlaceTable places;           // PlaceId -> MIRPlaceDef
     MIRCleanupScopeTable cleanups;  // cleanup scope stack
@@ -607,7 +771,7 @@ When a construct is not yet implemented:
 
 1. The lowerer emits a structured diagnostic with a source location.
 2. The compilation fails; no artifact is published.
-3. The construct is added to the replacement worklist in §10.
+3. The construct is added to the replacement worklist in §12.
 4. The next commit implements it. Do not add a fallback, and do not skip the
    test that exercises it.
 
@@ -655,7 +819,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* val) {
         default:
             // Report diagnostic: "unsupported MIR lowering for <node kind>"
             // Return an error result. This FAILS the compile; there is no
-            // legacy fallback (§0). The construct goes on the §10 worklist.
+            // legacy fallback (§0). The construct goes on the §12 worklist.
             return MIRExprResult::error();
     }
 }
@@ -665,7 +829,7 @@ The lowerer returns an error result. The caller (`lower_function`) propagates a
 `LoweringResult::Error`; module compilation fails after the parallel workers
 finish. The orchestrator does **not** run legacy 2c on the function and does not
 publish a partial artifact. The construct is added to the replacement worklist
-in §10 and implemented in the next commit.
+in §12 and implemented in the next commit.
 
 Error diagnostics are collected in the worker's scratch diagnostic buffer.
 They are NOT printed from the worker (that would race on `print_mutex`).
@@ -778,6 +942,22 @@ struct MIRModuleContext {
 All fields are const references or spans into data owned by `MIRModule` or
 the compiler infrastructure. Workers receive a `const MIRModuleContext&` and
 never mutate it.
+
+### 3.12 Build-cache and incremental keys
+
+The Lab build system caches compiled units. MIR changes the emitted C (and later
+LLVM), so correctness depends on cache invalidation:
+
+- The MIR lowering/emitter version must be part of the cache key. Changing
+  lowering, cleanup order, expression compaction, or naming must invalidate
+  cached artifacts; otherwise a stale object hides a regression.
+- Never "fix" a cache mismatch by disabling caching; fix the key.
+- Record the cache mode used for the §11 baseline. `scripts/test.sh` defaults to
+  `--no-cache`, so the recorded suite numbers are no-cache unless stated; also
+  record a `--cache` run so cached and uncached compile times are both baselined.
+- A cached object must be produced by the same MIR version that would be produced
+  uncached. If a cache hit and a clean build disagree, that is a bug, not a
+  speedup.
 
 ---
 
@@ -1024,7 +1204,7 @@ before parallel lowering starts.
 - Comptime → handled by the AST interpreter before MIR (§3.8), not a fallback
 
 At this stage the branch will fail to compile most of the test suite. That is the
-expected state of a MIR-first branch (§0 rule 4); the failures are the worklist.
+expected state of a MIR-first branch (§0 rule 5); the failures are the worklist.
 
 **Files to create:**
 ```
@@ -1128,7 +1308,7 @@ invokes the MIR emitter for **every** function it encounters. `ToCAstVisitor`
 is no longer called from the production path. Constructs MIR does not yet cover
 become compile errors and are ported in later stages (Stages 5/6/7); they are
 never routed back to legacy. The branch is expected to be red until coverage
-catches up (§0 rule 4).
+catches up (§0 rule 5).
 
 **Files to create:**
 ```
@@ -1147,16 +1327,17 @@ class MIREmitter {
     // Name assignment (MIR IDs → C identifiers)
     // Dense vectors, indexed by ValueId/PlaceId
     // Names are generated deterministically: __chx_v_N, __chx_p_N
-    std::vector<uint32_t> value_name_ids;  // maps ValueId → name index
-    std::vector<uint32_t> place_name_ids;  // maps PlaceId → name index
+    std::vector<uint32_t> value_name_ids;  // lazily assigned; sentinel = unnamed
+    std::vector<uint32_t> place_name_ids;  // lazily assigned; sentinel = unnamed
     unsigned next_name_counter;
 
-    chem::string get_value_name(ValueId id);
-    chem::string get_place_name(PlaceId id);
+    // Write a generated name directly into the output buffer (no temp string).
+    void write_value_name(ValueId id);
+    void write_place_name(PlaceId id);
 
-    // Expression compaction state
-    // Updated during emission, not a separate pass
-    std::vector<bool> value_emitted_inline;  // tracks which values were inlined
+    // Expression compaction state (dense byte array, never std::vector<bool>)
+    // Updated during emission, not a separate pass.
+    std::vector<uint8_t> value_emitted_inline;
 
     void emit_function();
     void emit_block(BlockId block);
@@ -1550,24 +1731,29 @@ struct MIRTaskContext {
 5. Returns `MIRFunctionArtifact` containing the C bytes and metadata.
 6. Arena is reset (or the whole context is discarded).
 
-**Artifact merge:**
+**Artifact merge (slot-direct; no sort):**
 ```cpp
 void MIRLowerContext::merge_module() {
-    // Sort artifacts by source_order (deterministic)
-    std::sort(artifacts.begin(), artifacts.end(),
-              [](const auto& a, const auto& b) {
-                  return a.source_order < b.source_order;
-              });
-
-    // Concatenate into final module buffer
-    for(auto& artifact : artifacts) {
-        module_writer.write(artifact.c_bytes);
+    // Slots were preassigned in source order during prepare_module(), so the
+    // merge is a linear walk. No sort, no map, deterministic by construction.
+    for(auto& slot : function_slots) {
+        if(slot.artifact.has_value()) {
+            module_writer.write(slot.artifact->c_bytes);
+        }
     }
 }
 ```
 
 **Performance gate:** Parallel MIR must be ≥1.5x faster than serial MIR on
-4+ core machines for modules with ≥10 functions.
+4+ core machines for modules with ≥10 sufficiently large functions.
+
+**Default posture:** Serial lowering is the default. Parallelism is enabled only
+above a measured function/module size threshold so that small modules do not pay
+thread-pool and artifact overhead. The threshold lives in benchmark configuration
+and is re-measured against the §11 baseline; it is not a feature gate on MIR
+semantics. If parallel lowering ever regresses a suite's time or peak memory, the
+threshold is raised or parallel lowering is disabled for that shape — MIR still
+runs; only the scheduling changes.
 
 ---
 
@@ -1728,6 +1914,72 @@ The `destroy` is safe because `%rhs` is already computed and `%p0` is no
 longer used (the call returned). The old x's data is not needed after this
 point.
 
+### 6.9 Lazy C-name assignment
+
+Do **not** assign a C name to every MIR value or place up front. Most values are
+either inlined (single-use pure scalar) or never materialized. Name assignment is
+O(1) but an eager dense name table costs a vector probe and, worse, emits
+unnecessary locals.
+
+- Name a value/place only when it is actually materialized in the output.
+- Use a dense `uint32_t name_id` table seeded to a sentinel; assign on demand
+  from the emitter's counter.
+- Never build a `chem::string` for a name that will be discarded; write the
+  generated name directly into the output buffer.
+
+### 6.10 Per-opcode static metadata, not per-instruction bloat
+
+Effects (`Pure`/`Read`/`Write`/`Call`/`MayThrow`/`MayTrap`/`Volatile`/`Atomic`),
+portability classification (portable/native-only/target-layout-dependent), and
+TinyCC-safety for expression compaction are **properties of the opcode**, read
+from a static `constexpr` table. They are not stored per instruction.
+
+- `opcode_and_flags` keeps only the fixed opcode flag bits.
+- The portability class used by future JVM/Wasm rejection is `opcode_class(op)`,
+  a static lookup — no per-instruction field.
+- No per-instruction `EffectSummary` object. The effect mask is derived from the
+  opcode.
+
+This keeps `MIRInstruction` at 16 bytes and avoids a metadata allocation for
+every instruction. (The v2/v3 design's "each instruction has an EffectSummary"
+is implemented as an opcode-derived mask, not stored data.)
+
+### 6.11 Slot-direct artifact merge (no sort)
+
+Pre-assign each concrete function a stable source-order **slot** during the
+serial prologue. A worker writes its artifact into that slot. The merge step
+walks slots in order and appends their C bytes — no `std::sort`, no map, no
+key comparison. Deterministic by construction, O(n) with one append per artifact.
+
+### 6.12 Fused lower→emit fast path (straight-line, `debug_quick`)
+
+For `debug_quick`, a function with no forward control-flow joins can be lowered
+and emitted in a single streaming pass: instructions are appended to the C
+buffer as they are constructed, and the MIR instruction array is not retained
+after the function is emitted. This removes the storage and the second
+instruction walk for the most common case.
+
+Constraints (this is an internal representation choice, not a semantic flag):
+
+- Only when the function is straight-line and no retained-MIR consumer is active
+  (no `--dump-mir`, no interpreter job, no LLVM backend in that job).
+- The builder's cheap local checks still run; the full verifier is not affected
+  because it is not enabled in `debug_quick`.
+- Functions with branches use the normal build-then-emit path. A branch may later
+  be supported by per-block streaming buffers, but only with a measured win.
+
+This is optional and measured. If it does not beat build-then-emit on the §11
+baseline, it is not enabled.
+
+### 6.13 Worker-storage reuse
+
+A thread-pool worker owns one reusable context (arena, operand buffer, dense
+tables, C buffer, name counter, diagnostics) and resets lengths between
+functions. Do not construct a fresh `MIRTaskContext` with fresh heap allocations
+per function; do not retain any previous function's IDs, views, or AST pointers
+after reset. This keeps allocation churn and peak memory flat across a large
+module.
+
 ---
 
 ## 7. Risk Mitigation
@@ -1735,7 +1987,7 @@ point.
 ### 7.1 Performance and memory regression risk
 
 **Mitigation:** Measure at every stage against the recorded §11 baseline. The
-gates in §1.3 and §11 are mandatory. If MIR construction + C emission is slower
+gates in §1.4 and §11 are mandatory. If MIR construction + C emission is slower
 than the baseline, or peak memory is higher, fix it before continuing. There is
 no "accept the regression" option and no flag to sidestep it.
 
@@ -1754,7 +2006,7 @@ no "accept the regression" option and no flag to sidestep it.
 ### 7.3 Forced-migration risk (branch breaks while porting)
 
 **Mitigation:**
-- Accept breakage as the working state (§0 rule 4). Track every break as a named
+- Accept breakage as the working state (§0 rule 5). Track every break as a named
   worklist item with the construct, the failing suite, and the fix commit.
 - Never make the build green by re-adding legacy code or a gate.
 - Prefer small, construct-sized commits so a break is easy to attribute and
@@ -1829,17 +2081,21 @@ no "accept the regression" option and no flag to sidestep it.
    threshold of the baseline; no phase regresses.
 3. **Memory:** Peak compiler memory per suite is within the §11 threshold of the
    baseline.
-4. **Adoption:** MIR is the only path in the normal pipeline from PR 4 onward;
-   there is no feature flag and no fallback anywhere in the tree.
-5. **Correctness:** MIR interpreter results match compiled executable output.
-6. **Parallelism:** File-level parallel MIR lowering is ≥1.5x faster than serial.
-7. **Code quality:** MIR C output is at least as clean as the legacy 2c output.
-8. **No hidden gates:** A tree-wide search finds no `use_mir`, `--use-mir`,
-   `--no-mir`, `LoweringPath`, or `LegacyCFragment` used as a production selector.
+4. **Binary size:** The release `TCCCompiler` and `Compiler` remain **under
+   4 MB**, and net growth across the branch is within the §11 threshold.
+5. **Adoption:** MIR is the only path in the normal pipeline from PR 4 onward;
+   there is no feature flag, no fallback, and no capability analysis anywhere in
+   the tree.
+6. **Correctness:** MIR interpreter results match compiled executable output.
+7. **Parallelism:** File-level parallel MIR lowering is ≥1.5x faster than serial.
+8. **Code quality:** MIR C output is at least as clean as the legacy 2c output.
+9. **No hidden gates or support checks:** A tree-wide search finds no `use_mir`,
+   `--use-mir`, `--no-mir`, `LoweringPath`, `LegacyCFragment`, `supports_mir`,
+   `can_lower`, or equivalent capability query used as a production decision.
 
 ---
 
-## 11. Baseline Contract (Performance / Memory / Pass Rate)
+## 11. Baseline Contract (Performance / Memory / Pass Rate / Binary Size)
 
 This section is the **adherence contract**. An AI or human working on MIR must
 match these numbers. Do not "improve" them by changing the measurement
@@ -1875,6 +2131,8 @@ process, server, webview, universal; `tls` separately because it is slow):
 3. **Peak compiler memory** — peak working set of the compiler process while
    building the suite.
 4. **Phase timings** — `-bm-modules` / `-bm-files` compiler phase breakdown.
+5. **Compiler binary size** — release build of `TCCCompiler` and `Compiler`
+   (unstripped and stripped sizes recorded).
 
 ### 11.3 Recorded baseline (TCCCompiler, `debug_quick`)
 
@@ -1895,6 +2153,13 @@ Filled by PR 0. See `lang/docs/baseline/` for the raw logs and JSON.
 | universal | _pending_ | | | | | |
 | tls (separate, slow) | _pending_ | | | | | |
 
+### 11.3.1 Recorded compiler binary sizes
+
+| Binary | Config | Size | Hard limit |
+|--------|--------|-----:|-----------:|
+| `TCCCompiler` | release | _pending_ | < 4 MB |
+| `Compiler` | release | _pending_ | MIR delta ≤ 2% (LLVM link dominates absolute size) |
+
 ### 11.4 Thresholds (adherence rules)
 
 | Metric | Rule |
@@ -1904,16 +2169,18 @@ Filled by PR 0. See `lang/docs/baseline/` for the raw logs and JSON.
 | Suite build+run time | ≤ baseline × **1.05** per suite; total ≤ baseline × **1.05**. |
 | Single-phase time (`-bm-modules`) | ≤ baseline × **1.10** per phase. |
 | Peak compiler RSS | ≤ baseline × **1.05** per suite. |
+| Compiler binary size | ≤ baseline × **1.02**; release must stay **< 4 MB** (hard). |
 | C output size | ≤ baseline × **1.10** (same function set). |
 
 If a threshold cannot be met, the change is not done. Do not relax the threshold
-in the same PR that causes the regression.
+in the same PR that causes the regression. A binary-size regression is resolved
+by deleting the code the change makes dead, not by suppressing the measurement.
 
 ### 11.5 How to record / re-record
 
 ```bash
-# Full pass/fail + per-suite timing table (skip the slow tls suite):
-./scripts/test.sh --all --tcc          # write the summary to lang/docs/baseline/
+# Full pass/fail + per-suite timing + peak memory (skip the slow tls suite):
+./scripts/mir-baseline.sh --tcc --all
 
 # Per-suite manual (isolated timing + peak memory):
 ./scripts/mir-baseline.sh --tcc --suite main
@@ -1922,14 +2189,20 @@ in the same PR that causes the regression.
 ./scripts/test.sh --tcc --no-build --bm-modules
 ./scripts/test.sh --tcc --no-build --bm-files
 
+# Compiler binary size (release build):
+./scripts/configure.sh --release
+./scripts/build.sh --all
+ls -l cmake-build-debug/TCCCompiler cmake-build-debug/Compiler
+
 # Optional: LLVM backend baseline:
-./scripts/test.sh --all --llvm
+./scripts/mir-baseline.sh --llvm --all
 ```
 
-`scripts/mir-baseline.sh` records raw logs and a machine-readable JSON summary
-(`lang/docs/baseline/<backend>-<suite>.json`) and prints the Markdown rows used
-in §11.3. The pre-MIR baseline must be committed on the `mir` branch before the
-C pipeline is switched to MIR.
+`scripts/mir-baseline.sh` records raw logs, a machine-readable JSON summary
+(`lang/docs/baseline/<backend>-<suite>.json`), the compiler binary sizes
+(`lang/docs/baseline/<backend>-size.txt`), and prints the Markdown rows used in
+§11.3. The pre-MIR baseline must be committed on the `mir` branch before the C
+pipeline is switched to MIR.
 
 ---
 

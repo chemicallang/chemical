@@ -186,6 +186,13 @@ ValueId MIRBuilder::param(TypeId type) {
 
 // ── storage ────────────────────────────────────────────────────────────────
 
+void MIRBuilder::store_indirect(ValueId address, ValueId value) {
+    TypeId at = address < func_.values.size() ? func_.values[address].type : MIR_INVALID_ID;
+    TypeId vt = value < func_.values.size() ? func_.values[value].type : MIR_INVALID_ID;
+    emit(MIROpcode::Store, MIR_NULL,
+         {MIROperand::value(address, at), MIROperand::value(value, vt)});
+}
+
 PlaceId MIRBuilder::alloca(TypeId type, MIRStorageClass sc) {
     PlaceId p = new_place(type, sc);
     emit(MIROpcode::Alloca, p, {MIROperand::type(type)});

@@ -294,7 +294,16 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 MIRExprResult r = lower_expr(a, error);
                 if (!r.ok()) return r;
                 if (r.kind == MIRExprKind::Place) {
-                    args.push_back(MIROperand::place(static_cast<PlaceId>(r.id), r.type));
+                    const PlaceId pid = static_cast<PlaceId>(r.id);
+                    const TypeId pt = builder_->function().places[pid].type;
+                    const MIRTypeRecord& prec = module_.types.get(pt);
+                    if (prec.kind == MIRTypeKind::Pointer || prec.kind == MIRTypeKind::Reference) {
+                        // already an address (e.g. an aggregate parameter)
+                        args.push_back(MIROperand::value(builder_->load(pid, pt), pt));
+                    } else {
+                        const TypeId ptrt = types_.pointer_type(pt, false);
+                        args.push_back(MIROperand::value(builder_->address_of(pid, ptrt), ptrt));
+                    }
                 } else if (r.kind == MIRExprKind::Address) {
                     args.push_back(MIROperand::value(static_cast<ValueId>(r.id), r.type));
                 } else if (r.kind == MIRExprKind::Void) {
@@ -310,8 +319,13 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 return MIRExprResult::void_result();
             }
             if (needs_aggregate_path(module_, type)) {
-                error = "struct-returning call requires an explicit result place (aggregate milestone)";
-                return MIRExprResult::error();
+                const PlaceId res = builder_->alloca(type, MIRStorageClass::Temporary);
+                if (res == MIR_INVALID_ID) {
+                    error = "failed to allocate struct-return result place";
+                    return MIRExprResult::error();
+                }
+                builder_->call_sret(sym, res, args.data(), static_cast<uint32_t>(args.size()));
+                return MIRExprResult::place(res, type);
             }
             ValueId v = builder_->call_scalar(sym, type, args.data(), static_cast<uint32_t>(args.size()));
             return MIRExprResult::value(v, type);
@@ -424,6 +438,17 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             }
             MIRExprResult r = lower_expr(rs->value, error);
             if (!r.ok()) return false;
+            if (sret_) {
+                if (r.kind != MIRExprKind::Place) {
+                    error = "returning an aggregate rvalue is not yet supported (name it first)";
+                    return false;
+                }
+                builder_->emit(MIROpcode::Store, MIR_NULL,
+                               {MIROperand::value(sret_ptr_, sret_ptr_type_),
+                                MIROperand::place(static_cast<PlaceId>(r.id), sret_ret_type_)});
+                builder_->ret_void();
+                return true;
+            }
             if (r.kind != MIRExprKind::Value) {
                 error = "returning an aggregate value is not yet supported";
                 return false;
@@ -622,16 +647,21 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     // func_symbols_ persists across functions in a module so callees keep stable ids
 
     func.symbol = intern_function(decl);
+    const TypeId ret = decl->returnType ? types_.map(decl->returnType) : types_.void_type();
+    sret_ = needs_aggregate_path(module_, ret);
+    sret_ret_type_ = ret;
     {
-        // ensure the symbol's signature type is set even when the symbol was
-        // pre-declared by the module builder (which does not know the types yet)
-        TypeId ret = decl->returnType ? types_.map(decl->returnType) : types_.void_type();
         std::vector<TypeId> ptypes;
-        ptypes.reserve(decl->params.size());
-        for (FunctionParam* p : decl->params) {
-            ptypes.push_back(p && p->type ? types_.map(p->type) : types_.opaque_type());
+        if (sret_) {
+            sret_ptr_type_ = types_.pointer_type(ret, true);
+            ptypes.push_back(sret_ptr_type_);
         }
-        const TypeId ftype = types_.function_signature(ret, ptypes);
+        for (FunctionParam* p : decl->params) {
+            TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
+            if (needs_aggregate_path(module_, pt)) pt = types_.pointer_type(pt, true);
+            ptypes.push_back(pt);
+        }
+        const TypeId ftype = types_.function_signature(sret_ ? types_.void_type() : ret, ptypes);
         module_.symbols.symbols[func.symbol].type = ftype;
         func.function_type = ftype;
     }
@@ -643,9 +673,14 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     b.set_block(entry);
     func.entry_block = entry;
 
+    if (sret_) {
+        sret_ptr_ = b.param(sret_ptr_type_);
+    }
+
     // parameters: materialize an SSA param value, spill to a place, bind it
     for (FunctionParam* p : decl->params) {
         TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
+        if (needs_aggregate_path(module_, pt)) pt = types_.pointer_type(pt, true);
         ValueId pv = b.param(pt);
         PlaceId place = b.alloca(pt, MIRStorageClass::Parameter);
         if (place == MIR_INVALID_ID) {

@@ -96,6 +96,10 @@ private:
     std::unordered_map<FunctionDeclaration*, SymbolId> func_symbols_;
     std::vector<BlockId> break_targets_;
     std::vector<BlockId> continue_targets_;
+    bool sret_ = false;
+    ValueId sret_ptr_ = MIR_NULL;
+    TypeId sret_ret_type_ = MIR_INVALID_ID;
+    TypeId sret_ptr_type_ = MIR_INVALID_ID;
 };
 
 } // namespace mir

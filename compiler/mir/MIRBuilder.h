@@ -66,6 +66,8 @@ public:
     ValueId param(TypeId type);
 
     // ── storage ────────────────────────────────────────────────────────────
+    /** Store through a pointer: `*address = value`. */
+    void store_indirect(ValueId address, ValueId value);
     PlaceId alloca(TypeId type, MIRStorageClass sc = MIRStorageClass::Local);
     ValueId load(PlaceId place, TypeId type);
     void store(PlaceId place, ValueId value);

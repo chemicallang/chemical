@@ -69,6 +69,10 @@ public:
     PlaceId alloca(TypeId type, MIRStorageClass sc = MIRStorageClass::Local);
     ValueId load(PlaceId place, TypeId type);
     void store(PlaceId place, ValueId value);
+    /** Load a struct field by name: `result = base.<field>`. */
+    ValueId field_load(PlaceId base, ConstantId field_name, TypeId field_type);
+    /** Store a struct field by name: `base.<field> = value`. */
+    void field_store(PlaceId base, ConstantId field_name, ValueId value);
     ValueId address_of(PlaceId place, TypeId pointer_type);
     /** Address of a struct field; result value is typed as `field_type`. */
     ValueId field_addr(PlaceId base, ConstantId field_index, TypeId field_type);

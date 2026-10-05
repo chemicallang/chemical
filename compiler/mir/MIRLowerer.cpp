@@ -17,6 +17,8 @@
 #include "ast/values/CastedValue.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/VariableIdentifier.h"
+#include "ast/values/StructValue.h"
+#include "ast/values/StructMemberInitializer.h"
 #include "ast/values/ValueNode.h"
 #include "ast/values/AccessChain.h"
 #include "ast/structures/FunctionDeclaration.h"
@@ -79,6 +81,44 @@ PlaceId MIRLowerer::place_for_linked(ASTNode* linked) const {
     auto it = var_places_.find(linked);
     if (it == var_places_.end()) return MIR_INVALID_ID;
     return it->second;
+}
+
+PlaceId MIRLowerer::resolve_place(Value* v, std::string& error) {
+    if (!v) {
+        error = "null place expression";
+        return MIR_INVALID_ID;
+    }
+    Value* t = v;
+    if (t->val_kind() == ValueKind::AccessChain) {
+        auto* c = t->as_access_chain_unsafe();
+        if (c->values.size() == 1) t = c->values[0];
+    }
+    if (t->val_kind() != ValueKind::Identifier) {
+        error = "expression is not a simple place";
+        return MIR_INVALID_ID;
+    }
+    auto* id = t->as_identifier_unsafe();
+    const PlaceId p = place_for_linked(id->linked);
+    if (p == MIR_INVALID_ID) {
+        error = "identifier does not resolve to a local place";
+        return MIR_INVALID_ID;
+    }
+    return p;
+}
+
+bool MIRLowerer::member_name(Value* v, std::string& out, std::string& error) {
+    Value* t = v;
+    if (t && t->val_kind() == ValueKind::AccessChain) {
+        auto* c = t->as_access_chain_unsafe();
+        if (c->values.size() == 1) t = c->values[0];
+    }
+    if (!t || t->val_kind() != ValueKind::Identifier) {
+        error = "member is not an identifier";
+        return false;
+    }
+    const chem::string_view name = t->as_identifier_unsafe()->value;
+    out.assign(name.data(), name.size());
+    return true;
 }
 
 SymbolId MIRLowerer::intern_function(FunctionDeclaration* decl) {
@@ -149,8 +189,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 return MIRExprResult::error();
             }
             if (needs_aggregate_path(module_, type)) {
-                error = "loading an aggregate value is not yet supported";
-                return MIRExprResult::error();
+                return MIRExprResult::place(place, type);
             }
             return MIRExprResult::value(builder_->load(place, type), type);
         }
@@ -205,8 +244,39 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             if (chain->values.size() == 1) {
                 return lower_expr(chain->values[0], error);
             }
-            error = "field/index access chains are not yet supported in MIR";
-            return MIRExprResult::error();
+            // member access: base must resolve to a place; field name is the
+            // last chain element's identifier text
+            const PlaceId base = resolve_place(chain->values[0], error);
+            if (base == MIR_INVALID_ID) return MIRExprResult::error();
+            std::string fname;
+            if (!member_name(chain->values.back(), fname, error)) return MIRExprResult::error();
+            const ConstantId fc = module_.constants.add_string(
+                MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
+            return MIRExprResult::value(builder_->field_load(base, fc, type), type);
+        }
+        case ValueKind::StructValue: {
+            auto* sv = value->as_struct_value_unsafe();
+            const TypeId st = type;
+            const PlaceId temp = builder_->alloca(st, MIRStorageClass::Temporary);
+            if (temp == MIR_INVALID_ID) {
+                error = "failed to allocate struct temporary";
+                return MIRExprResult::error();
+            }
+            auto it = sv->values.begin();
+            while (it != sv->values.end()) {
+                auto& init = it.value();
+                MIRExprResult r = lower_expr(init.value, error);
+                if (!r.ok()) return r;
+                if (r.kind != MIRExprKind::Value) {
+                    error = "nested aggregate struct field initialization not yet supported";
+                    return MIRExprResult::error();
+                }
+                const ConstantId fc = module_.constants.add_string(
+                    MIR_INVALID_ID, init.name.data(), static_cast<uint32_t>(init.name.size()));
+                builder_->field_store(temp, fc, r.id);
+                ++it;
+            }
+            return MIRExprResult::place(temp, st);
         }
         case ValueKind::FunctionCall: {
             auto* call = value->as_func_call_unsafe();
@@ -278,8 +348,9 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 MIRExprResult r = lower_expr(vi->value, error);
                 if (!r.ok()) return false;
                 if (r.kind == MIRExprKind::Place) {
-                    error = "aggregate variable initialization not yet supported";
-                    return false;
+                    // aggregate initializer: move the temporary into the variable
+                    builder_->move_init(place, static_cast<PlaceId>(r.id), vt);
+                    return true;
                 }
                 if (r.kind != MIRExprKind::Value) {
                     error = "invalid initializer expression";
@@ -304,7 +375,24 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             Value* lhs = as->lhs;
             if (lhs->val_kind() == ValueKind::AccessChain) {
                 auto* chain = lhs->as_access_chain_unsafe();
-                if (chain->values.size() == 1) lhs = chain->values[0];
+                if (chain->values.size() == 1) {
+                    lhs = chain->values[0];
+                } else if (chain->values.size() >= 2) {
+                    const PlaceId base = resolve_place(chain->values[0], error);
+                    if (base == MIR_INVALID_ID) return false;
+                    std::string fname;
+                    if (!member_name(chain->values.back(), fname, error)) return false;
+                    const ConstantId fc = module_.constants.add_string(
+                        MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
+                    MIRExprResult r = lower_expr(as->value, error);
+                    if (!r.ok()) return false;
+                    if (r.kind != MIRExprKind::Value) {
+                        error = "aggregate field assignment not yet supported";
+                        return false;
+                    }
+                    builder_->field_store(base, fc, r.id);
+                    return true;
+                }
             }
             if (lhs->val_kind() != ValueKind::Identifier) {
                 error = "assignment target is not a simple local variable yet";

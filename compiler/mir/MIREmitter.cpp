@@ -86,6 +86,14 @@ bool symbol_name(const MIRModule& module, SymbolId sym, std::string& out) {
     return true;
 }
 
+bool constant_string(const MIRModule& module, ConstantId cid, std::string& out) {
+    if (cid >= module.constants.size()) return false;
+    const MIRConstant& c = module.constants.get(cid);
+    if (c.kind != MIRConstantKind::String) return false;
+    out.assign(module.constants.data.data() + c.data_offset, c.data_count);
+    return true;
+}
+
 } // namespace
 
 std::string c_type_of(const MIRModule& module, TypeId type) {
@@ -276,16 +284,37 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
             case MIROpcode::Load: {
                 const ValueId v = inst.result_or_place;
                 const MIROperand* p = operand_at(function, inst, 0);
+                const MIROperand* fld = operand_at(function, inst, 1);
                 if (!p) { error = "load missing place"; return false; }
-                out += c_type_of(module, function.values[v].type) + " " + vname(v) +
-                       " = " + pname(p->id) + ";\n";
+                if (fld && fld->kind() == MIROperandKind::Constant) {
+                    std::string fname;
+                    if (!constant_string(module, fld->id, fname)) {
+                        error = "field load has invalid field name";
+                        return false;
+                    }
+                    out += c_type_of(module, function.values[v].type) + " " + vname(v) +
+                           " = " + pname(p->id) + "." + fname + ";\n";
+                } else {
+                    out += c_type_of(module, function.values[v].type) + " " + vname(v) +
+                           " = " + pname(p->id) + ";\n";
+                }
                 break;
             }
             case MIROpcode::Store: {
                 const MIROperand* p = operand_at(function, inst, 0);
-                const MIROperand* v = operand_at(function, inst, 1);
-                if (!p || !v) { error = "store missing operands"; return false; }
-                out += pname(p->id) + " = " + vname(v->id) + ";\n";
+                const MIROperand* a = operand_at(function, inst, 1);
+                const MIROperand* b = operand_at(function, inst, 2);
+                if (!p || !a) { error = "store missing operands"; return false; }
+                if (a->kind() == MIROperandKind::Constant && b) {
+                    std::string fname;
+                    if (!constant_string(module, a->id, fname)) {
+                        error = "field store has invalid field name";
+                        return false;
+                    }
+                    out += pname(p->id) + "." + fname + " = " + vname(b->id) + ";\n";
+                } else {
+                    out += pname(p->id) + " = " + vname(a->id) + ";\n";
+                }
                 break;
             }
             case MIROpcode::AddressOf: {
@@ -376,6 +405,15 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     const MIROperand* v = operand_at(function, inst, 0);
                     out += "return " + operand_expr(function, module, *v) + ";\n";
                 }
+                break;
+            }
+            case MIROpcode::CopyInit:
+            case MIROpcode::MoveInit: {
+                const MIROperand* dest = operand_at(function, inst, 0);
+                const MIROperand* src = operand_at(function, inst, 1);
+                if (!dest || !src) { error = "copy/move_init missing operands"; return false; }
+                out += pname(dest->id) + " = " +
+                       (src->kind() == MIROperandKind::Place ? pname(src->id) : vname(src->id)) + ";\n";
                 break;
             }
             case MIROpcode::Br: {

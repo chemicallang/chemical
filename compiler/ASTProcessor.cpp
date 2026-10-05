@@ -37,6 +37,13 @@
 #include "ast/structures/GenericUnionDecl.h"
 #include "ast/structures/Namespace.h"
 
+#include "compiler/mir/MIRModule.h"
+#include "compiler/mir/MIRArena.h"
+#include "compiler/mir/MIRTypeBuilder.h"
+#include "compiler/mir/MIRLowerer.h"
+#include "compiler/mir/MIREmitter.h"
+#include "compiler/mangler/NameMangler.h"
+
 #ifdef COMPILER_BUILD
 #include "compiler/ctranslator/CTranslator.h"
 #endif
@@ -1808,6 +1815,82 @@ int ASTProcessor::declare_module(
 
 }
 
+namespace {
+
+bool mir_eligible_function(FunctionDeclaration* decl) {
+    if (!decl) return false;
+    if (!decl->body.has_value()) return false;
+    if (decl->is_extern()) return false;
+    if (decl->is_comptime()) return false;
+    return true;
+}
+
+std::string mir_mangle_name(NameMangler& mangler, FunctionDeclaration* decl) {
+    BufferedWriter w(256);
+    mangler.mangle(w, decl);
+    return std::string(w.data(), w.getPosition());
+}
+
+// MIR translation of a file's top-level nodes: eligible functions are lowered
+// and their C bodies emitted from MIR; other nodes still go through the legacy
+// visitor (declarations and not-yet-ported constructs) for now.
+bool mir_translate_after_declaration(
+        ToCAstVisitor& visitor,
+        mir::MIRModule& module,
+        mir::MIRTypeBuilder& types,
+        mir::MIRLowerer& lowerer,
+        mir::MIRArena& arena,
+        std::vector<ASTNode*>& nodes) {
+    (void) types;
+
+    // pass 1: pre-declare mangled symbols so cross-function calls resolve
+    for (ASTNode* node : nodes) {
+        if (node->kind() != ASTNodeKind::FunctionDecl) continue;
+        auto* decl = node->as_function();
+        if (!mir_eligible_function(decl)) continue;
+        std::string name = mir_mangle_name(visitor.mangler, decl);
+        mir::MIRSymbolRecord rec;
+        rec.kind = mir::MIRSymbolKind::Function;
+        rec.linkage = mir::MIRLinkage::Internal;
+        mir::SymbolId sym = module.symbols.add(
+            rec, name.data(), static_cast<uint32_t>(name.size()),
+            name.data(), static_cast<uint32_t>(name.size()));
+        lowerer.set_function_symbol(decl, sym);
+    }
+
+    bool had_errors = false;
+    for (ASTNode* node : nodes) {
+        if (node->kind() == ASTNodeKind::FunctionDecl) {
+            auto* decl = node->as_function();
+            if (mir_eligible_function(decl)) {
+                arena.reset();
+                mir::MIRFunction fn;
+                std::string error;
+                if (!lowerer.lower_function(decl, arena, fn, error)) {
+                    std::cerr << "[MIR] lowering failed (" << (decl->name_str())
+                              << "): " << error << "\n";
+                    had_errors = true;
+                    continue;
+                }
+                std::string c, emit_error;
+                if (!mir::emit_function_c(fn, module, c, emit_error)) {
+                    std::cerr << "[MIR] emission failed (" << (decl->name_str())
+                              << "): " << emit_error << "\n";
+                    had_errors = true;
+                    continue;
+                }
+                visitor.writer.append(c.data(), c.size());
+                continue;
+            }
+        }
+        visitor.top_level_position = visitor.writer.getPosition();
+        visitor.visit(node);
+    }
+    return had_errors;
+}
+
+} // namespace
+
 int ASTProcessor::implement_module(
     ToCAstVisitor& c_visitor,
     LabModule* module
@@ -1824,6 +1907,14 @@ int ASTProcessor::implement_module(
     // translation errors of the generics above are printed along with the first file
     bool had_errors = false;
 
+    // MIR module tables live across the files of this module so cross-function
+    // symbols/types are shared. A fresh arena per function is reset in the
+    // driver (MIR is emitted immediately, then discarded).
+    mir::MIRModule mir_module;
+    mir::MIRTypeBuilder mir_types(mir_module);
+    mir::MIRLowerer mir_lowerer(mir_module, mir_types);
+    mir::MIRArena mir_arena;
+
     // The fourth loop deals with generating function bodies present in the current module
     for(auto& file_ptr : module->direct_files) {
 
@@ -1835,8 +1926,8 @@ int ASTProcessor::implement_module(
         c_visitor.debug_comment(chem::string_view(("Translate " + file.abs_path)));
 #endif
 
-        // translating to c
-        if(translate_after_declaration(c_visitor, unit.scope.body.nodes, file.abs_path)) {
+        // translating to c: function bodies via MIR, declarations via legacy
+        if(mir_translate_after_declaration(c_visitor, mir_module, mir_types, mir_lowerer, mir_arena, unit.scope.body.nodes)) {
             had_errors = true;
         }
 

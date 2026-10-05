@@ -111,12 +111,12 @@ std::string c_type_of(const MIRModule& module, TypeId type) {
 
 namespace {
 
-bool const_literal(const MIRModule& module, ConstantId cid, std::string& out) {
+bool const_literal(const MIRModule& module, ConstantId cid, TypeId cast_type, std::string& out) {
     if (cid >= module.constants.size()) return false;
     const MIRConstant& c = module.constants.get(cid);
     switch (c.kind) {
         case MIRConstantKind::Int: {
-            out = "(" + c_type_of(module, c.type) + ")(" + std::to_string(c.bits) + "ull)";
+            out = "(" + c_type_of(module, cast_type) + ")(" + std::to_string(c.bits) + "ull)";
             return true;
         }
         case MIRConstantKind::Bool:
@@ -167,7 +167,7 @@ std::string operand_expr(const MIRFunction& fn, const MIRModule& module,
         }
         case MIROperandKind::Constant: {
             std::string s;
-            const_literal(module, op.id, s);
+            const_literal(module, op.id, op.type(), s);
             return s;
         }
         default:
@@ -196,12 +196,17 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
         fnname = "__chx_fn" + std::to_string(function.symbol);
     }
 
+    const bool is_static = function.symbol != MIR_INVALID_ID &&
+                           function.symbol < module.symbols.size() &&
+                           module.symbols.get(function.symbol).linkage == MIRLinkage::Internal;
+
     std::vector<TypeId> ptypes;
     ptypes.reserve(ftr.data_count);
     for (uint32_t i = 0; i < ftr.data_count; ++i) {
         ptypes.push_back(module.types.data[ftr.data_offset + i]);
     }
 
+    if (is_static) out += "static ";
     out += c_type_of(module, ftr.element) + " " + fnname + "(";
     if (ptypes.empty()) {
         out += "void";
@@ -238,7 +243,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const ValueId v = inst.result_or_place;
                 const MIROperand* c = operand_at(function, inst, 0);
                 std::string lit;
-                if (!c || !const_literal(module, c->id, lit)) {
+                if (!c || !const_literal(module, c->id, function.values[v].type, lit)) {
                     error = "invalid constant operand";
                     return false;
                 }
@@ -328,10 +333,10 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 }
                 call += ")";
 
-                const bool is_void = (inst.result_or_place >= module.types.size() ||
-                                      c_type_of(module, function.values.size() > inst.result_or_place
-                                                            ? function.values[inst.result_or_place].type
-                                                            : MIR_INVALID_ID) == "void");
+                const bool is_void = sret ||
+                    inst.result_or_place == MIR_NULL ||
+                    inst.result_or_place >= function.values.size() ||
+                    c_type_of(module, function.values[inst.result_or_place].type) == "void";
                 if (sret) {
                     out += call + ";\n";
                 } else if (inst.result_or_place != MIR_NULL && !is_void) {

@@ -7,6 +7,7 @@
 
 #include "compiler/mir/MIR.h"
 #include "compiler/mir/MIRBuilder.h"
+#include "compiler/mir/MIREmitter.h"
 
 #include <cassert>
 #include <cstdint>
@@ -201,12 +202,75 @@ static bool test_builder() {
     return true;
 }
 
+// ── emitter: straight-line function -> C ───────────────────────────────────
+static bool test_emitter() {
+    MIRModule module;
+    MIRTypeRecord ir;
+    ir.kind = MIRTypeKind::Int;
+    ir.flags = TF_SIGNED;
+    ir.size = 4;
+    ir.alignment = 4;
+    const TypeId i32 = module.types.intern(ir);
+
+    TypeId params[2] = {i32, i32};
+    MIRTypeRecord fr;
+    fr.kind = MIRTypeKind::Function;
+    fr.element = i32;
+    fr.data_offset = module.types.append_data(params, 2);
+    fr.data_count = 2;
+    fr.size = 8;
+    fr.alignment = 8;
+    const TypeId ftype = module.types.intern(fr);
+
+    MIRSymbolRecord srec;
+    srec.kind = MIRSymbolKind::Function;
+    srec.linkage = MIRLinkage::Internal;
+    srec.type = ftype;
+    const SymbolId sym = module.symbols.add(srec, "add", 3, "add", 3);
+
+    MIRArena arena;
+    MIRFunction fn;
+    fn.symbol = sym;
+    fn.function_type = ftype;
+    MIRBuilder b(arena, module, fn);
+    const BlockId entry = b.create_block();
+    b.set_block(entry);
+    fn.entry_block = entry;
+
+    const ValueId pa = b.param(i32);
+    const PlaceId ppa = b.alloca(i32, MIRStorageClass::Parameter);
+    b.store(ppa, pa);
+    const ValueId pb = b.param(i32);
+    const PlaceId ppb = b.alloca(i32, MIRStorageClass::Parameter);
+    b.store(ppb, pb);
+
+    const ValueId la = b.load(ppa, i32);
+    const ValueId lb = b.load(ppb, i32);
+    const ConstantId addc = module.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Add));
+    const ValueId sum = b.binary(la, lb, addc, i32);
+    b.ret(sum);
+
+    CHECK(b.ok());
+    MIRVerifyResult vr = verify_function(fn);
+    for (const auto& d : vr.diagnostics) std::cerr << "  emitter diag: " << d.message << "\n";
+    CHECK(vr.ok());
+
+    std::string out, err;
+    CHECK(emit_function_c(fn, module, out, err));
+    CHECK(out.find("add") != std::string::npos);
+    CHECK(out.find("+") != std::string::npos);
+    CHECK(out.find("return") != std::string::npos);
+    CHECK(out.find("({") == std::string::npos); // no GNU statement expressions
+    return true;
+}
+
 int main() {
     bool ok = true;
     ok &= test_arena();
     ok &= test_instruction_encoding();
     ok &= test_function_build_dump();
     ok &= test_builder();
+    ok &= test_emitter();
     if (!ok) {
         std::cerr << "mir_tests: FAILED\n";
         return 1;

@@ -900,6 +900,7 @@ add_executable(MIRTests
         compiler/mir/MIRBuilder.cpp
         compiler/mir/MIRDump.cpp
         compiler/mir/MIRVerifier.cpp
+        compiler/mir/MIREmitter.cpp
 )
 target_include_directories(MIRTests PRIVATE ${COMMON_INCLUDE_DIRS})
 

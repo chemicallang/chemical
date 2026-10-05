@@ -42,30 +42,25 @@ bool needs_aggregate_path(const MIRModule& module, TypeId type) {
            k == MIRTypeKind::Array;
 }
 
-bool binary_opcode(Operation op, MIROpcode& out) {
+bool map_binary(Operation op, MIROpcode& out, MIRBinaryOp& bop) {
     switch (op) {
-        case Operation::Addition:
-        case Operation::Subtraction:
-        case Operation::Multiplication:
-        case Operation::Division:
-        case Operation::Modulus:
-        case Operation::LeftShift:
-        case Operation::RightShift:
-        case Operation::BitwiseAND:
-        case Operation::BitwiseXOR:
-        case Operation::BitwiseOR:
-            out = MIROpcode::Binary;
-            return true;
-        case Operation::GreaterThan:
-        case Operation::GreaterThanOrEqual:
-        case Operation::LessThan:
-        case Operation::LessThanOrEqual:
-        case Operation::IsEqual:
-        case Operation::IsNotEqual:
-            out = MIROpcode::Compare;
-            return true;
-        default:
-            return false;
+        case Operation::Addition: out = MIROpcode::Binary; bop = MIRBinaryOp::Add; return true;
+        case Operation::Subtraction: out = MIROpcode::Binary; bop = MIRBinaryOp::Sub; return true;
+        case Operation::Multiplication: out = MIROpcode::Binary; bop = MIRBinaryOp::Mul; return true;
+        case Operation::Division: out = MIROpcode::Binary; bop = MIRBinaryOp::Div; return true;
+        case Operation::Modulus: out = MIROpcode::Binary; bop = MIRBinaryOp::Rem; return true;
+        case Operation::LeftShift: out = MIROpcode::Binary; bop = MIRBinaryOp::Shl; return true;
+        case Operation::RightShift: out = MIROpcode::Binary; bop = MIRBinaryOp::Shr; return true;
+        case Operation::BitwiseAND: out = MIROpcode::Binary; bop = MIRBinaryOp::BitAnd; return true;
+        case Operation::BitwiseOR: out = MIROpcode::Binary; bop = MIRBinaryOp::BitOr; return true;
+        case Operation::BitwiseXOR: out = MIROpcode::Binary; bop = MIRBinaryOp::BitXor; return true;
+        case Operation::GreaterThan: out = MIROpcode::Compare; bop = MIRBinaryOp::Gt; return true;
+        case Operation::GreaterThanOrEqual: out = MIROpcode::Compare; bop = MIRBinaryOp::Ge; return true;
+        case Operation::LessThan: out = MIROpcode::Compare; bop = MIRBinaryOp::Lt; return true;
+        case Operation::LessThanOrEqual: out = MIROpcode::Compare; bop = MIRBinaryOp::Le; return true;
+        case Operation::IsEqual: out = MIROpcode::Compare; bop = MIRBinaryOp::Eq; return true;
+        case Operation::IsNotEqual: out = MIROpcode::Compare; bop = MIRBinaryOp::Ne; return true;
+        default: return false;
     }
 }
 
@@ -155,21 +150,21 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             auto* n = value->as_negative_value_unsafe();
             MIRExprResult in = lower_expr(n->getValue(), error);
             if (!in.ok()) return in;
-            ConstantId op = module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(Operation::UnaryMinus));
+            ConstantId op = module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRUnaryOp::Neg));
             return MIRExprResult::value(builder_->unary(in.id, op, type), type);
         }
         case ValueKind::NotValue: {
             auto* n = value->as_not_value_unsafe();
             MIRExprResult in = lower_expr(n->getValue(), error);
             if (!in.ok()) return in;
-            ConstantId op = module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(Operation::LogicalNegate));
+            ConstantId op = module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRUnaryOp::Not));
             return MIRExprResult::value(builder_->unary(in.id, op, type), type);
         }
         case ValueKind::BitwiseNot: {
             auto* n = value->as_bitwise_not_unsafe();
             MIRExprResult in = lower_expr(n->getValue(), error);
             if (!in.ok()) return in;
-            ConstantId op = module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(Operation::OnesComplement));
+            ConstantId op = module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRUnaryOp::BitNot));
             return MIRExprResult::value(builder_->unary(in.id, op, type), type);
         }
         case ValueKind::Expression: {
@@ -179,11 +174,12 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             MIRExprResult rhs = lower_expr(e->secondValue, error);
             if (!rhs.ok()) return rhs;
             MIROpcode op;
-            if (!binary_opcode(e->operation, op)) {
+            MIRBinaryOp bop;
+            if (!map_binary(e->operation, op, bop)) {
                 error = "unsupported binary operator (short-circuit/logical operators need CFG)";
                 return MIRExprResult::error();
             }
-            ConstantId opc = module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(e->operation));
+            ConstantId opc = module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(bop));
             if (op == MIROpcode::Compare) {
                 return MIRExprResult::value(builder_->compare(lhs.id, rhs.id, opc, type), type);
             }

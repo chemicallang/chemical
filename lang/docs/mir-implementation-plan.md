@@ -1,12 +1,14 @@
-# MIR Implementation Plan (v3.1)
+# MIR Implementation Plan (v3.2)
 
 Status: implementation plan (derived from mir-design.md)
 Constraint: compilation speed, peak memory, and compiler binary size are the
 primary non-functional requirements — MIR must not be a bottleneck and the
 release compiler must stay under 4 MB
-Revision: v3.1 — MIR-first branch mandate (no feature flags, no legacy fallback,
+Revision: v3.2 — MIR-first branch mandate (no feature flags, no legacy fallback,
 no capability analysis), a measured performance / memory / pass-rate / binary-size
-contract AIs must match, and performance improvements to the MIR hot path
+contract AIs must match, performance improvements to the MIR hot path, generated C
+stays functionally equivalent (instruction-per-line, no `({ ... })`), and release
+size baselined from GitHub Releases
 
 ---
 
@@ -144,6 +146,13 @@ not an oversight.
 - [ ] I deleted the legacy code that my change replaces (if it is now dead).
 
 ---
+
+## Revision Notes: What Changed From v3.1 to v3.2
+
+| Issue | v3.1 | v3.2 |
+|-------|------|------|
+| Generated C | Not specified | §6.14: must be **functionally** the same, not textual; instruction-per-line; no `({ ... })`; optimize freely behind the behavioral gates |
+| Release size | `_pending_` | §11.5 baselined from GitHub Releases **v0.5.18** (zipped, per platform); next release must not exceed it |
 
 ## Revision Notes: What Changed From v3 to v3.1
 
@@ -329,9 +338,10 @@ Rules:
   self-contained and dependency-light; avoid including the full AST or compiler
   headers in MIR headers.
 
-Measurement: record the size of the release `TCCCompiler` and `Compiler`
-binaries before and after each milestone (record the numbers in §11.5), and
-treat a >2% net growth (or any crossing of the 4 MB line) as a blocker.
+Measurement: the release baseline is the set of **zipped GitHub release assets**
+(§11.5, currently v0.5.18). After each release, diff the new release's asset sizes
+against §11.5 and treat any `-tcc.zip` growth, or any crossing of the 4 MB line,
+as a blocker. Local debug sizes are only a sanity reference.
 
 The size-sensitive release artifact is the TinyCC-based `chemical`
 (`TCCCompiler`); it must remain **under 4 MB**. The LLVM-based `Compiler` links
@@ -1980,6 +1990,37 @@ per function; do not retain any previous function's IDs, views, or AST pointers
 after reset. This keeps allocation churn and peak memory flat across a large
 module.
 
+### 6.14 Generated C: functionally equivalent, instruction-per-line, no compound expressions
+
+The C that MIR emits must be **functionally the same** as the legacy C output —
+same observable behavior, same evaluation order, same lifetime semantics. It is
+**not** required to be textually the same, and in fact it should not be.
+
+- **Optimize, don't imitate.** "Functionally equivalent" is a correctness
+  requirement, not a style freeze. We will deliberately emit *less* C, *better*
+  C, and *more performant* C than legacy 2c.
+- **Instruction-per-line.** MIR is instruction-based, so each emitted C
+  statement is its own line. Functions will be longer in line count than today;
+  that is acceptable — each line is one instruction, and line count is not the
+  metric (bytes/quality/runtime are).
+- **No GNU `({ ... })` statement expressions.** Most current uses of the
+  compound-expression `(*({ ... }))` pattern exist only to make one AST value
+  simultaneously a value, an address, a struct-return result, and a temporary
+  requiring cleanup. With explicit places and result slots, almost all of these
+  disappear. The emitter must not introduce new statement-expression blocks.
+  This removes the hidden copies and temporaries TinyCC cannot optimize away and
+  is the main lever for smaller, cleaner, faster C.
+- **Correctness gate is behavioral, not textual.** Equivalence is validated by
+  the MIR interpreter, the dev-only differential oracle (§3.6) while it exists,
+  and the §11 suites — never by requiring a text diff against legacy C.
+- **No codegen bugs.** The freedom to restructure/optimize C is exactly why the
+  verifier, evaluation-order tests, and the measured baseline exist. Optimize
+  aggressively, but only behind those gates (see §6.7, §8.3).
+- **What we are replacing:** `mir-design.md` §19 catalogs the current generated-C
+  patterns (sret `(*({ ... }))`, copy-to-address `({ T t = x; &t; })`, drop-flag
+  locals, cleanup labels, hashed `goto`, pointer-walk `for-in`) with real
+  snippets and counts, and lists the optimization opportunities.
+
 ---
 
 ## 7. Risk Mitigation
@@ -2225,20 +2266,61 @@ after the W1 run.
   runs. The W1 failures in these suites are Windows-flaky (compiler-spawning
   timeouts); on Linux they pass.
 
-### 11.5 Compiler binary size
+### 11.5 Release binary size (from GitHub Releases)
 
-Measured on W1 and L1. The hard requirement is a **release** `TCCCompiler` under
-**4 MB**. The debug builds below are recorded as a reference; the release sizes
-must be recorded before the branch is complete. Linux debug binaries carry full
-DWARF debug info, so they are much larger than the Windows debug numbers; the
-hard limit applies to the release build, not to these debug figures.
+The size-sensitive artifact is the **TinyCC build** shipped as `*-tcc.zip`
+(it contains the standalone `chemical`/`TCCCompiler`). It must stay **under
+4 MB**. The full LLVM build (`<platform>-<arch>.zip`) carries LLVM/Clang/LLD and
+is tracked by delta only; the LSP (`-lsp.zip`) is recorded for reference.
 
-| Binary | Config | Size (W1) | Size (L1) | Hard limit |
-|--------|--------|----------:|----------:|-----------:|
-| `TCCCompiler` | debug | 8,956,416 B (8.5 MiB) | 65,113,136 B (62.1 MiB) | — |
-| `Compiler` | debug | 223,013,376 B (213 MiB) | 334,610,368 B (319.1 MiB) | — |
-| `TCCCompiler` | release | _pending_ | _pending_ | **< 4 MB** |
-| `Compiler` | release | _pending_ | _pending_ | MIR delta ≤ 2% (LLVM link dominates) |
+Sizes below are the **zipped GitHub release asset sizes** for the current release
+baseline **v0.5.18** (published 2026-10-02), in bytes. These are the **ceilings**
+for the next release: every `-tcc.zip` asset must be **≤** the value recorded
+here, and the goal is to reduce them over time. (Zipped sizes only compare to
+zipped sizes from another release; do not compare them to the debug figures.)
+
+| Platform / arch | TCC `-tcc.zip` | LLVM `*.zip` | LSP `-lsp.zip` |
+|-----------------|---------------:|-------------:|---------------:|
+| linux-alpine-arm64 | 3,570,845 | 85,648,371 | — |
+| linux-alpine-x64 | 3,598,191 | 90,241,026 | — |
+| linux-arm64 | 3,506,133 | 75,355,383 | 3,956,570 |
+| linux-x64 | 3,517,463 | 77,827,140 | 4,073,547 |
+| macos-arm64 | 2,758,156 | 57,934,822 | 3,288,356 |
+| macos-x64 | 2,837,293 | 60,178,904 | 3,406,461 |
+| windows-arm64 | 3,082,427 | 50,496,498 | 3,370,811 |
+| windows-mingw-arm64 | 3,244,759 | 57,906,492 | 3,559,480 |
+| windows-mingw-msvcrt-x64 | 3,454,171 | 61,424,603 | 3,778,222 |
+| windows-mingw-x64 | 3,317,075 | 61,229,574 | 3,665,066 |
+| windows-x64 | 3,157,241 | 56,025,837 | 3,449,409 |
+
+Worst-case TCC asset: **3,598,191 B** (`linux-alpine-x64`) — the hard 4 MB limit
+is currently satisfied. Keep it that way; do not let the next release exceed any
+v0.5.18 asset.
+
+**Rule:** MIR must not increase the released `-tcc.zip` size on any platform.
+If it does, reduce elsewhere or delete the code the change makes dead before the
+next release.
+
+**Comparison procedure** (after the next release, e.g. `v0.5.19`):
+
+```bash
+# List a release's zipped asset sizes and diff against the v0.5.18 ceilings:
+gh release view v0.5.19 --json assets \
+  -q '.assets[] | "\(.name)\t\(.size)"' | sort
+# or without gh:
+curl -s https://api.github.com/repos/chemicallang/chemical/releases/tags/v0.5.19 \
+  | grep -E '"name"|"size"' | paste - -
+```
+
+**Local debug sizes (reference only, not the gate):**
+
+| Binary | Config | Size (W1) | Size (L1) |
+|--------|--------|----------:|----------:|
+| `TCCCompiler` | debug | 8,956,416 B (8.5 MiB) | 65,113,136 B (62.1 MiB) |
+| `Compiler` | debug | 223,013,376 B (213 MiB) | 334,610,368 B (319.1 MiB) |
+
+Linux debug binaries carry full DWARF info, so they are much larger than Windows
+debug numbers; the `< 4 MB` limit applies to the release asset, not to these.
 
 ### 11.6 Thresholds (adherence rules)
 
@@ -2252,8 +2334,8 @@ regression.
 | Suite wall time | ≤ baseline mean × **1.05** per suite; total ≤ baseline × **1.05**. |
 | Single-phase time (`-bm-modules`) | ≤ baseline × **1.10** per phase. |
 | Peak compiler RSS | ≤ baseline × **1.05** per suite. |
-| Compiler binary size | ≤ baseline × **1.02**; release `TCCCompiler` must stay **< 4 MB** (hard). |
-| C output size | ≤ baseline × **1.10** (same function set). |
+| Release binary size | Every GitHub `-tcc.zip` asset ≤ its **v0.5.18** size (§11.5); worst case < **4 MB** (hard). |
+| C output size | ≤ baseline × **1.10** (same function set), and generated C must stay functionally equivalent (§6.14). |
 
 If a threshold cannot be met, the change is not done. Do not relax the threshold
 in the same PR that causes the regression. A binary-size regression is resolved
@@ -2268,14 +2350,14 @@ by deleting the code the change makes dead, not by suppressing the measurement.
 # Averaged pass/fail + suite times + peak memory in one command:
 ./scripts/mir-baseline.sh --tcc --all --repeat 3
 
-# Compiler binary size (release build):
-./scripts/configure.sh --release && ./scripts/build.sh --tcc
-ls -l cmake-build-debug/TCCCompiler
+# Release binary size: compare GitHub release assets against the v0.5.18 ceilings
+# (see §11.5) after each release. Local debug sizes are only a sanity reference.
+gh release view v0.5.18 --json assets -q '.assets[] | "\(.name)\t\(.size)"' | sort
 ```
 
 Record the results **in this section** (it is the single source of truth).
 Raw logs are transient and are not committed. Both baselines (§11.3 W1, §11.4
-L1) are recorded and kept side by side.
+L1) and the release ceilings (§11.5) are kept here.
 
 ---
 

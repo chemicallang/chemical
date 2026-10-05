@@ -36,6 +36,8 @@
 #include "ast/structures/GenericVariantDecl.h"
 #include "ast/structures/GenericUnionDecl.h"
 #include "ast/structures/Namespace.h"
+#include "ast/base/BaseType.h"
+#include "ast/structures/EnumDeclaration.h"
 
 #include "compiler/mir/MIRModule.h"
 #include "compiler/mir/MIRArena.h"
@@ -1825,7 +1827,7 @@ bool mir_eligible_function(FunctionDeclaration* decl) {
     return true;
 }
 
-std::string mir_mangle_name(NameMangler& mangler, FunctionDeclaration* decl) {
+std::string mir_mangle_name(NameMangler& mangler, ASTNode* decl) {
     BufferedWriter w(256);
     mangler.mangle(w, decl);
     return std::string(w.data(), w.getPosition());
@@ -1841,7 +1843,21 @@ bool mir_translate_after_declaration(
         mir::MIRLowerer& lowerer,
         mir::MIRArena& arena,
         std::vector<ASTNode*>& nodes) {
-    (void) types;
+    // pass 0: name the aggregate types emitted by declare_module so MIR's C
+    // type spelling matches the legacy struct/union/variant declarations
+    for (ASTNode* node : nodes) {
+        BaseType* bt = nullptr;
+        switch (node->kind()) {
+            case ASTNodeKind::StructDecl: bt = node->as_struct_def()->known_type(); break;
+            case ASTNodeKind::VariantDecl: bt = node->as_variant_def()->known_type(); break;
+            case ASTNodeKind::EnumDecl: bt = node->as_enum_decl()->known_type(); break;
+            default: continue;
+        }
+        if (!bt) continue;
+        const mir::TypeId tid = types.map(bt);
+        const std::string name = mir_mangle_name(visitor.mangler, node);
+        module.types.set_name(tid, name.data(), static_cast<uint32_t>(name.size()));
+    }
 
     // pass 1: pre-declare mangled symbols so cross-function calls resolve
     for (ASTNode* node : nodes) {

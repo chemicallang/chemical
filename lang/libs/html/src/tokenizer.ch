@@ -135,6 +135,8 @@ public func tokenize_html_impl(view : std::string_view) : std::vector<Token> {
         last_tag_pre : false,
         preserve_whitespace : true,
         pending_script : false,
+        pending_script_is_data : false,
+        attr_name_is_type : false,
         in_script : false
     }
 

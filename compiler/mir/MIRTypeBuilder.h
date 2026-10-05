@@ -28,6 +28,9 @@ public:
     /** Pointer to `pointee`. */
     TypeId pointer_type(TypeId pointee, bool is_mutable = false);
 
+    /** Unsigned 32-bit integer type (loop indices, array indices). */
+    TypeId u32_type() { return int_type(false, 32); }
+
     /** The module type table this maps into. */
     MIRModule& module() { return module_; }
 

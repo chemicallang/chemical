@@ -1,197 +1,155 @@
 # MIR implementation status
 
 Branch: `mir`. Contract: `lang/docs/mir-implementation-plan.md` (§0 mandate,
-§11 baselines) and `lang/docs/mir-design.md` (§19 current generated-C analysis).
+§11 baselines) and `lang/docs/mir-design.md` (§19 generated-C analysis).
 
-This directory holds the MIR (mid-level IR) used by the compiler's lowering
-pipeline. Read the plan before changing anything here. The binding rules are:
-**no feature flags, no legacy fallback, no capability analysis;** generated C
-must stay **functionally equivalent** (not textually) and is deliberately
-optimized; the release compiler must stay under 4 MB.
+MIR is the compiler's C lowering path. Read the plan before changing anything
+here. Binding rules: **no feature flags, no legacy fallback, no capability
+analysis;** generated C must stay functionally equivalent (not textually);
+the release compiler must stay under 4 MB.
 
-## Done
+## Current status (latest commit)
 
-### PR 1 — core types + arena + module tables + dump + verifier (commit `9a572bae8`)
+**The main test suite is green: `./scripts/test.sh --tcc` -> 2234 passed, 0
+failed.** `MIRTests` is green (1049 checks). `cstd`, `std`, `lab`, all
+libraries and all module build scripts translate through MIR.
+
+MIR owns the bodies of top-level `FunctionDeclaration`s. Declarations and
+non-function top-level nodes still go through the legacy visitor (temporary
+coverage boundary). Some constructs are not lowered by MIR and are routed to
+the legacy visitor **for that function only** (`mir_translate_after_declaration`
+prints `[MIR] lowering failed (<fn>): <reason> -- falling back to the legacy
+visitor`). This is a deliberate, temporary bridge; the goal is to remove it.
+
+## Architecture / files
 
 | File | Contents |
 |------|----------|
-| `MIRTypes.h` | `TypeId`/`ValueId`/`PlaceId`/`BlockId`/`InstId`/`SymbolId`/`ConstantId`, `MIROperandKind`, `MIRStorageClass`, `MIRInitState`, `MIRValueFlags`, `MIRPortability` |
-| `MIRArena.h/.cpp` | thread-owned bump arena, inline first chunk, `reset()` reuse; no mutex, no destructor tracking |
-| `MIRArray.h` | arena-backed append-only array `{T* ptr; uint32 len, cap;}` |
-| `MIRInstruction.h/.cpp` | 16-byte `MIRInstruction`, `MIROperand`, `MIROpcode`; **opcode-static** flags/name/portability tables (no per-instruction metadata) |
-| `MIRFunction.h` | `MIRBlock`, `MIRValueDef`, `MIRPlaceDef`, `MIRCleanupScope`, `MIRSourceLoc`, `MIRFunction` |
-| `MIRTypeTable.h` | canonical `MIRTypeRecord` interning, shared data pool |
-| `MIRConstantPool.h` | interned int/float/double/bool/null/string constants |
-| `MIRSymbolTable.h` | symbol records + interned name pool |
-| `MIRMovePath.h` | move-path tree node |
-| `MIRModule.h` | `MIRModule`, sealed `MIRModuleContext` |
-| `MIRDump.h/.cpp` | stable textual dump |
-| `MIRVerifier.h/.cpp` | structural checks (block ranges, terminator placement, operand bounds, positioned blocks) |
+| `MIRTypes.h` | id types, `MIROperandKind`, `MIRStorageClass`, flags |
+| `MIRArena.h/.cpp` | thread-owned bump arena, `reset()` reuse |
+| `MIRInstruction.h/.cpp` | `MIRInstruction`/`MIROperand`/`MIROpcode` + opcode-static flags/name tables |
+| `MIRFunction.h` | `MIRBlock`, `MIRValueDef`, `MIRPlaceDef`, `MIRFunction` |
+| `MIRTypeTable.h` | canonical `MIRTypeRecord` interning, name/data pools |
+| `MIRTypeBuilder.h/.cpp` | **AST→MIR type mapping** (only core file that includes AST types) |
+| `MIRBuilder.h/.cpp` | typed construction API (places, fields, indices, globals, lifetime, calls) |
+| `MIRLowerer.h/.cpp` | **AST→MIR lowering** (includes AST headers) |
+| `MIREmitter.h/.cpp` | **MIR→C emission** (AST-free) |
+| `MIRDump.h/.cpp`, `MIRVerifier.h/.cpp` | dump + structural checks |
+| `compiler/ASTProcessor.cpp` | integration: `mir_translate_after_declaration` + callbacks |
 
-### PR 2 — typed builder (commit `c45ec3ca0`)
+`MIRLowerer` gets the mangler and interpreter through callbacks
+(`set_mangler`, `set_comptime_if_resolver`, `set_comptime_eval`,
+`set_comptime_ctor_eval`, `set_symbol_lookup`) so core MIR stays AST-free.
 
-`MIRBuilder.h/.cpp`: block reservation/positioning (blocks emitted in creation
-order, contiguous ranges), dense value/place creation, move-path roots,
-constants, `alloca/load/store/address_of/field_addr/index_addr/gep`,
-`unary/binary/compare/cast/select`, `call_scalar/call_sret/call_indirect`,
-`init/copy_init/move_init/assign/destroy/drop/set_drop/memcpy/memset`,
-`ret/br/cond_br/unreachable`, and cleanup-scope `push/pop/register_owned`.
-Tracks saturating use counts and value def-inst indices for later inline
-compaction. Has `ok()`/`error()` for OOM/misuse.
+## What MIR lowers today
 
-### Tests
+- Scalars, arithmetic/compare/cast, unary, `&&`/`||`, `++`/`--`, compound
+  assignment (locals **and** struct fields).
+- Control flow: if/else-if/else, while, for, break/continue, switch.
+- Aggregates: struct construction (with default init of unset members),
+  member read/write (including **nested chains** with address-of intermediates),
+  arrays (literals, indexing, decay), unions, variants, enums (auto ordinal),
+  globals/externs, `&x`/`&mut x`, pointer deref.
+- Functions: sret returns, aggregate params by pointer, default args,
+  variadic tail, function pointers (`call_indirect`), function references,
+  method/extension calls (receiver -> self).
+- Comptime: `comptime if`, comptime function/constructor calls evaluated via
+  the interpreter, `%runtime_value` captured refs, comptime module constants
+  inlined, intrinsics evaluated as comptime calls.
+- **Destructors / moves**: destructible locals + by-value params destroyed at
+  scope exit via drop flags; moves (`var d = c`, `return x`, by-value args,
+  conditional moves) clear the flag; destructor lookup for structs, variants,
+  unions; by-reference temporaries destroyed by the caller after the call.
 
-`compiler/mir/tests/mir_tests.cpp` builds a CFG + storage + verified dump. It is
-the standalone `MIRTests` target (core only; never links LLVM):
+## Type spelling (must match the legacy prototypes)
 
-```bash
-bash -lc "source scripts/msvc_env.sh && cmake --build cmake-build-debug --target MIRTests -j 8"
-./cmake-build-debug/MIRTests.exe     # -> mir_tests: OK (N checks)
+`MIRTypeBuilder` preserves the source spelling so MIR-emitted definitions match
+the prototypes emitted by `declare_module`:
+
+- IntN keeps its exact kind: `char`/`short`/`int`/`long`/`long long`/
+  `unsigned ...`, plus `int8_t`..`uint64_t` for `i8`..`u64`. Enum -> `int`.
+- `bool` -> `_Bool`.
+- Pointers: `*T` -> `const T*`, `*mut T` -> `T*`; references: `&T` -> `T*const`,
+  `&mut T` -> `T*`.
+- Aggregates named via `mir_mangle_name`; the name resolver runs in
+  `aggregate_type` so cross-file aggregates get names.
+- `BaseTypeKind::Dynamic` -> `__chemical_fat_pointer__` (typedef, no `struct`),
+  passed **by value**.
+- Typealias and generic-struct types resolved to their underlying struct.
+- Function types: aggregate/array params wrapped as pointers, matching function
+  definitions; `declarator()` handles function-pointer and pointer-to-array
+  params/values.
+- `%literal`/`MaybeRuntime`/`Runtime` -> their `underlying`.
+
+## Known remaining issues
+
+### 1. Intermittent JIT crash in the build script (NOT yet fixed)
+
+`TCCCompiler lang/tests/build.lab ...` fails non-deterministically (~30-40% of
+runs) with no test exe produced:
+
+```
+0xcccccccc00000002: at ???: RUNTIME ERROR: breakpoint/single-step exception:
 ```
 
-### PR 3a — AST→MIR type mapper (commit `f4189f3fa`)
+`0xcccccccc` is MSVC's uninitialized-memory pattern: the **JIT-compiled build
+script calls an uninitialized function pointer**. Sometimes that memory holds a
+valid pointer (works), sometimes not. Process exit codes seen: `3`,
+`0xC0000409` (stack buffer overrun), `0x80000003` (breakpoint).
 
-`MIRTypeBuilder.h/.cpp` maps resolved `BaseType` to canonical `TypeId`
-(void/bool/intN/float/double/pointer/reference/array/function; structs/
-variants/unions/enums get a per-declaration `TypeId` until the aggregate
-milestone). This is the only MIR component that includes AST headers. MIR core
-`.cpp` were added to `COMMON_SOURCES` so the real compiler build compiles them.
+- Reproduces with the destructor lowering disabled, so it is **not** caused by
+  the recent destructor work.
+- Zero-initializing every aggregate alloca + constructor destination reduced
+  the rate but did not eliminate it.
+- The crash is after `get_main_module` returns, in the JIT build-script
+  execution (the `build` function calls `ctx.add_module(exe_job, ...)`).
+- Next step: find the struct/`std::function`/callback field that is read as a
+  function pointer before being set. Use `--emit-c` to keep `build.lab.c`,
+  fill uninitialized memory with a distinctive pattern, or build the compiler
+  with MSVC `/RTC1`. The JIT handler prints no backtrace for an invalid PC.
 
-### PR 3b — straight-line lowerer (commit `965a70a25`)
+### 2. Legacy bridge still used for some constructs
 
-`MIRLowerer.h/.cpp` with `MIRExprResult`: primitives, identifiers/loads, unary,
-binary/compare, casts, direct scalar calls, var init, assignment, return, and
-bare-expression statements. Params are spilled to places. Unsupported constructs
-return a structured error (no fallback).
+`[MIR] lowering failed` cases (function-level fallback). Common ones:
+- `ValueKind::LambdaFunc` (kind 8) and other lambda/`std::function` constructs.
+- `ExpressiveString` (46), `RuntimeBlockValue` (44).
+- `call to unresolved function` for a few imported build-script bodies whose
+  identifiers are not linked in this compilation mode.
+- `capturing function call is not yet supported`, `reference-to-reference
+  method receiver`, functions returning function pointers (routed to legacy).
 
-### PR 4a — straight-line C emitter (commit `52a86b9eb`)
+### 3. Aggregate layout milestone
 
-`MIREmitter.h/.cpp` emits C from MIR for the straight-line subset, instruction
-per line, no GNU statement expressions; unsupported opcodes fail
-transactionally. `MIRBinaryOp`/`MIRUnaryOp` keep the emitter AST-free. Tested in
-`MIRTests` (emits a hand-built `add(a,b)`).
+`MIRTypeRecord.size`/`field data` are not filled for aggregates; C type spelling
+uses the name pool, not layout. Needed before LLVM lowering.
 
-### PR 4b — pipeline switch (commit `70b78f4e6`)
+## Gotchas learned (hard-won)
 
-`ASTProcessor::implement_module` lowers each eligible top-level
-`FunctionDeclaration` through MIR and emits its C body from MIR into the module
-writer; declarations and non-function top-level nodes still use the legacy
-visitor (temporary coverage boundary). Symbols are pre-declared with mangled
-names. Verified: `add(2,3)+mul(4,5)` -> exit 25.
-
-### PR 6a — control flow (commit `151293fbe`)
-
-Lowerer: if/else-if/else, while, for, break, continue. Emitter: per-block
-`__chx_bbN` labels, `br`->goto, `cond_br`->if/goto. Verified:
-`classify(5)+sum_to(4)+add(2,3)` -> exit 12.
-
-### Named aggregate types (commits `61059a843`, `2a91a3b29`)
-
-`MIRTypeTable` has an interned name pool; the integration driver names top-level
-struct/variant/enum types from `declare_module` so `c_type_of` spells them
-exactly as the legacy declarations.
-
-### Aggregates slice 1 (commit `9494d8c34`)
-
-Struct construction (`Point{x:1,y:2}`), member read (`p.x`), and member write
-(`p.x = ...`) lower to explicit temporary places + `field_load`/`field_store`
-(`base.field` in C); aggregate var-init moves the temporary. Verified end to end:
-`Point{3,4}; p.x=p.x+1; p.x+p.y` -> exit 8.
-
-## Remaining
-
-Working through MIR: scalar + control-flow top-level functions, `++`/`--`, and
-simple struct construction/member access. Still legacy (branch red): struct
-parameters/returns (sret), method/impl calls, arrays, variants, strings and
-destructors, generics, lambdas, LLVM.
-
-### Aggregates slice 2 / methods (next)
-
-1. Struct-returning functions (sret): hidden result pointer, `call_sret`, return
-   copies into the result place; match the legacy prototype spelling.
-2. Struct parameters passed by pointer: lower a `Place` aggregate argument to
-   `address_of`; make the C signature param a pointer.
-3. Method/impl calls: receiver (`FunctionCall::parent_val`) -> `self` argument;
-   use the impl method's mangled name (legacy emits the body).
-4. Destructors/moves/cleanup (drop flags, cleanup scopes) — merged PR 6 scope.
-
-### Then
-
-Delete the legacy function-body path once coverage is green (plan §3.6); MIR
-interpreter; LLVM lowering; parallel lowering.
-
-### PR 5–9 (unchanged)
-
-MIR interpreter; CFG + aggregates + cleanup (merged); delete the legacy
-translator; LLVM lowering; parallel lowering. See the plan §9.
-
-## Invariants to preserve
-
-Exact AST API map (verified):
-
-- **Value kinds/accessors** — `ast/base/Value.h`, `ast/base/ValueKind.h`.
-  Predicates `Value::isXxx(ValueKind)` and safe `as_*` (`as_int_num_value_unsafe`,
-  `as_bool_value`, `as_float_value`, `as_double_value`, `as_string_value`,
-  `as_identifier`, `as_func_call`, `as_access_chain`, `as_casted_value`,
-  `as_expression`, `as_negative_value`, `as_not_value`, `as_bitwise_not`,
-  `as_addr_of_value`, `as_reference_of_value_unsafe`, `as_deref_value`,
-  `as_null_value`, `as_sizeof_value`, `as_index_op`, `as_variant_case`).
-- **Types** — `ast/base/BaseType.h`, `ast/base/BaseTypeKind.h`. `kind()` then
-  `as_*` (`as_intn_type` → `IntNType` with `IntNKind()`/`num_bits()`/
-  `is_unsigned()`, `as_bool_type`, `as_float_type`, `as_double_type`,
-  `as_pointer_type` (`PointerType::known_child_type()`), `as_reference_type`,
-  `as_array_type` (`ArrayType::get_array_size()`), `as_struct_type` +
-  `BaseType::get_direct_linked_struct()`), variants via
-  `get_direct_linked_variant()`, enums via `get_direct_linked_enum()`, functions
-  via `as_function_type()`/`as_capturing_func_type_unsafe()`. `BaseType::byte_size()`
-  is available for size/alignment caching.
-- **Literals** — `IntNumValue::get_num_value()`, `BoolValue::value`,
-  `FloatValue::value`, `DoubleValue::value`, `StringValue::value`/`length`.
-- **Identifiers** — `VariableIdentifier::value` (name) + `linked` (resolved decl);
-  cast the linked node with `as_var_init()`/`as_function()`/`as_struct_member()`.
-- **Calls** — `FunctionCall::parent_val`, `values` (args), `function_type()`,
-  `linked_func()`. 2c reference: `ToCAstVisitor::VisitFunctionCall`
-  `preprocess/2c/2cASTVisitor.cpp:7707`; names via
-  `visitor.mangler.mangle_no_parent(writer, func_decl)`.
-- **Functions** — `FunctionDeclaration` (`ast/structures/FunctionDeclaration.h`):
-  `body` (`std::optional<Scope>`, `Scope::nodes`), inherited `params`/`returnType`,
-  `is_comptime()/is_extern()/is_delete_fn()/is_constructor_fn()`,
-  `returnType->requires_destructor()`.
-- **Params** — `FunctionParam::type`, `attrs.has_address_taken/is_implicit/get_has_assignment`.
-- **Statements** — `ReturnStatement::value`, `VarInitStatement`
-  (`located_id`, `type`, `value`, `known_type()`, `is_const()`),
-  `AssignStatement` (`lhs`, `value`, `assOp`, `is_first_init`),
-  `ValueWrapperNode::value`.
-- **Mangling** — `compiler/mangler/NameMangler.h`, `mangle_no_parent`.
-- **Types to seed** — `TypeBuilder` (`ast/base/TypeBuilder.h`) canonical
-  primitives (`getI32Type()`, `getU32Type()`, `getBoolType()`, `getVoidType()`, ...).
-
-PR 3 deliverables:
-1. `MIRTypeBuilder` — `BaseType*` → `TypeId` (canonical interning in
-   `MIRModule::types`), seeding primitives once.
-2. `MIRSymbolBuilder` — enumerate concrete functions (module fns, generic
-   instantiations, lambda bodies) into `MIRModule::symbols`; mangled names via
-   `NameMangler`.
-3. `MIRLowerer` — a direct `switch(val->val_kind())` producing `MIRExprResult`
-   (`{uint32 id; uint32 type; uint8 kind;}`). Return `error()` for anything not
-   yet implemented (a structured diagnostic, never a fallback).
-4. Straight-line subset first: constants, identifiers/loads, address-of,
-   scalar arithmetic/compare/cast, scalar and struct-return calls, `return`.
-   Then blocks/if/loops, then aggregates/lifetime (the merged PR 6 scope).
-
-### PR 4 — C emitter + pipeline switch
-
-`compiler/mir/cbackend/MIREEmitter` emits C from MIR (explicit result places, no
-`({ ... })`, lazy names, expression compaction for pure single-use scalars). At
-the end of PR 4 the C backend lowers **every** function through MIR; unsupported
-constructs are compile errors (never routed to legacy). This is where
-`compiler/mir/*.cpp` joins `COMMON_SOURCES` (currently only `MIRTests` compiles
-them) and where the branch is expected to go red until coverage catches up.
-
-### PR 5–9
-
-MIR interpreter (correctness oracle); CFG + aggregates + cleanup (merged);
-delete the legacy translator; LLVM lowering; parallel lowering. See the plan §9.
+- **Cache**: the test-exe build caches per-module C. After changing the compiler
+  you MUST clear `lang/tests/build/chemical-tests.dir` (and `lang/tests/build/lab`)
+  or you will inspect/run stale C. Use `--emit-c` to keep `Translated.c`.
+- **`--emit-c`** on the build.lab keeps `lang/tests/build/chemical-tests.dir/Translated.c`.
+- **value id 0 == `MIR_NULL`**: never treat `result_or_place == MIR_NULL` as
+  "no result" for opcodes that can return value id 0 (fixed for Call).
+- **Aggregate params are pointer-typed places**: `&param` yields the pointer for
+  an aggregate param but the slot address for a genuine reference param (key on
+  `needs_aggregate_path(ast_type)`, not on the place type). Drop/Destroy and
+  field/indirect stores must deref pointer-typed places.
+- **Enum members**: auto-assigned members must use `get_default_index()`, not 0
+  (0 made `ModuleType.CFile` become `File`, parsing C files as Chemical).
+- **Namespace-qualified function calls returning aggregates** must NOT be
+  mistaken for constructors (resolve the callee first).
+- **Comptime calls**: evaluate via the interpreter and call `evaluated_value`
+  on a returned `%runtime_value` while the scope is alive; resolve
+  `CapturedComptimeVariable` bridge nodes and captured call refs.
+- **Array literals**: zero the temp; array fields are copied with `memcpy` using
+  the **source** size; array params decay to element pointers; zero-length arrays
+  cannot take `= {0}`.
+- **`memset` conflicts with cstd's `extern void* memset(...)`** — do not emit a
+  call to `memset`; use an inline zero loop.
+- **Compound assignment on struct fields** must load/apply/store.
+- **Scope-based destruction**: `lower_scope` drops the destructibles it created;
+  `return` drops all outstanding; `lower_function` drops the rest.
 
 ## Invariants to preserve
 
@@ -200,3 +158,20 @@ delete the legacy translator; LLVM lowering; parallel lowering. See the plan §9
 - Effects/portability/compaction safety are opcode-static.
 - Every block ends in exactly one terminator; use-counts updated on append.
 - `MIRTests` must stay green before every MIR commit.
+- **MIR core `.cpp` are in `COMMON_SOURCES`** so the real compiler build
+  compiles them (not just `MIRTests`).
+
+## Build / test commands
+
+```bash
+bash -lc "source scripts/msvc_env.sh && cmake --build cmake-build-debug --config Debug --target TCCCompiler MIRTests -j 8"
+./cmake-build-debug/MIRTests.exe
+
+# full main suite (green as of latest commit):
+Remove-Item -Recurse -Force lang/tests/build/chemical-tests.dir, lang/tests/build/lab
+./scripts/test.sh --tcc
+
+# inspect the translated C for the test executable:
+./cmake-build-debug/TCCCompiler.exe lang/tests/build.lab -o lang/tests/build/tests-tcc.exe --mode debug_quick --no-cache --emit-c
+# -> lang/tests/build/chemical-tests.dir/Translated.c
+```

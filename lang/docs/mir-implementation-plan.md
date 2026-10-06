@@ -10,6 +10,16 @@ contract AIs must match, performance improvements to the MIR hot path, generated
 stays functionally equivalent (instruction-per-line, no `({ ... })`), and release
 size baselined from GitHub Releases
 
+> **Current status (see `compiler/mir/README.md` for the living doc):** the
+> main test suite is **green** — `./scripts/test.sh --tcc` reports
+> **2234 passed, 0 failed** — and `MIRTests` is green. MIR lowers scalar +
+> control flow + aggregates + methods + comptime + destructors/moves. Two open
+> items: (1) an **intermittent JIT crash** in the build script (uninitialized
+> function pointer, `0xcccccccc...`) that is not caused by MIR lowering; (2) a
+> per-function legacy bridge for a few not-yet-lowered constructs (lambdas,
+> expressive strings, runtime blocks). `compiler/mir/README.md` has the details,
+> gotchas, and exact repro commands.
+
 ---
 
 ## 0. MIR-First Mandate (READ FIRST — BINDING)

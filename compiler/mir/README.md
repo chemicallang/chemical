@@ -83,30 +83,22 @@ the prototypes emitted by `declare_module`:
 
 ## Known remaining issues
 
-### 1. Intermittent JIT crash in the build script (NOT yet fixed)
+### 1. Intermittent JIT crash in the build script — FIXED
 
-`TCCCompiler lang/tests/build.lab ...` fails non-deterministically (~30-40% of
-runs) with no test exe produced:
+`TCCCompiler lang/tests/build.lab ...` used to fail non-deterministically
+(~30-40% of runs, no test exe produced) with `0xcccccccc00000002: at ???:
+RUNTIME ERROR: breakpoint/single-step exception:` (exit `3` / `0xC0000409` /
+`0x80000003`). Root cause: **Array MIR types set `data_count` to the array
+length but never `data_offset`, so `MIRTypeTable::equal` compared
+`data[0..len]` against the function-parameter type pool — an out-of-bounds
+`std::vector<unsigned int>` read** (MSVC "vector subscript out of range",
+`_Pos` varied 10-16). Fixed by only comparing the shared `data` pool for
+function types (commit `9c922ab00`). Verified 15/15 clean builds.
 
-```
-0xcccccccc00000002: at ???: RUNTIME ERROR: breakpoint/single-step exception:
-```
-
-`0xcccccccc` is MSVC's uninitialized-memory pattern: the **JIT-compiled build
-script calls an uninitialized function pointer**. Sometimes that memory holds a
-valid pointer (works), sometimes not. Process exit codes seen: `3`,
-`0xC0000409` (stack buffer overrun), `0x80000003` (breakpoint).
-
-- Reproduces with the destructor lowering disabled, so it is **not** caused by
-  the recent destructor work.
-- Zero-initializing every aggregate alloca + constructor destination reduced
-  the rate but did not eliminate it.
-- The crash is after `get_main_module` returns, in the JIT build-script
-  execution (the `build` function calls `ctx.add_module(exe_job, ...)`).
-- Next step: find the struct/`std::function`/callback field that is read as a
-  function pointer before being set. Use `--emit-c` to keep `build.lab.c`,
-  fill uninitialized memory with a distinctive pattern, or build the compiler
-  with MSVC `/RTC1`. The JIT handler prints no backtrace for an invalid PC.
+Diagnosis method that worked: run the compiler under lldb
+(`D:\Software\Jetbrains\CLion 2025.3.3\bin\lldb\win\x64\bin\lldb.exe --batch
+-o run -o "bt 30" -- ./cmake-build-debug/TCCCompiler.exe ...`) until the
+`Exception 0x80000003` fired at `std::vector<unsigned int>::operator[]`.
 
 ### 2. Legacy bridge still used for some constructs
 

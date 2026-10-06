@@ -611,7 +611,100 @@ bool MIRLowerer::append_default_args(FunctionDeclaration* fd, size_t provided,
     return true;
 }
 
-MIRExprResult MIRLowerer::lower_method_call(Value* receiver, FunctionCall* call, std::string& error) {
+MIRExprResult MIRLowerer::lower_member_chain(const std::vector<Value*>& values, size_t count,
+                                             std::string& error) {
+    if (count == 0) {
+        error = "empty member chain";
+        return MIRExprResult::error();
+    }
+    if (count == 1) return lower_expr(values[0], error);
+    MIRExprResult first = lower_expr(values[0], error);
+    if (!first.ok()) return first;
+    PlaceId cur_place = MIR_INVALID_ID;
+    ValueId cur_ptr = MIR_NULL;
+    bool have_ptr = false;
+    if (first.kind == MIRExprKind::Place) {
+        cur_place = static_cast<PlaceId>(first.id);
+    } else if (first.kind == MIRExprKind::Value || first.kind == MIRExprKind::Address) {
+        cur_ptr = static_cast<ValueId>(first.id);
+        have_ptr = true;
+    } else {
+        error = "member access base is not a place or pointer";
+        return MIRExprResult::error();
+    }
+    for (size_t i = 1; i < count; ++i) {
+        std::string fname;
+        if (!member_name(values[i], fname, error)) return MIRExprResult::error();
+        const ConstantId fc = module_.constants.add_string(
+            MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
+        const TypeId ft = types_.map(values[i]->getType());
+        const bool last = (i + 1 == count);
+        if (!have_ptr) {
+            if (last) {
+                if (needs_aggregate_path(module_, ft)) {
+                    return MIRExprResult::address(builder_->field_addr(cur_place, fc, ft), ft);
+                }
+                return MIRExprResult::value(builder_->field_load(cur_place, fc, ft), ft);
+            }
+            const ValueId faddr = builder_->field_addr(cur_place, fc, ft);
+            const MIRTypeRecord& ftr = module_.types.get(ft);
+            cur_ptr = (ftr.kind == MIRTypeKind::Pointer ||
+                       ftr.kind == MIRTypeKind::Reference)
+                          ? builder_->load_indirect(faddr, ft)
+                          : faddr;
+            have_ptr = true;
+        } else {
+            if (last) {
+                if (needs_aggregate_path(module_, ft)) {
+                    return MIRExprResult::address(builder_->field_addr_ptr(cur_ptr, fc, ft), ft);
+                }
+                return MIRExprResult::value(builder_->field_load_ptr(cur_ptr, fc, ft), ft);
+            }
+            const ValueId faddr = builder_->field_addr_ptr(cur_ptr, fc, ft);
+            const MIRTypeRecord& ftr = module_.types.get(ft);
+            cur_ptr = (ftr.kind == MIRTypeKind::Pointer ||
+                       ftr.kind == MIRTypeKind::Reference)
+                          ? builder_->load_indirect(faddr, ft)
+                          : faddr;
+        }
+    }
+    error = "empty member chain";
+    return MIRExprResult::error();
+}
+
+MIRExprResult MIRLowerer::lower_receiver(const std::vector<Value*>& values, size_t count,
+                                         std::string& error) {
+    if (count == 1 && values[0]) {
+        Value* v = values[0];
+        if (v->val_kind() == ValueKind::AccessChain) {
+            auto* c = v->as_access_chain_unsafe();
+            if (c->values.size() == 1) v = c->values[0];
+        }
+        const ValueKind k = v->val_kind();
+        if (k == ValueKind::DereferenceValue) {
+            // the pointer itself is the receiver address
+            MIRExprResult p = lower_expr(v->as_dereference_value_unsafe()->getValue(), error);
+            if (!p.ok()) return p;
+            return MIRExprResult::address(static_cast<ValueId>(p.id), p.type);
+        }
+        if (k == ValueKind::Identifier || k == ValueKind::AccessChain ||
+            k == ValueKind::IndexOperator) {
+            // prefer the place (needed for `&self` scalar receivers)
+            std::string perr;
+            const PlaceId p = resolve_place_or_lower(v, perr);
+            if (p != MIR_INVALID_ID) {
+                const TypeId pt = builder_->function().places[p].type;
+                return MIRExprResult::place(p, pt);
+            }
+            MIRExprResult a = lower_address_of(v, error);
+            if (a.ok()) return a;
+        }
+    }
+    return lower_member_chain(values, count, error);
+}
+
+MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_type,
+                                            FunctionCall* call, std::string& error) {
     ASTNode* lk = call->parent_val ? call->parent_val->linked_node() : nullptr;
     FunctionDeclaration* fd = lk ? lk->as_function() : nullptr;
     if (!fd && call->parent_val && call->parent_val->val_kind() == ValueKind::AccessChain) {
@@ -619,7 +712,7 @@ MIRExprResult MIRLowerer::lower_method_call(Value* receiver, FunctionCall* call,
         if (!ch->values.empty()) {
             std::string mname, merr;
             if (member_name(ch->values.back(), mname, merr)) {
-                fd = resolve_method_fallback(receiver->getType(), mname);
+                fd = resolve_method_fallback(recv_type, mname);
             }
         }
     }
@@ -627,51 +720,73 @@ MIRExprResult MIRLowerer::lower_method_call(Value* receiver, FunctionCall* call,
         error = "method call to unresolved function";
         return MIRExprResult::error();
     }
-    if (FunctionParam* self = fd->get_self_param()) {
-        if (self->type && self->type->kind() == BaseTypeKind::Reference) {
-            BaseType* inner = self->type->as_reference_type()->type;
-            if (inner && (inner->kind() == BaseTypeKind::Reference ||
-                          inner->kind() == BaseTypeKind::Pointer)) {
-                error = "reference-to-reference method receiver is not yet supported";
-                return MIRExprResult::error();
-            }
+    if (!recv.ok()) return recv;
+
+    // dynamic (interface) dispatch is not lowered here yet
+    if (recv_type && recv_type->canonical() &&
+        recv_type->canonical()->kind() == BaseTypeKind::Dynamic) {
+        error = "dynamic interface dispatch is not yet supported";
+        return MIRExprResult::error();
+    }
+
+    // the self parameter (methods and extension functions)
+    FunctionParam* self = fd->get_self_param();
+    if (!self && fd->isExtensionFn() && !fd->params.empty()) self = fd->params[0];
+    BaseType* self_t = self ? self->type : nullptr;
+    const bool by_value =
+        !self_t || (self_t->kind() != BaseTypeKind::Reference &&
+                    self_t->kind() != BaseTypeKind::Pointer);
+    BaseType* x_type = nullptr;
+    if (self_t) {
+        if (self_t->kind() == BaseTypeKind::Reference) {
+            x_type = self_t->as_reference_type()->type;
+        } else if (self_t->kind() == BaseTypeKind::Pointer) {
+            x_type = self_t->as_pointer_type()->type;
         }
     }
 
-    MIRExprResult recv = lower_expr(receiver, error);
-    if (!recv.ok()) return recv;
     std::vector<MIROperand> args;
-    if (recv.kind == MIRExprKind::Place) {
-        const PlaceId rp = static_cast<PlaceId>(recv.id);
-        const TypeId rt = builder_->function().places[rp].type;
-        const MIRTypeRecord& rr = module_.types.get(rt);
-        if (rr.kind == MIRTypeKind::Pointer || rr.kind == MIRTypeKind::Reference) {
-            args.push_back(MIROperand::value(builder_->load(rp, rt), rt));
-        } else {
-            const TypeId ptrt = types_.pointer_type(rt, true);
-            args.push_back(MIROperand::value(builder_->address_of(rp, ptrt), ptrt));
-        }
-    } else if (recv.kind == MIRExprKind::Value || recv.kind == MIRExprKind::Address) {
-        const MIRTypeRecord& rr = module_.types.get(recv.type);
-        if (rr.kind != MIRTypeKind::Pointer && rr.kind != MIRTypeKind::Reference) {
-            if (rr.kind == MIRTypeKind::Opaque && fd->get_self_param()) {
-                // the receiver node is untyped (its declaration was not fully
-                // resolved); trust the resolved method's receiver type
-                const TypeId st = types_.map(fd->get_self_param()->type);
-                args.push_back(MIROperand::value(static_cast<ValueId>(recv.id), st));
-            } else {
-                error = "method receiver must be addressable (recv kind " +
-                        std::to_string(static_cast<int>(recv.kind)) + ", type kind " +
-                        std::to_string(static_cast<int>(rr.kind)) + ", ast kind " +
-                        std::to_string(static_cast<int>(receiver->val_kind())) + ")";
-                return MIRExprResult::error();
-            }
+    if (by_value) {
+        if (recv.kind == MIRExprKind::Place) {
+            const TypeId rt = builder_->function().places[recv.id].type;
+            args.push_back(MIROperand::value(builder_->load(recv.id, rt), rt));
         } else {
             args.push_back(MIROperand::value(static_cast<ValueId>(recv.id), recv.type));
         }
+    } else if (recv.kind == MIRExprKind::Place) {
+        const TypeId rt = builder_->function().places[recv.id].type;
+        const MIRTypeRecord& rr = module_.types.get(rt);
+        const bool is_ptr = (rr.kind == MIRTypeKind::Pointer ||
+                             rr.kind == MIRTypeKind::Reference);
+        if (is_ptr && x_type && rr.element == types_.map(x_type)) {
+            // the receiver already is `X*` (a pointer to the impl target)
+            args.push_back(MIROperand::value(builder_->load(recv.id, rt), rt));
+        } else {
+            const TypeId ptrt = types_.pointer_type(rt, true);
+            args.push_back(MIROperand::value(builder_->address_of(recv.id, ptrt), ptrt));
+        }
+    } else if (recv.kind == MIRExprKind::Address) {
+        // an lvalue address (field / element): already a pointer to the receiver
+        const TypeId ptrt = types_.pointer_type(recv.type, true);
+        args.push_back(MIROperand::value(static_cast<ValueId>(recv.id), ptrt));
     } else {
-        error = "method receiver must be an addressable place";
-        return MIRExprResult::error();
+        // an rvalue: materialize a temporary and pass its address
+        const MIRTypeRecord& rr = module_.types.get(recv.type);
+        const bool is_ptr = (rr.kind == MIRTypeKind::Pointer ||
+                             rr.kind == MIRTypeKind::Reference);
+        if (is_ptr && x_type && rr.element == types_.map(x_type)) {
+            args.push_back(MIROperand::value(static_cast<ValueId>(recv.id), recv.type));
+        } else if (rr.kind == MIRTypeKind::Opaque && self) {
+            // untyped receiver node: trust the resolved method's receiver type
+            const TypeId st = types_.map(self->type);
+            args.push_back(MIROperand::value(static_cast<ValueId>(recv.id), st));
+        } else {
+            const TypeId rt = recv.type;
+            const PlaceId tmp = builder_->alloca(rt, MIRStorageClass::Temporary);
+            builder_->store(tmp, static_cast<ValueId>(recv.id));
+            const TypeId ptrt = types_.pointer_type(rt, true);
+            args.push_back(MIROperand::value(builder_->address_of(tmp, ptrt), ptrt));
+        }
     }
     if (!lower_call_args_for(fd, true, call->values, args, error)) {
         return MIRExprResult::error();
@@ -990,63 +1105,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             }
             // member access: walk the chain from the base, taking the address of
             // each intermediate field and loading the last
-            MIRExprResult first = lower_expr(chain->values[0], error);
-            if (!first.ok()) return first;
-            PlaceId cur_place = MIR_INVALID_ID;
-            ValueId cur_ptr = MIR_NULL;
-            bool have_ptr = false;
-            if (first.kind == MIRExprKind::Place) {
-                cur_place = static_cast<PlaceId>(first.id);
-            } else if (first.kind == MIRExprKind::Value ||
-                       first.kind == MIRExprKind::Address) {
-                cur_ptr = static_cast<ValueId>(first.id);
-                have_ptr = true;
-            } else {
-                error = "member access base is not a place or pointer";
-                return MIRExprResult::error();
-            }
-            const size_t n = chain->values.size();
-            for (size_t i = 1; i < n; ++i) {
-                std::string fname;
-                if (!member_name(chain->values[i], fname, error)) return MIRExprResult::error();
-                const ConstantId fc = module_.constants.add_string(
-                    MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
-                const TypeId ft = types_.map(chain->values[i]->getType());
-                const bool last = (i + 1 == n);
-                if (!have_ptr) {
-                    if (last) {
-                        if (needs_aggregate_path(module_, ft)) {
-                            // aggregate fields are returned by address (lvalue)
-                            return MIRExprResult::address(builder_->field_addr(cur_place, fc, ft),
-                                                          ft);
-                        }
-                        return MIRExprResult::value(builder_->field_load(cur_place, fc, ft), ft);
-                    }
-                    const ValueId faddr = builder_->field_addr(cur_place, fc, ft);
-                    const MIRTypeRecord& ftr = module_.types.get(ft);
-                    cur_ptr = (ftr.kind == MIRTypeKind::Pointer ||
-                               ftr.kind == MIRTypeKind::Reference)
-                                  ? builder_->load_indirect(faddr, ft)
-                                  : faddr;
-                    have_ptr = true;
-                } else {
-                    if (last) {
-                        if (needs_aggregate_path(module_, ft)) {
-                            return MIRExprResult::address(builder_->field_addr_ptr(cur_ptr, fc, ft),
-                                                          ft);
-                        }
-                        return MIRExprResult::value(builder_->field_load_ptr(cur_ptr, fc, ft), ft);
-                    }
-                    const ValueId faddr = builder_->field_addr_ptr(cur_ptr, fc, ft);
-                    const MIRTypeRecord& ftr = module_.types.get(ft);
-                    cur_ptr = (ftr.kind == MIRTypeKind::Pointer ||
-                               ftr.kind == MIRTypeKind::Reference)
-                                  ? builder_->load_indirect(faddr, ft)
-                                  : faddr;
-                }
-            }
-            error = "empty member chain";
-            return MIRExprResult::error();
+            return lower_member_chain(chain->values, chain->values.size(), error);
         }
         case ValueKind::StructValue: {
             auto* sv = value->as_struct_value_unsafe();
@@ -1314,11 +1373,11 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     const bool needs_receiver =
                         mfd && (mfd->get_self_param() != nullptr || mfd->isExtensionFn());
                     if (needs_receiver) {
-                        if (chain->values.size() != 2) {
-                            error = "chained method calls are not yet supported";
-                            return MIRExprResult::error();
-                        }
-                        return lower_method_call(chain->values[0], call, error);
+                        const size_t n = chain->values.size();
+                        MIRExprResult recv = lower_receiver(chain->values, n - 1, error);
+                        if (!recv.ok()) return recv;
+                        BaseType* rtype = chain->values[n - 2]->getType();
+                        return lower_method_call(recv, rtype, call, error);
                     }
                     // otherwise: namespace/type-qualified free function or a
                     // static method -- fall through to the direct-call path,
@@ -2188,7 +2247,10 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             auto* acn = node->as_access_chain_node_unsafe();
             auto& vals = acn->chain.values;
             if (vals.size() == 2 && vals[1] && vals[1]->val_kind() == ValueKind::FunctionCall) {
-                MIRExprResult r = lower_method_call(vals[0], vals[1]->as_func_call_unsafe(), error);
+                MIRExprResult recv = lower_receiver(vals, 1, error);
+                if (!recv.ok()) return false;
+                MIRExprResult r = lower_method_call(recv, vals[0]->getType(),
+                                                    vals[1]->as_func_call_unsafe(), error);
                 return r.ok();
             }
             MIRExprResult r = lower_expr(&acn->chain, error);

@@ -148,7 +148,14 @@ private:
     void emit_drops();
     bool append_default_args(FunctionDeclaration* fd, size_t provided, bool self_included,
                              std::vector<MIROperand>& args, std::string& error);
-    MIRExprResult lower_method_call(Value* receiver, FunctionCall* call, std::string& error);
+    /** Walk `values[0..count-1]` as a member chain, returning the last field. */
+    MIRExprResult lower_member_chain(const std::vector<Value*>& values, size_t count,
+                                     std::string& error);
+    /** Lower a method-call receiver: prefer its place, else the member chain. */
+    MIRExprResult lower_receiver(const std::vector<Value*>& values, size_t count,
+                                 std::string& error);
+    MIRExprResult lower_method_call(MIRExprResult recv, BaseType* recv_type, FunctionCall* call,
+                                    std::string& error);
 
     // ── async / coroutine lowering ─────────────────────────────────────────
     bool lower_async_function(FunctionDeclaration* decl, MIRArena& arena, MIRFunction& func,

@@ -548,7 +548,18 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     }
                     out += member_access(function, module, p->id, fname) + " = " + rhs + ";\n";
                 } else {
-                    out += place_name(module, function, p->id) + " = " + operand_expr(function, module, *a) + ";\n";
+                    std::string rhs;
+                    if (a->kind() == MIROperandKind::Place) {
+                        const MIRTypeRecord& atr =
+                            module.types.get(function.places[a->id].type);
+                        rhs = (atr.kind == MIRTypeKind::Pointer ||
+                               atr.kind == MIRTypeKind::Reference)
+                                  ? ("*" + place_name(module, function, a->id))
+                                  : place_name(module, function, a->id);
+                    } else {
+                        rhs = operand_expr(function, module, *a);
+                    }
+                    out += place_name(module, function, p->id) + " = " + rhs + ";\n";
                 }
                 break;
             }

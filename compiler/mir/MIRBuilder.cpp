@@ -421,6 +421,31 @@ ValueId MIRBuilder::gep(ValueId base, TypeId result_type,
     return v;
 }
 
+ValueId MIRBuilder::size_of(TypeId for_type, TypeId result_type) {
+    ValueId v = new_value(result_type, VF_PURE);
+    uint32_t i = emit(MIROpcode::SizeOf, v,
+                      {MIROperand::type(for_type), MIROperand::type(result_type)});
+    note_result_value(v, i);
+    return v;
+}
+
+ValueId MIRBuilder::align_of(TypeId for_type, TypeId result_type) {
+    ValueId v = new_value(result_type, VF_PURE);
+    uint32_t i = emit(MIROpcode::AlignOf, v,
+                      {MIROperand::type(for_type), MIROperand::type(result_type)});
+    note_result_value(v, i);
+    return v;
+}
+
+ValueId MIRBuilder::offset_of(TypeId for_type, ConstantId field, TypeId result_type) {
+    ValueId v = new_value(result_type, VF_PURE);
+    uint32_t i = emit(MIROpcode::OffsetOf, v,
+                      {MIROperand::type(for_type), MIROperand::constant(field, MIR_INVALID_ID),
+                       MIROperand::type(result_type)});
+    note_result_value(v, i);
+    return v;
+}
+
 // ── arithmetic ─────────────────────────────────────────────────────────────
 
 ValueId MIRBuilder::unary(ValueId operand, ConstantId op, TypeId result_type) {

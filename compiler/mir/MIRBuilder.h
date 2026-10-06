@@ -112,6 +112,12 @@ public:
     ValueId index_addr_ptr(ValueId base, ValueId index, TypeId element_type);
     ValueId gep(ValueId base, TypeId result_type,
                 std::initializer_list<ValueId> indices);
+    /** `sizeof(type)` */
+    ValueId size_of(TypeId for_type, TypeId result_type);
+    /** `_Alignof(type)` */
+    ValueId align_of(TypeId for_type, TypeId result_type);
+    /** `offsetof(type, field)` */
+    ValueId offset_of(TypeId for_type, ConstantId field, TypeId result_type);
 
     // ── arithmetic / conversion ────────────────────────────────────────────
     ValueId unary(ValueId operand, ConstantId op, TypeId result_type);

@@ -1966,6 +1966,20 @@ int ASTProcessor::implement_module(
     mir_lowerer.set_mangler([&c_visitor](ASTNode* n) {
         return mir_mangle_name(c_visitor.mangler, n);
     });
+    mir_lowerer.set_vtable_mangler([&c_visitor](ASTNode* iface, BaseType* impl) -> std::string {
+        if (!iface || !impl) return std::string();
+        BufferedWriter w(256);
+        auto* idef = iface->as_interface_def_unsafe();
+        ASTNode* inode = impl->get_direct_linked_canonical_node();
+        if (!inode) inode = impl->get_direct_linked_node();
+        auto* container = inode ? inode->as_extendable_member_container() : nullptr;
+        if (container) {
+            c_visitor.mangler.mangle_vtable_name(w, idef, container);
+        } else {
+            c_visitor.mangler.mangle_vtable_name(w, idef, impl);
+        }
+        return std::string(w.data(), w.getPosition());
+    });
     mir_lowerer.set_comptime_if_resolver([&c_visitor](IfStatement* stmt, std::string& err) -> Scope* {
         auto resolved = stmt->get_or_resolve_scope(c_visitor.comptime_scope, c_visitor);
         if (!resolved.has_value() || resolved.value() == nullptr) {

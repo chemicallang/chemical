@@ -95,6 +95,11 @@ public:
         mangler_ = std::move(fn);
     }
 
+    /** Mangler for a dynamic-dispatch vtable global (interface + impl type). */
+    void set_vtable_mangler(std::function<std::string(ASTNode*, BaseType*)> fn) {
+        vtable_mangler_ = std::move(fn);
+    }
+
     /** Resolve the taken scope of a `comptime if` (evaluated by the interpreter). */
     void set_comptime_if_resolver(std::function<Scope*(IfStatement*, std::string&)> fn) {
         comptime_if_resolver_ = std::move(fn);
@@ -210,6 +215,7 @@ private:
     std::unordered_map<ASTNode*, SymbolId> global_symbols_;
     std::unordered_map<std::string, SymbolId> named_globals_;
     std::function<std::string(ASTNode*)> mangler_;
+    std::function<std::string(ASTNode*, BaseType*)> vtable_mangler_;
     std::function<Scope*(IfStatement*, std::string&)> comptime_if_resolver_;
     std::function<Value*(FunctionCall*, FunctionDeclaration*)> comptime_eval_;
     std::function<Value*(FunctionDeclaration*, Value*)> comptime_ctor_eval_;

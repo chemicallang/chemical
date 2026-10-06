@@ -31,6 +31,7 @@
 #include "ast/values/ArrayValue.h"
 #include "ast/values/StructValue.h"
 #include "ast/values/RuntimeValue.h"
+#include "ast/values/DynamicValue.h"
 #include "ast/values/ComptimeValue.h"
 #include "ast/structures/CapturedComptimeVariable.h"
 #include "ast/values/StructMemberInitializer.h"
@@ -99,6 +100,20 @@ bool needs_aggregate_path(const MIRModule& module, TypeId type) {
     const MIRTypeRecord& rec = module.types.get(type);
     if (rec.flags & TF_TYPEDEF) return false; // dynamic fat pointer: passed by value
     const MIRTypeKind k = rec.kind;
+    return k == MIRTypeKind::Struct || k == MIRTypeKind::Union || k == MIRTypeKind::Variant ||
+           k == MIRTypeKind::Array;
+}
+
+/**
+ * Whether a value of `type` is returned through a hidden sret pointer. This is
+ * true for every struct-like type (including typedef structs such as the
+ * dynamic fat pointer), matching the legacy prototype ABI. It differs from
+ * `needs_aggregate_path`, which excludes typedef structs because those are
+ * *passed by value*.
+ */
+bool needs_sret_return(const MIRModule& module, TypeId type) {
+    if (type == MIR_INVALID_ID || type >= module.types.size()) return false;
+    const MIRTypeKind k = module.types.get(type).kind;
     return k == MIRTypeKind::Struct || k == MIRTypeKind::Union || k == MIRTypeKind::Variant ||
            k == MIRTypeKind::Array;
 }
@@ -902,7 +917,7 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
         destroy_call_temps(error);
         return MIRExprResult::void_result();
     }
-    if (needs_aggregate_path(module_, type)) {
+    if (needs_sret_return(module_, type)) {
         const PlaceId res = builder_->alloca(type, MIRStorageClass::Temporary);
         if (res == MIR_INVALID_ID) {
             error = "failed to allocate method result place";
@@ -1594,7 +1609,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         builder_->call_indirect(fnptr, rt, cargs.data(), static_cast<uint32_t>(cargs.size()));
                         return MIRExprResult::void_result();
                     }
-                    if (needs_aggregate_path(module_, rt)) {
+                    if (needs_sret_return(module_, rt)) {
                         // aggregate return: use the sret convention (the callee
                         // returns void and writes through a leading pointer)
                         const PlaceId tmp = builder_->alloca(rt, MIRStorageClass::Temporary);
@@ -1631,7 +1646,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 destroy_call_temps(error);
                 return MIRExprResult::void_result();
             }
-            if (needs_aggregate_path(module_, type)) {
+            if (needs_sret_return(module_, type)) {
                 const PlaceId res = builder_->alloca(type, MIRStorageClass::Temporary);
                 if (res == MIR_INVALID_ID) {
                     error = "failed to allocate struct-return result place";
@@ -1834,6 +1849,47 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         }
         case ValueKind::RuntimeValue:
             return lower_expr(static_cast<RuntimeValue*>(value)->underlying, error);
+        case ValueKind::DynamicValue: {
+            auto* dv = static_cast<DynamicValue*>(value);
+            BaseType* iface_t = dv->getInterfaceType();
+            ASTNode* iface_node =
+                iface_t ? iface_t->get_direct_linked_canonical_node() : nullptr;
+            if (!iface_node || !vtable_mangler_) {
+                error = "dynamic value interface could not be resolved";
+                return MIRExprResult::error();
+            }
+            const std::string vt =
+                vtable_mangler_(iface_node, dv->value ? dv->value->getType() : nullptr);
+            if (vt.empty()) {
+                error = "dynamic value vtable name is empty";
+                return MIRExprResult::error();
+            }
+            const TypeId ft = types_.fat_pointer_type();
+            const TypeId voidp = types_.pointer_type(types_.opaque_type(), true);
+            const PlaceId temp = builder_->alloca(ft, MIRStorageClass::Temporary);
+            builder_->zero_init(temp);
+            MIRExprResult obj = lower_address_of(dv->value, error);
+            if (!obj.ok()) return obj;
+            ValueId obj_ptr = MIR_NULL;
+            if (obj.kind == MIRExprKind::Place) {
+                const TypeId pt = builder_->function().places[obj.id].type;
+                obj_ptr = builder_->address_of(obj.id, types_.pointer_type(pt, true));
+            } else if (obj.kind == MIRExprKind::Value || obj.kind == MIRExprKind::Address) {
+                obj_ptr = static_cast<ValueId>(obj.id);
+            } else {
+                error = "dynamic value operand is not addressable";
+                return MIRExprResult::error();
+            }
+            const ConstantId first_c =
+                module_.constants.add_string(MIR_INVALID_ID, "first", 5);
+            builder_->field_store(temp, first_c, obj_ptr);
+            const SymbolId gs = intern_named_global(vt);
+            const ValueId vt_addr = builder_->global_addr(gs, voidp);
+            const ConstantId second_c =
+                module_.constants.add_string(MIR_INVALID_ID, "second", 6);
+            builder_->field_store(temp, second_c, vt_addr);
+            return MIRExprResult::place(temp, ft);
+        }
         case ValueKind::ComptimeValue:
             return lower_expr(static_cast<ComptimeValue*>(value)->getValue(), error);
         default:
@@ -2372,6 +2428,12 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     return false;
                 }
                 builder_->ret_void();
+                return true;
+            }
+            if (r.kind == MIRExprKind::Place) {
+                // a by-value aggregate (typedef struct, e.g. a fat pointer) return
+                const TypeId pt = builder_->function().places[r.id].type;
+                builder_->ret(builder_->load(static_cast<PlaceId>(r.id), pt));
                 return true;
             }
             if (r.kind != MIRExprKind::Value && r.kind != MIRExprKind::Address) {
@@ -3391,7 +3453,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
 
     func.symbol = intern_function(decl);
     const TypeId ret = decl->returnType ? types_.map(decl->returnType) : types_.void_type();
-    sret_ = needs_aggregate_path(module_, ret);
+    sret_ = needs_sret_return(module_, ret);
     sret_ret_type_ = ret;
     return_type_ = decl->returnType;
     FunctionParam* self_param = decl->has_self_param() ? decl->get_self_param() : nullptr;

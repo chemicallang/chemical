@@ -328,6 +328,13 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
             return MIRExprResult::value(cur_ptr, ptrt);
         }
     }
+    if (t && t->val_kind() == ValueKind::DereferenceValue) {
+        // `&*p` / `&raw *p` -> the pointer p itself
+        auto* d = t->as_dereference_value_unsafe();
+        MIRExprResult p = lower_expr(d->getValue(), error);
+        if (!p.ok()) return p;
+        return MIRExprResult::value(static_cast<ValueId>(p.id), p.type);
+    }
     if (t && t->val_kind() == ValueKind::IndexOperator) {
         // `&raw arr[i]` / `&mut ptr[i]` -> the element address, not the element value
         auto* io = t->as_index_op_unsafe();
@@ -456,6 +463,21 @@ bool MIRLowerer::lower_call_args_for(FunctionDeclaration* fd, bool self_included
         }
         MIRExprResult r = lower_arg_converted(values[i], param_type, error);
         if (!r.ok()) return false;
+        // a non-pointer value passed to a reference parameter must be
+        // materialized in a temporary whose address is passed
+        if (param_type && param_type->kind() == BaseTypeKind::Reference &&
+            r.kind == MIRExprKind::Value && r.type != MIR_INVALID_ID &&
+            r.type < module_.types.size()) {
+            const MIRTypeKind rk = module_.types.get(r.type).kind;
+            if (rk != MIRTypeKind::Pointer && rk != MIRTypeKind::Reference) {
+                BaseType* inner = param_type->as_reference_type()->type;
+                const TypeId it = types_.map(inner);
+                const PlaceId tmp = builder_->alloca(it, MIRStorageClass::Temporary);
+                builder_->store(tmp, r.id);
+                const TypeId ptrt = types_.pointer_type(it, true);
+                r = MIRExprResult::value(builder_->address_of(tmp, ptrt), ptrt);
+            }
+        }
         // track destructible temporaries passed by value (destroyed after the call)
         if (r.kind == MIRExprKind::Place && values[i]) {
             Value* v0 = values[i];
@@ -1281,6 +1303,20 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 }
                 return MIRExprResult::place(tmp, type);
             }
+            if (in.kind == MIRExprKind::Place) {
+                // a cast of an aggregate place to a pointer/interface type
+                // (`value as StaticInterface`) yields the place's address
+                if (type != MIR_INVALID_ID && type < module_.types.size()) {
+                    const MIRTypeKind tk = module_.types.get(type).kind;
+                    if (tk == MIRTypeKind::Pointer || tk == MIRTypeKind::Opaque) {
+                        const TypeId pt = builder_->function().places[in.id].type;
+                        const ValueId addr = builder_->address_of(
+                            static_cast<PlaceId>(in.id), types_.pointer_type(pt, true));
+                        return MIRExprResult::value(builder_->cast(addr, type), type);
+                    }
+                }
+                return in;
+            }
             if (in.type == type) return in;
             return MIRExprResult::value(builder_->cast(in.id, type), type);
         }
@@ -1816,6 +1852,32 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         }
         case ValueKind::ReferenceOfValue: {
             auto* r = value->as_reference_of_value_unsafe();
+            // `&x`: an aggregate parameter passed as a hidden pointer yields its
+            // referent; everything else takes the address of the expression.
+            Value* inner = r->value;
+            if (inner && inner->val_kind() == ValueKind::AccessChain) {
+                auto* c = inner->as_access_chain_unsafe();
+                if (c->values.size() == 1) inner = c->values[0];
+            }
+            if (inner && inner->val_kind() == ValueKind::Identifier) {
+                auto* id = inner->as_identifier_unsafe();
+                ASTNode* ln = id->linked;
+                bool hidden = false;
+                if (ln && ln->kind() == ASTNodeKind::FunctionParam) {
+                    BaseType* pt = ln->as_func_param_unsafe()->type;
+                    hidden = pt && pt->kind() != BaseTypeKind::Dynamic &&
+                             pt->isStructLikeType();
+                }
+                if (!hidden) {
+                    PlaceId p = place_for_linked(ln);
+                    if (p == MIR_INVALID_ID) p = place_for_name(id->value);
+                    if (p != MIR_INVALID_ID) {
+                        const TypeId ptrt = types_.pointer_type(
+                            builder_->function().places[p].type, true);
+                        return MIRExprResult::value(builder_->address_of(p, ptrt), ptrt);
+                    }
+                }
+            }
             return lower_address_of(r->value, error);
         }
         case ValueKind::ArrayValue: {
@@ -2490,6 +2552,11 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             MIRExprResult r = lower_expr(as->value, error);
             if (!r.ok()) return false;
             const TypeId place_type = builder_->function().places[place].type;
+            if (as->assOp != Operation::Assignment && is_struct_like(module_, place_type)) {
+                // `p += s` on a struct uses an overloaded operator: fall back
+                error = "compound assignment operator overloading is not yet supported";
+                return false;
+            }
             auto destroy_old_dest = [&]() {
                 // a simple assignment destroys the previous value of a
                 // destructible local before overwriting it
@@ -2521,10 +2588,6 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 return false;
             }
             ValueId val = r.id;
-            if (as->assOp != Operation::Assignment && is_struct_like(module_, place_type)) {
-                error = "compound assignment operator overloading is not yet supported";
-                return false;
-            }
             if (as->assOp != Operation::Assignment) {
                 MIROpcode cop = MIROpcode::Nop;
                 MIRBinaryOp bop = MIRBinaryOp::Add;

@@ -697,6 +697,11 @@ independently. These are wired in `lang/tests/build.lab` and gated behind dedica
 | `environment` | `lang/tests/process/src/environment_test.ch` | `./scripts/test.sh --tcc --process` | Env var get/set/unset — shares the `--process` suite (a separate `--environment` flag was deemed overkill) |
 | `webview` | `lang/tests/webview/src/webview_test.ch` | `./scripts/test.sh --tcc --webview` | Requires GTK3 + WebKit2GTK to **link/run** |
 | universal components | `lang/tests/universal_webview/src/tests.ch` | `./scripts/test.sh --tcc --universal` | `#universal_test` — SSR fixture in a real WebView + raw JS steps; needs a display |
+| `server` | `lang/tests/server/src/*.ch` | `./scripts/test.sh --tcc --server` | Real HTTP server/client framing; async file server (`serve_files_async`). On Windows accepted sockets must be `net::set_blocking`'d (they inherit the listener's non-blocking mode) |
+| `async` | `lang/tests/async/src/*.ch` | `./scripts/test.sh --tcc --async` | Coroutine lowering is implemented in **MIR** (see the `mir` skill); `--libs` also has async lifetime/executor tests |
+
+> **All suites are green on `mir`:** main 2263, `--interpret` 1875, `--libs` 719,
+> `--plugins` 1296, `--async` 53, `--process` 127, `--server` 9, `MIRTests` 1049.
 
 ### Where to write the tests
 

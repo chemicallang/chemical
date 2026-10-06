@@ -271,6 +271,14 @@ Coercion is applied at every store/pass boundary:
 | Identifier assignment / compound assignment | `ast/values/VariableIdentifier.cpp` (`set_value`) |
 | Index element assignment | `ast/values/IndexOperator.cpp` |
 | Struct field assignment | `ast/values/StructValue.cpp` (`set_child_value`) |
+
+**Compound assignment on non-identifier targets** (`arr[i] += x`, `p[i] *= y`,
+`*p += z`, `s.field -= k`) must load the current element/pointee/field, apply the
+operator and store. This is handled in `IndexOperator::set_value`,
+`DereferenceValue::set_value` and `StructValue::set_child_value` (each checks
+`op != Operation::Assignment` and calls `scope.evaluate(op, cur, new)`), matching
+the compiled backends. A bug here previously stored the RHS directly (`p[0] += 4`
+produced `p[0] = 4`).
 | Function arguments | `ast/structures/FunctionDecl.cpp` |
 | Return values | `ast/structures/FunctionDecl.cpp` (`set_return`, uses `returnType`) |
 | `as` casts | `ast/values/CastedValue.cpp` |

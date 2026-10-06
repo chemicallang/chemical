@@ -648,6 +648,18 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 }
                 break;
             }
+            case MIROpcode::Destroy: {
+                const MIROperand* p = operand_at(function, inst, 0);
+                const MIROperand* d = operand_at(function, inst, 1);
+                if (!p || !d || d->kind() != MIROperandKind::Symbol) {
+                    error = "destroy missing operands";
+                    return false;
+                }
+                std::string dname;
+                symbol_name(module, d->id, dname);
+                out += dname + "(&" + pname(p->id) + ");\n";
+                break;
+            }
             case MIROpcode::MemCpy: {
                 const MIROperand* dest = operand_at(function, inst, 0);
                 const MIROperand* src = operand_at(function, inst, 1);

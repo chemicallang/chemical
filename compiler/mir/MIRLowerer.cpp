@@ -36,6 +36,8 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/VariantDefinition.h"
+#include "ast/structures/UnionDef.h"
 #include "ast/structures/Scope.h"
 #include "ast/structures/BlockScope.h"
 #include "ast/structures/UnsafeBlock.h"
@@ -282,13 +284,19 @@ bool MIRLowerer::lower_call_args_for(FunctionDeclaration* fd, bool self_included
         if (!r.ok()) return false;
         // track destructible temporaries passed by value (destroyed after the call)
         if (r.kind == MIRExprKind::Place && values[i]) {
-            const ValueKind vk = values[i]->val_kind();
+            Value* v0 = values[i];
+            if (v0->val_kind() == ValueKind::AccessChain) {
+                auto* c = v0->as_access_chain_unsafe();
+                if (c->values.size() == 1) v0 = c->values[0];
+            }
+            const ValueKind vk = v0->val_kind();
             const bool by_value =
                 !(param_type && (param_type->kind() == BaseTypeKind::Reference ||
                                  param_type->kind() == BaseTypeKind::Pointer));
             if (vk == ValueKind::StructValue || vk == ValueKind::FunctionCall) {
-                BaseType* at = values[i]->getType();
-                if (at) call_temps_.emplace_back(static_cast<PlaceId>(r.id), at);
+                BaseType* at = v0->getType();
+                // only temporaries passed by reference are owned by the caller
+                if (at && !by_value) call_temps_.emplace_back(static_cast<PlaceId>(r.id), at);
             } else if (vk == ValueKind::Identifier && by_value) {
                 // a local passed by value is moved out
                 mark_moved(static_cast<PlaceId>(r.id));
@@ -300,16 +308,16 @@ bool MIRLowerer::lower_call_args_for(FunctionDeclaration* fd, bool self_included
 }
 
 void MIRLowerer::destroy_call_temps(std::string& error) {
+    // A temporary passed by reference (`&T`) is owned by the caller and must be
+    // destroyed after the call; by-value temporaries are owned by the callee's
+    // parameter instead.
     for (auto& [place, type] : call_temps_) {
-        BaseType* canon = type ? type->canonical() : nullptr;
-        if (!canon) continue;
-        ASTNode* node = canon->get_direct_linked_canonical_node();
-        if (!node || node->kind() != ASTNodeKind::StructDecl) continue;
-        FunctionDeclaration* dtor = node->as_struct_def_unsafe()->destructor_func();
-        if (!dtor || !dtor->body.has_value()) continue;
-        builder_->destroy(place, intern_function(dtor));
+        const SymbolId dtor = destructor_symbol(type);
+        if (dtor == MIR_INVALID_ID) continue;
+        builder_->destroy(place, dtor);
     }
     call_temps_.clear();
+    (void)error;
 }
 
 SymbolId MIRLowerer::destructor_symbol(BaseType* type) {
@@ -317,20 +325,20 @@ SymbolId MIRLowerer::destructor_symbol(BaseType* type) {
     BaseType* canon = type->canonical();
     if (!canon) return MIR_INVALID_ID;
     ASTNode* node = canon->get_direct_linked_canonical_node();
-    if (!node || node->kind() != ASTNodeKind::StructDecl) return MIR_INVALID_ID;
-    FunctionDeclaration* dtor = node->as_struct_def_unsafe()->destructor_func();
+    if (!node) return MIR_INVALID_ID;
+    FunctionDeclaration* dtor = nullptr;
+    if (node->kind() == ASTNodeKind::StructDecl) {
+        dtor = node->as_struct_def_unsafe()->destructor_func();
+    } else if (node->kind() == ASTNodeKind::VariantDecl) {
+        dtor = node->as_variant_def_unsafe()->destructor_func();
+    } else if (node->kind() == ASTNodeKind::UnionDecl) {
+        dtor = node->as_union_def_unsafe()->destructor_func();
+    }
     if (!dtor || !dtor->body.has_value()) return MIR_INVALID_ID;
     return intern_function(dtor);
 }
 
 void MIRLowerer::register_destructible(PlaceId place, BaseType* type) {
-    (void)place;
-    (void)type;
-    // NOTE: move-aware destructor lowering (drop flags) is scaffolded but not
-    // enabled: calling canonical()/intern_function on generic destructors during
-    // lowering races with the compiler's parallel passes. Enable once destructor
-    // resolution can be done without touching the type system here.
-    return;
     const SymbolId dtor = destructor_symbol(type);
     if (dtor == MIR_INVALID_ID) return;
     const PlaceId flag = builder_->alloca(types_.bool_type(), MIRStorageClass::Local);
@@ -576,6 +584,7 @@ MIRExprResult MIRLowerer::lower_method_call(Value* receiver, FunctionCall* call,
     const TypeId type = types_.map(call->getType());
     if (is_void_type(module_, type)) {
         builder_->call_scalar(sym, type, args.data(), static_cast<uint32_t>(args.size()));
+        destroy_call_temps(error);
         return MIRExprResult::void_result();
     }
     if (needs_aggregate_path(module_, type)) {
@@ -585,9 +594,11 @@ MIRExprResult MIRLowerer::lower_method_call(Value* receiver, FunctionCall* call,
             return MIRExprResult::error();
         }
         builder_->call_sret(sym, res, args.data(), static_cast<uint32_t>(args.size()));
+        destroy_call_temps(error);
         return MIRExprResult::place(res, type);
     }
     const ValueId v = builder_->call_scalar(sym, type, args.data(), static_cast<uint32_t>(args.size()));
+    destroy_call_temps(error);
     return MIRExprResult::value(v, type);
 }
 
@@ -1394,6 +1405,20 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 }
             }
             if (vi->value) {
+                // moving a destructible value out of another local/param
+                {
+                    Value* iv = vi->value;
+                    if (iv->val_kind() == ValueKind::AccessChain) {
+                        auto* c = iv->as_access_chain_unsafe();
+                        if (c->values.size() == 1) iv = c->values[0];
+                    }
+                    if (iv->val_kind() == ValueKind::Identifier) {
+                        auto* iid = iv->as_identifier_unsafe();
+                        PlaceId src = place_for_linked(iid->linked);
+                        if (src == MIR_INVALID_ID) src = place_for_name(iid->value);
+                        if (src != MIR_INVALID_ID) mark_moved(src);
+                    }
+                }
                 MIRExprResult r = lower_expr(vi->value, error);
                 if (!r.ok()) return false;
                 if (r.kind == MIRExprKind::Place) {
@@ -1465,6 +1490,27 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
                     MIRExprResult r = lower_expr(as->value, error);
                     if (!r.ok()) return false;
+                    if (r.kind == MIRExprKind::Value &&
+                        as->assOp != Operation::Assignment) {
+                        // compound assignment on a struct field: load, apply, store
+                        MIRBinaryOp bop = MIRBinaryOp::Add;
+                        if (!compound_binary(as->assOp, bop)) {
+                            error = "unsupported compound field assignment operator";
+                            return false;
+                        }
+                        const TypeId ft = types_.map(chain->values.back()->getType());
+                        const ValueId cur = have_ptr ? builder_->field_load_ptr(cur_ptr, fc, ft)
+                                                     : builder_->field_load(cur_place, fc, ft);
+                        const ConstantId opc = module_.constants.add_int(
+                            MIR_INVALID_ID, static_cast<uint64_t>(bop));
+                        const ValueId nv = builder_->binary(cur, r.id, opc, ft);
+                        if (!have_ptr) {
+                            builder_->field_store(cur_place, fc, nv);
+                        } else {
+                            builder_->field_store_ptr(cur_ptr, fc, nv);
+                        }
+                        return true;
+                    }
                     if (r.kind == MIRExprKind::Place) {
                         if (!have_ptr) {
                             builder_->field_store_place(cur_place, fc,
@@ -1796,9 +1842,18 @@ bool MIRLowerer::lower_incdec_value(Value* target, bool increment, std::string& 
 }
 
 bool MIRLowerer::lower_scope(Scope& scope, std::string& error) {
+    const size_t mark = destructibles_.size();
     for (ASTNode* n : scope.nodes) {
         if (!lower_stmt(n, error)) return false;
     }
+    // destroy locals declared in this scope (unless they were moved out)
+    if (!builder_->current_block_terminated()) {
+        for (size_t i = mark; i < destructibles_.size(); ++i) {
+            const ValueId fv = builder_->load(destructibles_[i].flag, types_.bool_type());
+            builder_->drop(destructibles_[i].place, destructibles_[i].dtor, fv);
+        }
+    }
+    destructibles_.resize(mark);
     return true;
 }
 

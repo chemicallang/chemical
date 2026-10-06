@@ -664,11 +664,16 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 if (!p || !d) { error = "drop missing operands"; return false; }
                 std::string dname;
                 symbol_name(module, d->id, dname);
+                const MIRTypeRecord& dpr = module.types.get(function.places[p->id].type);
+                const std::string darg =
+                    (dpr.kind == MIRTypeKind::Pointer || dpr.kind == MIRTypeKind::Reference)
+                        ? pname(p->id)
+                        : ("&" + pname(p->id));
                 if (f) {
-                    out += "if (" + operand_expr(function, module, *f) + ") " + dname + "(&" +
-                           pname(p->id) + ");\n";
+                    out += "if (" + operand_expr(function, module, *f) + ") " + dname + "(" +
+                           darg + ");\n";
                 } else {
-                    out += dname + "(&" + pname(p->id) + ");\n";
+                    out += dname + "(" + darg + ");\n";
                 }
                 break;
             }
@@ -688,7 +693,12 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 }
                 std::string dname;
                 symbol_name(module, d->id, dname);
-                out += dname + "(&" + pname(p->id) + ");\n";
+                const MIRTypeRecord& dpr = module.types.get(function.places[p->id].type);
+                const std::string darg =
+                    (dpr.kind == MIRTypeKind::Pointer || dpr.kind == MIRTypeKind::Reference)
+                        ? pname(p->id)
+                        : ("&" + pname(p->id));
+                out += dname + "(" + darg + ");\n";
                 break;
             }
             case MIROpcode::MemCpy: {

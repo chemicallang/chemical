@@ -6,10 +6,27 @@
 using std::string;
 using std::string_view;
 
+// The static-file root: `/tmp` on POSIX, the Windows temp dir on Windows (a
+// POSIX `/tmp` is not a valid Win32 path).
+func server_test_root() : string {
+    comptime if(def.windows) {
+        var t = environment::get(string_view("TEMP"))
+        if(t is std::Option.Some) {
+            var Some(s) = t else unreachable
+            return s.copy()
+        }
+        return string(".")
+    } else {
+        return string("/tmp")
+    }
+}
+
 // Write the fixture served by the tests. Returns false if the write failed.
 func write_server_fixture() : bool {
     var content = string("hello from the async file server")
-    var path = string("/tmp/chemical_tier6_server_test.txt")
+    var path = server_test_root()
+    path.append('/')
+    path.append_view(string_view("chemical_tier6_server_test.txt"))
     var r = fs::write_text_file(path.data(), content.data() as *mut u8, content.size())
     return r is std::Result.Ok
 }
@@ -37,7 +54,7 @@ public func INT_server_async_file_get(env : &mut TestEnv) {
         return
     }
 
-    var root = string("/tmp")
+    var root = server_test_root()
     var cfg = server::ServerConfig()
     cfg.addr = string("127.0.0.1:19881")
     var srv = server::Server(cfg)
@@ -70,7 +87,7 @@ public func INT_server_async_file_get(env : &mut TestEnv) {
 @test
 @test.timeout(60000)
 public func INT_server_async_404(env : &mut TestEnv) {
-    var root = string("/tmp")
+    var root = server_test_root()
     var cfg = server::ServerConfig()
     cfg.addr = string("127.0.0.1:19882")
     var srv = server::Server(cfg)

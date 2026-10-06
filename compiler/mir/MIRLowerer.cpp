@@ -271,6 +271,7 @@ bool MIRLowerer::lower_call_args(const std::vector<Value*>& values,
 bool MIRLowerer::lower_call_args_for(FunctionDeclaration* fd, bool self_included,
                                      const std::vector<Value*>& values,
                                      std::vector<MIROperand>& args, std::string& error) {
+    call_temps_.clear();
     const size_t offset = self_included ? 1 : 0;
     for (size_t i = 0; i < values.size(); ++i) {
         BaseType* param_type = nullptr;
@@ -279,9 +280,30 @@ bool MIRLowerer::lower_call_args_for(FunctionDeclaration* fd, bool self_included
         }
         MIRExprResult r = lower_arg_converted(values[i], param_type, error);
         if (!r.ok()) return false;
+        // track destructible temporaries passed by value (destroyed after the call)
+        if (r.kind == MIRExprKind::Place && values[i]) {
+            const ValueKind vk = values[i]->val_kind();
+            if (vk == ValueKind::StructValue || vk == ValueKind::FunctionCall) {
+                BaseType* at = values[i]->getType();
+                if (at) call_temps_.emplace_back(static_cast<PlaceId>(r.id), at);
+            }
+        }
         if (!push_call_arg(r, args, error)) return false;
     }
     return true;
+}
+
+void MIRLowerer::destroy_call_temps(std::string& error) {
+    for (auto& [place, type] : call_temps_) {
+        BaseType* canon = type ? type->canonical() : nullptr;
+        if (!canon) continue;
+        ASTNode* node = canon->get_direct_linked_canonical_node();
+        if (!node || node->kind() != ASTNodeKind::StructDecl) continue;
+        FunctionDeclaration* dtor = node->as_struct_def_unsafe()->destructor_func();
+        if (!dtor || !dtor->body.has_value()) continue;
+        builder_->destroy(place, intern_function(dtor));
+    }
+    call_temps_.clear();
 }
 
 MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
@@ -1173,6 +1195,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
 
             if (is_void_type(module_, type)) {
                 builder_->call_scalar(sym, type, args.data(), static_cast<uint32_t>(args.size()));
+                destroy_call_temps(error);
                 return MIRExprResult::void_result();
             }
             if (needs_aggregate_path(module_, type)) {
@@ -1182,9 +1205,11 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     return MIRExprResult::error();
                 }
                 builder_->call_sret(sym, res, args.data(), static_cast<uint32_t>(args.size()));
+                destroy_call_temps(error);
                 return MIRExprResult::place(res, type);
             }
             ValueId v = builder_->call_scalar(sym, type, args.data(), static_cast<uint32_t>(args.size()));
+            destroy_call_temps(error);
             return MIRExprResult::value(v, type);
         }
         case ValueKind::AddrOfValue: {
@@ -1204,6 +1229,8 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 return MIRExprResult::error();
             }
             const PlaceId place = builder_->alloca(at, MIRStorageClass::Temporary);
+            // zero the array so elements not covered by the literal are 0
+            builder_->zero_init(place);
             const TypeId ut = types_.u32_type();
             for (size_t i = 0; i < arr->values.size(); ++i) {
                 MIRExprResult e = lower_expr(arr->values[i], error);

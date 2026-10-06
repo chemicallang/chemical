@@ -97,7 +97,12 @@ enum class MIROpcode : uint16_t {
     // spelled `*<value>` (used for `"...m"(*ptr)` memory operands).
     InlineAsm = 48,
 
-    Count = 49,
+    // Dynamic (interface) dispatch: `((vt_t*) fat.second)->method(fat.first, args...)`.
+    // operands: Value(fat pointer), Constant(vtable type name),
+    //           Constant(method field name), args...
+    DynamicCall = 49,
+
+    Count = 50,
 };
 
 /** fixed opcode effects/attributes (see mir-design.md §4.6) */

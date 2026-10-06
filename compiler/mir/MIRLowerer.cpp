@@ -8,6 +8,8 @@
 
 #include "ast/base/BaseType.h"
 #include "ast/types/GenericType.h"
+#include "ast/types/DynamicType.h"
+#include "ast/structures/InterfaceDefinition.h"
 #include "ast/base/Value.h"
 #include "ast/utils/Operation.h"
 #include "ast/values/IntNumValue.h"
@@ -768,11 +770,54 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
     }
     if (!recv.ok()) return recv;
 
-    // dynamic (interface) dispatch is not lowered here yet
+    // dynamic (interface) dispatch: `((vt_t*) fat.second)->method(fat.first, args...)`
     if (recv_type && recv_type->canonical() &&
         recv_type->canonical()->kind() == BaseTypeKind::Dynamic) {
-        error = "dynamic interface dispatch is not yet supported";
-        return MIRExprResult::error();
+        auto* dt = recv_type->canonical()->as_dynamic_type_unsafe();
+        BaseType* iface_type = dt ? dt->referenced : nullptr;
+        ASTNode* iface_node =
+            iface_type ? iface_type->get_direct_linked_canonical_node() : nullptr;
+        if (!iface_node) {
+            error = "dynamic receiver interface could not be resolved";
+            return MIRExprResult::error();
+        }
+        std::string iface_name;
+        if (mangler_) iface_name = mangler_(iface_node);
+        if (iface_name.empty()) {
+            const chem::string_view nv = iface_node->as_interface_def_unsafe()->name_view();
+            iface_name.assign(nv.data(), nv.size());
+        }
+        const std::string vt_name = "__chx_" + iface_name + "_vt_t";
+        const ConstantId vt_c = module_.constants.add_string(
+            MIR_INVALID_ID, vt_name.data(), static_cast<uint32_t>(vt_name.size()));
+        const chem::string_view mv = fd->name_view();
+        const std::string m_name(mv.data(), mv.size());
+        const ConstantId m_c = module_.constants.add_string(
+            MIR_INVALID_ID, m_name.data(), static_cast<uint32_t>(m_name.size()));
+        ValueId fat = MIR_NULL;
+        TypeId fat_t = recv.type;
+        if (recv.kind == MIRExprKind::Place) {
+            fat_t = builder_->function().places[recv.id].type;
+            fat = builder_->load(recv.id, fat_t);
+        } else {
+            fat = static_cast<ValueId>(recv.id);
+        }
+        std::vector<MIROperand> dargs;
+        if (!lower_call_args_for(fd, true, call->values, dargs, error)) {
+            return MIRExprResult::error();
+        }
+        if (!append_default_args(fd, call->values.size(), true, dargs, error)) {
+            return MIRExprResult::error();
+        }
+        const TypeId dtype = types_.map(call->getType());
+        if (needs_aggregate_path(module_, dtype)) {
+            error = "dynamic method returning an aggregate is not yet supported";
+            return MIRExprResult::error();
+        }
+        const ValueId dv = builder_->dynamic_call(
+            fat, fat_t, vt_c, m_c, dargs.data(), static_cast<uint32_t>(dargs.size()), dtype);
+        if (is_void_type(module_, dtype)) return MIRExprResult::void_result();
+        return MIRExprResult::value(dv, dtype);
     }
 
     // the self parameter (methods and extension functions)

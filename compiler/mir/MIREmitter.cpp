@@ -1099,6 +1099,37 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 out += ");\n";
                 break;
             }
+            case MIROpcode::DynamicCall: {
+                const MIROperand* fat = operand_at(function, inst, 0);
+                const MIROperand* vt = operand_at(function, inst, 1);
+                const MIROperand* meth = operand_at(function, inst, 2);
+                if (!fat || !vt || !meth) { error = "dynamic_call missing operands"; return false; }
+                std::string vt_name, m_name;
+                if (!constant_string(module, vt->id, vt_name) ||
+                    !constant_string(module, meth->id, m_name)) {
+                    error = "dynamic_call invalid names";
+                    return false;
+                }
+                const std::string base = (fat->kind() == MIROperandKind::Place)
+                                             ? place_name(module, function, fat->id)
+                                             : operand_expr(function, module, *fat);
+                std::string call = "((" + vt_name + "*)" + base + ".second)->" + m_name + "(" +
+                                   base + ".first";
+                for (uint32_t a = 3; a < inst.operand_count; ++a) {
+                    call += ", " + operand_expr(function, module, *operand_at(function, inst, a));
+                }
+                call += ")";
+                const bool is_void =
+                    inst.result_or_place >= function.values.size() ||
+                    c_type_of(module, function.values[inst.result_or_place].type) == "void";
+                if (is_void) {
+                    out += call + ";\n";
+                } else {
+                    out += declarator(module, function.values[inst.result_or_place].type,
+                                      vname(inst.result_or_place)) + " = " + call + ";\n";
+                }
+                break;
+            }
             default:
                 error = std::string("C emitter: unsupported opcode '") +
                         opcode_name(inst.opcode()) + "' (straight-line subset only)";

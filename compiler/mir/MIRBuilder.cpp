@@ -553,6 +553,24 @@ ValueId MIRBuilder::call_indirect(ValueId fn, TypeId result_type,
     return v;
 }
 
+ValueId MIRBuilder::dynamic_call(ValueId fatptr, TypeId fat_type, ConstantId vtable_type,
+                                 ConstantId method, const MIROperand* args, uint32_t count,
+                                 TypeId result_type) {
+    ValueId v = new_value(result_type, VF_NONE);
+    MIROperand* ops = arena_.allocate_array<MIROperand>(count + 3);
+    if (!ops) {
+        ok_ = false;
+        return v;
+    }
+    ops[0] = MIROperand::value(fatptr, fat_type);
+    ops[1] = MIROperand::constant(vtable_type, MIR_INVALID_ID);
+    ops[2] = MIROperand::constant(method, MIR_INVALID_ID);
+    for (uint32_t i = 0; i < count; ++i) ops[i + 3] = args[i];
+    uint32_t idx = emit_impl(MIROpcode::DynamicCall, v, ops, count + 3);
+    note_result_value(v, idx);
+    return v;
+}
+
 void MIRBuilder::call_indirect_sret(ValueId fn, PlaceId result_place,
                                     const MIROperand* args, uint32_t count) {
     MIROperand* ops = arena_.allocate_array<MIROperand>(count + 2);

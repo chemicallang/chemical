@@ -147,6 +147,10 @@ public:
     /** Struct-returning indirect call: writes the result into `result_place`. */
     void call_indirect_sret(ValueId fn, PlaceId result_place,
                             const MIROperand* args, uint32_t count);
+    /** Dynamic interface dispatch: `((vt*) fat.second)->method(fat.first, args...)`. */
+    ValueId dynamic_call(ValueId fatptr, TypeId fat_type, ConstantId vtable_type,
+                         ConstantId method, const MIROperand* args, uint32_t count,
+                         TypeId result_type);
 
     // ── lifetime ───────────────────────────────────────────────────────────
     void init(PlaceId dest, SymbolId ctor, const MIROperand* args, uint32_t count);

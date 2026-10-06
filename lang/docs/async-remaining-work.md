@@ -7,6 +7,16 @@ symptom, the root cause location, the existing workaround, and a concrete
 definition of done. An AI or human should be able to pick one item, fix it, and
 verify it without re-deriving context.
 
+**Status (MIR).** The C backend's async/coroutine lowering is now implemented in
+**MIR**, not the legacy C visitor: `MIRLowerer::lower_async_function` emits the
+frame + `__poll` + `__drop` + vtable + ramp (helpers as C text, poll/ramp as
+MIR) driven by the shared `AsyncLoweringPlan`, using the
+`AsyncFrameAlloc`/`AsyncAwait`/`AsyncFinish`/`AsyncRampFinish` opcodes and
+frame-resident places (`MIRStorageClass::FrameField`/`FramePtr`). `--async` is
+green (53/53) with no async function routed to legacy. See
+`compiler/mir/README.md` and `.agents/skills/mir/SKILL.md`. The items below
+about the *LLVM* coroutine path and the library workarounds still apply.
+
 **Companion docs**
 
 - [`async-await-design.md`](./async-await-design.md) — normative language/runtime design.

@@ -86,6 +86,16 @@ public:
         comptime_if_resolver_ = std::move(fn);
     }
 
+    /** Evaluate a comptime function call (interpreter-backed). */
+    void set_comptime_eval(std::function<Value*(FunctionCall*, FunctionDeclaration*)> fn) {
+        comptime_eval_ = std::move(fn);
+    }
+
+    /** Evaluate an implicit-constructor comptime call (interpreter-backed). */
+    void set_comptime_ctor_eval(std::function<Value*(FunctionDeclaration*, Value*)> fn) {
+        comptime_ctor_eval_ = std::move(fn);
+    }
+
 private:
     MIRExprResult lower_expr(Value* value, std::string& error);
     bool lower_stmt(ASTNode* node, std::string& error);
@@ -95,10 +105,19 @@ private:
     bool lower_for(ForLoop* loop, std::string& error);
     bool lower_incdec_value(Value* target, bool increment, std::string& error, ValueId& out);
     PlaceId resolve_place(Value* v, std::string& error);
+    /** Like resolve_place, but also lowers call results to their temporary place. */
+    PlaceId resolve_place_or_lower(Value* v, std::string& error);
     MIRExprResult lower_address_of(Value* inner, std::string& error);
     bool member_name(Value* v, std::string& out, std::string& error);
     bool lower_call_args(const std::vector<Value*>& values, std::vector<MIROperand>& args,
                          std::string& error);
+    bool lower_call_args_for(FunctionDeclaration* fd, bool self_included,
+                             const std::vector<Value*>& values, std::vector<MIROperand>& args,
+                             std::string& error);
+    MIRExprResult lower_arg_converted(Value* arg, BaseType* param_type, std::string& error);
+    bool push_call_arg(MIRExprResult r, std::vector<MIROperand>& args, std::string& error);
+    bool append_default_args(FunctionDeclaration* fd, size_t provided, bool self_included,
+                             std::vector<MIROperand>& args, std::string& error);
     MIRExprResult lower_method_call(Value* receiver, FunctionCall* call, std::string& error);
 
     SymbolId intern_function(FunctionDeclaration* decl);
@@ -116,6 +135,8 @@ private:
     std::unordered_map<std::string, SymbolId> named_globals_;
     std::function<std::string(ASTNode*)> mangler_;
     std::function<Scope*(IfStatement*, std::string&)> comptime_if_resolver_;
+    std::function<Value*(FunctionCall*, FunctionDeclaration*)> comptime_eval_;
+    std::function<Value*(FunctionDeclaration*, Value*)> comptime_ctor_eval_;
     std::vector<BlockId> break_targets_;
     std::vector<BlockId> continue_targets_;
     bool sret_ = false;

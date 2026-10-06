@@ -77,6 +77,10 @@ public:
     void store(PlaceId place, ValueId value);
     /** Load a struct field by name: `result = base.<field>`. */
     ValueId field_load(PlaceId base, ConstantId field_name, TypeId field_type);
+    /** Load a field through a pointer: `result = base-><field>`. */
+    ValueId field_load_ptr(ValueId base, ConstantId field_name, TypeId field_type);
+    /** Store a field through a pointer: `base-><field> = value`. */
+    void field_store_ptr(ValueId base, ConstantId field_name, ValueId value);
     /** Load through an index: `result = base[index]`. */
     ValueId index_load(ValueId base, ValueId index, TypeId element_type);
     /** Store through an index: `base[index] = value`. */
@@ -87,6 +91,10 @@ public:
     void element_store(PlaceId base, ValueId index, ValueId value);
     /** Store a struct field by name: `base.<field> = value`. */
     void field_store(PlaceId base, ConstantId field_name, ValueId value);
+    /** Move an aggregate into a struct field: `base.<field> = src`. */
+    void field_store_place(PlaceId base, ConstantId field_name, PlaceId value);
+    /** Move an aggregate into a local array element: `base[index] = src`. */
+    void element_store_place(PlaceId base, ValueId index, PlaceId value);
     ValueId address_of(PlaceId place, TypeId pointer_type);
     /** Address of a struct field; result value is typed as `field_type`. */
     ValueId field_addr(PlaceId base, ConstantId field_index, TypeId field_type);

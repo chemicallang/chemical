@@ -84,6 +84,19 @@ public:
     std::unordered_set<ASTNode*> early_declare_in_progress;
 
     /**
+     * Evaluate a comptime function call at compile time using the interpreter.
+     * Used by the MIR lowering path to fold comptime calls (including intrinsic
+     * and implicit-constructor calls) into runtime-translatable values.
+     */
+    Value* eval_comptime_call(FunctionCall* call, FunctionDeclaration* decl);
+
+    /**
+     * Evaluate an implicit-constructor comptime call (synthesizes the call node
+     * and folds it via the interpreter).
+     */
+    Value* eval_comptime_ctor(FunctionDeclaration* ctor, Value* arg);
+
+    /**
      * this option is here to support struct initialization in tinyCC compiler
      * llvm uses the same approach whereby if a function returns a struct
      * we change it's return type to void and pass that struct as a pointer parameter to the function

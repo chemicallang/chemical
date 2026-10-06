@@ -342,11 +342,20 @@ static bool test_type_names() {
 
     MIRTypeRecord pr;
     pr.kind = MIRTypeKind::Pointer;
+    pr.flags = TF_MUTABLE;
     pr.size = 8;
     pr.alignment = 8;
     pr.element = s;
     const TypeId ptr = module.types.intern(pr);
     CHECK(c_type_of(module, ptr) == "struct main_Point*");
+
+    MIRTypeRecord cpr;
+    cpr.kind = MIRTypeKind::Pointer;
+    cpr.size = 8;
+    cpr.alignment = 8;
+    cpr.element = s;
+    const TypeId cptr = module.types.intern(cpr);
+    CHECK(c_type_of(module, cptr) == "const struct main_Point*");
     return true;
 }
 

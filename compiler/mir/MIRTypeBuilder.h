@@ -9,15 +9,27 @@
 
 #include "MIRModule.h"
 
+#include <functional>
+#include <string>
 #include <unordered_map>
 
 class BaseType;
+class ASTNode;
 
 namespace mir {
 
 class MIRTypeBuilder {
 public:
     explicit MIRTypeBuilder(MIRModule& module) : module_(module) {}
+
+    /**
+     * Resolver for the C-emittable name of a named aggregate declaration. Set
+     * by the ASTProcessor so aggregates referenced from any file get a name
+     * even when their declaration lives in a different file of the module.
+     */
+    void set_name_resolver(std::function<std::string(ASTNode*)> fn) {
+        name_resolver_ = std::move(fn);
+    }
 
     /** Map an AST type to a canonical MIR type id. Never returns INVALID. */
     TypeId map(BaseType* type);
@@ -64,6 +76,7 @@ private:
     std::unordered_map<const BaseType*, TypeId> memo_;
     std::unordered_map<const void*, uint32_t> decl_ids_;
     std::unordered_map<const void*, TypeId> decl_types_;
+    std::function<std::string(ASTNode*)> name_resolver_;
 };
 
 } // namespace mir

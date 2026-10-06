@@ -9,7 +9,9 @@
 #include "ast/types/ReferenceType.h"
 #include "ast/types/ArrayType.h"
 #include "ast/types/FunctionType.h"
+#include "ast/types/GenericType.h"
 #include "ast/structures/FunctionParam.h"
+#include "ast/statements/Typealias.h"
 
 namespace mir {
 
@@ -44,6 +46,32 @@ uint32_t int_bits_of(IntNTypeKind kind) {
             return 128;
     }
     return 32;
+}
+
+MIRIntKind mir_int_kind(IntNTypeKind kind) {
+    switch (kind) {
+        case IntNTypeKind::I8: return IK_I8;
+        case IntNTypeKind::I16: return IK_I16;
+        case IntNTypeKind::I32: return IK_I32;
+        case IntNTypeKind::I64: return IK_I64;
+        case IntNTypeKind::Int128: return IK_I128;
+        case IntNTypeKind::U8: return IK_U8;
+        case IntNTypeKind::U16: return IK_U16;
+        case IntNTypeKind::U32: return IK_U32;
+        case IntNTypeKind::U64: return IK_U64;
+        case IntNTypeKind::UInt128: return IK_U128;
+        case IntNTypeKind::Char: return IK_CHAR;
+        case IntNTypeKind::Short: return IK_SHORT;
+        case IntNTypeKind::Int: return IK_INT;
+        case IntNTypeKind::Long: return IK_LONG;
+        case IntNTypeKind::LongLong: return IK_LONGLONG;
+        case IntNTypeKind::UChar: return IK_UCHAR;
+        case IntNTypeKind::UShort: return IK_USHORT;
+        case IntNTypeKind::UInt: return IK_UINT;
+        case IntNTypeKind::ULong: return IK_ULONG;
+        case IntNTypeKind::ULongLong: return IK_ULONGLONG;
+    }
+    return IK_UNSPECIFIED;
 }
 
 } // namespace
@@ -90,9 +118,23 @@ TypeId MIRTypeBuilder::aggregate_type(MIRTypeKind kind, const void* decl, BaseTy
     }
     r.flags = flags;
 
+    if (kind == MIRTypeKind::Int) {
+        // enum types are spelled `int` by the legacy backend
+        r.size = 4;
+        r.alignment = 4;
+        r.flags = TF_SIGNED;
+        r.int_kind = IK_INT;
+    }
+
     TypeId id = static_cast<TypeId>(module_.types.types.size());
     module_.types.types.push_back(r);
     decl_types_[decl] = id;
+    if (name_resolver_ && decl) {
+        std::string name = name_resolver_(reinterpret_cast<ASTNode*>(const_cast<void*>(decl)));
+        if (!name.empty()) {
+            module_.types.set_name(id, name.data(), static_cast<uint32_t>(name.size()));
+        }
+    }
     return id;
 }
 
@@ -152,7 +194,16 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
             break;
         case BaseTypeKind::IntN: {
             auto* in = type->as_intn_type();
-            id = int_type(in->is_unsigned(), int_bits_of(in->IntNKind()));
+            const IntNTypeKind k = in->IntNKind();
+            MIRTypeRecord r;
+            r.kind = MIRTypeKind::Int;
+            r.flags = static_cast<uint8_t>(in->is_unsigned() ? 0 : TF_SIGNED);
+            r.size = int_bits_of(k) / 8;
+            r.alignment = r.size;
+            r.decl = in->is_unsigned() ? 1u : 0u;
+            r.element = int_bits_of(k);
+            r.int_kind = mir_int_kind(k);
+            id = intern(r);
             break;
         }
         case BaseTypeKind::Float: {
@@ -211,6 +262,12 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
                 id = aggregate_type(MIRTypeKind::Int, e, type);
             } else if (auto* s = type->get_direct_linked_struct()) {
                 id = aggregate_type(MIRTypeKind::Struct, s, type);
+            } else if (ASTNode* n = type->get_direct_linked_node()) {
+                if (n->kind() == ASTNodeKind::TypealiasStmt) {
+                    id = map(n->as_typealias_unsafe()->known_type());
+                } else {
+                    id = opaque_type();
+                }
             } else {
                 id = opaque_type();
             }
@@ -223,6 +280,15 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
                 id = aggregate_type(MIRTypeKind::Int, e, type);
             } else if (auto* s = type->get_direct_linked_struct()) {
                 id = aggregate_type(MIRTypeKind::Struct, s, type);
+            } else if (auto* g = type->as_generic_type()) {
+                if (g->referenced) id = map(g->referenced);
+                else id = opaque_type();
+            } else if (ASTNode* n = type->get_direct_linked_node()) {
+                if (n->kind() == ASTNodeKind::TypealiasStmt) {
+                    id = map(n->as_typealias_unsafe()->known_type());
+                } else {
+                    id = opaque_type();
+                }
             } else {
                 id = opaque_type();
             }

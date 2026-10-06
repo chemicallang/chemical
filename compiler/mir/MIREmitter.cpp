@@ -20,6 +20,32 @@ std::string c_int_type(uint32_t size, bool is_signed) {
     }
 }
 
+const char* c_int_kind_spelling(uint8_t k) {
+    switch (k) {
+        case IK_I8: return "int8_t";
+        case IK_I16: return "int16_t";
+        case IK_I32: return "int32_t";
+        case IK_I64: return "int64_t";
+        case IK_I128: return "__int128";
+        case IK_U8: return "uint8_t";
+        case IK_U16: return "uint16_t";
+        case IK_U32: return "uint32_t";
+        case IK_U64: return "uint64_t";
+        case IK_U128: return "unsigned __int128";
+        case IK_CHAR: return "char";
+        case IK_SHORT: return "short";
+        case IK_INT: return "int";
+        case IK_LONG: return "long";
+        case IK_LONGLONG: return "long long";
+        case IK_UCHAR: return "unsigned char";
+        case IK_USHORT: return "unsigned short";
+        case IK_UINT: return "unsigned int";
+        case IK_ULONG: return "unsigned long";
+        case IK_ULONGLONG: return "unsigned long long";
+        default: return nullptr;
+    }
+}
+
 std::string vname(ValueId id) { return "__chx_v" + std::to_string(id); }
 std::string pname(PlaceId id) { return "__chx_p" + std::to_string(id); }
 
@@ -108,15 +134,25 @@ std::string c_type_of(const MIRModule& module, TypeId type) {
     const MIRTypeRecord& r = module.types.get(type);
     switch (r.kind) {
         case MIRTypeKind::Void: return "void";
-        case MIRTypeKind::Bool: return "bool";
-        case MIRTypeKind::Int: return c_int_type(r.size, (r.flags & TF_SIGNED) != 0);
+        case MIRTypeKind::Bool: return "_Bool";
+        case MIRTypeKind::Int: {
+            if (const char* s = c_int_kind_spelling(r.int_kind)) return s;
+            return c_int_type(r.size, (r.flags & TF_SIGNED) != 0);
+        }
         case MIRTypeKind::Float:
             if (r.size == 4) return "float";
             if (r.size == 16) return "long double";
             return "double";
-        case MIRTypeKind::Pointer:
-        case MIRTypeKind::Reference:
-            return c_type_of(module, r.element) + "*";
+        case MIRTypeKind::Pointer: {
+            const std::string pointee = c_type_of(module, r.element);
+            if (!(r.flags & TF_MUTABLE)) return "const " + pointee + "*";
+            return pointee + "*";
+        }
+        case MIRTypeKind::Reference: {
+            const std::string pointee = c_type_of(module, r.element);
+            if (r.flags & TF_MUTABLE) return pointee + "*";
+            return pointee + "*const";
+        }
         case MIRTypeKind::Array:
             return c_type_of(module, r.element) + "[" + std::to_string(r.data_count) + "]";
         case MIRTypeKind::Struct:
@@ -131,6 +167,45 @@ std::string c_type_of(const MIRModule& module, TypeId type) {
         default:
             return "void*"; // aggregates are emitted by the aggregate milestone
     }
+}
+
+// The bare function-pointer spelling of a MIR function type, e.g.
+// `void**(*)(const void**)`. Used for casts and parameter declarators.
+static std::string fn_ptr_type(const MIRModule& module, const MIRTypeRecord& r) {
+    std::string s = c_type_of(module, r.element) + "(*)(";
+    if (r.data_count == 0) {
+        s += "void";
+    } else {
+        for (uint32_t i = 0; i < r.data_count; ++i) {
+            if (i) s += ", ";
+            s += c_type_of(module, module.types.data[r.data_offset + i]);
+        }
+    }
+    s += ")";
+    return s;
+}
+
+// A C declarator for `type name`, handling function-pointer types correctly.
+static std::string declarator(const MIRModule& module, TypeId type, const std::string& name) {
+    if (type == MIR_INVALID_ID || type >= module.types.size()) return "void " + name;
+    const MIRTypeRecord& r = module.types.get(type);
+    if (r.kind == MIRTypeKind::Function) {
+        std::string s = c_type_of(module, r.element) + "(*" + name + ")(";
+        if (r.data_count == 0) {
+            s += "void";
+        } else {
+            for (uint32_t i = 0; i < r.data_count; ++i) {
+                if (i) s += ", ";
+                s += c_type_of(module, module.types.data[r.data_offset + i]);
+            }
+        }
+        s += ")";
+        return s;
+    }
+    if (r.kind == MIRTypeKind::Array) {
+        return declarator(module, r.element, name) + "[" + std::to_string(r.data_count) + "]";
+    }
+    return c_type_of(module, type) + " " + name;
 }
 
 namespace {
@@ -237,7 +312,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
     } else {
         for (uint32_t i = 0; i < ptypes.size(); ++i) {
             if (i) out += ", ";
-            out += c_type_of(module, ptypes[i]) + " __chx_a" + std::to_string(i);
+            out += declarator(module, ptypes[i], "__chx_a" + std::to_string(i));
         }
     }
     out += ") {\n";
@@ -263,12 +338,12 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
         switch (inst.opcode()) {
             case MIROpcode::Alloca: {
                 const PlaceId p = inst.result_or_place;
-                out += c_type_of(module, function.places[p].type) + " " + pname(p) + ";\n";
+                out += declarator(module, function.places[p].type, pname(p)) + ";\n";
                 break;
             }
             case MIROpcode::Param: {
                 const ValueId v = inst.result_or_place;
-                out += c_type_of(module, function.values[v].type) + " " + vname(v) +
+                out += declarator(module, function.values[v].type, vname(v)) +
                        " = __chx_a" + std::to_string(param_index++) + ";\n";
                 break;
             }
@@ -285,7 +360,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     error = "invalid constant operand";
                     return false;
                 }
-                out += c_type_of(module, function.values[v].type) + " " + vname(v) +
+                out += declarator(module, function.values[v].type, vname(v)) +
                        " = " + lit + ";\n";
                 break;
             }
@@ -296,15 +371,23 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 if (!p) { error = "load missing place"; return false; }
                 if (p->kind() == MIROperandKind::Value) {
                     if (fld && fld->kind() == MIROperandKind::Value) {
-                        out += c_type_of(module, function.values[v].type) + " " + vname(v) +
+                        out += declarator(module, function.values[v].type, vname(v)) +
                                " = " + operand_expr(function, module, *p) + "[" +
                                operand_expr(function, module, *fld) + "];\n";
+                    } else if (fld && fld->kind() == MIROperandKind::Constant) {
+                        std::string fname;
+                        if (!constant_string(module, fld->id, fname)) {
+                            error = "field load has invalid field name";
+                            return false;
+                        }
+                        out += declarator(module, function.values[v].type, vname(v)) +
+                               " = " + operand_expr(function, module, *p) + "->" + fname + ";\n";
                     } else {
-                        out += c_type_of(module, function.values[v].type) + " " + vname(v) +
+                        out += declarator(module, function.values[v].type, vname(v)) +
                                " = *" + operand_expr(function, module, *p) + ";\n";
                     }
                 } else if (fld && fld->kind() == MIROperandKind::Value) {
-                    out += c_type_of(module, function.values[v].type) + " " + vname(v) +
+                    out += declarator(module, function.values[v].type, vname(v)) +
                            " = " + pname(p->id) + "[" +
                            operand_expr(function, module, *fld) + "];\n";
                 } else if (fld && fld->kind() == MIROperandKind::Constant) {
@@ -313,10 +396,10 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                         error = "field load has invalid field name";
                         return false;
                     }
-                    out += c_type_of(module, function.values[v].type) + " " + vname(v) +
+                    out += declarator(module, function.values[v].type, vname(v)) +
                            " = " + member_access(function, module, p->id, fname) + ";\n";
                 } else {
-                    out += c_type_of(module, function.values[v].type) + " " + vname(v) +
+                    out += declarator(module, function.values[v].type, vname(v)) +
                            " = " + pname(p->id) + ";\n";
                 }
                 break;
@@ -331,6 +414,14 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                         out += operand_expr(function, module, *p) + "[" +
                                operand_expr(function, module, *a) + "] = " +
                                operand_expr(function, module, *b) + ";\n";
+                    } else if (a->kind() == MIROperandKind::Constant && b) {
+                        std::string fname;
+                        if (!constant_string(module, a->id, fname)) {
+                            error = "field store has invalid field name";
+                            return false;
+                        }
+                        out += operand_expr(function, module, *p) + "->" + fname + " = " +
+                               operand_expr(function, module, *b) + ";\n";
                     } else {
                         out += "*" + operand_expr(function, module, *p) + " = " +
                                operand_expr(function, module, *a) + ";\n";
@@ -344,9 +435,10 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                         error = "field store has invalid field name";
                         return false;
                     }
-                    out += member_access(function, module, p->id, fname) + " = " + vname(b->id) + ";\n";
+                    out += member_access(function, module, p->id, fname) + " = " +
+                           operand_expr(function, module, *b) + ";\n";
                 } else {
-                    out += pname(p->id) + " = " + vname(a->id) + ";\n";
+                    out += pname(p->id) + " = " + operand_expr(function, module, *a) + ";\n";
                 }
                 break;
             }
@@ -354,8 +446,18 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const ValueId v = inst.result_or_place;
                 const MIROperand* p = operand_at(function, inst, 0);
                 if (!p) { error = "address_of missing place"; return false; }
-                out += c_type_of(module, function.values[v].type) + " " + vname(v) +
-                       " = &" + pname(p->id) + ";\n";
+                const TypeId pt = p->id < function.places.size()
+                                      ? function.places[p->id].type
+                                      : MIR_INVALID_ID;
+                if (pt != MIR_INVALID_ID && pt < module.types.size() &&
+                    module.types.get(pt).kind == MIRTypeKind::Array) {
+                    // an array decays to a pointer to its first element
+                    out += declarator(module, function.values[v].type, vname(v)) +
+                           " = " + pname(p->id) + ";\n";
+                } else {
+                    out += declarator(module, function.values[v].type, vname(v)) +
+                           " = &" + pname(p->id) + ";\n";
+                }
                 break;
             }
             case MIROpcode::Unary: {
@@ -367,7 +469,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     return false;
                 }
                 const auto op = static_cast<MIRUnaryOp>(module.constants.get(opc->id).bits);
-                out += c_type_of(module, function.values[v].type) + " " + vname(v) +
+                out += declarator(module, function.values[v].type, vname(v)) +
                        " = (" + unop_c(op) + operand_expr(function, module, *a) + ");\n";
                 break;
             }
@@ -382,7 +484,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     return false;
                 }
                 const auto op = static_cast<MIRBinaryOp>(module.constants.get(opc->id).bits);
-                out += c_type_of(module, function.values[v].type) + " " + vname(v) + " = (" +
+                out += declarator(module, function.values[v].type, vname(v)) + " = (" +
                        operand_expr(function, module, *a) + " " + binop_c(op) + " " +
                        operand_expr(function, module, *b) + ");\n";
                 break;
@@ -391,7 +493,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const ValueId v = inst.result_or_place;
                 const MIROperand* a = operand_at(function, inst, 0);
                 if (!a) { error = "cast missing operand"; return false; }
-                out += c_type_of(module, function.values[v].type) + " " + vname(v) +
+                out += declarator(module, function.values[v].type, vname(v)) +
                        " = (" + c_type_of(module, function.values[v].type) + ")" +
                        operand_expr(function, module, *a) + ";\n";
                 break;
@@ -418,14 +520,13 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 call += ")";
 
                 const bool is_void = sret ||
-                    inst.result_or_place == MIR_NULL ||
                     inst.result_or_place >= function.values.size() ||
                     c_type_of(module, function.values[inst.result_or_place].type) == "void";
                 if (sret) {
                     out += call + ";\n";
-                } else if (inst.result_or_place != MIR_NULL && !is_void) {
-                    out += c_type_of(module, function.values[inst.result_or_place].type) + " " +
-                           vname(inst.result_or_place) + " = " + call + ";\n";
+                } else if (!is_void) {
+                    out += declarator(module, function.values[inst.result_or_place].type,
+                                      vname(inst.result_or_place)) + " = " + call + ";\n";
                 } else {
                     out += call + ";\n";
                 }
@@ -445,8 +546,19 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const MIROperand* dest = operand_at(function, inst, 0);
                 const MIROperand* src = operand_at(function, inst, 1);
                 if (!dest || !src) { error = "copy/move_init missing operands"; return false; }
-                out += pname(dest->id) + " = " +
-                       (src->kind() == MIROperandKind::Place ? pname(src->id) : vname(src->id)) + ";\n";
+                const std::string rhs =
+                    (src->kind() == MIROperandKind::Place ? pname(src->id) : vname(src->id));
+                const TypeId dt = dest->id < function.places.size()
+                                      ? function.places[dest->id].type
+                                      : MIR_INVALID_ID;
+                if (dt != MIR_INVALID_ID && dt < module.types.size() &&
+                    module.types.get(dt).kind == MIRTypeKind::Array) {
+                    // arrays are not assignable in C: copy the bytes instead
+                    out += "memcpy(&" + pname(dest->id) + ", &" + rhs + ", sizeof(" +
+                           pname(dest->id) + "));\n";
+                } else {
+                    out += pname(dest->id) + " = " + rhs + ";\n";
+                }
                 break;
             }
             case MIROpcode::GlobalAddr: {
@@ -455,7 +567,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 if (!s) { error = "global_addr missing symbol"; return false; }
                 std::string name;
                 symbol_name(module, s->id, name);
-                out += c_type_of(module, function.values[v].type) + " " + vname(v) +
+                out += declarator(module, function.values[v].type, vname(v)) +
                        " = &" + name + ";\n";
                 break;
             }
@@ -478,20 +590,28 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
             case MIROpcode::CallIndirect: {
                 const MIROperand* fn = operand_at(function, inst, 0);
                 if (!fn) { error = "call_indirect missing callee"; return false; }
-                std::string call = operand_expr(function, module, *fn) + "(";
+                std::string callee = operand_expr(function, module, *fn);
+                // the callee value is a function pointer; give it its precise
+                // function-pointer type so the call type-checks
+                if (fn->type() < module.types.size()) {
+                    const MIRTypeRecord& fr = module.types.get(fn->type());
+                    if (fr.kind == MIRTypeKind::Function) {
+                        callee = "((" + fn_ptr_type(module, fr) + ")" + callee + ")";
+                    }
+                }
+                std::string call = callee + "(";
                 for (uint32_t a = 1; a < inst.operand_count; ++a) {
                     if (a > 1) call += ", ";
                     call += operand_expr(function, module, *operand_at(function, inst, a));
                 }
                 call += ")";
-                const bool is_void = inst.result_or_place == MIR_NULL ||
-                    inst.result_or_place >= function.values.size() ||
+                const bool is_void = inst.result_or_place >= function.values.size() ||
                     c_type_of(module, function.values[inst.result_or_place].type) == "void";
                 if (is_void) {
                     out += call + ";\n";
                 } else {
-                    out += c_type_of(module, function.values[inst.result_or_place].type) + " " +
-                           vname(inst.result_or_place) + " = " + call + ";\n";
+                    out += declarator(module, function.values[inst.result_or_place].type,
+                                      vname(inst.result_or_place)) + " = " + call + ";\n";
                 }
                 break;
             }

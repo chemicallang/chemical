@@ -1952,6 +1952,37 @@ int ASTProcessor::implement_module(
     mir_lowerer.set_comptime_ctor_eval([&c_visitor](FunctionDeclaration* ctor, Value* arg) {
         return c_visitor.eval_comptime_ctor(ctor, arg);
     });
+    mir_lowerer.set_symbol_lookup([this, module](const std::string& name) -> FunctionDeclaration* {
+        if (resolver) {
+            ASTNode* node = resolver->getSymbolTable().resolve(
+                chem::string_view(name.data(), static_cast<unsigned>(name.size())));
+            if (node && node->kind() == ASTNodeKind::FunctionDecl) {
+                return node->as_function_unsafe();
+            }
+        }
+        // scan this module and its dependencies for a matching top-level function
+        std::function<FunctionDeclaration*(LabModule*, const std::string&)> search =
+            [&](LabModule* m, const std::string& n) -> FunctionDeclaration* {
+            if (!m) return nullptr;
+            for (auto& f : m->direct_files) {
+                if (!f.result) continue;
+                for (ASTNode* node : f.result->unit.scope.body.nodes) {
+                    if (node && node->kind() == ASTNodeKind::FunctionDecl) {
+                        auto* fd = node->as_function_unsafe();
+                        if (fd->name_view() == chem::string_view(n.data(),
+                                                                 static_cast<unsigned>(n.size()))) {
+                            return fd;
+                        }
+                    }
+                }
+            }
+            for (auto& dep : m->dependencies) {
+                if (FunctionDeclaration* r = search(dep.module, n)) return r;
+            }
+            return nullptr;
+        };
+        return search(module, name);
+    });
     mir::MIRArena mir_arena;
 
     // The fourth loop deals with generating function bodies present in the current module

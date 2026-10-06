@@ -13,12 +13,12 @@ size baselined from GitHub Releases
 > **Current status (see `compiler/mir/README.md` for the living doc):** the
 > main test suite is **green** — `./scripts/test.sh --tcc` reports
 > **2234 passed, 0 failed** — and `MIRTests` is green. MIR lowers scalar +
-> control flow + aggregates + methods + comptime + destructors/moves. Two open
-> items: (1) an **intermittent JIT crash** in the build script (uninitialized
-> function pointer, `0xcccccccc...`) that is not caused by MIR lowering; (2) a
-> per-function legacy bridge for a few not-yet-lowered constructs (lambdas,
-> expressive strings, runtime blocks). `compiler/mir/README.md` has the details,
-> gotchas, and exact repro commands.
+> control flow + aggregates + methods + comptime + destructors/moves. The
+> previously intermittent build-script crash (an out-of-bounds `MIRTypeTable`
+> read for array types) is **fixed**. The remaining work is the per-function
+> legacy bridge for a few not-yet-lowered constructs (lambdas, expressive
+> strings, runtime blocks) and the aggregate-layout milestone. See
+> `compiler/mir/README.md` for details, gotchas, and exact repro commands.
 
 ---
 

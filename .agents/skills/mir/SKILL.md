@@ -83,11 +83,10 @@ Remove-Item -Recurse -Force lang/tests/build/chemical-tests.dir, lang/tests/buil
 
 ## Known open issues
 
-- **Intermittent JIT crash** (not fixed): the build script's JIT calls an
-  uninitialized function pointer (`0xcccccccc00000002`), ~30-40% of
-  `TCCCompiler lang/tests/build.lab ...` runs, no test exe produced. Not caused
-  by MIR lowering (reproduces with destructors disabled). See the README for the
-  investigation notes and next steps.
+- **Intermittent JIT crash — FIXED** (`9c922ab00`): Array MIR types set
+  `data_count` to the array length but never `data_offset`, so
+  `MIRTypeTable::equal` read `data[0..len]` out of bounds. `equal()` now only
+  compares the shared `data` pool for function types.
 - Per-function legacy bridge for lambdas / expressive strings / runtime blocks /
   a few unresolved imported build-script bodies.
 - Aggregate layout (size/fields) not yet filled in `MIRTypeRecord`.

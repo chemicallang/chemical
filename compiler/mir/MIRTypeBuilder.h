@@ -43,6 +43,17 @@ public:
     /** Unsigned 32-bit integer type (loop indices, array indices). */
     TypeId u32_type() { return int_type(false, 32); }
 
+    /** The C `char` type (string literals and `char` arithmetic). */
+    TypeId char_type() {
+        MIRTypeRecord r;
+        r.kind = MIRTypeKind::Int;
+        r.flags = TF_SIGNED;
+        r.size = 1;
+        r.alignment = 1;
+        r.int_kind = IK_CHAR;
+        return intern(r);
+    }
+
     /** The dynamic-dispatch fat pointer type (`__chemical_fat_pointer__`). */
     TypeId fat_pointer_type() {
         if (fat_pointer_id_ != MIR_INVALID_ID) return fat_pointer_id_;

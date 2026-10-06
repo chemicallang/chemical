@@ -378,6 +378,17 @@ ValueId MIRBuilder::index_addr(PlaceId base, ValueId index, TypeId element_type)
     return v;
 }
 
+ValueId MIRBuilder::index_addr_ptr(ValueId base, ValueId index, TypeId element_type) {
+    ValueId v = new_value(element_type, VF_ADDRESSABLE);
+    TypeId bt = base < func_.values.size() ? func_.values[base].type : MIR_INVALID_ID;
+    TypeId it = index < func_.values.size() ? func_.values[index].type : MIR_INVALID_ID;
+    uint32_t i = emit(MIROpcode::IndexAddr, v,
+                      {MIROperand::value(base, bt), MIROperand::value(index, it),
+                       MIROperand::type(element_type)});
+    note_result_value(v, i);
+    return v;
+}
+
 ValueId MIRBuilder::gep(ValueId base, TypeId result_type,
                         std::initializer_list<ValueId> indices) {
     MIROperand ops[8];

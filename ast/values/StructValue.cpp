@@ -681,6 +681,12 @@ void StructValue::set_child_value(InterpretScope& scope, const chem::string_view
             }
         }
     }
+    // Compound assignment on a field (`s.a += x`): apply the operator to the
+    // field's current value before storing, matching the compiled backends.
+    if(op != Operation::Assignment && ptr.value().value) {
+        value = scope.evaluate(op, ptr.value().value, value, encoded_location(), this);
+        if(!value) return;
+    }
     ptr.value().value = value;
 }
 

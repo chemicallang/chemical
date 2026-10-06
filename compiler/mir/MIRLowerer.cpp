@@ -201,6 +201,30 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
         auto* c = t->as_access_chain_unsafe();
         if (c->values.size() == 1) t = c->values[0];
     }
+    if (t && t->val_kind() == ValueKind::IndexOperator) {
+        // `&raw arr[i]` / `&mut ptr[i]` -> the element address, not the element value
+        auto* io = t->as_index_op_unsafe();
+        MIRExprResult base = lower_expr(io->parent_val, error);
+        if (!base.ok()) return base;
+        MIRExprResult idx = lower_expr(io->idx, error);
+        if (!idx.ok()) return idx;
+        const TypeId et = types_.map(io->getType());
+        const TypeId ptrt = types_.pointer_type(et, true);
+        if (base.kind == MIRExprKind::Place) {
+            return MIRExprResult::value(
+                builder_->index_addr(static_cast<PlaceId>(base.id),
+                                     static_cast<ValueId>(idx.id), et),
+                ptrt);
+        }
+        if (base.kind == MIRExprKind::Value || base.kind == MIRExprKind::Address) {
+            return MIRExprResult::value(
+                builder_->index_addr_ptr(static_cast<ValueId>(base.id),
+                                         static_cast<ValueId>(idx.id), et),
+                ptrt);
+        }
+        error = "address-of index base is not a place or pointer";
+        return MIRExprResult::error();
+    }
     if (t && t->val_kind() == ValueKind::Identifier) {
         auto* id = t->as_identifier_unsafe();
         if (Value* cv = captured_comptime_value(id->linked)) {
@@ -495,7 +519,7 @@ bool MIRLowerer::append_default_args(FunctionDeclaration* fd, size_t provided,
                     std::string(params[i]->name.data(), params[i]->name.size()) + "'";
             return false;
         }
-        MIRExprResult r = lower_expr(dv, error);
+        MIRExprResult r = lower_arg_converted(dv, params[i]->type, error);
         if (!r.ok()) return false;
         if (!push_call_arg(r, args, error)) return false;
     }
@@ -844,6 +868,33 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     return MIRExprResult::value(builder_->const_int(type, c), type);
                 }
             }
+            // static method reference: `Type::method` -> a function pointer
+            if (chain->values.size() >= 2) {
+                if (ASTNode* lk = chain->values.back()->linked_node()) {
+                    if (lk->kind() == ASTNodeKind::VarInitStmt) {
+                        // qualified module-level constant/global: resolve the leaf
+                        return lower_expr(chain->values.back(), error);
+                    }
+                    if (lk->kind() == ASTNodeKind::FunctionDecl) {
+                        auto* fd = lk->as_function();
+                        ASTNode* base = chain->values[0]->linked_node();
+                        const bool base_is_type =
+                            base && (base->kind() == ASTNodeKind::StructDecl ||
+                                     base->kind() == ASTNodeKind::ImplDecl ||
+                                     base->kind() == ASTNodeKind::InterfaceDecl ||
+                                     base->kind() == ASTNodeKind::NamespaceDecl ||
+                                     base->kind() == ASTNodeKind::VariantDecl ||
+                                     base->kind() == ASTNodeKind::UnionDecl ||
+                                     base->kind() == ASTNodeKind::EnumDecl ||
+                                     base->kind() == ASTNodeKind::GenericStructDecl);
+                        if (base_is_type) {
+                            const SymbolId sym = intern_function(fd);
+                            return MIRExprResult::value(builder_->function_addr(sym, type),
+                                                        type);
+                        }
+                    }
+                }
+            }
             // member access: walk the chain from the base, taking the address of
             // each intermediate field and loading the last
             MIRExprResult first = lower_expr(chain->values[0], error);
@@ -878,7 +929,12 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         }
                         return MIRExprResult::value(builder_->field_load(cur_place, fc, ft), ft);
                     }
-                    cur_ptr = builder_->field_addr(cur_place, fc, ft);
+                    const ValueId faddr = builder_->field_addr(cur_place, fc, ft);
+                    const MIRTypeRecord& ftr = module_.types.get(ft);
+                    cur_ptr = (ftr.kind == MIRTypeKind::Pointer ||
+                               ftr.kind == MIRTypeKind::Reference)
+                                  ? builder_->load_indirect(faddr, ft)
+                                  : faddr;
                     have_ptr = true;
                 } else {
                     if (last) {
@@ -888,7 +944,12 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         }
                         return MIRExprResult::value(builder_->field_load_ptr(cur_ptr, fc, ft), ft);
                     }
-                    cur_ptr = builder_->field_addr_ptr(cur_ptr, fc, ft);
+                    const ValueId faddr = builder_->field_addr_ptr(cur_ptr, fc, ft);
+                    const MIRTypeRecord& ftr = module_.types.get(ft);
+                    cur_ptr = (ftr.kind == MIRTypeKind::Pointer ||
+                               ftr.kind == MIRTypeKind::Reference)
+                                  ? builder_->load_indirect(faddr, ft)
+                                  : faddr;
                 }
             }
             error = "empty member chain";
@@ -1546,7 +1607,22 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     error = "aggregate dereference assignment not yet supported";
                     return false;
                 }
-                builder_->store_indirect(static_cast<ValueId>(p.id), r.id);
+                if (as->assOp != Operation::Assignment) {
+                    MIRBinaryOp bop = MIRBinaryOp::Add;
+                    if (!compound_binary(as->assOp, bop)) {
+                        error = "unsupported compound dereference assignment operator";
+                        return false;
+                    }
+                    const TypeId et = types_.map(lhs->getType());
+                    const ConstantId opc = module_.constants.add_int(
+                        MIR_INVALID_ID, static_cast<uint64_t>(bop));
+                    const ValueId cur =
+                        builder_->load_indirect(static_cast<ValueId>(p.id), et);
+                    const ValueId nv = builder_->binary(cur, r.id, opc, et);
+                    builder_->store_indirect(static_cast<ValueId>(p.id), nv);
+                } else {
+                    builder_->store_indirect(static_cast<ValueId>(p.id), r.id);
+                }
                 return true;
             }
             if (lhs->val_kind() == ValueKind::IndexOperator) {
@@ -1561,12 +1637,36 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     error = "aggregate index assignment not yet supported";
                     return false;
                 }
+                const TypeId et = types_.map(io->getType());
+                const bool compound = (as->assOp != Operation::Assignment);
+                ConstantId opc = MIR_INVALID_ID;
+                if (compound) {
+                    MIRBinaryOp bop = MIRBinaryOp::Add;
+                    if (!compound_binary(as->assOp, bop)) {
+                        error = "unsupported compound index assignment operator";
+                        return false;
+                    }
+                    opc = module_.constants.add_int(MIR_INVALID_ID,
+                                                   static_cast<uint64_t>(bop));
+                }
                 if (base.kind == MIRExprKind::Place) {
-                    builder_->element_store(static_cast<PlaceId>(base.id),
-                                            static_cast<ValueId>(idx.id), r.id);
+                    const PlaceId bp = static_cast<PlaceId>(base.id);
+                    ValueId val = r.id;
+                    if (compound) {
+                        const ValueId cur =
+                            builder_->element_load(bp, static_cast<ValueId>(idx.id), et);
+                        val = builder_->binary(cur, r.id, opc, et);
+                    }
+                    builder_->element_store(bp, static_cast<ValueId>(idx.id), val);
                 } else {
-                    builder_->index_store(static_cast<ValueId>(base.id),
-                                          static_cast<ValueId>(idx.id), r.id);
+                    const ValueId bv = static_cast<ValueId>(base.id);
+                    ValueId val = r.id;
+                    if (compound) {
+                        const ValueId cur =
+                            builder_->index_load(bv, static_cast<ValueId>(idx.id), et);
+                        val = builder_->binary(cur, r.id, opc, et);
+                    }
+                    builder_->index_store(bv, static_cast<ValueId>(idx.id), val);
                 }
                 return true;
             }
@@ -1787,24 +1887,15 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
         }
         case ASTNodeKind::Block: {
             auto* b = node->as_block_scope_unsafe();
-            for (ASTNode* n : b->nodes) {
-                if (!lower_stmt(n, error)) return false;
-            }
-            return true;
+            return lower_scope_nodes(b->nodes, error);
         }
         case ASTNodeKind::Scope: {
             auto* s = node->as_scope_unsafe();
-            for (ASTNode* n : s->nodes) {
-                if (!lower_stmt(n, error)) return false;
-            }
-            return true;
+            return lower_scope_nodes(s->nodes, error);
         }
         case ASTNodeKind::UnsafeBlock: {
             auto* u = node->as_unsafe_block_unsafe();
-            for (ASTNode* n : u->scope.nodes) {
-                if (!lower_stmt(n, error)) return false;
-            }
-            return true;
+            return lower_scope_nodes(u->scope.nodes, error);
         }
         default:
             error = "unsupported statement kind during MIR lowering (kind " +
@@ -1842,8 +1933,12 @@ bool MIRLowerer::lower_incdec_value(Value* target, bool increment, std::string& 
 }
 
 bool MIRLowerer::lower_scope(Scope& scope, std::string& error) {
+    return lower_scope_nodes(scope.nodes, error);
+}
+
+bool MIRLowerer::lower_scope_nodes(std::vector<ASTNode*>& nodes, std::string& error) {
     const size_t mark = destructibles_.size();
-    for (ASTNode* n : scope.nodes) {
+    for (ASTNode* n : nodes) {
         if (!lower_stmt(n, error)) return false;
     }
     // destroy locals declared in this scope (unless they were moved out)

@@ -104,6 +104,8 @@ public:
     ValueId field_addr_ptr(ValueId base, ConstantId field_name, TypeId field_type);
     /** Address of an array element; result value is typed as `element_type`. */
     ValueId index_addr(PlaceId base, ValueId index, TypeId element_type);
+    /** Address of an element through a pointer: `&base[index]`. */
+    ValueId index_addr_ptr(ValueId base, ValueId index, TypeId element_type);
     ValueId gep(ValueId base, TypeId result_type,
                 std::initializer_list<ValueId> indices);
 

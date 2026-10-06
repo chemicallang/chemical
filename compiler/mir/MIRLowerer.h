@@ -106,6 +106,8 @@ private:
     MIRExprResult lower_expr(Value* value, std::string& error);
     bool lower_stmt(ASTNode* node, std::string& error);
     bool lower_scope(Scope& scope, std::string& error);
+    /** Lower a list of statements as a scope, destroying its locals at the end. */
+    bool lower_scope_nodes(std::vector<ASTNode*>& nodes, std::string& error);
     bool lower_if(IfStatement* stmt, BlockId merge, std::string& error);
     bool lower_while(WhileLoop* loop, std::string& error);
     bool lower_for(ForLoop* loop, std::string& error);

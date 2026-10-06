@@ -74,8 +74,17 @@ void DereferenceValue::set_value(InterpretScope& scope, Value* rawValue, Operati
             return;
         }
         // Evaluate the new value
-        const auto newVal = rawValue->evaluated_value(scope);
+        Value* newVal = rawValue->evaluated_value(scope);
         if(!newVal) return;
+        // Compound assignment (`*p += x`): apply the operator to the current
+        // pointee before storing, matching the compiled backends.
+        if(op != Operation::Assignment) {
+            auto curVal = evaluated_value(scope);
+            if(curVal) {
+                newVal = scope.evaluate(op, curVal, newVal, location, this);
+                if(!newVal) return;
+            }
+        }
         // Write the new value's data to the pointer location
         const auto num = newVal->get_number();
         if(num.has_value()) {

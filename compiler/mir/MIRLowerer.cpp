@@ -780,6 +780,23 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     }
                 }
             }
+            if (!ctor_node && call->getType() && call->parent_val &&
+                call->parent_val->val_kind() == ValueKind::AccessChain) {
+                // unlinked constructor call (`std::string_view(...)`): match the
+                // callee name against the call's aggregate type name
+                auto* ch = call->parent_val->as_access_chain_unsafe();
+                std::string mname, merr;
+                if (!ch->values.empty() && member_name(ch->values.back(), mname, merr)) {
+                    ASTNode* cn = call->getType()->get_direct_linked_canonical_node();
+                    if (cn && cn->kind() == ASTNodeKind::StructDecl) {
+                        auto* sd = cn->as_struct_def_unsafe();
+                        if (sd->name_view() ==
+                            chem::string_view(mname.data(), static_cast<unsigned>(mname.size()))) {
+                            ctor_node = cn;
+                        }
+                    }
+                }
+            }
             if (ctor_node) {
                 BaseType* ctype = call->getType();
                 const TypeId st = types_.map(ctype);

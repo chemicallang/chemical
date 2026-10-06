@@ -508,6 +508,18 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                         out += "*" + operand_expr(function, module, *p) + " = " + rhs + ";\n";
                     }
                 } else if (a->kind() == MIROperandKind::Value && b) {
+                    if (b->kind() == MIROperandKind::Place) {
+                        const MIRTypeRecord& btr = module.types.get(function.places[b->id].type);
+                        if (btr.kind == MIRTypeKind::Array) {
+                            // arrays are not assignable: copy the element bytes
+                            const std::string base = place_name(module, function, p->id);
+                            const std::string elem =
+                                base + "[" + operand_expr(function, module, *a) + "]";
+                            out += "memcpy(&" + elem + ", " + place_name(module, function, b->id) +
+                                   ", sizeof(" + place_name(module, function, b->id) + "));\n";
+                            break;
+                        }
+                    }
                     out += place_name(module, function, p->id) + "[" + operand_expr(function, module, *a) +
                            "] = " + operand_expr(function, module, *b) + ";\n";
                 } else if (a->kind() == MIROperandKind::Constant && b) {
@@ -1113,8 +1125,13 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const std::string base = (fat->kind() == MIROperandKind::Place)
                                              ? place_name(module, function, fat->id)
                                              : operand_expr(function, module, *fat);
-                std::string call = "((" + vt_name + "*)" + base + ".second)->" + m_name + "(" +
-                                   base + ".first";
+                const bool arrow =
+                    fat->type() < module.types.size() &&
+                    (module.types.get(fat->type()).kind == MIRTypeKind::Pointer ||
+                     module.types.get(fat->type()).kind == MIRTypeKind::Reference);
+                const std::string access = base + (arrow ? "->" : ".");
+                std::string call = "((" + vt_name + "*)" + access + "second)->" + m_name + "(" +
+                                   access + "first";
                 for (uint32_t a = 3; a < inst.operand_count; ++a) {
                     call += ", " + operand_expr(function, module, *operand_at(function, inst, a));
                 }

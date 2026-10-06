@@ -1883,6 +1883,12 @@ bool mir_translate_after_declaration(
     }
 
     bool had_errors = false;
+    auto flush_lambdas = [&lowerer, &visitor]() {
+        for (std::string& def : lowerer.lambda_defs()) {
+            visitor.writer.append(def.data(), def.size());
+        }
+        lowerer.clear_lambda_defs();
+    };
     for (ASTNode* node : nodes) {
         if (node->kind() == ASTNodeKind::FunctionDecl) {
             auto* decl = node->as_function();
@@ -1891,6 +1897,7 @@ bool mir_translate_after_declaration(
                 mir::MIRFunction fn;
                 std::string error;
                 if (!lowerer.lower_function(decl, arena, fn, error)) {
+                    lowerer.clear_lambda_defs();
                     std::cerr << "[MIR] lowering failed (" << (decl->name_str()) << " @ "
                               << mir_mangle_name(visitor.mangler, decl) << "): " << error
                               << " -- falling back to the legacy visitor\n";
@@ -1902,13 +1909,16 @@ bool mir_translate_after_declaration(
                     std::string poll_c, poll_e;
                     std::string c, emit_error;
                     if (!mir::emit_function_c(lowerer.async_poll(), module, poll_c, poll_e)) {
+                        lowerer.clear_lambda_defs();
                         std::cerr << "[MIR] async poll emission failed (" << (decl->name_str())
                                   << "): " << poll_e << " -- falling back to the legacy visitor\n";
                     } else if (!mir::emit_function_c(fn, module, c, emit_error)) {
+                        lowerer.clear_lambda_defs();
                         std::cerr << "[MIR] async ramp emission failed (" << (decl->name_str())
                                   << "): " << emit_error
                                   << " -- falling back to the legacy visitor\n";
                     } else {
+                        flush_lambdas();
                         std::string pre = lowerer.async_pre_decls();
                         visitor.writer.append(pre.data(), pre.size());
                         visitor.writer.append(poll_c.data(), poll_c.size());
@@ -1920,10 +1930,12 @@ bool mir_translate_after_declaration(
                 } else {
                     std::string c, emit_error;
                     if (!mir::emit_function_c(fn, module, c, emit_error)) {
+                        lowerer.clear_lambda_defs();
                         std::cerr << "[MIR] emission failed (" << (decl->name_str())
                                   << "): " << emit_error
                                   << " -- falling back to the legacy visitor\n";
                     } else {
+                        flush_lambdas();
                         visitor.writer.append(c.data(), c.size());
                         continue;
                     }
@@ -1991,8 +2003,15 @@ int ASTProcessor::implement_module(
     mir_lowerer.set_comptime_eval([&c_visitor](FunctionCall* call, FunctionDeclaration* decl) {
         return c_visitor.eval_comptime_call(call, decl);
     });
+    mir_lowerer.set_comptime_value_eval([&c_visitor](Value* v) -> Value* {
+        if (!v) return nullptr;
+        return v->evaluated_value(c_visitor.comptime_scope);
+    });
     mir_lowerer.set_comptime_ctor_eval([&c_visitor](FunctionDeclaration* ctor, Value* arg) {
         return c_visitor.eval_comptime_ctor(ctor, arg);
+    });
+    mir_lowerer.set_current_func([&c_visitor](FunctionTypeBody* f) {
+        c_visitor.current_func_type = f;
     });
     mir_lowerer.set_symbol_lookup([this, module](const std::string& name) -> FunctionDeclaration* {
         if (resolver) {

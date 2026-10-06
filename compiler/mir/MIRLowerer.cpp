@@ -70,6 +70,7 @@
 #include "ast/values/IsValue.h"
 #include "ast/values/VariantCase.h"
 #include "ast/values/VariantCaseVariable.h"
+#include "ast/values/LambdaFunction.h"
 #include "ast/values/SwitchValue.h"
 #include "ast/values/LoopValue.h"
 #include "ast/values/AwaitExpression.h"
@@ -116,6 +117,46 @@ bool needs_sret_return(const MIRModule& module, TypeId type) {
     const MIRTypeKind k = module.types.get(type).kind;
     return k == MIRTypeKind::Struct || k == MIRTypeKind::Union || k == MIRTypeKind::Variant ||
            k == MIRTypeKind::Array;
+}
+
+/** True for struct/union/variant types (operator overloads live on these). */
+bool is_struct_like(const MIRModule& module, TypeId type) {
+    if (type == MIR_INVALID_ID || type >= module.types.size()) return false;
+    const MIRTypeKind k = module.types.get(type).kind;
+    return k == MIRTypeKind::Struct || k == MIRTypeKind::Union || k == MIRTypeKind::Variant;
+}
+
+/**
+ * Resolve a member (which may be inherited) to its dotted C field path from
+ * `container`, e.g. `WalkingAnimal.Animal.a`. The C layout nests each base
+ * struct as a field named after the base type.
+ */
+bool inherited_field_path(ASTNode* container, ASTNode* member, std::string& out) {
+    if (!container || !member) return false;
+    if (member->parent() == container) {
+        auto* bdm = member->as_base_def_member();
+        if (!bdm) return false;
+        out.assign(bdm->name.data(), bdm->name.size());
+        return true;
+    }
+    auto* ec = container->as_extendable_member_container();
+    if (!ec) return false;
+    for (InheritedType& inh : ec->inherited) {
+        BaseType* bt = inh.type;
+        ASTNode* base = bt ? bt->get_direct_linked_canonical_node() : nullptr;
+        if (!base) continue;
+        std::string sub;
+        if (inherited_field_path(base, member, sub)) {
+            auto* bec = base->as_extendable_member_container();
+            const chem::string_view bn = bec ? bec->name_view() : chem::string_view();
+            if (bn.empty()) return false;
+            out.assign(bn.data(), bn.size());
+            out += ".";
+            out += sub;
+            return true;
+        }
+    }
+    return false;
 }
 
 bool map_binary(Operation op, MIROpcode& out, MIRBinaryOp& bop) {
@@ -269,7 +310,7 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
             }
             for (size_t i = 1; i < c->values.size(); ++i) {
                 std::string fname;
-                if (!member_name(c->values[i], fname, error)) return MIRExprResult::error();
+                if (!member_field_path(c->values[i - 1], c->values[i], fname, error)) return MIRExprResult::error();
                 const ConstantId fc = module_.constants.add_string(
                     MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
                 const TypeId ft = types_.map(c->values[i]->getType());
@@ -379,6 +420,26 @@ bool MIRLowerer::member_name(Value* v, std::string& out, std::string& error) {
     return true;
 }
 
+bool MIRLowerer::member_field_path(Value* base, Value* member, std::string& out,
+                                   std::string& error) {
+    Value* m = member;
+    if (m && m->val_kind() == ValueKind::AccessChain) {
+        auto* c = m->as_access_chain_unsafe();
+        if (c->values.size() == 1) m = c->values[0];
+    }
+    ASTNode* mnode = m ? m->linked_node() : nullptr;
+    BaseType* bt = base ? base->getType() : nullptr;
+    ASTNode* cn = bt ? bt->get_direct_linked_canonical_node() : nullptr;
+    if (mnode && cn) {
+        std::string path;
+        if (inherited_field_path(cn, mnode, path)) {
+            out = path;
+            return true;
+        }
+    }
+    return member_name(member, out, error);
+}
+
 bool MIRLowerer::lower_call_args(const std::vector<Value*>& values,
                                  std::vector<MIROperand>& args, std::string& error) {
     return lower_call_args_for(nullptr, false, values, args, error);
@@ -387,7 +448,6 @@ bool MIRLowerer::lower_call_args(const std::vector<Value*>& values,
 bool MIRLowerer::lower_call_args_for(FunctionDeclaration* fd, bool self_included,
                                      const std::vector<Value*>& values,
                                      std::vector<MIROperand>& args, std::string& error) {
-    call_temps_.clear();
     const size_t offset = self_included ? 1 : 0;
     for (size_t i = 0; i < values.size(); ++i) {
         BaseType* param_type = nullptr;
@@ -431,6 +491,18 @@ void MIRLowerer::destroy_call_temps(std::string& error) {
         builder_->destroy(place, dtor);
     }
     call_temps_.clear();
+    (void)error;
+}
+
+void MIRLowerer::destroy_call_temps_from(size_t mark, std::string& error) {
+    // destroy only the temporaries created for the call that started at `mark`,
+    // leaving the enclosing call's in-progress temporaries intact
+    for (size_t i = mark; i < call_temps_.size(); ++i) {
+        const SymbolId dtor = destructor_symbol(call_temps_[i].second);
+        if (dtor == MIR_INVALID_ID) continue;
+        builder_->destroy(call_temps_[i].first, dtor);
+    }
+    call_temps_.resize(mark);
     (void)error;
 }
 
@@ -496,6 +568,13 @@ void MIRLowerer::emit_drops() {
     }
 }
 
+void MIRLowerer::emit_drops_from(size_t mark) {
+    for (size_t i = destructibles_.size(); i-- > mark;) {
+        const ValueId fv = builder_->load(destructibles_[i].flag, types_.bool_type());
+        builder_->drop(destructibles_[i].place, destructibles_[i].dtor, fv);
+    }
+}
+
 MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
                                               std::string& error) {
     BaseType* conv_type = param_type;
@@ -505,6 +584,14 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
         } else if (param_type->kind() == BaseTypeKind::Pointer) {
             conv_type = param_type->as_pointer_type()->type;
         }
+    }
+    // a lambda passed where a std::function (capturing function) is expected
+    // needs the closure wrapper, which MIR does not build yet
+    if (arg && arg->val_kind() == ValueKind::LambdaFunc && param_type &&
+        param_type->canonical() &&
+        param_type->canonical()->kind() == BaseTypeKind::CapturingFunction) {
+        error = "lambda passed as std::function is not yet supported";
+        return MIRExprResult::error();
     }
     // an untyped constructor call for the parameter's own type
     // (`std::string_view("...")`): the callee identifier may not be linked, so
@@ -564,6 +651,19 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
         }
     }
     if (conv_type) {
+        // an untyped struct literal (`f({ a: 1, b: 2 })`) takes its type from the
+        // expected parameter/return type
+        if (arg && arg->val_kind() == ValueKind::StructValue) {
+            BaseType* at = arg->getType();
+            ASTNode* an = at ? at->get_direct_linked_canonical_node() : nullptr;
+            if (!an) {
+                BaseType* saved = expected_struct_type_;
+                expected_struct_type_ = conv_type;
+                MIRExprResult r = lower_expr(arg, error);
+                expected_struct_type_ = saved;
+                return r;
+            }
+        }
         FunctionDeclaration* imp = nullptr;
         ASTNode* ln = conv_type->get_direct_linked_canonical_node();
         if (ln && ln->kind() == ASTNodeKind::StructDecl) {
@@ -600,9 +700,12 @@ bool MIRLowerer::push_call_arg(MIRExprResult r, std::vector<MIROperand>& args,
             // arrays decay to a pointer to their first element
             const TypeId eptr = types_.pointer_type(prec.element, false);
             args.push_back(MIROperand::value(builder_->address_of(pid, eptr), eptr));
-        } else {
+        } else if (needs_aggregate_path(module_, pt)) {
             const TypeId ptrt = types_.pointer_type(pt, false);
             args.push_back(MIROperand::value(builder_->address_of(pid, ptrt), ptrt));
+        } else {
+            // a typedef struct (e.g. a dynamic fat pointer) is passed by value
+            args.push_back(MIROperand::value(builder_->load(pid, pt), pt));
         }
     } else if (r.kind == MIRExprKind::Address) {
         args.push_back(MIROperand::value(static_cast<ValueId>(r.id), r.type));
@@ -659,7 +762,7 @@ MIRExprResult MIRLowerer::lower_member_chain(const std::vector<Value*>& values, 
     }
     for (size_t i = 1; i < count; ++i) {
         std::string fname;
-        if (!member_name(values[i], fname, error)) return MIRExprResult::error();
+        if (!member_field_path(values[i - 1], values[i], fname, error)) return MIRExprResult::error();
         const ConstantId fc = module_.constants.add_string(
             MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
         const TypeId ft = types_.map(values[i]->getType());
@@ -814,9 +917,14 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
         if (recv.kind == MIRExprKind::Place) {
             fat_t = builder_->function().places[recv.id].type;
             fat = builder_->load(recv.id, fat_t);
+        } else if (recv.kind == MIRExprKind::Address) {
+            // an lvalue address: the operand is a pointer to the fat pointer
+            fat_t = types_.pointer_type(recv.type, true);
+            fat = static_cast<ValueId>(recv.id);
         } else {
             fat = static_cast<ValueId>(recv.id);
         }
+        const size_t cmark = call_temps_.size();
         std::vector<MIROperand> dargs;
         if (!lower_call_args_for(fd, true, call->values, dargs, error)) {
             return MIRExprResult::error();
@@ -831,6 +939,7 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
         }
         const ValueId dv = builder_->dynamic_call(
             fat, fat_t, vt_c, m_c, dargs.data(), static_cast<uint32_t>(dargs.size()), dtype);
+        destroy_call_temps_from(cmark, error);
         if (is_void_type(module_, dtype)) return MIRExprResult::void_result();
         return MIRExprResult::value(dv, dtype);
     }
@@ -894,6 +1003,7 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
             args.push_back(MIROperand::value(builder_->address_of(tmp, ptrt), ptrt));
         }
     }
+    const size_t cmark = call_temps_.size();
     if (!lower_call_args_for(fd, true, call->values, args, error)) {
         return MIRExprResult::error();
     }
@@ -914,7 +1024,7 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
     const TypeId type = types_.map(call->getType());
     if (is_void_type(module_, type)) {
         builder_->call_scalar(sym, type, args.data(), static_cast<uint32_t>(args.size()));
-        destroy_call_temps(error);
+        destroy_call_temps_from(cmark, error);
         return MIRExprResult::void_result();
     }
     if (needs_sret_return(module_, type)) {
@@ -924,11 +1034,11 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
             return MIRExprResult::error();
         }
         builder_->call_sret(sym, res, args.data(), static_cast<uint32_t>(args.size()));
-        destroy_call_temps(error);
+        destroy_call_temps_from(cmark, error);
         return MIRExprResult::place(res, type);
     }
     const ValueId v = builder_->call_scalar(sym, type, args.data(), static_cast<uint32_t>(args.size()));
-    destroy_call_temps(error);
+    destroy_call_temps_from(cmark, error);
     return MIRExprResult::value(v, type);
 }
 
@@ -1143,6 +1253,11 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 return MIRExprResult::error();
             }
             ConstantId opc = module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(bop));
+            if (is_struct_like(module_, lhs.type) || is_struct_like(module_, rhs.type)) {
+                // operator overloading (e.g. `struct + int`) is not lowered yet
+                error = "operator overloading on aggregates is not yet supported";
+                return MIRExprResult::error();
+            }
             if (op == MIROpcode::Compare) {
                 return MIRExprResult::value(builder_->compare(lhs.id, rhs.id, opc, type), type);
             }
@@ -1212,13 +1327,50 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     }
                 }
             }
+            // a member access on a comptime-known global (e.g. `def.is64Bit`)
+            if (comptime_value_eval_ && chain->values.size() >= 2) {
+                Value* b = chain->values[0];
+                if (b && b->val_kind() == ValueKind::AccessChain) {
+                    auto* c = b->as_access_chain_unsafe();
+                    if (c->values.size() == 1) b = c->values[0];
+                }
+                ASTNode* bl = b ? b->linked_node() : nullptr;
+                if (bl && bl->kind() == ASTNodeKind::VarInitStmt &&
+                    bl->as_var_init()->is_comptime()) {
+                    Value* ev = comptime_value_eval_(value);
+                    if (ev && ev != value) return lower_expr(ev, error);
+                }
+            }
             // member access: walk the chain from the base, taking the address of
             // each intermediate field and loading the last
             return lower_member_chain(chain->values, chain->values.size(), error);
         }
         case ValueKind::StructValue: {
             auto* sv = value->as_struct_value_unsafe();
-            const TypeId st = type;
+            TypeId st = type;
+            StructDefinition* sd = nullptr;
+            if (BaseType* ctype = value->getType()) {
+                ASTNode* cn = ctype->get_direct_linked_canonical_node();
+                if (cn && cn->kind() == ASTNodeKind::StructDecl) {
+                    sd = cn->as_struct_def_unsafe();
+                }
+            }
+            if ((!sd || st == MIR_INVALID_ID || st >= module_.types.size() ||
+                 module_.types.get(st).kind == MIRTypeKind::Opaque) &&
+                expected_struct_type_) {
+                st = types_.map(expected_struct_type_);
+                ASTNode* cn = expected_struct_type_->get_direct_linked_canonical_node();
+                if (cn && cn->kind() == ASTNodeKind::StructDecl) {
+                    sd = cn->as_struct_def_unsafe();
+                }
+            }
+            if (!sd || st == MIR_INVALID_ID || st >= module_.types.size() ||
+                module_.types.get(st).kind == MIRTypeKind::Opaque) {
+                // e.g. a generic struct literal whose instantiation MIR has not
+                // resolved: fall back rather than emit `void*` field stores
+                error = "struct literal with an unresolved (generic?) type is not yet supported";
+                return MIRExprResult::error();
+            }
             const PlaceId temp = builder_->alloca(st, MIRStorageClass::Temporary);
             if (temp == MIR_INVALID_ID) {
                 error = "failed to allocate struct temporary";
@@ -1227,13 +1379,6 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             // zero the temp so members that are not explicitly set are
             // well-defined (matches the legacy backend's default initialization)
             builder_->zero_init(temp);
-            StructDefinition* sd = nullptr;
-            if (BaseType* ctype = value->getType()) {
-                ASTNode* cn = ctype->get_direct_linked_canonical_node();
-                if (cn && cn->kind() == ASTNodeKind::StructDecl) {
-                    sd = cn->as_struct_def_unsafe();
-                }
-            }
             auto it = sv->values.begin();
             while (it != sv->values.end()) {
                 auto& init = it.value();
@@ -1603,10 +1748,12 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     }
                     const ValueId fnptr = builder_->load(fp, ft);
                     std::vector<MIROperand> cargs;
+                    const size_t cmark = call_temps_.size();
                     if (!lower_call_args(call->values, cargs, error)) return MIRExprResult::error();
                     const TypeId rt = types_.map(call->getType());
                     if (is_void_type(module_, rt)) {
                         builder_->call_indirect(fnptr, rt, cargs.data(), static_cast<uint32_t>(cargs.size()));
+                        destroy_call_temps_from(cmark, error);
                         return MIRExprResult::void_result();
                     }
                     if (needs_sret_return(module_, rt)) {
@@ -1616,10 +1763,12 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         builder_->zero_init(tmp);
                         builder_->call_indirect_sret(fnptr, tmp, cargs.data(),
                                                      static_cast<uint32_t>(cargs.size()));
+                        destroy_call_temps_from(cmark, error);
                         return MIRExprResult::place(tmp, rt);
                     }
                     const ValueId v = builder_->call_indirect(fnptr, rt, cargs.data(),
                                                               static_cast<uint32_t>(cargs.size()));
+                    destroy_call_temps_from(cmark, error);
                     return MIRExprResult::value(v, rt);
                 }
             }
@@ -1634,6 +1783,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             SymbolId sym = intern_function(fd);
 
             args.reserve(args.size() + call->values.size());
+            const size_t cmark = call_temps_.size();
             if (!lower_call_args_for(fd, false, call->values, args, error)) {
                 return MIRExprResult::error();
             }
@@ -1643,7 +1793,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
 
             if (is_void_type(module_, type)) {
                 builder_->call_scalar(sym, type, args.data(), static_cast<uint32_t>(args.size()));
-                destroy_call_temps(error);
+                destroy_call_temps_from(cmark, error);
                 return MIRExprResult::void_result();
             }
             if (needs_sret_return(module_, type)) {
@@ -1653,11 +1803,11 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     return MIRExprResult::error();
                 }
                 builder_->call_sret(sym, res, args.data(), static_cast<uint32_t>(args.size()));
-                destroy_call_temps(error);
+                destroy_call_temps_from(cmark, error);
                 return MIRExprResult::place(res, type);
             }
             ValueId v = builder_->call_scalar(sym, type, args.data(), static_cast<uint32_t>(args.size()));
-            destroy_call_temps(error);
+            destroy_call_temps_from(cmark, error);
             return MIRExprResult::value(v, type);
         }
         case ValueKind::AddrOfValue: {
@@ -1680,8 +1830,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             // zero the array so elements not covered by the literal are 0
             builder_->zero_init(place);
             const TypeId ut = types_.u32_type();
+            BaseType* elem_bt = arr->known_elem_type();
             for (size_t i = 0; i < arr->values.size(); ++i) {
-                MIRExprResult e = lower_expr(arr->values[i], error);
+                MIRExprResult e = lower_arg_converted(arr->values[i], elem_bt, error);
                 if (!e.ok()) return e;
                 ValueId val = MIR_NULL;
                 if (e.kind == MIRExprKind::Place) {
@@ -1715,6 +1866,13 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             if (!base.ok()) return base;
             MIRExprResult idx = lower_expr(io->idx, error);
             if (!idx.ok()) return idx;
+            if (base.kind == MIRExprKind::Place) {
+                const TypeId bt = builder_->function().places[base.id].type;
+                if (is_struct_like(module_, bt)) {
+                    error = "index operator overloading is not yet supported";
+                    return MIRExprResult::error();
+                }
+            }
             if (needs_aggregate_path(module_, type)) {
                 // aggregate element: return its address (an lvalue), not a load
                 const TypeId ptrt = types_.pointer_type(type, true);
@@ -1892,6 +2050,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         }
         case ValueKind::ComptimeValue:
             return lower_expr(static_cast<ComptimeValue*>(value)->getValue(), error);
+        case ValueKind::LambdaFunc: {
+            return lower_lambda(value->as_lambda_func_unsafe(), error);
+        }
         default:
             error = "unsupported value kind during MIR lowering (kind " +
                     std::to_string(static_cast<int>(value->val_kind())) + ")";
@@ -1978,6 +2139,14 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 }
             }
             if (vi->value) {
+                // a lambda stored in a std::function (capturing function) needs
+                // the closure wrapper, which MIR does not build yet
+                if (vi->value->val_kind() == ValueKind::LambdaFunc && vi->known_type() &&
+                    vi->known_type()->canonical() &&
+                    vi->known_type()->canonical()->kind() == BaseTypeKind::CapturingFunction) {
+                    error = "lambda assigned to std::function is not yet supported";
+                    return false;
+                }
                 // moving a destructible value out of another local/param
                 {
                     Value* iv = vi->value;
@@ -2051,7 +2220,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     }
                     for (size_t i = 1; i + 1 < n; ++i) {
                         std::string fname;
-                        if (!member_name(chain->values[i], fname, error)) return false;
+                        if (!member_field_path(chain->values[i - 1], chain->values[i], fname, error)) return false;
                         const ConstantId fc = module_.constants.add_string(
                             MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
                         const TypeId ft = types_.map(chain->values[i]->getType());
@@ -2063,7 +2232,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         }
                     }
                     std::string fname;
-                    if (!member_name(chain->values.back(), fname, error)) return false;
+                    if (!member_field_path(chain->values[n - 2], chain->values.back(), fname, error)) return false;
                     const ConstantId fc = module_.constants.add_string(
                         MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
                     MIRExprResult r = lower_expr(as->value, error);
@@ -2081,6 +2250,10 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                                                      : builder_->field_load(cur_place, fc, ft);
                         const ConstantId opc = module_.constants.add_int(
                             MIR_INVALID_ID, static_cast<uint64_t>(bop));
+                        if (is_struct_like(module_, ft)) {
+                            error = "compound field assignment operator overloading is not yet supported";
+                            return false;
+                        }
                         const ValueId nv = builder_->binary(cur, r.id, opc, ft);
                         if (!have_ptr) {
                             builder_->field_store(cur_place, fc, nv);
@@ -2158,6 +2331,10 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         MIR_INVALID_ID, static_cast<uint64_t>(bop));
                     const ValueId cur =
                         builder_->load_indirect(static_cast<ValueId>(p.id), et);
+                    if (is_struct_like(module_, et)) {
+                        error = "compound dereference assignment operator overloading is not yet supported";
+                        return false;
+                    }
                     const ValueId nv = builder_->binary(cur, r.id, opc, et);
                     builder_->store_indirect(static_cast<ValueId>(p.id), nv);
                 } else {
@@ -2206,6 +2383,10 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     return false;
                 }
                 const bool compound = (as->assOp != Operation::Assignment);
+                if (compound && is_struct_like(module_, et)) {
+                    error = "compound index assignment operator overloading is not yet supported";
+                    return false;
+                }
                 ConstantId opc = MIR_INVALID_ID;
                 if (compound) {
                     MIRBinaryOp bop = MIRBinaryOp::Add;
@@ -2281,7 +2462,6 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             if (!r.ok()) return false;
             const TypeId place_type = builder_->function().places[place].type;
             if (r.kind == MIRExprKind::Place) {
-                // aggregate assignment: dest = src (C struct assignment)
                 builder_->emit(MIROpcode::Store, MIR_NULL,
                                {MIROperand::place(place, place_type),
                                 MIROperand::place(static_cast<PlaceId>(r.id), place_type)});
@@ -2298,6 +2478,10 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 return false;
             }
             ValueId val = r.id;
+            if (as->assOp != Operation::Assignment && is_struct_like(module_, place_type)) {
+                error = "compound assignment operator overloading is not yet supported";
+                return false;
+            }
             if (as->assOp != Operation::Assignment) {
                 MIROpcode cop = MIROpcode::Nop;
                 MIRBinaryOp bop = MIRBinaryOp::Add;
@@ -2455,6 +2639,13 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
         }
         case ASTNodeKind::IfStmt: {
             auto* ifs = node->as_if_stmt_unsafe();
+            // a condition the resolver proved constant (a `comptime if`, or a
+            // condition such as `def.is64Bit`) carries its taken scope here
+            if (ifs->computed_scope.has_value()) {
+                Scope* taken = ifs->computed_scope.value();
+                if (taken) return lower_scope(*taken, error);
+                return true;
+            }
             if (ifs->is_comptime()) {
                 // compile-time condition: lower only the taken scope
                 std::string rerr;
@@ -2477,6 +2668,9 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 error = "break outside a loop";
                 return false;
             }
+            if (!loop_destructible_marks_.empty()) {
+                emit_drops_from(loop_destructible_marks_.back());
+            }
             builder_->br(break_targets_.back());
             return true;
         }
@@ -2484,6 +2678,9 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             if (continue_targets_.empty()) {
                 error = "continue outside a loop";
                 return false;
+            }
+            if (!loop_destructible_marks_.empty()) {
+                emit_drops_from(loop_destructible_marks_.back());
             }
             builder_->br(continue_targets_.back());
             return true;
@@ -2659,6 +2856,10 @@ bool MIRLowerer::lower_incdec_value(Value* target, bool increment, bool post, st
         return false;
     }
     const TypeId vt = types_.map(t->getType());
+    if (is_struct_like(module_, vt)) {
+        error = "increment/decrement operator overloading is not yet supported";
+        return false;
+    }
     const ConstantId opc = module_.constants.add_int(
         MIR_INVALID_ID, static_cast<uint64_t>(increment ? MIRBinaryOp::Add : MIRBinaryOp::Sub));
     const TypeId it = types_.u32_type();
@@ -2670,6 +2871,17 @@ bool MIRLowerer::lower_incdec_value(Value* target, bool increment, bool post, st
         PlaceId place = place_for_linked(id->linked);
         if (place == MIR_INVALID_ID) place = place_for_name(id->value);
         if (place != MIR_INVALID_ID) {
+            const MIRTypeRecord& pr = module_.types.get(vt);
+            if (pr.kind == MIRTypeKind::Reference) {
+                // `ref++` on a reference increments the referent
+                const ValueId ptr = builder_->load(place, vt);
+                const TypeId et = pr.element;
+                const ValueId cur = builder_->load_indirect(ptr, et);
+                const ValueId nv = builder_->binary(cur, one, opc, et);
+                builder_->store_indirect(ptr, nv);
+                out = post ? cur : nv;
+                return true;
+            }
             const ValueId cur = builder_->load(place, vt);
             const ValueId nv = builder_->binary(cur, one, opc, vt);
             builder_->store(place, nv);
@@ -2768,14 +2980,17 @@ bool MIRLowerer::lower_while(WhileLoop* loop, std::string& error) {
     builder_->set_block(body_b);
     break_targets_.push_back(exit_b);
     continue_targets_.push_back(cond_b);
+    loop_destructible_marks_.push_back(destructibles_.size());
     if (!lower_scope(loop->body, error)) {
         break_targets_.pop_back();
         continue_targets_.pop_back();
+        loop_destructible_marks_.pop_back();
         return false;
     }
     if (!builder_->current_block_terminated()) builder_->br(cond_b);
     break_targets_.pop_back();
     continue_targets_.pop_back();
+    loop_destructible_marks_.pop_back();
 
     builder_->set_block(exit_b);
     return true;
@@ -2804,14 +3019,17 @@ bool MIRLowerer::lower_for(ForLoop* loop, std::string& error) {
     builder_->set_block(body_b);
     break_targets_.push_back(exit_b);
     continue_targets_.push_back(step_b);
+    loop_destructible_marks_.push_back(destructibles_.size());
     if (!lower_scope(loop->body, error)) {
         break_targets_.pop_back();
         continue_targets_.pop_back();
+        loop_destructible_marks_.pop_back();
         return false;
     }
     if (!builder_->current_block_terminated()) builder_->br(step_b);
     break_targets_.pop_back();
     continue_targets_.pop_back();
+    loop_destructible_marks_.pop_back();
 
     builder_->set_block(step_b);
     if (loop->incrementerExpr) {
@@ -3441,11 +3659,169 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
     return true;
 }
 
+MIRExprResult MIRLowerer::lower_lambda(LambdaFunction* lamb, std::string& error) {
+    if (!lamb) {
+        error = "null lambda";
+        return MIRExprResult::error();
+    }
+    if (!lamb->captureList.empty()) {
+        error = "capturing lambda is not yet supported";
+        return MIRExprResult::error();
+    }
+    static uint64_t s_lambda_counter = 0;
+    const std::string lname = "__chemda_" + std::to_string(s_lambda_counter++);
+
+    const TypeId ret = lamb->returnType ? types_.map(lamb->returnType) : types_.void_type();
+    const bool l_sret = needs_sret_return(module_, ret);
+
+    std::vector<TypeId> ptypes;
+    if (l_sret) ptypes.push_back(types_.pointer_type(ret, true));
+    for (FunctionParam* p : lamb->params) {
+        TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
+        if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
+            pt = types_.pointer_type(module_.types.get(pt).element, true);
+        } else if (needs_aggregate_path(module_, pt)) {
+            pt = types_.pointer_type(pt, true);
+        }
+        ptypes.push_back(pt);
+    }
+    const TypeId ftype = types_.function_signature(l_sret ? types_.void_type() : ret, ptypes);
+
+    MIRSymbolRecord rec;
+    rec.kind = MIRSymbolKind::Function;
+    rec.linkage = MIRLinkage::Internal;
+    rec.type = ftype;
+    const SymbolId sym = module_.symbols.add(
+        rec, lname.data(), static_cast<uint32_t>(lname.size()),
+        lname.data(), static_cast<uint32_t>(lname.size()));
+
+    MIRFunction fn;
+    fn.symbol = sym;
+    fn.function_type = ftype;
+
+    // save the enclosing function's lowering state
+    MIRBuilder* saved_builder = builder_;
+    MIRArena* saved_arena = arena_;
+    FunctionTypeBody* saved_cur = current_func_;
+    auto saved_var = std::move(var_places_);
+    auto saved_name = std::move(name_places_);
+    auto saved_destructibles = std::move(destructibles_);
+    auto saved_call_temps = std::move(call_temps_);
+    const bool saved_sret = sret_;
+    const ValueId saved_sret_ptr = sret_ptr_;
+    const TypeId saved_sret_ret = sret_ret_type_;
+    const TypeId saved_sret_ptr_t = sret_ptr_type_;
+    BaseType* saved_return_type = return_type_;
+    auto saved_break = std::move(break_targets_);
+    auto saved_continue = std::move(continue_targets_);
+
+    var_places_.clear();
+    name_places_.clear();
+    destructibles_.clear();
+    call_temps_.clear();
+    break_targets_.clear();
+    continue_targets_.clear();
+
+    MIRBuilder b(*saved_arena, module_, fn);
+    builder_ = &b;
+    current_func_ = lamb;
+    if (set_current_func_) set_current_func_(lamb);
+    const BlockId entry = b.create_block();
+    b.set_block(entry);
+    fn.entry_block = entry;
+
+    sret_ = l_sret;
+    sret_ret_type_ = ret;
+    return_type_ = lamb->returnType;
+    if (l_sret) {
+        sret_ptr_type_ = types_.pointer_type(ret, true);
+        sret_ptr_ = b.param(sret_ptr_type_);
+    }
+
+    bool ok = true;
+    for (FunctionParam* p : lamb->params) {
+        TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
+        if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
+            pt = types_.pointer_type(module_.types.get(pt).element, true);
+        } else if (needs_aggregate_path(module_, pt)) {
+            pt = types_.pointer_type(pt, true);
+        }
+        ValueId pv = b.param(pt);
+        PlaceId place = b.alloca(pt, MIRStorageClass::Parameter);
+        if (place == MIR_INVALID_ID) {
+            ok = false;
+            error = "failed to allocate lambda parameter place";
+            break;
+        }
+        b.store(place, pv);
+        bind(p, place);
+        bind_name(p->name, place);
+        if (p->type) {
+            const TypeId ptt = types_.map(p->type);
+            const MIRTypeRecord& prr = module_.types.get(ptt);
+            if (!(prr.flags & TF_TYPEDEF) && needs_aggregate_path(module_, ptt)) {
+                register_destructible(place, p->type);
+            }
+        }
+    }
+
+    if (ok) ok = lower_scope(lamb->scope, error);
+    if (ok && !b.current_block_terminated()) {
+        emit_drops();
+        b.ret_void();
+    }
+    if (ok && !b.ok()) {
+        ok = false;
+        error = b.error() ? b.error() : "MIR builder failure";
+    }
+
+    std::string c;
+    if (ok) {
+        std::string e;
+        if (!emit_function_c(fn, module_, c, e)) {
+            ok = false;
+            error = e;
+        }
+    }
+    if (ok) lambda_defs_.push_back(std::move(c));
+
+    // restore the enclosing function's state
+    builder_ = saved_builder;
+    arena_ = saved_arena;
+    current_func_ = saved_cur;
+    if (set_current_func_) set_current_func_(saved_cur);
+    var_places_ = std::move(saved_var);
+    name_places_ = std::move(saved_name);
+    destructibles_ = std::move(saved_destructibles);
+    call_temps_ = std::move(saved_call_temps);
+    sret_ = saved_sret;
+    sret_ptr_ = saved_sret_ptr;
+    sret_ret_type_ = saved_sret_ret;
+    sret_ptr_type_ = saved_sret_ptr_t;
+    return_type_ = saved_return_type;
+    break_targets_ = std::move(saved_break);
+    continue_targets_ = std::move(saved_continue);
+
+    if (!ok) return MIRExprResult::error();
+
+    TypeId lam_type = types_.map(lamb->getType());
+    if (lam_type == MIR_INVALID_ID ||
+        (module_.types.get(lam_type).kind != MIRTypeKind::Function &&
+         module_.types.get(lam_type).kind != MIRTypeKind::Pointer)) {
+        lam_type = types_.pointer_type(ftype, true);
+    }
+    ValueId v = builder_->function_addr(sym, lam_type);
+    return MIRExprResult::value(v, lam_type);
+}
+
 bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
                                 MIRFunction& func, std::string& error) {
     if (decl->is_async()) {
         return lower_async_function(decl, arena, func, error);
     }
+    arena_ = &arena;
+    current_func_ = decl;
+    if (set_current_func_) set_current_func_(decl);
     var_places_.clear();
     name_places_.clear();
     destructibles_.clear();

@@ -30,6 +30,8 @@ class WhileLoop;
 class ForLoop;
 class FunctionCall;
 class VariantCaseVariable;
+class LambdaFunction;
+class FunctionTypeBody;
 
 namespace mir {
 
@@ -85,6 +87,10 @@ public:
     MIRTypeBuilder& types() { return types_; }
     MIRModule& module() { return module_; }
 
+    /** Generated C for lambda functions produced while lowering a body. */
+    std::vector<std::string>& lambda_defs() { return lambda_defs_; }
+    void clear_lambda_defs() { lambda_defs_.clear(); }
+
     /** Pre-register a callee symbol (mangled name) so calls resolve to it. */
     void set_function_symbol(FunctionDeclaration* decl, SymbolId symbol) {
         func_symbols_[decl] = symbol;
@@ -110,6 +116,11 @@ public:
         comptime_eval_ = std::move(fn);
     }
 
+    /** Evaluate an arbitrary comptime-known value (e.g. `def.windows`). */
+    void set_comptime_value_eval(std::function<Value*(Value*)> fn) {
+        comptime_value_eval_ = std::move(fn);
+    }
+
     /** Evaluate an implicit-constructor comptime call (interpreter-backed). */
     void set_comptime_ctor_eval(std::function<Value*(FunctionDeclaration*, Value*)> fn) {
         comptime_ctor_eval_ = std::move(fn);
@@ -118,6 +129,11 @@ public:
     /** Fallback lookup of a top-level function by name (symbol table). */
     void set_symbol_lookup(std::function<FunctionDeclaration*(const std::string&)> fn) {
         symbol_lookup_ = std::move(fn);
+    }
+
+    /** Notify the host which function body is currently being lowered (comptime). */
+    void set_current_func(std::function<void(FunctionTypeBody*)> fn) {
+        set_current_func_ = std::move(fn);
     }
 
 private:
@@ -143,6 +159,8 @@ private:
     FunctionDeclaration* resolve_method_fallback(BaseType* recv_type, const std::string& name);
     MIRExprResult lower_address_of(Value* inner, std::string& error);
     bool member_name(Value* v, std::string& out, std::string& error);
+    /** Resolve a (possibly inherited) member to its dotted C field path. */
+    bool member_field_path(Value* base, Value* member, std::string& out, std::string& error);
     bool lower_call_args(const std::vector<Value*>& values, std::vector<MIROperand>& args,
                          std::string& error);
     bool lower_call_args_for(FunctionDeclaration* fd, bool self_included,
@@ -151,10 +169,13 @@ private:
     MIRExprResult lower_arg_converted(Value* arg, BaseType* param_type, std::string& error);
     bool push_call_arg(MIRExprResult r, std::vector<MIROperand>& args, std::string& error);
     void destroy_call_temps(std::string& error);
+    void destroy_call_temps_from(size_t mark, std::string& error);
     SymbolId destructor_symbol(BaseType* type);
     void register_destructible(PlaceId place, BaseType* type);
     void mark_moved(PlaceId place);
     void emit_drops();
+    /** Drop destructibles registered at/after `mark`, innermost first. */
+    void emit_drops_from(size_t mark);
     bool append_default_args(FunctionDeclaration* fd, size_t provided, bool self_included,
                              std::vector<MIROperand>& args, std::string& error);
     /** Walk `values[0..count-1]` as a member chain, returning the last field. */
@@ -165,6 +186,8 @@ private:
                                  std::string& error);
     MIRExprResult lower_method_call(MIRExprResult recv, BaseType* recv_type, FunctionCall* call,
                                     std::string& error);
+    /** Lower a (non-capturing) lambda expression to a generated function. */
+    MIRExprResult lower_lambda(LambdaFunction* lamb, std::string& error);
 
     // ── async / coroutine lowering ─────────────────────────────────────────
     bool lower_async_function(FunctionDeclaration* decl, MIRArena& arena, MIRFunction& func,
@@ -218,15 +241,21 @@ private:
     std::function<std::string(ASTNode*, BaseType*)> vtable_mangler_;
     std::function<Scope*(IfStatement*, std::string&)> comptime_if_resolver_;
     std::function<Value*(FunctionCall*, FunctionDeclaration*)> comptime_eval_;
+    std::function<Value*(Value*)> comptime_value_eval_;
     std::function<Value*(FunctionDeclaration*, Value*)> comptime_ctor_eval_;
     std::function<FunctionDeclaration*(const std::string&)> symbol_lookup_;
+    std::function<void(FunctionTypeBody*)> set_current_func_;
+    FunctionTypeBody* current_func_ = nullptr;
     std::vector<BlockId> break_targets_;
     std::vector<BlockId> continue_targets_;
+    std::vector<size_t> loop_destructible_marks_;
+    std::vector<std::string> lambda_defs_;
     bool sret_ = false;
     ValueId sret_ptr_ = MIR_NULL;
     TypeId sret_ret_type_ = MIR_INVALID_ID;
     TypeId sret_ptr_type_ = MIR_INVALID_ID;
     BaseType* return_type_ = nullptr; // current function's declared return type
+    BaseType* expected_struct_type_ = nullptr; // context type for an untyped struct literal
 
     // ── async / coroutine lowering state ───────────────────────────────────
     bool async_ = false;

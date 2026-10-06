@@ -121,8 +121,14 @@ struct MIRTypeTable {
             a.data_count != b.data_count || a.int_kind != b.int_kind) {
             return false;
         }
+        // Only function types store parameter types in the shared data pool;
+        // for arrays `data_count` is the element count (element holds the type).
+        if (a.kind != MIRTypeKind::Function) return true;
         for (uint32_t i = 0; i < a.data_count; ++i) {
-            if (data[a.data_offset + i] != data[b.data_offset + i]) return false;
+            const uint32_t ia = a.data_offset + i;
+            const uint32_t ib = b.data_offset + i;
+            if (ia >= data.size() || ib >= data.size()) return false;
+            if (data[ia] != data[ib]) return false;
         }
         return true;
     }

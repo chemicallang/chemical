@@ -10,12 +10,22 @@ the release compiler must stay under 4 MB.
 
 ## Current status (latest commit)
 
-**All suites are green: `./scripts/test.sh --tcc` -> 2260 passed, 0 failed;
-`./scripts/test.sh --tcc --interpret` -> 1872 passed, 0 failed;
+**All suites are green: `./scripts/test.sh --tcc` -> 2263 passed, 0 failed;
+`./scripts/test.sh --tcc --interpret` -> 1875 passed, 0 failed;
 `./scripts/test.sh --tcc --libs` -> 719 passed, 0 failed;
-`./scripts/test.sh --tcc --plugins` -> 1296 passed, 0 failed.** `MIRTests` is
-green (1049 checks). `cstd`, `std`, `lab`, all libraries and all module build
-scripts translate through MIR.
+`./scripts/test.sh --tcc --plugins` -> 1296 passed, 0 failed;
+`./scripts/test.sh --tcc --async` -> 53 passed, 0 failed.** `MIRTests` is green
+(1049 checks). `cstd`, `std`, `lab`, all libraries and all module build scripts
+translate through MIR.
+
+**Async/coroutine lowering is now implemented in MIR** (`async func` is no
+longer emitted by the legacy C visitor). `lower_async_function` emits the frame
+struct + `__poll` + `__drop` + vtable (helpers as C text; the poll body and ramp
+as MIR), driven by the shared `AsyncLoweringPlan`. Frame-resident locals use
+`MIRStorageClass::FrameField`/`FramePtr` (`__chx__af->__chx_slot_N`), the state
+machine uses the `AsyncAwait`/`AsyncFinish`/`AsyncRampFinish`/`AsyncFrameAlloc`
+opcodes, and `&raw obj.field` (address of a struct field) is lowered by
+`lower_address_of`.
 
 MIR owns the bodies of top-level `FunctionDeclaration`s. Declarations and
 non-function top-level nodes still go through the legacy visitor (temporary

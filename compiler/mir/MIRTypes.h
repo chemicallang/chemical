@@ -61,6 +61,8 @@ enum class MIRStorageClass : uint8_t {
     Temporary = 1,  // a compiler temporary with a precise lifetime region
     Parameter = 2,  // a by-value parameter spilled to memory
     Global = 3,     // a module-level variable
+    FrameField = 4, // a coroutine frame field (`__chx__af->__chx_slot_N`)
+    FramePtr = 5,   // the coroutine frame pointer local (`__chx__af`)
 };
 
 /**

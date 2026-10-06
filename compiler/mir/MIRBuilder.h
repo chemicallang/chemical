@@ -75,6 +75,10 @@ public:
     /** Address of a function (function pointer): `symbol`. */
     ValueId function_addr(SymbolId symbol, TypeId pointer_type);
     PlaceId alloca(TypeId type, MIRStorageClass sc = MIRStorageClass::Local);
+    /** A coroutine frame field: `__chx__af-><field>`, declared by the frame struct. */
+    PlaceId alloca_frame(TypeId type, ConstantId field_name);
+    /** Allocate the coroutine frame; result is a `frame_type*`. */
+    ValueId async_frame_alloc(TypeId frame_type, TypeId frame_ptr_type);
     ValueId load(PlaceId place, TypeId type);
     void store(PlaceId place, ValueId value);
     /** Load a struct field by name: `result = base.<field>`. */

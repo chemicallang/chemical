@@ -71,7 +71,25 @@ enum class MIROpcode : uint16_t {
     Unreachable = 42, // no operands
     Throw = 43,       // operands: Value(exception), Block(unwind)
 
-    Count = 44,
+    // ── async / coroutine ───────────────────────────────────────────────────
+    // Poll the child future at one `await` site and either take its result or
+    // store the resume state, spill the live locals and return `Pending`.
+    // operands: Place(frame), Place(child), Place(result), Type(poll_type),
+    //           Constant(resume_state; 0 = resume pass), Place(ret),
+    //           Type(fn_poll_type), Constant(spill_count),
+    //           [Place(local), Constant(field_name)]*spill_count
+    AsyncAwait = 44,
+    // Complete the poll with `Ready(frame->__result)`.
+    // operands: Place(frame), Place(ret), Type(fn_poll_type)
+    AsyncFinish = 45,
+    // Ramp epilogue: set the final state and return the `FutureHandle<T>`.
+    // operands: Place(frame), Place(sret), Constant(state), Constant(vtbl_name),
+    //           Type(handle_type)
+    AsyncRampFinish = 46,
+    // Allocate the coroutine frame. result: value(frame*); operand: Type(frame)
+    AsyncFrameAlloc = 47,
+
+    Count = 48,
 };
 
 /** fixed opcode effects/attributes (see mir-design.md §4.6) */

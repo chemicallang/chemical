@@ -38,6 +38,8 @@ struct MIRPlaceDef {
     uint8_t storage_class = static_cast<uint8_t>(MIRStorageClass::Local);
     uint8_t init_state = static_cast<uint8_t>(MIRInitState::Uninitialized);
     uint32_t move_path_id = 0; // 0 = no ownership
+    // For MIRStorageClass::FrameField: the ConstantId of the frame field name.
+    uint32_t frame_field = MIR_INVALID_ID;
 };
 
 /** A lexical cleanup scope (function entry, block, loop, temporary region). */

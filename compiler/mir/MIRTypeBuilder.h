@@ -37,6 +37,19 @@ public:
     /** Build a function type from a return type and parameter type ids. */
     TypeId function_signature(TypeId return_type, const std::vector<TypeId>& params);
 
+    /** Create an opaque named struct type (e.g. a coroutine frame). */
+    TypeId named_struct(const std::string& name) {
+        MIRTypeRecord r;
+        r.kind = MIRTypeKind::Struct;
+        r.decl = static_cast<uint32_t>(module_.types.types.size()) + 0x40000000u;
+        r.size = 0;
+        r.alignment = 1;
+        TypeId id = static_cast<TypeId>(module_.types.types.size());
+        module_.types.types.push_back(r);
+        module_.types.set_name(id, name.data(), static_cast<uint32_t>(name.size()));
+        return id;
+    }
+
     /** Pointer to `pointee`. */
     TypeId pointer_type(TypeId pointee, bool is_mutable = false);
 

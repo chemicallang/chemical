@@ -224,6 +224,20 @@ PlaceId MIRBuilder::alloca(TypeId type, MIRStorageClass sc) {
     return p;
 }
 
+PlaceId MIRBuilder::alloca_frame(TypeId type, ConstantId field_name) {
+    PlaceId p = new_place(type, MIRStorageClass::FrameField);
+    func_.places[p].frame_field = field_name;
+    // No Alloca: the storage is a field of the coroutine frame struct.
+    return p;
+}
+
+ValueId MIRBuilder::async_frame_alloc(TypeId frame_type, TypeId frame_ptr_type) {
+    ValueId v = new_value(frame_ptr_type, VF_NONE);
+    uint32_t i = emit(MIROpcode::AsyncFrameAlloc, v, {MIROperand::type(frame_type)});
+    note_result_value(v, i);
+    return v;
+}
+
 ValueId MIRBuilder::load(PlaceId place, TypeId type) {
     ValueId v = new_value(type, VF_NONE);
     uint32_t i = emit(MIROpcode::Load, v,

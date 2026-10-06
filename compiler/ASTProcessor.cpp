@@ -1895,6 +1895,28 @@ bool mir_translate_after_declaration(
                               << mir_mangle_name(visitor.mangler, decl) << "): " << error
                               << " -- falling back to the legacy visitor\n";
                     // fall through to the legacy visitor for this function
+                } else if (decl->is_async()) {
+                    // async: emit the frame helpers, then the __poll, then the
+                    // vtable/drop, then the ramp (all MIR-driven). Only write
+                    // anything once every part emitted successfully.
+                    std::string poll_c, poll_e;
+                    std::string c, emit_error;
+                    if (!mir::emit_function_c(lowerer.async_poll(), module, poll_c, poll_e)) {
+                        std::cerr << "[MIR] async poll emission failed (" << (decl->name_str())
+                                  << "): " << poll_e << " -- falling back to the legacy visitor\n";
+                    } else if (!mir::emit_function_c(fn, module, c, emit_error)) {
+                        std::cerr << "[MIR] async ramp emission failed (" << (decl->name_str())
+                                  << "): " << emit_error
+                                  << " -- falling back to the legacy visitor\n";
+                    } else {
+                        std::string pre = lowerer.async_pre_decls();
+                        visitor.writer.append(pre.data(), pre.size());
+                        visitor.writer.append(poll_c.data(), poll_c.size());
+                        std::string post = lowerer.async_post_decls();
+                        visitor.writer.append(post.data(), post.size());
+                        visitor.writer.append(c.data(), c.size());
+                        continue;
+                    }
                 } else {
                     std::string c, emit_error;
                     if (!mir::emit_function_c(fn, module, c, emit_error)) {

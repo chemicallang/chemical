@@ -874,6 +874,36 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 out += "; /* unreachable */\n";
                 break;
             }
+            case MIROpcode::SizeOf: {
+                const ValueId v = inst.result_or_place;
+                const MIROperand* t = operand_at(function, inst, 0);
+                if (!t) { error = "size_of missing type"; return false; }
+                out += declarator(module, function.values[v].type, vname(v)) + " = sizeof(" +
+                       c_type_of(module, t->type()) + ");\n";
+                break;
+            }
+            case MIROpcode::AlignOf: {
+                const ValueId v = inst.result_or_place;
+                const MIROperand* t = operand_at(function, inst, 0);
+                if (!t) { error = "align_of missing type"; return false; }
+                out += declarator(module, function.values[v].type, vname(v)) + " = _Alignof(" +
+                       c_type_of(module, t->type()) + ");\n";
+                break;
+            }
+            case MIROpcode::OffsetOf: {
+                const ValueId v = inst.result_or_place;
+                const MIROperand* t = operand_at(function, inst, 0);
+                const MIROperand* f = operand_at(function, inst, 1);
+                if (!t || !f) { error = "offset_of missing operands"; return false; }
+                std::string fname;
+                if (!constant_string(module, f->id, fname)) {
+                    error = "offset_of invalid field name";
+                    return false;
+                }
+                out += declarator(module, function.values[v].type, vname(v)) + " = offsetof(" +
+                       c_type_of(module, t->type()) + ", " + fname + ");\n";
+                break;
+            }
             case MIROpcode::AsyncAwait: {
                 const MIROperand* fr = operand_at(function, inst, 0);
                 const MIROperand* child = operand_at(function, inst, 1);

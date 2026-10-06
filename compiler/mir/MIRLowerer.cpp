@@ -55,6 +55,14 @@
 #include "ast/statements/SwitchStatement.h"
 #include "ast/values/IncDecValue.h"
 #include "ast/statements/ValueWrapperNode.h"
+#include "ast/values/SizeOfValue.h"
+#include "ast/values/AlignOfValue.h"
+#include "ast/values/OffsetOfValue.h"
+#include "ast/values/UnsafeValue.h"
+#include "ast/values/ZeroedValue.h"
+#include "ast/values/IfValue.h"
+#include "ast/values/SwitchValue.h"
+#include "ast/values/LoopValue.h"
 #include "ast/values/AwaitExpression.h"
 #include "compiler/async/AsyncCTypes.h"
 #include "compiler/async/AwaitNormalizePass.h"
@@ -1516,6 +1524,42 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             }
             return MIRExprResult::value(out, type);
         }
+        case ValueKind::SizeOfValue: {
+            auto* s = value->as_sizeof_value_unsafe();
+            const TypeId ft =
+                s->for_type.getType() ? types_.map(const_cast<BaseType*>(s->for_type.getType())) : types_.opaque_type();
+            return MIRExprResult::value(builder_->size_of(ft, type), type);
+        }
+        case ValueKind::AlignOfValue: {
+            auto* a = static_cast<AlignOfValue*>(value);
+            const TypeId ft =
+                a->for_type.getType() ? types_.map(const_cast<BaseType*>(a->for_type.getType())) : types_.opaque_type();
+            return MIRExprResult::value(builder_->align_of(ft, type), type);
+        }
+        case ValueKind::OffsetOfValue: {
+            auto* o = value->as_offset_of_value_unsafe();
+            const TypeId ft =
+                o->for_type.getType() ? types_.map(const_cast<BaseType*>(o->for_type.getType())) : types_.opaque_type();
+            const std::string mn(o->member_name.data(), o->member_name.size());
+            const ConstantId fc =
+                module_.constants.add_string(MIR_INVALID_ID, mn.data(),
+                                            static_cast<uint32_t>(mn.size()));
+            return MIRExprResult::value(builder_->offset_of(ft, fc, type), type);
+        }
+        case ValueKind::UnsafeValue: {
+            // `unsafe(expr)` is a compile-time safety marker only
+            auto* u = static_cast<UnsafeValue*>(value);
+            if (u->getValue()) return lower_expr(u->getValue(), error);
+            error = "unsafe value has no inner expression";
+            return MIRExprResult::error();
+        }
+        case ValueKind::ZeroedValue: {
+            const TypeId zt = type;
+            const PlaceId tmp = builder_->alloca(zt, MIRStorageClass::Temporary);
+            builder_->zero_init(tmp);
+            if (needs_aggregate_path(module_, zt)) return MIRExprResult::place(tmp, zt);
+            return MIRExprResult::value(builder_->load(tmp, zt), zt);
+        }
         case ValueKind::RuntimeValue:
             return lower_expr(static_cast<RuntimeValue*>(value)->underlying, error);
         case ValueKind::ComptimeValue:
@@ -1876,9 +1920,29 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             // returning a local destructible moves it out (do not drop it here)
             if (rs->value) {
                 Value* rv = rs->value;
-                if (rv->val_kind() == ValueKind::AccessChain) {
-                    auto* c = rv->as_access_chain_unsafe();
-                    if (c->values.size() == 1) rv = c->values[0];
+                // unwrap `unsafe(...)`, a 1-element chain, etc. to find the moved local
+                for (int guard = 0; guard < 4 && rv; ++guard) {
+                    if (rv->val_kind() == ValueKind::AccessChain) {
+                        auto* c = rv->as_access_chain_unsafe();
+                        if (c->values.size() == 1) { rv = c->values[0]; continue; }
+                        break;
+                    }
+                    if (rv->val_kind() == ValueKind::UnsafeValue) {
+                        auto* u = static_cast<UnsafeValue*>(rv);
+                        if (u->getValue()) { rv = u->getValue(); continue; }
+                        break;
+                    }
+                    if (rv->val_kind() == ValueKind::FunctionCall) {
+                        auto* fc = rv->as_func_call_unsafe();
+                        std::string cn;
+                        if (fc->parent_val && fc->parent_val->val_kind() == ValueKind::Identifier) {
+                            auto* cid = fc->parent_val->as_identifier_unsafe();
+                            cn.assign(cid->value.data(), cid->value.size());
+                        }
+                        if (cn == "unsafe" && fc->values.size() == 1) { rv = fc->values[0]; continue; }
+                        break;
+                    }
+                    break;
                 }
                 if (rv->val_kind() == ValueKind::Identifier) {
                     auto* id = rv->as_identifier_unsafe();

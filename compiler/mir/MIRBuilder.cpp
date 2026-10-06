@@ -682,6 +682,15 @@ void MIRBuilder::copy_ptr_to_place(PlaceId dest, ValueId src_ptr) {
          {MIROperand::place(dest, dt), MIROperand::value(src_ptr, st)});
 }
 
+void MIRBuilder::memcpy_size(PlaceId dest, ValueId src_ptr, ValueId size) {
+    TypeId dt = dest < func_.places.size() ? func_.places[dest].type : MIR_INVALID_ID;
+    TypeId st = src_ptr < func_.values.size() ? func_.values[src_ptr].type : MIR_INVALID_ID;
+    TypeId zt = size < func_.values.size() ? func_.values[size].type : MIR_INVALID_ID;
+    emit(MIROpcode::MemCpy, MIR_NULL,
+         {MIROperand::place(dest, dt), MIROperand::value(src_ptr, st),
+          MIROperand::value(size, zt)});
+}
+
 void MIRBuilder::memset(PlaceId dest, ValueId byte, ValueId size) {
     TypeId dt = dest < func_.places.size() ? func_.places[dest].type : MIR_INVALID_ID;
     TypeId bt = byte < func_.values.size() ? func_.values[byte].type : MIR_INVALID_ID;

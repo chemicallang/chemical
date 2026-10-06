@@ -1070,7 +1070,17 @@ SymbolId MIRLowerer::intern_global(VarInitStatement* vi) {
     MIRSymbolRecord rec;
     rec.kind = MIRSymbolKind::Global;
     rec.linkage = vi->is_extern() ? MIRLinkage::External : MIRLinkage::Internal;
-    if (vi->getType()) rec.type = types_.map(vi->getType());
+    if (vi->getType()) {
+        BaseType* gt = vi->getType();
+        if (gt->kind() == BaseTypeKind::Array && !gt->as_array_type()->has_array_size()) {
+            // an unsized array global is declared by the legacy as a C array and
+            // decays to a pointer on use
+            rec.type = types_.unsized_array_type(
+                types_.map(gt->as_array_type()->known_child_type()));
+        } else {
+            rec.type = types_.map(gt);
+        }
+    }
     std::string name;
     if (mangler_) name = mangler_(vi);
     if (name.empty()) {
@@ -1157,7 +1167,10 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         }
         case ValueKind::String: {
             auto* s = value->as_string_unsafe();
-            ConstantId c = module_.constants.add_string(type, s->value.data(), s->length);
+            // use the actual data size: symres rewrites `length` to the target
+            // array size (for padding), which would over-read the string data
+            ConstantId c = module_.constants.add_string(type, s->value.data(),
+                                                        static_cast<uint32_t>(s->value.size()));
             return MIRExprResult::value(builder_->const_string(type, c), type);
         }
         case ValueKind::Identifier: {
@@ -1189,6 +1202,12 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     return lower_expr(vi->value, error);
                 }
                 const SymbolId gs = intern_global(vi);
+                // an unsized array global decays to a pointer to its first element
+                if (BaseType* at = id->getType(); at && at->kind() == BaseTypeKind::Array &&
+                    !at->as_array_type()->has_array_size()) {
+                    const ValueId addr = builder_->global_addr(gs, type);
+                    return MIRExprResult::value(addr, type);
+                }
                 // an array global decays to a pointer to its first element
                 const TypeId ptrt = (type < module_.types.size() &&
                                      module_.types.get(type).kind == MIRTypeKind::Array)
@@ -2241,8 +2260,20 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 }
                 if (vt != MIR_INVALID_ID && vt < module_.types.size() &&
                     module_.types.get(vt).kind == MIRTypeKind::Array) {
-                    // initialize an array from a pointer (e.g. a string literal)
-                    builder_->copy_ptr_to_place(place, static_cast<ValueId>(r.id));
+                    // initialize an array from a pointer (e.g. a string literal):
+                    // copy only the literal's bytes, leaving the rest zeroed
+                    if (vi->value->val_kind() == ValueKind::String) {
+                        auto* sv = vi->value->as_string_unsafe();
+                        uint64_t n = static_cast<uint64_t>(sv->value.size()) + 1; // include NUL
+                        const uint64_t arr_len = module_.types.get(vt).data_count;
+                        if (arr_len != 0 && n > arr_len) n = arr_len;
+                        const TypeId ut = types_.u32_type();
+                        const ValueId sz = builder_->const_int(
+                            ut, module_.constants.add_int(ut, n));
+                        builder_->memcpy_size(place, static_cast<ValueId>(r.id), sz);
+                    } else {
+                        builder_->copy_ptr_to_place(place, static_cast<ValueId>(r.id));
+                    }
                     return true;
                 }
                 ValueId val = r.id;

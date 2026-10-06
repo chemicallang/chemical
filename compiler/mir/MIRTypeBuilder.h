@@ -53,6 +53,18 @@ public:
     /** Pointer to `pointee`. */
     TypeId pointer_type(TypeId pointee, bool is_mutable = false);
 
+    /** An unsized array type (spelled `T[]`, e.g. a module-level `char[]`). */
+    TypeId unsized_array_type(TypeId element) {
+        MIRTypeRecord r;
+        r.kind = MIRTypeKind::Array;
+        r.element = element;
+        r.data_count = 0;
+        const MIRTypeRecord& elem = module_.types.get(element);
+        r.size = 0;
+        r.alignment = elem.alignment;
+        return intern(r);
+    }
+
     /** Unsigned 32-bit integer type (loop indices, array indices). */
     TypeId u32_type() { return int_type(false, 32); }
 

@@ -163,6 +163,8 @@ public:
     void memcpy(PlaceId dest, PlaceId src, ValueId size);
     /** Copy bytes from a pointer into a place: `memcpy(&dest, src, sizeof(dest))`. */
     void copy_ptr_to_place(PlaceId dest, ValueId src_ptr);
+    /** Copy `size` bytes from a pointer into a place. */
+    void memcpy_size(PlaceId dest, ValueId src_ptr, ValueId size);
     void memset(PlaceId dest, ValueId byte, ValueId size);
     /** Zero the entire storage of `dest` (`memset(&dest, 0, sizeof(dest))`). */
     void zero_init(PlaceId dest);

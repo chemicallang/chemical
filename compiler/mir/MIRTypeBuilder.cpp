@@ -272,6 +272,11 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
         }
         case BaseTypeKind::Array: {
             auto* at = type->as_array_type();
+            if (!at->has_array_size()) {
+                // a dynamic array (`[]T`) decays to a pointer to its element
+                id = pointer_type(map(at->known_child_type()), true);
+                break;
+            }
             MIRTypeRecord r;
             r.kind = MIRTypeKind::Array;
             r.element = map(at->known_child_type());

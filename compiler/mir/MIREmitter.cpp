@@ -789,9 +789,12 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const MIROperand* dest = operand_at(function, inst, 0);
                 const MIROperand* src = operand_at(function, inst, 1);
                 if (!dest || !src) { error = "memcpy missing operands"; return false; }
+                const MIROperand* sz = operand_at(function, inst, 2);
+                const std::string size_expr =
+                    sz ? operand_expr(function, module, *sz)
+                       : ("sizeof(" + place_name(module, function, dest->id) + ")");
                 out += "memcpy(&" + place_name(module, function, dest->id) + ", " +
-                       operand_expr(function, module, *src) + ", sizeof(" + place_name(module, function, dest->id) +
-                       "));\n";
+                       operand_expr(function, module, *src) + ", " + size_expr + ");\n";
                 break;
             }
             case MIROpcode::MemSet: {

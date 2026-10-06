@@ -770,6 +770,15 @@ MIRExprResult MIRLowerer::lower_member_chain(const std::vector<Value*>& values, 
     if (count == 1) return lower_expr(values[0], error);
     MIRExprResult first = lower_expr(values[0], error);
     if (!first.ok()) return first;
+    // a struct-returning call used as a member/index base owns a temporary that
+    // must be destroyed after the enclosing scope
+    if (first.kind == MIRExprKind::Place && values[0] &&
+        values[0]->val_kind() == ValueKind::FunctionCall) {
+        BaseType* bt = values[0]->getType();
+        if (bt && bt->get_destructor()) {
+            register_destructible(static_cast<PlaceId>(first.id), bt);
+        }
+    }
     PlaceId cur_place = MIR_INVALID_ID;
     ValueId cur_ptr = MIR_NULL;
     bool have_ptr = false;

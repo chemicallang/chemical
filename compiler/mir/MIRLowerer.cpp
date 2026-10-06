@@ -4,6 +4,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <optional>
 
 #include "ast/base/BaseType.h"
 #include "ast/types/GenericType.h"
@@ -37,6 +38,7 @@
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/VariantDefinition.h"
+#include "ast/structures/VariantMember.h"
 #include "ast/structures/UnionDef.h"
 #include "ast/structures/Scope.h"
 #include "ast/structures/BlockScope.h"
@@ -62,6 +64,7 @@
 #include "ast/values/UnsafeValue.h"
 #include "ast/values/ZeroedValue.h"
 #include "ast/values/IfValue.h"
+#include "ast/values/IsValue.h"
 #include "ast/values/SwitchValue.h"
 #include "ast/values/LoopValue.h"
 #include "ast/values/AwaitExpression.h"
@@ -1241,6 +1244,60 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             FunctionDeclaration* fd = nullptr;
             std::vector<MIROperand> args;
 
+            // variant construction: `Variant.Member(args)` / `ns.Variant.Member(args)`
+            {
+                ASTNode* vleaf = nullptr;
+                if (call->parent_val) {
+                    if (call->parent_val->val_kind() == ValueKind::AccessChain) {
+                        auto* ch = call->parent_val->as_access_chain_unsafe();
+                        if (!ch->values.empty()) vleaf = ch->values.back()->linked_node();
+                    } else {
+                        vleaf = call->parent_val->linked_node();
+                    }
+                }
+                if (vleaf && vleaf->kind() == ASTNodeKind::VariantMember) {
+                    auto* vm = vleaf->as_variant_member_unsafe();
+                    VariantDefinition* vd = vm->parent();
+                    const TypeId vt = types_.map(call->getType());
+                    const PlaceId temp = builder_->alloca(vt, MIRStorageClass::Temporary);
+                    builder_->zero_init(temp);
+                    const std::string tag_name("__chx__vt_621827");
+                    const ConstantId tag_fc = module_.constants.add_string(
+                        MIR_INVALID_ID, tag_name.data(), static_cast<uint32_t>(tag_name.size()));
+                    const TypeId it = types_.u32_type();
+                    const long idx = vd ? vd->direct_child_index(vm->name) : 0;
+                    const ValueId tag = builder_->const_int(
+                        it, module_.constants.add_int(
+                                it, static_cast<uint64_t>(idx < 0 ? 0 : idx)));
+                    builder_->field_store(temp, tag_fc, tag);
+                    size_t ai = 0;
+                    for (auto& entry : vm->values) {
+                        if (ai >= call->values.size()) break;
+                        VariantMemberParam* param = entry.second;
+                        const std::string mname(vm->name.data(), vm->name.size());
+                        const std::string pname(entry.first.data(), entry.first.size());
+                        const std::string fname = mname + "." + pname;
+                        const ConstantId fc = module_.constants.add_string(
+                            MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
+                        MIRExprResult r = lower_arg_converted(
+                            call->values[ai], param ? param->type : nullptr, error);
+                        if (!r.ok()) return r;
+                        if (r.kind == MIRExprKind::Place) {
+                            builder_->field_store_place(temp, fc, static_cast<PlaceId>(r.id));
+                        } else if (r.kind == MIRExprKind::Address) {
+                            const TypeId ft = param && param->type ? types_.map(param->type) : r.type;
+                            const ValueId loaded =
+                                builder_->load_indirect(static_cast<ValueId>(r.id), ft);
+                            builder_->field_store(temp, fc, loaded);
+                        } else {
+                            builder_->field_store(temp, fc, static_cast<ValueId>(r.id));
+                        }
+                        ai++;
+                    }
+                    return MIRExprResult::place(temp, vt);
+                }
+            }
+
             // aggregate construction: `Type(args)` / `ns.Type(args)` /
             // `ns.Generic<...>(args)`
             ASTNode* ctor_node = nullptr;
@@ -1606,6 +1663,47 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 return MIRExprResult::error();
             }
             return MIRExprResult::value(out, type);
+        }
+        case ValueKind::IsValue: {
+            auto* isv = value->as_is_value_unsafe();
+            ASTNode* ln = isv->type ? isv->type->get_direct_linked_node() : nullptr;
+            if (ln && ln->kind() == ASTNodeKind::VariantMember) {
+                auto* vm = ln->as_variant_member_unsafe();
+                VariantDefinition* vd = vm->parent();
+                MIRExprResult v = lower_expr(isv->value, error);
+                if (!v.ok()) return v;
+                const std::string tag_name("__chx__vt_621827");
+                const ConstantId tag_fc = module_.constants.add_string(
+                    MIR_INVALID_ID, tag_name.data(), static_cast<uint32_t>(tag_name.size()));
+                const TypeId it = types_.u32_type();
+                ValueId tag = MIR_NULL;
+                if (v.kind == MIRExprKind::Place) {
+                    tag = builder_->field_load(static_cast<PlaceId>(v.id), tag_fc, it);
+                } else if (v.kind == MIRExprKind::Address || v.kind == MIRExprKind::Value) {
+                    tag = builder_->field_load_ptr(static_cast<ValueId>(v.id), tag_fc, it);
+                } else {
+                    error = "is-check operand is not a variant lvalue";
+                    return MIRExprResult::error();
+                }
+                const long idx = vd ? vd->direct_child_index(vm->name) : 0;
+                const ValueId c = builder_->const_int(
+                    it, module_.constants.add_int(
+                            it, static_cast<uint64_t>(idx < 0 ? 0 : idx)));
+                const TypeId bool_t = types_.bool_type();
+                const ConstantId pred = module_.constants.add_int(
+                    MIR_INVALID_ID,
+                    static_cast<uint64_t>(isv->is_negating ? MIRBinaryOp::Ne : MIRBinaryOp::Eq));
+                return MIRExprResult::value(builder_->compare(tag, c, pred, bool_t), bool_t);
+            }
+            if (std::optional<bool> comp = isv->get_comp_time_result(); comp.has_value()) {
+                const TypeId bool_t = types_.bool_type();
+                return MIRExprResult::value(
+                    builder_->const_bool(
+                        bool_t, module_.constants.add_bool(bool_t, comp.value())),
+                    bool_t);
+            }
+            error = "unsupported is-expression (non-variant)";
+            return MIRExprResult::error();
         }
         case ValueKind::SizeOfValue: {
             auto* s = value->as_sizeof_value_unsafe();

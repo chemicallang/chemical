@@ -2262,6 +2262,21 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         }
                         return true;
                     }
+                    if (as->assOp == Operation::Assignment) {
+                        // a simple assignment destroys the previous value of a
+                        // destructible field before overwriting it
+                        BaseType* fbt = chain->values.back()->getType();
+                        const SymbolId fdtor = destructor_symbol(fbt);
+                        if (fdtor != MIR_INVALID_ID) {
+                            const TypeId ft = types_.map(fbt);
+                            const ValueId faddr =
+                                have_ptr ? builder_->field_addr_ptr(cur_ptr, fc, ft)
+                                         : builder_->field_addr(cur_place, fc, ft);
+                            const TypeId ptrt = types_.pointer_type(ft, true);
+                            MIROperand arg = MIROperand::value(faddr, ptrt);
+                            builder_->call_scalar(fdtor, types_.void_type(), &arg, 1);
+                        }
+                    }
                     if (r.kind == MIRExprKind::Place) {
                         if (!have_ptr) {
                             builder_->field_store_place(cur_place, fc,

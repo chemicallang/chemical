@@ -130,6 +130,17 @@ bool compound_binary(Operation op, MIRBinaryOp& out) {
         case Operation::ANDWith: out = MIRBinaryOp::BitAnd; return true;
         case Operation::ExclusiveORWith: out = MIRBinaryOp::BitXor; return true;
         case Operation::InclusiveORWith: out = MIRBinaryOp::BitOr; return true;
+        // the parser records `a += b` as Addition (not AddTo): accept both
+        case Operation::Addition: out = MIRBinaryOp::Add; return true;
+        case Operation::Subtraction: out = MIRBinaryOp::Sub; return true;
+        case Operation::Multiplication: out = MIRBinaryOp::Mul; return true;
+        case Operation::Division: out = MIRBinaryOp::Div; return true;
+        case Operation::Modulus: out = MIRBinaryOp::Rem; return true;
+        case Operation::LeftShift: out = MIRBinaryOp::Shl; return true;
+        case Operation::RightShift: out = MIRBinaryOp::Shr; return true;
+        case Operation::BitwiseAND: out = MIRBinaryOp::BitAnd; return true;
+        case Operation::BitwiseXOR: out = MIRBinaryOp::BitXor; return true;
+        case Operation::BitwiseOR: out = MIRBinaryOp::BitOr; return true;
         default: return false;
     }
 }
@@ -1483,7 +1494,19 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             MIRExprResult idx = lower_expr(io->idx, error);
             if (!idx.ok()) return idx;
             if (needs_aggregate_path(module_, type)) {
-                error = "indexing to an aggregate element is not yet supported";
+                // aggregate element: return its address (an lvalue), not a load
+                const TypeId ptrt = types_.pointer_type(type, true);
+                if (base.kind == MIRExprKind::Place) {
+                    return MIRExprResult::address(
+                        builder_->index_addr(static_cast<PlaceId>(base.id),
+                                             static_cast<ValueId>(idx.id), type), type);
+                }
+                if (base.kind == MIRExprKind::Value || base.kind == MIRExprKind::Address) {
+                    return MIRExprResult::address(
+                        builder_->index_addr_ptr(static_cast<ValueId>(base.id),
+                                                 static_cast<ValueId>(idx.id), type), type);
+                }
+                error = "index base is not a place or pointer value";
                 return MIRExprResult::error();
             }
             if (base.kind == MIRExprKind::Place) {
@@ -1672,6 +1695,11 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     builder_->move_init(place, static_cast<PlaceId>(r.id), vt);
                     return true;
                 }
+                if (r.kind == MIRExprKind::Address) {
+                    // copy the pointee into the variable (e.g. `var d = *c`)
+                    builder_->copy_ptr_to_place(place, static_cast<ValueId>(r.id));
+                    return true;
+                }
                 if (r.kind != MIRExprKind::Value) {
                     error = "invalid initializer expression";
                     return false;
@@ -1770,6 +1798,17 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         }
                         return true;
                     }
+                    if (r.kind == MIRExprKind::Address) {
+                        const TypeId ft2 = types_.map(chain->values.back()->getType());
+                        const ValueId loaded =
+                            builder_->load_indirect(static_cast<ValueId>(r.id), ft2);
+                        if (!have_ptr) {
+                            builder_->field_store(cur_place, fc, loaded);
+                        } else {
+                            builder_->field_store_ptr(cur_ptr, fc, loaded);
+                        }
+                        return true;
+                    }
                     if (r.kind != MIRExprKind::Value) {
                         error = "aggregate field assignment not yet supported";
                         return false;
@@ -1788,6 +1827,19 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 if (!p.ok()) return false;
                 MIRExprResult r = lower_expr(as->value, error);
                 if (!r.ok()) return false;
+                const TypeId et = types_.map(lhs->getType());
+                if (r.kind == MIRExprKind::Place) {
+                    builder_->emit(MIROpcode::Store, MIR_NULL,
+                                   {MIROperand::value(static_cast<ValueId>(p.id), p.type),
+                                    MIROperand::place(static_cast<PlaceId>(r.id), et)});
+                    return true;
+                }
+                if (r.kind == MIRExprKind::Address) {
+                    const ValueId loaded =
+                        builder_->load_indirect(static_cast<ValueId>(r.id), et);
+                    builder_->store_indirect(static_cast<ValueId>(p.id), loaded);
+                    return true;
+                }
                 if (r.kind != MIRExprKind::Value) {
                     error = "aggregate dereference assignment not yet supported";
                     return false;
@@ -1798,7 +1850,6 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         error = "unsupported compound dereference assignment operator";
                         return false;
                     }
-                    const TypeId et = types_.map(lhs->getType());
                     const ConstantId opc = module_.constants.add_int(
                         MIR_INVALID_ID, static_cast<uint64_t>(bop));
                     const ValueId cur =
@@ -1818,11 +1869,38 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 if (!idx.ok()) return false;
                 MIRExprResult r = lower_expr(as->value, error);
                 if (!r.ok()) return false;
+                const TypeId et = types_.map(io->getType());
+                if (r.kind == MIRExprKind::Place) {
+                    if (base.kind == MIRExprKind::Place) {
+                        builder_->element_store_place(static_cast<PlaceId>(base.id),
+                                                      static_cast<ValueId>(idx.id),
+                                                      static_cast<PlaceId>(r.id));
+                    } else {
+                        const ValueId eaddr = builder_->index_addr_ptr(
+                            static_cast<ValueId>(base.id),
+                            static_cast<ValueId>(idx.id), et);
+                        builder_->emit(MIROpcode::Store, MIR_NULL,
+                                       {MIROperand::value(eaddr, et),
+                                        MIROperand::place(static_cast<PlaceId>(r.id), et)});
+                    }
+                    return true;
+                }
+                if (r.kind == MIRExprKind::Address) {
+                    const ValueId loaded =
+                        builder_->load_indirect(static_cast<ValueId>(r.id), et);
+                    if (base.kind == MIRExprKind::Place) {
+                        builder_->element_store(static_cast<PlaceId>(base.id),
+                                                static_cast<ValueId>(idx.id), loaded);
+                    } else {
+                        builder_->index_store(static_cast<ValueId>(base.id),
+                                              static_cast<ValueId>(idx.id), loaded);
+                    }
+                    return true;
+                }
                 if (r.kind != MIRExprKind::Value) {
                     error = "aggregate index assignment not yet supported";
                     return false;
                 }
-                const TypeId et = types_.map(io->getType());
                 const bool compound = (as->assOp != Operation::Assignment);
                 ConstantId opc = MIR_INVALID_ID;
                 if (compound) {
@@ -1897,11 +1975,24 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             }
             MIRExprResult r = lower_expr(as->value, error);
             if (!r.ok()) return false;
+            const TypeId place_type = builder_->function().places[place].type;
+            if (r.kind == MIRExprKind::Place) {
+                // aggregate assignment: dest = src (C struct assignment)
+                builder_->emit(MIROpcode::Store, MIR_NULL,
+                               {MIROperand::place(place, place_type),
+                                MIROperand::place(static_cast<PlaceId>(r.id), place_type)});
+                return true;
+            }
+            if (r.kind == MIRExprKind::Address) {
+                const ValueId loaded =
+                    builder_->load_indirect(static_cast<ValueId>(r.id), place_type);
+                builder_->store(place, loaded);
+                return true;
+            }
             if (r.kind != MIRExprKind::Value) {
                 error = "aggregate assignment not yet supported";
                 return false;
             }
-            const TypeId place_type = builder_->function().places[place].type;
             ValueId val = r.id;
             if (as->assOp != Operation::Assignment) {
                 MIROpcode cop = MIROpcode::Nop;
@@ -1997,22 +2088,46 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 builder_->ret_void();
                 return true;
             }
-            MIRExprResult r = lower_expr(rs->value, error);
+            MIRExprResult r;
+            if (sret_) {
+                // convert to the declared return type first (implicit constructors)
+                r = lower_arg_converted(rs->value, return_type_, error);
+            } else {
+                r = lower_expr(rs->value, error);
+            }
             if (!r.ok()) return false;
             emit_drops();
-            if (sret_) {
-                if (r.kind != MIRExprKind::Place) {
-                    error = "returning an aggregate rvalue is not yet supported (name it first)";
-                    return false;
-                }
-                builder_->emit(MIROpcode::Store, MIR_NULL,
-                               {MIROperand::value(sret_ptr_, sret_ptr_type_),
-                                MIROperand::place(static_cast<PlaceId>(r.id), sret_ret_type_)});
+            if (r.kind == MIRExprKind::Void) {
+                // `return void_call()` in a void function
                 builder_->ret_void();
                 return true;
             }
-            if (r.kind != MIRExprKind::Value) {
-                error = "returning an aggregate value is not yet supported";
+            if (sret_) {
+                if (r.kind == MIRExprKind::Place) {
+                    builder_->emit(MIROpcode::Store, MIR_NULL,
+                                   {MIROperand::value(sret_ptr_, sret_ptr_type_),
+                                    MIROperand::place(static_cast<PlaceId>(r.id), sret_ret_type_)});
+                } else if (r.kind == MIRExprKind::Address) {
+                    // `return &raw obj.field` / an aggregate address: copy the
+                    // pointee into the sret destination
+                    const ValueId loaded =
+                        builder_->load_indirect(static_cast<ValueId>(r.id), sret_ret_type_);
+                    builder_->emit(MIROpcode::Store, MIR_NULL,
+                                   {MIROperand::value(sret_ptr_, sret_ptr_type_),
+                                    MIROperand::value(loaded, sret_ret_type_)});
+                } else if (r.kind == MIRExprKind::Value) {
+                    builder_->emit(MIROpcode::Store, MIR_NULL,
+                                   {MIROperand::value(sret_ptr_, sret_ptr_type_),
+                                    MIROperand::value(static_cast<ValueId>(r.id), sret_ret_type_)});
+                } else {
+                    error = "returning an aggregate value is not yet supported";
+                    return false;
+                }
+                builder_->ret_void();
+                return true;
+            }
+            if (r.kind != MIRExprKind::Value && r.kind != MIRExprKind::Address) {
+                error = "returning a non-value expression is not yet supported";
                 return false;
             }
             builder_->ret(r.id);
@@ -2188,25 +2303,46 @@ bool MIRLowerer::lower_incdec_value(Value* target, bool increment, bool post, st
         auto* c = t->as_access_chain_unsafe();
         if (c->values.size() == 1) t = c->values[0];
     }
-    if (!t || t->val_kind() != ValueKind::Identifier) {
-        error = "increment/decrement target must be a local variable";
-        return false;
-    }
-    auto* id = t->as_identifier_unsafe();
-    const PlaceId place = place_for_linked(id->linked);
-    if (place == MIR_INVALID_ID) {
-        error = "increment/decrement target does not resolve to a local place";
+    if (!t) {
+        error = "increment/decrement target is null";
         return false;
     }
     const TypeId vt = types_.map(t->getType());
-    const ValueId cur = builder_->load(place, vt);
     const ConstantId opc = module_.constants.add_int(
         MIR_INVALID_ID, static_cast<uint64_t>(increment ? MIRBinaryOp::Add : MIRBinaryOp::Sub));
     const TypeId it = types_.u32_type();
     const ValueId one = builder_->const_int(it, module_.constants.add_int(it, 1));
+
+    // a simple local / parameter
+    if (t->val_kind() == ValueKind::Identifier) {
+        auto* id = t->as_identifier_unsafe();
+        PlaceId place = place_for_linked(id->linked);
+        if (place == MIR_INVALID_ID) place = place_for_name(id->value);
+        if (place != MIR_INVALID_ID) {
+            const ValueId cur = builder_->load(place, vt);
+            const ValueId nv = builder_->binary(cur, one, opc, vt);
+            builder_->store(place, nv);
+            // a post-increment/decrement expression yields the *old* value
+            out = post ? cur : nv;
+            return true;
+        }
+    }
+
+    // any other lvalue (global, field, element, `*ptr`): go through its address
+    MIRExprResult addr;
+    if (t->val_kind() == ValueKind::DereferenceValue) {
+        addr = lower_expr(t->as_dereference_value_unsafe()->getValue(), error);
+    } else {
+        addr = lower_address_of(t, error);
+    }
+    if (!addr.ok() || (addr.kind != MIRExprKind::Value && addr.kind != MIRExprKind::Address)) {
+        error = "increment/decrement target is not an addressable lvalue";
+        return false;
+    }
+    const ValueId ptr = static_cast<ValueId>(addr.id);
+    const ValueId cur = builder_->load_indirect(ptr, vt);
     const ValueId nv = builder_->binary(cur, one, opc, vt);
-    builder_->store(place, nv);
-    // a post-increment/decrement expression yields the *old* value
+    builder_->store_indirect(ptr, nv);
     out = post ? cur : nv;
     return true;
 }
@@ -2218,6 +2354,8 @@ bool MIRLowerer::lower_scope(Scope& scope, std::string& error) {
 bool MIRLowerer::lower_scope_nodes(std::vector<ASTNode*>& nodes, std::string& error) {
     const size_t mark = destructibles_.size();
     for (ASTNode* n : nodes) {
+        // statements after a terminator (break/continue/return) are unreachable
+        if (builder_->current_block_terminated()) break;
         if (!lower_stmt(n, error)) return false;
     }
     // destroy locals declared in this scope (unless they were moved out)
@@ -2966,6 +3104,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     const TypeId ret = decl->returnType ? types_.map(decl->returnType) : types_.void_type();
     sret_ = needs_aggregate_path(module_, ret);
     sret_ret_type_ = ret;
+    return_type_ = decl->returnType;
     FunctionParam* self_param = decl->has_self_param() ? decl->get_self_param() : nullptr;
     bool self_in_params = false;
     for (FunctionParam* p : decl->params) {

@@ -209,6 +209,7 @@ private:
     ValueId sret_ptr_ = MIR_NULL;
     TypeId sret_ret_type_ = MIR_INVALID_ID;
     TypeId sret_ptr_type_ = MIR_INVALID_ID;
+    BaseType* return_type_ = nullptr; // current function's declared return type
 
     // ── async / coroutine lowering state ───────────────────────────────────
     bool async_ = false;

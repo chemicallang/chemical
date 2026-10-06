@@ -1826,6 +1826,11 @@ bool mir_eligible_function(FunctionDeclaration* decl) {
     if (!decl->body.has_value()) return false;
     if (decl->is_extern()) return false;
     if (decl->is_comptime()) return false;
+    // functions returning function pointers need a special C declarator
+    if (decl->returnType && (decl->returnType->kind() == BaseTypeKind::Function ||
+                             decl->returnType->kind() == BaseTypeKind::CapturingFunction)) {
+        return false;
+    }
     return true;
 }
 
@@ -1886,20 +1891,21 @@ bool mir_translate_after_declaration(
                 mir::MIRFunction fn;
                 std::string error;
                 if (!lowerer.lower_function(decl, arena, fn, error)) {
-                    std::cerr << "[MIR] lowering failed (" << (decl->name_str())
-                              << "): " << error << "\n";
-                    had_errors = true;
-                    continue;
+                    std::cerr << "[MIR] lowering failed (" << (decl->name_str()) << " @ "
+                              << mir_mangle_name(visitor.mangler, decl) << "): " << error
+                              << " -- falling back to the legacy visitor\n";
+                    // fall through to the legacy visitor for this function
+                } else {
+                    std::string c, emit_error;
+                    if (!mir::emit_function_c(fn, module, c, emit_error)) {
+                        std::cerr << "[MIR] emission failed (" << (decl->name_str())
+                                  << "): " << emit_error
+                                  << " -- falling back to the legacy visitor\n";
+                    } else {
+                        visitor.writer.append(c.data(), c.size());
+                        continue;
+                    }
                 }
-                std::string c, emit_error;
-                if (!mir::emit_function_c(fn, module, c, emit_error)) {
-                    std::cerr << "[MIR] emission failed (" << (decl->name_str())
-                              << "): " << emit_error << "\n";
-                    had_errors = true;
-                    continue;
-                }
-                visitor.writer.append(c.data(), c.size());
-                continue;
             }
         }
         visitor.top_level_position = visitor.writer.getPosition();

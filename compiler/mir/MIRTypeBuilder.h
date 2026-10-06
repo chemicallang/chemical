@@ -43,6 +43,19 @@ public:
     /** Unsigned 32-bit integer type (loop indices, array indices). */
     TypeId u32_type() { return int_type(false, 32); }
 
+    /** The dynamic-dispatch fat pointer type (`__chemical_fat_pointer__`). */
+    TypeId fat_pointer_type() {
+        if (fat_pointer_id_ != MIR_INVALID_ID) return fat_pointer_id_;
+        MIRTypeRecord r;
+        r.kind = MIRTypeKind::Struct;
+        r.flags = TF_TYPEDEF;
+        r.size = module_.layout.pointer_size * 2;
+        r.alignment = module_.layout.pointer_alignment;
+        fat_pointer_id_ = intern(r);
+        module_.types.set_name(fat_pointer_id_, "__chemical_fat_pointer__", 24);
+        return fat_pointer_id_;
+    }
+
     /** The module type table this maps into. */
     MIRModule& module() { return module_; }
 
@@ -77,6 +90,7 @@ private:
     std::unordered_map<const void*, uint32_t> decl_ids_;
     std::unordered_map<const void*, TypeId> decl_types_;
     std::function<std::string(ASTNode*)> name_resolver_;
+    TypeId fat_pointer_id_ = MIR_INVALID_ID;
 };
 
 } // namespace mir

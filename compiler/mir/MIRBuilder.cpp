@@ -210,6 +210,14 @@ ValueId MIRBuilder::global_addr(SymbolId symbol, TypeId pointer_type) {
     return v;
 }
 
+ValueId MIRBuilder::function_addr(SymbolId symbol, TypeId pointer_type) {
+    ValueId v = new_value(pointer_type, VF_ADDRESSABLE);
+    uint32_t i = emit(MIROpcode::FunctionAddr, v,
+                      {MIROperand::symbol(symbol, MIR_INVALID_ID), MIROperand::type(pointer_type)});
+    note_result_value(v, i);
+    return v;
+}
+
 PlaceId MIRBuilder::alloca(TypeId type, MIRStorageClass sc) {
     PlaceId p = new_place(type, sc);
     emit(MIROpcode::Alloca, p, {MIROperand::type(type)});
@@ -343,6 +351,17 @@ ValueId MIRBuilder::field_addr(PlaceId base, ConstantId field_index, TypeId fiel
     uint32_t i = emit(MIROpcode::FieldAddr, v,
                       {MIROperand::place(base, bt),
                        MIROperand::constant(field_index, MIR_INVALID_ID),
+                       MIROperand::type(field_type)});
+    note_result_value(v, i);
+    return v;
+}
+
+ValueId MIRBuilder::field_addr_ptr(ValueId base, ConstantId field_name, TypeId field_type) {
+    ValueId v = new_value(field_type, VF_ADDRESSABLE);
+    TypeId bt = base < func_.values.size() ? func_.values[base].type : MIR_INVALID_ID;
+    uint32_t i = emit(MIROpcode::FieldAddr, v,
+                      {MIROperand::value(base, bt),
+                       MIROperand::constant(field_name, MIR_INVALID_ID),
                        MIROperand::type(field_type)});
     note_result_value(v, i);
     return v;
@@ -572,6 +591,13 @@ void MIRBuilder::memcpy(PlaceId dest, PlaceId src, ValueId size) {
           MIROperand::value(size, zt)});
 }
 
+void MIRBuilder::copy_ptr_to_place(PlaceId dest, ValueId src_ptr) {
+    TypeId dt = dest < func_.places.size() ? func_.places[dest].type : MIR_INVALID_ID;
+    TypeId st = src_ptr < func_.values.size() ? func_.values[src_ptr].type : MIR_INVALID_ID;
+    emit(MIROpcode::MemCpy, MIR_NULL,
+         {MIROperand::place(dest, dt), MIROperand::value(src_ptr, st)});
+}
+
 void MIRBuilder::memset(PlaceId dest, ValueId byte, ValueId size) {
     TypeId dt = dest < func_.places.size() ? func_.places[dest].type : MIR_INVALID_ID;
     TypeId bt = byte < func_.values.size() ? func_.values[byte].type : MIR_INVALID_ID;
@@ -579,6 +605,11 @@ void MIRBuilder::memset(PlaceId dest, ValueId byte, ValueId size) {
     emit(MIROpcode::MemSet, MIR_NULL,
          {MIROperand::place(dest, dt), MIROperand::value(byte, bt),
           MIROperand::value(size, zt)});
+}
+
+void MIRBuilder::zero_init(PlaceId dest) {
+    TypeId dt = dest < func_.places.size() ? func_.places[dest].type : MIR_INVALID_ID;
+    emit(MIROpcode::MemSet, MIR_NULL, {MIROperand::place(dest, dt)});
 }
 
 // ── terminators ────────────────────────────────────────────────────────────

@@ -158,11 +158,15 @@ std::string c_type_of(const MIRModule& module, TypeId type) {
         case MIRTypeKind::Struct:
         case MIRTypeKind::Variant: {
             const std::string n = module.types.name_of(type);
-            return n.empty() ? "void*" : ("struct " + n);
+            if (n.empty()) return "void*";
+            if (r.flags & TF_TYPEDEF) return n;
+            return "struct " + n;
         }
         case MIRTypeKind::Union: {
             const std::string n = module.types.name_of(type);
-            return n.empty() ? "void*" : ("union " + n);
+            if (n.empty()) return "void*";
+            if (r.flags & TF_TYPEDEF) return n;
+            return "union " + n;
         }
         default:
             return "void*"; // aggregates are emitted by the aggregate milestone
@@ -205,6 +209,14 @@ static std::string declarator(const MIRModule& module, TypeId type, const std::s
     if (r.kind == MIRTypeKind::Array) {
         return declarator(module, r.element, name) + "[" + std::to_string(r.data_count) + "]";
     }
+    if (r.kind == MIRTypeKind::Pointer || r.kind == MIRTypeKind::Reference) {
+        const MIRTypeRecord& pointee = module.types.get(r.element);
+        if (pointee.kind == MIRTypeKind::Array) {
+            // pointer to array: `int (*name)[N]`
+            return declarator(module, pointee.element, "(*" + name + ")") + "[" +
+                   std::to_string(pointee.data_count) + "]";
+        }
+    }
     return c_type_of(module, type) + " " + name;
 }
 
@@ -230,7 +242,9 @@ bool const_literal(const MIRModule& module, ConstantId cid, TypeId cast_type, st
             std::memcpy(&f, &b, sizeof(f));
             char buf[64];
             std::snprintf(buf, sizeof(buf), "%g", static_cast<double>(f));
-            out = std::string(buf) + "f";
+            std::string s(buf);
+            if (s.find_first_of(".eE") == std::string::npos) s += ".0";
+            out = s + "f";
             return true;
         }
         case MIRConstantKind::Double: {
@@ -239,6 +253,7 @@ bool const_literal(const MIRModule& module, ConstantId cid, TypeId cast_type, st
             char buf[64];
             std::snprintf(buf, sizeof(buf), "%g", d);
             out = buf;
+            if (out.find_first_of(".eE") == std::string::npos) out += ".0";
             return true;
         }
         case MIRConstantKind::String:
@@ -371,8 +386,12 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 if (!p) { error = "load missing place"; return false; }
                 if (p->kind() == MIROperandKind::Value) {
                     if (fld && fld->kind() == MIROperandKind::Value) {
+                        const bool base_is_array =
+                            p->type() < module.types.size() &&
+                            module.types.get(p->type()).kind == MIRTypeKind::Array;
+                        const std::string bexpr = operand_expr(function, module, *p);
                         out += declarator(module, function.values[v].type, vname(v)) +
-                               " = " + operand_expr(function, module, *p) + "[" +
+                               " = " + (base_is_array ? ("(*" + bexpr + ")") : bexpr) + "[" +
                                operand_expr(function, module, *fld) + "];\n";
                     } else if (fld && fld->kind() == MIROperandKind::Constant) {
                         std::string fname;
@@ -411,7 +430,11 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 if (!p || !a) { error = "store missing operands"; return false; }
                 if (p->kind() == MIROperandKind::Value) {
                     if (a->kind() == MIROperandKind::Value && b) {
-                        out += operand_expr(function, module, *p) + "[" +
+                        const bool base_is_array =
+                            p->type() < module.types.size() &&
+                            module.types.get(p->type()).kind == MIRTypeKind::Array;
+                        const std::string bexpr = operand_expr(function, module, *p);
+                        out += (base_is_array ? ("(*" + bexpr + ")") : bexpr) + "[" +
                                operand_expr(function, module, *a) + "] = " +
                                operand_expr(function, module, *b) + ";\n";
                     } else if (a->kind() == MIROperandKind::Constant && b) {
@@ -423,8 +446,18 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                         out += operand_expr(function, module, *p) + "->" + fname + " = " +
                                operand_expr(function, module, *b) + ";\n";
                     } else {
-                        out += "*" + operand_expr(function, module, *p) + " = " +
-                               operand_expr(function, module, *a) + ";\n";
+                        std::string rhs;
+                        if (a->kind() == MIROperandKind::Place) {
+                            const MIRTypeRecord& atr =
+                                module.types.get(function.places[a->id].type);
+                            rhs = (atr.kind == MIRTypeKind::Pointer ||
+                                   atr.kind == MIRTypeKind::Reference)
+                                      ? ("*" + pname(a->id))
+                                      : pname(a->id);
+                        } else {
+                            rhs = operand_expr(function, module, *a);
+                        }
+                        out += "*" + operand_expr(function, module, *p) + " = " + rhs + ";\n";
                     }
                 } else if (a->kind() == MIROperandKind::Value && b) {
                     out += pname(p->id) + "[" + operand_expr(function, module, *a) +
@@ -435,11 +468,54 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                         error = "field store has invalid field name";
                         return false;
                     }
-                    out += member_access(function, module, p->id, fname) + " = " +
-                           operand_expr(function, module, *b) + ";\n";
+                    std::string rhs;
+                    if (b->kind() == MIROperandKind::Place) {
+                        const MIRTypeRecord& btr = module.types.get(function.places[b->id].type);
+                        const std::string access = member_access(function, module, p->id, fname);
+                        if (btr.kind == MIRTypeKind::Array) {
+                            // arrays are not assignable: copy the bytes
+                            out += "memcpy(&" + access + ", &" + pname(b->id) + ", sizeof(" +
+                                   access + "));\n";
+                            break;
+                        }
+                        // aggregate parameters are pointer-typed places: deref
+                        rhs = (btr.kind == MIRTypeKind::Pointer ||
+                               btr.kind == MIRTypeKind::Reference)
+                                  ? ("*" + pname(b->id))
+                                  : pname(b->id);
+                    } else {
+                        rhs = operand_expr(function, module, *b);
+                    }
+                    out += member_access(function, module, p->id, fname) + " = " + rhs + ";\n";
                 } else {
                     out += pname(p->id) + " = " + operand_expr(function, module, *a) + ";\n";
                 }
+                break;
+            }
+            case MIROpcode::FieldAddr: {
+                const ValueId v = inst.result_or_place;
+                const MIROperand* p = operand_at(function, inst, 0);
+                const MIROperand* fld = operand_at(function, inst, 1);
+                if (!p || !fld) { error = "field_addr missing operands"; return false; }
+                std::string fname;
+                if (!constant_string(module, fld->id, fname)) {
+                    error = "field_addr invalid field name";
+                    return false;
+                }
+                const bool ptr = p->kind() != MIROperandKind::Place;
+                const std::string base =
+                    ptr ? operand_expr(function, module, *p) : pname(p->id);
+                const TypeId ft = function.values[v].type;
+                std::string decl;
+                if (ft < module.types.size() &&
+                    module.types.get(ft).kind == MIRTypeKind::Array) {
+                    const MIRTypeRecord& ar = module.types.get(ft);
+                    decl = declarator(module, ar.element, "(*" + vname(v) + ")") + "[" +
+                           std::to_string(ar.data_count) + "]";
+                } else {
+                    decl = c_type_of(module, ft) + "* " + vname(v);
+                }
+                out += decl + " = &" + base + (ptr ? "->" : ".") + fname + ";\n";
                 break;
             }
             case MIROpcode::AddressOf: {
@@ -548,17 +624,56 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 if (!dest || !src) { error = "copy/move_init missing operands"; return false; }
                 const std::string rhs =
                     (src->kind() == MIROperandKind::Place ? pname(src->id) : vname(src->id));
+                std::string src_expr = rhs;
+                if (src->kind() == MIROperandKind::Place) {
+                    const MIRTypeRecord& str = module.types.get(function.places[src->id].type);
+                    if (str.kind == MIRTypeKind::Pointer || str.kind == MIRTypeKind::Reference) {
+                        src_expr = "*" + pname(src->id);
+                    }
+                }
                 const TypeId dt = dest->id < function.places.size()
                                       ? function.places[dest->id].type
                                       : MIR_INVALID_ID;
                 if (dt != MIR_INVALID_ID && dt < module.types.size() &&
                     module.types.get(dt).kind == MIRTypeKind::Array) {
                     // arrays are not assignable in C: copy the bytes instead
-                    out += "memcpy(&" + pname(dest->id) + ", &" + rhs + ", sizeof(" +
+                    const std::string src_addr =
+                        (src->kind() == MIROperandKind::Place && src_expr != rhs)
+                            ? src_expr
+                            : ("&" + rhs);
+                    out += "memcpy(&" + pname(dest->id) + ", " + src_addr + ", sizeof(" +
                            pname(dest->id) + "));\n";
                 } else {
-                    out += pname(dest->id) + " = " + rhs + ";\n";
+                    out += pname(dest->id) + " = " + src_expr + ";\n";
                 }
+                break;
+            }
+            case MIROpcode::MemCpy: {
+                const MIROperand* dest = operand_at(function, inst, 0);
+                const MIROperand* src = operand_at(function, inst, 1);
+                if (!dest || !src) { error = "memcpy missing operands"; return false; }
+                out += "memcpy(&" + pname(dest->id) + ", " +
+                       operand_expr(function, module, *src) + ", sizeof(" + pname(dest->id) +
+                       "));\n";
+                break;
+            }
+            case MIROpcode::MemSet: {
+                const MIROperand* dest = operand_at(function, inst, 0);
+                if (!dest) { error = "memset missing destination"; return false; }
+                const std::string pn = pname(dest->id);
+                const std::string iv = "__chx_zi" + std::to_string(idx);
+                out += "for (unsigned long " + iv + " = 0; " + iv + " < sizeof(" + pn +
+                       "); ++" + iv + ") ((unsigned char*)&" + pn + ")[" + iv + "] = 0;\n";
+                break;
+            }
+            case MIROpcode::FunctionAddr: {
+                const ValueId v = inst.result_or_place;
+                const MIROperand* s = operand_at(function, inst, 0);
+                if (!s) { error = "function_addr missing symbol"; return false; }
+                std::string name;
+                symbol_name(module, s->id, name);
+                out += declarator(module, function.values[v].type, vname(v)) + " = " + name +
+                       ";\n";
                 break;
             }
             case MIROpcode::GlobalAddr: {

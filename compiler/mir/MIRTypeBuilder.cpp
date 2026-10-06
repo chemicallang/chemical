@@ -10,6 +10,9 @@
 #include "ast/types/ArrayType.h"
 #include "ast/types/FunctionType.h"
 #include "ast/types/GenericType.h"
+#include "ast/types/LiteralType.h"
+#include "ast/types/MaybeRuntimeType.h"
+#include "ast/types/RuntimeType.h"
 #include "ast/structures/FunctionParam.h"
 #include "ast/statements/Typealias.h"
 
@@ -155,7 +158,21 @@ TypeId MIRTypeBuilder::function_type(BaseType* type) {
     param_ids.reserve(n);
     for (uint32_t i = 0; i < n; ++i) {
         FunctionParam* p = ft->params[i];
-        param_ids.push_back(p && p->type ? map(p->type) : opaque_type());
+        TypeId pid = p && p->type ? map(p->type) : opaque_type();
+        // aggregate/array parameters are passed by pointer, matching the
+        // function definitions emitted for normal functions
+        if (pid != MIR_INVALID_ID && pid < module_.types.size()) {
+            const MIRTypeRecord& pr = module_.types.get(pid);
+            if (!(pr.flags & TF_TYPEDEF)) {
+                if (pr.kind == MIRTypeKind::Array) {
+                    pid = pointer_type(pr.element, true);
+                } else if (pr.kind == MIRTypeKind::Struct || pr.kind == MIRTypeKind::Union ||
+                           pr.kind == MIRTypeKind::Variant) {
+                    pid = pointer_type(pid, true);
+                }
+            }
+        }
+        param_ids.push_back(pid);
     }
     if (n) r.data_offset = module_.types.append_data(param_ids.data(), n);
     r.data_count = n;
@@ -234,6 +251,25 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
             id = pointer_like(MIRTypeKind::Pointer, void_type(), false);
             break;
         }
+        case BaseTypeKind::Dynamic: {
+            id = fat_pointer_type();
+            break;
+        }
+        case BaseTypeKind::Literal: {
+            auto* lt = type->as_literal_type();
+            id = (lt && lt->underlying) ? map(lt->underlying) : opaque_type();
+            break;
+        }
+        case BaseTypeKind::MaybeRuntime: {
+            auto* mr = type->as_maybe_runtime_type_unsafe();
+            id = (mr && mr->underlying) ? map(mr->underlying) : opaque_type();
+            break;
+        }
+        case BaseTypeKind::Runtime: {
+            auto* rt = type->as_runtime_type_unsafe();
+            id = (rt && rt->underlying) ? map(rt->underlying) : opaque_type();
+            break;
+        }
         case BaseTypeKind::Array: {
             auto* at = type->as_array_type();
             MIRTypeRecord r;
@@ -263,7 +299,9 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
             } else if (auto* s = type->get_direct_linked_struct()) {
                 id = aggregate_type(MIRTypeKind::Struct, s, type);
             } else if (ASTNode* n = type->get_direct_linked_node()) {
-                if (n->kind() == ASTNodeKind::TypealiasStmt) {
+                if (n->kind() == ASTNodeKind::UnionDecl) {
+                    id = aggregate_type(MIRTypeKind::Union, n, type);
+                } else if (n->kind() == ASTNodeKind::TypealiasStmt) {
                     id = map(n->as_typealias_unsafe()->known_type());
                 } else {
                     id = opaque_type();

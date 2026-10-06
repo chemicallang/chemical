@@ -35,6 +35,7 @@ enum MIRTypeFlags : uint8_t {
     TF_HAS_DESTRUCTOR = 0x04,
     TF_HAS_CONSTRUCTOR = 0x08,
     TF_TRIVIAL_BITWISE = 0x10,
+    TF_TYPEDEF = 0x20, // spelled by name without a `struct`/`union` prefix
 };
 
 /**

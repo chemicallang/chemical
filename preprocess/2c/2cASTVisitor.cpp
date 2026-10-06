@@ -1153,14 +1153,24 @@ Value* evaluate_comptime_func(
 }
 
 Value* ToCAstVisitor::eval_comptime_call(FunctionCall* call, FunctionDeclaration* decl) {
-    return evaluate_comptime_func(*this, decl, call);
+    Value* result = evaluate_comptime_func(*this, decl, call);
+    if (result && result->val_kind() == ValueKind::RuntimeValue) {
+        // evaluate the returned runtime value while the comptime scope is alive
+        // so its captured comptime refs become self-contained
+        return result->evaluated_value(comptime_scope);
+    }
+    return result;
 }
 
 Value* ToCAstVisitor::eval_comptime_ctor(FunctionDeclaration* ctor, Value* arg) {
     BaseType* expected = ctor->params.empty() ? nullptr : ctor->params[0]->type;
     FunctionCall* call = call_with_arg(ctor, arg, expected, allocator, *this);
     if (!call) return nullptr;
-    return evaluate_comptime_func(*this, ctor, call);
+    Value* result = evaluate_comptime_func(*this, ctor, call);
+    if (result && result->val_kind() == ValueKind::RuntimeValue) {
+        return result->evaluated_value(comptime_scope);
+    }
+    return result;
 }
 
 void call_implicit_constructor_no_alloc(ToCAstVisitor& visitor, FunctionDeclaration* imp_constructor, Value* value, const chem::string_view& var_name, bool is_var_ptr) {

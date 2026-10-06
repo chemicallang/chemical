@@ -72,6 +72,8 @@ public:
     ValueId load_indirect(ValueId address, TypeId type);
     /** Address of a module-level global: `&symbol`. */
     ValueId global_addr(SymbolId symbol, TypeId pointer_type);
+    /** Address of a function (function pointer): `symbol`. */
+    ValueId function_addr(SymbolId symbol, TypeId pointer_type);
     PlaceId alloca(TypeId type, MIRStorageClass sc = MIRStorageClass::Local);
     ValueId load(PlaceId place, TypeId type);
     void store(PlaceId place, ValueId value);
@@ -98,6 +100,8 @@ public:
     ValueId address_of(PlaceId place, TypeId pointer_type);
     /** Address of a struct field; result value is typed as `field_type`. */
     ValueId field_addr(PlaceId base, ConstantId field_index, TypeId field_type);
+    /** Address of a field through a pointer: `&base->field`. */
+    ValueId field_addr_ptr(ValueId base, ConstantId field_name, TypeId field_type);
     /** Address of an array element; result value is typed as `element_type`. */
     ValueId index_addr(PlaceId base, ValueId index, TypeId element_type);
     ValueId gep(ValueId base, TypeId result_type,
@@ -129,7 +133,11 @@ public:
     void drop(PlaceId place, SymbolId dtor, ValueId flag = MIR_NULL);
     void set_drop(PlaceId flag_place, bool value);
     void memcpy(PlaceId dest, PlaceId src, ValueId size);
+    /** Copy bytes from a pointer into a place: `memcpy(&dest, src, sizeof(dest))`. */
+    void copy_ptr_to_place(PlaceId dest, ValueId src_ptr);
     void memset(PlaceId dest, ValueId byte, ValueId size);
+    /** Zero the entire storage of `dest` (`memset(&dest, 0, sizeof(dest))`). */
+    void zero_init(PlaceId dest);
 
     // ── terminators ────────────────────────────────────────────────────────
     void ret(ValueId value);

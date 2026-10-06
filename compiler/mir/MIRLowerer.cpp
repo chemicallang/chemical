@@ -73,7 +73,9 @@ Value* captured_comptime_value(ASTNode* linked) {
 
 bool needs_aggregate_path(const MIRModule& module, TypeId type) {
     if (type == MIR_INVALID_ID || type >= module.types.size()) return false;
-    const MIRTypeKind k = module.types.get(type).kind;
+    const MIRTypeRecord& rec = module.types.get(type);
+    if (rec.flags & TF_TYPEDEF) return false; // dynamic fat pointer: passed by value
+    const MIRTypeKind k = rec.kind;
     return k == MIRTypeKind::Struct || k == MIRTypeKind::Union || k == MIRTypeKind::Variant ||
            k == MIRTypeKind::Array;
 }
@@ -205,12 +207,25 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
         const PlaceId p = place_for_linked(id->linked);
         if (p != MIR_INVALID_ID) {
             const TypeId pt = builder_->function().places[p].type;
+            const MIRTypeRecord& pr = module_.types.get(pt);
+            const TypeId ast_t = types_.map(id->getType());
+            if (needs_aggregate_path(module_, ast_t) &&
+                (pr.kind == MIRTypeKind::Pointer || pr.kind == MIRTypeKind::Reference)) {
+                // an aggregate parameter passed by pointer: `&param` is the pointer
+                return MIRExprResult::value(builder_->load(p, pt), pt);
+            }
             const TypeId ptrt = types_.pointer_type(pt, true);
             return MIRExprResult::value(builder_->address_of(p, ptrt), ptrt);
         }
         const PlaceId pn = place_for_name(id->value);
         if (pn != MIR_INVALID_ID) {
             const TypeId pt = builder_->function().places[pn].type;
+            const MIRTypeRecord& pr = module_.types.get(pt);
+            const TypeId ast_t = types_.map(id->getType());
+            if (needs_aggregate_path(module_, ast_t) &&
+                (pr.kind == MIRTypeKind::Pointer || pr.kind == MIRTypeKind::Reference)) {
+                return MIRExprResult::value(builder_->load(pn, pt), pt);
+            }
             const TypeId ptrt = types_.pointer_type(pt, true);
             return MIRExprResult::value(builder_->address_of(pn, ptrt), ptrt);
         }
@@ -424,6 +439,16 @@ MIRExprResult MIRLowerer::lower_method_call(Value* receiver, FunctionCall* call,
         error = "method call to unresolved function";
         return MIRExprResult::error();
     }
+    if (FunctionParam* self = fd->get_self_param()) {
+        if (self->type && self->type->kind() == BaseTypeKind::Reference) {
+            BaseType* inner = self->type->as_reference_type()->type;
+            if (inner && (inner->kind() == BaseTypeKind::Reference ||
+                          inner->kind() == BaseTypeKind::Pointer)) {
+                error = "reference-to-reference method receiver is not yet supported";
+                return MIRExprResult::error();
+            }
+        }
+    }
 
     MIRExprResult recv = lower_expr(receiver, error);
     if (!recv.ok()) return recv;
@@ -469,7 +494,11 @@ MIRExprResult MIRLowerer::lower_method_call(Value* receiver, FunctionCall* call,
 
     if (fd->is_comptime() && comptime_eval_) {
         Value* evaluated = comptime_eval_(call, fd);
-        if (evaluated) return lower_expr(evaluated, error);
+        if (!evaluated) {
+            error = "comptime call to '" + fd->name_str() + "' could not be evaluated";
+            return MIRExprResult::error();
+        }
+        return lower_expr(evaluated, error);
     }
 
     const SymbolId sym = intern_function(fd);
@@ -591,6 +620,12 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             if (Value* cv = captured_comptime_value(id->linked)) {
                 return lower_expr(cv, error);
             }
+            if (id->linked && id->linked->kind() == ASTNodeKind::FunctionDecl) {
+                // a function used as a value (function pointer)
+                FunctionDeclaration* fd = id->linked->as_function_unsafe();
+                const SymbolId sym = intern_function(fd);
+                return MIRExprResult::value(builder_->function_addr(sym, type), type);
+            }
             PlaceId place = place_for_linked(id->linked);
             if (place == MIR_INVALID_ID) place = place_for_name(id->value);
             if (place != MIR_INVALID_ID) {
@@ -601,6 +636,10 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             }
             if (id->linked && id->linked->kind() == ASTNodeKind::VarInitStmt) {
                 auto* vi = id->linked->as_var_init();
+                if (vi->is_comptime() && vi->value) {
+                    // module-level comptime constants are inlined at their use
+                    return lower_expr(vi->value, error);
+                }
                 const SymbolId gs = intern_global(vi);
                 const TypeId ptrt = types_.pointer_type(type, false);
                 const ValueId addr = builder_->global_addr(gs, ptrt);
@@ -612,13 +651,6 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             // unresolved identifier: treat as a module-level / extern global
             {
                 const std::string gname(id->value.data(), id->value.size());
-#ifdef DEBUG
-                if (std::getenv("MIR_DEBUG_IDENT")) {
-                    std::cerr << "[MIR] unbound ident '" << gname << "' linked kind "
-                              << (id->linked ? static_cast<int>(id->linked->kind()) : -1)
-                              << "\n";
-                }
-#endif
                 if (!gname.empty()) {
                     const SymbolId gs = intern_named_global(gname);
                     const TypeId ptrt = types_.pointer_type(type, false);
@@ -697,6 +729,20 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             auto* c = value->as_casted_value_unsafe();
             MIRExprResult in = lower_expr(c->value, error);
             if (!in.ok()) return in;
+            if (type != MIR_INVALID_ID && type < module_.types.size() &&
+                module_.types.get(type).kind == MIRTypeKind::Array) {
+                // casting a pointer to an array: copy the bytes into a temp array
+                const PlaceId tmp = builder_->alloca(type, MIRStorageClass::Temporary);
+                if (in.kind == MIRExprKind::Value || in.kind == MIRExprKind::Address) {
+                    builder_->copy_ptr_to_place(tmp, static_cast<ValueId>(in.id));
+                } else if (in.kind == MIRExprKind::Place) {
+                    const TypeId pt = builder_->function().places[in.id].type;
+                    const ValueId ptr = builder_->address_of(
+                        static_cast<PlaceId>(in.id), types_.pointer_type(pt, false));
+                    builder_->copy_ptr_to_place(tmp, ptr);
+                }
+                return MIRExprResult::place(tmp, type);
+            }
             if (in.type == type) return in;
             return MIRExprResult::value(builder_->cast(in.id, type), type);
         }
@@ -710,29 +756,60 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 if (lk->kind() == ASTNodeKind::EnumMember) {
                     auto* em = lk->as_enum_member();
                     if (em && em->init_value) return lower_expr(em->init_value, error);
-                    const ConstantId c = module_.constants.add_int(type, 0);
+                    const uint64_t idx =
+                        em ? static_cast<uint64_t>(em->get_default_index()) : 0;
+                    const ConstantId c = module_.constants.add_int(type, idx);
                     return MIRExprResult::value(builder_->const_int(type, c), type);
                 }
             }
-            // member access: the base is a place (aggregate) or a pointer value
-            std::string fname;
-            if (!member_name(chain->values.back(), fname, error)) return MIRExprResult::error();
-            const ConstantId fc = module_.constants.add_string(
-                MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
-            MIRExprResult base_r = lower_expr(chain->values[0], error);
-            if (!base_r.ok()) return base_r;
-            if (base_r.kind == MIRExprKind::Place) {
-                return MIRExprResult::value(
-                    builder_->field_load(static_cast<PlaceId>(base_r.id), fc, type), type);
+            // member access: walk the chain from the base, taking the address of
+            // each intermediate field and loading the last
+            MIRExprResult first = lower_expr(chain->values[0], error);
+            if (!first.ok()) return first;
+            PlaceId cur_place = MIR_INVALID_ID;
+            ValueId cur_ptr = MIR_NULL;
+            bool have_ptr = false;
+            if (first.kind == MIRExprKind::Place) {
+                cur_place = static_cast<PlaceId>(first.id);
+            } else if (first.kind == MIRExprKind::Value ||
+                       first.kind == MIRExprKind::Address) {
+                cur_ptr = static_cast<ValueId>(first.id);
+                have_ptr = true;
+            } else {
+                error = "member access base is not a place or pointer";
+                return MIRExprResult::error();
             }
-            if (base_r.kind == MIRExprKind::Value || base_r.kind == MIRExprKind::Address) {
-                const MIRTypeRecord& br = module_.types.get(base_r.type);
-                if (br.kind == MIRTypeKind::Pointer || br.kind == MIRTypeKind::Reference) {
-                    return MIRExprResult::value(
-                        builder_->field_load_ptr(static_cast<ValueId>(base_r.id), fc, type), type);
+            const size_t n = chain->values.size();
+            for (size_t i = 1; i < n; ++i) {
+                std::string fname;
+                if (!member_name(chain->values[i], fname, error)) return MIRExprResult::error();
+                const ConstantId fc = module_.constants.add_string(
+                    MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
+                const TypeId ft = types_.map(chain->values[i]->getType());
+                const bool last = (i + 1 == n);
+                if (!have_ptr) {
+                    if (last) {
+                        if (needs_aggregate_path(module_, ft)) {
+                            // aggregate fields are returned by address (lvalue)
+                            return MIRExprResult::address(builder_->field_addr(cur_place, fc, ft),
+                                                          ft);
+                        }
+                        return MIRExprResult::value(builder_->field_load(cur_place, fc, ft), ft);
+                    }
+                    cur_ptr = builder_->field_addr(cur_place, fc, ft);
+                    have_ptr = true;
+                } else {
+                    if (last) {
+                        if (needs_aggregate_path(module_, ft)) {
+                            return MIRExprResult::address(builder_->field_addr_ptr(cur_ptr, fc, ft),
+                                                          ft);
+                        }
+                        return MIRExprResult::value(builder_->field_load_ptr(cur_ptr, fc, ft), ft);
+                    }
+                    cur_ptr = builder_->field_addr_ptr(cur_ptr, fc, ft);
                 }
             }
-            error = "member access base is not a place or pointer";
+            error = "empty member chain";
             return MIRExprResult::error();
         }
         case ValueKind::StructValue: {
@@ -742,6 +819,16 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             if (temp == MIR_INVALID_ID) {
                 error = "failed to allocate struct temporary";
                 return MIRExprResult::error();
+            }
+            // zero the temp so members that are not explicitly set are
+            // well-defined (matches the legacy backend's default initialization)
+            builder_->zero_init(temp);
+            StructDefinition* sd = nullptr;
+            if (BaseType* ctype = value->getType()) {
+                ASTNode* cn = ctype->get_direct_linked_canonical_node();
+                if (cn && cn->kind() == ASTNodeKind::StructDecl) {
+                    sd = cn->as_struct_def_unsafe();
+                }
             }
             auto it = sv->values.begin();
             while (it != sv->values.end()) {
@@ -803,8 +890,46 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     error = "unsupported struct field initializer";
                     return MIRExprResult::error();
                 }
+                // if the field is an aggregate value but the initializer is a
+                // pointer/reference, dereference to get the value
+                if (!member_type && sd) {
+                    auto mtw2 = sd->variable_type_w_index(init.name);
+                    if (mtw2.second != -1) member_type = mtw2.first;
+                }
+                if (member_type) {
+                    const MIRTypeRecord& rt = module_.types.get(r.type);
+                    if ((rt.kind == MIRTypeKind::Pointer ||
+                         rt.kind == MIRTypeKind::Reference) &&
+                        needs_aggregate_path(module_, types_.map(member_type))) {
+                        builder_->field_store(
+                            temp, fc,
+                            builder_->load_indirect(r.id, types_.map(member_type)));
+                        ++it;
+                        continue;
+                    }
+                }
                 builder_->field_store(temp, fc, r.id);
                 ++it;
+            }
+            // initialize members that were not explicitly set with their default
+            // values (the struct temp was zeroed above, so scalars are already 0)
+            if (sd) {
+                for (BaseDefMember* member : sd->variables()) {
+                    if (!member) continue;
+                    const chem::string_view mname = member->name;
+                    if (sv->values.find(mname) != sv->values.end()) continue;
+                    Value* dv = member->default_value();
+                    if (!dv) continue;
+                    MIRExprResult r = lower_expr(dv, error);
+                    if (!r.ok()) return r;
+                    const ConstantId fc = module_.constants.add_string(
+                        MIR_INVALID_ID, mname.data(), static_cast<uint32_t>(mname.size()));
+                    if (r.kind == MIRExprKind::Place) {
+                        builder_->field_store_place(temp, fc, static_cast<PlaceId>(r.id));
+                    } else if (r.kind == MIRExprKind::Value) {
+                        builder_->field_store(temp, fc, r.id);
+                    }
+                }
             }
             return MIRExprResult::place(temp, st);
         }
@@ -893,13 +1018,28 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             if (call->parent_val && call->parent_val->val_kind() == ValueKind::AccessChain) {
                 auto* chain = call->parent_val->as_access_chain_unsafe();
                 if (chain->values.size() >= 2) {
-                    // namespace-qualified aggregate construction: the receiver is
-                    // not an addressable place and the result is an aggregate
+                    // resolve the callee first: a namespace-qualified function
+                    // (e.g. `lab::curr_dir()`) must not be mistaken for a
+                    // constructor even when it returns an aggregate
+                    ASTNode* callee_node = call->parent_val->linked_node();
+                    FunctionDeclaration* mfd = callee_node ? callee_node->as_function() : nullptr;
+                    if (!mfd) {
+                        // fallback: the method identifier may not have been linked
+                        // (extension methods on an interface receiver); resolve it
+                        // by name on the receiver's canonical container.
+                        std::string mname, merr;
+                        if (member_name(chain->values.back(), mname, merr)) {
+                            mfd = resolve_method_fallback(chain->values[0]->getType(), mname);
+                        }
+                    }
+                    // namespace-qualified aggregate construction: the callee is
+                    // not a function, the receiver is not an addressable place,
+                    // and the result is an aggregate
                     std::string probe;
                     const bool recv_is_place =
                         resolve_place(chain->values[0], probe) != MIR_INVALID_ID;
                     const TypeId ct = types_.map(call->getType());
-                    if (!recv_is_place && needs_aggregate_path(module_, ct)) {
+                    if (!mfd && !recv_is_place && needs_aggregate_path(module_, ct)) {
                         const PlaceId place = builder_->alloca(ct, MIRStorageClass::Temporary);
                         FunctionDeclaration* ctor = nullptr;
                         if (call->getType()) {
@@ -931,18 +1071,6 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                             return MIRExprResult::error();
                         }
                         return MIRExprResult::place(place, ct);
-                    }
-                    ASTNode* callee_node = call->parent_val->linked_node();
-                    FunctionDeclaration* mfd = callee_node ? callee_node->as_function() : nullptr;
-                    if (!mfd) {
-                        // fallback: the method identifier may not have been linked
-                        // (extension methods on an interface receiver); resolve it
-                        // by name on the receiver's canonical container.
-                        auto* fch = call->parent_val->as_access_chain_unsafe();
-                        std::string mname, merr;
-                        if (member_name(fch->values.back(), mname, merr)) {
-                            mfd = resolve_method_fallback(fch->values[0]->getType(), mname);
-                        }
                     }
                     const bool needs_receiver =
                         mfd && (mfd->get_self_param() != nullptr || mfd->isExtensionFn());
@@ -998,6 +1126,20 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         return MIRExprResult::error();
                     }
                     const TypeId ft = builder_->function().places[fp].type;
+                    if (ft != MIR_INVALID_ID && ft < module_.types.size()) {
+                        const MIRTypeRecord& ftr = module_.types.get(ft);
+                        const MIRTypeRecord* eff = &ftr;
+                        if ((ftr.kind == MIRTypeKind::Pointer ||
+                             ftr.kind == MIRTypeKind::Reference) &&
+                            ftr.element < module_.types.size()) {
+                            eff = &module_.types.get(ftr.element);
+                        }
+                        if (eff->kind == MIRTypeKind::Struct) {
+                            // capturing function instance (`std::function`) call
+                            error = "capturing function call is not yet supported";
+                            return MIRExprResult::error();
+                        }
+                    }
                     const ValueId fnptr = builder_->load(fp, ft);
                     std::vector<MIROperand> cargs;
                     if (!lower_call_args(call->values, cargs, error)) return MIRExprResult::error();
@@ -1013,7 +1155,11 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             }
             if (fd->is_comptime() && comptime_eval_) {
                 Value* evaluated = comptime_eval_(call, fd);
-                if (evaluated) return lower_expr(evaluated, error);
+                if (!evaluated) {
+                    error = "comptime call to '" + fd->name_str() + "' could not be evaluated";
+                    return MIRExprResult::error();
+                }
+                return lower_expr(evaluated, error);
             }
             SymbolId sym = intern_function(fd);
 
@@ -1174,6 +1320,12 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     error = "invalid initializer expression";
                     return false;
                 }
+                if (vt != MIR_INVALID_ID && vt < module_.types.size() &&
+                    module_.types.get(vt).kind == MIRTypeKind::Array) {
+                    // initialize an array from a pointer (e.g. a string literal)
+                    builder_->copy_ptr_to_place(place, static_cast<ValueId>(r.id));
+                    return true;
+                }
                 ValueId val = r.id;
                 if (r.type != vt) val = builder_->cast(val, vt);
                 builder_->store(place, val);
@@ -1192,35 +1344,52 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 if (chain->values.size() == 1) {
                     lhs = chain->values[0];
                 } else if (chain->values.size() >= 2) {
+                    const size_t n = chain->values.size();
+                    // walk to the base of the last field
+                    MIRExprResult first = lower_expr(chain->values[0], error);
+                    if (!first.ok()) return false;
+                    PlaceId cur_place = MIR_INVALID_ID;
+                    ValueId cur_ptr = MIR_NULL;
+                    bool have_ptr = false;
+                    if (first.kind == MIRExprKind::Place) {
+                        cur_place = static_cast<PlaceId>(first.id);
+                    } else if (first.kind == MIRExprKind::Value ||
+                               first.kind == MIRExprKind::Address) {
+                        cur_ptr = static_cast<ValueId>(first.id);
+                        have_ptr = true;
+                    } else {
+                        error = "field assignment base is not a place or pointer";
+                        return false;
+                    }
+                    for (size_t i = 1; i + 1 < n; ++i) {
+                        std::string fname;
+                        if (!member_name(chain->values[i], fname, error)) return false;
+                        const ConstantId fc = module_.constants.add_string(
+                            MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
+                        const TypeId ft = types_.map(chain->values[i]->getType());
+                        if (!have_ptr) {
+                            cur_ptr = builder_->field_addr(cur_place, fc, ft);
+                            have_ptr = true;
+                        } else {
+                            cur_ptr = builder_->field_addr_ptr(cur_ptr, fc, ft);
+                        }
+                    }
                     std::string fname;
                     if (!member_name(chain->values.back(), fname, error)) return false;
                     const ConstantId fc = module_.constants.add_string(
                         MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
-                    MIRExprResult base_r = lower_expr(chain->values[0], error);
-                    if (!base_r.ok()) return false;
                     MIRExprResult r = lower_expr(as->value, error);
                     if (!r.ok()) return false;
-                    const bool base_is_place = base_r.kind == MIRExprKind::Place;
-                    bool base_is_ptr = false;
-                    if (base_r.kind == MIRExprKind::Value || base_r.kind == MIRExprKind::Address) {
-                        const MIRTypeRecord& br = module_.types.get(base_r.type);
-                        base_is_ptr = br.kind == MIRTypeKind::Pointer ||
-                                      br.kind == MIRTypeKind::Reference;
-                    }
-                    if (!base_is_place && !base_is_ptr) {
-                        error = "field assignment base is not a place or pointer";
-                        return false;
-                    }
                     if (r.kind == MIRExprKind::Place) {
-                        if (base_is_place) {
-                            builder_->field_store_place(static_cast<PlaceId>(base_r.id), fc,
+                        if (!have_ptr) {
+                            builder_->field_store_place(cur_place, fc,
                                                         static_cast<PlaceId>(r.id));
                         } else {
                             const TypeId vt = builder_->function().places[r.id].type;
                             const ValueId sptr = builder_->address_of(
                                 static_cast<PlaceId>(r.id), types_.pointer_type(vt, false));
                             const ValueId sv = builder_->load_indirect(sptr, vt);
-                            builder_->field_store_ptr(static_cast<ValueId>(base_r.id), fc, sv);
+                            builder_->field_store_ptr(cur_ptr, fc, sv);
                         }
                         return true;
                     }
@@ -1228,10 +1397,10 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         error = "aggregate field assignment not yet supported";
                         return false;
                     }
-                    if (base_is_place) {
-                        builder_->field_store(static_cast<PlaceId>(base_r.id), fc, r.id);
+                    if (!have_ptr) {
+                        builder_->field_store(cur_place, fc, r.id);
                     } else {
-                        builder_->field_store_ptr(static_cast<ValueId>(base_r.id), fc, r.id);
+                        builder_->field_store_ptr(cur_ptr, fc, r.id);
                     }
                     return true;
                 }
@@ -1659,12 +1828,20 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
         }
         if (self_param) {
             TypeId pt = self_param->type ? types_.map(self_param->type) : types_.opaque_type();
-            if (needs_aggregate_path(module_, pt)) pt = types_.pointer_type(pt, true);
+            if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
+            pt = types_.pointer_type(module_.types.get(pt).element, true);
+        } else if (needs_aggregate_path(module_, pt)) {
+            pt = types_.pointer_type(pt, true);
+        }
             ptypes.push_back(pt);
         }
         for (FunctionParam* p : decl->params) {
             TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
-            if (needs_aggregate_path(module_, pt)) pt = types_.pointer_type(pt, true);
+            if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
+            pt = types_.pointer_type(module_.types.get(pt).element, true);
+        } else if (needs_aggregate_path(module_, pt)) {
+            pt = types_.pointer_type(pt, true);
+        }
             ptypes.push_back(pt);
         }
         const TypeId ftype = types_.function_signature(sret_ ? types_.void_type() : ret, ptypes);
@@ -1685,7 +1862,11 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
 
     if (self_param) {
         TypeId pt = self_param->type ? types_.map(self_param->type) : types_.opaque_type();
-        if (needs_aggregate_path(module_, pt)) pt = types_.pointer_type(pt, true);
+        if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
+            pt = types_.pointer_type(module_.types.get(pt).element, true);
+        } else if (needs_aggregate_path(module_, pt)) {
+            pt = types_.pointer_type(pt, true);
+        }
         ValueId pv = b.param(pt);
         PlaceId place = b.alloca(pt, MIRStorageClass::Parameter);
         b.store(place, pv);
@@ -1696,7 +1877,11 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     // parameters: materialize an SSA param value, spill to a place, bind it
     for (FunctionParam* p : decl->params) {
         TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
-        if (needs_aggregate_path(module_, pt)) pt = types_.pointer_type(pt, true);
+        if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
+            pt = types_.pointer_type(module_.types.get(pt).element, true);
+        } else if (needs_aggregate_path(module_, pt)) {
+            pt = types_.pointer_type(pt, true);
+        }
         ValueId pv = b.param(pt);
         PlaceId place = b.alloca(pt, MIRStorageClass::Parameter);
         if (place == MIR_INVALID_ID) {

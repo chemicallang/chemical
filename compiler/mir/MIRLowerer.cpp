@@ -2458,16 +2458,44 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 error = "assignment target does not resolve to a local place";
                 return false;
             }
+            // a move from a local clears the source's drop flag
+            {
+                Value* rv = as->value;
+                if (rv && rv->val_kind() == ValueKind::AccessChain) {
+                    auto* c = rv->as_access_chain_unsafe();
+                    if (c->values.size() == 1) rv = c->values[0];
+                }
+                if (rv && rv->val_kind() == ValueKind::Identifier) {
+                    auto* rid = rv->as_identifier_unsafe();
+                    PlaceId src = place_for_linked(rid->linked);
+                    if (src == MIR_INVALID_ID) src = place_for_name(rid->value);
+                    if (src != MIR_INVALID_ID) mark_moved(src);
+                }
+            }
             MIRExprResult r = lower_expr(as->value, error);
             if (!r.ok()) return false;
             const TypeId place_type = builder_->function().places[place].type;
+            auto destroy_old_dest = [&]() {
+                // a simple assignment destroys the previous value of a
+                // destructible local before overwriting it
+                if (as->assOp != Operation::Assignment || as->is_first_init) return;
+                for (auto& d : destructibles_) {
+                    if (d.place == place) {
+                        const ValueId fv = builder_->load(d.flag, types_.bool_type());
+                        builder_->drop(d.place, d.dtor, fv);
+                        break;
+                    }
+                }
+            };
             if (r.kind == MIRExprKind::Place) {
+                destroy_old_dest();
                 builder_->emit(MIROpcode::Store, MIR_NULL,
                                {MIROperand::place(place, place_type),
                                 MIROperand::place(static_cast<PlaceId>(r.id), place_type)});
                 return true;
             }
             if (r.kind == MIRExprKind::Address) {
+                destroy_old_dest();
                 const ValueId loaded =
                     builder_->load_indirect(static_cast<ValueId>(r.id), place_type);
                 builder_->store(place, loaded);

@@ -92,4 +92,30 @@ func test_inc_dec() {
         var j = -i++
         return i == 34 && j == -33
     })
+    // Post-increment used as an array index must evaluate to the *old* value
+    // (this is the `buf[bi++] = ...` pattern used by hex/base64 encoders).
+    test("post increment as an array index uses the old value", () => {
+        var buf : [4]char
+        var bi = 0
+        buf[bi++] = 'a'
+        buf[bi++] = 'b'
+        return bi == 2 && buf[0] == 'a' && buf[1] == 'b'
+    })
+    test("pre decrement as an array index uses the new value", () => {
+        var buf : [4]char
+        buf[0] = 'a'
+        buf[1] = 'b'
+        var bi = 2
+        var c = buf[--bi]
+        return bi == 1 && c == 'b'
+    })
+    test("hex encoding with a post-increment index writes all digits", () => {
+        const hex = "0123456789ABCDEF"
+        var buf : [16]char
+        var bi = 0
+        var val = 0x2728
+        while(val > 0) { buf[bi++] = hex[val & 0xF]; val >>= 4 }
+        // digits are written least-significant first: 8, 2, 7, 2
+        return bi == 4 && buf[0] == '8' && buf[1] == '2' && buf[2] == '7' && buf[3] == '2'
+    })
 }

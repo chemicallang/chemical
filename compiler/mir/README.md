@@ -10,11 +10,12 @@ the release compiler must stay under 4 MB.
 
 ## Current status (latest commit)
 
-**All suites are green: `./scripts/test.sh --tcc` -> 2252 passed, 0 failed;
-`./scripts/test.sh --tcc --interpret` -> 1864 passed, 0 failed;
-`./scripts/test.sh --tcc --libs` -> 719 passed, 0 failed.** `MIRTests` is green
-(1049 checks). `cstd`, `std`, `lab`, all libraries and all module build scripts
-translate through MIR.
+**All suites are green: `./scripts/test.sh --tcc` -> 2260 passed, 0 failed;
+`./scripts/test.sh --tcc --interpret` -> 1872 passed, 0 failed;
+`./scripts/test.sh --tcc --libs` -> 719 passed, 0 failed;
+`./scripts/test.sh --tcc --plugins` -> 1296 passed, 0 failed.** `MIRTests` is
+green (1049 checks). `cstd`, `std`, `lab`, all libraries and all module build
+scripts translate through MIR.
 
 MIR owns the bodies of top-level `FunctionDeclaration`s. Declarations and
 non-function top-level nodes still go through the legacy visitor (temporary
@@ -172,6 +173,21 @@ uses the name pool, not layout. Needed before LLVM lowering.
 - **Scope-based destruction**: `lower_scope`/`lower_scope_nodes` drops the
   destructibles it created; `return` drops all outstanding; `lower_function` drops
   the rest.
+- **Function-pointer types returning an aggregate** must use the legacy **sret**
+  spelling: `void(*)(struct Ret*, <params>)`, not `struct Ret(*)(<params>)`. The
+  forward declarations come from the legacy visitor, so a mismatch is a C
+  redefinition error. `CallIndirect` must pass the sret place as the first
+  argument (`call_indirect_sret`).
+- **`&raw` / `&mut` on a reference** (parameter or local) yields the *referent*
+  address (the reference value), not `&param` (the slot). A `Reference`-typed
+  place must be loaded, not addressed, in `lower_address_of`.
+- **Post-increment/decrement yields the OLD value**; pre yields the new one.
+  `lower_incdec_value` must return `cur` for `post`, `cur ± 1` for pre. (Used as
+  an array index, e.g. `buf[bi++] = hex[...]`, a wrong result corrupts encoders.)
+- **Global arrays decay**: indexing a module-level `char[]`/`T[]` must go through
+  a pointer to the first element (`arr[i]`), not a pointer-to-array
+  (`(&arr)[i]`). `intern_global` records the symbol type and `GlobalAddr` emits
+  the bare name (decay) for array globals.
 
 ## Invariants to preserve
 

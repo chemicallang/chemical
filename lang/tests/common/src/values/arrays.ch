@@ -4,11 +4,27 @@ struct DataStr1 {
 
 }
 
+// A module-level unsized `char[]` constant. Indexing it must decay to a pointer
+// to its first element (a codegen bug indexed a pointer-to-array instead).
+const GlobalDigitChars : char[] = "0123456789ABCDEF"
+
+func global_digit_char(i : int) : char {
+    return GlobalDigitChars[i]
+}
+
 func arr_index(arr : [2]int, index : int) : int {
     return arr[index]
 }
 
 func test_arrays() {
+    test("module-level char[] constant can be indexed", () => {
+        return GlobalDigitChars[0] == '0' && GlobalDigitChars[10] == 'A' &&
+               GlobalDigitChars[15] == 'F'
+    })
+    test("module-level char[] constant can be indexed by a variable", () => {
+        var i = 12
+        return global_digit_char(i) == 'C'
+    })
     test("arrays can be passed to functions", () => {
         var arr : [2]int = [];
         arr[0] = 2;

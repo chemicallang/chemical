@@ -514,6 +514,22 @@ ValueId MIRBuilder::call_indirect(ValueId fn, TypeId result_type,
     return v;
 }
 
+void MIRBuilder::call_indirect_sret(ValueId fn, PlaceId result_place,
+                                    const MIROperand* args, uint32_t count) {
+    MIROperand* ops = arena_.allocate_array<MIROperand>(count + 2);
+    if (!ops) {
+        ok_ = false;
+        return;
+    }
+    TypeId ft = fn < func_.values.size() ? func_.values[fn].type : MIR_INVALID_ID;
+    TypeId rt = result_place < func_.places.size() ? func_.places[result_place].type
+                                                   : MIR_INVALID_ID;
+    ops[0] = MIROperand::value(fn, ft);
+    ops[1] = MIROperand::place(result_place, rt);
+    for (uint32_t i = 0; i < count; ++i) ops[i + 2] = args[i];
+    emit_impl(MIROpcode::CallIndirect, MIR_NULL, ops, count + 2);
+}
+
 // ── lifetime ───────────────────────────────────────────────────────────────
 
 void MIRBuilder::init(PlaceId dest, SymbolId ctor, const MIROperand* args, uint32_t count) {

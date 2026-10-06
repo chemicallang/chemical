@@ -175,16 +175,31 @@ std::string c_type_of(const MIRModule& module, TypeId type) {
 
 // The bare function-pointer spelling of a MIR function type, e.g.
 // `void**(*)(const void**)`. Used for casts and parameter declarators.
+//
+// A function pointer whose return type is struct-like uses the same sret
+// convention as function definitions and the legacy declarations: the pointer
+// returns `void` and takes a leading `struct Ret*` out-parameter.
+static bool mir_struct_like_return(const MIRModule& module, TypeId t) {
+    if (t >= module.types.size()) return false;
+    const MIRTypeRecord& r = module.types.get(t);
+    return r.kind == MIRTypeKind::Struct || r.kind == MIRTypeKind::Union ||
+           r.kind == MIRTypeKind::Variant;
+}
+
 static std::string fn_ptr_type(const MIRModule& module, const MIRTypeRecord& r) {
-    std::string s = c_type_of(module, r.element) + "(*)(";
-    if (r.data_count == 0) {
-        s += "void";
-    } else {
-        for (uint32_t i = 0; i < r.data_count; ++i) {
-            if (i) s += ", ";
-            s += c_type_of(module, module.types.data[r.data_offset + i]);
-        }
+    const bool sret = mir_struct_like_return(module, r.element);
+    std::string s = (sret ? std::string("void") : c_type_of(module, r.element)) + "(*)(";
+    bool first = true;
+    if (sret) {
+        s += c_type_of(module, r.element) + "*";
+        first = false;
     }
+    for (uint32_t i = 0; i < r.data_count; ++i) {
+        if (!first) s += ", ";
+        s += c_type_of(module, module.types.data[r.data_offset + i]);
+        first = false;
+    }
+    if (first) s += "void";
     s += ")";
     return s;
 }
@@ -194,15 +209,20 @@ static std::string declarator(const MIRModule& module, TypeId type, const std::s
     if (type == MIR_INVALID_ID || type >= module.types.size()) return "void " + name;
     const MIRTypeRecord& r = module.types.get(type);
     if (r.kind == MIRTypeKind::Function) {
-        std::string s = c_type_of(module, r.element) + "(*" + name + ")(";
-        if (r.data_count == 0) {
-            s += "void";
-        } else {
-            for (uint32_t i = 0; i < r.data_count; ++i) {
-                if (i) s += ", ";
-                s += c_type_of(module, module.types.data[r.data_offset + i]);
-            }
+        const bool sret = mir_struct_like_return(module, r.element);
+        std::string s = (sret ? std::string("void") : c_type_of(module, r.element)) + "(*" +
+                        name + ")(";
+        bool first = true;
+        if (sret) {
+            s += c_type_of(module, r.element) + "*";
+            first = false;
         }
+        for (uint32_t i = 0; i < r.data_count; ++i) {
+            if (!first) s += ", ";
+            s += c_type_of(module, module.types.data[r.data_offset + i]);
+            first = false;
+        }
+        if (first) s += "void";
         s += ")";
         return s;
     }
@@ -750,8 +770,17 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 if (!s) { error = "global_addr missing symbol"; return false; }
                 std::string name;
                 symbol_name(module, s->id, name);
+                // an array global decays to a pointer to its first element
+                bool decay = false;
+                if (s->id < module.symbols.size()) {
+                    const TypeId st = module.symbols.get(s->id).type;
+                    if (st < module.types.size() &&
+                        module.types.get(st).kind == MIRTypeKind::Array) {
+                        decay = true;
+                    }
+                }
                 out += declarator(module, function.values[v].type, vname(v)) +
-                       " = &" + name + ";\n";
+                       " = " + (decay ? name : ("&" + name)) + ";\n";
                 break;
             }
             case MIROpcode::Init: {
@@ -782,12 +811,21 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                         callee = "((" + fn_ptr_type(module, fr) + ")" + callee + ")";
                     }
                 }
+                // sret if the operand after the callee is a place (aggregate return)
+                const MIROperand* maybe_place = operand_at(function, inst, 1);
+                const bool sret = maybe_place && maybe_place->kind() == MIROperandKind::Place;
+                uint32_t arg_start = sret ? 2 : 1;
                 std::string call = callee + "(";
-                for (uint32_t a = 1; a < inst.operand_count; ++a) {
-                    if (a > 1) call += ", ";
+                if (sret) call += "&" + pname(maybe_place->id);
+                for (uint32_t a = arg_start; a < inst.operand_count; ++a) {
+                    if (a != arg_start || sret) call += ", ";
                     call += operand_expr(function, module, *operand_at(function, inst, a));
                 }
                 call += ")";
+                if (sret) {
+                    out += call + ";\n";
+                    break;
+                }
                 const bool is_void = inst.result_or_place >= function.values.size() ||
                     c_type_of(module, function.values[inst.result_or_place].type) == "void";
                 if (is_void) {

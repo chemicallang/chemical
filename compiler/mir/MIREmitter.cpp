@@ -47,7 +47,26 @@ const char* c_int_kind_spelling(uint8_t k) {
 }
 
 std::string vname(ValueId id) { return "__chx_v" + std::to_string(id); }
-std::string pname(PlaceId id) { return "__chx_p" + std::to_string(id); }
+
+// The C expression naming a place. Frame-resident places live in the coroutine
+// frame (`__chx__af-><field>`); everything else is a stack slot.
+std::string place_name(const MIRModule& module, const MIRFunction& fn, PlaceId id) {
+    if (id < fn.places.size()) {
+        const MIRPlaceDef& pd = fn.places[id];
+        if (pd.storage_class == static_cast<uint8_t>(MIRStorageClass::FramePtr)) {
+            return "__chx__af";
+        }
+        if (pd.storage_class == static_cast<uint8_t>(MIRStorageClass::FrameField) &&
+            pd.frame_field < module.constants.size()) {
+            const MIRConstant& c = module.constants.get(pd.frame_field);
+            if (c.kind == MIRConstantKind::String) {
+                return "__chx__af->" +
+                       std::string(module.constants.data.data() + c.data_offset, c.data_count);
+            }
+        }
+    }
+    return "__chx_p" + std::to_string(id);
+}
 
 std::string escape_c_string(const char* data, uint32_t len) {
     std::string s = "\"";
@@ -124,7 +143,7 @@ std::string member_access(const MIRFunction& fn, const MIRModule& module, PlaceI
                           const std::string& fname) {
     const MIRTypeRecord& bt = module.types.get(fn.places[base].type);
     const bool arrow = bt.kind == MIRTypeKind::Pointer || bt.kind == MIRTypeKind::Reference;
-    return pname(base) + (arrow ? "->" : ".") + fname;
+    return place_name(module, fn, base) + (arrow ? "->" : ".") + fname;
 }
 
 } // namespace
@@ -293,7 +312,7 @@ std::string operand_expr(const MIRFunction& fn, const MIRModule& module,
         case MIROperandKind::Value:
             return vname(op.id);
         case MIROperandKind::Place:
-            return pname(op.id);
+            return place_name(module, fn, op.id);
         case MIROperandKind::Symbol: {
             std::string s;
             symbol_name(module, op.id, s);
@@ -373,12 +392,12 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
         switch (inst.opcode()) {
             case MIROpcode::Alloca: {
                 const PlaceId p = inst.result_or_place;
-                out += declarator(module, function.places[p].type, pname(p)) + ";\n";
+                out += declarator(module, function.places[p].type, place_name(module, function, p)) + ";\n";
                 const MIRTypeRecord& pr = module.types.get(function.places[p].type);
                 if (pr.kind == MIRTypeKind::Struct || pr.kind == MIRTypeKind::Variant ||
                     pr.kind == MIRTypeKind::Union || pr.kind == MIRTypeKind::Array) {
                     // zero-initialize aggregates so unset members are well-defined
-                    const std::string pn = pname(p);
+                    const std::string pn = place_name(module, function, p);
                     const std::string iv = "__chx_za" + std::to_string(idx);
                     out += "for (unsigned long " + iv + " = 0; " + iv + " < sizeof(" + pn +
                            "); ++" + iv + ") ((unsigned char*)&" + pn + ")[" + iv + "] = 0;\n";
@@ -436,7 +455,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     }
                 } else if (fld && fld->kind() == MIROperandKind::Value) {
                     out += declarator(module, function.values[v].type, vname(v)) +
-                           " = " + pname(p->id) + "[" +
+                           " = " + place_name(module, function, p->id) + "[" +
                            operand_expr(function, module, *fld) + "];\n";
                 } else if (fld && fld->kind() == MIROperandKind::Constant) {
                     std::string fname;
@@ -448,7 +467,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                            " = " + member_access(function, module, p->id, fname) + ";\n";
                 } else {
                     out += declarator(module, function.values[v].type, vname(v)) +
-                           " = " + pname(p->id) + ";\n";
+                           " = " + place_name(module, function, p->id) + ";\n";
                 }
                 break;
             }
@@ -481,15 +500,15 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                                 module.types.get(function.places[a->id].type);
                             rhs = (atr.kind == MIRTypeKind::Pointer ||
                                    atr.kind == MIRTypeKind::Reference)
-                                      ? ("*" + pname(a->id))
-                                      : pname(a->id);
+                                      ? ("*" + place_name(module, function, a->id))
+                                      : place_name(module, function, a->id);
                         } else {
                             rhs = operand_expr(function, module, *a);
                         }
                         out += "*" + operand_expr(function, module, *p) + " = " + rhs + ";\n";
                     }
                 } else if (a->kind() == MIROperandKind::Value && b) {
-                    out += pname(p->id) + "[" + operand_expr(function, module, *a) +
+                    out += place_name(module, function, p->id) + "[" + operand_expr(function, module, *a) +
                            "] = " + operand_expr(function, module, *b) + ";\n";
                 } else if (a->kind() == MIROperandKind::Constant && b) {
                     std::string fname;
@@ -503,21 +522,21 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                         const std::string access = member_access(function, module, p->id, fname);
                         if (btr.kind == MIRTypeKind::Array) {
                             // arrays are not assignable: copy the source bytes
-                            out += "memcpy(&" + access + ", &" + pname(b->id) + ", sizeof(" +
-                                   pname(b->id) + "));\n";
+                            out += "memcpy(&" + access + ", &" + place_name(module, function, b->id) + ", sizeof(" +
+                                   place_name(module, function, b->id) + "));\n";
                             break;
                         }
                         // aggregate parameters are pointer-typed places: deref
                         rhs = (btr.kind == MIRTypeKind::Pointer ||
                                btr.kind == MIRTypeKind::Reference)
-                                  ? ("*" + pname(b->id))
-                                  : pname(b->id);
+                                  ? ("*" + place_name(module, function, b->id))
+                                  : place_name(module, function, b->id);
                     } else {
                         rhs = operand_expr(function, module, *b);
                     }
                     out += member_access(function, module, p->id, fname) + " = " + rhs + ";\n";
                 } else {
-                    out += pname(p->id) + " = " + operand_expr(function, module, *a) + ";\n";
+                    out += place_name(module, function, p->id) + " = " + operand_expr(function, module, *a) + ";\n";
                 }
                 break;
             }
@@ -533,7 +552,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 }
                 const bool ptr = p->kind() != MIROperandKind::Place;
                 const std::string base =
-                    ptr ? operand_expr(function, module, *p) : pname(p->id);
+                    ptr ? operand_expr(function, module, *p) : place_name(module, function, p->id);
                 const std::string access = base + (ptr ? "->" : ".") + fname;
                 const TypeId ft = function.values[v].type;
                 if (ft < module.types.size() &&
@@ -554,7 +573,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const MIROperand* idx = operand_at(function, inst, 1);
                 if (!b || !idx) { error = "index_addr missing operands"; return false; }
                 const std::string bexpr =
-                    (b->kind() == MIROperandKind::Place) ? pname(b->id)
+                    (b->kind() == MIROperandKind::Place) ? place_name(module, function, b->id)
                                                          : operand_expr(function, module, *b);
                 const std::string access =
                     bexpr + "[" + operand_expr(function, module, *idx) + "]";
@@ -573,10 +592,10 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     module.types.get(pt).kind == MIRTypeKind::Array) {
                     // an array decays to a pointer to its first element
                     out += declarator(module, function.values[v].type, vname(v)) +
-                           " = " + pname(p->id) + ";\n";
+                           " = " + place_name(module, function, p->id) + ";\n";
                 } else {
                     out += declarator(module, function.values[v].type, vname(v)) +
-                           " = &" + pname(p->id) + ";\n";
+                           " = &" + place_name(module, function, p->id) + ";\n";
                 }
                 break;
             }
@@ -632,7 +651,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 uint32_t arg_start = sret ? 2 : 1;
 
                 std::string call = cname + "(";
-                if (sret) call += "&" + pname(maybe_place->id);
+                if (sret) call += "&" + place_name(module, function, maybe_place->id);
                 for (uint32_t a = arg_start; a < inst.operand_count; ++a) {
                     if (a != arg_start || sret) call += ", ";
                     call += operand_expr(function, module, *operand_at(function, inst, a));
@@ -667,12 +686,12 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const MIROperand* src = operand_at(function, inst, 1);
                 if (!dest || !src) { error = "copy/move_init missing operands"; return false; }
                 const std::string rhs =
-                    (src->kind() == MIROperandKind::Place ? pname(src->id) : vname(src->id));
+                    (src->kind() == MIROperandKind::Place ? place_name(module, function, src->id) : vname(src->id));
                 std::string src_expr = rhs;
                 if (src->kind() == MIROperandKind::Place) {
                     const MIRTypeRecord& str = module.types.get(function.places[src->id].type);
                     if (str.kind == MIRTypeKind::Pointer || str.kind == MIRTypeKind::Reference) {
-                        src_expr = "*" + pname(src->id);
+                        src_expr = "*" + place_name(module, function, src->id);
                     }
                 }
                 const TypeId dt = dest->id < function.places.size()
@@ -685,10 +704,10 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                         (src->kind() == MIROperandKind::Place && src_expr != rhs)
                             ? src_expr
                             : ("&" + rhs);
-                    out += "memcpy(&" + pname(dest->id) + ", " + src_addr + ", sizeof(" +
-                           pname(dest->id) + "));\n";
+                    out += "memcpy(&" + place_name(module, function, dest->id) + ", " + src_addr + ", sizeof(" +
+                           place_name(module, function, dest->id) + "));\n";
                 } else {
-                    out += pname(dest->id) + " = " + src_expr + ";\n";
+                    out += place_name(module, function, dest->id) + " = " + src_expr + ";\n";
                 }
                 break;
             }
@@ -702,8 +721,8 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const MIRTypeRecord& dpr = module.types.get(function.places[p->id].type);
                 const std::string darg =
                     (dpr.kind == MIRTypeKind::Pointer || dpr.kind == MIRTypeKind::Reference)
-                        ? pname(p->id)
-                        : ("&" + pname(p->id));
+                        ? place_name(module, function, p->id)
+                        : ("&" + place_name(module, function, p->id));
                 if (f) {
                     out += "if (" + operand_expr(function, module, *f) + ") " + dname + "(" +
                            darg + ");\n";
@@ -716,7 +735,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const MIROperand* p = operand_at(function, inst, 0);
                 const MIROperand* c = operand_at(function, inst, 1);
                 if (!p || !c) { error = "set_drop missing operands"; return false; }
-                out += pname(p->id) + " = " + operand_expr(function, module, *c) + ";\n";
+                out += place_name(module, function, p->id) + " = " + operand_expr(function, module, *c) + ";\n";
                 break;
             }
             case MIROpcode::Destroy: {
@@ -731,8 +750,8 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const MIRTypeRecord& dpr = module.types.get(function.places[p->id].type);
                 const std::string darg =
                     (dpr.kind == MIRTypeKind::Pointer || dpr.kind == MIRTypeKind::Reference)
-                        ? pname(p->id)
-                        : ("&" + pname(p->id));
+                        ? place_name(module, function, p->id)
+                        : ("&" + place_name(module, function, p->id));
                 out += dname + "(" + darg + ");\n";
                 break;
             }
@@ -740,15 +759,15 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const MIROperand* dest = operand_at(function, inst, 0);
                 const MIROperand* src = operand_at(function, inst, 1);
                 if (!dest || !src) { error = "memcpy missing operands"; return false; }
-                out += "memcpy(&" + pname(dest->id) + ", " +
-                       operand_expr(function, module, *src) + ", sizeof(" + pname(dest->id) +
+                out += "memcpy(&" + place_name(module, function, dest->id) + ", " +
+                       operand_expr(function, module, *src) + ", sizeof(" + place_name(module, function, dest->id) +
                        "));\n";
                 break;
             }
             case MIROpcode::MemSet: {
                 const MIROperand* dest = operand_at(function, inst, 0);
                 if (!dest) { error = "memset missing destination"; return false; }
-                const std::string pn = pname(dest->id);
+                const std::string pn = place_name(module, function, dest->id);
                 const std::string iv = "__chx_zi" + std::to_string(idx);
                 out += "for (unsigned long " + iv + " = 0; " + iv + " < sizeof(" + pn +
                        "); ++" + iv + ") ((unsigned char*)&" + pn + ")[" + iv + "] = 0;\n";
@@ -792,7 +811,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 }
                 std::string cname;
                 symbol_name(module, ctor->id, cname);
-                out += cname + "(&" + pname(dest->id);
+                out += cname + "(&" + place_name(module, function, dest->id);
                 for (uint32_t a = 2; a < inst.operand_count; ++a) {
                     out += ", " + operand_expr(function, module, *operand_at(function, inst, a));
                 }
@@ -816,7 +835,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const bool sret = maybe_place && maybe_place->kind() == MIROperandKind::Place;
                 uint32_t arg_start = sret ? 2 : 1;
                 std::string call = callee + "(";
-                if (sret) call += "&" + pname(maybe_place->id);
+                if (sret) call += "&" + place_name(module, function, maybe_place->id);
                 for (uint32_t a = arg_start; a < inst.operand_count; ++a) {
                     if (a != arg_start || sret) call += ", ";
                     call += operand_expr(function, module, *operand_at(function, inst, a));
@@ -853,6 +872,115 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
             }
             case MIROpcode::Unreachable: {
                 out += "; /* unreachable */\n";
+                break;
+            }
+            case MIROpcode::AsyncAwait: {
+                const MIROperand* fr = operand_at(function, inst, 0);
+                const MIROperand* child = operand_at(function, inst, 1);
+                const MIROperand* result = operand_at(function, inst, 2);
+                const MIROperand* poll_ty = operand_at(function, inst, 3);
+                const MIROperand* state = operand_at(function, inst, 4);
+                const MIROperand* ret = operand_at(function, inst, 5);
+                const MIROperand* fn_poll_ty = operand_at(function, inst, 6);
+                const MIROperand* spill_n = operand_at(function, inst, 7);
+                if (!fr || !child || !result || !poll_ty || !state || !ret || !fn_poll_ty ||
+                    !spill_n) {
+                    error = "async_await missing operands";
+                    return false;
+                }
+                const std::string fexpr = place_name(module, function, fr->id);
+                const std::string cexpr = place_name(module, function, child->id);
+                const std::string rexpr = place_name(module, function, result->id);
+                const std::string pexpr = place_name(module, function, ret->id);
+                const std::string pty = c_type_of(module, poll_ty->type());
+                const std::string fpty = c_type_of(module, fn_poll_ty->type());
+                const uint32_t resume_state =
+                    state->id < module.constants.size()
+                        ? static_cast<uint32_t>(module.constants.get(state->id).bits)
+                        : 0;
+                out += "{\n        " + pty + " __chx__p = (*({ " + pty + " __chx__t; " +
+                       cexpr + ".vtbl->poll(&__chx__t, " + cexpr + ".frame, " + fexpr +
+                       "->__cx); &__chx__t; }));\n";
+                out += "        if(__chx__p.__chx__vt_621827 != 0) {\n";
+                if (resume_state != 0) {
+                    out += "            " + fexpr + "->__state = " + std::to_string(resume_state) +
+                           "u;\n";
+                }
+                const uint32_t n =
+                    spill_n->id < module.constants.size()
+                        ? static_cast<uint32_t>(module.constants.get(spill_n->id).bits)
+                        : 0;
+                for (uint32_t k = 0; k < n; ++k) {
+                    const MIROperand* loc = operand_at(function, inst, 8 + k * 2);
+                    const MIROperand* fld = operand_at(function, inst, 9 + k * 2);
+                    if (!loc || !fld) { error = "async_await bad spill operands"; return false; }
+                    std::string fname;
+                    if (!constant_string(module, fld->id, fname)) {
+                        error = "async_await bad spill field";
+                        return false;
+                    }
+                    out += "            " + fexpr + "->" + fname + " = " +
+                           place_name(module, function, loc->id) + ";\n";
+                }
+                out += "            *" + pexpr + " = (" + fpty +
+                       "){ .__chx__vt_621827 = 1 };\n";
+                out += "            return;\n        }\n";
+                out += "        " + rexpr + " = __chx__p.Ready.value;\n";
+                out += "        " + cexpr + ".vtbl->drop(" + cexpr + ".frame);\n";
+                out += "        " + cexpr + ".frame = (void*) 0;\n    }\n";
+                break;
+            }
+            case MIROpcode::AsyncFinish: {
+                const MIROperand* fr = operand_at(function, inst, 0);
+                const MIROperand* ret = operand_at(function, inst, 1);
+                const MIROperand* fn_poll_ty = operand_at(function, inst, 2);
+                if (!fr || !ret || !fn_poll_ty) {
+                    error = "async_finish missing operands";
+                    return false;
+                }
+                const std::string fexpr = place_name(module, function, fr->id);
+                const std::string pexpr = place_name(module, function, ret->id);
+                const std::string fpty = c_type_of(module, fn_poll_ty->type());
+                out += fexpr + "->__state = 0xFFFFFFFFu;\n        *" + pexpr + " = (" + fpty +
+                       "){ .__chx__vt_621827 = 0, .Ready.value = " + fexpr +
+                       "->__result };\n        return;\n";
+                break;
+            }
+            case MIROpcode::AsyncFrameAlloc: {
+                const MIROperand* frame_ty = operand_at(function, inst, 0);
+                if (!frame_ty) { error = "async_frame_alloc missing type"; return false; }
+                const std::string fname = c_type_of(module, frame_ty->type());
+                out += declarator(module, function.values[inst.result_or_place].type,
+                                  vname(inst.result_or_place)) + " = (" + fname +
+                       "*) chemical_async_frame_alloc(sizeof(" + fname + "), _Alignof(" + fname +
+                       "));\n";
+                break;
+            }
+            case MIROpcode::AsyncRampFinish: {
+                const MIROperand* fr = operand_at(function, inst, 0);
+                const MIROperand* sret = operand_at(function, inst, 1);
+                const MIROperand* state = operand_at(function, inst, 2);
+                const MIROperand* vtbl = operand_at(function, inst, 3);
+                const MIROperand* handle_ty = operand_at(function, inst, 4);
+                if (!fr || !sret || !state || !vtbl || !handle_ty) {
+                    error = "async_ramp_finish missing operands";
+                    return false;
+                }
+                const std::string fexpr = place_name(module, function, fr->id);
+                const std::string sexpr = place_name(module, function, sret->id);
+                std::string vname2;
+                if (!constant_string(module, vtbl->id, vname2)) {
+                    error = "async_ramp_finish bad vtbl name";
+                    return false;
+                }
+                const uint32_t st =
+                    state->id < module.constants.size()
+                        ? static_cast<uint32_t>(module.constants.get(state->id).bits)
+                        : 0;
+                out += fexpr + "->__state = " + std::to_string(st) + "u;\n";
+                out += "        *" + sexpr + " = (" + c_type_of(module, handle_ty->type()) +
+                       "){ .frame = (void*) " + fexpr + ", .vtbl = &" + vname2 +
+                       " };\n        return;\n";
                 break;
             }
             default:

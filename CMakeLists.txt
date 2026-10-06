@@ -507,6 +507,8 @@ set(COMMON_SOURCES
         ast/values/GenericInstIdentifier.h
         ast/values/GenericInstIdentifier.cpp
         compiler/async/AsyncLoweringPlan.h
+        compiler/async/AsyncCTypes.h
+        compiler/async/AsyncCTypes.cpp
         compiler/async/AwaitNormalizePass.h
         compiler/async/AwaitNormalizePass.cpp
         ast/types/ExpressionType.h

@@ -242,4 +242,28 @@ func test_addr_of_member_access() {
         *p = 70
         return x == 70
     })
+
+    // --- &raw / &mut on a struct *field* yields the field address ---
+
+    test("&raw struct field reads the field", () => {
+        var s = RawAccessPoint { x : 42, y : 7 }
+        var p = &raw s.x
+        return *p == 42
+    })
+
+    test("&mut struct field writes the field", () => {
+        var s = RawAccessPoint { x : 42, y : 7 }
+        var p = &mut s.y
+        *p = 99
+        return s.x == 42 && s.y == 99
+    })
+
+    test("&mut nested struct field writes the inner field", () => {
+        var arr : [2]RawAccessPoint
+        arr[0] = RawAccessPoint { x : 1, y : 2 }
+        arr[1] = RawAccessPoint { x : 3, y : 4 }
+        var p = &mut arr[1].x
+        *p = 30
+        return arr[1].x == 30 && arr[1].y == 4
+    })
 }

@@ -11,10 +11,12 @@
 #include "MIRTypeBuilder.h"
 #include "MIRBuilder.h"
 #include "std/chem_string_view.h"
+#include "compiler/async/AsyncLoweringPlan.h"
 
 #include <functional>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 class ASTNode;
@@ -68,6 +70,16 @@ public:
      */
     bool lower_function(FunctionDeclaration* decl, MIRArena& arena,
                         MIRFunction& func, std::string& error);
+
+    /**
+     * For an async function, `lower_function` produces the *ramp* as `func` and
+     * the coroutine `__poll` here, with the frame/vtable helpers in the pre/post
+     * declaration text. The caller emits: pre-decls, poll, post-decls, ramp.
+     */
+    MIRFunction& async_poll() { return async_poll_; }
+    std::string& async_pre_decls() { return async_pre_decls_; }
+    std::string& async_post_decls() { return async_post_decls_; }
+    bool is_async_lowering() const { return async_; }
 
     MIRTypeBuilder& types() { return types_; }
     MIRModule& module() { return module_; }
@@ -136,6 +148,22 @@ private:
                              std::vector<MIROperand>& args, std::string& error);
     MIRExprResult lower_method_call(Value* receiver, FunctionCall* call, std::string& error);
 
+    // ── async / coroutine lowering ─────────────────────────────────────────
+    bool lower_async_function(FunctionDeclaration* decl, MIRArena& arena, MIRFunction& func,
+                              std::string& error);
+    void async_emit_frame_helpers(FunctionDeclaration* decl);
+    bool async_lower_poll_body(FunctionDeclaration* decl, std::string& error);
+    bool async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func, std::string& error);
+    bool async_lower_await_var_init(VarInitStatement* stmt, size_t site_index, std::string& error);
+    void async_emit_spill(const struct AwaitSite& site);
+    void async_emit_reload(const struct AwaitSite& site);
+    void async_emit_pending_return();
+    std::string async_slot_field(unsigned id) const;
+    std::string async_child_field(unsigned id) const;
+    std::string async_drop_flag_field(unsigned id) const;
+    std::string async_resident_field(ASTNode* node) const;
+    PlaceId async_resident_place(ASTNode* node) const;
+
     SymbolId intern_function(FunctionDeclaration* decl);
     SymbolId intern_global(VarInitStatement* vi);
     SymbolId intern_named_global(const std::string& name);
@@ -155,6 +183,7 @@ private:
     MIRModule& module_;
     MIRTypeBuilder& types_;
     MIRBuilder* builder_ = nullptr;
+    MIRArena* arena_ = nullptr;
     std::unordered_map<ASTNode*, PlaceId> var_places_;
     std::unordered_map<std::string, PlaceId> name_places_;
     std::vector<std::pair<PlaceId, BaseType*>> call_temps_;
@@ -178,6 +207,42 @@ private:
     ValueId sret_ptr_ = MIR_NULL;
     TypeId sret_ret_type_ = MIR_INVALID_ID;
     TypeId sret_ptr_type_ = MIR_INVALID_ID;
+
+    // ── async / coroutine lowering state ───────────────────────────────────
+    bool async_ = false;
+    BaseType* async_inner_ = nullptr;     // T (the async result type)
+    BaseType* async_handle_ = nullptr;    // FutureHandle<T>
+    BaseType* async_table_ = nullptr;     // FutureTable<T>
+    BaseType* async_poll_base_ = nullptr; // Poll<T> of this function
+    BaseType* async_context_ = nullptr;   // *mut Context
+    TypeId async_frame_type_ = MIR_INVALID_ID;     // `<mangled>__frame`
+    TypeId async_frame_ptr_type_ = MIR_INVALID_ID; // `<mangled>__frame*`
+    AsyncLoweringPlan async_plan_;
+    MIRFunction async_poll_;
+    std::string async_pre_decls_;
+    std::string async_post_decls_;
+    // poll-function lowering state
+    PlaceId async_poll_ret_ = MIR_INVALID_ID; // Poll<T>* __chx__async_ret
+    PlaceId async_poll_frame_ = MIR_INVALID_ID; // <frame>* __chx__af
+    PlaceId async_poll_cx_ = MIR_INVALID_ID;  // Context* __cx
+    ValueId async_poll_af_val_ = MIR_NULL;    // the frame pointer value
+    ValueId async_ramp_af_val_ = MIR_NULL;    // the ramp frame pointer value
+    std::unordered_map<ASTNode*, unsigned> async_resident_;
+    std::unordered_set<unsigned> async_drop_flag_slots_;
+    std::vector<TypeId> async_site_poll_;
+    std::vector<BlockId> async_resume_blocks_;
+    // ramp lowering state
+    PlaceId async_ramp_af_ = MIR_INVALID_ID;
+    PlaceId async_ramp_result_ = MIR_INVALID_ID;
+    BlockId async_ramp_done_ = MIR_INVALID_ID;
+    bool async_in_ramp_ = false;
+    // per-site lowering info
+    std::string async_mangled_;
+    std::unordered_map<ASTNode*, size_t> async_site_index_;
+    std::vector<PlaceId> async_child_places_;
+    std::vector<PlaceId> async_result_places_;
+    std::vector<std::vector<std::pair<PlaceId, uint32_t>>> async_spills_;
+    std::vector<BlockId> async_cont_blocks_;
 };
 
 } // namespace mir

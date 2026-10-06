@@ -172,15 +172,28 @@ public func test_practical_working_directory(env : &mut TestEnv) {
     cfg.args.push(string("sh"))
     cfg.args.push(string("-c"))
     cfg.args.push(string("pwd"))
-    cfg.working_dir = string("/tmp")
+    // `/tmp` is not a valid Win32 working directory (CreateProcess uses the
+    // native path), so use a root that exists on both platforms.
+    comptime if(def.windows) {
+        cfg.working_dir = string("C:/")
+    } else {
+        cfg.working_dir = string("/tmp")
+    }
     var res = process::execute(cfg)
     if(res is Result.Err) { env.error("execute failed"); return }
     var Ok(r) = res else unreachable
     if(!r.success) { env.error("pwd should succeed"); return }
-    // pwd outputs /tmp followed by a newline; search for just "/tmp"
-    if(!bytes_contains(&raw r.output.stdout_data, "/tmp" as *char, 4)) {
-        env.error("pwd should output /tmp")
-        return
+    // pwd outputs the directory followed by a newline; search for the path only
+    comptime if(def.windows) {
+        if(!bytes_contains(&raw r.output.stdout_data, "/c" as *char, 2)) {
+            env.error("pwd should output /c")
+            return
+        }
+    } else {
+        if(!bytes_contains(&raw r.output.stdout_data, "/tmp" as *char, 4)) {
+            env.error("pwd should output /tmp")
+            return
+        }
     }
 }
 

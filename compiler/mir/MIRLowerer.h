@@ -10,6 +10,7 @@
 #include "MIRModule.h"
 #include "MIRTypeBuilder.h"
 #include "MIRBuilder.h"
+#include "std/chem_string_view.h"
 
 #include <functional>
 #include <string>
@@ -96,6 +97,11 @@ public:
         comptime_ctor_eval_ = std::move(fn);
     }
 
+    /** Fallback lookup of a top-level function by name (symbol table). */
+    void set_symbol_lookup(std::function<FunctionDeclaration*(const std::string&)> fn) {
+        symbol_lookup_ = std::move(fn);
+    }
+
 private:
     MIRExprResult lower_expr(Value* value, std::string& error);
     bool lower_stmt(ASTNode* node, std::string& error);
@@ -107,6 +113,8 @@ private:
     PlaceId resolve_place(Value* v, std::string& error);
     /** Like resolve_place, but also lowers call results to their temporary place. */
     PlaceId resolve_place_or_lower(Value* v, std::string& error);
+    /** Resolve an extension method by name on the receiver's canonical container. */
+    FunctionDeclaration* resolve_method_fallback(BaseType* recv_type, const std::string& name);
     MIRExprResult lower_address_of(Value* inner, std::string& error);
     bool member_name(Value* v, std::string& out, std::string& error);
     bool lower_call_args(const std::vector<Value*>& values, std::vector<MIROperand>& args,
@@ -125,11 +133,22 @@ private:
     SymbolId intern_named_global(const std::string& name);
     PlaceId place_for_linked(ASTNode* linked) const;
     void bind(ASTNode* linked, PlaceId place) { var_places_[linked] = place; }
+    void bind_name(const chem::string_view& name, PlaceId place) {
+        if (!name.empty()) {
+            name_places_.emplace(std::string(name.data(), name.size()), place);
+        }
+    }
+    PlaceId place_for_name(const chem::string_view& name) const {
+        if (name.empty()) return MIR_INVALID_ID;
+        auto it = name_places_.find(std::string(name.data(), name.size()));
+        return it == name_places_.end() ? MIR_INVALID_ID : it->second;
+    }
 
     MIRModule& module_;
     MIRTypeBuilder& types_;
     MIRBuilder* builder_ = nullptr;
     std::unordered_map<ASTNode*, PlaceId> var_places_;
+    std::unordered_map<std::string, PlaceId> name_places_;
     std::unordered_map<FunctionDeclaration*, SymbolId> func_symbols_;
     std::unordered_map<ASTNode*, SymbolId> global_symbols_;
     std::unordered_map<std::string, SymbolId> named_globals_;
@@ -137,6 +156,7 @@ private:
     std::function<Scope*(IfStatement*, std::string&)> comptime_if_resolver_;
     std::function<Value*(FunctionCall*, FunctionDeclaration*)> comptime_eval_;
     std::function<Value*(FunctionDeclaration*, Value*)> comptime_ctor_eval_;
+    std::function<FunctionDeclaration*(const std::string&)> symbol_lookup_;
     std::vector<BlockId> break_targets_;
     std::vector<BlockId> continue_targets_;
     bool sret_ = false;

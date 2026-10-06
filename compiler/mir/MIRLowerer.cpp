@@ -169,6 +169,27 @@ PlaceId MIRLowerer::resolve_place_or_lower(Value* v, std::string& error) {
     return MIR_INVALID_ID;
 }
 
+FunctionDeclaration* MIRLowerer::resolve_method_fallback(BaseType* recv_type,
+                                                         const std::string& name) {
+    if (name.empty()) return nullptr;
+    if (recv_type) {
+        ASTNode* node = recv_type->get_direct_linked_canonical_node();
+        if (!node) node = recv_type->get_direct_linked_node();
+        if (node) {
+            MembersContainer* mc = node->get_members_container();
+            if (mc) {
+                FunctionDeclaration* f =
+                    mc->any_child_function(chem::string_view(name.data(), name.size()));
+                if (f) return f;
+            }
+        }
+    }
+    // last resort: a top-level function with this name (extension functions on
+    // non-static interfaces are not registered on the receiver's container)
+    if (symbol_lookup_) return symbol_lookup_(name);
+    return nullptr;
+}
+
 MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
     Value* t = inner;
     if (t && t->val_kind() == ValueKind::AccessChain) {
@@ -185,6 +206,12 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
             const TypeId pt = builder_->function().places[p].type;
             const TypeId ptrt = types_.pointer_type(pt, true);
             return MIRExprResult::value(builder_->address_of(p, ptrt), ptrt);
+        }
+        const PlaceId pn = place_for_name(id->value);
+        if (pn != MIR_INVALID_ID) {
+            const TypeId pt = builder_->function().places[pn].type;
+            const TypeId ptrt = types_.pointer_type(pt, true);
+            return MIRExprResult::value(builder_->address_of(pn, ptrt), ptrt);
         }
         if (id->linked && id->linked->kind() == ASTNodeKind::VarInitStmt) {
             auto* vi = id->linked->as_var_init();
@@ -327,6 +354,15 @@ bool MIRLowerer::append_default_args(FunctionDeclaration* fd, size_t provided,
 MIRExprResult MIRLowerer::lower_method_call(Value* receiver, FunctionCall* call, std::string& error) {
     ASTNode* lk = call->parent_val ? call->parent_val->linked_node() : nullptr;
     FunctionDeclaration* fd = lk ? lk->as_function() : nullptr;
+    if (!fd && call->parent_val && call->parent_val->val_kind() == ValueKind::AccessChain) {
+        auto* ch = call->parent_val->as_access_chain_unsafe();
+        if (!ch->values.empty()) {
+            std::string mname, merr;
+            if (member_name(ch->values.back(), mname, merr)) {
+                fd = resolve_method_fallback(receiver->getType(), mname);
+            }
+        }
+    }
     if (!fd) {
         error = "method call to unresolved function";
         return MIRExprResult::error();
@@ -348,13 +384,21 @@ MIRExprResult MIRLowerer::lower_method_call(Value* receiver, FunctionCall* call,
     } else if (recv.kind == MIRExprKind::Value || recv.kind == MIRExprKind::Address) {
         const MIRTypeRecord& rr = module_.types.get(recv.type);
         if (rr.kind != MIRTypeKind::Pointer && rr.kind != MIRTypeKind::Reference) {
-            error = "method receiver must be addressable (recv kind " +
-                    std::to_string(static_cast<int>(recv.kind)) + ", type kind " +
-                    std::to_string(static_cast<int>(rr.kind)) + ", ast kind " +
-                    std::to_string(static_cast<int>(receiver->val_kind())) + ")";
-            return MIRExprResult::error();
+            if (rr.kind == MIRTypeKind::Opaque && fd->get_self_param()) {
+                // the receiver node is untyped (its declaration was not fully
+                // resolved); trust the resolved method's receiver type
+                const TypeId st = types_.map(fd->get_self_param()->type);
+                args.push_back(MIROperand::value(static_cast<ValueId>(recv.id), st));
+            } else {
+                error = "method receiver must be addressable (recv kind " +
+                        std::to_string(static_cast<int>(recv.kind)) + ", type kind " +
+                        std::to_string(static_cast<int>(rr.kind)) + ", ast kind " +
+                        std::to_string(static_cast<int>(receiver->val_kind())) + ")";
+                return MIRExprResult::error();
+            }
+        } else {
+            args.push_back(MIROperand::value(static_cast<ValueId>(recv.id), recv.type));
         }
-        args.push_back(MIROperand::value(static_cast<ValueId>(recv.id), recv.type));
     } else {
         error = "method receiver must be an addressable place";
         return MIRExprResult::error();
@@ -491,6 +535,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 return lower_expr(cv, error);
             }
             PlaceId place = place_for_linked(id->linked);
+            if (place == MIR_INVALID_ID) place = place_for_name(id->value);
             if (place != MIR_INVALID_ID) {
                 if (needs_aggregate_path(module_, type)) {
                     return MIRExprResult::place(place, type);
@@ -815,6 +860,16 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     }
                     ASTNode* callee_node = call->parent_val->linked_node();
                     FunctionDeclaration* mfd = callee_node ? callee_node->as_function() : nullptr;
+                    if (!mfd) {
+                        // fallback: the method identifier may not have been linked
+                        // (extension methods on an interface receiver); resolve it
+                        // by name on the receiver's canonical container.
+                        auto* fch = call->parent_val->as_access_chain_unsafe();
+                        std::string mname, merr;
+                        if (member_name(fch->values.back(), mname, merr)) {
+                            mfd = resolve_method_fallback(fch->values[0]->getType(), mname);
+                        }
+                    }
                     const bool needs_receiver =
                         mfd && (mfd->get_self_param() != nullptr || mfd->isExtensionFn());
                     if (needs_receiver) {
@@ -1032,6 +1087,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 return false;
             }
             bind(vi, place);
+            bind_name(vi->name_view(), place);
             if (vi->value) {
                 MIRExprResult r = lower_expr(vi->value, error);
                 if (!r.ok()) return false;
@@ -1508,6 +1564,7 @@ bool MIRLowerer::lower_for(ForLoop* loop, std::string& error) {
 bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
                                 MIRFunction& func, std::string& error) {
     var_places_.clear();
+    name_places_.clear();
     // func_symbols_ persists across functions in a module so callees keep stable ids
 
     func.symbol = intern_function(decl);
@@ -1559,6 +1616,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
         PlaceId place = b.alloca(pt, MIRStorageClass::Parameter);
         b.store(place, pv);
         bind(self_param, place);
+        bind_name(self_param->name, place);
     }
 
     // parameters: materialize an SSA param value, spill to a place, bind it
@@ -1574,6 +1632,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
         }
         b.store(place, pv);
         bind(p, place);
+        bind_name(p->name, place);
     }
 
     if (decl->body.has_value()) {

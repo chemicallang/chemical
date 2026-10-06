@@ -125,6 +125,9 @@ public:
                    const MIROperand* args, uint32_t count);
     ValueId call_indirect(ValueId fn, TypeId result_type,
                           const MIROperand* args, uint32_t count);
+    /** Struct-returning indirect call: writes the result into `result_place`. */
+    void call_indirect_sret(ValueId fn, PlaceId result_place,
+                            const MIROperand* args, uint32_t count);
 
     // ── lifetime ───────────────────────────────────────────────────────────
     void init(PlaceId dest, SymbolId ctor, const MIROperand* args, uint32_t count);

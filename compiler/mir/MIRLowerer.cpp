@@ -235,9 +235,10 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
             const TypeId pt = builder_->function().places[p].type;
             const MIRTypeRecord& pr = module_.types.get(pt);
             const TypeId ast_t = types_.map(id->getType());
-            if (needs_aggregate_path(module_, ast_t) &&
-                (pr.kind == MIRTypeKind::Pointer || pr.kind == MIRTypeKind::Reference)) {
-                // an aggregate parameter passed by pointer: `&param` is the pointer
+            if (pr.kind == MIRTypeKind::Reference ||
+                (needs_aggregate_path(module_, ast_t) && pr.kind == MIRTypeKind::Pointer)) {
+                // a reference denotes its referent, so `&x` is the reference value;
+                // an aggregate parameter passed by pointer likewise
                 return MIRExprResult::value(builder_->load(p, pt), pt);
             }
             const TypeId ptrt = types_.pointer_type(pt, true);
@@ -248,8 +249,8 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
             const TypeId pt = builder_->function().places[pn].type;
             const MIRTypeRecord& pr = module_.types.get(pt);
             const TypeId ast_t = types_.map(id->getType());
-            if (needs_aggregate_path(module_, ast_t) &&
-                (pr.kind == MIRTypeKind::Pointer || pr.kind == MIRTypeKind::Reference)) {
+            if (pr.kind == MIRTypeKind::Reference ||
+                (needs_aggregate_path(module_, ast_t) && pr.kind == MIRTypeKind::Pointer)) {
                 return MIRExprResult::value(builder_->load(pn, pt), pt);
             }
             const TypeId ptrt = types_.pointer_type(pt, true);
@@ -632,6 +633,7 @@ SymbolId MIRLowerer::intern_global(VarInitStatement* vi) {
     MIRSymbolRecord rec;
     rec.kind = MIRSymbolKind::Global;
     rec.linkage = vi->is_extern() ? MIRLinkage::External : MIRLinkage::Internal;
+    if (vi->getType()) rec.type = types_.map(vi->getType());
     std::string name;
     if (mangler_) name = mangler_(vi);
     if (name.empty()) {
@@ -747,7 +749,11 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     return lower_expr(vi->value, error);
                 }
                 const SymbolId gs = intern_global(vi);
-                const TypeId ptrt = types_.pointer_type(type, false);
+                // an array global decays to a pointer to its first element
+                const TypeId ptrt = (type < module_.types.size() &&
+                                     module_.types.get(type).kind == MIRTypeKind::Array)
+                                        ? types_.pointer_type(module_.types.get(type).element, false)
+                                        : types_.pointer_type(type, false);
                 const ValueId addr = builder_->global_addr(gs, ptrt);
                 if (needs_aggregate_path(module_, type)) {
                     return MIRExprResult::address(addr, ptrt);
@@ -759,7 +765,10 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 const std::string gname(id->value.data(), id->value.size());
                 if (!gname.empty()) {
                     const SymbolId gs = intern_named_global(gname);
-                    const TypeId ptrt = types_.pointer_type(type, false);
+                    const TypeId ptrt = (type < module_.types.size() &&
+                                         module_.types.get(type).kind == MIRTypeKind::Array)
+                                            ? types_.pointer_type(module_.types.get(type).element, false)
+                                            : types_.pointer_type(type, false);
                     const ValueId addr = builder_->global_addr(gs, ptrt);
                     if (needs_aggregate_path(module_, type)) {
                         return MIRExprResult::address(addr, ptrt);
@@ -1294,6 +1303,15 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         builder_->call_indirect(fnptr, rt, cargs.data(), static_cast<uint32_t>(cargs.size()));
                         return MIRExprResult::void_result();
                     }
+                    if (needs_aggregate_path(module_, rt)) {
+                        // aggregate return: use the sret convention (the callee
+                        // returns void and writes through a leading pointer)
+                        const PlaceId tmp = builder_->alloca(rt, MIRStorageClass::Temporary);
+                        builder_->zero_init(tmp);
+                        builder_->call_indirect_sret(fnptr, tmp, cargs.data(),
+                                                     static_cast<uint32_t>(cargs.size()));
+                        return MIRExprResult::place(tmp, rt);
+                    }
                     const ValueId v = builder_->call_indirect(fnptr, rt, cargs.data(),
                                                               static_cast<uint32_t>(cargs.size()));
                     return MIRExprResult::value(v, rt);
@@ -1429,7 +1447,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         case ValueKind::IncDecValue: {
             auto* n = value->as_inc_dec_value_unsafe();
             ValueId out = MIR_NULL;
-            if (!lower_incdec_value(n->getValue(), n->increment, error, out)) {
+            if (!lower_incdec_value(n->getValue(), n->increment, n->post, error, out)) {
                 return MIRExprResult::error();
             }
             return MIRExprResult::value(out, type);
@@ -1827,7 +1845,8 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
         case ASTNodeKind::IncDecNode: {
             auto* n = node->as_inc_dec_node_unsafe();
             ValueId out = MIR_NULL;
-            return lower_incdec_value(n->value.getValue(), n->value.increment, error, out);
+            return lower_incdec_value(n->value.getValue(), n->value.increment, n->value.post,
+                                      error, out);
         }
         case ASTNodeKind::AccessChainNode: {
             auto* acn = node->as_access_chain_node_unsafe();
@@ -1904,7 +1923,8 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
     }
 }
 
-bool MIRLowerer::lower_incdec_value(Value* target, bool increment, std::string& error, ValueId& out) {
+bool MIRLowerer::lower_incdec_value(Value* target, bool increment, bool post, std::string& error,
+                                    ValueId& out) {
     Value* t = target;
     if (t && t->val_kind() == ValueKind::AccessChain) {
         auto* c = t->as_access_chain_unsafe();
@@ -1928,7 +1948,8 @@ bool MIRLowerer::lower_incdec_value(Value* target, bool increment, std::string& 
     const ValueId one = builder_->const_int(it, module_.constants.add_int(it, 1));
     const ValueId nv = builder_->binary(cur, one, opc, vt);
     builder_->store(place, nv);
-    out = nv;
+    // a post-increment/decrement expression yields the *old* value
+    out = post ? cur : nv;
     return true;
 }
 

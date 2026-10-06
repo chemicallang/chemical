@@ -111,7 +111,8 @@ private:
     bool lower_if(IfStatement* stmt, BlockId merge, std::string& error);
     bool lower_while(WhileLoop* loop, std::string& error);
     bool lower_for(ForLoop* loop, std::string& error);
-    bool lower_incdec_value(Value* target, bool increment, std::string& error, ValueId& out);
+    bool lower_incdec_value(Value* target, bool increment, bool post, std::string& error,
+                            ValueId& out);
     PlaceId resolve_place(Value* v, std::string& error);
     /** Like resolve_place, but also lowers call results to their temporary place. */
     PlaceId resolve_place_or_lower(Value* v, std::string& error);

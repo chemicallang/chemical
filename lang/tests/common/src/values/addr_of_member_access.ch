@@ -19,6 +19,18 @@ func read_char_ptr(p : *char) : int {
     return p[0] as int
 }
 
+// `&raw mut` on a reference parameter must yield the referent's address, not
+// the address of the parameter slot.
+func deref_ref_param_ptr(p : &mut int) : int {
+    var q = &raw mut p
+    return *q
+}
+
+func write_ref_param_ptr(p : &mut int, v : int) {
+    var q = &raw mut p
+    *q = v
+}
+
 func test_addr_of_member_access() {
 
     // --- &raw struct member access ---
@@ -208,5 +220,26 @@ func test_addr_of_member_access() {
         var p = &mut nums[i]
         *p = 99
         return nums[3] == 99
+    })
+
+    // --- &raw on a reference parameter yields the referent address ---
+
+    test("&raw mut on a reference parameter yields the referent address", () => {
+        var x = 42
+        return deref_ref_param_ptr(&mut x) == 42
+    })
+
+    test("writing through &raw mut of a reference parameter mutates the referent", () => {
+        var x = 5
+        write_ref_param_ptr(&mut x, 99)
+        return x == 99
+    })
+
+    test("&raw mut on a local reference yields the referent address", () => {
+        var x = 7
+        var r = &mut x
+        var p = &raw mut r
+        *p = 70
+        return x == 70
     })
 }

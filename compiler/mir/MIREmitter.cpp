@@ -749,6 +749,16 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 std::string dname;
                 symbol_name(module, d->id, dname);
                 const MIRTypeRecord& dpr = module.types.get(function.places[p->id].type);
+                if (dpr.kind == MIRTypeKind::Array) {
+                    // drop each element, last to first
+                    const std::string pn = place_name(module, function, p->id);
+                    const std::string iv = "__chx_di" + std::to_string(idx);
+                    out += "{ ";
+                    if (f) out += "if (" + operand_expr(function, module, *f) + ") ";
+                    out += "for (unsigned long " + iv + " = " + std::to_string(dpr.data_count) +
+                           "; " + iv + "-- > 0;) " + dname + "(&" + pn + "[" + iv + "]); }\n";
+                    break;
+                }
                 const std::string darg =
                     (dpr.kind == MIRTypeKind::Pointer || dpr.kind == MIRTypeKind::Reference)
                         ? place_name(module, function, p->id)

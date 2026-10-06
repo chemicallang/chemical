@@ -501,8 +501,13 @@ bool MIRLowerer::lower_call_args_for(FunctionDeclaration* fd, bool self_included
                     call_temps_.emplace_back(static_cast<PlaceId>(r.id), at);
                 }
             } else if (vk == ValueKind::Identifier && by_value) {
-                // a local passed by value is moved out
-                mark_moved(static_cast<PlaceId>(r.id));
+                // a local passed by value is moved out; an array decays to a
+                // pointer and stays owned by the caller
+                BaseType* at = v0->getType();
+                BaseType* canon = at ? at->canonical() : nullptr;
+                if (!(canon && canon->kind() == BaseTypeKind::Array)) {
+                    mark_moved(static_cast<PlaceId>(r.id));
+                }
             }
         }
         if (!push_call_arg(r, args, error)) return false;
@@ -539,6 +544,10 @@ SymbolId MIRLowerer::destructor_symbol(BaseType* type) {
     if (!type) return MIR_INVALID_ID;
     BaseType* canon = type->canonical();
     if (!canon) return MIR_INVALID_ID;
+    if (canon->kind() == BaseTypeKind::Array) {
+        // an array of destructibles drops each element
+        return destructor_symbol(canon->as_array_type_unsafe()->elem_type);
+    }
     ASTNode* node = canon->get_direct_linked_canonical_node();
     if (!node) return MIR_INVALID_ID;
     FunctionDeclaration* dtor = nullptr;
@@ -2261,10 +2270,12 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 async_result_places_[it->second] = place;
                 return async_lower_await_var_init(vi, it->second, error);
             }
-            if (vi->known_type()) {
+            if (vi->known_type() || (vi->value && vi->value->getType())) {
+                BaseType* vtype = vi->known_type();
+                if (!vtype && vi->value) vtype = vi->value->getType();
                 const MIRTypeRecord& vr = module_.types.get(vt);
                 if (!(vr.flags & TF_TYPEDEF) && needs_aggregate_path(module_, vt)) {
-                    register_destructible(place, vi->known_type());
+                    register_destructible(place, vtype);
                 }
             }
             if (vi->value) {

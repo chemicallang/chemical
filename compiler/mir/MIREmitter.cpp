@@ -553,7 +553,14 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const bool ptr = p->kind() != MIROperandKind::Place;
                 const std::string base =
                     ptr ? operand_expr(function, module, *p) : place_name(module, function, p->id);
-                const std::string access = base + (ptr ? "->" : ".") + fname;
+                // a place whose own type is a pointer/reference is dereferenced
+                bool arrow = ptr;
+                if (!ptr) {
+                    const MIRTypeRecord& bt = module.types.get(function.places[p->id].type);
+                    arrow = (bt.kind == MIRTypeKind::Pointer ||
+                             bt.kind == MIRTypeKind::Reference);
+                }
+                const std::string access = base + (arrow ? "->" : ".") + fname;
                 const TypeId ft = function.values[v].type;
                 if (ft < module.types.size() &&
                     module.types.get(ft).kind == MIRTypeKind::Array) {

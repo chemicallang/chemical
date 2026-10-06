@@ -65,6 +65,8 @@
 #include "ast/values/ZeroedValue.h"
 #include "ast/values/IfValue.h"
 #include "ast/values/IsValue.h"
+#include "ast/values/VariantCase.h"
+#include "ast/values/VariantCaseVariable.h"
 #include "ast/values/SwitchValue.h"
 #include "ast/values/LoopValue.h"
 #include "ast/values/AwaitExpression.h"
@@ -296,6 +298,9 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
         auto* id = t->as_identifier_unsafe();
         if (Value* cv = captured_comptime_value(id->linked)) {
             return lower_expr(cv, error);
+        }
+        if (id->linked && id->linked->kind() == ASTNodeKind::VariantCaseVariable) {
+            return lower_variant_payload(id->linked->as_variant_case_var_unsafe(), true, error);
         }
         const PlaceId p = place_for_linked(id->linked);
         if (p != MIR_INVALID_ID) {
@@ -675,6 +680,44 @@ MIRExprResult MIRLowerer::lower_member_chain(const std::vector<Value*>& values, 
     return MIRExprResult::error();
 }
 
+MIRExprResult MIRLowerer::lower_variant_payload(VariantCaseVariable* var, bool as_address,
+                                                std::string& error) {
+    if (!var || !var->member_param) {
+        error = "invalid variant case variable";
+        return MIRExprResult::error();
+    }
+    SwitchStatement* sw = var->parent();
+    VariantMember* vm = var->member_param->parent();
+    if (!sw || !sw->expression || !vm) {
+        error = "variant case variable has no switch expression";
+        return MIRExprResult::error();
+    }
+    MIRExprResult base = lower_expr(sw->expression, error);
+    if (!base.ok()) return base;
+    const std::string mname(vm->name.data(), vm->name.size());
+    const std::string pname(var->member_param->name.data(), var->member_param->name.size());
+    const std::string fname = mname + "." + pname;
+    const ConstantId fc = module_.constants.add_string(
+        MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
+    const TypeId ft = types_.map(var->known_type());
+    if (base.kind == MIRExprKind::Place) {
+        const PlaceId bp = static_cast<PlaceId>(base.id);
+        if (as_address || needs_aggregate_path(module_, ft)) {
+            return MIRExprResult::address(builder_->field_addr(bp, fc, ft), ft);
+        }
+        return MIRExprResult::value(builder_->field_load(bp, fc, ft), ft);
+    }
+    if (base.kind == MIRExprKind::Address || base.kind == MIRExprKind::Value) {
+        const ValueId bv = static_cast<ValueId>(base.id);
+        if (as_address || needs_aggregate_path(module_, ft)) {
+            return MIRExprResult::address(builder_->field_addr_ptr(bv, fc, ft), ft);
+        }
+        return MIRExprResult::value(builder_->field_load_ptr(bv, fc, ft), ft);
+    }
+    error = "variant case expression is not a variant lvalue";
+    return MIRExprResult::error();
+}
+
 MIRExprResult MIRLowerer::lower_receiver(const std::vector<Value*>& values, size_t count,
                                          std::string& error) {
     if (count == 1 && values[0]) {
@@ -929,6 +972,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             auto* id = value->as_identifier_unsafe();
             if (Value* cv = captured_comptime_value(id->linked)) {
                 return lower_expr(cv, error);
+            }
+            if (id->linked && id->linked->kind() == ASTNodeKind::VariantCaseVariable) {
+                return lower_variant_payload(id->linked->as_variant_case_var_unsafe(), false, error);
             }
             if (id->linked && id->linked->kind() == ASTNodeKind::FunctionDecl) {
                 // a function used as a value (function pointer)
@@ -2359,6 +2405,31 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             MIRExprResult scrut = lower_expr(sw->expression, error);
             if (!scrut.ok()) return false;
 
+            // variant switch: compare the discriminant, not the whole value
+            const std::string tag_name("__chx__vt_621827");
+            const ConstantId tag_fc = module_.constants.add_string(
+                MIR_INVALID_ID, tag_name.data(), static_cast<uint32_t>(tag_name.size()));
+            const TypeId tag_t = types_.u32_type();
+            bool variant_switch = false;
+            if (sw->expression && sw->expression->getType()) {
+                ASTNode* ln = sw->expression->getType()->get_direct_linked_node();
+                if (ln && (ln->kind() == ASTNodeKind::VariantDecl ||
+                           ln->kind() == ASTNodeKind::VariantMember)) {
+                    ValueId tag = MIR_NULL;
+                    if (scrut.kind == MIRExprKind::Place) {
+                        tag = builder_->field_load(static_cast<PlaceId>(scrut.id), tag_fc, tag_t);
+                    } else if (scrut.kind == MIRExprKind::Address ||
+                               scrut.kind == MIRExprKind::Value) {
+                        tag = builder_->field_load_ptr(static_cast<ValueId>(scrut.id), tag_fc, tag_t);
+                    } else {
+                        error = "variant switch expression is not a variant lvalue";
+                        return false;
+                    }
+                    scrut = MIRExprResult::value(tag, tag_t);
+                    variant_switch = true;
+                }
+            }
+
             const BlockId end_b = builder_->create_block();
             std::vector<BlockId> scope_blocks(sw->scopes.size());
             for (size_t i = 0; i < sw->scopes.size(); ++i) {
@@ -2380,7 +2451,20 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     break;
                 }
                 const BlockId next_b = (i + 1 < n) ? builder_->create_block() : default_b;
-                MIRExprResult cv = lower_expr(c.first, error);
+                MIRExprResult cv;
+                if (variant_switch && c.first->val_kind() == ValueKind::VariantCase) {
+                    auto* vc = c.first->as_variant_case_unsafe();
+                    const long idx =
+                        (vc->member && vc->member->parent())
+                            ? vc->member->parent()->direct_child_index(vc->member->name)
+                            : 0;
+                    const ValueId ci = builder_->const_int(
+                        tag_t, module_.constants.add_int(
+                                   tag_t, static_cast<uint64_t>(idx < 0 ? 0 : idx)));
+                    cv = MIRExprResult::value(ci, tag_t);
+                } else {
+                    cv = lower_expr(c.first, error);
+                }
                 if (!cv.ok()) return false;
                 const ValueId cond = builder_->compare(scrut.id, cv.id, eqc, bool_t);
                 builder_->cond_br(cond, target, next_b);

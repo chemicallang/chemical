@@ -354,6 +354,15 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
             case MIROpcode::Alloca: {
                 const PlaceId p = inst.result_or_place;
                 out += declarator(module, function.places[p].type, pname(p)) + ";\n";
+                const MIRTypeRecord& pr = module.types.get(function.places[p].type);
+                if (pr.kind == MIRTypeKind::Struct || pr.kind == MIRTypeKind::Variant ||
+                    pr.kind == MIRTypeKind::Union || pr.kind == MIRTypeKind::Array) {
+                    // zero-initialize aggregates so unset members are well-defined
+                    const std::string pn = pname(p);
+                    const std::string iv = "__chx_za" + std::to_string(idx);
+                    out += "for (unsigned long " + iv + " = 0; " + iv + " < sizeof(" + pn +
+                           "); ++" + iv + ") ((unsigned char*)&" + pn + ")[" + iv + "] = 0;\n";
+                }
                 break;
             }
             case MIROpcode::Param: {

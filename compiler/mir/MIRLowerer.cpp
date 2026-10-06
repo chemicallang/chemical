@@ -326,8 +326,10 @@ SymbolId MIRLowerer::destructor_symbol(BaseType* type) {
 void MIRLowerer::register_destructible(PlaceId place, BaseType* type) {
     (void)place;
     (void)type;
-    // TODO: full move-aware destructor lowering (drop flags) is not yet enabled;
-    // enabling it requires correct handling of all scopes and moves.
+    // NOTE: move-aware destructor lowering (drop flags) is scaffolded but not
+    // enabled: calling canonical()/intern_function on generic destructors during
+    // lowering races with the compiler's parallel passes. Enable once destructor
+    // resolution can be done without touching the type system here.
     return;
     const SymbolId dtor = destructor_symbol(type);
     if (dtor == MIR_INVALID_ID) return;
@@ -412,6 +414,7 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
                 }
                 if (ctor) {
                     const SymbolId sym = intern_function(ctor);
+                    builder_->zero_init(tmp);
                     builder_->init(tmp, sym, cargs.data(), static_cast<uint32_t>(cargs.size()));
                 }
                 return MIRExprResult::place(tmp, mt);
@@ -942,6 +945,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     std::vector<Value*> one{init.value};
                     if (!lower_call_args(one, cargs, error)) return MIRExprResult::error();
                     const SymbolId sym = intern_function(implicit);
+                    builder_->zero_init(tmp);
                     builder_->init(tmp, sym, cargs.data(), static_cast<uint32_t>(cargs.size()));
                     builder_->field_store_place(temp, fc, tmp);
                     ++it;
@@ -1074,6 +1078,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 }
                 if (ctor) {
                     const SymbolId sym = intern_function(ctor);
+                    builder_->zero_init(place);
                     builder_->init(place, sym, cargs.data(), static_cast<uint32_t>(cargs.size()));
                 } else if (!cargs.empty()) {
                     error = "no matching constructor for aggregate construction";
@@ -1133,6 +1138,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         }
                         if (ctor) {
                             const SymbolId sym = intern_function(ctor);
+                            builder_->zero_init(place);
                             builder_->init(place, sym, cargs.data(), static_cast<uint32_t>(cargs.size()));
                         } else if (!cargs.empty()) {
                             error = "no matching constructor for aggregate construction";

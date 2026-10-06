@@ -241,6 +241,26 @@ ValueId MIRBuilder::field_load(PlaceId base, ConstantId field_name, TypeId field
     return v;
 }
 
+ValueId MIRBuilder::field_load_ptr(ValueId base, ConstantId field_name, TypeId field_type) {
+    ValueId v = new_value(field_type, VF_NONE);
+    TypeId bt = base < func_.values.size() ? func_.values[base].type : MIR_INVALID_ID;
+    uint32_t i = emit(MIROpcode::Load, v,
+                      {MIROperand::value(base, bt),
+                       MIROperand::constant(field_name, MIR_INVALID_ID),
+                       MIROperand::type(field_type)});
+    note_result_value(v, i);
+    return v;
+}
+
+void MIRBuilder::field_store_ptr(ValueId base, ConstantId field_name, ValueId value) {
+    TypeId bt = base < func_.values.size() ? func_.values[base].type : MIR_INVALID_ID;
+    TypeId vt = value < func_.values.size() ? func_.values[value].type : MIR_INVALID_ID;
+    emit(MIROpcode::Store, MIR_NULL,
+         {MIROperand::value(base, bt),
+          MIROperand::constant(field_name, MIR_INVALID_ID),
+          MIROperand::value(value, vt)});
+}
+
 void MIRBuilder::field_store(PlaceId base, ConstantId field_name, ValueId value) {
     TypeId bt = base < func_.places.size() ? func_.places[base].type : MIR_INVALID_ID;
     TypeId vt = value < func_.values.size() ? func_.values[value].type : MIR_INVALID_ID;
@@ -248,6 +268,24 @@ void MIRBuilder::field_store(PlaceId base, ConstantId field_name, ValueId value)
          {MIROperand::place(base, bt),
           MIROperand::constant(field_name, MIR_INVALID_ID),
           MIROperand::value(value, vt)});
+}
+
+void MIRBuilder::field_store_place(PlaceId base, ConstantId field_name, PlaceId value) {
+    TypeId bt = base < func_.places.size() ? func_.places[base].type : MIR_INVALID_ID;
+    TypeId vt = value < func_.places.size() ? func_.places[value].type : MIR_INVALID_ID;
+    emit(MIROpcode::Store, MIR_NULL,
+         {MIROperand::place(base, bt),
+          MIROperand::constant(field_name, MIR_INVALID_ID),
+          MIROperand::place(value, vt)});
+}
+
+void MIRBuilder::element_store_place(PlaceId base, ValueId index, PlaceId value) {
+    TypeId bt = base < func_.places.size() ? func_.places[base].type : MIR_INVALID_ID;
+    TypeId it = index < func_.values.size() ? func_.values[index].type : MIR_INVALID_ID;
+    TypeId vt = value < func_.places.size() ? func_.places[value].type : MIR_INVALID_ID;
+    emit(MIROpcode::Store, MIR_NULL,
+         {MIROperand::place(base, bt), MIROperand::value(index, it),
+          MIROperand::place(value, vt)});
 }
 
 ValueId MIRBuilder::index_load(ValueId base, ValueId index, TypeId element_type) {

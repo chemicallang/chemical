@@ -1869,7 +1869,8 @@ bool mir_translate_after_declaration(
         std::string name = mir_mangle_name(visitor.mangler, decl);
         mir::MIRSymbolRecord rec;
         rec.kind = mir::MIRSymbolKind::Function;
-        rec.linkage = mir::MIRLinkage::Internal;
+        rec.linkage = decl->is_linkage_public() ? mir::MIRLinkage::External
+                                                : mir::MIRLinkage::Internal;
         mir::SymbolId sym = module.symbols.add(
             rec, name.data(), static_cast<uint32_t>(name.size()),
             name.data(), static_cast<uint32_t>(name.size()));
@@ -1930,17 +1931,26 @@ int ASTProcessor::implement_module(
     // driver (MIR is emitted immediately, then discarded).
     mir::MIRModule mir_module;
     mir::MIRTypeBuilder mir_types(mir_module);
+    mir_types.set_name_resolver([&c_visitor](ASTNode* n) {
+        return mir_mangle_name(c_visitor.mangler, n);
+    });
     mir::MIRLowerer mir_lowerer(mir_module, mir_types);
     mir_lowerer.set_mangler([&c_visitor](ASTNode* n) {
         return mir_mangle_name(c_visitor.mangler, n);
     });
     mir_lowerer.set_comptime_if_resolver([&c_visitor](IfStatement* stmt, std::string& err) -> Scope* {
         auto resolved = stmt->get_or_resolve_scope(c_visitor.comptime_scope, c_visitor);
-        if (!resolved.has_value()) {
+        if (!resolved.has_value() || resolved.value() == nullptr) {
             err = "failed to resolve comptime if";
             return nullptr;
         }
         return resolved.value();
+    });
+    mir_lowerer.set_comptime_eval([&c_visitor](FunctionCall* call, FunctionDeclaration* decl) {
+        return c_visitor.eval_comptime_call(call, decl);
+    });
+    mir_lowerer.set_comptime_ctor_eval([&c_visitor](FunctionDeclaration* ctor, Value* arg) {
+        return c_visitor.eval_comptime_ctor(ctor, arg);
     });
     mir::MIRArena mir_arena;
 

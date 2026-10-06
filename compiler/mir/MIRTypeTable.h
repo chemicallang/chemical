@@ -38,6 +38,20 @@ enum MIRTypeFlags : uint8_t {
 };
 
 /**
+ * Exact C spelling category for integer types, mirroring the legacy 2c backend
+ * (see ToCAstVisitor::VisitIntNType). 0 = unspecified (spell by width/signedness
+ * as intN_t/uintN_t). Keeping the source-level spelling lets MIR-emitted
+ * definitions match the prototypes emitted by the legacy declaration pass.
+ */
+enum MIRIntKind : uint8_t {
+    IK_UNSPECIFIED = 0,
+    IK_I8, IK_I16, IK_I32, IK_I64, IK_I128,
+    IK_U8, IK_U16, IK_U32, IK_U64, IK_U128,
+    IK_CHAR, IK_SHORT, IK_INT, IK_LONG, IK_LONGLONG,
+    IK_UCHAR, IK_USHORT, IK_UINT, IK_ULONG, IK_ULONGLONG,
+};
+
+/**
  * A canonical type record. Portable semantic identity only; target-dependent
  * size/alignment live here as a cache but do not affect interning (interning
  * is per module/target).
@@ -45,6 +59,7 @@ enum MIRTypeFlags : uint8_t {
 struct MIRTypeRecord {
     MIRTypeKind kind = MIRTypeKind::Opaque;
     uint8_t flags = TF_NONE;
+    uint8_t int_kind = IK_UNSPECIFIED; // exact C spelling for MIRTypeKind::Int
     uint32_t size = 0;
     uint32_t alignment = 0;
     uint32_t data_offset = 0; // index into MIRTypeTable::data
@@ -102,7 +117,7 @@ struct MIRTypeTable {
     bool equal(const MIRTypeRecord& a, const MIRTypeRecord& b) const {
         if (a.kind != b.kind || a.flags != b.flags || a.size != b.size ||
             a.alignment != b.alignment || a.element != b.element || a.decl != b.decl ||
-            a.data_count != b.data_count) {
+            a.data_count != b.data_count || a.int_kind != b.int_kind) {
             return false;
         }
         for (uint32_t i = 0; i < a.data_count; ++i) {

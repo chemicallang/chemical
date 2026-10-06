@@ -1152,6 +1152,17 @@ Value* evaluate_comptime_func(
     return value;
 }
 
+Value* ToCAstVisitor::eval_comptime_call(FunctionCall* call, FunctionDeclaration* decl) {
+    return evaluate_comptime_func(*this, decl, call);
+}
+
+Value* ToCAstVisitor::eval_comptime_ctor(FunctionDeclaration* ctor, Value* arg) {
+    BaseType* expected = ctor->params.empty() ? nullptr : ctor->params[0]->type;
+    FunctionCall* call = call_with_arg(ctor, arg, expected, allocator, *this);
+    if (!call) return nullptr;
+    return evaluate_comptime_func(*this, ctor, call);
+}
+
 void call_implicit_constructor_no_alloc(ToCAstVisitor& visitor, FunctionDeclaration* imp_constructor, Value* value, const chem::string_view& var_name, bool is_var_ptr) {
     const auto new_expected_type = imp_constructor->params[0]->type;
     visitor.mangle(imp_constructor);

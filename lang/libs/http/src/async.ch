@@ -171,6 +171,9 @@ public async func serve_coro(srv : *mut Server, port : uint = 8080u) : int {
         }
         var fd = accepted as net::Socket
         net::set_keep_alive(fd, true)
+        // accepted sockets inherit the listener's non-blocking mode on Windows;
+        // the request/body reader uses blocking recv
+        net::set_blocking(fd)
         var s = srv
         var h = async::spawn_blocking<core::async::Unit>(|s, fd|() => {
             s.handle_conn(fd)

@@ -125,6 +125,10 @@ public namespace server {
                 }
 
                 net::set_keep_alive(s, true);
+                // on Windows the accepted socket inherits the listener's
+                // non-blocking mode; the request/body reader uses blocking recv,
+                // so restore blocking here
+                net::set_blocking(s);
 
                 S.pool.submit_void(|S, s|() => {
                     S.handle_conn(s);

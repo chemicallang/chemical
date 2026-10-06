@@ -473,9 +473,9 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                         const MIRTypeRecord& btr = module.types.get(function.places[b->id].type);
                         const std::string access = member_access(function, module, p->id, fname);
                         if (btr.kind == MIRTypeKind::Array) {
-                            // arrays are not assignable: copy the bytes
+                            // arrays are not assignable: copy the source bytes
                             out += "memcpy(&" + access + ", &" + pname(b->id) + ", sizeof(" +
-                                   access + "));\n";
+                                   pname(b->id) + "));\n";
                             break;
                         }
                         // aggregate parameters are pointer-typed places: deref

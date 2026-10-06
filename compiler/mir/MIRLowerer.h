@@ -125,6 +125,10 @@ private:
     MIRExprResult lower_arg_converted(Value* arg, BaseType* param_type, std::string& error);
     bool push_call_arg(MIRExprResult r, std::vector<MIROperand>& args, std::string& error);
     void destroy_call_temps(std::string& error);
+    SymbolId destructor_symbol(BaseType* type);
+    void register_destructible(PlaceId place, BaseType* type);
+    void mark_moved(PlaceId place);
+    void emit_drops();
     bool append_default_args(FunctionDeclaration* fd, size_t provided, bool self_included,
                              std::vector<MIROperand>& args, std::string& error);
     MIRExprResult lower_method_call(Value* receiver, FunctionCall* call, std::string& error);
@@ -151,6 +155,12 @@ private:
     std::unordered_map<ASTNode*, PlaceId> var_places_;
     std::unordered_map<std::string, PlaceId> name_places_;
     std::vector<std::pair<PlaceId, BaseType*>> call_temps_;
+    struct MIRDestructible {
+        PlaceId place;
+        PlaceId flag;
+        SymbolId dtor;
+    };
+    std::vector<MIRDestructible> destructibles_;
     std::unordered_map<FunctionDeclaration*, SymbolId> func_symbols_;
     std::unordered_map<ASTNode*, SymbolId> global_symbols_;
     std::unordered_map<std::string, SymbolId> named_globals_;

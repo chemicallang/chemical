@@ -283,9 +283,15 @@ bool MIRLowerer::lower_call_args_for(FunctionDeclaration* fd, bool self_included
         // track destructible temporaries passed by value (destroyed after the call)
         if (r.kind == MIRExprKind::Place && values[i]) {
             const ValueKind vk = values[i]->val_kind();
+            const bool by_value =
+                !(param_type && (param_type->kind() == BaseTypeKind::Reference ||
+                                 param_type->kind() == BaseTypeKind::Pointer));
             if (vk == ValueKind::StructValue || vk == ValueKind::FunctionCall) {
                 BaseType* at = values[i]->getType();
                 if (at) call_temps_.emplace_back(static_cast<PlaceId>(r.id), at);
+            } else if (vk == ValueKind::Identifier && by_value) {
+                // a local passed by value is moved out
+                mark_moved(static_cast<PlaceId>(r.id));
             }
         }
         if (!push_call_arg(r, args, error)) return false;
@@ -304,6 +310,46 @@ void MIRLowerer::destroy_call_temps(std::string& error) {
         builder_->destroy(place, intern_function(dtor));
     }
     call_temps_.clear();
+}
+
+SymbolId MIRLowerer::destructor_symbol(BaseType* type) {
+    if (!type) return MIR_INVALID_ID;
+    BaseType* canon = type->canonical();
+    if (!canon) return MIR_INVALID_ID;
+    ASTNode* node = canon->get_direct_linked_canonical_node();
+    if (!node || node->kind() != ASTNodeKind::StructDecl) return MIR_INVALID_ID;
+    FunctionDeclaration* dtor = node->as_struct_def_unsafe()->destructor_func();
+    if (!dtor || !dtor->body.has_value()) return MIR_INVALID_ID;
+    return intern_function(dtor);
+}
+
+void MIRLowerer::register_destructible(PlaceId place, BaseType* type) {
+    (void)place;
+    (void)type;
+    // TODO: full move-aware destructor lowering (drop flags) is not yet enabled;
+    // enabling it requires correct handling of all scopes and moves.
+    return;
+    const SymbolId dtor = destructor_symbol(type);
+    if (dtor == MIR_INVALID_ID) return;
+    const PlaceId flag = builder_->alloca(types_.bool_type(), MIRStorageClass::Local);
+    builder_->set_drop(flag, true);
+    destructibles_.push_back({place, flag, dtor});
+}
+
+void MIRLowerer::mark_moved(PlaceId place) {
+    for (auto& d : destructibles_) {
+        if (d.place == place) {
+            builder_->set_drop(d.flag, false);
+            return;
+        }
+    }
+}
+
+void MIRLowerer::emit_drops() {
+    for (auto& d : destructibles_) {
+        const ValueId fv = builder_->load(d.flag, types_.bool_type());
+        builder_->drop(d.place, d.dtor, fv);
+    }
 }
 
 MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
@@ -1335,6 +1381,12 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             }
             bind(vi, place);
             bind_name(vi->name_view(), place);
+            if (vi->known_type()) {
+                const MIRTypeRecord& vr = module_.types.get(vt);
+                if (!(vr.flags & TF_TYPEDEF) && needs_aggregate_path(module_, vt)) {
+                    register_destructible(place, vi->known_type());
+                }
+            }
             if (vi->value) {
                 MIRExprResult r = lower_expr(vi->value, error);
                 if (!r.ok()) return false;
@@ -1535,12 +1587,28 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
         }
         case ASTNodeKind::ReturnStmt: {
             auto* rs = node->as_return();
+            // returning a local destructible moves it out (do not drop it here)
+            if (rs->value) {
+                Value* rv = rs->value;
+                if (rv->val_kind() == ValueKind::AccessChain) {
+                    auto* c = rv->as_access_chain_unsafe();
+                    if (c->values.size() == 1) rv = c->values[0];
+                }
+                if (rv->val_kind() == ValueKind::Identifier) {
+                    auto* id = rv->as_identifier_unsafe();
+                    PlaceId rp = place_for_linked(id->linked);
+                    if (rp == MIR_INVALID_ID) rp = place_for_name(id->value);
+                    if (rp != MIR_INVALID_ID) mark_moved(rp);
+                }
+            }
             if (!rs->value) {
+                emit_drops();
                 builder_->ret_void();
                 return true;
             }
             MIRExprResult r = lower_expr(rs->value, error);
             if (!r.ok()) return false;
+            emit_drops();
             if (sret_) {
                 if (r.kind != MIRExprKind::Place) {
                     error = "returning an aggregate rvalue is not yet supported (name it first)";
@@ -1835,6 +1903,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
                                 MIRFunction& func, std::string& error) {
     var_places_.clear();
     name_places_.clear();
+    destructibles_.clear();
     // func_symbols_ persists across functions in a module so callees keep stable ids
 
     func.symbol = intern_function(decl);
@@ -1919,6 +1988,14 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
         b.store(place, pv);
         bind(p, place);
         bind_name(p->name, place);
+        // by-value struct params own their value and are destroyed at exit
+        if (p->type) {
+            const TypeId ptt = types_.map(p->type);
+            const MIRTypeRecord& prr = module_.types.get(ptt);
+            if (!(prr.flags & TF_TYPEDEF) && needs_aggregate_path(module_, ptt)) {
+                register_destructible(place, p->type);
+            }
+        }
     }
 
     if (decl->body.has_value()) {
@@ -1930,7 +2007,10 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
         }
     }
 
-    if (!b.current_block_terminated()) b.ret_void();
+    if (!b.current_block_terminated()) {
+        emit_drops();
+        b.ret_void();
+    }
 
     builder_ = nullptr;
     if (!b.ok()) {

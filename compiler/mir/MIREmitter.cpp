@@ -648,6 +648,28 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 }
                 break;
             }
+            case MIROpcode::Drop: {
+                const MIROperand* p = operand_at(function, inst, 0);
+                const MIROperand* d = operand_at(function, inst, 1);
+                const MIROperand* f = operand_at(function, inst, 2);
+                if (!p || !d) { error = "drop missing operands"; return false; }
+                std::string dname;
+                symbol_name(module, d->id, dname);
+                if (f) {
+                    out += "if (" + operand_expr(function, module, *f) + ") " + dname + "(&" +
+                           pname(p->id) + ");\n";
+                } else {
+                    out += dname + "(&" + pname(p->id) + ");\n";
+                }
+                break;
+            }
+            case MIROpcode::SetDrop: {
+                const MIROperand* p = operand_at(function, inst, 0);
+                const MIROperand* c = operand_at(function, inst, 1);
+                if (!p || !c) { error = "set_drop missing operands"; return false; }
+                out += pname(p->id) + " = " + operand_expr(function, module, *c) + ";\n";
+                break;
+            }
             case MIROpcode::Destroy: {
                 const MIROperand* p = operand_at(function, inst, 0);
                 const MIROperand* d = operand_at(function, inst, 1);

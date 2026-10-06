@@ -51,6 +51,7 @@
 #include "ast/statements/Break.h"
 #include "ast/statements/Continue.h"
 #include "ast/statements/IncDecNode.h"
+#include "ast/statements/InlineAsmStmt.h"
 #include "ast/statements/AccessChainNode.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/values/IncDecValue.h"
@@ -1571,6 +1572,46 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
     }
 }
 
+bool MIRLowerer::lower_asm_operand(Value* expr, MIROperand& out, std::string& error) {
+    Value* t = expr;
+    if (t && t->val_kind() == ValueKind::AccessChain) {
+        auto* c = t->as_access_chain_unsafe();
+        if (c->values.size() == 1) t = c->values[0];
+    }
+    if (!t) {
+        error = "inline asm operand is null";
+        return false;
+    }
+    // a memory operand `*ptr`: keep the pointer value; the emitter spells `*<ptr>`
+    if (t->val_kind() == ValueKind::DereferenceValue) {
+        auto* d = t->as_dereference_value_unsafe();
+        MIRExprResult p = lower_expr(d->getValue(), error);
+        if (!p.ok()) return false;
+        if (p.kind != MIRExprKind::Value && p.kind != MIRExprKind::Address) {
+            error = "inline asm dereference operand is not a pointer";
+            return false;
+        }
+        out = MIROperand::value(static_cast<ValueId>(p.id), p.type);
+        return true;
+    }
+    // a direct local / parameter / member lvalue
+    std::string perr;
+    const PlaceId place = resolve_place_or_lower(t, perr);
+    if (place != MIR_INVALID_ID) {
+        const TypeId pt = builder_->function().places[place].type;
+        out = MIROperand::place(place, pt);
+        return true;
+    }
+    // fall back to its address (field / index lvalues)
+    MIRExprResult a = lower_address_of(t, error);
+    if (a.ok() && (a.kind == MIRExprKind::Value || a.kind == MIRExprKind::Address)) {
+        out = MIROperand::value(static_cast<ValueId>(a.id), a.type);
+        return true;
+    }
+    error = "unsupported inline asm operand: " + perr;
+    return false;
+}
+
 bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
     if (!node) return true;
 
@@ -2095,6 +2136,43 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
         case ASTNodeKind::UnsafeBlock: {
             auto* u = node->as_unsafe_block_unsafe();
             return lower_scope_nodes(u->scope.nodes, error);
+        }
+        case ASTNodeKind::InlineAsmStmt: {
+            auto* ia = node->as_inline_asm_unsafe();
+            std::vector<MIROperand> ops;
+            const ConstantId tmpl = module_.constants.add_string(
+                MIR_INVALID_ID, ia->asm_template.data(),
+                static_cast<uint32_t>(ia->asm_template.size()));
+            ops.push_back(MIROperand::constant(tmpl, MIR_INVALID_ID));
+            auto count_const = [&](size_t n) {
+                const ConstantId c =
+                    module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(n));
+                return MIROperand::constant(c, MIR_INVALID_ID);
+            };
+            auto emit_section = [&](std::vector<AsmOperand>& list) -> bool {
+                ops.push_back(count_const(list.size()));
+                for (AsmOperand& op : list) {
+                    const ConstantId cc = module_.constants.add_string(
+                        MIR_INVALID_ID, op.constraint.data(),
+                        static_cast<uint32_t>(op.constraint.size()));
+                    ops.push_back(MIROperand::constant(cc, MIR_INVALID_ID));
+                    MIROperand o;
+                    if (!lower_asm_operand(op.expr, o, error)) return false;
+                    ops.push_back(o);
+                }
+                return true;
+            };
+            if (!emit_section(ia->output_operands)) return false;
+            if (!emit_section(ia->input_operands)) return false;
+            ops.push_back(count_const(ia->clobbers.size()));
+            for (chem::string_view& cl : ia->clobbers) {
+                const ConstantId cc = module_.constants.add_string(
+                    MIR_INVALID_ID, cl.data(), static_cast<uint32_t>(cl.size()));
+                ops.push_back(MIROperand::constant(cc, MIR_INVALID_ID));
+            }
+            builder_->emit(MIROpcode::InlineAsm, MIR_NULL, ops.data(),
+                           static_cast<uint32_t>(ops.size()));
+            return true;
         }
         default:
             error = "unsupported statement kind during MIR lowering (kind " +

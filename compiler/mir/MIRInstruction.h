@@ -89,7 +89,15 @@ enum class MIROpcode : uint16_t {
     // Allocate the coroutine frame. result: value(frame*); operand: Type(frame)
     AsyncFrameAlloc = 47,
 
-    Count = 48,
+    // Inline assembly statement. operands: Constant(template string),
+    // Constant(output_count), then per output [Constant(constraint), Place|Value],
+    // Constant(input_count), then per input [Constant(constraint), Place|Value],
+    // Constant(clobber_count), then per clobber Constant(clobber string).
+    // A Place operand is spelled by name; a Value operand is a pointer and is
+    // spelled `*<value>` (used for `"...m"(*ptr)` memory operands).
+    InlineAsm = 48,
+
+    Count = 49,
 };
 
 /** fixed opcode effects/attributes (see mir-design.md §4.6) */

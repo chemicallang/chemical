@@ -125,6 +125,8 @@ private:
     bool lower_for(ForLoop* loop, std::string& error);
     bool lower_incdec_value(Value* target, bool increment, bool post, std::string& error,
                             ValueId& out);
+    /** Lower an inline-asm operand to a Place or a pointer Value (`*ptr`). */
+    bool lower_asm_operand(Value* expr, MIROperand& out, std::string& error);
     PlaceId resolve_place(Value* v, std::string& error);
     /** Like resolve_place, but also lowers call results to their temporary place. */
     PlaceId resolve_place_or_lower(Value* v, std::string& error);

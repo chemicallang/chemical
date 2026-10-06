@@ -95,6 +95,10 @@ uint16_t opcode_flags(MIROpcode op) {
         case MIROpcode::Throw:
             return OF_Terminator | OF_MayThrow;
 
+        case MIROpcode::InlineAsm:
+            // inline assembly may read/write arbitrary memory and is a barrier
+            return OF_Volatile | OF_Read | OF_Write | OF_Call | OF_MayThrow;
+
         case MIROpcode::Count:
             return 0;
     }
@@ -147,6 +151,7 @@ const char* opcode_name(MIROpcode op) {
         case MIROpcode::Return: return "return";
         case MIROpcode::Unreachable: return "unreachable";
         case MIROpcode::Throw: return "throw";
+        case MIROpcode::InlineAsm: return "inline_asm";
         case MIROpcode::Count: return "<count>";
     }
     return "<unknown>";
@@ -168,6 +173,7 @@ MIRPortability opcode_portability(MIROpcode op) {
         case MIROpcode::Param:
         case MIROpcode::Call:
         case MIROpcode::CallIndirect:
+        case MIROpcode::InlineAsm:
             return MIRPortability::NativeOnly;
         case MIROpcode::SizeOf:
         case MIROpcode::AlignOf:

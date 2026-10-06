@@ -1013,6 +1013,85 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                        " };\n        return;\n";
                 break;
             }
+            case MIROpcode::InlineAsm: {
+                uint32_t i = 0;
+                const MIROperand* tmpl = operand_at(function, inst, i++);
+                if (!tmpl) { error = "inline_asm missing template"; return false; }
+                std::string tmpl_s;
+                if (!constant_string(module, tmpl->id, tmpl_s)) {
+                    error = "inline_asm invalid template";
+                    return false;
+                }
+                auto read_count = [&](uint32_t& n) -> bool {
+                    const MIROperand* c = operand_at(function, inst, i++);
+                    if (!c || c->kind() != MIROperandKind::Constant ||
+                        c->id >= module.constants.size()) {
+                        return false;
+                    }
+                    n = static_cast<uint32_t>(module.constants.get(c->id).bits);
+                    return true;
+                };
+                auto read_string = [&](std::string& s) -> bool {
+                    const MIROperand* c = operand_at(function, inst, i++);
+                    if (!c || c->kind() != MIROperandKind::Constant) return false;
+                    return constant_string(module, c->id, s);
+                };
+                auto write_operand = [&](std::string& s) -> bool {
+                    const MIROperand* o = operand_at(function, inst, i++);
+                    if (!o) return false;
+                    if (o->kind() == MIROperandKind::Place) {
+                        s = place_name(module, function, o->id);
+                        return true;
+                    }
+                    if (o->kind() == MIROperandKind::Value) {
+                        s = "*" + vname(o->id);
+                        return true;
+                    }
+                    return false;
+                };
+                // the template keeps its source escapes (`\n`, `\t`), so write it raw
+                out += "__asm__ __volatile__(\"";
+                out += tmpl_s;
+                out += "\"";
+                uint32_t n_out = 0, n_in = 0, n_clob = 0;
+                out += " : ";
+                if (!read_count(n_out)) { error = "inline_asm bad output count"; return false; }
+                for (uint32_t k = 0; k < n_out; ++k) {
+                    if (k) out += ", ";
+                    std::string con, expr;
+                    if (!read_string(con) || !write_operand(expr)) {
+                        error = "inline_asm bad output operand";
+                        return false;
+                    }
+                    out += "\"" + con + "\"(" + expr + ")";
+                }
+                out += " : ";
+                if (!read_count(n_in)) { error = "inline_asm bad input count"; return false; }
+                for (uint32_t k = 0; k < n_in; ++k) {
+                    if (k) out += ", ";
+                    std::string con, expr;
+                    if (!read_string(con) || !write_operand(expr)) {
+                        error = "inline_asm bad input operand";
+                        return false;
+                    }
+                    out += "\"" + con + "\"(" + expr + ")";
+                }
+                if (!read_count(n_clob)) { error = "inline_asm bad clobber count"; return false; }
+                if (n_clob > 0) {
+                    out += " : ";
+                    for (uint32_t k = 0; k < n_clob; ++k) {
+                        if (k) out += ", ";
+                        std::string con;
+                        if (!read_string(con)) {
+                            error = "inline_asm bad clobber";
+                            return false;
+                        }
+                        out += "\"" + con + "\"";
+                    }
+                }
+                out += ");\n";
+                break;
+            }
             default:
                 error = std::string("C emitter: unsupported opcode '") +
                         opcode_name(inst.opcode()) + "' (straight-line subset only)";

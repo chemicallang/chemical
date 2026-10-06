@@ -19,6 +19,15 @@
 
 #include <initializer_list>
 
+// glibc exposes `alloca` as a function-like macro (pulled in by <alloca.h> via
+// <stdlib.h>), which collides with the `MIRBuilder::alloca` method declared
+// below. Nothing in the MIR code uses libc `alloca`, so drop the macro for this
+// translation unit. (MSVC defines it in <malloc.h>; not including it there is
+// why this only surfaced on Linux.)
+#ifdef alloca
+#undef alloca
+#endif
+
 namespace mir {
 
 class MIRBuilder {

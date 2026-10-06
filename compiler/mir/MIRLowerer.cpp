@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "ast/base/BaseType.h"
+#include "ast/types/GenericType.h"
 #include "ast/base/Value.h"
 #include "ast/utils/Operation.h"
 #include "ast/values/IntNumValue.h"
@@ -276,6 +277,62 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
             conv_type = param_type->as_reference_type()->type;
         } else if (param_type->kind() == BaseTypeKind::Pointer) {
             conv_type = param_type->as_pointer_type()->type;
+        }
+    }
+    // an untyped constructor call for the parameter's own type
+    // (`std::string_view("...")`): the callee identifier may not be linked, so
+    // match its name against the parameter type and construct directly.
+    if (conv_type && arg && arg->val_kind() == ValueKind::FunctionCall) {
+        auto* acall = arg->as_func_call_unsafe();
+        std::string cname;
+        bool have = false;
+        if (acall->parent_val) {
+            if (acall->parent_val->val_kind() == ValueKind::Identifier) {
+                auto* id = acall->parent_val->as_identifier_unsafe();
+                cname.assign(id->value.data(), id->value.size());
+                have = true;
+            } else if (acall->parent_val->val_kind() == ValueKind::AccessChain) {
+                auto* ch = acall->parent_val->as_access_chain_unsafe();
+                std::string e;
+                if (!ch->values.empty() && member_name(ch->values.back(), cname, e)) have = true;
+            }
+        }
+        ASTNode* ln = conv_type->get_direct_linked_canonical_node();
+        if (!ln) ln = conv_type->get_direct_linked_node();
+        if ((!ln || ln->kind() != ASTNodeKind::StructDecl) &&
+            conv_type->kind() == BaseTypeKind::Generic) {
+            if (auto* g = conv_type->as_generic_type()) {
+                if (g->referenced) {
+                    ln = g->referenced->get_direct_linked_canonical_node();
+                    if (!ln) ln = g->referenced->get_direct_linked_node();
+                }
+            }
+        }
+        if (have && ln && ln->kind() == ASTNodeKind::StructDecl) {
+            auto* sd = ln->as_struct_def_unsafe();
+            if (sd->name_view() ==
+                chem::string_view(cname.data(), static_cast<unsigned>(cname.size()))) {
+                FunctionDeclaration* ctor = sd->constructor_func(acall->values);
+                if (!ctor && acall->values.empty()) ctor = conv_type->get_def_constructor();
+                const TypeId mt = types_.map(conv_type);
+                const PlaceId tmp = builder_->alloca(mt, MIRStorageClass::Temporary);
+                std::vector<MIROperand> cargs;
+                if (!lower_call_args_for(ctor, true, acall->values, cargs, error)) {
+                    return MIRExprResult::error();
+                }
+                if (ctor && !append_default_args(ctor, acall->values.size(), true, cargs, error)) {
+                    return MIRExprResult::error();
+                }
+                if (ctor && ctor->is_comptime() && comptime_eval_) {
+                    Value* ev = comptime_eval_(acall, ctor);
+                    if (ev) return lower_expr(ev, error);
+                }
+                if (ctor) {
+                    const SymbolId sym = intern_function(ctor);
+                    builder_->init(tmp, sym, cargs.data(), static_cast<uint32_t>(cargs.size()));
+                }
+                return MIRExprResult::place(tmp, mt);
+            }
         }
     }
     if (conv_type) {

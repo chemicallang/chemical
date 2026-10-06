@@ -15,6 +15,10 @@ func set_raw_access_y(p : *mut RawAccessPoint, val : int) {
     p.y = val
 }
 
+func read_char_ptr(p : *char) : int {
+    return p[0] as int
+}
+
 func test_addr_of_member_access() {
 
     // --- &raw struct member access ---
@@ -149,5 +153,60 @@ func test_addr_of_member_access() {
         var i : int = 0
         var j : int = 2
         return (&raw arr[i]).x + (&raw arr[j]).y == 201
+    })
+
+    // --- &raw on a *scalar* array element yields the element address ---
+
+    test("&raw char array element passed to function works", () => {
+        var buf : [8]char
+        buf[0] = 'A'
+        buf[1] = '\0'
+        return read_char_ptr(&raw buf[0]) == ('A' as int)
+    })
+
+    test("&raw char array element with variable index passed to function works", () => {
+        var buf : [8]char
+        buf[0] = 'x'
+        buf[1] = 'y'
+        buf[2] = '\0'
+        var i : int = 1
+        return read_char_ptr(&raw buf[i]) == ('y' as int)
+    })
+
+    test("&raw char array element address stored in a pointer works", () => {
+        var buf : [8]char
+        buf[0] = 'Q'
+        var p = &raw buf[0]
+        return p[0] == 'Q'
+    })
+
+    test("&mut char array element address is writable", () => {
+        var buf : [8]char
+        var p = &mut buf[0]
+        *p = 'Z'
+        return buf[0] == 'Z'
+    })
+
+    test("&raw int array element address dereferences to the element", () => {
+        var nums : [4]int
+        nums[0] = 10
+        nums[1] = 20
+        nums[2] = 30
+        nums[3] = 40
+        var i : int = 2
+        var p = &raw nums[i]
+        return (*p) == 30
+    })
+
+    test("&mut int array element address writes through the pointer", () => {
+        var nums : [4]int
+        nums[0] = 1
+        nums[1] = 2
+        nums[2] = 3
+        nums[3] = 4
+        var i : int = 3
+        var p = &mut nums[i]
+        *p = 99
+        return nums[3] == 99
     })
 }

@@ -288,6 +288,15 @@ void IndexOperator::set_value(InterpretScope& scope, Value* rawValue, Operation 
     // Normalize integer values to the element's declared type (e.g. storing 300
     // into a `u8` element must truncate to 44), matching the compiled backends.
     newVal = scope.coerce_to_type(newVal, getType());
+    // Compound assignment (`arr[i] += x`): apply the operator to the current
+    // element before storing, matching the compiled backends.
+    if (op != Operation::Assignment) {
+        auto curVal = evaluated_value(scope);
+        if (curVal) {
+            newVal = scope.evaluate(op, curVal, newVal, location, this);
+            newVal = scope.coerce_to_type(newVal, getType());
+        }
+    }
 
     switch (parentEval->val_kind()) {
         case ValueKind::ArrayValue: {

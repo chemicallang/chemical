@@ -247,8 +247,8 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
             break;
         }
         case BaseTypeKind::String: {
-            // string surfaces as a pointer-like handle at the MIR level
-            id = pointer_like(MIRTypeKind::Pointer, void_type(), false);
+            // string literals are `char*` (matches the legacy backend)
+            id = pointer_type(char_type(), true);
             break;
         }
         case BaseTypeKind::Dynamic: {

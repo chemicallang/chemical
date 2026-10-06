@@ -145,6 +145,7 @@ public func run_common_tests() {
     test_name_hiding();
 
     test_destructors();
+    test_scope_block_destruction();
     test_continue_destruction()
     test_break_destruction()
     test_self_ref_destruct()
@@ -189,6 +190,7 @@ public func run_common_tests() {
     test_double_to_typealias_cast();
     test_access_chain_thru_ref();
     test_addr_of_member_access();
+    test_compound_assignment_targets();
 
     test_for_in()
     test_sizeof_alignof()

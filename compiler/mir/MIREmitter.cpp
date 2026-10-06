@@ -514,17 +514,32 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const bool ptr = p->kind() != MIROperandKind::Place;
                 const std::string base =
                     ptr ? operand_expr(function, module, *p) : pname(p->id);
+                const std::string access = base + (ptr ? "->" : ".") + fname;
                 const TypeId ft = function.values[v].type;
-                std::string decl;
                 if (ft < module.types.size() &&
                     module.types.get(ft).kind == MIRTypeKind::Array) {
                     const MIRTypeRecord& ar = module.types.get(ft);
-                    decl = declarator(module, ar.element, "(*" + vname(v) + ")") + "[" +
-                           std::to_string(ar.data_count) + "]";
+                    out += declarator(module, ar.element, "(*" + vname(v) + ")") + "[" +
+                           std::to_string(ar.data_count) + "] = &" + access + ";\n";
                 } else {
-                    decl = c_type_of(module, ft) + "* " + vname(v);
+                    // __typeof__ lets us take the address of a field whose type has
+                    // no spellable C name (anonymous structs/unions)
+                    out += "__typeof__(" + access + ")* " + vname(v) + " = &" + access + ";\n";
                 }
-                out += decl + " = &" + base + (ptr ? "->" : ".") + fname + ";\n";
+                break;
+            }
+            case MIROpcode::IndexAddr: {
+                const ValueId v = inst.result_or_place;
+                const MIROperand* b = operand_at(function, inst, 0);
+                const MIROperand* idx = operand_at(function, inst, 1);
+                if (!b || !idx) { error = "index_addr missing operands"; return false; }
+                const std::string bexpr =
+                    (b->kind() == MIROperandKind::Place) ? pname(b->id)
+                                                         : operand_expr(function, module, *b);
+                const std::string access =
+                    bexpr + "[" + operand_expr(function, module, *idx) + "]";
+                // __typeof__ handles element types with no spellable C name
+                out += "__typeof__(" + access + ")* " + vname(v) + " = &" + access + ";\n";
                 break;
             }
             case MIROpcode::AddressOf: {

@@ -10,9 +10,11 @@ the release compiler must stay under 4 MB.
 
 ## Current status (latest commit)
 
-**The main test suite is green: `./scripts/test.sh --tcc` -> 2234 passed, 0
-failed.** `MIRTests` is green (1049 checks). `cstd`, `std`, `lab`, all
-libraries and all module build scripts translate through MIR.
+**All suites are green: `./scripts/test.sh --tcc` -> 2252 passed, 0 failed;
+`./scripts/test.sh --tcc --interpret` -> 1864 passed, 0 failed;
+`./scripts/test.sh --tcc --libs` -> 719 passed, 0 failed.** `MIRTests` is green
+(1049 checks). `cstd`, `std`, `lab`, all libraries and all module build scripts
+translate through MIR.
 
 MIR owns the bodies of top-level `FunctionDeclaration`s. Declarations and
 non-function top-level nodes still go through the legacy visitor (temporary
@@ -139,9 +141,37 @@ uses the name pool, not layout. Needed before LLVM lowering.
   cannot take `= {0}`.
 - **`memset` conflicts with cstd's `extern void* memset(...)`** — do not emit a
   call to `memset`; use an inline zero loop.
-- **Compound assignment on struct fields** must load/apply/store.
-- **Scope-based destruction**: `lower_scope` drops the destructibles it created;
-  `return` drops all outstanding; `lower_function` drops the rest.
+- **Compound assignment on struct fields** must load/apply/store. The same is true
+  for **index and dereference targets** (`arr[i] += x`, `p[i] *= y`, `*p += z`):
+  they must load the current element/pointee, apply the operator and store.
+  (MIR used to store the RHS directly, so `p[0] += 4` emitted `p[0] = 4`.)
+- **`&raw arr[i]` / `&mut p[i]`** is the *element address*, not a load of the
+  element. Lower it through `index_addr` / `index_addr_ptr` (`&base[i]`), which the
+  emitter spells with `__typeof__`. `lower_address_of` must intercept
+  `IndexOperator`, not fall through to `lower_expr`.
+- **Blocks are scopes**: `ASTNodeKind::Block` / `Scope` / `UnsafeBlock` must lower
+  their statements as a scope and destroy the locals declared inside them
+  (`lower_scope_nodes`), not as a plain statement list.
+- **Static method references** (`Type::method`, e.g. `CSSParser::parseMargin`):
+  when the base links to a type and the leaf links to a `FunctionDecl`, lower the
+  leaf to a function pointer (`function_addr`), even for methods with a `self`
+  param. Do not take the address of the type name.
+- **Qualified module constants** (`std::NPOS`): when the chain leaf links to a
+  `VarInitStmt`, resolve the leaf directly (comptime constants inline).
+- **String literals are `char*`** (matching the legacy `VisitStringType`), so
+  `hex[i]` indexing a literal works. Do not map `BaseTypeKind::String` to `void*`.
+- **Anonymous structs/unions**: a field whose type has no spellable C name (e.g.
+  `union { ... } value;`) must be addressed with `__typeof__(base.field)* v =
+  &base.field;` in `FieldAddr`/`IndexAddr` (TinyCC supports `__typeof__`).
+- **Chain walker intermediate pointer fields**: `a.b.c` where `b` is a pointer
+  field must dereference (`a.b->c`), not take `&a.b` and treat it as a struct
+  pointer. Load the field address when the field type is Pointer/Reference.
+- **Default arguments** must go through `lower_arg_converted` with the parameter
+  type, so implicit constructors run (`path : string_view = ""` must materialize a
+  `string_view` temp and pass its address, not pass the raw `""`).
+- **Scope-based destruction**: `lower_scope`/`lower_scope_nodes` drops the
+  destructibles it created; `return` drops all outstanding; `lower_function` drops
+  the rest.
 
 ## Invariants to preserve
 

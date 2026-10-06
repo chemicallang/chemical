@@ -165,7 +165,8 @@ private:
                          std::string& error);
     bool lower_call_args_for(FunctionDeclaration* fd, bool self_included,
                              const std::vector<Value*>& values, std::vector<MIROperand>& args,
-                             std::string& error);
+                             std::string& error,
+                             const std::vector<BaseType*>* extra_params = nullptr);
     MIRExprResult lower_arg_converted(Value* arg, BaseType* param_type, std::string& error);
     bool push_call_arg(MIRExprResult r, std::vector<MIROperand>& args, std::string& error);
     void destroy_call_temps(std::string& error);

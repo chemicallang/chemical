@@ -454,12 +454,15 @@ bool MIRLowerer::lower_call_args(const std::vector<Value*>& values,
 
 bool MIRLowerer::lower_call_args_for(FunctionDeclaration* fd, bool self_included,
                                      const std::vector<Value*>& values,
-                                     std::vector<MIROperand>& args, std::string& error) {
+                                     std::vector<MIROperand>& args, std::string& error,
+                                     const std::vector<BaseType*>* extra_params) {
     const size_t offset = self_included ? 1 : 0;
     for (size_t i = 0; i < values.size(); ++i) {
         BaseType* param_type = nullptr;
         if (fd && i + offset < fd->params.size()) {
             param_type = fd->params[i + offset]->type;
+        } else if (!fd && extra_params && i + offset < extra_params->size()) {
+            param_type = (*extra_params)[i + offset];
         }
         MIRExprResult r = lower_arg_converted(values[i], param_type, error);
         if (!r.ok()) return false;
@@ -489,10 +492,14 @@ bool MIRLowerer::lower_call_args_for(FunctionDeclaration* fd, bool self_included
             const bool by_value =
                 !(param_type && (param_type->kind() == BaseTypeKind::Reference ||
                                  param_type->kind() == BaseTypeKind::Pointer));
+            const bool known_param = param_type != nullptr;
             if (vk == ValueKind::StructValue || vk == ValueKind::FunctionCall) {
                 BaseType* at = v0->getType();
-                // only temporaries passed by reference are owned by the caller
-                if (at && !by_value) call_temps_.emplace_back(static_cast<PlaceId>(r.id), at);
+                // when the parameter type is unknown (an indirect/function-pointer
+                // call) conservatively treat a temporary as caller-owned
+                if (at && (!by_value || !known_param)) {
+                    call_temps_.emplace_back(static_cast<PlaceId>(r.id), at);
+                }
             } else if (vk == ValueKind::Identifier && by_value) {
                 // a local passed by value is moved out
                 mark_moved(static_cast<PlaceId>(r.id));
@@ -1803,6 +1810,28 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         return MIRExprResult::error();
                     }
                     const TypeId ft = builder_->function().places[fp].type;
+                    // AST parameter types of the function pointer (to know which
+                    // arguments are by-value vs by-reference)
+                    std::vector<BaseType*> ast_params;
+                    {
+                        BaseType* fp_ast = nullptr;
+                        if (linked_fn) {
+                            if (linked_fn->kind() == ASTNodeKind::FunctionParam) {
+                                fp_ast = linked_fn->as_func_param_unsafe()->type;
+                            } else if (linked_fn->kind() == ASTNodeKind::VarInitStmt) {
+                                fp_ast = linked_fn->as_var_init()->known_type();
+                            }
+                        }
+                        if (!fp_ast && call->parent_val) fp_ast = call->parent_val->getType();
+                        if (fp_ast) {
+                            FunctionType* ft_ast = fp_ast->canonical()->get_canonical_function_type();
+                            if (ft_ast) {
+                                for (FunctionParam* p : ft_ast->params) {
+                                    ast_params.push_back(p ? p->type : nullptr);
+                                }
+                            }
+                        }
+                    }
                     if (ft != MIR_INVALID_ID && ft < module_.types.size()) {
                         const MIRTypeRecord& ftr = module_.types.get(ft);
                         const MIRTypeRecord* eff = &ftr;
@@ -1820,7 +1849,10 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     const ValueId fnptr = builder_->load(fp, ft);
                     std::vector<MIROperand> cargs;
                     const size_t cmark = call_temps_.size();
-                    if (!lower_call_args(call->values, cargs, error)) return MIRExprResult::error();
+                    if (!lower_call_args_for(nullptr, false, call->values, cargs, error,
+                                             &ast_params)) {
+                        return MIRExprResult::error();
+                    }
                     const TypeId rt = types_.map(call->getType());
                     if (is_void_type(module_, rt)) {
                         builder_->call_indirect(fnptr, rt, cargs.data(), static_cast<uint32_t>(cargs.size()));

@@ -1578,15 +1578,23 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     builder_->field_store(temp, tag_fc, tag);
                     size_t ai = 0;
                     for (auto& entry : vm->values) {
-                        if (ai >= call->values.size()) break;
                         VariantMemberParam* param = entry.second;
+                        Value* arg = nullptr;
+                        if (ai < call->values.size()) {
+                            arg = call->values[ai];
+                            ai++;
+                        } else if (param) {
+                            // an omitted parameter with a default value
+                            arg = param->def_value;
+                        }
+                        if (!arg) continue;
                         const std::string mname(vm->name.data(), vm->name.size());
                         const std::string pname(entry.first.data(), entry.first.size());
                         const std::string fname = mname + "." + pname;
                         const ConstantId fc = module_.constants.add_string(
                             MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
                         MIRExprResult r = lower_arg_converted(
-                            call->values[ai], param ? param->type : nullptr, error);
+                            arg, param ? param->type : nullptr, error);
                         if (!r.ok()) return r;
                         if (r.kind == MIRExprKind::Place) {
                             builder_->field_store_place(temp, fc, static_cast<PlaceId>(r.id));
@@ -1598,7 +1606,6 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         } else {
                             builder_->field_store(temp, fc, static_cast<ValueId>(r.id));
                         }
-                        ai++;
                     }
                     return MIRExprResult::place(temp, vt);
                 }

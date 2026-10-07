@@ -6393,7 +6393,21 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
     if (needs_sret_return(module_, crt)) {
         const PlaceId tmp = builder_->alloca(crt, MIRStorageClass::Temporary);
         builder_->zero_init(tmp);
-        builder_->call_indirect_sret(cfn, tmp, cargs.data(), static_cast<uint32_t>(cargs.size()));
+        // the legacy capturing-function ABI is `(this, sret, params)`, so the
+        // sret pointer is a regular leading argument after the data pointer
+        const TypeId sptr_t = types_.pointer_type(crt, true);
+        std::vector<TypeId> stypes;
+        stypes.push_back(vpt);
+        stypes.push_back(sptr_t);
+        for (size_t i = 1; i < cargs.size(); ++i) stypes.push_back(cargs[i].type());
+        const TypeId sftype = types_.function_signature(types_.void_type(), stypes);
+        const ValueId scfn = builder_->cast(fnptr, sftype);
+        std::vector<MIROperand> sargs;
+        sargs.push_back(cargs[0]);
+        sargs.push_back(MIROperand::value(builder_->address_of(tmp, sptr_t), sptr_t));
+        for (size_t i = 1; i < cargs.size(); ++i) sargs.push_back(cargs[i]);
+        builder_->call_indirect(scfn, types_.void_type(), sargs.data(),
+                                static_cast<uint32_t>(sargs.size()));
         destroy_call_temps_from(ccap, error);
         return MIRExprResult::place(tmp, crt);
     }
@@ -6449,12 +6463,14 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     ddef += "}\n";
     lambda_defs_.push_back(ddef);
 
-    // 3. the lambda function: `ret <lname>(void* this, <params>)`
+    // 3. the lambda function: `ret <lname>(void* this, <sret?>, <params>)`
+    //    (matches the legacy capturing-function ABI: the hidden data pointer
+    //    comes before the sret pointer)
     const TypeId ret = lamb->returnType ? types_.map(lamb->returnType) : types_.void_type();
     const bool l_sret = needs_sret_return(module_, ret);
     std::vector<TypeId> ptypes;
-    if (l_sret) ptypes.push_back(types_.pointer_type(ret, true));
     ptypes.push_back(void_ptr);
+    if (l_sret) ptypes.push_back(types_.pointer_type(ret, true));
     for (FunctionParam* p : lamb->params) {
         TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
         if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
@@ -6522,13 +6538,13 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     sret_ = l_sret;
     sret_ret_type_ = ret;
     return_type_ = lamb->returnType;
+
+    bool ok = true;
+    const ValueId this_v = b.param(void_ptr);
     if (l_sret) {
         sret_ptr_type_ = types_.pointer_type(ret, true);
         sret_ptr_ = b.param(sret_ptr_type_);
     }
-
-    bool ok = true;
-    const ValueId this_v = b.param(void_ptr);
     const TypeId cap_ptr_t = types_.pointer_type(cap_type, true);
     lambda_closure_ptr_ = b.cast(this_v, cap_ptr_t);
     lambda_closure_type_ = cap_type;
@@ -6676,8 +6692,8 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     const TypeId void_ptr_t = types_.pointer_type(types_.void_type(), true);
 
     std::vector<TypeId> ptypes;
-    if (l_sret) ptypes.push_back(types_.pointer_type(ret, true));
     if (needs_this) ptypes.push_back(void_ptr_t);
+    if (l_sret) ptypes.push_back(types_.pointer_type(ret, true));
     for (FunctionParam* p : lamb->params) {
         TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
         if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
@@ -6742,14 +6758,13 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     sret_ = l_sret;
     sret_ret_type_ = ret;
     return_type_ = lamb->returnType;
-    if (l_sret) {
-        sret_ptr_type_ = types_.pointer_type(ret, true);
-        sret_ptr_ = b.param(sret_ptr_type_);
-    }
-
     if (needs_this) {
         // consume the hidden data-pointer parameter (unused: no captures)
         b.param(void_ptr_t);
+    }
+    if (l_sret) {
+        sret_ptr_type_ = types_.pointer_type(ret, true);
+        sret_ptr_ = b.param(sret_ptr_type_);
     }
 
     bool ok = true;

@@ -65,6 +65,18 @@ public:
         return intern(r);
     }
 
+    /** A sized array type `[count]element`. */
+    TypeId sized_array_type(TypeId element, uint32_t count) {
+        MIRTypeRecord r;
+        r.kind = MIRTypeKind::Array;
+        r.element = element;
+        r.data_count = count;
+        const MIRTypeRecord& elem = module_.types.get(element);
+        r.size = static_cast<uint32_t>(elem.size * count);
+        r.alignment = elem.alignment;
+        return intern(r);
+    }
+
     /** Unsigned 32-bit integer type (loop indices, array indices). */
     TypeId u32_type() { return int_type(false, 32); }
 

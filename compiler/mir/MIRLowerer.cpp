@@ -2428,11 +2428,33 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         }
         case ValueKind::ArrayValue: {
             auto* arr = value->as_array_value_unsafe();
-            const TypeId at = type;
+            TypeId at = type;
+            bool decay = false;
+            TypeId elem_t = MIR_INVALID_ID;
+            // an empty literal `[]` in a pointer context is a null pointer
+            if (arr->values.empty() && at != MIR_INVALID_ID && at < module_.types.size() &&
+                (module_.types.get(at).kind == MIRTypeKind::Pointer ||
+                 module_.types.get(at).kind == MIRTypeKind::Reference)) {
+                const ConstantId c = module_.constants.add_int(at, 0);
+                return MIRExprResult::value(builder_->const_null(at, c), at);
+            }
             if (at == MIR_INVALID_ID || at >= module_.types.size() ||
                 module_.types.get(at).kind != MIRTypeKind::Array) {
-                error = "array literal without an array type";
-                return MIRExprResult::error();
+                // an unsized array literal (`const x = [...]`, a pointer context)
+                // decays to a pointer to its first element: build a sized array
+                // temporary for the literal and return its address
+                BaseType* elem_bt = arr->known_elem_type();
+                if (elem_bt) elem_t = types_.map(elem_bt);
+                if (elem_t == MIR_INVALID_ID ||
+                    static_cast<uint32_t>(arr->values.size()) == 0) {
+                    error = "array literal without an array type (at=" +
+                            std::to_string(at) + ", elems=" +
+                            std::to_string(arr->values.size()) + ")";
+                    return MIRExprResult::error();
+                }
+                at = types_.sized_array_type(elem_t,
+                                             static_cast<uint32_t>(arr->values.size()));
+                decay = true;
             }
             const PlaceId place = builder_->alloca(at, MIRStorageClass::Temporary);
             // zero the array so elements not covered by the literal are 0
@@ -2465,6 +2487,10 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 const ValueId idx = builder_->const_int(
                     ut, module_.constants.add_int(ut, static_cast<uint64_t>(i)));
                 builder_->element_store(place, idx, val);
+            }
+            if (decay) {
+                const TypeId ptrt = types_.pointer_type(elem_t, true);
+                return MIRExprResult::value(builder_->address_of(place, ptrt), ptrt);
             }
             return MIRExprResult::place(place, at);
         }

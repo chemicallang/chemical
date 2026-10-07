@@ -856,6 +856,31 @@ void MIRDeclEmitter::vtable_type_name(BufferedWriter& w, InterfaceDefinition* in
     w.append("_vt_t", 5);
 }
 
+std::string MIRDeclEmitter::vtable_slot_type(FunctionDeclaration* func, const std::string& name) {
+    FunctionParam* self = func->get_self_param();
+    TypeId ret = func->returnType ? types_.map(func->returnType) : types_.void_type();
+    const bool sret = needs_sret(module_, ret);
+    std::vector<TypeId> ptypes;
+    // vtable slots are called as `fn(void* self, ...)`; the interface's `self`
+    // is an opaque pointer regardless of the concrete impl.
+    if (self) ptypes.push_back(types_.pointer_type(types_.void_type(), true));
+    if (sret) ptypes.push_back(types_.pointer_type(ret, true));
+    bool skipped_self = false;
+    for (FunctionParam* p : func->params) {
+        if (p == self && !skipped_self) { skipped_self = true; continue; }
+        TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
+        if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
+            pt = types_.pointer_type(module_.types.get(pt).element, true);
+        } else if (needs_aggregate(module_, pt)) {
+            pt = types_.pointer_type(pt, true);
+        }
+        ptypes.push_back(pt);
+    }
+    TypeId stype = types_.function_signature(sret ? types_.void_type() : ret, ptypes,
+                                             func->isVariadic());
+    return c_decl_type(module_, stype, name);
+}
+
 void MIRDeclEmitter::vtable_name(BufferedWriter& w, InterfaceDefinition* interface,
                                  ExtendableMembersContainerNode* def) {
     mangler_.mangle_vtable_name(w, interface, def);
@@ -875,29 +900,8 @@ void MIRDeclEmitter::create_vtable_type(BufferedWriter& w, InterfaceDefinition* 
         }
         for (FunctionDeclaration* func : iface->instantiated_functions()) {
             w.append_char('\n');
-            FunctionParam* self = func->get_self_param();
-            TypeId ret = func->returnType ? types_.map(func->returnType) : types_.void_type();
-            const bool sret = needs_sret(module_, ret);
-            std::vector<TypeId> ptypes;
-            // vtable slots are called as `fn(void* self, ...)`; the interface's
-            // `self` is an opaque pointer regardless of the concrete impl.
-            if (self) ptypes.push_back(types_.pointer_type(types_.void_type(), true));
-            if (sret) ptypes.push_back(types_.pointer_type(ret, true));
-            bool skipped_self = false;
-            for (FunctionParam* p : func->params) {
-                if (p == self && !skipped_self) { skipped_self = true; continue; }
-                TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
-                if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
-                    pt = types_.pointer_type(module_.types.get(pt).element, true);
-                } else if (needs_aggregate(module_, pt)) {
-                    pt = types_.pointer_type(pt, true);
-                }
-                ptypes.push_back(pt);
-            }
-            TypeId stype = types_.function_signature(sret ? types_.void_type() : ret, ptypes,
-                                                     func->isVariadic());
             const std::string slot = std::string(func->name_view().data(), func->name_view().size());
-            w << c_decl_type(module_, stype, slot);
+            w << vtable_slot_type(func, slot);
             w.append_char(';');
         }
     };
@@ -951,6 +955,9 @@ void MIRDeclEmitter::create_vtable(BufferedWriter& w, InterfaceDefinition* inter
                 name = mangle_name(func);
                 iface->active_user = prev;
             }
+            w.append_char('(');
+            w << vtable_slot_type(func, "");
+            w.append(") ", 2);
             w << name;
             w.append_char(',');
         }

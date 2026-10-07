@@ -1961,6 +1961,45 @@ bool mir_translate_after_declaration(
         visitor.writer.append(c.data(), c.size());
         return true;
     };
+    // Lower an interface implementation: overridden methods and the interface's
+    // default methods through MIR, then emit the vtable definition.
+    std::function<bool(ImplDefinition*)> lower_impl = [&](ImplDefinition* impl) -> bool {
+        if (!impl) return false;
+        InterfaceDefinition* iface = impl->interface_type
+            ? impl->interface_type->get_direct_linked_interface() : nullptr;
+        if (iface && iface->is_static()) return false;
+        ExtendableMembersContainerNode* for_decl = nullptr;
+        if (impl->struct_type) {
+            auto* mc = impl->struct_type->get_members_container();
+            if (mc) for_decl = mc->as_extendable_members_container_unsafe();
+        }
+        if (!for_decl) return false; // primitive impls: keep the legacy path
+        ExtendableMembersContainerNode* prev = iface ? iface->active_user : nullptr;
+        for (ASTNode* m : impl->evaluated_nodes()) {
+            if (!m || m->kind() != ASTNodeKind::FunctionDecl) continue;
+            if (iface) iface->active_user = for_decl;
+            const bool ok = lower_and_emit(m->as_function_unsafe());
+            if (iface) iface->active_user = prev;
+            if (!ok) {
+                visitor.top_level_position = visitor.writer.getPosition();
+                visitor.visit(m);
+            }
+        }
+        if (iface) {
+            for (FunctionDeclaration* func : iface->instantiated_functions()) {
+                if (impl->contains_direct_func(func->name_view())) continue;
+                iface->active_user = for_decl;
+                const bool ok = lower_and_emit(func);
+                iface->active_user = prev;
+                if (!ok) {
+                    visitor.top_level_position = visitor.writer.getPosition();
+                    visitor.visit(func);
+                }
+            }
+            decl_emitter.implement(visitor.writer, impl);
+        }
+        return true;
+    };
     // Lower the methods of a struct/union/variant container (its
     // `evaluated_nodes`), falling back to the legacy visitor for any child that
     // is not a MIR-lowered function.
@@ -1969,6 +2008,10 @@ bool mir_translate_after_declaration(
         for (ASTNode* child : def->evaluated_nodes()) {
             if (child && child->kind() == ASTNodeKind::FunctionDecl &&
                 lower_and_emit(child->as_function_unsafe())) {
+                continue;
+            }
+            if (child && child->kind() == ASTNodeKind::ImplDecl &&
+                lower_impl(child->as_impl_def_unsafe())) {
                 continue;
             }
             visitor.top_level_position = visitor.writer.getPosition();
@@ -1990,6 +2033,8 @@ bool mir_translate_after_declaration(
                 decl_emitter.implement(visitor.writer, node);
                 continue;
             }
+        } else if (node->kind() == ASTNodeKind::ImplDecl) {
+            if (lower_impl(node->as_impl_def_unsafe())) continue;
         }
         visitor.top_level_position = visitor.writer.getPosition();
         visitor.visit(node);

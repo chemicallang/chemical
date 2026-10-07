@@ -441,6 +441,12 @@ ExtendableMembersContainerNode* MIRLowerer::receiver_user_container(BaseType* re
     if (!t) return nullptr;
     ASTNode* n = t->get_direct_linked_canonical_node();
     if (!n) return nullptr;
+    if (n->kind() == ASTNodeKind::InterfaceDecl) {
+        // inside a default method the receiver is the interface `self`; the
+        // emitted method belongs to the active impl struct
+        auto* iface = n->as_interface_def_unsafe();
+        if (iface->active_user && !iface->is_static()) return iface->active_user;
+    }
     return n->as_extendable_member_container();
 }
 

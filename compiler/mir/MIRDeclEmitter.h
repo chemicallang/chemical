@@ -109,6 +109,7 @@ private:
                             bool do_ref = false, bool do_ptr = false);
 
     // --- vtable helpers ---
+    std::string vtable_slot_type(FunctionDeclaration* func, const std::string& name);
     void vtable_type_name(BufferedWriter& w, InterfaceDefinition* interface);
     void vtable_name(BufferedWriter& w, InterfaceDefinition* interface,
                      ExtendableMembersContainerNode* def);

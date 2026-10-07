@@ -12,6 +12,8 @@
 #include "ast/types/CapturingFunctionType.h"
 #include "ast/types/StructType.h"
 #include "ast/structures/FunctionDeclaration.h"
+#include "ast/structures/InterfaceDefinition.h"
+#include "ast/base/ExtendableMembersContainerNode.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/LiteralType.h"
 #include "ast/types/MaybeRuntimeType.h"

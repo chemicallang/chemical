@@ -9,6 +9,7 @@
 #include "ast/types/ReferenceType.h"
 #include "ast/types/ArrayType.h"
 #include "ast/types/FunctionType.h"
+#include "ast/types/CapturingFunctionType.h"
 #include "ast/types/StructType.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/types/GenericType.h"
@@ -168,6 +169,11 @@ TypeId MIRTypeBuilder::function_type(BaseType* type) {
     r.element = ft->returnType ? map(ft->returnType) : void_type();
 
     uint32_t n = static_cast<uint32_t>(ft->params.size());
+    // variadic: the last parameter is the tail marker and is spelled as `...`
+    if (ft->isVariadic() && n > 0) {
+        n -= 1;
+        r.flags |= TF_VARIADIC;
+    }
     // params are mapped first into a temporary to avoid re-entrancy issues
     std::vector<TypeId> param_ids;
     param_ids.reserve(n);
@@ -198,12 +204,14 @@ TypeId MIRTypeBuilder::pointer_type(TypeId pointee, bool is_mutable) {
     return pointer_like(MIRTypeKind::Pointer, pointee, is_mutable);
 }
 
-TypeId MIRTypeBuilder::function_signature(TypeId return_type, const std::vector<TypeId>& params) {
+TypeId MIRTypeBuilder::function_signature(TypeId return_type, const std::vector<TypeId>& params,
+                                          bool variadic) {
     MIRTypeRecord r;
     r.kind = MIRTypeKind::Function;
     r.size = module_.layout.pointer_size;
     r.alignment = module_.layout.pointer_alignment;
     r.element = return_type;
+    if (variadic) r.flags |= TF_VARIADIC;
     uint32_t n = static_cast<uint32_t>(params.size());
     if (n) r.data_offset = module_.types.append_data(params.data(), n);
     r.data_count = n;
@@ -253,7 +261,15 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
         }
         case BaseTypeKind::Pointer: {
             auto* pt = type->as_pointer_type();
-            id = pointer_like(MIRTypeKind::Pointer, map(pt->type), pt->is_mutable);
+            TypeId pointee = map(pt->type);
+            // the legacy visitor decays an array pointee in type position
+            // (`*mut [32]u8` -> `uint8_t**`); match it so declarations and
+            // bodies agree
+            if (pointee != MIR_INVALID_ID && pointee < module_.types.size() &&
+                module_.types.get(pointee).kind == MIRTypeKind::Array) {
+                pointee = pointer_type(module_.types.get(pointee).element, true);
+            }
+            id = pointer_like(MIRTypeKind::Pointer, pointee, pt->is_mutable);
             break;
         }
         case BaseTypeKind::Reference: {
@@ -372,8 +388,13 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
             id = void_type();
             break;
         case BaseTypeKind::Function:
-        case BaseTypeKind::CapturingFunction:
             id = function_type(type);
+            break;
+        case BaseTypeKind::CapturingFunction:
+            // a capturing function type is spelled as its instance struct
+            // (matching the legacy `VisitCapturingFunctionType`), not a raw
+            // function pointer
+            id = map(type->as_capturing_func_type_unsafe()->instance_type);
             break;
         default:
             id = opaque_type();

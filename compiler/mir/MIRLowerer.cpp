@@ -7337,7 +7337,12 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
         }
             ptypes.push_back(pt);
         }
-        const TypeId ftype = types_.function_signature(sret_ ? types_.void_type() : ret, ptypes);
+        // a variadic function's last parameter is the tail marker, spelled `...`
+        if (decl->isVariadic() && !decl->params.empty()) {
+            ptypes.pop_back();
+        }
+        const TypeId ftype = types_.function_signature(sret_ ? types_.void_type() : ret, ptypes,
+                                                      decl->isVariadic());
         module_.symbols.symbols[func.symbol].type = ftype;
         func.function_type = ftype;
     }
@@ -7368,7 +7373,10 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     }
 
     // parameters: materialize an SSA param value, spill to a place, bind it
-    for (FunctionParam* p : decl->params) {
+    const size_t bind_param_count = (decl->isVariadic() && !decl->params.empty())
+        ? decl->params.size() - 1 : decl->params.size();
+    for (size_t pi = 0; pi < bind_param_count; ++pi) {
+        FunctionParam* p = decl->params[pi];
         const TypeId declared = p && p->type ? types_.map(p->type) : types_.opaque_type();
         const bool is_array = declared != MIR_INVALID_ID &&
                               module_.types.get(declared).kind == MIRTypeKind::Array;

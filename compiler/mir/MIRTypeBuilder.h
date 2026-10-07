@@ -35,7 +35,8 @@ public:
     TypeId map(BaseType* type);
 
     /** Build a function type from a return type and parameter type ids. */
-    TypeId function_signature(TypeId return_type, const std::vector<TypeId>& params);
+    TypeId function_signature(TypeId return_type, const std::vector<TypeId>& params,
+                              bool variadic = false);
 
     /** Create an opaque named struct type (e.g. a coroutine frame). */
     TypeId named_struct(const std::string& name) {

@@ -679,6 +679,7 @@ set(COMMON_SOURCES
         compiler/mir/MIRTypeBuilder.cpp
         compiler/mir/MIRLowerer.cpp
         compiler/mir/MIREmitter.cpp
+        compiler/mir/MIRDeclEmitter.cpp
 )
 
 # Chemical LSP Executable Target

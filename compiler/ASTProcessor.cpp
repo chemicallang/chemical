@@ -49,6 +49,8 @@
 #include "compiler/mir/MIRLowerer.h"
 #include "compiler/async/AwaitNormalizePass.h"
 #include "compiler/mir/MIREmitter.h"
+#include "compiler/mir/MIRDeclEmitter.h"
+#include "compiler/cbi/model/ASTBuilder.h"
 #include "compiler/mangler/NameMangler.h"
 
 #ifdef COMPILER_BUILD
@@ -1759,67 +1761,83 @@ void declare_type_aliases_in_c(ToCAstVisitor& c_visitor, ASTProcessor* proc, Lab
     }
 }
 
+namespace {
+std::string mir_mangle_name(NameMangler& mangler, ASTNode* decl);
+}
+
 int ASTProcessor::declare_module(
     ToCAstVisitor& c_visitor,
     LabModule* module
 ) {
 
+    // MIR-driven declaration pass. A throwaway MIR module/types is created here;
+    // aggregate names are derived deterministically from the mangler, so the
+    // implement pass (which owns its own MIR state) spells them identically.
+    mir::MIRModule decl_module;
+    mir::MIRTypeBuilder decl_types(decl_module);
+    decl_types.set_name_resolver([&c_visitor](ASTNode* n) {
+        return mir_mangle_name(c_visitor.mangler, n);
+    });
+    mir::MIRDeclEmitter decl_emitter(
+        decl_module, decl_types, c_visitor.mangler, loc_man,
+        c_visitor.comptime_scope, c_visitor.binder, c_visitor.allocator);
+    decl_emitter.set_embedded_decl_repl([&c_visitor](EmbeddedNode* node) -> ASTNode* {
+        ASTBuilder builder(&c_visitor.allocator, c_visitor.comptime_scope.typeBuilder);
+        const auto fn = c_visitor.binder.findHook(node->name, CBIFunctionType::ReplacementNodeDeclare);
+        if (!fn) return nullptr;
+        return ((EmbeddedNodeReplacementFunc) fn)(&builder, &c_visitor, node);
+    });
+    decl_emitter.set_static_interface_recorder([&c_visitor](InterfaceDefinition* iface) {
+        c_visitor.store_static_interface_for_stub_impl(iface);
+    });
+
+    auto& w = c_visitor.writer;
+    auto fwd_all = [&](const std::vector<ASTNode*>& nodes) {
+        for (ASTNode* node : nodes) decl_emitter.fwd_declare(w, node);
+    };
+    auto alias_all = [&](const std::vector<ASTNode*>& nodes) {
+        for (ASTNode* node : nodes) decl_emitter.declare_type_alias(w, node);
+    };
+    auto declare_all = [&](const std::vector<ASTNode*>& nodes) {
+        for (ASTNode* node : nodes) decl_emitter.declare(w, node);
+    };
+
     // forward declare dependencies & dependencies of dependencies & current module
-    forward_declare_in_c(c_visitor, this, module, "FwdDeclare");
-
-    // declare type aliases
-    declare_type_aliases_in_c(c_visitor, this, module, "TypeAliasDeclare");
-
-    // comment
-#ifdef DEBUG
-    c_visitor.debug_comment(chem::string_view("FwdDeclare:Generics " + module->format()));
-#endif
-
-    // we will forward declare the direct dependencies of this module
-    // only the newly introduced generics
-    c_visitor.fwd_declare(container.get_current_module_instantiations());
-
-    // comment
-#ifdef DEBUG
-    c_visitor.debug_comment(chem::string_view("Declare:Generics " + module->format()));
-#endif
-
-    // we will declare the direct dependencies of this module
-    c_visitor.declare_before_translation(container.get_current_module_instantiations());
-
-    // translation errors of the generics above are printed along with the first file
-    bool had_errors = false;
-
-    // The second loop deals with declaring files that are present in this module
-    // declaring means (only prototypes, no function bodies, struct prototypes...)
-    for(auto& file_ptr : module->direct_files) {
-
+    for (auto& file_ptr : module->direct_files) {
         auto& file = *file_ptr.result;
-        auto& unit = file.unit;
-
-        // print the benchmark or verbose output received from processing
-        if((options->benchmark_files || options->verbose) && !empty_diags(file)) {
-            std::cout << rang::style::bold << rang::fg::magenta << "[Declare] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
+        if ((options->benchmark_files || options->verbose) && !empty_diags(file)) {
+            std::cout << rang::style::bold << rang::fg::magenta << "[FwdDeclare] "
+                      << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
         }
-
-#ifdef DEBUG
-        c_visitor.debug_comment(chem::string_view(("Declare " + file.abs_path)));
-#endif
-
-        if(declare_before_translation(c_visitor, unit.scope.body.nodes, file.abs_path)) {
-            had_errors = true;
-        }
-
+        fwd_all(file.unit.scope.body.nodes);
     }
 
-    // a module without files still collects diagnostics from its generics
-    if(print_translation_diagnostics(c_visitor)) {
+    // declare type aliases
+    for (auto& file_ptr : module->direct_files) {
+        alias_all(file_ptr.result->unit.scope.body.nodes);
+    }
+
+    // generics (new instantiations introduced for this module)
+    fwd_all(container.get_current_module_instantiations());
+    declare_all(container.get_current_module_instantiations());
+
+    bool had_errors = false;
+
+    // declare the files present in this module (prototypes, struct bodies, globals)
+    for (auto& file_ptr : module->direct_files) {
+        auto& file = *file_ptr.result;
+        if ((options->benchmark_files || options->verbose) && !empty_diags(file)) {
+            std::cout << rang::style::bold << rang::fg::magenta << "[Declare] "
+                      << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
+        }
+        declare_all(file.unit.scope.body.nodes);
+    }
+
+    if (print_translation_diagnostics(c_visitor)) {
         had_errors = true;
     }
 
-    // the generated c cannot be trusted when errors were reported
     return had_errors ? 1 : 0;
-
 }
 
 namespace {

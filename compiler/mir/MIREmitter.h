@@ -25,4 +25,27 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
 /** C spelling of a MIR type id (primitives/pointers; aggregates use handle). */
 std::string c_type_of(const MIRModule& module, TypeId type);
 
+/**
+ * C declarator for an entity named `name` of MIR type `type`. Handles
+ * function-pointer and pointer-to-array declarators and the sret convention
+ * for function types returning an aggregate. Shared with the declaration
+ * emitter so prototypes and definitions spell types identically.
+ */
+std::string c_decl_type(const MIRModule& module, TypeId type, const std::string& name);
+
+/**
+ * Full C declarator for `name` of type `type`, handling arrays and
+ * function-pointer/pointer-to-array declarators (e.g. `long name[3]`,
+ * `int (*name)(int)`). Use this for variable/field declarations; `c_decl_type`
+ * is the function-pointer flavor used inside prototypes.
+ */
+std::string c_declarator(const MIRModule& module, TypeId type, const std::string& name);
+
+/**
+ * C prototype spelling for a MIR function type (`ret name(params)`), as opposed
+ * to `c_decl_type` which spells a function-pointer declarator (`ret (*name)(...)`).
+ * Aggregate returns use the sret convention (`void name(struct T*, ...)`).
+ */
+std::string c_function_proto(const MIRModule& module, TypeId function_type, const std::string& name);
+
 } // namespace mir

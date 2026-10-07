@@ -235,6 +235,11 @@ static std::string fn_ptr_type(const MIRModule& module, const MIRTypeRecord& r) 
         s += c_type_of(module, module.types.data[r.data_offset + i]);
         first = false;
     }
+    if (r.flags & TF_VARIADIC) {
+        if (!first) s += ", ";
+        s += "...";
+        first = false;
+    }
     if (first) s += "void";
     s += ")";
     return s;
@@ -261,6 +266,10 @@ static std::string decl_type(const MIRModule& module, TypeId type, const std::st
         params += declarator(module, module.types.data[r.data_offset + i],
                              "__chx_a" + std::to_string(i));
     }
+    if (r.flags & TF_VARIADIC) {
+        if (!params.empty()) params += ", ";
+        params += "...";
+    }
     if (params.empty()) params = "void";
     const std::string inner = "(*" + name + ")(" + params + ")";
     if (sret) return "void " + inner;
@@ -274,13 +283,20 @@ static std::string declarator(const MIRModule& module, TypeId type, const std::s
         return decl_type(module, type, name);
     }
     if (r.kind == MIRTypeKind::Array) {
-        const MIRTypeRecord& elem = module.types.get(r.element);
-        if (elem.kind == MIRTypeKind::Function) {
-            // array of function pointers: `ret (*name[N])(params)`
-            return decl_type(module, r.element,
-                             name + "[" + std::to_string(r.data_count) + "]");
+        // collect dimensions outer-to-inner so `[4][256]T` spells `T name[4][256]`
+        std::string dims;
+        TypeId cur = type;
+        while (cur != MIR_INVALID_ID && cur < module.types.size() &&
+               module.types.get(cur).kind == MIRTypeKind::Array) {
+            const MIRTypeRecord& rr = module.types.get(cur);
+            dims += "[" + std::to_string(rr.data_count) + "]";
+            const MIRTypeRecord& elem = module.types.get(rr.element);
+            if (elem.kind == MIRTypeKind::Function) {
+                return decl_type(module, rr.element, name + dims);
+            }
+            cur = rr.element;
         }
-        return declarator(module, r.element, name) + "[" + std::to_string(r.data_count) + "]";
+        return declarator(module, cur, name) + dims;
     }
     if (r.kind == MIRTypeKind::Pointer || r.kind == MIRTypeKind::Reference) {
         const MIRTypeRecord& pointee = module.types.get(r.element);
@@ -291,6 +307,43 @@ static std::string declarator(const MIRModule& module, TypeId type, const std::s
         }
     }
     return c_type_of(module, type) + " " + name;
+}
+
+std::string c_decl_type(const MIRModule& module, TypeId type, const std::string& name) {
+    return decl_type(module, type, name);
+}
+
+std::string c_declarator(const MIRModule& module, TypeId type, const std::string& name) {
+    return declarator(module, type, name);
+}
+
+std::string c_function_proto(const MIRModule& module, TypeId function_type,
+                             const std::string& name) {
+    if (function_type == MIR_INVALID_ID || function_type >= module.types.size()) {
+        return "void " + name + "(void)";
+    }
+    const MIRTypeRecord& r = module.types.get(function_type);
+    if (r.kind != MIRTypeKind::Function) {
+        return decl_type(module, function_type, name);
+    }
+    const bool sret = mir_struct_like_return(module, r.element);
+    std::string params;
+    if (sret) params += c_type_of(module, r.element) + "*";
+    for (uint32_t i = 0; i < r.data_count; ++i) {
+        if (!params.empty()) params += ", ";
+        params += declarator(module, module.types.data[r.data_offset + i],
+                             "__chx_a" + std::to_string(i));
+    }
+    if (r.flags & TF_VARIADIC) {
+        if (!params.empty()) params += ", ";
+        params += "...";
+    }
+    if (params.empty()) params = "void";
+    if (module.types.get(r.element).kind == MIRTypeKind::Function) {
+        return decl_type(module, r.element, name + "(" + params + ")");
+    }
+    const std::string ret = sret ? std::string("void") : c_type_of(module, r.element);
+    return ret + " " + name + "(" + params + ")";
 }
 
 namespace {
@@ -500,8 +553,18 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     out += declarator(module, function.values[v].type, vname(v)) +
                            " = " + member_access(function, module, p->id, fname) + ";\n";
                 } else {
-                    out += declarator(module, function.values[v].type, vname(v)) +
-                           " = " + place_name(module, function, p->id) + ";\n";
+                    const TypeId vt = function.values[v].type;
+                    if (vt != MIR_INVALID_ID && vt < module.types.size() &&
+                        module.types.get(vt).kind == MIRTypeKind::Array) {
+                        // arrays are not assignable in C: declare then memcpy
+                        const std::string dst = vname(v);
+                        out += declarator(module, vt, dst) + ";\n    ";
+                        out += "memcpy(" + dst + ", " + place_name(module, function, p->id) +
+                               ", sizeof(" + dst + "));\n";
+                    } else {
+                        out += declarator(module, function.values[v].type, vname(v)) +
+                               " = " + place_name(module, function, p->id) + ";\n";
+                    }
                 }
                 break;
             }
@@ -525,8 +588,19 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                             error = "field store has invalid field name";
                             return false;
                         }
-                        out += operand_expr(function, module, *p) + "->" + fname + " = " +
-                               operand_expr(function, module, *b) + ";\n";
+                        const std::string access =
+                            operand_expr(function, module, *p) + "->" + fname;
+                        const TypeId bt =
+                            b->kind() == MIROperandKind::Value && b->id < function.values.size()
+                                ? function.values[b->id].type : MIR_INVALID_ID;
+                        if (bt != MIR_INVALID_ID && bt < module.types.size() &&
+                            module.types.get(bt).kind == MIRTypeKind::Array) {
+                            // arrays are not assignable: copy the source bytes
+                            out += "memcpy(&" + access + ", " + operand_expr(function, module, *b) +
+                                   ", sizeof(" + access + "));\n";
+                        } else {
+                            out += access + " = " + operand_expr(function, module, *b) + ";\n";
+                        }
                     } else {
                         std::string rhs;
                         if (a->kind() == MIROperandKind::Place) {
@@ -563,7 +637,18 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                         return false;
                     }
                     std::string rhs;
-                    if (b->kind() == MIROperandKind::Place) {
+                    if (b->kind() == MIROperandKind::Value) {
+                        const TypeId bt = function.values[b->id].type;
+                        if (bt != MIR_INVALID_ID && bt < module.types.size() &&
+                            module.types.get(bt).kind == MIRTypeKind::Array) {
+                            // arrays are not assignable: copy the source bytes
+                            const std::string access = member_access(function, module, p->id, fname);
+                            out += "memcpy(&" + access + ", " + operand_expr(function, module, *b) +
+                                   ", sizeof(" + access + "));\n";
+                            break;
+                        }
+                        rhs = operand_expr(function, module, *b);
+                    } else if (b->kind() == MIROperandKind::Place) {
                         const MIRTypeRecord& btr = module.types.get(function.places[b->id].type);
                         const std::string access = member_access(function, module, p->id, fname);
                         if (btr.kind == MIRTypeKind::Array) {

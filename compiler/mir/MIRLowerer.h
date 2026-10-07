@@ -27,6 +27,7 @@ class VarInitStatement;
 class Scope;
 class IfStatement;
 class IfValue;
+class LoopValue;
 class WhileLoop;
 class ForLoop;
 class FunctionCall;
@@ -148,6 +149,8 @@ private:
     MIRExprResult lower_if_value(IfValue* value, std::string& error);
     /** Lower a value scope, storing its trailing value into `dest`. */
     bool lower_scope_value(Scope& scope, PlaceId dest, TypeId dest_t, std::string& error);
+    /** Lower a `loop { break v }` value expression. */
+    MIRExprResult lower_loop_value(LoopValue* value, std::string& error);
     bool lower_while(WhileLoop* loop, std::string& error);
     bool lower_for(ForLoop* loop, std::string& error);
     bool lower_incdec_value(Value* target, bool increment, bool post, std::string& error,
@@ -255,6 +258,9 @@ private:
     std::vector<BlockId> break_targets_;
     std::vector<BlockId> continue_targets_;
     std::vector<size_t> loop_destructible_marks_;
+    /** Result temp + type for a `loop { break v }` value; parallel to break_targets_. */
+    std::vector<PlaceId> break_value_dests_;
+    std::vector<TypeId> break_value_types_;
     std::vector<std::string> lambda_defs_;
     bool sret_ = false;
     ValueId sret_ptr_ = MIR_NULL;

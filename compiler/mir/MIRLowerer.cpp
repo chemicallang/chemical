@@ -2229,6 +2229,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         case ValueKind::IfValue: {
             return lower_if_value(value->as_if_value_unsafe(), error);
         }
+        case ValueKind::LoopValue: {
+            return lower_loop_value(value->as_loop_value_unsafe(), error);
+        }
         case ValueKind::SizeOfValue: {
             auto* s = value->as_sizeof_value_unsafe();
             BaseType* ft = s->for_type.getType()
@@ -3007,6 +3010,24 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 error = "break outside a loop";
                 return false;
             }
+            auto* bs = node->as_break_stmt_unsafe();
+            if (bs->value && !break_value_dests_.empty() &&
+                break_value_dests_.back() != MIR_INVALID_ID) {
+                const PlaceId dest = break_value_dests_.back();
+                const TypeId vt = break_value_types_.back();
+                MIRExprResult r = lower_expr(bs->value, error);
+                if (!r.ok()) return false;
+                if (r.kind == MIRExprKind::Place) {
+                    builder_->store(dest, builder_->load(static_cast<PlaceId>(r.id), vt));
+                } else if (r.kind == MIRExprKind::Address) {
+                    builder_->store(dest, builder_->load_indirect(static_cast<ValueId>(r.id), vt));
+                } else if (r.kind == MIRExprKind::Value) {
+                    builder_->store(dest, static_cast<ValueId>(r.id));
+                } else {
+                    error = "loop break value does not produce a value";
+                    return false;
+                }
+            }
             if (!loop_destructible_marks_.empty()) {
                 emit_drops_from(loop_destructible_marks_.back());
             }
@@ -3393,6 +3414,41 @@ MIRExprResult MIRLowerer::lower_if_value(IfValue* value, std::string& error) {
     return MIRExprResult::value(builder_->load(dest, vt), vt);
 }
 
+MIRExprResult MIRLowerer::lower_loop_value(LoopValue* value, std::string& error) {
+    const TypeId vt = types_.map(value->getType());
+    const PlaceId dest = builder_->alloca(vt, MIRStorageClass::Temporary);
+    const BlockId body_b = builder_->create_block();
+    const BlockId exit_b = builder_->create_block();
+
+    builder_->br(body_b);
+    builder_->set_block(body_b);
+    break_targets_.push_back(exit_b);
+    continue_targets_.push_back(body_b);
+    loop_destructible_marks_.push_back(destructibles_.size());
+    break_value_dests_.push_back(dest);
+    break_value_types_.push_back(vt);
+    if (!lower_scope(value->stmt.body, error)) {
+        break_targets_.pop_back();
+        continue_targets_.pop_back();
+        loop_destructible_marks_.pop_back();
+        break_value_dests_.pop_back();
+        break_value_types_.pop_back();
+        return MIRExprResult::error();
+    }
+    if (!builder_->current_block_terminated()) builder_->br(body_b);
+    break_targets_.pop_back();
+    continue_targets_.pop_back();
+    loop_destructible_marks_.pop_back();
+    break_value_dests_.pop_back();
+    break_value_types_.pop_back();
+
+    builder_->set_block(exit_b);
+    if (needs_aggregate_path(module_, vt)) {
+        return MIRExprResult::place(dest, vt);
+    }
+    return MIRExprResult::value(builder_->load(dest, vt), vt);
+}
+
 bool MIRLowerer::lower_while(WhileLoop* loop, std::string& error) {
     const BlockId cond_b = builder_->create_block();
     const BlockId body_b = builder_->create_block();
@@ -3408,16 +3464,22 @@ bool MIRLowerer::lower_while(WhileLoop* loop, std::string& error) {
     break_targets_.push_back(exit_b);
     continue_targets_.push_back(cond_b);
     loop_destructible_marks_.push_back(destructibles_.size());
+    break_value_dests_.push_back(MIR_INVALID_ID);
+    break_value_types_.push_back(MIR_INVALID_ID);
     if (!lower_scope(loop->body, error)) {
         break_targets_.pop_back();
         continue_targets_.pop_back();
         loop_destructible_marks_.pop_back();
+        break_value_dests_.pop_back();
+        break_value_types_.pop_back();
         return false;
     }
     if (!builder_->current_block_terminated()) builder_->br(cond_b);
     break_targets_.pop_back();
     continue_targets_.pop_back();
     loop_destructible_marks_.pop_back();
+    break_value_dests_.pop_back();
+    break_value_types_.pop_back();
 
     builder_->set_block(exit_b);
     return true;
@@ -3447,16 +3509,22 @@ bool MIRLowerer::lower_for(ForLoop* loop, std::string& error) {
     break_targets_.push_back(exit_b);
     continue_targets_.push_back(step_b);
     loop_destructible_marks_.push_back(destructibles_.size());
+    break_value_dests_.push_back(MIR_INVALID_ID);
+    break_value_types_.push_back(MIR_INVALID_ID);
     if (!lower_scope(loop->body, error)) {
         break_targets_.pop_back();
         continue_targets_.pop_back();
         loop_destructible_marks_.pop_back();
+        break_value_dests_.pop_back();
+        break_value_types_.pop_back();
         return false;
     }
     if (!builder_->current_block_terminated()) builder_->br(step_b);
     break_targets_.pop_back();
     continue_targets_.pop_back();
     loop_destructible_marks_.pop_back();
+    break_value_dests_.pop_back();
+    break_value_types_.pop_back();
 
     builder_->set_block(step_b);
     if (loop->incrementerExpr) {

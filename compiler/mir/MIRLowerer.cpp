@@ -103,6 +103,7 @@
 #include "ast/structures/BaseDefMember.h"
 #include "ast/structures/UnionDef.h"
 #include "ast/structures/UnnamedStruct.h"
+#include "ast/structures/UnnamedUnion.h"
 #include "ast/types/StructType.h"
 #include "compiler/symres/ImplementationsIndex.h"
 #include "compiler/symres/CoreNodes.h"
@@ -1192,6 +1193,49 @@ bool MIRLowerer::apply_struct_defaults_ptr(ValueId self_ptr, ExtendableMembersCo
                 builder_->load_indirect(static_cast<ValueId>(r.id), types_.map(mt)));
         } else {
             error = "unsupported struct field default value";
+            return false;
+        }
+    }
+    return true;
+}
+
+bool MIRLowerer::store_anon_aggregate(ValueId addr, StructValue* sv, std::string& error) {
+    if (!sv) return true;
+    for (auto& kv : sv->values) {
+        const StructMemberInitializer& init = kv.second;
+        const ConstantId fc = module_.constants.add_string(
+            MIR_INVALID_ID, init.name.data(), static_cast<uint32_t>(init.name.size()));
+        BaseType* mt = nullptr;
+        {
+            auto mtw = sv->child_type_w_index(init.name);
+            if (mtw.second != -1) mt = mtw.first;
+        }
+        if (init.value && init.value->val_kind() == ValueKind::StructValue) {
+            ASTNode* mn = mt ? mt->get_direct_linked_canonical_node() : nullptr;
+            if (mn && (mn->kind() == ASTNodeKind::UnnamedUnion ||
+                       mn->kind() == ASTNodeKind::UnnamedStruct)) {
+                const TypeId ft = types_.map(mt);
+                const ValueId faddr = builder_->field_addr_ptr(addr, fc, ft);
+                if (!store_anon_aggregate(faddr, init.value->as_struct_value_unsafe(), error)) {
+                    return false;
+                }
+                continue;
+            }
+        }
+        MIRExprResult r = mt ? lower_arg_converted(init.value, mt, error)
+                             : lower_expr(init.value, error);
+        if (!r.ok()) return false;
+        const TypeId ft = mt ? types_.map(mt) : r.type;
+        if (r.kind == MIRExprKind::Value) {
+            builder_->field_store_ptr(addr, fc, static_cast<ValueId>(r.id));
+        } else if (r.kind == MIRExprKind::Place) {
+            builder_->field_store_ptr(addr, fc,
+                                      builder_->load(static_cast<PlaceId>(r.id), ft));
+        } else if (r.kind == MIRExprKind::Address) {
+            builder_->field_store_ptr(addr, fc,
+                                      builder_->load_indirect(static_cast<ValueId>(r.id), ft));
+        } else {
+            error = "unsupported anonymous aggregate field initializer";
             return false;
         }
     }
@@ -2483,6 +2527,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             StructDefinition* sd = nullptr;
             UnionDef* ud = nullptr;
             UnnamedStruct* us = nullptr;
+            UnnamedUnion* uu = nullptr;
             StructType* stc = nullptr;
             auto bind_container = [&](BaseType* ctype) {
                 if (!ctype) return;
@@ -2495,13 +2540,15 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     ud = cn->as_union_def_unsafe();
                 } else if (cn->kind() == ASTNodeKind::UnnamedStruct) {
                     us = cn->as_unnamed_struct_unsafe();
+                } else if (cn->kind() == ASTNodeKind::UnnamedUnion) {
+                    uu = cn->as_unnamed_union_unsafe();
                 } else if (cn->kind() == ASTNodeKind::StructType) {
                     stc = static_cast<StructType*>(cn);
                 }
             };
             bind_container(value->getType());
             auto unresolved = [&]() -> bool {
-                return (!sd && !ud && !us && !stc) || st == MIR_INVALID_ID ||
+                return (!sd && !ud && !us && !uu && !stc) || st == MIR_INVALID_ID ||
                        st >= module_.types.size() ||
                        module_.types.get(st).kind == MIRTypeKind::Opaque;
             };
@@ -2531,6 +2578,11 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 }
                 if (us) {
                     for (BaseDefMember* v : us->variables()) {
+                        if (v && v->name == nm) return v->known_type();
+                    }
+                }
+                if (uu) {
+                    for (BaseDefMember* v : uu->variables()) {
                         if (v && v->name == nm) return v->known_type();
                     }
                 }
@@ -2566,6 +2618,23 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                             implicit = ln->as_struct_def_unsafe()->implicit_constructor_func(init.value);
                         }
                         if (!implicit) implicit = member_type->implicit_constructor_for(init.value);
+                    }
+                }
+                // an anonymous union/struct literal field initializer has no
+                // spellable C type for a temporary: initialize the field in place
+                if (member_type && init.value &&
+                    init.value->val_kind() == ValueKind::StructValue) {
+                    ASTNode* mn = member_type->get_direct_linked_canonical_node();
+                    if (mn && (mn->kind() == ASTNodeKind::UnnamedUnion ||
+                               mn->kind() == ASTNodeKind::UnnamedStruct)) {
+                        const TypeId mt = types_.map(member_type);
+                        const ValueId faddr = builder_->field_addr(temp, fc, mt);
+                        if (!store_anon_aggregate(faddr, init.value->as_struct_value_unsafe(),
+                                                  error)) {
+                            return MIRExprResult::error();
+                        }
+                        ++it;
+                        continue;
                     }
                 }
                 if (implicit) {
@@ -6530,9 +6599,14 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
                                                                static_cast<uint32_t>(sf.size()));
             const MIRTypeRecord& pr = module_.types.get(pt);
             ValueId src = b.load(place, pt);
+            const TypeId decl_t = p && p->type ? types_.map(p->type) : types_.opaque_type();
             if (pr.kind == MIRTypeKind::Pointer || pr.kind == MIRTypeKind::Reference) {
-                // aggregate parameter arrives as a hidden pointer: copy through it
-                src = b.load_indirect(src, types_.map(p->type));
+                // an aggregate parameter arrives as a hidden pointer: copy the
+                // pointee value into the frame. A genuine reference/pointer
+                // parameter stores the pointer itself (no dereference).
+                if (needs_aggregate_path(module_, decl_t)) {
+                    src = b.load_indirect(src, decl_t);
+                }
             }
             b.field_store_ptr(af, fc, src);
             if (async_drop_flag_slots_.count(sid) != 0) {

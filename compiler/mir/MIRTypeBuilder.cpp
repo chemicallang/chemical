@@ -341,6 +341,10 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
             }
             break;
         }
+        case BaseTypeKind::Any:
+            // `any` is spelled `void` (so `*mut any` is `void*`)
+            id = void_type();
+            break;
         case BaseTypeKind::Function:
         case BaseTypeKind::CapturingFunction:
             id = function_type(type);

@@ -80,6 +80,9 @@ public:
     /** Unsigned 32-bit integer type (loop indices, array indices). */
     TypeId u32_type() { return int_type(false, 32); }
 
+    /** Unsigned 64-bit integer type (`size_t`-sized values). */
+    TypeId u64_type() { return int_type(false, 64); }
+
     /** The C `char` type (string literals and `char` arithmetic). */
     TypeId char_type() {
         MIRTypeRecord r;

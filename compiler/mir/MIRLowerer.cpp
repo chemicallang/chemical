@@ -71,6 +71,9 @@
 #include "ast/values/VariantCase.h"
 #include "ast/values/VariantCaseVariable.h"
 #include "ast/values/LambdaFunction.h"
+#include "ast/values/ExtractionValue.h"
+#include "ast/types/CapturingFunctionType.h"
+#include "ast/structures/CapturedVariable.h"
 #include "ast/values/SwitchValue.h"
 #include "ast/values/LoopValue.h"
 #include "ast/values/PatternMatchExpr.h"
@@ -558,6 +561,9 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
             auto* pmid = id->linked->as_patt_match_id_unsafe();
             return lower_pattern_payload(pmid->matchExpr, pmid->member_param, true, error);
         }
+        if (id->linked && id->linked->kind() == ASTNodeKind::CapturedVariable) {
+            return lower_captured_variable(id->linked->as_captured_var_unsafe(), true, error);
+        }
         const PlaceId p = place_for_linked(id->linked);
         if (p != MIR_INVALID_ID) {
             const TypeId pt = builder_->function().places[p].type;
@@ -859,14 +865,6 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
             conv_type = param_type->as_pointer_type()->type;
         }
     }
-    // a lambda passed where a std::function (capturing function) is expected
-    // needs the closure wrapper, which MIR does not build yet
-    if (arg && arg->val_kind() == ValueKind::LambdaFunc && param_type &&
-        param_type->canonical() &&
-        param_type->canonical()->kind() == BaseTypeKind::CapturingFunction) {
-        error = "lambda passed as std::function is not yet supported";
-        return MIRExprResult::error();
-    }
     // an untyped constructor call for the parameter's own type
     // (`std::string_view("...")`): the callee identifier may not be linked, so
     // match its name against the parameter type and construct directly.
@@ -936,6 +934,49 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
                 MIRExprResult r = lower_expr(arg, error);
                 expected_struct_type_ = saved;
                 return r;
+            }
+        }
+        // a lambda converted to a `std::function` is wrapped by the instance
+        // type's comptime `make` constructor (fn ptr + closure data)
+        CapturingFunctionType* cap = nullptr;
+        if (conv_type) cap = conv_type->get_cap_func_type();
+        if (!cap && arg && arg->val_kind() == ValueKind::LambdaFunc && arg->getType()) {
+            cap = arg->getType()->get_cap_func_type();
+        }
+        // `std::function<T>` may resolve to the instance struct directly (a
+        // `%capture` typealias instantiation), so also accept a struct target
+        BaseType* cap_inst = cap ? const_cast<BaseType*>(cap->instance_type.getType()) : nullptr;
+        if (!cap_inst && conv_type) {
+            ASTNode* cln = conv_type->get_direct_linked_canonical_node();
+            if (cln && cln->kind() == ASTNodeKind::StructDecl) {
+                cap_inst = cln->as_struct_def_unsafe()->known_type();
+            }
+        }
+        if (cap_inst && arg && arg->val_kind() == ValueKind::LambdaFunc) {
+            BaseType* inst = cap_inst;
+            FunctionDeclaration* imp = nullptr;
+            ASTNode* in = inst ? inst->get_direct_linked_canonical_node() : nullptr;
+            if (in && in->kind() == ASTNodeKind::StructDecl) {
+                // the closure wrapper is the instance type's `make` constructor
+                ASTNode* mk = in->as_struct_def_unsafe()->child("make");
+                if (mk && mk->kind() == ASTNodeKind::FunctionDecl) {
+                    imp = mk->as_function_unsafe();
+                }
+            }
+            if (!imp && inst) imp = inst->implicit_constructor_for(arg);
+            if (imp) {
+                if (imp->is_comptime() && comptime_ctor_eval_) {
+                    Value* ev = comptime_ctor_eval_(imp, arg);
+                    if (ev) return lower_expr(ev, error);
+                }
+                const TypeId mt = types_.map(inst);
+                const PlaceId tmp = builder_->alloca(mt, MIRStorageClass::Temporary);
+                std::vector<MIROperand> cargs;
+                std::vector<Value*> one{arg};
+                if (!lower_call_args(one, cargs, error)) return MIRExprResult::error();
+                const SymbolId sym = intern_function(imp);
+                builder_->init(tmp, sym, cargs.data(), static_cast<uint32_t>(cargs.size()));
+                return MIRExprResult::place(tmp, mt);
             }
         }
         FunctionDeclaration* imp = nullptr;
@@ -1736,6 +1777,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             if (id->linked && id->linked->kind() == ASTNodeKind::PatternMatchId) {
                 return lower_pattern_identifier(id->linked->as_patt_match_id_unsafe(), error);
             }
+            if (id->linked && id->linked->kind() == ASTNodeKind::CapturedVariable) {
+                return lower_captured_variable(id->linked->as_captured_var_unsafe(), false, error);
+            }
             if (id->linked && id->linked->kind() == ASTNodeKind::FunctionDecl) {
                 // a function used as a value (function pointer)
                 FunctionDeclaration* fd = id->linked->as_function_unsafe();
@@ -2053,7 +2097,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     ++it;
                     continue;
                 }
-                MIRExprResult r = lower_expr(init.value, error);
+                MIRExprResult r = member_type
+                                      ? lower_arg_converted(init.value, member_type, error)
+                                      : lower_expr(init.value, error);
                 if (!r.ok()) return r;
                 // an array initializer for a pointer/reference field decays to a
                 // pointer to its first element (never a byte copy, which would
@@ -2432,6 +2478,27 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         fp = place_for_linked(call->parent_val->as_identifier_unsafe()->linked);
                     }
                     if (fp == MIR_INVALID_ID) {
+                        // a call through a capturing function instance that is not
+                        // a plain place (e.g. `make_fn()()`): lower the receiver
+                        // expression and dispatch through it indirectly
+                        if (call->parent_val && call->parent_val->getType()) {
+                            BaseType* rt = call->parent_val->getType();
+                            BaseType* rtc = rt->canonical();
+                            bool is_cap = rtc && rtc->get_cap_func_type() != nullptr;
+                            if (!is_cap && rtc) {
+                                ASTNode* cln = rtc->get_direct_linked_canonical_node();
+                                if (cln && cln->kind() == ASTNodeKind::StructDecl) {
+                                    auto* sd = cln->as_struct_def_unsafe();
+                                    is_cap = sd->child("get_fn_ptr") != nullptr &&
+                                             sd->child("get_data_ptr") != nullptr;
+                                }
+                            }
+                            if (is_cap) {
+                                MIRExprResult recv = lower_expr(call->parent_val, error);
+                                if (!recv.ok()) return recv;
+                                return lower_capturing_function_call(recv, rt, call, error);
+                            }
+                        }
                         std::string callee;
                         int last_linked_kind = -2;
                         int pv_kind = -1;
@@ -2493,8 +2560,10 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         }
                         if (eff->kind == MIRTypeKind::Struct) {
                             // capturing function instance (`std::function`) call
-                            error = "capturing function call is not yet supported";
-                            return MIRExprResult::error();
+                            BaseType* recv_ast =
+                                call->parent_val ? call->parent_val->getType() : nullptr;
+                            return lower_capturing_function_call(MIRExprResult::place(fp, ft),
+                                                                 recv_ast, call, error);
                         }
                     }
                     const ValueId fnptr = builder_->load(fp, ft);
@@ -2525,6 +2594,15 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     destroy_call_temps_from(cmark, error);
                     return MIRExprResult::value(v, rt);
                 }
+            }
+            // `intrinsics::forget(x)` clears x's drop flag (the value is
+            // deliberately not destroyed at scope exit); it has no runtime
+            // effect, so model it directly instead of via the comptime value
+            if (fd->is_compiler_decl() && fd->name_view() == chem::string_view("forget") &&
+                call->values.size() == 1) {
+                PlaceId p = resolve_place(call->values.front(), error);
+                if (p != MIR_INVALID_ID) mark_moved(p);
+                return MIRExprResult::void_result();
             }
             if (fd->is_comptime() && comptime_eval_) {
                 Value* evaluated = comptime_eval_(call, fd);
@@ -2773,6 +2851,8 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         case ValueKind::PatternMatchExpr: {
             return lower_pattern_match_value(value->as_pattern_match_expr_unsafe(), error);
         }
+        case ValueKind::ExtractionValue:
+            return lower_extraction_value(static_cast<ExtractionValue*>(value), error);
         case ValueKind::RuntimeBlockValue:
         case ValueKind::BlockValue: {
             // a `{ ... }` / `%runtime_block_value { ... }` statement-expression:
@@ -3082,14 +3162,6 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 }
             }
             if (vi->value) {
-                // a lambda stored in a std::function (capturing function) needs
-                // the closure wrapper, which MIR does not build yet
-                if (vi->value->val_kind() == ValueKind::LambdaFunc && vi->known_type() &&
-                    vi->known_type()->canonical() &&
-                    vi->known_type()->canonical()->kind() == BaseTypeKind::CapturingFunction) {
-                    error = "lambda assigned to std::function is not yet supported";
-                    return false;
-                }
                 // moving a destructible value out of another local/param
                 {
                     Value* iv = vi->value;
@@ -5032,14 +5104,384 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
     return true;
 }
 
+MIRExprResult MIRLowerer::lower_captured_variable(CapturedVariable* cap, bool as_address,
+                                                  std::string& error) {
+    if (lambda_closure_ptr_ == MIR_NULL) {
+        error = "captured variable used outside its lambda";
+        return MIRExprResult::error();
+    }
+    const chem::string_view nm = cap->name;
+    const ConstantId fc = module_.constants.add_string(
+        MIR_INVALID_ID, nm.data(), static_cast<uint32_t>(nm.size()));
+    BaseType* ct = cap->known_type();
+    const TypeId ft = types_.map(ct);
+    const ValueId ptr = lambda_closure_ptr_;
+    if (cap->capture_by_ref) {
+        // the field is a pointer to the referent; the captured variable is that
+        // reference, so its value is the pointer itself
+        return MIRExprResult::value(builder_->field_load_ptr(ptr, fc, ft), ft);
+    }
+    if (as_address || needs_aggregate_path(module_, ft)) {
+        return MIRExprResult::address(builder_->field_addr_ptr(ptr, fc, ft), ft);
+    }
+    return MIRExprResult::value(builder_->field_load_ptr(ptr, fc, ft), ft);
+}
+
+MIRExprResult MIRLowerer::lower_extraction_value(ExtractionValue* ev, std::string& error) {
+    Value* src = ev ? ev->value : nullptr;
+    if (!src || src->val_kind() != ValueKind::LambdaFunc) {
+        error = "extraction value source must be a lambda";
+        return MIRExprResult::error();
+    }
+    auto* lamb = src->as_lambda_func_unsafe();
+    if (!materialize_capturing_lambda(lamb, error)) return MIRExprResult::error();
+    const LambdaMaterialization& m = lambda_materializations_[lamb];
+    const TypeId void_ptr = types_.pointer_type(types_.void_type(), true);
+    switch (ev->extractionKind) {
+        case ExtractionKind::LambdaFnPtr:
+            return MIRExprResult::value(m.fn_ptr, m.fn_ptr_type);
+        case ExtractionKind::LambdaCapturedPtr: {
+            if (m.cap_temp == MIR_INVALID_ID) return MIRExprResult::value(
+                builder_->const_null(void_ptr, module_.constants.add_null(void_ptr)), void_ptr);
+            const TypeId ptrt = types_.pointer_type(m.cap_type, true);
+            return MIRExprResult::value(builder_->address_of(m.cap_temp, ptrt), ptrt);
+        }
+        case ExtractionKind::LambdaCapturedDestructor:
+            if (m.dtor_ptr == MIR_NULL) {
+                return MIRExprResult::value(
+                    builder_->const_null(void_ptr, module_.constants.add_null(void_ptr)), void_ptr);
+            }
+            return MIRExprResult::value(m.dtor_ptr, m.dtor_type);
+        case ExtractionKind::SizeOfLambdaCaptured:
+            return MIRExprResult::value(builder_->size_of(m.cap_type, types_.u64_type()),
+                                        types_.u64_type());
+        case ExtractionKind::AlignOfLambdaCaptured:
+            return MIRExprResult::value(builder_->align_of(m.cap_type, types_.u64_type()),
+                                        types_.u64_type());
+        default:
+            error = "unsupported extraction value kind";
+            return MIRExprResult::error();
+    }
+}
+
+MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, BaseType* recv_type,
+                                                        FunctionCall* call, std::string& error) {
+    if (!recv.ok()) return recv;
+    BaseType* cc = recv_type ? recv_type->canonical() : nullptr;
+    CapturingFunctionType* cap = cc ? cc->get_cap_func_type() : nullptr;
+    BaseType* inst = cap ? const_cast<BaseType*>(cap->instance_type.getType()) : nullptr;
+    if (!inst && cc) {
+        // `std::function<T>` may resolve to the instance struct directly
+        ASTNode* cln = cc->get_direct_linked_canonical_node();
+        if (cln && cln->kind() == ASTNodeKind::StructDecl) {
+            inst = cln->as_struct_def_unsafe()->known_type();
+        }
+    }
+    if (!inst) {
+        error = "capturing function instance could not be resolved";
+        return MIRExprResult::error();
+    }
+    FunctionDeclaration* get_fn = resolve_method_fallback(inst, "get_fn_ptr");
+    FunctionDeclaration* get_data = resolve_method_fallback(inst, "get_data_ptr");
+    if (!get_fn || !get_data) {
+        error = "capturing function instance methods not found";
+        return MIRExprResult::error();
+    }
+    auto call_method = [&](FunctionDeclaration* m) -> MIRExprResult {
+        VariableIdentifier id(chem::string_view(), nullptr, ZERO_LOC);
+        id.linked = m;
+        FunctionCall sc(&id, m->returnType, ZERO_LOC);
+        return lower_method_call(recv, cc, &sc, error);
+    };
+    MIRExprResult fnr = call_method(get_fn);
+    if (!fnr.ok()) return fnr;
+    MIRExprResult dr = call_method(get_data);
+    if (!dr.ok()) return dr;
+    const TypeId vpt = types_.pointer_type(types_.void_type(), true);
+    const ValueId fnptr = (fnr.kind == MIRExprKind::Place)
+                              ? builder_->load(static_cast<PlaceId>(fnr.id), fnr.type)
+                              : static_cast<ValueId>(fnr.id);
+    const ValueId dataptr = (dr.kind == MIRExprKind::Place)
+                                ? builder_->load(static_cast<PlaceId>(dr.id), dr.type)
+                                : static_cast<ValueId>(dr.id);
+    std::vector<MIROperand> cargs;
+    cargs.push_back(MIROperand::value(dataptr, vpt));
+    const size_t ccap = call_temps_.size();
+    if (!lower_call_args_for(nullptr, false, call->values, cargs, error)) {
+        return MIRExprResult::error();
+    }
+    const TypeId crt = types_.map(call->getType());
+    std::vector<TypeId> cptypes;
+    cptypes.reserve(cargs.size());
+    for (auto& op : cargs) cptypes.push_back(op.type());
+    const TypeId cftype = types_.function_signature(crt, cptypes);
+    const ValueId cfn = builder_->cast(fnptr, cftype);
+    if (is_void_type(module_, crt)) {
+        builder_->call_indirect(cfn, crt, cargs.data(), static_cast<uint32_t>(cargs.size()));
+        destroy_call_temps_from(ccap, error);
+        return MIRExprResult::void_result();
+    }
+    if (needs_sret_return(module_, crt)) {
+        const PlaceId tmp = builder_->alloca(crt, MIRStorageClass::Temporary);
+        builder_->zero_init(tmp);
+        builder_->call_indirect_sret(cfn, tmp, cargs.data(), static_cast<uint32_t>(cargs.size()));
+        destroy_call_temps_from(ccap, error);
+        return MIRExprResult::place(tmp, crt);
+    }
+    const ValueId cv =
+        builder_->call_indirect(cfn, crt, cargs.data(), static_cast<uint32_t>(cargs.size()));
+    destroy_call_temps_from(ccap, error);
+    return MIRExprResult::value(cv, crt);
+}
+
+bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string& error) {
+    if (lambda_materializations_.find(lamb) != lambda_materializations_.end()) return true;
+    if (!lamb || lamb->captureList.empty()) {
+        error = "materialize_capturing_lambda on a non-capturing lambda";
+        return false;
+    }
+
+    static uint64_t s_counter = 0;
+    const std::string lname = "__chemda_cap_" + std::to_string(s_counter++);
+    const std::string cap_name = lname + "_cap";
+
+    // 1. the closure struct definition + type
+    const TypeId cap_type = types_.named_struct(cap_name);
+    std::string sdef = "struct " + cap_name + " {\n";
+    for (CapturedVariable* cap : lamb->captureList) {
+        const TypeId ft = types_.map(cap->known_type());
+        sdef += "    " + c_type_of(module_, ft) + " " +
+                std::string(cap->name.data(), cap->name.size()) + ";\n";
+    }
+    sdef += "};\n";
+    lambda_defs_.push_back(sdef);
+
+    // 2. the closure destructor
+    const std::string dname = cap_name + "_destr";
+    const TypeId void_ptr = types_.pointer_type(types_.void_type(), true);
+    MIRSymbolRecord drec;
+    drec.kind = MIRSymbolKind::Function;
+    drec.linkage = MIRLinkage::Internal;
+    drec.type = types_.function_signature(types_.void_type(), {void_ptr});
+    const SymbolId dtor_sym = module_.symbols.add(
+        drec, dname.data(), static_cast<uint32_t>(dname.size()), dname.data(),
+        static_cast<uint32_t>(dname.size()));
+    std::string ddef = "static void " + dname + "(struct " + cap_name + "* self) {\n";
+    if (lamb->has_destructor_for_capture()) {
+        for (CapturedVariable* cap : lamb->captureList) {
+            const SymbolId d = destructor_symbol(cap->known_type());
+            if (d == MIR_INVALID_ID) continue;
+            const MIRSymbolRecord& dr = module_.symbols.get(d);
+            const std::string dn(module_.symbols.mangled_data(dr), dr.mangled_length);
+            const std::string fname(cap->name.data(), cap->name.size());
+            ddef += "    " + dn + "(&self->" + fname + ");\n";
+        }
+    }
+    ddef += "}\n";
+    lambda_defs_.push_back(ddef);
+
+    // 3. the lambda function: `ret <lname>(void* this, <params>)`
+    const TypeId ret = lamb->returnType ? types_.map(lamb->returnType) : types_.void_type();
+    const bool l_sret = needs_sret_return(module_, ret);
+    std::vector<TypeId> ptypes;
+    if (l_sret) ptypes.push_back(types_.pointer_type(ret, true));
+    ptypes.push_back(void_ptr);
+    for (FunctionParam* p : lamb->params) {
+        TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
+        if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
+            pt = types_.pointer_type(module_.types.get(pt).element, true);
+        } else if (needs_aggregate_path(module_, pt)) {
+            pt = types_.pointer_type(pt, true);
+        }
+        ptypes.push_back(pt);
+    }
+    const TypeId ftype = types_.function_signature(l_sret ? types_.void_type() : ret, ptypes);
+    MIRSymbolRecord rec;
+    rec.kind = MIRSymbolKind::Function;
+    rec.linkage = MIRLinkage::Internal;
+    rec.type = ftype;
+    const SymbolId sym = module_.symbols.add(
+        rec, lname.data(), static_cast<uint32_t>(lname.size()), lname.data(),
+        static_cast<uint32_t>(lname.size()));
+
+    MIRFunction fn;
+    fn.symbol = sym;
+    fn.function_type = ftype;
+
+    // save the enclosing function's lowering state
+    MIRBuilder* saved_builder = builder_;
+    MIRArena* saved_arena = arena_;
+    FunctionTypeBody* saved_cur = current_func_;
+    auto saved_var = std::move(var_places_);
+    auto saved_name = std::move(name_places_);
+    auto saved_destructibles = std::move(destructibles_);
+    auto saved_call_temps = std::move(call_temps_);
+    auto saved_pattern_bases = std::move(pattern_bases_);
+    auto saved_pattern_results = std::move(pattern_results_);
+    const bool saved_sret = sret_;
+    const ValueId saved_sret_ptr = sret_ptr_;
+    const TypeId saved_sret_ret = sret_ret_type_;
+    const TypeId saved_sret_ptr_t = sret_ptr_type_;
+    BaseType* saved_return_type = return_type_;
+    auto saved_break = std::move(break_targets_);
+    auto saved_continue = std::move(continue_targets_);
+    const ValueId saved_closure = lambda_closure_ptr_;
+    const TypeId saved_closure_t = lambda_closure_type_;
+
+    var_places_.clear();
+    name_places_.clear();
+    destructibles_.clear();
+    call_temps_.clear();
+    pattern_bases_.clear();
+    pattern_results_.clear();
+    break_targets_.clear();
+    continue_targets_.clear();
+
+    MIRBuilder b(*saved_arena, module_, fn);
+    builder_ = &b;
+    current_func_ = lamb;
+    if (set_current_func_) set_current_func_(lamb);
+    const BlockId entry = b.create_block();
+    b.set_block(entry);
+    fn.entry_block = entry;
+
+    sret_ = l_sret;
+    sret_ret_type_ = ret;
+    return_type_ = lamb->returnType;
+    if (l_sret) {
+        sret_ptr_type_ = types_.pointer_type(ret, true);
+        sret_ptr_ = b.param(sret_ptr_type_);
+    }
+
+    bool ok = true;
+    const ValueId this_v = b.param(void_ptr);
+    const TypeId cap_ptr_t = types_.pointer_type(cap_type, true);
+    lambda_closure_ptr_ = b.cast(this_v, cap_ptr_t);
+    lambda_closure_type_ = cap_type;
+
+    for (FunctionParam* p : lamb->params) {
+        TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
+        if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
+            pt = types_.pointer_type(module_.types.get(pt).element, true);
+        } else if (needs_aggregate_path(module_, pt)) {
+            pt = types_.pointer_type(pt, true);
+        }
+        ValueId pv = b.param(pt);
+        PlaceId place = b.alloca(pt, MIRStorageClass::Parameter);
+        if (place == MIR_INVALID_ID) {
+            ok = false;
+            error = "failed to allocate lambda parameter place";
+            break;
+        }
+        b.store(place, pv);
+        bind(p, place);
+        bind_name(p->name, place);
+        if (p->type) {
+            const TypeId ptt = types_.map(p->type);
+            const MIRTypeRecord& prr = module_.types.get(ptt);
+            if (!(prr.flags & TF_TYPEDEF) && needs_aggregate_path(module_, ptt)) {
+                register_destructible(place, p->type);
+            }
+        }
+    }
+
+    if (ok) ok = lower_scope(lamb->scope, error);
+    if (ok && !b.current_block_terminated()) {
+        emit_drops();
+        b.ret_void();
+    }
+    if (ok && !b.ok()) {
+        ok = false;
+        error = b.error() ? b.error() : "MIR builder failure";
+    }
+
+    std::string c;
+    if (ok) {
+        std::string e;
+        if (!emit_function_c(fn, module_, c, e)) {
+            ok = false;
+            error = e;
+        }
+    }
+    if (ok) lambda_defs_.push_back(std::move(c));
+
+    // restore the enclosing function's state
+    builder_ = saved_builder;
+    arena_ = saved_arena;
+    current_func_ = saved_cur;
+    if (set_current_func_) set_current_func_(saved_cur);
+    var_places_ = std::move(saved_var);
+    name_places_ = std::move(saved_name);
+    destructibles_ = std::move(saved_destructibles);
+    call_temps_ = std::move(saved_call_temps);
+    pattern_bases_ = std::move(saved_pattern_bases);
+    pattern_results_ = std::move(saved_pattern_results);
+    sret_ = saved_sret;
+    sret_ptr_ = saved_sret_ptr;
+    sret_ret_type_ = saved_sret_ret;
+    sret_ptr_type_ = saved_sret_ptr_t;
+    return_type_ = saved_return_type;
+    break_targets_ = std::move(saved_break);
+    continue_targets_ = std::move(saved_continue);
+    lambda_closure_ptr_ = saved_closure;
+    lambda_closure_type_ = saved_closure_t;
+
+    if (!ok) return false;
+
+    // 4. materialize the closure temp in the enclosing function
+    const PlaceId cap_temp = builder_->alloca(cap_type, MIRStorageClass::Temporary);
+    if (cap_temp == MIR_INVALID_ID) {
+        error = "failed to allocate lambda closure";
+        return false;
+    }
+    builder_->zero_init(cap_temp);
+    for (CapturedVariable* cap : lamb->captureList) {
+        const ConstantId fc = module_.constants.add_string(
+            MIR_INVALID_ID, cap->name.data(), static_cast<uint32_t>(cap->name.size()));
+        PlaceId lp = place_for_linked(cap->linked);
+        if (lp == MIR_INVALID_ID) lp = place_for_name(cap->name);
+        if (lp == MIR_INVALID_ID) {
+            error = "captured variable does not resolve to a local place";
+            return false;
+        }
+        const TypeId lt = builder_->function().places[lp].type;
+        if (cap->capture_by_ref) {
+            const MIRTypeRecord& lr = module_.types.get(lt);
+            if (lr.kind == MIRTypeKind::Reference || lr.kind == MIRTypeKind::Pointer) {
+                // the captured variable is already a reference: store the pointer
+                builder_->field_store(cap_temp, fc, builder_->load(lp, lt));
+            } else {
+                const TypeId ptrt = types_.pointer_type(lt, true);
+                builder_->field_store(cap_temp, fc, builder_->address_of(lp, ptrt));
+            }
+        } else if (needs_aggregate_path(module_, lt)) {
+            builder_->field_store_place(cap_temp, fc, lp);
+            mark_moved(lp);
+        } else {
+            builder_->field_store(cap_temp, fc, builder_->load(lp, lt));
+        }
+    }
+
+    LambdaMaterialization m;
+    m.cap_type = cap_type;
+    m.cap_temp = cap_temp;
+    m.fn_ptr_type = ftype;
+    m.fn_ptr = builder_->function_addr(sym, m.fn_ptr_type);
+    m.dtor_type = types_.function_signature(types_.void_type(), {void_ptr});
+    m.dtor_ptr = builder_->function_addr(dtor_sym, m.dtor_type);
+    lambda_materializations_[lamb] = m;
+    return true;
+}
+
 MIRExprResult MIRLowerer::lower_lambda(LambdaFunction* lamb, std::string& error) {
     if (!lamb) {
         error = "null lambda";
         return MIRExprResult::error();
     }
     if (!lamb->captureList.empty()) {
-        error = "capturing lambda is not yet supported";
-        return MIRExprResult::error();
+        if (!materialize_capturing_lambda(lamb, error)) return MIRExprResult::error();
+        const LambdaMaterialization& m = lambda_materializations_[lamb];
+        return MIRExprResult::value(m.fn_ptr, m.fn_ptr_type);
     }
     static uint64_t s_lambda_counter = 0;
     const std::string lname = "__chemda_" + std::to_string(s_lambda_counter++);

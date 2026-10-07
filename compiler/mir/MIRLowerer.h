@@ -42,7 +42,11 @@ class PatternMatchExpr;
 class PatternMatchExprNode;
 class PatternMatchIdentifier;
 class LambdaFunction;
+class CapturedVariable;
+class ExtractionValue;
 class FunctionTypeBody;
+class CapturingFunctionType;
+class BaseType;
 
 namespace mir {
 
@@ -263,8 +267,18 @@ private:
     MIRExprResult lower_unary_operator_overload(Value* operand_v, MIRExprResult operand,
                                                 const char* method, BaseType* ret_ast,
                                                 std::string& error);
-    /** Lower a (non-capturing) lambda expression to a generated function. */
+    /** Lower a lambda expression to a generated function (and closure). */
     MIRExprResult lower_lambda(LambdaFunction* lamb, std::string& error);
+    /** Lower an `intrinsics::get_lambda_*` extraction value. */
+    MIRExprResult lower_extraction_value(ExtractionValue* ev, std::string& error);
+    /** Resolve a captured variable inside a lambda body to its closure field. */
+    MIRExprResult lower_captured_variable(CapturedVariable* cap, bool as_address,
+                                          std::string& error);
+    /** Ensure a capturing lambda's closure struct/function/temp are generated. */
+    bool materialize_capturing_lambda(LambdaFunction* lamb, std::string& error);
+    /** Lower a call through a capturing function instance (`std::function`). */
+    MIRExprResult lower_capturing_function_call(MIRExprResult recv, BaseType* recv_type,
+                                                FunctionCall* call, std::string& error);
 
     // ── async / coroutine lowering ─────────────────────────────────────────
     bool lower_async_function(FunctionDeclaration* decl, MIRArena& arena, MIRFunction& func,
@@ -334,6 +348,19 @@ private:
     std::unordered_map<PatternMatchExpr*, MIRExprResult> pattern_bases_;
     std::unordered_map<PatternMatchExpr*, MIRExprResult> pattern_results_;
     std::vector<std::string> lambda_defs_;
+    /** A materialized capturing lambda: closure type/temp + fn/dtor pointers. */
+    struct LambdaMaterialization {
+        TypeId cap_type = MIR_INVALID_ID;
+        PlaceId cap_temp = MIR_INVALID_ID;
+        ValueId fn_ptr = MIR_NULL;
+        TypeId fn_ptr_type = MIR_INVALID_ID;
+        ValueId dtor_ptr = MIR_NULL;
+        TypeId dtor_type = MIR_INVALID_ID;
+    };
+    std::unordered_map<LambdaFunction*, LambdaMaterialization> lambda_materializations_;
+    /** The current lambda's closure pointer (a `*struct cap`), while lowering it. */
+    ValueId lambda_closure_ptr_ = MIR_NULL;
+    TypeId lambda_closure_type_ = MIR_INVALID_ID;
     bool sret_ = false;
     ValueId sret_ptr_ = MIR_NULL;
     TypeId sret_ret_type_ = MIR_INVALID_ID;

@@ -3725,7 +3725,13 @@ bool MIRLowerer::lower_switch_dispatch(SwitchStatement& sw,
     const TypeId tag_t = types_.u32_type();
     bool variant_switch = false;
     if (sw.expression && sw.expression->getType()) {
-        ASTNode* ln = sw.expression->getType()->get_direct_linked_node();
+        BaseType* ct = sw.expression->getType()->canonical();
+        if (ct && ct->kind() == BaseTypeKind::Reference) {
+            ct = ct->as_reference_type()->type->canonical();
+        } else if (ct && ct->kind() == BaseTypeKind::Pointer) {
+            ct = ct->as_pointer_type()->type->canonical();
+        }
+        ASTNode* ln = ct ? ct->get_direct_linked_canonical_node() : nullptr;
         if (ln && (ln->kind() == ASTNodeKind::VariantDecl ||
                    ln->kind() == ASTNodeKind::VariantMember)) {
             ValueId tag = MIR_NULL;

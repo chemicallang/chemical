@@ -164,6 +164,31 @@ void MIRDeclEmitter::write_escaped_string(BufferedWriter& w, const std::string& 
     w.append_char('"');
 }
 
+std::string MIRDeclEmitter::struct_default_expr(StructDefinition* sd) {
+    if (!sd) return "{}";
+    std::string s = "(" + type_spelling(sd->known_type()) + ") {";
+    bool first = true;
+    auto add = [&](const std::string& field, const std::string& expr) {
+        if (!first) s += ", ";
+        s += "." + field + " = " + expr;
+        first = false;
+    };
+    for (auto& inh : sd->inherited) {
+        StructDefinition* base = inh.type ? inh.type->get_direct_linked_struct() : nullptr;
+        if (!base) continue;
+        add(std::string(base->name_view().data(), base->name_view().size()),
+            struct_default_expr(base));
+    }
+    for (BaseDefMember* var : sd->variables()) {
+        if (!var) continue;
+        Value* def = var->default_value();
+        if (!def) continue;
+        add(std::string(var->name.data(), var->name.size()), const_value_expr(def));
+    }
+    s += "}";
+    return s;
+}
+
 std::string MIRDeclEmitter::const_value_expr(Value* value) {
     if (!value) return "0";
     switch (value->val_kind()) {
@@ -216,13 +241,34 @@ std::string MIRDeclEmitter::const_value_expr(Value* value) {
             auto* sv = value->as_struct_value_unsafe();
             std::string s = "{";
             bool first = true;
-            for (auto& entry : sv->values) {
+            auto add = [&](const std::string& field, const std::string& expr) {
                 if (!first) s += ", ";
-                s += ".";
-                s += std::string(entry.second.name.data(), entry.second.name.size());
-                s += " = ";
-                s += const_value_expr(entry.second.value);
+                s += "." + field + " = " + expr;
                 first = false;
+            };
+            for (auto& entry : sv->values) {
+                add(std::string(entry.second.name.data(), entry.second.name.size()),
+                    const_value_expr(entry.second.value));
+            }
+            // default-initialize inherited bases and direct members not set
+            StructDefinition* sd = value->getType()
+                                       ? value->getType()->get_direct_linked_struct() : nullptr;
+            if (sd) {
+                for (auto& inh : sd->inherited) {
+                    StructDefinition* base = inh.type ? inh.type->get_direct_linked_struct() : nullptr;
+                    if (!base) continue;
+                    if (sv->values.find(base->name_view()) != sv->values.end()) continue;
+                    add(std::string(base->name_view().data(), base->name_view().size()),
+                        struct_default_expr(base));
+                }
+                for (BaseDefMember* var : sd->variables()) {
+                    if (!var) continue;
+                    if (!sd->isDirectChild(var)) continue;
+                    if (sv->values.find(var->name) != sv->values.end()) continue;
+                    Value* def = var->default_value();
+                    if (!def) continue;
+                    add(std::string(var->name.data(), var->name.size()), const_value_expr(def));
+                }
             }
             s += "}";
             return s;
@@ -260,8 +306,22 @@ std::string MIRDeclEmitter::const_value_expr(Value* value) {
                     const std::string pname(entry.first.data(), entry.first.size());
                     s += ", ." + mname + "." + pname + " = " + const_value_expr(arg);
                 }
+                if (vd) {
+                    for (auto& inh : vd->inherited) {
+                        StructDefinition* base =
+                            inh.type ? inh.type->get_direct_linked_struct() : nullptr;
+                        if (!base) continue;
+                        s += ", ." + std::string(base->name_view().data(), base->name_view().size()) +
+                             " = " + struct_default_expr(base);
+                    }
+                }
                 s += " }";
                 return s;
+            }
+            // a comptime function call folds to its constant result
+            if (value_eval_) {
+                Value* ev = value_eval_(call);
+                if (ev && ev != call) return const_value_expr(ev);
             }
             return "0";
         }
@@ -278,8 +338,19 @@ std::string MIRDeclEmitter::const_value_expr(Value* value) {
                     auto* vm = linked->as_variant_member_unsafe();
                     VariantDefinition* vd = vm->parent();
                     const long idx = vd ? vd->direct_child_index(vm->name) : 0;
-                    return "(" + type_spelling(value->getType()) +
-                           ") { .__chx__vt_621827 = " + std::to_string(idx < 0 ? 0 : idx) + " }";
+                    std::string s = "(" + type_spelling(value->getType()) +
+                                    ") { .__chx__vt_621827 = " + std::to_string(idx < 0 ? 0 : idx);
+                    if (vd) {
+                        for (auto& inh : vd->inherited) {
+                            StructDefinition* base =
+                                inh.type ? inh.type->get_direct_linked_struct() : nullptr;
+                            if (!base) continue;
+                            s += ", ." + std::string(base->name_view().data(), base->name_view().size()) +
+                                 " = " + struct_default_expr(base);
+                        }
+                    }
+                    s += " }";
+                    return s;
                 }
                 if (linked->kind() == ASTNodeKind::FunctionDecl) {
                     // a global function pointer/reference (`fn<T>`)
@@ -1086,10 +1157,6 @@ void MIRDeclEmitter::implement(BufferedWriter& w, ASTNode* node) {
             w << decl_spelling(init_type, mangle_name(init));
             w.append(" = ", 3);
             Value* ivalue = init->value;
-            if (value_eval_) {
-                Value* ev = value_eval_(ivalue);
-                if (ev) ivalue = ev;
-            }
             w << const_value_expr(ivalue);
             w.append_char(';');
             return;

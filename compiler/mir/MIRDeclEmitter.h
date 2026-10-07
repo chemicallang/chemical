@@ -127,6 +127,7 @@ private:
     std::string decl_spelling(BaseType* type, const std::string& name);
     TypeId function_type_of(FunctionDeclaration* decl);
     std::string const_value_expr(Value* value);
+    std::string struct_default_expr(StructDefinition* sd);
     void write_escaped_string(BufferedWriter& w, const std::string& s);
 
     /** Emit one struct/union member (including anonymous aggregates). */

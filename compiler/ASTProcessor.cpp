@@ -1984,6 +1984,12 @@ bool mir_translate_after_declaration(
                    node->kind() == ASTNodeKind::UnionDecl) {
             auto* def = node->as_extendable_member_container();
             if (lower_container(def)) continue;
+        } else if (node->kind() == ASTNodeKind::VarInitStmt) {
+            auto* vi = node->as_var_init_unsafe();
+            if (vi->is_top_level() && !vi->is_comptime()) {
+                decl_emitter.implement(visitor.writer, node);
+                continue;
+            }
         }
         visitor.top_level_position = visitor.writer.getPosition();
         visitor.visit(node);

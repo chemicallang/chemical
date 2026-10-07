@@ -76,6 +76,7 @@
 #include "ast/values/PatternMatchExpr.h"
 #include "ast/values/InValue.h"
 #include "ast/values/RuntimeBlockValue.h"
+#include "ast/values/BlockValue.h"
 #include "ast/statements/PatternMatchExprNode.h"
 #include "ast/statements/Return.h"
 #include "ast/statements/Break.h"
@@ -2071,6 +2072,32 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         continue;
                     }
                 }
+                if ((r.kind == MIRExprKind::Place || r.kind == MIRExprKind::Address) &&
+                    member_type) {
+                    BaseType* mtc = member_type->canonical();
+                    if (mtc && (mtc->kind() == BaseTypeKind::Pointer ||
+                                mtc->kind() == BaseTypeKind::Reference)) {
+                        // a pointer/reference field takes a pointer: the RHS
+                        // pointer value, or the address of an aggregate RHS (the
+                        // emitter derefs a pointer-typed place RHS, which would
+                        // be wrong here)
+                        ValueId pv = MIR_NULL;
+                        if (r.kind == MIRExprKind::Address) {
+                            pv = static_cast<ValueId>(r.id);
+                        } else {
+                            const TypeId pt = builder_->function().places[r.id].type;
+                            const MIRTypeRecord& pr = module_.types.get(pt);
+                            pv = (pr.kind == MIRTypeKind::Pointer ||
+                                  pr.kind == MIRTypeKind::Reference)
+                                     ? builder_->load(static_cast<PlaceId>(r.id), pt)
+                                     : builder_->address_of(static_cast<PlaceId>(r.id),
+                                                            types_.pointer_type(pt, true));
+                        }
+                        builder_->field_store(temp, fc, pv);
+                        ++it;
+                        continue;
+                    }
+                }
                 if (r.kind == MIRExprKind::Place) {
                     const PlaceId src = static_cast<PlaceId>(r.id);
                     builder_->field_store_place(temp, fc, src);
@@ -2735,13 +2762,49 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         case ValueKind::PatternMatchExpr: {
             return lower_pattern_match_value(value->as_pattern_match_expr_unsafe(), error);
         }
-        case ValueKind::RuntimeBlockValue: {
-            // a `%runtime_block_value { ... }` is a statement-expression whose
-            // trailing value is the block's result
-            auto* rb = static_cast<RuntimeBlockValue*>(value);
+        case ValueKind::RuntimeBlockValue:
+        case ValueKind::BlockValue: {
+            // a `{ ... }` / `%runtime_block_value { ... }` statement-expression:
+            // its trailing value (or symres-calculated value) is the result
+            Scope* scope = nullptr;
+            Value* calculated = nullptr;
+            if (value->val_kind() == ValueKind::RuntimeBlockValue) {
+                scope = &static_cast<RuntimeBlockValue*>(value)->scope;
+            } else {
+                auto* bv = static_cast<BlockValue*>(value);
+                scope = &bv->scope;
+                calculated = bv->getCalculatedValue();
+            }
             const TypeId vt = type;
             const PlaceId dest = builder_->alloca(vt, MIRStorageClass::Temporary);
-            if (!lower_scope_value(rb->scope, dest, vt, error)) {
+            if (calculated) {
+                const size_t mark = destructibles_.size();
+                for (ASTNode* n : scope->nodes) {
+                    if (builder_->current_block_terminated()) break;
+                    if (!lower_stmt(n, error)) return MIRExprResult::error();
+                }
+                MIRExprResult r = lower_expr(calculated, error);
+                if (!r.ok()) return r;
+                if (r.kind == MIRExprKind::Place) {
+                    builder_->store(dest, builder_->load(static_cast<PlaceId>(r.id), vt));
+                } else if (r.kind == MIRExprKind::Address) {
+                    builder_->store(dest,
+                                    builder_->load_indirect(static_cast<ValueId>(r.id), vt));
+                } else if (r.kind == MIRExprKind::Value) {
+                    builder_->store(dest, static_cast<ValueId>(r.id));
+                } else {
+                    error = "block value does not produce a value";
+                    return MIRExprResult::error();
+                }
+                if (!builder_->current_block_terminated()) {
+                    for (size_t i = mark; i < destructibles_.size(); ++i) {
+                        const ValueId fv =
+                            builder_->load(destructibles_[i].flag, types_.bool_type());
+                        builder_->drop(destructibles_[i].place, destructibles_[i].dtor, fv);
+                    }
+                }
+                destructibles_.resize(mark);
+            } else if (!lower_scope_value(*scope, dest, vt, error)) {
                 return MIRExprResult::error();
             }
             if (needs_aggregate_path(module_, vt)) {
@@ -3962,6 +4025,7 @@ bool MIRLowerer::lower_scope_value(Scope& scope, PlaceId dest, TypeId dest_t,
         if (i + 1 == n) {
             // the trailing node of a value scope may be a statement-form
             // if/switch/loop that must be lowered in value position
+            Value* v = nullptr;
             switch (node->kind()) {
                 case ASTNodeKind::IfStmt:
                     return lower_if_stmt_into(*node->as_if_stmt_unsafe(), dest, dest_t, error) &&
@@ -3972,10 +4036,13 @@ bool MIRLowerer::lower_scope_value(Scope& scope, PlaceId dest, TypeId dest_t,
                 case ASTNodeKind::LoopBlock:
                     return lower_loop_block_into(*node->as_loop_block_unsafe(), dest, dest_t, error) &&
                            finish();
+                case ASTNodeKind::AccessChainNode:
+                    v = &node->as_access_chain_node_unsafe()->chain;
+                    break;
                 default:
+                    v = Value::get_first_value_from_value_node(node);
                     break;
             }
-            Value* v = Value::get_first_value_from_value_node(node);
             if (v) {
                 // a moved branch value (a destructured variant payload) consumes
                 // the source it was moved from
@@ -3983,6 +4050,9 @@ bool MIRLowerer::lower_scope_value(Scope& scope, PlaceId dest, TypeId dest_t,
                 MIRExprResult r = lower_expr(v, error);
                 if (!r.ok()) return false;
                 if (r.kind == MIRExprKind::Place) {
+                    // the trailing local is moved out into the result, so its
+                    // destructor must not run at scope exit
+                    mark_moved(static_cast<PlaceId>(r.id));
                     builder_->store(dest, builder_->load(static_cast<PlaceId>(r.id), dest_t));
                 } else if (r.kind == MIRExprKind::Address) {
                     builder_->store(dest, builder_->load_indirect(static_cast<ValueId>(r.id), dest_t));

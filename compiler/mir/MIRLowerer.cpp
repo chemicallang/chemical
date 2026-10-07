@@ -4027,8 +4027,14 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         return true;
                     }
                     if (r.kind == MIRExprKind::Address) {
-                        builder_->store_indirect(
-                            addr, builder_->load_indirect(static_cast<ValueId>(r.id), vt));
+                        const MIRTypeRecord& gtr = module_.types.get(vt);
+                        if (gtr.kind == MIRTypeKind::Pointer ||
+                            gtr.kind == MIRTypeKind::Reference) {
+                            builder_->store_indirect(addr, static_cast<ValueId>(r.id));
+                        } else {
+                            builder_->store_indirect(
+                                addr, builder_->load_indirect(static_cast<ValueId>(r.id), vt));
+                        }
                         return true;
                     }
                     if (r.kind != MIRExprKind::Value) {
@@ -4052,8 +4058,14 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         return true;
                     }
                     if (r.kind == MIRExprKind::Address) {
-                        builder_->store_indirect(
-                            addr, builder_->load_indirect(static_cast<ValueId>(r.id), vt));
+                        const MIRTypeRecord& gtr = module_.types.get(vt);
+                        if (gtr.kind == MIRTypeKind::Pointer ||
+                            gtr.kind == MIRTypeKind::Reference) {
+                            builder_->store_indirect(addr, static_cast<ValueId>(r.id));
+                        } else {
+                            builder_->store_indirect(
+                                addr, builder_->load_indirect(static_cast<ValueId>(r.id), vt));
+                        }
                         return true;
                     }
                     if (r.kind != MIRExprKind::Value) {
@@ -4138,9 +4150,15 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             }
             if (r.kind == MIRExprKind::Address) {
                 destroy_old_dest();
-                const ValueId loaded =
-                    builder_->load_indirect(static_cast<ValueId>(r.id), place_type);
-                builder_->store(place, loaded);
+                const MIRTypeRecord& ptr = module_.types.get(place_type);
+                if (ptr.kind == MIRTypeKind::Pointer || ptr.kind == MIRTypeKind::Reference) {
+                    // the target is a pointer/reference: the address is the value
+                    builder_->store(place, static_cast<ValueId>(r.id));
+                } else {
+                    const ValueId loaded =
+                        builder_->load_indirect(static_cast<ValueId>(r.id), place_type);
+                    builder_->store(place, loaded);
+                }
                 mark_initialized();
                 return true;
             }

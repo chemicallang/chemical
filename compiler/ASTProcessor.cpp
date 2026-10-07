@@ -2137,6 +2137,9 @@ int ASTProcessor::implement_module(
         if (!fn) return nullptr;
         return ((EmbeddedNodeReplacementFunc) fn)(&builder, &c_visitor, node);
     });
+    mir_decl.set_value_eval([&c_visitor](Value* v) -> Value* {
+        return v ? v->evaluated_value(c_visitor.comptime_scope) : nullptr;
+    });
 
     // generic instantiations for this module: lowered by MIR (function bodies);
     // non-function nodes still go through the legacy visitor as declarations

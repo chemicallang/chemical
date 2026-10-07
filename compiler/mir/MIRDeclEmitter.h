@@ -62,6 +62,9 @@ public:
         static_recorder_ = std::move(fn);
     }
 
+    /** Callback used to fold a global initializer to a compile-time constant. */
+    void set_value_eval(std::function<Value*(Value*)> fn) { value_eval_ = std::move(fn); }
+
     /** Emit the fixed preamble (typedefs, malloc/free, macros). */
     void emit_preamble(BufferedWriter& w);
 
@@ -140,6 +143,7 @@ private:
 
     std::function<ASTNode*(EmbeddedNode*)> embedded_decl_repl_;
     std::function<void(InterfaceDefinition*)> static_recorder_;
+    std::function<Value*(Value*)> value_eval_;
 
     /** Containers whose early-declare walk is on the stack (cycle guard). */
     std::unordered_set<ASTNode*> early_declare_in_progress_;

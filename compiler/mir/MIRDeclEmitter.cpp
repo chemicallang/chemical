@@ -1085,7 +1085,12 @@ void MIRDeclEmitter::implement(BufferedWriter& w, ASTNode* node) {
             if (init->is_volatile()) w.append("volatile ", 9);
             w << decl_spelling(init_type, mangle_name(init));
             w.append(" = ", 3);
-            w << const_value_expr(init->value);
+            Value* ivalue = init->value;
+            if (value_eval_) {
+                Value* ev = value_eval_(ivalue);
+                if (ev) ivalue = ev;
+            }
+            w << const_value_expr(ivalue);
             w.append_char(';');
             return;
         }

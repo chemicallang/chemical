@@ -99,6 +99,9 @@
 #include "ast/structures/ForInLoop.h"
 #include "ast/structures/InheritedType.h"
 #include "ast/structures/BaseDefMember.h"
+#include "ast/structures/UnionDef.h"
+#include "ast/structures/UnnamedStruct.h"
+#include "ast/types/StructType.h"
 #include "compiler/symres/ImplementationsIndex.h"
 #include "compiler/symres/CoreNodes.h"
 #include "MIREmitter.h"
@@ -1591,6 +1594,11 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
     if (fd->is_comptime() && comptime_eval_) {
         Value* evaluated = comptime_eval_(call, fd);
         if (!evaluated) {
+            // a void comptime call whose evaluation produced no value (e.g. an
+            // inline-asm fence) is a no-op
+            if (is_void_type(module_, types_.map(fd->returnType))) {
+                return MIRExprResult::void_result();
+            }
             error = "comptime call to '" + fd->name_str() + "' could not be evaluated";
             return MIRExprResult::error();
         }
@@ -2219,28 +2227,65 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             auto* sv = value->as_struct_value_unsafe();
             TypeId st = type;
             StructDefinition* sd = nullptr;
-            if (BaseType* ctype = value->getType()) {
+            UnionDef* ud = nullptr;
+            UnnamedStruct* us = nullptr;
+            StructType* stc = nullptr;
+            auto bind_container = [&](BaseType* ctype) {
+                if (!ctype) return;
                 ASTNode* cn = ctype->get_direct_linked_canonical_node();
-                if (cn && cn->kind() == ASTNodeKind::StructDecl) {
+                if (!cn) cn = ctype->get_direct_linked_node();
+                if (!cn) return;
+                if (cn->kind() == ASTNodeKind::StructDecl) {
                     sd = cn->as_struct_def_unsafe();
+                } else if (cn->kind() == ASTNodeKind::UnionDecl) {
+                    ud = cn->as_union_def_unsafe();
+                } else if (cn->kind() == ASTNodeKind::UnnamedStruct) {
+                    us = cn->as_unnamed_struct_unsafe();
+                } else if (cn->kind() == ASTNodeKind::StructType) {
+                    stc = static_cast<StructType*>(cn);
                 }
-            }
-            if ((!sd || st == MIR_INVALID_ID || st >= module_.types.size() ||
-                 module_.types.get(st).kind == MIRTypeKind::Opaque) &&
-                expected_struct_type_) {
+            };
+            bind_container(value->getType());
+            auto unresolved = [&]() -> bool {
+                return (!sd && !ud && !us && !stc) || st == MIR_INVALID_ID ||
+                       st >= module_.types.size() ||
+                       module_.types.get(st).kind == MIRTypeKind::Opaque;
+            };
+            if (unresolved() && expected_struct_type_) {
                 st = types_.map(expected_struct_type_);
-                ASTNode* cn = expected_struct_type_->get_direct_linked_canonical_node();
-                if (cn && cn->kind() == ASTNodeKind::StructDecl) {
-                    sd = cn->as_struct_def_unsafe();
-                }
+                sd = nullptr;
+                ud = nullptr;
+                us = nullptr;
+                stc = nullptr;
+                bind_container(expected_struct_type_);
             }
-            if (!sd || st == MIR_INVALID_ID || st >= module_.types.size() ||
-                module_.types.get(st).kind == MIRTypeKind::Opaque) {
+            if (unresolved()) {
                 // e.g. a generic struct literal whose instantiation MIR has not
                 // resolved: fall back rather than emit `void*` field stores
                 error = "struct literal with an unresolved (generic?) type is not yet supported";
                 return MIRExprResult::error();
             }
+            auto lookup_member_type = [&](const chem::string_view& nm) -> BaseType* {
+                if (sd) {
+                    auto r = sd->variable_type_w_index(nm);
+                    if (r.second != -1) return r.first;
+                }
+                if (ud) {
+                    for (BaseDefMember* v : ud->variables()) {
+                        if (v && v->name == nm) return v->known_type();
+                    }
+                }
+                if (us) {
+                    for (BaseDefMember* v : us->variables()) {
+                        if (v && v->name == nm) return v->known_type();
+                    }
+                }
+                if (stc) {
+                    auto r = stc->variable_type_w_index(nm);
+                    if (r.second != -1) return r.first;
+                }
+                return nullptr;
+            };
             const PlaceId temp = builder_->alloca(st, MIRStorageClass::Temporary);
             if (temp == MIR_INVALID_ID) {
                 error = "failed to allocate struct temporary";
@@ -2367,15 +2412,24 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     ++it;
                     continue;
                 }
+                if (r.kind == MIRExprKind::Address) {
+                    // an lvalue address as a field initializer: load the pointee
+                    if (!member_type) member_type = lookup_member_type(init.name);
+                    const TypeId ft = member_type ? types_.map(member_type) : r.type;
+                    builder_->field_store(
+                        temp, fc,
+                        builder_->load_indirect(static_cast<ValueId>(r.id), ft));
+                    ++it;
+                    continue;
+                }
                 if (r.kind != MIRExprKind::Value) {
                     error = "unsupported struct field initializer";
                     return MIRExprResult::error();
                 }
                 // if the field is an aggregate value but the initializer is a
                 // pointer/reference, dereference to get the value
-                if (!member_type && sd) {
-                    auto mtw2 = sd->variable_type_w_index(init.name);
-                    if (mtw2.second != -1) member_type = mtw2.first;
+                if (!member_type) {
+                    member_type = lookup_member_type(init.name);
                 }
                 if (member_type) {
                     const MIRTypeRecord& rt = module_.types.get(r.type);
@@ -2399,7 +2453,10 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 for (auto& kv : sv->values) {
                     explicit_fields.insert(std::string(kv.first.data(), kv.first.size()));
                 }
-                if (!apply_struct_defaults(temp, sd, explicit_fields, error)) {
+                ExtendableMembersContainerNode* defc =
+                    sd ? static_cast<ExtendableMembersContainerNode*>(sd)
+                       : (ud ? static_cast<ExtendableMembersContainerNode*>(ud) : nullptr);
+                if (defc && !apply_struct_defaults(temp, defc, explicit_fields, error)) {
                     return MIRExprResult::error();
                 }
             }
@@ -2902,6 +2959,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             if (fd->is_comptime() && comptime_eval_) {
                 Value* evaluated = comptime_eval_(call, fd);
                 if (!evaluated) {
+                    // a void comptime call whose evaluation produced no value
+                    // (e.g. an inline-asm fence) is a no-op
+                    if (is_void_type(module_, type)) return MIRExprResult::void_result();
                     error = "comptime call to '" + fd->name_str() + "' could not be evaluated";
                     return MIRExprResult::error();
                 }

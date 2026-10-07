@@ -290,7 +290,9 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
             break;
         }
         case BaseTypeKind::Struct: {
-            id = aggregate_type(MIRTypeKind::Struct, type->get_direct_linked_struct(), type);
+            const void* decl = type->get_direct_linked_struct();
+            if (!decl) decl = type->get_direct_linked_node();
+            id = aggregate_type(MIRTypeKind::Struct, decl, type);
             break;
         }
         case BaseTypeKind::Union: {
@@ -307,6 +309,8 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
             } else if (ASTNode* n = type->get_direct_linked_node()) {
                 if (n->kind() == ASTNodeKind::UnionDecl) {
                     id = aggregate_type(MIRTypeKind::Union, n, type);
+                } else if (n->kind() == ASTNodeKind::UnnamedStruct) {
+                    id = aggregate_type(MIRTypeKind::Struct, n, type);
                 } else if (n->kind() == ASTNodeKind::TypealiasStmt) {
                     id = map(n->as_typealias_unsafe()->known_type());
                 } else if (n->kind() == ASTNodeKind::FunctionDecl) {

@@ -402,6 +402,8 @@ private:
     /** Struct temporaries whose destruction is deferred to the statement end. */
     std::vector<std::pair<PlaceId, BaseType*>> stmt_temps_;
     FunctionTypeBody* current_func_ = nullptr;
+    /** The `self` parameter of the function currently being lowered (if any). */
+    FunctionParam* current_self_param_ = nullptr;
     std::vector<BlockId> break_targets_;
     std::vector<BlockId> continue_targets_;
     std::vector<size_t> loop_destructible_marks_;

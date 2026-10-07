@@ -241,47 +241,44 @@ static std::string fn_ptr_type(const MIRModule& module, const MIRTypeRecord& r) 
 }
 
 // A C declarator for `type name`, handling function-pointer types correctly.
+static std::string declarator(const MIRModule& module, TypeId type, const std::string& name);
+
+// The declarator for an entity named `name` whose type is `type`. Recurses
+// through function return types so a function returning a function pointer is
+// spelled with nested declarators (`int(*(*name)(params))(retparams)`), matching
+// the legacy `wrap_nested_func_return` spelling.
+static std::string decl_type(const MIRModule& module, TypeId type, const std::string& name) {
+    if (type == MIR_INVALID_ID || type >= module.types.size()) return "void " + name;
+    const MIRTypeRecord& r = module.types.get(type);
+    if (r.kind != MIRTypeKind::Function) {
+        return c_type_of(module, type) + " " + name;
+    }
+    const bool sret = mir_struct_like_return(module, r.element);
+    std::string params;
+    if (sret) params += c_type_of(module, r.element) + "*";
+    for (uint32_t i = 0; i < r.data_count; ++i) {
+        if (!params.empty()) params += ", ";
+        params += declarator(module, module.types.data[r.data_offset + i],
+                             "__chx_a" + std::to_string(i));
+    }
+    if (params.empty()) params = "void";
+    const std::string inner = "(*" + name + ")(" + params + ")";
+    if (sret) return "void " + inner;
+    return decl_type(module, r.element, inner);
+}
+
 static std::string declarator(const MIRModule& module, TypeId type, const std::string& name) {
     if (type == MIR_INVALID_ID || type >= module.types.size()) return "void " + name;
     const MIRTypeRecord& r = module.types.get(type);
     if (r.kind == MIRTypeKind::Function) {
-        const bool sret = mir_struct_like_return(module, r.element);
-        std::string s = (sret ? std::string("void") : c_type_of(module, r.element)) + "(*" +
-                        name + ")(";
-        bool first = true;
-        if (sret) {
-            s += c_type_of(module, r.element) + "*";
-            first = false;
-        }
-        for (uint32_t i = 0; i < r.data_count; ++i) {
-            if (!first) s += ", ";
-            s += c_type_of(module, module.types.data[r.data_offset + i]);
-            first = false;
-        }
-        if (first) s += "void";
-        s += ")";
-        return s;
+        return decl_type(module, type, name);
     }
     if (r.kind == MIRTypeKind::Array) {
         const MIRTypeRecord& elem = module.types.get(r.element);
         if (elem.kind == MIRTypeKind::Function) {
             // array of function pointers: `ret (*name[N])(params)`
-            const bool sret = mir_struct_like_return(module, elem.element);
-            std::string s = (sret ? std::string("void") : c_type_of(module, elem.element)) +
-                            "(*" + name + "[" + std::to_string(r.data_count) + "])(";
-            bool first = true;
-            if (sret) {
-                s += c_type_of(module, elem.element) + "*";
-                first = false;
-            }
-            for (uint32_t i = 0; i < elem.data_count; ++i) {
-                if (!first) s += ", ";
-                s += c_type_of(module, module.types.data[elem.data_offset + i]);
-                first = false;
-            }
-            if (first) s += "void";
-            s += ")";
-            return s;
+            return decl_type(module, r.element,
+                             name + "[" + std::to_string(r.data_count) + "]");
         }
         return declarator(module, r.element, name) + "[" + std::to_string(r.data_count) + "]";
     }

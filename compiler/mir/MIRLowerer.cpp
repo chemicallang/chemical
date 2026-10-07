@@ -587,6 +587,30 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
                 return MIRExprResult::value(builder_->load(place, pt), pt);
             }
         }
+        if (id->linked && id->linked->kind() == ASTNodeKind::StructMember &&
+            current_self_param_) {
+            // `&field` inside a method is `&self.field`
+            VariableIdentifier self_id(current_self_param_->name,
+                                       current_self_param_->type, ZERO_LOC);
+            self_id.linked = current_self_param_;
+            std::string fname;
+            if (!member_field_path(&self_id, id, fname, error)) {
+                return MIRExprResult::error();
+            }
+            const ConstantId fc = module_.constants.add_string(
+                MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
+            const TypeId ft = types_.map(id->getType());
+            MIRExprResult sb = lower_expr(&self_id, error);
+            if (!sb.ok()) return sb;
+            if (sb.kind == MIRExprKind::Place) {
+                return MIRExprResult::value(
+                    builder_->field_addr(static_cast<PlaceId>(sb.id), fc, ft),
+                    types_.pointer_type(ft, true));
+            }
+            return MIRExprResult::value(
+                builder_->field_addr_ptr(static_cast<ValueId>(sb.id), fc, ft),
+                types_.pointer_type(ft, true));
+        }
         const PlaceId p = place_for_linked(id->linked);
         if (p != MIR_INVALID_ID) {
             const TypeId pt = builder_->function().places[p].type;
@@ -1554,6 +1578,15 @@ MIRExprResult MIRLowerer::lower_receiver(const std::vector<Value*>& values, size
         }
         if (k == ValueKind::Identifier || k == ValueKind::AccessChain ||
             k == ValueKind::IndexOperator) {
+            // an unqualified field receiver inside a method resolves through
+            // `self` (handled by `lower_expr` as an implicit member access)
+            if (k == ValueKind::Identifier) {
+                auto* rid = v->as_identifier_unsafe();
+                if (rid->linked && rid->linked->kind() == ASTNodeKind::StructMember &&
+                    current_self_param_) {
+                    return lower_expr(v, error);
+                }
+            }
             // prefer the place (needed for `&self` scalar receivers)
             std::string perr;
             const PlaceId p = resolve_place_or_lower(v, perr);
@@ -2001,6 +2034,16 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 const uint64_t idx = em ? static_cast<uint64_t>(em->get_default_index()) : 0;
                 const ConstantId c = module_.constants.add_int(type, idx);
                 return MIRExprResult::value(builder_->const_int(type, c), type);
+            }
+            if (id->linked && id->linked->kind() == ASTNodeKind::StructMember &&
+                current_self_param_) {
+                // an unqualified field access inside a method resolves to
+                // `self.field` (the field lives on the receiver)
+                VariableIdentifier self_id(current_self_param_->name,
+                                           current_self_param_->type, ZERO_LOC);
+                self_id.linked = current_self_param_;
+                std::vector<Value*> chain = {&self_id, id};
+                return lower_member_chain(chain, 2, error);
             }
             PlaceId place = place_for_linked(id->linked);
             if (place == MIR_INVALID_ID) place = place_for_name(id->value);
@@ -6088,6 +6131,7 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
     sret_ret_type_ = handle_t;
     sret_ptr_type_ = types_.pointer_type(handle_t, true);
     FunctionParam* self_param = decl->has_self_param() ? decl->get_self_param() : nullptr;
+    current_self_param_ = self_param;
     bool self_in_params = false;
     for (FunctionParam* p : decl->params) {
         if (p == self_param) { self_in_params = true; break; }
@@ -6865,6 +6909,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     sret_ret_type_ = ret;
     return_type_ = decl->returnType;
     FunctionParam* self_param = decl->has_self_param() ? decl->get_self_param() : nullptr;
+    current_self_param_ = self_param;
     bool self_in_params = false;
     for (FunctionParam* p : decl->params) {
         if (p == self_param) { self_in_params = true; break; }

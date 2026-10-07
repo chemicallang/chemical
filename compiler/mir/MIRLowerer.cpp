@@ -3506,6 +3506,17 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         case ValueKind::LambdaFunc: {
             return lower_lambda(value->as_lambda_func_unsafe(), error);
         }
+        case ValueKind::AwaitExpr: {
+            // a non-suspending (transparent) await: use the operand's value.
+            // Suspending awaits are hoisted into VarInitStatements by the async
+            // normalization pass and handled by `async_lower_await_var_init`.
+            auto* aw = value->as_await_expression_unsafe();
+            if (!aw || !aw->getInner()) {
+                error = "await expression has no operand";
+                return MIRExprResult::error();
+            }
+            return lower_expr(aw->getInner(), error);
+        }
         default:
             error = "unsupported value kind during MIR lowering (kind " +
                     std::to_string(static_cast<int>(value->val_kind())) + ")";
@@ -3578,12 +3589,12 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             bind_name(vi->name_view(), place);
             if (async_ && vi->value && vi->value->kind() == ValueKind::AwaitExpr) {
                 auto it = async_site_index_.find(vi);
-                if (it == async_site_index_.end()) {
-                    error = "await var init has no matching site";
-                    return false;
+                if (it != async_site_index_.end()) {
+                    async_result_places_[it->second] = place;
+                    return async_lower_await_var_init(vi, it->second, error);
                 }
-                async_result_places_[it->second] = place;
-                return async_lower_await_var_init(vi, it->second, error);
+                // no site: a transparent (non-suspending) await. Fall through to
+                // the normal lowering, which handles `AwaitExpr` as its operand.
             }
             if (vi->known_type() || (vi->value && vi->value->getType())) {
                 BaseType* vtype = vi->known_type();

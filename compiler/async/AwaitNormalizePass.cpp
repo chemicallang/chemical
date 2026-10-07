@@ -106,7 +106,13 @@ struct AwaitRewriter {
     Value* rewrite(Value* value) {
         if(value == nullptr) return nullptr;
         if(value->kind() == ValueKind::AwaitExpr) {
-            return hoist(value->as_await_expression_unsafe());
+            // hoist the operand's own awaits first, preserving left-to-right
+            // evaluation order (`await f(await g(x))`)
+            auto await = value->as_await_expression_unsafe();
+            if(await->getInner() != nullptr) {
+                await->setInner(rewrite(await->getInner()));
+            }
+            return hoist(await);
         }
         switch(value->kind()) {
             case ValueKind::Expression: {

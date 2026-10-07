@@ -3,6 +3,7 @@
 #include "MIREmitter.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -10,6 +11,22 @@
 namespace mir {
 
 namespace {
+
+// Format a floating-point literal with the shortest precision that still
+// round-trips exactly (a plain "%g" truncates to 6 significant digits, which
+// silently corrupts literals such as 3.14159265).
+std::string format_float_literal(double value, int min_prec, int max_prec,
+                                 const char* suffix) {
+    char buf[64];
+    for (int prec = min_prec; prec <= max_prec; ++prec) {
+        std::snprintf(buf, sizeof(buf), "%.*g", prec, value);
+        if (std::strtod(buf, nullptr) == value) break;
+    }
+    std::string s(buf);
+    if (s.find_first_of(".eE") == std::string::npos) s += ".0";
+    s += suffix;
+    return s;
+}
 
 std::string c_int_type(uint32_t size, bool is_signed) {
     switch (size) {
@@ -279,20 +296,13 @@ bool const_literal(const MIRModule& module, ConstantId cid, TypeId cast_type, st
             float f;
             uint32_t b = static_cast<uint32_t>(c.bits);
             std::memcpy(&f, &b, sizeof(f));
-            char buf[64];
-            std::snprintf(buf, sizeof(buf), "%g", static_cast<double>(f));
-            std::string s(buf);
-            if (s.find_first_of(".eE") == std::string::npos) s += ".0";
-            out = s + "f";
+            out = format_float_literal(static_cast<double>(f), 6, 9, "f");
             return true;
         }
         case MIRConstantKind::Double: {
             double d;
             std::memcpy(&d, &c.bits, sizeof(d));
-            char buf[64];
-            std::snprintf(buf, sizeof(buf), "%g", d);
-            out = buf;
-            if (out.find_first_of(".eE") == std::string::npos) out += ".0";
+            out = format_float_literal(d, 15, 17, "");
             return true;
         }
         case MIRConstantKind::String:

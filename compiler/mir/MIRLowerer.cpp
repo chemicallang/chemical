@@ -73,6 +73,11 @@
 #include "ast/values/LambdaFunction.h"
 #include "ast/values/SwitchValue.h"
 #include "ast/values/LoopValue.h"
+#include "ast/values/PatternMatchExpr.h"
+#include "ast/statements/PatternMatchExprNode.h"
+#include "ast/statements/Return.h"
+#include "ast/statements/Break.h"
+#include "ast/statements/Continue.h"
 #include "ast/values/AwaitExpression.h"
 #include "compiler/async/AsyncCTypes.h"
 #include "compiler/async/AwaitNormalizePass.h"
@@ -341,6 +346,59 @@ FunctionDeclaration* MIRLowerer::resolve_method_fallback(BaseType* recv_type,
     return nullptr;
 }
 
+ExtendableMembersContainerNode* MIRLowerer::receiver_user_container(BaseType* recv_type) {
+    if (!recv_type) return nullptr;
+    BaseType* t = recv_type->canonical();
+    if (!t) return nullptr;
+    if (t->kind() == BaseTypeKind::Pointer) {
+        t = t->as_pointer_type()->type ? t->as_pointer_type()->type->canonical() : nullptr;
+    } else if (t->kind() == BaseTypeKind::Reference) {
+        t = t->as_reference_type()->type ? t->as_reference_type()->type->canonical() : nullptr;
+    }
+    if (!t) return nullptr;
+    ASTNode* n = t->get_direct_linked_canonical_node();
+    if (!n) return nullptr;
+    return n->as_extendable_member_container();
+}
+
+SymbolId MIRLowerer::intern_method_function(FunctionDeclaration* decl, BaseType* recv_type) {
+    ASTNode* parent = decl ? decl->parent() : nullptr;
+    if (!parent || parent->kind() != ASTNodeKind::InterfaceDecl) {
+        return intern_function(decl);
+    }
+    auto* iface = parent->as_interface_def_unsafe();
+    if (iface->is_static()) return intern_function(decl);
+    ExtendableMembersContainerNode* user = receiver_user_container(recv_type);
+    if (!user) return intern_function(decl);
+
+    // an interface default method is emitted once per implementing struct; the
+    // mangler keys its name off `active_user`, so set it while mangling
+    const auto prev = iface->active_user;
+    iface->active_user = user;
+    std::string name = mangler_ ? mangler_(decl) : "";
+    iface->active_user = prev;
+    if (name.empty()) return intern_function(decl);
+
+    auto it = named_method_symbols_.find(name);
+    if (it != named_method_symbols_.end()) return it->second;
+
+    TypeId ret = decl->returnType ? types_.map(decl->returnType) : types_.void_type();
+    std::vector<TypeId> ptypes;
+    ptypes.reserve(decl->params.size());
+    for (FunctionParam* p : decl->params) {
+        ptypes.push_back(p && p->type ? types_.map(p->type) : types_.opaque_type());
+    }
+    TypeId ftype = types_.function_signature(ret, ptypes);
+    MIRSymbolRecord rec;
+    rec.kind = MIRSymbolKind::Function;
+    rec.linkage = decl->is_extern() ? MIRLinkage::External : MIRLinkage::Internal;
+    rec.type = ftype;
+    SymbolId s = module_.symbols.add(rec, name.data(), static_cast<uint32_t>(name.size()),
+                                     name.data(), static_cast<uint32_t>(name.size()));
+    named_method_symbols_[name] = s;
+    return s;
+}
+
 MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
     Value* t = inner;
     if (t && t->val_kind() == ValueKind::AccessChain) {
@@ -424,6 +482,10 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
         }
         if (id->linked && id->linked->kind() == ASTNodeKind::VariantCaseVariable) {
             return lower_variant_payload(id->linked->as_variant_case_var_unsafe(), true, error);
+        }
+        if (id->linked && id->linked->kind() == ASTNodeKind::PatternMatchId) {
+            auto* pmid = id->linked->as_patt_match_id_unsafe();
+            return lower_pattern_payload(pmid->matchExpr, pmid->member_param, true, error);
         }
         const PlaceId p = place_for_linked(id->linked);
         if (p != MIR_INVALID_ID) {
@@ -655,6 +717,42 @@ void MIRLowerer::mark_moved(PlaceId place) {
             return;
         }
     }
+}
+
+void MIRLowerer::clear_moved_ref(Value* value) {
+    Value* t = value;
+    for (int guard = 0; guard < 4 && t; ++guard) {
+        if (t->val_kind() == ValueKind::AccessChain) {
+            auto* c = t->as_access_chain_unsafe();
+            if (c->values.size() == 1) { t = c->values[0]; continue; }
+            break;
+        }
+        if (t->val_kind() == ValueKind::UnsafeValue) {
+            auto* u = static_cast<UnsafeValue*>(t);
+            if (u->getValue()) { t = u->getValue(); continue; }
+            break;
+        }
+        break;
+    }
+    if (!t || t->val_kind() != ValueKind::Identifier) return;
+    auto* id = t->as_identifier_unsafe();
+    if (!id->linked || id->linked->kind() != ASTNodeKind::PatternMatchId) return;
+    PatternMatchExpr* pm = id->linked->as_patt_match_id_unsafe()->matchExpr;
+    if (!pm || !pm->expression) return;
+    Value* src = pm->expression;
+    for (int guard = 0; guard < 4 && src; ++guard) {
+        if (src->val_kind() == ValueKind::AccessChain) {
+            auto* c = src->as_access_chain_unsafe();
+            if (c->values.size() == 1) { src = c->values[0]; continue; }
+            break;
+        }
+        break;
+    }
+    if (!src || src->val_kind() != ValueKind::Identifier) return;
+    auto* sid = src->as_identifier_unsafe();
+    PlaceId sp = place_for_linked(sid->linked);
+    if (sp == MIR_INVALID_ID) sp = place_for_name(sid->value);
+    if (sp != MIR_INVALID_ID) mark_moved(sp);
 }
 
 void MIRLowerer::emit_drops() {
@@ -944,6 +1042,209 @@ MIRExprResult MIRLowerer::lower_variant_payload(VariantCaseVariable* var, bool a
     return MIRExprResult::error();
 }
 
+MIRExprResult MIRLowerer::lower_pattern_base(PatternMatchExpr* pm, std::string& error) {
+    auto it = pattern_bases_.find(pm);
+    if (it != pattern_bases_.end()) return it->second;
+    MIRExprResult base = lower_expr(pm->expression, error);
+    if (!base.ok()) return base;
+    pattern_bases_[pm] = base;
+    return base;
+}
+
+MIRExprResult MIRLowerer::lower_pattern_payload(PatternMatchExpr* pm, VariantMemberParam* param,
+                                                bool as_address, std::string& error) {
+    if (!pm || !pm->member || !param) {
+        error = "invalid pattern match payload";
+        return MIRExprResult::error();
+    }
+    MIRExprResult base = lower_pattern_base(pm, error);
+    if (!base.ok()) return base;
+    const chem::string_view mname = pm->member->name;
+    const chem::string_view pname = param->name;
+    std::string fname(mname.data(), mname.size());
+    fname.push_back('.');
+    fname.append(pname.data(), pname.size());
+    const ConstantId fc = module_.constants.add_string(
+        MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
+    const TypeId ft = types_.map(param->type);
+    if (base.kind == MIRExprKind::Place) {
+        const PlaceId bp = static_cast<PlaceId>(base.id);
+        if (as_address || needs_aggregate_path(module_, ft)) {
+            return MIRExprResult::address(builder_->field_addr(bp, fc, ft), ft);
+        }
+        return MIRExprResult::value(builder_->field_load(bp, fc, ft), ft);
+    }
+    if (base.kind == MIRExprKind::Address || base.kind == MIRExprKind::Value) {
+        const ValueId bv = static_cast<ValueId>(base.id);
+        if (as_address || needs_aggregate_path(module_, ft)) {
+            return MIRExprResult::address(builder_->field_addr_ptr(bv, fc, ft), ft);
+        }
+        return MIRExprResult::value(builder_->field_load_ptr(bv, fc, ft), ft);
+    }
+    error = "pattern match expression is not a variant lvalue";
+    return MIRExprResult::error();
+}
+
+MIRExprResult MIRLowerer::lower_pattern_cond(PatternMatchExpr* pm, std::string& error) {
+    if (!pm || !pm->member) {
+        error = "invalid pattern match condition";
+        return MIRExprResult::error();
+    }
+    MIRExprResult base = lower_pattern_base(pm, error);
+    if (!base.ok()) return base;
+    const std::string tag_name("__chx__vt_621827");
+    const ConstantId tag_fc = module_.constants.add_string(
+        MIR_INVALID_ID, tag_name.data(), static_cast<uint32_t>(tag_name.size()));
+    const TypeId it = types_.u32_type();
+    ValueId tag = MIR_NULL;
+    if (base.kind == MIRExprKind::Place) {
+        tag = builder_->field_load(static_cast<PlaceId>(base.id), tag_fc, it);
+    } else if (base.kind == MIRExprKind::Address || base.kind == MIRExprKind::Value) {
+        tag = builder_->field_load_ptr(static_cast<ValueId>(base.id), tag_fc, it);
+    } else {
+        error = "pattern match expression is not a variant lvalue";
+        return MIRExprResult::error();
+    }
+    VariantDefinition* vd = pm->member->parent();
+    const long idx = vd ? vd->direct_child_index(pm->member->name) : 0;
+    const ValueId c = builder_->const_int(
+        it, module_.constants.add_int(it, static_cast<uint64_t>(idx < 0 ? 0 : idx)));
+    const TypeId bool_t = types_.bool_type();
+    const ConstantId pred = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq));
+    return MIRExprResult::value(builder_->compare(tag, c, pred, bool_t), bool_t);
+}
+
+MIRExprResult MIRLowerer::lower_pattern_match_value(PatternMatchExpr* pm, std::string& error) {
+    const PatternElseExprKind k = pm->elseExpression.kind;
+    MIRExprResult cond = lower_pattern_cond(pm, error);
+    if (!cond.ok()) return cond;
+
+    // `if(var Some(x) = v)`: a plain condition; the payload is read through the
+    // cached base when `x` is used in the body.
+    if (k == PatternElseExprKind::None) return cond;
+
+    auto store_into = [&](PlaceId dest, TypeId dest_t, MIRExprResult r) -> bool {
+        if (r.kind == MIRExprKind::Place) {
+            builder_->store(dest, builder_->load(static_cast<PlaceId>(r.id), dest_t));
+        } else if (r.kind == MIRExprKind::Address) {
+            builder_->store(dest, builder_->load_indirect(static_cast<ValueId>(r.id), dest_t));
+        } else if (r.kind == MIRExprKind::Value) {
+            builder_->store(dest, static_cast<ValueId>(r.id));
+        } else {
+            error = "pattern match operand does not produce a value";
+            return false;
+        }
+        return true;
+    };
+
+    if (k == PatternElseExprKind::DefValue) {
+        if (pm->param_names.empty() || !pm->param_names[0] || !pm->param_names[0]->member_param) {
+            error = "invalid pattern match payload";
+            return MIRExprResult::error();
+        }
+        const TypeId pt = types_.map(pm->param_names[0]->member_param->type);
+        const PlaceId res = builder_->alloca(pt, MIRStorageClass::Temporary);
+        const BlockId then_b = builder_->create_block();
+        const BlockId else_b = builder_->create_block();
+        const BlockId merge = builder_->create_block();
+        builder_->cond_br(cond.id, then_b, else_b);
+        builder_->set_block(then_b);
+        MIRExprResult payload =
+            lower_pattern_payload(pm, pm->param_names[0]->member_param, false, error);
+        if (!payload.ok()) return payload;
+        if (!store_into(res, pt, payload)) return MIRExprResult::error();
+        if (!builder_->current_block_terminated()) builder_->br(merge);
+        builder_->set_block(else_b);
+        MIRExprResult def = lower_expr(pm->elseExpression.value, error);
+        if (!def.ok()) return def;
+        if (!store_into(res, pt, def)) return MIRExprResult::error();
+        if (!builder_->current_block_terminated()) builder_->br(merge);
+        builder_->set_block(merge);
+        pattern_results_[pm] = MIRExprResult::place(res, pt);
+        if (needs_aggregate_path(module_, pt)) return MIRExprResult::place(res, pt);
+        return MIRExprResult::value(builder_->load(res, pt), pt);
+    }
+
+    // Return / Break / Continue / Unreachable: guard on the tag, then the payload
+    const BlockId then_b = builder_->create_block();
+    const BlockId else_b = builder_->create_block();
+    builder_->cond_br(cond.id, then_b, else_b);
+    builder_->set_block(else_b);
+    switch (k) {
+        case PatternElseExprKind::Return: {
+            ReturnStatement rs(pm->elseExpression.value, nullptr, pm->encoded_location());
+            if (!lower_stmt(&rs, error)) return MIRExprResult::error();
+            break;
+        }
+        case PatternElseExprKind::Break: {
+            if (break_targets_.empty()) {
+                error = "pattern break outside a loop";
+                return MIRExprResult::error();
+            }
+            if (!loop_destructible_marks_.empty()) {
+                emit_drops_from(loop_destructible_marks_.back());
+            }
+            builder_->br(break_targets_.back());
+            break;
+        }
+        case PatternElseExprKind::Continue: {
+            if (continue_targets_.empty()) {
+                error = "pattern continue outside a loop";
+                return MIRExprResult::error();
+            }
+            if (!loop_destructible_marks_.empty()) {
+                emit_drops_from(loop_destructible_marks_.back());
+            }
+            builder_->br(continue_targets_.back());
+            break;
+        }
+        case PatternElseExprKind::Unreachable:
+            builder_->unreachable();
+            break;
+        default:
+            builder_->br(then_b);
+            break;
+    }
+    builder_->set_block(then_b);
+    VariantMemberParam* first =
+        (!pm->param_names.empty() && pm->param_names[0]) ? pm->param_names[0]->member_param
+                                                         : nullptr;
+    return lower_pattern_payload(pm, first, false, error);
+}
+
+bool MIRLowerer::lower_pattern_match_node(PatternMatchExprNode* node, std::string& error) {
+    MIRExprResult r = lower_pattern_match_value(&node->value, error);
+    return r.ok();
+}
+
+MIRExprResult MIRLowerer::lower_pattern_identifier(PatternMatchIdentifier* id,
+                                                   std::string& error) {
+    PatternMatchExpr* pm = id->matchExpr;
+    if (!pm) {
+        error = "pattern identifier has no match expression";
+        return MIRExprResult::error();
+    }
+    // a DefValue result temp holds only the first destructured parameter; the
+    // other parameters read their own payload field
+    VariantMemberParam* first =
+        (!pm->param_names.empty() && pm->param_names[0]) ? pm->param_names[0]->member_param
+                                                         : nullptr;
+    if (first && id->member_param == first) {
+        auto it = pattern_results_.find(pm);
+        if (it != pattern_results_.end()) {
+            MIRExprResult r = it->second;
+            if (r.kind == MIRExprKind::Place) {
+                const TypeId t = r.type;
+                if (needs_aggregate_path(module_, t)) return r;
+                return MIRExprResult::value(builder_->load(static_cast<PlaceId>(r.id), t), t);
+            }
+            return r;
+        }
+    }
+    return lower_pattern_payload(pm, id->member_param, false, error);
+}
+
 MIRExprResult MIRLowerer::lower_receiver(const std::vector<Value*>& values, size_t count,
                                          std::string& error) {
     if (count == 1 && values[0]) {
@@ -1154,7 +1455,7 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
         return lower_expr(evaluated, error);
     }
 
-    const SymbolId sym = intern_function(fd);
+    const SymbolId sym = intern_method_function(fd, recv_type);
     const TypeId type = types_.map(call->getType());
     if (is_void_type(module_, type)) {
         builder_->call_scalar(sym, type, args.data(), static_cast<uint32_t>(args.size()));
@@ -1292,6 +1593,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             }
             if (id->linked && id->linked->kind() == ASTNodeKind::VariantCaseVariable) {
                 return lower_variant_payload(id->linked->as_variant_case_var_unsafe(), false, error);
+            }
+            if (id->linked && id->linked->kind() == ASTNodeKind::PatternMatchId) {
+                return lower_pattern_identifier(id->linked->as_patt_match_id_unsafe(), error);
             }
             if (id->linked && id->linked->kind() == ASTNodeKind::FunctionDecl) {
                 // a function used as a value (function pointer)
@@ -1598,6 +1902,23 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 }
                 MIRExprResult r = lower_expr(init.value, error);
                 if (!r.ok()) return r;
+                // an array initializer for a pointer/reference field decays to a
+                // pointer to its first element (never a byte copy, which would
+                // overrun the pointer-sized field)
+                if (r.kind == MIRExprKind::Place && member_type) {
+                    BaseType* mtc = member_type->canonical();
+                    BaseType* it0 = init.value ? init.value->getType() : nullptr;
+                    BaseType* atc = it0 ? it0->canonical() : nullptr;
+                    if (mtc && (mtc->kind() == BaseTypeKind::Pointer ||
+                                mtc->kind() == BaseTypeKind::Reference) &&
+                        atc && atc->kind() == BaseTypeKind::Array) {
+                        const TypeId ptr_t = types_.map(member_type);
+                        builder_->field_store(
+                            temp, fc, builder_->address_of(static_cast<PlaceId>(r.id), ptr_t));
+                        ++it;
+                        continue;
+                    }
+                }
                 if (r.kind == MIRExprKind::Place) {
                     const PlaceId src = static_cast<PlaceId>(r.id);
                     builder_->field_store_place(temp, fc, src);
@@ -1651,12 +1972,31 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     if (!member) continue;
                     const chem::string_view mname = member->name;
                     if (sv->values.find(mname) != sv->values.end()) continue;
-                    Value* dv = member->default_value();
-                    if (!dv) continue;
-                    MIRExprResult r = lower_expr(dv, error);
-                    if (!r.ok()) return r;
                     const ConstantId fc = module_.constants.add_string(
                         MIR_INVALID_ID, mname.data(), static_cast<uint32_t>(mname.size()));
+                    Value* dv = member->default_value();
+                    if (!dv) {
+                        // a struct-typed member with a default constructor is
+                        // constructed (matches the legacy default initialization)
+                        BaseType* mt = member->known_type();
+                        ASTNode* cn = mt ? mt->get_direct_linked_canonical_node() : nullptr;
+                        if (cn && cn->kind() == ASTNodeKind::StructDecl) {
+                            FunctionDeclaration* cons =
+                                cn->as_struct_def_unsafe()->default_constructor_func();
+                            if (cons && !cons->is_generated_fn()) {
+                                const TypeId mtid = types_.map(mt);
+                                const PlaceId tmp =
+                                    builder_->alloca(mtid, MIRStorageClass::Temporary);
+                                const SymbolId sym = intern_function(cons);
+                                builder_->zero_init(tmp);
+                                builder_->init(tmp, sym, nullptr, 0);
+                                builder_->field_store_place(temp, fc, tmp);
+                            }
+                        }
+                        continue;
+                    }
+                    MIRExprResult r = lower_expr(dv, error);
+                    if (!r.ok()) return r;
                     if (r.kind == MIRExprKind::Place) {
                         builder_->field_store_place(temp, fc, static_cast<PlaceId>(r.id));
                     } else if (r.kind == MIRExprKind::Value) {
@@ -2013,7 +2353,16 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 }
                 return lower_expr(evaluated, error);
             }
-            SymbolId sym = intern_function(fd);
+            // a non-self interface default called as `receiver.method(...)` is
+            // still emitted per implementing struct
+            BaseType* direct_recv_type = nullptr;
+            if (call->parent_val && call->parent_val->val_kind() == ValueKind::AccessChain) {
+                auto* dch = call->parent_val->as_access_chain_unsafe();
+                if (dch->values.size() >= 2) {
+                    direct_recv_type = dch->values[dch->values.size() - 2]->getType();
+                }
+            }
+            SymbolId sym = intern_method_function(fd, direct_recv_type);
 
             args.reserve(args.size() + call->values.size());
             const size_t cmark = call_temps_.size();
@@ -2186,6 +2535,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 return MIRExprResult::error();
             }
             return MIRExprResult::value(out, type);
+        }
+        case ValueKind::PatternMatchExpr: {
+            return lower_pattern_match_value(value->as_pattern_match_expr_unsafe(), error);
         }
         case ValueKind::IsValue: {
             auto* isv = value->as_is_value_unsafe();
@@ -3092,6 +3444,8 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             builder_->set_block(end_b);
             return true;
         }
+        case ASTNodeKind::PatternMatchExprNode:
+            return lower_pattern_match_node(node->as_pattern_match_expr_node_unsafe(), error);
         case ASTNodeKind::Block: {
             auto* b = node->as_block_scope_unsafe();
             return lower_scope_nodes(b->nodes, error);
@@ -3309,6 +3663,9 @@ bool MIRLowerer::lower_scope_value(Scope& scope, PlaceId dest, TypeId dest_t,
             }
             Value* v = Value::get_first_value_from_value_node(node);
             if (v) {
+                // a moved branch value (a destructured variant payload) consumes
+                // the source it was moved from
+                if (v->is_ref_moved()) clear_moved_ref(v);
                 MIRExprResult r = lower_expr(v, error);
                 if (!r.ok()) return false;
                 if (r.kind == MIRExprKind::Place) {
@@ -3696,6 +4053,8 @@ bool MIRLowerer::lower_async_function(FunctionDeclaration* decl, MIRArena& arena
     name_places_.clear();
     destructibles_.clear();
     call_temps_.clear();
+    pattern_bases_.clear();
+    pattern_results_.clear();
     async_ = true;
     arena_ = &arena;
     async_pre_decls_.clear();
@@ -3983,6 +4342,8 @@ bool MIRLowerer::async_lower_poll_body(FunctionDeclaration* decl, std::string& e
     name_places_.clear();
     destructibles_.clear();
     call_temps_.clear();
+    pattern_bases_.clear();
+    pattern_results_.clear();
     async_child_places_.assign(async_plan_.sites.size(), MIR_INVALID_ID);
     async_result_places_.assign(async_plan_.sites.size(), MIR_INVALID_ID);
     async_spills_.assign(async_plan_.sites.size(), {});
@@ -4161,6 +4522,8 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
     name_places_.clear();
     destructibles_.clear();
     call_temps_.clear();
+    pattern_bases_.clear();
+    pattern_results_.clear();
 
     // frame alloc
     ValueId af = b.async_frame_alloc(async_frame_type_, async_frame_ptr_type_);
@@ -4328,6 +4691,8 @@ MIRExprResult MIRLowerer::lower_lambda(LambdaFunction* lamb, std::string& error)
     name_places_.clear();
     destructibles_.clear();
     call_temps_.clear();
+    pattern_bases_.clear();
+    pattern_results_.clear();
     break_targets_.clear();
     continue_targets_.clear();
 

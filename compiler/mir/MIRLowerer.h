@@ -35,7 +35,12 @@ class WhileLoop;
 class DoWhileLoop;
 class ForLoop;
 class FunctionCall;
+class ExtendableMembersContainerNode;
 class VariantCaseVariable;
+class VariantMemberParam;
+class PatternMatchExpr;
+class PatternMatchExprNode;
+class PatternMatchIdentifier;
 class LambdaFunction;
 class FunctionTypeBody;
 
@@ -178,11 +183,38 @@ private:
     /** Lower a variant-case payload variable to its field lvalue/value. */
     MIRExprResult lower_variant_payload(VariantCaseVariable* var, bool as_address,
                                         std::string& error);
+    /** Lower the matched lvalue of a pattern match (cached per expression). */
+    MIRExprResult lower_pattern_base(PatternMatchExpr* pm, std::string& error);
+    /** Lower a pattern match's matched-member payload to its lvalue/value. */
+    MIRExprResult lower_pattern_payload(PatternMatchExpr* pm, VariantMemberParam* param,
+                                        bool as_address, std::string& error);
+    /** Lower a pattern match's member-tag comparison (`tag == index`). */
+    MIRExprResult lower_pattern_cond(PatternMatchExpr* pm, std::string& error);
+    /** Lower a pattern match expression (value position). */
+    MIRExprResult lower_pattern_match_value(PatternMatchExpr* pm, std::string& error);
+    /** Lower a `var Pattern(...) = expr else ...` statement. */
+    bool lower_pattern_match_node(PatternMatchExprNode* node, std::string& error);
+    /** Resolve a destructured pattern identifier to its payload. */
+    MIRExprResult lower_pattern_identifier(PatternMatchIdentifier* id, std::string& error);
+    /**
+     * If `value` is a moved reference (a destructured variant payload), clear the
+     * source variant's drop flag so its destructor does not free the payload the
+     * destination now owns.
+     */
+    void clear_moved_ref(Value* value);
     PlaceId resolve_place(Value* v, std::string& error);
     /** Like resolve_place, but also lowers call results to their temporary place. */
     PlaceId resolve_place_or_lower(Value* v, std::string& error);
     /** Resolve an extension method by name on the receiver's canonical container. */
     FunctionDeclaration* resolve_method_fallback(BaseType* recv_type, const std::string& name);
+    /** The struct/variant/union container a receiver type denotes (or nullptr). */
+    ExtendableMembersContainerNode* receiver_user_container(BaseType* recv_type);
+    /**
+     * Intern the symbol for a method call. Interface default methods are emitted
+     * once per implementing struct (with the interface's `active_user` set), so
+     * their symbol must be resolved against the receiver's container.
+     */
+    SymbolId intern_method_function(FunctionDeclaration* decl, BaseType* recv_type);
     MIRExprResult lower_address_of(Value* inner, std::string& error);
     bool member_name(Value* v, std::string& out, std::string& error);
     /** Resolve a (possibly inherited) member to its dotted C field path. */
@@ -262,6 +294,7 @@ private:
     };
     std::vector<MIRDestructible> destructibles_;
     std::unordered_map<FunctionDeclaration*, SymbolId> func_symbols_;
+    std::unordered_map<std::string, SymbolId> named_method_symbols_;
     std::unordered_map<ASTNode*, SymbolId> global_symbols_;
     std::unordered_map<std::string, SymbolId> named_globals_;
     std::function<std::string(ASTNode*)> mangler_;
@@ -279,6 +312,9 @@ private:
     /** Result temp + type for a `loop { break v }` value; parallel to break_targets_. */
     std::vector<PlaceId> break_value_dests_;
     std::vector<TypeId> break_value_types_;
+    /** Pattern-match caches: matched lvalue, and the DefValue result temp. */
+    std::unordered_map<PatternMatchExpr*, MIRExprResult> pattern_bases_;
+    std::unordered_map<PatternMatchExpr*, MIRExprResult> pattern_results_;
     std::vector<std::string> lambda_defs_;
     bool sret_ = false;
     ValueId sret_ptr_ = MIR_NULL;

@@ -2639,6 +2639,14 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         BaseType* rtype = chain->values[n - 2]->getType();
                         return lower_method_call(recv, rtype, call, error);
                     }
+                    // a non-self method called on a call receiver: evaluate the
+                    // receiver for its side effects (no receiver is passed)
+                    if (!needs_receiver && chain->values[0] &&
+                        chain->values[0]->val_kind() == ValueKind::FunctionCall) {
+                        MIRExprResult recv = lower_expr(chain->values[0], error);
+                        if (!recv.ok()) return recv;
+                        maybe_register_call_temp(chain->values[0], recv);
+                    }
                     // otherwise: namespace/type-qualified free function or a
                     // static method -- fall through to the direct-call path,
                     // which passes no receiver.
@@ -2675,6 +2683,106 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                                 if (!recv.ok()) return recv;
                                 return lower_capturing_function_call(recv, rt, call, error);
                             }
+                            // a call returning a plain function pointer:
+                            // `factory.create_lamb()()`
+                            if (!is_cap && rtc && rtc->kind() == BaseTypeKind::Function) {
+                                MIRExprResult fpr = lower_expr(call->parent_val, error);
+                                if (!fpr.ok()) return fpr;
+                                const ValueId fnptr =
+                                    (fpr.kind == MIRExprKind::Place)
+                                        ? builder_->load(static_cast<PlaceId>(fpr.id), fpr.type)
+                                        : static_cast<ValueId>(fpr.id);
+                                FunctionType* ft_fn = rtc->get_canonical_function_type();
+                                std::vector<BaseType*> ast_params;
+                                if (ft_fn) {
+                                    for (FunctionParam* p : ft_fn->params) {
+                                        ast_params.push_back(p ? p->type : nullptr);
+                                    }
+                                }
+                                std::vector<MIROperand> cargs;
+                                const size_t cmark = call_temps_.size();
+                                if (!lower_call_args_for(nullptr, false, call->values, cargs,
+                                                         error, &ast_params)) {
+                                    return MIRExprResult::error();
+                                }
+                                const TypeId crt = types_.map(call->getType());
+                                if (is_void_type(module_, crt)) {
+                                    builder_->call_indirect(fnptr, crt, cargs.data(),
+                                                            static_cast<uint32_t>(cargs.size()));
+                                    destroy_call_temps_from(cmark, error);
+                                    return MIRExprResult::void_result();
+                                }
+                                if (needs_sret_return(module_, crt)) {
+                                    const PlaceId tmp =
+                                        builder_->alloca(crt, MIRStorageClass::Temporary);
+                                    builder_->zero_init(tmp);
+                                    builder_->call_indirect_sret(
+                                        fnptr, tmp, cargs.data(),
+                                        static_cast<uint32_t>(cargs.size()));
+                                    destroy_call_temps_from(cmark, error);
+                                    return MIRExprResult::place(tmp, crt);
+                                }
+                                const ValueId v = builder_->call_indirect(
+                                    fnptr, crt, cargs.data(),
+                                    static_cast<uint32_t>(cargs.size()));
+                                destroy_call_temps_from(cmark, error);
+                                return MIRExprResult::value(v, crt);
+                            }
+                        }
+                        // `obj.field(args)` where `field` is a function-typed
+                        // struct member: load the function pointer and dispatch
+                        if (linked_fn && linked_fn->kind() == ASTNodeKind::StructMember &&
+                            call->parent_val &&
+                            call->parent_val->val_kind() == ValueKind::AccessChain) {
+                            auto* sm = linked_fn->as_struct_member_unsafe();
+                            BaseType* ft_ast = sm ? sm->type : nullptr;
+                            std::vector<BaseType*> ast_params;
+                            FunctionType* ft_fn =
+                                ft_ast ? ft_ast->canonical()->get_canonical_function_type()
+                                       : nullptr;
+                            if (ft_fn) {
+                                for (FunctionParam* p : ft_fn->params) {
+                                    ast_params.push_back(p ? p->type : nullptr);
+                                }
+                            }
+                            MIRExprResult fpr = lower_expr(call->parent_val, error);
+                            if (!fpr.ok()) return fpr;
+                            if (fpr.type != MIR_INVALID_ID && fpr.type < module_.types.size() &&
+                                module_.types.get(fpr.type).kind == MIRTypeKind::Struct) {
+                                return lower_capturing_function_call(fpr, ft_ast, call, error);
+                            }
+                            const ValueId fnptr =
+                                (fpr.kind == MIRExprKind::Place)
+                                    ? builder_->load(static_cast<PlaceId>(fpr.id), fpr.type)
+                                    : static_cast<ValueId>(fpr.id);
+                            std::vector<MIROperand> cargs;
+                            const size_t cmark = call_temps_.size();
+                            if (!lower_call_args_for(nullptr, false, call->values, cargs, error,
+                                                     &ast_params)) {
+                                return MIRExprResult::error();
+                            }
+                            const TypeId rt = types_.map(call->getType());
+                            if (is_void_type(module_, rt)) {
+                                builder_->call_indirect(fnptr, rt, cargs.data(),
+                                                        static_cast<uint32_t>(cargs.size()));
+                                destroy_call_temps_from(cmark, error);
+                                return MIRExprResult::void_result();
+                            }
+                            if (needs_sret_return(module_, rt)) {
+                                const PlaceId tmp =
+                                    builder_->alloca(rt, MIRStorageClass::Temporary);
+                                builder_->zero_init(tmp);
+                                builder_->call_indirect_sret(
+                                    fnptr, tmp, cargs.data(),
+                                    static_cast<uint32_t>(cargs.size()));
+                                destroy_call_temps_from(cmark, error);
+                                return MIRExprResult::place(tmp, rt);
+                            }
+                            const ValueId v =
+                                builder_->call_indirect(fnptr, rt, cargs.data(),
+                                                        static_cast<uint32_t>(cargs.size()));
+                            destroy_call_temps_from(cmark, error);
+                            return MIRExprResult::value(v, rt);
                         }
                         std::string callee;
                         int last_linked_kind = -2;

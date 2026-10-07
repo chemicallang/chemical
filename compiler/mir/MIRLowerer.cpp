@@ -78,6 +78,7 @@
 #include "compiler/async/AwaitNormalizePass.h"
 #include "ast/types/ArrayType.h"
 #include "ast/structures/StructMember.h"
+#include "ast/structures/DoWhileLoop.h"
 #include "MIREmitter.h"
 
 namespace mir {
@@ -3003,6 +3004,8 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
         }
         case ASTNodeKind::WhileLoopStmt:
             return lower_while(node->as_while_loop_unsafe(), error);
+        case ASTNodeKind::DoWhileLoopStmt:
+            return lower_do_while(node->as_do_while_loop_unsafe(), error);
         case ASTNodeKind::ForLoopStmt:
             return lower_for(node->as_for_loop_unsafe(), error);
         case ASTNodeKind::BreakStmt: {
@@ -3197,6 +3200,9 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                            static_cast<uint32_t>(ops.size()));
             return true;
         }
+        case ASTNodeKind::TypealiasStmt:
+            // a local `type` alias has no runtime effect
+            return true;
         default:
             error = "unsupported statement kind during MIR lowering (kind " +
                     std::to_string(static_cast<int>(node->kind())) + ")";
@@ -3480,6 +3486,42 @@ bool MIRLowerer::lower_while(WhileLoop* loop, std::string& error) {
     loop_destructible_marks_.pop_back();
     break_value_dests_.pop_back();
     break_value_types_.pop_back();
+
+    builder_->set_block(exit_b);
+    return true;
+}
+
+bool MIRLowerer::lower_do_while(DoWhileLoop* loop, std::string& error) {
+    const BlockId body_b = builder_->create_block();
+    const BlockId cond_b = builder_->create_block();
+    const BlockId exit_b = builder_->create_block();
+
+    builder_->br(body_b);
+    builder_->set_block(body_b);
+    break_targets_.push_back(exit_b);
+    continue_targets_.push_back(cond_b);
+    loop_destructible_marks_.push_back(destructibles_.size());
+    break_value_dests_.push_back(MIR_INVALID_ID);
+    break_value_types_.push_back(MIR_INVALID_ID);
+    if (!lower_scope(loop->body, error)) {
+        break_targets_.pop_back();
+        continue_targets_.pop_back();
+        loop_destructible_marks_.pop_back();
+        break_value_dests_.pop_back();
+        break_value_types_.pop_back();
+        return false;
+    }
+    if (!builder_->current_block_terminated()) builder_->br(cond_b);
+    break_targets_.pop_back();
+    continue_targets_.pop_back();
+    loop_destructible_marks_.pop_back();
+    break_value_dests_.pop_back();
+    break_value_types_.pop_back();
+
+    builder_->set_block(cond_b);
+    MIRExprResult c = lower_expr(loop->condition, error);
+    if (!c.ok()) return false;
+    builder_->cond_br(c.id, body_b, exit_b);
 
     builder_->set_block(exit_b);
     return true;

@@ -29,6 +29,7 @@ class IfStatement;
 class IfValue;
 class LoopValue;
 class WhileLoop;
+class DoWhileLoop;
 class ForLoop;
 class FunctionCall;
 class VariantCaseVariable;
@@ -152,6 +153,7 @@ private:
     /** Lower a `loop { break v }` value expression. */
     MIRExprResult lower_loop_value(LoopValue* value, std::string& error);
     bool lower_while(WhileLoop* loop, std::string& error);
+    bool lower_do_while(DoWhileLoop* loop, std::string& error);
     bool lower_for(ForLoop* loop, std::string& error);
     bool lower_incdec_value(Value* target, bool increment, bool post, std::string& error,
                             ValueId& out);

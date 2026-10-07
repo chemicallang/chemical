@@ -51,6 +51,7 @@ class BaseType;
 class ForInLoop;
 class ImplementationsIndex;
 class CoreNodes;
+class EmbeddedNode;
 
 namespace mir {
 
@@ -159,6 +160,11 @@ public:
     void set_impls(ImplementationsIndex* idx, CoreNodes* core) {
         impls_index_ = idx;
         core_nodes_ = core;
+    }
+
+    /** Resolve a CBI embedded node (`#html` / `#universal`) to its replacement. */
+    void set_embedded_repl(std::function<ASTNode*(EmbeddedNode*)> fn) {
+        embedded_repl_ = std::move(fn);
     }
 
 private:
@@ -377,6 +383,7 @@ private:
     std::function<void(FunctionTypeBody*)> set_current_func_;
     ImplementationsIndex* impls_index_ = nullptr;
     CoreNodes* core_nodes_ = nullptr;
+    std::function<ASTNode*(EmbeddedNode*)> embedded_repl_;
     std::unordered_map<std::string, SymbolId> extern_symbols_;
     /** Struct temporaries whose destruction is deferred to the statement end. */
     std::vector<std::pair<PlaceId, BaseType*>> stmt_temps_;

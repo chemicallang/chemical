@@ -2014,6 +2014,9 @@ int ASTProcessor::implement_module(
         c_visitor.current_func_type = f;
     });
     mir_lowerer.set_impls(&c_visitor.implsIndex, &c_visitor.coreNodes);
+    mir_lowerer.set_embedded_repl([&c_visitor](EmbeddedNode* node) -> ASTNode* {
+        return c_visitor.resolve_embedded_node(node);
+    });
     mir_lowerer.set_symbol_lookup([this, module](const std::string& name) -> FunctionDeclaration* {
         if (resolver) {
             ASTNode* node = resolver->getSymbolTable().resolve(

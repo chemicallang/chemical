@@ -3196,6 +3196,10 @@ void CTopLevelDeclarationVisitor::VisitEmbeddedNode(EmbeddedNode* node) {
     }
 }
 
+ASTNode* ToCAstVisitor::resolve_embedded_node(EmbeddedNode* node) {
+    return embedded_repl(*this, node, CBIFunctionType::ReplacementNode);
+}
+
 void CTopLevelDeclarationVisitor::VisitVarInitStmt(VarInitStatement *init) {
     if(!init->is_top_level()) return;
     const auto init_type = init->type ? init->type : init->value->getType();

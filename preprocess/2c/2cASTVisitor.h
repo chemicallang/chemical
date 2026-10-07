@@ -97,6 +97,12 @@ public:
     Value* eval_comptime_ctor(FunctionDeclaration* ctor, Value* arg);
 
     /**
+     * Resolve a CBI embedded node (`#html` / `#universal`) to the AST node its
+     * plugin replacement hook produces. Used by the MIR lowering path.
+     */
+    ASTNode* resolve_embedded_node(EmbeddedNode* node);
+
+    /**
      * this option is here to support struct initialization in tinyCC compiler
      * llvm uses the same approach whereby if a function returns a struct
      * we change it's return type to void and pass that struct as a pointer parameter to the function

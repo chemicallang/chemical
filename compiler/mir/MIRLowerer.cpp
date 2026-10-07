@@ -78,6 +78,7 @@
 #include "ast/statements/DestructStmt.h"
 #include "ast/statements/DeallocStmt.h"
 #include "ast/statements/PlacementNewNode.h"
+#include "ast/statements/EmbeddedNode.h"
 #include "ast/types/CapturingFunctionType.h"
 #include "ast/structures/CapturedVariable.h"
 #include "ast/values/SwitchValue.h"
@@ -4245,6 +4246,20 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             }
             builder_->ret(r.id);
             return true;
+        }
+        case ASTNodeKind::EmbeddedNode: {
+            auto* en = node->as_embedded_node_unsafe();
+            ASTNode* repl = en->replacement;
+            if (!repl && embedded_repl_) repl = embedded_repl_(en);
+            if (repl) {
+                en->replacement = repl;
+                if (repl->kind() == ASTNodeKind::Scope) {
+                    return lower_scope(*repl->as_scope_unsafe(), error);
+                }
+                return lower_stmt(repl, error);
+            }
+            error = "embedded node has no replacement";
+            return false;
         }
         case ASTNodeKind::ValueWrapper: {
             auto* vw = node->as_value_wrapper();

@@ -2657,14 +2657,25 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     builder_->element_store(place, idx, val);
                     continue;
                 }
-                if (e.kind == MIRExprKind::Value || e.kind == MIRExprKind::Address) {
+                const ValueId idx = builder_->const_int(
+                    ut, module_.constants.add_int(ut, static_cast<uint64_t>(i)));
+                if (e.kind == MIRExprKind::Address) {
+                    const TypeId et = types_.map(elem_bt);
+                    if (needs_aggregate_path(module_, et)) {
+                        // `*ptr` element: copy the pointee into the element
+                        builder_->element_store(place, idx,
+                                                builder_->load_indirect(e.id, et));
+                    } else {
+                        builder_->element_store(place, idx, static_cast<ValueId>(e.id));
+                    }
+                    continue;
+                }
+                if (e.kind == MIRExprKind::Value) {
                     val = static_cast<ValueId>(e.id);
                 } else {
                     error = "unsupported array element expression";
                     return MIRExprResult::error();
                 }
-                const ValueId idx = builder_->const_int(
-                    ut, module_.constants.add_int(ut, static_cast<uint64_t>(i)));
                 builder_->element_store(place, idx, val);
             }
             if (decay) {

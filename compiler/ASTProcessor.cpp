@@ -2021,6 +2021,9 @@ int ASTProcessor::implement_module(
     mir_lowerer.set_async_normalize([&c_visitor](FunctionDeclaration* d) {
         normalize_async_body(c_visitor.allocator, d);
     });
+    mir_lowerer.set_embedded_value_repl([&c_visitor](EmbeddedValue* v) -> Value* {
+        return c_visitor.resolve_embedded_value(v);
+    });
     mir_lowerer.set_symbol_lookup([this, module](const std::string& name) -> FunctionDeclaration* {
         if (resolver) {
             ASTNode* node = resolver->getSymbolTable().resolve(

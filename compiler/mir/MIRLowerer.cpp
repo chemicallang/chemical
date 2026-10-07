@@ -79,6 +79,7 @@
 #include "ast/statements/DeallocStmt.h"
 #include "ast/statements/PlacementNewNode.h"
 #include "ast/statements/EmbeddedNode.h"
+#include "ast/values/EmbeddedValue.h"
 #include "ast/types/CapturingFunctionType.h"
 #include "ast/structures/CapturedVariable.h"
 #include "ast/values/SwitchValue.h"
@@ -3516,6 +3517,22 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 return MIRExprResult::error();
             }
             return lower_expr(aw->getInner(), error);
+        }
+        case ValueKind::EmbeddedValue: {
+            auto* ev = value->as_embedded_value_unsafe();
+            Value* repl = nullptr;
+            auto it = embedded_value_cache_.find(ev);
+            if (it != embedded_value_cache_.end()) {
+                repl = it->second;
+            } else if (embedded_value_repl_) {
+                repl = embedded_value_repl_(ev);
+                if (repl) embedded_value_cache_[ev] = repl;
+            }
+            if (!repl) {
+                error = "embedded value has no replacement";
+                return MIRExprResult::error();
+            }
+            return lower_expr(repl, error);
         }
         default:
             error = "unsupported value kind during MIR lowering (kind " +

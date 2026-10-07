@@ -103,6 +103,12 @@ public:
     ASTNode* resolve_embedded_node(EmbeddedNode* node);
 
     /**
+     * Resolve a CBI embedded *value* (`#html`-style value replacement) to the
+     * AST value its plugin replacement hook produces.
+     */
+    Value* resolve_embedded_value(EmbeddedValue* value);
+
+    /**
      * this option is here to support struct initialization in tinyCC compiler
      * llvm uses the same approach whereby if a function returns a struct
      * we change it's return type to void and pass that struct as a pointer parameter to the function

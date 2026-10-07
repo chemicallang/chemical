@@ -3200,6 +3200,16 @@ ASTNode* ToCAstVisitor::resolve_embedded_node(EmbeddedNode* node) {
     return embedded_repl(*this, node, CBIFunctionType::ReplacementNode);
 }
 
+Value* ToCAstVisitor::resolve_embedded_value(EmbeddedValue* value) {
+    ASTBuilder builder(&allocator, comptime_scope.typeBuilder);
+    const auto replacement_fn = binder.findHook(value->name, CBIFunctionType::ReplacementValue);
+    if(!replacement_fn) {
+        error(value) << "couldn't find replacement function for embedded value with name '" << value->name << "'";
+        return nullptr;
+    }
+    return ((EmbeddedValueReplacementFunc) replacement_fn)(&builder, this, value);
+}
+
 void CTopLevelDeclarationVisitor::VisitVarInitStmt(VarInitStatement *init) {
     if(!init->is_top_level()) return;
     const auto init_type = init->type ? init->type : init->value->getType();

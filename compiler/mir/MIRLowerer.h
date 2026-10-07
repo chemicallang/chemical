@@ -52,6 +52,7 @@ class ForInLoop;
 class ImplementationsIndex;
 class CoreNodes;
 class EmbeddedNode;
+class EmbeddedValue;
 
 namespace mir {
 
@@ -170,6 +171,11 @@ public:
     /** Normalize an async function body (hoist nested awaits) before lowering. */
     void set_async_normalize(std::function<void(FunctionDeclaration*)> fn) {
         async_normalize_ = std::move(fn);
+    }
+
+    /** Resolve a CBI embedded *value* to its replacement value. */
+    void set_embedded_value_repl(std::function<Value*(EmbeddedValue*)> fn) {
+        embedded_value_repl_ = std::move(fn);
     }
 
 private:
@@ -389,6 +395,8 @@ private:
     ImplementationsIndex* impls_index_ = nullptr;
     CoreNodes* core_nodes_ = nullptr;
     std::function<ASTNode*(EmbeddedNode*)> embedded_repl_;
+    std::function<Value*(EmbeddedValue*)> embedded_value_repl_;
+    std::unordered_map<EmbeddedValue*, Value*> embedded_value_cache_;
     std::function<void(FunctionDeclaration*)> async_normalize_;
     std::unordered_map<std::string, SymbolId> extern_symbols_;
     /** Struct temporaries whose destruction is deferred to the statement end. */

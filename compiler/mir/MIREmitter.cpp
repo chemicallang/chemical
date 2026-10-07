@@ -390,16 +390,23 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
     }
 
     if (is_static) out += "static ";
-    out += c_type_of(module, ftr.element) + " " + fnname + "(";
+    std::string params;
     if (ptypes.empty()) {
-        out += "void";
+        params = "void";
     } else {
         for (uint32_t i = 0; i < ptypes.size(); ++i) {
-            if (i) out += ", ";
-            out += declarator(module, ptypes[i], "__chx_a" + std::to_string(i));
+            if (i) params += ", ";
+            params += declarator(module, ptypes[i], "__chx_a" + std::to_string(i));
         }
     }
-    out += ") {\n";
+    if (module.types.get(ftr.element).kind == MIRTypeKind::Function) {
+        // a function returning a function pointer needs a nested declarator:
+        // `ret (*(*name)(params))(retparams)`
+        out += declarator(module, ftr.element, fnname + "(" + params + ")");
+    } else {
+        out += c_type_of(module, ftr.element) + " " + fnname + "(" + params + ")";
+    }
+    out += " {\n";
 
     // Block labels: blocks are emitted in creation order, so their inst_start
     // offsets are monotonic. A label is emitted at each block start.

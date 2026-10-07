@@ -1827,11 +1827,6 @@ bool mir_eligible_function(FunctionDeclaration* decl) {
     if (!decl->body.has_value()) return false;
     if (decl->is_extern()) return false;
     if (decl->is_comptime()) return false;
-    // functions returning function pointers need a special C declarator
-    if (decl->returnType && (decl->returnType->kind() == BaseTypeKind::Function ||
-                             decl->returnType->kind() == BaseTypeKind::CapturingFunction)) {
-        return false;
-    }
     return true;
 }
 

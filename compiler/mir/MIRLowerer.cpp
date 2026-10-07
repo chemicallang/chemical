@@ -839,12 +839,20 @@ void MIRLowerer::register_destructible(PlaceId place, BaseType* type) {
 
 void MIRLowerer::maybe_register_call_temp(Value* v, MIRExprResult r) {
     if (r.kind != MIRExprKind::Place || !v) return;
+    if (v->val_kind() == ValueKind::AccessChain) {
+        auto* c = v->as_access_chain_unsafe();
+        if (c->values.size() == 1) v = c->values[0];
+    }
     if (v->val_kind() != ValueKind::FunctionCall) return;
     register_stmt_temp(static_cast<PlaceId>(r.id), v->getType());
 }
 
 void MIRLowerer::destroy_call_temp(Value* v, MIRExprResult r) {
     if (r.kind != MIRExprKind::Place || !v) return;
+    if (v->val_kind() == ValueKind::AccessChain) {
+        auto* c = v->as_access_chain_unsafe();
+        if (c->values.size() == 1) v = c->values[0];
+    }
     if (v->val_kind() != ValueKind::FunctionCall) return;
     register_stmt_temp(static_cast<PlaceId>(r.id), v->getType());
 }
@@ -5980,6 +5988,12 @@ MIRExprResult MIRLowerer::lower_captured_variable(CapturedVariable* cap, bool as
         // reference, so its value is the pointer itself
         return MIRExprResult::value(builder_->field_load_ptr(ptr, fc, ft), ft);
     }
+    const MIRTypeRecord& fr = module_.types.get(ft);
+    if (fr.kind == MIRTypeKind::Pointer || fr.kind == MIRTypeKind::Reference) {
+        // a by-value pointer/reference capture is the pointer itself (e.g. used
+        // as a method receiver or indexed), never the field's address
+        return MIRExprResult::value(builder_->field_load_ptr(ptr, fc, ft), ft);
+    }
     if (as_address || needs_aggregate_path(module_, ft)) {
         return MIRExprResult::address(builder_->field_addr_ptr(ptr, fc, ft), ft);
     }
@@ -6379,9 +6393,15 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
 
     const TypeId ret = lamb->returnType ? types_.map(lamb->returnType) : types_.void_type();
     const bool l_sret = needs_sret_return(module_, ret);
+    // a non-capturing lambda converted to a `std::function` still receives the
+    // hidden `void*` data pointer as its first argument (the call convention is
+    // shared with capturing lambdas), so emit a matching unused parameter
+    const bool needs_this = lamb->isCapturing();
+    const TypeId void_ptr_t = types_.pointer_type(types_.void_type(), true);
 
     std::vector<TypeId> ptypes;
     if (l_sret) ptypes.push_back(types_.pointer_type(ret, true));
+    if (needs_this) ptypes.push_back(void_ptr_t);
     for (FunctionParam* p : lamb->params) {
         TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
         if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
@@ -6446,6 +6466,11 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     if (l_sret) {
         sret_ptr_type_ = types_.pointer_type(ret, true);
         sret_ptr_ = b.param(sret_ptr_type_);
+    }
+
+    if (needs_this) {
+        // consume the hidden data-pointer parameter (unused: no captures)
+        b.param(void_ptr_t);
     }
 
     bool ok = true;

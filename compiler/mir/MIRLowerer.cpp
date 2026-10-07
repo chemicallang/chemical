@@ -1981,6 +1981,13 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 const SymbolId sym = intern_function(fd);
                 return MIRExprResult::value(builder_->function_addr(sym, type), type);
             }
+            if (id->linked && id->linked->kind() == ASTNodeKind::EnumMember) {
+                auto* em = id->linked->as_enum_member();
+                if (em && em->init_value) return lower_expr(em->init_value, error);
+                const uint64_t idx = em ? static_cast<uint64_t>(em->get_default_index()) : 0;
+                const ConstantId c = module_.constants.add_int(type, idx);
+                return MIRExprResult::value(builder_->const_int(type, c), type);
+            }
             PlaceId place = place_for_linked(id->linked);
             if (place == MIR_INVALID_ID) place = place_for_name(id->value);
             if (place != MIR_INVALID_ID) {
@@ -6221,6 +6228,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     const TypeId saved_sret_ret = sret_ret_type_;
     const TypeId saved_sret_ptr_t = sret_ptr_type_;
     BaseType* saved_return_type = return_type_;
+    const bool saved_async = async_;
     auto saved_break = std::move(break_targets_);
     auto saved_continue = std::move(continue_targets_);
     const ValueId saved_closure = lambda_closure_ptr_;
@@ -6235,6 +6243,8 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     pattern_results_.clear();
     break_targets_.clear();
     continue_targets_.clear();
+    // a lambda body is synchronous even when declared inside an async function
+    async_ = false;
 
     MIRBuilder b(*saved_arena, module_, fn);
     builder_ = &b;
@@ -6321,6 +6331,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     sret_ret_type_ = saved_sret_ret;
     sret_ptr_type_ = saved_sret_ptr_t;
     return_type_ = saved_return_type;
+    async_ = saved_async;
     break_targets_ = std::move(saved_break);
     continue_targets_ = std::move(saved_continue);
     lambda_closure_ptr_ = saved_closure;
@@ -6439,6 +6450,7 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     const TypeId saved_sret_ret = sret_ret_type_;
     const TypeId saved_sret_ptr_t = sret_ptr_type_;
     BaseType* saved_return_type = return_type_;
+    const bool saved_async = async_;
     auto saved_break = std::move(break_targets_);
     auto saved_continue = std::move(continue_targets_);
 
@@ -6451,6 +6463,8 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     pattern_results_.clear();
     break_targets_.clear();
     continue_targets_.clear();
+    // a lambda body is synchronous even when declared inside an async function
+    async_ = false;
 
     MIRBuilder b(*saved_arena, module_, fn);
     builder_ = &b;
@@ -6535,6 +6549,7 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     sret_ret_type_ = saved_sret_ret;
     sret_ptr_type_ = saved_sret_ptr_t;
     return_type_ = saved_return_type;
+    async_ = saved_async;
     break_targets_ = std::move(saved_break);
     continue_targets_ = std::move(saved_continue);
 

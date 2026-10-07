@@ -2723,7 +2723,13 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     const bool recv_is_place =
                         resolve_place(chain->values[0], probe) != MIR_INVALID_ID;
                     const TypeId ct = types_.map(call->getType());
-                    if (!mfd && !recv_is_place && needs_aggregate_path(module_, ct)) {
+                    // a struct-member callee is a field call (`st.task()`), never
+                    // an aggregate construction -- the receiver may be a captured
+                    // variable (not a place), which must not trigger this path
+                    const bool callee_is_field =
+                        callee_node && callee_node->kind() == ASTNodeKind::StructMember;
+                    if (!mfd && !recv_is_place && !callee_is_field &&
+                        needs_aggregate_path(module_, ct)) {
                         const PlaceId place = builder_->alloca(ct, MIRStorageClass::Temporary);
                         FunctionDeclaration* ctor = nullptr;
                         if (call->getType()) {
@@ -2789,6 +2795,34 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                                                           : nullptr;
                 fd = linked_fn ? linked_fn->as_function() : nullptr;
                 if (!fd) {
+                    // `obj.field(args)` where `field` is a capturing function
+                    // (`std::function`) member: dispatch through the closure's
+                    // fn/data pointers. The access-chain's type can resolve to
+                    // the *inner* function signature inside a generic
+                    // instantiation, so key on the member's declared type.
+                    if (linked_fn && linked_fn->kind() == ASTNodeKind::StructMember &&
+                        call->parent_val &&
+                        call->parent_val->val_kind() == ValueKind::AccessChain) {
+                        auto* sm = linked_fn->as_struct_member_unsafe();
+                        BaseType* ft_ast = sm ? sm->type : nullptr;
+                        BaseType* ftc = ft_ast ? ft_ast->canonical() : nullptr;
+                        bool field_is_cap =
+                            ftc && (ftc->kind() == BaseTypeKind::CapturingFunction ||
+                                    ftc->get_cap_func_type() != nullptr);
+                        if (!field_is_cap && ftc) {
+                            ASTNode* cln = ftc->get_direct_linked_canonical_node();
+                            if (cln && cln->kind() == ASTNodeKind::StructDecl) {
+                                auto* sd = cln->as_struct_def_unsafe();
+                                field_is_cap = sd->child("get_fn_ptr") != nullptr &&
+                                               sd->child("get_data_ptr") != nullptr;
+                            }
+                        }
+                        if (field_is_cap) {
+                            MIRExprResult fpr = lower_expr(call->parent_val, error);
+                            if (!fpr.ok()) return fpr;
+                            return lower_capturing_function_call(fpr, ft_ast, call, error);
+                        }
+                    }
                     // function-pointer variable/parameter call -> call_indirect
                     PlaceId fp = linked_fn ? place_for_linked(linked_fn) : MIR_INVALID_ID;
                     if (fp == MIR_INVALID_ID && call->parent_val &&

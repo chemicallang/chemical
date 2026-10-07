@@ -1845,7 +1845,7 @@ bool mir_translate_after_declaration(
         mir::MIRTypeBuilder& types,
         mir::MIRLowerer& lowerer,
         mir::MIRArena& arena,
-        std::vector<ASTNode*>& nodes) {
+        const std::vector<ASTNode*>& nodes) {
     // pass 0: name the aggregate types emitted by declare_module so MIR's C
     // type spelling matches the legacy struct/union/variant declarations
     for (ASTNode* node : nodes) {
@@ -1987,7 +1987,8 @@ int ASTProcessor::implement_module(
 #endif    // we will implement the direct dependencies of this module
     // this loop will implement new generic instantiations
     // this and the fourth loop generates bodies of functions
-    c_visitor.translate_after_declaration(container.get_current_module_instantiations());
+    // (generic instantiation bodies are lowered by MIR below, after the MIR
+    // module tables are created)
 
     // translation errors of the generics above are printed along with the first file
     bool had_errors = false;
@@ -2081,6 +2082,13 @@ int ASTProcessor::implement_module(
         return search(module, name);
     });
     mir::MIRArena mir_arena;
+
+    // generic instantiations for this module: lowered by MIR (function bodies);
+    // non-function nodes still go through the legacy visitor as declarations
+    if (mir_translate_after_declaration(c_visitor, mir_module, mir_types, mir_lowerer,
+                                        mir_arena, container.get_current_module_instantiations())) {
+        had_errors = true;
+    }
 
     // The fourth loop deals with generating function bodies present in the current module
     for(auto& file_ptr : module->direct_files) {

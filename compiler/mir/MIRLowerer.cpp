@@ -2464,6 +2464,15 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     const MIRTypeKind tk = module_.types.get(type).kind;
                     if (tk == MIRTypeKind::Pointer || tk == MIRTypeKind::Opaque) {
                         const TypeId pt = builder_->function().places[in.id].type;
+                        const MIRTypeKind pk = module_.types.get(pt).kind;
+                        if (pk == MIRTypeKind::Pointer || pk == MIRTypeKind::Reference) {
+                            // the place already holds a pointer (an array/pointer
+                            // param decayed to a pointer, or a pointer/reference
+                            // local): cast the pointer *value*, not its address
+                            const ValueId loaded = builder_->load(
+                                static_cast<PlaceId>(in.id), pt);
+                            return MIRExprResult::value(builder_->cast(loaded, type), type);
+                        }
                         const ValueId addr = builder_->address_of(
                             static_cast<PlaceId>(in.id), types_.pointer_type(pt, true));
                         return MIRExprResult::value(builder_->cast(addr, type), type);

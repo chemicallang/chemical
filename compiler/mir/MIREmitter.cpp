@@ -385,11 +385,24 @@ bool const_literal(const MIRModule& module, ConstantId cid, TypeId cast_type, st
     return false;
 }
 
+// Optional per-function map of value id -> inlined C expression. When set,
+// `operand_expr` returns the inlined expression (parenthesized) instead of the
+// value's temporary name. This lets the emitter collapse single-use pure
+// values (address chains, arithmetic) into their single use site, which keeps
+// the generated C close to the legacy translator's output and avoids the
+// register pressure / spilling that a temporary-per-instruction style causes
+// in TinyCC. thread_local so parallel lowering stays safe.
+thread_local const std::vector<std::string>* g_inline_expr = nullptr;
+
 std::string operand_expr(const MIRFunction& fn, const MIRModule& module,
                          const MIROperand& op) {
     (void) fn; // reserved for future place-projection spelling
     switch (op.kind()) {
         case MIROperandKind::Value:
+            if (g_inline_expr && op.id < g_inline_expr->size() &&
+                !(*g_inline_expr)[op.id].empty()) {
+                return "(" + (*g_inline_expr)[op.id] + ")";
+            }
             return vname(op.id);
         case MIROperandKind::Place:
             return place_name(module, fn, op.id);
@@ -468,12 +481,236 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
         }
     }
 
+    // Build the single-use inlining map: a pure value used exactly once is
+    // collapsed into its use site (address chains, arithmetic, casts,
+    // constants). This keeps the generated C close to the legacy translator's
+    // output and avoids TinyCC spilling a stack temporary per MIR instruction.
+    std::vector<std::string> inline_expr(function.values.size());
+    struct InlineGuard {
+        const std::vector<std::string>* prev;
+        ~InlineGuard() { g_inline_expr = prev; }
+    } inline_guard{g_inline_expr};
+    g_inline_expr = &inline_expr;
+
+    auto expr_of_inst = [&](const MIRInstruction& inst) -> std::string {
+        const ValueId v = inst.result_or_place;
+        switch (inst.opcode()) {
+            case MIROpcode::ConstInt:
+            case MIROpcode::ConstBool:
+            case MIROpcode::ConstFloat:
+            case MIROpcode::ConstDouble:
+            case MIROpcode::ConstString:
+            case MIROpcode::ConstNull: {
+                const MIROperand* c = operand_at(function, inst, 0);
+                std::string lit;
+                if (!c || !const_literal(module, c->id, function.values[v].type, lit)) return {};
+                return lit;
+            }
+            case MIROpcode::FunctionAddr: {
+                const MIROperand* s = operand_at(function, inst, 0);
+                if (!s) return {};
+                std::string name;
+                symbol_name(module, s->id, name);
+                return name;
+            }
+            case MIROpcode::GlobalAddr: {
+                const MIROperand* s = operand_at(function, inst, 0);
+                if (!s) return {};
+                std::string name;
+                symbol_name(module, s->id, name);
+                bool decay = false;
+                if (s->id < module.symbols.size()) {
+                    const TypeId st = module.symbols.get(s->id).type;
+                    if (st < module.types.size() &&
+                        module.types.get(st).kind == MIRTypeKind::Array) {
+                        decay = true;
+                    }
+                }
+                return decay ? name : ("&" + name);
+            }
+            case MIROpcode::AddressOf: {
+                const MIROperand* p = operand_at(function, inst, 0);
+                if (!p || p->kind() != MIROperandKind::Place) return {};
+                const TypeId pt = function.places[p->id].type;
+                if (pt < module.types.size() &&
+                    module.types.get(pt).kind == MIRTypeKind::Array) {
+                    return place_name(module, function, p->id);
+                }
+                return "&" + place_name(module, function, p->id);
+            }
+            case MIROpcode::FieldAddr: {
+                const MIROperand* p = operand_at(function, inst, 0);
+                const MIROperand* fld = operand_at(function, inst, 1);
+                if (!p || !fld) return {};
+                std::string fname;
+                if (!constant_string(module, fld->id, fname)) return {};
+                const bool ptr = p->kind() != MIROperandKind::Place;
+                const std::string base =
+                    ptr ? operand_expr(function, module, *p)
+                        : place_name(module, function, p->id);
+                bool arrow = ptr;
+                if (!ptr) {
+                    const MIRTypeRecord& bt = module.types.get(function.places[p->id].type);
+                    arrow = (bt.kind == MIRTypeKind::Pointer ||
+                             bt.kind == MIRTypeKind::Reference);
+                }
+                return "&" + base + (arrow ? "->" : ".") + fname;
+            }
+            case MIROpcode::IndexAddr: {
+                const MIROperand* b = operand_at(function, inst, 0);
+                const MIROperand* idx = operand_at(function, inst, 1);
+                if (!b || !idx) return {};
+                std::string bexpr;
+                bool base_is_array = false;
+                if (b->kind() == MIROperandKind::Place) {
+                    bexpr = place_name(module, function, b->id);
+                } else {
+                    bexpr = operand_expr(function, module, *b);
+                    base_is_array = b->type() < module.types.size() &&
+                                    module.types.get(b->type()).kind == MIRTypeKind::Array;
+                }
+                const std::string access =
+                    (base_is_array ? ("(*" + bexpr + ")") : bexpr) + "[" +
+                    operand_expr(function, module, *idx) + "]";
+                return "&" + access;
+            }
+            case MIROpcode::Unary: {
+                const MIROperand* a = operand_at(function, inst, 0);
+                const MIROperand* opc = operand_at(function, inst, 1);
+                if (!a || !opc || opc->id >= module.constants.size()) return {};
+                // wrap in the value's type: C integer promotion would otherwise
+                // change the result (`int8_t t = -x` != `-x` in an int context)
+                return "(" + c_type_of(module, function.values[v].type) + ")(" +
+                       std::string(unop_c(static_cast<MIRUnaryOp>(
+                           module.constants.get(opc->id).bits))) +
+                       operand_expr(function, module, *a) + ")";
+            }
+            case MIROpcode::Binary:
+            case MIROpcode::Compare: {
+                const MIROperand* a = operand_at(function, inst, 0);
+                const MIROperand* b = operand_at(function, inst, 1);
+                const MIROperand* opc = operand_at(function, inst, 2);
+                if (!a || !b || !opc || opc->id >= module.constants.size()) return {};
+                return "(" + c_type_of(module, function.values[v].type) + ")(" +
+                       operand_expr(function, module, *a) + " " +
+                       binop_c(static_cast<MIRBinaryOp>(
+                           module.constants.get(opc->id).bits)) +
+                       " " + operand_expr(function, module, *b) + ")";
+            }
+            case MIROpcode::Cast: {
+                const MIROperand* a = operand_at(function, inst, 0);
+                if (!a) return {};
+                return "(" + c_type_of(module, function.values[v].type) + ")(" +
+                       operand_expr(function, module, *a) + ")";
+            }
+            default:
+                return {};
+        }
+    };
+    // Only type-preserving values may be inlined. Arithmetic must NOT be
+    // (C integer promotion would change the result of overflow/negation tests:
+    // `int8_t t = -x; use(t)` is not `use(-x)`).
+    auto inlineable_opcode = [](MIROpcode op) {
+        switch (op) {
+            case MIROpcode::ConstInt:
+            case MIROpcode::ConstBool:
+            case MIROpcode::ConstFloat:
+            case MIROpcode::ConstDouble:
+            case MIROpcode::ConstString:
+            case MIROpcode::ConstNull:
+            case MIROpcode::AddressOf:
+            case MIROpcode::FieldAddr:
+            case MIROpcode::IndexAddr:
+            case MIROpcode::GlobalAddr:
+            case MIROpcode::FunctionAddr:
+            case MIROpcode::Unary:
+            case MIROpcode::Binary:
+            case MIROpcode::Compare:
+            case MIROpcode::Cast:
+            case MIROpcode::Load:
+                return true;
+            default:
+                return false;
+        }
+    };
+    // Which places are written more than once (their initializing store)?
+    // A parameter slot written only by its initial spill can be read by name
+    // instead of through a temporary (`v = p; *v` -> `*p`).
+    std::vector<uint32_t> place_writes(function.places.size(), 0);
+    for (const MIRInstruction& inst : function.instructions) {
+        switch (inst.opcode()) {
+            case MIROpcode::Store:
+            case MIROpcode::Assign:
+            case MIROpcode::CopyInit:
+            case MIROpcode::MoveInit:
+            case MIROpcode::Init:
+            case MIROpcode::MemCpy:
+            case MIROpcode::MemSet: {
+                const MIROperand* d = operand_at(function, inst, 0);
+                if (d && d->kind() == MIROperandKind::Place && d->id < place_writes.size()) {
+                    ++place_writes[d->id];
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+    // Param instruction -> its C argument index (`__chx_aN`), independent of
+    // whether the Param itself is emitted (single-use Params are inlined).
+    std::vector<uint32_t> param_idx_at(function.instructions.size(), MIR_INVALID_ID);
+    {
+        uint32_t pi = 0;
+        for (size_t ii = 0; ii < function.instructions.size(); ++ii) {
+            if (function.instructions[ii].opcode() == MIROpcode::Param) {
+                param_idx_at[ii] = pi++;
+            }
+        }
+    }
+    for (size_t ii = 0; ii < function.instructions.size(); ++ii) {
+        const MIRInstruction& inst = function.instructions[ii];
+        const ValueId v = inst.result_or_place;
+        if (v >= function.values.size()) continue;
+        if (function.values[v].use_count != 1) continue;
+        if (inst.opcode() == MIROpcode::Param) {
+            inline_expr[v] = "__chx_a" + std::to_string(param_idx_at[ii]);
+            continue;
+        }
+        if (inst.opcode() == MIROpcode::Load) {
+            const MIROperand* p = operand_at(function, inst, 0);
+            if (!p || p->kind() != MIROperandKind::Place) continue;
+            // a plain load's only other operand is the result Type; a field/index
+            // load carries a Constant/Value and must not be inlined here.
+            const MIROperand* f = operand_at(function, inst, 1);
+            if (f && (f->kind() == MIROperandKind::Value ||
+                      f->kind() == MIROperandKind::Constant)) {
+                continue;
+            }
+            if (function.places[p->id].storage_class !=
+                static_cast<uint8_t>(MIRStorageClass::Parameter)) {
+                continue;
+            }
+            if (place_writes[p->id] > 1) continue; // reassigned: keep the load
+            inline_expr[v] = place_name(module, function, p->id);
+            continue;
+        }
+        if (!inlineable_opcode(inst.opcode())) continue;
+        std::string e = expr_of_inst(inst);
+        if (!e.empty()) inline_expr[v] = std::move(e);
+    }
+
     uint32_t param_index = 0;
     for (uint32_t idx = 0; idx < function.instructions.size(); ++idx) {
         if (label_at[idx] != MIR_INVALID_ID) {
             out += "__chx_bb" + std::to_string(label_at[idx]) + ":;\n";
         }
         const MIRInstruction& inst = function.instructions[idx];
+        // A single-use address/cast/load/param value was collapsed into its use.
+        if ((inlineable_opcode(inst.opcode()) || inst.opcode() == MIROpcode::Param) &&
+            inst.result_or_place < inline_expr.size() &&
+            !inline_expr[inst.result_or_place].empty()) {
+            continue;
+        }
         out += "    ";
 
         switch (inst.opcode()) {
@@ -493,8 +730,10 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
             }
             case MIROpcode::Param: {
                 const ValueId v = inst.result_or_place;
+                const uint32_t pai = param_idx_at[idx] != MIR_INVALID_ID
+                                         ? param_idx_at[idx] : param_index++;
                 out += declarator(module, function.values[v].type, vname(v)) +
-                       " = __chx_a" + std::to_string(param_index++) + ";\n";
+                       " = __chx_a" + std::to_string(pai) + ";\n";
                 break;
             }
             case MIROpcode::ConstInt:
@@ -706,9 +945,10 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const TypeId ft = function.values[v].type;
                 if (ft < module.types.size() &&
                     module.types.get(ft).kind == MIRTypeKind::Array) {
-                    const MIRTypeRecord& ar = module.types.get(ft);
-                    out += declarator(module, ar.element, "(*" + vname(v) + ")") + "[" +
-                           std::to_string(ar.data_count) + "] = &" + access + ";\n";
+                    // pointer-to-array: `T (*v)[d0][d1]...` with the dimensions
+                    // in outer-to-inner order (delegated to declarator).
+                    out += declarator(module, ft, "(*" + vname(v) + ")") +
+                           " = &" + access + ";\n";
                 } else {
                     // __typeof__ lets us take the address of a field whose type has
                     // no spellable C name (anonymous structs/unions)
@@ -845,7 +1085,9 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const MIROperand* src = operand_at(function, inst, 1);
                 if (!dest || !src) { error = "copy/move_init missing operands"; return false; }
                 const std::string rhs =
-                    (src->kind() == MIROperandKind::Place ? place_name(module, function, src->id) : vname(src->id));
+                    (src->kind() == MIROperandKind::Place
+                         ? place_name(module, function, src->id)
+                         : operand_expr(function, module, *src));
                 std::string src_expr = rhs;
                 if (src->kind() == MIROperandKind::Place) {
                     const MIRTypeRecord& str = module.types.get(function.places[src->id].type);
@@ -1216,7 +1458,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                         return true;
                     }
                     if (o->kind() == MIROperandKind::Value) {
-                        s = "*" + vname(o->id);
+                        s = "*" + operand_expr(function, module, *o);
                         return true;
                     }
                     return false;

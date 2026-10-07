@@ -516,15 +516,23 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
                 const ValueId faddr = have_ptr ? builder_->field_addr_ptr(cur_ptr, fc, ft)
                                                : builder_->field_addr(cur_place, fc, ft);
                 const MIRTypeRecord& ftr = module_.types.get(ft);
-                if (ftr.kind == MIRTypeKind::Pointer || ftr.kind == MIRTypeKind::Reference) {
-                    cur_ptr = builder_->load_indirect(faddr, ft);
-                } else {
-                    cur_ptr = faddr;
+                const bool last = (i + 1 == c->values.size());
+                if (last) {
+                    if (ftr.kind == MIRTypeKind::Reference) {
+                        // `&raw ref` on a reference field yields the referent
+                        return MIRExprResult::value(builder_->load_indirect(faddr, ft), ft);
+                    }
+                    // the address of the last field (`&raw obj.field`)
+                    return MIRExprResult::value(faddr, types_.pointer_type(ft, true));
                 }
+                // an intermediate pointer/reference field is dereferenced so the
+                // next field is reached through it (`a.b->c`)
+                cur_ptr = (ftr.kind == MIRTypeKind::Pointer ||
+                           ftr.kind == MIRTypeKind::Reference)
+                              ? builder_->load_indirect(faddr, ft)
+                              : faddr;
                 have_ptr = true;
             }
-            const TypeId ptrt = types_.pointer_type(types_.map(t->getType()), true);
-            return MIRExprResult::value(cur_ptr, ptrt);
         }
     }
     if (t && t->val_kind() == ValueKind::DereferenceValue) {

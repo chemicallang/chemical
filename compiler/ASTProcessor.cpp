@@ -1886,58 +1886,83 @@ bool mir_translate_after_declaration(
         lowerer.clear_lambda_defs();
     };
     const size_t file_start = visitor.writer.getPosition();
+    // Lower one function (top-level, method, or generic instantiation) through
+    // MIR and append its C. Returns false when the function is not MIR-eligible
+    // or lowering/emission failed, so the caller can fall back to the legacy
+    // visitor for that function.
+    auto lower_and_emit = [&](FunctionDeclaration* decl) -> bool {
+        if (!mir_eligible_function(decl)) return false;
+        arena.reset();
+        mir::MIRFunction fn;
+        std::string error;
+        if (!lowerer.lower_function(decl, arena, fn, error)) {
+            lowerer.clear_lambda_defs();
+            std::cerr << "[MIR] lowering failed (" << (decl->name_str()) << " @ "
+                      << mir_mangle_name(visitor.mangler, decl) << "): " << error
+                      << " -- falling back to the legacy visitor\n";
+            return false;
+        }
+        if (decl->is_async()) {
+            // async: emit the frame helpers, then the __poll, then the
+            // vtable/drop, then the ramp (all MIR-driven). Only write anything
+            // once every part emitted successfully.
+            std::string poll_c, poll_e;
+            std::string c, emit_error;
+            if (!mir::emit_function_c(lowerer.async_poll(), module, poll_c, poll_e)) {
+                lowerer.clear_lambda_defs();
+                std::cerr << "[MIR] async poll emission failed (" << (decl->name_str())
+                          << "): " << poll_e << " -- falling back to the legacy visitor\n";
+                return false;
+            }
+            if (!mir::emit_function_c(fn, module, c, emit_error)) {
+                lowerer.clear_lambda_defs();
+                std::cerr << "[MIR] async ramp emission failed (" << (decl->name_str())
+                          << "): " << emit_error << " -- falling back to the legacy visitor\n";
+                return false;
+            }
+            flush_lambdas();
+            std::string pre = lowerer.async_pre_decls();
+            visitor.writer.append(pre.data(), pre.size());
+            visitor.writer.append(poll_c.data(), poll_c.size());
+            std::string post = lowerer.async_post_decls();
+            visitor.writer.append(post.data(), post.size());
+            visitor.writer.append(c.data(), c.size());
+            return true;
+        }
+        std::string c, emit_error;
+        if (!mir::emit_function_c(fn, module, c, emit_error)) {
+            lowerer.clear_lambda_defs();
+            std::cerr << "[MIR] emission failed (" << (decl->name_str()) << "): " << emit_error
+                      << " -- falling back to the legacy visitor\n";
+            return false;
+        }
+        flush_lambdas();
+        visitor.writer.append(c.data(), c.size());
+        return true;
+    };
+    // Lower the methods of a struct/union/variant container (its
+    // `evaluated_nodes`), falling back to the legacy visitor for any child that
+    // is not a MIR-lowered function.
+    auto lower_container = [&](ExtendableMembersContainerNode* def) -> bool {
+        if (!def) return false;
+        for (ASTNode* child : def->evaluated_nodes()) {
+            if (child && child->kind() == ASTNodeKind::FunctionDecl &&
+                lower_and_emit(child->as_function_unsafe())) {
+                continue;
+            }
+            visitor.top_level_position = visitor.writer.getPosition();
+            visitor.visit(child);
+        }
+        return true;
+    };
     for (ASTNode* node : nodes) {
         if (node->kind() == ASTNodeKind::FunctionDecl) {
-            auto* decl = node->as_function();
-            if (mir_eligible_function(decl)) {
-                arena.reset();
-                mir::MIRFunction fn;
-                std::string error;
-                if (!lowerer.lower_function(decl, arena, fn, error)) {
-                    lowerer.clear_lambda_defs();
-                    std::cerr << "[MIR] lowering failed (" << (decl->name_str()) << " @ "
-                              << mir_mangle_name(visitor.mangler, decl) << "): " << error
-                              << " -- falling back to the legacy visitor\n";
-                    // fall through to the legacy visitor for this function
-                } else if (decl->is_async()) {
-                    // async: emit the frame helpers, then the __poll, then the
-                    // vtable/drop, then the ramp (all MIR-driven). Only write
-                    // anything once every part emitted successfully.
-                    std::string poll_c, poll_e;
-                    std::string c, emit_error;
-                    if (!mir::emit_function_c(lowerer.async_poll(), module, poll_c, poll_e)) {
-                        lowerer.clear_lambda_defs();
-                        std::cerr << "[MIR] async poll emission failed (" << (decl->name_str())
-                                  << "): " << poll_e << " -- falling back to the legacy visitor\n";
-                    } else if (!mir::emit_function_c(fn, module, c, emit_error)) {
-                        lowerer.clear_lambda_defs();
-                        std::cerr << "[MIR] async ramp emission failed (" << (decl->name_str())
-                                  << "): " << emit_error
-                                  << " -- falling back to the legacy visitor\n";
-                    } else {
-                        flush_lambdas();
-                        std::string pre = lowerer.async_pre_decls();
-                        visitor.writer.append(pre.data(), pre.size());
-                        visitor.writer.append(poll_c.data(), poll_c.size());
-                        std::string post = lowerer.async_post_decls();
-                        visitor.writer.append(post.data(), post.size());
-                        visitor.writer.append(c.data(), c.size());
-                        continue;
-                    }
-                } else {
-                    std::string c, emit_error;
-                    if (!mir::emit_function_c(fn, module, c, emit_error)) {
-                        lowerer.clear_lambda_defs();
-                        std::cerr << "[MIR] emission failed (" << (decl->name_str())
-                                  << "): " << emit_error
-                                  << " -- falling back to the legacy visitor\n";
-                    } else {
-                        flush_lambdas();
-                        visitor.writer.append(c.data(), c.size());
-                        continue;
-                    }
-                }
-            }
+            if (lower_and_emit(node->as_function())) continue;
+        } else if (node->kind() == ASTNodeKind::StructDecl ||
+                   node->kind() == ASTNodeKind::VariantDecl ||
+                   node->kind() == ASTNodeKind::UnionDecl) {
+            auto* def = node->as_extendable_member_container();
+            if (lower_container(def)) continue;
         }
         visitor.top_level_position = visitor.writer.getPosition();
         visitor.visit(node);

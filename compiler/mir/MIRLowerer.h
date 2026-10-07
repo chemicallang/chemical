@@ -53,6 +53,7 @@ class ImplementationsIndex;
 class CoreNodes;
 class EmbeddedNode;
 class EmbeddedValue;
+class VariantDefinition;
 
 namespace mir {
 
@@ -276,6 +277,14 @@ private:
     void destroy_call_temps_from(size_t mark, std::string& error);
     SymbolId destructor_symbol(BaseType* type);
     void register_destructible(PlaceId place, BaseType* type);
+    /** Destroy one member of `self` (used to lower a `@delete` method). */
+    void emit_member_dtor(ValueId self_ptr, const chem::string_view& member, BaseType* mt,
+                          std::string& error);
+    /** Destroy every destructible member of the enclosing `@delete` method. */
+    void emit_destructor_members(std::string& error);
+    /** Destroy the active payload of a variant inside its `@delete` method. */
+    void emit_variant_destructor_members(VariantDefinition* vd, ValueId self_ptr,
+                                         std::string& error);
     void mark_moved(PlaceId place);
     void emit_drops();
     /** Drop destructibles registered at/after `mark`, innermost first. */
@@ -304,6 +313,9 @@ private:
     bool apply_struct_defaults(PlaceId temp, ExtendableMembersContainerNode* def,
                                const std::set<std::string>& explicit_fields,
                                std::string& error);
+    /** Like `apply_struct_defaults` but through a `self` pointer (generated ctor). */
+    bool apply_struct_defaults_ptr(ValueId self_ptr, ExtendableMembersContainerNode* def,
+                                   std::string& error);
     /** Append the receiver operand for a method/extension call to `args`. */
     bool append_receiver_arg(MIRExprResult recv, BaseType* recv_type,
                              FunctionDeclaration* fd, std::vector<MIROperand>& args,
@@ -404,6 +416,8 @@ private:
     FunctionTypeBody* current_func_ = nullptr;
     /** The `self` parameter of the function currently being lowered (if any). */
     FunctionParam* current_self_param_ = nullptr;
+    /** For a `@delete` method, the container whose members are auto-destroyed. */
+    ExtendableMembersContainerNode* destructor_def_ = nullptr;
     std::vector<BlockId> break_targets_;
     std::vector<BlockId> continue_targets_;
     std::vector<size_t> loop_destructible_marks_;

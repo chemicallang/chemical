@@ -624,6 +624,9 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
         }
     }
     MIRExprResult in = lower_expr(inner, error);
+    if (!in.ok()) return in;
+    // `&create()` keeps the call's temporary alive until the statement ends
+    maybe_register_call_temp(inner, in);
     return in;
 }
 
@@ -2888,6 +2891,20 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         ut, module_.constants.add_int(ut, static_cast<uint64_t>(i)));
                     if (needs_aggregate_path(module_, pt)) {
                         builder_->element_store_place(place, idx, pid);
+                        // a destructible local moved into the array must not be
+                        // destroyed again at scope exit
+                        Value* ev = arr->values[i];
+                        if (ev && ev->val_kind() == ValueKind::AccessChain) {
+                            auto* ch = ev->as_access_chain_unsafe();
+                            if (ch->values.size() == 1) ev = ch->values[0];
+                        }
+                        if (ev && ev->val_kind() == ValueKind::Identifier) {
+                            BaseType* at = ev->getType();
+                            BaseType* canon = at ? at->canonical() : nullptr;
+                            if (!(canon && canon->kind() == BaseTypeKind::Array)) {
+                                mark_moved(pid);
+                            }
+                        }
                         continue;
                     }
                     val = builder_->load(pid, pt);
@@ -4441,12 +4458,16 @@ bool MIRLowerer::lower_if(IfStatement* stmt, BlockId merge, std::string& error) 
 bool MIRLowerer::lower_scope_value(Scope& scope, PlaceId dest, TypeId dest_t,
                                    std::string& error) {
     const size_t mark = destructibles_.size();
+    const size_t smark = stmt_temps_.size();
     auto finish = [&]() -> bool {
         if (!builder_->current_block_terminated()) {
             for (size_t i = mark; i < destructibles_.size(); ++i) {
                 const ValueId fv = builder_->load(destructibles_[i].flag, types_.bool_type());
                 builder_->drop(destructibles_[i].place, destructibles_[i].dtor, fv);
             }
+            flush_stmt_temps(smark);
+        } else {
+            stmt_temps_.resize(smark);
         }
         destructibles_.resize(mark);
         return true;

@@ -9,6 +9,7 @@
 #include "ast/types/ReferenceType.h"
 #include "ast/types/ArrayType.h"
 #include "ast/types/FunctionType.h"
+#include "ast/types/StructType.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/LiteralType.h"
@@ -100,6 +101,19 @@ TypeId MIRTypeBuilder::pointer_like(MIRTypeKind kind, TypeId child, bool is_muta
     r.alignment = module_.layout.pointer_alignment;
     r.element = child;
     return intern(r);
+}
+
+void MIRTypeBuilder::ensure_inline_struct_name(TypeId id, BaseType* struct_type) {
+    if (id == MIR_INVALID_ID || !struct_type) return;
+    if (!module_.types.name_of(id).empty()) return;
+    const chem::string_view sv = struct_type->as_struct_type_unsafe()->name;
+    std::string name;
+    if (!sv.empty()) {
+        name.assign(sv.data(), sv.size());
+    } else {
+        name = "__chx_inline_" + std::to_string(inline_counter_++);
+    }
+    module_.types.set_name(id, name.data(), static_cast<uint32_t>(name.size()));
 }
 
 TypeId MIRTypeBuilder::aggregate_type(MIRTypeKind kind, const void* decl, BaseType* type) {
@@ -293,6 +307,8 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
             const void* decl = type->get_direct_linked_struct();
             if (!decl) decl = type->get_direct_linked_node();
             id = aggregate_type(MIRTypeKind::Struct, decl, type);
+            ensure_inline_struct_name(id, type);
+            module_.record_inline_struct(id, type);
             break;
         }
         case BaseTypeKind::Union: {
@@ -311,6 +327,10 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
                     id = aggregate_type(MIRTypeKind::Union, n, type);
                 } else if (n->kind() == ASTNodeKind::UnnamedStruct) {
                     id = aggregate_type(MIRTypeKind::Struct, n, type);
+                } else if (n->kind() == ASTNodeKind::StructType) {
+                    id = aggregate_type(MIRTypeKind::Struct, n, type);
+                    ensure_inline_struct_name(id, static_cast<StructType*>(n));
+                    module_.record_inline_struct(id, n);
                 } else if (n->kind() == ASTNodeKind::TypealiasStmt) {
                     id = map(n->as_typealias_unsafe()->known_type());
                 } else if (n->kind() == ASTNodeKind::FunctionDecl) {

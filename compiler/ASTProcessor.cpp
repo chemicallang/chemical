@@ -1890,6 +1890,7 @@ bool mir_translate_after_declaration(
         }
         lowerer.clear_lambda_defs();
     };
+    const size_t file_start = visitor.writer.getPosition();
     for (ASTNode* node : nodes) {
         if (node->kind() == ASTNodeKind::FunctionDecl) {
             auto* decl = node->as_function();
@@ -1945,6 +1946,35 @@ bool mir_translate_after_declaration(
         }
         visitor.top_level_position = visitor.writer.getPosition();
         visitor.visit(node);
+    }
+
+    // emit top-level C definitions for inline (anonymous/locally-named) struct
+    // types used by the MIR-lowered bodies, and move them before the functions
+    if (!module.inline_structs.empty()) {
+        const size_t def_start = visitor.writer.getPosition();
+        std::unordered_set<std::string> emitted;
+        for (auto& entry : module.inline_structs) {
+            auto* bt = static_cast<BaseType*>(entry.second);
+            if (!bt || bt->kind() != BaseTypeKind::Struct) continue;
+            auto* sty = bt->as_struct_type_unsafe();
+            const std::string name = module.types.name_of(entry.first);
+            if (name.empty()) continue;
+            if (!emitted.insert(name).second) continue;
+            visitor.new_line_and_indent();
+            visitor.write("struct ");
+            visitor.write(chem::string_view(name.data(), static_cast<unsigned>(name.size())));
+            visitor.write(" { ");
+            for (const auto var : sty->variables()) {
+                visitor.visit(var);
+                visitor.write(' ');
+            }
+            visitor.write("};");
+        }
+        const size_t def_end = visitor.writer.getPosition();
+        if (def_end > def_start) {
+            visitor.writer.move_range(def_start, def_end, file_start);
+        }
+        module.inline_structs.clear();
     }
     return had_errors;
 }

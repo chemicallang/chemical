@@ -135,6 +135,8 @@ private:
     TypeId pointer_like(MIRTypeKind kind, TypeId child, bool is_mutable);
     TypeId aggregate_type(MIRTypeKind kind, const void* decl, BaseType* type);
     TypeId function_type(BaseType* type);
+    /** Give an inline (anonymous/locally-named) struct type a stable C name. */
+    void ensure_inline_struct_name(TypeId id, BaseType* struct_type);
 
     MIRModule& module_;
     std::unordered_map<const BaseType*, TypeId> memo_;
@@ -142,6 +144,7 @@ private:
     std::unordered_map<const void*, TypeId> decl_types_;
     std::function<std::string(ASTNode*)> name_resolver_;
     TypeId fat_pointer_id_ = MIR_INVALID_ID;
+    uint32_t inline_counter_ = 0;
 };
 
 } // namespace mir

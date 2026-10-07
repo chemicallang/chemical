@@ -42,6 +42,18 @@ struct MIRModule {
     MIRSymbolTable symbols;
     MIRModuleLayout layout;
     std::vector<MIRFunction> functions;
+    /**
+     * Inline (anonymous or locally-named) struct types discovered while mapping
+     * types. They have no top-level C declaration, so the driver emits one.
+     * `second` is a `BaseType*` (a `StructType`).
+     */
+    std::vector<std::pair<uint32_t, void*>> inline_structs;
+    void record_inline_struct(uint32_t id, void* type) {
+        for (auto& p : inline_structs) {
+            if (p.first == id) return;
+        }
+        inline_structs.emplace_back(id, type);
+    }
 
     void clear() {
         types = {};

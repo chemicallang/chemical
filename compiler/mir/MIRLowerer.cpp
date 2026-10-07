@@ -933,15 +933,19 @@ bool MIRLowerer::apply_struct_defaults(PlaceId temp, ExtendableMembersContainerN
         if (!dv) {
             ASTNode* mn = mt ? mt->get_direct_linked_canonical_node() : nullptr;
             if (mn && mn->kind() == ASTNodeKind::StructDecl) {
-                FunctionDeclaration* dc =
-                    mn->as_struct_def_unsafe()->default_constructor_func();
+                auto* msd = mn->as_struct_def_unsafe();
+                FunctionDeclaration* dc = msd->default_constructor_func();
+                const TypeId mtid = types_.map(mt);
+                const PlaceId mtmp = builder_->alloca(mtid, MIRStorageClass::Temporary);
+                builder_->zero_init(mtmp);
                 if (dc && !dc->is_generated_fn()) {
-                    const TypeId mtid = types_.map(mt);
-                    const PlaceId mtmp = builder_->alloca(mtid, MIRStorageClass::Temporary);
-                    builder_->zero_init(mtmp);
                     builder_->init(mtmp, intern_function(dc), nullptr, 0);
-                    builder_->field_store_place(temp, fc, mtmp);
+                } else {
+                    // no explicit constructor: apply the member struct's own
+                    // field defaults recursively
+                    if (!apply_struct_defaults(mtmp, msd, {}, error)) return false;
                 }
+                builder_->field_store_place(temp, fc, mtmp);
             }
             continue;
         }

@@ -9,6 +9,7 @@
 #include "ast/types/ReferenceType.h"
 #include "ast/types/ArrayType.h"
 #include "ast/types/FunctionType.h"
+#include "ast/structures/FunctionDeclaration.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/LiteralType.h"
 #include "ast/types/MaybeRuntimeType.h"
@@ -308,6 +309,9 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
                     id = aggregate_type(MIRTypeKind::Union, n, type);
                 } else if (n->kind() == ASTNodeKind::TypealiasStmt) {
                     id = map(n->as_typealias_unsafe()->known_type());
+                } else if (n->kind() == ASTNodeKind::FunctionDecl) {
+                    BaseType* ft = n->as_function_unsafe()->known_type();
+                    id = ft ? map(ft) : opaque_type();
                 } else {
                     id = opaque_type();
                 }

@@ -74,6 +74,7 @@
 #include "ast/values/SwitchValue.h"
 #include "ast/values/LoopValue.h"
 #include "ast/values/PatternMatchExpr.h"
+#include "ast/values/InValue.h"
 #include "ast/statements/PatternMatchExprNode.h"
 #include "ast/statements/Return.h"
 #include "ast/statements/Break.h"
@@ -1717,6 +1718,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                                                         static_cast<uint32_t>(s->value.size()));
             return MIRExprResult::value(builder_->const_string(type, c), type);
         }
+        case ValueKind::GenericInstIdentifier:
+            // a generic function reference is relinked to its concrete
+            // instantiated FunctionDecl, so it lowers like an identifier
         case ValueKind::Identifier: {
             auto* id = value->as_identifier_unsafe();
             if (Value* cv = captured_comptime_value(id->linked)) {
@@ -2725,6 +2729,37 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         }
         case ValueKind::PatternMatchExpr: {
             return lower_pattern_match_value(value->as_pattern_match_expr_unsafe(), error);
+        }
+        case ValueKind::InValue: {
+            // `x in a, b, c` -> a chain of equality tests (or `!in` -> not-equal)
+            auto* in = static_cast<InValue*>(value);
+            const TypeId bool_t = types_.bool_type();
+            MIRExprResult v = lower_expr(in->value, error);
+            if (!v.ok()) return v;
+            const PlaceId res = builder_->alloca(bool_t, MIRStorageClass::Temporary);
+            builder_->store(
+                res, builder_->const_bool(
+                         bool_t, module_.constants.add_bool(bool_t, in->is_negating)));
+            const BlockId end_b = builder_->create_block();
+            const ConstantId eqc = module_.constants.add_int(
+                MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq));
+            for (Value* cv : in->values) {
+                MIRExprResult c = lower_expr(cv, error);
+                if (!c.ok()) return c;
+                const ValueId cond = builder_->compare(v.id, c.id, eqc, bool_t);
+                const BlockId hit_b = builder_->create_block();
+                const BlockId next_b = builder_->create_block();
+                builder_->cond_br(cond, hit_b, next_b);
+                builder_->set_block(hit_b);
+                builder_->store(res,
+                                builder_->const_bool(
+                                    bool_t, module_.constants.add_bool(bool_t, !in->is_negating)));
+                builder_->br(end_b);
+                builder_->set_block(next_b);
+            }
+            builder_->br(end_b);
+            builder_->set_block(end_b);
+            return MIRExprResult::value(builder_->load(res, bool_t), bool_t);
         }
         case ValueKind::IsValue: {
             auto* isv = value->as_is_value_unsafe();

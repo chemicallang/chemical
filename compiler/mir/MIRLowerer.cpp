@@ -77,6 +77,7 @@
 #include "compiler/async/AsyncCTypes.h"
 #include "compiler/async/AwaitNormalizePass.h"
 #include "ast/types/ArrayType.h"
+#include "ast/structures/StructMember.h"
 #include "MIREmitter.h"
 
 namespace mir {
@@ -86,6 +87,42 @@ namespace {
 bool is_void_type(const MIRModule& module, TypeId type) {
     if (type == MIR_INVALID_ID || type >= module.types.size()) return false;
     return module.types.get(type).kind == MIRTypeKind::Void;
+}
+
+/**
+ * `sizeof(x)` / `alignof(x)` / `offsetof(x, m)` parse `x` as a named type, so
+ * the operand may be a `LinkedType` pointing at a variable, parameter or member
+ * rather than a type declaration. Resolve those to the declared type so the
+ * size/align/offset uses the real type instead of an opaque pointer.
+ *
+ * Without this, `sizeof(buffer)` for `var buffer : [160]char` mapped to
+ * `opaque_type()` and emitted `sizeof(void*)` (8), silently truncating any
+ * caller that formatted into such a buffer (the test runner used one for the
+ * spawned test id, so every suite reported success without running anything).
+ */
+BaseType* resolve_sizeof_operand(BaseType* t) {
+    for (int hops = 0; t && hops < 16; ++hops) {
+        if (t->kind() != BaseTypeKind::Linked) return t;
+        ASTNode* n = t->get_direct_linked_node();
+        if (!n) return t;
+        switch (n->kind()) {
+            case ASTNodeKind::VarInitStmt:
+                fprintf(stderr, "[SIZEOF-RESOLVE] var %.*s\n",
+                        (int)n->as_var_init_unsafe()->name_view().size(),
+                        n->as_var_init_unsafe()->name_view().data());
+                t = n->as_var_init_unsafe()->known_type();
+                break;
+            case ASTNodeKind::FunctionParam:
+                t = const_cast<BaseType*>(n->as_func_param_unsafe()->type.getType());
+                break;
+            case ASTNodeKind::StructMember:
+                t = const_cast<BaseType*>(n->as_struct_member_unsafe()->type.getType());
+                break;
+            default:
+                return t;
+        }
+    }
+    return t;
 }
 
 /** Resolve a captured-comptime bridge node to its evaluated value, if any. */
@@ -2109,25 +2146,31 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         }
         case ValueKind::SizeOfValue: {
             auto* s = value->as_sizeof_value_unsafe();
-            const TypeId ft =
-                s->for_type.getType() ? types_.map(const_cast<BaseType*>(s->for_type.getType())) : types_.opaque_type();
-            return MIRExprResult::value(builder_->size_of(ft, type), type);
+            BaseType* ft = s->for_type.getType()
+                               ? resolve_sizeof_operand(const_cast<BaseType*>(s->for_type.getType()))
+                               : nullptr;
+            const TypeId tid = ft ? types_.map(ft) : types_.opaque_type();
+            return MIRExprResult::value(builder_->size_of(tid, type), type);
         }
         case ValueKind::AlignOfValue: {
             auto* a = static_cast<AlignOfValue*>(value);
-            const TypeId ft =
-                a->for_type.getType() ? types_.map(const_cast<BaseType*>(a->for_type.getType())) : types_.opaque_type();
-            return MIRExprResult::value(builder_->align_of(ft, type), type);
+            BaseType* ft = a->for_type.getType()
+                               ? resolve_sizeof_operand(const_cast<BaseType*>(a->for_type.getType()))
+                               : nullptr;
+            const TypeId tid = ft ? types_.map(ft) : types_.opaque_type();
+            return MIRExprResult::value(builder_->align_of(tid, type), type);
         }
         case ValueKind::OffsetOfValue: {
             auto* o = value->as_offset_of_value_unsafe();
-            const TypeId ft =
-                o->for_type.getType() ? types_.map(const_cast<BaseType*>(o->for_type.getType())) : types_.opaque_type();
+            BaseType* ft = o->for_type.getType()
+                               ? resolve_sizeof_operand(const_cast<BaseType*>(o->for_type.getType()))
+                               : nullptr;
+            const TypeId tid = ft ? types_.map(ft) : types_.opaque_type();
             const std::string mn(o->member_name.data(), o->member_name.size());
             const ConstantId fc =
                 module_.constants.add_string(MIR_INVALID_ID, mn.data(),
                                             static_cast<uint32_t>(mn.size()));
-            return MIRExprResult::value(builder_->offset_of(ft, fc, type), type);
+            return MIRExprResult::value(builder_->offset_of(tid, fc, type), type);
         }
         case ValueKind::UnsafeValue: {
             // `unsafe(expr)` is a compile-time safety marker only

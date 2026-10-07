@@ -721,11 +721,21 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const MIROperand* b = operand_at(function, inst, 0);
                 const MIROperand* idx = operand_at(function, inst, 1);
                 if (!b || !idx) { error = "index_addr missing operands"; return false; }
-                const std::string bexpr =
-                    (b->kind() == MIROperandKind::Place) ? place_name(module, function, b->id)
-                                                         : operand_expr(function, module, *b);
+                std::string bexpr;
+                bool base_is_array = false;
+                if (b->kind() == MIROperandKind::Place) {
+                    bexpr = place_name(module, function, b->id);
+                } else {
+                    bexpr = operand_expr(function, module, *b);
+                    // an array-typed value is spelled as a pointer-to-array in C
+                    // (`char (*v)[N]`); index it through a deref so the element
+                    // stride is the element size, not the whole array size.
+                    base_is_array = b->type() < module.types.size() &&
+                                    module.types.get(b->type()).kind == MIRTypeKind::Array;
+                }
                 const std::string access =
-                    bexpr + "[" + operand_expr(function, module, *idx) + "]";
+                    (base_is_array ? ("(*" + bexpr + ")") : bexpr) + "[" +
+                    operand_expr(function, module, *idx) + "]";
                 // __typeof__ handles element types with no spellable C name
                 out += "__typeof__(" + access + ")* " + vname(v) + " = &" + access + ";\n";
                 break;

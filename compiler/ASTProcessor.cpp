@@ -2019,26 +2019,37 @@ bool mir_translate_after_declaration(
         }
         return true;
     };
-    for (ASTNode* node : nodes) {
-        if (node->kind() == ASTNodeKind::FunctionDecl) {
-            if (lower_and_emit(node->as_function())) continue;
-        } else if (node->kind() == ASTNodeKind::StructDecl ||
-                   node->kind() == ASTNodeKind::VariantDecl ||
-                   node->kind() == ASTNodeKind::UnionDecl) {
-            auto* def = node->as_extendable_member_container();
-            if (lower_container(def)) continue;
-        } else if (node->kind() == ASTNodeKind::VarInitStmt) {
-            auto* vi = node->as_var_init_unsafe();
-            if (vi->is_top_level() && !vi->is_comptime()) {
-                decl_emitter.implement(visitor.writer, node);
+    std::function<void(const std::vector<ASTNode*>&)> process_nodes =
+        [&](const std::vector<ASTNode*>& list) {
+        for (ASTNode* node : list) {
+            if (node->kind() == ASTNodeKind::FunctionDecl) {
+                if (lower_and_emit(node->as_function())) continue;
+            } else if (node->kind() == ASTNodeKind::StructDecl ||
+                       node->kind() == ASTNodeKind::VariantDecl ||
+                       node->kind() == ASTNodeKind::UnionDecl) {
+                auto* def = node->as_extendable_member_container();
+                if (lower_container(def)) continue;
+            } else if (node->kind() == ASTNodeKind::VarInitStmt) {
+                auto* vi = node->as_var_init_unsafe();
+                if (vi->is_top_level() && !vi->is_comptime()) {
+                    decl_emitter.implement(visitor.writer, node);
+                    continue;
+                }
+            } else if (node->kind() == ASTNodeKind::ImplDecl) {
+                if (lower_impl(node->as_impl_def_unsafe())) continue;
+            } else if (node->kind() == ASTNodeKind::NamespaceDecl) {
+                auto* ns = node->as_namespace_unsafe();
+                if (!ns->is_comptime()) process_nodes(ns->nodes);
+                continue;
+            } else if (node->kind() == ASTNodeKind::Scope) {
+                process_nodes(node->as_scope_unsafe()->nodes);
                 continue;
             }
-        } else if (node->kind() == ASTNodeKind::ImplDecl) {
-            if (lower_impl(node->as_impl_def_unsafe())) continue;
+            visitor.top_level_position = visitor.writer.getPosition();
+            visitor.visit(node);
         }
-        visitor.top_level_position = visitor.writer.getPosition();
-        visitor.visit(node);
-    }
+    };
+    process_nodes(nodes);
 
     // emit top-level C definitions for inline (anonymous/locally-named) struct
     // types used by the MIR-lowered bodies, and move them before the functions

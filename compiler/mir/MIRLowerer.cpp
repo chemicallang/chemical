@@ -3806,12 +3806,17 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         const ConstantId fc = module_.constants.add_string(
                             MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
                         const TypeId ft = types_.map(chain->values[i]->getType());
-                        if (!have_ptr) {
-                            cur_ptr = builder_->field_addr(cur_place, fc, ft);
-                            have_ptr = true;
-                        } else {
-                            cur_ptr = builder_->field_addr_ptr(cur_ptr, fc, ft);
-                        }
+                        const MIRTypeRecord& ftr = module_.types.get(ft);
+                        const ValueId faddr = have_ptr
+                                                  ? builder_->field_addr_ptr(cur_ptr, fc, ft)
+                                                  : builder_->field_addr(cur_place, fc, ft);
+                        // an intermediate pointer/reference field is dereferenced
+                        // so the next field is reached through it (`a.b->c`)
+                        cur_ptr = (ftr.kind == MIRTypeKind::Pointer ||
+                                   ftr.kind == MIRTypeKind::Reference)
+                                      ? builder_->load_indirect(faddr, ft)
+                                      : faddr;
+                        have_ptr = true;
                     }
                     std::string fname;
                     if (!member_field_path(chain->values[n - 2], chain->values.back(), fname, error)) return false;

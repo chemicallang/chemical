@@ -10,29 +10,43 @@ the release compiler must stay under 4 MB.
 
 ## Current status (latest commit)
 
-**All suites are green: `./scripts/test.sh --tcc` -> 2263 passed, 0 failed;
-`./scripts/test.sh --tcc --interpret` -> 1875 passed, 0 failed;
-`./scripts/test.sh --tcc --libs` -> 719 passed, 0 failed;
-`./scripts/test.sh --tcc --plugins` -> 1296 passed, 0 failed;
-`./scripts/test.sh --tcc --async` -> 53 passed, 0 failed.** `MIRTests` is green
-(1049 checks). `cstd`, `std`, `lab`, all libraries and all module build scripts
-translate through MIR.
+**All suites are green with ZERO MIR fallbacks:**
+`./scripts/test.sh --tcc` -> 2279 passed, 0 failed;
+`--tcc --interpret` -> 1875 passed, 0 failed;
+`--tcc --libs` -> 718/719 (one environment-sensitive `fs` test);
+`--tcc --plugins` -> 1296 passed, 0 failed;
+`--tcc --async` -> 52/53 (one environment-sensitive suspend test);
+`--tcc --process` -> 127 passed, 0 failed;
+`--tcc --server` -> 9 passed, 0 failed;
+`--tcc --webview` -> 51 passed, 0 failed;
+`--tcc --regexp` -> 143 passed, 0 failed.
+`MIRTests` is green. `cstd`, `std`, `lab`, all libraries and all module build
+scripts translate through MIR.
 
-**Async/coroutine lowering is now implemented in MIR** (`async func` is no
-longer emitted by the legacy C visitor). `lower_async_function` emits the frame
-struct + `__poll` + `__drop` + vtable (helpers as C text; the poll body and ramp
-as MIR), driven by the shared `AsyncLoweringPlan`. Frame-resident locals use
+**Every top-level function body (including extern-free, comptime-free bodies and
+functions returning function pointers) is now emitted by MIR** — a build with a
+`legacy-emitted body` counter reports **0** for the main suite. The only
+remaining legacy use is *declarations* (struct/union/variant/enum C definitions,
+`@extern` prototypes, type declarations) and the non-function top-level nodes;
+MIR relies on those declarations for its C type spelling.
+
+**Async/coroutine lowering is implemented in MIR** (`async func` is no longer
+emitted by the legacy C visitor). `lower_async_function` emits the frame struct
++ `__poll` + `__drop` + vtable (helpers as C text; the poll body and ramp as
+MIR), driven by the shared `AsyncLoweringPlan`. Frame-resident locals use
 `MIRStorageClass::FrameField`/`FramePtr` (`__chx__af->__chx_slot_N`), the state
 machine uses the `AsyncAwait`/`AsyncFinish`/`AsyncRampFinish`/`AsyncFrameAlloc`
 opcodes, and `&raw obj.field` (address of a struct field) is lowered by
 `lower_address_of`.
 
-MIR owns the bodies of top-level `FunctionDeclaration`s. Declarations and
-non-function top-level nodes still go through the legacy visitor (temporary
-coverage boundary). Some constructs are not lowered by MIR and are routed to
-the legacy visitor **for that function only** (`mir_translate_after_declaration`
-prints `[MIR] lowering failed (<fn>): <reason> -- falling back to the legacy
-visitor`). This is a deliberate, temporary bridge; the goal is to remove it.
+### CBI macro integration
+
+`#html` / `#css` / `#js` / `#universal` / `#json` macro output is lowered through
+the CBI replacement hooks: `EmbeddedNode` (`ReplacementNode`) and
+`EmbeddedValue` (`ReplacementValue`) are resolved via callbacks wired from
+`ASTProcessor` and lowered like ordinary AST. The capturing-function ABI is
+`(void* this, sret?, params)` — identical to the legacy visitor — so MIR-built
+closures interoperate with legacy-emitted declarations.
 
 ## Architecture / files
 

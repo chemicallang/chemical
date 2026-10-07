@@ -277,6 +277,12 @@ private:
     void maybe_register_call_temp(Value* v, MIRExprResult r);
     /** Destroy a call-returning-struct temporary immediately (statement-local). */
     void destroy_call_temp(Value* v, MIRExprResult r);
+    /** Register a struct temporary for destruction at the end of the statement. */
+    void register_stmt_temp(PlaceId place, BaseType* type);
+    /** Cancel a pending statement-temp destruction (the value was moved out). */
+    void cancel_stmt_temp(PlaceId place);
+    /** Destroy all statement temporaries registered since `mark`. */
+    void flush_stmt_temps(size_t mark);
     /** Apply default field values / base default constructors for unset fields. */
     bool apply_struct_defaults(PlaceId temp, ExtendableMembersContainerNode* def,
                                const std::set<std::string>& explicit_fields,
@@ -372,6 +378,8 @@ private:
     ImplementationsIndex* impls_index_ = nullptr;
     CoreNodes* core_nodes_ = nullptr;
     std::unordered_map<std::string, SymbolId> extern_symbols_;
+    /** Struct temporaries whose destruction is deferred to the statement end. */
+    std::vector<std::pair<PlaceId, BaseType*>> stmt_temps_;
     FunctionTypeBody* current_func_ = nullptr;
     std::vector<BlockId> break_targets_;
     std::vector<BlockId> continue_targets_;

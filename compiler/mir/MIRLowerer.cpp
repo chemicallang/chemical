@@ -837,20 +837,40 @@ void MIRLowerer::register_destructible(PlaceId place, BaseType* type) {
 void MIRLowerer::maybe_register_call_temp(Value* v, MIRExprResult r) {
     if (r.kind != MIRExprKind::Place || !v) return;
     if (v->val_kind() != ValueKind::FunctionCall) return;
-    BaseType* bt = v->getType();
-    if (bt && bt->get_destructor()) {
-        register_destructible(static_cast<PlaceId>(r.id), bt);
-    }
+    register_stmt_temp(static_cast<PlaceId>(r.id), v->getType());
 }
 
 void MIRLowerer::destroy_call_temp(Value* v, MIRExprResult r) {
     if (r.kind != MIRExprKind::Place || !v) return;
     if (v->val_kind() != ValueKind::FunctionCall) return;
-    BaseType* bt = v->getType();
-    if (!bt) return;
-    const SymbolId dtor = destructor_symbol(bt);
-    if (dtor == MIR_INVALID_ID) return;
-    builder_->destroy(static_cast<PlaceId>(r.id), dtor);
+    register_stmt_temp(static_cast<PlaceId>(r.id), v->getType());
+}
+
+void MIRLowerer::register_stmt_temp(PlaceId place, BaseType* type) {
+    if (place == MIR_INVALID_ID || !type) return;
+    if (destructor_symbol(type) == MIR_INVALID_ID) return;
+    for (auto& t : stmt_temps_) {
+        if (t.first == place) return;
+    }
+    stmt_temps_.emplace_back(place, type);
+}
+
+void MIRLowerer::cancel_stmt_temp(PlaceId place) {
+    for (size_t i = 0; i < stmt_temps_.size(); ++i) {
+        if (stmt_temps_[i].first == place) {
+            stmt_temps_.erase(stmt_temps_.begin() + static_cast<long>(i));
+            return;
+        }
+    }
+}
+
+void MIRLowerer::flush_stmt_temps(size_t mark) {
+    for (size_t i = mark; i < stmt_temps_.size(); ++i) {
+        const SymbolId dtor = destructor_symbol(stmt_temps_[i].second);
+        if (dtor == MIR_INVALID_ID) continue;
+        builder_->destroy(stmt_temps_[i].first, dtor);
+    }
+    stmt_temps_.resize(mark);
 }
 
 bool MIRLowerer::apply_struct_defaults(PlaceId temp, ExtendableMembersContainerNode* def,
@@ -1523,6 +1543,14 @@ MIRExprResult MIRLowerer::lower_receiver(const std::vector<Value*>& values, size
             }
             MIRExprResult a = lower_address_of(v, error);
             if (a.ok()) return a;
+        }
+        if (k == ValueKind::FunctionCall) {
+            // a struct-returning call as a method receiver: keep its temporary
+            // alive until the end of the statement (destroyed after the chain)
+            MIRExprResult r = lower_expr(v, error);
+            if (!r.ok()) return r;
+            maybe_register_call_temp(v, r);
+            return r;
         }
     }
     return lower_member_chain(values, count, error);
@@ -4360,7 +4388,10 @@ bool MIRLowerer::lower_scope_nodes(std::vector<ASTNode*>& nodes, std::string& er
     for (ASTNode* n : nodes) {
         // statements after a terminator (break/continue/return) are unreachable
         if (builder_->current_block_terminated()) break;
+        const size_t smark = stmt_temps_.size();
         if (!lower_stmt(n, error)) return false;
+        if (!builder_->current_block_terminated()) flush_stmt_temps(smark);
+        else stmt_temps_.resize(smark);
     }
     // destroy locals declared in this scope (unless they were moved out)
     if (!builder_->current_block_terminated()) {
@@ -5330,6 +5361,7 @@ bool MIRLowerer::lower_async_function(FunctionDeclaration* decl, MIRArena& arena
     name_places_.clear();
     destructibles_.clear();
     call_temps_.clear();
+    stmt_temps_.clear();
     pattern_bases_.clear();
     pattern_results_.clear();
     async_ = true;
@@ -5619,6 +5651,7 @@ bool MIRLowerer::async_lower_poll_body(FunctionDeclaration* decl, std::string& e
     name_places_.clear();
     destructibles_.clear();
     call_temps_.clear();
+    stmt_temps_.clear();
     pattern_bases_.clear();
     pattern_results_.clear();
     async_child_places_.assign(async_plan_.sites.size(), MIR_INVALID_ID);
@@ -5799,6 +5832,7 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
     name_places_.clear();
     destructibles_.clear();
     call_temps_.clear();
+    stmt_temps_.clear();
     pattern_bases_.clear();
     pattern_results_.clear();
 
@@ -6144,6 +6178,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     auto saved_name = std::move(name_places_);
     auto saved_destructibles = std::move(destructibles_);
     auto saved_call_temps = std::move(call_temps_);
+    auto saved_stmt_temps = std::move(stmt_temps_);
     auto saved_pattern_bases = std::move(pattern_bases_);
     auto saved_pattern_results = std::move(pattern_results_);
     const bool saved_sret = sret_;
@@ -6160,6 +6195,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     name_places_.clear();
     destructibles_.clear();
     call_temps_.clear();
+    stmt_temps_.clear();
     pattern_bases_.clear();
     pattern_results_.clear();
     break_targets_.clear();
@@ -6242,6 +6278,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     name_places_ = std::move(saved_name);
     destructibles_ = std::move(saved_destructibles);
     call_temps_ = std::move(saved_call_temps);
+    stmt_temps_ = std::move(saved_stmt_temps);
     pattern_bases_ = std::move(saved_pattern_bases);
     pattern_results_ = std::move(saved_pattern_results);
     sret_ = saved_sret;
@@ -6355,6 +6392,7 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     auto saved_name = std::move(name_places_);
     auto saved_destructibles = std::move(destructibles_);
     auto saved_call_temps = std::move(call_temps_);
+    auto saved_stmt_temps = std::move(stmt_temps_);
     const bool saved_sret = sret_;
     const ValueId saved_sret_ptr = sret_ptr_;
     const TypeId saved_sret_ret = sret_ret_type_;
@@ -6367,6 +6405,7 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     name_places_.clear();
     destructibles_.clear();
     call_temps_.clear();
+    stmt_temps_.clear();
     pattern_bases_.clear();
     pattern_results_.clear();
     break_targets_.clear();
@@ -6444,6 +6483,7 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     name_places_ = std::move(saved_name);
     destructibles_ = std::move(saved_destructibles);
     call_temps_ = std::move(saved_call_temps);
+    stmt_temps_ = std::move(saved_stmt_temps);
     sret_ = saved_sret;
     sret_ptr_ = saved_sret_ptr;
     sret_ret_type_ = saved_sret_ret;
@@ -6475,6 +6515,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     var_places_.clear();
     name_places_.clear();
     destructibles_.clear();
+    stmt_temps_.clear();
     // func_symbols_ persists across functions in a module so callees keep stable ids
 
     func.symbol = intern_function(decl);
@@ -6587,10 +6628,13 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
 
     if (decl->body.has_value()) {
         for (ASTNode* node : decl->body->nodes) {
+            const size_t smark = stmt_temps_.size();
             if (!lower_stmt(node, error)) {
                 builder_ = nullptr;
                 return false;
             }
+            if (!b.current_block_terminated()) flush_stmt_temps(smark);
+            else stmt_temps_.resize(smark);
         }
     }
 

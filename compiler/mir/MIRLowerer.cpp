@@ -2226,6 +2226,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             error = "unsupported is-expression (non-variant)";
             return MIRExprResult::error();
         }
+        case ValueKind::IfValue: {
+            return lower_if_value(value->as_if_value_unsafe(), error);
+        }
         case ValueKind::SizeOfValue: {
             auto* s = value->as_sizeof_value_unsafe();
             BaseType* ft = s->for_type.getType()
@@ -3300,6 +3303,94 @@ bool MIRLowerer::lower_if(IfStatement* stmt, BlockId merge, std::string& error) 
     }
     if (!builder_->current_block_terminated()) builder_->br(merge);
     return true;
+}
+
+bool MIRLowerer::lower_scope_value(Scope& scope, PlaceId dest, TypeId dest_t,
+                                   std::string& error) {
+    const size_t mark = destructibles_.size();
+    const size_t n = scope.nodes.size();
+    for (size_t i = 0; i < n; ++i) {
+        if (builder_->current_block_terminated()) break;
+        ASTNode* node = scope.nodes[i];
+        if (i + 1 == n) {
+            Value* v = Value::get_first_value_from_value_node(node);
+            if (v) {
+                MIRExprResult r = lower_expr(v, error);
+                if (!r.ok()) return false;
+                if (r.kind == MIRExprKind::Place) {
+                    builder_->store(dest, builder_->load(static_cast<PlaceId>(r.id), dest_t));
+                } else if (r.kind == MIRExprKind::Address) {
+                    builder_->store(dest, builder_->load_indirect(static_cast<ValueId>(r.id), dest_t));
+                } else if (r.kind == MIRExprKind::Value) {
+                    builder_->store(dest, static_cast<ValueId>(r.id));
+                } else {
+                    error = "if-value branch does not produce a value";
+                    return false;
+                }
+                break;
+            }
+        }
+        if (!lower_stmt(node, error)) return false;
+    }
+    if (!builder_->current_block_terminated()) {
+        for (size_t i = mark; i < destructibles_.size(); ++i) {
+            const ValueId fv = builder_->load(destructibles_[i].flag, types_.bool_type());
+            builder_->drop(destructibles_[i].place, destructibles_[i].dtor, fv);
+        }
+    }
+    destructibles_.resize(mark);
+    return true;
+}
+
+MIRExprResult MIRLowerer::lower_if_value(IfValue* value, std::string& error) {
+    IfStatement& stmt = value->stmt;
+    const TypeId vt = types_.map(value->getType());
+    const PlaceId dest = builder_->alloca(vt, MIRStorageClass::Temporary);
+    const BlockId merge = builder_->create_block();
+
+    const BlockId then_b = builder_->create_block();
+    const BlockId else_b = builder_->create_block();
+    MIRExprResult c = lower_expr(stmt.condition, error);
+    if (!c.ok()) return c;
+    builder_->cond_br(c.id, then_b, else_b);
+
+    builder_->set_block(then_b);
+    if (!lower_scope_value(stmt.ifBody, dest, vt, error)) return MIRExprResult::error();
+    if (!builder_->current_block_terminated()) builder_->br(merge);
+
+    BlockId current = else_b;
+    for (size_t i = 0; i < stmt.elseIfs.size(); ++i) {
+        const BlockId body_b = builder_->create_block();
+        const BlockId next_else = builder_->create_block();
+        builder_->set_block(current);
+        MIRExprResult ec = lower_expr(stmt.elseIfs[i].first, error);
+        if (!ec.ok()) return ec;
+        builder_->cond_br(ec.id, body_b, next_else);
+        builder_->set_block(body_b);
+        if (!lower_scope_value(stmt.elseIfs[i].second, dest, vt, error)) {
+            return MIRExprResult::error();
+        }
+        if (!builder_->current_block_terminated()) builder_->br(merge);
+        current = next_else;
+    }
+
+    builder_->set_block(current);
+    if (stmt.elseBody.has_value()) {
+        if (!lower_scope_value(stmt.elseBody.value(), dest, vt, error)) {
+            return MIRExprResult::error();
+        }
+    } else {
+        error = "if-value has no else branch";
+        return MIRExprResult::error();
+    }
+    if (!builder_->current_block_terminated()) builder_->br(merge);
+
+    builder_->set_block(merge);
+    // for aggregates the caller wants the temp's address; for scalars the value
+    if (needs_aggregate_path(module_, vt)) {
+        return MIRExprResult::place(dest, vt);
+    }
+    return MIRExprResult::value(builder_->load(dest, vt), vt);
 }
 
 bool MIRLowerer::lower_while(WhileLoop* loop, std::string& error) {

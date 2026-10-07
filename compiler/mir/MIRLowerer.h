@@ -26,6 +26,7 @@ class FunctionParam;
 class VarInitStatement;
 class Scope;
 class IfStatement;
+class IfValue;
 class WhileLoop;
 class ForLoop;
 class FunctionCall;
@@ -143,6 +144,10 @@ private:
     /** Lower a list of statements as a scope, destroying its locals at the end. */
     bool lower_scope_nodes(std::vector<ASTNode*>& nodes, std::string& error);
     bool lower_if(IfStatement* stmt, BlockId merge, std::string& error);
+    /** Lower an `if`-value expression: store the taken branch's value into a temp. */
+    MIRExprResult lower_if_value(IfValue* value, std::string& error);
+    /** Lower a value scope, storing its trailing value into `dest`. */
+    bool lower_scope_value(Scope& scope, PlaceId dest, TypeId dest_t, std::string& error);
     bool lower_while(WhileLoop* loop, std::string& error);
     bool lower_for(ForLoop* loop, std::string& error);
     bool lower_incdec_value(Value* target, bool increment, bool post, std::string& error,

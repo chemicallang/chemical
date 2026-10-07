@@ -45,6 +45,9 @@
 #include "ast/values/Negative.h"
 #include "ast/values/ComptimeValue.h"
 #include "ast/values/StructValue.h"
+#include "ast/values/FunctionCall.h"
+#include "ast/values/AccessChain.h"
+#include "ast/values/CastedValue.h"
 #include "compiler/mangler/NameMangler.h"
 #include "preprocess/2c/BufferedWriter.h"
 #include "core/source/LocationManager.h"
@@ -216,7 +219,7 @@ std::string MIRDeclEmitter::const_value_expr(Value* value) {
             for (auto& entry : sv->values) {
                 if (!first) s += ", ";
                 s += ".";
-                s += std::string(entry.first.data(), entry.first.size());
+                s += std::string(entry.second.name.data(), entry.second.name.size());
                 s += " = ";
                 s += const_value_expr(entry.second.value);
                 first = false;
@@ -224,6 +227,73 @@ std::string MIRDeclEmitter::const_value_expr(Value* value) {
             s += "}";
             return s;
         }
+        case ValueKind::FunctionCall: {
+            // variant construction: `Variant.Member(args)`
+            auto* call = value->as_func_call_unsafe();
+            ASTNode* vleaf = nullptr;
+            if (call->parent_val) {
+                if (call->parent_val->val_kind() == ValueKind::AccessChain) {
+                    auto* ch = call->parent_val->as_access_chain_unsafe();
+                    if (!ch->values.empty()) vleaf = ch->values.back()->linked_node();
+                } else {
+                    vleaf = call->parent_val->linked_node();
+                }
+            }
+            if (vleaf && vleaf->kind() == ASTNodeKind::VariantMember) {
+                auto* vm = vleaf->as_variant_member_unsafe();
+                VariantDefinition* vd = vm->parent();
+                const long idx = vd ? vd->direct_child_index(vm->name) : 0;
+                std::string s = "(" + type_spelling(call->getType()) + ") { .__chx__vt_621827 = " +
+                                std::to_string(idx < 0 ? 0 : idx);
+                size_t ai = 0;
+                for (auto& entry : vm->values) {
+                    VariantMemberParam* param = entry.second;
+                    Value* arg = nullptr;
+                    if (ai < call->values.size()) {
+                        arg = call->values[ai];
+                        ai++;
+                    } else if (param) {
+                        arg = param->def_value;
+                    }
+                    if (!arg) continue;
+                    const std::string mname(vm->name.data(), vm->name.size());
+                    const std::string pname(entry.first.data(), entry.first.size());
+                    s += ", ." + mname + "." + pname + " = " + const_value_expr(arg);
+                }
+                s += " }";
+                return s;
+            }
+            return "0";
+        }
+        case ValueKind::AccessChain: {
+            // a bare variant member (`Variant.Member`, no args) or a chain whose
+            // leaf is the constructor call
+            auto* ch = value->as_access_chain_unsafe();
+            if (ch->values.empty()) return "0";
+            Value* last = ch->values.back();
+            if (last->val_kind() == ValueKind::FunctionCall) return const_value_expr(last);
+            ASTNode* linked = last->linked_node();
+            if (linked) {
+                if (linked->kind() == ASTNodeKind::VariantMember) {
+                    auto* vm = linked->as_variant_member_unsafe();
+                    VariantDefinition* vd = vm->parent();
+                    const long idx = vd ? vd->direct_child_index(vm->name) : 0;
+                    return "(" + type_spelling(value->getType()) +
+                           ") { .__chx__vt_621827 = " + std::to_string(idx < 0 ? 0 : idx) + " }";
+                }
+                if (linked->kind() == ASTNodeKind::FunctionDecl) {
+                    // a global function pointer/reference (`fn<T>`)
+                    return mangle_name(linked);
+                }
+                if (linked->kind() == ASTNodeKind::VarInitStmt) {
+                    auto* vi = linked->as_var_init_unsafe();
+                    if (vi->value) return const_value_expr(vi->value);
+                }
+            }
+            return "0";
+        }
+        case ValueKind::CastedValue:
+            return const_value_expr(value->as_casted_value_unsafe()->value);
         default:
             return "0";
     }

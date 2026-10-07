@@ -1865,6 +1865,7 @@ bool mir_translate_after_declaration(
         mir::MIRTypeBuilder& types,
         mir::MIRLowerer& lowerer,
         mir::MIRArena& arena,
+        mir::MIRDeclEmitter& decl_emitter,
         const std::vector<ASTNode*>& nodes) {
     // pass 0: name the aggregate types emitted by declare_module so MIR's C
     // type spelling matches the legacy struct/union/variant declarations
@@ -2128,10 +2129,19 @@ int ASTProcessor::implement_module(
     });
     mir::MIRArena mir_arena;
 
+    mir::MIRDeclEmitter mir_decl(mir_module, mir_types, c_visitor.mangler, loc_man,
+                                 c_visitor.comptime_scope, c_visitor.binder, c_visitor.allocator);
+    mir_decl.set_embedded_decl_repl([&c_visitor](EmbeddedNode* node) -> ASTNode* {
+        ASTBuilder builder(&c_visitor.allocator, c_visitor.comptime_scope.typeBuilder);
+        const auto fn = c_visitor.binder.findHook(node->name, CBIFunctionType::ReplacementNodeDeclare);
+        if (!fn) return nullptr;
+        return ((EmbeddedNodeReplacementFunc) fn)(&builder, &c_visitor, node);
+    });
+
     // generic instantiations for this module: lowered by MIR (function bodies);
     // non-function nodes still go through the legacy visitor as declarations
     if (mir_translate_after_declaration(c_visitor, mir_module, mir_types, mir_lowerer,
-                                        mir_arena, container.get_current_module_instantiations())) {
+                                        mir_arena, mir_decl, container.get_current_module_instantiations())) {
         had_errors = true;
     }
 
@@ -2147,7 +2157,7 @@ int ASTProcessor::implement_module(
 #endif
 
         // translating to c: function bodies via MIR, declarations via legacy
-        if(mir_translate_after_declaration(c_visitor, mir_module, mir_types, mir_lowerer, mir_arena, unit.scope.body.nodes)) {
+        if(mir_translate_after_declaration(c_visitor, mir_module, mir_types, mir_lowerer, mir_arena, mir_decl, unit.scope.body.nodes)) {
             had_errors = true;
         }
 

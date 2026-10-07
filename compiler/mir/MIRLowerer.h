@@ -14,6 +14,7 @@
 #include "compiler/async/AsyncLoweringPlan.h"
 
 #include <functional>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -197,6 +198,12 @@ private:
     MIRExprResult call_method_values(FunctionDeclaration* fd, MIRExprResult recv,
                                      BaseType* recv_type, const std::vector<Value*>& args,
                                      std::string& error);
+    /** Intern an extern C function symbol (malloc/free) with the given signature. */
+    SymbolId extern_symbol(const char* name, TypeId ftype);
+    /** Emit a `malloc(size)` call yielding `ptr_t`. */
+    ValueId emit_malloc(TypeId size_v, TypeId u64t, TypeId ptr_t);
+    /** Emit a `free(ptr)` call. */
+    void emit_free(ValueId ptr);
     MIRExprResult lower_incdec_value(Value* target, bool increment, bool post,
                                      std::string& error);
     /** Lower an inline-asm operand to a Place or a pointer Value (`*ptr`). */
@@ -268,6 +275,12 @@ private:
                                     std::string& error);
     /** Register a struct-returning call temporary for destruction. */
     void maybe_register_call_temp(Value* v, MIRExprResult r);
+    /** Destroy a call-returning-struct temporary immediately (statement-local). */
+    void destroy_call_temp(Value* v, MIRExprResult r);
+    /** Apply default field values / base default constructors for unset fields. */
+    bool apply_struct_defaults(PlaceId temp, ExtendableMembersContainerNode* def,
+                               const std::set<std::string>& explicit_fields,
+                               std::string& error);
     /** Append the receiver operand for a method/extension call to `args`. */
     bool append_receiver_arg(MIRExprResult recv, BaseType* recv_type,
                              FunctionDeclaration* fd, std::vector<MIROperand>& args,
@@ -358,6 +371,7 @@ private:
     std::function<void(FunctionTypeBody*)> set_current_func_;
     ImplementationsIndex* impls_index_ = nullptr;
     CoreNodes* core_nodes_ = nullptr;
+    std::unordered_map<std::string, SymbolId> extern_symbols_;
     FunctionTypeBody* current_func_ = nullptr;
     std::vector<BlockId> break_targets_;
     std::vector<BlockId> continue_targets_;

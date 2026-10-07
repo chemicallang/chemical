@@ -841,11 +841,11 @@ MIRExprResult MIRLowerer::lower_member_chain(const std::vector<Value*>& values, 
         error = "empty member chain";
         return MIRExprResult::error();
     }
-    if (count == 1) return lower_expr(values[0], error);
     MIRExprResult first = lower_expr(values[0], error);
     if (!first.ok()) return first;
-    // a struct-returning call used as a member/index base owns a temporary that
-    // must be destroyed after the enclosing scope
+    // a struct-returning call used as a member/index base (or directly as the
+    // receiver of a chained method call) owns a temporary that must be
+    // destroyed after the enclosing scope
     if (first.kind == MIRExprKind::Place && values[0] &&
         values[0]->val_kind() == ValueKind::FunctionCall) {
         BaseType* bt = values[0]->getType();
@@ -853,6 +853,7 @@ MIRExprResult MIRLowerer::lower_member_chain(const std::vector<Value*>& values, 
             register_destructible(static_cast<PlaceId>(first.id), bt);
         }
     }
+    if (count == 1) return first;
     PlaceId cur_place = MIR_INVALID_ID;
     ValueId cur_ptr = MIR_NULL;
     bool have_ptr = false;
@@ -2230,6 +2231,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         case ValueKind::IfValue: {
             return lower_if_value(value->as_if_value_unsafe(), error);
         }
+        case ValueKind::SwitchValue: {
+            return lower_switch_value(value->as_switch_value_unsafe(), error);
+        }
         case ValueKind::LoopValue: {
             return lower_loop_value(value->as_loop_value_unsafe(), error);
         }
@@ -3006,6 +3010,8 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             return lower_while(node->as_while_loop_unsafe(), error);
         case ASTNodeKind::DoWhileLoopStmt:
             return lower_do_while(node->as_do_while_loop_unsafe(), error);
+        case ASTNodeKind::LoopBlock:
+            return lower_loop_block(node->as_loop_block_unsafe(), error);
         case ASTNodeKind::ForLoopStmt:
             return lower_for(node->as_for_loop_unsafe(), error);
         case ASTNodeKind::BreakStmt: {
@@ -3069,34 +3075,6 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
         }
         case ASTNodeKind::SwitchStmt: {
             auto* sw = node->as_switch_stmt_unsafe();
-            MIRExprResult scrut = lower_expr(sw->expression, error);
-            if (!scrut.ok()) return false;
-
-            // variant switch: compare the discriminant, not the whole value
-            const std::string tag_name("__chx__vt_621827");
-            const ConstantId tag_fc = module_.constants.add_string(
-                MIR_INVALID_ID, tag_name.data(), static_cast<uint32_t>(tag_name.size()));
-            const TypeId tag_t = types_.u32_type();
-            bool variant_switch = false;
-            if (sw->expression && sw->expression->getType()) {
-                ASTNode* ln = sw->expression->getType()->get_direct_linked_node();
-                if (ln && (ln->kind() == ASTNodeKind::VariantDecl ||
-                           ln->kind() == ASTNodeKind::VariantMember)) {
-                    ValueId tag = MIR_NULL;
-                    if (scrut.kind == MIRExprKind::Place) {
-                        tag = builder_->field_load(static_cast<PlaceId>(scrut.id), tag_fc, tag_t);
-                    } else if (scrut.kind == MIRExprKind::Address ||
-                               scrut.kind == MIRExprKind::Value) {
-                        tag = builder_->field_load_ptr(static_cast<ValueId>(scrut.id), tag_fc, tag_t);
-                    } else {
-                        error = "variant switch expression is not a variant lvalue";
-                        return false;
-                    }
-                    scrut = MIRExprResult::value(tag, tag_t);
-                    variant_switch = true;
-                }
-            }
-
             const BlockId end_b = builder_->create_block();
             std::vector<BlockId> scope_blocks(sw->scopes.size());
             for (size_t i = 0; i < sw->scopes.size(); ++i) {
@@ -3104,44 +3082,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             }
             const BlockId default_b =
                 (sw->defScopeInd >= 0) ? scope_blocks[sw->defScopeInd] : end_b;
-
-            const TypeId bool_t = types_.bool_type();
-            const ConstantId eqc = module_.constants.add_int(
-                MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq));
-
-            const size_t n = sw->cases.size();
-            for (size_t i = 0; i < n; ++i) {
-                auto& c = sw->cases[i];
-                const BlockId target = (c.second >= 0) ? scope_blocks[c.second] : default_b;
-                if (c.first == nullptr) {
-                    builder_->br(target);
-                    break;
-                }
-                const BlockId next_b = (i + 1 < n) ? builder_->create_block() : default_b;
-                MIRExprResult cv;
-                if (variant_switch && c.first->val_kind() == ValueKind::VariantCase) {
-                    auto* vc = c.first->as_variant_case_unsafe();
-                    const long idx =
-                        (vc->member && vc->member->parent())
-                            ? vc->member->parent()->direct_child_index(vc->member->name)
-                            : 0;
-                    const ValueId ci = builder_->const_int(
-                        tag_t, module_.constants.add_int(
-                                   tag_t, static_cast<uint64_t>(idx < 0 ? 0 : idx)));
-                    cv = MIRExprResult::value(ci, tag_t);
-                } else {
-                    cv = lower_expr(c.first, error);
-                }
-                if (!cv.ok()) return false;
-                const ValueId cond = builder_->compare(scrut.id, cv.id, eqc, bool_t);
-                builder_->cond_br(cond, target, next_b);
-                if (i + 1 < n) {
-                    builder_->set_block(next_b);
-                } else {
-                    break;
-                }
-            }
-            if (n == 0) builder_->br(default_b);
+            if (!lower_switch_dispatch(*sw, scope_blocks, default_b, error)) return false;
 
             for (size_t i = 0; i < sw->scopes.size(); ++i) {
                 builder_->set_block(scope_blocks[i]);
@@ -3335,11 +3276,37 @@ bool MIRLowerer::lower_if(IfStatement* stmt, BlockId merge, std::string& error) 
 bool MIRLowerer::lower_scope_value(Scope& scope, PlaceId dest, TypeId dest_t,
                                    std::string& error) {
     const size_t mark = destructibles_.size();
+    auto finish = [&]() -> bool {
+        if (!builder_->current_block_terminated()) {
+            for (size_t i = mark; i < destructibles_.size(); ++i) {
+                const ValueId fv = builder_->load(destructibles_[i].flag, types_.bool_type());
+                builder_->drop(destructibles_[i].place, destructibles_[i].dtor, fv);
+            }
+        }
+        destructibles_.resize(mark);
+        return true;
+    };
+
     const size_t n = scope.nodes.size();
     for (size_t i = 0; i < n; ++i) {
         if (builder_->current_block_terminated()) break;
         ASTNode* node = scope.nodes[i];
         if (i + 1 == n) {
+            // the trailing node of a value scope may be a statement-form
+            // if/switch/loop that must be lowered in value position
+            switch (node->kind()) {
+                case ASTNodeKind::IfStmt:
+                    return lower_if_stmt_into(*node->as_if_stmt_unsafe(), dest, dest_t, error) &&
+                           finish();
+                case ASTNodeKind::SwitchStmt:
+                    return lower_switch_into(*node->as_switch_stmt_unsafe(), dest, dest_t, error) &&
+                           finish();
+                case ASTNodeKind::LoopBlock:
+                    return lower_loop_block_into(*node->as_loop_block_unsafe(), dest, dest_t, error) &&
+                           finish();
+                default:
+                    break;
+            }
             Value* v = Value::get_first_value_from_value_node(node);
             if (v) {
                 MIRExprResult r = lower_expr(v, error);
@@ -3359,30 +3326,131 @@ bool MIRLowerer::lower_scope_value(Scope& scope, PlaceId dest, TypeId dest_t,
         }
         if (!lower_stmt(node, error)) return false;
     }
-    if (!builder_->current_block_terminated()) {
-        for (size_t i = mark; i < destructibles_.size(); ++i) {
-            const ValueId fv = builder_->load(destructibles_[i].flag, types_.bool_type());
-            builder_->drop(destructibles_[i].place, destructibles_[i].dtor, fv);
+    return finish();
+}
+
+bool MIRLowerer::lower_switch_dispatch(SwitchStatement& sw,
+                                       std::vector<BlockId>& scope_blocks,
+                                       BlockId default_b, std::string& error) {
+    MIRExprResult scrut = lower_expr(sw.expression, error);
+    if (!scrut.ok()) return false;
+
+    // variant switch: compare the discriminant, not the whole value
+    const std::string tag_name("__chx__vt_621827");
+    const ConstantId tag_fc = module_.constants.add_string(
+        MIR_INVALID_ID, tag_name.data(), static_cast<uint32_t>(tag_name.size()));
+    const TypeId tag_t = types_.u32_type();
+    bool variant_switch = false;
+    if (sw.expression && sw.expression->getType()) {
+        ASTNode* ln = sw.expression->getType()->get_direct_linked_node();
+        if (ln && (ln->kind() == ASTNodeKind::VariantDecl ||
+                   ln->kind() == ASTNodeKind::VariantMember)) {
+            ValueId tag = MIR_NULL;
+            if (scrut.kind == MIRExprKind::Place) {
+                tag = builder_->field_load(static_cast<PlaceId>(scrut.id), tag_fc, tag_t);
+            } else if (scrut.kind == MIRExprKind::Address ||
+                       scrut.kind == MIRExprKind::Value) {
+                tag = builder_->field_load_ptr(static_cast<ValueId>(scrut.id), tag_fc, tag_t);
+            } else {
+                error = "variant switch expression is not a variant lvalue";
+                return false;
+            }
+            scrut = MIRExprResult::value(tag, tag_t);
+            variant_switch = true;
         }
     }
-    destructibles_.resize(mark);
+
+    const TypeId bool_t = types_.bool_type();
+    const ConstantId eqc = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq));
+
+    const size_t n = sw.cases.size();
+    for (size_t i = 0; i < n; ++i) {
+        auto& c = sw.cases[i];
+        const BlockId target = (c.second >= 0) ? scope_blocks[c.second] : default_b;
+        if (c.first == nullptr) {
+            builder_->br(target);
+            break;
+        }
+        const BlockId next_b = (i + 1 < n) ? builder_->create_block() : default_b;
+        MIRExprResult cv;
+        if (variant_switch && c.first->val_kind() == ValueKind::VariantCase) {
+            auto* vc = c.first->as_variant_case_unsafe();
+            const long idx =
+                (vc->member && vc->member->parent())
+                    ? vc->member->parent()->direct_child_index(vc->member->name)
+                    : 0;
+            const ValueId ci = builder_->const_int(
+                tag_t, module_.constants.add_int(
+                           tag_t, static_cast<uint64_t>(idx < 0 ? 0 : idx)));
+            cv = MIRExprResult::value(ci, tag_t);
+        } else {
+            cv = lower_expr(c.first, error);
+        }
+        if (!cv.ok()) return false;
+        const ValueId cond = builder_->compare(scrut.id, cv.id, eqc, bool_t);
+        builder_->cond_br(cond, target, next_b);
+        if (i + 1 < n) {
+            builder_->set_block(next_b);
+        } else {
+            break;
+        }
+    }
+    if (n == 0) builder_->br(default_b);
+    return true;
+}
+
+MIRExprResult MIRLowerer::lower_switch_value(SwitchValue* value, std::string& error) {
+    SwitchStatement& sw = value->stmt;
+    const TypeId vt = types_.map(value->getType());
+    const PlaceId dest = builder_->alloca(vt, MIRStorageClass::Temporary);
+    if (!lower_switch_into(sw, dest, vt, error)) return MIRExprResult::error();
+    if (needs_aggregate_path(module_, vt)) {
+        return MIRExprResult::place(dest, vt);
+    }
+    return MIRExprResult::value(builder_->load(dest, vt), vt);
+}
+
+bool MIRLowerer::lower_switch_into(SwitchStatement& sw, PlaceId dest, TypeId vt,
+                                   std::string& error) {
+    const BlockId end_b = builder_->create_block();
+    std::vector<BlockId> scope_blocks(sw.scopes.size());
+    for (size_t i = 0; i < sw.scopes.size(); ++i) {
+        scope_blocks[i] = builder_->create_block();
+    }
+    const BlockId default_b = (sw.defScopeInd >= 0) ? scope_blocks[sw.defScopeInd] : end_b;
+    if (!lower_switch_dispatch(sw, scope_blocks, default_b, error)) return false;
+    for (size_t i = 0; i < sw.scopes.size(); ++i) {
+        builder_->set_block(scope_blocks[i]);
+        if (!lower_scope_value(sw.scopes[i], dest, vt, error)) return false;
+        if (!builder_->current_block_terminated()) builder_->br(end_b);
+    }
+    builder_->set_block(end_b);
     return true;
 }
 
 MIRExprResult MIRLowerer::lower_if_value(IfValue* value, std::string& error) {
-    IfStatement& stmt = value->stmt;
     const TypeId vt = types_.map(value->getType());
     const PlaceId dest = builder_->alloca(vt, MIRStorageClass::Temporary);
-    const BlockId merge = builder_->create_block();
+    if (!lower_if_stmt_into(value->stmt, dest, vt, error)) return MIRExprResult::error();
+    // for aggregates the caller wants the temp's address; for scalars the value
+    if (needs_aggregate_path(module_, vt)) {
+        return MIRExprResult::place(dest, vt);
+    }
+    return MIRExprResult::value(builder_->load(dest, vt), vt);
+}
 
+bool MIRLowerer::lower_if_stmt_into(IfStatement& stmt, PlaceId dest, TypeId vt,
+                                    std::string& error) {
+    const BlockId merge = builder_->create_block();
     const BlockId then_b = builder_->create_block();
     const BlockId else_b = builder_->create_block();
     MIRExprResult c = lower_expr(stmt.condition, error);
-    if (!c.ok()) return c;
+    if (!c.ok()) return false;
     builder_->cond_br(c.id, then_b, else_b);
 
     builder_->set_block(then_b);
-    if (!lower_scope_value(stmt.ifBody, dest, vt, error)) return MIRExprResult::error();
+    if (!lower_scope_value(stmt.ifBody, dest, vt, error)) return false;
     if (!builder_->current_block_terminated()) builder_->br(merge);
 
     BlockId current = else_b;
@@ -3391,38 +3459,41 @@ MIRExprResult MIRLowerer::lower_if_value(IfValue* value, std::string& error) {
         const BlockId next_else = builder_->create_block();
         builder_->set_block(current);
         MIRExprResult ec = lower_expr(stmt.elseIfs[i].first, error);
-        if (!ec.ok()) return ec;
+        if (!ec.ok()) return false;
         builder_->cond_br(ec.id, body_b, next_else);
         builder_->set_block(body_b);
-        if (!lower_scope_value(stmt.elseIfs[i].second, dest, vt, error)) {
-            return MIRExprResult::error();
-        }
+        if (!lower_scope_value(stmt.elseIfs[i].second, dest, vt, error)) return false;
         if (!builder_->current_block_terminated()) builder_->br(merge);
         current = next_else;
     }
 
     builder_->set_block(current);
     if (stmt.elseBody.has_value()) {
-        if (!lower_scope_value(stmt.elseBody.value(), dest, vt, error)) {
-            return MIRExprResult::error();
-        }
+        if (!lower_scope_value(stmt.elseBody.value(), dest, vt, error)) return false;
     } else {
         error = "if-value has no else branch";
-        return MIRExprResult::error();
+        return false;
     }
     if (!builder_->current_block_terminated()) builder_->br(merge);
 
     builder_->set_block(merge);
-    // for aggregates the caller wants the temp's address; for scalars the value
+    return true;
+}
+
+MIRExprResult MIRLowerer::lower_loop_value(LoopValue* value, std::string& error) {
+    const TypeId vt = types_.map(value->getType());
+    const PlaceId dest = builder_->alloca(vt, MIRStorageClass::Temporary);
+    if (!lower_loop_block_into(value->stmt, dest, vt, error)) {
+        return MIRExprResult::error();
+    }
     if (needs_aggregate_path(module_, vt)) {
         return MIRExprResult::place(dest, vt);
     }
     return MIRExprResult::value(builder_->load(dest, vt), vt);
 }
 
-MIRExprResult MIRLowerer::lower_loop_value(LoopValue* value, std::string& error) {
-    const TypeId vt = types_.map(value->getType());
-    const PlaceId dest = builder_->alloca(vt, MIRStorageClass::Temporary);
+bool MIRLowerer::lower_loop_block_into(LoopBlock& loop, PlaceId dest, TypeId vt,
+                                       std::string& error) {
     const BlockId body_b = builder_->create_block();
     const BlockId exit_b = builder_->create_block();
 
@@ -3433,13 +3504,13 @@ MIRExprResult MIRLowerer::lower_loop_value(LoopValue* value, std::string& error)
     loop_destructible_marks_.push_back(destructibles_.size());
     break_value_dests_.push_back(dest);
     break_value_types_.push_back(vt);
-    if (!lower_scope(value->stmt.body, error)) {
+    if (!lower_scope(loop.body, error)) {
         break_targets_.pop_back();
         continue_targets_.pop_back();
         loop_destructible_marks_.pop_back();
         break_value_dests_.pop_back();
         break_value_types_.pop_back();
-        return MIRExprResult::error();
+        return false;
     }
     if (!builder_->current_block_terminated()) builder_->br(body_b);
     break_targets_.pop_back();
@@ -3449,10 +3520,11 @@ MIRExprResult MIRLowerer::lower_loop_value(LoopValue* value, std::string& error)
     break_value_types_.pop_back();
 
     builder_->set_block(exit_b);
-    if (needs_aggregate_path(module_, vt)) {
-        return MIRExprResult::place(dest, vt);
-    }
-    return MIRExprResult::value(builder_->load(dest, vt), vt);
+    return true;
+}
+
+bool MIRLowerer::lower_loop_block(LoopBlock* loop, std::string& error) {
+    return lower_loop_block_into(*loop, MIR_INVALID_ID, MIR_INVALID_ID, error);
 }
 
 bool MIRLowerer::lower_while(WhileLoop* loop, std::string& error) {

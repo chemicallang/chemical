@@ -27,7 +27,10 @@ class VarInitStatement;
 class Scope;
 class IfStatement;
 class IfValue;
+class SwitchStatement;
+class SwitchValue;
 class LoopValue;
+class LoopBlock;
 class WhileLoop;
 class DoWhileLoop;
 class ForLoop;
@@ -150,8 +153,21 @@ private:
     MIRExprResult lower_if_value(IfValue* value, std::string& error);
     /** Lower a value scope, storing its trailing value into `dest`. */
     bool lower_scope_value(Scope& scope, PlaceId dest, TypeId dest_t, std::string& error);
+    /** Emit the case-comparison dispatch of a switch, branching into scope_blocks/default. */
+    bool lower_switch_dispatch(SwitchStatement& sw, std::vector<BlockId>& scope_blocks,
+                               BlockId default_b, std::string& error);
+    /** Lower an if statement in value position, storing the taken branch into `dest`. */
+    bool lower_if_stmt_into(IfStatement& stmt, PlaceId dest, TypeId vt, std::string& error);
+    /** Lower a `switch(x) { ... }` value expression: store the taken scope's value. */
+    MIRExprResult lower_switch_value(SwitchValue* value, std::string& error);
+    /** Lower a switch statement in value position, storing the taken scope into `dest`. */
+    bool lower_switch_into(SwitchStatement& sw, PlaceId dest, TypeId vt, std::string& error);
     /** Lower a `loop { break v }` value expression. */
     MIRExprResult lower_loop_value(LoopValue* value, std::string& error);
+    /** Lower a loop block in value position, storing the break value into `dest`. */
+    bool lower_loop_block_into(LoopBlock& loop, PlaceId dest, TypeId vt, std::string& error);
+    /** Lower an infinite `loop { ... }` statement (exits via break/return). */
+    bool lower_loop_block(LoopBlock* loop, std::string& error);
     bool lower_while(WhileLoop* loop, std::string& error);
     bool lower_do_while(DoWhileLoop* loop, std::string& error);
     bool lower_for(ForLoop* loop, std::string& error);

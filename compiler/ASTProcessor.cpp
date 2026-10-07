@@ -45,6 +45,7 @@
 #include "compiler/mir/MIRArena.h"
 #include "compiler/mir/MIRTypeBuilder.h"
 #include "compiler/mir/MIRLowerer.h"
+#include "compiler/async/AwaitNormalizePass.h"
 #include "compiler/mir/MIREmitter.h"
 #include "compiler/mangler/NameMangler.h"
 
@@ -2016,6 +2017,9 @@ int ASTProcessor::implement_module(
     mir_lowerer.set_impls(&c_visitor.implsIndex, &c_visitor.coreNodes);
     mir_lowerer.set_embedded_repl([&c_visitor](EmbeddedNode* node) -> ASTNode* {
         return c_visitor.resolve_embedded_node(node);
+    });
+    mir_lowerer.set_async_normalize([&c_visitor](FunctionDeclaration* d) {
+        normalize_async_body(c_visitor.allocator, d);
     });
     mir_lowerer.set_symbol_lookup([this, module](const std::string& name) -> FunctionDeclaration* {
         if (resolver) {

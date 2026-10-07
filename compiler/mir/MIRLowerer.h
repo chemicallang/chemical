@@ -167,6 +167,11 @@ public:
         embedded_repl_ = std::move(fn);
     }
 
+    /** Normalize an async function body (hoist nested awaits) before lowering. */
+    void set_async_normalize(std::function<void(FunctionDeclaration*)> fn) {
+        async_normalize_ = std::move(fn);
+    }
+
 private:
     MIRExprResult lower_expr(Value* value, std::string& error);
     bool lower_stmt(ASTNode* node, std::string& error);
@@ -384,6 +389,7 @@ private:
     ImplementationsIndex* impls_index_ = nullptr;
     CoreNodes* core_nodes_ = nullptr;
     std::function<ASTNode*(EmbeddedNode*)> embedded_repl_;
+    std::function<void(FunctionDeclaration*)> async_normalize_;
     std::unordered_map<std::string, SymbolId> extern_symbols_;
     /** Struct temporaries whose destruction is deferred to the statement end. */
     std::vector<std::pair<PlaceId, BaseType*>> stmt_temps_;

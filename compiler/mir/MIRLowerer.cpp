@@ -3993,6 +3993,16 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     const ValueId addr = builder_->global_addr(gs, ptrt);
                     MIRExprResult r = lower_expr(as->value, error);
                     if (!r.ok()) return false;
+                    if (r.kind == MIRExprKind::Place) {
+                        builder_->store_indirect(
+                            addr, builder_->load(static_cast<PlaceId>(r.id), vt));
+                        return true;
+                    }
+                    if (r.kind == MIRExprKind::Address) {
+                        builder_->store_indirect(
+                            addr, builder_->load_indirect(static_cast<ValueId>(r.id), vt));
+                        return true;
+                    }
                     if (r.kind != MIRExprKind::Value) {
                         error = "aggregate global assignment not yet supported";
                         return false;
@@ -4008,6 +4018,16 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     const ValueId addr = builder_->global_addr(gs, ptrt);
                     MIRExprResult r = lower_expr(as->value, error);
                     if (!r.ok()) return false;
+                    if (r.kind == MIRExprKind::Place) {
+                        builder_->store_indirect(
+                            addr, builder_->load(static_cast<PlaceId>(r.id), vt));
+                        return true;
+                    }
+                    if (r.kind == MIRExprKind::Address) {
+                        builder_->store_indirect(
+                            addr, builder_->load_indirect(static_cast<ValueId>(r.id), vt));
+                        return true;
+                    }
                     if (r.kind != MIRExprKind::Value) {
                         error = "aggregate global assignment not yet supported";
                         return false;
@@ -5600,6 +5620,8 @@ bool MIRLowerer::lower_async_function(FunctionDeclaration* decl, MIRArena& arena
     async_resident_.clear();
     async_drop_flag_slots_.clear();
     async_site_index_.clear();
+    // hoist nested awaits into VarInitStatements before planning the frame
+    if (async_normalize_) async_normalize_(decl);
     async_plan_ = build_async_plan(decl);
     const AsyncCTypes t = resolve_async_c_types(decl);
     if (!t.ok) {

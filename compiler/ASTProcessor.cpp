@@ -16,6 +16,8 @@
 #include "rang.hpp"
 #include "preprocess/RepresentationVisitor.h"
 #include "ast/structures/FunctionDeclaration.h"
+#include "ast/structures/InterfaceDefinition.h"
+#include "ast/structures/ImplDefinition.h"
 #include "ast/statements/ChildrenMapNode.h"
 #include "ast/statements/VarInit.h"
 #include <filesystem>

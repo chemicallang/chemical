@@ -3575,6 +3575,10 @@ void create_v_table(ToCAstVisitor& visitor, InterfaceDefinition* interface, Exte
     visitor.write(';');
 }
 
+void ToCAstVisitor::emit_impl_vtable(InterfaceDefinition* iface, ExtendableMembersContainerNode* def) {
+    create_v_table(*this, iface, def);
+}
+
 void declare_v_table_for_primitive_impl(ToCAstVisitor& visitor, InterfaceDefinition* interface, BaseType* implType) {
     visitor.write("const");
     visitor.space();

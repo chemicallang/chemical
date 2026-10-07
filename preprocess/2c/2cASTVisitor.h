@@ -103,6 +103,13 @@ public:
     ASTNode* resolve_embedded_node(EmbeddedNode* node);
 
     /**
+     * Emit the definition of an interface implementation's vtable
+     * (`const <vt_t> <name> = { ... };`). Used by the MIR lowering path, which
+     * owns the impl methods but still relies on the legacy vtable emission.
+     */
+    void emit_impl_vtable(InterfaceDefinition* iface, ExtendableMembersContainerNode* def);
+
+    /**
      * Resolve a CBI embedded *value* (`#html`-style value replacement) to the
      * AST value its plugin replacement hook produces.
      */

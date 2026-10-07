@@ -75,6 +75,7 @@
 #include "ast/values/LoopValue.h"
 #include "ast/values/PatternMatchExpr.h"
 #include "ast/values/InValue.h"
+#include "ast/values/RuntimeBlockValue.h"
 #include "ast/statements/PatternMatchExprNode.h"
 #include "ast/statements/Return.h"
 #include "ast/statements/Break.h"
@@ -1367,6 +1368,17 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
     }
     if (!recv.ok()) return recv;
 
+    // a comptime method must be evaluated before its arguments are lowered (the
+    // arguments may be comptime-only values such as expressive strings)
+    if (fd->is_comptime() && comptime_eval_) {
+        Value* evaluated = comptime_eval_(call, fd);
+        if (!evaluated) {
+            error = "comptime call to '" + fd->name_str() + "' could not be evaluated";
+            return MIRExprResult::error();
+        }
+        return lower_expr(evaluated, error);
+    }
+
     // dynamic (interface) dispatch: `((vt_t*) fat.second)->method(fat.first, args...)`
     if (recv_type && recv_type->canonical() &&
         recv_type->canonical()->kind() == BaseTypeKind::Dynamic) {
@@ -1433,15 +1445,6 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
     }
     if (!append_default_args(fd, call->values.size(), true, args, error)) {
         return MIRExprResult::error();
-    }
-
-    if (fd->is_comptime() && comptime_eval_) {
-        Value* evaluated = comptime_eval_(call, fd);
-        if (!evaluated) {
-            error = "comptime call to '" + fd->name_str() + "' could not be evaluated";
-            return MIRExprResult::error();
-        }
-        return lower_expr(evaluated, error);
     }
 
     const SymbolId sym = intern_method_function(fd, recv_type);
@@ -2294,16 +2297,18 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 if (!sd) sd = ctor_node->as_struct_def();
                 FunctionDeclaration* ctor = sd ? sd->constructor_func(call->values) : nullptr;
                 if (!ctor && ctype && call->values.empty()) ctor = ctype->get_def_constructor();
+                // evaluate a comptime constructor before lowering its arguments
+                // (they may be comptime-only values such as expressive strings)
+                if (ctor && ctor->is_comptime() && comptime_eval_) {
+                    Value* ev = comptime_eval_(call, ctor);
+                    if (ev) return lower_expr(ev, error);
+                }
                 std::vector<MIROperand> cargs;
                 if (!lower_call_args_for(ctor, true, call->values, cargs, error)) {
                     return MIRExprResult::error();
                 }
                 if (ctor && !append_default_args(ctor, call->values.size(), true, cargs, error)) {
                     return MIRExprResult::error();
-                }
-                if (ctor && ctor->is_comptime() && comptime_eval_) {
-                    Value* ev = comptime_eval_(call, ctor);
-                    if (ev) return lower_expr(ev, error);
                 }
                 if (ctor) {
                     const SymbolId sym = intern_function(ctor);
@@ -2730,6 +2735,20 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         case ValueKind::PatternMatchExpr: {
             return lower_pattern_match_value(value->as_pattern_match_expr_unsafe(), error);
         }
+        case ValueKind::RuntimeBlockValue: {
+            // a `%runtime_block_value { ... }` is a statement-expression whose
+            // trailing value is the block's result
+            auto* rb = static_cast<RuntimeBlockValue*>(value);
+            const TypeId vt = type;
+            const PlaceId dest = builder_->alloca(vt, MIRStorageClass::Temporary);
+            if (!lower_scope_value(rb->scope, dest, vt, error)) {
+                return MIRExprResult::error();
+            }
+            if (needs_aggregate_path(module_, vt)) {
+                return MIRExprResult::place(dest, vt);
+            }
+            return MIRExprResult::value(builder_->load(dest, vt), vt);
+        }
         case ValueKind::InValue: {
             // `x in a, b, c` -> a chain of equality tests (or `!in` -> not-equal)
             auto* in = static_cast<InValue*>(value);
@@ -3011,7 +3030,11 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         if (src != MIR_INVALID_ID) mark_moved(src);
                     }
                 }
-                MIRExprResult r = lower_expr(vi->value, error);
+                // convert to the declared type first (implicit constructors, e.g.
+                // `var s : std::string = \`...\``)
+                MIRExprResult r = vi->known_type()
+                                      ? lower_arg_converted(vi->value, vi->known_type(), error)
+                                      : lower_expr(vi->value, error);
                 if (!r.ok()) return false;
                 if (r.kind == MIRExprKind::Place) {
                     // aggregate initializer: move the temporary into the variable
@@ -3424,7 +3447,11 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     if (src != MIR_INVALID_ID) mark_moved(src);
                 }
             }
-            MIRExprResult r = lower_expr(as->value, error);
+            // convert to the target's declared type first (implicit constructors,
+            // e.g. `s = \`...\``)
+            MIRExprResult r = as->lhs->getType()
+                                  ? lower_arg_converted(as->value, as->lhs->getType(), error)
+                                  : lower_expr(as->value, error);
             if (!r.ok()) return false;
             auto destroy_old_dest = [&]() {
                 // a simple assignment destroys the previous value of a

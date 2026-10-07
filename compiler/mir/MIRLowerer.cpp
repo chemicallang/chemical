@@ -1549,7 +1549,23 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 MIRExprResult r = lower_expr(init.value, error);
                 if (!r.ok()) return r;
                 if (r.kind == MIRExprKind::Place) {
-                    builder_->field_store_place(temp, fc, static_cast<PlaceId>(r.id));
+                    const PlaceId src = static_cast<PlaceId>(r.id);
+                    builder_->field_store_place(temp, fc, src);
+                    // a destructible local moved into the struct must not be
+                    // destroyed again at scope exit (unwraps the single-element
+                    // AccessChain the parser usually produces)
+                    Value* v0 = init.value;
+                    if (v0 && v0->val_kind() == ValueKind::AccessChain) {
+                        auto* ch = v0->as_access_chain_unsafe();
+                        if (ch->values.size() == 1) v0 = ch->values[0];
+                    }
+                    if (v0 && v0->val_kind() == ValueKind::Identifier) {
+                        BaseType* at = v0->getType();
+                        BaseType* canon = at ? at->canonical() : nullptr;
+                        if (!(canon && canon->kind() == BaseTypeKind::Array)) {
+                            mark_moved(src);
+                        }
+                    }
                     ++it;
                     continue;
                 }
@@ -1659,7 +1675,25 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                             arg, param ? param->type : nullptr, error);
                         if (!r.ok()) return r;
                         if (r.kind == MIRExprKind::Place) {
-                            builder_->field_store_place(temp, fc, static_cast<PlaceId>(r.id));
+                            const PlaceId src = static_cast<PlaceId>(r.id);
+                            builder_->field_store_place(temp, fc, src);
+                            // a destructible local moved into the variant must not
+                            // be destroyed again at scope exit (mirrors the
+                            // function-call argument move handling). The argument
+                            // is often a single-element AccessChain wrapping the
+                            // identifier, so unwrap it first.
+                            Value* v0 = arg;
+                            if (v0 && v0->val_kind() == ValueKind::AccessChain) {
+                                auto* ch = v0->as_access_chain_unsafe();
+                                if (ch->values.size() == 1) v0 = ch->values[0];
+                            }
+                            if (v0 && v0->val_kind() == ValueKind::Identifier) {
+                                BaseType* at = v0->getType();
+                                BaseType* canon = at ? at->canonical() : nullptr;
+                                if (!(canon && canon->kind() == BaseTypeKind::Array)) {
+                                    mark_moved(src);
+                                }
+                            }
                         } else if (r.kind == MIRExprKind::Address) {
                             const TypeId ft = param && param->type ? types_.map(param->type) : r.type;
                             const ValueId loaded =

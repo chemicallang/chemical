@@ -100,6 +100,26 @@ bool is_void_type(const MIRModule& module, TypeId type) {
  * caller that formatted into such a buffer (the test runner used one for the
  * spawned test id, so every suite reported success without running anything).
  */
+/**
+ * True when the Chemical struct `derived` inherits (directly or transitively)
+ * from `base`. Used to decide whether a pointer receiver of a derived type can
+ * be passed straight through to a method expecting a base-type pointer.
+ */
+bool struct_derives_from(StructDefinition* derived, BaseType* base) {
+    if (!derived || !base) return false;
+    BaseType* base_canon = base->canonical();
+    for (auto& inh : derived->inherited) {
+        BaseType* bt = const_cast<BaseType*>(inh.type.getType());
+        if (!bt) continue;
+        if (bt->canonical() == base_canon) return true;
+        ASTNode* bn = bt->get_direct_linked_canonical_node();
+        if (bn && bn->kind() == ASTNodeKind::StructDecl) {
+            if (struct_derives_from(bn->as_struct_def_unsafe(), base)) return true;
+        }
+    }
+    return false;
+}
+
 BaseType* resolve_sizeof_operand(BaseType* t) {
     for (int hops = 0; t && hops < 16; ++hops) {
         if (t->kind() != BaseTypeKind::Linked) return t;
@@ -1057,8 +1077,36 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
         const MIRTypeRecord& rr = module_.types.get(rt);
         const bool is_ptr = (rr.kind == MIRTypeKind::Pointer ||
                              rr.kind == MIRTypeKind::Reference);
-        if (is_ptr && x_type && rr.element == types_.map(x_type)) {
-            // the receiver already is `X*` (a pointer to the impl target)
+        // the receiver is already a pointer/reference whose pointee is the
+        // method's target type (or a Chemical struct derived from it): pass the
+        // pointer value so the C compiler performs the implicit derived->base
+        // upcast. Otherwise (e.g. `&int` receiver for a `&&int` method) we must
+        // take the address of the place instead.
+        bool pass_pointer = false;
+        if (is_ptr && x_type) {
+            const TypeId xt = types_.map(x_type);
+            if (rr.element == xt) {
+                pass_pointer = true;
+            } else if (recv_type) {
+                BaseType* rc = recv_type->canonical();
+                BaseType* recv_elem = nullptr;
+                if (rc && rc->kind() == BaseTypeKind::Pointer) {
+                    recv_elem = rc->as_pointer_type()->type;
+                } else if (rc && rc->kind() == BaseTypeKind::Reference) {
+                    recv_elem = rc->as_reference_type()->type;
+                }
+                if (recv_elem) {
+                    ASTNode* en = recv_elem->get_direct_linked_canonical_node();
+                    ASTNode* xn = x_type->get_direct_linked_canonical_node();
+                    if (en && en->kind() == ASTNodeKind::StructDecl &&
+                        xn && xn->kind() == ASTNodeKind::StructDecl) {
+                        pass_pointer = struct_derives_from(en->as_struct_def_unsafe(),
+                                                           xn->known_type());
+                    }
+                }
+            }
+        }
+        if (pass_pointer) {
             args.push_back(MIROperand::value(builder_->load(recv.id, rt), rt));
         } else {
             const TypeId ptrt = types_.pointer_type(rt, true);
@@ -2507,6 +2555,21 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         }
                     }
                     if (r.kind == MIRExprKind::Place) {
+                        // a move from a local clears the source's drop flag so it
+                        // isn't destroyed again after being moved into the field
+                        {
+                            Value* rv = as->value;
+                            if (rv && rv->val_kind() == ValueKind::AccessChain) {
+                                auto* c = rv->as_access_chain_unsafe();
+                                if (c->values.size() == 1) rv = c->values[0];
+                            }
+                            if (rv && rv->val_kind() == ValueKind::Identifier) {
+                                auto* rid = rv->as_identifier_unsafe();
+                                PlaceId src = place_for_linked(rid->linked);
+                                if (src == MIR_INVALID_ID) src = place_for_name(rid->value);
+                                if (src != MIR_INVALID_ID) mark_moved(src);
+                            }
+                        }
                         if (!have_ptr) {
                             builder_->field_store_place(cur_place, fc,
                                                         static_cast<PlaceId>(r.id));

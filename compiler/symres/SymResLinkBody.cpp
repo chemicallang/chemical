@@ -3438,8 +3438,10 @@ void SymResLinkBody::VisitPatternMatchExpr(PatternMatchExpr* expr) {
     auto& param_names = expr->param_names;
     // we use a reference to void type here, because user can dereference a pointer in the expression
     // we shouldn't error out when de-referencing a destructible struct (which we do)
-    ReferenceType dummy_ref(typeBuilder.getVoidType(), !expr->is_const);
-    visit(expression, &dummy_ref);
+    // NOTE: heap-allocated: it may be stored as a value's expected type during
+    // linking and must outlive this stack frame
+    auto* dummy_ref = new ReferenceType(typeBuilder.getVoidType(), !expr->is_const);
+    visit(expression, dummy_ref);
     const auto child_member = expr->find_member_from_expr(getAstAllocator(), diagnoser);
     if(!child_member) {
         return;

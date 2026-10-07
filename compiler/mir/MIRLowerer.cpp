@@ -4090,20 +4090,35 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
 
     // parameters: materialize an SSA param value, spill to a place, bind it
     for (FunctionParam* p : decl->params) {
-        TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
-        if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
-            pt = types_.pointer_type(module_.types.get(pt).element, true);
-        } else if (needs_aggregate_path(module_, pt)) {
-            pt = types_.pointer_type(pt, true);
+        const TypeId declared = p && p->type ? types_.map(p->type) : types_.opaque_type();
+        const bool is_array = declared != MIR_INVALID_ID &&
+                              module_.types.get(declared).kind == MIRTypeKind::Array;
+        const bool is_aggregate = declared != MIR_INVALID_ID && !is_array &&
+                                  !(module_.types.get(declared).flags & TF_TYPEDEF) &&
+                                  needs_aggregate_path(module_, declared);
+        TypeId pt = declared;
+        if (is_array) {
+            pt = types_.pointer_type(module_.types.get(declared).element, true);
+        } else if (is_aggregate) {
+            pt = types_.pointer_type(declared, true);
         }
         ValueId pv = b.param(pt);
-        PlaceId place = b.alloca(pt, MIRStorageClass::Parameter);
+        PlaceId place;
+        if (is_aggregate) {
+            // the aggregate is passed by a hidden pointer; materialize a
+            // by-value copy so the body sees the value, not the pointer
+            place = b.alloca(declared, MIRStorageClass::Parameter);
+            ValueId val = b.load_indirect(pv, declared);
+            b.store(place, val);
+        } else {
+            place = b.alloca(pt, MIRStorageClass::Parameter);
+            b.store(place, pv);
+        }
         if (place == MIR_INVALID_ID) {
             error = "failed to allocate parameter place";
             builder_ = nullptr;
             return false;
         }
-        b.store(place, pv);
         bind(p, place);
         bind_name(p->name, place);
         // by-value struct params own their value and are destroyed at exit

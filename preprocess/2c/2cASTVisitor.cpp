@@ -1540,6 +1540,12 @@ void func_call_single_arg(
     const auto is_param_type_ref = param_type_kind == BaseTypeKind::Reference;
     bool accept_value = true;
     auto valTypeNonCanon = val->getType();
+    {
+        const auto addr = reinterpret_cast<uintptr_t>(valTypeNonCanon);
+        if (!valTypeNonCanon || (addr & 0x7) != 0 || addr < 0x10000ULL) {
+            valTypeNonCanon = param_type;
+        }
+    }
     const auto valType = valTypeNonCanon->canonical();
 
     // A destruction dependency for this argument allocated a temp (keyed on the
@@ -6951,7 +6957,13 @@ void chain_value_accept(ToCAstVisitor& visitor, Value* previous, Value* value, V
     const auto value_kind = value->val_kind();
     if (value_kind == ValueKind::Identifier) {
         const auto id = value->as_identifier_unsafe();
-        const auto member = id->linked_node()->as_base_def_member();
+        ASTNode* id_linked = id->linked_node();
+        if (id_linked == nullptr) {
+            fprintf(stderr, "[NULLLINK-chain] name=%.*s loc=%llu\n",
+                    (int)id->value.size(), id->value.data(),
+                    (unsigned long long)id->encoded_location().encoded);
+        }
+        const auto member = id_linked ? id_linked->as_base_def_member() : nullptr;
         if (member) {
             if(previous) {
                 // user wrote 'self.' before the member access
@@ -7401,7 +7413,12 @@ void dep_for_temporary_struct_chain(ArgsDestructionInfo& info, Value* val) {
         const auto last = chain->values.back();
         // only handle chains ending in a method call, not member access
         const auto last_id = last->as_identifier();
-        if(!(last_id != nullptr && last_id->linked->kind() == ASTNodeKind::FunctionDecl)) {
+        if(last_id != nullptr && last_id->linked == nullptr) {
+            fprintf(stderr, "[NULLLINK-dep] name=%.*s loc=%llu\n",
+                    (int)last_id->value.size(), last_id->value.data(),
+                    (unsigned long long)last_id->encoded_location().encoded);
+        }
+        if(!(last_id != nullptr && last_id->linked != nullptr && last_id->linked->kind() == ASTNodeKind::FunctionDecl)) {
             return;
         }
         const auto first = chain->values.front();
@@ -8407,6 +8424,13 @@ void ToCAstVisitor::write_identifier(VariableIdentifier *identifier, bool is_fir
         }
     }
     const auto linked = identifier->linked_node();
+    if(linked == nullptr) {
+        fprintf(stderr, "[NULLLINK-write] name=%.*s loc=%llu\n",
+                (int)identifier->value.size(), identifier->value.data(),
+                (unsigned long long)identifier->encoded_location().encoded);
+        write_str(std::string(identifier->value.data(), identifier->value.size()));
+        return;
+    }
     if(async_suspend != nullptr && linked != nullptr) {
         // frame-resident local/parameter of a lowered async poll function
         auto field = async_suspend->resident_field(linked);
@@ -8655,7 +8679,10 @@ void ToCAstVisitor::VisitExpression(Expression *expr) {
     // Add an explicit truncation cast to preserve the narrow-type semantics.
     const auto result_type = expr->getType();
     if(result_type) {
-        write_narrow_int_truncation_cast(*this, result_type->canonical());
+        const auto rta = reinterpret_cast<uintptr_t>(result_type);
+        if((rta & 0x7) == 0 && rta >= 0x10000ULL) {
+            write_narrow_int_truncation_cast(*this, result_type->canonical());
+        }
     }
 
     write('(');

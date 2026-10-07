@@ -263,6 +263,26 @@ static std::string declarator(const MIRModule& module, TypeId type, const std::s
         return s;
     }
     if (r.kind == MIRTypeKind::Array) {
+        const MIRTypeRecord& elem = module.types.get(r.element);
+        if (elem.kind == MIRTypeKind::Function) {
+            // array of function pointers: `ret (*name[N])(params)`
+            const bool sret = mir_struct_like_return(module, elem.element);
+            std::string s = (sret ? std::string("void") : c_type_of(module, elem.element)) +
+                            "(*" + name + "[" + std::to_string(r.data_count) + "])(";
+            bool first = true;
+            if (sret) {
+                s += c_type_of(module, elem.element) + "*";
+                first = false;
+            }
+            for (uint32_t i = 0; i < elem.data_count; ++i) {
+                if (!first) s += ", ";
+                s += c_type_of(module, module.types.data[elem.data_offset + i]);
+                first = false;
+            }
+            if (first) s += "void";
+            s += ")";
+            return s;
+        }
         return declarator(module, r.element, name) + "[" + std::to_string(r.data_count) + "]";
     }
     if (r.kind == MIRTypeKind::Pointer || r.kind == MIRTypeKind::Reference) {

@@ -2503,7 +2503,12 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             // `ns.Generic<...>(args)`
             ASTNode* ctor_node = nullptr;
             if (call->parent_val) {
-                ASTNode* plk = call->parent_val->linked_node();
+                // a call whose parent is itself a call is a function-pointer call,
+                // not a constructor: `parent->linked_node()` would be the inner
+                // call's *return type* (a struct), which is misleading
+                const bool parent_is_call =
+                    call->parent_val->val_kind() == ValueKind::FunctionCall;
+                ASTNode* plk = parent_is_call ? nullptr : call->parent_val->linked_node();
                 if (plk && plk->as_struct_def()) {
                     ctor_node = plk;
                 } else if (call->parent_val->val_kind() == ValueKind::AccessChain) {
@@ -2568,8 +2573,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     error = "no matching constructor for aggregate construction";
                     return MIRExprResult::error();
                 }
-                return MIRExprResult::place(place, st);
-            }
+                return MIRExprResult::place(place, st);            }
 
             // method call: `receiver.method(args)`
             if (call->parent_val && call->parent_val->val_kind() == ValueKind::AccessChain) {
@@ -2653,7 +2657,13 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 }
             }
             {
-                ASTNode* linked_fn = call->parent_val ? call->parent_val->linked_node() : nullptr;
+                // when the callee is itself a call (`f()()` / `factory.create()()`),
+                // the outer call goes through the result, not the inner function
+                const bool parent_is_call =
+                    call->parent_val && call->parent_val->val_kind() == ValueKind::FunctionCall;
+                ASTNode* linked_fn =
+                    (!parent_is_call && call->parent_val) ? call->parent_val->linked_node()
+                                                          : nullptr;
                 fd = linked_fn ? linked_fn->as_function() : nullptr;
                 if (!fd) {
                     // function-pointer variable/parameter call -> call_indirect

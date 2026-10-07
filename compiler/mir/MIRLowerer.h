@@ -176,8 +176,8 @@ private:
     bool lower_while(WhileLoop* loop, std::string& error);
     bool lower_do_while(DoWhileLoop* loop, std::string& error);
     bool lower_for(ForLoop* loop, std::string& error);
-    bool lower_incdec_value(Value* target, bool increment, bool post, std::string& error,
-                            ValueId& out);
+    MIRExprResult lower_incdec_value(Value* target, bool increment, bool post,
+                                     std::string& error);
     /** Lower an inline-asm operand to a Place or a pointer Value (`*ptr`). */
     bool lower_asm_operand(Value* expr, MIROperand& out, std::string& error);
     /** Lower a variant-case payload variable to its field lvalue/value. */
@@ -245,6 +245,24 @@ private:
                                  std::string& error);
     MIRExprResult lower_method_call(MIRExprResult recv, BaseType* recv_type, FunctionCall* call,
                                     std::string& error);
+    /** Register a struct-returning call temporary for destruction. */
+    void maybe_register_call_temp(Value* v, MIRExprResult r);
+    /** Append the receiver operand for a method/extension call to `args`. */
+    bool append_receiver_arg(MIRExprResult recv, BaseType* recv_type,
+                             FunctionDeclaration* fd, std::vector<MIROperand>& args,
+                             std::string& error);
+    /** Emit a resolved scalar/sret call and destroy the argument temporaries. */
+    MIRExprResult emit_resolved_call(SymbolId sym, TypeId ret_type,
+                                     std::vector<MIROperand>& args, size_t cmark,
+                                     std::string& error);
+    /** Lower an overloaded binary operator by calling its `core::ops` method. */
+    MIRExprResult lower_operator_overload(Value* lhs_v, MIRExprResult lhs, Value* rhs_v,
+                                          MIRExprResult rhs, const std::string& method,
+                                          BaseType* ret_ast, std::string& error);
+    /** Lower an overloaded unary operator by calling its `core::ops` method. */
+    MIRExprResult lower_unary_operator_overload(Value* operand_v, MIRExprResult operand,
+                                                const char* method, BaseType* ret_ast,
+                                                std::string& error);
     /** Lower a (non-capturing) lambda expression to a generated function. */
     MIRExprResult lower_lambda(LambdaFunction* lamb, std::string& error);
 

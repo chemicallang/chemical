@@ -244,8 +244,18 @@ bool inherited_field_path(ASTNode* container, ASTNode* member, std::string& out)
     return false;
 }
 
-bool map_binary(Operation op, MIROpcode& out, MIRBinaryOp& bop) {
-    switch (op) {
+// An unqualified field access inside a method resolves through `self`. The
+// linked node is usually the `StructMember`, but an anonymous aggregate field
+// (an inline `struct`/`union`) is linked to its `UnnamedStruct`/`UnnamedUnion`
+// type node instead.
+static bool is_implicit_field_node(ASTNode* n) {
+    if (!n) return false;
+    return n->kind() == ASTNodeKind::StructMember ||
+           n->kind() == ASTNodeKind::UnnamedStruct ||
+           n->kind() == ASTNodeKind::UnnamedUnion;
+}
+
+bool map_binary(Operation op, MIROpcode& out, MIRBinaryOp& bop) {    switch (op) {
         case Operation::Addition: out = MIROpcode::Binary; bop = MIRBinaryOp::Add; return true;
         case Operation::Subtraction: out = MIROpcode::Binary; bop = MIRBinaryOp::Sub; return true;
         case Operation::Multiplication: out = MIROpcode::Binary; bop = MIRBinaryOp::Mul; return true;
@@ -587,8 +597,7 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
                 return MIRExprResult::value(builder_->load(place, pt), pt);
             }
         }
-        if (id->linked && id->linked->kind() == ASTNodeKind::StructMember &&
-            current_self_param_) {
+        if (is_implicit_field_node(id->linked) && current_self_param_) {
             // `&field` inside a method is `&self.field`
             VariableIdentifier self_id(current_self_param_->name,
                                        current_self_param_->type, ZERO_LOC);
@@ -683,6 +692,16 @@ bool MIRLowerer::member_field_path(Value* base, Value* member, std::string& out,
     }
     ASTNode* mnode = m ? m->linked_node() : nullptr;
     BaseType* bt = base ? base->getType() : nullptr;
+    // unwrap a pointer/reference base (`&self` / `self` by pointer) so the
+    // container node is reachable for inherited-field resolution
+    if (bt) {
+        BaseType* bc = bt->canonical();
+        if (bc && bc->kind() == BaseTypeKind::Pointer) {
+            bt = bc->as_pointer_type_unsafe()->type;
+        } else if (bc && bc->kind() == BaseTypeKind::Reference) {
+            bt = bc->as_reference_type_unsafe()->type;
+        }
+    }
     ASTNode* cn = bt ? bt->get_direct_linked_canonical_node() : nullptr;
     if (mnode && cn) {
         std::string path;
@@ -1582,8 +1601,7 @@ MIRExprResult MIRLowerer::lower_receiver(const std::vector<Value*>& values, size
             // `self` (handled by `lower_expr` as an implicit member access)
             if (k == ValueKind::Identifier) {
                 auto* rid = v->as_identifier_unsafe();
-                if (rid->linked && rid->linked->kind() == ASTNodeKind::StructMember &&
-                    current_self_param_) {
+                if (is_implicit_field_node(rid->linked) && current_self_param_) {
                     return lower_expr(v, error);
                 }
             }
@@ -2035,8 +2053,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 const ConstantId c = module_.constants.add_int(type, idx);
                 return MIRExprResult::value(builder_->const_int(type, c), type);
             }
-            if (id->linked && id->linked->kind() == ASTNodeKind::StructMember &&
-                current_self_param_) {
+            if (is_implicit_field_node(id->linked) && current_self_param_) {
                 // an unqualified field access inside a method resolves to
                 // `self.field` (the field lives on the receiver)
                 VariableIdentifier self_id(current_self_param_->name,
@@ -2996,6 +3013,17 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     return MIRExprResult::value(v, rt);
                 }
             }
+            // an unqualified method call inside a method (`reserve(n)`) is a
+            // call on the implicit receiver `self`
+            if (fd && fd->has_self_param() && current_self_param_ && call->parent_val &&
+                call->parent_val->val_kind() == ValueKind::Identifier) {
+                VariableIdentifier self_id(current_self_param_->name,
+                                           current_self_param_->type, ZERO_LOC);
+                self_id.linked = current_self_param_;
+                MIRExprResult recv = lower_expr(&self_id, error);
+                if (!recv.ok()) return recv;
+                return lower_method_call(recv, current_self_param_->type, call, error);
+            }
             // `intrinsics::forget(x)` clears x's drop flag (the value is
             // deliberately not destroyed at scope exit); it has no runtime
             // effect, so model it directly instead of via the comptime value
@@ -3734,6 +3762,22 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 return false;
             }
             Value* lhs = as->lhs;
+            // an unqualified field assignment inside a method resolves to
+            // `self.field`; synthesize the member chain `self.field`
+            std::unique_ptr<VariableIdentifier> implicit_self;
+            std::unique_ptr<AccessChain> implicit_chain;
+            if (lhs->val_kind() == ValueKind::Identifier && current_self_param_) {
+                auto* lid = lhs->as_identifier_unsafe();
+                if (is_implicit_field_node(lid->linked)) {
+                    implicit_self = std::make_unique<VariableIdentifier>(
+                        current_self_param_->name, current_self_param_->type, ZERO_LOC);
+                    implicit_self->linked = current_self_param_;
+                    std::vector<Value*> vals = {implicit_self.get(), lhs};
+                    implicit_chain = std::make_unique<AccessChain>(
+                        std::move(vals), lhs->getType(), ZERO_LOC);
+                    lhs = implicit_chain.get();
+                }
+            }
             if (lhs->val_kind() == ValueKind::AccessChain) {
                 auto* chain = lhs->as_access_chain_unsafe();
                 if (chain->values.size() == 1) {
@@ -6714,12 +6758,23 @@ MIRExprResult MIRLowerer::lower_lambda(LambdaFunction* lamb, std::string& error)
         error = "null lambda";
         return MIRExprResult::error();
     }
+    // a lambda body is its own function: an unqualified field there must not
+    // resolve against the enclosing method's `self`
+    FunctionParam* prev_self = current_self_param_;
+    current_self_param_ = lamb->get_self_param();
+    MIRExprResult result;
     if (!lamb->captureList.empty()) {
-        if (!materialize_capturing_lambda(lamb, error)) return MIRExprResult::error();
+        if (!materialize_capturing_lambda(lamb, error)) {
+            current_self_param_ = prev_self;
+            return MIRExprResult::error();
+        }
         const LambdaMaterialization& m = lambda_materializations_[lamb];
-        return MIRExprResult::value(m.fn_ptr, m.fn_ptr_type);
+        result = MIRExprResult::value(m.fn_ptr, m.fn_ptr_type);
+    } else {
+        result = materialize_noncapturing_lambda(lamb, error);
     }
-    return materialize_noncapturing_lambda(lamb, error);
+    current_self_param_ = prev_self;
+    return result;
 }
 
 MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,

@@ -325,6 +325,8 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
             } else if (ASTNode* n = type->get_direct_linked_node()) {
                 if (n->kind() == ASTNodeKind::UnionDecl) {
                     id = aggregate_type(MIRTypeKind::Union, n, type);
+                } else if (n->kind() == ASTNodeKind::UnnamedUnion) {
+                    id = aggregate_type(MIRTypeKind::Union, n, type);
                 } else if (n->kind() == ASTNodeKind::UnnamedStruct) {
                     id = aggregate_type(MIRTypeKind::Struct, n, type);
                 } else if (n->kind() == ASTNodeKind::StructType) {

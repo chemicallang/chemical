@@ -47,6 +47,9 @@ class ExtractionValue;
 class FunctionTypeBody;
 class CapturingFunctionType;
 class BaseType;
+class ForInLoop;
+class ImplementationsIndex;
+class CoreNodes;
 
 namespace mir {
 
@@ -151,6 +154,12 @@ public:
         set_current_func_ = std::move(fn);
     }
 
+    /** Provide the symbol-resolution implementation index (for iterable protocols). */
+    void set_impls(ImplementationsIndex* idx, CoreNodes* core) {
+        impls_index_ = idx;
+        core_nodes_ = core;
+    }
+
 private:
     MIRExprResult lower_expr(Value* value, std::string& error);
     bool lower_stmt(ASTNode* node, std::string& error);
@@ -180,6 +189,14 @@ private:
     bool lower_while(WhileLoop* loop, std::string& error);
     bool lower_do_while(DoWhileLoop* loop, std::string& error);
     bool lower_for(ForLoop* loop, std::string& error);
+    /** Lower a `for (x in iterable)` loop (array / linear / iterable / chunked). */
+    bool lower_for_in(ForInLoop* loop, std::string& error);
+    /** Resolve an iterable-protocol impl method (e.g. "data", "begin", "valid"). */
+    FunctionDeclaration* resolve_iter_impl(BaseType* container_type, const char* which);
+    /** Lower a call to a resolved method with already-built argument values. */
+    MIRExprResult call_method_values(FunctionDeclaration* fd, MIRExprResult recv,
+                                     BaseType* recv_type, const std::vector<Value*>& args,
+                                     std::string& error);
     MIRExprResult lower_incdec_value(Value* target, bool increment, bool post,
                                      std::string& error);
     /** Lower an inline-asm operand to a Place or a pointer Value (`*ptr`). */
@@ -276,6 +293,8 @@ private:
                                           std::string& error);
     /** Ensure a capturing lambda's closure struct/function/temp are generated. */
     bool materialize_capturing_lambda(LambdaFunction* lamb, std::string& error);
+    /** Generate a non-capturing lambda function and yield its function pointer. */
+    MIRExprResult materialize_noncapturing_lambda(LambdaFunction* lamb, std::string& error);
     /** Lower a call through a capturing function instance (`std::function`). */
     MIRExprResult lower_capturing_function_call(MIRExprResult recv, BaseType* recv_type,
                                                 FunctionCall* call, std::string& error);
@@ -303,7 +322,7 @@ private:
     void bind(ASTNode* linked, PlaceId place) { var_places_[linked] = place; }
     void bind_name(const chem::string_view& name, PlaceId place) {
         if (!name.empty()) {
-            name_places_.emplace(std::string(name.data(), name.size()), place);
+            name_places_[std::string(name.data(), name.size())] = place;
         }
     }
     PlaceId place_for_name(const chem::string_view& name) const {
@@ -337,6 +356,8 @@ private:
     std::function<Value*(FunctionDeclaration*, Value*)> comptime_ctor_eval_;
     std::function<FunctionDeclaration*(const std::string&)> symbol_lookup_;
     std::function<void(FunctionTypeBody*)> set_current_func_;
+    ImplementationsIndex* impls_index_ = nullptr;
+    CoreNodes* core_nodes_ = nullptr;
     FunctionTypeBody* current_func_ = nullptr;
     std::vector<BlockId> break_targets_;
     std::vector<BlockId> continue_targets_;

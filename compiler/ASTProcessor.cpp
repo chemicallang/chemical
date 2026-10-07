@@ -2013,6 +2013,7 @@ int ASTProcessor::implement_module(
     mir_lowerer.set_current_func([&c_visitor](FunctionTypeBody* f) {
         c_visitor.current_func_type = f;
     });
+    mir_lowerer.set_impls(&c_visitor.implsIndex, &c_visitor.coreNodes);
     mir_lowerer.set_symbol_lookup([this, module](const std::string& name) -> FunctionDeclaration* {
         if (resolver) {
             ASTNode* node = resolver->getSymbolTable().resolve(

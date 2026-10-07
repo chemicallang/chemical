@@ -90,6 +90,9 @@
 #include "ast/types/ArrayType.h"
 #include "ast/structures/StructMember.h"
 #include "ast/structures/DoWhileLoop.h"
+#include "ast/structures/ForInLoop.h"
+#include "compiler/symres/ImplementationsIndex.h"
+#include "compiler/symres/CoreNodes.h"
 #include "MIREmitter.h"
 
 namespace mir {
@@ -563,6 +566,13 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
         }
         if (id->linked && id->linked->kind() == ASTNodeKind::CapturedVariable) {
             return lower_captured_variable(id->linked->as_captured_var_unsafe(), true, error);
+        }
+        if (id->linked && id->linked->kind() == ASTNodeKind::ForInLoopStmt) {
+            const PlaceId place = place_for_linked(id->linked);
+            if (place != MIR_INVALID_ID) {
+                const TypeId pt = builder_->function().places[place].type;
+                return MIRExprResult::value(builder_->load(place, pt), pt);
+            }
         }
         const PlaceId p = place_for_linked(id->linked);
         if (p != MIR_INVALID_ID) {
@@ -1779,6 +1789,25 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             }
             if (id->linked && id->linked->kind() == ASTNodeKind::CapturedVariable) {
                 return lower_captured_variable(id->linked->as_captured_var_unsafe(), false, error);
+            }
+            if (id->linked && id->linked->kind() == ASTNodeKind::ForInLoopStmt) {
+                auto* fl = id->linked->as_for_in_loop_unsafe();
+                const PlaceId place = place_for_linked(id->linked);
+                if (place == MIR_INVALID_ID) {
+                    error = "for-in loop variable does not resolve to a place";
+                    return MIRExprResult::error();
+                }
+                const TypeId pt = builder_->function().places[place].type; // `*elem`
+                const ValueId pv = builder_->load(place, pt);
+                if (fl->is_reference()) {
+                    return MIRExprResult::value(pv, pt);
+                }
+                const TypeId elem = module_.types.get(pt).element;
+                if (needs_aggregate_path(module_, elem)) {
+                    // an aggregate element is a pointer to the element (lvalue)
+                    return MIRExprResult::value(pv, pt);
+                }
+                return MIRExprResult::value(builder_->load_indirect(pv, elem), elem);
             }
             if (id->linked && id->linked->kind() == ASTNodeKind::FunctionDecl) {
                 // a function used as a value (function pointer)
@@ -3815,6 +3844,8 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             return lower_loop_block(node->as_loop_block_unsafe(), error);
         case ASTNodeKind::ForLoopStmt:
             return lower_for(node->as_for_loop_unsafe(), error);
+        case ASTNodeKind::ForInLoopStmt:
+            return lower_for_in(node->as_for_in_loop_unsafe(), error);
         case ASTNodeKind::BreakStmt: {
             if (break_targets_.empty()) {
                 error = "break outside a loop";
@@ -4480,7 +4511,491 @@ bool MIRLowerer::lower_for(ForLoop* loop, std::string& error) {
     return true;
 }
 
-// ── async / coroutine lowering ─────────────────────────────────────────────
+FunctionDeclaration* MIRLowerer::resolve_iter_impl(BaseType* container_type, const char* which) {
+    if (!container_type || !impls_index_ || !core_nodes_) return nullptr;
+    ASTNode* node = container_type->get_linked_node(true, false);
+    if (!node) node = container_type->get_direct_linked_canonical_node();
+    if (!node) return nullptr;
+    MembersContainer* container = node->get_members_container();
+    if (!container) return nullptr;
+    const std::string w(which);
+    if (w == "data") return impls_index_->get_linear_data_impl(*core_nodes_, container);
+    if (w == "size") return impls_index_->get_linear_size_impl(*core_nodes_, container);
+    if (w == "begin") return impls_index_->get_iterable_begin_impl(*core_nodes_, container);
+    if (w == "valid") return impls_index_->get_iterable_valid_impl(*core_nodes_, container);
+    if (w == "current") return impls_index_->get_iterable_current_impl(*core_nodes_, container);
+    if (w == "next") return impls_index_->get_iterable_next_impl(*core_nodes_, container);
+    if (w == "rbegin")
+        return impls_index_->get_reversible_iterable_rbegin_impl(*core_nodes_, container);
+    if (w == "previous")
+        return impls_index_->get_reversible_iterable_previous_impl(*core_nodes_, container);
+    if (w == "count")
+        return impls_index_->get_reversible_iterable_count_impl(*core_nodes_, container);
+    if (w == "begin_chunks")
+        return impls_index_->get_chunked_begin_chunks_impl(*core_nodes_, container);
+    if (w == "valid_chunk")
+        return impls_index_->get_chunked_valid_chunk_impl(*core_nodes_, container);
+    if (w == "current_chunk")
+        return impls_index_->get_chunked_current_chunk_impl(*core_nodes_, container);
+    if (w == "next_chunk")
+        return impls_index_->get_chunked_next_chunk_impl(*core_nodes_, container);
+    if (w == "rbegin_chunks")
+        return impls_index_->get_chunked_rbegin_chunks_impl(*core_nodes_, container);
+    if (w == "previous_chunk")
+        return impls_index_->get_chunked_previous_chunk_impl(*core_nodes_, container);
+    if (w == "total_size")
+        return impls_index_->get_chunked_total_size_impl(*core_nodes_, container);
+    return nullptr;
+}
+
+MIRExprResult MIRLowerer::call_method_values(FunctionDeclaration* fd, MIRExprResult recv,
+                                             BaseType* recv_type,
+                                             const std::vector<Value*>& args,
+                                             std::string& error) {
+    if (!fd) {
+        error = "iterable method could not be resolved";
+        return MIRExprResult::error();
+    }
+    VariableIdentifier id(chem::string_view(), nullptr, ZERO_LOC);
+    id.linked = fd;
+    FunctionCall call(&id, fd->returnType, ZERO_LOC);
+    call.values = args;
+    return lower_method_call(recv, recv_type, &call, error);
+}
+
+bool MIRLowerer::lower_for_in(ForInLoop* loop, std::string& error) {
+    MIRExprResult it = lower_expr(loop->expr, error);
+    if (!it.ok()) return false;
+    BaseType* expr_ast = loop->expr->getType();
+    BaseType* expr_c = expr_ast ? expr_ast->canonical() : nullptr;
+    if (!expr_c) {
+        error = "for-in iterable has no type";
+        return false;
+    }
+    const bool is_array = expr_c->kind() == BaseTypeKind::Array;
+    const bool reversed = loop->is_reversed();
+
+    // a stable place for the iterable (the protocol methods take `&self`)
+    PlaceId recv = MIR_INVALID_ID;
+    TypeId recv_t = MIR_INVALID_ID;
+    if (it.kind == MIRExprKind::Place) {
+        recv = static_cast<PlaceId>(it.id);
+        recv_t = builder_->function().places[recv].type;
+    } else if (it.kind == MIRExprKind::Value || it.kind == MIRExprKind::Address) {
+        recv_t = it.type;
+        recv = builder_->alloca(recv_t, MIRStorageClass::Temporary);
+        builder_->store(recv, static_cast<ValueId>(it.id));
+    } else {
+        error = "for-in iterable does not produce a value";
+        return false;
+    }
+    const MIRExprResult recv_place = MIRExprResult::place(recv, recv_t);
+
+    const TypeId elem_t = types_.map(loop->getIterationElementActualType());
+    const TypeId elem_ptr_t = types_.pointer_type(elem_t, true);
+    const TypeId u64t = types_.u64_type();
+    const TypeId bool_t = types_.bool_type();
+    const TypeId u32t = types_.u32_type();
+
+    // the loop variable holds a pointer to the current element
+    const PlaceId var_place = builder_->alloca(elem_ptr_t, MIRStorageClass::Temporary);
+    bind(loop, var_place);
+    bind_name(loop->id, var_place);
+
+    PlaceId idx_place = MIR_INVALID_ID;
+    TypeId idx_t = MIR_INVALID_ID;
+    if (loop->index_init) {
+        idx_t = types_.map(loop->index_init->known_type());
+        idx_place = builder_->alloca(idx_t, MIRStorageClass::Temporary);
+        bind(loop->index_init, idx_place);
+        bind_name(loop->index_init->id_view(), idx_place);
+    }
+
+    const ConstantId add_op =
+        module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Add));
+    const ConstantId sub_op =
+        module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Sub));
+    const ConstantId ne_op =
+        module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Ne));
+    const ValueId one32 = builder_->const_int(u32t, module_.constants.add_int(u32t, 1));
+    static uint64_t s_forin_counter = 0;
+    const std::string uniq = std::to_string(s_forin_counter++);
+
+    auto emit_idx_step = [&](bool increment) {
+        if (idx_place == MIR_INVALID_ID) return;
+        const ValueId cur = builder_->load(idx_place, idx_t);
+        const ValueId one = builder_->const_int(idx_t, module_.constants.add_int(idx_t, 1));
+        builder_->store(idx_place,
+                        builder_->binary(cur, one, increment ? add_op : sub_op, idx_t));
+    };
+    auto emit_var_step = [&](bool increment) {
+        const ValueId cur = builder_->load(var_place, elem_ptr_t);
+        builder_->store(var_place,
+                        builder_->binary(cur, one32, increment ? add_op : sub_op, elem_ptr_t));
+    };
+    auto store_ptr = [&](PlaceId dest, MIRExprResult r, TypeId dest_t) -> bool {
+        if (r.kind == MIRExprKind::Place) {
+            builder_->store(dest, builder_->load(static_cast<PlaceId>(r.id), r.type));
+        } else if (r.kind == MIRExprKind::Value || r.kind == MIRExprKind::Address) {
+            builder_->store(dest, static_cast<ValueId>(r.id));
+        } else {
+            error = "for-in expression does not produce a value";
+            return false;
+        }
+        return true;
+    };
+
+    // run one iteration structure: `cond_b` already current
+    auto run_loop = [&](BlockId cond_b, auto&& emit_cond, auto&& emit_init,
+                        auto&& emit_step) -> bool {
+        const BlockId body_b = builder_->create_block();
+        const BlockId step_b = builder_->create_block();
+        const BlockId exit_b = builder_->create_block();
+        builder_->br(cond_b);
+        builder_->set_block(cond_b);
+        if (!emit_cond(body_b, exit_b)) return false;
+        builder_->set_block(body_b);
+        if (!emit_init()) return false;
+        break_targets_.push_back(exit_b);
+        continue_targets_.push_back(step_b);
+        loop_destructible_marks_.push_back(destructibles_.size());
+        break_value_dests_.push_back(MIR_INVALID_ID);
+        break_value_types_.push_back(MIR_INVALID_ID);
+        if (!lower_scope(loop->body, error)) {
+            break_targets_.pop_back();
+            continue_targets_.pop_back();
+            loop_destructible_marks_.pop_back();
+            break_value_dests_.pop_back();
+            break_value_types_.pop_back();
+            return false;
+        }
+        if (!builder_->current_block_terminated()) builder_->br(step_b);
+        break_targets_.pop_back();
+        continue_targets_.pop_back();
+        loop_destructible_marks_.pop_back();
+        break_value_dests_.pop_back();
+        break_value_types_.pop_back();
+        builder_->set_block(step_b);
+        if (!emit_step()) return false;
+        if (!builder_->current_block_terminated()) builder_->br(cond_b);
+        builder_->set_block(exit_b);
+        return true;
+    };
+
+    if (is_array) {
+        const uint64_t n = expr_c->as_array_type_unsafe()->get_array_size();
+        const MIRTypeRecord& rr = module_.types.get(recv_t);
+        ValueId data_v;
+        if (rr.kind == MIRTypeKind::Pointer || rr.kind == MIRTypeKind::Reference) {
+            // an array parameter decays to a pointer to its first element
+            data_v = builder_->load(recv, recv_t);
+            if (data_v != MIR_NULL && recv_t != elem_ptr_t) {
+                data_v = builder_->cast(data_v, elem_ptr_t);
+            }
+        } else {
+            data_v = builder_->address_of(recv, elem_ptr_t);
+        }
+        const ValueId size_v = builder_->const_int(u64t, module_.constants.add_int(u64t, n));
+        const ValueId end_v = builder_->binary(data_v, size_v, add_op, elem_ptr_t);
+        const PlaceId data_place = builder_->alloca(elem_ptr_t, MIRStorageClass::Temporary);
+        builder_->store(data_place, data_v);
+        if (idx_place != MIR_INVALID_ID) {
+            if (loop->is_reversed_counter()) {
+                builder_->store(idx_place, size_v);
+            } else {
+                builder_->store(idx_place,
+                                builder_->const_int(idx_t, module_.constants.add_int(idx_t, 0)));
+            }
+        }
+        if (reversed) {
+            builder_->store(var_place, end_v);
+        } else {
+            builder_->store(var_place, data_v);
+        }
+        const BlockId cond_b = builder_->create_block();
+        return run_loop(
+            cond_b,
+            [&](BlockId body_b, BlockId exit_b) -> bool {
+                const ValueId v = builder_->load(var_place, elem_ptr_t);
+                const ValueId e = reversed ? builder_->load(data_place, elem_ptr_t) : end_v;
+                builder_->cond_br(builder_->compare(v, e, ne_op, bool_t), body_b, exit_b);
+                return true;
+            },
+            [&]() -> bool {
+                if (reversed) {
+                    emit_idx_step(false);
+                    emit_var_step(false);
+                }
+                return true;
+            },
+            [&]() -> bool {
+                if (!reversed) {
+                    emit_idx_step(true);
+                    emit_var_step(true);
+                }
+                return true;
+            });
+    }
+
+    // Linear iteration (data/size)
+    FunctionDeclaration* data_fd = resolve_iter_impl(expr_c, "data");
+    FunctionDeclaration* size_fd = resolve_iter_impl(expr_c, "size");
+    if (data_fd && size_fd) {
+        MIRExprResult dr = call_method_values(data_fd, recv_place, expr_c, {}, error);
+        if (!dr.ok()) return false;
+        MIRExprResult sr = call_method_values(size_fd, recv_place, expr_c, {}, error);
+        if (!sr.ok()) return false;
+        ValueId data_v = (dr.kind == MIRExprKind::Place)
+                             ? builder_->load(static_cast<PlaceId>(dr.id), dr.type)
+                             : static_cast<ValueId>(dr.id);
+        ValueId size_v = (sr.kind == MIRExprKind::Place)
+                             ? builder_->load(static_cast<PlaceId>(sr.id), sr.type)
+                             : static_cast<ValueId>(sr.id);
+        if (data_v != MIR_NULL && dr.type != elem_ptr_t) data_v = builder_->cast(data_v, elem_ptr_t);
+        const ValueId end_v = builder_->binary(data_v, size_v, add_op, elem_ptr_t);
+        const PlaceId data_place = builder_->alloca(elem_ptr_t, MIRStorageClass::Temporary);
+        builder_->store(data_place, data_v);
+        if (idx_place != MIR_INVALID_ID) {
+            if (loop->is_reversed_counter()) {
+                builder_->store(idx_place, size_v);
+            } else {
+                builder_->store(idx_place,
+                                builder_->const_int(idx_t, module_.constants.add_int(idx_t, 0)));
+            }
+        }
+        if (reversed) {
+            builder_->store(var_place, end_v);
+        } else {
+            builder_->store(var_place, data_v);
+        }
+        const BlockId cond_b = builder_->create_block();
+        return run_loop(
+            cond_b,
+            [&](BlockId body_b, BlockId exit_b) -> bool {
+                const ValueId v = builder_->load(var_place, elem_ptr_t);
+                const ValueId e = reversed ? builder_->load(data_place, elem_ptr_t) : end_v;
+                builder_->cond_br(v == MIR_NULL ? v : builder_->compare(v, e, ne_op, bool_t),
+                                  body_b, exit_b);
+                return true;
+            },
+            [&]() -> bool {
+                if (reversed) {
+                    emit_idx_step(false);
+                    emit_var_step(false);
+                }
+                return true;
+            },
+            [&]() -> bool {
+                if (!reversed) {
+                    emit_idx_step(true);
+                    emit_var_step(true);
+                }
+                return true;
+            });
+    }
+
+    // Chunked iteration (begin_chunks / valid_chunk / current_chunk / next_chunk)
+    {
+        FunctionDeclaration* begin_fd =
+            resolve_iter_impl(expr_c, reversed ? "rbegin_chunks" : "begin_chunks");
+        FunctionDeclaration* valid_fd = resolve_iter_impl(expr_c, "valid_chunk");
+        FunctionDeclaration* current_fd = resolve_iter_impl(expr_c, "current_chunk");
+        FunctionDeclaration* next_fd =
+            resolve_iter_impl(expr_c, reversed ? "previous_chunk" : "next_chunk");
+        if (begin_fd && valid_fd && current_fd && next_fd) {
+            const TypeId cursor_t = types_.map(begin_fd->returnType);
+            const PlaceId cursor_place = builder_->alloca(cursor_t, MIRStorageClass::Temporary);
+            std::string cursor_name = "__chx_forin_chunk_cursor_" + uniq;
+            bind_name(chem::string_view(cursor_name.data(), cursor_name.size()), cursor_place);
+            MIRExprResult br = call_method_values(begin_fd, recv_place, expr_c, {}, error);
+            if (!br.ok()) return false;
+            if (!store_ptr(cursor_place, br, cursor_t)) return false;
+
+            if (idx_place != MIR_INVALID_ID) {
+                if (loop->is_reversed_counter()) {
+                    FunctionDeclaration* total_fd = resolve_iter_impl(expr_c, "total_size");
+                    MIRExprResult tr =
+                        call_method_values(total_fd, recv_place, expr_c, {}, error);
+                    if (!tr.ok()) return false;
+                    if (!store_ptr(idx_place, tr, idx_t)) return false;
+                } else {
+                    builder_->store(
+                        idx_place,
+                        builder_->const_int(idx_t, module_.constants.add_int(idx_t, 0)));
+                }
+            }
+
+            const BlockId ocond = builder_->create_block();
+            const BlockId obody = builder_->create_block();
+            const BlockId osteps = builder_->create_block();
+            const BlockId oexit = builder_->create_block();
+            builder_->br(ocond);
+            builder_->set_block(ocond);
+            {
+                VariableIdentifier cid(chem::string_view(cursor_name.data(), cursor_name.size()),
+                                       begin_fd->returnType, ZERO_LOC);
+                std::vector<Value*> vargs{&cid};
+                MIRExprResult vr =
+                    call_method_values(valid_fd, recv_place, expr_c, vargs, error);
+                if (!vr.ok()) return false;
+                builder_->cond_br(vr.id, obody, oexit);
+            }
+            builder_->set_block(obody);
+            {
+                VariableIdentifier cid(chem::string_view(cursor_name.data(), cursor_name.size()),
+                                       begin_fd->returnType, ZERO_LOC);
+                std::vector<Value*> vargs{&cid};
+                MIRExprResult cr =
+                    call_method_values(current_fd, recv_place, expr_c, vargs, error);
+                if (!cr.ok()) return false;
+                const TypeId chunk_t = types_.map(current_fd->returnType);
+                PlaceId chunk_place = MIR_INVALID_ID;
+                if (cr.kind == MIRExprKind::Place) {
+                    chunk_place = static_cast<PlaceId>(cr.id);
+                } else {
+                    chunk_place = builder_->alloca(chunk_t, MIRStorageClass::Temporary);
+                    builder_->store(chunk_place, static_cast<ValueId>(cr.id));
+                }
+                const ConstantId fc_ptr = module_.constants.add_string(MIR_INVALID_ID, "ptr", 3);
+                const ConstantId fc_len = module_.constants.add_string(MIR_INVALID_ID, "len", 3);
+                const ValueId cptr = builder_->field_load(chunk_place, fc_ptr, elem_ptr_t);
+                const ValueId clen = builder_->field_load(chunk_place, fc_len, u64t);
+                const ValueId inner_end_v = builder_->binary(cptr, clen, add_op, elem_ptr_t);
+                const PlaceId inner_end_place =
+                    builder_->alloca(elem_ptr_t, MIRStorageClass::Temporary);
+                if (reversed) {
+                    builder_->store(inner_end_place, cptr);
+                    builder_->store(var_place, inner_end_v);
+                } else {
+                    builder_->store(var_place, cptr);
+                    builder_->store(inner_end_place, inner_end_v);
+                }
+
+                const BlockId icond = builder_->create_block();
+                const BlockId ibody = builder_->create_block();
+                const BlockId istep = builder_->create_block();
+                builder_->br(icond);
+                builder_->set_block(icond);
+                {
+                    const ValueId v = builder_->load(var_place, elem_ptr_t);
+                    const ValueId e = builder_->load(inner_end_place, elem_ptr_t);
+                    // normal inner completion advances the chunk; `break` exits
+                    builder_->cond_br(builder_->compare(v, e, ne_op, bool_t), ibody, osteps);
+                }
+                builder_->set_block(ibody);
+                if (reversed) {
+                    emit_idx_step(false);
+                    emit_var_step(false);
+                }
+                break_targets_.push_back(oexit);
+                continue_targets_.push_back(istep);
+                loop_destructible_marks_.push_back(destructibles_.size());
+                break_value_dests_.push_back(MIR_INVALID_ID);
+                break_value_types_.push_back(MIR_INVALID_ID);
+                if (!lower_scope(loop->body, error)) {
+                    break_targets_.pop_back();
+                    continue_targets_.pop_back();
+                    loop_destructible_marks_.pop_back();
+                    break_value_dests_.pop_back();
+                    break_value_types_.pop_back();
+                    return false;
+                }
+                if (!builder_->current_block_terminated()) builder_->br(istep);
+                break_targets_.pop_back();
+                continue_targets_.pop_back();
+                loop_destructible_marks_.pop_back();
+                break_value_dests_.pop_back();
+                break_value_types_.pop_back();
+                builder_->set_block(istep);
+                if (!reversed) {
+                    emit_idx_step(true);
+                    emit_var_step(true);
+                }
+                if (!builder_->current_block_terminated()) builder_->br(icond);
+            }
+            builder_->set_block(osteps);
+            {
+                VariableIdentifier cid(chem::string_view(cursor_name.data(), cursor_name.size()),
+                                       begin_fd->returnType, ZERO_LOC);
+                std::vector<Value*> vargs{&cid};
+                MIRExprResult nr =
+                    call_method_values(next_fd, recv_place, expr_c, vargs, error);
+                if (!nr.ok()) return false;
+                if (!store_ptr(cursor_place, nr, cursor_t)) return false;
+            }
+            if (!builder_->current_block_terminated()) builder_->br(ocond);
+            builder_->set_block(oexit);
+            return true;
+        }
+    }
+
+    // Iterable protocol (begin/valid/current/next)
+    {
+        FunctionDeclaration* begin_fd = resolve_iter_impl(expr_c, reversed ? "rbegin" : "begin");
+        FunctionDeclaration* valid_fd = resolve_iter_impl(expr_c, "valid");
+        FunctionDeclaration* current_fd = resolve_iter_impl(expr_c, "current");
+        FunctionDeclaration* next_fd = resolve_iter_impl(expr_c, reversed ? "previous" : "next");
+        if (!begin_fd || !valid_fd || !current_fd || !next_fd) {
+            error = "container does not implement a supported iteration protocol";
+            return false;
+        }
+        const TypeId cursor_t = types_.map(begin_fd->returnType);
+        const PlaceId cursor_place = builder_->alloca(cursor_t, MIRStorageClass::Temporary);
+        std::string cursor_name = "__chx_forin_cursor_" + uniq;
+        bind_name(chem::string_view(cursor_name.data(), cursor_name.size()), cursor_place);
+        MIRExprResult br = call_method_values(begin_fd, recv_place, expr_c, {}, error);
+        if (!br.ok()) return false;
+        if (!store_ptr(cursor_place, br, cursor_t)) return false;
+
+        if (idx_place != MIR_INVALID_ID) {
+            if (loop->is_reversed_counter()) {
+                FunctionDeclaration* count_fd = resolve_iter_impl(expr_c, "count");
+                MIRExprResult cr = call_method_values(count_fd, recv_place, expr_c, {}, error);
+                if (!cr.ok()) return false;
+                if (!store_ptr(idx_place, cr, idx_t)) return false;
+            } else {
+                builder_->store(idx_place,
+                                builder_->const_int(idx_t, module_.constants.add_int(idx_t, 0)));
+            }
+        }
+        const BlockId cond_b = builder_->create_block();
+        return run_loop(
+            cond_b,
+            [&](BlockId body_b, BlockId exit_b) -> bool {
+                VariableIdentifier cid(chem::string_view(cursor_name.data(), cursor_name.size()),
+                                       begin_fd->returnType, ZERO_LOC);
+                std::vector<Value*> vargs{&cid};
+                MIRExprResult vr = call_method_values(valid_fd, recv_place, expr_c, vargs, error);
+                if (!vr.ok()) return false;
+                builder_->cond_br(vr.id, body_b, exit_b);
+                return true;
+            },
+            [&]() -> bool {
+                VariableIdentifier cid(chem::string_view(cursor_name.data(), cursor_name.size()),
+                                       begin_fd->returnType, ZERO_LOC);
+                std::vector<Value*> vargs{&cid};
+                MIRExprResult cr = call_method_values(current_fd, recv_place, expr_c, vargs, error);
+                if (!cr.ok()) return false;
+                ValueId cv = (cr.kind == MIRExprKind::Place)
+                                 ? builder_->load(static_cast<PlaceId>(cr.id), cr.type)
+                                 : static_cast<ValueId>(cr.id);
+                if (cv != MIR_NULL && cr.type != elem_ptr_t) cv = builder_->cast(cv, elem_ptr_t);
+                builder_->store(var_place, cv);
+                return true;
+            },
+            [&]() -> bool {
+                VariableIdentifier cid(chem::string_view(cursor_name.data(), cursor_name.size()),
+                                       begin_fd->returnType, ZERO_LOC);
+                std::vector<Value*> vargs{&cid};
+                MIRExprResult nr = call_method_values(next_fd, recv_place, expr_c, vargs, error);
+                if (!nr.ok()) return false;
+                if (!store_ptr(cursor_place, nr, cursor_t)) return false;
+                emit_idx_step(!reversed);
+                return true;
+            });
+    }
+}
+
 
 static bool mir_slot_is_destructible(BaseType* type) {
     if (type == nullptr) return false;
@@ -5134,9 +5649,33 @@ MIRExprResult MIRLowerer::lower_extraction_value(ExtractionValue* ev, std::strin
         return MIRExprResult::error();
     }
     auto* lamb = src->as_lambda_func_unsafe();
+    const TypeId void_ptr = types_.pointer_type(types_.void_type(), true);
+    if (lamb->captureList.empty()) {
+        // a non-capturing lambda has no closure: null data/destructor, size 0
+        switch (ev->extractionKind) {
+            case ExtractionKind::LambdaFnPtr:
+                return materialize_noncapturing_lambda(lamb, error);
+            case ExtractionKind::LambdaCapturedPtr:
+            case ExtractionKind::LambdaCapturedDestructor:
+                return MIRExprResult::value(
+                    builder_->const_null(void_ptr, module_.constants.add_null(void_ptr)), void_ptr);
+            case ExtractionKind::SizeOfLambdaCaptured:
+                return MIRExprResult::value(
+                    builder_->const_int(types_.u64_type(),
+                                        module_.constants.add_int(types_.u64_type(), 0)),
+                    types_.u64_type());
+            case ExtractionKind::AlignOfLambdaCaptured:
+                return MIRExprResult::value(
+                    builder_->const_int(types_.u64_type(),
+                                        module_.constants.add_int(types_.u64_type(), 1)),
+                    types_.u64_type());
+            default:
+                error = "unsupported extraction value kind";
+                return MIRExprResult::error();
+        }
+    }
     if (!materialize_capturing_lambda(lamb, error)) return MIRExprResult::error();
     const LambdaMaterialization& m = lambda_materializations_[lamb];
-    const TypeId void_ptr = types_.pointer_type(types_.void_type(), true);
     switch (ev->extractionKind) {
         case ExtractionKind::LambdaFnPtr:
             return MIRExprResult::value(m.fn_ptr, m.fn_ptr_type);
@@ -5483,6 +6022,11 @@ MIRExprResult MIRLowerer::lower_lambda(LambdaFunction* lamb, std::string& error)
         const LambdaMaterialization& m = lambda_materializations_[lamb];
         return MIRExprResult::value(m.fn_ptr, m.fn_ptr_type);
     }
+    return materialize_noncapturing_lambda(lamb, error);
+}
+
+MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
+                                                          std::string& error) {
     static uint64_t s_lambda_counter = 0;
     const std::string lname = "__chemda_" + std::to_string(s_lambda_counter++);
 

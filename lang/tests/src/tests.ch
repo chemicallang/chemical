@@ -16,6 +16,7 @@ func run_executable_tests() {
     run_common_tests();
     run_native_common_tests();
     test_char_ptr_strings();
+    test_sizeof_variables();
     test_downloaded_module()
     test_deref_pass_func_call()
 

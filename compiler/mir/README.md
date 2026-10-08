@@ -184,10 +184,20 @@ only things blocking deletion of `ToCAstVisitor` / `2cASTVisitor` /
   runtime (`universal_replacementNode`'s `var support = root.support` copy and
   the `JsConverter` named-field init are the suspects).
 - **`#universal` `EmbeddedNode` SSR functions.** Resolving the replacement and
-  lowering it through MIR mistypes an `SsrAttribute[1]` attribute array as
-  `std_StringStream[1]` (the `build_ssr_attributes` `make_array_value` element
-  type), while the legacy visitor emits it correctly. Until that type mapping
-  is fixed, `EmbeddedNode` stays on the legacy visitor.
+  lowering it through MIR mistypes CBI-generated arrays: the plugin's
+  `MultipleAttributeValues.data` array (built via
+  `make_array_value(make_linked_type("SsrAttributeValue",
+  support.ssrAttributeValueNode))`) is emitted as `struct page_SsrAttribute[3]`
+  instead of the `SsrAttributeValue` variant, so `p[0] = <SsrAttributeValue>`
+  fails to compile. The type varies with the DEBUG file-order seed, which is
+  why it is not reproducible without a fixed `FILE_ORDER_SEED`. The plugin's
+  own `make_array_value` call is correct (`SsrAttributeValue`), so the element
+  type is being resolved/rewritten before MIR sees it — the `ArrayValue`'s
+  `known_elem_type()` (a `LinkedType` wrapping the `SsrAttributeValue` variant)
+  comes out pointing at the `SsrAttribute` struct. Debugging entry points:
+  `ASTBuildermake_array_value` (CBI binding), `ArrayValue::determine_type` /
+  `SymResLinkBody::VisitArrayValue`, and `MIRTypeBuilder::map(LinkedType)`.
+  Until this is fixed, `EmbeddedNode` stays on the legacy visitor.
 
 Note: when the compiler changes, the **CBI plugin object cache is not
 invalidated** — stale plugin objects produce bogus generated code. Always clear

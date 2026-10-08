@@ -2024,14 +2024,21 @@ bool mir_translate_after_declaration(
     auto lower_container = [&](ExtendableMembersContainerNode* def) -> bool {
         if (!def) return false;
         for (ASTNode* child : def->evaluated_nodes()) {
-            if (child && child->kind() == ASTNodeKind::FunctionDecl &&
-                lower_and_emit(child->as_function_unsafe())) {
-                continue;
+            if (!child) continue;
+            if (child->kind() == ASTNodeKind::FunctionDecl) {
+                auto* fd = child->as_function_unsafe();
+                // extern/comptime methods have no MIR body; their prototypes are
+                // emitted by the MIR declaration pass.
+                if (!mir_eligible_function(fd)) continue;
+                if (lower_and_emit(fd)) continue;
             }
-            if (child && child->kind() == ASTNodeKind::ImplDecl &&
+            if (child->kind() == ASTNodeKind::ImplDecl &&
                 lower_impl(child->as_impl_def_unsafe())) {
                 continue;
             }
+            // Generic function declarations are templates; their instantiated
+            // copies are lowered separately.
+            if (child->kind() == ASTNodeKind::GenericFuncDecl) continue;
             visitor.top_level_position = visitor.writer.getPosition();
             visitor.visit(child);
         }
@@ -2048,9 +2055,13 @@ bool mir_translate_after_declaration(
         [&](const std::vector<ASTNode*>& list) {
         for (ASTNode* node : list) {
             switch (node->kind()) {
-                case ASTNodeKind::FunctionDecl:
-                    if (!lower_and_emit(node->as_function())) legacy_visit(node);
+                case ASTNodeKind::FunctionDecl: {
+                    auto* fd = node->as_function();
+                    // extern/comptime functions have no MIR body; their
+                    // prototypes are emitted by the MIR declaration pass.
+                    if (mir_eligible_function(fd) && !lower_and_emit(fd)) legacy_visit(node);
                     continue;
+                }
                 case ASTNodeKind::StructDecl:
                 case ASTNodeKind::VariantDecl:
                 case ASTNodeKind::UnionDecl:
@@ -2060,8 +2071,6 @@ bool mir_translate_after_declaration(
                     auto* vi = node->as_var_init_unsafe();
                     if (vi->is_top_level() && !vi->is_comptime()) {
                         decl_emitter.implement(visitor.writer, node);
-                    } else {
-                        legacy_visit(node);
                     }
                     continue;
                 }
@@ -2111,8 +2120,8 @@ bool mir_translate_after_declaration(
             visitor.write("struct ");
             visitor.write(chem::string_view(name.data(), static_cast<unsigned>(name.size())));
             visitor.write(" { ");
-            for (const auto var : sty->variables()) {
-                visitor.visit(var);
+            for (BaseDefMember* var : sty->variables()) {
+                decl_emitter.emit_field(visitor.writer, var);
                 visitor.write(' ');
             }
             visitor.write("};");

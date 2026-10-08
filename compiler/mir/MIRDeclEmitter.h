@@ -89,6 +89,12 @@ public:
     /** C prototype spelling of a function declaration (no trailing `;`). */
     std::string function_proto(FunctionDeclaration* decl);
 
+    /**
+     * Emit a single struct/union member declarator (no leading indent). Used to
+     * emit the fields of an inline (anonymous/locally-named) struct type.
+     */
+    void emit_field(BufferedWriter& w, BaseDefMember* member) { emit_member(w, member, 1); }
+
 private:
     // --- declare-pass helpers ---
     void declare_contained_func(BufferedWriter& w, FunctionDeclaration* decl, bool terminate);

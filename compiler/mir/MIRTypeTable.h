@@ -41,7 +41,7 @@ enum MIRTypeFlags : uint8_t {
 
 /**
  * Exact C spelling category for integer types, mirroring the legacy 2c backend
- * (see ToCAstVisitor::VisitIntNType). 0 = unspecified (spell by width/signedness
+ * (see the legacy 2c backend's IntN spelling). 0 = unspecified (spell by width/signedness
  * as intN_t/uintN_t). Keeping the source-level spelling lets MIR-emitted
  * definitions match the prototypes emitted by the legacy declaration pass.
  */

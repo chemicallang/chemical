@@ -23,7 +23,7 @@ class LabBuildCompiler;
 
 class ASTProcessor;
 
-class ToCAstVisitor;
+class CTranslationContext;
 
 /**
  * stores all the data required

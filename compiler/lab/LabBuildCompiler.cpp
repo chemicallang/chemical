@@ -36,7 +36,7 @@
 #include "compiler/SymbolResolver.h"
 #include "compiler/ASTProcessor.h"
 #include "ast/structures/Namespace.h"
-#include "preprocess/2c/2cASTVisitor.h"
+#include "preprocess/2c/TranslationContext.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "integration/libtcc/LibTccInteg.h"
 #include "ctpl.h"
@@ -767,7 +767,7 @@ int compile_c_to_obj_w_opts(const std::string& out_c_path, const std::string_vie
 int LabBuildCompiler::process_module_tcc_bm(
         LabModule* mod,
         ASTProcessor& processor,
-        ToCAstVisitor& c_visitor,
+        CTranslationContext& c_visitor,
         LabJob* job,
         const std::string_view& build_dir,
         bool single_file,
@@ -804,7 +804,7 @@ int LabBuildCompiler::process_module_tcc_bm(
 int LabBuildCompiler::process_module_tcc(
         LabModule* mod,
         ASTProcessor& processor,
-        ToCAstVisitor& c_visitor,
+        CTranslationContext& c_visitor,
         LabJob* job,
         const std::string_view& build_dir,
         bool single_file,
@@ -1812,7 +1812,7 @@ int LabBuildCompiler::link_cbi_job(LabJob* cbiJob, std::vector<LabModule*>& depe
     SymbolResolver resolver(binder, global, path_handler, controller, instContainer, coreNodes, implsIndex, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
     // beginning
-    ToCAstVisitor c_visitor(binder, global, mangler, *file_allocator, loc_man, coreNodes, implsIndex, options->debug_info, options->minify_c);
+    CTranslationContext c_visitor(binder, global, mangler, *file_allocator, loc_man, coreNodes, implsIndex, options->debug_info, options->minify_c);
     ToCBackendContext c_context(&c_visitor);
     global.backend_context = (BackendContext*) &c_context;
 
@@ -2760,7 +2760,7 @@ TCCState* LabBuildCompiler::built_lab_file(
         LabBuildContext& context,
         const std::string_view& path_view,
         ASTProcessor& processor,
-        ToCAstVisitor& c_visitor,
+        CTranslationContext& c_visitor,
         bool mod_file_source,
         LabJob* job
 ) {
@@ -3366,7 +3366,7 @@ TCCState* LabBuildCompiler::built_lab_file(
     create_or_rebind_container(this, global, lab_resolver, targetData);
 
     // compiler interfaces the lab files imports
-    ToCAstVisitor c_visitor(binder, global, mangler, *file_allocator, loc_man, coreNodes, implsIndex, options->debug_info, options->minify_c);
+    CTranslationContext c_visitor(binder, global, mangler, *file_allocator, loc_man, coreNodes, implsIndex, options->debug_info, options->minify_c);
     ToCBackendContext c_context(&c_visitor);
 
     // set the backend context
@@ -4381,7 +4381,7 @@ int LabBuildCompiler::run_transformer(const std::string& transformer, const std:
     // source return type while type verification still expects consistency, so
     // analyzing e.g. `net/async.ch` fails. Give the analysis the same C backend
     // context a real build uses so signatures and bodies agree.
-    ToCAstVisitor transformer_c_visitor(binder, global, mangler, *file_allocator, loc_man, coreNodes, implsIndex, options->debug_info, options->minify_c);
+    CTranslationContext transformer_c_visitor(binder, global, mangler, *file_allocator, loc_man, coreNodes, implsIndex, options->debug_info, options->minify_c);
     ToCBackendContext transformer_c_context(&transformer_c_visitor);
     global.backend_context = (BackendContext*) &transformer_c_context;
 

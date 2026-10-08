@@ -149,6 +149,11 @@ public:
         comptime_ctor_eval_ = std::move(fn);
     }
 
+    /** Interpret a `comptime { }` block (interpreter-backed, no runtime code). */
+    void set_comptime_block_eval(std::function<void(ASTNode*)> fn) {
+        comptime_block_eval_ = std::move(fn);
+    }
+
     /** Fallback lookup of a top-level function by name (symbol table). */
     void set_symbol_lookup(std::function<FunctionDeclaration*(const std::string&)> fn) {
         symbol_lookup_ = std::move(fn);
@@ -405,6 +410,7 @@ private:
     std::function<Value*(FunctionCall*, FunctionDeclaration*)> comptime_eval_;
     std::function<Value*(Value*)> comptime_value_eval_;
     std::function<Value*(FunctionDeclaration*, Value*)> comptime_ctor_eval_;
+    std::function<void(ASTNode*)> comptime_block_eval_;
     std::function<FunctionDeclaration*(const std::string&)> symbol_lookup_;
     std::function<void(FunctionTypeBody*)> set_current_func_;
     ImplementationsIndex* impls_index_ = nullptr;

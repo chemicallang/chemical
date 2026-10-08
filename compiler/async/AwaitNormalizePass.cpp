@@ -402,7 +402,7 @@ struct PlanVisitor : public RecursiveVisitor<PlanVisitor> {
      * Only the live branch of a resolved comptime `if` is part of the program:
      * symbol resolution evaluates the condition and stores the taken scope in
      * `computed_scope`, and the emitter visits only that scope (see
-     * `ToCAstVisitor::VisitIfStmt`). The branch that was not taken is never
+     * `the legacy 2c backend's if handling`). The branch that was not taken is never
      * symbol resolved, so types declared inside it may still be unlinked
      * (`LinkedType::linked == nullptr`). Planning frame slots for it would hand
      * the frame emitter an unresolved type and crash code generation, so the

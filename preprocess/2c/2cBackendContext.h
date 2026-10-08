@@ -4,14 +4,14 @@
 
 #include "compiler/lab/BackendContext.h"
 
-class ToCAstVisitor;
+class CTranslationContext;
 
 class ToCBackendContext : public BackendContext {
 public:
 
-    ToCAstVisitor* visitor;
+    CTranslationContext* visitor;
 
-    ToCBackendContext(ToCAstVisitor* visitor) : visitor(visitor) {
+    ToCBackendContext(CTranslationContext* visitor) : visitor(visitor) {
 
     }
 
@@ -32,7 +32,8 @@ public:
 
 
     void destruct_call_site(SourceLocation location) final {
-        visitor->destruct_scopes_above(nullptr);
+        // MIR owns destruction (drop flags); the legacy scope-based destructor
+        // queue is gone.
     }
 
     /**

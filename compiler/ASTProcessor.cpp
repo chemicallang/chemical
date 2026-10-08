@@ -6,7 +6,7 @@
 #include "parser/Parser.h"
 #include "compiler/SymbolResolver.h"
 #include "compiler/typeverify/TypeVerifyAPI.h"
-#include "preprocess/2c/2cASTVisitor.h"
+#include "preprocess/2c/TranslationContext.h"
 #include "utils/Benchmark.h"
 #include "utils/JoinedTasks.h"
 #include <sstream>
@@ -16,6 +16,7 @@
 #include "rang.hpp"
 #include "preprocess/RepresentationVisitor.h"
 #include "ast/structures/FunctionDeclaration.h"
+#include "ast/structures/ComptimeBlock.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/ImplDefinition.h"
 #include "ast/statements/ChildrenMapNode.h"
@@ -1614,7 +1615,7 @@ bool ASTProcessor::import_chemical_mod_file(
     return import_chemical_mod_file(fileAllocator, modAllocator, loc_man, data, fileId, abs_path, &inp_source);
 }
 
-bool ASTProcessor::print_translation_diagnostics(ToCAstVisitor& visitor, const std::string& abs_path) {
+bool ASTProcessor::print_translation_diagnostics(CTranslationContext& visitor, const std::string& abs_path) {
     if(visitor.diagnostics.empty()) {
         return false;
     }
@@ -1630,7 +1631,7 @@ bool ASTProcessor::print_translation_diagnostics(ToCAstVisitor& visitor, const s
  * stop the build instead of continuing with code that no longer matches the
  * source. Reading the errors out of the visitor also prints them
  */
-bool ASTProcessor::print_translation_diagnostics(ToCAstVisitor& visitor) {
+bool ASTProcessor::print_translation_diagnostics(CTranslationContext& visitor) {
     if(visitor.diagnostics.empty()) {
         return false;
     }
@@ -1641,59 +1642,6 @@ bool ASTProcessor::print_translation_diagnostics(ToCAstVisitor& visitor) {
     return had_errors;
 }
 
-bool ASTProcessor::declare_before_translation(
-        ToCAstVisitor& visitor,
-        std::vector<ASTNode*>& nodes,
-        const std::string& abs_path
-) {
-    // translating the nodes
-    BenchmarkResults bm_results;
-    if(options->benchmark_files) {
-        bm_results.benchmark_begin();
-    }
-    visitor.declare_before_translation(nodes);
-    if(options->benchmark_files) {
-        bm_results.benchmark_end();
-        print_benchmarks(std::cout, "2cTranslation:declare", &bm_results);
-    }
-    return print_translation_diagnostics(visitor, abs_path);
-}
-
-bool ASTProcessor::translate_after_declaration(
-        ToCAstVisitor& visitor,
-        std::vector<ASTNode*>& nodes,
-        const std::string& abs_path
-) {
-    // translating the nodes
-    BenchmarkResults bm_results;
-    if(options->benchmark_files) {
-        bm_results.benchmark_begin();
-    }
-    visitor.translate_after_declaration(nodes);
-    if(options->benchmark_files) {
-        bm_results.benchmark_end();
-        print_benchmarks(std::cout, "2cTranslation:translate", abs_path, &bm_results);
-    }
-    return print_translation_diagnostics(visitor, abs_path);
-}
-
-bool ASTProcessor::translate_to_c(
-        ToCAstVisitor& visitor,
-        std::vector<ASTNode*>& nodes,
-        const std::string& abs_path
-) {
-    // translating the nodes
-    BenchmarkResults bm_results;
-    if(options->benchmark_files) {
-        bm_results.benchmark_begin();
-    }
-    visitor.declare_and_translate(nodes);
-    if(options->benchmark_files) {
-        bm_results.benchmark_end();
-        print_benchmarks(std::cout, "2cTranslation", &bm_results);
-    }
-    return print_translation_diagnostics(visitor, abs_path);
-}
 
 /**
  * these two functions have following purpose
@@ -1723,50 +1671,13 @@ void shallow_dedupe_sorted(std::vector<LabModule*>& outMods, std::vector<ModuleD
     }
 }
 
-void forward_declare_in_c(ToCAstVisitor& c_visitor, ASTProcessor* proc, LabModule* mod, const char* name) {
-    for(auto& file_ptr : mod->direct_files) {
-        auto& result = *file_ptr.result;
-        auto& file = result;
-        ASTUnit& unit = file.unit;
-        // print the benchmark or verbose output received from processing
-        if((proc->options->benchmark_files || proc->options->verbose) && !ASTProcessor::empty_diags(result)) {
-            std::cout << rang::style::bold << rang::fg::magenta << '[' << name << "] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
-        }
-
-#ifdef DEBUG
-        auto str = (name + std::string(" ") + file.abs_path);
-        c_visitor.debug_comment(chem::string_view(str));
-#endif
-
-        c_visitor.fwd_declare(unit.scope.body.nodes);
-    }
-}
-
-void declare_type_aliases_in_c(ToCAstVisitor& c_visitor, ASTProcessor* proc, LabModule* mod, const char* name) {
-    for(auto& file_ptr : mod->direct_files) {
-        auto& result = *file_ptr.result;
-        auto& file = result;
-        ASTUnit& unit = file.unit;
-        // print the benchmark or verbose output received from processing
-        if((proc->options->benchmark || proc->options->verbose) && !ASTProcessor::empty_diags(result)) {
-            std::cout << rang::style::bold << rang::fg::magenta << '[' << name << "] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
-        }
-
-#ifdef DEBUG
-        auto str = (name + std::string(" ") + file.abs_path);
-        c_visitor.debug_comment(chem::string_view(str));
-#endif
-
-        c_visitor.declare_type_aliases(unit.scope.body.nodes);
-    }
-}
 
 namespace {
 std::string mir_mangle_name(NameMangler& mangler, ASTNode* decl);
 }
 
 int ASTProcessor::declare_module(
-    ToCAstVisitor& c_visitor,
+    CTranslationContext& c_visitor,
     LabModule* module
 ) {
 
@@ -1860,7 +1771,7 @@ std::string mir_mangle_name(NameMangler& mangler, ASTNode* decl) {
 // and their C bodies emitted from MIR; other nodes still go through the legacy
 // visitor (declarations and not-yet-ported constructs) for now.
 bool mir_translate_after_declaration(
-        ToCAstVisitor& visitor,
+        CTranslationContext& visitor,
         mir::MIRModule& module,
         mir::MIRTypeBuilder& types,
         mir::MIRLowerer& lowerer,
@@ -2132,7 +2043,7 @@ bool mir_translate_after_declaration(
 } // namespace
 
 int ASTProcessor::implement_module(
-    ToCAstVisitor& c_visitor,
+    CTranslationContext& c_visitor,
     LabModule* module
 ) {
 
@@ -2191,6 +2102,10 @@ int ASTProcessor::implement_module(
     });
     mir_lowerer.set_comptime_ctor_eval([&c_visitor](FunctionDeclaration* ctor, Value* arg) {
         return c_visitor.eval_comptime_ctor(ctor, arg);
+    });
+    mir_lowerer.set_comptime_block_eval([&c_visitor](ASTNode* node) {
+        auto* block = static_cast<ComptimeBlock*>(node);
+        c_visitor.comptime_scope.interpret(&block->body);
     });
     mir_lowerer.set_current_func([&c_visitor](FunctionTypeBody* f) {
         c_visitor.current_func_type = f;
@@ -2299,7 +2214,7 @@ int ASTProcessor::implement_module(
 
 }
 
-int ASTProcessor::emit_static_interface_stubs(ToCAstVisitor& c_visitor) {
+int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
     if (c_visitor.unimplemented_static_interfaces.empty()) return 0;
 
     mir::MIRModule mir_module;
@@ -2342,6 +2257,10 @@ int ASTProcessor::emit_static_interface_stubs(ToCAstVisitor& c_visitor) {
     });
     mir_lowerer.set_comptime_ctor_eval([&c_visitor](FunctionDeclaration* ctor, Value* arg) {
         return c_visitor.eval_comptime_ctor(ctor, arg);
+    });
+    mir_lowerer.set_comptime_block_eval([&c_visitor](ASTNode* node) {
+        auto* block = static_cast<ComptimeBlock*>(node);
+        c_visitor.comptime_scope.interpret(&block->body);
     });
     mir_lowerer.set_current_func([&c_visitor](FunctionTypeBody* f) {
         c_visitor.current_func_type = f;

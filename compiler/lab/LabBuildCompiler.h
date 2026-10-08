@@ -30,7 +30,7 @@ struct GlobalContainer;
 
 struct CmdOptions;
 
-class ToCAstVisitor;
+class CTranslationContext;
 
 class TypeBuilder;
 
@@ -195,7 +195,7 @@ public:
     int process_module_tcc(
         LabModule* mod,
         ASTProcessor& processor,
-        ToCAstVisitor& c_visitor,
+        CTranslationContext& c_visitor,
         LabJob* job,
         const std::string_view& build_dir,
         bool single_file,
@@ -209,7 +209,7 @@ public:
     int process_module_tcc_bm(
         LabModule* mod,
         ASTProcessor& processor,
-        ToCAstVisitor& c_visitor,
+        CTranslationContext& c_visitor,
         LabJob* job,
         const std::string_view& build_dir,
         bool single_file,
@@ -457,7 +457,7 @@ public:
             LabBuildContext& context,
             const std::string_view& path,
             ASTProcessor& processor,
-            ToCAstVisitor& c_visitor,
+            CTranslationContext& c_visitor,
             bool mod_file_source,
             LabJob* job
     );

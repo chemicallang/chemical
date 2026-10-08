@@ -5031,6 +5031,10 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
         case ASTNodeKind::TypealiasStmt:
             // a local `type` alias has no runtime effect
             return true;
+        case ASTNodeKind::ComptimeBlock:
+            // the block is evaluated by the interpreter; it has no runtime effect
+            if (comptime_block_eval_) comptime_block_eval_(node);
+            return true;
         default:
             error = "unsupported statement kind during MIR lowering (kind " +
                     std::to_string(static_cast<int>(node->kind())) + ")";

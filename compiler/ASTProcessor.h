@@ -33,7 +33,7 @@ class Parser;
 
 class SymbolResolver;
 
-class ToCAstVisitor;
+class CTranslationContext;
 
 class ImportPathHandler;
 
@@ -531,45 +531,13 @@ public:
      */
     static void print_benchmarks(std::ostream& stream, const std::string_view& TAG, const std::string_view& Name, BenchmarkResults* results);
 
-    /**
-     * translates given import result to c using visitor
-     * doesn't perform symbol resolution
-     * @return true if any error diagnostic was reported while translating
-     */
-    bool declare_before_translation(
-            ToCAstVisitor& visitor,
-            std::vector<ASTNode*>& import_res,
-            const std::string& file
-    );
-
-    /**
-     * translates given import result to c using visitor
-     * doesn't perform symbol resolution
-     * @return true if any error diagnostic was reported while translating
-     */
-    bool translate_after_declaration(
-            ToCAstVisitor& visitor,
-            std::vector<ASTNode*>& import_res,
-            const std::string& file
-    );
-
-    /**
-     * translates given import result to c using visitor
-     * doesn't perform symbol resolution
-     * @return true if any error diagnostic was reported while translating
-     */
-    bool translate_to_c(
-        ToCAstVisitor& visitor,
-        std::vector<ASTNode*>& import_res,
-        const std::string& file
-    );
 
     /**
      * declares the module in C (meaning no function bodies, only declarations)
      * it is used during caching when an object file is found and we just need declarations of a module
      */
     int declare_module(
-        ToCAstVisitor& visitor,
+        CTranslationContext& visitor,
         LabModule* module
     );
 
@@ -577,7 +545,7 @@ public:
      * this is used to implement the function bodies of a dmoule
      */
     int implement_module(
-        ToCAstVisitor& visitor,
+        CTranslationContext& visitor,
         LabModule* module
     );
 
@@ -588,7 +556,7 @@ public:
      * implemented interfaces is final.
      */
     int emit_static_interface_stubs(
-        ToCAstVisitor& visitor
+        CTranslationContext& visitor
     );
 
     /**
@@ -596,19 +564,19 @@ public:
      * any of them was an error. Errors during translation mean the generated C cannot
      * be trusted, so the build must be stopped instead of continuing with bad code
      */
-    bool print_translation_diagnostics(ToCAstVisitor& visitor, const std::string& abs_path);
+    bool print_translation_diagnostics(CTranslationContext& visitor, const std::string& abs_path);
 
     /**
      * same as above, for diagnostics that carry their own file path
      */
-    bool print_translation_diagnostics(ToCAstVisitor& visitor);
+    bool print_translation_diagnostics(CTranslationContext& visitor);
 
     /**
      * this is the ultimate function, it declares and translates
      * translates the given module to C
      */
     inline int translate_module(
-        ToCAstVisitor& visitor,
+        CTranslationContext& visitor,
         LabModule* module
     ) {
         const auto dec_status = declare_module(visitor, module);

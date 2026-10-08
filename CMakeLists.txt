@@ -344,8 +344,8 @@ set(COMMON_SOURCES
         core/diag/Location.h
         core/diag/Range.h
         server/analyzers/Documentation.h
-        preprocess/2c/2cASTVisitor.h
-        preprocess/2c/2cASTVisitor.cpp
+        preprocess/2c/TranslationContext.h
+        preprocess/2c/TranslationContext.cpp
         preprocess/RepresentationVisitor.cpp
         preprocess/utils/RepresentationUtils.h
         preprocess/utils/RepresentationUtils.cpp
@@ -439,7 +439,6 @@ set(COMMON_SOURCES
         ast/base/ASTAnyKind.h
         ast/base/ASTUnit.h
         server/model/ASTResult.h
-        preprocess/2c/CTopLevelDeclVisitor.h
         ast/values/StructMemberInitializer.h
         ast/types/ReferenceType.h
         compiler/lab/BackendContext.h
@@ -646,7 +645,6 @@ set(COMMON_SOURCES
         std/except.cpp
         compiler/lab/LabJob.cpp
         compiler/lab/TargetConditionAPI.h
-        preprocess/2c/CDestructionVisitor.h
         compiler/cbi/bindings/AnnotationControllerCBI.h
         compiler/cbi/bindings/AnnotationController.cpp
         ast/statements/Export.h
@@ -760,7 +758,6 @@ set(COMPILER_SOURCES
         compiler/llvm-ar.cpp
         utils/ProcessUtils.h
         compiler/ClangCodegen.h
-        preprocess/2c/SubVisitor.h
         compiler/backend/include/LLVMArrayDestructor.h
         compiler/CodegenEmitterOptions.h
         compiler/SanitizerOptions.h

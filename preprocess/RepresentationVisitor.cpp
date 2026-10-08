@@ -101,7 +101,7 @@
 #include "ast/values/LoopValue.h"
 #include "ast/values/WrapValue.h"
 #include "utils/RepresentationUtils.h"
-#include "preprocess/2c/2cASTVisitor.h"
+#include "preprocess/2c/TranslationContext.h"
 
 RepresentationVisitor::RepresentationVisitor(std::ostream &output) : output(output) {
 //    declarer = std::make_unique<CValueDeclarationVisitor>(this);

@@ -1970,8 +1970,11 @@ bool mir_translate_after_declaration(
         // A static interface has no vtable: the impl's methods are emitted as
         // free functions, and the interface no longer needs a stub. MIR lowers
         // both the definition and the call with the ordinary method ABI.
+        // NOTE: kept on the legacy path for now — MIR lowering of the
+        // `@compiler.interface`/`@static` impls that back the CBI plugins is
+        // not yet correct (see README).
         if (iface && iface->is_static()) {
-            visitor.remove_static_interface_for_stub_impl(iface);
+            return false;
         }
         ExtendableMembersContainerNode* for_decl = nullptr;
         if (impl->struct_type) {
@@ -2028,33 +2031,52 @@ bool mir_translate_after_declaration(
         }
         return true;
     };
+    // The legacy visitor is still the fallback for (a) a function/method whose
+    // MIR lowering failed and (b) CBI-generated `EmbeddedNode`s (e.g. a
+    // `#universal` component's SSR function). Everything else is MIR.
+    auto legacy_visit = [&](ASTNode* node) {
+        visitor.top_level_position = visitor.writer.getPosition();
+        visitor.visit(node);
+    };
     std::function<void(const std::vector<ASTNode*>&)> process_nodes =
         [&](const std::vector<ASTNode*>& list) {
         for (ASTNode* node : list) {
-            if (node->kind() == ASTNodeKind::FunctionDecl) {
-                if (lower_and_emit(node->as_function())) continue;
-            } else if (node->kind() == ASTNodeKind::StructDecl ||
-                       node->kind() == ASTNodeKind::VariantDecl ||
-                       node->kind() == ASTNodeKind::UnionDecl) {
-                auto* def = node->as_extendable_member_container();
-                if (lower_container(def)) continue;
-            } else if (node->kind() == ASTNodeKind::VarInitStmt) {
-                auto* vi = node->as_var_init_unsafe();
-                if (vi->is_top_level() && !vi->is_comptime()) {
-                    decl_emitter.implement(visitor.writer, node);
+            switch (node->kind()) {
+                case ASTNodeKind::FunctionDecl:
+                    if (!lower_and_emit(node->as_function())) legacy_visit(node);
+                    continue;
+                case ASTNodeKind::StructDecl:
+                case ASTNodeKind::VariantDecl:
+                case ASTNodeKind::UnionDecl:
+                    lower_container(node->as_extendable_member_container());
+                    continue;
+                case ASTNodeKind::VarInitStmt: {
+                    auto* vi = node->as_var_init_unsafe();
+                    if (vi->is_top_level() && !vi->is_comptime()) {
+                        decl_emitter.implement(visitor.writer, node);
+                    } else {
+                        legacy_visit(node);
+                    }
                     continue;
                 }
-            } else if (node->kind() == ASTNodeKind::ImplDecl) {
-                if (lower_impl(node->as_impl_def_unsafe())) continue;
-            } else if (node->kind() == ASTNodeKind::NamespaceDecl) {
-                auto* ns = node->as_namespace_unsafe();
-                if (!ns->is_comptime()) process_nodes(ns->nodes);
-                continue;
-            } else if (node->kind() == ASTNodeKind::Scope) {
-                process_nodes(node->as_scope_unsafe()->nodes);
-                continue;
+                case ASTNodeKind::ImplDecl:
+                    if (!lower_impl(node->as_impl_def_unsafe())) legacy_visit(node);
+                    continue;
+                case ASTNodeKind::NamespaceDecl: {
+                    auto* ns = node->as_namespace_unsafe();
+                    if (!ns->is_comptime()) process_nodes(ns->nodes);
+                    continue;
+                }
+                case ASTNodeKind::Scope:
+                    process_nodes(node->as_scope_unsafe()->nodes);
+                    continue;
+                case ASTNodeKind::EmbeddedNode:
+                    legacy_visit(node);
+                    continue;
+                default:
+                    decl_emitter.implement(visitor.writer, node);
+                    continue;
             }
-            decl_emitter.implement(visitor.writer, node);
         }
     };
     process_nodes(nodes);

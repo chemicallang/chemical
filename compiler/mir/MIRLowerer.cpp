@@ -6231,11 +6231,22 @@ void MIRLowerer::async_emit_frame_helpers(FunctionDeclaration* decl) {
             std::string dname = mir_sym_name(module_, dtor);
             if (dname.empty()) continue;
             const std::string field = "__chx__af->" + async_slot_field(id);
+            // an array slot destroys each element, last to first
+            BaseType* canon = slot.type->canonical();
+            std::string call;
+            if (canon && canon->kind() == BaseTypeKind::Array) {
+                const std::string iv = "__chx_di" + std::to_string(id);
+                call = "for (unsigned long " + iv + " = " +
+                       std::to_string(canon->as_array_type_unsafe()->get_array_size()) +
+                       "; " + iv + "-- > 0;) " + dname + "(&" + field + "[" + iv + "])";
+            } else {
+                call = dname + "(&" + field + ")";
+            }
             if (async_drop_flag_slots_.count(id) != 0) {
                 async_post_decls_ += "            if(__chx__af->" + async_drop_flag_field(id) +
-                                     ") { " + dname + "(&" + field + "); }\n";
+                                     ") { " + call + "; }\n";
             } else {
-                async_post_decls_ += "            " + dname + "(&" + field + ");\n";
+                async_post_decls_ += "            " + call + ";\n";
             }
         }
         const std::string child = "__chx__af->" + async_child_field(static_cast<unsigned>(i));

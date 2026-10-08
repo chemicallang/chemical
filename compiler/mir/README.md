@@ -8,20 +8,54 @@ here. Binding rules: **no feature flags, no legacy fallback, no capability
 analysis;** generated C must stay functionally equivalent (not textually);
 the release compiler must stay under 4 MB.
 
-## Current status (latest commit)
+## Current status (verified with a clean test-exe cache)
 
-**All suites are green with ZERO MIR fallbacks:**
+Verified `2026-10-08` with the per-module C cache cleared (`--no-cache`):
+
 `./scripts/test.sh --tcc` -> 2279 passed, 0 failed;
 `--tcc --interpret` -> 1875 passed, 0 failed;
 `--tcc --libs` -> 718/719 (one environment-sensitive `fs` test);
 `--tcc --plugins` -> 1296 passed, 0 failed;
-`--tcc --async` -> 52/53 (one environment-sensitive suspend test);
+`--tcc --async` -> 53 passed, 0 failed;
 `--tcc --process` -> 127 passed, 0 failed;
-`--tcc --server` -> 9 passed, 0 failed;
+`--tcc --server` -> 8/9 (one double-free in the http parser, see below);
 `--tcc --webview` -> 51 passed, 0 failed;
-`--tcc --regexp` -> 143 passed, 0 failed.
-`MIRTests` is green. `cstd`, `std`, `lab`, all libraries and all module build
-scripts translate through MIR.
+`--tcc --regexp` -> 143 passed, 0 failed;
+`--tcc --negative` -> 311/318 (7 pre-existing diagnostic/exit-code gaps,
+unrelated to codegen).
+`MIRTests` is green (1049 checks). `cstd`, `std`, `lab`, all libraries and all
+module build scripts translate through MIR.
+
+> ⚠️ **Always clear `lang/tests/build/chemical-tests.dir` and
+> `lang/tests/build/lab` before recording a suite result.** The per-module C is
+> cached; several regressions (bcrypt, server, async) were hidden behind a
+> stale cache. `--no-cache` alone does not invalidate the per-module C.
+
+### Fixed in this session
+
+- **13 GB OOM (TinyCC build script).** `IndexAddr` emitted `base[index]` for an
+  array-typed value, which C spells as a pointer-to-array (`char (*v)[N]`), so
+  the stride was the whole array. `&raw storage.sso.buffer[off]` wrote 176 bytes
+  past the SSO buffer, corrupting the host heap; the corrupted `std::filesystem`
+  path made `getFilesInDirectory` recurse until the kernel OOM-killed the
+  compiler. `Load`/`Store` already deref array-typed bases; `IndexAddr` now
+  does too. Peak RSS for the main build: 7 GB+ -> 76 MB.
+- **Cast of a pointer place.** `src as *u8` on an array/pointer/reference place
+  took the address of the pointer *variable* (`(uint8_t*)&p`) instead of the
+  pointer value. bcrypt's `bf_encode` read the stack.
+- **Multi-dimensional array field declarator.** `FieldAddr` built
+  `uint (*v)[256][4]` instead of `uint (*v)[4][256]`.
+- **Codegen performance / single-use inlining.** The emitter now collapses
+  single-use, type-preserving values (address chains, casts, constants, param
+  spills, parameter loads) into their use site. Arithmetic is wrapped in an
+  explicit cast to its MIR type so C integer promotion cannot change
+  overflow/negation results. bcrypt cost-12: 3.9 s -> 1.0 s (legacy 0.6 s).
+- **Async array destruction.** A coroutine frame slot of an array type was
+  destroyed with a single `dtor(&slot)`; the raw-C `__drop` helper and the
+  `Destroy` opcode now loop over elements.
+- **Constructor argument mapping.** Constructor calls used `self_included=true`,
+  offsetting the parameter list by one; constructors have no self param (the
+  result goes through the hidden sret pointer). This broke the server build.
 
 **Every top-level function body (including extern-free, comptime-free bodies and
 functions returning function pointers) is now emitted by MIR** — a build with a
@@ -127,15 +161,42 @@ Diagnosis method that worked: run the compiler under lldb
 -o run -o "bt 30" -- ./cmake-build-debug/TCCCompiler.exe ...`) until the
 `Exception 0x80000003` fired at `std::vector<unsigned int>::operator[]`.
 
-### 2. Legacy bridge still used for some constructs
+### 2. Legacy bridge still used for *declarations* (not bodies)
 
-`[MIR] lowering failed` cases (function-level fallback). Common ones:
-- `ValueKind::LambdaFunc` (kind 8) and other lambda/`std::function` constructs.
-- `ExpressiveString` (46), `RuntimeBlockValue` (44).
-- `call to unresolved function` for a few imported build-script bodies whose
-  identifiers are not linked in this compilation mode.
-- `capturing function call is not yet supported`, `reference-to-reference
-  method receiver`, functions returning function pointers (routed to legacy).
+Function *bodies* are 100% MIR (0 `[MIR] lowering failed` in the main suite).
+The legacy visitor is still reachable from `mir_translate_after_declaration`
+for the non-function top-level nodes that `MIRDeclEmitter::implement` does not
+cover. Removing the fallback (`visitor.visit(node)` -> `decl_emitter.implement`)
+currently produces unresolved `std_char_hash` / `std_uchar_hash` / ... symbols
+and a crash, so **the legacy visitor cannot be deleted yet**. What must be
+ported to `MIRDeclEmitter` first:
+
+- **Primitive `impl` methods** (`impl Hash for char { func hash(&self) ... }`).
+  `lower_impl` returns false when the impl has no struct container
+  (`// primitive impls: keep the legacy path`) and the legacy visitor emits the
+  mangled methods. This is the immediate blocker for the hash symbols.
+- Generic function/variant/type declaration bodies and `GenericFuncDecl` /
+  `GenericStructDecl` / ... that the legacy visitor emits beyond the
+  instantiations MIR already lowers.
+- Typealias / interface / enum definitions still reached via the fallback
+  (their `declare` pass already runs through `MIRDeclEmitter`).
+- Extern/comptime `FunctionDecl` prototypes (declared in `declare_module`;
+  the implement-pass visit is mostly redundant).
+
+Once those are emitted by `MIRDeclEmitter`, the fallback and the
+`ToCAstVisitor` / `2cASTVisitor` / `CDestructionVisitor` files can be deleted.
+
+### 2b. Server: double-free in the http parser (one test)
+
+`FRAM_truncated_chunked_body_terminates_at_body_timeout` aborts with
+`free(): double free detected in tcache 2` in
+`http_httpRequestdelete -> http_httpHeaderMapdelete -> vector<pair<string,string>>::delete`.
+The header pair strings are shallow-copied through `HeaderMap.insert` ->
+`push_back` -> `push` (each `memcpy`s the pair and clears its own local drop
+flag), so a string's heap buffer is owned by more than one place. The legacy
+visitor handled this via direct-by-pointer parameter mutation; MIR's
+copy-then-move parameter ABI is the suspect. Needs a focused lifetime
+investigation.
 
 ### 3. Aggregate layout milestone
 

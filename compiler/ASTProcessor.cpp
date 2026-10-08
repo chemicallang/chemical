@@ -1997,8 +1997,7 @@ bool mir_translate_after_declaration(
             const bool ok = lower_and_emit(m->as_function_unsafe());
             if (iface) iface->active_user = prev;
             if (!ok) {
-                visitor.top_level_position = visitor.writer.getPosition();
-                visitor.visit(m);
+                visitor.error(m) << "MIR lowering of interface method failed";
             }
         }
         if (iface && for_decl) {
@@ -2008,8 +2007,7 @@ bool mir_translate_after_declaration(
                 const bool ok = lower_and_emit(func);
                 iface->active_user = prev;
                 if (!ok) {
-                    visitor.top_level_position = visitor.writer.getPosition();
-                    visitor.visit(func);
+                    visitor.error(func) << "MIR lowering of interface default method failed";
                 }
             }
         }
@@ -2039,17 +2037,9 @@ bool mir_translate_after_declaration(
             // Generic function declarations are templates; their instantiated
             // copies are lowered separately.
             if (child->kind() == ASTNodeKind::GenericFuncDecl) continue;
-            visitor.top_level_position = visitor.writer.getPosition();
-            visitor.visit(child);
+            visitor.error(child) << "MIR lowering of container member failed";
         }
         return true;
-    };
-    // The legacy visitor is still the fallback for (a) a function/method whose
-    // MIR lowering failed and (b) CBI-generated `EmbeddedNode`s (e.g. a
-    // `#universal` component's SSR function). Everything else is MIR.
-    auto legacy_visit = [&](ASTNode* node) {
-        visitor.top_level_position = visitor.writer.getPosition();
-        visitor.visit(node);
     };
     std::function<void(const std::vector<ASTNode*>&)> process_nodes =
         [&](const std::vector<ASTNode*>& list) {
@@ -2059,7 +2049,9 @@ bool mir_translate_after_declaration(
                     auto* fd = node->as_function();
                     // extern/comptime functions have no MIR body; their
                     // prototypes are emitted by the MIR declaration pass.
-                    if (mir_eligible_function(fd) && !lower_and_emit(fd)) legacy_visit(node);
+                    if (mir_eligible_function(fd) && !lower_and_emit(fd)) {
+                        visitor.error(node) << "MIR lowering failed";
+                    }
                     continue;
                 }
                 case ASTNodeKind::StructDecl:
@@ -2075,7 +2067,9 @@ bool mir_translate_after_declaration(
                     continue;
                 }
                 case ASTNodeKind::ImplDecl:
-                    if (!lower_impl(node->as_impl_def_unsafe())) legacy_visit(node);
+                    if (!lower_impl(node->as_impl_def_unsafe())) {
+                        visitor.error(node) << "MIR lowering of impl failed";
+                    }
                     continue;
                 case ASTNodeKind::NamespaceDecl: {
                     auto* ns = node->as_namespace_unsafe();

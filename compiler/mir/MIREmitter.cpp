@@ -180,6 +180,21 @@ std::string c_type_of(const MIRModule& module, TypeId type) {
             if (r.size == 16) return "long double";
             return "double";
         case MIRTypeKind::Pointer: {
+            if (r.element != MIR_INVALID_ID && r.element < module.types.size() &&
+                module.types.get(r.element).kind == MIRTypeKind::Array) {
+                // pointer to array: `T (*)[N]...` (dimensions outer-to-inner)
+                std::string dims;
+                TypeId cur = r.element;
+                while (cur != MIR_INVALID_ID && cur < module.types.size() &&
+                       module.types.get(cur).kind == MIRTypeKind::Array) {
+                    const MIRTypeRecord& rr = module.types.get(cur);
+                    dims += "[" + std::to_string(rr.data_count) + "]";
+                    cur = rr.element;
+                }
+                std::string base = c_type_of(module, cur);
+                if (!(r.flags & TF_MUTABLE)) base = "const " + base;
+                return base + " (*)" + dims;
+            }
             const std::string pointee = c_type_of(module, r.element);
             if (!(r.flags & TF_MUTABLE)) return "const " + pointee + "*";
             return pointee + "*";
@@ -917,7 +932,27 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     } else {
                         rhs = operand_expr(function, module, *a);
                     }
-                    out += place_name(module, function, p->id) + " = " + rhs + ";\n";
+                    // arrays are not assignable in C: copy the source bytes
+                    const TypeId dst_t = function.places[p->id].type;
+                    if (dst_t != MIR_INVALID_ID && dst_t < module.types.size() &&
+                        module.types.get(dst_t).kind == MIRTypeKind::Array) {
+                        std::string src_addr;
+                        if (a->kind() == MIROperandKind::Place) {
+                            const MIRTypeRecord& atr =
+                                module.types.get(function.places[a->id].type);
+                            src_addr = (atr.kind == MIRTypeKind::Pointer ||
+                                        atr.kind == MIRTypeKind::Reference)
+                                           ? ("*" + place_name(module, function, a->id))
+                                           : ("&" + place_name(module, function, a->id));
+                        } else {
+                            src_addr = operand_expr(function, module, *a);
+                        }
+                        out += "memcpy(&" + place_name(module, function, p->id) + ", " +
+                               src_addr + ", sizeof(" + place_name(module, function, p->id) +
+                               "));\n";
+                    } else {
+                        out += place_name(module, function, p->id) + " = " + rhs + ";\n";
+                    }
                 }
                 break;
             }

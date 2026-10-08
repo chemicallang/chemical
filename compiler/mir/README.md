@@ -57,6 +57,34 @@ module build scripts translate through MIR.
   offsetting the parameter list by one; constructors have no self param (the
   result goes through the hidden sret pointer). This broke the server build.
 
+### Fixed in this session (differential review vs the legacy 2c visitor)
+
+Found by writing core-language differential probes against the design contract
+(`mir-design.md`) and the LLVM backend. Regression tests live in
+`lang/tests/common/src/destructors/order.ch` (all backends) and
+`lang/tests/src/basic/{array_assignment,pointer_to_array}.ch` (compiled).
+
+- **Destruction order was forward, not reverse.** `emit_drops()`,
+  `lower_scope_nodes`, `lower_scope_value` and the block-value cleanup all
+  iterated `destructibles_` in declaration order, so scope/function/array
+  cleanup destroyed the *first* local first. `mir-design.md` §7.4 requires
+  reverse initialization order (and the legacy 2c visitor and the LLVM backend
+  both do it). All four loops now use `emit_drops_from(mark)` (innermost-first).
+  The interpreter's `InterpretScope::destroy_values` and its array-element loop
+  had the same forward-order bug and are now reverse too.
+- **Whole-array assignment emitted invalid C.** `arr2 = arr1` (locals,
+  multi-dimensional arrays, or an array-typed struct field) reached the generic
+  `Store` path and printed `dest = src`; C rejects array assignment. The emitter
+  now `memcpy`s the source bytes for an array-typed destination, and the
+  assign-statement address path copies from the source address instead of
+  loading (a load declared `T v[N] = *ptr`, also invalid).
+- **Pointer-to-array was decayed to `T**`.** `MIRTypeBuilder::map` rewrote a
+  pointer whose pointee is an array (`*mut [N]T`) to a pointer-to-pointer to
+  match the old legacy declaration spelling. That made `&raw mut a[i]` on a
+  multi-dimensional array a `T**`, so `p + 1` / `p[j]` read a pointer value out
+  of the array data (crash). The decay is removed and `c_type_of` now spells
+  pointer-to-array as `T (*)[N]...` (the named `declarator` already did).
+
 **Every top-level function body (including extern-free, comptime-free bodies and
 functions returning function pointers) is now emitted by MIR** — a build with a
 `legacy-emitted body` counter reports **0** for the main suite. The only
@@ -295,6 +323,16 @@ uses the name pool, not layout. Needed before LLVM lowering.
   a pointer to the first element (`arr[i]`), not a pointer-to-array
   (`(&arr)[i]`). `intern_global` records the symbol type and `GlobalAddr` emits
   the bare name (decay) for array globals.
+- **Destruction order is reverse**: every scope/function/break/continue cleanup
+  must drop `destructibles_` innermost-first. Use `emit_drops_from(mark)` (or
+  `emit_drops()` which forwards to it); never iterate `destructibles_` forward
+  when emitting drops. Struct *members* are the exception: declaration order.
+- **Arrays are not assignable in C**: any whole-array destination (local,
+  element, field, through a pointer) must `memcpy` from the source address; never
+  `load` an array (which spells `T v[N] = *ptr`) or emit `dest = src`.
+- **`*mut [N]T` is pointer-to-array** (`T (*)[N]`), not `T**`. Do not decay an
+  array pointee in `MIRTypeBuilder::map`; `declarator`/`c_type_of` spell the
+  pointer-to-array form.
 
 ## Invariants to preserve
 

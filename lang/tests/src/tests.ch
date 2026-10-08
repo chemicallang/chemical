@@ -67,6 +67,8 @@ func run_executable_tests() {
     test_hashing();
     test_vectors();
     test_array_refs();
+    test_array_assignment();
+    test_pointer_to_array();
     test_optional_type();
     test_result_type();
     test_unordered_map();

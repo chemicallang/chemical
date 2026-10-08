@@ -645,11 +645,12 @@ static void destroy_value_recursive(InterpretScope& scope, Value* target_val) {
         }
     } else if(target_val->val_kind() == ValueKind::ArrayValue) {
         auto arrVal = target_val->as_array_value_unsafe();
-        // Destruct each element that is a struct value with a destructor.
+        // Destruct each element that is a struct value with a destructor, from
+        // the last element to the first (mir-design.md §7.4).
         // Elements were populated by evaluated_value() or by set_value() and
         // AddrOfValue already creates PointerValues pointing directly into this
         // vector, so modifications through &arr[i] affect the actual elements.
-        for(size_t ei = 0; ei < arrVal->values.size(); ei++) {
+        for(size_t ei = arrVal->values.size(); ei-- > 0;) {
             auto elemVal = arrVal->values[ei];
             if(!elemVal) continue;
             // Resolve Identifier elements (from move semantics like [d])
@@ -668,7 +669,12 @@ static void destroy_value_recursive(InterpretScope& scope, Value* target_val) {
 }
 
 void InterpretScope::destroy_values() {
-    for(auto& [name, val] : values) {
+    // Destruction is normative in reverse initialization order (mir-design.md
+    // §7.4): the most recently declared local is destroyed first, matching the
+    // C and LLVM backends. `values` is insertion-ordered, so iterate backwards.
+    for (auto it = values.end(); it != values.begin();) {
+        --it;
+        Value* val = it->second;
         if (val == nullptr) continue;
         // Skip the return value (it's been moved to the caller)
         if(val == returnValue) continue;

@@ -1303,10 +1303,9 @@ void MIRLowerer::clear_moved_ref(Value* value) {
 }
 
 void MIRLowerer::emit_drops() {
-    for (auto& d : destructibles_) {
-        const ValueId fv = builder_->load(d.flag, types_.bool_type());
-        builder_->drop(d.place, d.dtor, fv);
-    }
+    // local/parameter scope destruction is reverse order of initialization
+    // (mir-design.md §7.4); emit_drops_from already iterates innermost-first
+    emit_drops_from(0);
 }
 
 void MIRLowerer::emit_drops_from(size_t mark) {
@@ -3718,11 +3717,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     return MIRExprResult::error();
                 }
                 if (!builder_->current_block_terminated()) {
-                    for (size_t i = mark; i < destructibles_.size(); ++i) {
-                        const ValueId fv =
-                            builder_->load(destructibles_[i].flag, types_.bool_type());
-                        builder_->drop(destructibles_[i].place, destructibles_[i].dtor, fv);
-                    }
+                    emit_drops_from(mark);
                 }
                 destructibles_.resize(mark);
             } else if (!lower_scope_value(*scope, dest, vt, error)) {
@@ -4571,6 +4566,13 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 if (ptr.kind == MIRTypeKind::Pointer || ptr.kind == MIRTypeKind::Reference) {
                     // the target is a pointer/reference: the address is the value
                     builder_->store(place, static_cast<ValueId>(r.id));
+                } else if (ptr.kind == MIRTypeKind::Array) {
+                    // arrays are not assignable in C: the emitter copies the
+                    // source bytes from the address (a load would declare an
+                    // array initialized from a dereference, which is invalid C)
+                    builder_->emit(MIROpcode::Store, MIR_NULL,
+                                   {MIROperand::place(place, place_type),
+                                    MIROperand::value(static_cast<ValueId>(r.id), r.type)});
                 } else {
                     const ValueId loaded =
                         builder_->load_indirect(static_cast<ValueId>(r.id), place_type);
@@ -5135,10 +5137,7 @@ bool MIRLowerer::lower_scope_nodes(std::vector<ASTNode*>& nodes, std::string& er
     }
     // destroy locals declared in this scope (unless they were moved out)
     if (!builder_->current_block_terminated()) {
-        for (size_t i = mark; i < destructibles_.size(); ++i) {
-            const ValueId fv = builder_->load(destructibles_[i].flag, types_.bool_type());
-            builder_->drop(destructibles_[i].place, destructibles_[i].dtor, fv);
-        }
+        emit_drops_from(mark);
     }
     destructibles_.resize(mark);
     return true;
@@ -5184,10 +5183,7 @@ bool MIRLowerer::lower_scope_value(Scope& scope, PlaceId dest, TypeId dest_t,
     const size_t smark = stmt_temps_.size();
     auto finish = [&]() -> bool {
         if (!builder_->current_block_terminated()) {
-            for (size_t i = mark; i < destructibles_.size(); ++i) {
-                const ValueId fv = builder_->load(destructibles_[i].flag, types_.bool_type());
-                builder_->drop(destructibles_[i].place, destructibles_[i].dtor, fv);
-            }
+            emit_drops_from(mark);
             flush_stmt_temps(smark);
         } else {
             stmt_temps_.resize(smark);

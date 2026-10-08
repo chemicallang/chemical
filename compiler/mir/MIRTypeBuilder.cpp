@@ -265,13 +265,11 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
         case BaseTypeKind::Pointer: {
             auto* pt = type->as_pointer_type();
             TypeId pointee = map(pt->type);
-            // the legacy visitor decays an array pointee in type position
-            // (`*mut [32]u8` -> `uint8_t**`); match it so declarations and
-            // bodies agree
-            if (pointee != MIR_INVALID_ID && pointee < module_.types.size() &&
-                module_.types.get(pointee).kind == MIRTypeKind::Array) {
-                pointee = pointer_type(module_.types.get(pointee).element, true);
-            }
+            // NOTE: do NOT decay an array pointee to a pointer here. `*mut [N]T`
+            // is a genuine pointer-to-array (`T (*)[N]`); decaying it to `T**`
+            // breaks indexing/stride through the pointer (`&raw mut a[i]` on a
+            // multi-dimensional array). The declarator/c_type_of spellings handle
+            // pointer-to-array directly.
             id = pointer_like(MIRTypeKind::Pointer, pointee, pt->is_mutable);
             break;
         }

@@ -154,6 +154,7 @@ public func run_common_tests() {
     test_variant_payload_move_value_if()
 
     test_auto_generated_destructors()
+    test_destructor_order()
 
 
     // References

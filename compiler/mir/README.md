@@ -3,6 +3,12 @@
 Branch: `mir`. Contract: `lang/docs/mir-implementation-plan.md` (§0 mandate,
 §11 baselines) and `lang/docs/mir-design.md` (§19 generated-C analysis).
 
+> **Next phase — MIR → LLVM migration:** the LLVM backend still lowers from the
+> AST and must be deleted and re-implemented as MIR → LLVM (with DWARF debug
+> info preserved through MIR). The full handoff, plan, prerequisites, debug-info
+> requirement, bug/test policy, and the copy/paste resume prompt live in
+> **`lang/docs/mir-llvm-migration.md`**. Read it before starting that work.
+
 MIR is the compiler's C lowering path. Read the plan before changing anything
 here. Binding rules: **no feature flags, no legacy fallback, no capability
 analysis;** generated C must stay functionally equivalent (not textually);

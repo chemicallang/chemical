@@ -10,27 +10,27 @@ first; it has the architecture, the full list of what is lowered, the exact
 type-spelling rules, the known issues, and the hard-won gotchas. This skill is a
 pointer plus the most important operational facts.
 
+> **NEXT PHASE — MIR → LLVM migration.** The LLVM backend still lowers from the
+> AST and must be deleted and re-implemented as MIR → LLVM, preserving DWARF
+> debug info through MIR. The full handoff/plan/contract (prerequisites,
+> checkpoints, debug-info requirement, bug/test policy, and a copy/paste resume
+> prompt for a fresh session) is in **`lang/docs/mir-llvm-migration.md`**. Read
+> it before starting that work.
+
 ## Status
 
 - Branch `mir`. Contract: `lang/docs/mir-implementation-plan.md`,
-  `lang/docs/mir-design.md`.
-- **All suites are green:**
-  `./scripts/test.sh --tcc` → 2263 passed;
-  `--interpret` → 1875; `--libs` → 719; `--plugins` → 1296;
-  `--async` → 53; `--process` → 127; `--server` → 9.
+  `lang/docs/mir-design.md`. Migration contract: `lang/docs/mir-llvm-migration.md`.
+- **MIR is the only C path; the legacy 2c visitor is deleted.** All TCC suites are
+  green at baseline `8001ecde3`:
+  `./scripts/test.sh --tcc` → 2292 passed; `--interpret` → 1883;
+  `--libs` → 718/719 (flaky atomic CAS); `--plugins` → 1296; `--async` → 53;
+  `--process` → 127; `--server` → 8/9 (flaky HTTP double-free).
   `MIRTests` green (1049 checks).
-- MIR owns the bodies of top-level `FunctionDeclaration`s **and async
-  functions** (the coroutine lowering is implemented in MIR, not the legacy C
-  visitor). Declarations and non-function top-level nodes still go through the
-  legacy visitor.
-- A **per-function legacy bridge** still exists for constructs MIR does not yet
-  lower: when MIR lowering fails, `mir_translate_after_declaration` prints
-  `[MIR] lowering failed (<fn>): <reason> -- falling back to the legacy visitor`
-  and lets the legacy visitor emit that function. **The goal is to eliminate
-  this entirely — do NOT add new fallbacks.** The remaining fallbacks are
-  unrelated general gaps (chained method calls, aggregate construction,
-  indexing aggregate elements, kind 8/16/29/48 values), not the async/server
-  paths.
+- The old per-function legacy bridge no longer exists — a lowering failure is a
+  diagnostic, not a fallback. Do **not** add fallbacks.
+- The LLVM backend is **not** migrated yet and the `--llvm` suite currently
+  aborts (`fatal: llvm_pointer called on bare Value`); see the migration doc §2.3.
 
 ## Files
 

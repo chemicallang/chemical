@@ -10,8 +10,10 @@
 #include "MIRModule.h"
 
 #include <functional>
+#include <map>
 #include <string>
 #include <unordered_map>
+#include <utility>
 
 class BaseType;
 class ASTNode;
@@ -141,8 +143,12 @@ private:
 
     MIRModule& module_;
     std::unordered_map<const BaseType*, TypeId> memo_;
-    std::unordered_map<const void*, uint32_t> decl_ids_;
-    std::unordered_map<const void*, TypeId> decl_types_;
+    // Keyed by (declaration node, aggregate kind): the AST arena reuses
+    // addresses after a file allocator reset, so keying on the bare pointer
+    // would collide a struct and a variant that happened to land on the same
+    // address.
+    std::map<std::pair<const void*, uint8_t>, uint32_t> decl_ids_;
+    std::map<std::pair<const void*, uint8_t>, TypeId> decl_types_;
     std::function<std::string(ASTNode*)> name_resolver_;
     TypeId fat_pointer_id_ = MIR_INVALID_ID;
     uint32_t inline_counter_ = 0;

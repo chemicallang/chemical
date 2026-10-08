@@ -120,11 +120,12 @@ void MIRTypeBuilder::ensure_inline_struct_name(TypeId id, BaseType* struct_type)
 }
 
 TypeId MIRTypeBuilder::aggregate_type(MIRTypeKind kind, const void* decl, BaseType* type) {
-    auto it = decl_types_.find(decl);
+    const auto agg_key = std::make_pair(decl, static_cast<uint8_t>(kind));
+    auto it = decl_types_.find(agg_key);
     if (it != decl_types_.end()) return it->second;
 
-    uint32_t did = decl_ids_.size();
-    decl_ids_[decl] = did;
+    uint32_t did = static_cast<uint32_t>(decl_ids_.size());
+    decl_ids_[agg_key] = did;
 
     MIRTypeRecord r;
     r.kind = kind;
@@ -149,7 +150,7 @@ TypeId MIRTypeBuilder::aggregate_type(MIRTypeKind kind, const void* decl, BaseTy
 
     TypeId id = static_cast<TypeId>(module_.types.types.size());
     module_.types.types.push_back(r);
-    decl_types_[decl] = id;
+    decl_types_[agg_key] = id;
     if (name_resolver_ && decl) {
         std::string name = name_resolver_(reinterpret_cast<ASTNode*>(const_cast<void*>(decl)));
         if (!name.empty()) {

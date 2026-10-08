@@ -161,30 +161,38 @@ Diagnosis method that worked: run the compiler under lldb
 -o run -o "bt 30" -- ./cmake-build-debug/TCCCompiler.exe ...`) until the
 `Exception 0x80000003` fired at `std::vector<unsigned int>::operator[]`.
 
-### 2. Legacy bridge still used for *declarations* (not bodies)
+### 2. Legacy bridge: two remaining construct classes
 
-Function *bodies* are 100% MIR (0 `[MIR] lowering failed` in the main suite).
-The legacy visitor is still reachable from `mir_translate_after_declaration`
-for the non-function top-level nodes that `MIRDeclEmitter::implement` does not
-cover. Removing the fallback (`visitor.visit(node)` -> `decl_emitter.implement`)
-currently produces unresolved `std_char_hash` / `std_uchar_hash` / ... symbols
-and a crash, so **the legacy visitor cannot be deleted yet**. What must be
-ported to `MIRDeclEmitter` first:
+Function *bodies* are 100% MIR (0 `[MIR] lowering failed` in the main suite),
+and **primitive impls** (`impl Hash for char`) now lower through MIR.
+`process_nodes` makes the legacy fallback explicit: it is used only for
 
-- **Primitive `impl` methods** (`impl Hash for char { func hash(&self) ... }`).
-  `lower_impl` returns false when the impl has no struct container
-  (`// primitive impls: keep the legacy path`) and the legacy visitor emits the
-  mangled methods. This is the immediate blocker for the hash symbols.
-- Generic function/variant/type declaration bodies and `GenericFuncDecl` /
-  `GenericStructDecl` / ... that the legacy visitor emits beyond the
-  instantiations MIR already lowers.
-- Typealias / interface / enum definitions still reached via the fallback
-  (their `declare` pass already runs through `MIRDeclEmitter`).
-- Extern/comptime `FunctionDecl` prototypes (declared in `declare_module`;
-  the implement-pass visit is mostly redundant).
+1. a function/method whose MIR lowering failed, and
+2. CBI-generated top-level `EmbeddedNode`s.
 
-Once those are emitted by `MIRDeclEmitter`, the fallback and the
-`ToCAstVisitor` / `2cASTVisitor` / `CDestructionVisitor` files can be deleted.
+Two construct classes are deliberately still on the legacy path and are the
+only things blocking deletion of `ToCAstVisitor` / `2cASTVisitor` /
+`CDestructionVisitor`:
+
+- **Static `@compiler.interface` / `@static` impls.** `lower_impl` returns
+  false for `iface->is_static()`. Lowering them through MIR (removing the
+  early return, using the interface's erased `void**` self ABI) makes the CBI
+  plugins' `support` state corrupt *nondeterministically*: the generated test
+  code swaps `SsrAttribute` / `SsrAttributeList*` / `StringStream` / etc. The
+  static-interface self ABI itself is correct (verified on `js`'s
+  `JsNodeEmitter` impl), so the corruption is elsewhere in the CBI plugin
+  runtime (`universal_replacementNode`'s `var support = root.support` copy and
+  the `JsConverter` named-field init are the suspects).
+- **`#universal` `EmbeddedNode` SSR functions.** Resolving the replacement and
+  lowering it through MIR mistypes an `SsrAttribute[1]` attribute array as
+  `std_StringStream[1]` (the `build_ssr_attributes` `make_array_value` element
+  type), while the legacy visitor emits it correctly. Until that type mapping
+  is fixed, `EmbeddedNode` stays on the legacy visitor.
+
+Note: when the compiler changes, the **CBI plugin object cache is not
+invalidated** — stale plugin objects produce bogus generated code. Always clear
+`lang/tests/build/*.dir` (not just `chemical-tests.dir`) before judging a
+plugin/CBI change.
 
 ### 2b. Server: double-free in the http parser (one test)
 

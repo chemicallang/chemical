@@ -582,6 +582,16 @@ public:
     );
 
     /**
+     * Emit the stub implementations of static interfaces that were declared but
+     * never implemented (their default methods, as free functions). This must
+     * run once, after every module has been implemented, so the set of
+     * implemented interfaces is final.
+     */
+    int emit_static_interface_stubs(
+        ToCAstVisitor& visitor
+    );
+
+    /**
      * prints the diagnostics collected while translating a file to C and tells whether
      * any of them was an error. Errors during translation mean the generated C cannot
      * be trusted, so the build must be stopped instead of continuing with bad code

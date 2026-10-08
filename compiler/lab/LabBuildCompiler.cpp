@@ -1916,6 +1916,12 @@ int LabBuildCompiler::link_cbi_job(LabJob* cbiJob, std::vector<LabModule*>& depe
         job->objects.emplace_back(job_obj_path);
     }
 
+    // emit stub implementations of static interfaces that were never
+    // implemented (their default methods as free functions)
+    if (processor.emit_static_interface_stubs(c_visitor) != 0) {
+        return 1;
+    }
+
     // end the translation (must be done)
     c_visitor.end_translate();
 

@@ -2304,3 +2304,110 @@ int ASTProcessor::implement_module(
     return had_errors ? 1 : 0;
 
 }
+
+int ASTProcessor::emit_static_interface_stubs(ToCAstVisitor& c_visitor) {
+    if (c_visitor.unimplemented_static_interfaces.empty()) return 0;
+
+    mir::MIRModule mir_module;
+    mir::MIRTypeBuilder mir_types(mir_module);
+    mir_types.set_name_resolver([&c_visitor](ASTNode* n) {
+        return mir_mangle_name(c_visitor.mangler, n);
+    });
+    mir::MIRLowerer mir_lowerer(mir_module, mir_types);
+    mir_lowerer.set_mangler([&c_visitor](ASTNode* n) {
+        return mir_mangle_name(c_visitor.mangler, n);
+    });
+    mir_lowerer.set_vtable_mangler([&c_visitor](ASTNode* iface, BaseType* impl) -> std::string {
+        if (!iface || !impl) return std::string();
+        BufferedWriter w(256);
+        auto* idef = iface->as_interface_def_unsafe();
+        ASTNode* inode = impl->get_direct_linked_canonical_node();
+        if (!inode) inode = impl->get_direct_linked_node();
+        auto* container = inode ? inode->as_extendable_member_container() : nullptr;
+        if (container) {
+            c_visitor.mangler.mangle_vtable_name(w, idef, container);
+        } else {
+            c_visitor.mangler.mangle_vtable_name(w, idef, impl);
+        }
+        return std::string(w.data(), w.getPosition());
+    });
+    mir_lowerer.set_comptime_if_resolver([&c_visitor](IfStatement* stmt, std::string& err) -> Scope* {
+        auto resolved = stmt->get_or_resolve_scope(c_visitor.comptime_scope, c_visitor);
+        if (!resolved.has_value() || resolved.value() == nullptr) {
+            err = "failed to resolve comptime if";
+            return nullptr;
+        }
+        return resolved.value();
+    });
+    mir_lowerer.set_comptime_eval([&c_visitor](FunctionCall* call, FunctionDeclaration* decl) {
+        return c_visitor.eval_comptime_call(call, decl);
+    });
+    mir_lowerer.set_comptime_value_eval([&c_visitor](Value* v) -> Value* {
+        if (!v) return nullptr;
+        return v->evaluated_value(c_visitor.comptime_scope);
+    });
+    mir_lowerer.set_comptime_ctor_eval([&c_visitor](FunctionDeclaration* ctor, Value* arg) {
+        return c_visitor.eval_comptime_ctor(ctor, arg);
+    });
+    mir_lowerer.set_current_func([&c_visitor](FunctionTypeBody* f) {
+        c_visitor.current_func_type = f;
+    });
+    mir_lowerer.set_impls(&c_visitor.implsIndex, &c_visitor.coreNodes);
+    mir_lowerer.set_embedded_repl([&c_visitor](EmbeddedNode* node) -> ASTNode* {
+        return c_visitor.resolve_embedded_node(node);
+    });
+    mir_lowerer.set_async_normalize([&c_visitor](FunctionDeclaration* d) {
+        normalize_async_body(c_visitor.allocator, d);
+    });
+    mir_lowerer.set_embedded_value_repl([&c_visitor](EmbeddedValue* v) -> Value* {
+        return c_visitor.resolve_embedded_value(v);
+    });
+    mir::MIRArena mir_arena;
+    mir::MIRDeclEmitter mir_decl(mir_module, mir_types, c_visitor.mangler, loc_man,
+                                 c_visitor.comptime_scope, c_visitor.binder, c_visitor.allocator);
+    mir_decl.set_embedded_decl_repl([&c_visitor](EmbeddedNode* node) -> ASTNode* {
+        ASTBuilder builder(&c_visitor.allocator, c_visitor.comptime_scope.typeBuilder);
+        const auto fn = c_visitor.binder.findHook(node->name, CBIFunctionType::ReplacementNodeDeclare);
+        if (!fn) return nullptr;
+        return ((EmbeddedNodeReplacementFunc) fn)(&builder, &c_visitor, node);
+    });
+    mir_decl.set_value_eval([&c_visitor](Value* v) -> Value* {
+        return v ? v->evaluated_value(c_visitor.comptime_scope) : nullptr;
+    });
+
+    std::vector<ASTNode*> stub_nodes;
+    auto int_like = [](BaseTypeKind k) -> bool {
+        switch (k) {
+            case BaseTypeKind::IntN: case BaseTypeKind::Double: case BaseTypeKind::Float:
+            case BaseTypeKind::LongDouble: case BaseTypeKind::Pointer: case BaseTypeKind::NullPtr:
+            case BaseTypeKind::Reference: case BaseTypeKind::Bool: case BaseTypeKind::Float128:
+            case BaseTypeKind::Function: case BaseTypeKind::String:
+                return true;
+            default:
+                return false;
+        }
+    };
+    for (auto& pair : c_visitor.unimplemented_static_interfaces) {
+        for (FunctionDeclaration* func : pair.first->non_gen_range()) {
+            if (func->body.has_value()) {
+                stub_nodes.push_back(func);
+                continue;
+            }
+            // Bodyless method: emit a trivial stub that returns 0 for int-like
+            // return types (matching the legacy stub pass).
+            auto& w = c_visitor.writer;
+            c_visitor.new_line();
+            const std::string proto = mir_decl.function_proto(func);
+            w.append(proto.data(), proto.size());
+            w.append(" { ", 3);
+            if (func->returnType && int_like(func->returnType->canonical()->kind())) {
+                w.append("return 0; ", 10);
+            }
+            w.append("}", 1);
+        }
+    }
+    c_visitor.unimplemented_static_interfaces.clear();
+    if (stub_nodes.empty()) return 0;
+    return mir_translate_after_declaration(c_visitor, mir_module, mir_types, mir_lowerer,
+                                           mir_arena, mir_decl, stub_nodes) ? 1 : 0;
+}

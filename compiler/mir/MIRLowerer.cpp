@@ -10,6 +10,7 @@
 #include "ast/types/GenericType.h"
 #include "ast/types/DynamicType.h"
 #include "ast/structures/InterfaceDefinition.h"
+#include "ast/structures/ImplDefinition.h"
 #include "ast/base/Value.h"
 #include "ast/utils/Operation.h"
 #include "ast/values/IntNumValue.h"
@@ -7317,6 +7318,19 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     return MIRExprResult::value(v, lam_type);
 }
 
+// A method of an `impl StaticInterface for T` uses the interface's erased self
+// ABI (`void**`); see MIRDeclEmitter's identical helper.
+static FunctionDeclaration* lower_static_iface_base_method(FunctionDeclaration* decl) {
+    if (!decl) return nullptr;
+    ASTNode* parent = decl->parent();
+    if (!parent || parent->kind() != ASTNodeKind::ImplDecl) return nullptr;
+    auto* impl = parent->as_impl_def_unsafe();
+    if (!impl->interface_type) return nullptr;
+    auto* iface = impl->interface_type->get_direct_linked_interface();
+    if (!iface || !iface->is_static()) return nullptr;
+    return iface->direct_child_function(decl->name_view());
+}
+
 bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
                                 MIRFunction& func, std::string& error) {
     if (decl->is_async()) {
@@ -7338,6 +7352,9 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     return_type_ = decl->returnType;
     FunctionParam* self_param = decl->has_self_param() ? decl->get_self_param() : nullptr;
     current_self_param_ = self_param;
+    // a static interface impl method uses the interface's erased `void**` self ABI
+    FunctionDeclaration* static_base = lower_static_iface_base_method(decl);
+    FunctionParam* static_base_self = static_base ? static_base->get_self_param() : nullptr;
     destructor_def_ = decl->is_delete_fn() && decl->parent()
                           ? decl->parent()->as_extendable_member_container()
                           : nullptr;
@@ -7353,15 +7370,26 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
             ptypes.push_back(sret_ptr_type_);
         }
         if (self_param) {
-            TypeId pt = self_param->type ? types_.map(self_param->type) : types_.opaque_type();
-            if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
-            pt = types_.pointer_type(module_.types.get(pt).element, true);
-        } else if (needs_aggregate_path(module_, pt)) {
-            pt = types_.pointer_type(pt, true);
-        }
+            FunctionDeclaration* base = lower_static_iface_base_method(decl);
+            FunctionParam* base_self = base ? base->get_self_param() : nullptr;
+            TypeId pt;
+            if (base_self && base_self->type) {
+                pt = types_.map(base_self->type);
+            } else {
+                pt = self_param->type ? types_.map(self_param->type) : types_.opaque_type();
+                if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
+                    pt = types_.pointer_type(module_.types.get(pt).element, true);
+                } else if (needs_aggregate_path(module_, pt)) {
+                    pt = types_.pointer_type(pt, true);
+                }
+            }
             ptypes.push_back(pt);
         }
         for (FunctionParam* p : decl->params) {
+            if (p == current_self_param_ && static_base_self && static_base_self->type) {
+                ptypes.push_back(types_.map(static_base_self->type));
+                continue;
+            }
             TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
             if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
             pt = types_.pointer_type(module_.types.get(pt).element, true);
@@ -7422,7 +7450,13 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
         } else if (is_aggregate) {
             pt = types_.pointer_type(declared, true);
         }
-        ValueId pv = b.param(pt);
+        // the self param of a static interface impl method is `void**` on the
+        // ABI; cast it to the real receiver type before binding
+        const bool static_self = p == current_self_param_ && static_base_self &&
+                                 static_base_self->type;
+        const TypeId abi_pt = static_self ? types_.map(static_base_self->type) : pt;
+        ValueId pv = b.param(abi_pt);
+        if (static_self && abi_pt != pt) pv = b.cast(pv, pt);
         PlaceId place;
         if (is_aggregate) {
             // the aggregate is passed by a hidden pointer; materialize a

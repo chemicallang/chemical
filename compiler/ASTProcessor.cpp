@@ -1967,13 +1967,20 @@ bool mir_translate_after_declaration(
         if (!impl) return false;
         InterfaceDefinition* iface = impl->interface_type
             ? impl->interface_type->get_direct_linked_interface() : nullptr;
-        if (iface && iface->is_static()) return false;
+        // A static interface has no vtable: the impl's methods are emitted as
+        // free functions, and the interface no longer needs a stub. MIR lowers
+        // both the definition and the call with the ordinary method ABI.
+        if (iface && iface->is_static()) {
+            visitor.remove_static_interface_for_stub_impl(iface);
+        }
         ExtendableMembersContainerNode* for_decl = nullptr;
         if (impl->struct_type) {
             auto* mc = impl->struct_type->get_members_container();
             if (mc) for_decl = mc->as_extendable_members_container_unsafe();
         }
-        if (!for_decl) return false; // primitive impls: keep the legacy path
+        // `for_decl` is null for a primitive impl (`impl Hash for char`); the
+        // methods still lower through MIR, only the interface's default methods
+        // are generated solely for struct impls (matching the legacy visitor).
         ExtendableMembersContainerNode* prev = iface ? iface->active_user : nullptr;
         for (ASTNode* m : impl->evaluated_nodes()) {
             if (!m || m->kind() != ASTNodeKind::FunctionDecl) continue;
@@ -1985,7 +1992,7 @@ bool mir_translate_after_declaration(
                 visitor.visit(m);
             }
         }
-        if (iface) {
+        if (iface && for_decl) {
             for (FunctionDeclaration* func : iface->instantiated_functions()) {
                 if (impl->contains_direct_func(func->name_view())) continue;
                 iface->active_user = for_decl;
@@ -1996,6 +2003,8 @@ bool mir_translate_after_declaration(
                     visitor.visit(func);
                 }
             }
+        }
+        if (iface) {
             decl_emitter.implement(visitor.writer, impl);
         }
         return true;
@@ -2045,8 +2054,7 @@ bool mir_translate_after_declaration(
                 process_nodes(node->as_scope_unsafe()->nodes);
                 continue;
             }
-            visitor.top_level_position = visitor.writer.getPosition();
-            visitor.visit(node);
+            decl_emitter.implement(visitor.writer, node);
         }
     };
     process_nodes(nodes);

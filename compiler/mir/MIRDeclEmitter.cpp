@@ -98,6 +98,21 @@ std::string MIRDeclEmitter::decl_spelling(BaseType* type, const std::string& nam
     return c_declarator(module_, types_.map(type), name);
 }
 
+// A method of an `impl StaticInterface for T` is emitted with the interface's
+// erased self ABI (`void**`), not `T*`: the interface's own method declaration
+// carries that type and the impl's definition must match. Returns the
+// interface's matching method (whose self param has the erased type), or null.
+FunctionDeclaration* mir_static_iface_base_method(FunctionDeclaration* decl) {
+    if (!decl) return nullptr;
+    ASTNode* parent = decl->parent();
+    if (!parent || parent->kind() != ASTNodeKind::ImplDecl) return nullptr;
+    auto* impl = parent->as_impl_def_unsafe();
+    if (!impl->interface_type) return nullptr;
+    auto* iface = impl->interface_type->get_direct_linked_interface();
+    if (!iface || !iface->is_static()) return nullptr;
+    return iface->direct_child_function(decl->name_view());
+}
+
 TypeId MIRDeclEmitter::function_type_of(FunctionDeclaration* decl) {
     const TypeId ret = decl->returnType ? types_.map(decl->returnType) : types_.void_type();
     const bool sret = needs_sret(module_, ret);
@@ -120,7 +135,12 @@ TypeId MIRDeclEmitter::function_type_of(FunctionDeclaration* decl) {
         }
         return pt;
     };
-    if (self_param) ptypes.push_back(map_param(self_param));
+    if (self_param) {
+        FunctionDeclaration* base = mir_static_iface_base_method(decl);
+        FunctionParam* base_self = base ? base->get_self_param() : nullptr;
+        ptypes.push_back(base_self && base_self->type ? types_.map(base_self->type)
+                                                      : map_param(self_param));
+    }
     for (FunctionParam* p : decl->params) ptypes.push_back(map_param(p));
     if (decl->isVariadic() && !decl->params.empty()) ptypes.pop_back();
 

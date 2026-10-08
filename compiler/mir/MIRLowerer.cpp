@@ -1363,10 +1363,12 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
                 const TypeId mt = types_.map(conv_type);
                 const PlaceId tmp = builder_->alloca(mt, MIRStorageClass::Temporary);
                 std::vector<MIROperand> cargs;
-                if (!lower_call_args_for(ctor, true, acall->values, cargs, error)) {
+                const bool ctor_self = ctor && ctor->get_self_param() != nullptr;
+                if (!lower_call_args_for(ctor, ctor_self, acall->values, cargs, error)) {
                     return MIRExprResult::error();
                 }
-                if (ctor && !append_default_args(ctor, acall->values.size(), true, cargs, error)) {
+                if (ctor && !append_default_args(ctor, acall->values.size(), ctor_self, cargs,
+                                                 error)) {
                     return MIRExprResult::error();
                 }
                 if (ctor && ctor->is_comptime() && comptime_eval_) {
@@ -2962,10 +2964,14 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     if (ev) return lower_expr(ev, error);
                 }
                 std::vector<MIROperand> cargs;
-                if (!lower_call_args_for(ctor, true, call->values, cargs, error)) {
+                // constructors have no `self` parameter in `params` (the result
+                // is passed through the hidden sret pointer)
+                const bool ctor_self = ctor && ctor->get_self_param() != nullptr;
+                if (!lower_call_args_for(ctor, ctor_self, call->values, cargs, error)) {
                     return MIRExprResult::error();
                 }
-                if (ctor && !append_default_args(ctor, call->values.size(), true, cargs, error)) {
+                if (ctor && !append_default_args(ctor, call->values.size(), ctor_self, cargs,
+                                                 error)) {
                     return MIRExprResult::error();
                 }
                 if (ctor) {
@@ -3022,10 +3028,11 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                             ctor = call->getType()->get_def_constructor();
                         }
                         std::vector<MIROperand> cargs;
-                        if (!lower_call_args_for(ctor, true, call->values, cargs, error)) {
+                        const bool ctor_self = ctor && ctor->get_self_param() != nullptr;
+                        if (!lower_call_args_for(ctor, ctor_self, call->values, cargs, error)) {
                             return MIRExprResult::error();
                         }
-                        if (ctor && !append_default_args(ctor, call->values.size(), true, cargs,
+                        if (ctor && !append_default_args(ctor, call->values.size(), ctor_self, cargs,
                                                          error)) {
                             return MIRExprResult::error();
                         }

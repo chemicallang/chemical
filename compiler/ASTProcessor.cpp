@@ -1970,12 +1970,18 @@ bool mir_translate_after_declaration(
         // A static interface has no vtable: the impl's methods are emitted as
         // free functions, and the interface no longer needs a stub. MIR lowers
         // both the definition and the call with the ordinary method ABI.
-        // NOTE: kept on the legacy path for now — MIR lowering of the
-        // `@compiler.interface`/`@static` impls that back the CBI plugins is
-        // not yet correct (see README).
-        if (iface && iface->is_static()) {
-            return false;
-        }
+        // Mark the interface (and inherited interfaces) as implemented so the
+        // legacy end_translate stub pass does not also emit its default methods.
+        std::function<void(InterfaceDefinition*)> mark_static_impl = [&](InterfaceDefinition* i) {
+            if (!i) return;
+            if (i->is_static()) visitor.remove_static_interface_for_stub_impl(i);
+            for (auto& inherits : i->inherited) {
+                if (inherits.type) {
+                    mark_static_impl(inherits.type->get_direct_linked_node()->as_interface_def());
+                }
+            }
+        };
+        mark_static_impl(iface);
         ExtendableMembersContainerNode* for_decl = nullptr;
         if (impl->struct_type) {
             auto* mc = impl->struct_type->get_members_container();

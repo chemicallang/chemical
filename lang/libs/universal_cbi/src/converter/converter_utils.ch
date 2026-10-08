@@ -2964,7 +2964,12 @@ func (converter : &mut JsConverter) convert_ssr_attr_bool_expr(node : *mut JsNod
 // Looks up a local variable declared in the current universal component body
 // (see emit_ssr_local_decl). Returns null when the name is not a known local.
 func (converter : &mut JsConverter) find_ssr_local(name : std::string_view) : *JsSsrLocal {
-    for(var i : uint = 0; i < converter.ssr_locals.size(); i++) {
+    // Scan innermost-first: ssr_locals is a scope stack, so a callback param
+    // (`tabs.map((tab, i) => ...)`) must shadow an outer local of the same name
+    // (`var tab = style { ... }`). Scanning bottom-up returned the outer local.
+    var i = converter.ssr_locals.size();
+    while(i > 0) {
+        i = i - 1;
         if(converter.ssr_locals.get_ptr(i).name.equals(&name)) {
             return converter.ssr_locals.get_ptr(i);
         }

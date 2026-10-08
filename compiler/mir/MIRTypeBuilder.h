@@ -141,6 +141,15 @@ private:
     /** Give an inline (anonymous/locally-named) struct type a stable C name. */
     void ensure_inline_struct_name(TypeId id, BaseType* struct_type);
 
+public:
+    /**
+     * Drop the `BaseType*`-keyed memo. The AST file allocator is reset between
+     * files, so an address can be reused for a different type; a stale memo
+     * would then return the wrong `TypeId`. Call this after each file.
+     */
+    void clear_memo() { memo_.clear(); }
+
+private:
     MIRModule& module_;
     std::unordered_map<const BaseType*, TypeId> memo_;
     // Keyed by (declaration node, aggregate kind): the AST arena reuses

@@ -2070,9 +2070,17 @@ bool mir_translate_after_declaration(
                 case ASTNodeKind::Scope:
                     process_nodes(node->as_scope_unsafe()->nodes);
                     continue;
-                case ASTNodeKind::EmbeddedNode:
-                    legacy_visit(node);
+                case ASTNodeKind::EmbeddedNode: {
+                    auto* en = node->as_embedded_node_unsafe();
+                    ASTNode* repl = visitor.resolve_embedded_node(en);
+                    if (!repl) repl = en->replacement;
+                    if (repl) {
+                        en->replacement = repl;
+                        std::vector<ASTNode*> one{repl};
+                        process_nodes(one);
+                    }
                     continue;
+                }
                 default:
                     decl_emitter.implement(visitor.writer, node);
                     continue;
@@ -2259,6 +2267,9 @@ int ASTProcessor::implement_module(
         // clear everything we allocated using file allocator to make it re-usable
         // and other stuff to re use memory (makes it performant)
         c_visitor.file_level_reset();
+        // the file allocator reset lets a later file reuse addresses, so the
+        // BaseType*->TypeId memo must not survive across files
+        mir_types.clear_memo();
 
     }
 

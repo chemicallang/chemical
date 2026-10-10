@@ -78,6 +78,168 @@ MIR-first mandate (§0) already says "always lowers … to MIR and always emits 
 
 ## 2. Current state / baseline
 
+### 2.0 Progress log (live)
+
+- **Foundation started (uncommitted).** `compiler/mir/MIRTypeTable.h` /
+  `MIRTypeBuilder.{h,cpp}` now fill ordered runtime **aggregate field tables**
+  (structs, unions, variants with tag + per-case payload structs, enums) and a
+  new `compiler/CodegenMir.cpp` (COMPILER_BUILD-only) implements the first
+  `MIR → LLVM` lowering: `mir_type` (all MIR type kinds), `mir_function`
+  (declare), `mir_declare_globals`, and `mir_emit_function` for the core opcodes
+  (const, alloca, load/store, address-of, field/index address, unary/binary/
+  compare, cast, select, sizeof/alignof/offsetof, call/call-indirect,
+  init/copy-init/move-init/assign, drop/destroy/set-drop, memcpy/memset,
+  br/cond-br/return/unreachable).
+- **Driver wired (for the LLVM target):** `ASTProcessor::mir_compile_module`
+  (in `compiler/ASTCompiler.cpp`) builds the MIR module from the resolved AST
+  (types, symbols, top-level + container methods) and emits LLVM from MIR.
+  `compile_module` calls it; the AST lowering below is retained only as a
+  fallback until every construct is covered.
+- **Verified working end-to-end** on no-import probe modules (compile with
+  `--assertions`, run): scalar functions + calls, `for`/`while` control flow,
+  struct construction + field access, arrays + array parameters (decay),
+  pointers + pointer arithmetic, struct pointers, methods, `@delete`
+  destructors, enums + `switch`, variants + pattern matching, and globals.
+  Example output: `alive 7 / dtor 7 / done`, `g=5 c=200 300 / m=42 n=-1`.
+- **Known gaps found while probing:** the variant LLVM layout currently
+  concatenates case payloads instead of a union (functionally correct for the
+  self-consistent emitter, but larger than the C layout); interfaces /
+  `DynamicCall` (needs an LLVM vtable type + global declaration pass that MIR
+  does not yet carry), capturing functions / lambdas, CBI embedded nodes, inline
+  asm, async, and debug info are not lowered yet.
+- **Also fixed this session:** global *initializers* are now applied from AST
+  literals (`getNamedGlobal`, not `getGlobalVariable` — the latter skips internal
+  globals); bool→int casts zero-extend; unsigned `div`/`rem`/`shr`/comparisons
+  use the unsigned LLVM opcodes; the `__chemical_fat_pointer__` type now has its
+  `first`/`second` pointer fields.
+- **Tree health:** the `Compiler` target builds; the TCC main suite is
+  unaffected (all changed code is COMPILER_BUILD-only) and was green
+  (2292/2292) after the MIR layout change.
+- **Not done yet:** interfaces / `DynamicCall` / vtables, capturing functions /
+  lambdas, CBI `EmbeddedNode`/`EmbeddedValue`, inline asm, async coroutines,
+  debug info, and deleting the AST LLVM lowering (172 files / ~10k lines).
+- **Atomics lowered to first-class MIR ops (this session).** `intrinsics::llvm::atomic_*`
+  used to be *interpreted* during MIR construction; that path needs a live LLVM
+  `IRBuilder` and a real `llvm::Value` per runtime pointer, so it dereferenced a
+  null `llvm::Value` and SIGSEGV'd inside `LLVMBackendContext::atomic_*`
+  (`std_stdstring_viewconstructor`-style verifier errors followed). Atomics are
+  now MIR:
+  - New opcodes `AtomicLoad` / `AtomicStore` / `AtomicCmpXchg` / `AtomicRMW` /
+    `AtomicFence` (`MIRInstruction.h`, values 50–54; `Count` is now 55), with
+    flags/names/portability in `MIRInstruction.cpp` and a `MIRDump` entry.
+    Every ordering / scope / op / weak selector is a `Constant` operand so no
+    emitter ever needs the AST.
+  - `MIRLowerer::lower_atomic_intrinsic` recognizes the seven compiler-decl
+    intrinsics **before** the captured-comptime-ref shortcut (the interpreter
+    stores the call node itself as that ref's evaluated value, so the operands
+    resolve through their own captures). Selectors must be compile-time
+    constants — LLVM requires it — and come from `captured_ref_owner.refs[i].evaluated`
+    (falling back to `comptime_value_eval_`), else it is a hard lowering error.
+  - `CodegenMir.cpp` emits the LLVM atomics (incl. `AtomicRMWInst::BinOp`
+    mapping, sync scopes, `cmpxchg`'s expected-value write-back, and the
+    monotonic-fence upgrade / signal-fence no-op rules that mirror
+    `LLVMBackendContext`).
+  - `lang/libs/atomic/src/atomic.ch`: the LLVM branch of every helper now wraps
+    the intrinsic call in `%runtime_value(...)`, mirroring the C branch's
+    `%runtime_value(__chx__*_dispatch(...))` shape. That wrapper is what
+    registers the operands as captured runtime values (a `CapturedComptimeVariable`),
+    without which MIR cannot resolve the runtime pointer/value. Best-effort
+    `atomic_fence` / `atomic_signal_fence` stay dropped exactly as on the C
+    backend (the intrinsic is a statement in a void `comptime func`); they are a
+    pre-existing gap on both backends, not a regression.
+- **Other MIR/LLVM gaps fixed this session:**
+  - `CodegenMir`: `MIRUnaryOp::Not` (logical `!`) emitted `CreateNot` on the
+    operand's own type, so `!pointer` became `xor ptr %p, <13 x bfloat>`
+    (garbage) and crashed SelectionDAG type legalization. It is now
+    `x == 0` / `x == null` / `x == 0.0`; `BitNot` keeps the bitwise complement.
+  - `MIRLowerer::intern_function` (+ the named-method path): a `public` /
+    `protected` function now gets `MIRLinkage::External`, matching the C
+    backend, instead of only `@extern` ones. Functions never visited by
+    `mir_translate_after_declaration`'s declaration pass had internal linkage,
+    producing cross-module undefined references.
+  - `ASTProcessor::process_nodes` now descends into a top-level `if`'s taken
+    scope (`IfStatement::computed_scope`), mirroring `MIRDeclEmitter::declare`.
+    Previously a module lost every symbol declared inside a top-level arch/OS
+    conditional — e.g. all of `std::concurrent`
+    (`std/concurrency/threadpool.ch`), so any progam using
+    `std::concurrent.spawn` failed to link.
+  - `ASTProcessor`: with `mir_llvm_collect` set the C emission is skipped (the
+    LLVM target emits IR from the collected MIR and never uses the C text).
+    This also keeps the C emitter from having to understand LLVM-only ops.
+  - `ASTProcessor.h`: `mir_llvm_collect` / `mir_llvm_finish` moved out of
+    `#ifdef COMPILER_BUILD` — they are plain data consumed by the shared
+    `implement_module`, and leaving them guarded broke the `TCCCompiler` target.
+
+**Session 2 (this session) — first working LLVM binaries; four real bugs.**
+The `Compiler` target now produces *runnable* LLVM binaries for real
+applications (`import cstd` + `std`), matching the C backend byte-for-byte on
+output. Everything below was found by building standalone probe modules under
+`lang/compiled/` and diffing the two backends' behaviour.
+
+- **`@extern` globals were emitted as *definitions*.** `Codegen::mir_declare_globals`
+  created every MIR global with `Constant::getNullValue(t)` initializer, so
+  cstd's `@extern var stdout : *mut FILE` became a defined BSS symbol that
+  interposed libc's real `stdout` — every `printf` segfaulted
+  (`__vfprintf_internal(s=0x0)`). External-linkage symbols are now emitted as
+  uninitialized *declarations* (internal ones stay definitions), and the
+  AST-literal global-initializer pass in `ASTCompiler.cpp` skips `@extern` vars.
+  `nm -D` now shows `stdout@GLIBC_2.2.5` (a copy relocation) like the C build.
+- **Capturing lambdas were undefined / mislaid-out on LLVM.**
+  `MIRLowerer::materialize_capturing_lambda` built the closure *struct* only as
+  C text, so the MIR record stayed an opaque empty struct (every
+  `self->capture` GEP out of bounds), and the `_cap_destr` helper existed only as
+  C text, so LLVM had no definition to link (`__chemda_cap_N_cap_destr`). The
+  closure's runtime fields are now registered in the MIR type table, and the
+  capture destructor is *also* built as MIR (one `Destroy` call per
+  destructible capture) while the C text is kept for the C backend.
+- **`DynamicCall` on a by-value fat pointer produced invalid IR.** The receiver
+  is a `{ first, second }` struct passed by value; the emitter passed the SSA
+  aggregate straight to `CreateStructGEP`, emitting an aggregate-base GEP
+  (`getelementptr %__chemical_fat_pointer__, %__chemical_fat_pointer__ %v, …`).
+  That is invalid IR and crashed instruction selection
+  (`LLVM ERROR: Cannot select: bitcast`). The emitter now spills a value
+  receiver into an entry-block alloca first.
+- **The fat pointer's `second` field was named `secon`.**
+  `MIRTypeBuilder::fat_pointer_type` hard-coded `fi.name_length = 5` for *both*
+  `first` and `second`, so the vtable store could not resolve its field and was
+  silently dropped (`have=,first,secon`). The length is now `strlen`.
+
+With those fixed, dynamic dispatch (`dyn Interface`, `DynamicCall`, generated
+`__chx_<iface>_vt_t` vtables + `ImplDecl` initializers), capturing lambdas /
+`std::function`, struct methods, `@delete` ordering, nested struct member
+access, `for`/`while`, globals and `printf` all match the C backend.
+
+**Session verification (all re-run after the last edit):**
+
+| Command | Result |
+|---------|--------|
+| `cmake --build --target Compiler` | builds |
+| `cmake --build --target TCCCompiler` | builds |
+| `./cmake-build-debug/MIRTests` | 1049 checks OK |
+| `./scripts/test.sh --tcc` (clean per-module cache) | 2292 / 2292 passed, 0 failed |
+| LLVM probe: `lang/compiled/mir_llvm_probe` (methods, dtor, `for`, printf) | output identical to the C build |
+| LLVM probe: `lang/compiled/mirp3` (nested structs, method mutation, dtor) | output identical |
+| LLVM probe: `lang/compiled/mirp4` (capturing lambdas / `std::function`) | output identical (`f=110 g=300 r=301`) |
+| LLVM probe: `lang/compiled/mirp5` (`dyn` dispatch, vtable, dyn in struct) | output identical (`s=99 c=22 / pc=99 / p=22`) |
+| `./scripts/test.sh --tcc --libs --no-build` | 719 total, 718 passed, 1 failed (the known flaky atomic CAS test) |
+
+**Remaining gaps (LLVM target).** These are lowering/emission gaps, not branches
+— each is a bug to fix:
+
+- Synthesized default ctor / dtor (`make` / `delete` created by
+  `MembersContainer::create_def_constructor` / `create_destructor`) and
+  `comptime` constructors are *declared* but never emitted into MIR, so
+  `test_report_TestLogmake`, `test_report_TestLogdelete`,
+  `test_report_ConsoleReporterdelete` are undefined at link time
+  (`lang/tests/libs/atomic`).
+- CBI `EmbeddedNode` / `EmbeddedValue`, inline `asm`, and async coroutines are
+  emitted from MIR-C only; the LLVM emitter does not lower them yet.
+- Debug info is still not emitted from MIR (`--mode debug_complete` emits no
+  DWARF from the MIR path).
+- The AST-based LLVM lowering is now *dead code* behind the unconditional
+  `mir_compile_module` early return in `ASTProcessor::compile_module`, but it is
+  not deleted yet (§4 / checkpoint 8.9).
+
 ### 2.1 What is done
 
 - **MIR owns all C emission.** Every function body, static-interface impl,

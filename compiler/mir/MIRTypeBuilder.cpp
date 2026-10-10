@@ -20,6 +20,15 @@
 #include "ast/types/RuntimeType.h"
 #include "ast/structures/FunctionParam.h"
 #include "ast/statements/Typealias.h"
+#include "ast/structures/StructDefinition.h"
+#include "ast/structures/UnionDef.h"
+#include "ast/structures/VariantDefinition.h"
+#include "ast/structures/VariantMember.h"
+#include "ast/structures/VariantMemberParam.h"
+#include "ast/structures/UnnamedStruct.h"
+#include "ast/structures/UnnamedUnion.h"
+#include "ast/structures/BaseDefMember.h"
+#include "ast/structures/VariablesContainer.h"
 
 namespace mir {
 
@@ -157,7 +166,114 @@ TypeId MIRTypeBuilder::aggregate_type(MIRTypeKind kind, const void* decl, BaseTy
             module_.types.set_name(id, name.data(), static_cast<uint32_t>(name.size()));
         }
     }
+    fill_aggregate_fields(id, kind, reinterpret_cast<ASTNode*>(const_cast<void*>(decl)), type);
     return id;
+}
+
+void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode* decl,
+                                           BaseType* type) {
+    if (kind == MIRTypeKind::Int) return; // enums have no fields
+    if (id >= module_.types.types.size()) return;
+
+    std::vector<MIRFieldInfo> fs;
+    auto push_field = [&](const std::string& name, TypeId t, MIRFieldKind fk) {
+        MIRFieldInfo fi;
+        fi.type = t;
+        fi.kind = static_cast<uint8_t>(fk);
+        fi.index = static_cast<uint32_t>(fs.size());
+        fi.name_offset = static_cast<uint32_t>(module_.types.field_names.size());
+        fi.name_length = static_cast<uint32_t>(name.size());
+        module_.types.field_names.insert(module_.types.field_names.end(), name.begin(), name.end());
+        fs.push_back(fi);
+    };
+    auto add_bases = [&](VariablesContainer* vc) {
+        if (!vc) return;
+        for (auto& inh : vc->inherited) {
+            StructDefinition* base = inh.type ? inh.type->get_direct_linked_struct() : nullptr;
+            if (!base) continue;
+            TypeId bt = map(base->known_type());
+            const chem::string_view nv = base->name_view();
+            push_field(std::string(nv.data(), nv.size()), bt, MIRFieldKind::Base);
+        }
+    };
+    auto add_members = [&](VariablesContainerBase* vc) {
+        if (!vc) return;
+        for (BaseDefMember* var : vc->variables()) {
+            if (!var) continue;
+            TypeId vt = var->known_type() ? map(var->known_type()) : opaque_type();
+            const chem::string_view nv = var->name_view();
+            push_field(std::string(nv.data(), nv.size()), vt, MIRFieldKind::Direct);
+        }
+    };
+
+    VariablesContainer* vc = nullptr;
+    VariablesContainerBase* vcb = nullptr;
+    if (decl) {
+        switch (decl->kind()) {
+            case ASTNodeKind::StructDecl: vc = decl->as_struct_def_unsafe(); break;
+            case ASTNodeKind::UnionDecl: vc = decl->as_union_def_unsafe(); break;
+            case ASTNodeKind::UnnamedStruct: vcb = decl->as_unnamed_struct_unsafe(); break;
+            case ASTNodeKind::UnnamedUnion: vcb = decl->as_unnamed_union_unsafe(); break;
+            case ASTNodeKind::StructType: vc = static_cast<StructType*>(decl); break;
+            default: break;
+        }
+    }
+    if (!vc && !vcb && type) {
+        switch (type->kind()) {
+            case BaseTypeKind::Struct: vc = type->as_struct_type_unsafe(); break;
+            default: break;
+        }
+    }
+
+    if (decl && decl->kind() == ASTNodeKind::VariantDecl) {
+        auto* vd = decl->as_variant_def_unsafe();
+        add_bases(vd);
+        // discriminator (`__chx__vt_621827`), always `int` (i32)
+        push_field("__chx__vt_621827", int_type(false, 32), MIRFieldKind::VariantTag);
+        // one payload struct per case (the emitter lays out the largest and
+        // bitcasts to a specific case)
+        for (BaseDefMember* var : vd->variables()) {
+            auto* member = var ? var->as_variant_member_unsafe() : nullptr;
+            if (!member) continue;
+            // build the case payload struct type
+            std::vector<MIRFieldInfo> case_fields;
+            uint32_t ci = 0;
+            for (auto& entry : member->values) {
+                VariantMemberParam* param = entry.second;
+                if (!param) continue;
+                MIRFieldInfo fi;
+                fi.type = param->type ? map(param->type) : opaque_type();
+                fi.kind = static_cast<uint8_t>(MIRFieldKind::VariantParam);
+                fi.index = ci++;
+                const chem::string_view pn = param->name;
+                fi.name_offset = static_cast<uint32_t>(module_.types.field_names.size());
+                fi.name_length = static_cast<uint32_t>(pn.size());
+                module_.types.field_names.insert(module_.types.field_names.end(), pn.data(),
+                                                 pn.data() + pn.size());
+                case_fields.push_back(fi);
+            }
+            MIRTypeRecord cr;
+            cr.kind = MIRTypeKind::Struct;
+            cr.data_count = static_cast<uint32_t>(case_fields.size());
+            cr.field_index = module_.types.append_fields(case_fields);
+            TypeId case_id = static_cast<TypeId>(module_.types.types.size());
+            module_.types.types.push_back(cr);
+            const chem::string_view mn = member->name_view();
+            std::string cname = "__chx_case_" + std::to_string(id) + "_" +
+                                std::string(mn.data(), mn.size());
+            module_.types.set_name(case_id, cname.data(), static_cast<uint32_t>(cname.size()));
+            push_field(std::string(mn.data(), mn.size()), case_id, MIRFieldKind::VariantCase);
+        }
+    } else if (vc) {
+        add_bases(vc);
+        add_members(vc);
+    } else if (vcb) {
+        add_members(vcb);
+    }
+
+    MIRTypeRecord& rec = module_.types.types[id];
+    rec.data_count = static_cast<uint32_t>(fs.size());
+    rec.field_index = fs.empty() ? MIR_INVALID_ID : module_.types.append_fields(fs);
 }
 
 TypeId MIRTypeBuilder::function_type(BaseType* type) {

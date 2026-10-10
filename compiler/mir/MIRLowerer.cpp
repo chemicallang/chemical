@@ -478,10 +478,11 @@ SymbolId MIRLowerer::intern_method_function(FunctionDeclaration* decl, BaseType*
     for (FunctionParam* p : decl->params) {
         ptypes.push_back(p && p->type ? types_.map(p->type) : types_.opaque_type());
     }
-    TypeId ftype = types_.function_signature(ret, ptypes);
+    TypeId ftype = types_.function_signature(ret, ptypes, decl->isVariadic());
     MIRSymbolRecord rec;
     rec.kind = MIRSymbolKind::Function;
-    rec.linkage = decl->is_extern() ? MIRLinkage::External : MIRLinkage::Internal;
+    rec.linkage = (decl->is_extern() || decl->is_linkage_public()) ? MIRLinkage::External
+                                                                  : MIRLinkage::Internal;
     rec.type = ftype;
     SymbolId s = module_.symbols.add(rec, name.data(), static_cast<uint32_t>(name.size()),
                                      name.data(), static_cast<uint32_t>(name.size()));
@@ -2188,17 +2189,38 @@ SymbolId MIRLowerer::intern_function(FunctionDeclaration* decl) {
     auto it = func_symbols_.find(decl);
     if (it != func_symbols_.end()) return it->second;
 
-    TypeId ret = decl->returnType ? types_.map(decl->returnType) : types_.void_type();
+    // Mirror the declaration ABI emitted by MIRDeclEmitter::function_type_of so
+    // an extern (bodyless) function's LLVM prototype is exactly the one LLVM
+    // call sites expect: sret for struct-like returns, aggregates/arrays passed
+    // by pointer, and the variadic tail marker dropped.
+    const TypeId ret = decl->returnType ? types_.map(decl->returnType) : types_.void_type();
+    const bool sret = needs_sret_return(module_, ret);
     std::vector<TypeId> ptypes;
-    ptypes.reserve(decl->params.size());
+    ptypes.reserve(decl->params.size() + 1);
+    if (sret) ptypes.push_back(types_.pointer_type(ret, true));
     for (FunctionParam* p : decl->params) {
-        ptypes.push_back(p && p->type ? types_.map(p->type) : types_.opaque_type());
+        TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
+        if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
+            pt = types_.pointer_type(module_.types.get(pt).element, true);
+        } else if (needs_aggregate_path(module_, pt)) {
+            pt = types_.pointer_type(pt, true);
+        }
+        ptypes.push_back(pt);
     }
-    TypeId ftype = types_.function_signature(ret, ptypes);
+    if (decl->isVariadic() && !decl->params.empty()) ptypes.pop_back();
+    TypeId ftype = types_.function_signature(sret ? types_.void_type() : ret, ptypes,
+                                             decl->isVariadic());
 
     MIRSymbolRecord rec;
     rec.kind = MIRSymbolKind::Function;
-    rec.linkage = decl->is_extern() ? MIRLinkage::External : MIRLinkage::Internal;
+    // A `public` (or `protected`) function is visible across modules, so its
+    // definition must have external linkage; the C backend uses the same rule.
+    // Only interning the *call* symbol is not enough: for a function that is
+    // never visited by `mir_translate_after_declaration`'s declaration pass
+    // (e.g. one nested inside a top-level `if`'s taken scope) this is the only
+    // place its symbol — and therefore its linkage — is decided.
+    rec.linkage = (decl->is_extern() || decl->is_linkage_public()) ? MIRLinkage::External
+                                                                  : MIRLinkage::Internal;
     rec.type = ftype;
 
     // NOTE: mangled name is filled by the serial symbol builder (PR3b) using
@@ -2213,6 +2235,231 @@ SymbolId MIRLowerer::intern_function(FunctionDeclaration* decl) {
                                      name.data(), static_cast<uint32_t>(name.size()));
     func_symbols_[decl] = s;
     return s;
+}
+
+/**
+ * The `intrinsics::llvm::atomic_*` compiler declarations. They are the LLVM
+ * backend's spelling of the atomic library's operations (the C backend takes
+ * the `%runtime_value(__chx__*_dispatch(...))` path instead), so the MIR
+ * emitter must model them as first-class atomic ops. Matched by name on a
+ * compiler declaration: those nodes are only ever created by the compiler.
+ */
+enum class AtomicIntrinsic : uint8_t {
+    None,
+    Fence,
+    SignalFence,
+    Load,
+    Store,
+    CmpXchgWeak,
+    CmpXchgStrong,
+    Rmw,
+};
+
+static AtomicIntrinsic atomic_intrinsic_of(FunctionDeclaration* fd) {
+    if (!fd || !fd->is_compiler_decl()) return AtomicIntrinsic::None;
+    const chem::string_view n = fd->name_view();
+    if (n == chem::string_view("atomic_fence")) return AtomicIntrinsic::Fence;
+    if (n == chem::string_view("atomic_signal_fence")) return AtomicIntrinsic::SignalFence;
+    if (n == chem::string_view("atomic_load")) return AtomicIntrinsic::Load;
+    if (n == chem::string_view("atomic_store")) return AtomicIntrinsic::Store;
+    if (n == chem::string_view("atomic_cmp_exch_weak")) return AtomicIntrinsic::CmpXchgWeak;
+    if (n == chem::string_view("atomic_cmp_exch_strong")) return AtomicIntrinsic::CmpXchgStrong;
+    if (n == chem::string_view("atomic_op")) return AtomicIntrinsic::Rmw;
+    return AtomicIntrinsic::None;
+}
+
+MIRExprResult MIRLowerer::lower_atomic_intrinsic(FunctionCall* call, FunctionDeclaration* fd,
+                                                 std::string& error) {
+    const AtomicIntrinsic kind = atomic_intrinsic_of(fd);
+    const uint32_t n = static_cast<uint32_t>(call->values.size());
+
+    // An ordering / scope / op selector: the interpreter has already folded it
+    // (the library passes `llvm_mem_order(order)` / `scope_to_int(...)`, both
+    // comptime calls captured into the enclosing %runtime_value's refs). LLVM
+    // requires these to be compile-time constants, so a runtime value is an
+    // error rather than a fallback.
+    auto int_arg = [&](uint32_t i, int64_t& out) -> bool {
+        if (i >= n) return false;
+        Value* v = call->values[i];
+        if (!v) return false;
+        if (v->val_kind() == ValueKind::FunctionCall) {
+            auto* c = v->as_func_call_unsafe();
+            if (c->captured_ref_owner && c->captured_ref_index >= 0 &&
+                c->captured_ref_index <
+                    static_cast<int>(c->captured_ref_owner->refs.size())) {
+                Value* r = c->captured_ref_owner->refs[c->captured_ref_index].evaluated;
+                if (r) v = r;
+            }
+        }
+        if (v->val_kind() == ValueKind::IntN) {
+            out = static_cast<int64_t>(v->as_int_num_value_unsafe()->get_num_value());
+            return true;
+        }
+        if (comptime_value_eval_) {
+            Value* e = comptime_value_eval_(v);
+            if (e && e->val_kind() == ValueKind::IntN) {
+                out = static_cast<int64_t>(e->as_int_num_value_unsafe()->get_num_value());
+                return true;
+            }
+        }
+        return false;
+    };
+    auto const_op = [&](int64_t bits) {
+        const ConstantId c = module_.constants.add_int(MIR_INVALID_ID,
+                                                       static_cast<uint64_t>(bits));
+        return MIROperand::constant(c, MIR_INVALID_ID);
+    };
+
+    // Lower an argument to a scalar MIR operand. Pointers stay pointers; a
+    // place that already holds the value is loaded so the emitter always sees
+    // an SSA operand (MIR atomic ops take a value, not an address-of-a-local).
+    auto scalar_arg = [&](uint32_t i, MIROperand& out) -> bool {
+        if (i >= n) return false;
+        MIRExprResult r = lower_expr(call->values[i], error);
+        if (!r.ok()) return false;
+        if (r.kind == MIRExprKind::Place) {
+            if (r.type == MIR_INVALID_ID || r.type >= module_.types.size()) return false;
+            out = MIROperand::value(builder_->load(static_cast<PlaceId>(r.id), r.type), r.type);
+            return true;
+        }
+        if (r.kind == MIRExprKind::Value || r.kind == MIRExprKind::Address) {
+            out = MIROperand::value(static_cast<ValueId>(r.id), r.type);
+            return true;
+        }
+        error = "atomic intrinsic argument produced no value";
+        return false;
+    };
+    // Lower the memory operand and resolve what it points at (the atomic width).
+    auto pointer_arg = [&](uint32_t i, MIROperand& out, TypeId& pointee) -> bool {
+        if (!scalar_arg(i, out)) return false;
+        const TypeId pt = out.type();
+        if (pt == MIR_INVALID_ID || pt >= module_.types.size()) {
+            error = "atomic intrinsic expects a pointer operand";
+            return false;
+        }
+        const MIRTypeKind pk = module_.types.get(pt).kind;
+        if (pk != MIRTypeKind::Pointer && pk != MIRTypeKind::Reference) {
+            error = "atomic intrinsic expects a pointer operand";
+            return false;
+        }
+        pointee = module_.types.get(pt).element;
+        if (pointee == MIR_INVALID_ID || pointee >= module_.types.size()) {
+            error = "atomic intrinsic pointer has no pointee type";
+            return false;
+        }
+        return true;
+    };
+
+    std::vector<MIROperand> ops;
+    switch (kind) {
+        case AtomicIntrinsic::Fence:
+        case AtomicIntrinsic::SignalFence: {
+            int64_t order = 0;
+            int64_t scope = 0;
+            if (!int_arg(0, order)) {
+                error = "atomic fence ordering must be a compile-time constant";
+                return MIRExprResult::error();
+            }
+            if (kind == AtomicIntrinsic::Fence && !int_arg(1, scope)) {
+                error = "atomic fence scope must be a compile-time constant";
+                return MIRExprResult::error();
+            }
+            ops.push_back(const_op(order));
+            ops.push_back(const_op(scope));
+            ops.push_back(const_op(kind == AtomicIntrinsic::SignalFence ? 1 : 0));
+            builder_->emit(MIROpcode::AtomicFence, MIR_NULL, ops.data(),
+                           static_cast<uint32_t>(ops.size()));
+            return MIRExprResult::void_result();
+        }
+        case AtomicIntrinsic::Load: {
+            MIROperand ptr;
+            TypeId pointee = MIR_INVALID_ID;
+            int64_t order = 0;
+            int64_t scope = 0;
+            if (!pointer_arg(0, ptr, pointee)) return MIRExprResult::error();
+            if (!int_arg(1, order) || !int_arg(2, scope)) {
+                error = "atomic load ordering must be a compile-time constant";
+                return MIRExprResult::error();
+            }
+            ops = {ptr, const_op(order), const_op(scope)};
+            const ValueId v = builder_->new_value(pointee);
+            builder_->emit(MIROpcode::AtomicLoad, v, ops.data(),
+                           static_cast<uint32_t>(ops.size()));
+            return MIRExprResult::value(v, pointee);
+        }
+        case AtomicIntrinsic::Store: {
+            MIROperand ptr;
+            TypeId pointee = MIR_INVALID_ID;
+            MIROperand value;
+            int64_t order = 0;
+            int64_t scope = 0;
+            if (!pointer_arg(0, ptr, pointee)) return MIRExprResult::error();
+            if (!scalar_arg(1, value)) return MIRExprResult::error();
+            if (!int_arg(2, order) || !int_arg(3, scope)) {
+                error = "atomic store ordering must be a compile-time constant";
+                return MIRExprResult::error();
+            }
+            ops = {ptr, value, const_op(order), const_op(scope)};
+            builder_->emit(MIROpcode::AtomicStore, MIR_NULL, ops.data(),
+                           static_cast<uint32_t>(ops.size()));
+            return MIRExprResult::void_result();
+        }
+        case AtomicIntrinsic::CmpXchgWeak:
+        case AtomicIntrinsic::CmpXchgStrong: {
+            MIROperand ptr;
+            MIROperand expected;
+            MIROperand value;
+            TypeId pointee = MIR_INVALID_ID;
+            int64_t success_order = 0;
+            int64_t failure_order = 0;
+            int64_t scope = 0;
+            if (!pointer_arg(0, ptr, pointee)) return MIRExprResult::error();
+            // `expected` is a pointer to the value to compare against; on
+            // failure it receives the value that was actually there.
+            if (!scalar_arg(1, expected)) return MIRExprResult::error();
+            if (!scalar_arg(2, value)) return MIRExprResult::error();
+            if (!int_arg(3, success_order) || !int_arg(4, failure_order) ||
+                !int_arg(5, scope)) {
+                error = "atomic compare-exchange ordering must be a compile-time constant";
+                return MIRExprResult::error();
+            }
+            ops = {ptr, expected, value, const_op(success_order), const_op(failure_order),
+                   const_op(scope),
+                   const_op(kind == AtomicIntrinsic::CmpXchgWeak ? 1 : 0)};
+            const TypeId bool_t = types_.bool_type();
+            const ValueId v = builder_->new_value(bool_t);
+            builder_->emit(MIROpcode::AtomicCmpXchg, v, ops.data(),
+                           static_cast<uint32_t>(ops.size()));
+            return MIRExprResult::value(v, bool_t);
+        }
+        case AtomicIntrinsic::Rmw: {
+            int64_t op = 0;
+            MIROperand ptr;
+            MIROperand value;
+            TypeId pointee = MIR_INVALID_ID;
+            int64_t order = 0;
+            int64_t scope = 0;
+            if (!int_arg(0, op)) {
+                error = "atomic operation must be a compile-time constant";
+                return MIRExprResult::error();
+            }
+            if (!pointer_arg(1, ptr, pointee)) return MIRExprResult::error();
+            if (!scalar_arg(2, value)) return MIRExprResult::error();
+            if (!int_arg(3, order) || !int_arg(4, scope)) {
+                error = "atomic operation ordering must be a compile-time constant";
+                return MIRExprResult::error();
+            }
+            ops = {const_op(op), ptr, value, const_op(order), const_op(scope)};
+            const ValueId v = builder_->new_value(pointee);
+            builder_->emit(MIROpcode::AtomicRMW, v, ops.data(),
+                           static_cast<uint32_t>(ops.size()));
+            return MIRExprResult::value(v, pointee);
+        }
+        case AtomicIntrinsic::None:
+            break;
+    }
+    error = "unrecognized atomic intrinsic '" + fd->name_str() + "'";
+    return MIRExprResult::error();
 }
 
 MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
@@ -2812,6 +3059,19 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         }
         case ValueKind::FunctionCall: {
             auto* call = value->as_func_call_unsafe();
+            // `intrinsics::llvm::atomic_*` lower to first-class MIR atomic ops.
+            // This must precede the captured-comptime-ref shortcut: the atomic
+            // intrinsics are comptime calls, so inside a `%runtime_value(...)`
+            // the interpreter records the *call node itself* as the ref's
+            // evaluated value (their operands resolve through their own captured
+            // refs), and interpreting them here would require a live LLVM
+            // IRBuilder and a real `llvm::Value` for each runtime pointer.
+            if (FunctionDeclaration* afd = call->safe_linked_func()) {
+                if (afd->is_compiler_decl() &&
+                    atomic_intrinsic_of(afd) != AtomicIntrinsic::None) {
+                    return lower_atomic_intrinsic(call, afd, error);
+                }
+            }
             if (call->captured_ref_owner && call->captured_ref_index >= 0 &&
                 call->captured_ref_index <
                     static_cast<int>(call->captured_ref_owner->refs.size())) {
@@ -6897,6 +7157,32 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     sdef += "};\n";
     lambda_defs_.push_back(sdef);
 
+    // 1b. the closure struct's *runtime* fields must also live in the MIR type
+    // table: the C emitter spells accesses from the struct text above, but the
+    // LLVM emitter lays the struct out and resolves field names from the table.
+    // Without this the closure LLVM type is an opaque `{ i8 }` and every
+    // `self->capture` GEP is out of bounds.
+    {
+        std::vector<MIRFieldInfo> cap_fields;
+        cap_fields.reserve(lamb->captureList.size());
+        for (CapturedVariable* cap : lamb->captureList) {
+            const TypeId ft = types_.map(cap->known_type());
+            MIRFieldInfo fi;
+            fi.type = ft;
+            fi.kind = static_cast<uint8_t>(MIRFieldKind::Direct);
+            fi.index = static_cast<uint32_t>(cap_fields.size());
+            fi.name_offset = static_cast<uint32_t>(module_.types.field_names.size());
+            fi.name_length = static_cast<uint32_t>(cap->name.size());
+            module_.types.field_names.insert(module_.types.field_names.end(),
+                                             cap->name.data(),
+                                             cap->name.data() + cap->name.size());
+            cap_fields.push_back(fi);
+        }
+        MIRTypeRecord& cr = module_.types.types[cap_type];
+        cr.data_count = static_cast<uint32_t>(cap_fields.size());
+        cr.field_index = module_.types.append_fields(cap_fields);
+    }
+
     // 2. the closure destructor
     const std::string dname = cap_name + "_destr";
     const TypeId void_ptr = types_.pointer_type(types_.void_type(), true);
@@ -6920,6 +7206,40 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     }
     ddef += "}\n";
     lambda_defs_.push_back(ddef);
+
+    // 2b. the same destructor as MIR, so the LLVM backend emits a definition for
+    // it (the C backend emits the text above instead; it never consumes the
+    // collected MIR functions, which are cleared per function).
+    {
+        MIRFunction dfn;
+        dfn.symbol = dtor_sym;
+        dfn.function_type = drec.type;
+        MIRBuilder db(*arena_, module_, dfn);
+        MIRBuilder* saved_b = builder_;
+        builder_ = &db;
+        const BlockId de = db.create_block();
+        db.set_block(de);
+        dfn.entry_block = de;
+        const ValueId self_v = db.param(void_ptr);
+        const TypeId cap_ptr_t = types_.pointer_type(cap_type, true);
+        const ValueId cap_ptr = db.cast(self_v, cap_ptr_t);
+        if (lamb->has_destructor_for_capture()) {
+            for (CapturedVariable* cap : lamb->captureList) {
+                const SymbolId d = destructor_symbol(cap->known_type());
+                if (d == MIR_INVALID_ID) continue;
+                const TypeId ft = types_.map(cap->known_type());
+                const ConstantId fc = module_.constants.add_string(
+                    MIR_INVALID_ID, cap->name.data(),
+                    static_cast<uint32_t>(cap->name.size()));
+                const ValueId fa = db.field_addr_ptr(cap_ptr, fc, ft);
+                MIROperand a = MIROperand::value(fa, ft);
+                db.call_scalar(d, types_.void_type(), &a, 1);
+            }
+        }
+        db.ret_void();
+        builder_ = saved_b;
+        lambda_functions_.push_back(dfn);
+    }
 
     // 3. the lambda function: `ret <lname>(void* this, <sret?>, <params>)`
     //    (matches the legacy capturing-function ABI: the hidden data pointer
@@ -7052,6 +7372,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
         }
     }
     if (ok) lambda_defs_.push_back(std::move(c));
+    if (ok) lambda_functions_.push_back(fn);
 
     // restore the enclosing function's state
     builder_ = saved_builder;
@@ -7286,6 +7607,7 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
         }
     }
     if (ok) lambda_defs_.push_back(std::move(c));
+    if (ok) lambda_functions_.push_back(fn);
 
     // restore the enclosing function's state
     builder_ = saved_builder;

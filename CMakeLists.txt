@@ -741,6 +741,7 @@ add_subdirectory(lib/lsp-framework)
 set(COMPILER_SOURCES
         compiler/Codegen.h
         compiler/Codegen.cpp
+        compiler/CodegenMir.cpp
         compiler/clang_cc1main.cpp
         compiler/clang_driver.cpp
         compiler/clang_cc1as_main.cpp

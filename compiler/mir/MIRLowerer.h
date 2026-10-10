@@ -112,7 +112,14 @@ public:
 
     /** Generated C for lambda functions produced while lowering a body. */
     std::vector<std::string>& lambda_defs() { return lambda_defs_; }
-    void clear_lambda_defs() { lambda_defs_.clear(); }
+    /**
+     * MIR for the lambda functions materialized while lowering a body. They are
+     * allocated in the enclosing function's arena, so they must be consumed
+     * before that arena is reused. The LLVM backend emits them as ordinary
+     * functions (the C backend uses `lambda_defs()` instead).
+     */
+    std::vector<MIRFunction>& lambda_functions() { return lambda_functions_; }
+    void clear_lambda_defs() { lambda_defs_.clear(); lambda_functions_.clear(); }
 
     /** Pre-register a callee symbol (mangled name) so calls resolve to it. */
     void set_function_symbol(FunctionDeclaration* decl, SymbolId symbol) {
@@ -232,6 +239,16 @@ private:
                                      std::string& error);
     /** Lower an inline-asm operand to a Place or a pointer Value (`*ptr`). */
     bool lower_asm_operand(Value* expr, MIROperand& out, std::string& error);
+    /**
+     * Lower an `intrinsics::llvm::atomic_*` call into a first-class MIR atomic
+     * op. These intrinsics are the LLVM backend's spelling for atomics; they
+     * cannot be interpreted during MIR construction (their operands are runtime
+     * locations and an LLVM atomic instruction needs LLVM ordering constants,
+     * not an interpreter `PointerValue`). The selectors (order / scope / op /
+     * weak) must be compile-time constants, exactly as LLVM requires.
+     */
+    MIRExprResult lower_atomic_intrinsic(FunctionCall* call, FunctionDeclaration* fd,
+                                         std::string& error);
     /** Lower a variant-case payload variable to its field lvalue/value. */
     MIRExprResult lower_variant_payload(VariantCaseVariable* var, bool as_address,
                                         std::string& error);
@@ -437,6 +454,7 @@ private:
     std::unordered_map<PatternMatchExpr*, MIRExprResult> pattern_bases_;
     std::unordered_map<PatternMatchExpr*, MIRExprResult> pattern_results_;
     std::vector<std::string> lambda_defs_;
+    std::vector<MIRFunction> lambda_functions_;
     /** A materialized capturing lambda: closure type/temp + fn/dtor pointers. */
     struct LambdaMaterialization {
         TypeId cap_type = MIR_INVALID_ID;

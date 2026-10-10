@@ -102,6 +102,17 @@ uint16_t opcode_flags(MIROpcode op) {
         case MIROpcode::DynamicCall:
             return OF_Call | OF_Read | OF_Write | OF_MayThrow;
 
+        case MIROpcode::AtomicLoad:
+            return OF_Atomic | OF_Read | OF_MayTrap;
+        case MIROpcode::AtomicStore:
+            return OF_Atomic | OF_Write | OF_MayTrap;
+        case MIROpcode::AtomicCmpXchg:
+            return OF_Atomic | OF_Read | OF_Write | OF_MayTrap;
+        case MIROpcode::AtomicRMW:
+            return OF_Atomic | OF_Read | OF_Write | OF_MayTrap;
+        case MIROpcode::AtomicFence:
+            return OF_Atomic | OF_Volatile;
+
         case MIROpcode::Count:
             return 0;
     }
@@ -156,6 +167,11 @@ const char* opcode_name(MIROpcode op) {
         case MIROpcode::Throw: return "throw";
         case MIROpcode::InlineAsm: return "inline_asm";
         case MIROpcode::DynamicCall: return "dynamic_call";
+        case MIROpcode::AtomicLoad: return "atomic.load";
+        case MIROpcode::AtomicStore: return "atomic.store";
+        case MIROpcode::AtomicCmpXchg: return "atomic.cmp_xchg";
+        case MIROpcode::AtomicRMW: return "atomic.rmw";
+        case MIROpcode::AtomicFence: return "atomic.fence";
         case MIROpcode::Count: return "<count>";
     }
     return "<unknown>";
@@ -179,6 +195,11 @@ MIRPortability opcode_portability(MIROpcode op) {
         case MIROpcode::CallIndirect:
         case MIROpcode::InlineAsm:
         case MIROpcode::DynamicCall:
+        case MIROpcode::AtomicLoad:
+        case MIROpcode::AtomicStore:
+        case MIROpcode::AtomicCmpXchg:
+        case MIROpcode::AtomicRMW:
+        case MIROpcode::AtomicFence:
             return MIRPortability::NativeOnly;
         case MIROpcode::SizeOf:
         case MIROpcode::AlignOf:

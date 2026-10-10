@@ -2534,26 +2534,16 @@ public:
     }
 
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
-        auto& typeBuilder = call_scope->global->typeBuilder;
-        if(call->values.size() != 2) return typeBuilder.getNullValue();
-        const auto orderVal = call->values[0]->evaluated_value(*call_scope);
-        const auto scopeVal = call->values[1]->evaluated_value(*call_scope);
-        if(orderVal->kind() != ValueKind::IntN || scopeVal->kind() != ValueKind::IntN) {
-            return typeBuilder.getNullValue();
-        }
-        const auto orderNum = orderVal->as_int_num_value_unsafe()->value;
-        const auto scopeNum = scopeVal->as_int_num_value_unsafe()->value;
-        if(orderNum < 0 || orderNum > static_cast<int>(BackendAtomicMemoryOrder::Last) || scopeNum < 0 || scopeNum > static_cast<int>(BackendAtomicSyncScope::Last)) {
-            return typeBuilder.getNullValue();
-        }
-        if(!call_scope->global->backend_context) {
-            call_scope->error("intrinsics::llvm::atomic_fence is not supported in this context (no backend)", call);
-            return typeBuilder.getNullValue();
-        }
-        // void op: the backend either emitted the text eagerly and returns an
-        // empty raw literal (C backend) or emitted directly and returns null
-        // (LLVM backend); both render correctly at the call site
-        return call_scope->global->backend_context->atomic_fence(static_cast<BackendAtomicMemoryOrder>(orderNum), static_cast<BackendAtomicSyncScope>(scopeNum), call->encoded_location());
+        // Deferred to MIR lowering: `intrinsics::llvm::atomic_*` become
+        // first-class MIR atomic ops. They cannot be interpreted here — MIR
+        // construction runs before any LLVM IRBuilder exists, and the runtime
+        // pointer operands are interpreter `PointerValue`s with no `llvm::Value`
+        // behind them. The call node itself is returned so the MIR lowerer
+        // recognizes and lowers the operation; the enclosing `%runtime_value`
+        // carries the operands' captured runtime values, and every ordering /
+        // scope / op selector is a compile-time constant.
+        (void) call_scope; (void) allocator; (void) parent_val; (void) evaluate_refs;
+        return call;
     }
 
 };
@@ -2584,24 +2574,16 @@ public:
     }
 
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
-        auto& typeBuilder = call_scope->global->typeBuilder;
-        if(call->values.size() != 3) return typeBuilder.getNullValue();
-        const auto ptrVal = call->values[0]->evaluated_value(*call_scope);
-        const auto orderVal = call->values[1]->evaluated_value(*call_scope);
-        const auto scopeVal = call->values[2]->evaluated_value(*call_scope);
-        if(orderVal->kind() != ValueKind::IntN || scopeVal->kind() != ValueKind::IntN) {
-            return typeBuilder.getNullValue();
-        }
-        const auto orderNum = orderVal->as_int_num_value_unsafe()->value;
-        const auto scopeNum = scopeVal->as_int_num_value_unsafe()->value;
-        if(orderNum < 0 || orderNum > static_cast<int>(BackendAtomicMemoryOrder::Last) || scopeNum < 0 || scopeNum > static_cast<int>(BackendAtomicSyncScope::Last)) {
-            return typeBuilder.getNullValue();
-        }
-        if(!call_scope->global->backend_context) {
-            call_scope->error("intrinsics::llvm::atomic_load is not supported in this context (no backend)", call);
-            return typeBuilder.getNullValue();
-        }
-        return call_scope->global->backend_context->atomic_load(ptrVal, static_cast<BackendAtomicMemoryOrder>(orderNum), static_cast<BackendAtomicSyncScope>(scopeNum));
+        // Deferred to MIR lowering: `intrinsics::llvm::atomic_*` become
+        // first-class MIR atomic ops. They cannot be interpreted here — MIR
+        // construction runs before any LLVM IRBuilder exists, and the runtime
+        // pointer operands are interpreter `PointerValue`s with no `llvm::Value`
+        // behind them. The call node itself is returned so the MIR lowerer
+        // recognizes and lowers the operation; the enclosing `%runtime_value`
+        // carries the operands' captured runtime values, and every ordering /
+        // scope / op selector is a compile-time constant.
+        (void) call_scope; (void) allocator; (void) parent_val; (void) evaluate_refs;
+        return call;
     }
 
 };
@@ -2634,28 +2616,16 @@ public:
     }
 
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
-        auto& typeBuilder = call_scope->global->typeBuilder;
-        if(call->values.size() != 4) return typeBuilder.getNullValue();
-        const auto ptrVal = call->values[0]->evaluated_value(*call_scope);
-        const auto valueVal = call->values[1]->evaluated_value(*call_scope);
-        const auto orderVal = call->values[2]->evaluated_value(*call_scope);
-        const auto scopeVal = call->values[3]->evaluated_value(*call_scope);
-        if(orderVal->kind() != ValueKind::IntN || scopeVal->kind() != ValueKind::IntN) {
-            return typeBuilder.getNullValue();
-        }
-        const auto orderNum = orderVal->as_int_num_value_unsafe()->value;
-        const auto scopeNum = scopeVal->as_int_num_value_unsafe()->value;
-        if(orderNum < 0 || orderNum > static_cast<int>(BackendAtomicMemoryOrder::Last) || scopeNum < 0 || scopeNum > static_cast<int>(BackendAtomicSyncScope::Last)) {
-            return typeBuilder.getNullValue();
-        }
-        if(!call_scope->global->backend_context) {
-            call_scope->error("intrinsics::llvm::atomic_store is not supported in this context (no backend)", call);
-            return typeBuilder.getNullValue();
-        }
-        // void op: return the backend's value (empty raw literal on the C
-        // backend, null on LLVM) instead of a NullValue that would render as
-        // `NULL;` in the C output
-        return call_scope->global->backend_context->atomic_store(ptrVal, valueVal, static_cast<BackendAtomicMemoryOrder>(orderNum), static_cast<BackendAtomicSyncScope>(scopeNum));
+        // Deferred to MIR lowering: `intrinsics::llvm::atomic_*` become
+        // first-class MIR atomic ops. They cannot be interpreted here — MIR
+        // construction runs before any LLVM IRBuilder exists, and the runtime
+        // pointer operands are interpreter `PointerValue`s with no `llvm::Value`
+        // behind them. The call node itself is returned so the MIR lowerer
+        // recognizes and lowers the operation; the enclosing `%runtime_value`
+        // carries the operands' captured runtime values, and every ordering /
+        // scope / op selector is a compile-time constant.
+        (void) call_scope; (void) allocator; (void) parent_val; (void) evaluate_refs;
+        return call;
     }
 
 };
@@ -2692,28 +2662,16 @@ public:
     }
 
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
-        auto& typeBuilder = call_scope->global->typeBuilder;
-        if(call->values.size() != 6) return typeBuilder.getNullValue();
-        const auto ptrVal = call->values[0]->evaluated_value(*call_scope);
-        const auto expVal = call->values[1]->evaluated_value(*call_scope);
-        const auto valueVal = call->values[2]->evaluated_value(*call_scope);
-        const auto order1Val = call->values[3]->evaluated_value(*call_scope);
-        const auto order2Val = call->values[4]->evaluated_value(*call_scope);
-        const auto scopeVal = call->values[5]->evaluated_value(*call_scope);
-        if(order1Val->kind() != ValueKind::IntN || order2Val->kind() != ValueKind::IntN || scopeVal->kind() != ValueKind::IntN) {
-            return typeBuilder.getNullValue();
-        }
-        const auto order1Num = order1Val->as_int_num_value_unsafe()->value;
-        const auto order2Num = order2Val->as_int_num_value_unsafe()->value;
-        const auto scopeNum = scopeVal->as_int_num_value_unsafe()->value;
-        if(order1Num < 0 || order1Num > static_cast<int>(BackendAtomicMemoryOrder::Last) || order2Num < 0 || order2Num > static_cast<int>(BackendAtomicMemoryOrder::Last) || scopeNum < 0 || scopeNum > static_cast<int>(BackendAtomicSyncScope::Last)) {
-            return typeBuilder.getNullValue();
-        }
-        if(!call_scope->global->backend_context) {
-            call_scope->error("intrinsics::llvm::atomic_cmp_exch_weak is not supported in this context (no backend)", call);
-            return typeBuilder.getNullValue();
-        }
-        return call_scope->global->backend_context->atomic_cmp_exch_weak(ptrVal, expVal, valueVal, static_cast<BackendAtomicMemoryOrder>(order1Num), static_cast<BackendAtomicMemoryOrder>(order2Num), static_cast<BackendAtomicSyncScope>(scopeNum));
+        // Deferred to MIR lowering: `intrinsics::llvm::atomic_*` become
+        // first-class MIR atomic ops. They cannot be interpreted here — MIR
+        // construction runs before any LLVM IRBuilder exists, and the runtime
+        // pointer operands are interpreter `PointerValue`s with no `llvm::Value`
+        // behind them. The call node itself is returned so the MIR lowerer
+        // recognizes and lowers the operation; the enclosing `%runtime_value`
+        // carries the operands' captured runtime values, and every ordering /
+        // scope / op selector is a compile-time constant.
+        (void) call_scope; (void) allocator; (void) parent_val; (void) evaluate_refs;
+        return call;
     }
 
 };
@@ -2750,28 +2708,16 @@ public:
     }
 
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
-        auto& typeBuilder = call_scope->global->typeBuilder;
-        if(call->values.size() != 6) return typeBuilder.getNullValue();
-        const auto ptrVal = call->values[0]->evaluated_value(*call_scope);
-        const auto expVal = call->values[1]->evaluated_value(*call_scope);
-        const auto valueVal = call->values[2]->evaluated_value(*call_scope);
-        const auto order1Val = call->values[3]->evaluated_value(*call_scope);
-        const auto order2Val = call->values[4]->evaluated_value(*call_scope);
-        const auto scopeVal = call->values[5]->evaluated_value(*call_scope);
-        if(order1Val->kind() != ValueKind::IntN || order2Val->kind() != ValueKind::IntN || scopeVal->kind() != ValueKind::IntN) {
-            return typeBuilder.getNullValue();
-        }
-        const auto order1Num = order1Val->as_int_num_value_unsafe()->value;
-        const auto order2Num = order2Val->as_int_num_value_unsafe()->value;
-        const auto scopeNum = scopeVal->as_int_num_value_unsafe()->value;
-        if(order1Num < 0 || order1Num > static_cast<int>(BackendAtomicMemoryOrder::Last) || order2Num < 0 || order2Num > static_cast<int>(BackendAtomicMemoryOrder::Last) || scopeNum < 0 || scopeNum > static_cast<int>(BackendAtomicSyncScope::Last)) {
-            return typeBuilder.getNullValue();
-        }
-        if(!call_scope->global->backend_context) {
-            call_scope->error("intrinsics::llvm::atomic_cmp_exch_strong is not supported in this context (no backend)", call);
-            return typeBuilder.getNullValue();
-        }
-        return call_scope->global->backend_context->atomic_cmp_exch_strong(ptrVal, expVal, valueVal, static_cast<BackendAtomicMemoryOrder>(order1Num), static_cast<BackendAtomicMemoryOrder>(order2Num), static_cast<BackendAtomicSyncScope>(scopeNum));
+        // Deferred to MIR lowering: `intrinsics::llvm::atomic_*` become
+        // first-class MIR atomic ops. They cannot be interpreted here — MIR
+        // construction runs before any LLVM IRBuilder exists, and the runtime
+        // pointer operands are interpreter `PointerValue`s with no `llvm::Value`
+        // behind them. The call node itself is returned so the MIR lowerer
+        // recognizes and lowers the operation; the enclosing `%runtime_value`
+        // carries the operands' captured runtime values, and every ordering /
+        // scope / op selector is a compile-time constant.
+        (void) call_scope; (void) allocator; (void) parent_val; (void) evaluate_refs;
+        return call;
     }
 
 };
@@ -2806,30 +2752,16 @@ public:
     }
 
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
-        auto& typeBuilder = call_scope->global->typeBuilder;
-        if(call->values.size() != 5) return typeBuilder.getNullValue();
-        const auto opVal = call->values[0]->evaluated_value(*call_scope);
-        const auto ptrVal = call->values[1]->evaluated_value(*call_scope);
-        const auto valueVal = call->values[2]->evaluated_value(*call_scope);
-        const auto orderVal = call->values[3]->evaluated_value(*call_scope);
-        const auto scopeVal = call->values[4]->evaluated_value(*call_scope);
-        if(opVal->kind() != ValueKind::IntN || orderVal->kind() != ValueKind::IntN || scopeVal->kind() != ValueKind::IntN) {
-            return typeBuilder.getNullValue();
-        }
-        const auto opNum = opVal->as_int_num_value_unsafe()->value;
-        const auto orderNum = orderVal->as_int_num_value_unsafe()->value;
-        const auto scopeNum = scopeVal->as_int_num_value_unsafe()->value;
-        if(opNum < 0 || opNum > static_cast<int>(BackendAtomicOp::Last)) {
-            return typeBuilder.getNullValue();
-        }
-        if(orderNum < 0 || orderNum > static_cast<int>(BackendAtomicMemoryOrder::Last) || scopeNum < 0 || scopeNum > static_cast<int>(BackendAtomicSyncScope::Last)) {
-            return typeBuilder.getNullValue();
-        }
-        if(!call_scope->global->backend_context) {
-            call_scope->error("intrinsics::llvm::atomic_op is not supported in this context (no backend)", call);
-            return typeBuilder.getNullValue();
-        }
-        return call_scope->global->backend_context->atomic_op(static_cast<BackendAtomicOp>(opNum), ptrVal, valueVal, static_cast<BackendAtomicMemoryOrder>(orderNum), static_cast<BackendAtomicSyncScope>(scopeNum));
+        // Deferred to MIR lowering: `intrinsics::llvm::atomic_*` become
+        // first-class MIR atomic ops. They cannot be interpreted here — MIR
+        // construction runs before any LLVM IRBuilder exists, and the runtime
+        // pointer operands are interpreter `PointerValue`s with no `llvm::Value`
+        // behind them. The call node itself is returned so the MIR lowerer
+        // recognizes and lowers the operation; the enclosing `%runtime_value`
+        // carries the operands' captured runtime values, and every ordering /
+        // scope / op selector is a compile-time constant.
+        (void) call_scope; (void) allocator; (void) parent_val; (void) evaluate_refs;
+        return call;
     }
 
 };
@@ -2856,23 +2788,16 @@ public:
     }
 
     Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
-        auto& typeBuilder = call_scope->global->typeBuilder;
-        if(call->values.size() != 1) return typeBuilder.getNullValue();
-        const auto orderVal = call->values[0]->evaluated_value(*call_scope);
-        if(orderVal->kind() != ValueKind::IntN) {
-            return typeBuilder.getNullValue();
-        }
-        const auto orderNum = orderVal->as_int_num_value_unsafe()->value;
-        if(orderNum < 0 || orderNum > static_cast<int>(BackendAtomicMemoryOrder::Last)) {
-            return typeBuilder.getNullValue();
-        }
-        if(!call_scope->global->backend_context) {
-            call_scope->error("intrinsics::llvm::atomic_signal_fence is not supported in this context (no backend)", call);
-            return typeBuilder.getNullValue();
-        }
-        // compiler-only fence: returns the backend's value (empty raw literal on
-        // the C backend, null on LLVM); the interpreter treats it as a no-op
-        return call_scope->global->backend_context->signal_fence(static_cast<BackendAtomicMemoryOrder>(orderNum));
+        // Deferred to MIR lowering: `intrinsics::llvm::atomic_*` become
+        // first-class MIR atomic ops. They cannot be interpreted here — MIR
+        // construction runs before any LLVM IRBuilder exists, and the runtime
+        // pointer operands are interpreter `PointerValue`s with no `llvm::Value`
+        // behind them. The call node itself is returned so the MIR lowerer
+        // recognizes and lowers the operation; the enclosing `%runtime_value`
+        // carries the operands' captured runtime values, and every ordering /
+        // scope / op selector is a compile-time constant.
+        (void) call_scope; (void) allocator; (void) parent_val; (void) evaluate_refs;
+        return call;
     }
 
 };

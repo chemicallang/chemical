@@ -33,6 +33,12 @@ class InterpretScope;
 
 class Codegen;
 
+namespace mir {
+struct MIRModule;
+struct MIRFunction;
+struct MIRTypeRecord;
+}
+
 class Scope;
 
 class NameMangler;
@@ -198,6 +204,15 @@ public:
      * context pointer cache, it is only destroyed when the llvm context is destroyed
      */
     std::unordered_map<ASTNode*, llvm::Type*> ctx_ptr_cache;
+
+    // MIR → LLVM caches (per module; cleared by mir_reset_caches).
+    std::unordered_map<uint32_t, llvm::Type*> mir_type_cache_;
+    std::unordered_map<uint32_t, llvm::Function*> mir_fn_cache_;
+    std::unordered_map<uint32_t, llvm::GlobalVariable*> mir_global_cache_;
+    std::unordered_map<std::string, llvm::GlobalVariable*> mir_named_globals_;
+    std::unordered_map<std::string, llvm::StructType*> mir_vtable_types_;
+    std::unordered_map<std::string, std::vector<std::string>> mir_vtable_methods_;
+    std::unordered_map<std::string, std::vector<llvm::FunctionType*>> mir_vtable_slot_types_;
 
     /**
      * this keeps track of llvm pointers for functions that we created in different implementations
@@ -374,6 +389,43 @@ public:
     void declare_and_compile(std::vector<ASTNode*>& nodes) {
         declare_nodes(nodes);
         compile_nodes(nodes);
+    }
+
+    // ── MIR → LLVM lowering ─────────────────────────────────────────────────
+    // The MIR-driven LLVM backend. Types are lowered from the canonical MIR
+    // type table (with aggregate layout), and function bodies are lowered from
+    // MIR instructions. No AST virtual dispatch is used.
+    /** Lower a MIR type id to an LLVM type (cached). */
+    llvm::Type* mir_type(const mir::MIRModule& module, uint32_t id);
+    /** The LLVM FunctionType for a MIR function type id (no pointer wrapper). */
+    llvm::FunctionType* mir_fn_type(const mir::MIRModule& module, uint32_t fn_type);
+    /** Create/intern an LLVM vtable struct type (one function-pointer per slot). */
+    llvm::StructType* mir_vtable_struct(const std::string& name,
+                                        const std::vector<llvm::FunctionType*>& slots);
+    /** The function type of a vtable slot (for indirect calls). */
+    llvm::FunctionType* mir_vtable_slot_type(const std::string& type_name, uint32_t index) const;
+    /** Resolve a vtable method name to its slot index. */
+    bool mir_vtable_method_index(const std::string& type_name, const std::string& method,
+                                 uint32_t& out) const;
+    /** Register a vtable global by name (for `GlobalAddr` of vtable symbols). */
+    void mir_register_named_global(const std::string& name, llvm::GlobalVariable* gv) {
+        mir_named_globals_[name] = gv;
+    }
+    /** Declare/define the LLVM function for a MIR function symbol. */
+    llvm::Function* mir_function(const mir::MIRModule& module, uint32_t symbol);
+    /** Emit the LLVM definition of a MIR function body. */
+    bool mir_emit_function(const mir::MIRModule& module, const mir::MIRFunction& fn);
+    /** Declare LLVM globals for the module's MIR global symbols. */
+    void mir_declare_globals(const mir::MIRModule& module);
+    /** Clear per-module MIR caches (call on module switch). */
+    void mir_reset_caches() {
+        mir_type_cache_.clear();
+        mir_fn_cache_.clear();
+        mir_global_cache_.clear();
+        mir_named_globals_.clear();
+        mir_vtable_types_.clear();
+        mir_vtable_methods_.clear();
+        mir_vtable_slot_types_.clear();
     }
 
     /**

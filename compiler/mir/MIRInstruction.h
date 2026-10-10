@@ -102,7 +102,27 @@ enum class MIROpcode : uint16_t {
     //           Constant(method field name), args...
     DynamicCall = 49,
 
-    Count = 50,
+    // ── atomics ─────────────────────────────────────────────────────────────
+    // The LLVM-backend spelling of the atomic library's operations
+    // (`intrinsics::llvm::atomic_*`). The C backend never produces these: its
+    // `atomic.ch` takes the `%runtime_value(__chx__*_dispatch(...))` path
+    // instead (`get_backend_name() == "C"`). Every ordering/scope/op selector
+    // is a Constant operand so no emitter ever needs the AST. `AtomicFence`
+    // covers both `atomic_fence` (a hardware fence) and `atomic_signal_fence`
+    // (a compiler-only fence, `signal_only == 1`).
+    AtomicLoad = 50,    // result: value;  operands: Place|Value(ptr), Constant(order), Constant(scope)
+    AtomicStore = 51,   // result: none;   operands: Place|Value(ptr), Value(val),
+                        //                 Constant(order), Constant(scope)
+    AtomicCmpXchg = 52, // result: value(bool); operands: Place|Value(ptr),
+                        //   Place|Value(expected ptr), Value(val),
+                        //   Constant(success_order), Constant(failure_order),
+                        //   Constant(scope), Constant(weak)
+    AtomicRMW = 53,     // result: value;  operands: Constant(op), Place|Value(ptr),
+                        //                 Value(val), Constant(order), Constant(scope)
+    AtomicFence = 54,   // result: none;   operands: Constant(order), Constant(scope),
+                        //                 Constant(signal_only)
+
+    Count = 55,
 };
 
 /** fixed opcode effects/attributes (see mir-design.md §4.6) */

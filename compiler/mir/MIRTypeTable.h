@@ -70,12 +70,36 @@ struct MIRTypeRecord {
     uint32_t decl = MIR_INVALID_ID;  // source declaration id (struct/variant)
     uint32_t name_offset = 0;        // index into MIRTypeTable::names (aggregates)
     uint32_t name_length = 0;
+    // Aggregates only: start index into MIRTypeTable::fields (ordered runtime
+    // fields, including inherited bases first). MIR_INVALID_ID = no fields.
+    uint32_t field_index = MIR_INVALID_ID;
 };
+
+/** One ordered runtime field of an aggregate (struct/union/variant). */
+struct MIRFieldInfo {
+    TypeId type = MIR_INVALID_ID;
+    uint32_t name_offset = 0; // index into MIRTypeTable::field_names
+    uint32_t name_length = 0;
+    uint32_t index = 0;       // field index within the LLVM aggregate (for GEP)
+    uint8_t kind = 0;         // MIRFieldKind
+};
+
+/** Distinguishes the structural role of a field for emitters. */
+enum class MIRFieldKind : uint8_t {
+    Direct = 0,   // a normal member
+    Base = 1,     // an embedded inherited base struct
+    VariantTag = 2, // the variant discriminator (`__chx__vt_621827`)
+    VariantCase = 3, // a variant case payload struct (inside the union)
+    VariantParam = 4, // a parameter of the active variant case payload
+};
+
 
 struct MIRTypeTable {
     std::vector<MIRTypeRecord> types;
     std::vector<TypeId> data;
     std::vector<char> names;
+    std::vector<MIRFieldInfo> fields;
+    std::vector<char> field_names;
 
     /** Attach a C-emittable name to a (named aggregate) type. */
     void set_name(TypeId id, const char* name, uint32_t len) {
@@ -92,6 +116,27 @@ struct MIRTypeTable {
         const MIRTypeRecord& r = types[id];
         if (r.name_length == 0) return {};
         return std::string(names.data() + r.name_offset, r.name_length);
+    }
+
+    /** Append a range of fields, returning the start index. */
+    uint32_t append_fields(const std::vector<MIRFieldInfo>& fs) {
+        uint32_t off = static_cast<uint32_t>(fields.size());
+        fields.insert(fields.end(), fs.begin(), fs.end());
+        return off;
+    }
+
+    std::string field_name_of(const MIRFieldInfo& f) const {
+        if (f.name_length == 0) return {};
+        return std::string(field_names.data() + f.name_offset, f.name_length);
+    }
+
+    const MIRFieldInfo* field_of(TypeId agg, uint32_t i) const {
+        if (agg >= types.size()) return nullptr;
+        const MIRTypeRecord& r = types[agg];
+        if (r.field_index == MIR_INVALID_ID || i >= r.data_count) return nullptr;
+        const uint32_t idx = r.field_index + i;
+        if (idx >= fields.size()) return nullptr;
+        return &fields[idx];
     }
 
     const MIRTypeRecord& get(TypeId id) const { return types[id]; }
@@ -119,7 +164,8 @@ struct MIRTypeTable {
     bool equal(const MIRTypeRecord& a, const MIRTypeRecord& b) const {
         if (a.kind != b.kind || a.flags != b.flags || a.size != b.size ||
             a.alignment != b.alignment || a.element != b.element || a.decl != b.decl ||
-            a.data_count != b.data_count || a.int_kind != b.int_kind) {
+            a.data_count != b.data_count || a.int_kind != b.int_kind ||
+            a.field_index != b.field_index) {
             return false;
         }
         // Only function types store parameter types in the shared data pool;

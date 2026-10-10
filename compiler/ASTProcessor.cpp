@@ -1777,7 +1777,8 @@ bool mir_translate_after_declaration(
         mir::MIRLowerer& lowerer,
         mir::MIRArena& arena,
         mir::MIRDeclEmitter& decl_emitter,
-        const std::vector<ASTNode*>& nodes) {
+        const std::vector<ASTNode*>& nodes,
+        bool llvm_collect = false) {
     // pass 0: name the aggregate types emitted by declare_module so MIR's C
     // type spelling matches the legacy struct/union/variant declarations
     for (ASTNode* node : nodes) {
@@ -1824,7 +1825,9 @@ bool mir_translate_after_declaration(
     // visitor for that function.
     auto lower_and_emit = [&](FunctionDeclaration* decl) -> bool {
         if (!mir_eligible_function(decl)) return false;
-        arena.reset();
+        // The LLVM backend keeps every lowered function (and therefore the
+        // arena) alive so it can emit LLVM IR for the whole module afterwards.
+        if (!llvm_collect) arena.reset();
         mir::MIRFunction fn;
         std::string error;
         if (!lowerer.lower_function(decl, arena, fn, error)) {
@@ -1833,6 +1836,22 @@ bool mir_translate_after_declaration(
                       << mir_mangle_name(visitor.mangler, decl) << "): " << error
                       << " -- falling back to the legacy visitor\n";
             return false;
+        }
+        if (llvm_collect) {
+            module.functions.push_back(fn);
+            if (decl->is_async()) module.functions.push_back(lowerer.async_poll());
+            // lambda bodies materialized while lowering this function live in
+            // the same arena, so collect them now (the C backend emits them from
+            // `lambda_defs()` instead)
+            for (const mir::MIRFunction& lf : lowerer.lambda_functions()) {
+                module.functions.push_back(lf);
+            }
+            // The LLVM target never uses the generated C (it emits LLVM IR from
+            // the collected MIR), so the C emission is skipped. This also keeps
+            // the C emitter unaware of constructs only the LLVM backend
+            // produces, such as the `intrinsics::llvm::atomic_*` ops.
+            lowerer.clear_lambda_defs();
+            return true;
         }
         if (decl->is_async()) {
             // async: emit the frame helpers, then the __poll, then the
@@ -1990,6 +2009,19 @@ bool mir_translate_after_declaration(
                 case ASTNodeKind::Scope:
                     process_nodes(node->as_scope_unsafe()->nodes);
                     continue;
+                case ASTNodeKind::IfStmt: {
+                    // a top-level `if <comptime condition>` contributes its taken
+                    // branch's declarations to the module (e.g. the arch/OS split
+                    // in `std/concurrency/threadpool.ch`). The taken scope is
+                    // resolved during top-level declaration; its members must be
+                    // lowered here too, or the module silently loses them.
+                    auto* stmt = node->as_if_stmt_unsafe();
+                    if (stmt->is_top_level() && stmt->computed_scope.has_value()) {
+                        Scope* taken = stmt->computed_scope.value();
+                        if (taken) process_nodes(taken->nodes);
+                    }
+                    continue;
+                }
                 case ASTNodeKind::EmbeddedNode: {
                     auto* en = node->as_embedded_node_unsafe();
                     ASTNode* repl = visitor.resolve_embedded_node(en);
@@ -2168,7 +2200,9 @@ int ASTProcessor::implement_module(
     // generic instantiations for this module: lowered by MIR (function bodies);
     // non-function nodes still go through the legacy visitor as declarations
     if (mir_translate_after_declaration(c_visitor, mir_module, mir_types, mir_lowerer,
-                                        mir_arena, mir_decl, container.get_current_module_instantiations())) {
+                                        mir_arena, mir_decl,
+                                        container.get_current_module_instantiations(),
+                                        mir_llvm_collect)) {
         had_errors = true;
     }
 
@@ -2184,7 +2218,7 @@ int ASTProcessor::implement_module(
 #endif
 
         // translating to c: function bodies via MIR, declarations via legacy
-        if(mir_translate_after_declaration(c_visitor, mir_module, mir_types, mir_lowerer, mir_arena, mir_decl, unit.scope.body.nodes)) {
+        if(mir_translate_after_declaration(c_visitor, mir_module, mir_types, mir_lowerer, mir_arena, mir_decl, unit.scope.body.nodes, mir_llvm_collect)) {
             had_errors = true;
         }
 
@@ -2200,6 +2234,13 @@ int ASTProcessor::implement_module(
     // a module without files still collects diagnostics from its generics
     if(print_translation_diagnostics(c_visitor)) {
         had_errors = true;
+    }
+
+    // The MIR→LLVM backend consumes the fully-populated MIR module here, while
+    // the lowering arena (which backs the collected MIRFunction storage) is
+    // still alive.
+    if (mir_llvm_collect && mir_llvm_finish) {
+        mir_llvm_finish(mir_types, mir_module);
     }
 
     // this will clear current module instantiations

@@ -58,7 +58,9 @@ void dump_instruction(const MIRFunction& fn, const MIRInstruction& inst,
             op == MIROpcode::Unary || op == MIROpcode::Binary ||
             op == MIROpcode::Compare || op == MIROpcode::Cast ||
             op == MIROpcode::Select || op == MIROpcode::SizeOf ||
-            op == MIROpcode::AlignOf || op == MIROpcode::OffsetOf;
+            op == MIROpcode::AlignOf || op == MIROpcode::OffsetOf ||
+            op == MIROpcode::AtomicLoad || op == MIROpcode::AtomicCmpXchg ||
+            op == MIROpcode::AtomicRMW;
         if (producesValue) out << "%v" << inst.result_or_place << " = ";
         else out << "p" << inst.result_or_place << " = ";
     }

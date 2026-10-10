@@ -107,6 +107,22 @@ public:
         r.alignment = module_.layout.pointer_alignment;
         fat_pointer_id_ = intern(r);
         module_.types.set_name(fat_pointer_id_, "__chemical_fat_pointer__", 24);
+        // two pointer fields: `first` (object) and `second` (vtable)
+        std::vector<MIRFieldInfo> fs;
+        for (const char* n : {"first", "second"}) {
+            const size_t nlen = std::strlen(n);
+            MIRFieldInfo fi;
+            fi.type = pointer_type(void_type(), true);
+            fi.kind = static_cast<uint8_t>(MIRFieldKind::Direct);
+            fi.index = static_cast<uint32_t>(fs.size());
+            fi.name_offset = static_cast<uint32_t>(module_.types.field_names.size());
+            fi.name_length = static_cast<uint32_t>(nlen);
+            module_.types.field_names.insert(module_.types.field_names.end(), n, n + nlen);
+            fs.push_back(fi);
+        }
+        MIRTypeRecord& rec = module_.types.types[fat_pointer_id_];
+        rec.data_count = 2;
+        rec.field_index = module_.types.append_fields(fs);
         return fat_pointer_id_;
     }
 
@@ -140,6 +156,8 @@ private:
     TypeId function_type(BaseType* type);
     /** Give an inline (anonymous/locally-named) struct type a stable C name. */
     void ensure_inline_struct_name(TypeId id, BaseType* struct_type);
+    /** Fill the ordered runtime fields (and size/alignment) of an aggregate. */
+    void fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode* decl, BaseType* type);
 
 public:
     /**

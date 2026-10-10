@@ -25,6 +25,12 @@
 #include "stream/FileInputSource.h"
 #include <span>
 #include <mutex>
+#include <functional>
+
+namespace mir {
+struct MIRModule;
+class MIRTypeBuilder;
+}
 
 #include "symres/LinkSignatureAPI.h"
 #include "symres/SymResLinkBodyAPI.h"
@@ -584,6 +590,25 @@ public:
         return implement_module(visitor, module);
     }
 
+    /**
+     * When true, the MIR construction also *collects* every lowered function
+     * into the MIR module (instead of discarding it per function), keeping the
+     * lowering arena alive. Used by the MIR→LLVM backend; the C backend leaves
+     * it false so it can reuse one arena per function.
+     *
+     * Declared unconditionally (it is plain data, free of LLVM types) because
+     * `implement_module` lives in the shared sources and consults it for the C
+     * backend too.
+     */
+    bool mir_llvm_collect = false;
+
+    /**
+     * Called at the end of `implement_module` (while the lowering arena is
+     * still alive) when `mir_llvm_collect` is set, so the LLVM backend can emit
+     * IR for the fully-populated MIR module.
+     */
+    std::function<void(mir::MIRTypeBuilder&, mir::MIRModule&)> mir_llvm_finish;
+
 #ifdef COMPILER_BUILD
 
     /**
@@ -647,6 +672,17 @@ public:
      * allowing symbols from files to be referenced in other files above or below
      */
     int compile_module(
+        Codegen& gen,
+        LabModule* module
+    );
+
+    /**
+     * MIR-driven compilation of a module for the LLVM backend. Drives the MIR
+     * construction (the same one the C backend uses) and emits LLVM IR from the
+     * accumulated MIR module. No AST virtual dispatch is used for codegen.
+     * Returns 0 on success.
+     */
+    int mir_compile_module(
         Codegen& gen,
         LabModule* module
     );

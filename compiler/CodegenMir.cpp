@@ -880,7 +880,33 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                                            rec.mangled_length ? rec.mangled_length
                                                               : rec.name_length);
                             auto nit = mir_named_globals_.find(nm);
-                            if (nit != mir_named_globals_.end()) vals[v] = nit->second;
+                            if (nit != mir_named_globals_.end()) {
+                                vals[v] = nit->second;
+                            } else {
+                                // A named global owned by *another* module — an
+                                // interface vtable, for instance, is emitted in
+                                // the module that hosts the `impl`. The C backend
+                                // emits the whole program as one translation unit
+                                // so the reference just resolves; per-module LLVM
+                                // objects need an external declaration, otherwise
+                                // the address is missing and the store that uses
+                                // it (a `dyn<I>` fat pointer's vtable slot) is
+                                // dropped.
+                                llvm::Type* gt = (rec.type != MIR_INVALID_ID &&
+                                                  rec.type < m.types.size())
+                                                     ? mir_type(m, rec.type)
+                                                     : nullptr;
+                                if (!gt || !gt->isSized())
+                                    gt = llvm::Type::getInt8Ty(module->getContext());
+                                llvm::GlobalVariable* gv = module->getGlobalVariable(nm);
+                                if (!gv) {
+                                    gv = new llvm::GlobalVariable(
+                                        *module, gt, /*isConstant=*/false,
+                                        llvm::GlobalValue::ExternalLinkage, nullptr, nm);
+                                }
+                                mir_global_cache_[s->id] = gv;
+                                vals[v] = gv;
+                            }
                         }
                     }
                     break;
@@ -1383,7 +1409,17 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     llvm::Value* dv = places[dest->id];
                     llvm::Value* sv = op_val(*src);
                     if (src->kind() == MIROperandKind::Place) {
-                        sv = builder->CreateLoad(mir_type(m, fn.places[src->id].type), sv);
+                        // Mirror the C emitter: a pointer/reference-typed source
+                        // place copies the *pointee* (`var x = *j`), not the
+                        // pointer. Storing the pointer bits into a struct slot
+                        // left every field but the first zero.
+                        const MIRTypeRecord& srt = m.types.get(fn.places[src->id].type);
+                        if (srt.kind == MIRTypeKind::Pointer || srt.kind == MIRTypeKind::Reference) {
+                            llvm::Value* p = builder->CreateLoad(builder->getPtrTy(), sv);
+                            sv = builder->CreateLoad(mir_type(m, fn.places[dest->id].type), p);
+                        } else {
+                            sv = builder->CreateLoad(mir_type(m, fn.places[src->id].type), sv);
+                        }
                     }
                     if (dv && sv) builder->CreateStore(sv, dv);
                     break;
@@ -1458,23 +1494,46 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     const MIROperand* d = arg(0);
                     const MIROperand* s = arg(1);
                     const MIROperand* n = arg(2);
-                    if (!d || !s || !n) break;
+                    if (!d || !s) break;
                     llvm::Value* dv = op_val(*d);
                     llvm::Value* sv = op_val(*s);
                     if (d->kind() == MIROperandKind::Place) dv = places[d->id];
                     if (s->kind() == MIROperandKind::Place) sv = places[s->id];
-                    llvm::Value* nv = op_val(*n);
-                    builder->CreateMemCpy(dv, llvm::MaybeAlign(), sv, llvm::MaybeAlign(), nv);
+                    llvm::Value* nv = n ? op_val(*n) : nullptr;
+                    if (!nv && d->kind() == MIROperandKind::Place) {
+                        // the C emitter defaults the size to `sizeof(dest place)`
+                        // (`var x = *j` lowers to `memcpy p1, ptr` with no size)
+                        const TypeId dt = fn.places[d->id].type;
+                        if (dt >= m.types.size()) break;
+                        nv = builder->getInt64(
+                            module->getDataLayout().getTypeAllocSize(mir_type(m, dt)));
+                    }
+                    if (dv && sv && nv)
+                        builder->CreateMemCpy(dv, llvm::MaybeAlign(), sv, llvm::MaybeAlign(), nv);
                     break;
                 }
                 case MIROpcode::MemSet: {
                     const MIROperand* d = arg(0);
-                    const MIROperand* byte = arg(1);
-                    const MIROperand* n = arg(2);
-                    if (!d || !byte || !n) break;
+                    if (!d) break;
                     llvm::Value* dv = (d->kind() == MIROperandKind::Place) ? places[d->id]
                                                                            : op_val(*d);
-                    builder->CreateMemSet(dv, op_val(*byte), op_val(*n), llvm::MaybeAlign());
+                    if (!dv) break;
+                    const MIROperand* byte = arg(1);
+                    const MIROperand* n = arg(2);
+                    llvm::Value* bv = byte ? op_val(*byte) : nullptr;
+                    llvm::Value* nv = n ? op_val(*n) : nullptr;
+                    if (!bv || !nv) {
+                        // `zero_init(place)` carries only the destination; the C
+                        // emitter zeroes `sizeof(place)` bytes.
+                        if (d->kind() != MIROperandKind::Place) break;
+                        const TypeId dt = fn.places[d->id].type;
+                        if (dt >= m.types.size()) break;
+                        const uint64_t sz =
+                            module->getDataLayout().getTypeAllocSize(mir_type(m, dt));
+                        bv = builder->getInt8(0);
+                        nv = builder->getInt64(sz);
+                    }
+                    builder->CreateMemSet(dv, bv, nv, llvm::MaybeAlign());
                     break;
                 }
                 case MIROpcode::AtomicLoad: {

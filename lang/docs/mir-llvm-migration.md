@@ -273,11 +273,62 @@ by the TCC suite staying at 2292/2292 (`MIRTests` 1049 checks OK).
   slot (a struct holding a capturing lambda passed to a lambda clobbered its
   `lamb` field); an array place destroys each element **last-to-first**.
 
-**Still open on the LLVM target (next checkpoints):** `dyn` primitive-impl
-vtable dispatch aborts at `dyn_prim_impl_give` (test ~1474); trivially-copyable
-`deref` / `zeroed` / partial-array-literal / inherited-default-ctor tests fail;
-synthesized `make`/`delete` MIR defects; CBI `EmbeddedNode`, inline `asm`, async,
-and debug info are not lowered from MIR yet; the AST lowering is still undeleted.
+**Still open on the LLVM target (next checkpoints):** the main suite aborts at
+`main_test_native_generic_fn_reference` (~test 1927) on a null generic-function
+call; `string arrays over sized`, `inherited default initialized structs`,
+`getting dynamic object from function return`, and `sizeof/align of struct SOT6`
+still fail; synthesized `make`/`delete` MIR defects; CBI `EmbeddedNode`, inline
+`asm`, async, and debug info are not lowered from MIR yet; the AST lowering is
+still undeleted.
+
+**Session 3 (cont.) — dynamic dispatch, zeroing and aggregate `memcpy`.**
+After the first sweep the suite reached ~1890:
+
+- **Primitive-impl vtables were never emitted.** `mir_emit_llvm_module`'s ImplDecl
+  loop required a `MembersContainer`, so `impl Interface for int` produced no
+  `__chx_<iface>_<type>_vt` global, the `dyn<I>` fat pointer's `second` slot had
+  nothing to point at and the store was dropped altogether (`dyn_prim_impl_give`
+  called a garbage vtable → SIGSEGV). Primitive impls now build the vtable from
+  the impl's own methods, mirroring `MIRDeclEmitter::create_vtable_primitive`.
+- **`zero_init(place)` carries only a place operand.** The LLVM `MemSet` required
+  byte+size, so every `zeroed<T>()` / array-literal / partial-literal zeroing was
+  dropped. It now zeroes `sizeof(place)` bytes, like the C emitter.
+- **`memcpy p1, ptr` carries no size operand.** The C emitter defaults to
+  `sizeof(dest)`; the LLVM `MemCpy` required the size and silently dropped the
+  instruction — so `var x = *j` (an aggregate copy through a reference/pointer)
+  never copied, and reading `x.<field>` read uninitialized storage. The size now
+  defaults to the destination place's alloc size.
+
+Only 5 main-suite failures remain (was 18). The C path is unaffected
+(MIRTests 1049 checks OK; `TCCCompiler` builds unchanged).
+
+**Session 3 (cont. 2) — the main suite now runs to completion.**
+It no longer aborts mid-run: `Total 2294 Passed 2275 Failed 19`. Three more
+MIR→LLVM emission bugs, all invisible on the C path (one translation unit hides
+criss-cross-module references):
+
+- **A global initializer that is a function reference stayed null.**
+  `GlobalConstantLowerer::build_impl` had no case for a function used as a value
+  (`var f : (x : int) => int = generic_identity<int>`), so the global kept the
+  `null` initializer from `mir_declare_globals` and calling through it segfaulted
+  (`main_test_native_generic_fn_reference`). `Identifier` /
+  `GenericInstIdentifier` and the non-call `AccessChain` leaf now resolve to the
+  concrete `FunctionDecl` and its pre-declared LLVM function — mirroring
+  `MIRDeclEmitter::const_value_expr`'s `FunctionDecl`-leaf case.
+- **Cross-module vtable references were dropped.** An interface vtable is emitted
+  in the module that hosts the `impl` with (C) `static` linkage, which the LLVM
+  backend spelled `internal`; a `dyn<I>` built in *another* module then had no
+  symbol to reference, so `GlobalAddr` produced no value and the store into the
+  fat pointer's `second` slot was silently dropped (calling through a garbage
+  vtable → SIGSEGV in `main_dyn_sum_pub_norm_inter`). Vtable globals are now
+  `external` (their mangled names embed both the interface and the impl type, so
+  they stay program-unique) and `CodegenMir`'s `GlobalAddr` emits an external
+  declaration for a named global it does not own.
+
+The remaining 19 failures are: `string arrays over sized`, `inherited default
+initialized structs`, `getting dynamic object from function return` (2),
+`sizeof/align of struct SOT6`, and 14 `std::string`/`string_view` `to_i32`-family
+conversions (`parse_int` returns garbage on the LLVM target only).
 
 ### 2.1 What is done
 

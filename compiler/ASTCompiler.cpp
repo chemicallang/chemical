@@ -180,9 +180,38 @@ private:
             case ValueKind::FunctionCall:
             case ValueKind::AccessChain:
                 return call_constant(value, tid, want);
+            case ValueKind::Identifier:
+            case ValueKind::GenericInstIdentifier:
+                // a bare function reference used as a value (`func`, `ident<int>`)
+                return function_ref(value->linked_node(), want);
             default:
                 return llvm::Constant::getNullValue(want);
         }
+    }
+
+    std::string mangle_node(ASTNode* n) {
+        BufferedWriter w(256);
+        gen_.mangler.mangle(w, n);
+        return std::string(w.data(), w.getPosition());
+    }
+
+    /**
+     * A function used as a *value* resolves to the address of the concrete
+     * function (`ident<int>`, `ns::ident<int>`, `module::func`). The leaf is a
+     * `GenericInstIdentifier` — a `VariableIdentifier` subclass — whose
+     * `linked_node()` is the instantiated `FunctionDecl` after symbol
+     * resolution; this mirrors `MIRDeclEmitter::const_value_expr`'s
+     * `AccessChain`-with-`FunctionDecl`-leaf case. `mir_emit_llvm_module`
+     * pre-declares every MIR function before this pass runs, so the lookup by
+     * mangled name finds the definition this module emits afterwards.
+     */
+    llvm::Constant* function_ref(ASTNode* linked, llvm::Type* want) {
+        if (!linked || linked->kind() != ASTNodeKind::FunctionDecl)
+            return llvm::Constant::getNullValue(want);
+        const std::string name = mangle_node(linked);
+        llvm::Function* lf = gen_.module->getFunction(name);
+        if (!lf) return llvm::Constant::getNullValue(want);
+        return lf; // opaque pointer
     }
 
     llvm::Constant* int_constant_ptr(uint64_t num, llvm::Type* want) {
@@ -304,21 +333,16 @@ private:
     llvm::Constant* struct_constant(StructValue* sv, mir::TypeId tid, llvm::Type* want) {
         auto* st = llvm::dyn_cast<llvm::StructType>(want);
         if (!st) return llvm::Constant::getNullValue(want);
-        // Fully initialize defaults first: this runs `declare_default_values`,
-        // merges inherited bases and applies implicit constructors, giving a
-        // value whose fields carry the concrete data the constant needs.
-        StructValue* filled = sv;
-        if (scope_.global) {
-            Value* ev = sv->evaluated_value(scope_);
-            if (ev && ev->val_kind() == ValueKind::StructValue)
-                filled = ev->as_struct_value_unsafe();
-        }
+        // Resolve defaults structurally, exactly like the C emitter's
+        // `const_value_expr` — do NOT run the interpreter here: evaluating a
+        // struct initializer can dereference uninitialized memory ("invalid
+        // memory access") and abort the whole compile for std/cstd globals.
         StructDefinition* sd = sv->linked_struct();
         if (!sd) {
             BaseType* bt = sv->getRefType();
             if (bt) sd = bt->get_direct_linked_struct();
         }
-        return struct_fields(filled, tid, st, sd);
+        return struct_fields(sv, tid, st, sd);
     }
 
     llvm::Constant* call_constant(Value* value, mir::TypeId tid, llvm::Type* want) {
@@ -327,6 +351,10 @@ private:
             auto* ch = value->as_access_chain_unsafe();
             if (ch->values.empty()) return llvm::Constant::getNullValue(want);
             call = ch->values.back();
+            // `ns::ident<int>` / `module::func` used as a value is a chain whose
+            // leaf links to the concrete function, not a call.
+            if (call && call->val_kind() != ValueKind::FunctionCall)
+                return function_ref(call->linked_node(), want);
         }
         if (call && call->val_kind() == ValueKind::FunctionCall) {
             auto* fc = call->as_func_call_unsafe();
@@ -513,11 +541,66 @@ static void mir_emit_llvm_module(Codegen& gen, LabModule* module,
         InterfaceDefinition* iface =
             impl->interface_type ? impl->interface_type->get_direct_linked_interface() : nullptr;
         if (!iface) continue;
+        if (iface->is_static()) continue; // static interfaces have no vtable
         MembersContainer* container_mc =
             impl->struct_type ? impl->struct_type->get_members_container() : nullptr;
         ExtendableMembersContainerNode* container =
             container_mc ? container_mc->as_extendable_members_container_unsafe() : nullptr;
-        if (!container) continue;
+        if (!container) {
+            // Primitive impl (`impl Interface for int`): there is no members
+            // container, so the vtable is built from the impl's own methods —
+            // mirroring `MIRDeclEmitter::create_vtable_primitive`. Without this
+            // the `dyn<I>` fat pointer's `second` slot had no global to point at
+            // and the store was dropped (a garbage vtable → SIGSEGV on dispatch).
+            if (!iface->generates_vtable()) continue;
+            const std::string tn = vtable_type_name(iface);
+            std::string gname;
+            {
+                BufferedWriter w(256);
+                gen.mangler.mangle_vtable_name(w, iface, impl->struct_type);
+                gname.assign(w.data(), w.getPosition());
+            }
+            auto slots = slots_of(iface);
+            std::vector<llvm::FunctionType*> ftys;
+            bool ok = true;
+            for (FunctionDeclaration* f : slots) {
+                llvm::FunctionType* sft = slot_ftype(f);
+                if (!sft) { ok = false; break; }
+                ftys.push_back(sft);
+            }
+            if (!ok || ftys.empty()) continue;
+            llvm::StructType* vts = gen.mir_vtable_struct(tn, ftys);
+            if (vts->getNumElements() != slots.size()) continue;
+            std::vector<llvm::Constant*> init;
+            for (size_t si = 0; si < slots.size(); ++si) {
+                FunctionDeclaration* f = slots[si];
+                llvm::Function* lf = nullptr;
+                if (f->has_self_param()) {
+                    FunctionDeclaration* overrider = impl->direct_child_function(f->name_view());
+                    if (overrider) lf = gen.module->getFunction(mangle(overrider));
+                }
+                init.push_back(lf ? static_cast<llvm::Constant*>(lf)
+                                  : llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(
+                                        vts->getElementType(si))));
+            }
+            if (gen.mir_vtable_methods_.find(tn) == gen.mir_vtable_methods_.end()) {
+                std::vector<std::string> slot_names;
+                for (FunctionDeclaration* f : slots)
+                    slot_names.emplace_back(f->name_view().data(), f->name_view().size());
+                gen.mir_vtable_methods_[tn] = std::move(slot_names);
+            }
+            // External linkage: the vtable name is program-unique (it embeds
+            // both the interface's and the impl type's mangled names), and a
+            // `dyn<I>` built in *another* module references it — an internal
+            // definition cannot satisfy that reference across per-module LLVM
+            // objects (the C backend emits one translation unit, so `static`
+            // was enough there).
+            auto* gv = new llvm::GlobalVariable(
+                *gen.module, vts, true, llvm::GlobalValue::ExternalLinkage,
+                llvm::ConstantStruct::get(vts, init), gname);
+            gen.mir_register_named_global(gname, gv);
+            continue;
+        }
         const std::string tn = vtable_type_name(iface);
         std::string gname;
         {
@@ -567,7 +650,7 @@ static void mir_emit_llvm_module(Codegen& gen, LabModule* module,
             gen.mir_vtable_methods_[tn] = std::move(slot_names);
         }
         auto* gv = new llvm::GlobalVariable(
-            *gen.module, vts, true, llvm::GlobalValue::InternalLinkage,
+            *gen.module, vts, true, llvm::GlobalValue::ExternalLinkage,
             llvm::ConstantStruct::get(vts, init), gname);
         gen.mir_register_named_global(gname, gv);
     }

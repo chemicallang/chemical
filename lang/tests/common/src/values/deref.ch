@@ -24,6 +24,16 @@ struct DerefStoredPoint {
     var d : DerefCopyablePoint
 }
 
+struct DerefWidePoint {
+    var a : int
+    var b : int
+    var c : i64
+}
+
+func take_deref_wide_point(p : DerefWidePoint) : int {
+    return p.a + p.b
+}
+
 variant DerefStoredPointVariant {
     Some(d : DerefCopyablePoint)
     None()
@@ -169,6 +179,39 @@ func test_dereferences() {
         var Some(dx) = d2 else unreachable
         dx.a = 90;
         return dx.a == 90 && d.a == 30
+    })
+
+    test("dereferencing a wide trivially copyable struct pointer copies every field", () => {
+        var d = DerefWidePoint { a : 30, b : 12, c : 4611686018427387904 }
+        var j = &d
+        var x = *j // this would cause a copy
+        return x.a == 30 && x.b == 12 && x.c == 4611686018427387904
+    })
+
+    test("dereferencing a wide trivially copyable struct pointer causes an independent copy", () => {
+        var d = DerefWidePoint { a : 30, b : 12, c : 4611686018427387904 }
+        var j = &d
+        var x = *j // this would cause a copy
+        x.a = 1
+        x.b = 2
+        x.c = 3
+        return x.a == 1 && x.b == 2 && x.c == 3 && d.a == 30 && d.b == 12 &&
+               d.c == 4611686018427387904
+    })
+
+    test("dereferencing a wide trivially copyable struct pointer into a function call copies every field", () => {
+        var d = DerefWidePoint { a : 30, b : 12, c : 4611686018427387904 }
+        var j = &d
+        return take_deref_wide_point(*j) == 42
+    })
+
+    test("dereferencing a wide trivially copyable struct pointer into an array of structs copies every field", () => {
+        var d = DerefWidePoint { a : 30, b : 12, c : 4611686018427387904 }
+        var j = &d
+        var arr : [2]DerefWidePoint = [ *j, *j ]
+        arr[1].c = 7
+        return arr[0].a == 30 && arr[0].b == 12 && arr[0].c == 4611686018427387904 &&
+               arr[1].c == 7 && d.c == 4611686018427387904
     })
 
 }

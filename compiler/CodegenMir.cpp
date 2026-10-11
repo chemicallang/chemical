@@ -798,6 +798,11 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                 continue;
             }
             if (have == want) continue;
+            // C converts any scalar to `_Bool` as `!= 0`, not with a truncation.
+            if (want->isIntegerTy(1)) {
+                args[i] = as_i1(args[i]);
+                continue;
+            }
             if (want->isIntegerTy() && have->isIntegerTy()) {
                 bool sig = have->isIntegerTy(1) ? false : true;
                 if (arg_types && i < arg_types->size() && (*arg_types)[i] != MIR_INVALID_ID)
@@ -966,7 +971,12 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                             llvm::Type* want = mir_type(m, dst_ty);
                             if (sv->getType() != want && !want->isAggregateType() &&
                                 !sv->getType()->isAggregateType()) {
-                                if (sv->getType()->isIntegerTy() && want->isIntegerTy())
+                                // C converts any scalar to `_Bool` as `!= 0`; a
+                                // `trunc` would keep only the low bit (and drop
+                                // e.g. `isdigit()`'s 4).
+                                if (want->isIntegerTy(1))
+                                    sv = as_i1(sv);
+                                else if (sv->getType()->isIntegerTy() && want->isIntegerTy())
                                     sv = builder->CreateIntCast(sv, want, is_signed_ty(dst_ty));
                                 else if (sv->getType()->isFloatingPointTy() &&
                                          want->isFloatingPointTy())
@@ -1220,7 +1230,11 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                         vals[v] = av;
                         break;
                     }
-                    if (av->getType()->isIntegerTy() && to->isIntegerTy()) {
+                    // `x as bool` is C's `x != 0` (not a truncation): the low bit
+                    // of a non-0/1 integer is not its truthiness.
+                    if (to->isIntegerTy(1)) {
+                        vals[v] = as_i1(av);
+                    } else if (av->getType()->isIntegerTy() && to->isIntegerTy()) {
                         bool src_signed = false;
                         if (a->type() < m.types.size())
                             src_signed = (m.types.get(a->type()).flags & TF_SIGNED) != 0;
@@ -1421,6 +1435,12 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                             sv = builder->CreateLoad(mir_type(m, fn.places[src->id].type), sv);
                         }
                     }
+                    // Mirror C's implicit conversion to `_Bool` (`!= 0`).
+                    if (sv && dest->id < fn.places.size() &&
+                        fn.places[dest->id].type < m.types.size() &&
+                        m.types.get(fn.places[dest->id].type).kind == MIRTypeKind::Bool &&
+                        sv->getType()->isIntegerTy() && !sv->getType()->isIntegerTy(1))
+                        sv = as_i1(sv);
                     if (dv && sv) builder->CreateStore(sv, dv);
                     break;
                 }

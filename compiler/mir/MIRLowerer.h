@@ -98,6 +98,21 @@ public:
                         MIRFunction& func, std::string& error);
 
     /**
+     * Lower the auto-generated stub of a static interface method into `func`.
+     *
+     * A method with a body lowers through `lower_function` (the interface's
+     * default method); a bodyless one gets a trivial body — `ret 0` for an
+     * integer-like return, `ret void`, `unreachable` otherwise — which is what
+     * the C backend spells as `{ return 0; }`.
+     *
+     * The result is flagged `MF_WEAK_STUB`: a static interface's method and the
+     * matching method of every impl mangle to the same symbol, so the stub must
+     * lose to a real implementation found in another module's object.
+     */
+    bool lower_static_interface_stub(FunctionDeclaration* decl, MIRArena& arena,
+                                     MIRFunction& func, std::string& error);
+
+    /**
      * For an async function, `lower_function` produces the *ramp* as `func` and
      * the coroutine `__poll` here, with the frame/vtable helpers in the pre/post
      * declaration text. The caller emits: pre-decls, poll, post-decls, ramp.
@@ -125,6 +140,19 @@ public:
     void set_function_symbol(FunctionDeclaration* decl, SymbolId symbol) {
         func_symbols_[decl] = symbol;
     }
+
+    /**
+     * Register a top-level global that the module being lowered *declares*.
+     *
+     * A global is defined by exactly one module (the one whose files contain
+     * its `VarInitStmt`); every other module only references it. The whole
+     * program is one C translation unit, so the C backend cannot tell the
+     * difference — but the LLVM backend emits one object per module, where a
+     * reference interned as `MIRLinkage::Internal` becomes a second definition
+     * and the link fails with "multiple definition". Anything not registered
+     * here is therefore interned as `External` (a reference).
+     */
+    void add_owned_global(VarInitStatement* vi) { owned_globals_.insert(vi); }
 
     /** On-demand mangler for symbols not pre-registered (e.g. methods). */
     void set_mangler(std::function<std::string(ASTNode*)> fn) {
@@ -420,6 +448,7 @@ private:
     std::unordered_map<FunctionDeclaration*, SymbolId> func_symbols_;
     std::unordered_map<std::string, SymbolId> named_method_symbols_;
     std::unordered_map<ASTNode*, SymbolId> global_symbols_;
+    std::unordered_set<VarInitStatement*> owned_globals_;
     std::unordered_map<std::string, SymbolId> named_globals_;
     std::function<std::string(ASTNode*)> mangler_;
     std::function<std::string(ASTNode*, BaseType*)> vtable_mangler_;

@@ -9,6 +9,7 @@
 #include "MIRTypes.h"
 
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace mir {
@@ -65,6 +66,17 @@ struct MIRSymbolTable {
     }
     const char* mangled_data(const MIRSymbolRecord& r) const {
         return names.data() + r.mangled_offset;
+    }
+
+    /**
+     * The symbol's linker name (its mangled spelling, falling back to the plain
+     * name). LLVM globals are name-unique while MIR symbol ids are not — the
+     * lowerer may intern the same function twice — so name-based lookups are
+     * the ones that match what the linker sees.
+     */
+    std::string mangled_name(const MIRSymbolRecord& r) const {
+        return std::string(r.mangled_length ? mangled_data(r) : name_data(r),
+                           r.mangled_length ? r.mangled_length : r.name_length);
     }
 };
 

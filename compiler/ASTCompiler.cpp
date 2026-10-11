@@ -24,11 +24,23 @@
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/If.h"
 #include "ast/values/FunctionCall.h"
+#include "ast/values/AccessChain.h"
 #include "ast/statements/VarInit.h"
 #include "ast/values/IntNumValue.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/FloatValue.h"
 #include "ast/values/DoubleValue.h"
+#include "ast/structures/Namespace.h"
+#include "ast/structures/Scope.h"
+#include "ast/statements/EmbeddedNode.h"
+#include "ast/values/StringValue.h"
+#include "ast/values/ArrayValue.h"
+#include "ast/values/StructValue.h"
+#include "ast/values/CastedValue.h"
+#include "ast/values/ComptimeValue.h"
+#include "ast/values/Negative.h"
+#include "ast/values/NullValue.h"
+#include "ast/structures/VariantMember.h"
 #include "ast/base/BaseType.h"
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/Constants.h>
@@ -37,6 +49,7 @@
 #include <llvm/IR/Module.h>
 #include <llvm/Support/raw_ostream.h>
 #include <functional>
+#include <unordered_map>
 #include <vector>
 #include "rang.hpp"
 #include <iostream>
@@ -46,6 +59,370 @@
 // backend (`ASTProcessor::implement_module` -> `mir_translate_after_declaration`),
 // so the LLVM backend needs no AST traversal of its own. This function only
 // turns the fully-populated MIR module into LLVM IR.
+
+namespace {
+
+/**
+ * Lower a top-level global initializer AST value into an LLVM constant.
+ *
+ * This mirrors `MIRDeclEmitter::const_value_expr` (the C backend's declaration
+ * emitter): the MIR type supplies the aggregate field order and the AST value
+ * supplies the data. MIR symbol records do not carry initializer values, so
+ * without this pass every global that is not a plain scalar keeps the zero
+ * initializer `mir_declare_globals` gave it — arrays of `'.' as u16`, structs
+ * with defaulted/inherited fields, variant-shaped globals, string constants and
+ * comptime-constructed values were all silently zero on the LLVM path.
+ */
+class GlobalConstantLowerer {
+public:
+    GlobalConstantLowerer(Codegen& gen, const mir::MIRModule& m,
+                          GlobalInterpretScope& scope)
+        : gen_(gen), m_(m), scope_(scope), ctx_(gen.module->getContext()) {}
+
+    llvm::Constant* build(Value* value, mir::TypeId tid, llvm::Type* want) {
+        if (++depth_ > 64) {
+            --depth_;
+            return llvm::Constant::getNullValue(want);
+        }
+        llvm::Constant* c = build_impl(value, tid, want);
+        --depth_;
+        return c;
+    }
+
+private:
+    Codegen& gen_;
+    const mir::MIRModule& m_;
+    GlobalInterpretScope& scope_;
+    llvm::LLVMContext& ctx_;
+    int depth_ = 0;
+    unsigned str_counter_ = 0;
+
+    bool valid(mir::TypeId t) const { return t != mir::MIR_INVALID_ID && t < m_.types.size(); }
+
+    llvm::Constant* build_impl(Value* value, mir::TypeId tid, llvm::Type* want) {
+        if (!value) return llvm::Constant::getNullValue(want);
+        switch (value->val_kind()) {
+            case ValueKind::ComptimeValue:
+                return build(static_cast<ComptimeValue*>(value)->getValue(), tid, want);
+            case ValueKind::CastedValue:
+                return build(value->as_casted_value_unsafe()->value, tid, want);
+            case ValueKind::NegativeValue: {
+                Value* inner = value->as_negative_value_unsafe()->getValue();
+                if (!inner) return llvm::Constant::getNullValue(want);
+                // A negative float must negate the floating-point constant; a
+                // negative integer is a `neg` constant expression.
+                if (want->isFloatingPointTy()) {
+                    Value* pos = inner->val_kind() == ValueKind::NegativeValue
+                                     ? inner->as_negative_value_unsafe()->getValue() : inner;
+                    double d = 0.0;
+                    if (pos && pos->val_kind() == ValueKind::Float)
+                        d = pos->as_float_unsafe()->value;
+                    else if (pos && pos->val_kind() == ValueKind::Double)
+                        d = pos->as_double_unsafe()->value;
+                    else if (pos && pos->val_kind() == ValueKind::IntN)
+                        d = static_cast<double>(static_cast<int64_t>(
+                            pos->as_int_num_value_unsafe()->get_num_value()));
+                    return llvm::ConstantFP::get(want, -d);
+                }
+                llvm::Constant* c = build(inner, tid, want);
+                if (c && c->getType()->isIntegerTy()) return llvm::ConstantExpr::getNeg(c);
+                return c;
+            }
+            case ValueKind::IntN:
+                return int_constant(value->as_int_num_value_unsafe(), want);
+            case ValueKind::Bool: {
+                const bool b = value->as_bool_unsafe()->value;
+                if (want->isIntegerTy()) return llvm::ConstantInt::get(want, b ? 1 : 0);
+                if (want->isPointerTy()) return int_constant_ptr(b ? 1 : 0, want);
+                if (want->isFloatingPointTy()) return llvm::ConstantFP::get(want, b ? 1.0 : 0.0);
+                return llvm::Constant::getNullValue(want);
+            }
+            case ValueKind::Float:
+                return fp_constant(value->as_float_unsafe()->value, want);
+            case ValueKind::Double:
+                return fp_constant(value->as_double_unsafe()->value, want);
+            case ValueKind::String: {
+                auto* sv = value->as_string_unsafe();
+                std::string s(sv->value.data(), sv->value.size());
+                if (want->isPointerTy()) {
+                    llvm::Constant* arr = llvm::ConstantDataArray::getString(ctx_, s, true);
+                    auto* gv = new llvm::GlobalVariable(
+                        *gen_.module, arr->getType(), true, llvm::GlobalValue::PrivateLinkage,
+                        arr, ".mir.str." + std::to_string(str_counter_++));
+                    return gv; // opaque pointer
+                }
+                // `const x : char[] = "..."` — a string literal initializing a
+                // char array (the module-level `char[]` constants that indexing
+                // decays to a pointer).
+                if (auto* at = llvm::dyn_cast<llvm::ArrayType>(want)) {
+                    llvm::Type* et = at->getElementType();
+                    // an unsized `char[]` takes its length from the literal (like
+                    // C, including the NUL terminator); the global is then re-sized
+                    // by the initializer pass.
+                    const uint64_t n = at->getNumElements() ? at->getNumElements()
+                                                            : s.size() + 1;
+                    llvm::ArrayType* rt = llvm::ArrayType::get(et, n);
+                    std::vector<llvm::Constant*> elems;
+                    for (unsigned char ch : s)
+                        elems.push_back(llvm::ConstantInt::get(et, ch));
+                    while (elems.size() < n) elems.push_back(llvm::Constant::getNullValue(et));
+                    if (elems.size() != n) return llvm::Constant::getNullValue(want);
+                    return llvm::ConstantArray::get(rt, elems);
+                }
+                return llvm::Constant::getNullValue(want);
+            }
+            case ValueKind::NullValue:
+                return llvm::Constant::getNullValue(want);
+            case ValueKind::ArrayValue:
+                return array_constant(value->as_array_value_unsafe(), tid, want);
+            case ValueKind::StructValue:
+                return struct_constant(value->as_struct_value_unsafe(), tid, want);
+            case ValueKind::FunctionCall:
+            case ValueKind::AccessChain:
+                return call_constant(value, tid, want);
+            default:
+                return llvm::Constant::getNullValue(want);
+        }
+    }
+
+    llvm::Constant* int_constant_ptr(uint64_t num, llvm::Type* want) {
+        return llvm::ConstantExpr::getIntToPtr(
+            llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx_), num), want);
+    }
+
+    llvm::Constant* int_constant(IntNumValue* v, llvm::Type* want) {
+        const uint64_t num = v->get_num_value();
+        if (want->isPointerTy()) return int_constant_ptr(num, want);
+        if (want->isIntegerTy(1)) return llvm::ConstantInt::get(want, num ? 1 : 0);
+        if (want->isIntegerTy()) return llvm::ConstantInt::get(want, num, /*signed=*/true);
+        if (want->isFloatTy()) return llvm::ConstantFP::get(want, static_cast<float>(static_cast<int64_t>(num)));
+        if (want->isDoubleTy()) return llvm::ConstantFP::get(want, static_cast<double>(static_cast<int64_t>(num)));
+        return llvm::Constant::getNullValue(want);
+    }
+
+    llvm::Constant* fp_constant(double d, llvm::Type* want) {
+        if (want->isFloatTy()) return llvm::ConstantFP::get(want, static_cast<float>(d));
+        if (want->isDoubleTy()) return llvm::ConstantFP::get(want, d);
+        if (want->isIntegerTy()) return llvm::ConstantInt::get(want, static_cast<uint64_t>(static_cast<int64_t>(d)));
+        return llvm::Constant::getNullValue(want);
+    }
+
+    llvm::Constant* array_constant(ArrayValue* av, mir::TypeId tid, llvm::Type* want) {
+        auto* at = llvm::dyn_cast<llvm::ArrayType>(want);
+        if (!at) return llvm::Constant::getNullValue(want);
+        const mir::TypeId elem_tid = valid(tid) ? m_.types.get(tid).element : mir::MIR_INVALID_ID;
+        llvm::Type* et = at->getElementType();
+        std::vector<llvm::Constant*> elems;
+        elems.reserve(av->values.size());
+        for (Value* e : av->values) elems.push_back(build(e, elem_tid, et));
+        while (elems.size() < at->getNumElements())
+            elems.push_back(llvm::Constant::getNullValue(et));
+        if (elems.size() != at->getNumElements())
+            return llvm::Constant::getNullValue(want);
+        return llvm::ConstantArray::get(at, elems);
+    }
+
+    Value* field_value(StructValue* sv, const std::string& name) {
+        if (!sv) return nullptr;
+        auto it = sv->values.find(chem::string_view(name.data(), name.size()));
+        return it == sv->values.end() ? nullptr : it->second.value;
+    }
+
+    /** Build a struct's *default* constant (no explicit value), reading field
+     *  defaults from the source `StructDefinition`. */
+    llvm::Constant* default_struct(mir::TypeId tid, llvm::StructType* st,
+                                   StructDefinition* sd) {
+        if (!valid(tid)) return llvm::Constant::getNullValue(st);
+        const mir::MIRTypeRecord& r = m_.types.get(tid);
+        std::vector<llvm::Constant*> elems;
+        unsigned inherit_index = 0;
+        for (uint32_t i = 0; i < r.data_count; ++i) {
+            const mir::MIRFieldInfo* f = m_.types.field_of(tid, i);
+            llvm::Type* ft = (i < st->getNumElements()) ? st->getElementType(i) : nullptr;
+            if (!ft) { elems.push_back(llvm::Constant::getNullValue(llvm::Type::getInt8Ty(ctx_))); continue; }
+            if (!f) { elems.push_back(llvm::Constant::getNullValue(ft)); continue; }
+            const std::string fname = m_.types.field_name_of(*f);
+            if (f->kind == static_cast<uint8_t>(mir::MIRFieldKind::Base)) {
+                StructDefinition* base = nullptr;
+                if (sd && inherit_index < sd->inherited.size())
+                    base = sd->inherited[inherit_index].type
+                               ? sd->inherited[inherit_index].type->get_direct_linked_struct() : nullptr;
+                ++inherit_index;
+                elems.push_back(default_struct(f->type, llvm::cast<llvm::StructType>(ft), base));
+                continue;
+            }
+            Value* dv = nullptr;
+            if (sd) {
+                BaseDefMember* bm = sd->direct_variable(chem::string_view(fname.data(), fname.size()));
+                if (bm) dv = bm->default_value();
+            }
+            elems.push_back(build(dv, f->type, ft));
+        }
+        if (elems.size() != st->getNumElements()) return llvm::Constant::getNullValue(st);
+        return llvm::ConstantStruct::get(st, elems);
+    }
+
+    llvm::Constant* struct_fields(StructValue* sv, mir::TypeId tid, llvm::StructType* st,
+                                  StructDefinition* sd) {
+        if (!valid(tid)) return llvm::Constant::getNullValue(st);
+        const mir::MIRTypeRecord& r = m_.types.get(tid);
+        std::vector<llvm::Constant*> elems;
+        unsigned inherit_index = 0;
+        for (uint32_t i = 0; i < r.data_count; ++i) {
+            const mir::MIRFieldInfo* f = m_.types.field_of(tid, i);
+            llvm::Type* ft = (i < st->getNumElements()) ? st->getElementType(i) : nullptr;
+            if (!ft) { elems.push_back(llvm::Constant::getNullValue(llvm::Type::getInt8Ty(ctx_))); continue; }
+            if (!f) { elems.push_back(llvm::Constant::getNullValue(ft)); continue; }
+            const std::string fname = m_.types.field_name_of(*f);
+            if (f->kind == static_cast<uint8_t>(mir::MIRFieldKind::Base)) {
+                StructDefinition* base = nullptr;
+                if (sd && inherit_index < sd->inherited.size())
+                    base = sd->inherited[inherit_index].type
+                               ? sd->inherited[inherit_index].type->get_direct_linked_struct() : nullptr;
+                ++inherit_index;
+                // `Base { ... }` literal names the base type; the interpreter also
+                // flattens inherited members into the value, so a bare recursion
+                // over `sv` resolves those.
+                Value* explicit_base = field_value(sv, fname);
+                if (explicit_base && explicit_base->val_kind() == ValueKind::StructValue)
+                    elems.push_back(build(explicit_base, f->type, ft));
+                else
+                    elems.push_back(struct_fields(sv, f->type, llvm::cast<llvm::StructType>(ft), base));
+                continue;
+            }
+            Value* fv = field_value(sv, fname);
+            if (!fv && sd) {
+                BaseDefMember* bm = sd->direct_variable(chem::string_view(fname.data(), fname.size()));
+                if (bm) fv = bm->default_value();
+            }
+            elems.push_back(build(fv, f->type, ft));
+        }
+        if (elems.size() != st->getNumElements()) return llvm::Constant::getNullValue(st);
+        return llvm::ConstantStruct::get(st, elems);
+    }
+
+    llvm::Constant* struct_constant(StructValue* sv, mir::TypeId tid, llvm::Type* want) {
+        auto* st = llvm::dyn_cast<llvm::StructType>(want);
+        if (!st) return llvm::Constant::getNullValue(want);
+        // Fully initialize defaults first: this runs `declare_default_values`,
+        // merges inherited bases and applies implicit constructors, giving a
+        // value whose fields carry the concrete data the constant needs.
+        StructValue* filled = sv;
+        if (scope_.global) {
+            Value* ev = sv->evaluated_value(scope_);
+            if (ev && ev->val_kind() == ValueKind::StructValue)
+                filled = ev->as_struct_value_unsafe();
+        }
+        StructDefinition* sd = sv->linked_struct();
+        if (!sd) {
+            BaseType* bt = sv->getRefType();
+            if (bt) sd = bt->get_direct_linked_struct();
+        }
+        return struct_fields(filled, tid, st, sd);
+    }
+
+    llvm::Constant* call_constant(Value* value, mir::TypeId tid, llvm::Type* want) {
+        Value* call = value;
+        if (value->val_kind() == ValueKind::AccessChain) {
+            auto* ch = value->as_access_chain_unsafe();
+            if (ch->values.empty()) return llvm::Constant::getNullValue(want);
+            call = ch->values.back();
+        }
+        if (call && call->val_kind() == ValueKind::FunctionCall) {
+            auto* fc = call->as_func_call_unsafe();
+            ASTNode* vleaf = nullptr;
+            if (fc->parent_val) {
+                if (fc->parent_val->val_kind() == ValueKind::AccessChain) {
+                    auto* ch = fc->parent_val->as_access_chain_unsafe();
+                    if (!ch->values.empty()) vleaf = ch->values.back()->linked_node();
+                } else {
+                    vleaf = fc->parent_val->linked_node();
+                }
+            }
+            if (vleaf && vleaf->kind() == ASTNodeKind::VariantMember && want->isStructTy())
+                return variant_constant(vleaf->as_variant_member_unsafe(), fc, tid,
+                                        llvm::cast<llvm::StructType>(want));
+        }
+        // Fall back to folding a comptime call through the interpreter.
+        if (call && call->val_kind() == ValueKind::FunctionCall && scope_.global) {
+            Value* folded = call->evaluated_value(scope_);
+            if (folded && folded != call) return build(folded, tid, want);
+        }
+        return llvm::Constant::getNullValue(want);
+    }
+
+    llvm::Constant* variant_constant(VariantMember* vm, FunctionCall* call, mir::TypeId tid,
+                                     llvm::StructType* st) {
+        if (!valid(tid)) return llvm::Constant::getNullValue(st);
+        VariantDefinition* vd = vm->parent();
+        const long idx = vd ? vd->direct_child_index(vm->name) : 0;
+        const mir::MIRTypeRecord& r = m_.types.get(tid);
+        const std::string member_name(vm->name.data(), vm->name.size());
+        std::vector<llvm::Constant*> elems;
+        for (uint32_t i = 0; i < r.data_count; ++i) {
+            const mir::MIRFieldInfo* f = m_.types.field_of(tid, i);
+            llvm::Type* ft = (i < st->getNumElements()) ? st->getElementType(i) : nullptr;
+            if (!ft) { elems.push_back(llvm::Constant::getNullValue(llvm::Type::getInt8Ty(ctx_))); continue; }
+            if (!f) { elems.push_back(llvm::Constant::getNullValue(ft)); continue; }
+            switch (static_cast<mir::MIRFieldKind>(f->kind)) {
+                case mir::MIRFieldKind::Base: {
+                    StructDefinition* base = nullptr;
+                    size_t bi = 0;
+                    if (vd) {
+                        for (; bi < vd->inherited.size(); ++bi) {
+                            StructDefinition* b = vd->inherited[bi].type
+                                                      ? vd->inherited[bi].type->get_direct_linked_struct() : nullptr;
+                            if (!b) continue;
+                            const chem::string_view nv = b->name_view();
+                            if (m_.types.field_name_of(*f) == std::string(nv.data(), nv.size())) {
+                                base = b; break;
+                            }
+                        }
+                    }
+                    elems.push_back(default_struct(f->type, llvm::cast<llvm::StructType>(ft), base));
+                    break;
+                }
+                case mir::MIRFieldKind::VariantTag:
+                    elems.push_back(llvm::ConstantInt::get(
+                        llvm::Type::getInt32Ty(ctx_), static_cast<uint64_t>(idx < 0 ? 0 : idx)));
+                    break;
+                case mir::MIRFieldKind::VariantCase: {
+                    const std::string cname = m_.types.field_name_of(*f);
+                    if (cname != member_name) { elems.push_back(llvm::Constant::getNullValue(ft)); break; }
+                    auto* cst = llvm::dyn_cast<llvm::StructType>(ft);
+                    if (!cst) { elems.push_back(llvm::Constant::getNullValue(ft)); break; }
+                    std::vector<llvm::Constant*> case_elems;
+                    size_t ai = 0;
+                    for (auto& entry : vm->values) {
+                        VariantMemberParam* param = entry.second;
+                        Value* arg = nullptr;
+                        if (ai < call->values.size()) arg = call->values[ai];
+                        else if (param) arg = param->def_value;
+                        ++ai;
+                        const mir::MIRFieldInfo* cf = m_.types.field_of(f->type, static_cast<uint32_t>(case_elems.size()));
+                        llvm::Type* cft = (case_elems.size() < cst->getNumElements())
+                                              ? cst->getElementType(case_elems.size()) : nullptr;
+                        if (!cft) break;
+                        case_elems.push_back(build(arg, cf ? cf->type : mir::MIR_INVALID_ID, cft));
+                    }
+                    if (case_elems.size() != cst->getNumElements())
+                        elems.push_back(llvm::Constant::getNullValue(ft));
+                    else
+                        elems.push_back(llvm::ConstantStruct::get(cst, case_elems));
+                    break;
+                }
+                default:
+                    elems.push_back(llvm::Constant::getNullValue(ft));
+                    break;
+            }
+        }
+        if (elems.size() != st->getNumElements()) return llvm::Constant::getNullValue(st);
+        return llvm::ConstantStruct::get(st, elems);
+    }
+};
+
+} // namespace
+
 static void mir_emit_llvm_module(Codegen& gen, LabModule* module,
                                  mir::MIRTypeBuilder& types, mir::MIRModule& m) {
     auto mangle = [&gen](ASTNode* n) -> std::string {
@@ -195,39 +572,99 @@ static void mir_emit_llvm_module(Codegen& gen, LabModule* module,
         gen.mir_register_named_global(gname, gv);
     }
 
-    // apply literal global initializers from the AST (MIR symbols do not carry
-    // initializer values yet)
-    for (ASTNode* n : nodes) {
-        if (n->kind() != ASTNodeKind::VarInitStmt) continue;
-        auto* vi = n->as_var_init();
-        // Never initialize an `@extern` global: it is declared (not defined) in
-        // this module, and an initializer would make LLVM emit a definition
-        // that interposes the real symbol (e.g. libc's `stdout`).
-        if (!vi->value || vi->is_comptime() || vi->is_extern()) continue;
-        const std::string name = mangle(vi);
-        Value* val = vi->value;
-        llvm::GlobalVariable* gv = gen.module->getNamedGlobal(name);
-        if (getenv("MIR_LLVM_TRACE"))
-            std::cerr << "[MIR-LLVM] global init " << name << " found=" << (gv != nullptr)
-                      << " vk=" << (val ? static_cast<int>(val->val_kind()) : -1) << "\n";
-        if (!gv) continue;
-        llvm::Type* gt = gv->getValueType();
-        if (gt->isIntegerTy()) {
-            switch (val->val_kind()) {
-                case ValueKind::IntN:
-                    gv->setInitializer(llvm::ConstantInt::get(
-                        gt, val->as_int_num_value_unsafe()->get_num_value(), true));
-                    break;
-                case ValueKind::Bool:
-                    gv->setInitializer(llvm::ConstantInt::get(
-                        gt, val->as_bool_unsafe()->value ? 1 : 0));
-                    break;
-                default: break;
+    // Apply global initializers from the AST (MIR symbol records do not carry
+    // initializer values yet). `mir_declare_globals` gave every internal global a
+    // null initializer; overwrite it with the value `const_value_expr` would
+    // spell in C. Never touch an `@extern` global: it is declared (not defined)
+    // in this module, and an initializer would make LLVM emit a definition that
+    // interposes the real symbol (e.g. libc's `stdout`).
+    {
+        std::unordered_map<std::string, mir::TypeId> global_type;
+        std::unordered_map<std::string, uint32_t> global_sym;
+        for (uint32_t i = 0; i < m.symbols.size(); ++i) {
+            const mir::MIRSymbolRecord& rec = m.symbols.get(i);
+            if (rec.kind != mir::MIRSymbolKind::Global && rec.kind != mir::MIRSymbolKind::External)
+                continue;
+            if (rec.type == mir::MIR_INVALID_ID) continue;
+            const std::string gname = m.symbols.mangled_name(rec);
+            global_type[gname] = rec.type;
+            global_sym[gname] = i;
+        }
+        // Descend namespaces / taken comptime branches / resolved CBI nodes,
+        // mirroring `MIRDeclEmitter::declare`: a global may be declared inside a
+        // namespace (`namespace wrapped_variable { const thing = 3456 }`).
+        std::vector<VarInitStatement*> globals;
+        std::function<void(const std::vector<ASTNode*>&)> collect =
+            [&](const std::vector<ASTNode*>& ns) {
+            for (ASTNode* n : ns) {
+                if (!n) continue;
+                switch (n->kind()) {
+                    case ASTNodeKind::VarInitStmt:
+                        globals.push_back(n->as_var_init_unsafe());
+                        break;
+                    case ASTNodeKind::NamespaceDecl: {
+                        auto* nsd = n->as_namespace_unsafe();
+                        if (!nsd->is_comptime()) collect(nsd->nodes);
+                        break;
+                    }
+                    case ASTNodeKind::Scope:
+                        collect(n->as_scope_unsafe()->nodes);
+                        break;
+                    case ASTNodeKind::IfStmt: {
+                        auto* st = n->as_if_stmt_unsafe();
+                        if (st->is_top_level() && st->computed_scope.has_value()) {
+                            Scope* taken = st->computed_scope.value();
+                            if (taken) collect(taken->nodes);
+                        }
+                        break;
+                    }
+                    case ASTNodeKind::EmbeddedNode: {
+                        ASTNode* r = n->as_embedded_node_unsafe()->replacement;
+                        if (r) collect({r});
+                        break;
+                    }
+                    default: break;
+                }
             }
-        } else if (gt->isFloatTy() && val->val_kind() == ValueKind::Float) {
-            gv->setInitializer(llvm::ConstantFP::get(gt, val->as_float_unsafe()->value));
-        } else if (gt->isDoubleTy() && val->val_kind() == ValueKind::Double) {
-            gv->setInitializer(llvm::ConstantFP::get(gt, val->as_double_unsafe()->value));
+        };
+        collect(nodes);
+        GlobalConstantLowerer lowerer(gen, m, gen.comptime_scope);
+        for (VarInitStatement* vi : globals) {
+            if (!vi->value || vi->is_comptime() || vi->is_extern()) continue;
+            const std::string name = mangle(vi);
+            llvm::GlobalVariable* gv = gen.module->getNamedGlobal(name);
+            if (!gv) continue;
+            if (gv->hasInitializer() && gv->getInitializer() &&
+                !llvm::isa<llvm::ConstantAggregateZero>(gv->getInitializer()) &&
+                !gv->getInitializer()->isNullValue()) {
+                continue; // already defined by another pass
+            }
+            auto it = global_type.find(name);
+            const mir::TypeId gt = (it != global_type.end()) ? it->second : mir::MIR_INVALID_ID;
+            llvm::Constant* c = lowerer.build(vi->value, gt, gv->getValueType());
+            if (getenv("MIR_LLVM_TRACE"))
+                std::cerr << "[MIR-LLVM] global init " << name << " vk="
+                          << static_cast<int>(vi->value->val_kind()) << "\n";
+            if (!c) continue;
+            if (c->getType() == gv->getValueType()) {
+                gv->setInitializer(c);
+                continue;
+            }
+            // An unsized `[0 x T]` global whose initializer carries the real
+            // extent (`const x : char[] = "..."`): rebuild it with the inferred
+            // type so indexing/GEP sees the data, as C's `char x[] = "..."` does.
+            auto* old_at = llvm::dyn_cast<llvm::ArrayType>(gv->getValueType());
+            auto* new_at = llvm::dyn_cast<llvm::ArrayType>(c->getType());
+            if (old_at && new_at && old_at->getNumElements() == 0 &&
+                new_at->getNumElements() > 0) {
+                auto* ng = new llvm::GlobalVariable(*gen.module, c->getType(),
+                                                    gv->isConstant(), gv->getLinkage(), c,
+                                                    name);
+                ng->setAlignment(gv->getAlign());
+                auto sit = global_sym.find(name);
+                if (sit != global_sym.end()) gen.mir_global_cache_[sit->second] = ng;
+                gv->eraseFromParent();
+            }
         }
     }
     for (const mir::MIRFunction& fn : m.functions) {

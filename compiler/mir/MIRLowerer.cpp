@@ -157,9 +157,6 @@ BaseType* resolve_sizeof_operand(BaseType* t) {
         if (!n) return t;
         switch (n->kind()) {
             case ASTNodeKind::VarInitStmt:
-                fprintf(stderr, "[SIZEOF-RESOLVE] var %.*s\n",
-                        (int)n->as_var_init_unsafe()->name_view().size(),
-                        n->as_var_init_unsafe()->name_view().data());
                 t = n->as_var_init_unsafe()->known_type();
                 break;
             case ASTNodeKind::FunctionParam:
@@ -2149,7 +2146,14 @@ SymbolId MIRLowerer::intern_global(VarInitStatement* vi) {
     if (it != global_symbols_.end()) return it->second;
     MIRSymbolRecord rec;
     rec.kind = MIRSymbolKind::Global;
-    rec.linkage = vi->is_extern() ? MIRLinkage::External : MIRLinkage::Internal;
+    // Only the module whose files declare this global *defines* it. A global
+    // reached from another module (symres links the identifier straight to the
+    // declaring node) is a reference to that module's symbol: `External` here,
+    // an LLVM declaration there. Emitting a definition in both objects is a
+    // link error ("multiple definition of `submod_extern_globe_var'").
+    const bool defined_here =
+        !vi->is_extern() && owned_globals_.find(vi) != owned_globals_.end();
+    rec.linkage = defined_here ? MIRLinkage::Internal : MIRLinkage::External;
     if (vi->getType()) {
         BaseType* gt = vi->getType();
         if (gt->kind() == BaseTypeKind::Array && !gt->as_array_type()->has_array_size()) {
@@ -7651,6 +7655,84 @@ static FunctionDeclaration* lower_static_iface_base_method(FunctionDeclaration* 
     auto* iface = impl->interface_type->get_direct_linked_interface();
     if (!iface || !iface->is_static()) return nullptr;
     return iface->direct_child_function(decl->name_view());
+}
+
+bool MIRLowerer::lower_static_interface_stub(FunctionDeclaration* decl, MIRArena& arena,
+                                             MIRFunction& func, std::string& error) {
+    if (!decl) {
+        error = "null static interface method";
+        return false;
+    }
+    // A default method with a body is lowered as-is: it *is* the definition a
+    // caller reaches when nothing implements the interface.
+    if (decl->body.has_value()) {
+        if (!lower_function(decl, arena, func, error)) return false;
+        func.flags |= MF_WEAK_STUB;
+        return true;
+    }
+
+    // Bodyless method: no implementation exists anywhere, so give it a stub.
+    // The signature is `intern_function`'s — that is what every call site of a
+    // not-yet-defined function already assumes — and the body is trivial.
+    arena_ = &arena;
+    current_func_ = decl;
+    if (set_current_func_) set_current_func_(decl);
+    var_places_.clear();
+    name_places_.clear();
+    destructibles_.clear();
+    stmt_temps_.clear();
+
+    func.symbol = intern_function(decl);
+    func.function_type = module_.symbols.symbols[func.symbol].type;
+
+    MIRBuilder b(arena, module_, func);
+    builder_ = &b;
+    const BlockId entry = b.create_block();
+    b.set_block(entry);
+    func.entry_block = entry;
+
+    const TypeId ret = func.function_type < module_.types.size()
+                           ? module_.types.get(func.function_type).element
+                           : MIR_INVALID_ID;
+    if (ret == MIR_INVALID_ID || ret >= module_.types.size()) {
+        b.unreachable();
+    } else {
+        const MIRTypeRecord& r = module_.types.get(ret);
+        switch (r.kind) {
+            case MIRTypeKind::Void:
+                b.ret_void();
+                break;
+            case MIRTypeKind::Bool:
+                b.ret(b.const_bool(ret, module_.constants.add_bool(ret, false)));
+                break;
+            case MIRTypeKind::Int:
+                b.ret(b.const_int(ret, module_.constants.add_int(ret, 0)));
+                break;
+            case MIRTypeKind::Float:
+                // an sret return is void above; a scalar gets a zero. The
+                // emitter coerces the constant to the declared return type.
+                if (r.size == 4) b.ret(b.const_float(ret, module_.constants.add_float(ret, 0.0f)));
+                else if (r.size == 8) b.ret(b.const_double(ret, module_.constants.add_double(ret, 0.0)));
+                else b.unreachable();
+                break;
+            case MIRTypeKind::Pointer:
+            case MIRTypeKind::Reference:
+            case MIRTypeKind::Function:
+                b.ret(b.const_null(ret, module_.constants.add_null(ret)));
+                break;
+            default:
+                // an aggregate passed back by pointer has no meaningful zero;
+                // the C backend's stub is an empty body here as well
+                b.unreachable();
+                break;
+        }
+    }
+    if (!b.ok()) {
+        error = b.error() ? b.error() : "failed to build the stub body";
+        return false;
+    }
+    func.flags |= MF_WEAK_STUB;
+    return true;
 }
 
 bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,

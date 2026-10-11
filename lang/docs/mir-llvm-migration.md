@@ -240,6 +240,45 @@ access, `for`/`while`, globals and `printf` all match the C backend.
   `mir_compile_module` early return in `ASTProcessor::compile_module`, but it is
   not deleted yet (§4 / checkpoint 8.9).
 
+**Session 3 — the LLVM suite now runs most of the way; bug-fix sweep.**
+The main suite previously aborted at test ~861; it now reaches test ~1473 before
+the next crash. Every fix below is a MIR→LLVM emission bug (the C backend was
+already correct), verified against the C build with `lang/compiled/` probes and
+by the TCC suite staying at 2292/2292 (`MIRTests` 1049 checks OK).
+
+- **Global initializers are now built as LLVM constants.** `mir_declare_globals`
+  only knew null initializers and the old pass folded *scalars only*; arrays of
+  cast elements, structs with defaulted/inherited fields, variant-shaped globals,
+  string constants and comptime-constructed values were all silently zero (this
+  was `(null)`-prefixed test output and the whole `phi xor lowering` block).
+  `GlobalConstantLowerer` (`ASTCompiler.cpp`) now mirrors
+  `MIRDeclEmitter::const_value_expr`: scalars, strings (owning a private
+  `.mir.str.N`), arrays (zero-padded), structs (defaults + inherited bases),
+  variants, casts, negations, comptime folds, and nested namespaces / taken
+  comptime branches. An unsized `[0 x i8]` global (`const x : char[] = "..."`)
+  is rebuilt with the extent inferred from the literal.
+- **Integer promotions are narrowed back.** MIR keeps the C promotion semantics
+  and relies on the assignment to truncate; LLVM needs an explicit `trunc`, so
+  `(i8 100) + (i8 100) == -56i8` and every `i16` overflow case failed. `Binary`
+  and `Unary` now truncate their promoted-width result to the MIR value's type.
+- **Casts to pointers sign-extend.** `(void*)(int)-1` must be all-ones; LLVM's
+  `CreateIntToPtr` only zero-extends. `Cast` now extends the integer to pointer
+  width with the *source* signedness first.
+- **Casts to an `Opaque` type (a static interface) keep the pointer.** `mir_type`
+  spells `Opaque` `i8`, so `value as StaticInterface` became
+  `ptrtoint ptr %p to i8` — truncating a 64-bit address to 8 bits. The cast now
+  preserves the pointer (the erased-self ABI is a pointer).
+- **`Drop`/`Destroy` mirror the C emitter.** A pointer-typed (aggregate-param)
+  place passes the *loaded* pointer as `&self`, not the address of its own stack
+  slot (a struct holding a capturing lambda passed to a lambda clobbered its
+  `lamb` field); an array place destroys each element **last-to-first**.
+
+**Still open on the LLVM target (next checkpoints):** `dyn` primitive-impl
+vtable dispatch aborts at `dyn_prim_impl_give` (test ~1474); trivially-copyable
+`deref` / `zeroed` / partial-array-literal / inherited-default-ctor tests fail;
+synthesized `make`/`delete` MIR defects; CBI `EmbeddedNode`, inline `asm`, async,
+and debug info are not lowered from MIR yet; the AST lowering is still undeleted.
+
 ### 2.1 What is done
 
 - **MIR owns all C emission.** Every function body, static-interface impl,

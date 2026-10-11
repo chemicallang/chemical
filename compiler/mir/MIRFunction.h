@@ -57,6 +57,18 @@ struct MIRSourceLoc {
     uint32_t column = 0;
 };
 
+/** Bits of `MIRFunction::flags`. */
+enum MIRFunctionFlags : uint32_t {
+    /**
+     * An auto-generated stub for a static interface method (see
+     * `MIRLowerer::lower_static_interface_stub`). A static interface's method
+     * and the methods of every impl of it mangle to the *same* symbol, so the
+     * stub is emitted weak: a real implementation, wherever it lives, wins at
+     * link time.
+     */
+    MF_WEAK_STUB = 1u << 0,
+};
+
 /**
  * A single function's MIR. Instruction/operand/block storage is arena-backed;
  * dense ID tables are ordinary vectors (module-lifetime, not per-instruction).
@@ -64,7 +76,7 @@ struct MIRSourceLoc {
 struct MIRFunction {
     SymbolId symbol = MIR_INVALID_ID;
     TypeId function_type = MIR_INVALID_ID;
-    uint32_t flags = 0; // e.g. has sret, is lambda, is comptime-eliminated
+    uint32_t flags = 0; // MF_WEAK_STUB; e.g. has sret, is lambda, is comptime-eliminated
 
     MIRArray<MIRInstruction> instructions;
     MIRArray<MIROperand> operands;

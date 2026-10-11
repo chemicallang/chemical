@@ -1767,6 +1767,56 @@ std::string mir_mangle_name(NameMangler& mangler, ASTNode* decl) {
     return std::string(w.data(), w.getPosition());
 }
 
+// Record the top-level globals *this module declares*, i.e. the ones whose
+// definition the C backend writes here (`MIRDeclEmitter::implement`). Every
+// reference reached from another module's file is a reference to that symbol,
+// not a second definition — see `MIRLowerer::add_owned_global`. The traversal
+// mirrors `MIRDeclEmitter::declare` (namespace / scope / taken comptime-if
+// branch / resolved CBI replacement).
+void mir_collect_owned_globals(const std::vector<ASTNode*>& nodes,
+                               mir::MIRLowerer& lowerer) {
+    for (ASTNode* node : nodes) {
+        if (!node) continue;
+        switch (node->kind()) {
+            case ASTNodeKind::VarInitStmt: {
+                auto* vi = node->as_var_init_unsafe();
+                if (vi->is_top_level() && !vi->is_comptime()) lowerer.add_owned_global(vi);
+                continue;
+            }
+            case ASTNodeKind::NamespaceDecl: {
+                auto* ns = node->as_namespace_unsafe();
+                if (!ns->is_comptime()) mir_collect_owned_globals(ns->nodes, lowerer);
+                continue;
+            }
+            case ASTNodeKind::Scope:
+                mir_collect_owned_globals(node->as_scope_unsafe()->nodes, lowerer);
+                continue;
+            case ASTNodeKind::IfStmt: {
+                auto* stmt = node->as_if_stmt_unsafe();
+                if (stmt->is_top_level() && stmt->computed_scope.has_value()) {
+                    Scope* taken = stmt->computed_scope.value();
+                    if (taken) mir_collect_owned_globals(taken->nodes, lowerer);
+                }
+                continue;
+            }
+            case ASTNodeKind::EmbeddedNode: {
+                // the declaration pass resolves the replacement before the
+                // implementation pass runs, so a generated top-level global is
+                // attributed to the module that hosts the `#macro`/`#universal`
+                // block that produced it
+                ASTNode* repl = node->as_embedded_node_unsafe()->replacement;
+                if (repl) {
+                    std::vector<ASTNode*> one{repl};
+                    mir_collect_owned_globals(one, lowerer);
+                }
+                continue;
+            }
+            default:
+                continue;
+        }
+    }
+}
+
 // MIR translation of a file's top-level nodes: eligible functions are lowered
 // and their C bodies emitted from MIR; other nodes still go through the legacy
 // visitor (declarations and not-yet-ported constructs) for now.
@@ -2072,6 +2122,71 @@ bool mir_translate_after_declaration(
     return had_errors;
 }
 
+/**
+ * Emit the stubs of the static interfaces that were declared but never
+ * implemented (their default methods as free functions, bodyless methods as a
+ * trivial `ret 0`), for the MIR→LLVM backend.
+ *
+ * The C backend emits the whole job as ONE translation unit and therefore runs
+ * its own stub pass once, at job end, over every interface that survived
+ * unimplemented (`ASTProcessor::emit_static_interface_stubs`). The LLVM backend
+ * emits one object per `LabModule` and has no job-end pass, so each module
+ * lowers its own stubs here — while the lowering arena and the interface nodes
+ * are still alive — and appends them *last* to the MIR module, so a definition
+ * this module already has wins the name lookup.
+ *
+ * A static interface's method and the matching method of every impl mangle to
+ * the same symbol; the stubs are flagged `MF_WEAK_STUB` so an implementation in
+ * another module's object beats them at link time (the C backend cannot get
+ * this wrong: it knows the final implemented-set before writing a byte).
+ */
+static int mir_lower_static_interface_stubs(CTranslationContext& visitor,
+                                            mir::MIRModule& mir_module,
+                                            mir::MIRLowerer& mir_lowerer,
+                                            mir::MIRArena& mir_arena) {
+    if (visitor.unimplemented_static_interfaces.empty()) return 0;
+
+    // names this module already defines; MIR symbol ids are not name-unique but
+    // LLVM globals are, so match by name exactly like `Codegen::mir_function`
+    std::unordered_set<std::string> defined;
+    for (const mir::MIRFunction& fn : mir_module.functions) {
+        if (fn.symbol >= mir_module.symbols.size()) continue;
+        defined.insert(mir_module.symbols.mangled_name(mir_module.symbols.get(fn.symbol)));
+    }
+
+    int status = 0;
+    for (auto& pair : visitor.unimplemented_static_interfaces) {
+        InterfaceDefinition* iface = pair.first;
+        if (!iface) continue;
+        for (FunctionDeclaration* func : iface->non_gen_range()) {
+            if (!func || func->is_extern() || func->is_comptime()) continue;
+            const std::string name = mir_mangle_name(visitor.mangler, func);
+            if (name.empty() || defined.count(name)) continue;
+            mir::MIRFunction stub;
+            std::string error;
+            if (!mir_lowerer.lower_static_interface_stub(func, mir_arena, stub, error)) {
+                std::cerr << "[MIR] static interface stub lowering failed (" << name
+                          << "): " << error << "\n";
+                status = 1;
+                continue;
+            }
+            defined.insert(name);
+            mir_module.functions.push_back(stub);
+            // `lower_function` may have materialized the async poll / lambda
+            // bodies of a default method; keep them like `lower_and_emit` does
+            if (mir_lowerer.is_async_lowering()) {
+                mir_module.functions.push_back(mir_lowerer.async_poll());
+            }
+            for (const mir::MIRFunction& lf : mir_lowerer.lambda_functions()) {
+                mir_module.functions.push_back(lf);
+            }
+            mir_lowerer.clear_lambda_defs();
+        }
+    }
+    visitor.unimplemented_static_interfaces.clear();
+    return status;
+}
+
 } // namespace
 
 int ASTProcessor::implement_module(
@@ -2185,6 +2300,16 @@ int ASTProcessor::implement_module(
     });
     mir::MIRArena mir_arena;
 
+    // Attribute this module's own top-level globals before any lowering: a
+    // global is defined by the module that declares it, and merely referenced
+    // by every other module (see `mir_collect_owned_globals`).
+    for (auto& file_ptr : module->direct_files) {
+        if (file_ptr.result) {
+            mir_collect_owned_globals(file_ptr.result->unit.scope.body.nodes, mir_lowerer);
+        }
+    }
+    mir_collect_owned_globals(container.get_current_module_instantiations(), mir_lowerer);
+
     mir::MIRDeclEmitter mir_decl(mir_module, mir_types, c_visitor.mangler, loc_man,
                                  c_visitor.comptime_scope, c_visitor.binder, c_visitor.allocator);
     mir_decl.set_embedded_decl_repl([&c_visitor](EmbeddedNode* node) -> ASTNode* {
@@ -2238,7 +2363,15 @@ int ASTProcessor::implement_module(
 
     // The MIR→LLVM backend consumes the fully-populated MIR module here, while
     // the lowering arena (which backs the collected MIRFunction storage) is
-    // still alive.
+    // still alive. Static-interface stubs go in first so they are appended last
+    // (see `mir_lower_static_interface_stubs`); the C backend instead emits them
+    // once at job end, from `ASTProcessor::emit_static_interface_stubs`.
+    if (mir_llvm_collect) {
+        if (mir_lower_static_interface_stubs(c_visitor, mir_module, mir_lowerer,
+                                             mir_arena) != 0) {
+            had_errors = true;
+        }
+    }
     if (mir_llvm_collect && mir_llvm_finish) {
         mir_llvm_finish(mir_types, mir_module);
     }

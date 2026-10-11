@@ -241,7 +241,12 @@ llvm::Function* Codegen::mir_function(const mir::MIRModule& m, uint32_t symbol) 
 
     const MIRFunction* body = nullptr;
     for (const MIRFunction& f : m.functions) {
-        if (f.symbol == symbol) { body = &f; break; }
+        if (f.symbol != symbol) continue;
+        // Prefer a real definition: a static-interface stub is appended last and
+        // must never win over an implementation of the same symbol (they mangle
+        // to one name, so whichever is found first would also decide linkage).
+        if (!body) body = &f;
+        if ((f.flags & MF_WEAK_STUB) == 0) { body = &f; break; }
     }
     TypeId ftype = MIR_INVALID_ID;
     if (body) {
@@ -260,15 +265,25 @@ llvm::Function* Codegen::mir_function(const mir::MIRModule& m, uint32_t symbol) 
     }
     llvm::FunctionType* fty = mir_fn_type(m, ftype);
     if (!fty) return nullptr;
-    // Only a function whose body is emitted in *this* module may be internal.
-    // A bare declaration (defined in another module) must keep external linkage
-    // or the verifier rejects it ("Global is external, but doesn't have
-    // external or weak linkage!").
-    const bool internal = body && rec.linkage == MIRLinkage::Internal;
+    // Every MIR function is external in the LLVM module, definitions included.
+    //
+    // The C backend emits the whole program as ONE translation unit, so its
+    // `MIRLinkage::Internal` spells C `static` and a reference from another
+    // module still resolves inside that single TU. The LLVM backend emits one
+    // object per module, so an internal definition cannot satisfy another
+    // module's reference (`test_report_TestLogmake` / `_TestLogdelete` were
+    // emitted `t` in the `test_report` object and `U` in the `test` object).
+    // Giving every definition external linkage is safe because mangled names are
+    // unique program-wide: the single-TU C build would otherwise reject the
+    // duplicate definition of the same symbol.
+    //
+    // The exception is a static-interface stub (`MF_WEAK_STUB`): the interface's
+    // method and its impls share one mangled name, so the stub is weak and a
+    // real implementation — in this or any other module's object — overrides it.
+    const bool weak_stub = body && (body->flags & MF_WEAK_STUB) != 0;
     llvm::Function* fn = llvm::Function::Create(
-        fty, internal ? llvm::GlobalValue::InternalLinkage
-                      : llvm::GlobalValue::ExternalLinkage,
-        name, module.get());
+        fty, weak_stub ? llvm::GlobalValue::WeakAnyLinkage
+                       : llvm::GlobalValue::ExternalLinkage, name, module.get());
     mir_fn_cache_[symbol] = fn;
     return fn;
 }
@@ -286,17 +301,17 @@ void Codegen::mir_declare_globals(const mir::MIRModule& m) {
             continue;
         }
         llvm::Type* t = mir_type(m, rec.type);
-        // An external-linkage symbol is an *extern* declaration: it is defined
-        // by another module (e.g. libc's `stdout`, declared `@extern` in cstd).
-        // Attaching an initializer would turn it into a definition that
-        // interposes the real symbol — a null-pointer `stdout` in the executable
-        // makes every libc `printf` segfault. Only internal symbols are defined
-        // here; external ones stay uninitialized declarations.
+        // `MIRLinkage::External` marks an *extern* declaration: the symbol is
+        // defined by someone else (e.g. libc's `stdout`, declared `@extern` in
+        // cstd). It must stay uninitialized — attaching an initializer turns it
+        // into a definition that interposes the real symbol, and a null-pointer
+        // `stdout` in the executable makes every libc `printf` segfault. A
+        // non-extern symbol is this module's own global: define it (external
+        // linkage, see `mir_function` for why) with a null initializer that the
+        // literal-initializer pass may overwrite.
         const bool is_extern = rec.linkage != MIRLinkage::Internal;
         llvm::GlobalVariable* gv = new llvm::GlobalVariable(
-            *module, t, false,
-            is_extern ? llvm::GlobalValue::ExternalLinkage
-                      : llvm::GlobalValue::InternalLinkage,
+            *module, t, false, llvm::GlobalValue::ExternalLinkage,
             is_extern ? nullptr : llvm::Constant::getNullValue(t), name);
         mir_global_cache_[i] = gv;
     }
@@ -451,22 +466,60 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
         return ptr;
     };
 
+    // Is this MIR type a signed integer (or a non-int, where C promotes signed)?
+    auto is_signed_ty = [&](TypeId t) {
+        if (t == MIR_INVALID_ID || t >= m.types.size()) return true;
+        const MIRTypeRecord& r = m.types.get(t);
+        if (r.kind == MIRTypeKind::Bool) return false;
+        if (r.kind != MIRTypeKind::Int) return true;
+        return (r.flags & TF_SIGNED) != 0;
+    };
+
     // Coerce a binary/compare operand pair to a single LLVM type, mirroring C's
-    // usual arithmetic conversions (widening integer/float wins; int<->pointer
+    // integer promotions + usual arithmetic conversions (sub-int operands
+    // become `int` first; then the wider integer/float wins; int<->pointer
     // becomes a pointer). Necessary because MIR operands keep their MIR types
-    // and need not be identical.
+    // and need not be identical. `out_unsigned` receives the signedness of the
+    // common type — which decides the icmp/udiv predicate — and is only set
+    // for integer operands.
     auto coerce_pair = [&](llvm::Value*& av, llvm::Value*& bv, TypeId at_id, TypeId bt_id,
-                           bool allow_ptr_int) {
+                           bool allow_ptr_int, bool* out_unsigned) {
+        if (out_unsigned) *out_unsigned = false;
         llvm::Type* at = av->getType();
         llvm::Type* bt = bv->getType();
+        if (at->isIntegerTy() && bt->isIntegerTy()) {
+            bool as = is_signed_ty(at_id);
+            bool bs = is_signed_ty(bt_id);
+            // C integer promotions: anything narrower than `int` becomes
+            // `int` first, so `char < u8` compares 32 with 128 (as int),
+            // not the raw i8 bit patterns.
+            llvm::Type* i32 = builder->getInt32Ty();
+            if (at->getIntegerBitWidth() < 32) {
+                av = builder->CreateIntCast(av, i32, as);
+                as = true;
+            }
+            if (bt->getIntegerBitWidth() < 32) {
+                bv = builder->CreateIntCast(bv, i32, bs);
+                bs = true;
+            }
+            at = av->getType();
+            bt = bv->getType();
+            const unsigned aw = at->getIntegerBitWidth();
+            const unsigned bw = bt->getIntegerBitWidth();
+            if (aw == bw) {
+                if (out_unsigned) *out_unsigned = !(as && bs);
+                return;
+            }
+            if (aw < bw) {
+                av = as ? builder->CreateSExt(av, bt) : builder->CreateZExt(av, bt);
+                if (out_unsigned) *out_unsigned = !bs;
+            } else {
+                bv = bs ? builder->CreateSExt(bv, at) : builder->CreateZExt(bv, at);
+                if (out_unsigned) *out_unsigned = !as;
+            }
+            return;
+        }
         if (at == bt) return;
-        auto is_signed = [&](TypeId t) {
-            if (t == MIR_INVALID_ID || t >= m.types.size()) return true;
-            const MIRTypeRecord& r = m.types.get(t);
-            if (r.kind == MIRTypeKind::Bool) return false;
-            if (r.kind != MIRTypeKind::Int) return true;
-            return (r.flags & TF_SIGNED) != 0;
-        };
         if (at->isPointerTy() || bt->isPointerTy()) {
             if (at->isPointerTy() && bt->isPointerTy()) {
                 av = builder->CreateBitCast(av, builder->getPtrTy());
@@ -488,21 +541,11 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
             return;
         }
         if (at->isFloatingPointTy() && bt->isIntegerTy()) {
-            bv = is_signed(bt_id) ? builder->CreateSIToFP(bv, at) : builder->CreateUIToFP(bv, at);
+            bv = is_signed_ty(bt_id) ? builder->CreateSIToFP(bv, at) : builder->CreateUIToFP(bv, at);
             return;
         }
         if (bt->isFloatingPointTy() && at->isIntegerTy()) {
-            av = is_signed(at_id) ? builder->CreateSIToFP(av, bt) : builder->CreateUIToFP(av, bt);
-            return;
-        }
-        if (at->isIntegerTy() && bt->isIntegerTy()) {
-            const unsigned aw = at->getIntegerBitWidth();
-            const unsigned bw = bt->getIntegerBitWidth();
-            if (aw == bw) return; // same width: sign only affects the predicate
-            if (aw < bw)
-                av = is_signed(at_id) ? builder->CreateSExt(av, bt) : builder->CreateZExt(av, bt);
-            else
-                bv = is_signed(bt_id) ? builder->CreateSExt(bv, at) : builder->CreateZExt(bv, at);
+            av = is_signed_ty(at_id) ? builder->CreateSIToFP(av, bt) : builder->CreateUIToFP(av, bt);
             return;
         }
     };
@@ -586,6 +629,23 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
         if (v->getType()->isPointerTy() && ty->isPointerTy())
             return builder->CreateBitCast(v, ty);
         return v;
+    };
+
+    // A MIR condition is any scalar (C truthiness): an `int`, a `char`, a
+    // pointer, a float. LLVM's `br`/`select` require an `i1`, so compare against
+    // zero ("Branch condition is not 'i1' type!" otherwise).
+    auto as_i1 = [&](llvm::Value* c) -> llvm::Value* {
+        if (!c) return nullptr;
+        llvm::Type* t = c->getType();
+        if (t->isIntegerTy(1)) return c;
+        if (t->isIntegerTy()) return builder->CreateICmpNE(c, llvm::ConstantInt::get(t, 0));
+        if (t->isPointerTy()) {
+            return builder->CreateICmpNE(
+                c, llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(t)));
+        }
+        if (t->isFloatingPointTy())
+            return builder->CreateFCmpONE(c, llvm::ConstantFP::get(t, 0.0));
+        return c;
     };
 
     // Resolve a memory address from a base operand plus an optional selector
@@ -716,8 +776,11 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
     // Coerce call arguments to the callee's parameter types. MIR arguments
     // keep their source types and rely on C's implicit conversions; LLVM
     // requires an exact match. Extra (variadic) arguments get the C default
-    // argument promotions (float -> double, small ints -> i32).
-    auto coerce_args = [&](std::vector<llvm::Value*>& args, llvm::FunctionType* fty) {
+    // argument promotions (float -> double, small ints -> i32). `arg_types`
+    // (when given) carries each argument's MIR type so the cast uses the
+    // right signedness — a `bool`/`u8` must zero-extend, not sign-extend.
+    auto coerce_args = [&](std::vector<llvm::Value*>& args, llvm::FunctionType* fty,
+                           const std::vector<TypeId>* arg_types = nullptr) {
         const unsigned nfixed = fty->getNumParams();
         for (size_t i = 0; i < args.size(); ++i) {
             if (!args[i]) continue;
@@ -735,9 +798,12 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                 continue;
             }
             if (have == want) continue;
-            if (want->isIntegerTy() && have->isIntegerTy())
-                args[i] = builder->CreateIntCast(args[i], want, true);
-            else if (want->isPointerTy() && have->isIntegerTy())
+            if (want->isIntegerTy() && have->isIntegerTy()) {
+                bool sig = have->isIntegerTy(1) ? false : true;
+                if (arg_types && i < arg_types->size() && (*arg_types)[i] != MIR_INVALID_ID)
+                    sig = is_signed_ty((*arg_types)[i]);
+                args[i] = builder->CreateIntCast(args[i], want, sig);
+            } else if (want->isPointerTy() && have->isIntegerTy())
                 args[i] = builder->CreateIntToPtr(args[i], want);
             else if (want->isIntegerTy() && have->isPointerTy())
                 args[i] = builder->CreatePtrToInt(args[i], want);
@@ -852,7 +918,8 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                         sel = arg(1); // {base, selector, value}
                         src = arg(2);
                     }
-                    llvm::Value* dst = resolve_addr(*b, sel, nullptr);
+                    TypeId dst_ty = MIR_INVALID_ID;
+                    llvm::Value* dst = resolve_addr(*b, sel, &dst_ty);
                     llvm::Value* sv = nullptr;
                     if (src) {
                         sv = op_val(*src);
@@ -863,6 +930,24 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                                      ? builder->CreateLoad(mir_type(m, sr.element), places[src->id])
                                      : builder->CreateLoad(mir_type(m, fn.places[src->id].type),
                                                            places[src->id]);
+                        }
+                        // MIR keeps the source type on the value (C assigns with
+                        // an implicit conversion); LLVM needs an exact match, so
+                        // a wider value stored into a narrower place would
+                        // otherwise clobber adjacent stack slots.
+                        if (sv && dst_ty != MIR_INVALID_ID && dst_ty < m.types.size() &&
+                            !mir_is_ptr_like(m, dst_ty)) {
+                            llvm::Type* want = mir_type(m, dst_ty);
+                            if (sv->getType() != want && !want->isAggregateType() &&
+                                !sv->getType()->isAggregateType()) {
+                                if (sv->getType()->isIntegerTy() && want->isIntegerTy())
+                                    sv = builder->CreateIntCast(sv, want, is_signed_ty(dst_ty));
+                                else if (sv->getType()->isFloatingPointTy() &&
+                                         want->isFloatingPointTy())
+                                    sv = builder->CreateFPCast(sv, want);
+                                else if (sv->getType()->isPointerTy() && want->isPointerTy())
+                                    sv = builder->CreateBitCast(sv, want);
+                            }
                         }
                     }
                     if (dst && sv) builder->CreateStore(sv, dst);
@@ -944,6 +1029,16 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                             break;
                         case MIRUnaryOp::Plus: vals[v] = av; break;
                     }
+                    // C spells the result as `int8_t v = -x;` — the promoted-width
+                    // result is narrowed back to the MIR value's type. LLVM has no
+                    // implicit conversion, so `-(i8 100)` must be `trunc i32` of the
+                    // negation (otherwise the wrap-around is lost).
+                    if (vals[v] && vals[v]->getType()->isIntegerTy() &&
+                        fn.values[v].type < m.types.size()) {
+                        llvm::Type* rt = mir_type(m, fn.values[v].type);
+                        if (rt->isIntegerTy() && rt != vals[v]->getType())
+                            vals[v] = builder->CreateTrunc(vals[v], rt);
+                    }
                     break;
                 }
                 case MIROpcode::Binary:
@@ -962,6 +1057,9 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     const uint64_t code =
                         (opc->id < m.constants.size()) ? m.constants.get(opc->id).bits : 0;
                     const auto op = static_cast<MIRBinaryOp>(code);
+                    // signedness of the common integer type after coercion
+                    // (set by coerce_pair; decides icmp/udiv/udiv predicates)
+                    bool uns = false;
                     // pointer arithmetic: `p +/- n` (and `p - p`) must become a
                     // GEP/PtrDiff over the pointee type, never an integer op.
                     const bool a_ptr = value_is_pointer(*a);
@@ -1006,11 +1104,9 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                         break;
                     }
                     coerce_pair(av, bv, a->type(), b->type(),
-                                inst.opcode() == MIROpcode::Compare);
+                                inst.opcode() == MIROpcode::Compare, &uns);
                     if (!av || !bv) break;
                     const bool fp = av->getType()->isFloatingPointTy();
-                    const bool uns = !fp && a->type() < m.types.size() &&
-                                     (m.types.get(a->type()).flags & TF_SIGNED) == 0;
                     if (fp) {
                         switch (op) {
                             case MIRBinaryOp::Add: vals[v] = builder->CreateFAdd(av, bv); break;
@@ -1067,6 +1163,18 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                             case MIRBinaryOp::Ne: vals[v] = builder->CreateICmpNE(av, bv); break;
                         }
                     }
+                    // Narrow the promoted-width result back to the MIR value's
+                    // type, exactly as C does when it assigns to `int8_t v = a+b`.
+                    // Integer promotions widen i8/i16 operands to i32, so without
+                    // this the wrap-around of `(x + y) == -56i8` is lost. A
+                    // comparison already yields i1, which is the value's type.
+                    if (vals[v] && vals[v]->getType()->isIntegerTy() &&
+                        fn.values[v].type < m.types.size()) {
+                        llvm::Type* rt = mir_type(m, fn.values[v].type);
+                        if (rt->isIntegerTy() && rt != vals[v]->getType() &&
+                            vals[v]->getType()->getIntegerBitWidth() > rt->getIntegerBitWidth())
+                            vals[v] = builder->CreateTrunc(vals[v], rt);
+                    }
                     break;
                 }
                 case MIROpcode::Cast: {
@@ -1076,6 +1184,16 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     if (!av) break;
                     llvm::Type* to = mir_type(m, fn.values[v].type);
                     if (av->getType() == to) { vals[v] = av; break; }
+                    // Casting to an `Opaque` MIR type (`value as StaticInterface`)
+                    // is a pointer reinterpretation; `mir_type` spells Opaque `i8`,
+                    // so `ptrtoint ptr %p to i8` would *truncate* the address to 8
+                    // bits. Keep the pointer — the erased-self ABI is a pointer.
+                    if (av->getType()->isPointerTy() &&
+                        fn.values[v].type < m.types.size() &&
+                        m.types.get(fn.values[v].type).kind == MIRTypeKind::Opaque) {
+                        vals[v] = av;
+                        break;
+                    }
                     if (av->getType()->isIntegerTy() && to->isIntegerTy()) {
                         bool src_signed = false;
                         if (a->type() < m.types.size())
@@ -1084,7 +1202,22 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     } else if (av->getType()->isPointerTy() && to->isPointerTy()) {
                         vals[v] = builder->CreateBitCast(av, to);
                     } else if (av->getType()->isIntegerTy() && to->isPointerTy()) {
-                        vals[v] = builder->CreateIntToPtr(av, to);
+                        // C converts the integer to the pointer width first with
+                        // the *source* signedness: `(void*)-1` is all-ones, not
+                        // `0xFFFFFFFF`. `CreateIntToPtr` only zero-extends.
+                        bool src_signed = false;
+                        if (a->type() < m.types.size())
+                            src_signed = (m.types.get(a->type()).flags & TF_SIGNED) != 0;
+                        const unsigned ptr_bits =
+                            module->getDataLayout().getPointerSizeInBits(0);
+                        llvm::Value* iv = av;
+                        llvm::Type* ipt = builder->getIntNTy(ptr_bits);
+                        if (iv->getType()->getIntegerBitWidth() < ptr_bits)
+                            iv = src_signed ? builder->CreateSExt(iv, ipt)
+                                            : builder->CreateZExt(iv, ipt);
+                        else if (iv->getType()->getIntegerBitWidth() > ptr_bits)
+                            iv = builder->CreateTrunc(iv, ipt);
+                        vals[v] = builder->CreateIntToPtr(iv, to);
                     } else if (av->getType()->isPointerTy() && to->isIntegerTy()) {
                         vals[v] = builder->CreatePtrToInt(av, to);
                     } else if (av->getType()->isFloatingPointTy() && to->isIntegerTy()) {
@@ -1103,7 +1236,21 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     const MIROperand* t = arg(1);
                     const MIROperand* f = arg(2);
                     if (c && t && f) {
-                        vals[v] = builder->CreateSelect(op_val(*c), op_val(*t), op_val(*f));
+                        llvm::Value* tv = op_val(*t);
+                        llvm::Value* fv = op_val(*f);
+                        // the two arms must have one type (MIR keeps the source
+                        // types and relies on C's implicit conversions)
+                        if (tv && fv && tv->getType() != fv->getType()) {
+                            if (tv->getType()->isIntegerTy() && fv->getType()->isIntegerTy())
+                                fv = builder->CreateIntCast(fv, tv->getType(), true);
+                            else if (tv->getType()->isPointerTy() && fv->getType()->isPointerTy())
+                                fv = builder->CreateBitCast(fv, tv->getType());
+                            else if (tv->getType()->isFloatingPointTy() &&
+                                     fv->getType()->isFloatingPointTy())
+                                fv = builder->CreateFPCast(fv, tv->getType());
+                        }
+                        llvm::Value* cv = as_i1(op_val(*c));
+                        if (cv && tv && fv) vals[v] = builder->CreateSelect(cv, tv, fv);
                     }
                     break;
                 }
@@ -1161,12 +1308,18 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     const bool call_sret =
                         maybe_place && maybe_place->kind() == MIROperandKind::Place;
                     std::vector<llvm::Value*> args;
-                    if (call_sret) { args.push_back(places[maybe_place->id]); a++; }
+                    std::vector<TypeId> arg_types;
+                    if (call_sret) {
+                        args.push_back(places[maybe_place->id]);
+                        arg_types.push_back(MIR_INVALID_ID);
+                        a++;
+                    }
                     for (; a < inst.operand_count; ++a) {
                         const MIROperand* o = arg(a);
                         if (!o) continue;
                         llvm::Value* av = op_val(*o);
                         if (!av) continue;
+                        arg_types.push_back(o->type());
                         if (o->kind() == MIROperandKind::Place) {
                             const MIRTypeRecord& pr = m.types.get(fn.places[o->id].type);
                             if (pr.kind == MIRTypeKind::Array || mir_is_aggregate(m, fn.places[o->id].type)) {
@@ -1181,14 +1334,14 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     if (inst.opcode() == MIROpcode::Call) {
                         llvm::FunctionType* fty =
                             llvm::cast<llvm::Function>(callee)->getFunctionType();
-                        coerce_args(args, fty);
+                        coerce_args(args, fty, &arg_types);
                         ci = builder->CreateCall(llvm::cast<llvm::Function>(callee), args);
                     } else {
                         const MIROperand* f = arg(0);
                         TypeId ft = fn.values[f->id].type;
                         llvm::FunctionType* fty = mir_fn_type(m, ft);
                         if (!fty) break;
-                        coerce_args(args, fty);
+                        coerce_args(args, fty, &arg_types);
                         ci = builder->CreateCall(fty, callee, args);
                     }
                     if (!call_sret && v < fn.values.size() && !mir_is_void(m, fn.values[v].type)) {
@@ -1203,11 +1356,21 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     llvm::Function* cf = mir_function(m, ctor->id);
                     if (!cf) break;
                     std::vector<llvm::Value*> args;
+                    std::vector<TypeId> arg_types;
                     args.push_back(places[dest->id]);
+                    arg_types.push_back(MIR_INVALID_ID);
                     for (uint32_t a = 2; a < inst.operand_count; ++a) {
                         const MIROperand* o = arg(a);
-                        if (o) args.push_back(op_val(*o));
+                        if (o) {
+                            args.push_back(op_val(*o));
+                            arg_types.push_back(o->type());
+                        }
                     }
+                    // MIR arguments keep their source types and rely on C's
+                    // implicit conversions; LLVM requires an exact match. A
+                    // default `usize` literal is `i32` in MIR but `i64` in the
+                    // constructor's signature.
+                    coerce_args(args, cf->getFunctionType(), &arg_types);
                     builder->CreateCall(cf, args);
                     break;
                 }
@@ -1244,6 +1407,35 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     if (!p || !d || d->kind() != MIROperandKind::Symbol) break;
                     llvm::Function* df = mir_function(m, d->id);
                     if (!df) break;
+                    // Mirror `MIREmitter`'s Drop/Destroy: an aggregate-param place
+                    // is *pointer-typed* (`&param` names the object), and an array
+                    // place drops each element. Passing the alloca of a
+                    // pointer-typed place would hand the destructor its own stack
+                    // slot (`self.lamb` in the callee reads garbage).
+                    const TypeId pt = fn.places[p->id].type;
+                    const MIRTypeRecord& dpr =
+                        (pt < m.types.size()) ? m.types.get(pt) : MIRTypeRecord{};
+                    const bool ptr_place = dpr.kind == MIRTypeKind::Pointer ||
+                                           dpr.kind == MIRTypeKind::Reference;
+                    const bool arr_place = dpr.kind == MIRTypeKind::Array;
+                    auto emit_drop = [&]() {
+                        llvm::Value* base = places[p->id];
+                        if (ptr_place) {
+                            base = builder->CreateLoad(builder->getPtrTy(), base);
+                            builder->CreateCall(df, {base});
+                        } else if (arr_place) {
+                            // last-to-first, matching the C emitter (and the
+                            // language's reverse destruction order)
+                            llvm::Type* at = mir_type(m, pt);
+                            for (uint32_t i = dpr.data_count; i-- > 0;) {
+                                llvm::Value* ep = builder->CreateInBoundsGEP(
+                                    at, base, {builder->getInt32(0), builder->getInt32(i)});
+                                builder->CreateCall(df, {ep});
+                            }
+                        } else {
+                            builder->CreateCall(df, {base});
+                        }
+                    };
                     if (inst.opcode() == MIROpcode::Drop && inst.operand_count > 2) {
                         const MIROperand* flag = arg(2);
                         llvm::Value* fv = flag ? op_val(*flag) : nullptr;
@@ -1252,13 +1444,13 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                             llvm::BasicBlock::Create(*ctx, "drop", lfn);
                         llvm::BasicBlock* end_b =
                             llvm::BasicBlock::Create(*ctx, "drop.end", lfn);
-                        builder->CreateCondBr(fv, do_b, end_b);
+                        builder->CreateCondBr(as_i1(fv), do_b, end_b);
                         builder->SetInsertPoint(do_b);
-                        builder->CreateCall(df, {places[p->id]});
+                        emit_drop();
                         builder->CreateBr(end_b);
                         builder->SetInsertPoint(end_b);
                     } else {
-                        builder->CreateCall(df, {places[p->id]});
+                        emit_drop();
                     }
                     break;
                 }
@@ -1397,7 +1589,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     const MIROperand* t = arg(1);
                     const MIROperand* f = arg(2);
                     if (c && t && f) {
-                        builder->CreateCondBr(op_val(*c), blocks[t->id], blocks[f->id]);
+                        builder->CreateCondBr(as_i1(op_val(*c)), blocks[t->id], blocks[f->id]);
                     }
                     break;
                 }
@@ -1419,9 +1611,11 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                             llvm::Type* rt = lfn->getReturnType();
                             llvm::Type* vt = rv->getType();
                             if (rt != vt) {
-                                if (rt->isIntegerTy() && vt->isIntegerTy())
-                                    rv = builder->CreateIntCast(rv, rt, true);
-                                else if (rt->isFloatingPointTy() && vt->isFloatingPointTy())
+                                if (rt->isIntegerTy() && vt->isIntegerTy()) {
+                                    const bool src_signed =
+                                        r->type() < m.types.size() && is_signed_ty(r->type());
+                                    rv = builder->CreateIntCast(rv, rt, src_signed);
+                                } else if (rt->isFloatingPointTy() && vt->isFloatingPointTy())
                                     rv = builder->CreateFPCast(rv, rt);
                                 else if (rt->isPointerTy() && vt->isIntegerTy())
                                     rv = builder->CreateIntToPtr(rv, rt);
@@ -1458,10 +1652,19 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                         break;
                     }
                     const TypeId ft = fat->type();
-                    llvm::Type* fat_ty = mir_type(m, ft);
+                    // A pointer-like operand type means the value is the *address*
+                    // of the fat pointer (the lowerer types an lvalue receiver as
+                    // `*dyn I`), so the struct type is the pointee and a place must
+                    // be loaded once. This mirrors the C emitter's `arrow` flag
+                    // (`base->first` vs `base.first`). GEPing the pointer type
+                    // itself is invalid IR ("Invalid indices for GEP pointer
+                    // type!") and aborts the module verifier.
+                    const bool ft_is_ptr = mir_is_ptr_like(m, ft);
+                    llvm::Type* fat_ty = mir_type(m, ft_is_ptr ? m.types.get(ft).element : ft);
                     llvm::Value* fat_ptr = nullptr;
                     if (fat->kind() == MIROperandKind::Place) {
                         fat_ptr = places[fat->id];
+                        if (ft_is_ptr) fat_ptr = builder->CreateLoad(builder->getPtrTy(), fat_ptr);
                     } else {
                         fat_ptr = op_val(*fat);
                         // The fat pointer is a by-value struct (`{ first, second }`).
@@ -1490,11 +1693,18 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     llvm::Value* slot = builder->CreateStructGEP(vts, vtbl, midx);
                     llvm::Value* fnp = builder->CreateLoad(builder->getPtrTy(), slot);
                     std::vector<llvm::Value*> args;
+                    std::vector<TypeId> arg_types;
                     args.push_back(self);
+                    arg_types.push_back(MIR_INVALID_ID);
                     for (uint32_t a = 3; a < inst.operand_count; ++a) {
                         const MIROperand* o = arg(a);
-                        if (o) args.push_back(op_val(*o));
+                        if (o) {
+                            args.push_back(op_val(*o));
+                            arg_types.push_back(o->type());
+                        }
                     }
+                    // the slot's signature is authoritative (see `Init`)
+                    coerce_args(args, slot_ty, &arg_types);
                     llvm::CallInst* ci = builder->CreateCall(slot_ty, fnp, args);
                     if (v < fn.values.size() && !mir_is_void(m, fn.values[v].type)) {
                         vals[v] = ci;

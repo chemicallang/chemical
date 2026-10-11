@@ -27,6 +27,8 @@ enum class MIROutputMode : uint8_t {
 /** target-independent layout facts the emitters need */
 struct MIRModuleLayout {
     bool is64Bit = true;
+    /** Windows target: `long`/`ulong` are 32-bit (LLP64) */
+    bool windows = false;
     uint32_t pointer_size = 8;
     uint32_t pointer_alignment = 8;
 };

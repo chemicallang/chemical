@@ -34,7 +34,9 @@ namespace mir {
 
 namespace {
 
-uint32_t int_bits_of(IntNTypeKind kind) {
+// `long`/`ulong` are target-dependent: 64-bit on 64-bit POSIX, but 32-bit on
+// Windows (LLP64). Mirrors `IntNType::num_bits(TargetData)`.
+uint32_t int_bits_of(IntNTypeKind kind, bool is64Bit, bool windows) {
     switch (kind) {
         case IntNTypeKind::Char:
         case IntNTypeKind::I8:
@@ -52,9 +54,10 @@ uint32_t int_bits_of(IntNTypeKind kind) {
         case IntNTypeKind::U32:
             return 32;
         case IntNTypeKind::Long:
+        case IntNTypeKind::ULong:
+            return (is64Bit && !windows) ? 64 : 32;
         case IntNTypeKind::LongLong:
         case IntNTypeKind::I64:
-        case IntNTypeKind::ULong:
         case IntNTypeKind::ULongLong:
         case IntNTypeKind::U64:
             return 64;
@@ -357,10 +360,10 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
             MIRTypeRecord r;
             r.kind = MIRTypeKind::Int;
             r.flags = static_cast<uint8_t>(in->is_unsigned() ? 0 : TF_SIGNED);
-            r.size = int_bits_of(k) / 8;
+            r.size = int_bits_of(k, module_.layout.is64Bit, module_.layout.windows) / 8;
             r.alignment = r.size;
             r.decl = in->is_unsigned() ? 1u : 0u;
-            r.element = int_bits_of(k);
+            r.element = int_bits_of(k, module_.layout.is64Bit, module_.layout.windows);
             r.int_kind = mir_int_kind(k);
             id = intern(r);
             break;

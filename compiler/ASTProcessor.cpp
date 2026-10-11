@@ -2210,6 +2210,8 @@ int ASTProcessor::implement_module(
     // symbols/types are shared. A fresh arena per function is reset in the
     // driver (MIR is emitted immediately, then discarded).
     mir::MIRModule mir_module;
+    mir_module.layout.is64Bit = c_visitor.comptime_scope.target_data.is64Bit;
+    mir_module.layout.windows = c_visitor.comptime_scope.target_data.windows;
     mir::MIRTypeBuilder mir_types(mir_module);
     mir_types.set_name_resolver([&c_visitor](ASTNode* n) {
         return mir_mangle_name(c_visitor.mangler, n);
@@ -2392,6 +2394,8 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
     if (c_visitor.unimplemented_static_interfaces.empty()) return 0;
 
     mir::MIRModule mir_module;
+    mir_module.layout.is64Bit = c_visitor.comptime_scope.target_data.is64Bit;
+    mir_module.layout.windows = c_visitor.comptime_scope.target_data.windows;
     mir::MIRTypeBuilder mir_types(mir_module);
     mir_types.set_name_resolver([&c_visitor](ASTNode* n) {
         return mir_mangle_name(c_visitor.mangler, n);

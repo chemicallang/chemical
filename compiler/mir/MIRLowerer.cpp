@@ -7097,8 +7097,24 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
                                 : static_cast<ValueId>(dr.id);
     std::vector<MIROperand> cargs;
     cargs.push_back(MIROperand::value(dataptr, vpt));
+    // The closure's AST function type carries the parameter types, so pass them
+    // down: `lower_call_args_for` uses them to tell a by-value aggregate
+    // argument (the callee materialises and destroys its own copy) from one
+    // passed by reference (the caller still owns the temporary). Without them
+    // every destructible temporary argument was registered as caller-owned, so
+    // both sides destroyed it — a double free (`http::server` handing a
+    // `req_opt.take()` temporary to a `std::function` route handler).
+    std::vector<BaseType*> ast_params;
+    {
+        FunctionType* cap_ft = cap ? cap->get_func_type() : nullptr;
+        if (cap_ft) {
+            for (FunctionParam* p : cap_ft->params) {
+                ast_params.push_back(p ? p->type : nullptr);
+            }
+        }
+    }
     const size_t ccap = call_temps_.size();
-    if (!lower_call_args_for(nullptr, false, call->values, cargs, error)) {
+    if (!lower_call_args_for(nullptr, false, call->values, cargs, error, &ast_params)) {
         return MIRExprResult::error();
     }
     const TypeId crt = types_.map(call->getType());

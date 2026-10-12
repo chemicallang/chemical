@@ -145,6 +145,7 @@ public func run_common_tests() {
     test_name_hiding();
 
     test_destructors();
+    test_capturing_call_destruction();
     test_scope_block_destruction();
     test_continue_destruction()
     test_break_destruction()

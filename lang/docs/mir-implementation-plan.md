@@ -19,6 +19,14 @@ size baselined from GitHub Releases
 > legacy bridge for a few not-yet-lowered constructs (lambdas, expressive
 > strings, runtime blocks) and the aggregate-layout milestone. See
 > `compiler/mir/README.md` for details, gotchas, and exact repro commands.
+>
+> ⚠️ **Post-migration evaluation (2026-10-12):** the migration is functionally
+> green but regresses every non-functional axis it was measured on (compile time
+> ~2.3×, peak RSS ~+40%, generated C ~+70%, executable ~+60%, compiler binary
+> +7.5%) and the type/declaration layer is still AST-based. The measured evidence,
+> root causes, and the consolidation/performance action plan are in
+> **`lang/docs/mir-migration-evaluation.md`**. The §11 non-functional gates below
+> are currently **not met**.
 
 ---
 

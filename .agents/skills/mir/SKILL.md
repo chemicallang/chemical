@@ -1,6 +1,6 @@
 ---
 name: MIR (C backend)
-description: The Chemical compiler's MIR (mid-level IR) C lowering path — architecture, current status (all suites green, including --libs/--plugins/--async/--process/--server), the AST→MIR lowering and MIR→C emission pipeline, the coroutine/async lowering, type-spelling rules that must match legacy prototypes, destructor/move semantics via drop flags, and the hard-won codegen gotchas. Load before touching compiler/mir/*, compiler/async/*, ASTProcessor MIR integration, or debugging generated C.
+description: The Chemical compiler's MIR (mid-level IR) lowering path — architecture, current status (C and LLVM suites green, legacy 2c deleted), the AST→MIR lowering and per-backend emission pipeline, the coroutine/async lowering, type-spelling rules, destructor/move semantics via drop flags, and the hard-won codegen gotchas. Also carries the post-migration evaluation (measured compile-time/memory/generated-code/binary-size regressions) and the consolidation+performance action plan needed for the JVM/JS backends. Load before touching compiler/mir/*, compiler/CodegenMir.cpp, compiler/async/*, ASTProcessor MIR integration, or debugging generated C.
 ---
 
 # MIR — the compiler's C lowering path
@@ -10,23 +10,35 @@ first; it has the architecture, the full list of what is lowered, the exact
 type-spelling rules, the known issues, and the hard-won gotchas. This skill is a
 pointer plus the most important operational facts.
 
-> **NEXT PHASE — MIR → LLVM migration.** The LLVM backend still lowers from the
-> AST and must be deleted and re-implemented as MIR → LLVM, preserving DWARF
-> debug info through MIR. The full handoff/plan/contract (prerequisites,
-> checkpoints, debug-info requirement, bug/test policy, and a copy/paste resume
-> prompt for a fresh session) is in **`lang/docs/mir-llvm-migration.md`**. Read
-> it before starting that work.
+> **⚠️ EVALUATION + ACTION PLAN (read first if your task is perf, binary size,
+> or a new backend):** `lang/docs/mir-migration-evaluation.md`. The migration is
+> green and functionally complete, but it currently regresses compile time
+> (~2.3×), peak memory (~+40%), generated C (~+70%), executable size (~+60%), and
+> the compiler binary (~+7.5%), and the type/declaration layer is **still
+> AST-based** (`MIRDeclEmitter`) with no aggregate layout in MIR. The plan's
+> actions A–E explain how to reach "one small MIR core + thin C/LLVM/JVM/JS
+> backends". Do not add to the AST-based declaration path.
+>
+> **MIR → LLVM:** the LLVM target now emits from MIR and the main `--llvm` suite
+> is green; the handoff/contract is `lang/docs/mir-llvm-migration.md`. The old AST
+> LLVM lowering is dead but not yet deleted.
 
 ## Status
 
 - Branch `mir`. Contract: `lang/docs/mir-implementation-plan.md`,
   `lang/docs/mir-design.md`. Migration contract: `lang/docs/mir-llvm-migration.md`.
+  Post-migration evaluation + plan: `lang/docs/mir-migration-evaluation.md`.
 - **MIR is the only C path; the legacy 2c visitor is deleted.** All TCC suites are
   green:
   `./scripts/test.sh --tcc` → 2300 passed (0 failed); `--interpret` → 1890;
   `--libs` → 718/719 (flaky atomic CAS); `--plugins` → 1296; `--async` → 53;
   `--process` → 127; `--server` → 8/9 (flaky HTTP double-free).
   `MIRTests` green (1049 checks).
+- **Measured regressions (2026-10-12, L1, `Debug`, `debug_quick`, vs pre-MIR
+  `main`):** main-suite cold compile 2.80 s → 6.49 s (2.3×); peak RSS 43.4 →
+  60.4 MB (+40%); probe C 8,285 → 14,115 lines (+70%); probe exe 341 → 543 KB
+  (+59%); `tests-tcc.exe` 3.24 → 5.32 MB (+64%); `TCCCompiler` debug binary
+  65.1 → 70.0 MB (+7.5%). Details and root causes: the evaluation doc §1–§2.
 - The old per-function legacy bridge no longer exists — a lowering failure is a
   diagnostic, not a fallback. Do **not** add fallbacks.
 - **The LLVM target now emits from MIR and the *main* suite is green:**
@@ -46,12 +58,18 @@ pointer plus the most important operational facts.
 - `compiler/mir/MIRBuilder.{h,cpp}` — typed construction API
   (`alloca_frame`, `async_frame_alloc`, `call_indirect_sret`, …).
 - `compiler/mir/MIREmitter.{h,cpp}` — MIR→C (AST-free).
+- `compiler/mir/MIRDeclEmitter.{h,cpp}` — **AST-based** C declarations /
+  prototypes / globals / vtables (the type/decl layer that is *not* yet MIR
+  driven; see the evaluation doc actions A/B).
+- `compiler/CodegenMir.cpp` — MIR→LLVM lowering (AST-free, `COMPILER_BUILD`
+  only); the driver is `ASTProcessor::mir_compile_module` in
+  `compiler/ASTCompiler.cpp`.
 - `compiler/mir/MIRTypes.h` (`MIRStorageClass`), `MIRInstruction.h` (opcodes),
   `MIRFunction.h` (`MIRPlaceDef.frame_field`), `MIRTypeTable.h`, `MIRArena.h`,
-  `MIRDump.h`, `MIRVerifier.h`.
+  `MIRDump.h`, `MIRVerifier.h`, `MIRConstantPool.h`, `MIRSymbolTable.h`.
 - `compiler/async/AsyncCTypes.{h,cpp}` — resolve the `FutureHandle<T>` /
-  `FutureTable<T>` / `Poll<T>` / `Context*` types; **shared** by the legacy 2c
-  path and MIR so both agree.
+  `FutureTable<T>` / `Poll<T>` / `Context*` types; **shared** by MIR's C and
+  LLVM async lowering so both agree.
 - `compiler/async/AsyncLoweringPlan.h`, `AwaitNormalizePass.{h,cpp}` — the shared
   coroutine plan (`build_async_plan`) and the await-hoisting normalizer.
 - `compiler/ASTProcessor.cpp` — `mir_translate_after_declaration` + callbacks

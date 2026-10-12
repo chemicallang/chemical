@@ -14,6 +14,46 @@ here. Binding rules: **no feature flags, no legacy fallback, no capability
 analysis;** generated C must stay functionally equivalent (not textually);
 the release compiler must stay under 4 MB.
 
+## ⚠️ Post-migration evaluation (2026-10-12) — read before optimising
+
+The migration is functionally complete and green, but it **regresses every
+non-functional axis** the project measures, and it has **not yet achieved the
+"one small MIR core + thin backends"** shape that makes JVM/JS cheap. Full
+evidence, root causes, and the actionable plan are in
+**`lang/docs/mir-migration-evaluation.md`**. Headline measured facts (L1
+machine, `Debug`, `debug_quick`, identical source, vs the pre-MIR `main`
+compiler):
+
+| Axis | Legacy (`main`) | MIR | Delta |
+|---|---:|---:|---:|
+| Main-suite compile, cold | 2.80 s | 6.49 s | **+132% (2.3×)** |
+| Main-suite peak RSS | 43.4 MB | 60.4 MB | **+40%** |
+| Probe generated C | 8,285 lines | 14,115 lines | **+70%** |
+| Probe executable | 341 KB | 543 KB | **+59%** |
+| `tests-tcc.exe` | 3.24 MB | 5.32 MB | **+64%** |
+| `TCCCompiler` debug binary | 65.1 MB | 70.0 MB | **+7.5%** |
+
+Root causes (all with file/line evidence in the evaluation doc):
+
+1. **Declarations/layout are still AST-based.** `MIRDeclEmitter` walks the AST
+   (not `MIRTypeRecord`); aggregate `size`/`alignment` are never filled in
+   `MIRTypeBuilder`; C type spelling is implemented twice (`MIREmitter` and
+   `MIRDeclEmitter`). There is no single layout/decl source for C, LLVM, JVM, JS.
+2. **Every backend is a full independent dispatcher** (`MIREmitter` 1.6k lines,
+   `CodegenMir` 2.2k lines) with no shared ABI/traversal/naming.
+3. **Hot-path violations of the plan**: `std::string` allocated per identifier
+   (`place_for_name`), 18 `unordered_map`/sets in `MIRLowerer`, O(n) linear-scan
+   type interning (`MIRTypeTable::intern`) and constant interning
+   (`MIRConstantPool::add`), and `MIRLowerer.cpp` is one 8,224-line TU.
+4. **Generated-C waste**: an unconditional byte-wise zero loop on *every*
+   aggregate `Alloca` (584 in one small probe; legacy: 0), aggregate
+   load-then-assign double copies, redundant scalar param spills, and dead
+   epilogue blocks.
+
+Do not add new functionality to the AST-based declaration path; move it into MIR
+(action A/B in the evaluation doc). Any commit that grows generated C, compile
+time, memory, or the compiler binary must pay for it.
+
 ## Current status (verified with a clean test-exe cache)
 
 **LLVM target (`Compiler`, MIR→LLVM): the main suite is green — 2298 / 2298.**

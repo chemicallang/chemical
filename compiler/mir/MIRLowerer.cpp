@@ -6470,6 +6470,7 @@ bool MIRLowerer::lower_async_function(FunctionDeclaration* decl, MIRArena& arena
 
     async_emit_frame_helpers(decl);
     if (!async_lower_poll_body(decl, error)) { async_ = false; return false; }
+    if (!async_lower_drop_body(decl, error)) { async_ = false; return false; }
     if (!async_lower_ramp(decl, func, error)) { async_ = false; return false; }
     async_ = false;
     return true;
@@ -6511,6 +6512,61 @@ void MIRLowerer::async_emit_frame_helpers(FunctionDeclaration* decl) {
         }
     }
     async_pre_decls_ += " };\n";
+
+    // The frame's *runtime* fields must also live in the MIR type table: the C
+    // emitter spells frame access from the struct text above, but the LLVM
+    // emitter lays the frame out and resolves field names from the table.
+    // Without this the frame LLVM type is an opaque `{ i8 }`, so every
+    // `__chx__af->…` GEP is out of bounds and the poll/ramp emit invalid IR.
+    {
+        const TypeId void_ptr = types_.pointer_type(types_.void_type(), true);
+        std::vector<MIRFieldInfo> fs;
+        auto push = [&](const std::string& fname, TypeId ft) {
+            MIRFieldInfo fi;
+            fi.type = ft;
+            fi.kind = static_cast<uint8_t>(MIRFieldKind::Direct);
+            fi.index = static_cast<uint32_t>(fs.size());
+            fi.name_offset = static_cast<uint32_t>(module_.types.field_names.size());
+            fi.name_length = static_cast<uint32_t>(fname.size());
+            module_.types.field_names.insert(module_.types.field_names.end(),
+                                             fname.begin(), fname.end());
+            fs.push_back(fi);
+        };
+        push("__state", types_.u32_type());
+        push("__result", async_inner_ ? types_.map(async_inner_) : types_.opaque_type());
+        push("__cx", async_context_ ? types_.map(async_context_) : void_ptr);
+        for (size_t i = 0; i < async_plan_.sites.size(); ++i) {
+            BaseType* ct = async_plan_.sites[i].awaited_handle_type;
+            push(async_child_field(static_cast<unsigned>(i)),
+                 ct ? types_.map(ct) : void_ptr);
+        }
+        for (size_t id = 0; id < async_plan_.slots.size(); ++id) {
+            BaseType* st = async_plan_.slots[id].type;
+            TypeId ft = void_ptr;
+            if (st != nullptr) {
+                if (st->kind() == BaseTypeKind::Array) {
+                    auto* arr = st->as_array_type_unsafe();
+                    ft = types_.sized_array_type(types_.map(arr->elem_type),
+                                                 arr->get_array_size());
+                } else {
+                    ft = types_.map(st);
+                }
+            }
+            push(async_slot_field(static_cast<unsigned>(id)), ft);
+        }
+        for (size_t id = 0; id < async_plan_.slots.size(); ++id) {
+            if (async_drop_flag_slots_.count(static_cast<unsigned>(id)) == 0) continue;
+            MIRTypeRecord r;
+            r.kind = MIRTypeKind::Int;
+            r.size = 1;
+            r.alignment = 1;
+            r.int_kind = IK_U8;
+            push(async_drop_flag_field(static_cast<unsigned>(id)), module_.types.intern(r));
+        }
+        MIRTypeRecord& fr = module_.types.types[async_frame_type_];
+        fr.data_count = static_cast<uint32_t>(fs.size());
+        fr.field_index = module_.types.append_fields(fs);
+    }
 
     const std::string poll_ptr = c_type_of(module_, types_.pointer_type(types_.map(async_poll_base_), true));
     const std::string handle_ptr = c_type_of(module_, types_.pointer_type(types_.map(async_handle_), true));
@@ -6819,6 +6875,177 @@ bool MIRLowerer::async_lower_poll_body(FunctionDeclaration* decl, std::string& e
     builder_ = nullptr;
     if (!b.ok()) {
         error = b.error() ? b.error() : "async poll builder failure";
+        return false;
+    }
+    return true;
+}
+
+namespace {
+/** The type of the aggregate field named `name`, or MIR_INVALID_ID. */
+TypeId mir_named_field_type(const MIRTypeTable& tt, TypeId agg, const char* name) {
+    if (agg >= tt.size()) return MIR_INVALID_ID;
+    const std::string want(name);
+    const MIRTypeRecord& r = tt.get(agg);
+    for (uint32_t i = 0; i < r.data_count; ++i) {
+        const MIRFieldInfo* f = tt.field_of(agg, i);
+        if (f && tt.field_name_of(*f) == want) return f->type;
+    }
+    return MIR_INVALID_ID;
+}
+} // namespace
+
+bool MIRLowerer::async_lower_drop_body(FunctionDeclaration* decl, std::string& error) {
+    (void)decl;
+    MIRFunction& fn = async_drop_;
+    fn.clear();
+
+    const TypeId void_ptr = types_.pointer_type(types_.void_type(), true);
+    const TypeId u64 = types_.u64_type();
+    const TypeId u32 = types_.u32_type();
+    MIRTypeRecord u8_rec;
+    u8_rec.kind = MIRTypeKind::Int;
+    u8_rec.size = 1;
+    u8_rec.alignment = 1;
+    u8_rec.int_kind = IK_U8;
+    const TypeId u8 = module_.types.intern(u8_rec);
+
+    auto func_symbol = [&](const std::string& name, const std::vector<TypeId>& params,
+                           TypeId ret, MIRLinkage linkage) -> SymbolId {
+        MIRSymbolRecord rec;
+        rec.kind = MIRSymbolKind::Function;
+        rec.linkage = linkage;
+        const TypeId ft = types_.function_signature(ret, params);
+        SymbolId sym = module_.symbols.add(rec, name.data(), static_cast<uint32_t>(name.size()),
+                                           name.data(), static_cast<uint32_t>(name.size()));
+        module_.symbols.symbols[sym].type = ft;
+        return sym;
+    };
+
+    const std::string drop_name = async_mangled_ + "__drop";
+    const SymbolId drop_sym =
+        func_symbol(drop_name, {void_ptr}, types_.void_type(), MIRLinkage::Internal);
+    fn.symbol = drop_sym;
+    fn.function_type = module_.symbols.symbols[drop_sym].type;
+
+    MIRBuilder b(*arena_, module_, fn);
+    builder_ = &b;
+    const BlockId entry = b.create_block();
+    b.set_block(entry);
+    fn.entry_block = entry;
+
+    const ValueId p0 = b.param(void_ptr);
+    const PlaceId frame_arg = b.alloca(void_ptr, MIRStorageClass::Parameter);
+    b.store(frame_arg, p0);
+
+    const ValueId fv = b.load(frame_arg, void_ptr);
+    const ValueId af = b.cast(fv, async_frame_ptr_type_);
+    const PlaceId af_place = b.alloca(async_frame_ptr_type_, MIRStorageClass::FramePtr);
+    b.store(af_place, af);
+
+    const ConstantId state_fc = module_.constants.add_string(MIR_INVALID_ID, "__state", 7);
+    const ValueId st = b.field_load_ptr(af, state_fc, u32);
+    const ConstantId eqc =
+        module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq));
+    const ConstantId nec =
+        module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Ne));
+
+    const size_t nsites = async_plan_.sites.size();
+    const BlockId done_b = b.create_block();
+    std::vector<BlockId> case_b(nsites), next_b(nsites);
+    for (size_t i = 0; i < nsites; ++i) {
+        case_b[i] = b.create_block();
+        next_b[i] = b.create_block();
+    }
+    for (size_t i = 0; i < nsites; ++i) {
+        const ValueId cval = b.const_int(u32, module_.constants.add_int(u32, i + 1));
+        const ValueId iseq = b.compare(st, cval, eqc, types_.bool_type());
+        b.cond_br(iseq, case_b[i], next_b[i]);
+        b.set_block(next_b[i]);
+    }
+    b.br(done_b);
+
+    for (size_t i = 0; i < nsites; ++i) {
+        b.set_block(case_b[i]);
+        for (auto id : async_plan_.sites[i].live_drops) {
+            const auto& slot = async_plan_.slots[id];
+            if (slot.type == nullptr) continue;
+            const SymbolId dtor = destructor_symbol(slot.type);
+            if (dtor == MIR_INVALID_ID) continue;
+            BaseType* canon = slot.type->canonical();
+            TypeId slot_ty = types_.map(slot.type);
+            if (canon && canon->kind() == BaseTypeKind::Array) {
+                auto* arr = canon->as_array_type_unsafe();
+                slot_ty = types_.sized_array_type(types_.map(arr->elem_type),
+                                                  arr->get_array_size());
+            }
+            const std::string fname = async_slot_field(id);
+            const ConstantId fc = module_.constants.add_string(
+                MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
+            const PlaceId place = b.alloca_frame(slot_ty, fc);
+            if (async_drop_flag_slots_.count(id) != 0) {
+                const std::string df = async_drop_flag_field(id);
+                const ConstantId dfc = module_.constants.add_string(
+                    MIR_INVALID_ID, df.data(), static_cast<uint32_t>(df.size()));
+                const ValueId flag = b.field_load_ptr(af, dfc, u8);
+                b.drop(place, dtor, flag);
+            } else {
+                b.destroy(place, dtor);
+            }
+        }
+        // drop the live child future: `if (af->child.frame) { vtbl->drop(frame); frame = 0; }`
+        BaseType* handle_bt = async_plan_.sites[i].awaited_handle_type;
+        if (handle_bt == nullptr) { b.br(done_b); continue; }
+        const TypeId handle_ty = types_.map(handle_bt);
+        const std::string child_name = async_child_field(static_cast<unsigned>(i));
+        const ConstantId cfc = module_.constants.add_string(
+            MIR_INVALID_ID, child_name.data(), static_cast<uint32_t>(child_name.size()));
+        const PlaceId child_temp = b.alloca(handle_ty, MIRStorageClass::Local);
+        const ValueId hv = b.field_load_ptr(af, cfc, handle_ty);
+        b.store(child_temp, hv);
+        const ConstantId frame_fc =
+            module_.constants.add_string(MIR_INVALID_ID, "frame", 5);
+        const ConstantId vtbl_fc =
+            module_.constants.add_string(MIR_INVALID_ID, "vtbl", 4);
+        const ValueId cframe = b.field_load(child_temp, frame_fc, void_ptr);
+        const ValueId zero = b.const_null(void_ptr, module_.constants.add_null(void_ptr));
+        const ValueId nz = b.compare(cframe, zero, nec, types_.bool_type());
+        const BlockId do_b = b.create_block();
+        const BlockId end_b = b.create_block();
+        b.cond_br(nz, do_b, end_b);
+        b.set_block(do_b);
+        const TypeId vtbl_ptr_ty = mir_named_field_type(module_.types, handle_ty, "vtbl");
+        const TypeId table_ty = (vtbl_ptr_ty != MIR_INVALID_ID && vtbl_ptr_ty < module_.types.size())
+                                    ? module_.types.get(vtbl_ptr_ty).element
+                                    : MIR_INVALID_ID;
+        const TypeId drop_fn_ty = mir_named_field_type(module_.types, table_ty, "drop");
+        if (vtbl_ptr_ty != MIR_INVALID_ID && drop_fn_ty != MIR_INVALID_ID) {
+            const ValueId vtbl = b.field_load(child_temp, vtbl_fc, vtbl_ptr_ty);
+            const ValueId drop_fn = b.field_load_ptr(vtbl, module_.constants.add_string(
+                                                                     MIR_INVALID_ID, "drop", 4),
+                                                     drop_fn_ty);
+            MIROperand arg = MIROperand::value(cframe, void_ptr);
+            b.call_indirect(drop_fn, types_.void_type(), &arg, 1);
+            b.field_store(child_temp, frame_fc, zero);
+        }
+        b.br(end_b);
+        b.set_block(end_b);
+        b.br(done_b);
+    }
+
+    b.set_block(done_b);
+    const SymbolId free_sym = func_symbol("chemical_async_frame_free",
+                                          {void_ptr, u64, u64}, types_.void_type(),
+                                          MIRLinkage::External);
+    const ValueId sz = b.size_of(async_frame_type_, u64);
+    const ValueId al = b.align_of(async_frame_type_, u64);
+    MIROperand fargs[3] = {MIROperand::value(fv, void_ptr), MIROperand::value(sz, u64),
+                           MIROperand::value(al, u64)};
+    b.call_scalar(free_sym, types_.void_type(), fargs, 3);
+    b.ret_void();
+
+    builder_ = nullptr;
+    if (!b.ok()) {
+        error = b.error() ? b.error() : "async drop builder failure";
         return false;
     }
     return true;

@@ -118,6 +118,13 @@ public:
      * declaration text. The caller emits: pre-decls, poll, post-decls, ramp.
      */
     MIRFunction& async_poll() { return async_poll_; }
+    /**
+     * The coroutine `__drop` (`void __drop(void* frame)`): destroys the live
+     * frame slots and the live child future at the suspended state, then frees
+     * the frame. The C backend emits an equivalent body as text; the LLVM
+     * backend needs it as MIR because it defines the FutureTable's `drop` slot.
+     */
+    MIRFunction& async_drop() { return async_drop_; }
     std::string& async_pre_decls() { return async_pre_decls_; }
     std::string& async_post_decls() { return async_post_decls_; }
     bool is_async_lowering() const { return async_; }
@@ -410,6 +417,7 @@ private:
                               std::string& error);
     void async_emit_frame_helpers(FunctionDeclaration* decl);
     bool async_lower_poll_body(FunctionDeclaration* decl, std::string& error);
+    bool async_lower_drop_body(FunctionDeclaration* decl, std::string& error);
     bool async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func, std::string& error);
     bool async_lower_await_var_init(VarInitStatement* stmt, size_t site_index, std::string& error);
     void async_emit_spill(const struct AwaitSite& site);
@@ -531,6 +539,7 @@ private:
     TypeId async_frame_ptr_type_ = MIR_INVALID_ID; // `<mangled>__frame*`
     AsyncLoweringPlan async_plan_;
     MIRFunction async_poll_;
+    MIRFunction async_drop_;
     std::string async_pre_decls_;
     std::string async_post_decls_;
     // poll-function lowering state

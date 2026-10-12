@@ -159,6 +159,11 @@ llvm::Type* Codegen::mir_type(const mir::MIRModule& m, uint32_t id) {
             // backend: the C struct is `struct S { }` (TinyCC agrees with the
             // interpreter's `byte_size`), so padding it with an `i8` here made
             // `sizeof(S)` disagree between the runtime (`SizeOf`) and comptime.
+
+            // A field-less aggregate stays *empty* (`type {}`, alloc size 0), as
+            // C spells `struct S {}` under the extension the language relies on.
+            // Padding it to `{ i8 }` made `sizeof(S)` 1 against the interpreter's
+            // 0 and diverged from the C backend.
             st->setBody(elems);
             t = st;
             break;
@@ -353,14 +358,21 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
     std::vector<llvm::Value*> vals(fn.values.size(), nullptr);
     std::vector<llvm::Value*> places(fn.places.size(), nullptr);
 
-    // spill every non-frame place as an alloca in the entry block
+    // The coroutine frame pointer place (`__chx__af`). A `FrameField` place has
+    // no stack slot: it is a GEP from this pointer, resolved lazily by
+    // `place_ptr` below.
+    int frame_place = -1;
+    llvm::Value* frame_ptr_value = nullptr;
+    // Spill every non-frame-field place as an alloca in the entry block. A
+    // `FramePtr` place *is* a real slot (the frame pointer is stored into it at
+    // entry), so it must be allocated too.
     {
         llvm::IRBuilder<> top(entry, entry->begin());
         for (uint32_t p = 0; p < fn.places.size(); ++p) {
             const uint8_t sc = fn.places[p].storage_class;
-            if (sc == static_cast<uint8_t>(MIRStorageClass::FrameField) ||
-                sc == static_cast<uint8_t>(MIRStorageClass::FramePtr)) {
-                continue;
+            if (sc == static_cast<uint8_t>(MIRStorageClass::FrameField)) continue;
+            if (sc == static_cast<uint8_t>(MIRStorageClass::FramePtr) && frame_place < 0) {
+                frame_place = static_cast<int>(p);
             }
             places[p] = top.CreateAlloca(mir_type(m, fn.places[p].type));
         }
@@ -461,6 +473,19 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
         out_type = cur;
         return true;
     };
+    // The index of a variant's discriminator field (`__chx__vt_621827`).
+    auto variant_tag_index = [&](TypeId agg) -> int {
+        if (agg >= m.types.size()) return -1;
+        const MIRTypeRecord& r = m.types.get(agg);
+        for (uint32_t i = 0; i < r.data_count; ++i) {
+            const MIRFieldInfo* f = m.types.field_of(agg, i);
+            if (f && f->kind == static_cast<uint8_t>(MIRFieldKind::VariantTag)) {
+                return static_cast<int>(i);
+            }
+        }
+        return field_index(agg, "__chx__vt_621827");
+    };
+
     auto gep_path = [&](llvm::Value* base_ptr, TypeId agg,
                         const std::vector<uint32_t>& indices) -> llvm::Value* {
         llvm::Value* ptr = base_ptr;
@@ -556,11 +581,104 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
         }
     };
 
+    // A `FrameField` place (`__chx__af-><field>`) is a GEP from the coroutine
+    // frame pointer, not a stack slot. Resolve it lazily at first use so the GEP
+    // lands at that use's insertion point (which the frame-pointer store
+    // dominates).
+    // `&<name>` for an async function's `FutureTable<T>` global. The vtable is
+    // emitted as C text for the C backend, so the LLVM emitter has to build it
+    // here: `{ &<stem>__poll, &<stem>__drop }`.
+    auto async_vtable = [&](const std::string& name, TypeId table_ty) -> llvm::Value* {
+        if (llvm::GlobalVariable* existing = module->getGlobalVariable(name)) {
+            return existing;
+        }
+        if (table_ty == MIR_INVALID_ID || table_ty >= m.types.size()) return nullptr;
+        auto* st = llvm::dyn_cast<llvm::StructType>(mir_type(m, table_ty));
+        if (!st) return nullptr;
+        std::string stem = name;
+        if (stem.size() >= 6 && stem.compare(stem.size() - 6, 6, "__vtbl") == 0) {
+            stem.erase(stem.size() - 6);
+        }
+        std::vector<llvm::Constant*> init;
+        const MIRTypeRecord& tr = m.types.get(table_ty);
+        for (uint32_t i = 0; i < tr.data_count; ++i) {
+            const MIRFieldInfo* f = m.types.field_of(table_ty, i);
+            const std::string fname = f ? m.types.field_name_of(*f) : std::string();
+            llvm::Constant* c = nullptr;
+            if (fname == "poll") {
+                c = module->getFunction(stem + "__poll");
+            } else if (fname == "drop") {
+                c = module->getFunction(stem + "__drop");
+            }
+            init.push_back(c ? c : llvm::Constant::getNullValue(builder->getPtrTy()));
+        }
+        if (init.size() != st->getNumElements()) return nullptr;
+        auto* gv = new llvm::GlobalVariable(*module, st, /*isConstant=*/true,
+                                            llvm::GlobalValue::InternalLinkage,
+                                            llvm::ConstantStruct::get(st, init), name);
+        return gv;
+    };
+
+    auto place_ptr = [&](PlaceId p) -> llvm::Value* {
+        if (p >= places.size()) return nullptr;
+        if (places[p]) return places[p];
+        if (p >= fn.places.size()) return nullptr;
+        const MIRPlaceDef& pd = fn.places[p];
+        if (pd.storage_class != static_cast<uint8_t>(MIRStorageClass::FrameField)) {
+            return nullptr;
+        }
+        std::string fname;
+        if (frame_place < 0 || pd.frame_field == MIR_INVALID_ID ||
+            !const_string(pd.frame_field, fname)) {
+            return nullptr;
+        }
+        const TypeId fptr_ty = fn.places[frame_place].type;
+        if (fptr_ty >= m.types.size()) return nullptr;
+        const TypeId agg = m.types.get(fptr_ty).element;
+        if (agg >= m.types.size()) return nullptr;
+        const int fi = field_index(agg, fname);
+        if (fi < 0) {
+            if (getenv("MIR_LLVM_TRACE"))
+                std::cerr << "[MIR-LLVM] in " << std::string(lfn->getName())
+                          << ": frame field lookup failed agg=" << agg << " name="
+                          << m.types.name_of(agg) << " field=" << fname << "\n";
+            return nullptr;
+        }
+        // Insert the frame-pointer load and the GEP in the *entry* block: a frame
+        // field is used from several sibling blocks of the state machine, so a
+        // use-site GEP would not dominate all uses. The entry block's terminator
+        // already follows the frame-pointer store by the time the first field is
+        // touched; if it does not exist yet we are still emitting into the entry
+        // block, so the current insertion point is equivalent.
+        llvm::Instruction* term = entry ? entry->getTerminator() : nullptr;
+        if (!frame_ptr_value) {
+            if (term) {
+                llvm::IRBuilder<> top(term);
+                frame_ptr_value =
+                    top.CreateLoad(builder->getPtrTy(), places[frame_place]);
+            } else {
+                frame_ptr_value =
+                    builder->CreateLoad(builder->getPtrTy(), places[frame_place]);
+            }
+        }
+        llvm::Value* gep = nullptr;
+        if (term) {
+            llvm::IRBuilder<> top(term);
+            gep = top.CreateStructGEP(mir_type(m, agg), frame_ptr_value,
+                                      static_cast<uint32_t>(fi));
+        } else {
+            gep = builder->CreateStructGEP(mir_type(m, agg), frame_ptr_value,
+                                           static_cast<uint32_t>(fi));
+        }
+        places[p] = gep;
+        return gep;
+    };
+
     std::function<llvm::Value*(const MIROperand&)> op_val =
         [&](const MIROperand& op) -> llvm::Value* {
         switch (op.kind()) {
             case MIROperandKind::Value: return vals[op.id];
-            case MIROperandKind::Place: return places[op.id];
+            case MIROperandKind::Place: return place_ptr(op.id);
             case MIROperandKind::Constant: return const_of(op.id, op.type());
             case MIROperandKind::Symbol: return mir_function(m, op.id);
             default: return nullptr;
@@ -614,7 +732,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
     auto atomic_ptr = [&](const MIROperand& op) -> llvm::Value* {
         if (op.kind() == MIROperandKind::Place) {
             const TypeId pt = fn.places[op.id].type;
-            return builder->CreateLoad(mir_type(m, pt), places[op.id]);
+            return builder->CreateLoad(mir_type(m, pt), place_ptr(op.id));
         }
         return op_val(op);
     };
@@ -677,7 +795,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
     auto resolve_addr = [&](const MIROperand& base, const MIROperand* selector,
                             TypeId* out_pointee) -> llvm::Value* {
         if (base.kind() == MIROperandKind::Place) {
-            llvm::Value* bp = places[base.id];
+            llvm::Value* bp = place_ptr(base.id);
             TypeId bt = fn.places[base.id].type;
             if (!bp) {
                 // Frame places have no entry-block alloca (they live in the
@@ -1002,9 +1120,9 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                             const MIRTypeRecord& sr = m.types.get(fn.places[src->id].type);
                             sv = (sr.kind == MIRTypeKind::Pointer ||
                                   sr.kind == MIRTypeKind::Reference)
-                                     ? builder->CreateLoad(mir_type(m, sr.element), places[src->id])
+                                     ? builder->CreateLoad(mir_type(m, sr.element), place_ptr(src->id))
                                      : builder->CreateLoad(mir_type(m, fn.places[src->id].type),
-                                                           places[src->id]);
+                                                           place_ptr(src->id));
                         }
                         // MIR keeps the source type on the value (C assigns with
                         // an implicit conversion); LLVM needs an exact match, so
@@ -1116,8 +1234,16 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     if (vals[v] && vals[v]->getType()->isIntegerTy() &&
                         fn.values[v].type < m.types.size()) {
                         llvm::Type* rt = mir_type(m, fn.values[v].type);
-                        if (rt->isIntegerTy() && rt != vals[v]->getType())
-                            vals[v] = builder->CreateTrunc(vals[v], rt);
+                        if (rt->isIntegerTy() && rt != vals[v]->getType()) {
+                            // `!x` is C's `int`, so the lowered i1 result is
+                            // *widened* to the MIR value's type — never truncated.
+                            if (vals[v]->getType()->getIntegerBitWidth() >
+                                rt->getIntegerBitWidth()) {
+                                vals[v] = builder->CreateTrunc(vals[v], rt);
+                            } else {
+                                vals[v] = builder->CreateZExt(vals[v], rt);
+                            }
+                        }
                     }
                     break;
                 }
@@ -1394,7 +1520,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     std::vector<llvm::Value*> args;
                     std::vector<TypeId> arg_types;
                     if (call_sret) {
-                        args.push_back(places[maybe_place->id]);
+                        args.push_back(place_ptr(maybe_place->id));
                         arg_types.push_back(MIR_INVALID_ID);
                         a++;
                     }
@@ -1407,7 +1533,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                         if (o->kind() == MIROperandKind::Place) {
                             const MIRTypeRecord& pr = m.types.get(fn.places[o->id].type);
                             if (pr.kind == MIRTypeKind::Array || mir_is_aggregate(m, fn.places[o->id].type)) {
-                                av = places[o->id];
+                                av = place_ptr(o->id);
                             } else {
                                 av = builder->CreateLoad(mir_type(m, fn.places[o->id].type), av);
                             }
@@ -1441,7 +1567,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     if (!cf) break;
                     std::vector<llvm::Value*> args;
                     std::vector<TypeId> arg_types;
-                    args.push_back(places[dest->id]);
+                    args.push_back(place_ptr(dest->id));
                     arg_types.push_back(MIR_INVALID_ID);
                     for (uint32_t a = 2; a < inst.operand_count; ++a) {
                         const MIROperand* o = arg(a);
@@ -1464,7 +1590,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     const MIROperand* dest = arg(0);
                     const MIROperand* src = arg(1);
                     if (!dest || !src) break;
-                    llvm::Value* dv = places[dest->id];
+                    llvm::Value* dv = place_ptr(dest->id);
                     llvm::Value* sv = op_val(*src);
                     if (src->kind() == MIROperandKind::Place) {
                         // Mirror the C emitter: a pointer/reference-typed source
@@ -1496,7 +1622,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                             (c->id < m.constants.size()) ? m.constants.get(c->id).bits : 0;
                         builder->CreateStore(
                             llvm::ConstantInt::get(builder->getInt1Ty(), b ? 1 : 0),
-                            places[p->id]);
+                            place_ptr(p->id));
                     }
                     break;
                 }
@@ -1519,7 +1645,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                                            dpr.kind == MIRTypeKind::Reference;
                     const bool arr_place = dpr.kind == MIRTypeKind::Array;
                     auto emit_drop = [&]() {
-                        llvm::Value* base = places[p->id];
+                        llvm::Value* base = place_ptr(p->id);
                         if (ptr_place) {
                             base = builder->CreateLoad(builder->getPtrTy(), base);
                             builder->CreateCall(df, {base});
@@ -1561,8 +1687,8 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     if (!d || !s) break;
                     llvm::Value* dv = op_val(*d);
                     llvm::Value* sv = op_val(*s);
-                    if (d->kind() == MIROperandKind::Place) dv = places[d->id];
-                    if (s->kind() == MIROperandKind::Place) sv = places[s->id];
+                    if (d->kind() == MIROperandKind::Place) dv = place_ptr(d->id);
+                    if (s->kind() == MIROperandKind::Place) sv = place_ptr(s->id);
                     llvm::Value* nv = n ? op_val(*n) : nullptr;
                     if (!nv && d->kind() == MIROperandKind::Place) {
                         // the C emitter defaults the size to `sizeof(dest place)`
@@ -1579,7 +1705,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                 case MIROpcode::MemSet: {
                     const MIROperand* d = arg(0);
                     if (!d) break;
-                    llvm::Value* dv = (d->kind() == MIROperandKind::Place) ? places[d->id]
+                    llvm::Value* dv = (d->kind() == MIROperandKind::Place) ? place_ptr(d->id)
                                                                            : op_val(*d);
                     if (!dv) break;
                     const MIROperand* byte = arg(1);
@@ -1764,6 +1890,268 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                 case MIROpcode::Unreachable:
                     builder->CreateUnreachable();
                     break;
+                case MIROpcode::AsyncFrameAlloc: {
+                    const MIROperand* frame_ty = arg(0);
+                    if (!frame_ty) break;
+                    llvm::Type* ft = mir_type(m, frame_ty->type());
+                    if (!ft->isSized()) break;
+                    llvm::FunctionCallee alloc = module->getOrInsertFunction(
+                        "chemical_async_frame_alloc",
+                        llvm::FunctionType::get(
+                            builder->getPtrTy(),
+                            {builder->getInt64Ty(), builder->getInt64Ty()}, false));
+                    const llvm::DataLayout& dl = module->getDataLayout();
+                    llvm::Value* sz = builder->getInt64(dl.getTypeAllocSize(ft));
+                    llvm::Value* al =
+                        builder->getInt64(dl.getABITypeAlign(ft).value());
+                    vals[v] = builder->CreateCall(alloc, {sz, al});
+                    break;
+                }
+                case MIROpcode::AsyncFinish: {
+                    // `frame->__state = DONE; *ret = Poll{ Ready(frame->__result) };`
+                    const MIROperand* fr = arg(0);
+                    const MIROperand* ret = arg(1);
+                    const MIROperand* poll_ty_op = arg(2);
+                    if (!fr || !ret || !poll_ty_op) break;
+                    llvm::Value* fslot = place_ptr(fr->id);
+                    llvm::Value* rslot = place_ptr(ret->id);
+                    if (!fslot || !rslot) break;
+                    llvm::Value* frp = builder->CreateLoad(builder->getPtrTy(), fslot);
+                    const TypeId fpty = fn.places[fr->id].type;
+                    if (fpty >= m.types.size()) break;
+                    const TypeId frame_ty = m.types.get(fpty).element;
+                    if (frame_ty >= m.types.size()) break;
+                    const int st_fi = field_index(frame_ty, "__state");
+                    if (st_fi >= 0) {
+                        llvm::Value* stp = builder->CreateStructGEP(
+                            mir_type(m, frame_ty), frp, static_cast<uint32_t>(st_fi));
+                        builder->CreateStore(builder->getInt32(-1), stp);
+                    }
+                    const TypeId poll_ty = poll_ty_op->type();
+                    llvm::Type* poll_ll = mir_type(m, poll_ty);
+                    llvm::Value* poll_out =
+                        builder->CreateLoad(builder->getPtrTy(), rslot);
+                    const int tag_i0 = variant_tag_index(poll_ty);
+                    if (tag_i0 < 0) break;
+                    llvm::Value* tagp = builder->CreateStructGEP(
+                        poll_ll, poll_out, static_cast<uint32_t>(tag_i0));
+                    builder->CreateStore(builder->getInt32(0), tagp);
+                    std::vector<uint32_t> rt_idx;
+                    TypeId ready_value_ty = MIR_INVALID_ID;
+                    if (field_path(poll_ty, "Ready.value", rt_idx, ready_value_ty)) {
+                        llvm::Value* slot = gep_path(poll_out, poll_ty, rt_idx);
+                        const int res_fi = field_index(frame_ty, "__result");
+                        if (res_fi >= 0 && ready_value_ty < m.types.size()) {
+                            llvm::Value* resp = builder->CreateStructGEP(
+                                mir_type(m, frame_ty), frp, static_cast<uint32_t>(res_fi));
+                            llvm::Value* rv = builder->CreateLoad(
+                                mir_type(m, ready_value_ty), resp);
+                            builder->CreateStore(rv, slot);
+                        }
+                    }
+                    builder->CreateRetVoid();
+                    break;
+                }
+                case MIROpcode::AsyncRampFinish: {
+                    // `frame->__state = st; *sret = Handle{ frame, &vtbl };`
+                    const MIROperand* fr = arg(0);
+                    const MIROperand* sret = arg(1);
+                    const MIROperand* state = arg(2);
+                    const MIROperand* vtbl = arg(3);
+                    const MIROperand* handle_ty_op = arg(4);
+                    if (!fr || !sret || !state || !vtbl || !handle_ty_op) break;
+                    llvm::Value* fslot = place_ptr(fr->id);
+                    llvm::Value* sslot = place_ptr(sret->id);
+                    std::string vtbl_name;
+                    if (!fslot || !sslot || !const_string(vtbl->id, vtbl_name)) break;
+                    llvm::Value* frp = builder->CreateLoad(builder->getPtrTy(), fslot);
+                    llvm::Value* sp = builder->CreateLoad(builder->getPtrTy(), sslot);
+                    const TypeId fpty = fn.places[fr->id].type;
+                    if (fpty >= m.types.size()) break;
+                    const TypeId frame_ty = m.types.get(fpty).element;
+                    const uint64_t st = constant_bits(*state);
+                    const int st_fi = field_index(frame_ty, "__state");
+                    if (st_fi >= 0) {
+                        llvm::Value* stp = builder->CreateStructGEP(
+                            mir_type(m, frame_ty), frp, static_cast<uint32_t>(st_fi));
+                        builder->CreateStore(builder->getInt32(static_cast<uint32_t>(st)), stp);
+                    }
+                    const TypeId handle_ty = handle_ty_op->type();
+                    llvm::Type* handle_ll = mir_type(m, handle_ty);
+                    const int frame_fi = field_index(handle_ty, "frame");
+                    if (frame_fi >= 0) {
+                        llvm::Value* fp_slot = builder->CreateStructGEP(
+                            handle_ll, sp, static_cast<uint32_t>(frame_fi));
+                        builder->CreateStore(frp, fp_slot);
+                    }
+                    const int vtbl_fi = field_index(handle_ty, "vtbl");
+                    if (vtbl_fi >= 0) {
+                        llvm::Value* vtbl_slot = builder->CreateStructGEP(
+                            handle_ll, sp, static_cast<uint32_t>(vtbl_fi));
+                        const TypeId vtbl_field_ty = m.types.field_of(handle_ty, vtbl_fi)->type;
+                        const TypeId table_ty =
+                            (vtbl_field_ty < m.types.size())
+                                ? m.types.get(vtbl_field_ty).element
+                                : MIR_INVALID_ID;
+                        llvm::Value* g = async_vtable(vtbl_name, table_ty);
+                        if (g) builder->CreateStore(g, vtbl_slot);
+                    }
+                    builder->CreateRetVoid();
+                    break;
+                }
+                case MIROpcode::AsyncAwait: {
+                    // `Poll<T> p = child.vtbl->poll(&tmp, child.frame, frame->__cx);
+                    //  if (p.__chx__vt != 0) { frame->__state = N; <spills>;
+                    //                        *ret = Pending; return; }
+                    //  result = p.Ready.value; child.vtbl->drop(child.frame);
+                    //  child.frame = 0;`
+                    const MIROperand* fr = arg(0);
+                    const MIROperand* child = arg(1);
+                    const MIROperand* result = arg(2);
+                    const MIROperand* poll_ty_op = arg(3);
+                    const MIROperand* state = arg(4);
+                    const MIROperand* ret = arg(5);
+                    const MIROperand* fn_poll_ty_op = arg(6);
+                    const MIROperand* spill_n = arg(7);
+                    if (!fr || !child || !result || !poll_ty_op || !state || !ret ||
+                        !fn_poll_ty_op || !spill_n) {
+                        break;
+                    }
+                    llvm::Value* fslot = place_ptr(fr->id);
+                    llvm::Value* cslot = place_ptr(child->id);
+                    if (!fslot || !cslot) break;
+                    llvm::Value* frp = builder->CreateLoad(builder->getPtrTy(), fslot);
+                    const TypeId fpty = fn.places[fr->id].type;
+                    const TypeId child_ty = fn.places[child->id].type;
+                    if (fpty >= m.types.size() || child_ty >= m.types.size()) break;
+                    const TypeId frame_ty = m.types.get(fpty).element;
+                    // child handle: { frame, vtbl }
+                    const int c_frame_fi = field_index(child_ty, "frame");
+                    const int c_vtbl_fi = field_index(child_ty, "vtbl");
+                    if (c_frame_fi < 0 || c_vtbl_fi < 0) break;
+                    llvm::Type* child_ll = mir_type(m, child_ty);
+                    llvm::Value* cframe_slot = builder->CreateStructGEP(
+                        child_ll, cslot, static_cast<uint32_t>(c_frame_fi));
+                    llvm::Value* cframe =
+                        builder->CreateLoad(builder->getPtrTy(), cframe_slot);
+                    llvm::Value* cvtbl_slot = builder->CreateStructGEP(
+                        child_ll, cslot, static_cast<uint32_t>(c_vtbl_fi));
+                    llvm::Value* cvtbl =
+                        builder->CreateLoad(builder->getPtrTy(), cvtbl_slot);
+                    const TypeId vtbl_ptr_ty = m.types.field_of(child_ty, c_vtbl_fi)->type;
+                    const TypeId table_ty = m.types.get(vtbl_ptr_ty).element;
+                    const int t_poll_fi = field_index(table_ty, "poll");
+                    if (t_poll_fi < 0) break;
+                    llvm::Type* table_ll = mir_type(m, table_ty);
+                    llvm::Value* poll_slot = builder->CreateStructGEP(
+                        table_ll, cvtbl, static_cast<uint32_t>(t_poll_fi));
+                    llvm::Value* poll_fn =
+                        builder->CreateLoad(builder->getPtrTy(), poll_slot);
+                    llvm::FunctionType* poll_ft =
+                        mir_fn_type(m, m.types.field_of(table_ty, t_poll_fi)->type);
+                    if (!poll_ft) break;
+                    // Poll<T> temp (entry-block home: this runs inside the poll
+                    // state machine, which must not grow the stack per resume)
+                    const TypeId poll_ty = poll_ty_op->type();
+                    llvm::Type* poll_ll = mir_type(m, poll_ty);
+                    llvm::AllocaInst* tmp = nullptr;
+                    {
+                        llvm::BasicBlock& ent = lfn->getEntryBlock();
+                        llvm::IRBuilder<> top(&ent, ent.begin());
+                        tmp = top.CreateAlloca(poll_ll);
+                    }
+                    // the waker, stashed in the frame at poll entry
+                    const int cx_fi = field_index(frame_ty, "__cx");
+                    if (cx_fi < 0) break;
+                    llvm::Value* cx_slot = builder->CreateStructGEP(
+                        mir_type(m, frame_ty), frp, static_cast<uint32_t>(cx_fi));
+                    llvm::Value* cx =
+                        builder->CreateLoad(builder->getPtrTy(), cx_slot);
+                    builder->CreateCall(poll_ft, poll_fn, {tmp, cframe, cx});
+                    llvm::BasicBlock* pend_b =
+                        llvm::BasicBlock::Create(*ctx, "await.pending", lfn);
+                    llvm::BasicBlock* ready_b =
+                        llvm::BasicBlock::Create(*ctx, "await.ready", lfn);
+                    const int tag_i = variant_tag_index(poll_ty);
+                    if (tag_i < 0) break;
+                    llvm::Value* tagp = builder->CreateStructGEP(
+                        poll_ll, tmp, static_cast<uint32_t>(tag_i));
+                    llvm::Value* tag = builder->CreateLoad(builder->getInt32Ty(), tagp);
+                    builder->CreateCondBr(
+                        builder->CreateICmpNE(tag, builder->getInt32(0)), pend_b, ready_b);
+                    // ── pending: remember the resume state, spill, return ────
+                    builder->SetInsertPoint(pend_b);
+                    const uint64_t resume_state = constant_bits(*state);
+                    const int st_fi = field_index(frame_ty, "__state");
+                    if (resume_state != 0 && st_fi >= 0) {
+                        llvm::Value* stp = builder->CreateStructGEP(
+                            mir_type(m, frame_ty), frp, static_cast<uint32_t>(st_fi));
+                        builder->CreateStore(
+                            builder->getInt32(static_cast<uint32_t>(resume_state)), stp);
+                    }
+                    const uint32_t nspills = static_cast<uint32_t>(constant_bits(*spill_n));
+                    for (uint32_t k = 0; k < nspills; ++k) {
+                        const MIROperand* loc = arg(8 + k * 2);
+                        const MIROperand* fld = arg(9 + k * 2);
+                        if (!loc || !fld) continue;
+                        std::string fname;
+                        if (!const_string(fld->id, fname)) continue;
+                        const int sfi = field_index(frame_ty, fname);
+                        if (sfi < 0) continue;
+                        llvm::Value* dst = builder->CreateStructGEP(
+                            mir_type(m, frame_ty), frp, static_cast<uint32_t>(sfi));
+                        const TypeId lpt = fn.places[loc->id].type;
+                        llvm::Value* src = place_ptr(loc->id);
+                        if (!src) continue;
+                        if (lpt < m.types.size() &&
+                            (mir_is_aggregate(m, lpt) ||
+                             m.types.get(lpt).kind == MIRTypeKind::Array)) {
+                            const uint64_t sz =
+                                module->getDataLayout().getTypeAllocSize(mir_type(m, lpt));
+                            builder->CreateMemCpy(dst, llvm::MaybeAlign(), src,
+                                                  llvm::MaybeAlign(),
+                                                  builder->getInt64(sz));
+                        } else {
+                            builder->CreateStore(
+                                builder->CreateLoad(mir_type(m, lpt), src), dst);
+                        }
+                    }
+                    llvm::Value* rslot = place_ptr(ret->id);
+                    if (rslot) {
+                        llvm::Value* poll_out =
+                            builder->CreateLoad(builder->getPtrTy(), rslot);
+                        llvm::Value* outp = builder->CreateStructGEP(
+                            poll_ll, poll_out, static_cast<uint32_t>(tag_i));
+                        builder->CreateStore(builder->getInt32(1), outp);
+                    }
+                    builder->CreateRetVoid();
+                    // ── ready: take the value and release the child ──────────
+                    builder->SetInsertPoint(ready_b);
+                    std::vector<uint32_t> rt_idx;
+                    TypeId ready_value_ty = MIR_INVALID_ID;
+                    if (field_path(poll_ty, "Ready.value", rt_idx, ready_value_ty)) {
+                        llvm::Value* vslot = gep_path(tmp, poll_ty, rt_idx);
+                        llvm::Value* rplace = place_ptr(result->id);
+                        if (rplace && ready_value_ty < m.types.size()) {
+                            builder->CreateStore(
+                                builder->CreateLoad(mir_type(m, ready_value_ty), vslot),
+                                rplace);
+                        }
+                    }
+                    const int t_drop_fi = field_index(table_ty, "drop");
+                    if (t_drop_fi >= 0) {
+                        llvm::Value* drop_slot = builder->CreateStructGEP(
+                            table_ll, cvtbl, static_cast<uint32_t>(t_drop_fi));
+                        llvm::Value* drop_fn =
+                            builder->CreateLoad(builder->getPtrTy(), drop_slot);
+                        llvm::FunctionType* drop_ft = mir_fn_type(
+                            m, m.types.field_of(table_ty, t_drop_fi)->type);
+                        if (drop_ft) builder->CreateCall(drop_ft, drop_fn, {cframe});
+                    }
+                    builder->CreateStore(
+                        llvm::ConstantPointerNull::get(builder->getPtrTy()), cframe_slot);
+                    break;
+                }
                 case MIROpcode::DynamicCall: {
                     const MIROperand* fat = arg(0);
                     const MIROperand* vt = arg(1);
@@ -1786,7 +2174,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     llvm::Type* fat_ty = mir_type(m, ft_is_ptr ? m.types.get(ft).element : ft);
                     llvm::Value* fat_ptr = nullptr;
                     if (fat->kind() == MIROperandKind::Place) {
-                        fat_ptr = places[fat->id];
+                        fat_ptr = place_ptr(fat->id);
                         if (ft_is_ptr) fat_ptr = builder->CreateLoad(builder->getPtrTy(), fat_ptr);
                     } else {
                         fat_ptr = op_val(*fat);

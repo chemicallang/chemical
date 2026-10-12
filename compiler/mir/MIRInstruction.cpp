@@ -102,6 +102,21 @@ uint16_t opcode_flags(MIROpcode op) {
         case MIROpcode::DynamicCall:
             return OF_Call | OF_Read | OF_Write | OF_MayThrow;
 
+        // The coroutine state-machine terminator opcodes. Both end the block:
+        // `AsyncFinish` writes the `Ready` result and returns, and
+        // `AsyncRampFinish` returns the handle. Without the terminator flag the
+        // block's instruction range absorbed the *next* block's first
+        // instruction (the block has no separate terminator slot), which made
+        // the C emitter write stray code after the `return` and the LLVM emitter
+        // append instructions past a terminator.
+        case MIROpcode::AsyncFinish:
+        case MIROpcode::AsyncRampFinish:
+            return OF_Terminator | OF_Write;
+        case MIROpcode::AsyncAwait:
+            return OF_Call | OF_Read | OF_Write | OF_MayThrow;
+        case MIROpcode::AsyncFrameAlloc:
+            return OF_Call | OF_Write | OF_MayThrow;
+
         case MIROpcode::AtomicLoad:
             return OF_Atomic | OF_Read | OF_MayTrap;
         case MIROpcode::AtomicStore:
@@ -172,6 +187,10 @@ const char* opcode_name(MIROpcode op) {
         case MIROpcode::AtomicCmpXchg: return "atomic.cmp_xchg";
         case MIROpcode::AtomicRMW: return "atomic.rmw";
         case MIROpcode::AtomicFence: return "atomic.fence";
+        case MIROpcode::AsyncAwait: return "async.await";
+        case MIROpcode::AsyncFinish: return "async.finish";
+        case MIROpcode::AsyncRampFinish: return "async.ramp_finish";
+        case MIROpcode::AsyncFrameAlloc: return "async.frame_alloc";
         case MIROpcode::Count: return "<count>";
     }
     return "<unknown>";

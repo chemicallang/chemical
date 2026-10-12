@@ -1894,7 +1894,13 @@ bool mir_translate_after_declaration(
         }
         if (llvm_collect) {
             module.functions.push_back(fn);
-            if (decl->is_async()) module.functions.push_back(lowerer.async_poll());
+            if (decl->is_async()) {
+                module.functions.push_back(lowerer.async_poll());
+                // the coroutine `__drop`: the LLVM emitter defines the
+                // FutureTable's `drop` slot from it (the C backend emits an
+                // equivalent body as text instead)
+                module.functions.push_back(lowerer.async_drop());
+            }
             // lambda bodies materialized while lowering this function live in
             // the same arena, so collect them now (the C backend emits them from
             // `lambda_defs()` instead)
@@ -2181,6 +2187,7 @@ static int mir_lower_static_interface_stubs(CTranslationContext& visitor,
             // bodies of a default method; keep them like `lower_and_emit` does
             if (mir_lowerer.is_async_lowering()) {
                 mir_module.functions.push_back(mir_lowerer.async_poll());
+                mir_module.functions.push_back(mir_lowerer.async_drop());
             }
             for (const mir::MIRFunction& lf : mir_lowerer.lambda_functions()) {
                 mir_module.functions.push_back(lf);

@@ -1,5 +1,36 @@
 # AGENTS.md — Chemical Programming Language
 
+## Language Goals & Vision
+
+Chemical is developed for **AIs and humans**, not humans alone. AI agents are the
+primary authors; humans are reviewers/auditors. The compiler must make wrong code hard
+or impossible to write, with diagnostics written for an agent to act on — while keeping
+code legible enough that a human can get the gist and then dig in with AI help.
+
+**The four non-negotiable requirements:**
+
+0. **Extreme performance** — code is no longer the bottleneck; runtime speed is.
+1. **Complete memory safety** — an AI must not be able to cause a memory error.
+2. **Enforceable no-panic policy** — a module can forbid panics; the compiler errors if
+   any function can panic, forcing agents to report errors instead of aborting.
+3. **Runs everywhere** — browser (as JS), WASM, JVM bytecode, Android, native (C + LLVM).
+
+**Rust relationship:** adopt Rust-familiar **memory-safety semantics** (ownership, move
+semantics, a borrow checker) so agents trained on Rust transfer their instincts — but
+keep Chemical syntax (e.g. return types use `:` not `->`). This is **not** another Rust.
+Reject features that cost compilation time for little verification value (e.g. Rust-style
+type inference from later usage). Prefer constraining wrong programs over adding sugar.
+
+**Known blockers on the "runs everywhere" path (mostly unsolved):** `#js`/universal
+components emit raw unchecked JavaScript; no TypeScript-equivalent DOM/web type
+declarations; no JavaScript backend; borrow checking makes DOM-heavy code harder; GC
+platforms (JVM) vs. native semantics; and the open problem of one syntax across
+divergent platform memory models.
+
+Full detail: [`lang/docs/language-goals.md`](lang/docs/language-goals.md). Load the
+[`language_goals`](.agents/skills/language_goals/SKILL.md) skill before making
+language-design or roadmap decisions.
+
 ## Setup (after cloning)
 
 ```bash
@@ -224,6 +255,12 @@ Uses `comptime if(intrinsics::is_interpretation())` to select the `println` path
 
 The following skills are available in `.agents/skills/`. An AI agent should load the relevant skill(s) before working on a particular subsystem. Skills provide comprehensive, up-to-date documentation of codebase internals.
 
+### Language Goals & Vision
+
+| Skill | Location | Description |
+|-------|----------|-------------|
+| Language Goals & Vision | `.agents/skills/language_goals/SKILL.md` | The language's direction: AI-first + human-readable, Rust-familiar memory safety (borrow checking), strict type and memory safety, module-level no-panic enforcement, rejecting compile-time-expensive sugar (Rust-style type inference), and the cross-platform "runs everywhere" ambition (native C/LLVM, WASM, JavaScript/browser, JVM, Android). Canonical doc: `lang/docs/language-goals.md` |
+
 ### Core Language & Syntax
 
 | Skill | Location | Description |
@@ -289,6 +326,7 @@ skill {
 ```
 
 The skill name is the directory name under `.agents/skills/`. For example:
+- `name: "language_goals"` → loads `.agents/skills/language_goals/SKILL.md`
 - `name: "symres"` → loads `.agents/skills/symres/SKILL.md`
 - `name: "build_system"` → loads `.agents/skills/build_system/SKILL.md`
 - `name: "universal"` → loads `.agents/skills/universal/SKILL.md`
@@ -297,6 +335,9 @@ The skill name is the directory name under `.agents/skills/`. For example:
 
 | Task | Load these skills |
 |------|-------------------|
+| **Making language-design / roadmap / feature-fit decisions** | **`language_goals`** |
+| **Working on memory safety / borrow checker / no-panic direction** | **`language_goals`**, `type_verification`, `symres` |
+| **Working on cross-platform backends (JS/WASM/JVM/browser) or DOM/web type declarations** | **`language_goals`**, plus the relevant backend skill |
 | Writing Chemical code | `chemical_source` |
 | Setting up a module (`chemical.mod`) | `chemical_mod` |
 | Building/testing the compiler | `building` |

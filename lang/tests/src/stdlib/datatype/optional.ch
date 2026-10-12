@@ -53,4 +53,20 @@ func test_optional_type() {
         }
         return counter == 1
     })
+    test("pattern matching on option, doesn't destroy or move it", () => {
+        var counter = 0
+        var s = Option.Some<Deletable>(Deletable { counter : &raw mut counter })
+        if(counter == 0) {
+            var Some(value) = s else unreachable
+            if(*value.counter != 0) return false;
+        }
+        if(counter != 0) return false;
+        if(counter == 0) {
+            var taken = s.take()
+            // destructs here
+        }
+        if(counter != 1) return false;
+        if(s !is Option.None) return false;
+        return true;
+    })
 }

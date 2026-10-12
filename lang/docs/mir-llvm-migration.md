@@ -330,6 +330,62 @@ initialized structs`, `getting dynamic object from function return` (2),
 `sizeof/align of struct SOT6`, and 14 `std::string`/`string_view` `to_i32`-family
 conversions (`parse_int` returns garbage on the LLVM target only).
 
+**Session 4 — the main suite is green on the LLVM target.**
+`./scripts/test.sh --llvm` → **2298 passed / 0 failed** (the five remaining
+failures are fixed). The `to_i32`-family conversions had already been fixed
+off-session; the last five were:
+
+- **An empty aggregate was padded with an `i8`.** `Codegen::mir_type` appended
+  `elems.push_back(i8)` when a struct/union/variant had no fields, so
+  `sizeof(struct SOT6 {})` was `1` while the interpreter's comptime `sizeof` and
+  TinyCC both say `0` (`struct S { }`). The padding also shifted every field of
+  any struct *containing* an empty aggregate away from the C layout. Removed:
+  an empty aggregate now lowers to an empty LLVM struct (zero-sized), matching
+  the C emitter and the interpreter.
+- **Aggregate `alloca`s were not zeroed.** The C emitter zero-initializes every
+  `Alloca` of a struct/union/variant/array type ("so unset members are
+  well-defined"); the LLVM emitter left them uninitialized and relied on the
+  occasional explicit `MemSet`. A partial aggregate initializer such as
+  `var s : [10]char = "hello"` only `memcpy`s the 6 literal bytes, so
+  `s[6]`–`s[9]` held garbage. The LLVM `Alloca` case now emits the same
+  `memset` at the same program point (so a loop-body alloca is re-zeroed per
+  iteration, exactly like the C build).
+- **The dotted field path had only one level.** An inherited member is lowered
+  to a full dotted path (`Base.Mid.Leaf.field`, see
+  `MIRLowerer::inherited_field_path`), which the C emitter can splice straight
+  into a C access chain. `CodegenMir`'s `field_path` split on the *first* dot
+  only, so a two-or-more-level base chain resolved to nothing and the field
+  read became `poison` (`test_inherited_default_initialized_structs`, where
+  `f.d` worked and `f.a`/`f.b`/`f.c` did not). It now walks every segment — the
+  same shape covers a variant's `Case.param` payload path.
+- **A `dyn<T>` built from a by-value parameter dangled.** The fat pointer's
+  `first` slot took the address of the parameter's *copy*, a local of the
+  callee, so `func f(p : S) : dyn I { return dyn<I>(p) }` handed the caller a
+  pointer into a dead frame — the next call (the vtable method itself) reused
+  that slot and clobbered it. The C backend only appeared to work because
+  TinyCC happened not to reuse the bytes. `MIRLowerer` now records the hidden
+  argument pointer of every by-value aggregate parameter
+  (`aggregate_param_ptrs_`) and `DynamicValue` lowering uses it, so the fat
+  pointer refers to the *caller's* object. That is what the interpreter does
+  (it shares the argument value) and what the documented "aggregate params are
+  pointer-typed places" model says; regression test:
+  `lang/tests/common/src/decls/interfaces/dynamic.ch` →
+  *dynamic object built from a by-value parameter survives the callee frame*
+  (fails with `0` instead of `88` without the fix on the C backend too).
+
+Verification after the fixes (clean per-module cache for each run):
+
+| Command | Result |
+|---------|--------|
+| `./scripts/test.sh --llvm` | 2298 / 2298 |
+| `./scripts/test.sh --tcc` | 2300 / 2300 |
+| `./scripts/test.sh --tcc --interpret` | 1890 / 1890 |
+| `./cmake-build-debug/MIRTests` | 1049 checks OK |
+
+The C path improvements are incidental but real: the zeroed-alloca and
+`dyn`-from-parameter fixes are in shared MIR lowering/`CodegenMir`, so the C
+backend gets them too.
+
 ### 2.1 What is done
 
 - **MIR owns all C emission.** Every function body, static-interface impl,
@@ -370,15 +426,25 @@ conversions (`parse_int` returns garbage on the LLVM target only).
 - **Async is MIR-lowered only for C.** The LLVM path uses `LLVMCoroutine.cpp`
   with `llvm.coro.*` intrinsics.
 
-### 2.3 Known health caveat (read before trusting the LLVM gate)
+### 2.3 Health of the LLVM gate (read before trusting it)
 
-At baseline, `./scripts/test.sh --llvm` **aborts during test-exe codegen** with
-`fatal: llvm_pointer called on bare Value` (abort in the compiler, no test
-binary produced). This was reproduced with the new tests removed, so it is not
-caused by the migration's test additions. **Open question:** confirm whether this
-predates the MIR work by checking out `main` and running `--llvm`. Until then,
-treat "the LLVM suite is green" as an *aspiration*, and use the standalone
-module workflow (§9.3) plus `--out-ll-all`/`llvm-dwarfdump` for LLVM checks.
+`./scripts/test.sh --llvm` (the main suite) is **green**: 2298 / 2298 as of
+session 4. The earlier `fatal: llvm_pointer called on bare Value` abort is gone.
+
+**Other suites still fail on the LLVM target**, and the first failure is usually
+in the *compiler*, not in the test exe. Known state after session 4:
+
+- `./scripts/test.sh --llvm --libs` aborts in the **compiler** while building the
+  lib test exe (after `[Parsed] …/lang/libs/test/posix/launch.ch` and
+  `…/lang/libs/json/src/encode.ch`, then the compiler's own
+  `RUNTIME ERROR: invalid memory access`). Nothing is emitted, so the suite never
+  runs. The other suites (`--plugins`, `--async`, `--process`, `--regexp`, …)
+  have not been re-checked since the main suite went green.
+- Until each of those is green too, use the standalone module workflow (§9.3)
+  plus `--out-ll-all`/`llvm-dwarfdump` for LLVM checks.
+- ⚠️ A failing `--llvm <suite>` run is *not* proof of a codegen bug: check
+  whether the compiler itself crashed before the test exe ran (the suite exits
+  with the compiler's crash reporter, and no `Total …` line is printed).
 
 ---
 

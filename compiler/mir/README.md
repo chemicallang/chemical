@@ -16,6 +16,12 @@ the release compiler must stay under 4 MB.
 
 ## Current status (verified with a clean test-exe cache)
 
+**LLVM target (`Compiler`, MIR→LLVM): the main suite is green — 2298 / 2298.**
+The other `--llvm` suites are not: `--llvm --libs` aborts inside the *compiler*
+while building the lib test exe (no test binary), and the rest are unchecked.
+See `lang/docs/mir-llvm-migration.md` §2.3 for the current state of the
+migration.
+
 Verified `2026-10-08` with the per-module C cache cleared (`--no-cache`):
 
 `./scripts/test.sh --tcc` -> 2279 passed, 0 failed;
@@ -339,6 +345,30 @@ uses the name pool, not layout. Needed before LLVM lowering.
 - **`*mut [N]T` is pointer-to-array** (`T (*)[N]`), not `T**`. Do not decay an
   array pointee in `MIRTypeBuilder::map`; `declarator`/`c_type_of` spell the
   pointer-to-array form.
+- **Empty aggregates are zero-sized.** An aggregate with no fields lowers to an
+  empty LLVM struct, matching C's `struct S { }` and the interpreter's
+  `byte_size` (→ 0). Never pad it with an `i8`: that made `sizeof` disagree with
+  comptime and shifted every field of a struct embedding an empty aggregate.
+- **An aggregate `Alloca` must be zeroed.** The C emitter emits a zero loop for
+  every struct/union/variant/array `Alloca` right after declaring it; the C
+  lowerer *relies* on that (a partial initializer such as `var s : [10]char =
+  "hello"` only `memcpy`s the literal bytes). The LLVM `Alloca` case must emit
+  the same `memset` at the same program point — not only at function entry — so
+  a loop-body alloca is re-zeroed each iteration.
+- **A member field name is a *dotted path*, possibly several levels deep.** An
+  inherited member lowers to `Base.Mid.Leaf.field`
+  (`MIRLowerer::inherited_field_path`); a variant payload is `Case.param`. The C
+  emitter splices the whole string into the access chain, so any consumer that
+  resolves the path against the type table (LLVM `field_path`, DI, dumps) must
+  walk **every** dot-separated segment, resolving each against the type reached
+  so far.
+- **A `dyn<T>` built from a by-value aggregate parameter must use the argument
+  pointer**, not the parameter's by-value copy (`MIRLowerer` keeps the argument
+  pointer in `aggregate_param_ptrs_` for exactly this). The copy is a local of
+  the callee, so pointing a fat pointer at it dangles the moment the callee
+  returns — and the very next call's frame (usually the vtable method itself)
+  overwrites it. This matches the interpreter, which shares the argument value,
+  and the documented "aggregate params are pointer-typed places" rule.
 
 ## Invariants to preserve
 

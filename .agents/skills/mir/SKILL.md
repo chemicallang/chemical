@@ -22,15 +22,19 @@ pointer plus the most important operational facts.
 - Branch `mir`. Contract: `lang/docs/mir-implementation-plan.md`,
   `lang/docs/mir-design.md`. Migration contract: `lang/docs/mir-llvm-migration.md`.
 - **MIR is the only C path; the legacy 2c visitor is deleted.** All TCC suites are
-  green at baseline `8001ecde3`:
-  `./scripts/test.sh --tcc` → 2292 passed; `--interpret` → 1883;
+  green:
+  `./scripts/test.sh --tcc` → 2300 passed (0 failed); `--interpret` → 1890;
   `--libs` → 718/719 (flaky atomic CAS); `--plugins` → 1296; `--async` → 53;
   `--process` → 127; `--server` → 8/9 (flaky HTTP double-free).
   `MIRTests` green (1049 checks).
 - The old per-function legacy bridge no longer exists — a lowering failure is a
   diagnostic, not a fallback. Do **not** add fallbacks.
-- The LLVM backend is **not** migrated yet and the `--llvm` suite currently
-  aborts (`fatal: llvm_pointer called on bare Value`); see the migration doc §2.3.
+- **The LLVM target now emits from MIR and the *main* suite is green:**
+  `./scripts/test.sh --llvm` → 2298 / 2298. The old AST lowering is still present
+  (undeleted) and emits nothing. The other LLVM suites are *not* green yet —
+  `--llvm --libs` aborts inside the **compiler** while building the lib test exe
+  (no test binary produced). See the migration doc §2.3 before trusting a
+  red `--llvm <suite>` run as a codegen result.
 
 ## Files
 
@@ -177,6 +181,20 @@ Key correctness details:
 18. **Scope destruction**: `lower_scope`/`lower_scope_nodes` drops the
     destructibles it created; `return` drops all outstanding; `lower_function`
     drops the rest. Moves clear a drop flag (`mark_moved`).
+19. **An empty aggregate is zero-sized.** Never pad it with an `i8` in the LLVM
+    type lowering: C spells `struct S { }` (size 0) and the interpreter's
+    `byte_size` also says 0, so padding made `sizeof` disagree and shifted every
+    field of a struct embedding an empty aggregate.
+20. **An aggregate `Alloca` must be zeroed** — the C emitter emits a zero loop
+    for every struct/union/variant/array `Alloca` and the lowerer relies on it
+    (a partial initializer only copies the literal bytes). The LLVM `Alloca`
+    case must emit the same `memset` at the same program point.
+21. **A field name is a dotted path** (`Base.Mid.Leaf.field` for an inherited
+    member, `Case.param` for a variant payload). Any resolver must walk every
+    segment, not just the first dot.
+22. **`dyn<T>(param)` must use the argument pointer**, not the parameter's
+    by-value copy (kept in `MIRLowerer::aggregate_param_ptrs_`). The copy is a
+    callee local, so a fat pointer to it dangles on return.
 
 ## Process/server test portability (not language bugs)
 

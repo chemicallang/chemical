@@ -316,6 +316,11 @@ private:
     bool member_name(Value* v, std::string& out, std::string& error);
     /** Resolve a (possibly inherited) member to its dotted C field path. */
     bool member_field_path(Value* base, Value* member, std::string& out, std::string& error);
+    /**
+     * If `v` names a by-value aggregate parameter of the function being lowered,
+     * return it (and its argument pointer is in `aggregate_param_ptrs_`).
+     */
+    FunctionParam* aggregate_param_operand(Value* v);
     bool lower_call_args(const std::vector<Value*>& values, std::vector<MIROperand>& args,
                          std::string& error);
     bool lower_call_args_for(FunctionDeclaration* fd, bool self_included,
@@ -438,6 +443,17 @@ private:
     MIRArena* arena_ = nullptr;
     std::unordered_map<ASTNode*, PlaceId> var_places_;
     std::unordered_map<std::string, PlaceId> name_places_;
+    /**
+     * For every by-value aggregate (struct/union/variant) parameter of the
+     * function being lowered: the hidden *pointer* the argument arrived in
+     * (i.e. the caller's object). The parameter's own place is a by-value
+     * *copy* of that object, so an address that escapes the call — a `dyn<T>`
+     * fat pointer is the only such address — must use this pointer instead, or
+     * it would point at a dead callee frame. Matches the interpreter (which
+     * shares the argument value) and the old AST LLVM backend (`llvm_pointer`
+     * on a parameter yields the argument pointer).
+     */
+    std::unordered_map<FunctionParam*, ValueId> aggregate_param_ptrs_;
     std::vector<std::pair<PlaceId, BaseType*>> call_temps_;
     struct MIRDestructible {
         PlaceId place;

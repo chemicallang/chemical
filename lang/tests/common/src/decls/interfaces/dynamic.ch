@@ -42,6 +42,33 @@ impl Phone for CellPhone {
     }
 }
 
+// A `dyn<I>` built from a *by-value* parameter is an address that outlives the
+// callee. The parameter's own place is a copy inside the callee's frame, so the
+// fat pointer must point at the caller's object instead — otherwise it dangles
+// and the very next call's frame (here `value`'s own 128-byte buffer) overwrites
+// it.
+interface FrameProbe {
+
+    func value(&self) : int;
+
+}
+
+struct FrameProbeImpl {
+    var n : int = 0
+}
+
+impl FrameProbe for FrameProbeImpl {
+    func value(&self) : int {
+        var v : [16]long = zeroed<[16]long>()
+        v[0] = 1
+        return n + (v[0] as int) - 1;
+    }
+}
+
+func ret_frame_probe(x : FrameProbeImpl) : dyn FrameProbe {
+    return dyn<FrameProbe>(x);
+}
+
 func test_dynamic_dispatch() {
     test("passing struct as dynamic object in function argument works - 1", () => {
         var p = SmartPhone { number1 : 99 }
@@ -116,5 +143,10 @@ func test_dynamic_dispatch() {
     test("storing dynamic object in a array value works - 2", () => {
         var p : []dyn Phone = [ dyn<Phone>(CellPhone { number2 : 88 }) ]
         return p[0].call() == 88;
+    })
+    test("dynamic object built from a by-value parameter survives the callee frame", () => {
+        var p = FrameProbeImpl { n : 88 }
+        var o = ret_frame_probe(p)
+        return o.value() == 88;
     })
 }

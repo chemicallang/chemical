@@ -155,7 +155,10 @@ llvm::Type* Codegen::mir_type(const mir::MIRModule& m, uint32_t id) {
                 if (!f) continue;
                 elems.push_back(mir_type(m, f->type));
             }
-            if (elems.empty()) elems.push_back(builder->getInt8Ty());
+            // An aggregate with no fields stays zero-sized, matching the C
+            // backend: the C struct is `struct S { }` (TinyCC agrees with the
+            // interpreter's `byte_size`), so padding it with an `i8` here made
+            // `sizeof(S)` disagree between the runtime (`SizeOf`) and comptime.
             st->setBody(elems);
             t = st;
             break;
@@ -432,27 +435,30 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
     };
 
     // Resolve a (possibly dotted) field path into a chain of struct field
-    // indices. Variant payload fields are spelled `Case.param`.
+    // indices. Variant payload fields are spelled `Case.param`; an inherited
+    // member is spelled with the full base chain (`Base.Mid.Leaf.field`, see
+    // `MIRLowerer::inherited_field_path`), so the walk is over every segment.
+    // Each segment names a field of the type reached so far, which is exactly
+    // how the C emitter spells the access (`base.Base.Mid.Leaf.field`).
     auto field_path = [&](TypeId agg, const std::string& name,
                           std::vector<uint32_t>& indices, TypeId& out_type) -> bool {
-        const size_t dot = name.find('.');
-        if (dot == std::string::npos) {
-            const int fi = field_index(agg, name);
+        TypeId cur = agg;
+        size_t pos = 0;
+        while (true) {
+            if (cur == MIR_INVALID_ID || cur >= m.types.size()) return false;
+            const size_t dot = name.find('.', pos);
+            const std::string seg = (dot == std::string::npos)
+                                        ? name.substr(pos)
+                                        : name.substr(pos, dot - pos);
+            if (seg.empty()) return false;
+            const int fi = field_index(cur, seg);
             if (fi < 0) return false;
             indices.push_back(static_cast<uint32_t>(fi));
-            out_type = m.types.field_of(agg, fi)->type;
-            return true;
+            cur = m.types.field_of(cur, fi)->type;
+            if (dot == std::string::npos) break;
+            pos = dot + 1;
         }
-        const std::string case_name = name.substr(0, dot);
-        const std::string param_name = name.substr(dot + 1);
-        const int ci = field_index(agg, case_name);
-        if (ci < 0) return false;
-        const TypeId case_type = m.types.field_of(agg, ci)->type;
-        const int pi = field_index(case_type, param_name);
-        if (pi < 0) return false;
-        indices.push_back(static_cast<uint32_t>(ci));
-        indices.push_back(static_cast<uint32_t>(pi));
-        out_type = m.types.field_of(case_type, pi)->type;
+        out_type = cur;
         return true;
     };
     auto gep_path = [&](llvm::Value* base_ptr, TypeId agg,
@@ -844,8 +850,32 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                           << " n=" << inst.operand_count << "\n";
             switch (inst.opcode()) {
                 case MIROpcode::Nop:
-                case MIROpcode::Alloca:
                     break;
+                case MIROpcode::Alloca: {
+                    // The C emitter zero-initializes an aggregate alloca right
+                    // after declaring it ("so unset members are well-defined"),
+                    // and the lowerer relies on that for a partial aggregate
+                    // initializer (e.g. `var s : [10]char = "hello"` only
+                    // `memcpy`s the 6 literal bytes; the tail must be zero).
+                    // Mirror it here at the same program point, so a loop-body
+                    // alloca is re-zeroed each iteration like the C build.
+                    if (v >= fn.places.size()) break;
+                    const TypeId pt = fn.places[v].type;
+                    if (pt >= m.types.size()) break;
+                    const MIRTypeKind pk = m.types.get(pt).kind;
+                    if (pk != MIRTypeKind::Struct && pk != MIRTypeKind::Variant &&
+                        pk != MIRTypeKind::Union && pk != MIRTypeKind::Array) {
+                        break;
+                    }
+                    llvm::Value* dp = places[v];
+                    if (!dp) break;
+                    const uint64_t sz =
+                        module->getDataLayout().getTypeAllocSize(mir_type(m, pt));
+                    if (sz == 0) break;
+                    builder->CreateMemSet(dp, builder->getInt8(0), builder->getInt64(sz),
+                                          llvm::MaybeAlign());
+                    break;
+                }
                 case MIROpcode::ConstInt:
                 case MIROpcode::ConstBool:
                 case MIROpcode::ConstFloat:

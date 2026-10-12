@@ -729,6 +729,22 @@ bool MIRLowerer::member_field_path(Value* base, Value* member, std::string& out,
     return member_name(member, out, error);
 }
 
+FunctionParam* MIRLowerer::aggregate_param_operand(Value* v) {
+    if (aggregate_param_ptrs_.empty()) return nullptr;
+    Value* t = v;
+    if (t && t->val_kind() == ValueKind::AccessChain) {
+        auto* c = t->as_access_chain_unsafe();
+        if (c->values.size() != 1) return nullptr;
+        t = c->values[0];
+    }
+    if (!t || t->val_kind() != ValueKind::Identifier) return nullptr;
+    ASTNode* linked = t->linked_node();
+    if (!linked || linked->kind() != ASTNodeKind::FunctionParam) return nullptr;
+    auto* fp = linked->as_func_param_unsafe();
+    auto it = aggregate_param_ptrs_.find(fp);
+    return it == aggregate_param_ptrs_.end() ? nullptr : fp;
+}
+
 bool MIRLowerer::lower_call_args(const std::vector<Value*>& values,
                                  std::vector<MIROperand>& args, std::string& error) {
     return lower_call_args_for(nullptr, false, values, args, error);
@@ -4136,17 +4152,30 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             const TypeId voidp = types_.pointer_type(types_.opaque_type(), true);
             const PlaceId temp = builder_->alloca(ft, MIRStorageClass::Temporary);
             builder_->zero_init(temp);
-            MIRExprResult obj = lower_address_of(dv->value, error);
-            if (!obj.ok()) return obj;
             ValueId obj_ptr = MIR_NULL;
-            if (obj.kind == MIRExprKind::Place) {
-                const TypeId pt = builder_->function().places[obj.id].type;
-                obj_ptr = builder_->address_of(obj.id, types_.pointer_type(pt, true));
-            } else if (obj.kind == MIRExprKind::Value || obj.kind == MIRExprKind::Address) {
-                obj_ptr = static_cast<ValueId>(obj.id);
+            // A fat pointer is an *escaping* address: it routinely outlives the
+            // call that produced it (that is the whole point of `ret : dyn I`).
+            // For a by-value aggregate parameter the parameter place is a copy
+            // living in this frame, so pointing at it would hand the caller (or
+            // anyone else) a dangling pointer once we return. Use the argument
+            // pointer instead — the caller's object — exactly like the
+            // interpreter (which shares the value) and the pre-copy MIR model
+            // did (`&param` of an aggregate param is documented as the pointer).
+            FunctionParam* agg_param = aggregate_param_operand(dv->value);
+            if (agg_param) {
+                obj_ptr = aggregate_param_ptrs_[agg_param];
             } else {
-                error = "dynamic value operand is not addressable";
-                return MIRExprResult::error();
+                MIRExprResult obj = lower_address_of(dv->value, error);
+                if (!obj.ok()) return obj;
+                if (obj.kind == MIRExprKind::Place) {
+                    const TypeId pt = builder_->function().places[obj.id].type;
+                    obj_ptr = builder_->address_of(obj.id, types_.pointer_type(pt, true));
+                } else if (obj.kind == MIRExprKind::Value || obj.kind == MIRExprKind::Address) {
+                    obj_ptr = static_cast<ValueId>(obj.id);
+                } else {
+                    error = "dynamic value operand is not addressable";
+                    return MIRExprResult::error();
+                }
             }
             const ConstantId first_c =
                 module_.constants.add_string(MIR_INVALID_ID, "first", 5);
@@ -7761,6 +7790,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     if (set_current_func_) set_current_func_(decl);
     var_places_.clear();
     name_places_.clear();
+    aggregate_param_ptrs_.clear();
     destructibles_.clear();
     stmt_temps_.clear();
     // func_symbols_ persists across functions in a module so callees keep stable ids
@@ -7884,6 +7914,8 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
             place = b.alloca(declared, MIRStorageClass::Parameter);
             ValueId val = b.load_indirect(pv, declared);
             b.store(place, val);
+            // remember the argument pointer for escaping addresses (`dyn<T>(p)`)
+            aggregate_param_ptrs_[p] = pv;
         } else {
             place = b.alloca(pt, MIRStorageClass::Parameter);
             b.store(place, pv);

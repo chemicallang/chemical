@@ -117,6 +117,19 @@ public:
      */
     bool minify = false;
 
+    /**
+     * When set, CBI macro (`#macro` / `#universal`) replacement AST is allocated
+     * here instead of `allocator`. The MIR -> LLVM backend resolves an
+     * `EmbeddedNode` and stores the result in `EmbeddedNode::replacement`, then
+     * reads it again *after* every file has been translated - by which point
+     * `file_level_reset()` has cleared the (file level) `allocator` and reused
+     * its memory, leaving the stored replacement dangling. The module allocator
+     * lives until the whole module is compiled, so the LLVM path points this at
+     * it. The C backend consumes each replacement within the file that produced
+     * it, so it keeps using `allocator`.
+     */
+    ASTAllocator* embedded_replacement_allocator = nullptr;
+
     CTranslationContext(
         CompilerBinder& binder,
         GlobalInterpretScope& global,

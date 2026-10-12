@@ -1693,7 +1693,12 @@ int ASTProcessor::declare_module(
         decl_module, decl_types, c_visitor.mangler, loc_man,
         c_visitor.comptime_scope, c_visitor.binder, c_visitor.allocator);
     decl_emitter.set_embedded_decl_repl([&c_visitor](EmbeddedNode* node) -> ASTNode* {
-        ASTBuilder builder(&c_visitor.allocator, c_visitor.comptime_scope.typeBuilder);
+        // The MIR->LLVM backend stores this replacement in the `EmbeddedNode`
+        // and reads it again after every file has been translated, so it must
+        // outlive `file_level_reset()`; the module allocator does.
+        ASTAllocator& repl_alloc = c_visitor.embedded_replacement_allocator
+            ? *c_visitor.embedded_replacement_allocator : c_visitor.allocator;
+        ASTBuilder builder(&repl_alloc, c_visitor.comptime_scope.typeBuilder);
         const auto fn = c_visitor.binder.findHook(node->name, CBIFunctionType::ReplacementNodeDeclare);
         if (!fn) return nullptr;
         return ((EmbeddedNodeReplacementFunc) fn)(&builder, &c_visitor, node);
@@ -2315,7 +2320,12 @@ int ASTProcessor::implement_module(
     mir::MIRDeclEmitter mir_decl(mir_module, mir_types, c_visitor.mangler, loc_man,
                                  c_visitor.comptime_scope, c_visitor.binder, c_visitor.allocator);
     mir_decl.set_embedded_decl_repl([&c_visitor](EmbeddedNode* node) -> ASTNode* {
-        ASTBuilder builder(&c_visitor.allocator, c_visitor.comptime_scope.typeBuilder);
+        // The MIR->LLVM backend stores this replacement in the `EmbeddedNode`
+        // and reads it again after every file has been translated, so it must
+        // outlive `file_level_reset()`; the module allocator does.
+        ASTAllocator& repl_alloc = c_visitor.embedded_replacement_allocator
+            ? *c_visitor.embedded_replacement_allocator : c_visitor.allocator;
+        ASTBuilder builder(&repl_alloc, c_visitor.comptime_scope.typeBuilder);
         const auto fn = c_visitor.binder.findHook(node->name, CBIFunctionType::ReplacementNodeDeclare);
         if (!fn) return nullptr;
         return ((EmbeddedNodeReplacementFunc) fn)(&builder, &c_visitor, node);
@@ -2457,7 +2467,12 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
     mir::MIRDeclEmitter mir_decl(mir_module, mir_types, c_visitor.mangler, loc_man,
                                  c_visitor.comptime_scope, c_visitor.binder, c_visitor.allocator);
     mir_decl.set_embedded_decl_repl([&c_visitor](EmbeddedNode* node) -> ASTNode* {
-        ASTBuilder builder(&c_visitor.allocator, c_visitor.comptime_scope.typeBuilder);
+        // The MIR->LLVM backend stores this replacement in the `EmbeddedNode`
+        // and reads it again after every file has been translated, so it must
+        // outlive `file_level_reset()`; the module allocator does.
+        ASTAllocator& repl_alloc = c_visitor.embedded_replacement_allocator
+            ? *c_visitor.embedded_replacement_allocator : c_visitor.allocator;
+        ASTBuilder builder(&repl_alloc, c_visitor.comptime_scope.typeBuilder);
         const auto fn = c_visitor.binder.findHook(node->name, CBIFunctionType::ReplacementNodeDeclare);
         if (!fn) return nullptr;
         return ((EmbeddedNodeReplacementFunc) fn)(&builder, &c_visitor, node);

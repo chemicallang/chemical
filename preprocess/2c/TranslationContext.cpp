@@ -159,7 +159,9 @@ Value* CTranslationContext::eval_comptime_ctor(FunctionDeclaration* ctor, Value*
 }
 
 static ASTNode* embedded_repl(CTranslationContext& visitor, EmbeddedNode* node, CBIFunctionType type) {
-    ASTBuilder builder(&visitor.allocator, visitor.comptime_scope.typeBuilder);
+    ASTAllocator& repl_alloc = visitor.embedded_replacement_allocator
+        ? *visitor.embedded_replacement_allocator : visitor.allocator;
+    ASTBuilder builder(&repl_alloc, visitor.comptime_scope.typeBuilder);
     const auto replacement_fn = visitor.binder.findHook(node->name, type);
     if(!replacement_fn) {
         visitor.error(node) << "couldn't find replacement function for embedded node with name '" << node->name << "'";
@@ -179,7 +181,9 @@ ASTNode* CTranslationContext::resolve_embedded_node(EmbeddedNode* node) {
 }
 
 Value* CTranslationContext::resolve_embedded_value(EmbeddedValue* value) {
-    ASTBuilder builder(&allocator, comptime_scope.typeBuilder);
+    ASTAllocator& repl_alloc = embedded_replacement_allocator
+        ? *embedded_replacement_allocator : allocator;
+    ASTBuilder builder(&repl_alloc, comptime_scope.typeBuilder);
     const auto replacement_fn = binder.findHook(value->name, CBIFunctionType::ReplacementValue);
     if(!replacement_fn) {
         error(value) << "couldn't find replacement function for embedded value with name '" << value->name << "'";

@@ -772,6 +772,11 @@ int ASTProcessor::mir_compile_module(Codegen& gen, LabModule* module) {
     CTranslationContext c_visitor(gen.binder, gen.comptime_scope, gen.mangler, gen.allocator,
                                   loc_man, gen.coreNodes, gen.implsIndex,
                                   options->debug_info, /*minify=*/false);
+    // CBI macro replacements are stored on their `EmbeddedNode` and re-read at
+    // the end of the module (in `mir_emit_llvm_module`), after `file_level_reset()`
+    // has cleared the file allocator. Allocate them in the module allocator, which
+    // lives until the module has been fully emitted.
+    c_visitor.embedded_replacement_allocator = &mod_allocator;
     c_visitor.prepare_translate();
 
     mir_llvm_collect = true;

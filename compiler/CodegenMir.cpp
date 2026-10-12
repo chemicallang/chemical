@@ -679,6 +679,19 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
         if (base.kind() == MIROperandKind::Place) {
             llvm::Value* bp = places[base.id];
             TypeId bt = fn.places[base.id].type;
+            if (!bp) {
+                // Frame places have no entry-block alloca (they live in the
+                // coroutine frame and are reached through the frame pointer); a
+                // selector on one is a lowering bug. Report it instead of
+                // building a GEP on null.
+                if (getenv("MIR_LLVM_TRACE")) {
+                    std::cerr << "[MIR-LLVM] addr base place " << base.id
+                              << " has no alloca (storage="
+                              << (int)fn.places[base.id].storage_class << ") in "
+                              << std::string(lfn->getName()) << "\n";
+                }
+                return nullptr;
+            }
             if (!selector) {
                 if (out_pointee) *out_pointee = bt;
                 return bp;
@@ -701,6 +714,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
             }
             if (selector->kind() == MIROperandKind::Value) {
                 llvm::Value* idx = vals[selector->id];
+                if (!idx) return nullptr;
                 if (ptr_like) {
                     TypeId elem = m.types.get(bt).element;
                     if (out_pointee) *out_pointee = elem;

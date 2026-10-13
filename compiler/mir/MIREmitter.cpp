@@ -65,9 +65,20 @@ const char* c_int_kind_spelling(uint8_t k) {
 
 std::string vname(ValueId id) { return "__chx_v" + std::to_string(id); }
 
+// Optional per-function map of place id -> C argument index. A scalar parameter
+// that the body never reassigns and never addresses *is* the C argument, so the
+// emitter aliases it and the stack slot plus the prologue spill store disappear
+// (evaluation §1.2, action C3). thread_local so parallel emission stays safe.
+thread_local const std::vector<uint32_t>* g_param_alias = nullptr;
+
 // The C expression naming a place. Frame-resident places live in the coroutine
-// frame (`__chx__af-><field>`); everything else is a stack slot.
+// frame (`__chx__af-><field>`); an aliased parameter is its C argument;
+// everything else is a stack slot.
 std::string place_name(const MIRModule& module, const MIRFunction& fn, PlaceId id) {
+    if (g_param_alias && id < g_param_alias->size() &&
+        (*g_param_alias)[id] != MIR_INVALID_ID) {
+        return "__chx_a" + std::to_string((*g_param_alias)[id]);
+    }
     if (id < fn.places.size()) {
         const MIRPlaceDef& pd = fn.places[id];
         if (pd.storage_class == static_cast<uint8_t>(MIRStorageClass::FramePtr)) {
@@ -503,8 +514,12 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
     std::vector<std::string> inline_expr(function.values.size());
     struct InlineGuard {
         const std::vector<std::string>* prev;
-        ~InlineGuard() { g_inline_expr = prev; }
-    } inline_guard{g_inline_expr};
+        const std::vector<uint32_t>* prev_alias;
+        ~InlineGuard() {
+            g_inline_expr = prev;
+            g_param_alias = prev_alias;
+        }
+    } inline_guard{g_inline_expr, g_param_alias};
     g_inline_expr = &inline_expr;
 
     auto expr_of_inst = [&](const MIRInstruction& inst) -> std::string {
@@ -682,6 +697,73 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
             }
         }
     }
+    // A scalar parameter passed by value and never reassigned or addressed
+    // *is* the C argument: alias it, so neither its stack slot nor the
+    // prologue spill store is emitted at all. (The LLVM backend needs no
+    // equivalent: mem2reg promotes those allocas there.) Aggregates are left
+    // alone — their place holds either a copy of the pointee or the hidden
+    // argument pointer, and their by-value semantics must not be skipped.
+    std::vector<uint32_t> param_alias(function.places.size(), MIR_INVALID_ID);
+    {
+        // a use other than a plain read of the place, or its own initializing
+        // store, means the place must keep its own storage
+        std::vector<uint8_t> addressed(function.places.size(), 0);
+        // the argument index the place's single store copies, when that store
+        // stores the parameter value itself
+        std::vector<uint32_t> candidate(function.places.size(), MIR_INVALID_ID);
+        auto is_param_place = [&](const MIROperand* op) {
+            return op && op->kind() == MIROperandKind::Place && op->id < addressed.size() &&
+                   function.places[op->id].storage_class ==
+                       static_cast<uint8_t>(MIRStorageClass::Parameter);
+        };
+        for (const MIRInstruction& inst : function.instructions) {
+            const bool readable = inst.opcode() == MIROpcode::Load;
+            const bool writable = inst.opcode() == MIROpcode::Store;
+            const MIROperand* d = operand_at(function, inst, 0);
+            if (is_param_place(d)) {
+                if (!readable && !writable) {
+                    addressed[d->id] = 1;
+                } else if (writable && candidate[d->id] == MIR_INVALID_ID) {
+                    const MIROperand* s = operand_at(function, inst, 1);
+                    if (s && s->kind() == MIROperandKind::Value && s->id < function.values.size()) {
+                        const MIRValueDef& vd = function.values[s->id];
+                        if (vd.def_inst != MIR_INVALID_ID &&
+                            vd.def_inst < function.instructions.size() &&
+                            function.instructions[vd.def_inst].opcode() == MIROpcode::Param) {
+                            candidate[d->id] = param_idx_at[vd.def_inst];
+                        }
+                    }
+                }
+            }
+            // only operand 0 of a plain read/write may name the place
+            for (uint32_t i = 1; i < inst.operand_count; ++i) {
+                const MIROperand* op = operand_at(function, inst, i);
+                if (is_param_place(op)) addressed[op->id] = 1;
+            }
+        }
+        for (PlaceId p = 0; p < function.places.size(); ++p) {
+            if (candidate[p] == MIR_INVALID_ID || candidate[p] >= ptypes.size()) continue;
+            // exactly one write (that store) and no address taken anywhere
+            if (place_writes[p] != 1 || addressed[p]) continue;
+            const MIRPlaceDef& pd = function.places[p];
+            if (pd.type >= module.types.size()) continue;
+            switch (module.types.get(pd.type).kind) {
+                case MIRTypeKind::Void:
+                case MIRTypeKind::Array:
+                case MIRTypeKind::Struct:
+                case MIRTypeKind::Union:
+                case MIRTypeKind::Variant:
+                case MIRTypeKind::Function:
+                case MIRTypeKind::Opaque:
+                    continue;
+                default:
+                    break;
+            }
+            param_alias[p] = candidate[p];
+        }
+        g_param_alias = &param_alias;
+    }
+
     for (size_t ii = 0; ii < function.instructions.size(); ++ii) {
         const MIRInstruction& inst = function.instructions[ii];
         const ValueId v = inst.result_or_place;
@@ -725,6 +807,20 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
             inst.result_or_place < inline_expr.size() &&
             !inline_expr[inst.result_or_place].empty()) {
             continue;
+        }
+        // An aliased parameter place has no storage of its own: neither its
+        // declaration nor its prologue spill store is emitted.
+        if (inst.opcode() == MIROpcode::Alloca &&
+            inst.result_or_place < param_alias.size() &&
+            param_alias[inst.result_or_place] != MIR_INVALID_ID) {
+            continue;
+        }
+        if (inst.opcode() == MIROpcode::Store) {
+            const MIROperand* d = operand_at(function, inst, 0);
+            if (d && d->kind() == MIROperandKind::Place && d->id < param_alias.size() &&
+                param_alias[d->id] != MIR_INVALID_ID) {
+                continue;
+            }
         }
         out += "    ";
 

@@ -71,6 +71,15 @@ time or grows the binary is not a fix until the regression is resolved"*
 > gap to the legacy baseline; the remaining MIR time per suite compile is
 > `MIRLowerer` **1.98 s** (unattributed — no profiler available here), C emission
 > **0.63 s**, `declare_module` **0.18 s**.
+>
+> **Status update (2026-10-13, session 8) — the MIR phase is now attributed per
+> function** (temporary RAII timers, since removed) and there is **no hot
+> function**: 1,318.6 ms of lowering over 6,776 calls / 1,530 functions /
+> 200,651 instructions (≈ 6.6 µs each), ≈ 665 ms of C emission (≈ 3.3 µs each),
+> top-20 functions only 36% of the phase (see §1.5). Action C3 (scalar parameter
+> spills) landed in the same session: probe C 13,713 → **12,393** lines, probe
+> spills 673 → **25**, main-suite exe text **−4.3%**, suite-compile user CPU
+> 3.85 s → **3.81 s** (5 interleaved pairs, ≤ in every pair).
 
 ### 1.2 Generated code & generated binary size
 
@@ -102,13 +111,35 @@ Probe (identical source and output):
 > remaining 182 are explicit `zero_init`s whose destination is then fully
 > initialized field-wise (the `110 call` + `38 assign` classes below), which is
 > the next C1 bite.
+>
+> **Status update (2026-10-13, session 8) — action C3 landed (scalar parameter
+> spills).** `emit_function_c` aliases a scalar parameter place to its C argument
+> (`__chx_aN`) when the body never reassigns or addresses it, so neither the
+> stack slot nor the spill store is emitted. Same probe, same mode
+> (`debug_quick`), before = the post-C1 binary:
+>
+> | Metric | Legacy | MIR (post-C1) | MIR (now) |
+> |---|---:|---:|---:|
+> | Probe generated C lines | 8,285 | 13,713 | **12,393** (−9.6%) |
+> | Probe generated C bytes | 310,696 | 565,650 | **523,052** (−7.5%) |
+> | Probe `__chx_pN = (__chx_aM);` spills | 0 | 673 | **25** (−96%) |
+> | Probe executable text | 285,299 | — | **409,048** |
+> | Full-suite spill statements | — | 3,364 | **143** (−96%) |
+> | Main-suite executable (text) | — | 4,165,453 | **3,985,243** (−4.3%) |
+>
+> The probe is still well above the legacy targets (12,393 vs 8,285 C lines;
+> 409 KB vs 285 KB text), so action C is not done: C2 (aggregate double copies —
+> 47 sites in the probe, 23 of them a straight `temp = *src; dest = temp`) and C4
+> (labels for straight-line blocks) remain, and the aggregate half of C3 is
+> deliberately *not* aliased (a by-value aggregate parameter is a real copy).
 
 The main test executable corroborates it: `tests-tcc.exe` is **3.24 MB (legacy)
 vs 5.32 MB (MIR)** (+64%). The plan's explicit intent — *"we will deliberately
 emit less C, better C, and more performant C than legacy 2c"* (§6.14) — is not
 met; the inverse is currently true.
 
-Representative cause (MIR output for a trivial `&mut self` method):
+Representative cause (MIR output for a trivial `&mut self` method; the two
+annotated spills and their slots no longer appear after C3 in session 8):
 
 ```c
 void perfprobe_Counterbump(struct perfprobe_Counter* __chx_a0, int __chx_a1) {
@@ -120,6 +151,16 @@ void perfprobe_Counterbump(struct perfprobe_Counter* __chx_a0, int __chx_a1) {
     (__chx_p0)->total = ((int)(__chx_v4 + (__chx_p1)));
     int __chx_v8 = (__chx_p0)->total;
     return __chx_v8;
+}
+```
+
+After C3 the same method emits `__chx_a0`/`__chx_a1` directly:
+
+```c
+int perfprobe_Counterbump(struct perfprobe_Counter* __chx_a0, int __chx_a1) {
+    int __chx_v4 = __chx_a0->total;
+    __chx_a0->total = ((int)(__chx_v4 + __chx_a1));
+    return __chx_a0->total;
 }
 ```
 
@@ -220,9 +261,18 @@ per cold main-suite compile (`MIR_PROF` instrumentation, since removed):
   (`MIRLowerer.h`): `var_places_`, `name_places_`, `func_symbols_`,
   `named_method_symbols_`, `global_symbols_`, `pattern_bases_`,
   `pattern_results_`, `lambda_materializations_`, `async_site_index_`, … The plan
-  specified dense ID-indexed tables instead. Not individually measured yet: the
-  remaining per-suite-compile budget after the interning fix is `MIRLowerer`
-  1.98 s, C emission 0.63 s, `declare_module` 0.18 s.
+  specified dense ID-indexed tables instead. **Attributed per function in session
+  8** (RAII timers in `MIRLowerer::lower_function` + around the lower+emit call,
+  temporary): lowering **1,318.6 ms** over **6,776 calls / 1,530 distinct
+  functions / 200,651 instructions** (≈ 6.6 µs per instruction), C emission
+  **≈ 665 ms** (≈ 3.3 µs per instruction). **No function dominates**: the top 20
+  by self time are ≈ 470 ms (36%), the largest being `build` 67.4 ms (98 calls,
+  20,031 instructions), then `test_destructors` 30.9, `test_for_in_span` 28.2,
+  `test_nodes` 27.2, `delete` 26.2 (388 calls), … — the remaining ~65% is the tail
+  of ~1,510 small functions, mostly per-type generic instantiations (`delete`
+  ×388, `make` ×331, `resize` ×74, `push` ×65). So the fix is the
+  **per-instruction** cost (builder/arena/type-mapping overhead) or lowering
+  fewer instantiated copies — not rewriting one hot function.
 - **`MIRLowerer.cpp` is one 8,224-line TU** (build-time and review cost).
 - **Lowering is serial per module.** Stage 9 (parallel file lowering) is not
   implemented; `implement_module` walks files one at a time and clears a
@@ -284,8 +334,15 @@ logic; measured by (backend emitter LOC / total MIR LOC) trend.
    conflict: inline loop only where required.)
 2. Collapse `temp = *src; dest = temp` into one copy/`memcpy`; extend the
    single-use collapse to aggregate places and loaded values.
-3. Do not spill single-use scalar parameters (`__chx_pN = __chx_aN`); the
-   `Param` inliner must cover `Place`-typed spills too.
+3. ~~Do not spill single-use scalar parameters (`__chx_pN = __chx_aN`)~~ **DONE
+   (session 8)**: `emit_function_c` aliases a `Parameter` place to its C argument
+   when it is non-aggregate, written once by the `Param` store, and never
+   addressed or otherwise named; the slot and the spill store disappear. Probe
+   spills 673 → **25**, suite spills 3,364 → **143**, probe C 13,713 → **12,393**
+   lines, main-suite exe text 4,165,453 → **3,985,243 B** (−4.3%), compile time
+   unchanged/slightly better (5 interleaved A/B pairs, median 3.85 s → 3.81 s).
+   The `Param` inliner covers the `Place`-typed spill as the item asked; the
+   aggregate case is intentionally left alone (see §1.2 status update).
 4. Emit no `goto`/block label for straight-line statements; drop dead epilogue
    blocks.
 **Acceptance.** Probe C lines and executable text ≤ legacy on `perfprobe`; no
@@ -316,9 +373,13 @@ the `benchprobe` loop and the bcrypt cost-12 benchmark.
 **Acceptance.** Main-suite cold compile ≤ 1.05× legacy; peak RSS ≤ 1.05× legacy;
 no `std::string` allocation on the identifier path (verifiable by review/instr).
 **Status.** Action D is ~20% done by the CPU-time measure: the quadratic
-interning term is gone (−0.31 s of 3.92 s), and the remaining ~1.98 s of
-`MIRLowerer` (unattributed), 0.63 s of emission and 0.18 s of declaration
-emission are still open.
+interning term is gone (−0.31 s of 3.92 s), and the remaining ~1.98 s of the MIR
+phase (1.32 s lowering + 0.67 s emission, 0.18 s of declaration emission) is
+still open. Sessions 7 and 8 closed the *measurement* half of D5 — the phase is
+attributed down to per-function self time with no `perf` — and disproved the
+"one hot function" hypothesis: the cost is per-instruction overhead and the tail
+of ~1,510 small generic instantiations, so D3 (dense tables) and lower per-
+instruction cost are the levers, not a targeted rewrite.
 
 ### E. Parallelise lowering (P2, after D)
 
@@ -360,6 +421,24 @@ These are hard gates from `mir-implementation-plan.md` §0 rule 6 / §10, not
 aspirations. They are also the prerequisites for the JVM/JS backends being
 tractable: without a layout/ABI/decl core in MIR and a shared traversal, each new
 backend is another 2k-line emitter with its own bugs.
+
+> **Progress against the table (2026-10-13, sessions 7–8).** The "Current MIR"
+> column is the evaluation's baseline snapshot; the numbers below are from this
+> checkout, measured with `TCCCompiler lang/tests/build.lab --mode debug_quick
+> --no-cache` (interleaved A/B, both binaries built from this tree):
+>
+> | Axis | Legacy ref | Eval snapshot | Now (session 8) |
+> |---|---:|---:|---:|
+> | Main-suite compile+link user CPU (`debug_quick`, incl. TinyCC) | — | — | **3.81 s** |
+> | Probe C lines | 8,285 | 14,115 | **12,393** |
+> | Probe executable (text) | 285,299 B | 486,964 B | **409,048 B** |
+> | Main-suite executable (text) | — | 4,165,453 B | **3,985,243 B** |
+>
+> The compile+link number is this repo's `debug_quick` suite build including the
+>TinyCC step; it is *not* directly comparable to the 6.49 s row (different
+> measurement), but the direction after sessions 7–8 is a ~8% CPU reduction and a
+> 9.6% smaller probe C. Every gate is still missed; C.2/C.4, D.1/D.3/D.4 and all
+> of A/B remain open.
 
 ---
 

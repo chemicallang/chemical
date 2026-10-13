@@ -84,6 +84,83 @@ Both backends now emit from MIR, so this pass worked the evaluation's action C
   status now fails the build like the C path does. `--llvm --negative` went
   **282 → 304 / 318**; TCC `--negative` unchanged at 311/318.
 
+### Session 8 (2026-10-13) — per-function attribution + scalar parameter aliasing (action C3)
+
+No profiler is available on this machine (`perf_event_paranoid=4`), so the
+remaining MIR phase cost was attributed **per function** with a temporary
+`MIR_PROF` hook (RAII timers in `MIRLowerer::lower_function`, nesting-aware, plus
+one around the lower+emit call in `ASTProcessor`'s `lower_and_emit`; since
+removed). Cold main-suite compile, `debug_quick`, one run:
+
+| Metric | Value |
+|---|---:|
+| distinct functions lowered | 1,530 |
+| `lower_function` calls (module × function) | 6,776 |
+| MIR instructions produced | 200,651 |
+| `MIRLowerer::lower_function` self time | **1,318.6 ms** (≈ 6.6 µs / instruction) |
+| C emission (lower+emit − lower) | **≈ 665 ms** (≈ 3.3 µs / instruction) |
+| top-20 functions by self time | ≈ 470 ms of 1,318 ms (**36%**) |
+
+The headline finding is negative and worth recording: **there is no hot
+function**. The largest single entry is `build` (67.4 ms over 98 calls,
+20,031 instructions — the `std::vector`/`string` builder code that follows from
+this file's own 8,224-line body being mostly `build()` calls), then
+`test_destructors` 30.9, `test_for_in_span` 28.2, `test_nodes` 27.2,
+`delete` 26.2 (388 calls), `test_capturing_lambda` 24.9, … — the top 20 add up to
+about a third of the phase, so ~65% is spread over ~1,510 small functions,
+mostly per-type generic instantiations (`delete` ×388, `make` ×331, `resize`
+×74, `push` ×65, `remove` ×61). Any further win has to come from the
+**per-instruction cost** (builder/arena/type-mapping overhead) or from lowering
+fewer instantiated copies, not from rewriting one function.
+
+**Fix this session — action C3: do not spill scalar parameters.** The C backend
+has no optimiser, so `MIRLowerer`'s `Param → Alloca(Parameter) → Store` prologue
+really does cost a stack slot, a store and a load per scalar parameter (LLVM does
+not need this: mem2reg promotes the alloca). `emit_function_c` now *aliases*
+such a place to its C argument instead: `place_name` spells it `__chx_aN`, and neither
+its `Alloca` nor its spill `Store` is emitted. The alias is applied only when the
+place is a `Parameter`-class place of a **non-aggregate** type (a scalar, pointer
+or reference — aggregates are either a copy of the pointee or the hidden
+argument pointer and keep their by-value semantics), is written **exactly once**
+by a `Store` whose value *is* the `Param` (so the C argument), the derived
+argument index is inside the function's parameter list, and the place is never
+addressed or named anywhere else — any other use (operand 1+ of any instruction,
+or operand 0 of anything but a plain load/store) disqualifies it. The analysis
+fuses into the existing `place_writes` pass and sets `g_param_alias` before the
+single-use inliner runs, so the inliner already emits `__chx_aN` (the first
+attempt set it afterwards and produced `__chx_p0` uses with no declaration).
+
+**Measured** (`TCCCompiler`, cold cache, before = session-7 binary, both binaries
+interleaved; same probe source, same `debug_quick` mode):
+
+| Metric | Before | After | Delta |
+|---|---:|---:|---:|
+| Probe (perfprobe) C lines | 13,713 | **12,393** | −9.6% |
+| Probe C bytes | 565,650 | **523,052** | −7.5% |
+| Probe `__chx_pN = (__chx_aM);` spills | 673 | **25** | **−96%** |
+| Full suite C lines (all modules) | 120,782 | **114,280** | −5.4% |
+| Full suite C bytes | 4,935,666 | **4,727,098** | −4.2% |
+| Full suite spill statements | 3,364 | **143** | −96% |
+| Main-suite executable | 4,701,541 B (text 4,165,453) | **4,521,332 B (text 3,985,243)** | −3.8% / −4.3% text |
+| Suite compile+link user CPU (5 interleaved pairs) | 3.85 s [3.80–3.91] | **3.81 s [3.79–3.83]** | ≤ in 5/5 pairs |
+| MIR phase (lower / lower+emit) | 1,318.6 / 1,983.8 ms | 1,315.8 / 1,974.2 ms | −10 ms |
+
+The 25 remaining probe spills are places that legitimately keep storage (an
+aggregate param's copy, a reassigned or addressed parameter) — the guard is
+deliberately conservative, and the executable itself shrank, which is the point:
+TinyCC's output for the aliased form is smaller than for store-then-reload.
+Suites after the change (final binary, fresh build): `--tcc` **2300/2300**,
+`--llvm` **2298/2298**, `--tcc --plugins` **1296/1296**, `--tcc --async` **53/53**,
+`--tcc --libs` **718/719** (the known environment-sensitive
+`test_fs_directory_iteration`), `--tcc --negative` **313/318**,
+`MIRTests` **1049 checks OK**; the probe prints exactly the same line as before
+(`total=1999000 … name_len=8`).
+
+Still open in action C: C2 (aggregate `temp = *src; dest = temp` double copies —
+the probe's 47 sites, of which 23 are a straight double hop) and C4 (labels for
+straight-line blocks). The probe therefore remains above the legacy C line/
+text targets (12,393 lines vs 8,285 legacy).
+
 ### Session 7 (2026-10-13) — O(1) type/constant interning (action D, partial)
 
 Instrumented the MIR phases of a cold main-suite compile (`debug_quick`,

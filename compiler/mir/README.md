@@ -82,6 +82,43 @@ Both backends now emit from MIR, so this pass worked the evaluation's action C
   status now fails the build like the C path does. `--llvm --negative` went
   **282 → 304 / 318**; TCC `--negative` unchanged at 311/318.
 
+### Session 6 (2026-10-13) — `async func main` trampoline restored
+
+The one real regression left by the legacy-2c deletion (see the "Known remaining
+issues 2c" section, now closed): an application whose entry point is
+`async func main` had no synchronous `int main`, so the coroutine *ramp* owned
+the `main` symbol — the C binary exited 255 and the LLVM binary segfaulted.
+
+- **The entry decl is renamed before any prototype is emitted**
+  (`ASTProcessor::declare_module` → `rename_async_entry`), mirroring the legacy
+  visitor's mutation, so the mangler produces `__chx_async_main` for the
+  prototype, the definition, and every call.
+- **The trampoline is built as MIR** (`MIRLowerer::lower_async_main_trampoline`)
+  and emitted by both backends from the same code, so there is no C-text/LLVM
+  divergence: ramp call through the hidden sret slot, zeroed `Context`, poll to
+  `Ready`, drop the handle, return the cast result. Reuses the poll body's
+  primitives — no new opcode, no new emitter path.
+
+Suites after the change (clean per-module cache): `--tcc` **2300/2300**,
+`--llvm` **2298/2298**, `--tcc --interpret` **1890/1890`, `--tcc/--llvm
+--plugins` **1296/1296**, `--tcc/--llvm --async` **53/53**, `--tcc --negative`
+**312/318** (was 311), `--llvm --negative` **305/318** (was 304; the async
+regression test is no longer among the failures), `MIRTests` **1049 checks OK**.
+`--tcc`/`--llvm --libs` are **717** and **718** / 719. The extra TCC failure is
+`test_bcrypt_check_password_incorrect`, which is *not* a codegen regression: its
+workload (1 `hash_password` + 6 `check_password`, all bcrypt cost 12) needs
+~11.2 s of CPU here against the test runner's fixed 10 s budget. The pre-change
+compiler, built from a stashed tree and measured on the same machine, produced
+11.18–11.25 s for that workload versus 11.22–11.31 s now — the same work, at the
+same speed — and `/tmp/libs_baseline.log` (2026-10-12, older compiler) already
+shows this test timing out. It is a pre-existing boundary flake; the fix would be
+a `@test(timeout: …)` (or a lower cost factor) in `bcrypt_test.ch`, deliberately
+left alone so bcrypt performance stays a real signal.
+
+Both backends were additionally checked by hand on four async entries: eager
+(`return 7`), single await (`42`), two awaits with a `Pending` child (`201`), and
+void (`async func main()` with no result) — all produce the expected exit code.
+
 Suites re-run after the change (clean per-module cache): `./scripts/test.sh
 --tcc` **2300/2300**, `--llvm` **2298/2298**, `--tcc --interpret` **1890/1890**,
 `--tcc/--llvm --plugins` **1296/1296**, `--tcc/--llvm --async` **53/53**,
@@ -336,13 +373,13 @@ visitor handled this via direct-by-pointer parameter mutation; MIR's
 copy-then-move parameter ABI is the suspect. Needs a focused lifetime
 investigation.
 
-### 2c. `async func main` has no synchronous `int main` trampoline (OPEN)
+### 2c. `async func main` has no synchronous `int main` trampoline — FIXED
 
 An application whose entry point is `async func main` must get a synchronous
 `int main` that drives the coroutine to completion and returns its result (see
 `lang/docs/async-await-design.md` §5.5). The legacy 2c visitor emitted that
-wrapper (`emit_async_main_wrapper`, deleted with the visitor); **MIR never
-reimplemented it**, so today the coroutine *ramp* owns the `main` symbol:
+wrapper (`emit_async_main_wrapper`, deleted with the visitor) and MIR initially
+never reimplemented it, so the coroutine *ramp* owned the `main` symbol:
 
 ```c
 static void main(struct core_coreasyncFutureHandle__cgs__1* __chx_a0) { … }  /* ramp */
@@ -361,11 +398,35 @@ printf 'struct Rd { var v : int }\nfunc rp(frame : *mut void, cx : *mut core::as
 ../../cmake-build-debug/Compiler   chemical.mod --no-cache -o l.exe && ./l.exe; echo "LLVM exit=$?" # expect 42
 ```
 
-Currently the C binary exits 255 and the LLVM binary segfaults. Regression test:
-`lang/tests/negative/src/async.ch::async_main_trampoline_runs` (asserts exit 42);
-it is one of the TCC/LLVM `--negative` failures above.
+In that state the C binary exited 255 and the LLVM binary segfaulted.
+Regression test: `lang/tests/negative/src/async.ch::async_main_trampoline_runs`
+(asserts exit 42); it passes on both backends now.
 
-**Fix sketch.** (1) Give the ramp a distinct symbol when it is the async main
+**How it was fixed.** (1) *Renaming the entry.* `ASTProcessor::declare_module`
+runs `rename_async_entry` over each module's top-level nodes before the
+declaration emitter writes a byte — the same mutation the legacy visitor
+performed — so an application's `async func main` (marked `no_mangle` by symres)
+becomes `__chx_async_main` in the prototype, the definition, and every call. The
+name is `MIRLowerer::kAsyncMainInternalName`.
+(2) *Building the trampoline.* `MIRLowerer::lower_async_main_trampoline` builds a
+real `MIRFunction` named `main` (external linkage, `int` result via
+`MIRTypeBuilder::int_c_type`), so **both backends share one implementation**:
+call the ramp through its hidden sret slot into a `FutureHandle<T>`, `zero_init`
+a `Context` (the "no waker" context `block_on` uses), poll
+`h.vtbl->poll(&p, h.frame, &cx)` until the `Poll<T>` tag is 0, call
+`h.vtbl->drop(h.frame)`, and return `(int) p.Ready.value` (0 for a void/`Unit`
+result). It reuses the poll body's primitives — place load, field load,
+`call_indirect`, `cond_br`, `cast` — so no new opcode was added. The entry
+signature mirrors the ramp's function type minus its sret slot, so declared
+parameters (`main(argc, argv)`) carry over. Both the C and the LLVM
+`lower_and_emit` paths write it right after the ramp; failing to build it is a
+build error, never a silent program without an entry point.
+Verified: eager (`return 7`), multi-await suspending (201), and void
+(`async func main()` with no result) entries all produce the expected exit code
+on both backends; `async_main_trampoline_runs` passes, so `--tcc --negative` is
+now **312**/318 and `--llvm --negative` **305**/318.
+
+**Original fix sketch (superseded).** (1) Give the ramp a distinct symbol when it is the async main
 (`mangler_(decl) + "__ramp"`), in both `MIRLowerer::intern_function` and
 `mir_translate_after_declaration`'s pass 1, and own `main` in a new wrapper.
 (2) Emit the wrapper. Its body is exactly the old C text (also mirrored by the

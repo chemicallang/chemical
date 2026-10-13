@@ -83,6 +83,22 @@ public:
     /** Unsigned 32-bit integer type (loop indices, array indices). */
     TypeId u32_type() { return int_type(false, 32); }
 
+    /**
+     * The C `int` type (`IK_INT`, so it is spelled `int` rather than
+     * `int32_t`). Used for the synchronous `int main` entry point an
+     * application's `async func main` gets (see
+     * `MIRLowerer::lower_async_main_trampoline`).
+     */
+    TypeId int_c_type() {
+        MIRTypeRecord r;
+        r.kind = MIRTypeKind::Int;
+        r.flags = TF_SIGNED;
+        r.size = 4;
+        r.alignment = 4;
+        r.int_kind = IK_INT;
+        return intern(r);
+    }
+
     /** Unsigned 64-bit integer type (`size_t`-sized values). */
     TypeId u64_type() { return int_type(false, 64); }
 

@@ -125,6 +125,26 @@ public:
      * backend needs it as MIR because it defines the FutureTable's `drop` slot.
      */
     MIRFunction& async_drop() { return async_drop_; }
+    /**
+     * The internal symbol an application's `async func main` is renamed to
+     * before translation, so the synchronous `int main` trampoline can own the
+     * entry name (async-await design Section 5.5). The rename happens in
+     * `ASTProcessor::declare_module`, before any prototype is emitted.
+     */
+    static constexpr const char* kAsyncMainInternalName = "__chx_async_main";
+    /** True when `decl` is an application's `async func main`. */
+    bool is_async_main_entry(FunctionDeclaration* decl);
+    /**
+     * Build the synchronous `int main` trampoline that drives `decl`'s ramp to
+     * completion and returns its integer result (async-await design Section
+     * 5.5). `ramp` is the MIR function `lower_function` produced for `decl`; its
+     * hidden sret slot plus its parameters define the entry signature.
+     *
+     * Returns false with an empty `error` when `decl` is not the async entry
+     * point, so a caller can safely call it for every async function.
+     */
+    bool lower_async_main_trampoline(FunctionDeclaration* decl, const MIRFunction& ramp,
+                                     MIRArena& arena, MIRFunction& func, std::string& error);
     std::string& async_pre_decls() { return async_pre_decls_; }
     std::string& async_post_decls() { return async_post_decls_; }
     bool is_async_lowering() const { return async_; }
@@ -557,6 +577,8 @@ private:
     PlaceId async_ramp_result_ = MIR_INVALID_ID;
     BlockId async_ramp_done_ = MIR_INVALID_ID;
     bool async_in_ramp_ = false;
+    /** set once the `int main` trampoline has been built, so it is emitted once */
+    bool async_main_emitted_ = false;
     // per-site lowering info
     std::string async_mangled_;
     std::unordered_map<ASTNode*, size_t> async_site_index_;

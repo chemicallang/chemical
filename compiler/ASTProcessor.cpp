@@ -1676,10 +1676,59 @@ namespace {
 std::string mir_mangle_name(NameMangler& mangler, ASTNode* decl);
 }
 
+/**
+ * Rename an application's `async func main` to the internal symbol
+ * `__chx_async_main`, before any prototype is emitted, so the synchronous
+ * `int main` trampoline can take the entry name (async-await design Section
+ * 5.5). Mirrors the legacy 2c visitor's `rename_async_entry`; the rename is
+ * idempotent, and mutating the identifier here means the mangler produces the
+ * same name for the prototype, the definition, and every call.
+ *
+ * The trampoline itself is built by MIR (`MIRLowerer::lower_async_main_trampoline`)
+ * when the ramp's module is translated, for both backends.
+ */
+static void rename_async_entry(ASTNode* node) {
+    if (node == nullptr) return;
+    switch (node->kind()) {
+        case ASTNodeKind::FunctionDecl: {
+            auto* decl = node->as_function_unsafe();
+            if (decl->is_async() && decl->is_no_mangle() &&
+                decl->name_view() == chem::string_view("main")) {
+                decl->set_identifier(chem::string_view(mir::MIRLowerer::kAsyncMainInternalName));
+            }
+            return;
+        }
+        case ASTNodeKind::NamespaceDecl:
+            for (ASTNode* child : node->as_namespace_unsafe()->nodes) rename_async_entry(child);
+            return;
+        case ASTNodeKind::Scope:
+            for (ASTNode* child : node->as_scope_unsafe()->nodes) rename_async_entry(child);
+            return;
+        case ASTNodeKind::IfStmt: {
+            // a top-level `if <comptime condition>` contributes its taken
+            // branch's declarations to the module
+            auto* stmt = node->as_if_stmt_unsafe();
+            if (stmt->is_top_level() && stmt->computed_scope.has_value()) {
+                Scope* taken = stmt->computed_scope.value();
+                if (taken) for (ASTNode* child : taken->nodes) rename_async_entry(child);
+            }
+            return;
+        }
+        default:
+            return;
+    }
+}
+
 int ASTProcessor::declare_module(
     CTranslationContext& c_visitor,
     LabModule* module
 ) {
+    // rename an application's `async func main` before its prototype is written
+    for (auto& file_ptr : module->direct_files) {
+        if (!file_ptr.result) continue;
+        for (ASTNode* node : file_ptr.result->unit.scope.body.nodes) rename_async_entry(node);
+    }
+    for (ASTNode* node : container.get_current_module_instantiations()) rename_async_entry(node);
 
     // MIR-driven declaration pass. A throwaway MIR module/types is created here;
     // aggregate names are derived deterministically from the mangler, so the
@@ -1901,6 +1950,18 @@ bool mir_translate_after_declaration(
                 // equivalent body as text instead)
                 module.functions.push_back(lowerer.async_drop());
             }
+            // an application's `async func main` also needs the synchronous
+            // `int main` trampoline, whose ramp was just collected above
+            if (lowerer.is_async_main_entry(decl)) {
+                mir::MIRFunction tramp;
+                std::string tramp_error;
+                if (!lowerer.lower_async_main_trampoline(decl, fn, arena, tramp, tramp_error)) {
+                    std::cerr << "[MIR] async main trampoline lowering failed ("
+                              << decl->name_str() << "): " << tramp_error << "\n";
+                    return false;
+                }
+                module.functions.push_back(tramp);
+            }
             // lambda bodies materialized while lowering this function live in
             // the same arena, so collect them now (the C backend emits them from
             // `lambda_defs()` instead)
@@ -1939,6 +2000,25 @@ bool mir_translate_after_declaration(
             std::string post = lowerer.async_post_decls();
             visitor.writer.append(post.data(), post.size());
             visitor.writer.append(c.data(), c.size());
+            // an application's `async func main` is renamed to
+            // `__chx_async_main`, so it also needs the synchronous `int main`
+            // trampoline that drives the future it returns to completion
+            if (lowerer.is_async_main_entry(decl)) {
+                mir::MIRFunction tramp;
+                std::string tramp_error;
+                if (!lowerer.lower_async_main_trampoline(decl, fn, arena, tramp, tramp_error)) {
+                    std::cerr << "[MIR] async main trampoline lowering failed ("
+                              << decl->name_str() << "): " << tramp_error << "\n";
+                    return false;
+                }
+                std::string tramp_c, tramp_emit_error;
+                if (!mir::emit_function_c(tramp, module, tramp_c, tramp_emit_error)) {
+                    std::cerr << "[MIR] async main trampoline emission failed ("
+                              << decl->name_str() << "): " << tramp_emit_error << "\n";
+                    return false;
+                }
+                visitor.writer.append(tramp_c.data(), tramp_c.size());
+            }
             return true;
         }
         std::string c, emit_error;

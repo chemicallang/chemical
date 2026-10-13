@@ -7225,6 +7225,185 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
     return true;
 }
 
+/**
+ * True when `decl` is an application's `async func main`. `declare_module`
+ * renames such an entry to `kAsyncMainInternalName` before any prototype is
+ * emitted, so the ramp never owns the `main` symbol and the synchronous
+ * trampoline can. (An application's `main` is marked `no_mangle` by symres, so
+ * before the rename the name is exactly `main`.)
+ */
+bool MIRLowerer::is_async_main_entry(FunctionDeclaration* decl) {
+    if (!decl || async_main_emitted_) return false;
+    if (!decl->is_async() || !decl->is_no_mangle()) return false;
+    return decl->name_view() == chem::string_view(kAsyncMainInternalName);
+}
+
+bool MIRLowerer::lower_async_main_trampoline(FunctionDeclaration* decl, const MIRFunction& ramp,
+                                             MIRArena& arena, MIRFunction& func,
+                                             std::string& error) {
+    if (!is_async_main_entry(decl)) return false;
+    error.clear();
+    const AsyncCTypes t = resolve_async_c_types(decl);
+    if (!t.ok) {
+        error = "async main: could not resolve the core::async protocol types";
+        return false;
+    }
+    if (ramp.function_type == MIR_INVALID_ID || ramp.function_type >= module_.types.size()) {
+        error = "async main: the ramp has no function type";
+        return false;
+    }
+
+    const TypeId void_ptr = types_.pointer_type(types_.void_type(), true);
+    const TypeId i32 = types_.int_c_type();
+    const TypeId handle_t = types_.map(t.handle);
+    const TypeId handle_ptr_t = types_.pointer_type(handle_t, true);
+    const TypeId poll_t = types_.map(t.poll);
+    const TypeId poll_ptr_t = types_.pointer_type(poll_t, true);
+    const TypeId ctx_ptr_t = types_.map(t.context_ptr);
+    const TypeId table_t = types_.map(t.table);
+    const TypeId table_ptr_t = types_.pointer_type(table_t, true);
+    const TypeId poll_fn_t = mir_named_field_type(module_.types, table_t, "poll");
+    const TypeId drop_fn_t = mir_named_field_type(module_.types, table_t, "drop");
+    if (poll_fn_t == MIR_INVALID_ID || drop_fn_t == MIR_INVALID_ID) {
+        error = "async main: FutureTable is missing its poll/drop slots";
+        return false;
+    }
+    // `*mut Context` is the `__cx` parameter type, so the local to take the
+    // address of is the pointee (`struct Context`), exactly like the legacy
+    // wrapper's `struct Context __chx__async_cx = {0};`.
+    TypeId ctx_val_t = ctx_ptr_t;
+    {
+        const MIRTypeRecord& cr = module_.types.get(ctx_ptr_t);
+        if (cr.kind == MIRTypeKind::Pointer || cr.kind == MIRTypeKind::Reference) {
+            ctx_val_t = cr.element;
+        }
+    }
+
+    // The entry signature mirrors the ramp's, minus the hidden sret slot.
+    func.clear();
+    {
+        const MIRTypeRecord& ftr = module_.types.get(ramp.function_type);
+        std::vector<TypeId> ptypes;
+        for (uint32_t i = 1; i < ftr.data_count; ++i) {
+            if (ftr.data_offset + i >= module_.types.data.size()) break;
+            ptypes.push_back(module_.types.data[ftr.data_offset + i]);
+        }
+        const TypeId ftype = types_.function_signature(i32, ptypes);
+        MIRSymbolRecord rec;
+        rec.kind = MIRSymbolKind::Function;
+        // the C entry point must have external linkage
+        rec.linkage = MIRLinkage::External;
+        rec.type = ftype;
+        const char* const main_name = "main";
+        const SymbolId sym =
+            module_.symbols.add(rec, main_name, 4, main_name, 4);
+        func.symbol = sym;
+        module_.symbols.symbols[sym].type = ftype;
+        func.function_type = ftype;
+    }
+
+    MIRBuilder b(arena, module_, func);
+    builder_ = &b;
+    const BlockId entry = b.create_block();
+    b.set_block(entry);
+    func.entry_block = entry;
+
+    const MIRTypeRecord& ftr = module_.types.get(func.function_type);
+    std::vector<TypeId> ptypes;
+    std::vector<ValueId> params;
+    for (uint32_t i = 0; i < ftr.data_count; ++i) {
+        const TypeId pt = module_.types.data[ftr.data_offset + i];
+        ptypes.push_back(pt);
+        params.push_back(b.param(pt));
+    }
+
+    // call the ramp: it writes the FutureHandle<T> through its sret slot
+    const PlaceId handle_place = b.alloca(handle_t, MIRStorageClass::Local);
+    {
+        std::vector<MIROperand> args;
+        args.reserve(params.size() + 1);
+        args.push_back(MIROperand::value(b.address_of(handle_place, handle_ptr_t), handle_ptr_t));
+        for (size_t i = 0; i < params.size(); ++i) {
+            args.push_back(MIROperand::value(params[i], ptypes[i]));
+        }
+        b.call_scalar(intern_function(decl), types_.void_type(), args.data(),
+                      static_cast<uint32_t>(args.size()));
+    }
+
+    const PlaceId poll_place = b.alloca(poll_t, MIRStorageClass::Local);
+    const PlaceId cx_place = b.alloca(ctx_val_t, MIRStorageClass::Local);
+    // a zeroed context is the "no waker" executor context, matching block_on
+    b.zero_init(cx_place);
+
+    const ConstantId frame_fc = module_.constants.add_string(MIR_INVALID_ID, "frame", 5);
+    const ConstantId vtbl_fc = module_.constants.add_string(MIR_INVALID_ID, "vtbl", 4);
+    const ConstantId poll_fc = module_.constants.add_string(MIR_INVALID_ID, "poll", 4);
+    const ConstantId drop_fc = module_.constants.add_string(MIR_INVALID_ID, "drop", 4);
+    const ConstantId tag_fc =
+        module_.constants.add_string(MIR_INVALID_ID, "__chx__vt_621827", 16);
+    const ConstantId eq_op =
+        module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq));
+
+    const BlockId loop_b = b.create_block();
+    const BlockId done_b = b.create_block();
+    b.br(loop_b);
+
+    // poll until Ready (tag 0)
+    b.set_block(loop_b);
+    const ValueId frame = b.field_load(handle_place, frame_fc, void_ptr);
+    const ValueId vtbl = b.field_load(handle_place, vtbl_fc, table_ptr_t);
+    const ValueId poll_fn = b.field_load_ptr(vtbl, poll_fc, poll_fn_t);
+    {
+        MIROperand poll_args[3] = {
+            MIROperand::value(b.address_of(poll_place, poll_ptr_t), poll_ptr_t),
+            MIROperand::value(frame, void_ptr),
+            MIROperand::value(b.address_of(cx_place, ctx_ptr_t), ctx_ptr_t),
+        };
+        b.call_indirect(poll_fn, types_.void_type(), poll_args, 3);
+    }
+    const ValueId tag = b.field_load(poll_place, tag_fc, i32);
+    const ValueId zero = b.const_int(i32, module_.constants.add_int(i32, 0));
+    const ValueId ready = b.compare(tag, zero, eq_op, types_.bool_type());
+    b.cond_br(ready, done_b, loop_b);
+
+    b.set_block(done_b);
+    // `Unit` is the zero-sized result of an async function with no value
+    BaseType* inner_canon = t.inner ? t.inner->canonical() : nullptr;
+    const bool inner_void =
+        inner_canon == nullptr || inner_canon->kind() == BaseTypeKind::Void;
+    ASTNode* inner_node = (!inner_void && t.inner) ? t.inner->linked_node() : nullptr;
+    const bool inner_unit = inner_node != nullptr &&
+                            inner_node->kind() == ASTNodeKind::StructDecl &&
+                            inner_node->as_struct_def_unsafe()->name_view() ==
+                                chem::string_view("Unit");
+    ValueId result = MIR_NULL;
+    if (!inner_void && !inner_unit) {
+        const ConstantId ready_fc =
+            module_.constants.add_string(MIR_INVALID_ID, "Ready.value", 11);
+        const ValueId payload = b.field_load(poll_place, ready_fc, types_.map(t.inner));
+        result = b.cast(payload, i32);
+    } else {
+        result = b.const_int(i32, module_.constants.add_int(i32, 0));
+    }
+    // drop the handle (cancels a suspended frame once)
+    const ValueId frame2 = b.field_load(handle_place, frame_fc, void_ptr);
+    const ValueId vtbl2 = b.field_load(handle_place, vtbl_fc, table_ptr_t);
+    const ValueId drop_fn = b.field_load_ptr(vtbl2, drop_fc, drop_fn_t);
+    {
+        MIROperand drop_args[1] = {MIROperand::value(frame2, void_ptr)};
+        b.call_indirect(drop_fn, types_.void_type(), drop_args, 1);
+    }
+    b.ret(result);
+
+    builder_ = nullptr;
+    if (!b.ok()) {
+        error = b.error() ? b.error() : "async main trampoline builder failure";
+        return false;
+    }
+    async_main_emitted_ = true;
+    return true;
+}
+
 MIRExprResult MIRLowerer::lower_captured_variable(CapturedVariable* cap, bool as_address,
                                                   std::string& error) {
     if (lambda_closure_ptr_ == MIR_NULL) {

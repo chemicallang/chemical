@@ -3504,6 +3504,16 @@ LLVM; TinyCC compiles the output.
 > `lang/tests/negative/src/async.ch::async_main_trampoline_runs` (compiles an
 > application, runs it, asserts exit code 42).
 >
+> **MIR re-implements the trampoline (2026-10-13).** The 2c visitor that emitted
+> it was deleted with the migration and the trampoline was initially lost, so the
+> coroutine ramp owned the `main` symbol (C exited 255, LLVM segfaulted). It is
+> back, backend-independent: `ASTProcessor::declare_module` renames the entry to
+> `__chx_async_main` before any prototype is emitted, and
+> `MIRLowerer::lower_async_main_trampoline` builds the `int main` as a real
+> `MIRFunction` (ramp call through the sret slot, zeroed `Context`, poll to
+> `Ready`, `vtbl->drop`, cast result) that both the C and the LLVM backend emit
+> from the same MIR. Regression test above now passes on both backends.
+>
 > **Async closures are still diagnosed, not lowered.** An async closure carries a
 > capture struct emitted by `write_lambda_function`, so lowering it needs
 > closure-specific frame/vtable emission; the C backend keeps a clear diagnostic

@@ -1,0 +1,116 @@
+/* Chemical feature-proposal styles — shared by review.html, template.html and every
+   approved NNNN-*.html proposal. Self-contained: no external fonts or scripts. */
+
+:root {
+  --bg: #f6f7f9;
+  --panel: #ffffff;
+  --panel-2: #fbfbfc;
+  --text: #171a20;
+  --muted: #5c6472;
+  --border: #e4e6eb;
+  --border-strong: #ccd1d9;
+  --accent: #2f6fd0;
+  --accent-soft: #eaf1fc;
+  --code-bg: #f1f2f5;
+  --ok: #1a7f4b;      --ok-soft: #e6f5ec;
+  --warn: #8a5a00;    --warn-soft: #fdf3dd;
+  --bad: #b3261e;     --bad-soft: #fbe9e7;
+  --info: #2f6fd0;    --info-soft: #eaf1fc;
+  --needs: #6b3fa0;   --needs-soft: #f1eafb;
+  --radius: 12px;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1014; --panel: #151920; --panel-2: #12161c; --text: #e8eaee; --muted: #98a1b0;
+    --border: #242a34; --border-strong: #343d4a; --accent: #6ea8fe; --accent-soft: #16202e;
+    --code-bg: #0b0d11; --ok: #5dca92; --ok-soft: #12251b; --warn: #e0b062; --warn-soft: #2a2313;
+    --bad: #f08a80; --bad-soft: #2c1715; --info: #6ea8fe; --info-soft: #16202e;
+    --needs: #c4a7e8; --needs-soft: #241b33;
+  }
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font-family: var(--font); font-size: 16px; line-height: 1.62;
+  -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+.wrap { max-width: 1020px; margin: 0 auto; padding: 34px 24px 110px; }
+
+/* Masthead */
+.masthead { border-bottom: 1px solid var(--border); padding-bottom: 22px; margin-bottom: 28px; }
+.masthead .kicker { color: var(--accent); font-weight: 600; letter-spacing: .08em; text-transform: uppercase; font-size: 12px; }
+.masthead h1 { font-size: 32px; line-height: 1.2; margin: 8px 0 10px; letter-spacing: -.02em; }
+.masthead p.sub { color: var(--muted); margin: 0; max-width: 74ch; }
+.masthead .stamp { color: var(--muted); font-size: 13px; margin-top: 12px; }
+
+/* Callouts */
+.note {
+  background: var(--accent-soft); border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 8px; padding: 14px 16px; margin: 22px 0;
+}
+.note h3 { margin: 0 0 6px; font-size: 15px; }
+.note p, .note ul { margin: 6px 0 0; color: var(--text); font-size: 14.5px; }
+.note ul { padding-left: 20px; }
+
+/* Index */
+h2.section { font-size: 22px; margin: 44px 0 14px; letter-spacing: -.01em; }
+table.index { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+table.index th, table.index td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: top; }
+table.index th { background: var(--panel-2); color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; }
+table.index tr:last-child td { border-bottom: none; }
+table.index td.num { font-family: var(--mono); color: var(--muted); white-space: nowrap; }
+
+/* Proposal card */
+.proposal {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px 26px; margin: 26px 0; scroll-margin-top: 20px;
+}
+.proposal .p-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 6px; }
+.proposal .p-num { font-family: var(--mono); font-size: 14px; color: var(--muted); background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; }
+.proposal h2 { font-size: 21px; margin: 0; letter-spacing: -.01em; flex: 1 1 auto; }
+.proposal .meta { display: flex; flex-wrap: wrap; gap: 6px 22px; color: var(--muted); font-size: 13px; margin: 12px 0 4px; }
+.proposal .meta b { color: var(--text); font-weight: 600; }
+.proposal h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 20px 0 6px; }
+.proposal p { margin: 6px 0; }
+.proposal ul { margin: 6px 0; padding-left: 20px; }
+.proposal li { margin: 3px 0; }
+
+code, kbd { font-family: var(--mono); font-size: .9em; background: var(--code-bg); border: 1px solid var(--border); border-radius: 5px; padding: .08em .38em; }
+pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; overflow-x: auto; }
+pre code { background: none; border: none; padding: 0; }
+
+/* Badges */
+.badge { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; border: 1px solid transparent; }
+.badge.draft    { color: var(--warn);  background: var(--warn-soft);  border-color: color-mix(in srgb, var(--warn) 30%, transparent); }
+.badge.approved { color: var(--ok);    background: var(--ok-soft);    border-color: color-mix(in srgb, var(--ok) 30%, transparent); }
+.badge.rejected { color: var(--bad);   background: var(--bad-soft);   border-color: color-mix(in srgb, var(--bad) 30%, transparent); }
+.badge.full     { color: var(--info);  background: var(--info-soft);  border-color: color-mix(in srgb, var(--info) 30%, transparent); }
+.badge.needs    { color: var(--needs); background: var(--needs-soft); border-color: color-mix(in srgb, var(--needs) 30%, transparent); }
+.badge.ongoing  { color: var(--info);  background: var(--info-soft);  border-color: color-mix(in srgb, var(--info) 30%, transparent); }
+.badge.deferred,
+.badge.noted     { color: var(--muted); background: var(--panel-2);   border-color: var(--border-strong); }
+
+/* Goal-fit pills */
+.pillars { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.pill { font-size: 12.5px; border: 1px solid var(--border); background: var(--panel-2); border-radius: 999px; padding: 3px 11px; color: var(--muted); }
+.pill b { color: var(--text); font-weight: 600; }
+
+/* Review prompt */
+.review { margin-top: 18px; border-top: 1px dashed var(--border-strong); padding-top: 12px; color: var(--muted); font-size: 13.5px; }
+
+footer { color: var(--muted); font-size: 13px; margin-top: 56px; border-top: 1px solid var(--border); padding-top: 18px; }
+
+@media (max-width: 640px) {
+  .wrap { padding: 22px 15px 80px; }
+  .masthead h1 { font-size: 25px; }
+  .proposal { padding: 18px 16px; }
+  table.index td.area, table.index td.dep { display: none; }
+}

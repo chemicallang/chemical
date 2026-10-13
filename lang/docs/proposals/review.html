@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chemical — Feature Proposals (Status)</title>
+<link rel="stylesheet" href="assets/proposal.css">
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--panel-2:#fbfbfc;--text:#171a20;--muted:#5c6472;--border:#e4e6eb;--border-strong:#ccd1d9;--accent:#2f6fd0;--accent-soft:#eaf1fc;--code-bg:#f1f2f5;--ok:#1a7f4b;--ok-soft:#e6f5ec;--warn:#8a5a00;--warn-soft:#fdf3dd;--bad:#b3261e;--bad-soft:#fbe9e7;--info:#2f6fd0;--info-soft:#eaf1fc;--needs:#6b3fa0;--needs-soft:#f1eafb;--radius:12px;--font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1014;--panel:#151920;--panel-2:#12161c;--text:#e8eaee;--muted:#98a1b0;--border:#242a34;--border-strong:#343d4a;--accent:#6ea8fe;--accent-soft:#16202e;--code-bg:#0b0d11;--ok:#5dca92;--ok-soft:#12251b;--warn:#e0b062;--warn-soft:#2a2313;--bad:#f08a80;--bad-soft:#2c1715;--info:#6ea8fe;--info-soft:#16202e;--needs:#c4a7e8;--needs-soft:#241b33}}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:16px;line-height:1.62;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+.wrap{max-width:1020px;margin:0 auto;padding:34px 24px 110px}
+.masthead{border-bottom:1px solid var(--border);padding-bottom:22px;margin-bottom:28px}
+.masthead .kicker{color:var(--accent);font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-size:12px}
+.masthead h1{font-size:32px;line-height:1.2;margin:8px 0 10px;letter-spacing:-.02em}
+.masthead p.sub{color:var(--muted);margin:0;max-width:74ch}
+.masthead .stamp{color:var(--muted);font-size:13px;margin-top:12px}
+.note{background:var(--accent-soft);border:1px solid var(--border);border-left:3px solid var(--accent);border-radius:8px;padding:14px 16px;margin:22px 0}
+.note h3{margin:0 0 6px;font-size:15px}
+.note p,.note ul{margin:6px 0 0;font-size:14.5px}.note ul{padding-left:20px}
+h2.section{font-size:22px;margin:44px 0 14px;letter-spacing:-.01em}
+table.index{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+table.index th,table.index td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);font-size:14px;vertical-align:top}
+table.index th{background:var(--panel-2);color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+table.index tr:last-child td{border-bottom:none}
+table.index td.num{font-family:var(--mono);color:var(--muted);white-space:nowrap}
+.proposal{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:22px 24px;margin:22px 0;scroll-margin-top:20px}
+.proposal .p-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:12px;margin-bottom:6px}
+.proposal .p-num{font-family:var(--mono);font-size:14px;color:var(--muted);background:var(--panel-2);border:1px solid var(--border);border-radius:6px;padding:2px 8px}
+.proposal h2{font-size:20px;margin:0;letter-spacing:-.01em;flex:1 1 auto}
+.proposal p{margin:6px 0}.proposal ul{margin:6px 0;padding-left:22px}.proposal li{margin:4px 0}
+code,kbd{font-family:var(--mono);font-size:.9em;background:var(--code-bg);border:1px solid var(--border);border-radius:5px;padding:.08em .38em}
+.badge{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:999px;border:1px solid transparent}
+.badge.draft{color:var(--warn);background:var(--warn-soft);border-color:color-mix(in srgb,var(--warn) 30%,transparent)}
+.badge.approved{color:var(--ok);background:var(--ok-soft);border-color:color-mix(in srgb,var(--ok) 30%,transparent)}
+.badge.needs{color:var(--needs);background:var(--needs-soft);border-color:color-mix(in srgb,var(--needs) 30%,transparent)}
+.badge.ongoing{color:var(--info);background:var(--info-soft);border-color:color-mix(in srgb,var(--info) 30%,transparent)}
+.badge.deferred,.badge.noted{color:var(--muted);background:var(--panel-2);border-color:var(--border-strong)}
+footer{color:var(--muted);font-size:13px;margin-top:56px;border-top:1px solid var(--border);padding-top:18px}
+@media (max-width:640px){.wrap{padding:22px 15px 80px}.masthead h1{font-size:25px}.proposal{padding:18px 16px}table.index td.area,table.index td.dep{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="masthead">
+  <div class="kicker">Chemical · Proposals</div>
+  <h1>Feature Proposals — Status</h1>
+  <p class="sub">15 items. Seven proposals are approved with full documents. One (effects) needs a
+  use-case decision. Deferred items wait on the native-GC decision.</p>
+  <div class="stamp">8 approved · 3 deferred · 1 ongoing · 1 noted · 1 not-now · 1 candidate</div>
+</header>
+
+<div class="note">
+  <h3>Second pass — 2026-10-13 (full log: <a href="DECISIONS.md">DECISIONS.md</a>)</h3>
+  <ul>
+    <li><b>06 Native GC — approved.</b> Per-module <code>gc = true</code>; GC modules may only depend
+    on GC modules (a GC module in a non-GC build errors); conservative Boehm-style collector; borrow
+    checking kept, <code>@delete</code> optional.</li>
+    <li><b>08 Web/DOM types — approved.</b> First-party <code>dom</code> module shipped with the
+    compiler (generated once from Web IDL, versioned).</li>
+    <li><b>05 Effects — approved.</b> Square brackets; v1 effects <code>panic</code>,
+    <code>pure</code>, <code>blocking</code>, <code>unsafe</code>, <code>alloc</code>,
+    <code>noreturn</code>; restrictions are per-function (plus a module default); effects are
+    declared, never inferred across current-module forward calls; <code>unreachable</code>/traps
+    are <code>unsafe</code>, not <code>panic</code>.</li>
+  </ul>
+</div>
+
+<h2 class="section">Index</h2>
+<table class="index">
+  <thead><tr><th>#</th><th>Proposal</th><th class="area">Area</th><th class="dep">Depends on</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td class="num">01</td><td>MIR core consolidation &amp; thin-backend architecture</td><td class="area">Compiler</td><td class="dep">—</td><td><span class="badge ongoing">Ongoing</span></td></tr>
+    <tr><td class="num">02</td><td>Compiler size &amp; performance budget</td><td class="area">Toolchain</td><td class="dep">—</td><td><span class="badge noted">Noted</span></td></tr>
+    <tr><td class="num">03</td><td><a href="0003-generic-impls.html">Generic impls</a></td><td class="area">Language · generics</td><td class="dep">—</td><td><span class="badge approved">Approved</span></td></tr>
+    <tr><td class="num">04</td><td><a href="0004-borrow-checker-memory-safety.html">Borrow checker &amp; memory safety</a></td><td class="area">Language · safety</td><td class="dep">03, 05</td><td><span class="badge approved">Approved</span></td></tr>
+    <tr><td class="num">05</td><td><a href="0005-effect-system.html">No-panic effect system</a></td><td class="area">Language · effects</td><td class="dep">04</td><td><span class="badge approved">Approved</span></td></tr>
+    <tr><td class="num">06</td><td><a href="0006-native-gc-mode.html">Native GC mode</a></td><td class="area">Memory model</td><td class="dep">01, 04</td><td><span class="badge approved">Approved</span></td></tr>
+    <tr><td class="num">07</td><td><a href="0007-javascript-backend.html">JavaScript backend</a></td><td class="area">Backend · web</td><td class="dep">01, 04</td><td><span class="badge approved">Approved</span></td></tr>
+    <tr><td class="num">08</td><td><a href="0008-web-dom-types.html">Web/DOM type declarations</a></td><td class="area">Language · types</td><td class="dep">07</td><td><span class="badge approved">Approved</span></td></tr>
+    <tr><td class="num">09</td><td>WASM backend</td><td class="area">Backend</td><td class="dep">01, 06</td><td><span class="badge deferred">Deferred</span></td></tr>
+    <tr><td class="num">10</td><td>JVM bytecode backend</td><td class="area">Backend · managed</td><td class="dep">06</td><td><span class="badge deferred">Deferred — revisit after 06</span></td></tr>
+    <tr><td class="num">11</td><td>Android target &amp; cross-compilation</td><td class="area">Target · toolchain</td><td class="dep">06</td><td><span class="badge deferred">Deferred — after 06</span></td></tr>
+    <tr><td class="num">12</td><td>Stdlib &amp; ecosystem integration</td><td class="area">Libraries</td><td class="dep">03</td><td><span class="badge noted">Not now</span></td></tr>
+    <tr><td class="num">13</td><td><a href="0013-async-await-completion.html">Async/await completion</a></td><td class="area">Language · runtime</td><td class="dep">01</td><td><span class="badge approved">Approved</span></td></tr>
+    <tr><td class="num">14</td><td><a href="0014-generic-container-serialization.html">Generic std-container JSON serialization</a></td><td class="area">Libraries · JSON</td><td class="dep">03</td><td><span class="badge approved">Approved</span></td></tr>
+    <tr><td class="num">15</td><td><a href="#p15">Shared IO abstraction (Reader/Stream)</a></td><td class="area">Libraries</td><td class="dep">—</td><td><span class="badge draft">Candidate</span></td></tr>
+  </tbody>
+</table>
+
+<div class="note"><h3>All open decisions resolved</h3><p>Nothing is awaiting a decision. The last
+open item — the effect system (05) — is now approved. The use-case catalog behind it is kept at
+<a href="0005-effect-system-analysis.html">0005-effect-system-analysis.html</a> for reference.</p></div>
+
+<h2 class="section">Approved — full documents</h2>
+<ul>
+  <li><a href="0003-generic-impls.html">0003 — Generic impls</a></li>
+  <li><a href="0004-borrow-checker-memory-safety.html">0004 — Borrow checker &amp; memory-safety closure</a></li>
+  <li><a href="0005-effect-system.html">0005 — Effect system &amp; no-panic enforcement</a></li>
+  <li><a href="0006-native-gc-mode.html">0006 — Native GC mode</a></li>
+  <li><a href="0007-javascript-backend.html">0007 — JavaScript backend</a></li>
+  <li><a href="0008-web-dom-types.html">0008 — Web/DOM type declarations</a></li>
+  <li><a href="0013-async-await-completion.html">0013 — Async/await completion</a></li>
+  <li><a href="0014-generic-container-serialization.html">0014 — Generic std-container JSON serialization</a></li>
+</ul>
+
+<h2 class="section">Closed / deferred</h2>
+<section class="proposal" id="p01">
+  <div class="p-head"><span class="p-num">01</span><h2>MIR core consolidation</h2><span class="badge ongoing">Ongoing</span></div>
+  <p>Already being worked on, covered by <code>lang/docs/mir-migration-evaluation.md</code>. Approved
+  proposals are implemented after this work finishes.</p>
+</section>
+<section class="proposal" id="p02">
+  <div class="p-head"><span class="p-num">02</span><h2>Compiler size &amp; performance budget</h2><span class="badge noted">Noted</span></div>
+  <p>No proposal; the &lt;5&nbsp;MB budget is tracked. Featureful first, then shrink without losing
+  features.</p>
+</section>
+<section class="proposal" id="p09">
+  <div class="p-head"><span class="p-num">09</span><h2>WASM backend</h2><span class="badge deferred">Deferred</span></div>
+  <p>No present need; TinyCC may add WASM. Revisit when the need appears.</p>
+</section>
+<section class="proposal" id="p10">
+  <div class="p-head"><span class="p-num">10</span><h2>JVM bytecode backend</h2><span class="badge deferred">Deferred — after 06</span></div>
+  <p>Native GC is now approved; JVM will be reconsidered next.</p>
+</section>
+<section class="proposal" id="p11">
+  <div class="p-head"><span class="p-num">11</span><h2>Android target &amp; cross-compilation</h2><span class="badge deferred">Deferred — after 06</span></div>
+  <p>Returns later as a specific brief (syntax, opt-in, performance).</p>
+</section>
+<section class="proposal" id="p12">
+  <div class="p-head"><span class="p-num">12</span><h2>Standard library &amp; ecosystem integration</h2><span class="badge noted">Not now</span></div>
+  <p>Only shared IO is a candidate — see 15.</p>
+</section>
+
+<h2 class="section">Candidate</h2>
+<section class="proposal" id="p15">
+  <div class="p-head"><span class="p-num">15</span><h2>Shared IO abstraction (Reader / Stream)</h2><span class="badge draft">Candidate</span></div>
+  <p>A <code>Reader</code>/<code>Stream</code> trait pair plus adapters so <code>fs</code>,
+  <code>net</code>, <code>http</code>, <code>compression</code> and <code>archive</code> compose.
+  Everything else in the stdlib analysis stays deferred. <b>Review:</b> approve · reject · changes.</p>
+</section>
+
+<footer>
+  Chemical feature proposals · status · 15 items · 7 approved.
+  Process: <a href="README.md">README.md</a> · decisions: <a href="DECISIONS.md">DECISIONS.md</a>.
+</footer>
+
+</div>
+</body>
+</html>

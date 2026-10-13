@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proposal 0007 — JavaScript backend</title>
+<link rel="stylesheet" href="assets/proposal.css">
+</head>
+<body>
+<div class="wrap">
+<header class="masthead">
+  <div class="kicker">Chemical · Proposal 0007</div>
+  <h1>JavaScript backend</h1>
+  <p class="sub">A thin MIR&nbsp;→&nbsp;JS emitter, so Chemical runs in the browser as real JS —
+  without a mountain of per-backend code.</p>
+  <div class="stamp">Status: <span class="badge approved">Approved</span> · Area: Backend · web · <a href="review.html">review index</a></div>
+</header>
+
+<div class="note">
+  <h3>Goal fit</h3>
+  <div class="pillars"><span class="pill"><b>R3</b> browser as JS</span><span class="pill"><b>R0 / TC</b> thin backend, no toolchain slowdown</span></div>
+</div>
+
+<h2 class="section">1. Problem</h2>
+<p>There is no JavaScript backend. The browser target today is <code>#js</code>/universal macros
+emitting raw unchecked JavaScript (an explicit goals blocker). Requirement 3 says Chemical runs in
+the browser as JS. New backends must be <b>thin</b>: adding one must not add a mountain of code, and
+shared logic belongs in MIR — without slowing the toolchain or any single backend.</p>
+
+<h2 class="section">2. Goals &amp; non-goals</h2>
+<ul>
+  <li><b>In scope:</b> MIR→JS emission for the whole language; a runtime ABI for Chemical values;
+  closures; async; interop with the existing universal/<code>#js</code> pipeline; running the
+  common core-language tests in JS.</li>
+  <li><b>Out of scope:</b> DOM type declarations (08); replacing the existing SSR pipeline.</li>
+</ul>
+
+<h2 class="section">3. Proposed approach</h2>
+<ol>
+  <li><b>Thin by construction.</b> Depend on the shared MIR services that proposal 01 establishes
+  (types, layout, declarations, naming/ABI, opcode metadata). The JS emitter is an
+  opcode→JS-text mapping over the shared traversal, mirroring the C emitter's structure — not a
+  second compiler front end. Anything shared goes <em>into MIR</em>, never copied per backend.</li>
+  <li><b>Portability classification.</b> Drive emission from <code>MIRPortability</code>: portable
+  opcodes map directly; native-only opcodes are lowered to a JS runtime helper or rejected with a
+  clear diagnostic.</li>
+  <li><b>Value model / runtime ABI.</b> Define representations for numbers, strings, structs,
+  vectors/maps, <code>Option</code>/<code>Result</code>, interfaces/vtables, and function values.
+  Fix the ABI once so generated modules interoperate.</li>
+  <li><b>Memory semantics.</b> Map owned/deterministic semantics onto the host GC; define where
+  <code>@delete</code> becomes a no-op / explicit dispose, and how it interacts with the borrow
+  checker's model.</li>
+  <li><b>Closures &amp; async.</b> Emit closures and the async lowering to JS (Promises/async
+  functions), consistent with the MIR async plan (13).</li>
+  <li><b>Integration.</b> Emit ES modules so the output plugs into the universal bundle's
+  <code>window.$_uc_h</code>/dispatch model; keep the escape hatch to hand-written <code>#js</code>.</li>
+</ol>
+
+<h2 class="section">4. Alternatives considered</h2>
+<ul>
+  <li><b>Source-to-JS (no MIR)</b>: rejected — another front-end-shaped backend, exactly what we are
+  removing.</li>
+  <li><b>WASM-only browser story</b>: rejected for now — WASM is deferred (09); JS is the direct
+  target.</li>
+  <li><b>Emit via an external transpiler</b>: rejected — portability and size.</li>
+</ul>
+
+<h2 class="section">5. Phased milestones</h2>
+<ol>
+  <li>Runtime ABI + value model (shared with MIR where possible).</li>
+  <li>Scalars, control flow, functions.</li>
+  <li>Structs/unions/variants, strings, vectors/maps.</li>
+  <li>Interfaces/vtables/dispatch.</li>
+  <li>Closures; then async.</li>
+  <li>ES-module emission + universal interop.</li>
+  <li>Common core-language tests in JS; performance/size validation.</li>
+</ol>
+
+<h2 class="section">6. Acceptance criteria</h2>
+<ul>
+  <li>The common core-language test suite runs in a JS engine and passes.</li>
+  <li>A real Chemical program (not just a fixture) builds and runs in a browser.</li>
+  <li>The JS emitter stays thin: it reuses shared MIR services and adds no AST-dispatch duplication.</li>
+  <li>Adding the backend does not regress toolchain compile time/memory for other backends.</li>
+</ul>
+
+<h2 class="section">7. Risks &amp; open questions</h2>
+<ul>
+  <li>How owned/deterministic semantics map onto a GC host, and where the borrow checker relaxes.</li>
+  <li>Numeric representation (JS doubles vs. integer widths) and overflow semantics.</li>
+  <li>Module/package emission and cross-module ABI stability.</li>
+  <li>Keeping generated JS readable enough to debug.</li>
+</ul>
+
+<h2 class="section">8. Dependencies</h2>
+<p>Depends on: 01 (thin-backend substrate), 04 (ownership model) · Unblocks: 08 (ask: typed DOM interop).</p>
+
+<h2 class="section">9. Evidence &amp; references</h2>
+<ul>
+  <li>No JS backend under <code>compiler/backend/</code> (verified).</li>
+  <li><code>MIRPortability</code> in <code>compiler/mir/MIRInstruction.cpp</code> / <code>MIRTypes.h</code>.</li>
+  <li><code>lang/docs/proposals/DECISIONS.md</code> (thin-backend + no-regression constraint).</li>
+  <li>AGENTS.md blocker: <code>#js</code> emits raw unchecked JavaScript.</li>
+</ul>
+
+<footer>Chemical feature proposal 0007 · Approved · <a href="review.html">back to review index</a></footer>
+</div>
+</body>
+</html>

@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proposal 0005 — No-panic effect system</title>
+<link rel="stylesheet" href="assets/proposal.css">
+</head>
+<body>
+<div class="wrap">
+<header class="masthead">
+  <div class="kicker">Chemical · Proposal 0005</div>
+  <h1>Effect system &amp; no-panic enforcement</h1>
+  <p class="sub">A uniform, per-function mechanism to forbid effects — panics, unsafe operations,
+  allocation, blocking — so a module or function can promise exactly what it will not do.</p>
+  <div class="stamp">Status: <span class="badge approved">Approved</span> · Area: Language · effects · <a href="review.html">review index</a></div>
+</header>
+
+<div class="note">
+  <h3>Goal fit</h3>
+  <div class="pillars"><span class="pill"><b>R2</b> enforceable no-panic</span><span class="pill"><b>R1</b> unsafe auditing</span><span class="pill"><b>R0 / TC</b> bitset checks, no compiler slowdown</span></div>
+</div>
+
+<h2 class="section">1. Problem</h2>
+<p>Requirement 2 states that a module can forbid panics and the compiler errors if a function can
+panic. Today nothing enforces this: <code>panic</code>, <code>abort</code> and (heavily used)
+<code>unreachable</code> are unchecked. The same need keeps recurring for other capabilities — a
+function that must not allocate, must not block, or must not use <code>unsafe</code>. We want
+<b>one</b> mechanism that covers all of these, not a one-off no-panic pass.</p>
+
+<h2 class="section">2. Decisions (from review)</h2>
+<ol>
+  <li><b>Syntax:</b> square brackets.</li>
+  <li><b>v1 effects:</b> <code>panic</code>, <code>pure</code>, <code>blocking</code>,
+  <code>unsafe</code>, <code>alloc</code>, <code>noreturn</code>.</li>
+  <li><b>Per-function restrictions</b> are the core mechanism (a module default is allowed too) —
+  any function may opt into forbidding any effect.</li>
+  <li><b>No inference:</b> effects are declared, never inferred across current-module forward calls
+  — emit an error instead of running a fixpoint pass.</li>
+  <li><b>Traps are unsafe, not panic:</b> only explicit panics count as <code>panic</code>;
+  <code>unreachable</code> and similar traps are <code>unsafe</code> (so <code>[no_panic, no_unsafe]</code>
+  is what truly prevents an abort).</li>
+</ol>
+
+<h2 class="section">3. Concepts</h2>
+<ul>
+  <li>An <b>effect</b> is something an operation <em>does</em>: <code>panic</code>,
+  <code>alloc</code>, <code>unsafe</code>, <code>blocking</code>, <code>noreturn</code>.</li>
+  <li>A <b>restriction</b> is a function forbidding an effect in itself and everything it calls
+  (transitively). <code>[pure]</code> forbids all effects.</li>
+  <li>Every effect name has a positive form (this function <em>has</em> it — used for declarations
+  of foreign/forward functions) and a negative form <code>no_</code> (this function <em>forbids</em>
+  it). One uniform spelling for every case.</li>
+</ul>
+
+<h2 class="section">4. Syntax</h2>
+<pre><code>// Forbid panics and allocation: this function and everything it calls stay panic-free &amp; alloc-free.
+func parse(data : []u8) : Result&lt;Ast, Error&gt; [no_panic, no_alloc] { … }
+
+// Forbid unsafe only.
+func safe_only() [no_unsafe] { … }
+
+// Shortest form: forbid all effects (a pure function — usable at comptime, optimizable).
+[pure] func add(x : int, y : int) : int { return x + y }
+
+// Declared effects (for a body not available locally, or an extern/forward function).
+[panic, alloc] extern func libc_parse(x : *u8) : *Ast
+
+// A property an operation/function has.
+[noreturn] func fail(msg : string) { panic(msg) }</code></pre>
+
+<h3>Module policy</h3>
+<pre><code># in chemical.mod — a default applied to every function in the module
+no_panic = true
+# per-function brackets override or extend the module default</code></pre>
+
+<h2 class="section">5. Checking model (explicit-first, no fixpoint)</h2>
+<ol>
+  <li>Each operation has a fixed effect (extending MIR's existing per-op <code>OF_Pure</code>).</li>
+  <li>A function's <b>actual effect set</b> = its body's operation effects ∪ the actual sets of the
+  functions it calls.</li>
+  <li><b>Dependencies</b> are already processed → their sets are read directly. A call to a function
+  <b>earlier in the current module</b> is likewise known.</li>
+  <li>A call to a function <b>later in the current module</b> (or a cycle) is <b>not</b> resolved by
+  analysis; the callee must carry an explicit declaration, otherwise the compiler <b>errors</b>.
+  No fixpoint pass, no inference — the compile-time cost stays a bitset AND.</li>
+  <li>A function violates its restrictions if <code>actual_bits &amp; forbidden_bits != 0</code>;
+  a caller forbidding effect <code>e</code> cannot call a callee whose set has <code>e</code>.</li>
+  <li><b>Cost:</b> one small bitset per function, one AND per call site, parallel per function,
+  zero runtime cost.</li>
+</ol>
+
+<h2 class="section">6. Effects in v1</h2>
+<table class="index">
+  <thead><tr><th>Effect</th><th>Restriction</th><th>Use case</th></tr></thead>
+  <tbody>
+    <tr><td><code>panic</code></td><td><code>[no_panic]</code></td><td>Explicit <code>panic()</code>, failing <code>unwrap</code>/checked operations that abort. Prevents aborting (R2).</td></tr>
+    <tr><td><code>alloc</code></td><td><code>[no_alloc]</code></td><td>No heap allocation — audio callbacks, hot paths, embedded/real-time.</td></tr>
+    <tr><td><code>unsafe</code></td><td><code>[no_unsafe]</code></td><td>No <code>unsafe</code> blocks or raw trap operations (<code>unreachable</code>, raw OOB).</td></tr>
+    <tr><td><code>blocking</code></td><td><code>[no_blocking]</code></td><td>No blocking calls — enforce non-blocking async coroutines.</td></tr>
+    <tr><td><code>noreturn</code></td><td>—</td><td>Declares a function never returns (property, useful for divergence).</td></tr>
+    <tr><td><code>pure</code></td><td><code>[pure]</code></td><td>Forbids all effects; required for <code>comptime</code>, enables CSE/parallelization.</td></tr>
+  </tbody>
+</table>
+
+<h2 class="section">7. Phased milestones</h2>
+<ol>
+  <li>Effect bits + per-op effect table; storage on the function.</li>
+  <li>Parser: square-bracket specifiers (positive, <code>no_</code>, combined, <code>pure</code>).</li>
+  <li>Local effect computation from the body; diagnostics.</li>
+  <li>Call-site checking against declarations/known sets; the forward-reference error.</li>
+  <li>Module default policy from <code>chemical.mod</code>.</li>
+  <li>Map <code>unreachable</code>/raw traps to <code>unsafe</code>; map explicit panics to
+  <code>panic</code>.</li>
+  <li>Tests: negative tests per effect + <b>common core-language tests</b> on interpreter, TCC and
+  LLVM; performance validation (no regression).</li>
+</ol>
+
+<h2 class="section">8. Acceptance criteria</h2>
+<ul>
+  <li>A <code>[no_panic]</code> function that calls a panicking function fails to compile with an
+  actionable diagnostic; likewise for <code>no_alloc</code>/<code>no_unsafe</code>/<code>no_blocking</code>.</li>
+  <li>A current-module forward call without a declaration errors (no fixpoint inference happens).</li>
+  <li><code>unreachable</code> is reported as <code>unsafe</code>, not <code>panic</code>; thus
+  <code>[no_panic, no_unsafe]</code> rejects <code>else unreachable</code>.</li>
+  <li>No measurable compile-time or memory regression (bitset checks).</li>
+  <li>Tests run on interpreter, TCC and LLVM.</li>
+</ul>
+
+<h2 class="section">9. Risks &amp; open questions</h2>
+<ul>
+  <li>Mapping every existing operation to an effect (esp. containers' hidden allocations) is the
+  bulk of the work and must be precise for <code>no_alloc</code> to mean anything.</li>
+  <li>Effect polymorphism in generics: how a generic propagates its arguments' effects.</li>
+  <li>How strictly <code>pure</code> interacts with the C ABI / <code>extern</code>.</li>
+</ul>
+
+<h2 class="section">10. Dependencies</h2>
+<p>Depends on: 04 (shares enforcement machinery; <code>unsafe</code> is the bridge) · Unblocks: a real
+no-panic guarantee (R2), non-blocking async enforcement.</p>
+
+<h2 class="section">11. Evidence &amp; references</h2>
+<ul>
+  <li>Use-case catalog: <a href="0005-effect-system-analysis.html">0005-effect-system-analysis.html</a>.</li>
+  <li><code>lang/docs/effect-system-proposal.md</code> (older syntax/scoring — reference only).</li>
+  <li>Data: <code>unreachable</code> used 332× in <code>lang/libs</code>; <code>ThrowStatement</code> exists; MIR tags opcodes with <code>OF_Pure</code>.</li>
+  <li><code>lang/docs/proposals/DECISIONS.md</code> (decisions).</li>
+</ul>
+
+<footer>Chemical feature proposal 0005 · Approved · <a href="review.html">back to review index</a></footer>
+</div>
+</body>
+</html>

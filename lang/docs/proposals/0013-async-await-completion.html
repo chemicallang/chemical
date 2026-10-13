@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proposal 0013 — Async/await completion</title>
+<link rel="stylesheet" href="assets/proposal.css">
+</head>
+<body>
+<div class="wrap">
+<header class="masthead">
+  <div class="kicker">Chemical · Proposal 0013</div>
+  <h1>Async/await completion</h1>
+  <p class="sub">Close the last async gap (async closures), settle the LLVM lowering path, and
+  retire the library workarounds.</p>
+  <div class="stamp">Status: <span class="badge approved">Approved</span> · Area: Language · runtime · <a href="review.html">review index</a></div>
+</header>
+
+<div class="note">
+  <h3>Goal fit</h3>
+  <div class="pillars"><span class="pill"><b>R3</b> async on every target</span><span class="pill"><b>R0</b> remove workaround tax</span></div>
+</div>
+
+<h2 class="section">1. Problem</h2>
+<p>Async ships but with workarounds. The remaining worked-around item is <b>AC</b> — async closures
+are parsed but not lowered. Platform items B15-W, B20, B23&ndash;B26, POSIX-EPOLL, TLS-VT and
+WIN-IOCP are fixed. On top of that, the docs <b>disagree</b> about the LLVM path:
+<code>compiler/mir/README.md</code>'s top note and <code>mir-llvm-migration.md</code> mark MIR→LLVM
+as <em>PLANNED</em>, while <code>compiler/CodegenMir.cpp</code> (a MIR→LLVM emitter with no AST
+dispatch) exists and is compiled into <code>Compiler</code>. The active path must be established
+before relying on either claim.</p>
+
+<h2 class="section">2. Goals &amp; non-goals</h2>
+<ul>
+  <li><b>In scope:</b> lower async closures; establish/complete the LLVM async path; remove library
+  workarounds once the compiler fixes are green across the verification matrix.</li>
+  <li><b>Out of scope:</b> new async APIs; runtime redesign.</li>
+</ul>
+
+<h2 class="section">3. Proposed approach</h2>
+<ol>
+  <li><b>Async closures.</b> Extend the async lowering (<code>lower_async_function</code>) to
+  closures: represent the closure environment as part of the frame, lower captures as frame fields,
+  and emit the same <code>__poll</code>/<code>__drop</code>/ramp/vtable shape used for functions.</li>
+  <li><b>LLVM path.</b> Determine which path is authoritative today; then either finish wiring the
+  MIR→LLVM emitter (delete the AST-based lowering) or remove the dead emitter. This is shared with
+  proposal 01's &ldquo;one core, thin backends&rdquo; goal.</li>
+  <li><b>Workaround removal.</b> Once fixes are green on the full matrix, remove the library
+  workarounds documented in <code>async-remaining-work.md</code> (they are the compatibility
+  contract until then).</li>
+  <li><b>Cross-backend.</b> Ensure the async common tests run on interpreter, TCC and LLVM (and the
+  future JS/JVM backends).</li>
+</ol>
+
+<h2 class="section">4. Alternatives considered</h2>
+<ul>
+  <li><b>Leave closures unsupported</b>: rejected — an inconsistent language surface.</li>
+  <li><b>Keep both LLVM paths</b>: rejected — duplicated backends contradict 01.</li>
+</ul>
+
+<h2 class="section">5. Phased milestones</h2>
+<ol>
+  <li>Verify current LLVM async path; record the truth in <code>compiler/mir/README.md</code>.</li>
+  <li>Lower async closures (frame + captures + poll/drop/vtable).</li>
+  <li>Converge on one LLVM path via 01.</li>
+  <li>Remove library workarounds; run the verification matrix.</li>
+  <li>Common async tests on all execution paths.</li>
+</ol>
+
+<h2 class="section">6. Acceptance criteria</h2>
+<ul>
+  <li>Async closures compile and run correctly on TCC and LLVM.</li>
+  <li>Exactly one LLVM lowering path exists, documented and tested.</li>
+  <li>The async suite (<code>--async</code>) stays green on TCC and LLVM with full debug info.</li>
+  <li>Library workarounds for fixed items are removed without regressions.</li>
+</ul>
+
+<h2 class="section">7. Risks &amp; open questions</h2>
+<ul>
+  <li>Async on the native GC model (06) and on JS/JVM backends (07/10) — lowering may differ per
+  host.</li>
+  <li>Debug-info stability through the coroutine split (previously fragile).</li>
+</ul>
+
+<h2 class="section">8. Dependencies</h2>
+<p>Depends on: 01 (backend consolidation) · Unblocks: clean async across future backends.</p>
+
+<h2 class="section">9. Evidence &amp; references</h2>
+<ul>
+  <li><code>lang/docs/async-remaining-work.md</code> (item AC; fixed-item list).</li>
+  <li><code>compiler/mir/README.md</code> (&ldquo;next phase&rdquo; note) vs. <code>lang/docs/mir-llvm-migration.md</code> (&ldquo;PLANNED&rdquo;).</li>
+  <li><code>compiler/CodegenMir.cpp</code> (exists; compiled into <code>Compiler</code> via <code>CMakeLists.txt</code>).</li>
+</ul>
+
+<footer>Chemical feature proposal 0013 · Approved · <a href="review.html">back to review index</a></footer>
+</div>
+</body>
+</html>

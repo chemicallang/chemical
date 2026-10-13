@@ -13,6 +13,14 @@ description: Comprehensive guide to the Chemical compiler test infrastructure �
 > change (e.g. `./scripts/test.sh --tcc`, `--libs`, `--async`, `--webview`),
 > then stop. Never invoke `--all` as a "just to be safe" check.
 
+> 📌 **Common core-language tests run on every execution path.** Core-language behaviour
+> must be tested in the shared **`common/`** (and `native_common/`) suites so the same
+> tests run on the **interpreter, TCC and LLVM** — and on future backends (JS, JVM, …).
+> When implementing an approved language feature (e.g. generic impls, borrow checking),
+> put its tests in the common suite unless the behaviour is genuinely backend-specific.
+> This is a standing requirement from the proposal review (see
+> `lang/docs/proposals/DECISIONS.md`).
+
 The Chemical compiler has a multi-layered test infrastructure. Tests can be inline (called manually), annotation-based (auto-dispatched via `@test`), or library-level (for compiler plugins). Understanding these layers is essential for writing effective tests.
 
 ## Test Architecture Overview

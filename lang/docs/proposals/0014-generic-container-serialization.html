@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proposal 0014 — Generic std-container JSON serialization</title>
+<link rel="stylesheet" href="assets/proposal.css">
+</head>
+<body>
+<div class="wrap">
+<header class="masthead">
+  <div class="kicker">Chemical · Proposal 0014</div>
+  <h1>Generic std-container JSON serialization</h1>
+  <p class="sub">Give the generic standard containers serializer/deserializer impls so
+  <code>#json</code> works for <code>vector&lt;T&gt;</code>, <code>unordered_map&lt;K,V&gt;</code>
+  and <code>ordered_map&lt;K,V&gt;</code>.</p>
+  <div class="stamp">Status: <span class="badge approved">Approved</span> · Area: Libraries · JSON · <a href="review.html">review index</a></div>
+</header>
+
+<div class="note">
+  <h3>Goal fit</h3>
+  <div class="pillars"><span class="pill"><b>R3</b> ecosystem (JSON works with std types)</span><span class="pill"><b>R0</b> recursive, zero-overhead dispatch</span></div>
+</div>
+
+<h2 class="section">1. Problem</h2>
+<p>The <code>#json(Struct)</code> macro auto-generates <code>std::Serializer</code>/<code>std::Deserializer</code>
+impls and the runtime decodes through <code>TypeDecoder&lt;T&gt;</code> dispatch. But
+<code>std::vector&lt;T&gt;</code>, <code>std::unordered_map&lt;K,V&gt;</code> and
+<code>std::ordered_map&lt;K,V&gt;</code> are <b>generic declarations with no such impls</b>, so a
+struct containing them cannot be serialized — the plugin has nothing to dispatch to. Writing a
+separate impl per element type is the only current workaround, which does not scale.</p>
+
+<h2 class="section">2. Goals &amp; non-goals</h2>
+<ul>
+  <li><b>In scope:</b> generic impls of the serializer/deserializer traits for vectors and the two
+  maps (and the corresponding <code>TypeDecoder</code> dispatch), recursing into element/key/value
+  types; arrays; <code>Option</code>/<code>Result</code> as a follow-on if cheap.</li>
+  <li><b>Out of scope:</b> new JSON features; a redesign of the <code>#json</code> macro; binary
+  formats.</li>
+</ul>
+
+<h2 class="section">3. Proposed approach</h2>
+<ol>
+  <li><b>Prerequisite.</b> Depends entirely on proposal 0003 (generic impls). Until then this is not
+  expressible.</li>
+  <li><b>Vector → JSON array.</b> <code>impl&lt;T&gt; Serializer for vector&lt;T&gt; where T:
+  Serialize</code> (bound spelled per the chosen bounds syntax): emit <code>[</code>, serialize each
+  element, <code>]</code>. Decode mirrors it, requiring <code>T: Deserialize</code>.</li>
+  <li><b>Maps → JSON object.</b> <code>impl&lt;K,V&gt; Serializer for unordered_map&lt;K,V&gt;</code>
+  and <code>ordered_map&lt;K,V&gt;</code>: keys must be string-serializable (restrict <code>K</code>
+  to string-like via a bound); values recurse. <code>ordered_map</code> preserves insertion order in
+  the output; <code>unordered_map</code> order is unspecified.</li>
+  <li><b>Recursive dispatch.</b> Element serialization goes through the same trait so nested
+  containers (<code>vector&lt;vector&lt;int&gt;&gt;</code>, maps of vectors) work automatically.</li>
+  <li><b>Strings &amp; keys.</b> Reuse the existing string serializer; ensure JSON escaping is shared,
+  not reimplemented.</li>
+  <li><b>Diagnostics.</b> A container of a non-serializable element type produces a clear
+  &ldquo;<code>T</code> does not implement Serialize&rdquo; error at the use site.</li>
+</ol>
+
+<h2 class="section">4. Alternatives considered</h2>
+<ul>
+  <li><b>Per-element-type impls in user code</b>: rejected — combinatorial and unmaintainable.</li>
+  <li><b>Macro-generate impls</b>: rejected — macros cannot express the open-ended recursion; the
+  language trait system should carry this.</li>
+</ul>
+
+<h2 class="section">5. Phased milestones</h2>
+<ol>
+  <li>Implement <code>vector&lt;T&gt;</code> serializer/deserializer + decoder dispatch.</li>
+  <li>Implement <code>unordered_map&lt;K,V&gt;</code> and <code>ordered_map&lt;K,V&gt;</code>.</li>
+  <li>Recursive/nested containers; arrays; <code>Option</code>/<code>Result</code>.</li>
+  <li>Round-trip tests through <code>#json</code>; negative tests for non-serializable element types.</li>
+  <li>Run the common core-language + libs tests on interpreter, TCC and LLVM.</li>
+</ol>
+
+<h2 class="section">6. Acceptance criteria</h2>
+<ul>
+  <li>A struct with <code>vector&lt;int&gt;</code>, <code>unordered_map&lt;string,int&gt;</code> and
+  nested containers round-trips through <code>#json</code> on TCC and LLVM.</li>
+  <li>Non-serializable element types fail with an actionable diagnostic.</li>
+  <li>No meaningful serialization overhead vs. hand-written impls.</li>
+  <li>Tests run on interpreter, TCC and LLVM.</li>
+</ul>
+
+<h2 class="section">7. Risks &amp; open questions</h2>
+<ul>
+  <li>How map keys that are not strings are handled (numbers? error?).</li>
+  <li>Trait surface: does the existing <code>std::Serializer</code>/<code>TypeDecoder</code> design
+  accommodate this directly, or does it need a small extension?</li>
+  <li>Interaction with bounds syntax chosen in 0003.</li>
+</ul>
+
+<h2 class="section">8. Dependencies</h2>
+<p>Depends on: 0003 (generic impls) · Unblocks: usable <code>#json</code> for real data models.</p>
+
+<h2 class="section">9. Evidence &amp; references</h2>
+<ul>
+  <li>AGENTS.md: <code>#json(Struct)</code> generates <code>std::Serializer</code>/<code>std::Deserializer</code>; <code>TypeDecoder&lt;T&gt;</code> decode dispatch.</li>
+  <li><code>lang/libs/json/</code>, <code>lang/libs/json_cbi/</code>; <code>.agents/skills/json_serialization/SKILL.md</code>.</li>
+  <li><code>lang/docs/library-ecosystem-analysis.md</code> (JSON&nbsp;↔&nbsp;http wiring etc.).</li>
+  <li><code>lang/docs/proposals/DECISIONS.md</code> (spawned from decision 03).</li>
+</ul>
+
+<footer>Chemical feature proposal 0014 · Approved · <a href="review.html">back to review index</a></footer>
+</div>
+</body>
+</html>

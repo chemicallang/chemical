@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proposal 0003 — Generic impls</title>
+<link rel="stylesheet" href="assets/proposal.css">
+</head>
+<body>
+<div class="wrap">
+<header class="masthead">
+  <div class="kicker">Chemical · Proposal 0003</div>
+  <h1>Generic impls</h1>
+  <p class="sub">Let a generic type satisfy a protocol for <em>every</em> type argument, by
+  monomorphizing parameterized implementations like generic functions.</p>
+  <div class="stamp">Status: <span class="badge approved">Approved</span> · Area: Language · generics · <a href="review.html">review index</a></div>
+</header>
+
+<div class="note">
+  <h3>Goal fit</h3>
+  <div class="pillars"><span class="pill"><b>R3</b> portable library ecosystem</span><span class="pill"><b>R0 / TC</b> no compile or size regression</span><span class="pill"><b>R1/R2</b> bounds feed safety</span></div>
+</div>
+
+<h2 class="section">1. Problem</h2>
+<p>A parameterized implementation cannot be declared at top level. <code>impl &lt;T&gt; I for
+S&lt;T&gt;</code> is rejected (&ldquo;don't declare generic parameters&rdquo;), and
+<code>impl Future&lt;T&gt; for FutureHandle&lt;T&gt;</code> does not resolve its methods
+(<code>unresolved child 'poll'</code>; the async code recognises <code>FutureHandle&lt;U&gt;</code>
+structurally instead). Only a <b>nested</b> impl inside the generic type works. Consequently
+generic types cannot participate uniformly in protocols — iterators, conversions, operators,
+serialization — and code is duplicated per instantiation.</p>
+<p><b>Concrete, load-bearing consequence:</b> <code>std::vector&lt;T&gt;</code>,
+<code>std::unordered_map&lt;K,V&gt;</code> and <code>std::ordered_map&lt;K,V&gt;</code> are generic
+declarations with no <code>std::Serializer</code>/<code>std::Deserializer</code> impls, so the
+<code>#json</code> plugin cannot serialize them. That is proposal 14, and it is blocked on this.</p>
+
+<h2 class="section">2. Goals &amp; non-goals</h2>
+<ul>
+  <li><b>In scope:</b> top-level <code>impl&lt;T…&gt; Trait for Type&lt;T…&gt;</code>; multiple
+  parameters; bounds/where-clauses; interface method resolution and vtable generation on the
+  concrete instantiation; diagnostics and tests; <b>no compile-time or peak-memory regression</b>.</li>
+  <li><b>Out of scope:</b> full typeclass/dictionary (runtime) dispatch; higher-kinded types;
+  negative/coherence reasoning beyond basic overlap detection; specialization.</li>
+</ul>
+
+<h2 class="section">3. Proposed approach</h2>
+<ol>
+  <li><b>Parse &amp; validate.</b> <code>GenericImplDecl</code> already exists. Accept
+  <code>impl&lt;T,…&gt; Trait for Target</code>; require every declared parameter to occur in the
+  target type (else a clear diagnostic). The declared parameters bind the target's own parameters
+  (this is what the current rejection is standing in for).</li>
+  <li><b>Index.</b> Register the generic impl under its target's generic declaration in
+  <code>ImplementationsIndex</code>, keyed by (interface, generic type) with a hash lookup — not a
+  linear scan.</li>
+  <li><b>Instantiate.</b> Hook <code>GenericInstantiationPass</code>: when <code>Type&lt;Args…&gt;</code>
+  is instantiated, find matching generic impls and clone each into a concrete
+  <code>ImplDefinition</code> (substitute the arguments), then finalise its methods. Instantiate
+  once per (impl, argument list) and cache; instantiation is already parallel-safe.</li>
+  <li><b>Resolve.</b> Interface method lookup and interface-satisfaction/vtable computation run on
+  the concrete impl, so generic types satisfy interfaces normally.</li>
+  <li><b>Bounds.</b> <code>impl&lt;T: Bound&gt;</code> is checked at instantiation; unsatisfied
+  bounds produce a diagnostic pointing at the instantiation site.</li>
+  <li><b>Performance.</b> Reuse the existing instantiation machinery; hashed indices; no whole-program
+  rescans. Add compiler-throughput benchmarks in CI and treat a regression as a failure.</li>
+</ol>
+
+<h2 class="section">4. Alternatives considered</h2>
+<ul>
+  <li><b>Dictionary/typeclass dispatch</b> (evidence passed at runtime): rejected — runtime
+  overhead and complexity, contrary to R0.</li>
+  <li><b>Keep nested-impl-only</b>: rejected — cannot express cross-module generic protocols;
+  blocks the ecosystem.</li>
+  <li><b>Macro-driven duplication</b>: rejected — no static checking, poor diagnostics.</li>
+</ul>
+
+<h2 class="section">5. Phased milestones</h2>
+<ol>
+  <li>Parser/AST accept the generic-impl header + validation diagnostics.</li>
+  <li>Implementations index keyed by generic target (hashed).</li>
+  <li>Impl instantiation inside the generic instantiation pass (+ cache).</li>
+  <li>Interface method/vtable resolution on concrete impls.</li>
+  <li>Bounds / where-clauses.</li>
+  <li>Tests: positive + negative + <b>common core-language tests on interpreter, TCC and LLVM</b>.</li>
+  <li>Performance validation (compile time, peak RSS) with a no-regression gate.</li>
+</ol>
+
+<h2 class="section">6. Acceptance criteria</h2>
+<ul>
+  <li>A top-level <code>impl&lt;T&gt; SomeTrait for MyType&lt;T&gt;</code> compiles, resolves its
+  methods, and behaves identically on interpreter, TCC and LLVM.</li>
+  <li>A generic container can implement a serializer/deserializer (unblocks 14).</li>
+  <li>Negative tests: parameter not used by the target; unsatisfied bound; overlapping impls.</li>
+  <li>No compile-time or peak-memory regression beyond a small documented budget.</li>
+  <li>Common core-language test suite green on all three execution paths.</li>
+  <li>The async <code>FutureHandle&lt;T&gt;</code> structural workaround can be retired.</li>
+</ul>
+
+<h2 class="section">7. Risks &amp; open questions</h2>
+<ul>
+  <li><b>Monomorphization blow-up:</b> many instantiations inflate generated code and binary size
+  (R0/TC). Need a policy (deduplicate identical instantiations; watch size).</li>
+  <li>Overlap/coherence rules: how strict, and where reported.</li>
+  <li>Interaction with the no-panic effect system (05) and native GC (06).</li>
+  <li>Method ambiguity when several generic impls apply.</li>
+</ul>
+
+<h2 class="section">8. Dependencies</h2>
+<p>Depends on: — · Unblocks: 14 (JSON for generic containers), 12 (ecosystem).</p>
+
+<h2 class="section">9. Evidence &amp; references</h2>
+<ul>
+  <li>Negative tests <code>neg_impl_declares_generic_params</code>, <code>neg_impl_generic_params_nested</code>; positive <code>impl_inside_generic_struct_allowed</code> (<code>lang/tests/negative/src/inheritance.ch</code>).</li>
+  <li>Verified <code>FutureHandle&lt;T&gt;</code> limitation in <code>lang/docs/async-await-design.md</code>.</li>
+  <li><code>lang/docs/language-goals.md</code> §6.8; <code>lang/docs/proposals/DECISIONS.md</code> (decision + constraints).</li>
+</ul>
+
+<footer>Chemical feature proposal 0003 · Approved · <a href="review.html">back to review index</a></footer>
+</div>
+</body>
+</html>

@@ -172,6 +172,10 @@ must be fast (Requirement 0). Binary size, throughput, and memory efficiency are
   instead.
 - Moving machinery out of the core must not change observable language semantics or
   correctness.
+- **No regression from new features.** Every approved feature — generic impls, the borrow
+  checker, a new backend — must be implemented for speed and must **not** regress compile
+  time, peak memory, or generated-code quality. Shared machinery belongs in **MIR**, and
+  adding a backend must stay **thin** (no duplicated front-end/dispatch logic).
 - "Small" is measured on the **release** artifact (not a debug build), and size, compile
   time, peak memory, and generated-code quality are measured together — see
   [`mir-migration-evaluation.md`](mir-migration-evaluation.md) and the MIR baseline
@@ -313,6 +317,15 @@ We need a mode where the user/agent can **stop caring about allocation and free*
 the code still produces a **native executable**. Not a hosted runtime: the collector is
 part of the produced binary (Go-style), not a JVM/browser/WASM/interpreter. This is a
 first-class goal of Requirement 3, not a workaround.
+
+> **Status (2026-10-13): approved** — see
+> [`proposals/0006-native-gc-mode.html`](proposals/0006-native-gc-mode.html). The model:
+> **explicit per-module opt-in** (`gc = true`); a GC module may depend only on GC modules,
+> and a GC module in a non-GC build errors (*module requires gc, no gc on the
+> job/executable/program*), so GC cannot silently enter GC-free code. **Collector:**
+> conservative (Boehm-style) first. **Borrow checking is kept** for aliasing/races
+> (lifetimes relaxed); **`@delete` becomes an optional finalizer**. It gates the JVM and
+> Android targets.
 
 **Intent**
 
@@ -474,6 +487,41 @@ instantiation, so generic types cannot participate uniformly in protocols.
 **Direction:** make generic impls monomorphize like generic functions, so the same
 syntax covers concrete and parameterized targets. Until then, the only supported form is
 a nested `impl` inside the generic type, and library authors must instantiate per type.
+
+> **Status (2026-10-13):** the direction is **approved** — proposal
+> [`0003-generic-impls`](proposals/0003-generic-impls.html). It is a prerequisite for
+> proposal [`0014-generic-container-serialization`](proposals/0014-generic-container-serialization.html)
+> (JSON for `vector`/`unordered_map`/`ordered_map`). When implemented, the async
+> `FutureHandle<T>` structural workaround can be retired.
+
+### 6.9 Roadmap status (2026-10-13)
+
+Decisions from the proposal reviews (full log in
+[`proposals/DECISIONS.md`](proposals/DECISIONS.md)):
+
+- **Approved, to implement after the MIR consolidation work:** generic impls (`0003`),
+  borrow checker / memory-safety closure (`0004`), no-panic effect system (`0005`), native GC
+  mode (`0006`), JavaScript backend (`0007`), web/DOM type declarations (`0008`), async
+  completion (`0013`), generic container JSON serialization (`0014`).
+- **In progress, no proposal:** MIR core consolidation (`0001`) — see
+  [`mir-migration-evaluation.md`](mir-migration-evaluation.md).
+- **Effect system (decided):** square-bracket specifiers; v1 effects are `panic`, `pure`,
+  `blocking`, `unsafe`, `alloc`, `noreturn`; restrictions are **per-function**
+  (`[no_panic]`, `[no_alloc]`, …, `[pure]` = forbid all) with an optional module default;
+  effects are **declared, never inferred** across current-module forward calls (error
+  instead); and `unreachable`/traps are **`unsafe`**, not `panic` — so
+  `[no_panic, no_unsafe]` is what truly prevents an abort. See
+  [`proposals/0005-effect-system.html`](proposals/0005-effect-system.html).
+- **Native GC gates the managed targets:** JVM (`0010`) is reconsidered now that GC is
+  approved; Android/cross-compilation (`0011`) stays deferred until the GC model works.
+- **WASM (`0009`) is deferred** — TinyCC is adding TLS and may add a WASM backend; revisit
+  when a concrete need appears.
+- **No standalone stdlib proposal** for now (`0012`); only a shared IO abstraction
+  (`Reader`/`Stream`, `0015`) is a candidate.
+- **Standing constraints:** every approved feature must be implemented **without regressing
+  compile time, peak memory, or generated-code quality** (shared machinery in MIR, thin
+  backends); and a large body of **common core-language tests** must run on every execution
+  path — interpreter, TCC, LLVM (and future backends) — after each feature.
 
 ---
 

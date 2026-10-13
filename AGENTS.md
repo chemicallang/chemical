@@ -43,6 +43,16 @@ is rejected and parameterized impls do not resolve methods, so generic types can
 participate uniformly in protocols (§6.8); and the open problem of one syntax across
 divergent platform memory models.
 
+**Proposal roadmap (2026-10):** the large-feature proposals live in `lang/docs/proposals/`
+(open `review.html`). Approved: generic impls (`0003`), borrow checker (`0004`), no-panic
+effects (`0005`), native GC (`0006`), JavaScript backend (`0007`), web/DOM types (`0008`),
+async completion (`0013`), generic-container JSON serialization (`0014`) — implemented after
+the MIR consolidation work. WASM (`0009`) is deferred to TinyCC's direction; JVM (`0010`) is
+reconsidered now that GC is approved, and Android/cross-compilation (`0011`) waits on a
+working GC model. **No approved feature may
+regress compiler compile time, peak memory, or generated-code quality**; shared machinery
+goes in MIR and backends stay thin.
+
 Full detail: [`lang/docs/language-goals.md`](lang/docs/language-goals.md). Load the
 [`language_goals`](.agents/skills/language_goals/SKILL.md) skill before making
 language-design or roadmap decisions.

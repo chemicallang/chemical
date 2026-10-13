@@ -49,6 +49,10 @@ optional libs, analyzers, heavyweight backends); keep everything *essential* in 
 **shrink shared library/runtime code over time**. The **first** release may be much larger
 (7–15 MB) to ship fast; **after that**, size + compile time + memory are reduced together
 until the ceiling is met. Never drop a capability to hit the number — move it out.
+**No regression from new features:** every approved feature (generic impls, borrow checker,
+a new backend) must be implemented for speed and must **not** regress compile time, peak
+memory, or generated-code quality. Shared machinery belongs in **MIR**; a new backend must
+stay **thin**.
 
 ## Relationship to Rust (important for correctness)
 
@@ -91,14 +95,15 @@ These are the known gaps toward Requirement 3 — mostly **unsolved** today:
    harder, since the browser is reference-heavy and GC-managed.
 5. **GC platforms vs. native semantics** — on the JVM, native-oriented ownership and
    deterministic destruction do not map cleanly.
-6. **Native GC mode (new, §6.7 of the doc)** — a mode where the user ignores
-   allocation/free and the collector is linked **into a native C/LLVM executable** (Go's
-   value proposition), not a hosted VM. Genuinely unsolved: does semantics change, is
-   the choice whole-program/per-module/per-type, is the borrow checker relaxed for GC
-   values (and what replaces the data-race guarantee), how do GC and owned values cross
-   (containment/rooting/pinning), and is there one managed-reference concept shared with
-   the JVM/JS targets? Constraints: opt-in only, zero tax on owned code, still a native
-   binary, deterministic cleanup for OS resources, memory safety preserved.
+6. **Native GC mode (§6.7 of the doc, proposal `0006` — approved)** — a mode where the user
+   ignores allocation/free and the collector is linked **into a native C/LLVM executable**
+   (Go's value proposition), not a hosted VM. **Decided:** explicit per-module opt-in
+   (`gc = true`); a GC module may depend only on GC modules, and a GC module in a non-GC
+   build errors (*module requires gc, no gc on the job/executable/program*); conservative
+   (Boehm-style) collector first; borrow checking kept (aliasing/races) with lifetimes
+   relaxed; `@delete` becomes an optional finalizer. Constraints: opt-in only, zero tax on
+   owned code, still a native binary, deterministic cleanup for OS resources, memory safety
+   preserved. Gates the JVM/Android targets.
 7. **One syntax across divergent platform semantics** — the Kotlin-Multiplatform-like
    problem, harder because Chemical is a systems language. This is the central open
    design question. Target matrix: **native-owned (C + LLVM), native-GC (C + LLVM),
@@ -112,6 +117,8 @@ These are the known gaps toward Requirement 3 — mostly **unsolved** today:
    Consequence: generic types cannot participate uniformly in protocols, so generic
    abstractions (iterators, conversions, operators, serialization) must be duplicated
    per instantiation. Direction: monomorphize the impl like generic functions.
+   **Status (2026-10): approved** — proposal `0003-generic-impls`; blocks
+   `0014-generic-container-serialization` (JSON for generic std containers).
 
 ## Design tensions to hold explicitly
 

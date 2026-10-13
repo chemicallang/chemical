@@ -127,11 +127,39 @@ Probe (identical source and output):
 > | Full-suite spill statements | — | 3,364 | **143** (−96%) |
 > | Main-suite executable (text) | — | 4,165,453 | **3,985,243** (−4.3%) |
 >
-> The probe is still well above the legacy targets (12,393 vs 8,285 C lines;
-> 409 KB vs 285 KB text), so action C is not done: C2 (aggregate double copies —
-> 47 sites in the probe, 23 of them a straight `temp = *src; dest = temp`) and C4
-> (labels for straight-line blocks) remain, and the aggregate half of C3 is
-> deliberately *not* aliased (a by-value aggregate parameter is a real copy).
+> **Status update (2026-10-13, session 8, continued) — actions C2 and C4 landed
+> too.** C4 emits a block label only for a block a terminator can jump to (every
+> emitted `goto` comes from a `Block` operand, so that set is exact — the entry
+> block's `__chx_bb0:;` was pure noise). C2 collapses `T v = *src; dest = v;`
+> into `dest = *src;` when the load's single use is the immediately following
+> store and the destination is one of the frame's own slots (a `Parameter` copy
+> or a `Temporary`), so the read cannot move past anything and the source cannot
+> overlap the destination.
+>
+> | Metric | Legacy | post-C1 | after C3 | after C2+C4 |
+> |---|---:|---:|---:|---:|
+> | Probe generated C lines | 8,285 | 13,713 | 12,393 | **11,868** |
+> | Probe generated C bytes | 310,696 | 565,650 | 523,052 | **515,872** |
+> | Probe block labels | — | 1,833 | 1,833 | **1,331** (−27%) |
+> | Probe deref double hops (`v = *src; dest = v`) | 0 | 23 | 23 | **0** |
+> | Probe executable text | 285,299 | — | 409,048 | **407,577** |
+> | Suite generated C lines | — | 120,782 | 114,280 | **108,475** |
+> | Suite block labels / `goto`s | — | — | 17,216 / 10,334 | **11,660** / 10,334 |
+> | Main-suite executable text | — | 4,165,453 | 3,985,124 | **3,971,116** |
+>
+> (Line/label/`goto`/spill counts are deterministic; C bytes and executable size
+> vary by a few bytes run to run because the emitted opaque forward declarations
+> are ordered non-deterministically — a budget gate (M2) must compare counts.)
+>
+> Cumulatively C1+C3+C2+C4: suite C **−10.2% lines**, main-suite text **−4.7%**,
+> probe C **−13.4% lines**. The probe is still well above the legacy targets
+> (11,868 vs 8,285 C lines; 407 KB vs 285 KB text), so action C's acceptance is
+> still not met: what is left is largely the aggregate-zeroing class and
+> field-wise initialization. The aggregate half of C3 stays deliberately
+> un-aliased (a by-value aggregate parameter is a real copy). `MIRTests`'
+> `test_control_flow_emitter` had asserted the entry label was emitted; that
+> expectation was *updated* (not dropped) to require the referenced labels and
+> the absence of the dead one — 1049 → 1052 checks.
 
 The main test executable corroborates it: `tests-tcc.exe` is **3.24 MB (legacy)
 vs 5.32 MB (MIR)** (+64%). The plan's explicit intent — *"we will deliberately
@@ -332,8 +360,11 @@ logic; measured by (backend emitter LOC / total MIR LOC) trend.
 1. Zero an aggregate only when a partial initializer needs it; never both the
    destination and its temp. Prefer field-wise init. (Respect the `memset`/cstd
    conflict: inline loop only where required.)
-2. Collapse `temp = *src; dest = temp` into one copy/`memcpy`; extend the
-   single-use collapse to aggregate places and loaded values.
+2. ~~Collapse `temp = *src; dest = temp` into one copy/`memcpy`; extend the
+   single-use collapse to aggregate places and loaded values~~ **DONE
+   (session 8)**: a deref load whose only use is the immediately following store
+   collapses into it when the destination is a frame-local slot. Probe double
+   hops 23 → **0**, probe C 12,393 → **11,868** lines.
 3. ~~Do not spill single-use scalar parameters (`__chx_pN = __chx_aN`)~~ **DONE
    (session 8)**: `emit_function_c` aliases a `Parameter` place to its C argument
    when it is non-aggregate, written once by the `Param` store, and never
@@ -343,11 +374,17 @@ logic; measured by (backend emitter LOC / total MIR LOC) trend.
    unchanged/slightly better (5 interleaved A/B pairs, median 3.85 s → 3.81 s).
    The `Param` inliner covers the `Place`-typed spill as the item asked; the
    aggregate case is intentionally left alone (see §1.2 status update).
-4. Emit no `goto`/block label for straight-line statements; drop dead epilogue
-   blocks.
+4. ~~Emit no `goto`/block label for straight-line statements~~ **DONE (session
+   8, the label half)**: a label is emitted only for a block some `Block`
+   operand jumps to — suite labels 17,216 → **11,660** (−32%), `goto`s unchanged,
+   C lines 114,280 → **108,475**. *Still open:* dropping dead epilogue blocks.
 **Acceptance.** Probe C lines and executable text ≤ legacy on `perfprobe`; no
 zero-loop on an alloca that is fully initialized field-wise; runtime ≥ parity on
 the `benchprobe` loop and the bcrypt cost-12 benchmark.
+**Status (session 8).** Probe C lines 14,115 → **11,868** and text 486,964 →
+**407,577** B since the evaluation, against legacy 8,285 lines / 285,299 B: the
+C1+C3+C2+C4 fixes closed ~40% of the line gap and ~45% of the text gap without
+touching runtime-relevant zeroing; the acceptance is not met yet.
 
 ### D. Fix the lowering hot path (P1)
 
@@ -430,9 +467,10 @@ backend is another 2k-line emitter with its own bugs.
 > | Axis | Legacy ref | Eval snapshot | Now (session 8) |
 > |---|---:|---:|---:|
 > | Main-suite compile+link user CPU (`debug_quick`, incl. TinyCC) | — | — | **3.81 s** |
-> | Probe C lines | 8,285 | 14,115 | **12,393** |
-> | Probe executable (text) | 285,299 B | 486,964 B | **409,048 B** |
-> | Main-suite executable (text) | — | 4,165,453 B | **3,985,243 B** |
+> | Probe C lines | 8,285 | 14,115 | **11,868** |
+> | Probe executable (text) | 285,299 B | 486,964 B | **407,577 B** |
+> | Main-suite C lines / labels | — | — | **108,475 / 11,660** |
+> | Main-suite executable (text) | — | 4,165,453 B | **3,971,116 B** |
 >
 > The compile+link number is this repo's `debug_quick` suite build including the
 >TinyCC step; it is *not* directly comparable to the 6.49 s row (different

@@ -498,13 +498,30 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
     out += " {\n";
 
     // Block labels: blocks are emitted in creation order, so their inst_start
-    // offsets are monotonic. A label is emitted at each block start.
+    // offsets are monotonic. Only a block some terminator can jump to needs a
+    // label: an unreferenced label is dead text and an extra jump target for the
+    // C compiler, which the legacy translator never emitted. Every `goto` the
+    // emitter can print comes from a `Block` operand (`Br`/`CondBr`), so
+    // collecting those operands is exactly the referenced set.
+    std::vector<uint8_t> block_referenced(function.blocks.size(), 0);
+    for (const MIRInstruction& inst : function.instructions) {
+        for (uint32_t i = 0; i < inst.operand_count; ++i) {
+            const MIROperand* op = operand_at(function, inst, i);
+            if (op && op->kind() == MIROperandKind::Block && op->id < block_referenced.size()) {
+                block_referenced[op->id] = 1;
+            }
+        }
+    }
     std::vector<BlockId> label_at(function.instructions.size(), MIR_INVALID_ID);
+    // which instruction indices begin a block (used by the load/store collapse
+    // below to keep a collapsed read inside one basic block)
+    std::vector<uint8_t> block_starts(function.instructions.size(), 0);
     for (uint32_t b = 0; b < function.blocks.size(); ++b) {
         const MIRBlock& blk = function.blocks[b];
-        if (blk.inst_start != MIR_INVALID_ID && blk.inst_start < label_at.size()) {
-            label_at[blk.inst_start] = blk.id;
-        }
+        if (blk.inst_start == MIR_INVALID_ID || blk.inst_start >= label_at.size()) continue;
+        block_starts[blk.inst_start] = 1;
+        if (blk.id >= block_referenced.size() || !block_referenced[blk.id]) continue;
+        label_at[blk.inst_start] = blk.id;
     }
 
     // Build the single-use inlining map: a pure value used exactly once is
@@ -775,7 +792,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
         }
         if (inst.opcode() == MIROpcode::Load) {
             const MIROperand* p = operand_at(function, inst, 0);
-            if (!p || p->kind() != MIROperandKind::Place) continue;
+            if (!p) continue;
             // a plain load's only other operand is the result Type; a field/index
             // load carries a Constant/Value and must not be inlined here.
             const MIROperand* f = operand_at(function, inst, 1);
@@ -783,12 +800,53 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                       f->kind() == MIROperandKind::Constant)) {
                 continue;
             }
-            if (function.places[p->id].storage_class !=
-                static_cast<uint8_t>(MIRStorageClass::Parameter)) {
+            if (p->kind() == MIROperandKind::Place) {
+                if (function.places[p->id].storage_class !=
+                    static_cast<uint8_t>(MIRStorageClass::Parameter)) {
+                    continue;
+                }
+                if (place_writes[p->id] > 1) continue; // reassigned: keep the load
+                inline_expr[v] = place_name(module, function, p->id);
                 continue;
             }
-            if (place_writes[p->id] > 1) continue; // reassigned: keep the load
-            inline_expr[v] = place_name(module, function, p->id);
+            // A dereference used only by the store *immediately* after it
+            // (`T v = *src; dest = v;`) collapses into that store instead of
+            // materializing the temp: the read moves one statement later, so
+            // nothing can happen in between, and the destination is one of this
+            // frame's own slots (a by-value parameter copy or a compiler
+            // temporary), which the source cannot overlap. This removes the
+            // second aggregate copy the legacy translator never emitted
+            // (evaluation §1.2, action C2). The store must also be inside the
+            // same basic block, so the read cannot become unconditional on a path
+            // that never executed the load.
+            if (ii + 1 >= function.instructions.size()) continue;
+            if (block_starts[ii + 1]) continue;
+            const MIRInstruction& nxt = function.instructions[ii + 1];
+            if (nxt.opcode() != MIROpcode::Store || nxt.operand_count != 2) continue;
+            const MIROperand* nd = operand_at(function, nxt, 0);
+            const MIROperand* nv = operand_at(function, nxt, 1);
+            if (!nd || !nv || nd->kind() != MIROperandKind::Place ||
+                nv->kind() != MIROperandKind::Value || nv->id != v) {
+                continue;
+            }
+            if (nd->id >= function.places.size() || v >= function.values.size()) continue;
+            const MIRPlaceDef& npd = function.places[nd->id];
+            if (npd.storage_class != static_cast<uint8_t>(MIRStorageClass::Parameter) &&
+                npd.storage_class != static_cast<uint8_t>(MIRStorageClass::Temporary)) {
+                continue;
+            }
+            const TypeId lt = function.values[v].type;
+            if (lt != npd.type || lt >= module.types.size()) continue;
+            switch (module.types.get(lt).kind) {
+                case MIRTypeKind::Void:
+                case MIRTypeKind::Array:
+                case MIRTypeKind::Function:
+                case MIRTypeKind::Opaque:
+                    continue;
+                default:
+                    break;
+            }
+            inline_expr[v] = "*" + operand_expr(function, module, *p);
             continue;
         }
         if (!inlineable_opcode(inst.opcode())) continue;

@@ -145,21 +145,92 @@ interleaved; same probe source, same `debug_quick` mode):
 | Suite compile+link user CPU (5 interleaved pairs) | 3.85 s [3.80–3.91] | **3.81 s [3.79–3.83]** | ≤ in 5/5 pairs |
 | MIR phase (lower / lower+emit) | 1,318.6 / 1,983.8 ms | 1,315.8 / 1,974.2 ms | −10 ms |
 
+The C-byte and executable figures above (and the C2/C4 ones below) are
+single-run values: they move by a few bytes to ~0.01% between runs of the *same*
+binary because the emitted forward declarations are ordered
+non-deterministically (see the caveat below). The line and statement counts on
+the same rows are exact. Where the C2/C4 table repeats a "before" figure it is
+the same run that produced its "after" figure.
+
 The 25 remaining probe spills are places that legitimately keep storage (an
 aggregate param's copy, a reassigned or addressed parameter) — the guard is
 deliberately conservative, and the executable itself shrank, which is the point:
 TinyCC's output for the aliased form is smaller than for store-then-reload.
 Suites after the change (final binary, fresh build): `--tcc` **2300/2300**,
 `--llvm` **2298/2298**, `--tcc --plugins` **1296/1296**, `--tcc --async` **53/53**,
-`--tcc --libs` **718/719** (the known environment-sensitive
-`test_fs_directory_iteration`), `--tcc --negative` **313/318**,
+`--tcc --libs` **718/719** at that point (`test_fs_directory_iteration`; a second
+pre-existing failure, the bcrypt 10 s budget, is characterised under the C2/C4
+block below), `--tcc --negative` **313/318**,
 `MIRTests` **1049 checks OK**; the probe prints exactly the same line as before
 (`total=1999000 … name_len=8`).
 
-Still open in action C: C2 (aggregate `temp = *src; dest = temp` double copies —
-the probe's 47 sites, of which 23 are a straight double hop) and C4 (labels for
-straight-line blocks). The probe therefore remains above the legacy C line/
-text targets (12,393 lines vs 8,285 legacy).
+**Same session, actions C2 and C4.** Two more generated-code items:
+
+- **C4 — dead block labels.** The emitter labelled *every* block start. A label
+  is only needed for a block a terminator can jump to, and every `goto` it can
+  print comes from a `Block` operand (`Br`/`CondBr`; the emitter never reads
+  `cleanups`/unwind targets), so the referenced set is exactly those operands.
+  Labels are now emitted only for referenced blocks, so an unreferenced block
+  can no longer overwrite (in creation order) the label of a referenced block
+  sharing its `inst_start`. This is also the entry block's `__chx_bb0:;` — pure
+  noise in every function.
+- **C2 — deref-load double hops.** `T v = *src; dest = v;` (the second aggregate
+  copy the legacy translator never made) now collapses into `dest = *src;`. The
+  guard: the load is a plain deref of a *Value* base, its result has exactly one
+  use which is the **immediately following** instruction (so the read cannot move
+  past anything), that use is a two-operand `Store` of exactly that value into a
+  place of the same type, and the destination is a `Parameter` copy or a
+  `Temporary` — both are this frame's own slots, which the source cannot overlap.
+
+C2 additionally requires the store to be in the same basic block as the load, so
+a collapsed read can never turn into an unconditional read on a path that never
+executed the load (measured cost of that guard: zero — the dominant sites are a
+function's first two instructions).
+
+| Metric | Before C2/C4 | After | Delta |
+|---|---:|---:|---:|
+| Probe C lines | 12,393 | **11,868** | −4.2% |
+| Probe C bytes | 523,052 | **515,872** | −1.4% |
+| Probe block labels | 1,833 | **1,331** | −27.4% |
+| Probe deref double hops | 23 | **0** | −100% |
+| Suite C lines | 114,280 | **108,475** | −5.1% |
+| Suite C bytes | 4,727,103 | **4,646,344** | −1.7% |
+| Suite block labels | 17,216 | **11,660** | −32.3% |
+| Suite `goto`s | 10,334 | 10,334 | unchanged |
+| Main-suite exe text | 3,985,124 B | **3,971,116 B** | −0.35% |
+| Suite compile user CPU (5 interleaved pairs vs C3) | 3.83 s | **3.81 s** | noise |
+
+**Measurement caveat (worth fixing with the M2 budget gate):** the translated C
+is *not* byte-reproducible — the order of the emitted opaque forward declarations
+varies between runs of the same binary (≈9.5k reordered lines on the probe). Line,
+label, `goto` and spill **counts** are deterministic; C bytes and executable size
+vary by a few bytes (±2 B on the probe, same binary, two runs). So a budget gate
+must compare counts, not bytes.
+
+`MIRTests`' `test_control_flow_emitter` asserted the entry label `__chx_bb0:;`
+was present; that expectation was updated (not dropped) to assert the three
+referenced labels are present **and** the unreferenced entry label is absent, so
+the test now pins the C4 behaviour: 1049 → **1052 checks OK**. Suites: `--tcc`
+**2300/2300**, `--tcc --plugins` **1296/1296**, `--tcc --async` **53/53** (label
+removal is exercised hardest here — coroutine state machines), `--tcc --libs`
+**717–718/719** (the two pre-existing failures below), `--tcc --negative`
+**313/318**, and the probe prints the identical
+line (`total=1999000 … name_len=8`).
+
+Two `--libs` failure modes are pre-existing and *not* affected by this work:
+`test_fs_directory_iteration` is environment-sensitive, and
+`test_bcrypt_check_password_incorrect` sits exactly on its 10 s per-test budget
+(1 × `hash_password` + 6 × `check_password` at cost 12). Measured directly with
+`lang/compiled/bcryptbench/` (same 7 cost-12 operations): **10.39–10.46 s with the
+pre-change compiler** vs 10.42–10.64 s with this one — over the budget either way,
+which is why it fails in ~1 run in 3 and passed in 2 of the 3 runs here.
+
+Cumulatively (C1 + C3 + C2 + C4 vs the post-C1 baseline): suite C **120,782 →
+108,475 lines (−10.2%)**, suite exe text **4,165,453 → 3,971,116 B (−4.7%)**,
+probe C **13,713 → 11,868 lines (−13.4%)**. The probe still exceeds the legacy
+targets (8,285 lines / 285,299 B text), so action C's acceptance is still open —
+what remains is mostly the aggregate zeroing class (§1.2) rather than spills,
+copies or labels.
 
 ### Session 7 (2026-10-13) — O(1) type/constant interning (action D, partial)
 

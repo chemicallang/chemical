@@ -325,7 +325,14 @@ static bool test_control_flow_emitter() {
     }
     CHECK(out.find("goto __chx_bb") != std::string::npos);
     CHECK(out.find("if (") != std::string::npos);
-    CHECK(out.find("__chx_bb0:;") != std::string::npos);
+    // Every block a terminator jumps to carries a label (`then_b` 1, `else_b` 2,
+    // `join` 3) ...
+    CHECK(out.find("__chx_bb1:;") != std::string::npos);
+    CHECK(out.find("__chx_bb2:;") != std::string::npos);
+    CHECK(out.find("__chx_bb3:;") != std::string::npos);
+    // ... and a block nothing jumps to (the entry block) carries none: a dead
+    // label is not emitted (`emit_function_c`).
+    CHECK(out.find("__chx_bb0:;") == std::string::npos);
     return true;
 }
 

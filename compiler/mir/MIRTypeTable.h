@@ -9,6 +9,7 @@
 
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace mir {
@@ -150,16 +151,72 @@ struct MIRTypeTable {
     }
 
     /**
-     * Intern a type record. Serial-time only (linear scan); the type table is
-     * sealed before parallel workers start, so this is never on the hot path.
+     * Intern a type record.
+     *
+     * `intern_index_` is a *hint*, not the source of truth: every hit is
+     * re-checked with `equal` and every miss falls back to the linear scan, so
+     * the result is identical to a pure scan even when a record is mutated after
+     * it was interned (e.g. `fat_pointer_type` fills its fields, frame/aggregate
+     * records get theirs, all of which push directly instead of interning). The
+     * index exists because most `intern` calls re-look-up a handful of types: on
+     * the main suite it turns ~101M `equal` calls into 186k hash lookups plus
+     * ~7M (the fallback scans for the ~1k genuinely new records).
      */
     TypeId intern(const MIRTypeRecord& rec) {
+        const uint64_t h = hash_of(rec);
+        auto hit = intern_index_.find(h);
+        if (hit != intern_index_.end() && hit->second < types.size() &&
+            equal(types[hit->second], rec)) {
+            return hit->second;
+        }
         for (uint32_t i = 0; i < types.size(); ++i) {
-            if (equal(types[i], rec)) return i;
+            if (equal(types[i], rec)) {
+                intern_index_[h] = i;
+                return i;
+            }
         }
         types.push_back(rec);
-        return static_cast<TypeId>(types.size() - 1);
+        const TypeId id = static_cast<TypeId>(types.size() - 1);
+        intern_index_[h] = id;
+        return id;
     }
+
+    /**
+     * Hash of exactly the fields `equal` compares (never `name_offset`,
+     * `data_offset` or the pools' positions, which can differ between equal
+     * records). Function parameter ids live in the shared `data` pool, so they
+     * are mixed in by value.
+     */
+    uint64_t hash_of(const MIRTypeRecord& r) const {
+        uint64_t h = 1469598103934665603ull;
+        auto mix = [&h](uint64_t v) {
+            h ^= v;
+            h *= 1099511628211ull;
+        };
+        mix(static_cast<uint64_t>(r.kind));
+        mix(r.flags);
+        mix(r.size);
+        mix(r.alignment);
+        mix(r.element);
+        mix(r.decl);
+        mix(r.data_count);
+        mix(r.int_kind);
+        mix(r.field_index);
+        if (r.kind == MIRTypeKind::Function) {
+            for (uint32_t i = 0; i < r.data_count; ++i) {
+                const uint32_t idx = r.data_offset + i;
+                mix(idx < data.size() ? data[idx] : 0xFFFFFFFFu);
+            }
+        }
+        return h;
+    }
+
+    /**
+     * Fast interning index: hash of an interned record -> a representative id.
+     * Only ids whose current record was verified against the querying record are
+     * returned, so a stale or mutated entry can never be handed out.
+     */
+    std::unordered_map<uint64_t, TypeId> intern_index_;
 
     bool equal(const MIRTypeRecord& a, const MIRTypeRecord& b) const {
         if (a.kind != b.kind || a.flags != b.flags || a.size != b.size ||

@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <unordered_map>
 #include <vector>
 
 namespace mir {
@@ -35,25 +36,67 @@ struct MIRConstant {
 struct MIRConstantPool {
     std::vector<MIRConstant> constants;
     std::vector<char> data;
+    /** hash -> a representative constant id (see `add`) */
+    std::unordered_map<uint64_t, ConstantId> index_;
 
     const MIRConstant& get(ConstantId id) const { return constants[id]; }
     uint32_t size() const { return static_cast<uint32_t>(constants.size()); }
 
+    /**
+     * Intern a constant. `index_` is a hint only: a hit is re-verified against
+     * the stored constant and a miss falls back to the scan, so the result is
+     * identical to a pure linear scan. The pool is append-only, so an entry's
+     * key can never go stale; the index just skips the scan for repeats (most
+     * `add` calls re-add one of a few hundred integral constants).
+     */
     ConstantId add(const MIRConstant& c) {
+        const uint64_t h = hash_of(c);
+        auto hit = index_.find(h);
+        if (hit != index_.end() && hit->second < constants.size() &&
+            matches(constants[hit->second], c)) {
+            return hit->second;
+        }
         for (uint32_t i = 0; i < constants.size(); ++i) {
-            const MIRConstant& o = constants[i];
-            if (o.kind != c.kind || o.bits != c.bits || o.data_count != c.data_count) continue;
-            bool same = true;
-            for (uint32_t j = 0; j < c.data_count; ++j) {
-                if (data[o.data_offset + j] != data[c.data_offset + j]) {
-                    same = false;
-                    break;
-                }
+            if (matches(constants[i], c)) {
+                index_[h] = i;
+                return i;
             }
-            if (same) return i;
         }
         constants.push_back(c);
-        return static_cast<ConstantId>(constants.size() - 1);
+        const ConstantId id = static_cast<ConstantId>(constants.size() - 1);
+        index_[h] = id;
+        return id;
+    }
+
+    /** Exactly the comparison `add` performs. */
+    bool matches(const MIRConstant& o, const MIRConstant& c) const {
+        if (o.kind != c.kind || o.bits != c.bits || o.data_count != c.data_count) return false;
+        for (uint32_t j = 0; j < c.data_count; ++j) {
+            if (data[o.data_offset + j] != data[c.data_offset + j]) return false;
+        }
+        return true;
+    }
+
+    /**
+     * Hash of exactly the fields `matches` compares (never `data_offset`, which
+     * can differ between equal constants). The payload has already been appended
+     * to `data` by the `add_*` helpers, so it is readable at `c.data_offset` —
+     * and hashing it costs no more than the append that just copied it.
+     */
+    uint64_t hash_of(const MIRConstant& c) const {
+        uint64_t h = 1469598103934665603ull;
+        auto mix = [&h](uint64_t v) {
+            h ^= v;
+            h *= 1099511628211ull;
+        };
+        mix(static_cast<uint64_t>(c.kind));
+        mix(c.bits);
+        mix(c.data_count);
+        for (uint32_t j = 0; j < c.data_count; ++j) {
+            const uint32_t idx = c.data_offset + j;
+            mix(idx < data.size() ? static_cast<uint8_t>(data[idx]) : 0u);
+        }
+        return h;
     }
 
     ConstantId add_int(TypeId t, uint64_t bits) {

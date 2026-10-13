@@ -41,10 +41,12 @@ Root causes (all with file/line evidence in the evaluation doc):
    `MIRDeclEmitter`). There is no single layout/decl source for C, LLVM, JVM, JS.
 2. **Every backend is a full independent dispatcher** (`MIREmitter` 1.6k lines,
    `CodegenMir` 2.2k lines) with no shared ABI/traversal/naming.
-3. **Hot-path violations of the plan**: `std::string` allocated per identifier
-   (`place_for_name`), 18 `unordered_map`/sets in `MIRLowerer`, O(n) linear-scan
-   type interning (`MIRTypeTable::intern`) and constant interning
-   (`MIRConstantPool::add`), and `MIRLowerer.cpp` is one 8,224-line TU.
+3. **Hot-path violations of the plan**: 18 `unordered_map`/sets in `MIRLowerer`,
+   and `MIRLowerer.cpp` is one 8,224-line TU. The O(n) linear-scan
+   `MIRTypeTable::intern` / `MIRConstantPool::add` were **fixed in session 7**
+   (hash index, measured); the `std::string` per `place_for_name` lookup was
+   *measured* at 2,181 calls / 0.002 s per suite compile, so it is a style issue
+   rather than a hotspot.
 4. **Generated-C waste**: an unconditional byte-wise zero loop on *every*
    aggregate `Alloca` (584 in one small probe; legacy: 0), aggregate
    load-then-assign double copies, redundant scalar param spills, and dead
@@ -81,6 +83,64 @@ Both backends now emit from MIR, so this pass worked the evaluation's action C
   *printed* on LLVM but the compiler exited 0. `compile_module`'s non-zero
   status now fails the build like the C path does. `--llvm --negative` went
   **282 → 304 / 318**; TCC `--negative` unchanged at 311/318.
+
+### Session 7 (2026-10-13) — O(1) type/constant interning (action D, partial)
+
+Instrumented the MIR phases of a cold main-suite compile (`debug_quick`,
+`MIR_PROF=1` counters and timers, since removed) and measured, per suite
+compile:
+
+| Hot spot | calls | elements `equal()`-scanned | time |
+|---|---:|---:|---:|
+| `MIRTypeTable::intern` | 186,289 | 101.4 M | 0.498 s |
+| `MIRConstantPool::add` | 97,279 | 56.3 M | 0.186 s |
+| `place_for_name` | 2,181 | — | 0.002 s |
+| `bind_name` | 19,705 | — | 0.017 s |
+
+The two interning scans were ~0.68 s of the compile, i.e. the textbook quadratic
+term the evaluation flagged: the tables end up ~1,000 types / ~1,400 constants
+but are *looked up* hundreds of thousands of times, so the cost is `lookups ×
+table size`, not `distinct × distinct`.
+
+**Fix.** Both tables now keep a `hash → id` index (`MIRTypeTable::hash_of`,
+`MIRConstantPool::hash_of`), hashing exactly the fields their `equal`/`matches`
+compare — never `name_offset`/`data_offset`, which differ between equal records,
+and mixing function parameter ids in by value. The index is a *hint only*: every
+hit is re-verified with `equal`, and every miss falls back to the linear scan and
+indexes the result. That keeps the semantics **identical** to a pure scan even
+where a record is mutated after interning (`fat_pointer_type` fills its fields;
+aggregate/variant/lambda/frame records are pushed and filled outside `intern`),
+so no equivalence proof was needed for those paths — a stale or mutated entry can
+never be handed out.
+
+**Measured** (same machine, interleaved A/B, 5 runs each, clean binaries —
+`TCCCompiler` on `lang/tests/build.lab`, cold per-module cache):
+
+| Metric | Before | After | Delta |
+|---|---:|---:|---:|
+| Suite compile, user CPU (median) | 3.92 s | **3.61 s** | **−8%** |
+| Suite compile, user CPU (range) | 3.76–4.20 s | 3.55–3.72 s | no overlap |
+| Suite compile, wall (median) | 5.36 s | 4.86 s | −9% |
+| Peak RSS | 59.9–60.5 MB | 59.7–62.2 MB | flat |
+| `intern` scanned elements | 101.4 M | **7.0 M** | −93% |
+| `intern` time | 0.498 s | **0.208 s** | −58% |
+| `MIRLowerer` total | 2.253 s | **1.977 s** | −0.28 s |
+| Probe (small program) CPU | 0.45–0.51 s | 0.45–0.50 s | no measurable change |
+
+The probe is flat on purpose: its tables are ~500 entries with 29k lookups, so
+the quadratic never bit there. The win is on large compilations. Suites after the
+change (clean cache): `--tcc` **2300/2300**, `--llvm` **2298/2298**, `--plugins`
+**1296/1296** (both), `--async` **53/53** (both), `--negative` **312** and
+**305** / 318, `--tcc --interpret` **1890/1890**, `--libs` **718/719** (both; the
+remaining failure is the environment-sensitive `test_fs_directory_iteration`),
+`MIRTests` **1049 checks OK**.
+
+Still open in action D: no profiler is available here (`perf_event_paranoid=4`),
+so the remaining ~2.0 s of `MIRLowerer` per suite compile is only broken down by
+phase (`emit` 0.63 s, `declare_module` 0.18 s, interning 0.37 s), not by
+rectangle. Constant interning is now ~0.165 s of which the hash dominates, so
+further gains there need a different structural change (e.g. skipping the payload
+hash for repeated identical string literals).
 
 ### Session 6 (2026-10-13) — `async func main` trampoline restored
 

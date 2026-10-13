@@ -63,6 +63,15 @@ plan explicitly forbids accepting this: *"A functional fix that doubles compile
 time or grows the binary is not a fix until the regression is resolved"*
 (`mir-implementation-plan.md` §0 rule 6).
 
+> **Status update (2026-10-13) — action D started.** The quadratic type/constant
+> interning was removed (verified hash index; see §1.5). Measured on the same
+> machine with clean binaries and interleaved A/B runs: suite-compile user CPU
+> **3.92 s → 3.61 s (−8%)**, `MIRTypeTable::intern` **0.498 s → 0.208 s (−58%)**,
+> `MIRConstantPool::add` 0.186 s → 0.165 s, peak RSS flat. That is ~20% of the
+> gap to the legacy baseline; the remaining MIR time per suite compile is
+> `MIRLowerer` **1.98 s** (unattributed — no profiler available here), C emission
+> **0.63 s**, `declare_module` **0.18 s**.
+
 ### 1.2 Generated code & generated binary size
 
 Probe (identical source and output):
@@ -189,23 +198,31 @@ real (no fallback, no capability analysis).
 ### 1.5 Performance of the lowering hot path (root causes in code)
 
 The plan's hot-path rules ("no `std::unordered_map` in the hot path", "no
-per-instruction strings", §6.1/§6.9/§1.2) are violated:
+per-instruction strings", §6.1/§6.9/§1.2) are violated. **Measured 2026-10-13**
+per cold main-suite compile (`MIR_PROF` instrumentation, since removed):
 
+- **Type interning was an O(n) linear scan** (`MIRTypeTable::intern`) called from
+  `pointer_type`/`sized_array_type`/`function_signature`/`int_type`, i.e. on the
+  lowering path: **186,289 calls scanning 101.4 M elements, 0.498 s**. *Fixed in
+  session 7 by a verified hash index* — now 7.0 M scanned / 0.208 s (−93% / −58%).
+- **Constant interning was an O(n) linear scan with a byte loop**
+  (`MIRConstantPool::add`), called for every literal: **97,279 calls scanning
+  56.3 M elements, 0.186 s** → now 6.6 M / 0.165 s (the residual is the payload
+  hash, not the scan). Also fixed in session 7.
 - **Every identifier lookup allocates a `std::string`.**
   `MIRLowerer::place_for_name` does `name_places_.find(std::string(name.data(),
-  name.size()))` (`MIRLowerer.h` L442–446) and is called on every identifier
-  (`MIRLowerer.cpp` L2581, L3711, L4320, …). `bind_name` allocates on every local
-  declaration.
+  name.size()))` and `bind_name` allocates on every local declaration. **Measured:
+  2,181 `place_for_name` calls / 0.002 s and 19,705 `bind_name` calls / 0.017 s
+  per suite compile** — a violation of the plan's letter, but *not* a measurable
+  cost, so it is not worth churning for performance (fix it with a transparent
+  hash when the surrounding code is touched anyway).
 - **18 `unordered_map`/`unordered_set` members in `MIRLowerer`**
-  (`MIRLowerer.h` L452–552): `var_places_`, `name_places_`, `func_symbols_`,
+  (`MIRLowerer.h`): `var_places_`, `name_places_`, `func_symbols_`,
   `named_method_symbols_`, `global_symbols_`, `pattern_bases_`,
   `pattern_results_`, `lambda_materializations_`, `async_site_index_`, … The plan
-  specified dense ID-indexed tables instead.
-- **Type interning is an O(n) linear scan** (`MIRTypeTable::intern`,
-  `MIRTypeTable.h` L156–162) called from `pointer_type`/`sized_array_type`/
-  `function_signature`/`int_type`, i.e. on the lowering path.
-- **Constant interning is an O(n) linear scan with a byte loop**
-  (`MIRConstantPool::add`, `MIRConstantPool.h` L42–57), called for every literal.
+  specified dense ID-indexed tables instead. Not individually measured yet: the
+  remaining per-suite-compile budget after the interning fix is `MIRLowerer`
+  1.98 s, C emission 0.63 s, `declare_module` 0.18 s.
 - **`MIRLowerer.cpp` is one 8,224-line TU** (build-time and review cost).
 - **Lowering is serial per module.** Stage 9 (parallel file lowering) is not
   implemented; `implement_module` walks files one at a time and clears a
@@ -282,14 +299,26 @@ the `benchprobe` loop and the bcrypt cost-12 benchmark.
 **Action.**
 1. Intern names in a module byte pool and key maps by a `(data,len)` id/hashed
    view; eliminate `std::string` construction per identifier/declaration.
-2. Replace linear-scan type/constant interning with a hash index
-   (`unordered_map<hash, vector<id>>` or an open-addressed table keyed on the
-   structural fields). Keep deterministic ordering.
+   *(Downgraded after measurement: 2,181 + 19,705 calls, 0.019 s total.)*
+2. ~~Replace linear-scan type/constant interning with a hash index~~ **DONE
+   (session 7)**: `MIRTypeTable`/`MIRConstantPool` keep a `hash → id` index that
+   hashes exactly the compared fields and is used as a *verified hint* (every hit
+   re-checked with `equal`, every miss falls back to the scan), so mutated-after-
+   intern records cannot be aliased. −8% suite-compile user CPU (3.92 s → 3.61 s
+   median, ranges disjoint); −0.31 s of MIR time; RSS flat.
 3. Replace the 18 `unordered_map`s in `MIRLowerer` with dense vectors keyed by
-   AST-node id or a per-function symbol/lookup table (plan §6.1).
+   AST-node id or a per-function symbol/lookup table (plan §6.1). Needs a
+   profiler or finer phase timers to target (see D5).
 4. Split `MIRLowerer.cpp` into `MIRLowerExpr/Stmt/Call/Aggregate/Lambda/Async`.
+5. Add phase timers (behind an env var, off by default) so the remaining
+   `MIRLowerer` time can be attributed without `perf`, which is unavailable on
+   this machine (`perf_event_paranoid=4`).
 **Acceptance.** Main-suite cold compile ≤ 1.05× legacy; peak RSS ≤ 1.05× legacy;
 no `std::string` allocation on the identifier path (verifiable by review/instr).
+**Status.** Action D is ~20% done by the CPU-time measure: the quadratic
+interning term is gone (−0.31 s of 3.92 s), and the remaining ~1.98 s of
+`MIRLowerer` (unattributed), 0.63 s of emission and 0.18 s of declaration
+emission are still open.
 
 ### E. Parallelise lowering (P2, after D)
 

@@ -59,6 +59,40 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 13 (2026-10-13) — the AST-based LLVM lowering is DELETED (checkpoint 8.9)
+
+The AST LLVM lowering is gone. It was already unreachable
+(`ASTProcessor::compile_module` returns `mir_compile_module` unconditionally);
+the last reachable use — `LabBuildCompiler`'s C-header `node->code_gen_declare`
+pass (LLVM-only, unused in the repo) — was removed first, then the code was
+deleted:
+
+- `compiler/backend/LLVM.cpp` (3,372 lines — every per-AST-node `llvm_*`),
+  `compiler/backend/LLVMCoroutine.cpp` (1,084 — AST coroutines),
+  `compiler/Operation.cpp` (`Codegen::operate`), `compiler/backend/LLVMGen.{h,cpp}`.
+- ~8,200 lines of `llvm_*`/`code_gen_*` declarations and definitions inside
+  `#ifdef COMPILER_BUILD` blocks across 167 `ast/` files.
+- `Codegen.cpp`'s AST methods and `Codegen.h`'s AST declarations; the dead
+  `compile_module` body and `code_gen_*` wrappers in `ASTCompiler.cpp`;
+  `DebugInfoBuilder`'s AST methods (`create_struct_type`/`create`/scope/`declare`).
+
+**Kept:** `Codegen`'s shared LLVM-module plumbing (`module_init`,
+`setup_for_target`, `save_*`, the `Create*`/`SetInsertPoint` wrappers),
+`DebugInfoBuilder`'s MIR-used subset (`createDiCompileUnit`,
+`start/end_di_compile_unit`, `finalize`, `update_builder`, `isEnabled`), and
+`LLVMBackendContext` — whose former out-of-line definitions (needed for the
+vtable) now live in a new `compiler/backend/LLVMBackendContext.cpp`, with
+`forget` kept faithful (`intrinsics::forget` reaches it) and the AST-only hooks
+(`mem_copy`, `destruct_call_site`, the `atomic_*` intrinsics) as unreachable
+stubs, since MIR lowers those as first-class ops.
+
+**Net: −15,661 / +91 lines** over two commits. Verified from the committed
+sources: `--llvm` **2298/2298**, `--llvm --async` **53/53**, `--tcc`
+**2300/2300**, `MIRTests` **1111 checks**; `--mode debug_complete` still emits
+`DICompileUnit`/`DISubprogram`/`DILocation`/`DICompositeType`. The only
+`COMPILER_BUILD` blocks left in `ast/` are `GlobalFunctions.cpp`'s legitimate
+intrinsic dual branches.
+
 ### Session 12 (2026-10-13) — debug info is emitted from MIR (MIR→LLVM)
 
 The MIR→LLVM path emitted **no DWARF at all**: `MIRInstruction::source_index` was

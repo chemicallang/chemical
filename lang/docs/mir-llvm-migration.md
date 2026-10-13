@@ -471,26 +471,27 @@ hard-requirement gap (debug info) is now closed from MIR (session 12, §2.2). Th
 suites that exercise the LLVM backend are green (`--llvm` 2298/2298,
 `--llvm --async` 53/53, `--llvm --libs` builds).
 
-What still stands between here and `backend/LLVM.cpp` being deleted:
+**DONE (2026-10-13, session 13).** The AST LLVM lowering has been deleted:
 
-1. **One reachable legacy use.** `LabBuildCompiler.cpp` calls
-   `node->code_gen_declare(gen)` for C-header nodes (`mod->headers`, set by the
-   `include_header` build API). It is unused in the repo (the only caller is
-   commented out in `lang/tests/build.lab`) and was reported broken on Linux, but
-   it is a real API path that the legacy AST codegen currently serves. Port it
-   (declare the C-translated nodes through MIR) or drop the path before deleting.
-2. **The mechanical deletion.** `backend/LLVM.cpp` (~3.4k lines),
-   `Codegen.cpp`'s AST methods (~2k), `ASTCompiler.cpp`'s `code_gen_*` wrappers,
-   `LLVMCoroutine.cpp` (~1.1k), and ~889 `#ifdef COMPILER_BUILD` references across
-   172 `ast/` files. This is checkpoint 8.9, a large but mechanical change that
-   must keep the build compilable in batches.
+1. ~~The C-header legacy use~~ **removed.** `LabBuildCompiler` no longer calls
+   `node->code_gen_declare` for `mod->headers`; C-header symbols are declared
+   from MIR on demand (like every `@extern`).
+2. ~~The mechanical deletion~~ **done.** `backend/LLVM.cpp`,
+   `backend/LLVMCoroutine.cpp`, `Operation.cpp`, `backend/LLVMGen.{h,cpp}`, the
+   `#ifdef COMPILER_BUILD` `llvm_*`/`code_gen_*` blocks across 167 `ast/` files,
+   `Codegen`'s AST methods, `ASTCompiler.cpp`'s dead `compile_module` body and
+   `code_gen_*` wrappers, and `DebugInfoBuilder`'s AST methods are all gone
+   (**−15,661 / +91 lines**). `LLVMBackendContext`'s out-of-line definitions moved
+   to a new `backend/LLVMBackendContext.cpp`.
 3. **DI polish (not a blocker).** `llvm.dbg.declare`/`dbg.value` for locals and
    `DILexicalBlock`s are still missing; the §5.1 marker set
    (`DICompileUnit`/`DISubprogram`/`DILocation`/`DIBasicType`/`DICompositeType`)
    is present.
 
-**Verdict:** not deletable in one safe step, but the functional prerequisites are
-met; what remains is (1) the C-header port and (2) the mechanical removal.
+Verified after deletion: `--llvm` **2298/2298**, `--llvm --async` **53/53**,
+`--tcc` **2300/2300**, `MIRTests` **1111 checks**, and `--mode debug_complete`
+still emits DI. Remaining non-functional work is the evaluation's action plan
+(consolidation/perf/size), not deletion.
 
 ---
 
@@ -706,11 +707,17 @@ the pre-existing LLVM-suite breakage, §2.3) and `MIRTests` green.
 - **8.7 — Async/coroutine lowering in LLVM.** Match `--async` behavior.
 - **8.8 — Switch the `Compiler` job to MIR→LLVM unconditionally.** Delete the
   AST driver wiring in `LabBuildCompiler`/`ASTProcessor`.
-- **8.9 — Delete the AST LLVM lowering.** Remove `backend/LLVM.cpp`,
-  `ASTCompiler.cpp`, `Codegen` AST state, and the `#ifdef COMPILER_BUILD`
-  codegen methods in `ast/**`. Fix the build, keep `MIRTests` and TCC green.
-- **8.10 — Debug-info parity & sign-off.** Verify DWARF for a real app, add a
-  debug-info smoke test/CI check, update `compiler/mir/README.md` and this doc.
+- **8.9 — Delete the AST LLVM lowering. ✅ DONE (session 13).** Removed
+  `backend/LLVM.cpp`, `backend/LLVMCoroutine.cpp`, `Operation.cpp`,
+  `backend/LLVMGen.{h,cpp}`, `Codegen`'s AST methods, `ASTCompiler.cpp`'s dead
+  body/`code_gen_*`, `DebugInfoBuilder`'s AST methods, and the
+  `#ifdef COMPILER_BUILD` codegen methods in `ast/**` (−15,661 / +91 lines).
+  `LLVMBackendContext` moved to `backend/LLVMBackendContext.cpp`. Build green,
+  `MIRTests` + TCC + LLVM suites green.
+- **8.10 — Debug-info parity & sign-off. Partly done (session 12):** MIR→LLVM
+  emits `DICompileUnit`/`DISubprogram`/`DILocation`/DI types and a real line
+  table. Remaining: `llvm.dbg.declare`/`dbg.value` for locals and
+  `DILexicalBlock`s; add a debug-info smoke test/CI check.
 
 ---
 

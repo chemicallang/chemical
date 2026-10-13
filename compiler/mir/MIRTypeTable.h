@@ -83,6 +83,14 @@ struct MIRFieldInfo {
     uint32_t name_length = 0;
     uint32_t index = 0;       // field index within the LLVM aggregate (for GEP)
     uint8_t kind = 0;         // MIRFieldKind
+    /**
+     * Byte offset of the field inside its aggregate, and the explicit
+     * alignment the source asked for (`__chx_align(N)`, 0 = natural). Both are
+     * filled by `compute_aggregate_layout` (see MIRLayout.h), never interned:
+     * interned records only carry `field_index` into this pool.
+     */
+    uint32_t offset = 0;
+    uint32_t align = 0;
 };
 
 /** Distinguishes the structural role of a field for emitters. */
@@ -129,6 +137,15 @@ struct MIRTypeTable {
     std::string field_name_of(const MIRFieldInfo& f) const {
         if (f.name_length == 0) return {};
         return std::string(field_names.data() + f.name_offset, f.name_length);
+    }
+
+    MIRFieldInfo* field_of(TypeId agg, uint32_t i) {
+        if (agg >= types.size()) return nullptr;
+        const MIRTypeRecord& r = types[agg];
+        if (r.field_index == MIR_INVALID_ID || i >= r.data_count) return nullptr;
+        const uint32_t idx = r.field_index + i;
+        if (idx >= fields.size()) return nullptr;
+        return &fields[idx];
     }
 
     const MIRFieldInfo* field_of(TypeId agg, uint32_t i) const {

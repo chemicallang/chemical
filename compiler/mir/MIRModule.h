@@ -7,6 +7,7 @@
 
 #include "MIRTypes.h"
 #include "MIRTypeTable.h"
+#include "MIRLayout.h"
 #include "MIRConstantPool.h"
 #include "MIRSymbolTable.h"
 #include "MIRFunction.h"
@@ -24,14 +25,11 @@ enum class MIROutputMode : uint8_t {
     Interpret,
 };
 
-/** target-independent layout facts the emitters need */
-struct MIRModuleLayout {
-    bool is64Bit = true;
-    /** Windows target: `long`/`ulong` are 32-bit (LLP64) */
-    bool windows = false;
-    uint32_t pointer_size = 8;
-    uint32_t pointer_alignment = 8;
-};
+/**
+ * `MIRModuleLayout` (the layout facts the emitters need) lives in MIRLayout.h,
+ * together with the aggregate layout pass that turns it into `MIRTypeRecord`
+ * sizes/alignments and per-field offsets.
+ */
 
 /**
  * A module's MIR. Tables are populated serially before workers start, then

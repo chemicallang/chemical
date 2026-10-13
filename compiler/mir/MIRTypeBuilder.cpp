@@ -142,7 +142,8 @@ TypeId MIRTypeBuilder::aggregate_type(MIRTypeKind kind, const void* decl, BaseTy
     MIRTypeRecord r;
     r.kind = kind;
     r.decl = did;
-    // size/alignment and field data are filled in later (aggregate milestone);
+    // size/alignment/field offsets are filled in by
+    // `fill_aggregate_fields` (below, through `compute_aggregate_layout`);
     // flags for ctor/dtor are available now.
     uint8_t flags = TF_NONE;
     if (type) {
@@ -179,11 +180,13 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
     if (id >= module_.types.types.size()) return;
 
     std::vector<MIRFieldInfo> fs;
-    auto push_field = [&](const std::string& name, TypeId t, MIRFieldKind fk) {
+    auto push_field = [&](const std::string& name, TypeId t, MIRFieldKind fk,
+                          uint32_t explicit_align = 0) {
         MIRFieldInfo fi;
         fi.type = t;
         fi.kind = static_cast<uint8_t>(fk);
         fi.index = static_cast<uint32_t>(fs.size());
+        fi.align = explicit_align;
         fi.name_offset = static_cast<uint32_t>(module_.types.field_names.size());
         fi.name_length = static_cast<uint32_t>(name.size());
         module_.types.field_names.insert(module_.types.field_names.end(), name.begin(), name.end());
@@ -205,7 +208,11 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
             if (!var) continue;
             TypeId vt = var->known_type() ? map(var->known_type()) : opaque_type();
             const chem::string_view nv = var->name_view();
-            push_field(std::string(nv.data(), nv.size()), vt, MIRFieldKind::Direct);
+            // an explicit `@align`/`__chx_align(N)` on the member raises its
+            // alignment (the emitter writes the attribute out verbatim)
+            StructMember* sm = var->as_struct_member();
+            const uint32_t req = sm ? sm->get_required_alignment() : 0;
+            push_field(std::string(nv.data(), nv.size()), vt, MIRFieldKind::Direct, req);
         }
     };
 
@@ -261,6 +268,8 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
             cr.field_index = module_.types.append_fields(case_fields);
             TypeId case_id = static_cast<TypeId>(module_.types.types.size());
             module_.types.types.push_back(cr);
+            // the case payload is an aggregate too: give it its layout
+            compute_aggregate_layout(module_.types, case_id);
             const chem::string_view mn = member->name_view();
             std::string cname = "__chx_case_" + std::to_string(id) + "_" +
                                 std::string(mn.data(), mn.size());
@@ -277,6 +286,13 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
     MIRTypeRecord& rec = module_.types.types[id];
     rec.data_count = static_cast<uint32_t>(fs.size());
     rec.field_index = fs.empty() ? MIR_INVALID_ID : module_.types.append_fields(fs);
+    // size, alignment and each field's byte offset, from the canonical table
+    // alone (never from the host or from the AST again)
+    uint32_t explicit_align = 0;
+    if (decl && decl->kind() == ASTNodeKind::StructDecl) {
+        explicit_align = decl->as_struct_def_unsafe()->get_required_alignment();
+    }
+    compute_aggregate_layout(module_.types, id, explicit_align);
 }
 
 TypeId MIRTypeBuilder::function_type(BaseType* type) {

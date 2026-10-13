@@ -242,11 +242,21 @@ The intended shape is "one MIR, small per-backend emitters". Today:
   prototypes, globals and vtables (`compiler/mir/MIRDeclEmitter.{h,cpp}`,
   1,236 lines). It does **not** read `MIRTypeRecord`. So MIR is not the single
   source of truth for the program's types.
-- **Aggregate layout does not exist in MIR.** `MIRTypeBuilder::aggregate_type`
-  never sets `size`/`alignment` for structs/unions/variants (`MIRTypeBuilder.cpp`
-  L134–174); `MIRTypeRecord.size == 0` for every aggregate. Layout is therefore
-  computed **three times**: by the AST decl emitter (C), by LLVM `DataLayout`
-  (`CodegenMir::mir_type`), and by TinyCC. A JVM/JS backend would be a fourth.
+- ~~**Aggregate layout does not exist in MIR.**~~ **DONE (session 10, action
+  A1).** `MIRTypeBuilder::aggregate_type` used to never set `size`/`alignment`
+  for structs/unions/variants, so `MIRTypeRecord.size == 0` for every aggregate
+  and layout was computed **three times** (AST decl emitter / LLVM `DataLayout` /
+  TinyCC). Now `compiler/mir/MIRLayout.h` (AST-free, `MIRTests`-covered) fills
+  `size`, `alignment` and every `MIRFieldInfo.offset` from the type table alone:
+  `MIRTypeBuilder::fill_aggregate_fields` lays out each struct/union/variant and
+  each variant case payload, and `MIRLowerer` lays out the async frame and the
+  capturing-lambda closure struct. Target dependence enters only through the
+  field records (pointer/`long` facts built from `MIRModuleLayout`). It is a
+  *data-filling* step — nothing reads the fields yet, so generated C, exe size,
+  compile time and RSS are unchanged (measured: probe 102 zero loops / 11,550
+  lines / 504,054 B and main-suite C 1,231 / 107,191 lines, identical both
+  sides). What is left of A is the type printer and declaration table (A2/A3);
+  LLVM `CodegenMir::mir_type` still builds its own layout from the same table.
 - **C type spelling is implemented twice.** `MIREmitter.cpp` (`c_type_of`,
   `c_decl_type`, `declarator`, `c_function_proto`) and `MIRDeclEmitter.cpp`
   (`type_spelling`, `decl_spelling`) independently spell the same types and must
@@ -320,12 +330,25 @@ the architecture/size story), P1 (perf), P2 (polish). "Done" means the numbers i
 **Symptom.** Declarations/layout are AST-derived and recomputed per backend;
 adding JVM/JS multiplies the work.
 **Evidence.** §1.4: `MIRDeclEmitter.cpp` AST-coupled; `MIRTypeRecord.size == 0`
-for aggregates; two independent C type spellers.
+for aggregates (fixed by item 1 below); two independent C type spellers.
 **Action.**
-1. Fill `MIRTypeRecord` for every aggregate in `MIRTypeBuilder`:
-   `size`, `alignment`, and each `MIRFieldInfo.offset` (target layout from
+1. ~~Fill `MIRTypeRecord` for every aggregate in `MIRTypeBuilder`: `size`,
+   `alignment`, and each `MIRFieldInfo.offset` (target layout from
    `MIRModuleLayout`, not host). Add `MIRTests` comparing against `sizeof`/
-   `offsetof` in C.
+   `offsetof` in C.~~ **DONE (session 10).** `compiler/mir/MIRLayout.h` —
+   `compute_aggregate_layout` follows the C target's rules (fields in order at
+   their alignment; a union puts every field at 0 and is sized by its largest
+   member; a variant is bases → `int` tag → *union* of the case payloads; the
+   aggregate's explicit `__chx_align(N)` raises its alignment and pads its size).
+   Callers: `MIRTypeBuilder::fill_aggregate_fields` (every struct/union/variant
+   and every variant case payload) plus `MIRLowerer` for the async frame and the
+   lambda closure struct. `MIRFieldInfo` gained `offset`/`align` in the field
+   pool (never interned, so type identity is unaffected). `MIRTests` **1052 →
+   1111 checks**: nine mirrored C aggregates checked against the C compiler's
+   `sizeof`/`offsetof`; independently, a probe with inheritance, a nested struct,
+   an array member, a variant and an anonymous union matched `gcc`'s numbers for
+   the emitted C exactly. Output-invariant by construction and by measurement
+   (see §1.4); `--tcc` **2300/2300**, `--llvm` **2298/2298**, `MIRTests` OK.
 2. Add a single `mir::TypePrinter` (or `MIRTypeFormat`) in MIR core that renders
    a `TypeId` + `declarator` for the **C** backend from MIR only; delete the
    duplicate `MIRDeclEmitter::type_spelling`/`decl_spelling` in favour of it.
@@ -482,8 +505,18 @@ backend is another 2k-line emitter with its own bugs.
 > The compile+link number is this repo's `debug_quick` suite build including the
 >TinyCC step; it is *not* directly comparable to the 6.49 s row (different
 > measurement), but the direction after sessions 7–8 is a ~8% CPU reduction and a
-> 9.6% smaller probe C. Every gate is still missed; C.2/C.4, D.1/D.3/D.4 and all
-> of A/B remain open.
+> 9.6% smaller probe C. Every gate is still missed; C.2/C.4, D.1/D.3/D.4 and
+> A2/A3/B remain open.
+>
+> **Session 9–10 add no gate movement, by design.** Session 9 (conditional
+> struct-literal zeroing) cut main-suite zero loops 2,655 → 1,231 and probe zero
+> loops 173 → 102 at flat line count; session 10 (A1, layout in MIR) is
+> output-invariant: probe C 102 zero loops / 11,550 lines / **504,054 B** (bytes
+> jitter ±2 B between runs) and main-suite C **1,231 / 107,191 lines** either
+> side of it, `--tcc` 2300/2300 and
+> `--llvm` 2298/2298. A1 is the prerequisite for A2/A3 and B, not a metric win —
+> the gates above still need C (the remaining zeroing class), D (per-instruction
+> cost) and A2/A3+B (declaration/layout single source, thin backends).
 
 ---
 

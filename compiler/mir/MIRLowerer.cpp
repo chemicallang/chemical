@@ -6637,6 +6637,9 @@ void MIRLowerer::async_emit_frame_helpers(FunctionDeclaration* decl) {
         MIRTypeRecord& fr = module_.types.types[async_frame_type_];
         fr.data_count = static_cast<uint32_t>(fs.size());
         fr.field_index = module_.types.append_fields(fs);
+        // a frame is an aggregate: give it its size/alignment/field offsets too,
+        // so `sizeof(frame)` and slot addressing come from MIR
+        compute_aggregate_layout(module_.types, async_frame_type_);
     }
 
     const std::string poll_ptr = c_type_of(module_, types_.pointer_type(types_.map(async_poll_base_), true));
@@ -7707,6 +7710,8 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
         MIRTypeRecord& cr = module_.types.types[cap_type];
         cr.data_count = static_cast<uint32_t>(cap_fields.size());
         cr.field_index = module_.types.append_fields(cap_fields);
+        // a closure struct is an aggregate too: give it its layout
+        compute_aggregate_layout(module_.types, cap_type);
     }
 
     // 2. the closure destructor

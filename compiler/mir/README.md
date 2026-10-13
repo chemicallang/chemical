@@ -35,10 +35,13 @@ compiler):
 
 Root causes (all with file/line evidence in the evaluation doc):
 
-1. **Declarations/layout are still AST-based.** `MIRDeclEmitter` walks the AST
-   (not `MIRTypeRecord`); aggregate `size`/`alignment` are never filled in
-   `MIRTypeBuilder`; C type spelling is implemented twice (`MIREmitter` and
-   `MIRDeclEmitter`). There is no single layout/decl source for C, LLVM, JVM, JS.
+1. **Declarations are still AST-based.** `MIRDeclEmitter` walks the AST (not
+   `MIRTypeRecord`); C type spelling is implemented twice (`MIREmitter` and
+   `MIRDeclEmitter`). There is no single decl source for C, LLVM, JVM, JS.
+   **Aggregate layout is no longer on this list:** as of session 10 the
+   `size`/`alignment` of every aggregate and the byte offset of every field are
+   computed in MIR (`MIRLayout.h`, action A1) — the remaining A items are moving
+   the declaration path onto them (A2/A3).
 2. **Every backend is a full independent dispatcher** (`MIREmitter` 1.6k lines,
    `CodegenMir` 2.2k lines) with no shared ABI/traversal/naming.
 3. **Hot-path violations of the plan**: 18 `unordered_map`/sets in `MIRLowerer`,
@@ -231,6 +234,84 @@ probe C **13,713 → 11,868 lines (−13.4%)**. The probe still exceeds the lega
 targets (8,285 lines / 285,299 B text), so action C's acceptance is still open —
 what remains is mostly the aggregate zeroing class (§1.2) rather than spills,
 copies or labels.
+
+### Session 10 (2026-10-13) — aggregate layout is owned by MIR (action A1)
+
+The evaluation (§1.4) found the last architectural hole in the "one MIR, thin
+backends" shape: **layout did not exist in MIR**. `MIRTypeRecord.size` was 0 for
+every aggregate and no field carried an offset, so the C declaration text (the
+C compiler), the LLVM `DataLayout`, and TinyCC each derived the layout again — and
+a JVM/JS backend would have been a fourth. This session fills it in.
+
+**What changed.** New AST-free `compiler/mir/MIRLayout.h` (core, covered by
+`MIRTests`):
+
+- `MIRModuleLayout` moved there from `MIRModule.h` (same definition);
+- `mir_align_up` / `mir_field_alignment` / `mir_field_size` helpers;
+- `compute_aggregate_layout(types, id, explicit_alignment)` — fills `size`,
+  `alignment` and each field's `offset`;
+- `MIRFieldInfo::offset`, which emitters can read directly (no name lookup
+  needed; `MIRTests` has a small local helper for the name → offset case).
+
+`MIRFieldInfo` gained `offset` and `align` (the source's explicit
+`__chx_align(N)`, 0 = natural). Both live in the *field pool*, not in the
+interned record (interning compares `field_index` only), so layout data cannot
+affect type identity.
+
+Callers: `MIRTypeBuilder::fill_aggregate_fields` lays out every struct, union and
+variant — and every variant case payload struct — right after it fills the field
+list; `MIRLowerer` lays out the two aggregates it builds by hand, the async
+coroutine frame and the capturing-lambda closure struct. All target dependence
+enters through the field records (pointer size/alignment and `long` width came
+from `MIRModuleLayout` in the builder), so nothing host-specific is read.
+
+**The rules are the C target's**, because the C emitter spells the fields out and
+lets the C compiler lay them out, so MIR has to agree with it: struct fields in
+order, each at its own alignment; a union puts every field at offset 0 and is
+sized by its largest member; a variant is a struct of its bases, then the `int`
+discriminator, then a *union* of the case payloads (so `MIRFieldKind::VariantCase`
+fields overlap while bases and tag do not); the aggregate's alignment is the
+largest field (or the explicit one) and its size is rounded up to it.
+
+**Verification.** `MIRTests` went **1052 → 1111 checks OK**: nine mirrored C
+aggregates (padding after a small member, trailing padding, `double` alignment,
+pointer, `int[3]`, nested struct by value, union, variant with two cases, and an
+explicitly 16-byte-aligned struct) compare MIR's numbers against the C compiler's
+`sizeof`/`offsetof`. Alignment is read via `mir_c_align<T>()`
+(`offsetof(MirrorAlignProbe<T>, t)`) because MSVC's C mode has no `_Alignof`.
+
+Independently, a real program was cross-checked end to end: a probe with
+inheritance, a nested struct, an array member, a variant and an anonymous union
+member was lowered with a temporary layout trace and the numbers compared with
+`gcc`'s `sizeof`/`offsetof` for the C the emitter actually produced — every value
+identical:
+
+| Type | MIR | gcc on the emitted C |
+|---|---|---|
+| `LayoutBase {i64 a}` | 8/8, `a`+0 | 8/8, `a`+0 |
+| `LayoutDerived : LayoutBase {u8 b; int c}` | 16/8, base+0, `b`+8, `c`+12 | same |
+| `LayoutNested {Derived p; u8 q}` | 24/8, `p`+0, `q`+16 | same |
+| `LayoutArr {int[3] arr; u8 t}` | 16/4, `arr`+0, `t`+12 | same |
+| `LayoutVariant {int tag; union{Some(Derived); None}}` | 24/8, tag+0, `Some`+8 | same |
+| `LayoutUnionHolder {union{…} storage; char state}` | 32/8, `storage`+0, `state`+24 | same |
+
+**This step is output-invariant, and that is the point:** nothing reads the new
+fields yet (`sizeof`/`alignof`/`offsetof` still emit the C operators, so codegen
+is unchanged). Measured before/after on the same machine: struct-heavy probe
+**102 zero loops / 11,550 lines** and main-suite C **1,231 zero loops / 107,191
+lines** — identical both sides (bytes are 504,054/504,052, i.e. inside the ±2 B
+run-to-run jitter noted above); the probe exits 39 either way. Suites (`--tcc` and
+`--llvm`) are green: **2300/2300** and **2298/2298**.
+
+What it buys is the prerequisite for the rest of action A: the single C type
+speller (A2) and a MIR declaration table (A3) can now print and lay out types
+from MIR alone, and backend B can share one ABI/layout service.
+
+Known limits, deliberately not addressed here: an empty aggregate is 0 bytes /
+alignment 1 (matching `named_struct` and the opaque frame types); `long double`
+keeps the 16/16 the type mapping already recorded (a Windows target would need 8);
+and an aggregate nested *by value* is laid out when it is mapped, so an illegal
+by-value cycle would contribute 0 rather than loop.
 
 ### Session 9 (2026-10-13) — struct-literal aggregate zeroing is conditional (action C1)
 

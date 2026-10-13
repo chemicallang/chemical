@@ -10,8 +10,11 @@
 #include "compiler/mir/MIREmitter.h"
 
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
+#include <string>
+#include <vector>
 
 using namespace mir;
 
@@ -366,6 +369,267 @@ static bool test_type_names() {
     return true;
 }
 
+// ── layout: MIR-computed aggregate layout vs. what a C compiler computes ────
+//
+// C mirrors of the aggregates built below. `CHECK_AGG`/`CHECK_FIELD` compare
+// the MIR-computed size/alignment/offsets against the C compiler's
+// `sizeof`/`offsetof`, so the layout pass is pinned to the real ABI it must
+// agree with: the emitter writes the fields out and lets the C compiler lay
+// them out, so MIR's numbers have to match. MIRTests is built by whatever C++
+// compiler is configured, so the mirrors avoid anything with a non-obvious
+// spelling (long double, empty aggregates, bitfields).
+#if defined(_MSC_VER)
+#define MIR_TEST_ALIGNED(n) __declspec(align(n))
+#else
+#define MIR_TEST_ALIGNED(n) __attribute__((aligned(n)))
+#endif
+
+/** The C compiler's alignment of `T`, derived from `offsetof` (portable across
+ *  MSVC, whose C mode has no `_Alignof`). */
+template <typename T> struct MirrorAlignProbe { char c; T t; };
+template <typename T> static uint32_t mir_c_align() {
+    return static_cast<uint32_t>(offsetof(MirrorAlignProbe<T>, t));
+}
+
+struct MirrorCharInt { char c; int i; };
+struct MirrorIntChar { int i; char c; };
+struct MirrorCharDoubleInt { char c; double d; int i; };
+struct MirrorPtrChar { void* p; char c; };
+struct MirrorIntArr3Char { int a[3]; char c; };
+struct MirrorInner { int i; char c; };
+struct MirrorOuter { char c; struct MirrorInner in; char d; };
+union MirrorUnion { int i; char c; double d; };
+struct MirrorVariantCaseA { char c; };
+struct MirrorVariantCaseB { double d; int i; };
+struct MirrorVariant {
+    int __chx__vt_621827;
+    union {
+        struct MirrorVariantCaseA A;
+        struct MirrorVariantCaseB B;
+    };
+};
+MIR_TEST_ALIGNED(16) struct MirrorOverAligned { int i; };
+
+#define CHECK_AGG(module, id, ctype)                                           \
+    do {                                                                       \
+        CHECK((module).types.get(id).size == sizeof(ctype));                    \
+        CHECK((module).types.get(id).alignment == mir_c_align<ctype>());        \
+    } while (0)
+#define CHECK_FIELD(module, id, fname, expected)                               \
+    CHECK(mir_field_offset_named(module, (id), (fname)) ==                     \
+          static_cast<uint32_t>(expected))
+
+/** `offset` of the field of `agg` named `name`, or MIR_INVALID_ID. */
+static uint32_t mir_field_offset_named(const MIRModule& m, TypeId agg,
+                                       const char* name) {
+    const MIRTypeRecord& r = m.types.get(agg);
+    for (uint32_t i = 0; i < r.data_count; ++i) {
+        const MIRFieldInfo* f = m.types.field_of(agg, i);
+        if (f && m.types.field_name_of(*f) == name) return f->offset;
+    }
+    return MIR_INVALID_ID;
+}
+
+struct FieldSpec {
+    const char* name;
+    TypeId type;
+    uint32_t align = 0;
+    MIRFieldKind kind = MIRFieldKind::Direct;
+};
+
+static TypeId mir_layout_int(MIRModule& m, uint32_t size, MIRIntKind ik) {
+    MIRTypeRecord r;
+    r.kind = MIRTypeKind::Int;
+    r.flags = TF_SIGNED;
+    r.size = size;
+    r.alignment = size;
+    r.int_kind = ik;
+    return m.types.intern(r);
+}
+
+static TypeId mir_layout_float(MIRModule& m, uint32_t size) {
+    MIRTypeRecord r;
+    r.kind = MIRTypeKind::Float;
+    r.size = size;
+    r.alignment = size;
+    return m.types.intern(r);
+}
+
+static TypeId mir_layout_ptr(MIRModule& m, TypeId pointee) {
+    MIRTypeRecord r;
+    r.kind = MIRTypeKind::Pointer;
+    r.flags = TF_MUTABLE;
+    r.size = 8;
+    r.alignment = 8;
+    r.element = pointee;
+    return m.types.intern(r);
+}
+
+static TypeId mir_layout_array(MIRModule& m, TypeId elem, uint32_t count) {
+    MIRTypeRecord r;
+    r.kind = MIRTypeKind::Array;
+    r.element = elem;
+    r.data_count = count;
+    r.size = m.types.get(elem).size * count;
+    r.alignment = m.types.get(elem).alignment;
+    return m.types.intern(r);
+}
+
+/** Build an aggregate record with fields, then lay it out (as the type
+ *  builder does) and return its id. */
+static TypeId mir_layout_agg(MIRModule& m, MIRTypeKind kind,
+                             const std::vector<FieldSpec>& fields,
+                             uint32_t explicit_align = 0) {
+    MIRTypeRecord r;
+    r.kind = kind;
+    r.data_count = static_cast<uint32_t>(fields.size());
+    std::vector<MIRFieldInfo> fs;
+    for (const FieldSpec& f : fields) {
+        MIRFieldInfo fi;
+        fi.type = f.type;
+        fi.kind = static_cast<uint8_t>(f.kind);
+        fi.align = f.align;
+        fi.index = static_cast<uint32_t>(fs.size());
+        fi.name_offset = static_cast<uint32_t>(m.types.field_names.size());
+        fi.name_length = static_cast<uint32_t>(std::string(f.name).size());
+        m.types.field_names.insert(m.types.field_names.end(), f.name,
+                                   f.name + fi.name_length);
+        fs.push_back(fi);
+    }
+    r.field_index = fs.empty() ? MIR_INVALID_ID : m.types.append_fields(fs);
+    const TypeId id = static_cast<TypeId>(m.types.types.size());
+    r.decl = id + 0x1000u; // distinct identity per aggregate
+    m.types.types.push_back(r);
+    compute_aggregate_layout(m.types, id, explicit_align);
+    return id;
+}
+
+static bool test_aggregate_layout() {
+    MIRModule m;
+    const TypeId ch = mir_layout_int(m, 1, IK_CHAR);
+    const TypeId i32 = mir_layout_int(m, 4, IK_INT);
+    const TypeId i64 = mir_layout_int(m, 8, IK_I64);
+    const TypeId dbl = mir_layout_float(m, 8);
+    const TypeId ptr = mir_layout_ptr(m, ch);
+
+    // {char, int}: the int needs 3 bytes of padding after the char
+    {
+        const TypeId t = mir_layout_agg(m, MIRTypeKind::Struct, {{"c", ch}, {"i", i32}});
+        CHECK_AGG(m, t, MirrorCharInt);
+        CHECK_FIELD(m, t, "c", offsetof(MirrorCharInt, c));
+        CHECK_FIELD(m, t, "i", offsetof(MirrorCharInt, i));
+    }
+    // {int, char}: trailing padding to the alignment
+    {
+        const TypeId t = mir_layout_agg(m, MIRTypeKind::Struct, {{"i", i32}, {"c", ch}});
+        CHECK_AGG(m, t, MirrorIntChar);
+        CHECK_FIELD(m, t, "i", offsetof(MirrorIntChar, i));
+        CHECK_FIELD(m, t, "c", offsetof(MirrorIntChar, c));
+    }
+    // {char, double, int}: 8-byte alignment, interior and trailing padding
+    {
+        const TypeId t = mir_layout_agg(m, MIRTypeKind::Struct,
+                                        {{"c", ch}, {"d", dbl}, {"i", i32}});
+        CHECK_AGG(m, t, MirrorCharDoubleInt);
+        CHECK_FIELD(m, t, "c", offsetof(MirrorCharDoubleInt, c));
+        CHECK_FIELD(m, t, "d", offsetof(MirrorCharDoubleInt, d));
+        CHECK_FIELD(m, t, "i", offsetof(MirrorCharDoubleInt, i));
+    }
+    // {void*, char}
+    {
+        const TypeId t = mir_layout_agg(m, MIRTypeKind::Struct, {{"p", ptr}, {"c", ch}});
+        CHECK_AGG(m, t, MirrorPtrChar);
+        CHECK_FIELD(m, t, "p", offsetof(MirrorPtrChar, p));
+        CHECK_FIELD(m, t, "c", offsetof(MirrorPtrChar, c));
+    }
+    // {int[3], char}: the array's stride and alignment come from its element
+    {
+        const TypeId arr = mir_layout_array(m, i32, 3);
+        CHECK(m.types.get(arr).size == sizeof(((struct MirrorIntArr3Char*)0)->a));
+        CHECK(m.types.get(arr).alignment == mir_c_align<int>());
+        const TypeId t = mir_layout_agg(m, MIRTypeKind::Struct, {{"a", arr}, {"c", ch}});
+        CHECK_AGG(m, t, MirrorIntArr3Char);
+        CHECK_FIELD(m, t, "a", offsetof(MirrorIntArr3Char, a));
+        CHECK_FIELD(m, t, "c", offsetof(MirrorIntArr3Char, c));
+    }
+    // nested aggregate by value
+    {
+        const TypeId inner = mir_layout_agg(m, MIRTypeKind::Struct, {{"i", i32}, {"c", ch}});
+        CHECK_AGG(m, inner, MirrorInner);
+        const TypeId outer = mir_layout_agg(m, MIRTypeKind::Struct,
+                                            {{"c", ch}, {"in", inner}, {"d", ch}});
+        CHECK_AGG(m, outer, MirrorOuter);
+        CHECK_FIELD(m, outer, "c", offsetof(MirrorOuter, c));
+        CHECK_FIELD(m, outer, "in", offsetof(MirrorOuter, in));
+        CHECK_FIELD(m, outer, "d", offsetof(MirrorOuter, d));
+        // a field that does not exist
+        CHECK(mir_field_offset_named(m, outer, "nope") == MIR_INVALID_ID);
+    }
+    // union: every field at offset 0, sized by the largest member
+    {
+        const TypeId u = mir_layout_agg(m, MIRTypeKind::Union,
+                                        {{"i", i32}, {"c", ch}, {"d", dbl}});
+        CHECK_AGG(m, u, MirrorUnion);
+        CHECK_FIELD(m, u, "i", offsetof(MirrorUnion, i));
+        CHECK_FIELD(m, u, "c", offsetof(MirrorUnion, c));
+        CHECK_FIELD(m, u, "d", offsetof(MirrorUnion, d));
+    }
+    // variant: bases, then the `int` tag, then a union of the case payloads
+    {
+        const TypeId case_a = mir_layout_agg(m, MIRTypeKind::Struct,
+                                             {{{"c", ch}}});
+        const TypeId case_b = mir_layout_agg(m, MIRTypeKind::Struct,
+                                             {{"d", dbl}, {"i", i32}});
+        CHECK_AGG(m, case_a, MirrorVariantCaseA);
+        CHECK_AGG(m, case_b, MirrorVariantCaseB);
+        const TypeId v = mir_layout_agg(m, MIRTypeKind::Variant,
+                                        {{"__chx__vt_621827", i32, 0, MIRFieldKind::VariantTag},
+                                         {"A", case_a, 0, MIRFieldKind::VariantCase},
+                                         {"B", case_b, 0, MIRFieldKind::VariantCase}});
+        CHECK_AGG(m, v, MirrorVariant);
+        CHECK_FIELD(m, v, "__chx__vt_621827", offsetof(MirrorVariant, __chx__vt_621827));
+        CHECK_FIELD(m, v, "A", offsetof(MirrorVariant, A));
+        CHECK_FIELD(m, v, "B", offsetof(MirrorVariant, B));
+    }
+    // a variant with an inherited base: the base is laid out first
+    {
+        const TypeId base = mir_layout_agg(m, MIRTypeKind::Struct, {{"i", i32}});
+        const TypeId case_a = mir_layout_agg(m, MIRTypeKind::Struct, {{"c", ch}});
+        const TypeId v = mir_layout_agg(m, MIRTypeKind::Variant,
+                                        {{"Base", base, 0, MIRFieldKind::Base},
+                                         {"__chx__vt_621827", i32, 0, MIRFieldKind::VariantTag},
+                                         {"A", case_a, 0, MIRFieldKind::VariantCase}});
+        CHECK_FIELD(m, v, "Base", 0u);
+        CHECK_FIELD(m, v, "__chx__vt_621827", 4u);
+        CHECK_FIELD(m, v, "A", 8u);
+        CHECK(m.types.get(v).size == 12u);
+        CHECK(m.types.get(v).alignment == 4u);
+    }
+    // an explicit over-alignment (`__chx_align_struct(N)`) raises the alignment
+    // and pads the size
+    {
+        const TypeId t = mir_layout_agg(m, MIRTypeKind::Struct, {{"i", i32}}, 16);
+        CHECK_AGG(m, t, MirrorOverAligned);
+        CHECK_FIELD(m, t, "i", offsetof(MirrorOverAligned, i));
+    }
+    // an explicit alignment on a member raises only that member's alignment
+    {
+        const TypeId t = mir_layout_agg(m, MIRTypeKind::Struct,
+                                        {{"a", i64}, {"b", ch, 32}});
+        CHECK_FIELD(m, t, "a", 0u);
+        CHECK_FIELD(m, t, "b", 32u);
+        CHECK(m.types.get(t).size == 64u);
+        CHECK(m.types.get(t).alignment == 32u);
+    }
+    // an empty aggregate stays empty rather than gaining a phantom byte
+    {
+        const TypeId t = mir_layout_agg(m, MIRTypeKind::Struct, {});
+        CHECK(m.types.get(t).size == 0u);
+        CHECK(m.types.get(t).alignment == 1u);
+    }
+    return true;
+}
+
 int main() {
     bool ok = true;
     ok &= test_arena();
@@ -375,6 +639,7 @@ int main() {
     ok &= test_emitter();
     ok &= test_control_flow_emitter();
     ok &= test_type_names();
+    ok &= test_aggregate_layout();
     if (!ok) {
         std::cerr << "mir_tests: FAILED\n";
         return 1;

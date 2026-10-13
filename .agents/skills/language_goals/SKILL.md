@@ -37,7 +37,18 @@ A language is only valuable if it satisfies all four:
 | 0 | **Extreme performance** | Code is no longer the bottleneck (AI handles maintenance/features); runtime performance is what matters. Never trade runtime speed for convenience. |
 | 1 | **Complete memory safety** | An AI must not be able to write code that causes a memory error. Hard requirement. |
 | 2 | **Enforceable no-panic policy** | A module can forbid panics entirely; the compiler errors if any function can panic. Forces agents to *report* errors (via `Result`/effects) instead of aborting. |
-| 3 | **Runs everywhere** | Browser (as JS), WASM, JVM bytecode, Android, and native (C + LLVM). One project, structured to run on every target. |
+| 3 | **Runs everywhere** | Browser (as JS), WASM, JVM bytecode, Android, native (C + LLVM), **and native with GC** (C + LLVM binary with an embedded collector — no hosted VM). One project, structured to run on every target. |
+
+**Toolchain constraint (equally binding, §2 of the doc).** The non-LLVM release compiler
+(`TCCCompiler` / `chemical`, TinyCC-based) must be **< 4 MB ambitiously, hard ceiling
+5 MB — never more** as the steady state. It must **still support the whole language and
+every target it owns** (C/TinyCC, JVM, JS; LLVM is the separate heavyweight) and be
+**really performant** (compile time, memory, and generated-code quality improve
+*together*). How: **move heavy, non-essential machinery into plugins/libraries** (CBI,
+optional libs, analyzers, heavyweight backends); keep everything *essential* in the core;
+**shrink shared library/runtime code over time**. The **first** release may be much larger
+(7–15 MB) to ship fast; **after that**, size + compile time + memory are reduced together
+until the ceiling is met. Never drop a capability to hit the number — move it out.
 
 ## Relationship to Rust (important for correctness)
 
@@ -80,9 +91,27 @@ These are the known gaps toward Requirement 3 — mostly **unsolved** today:
    harder, since the browser is reference-heavy and GC-managed.
 5. **GC platforms vs. native semantics** — on the JVM, native-oriented ownership and
    deterministic destruction do not map cleanly.
-6. **One syntax across divergent platform semantics** — the Kotlin-Multiplatform-like
+6. **Native GC mode (new, §6.7 of the doc)** — a mode where the user ignores
+   allocation/free and the collector is linked **into a native C/LLVM executable** (Go's
+   value proposition), not a hosted VM. Genuinely unsolved: does semantics change, is
+   the choice whole-program/per-module/per-type, is the borrow checker relaxed for GC
+   values (and what replaces the data-race guarantee), how do GC and owned values cross
+   (containment/rooting/pinning), and is there one managed-reference concept shared with
+   the JVM/JS targets? Constraints: opt-in only, zero tax on owned code, still a native
+   binary, deterministic cleanup for OS resources, memory safety preserved.
+7. **One syntax across divergent platform semantics** — the Kotlin-Multiplatform-like
    problem, harder because Chemical is a systems language. This is the central open
-   design question. Target matrix: **native (C + LLVM), WASM, JS/browser, JVM, Android**.
+   design question. Target matrix: **native-owned (C + LLVM), native-GC (C + LLVM),
+   WASM, JS/browser, JVM, Android**.
+8. **Generic impls are not supported (language-capability blocker, §6.8 of the doc)** —
+   you cannot write a parameterized implementation (`impl<T> Trait for MyType<T>`) at
+   top level. `impl <T> I for S<T>` is rejected (`don't declare generic parameters`)
+   and `impl Future<T> for FutureHandle<T>` does not resolve its methods
+   (`unresolved child 'poll'`, verified). The only working form is a **nested impl**
+   inside the generic type's body, which is instantiated with the containing type.
+   Consequence: generic types cannot participate uniformly in protocols, so generic
+   abstractions (iterators, conversions, operators, serialization) must be duplicated
+   per instantiation. Direction: monomorphize the impl like generic functions.
 
 ## Design tensions to hold explicitly
 
@@ -91,6 +120,12 @@ These are the known gaps toward Requirement 3 — mostly **unsolved** today:
 3. Agent-friendliness vs. human legibility — never cross into "only an AI can read this".
 4. Compile-time speed vs. convenience — no slow-to-check sugar.
 5. Constraint vs. expressiveness — constrain wrong programs rather than expand expression.
+6. Deterministic destruction vs. GC convenience — one syntax must serve owned/`@delete`
+   and an opt-in native GC model without leaking the GC model's relaxed guarantees into
+   owned code or making GC the default (§6.7).
+7. Small core vs. full capability — keep the non-LLVM compiler under 5 MB (goal 4 MB) by
+   moving non-essential machinery to plugins/libraries, never by dropping features or
+   backends; size, compile time, and memory improve together (§2 toolchain constraint).
 
 ## Non-goals
 
@@ -99,6 +134,10 @@ These are the known gaps toward Requirement 3 — mostly **unsolved** today:
 - Not adding type inference / sugar that costs compile time for little value.
 - Not normalizing memory-unsafe escape hatches (they stay explicit, scoped, opt-in —
   see the existing `unsafe` marker rules in `AGENTS.md`).
+- Not shipping a "lite" compiler: the small non-LLVM compiler supports the full language
+  and every target it owns; weight moves to plugins/libraries, capabilities do not.
+- Not accepting a permanently large compiler: a 7–15 MB first release is a starting point,
+  then size + compile time + memory are reduced together to the ≤ 5 MB ceiling.
 
 ## See also
 

@@ -54,6 +54,42 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 5 (2026-10-13) — generated-code waste + LLVM error propagation
+
+Both backends now emit from MIR, so this pass worked the evaluation's action C
+(generated-code quality) and a cross-backend correctness gap.
+
+- **Aggregate zeroing is now conditional (action C1).** The emitters no longer
+  zero *every* aggregate `Alloca`. The lowerer already emits an explicit
+  `MemSet` (`zero_init`) at the sites that need well-defined tail bytes (struct
+  temp with unset members, array literal, defaulted fields); the blanket
+  `Alloca` zero duplicated all of them (two byte loops per temp). One site did
+  rely on the blanket zero — `var s : [N]char = "<literal>"`, which copies only
+  the literal bytes — and now has its own explicit `zero_init`
+  (`MIRLowerer::lower_stmt`, `VarInitStmt`). That case passed on the C backend
+  only by luck (TinyCC handed out zeroed stack); it was a latent bug on both
+  backends. Measured on `lang/compiled/perfprobe` (`debug_quick`, `--no-cache`):
+  byte-wise zero loops **584 → 182** (−69%), generated C **14,115 → 13,713**
+  lines, executable **543 KB → 501 KB** (−7.7%), probe compile/RSS flat
+  (0.49 s → 0.45 s, 17.7 → 17.1 MB).
+- **The LLVM job no longer swallows translation-phase errors.** In
+  `LabBuildCompiler`, the LLVM path called `processor.compile_module(gen, mod)`
+  and discarded its return value; failure was decided only by
+  `gen.has_errors()` (AST/codegen diagnostics), which is empty for the MIR path.
+  A diagnostic the C backend turns into a failed build — `#universal` router
+  validation, `@extern` with a body, `float % float` in the emitted C, … — was
+  *printed* on LLVM but the compiler exited 0. `compile_module`'s non-zero
+  status now fails the build like the C path does. `--llvm --negative` went
+  **282 → 304 / 318**; TCC `--negative` unchanged at 311/318.
+
+Suites re-run after the change (clean per-module cache): `./scripts/test.sh
+--tcc` **2300/2300**, `--llvm` **2298/2298**, `--tcc --interpret` **1890/1890**,
+`--tcc/--llvm --plugins` **1296/1296**, `--tcc/--llvm --async` **53/53**,
+`--tcc/--llvm --process` **127/127**, `--tcc/--llvm --regexp` **143/143**,
+`--llvm --libs` **718/719**, `--tcc --libs` **718/719**, `--tcc --server`
+**9/9**, `MIRTests` **1049 checks OK**. The single `--libs` failure is the known
+environment-sensitive `test_fs_directory_iteration`.
+
 ## Current status (verified with a clean test-exe cache)
 
 **LLVM target (`Compiler`, MIR→LLVM): the main suite is green — 2298 / 2298.**
@@ -299,6 +335,48 @@ flag), so a string's heap buffer is owned by more than one place. The legacy
 visitor handled this via direct-by-pointer parameter mutation; MIR's
 copy-then-move parameter ABI is the suspect. Needs a focused lifetime
 investigation.
+
+### 2c. `async func main` has no synchronous `int main` trampoline (OPEN)
+
+An application whose entry point is `async func main` must get a synchronous
+`int main` that drives the coroutine to completion and returns its result (see
+`lang/docs/async-await-design.md` §5.5). The legacy 2c visitor emitted that
+wrapper (`emit_async_main_wrapper`, deleted with the visitor); **MIR never
+reimplemented it**, so today the coroutine *ramp* owns the `main` symbol:
+
+```c
+static void main(struct core_coreasyncFutureHandle__cgs__1* __chx_a0) { … }  /* ramp */
+/* no `int main(void)` */
+```
+
+Consequences (repro below): the C build links a program with no real entry point
+(exit code is garbage) and the LLVM build SIGSEGVs, because crt calls the ramp
+with the wrong ABI.
+
+```bash
+mkdir -p /tmp/negasync && cd /tmp/negasync
+printf 'application neg_test\nsource "."\nimport cstd\nimport core\nimport async\n' > chemical.mod
+printf 'struct Rd { var v : int }\nfunc rp(frame : *mut void, cx : *mut core::async::Context) : core::async::Poll<int> { var f = frame as *mut Rd; return core::async::Poll.Ready<int>(f.v) }\nfunc rd(frame : *mut void) { free(frame) }\nfunc mk(v : int) : core::async::FutureHandle<int> { var f = malloc(sizeof(Rd)) as *mut Rd; f.v = v; var t = malloc(sizeof(core::async::FutureTable<int>)) as *mut core::async::FutureTable<int>; t.poll = rp; t.drop = rd; return core::async::FutureHandle<int> { frame : f as *mut void, vtbl : t } }\nasync func main() : int { var n = await mk(40); return n + 2 }\n' > test.ch
+../../cmake-build-debug/TCCCompiler chemical.mod --no-cache -o c.exe && ./c.exe; echo "C exit=$?"   # expect 42
+../../cmake-build-debug/Compiler   chemical.mod --no-cache -o l.exe && ./l.exe; echo "LLVM exit=$?" # expect 42
+```
+
+Currently the C binary exits 255 and the LLVM binary segfaults. Regression test:
+`lang/tests/negative/src/async.ch::async_main_trampoline_runs` (asserts exit 42);
+it is one of the TCC/LLVM `--negative` failures above.
+
+**Fix sketch.** (1) Give the ramp a distinct symbol when it is the async main
+(`mangler_(decl) + "__ramp"`), in both `MIRLowerer::intern_function` and
+`mir_translate_after_declaration`'s pass 1, and own `main` in a new wrapper.
+(2) Emit the wrapper. Its body is exactly the old C text (also mirrored by the
+now-dead `emit_llvm_async_main_wrapper` in `compiler/backend/LLVMCoroutine.cpp`):
+call the ramp into a `FutureHandle<T>`, then poll `h.vtbl->poll(&p, h.frame,
+&cx)` until `p.__chx__vt_621827 == 0`, `h.vtbl->drop(h.frame)`, return the cast
+`p.Ready.value` (0 for a void/`Unit` result). The "build it as MIR" variant reuses
+`lower_async_await`'s primitives (place load, vtbl field load, `call_indirect`,
+`cond_br`) so the LLVM emitter needs no new opcode; the C-text variant goes into
+`async_post_decls_` for the C backend. Build the MIR variant so both backends
+share one implementation.
 
 ### 3. Aggregate layout milestone
 

@@ -984,28 +984,13 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                 case MIROpcode::Nop:
                     break;
                 case MIROpcode::Alloca: {
-                    // The C emitter zero-initializes an aggregate alloca right
-                    // after declaring it ("so unset members are well-defined"),
-                    // and the lowerer relies on that for a partial aggregate
-                    // initializer (e.g. `var s : [10]char = "hello"` only
-                    // `memcpy`s the 6 literal bytes; the tail must be zero).
-                    // Mirror it here at the same program point, so a loop-body
-                    // alloca is re-zeroed each iteration like the C build.
-                    if (v >= fn.places.size()) break;
-                    const TypeId pt = fn.places[v].type;
-                    if (pt >= m.types.size()) break;
-                    const MIRTypeKind pk = m.types.get(pt).kind;
-                    if (pk != MIRTypeKind::Struct && pk != MIRTypeKind::Variant &&
-                        pk != MIRTypeKind::Union && pk != MIRTypeKind::Array) {
-                        break;
-                    }
-                    llvm::Value* dp = places[v];
-                    if (!dp) break;
-                    const uint64_t sz =
-                        module->getDataLayout().getTypeAllocSize(mir_type(m, pt));
-                    if (sz == 0) break;
-                    builder->CreateMemSet(dp, builder->getInt8(0), builder->getInt64(sz),
-                                          llvm::MaybeAlign());
+                    // No unconditional zeroing here: the lowerer emits an
+                    // explicit `MemSet` (`zero_init`) at exactly the sites that
+                    // need well-defined tail bytes (a partial aggregate / array
+                    // initializer, a struct temp with unset members, a struct's
+                    // defaulted fields). Zeroing every aggregate alloca in
+                    // addition duplicated that work (see evaluation §1.2); the
+                    // C emitter was updated to match.
                     break;
                 }
                 case MIROpcode::ConstInt:

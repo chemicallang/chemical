@@ -4350,6 +4350,10 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         uint64_t n = static_cast<uint64_t>(sv->value.size()) + 1; // include NUL
                         const uint64_t arr_len = module_.types.get(vt).data_count;
                         if (arr_len != 0 && n > arr_len) n = arr_len;
+                        // The literal only covers `n` bytes, so zero the tail of
+                        // the destination explicitly (the alloca is no longer
+                        // unconditionally zeroed; see evaluation §1.2 / action C1).
+                        builder_->zero_init(place);
                         const TypeId ut = types_.u32_type();
                         const ValueId sz = builder_->const_int(
                             ut, module_.constants.add_int(ut, n));

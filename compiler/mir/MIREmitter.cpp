@@ -732,15 +732,13 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
             case MIROpcode::Alloca: {
                 const PlaceId p = inst.result_or_place;
                 out += declarator(module, function.places[p].type, place_name(module, function, p)) + ";\n";
-                const MIRTypeRecord& pr = module.types.get(function.places[p].type);
-                if (pr.kind == MIRTypeKind::Struct || pr.kind == MIRTypeKind::Variant ||
-                    pr.kind == MIRTypeKind::Union || pr.kind == MIRTypeKind::Array) {
-                    // zero-initialize aggregates so unset members are well-defined
-                    const std::string pn = place_name(module, function, p);
-                    const std::string iv = "__chx_za" + std::to_string(idx);
-                    out += "for (unsigned long " + iv + " = 0; " + iv + " < sizeof(" + pn +
-                           "); ++" + iv + ") ((unsigned char*)&" + pn + ")[" + iv + "] = 0;\n";
-                }
+                // An aggregate is *not* zeroed here unconditionally. The lowerer
+                // emits an explicit `MemSet` (`zero_init`) at exactly the sites
+                // that need well-defined tail bytes (a partial aggregate / array
+                // initializer, a struct temp with unset members, a struct's
+                // defaulted fields). Zeroing every aggregate alloca as well
+                // duplicated that work (two byte loops per temp) and was the
+                // single largest source of generated-C waste (evaluation §1.2).
                 break;
             }
             case MIROpcode::Param: {

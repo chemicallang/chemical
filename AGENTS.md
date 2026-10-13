@@ -13,7 +13,18 @@ code legible enough that a human can get the gist and then dig in with AI help.
 1. **Complete memory safety** — an AI must not be able to cause a memory error.
 2. **Enforceable no-panic policy** — a module can forbid panics; the compiler errors if
    any function can panic, forcing agents to report errors instead of aborting.
-3. **Runs everywhere** — browser (as JS), WASM, JVM bytecode, Android, native (C + LLVM).
+3. **Runs everywhere** — browser (as JS), WASM, JVM bytecode, Android, native (C + LLVM),
+   and native with GC (a native binary with an embedded collector — no hosted VM).
+
+**Toolchain constraint (binding):** the non-LLVM release compiler (`TCCCompiler` /
+`chemical`) must stay **under 4 MB** (goal) with a **hard 5 MB ceiling — never more** as
+the steady state, while still supporting the **whole language and every target it owns**
+(C/TinyCC, JVM, JS) and being **really performant** (compile time, memory, and
+generated-code quality improve together). Get there by **moving heavy, non-essential
+machinery into plugins/libraries** and shrinking shared library/runtime code — never by
+dropping capabilities. The **first** release may be much larger (7–15 MB) to ship fast;
+after that, size + compile time + memory are reduced together. See
+`lang/docs/language-goals.md` §2.
 
 **Rust relationship:** adopt Rust-familiar **memory-safety semantics** (ownership, move
 semantics, a borrow checker) so agents trained on Rust transfer their instincts — but
@@ -24,7 +35,12 @@ type inference from later usage). Prefer constraining wrong programs over adding
 **Known blockers on the "runs everywhere" path (mostly unsolved):** `#js`/universal
 components emit raw unchecked JavaScript; no TypeScript-equivalent DOM/web type
 declarations; no JavaScript backend; borrow checking makes DOM-heavy code harder; GC
-platforms (JVM) vs. native semantics; and the open problem of one syntax across
+platforms (JVM) vs. native semantics; **a native GC mode (a Go-like "ignore
+allocation, still a native binary" mode with an embedded collector) — its semantics,
+boundary, and implementation are open** (see `lang/docs/language-goals.md` §6.7);
+**generic impls (`impl<T> Trait for MyType<T>`) are not supported** — `impl <T> ...`
+is rejected and parameterized impls do not resolve methods, so generic types cannot
+participate uniformly in protocols (§6.8); and the open problem of one syntax across
 divergent platform memory models.
 
 Full detail: [`lang/docs/language-goals.md`](lang/docs/language-goals.md). Load the

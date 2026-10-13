@@ -1220,7 +1220,7 @@ int LabBuildCompiler::process_module_gen(
     }
 
     // compile the whole module
-    processor.compile_module(
+    const auto compile_status = processor.compile_module(
             gen, mod
     );
 
@@ -1230,6 +1230,15 @@ int LabBuildCompiler::process_module_gen(
 
     // removing non public nodes, because these would be disposed when allocator clears
     remove_non_public_nodes(processor, mod->direct_files);
+
+    // A non-zero status is a translation-phase failure (the same diagnostics the
+    // C path surfaces from declare_module/implement_module). The generated
+    // module cannot be trusted then, so fail the build even though the AST
+    // codegen diagnostics may be empty.
+    if(compile_status != 0) {
+        std::cerr << rang::fg::red << "error: " << rang::fg::reset << "failure during translation to c in the module " << *mod << std::endl;
+        return compile_status;
+    }
 
     if(gen.has_errors()) {
         std::cerr << rang::fg::red << "couldn't perform job due to errors during code generation" << rang::fg::reset << std::endl;

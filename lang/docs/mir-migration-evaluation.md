@@ -75,6 +75,25 @@ Probe (identical source and output):
 | Runtime (4×10⁷-iteration struct-method loop) | ~0.45 s | ~0.50 s | ~+10% |
 | Runtime (documented bcrypt cost-12, README) | 0.6 s | 1.0 s | **+67%** |
 
+> **Status update (2026-10-13) — action C1 landed (partial).** Aggregate zeroing
+> is now conditional: the emitters no longer zero *every* aggregate `Alloca`,
+> and the one lowerer site that relied on that blanket zero
+> (`var s : [N]char = "<literal>"`) now emits its own explicit `MemSet`
+> (`MIRLowerer::lower_stmt`). Same probe, same machine, same mode:
+>
+> | Metric | Legacy | MIR (before) | MIR (now) |
+> |---|---:|---:|---:|
+> | Probe zero loops | 0 | 584 | **182** (−69%) |
+> | Probe generated C lines | 8,285 | 14,115 | 13,713 |
+> | Probe executable | 341 KB | 543 KB | **501 KB** (−7.7% vs before) |
+>
+> This is a real step toward the C2/KB targets but nowhere near them yet; C2
+> (aggregate double copies), C3 (single-use param spills) and D (hot path) are
+> still open. Note the zeroing change removed 402 of the 584 loops; the
+> remaining 182 are explicit `zero_init`s whose destination is then fully
+> initialized field-wise (the `110 call` + `38 assign` classes below), which is
+> the next C1 bite.
+
 The main test executable corroborates it: `tests-tcc.exe` is **3.24 MB (legacy)
 vs 5.32 MB (MIR)** (+64%). The plan's explicit intent — *"we will deliberately
 emit less C, better C, and more performant C than legacy 2c"* (§6.14) — is not

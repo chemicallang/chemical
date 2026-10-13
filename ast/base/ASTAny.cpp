@@ -7,14 +7,6 @@
 #include <iostream>
 #include "std/except.h"
 
-#ifdef COMPILER_BUILD
-
-llvm::Type *ASTAny::llvm_type(Codegen &gen) {
-    CHEM_THROW_RUNTIME("llvm_type called on ASTAny");
-    return nullptr;
-}
-
-#endif
 
 std::string to_string(AccessSpecifier specifier) {
     switch(specifier) {

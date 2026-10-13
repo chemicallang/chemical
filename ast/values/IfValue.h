@@ -39,22 +39,5 @@ public:
 
     Value* evaluated_value(InterpretScope &scope) override;
 
-#ifdef COMPILER_BUILD
-
-    static llvm::Value* llvm_value(Codegen& gen, IfStatement& stmt, bool allocate);
-
-    llvm::Type* llvm_type(Codegen &gen) final;
-
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const chem::string_view &name) override;
-
-    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) override {
-        return (llvm::AllocaInst*) llvm_value(gen, stmt, true);
-    }
-
-    inline llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) final {
-        return llvm_value(gen, stmt, false);
-    }
-
-#endif
 
 };

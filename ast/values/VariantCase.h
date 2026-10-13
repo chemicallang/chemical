@@ -35,10 +35,5 @@ public:
         return varCase;
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) final;
-
-#endif
 
 };

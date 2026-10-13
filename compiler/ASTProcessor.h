@@ -612,64 +612,8 @@ public:
 #ifdef COMPILER_BUILD
 
     /**
-     * declare nodes using code generator
-     */
-    void code_gen_declare(
-            Codegen& gen,
-            std::vector<ASTNode*>& nodes,
-            const std::string_view& abs_path
-    );
-
-    /**
-     * declare nodes using code generator
-     */
-    void code_gen_compile(
-            Codegen& gen,
-            std::vector<ASTNode*>& nodes,
-            const std::string_view& abs_path
-    );
-
-    /**
-     * external implement declare
-     */
-    void code_gen_external_implement_declare(
-            Codegen& gen,
-            std::vector<ASTNode*>& nodes,
-            const std::string_view& abs_path
-    );
-
-    /**
-     * external implement is called upon nodes that are imported from other modules
-     * when importing nodes from other modules, first other module nodes are declared, then
-     * current module nodes are declared and then we compile/implement imported nodes
-     */
-    void code_gen_external_implement(
-            Codegen& gen,
-            std::vector<ASTNode*>& nodes,
-            const std::string_view& abs_path
-    );
-
-    /**
-     * compile nodes using code generator
-     */
-    void declare_and_compile(
-            Codegen& gen,
-            std::vector<ASTNode*>& nodes,
-            const std::string_view& abs_path
-    );
-
-    /**
-     * compile nodes using code generator
-     */
-    void external_declare_nodes(
-        Codegen& gen,
-        Scope& import_res,
-        const std::string& file
-    );
-
-    /**
-     * will compile given files for the module, by first declaring all the files and then compiling
-     * allowing symbols from files to be referenced in other files above or below
+     * Compile a module for the LLVM backend. Now a thin wrapper over
+     * `mir_compile_module` (the AST-based lowering has been deleted).
      */
     int compile_module(
         Codegen& gen,

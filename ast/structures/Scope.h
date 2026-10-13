@@ -95,24 +95,5 @@ public:
         ::make_exportable(nodes);
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::Value* code_gen_value_scope(Codegen& gen, bool allocate, unsigned destruct_begin);
-
-    void code_gen(Codegen &gen) final;
-
-    void code_gen_no_scope(Codegen &gen, unsigned destruct_begin);
-
-    void code_gen(Codegen &gen, unsigned destruct_begin);
-
-    void gen_declare_top_level(Codegen &gen);
-
-    void external_declare_top_level(Codegen &gen);
-
-    void code_gen_declare(Codegen &gen) final;
-
-    void code_gen_external_declare(Codegen &gen) final;
-
-#endif
 
 };

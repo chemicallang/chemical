@@ -196,17 +196,3 @@ VariantDefinition* GenericVariantDecl::instantiate_call(
     return register_generic_args(instantiator, generic_args, requirement);
 
 }
-
-#ifdef COMPILER_BUILD
-
-void GenericVariantDecl::code_gen_external_declare(Codegen &gen) {
-    // only declare the instantiations that have been bodied
-    unsigned i = 0;
-    const auto total = total_bodied_instantiations;
-    while(i < total) {
-        instantiations[i]->code_gen_external_declare(gen);
-        i++;
-    }
-}
-
-#endif

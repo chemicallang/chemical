@@ -75,22 +75,6 @@ public:
         return member_param->type;
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::Type* llvm_type(Codegen &gen) override;
-
-    llvm::Value* llvm_load(Codegen &gen, SourceLocation location) override;
-
-    llvm::Value* llvm_pointer(Codegen &gen);
-
-    inline llvm::Value* loadable_llvm_pointer(Codegen& gen, SourceLocation location) {
-        // stored in a struct, always requires a load
-        return llvm_pointer(gen);
-    }
-
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const chem::string_view &name) override;
-
-#endif
 
 };
 
@@ -129,14 +113,6 @@ public:
      */
     VariantMember* member = nullptr;
 
-#ifdef COMPILER_BUILD
-
-    /**
-     * this is evaluated in llvm_value
-     */
-    llvm::Value* llvm_expr = nullptr;
-
-#endif
 
     /**
      * constructor
@@ -194,14 +170,5 @@ public:
         return copied;
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) override;
-
-    llvm::Type* llvm_type(Codegen &gen) override;
-
-    void llvm_conditional_branch(Codegen &gen, llvm::BasicBlock *then_block, llvm::BasicBlock *otherwise_block) override;
-
-#endif
 
 };

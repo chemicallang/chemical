@@ -37,22 +37,6 @@ public:
      */
     ASTNode* get_ref_linked_node();
 
-#ifdef COMPILER_BUILD
-
-    /**
-     * provides llvm_type if this statement declares a type
-     */
-    virtual llvm::Type *llvm_type(Codegen &gen);
-
-    /**
-     * chain type provides llvm based on access chain, for example
-     * unions don't consider the largest member type, instead the one that has been accessed
-     */
-    virtual llvm::Type *llvm_chain_type(Codegen &gen, std::vector<Value*>& values, unsigned index) {
-        return llvm_type(gen);
-    }
-
-#endif
 
     /**
      * get the string representation for this node

@@ -20,7 +20,6 @@
 #include "backend/DebugInfoBuilder.h"
 #include "compiler/backend/include/LLVMArrayDestructor.h"
 #include "CodegenOptions.h"
-#include "compiler/backend/LLVMGen.h"
 #include "utils/TraitImplFuncMapKey.h"
 
 class ASTAllocator;
@@ -153,11 +152,6 @@ public:
      * the debug info builder
      */
     DebugInfoBuilder di;
-
-    /**
-     * llvm generator
-     */
-    LLVMGen llvm;
 
     /**
      * contains references to nodes that must be destructed at return

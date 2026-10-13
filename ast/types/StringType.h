@@ -21,10 +21,5 @@ public:
 
     bool satisfies(BaseType *type) final;
 
-#ifdef COMPILER_BUILD
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-#endif
 
 };

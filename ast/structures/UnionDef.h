@@ -112,50 +112,5 @@ public:
         return &linked_type;
     }
 
-#ifdef COMPILER_BUILD
-
-    /**
-     * responsible for generating code for a single function in a union decl
-     * read the documentation in this decl
-     */
-    void code_gen_function_declare(Codegen &gen, FunctionDeclaration* decl);
-
-    /**
-     * responsible for generating code for a single function in a union decl
-     * read the documentation in this decl
-     */
-    void code_gen_function_body(Codegen &gen, FunctionDeclaration* decl);
-
-    void code_gen(Codegen &gen, bool declare);
-
-    void code_gen_declare(Codegen &gen) final {
-        code_gen(gen, true);
-    }
-
-    void code_gen(Codegen &gen) final {
-        code_gen(gen, false);
-    }
-
-    void code_gen_external_declare(Codegen &gen) final;
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-    llvm::Type *llvm_param_type(Codegen &gen) final;
-
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) final;
-
-    llvm::StructType *llvm_get_stored_type(Codegen& gen);
-
-    void llvm_store_type(Codegen& gen, llvm::StructType* type);
-
-    bool add_child_index(
-        Codegen &gen,
-        std::vector<llvm::Value *> &indexes,
-        const chem::string_view &name
-    ) final {
-        return llvm_union_child_index(gen, indexes, name);
-    }
-
-#endif
 
 };

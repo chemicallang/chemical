@@ -108,21 +108,6 @@ public:
 
     bool compile_time_computable() final;
 
-#ifdef COMPILER_BUILD
-
-    bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) final;
-
-    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<Value*> &chain, unsigned int index) final;
-
-    llvm::Value *llvm_pointer(Codegen &gen) final;
-
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
-
-#endif
 
     Value* evaluated_value(InterpretScope &scope) final;
 

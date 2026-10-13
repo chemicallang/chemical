@@ -74,18 +74,5 @@ public:
         return value->linked_node();
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-    llvm::Value *llvm_pointer(Codegen& gen) final;
-
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
-
-    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) override {
-        return value->add_child_index(gen, indexes, name);
-    }
-
-#endif
 
 };

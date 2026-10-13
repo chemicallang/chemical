@@ -20,11 +20,6 @@ public:
 
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
-
-#endif
 
     Value *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<RetStructParamValue>()) RetStructParamValue(encoded_location());

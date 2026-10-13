@@ -106,138 +106,19 @@ Codegen::Codegen(
         ASTAllocator& allocator
 ) : ASTDiagnoser(comptime_scope.loc_man), binder(binder), options(options), comptime_scope(comptime_scope), allocator(allocator),
     target_triple(std::move(target_triple)), is64Bit(is_64_bit),
-    di(comptime_scope.loc_man, nullptr, *this, debug_info), llvm(di), mode(comptime_scope.mode),
+    di(comptime_scope.loc_man, nullptr, *this, debug_info), mode(comptime_scope.mode),
     mangler(mangler), coreNodes(coreNodes), implsIndex(implsIndex)
 {
     // create llvm context
     ctx = std::make_unique<llvm::LLVMContext>();
     // creating a new ir builder
     builder = new llvm::IRBuilder<>(*ctx);
-    // updating the builder
-    llvm.updateBuilder(builder);
-    llvm.set_codegen(this);
     // create an interface module
     interface_module = std::make_unique<llvm::Module>("interface.module", *ctx);
 }
 
-void Codegen::declare_nodes(std::vector<ASTNode*>& nodes) {
-    auto& gen = *this;
-    for(const auto node : nodes) {
-        node->code_gen_declare(gen);
-    }
-}
 
-void Codegen::compile_nodes(std::vector<ASTNode*>& nodes) {
-    auto& gen = *this;
-    for (const auto node: nodes) {
-        node->code_gen(gen);
-    }
-}
 
-void Codegen::external_declare_nodes(std::vector<ASTNode*>& nodes_vec) {
-    auto& gen = *this;
-    for(const auto node : nodes_vec) {
-        node->code_gen_external_declare(gen);
-    }
-}
-
-void external_implement_declare_node(Codegen& gen, ASTNode* node) {
-    switch(node->kind()) {
-        case ASTNodeKind::GenericFuncDecl:
-        case ASTNodeKind::GenericStructDecl:
-        case ASTNodeKind::GenericUnionDecl:
-        case ASTNodeKind::GenericInterfaceDecl:
-        case ASTNodeKind::GenericVariantDecl:
-            node->code_gen_declare(gen);
-            return;
-        case ASTNodeKind::NamespaceDecl:
-            for(const auto child_node : node->as_namespace_unsafe()->nodes) {
-                external_implement_declare_node(gen, child_node);
-            }
-            return;
-        case ASTNodeKind::IfStmt:{
-            const auto stmt = node->as_if_stmt_unsafe();
-            if(!stmt->computed_scope.has_value()) {
-                return;
-            }
-            const auto scope = stmt->computed_scope.value();
-            if(scope) {
-                for(const auto child : scope->nodes) {
-                    external_implement_declare_node(gen, child);
-                }
-            }
-            return;
-        }
-        case ASTNodeKind::StructDecl:
-        case ASTNodeKind::UnionDecl:
-        case ASTNodeKind::VariantDecl:
-            // gotta handle the generic functions inside the structs
-            for(const auto func : node->as_members_container_unsafe()->evaluated_nodes()) {
-                if(func->kind() == ASTNodeKind::GenericFuncDecl) {
-                    func->code_gen_declare(gen);
-                }
-            }
-            return;
-        default:
-            return;
-    }
-}
-
-void external_implement_node(Codegen& gen, ASTNode* node) {
-    switch(node->kind()) {
-        case ASTNodeKind::GenericFuncDecl:
-        case ASTNodeKind::GenericStructDecl:
-        case ASTNodeKind::GenericUnionDecl:
-        case ASTNodeKind::GenericInterfaceDecl:
-        case ASTNodeKind::GenericVariantDecl:
-            node->code_gen(gen);
-            return;
-        case ASTNodeKind::NamespaceDecl:
-            for(const auto child_node : node->as_namespace_unsafe()->nodes) {
-                external_implement_node(gen, child_node);
-            }
-            return;
-        case ASTNodeKind::IfStmt:{
-            const auto stmt = node->as_if_stmt_unsafe();
-            if(!stmt->computed_scope.has_value()) {
-                return;
-            }
-            const auto scope = stmt->computed_scope.value();
-            if(scope) {
-                for(const auto child : scope->nodes) {
-                    external_implement_node(gen, child);
-                }
-            }
-            return;
-        }
-        case ASTNodeKind::StructDecl:
-        case ASTNodeKind::UnionDecl:
-        case ASTNodeKind::VariantDecl:
-            // gotta handle the generic functions inside the structs
-            for(const auto func : node->as_members_container_unsafe()->evaluated_nodes()) {
-                if(func->kind() == ASTNodeKind::GenericFuncDecl) {
-                    func->code_gen(gen);
-                }
-            }
-            return;
-        default:
-            return;
-    }
-}
-
-void Codegen::external_implement_declare_nodes(std::vector<ASTNode*>& nodes) {
-    auto& gen = *this;
-    for(const auto node : nodes) {
-        external_implement_declare_node(gen, node);
-    }
-}
-
-void Codegen::external_implement_nodes(std::vector<ASTNode*>& nodes) {
-    auto& gen = *this;
-    for(const auto node : nodes) {
-        external_implement_node(gen, node);
-    }
-}
 
 bool Codegen::is_arch_64bit(const std::string_view& target_triple) {
     // Parse the target triple string. Normalize so short triples without a
@@ -275,7 +156,7 @@ void Codegen::module_init(const chem::string_view& scope_name, const chem::strin
     builder->ClearInsertionPoint();
 
     // debug flags must be added otherwise debug information is ignored (or dropped)
-    if(llvm.di.isEnabled) {
+    if(di.isEnabled) {
         module->setModuleFlag(
                 llvm::Module::ModFlagBehavior::Error,
                 "Debug Info Version",
@@ -294,167 +175,22 @@ void Codegen::module_init(const chem::string_view& scope_name, const chem::strin
     }
 
     diBuilder = std::make_unique<llvm::DIBuilder>(*module, true);
-    llvm.di.update_builder(diBuilder.get());
+    di.update_builder(diBuilder.get());
 
 }
 
-void Codegen::default_initialize_struct(ExtendableMembersContainerNode* decl, llvm::Value* ptr, Value* parent_value) {
 
-    auto& gen = *this;
 
-    const auto cons = decl->default_constructor_func();
-    if(cons && !cons->is_generated_fn()) {
-
-        // we'll be calling this constructor function
-        const auto func = cons->llvm_func(gen);
-        const auto callInst = builder->CreateCall(func, { ptr });
-        di.instr(callInst, parent_value);
-
-    } else {
-
-        // the type of struct
-        const auto decl_type = decl->llvm_type(gen);
-
-        // default initialize the inherited structs
-        default_initialize_inherited(decl, decl->llvm_type(gen), ptr, parent_value);
-
-        // initializing direct variables directly
-        for(const auto var : decl->variables()) {
-            auto defValue = var->default_value();
-            if (defValue) {
-                auto variable = decl->variable_type_w_index(var->name);
-                std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
-                defValue->store_in_struct(gen, parent_value, ptr, decl_type, idx, variable.second, variable.first);
-            } else {
-                error(parent_value) << "expected a default value for '" <<  var->name << "'";
-            }
-        }
-
-    }
-
-}
-
-void Codegen::default_initialize_inherited(VariablesContainer* container, llvm::Type* parent_type, llvm::Value* inst, Value* parent_value) {
-    // storing default values for inherited variables
-    unsigned inherited_index = 0;
-    for(auto& inh : container->inherited) {
-        const auto node = inh.type->get_direct_linked_canonical_node();
-        if(node->kind() == ASTNodeKind::StructDecl) {
-            const auto decl = node->as_struct_def_unsafe();
-
-            // pointer to inherited struct in allocated struct
-            const auto ptr = builder->CreateGEP(parent_type, inst, { builder->getInt32(inherited_index) });
-
-            // default initialize the struct
-            default_initialize_struct(decl, ptr, parent_value);
-
-            // increase the inherited index
-            inherited_index++;
-        }
-    }
-}
-
-llvm::Constant* Codegen::get_default_constant(VariablesContainer* container) {
-    auto& gen = *this;
-    std::vector<llvm::Constant*> elements;
-
-    // 1. Inherited
-    for (auto& inh : container->inherited) {
-        const auto struct_def = inh.type->get_direct_linked_struct();
-        if (struct_def) {
-            elements.emplace_back(get_default_constant(struct_def));
-        }
-    }
-
-    // 2. Direct variables
-    for (const auto var : container->variables()) {
-        const auto defValue = var->default_value();
-        if (defValue) {
-            const auto val = defValue->llvm_value(gen, nullptr);
-            if (llvm::isa<llvm::Constant>(val)) {
-                elements.emplace_back((llvm::Constant*)val);
-            } else {
-                error(var) << "expected default value for '" << var->name << "' to be a constant";
-                elements.emplace_back(llvm::ConstantAggregateZero::get(var->llvm_type(gen)));
-            }
-        } else {
-            if (ASTNode::isUnionDecl(container->kind())) {
-                elements.emplace_back(llvm::ConstantAggregateZero::get(var->llvm_type(gen)));
-                break;
-            }
-            error(var) << "missing value for member '" << var->name << "' with no default value";
-            elements.emplace_back(llvm::ConstantAggregateZero::get(var->llvm_type(gen)));
-        }
-        if (ASTNode::isUnionDecl(container->kind())) break;
-    }
-
-    auto structTy = llvm::cast<llvm::StructType>(container->llvm_type(gen));
-    return llvm::ConstantStruct::get(structTy, elements);
-}
 
 /// Implicitly casts an integer constant to the target integer type,
 /// performing sign or zero extension (or truncation) as needed.
 /// Returns a llvm::ConstantInt* if the conversion is valid, or nullptr if not.
-llvm::ConstantInt* Codegen::implicit_cast_constant(llvm::ConstantInt* value, BaseType* to_type, llvm::Type* to_type_llvm) {
-
-    // The target type must be an integer type.
-    if (!to_type_llvm->isIntegerTy())
-        return value;
-
-    const auto fromIntTy = value->getType();
-    const auto toIntTy = llvm::cast<llvm::IntegerType>(to_type_llvm);
-
-    unsigned srcWidth = value->getType()->getIntegerBitWidth();
-    unsigned dstWidth = toIntTy->getBitWidth();
-
-    // If the widths are already equal, no conversion is needed.
-    if (srcWidth == dstWidth)
-        return value;
-
-    // Widen the integer.
-    if (srcWidth < dstWidth) {
-        // an i1 is a bool and can only be 0 or 1, so it must be zero extended:
-        // sign extending `true` would produce -1
-        if(srcWidth == 1) {
-            const auto val = llvm::ConstantInt::get(toIntTy, value->getValue().zext(dstWidth));
-            return llvm::dyn_cast<llvm::ConstantInt>(val);
-        }
-        const auto is_unsigned = to_type->kind() == BaseTypeKind::IntN && to_type->as_intn_type_unsafe()->is_unsigned();
-        if(is_unsigned && !value->isNegative()) {
-            const auto val = llvm::ConstantInt::get(toIntTy, value->getValue().zext(dstWidth));
-            return llvm::dyn_cast<llvm::ConstantInt>(val);
-        } else {
-            const auto val = llvm::ConstantInt::get(toIntTy, value->getValue().sext(dstWidth));
-            return llvm::dyn_cast<llvm::ConstantInt>(val);
-        }
-    }
-
-    // Narrow the integer.
-    const auto val = llvm::ConstantInt::get(toIntTy, value->getValue().trunc(dstWidth));
-    return llvm::dyn_cast<llvm::ConstantInt>(val);
-
-}
 
 inline llvm::BasicBlock* createEntryBlock(Codegen& gen, llvm::Function *fn) {
     return llvm::BasicBlock::Create(*gen.ctx, std::string_view("entry"), fn);
 }
 
-void Codegen::cleanFunctionEntryBlock(llvm::Function* func) {
-    if(!(func->size() == 1 && func->front().empty())) {
-        while(!func->empty()) {
-            auto& bb = func->back();
-            bb.dropAllReferences();
-            bb.eraseFromParent();
-        }
-        // create a new entry block
-        // ignore the return
-        createEntryBlock(*this, func);
-    }
-}
 
-void Codegen::createFunctionBlock(llvm::Function *fn) {
-    SetInsertPoint(createEntryBlock(*this, fn));
-}
 
 llvm::Function::LinkageTypes to_linkage_type(AccessSpecifier specifier) {
     switch (specifier) {
@@ -610,166 +346,14 @@ std::optional<Destructible> create_destructible_for(
     return std::nullopt;
 }
 
-std::optional<Destructible> Codegen::create_destructible_for(ASTNode* node, llvm::Value* oldDropFlag) {
-    switch(node->kind()) {
-        case ASTNodeKind::VarInitStmt: {
-            const auto init = node->as_var_init_unsafe();
-            const auto type = init->known_type();
-            return ::create_destructible_for(*this, node, type, init->llvm_ptr, oldDropFlag);
-        }
-        case ASTNodeKind::FunctionParam:{
-            const auto param = node->as_func_param_unsafe();
-            const auto argInd = param->calculate_c_or_llvm_index(current_func_type);
-            const auto ptr = current_function->getArg(argInd);
-            return ::create_destructible_for(*this, node, param->type, ptr, oldDropFlag);
-        }
-        case ASTNodeKind::StructMember:{
-            const auto mem = node->as_struct_member_unsafe();
-            return ::create_destructible_for(*this, node, mem->known_type(), mem->llvm_pointer(*this), oldDropFlag);
-        }
-        default:
-            return std::nullopt;
-    }
-}
 
-void Codegen::enqueue_destructible(BaseType* nonCanonType, ASTNode* node, llvm::Value* pointer) {
-    // a slot pinned into the coroutine frame already has its drop flag there, so
-    // reuse it instead of creating a stack alloca (see Codegen::pinned_drop_flags)
-    llvm::Value* oldDropFlag = nullptr;
-    auto pinned = pinned_drop_flags.find(node);
-    if(pinned != pinned_drop_flags.end()) {
-        oldDropFlag = pinned->second;
-    }
-    auto destructible = ::create_destructible_for(*this, node, nonCanonType, pointer, oldDropFlag);
-    if(destructible.has_value()) {
-        destruct_nodes.emplace_back(destructible.value());
-    }
-}
 
-void Codegen::dispatch_destruct_jobs(int until_begin, SourceLocation location) {
-    const auto func_type = current_func_type;
-    int i = ((int) destruct_nodes.size()) - 1;
-    while (i >= until_begin) {
-        auto& nodePair = destruct_nodes[i];
-        // TODO use the location that represents the scope end
-        conditional_destruct(nodePair, nullptr, location);
-        i--;
-    }
-}
 
-llvm::Function* Codegen::getFreeFn() {
-    const auto previousFunc = module->getFunction("free");
-    if(previousFunc != nullptr) {
-        return previousFunc;
-    } else {
-        const auto paramType = builder->getPtrTy();
-        const auto type = llvm::FunctionType::get(builder->getVoidTy(), { paramType }, false);
-        return create_func(*this, "free", type, llvm::Function::LinkageTypes::ExternalLinkage);
-    }
-}
 
-llvm::Function* Codegen::getMallocFn() {
-    const auto previousFunc = module->getFunction("malloc");
-    if(previousFunc != nullptr) {
-        return previousFunc;
-    } else {
-        auto& data = comptime_scope.target_data;
-        const auto paramType = (data.win64 || data.is64Bit) ? builder->getInt64Ty() : builder->getInt32Ty();
-        const auto retTy = builder->getPtrTy();
-        const auto type = llvm::FunctionType::get(retTy, { paramType }, false);
-        return create_func(*this, "malloc", type, llvm::Function::LinkageTypes::ExternalLinkage);
-    }
-}
 
-llvm::Function *Codegen::create_function(const std::string_view &name, llvm::FunctionType *type, AccessSpecifier specifier) {
-    const auto fn = create_func(*this, name, type, to_linkage_type(specifier));
-    createFunctionBlock(fn);
-    return fn;
-}
 
-llvm::Function *Codegen::create_nested_function(const std::string_view &name, llvm::FunctionType *type, FunctionTypeBody* func_type, Scope &scope) {
 
-    auto prev_destruct_nodes = std::move(destruct_nodes);
-    const auto prev_destroy_scope = destroy_current_scope;
-    const auto prev_block_ended = has_current_block_ended;
-    const auto prev_block = builder->GetInsertBlock();
-    const auto prev_current_func = current_function;
-    const auto prev_func_type = current_func_type;
-    // A nested function (e.g. a capturing lambda) must not inherit the enclosing
-    // function's coroutine state: `redirect_return` points at a basic block of
-    // the enclosing async ramp's function, and `current_coro` is its coroutine.
-    // If left set, the nested function's `ret` becomes a branch to a block in
-    // another function, producing invalid IR ("Referring to a basic block in
-    // another function") that later crashes LLVM (B14).
-    const auto prev_redirect_return = redirect_return;
-    const auto prev_coro = current_coro;
 
-    redirect_return = nullptr;
-    current_coro = nullptr;
-
-    destroy_current_scope = true;
-    SetInsertPoint(nullptr);
-    auto nested_function = create_func(*this, name, type, llvm::Function::PrivateLinkage);
-    current_function = nested_function;
-    current_func_type = func_type;
-    const auto destruct_begin = destruct_nodes.size();
-    // this begins the function scope by creating a di subprogram
-    di.start_nested_function_scope(func_type, nested_function);
-    createFunctionBlock(nested_function);
-    // this will queue the destruction of parameters that have been moved into the function
-    func_type->queue_destruct_params(*this);
-    // this will emit without creating a scope, so direct instructions use the function di subprogram as parent scope
-    scope.code_gen(*this, destruct_begin);
-    end_function_block(scope.encoded_location());
-    // this will end the function scope we started by creating a di subprogram above
-    di.end_function_scope();
-    has_current_block_ended = prev_block_ended;
-    SetInsertPoint(prev_block);
-    current_func_type = prev_func_type;
-    current_function = prev_current_func;
-    destruct_nodes = std::move(prev_destruct_nodes);
-    destroy_current_scope = prev_destroy_scope;
-    redirect_return = prev_redirect_return;
-    current_coro = prev_coro;
-
-    return nested_function;
-
-}
-
-llvm::Function* Codegen::declare_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, AccessSpecifier specifier) {
-    const auto previousFunc = module->getFunction(name);
-    if(previousFunc != nullptr) {
-        return previousFunc;
-    } else {
-        const auto fn = create_func(*this, name, type, to_linkage_type(specifier));
-        di.declare(func_type, fn);
-        return fn;
-    }
-}
-
-llvm::Function* Codegen::define_function(const std::string_view &name, llvm::FunctionType *type, FunctionType* func_type, AccessSpecifier specifier) {
-    // A strong definition is allowed to complete a symbol that was previously
-    // only declared: an external declaration created by an importing module
-    // (see declare_function / external_declare_nodes) or a weak stub created
-    // for a static interface method (see declare_weak_function) — the
-    // definition counterpart of declare_function.
-    // This mirrors the C backend, where a prototype is emitted first and the
-    // definition later completes the same symbol.
-    // NOTE: the definition's signature must match the declaration it completes.
-    const auto existing = module->getFunction(name);
-    if(existing != nullptr && (existing->isDeclaration() || existing->hasWeakLinkage())) {
-        // convert the declaration into a strong definition
-        existing->setLinkage(to_linkage_type(specifier));
-        // removes any stub body (weak symbols) and leaves exactly one empty
-        // entry block for body generation to fill (bare declarations have no
-        // blocks at all, so this creates the entry block for them)
-        cleanFunctionEntryBlock(existing);
-        return existing;
-    }
-    const auto fn = create_func(*this, name, type, to_linkage_type(specifier));
-    createFunctionBlock(fn);
-    return fn;
-}
 
 void create_return_of_type(Codegen& gen, llvm::Type* retType, SourceLocation location) {
     if (retType->isVoidTy()) {
@@ -786,57 +370,7 @@ void create_return_of_type(Codegen& gen, llvm::Type* retType, SourceLocation loc
     }
 }
 
-llvm::Function* Codegen::declare_weak_function(const std::string_view& name, llvm::FunctionType* type, FunctionTypeBody* func_type, bool is_exported, SourceLocation location) {
-    auto fn = create_func(*this, name, type, llvm::Function::WeakAnyLinkage);
-    // if there's no implementation, a stub implementation is required, so if a strong implementation exists it can override it later
-//    if(!is_exported) {
-        // this will create a di subprogram and set it as current scope
-        di.start_function_scope(func_type, fn);
-        // what happens is an error when there's not a single implementation for an interface
-        // because on windows, it requires a stub implementation
-        createFunctionBlock(fn);
-        // generating an empty return
-        const auto returnType = type->getReturnType();
-        create_return_of_type(*this, type->getReturnType(), location);
-        // this will end the di subprogram
-        di.end_function_scope();
-//    }
-    return fn;
-}
 
-Value*& Codegen::eval_comptime(FunctionCall* call, FunctionDeclaration* decl) {
-    // matching the c translation's evaluate_comptime_func, the comptime
-    // function is always evaluated (never short-circuited on a cached value).
-    // the evaluated value is kept in evaluated_func_calls so a Value*& can be
-    // returned that stays valid across calls. a returned %runtime_value /
-    // %runtime_block_value is fully self-contained (its captured comptime
-    // variables were evaluated into an evaluated copy at return time), so it
-    // can be translated after the interpret scope has been destroyed
-    auto prev = comptime_scope.current_func_type;
-    comptime_scope.current_func_type = current_func_type;
-    const auto prev_runtime_call = comptime_scope.is_runtime_call;
-    comptime_scope.is_runtime_call = true;
-    auto ret = decl->call(&comptime_scope, allocator, call, build_parent_chain(call->parent_val, allocator), false);
-    comptime_scope.is_runtime_call = prev_runtime_call;
-    comptime_scope.current_func_type = prev;
-
-    // put all diagnostics for this function inside the diagnoser. they must be added
-    // through add_diag, so the error count is updated and errors raised while evaluating
-    // the function are not silently lost
-    auto& diags = comptime_scope.diagnostics;
-    for(auto& diag : diags) {
-        add_diag(diag);
-    }
-    comptime_scope.reset_diagnostics();
-
-    if(!ret) {
-//            warn("compile time function didn't return a value", decl);
-        evaluated_func_calls[call] = nullptr;
-        return evaluated_func_calls[call];
-    }
-    evaluated_func_calls[call] = ret;
-    return evaluated_func_calls[call];
-}
 
 bool has_allocated_storage(Value* value) {
     if(value->is_func_call()) {
@@ -854,55 +388,6 @@ bool has_allocated_storage(Value* value) {
     }
 }
 
-void Codegen::assign_store(Value* lhs, llvm::Value* pointer, Value* rhs, llvm::Value* value, SourceLocation location) {
-    if(lhs) {
-        const auto lhsType = lhs->getType()->canonical();
-
-        auto Val = value;
-
-        // now we check if we need to auto deref the lhs type
-        // for example user is assigning to lhsType = &mut int
-        // so we need to load the pointer, before we use it as lhs
-        // and do a store instruction on it
-        // in rhs we have just int which doesn't matter
-        // we'll handle this by reversing the logic of auto dereference
-        if(lhsType->kind() == BaseTypeKind::Reference && has_allocated_storage(lhs)) {
-            const auto loadInst = builder->CreateLoad(builder->getPtrTy(), pointer);
-            di.instr(loadInst, lhs);
-            pointer = loadInst;
-        }
-
-        // can the value be casted to lhs
-        // for example i64 is the lhs, however value is i32
-        // so we extend that value
-        Val = implicit_cast(Val, lhsType, lhsType->llvm_type(*this));
-
-
-        // TODO not using the correct location for debugging
-        const auto storeInst = builder->CreateStore(Val, pointer);
-        di.instr(storeInst, lhs);
-
-    } else {
-        // A struct-typed rvalue materialized as a pointer to its storage (a
-        // variant-pattern binding, a loop/block result, etc.) must be copied,
-        // not stored as a pointer.
-        if(value != nullptr && value->getType()->isPointerTy() && rhs != nullptr && rhs->getType() != nullptr) {
-            const auto rhs_type = rhs->getType()->canonical();
-            if(rhs_type->isStructLikeType()) {
-                const auto struct_llvm = rhs_type->llvm_type(*this);
-                if(struct_llvm != nullptr && struct_llvm->isSized()) {
-                    const auto alloc_size = module->getDataLayout().getTypeAllocSize(struct_llvm);
-                    const auto memcpyInst = builder->CreateMemCpy(pointer, llvm::MaybeAlign(), value, llvm::MaybeAlign(), alloc_size);
-                    di.instr(memcpyInst, location);
-                    return;
-                }
-            }
-        }
-        // TODO not using the correct location for debugging
-        const auto storeInst = builder->CreateStore(value, pointer);
-        di.instr(storeInst, rhs);
-    }
-}
 
 LLVMArrayDestructor::~LLVMArrayDestructor() {
     const auto builder = gen.builder;
@@ -913,201 +398,13 @@ LLVMArrayDestructor::~LLVMArrayDestructor() {
     builder->SetInsertPoint(end_block);
 }
 
-LLVMArrayDestructor Codegen::loop_array_destructor(
-        llvm::Value* allocaInst,
-        llvm::Value* array_size,
-        llvm::Type* elem_type,
-        SourceLocation location
-) {
-    auto& gen = *this;
-    // initial variables
-    const auto builder = gen.builder;
-    auto& ctx = *gen.ctx;
-    const auto inbounds = gen.inbounds;
-    const auto current_function = gen.current_function;
 
-    // the pointer to the first element in array
-    auto firstEle = allocaInst;
-    // the pointer to last element in array
-    auto lastEle = builder->CreateGEP(elem_type, firstEle, { array_size }, "", inbounds);
-    // the current block in which we are
-    auto current_block = builder->GetInsertBlock();
-    // the body block contains the loop that calls the destructors
-    auto body_block = llvm::BasicBlock::Create(ctx, "", current_function);
-    // the end block is where all destructors have been called, user's code is written...
-    auto end_block = llvm::BasicBlock::Create(ctx, "", current_function);
 
-    // check if first pointer is equal to last pointer (when array size is zero)
-    // if it is then branch to end
-    auto is_last = builder->CreateICmpEQ(allocaInst, lastEle);
-    CreateCondBr(is_last, end_block, body_block, location);
 
-    // generating the code for the body
-    gen.SetInsertPoint(body_block);
-    auto PHI = builder->CreatePHI(builder->getPtrTy(), 2);
-    auto structPtr = builder->CreateGEP(elem_type, PHI, { builder->getInt32(-1) }, "", inbounds);
-    // if coming from the current block, last element pointer is taken (the ptr to last element in array)
-    PHI->addIncoming(lastEle, current_block);
-    // if coming from the body block (next iteration), we take -1 of the previous array (decrementing pointer)
-    PHI->addIncoming(structPtr, body_block);
 
-    // returning array destructor
-    return LLVMArrayDestructor(gen, structPtr, firstEle, body_block, end_block);
 
-}
 
-LLVMArrayDestructor Codegen::destruct(
-        llvm::Value* allocaInst,
-        llvm::Function* destr_func_data,
-        bool pass_self,
-        llvm::Value* array_size,
-        BaseType* elem_type,
-        SourceLocation location
-) {
-    const auto finalize = loop_array_destructor(allocaInst, array_size, elem_type->llvm_type(*this), location);
-    // calling the destructor
-    std::vector<llvm::Value*> args;
-    if(pass_self) {
-        args.emplace_back(finalize.structPtr);
-    }
-    const auto callInst = builder->CreateCall(destr_func_data, args, "");
-    di.instr(callInst, location);
-    return finalize;
-}
 
-FunctionDeclaration* Codegen::determine_destructor_for(
-        BaseType* elem_type,
-        llvm::Function*& func_data
-) {
-
-    //checking if struct has a destructor function
-    auto container = elem_type->get_members_container();
-    if(!container) {
-        return nullptr;
-    }
-
-    auto chosenFunc = container->destructor_func();
-    if(!chosenFunc) {
-        return nullptr;
-    }
-
-    // determine the function type and callee
-    func_data = chosenFunc->llvm_func(*this);
-
-    return chosenFunc;
-}
-
-void Codegen::destruct(
-        llvm::Value* allocaInst,
-        llvm::Value* array_size,
-        BaseType* elem_type,
-        SourceLocation location
-) {
-    // determining destructor
-    llvm::Function* func_data;
-    auto destructorFunc = determine_destructor_for(elem_type, func_data);
-    if(!destructorFunc) return;
-    // calling destruct
-    const auto finalize = destruct(
-            allocaInst,
-            func_data,
-            destructorFunc->has_self_param(),
-            array_size,
-            elem_type,
-            location
-    );
-}
-
-void Codegen::destruct(
-        llvm::Value* allocaInst,
-        unsigned int array_size,
-        BaseType* elem_type,
-        SourceLocation location
-) {
-    if(array_size == 0) {
-        // no destruction required, the known array size is zero
-        return;
-    }
-    destruct(allocaInst, builder->getInt32(array_size), elem_type, location);
-}
-
-llvm::Value* Codegen::mutate_capturing_function(BaseType* pure_type, Value* value, llvm::Value* pointer) {
-    // function takes a capturing function type, and we have a lambda
-    if(pure_type->kind() != BaseTypeKind::CapturingFunction || value->kind() != ValueKind::LambdaFunc) {
-        return nullptr;
-    }
-    const auto capFuncTy = pure_type->as_capturing_func_type_unsafe();
-    const auto instanceNode = capFuncTy->instance_type->get_direct_linked_canonical_node();
-    if(instanceNode == nullptr || instanceNode->kind() != ASTNodeKind::StructDecl) {
-        error(value) << "capturing function instance must be of struct type";
-        return nullptr;
-    }
-    const auto makeFn = instanceNode->as_struct_def_unsafe()->child("make");
-    if(makeFn->kind() != ASTNodeKind::FunctionDecl) {
-        error(value) << "capturing function instance must have a make comptime function";
-        return nullptr;
-    }
-    const auto makeFnDecl = makeFn->as_function_unsafe();
-    if(!makeFnDecl->is_comptime()) {
-        error(value) << "capturing function instance must have a make comptime function";
-        return nullptr;
-    }
-    const auto lambda_func = value->as_lambda_func_unsafe();
-    // we generate the unpacked lambda value here beforehand
-    // cached func pointer and captured structs are used after this
-    lambda_func->llvm_value_unpacked(*this, nullptr);
-    auto called = call_with_arg(makeFnDecl, value, pure_type, allocator, *this);
-    // the returned value (e.g. a %runtime_value) is fully self-contained (its
-    // captured comptime variables were evaluated into an evaluated copy at
-    // return time), so it can be translated here, after the comptime interpret
-    // scope has been destroyed
-    const auto evaluated = eval_comptime(called, makeFnDecl);
-    if(pointer) {
-        // the comptime make function returns a %runtime_value wrapping a
-        // runtime call (make2) that builds the function instance; translate
-        // that call directly into the destination slot, matching the old
-        // behavior where evaluated_value returned the underlying call node
-        auto translated = evaluated;
-        if(translated->kind() == ValueKind::RuntimeValue) {
-            translated = ((RuntimeValue*) translated)->underlying;
-        }
-        if(translated->kind() == ValueKind::FunctionCall) {
-            const auto call = translated->as_func_call_unsafe();
-            return call->llvm_chain_value(*this, pointer);
-        }
-        // materialize a non-call result into the destination slot
-        auto src = translated->llvm_pointer(*this);
-        if(!src) {
-            src = translated->llvm_allocate(*this, "", translated->getType());
-        }
-        if(src) {
-            memcpy_struct(translated->getType()->llvm_type(*this), pointer, src, value->encoded_location());
-            return pointer;
-        }
-        return nullptr;
-    }
-    return evaluated->llvm_value(*this);
-}
-
-llvm::StructType* Codegen::fat_pointer_type() {
-    return llvm::StructType::get(*ctx, {builder->getPtrTy(), builder->getPtrTy()} );
-}
-
-llvm::AllocaInst* Codegen::pack_fat_pointer(llvm::Value* first_ptr, llvm::Value* second_ptr, SourceLocation location) {
-    // create a struct with two pointers
-    auto structType = fat_pointer_type();
-    const auto allocated = builder->CreateAlloca(structType);
-    di.instr(allocated, location);
-    // store lambda function pointer in the first variable
-    auto first = builder->CreateGEP(structType, allocated, {builder->getInt32(0), builder->getInt32(0)}, "", inbounds);
-    const auto storeInst1 = builder->CreateStore(first_ptr, first);
-    di.instr(storeInst1, location);
-    // store a pointer to a struct that contains captured variables in the second variable
-    auto second = builder->CreateGEP(structType, allocated, {builder->getInt32(0), builder->getInt32(1)}, "", inbounds);
-    const auto storeInst2 = builder->CreateStore(second_ptr, second);
-    di.instr(storeInst2, location);
-    return allocated;
-}
 
 InterfaceDefinition* getDynInterfaceDef(BaseType* type) {
     const auto can = type->canonical();
@@ -1117,74 +414,12 @@ InterfaceDefinition* getDynInterfaceDef(BaseType* type) {
     return nullptr;
 }
 
-llvm::Value* Codegen::get_dyn_obj_impl(Value* value, BaseType* type) {
-    if(!type) return nullptr;
-    const auto interface = getDynInterfaceDef(type);
-    if(!interface) return nullptr;
-    if(!interface->generates_vtable()) return nullptr;
-    const auto linked = value->getType();
-    if(linked->isStructLikeType()) {
-        const auto def = linked->get_direct_linked_struct();
-        if(def) {
-            const auto found = interface->llvm_global_vtable(*this, def);
-            if(found != nullptr) {
-                return found;
-            } else {
-                error(value) << "couldn't find the implementation of struct '" << def->name_view() << "' using value '" << value->representation() << "' for interface '" << interface->name_view() << "'";
-            }
-        }
-    }
-    return nullptr;
-}
 
-llvm::Value* Codegen::allocate_dyn_obj_based_on_type(BaseType* type, SourceLocation loc) {
-    if(!type) return nullptr;
-    const auto interface = getDynInterfaceDef(type);
-    if(!interface) return nullptr;
-    const auto allocaInst = builder->CreateAlloca(fat_pointer_type());
-    di.instr(allocaInst, loc);
-    return allocaInst;
-}
 
-void Codegen::assign_dyn_obj_impl(llvm::Value* fat_pointer, llvm::Value* impl, SourceLocation location) {
-    auto second = builder->CreateGEP(fat_pointer_type(), fat_pointer, {builder->getInt32(0), builder->getInt32(1)}, "", inbounds);
-    const auto storeInst = builder->CreateStore(impl, second);
-    di.instr(storeInst, location);
-}
 
-bool Codegen::assign_dyn_obj_impl(Value* value, BaseType* type, llvm::Value* fat_pointer, SourceLocation location) {
-    auto found = get_dyn_obj_impl(value, type);
-    if(found) {
-        assign_dyn_obj_impl(fat_pointer, found, location);
-        return true;
-    }
-    return false;
-}
 
-void Codegen::assign_dyn_obj(llvm::Value* fat_pointer, llvm::Value* obj, llvm::Value* impl, SourceLocation location) {
-    auto first = builder->CreateGEP(fat_pointer_type(), fat_pointer, {builder->getInt32(0), builder->getInt32(0)}, "", inbounds);
-    const auto storeInst1 = builder->CreateStore(obj, first);
-    di.instr(storeInst1, location);
-    auto second = builder->CreateGEP(fat_pointer_type(), fat_pointer, {builder->getInt32(0), builder->getInt32(1)}, "", inbounds);
-    const auto storeInst2 = builder->CreateStore(impl, second);
-    di.instr(storeInst2, location);
-}
 
-bool Codegen::assign_dyn_obj(Value* value, BaseType* type, llvm::Value* fat_pointer, llvm::Value* obj, SourceLocation location) {
-    auto found = get_dyn_obj_impl(value, type);
-    if(found) {
-        assign_dyn_obj(fat_pointer, obj, found, location);
-        return true;
-    }
-    return false;
-}
 
-void Codegen::memcpy_struct(llvm::Type* type, llvm::Value* pointer, llvm::Value* value, SourceLocation location) {
-    llvm::MaybeAlign m;
-    const auto alloc_size = module->getDataLayout().getTypeAllocSize(type);
-    const auto callInst = builder->CreateMemCpy(pointer, m, value, m, alloc_size);
-    di.instr(callInst, location);
-}
 
 inline bool needsMemcpy(llvm::Type* ty) {
     switch (ty->getTypeID()) {
@@ -1196,26 +431,11 @@ inline bool needsMemcpy(llvm::Type* ty) {
     }
 }
 
-void Codegen::aggregate_store(llvm::Type* type, llvm::Value* pointer, llvm::Value* value, SourceLocation location) {
-    // `llvm.memcpy` requires the source to be a pointer to the aggregate's
-    // storage. A by-value aggregate (e.g. a struct loaded out of a `Poll<T>`
-    // payload) must be stored directly, otherwise the intrinsic is malformed
-    // (`llvm.memcpy.p0.<struct>.i64` with a non-pointer source).
-    if(needsMemcpy(type) && value != nullptr && value->getType()->isPointerTy()) {
-        memcpy_struct(type, pointer, value, location);
-    } else {
-        llvm.CreateStore(value, pointer, location);
-    }
-}
 
 void Codegen::print_to_console() {
     module->print(llvm::outs(), nullptr, false, true);
 }
 
-void Codegen::CheckNullCondBr(llvm::Value* value, llvm::BasicBlock* TrueBlock, llvm::BasicBlock* FalseBlock, SourceLocation location) {
-    auto is_null = builder->CreateICmpEQ(value, NullValue::null_llvm_value(*this));
-    CreateCondBr(is_null, TrueBlock, FalseBlock, location);
-}
 
 void Codegen::SetInsertPoint(llvm::BasicBlock *block) {
     has_current_block_ended = false;
@@ -1260,21 +480,7 @@ void Codegen::CreateRet(llvm::Value *value, SourceLocation location) {
     }
 }
 
-void Codegen::DefaultRet(SourceLocation location) {
-    if(redirect_return) {
-        CreateBr(redirect_return, location);
-    } else {
-        CreateRet(nullptr, location);
-    }
-}
 
-void Codegen::FunctionRet(SourceLocation location) {
-    if(redirect_return) {
-        CreateBr(redirect_return, location);
-    } else {
-        create_return_of_type(*this, current_function->getReturnType(), location);
-    }
-}
 
 void Codegen::CreateCondBr(llvm::Value *Cond, llvm::BasicBlock *True, llvm::BasicBlock *FalseMDNode, SourceLocation location) {
     if (!has_current_block_ended) {
@@ -1295,42 +501,7 @@ void Codegen::CreateCondBr(llvm::Value *Cond, llvm::BasicBlock *True, llvm::Basi
     }
 }
 
-void Codegen::loop_body_gen(Scope& body, llvm::BasicBlock *currentBlock, llvm::BasicBlock *endBlock) {
-    auto prev_loop_continue = current_loop_continue;
-    auto prev_loop_exit = current_loop_exit;
-    current_loop_continue = currentBlock;
-    current_loop_exit = endBlock;
-    const auto prev_job_ind = loop_destr_job_begin_index;
-    loop_destr_job_begin_index = (int) destruct_nodes.size();
-    body.code_gen(*this);
-    loop_destr_job_begin_index = prev_job_ind;
-    current_loop_continue = prev_loop_continue;
-    current_loop_exit = prev_loop_exit;
-}
 
-llvm::Value *Codegen::implicit_cast(llvm::Value* value, BaseType* to_type, llvm::Type* to_type_llvm) {
-    const auto value_type = value->getType();
-    const auto exp_type = to_type_llvm;
-    if(value_type->isIntegerTy() && exp_type->isIntegerTy()) {
-        const auto fromIntTy = (llvm::IntegerType*) value_type;
-        const auto toIntTy = (llvm::IntegerType*) exp_type;
-        if(fromIntTy->getBitWidth() < toIntTy->getBitWidth()) {
-            // an i1 is a bool and can only be 0 or 1, so it must be zero
-            // extended: sign extending `true` would produce -1
-            if (fromIntTy->getBitWidth() == 1) {
-                return builder->CreateZExt(value, toIntTy);
-            }
-            if (to_type->kind() == BaseTypeKind::IntN && to_type->as_intn_type_unsafe()->is_unsigned()) {
-                return builder->CreateZExt(value, toIntTy);
-            } else {
-                return builder->CreateSExt(value, toIntTy);
-            }
-        } else if(fromIntTy->getBitWidth() > toIntTy->getBitWidth()) {
-            return builder->CreateTrunc(value, toIntTy);
-        }
-    }
-    return value;
-}
 
 Codegen::~Codegen() {
     delete builder;

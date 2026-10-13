@@ -68,17 +68,5 @@ public:
         extension_functions.emplace_back((ASTNode*) decl);
     }
 
-#ifdef COMPILER_BUILD
-
-    /**
-     * this method is dedicated for this extendable containers to externally declare themselves
-     * this should be called in code_gen_external_declare, which is called upon nodes to declare
-     * themselves in other modules when they are imported
-     * this declares the functions inside the container (like MembersContainer) but it also
-     * externally declares the extension functions inside this container
-     */
-    void extendable_external_declare(Codegen& gen);
-
-#endif
 
 };

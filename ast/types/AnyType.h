@@ -19,8 +19,5 @@ public:
         return true;
     }
 
-#ifdef COMPILER_BUILD
-    llvm::Type *llvm_type(Codegen &gen) final;
-#endif
 
 };

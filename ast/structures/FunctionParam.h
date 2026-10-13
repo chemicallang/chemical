@@ -107,24 +107,5 @@ public:
 
     bool link_implicit_param(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
-#ifdef COMPILER_BUILD
-
-    llvm::Value* arg_pointer(Codegen& gen);
-
-    llvm::Value *llvm_pointer(Codegen &gen);
-
-    llvm::Value* loadable_llvm_pointer(Codegen& gen, SourceLocation location);
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) final;
-
-    llvm::Value *llvm_load(Codegen& gen, SourceLocation location) final;
-
-    void code_gen(Codegen &gen) override;
-
-    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
-
-#endif
 
 };

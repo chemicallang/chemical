@@ -67,12 +67,5 @@ public:
 
     void declare_symbols(SymbolTable& table, ASTDiagnoser& diagnoser);
 
-#ifdef COMPILER_BUILD
-
-    void code_gen(Codegen &gen) final {
-        // does nothing
-    }
-
-#endif
 
 };

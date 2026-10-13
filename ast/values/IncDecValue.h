@@ -52,17 +52,6 @@ public:
         );
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::Type* llvm_type(Codegen &gen) override {
-        return getType()->llvm_type(gen);
-    }
-
-    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) override;
-
-    llvm::Value* llvm_value(Codegen &gen, BaseType *type) override;
-
-#endif
 
 
 };

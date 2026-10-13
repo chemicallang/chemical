@@ -231,7 +231,6 @@ set(COMMON_SOURCES
         parser/structures/ImplDef.cpp
         parser/statements/AnnotationMacro.cpp
         ast/base/BaseType.h
-        compiler/Operation.cpp
         compiler/SymbolResolver.h
         compiler/symres/SymbolResolver.cpp
         compiler/ASTPointer.h
@@ -751,8 +750,7 @@ set(COMPILER_SOURCES
         compiler/ctranslator/CTranslator.h
         compiler/ctranslator/CTranslator.cpp
         compiler/chem_clang.cpp
-        compiler/backend/LLVM.cpp
-        compiler/backend/LLVMCoroutine.cpp
+        compiler/backend/LLVMBackendContext.cpp
         compiler/ASTCompiler.cpp
         compiler/backend/DebugInfoBuilder.h
         compiler/backend/DebugInfoBuilder.cpp
@@ -763,8 +761,6 @@ set(COMPILER_SOURCES
         compiler/CodegenEmitterOptions.h
         compiler/SanitizerOptions.h
         compiler/CodegenOptions.h
-        compiler/backend/LLVMGen.h
-        compiler/backend/LLVMGen.cpp
         compiler/utils/TraitImplFuncMapKey.h
 )
 

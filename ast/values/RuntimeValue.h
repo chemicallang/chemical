@@ -72,7 +72,4 @@ public:
         return eval ? eval->find_in(scope, parent) : nullptr;
     }
 
-#ifdef COMPILER_BUILD
-    llvm::Value* llvm_value(Codegen& gen, BaseType* type = nullptr) override;
-#endif
 };

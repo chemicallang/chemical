@@ -58,41 +58,6 @@ public:
         return blockVal;
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::AllocaInst* llvm_allocate(
-            Codegen& gen,
-            const std::string& identifier,
-            BaseType* expected_type
-    ) final;
-
-    unsigned int store_in_struct(
-            Codegen& gen,
-            Value* parent,
-            llvm::Value* allocated,
-            llvm::Type* allocated_type,
-            std::vector<llvm::Value *> idxList,
-            unsigned int index,
-            BaseType* expected_type
-    ) final;
-
-    unsigned int store_in_array(
-            Codegen& gen,
-            Value* parent,
-            llvm::Value* allocated,
-            llvm::Type* allocated_type,
-            std::vector<llvm::Value *> idxList,
-            unsigned int index,
-            BaseType* expected_type
-    ) final;
-
-    llvm::Value* llvm_pointer(Codegen& gen) final;
-
-    llvm::Value* llvm_value(Codegen& gen, BaseType* type = nullptr) final;
-
-    void llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block) final;
-
-#endif
 
 
 };

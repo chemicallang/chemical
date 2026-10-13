@@ -179,11 +179,6 @@ public:
         return type->kind() == kind() && equals(type->as_intn_type_unsafe());
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::Type *llvm_type(Codegen &gen);
-
-#endif
 
 };
 

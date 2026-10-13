@@ -14,66 +14,6 @@
 #include "ast/structures/GenericVariantDecl.h"
 #include "compiler/ASTDiagnoser.h"
 
-#ifdef COMPILER_BUILD
-
-#include "compiler/Codegen.h"
-#include "compiler/llvmimpl.h"
-
-llvm::Type* llvm_func_return(Codegen &gen, BaseType* type) {
-    if(type->isStructLikeType()) {
-        return gen.builder->getVoidTy();
-    } else{
-        return type->llvm_type(gen);
-    }
-}
-
-void llvm_func_param_type(
-        Codegen &gen,
-        std::vector<llvm::Type*>& paramTypes,
-        BaseType* type
-) {
-    paramTypes.emplace_back(type->llvm_param_type(gen));
-}
-
-void llvm_func_param_types_into(
-        Codegen &gen,
-        std::vector<llvm::Type*>& paramTypes,
-        std::vector<FunctionParam*>& params,
-        BaseType* returnType,
-        bool isCapturing,
-        bool isVariadic,
-        FunctionDeclaration* decl
-) {
-    // functions that return struct take a pointer to struct and actually return void
-    // so allocation takes place outside function
-    if(returnType->isStructLikeType()) {
-        paramTypes.emplace_back(gen.builder->getPtrTy());
-    }
-    // capturing lambdas gets a struct passed to them which contain captured data
-    if(isCapturing) {
-        paramTypes.emplace_back(gen.builder->getPtrTy());
-    }
-    auto size = isVariadic ? (params.size() - 1) : params.size();
-    unsigned i = 0;
-    while (i < size) {
-        llvm_func_param_type(gen, paramTypes, params[i]->type);
-        i++;
-    }
-}
-
-std::vector<llvm::Type *> FunctionType::param_types(Codegen &gen, bool capturing) {
-    return llvm_func_param_types(gen, params, returnType, capturing, isVariadic(), as_function());
-}
-
-llvm::FunctionType *FunctionType::llvm_func_type(Codegen &gen, bool capturing) {
-    return llvm::FunctionType::get(llvm_func_return(gen, returnType), param_types(gen, capturing), isVariadic());
-}
-
-llvm::Type *FunctionType::llvm_type(Codegen &gen) {
-    return gen.builder->getPtrTy();
-};
-
-#endif
 
 bool CapturingFunctionType::satisfies(BaseType *type) {
     switch(type->kind()) {

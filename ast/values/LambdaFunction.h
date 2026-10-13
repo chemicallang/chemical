@@ -67,34 +67,6 @@ public:
         return has_self_param() ? 1 : 0;
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::Type *capture_struct_type(Codegen &gen);
-
-protected:
-
-    /**
-     * capture the variables in capture list into a single struct and return it
-     */
-    llvm::AllocaInst *capture_struct(Codegen &gen);
-
-public:
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-    llvm::Value* llvm_value_unpacked(Codegen &gen, BaseType* expected_type);
-
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
-
-    llvm::Value* llvm_pointer(Codegen &gen) override {
-        return llvm_value(gen, nullptr);
-    }
-
-    void llvm_assign_value(Codegen &gen, llvm::Value *storagePtr, Value *lhs, llvm::Value *lhsPtr) override;
-
-    void generate_captured_destructor(Codegen &gen);
-
-#endif
 
     /**
      * should generate a destructor for capture struct

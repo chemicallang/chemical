@@ -35,10 +35,5 @@ public:
         return new (allocator.allocate<ComplexType>()) ComplexType(elem_type);
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-#endif
 
 };

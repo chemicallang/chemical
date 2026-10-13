@@ -38,17 +38,6 @@ public:
         return value->compile_time_computable();
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::Type* llvm_type(Codegen &gen) override {
-        return getType()->llvm_type(gen);
-    }
-
-    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) override;
-
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
-
-#endif
 
     BitwiseNot* copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<BitwiseNot>()) BitwiseNot(value->copy(allocator), getType(), encoded_location());

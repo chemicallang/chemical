@@ -436,21 +436,6 @@ public:
      */
     FunctionDeclaration* implicit_constructor_for(Value* value);
 
-#ifdef COMPILER_BUILD
-
-    /**
-     * the llvm destruct
-     */
-    void llvm_destruct(Codegen& gen, llvm::Value* pointer, SourceLocation location);
-
-    /**
-     * returns this type, but for a llvm parameter
-     */
-    virtual llvm::Type *llvm_param_type(Codegen &gen) {
-        return llvm_type(gen);
-    }
-
-#endif
 
     virtual ~BaseType();
 

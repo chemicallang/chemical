@@ -50,17 +50,6 @@ public:
 
     Value* evaluated_value(InterpretScope &scope) final;
 
-#ifdef COMPILER_BUILD
-
-    llvm::Type* llvm_type(Codegen &gen) final {
-        return getType()->llvm_type(gen);
-    }
-
-    llvm::Value* llvm_value(Codegen &gen, BaseType* expected_type) final;
-
-    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) override;
-
-#endif
 
     void determine_type(const TypeBuilder& typeBuilder, const CoreNodes& coreNodes, const ImplementationsIndex& implsIndex, ASTDiagnoser& diagnoser);
 

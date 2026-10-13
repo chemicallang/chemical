@@ -33,12 +33,5 @@ public:
         return blk;
     }
 
-#ifdef COMPILER_BUILD
-
-    void code_gen(Codegen &gen) final {
-        scope.code_gen(gen);
-    }
-
-#endif
 
 };

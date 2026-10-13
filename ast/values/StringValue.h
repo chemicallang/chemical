@@ -41,17 +41,6 @@ public:
 
     Value *index(InterpretScope &scope, int i) final;
 
-#ifdef COMPILER_BUILD
-
-    llvm::Type* llvm_type(Codegen &gen) final;
-
-    llvm::Value* llvm_value(Codegen &gen, BaseType* expected_type) final;
-
-    llvm::Value* llvm_pointer(Codegen &gen) override;
-
-    llvm::AllocaInst *llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) final;
-
-#endif
 
     StringValue *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<StringValue>()) StringValue(value, getType(), encoded_location());

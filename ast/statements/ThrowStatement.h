@@ -26,10 +26,5 @@ public:
         return new (allocator.allocate<ThrowStatement>()) ThrowStatement(value->copy(allocator), parent(), encoded_location());
     }
 
-#ifdef COMPILER_BUILD
-
-    void code_gen(Codegen &gen) final;
-
-#endif
 
 };

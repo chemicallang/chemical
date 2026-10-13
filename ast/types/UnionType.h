@@ -55,16 +55,5 @@ public:
         return this;
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::Type *llvm_type(Codegen &gen);
-
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index);
-
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const chem::string_view &name) override {
-        return llvm_union_child_index(gen, indexes, name);
-    }
-
-#endif
 
 };

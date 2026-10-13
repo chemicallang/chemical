@@ -68,10 +68,5 @@ public:
         );
     }
 
-#ifdef COMPILER_BUILD
-
-    void code_gen(Codegen &gen) final;
-
-#endif
 
 };

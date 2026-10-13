@@ -31,10 +31,5 @@ public:
         return new (allocator.allocate<LiteralType>()) LiteralType(underlying->copy(allocator));
     }
 
-#ifdef COMPILER_BUILD
-    llvm::Type *llvm_type(Codegen &gen) final {
-        return underlying->llvm_type(gen);
-    }
-#endif
 
 };

@@ -30,26 +30,5 @@ public:
 
     Value* child(InterpretScope& scope, const chem::string_view& name) override;
 
-#ifdef COMPILER_BUILD
-
-    llvm::Value* llvm_pointer(Codegen &gen) override;
-
-    llvm::Value* llvm_value(Codegen &gen, BaseType *type) override;
-
-    llvm::Value* llvm_arg_value(Codegen &gen, BaseType *expected_type) override;
-
-    llvm::Value* llvm_ret_value(Codegen &gen, Value *returnValue) override;
-
-    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) override;
-
-    void llvm_assign_value(Codegen &gen, llvm::Value *storagePtr, Value *lhs, llvm::Value *lhsPtr) override;
-
-    unsigned int store_in_struct(Codegen &gen, Value *parent, llvm::Value *allocated, llvm::Type *allocated_type, std::vector<llvm::Value *> idxList, unsigned int index, BaseType *expected_type) override;
-
-    unsigned int store_in_array(Codegen &gen, Value *parent, llvm::Value *allocated, llvm::Type *allocated_type, std::vector<llvm::Value *> idxList, unsigned int index, BaseType *expected_type) override;
-
-    llvm::Type* llvm_type(Codegen& gen) override;
-
-#endif
 
 };

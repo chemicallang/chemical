@@ -178,47 +178,6 @@ public:
 
     std::vector<TypeLoc> create_generic_list();
 
-#ifdef COMPILER_BUILD
-
-    void initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* expected_type);
-
-    llvm::AllocaInst *llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) final;
-
-    llvm::Value *llvm_pointer(Codegen &gen) final;
-
-    unsigned int store_in_struct(
-            Codegen &gen,
-            Value *parent,
-            llvm::Value *allocated,
-            llvm::Type* allocated_type,
-            std::vector<llvm::Value *> idxList,
-            unsigned int index,
-            BaseType* expected_type
-    ) final;
-
-    unsigned int store_in_array(
-            Codegen &gen,
-            Value *parent,
-            llvm::Value *allocated,
-            llvm::Type *allocated_type,
-            std::vector<llvm::Value *> idxList,
-            unsigned int index,
-            BaseType *expected_type
-    ) final;
-
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
-
-    llvm::Value *llvm_arg_value(Codegen &gen, BaseType* expected_type) final;
-
-    void llvm_assign_value(Codegen &gen, llvm::Value *storagePtr, Value *lhs, llvm::Value *lhsPtr) final;
-
-    llvm::Value *llvm_ret_value(Codegen &gen, Value* returnValue) final;
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
-
-#endif
 
     uint64_t byte_size(const TargetData& target) final {
         return definition->byte_size(target);

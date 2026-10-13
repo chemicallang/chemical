@@ -47,10 +47,5 @@ public:
 
     BaseType* known_type();
 
-#ifdef COMPILER_BUILD
-
-    void code_gen(Codegen &gen) final;
-
-#endif
 
 };

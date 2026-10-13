@@ -487,43 +487,5 @@ public:
     InterfaceDefinition* get_overriding_interface(FunctionDeclaration* function);
 
 
-#ifdef COMPILER_BUILD
-
-    /**
-     * only call this when you need to declare the functions inside the members container
-     * should be called in code_gen_external_declare, which is called on nodes to declare themselves
-     * in another module
-     */
-    void external_declare(Codegen& gen);
-
-    /**
-     * add child index
-     */
-    bool add_child_index(
-            Codegen &gen,
-            std::vector<llvm::Value *> &indexes,
-            const chem::string_view &name
-    ) {
-        return VariablesContainer::llvm_struct_child_index(gen, indexes, name);
-    }
-
-    /**
-     * llvm_type below doesn't work without this declaration
-     */
-    llvm::Type* llvm_type(Codegen &gen) {
-        return ASTAny::llvm_type(gen);
-    }
-
-    /**
-     * build the type for llvm vtable, from inherited interfaces
-     */
-    void llvm_build_inherited_vtable_type(Codegen& gen, std::vector<llvm::Type*>& struct_types);
-
-    /**
-     * build llvm vtable, from inherited interfaces
-     */
-    void llvm_build_inherited_vtable(Codegen& gen, ExtendableMembersContainerNode* for_struct, std::vector<llvm::Constant*>& llvm_pointers);
-
-#endif
 
 };

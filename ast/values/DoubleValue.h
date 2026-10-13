@@ -34,13 +34,6 @@ public:
         return 8;
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
-
-#endif
 
     DoubleValue *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<DoubleValue>()) DoubleValue(value, getType(), encoded_location());

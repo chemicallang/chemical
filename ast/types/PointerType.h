@@ -59,12 +59,5 @@ public:
         is_mutable = type->is_mutable();
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) final;
-
-#endif
 
 };

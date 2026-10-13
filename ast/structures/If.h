@@ -110,18 +110,5 @@ public:
 
     BaseType *known_type();
 
-#ifdef COMPILER_BUILD
-
-    void code_gen_declare(Codegen &gen) override;
-
-    void code_gen(Codegen &gen, bool gen_last_block);
-
-    void code_gen(Codegen &gen) final;
-
-    void code_gen(Codegen &gen, Scope* scope, unsigned int index) final;
-
-    void code_gen_external_declare(Codegen &gen) override;
-
-#endif
 
 };

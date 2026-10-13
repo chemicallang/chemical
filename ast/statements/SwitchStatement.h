@@ -49,16 +49,5 @@ public:
         return defScopeInd != -1;
     }
 
-#ifdef COMPILER_BUILD
-
-    void code_gen(Codegen &gen, bool last_block);
-
-    void code_gen(Codegen &gen) {
-        code_gen(gen, false);
-    }
-
-    void code_gen(Codegen &gen, Scope* scope, unsigned int index) final;
-
-#endif
 
 };

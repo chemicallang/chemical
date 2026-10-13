@@ -176,16 +176,3 @@ FunctionDeclaration* GenericFuncDecl::instantiate_call(
     return register_generic_args(instantiator, generic_args, call->encoded_location(), requirement);
 
 }
-
-#ifdef COMPILER_BUILD
-
-void GenericFuncDecl::code_gen_external_declare(Codegen &gen) {
-    unsigned i = 0;
-    const auto total = total_bodied_instantiations;
-    while(i < total) {
-        instantiations[i]->code_gen_external_declare(gen);
-        i++;
-    }
-}
-
-#endif

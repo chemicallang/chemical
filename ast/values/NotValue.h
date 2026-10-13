@@ -48,19 +48,6 @@ public:
         return value->compile_time_computable();
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::Type* llvm_type(Codegen &gen) override {
-        return getType()->llvm_type(gen);
-    }
-
-    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) override;
-
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
-
-    void llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block) override;
-
-#endif
 
     NotValue* copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<NotValue>()) NotValue(value->copy(allocator), getType(), encoded_location());

@@ -59,21 +59,6 @@ public:
 
     uint64_t byte_size(const TargetData& target) final;
 
-#ifdef COMPILER_BUILD
-
-    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) override;
-
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-    llvm::Value *llvm_logical_expr(Codegen &gen, BaseType* firstType, BaseType* secondType);
-
-    void llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block);
-
-    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
-
-#endif
 
     FunctionDeclaration* get_overloaded_func(const CoreNodes& coreNodes, const ImplementationsIndex& implsIndex);
 

@@ -44,24 +44,5 @@ public:
         return &linkedType;
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::StructType *llvm_get_stored_type(Codegen& gen);
-
-    void llvm_store_type(Codegen& gen, llvm::StructType* type);
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) final;
-
-    bool add_child_index(
-        Codegen &gen,
-        std::vector<llvm::Value *> &indexes,
-        const chem::string_view &name
-    ) final {
-        return llvm_union_child_index(gen, indexes, name);
-    }
-
-#endif
 
 };

@@ -307,40 +307,6 @@ public:
         return type;
     }
 
-#ifdef COMPILER_BUILD
-
-    inline void check_has_type(Codegen &gen);
-
-    /**
-     * this just performs implicit cast for integers on values
-     */
-    llvm::Value* initializer_value(Codegen &gen);
-
-    inline llvm::Value *llvm_pointer(Codegen &gen) {
-        return llvm_ptr;
-    }
-
-    llvm::Value* loadable_llvm_pointer(Codegen& gen, SourceLocation location);
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) final;
-
-    llvm::Value *llvm_load(Codegen& gen, SourceLocation location) final;
-
-    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
-
-    void code_gen_global_var(Codegen &gen, bool initialize, bool initialize_strings);
-
-    void code_gen_declare(Codegen &gen) override;
-
-    void code_gen(Codegen &gen) final;
-
-    void code_gen_external_declare(Codegen &gen) final;
-
-    void put_destructible(Codegen& gen);
-
-#endif
 
 
 };

@@ -67,25 +67,6 @@ public:
         return active_type ? active_type->linked_node() : nullptr;
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::Type *llvm_param_type(Codegen &gen) final {
-        return active_type->llvm_param_type(gen);
-    }
-
-    llvm::Type *llvm_type(Codegen &gen) final {
-        return active_type->llvm_type(gen);
-    }
-
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) final {
-        return active_type->llvm_chain_type(gen, values, index);
-    }
-
-    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final {
-        return active_type->linked_node()->add_child_index(gen, indexes, name);
-    }
-
-#endif
 
 
 };

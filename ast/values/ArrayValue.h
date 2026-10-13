@@ -101,45 +101,6 @@ public:
      */
     Value* evaluated_value(InterpretScope& scope) override;
 
-#ifdef COMPILER_BUILD
-
-    llvm::Value *llvm_pointer(Codegen &gen) final;
-
-    void initialize_allocated(Codegen& gen, llvm::Value*, BaseType* expected_type);
-
-    llvm::AllocaInst *llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) final;
-
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
-
-    llvm::Value *llvm_arg_value(Codegen &gen, BaseType* expected_type) final;
-
-    unsigned int store_in_array(
-            Codegen &gen,
-            Value *parent,
-            llvm::Value *allocated,
-            llvm::Type *allocated_type,
-            std::vector<llvm::Value *> idxList,
-            unsigned int index,
-            BaseType *expected_type
-    ) final;
-
-    unsigned int store_in_struct(
-            Codegen &gen,
-            Value *parent,
-            llvm::Value *allocated,
-            llvm::Type* allocated_type,
-            std::vector<llvm::Value *> idxList,
-            unsigned int index,
-            BaseType* expected_type
-    ) final;
-
-    llvm::Type *llvm_elem_type(Codegen &gen);
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
-
-#endif
 
     ASTNode *linked_node() final;
 

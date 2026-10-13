@@ -60,26 +60,5 @@ public:
 
     void determine_type(const TypeBuilder& typeBuilder, const CoreNodes& coreNodes, const ImplementationsIndex& implsIndex, ASTDiagnoser& diagnoser);
 
-#ifdef COMPILER_BUILD
-
-    llvm::Value *elem_pointer(Codegen &gen, llvm::Type *, llvm::Value *ptr);
-
-    llvm::Value *llvm_pointer(Codegen &gen) final;
-
-    inline llvm::Value* loadable_llvm_pointer(Codegen& gen, SourceLocation location) {
-        // overloaded operator returns reference
-        // by default its a struct gep, so always requires loading
-        return llvm_pointer(gen);
-    }
-
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<Value*> &chain, unsigned int index) final;
-
-    bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) final;
-
-#endif
 
 };

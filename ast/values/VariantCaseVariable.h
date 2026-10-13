@@ -44,21 +44,5 @@ public:
         );
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::Value* llvm_pointer(Codegen &gen);
-
-    inline llvm::Value* loadable_llvm_pointer(Codegen &gen, SourceLocation location) {
-        // stored in a struct, always requires a load
-        return llvm_pointer(gen);
-    }
-
-    llvm::Value* llvm_load(Codegen& gen, SourceLocation location) final;
-
-    llvm::Type* llvm_type(Codegen &gen) final;
-
-    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
-
-#endif
 
 };

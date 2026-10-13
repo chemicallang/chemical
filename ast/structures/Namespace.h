@@ -133,16 +133,5 @@ public:
 
     void declare_extended_in_table(SymbolTable& table);
 
-#ifdef COMPILER_BUILD
-
-    void code_gen_declare(Codegen &gen) final;
-
-    void code_gen(Codegen &gen) final;
-
-    void code_gen(Codegen &gen, Scope *scope, unsigned int index) final;
-
-    void code_gen_external_declare(Codegen &gen) final;
-
-#endif
 
 };

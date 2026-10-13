@@ -113,21 +113,6 @@ public:
         return known_type_fn(this);
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::Type* llvm_type(Codegen &gen) override;
-
-    llvm::Value* llvm_pointer(Codegen &gen);
-
-    llvm::Value* loadable_llvm_pointer(Codegen &gen, SourceLocation location);
-
-    void code_gen_declare(Codegen &gen) override;
-
-    void code_gen(Codegen &gen) override;
-
-    void code_gen_external_declare(Codegen &gen) override;
-
-#endif
 
 };
 

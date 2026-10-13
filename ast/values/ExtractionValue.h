@@ -51,16 +51,5 @@ public:
         );
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::Type* llvm_type(Codegen &gen) override;
-
-    llvm::Value* llvm_pointer(Codegen &gen) override {
-        return llvm_value(gen);
-    }
-
-    llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) override;
-
-#endif
 
 };

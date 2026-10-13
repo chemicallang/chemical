@@ -170,14 +170,5 @@ public:
         return underlying_type->byte_size(target);
     }
 
-#ifdef COMPILER_BUILD
-
-    void code_gen(Codegen &gen) final {
-        // do nothing
-    }
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-#endif
 
 };

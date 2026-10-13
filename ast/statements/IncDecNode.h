@@ -31,13 +31,5 @@ public:
         return node;
     }
 
-#ifdef COMPILER_BUILD
-
-    void code_gen(Codegen &gen) override {
-        const auto inst = value.llvm_value(gen, nullptr);
-        value.llvm_destruct(gen, inst);
-    }
-
-#endif
 
 };

@@ -99,19 +99,6 @@ public:
         );
     }
 
-#ifdef COMPILER_BUILD
-
-    /**
-     * would provide llvm type based on num bits provided in getNumBits
-     */
-    llvm::Type *llvm_type(Codegen &gen);
-
-    /**
-     * would provide llvm value based on num bits provided in getNumBits
-     */
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type);
-
-#endif
 
 
 };

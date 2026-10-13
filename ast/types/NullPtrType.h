@@ -15,8 +15,5 @@ public:
         return type->kind() == BaseTypeKind::NullPtr;
     }
 
-#ifdef COMPILER_BUILD
-    llvm::Type* llvm_type(Codegen &gen) override;
-#endif
 
 };

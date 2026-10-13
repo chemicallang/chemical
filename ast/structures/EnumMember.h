@@ -97,13 +97,6 @@ public:
 
     Value* evaluate(ASTAllocator& allocator, TypeBuilder& typeBuilder, SourceLocation location);
 
-#ifdef COMPILER_BUILD
-
-    llvm::Value *llvm_load(Codegen& gen, SourceLocation location) final;
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-#endif
 
     BaseType* known_type();
 

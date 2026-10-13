@@ -81,13 +81,6 @@ public:
         InstantiationRequirement requirement
     );
 
-#ifdef COMPILER_BUILD
-
-    void code_gen(Codegen &gen) override {
-
-    }
-
-#endif
 
 };
 

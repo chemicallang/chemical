@@ -35,18 +35,5 @@ public:
 
     Value* evaluated_value(InterpretScope &scope) override;
 
-#ifdef COMPILER_BUILD
-
-    llvm::Type* llvm_type(Codegen &gen) override;
-
-    llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) override;
-
-    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) override {
-        const auto node = type->linked_node();
-        if(!node) return false;
-        return node->add_child_index(gen, indexes, name);
-    }
-
-#endif
 
 };

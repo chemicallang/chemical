@@ -4,6 +4,10 @@
 
 #include "std/chem_string_view.h"
 #include "backend/atomics.h"
+#include "core/source/SourceLocation.h"
+
+class ASTNode;
+class Value;
 
 enum class CompilerFeatureKind : int {
     Float128 = 0,

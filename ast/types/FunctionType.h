@@ -230,33 +230,6 @@ public:
     [[nodiscard]]
     FunctionType* copy(ASTAllocator& allocator) override;
 
-#ifdef COMPILER_BUILD
-
-    std::vector<llvm::Type *> param_types(Codegen &gen, bool capturing);
-
-    inline std::vector<llvm::Type *> param_types(Codegen &gen) {
-        return param_types(gen, isCapturing());
-    }
-
-    void queue_destruct_params(Codegen &gen);
-
-    llvm::Type *llvm_type(Codegen &gen);
-
-private:
-
-    llvm::FunctionType *llvm_func_type(Codegen &gen, bool capturing);
-
-public:
-
-    inline llvm::FunctionType *llvm_func_type(Codegen &gen) {
-        return llvm_func_type(gen, isCapturing());
-    }
-
-    inline llvm::FunctionType* llvm_capturing_func_type(Codegen& gen) {
-        return llvm_func_type(gen, true);
-    }
-
-#endif
 
     /**
      * get the self parameter of the function if it exists

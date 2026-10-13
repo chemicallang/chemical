@@ -55,14 +55,5 @@ public:
 
     Value* evaluated_value(InterpretScope &scope) override;
 
-#ifdef COMPILER_BUILD
-
-    void llvm_conditional_branch(Codegen &gen, llvm::BasicBlock *then_block, llvm::BasicBlock *otherwise_block) override;
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
-
-#endif
 
 };

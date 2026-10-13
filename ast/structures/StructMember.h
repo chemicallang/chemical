@@ -112,14 +112,5 @@ public:
         return type;
     }
 
-#ifdef COMPILER_BUILD
-
-    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
-
-    llvm::Type* llvm_type(Codegen &gen) final;
-
-    llvm::Type* llvm_chain_type(Codegen &gen, std::vector<Value*> &values, unsigned int index) final;
-
-#endif
 
 };

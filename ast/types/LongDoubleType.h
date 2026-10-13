@@ -22,10 +22,5 @@ public:
         return type->kind() == BaseTypeKind::LongDouble;
     }
 
-#ifdef COMPILER_BUILD
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-#endif
 
 };

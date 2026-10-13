@@ -39,14 +39,5 @@ public:
 
     ASTNode *linked_node() final;
 
-#ifdef COMPILER_BUILD
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-    llvm::Value* llvm_pointer(Codegen &gen) override;
-
-    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) final;
-
-#endif
 
 };

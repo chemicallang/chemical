@@ -115,26 +115,5 @@ public:
         return is_reference() ? elem_type->as_reference_type_unsafe()->type : elem_type;
     }
 
-#ifdef COMPILER_BUILD
-
-    void code_gen(Codegen &gen) final;
-
-    llvm::Type* llvm_type(Codegen& gen) override {
-        return elem_type->llvm_type(gen);
-    }
-
-    inline llvm::Value* llvm_pointer(Codegen& gen) {
-        return id_ptr;
-    }
-
-    inline llvm::Value* loadable_llvm_pointer(Codegen& gen, SourceLocation location) {
-        return id_ptr;
-    }
-
-    llvm::Value* llvm_load(Codegen& gen, SourceLocation location) override;
-
-    bool add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, const chem::string_view& name) override;
-
-#endif
 
 };

@@ -67,16 +67,5 @@ public:
 
     Value* evaluated_value(InterpretScope& scope) override;
 
-#ifdef COMPILER_BUILD
-
-    // `await` is materialized/normalized before code generation. Until the
-    // dedicated lowering lands, these forward to the inner expression so the
-    // node is a transparent wrapper (Phase 0). The real lowering replaces the
-    // node during normalization.
-    llvm::Value* llvm_value(Codegen& gen, BaseType* expected_type = nullptr) final;
-
-    llvm::Type* llvm_type(Codegen& gen) final;
-
-#endif
 
 };

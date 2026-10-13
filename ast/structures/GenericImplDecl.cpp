@@ -140,16 +140,3 @@ ImplDefinition* GenericImplDecl::instantiate_type(
 
     return register_generic_args(instantiator, generic_args, requirement);
 }
-
-#ifdef COMPILER_BUILD
-
-void GenericImplDecl::code_gen_external_declare(Codegen &gen) {
-    // only declare the instantiations that have been bodied
-    auto i = 0;
-    while(i < total_bodied_instantiations) {
-        instantiations[i]->code_gen_external_declare(gen);
-        i++;
-    }
-}
-
-#endif

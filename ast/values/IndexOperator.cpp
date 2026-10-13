@@ -24,50 +24,6 @@
 #include "compiler/lab/LabBuildCompiler.h"
 #include <cstring>
 
-#ifdef COMPILER_BUILD
-
-#include "compiler/Codegen.h"
-#include "compiler/llvmimpl.h"
-
-llvm::Value* auto_deref_index(Codegen& gen, Value* value) {
-    const auto ref_type = value->getType()->canonical();
-    if(ref_type->kind() == BaseTypeKind::Reference) {
-        const auto underlying_type = ref_type->as_reference_type_unsafe()->type;
-        const auto loadInst = gen.builder->CreateLoad(underlying_type->llvm_type(gen), value->llvm_value(gen));
-        gen.di.instr(loadInst, value);
-        return loadInst;
-    }
-    return value->llvm_value(gen);
-}
-
-llvm::Value *IndexOperator::elem_pointer(Codegen &gen, llvm::Type *type, llvm::Value *ptr) {
-    std::vector<llvm::Value *> idxList;
-    if (type->isArrayTy()) {
-        idxList.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
-    }
-    idxList.emplace_back(auto_deref_index(gen, idx));
-    idxList.shrink_to_fit();
-    return gen.builder->CreateGEP(type, ptr, idxList, "", gen.inbounds);
-}
-
-bool IndexOperator::add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) {
-    const auto parent_type = parent->getType()->canonical();
-    if (parent_type->kind() == BaseTypeKind::Array && indexes.empty() && (parent->linked_node() == nullptr || parent->linked_node()->as_func_param() == nullptr )) {
-        indexes.push_back(gen.builder->getInt32(0));
-    }
-    indexes.emplace_back(auto_deref_index(gen, idx));
-    return true;
-}
-
-llvm::Type *IndexOperator::llvm_type(Codegen &gen) {
-    return getType()->llvm_type(gen);
-}
-
-llvm::Type *IndexOperator::llvm_chain_type(Codegen &gen, std::vector<Value*> &chain, unsigned int index) {
-    return getType()->llvm_chain_type(gen, chain, index);
-}
-
-#endif
 
 // TODO: make this function on BaseType
 BaseType* get_child_type(const TypeBuilder& typeBuilder, BaseType* type, bool unwrap_ref = false) {

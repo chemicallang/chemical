@@ -91,32 +91,5 @@ public:
         return child->kind() == ASTNodeKind::GenericFuncDecl ? child->as_gen_func_decl_unsafe() : nullptr;
     }
 
-#ifdef COMPILER_BUILD
-
-    /**
-     * responsible for generating code for a single function in a union decl
-     * read the documentation in struct decl
-     */
-    void code_gen_function(Codegen& gen, FunctionDeclaration* decl, InterfaceDefinition* linked_interface, ExtendableMembersContainerNode* def);
-
-    /**
-     * this is a helper function
-     */
-    void code_gen_function_body(Codegen& gen, FunctionDeclaration* decl);
-
-    /**
-     * code gen bodies of functions in the given interface by finding implementations in this impl
-     */
-    void code_gen_bodies(Codegen& gen, InterfaceDefinition* interface, ExtendableMembersContainerNode* user);
-
-    void strengthen_static_declare(Codegen& gen, InterfaceDefinition* interface, ExtendableMembersContainerNode* node);
-
-    void code_gen_declare(Codegen &gen) override;
-
-    void code_gen(Codegen &gen) final;
-
-    void code_gen_external_declare(Codegen &gen) override;
-
-#endif
 
 };

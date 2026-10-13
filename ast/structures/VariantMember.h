@@ -85,16 +85,5 @@ public:
         return parent()->known_type();
     }
 
-#ifdef COMPILER_BUILD
-
-    bool add_child_index(Codegen& gen, std::vector<llvm::Value *>& indexes, const chem::string_view& name) final;
-
-    // not wrapped, basically doesn't contain the type integer
-    // it's just a struct of all the variant parameters user defined
-    llvm::Type* llvm_raw_struct_type(Codegen &gen);
-
-    llvm::Type *llvm_type(Codegen &gen) final;
-
-#endif
 
 };

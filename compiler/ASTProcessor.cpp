@@ -2309,6 +2309,22 @@ int ASTProcessor::implement_module(
         return mir_mangle_name(c_visitor.mangler, n);
     });
     mir::MIRLowerer mir_lowerer(mir_module, mir_types);
+    // Source locations are only needed for debug info; the common (release /
+    // debug_quick) path pays nothing.
+    if (options->debug_info) {
+        mir_lowerer.set_source_loc_provider([this, &mir_module](uint64_t enc, mir::MIRSourceLoc& out) -> bool {
+            if (enc == 0) return false;
+            const SourceLocation loc(enc);
+            const LocationManager::LocationPosData pos = loc_man.getLocationPos(loc);
+            if (pos.fileId == 0) return false;
+            const std::string_view path = loc_man.getPathForFileId(pos.fileId);
+            if (path.empty()) return false;
+            out.file = mir_module.source_file(std::string(path));
+            out.line = pos.start.line;        // 0-based; the emitter adds 1
+            out.column = pos.start.character; // 0-based
+            return true;
+        });
+    }
     mir_lowerer.set_mangler([&c_visitor](ASTNode* n) {
         return mir_mangle_name(c_visitor.mangler, n);
     });
@@ -2498,6 +2514,22 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
         return mir_mangle_name(c_visitor.mangler, n);
     });
     mir::MIRLowerer mir_lowerer(mir_module, mir_types);
+    // Source locations are only needed for debug info; the common (release /
+    // debug_quick) path pays nothing.
+    if (options->debug_info) {
+        mir_lowerer.set_source_loc_provider([this, &mir_module](uint64_t enc, mir::MIRSourceLoc& out) -> bool {
+            if (enc == 0) return false;
+            const SourceLocation loc(enc);
+            const LocationManager::LocationPosData pos = loc_man.getLocationPos(loc);
+            if (pos.fileId == 0) return false;
+            const std::string_view path = loc_man.getPathForFileId(pos.fileId);
+            if (path.empty()) return false;
+            out.file = mir_module.source_file(std::string(path));
+            out.line = pos.start.line;        // 0-based; the emitter adds 1
+            out.column = pos.start.character; // 0-based
+            return true;
+        });
+    }
     mir_lowerer.set_mangler([&c_visitor](ASTNode* n) {
         return mir_mangle_name(c_visitor.mangler, n);
     });

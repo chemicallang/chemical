@@ -17,9 +17,12 @@
 #include "compiler/mir/MIRFunction.h"
 #include "compiler/mir/MIRDump.h"
 
+#include <llvm/BinaryFormat/Dwarf.h>
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Constants.h>
+#include <llvm/IR/DIBuilder.h>
 #include <llvm/IR/DataLayout.h>
+#include <llvm/IR/DebugInfoMetadata.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/GlobalVariable.h>
@@ -325,6 +328,90 @@ void Codegen::mir_declare_globals(const mir::MIRModule& m) {
     }
 }
 
+// ── Debug info types ────────────────────────────────────────────────────────
+llvm::DIType* Codegen::mir_di_type(const mir::MIRModule& m, uint32_t tid) {
+    if (!di.isEnabled || !diBuilder || tid >= m.types.size()) return nullptr;
+    auto cached = mir_di_types_.find(tid);
+    if (cached != mir_di_types_.end()) return cached->second;
+    // Insert a sentinel so a self-referential aggregate cannot recurse forever;
+    // a recursive lookup resolves to nullptr and the member is skipped.
+    mir_di_types_[tid] = nullptr;
+    const mir::MIRTypeRecord& r = m.types.get(tid);
+    llvm::DIFile* file = mir_di_file_;
+    llvm::DIType* result = nullptr;
+    auto unspecified = [&]() -> llvm::DIType* {
+        return diBuilder->createUnspecifiedType("void");
+    };
+    switch (r.kind) {
+        case mir::MIRTypeKind::Bool:
+            result = diBuilder->createBasicType("bool", 8, llvm::dwarf::DW_ATE_boolean);
+            break;
+        case mir::MIRTypeKind::Int: {
+            const bool sig = (r.flags & mir::TF_SIGNED) != 0;
+            std::string name = m.types.name_of(tid);
+            if (name.empty()) name = sig ? "int" : "uint";
+            result = diBuilder->createBasicType(
+                name, r.size ? r.size * 8 : 32,
+                sig ? llvm::dwarf::DW_ATE_signed : llvm::dwarf::DW_ATE_unsigned);
+            break;
+        }
+        case mir::MIRTypeKind::Float:
+            result = diBuilder->createBasicType(r.size == 8 ? "double" : "float",
+                                                r.size ? r.size * 8 : 32,
+                                                llvm::dwarf::DW_ATE_float);
+            break;
+        case mir::MIRTypeKind::Pointer:
+        case mir::MIRTypeKind::Reference: {
+            llvm::DIType* pointee = mir_di_type(m, r.element);
+            result = diBuilder->createPointerType(pointee ? pointee : unspecified(),
+                                                  r.size ? r.size * 8 : 64);
+            break;
+        }
+        case mir::MIRTypeKind::Array: {
+            llvm::DIType* elem = mir_di_type(m, r.element);
+            if (elem) {
+                std::vector<llvm::Metadata*> subs;
+                subs.push_back(diBuilder->getOrCreateSubrange(0, r.data_count));
+                result = diBuilder->createArrayType(r.size * 8, r.alignment * 8, elem,
+                                                    diBuilder->getOrCreateArray(subs));
+            }
+            break;
+        }
+        case mir::MIRTypeKind::Struct:
+        case mir::MIRTypeKind::Union:
+        case mir::MIRTypeKind::Variant: {
+            std::string nm = m.types.name_of(tid);
+            if (nm.empty()) nm = "__chx_anon";
+            std::vector<llvm::Metadata*> elems;
+            if (r.field_index != mir::MIR_INVALID_ID) {
+                for (uint32_t i = 0; i < r.data_count; ++i) {
+                    const uint32_t fi = r.field_index + i;
+                    if (fi >= m.types.fields.size()) break;
+                    const mir::MIRFieldInfo& f = m.types.fields[fi];
+                    llvm::DIType* ft = mir_di_type(m, f.type);
+                    if (!ft) continue;
+                    const uint64_t fsize =
+                        (f.type < m.types.size() ? m.types.get(f.type).size : 0) * 8;
+                    std::string fname(m.types.field_names.data() + f.name_offset,
+                                      f.name_length);
+                    elems.push_back(diBuilder->createMemberType(
+                        file, fname, file, 0, fsize, f.align * 8, f.offset * 8,
+                        llvm::DINode::FlagZero, ft));
+                }
+            }
+            result = diBuilder->createStructType(
+                file, nm, file, 0, r.size * 8, r.alignment * 8, llvm::DINode::FlagZero,
+                nullptr, diBuilder->getOrCreateArray(elems));
+            break;
+        }
+        default:
+            result = unspecified();
+            break;
+    }
+    mir_di_types_[tid] = result;
+    return result;
+}
+
 // ── Function body ───────────────────────────────────────────────────────────
 bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction& fn) {
     llvm::Function* lfn = mir_function(m, fn.symbol);
@@ -378,6 +465,55 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
         }
     }
     builder->SetInsertPoint(entry);
+
+    // Debug info: a DISubprogram per function, and a default DILocation for the
+    // prologue (each MIR instruction refines it below). Emission is fully
+    // MIR-driven — the legacy AST path set these via `DebugInfoBuilder`.
+    mir_di_sp_ = nullptr;
+    if (di.isEnabled && diBuilder) {
+        llvm::DIFile* file = mir_di_file_;
+        if (fn.has_decl_loc && fn.decl_loc.file < m.source_files.size()) {
+            const std::string& path = m.source_files[fn.decl_loc.file];
+            auto it = mir_di_files_.find(path);
+            if (it != mir_di_files_.end()) {
+                file = it->second;
+            } else {
+                const std::size_t slash = path.find_last_of("/\\");
+                const std::string dir =
+                    slash == std::string::npos ? std::string() : path.substr(0, slash);
+                const std::string base =
+                    slash == std::string::npos ? path : path.substr(slash + 1);
+                file = diBuilder->createFile(base, dir);
+                mir_di_files_[path] = file;
+            }
+        }
+        if (file) {
+            const unsigned line = fn.has_decl_loc ? fn.decl_loc.line + 1 : 1;
+            // subroutine type: return type first, then the parameter types
+            std::vector<llvm::Metadata*> di_params;
+            if (fn.function_type < m.types.size() &&
+                m.types.get(fn.function_type).kind == mir::MIRTypeKind::Function) {
+                const mir::MIRTypeRecord& ftr = m.types.get(fn.function_type);
+                llvm::DIType* rt = mir_di_type(m, ftr.element);
+                di_params.push_back(rt ? rt : diBuilder->createUnspecifiedType("void"));
+                for (uint32_t i = 0; i < ftr.data_count; ++i) {
+                    llvm::DIType* pt = mir_di_type(m, m.types.data[ftr.data_offset + i]);
+                    di_params.push_back(pt ? pt : diBuilder->createUnspecifiedType("void"));
+                }
+            } else {
+                di_params.push_back(diBuilder->createUnspecifiedType("void"));
+            }
+            llvm::DISubroutineType* sty =
+                diBuilder->createSubroutineType(diBuilder->getOrCreateTypeArray(di_params));
+            llvm::DISubprogram* sp = diBuilder->createFunction(
+                file, std::string(lfn->getName()), std::string(lfn->getName()), file, line,
+                sty, line, llvm::DINode::FlagPrototyped,
+                llvm::DISubprogram::SPFlagDefinition);
+            lfn->setSubprogram(sp);
+            mir_di_sp_ = sp;
+            builder->SetCurrentDebugLocation(llvm::DILocation::get(*ctx, line, 1, sp));
+        }
+    }
 
     // `vtype` is the type the *use site* expects (the MIR value/operand type).
     // The constant pool interns by (kind, bits, payload) and ignores the type,
@@ -976,6 +1112,15 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                 return &fn.operands[base + n];
             };
             const uint32_t v = inst.result_or_place;
+            // Attach the instruction's MIR source location (when present).
+            if (mir_di_sp_ && inst.source_index < fn.sources.size()) {
+                const mir::MIRSourceLoc& sl = fn.sources[inst.source_index];
+                builder->SetCurrentDebugLocation(llvm::DILocation::get(
+                    *ctx, sl.line + 1, sl.column + 1, mir_di_sp_));
+            } else if (mir_di_sp_) {
+                builder->SetCurrentDebugLocation(
+                    llvm::DILocation::get(*ctx, mir_di_sp_->getLine(), 1, mir_di_sp_));
+            }
             if (getenv("MIR_LLVM_TRACE"))
                 std::cerr << "  bi=" << bi << " ii=" << ii << " "
                           << mir::opcode_name(inst.opcode()) << " res=" << v
@@ -2230,5 +2375,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
             builder->CreateUnreachable();
         }
     }
+    if (mir_di_sp_) builder->SetCurrentDebugLocation(nullptr);
+    mir_di_sp_ = nullptr;
     return true;
 }

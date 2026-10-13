@@ -214,6 +214,12 @@ public:
     std::unordered_map<std::string, std::vector<std::string>> mir_vtable_methods_;
     std::unordered_map<std::string, std::vector<llvm::FunctionType*>> mir_vtable_slot_types_;
 
+    // MIR → LLVM debug info (per module / per function, when DI is enabled).
+    llvm::DIFile* mir_di_file_ = nullptr;      // current module's source file
+    llvm::DISubprogram* mir_di_sp_ = nullptr;  // current function's DISubprogram
+    std::unordered_map<std::string, llvm::DIFile*> mir_di_files_;
+    std::unordered_map<uint32_t, llvm::DIType*> mir_di_types_;
+
     /**
      * this keeps track of llvm pointers for functions that we created in different implementations
      * that implement interfaces for structs
@@ -415,6 +421,9 @@ public:
     llvm::Function* mir_function(const mir::MIRModule& module, uint32_t symbol);
     /** Emit the LLVM definition of a MIR function body. */
     bool mir_emit_function(const mir::MIRModule& module, const mir::MIRFunction& fn);
+
+    /** LLVM DIType for a MIR type id (used by the MIR debug-info emission). */
+    llvm::DIType* mir_di_type(const mir::MIRModule& module, uint32_t type);
     /** Declare LLVM globals for the module's MIR global symbols. */
     void mir_declare_globals(const mir::MIRModule& module);
     /** Clear per-module MIR caches (call on module switch). */
@@ -426,6 +435,10 @@ public:
         mir_vtable_types_.clear();
         mir_vtable_methods_.clear();
         mir_vtable_slot_types_.clear();
+        mir_di_file_ = nullptr;
+        mir_di_sp_ = nullptr;
+        mir_di_files_.clear();
+        mir_di_types_.clear();
     }
 
     /**

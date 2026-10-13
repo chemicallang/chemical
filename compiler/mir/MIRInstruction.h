@@ -201,7 +201,7 @@ struct MIRInstruction {
     uint32_t result_or_place = MIR_NULL;
     uint32_t operand_offset = 0;
     uint16_t operand_count = 0;
-    uint16_t source_index = 0xFFFF; // index into MIRFunction::sources, 0xFFFF = none
+    uint16_t source_index = 0xFFFF; // index into MIRFunction::sources, 0xFFFF = none (MIR_NO_SOURCE)
 
     MIROpcode opcode() const { return static_cast<MIROpcode>(opcode_and_flags >> 16); }
     uint16_t flags() const { return static_cast<uint16_t>(opcode_and_flags & 0xFFFF); }

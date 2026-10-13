@@ -411,20 +411,31 @@ backend gets them too.
 
 ### 2.2 What is NOT done (the migration target)
 
-- **LLVM still lowers from the AST.** The `Compiler` target is built with
-  `COMPILER_BUILD` and drives `Codegen` + per-AST-node `llvm_*` methods.
-- **MIR carries no source locations.** `MIRInstruction::source_index` and
-  `MIRFunction::sources` exist but the lowerer never fills them
-  (`source_index` is always `0xFFFF`). The MIR C emitter emits **no `#line`
-  directives**, so C debug line info is also currently lost.
-- **Aggregate layout is not filled.** `MIRTypeRecord.size`/field data are not
-  populated for aggregates; `MIRTypeRecord` has `data_offset`/`data_count` for
-  field/element type ids but no field-offset table. This is the documented
-  blocker before LLVM lowering.
-- **No MIR→LLVM type lowering, ABI table, or emitter.** There is no
-  `MIRABIEntryTable`; call ABI is implicit in the C emitter's spelling.
-- **Async is MIR-lowered only for C.** The LLVM path uses `LLVMCoroutine.cpp`
-  with `llvm.coro.*` intrinsics.
+> **Status (2026-10-13, session 12): most of this list is now DONE.** The AST
+> LLVM lowering is *unreachable* — `ASTProcessor::compile_module` returns
+> `mir_compile_module(gen, module)` unconditionally, so the entire
+> `Codegen`/`backend/LLVM.cpp` AST path is dead code for Chemical modules. MIR
+> now emits LLVM IR including debug info (see §2.4). What remains is the
+> mechanical deletion plus one reachable legacy use (the C-header declaration
+> path).
+
+- ~~**LLVM still lowers from the AST.**~~ **DONE.** `compile_module` always goes
+  through `mir_compile_module`; the AST `Codegen`/`llvm_*` lowering is dead but
+  not yet deleted.
+- ~~**MIR carries no source locations.**~~ **DONE (session 12).** The lowerer
+  fills `MIRFunction::sources`/`decl_loc` and `MIRInstruction::source_index`
+  through `MIRBuilder::set_source` + the `set_source_loc_provider` callback, and
+  `CodegenMir` emits `DICompileUnit`/`DISubprogram`/`DILocation`/DI types.
+  (The MIR **C** emitter still emits no `#line` directives — a bonus, not a
+  requirement.)
+- ~~**Aggregate layout is not filled.**~~ **DONE (session 10, action A1).**
+  `compiler/mir/MIRLayout.h` fills `size`/`alignment`/field offsets.
+- ~~**No MIR→LLVM type lowering, ABI table, or emitter.**~~ **DONE.**
+  `compiler/CodegenMir.cpp` lowers MIR to LLVM; the C ABI is mirrored.
+- ~~**Async is MIR-lowered only for C.**~~ **DONE.** Async lowers to a MIR state
+  machine emitted by both backends; `LLVMCoroutine.cpp` is dead.
+- **Still open for full §5.1 DI parity:** `llvm.dbg.declare`/`dbg.value` for
+  locals (needs local variable names in MIR) and `DILexicalBlock`s.
 
 ### 2.3 Health of the LLVM gate (read before trusting it)
 
@@ -450,6 +461,36 @@ have still not all been re-checked.
 > --libs` used to abort in the compiler while building the lib test exe (after
 > `…/lang/libs/json/src/encode.ch`, with `RUNTIME ERROR: invalid memory
 > access`), emitting nothing.
+
+### 2.4 Readiness to delete the AST LLVM lowering (assessment, session 12)
+
+**The shift is complete functionally; the deletion itself is not done.** The AST
+LLVM lowering is unreachable for Chemical modules — `ASTProcessor::compile_module`
+returns `mir_compile_module(gen, module)` unconditionally — and the last
+hard-requirement gap (debug info) is now closed from MIR (session 12, §2.2). The
+suites that exercise the LLVM backend are green (`--llvm` 2298/2298,
+`--llvm --async` 53/53, `--llvm --libs` builds).
+
+What still stands between here and `backend/LLVM.cpp` being deleted:
+
+1. **One reachable legacy use.** `LabBuildCompiler.cpp` calls
+   `node->code_gen_declare(gen)` for C-header nodes (`mod->headers`, set by the
+   `include_header` build API). It is unused in the repo (the only caller is
+   commented out in `lang/tests/build.lab`) and was reported broken on Linux, but
+   it is a real API path that the legacy AST codegen currently serves. Port it
+   (declare the C-translated nodes through MIR) or drop the path before deleting.
+2. **The mechanical deletion.** `backend/LLVM.cpp` (~3.4k lines),
+   `Codegen.cpp`'s AST methods (~2k), `ASTCompiler.cpp`'s `code_gen_*` wrappers,
+   `LLVMCoroutine.cpp` (~1.1k), and ~889 `#ifdef COMPILER_BUILD` references across
+   172 `ast/` files. This is checkpoint 8.9, a large but mechanical change that
+   must keep the build compilable in batches.
+3. **DI polish (not a blocker).** `llvm.dbg.declare`/`dbg.value` for locals and
+   `DILexicalBlock`s are still missing; the §5.1 marker set
+   (`DICompileUnit`/`DISubprogram`/`DILocation`/`DIBasicType`/`DICompositeType`)
+   is present.
+
+**Verdict:** not deletable in one safe step, but the functional prerequisites are
+met; what remains is (1) the C-header port and (2) the mechanical removal.
 
 ---
 

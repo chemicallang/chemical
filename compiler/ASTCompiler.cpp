@@ -44,6 +44,8 @@
 #include "ast/base/BaseType.h"
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/Constants.h>
+#include <llvm/IR/DIBuilder.h>
+#include <llvm/IR/DebugInfoMetadata.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/Module.h>
@@ -468,6 +470,14 @@ static void mir_emit_llvm_module(Codegen& gen, LabModule* module,
                   << " functions=" << m.functions.size() << "\n";
 
     gen.mir_reset_caches();
+    // Debug info: one DICompileUnit per module (the MIR path used to emit none).
+    if (gen.di.isEnabled) {
+        const std::string cu_path =
+            module->direct_files.empty() ? std::string() : module->direct_files.front().abs_path;
+        llvm::DICompileUnit* cu = gen.di.createDiCompileUnit(chem::string_view(cu_path));
+        gen.di.start_di_compile_unit(cu);
+        gen.mir_di_file_ = cu ? cu->getFile() : nullptr;
+    }
     gen.mir_declare_globals(m);
     // pre-declare all functions so vtable initializers can reference them
     for (const mir::MIRFunction& fn : m.functions) gen.mir_function(m, fn.symbol);
@@ -755,6 +765,10 @@ static void mir_emit_llvm_module(Codegen& gen, LabModule* module,
             std::cerr << "[MIR-LLVM] LLVM emission failed\n";
             return;
         }
+    }
+    if (gen.di.isEnabled) {
+        gen.di.end_di_compile_unit();
+        if (gen.diBuilder) gen.diBuilder->finalize();
     }
     if (getenv("MIR_LLVM_DUMP_IR")) {
         std::string path = std::string(getenv("MIR_LLVM_DUMP_IR"));

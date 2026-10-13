@@ -59,6 +59,49 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 12 (2026-10-13) — debug info is emitted from MIR (MIR→LLVM)
+
+The MIR→LLVM path emitted **no DWARF at all**: `MIRInstruction::source_index` was
+never filled, the lowerer never recorded a function's source, and `CodegenMir`
+never touched the `DIBuilder`. `--mode debug_complete` produced an executable with
+only `.debug_frame`. This was the one hard-requirement gap (§5.1 of
+`mir-llvm-migration.md`) blocking deletion of the AST LLVM lowering.
+
+Source locations now flow through MIR and are emitted as DWARF:
+
+- `MIRModule::source_files` interns file paths; `MIRSourceLoc.file` indexes it
+  (the core stays AST-free). `MIRFunction` gained `decl_loc`/`has_decl_loc`.
+- `MIRBuilder::set_source`/`add_source`/`set_function_source` attach a location
+  to emitted instructions (`emit_impl` stamps `source_index`).
+- `MIRLowerer` resolves each statement's and each function's encoded location via
+  a new `set_source_loc_provider` callback (wired from `ASTProcessor` using the
+  `LocationManager`), gated on `options->debug_info` so the common
+  `debug_quick`/release path pays nothing.
+- `CodegenMir` emits a `DICompileUnit` per module (`mir_emit_llvm_module`), a
+  `DISubprogram` per function, a `DILocation` per instruction (statement
+  granularity), and a `mir_di_type` that maps MIR types to `DIBasicType` /
+  `DIPointerType` / `DICompositeType` (struct/union/variant members with real
+  offsets from the MIR layout) / `DIArrayType`.
+
+Measured on `lang/compiled/perfprobe` (`--mode debug_complete --assertions
+--out-ll-all`): the IR carries **4 `DICompileUnit`, 485 `DISubprogram`, 2274
+`DILocation`, 23 `DIBasicType`, 147 `DICompositeType`, 245 `DIDerivedType`**; the
+executable has `.debug_info`/`.debug_line`/`.debug_str`/`.debug_abbrev`/
+`.debug_pubnames`/`.debug_pubtypes`; `readelf --debug-dump=decodedline` shows real
+per-statement lines (51 entries for `main.ch`); the program output is unchanged
+and the IR passes `--assertions`. `--mode debug_quick` (the suites) emits no DI.
+
+Suites: `--tcc` **2300/2300**, `--llvm` **2298/2298**, `MIRTests` **1111 checks
+OK**.
+
+Still open for full §5.1 parity: `llvm.dbg.declare`/`dbg.value` for locals (needs
+local variable names in MIR) and `DILexicalBlock`s. The one *reachable* use of the
+legacy AST codegen outside `compile_module` remains the C-header declaration path
+(`LabBuildCompiler.cpp`, `node->code_gen_declare(gen)` for `mod->headers`, driven
+by the `include_header` build API — unused in the repo and commented out on
+Linux). See `lang/docs/mir-llvm-migration.md` §2.4 for the deletion readiness
+assessment.
+
 ### Session 11 (2026-10-13) — variant construction no longer zeroes dead bytes (action C1)
 
 Variant construction (`Variant.Member(args)`) allocated its result temporary and

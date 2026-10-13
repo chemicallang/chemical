@@ -43,6 +43,20 @@ struct MIRModule {
     MIRModuleLayout layout;
     std::vector<MIRFunction> functions;
     /**
+     * Absolute source file paths, indexed by `MIRSourceLoc::file`. Shared by the
+     * whole module (a `MIRSourceLoc` stores only the id, keeping the core
+     * AST-free). Populated by the lowerer's source-location provider.
+     */
+    std::vector<std::string> source_files;
+    /** Intern a source file path; returns its id. */
+    uint32_t source_file(const std::string& path) {
+        for (uint32_t i = 0; i < source_files.size(); ++i) {
+            if (source_files[i] == path) return i;
+        }
+        source_files.push_back(path);
+        return static_cast<uint32_t>(source_files.size() - 1);
+    }
+    /**
      * Inline (anonymous or locally-named) struct types discovered while mapping
      * types. They have no top-level C declaration, so the driver emits one.
      * `second` is a `BaseType*` (a `StructType`).
@@ -60,6 +74,7 @@ struct MIRModule {
         constants = {};
         symbols = {};
         functions.clear();
+        source_files.clear();
     }
 };
 

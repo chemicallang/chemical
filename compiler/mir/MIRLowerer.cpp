@@ -4370,8 +4370,18 @@ bool MIRLowerer::lower_asm_operand(Value* expr, MIROperand& out, std::string& er
     return false;
 }
 
+void MIRLowerer::note_source(ASTNode* node) {
+    if (!builder_ || !source_loc_provider_ || !node) return;
+    const uint64_t enc = node->encoded_location().encoded;
+    if (enc == 0) return;
+    MIRSourceLoc loc;
+    if (!source_loc_provider_(enc, loc)) return;
+    builder_->set_source(builder_->add_source(loc));
+}
+
 bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
     if (!node) return true;
+    note_source(node);
 
     switch (node->kind()) {
         case ASTNodeKind::VarInitStmt: {
@@ -8379,6 +8389,17 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
 
     MIRBuilder b(arena, module_, func);
     builder_ = &b;
+
+    // attach the declaration's source location (a DISubprogram and the default
+    // debug location for prologue instructions; statements refine it)
+    {
+        MIRSourceLoc dloc;
+        const uint64_t enc = decl->encoded_location().encoded;
+        if (source_loc_provider_ && enc != 0 && source_loc_provider_(enc, dloc)) {
+            b.set_function_source(dloc);
+            b.set_source(b.add_source(dloc));
+        }
+    }
 
     const BlockId entry = b.create_block();
     b.set_block(entry);

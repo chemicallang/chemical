@@ -42,6 +42,25 @@ public:
     bool ok() const { return ok_; }
     const char* error() const { return error_; }
 
+    // ── source locations ───────────────────────────────────────────────────
+    /**
+     * Set the source location attached to subsequently emitted instructions.
+     * `index` is an index into `function().sources` (see `add_source`), or
+     * `MIR_NO_SOURCE` to clear. The core stays AST-free: the lowerer resolves an
+     * AST node's encoded location to a `MIRSourceLoc` through a provider
+     * callback and interns the file through `MIRModule::source_file`.
+     */
+    void set_source(uint32_t index) { current_source_ = index; }
+    void clear_source() { current_source_ = MIR_NO_SOURCE; }
+    /** Intern `loc` in the function's source table; returns its index. */
+    uint32_t add_source(const MIRSourceLoc& loc);
+    /** Record the function declaration's location (for a DISubprogram). */
+    void set_function_source(const MIRSourceLoc& loc) {
+        func_.decl_loc = loc;
+        func_.has_decl_loc = true;
+    }
+    uint32_t current_source() const { return current_source_; }
+
     // ── blocks ─────────────────────────────────────────────────────────────
     /** Reserve a new block id. Emit it via set_block() in creation order. */
     BlockId create_block(uint16_t arg_count = 0);
@@ -195,6 +214,7 @@ private:
     bool terminated_ = true; // no current block yet
     bool ok_ = true;
     const char* error_ = nullptr;
+    uint32_t current_source_ = MIR_NO_SOURCE; // attached to emitted instructions
     uint32_t cleanup_sp_ = MIR_INVALID_ID;
 };
 

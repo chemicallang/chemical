@@ -57,6 +57,9 @@ struct MIRSourceLoc {
     uint32_t column = 0;
 };
 
+/** Sentinel for `MIRInstruction::source_index` / `MIRBuilder::set_source`. */
+inline constexpr uint32_t MIR_NO_SOURCE = 0xFFFFu;
+
 /** Bits of `MIRFunction::flags`. */
 enum MIRFunctionFlags : uint32_t {
     /**
@@ -90,6 +93,10 @@ struct MIRFunction {
     std::vector<PlaceId> owned_places;
     std::vector<MIRMovePathNode> move_paths;
     std::vector<MIRSourceLoc> sources;
+
+    /** The declaration's source location (for a DISubprogram). */
+    MIRSourceLoc decl_loc;
+    bool has_decl_loc = false;
 
     uint32_t entry_block = MIR_NULL;
 

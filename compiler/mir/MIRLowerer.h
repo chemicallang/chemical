@@ -247,9 +247,20 @@ public:
         embedded_value_repl_ = std::move(fn);
     }
 
+    /**
+     * Resolve a node's encoded source location into a `MIRSourceLoc`. Returns
+     * false when the location is invalid/unknown. The core stays AST-free; the
+     * driver supplies this from the `LocationManager`.
+     */
+    void set_source_loc_provider(std::function<bool(uint64_t, MIRSourceLoc&)> fn) {
+        source_loc_provider_ = std::move(fn);
+    }
+
 private:
     MIRExprResult lower_expr(Value* value, std::string& error);
     bool lower_stmt(ASTNode* node, std::string& error);
+    /** Attach `node`'s source location to subsequently emitted instructions. */
+    void note_source(ASTNode* node);
     bool lower_scope(Scope& scope, std::string& error);
     /** Lower a list of statements as a scope, destroying its locals at the end. */
     bool lower_scope_nodes(std::vector<ASTNode*>& nodes, std::string& error);
@@ -517,6 +528,7 @@ private:
     std::function<Value*(EmbeddedValue*)> embedded_value_repl_;
     std::unordered_map<EmbeddedValue*, Value*> embedded_value_cache_;
     std::function<void(FunctionDeclaration*)> async_normalize_;
+    std::function<bool(uint64_t, MIRSourceLoc&)> source_loc_provider_;
     std::unordered_map<std::string, SymbolId> extern_symbols_;
     /** Struct temporaries whose destruction is deferred to the statement end. */
     std::vector<std::pair<PlaceId, BaseType*>> stmt_temps_;

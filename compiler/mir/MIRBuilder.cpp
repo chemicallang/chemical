@@ -88,6 +88,18 @@ void MIRBuilder::note_result_value(ValueId id, uint32_t inst_index) {
     if (id < func_.values.size()) func_.values[id].def_inst = inst_index;
 }
 
+uint32_t MIRBuilder::add_source(const MIRSourceLoc& loc) {
+    if (func_.sources.size() >= MIR_NO_SOURCE) return MIR_NO_SOURCE;
+    for (uint32_t i = 0; i < func_.sources.size(); ++i) {
+        const MIRSourceLoc& s = func_.sources[i];
+        if (s.file == loc.file && s.line == loc.line && s.column == loc.column) {
+            return i;
+        }
+    }
+    func_.sources.push_back(loc);
+    return static_cast<uint32_t>(func_.sources.size() - 1);
+}
+
 uint32_t MIRBuilder::emit_impl(MIROpcode op, uint32_t result_or_place,
                                const MIROperand* operands, uint32_t count) {
     if (current_block_ == MIR_INVALID_ID || terminated_) {
@@ -100,6 +112,7 @@ uint32_t MIRBuilder::emit_impl(MIROpcode op, uint32_t result_or_place,
     inst.result_or_place = result_or_place;
     inst.operand_offset = static_cast<uint32_t>(func_.operands.size());
     inst.operand_count = static_cast<uint16_t>(count);
+    inst.source_index = static_cast<uint16_t>(current_source_);
 
     note_value_uses(operands, count);
     for (uint32_t i = 0; i < count; ++i) {

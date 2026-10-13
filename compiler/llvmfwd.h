@@ -37,5 +37,7 @@ namespace llvm {
     class DILocation;
     class DIType;
     class DICompositeType;
+    class DISubprogram;
+    class DISubroutineType;
 
 }

@@ -1160,6 +1160,42 @@ bool MIRLowerer::apply_struct_defaults(PlaceId temp, ExtendableMembersContainerN
     return true;
 }
 
+// Whether every runtime member of `def` is defined by a struct literal that
+// explicitly sets `explicit_fields`: each explicit field is written, each
+// inherited base is written by `apply_struct_defaults` (via a default
+// constructor or a recursive default pass, then copied whole into the base
+// field), and each non-explicit direct member is either given a default value
+// or default-constructed (a struct type). Any other member -- no default and
+// not a struct, so `apply_struct_defaults` would `continue` without writing it
+// -- leaves a byte that only the whole-temp `zero_init` defines. Mirrors the
+// `continue` paths of `apply_struct_defaults` exactly.
+bool MIRLowerer::struct_literal_defines_all_fields(ExtendableMembersContainerNode* def,
+                                                   const std::set<std::string>& explicit_fields) {
+    if (!def) return false;
+    for (InheritedType& inh : def->inherited) {
+        BaseType* bt = inh.type;
+        ASTNode* base = bt ? bt->get_direct_linked_canonical_node() : nullptr;
+        if (!base) return false;
+        auto* bec = base->as_extendable_member_container();
+        if (!bec) return false;
+        // an empty-named base is skipped by apply_struct_defaults and stays unset
+        if (bec->name_view().empty()) return false;
+        // explicit => the literal wrote it; otherwise apply_struct_defaults writes
+        // the base field through the base temporary it constructs.
+    }
+    for (BaseDefMember* var : def->variables()) {
+        if (!var) continue;
+        const std::string nm(var->name.data(), var->name.size());
+        if (explicit_fields.count(nm)) continue;
+        if (var->default_value()) continue;
+        BaseType* mt = var->known_type();
+        ASTNode* mn = mt ? mt->get_direct_linked_canonical_node() : nullptr;
+        if (mn && mn->kind() == ASTNodeKind::StructDecl) continue;
+        return false;
+    }
+    return true;
+}
+
 bool MIRLowerer::apply_struct_defaults_ptr(ValueId self_ptr, ExtendableMembersContainerNode* def,
                                            std::string& error) {
     if (!def) return true;
@@ -2889,9 +2925,44 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 error = "failed to allocate struct temporary";
                 return MIRExprResult::error();
             }
-            // zero the temp so members that are not explicitly set are
+            // The names the literal sets explicitly, computed before emission so
+            // the zero_init can be skipped when nothing is left unset.
+            std::set<std::string> explicit_fields;
+            for (auto& kv : sv->values) {
+                explicit_fields.insert(std::string(kv.first.data(), kv.first.size()));
+            }
+            // Fields the literal *fully* defines. An array literal shorter than
+            // the field's declared size lowers to a temp of exactly the literal's
+            // length and copies only those bytes (the empty `[]` case is handled
+            // by the array lowering, but a partial one decays), so the field's
+            // tail is defined only by the enclosing zero_init -- treat such a
+            // field as unset for the zero decision.
+            std::set<std::string> zero_defined_fields = explicit_fields;
+            for (auto& kv : sv->values) {
+                Value* iv = kv.second.value;
+                if (!iv || iv->val_kind() != ValueKind::ArrayValue) continue;
+                BaseType* ft = nullptr;
+                auto mtw = sv->child_type_w_index(kv.first);
+                if (mtw.second != -1) ft = mtw.first;
+                auto* fat = ft ? ft->as_array_type() : nullptr;
+                if (!fat || !fat->has_array_size()) continue;
+                if (static_cast<uint64_t>(iv->as_array_value_unsafe()->values.size()) <
+                    fat->get_array_size()) {
+                    zero_defined_fields.erase(
+                        std::string(kv.first.data(), kv.first.size()));
+                }
+            }
+            // Zero the temp so members that are not explicitly set are
             // well-defined (matches the legacy backend's default initialization)
-            builder_->zero_init(temp);
+            // -- but only when a member really is left unset. When the literal
+            // defines every member (or the rest default-construct / take a
+            // default value), the whole-temp zero is dead bytes the legacy
+            // backend never emitted (evaluation §1.2, action C1).
+            const bool all_defined =
+                sd && struct_literal_defines_all_fields(sd, zero_defined_fields);
+            if (!all_defined) {
+                builder_->zero_init(temp);
+            }
             auto it = sv->values.begin();
             while (it != sv->values.end()) {
                 auto& init = it.value();
@@ -3064,10 +3135,6 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             // initialize members that were not explicitly set with their default
             // values, and default-construct inherited bases
             if (sd) {
-                std::set<std::string> explicit_fields;
-                for (auto& kv : sv->values) {
-                    explicit_fields.insert(std::string(kv.first.data(), kv.first.size()));
-                }
                 ExtendableMembersContainerNode* defc =
                     sd ? static_cast<ExtendableMembersContainerNode*>(sd)
                        : (ud ? static_cast<ExtendableMembersContainerNode*>(ud) : nullptr);

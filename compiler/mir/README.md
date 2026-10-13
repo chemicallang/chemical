@@ -232,6 +232,44 @@ targets (8,285 lines / 285,299 B text), so action C's acceptance is still open �
 what remains is mostly the aggregate zeroing class (§1.2) rather than spills,
 copies or labels.
 
+### Session 9 (2026-10-13) — struct-literal aggregate zeroing is conditional (action C1)
+
+The remaining zero loops after C1's first bite were the `zero_init` on a struct
+literal's temporary whose members are then all written. `MIRLowerer` now emits
+that `zero_init` only when the literal actually leaves a member undefined
+(`struct_literal_defines_all_fields`): a member is defined if it is set
+explicitly, takes a default value, or is default-constructed (a struct type) by
+`apply_struct_defaults`; an inherited base is always written. Two cases stay
+conservative and keep the zero:
+
+- a member with no default that is not a struct type — only the zero defines it;
+- an **explicit array-typed member initialized by a partial array literal** — the
+  array literal lowers to a temporary of exactly the literal's length and
+  `memcpy`s only those bytes into the field (the empty `[]` case resolves the
+  declared size, a partial one decays), so the field's tail depends on the
+  enclosing zero. This is why the first cut of the rule broke
+  `test_partial_array_literal_zeroes_remaining`; the fix compares the literal's
+  element count against the field's declared array size and, when short, treats
+  the field as unset for the zero decision.
+
+Measured on this checkout (`Debug`, `debug_quick`, `--no-cache`; same source,
+only `MIRLowerer.{h,cpp}` differ, interleaved A/B):
+
+| Metric | Before | After | Delta |
+|---|---:|---:|---:|
+| Struct-heavy probe zero loops | 173 | **102** | **−41%** |
+| Struct-heavy probe C lines | 11,621 | 11,550 | −0.6% |
+| Main-suite C zero loops | 2,655 | **1,231** | **−54%** |
+| Main-suite C lines | 108,615 | **107,191** | −1.3% |
+
+Suites: `--tcc` **2300/2300**; `MIRTests` **1052 checks OK**; the struct-heavy
+probe's program output is unchanged. The win is mostly the removed per-value
+byte loops (a size cost on every construction), not the line count. This is the
+same class the evaluation (§1.2, action C1) named as the next bite; what is left
+of C1 is the zero on a constructor result temp (`Type(args)`) whose constructor
+covers every field, and the four `zero_init`s inside `apply_struct_defaults`
+itself.
+
 ### Session 7 (2026-10-13) — O(1) type/constant interning (action D, partial)
 
 Instrumented the MIR phases of a cold main-suite compile (`debug_quick`,

@@ -359,7 +359,14 @@ logic; measured by (backend emitter LOC / total MIR LOC) trend.
 **Action.**
 1. Zero an aggregate only when a partial initializer needs it; never both the
    destination and its temp. Prefer field-wise init. (Respect the `memset`/cstd
-   conflict: inline loop only where required.)
+   conflict: inline loop only where required.) **Second bite DONE (session 9):**
+   a struct literal's whole-temp `zero_init` is now emitted only when the literal
+   actually leaves a member undefined (`MIRLowerer::struct_literal_defines_all_fields`
+   + the partial-array guard). Measured, same machine/mode, interleaved A/B:
+   main-suite C zero loops **2,655 → 1,231 (−54%)**, main-suite C lines 108,615 →
+   107,191, struct-heavy probe zero loops 173 → **102**. `--tcc` **2300/2300**,
+   `MIRTests` **1052 checks OK**. Still open: the constructor-result temp
+   (`Type(args)`) and the four `zero_init`s inside `apply_struct_defaults`.
 2. ~~Collapse `temp = *src; dest = temp` into one copy/`memcpy`; extend the
    single-use collapse to aggregate places and loaded values~~ **DONE
    (session 8)**: a deref load whose only use is the immediately following store

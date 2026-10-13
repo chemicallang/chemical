@@ -396,6 +396,14 @@ private:
     bool apply_struct_defaults(PlaceId temp, ExtendableMembersContainerNode* def,
                                const std::set<std::string>& explicit_fields,
                                std::string& error);
+    /**
+     * Whether a struct literal with `explicit_fields` set will define every
+     * runtime member of `def` (explicitly, or through `apply_struct_defaults`),
+     * so the whole-temp `zero_init` can be skipped. Conservative: any member
+     * that would be left uninitialized (no default, not a struct) returns false.
+     */
+    bool struct_literal_defines_all_fields(ExtendableMembersContainerNode* def,
+                                           const std::set<std::string>& explicit_fields);
     /** Like `apply_struct_defaults` but through a `self` pointer (generated ctor). */
     bool apply_struct_defaults_ptr(ValueId self_ptr, ExtendableMembersContainerNode* def,
                                    std::string& error);

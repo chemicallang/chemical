@@ -84,11 +84,7 @@ public:
      * this maps structs that implement this interface with their global variable pointers
      * for the vtable generated
      */
-#ifdef COMPILER_BUILD
-    std::unordered_map<ExtendableMembersContainerNode*, llvm::Value*> vtable_pointers;
-#else
     std::unordered_map<ExtendableMembersContainerNode*, bool> vtable_pointers;
-#endif
 
     /**
      * the active user, can be retrieved by functions to see for which

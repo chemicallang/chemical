@@ -66,10 +66,6 @@
 #include "compiler/symres/ChildResolver.h"
 #include "std/except.h"
 
-#if !defined(DEBUG) && defined(COMPILER_BUILD)
-#include "compiler/Codegen.h"
-#endif
-
 chem::string_view ZERO_LOC_ID(BatchAllocator& allocator, std::string& identifier) {
     const auto size = identifier.size();
     const auto ptr = allocator.allocate_str(identifier.data(), size);

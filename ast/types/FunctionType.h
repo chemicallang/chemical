@@ -9,12 +9,6 @@
 #include "ast/base/ValueKind.h"
 #include "ast/structures/FunctionParam.h"
 
-#ifdef COMPILER_BUILD
-#include "compiler/llvmfwd.h"
-#include "ast/base/AnnotationKind.h"
-
-class Codegen;
-#endif
 
 class BaseType;
 
@@ -305,51 +299,3 @@ public:
     virtual void set_return(InterpretScope& scope, Value* value) = 0;
 
 };
-
-#ifdef COMPILER_BUILD
-
-/**
- * creates llvm function return type, based on our return type of the function
- */
-llvm::Type* llvm_func_return(Codegen &gen, BaseType* type);
-
-/**
- * add a single param type to param types
- */
-void llvm_func_param_type(
-        Codegen &gen,
-        std::vector<llvm::Type*>& paramTypes,
-        BaseType* type
-);
-
-/**
- * creates llvm function parameter types, based on our parameter types of the function
- */
-void llvm_func_param_types_into(
-        Codegen &gen,
-        std::vector<llvm::Type*>& paramTypes,
-        std::vector<FunctionParam*>& params,
-        BaseType* returnType,
-        bool isCapturing,
-        bool isVariadic,
-        FunctionDeclaration* decl
-);
-
-/**
- * creates llvm function parameter types, based on our parameter types of the function
- * a helper to call function defined above it
- */
-inline std::vector<llvm::Type*> llvm_func_param_types(
-        Codegen &gen,
-        std::vector<FunctionParam*>& params,
-        BaseType* returnType,
-        bool isCapturing,
-        bool isVariadic,
-        FunctionDeclaration* decl
-) {
-    std::vector<llvm::Type*> paramTypes;
-    llvm_func_param_types_into(gen, paramTypes, params, returnType, isCapturing, isVariadic, decl);
-    return paramTypes;
-}
-
-#endif

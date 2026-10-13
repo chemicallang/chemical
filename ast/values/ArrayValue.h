@@ -32,10 +32,6 @@ public:
     // copies, wiping out modifications made through pointers (e.g. ptr.lamb = lambda).
     bool structElementsEvaluated = false;
 
-#ifdef COMPILER_BUILD
-    // TODO this arr value should be stored in code gen since its related to that
-    llvm::AllocaInst *arr;
-#endif
 
     /**
      * constructor

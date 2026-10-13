@@ -12,11 +12,6 @@
 #include "ast/base/Value.h"
 #include "ast/statements/VarInit.h"
 
-#ifdef COMPILER_BUILD
-
-#include "compiler/llvmfwd.h"
-
-#endif
 
 /**
  * @brief Class representing a VariableIdentifier.

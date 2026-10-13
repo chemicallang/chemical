@@ -32,13 +32,6 @@ public:
     std::vector<CapturedVariable*> captureList;
     Scope scope;
 
-#ifdef COMPILER_BUILD
-
-    llvm::Function* func_ptr = nullptr;
-    llvm::Value *captured_struct = nullptr;
-    llvm::Function* capturedDestructor = nullptr;
-
-#endif
 
     /**
      * constructor

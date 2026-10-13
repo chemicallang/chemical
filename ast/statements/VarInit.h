@@ -110,9 +110,6 @@ public:
     TypeLoc type;
     Value* value; ///< The value being assigned to the identifier.
 
-#ifdef COMPILER_BUILD
-    llvm::Value *llvm_ptr = nullptr;
-#endif
 
     /**
      * extra data for the var init

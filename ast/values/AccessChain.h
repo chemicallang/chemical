@@ -126,12 +126,3 @@ public:
 void copy_from(ASTAllocator& allocator, std::vector<Value*>& destination, std::vector<Value*>& source, unsigned from);
 
 Value* evaluate_from(std::vector<Value*>& values, InterpretScope& scope, Value* evaluated, unsigned i);
-
-#ifdef COMPILER_BUILD
-
-/**
- * this creates a GEP (get element ptr instruction), for chain values, the pointer is the parent value
- */
-llvm::Value* create_gep(Codegen &gen, std::vector<Value*>& values, unsigned index, llvm::Value* pointer, std::vector<llvm::Value*>& idxList);
-
-#endif

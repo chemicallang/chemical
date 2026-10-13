@@ -44,9 +44,6 @@ public:
     BaseType* elem_type = nullptr;
     ForInLoopIterationKind iteration_kind = ForInLoopIterationKind::Unknown;
 
-#ifdef COMPILER_BUILD
-    llvm::Value* id_ptr = nullptr;
-#endif
 
 
     /**

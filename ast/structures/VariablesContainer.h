@@ -191,40 +191,6 @@ public:
     }
 
 
-#ifdef COMPILER_BUILD
-
-    /**
-     * get types of all direct variables into a vector
-     */
-    std::vector<llvm::Type*> direct_variables_type(Codegen &gen);
-
-    /**
-     * get types of all direct variables into a vector considering that member with given index is being
-     * accessed, this propagates the index forward to the member so it can give accurate type based on union
-     * member access
-     */
-    std::vector<llvm::Type*> direct_variables_type(Codegen &gen, std::vector<Value*>& chain, unsigned index);
-
-    /**
-     * add the child index for the given struct variable
-     */
-    bool llvm_variables_child_index(
-            Codegen &gen,
-            std::vector<llvm::Value *> &indexes,
-            const chem::string_view &name
-    );
-
-    /**
-     * add the child index for member of given name if considering the current container
-     * is a union
-     */
-    bool llvm_union_child_index(
-            Codegen &gen,
-            std::vector<llvm::Value *> &indexes,
-            const chem::string_view &name
-    );
-
-#endif
 
 };
 
@@ -352,18 +318,5 @@ public:
 
     void adopt(ExtendableMembersContainerNode* definition);
 
-#ifdef COMPILER_BUILD
-
-    std::vector<llvm::Type *> elements_type(Codegen &gen);
-
-    std::vector<llvm::Type *> elements_type(Codegen &gen, std::vector<Value*>& chain, unsigned index);
-
-    bool llvm_struct_child_index(
-            Codegen &gen,
-            std::vector<llvm::Value *> &indexes,
-            const chem::string_view &name
-    );
-
-#endif
 
 };

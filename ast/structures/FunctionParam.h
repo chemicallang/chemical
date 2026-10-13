@@ -46,10 +46,6 @@ public:
     Value* defValue;
     FunctionParamAttributes attrs;
 
-#ifdef COMPILER_BUILD
-    // the pointer function param, loaded once
-    llvm::Value* pointer = nullptr;
-#endif
 
     /**
      * constructor

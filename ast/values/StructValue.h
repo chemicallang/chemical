@@ -32,9 +32,6 @@ private:
 public:
 
     tsl::ordered_map<chem::string_view, StructMemberInitializer> values;
-#ifdef COMPILER_BUILD
-    llvm::AllocaInst* allocaInst = nullptr;
-#endif
 
     StructValue(
         BaseType* refType,

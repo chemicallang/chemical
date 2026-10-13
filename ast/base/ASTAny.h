@@ -11,14 +11,6 @@
 
 class Value;
 
-#ifdef COMPILER_BUILD
-
-class Codegen;
-
-#include "compiler/llvmfwd.h"
-#include "compiler/clangfwd.h"
-
-#endif
 
 class InterpretScope;
 

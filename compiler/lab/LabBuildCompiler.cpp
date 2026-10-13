@@ -1148,10 +1148,13 @@ int LabBuildCompiler::process_module_gen(
         auto& nodes = cTranslator.nodes;
         // symbol resolving c nodes, really fast -- just declaring their id's as less than public specifier
         resolver.import_file(nodes, mod->name.to_std_string() + ":headers", true);
-        // declaring the nodes fast using code generator
-        for(const auto node : nodes) {
-            node->code_gen_declare(gen);
-        }
+        // The C-header declarations are declared from MIR on demand, exactly like
+        // every other `@extern` symbol: when Chemical code references a header
+        // function/type, `MIRTypeBuilder`/`intern_function` add it and
+        // `mir_function`/`mir_type` emit the LLVM declaration. The legacy AST
+        // codegen pass that eagerly declared every node (and the only reachable
+        // use of the AST LLVM lowering) is gone. Note this path was LLVM-only and
+        // unused in the repo; the C backend never consumed `mod->headers`.
     }
 
     if(verbose) {

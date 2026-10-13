@@ -3185,7 +3185,44 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     VariantDefinition* vd = vm->parent();
                     const TypeId vt = types_.map(call->getType());
                     const PlaceId temp = builder_->alloca(vt, MIRStorageClass::Temporary);
-                    builder_->zero_init(temp);
+                    // The whole-temp zero defines the bytes the active case does
+                    // not write -- but the only bytes ever read for a variant case
+                    // are its discriminator and its own payload, so the zero is
+                    // dead once every payload field is written (the union tail is
+                    // never read). It is still needed when a payload parameter is
+                    // omitted without a default, a payload is a partially-written
+                    // array, or the variant has an inherited base. The legacy
+                    // backend emitted no zero at all; see action C1 in
+                    // mir-migration-evaluation.md.
+                    bool payload_defined = true;
+                    {
+                        size_t pi = 0;
+                        for (auto& entry : vm->values) {
+                            VariantMemberParam* param = entry.second;
+                            Value* arg = nullptr;
+                            if (pi < call->values.size()) {
+                                arg = call->values[pi];
+                                pi++;
+                            } else if (param) {
+                                arg = param->def_value;
+                            }
+                            if (!arg) {
+                                payload_defined = false;
+                                break;
+                            }
+                            BaseType* pt = param ? param->type : nullptr;
+                            BaseType* canon = pt ? pt->canonical() : nullptr;
+                            if (canon && canon->kind() == BaseTypeKind::Array) {
+                                // a partial array literal defines only its own
+                                // bytes; the tail depends on the zero
+                                payload_defined = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (!(payload_defined && vd && vd->inherited.empty())) {
+                        builder_->zero_init(temp);
+                    }
                     const std::string tag_name("__chx__vt_621827");
                     const ConstantId tag_fc = module_.constants.add_string(
                         MIR_INVALID_ID, tag_name.data(), static_cast<uint32_t>(tag_name.size()));

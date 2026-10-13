@@ -431,20 +431,25 @@ backend gets them too.
 `./scripts/test.sh --llvm` (the main suite) is **green**: 2298 / 2298 as of
 session 4. The earlier `fatal: llvm_pointer called on bare Value` abort is gone.
 
-**Other suites still fail on the LLVM target**, and the first failure is usually
-in the *compiler*, not in the test exe. Known state after session 4:
+**`--llvm --libs` no longer aborts in the compiler** (re-checked 2026-10-13,
+session 11): the full lib test exe builds cleanly — build the LLVM compiler and
+run the libs suite, or reproduce directly with
+`cmake-build-debug/Compiler lang/tests/build.lab -o /tmp/libs_llvm.exe --mode
+debug_quick --no-cache --arg-test-libs` → exit `0`, all 30 modules emitted. The
+"`RUNTIME ERROR: invalid memory access` while building the lib test exe" recorded
+in the session-4 note below no longer reproduces; the other non-main LLVM suites
+have still not all been re-checked.
 
-- `./scripts/test.sh --llvm --libs` aborts in the **compiler** while building the
-  lib test exe (after `[Parsed] …/lang/libs/test/posix/launch.ch` and
-  `…/lang/libs/json/src/encode.ch`, then the compiler's own
-  `RUNTIME ERROR: invalid memory access`). Nothing is emitted, so the suite never
-  runs. The other suites (`--plugins`, `--async`, `--process`, `--regexp`, …)
-  have not been re-checked since the main suite went green.
-- Until each of those is green too, use the standalone module workflow (§9.3)
-  plus `--out-ll-all`/`llvm-dwarfdump` for LLVM checks.
 - ⚠️ A failing `--llvm <suite>` run is *not* proof of a codegen bug: check
   whether the compiler itself crashed before the test exe ran (the suite exits
   with the compiler's crash reporter, and no `Total …` line is printed).
+- For a suite whose first failure is in the compiler, use the standalone module
+  workflow (§9.3) plus `--out-ll-all`/`llvm-dwarfdump` to isolate it.
+
+> **Historical (session 4) state, kept for context:** `./scripts/test.sh --llvm
+> --libs` used to abort in the compiler while building the lib test exe (after
+> `…/lang/libs/json/src/encode.ch`, with `RUNTIME ERROR: invalid memory
+> access`), emitting nothing.
 
 ---
 

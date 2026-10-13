@@ -160,6 +160,31 @@ Probe (identical source and output):
 > `test_control_flow_emitter` had asserted the entry label was emitted; that
 > expectation was *updated* (not dropped) to require the referenced labels and
 > the absence of the dead one — 1049 → 1052 checks.
+>
+> **Status update (2026-10-13, session 11) — the dominant remaining zeroing class
+> is gone.** Variant construction (`Variant.Member(args)`) unconditionally
+> `zero_init`'d its result temporary. The only bytes ever read for a variant case
+> are the discriminator and that case's payload, so the zero is dead once every
+> payload field is written; it is now emitted only for an omitted-without-default
+> payload parameter, a partial (array) payload, or an inherited base. Measured,
+> same source, same mode, clean cache:
+>
+> | Metric | Session-9/10 | Now |
+> |---|---:|---:|
+> | Probe (`perfprobe`) zero loops | 93 | **37** (−60%) |
+> | Probe generated C lines | 11,779 | **11,723** |
+> | Probe executable | 454,718 B | **448,640 B** |
+> | Main-suite C zero loops | 1,231 | **539** (−56%) |
+> | Main-suite generated C lines | 107,191 | **106,373** |
+>
+> Suites: `--tcc` **2300/2300**, `--llvm` **2298/2298**, `--tcc --async` **53/53**,
+> `--tcc --libs` **718/719**, `MIRTests` **1111 checks** (a Linux-only
+> `MIR_TEST_ALIGNED` placement bug that made one layout check fail on GCC was also
+> fixed). This is C1's largest remaining bite; what is left of C1 is the
+> constructor-result temporary (`Type(args)`) and the `apply_struct_defaults`
+> `zero_init`s, which need a "constructor covers every field" proof. An attempt to
+> unify `apply_struct_defaults` onto the in-place `apply_struct_defaults_ptr` was
+> reverted — it grew generated C without removing any targeted zero.
 
 The main test executable corroborates it: `tests-tcc.exe` is **3.24 MB (legacy)
 vs 5.32 MB (MIR)** (+64%). The plan's explicit intent — *"we will deliberately
@@ -388,8 +413,17 @@ logic; measured by (backend emitter LOC / total MIR LOC) trend.
    + the partial-array guard). Measured, same machine/mode, interleaved A/B:
    main-suite C zero loops **2,655 → 1,231 (−54%)**, main-suite C lines 108,615 →
    107,191, struct-heavy probe zero loops 173 → **102**. `--tcc` **2300/2300**,
-   `MIRTests` **1052 checks OK**. Still open: the constructor-result temp
-   (`Type(args)`) and the four `zero_init`s inside `apply_struct_defaults`.
+   `MIRTests` **1052 checks OK**. **Third bite DONE (session 11):** variant
+   construction no longer zeroes a temporary whose active case writes its whole
+   payload (only an omitted-without-default param, a partial array payload, or an
+   inherited base keeps the zero). Main-suite C zero loops **1,231 → 539 (−56%)**,
+   main-suite C lines **107,191 → 106,373**, probe zero loops **93 → 37**, probe
+   exe **454,718 → 448,640 B**; `--tcc` **2300/2300**, `--llvm` **2298/2298**,
+   `--tcc --async` **53/53**, `MIRTests` **1111 checks OK**. Still open: the
+   constructor-result temp (`Type(args)`) and the four `zero_init`s inside
+   `apply_struct_defaults` (a "constructor covers all fields" proof is needed —
+   delegating to the in-place `apply_struct_defaults_ptr` was tried and reverted
+   because it grew the emitted C).
 2. ~~Collapse `temp = *src; dest = temp` into one copy/`memcpy`; extend the
    single-use collapse to aggregate places and loaded values~~ **DONE
    (session 8)**: a deref load whose only use is the immediately following store

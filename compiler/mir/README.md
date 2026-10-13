@@ -59,6 +59,56 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 11 (2026-10-13) — variant construction no longer zeroes dead bytes (action C1)
+
+Variant construction (`Variant.Member(args)`) allocated its result temporary and
+unconditionally `zero_init`'d it before writing the discriminator and payload.
+The whole-temp zero defines the bytes the active case does not write, but for a
+variant the only bytes ever read are the discriminator and that case's own
+payload (the union tail is never read), so the zero is dead as soon as every
+payload field is written. `MIRLowerer` now emits it only when a payload
+parameter is omitted **without** a default, a payload is a partially-written
+(array) value, or the variant has an inherited base — the conservative cases
+where a byte really would be left indeterminate. This is the dominant remaining
+zeroing class (56 of 93 probe loops) and matches the legacy backend, which
+emitted no zero at all.
+
+Measured (`TCCCompiler`, `debug_quick`, `--no-cache`, same source; the suite
+number is against the session-9/10 baseline, which is the only change):
+
+| Metric | Before | After | Delta |
+|---|---:|---:|---:|
+| Probe (`perfprobe`) variant zero loops | 93 | **37** | **−60%** |
+| Probe generated C lines | 11,779 | 11,723 | −56 |
+| Probe generated C bytes | 504,551 | 497,265 | −1.4% |
+| Probe executable | 454,718 B | **448,640 B** | −1.3% |
+| Main-suite C zero loops | 1,231 | **539** | **−56%** |
+| Main-suite generated C lines | 107,191 | **106,373** | −818 (−0.8%) |
+
+Suites after the change (clean per-module cache): `--tcc` **2300/2300**,
+`--llvm` **2298/2298**, `--tcc --async` **53/53**, `--tcc --libs` **718/719**
+(the known environment-sensitive `fs` iteration test), `MIRTests`
+**1111 checks OK**. The probe prints the identical line.
+
+Also in this session: `MIRTests`' over-aligned mirror used a prefixed
+`__attribute__((aligned(16))) struct X` form that GCC ignores ("attribute ignored
+in declaration"), so the `MirrorOverAligned` size/offset checks failed on any
+non-MSVC host; the attribute is now placed after the `struct` keyword
+(`struct MIR_TEST_ALIGNED(16) X`) and the suite is green on Linux again
+(1052 → **1111** checks, the session-10 count).
+
+An attempt to unify the place-based `apply_struct_defaults` onto the in-place
+`apply_struct_defaults_ptr` was **reverted**: it did not remove any of the
+targeted zero loops and *grew* generated C (probe +151 lines, suite +1,200),
+because `field_addr_ptr` per base/member costs more than the single
+`field_store_place` it replaced. The remaining zeroing class is the constructor
+result temporary (`Type(args)`) and the four `apply_struct_defaults`
+`zero_init`s, which need a constructor-covers-all-fields proof before they can be
+dropped.
+
+The `--llvm --libs` compiler crash recorded in `mir-llvm-migration.md` §2.3 no
+longer reproduces (the lib test exe builds cleanly); that doc is updated.
+
 ### Session 5 (2026-10-13) — generated-code waste + LLVM error propagation
 
 Both backends now emit from MIR, so this pass worked the evaluation's action C
@@ -457,10 +507,9 @@ environment-sensitive `test_fs_directory_iteration`.
 ## Current status (verified with a clean test-exe cache)
 
 **LLVM target (`Compiler`, MIR→LLVM): the main suite is green — 2298 / 2298.**
-The other `--llvm` suites are not: `--llvm --libs` aborts inside the *compiler*
-while building the lib test exe (no test binary), and the rest are unchecked.
-See `lang/docs/mir-llvm-migration.md` §2.3 for the current state of the
-migration.
+`--llvm --libs` also builds now (re-checked session 11; the session-4 compiler
+abort no longer reproduces — see `mir-llvm-migration.md` §2.3). The remaining
+non-main `--llvm` suites have not all been re-checked since.
 
 Verified `2026-10-08` with the per-module C cache cleared (`--no-cache`):
 

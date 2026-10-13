@@ -408,7 +408,7 @@ struct MirrorVariant {
         struct MirrorVariantCaseB B;
     };
 };
-MIR_TEST_ALIGNED(16) struct MirrorOverAligned { int i; };
+struct MIR_TEST_ALIGNED(16) MirrorOverAligned { int i; };
 
 #define CHECK_AGG(module, id, ctype)                                           \
     do {                                                                       \

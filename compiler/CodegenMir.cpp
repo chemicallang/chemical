@@ -13,6 +13,7 @@
 #include "compiler/llvmimpl.h"
 
 #include "compiler/mir/MIRModule.h"
+#include "compiler/mir/MIRABI.h"
 #include "compiler/mir/MIRInstruction.h"
 #include "compiler/mir/MIRFunction.h"
 #include "compiler/mir/MIRDump.h"
@@ -42,37 +43,14 @@ using namespace mir;
 
 namespace {
 
-bool mir_is_void(const MIRModule& m, TypeId t) {
-    return t == MIR_INVALID_ID || t >= m.types.size() ||
-           m.types.get(t).kind == MIRTypeKind::Void;
-}
-
-// An aggregate passed *by pointer* (mirrors MIRDeclEmitter::needs_aggregate /
-// MIRLowerer::needs_aggregate_path: typedef structs such as the dynamic fat
-// pointer are passed by value, so they are excluded here).
-bool mir_is_aggregate(const MIRModule& m, TypeId t) {
-    if (t == MIR_INVALID_ID || t >= m.types.size()) return false;
-    const MIRTypeRecord& r = m.types.get(t);
-    if (r.flags & TF_TYPEDEF) return false;
-    return r.kind == MIRTypeKind::Struct || r.kind == MIRTypeKind::Union ||
-           r.kind == MIRTypeKind::Variant || r.kind == MIRTypeKind::Array;
-}
-
-// A struct-like (or array) return goes through a hidden sret pointer. Must match
-// MIRDeclEmitter::needs_sret and MIRLowerer::needs_sret_return *exactly* — those
-// include typedef structs such as the dynamic fat pointer.
-bool mir_needs_sret(const MIRModule& m, TypeId t) {
-    if (t == MIR_INVALID_ID || t >= m.types.size()) return false;
-    const MIRTypeKind k = m.types.get(t).kind;
-    return k == MIRTypeKind::Struct || k == MIRTypeKind::Union ||
-           k == MIRTypeKind::Variant || k == MIRTypeKind::Array;
-}
-
-bool mir_is_ptr_like(const MIRModule& m, TypeId t) {
-    if (t == MIR_INVALID_ID || t >= m.types.size()) return false;
-    const MIRTypeKind k = m.types.get(t).kind;
-    return k == MIRTypeKind::Pointer || k == MIRTypeKind::Reference;
-}
+// ── debug switches ─────────────────────────────────────────────────────────
+// `MIR_LLVM_TRACE` / `MIR_LLVM_DUMP` are development aids. They are read once
+// rather than per instruction: the traced loop runs once per MIR instruction
+// (hundreds of thousands per suite compile), where a `getenv` per instruction —
+// a linear scan of `environ` — is a real cost for a facility that is almost
+// always off. Set them on the compiler command line, as every use does.
+const bool kMirLlvmTrace = std::getenv("MIR_LLVM_TRACE") != nullptr;
+const bool kMirLlvmDump = std::getenv("MIR_LLVM_DUMP") != nullptr;
 
 // ── atomic selectors ────────────────────────────────────────────────────────
 // MIR encodes the LLVM atomic order/scope/op as the same integers the
@@ -200,7 +178,7 @@ llvm::FunctionType* Codegen::mir_fn_type(const mir::MIRModule& m, uint32_t ft) {
         return nullptr;
     }
     const MIRTypeRecord& fr = m.types.get(ft);
-    const bool sret = mir_needs_sret(m, fr.element);
+    const bool sret = abi::needs_sret(m, fr.element);
     std::vector<llvm::Type*> params;
     if (sret) params.push_back(builder->getPtrTy());
     for (uint32_t i = 0; i < fr.data_count; ++i) {
@@ -429,14 +407,14 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
     llvm::Function* lfn = mir_function(m, fn.symbol);
     if (!lfn) return false;
     if (!lfn->empty()) return true;
-    if (getenv("MIR_LLVM_TRACE"))
+    if (kMirLlvmTrace)
         std::cerr << "[MIR-LLVM] emit " << std::string(lfn->getName()) << "\n";
-    if (getenv("MIR_LLVM_DUMP")) {
+    if (kMirLlvmDump) {
         std::cerr << "==== " << std::string(lfn->getName()) << " ====\n";
         mir::dump_function(fn, m, std::cerr);
     }
 
-    const bool sret = mir_needs_sret(m, m.types.get(fn.function_type).element);
+    const bool sret = abi::needs_sret(m, m.types.get(fn.function_type).element);
 
     std::vector<llvm::BasicBlock*> blocks(fn.blocks.size(), nullptr);
     for (uint32_t i = 0; i < fn.blocks.size(); ++i) {
@@ -462,6 +440,14 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
     // `place_ptr` below.
     int frame_place = -1;
     llvm::Value* frame_ptr_value = nullptr;
+    // Places that carry a source name, for the `llvm.dbg.declare` calls below.
+    // Populated only in a debug build (the lowerer records `debug_name` only
+    // when `options->debug_info` is on).
+    std::vector<std::pair<uint32_t, llvm::AllocaInst*>> named_places;
+    // Where the function's real body starts: right after the allocas. The
+    // `dbg.declare` intrinsics go here (a `dbg.declare` may not precede the slot
+    // it describes, and must dominate every use of it).
+    llvm::BasicBlock::iterator body_begin = entry->end();
     // Spill every non-frame-field place as an alloca in the entry block. A
     // `FramePtr` place *is* a real slot (the frame pointer is stored into it at
     // entry), so it must be allocated too.
@@ -473,8 +459,13 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
             if (sc == static_cast<uint8_t>(MIRStorageClass::FramePtr) && frame_place < 0) {
                 frame_place = static_cast<int>(p);
             }
-            places[p] = top.CreateAlloca(mir_type(m, fn.places[p].type));
+            llvm::AllocaInst* slot = top.CreateAlloca(mir_type(m, fn.places[p].type));
+            places[p] = slot;
+            if (fn.places[p].debug_name != mir::MIR_INVALID_ID) {
+                named_places.emplace_back(p, slot);
+            }
         }
+        body_begin = top.GetInsertPoint();
     }
     builder->SetInsertPoint(entry);
 
@@ -524,6 +515,69 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
             lfn->setSubprogram(sp);
             mir_di_sp_ = sp;
             builder->SetCurrentDebugLocation(llvm::DILocation::get(*ctx, line, 1, sp));
+        }
+    }
+
+    // Debug info: one `DILexicalBlock` per MIR lexical scope, so DWARF scopes a
+    // variable's extent the way the source did instead of flattening every local
+    // onto the function. A scope is pushed before its children (`lexical_scopes`
+    // is a LIFO stack), so a forward pass creates parents first; the function
+    // scope is the `DISubprogram` itself.
+    std::vector<llvm::DILocalScope*> di_lexical(fn.lexical_scopes.size(), nullptr);
+    if (mir_di_sp_) {
+        llvm::DIFile* file = mir_di_sp_->getFile();
+        for (uint32_t s = 0; s < fn.lexical_scopes.size(); ++s) {
+            const mir::MIRLexicalScope& sc = fn.lexical_scopes[s];
+            if (sc.inst_begin == mir::MIR_INVALID_ID || !file) break;
+            llvm::DILocalScope* parent = mir_di_sp_;
+            if (sc.parent != mir::MIR_INVALID_ID && sc.parent < di_lexical.size() &&
+                di_lexical[sc.parent]) {
+                parent = di_lexical[sc.parent];
+            }
+            // The scope's own source location; the function's declaration line
+            // when the scope opens before any source text is known.
+            unsigned line = mir_di_sp_->getLine();
+            unsigned column = 1;
+            if (sc.has_loc) {
+                line = sc.loc.line + 1;
+                column = sc.loc.column + 1;
+            }
+            di_lexical[s] = diBuilder->createLexicalBlock(parent, file, line, column);
+        }
+    }
+
+    // Debug info: a `DILocalVariable` for every named place, `dbg.declare`d on
+    // its stack slot. MIR keeps every local in memory (an `alloca` plus explicit
+    // load/store — there is no SSA-local promotion in either backend), so
+    // `dbg.declare` is the correct intrinsic here: it describes a memory
+    // location, exactly like the legacy AST backend's `DebugInfoBuilder::declare`.
+    // `AlwaysPreserve` keeps them through `DIBuilder::finalize`.
+    if (mir_di_sp_ && !named_places.empty()) {
+        llvm::DIFile* file = mir_di_sp_->getFile();
+        const unsigned fn_line = mir_di_sp_->getLine();
+        llvm::DIExpression* expr = diBuilder->createExpression();
+        for (const auto& np : named_places) {
+            const mir::MIRPlaceDef& pd = fn.places[np.first];
+            const uint32_t cid = pd.debug_name;
+            if (cid >= m.constants.size()) continue;
+            const MIRConstant& c = m.constants.get(cid);
+            if (c.kind != MIRConstantKind::String || c.data_count == 0) continue;
+            std::string name(m.constants.data.data() + c.data_offset, c.data_count);
+            llvm::DIType* dt = mir_di_type(m, pd.type);
+            // The scope the place was declared in (a lexical block), so the
+            // variable scopes the way the source did and LLVM keeps the block.
+            llvm::DILocalScope* var_scope = mir_di_sp_;
+            if (pd.debug_scope != mir::MIR_INVALID_ID &&
+                pd.debug_scope < di_lexical.size() && di_lexical[pd.debug_scope]) {
+                var_scope = di_lexical[pd.debug_scope];
+            }
+            llvm::DILocalVariable* var = diBuilder->createAutoVariable(
+                var_scope, name, file, fn_line,
+                dt ? dt : diBuilder->createUnspecifiedType("void"),
+                /*AlwaysPreserve=*/true);
+            diBuilder->insertDeclare(np.second, var, expr,
+                                     llvm::DILocation::get(*ctx, fn_line, 1, var_scope),
+                                     llvm::InsertPosition(body_begin));
         }
     }
 
@@ -786,7 +840,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
         if (agg >= m.types.size()) return nullptr;
         const int fi = field_index(agg, fname);
         if (fi < 0) {
-            if (getenv("MIR_LLVM_TRACE"))
+            if (kMirLlvmTrace)
                 std::cerr << "[MIR-LLVM] in " << std::string(lfn->getName())
                           << ": frame field lookup failed agg=" << agg << " name="
                           << m.types.name_of(agg) << " field=" << fname << "\n";
@@ -854,9 +908,9 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
     };
     auto value_is_pointer = [&](const MIROperand& op) -> bool {
         if (op.kind() == MIROperandKind::Value) {
-            return is_address_value(op.id) || mir_is_ptr_like(m, fn.values[op.id].type);
+            return is_address_value(op.id) || abi::is_pointer_like(m, fn.values[op.id].type);
         }
-        return mir_is_ptr_like(m, op.type());
+        return abi::is_pointer_like(m, op.type());
     };
 
     // The type an atomic memory operand points at (the atomic width).
@@ -871,7 +925,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
             return MIR_INVALID_ID;
         }
         if (t == MIR_INVALID_ID || t >= m.types.size()) return MIR_INVALID_ID;
-        if (!mir_is_ptr_like(m, t)) return MIR_INVALID_ID;
+        if (!abi::is_pointer_like(m, t)) return MIR_INVALID_ID;
         return m.types.get(t).element;
     };
 
@@ -924,8 +978,8 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
     // (field name / index), mirroring the C emitter's Load/Store shapes.
     // `selector` is nullptr for a whole-place / deref access.
     auto trace_field_fail = [&](const char* where, TypeId bt, const std::string& fname) {
-        if (!getenv("MIR_LLVM_TRACE")) return;
-        const TypeId agg = (bt < m.types.size() && mir_is_ptr_like(m, bt))
+        if (!kMirLlvmTrace) return;
+        const TypeId agg = (bt < m.types.size() && abi::is_pointer_like(m, bt))
                                ? m.types.get(bt).element
                                : bt;
         std::string fields;
@@ -950,7 +1004,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                 // coroutine frame and are reached through the frame pointer); a
                 // selector on one is a lowering bug. Report it instead of
                 // building a GEP on null.
-                if (getenv("MIR_LLVM_TRACE")) {
+                if (kMirLlvmTrace) {
                     std::cerr << "[MIR-LLVM] addr base place " << base.id
                               << " has no alloca (storage="
                               << (int)fn.places[base.id].storage_class << ") in "
@@ -963,7 +1017,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                 return bp;
             }
             // a pointer/reference place holds the pointer; load it before GEP
-            const bool ptr_like = mir_is_ptr_like(m, bt);
+            const bool ptr_like = abi::is_pointer_like(m, bt);
             llvm::Value* base_ptr = ptr_like ? builder->CreateLoad(builder->getPtrTy(), bp) : bp;
             if (selector->kind() == MIROperandKind::Constant) {
                 std::string fname;
@@ -999,7 +1053,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
         if (base.kind() == MIROperandKind::Value) {
             llvm::Value* bp = vals[base.id];
             if (!bp) {
-                if (getenv("MIR_LLVM_TRACE")) {
+                if (kMirLlvmTrace) {
                     const uint32_t di = fn.values[base.id].def_inst;
                     std::cerr << "[MIR-LLVM] addr base value " << base.id
                               << " is null; defined by "
@@ -1012,7 +1066,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
             }
             TypeId bt = fn.values[base.id].type;
             if (bt == MIR_INVALID_ID || bt >= m.types.size()) {
-                if (getenv("MIR_LLVM_TRACE")) {
+                if (kMirLlvmTrace) {
                     const uint32_t di = fn.values[base.id].def_inst;
                     std::cerr << "[MIR-LLVM] invalid base type for value " << base.id
                               << " (ty=" << bt << ") defined by "
@@ -1124,16 +1178,24 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                 return &fn.operands[base + n];
             };
             const uint32_t v = inst.result_or_place;
-            // Attach the instruction's MIR source location (when present).
-            if (mir_di_sp_ && inst.source_index < fn.sources.size()) {
-                const mir::MIRSourceLoc& sl = fn.sources[inst.source_index];
-                builder->SetCurrentDebugLocation(llvm::DILocation::get(
-                    *ctx, sl.line + 1, sl.column + 1, mir_di_sp_));
-            } else if (mir_di_sp_) {
-                builder->SetCurrentDebugLocation(
-                    llvm::DILocation::get(*ctx, mir_di_sp_->getLine(), 1, mir_di_sp_));
+            // Attach the instruction's MIR source location (when present),
+            // scoped to the innermost lexical block covering it.
+            if (mir_di_sp_) {
+                llvm::DILocalScope* scope = mir_di_sp_;
+                const uint32_t ls = fn.lexical_scope_of_inst(ii);
+                if (ls != mir::MIR_INVALID_ID && ls < di_lexical.size() && di_lexical[ls]) {
+                    scope = di_lexical[ls];
+                }
+                if (inst.source_index < fn.sources.size()) {
+                    const mir::MIRSourceLoc& sl = fn.sources[inst.source_index];
+                    builder->SetCurrentDebugLocation(
+                        llvm::DILocation::get(*ctx, sl.line + 1, sl.column + 1, scope));
+                } else {
+                    builder->SetCurrentDebugLocation(
+                        llvm::DILocation::get(*ctx, mir_di_sp_->getLine(), 1, scope));
+                }
             }
-            if (getenv("MIR_LLVM_TRACE"))
+            if (kMirLlvmTrace)
                 std::cerr << "  bi=" << bi << " ii=" << ii << " "
                           << mir::opcode_name(inst.opcode()) << " res=" << v
                           << " n=" << inst.operand_count << "\n";
@@ -1233,7 +1295,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     TypeId pointee = fn.values[v].type;
                     llvm::Value* ptr = resolve_addr(*b, sel, &pointee);
                     if (!ptr) {
-                        if (getenv("MIR_LLVM_TRACE"))
+                        if (kMirLlvmTrace)
                             std::cerr << "[MIR-LLVM] null-load-base in "
                                       << std::string(lfn->getName()) << "\n";
                         vals[v] = llvm::PoisonValue::get(mir_type(m, fn.values[v].type));
@@ -1271,7 +1333,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                         // a wider value stored into a narrower place would
                         // otherwise clobber adjacent stack slots.
                         if (sv && dst_ty != MIR_INVALID_ID && dst_ty < m.types.size() &&
-                            !mir_is_ptr_like(m, dst_ty)) {
+                            !abi::is_pointer_like(m, dst_ty)) {
                             llvm::Type* want = mir_type(m, dst_ty);
                             if (sv->getType() != want && !want->isAggregateType() &&
                                 !sv->getType()->isAggregateType()) {
@@ -1307,11 +1369,11 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     llvm::Value* ptr = resolve_addr(*b, sel, &pointee);
                     if (ptr) {
                         vals[v] = ptr;
-                    } else if (getenv("MIR_LLVM_TRACE")) {
+                    } else if (kMirLlvmTrace) {
                         TypeId bt = (b->kind() == MIROperandKind::Place)
                                         ? fn.places[b->id].type
                                         : fn.values[b->id].type;
-                        TypeId agg = mir_is_ptr_like(m, bt) ? m.types.get(bt).element : bt;
+                        TypeId agg = abi::is_pointer_like(m, bt) ? m.types.get(bt).element : bt;
                         std::string fname, fields;
                         const_string(sel->id, fname);
                         if (agg < m.types.size()) {
@@ -1674,7 +1736,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                         arg_types.push_back(o->type());
                         if (o->kind() == MIROperandKind::Place) {
                             const MIRTypeRecord& pr = m.types.get(fn.places[o->id].type);
-                            if (pr.kind == MIRTypeKind::Array || mir_is_aggregate(m, fn.places[o->id].type)) {
+                            if (pr.kind == MIRTypeKind::Array || abi::is_aggregate(m, fn.places[o->id].type)) {
                                 av = place_ptr(o->id);
                             } else {
                                 av = builder->CreateLoad(mir_type(m, fn.places[o->id].type), av);
@@ -1696,7 +1758,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                         coerce_args(args, fty, &arg_types);
                         ci = builder->CreateCall(fty, callee, args);
                     }
-                    if (!call_sret && v < fn.values.size() && !mir_is_void(m, fn.values[v].type)) {
+                    if (!call_sret && v < fn.values.size() && !abi::is_void(m, fn.values[v].type)) {
                         vals[v] = ci;
                     }
                     break;
@@ -2246,7 +2308,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                         llvm::Value* src = place_ptr(loc->id);
                         if (!src) continue;
                         if (lpt < m.types.size() &&
-                            (mir_is_aggregate(m, lpt) ||
+                            (abi::is_aggregate(m, lpt) ||
                              m.types.get(lpt).kind == MIRTypeKind::Array)) {
                             const uint64_t sz =
                                 module->getDataLayout().getTypeAllocSize(mir_type(m, lpt));
@@ -2312,7 +2374,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     // (`base->first` vs `base.first`). GEPing the pointer type
                     // itself is invalid IR ("Invalid indices for GEP pointer
                     // type!") and aborts the module verifier.
-                    const bool ft_is_ptr = mir_is_ptr_like(m, ft);
+                    const bool ft_is_ptr = abi::is_pointer_like(m, ft);
                     llvm::Type* fat_ty = mir_type(m, ft_is_ptr ? m.types.get(ft).element : ft);
                     llvm::Value* fat_ptr = nullptr;
                     if (fat->kind() == MIROperandKind::Place) {
@@ -2359,7 +2421,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     // the slot's signature is authoritative (see `Init`)
                     coerce_args(args, slot_ty, &arg_types);
                     llvm::CallInst* ci = builder->CreateCall(slot_ty, fnp, args);
-                    if (v < fn.values.size() && !mir_is_void(m, fn.values[v].type)) {
+                    if (v < fn.values.size() && !abi::is_void(m, fn.values[v].type)) {
                         vals[v] = ci;
                     }
                     break;
@@ -2367,12 +2429,12 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                 default:
                     // Not yet lowered by the MIR LLVM emitter. Emit poison so the
                     // function still verifies; the driver reports the gap.
-                    if (getenv("MIR_LLVM_TRACE"))
+                    if (kMirLlvmTrace)
                         std::cerr << "[MIR-LLVM] UNHANDLED "
                                   << mir::opcode_name(inst.opcode()) << " in "
                                   << std::string(lfn->getName()) << "\n";
                     if (v < fn.values.size() && fn.values[v].type != MIR_INVALID_ID &&
-                        !mir_is_void(m, fn.values[v].type)) {
+                        !abi::is_void(m, fn.values[v].type)) {
                         vals[v] = llvm::PoisonValue::get(mir_type(m, fn.values[v].type));
                     } else {
                         vals[v] = llvm::PoisonValue::get(builder->getInt8Ty());

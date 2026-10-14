@@ -256,6 +256,15 @@ public:
         source_loc_provider_ = std::move(fn);
     }
 
+    /**
+     * Enable recording of debug-only MIR metadata — the source name of every
+     * named place (`MIRPlaceDef::debug_name`) and the lexical extent of every
+     * cleanup scope. Wire this from `options->debug_info` alongside
+     * `set_source_loc_provider`; with it off (release / `debug_quick`) the
+     * lowerer records no names and emits nothing extra.
+     */
+    void set_debug_info(bool on) { debug_info_ = on; }
+
 private:
     MIRExprResult lower_expr(Value* value, std::string& error);
     bool lower_stmt(ASTNode* node, std::string& error);
@@ -264,6 +273,14 @@ private:
     bool lower_scope(Scope& scope, std::string& error);
     /** Lower a list of statements as a scope, destroying its locals at the end. */
     bool lower_scope_nodes(std::vector<ASTNode*>& nodes, std::string& error);
+    /**
+     * `lower_scope_nodes` wrapped in a debug lexical scope: in a debug build the
+     * scope's instruction extent and source location are recorded on the current
+     * function so the LLVM emitter can build a matching `DILexicalBlock`. A plain
+     * `lower_scope_nodes` call when debug info is off.
+     */
+    bool lower_scope_nodes_scoped(std::vector<ASTNode*>& nodes, uint64_t encoded_loc,
+                                 std::string& error);
     bool lower_if(IfStatement* stmt, BlockId merge, std::string& error);
     /** Lower an `if`-value expression: store the taken branch's value into a temp. */
     MIRExprResult lower_if_value(IfValue* value, std::string& error);
@@ -474,8 +491,14 @@ private:
     PlaceId place_for_linked(ASTNode* linked) const;
     void bind(ASTNode* linked, PlaceId place) { var_places_[linked] = place; }
     void bind_name(const chem::string_view& name, PlaceId place) {
-        if (!name.empty()) {
-            name_places_[std::string(name.data(), name.size())] = place;
+        if (name.empty()) return;
+        name_places_[std::string(name.data(), name.size())] = place;
+        // Debug-info builds only: remember the source identifier so the LLVM
+        // emitter can attach a `DILocalVariable` + `llvm.dbg.declare` to the
+        // place's alloca. The common release / debug_quick path pays nothing.
+        if (debug_info_ && builder_ && place != MIR_INVALID_ID) {
+            builder_->set_place_debug_name(place, name.data(),
+                                           static_cast<uint32_t>(name.size()));
         }
     }
     PlaceId place_for_name(const chem::string_view& name) const {
@@ -529,6 +552,8 @@ private:
     std::unordered_map<EmbeddedValue*, Value*> embedded_value_cache_;
     std::function<void(FunctionDeclaration*)> async_normalize_;
     std::function<bool(uint64_t, MIRSourceLoc&)> source_loc_provider_;
+    /** Record debug-only metadata (place names, lexical scopes). See set_debug_info. */
+    bool debug_info_ = false;
     std::unordered_map<std::string, SymbolId> extern_symbols_;
     /** Struct temporaries whose destruction is deferred to the statement end. */
     std::vector<std::pair<PlaceId, BaseType*>> stmt_temps_;

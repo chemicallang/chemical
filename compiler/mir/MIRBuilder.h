@@ -76,6 +76,15 @@ public:
     /** Append a move-path root node for an owned place; returns its path id. */
     uint32_t new_move_path(PlaceId place, TypeId type);
 
+    /**
+     * Attach the source identifier a place was allocated for (its debug name).
+     * Debug builds only — the lowerer calls this from `bind_name` when
+     * `options->debug_info` is on — so the LLVM emitter can emit a
+     * `DILocalVariable` + `llvm.dbg.declare` for the place's alloca. No-op if the
+     * place already has a name.
+     */
+    void set_place_debug_name(PlaceId place, const char* data, uint32_t len);
+
     // ── generic emit ───────────────────────────────────────────────────────
     /** Emit an instruction with explicit operands. Returns its stream index. */
     uint32_t emit(MIROpcode op, uint32_t result_or_place,
@@ -201,6 +210,19 @@ public:
     void register_owned(PlaceId place);
     uint32_t current_cleanup_scope() const { return cleanup_sp_; }
 
+    // ── lexical scopes (debug info only) ───────────────────────────────────
+    /**
+     * Open a source-level scope; it covers every instruction emitted until the
+     * matching `pop_lexical_scope`. The lowerer wraps each statement body in
+     * one, so the LLVM emitter can build a `DILexicalBlock` per scope from the
+     * recorded instruction range. Cheap enough to call unconditionally (a push
+     * is a vector append); the lowerer only does so for debug builds.
+     */
+    uint32_t push_lexical_scope(const MIRSourceLoc& loc, bool has_loc);
+    /** Close the innermost lexical scope; returns its index. */
+    uint32_t pop_lexical_scope();
+    uint32_t current_lexical_scope() const { return lexical_sp_; }
+
 private:
     void note_result_value(ValueId id, uint32_t inst_index);
     void note_value_uses(const MIROperand* operands, uint32_t count);
@@ -216,6 +238,7 @@ private:
     const char* error_ = nullptr;
     uint32_t current_source_ = MIR_NO_SOURCE; // attached to emitted instructions
     uint32_t cleanup_sp_ = MIR_INVALID_ID;
+    uint32_t lexical_sp_ = MIR_INVALID_ID;
 };
 
 } // namespace mir

@@ -2309,8 +2309,9 @@ int ASTProcessor::implement_module(
         return mir_mangle_name(c_visitor.mangler, n);
     });
     mir::MIRLowerer mir_lowerer(mir_module, mir_types);
-    // Source locations are only needed for debug info; the common (release /
-    // debug_quick) path pays nothing.
+    // Source locations and debug metadata (place names, lexical scopes) are only
+    // needed for debug info; the common (release / debug_quick) path pays nothing.
+    mir_lowerer.set_debug_info(options->debug_info);
     if (options->debug_info) {
         mir_lowerer.set_source_loc_provider([this, &mir_module](uint64_t enc, mir::MIRSourceLoc& out) -> bool {
             if (enc == 0) return false;
@@ -2514,8 +2515,9 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
         return mir_mangle_name(c_visitor.mangler, n);
     });
     mir::MIRLowerer mir_lowerer(mir_module, mir_types);
-    // Source locations are only needed for debug info; the common (release /
-    // debug_quick) path pays nothing.
+    // Source locations and debug metadata (place names, lexical scopes) are only
+    // needed for debug info; the common (release / debug_quick) path pays nothing.
+    mir_lowerer.set_debug_info(options->debug_info);
     if (options->debug_info) {
         mir_lowerer.set_source_loc_provider([this, &mir_module](uint64_t enc, mir::MIRSourceLoc& out) -> bool {
             if (enc == 0) return false;

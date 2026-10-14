@@ -1,6 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "MIRLowerer.h"
+#include "MIRABI.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -180,35 +181,9 @@ Value* captured_comptime_value(ASTNode* linked) {
     return ccv->parent_refs->refs[ccv->index].evaluated;
 }
 
-bool needs_aggregate_path(const MIRModule& module, TypeId type) {
-    if (type == MIR_INVALID_ID || type >= module.types.size()) return false;
-    const MIRTypeRecord& rec = module.types.get(type);
-    if (rec.flags & TF_TYPEDEF) return false; // dynamic fat pointer: passed by value
-    const MIRTypeKind k = rec.kind;
-    return k == MIRTypeKind::Struct || k == MIRTypeKind::Union || k == MIRTypeKind::Variant ||
-           k == MIRTypeKind::Array;
-}
-
-/**
- * Whether a value of `type` is returned through a hidden sret pointer. This is
- * true for every struct-like type (including typedef structs such as the
- * dynamic fat pointer), matching the legacy prototype ABI. It differs from
- * `needs_aggregate_path`, which excludes typedef structs because those are
- * *passed by value*.
- */
-bool needs_sret_return(const MIRModule& module, TypeId type) {
-    if (type == MIR_INVALID_ID || type >= module.types.size()) return false;
-    const MIRTypeKind k = module.types.get(type).kind;
-    return k == MIRTypeKind::Struct || k == MIRTypeKind::Union || k == MIRTypeKind::Variant ||
-           k == MIRTypeKind::Array;
-}
-
-/** True for struct/union/variant types (operator overloads live on these). */
-bool is_struct_like(const MIRModule& module, TypeId type) {
-    if (type == MIR_INVALID_ID || type >= module.types.size()) return false;
-    const MIRTypeKind k = module.types.get(type).kind;
-    return k == MIRTypeKind::Struct || k == MIRTypeKind::Union || k == MIRTypeKind::Variant;
-}
+// The ABI classification (`needs_aggregate_path` / `needs_sret_return` /
+// `is_struct_like`) now lives in `MIRABI.h`, shared verbatim with every emitter:
+// see `abi::is_aggregate`, `abi::needs_sret`, `abi::is_struct_like`.
 
 /**
  * Resolve a member (which may be inherited) to its dotted C field path from
@@ -555,7 +530,7 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
         maybe_register_call_temp(io->parent_val, base);
         if (base.kind == MIRExprKind::Place) {
             const TypeId bt = builder_->function().places[base.id].type;
-            if (is_struct_like(module_, bt)) {
+            if (abi::is_struct_like(module_, bt)) {
                 // `&x[i]` on a struct uses the `Index`/`IndexMut` method, which
                 // already returns a pointer to the element
                 BaseType* recv_t = io->parent_val ? io->parent_val->getType() : nullptr;
@@ -642,7 +617,7 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
             const MIRTypeRecord& pr = module_.types.get(pt);
             const TypeId ast_t = types_.map(id->getType());
             if (pr.kind == MIRTypeKind::Reference ||
-                (needs_aggregate_path(module_, ast_t) && pr.kind == MIRTypeKind::Pointer)) {
+                (abi::is_aggregate(module_, ast_t) && pr.kind == MIRTypeKind::Pointer)) {
                 // a reference denotes its referent, so `&x` is the reference value;
                 // an aggregate parameter passed by pointer likewise
                 return MIRExprResult::value(builder_->load(p, pt), pt);
@@ -656,7 +631,7 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
             const MIRTypeRecord& pr = module_.types.get(pt);
             const TypeId ast_t = types_.map(id->getType());
             if (pr.kind == MIRTypeKind::Reference ||
-                (needs_aggregate_path(module_, ast_t) && pr.kind == MIRTypeKind::Pointer)) {
+                (abi::is_aggregate(module_, ast_t) && pr.kind == MIRTypeKind::Pointer)) {
                 return MIRExprResult::value(builder_->load(pn, pt), pt);
             }
             const TypeId ptrt = types_.pointer_type(pt, true);
@@ -1527,7 +1502,7 @@ bool MIRLowerer::push_call_arg(MIRExprResult r, std::vector<MIROperand>& args,
             // arrays decay to a pointer to their first element
             const TypeId eptr = types_.pointer_type(prec.element, false);
             args.push_back(MIROperand::value(builder_->address_of(pid, eptr), eptr));
-        } else if (needs_aggregate_path(module_, pt)) {
+        } else if (abi::is_aggregate(module_, pt)) {
             const TypeId ptrt = types_.pointer_type(pt, false);
             args.push_back(MIROperand::value(builder_->address_of(pid, ptrt), ptrt));
         } else {
@@ -1600,7 +1575,7 @@ MIRExprResult MIRLowerer::lower_member_chain(const std::vector<Value*>& values, 
         const bool last = (i + 1 == count);
         if (!have_ptr) {
             if (last) {
-                if (needs_aggregate_path(module_, ft)) {
+                if (abi::is_aggregate(module_, ft)) {
                     if (base_is_call) maybe_register_call_temp(values[0], first);
                     return MIRExprResult::address(builder_->field_addr(cur_place, fc, ft), ft);
                 }
@@ -1617,7 +1592,7 @@ MIRExprResult MIRLowerer::lower_member_chain(const std::vector<Value*>& values, 
             have_ptr = true;
         } else {
             if (last) {
-                if (needs_aggregate_path(module_, ft)) {
+                if (abi::is_aggregate(module_, ft)) {
                     if (base_is_call) maybe_register_call_temp(values[0], first);
                     return MIRExprResult::address(builder_->field_addr_ptr(cur_ptr, fc, ft), ft);
                 }
@@ -1659,14 +1634,14 @@ MIRExprResult MIRLowerer::lower_variant_payload(VariantCaseVariable* var, bool a
     const TypeId ft = types_.map(var->known_type());
     if (base.kind == MIRExprKind::Place) {
         const PlaceId bp = static_cast<PlaceId>(base.id);
-        if (as_address || needs_aggregate_path(module_, ft)) {
+        if (as_address || abi::is_aggregate(module_, ft)) {
             return MIRExprResult::address(builder_->field_addr(bp, fc, ft), ft);
         }
         return MIRExprResult::value(builder_->field_load(bp, fc, ft), ft);
     }
     if (base.kind == MIRExprKind::Address || base.kind == MIRExprKind::Value) {
         const ValueId bv = static_cast<ValueId>(base.id);
-        if (as_address || needs_aggregate_path(module_, ft)) {
+        if (as_address || abi::is_aggregate(module_, ft)) {
             return MIRExprResult::address(builder_->field_addr_ptr(bv, fc, ft), ft);
         }
         return MIRExprResult::value(builder_->field_load_ptr(bv, fc, ft), ft);
@@ -1702,14 +1677,14 @@ MIRExprResult MIRLowerer::lower_pattern_payload(PatternMatchExpr* pm, VariantMem
     const TypeId ft = types_.map(param->type);
     if (base.kind == MIRExprKind::Place) {
         const PlaceId bp = static_cast<PlaceId>(base.id);
-        if (as_address || needs_aggregate_path(module_, ft)) {
+        if (as_address || abi::is_aggregate(module_, ft)) {
             return MIRExprResult::address(builder_->field_addr(bp, fc, ft), ft);
         }
         return MIRExprResult::value(builder_->field_load(bp, fc, ft), ft);
     }
     if (base.kind == MIRExprKind::Address || base.kind == MIRExprKind::Value) {
         const ValueId bv = static_cast<ValueId>(base.id);
-        if (as_address || needs_aggregate_path(module_, ft)) {
+        if (as_address || abi::is_aggregate(module_, ft)) {
             return MIRExprResult::address(builder_->field_addr_ptr(bv, fc, ft), ft);
         }
         return MIRExprResult::value(builder_->field_load_ptr(bv, fc, ft), ft);
@@ -1795,7 +1770,7 @@ MIRExprResult MIRLowerer::lower_pattern_match_value(PatternMatchExpr* pm, std::s
         if (!builder_->current_block_terminated()) builder_->br(merge);
         builder_->set_block(merge);
         pattern_results_[pm] = MIRExprResult::place(res, pt);
-        if (needs_aggregate_path(module_, pt)) return MIRExprResult::place(res, pt);
+        if (abi::is_aggregate(module_, pt)) return MIRExprResult::place(res, pt);
         return MIRExprResult::value(builder_->load(res, pt), pt);
     }
 
@@ -1869,7 +1844,7 @@ MIRExprResult MIRLowerer::lower_pattern_identifier(PatternMatchIdentifier* id,
             MIRExprResult r = it->second;
             if (r.kind == MIRExprKind::Place) {
                 const TypeId t = r.type;
-                if (needs_aggregate_path(module_, t)) return r;
+                if (abi::is_aggregate(module_, t)) return r;
                 return MIRExprResult::value(builder_->load(static_cast<PlaceId>(r.id), t), t);
             }
             return r;
@@ -2005,7 +1980,7 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
             return MIRExprResult::error();
         }
         const TypeId dtype = types_.map(call->getType());
-        if (needs_aggregate_path(module_, dtype)) {
+        if (abi::is_aggregate(module_, dtype)) {
             error = "dynamic method returning an aggregate is not yet supported";
             return MIRExprResult::error();
         }
@@ -2055,7 +2030,7 @@ bool MIRLowerer::append_receiver_arg(MIRExprResult recv, BaseType* recv_type,
     if (by_value) {
         if (recv.kind == MIRExprKind::Place) {
             const TypeId rt = builder_->function().places[recv.id].type;
-            if (needs_aggregate_path(module_, rt)) {
+            if (abi::is_aggregate(module_, rt)) {
                 // an aggregate `self` is passed as a hidden pointer
                 const TypeId ptrt = types_.pointer_type(rt, true);
                 args.push_back(MIROperand::value(builder_->address_of(recv.id, ptrt), ptrt));
@@ -2139,7 +2114,7 @@ MIRExprResult MIRLowerer::emit_resolved_call(SymbolId sym, TypeId ret_type,
         destroy_call_temps_from(cmark, error);
         return MIRExprResult::void_result();
     }
-    if (needs_sret_return(module_, ret_type)) {
+    if (abi::needs_sret(module_, ret_type)) {
         const PlaceId res = builder_->alloca(ret_type, MIRStorageClass::Temporary);
         if (res == MIR_INVALID_ID) {
             error = "failed to allocate call result place";
@@ -2250,7 +2225,7 @@ SymbolId MIRLowerer::intern_function(FunctionDeclaration* decl) {
     // call sites expect: sret for struct-like returns, aggregates/arrays passed
     // by pointer, and the variadic tail marker dropped.
     const TypeId ret = decl->returnType ? types_.map(decl->returnType) : types_.void_type();
-    const bool sret = needs_sret_return(module_, ret);
+    const bool sret = abi::needs_sret(module_, ret);
     std::vector<TypeId> ptypes;
     ptypes.reserve(decl->params.size() + 1);
     if (sret) ptypes.push_back(types_.pointer_type(ret, true));
@@ -2258,7 +2233,7 @@ SymbolId MIRLowerer::intern_function(FunctionDeclaration* decl) {
         TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
         if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
             pt = types_.pointer_type(module_.types.get(pt).element, true);
-        } else if (needs_aggregate_path(module_, pt)) {
+        } else if (abi::is_aggregate(module_, pt)) {
             pt = types_.pointer_type(pt, true);
         }
         ptypes.push_back(pt);
@@ -2585,7 +2560,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     return MIRExprResult::value(pv, pt);
                 }
                 const TypeId elem = module_.types.get(pt).element;
-                if (needs_aggregate_path(module_, elem)) {
+                if (abi::is_aggregate(module_, elem)) {
                     // an aggregate element is a pointer to the element (lvalue)
                     return MIRExprResult::value(pv, pt);
                 }
@@ -2616,7 +2591,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             PlaceId place = place_for_linked(id->linked);
             if (place == MIR_INVALID_ID) place = place_for_name(id->value);
             if (place != MIR_INVALID_ID) {
-                if (needs_aggregate_path(module_, type)) {
+                if (abi::is_aggregate(module_, type)) {
                     return MIRExprResult::place(place, type);
                 }
                 return MIRExprResult::value(builder_->load(place, type), type);
@@ -2640,7 +2615,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                                         ? types_.pointer_type(module_.types.get(type).element, false)
                                         : types_.pointer_type(type, false);
                 const ValueId addr = builder_->global_addr(gs, ptrt);
-                if (needs_aggregate_path(module_, type)) {
+                if (abi::is_aggregate(module_, type)) {
                     return MIRExprResult::address(addr, ptrt);
                 }
                 return MIRExprResult::value(builder_->load_indirect(addr, type), type);
@@ -2655,7 +2630,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                                             ? types_.pointer_type(module_.types.get(type).element, false)
                                             : types_.pointer_type(type, false);
                     const ValueId addr = builder_->global_addr(gs, ptrt);
-                    if (needs_aggregate_path(module_, type)) {
+                    if (abi::is_aggregate(module_, type)) {
                         return MIRExprResult::address(addr, ptrt);
                     }
                     return MIRExprResult::value(builder_->load_indirect(addr, type), type);
@@ -2669,7 +2644,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             auto* n = value->as_negative_value_unsafe();
             MIRExprResult in = lower_expr(n->getValue(), error);
             if (!in.ok()) return in;
-            if (is_struct_like(module_, in.type)) {
+            if (abi::is_struct_like(module_, in.type)) {
                 return lower_unary_operator_overload(n->getValue(), in, "neg", n->getType(), error);
             }
             ConstantId op = module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRUnaryOp::Neg));
@@ -2679,7 +2654,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             auto* n = value->as_not_value_unsafe();
             MIRExprResult in = lower_expr(n->getValue(), error);
             if (!in.ok()) return in;
-            if (is_struct_like(module_, in.type)) {
+            if (abi::is_struct_like(module_, in.type)) {
                 return lower_unary_operator_overload(n->getValue(), in, "not", n->getType(), error);
             }
             ConstantId op = module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRUnaryOp::Not));
@@ -2689,7 +2664,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             auto* n = value->as_bitwise_not_unsafe();
             MIRExprResult in = lower_expr(n->getValue(), error);
             if (!in.ok()) return in;
-            if (is_struct_like(module_, in.type)) {
+            if (abi::is_struct_like(module_, in.type)) {
                 return lower_unary_operator_overload(n->getValue(), in, "bitnot", n->getType(),
                                                      error);
             }
@@ -2729,7 +2704,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 error = "unsupported binary operator (short-circuit/logical operators need CFG)";
                 return MIRExprResult::error();
             }
-            if (is_struct_like(module_, lhs.type) || is_struct_like(module_, rhs.type)) {
+            if (abi::is_struct_like(module_, lhs.type) || abi::is_struct_like(module_, rhs.type)) {
                 const char* method = operator_method_name(e->operation);
                 if (!method) {
                     error = "unsupported operator overload";
@@ -3121,7 +3096,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     const MIRTypeRecord& rt = module_.types.get(r.type);
                     if ((rt.kind == MIRTypeKind::Pointer ||
                          rt.kind == MIRTypeKind::Reference) &&
-                        needs_aggregate_path(module_, types_.map(member_type))) {
+                        abi::is_aggregate(module_, types_.map(member_type))) {
                         builder_->field_store(
                             temp, fc,
                             builder_->load_indirect(r.id, types_.map(member_type)));
@@ -3399,7 +3374,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     const bool callee_is_field =
                         callee_node && callee_node->kind() == ASTNodeKind::StructMember;
                     if (!mfd && !recv_is_place && !callee_is_field &&
-                        needs_aggregate_path(module_, ct)) {
+                        abi::is_aggregate(module_, ct)) {
                         const PlaceId place = builder_->alloca(ct, MIRStorageClass::Temporary);
                         FunctionDeclaration* ctor = nullptr;
                         if (call->getType()) {
@@ -3550,7 +3525,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                                     destroy_call_temps_from(cmark, error);
                                     return MIRExprResult::void_result();
                                 }
-                                if (needs_sret_return(module_, crt)) {
+                                if (abi::needs_sret(module_, crt)) {
                                     const PlaceId tmp =
                                         builder_->alloca(crt, MIRStorageClass::Temporary);
                                     builder_->zero_init(tmp);
@@ -3606,7 +3581,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                                 destroy_call_temps_from(cmark, error);
                                 return MIRExprResult::void_result();
                             }
-                            if (needs_sret_return(module_, rt)) {
+                            if (abi::needs_sret(module_, rt)) {
                                 const PlaceId tmp =
                                     builder_->alloca(rt, MIRStorageClass::Temporary);
                                 builder_->zero_init(tmp);
@@ -3702,7 +3677,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         destroy_call_temps_from(cmark, error);
                         return MIRExprResult::void_result();
                     }
-                    if (needs_sret_return(module_, rt)) {
+                    if (abi::needs_sret(module_, rt)) {
                         // aggregate return: use the sret convention (the callee
                         // returns void and writes through a leading pointer)
                         const PlaceId tmp = builder_->alloca(rt, MIRStorageClass::Temporary);
@@ -3774,7 +3749,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 destroy_call_temps_from(cmark, error);
                 return MIRExprResult::void_result();
             }
-            if (needs_sret_return(module_, type)) {
+            if (abi::needs_sret(module_, type)) {
                 const PlaceId res = builder_->alloca(type, MIRStorageClass::Temporary);
                 if (res == MIR_INVALID_ID) {
                     error = "failed to allocate struct-return result place";
@@ -3864,7 +3839,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     const TypeId pt = builder_->function().places[pid].type;
                     const ValueId idx = builder_->const_int(
                         ut, module_.constants.add_int(ut, static_cast<uint64_t>(i)));
-                    if (needs_aggregate_path(module_, pt)) {
+                    if (abi::is_aggregate(module_, pt)) {
                         builder_->element_store_place(place, idx, pid);
                         // a destructible local moved into the array must not be
                         // destroyed again at scope exit
@@ -3890,7 +3865,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     ut, module_.constants.add_int(ut, static_cast<uint64_t>(i)));
                 if (e.kind == MIRExprKind::Address) {
                     const TypeId et = types_.map(elem_bt);
-                    if (needs_aggregate_path(module_, et)) {
+                    if (abi::is_aggregate(module_, et)) {
                         // `*ptr` element: copy the pointee into the element
                         builder_->element_store(place, idx,
                                                 builder_->load_indirect(e.id, et));
@@ -3931,7 +3906,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             }
             if (base.kind == MIRExprKind::Place) {
                 const TypeId bt = builder_->function().places[base.id].type;
-                if (is_struct_like(module_, bt)) {
+                if (abi::is_struct_like(module_, bt)) {
                     // `x[i]` on a struct uses the `Index`/`IndexMut` method
                     BaseType* recv_t = io->parent_val ? io->parent_val->getType() : nullptr;
                     FunctionDeclaration* fd = resolve_method_fallback(recv_t, "index");
@@ -3948,7 +3923,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     if (!r.ok()) return r;
                     // the method returns `&Output`: dereference to the element
                     if (r.kind == MIRExprKind::Value || r.kind == MIRExprKind::Address) {
-                        if (needs_aggregate_path(module_, type)) {
+                        if (abi::is_aggregate(module_, type)) {
                             return MIRExprResult::address(static_cast<ValueId>(r.id), type);
                         }
                         return MIRExprResult::value(
@@ -3957,7 +3932,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     return r;
                 }
             }
-            if (needs_aggregate_path(module_, type)) {
+            if (abi::is_aggregate(module_, type)) {
                 // aggregate element: return its address (an lvalue), not a load
                 const TypeId ptrt = types_.pointer_type(type, true);
                 if (base.kind == MIRExprKind::Place) {
@@ -3998,7 +3973,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 error = "dereference operand is not a pointer value";
                 return MIRExprResult::error();
             }
-            if (needs_aggregate_path(module_, type)) {
+            if (abi::is_aggregate(module_, type)) {
                 return MIRExprResult::address(static_cast<ValueId>(in.id), in.type);
             }
             return MIRExprResult::value(
@@ -4107,7 +4082,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             } else if (!lower_scope_value(*scope, dest, vt, error)) {
                 return MIRExprResult::error();
             }
-            if (needs_aggregate_path(module_, vt)) {
+            if (abi::is_aggregate(module_, vt)) {
                 return MIRExprResult::place(dest, vt);
             }
             return MIRExprResult::value(builder_->load(dest, vt), vt);
@@ -4232,7 +4207,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             const TypeId zt = type;
             const PlaceId tmp = builder_->alloca(zt, MIRStorageClass::Temporary);
             builder_->zero_init(tmp);
-            if (needs_aggregate_path(module_, zt)) return MIRExprResult::place(tmp, zt);
+            if (abi::is_aggregate(module_, zt)) return MIRExprResult::place(tmp, zt);
             return MIRExprResult::value(builder_->load(tmp, zt), zt);
         }
         case ValueKind::RuntimeValue:
@@ -4416,7 +4391,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 BaseType* vtype = vi->known_type();
                 if (!vtype && vi->value) vtype = vi->value->getType();
                 const MIRTypeRecord& vr = module_.types.get(vt);
-                if (!(vr.flags & TF_TYPEDEF) && needs_aggregate_path(module_, vt)) {
+                if (!(vr.flags & TF_TYPEDEF) && abi::is_aggregate(module_, vt)) {
                     register_destructible(place, vtype);
                 }
             }
@@ -4565,7 +4540,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                                                      : builder_->field_load(cur_place, fc, ft);
                         const ConstantId opc = module_.constants.add_int(
                             MIR_INVALID_ID, static_cast<uint64_t>(bop));
-                        if (is_struct_like(module_, ft)) {
+                        if (abi::is_struct_like(module_, ft)) {
                             error = "compound field assignment operator overloading is not yet supported";
                             return false;
                         }
@@ -4676,7 +4651,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                         MIR_INVALID_ID, static_cast<uint64_t>(bop));
                     const ValueId cur =
                         builder_->load_indirect(static_cast<ValueId>(p.id), et);
-                    if (is_struct_like(module_, et)) {
+                    if (abi::is_struct_like(module_, et)) {
                         error = "compound dereference assignment operator overloading is not yet supported";
                         return false;
                     }
@@ -4696,7 +4671,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 if (!idx.ok()) return false;
                 if (base.kind == MIRExprKind::Place) {
                     const TypeId bt = builder_->function().places[base.id].type;
-                    if (is_struct_like(module_, bt)) {
+                    if (abi::is_struct_like(module_, bt)) {
                         // `x[i] = v` on a struct uses the `IndexMut` method
                         BaseType* recv_t = io->parent_val ? io->parent_val->getType() : nullptr;
                         FunctionDeclaration* fd = resolve_method_fallback(recv_t, "index_mut");
@@ -4768,7 +4743,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     return false;
                 }
                 const bool compound = (as->assOp != Operation::Assignment);
-                if (compound && is_struct_like(module_, et)) {
+                if (compound && abi::is_struct_like(module_, et)) {
                     error = "compound index assignment operator overloading is not yet supported";
                     return false;
                 }
@@ -4902,7 +4877,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 return false;
             }
             const TypeId place_type = builder_->function().places[place].type;
-            if (as->assOp != Operation::Assignment && is_struct_like(module_, place_type)) {
+            if (as->assOp != Operation::Assignment && abi::is_struct_like(module_, place_type)) {
                 // `p += s` on a struct uses an overloaded `add_assign`-style method
                 const char* method = compound_method_name(as->assOp);
                 BaseType* lhs_ast = as->lhs ? as->lhs->getType() : nullptr;
@@ -5394,15 +5369,15 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             return lower_pattern_match_node(node->as_pattern_match_expr_node_unsafe(), error);
         case ASTNodeKind::Block: {
             auto* b = node->as_block_scope_unsafe();
-            return lower_scope_nodes(b->nodes, error);
+            return lower_scope_nodes_scoped(b->nodes, node->encoded_location().encoded, error);
         }
         case ASTNodeKind::Scope: {
             auto* s = node->as_scope_unsafe();
-            return lower_scope_nodes(s->nodes, error);
+            return lower_scope_nodes_scoped(s->nodes, s->encoded_location().encoded, error);
         }
         case ASTNodeKind::UnsafeBlock: {
             auto* u = node->as_unsafe_block_unsafe();
-            return lower_scope_nodes(u->scope.nodes, error);
+            return lower_scope_nodes_scoped(u->scope.nodes, node->encoded_location().encoded, error);
         }
         case ASTNodeKind::InlineAsmStmt: {
             auto* ia = node->as_inline_asm_unsafe();
@@ -5467,7 +5442,7 @@ MIRExprResult MIRLowerer::lower_incdec_value(Value* target, bool increment, bool
         return MIRExprResult::error();
     }
     const TypeId vt = types_.map(t->getType());
-    if (is_struct_like(module_, vt)) {
+    if (abi::is_struct_like(module_, vt)) {
         // `p++` / `--p` on a struct uses the `Increment`/`Decrement` methods
         const char* method = increment ? (post ? "inc_post" : "inc_pre")
                                        : (post ? "dec_post" : "dec_pre");
@@ -5533,7 +5508,23 @@ MIRExprResult MIRLowerer::lower_incdec_value(Value* target, bool increment, bool
 }
 
 bool MIRLowerer::lower_scope(Scope& scope, std::string& error) {
-    return lower_scope_nodes(scope.nodes, error);
+    return lower_scope_nodes_scoped(scope.nodes, scope.encoded_location().encoded, error);
+}
+
+bool MIRLowerer::lower_scope_nodes_scoped(std::vector<ASTNode*>& nodes, uint64_t encoded_loc,
+                                          std::string& error) {
+    if (!debug_info_ || !builder_) return lower_scope_nodes(nodes, error);
+    // The builder is captured here because lowering a nested function (a lambda)
+    // swaps `builder_` for its own and restores it before returning; the matching
+    // pop must go to the builder that recorded the push.
+    MIRBuilder* const b = builder_;
+    MIRSourceLoc loc{};
+    const bool has_loc =
+        encoded_loc != 0 && source_loc_provider_ && source_loc_provider_(encoded_loc, loc);
+    b->push_lexical_scope(loc, has_loc);
+    const bool ok = lower_scope_nodes(nodes, error);
+    b->pop_lexical_scope();
+    return ok;
 }
 
 bool MIRLowerer::lower_scope_nodes(std::vector<ASTNode*>& nodes, std::string& error) {
@@ -5590,6 +5581,17 @@ bool MIRLowerer::lower_if(IfStatement* stmt, BlockId merge, std::string& error) 
 
 bool MIRLowerer::lower_scope_value(Scope& scope, PlaceId dest, TypeId dest_t,
                                    std::string& error) {
+    // Debug info: this scope body is a lexical block (see lower_scope_nodes_scoped).
+    // The builder is captured because lowering a lambda inside the body swaps and
+    // restores `builder_`; the pop must reach the builder that pushed.
+    MIRBuilder* const ls_builder = debug_info_ ? builder_ : nullptr;
+    if (ls_builder) {
+        MIRSourceLoc ls_loc{};
+        const uint64_t enc = scope.encoded_location().encoded;
+        const bool has_loc =
+            enc != 0 && source_loc_provider_ && source_loc_provider_(enc, ls_loc);
+        ls_builder->push_lexical_scope(ls_loc, has_loc);
+    }
     const size_t mark = destructibles_.size();
     const size_t smark = stmt_temps_.size();
     auto finish = [&]() -> bool {
@@ -5600,6 +5602,7 @@ bool MIRLowerer::lower_scope_value(Scope& scope, PlaceId dest, TypeId dest_t,
             stmt_temps_.resize(smark);
         }
         destructibles_.resize(mark);
+        if (ls_builder) ls_builder->pop_lexical_scope();
         return true;
     };
 
@@ -5737,7 +5740,7 @@ MIRExprResult MIRLowerer::lower_switch_value(SwitchValue* value, std::string& er
     const TypeId vt = types_.map(value->getType());
     const PlaceId dest = builder_->alloca(vt, MIRStorageClass::Temporary);
     if (!lower_switch_into(sw, dest, vt, error)) return MIRExprResult::error();
-    if (needs_aggregate_path(module_, vt)) {
+    if (abi::is_aggregate(module_, vt)) {
         return MIRExprResult::place(dest, vt);
     }
     return MIRExprResult::value(builder_->load(dest, vt), vt);
@@ -5766,7 +5769,7 @@ MIRExprResult MIRLowerer::lower_if_value(IfValue* value, std::string& error) {
     const PlaceId dest = builder_->alloca(vt, MIRStorageClass::Temporary);
     if (!lower_if_stmt_into(value->stmt, dest, vt, error)) return MIRExprResult::error();
     // for aggregates the caller wants the temp's address; for scalars the value
-    if (needs_aggregate_path(module_, vt)) {
+    if (abi::is_aggregate(module_, vt)) {
         return MIRExprResult::place(dest, vt);
     }
     return MIRExprResult::value(builder_->load(dest, vt), vt);
@@ -5818,7 +5821,7 @@ MIRExprResult MIRLowerer::lower_loop_value(LoopValue* value, std::string& error)
     if (!lower_loop_block_into(value->stmt, dest, vt, error)) {
         return MIRExprResult::error();
     }
-    if (needs_aggregate_path(module_, vt)) {
+    if (abi::is_aggregate(module_, vt)) {
         return MIRExprResult::place(dest, vt);
     }
     return MIRExprResult::value(builder_->load(dest, vt), vt);
@@ -7194,7 +7197,7 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
             TypeId pt = self_param->type ? types_.map(self_param->type) : types_.opaque_type();
             if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
                 pt = types_.pointer_type(module_.types.get(pt).element, true);
-            } else if (needs_aggregate_path(module_, pt)) {
+            } else if (abi::is_aggregate(module_, pt)) {
                 pt = types_.pointer_type(pt, true);
             }
             ptypes.push_back(pt);
@@ -7203,7 +7206,7 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
             TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
             if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
                 pt = types_.pointer_type(module_.types.get(pt).element, true);
-            } else if (needs_aggregate_path(module_, pt)) {
+            } else if (abi::is_aggregate(module_, pt)) {
                 pt = types_.pointer_type(pt, true);
             }
             ptypes.push_back(pt);
@@ -7251,7 +7254,7 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
         TypeId pt = self_param->type ? types_.map(self_param->type) : types_.opaque_type();
         if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
             pt = types_.pointer_type(module_.types.get(pt).element, true);
-        } else if (needs_aggregate_path(module_, pt)) {
+        } else if (abi::is_aggregate(module_, pt)) {
             pt = types_.pointer_type(pt, true);
         }
         ValueId pv = b.param(pt);
@@ -7264,7 +7267,7 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
         TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
         if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
             pt = types_.pointer_type(module_.types.get(pt).element, true);
-        } else if (needs_aggregate_path(module_, pt)) {
+        } else if (abi::is_aggregate(module_, pt)) {
             pt = types_.pointer_type(pt, true);
         }
         ValueId pv = b.param(pt);
@@ -7287,7 +7290,7 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
                 // an aggregate parameter arrives as a hidden pointer: copy the
                 // pointee value into the frame. A genuine reference/pointer
                 // parameter stores the pointer itself (no dereference).
-                if (needs_aggregate_path(module_, decl_t)) {
+                if (abi::is_aggregate(module_, decl_t)) {
                     src = b.load_indirect(src, decl_t);
                 }
             }
@@ -7544,7 +7547,7 @@ MIRExprResult MIRLowerer::lower_captured_variable(CapturedVariable* cap, bool as
         // as a method receiver or indexed), never the field's address
         return MIRExprResult::value(builder_->field_load_ptr(ptr, fc, ft), ft);
     }
-    if (as_address || needs_aggregate_path(module_, ft)) {
+    if (as_address || abi::is_aggregate(module_, ft)) {
         return MIRExprResult::address(builder_->field_addr_ptr(ptr, fc, ft), ft);
     }
     return MIRExprResult::value(builder_->field_load_ptr(ptr, fc, ft), ft);
@@ -7684,7 +7687,7 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
         destroy_call_temps_from(ccap, error);
         return MIRExprResult::void_result();
     }
-    if (needs_sret_return(module_, crt)) {
+    if (abi::needs_sret(module_, crt)) {
         const PlaceId tmp = builder_->alloca(crt, MIRStorageClass::Temporary);
         builder_->zero_init(tmp);
         // the legacy capturing-function ABI is `(this, sret, params)`, so the
@@ -7823,7 +7826,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     //    (matches the legacy capturing-function ABI: the hidden data pointer
     //    comes before the sret pointer)
     const TypeId ret = lamb->returnType ? types_.map(lamb->returnType) : types_.void_type();
-    const bool l_sret = needs_sret_return(module_, ret);
+    const bool l_sret = abi::needs_sret(module_, ret);
     std::vector<TypeId> ptypes;
     ptypes.push_back(void_ptr);
     if (l_sret) ptypes.push_back(types_.pointer_type(ret, true));
@@ -7831,7 +7834,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
         TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
         if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
             pt = types_.pointer_type(module_.types.get(pt).element, true);
-        } else if (needs_aggregate_path(module_, pt)) {
+        } else if (abi::is_aggregate(module_, pt)) {
             pt = types_.pointer_type(pt, true);
         }
         ptypes.push_back(pt);
@@ -7909,7 +7912,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
         TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
         if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
             pt = types_.pointer_type(module_.types.get(pt).element, true);
-        } else if (needs_aggregate_path(module_, pt)) {
+        } else if (abi::is_aggregate(module_, pt)) {
             pt = types_.pointer_type(pt, true);
         }
         ValueId pv = b.param(pt);
@@ -7925,7 +7928,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
         if (p->type) {
             const TypeId ptt = types_.map(p->type);
             const MIRTypeRecord& prr = module_.types.get(ptt);
-            if (!(prr.flags & TF_TYPEDEF) && needs_aggregate_path(module_, ptt)) {
+            if (!(prr.flags & TF_TYPEDEF) && abi::is_aggregate(module_, ptt)) {
                 register_destructible(place, p->type);
             }
         }
@@ -8003,7 +8006,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
                 const TypeId ptrt = types_.pointer_type(lt, true);
                 builder_->field_store(cap_temp, fc, builder_->address_of(lp, ptrt));
             }
-        } else if (needs_aggregate_path(module_, lt)) {
+        } else if (abi::is_aggregate(module_, lt)) {
             builder_->field_store_place(cap_temp, fc, lp);
             mark_moved(lp);
         } else {
@@ -8056,7 +8059,7 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     const std::string lname = "__chemda_" + std::to_string(s_lambda_counter++);
 
     const TypeId ret = lamb->returnType ? types_.map(lamb->returnType) : types_.void_type();
-    const bool l_sret = needs_sret_return(module_, ret);
+    const bool l_sret = abi::needs_sret(module_, ret);
     // a non-capturing lambda converted to a `std::function` still receives the
     // hidden `void*` data pointer as its first argument (the call convention is
     // shared with capturing lambdas), so emit a matching unused parameter
@@ -8070,7 +8073,7 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
         TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
         if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
             pt = types_.pointer_type(module_.types.get(pt).element, true);
-        } else if (needs_aggregate_path(module_, pt)) {
+        } else if (abi::is_aggregate(module_, pt)) {
             pt = types_.pointer_type(pt, true);
         }
         ptypes.push_back(pt);
@@ -8144,7 +8147,7 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
         TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
         if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
             pt = types_.pointer_type(module_.types.get(pt).element, true);
-        } else if (needs_aggregate_path(module_, pt)) {
+        } else if (abi::is_aggregate(module_, pt)) {
             pt = types_.pointer_type(pt, true);
         }
         ValueId pv = b.param(pt);
@@ -8160,7 +8163,7 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
         if (p->type) {
             const TypeId ptt = types_.map(p->type);
             const MIRTypeRecord& prr = module_.types.get(ptt);
-            if (!(prr.flags & TF_TYPEDEF) && needs_aggregate_path(module_, ptt)) {
+            if (!(prr.flags & TF_TYPEDEF) && abi::is_aggregate(module_, ptt)) {
                 register_destructible(place, p->type);
             }
         }
@@ -8326,7 +8329,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
 
     func.symbol = intern_function(decl);
     const TypeId ret = decl->returnType ? types_.map(decl->returnType) : types_.void_type();
-    sret_ = needs_sret_return(module_, ret);
+    sret_ = abi::needs_sret(module_, ret);
     sret_ret_type_ = ret;
     return_type_ = decl->returnType;
     FunctionParam* self_param = decl->has_self_param() ? decl->get_self_param() : nullptr;
@@ -8358,7 +8361,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
                 pt = self_param->type ? types_.map(self_param->type) : types_.opaque_type();
                 if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
                     pt = types_.pointer_type(module_.types.get(pt).element, true);
-                } else if (needs_aggregate_path(module_, pt)) {
+                } else if (abi::is_aggregate(module_, pt)) {
                     pt = types_.pointer_type(pt, true);
                 }
             }
@@ -8372,7 +8375,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
             TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
             if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
             pt = types_.pointer_type(module_.types.get(pt).element, true);
-        } else if (needs_aggregate_path(module_, pt)) {
+        } else if (abi::is_aggregate(module_, pt)) {
             pt = types_.pointer_type(pt, true);
         }
             ptypes.push_back(pt);
@@ -8413,7 +8416,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
         TypeId pt = self_param->type ? types_.map(self_param->type) : types_.opaque_type();
         if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
             pt = types_.pointer_type(module_.types.get(pt).element, true);
-        } else if (needs_aggregate_path(module_, pt)) {
+        } else if (abi::is_aggregate(module_, pt)) {
             pt = types_.pointer_type(pt, true);
         }
         ValueId pv = b.param(pt);
@@ -8433,7 +8436,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
                               module_.types.get(declared).kind == MIRTypeKind::Array;
         const bool is_aggregate = declared != MIR_INVALID_ID && !is_array &&
                                   !(module_.types.get(declared).flags & TF_TYPEDEF) &&
-                                  needs_aggregate_path(module_, declared);
+                                  abi::is_aggregate(module_, declared);
         TypeId pt = declared;
         if (is_array) {
             pt = types_.pointer_type(module_.types.get(declared).element, true);
@@ -8471,7 +8474,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
         if (p->type) {
             const TypeId ptt = types_.map(p->type);
             const MIRTypeRecord& prr = module_.types.get(ptt);
-            if (!(prr.flags & TF_TYPEDEF) && needs_aggregate_path(module_, ptt)) {
+            if (!(prr.flags & TF_TYPEDEF) && abi::is_aggregate(module_, ptt)) {
                 register_destructible(place, p->type);
             }
         }

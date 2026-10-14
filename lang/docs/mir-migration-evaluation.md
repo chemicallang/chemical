@@ -13,6 +13,19 @@ Branch: `mir`. Supersedes nothing; complements `compiler/mir/README.md`,
 > code (it adds ~17.5k lines to delete ~11k, with the declaration/type layer
 > still AST-based). All numbers below are measured on the L1 machine against the
 > pre-MIR `main` compiler, same source, same mode.
+>
+> **Status update (2026-10-14, session 15) — what this session closed in the
+> plan.** **A2 is done** (there is one C type speller — see §1.4 and §2A.2; the
+> "implemented twice" claim was stale), and **B has its first deliverable**
+> (`compiler/mir/MIRABI.h`: the parameter/return classification that was written
+> out four times is now one shared, AST-free, target-free definition — §2B step
+> 1). Also fixed a hot-path rule violation: `CodegenMir` ran a `getenv` per
+> emitted MIR instruction (§2D6). Nothing in this session touched the two
+> headline gates — **compile time (D/E)** and **generated code size (C)** — whose
+> remaining work is unchanged: the `Type(args)` constructor temp and the
+> `apply_struct_defaults` zero-inits, splitting the 8,537-line `MIRLowerer.cpp`
+> (D4), the 18 `unordered_map`s (D3) and parallel file lowering (E), which is the
+> only lever sized to the 2.3× compile-time gap.
 
 The four goals this document optimises for (per project direction): **compiler
 throughput, compiler peak memory & binary size, generated-code quality (runtime
@@ -282,14 +295,27 @@ The intended shape is "one MIR, small per-backend emitters". Today:
   lines / 504,054 B and main-suite C 1,231 / 107,191 lines, identical both
   sides). What is left of A is the type printer and declaration table (A2/A3);
   LLVM `CodegenMir::mir_type` still builds its own layout from the same table.
-- **C type spelling is implemented twice.** `MIREmitter.cpp` (`c_type_of`,
+- **C type spelling is implemented twice.** ~~`MIREmitter.cpp` (`c_type_of`,
   `c_decl_type`, `declarator`, `c_function_proto`) and `MIRDeclEmitter.cpp`
   (`type_spelling`, `decl_spelling`) independently spell the same types and must
-  be kept in sync by hand (see README gotcha "type spelling must match").
+  be kept in sync by hand (see README gotcha "type spelling must match").~~
+  **RESOLVED — action A2.** There is now exactly one C type speller:
+  `MIREmitter`'s `c_type_of`/`c_declarator`/`c_decl_type`/`c_function_proto`.
+  `MIRDeclEmitter::type_spelling`/`decl_spelling` are thin wrappers that map an
+  AST `BaseType*` to a `TypeId` and delegate (the only AST input left on that
+  path). The remaining A item is A3 (the declaration table), not the printer.
 - **Each backend is a full independent instruction dispatcher.** `MIREmitter`
   (1,601 lines, ~80 opcode cases) and `CodegenMir` (2,249 lines, ~49 cases) share
   no MIR traversal, ABI, naming, or layout helper. Adding JVM and JS as two more
   full dispatchers is exactly the per-backend code explosion to avoid.
+  **PARTLY ADDRESSED — action B, first step (session 15):** the ABI
+  classification is no longer re-derived per backend. `compiler/mir/MIRABI.h`
+  defines it once (`abi::is_aggregate`, `abi::needs_sret`,
+  `abi::is_struct_like`, `abi::is_pointer_like`, `abi::is_void`) and
+  `MIRLowerer`, `MIRDeclEmitter` and `CodegenMir` all call it — four hand-synced
+  copies became one definition, and the "must match *exactly*" comments that
+  guarded them are gone. Shared **traversal/naming/layout services** are still
+  open (B is not done).
 
 **What is genuinely good and must be preserved:** MIR is AST-free at its core
 (`CodegenMir.cpp` has zero AST type references; only `MIRTypeBuilder`,
@@ -374,9 +400,15 @@ for aggregates (fixed by item 1 below); two independent C type spellers.
    an array member, a variant and an anonymous union matched `gcc`'s numbers for
    the emitted C exactly. Output-invariant by construction and by measurement
    (see §1.4); `--tcc` **2300/2300**, `--llvm` **2298/2298**, `MIRTests` OK.
-2. Add a single `mir::TypePrinter` (or `MIRTypeFormat`) in MIR core that renders
-   a `TypeId` + `declarator` for the **C** backend from MIR only; delete the
-   duplicate `MIRDeclEmitter::type_spelling`/`decl_spelling` in favour of it.
+2. ~~Add a single `mir::TypePrinter` (or `MIRTypeFormat`) in MIR core that
+   renders a `TypeId` + `declarator` for the **C** backend from MIR only; delete
+   the duplicate `MIRDeclEmitter::type_spelling`/`decl_spelling` in favour of
+   it.~~ **DONE (verified session 15).** The single speller is
+   `MIREmitter`'s (`c_type_of`/`c_declarator`/`c_decl_type`/`c_function_proto`);
+   `MIRDeclEmitter` keeps `type_spelling`/`decl_spelling` only as the two
+   `BaseType*` → `TypeId` adapters that call it. No second spelling exists. (The
+   speller lives in `MIREmitter.cpp` rather than a separate `MIRTypeFormat` TU;
+   moving it is cosmetic and is left to whenever that file is next touched.)
 3. Replace `MIRDeclEmitter`'s AST walk with a MIR declaration table
    (`MIRTypeDecl`/`MIRPrototype`/`MIRGlobal`, already sketched in the plan §2.5)
    populated by the lowerer, so declarations are emitted from MIR for every
@@ -397,6 +429,22 @@ place/symbol/constant naming, and block iteration. Backends implement only
 `opcode → target construct`. Use `opcode_portability()` to keep `NativeOnly`
 opcodes (raw pointers, `InlineAsm`, atomics) out of JVM/JS and report a
 diagnostic for them.
+
+**Step 1 DONE (session 15) — `compiler/mir/MIRABI.h`.** The parameter/return
+classification is now shared rather than re-derived: the same rules had been
+written out **nine times across three translation units** (three in
+`MIRLowerer.cpp` — `needs_aggregate_path`, `needs_sret_return`, `is_struct_like`;
+two in `MIRDeclEmitter.cpp` — `needs_aggregate`, `needs_sret`; four in
+`CodegenMir.cpp` — `mir_is_aggregate`, `mir_needs_sret`, `mir_is_ptr_like`,
+`mir_is_void`), several carrying a comment saying they had to match the others
+*exactly*. They are now `mir::abi::{is_valid,
+is_void, is_struct_like, needs_sret, is_aggregate, is_pointer_like}` — pure
+functions of the interned type table, AST-free and target-free, which is what a
+JVM/JS backend needs. Measured output-invariant: probe C unchanged at 11,723
+lines / 37 zero loops / 1,331 labels / 25 spills, probe exe 448,622 B (±2 B
+forward-declaration jitter), identical program output; `MIRTests` 1111,
+`--tcc` 2300/2300, `--llvm` 2298/2298. **Still open in B:** shared traversal,
+naming, block iteration and `MIRValueFacts`.
 **Acceptance.** Each new backend adds only a dispatcher + printer, no layout/ABI
 logic; measured by (backend emitter LOC / total MIR LOC) trend.
 
@@ -490,6 +538,15 @@ instruction cost are the levers, not a targeted rewrite.
 arena/buffers and slot-direct deterministic merge.
 **Acceptance.** ≥1.5× on 4+ cores for large modules; no RSS regression on small
 modules.
+
+### D6. Hot-path rule violations (P2, opportunistically)
+
+**DONE (session 15).** `CodegenMir` called `std::getenv("MIR_LLVM_TRACE")` (and
+`MIR_LLVM_DUMP`) *once per emitted MIR instruction* — a linear scan of `environ`
+per instruction, hundreds of thousands of times per suite compile, for a tracing
+facility that is off in every normal run. Both are read once into a file-static
+`const bool`. (Not separately benchmarked: the call count, not a timing, is the
+evidence. The `MIR_LLVM_TRACE` output itself is unchanged.)
 
 ### M. Measurement & budget tasks
 

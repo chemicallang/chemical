@@ -3,6 +3,7 @@
 #include "MIRDeclEmitter.h"
 
 #include "MIREmitter.h"
+#include "MIRABI.h"
 #include "MIRTypeBuilder.h"
 
 #include "ast/base/BaseType.h"
@@ -60,22 +61,6 @@ namespace mir {
 // small helpers
 // ---------------------------------------------------------------------------
 
-static bool needs_sret(const MIRModule& module, TypeId type) {
-    if (type == MIR_INVALID_ID || type >= module.types.size()) return false;
-    const MIRTypeKind k = module.types.get(type).kind;
-    return k == MIRTypeKind::Struct || k == MIRTypeKind::Union ||
-           k == MIRTypeKind::Variant || k == MIRTypeKind::Array;
-}
-
-static bool needs_aggregate(const MIRModule& module, TypeId type) {
-    if (type == MIR_INVALID_ID || type >= module.types.size()) return false;
-    const MIRTypeRecord& rec = module.types.get(type);
-    if (rec.flags & TF_TYPEDEF) return false;
-    const MIRTypeKind k = rec.kind;
-    return k == MIRTypeKind::Struct || k == MIRTypeKind::Union ||
-           k == MIRTypeKind::Variant || k == MIRTypeKind::Array;
-}
-
 // ---------------------------------------------------------------------------
 // type / value spelling
 // ---------------------------------------------------------------------------
@@ -115,7 +100,7 @@ FunctionDeclaration* mir_static_iface_base_method(FunctionDeclaration* decl) {
 
 TypeId MIRDeclEmitter::function_type_of(FunctionDeclaration* decl) {
     const TypeId ret = decl->returnType ? types_.map(decl->returnType) : types_.void_type();
-    const bool sret = needs_sret(module_, ret);
+    const bool sret = abi::needs_sret(module_, ret);
     std::vector<TypeId> ptypes;
     if (sret) ptypes.push_back(types_.pointer_type(ret, true));
 
@@ -130,7 +115,7 @@ TypeId MIRDeclEmitter::function_type_of(FunctionDeclaration* decl) {
         TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
         if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
             pt = types_.pointer_type(module_.types.get(pt).element, true);
-        } else if (needs_aggregate(module_, pt)) {
+        } else if (abi::is_aggregate(module_, pt)) {
             pt = types_.pointer_type(pt, true);
         }
         return pt;
@@ -879,7 +864,7 @@ void MIRDeclEmitter::vtable_type_name(BufferedWriter& w, InterfaceDefinition* in
 std::string MIRDeclEmitter::vtable_slot_type(FunctionDeclaration* func, const std::string& name) {
     FunctionParam* self = func->get_self_param();
     TypeId ret = func->returnType ? types_.map(func->returnType) : types_.void_type();
-    const bool sret = needs_sret(module_, ret);
+    const bool sret = abi::needs_sret(module_, ret);
     std::vector<TypeId> ptypes;
     // vtable slots are called as `fn(void* self, ...)`; the interface's `self`
     // is an opaque pointer regardless of the concrete impl.
@@ -891,7 +876,7 @@ std::string MIRDeclEmitter::vtable_slot_type(FunctionDeclaration* func, const st
         TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
         if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
             pt = types_.pointer_type(module_.types.get(pt).element, true);
-        } else if (needs_aggregate(module_, pt)) {
+        } else if (abi::is_aggregate(module_, pt)) {
             pt = types_.pointer_type(pt, true);
         }
         ptypes.push_back(pt);

@@ -80,6 +80,13 @@ MIR-first mandate (§0) already says "always lowers … to MIR and always emits 
 
 ### 2.0 Progress log (live)
 
+- **Debug info is complete (session 15, 2026-10-14).** Checkpoint **8.10** is
+  done: MIR carries the source name and lexical scope of every named place and
+  the extent of every source scope, and `CodegenMir` emits a `DILocalVariable` +
+  `dbg.declare` record per local and a `DILexicalBlock` per scope, so the
+  executable's DWARF has 1084 `DW_TAG_variable` and 61 `DW_TAG_lexical_block` on
+  the probe where it previously had none. `debug_quick` still emits no DI at all.
+  New smoke check: `./scripts/mir-debug-info-check.sh`. Details: **§2.6**.
 - **Foundation started (uncommitted).** `compiler/mir/MIRTypeTable.h` /
   `MIRTypeBuilder.{h,cpp}` now fill ordered runtime **aggregate field tables**
   (structs, unions, variants with tag + per-case payload structs, enums) and a
@@ -434,8 +441,13 @@ backend gets them too.
   `compiler/CodegenMir.cpp` lowers MIR to LLVM; the C ABI is mirrored.
 - ~~**Async is MIR-lowered only for C.**~~ **DONE.** Async lowers to a MIR state
   machine emitted by both backends; `LLVMCoroutine.cpp` is dead.
-- **Still open for full §5.1 DI parity:** `llvm.dbg.declare`/`dbg.value` for
-  locals (needs local variable names in MIR) and `DILexicalBlock`s.
+- ~~**Still open for full §5.1 DI parity:** `llvm.dbg.declare`/`dbg.value` for
+  locals and `DILexicalBlock`s.~~ **DONE (session 15).** MIR now carries the
+  source name of every named place (`MIRPlaceDef::debug_name` + the lexical scope
+  it was declared in, `debug_scope`) and a lexical-scope table
+  (`MIRLexicalScope`), and `CodegenMir` emits a `DILocalVariable` +
+  `dbg.declare` record per local and a `DILexicalBlock` per source scope. See
+  §2.6 and §7 checkpoint 8.10.
 
 ### 2.3 Health of the LLVM gate (read before trusting it)
 
@@ -617,10 +629,86 @@ neither the two files nor the subdirectory the test creates (`is_dir` comes from
 per-entry `lstat` in `lang/libs/fs/posix/directory.ch`). Pre-existing `fs` /
 environment issue, not a codegen regression — it is *not* fixed here.
 
-**What remains in the migration is not deletion:** the DI polish of §5.1
-(`llvm.dbg.declare`/`dbg.value` for locals, `DILexicalBlock`s) and the evaluation's
-action plan (compile time / peak memory / binary size) in
-`lang/docs/mir-migration-evaluation.md`.
+**What remains in the migration is not deletion:** ~~the DI polish of §5.1~~
+(done in session 15, §2.6) and the evaluation's action plan (compile time / peak
+memory / binary size) in `lang/docs/mir-migration-evaluation.md`.
+
+### 2.6 Session 15 (2026-10-14) — debug info is complete: locals and lexical blocks
+
+Checkpoint **8.10** is done. The MIR→LLVM path already emitted
+`DICompileUnit`/`DISubprogram`/`DILocation`/DI types (session 12); what was
+missing was everything a debugger needs to *name a local* and to *scope it*.
+Nothing in MIR recorded that a place had a source name, and the LLVM emitter had
+no scope table, so `--mode debug_complete` produced line info with no variables.
+
+**MIR now carries the metadata (debug builds only).**
+
+- `MIRPlaceDef::debug_name` — the source identifier of a named place, as an
+  interned String `ConstantId` (`MIR_INVALID_ID` = a temporary / call result /
+  frame field). `MIRPlaceDef::debug_scope` — the lexical scope it was declared
+  in.
+- `MIRLexicalScope` (new) — `parent`, the half-open `inst_begin`/`inst_end`
+  instruction range, and the scope's own source location.
+- `MIRBuilder::set_place_debug_name` / `push_lexical_scope` / `pop_lexical_scope`.
+  `MIRLowerer::bind_name` records the name + current scope; the lowerer wraps
+  every statement body (`lower_scope`, the `Block`/`Scope`/`UnsafeBlock`
+  statement cases, `lower_scope_value`) in a lexical scope. All of it is behind
+  `MIRLowerer::set_debug_info`, wired from `options->debug_info` next to the
+  existing source-location provider, so release / `debug_quick` records nothing
+  and pays nothing. `lexical_scope_of_inst` picks the innermost scope of an
+  instruction by the highest matching index (scopes are pushed LIFO, so ranges
+  nest and a nested scope always has a higher index).
+
+**The emitter consumes it.** `CodegenMir` creates a `DILexicalBlock` per
+`MIRLexicalScope` (parents are created first — the table is in push order),
+attaches each instruction's `DILocation` to the innermost block covering it, and
+emits a `DILocalVariable` + `dbg.declare` record on every named place's alloca,
+with the variable owned by the scope it was declared in. Locals stay in memory
+in MIR (an `alloca` plus explicit load/store — no SSA-local promotion in either
+backend), so `dbg.declare` is the semantically right intrinsic and no `dbg.value`
+is needed; `AlwaysPreserve` keeps the variables through `DIBuilder::finalize`.
+
+**Measured** on `lang/compiled/perfprobe` (`--mode debug_complete --assertions
+--out-ll-all`, 4 modules):
+
+| Check | Before | After |
+|---|---:|---:|
+| IR `DILexicalBlock` | 0 | **491** |
+| IR `DILocalVariable` | 0 | **1084** |
+| IR `dbg.declare` records (`#dbg_declare`) | 0 | **1084** |
+| DWARF `DW_TAG_variable` | 0 | **1084** (named `self`, `value`, `index`, `i`, …) |
+| DWARF `DW_TAG_lexical_block` | 0 | **61** |
+
+(`DW_TAG_lexical_block` < the IR count because LLVM prunes scopes that own no
+variable.) `DILocation` rises 2734 → 3016 as locations move from the subprogram
+to their lexical block. Program output is unchanged.
+
+**Gating verified:** the same module built `--mode debug_quick` emits **0**
+`DI*` nodes, **0** `#dbg_*` records, and the executable has **no** `.debug_info`
+section.
+
+**No `dbg.value` by design.** The requirement in §5.1 lists
+`llvm.dbg.declare`/`llvm.dbg.value`; `dbg.declare` covers memory-resident locals,
+which is all MIR has. A note in the emitter records the reasoning so a later
+optimizer-driven change can revisit it.
+
+**Smoke check added:** `scripts/mir-debug-info-check.sh` builds its own fixture
+(a struct method, an `if/else` with a nested local, a loop) and asserts:
+`debug_complete` → `DICompileUnit`/`DISubprogram`/`DILocation`/`DILexicalBlock`/
+`DIBasicType`/`DICompositeType`/`DILocalVariable`/`dbg.declare` in the IR **and**
+`.debug_info`/`.debug_line`/`DW_TAG_variable`/`DW_TAG_lexical_block` in the
+executable; `debug_quick` → none of them; both print identical output. It exits
+non-zero on any gap, and it is *sensitive* — the pre-change compiler would have
+failed it on `DILexicalBlock` and `dbg.declare`, both 0. (`--no-build` reuses the
+existing binary.) It is a script the checkpoint runs, not a GitHub workflow step:
+the repo's workflows test released binary assets from `chemicallang/chemical`,
+not a source build, so there is no existing build job to attach it to.
+
+**Suites (all green, exit status captured):** `MIRTests` **1111 checks**,
+`--llvm` **2298/2298** (also re-run with `--mode debug_complete` — that is the run
+that actually executes the new DI code — **2298/2298**), `--tcc` **2300/2300**,
+`--tcc --async` **53/53**, `--llvm --async` **53/53**,
+`./scripts/mir-debug-info-check.sh` **PASS**.
 
 ---
 
@@ -848,10 +936,16 @@ the pre-existing LLVM-suite breakage, §2.3) and `MIRTests` green.
   left behind, the three orphan headers, and the vestigial `destruct_nodes`-based
   `forget`; restored the per-function unwind policy (`uwtable`/`nounwind`) that
   the deleted `create_func` used to apply. See §2.5.
-- **8.10 — Debug-info parity & sign-off. Partly done (session 12):** MIR→LLVM
+- **8.10 — Debug-info parity & sign-off. ✅ DONE (session 15).** MIR→LLVM
   emits `DICompileUnit`/`DISubprogram`/`DILocation`/DI types and a real line
-  table. Remaining: `llvm.dbg.declare`/`dbg.value` for locals and
-  `DILexicalBlock`s; add a debug-info smoke test/CI check.
+  table (session 12), and now also `DILocalVariable` + `dbg.declare` records for
+  every named local and a `DILexicalBlock` per source scope, mirrored into the
+  executable's DWARF (`DW_TAG_variable`, `DW_TAG_lexical_block`). No
+  `dbg.value` is emitted: MIR keeps every local in memory (an `alloca` plus
+  explicit load/store), so `dbg.declare` is the correct intrinsic — the same
+  thing the deleted AST backend's `DebugInfoBuilder::declare` did. The smoke
+  check is `scripts/mir-debug-info-check.sh`, which asserts both the presence of
+  DI in `debug_complete` **and its absence in `debug_quick`**. See §2.6.
 
 ---
 
@@ -956,11 +1050,33 @@ gdb -batch -ex run -ex bt --args ./lang/compiled/my_test/main.exe
 
 ### 9.4 Debug-info check (mandatory per checkpoint)
 
+Run the script — it builds its own fixture, checks both modes and exits non-zero
+on any gap (see §7 checkpoint 8.10):
+
 ```bash
-grep -E "DICompileUnit|DISubprogram|DILocation|DIBasicType|DICompositeType|dbg.declare" \
+./scripts/mir-debug-info-check.sh              # build the Compiler, then check
+./scripts/mir-debug-info-check.sh --no-build   # use the existing binary
+```
+
+It asserts that a `debug_complete` build carries `DICompileUnit`, `DISubprogram`,
+`DILocation`, `DILexicalBlock`, `DIBasicType`, `DICompositeType`,
+`DILocalVariable` and per-local `dbg.declare` records in the IR plus
+`.debug_info`/`.debug_line`/`DW_TAG_variable`/`DW_TAG_lexical_block` in the
+executable, that a `debug_quick` build carries **none** of them, and that both
+builds print identical output.
+
+Manual spot check:
+
+```bash
+grep -E "DICompileUnit|DISubprogram|DILocation|DILexicalBlock|DIBasicType|DICompositeType|dbg.declare" \
     lang/compiled/my_test/build/modules/*/llvm_ir.ll | head
+readelf --debug-dump=info lang/compiled/my_test/main.exe | grep -E "DW_TAG_variable|DW_TAG_lexical_block" | head
 readelf --debug-dump=decodedline lang/compiled/my_test/main.exe | head   # or llvm-dwarfdump
 ```
+
+> LLVM ≥ 19 prints `dbg.declare` as a **debug record** (`#dbg_declare(ptr %1, !23,
+> !DIExpression(), !24)`) rather than an `@llvm.dbg.declare` call. Both spellings
+> are emitted by `DIBuilder::insertDeclare`; the script accepts either.
 
 ### 9.5 Useful flags
 

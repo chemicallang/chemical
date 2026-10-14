@@ -764,6 +764,36 @@ uint32_t MIRBuilder::pop_cleanup_scope() {
     return idx;
 }
 
+uint32_t MIRBuilder::push_lexical_scope(const MIRSourceLoc& loc, bool has_loc) {
+    MIRLexicalScope scope;
+    scope.parent = lexical_sp_;
+    scope.inst_begin = static_cast<uint32_t>(func_.instructions.size());
+    scope.loc = loc;
+    scope.has_loc = has_loc;
+    func_.lexical_scopes.push_back(scope);
+    lexical_sp_ = static_cast<uint32_t>(func_.lexical_scopes.size() - 1);
+    return lexical_sp_;
+}
+
+uint32_t MIRBuilder::pop_lexical_scope() {
+    if (lexical_sp_ == MIR_INVALID_ID) return MIR_INVALID_ID;
+    const uint32_t idx = lexical_sp_;
+    func_.lexical_scopes[idx].inst_end = static_cast<uint32_t>(func_.instructions.size());
+    lexical_sp_ = func_.lexical_scopes[idx].parent;
+    return idx;
+}
+
+void MIRBuilder::set_place_debug_name(PlaceId place, const char* data, uint32_t len) {
+    if (place >= func_.places.size() || !data || len == 0) return;
+    // First name wins: a place is bound once, and a rewritten name (an async
+    // slot reusing a local's storage) must not overwrite the source name.
+    if (func_.places[place].debug_name != MIR_INVALID_ID) return;
+    func_.places[place].debug_name = module_.constants.add_string(MIR_INVALID_ID, data, len);
+    // Declared in the scope that is currently open, so its `DILocalVariable`
+    // belongs to that scope's lexical block, not to the function.
+    func_.places[place].debug_scope = lexical_sp_;
+}
+
 void MIRBuilder::register_owned(PlaceId place) {
     func_.owned_places.push_back(place);
     if (cleanup_sp_ != MIR_INVALID_ID) {

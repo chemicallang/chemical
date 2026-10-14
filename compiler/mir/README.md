@@ -3,11 +3,15 @@
 Branch: `mir`. Contract: `lang/docs/mir-implementation-plan.md` (§0 mandate,
 §11 baselines) and `lang/docs/mir-design.md` (§19 generated-C analysis).
 
-> **Next phase — MIR → LLVM migration:** the LLVM backend still lowers from the
-> AST and must be deleted and re-implemented as MIR → LLVM (with DWARF debug
-> info preserved through MIR). The full handoff, plan, prerequisites, debug-info
-> requirement, bug/test policy, and the copy/paste resume prompt live in
-> **`lang/docs/mir-llvm-migration.md`**. Read it before starting that work.
+> **MIR → LLVM migration: COMPLETE.** The LLVM backend lowers from MIR (the
+> AST-based `llvm_*` lowering is deleted), and DWARF debug info flows through MIR
+> — compile unit, subprograms, locations, types, lexical blocks and per-local
+> `dbg.declare` records (checkpoints 8.9/8.11/8.10, sessions 13–15). The full
+> handoff, plan, hard requirements and bug/test policy live in
+> **`lang/docs/mir-llvm-migration.md`**; the per-checkpoint log is in §2 of that
+> doc and the sessions below. Future work is the *evaluation* action plan
+> (`lang/docs/mir-migration-evaluation.md`): compile time, peak memory,
+> generated-code and binary size.
 
 MIR is the compiler's C lowering path. Read the plan before changing anything
 here. Binding rules: **no feature flags, no legacy fallback, no capability
@@ -36,14 +40,19 @@ compiler):
 Root causes (all with file/line evidence in the evaluation doc):
 
 1. **Declarations are still AST-based.** `MIRDeclEmitter` walks the AST (not
-   `MIRTypeRecord`); C type spelling is implemented twice (`MIREmitter` and
-   `MIRDeclEmitter`). There is no single decl source for C, LLVM, JVM, JS.
-   **Aggregate layout is no longer on this list:** as of session 10 the
-   `size`/`alignment` of every aggregate and the byte offset of every field are
-   computed in MIR (`MIRLayout.h`, action A1) — the remaining A items are moving
-   the declaration path onto them (A2/A3).
+   `MIRTypeRecord`). There is no single decl source for C, LLVM, JVM, JS.
+   **Aggregate layout is no longer on this list** (session 10: `MIRLayout.h`
+   computes every aggregate `size`/`alignment` and every field offset, action
+   A1), and neither is **C type spelling** (action A2, verified session 15:
+   `MIREmitter`'s `c_type_of`/`c_declarator`/`c_decl_type`/`c_function_proto` is
+   the only speller — `MIRDeclEmitter::type_spelling`/`decl_spelling` are the two
+   `BaseType*` → `TypeId` adapters that call it). The remaining A item is A3: a
+   MIR declaration table so the declaration path stops walking the AST.
 2. **Every backend is a full independent dispatcher** (`MIREmitter` 1.6k lines,
-   `CodegenMir` 2.2k lines) with no shared ABI/traversal/naming.
+   `CodegenMir` 2.4k lines), but the **ABI classification is now shared**
+   (`compiler/mir/MIRABI.h`, action B step 1, session 15) instead of written out
+   nine times across three translation units. Shared traversal, naming, block
+   iteration and `MIRValueFacts` are still open.
 3. **Hot-path violations of the plan**: 18 `unordered_map`/sets in `MIRLowerer`,
    and `MIRLowerer.cpp` is one 8,224-line TU. The O(n) linear-scan
    `MIRTypeTable::intern` / `MIRConstantPool::add` were **fixed in session 7**
@@ -58,6 +67,45 @@ Root causes (all with file/line evidence in the evaluation doc):
 Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
+
+### Session 15 (2026-10-14) — debug info from MIR is complete (checkpoint 8.10)
+
+MIR→LLVM debug info had a compile unit, subprograms, locations and types but **no
+locals and no scopes**, so `--mode debug_complete` produced a line table a
+debugger could not name a variable from. MIR now carries what the emitter needs:
+
+- `MIRPlaceDef::debug_name` (an interned String `ConstantId` — the source
+  identifier of a named place) and `MIRPlaceDef::debug_scope` (the lexical scope
+  it was declared in). Set by `MIRBuilder::set_place_debug_name`, called from
+  `MIRLowerer::bind_name`.
+- `MIRLexicalScope` + `MIRBuilder::push_lexical_scope`/`pop_lexical_scope`: the
+  half-open instruction range and source location of every source scope. The
+  lowerer wraps each statement body in one (`lower_scope`, the
+  `Block`/`Scope`/`UnsafeBlock` statement cases, `lower_scope_value`).
+  `MIRFunction::lexical_scope_of_inst` returns the innermost scope of an
+  instruction (scopes are pushed LIFO, so the highest matching index is the
+  innermost).
+- `MIRLowerer::set_debug_info` gates all of it, wired from `options->debug_info`
+  beside the source-location provider — release / `debug_quick` records nothing
+  and pays nothing.
+
+`CodegenMir` turns that into a `DILexicalBlock` per scope (each instruction's
+`DILocation` is scoped to the innermost block covering it) and a
+`DILocalVariable` + `dbg.declare` record per named place, owned by its declaring
+scope. **No `dbg.value`**: every MIR local is memory-resident (an `alloca` plus
+explicit load/store in both backends), so `dbg.declare` is the right intrinsic —
+the same thing the deleted AST backend's `DebugInfoBuilder::declare` did.
+
+Measured on `lang/compiled/perfprobe` (`debug_complete`): IR `DILexicalBlock`
+0 → **491**, `DILocalVariable` and `#dbg_declare` records 0 → **1084**, DWARF
+`DW_TAG_variable` 0 → **1084**, `DW_TAG_lexical_block` 0 → **61**;
+`DILocation` 2734 → 3016. `debug_quick` still emits 0 `DI*` nodes, 0 `#dbg_*`
+records and no `.debug_info` section. Suites: `MIRTests` **1111 checks**,
+`--llvm` **2298/2298** (and **2298/2298** with `--mode debug_complete`, which is
+what exercises the new code), `--tcc` **2300/2300**, `--tcc --async` **53/53**,
+`--llvm --async` **53/53**. Smoke check:
+`./scripts/mir-debug-info-check.sh` (asserts DI present in `debug_complete`
+**and absent** in `debug_quick`).
 
 ### Session 14 (2026-10-14) — the dead LLVM shell is gone (checkpoint 8.11)
 

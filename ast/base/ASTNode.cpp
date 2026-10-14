@@ -5,7 +5,6 @@
 #include "BaseType.h"
 #include "Value.h"
 #include "ast/structures/VariantDefinition.h"
-#include "compiler/Codegen.h"
 #include "ast/values/VariantCaseVariable.h"
 #include "ast/structures/VariantMemberParam.h"
 #include "ast/structures/VariantMember.h"

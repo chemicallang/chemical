@@ -59,6 +59,32 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 14 (2026-10-14) — the dead LLVM shell is gone (checkpoint 8.11)
+
+Session 13 deleted the AST lowering; its *API* survived as declarations with no
+definitions in `Codegen`/`DebugInfoBuilder`, plus three orphan headers. All of it
+is now deleted: `compiler/Codegen.h` **855 → 257** lines and
+`compiler/Codegen.cpp` **1,229 → 886** (destructible queue, dyn-object helpers,
+AST declare/compile API, `operate`/`implicit_cast`, loop/terminator wrappers,
+per-task AST caches, coroutine state, write-only leftovers);
+`DebugInfoBuilder` **152 → 95** / `.cpp` **240 → 82** (only the MIR-used compile
+unit API is left — `instr`/`di_loc` had no callers); `LLVMCoroutine.h`,
+`LLVMArrayDestructor.h` and `TraitImplFuncMapKey.h` are deleted;
+`LLVMBackendContext` is stateless (`forget` is the same no-op the C backend has).
+
+One behaviour was restored while deleting: the deleted `create_func` was the only
+place applying the per-function unwind policy, so `-fno-unwind-tables` had become
+a no-op and `debug_complete` stopped forcing unwind tables. `Codegen::mir_function`
+now applies it (`uwtable` in `debug`/`debug_complete` unless `fno_unwind_tables`,
+else `nounwind`; safe — MIR never emits `invoke`/`landingpad`).
+
+Suites: `--llvm` **2298/2298**, `--tcc` **2300/2300**, `--llvm --async` **53/53**,
+`--tcc --async` **53/53**, `MIRTests` **1111 checks**. `--llvm --libs` is 718/719:
+the single failure is `test_fs_directory_iteration`, which fails identically in
+both prebuilt lib-test executables with no compiler involved (a pre-existing
+`fs::read_dir` `is_dir` issue on this filesystem). Full write-up:
+`lang/docs/mir-llvm-migration.md` §2.5.
+
 ### Session 13 (2026-10-13) — the AST-based LLVM lowering is DELETED (checkpoint 8.9)
 
 The AST LLVM lowering is gone. It was already unreachable

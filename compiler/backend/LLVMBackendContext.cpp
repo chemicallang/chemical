@@ -1,42 +1,22 @@
 // Copyright (c) Chemical Language Foundation 2025.
 //
-// `LLVMBackendContext` is the LLVM target's `BackendContext` (it answers
-// `intrinsics::supports`, `intrinsics::backend_name`, and the comptime
-// `intrinsics::forget` hook). Its former out-of-line definitions lived in the
-// AST-based `backend/LLVM.cpp`, which has been deleted.
-//
-// The hooks that emitted AST-lowered IR (`mem_copy`, `destruct_call_site`, and
-// the `atomic_*` intrinsics) are unreachable now: the MIR→LLVM path lowers
-// atomics, moves/copies and destructor call sites as first-class MIR ops (see
-// `MIRLowerer::lower_atomic_intrinsic` and the `Drop`/`Destroy`/`MemCpy` ops),
-// so they are provided here only to complete the vtable. `forget` is kept
-// faithful — it is reached at comptime by `intrinsics::forget` (used by
-// `std::vector`, `std::deque`, `json`, …) and only touches `Codegen`'s
-// destructible list.
+// These hooks used to emit AST-lowered IR from `backend/LLVM.cpp`, which has been
+// deleted. MIR lowers moves/copies, destructor call sites and atomics as
+// first-class ops (see `MIRLowerer::lower_atomic_intrinsic` and the
+// `Drop`/`Destroy`/`MemCpy` opcodes), so this class holds no state and the hooks
+// below are inert; `forget` mirrors the C backend (which is also a no-op because
+// MIR drop flags decide destruction).
 
 #include "LLVMBackendContext.h"
 
-#include "compiler/Codegen.h"
-#include "ast/base/ASTNode.h"
-
-#include <algorithm>
-
-bool LLVMBackendContext::forget(ASTNode* targetNode) {
-    auto& gen = *gen_ptr;
-    auto it = std::find_if(
-            gen.destruct_nodes.begin(),
-            gen.destruct_nodes.end(),
-            [targetNode](auto& p) {
-                return p.getInitializer() == targetNode;
-            });
-    if (it == gen.destruct_nodes.end()) return false;
-    gen.destruct_nodes.erase(it);
-    return true;
+bool LLVMBackendContext::forget(ASTNode*) {
+    // MIR owns destruction via drop flags; nothing to forget here.
+    return false;
 }
 
-// The remaining hooks served the deleted AST lowering. The MIR path handles
-// their effects itself, so they are unreachable; they exist only for the vtable.
-void LLVMBackendContext::mem_copy(Value*, Value*) {}
+void LLVMBackendContext::mem_copy(Value*, Value*) {
+    // MIR emits struct copies directly; the legacy comptime hook is unused.
+}
 
 void LLVMBackendContext::destruct_call_site(SourceLocation) {}
 

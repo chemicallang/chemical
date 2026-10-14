@@ -757,11 +757,9 @@ set(COMPILER_SOURCES
         compiler/llvm-ar.cpp
         utils/ProcessUtils.h
         compiler/ClangCodegen.h
-        compiler/backend/include/LLVMArrayDestructor.h
         compiler/CodegenEmitterOptions.h
         compiler/SanitizerOptions.h
         compiler/CodegenOptions.h
-        compiler/utils/TraitImplFuncMapKey.h
 )
 
 # add Compiler executable

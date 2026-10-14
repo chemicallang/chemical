@@ -398,7 +398,7 @@ Skills in **bold** are the new comprehensive skills. Load them for maximum conte
 |------|---------|
 | `ast/` | AST node definitions (values, types, structures, statements) |
 | `compiler/` | Compilation pipeline |
-| `compiler/backend/LLVM.cpp` | LLVM codegen (primary backend) |
+| `compiler/CodegenMir.cpp` | MIR → LLVM emission (types, function bodies, globals, DWARF) — the LLVM backend |
 | `compiler/backend/CLANG.cpp` | Clang/LLVM driver integration |
 | `compiler/symres/` | Symbol resolution (semantic analysis) |
 | `compiler/lab/` | Build system (Lab), `build.lab` execution |
@@ -803,7 +803,7 @@ Values inserted in the **middle** of an enum break all subsequent values. Values
 
 ### External declarations must not use `dso_local`
 
-When a global variable is declared in another module (`submod_extern_globe_var`), do **not** set `dso_local` on the LLVM global value. The linker will reject `dso_local` + external declarations as mismatched. Relevant: `ast/statements/VarInit.cpp`, `compiler/backend/LLVM.cpp`.
+When a global variable is declared in another module (`submod_extern_globe_var`), do **not** set `dso_local` on the LLVM global value. The linker will reject `dso_local` + external declarations as mismatched. Relevant: `ast/statements/VarInit.cpp`, `compiler/CodegenMir.cpp` (`mir_function` / `mir_declare_globals`).
 
 ### Struct assignment: temp + destruct + memcpy
 

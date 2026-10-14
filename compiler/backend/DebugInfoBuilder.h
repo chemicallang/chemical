@@ -2,25 +2,23 @@
 
 #pragma once
 
-#include "ast/base/ast_fwd.h"
 #include "compiler/llvmfwd.h"
 #include "std/chem_string_view.h"
-#include "core/diag/Position.h"
-#include "core/source/SourceLocation.h"
 #include <vector>
-#include <unordered_map>
 
 class LocationManager;
 
-class ASTAny;
-
 class Codegen;
 
-struct ASTFileResult;
-
 /**
- * the debug information visitor is created for emitting debug information
- * the object of debug info builder is created once for each task (executable)
+ * Emits DWARF debug information for the LLVM target.
+ *
+ * The builder is created once per task and driven by the MIR → LLVM emitter
+ * (`compiler/CodegenMir.cpp`): that emitter builds the compile unit, the
+ * `DISubprogram` per function and the `DIType`s from the MIR type/layout tables,
+ * and attaches locations to instructions itself. The AST-shaped API
+ * (`create_struct_type`, `create(FunctionTypeBody*, ...)`, file/lexical/function
+ * scopes, `instr(...)`) was part of the AST LLVM lowering and went away with it.
  */
 class DebugInfoBuilder {
 public:
@@ -37,11 +35,6 @@ public:
     bool isOptimized;
 
     /**
-     * the location manager provides the locations for every
-     */
-    LocationManager& loc_man;
-
-    /**
      * the llvm di builder
      */
     llvm::DIBuilder* builder;
@@ -52,50 +45,26 @@ public:
     Codegen& gen;
 
     /**
-     * the scopes
+     * the scopes currently open. The MIR path only ever opens the compile unit
+     * of the module being emitted; it is kept as a stack so a future nested
+     * scope (lexical block / nested subprogram) can be pushed.
      */
     std::vector<llvm::DIScope*> diScopes;
 
     /**
-     * the compile unit is the unit associated with current file
+     * the compile unit is the unit associated with the current file
      * created via call to createDiCompileUnit
      */
     llvm::DICompileUnit* diCompileUnit = nullptr;
 
     /**
-     * we store pointers in this case
-     */
-    std::unordered_map<ASTAny*, llvm::DIType*> cachedTypes;
-
-    /**
-     * these are only created when self referential data types are used
-     */
-    std::vector<std::pair<ASTNode*, llvm::DICompositeType*>> replaceAbleTypes;
-
-    /**
-     * file scopes created for files are cached
-     */
-    std::unordered_map<ASTFileResult*, llvm::DIFile*> fileScopes;
-
-    /**
-     * create a info visitor for a single module
+     * create a debug info builder for a single task
      */
     DebugInfoBuilder(
-            LocationManager& loc_man,
             llvm::DIBuilder* builder,
             Codegen& gen,
             bool isEnabled
     );
-
-    /**
-     * struct type will be created
-     */
-    llvm::DICompositeType* create_struct_type(StructDefinition* def);
-
-    /**
-     * creates replaceable composite type
-     */
-    llvm::DICompositeType* create_replaceable_type(StructDefinition* def);
 
     /**
      * a compile unit is created for every file
@@ -103,7 +72,8 @@ public:
     llvm::DICompileUnit* createDiCompileUnit(const chem::string_view& file_abs_path);
 
     /**
-     * this function should be called every time module changes
+     * this function should be called every time the module (and therefore its
+     * DIBuilder) changes
      */
     void update_builder(llvm::DIBuilder* builder);
 
@@ -113,40 +83,7 @@ public:
     void finalize();
 
     /**
-     * get a pointer to di location
-     */
-    llvm::DILocation* di_loc(const Position& position);
-
-protected:
-
-    llvm::DIScope* create(FunctionTypeBody* decl, llvm::Function* func);
-
-public:
-
-    /**
-     * this sets the debug location for a given instruction
-     */
-    void instr(llvm::Instruction* inst, const Position& position);
-
-    /**
-     * this sets the debug location for a given instruction
-     */
-    void instr(llvm::Instruction* inst, SourceLocation location);
-
-    /**
-     * this is just a helper method for nodes, values and types that have encoded locations
-     * for which instructions are generated
-     */
-    template <typename NodeT>
-    inline void instr(llvm::Instruction* inst, NodeT* node)
-    requires requires(NodeT n) { n.encoded_location(); }
-    {
-        instr(inst, node->encoded_location());
-    }
-
-    /**
      * when you start the di compile unit, you must end the compile unit as well
-     * use the end_current_scope to end the compile unit
      */
     void start_di_compile_unit(llvm::DICompileUnit* unit);
 
@@ -154,72 +91,5 @@ public:
      * this ends the current di compile unit
      */
     void end_di_compile_unit();
-
-    /**
-     * start file scope for given file result
-     */
-    void start_file_scope(ASTFileResult* meta);
-
-    /**
-     * end the file scope
-     */
-    void end_file_scope();
-
-    /**
-     * starts a nested function scope
-     */
-    void start_nested_function_scope(FunctionTypeBody *decl, llvm::Function* func);
-
-    /**
-     * this creates the function scope and starts it, so further code generation uses the function scope
-     * after calling this, a call to end_current_scope must be made
-     */
-    void start_function_scope(FunctionTypeBody *decl, llvm::Function* func);
-
-    /**
-     * this ends the current function scope
-     */
-    void end_function_scope();
-
-    /**
-     * starts a function scope for a compiler-generated function (a coroutine
-     * `poll` / `drop` / other synthetic function) which has no FunctionTypeBody
-     * of its own. The subprogram is named after the function and carries no
-     * parameters. `location` is used for its line number.
-     *
-     * This is required because the async lowering emits debug locations for
-     * instructions belonging to generated functions; without a DISubprogram
-     * pushed, `di_loc` would fall back to the file scope, and a DILocation whose
-     * scope is a DIFile fails LLVM verification ("location requires a valid
-     * scope").
-     *
-     * a call to end_function_scope must be made to end it
-     */
-    void start_generated_function_scope(llvm::Function* func, SourceLocation location);
-
-    /**
-     * start a lexical code block, a end_current_scope call is expected after this
-     */
-    void start_scope(SourceLocation location);
-
-    /**
-     * this ends a local scope
-     */
-    void end_scope();
-
-    /**
-     * when a function needs to be declared (has no body, just a prototype)
-     */
-    inline void declare(FunctionType *decl, llvm::Function* func) {
-        if(isEnabled) {
-            // there was no debug information associated with a declared function for a c compiled file
-            // therefore currently we're not doing anything here
-        }
-    }
-
-    /**
-     * should be called when a var init is declared
-     */
-    void declare(VarInitStatement *init, llvm::Value* allocaInst);
 
 };

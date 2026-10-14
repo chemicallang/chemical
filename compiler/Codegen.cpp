@@ -2,33 +2,17 @@
 
 #ifdef COMPILER_BUILD
 
-#include "ast/base/ASTNode.h"
 #include "Codegen.h"
-#include "ast/structures/Scope.h"
 #include "SelfInvocation.h"
+#include "ast/base/GlobalInterpretScope.h"
+#include "std/except.h"
 #include "utils/CmdUtils2.h"
 #include <utility>
 #include "llvmimpl.h"
-#include "ast/base/Value.h"
-#include "ast/base/BaseType.h"
-#include "ast/values/FunctionCall.h"
-#include "ast/types/GenericType.h"
-#include "ast/types/ArrayType.h"
-#include "ast/structures/VariantMember.h"
-#include "ast/structures/StructDefinition.h"
-#include "ast/structures/Namespace.h"
 #include <string>
 #include <system_error>
 #include "lld/Common/Driver.h"
 #include "lld/Common/ErrorHandler.h"
-#include "ast/types/IntNType.h"
-#include "ast/types/DynamicType.h"
-#include "ast/structures/InterfaceDefinition.h"
-#include "ast/structures/If.h"
-#include "ast/statements/VarInit.h"
-#include "ast/values/NullValue.h"
-#include "ast/values/RuntimeValue.h"
-#include "ast/types/CapturingFunctionType.h"
 #include <cstdlib>
 #include <optional>
 #include <llvm/TargetParser/Host.h>
@@ -88,9 +72,7 @@
 #include "rang.hpp"
 #include "compiler/mangler/NameMangler.h"
 #include "compiler/lab/LabBuildCompiler.h"
-#include "ast/utils/ASTUtils.h"
 #include "InvokeUtils.h"
-#include "ast/values/LambdaFunction.h"
 
 Codegen::Codegen(
         CodegenOptions& options,
@@ -101,20 +83,17 @@ Codegen::Codegen(
         ImplementationsIndex& implsIndex,
         std::string target_triple,
         std::string curr_exe_path,
-        bool is_64_bit,
         bool debug_info,
         ASTAllocator& allocator
 ) : ASTDiagnoser(comptime_scope.loc_man), binder(binder), options(options), comptime_scope(comptime_scope), allocator(allocator),
-    target_triple(std::move(target_triple)), is64Bit(is_64_bit),
-    di(comptime_scope.loc_man, nullptr, *this, debug_info), mode(comptime_scope.mode),
+    target_triple(std::move(target_triple)),
+    di(nullptr, *this, debug_info), mode(comptime_scope.mode),
     mangler(mangler), coreNodes(coreNodes), implsIndex(implsIndex)
 {
     // create llvm context
     ctx = std::make_unique<llvm::LLVMContext>();
     // creating a new ir builder
     builder = new llvm::IRBuilder<>(*ctx);
-    // create an interface module
-    interface_module = std::make_unique<llvm::Module>("interface.module", *ctx);
 }
 
 
@@ -128,9 +107,7 @@ bool Codegen::is_arch_64bit(const std::string_view& target_triple) {
     return triple.isArch64Bit();
 }
 
-void Codegen::module_init(const chem::string_view& scope_name, const chem::string_view& module_name, ModuleScope* mod_scope) {
-    this->current_module = mod_scope;
-
+void Codegen::module_init(const chem::string_view& scope_name, const chem::string_view& module_name) {
     // final module name = 'scope_name' + '-' + 'module_name'
     std::string final_module_name;
     if(!scope_name.empty()) {
@@ -180,327 +157,9 @@ void Codegen::module_init(const chem::string_view& scope_name, const chem::strin
 }
 
 
-
-
-/// Implicitly casts an integer constant to the target integer type,
-/// performing sign or zero extension (or truncation) as needed.
-/// Returns a llvm::ConstantInt* if the conversion is valid, or nullptr if not.
-
-inline llvm::BasicBlock* createEntryBlock(Codegen& gen, llvm::Function *fn) {
-    return llvm::BasicBlock::Create(*gen.ctx, std::string_view("entry"), fn);
-}
-
-
-
-llvm::Function::LinkageTypes to_linkage_type(AccessSpecifier specifier) {
-    switch (specifier) {
-        case AccessSpecifier::Private:
-            return llvm::Function::PrivateLinkage;
-        case AccessSpecifier::Public:
-        case AccessSpecifier::Protected:
-            return llvm::Function::ExternalLinkage;
-        case AccessSpecifier::Internal:
-            return llvm::Function::InternalLinkage;
-        default:
-#ifdef DEBUG
-            CHEM_THROW_RUNTIME("unknown access specifier in to linkage type");
-#endif
-            return llvm::Function::InternalLinkage;
-
-    }
-}
-
-/**
- * all functions must be created through this
- * because it creates the function according to the mode
- */
-llvm::Function* create_func(
-        Codegen& gen,
-        const std::string_view &name,
-        llvm::FunctionType *type,
-        llvm::Function::LinkageTypes linkage
-) {
-    auto fn = llvm::Function::Create(type, linkage, name, *gen.module);
-    fn->setDSOLocal(true);
-    // we add the uwtable attribute in debug mode, because we need it to be generated (at least on windows, I think)
-    // this will generate the unwind tables, which are required for call stack information
-    if(is_debug_or_compl(gen.mode) && !gen.options.fno_unwind_tables) {
-        fn->addFnAttr(llvm::Attribute::UWTable);
-    } else {
-        fn->addFnAttr(llvm::Attribute::NoUnwind);
-    }
-    return fn;
-}
-
-llvm::Value* createDropFlag(Codegen & gen, SourceLocation location) {
-    // create a boolean flag
-    const auto instr = gen.builder->CreateAlloca(gen.builder->getInt1Ty());
-    gen.di.instr(instr, location);
-
-    // store true in it, that this value should be destructed
-    const auto storeIns = gen.builder->CreateStore(gen.builder->getInt1(true), instr);
-    gen.di.instr(storeIns, location);
-
-    // return instruction
-    return instr;
-}
-
-Destructible create_destructible(
-        llvm::Value* pointer,
-        llvm::Value* dropFlag,
-        ASTNode* node,
-        ASTNode* containerNode
-) {
-    return Destructible{
-            .kind = DestructibleKind::Single,
-            .initializer = node,
-            .dropFlag = dropFlag,
-            .pointer = pointer,
-            .container = containerNode
-    };
-}
-
-Destructible create_arr_destructible(
-        llvm::Value* pointer,
-        llvm::Value* dropFlag,
-        ASTNode* node,
-        unsigned int arrSize,
-        BaseType* elemType
-) {
-    return Destructible{
-            .kind = DestructibleKind::Array,
-            .initializer = node,
-            .dropFlag = dropFlag,
-            .pointer = pointer,
-            .array = {
-                    .arrSize = arrSize,
-                    .elem_type = elemType
-            }
-    };
-}
-
-std::optional<Destructible> create_destructible_with_drop_flag(
-        Codegen& gen,
-        llvm::Value* pointer,
-        ASTNode* node,
-        ASTNode* containerNode,
-        SourceLocation location,
-        llvm::Value* oldDropFlag
-) {
-    const auto container = containerNode->get_members_container();
-    if(container) {
-        const auto destructor = container->destructor_func();
-        if(destructor) {
-            const auto dropFlag = oldDropFlag ? oldDropFlag : createDropFlag(gen, location);
-            return create_destructible(
-                    pointer, dropFlag, node, containerNode
-            );
-        }
-    } else if(containerNode->kind() == ASTNodeKind::VariantMember) {
-        return create_destructible_with_drop_flag(gen, pointer, node, (ASTNode*) containerNode->as_variant_member_unsafe()->parent(), location, oldDropFlag);
-    }
-    return std::nullopt;
-}
-
-ASTNode* get_destructible_type_node(BaseType* type) {
-    switch(type->kind()) {
-        case BaseTypeKind::CapturingFunction:{
-            const auto instType = type->as_capturing_func_type_unsafe()->instance_type;
-            return get_destructible_type_node(instType);
-        }
-        case BaseTypeKind::Linked:
-            return type->as_linked_type_unsafe()->linked;
-        case BaseTypeKind::Generic:
-            return type->as_generic_type_unsafe()->referenced->linked;
-        case BaseTypeKind::Array:
-            return get_destructible_type_node(type->as_array_type_unsafe()->elem_type->canonical());
-        default:
-            return nullptr;
-    }
-}
-
-std::optional<Destructible> create_destructible_for(
-        Codegen& gen,
-        ASTNode* node,
-        BaseType* nonCanonType,
-        llvm::Value* pointer,
-        llvm::Value* oldDropFlag
-) {
-    const auto type = nonCanonType->canonical();
-    const auto linkedNode = get_destructible_type_node(type);
-    if(linkedNode) {
-        if(type->kind() == BaseTypeKind::Array) {
-            const auto arrType = type->as_array_type_unsafe();
-            const auto container = linkedNode->get_members_container();
-            if(container->destructor_func() == nullptr) {
-                return std::nullopt;
-            }
-            const auto dropFlag = oldDropFlag ? oldDropFlag : createDropFlag(gen, node->encoded_location());
-            return create_arr_destructible(
-                    pointer, dropFlag, node, arrType->get_array_size(), linkedNode->known_type()
-            );
-        } else {
-            return create_destructible_with_drop_flag(gen, pointer, node, linkedNode, node->encoded_location(), oldDropFlag);
-        }
-    }
-    return std::nullopt;
-}
-
-
-
-
-
-
-
-
-
-
-void create_return_of_type(Codegen& gen, llvm::Type* retType, SourceLocation location) {
-    if (retType->isVoidTy()) {
-        gen.CreateRet(nullptr, location);
-    } else if (retType->isIntegerTy()) {
-        gen.CreateRet(llvm::ConstantInt::get(retType, 0), location);
-    } else if (retType->isFloatingPointTy()) {
-        gen.CreateRet(llvm::ConstantFP::get(retType, 0.0), location);
-    } else if (retType->isPointerTy()) {
-        gen.CreateRet(llvm::ConstantPointerNull::get(llvm::cast<llvm::PointerType>(retType)), location);
-    } else {
-        // For other return types (e.g. structs), return an undefined value.
-        gen.CreateRet(llvm::UndefValue::get(retType), location);
-    }
-}
-
-
-
-bool has_allocated_storage(Value* value) {
-    if(value->is_func_call()) {
-        // values (references) returned from a function call, do not have
-        // allocated storage
-        return false;
-    }
-    const auto linked = value->linked_node();
-    if(!linked) return true;
-    switch(linked->kind()) {
-        case ASTNodeKind::FunctionParam:
-            return false;
-        default:
-            return true;
-    }
-}
-
-
-LLVMArrayDestructor::~LLVMArrayDestructor() {
-    const auto builder = gen.builder;
-    // we just called destructor on struct pointer, if it's equal to first element, then we are done
-    auto result = builder->CreateICmpEQ(structPtr, firstEle);
-    builder->CreateCondBr(result, end_block, body_block);
-    // setting end block as insert point so further user code can go into it
-    builder->SetInsertPoint(end_block);
-}
-
-
-
-
-
-
-
-
-
-InterfaceDefinition* getDynInterfaceDef(BaseType* type) {
-    const auto can = type->canonical();
-    if(can->kind() == BaseTypeKind::Dynamic) {
-        return can->as_dynamic_type_unsafe()->referenced->get_direct_linked_interface();
-    }
-    return nullptr;
-}
-
-
-
-
-
-
-
-
-inline bool needsMemcpy(llvm::Type* ty) {
-    switch (ty->getTypeID()) {
-        case llvm::Type::StructTyID:
-        case llvm::Type::ArrayTyID:
-            return true;
-        default:
-            return false;
-    }
-}
-
-
 void Codegen::print_to_console() {
     module->print(llvm::outs(), nullptr, false, true);
 }
-
-
-void Codegen::SetInsertPoint(llvm::BasicBlock *block) {
-    has_current_block_ended = false;
-    builder->SetInsertPoint(block);
-}
-
-void Codegen::CreateBr(llvm::BasicBlock *block, SourceLocation location) {
-    if (!has_current_block_ended) {
-        const auto brInst = builder->CreateBr(block);
-        di.instr(brInst, location);
-        has_current_block_ended = true;
-    }
-}
-
-void Codegen::CreateUnreachable(SourceLocation location) {
-    if(!has_current_block_ended) {
-        const auto unrInst = builder->CreateUnreachable();
-        di.instr(unrInst, location);
-        has_current_block_ended = true;
-    }
-}
-
-void Codegen::CreateRet(llvm::Value *value, SourceLocation location) {
-    if (!has_current_block_ended) {
-#ifdef DEBUG
-        if(current_function) {
-            if (value == nullptr && !current_function->getReturnType()->isVoidTy()) {
-                warn("dev: creating a return void when the function's return is something else", location);
-            } else if (value && current_function->getReturnType()->getTypeID() != value->getType()->getTypeID()) {
-                warn("dev: return value type is different than the function's return type", location);
-            }
-        }
-#endif
-        if(value && value->getType()->isVoidTy()) {
-            const auto retInst = builder->CreateRet(nullptr);
-            di.instr(retInst, location);
-        } else {
-            const auto retInst = builder->CreateRet(value);
-            di.instr(retInst, location);
-        }
-        has_current_block_ended = true;
-    }
-}
-
-
-
-void Codegen::CreateCondBr(llvm::Value *Cond, llvm::BasicBlock *True, llvm::BasicBlock *FalseMDNode, SourceLocation location) {
-    if (!has_current_block_ended) {
-        const auto condType = Cond->getType();
-#ifdef DEBUG
-        if(!condType->isIntegerTy()) {
-            CHEM_THROW_RUNTIME("only integer / boolean values can be used as condition");
-        }
-#endif
-        const auto bitWidth = condType->getIntegerBitWidth();
-        if(bitWidth != 1) {
-            // since its a different integer bitwidth, let's compare with zero as condition
-            Cond = builder->CreateICmpNE(Cond, builder->getIntN(bitWidth, 0));
-        }
-        const auto brInst = builder->CreateCondBr(Cond, True, FalseMDNode);
-        di.instr(brInst, location);
-        has_current_block_ended = true;
-    }
-}
-
 
 
 Codegen::~Codegen() {

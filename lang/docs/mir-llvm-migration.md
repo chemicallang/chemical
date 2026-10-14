@@ -493,6 +493,99 @@ Verified after deletion: `--llvm` **2298/2298**, `--llvm --async` **53/53**,
 still emits DI. Remaining non-functional work is the evaluation's action plan
 (consolidation/perf/size), not deletion.
 
+
+### 2.5 Session 14 (2026-10-14) — the dead legacy shell is gone
+
+Session 13 deleted the AST lowering, but `Codegen`, `DebugInfoBuilder` and the
+backend context still carried its *entire* API as declarations with no
+definitions, plus three orphan headers. Session 14 removes that shell so the LLVM
+target is only the MIR → LLVM driver:
+
+- **`compiler/Codegen.h` 855 → 257 lines.** Deleted the destructible queue
+  (`Destructible`/`DestructibleKind`, `destruct_nodes`, `pinned_slots`,
+  `pinned_drop_flags`), the dyn-object helpers (`fat_pointer_type`,
+  `pack_fat_pointer`, `get_dyn_obj_impl`, `assign_dyn_obj*`), all destruct
+  machinery (`destruct`, `enqueue_destructible`, `conditional_destruct`,
+  `dispatch_destruct_jobs`, `loop_array_destructor`, `find_drop_flag`,
+  `set_drop_flag_for_node`, `create_destructible_for`), the AST
+  declaration/definition API (`declare_nodes`, `compile_nodes`, `external_*`,
+  `create_function`, `declare_function`, `define_function`,
+  `declare_weak_function`, `create_nested_function`,
+  `cleanFunctionEntryBlock`), operator lowering (`operate`, `implicit_cast`,
+  `implicit_cast_constant`), the loop/terminator helpers (`current_loop_exit`,
+  `current_loop_continue`, `redirect_return`, `CheckNullCondBr`, `DefaultRet`,
+  `FunctionRet`, `SetInsertPoint`, `CreateBr`, `CreateRet`, `CreateCondBr`,
+  `CreateUnreachable`, `has_current_block_ended`), the per-task caches
+  (`mod_ptr_cache`, `ctx_ptr_cache`, `evaluated_func_calls`, `implicit_args`,
+  `trait_impl_func_map`), the coroutine state (`current_coro`,
+  `LLVMCoroContext`) and the write-only leftovers (`is64Bit`, `current_module`,
+  `interface_module`, `current_function`, `destroy_current_scope`, `inbounds`).
+- **`compiler/Codegen.cpp` 1,229 → 886 lines.** Deleted the free helpers that
+  served the same lowering (`createEntryBlock`, `to_linkage_type`, `create_func`,
+  `createDropFlag`, `create_destructible`, `create_arr_destructible`,
+  `create_destructible_with_drop_flag`, `get_destructible_type_node`,
+  `create_destructible_for`, `create_return_of_type`, `has_allocated_storage`,
+  `getDynInterfaceDef`, `needsMemcpy`,
+  `LLVMArrayDestructor::~LLVMArrayDestructor`) and the uncalled drop-flag /
+  safe-terminator wrappers. The constructor also loses the unused `is_64_bit`
+  argument and `module_init` its uncalled-for `ModuleScope*`.
+- **Deleted files:** `compiler/backend/LLVMCoroutine.h` (its `.cpp` went in
+  session 13), `compiler/backend/include/LLVMArrayDestructor.h`,
+  `compiler/utils/TraitImplFuncMapKey.h` (only consumer was
+  `trait_impl_func_map`).
+- **`DebugInfoBuilder` 152 → 95 lines (`.cpp` 240 → 82).** Kept only what the MIR
+  emitter uses: `isEnabled`, `isOptimized`, `builder`, `diCompileUnit`,
+  `createDiCompileUnit`, `update_builder`, `finalize`,
+  `start/end_di_compile_unit`. The AST-shaped half
+  (`create_struct_type`, `create_replaceable_type`,
+  `create(FunctionTypeBody*, …)`, `declare`, every scope method, `instr`,
+  `di_loc`) is gone: `instr`/`di_loc` had **no callers**, and `di_loc`'s
+  `#ifdef DEBUG` precondition ("scope for a location cannot be a di compile
+  unit") was unsatisfiable once only the compile unit is ever pushed.
+  `CodegenMir` builds its own `DISubprogram`/`DIType`/`DILocation`.
+- **`LLVMBackendContext`** no longer holds a `Codegen*`. MIR lowers
+  `Drop`/`Destroy`/`MemCpy` and atomics as first-class ops, so `forget` is the
+  same no-op the C backend has and the remaining hooks are inert; they stay only
+  to complete the `BackendContext` vtable, which the *comptime interpreter* still
+  calls for `intrinsics::forget`/`memcpy` and the atomic builtins.
+
+**Behaviour restored while deleting.** The deleted `create_func` was the only
+place applying the per-function unwind policy, so `-fno-unwind-tables` (and
+`-fno-asynchronous-unwind-tables`) had silently become no-ops and a
+`debug_complete` build no longer forced unwind tables for the `-bt` gdb
+backtraces. `Codegen::mir_function` now applies the same policy when it creates a
+function: `uwtable` in `debug`/`debug_complete` unless `fno_unwind_tables`,
+otherwise `nounwind`. That is safe because MIR never emits
+`invoke`/`landingpad` (the `Throw` terminator has no lowering — Chemical has no
+exceptions). Verified on `lang/compiled/mirdel`: the `std` module has 477
+`uwtable` in `debug_complete`, **0** with `-fno-unwind-tables` (479 `nounwind`),
+and 0 `DICompileUnit` in the default mode.
+
+**Verification (session 14, from the committed sources):**
+
+| Command | Result |
+|---------|--------|
+| `cmake --build --target Compiler TCCCompiler MIRTests` | all build |
+| `./cmake-build-debug/MIRTests` | 1111 checks OK |
+| `./scripts/test.sh --llvm` | **2298 / 2298** |
+| `./scripts/test.sh --tcc` | **2300 / 2300** |
+| `./scripts/test.sh --llvm --async` | 53 / 53 |
+| `./scripts/test.sh --tcc --async` | 53 / 53 |
+| `./scripts/test.sh --llvm --libs` | 718/719 — the failure is the pre-existing, compiler-independent `test_fs_directory_iteration` |
+| probe `lang/compiled/mirdel` (LLVM vs C) | identical output (`total=7`, `dtor 3`); `debug_complete` carries `.debug_info`/`.debug_line`/`.eh_frame` |
+
+`test_fs_directory_iteration` (`lang/tests/libs/fs/`) fails **identically** in both
+prebuilt lib-test executables (`lang/tests/build/tests.exe` and
+`tests-tcc.exe`), run directly with no compiler involved: `fs::read_dir` finds
+neither the two files nor the subdirectory the test creates (`is_dir` comes from a
+per-entry `lstat` in `lang/libs/fs/posix/directory.ch`). Pre-existing `fs` /
+environment issue, not a codegen regression — it is *not* fixed here.
+
+**What remains in the migration is not deletion:** the DI polish of §5.1
+(`llvm.dbg.declare`/`dbg.value` for locals, `DILexicalBlock`s) and the evaluation's
+action plan (compile time / peak memory / binary size) in
+`lang/docs/mir-migration-evaluation.md`.
+
 ---
 
 ## 3. Architecture map
@@ -714,6 +807,11 @@ the pre-existing LLVM-suite breakage, §2.3) and `MIRTests` green.
   `#ifdef COMPILER_BUILD` codegen methods in `ast/**` (−15,661 / +91 lines).
   `LLVMBackendContext` moved to `backend/LLVMBackendContext.cpp`. Build green,
   `MIRTests` + TCC + LLVM suites green.
+- **8.11 — Remove the dead legacy shell. ✅ DONE (session 14).** Deleted the
+  dead `Codegen`/`DebugInfoBuilder` declarations and wrappers the AST lowering
+  left behind, the three orphan headers, and the vestigial `destruct_nodes`-based
+  `forget`; restored the per-function unwind policy (`uwtable`/`nounwind`) that
+  the deleted `create_func` used to apply. See §2.5.
 - **8.10 — Debug-info parity & sign-off. Partly done (session 12):** MIR→LLVM
   emits `DICompileUnit`/`DISubprogram`/`DILocation`/DI types and a real line
   table. Remaining: `llvm.dbg.declare`/`dbg.value` for locals and
@@ -882,12 +980,20 @@ readelf --debug-dump=decodedline lang/compiled/my_test/main.exe | head   # or ll
 
 - MIR: `compiler/mir/` (see §3.1). Contract: `lang/docs/mir-design.md`,
   `lang/docs/mir-implementation-plan.md`. Living status: `compiler/mir/README.md`.
-- LLVM (to delete/rework): `compiler/Codegen.{h,cpp}`,
-  `compiler/backend/LLVM.cpp`, `compiler/backend/LLVMCoroutine.{h,cpp}`,
-  `compiler/backend/DebugInfoBuilder.{h,cpp}`, `compiler/ASTCompiler.cpp`,
-  `#ifdef COMPILER_BUILD` code in `ast/**`.
+- LLVM (MIR → LLVM; the AST lowering is gone): `compiler/Codegen.{h,cpp}` (thin
+  MIR → LLVM state, target machine and object/link driver),
+  `compiler/CodegenMir.cpp` (the emitter — `mir_type`, `mir_fn_type`,
+  `mir_function`, `mir_emit_function`, `mir_di_type`, `mir_declare_globals`),
+  `compiler/backend/DebugInfoBuilder.{h,cpp}` (DI compile unit),
+  `compiler/backend/LLVMBackendContext.{h,cpp}`, and `compiler/ASTCompiler.cpp`
+  (`mir_compile_module` plus `mir_emit_llvm_module`).
+- Deleted in 8.9 / 8.11: `compiler/backend/LLVM.cpp`,
+  `compiler/backend/LLVMCoroutine.{h,cpp}`, `compiler/backend/LLVMGen.{h,cpp}`,
+  `compiler/Operation.cpp`, `compiler/backend/include/LLVMArrayDestructor.h`,
+  `compiler/utils/TraitImplFuncMapKey.h`, and the `llvm_*`/`code_gen_*` methods in
+  `ast/**`.
 - Keep: `compiler/backend/CLANG.cpp`, `clang_*`, `llvm-ar.cpp`, `chem_clang.cpp`,
-  `compiler/backend/LLVMGen.{h,cpp}`, `compiler/ctranslator/CTranslator.{h,cpp}`.
+  `compiler/ctranslator/CTranslator.{h,cpp}`.
 - Driver: `compiler/lab/LabBuildCompiler.cpp` (LLVM job ~lines 2080–2180),
   `compiler/ASTProcessor.cpp` (MIR wiring ~lines 1676–2160).
 - Tests: `lang/tests/common/`, `lang/tests/src/`, `lang/tests/async/`,

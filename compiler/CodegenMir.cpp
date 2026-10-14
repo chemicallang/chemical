@@ -24,6 +24,7 @@
 #include <llvm/IR/DataLayout.h>
 #include <llvm/IR/DebugInfoMetadata.h>
 #include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/Attributes.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/IRBuilder.h>
@@ -295,6 +296,17 @@ llvm::Function* Codegen::mir_function(const mir::MIRModule& m, uint32_t symbol) 
     llvm::Function* fn = llvm::Function::Create(
         fty, weak_stub ? llvm::GlobalValue::WeakAnyLinkage
                        : llvm::GlobalValue::ExternalLinkage, name, module.get());
+    // The unwind policy the AST backend applied to every function it created
+    // (`create_func`). A debug / debug_complete build keeps unwind tables so a
+    // debugger can walk the stack (that is what the `-bt` test flag needs),
+    // unless the user passed `-fno-unwind-tables`; every other build asserts the
+    // function cannot unwind — Chemical has no exceptions and MIR never emits
+    // `invoke` / `landingpad`.
+    if (is_debug_or_compl(mode) && !options.fno_unwind_tables) {
+        fn->addFnAttr(llvm::Attribute::UWTable);
+    } else {
+        fn->addFnAttr(llvm::Attribute::NoUnwind);
+    }
     mir_fn_cache_[symbol] = fn;
     return fn;
 }

@@ -48,8 +48,9 @@
 /**
  * Whether the active backend lowers async functions to the `FutureHandle<T>`
  * protocol. Both native backends do: the C/2c backend and the LLVM IR backend
- * (via `compiler/backend/LLVMCoroutine.cpp`). The interpreter has no lowering,
- * so it keeps the eager/transparent bootstrap and `await e` stays the operand.
+ * both lower async through MIR (see `compiler/mir/MIRLowerer.cpp`). The
+ * interpreter has no lowering, so it keeps the eager/transparent bootstrap and
+ * `await e` stays the operand.
  */
 static bool lowers_async(GlobalInterpretScope& scope) {
     if(scope.backend_context == nullptr) {

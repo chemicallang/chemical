@@ -5,28 +5,37 @@ description: Comprehensive guide to the LLVM codegen backend — how Chemical AS
 
 # LLVM Backend
 
-The LLVM backend is the primary optimizing codegen path for the Chemical compiler. It translates the fully resolved and type-checked AST into LLVM IR, which LLVM then optimizes and lowers to machine code.
+> **⚠️ Rewritten 2026-10-14 — this skill describes the MIR → LLVM backend.**
+> The AST-based LLVM lowering (`compiler/backend/LLVM.cpp`, `LLVMGen.*`,
+> `LLVMCoroutine.*`, the per-node `llvm_value`/`llvm_pointer`/`llvm_type` methods
+> and the `Codegen` destructible queue) has been **deleted**. Any file/line
+> reference below that points at those files is historical. See
+> `lang/docs/mir-llvm-migration.md` §2.5 and `compiler/mir/README.md`.
+
+The LLVM backend is the primary optimizing codegen path for the Chemical compiler.
+It lowers the canonical **MIR** (built from the resolved AST by `ASTProcessor`) into
+LLVM IR, which LLVM then optimizes and lowers to machine code. It never walks the
+AST itself — MIR is the single lowering for every backend, and the C backend
+(`MIREmitter`) is the reference it mirrors.
 
 ## Architecture Overview
 
 ### Pipeline
 
 ```
-Type-checked AST → LLVM.cpp (expression/value lowering) → LLVMGen.cpp (IR builder helpers) → LLVM IR → LLVM optimization passes → Object code
+Resolved AST → MIR (MIRLowerer) → CodegenMir.cpp (MIR → LLVM IR) → LLVM optimization passes → Object code
 ```
 
 ### Key Files
 
 | File | Purpose |
 |------|---------|
-| `compiler/backend/LLVM.cpp` | Main codegen — converts AST values, types, and expressions to LLVM IR |
-| `compiler/backend/LLVMGen.cpp` | IR builder utilities — allocation, GEP, stores |
-| `compiler/backend/LLVMGen.h` | LLVMGen class declaration |
-| `compiler/backend/LLVMBackendContext.h` | `BackendContext` shim for the build system (mem_copy, atomics, forget) |
-| `compiler/backend/DebugInfoBuilder.h/.cpp` | Debug info (DWARF) generation |
-| `compiler/backend/include/LLVMArrayDestructor.h` | Array destructor helpers |
+| `compiler/CodegenMir.cpp` | The MIR → LLVM emitter: `mir_type`, `mir_fn_type`, `mir_function`, `mir_emit_function` (all opcodes), `mir_declare_globals`, `mir_di_type`, vtable collection |
+| `compiler/ASTCompiler.cpp` | `ASTProcessor::mir_compile_module` (build MIR for the LLVM target) and `mir_emit_llvm_module` (drive the emitter, incl. `GlobalConstantLowerer`) |
+| `compiler/backend/DebugInfoBuilder.h/.cpp` | DI compile unit for the module; the emitter builds its own `DISubprogram`/`DIType`/`DILocation` from MIR |
+| `compiler/backend/LLVMBackendContext.h/.cpp` | `BackendContext` for `intrinsics::supports`/`get_backend_name`/`forget`; inert otherwise (MIR owns those behaviours) |
 | `compiler/backend/CLANG.cpp` | Clang integration for C driver mode |
-| `compiler/Codegen.h/.cpp` | Holds the LLVM state (`ctx`, `module`, `builder`, `TargetMachine`, `DebugInfoBuilder`, `LLVMGen`) and drives codegen |
+| `compiler/Codegen.h/.cpp` | The LLVM state (`ctx`, `module`, `builder`, `TargetMachine`, `DebugInfoBuilder`) plus the per-module MIR → LLVM caches, target setup and object/link driver |
 
 Chemical → LLVM type mapping is implemented by `BaseType::llvm_type(Codegen&)` / `Value::llvm_type(Codegen&)` methods spread across `ast/` (e.g. `ast/structures/VariantDefinition.cpp`, `ast/values/StructValue.cpp`).
 

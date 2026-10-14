@@ -49,8 +49,8 @@ static uint64_t struct_member_offset(BaseType* type, const chem::string_view& me
     return (uint64_t) -1;
 }
 
-// NOTE: the LLVM codegen for OffsetOfValue (llvm_type / llvm_value) lives in
-// compiler/backend/LLVM.cpp, matching the SizeOfValue/AlignOfValue convention.
+// NOTE: the LLVM codegen for OffsetOfValue is emitted from MIR (see
+// compiler/CodegenMir.cpp), matching the SizeOfValue/AlignOfValue convention.
 
 Value* OffsetOfValue::evaluated_value(InterpretScope &scope) {
     const auto offset = struct_member_offset(for_type, member_name, scope.global->target_data);

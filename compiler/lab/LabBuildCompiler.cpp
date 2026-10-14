@@ -1108,7 +1108,7 @@ int LabBuildCompiler::process_module_gen(
     cTranslator.module_begin();
 
     // prepare for code generation of this module
-    gen.module_init(mod->scope_name.to_chem_view(), mod->name.to_chem_view(), &mod->module_scope);
+    gen.module_init(mod->scope_name.to_chem_view(), mod->name.to_chem_view());
 
     // start a module scope in symbol resolver, that we can dispose later
     resolver.module_scope_start();
@@ -2087,8 +2087,8 @@ int LabBuildCompiler::process_job_gen(LabJob* job) {
     code_gen_options.fno_unwind_tables = options->fno_unwind_tables;
     code_gen_options.fno_asynchronous_unwind_tables = options->fno_asynchronous_unwind_tables;
     code_gen_options.no_pie = options->no_pie;
-    Codegen gen(code_gen_options, binder, global, mangler, coreNodes, implsIndex, job->target_triple.to_std_string(), options->exe_path, options->is64Bit, options->debug_info, *file_allocator);
-    LLVMBackendContext g_context(&gen);
+    Codegen gen(code_gen_options, binder, global, mangler, coreNodes, implsIndex, job->target_triple.to_std_string(), options->exe_path, options->debug_info, *file_allocator);
+    LLVMBackendContext g_context;
     // set the context so compile time calls are sent to it
     global.backend_context = (BackendContext*) &g_context;
 

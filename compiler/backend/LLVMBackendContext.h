@@ -4,16 +4,21 @@
 
 #include "compiler/lab/BackendContext.h"
 
-class Codegen;
-
+/**
+ * The LLVM target's `BackendContext`.
+ *
+ * The `BackendContext` hooks are the interface the comptime interpreter uses when
+ * a comptime function calls an intrinsic with a per-backend implementation
+ * (`intrinsics::forget`, `intrinsics::memcpy`, the atomic builtins). MIR owns all
+ * of those behaviours now — the MIR → LLVM emitter lowers moves/copies, drop flags
+ * and atomics as first-class MIR ops — so the hooks are only reached for a
+ * *compile-time* evaluation and are inert, exactly like the C backend's.
+ *
+ * `name` and `supports` are real answers, not stubs: they drive
+ * `intrinsics::get_backend_name` and `intrinsics::supports`.
+ */
 class LLVMBackendContext : public BackendContext {
 public:
-
-    Codegen* gen_ptr;
-
-    LLVMBackendContext(Codegen* gen) : gen_ptr(gen){
-
-    }
 
     chem::string_view name() final {
         return "LLVM";
@@ -36,8 +41,8 @@ public:
 
     /**
      * atomic fence
-     * @return a value the caller should render in place (nullptr — the LLVM
-     * backend emits the fence directly into the IR builder stream)
+     * @return a value the caller should render in place (nullptr — MIR lowers
+     * atomics as first-class ops, so nothing is rendered here)
      */
     Value* atomic_fence(BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope, SourceLocation location) final;
 
@@ -48,8 +53,7 @@ public:
 
     /**
      * atomic store instruction intrinsic
-     * @return a value the caller should render in place (nullptr — the LLVM
-     * backend emits the store directly into the IR builder stream)
+     * @return a value the caller should render in place (nullptr)
      */
     Value* atomic_store(Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) final;
 
@@ -69,10 +73,8 @@ public:
     Value* atomic_op(BackendAtomicOp op, Value* ptr, Value* value, BackendAtomicMemoryOrder order, BackendAtomicSyncScope scope) final;
 
     /**
-     * compiler-only fence, lowered as a singlethread-scope fence instruction
-     * (targets emit no code for it, exactly like clang's __atomic_signal_fence)
-     * @return a value the caller should render in place (nullptr — emitted
-     * directly)
+     * compiler-only fence
+     * @return a value the caller should render in place (nullptr)
      */
     Value* signal_fence(BackendAtomicMemoryOrder order) final;
 

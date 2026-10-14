@@ -67,12 +67,6 @@ BaseType* FunctionDeclaration::inner_return_type() {
 }
 
 
-unsigned FunctionParam::calculate_c_or_llvm_index(FunctionType* func_type) {
-    const auto start = func_type->c_or_llvm_arg_start_index() - (func_type->isExtensionFn() ? 1 : 0);
-    // capturing lambda adds a ptr at zero location, which represents the captured struct
-    return start + index + (func_type->isCapturing() ? 1 : 0);
-}
-
 FunctionParam *FunctionParam::copy(ASTAllocator& allocator) const {
     const auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(
             name,

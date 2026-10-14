@@ -11,8 +11,8 @@ class Value;
  * we may or may not use this in the future
  * chain part represents a part of access chain, the reason it was created
  * was because of a bug that was really hard to solve, which revolved around
- * access chain and unions access, unions required to make different llvm type
- * in llvm_type function depending on which values were accessed
+ * access chain and unions access, where a union needed a different type
+ * depending on which of its values was actually accessed
  * this meant looking at values present in the access chain
  */
 struct ChainPart {

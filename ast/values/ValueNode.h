@@ -13,9 +13,9 @@
  *
  * here 3 and 4 are like statements, so we wrap them in a value node
  *
- * ValueNode doesn't provide a single feature above, except for maybe linking
- * it crashes if code_gen is required or llvm_value is required, the container must
- * extract the value to use it
+ * ValueNode doesn't provide a single feature above, except for maybe linking.
+ * It has no lowering of its own: the container must extract the inner value and
+ * lower that instead.
  *
  */
 class ValueNode : public ASTNode {

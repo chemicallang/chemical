@@ -14,7 +14,7 @@
  * It IS a VariableIdentifier: it only adds the generic argument list on top of the
  * identifier state, so isIdentifier() reports true, as_identifier() /
  * as_identifier_unsafe() return it, and every identifier method (linked_node,
- * byte_size, llvm_value, evaluated_value, ...) applies to it unchanged. Only the
+ * byte_size, evaluated_value, ...) applies to it unchanged. Only the
  * arguments are stored on this node, so a plain identifier does not pay for them.
  *
  * Symbol resolution links this identifier to the generic declaration, then

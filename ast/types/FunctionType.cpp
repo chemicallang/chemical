@@ -142,15 +142,6 @@ bool FunctionType::has_explicit_params() {
     return false;
 }
 
-unsigned FunctionType::c_or_llvm_arg_start_index() {
-    const auto offset = isExtensionFn() ? 1 : 0;
-    if(returnType->isStructLikeType()) {
-        return 1 + offset;
-    } else {
-        return 0 + offset;
-    }
-}
-
 bool FunctionType::equal(FunctionType *other) const {
     if (isVariadic() != other->isVariadic()) {
         return false;

@@ -243,11 +243,6 @@ public:
     bool has_explicit_params();
 
     /**
-     * start index of c or llvm functions for this type
-     */
-    unsigned c_or_llvm_arg_start_index();
-
-    /**
      * check if this function type is equal to other
      */
     bool equal(FunctionType *other) const;

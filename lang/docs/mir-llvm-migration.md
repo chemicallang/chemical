@@ -549,6 +549,42 @@ target is only the MIR → LLVM driver:
   to complete the `BackendContext` vtable, which the *comptime interpreter* still
   calls for `intrinsics::forget`/`memcpy` and the atomic builtins.
 
+**AST-side leftovers (same session).** With the AST lowering gone, `ast/**` was
+re-audited for LLVM-specific code. It is almost entirely comment noise now (94
+`llvm` mentions, ~85 of them prose): no `llvm_value`/`llvm_pointer`/`llvm_type`/
+`llvm_destruct`/`code_gen*`/`add_member_index` declarations or definitions remain
+anywhere, and no `ast/` header includes an LLVM header. Three real leftovers were
+removed:
+
+- `ExtractionKind::ReinterpretLLVMValue` — zero references; the only LLVM-specific
+  member of an otherwise lambda-extraction enum (`create_extraction_value_type`
+  already fell through its `default` arm for it).
+- `FunctionParam::calculate_c_or_llvm_index` and
+  `FunctionType::c_or_llvm_arg_start_index` — the deleted AST backend's sret/self
+  argument offset, with **no callers**. MIR computes the live equivalent itself
+  (`MIRLowerer::needs_sret_return`), so these two were a dead duplicate of the ABI.
+- Stale comments in `ChainPart.h`, `GenericInstIdentifier.h` and `ValueNode.h` that
+  still named `llvm_type` / `llvm_value` / `code_gen`.
+
+Deliberately **kept**, because they are not legacy AST lowering:
+
+- `intrinsics::llvm::atomic_*` (`LLVMNamespace` + the `InterpretLLVMAtomic*`
+  compiler decls in `ast/utils/GlobalFunctions.cpp`). The dependency runs the other
+  way round: this is the *user-facing intrinsic surface* that `lang/libs/atomic`
+  calls on its LLVM branch, and `MIRLowerer::lower_atomic_intrinsic` recognizes it
+  and lowers it to first-class MIR `Atomic*` ops — the front end no longer touches
+  an IRBuilder. Renaming the namespace would be a language/API change, not cleanup.
+- `prepare_target_data` / `init_target_data`: live target *data* initialisation
+  (windows/linux/musl/is64Bit/…), called from `LabBuildContext.cpp`. The `Compiler`
+  build uses LLVM's `Triple` parser under `#ifdef COMPILER_BUILD`; `TCCCompiler`
+  has a hand-rolled string-splitting twin, so no LLVM header leaks into the
+  LLVM-free compiler. (It does sit oddly in `ast/utils/GlobalFunctions.cpp`; moving
+  it is a refactor for later.)
+
+The emitter is confirmed backend-pure: **`compiler/CodegenMir.cpp` includes no
+`ast/` header at all** (only `Codegen.h`, `compiler/mir/*` and LLVM), and nothing in
+`compiler/mir/` includes an LLVM header.
+
 **Behaviour restored while deleting.** The deleted `create_func` was the only
 place applying the per-function unwind policy, so `-fno-unwind-tables` (and
 `-fno-asynchronous-unwind-tables`) had silently become no-ops and a

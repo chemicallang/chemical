@@ -92,8 +92,6 @@ public:
         attrs.has_assignment = true;
     }
 
-    unsigned calculate_c_or_llvm_index(FunctionType* func_type);
-
     inline BaseType *known_type() {
         return type;
     }

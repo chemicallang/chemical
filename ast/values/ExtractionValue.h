@@ -10,7 +10,6 @@ enum class ExtractionKind {
     LambdaCapturedDestructor,
     SizeOfLambdaCaptured,
     AlignOfLambdaCaptured,
-    ReinterpretLLVMValue,
 };
 
 class TypeBuilder;

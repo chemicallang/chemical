@@ -62,11 +62,60 @@ Root causes (all with file/line evidence in the evaluation doc):
 4. **Generated-C waste**: an unconditional byte-wise zero loop on *every*
    aggregate `Alloca` (584 in one small probe; legacy: 0), aggregate
    load-then-assign double copies, redundant scalar param spills, and dead
-   epilogue blocks.
+   epilogue blocks. Session 16 removed the last branch-emission waste (every
+   straight-line `Br`/`CondBr` arm used to print a jump); what remains of this
+   bullet is the constructor-result temp and the `apply_struct_defaults`
+   zeroes, plus the zero loops themselves.
 
 Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
+
+### Session 16 (2026-10-14) — straight-line branches no longer emit a jump (action C4, second half)
+
+Session 8 stopped emitting a label for a block nothing jumps to, but the jumps
+*themselves* were still emitted unconditionally, so most blocks still ended in a
+`goto` to the block physically right after them. `emit_function_c` now computes
+the instruction offset each block starts at (by block id) and treats a branch
+whose target starts at the very next instruction as a **fall-through**:
+
+- `Br` to the next block emits **nothing** (control falls into it).
+- `CondBr` with one falling-through arm emits a **single-arm** `if`, negating the
+  condition when it is the *true* arm that falls through (`if (!(c)) goto F;`
+  instead of `if (c) goto T; else goto F;`).
+- The referenced-label set is computed from the *non*-fall-through `Block`
+  operands, so a block whose only reference was a fall-through loses its label
+  too — the two fixes compound.
+
+This is a runtime win, not cosmetics: the C backend has no optimizer, so the jump
+survives into the object file, and in a loop body it is executed every iteration.
+The legacy translator emitted no such jump.
+
+Measured (interleaved A/B, same machine/mode, `TCCCompiler` built from this tree
+with and without the change; `debug_quick`, `--no-cache`, `--emit-c`):
+
+| Metric | before | after |
+|---|---:|---:|
+| Main-suite C lines | 106,373 | **96,909** (−8.9%) |
+| Main-suite `goto` tokens | 14,945 | **6,459** (−57%) |
+| …of which standalone `goto` statements | 5,723 | **1,738** |
+| …standalone jumps that are pure fall-throughs | 3,985 | **0** |
+| `if/else goto` whose arm falls through | 4,501 (of 4,611) | **0** (4,611 single-arm `if`s) |
+| Suite compile+link (median of 3) | 3.03 s | **2.98 s** |
+| Probe (`perfprobe`) C lines | 11,723 | **10,743** |
+| Probe executable | 448,625 B | **444,239 B** |
+| Suite executable (`tests-tcc.exe`) | 4,292,216 B | **4,248,581 B** |
+
+Runtime ≥ parity: `benchprobe` 0.60 s → 0.59–0.60 s (identical output),
+`bcryptbench` cost-12 median 9.72 s → **9.42 s** (identical output). Suites:
+`--tcc` **2300/2300**, `--llvm` **2298/2298**, `MIRTests` **1115 checks** (the
+emitter control-flow unit test now asserts the `if (!(` form, the absence of
+`else goto`, and that the fall-through-only block gets no label).
+
+Invariance: filtering label and `goto` lines out of before/after C and
+normalising the pre-existing `__cgs__N` numbering and declaration-ordering
+jitter leaves **4** differing lines across the whole main suite (a same-compiler
+two-run baseline differs by 6), so nothing but the redundant branches changed.
 
 ### Session 15 (2026-10-14) — debug info from MIR is complete (checkpoint 8.10)
 

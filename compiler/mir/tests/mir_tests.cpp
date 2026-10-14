@@ -328,14 +328,26 @@ static bool test_control_flow_emitter() {
     }
     CHECK(out.find("goto __chx_bb") != std::string::npos);
     CHECK(out.find("if (") != std::string::npos);
-    // Every block a terminator jumps to carries a label (`then_b` 1, `else_b` 2,
+    // `then_b` (1) begins at the instruction right after the terminator, so the
+    // true arm *falls through*: the emitter jumps only on the false arm, on the
+    // negated condition, and emits no `else goto`.
+    CHECK(out.find("if (!(") != std::string::npos);
+    CHECK(out.find("else goto") == std::string::npos);
+    // Every block a terminator really jumps to carries a label (`else_b` 2,
     // `join` 3) ...
-    CHECK(out.find("__chx_bb1:;") != std::string::npos);
     CHECK(out.find("__chx_bb2:;") != std::string::npos);
     CHECK(out.find("__chx_bb3:;") != std::string::npos);
-    // ... and a block nothing jumps to (the entry block) carries none: a dead
-    // label is not emitted (`emit_function_c`).
+    // ... and a block nothing jumps to carries none: a dead label is not emitted
+    // (`emit_function_c`). That is the entry block, and now also `then_b`, whose
+    // only reference was the fall-through arm above.
     CHECK(out.find("__chx_bb0:;") == std::string::npos);
+    CHECK(out.find("__chx_bb1:;") == std::string::npos);
+    // `join` is reached by exactly one jump: `then_b`'s `br` is not a
+    // fall-through (the block after it is `else_b`), while `else_b`'s `br` jumps
+    // to the block that immediately follows, so it emits no instruction at all.
+    const std::size_t first_join = out.find("goto __chx_bb3;");
+    CHECK(first_join != std::string::npos);
+    CHECK(out.find("goto __chx_bb3;", first_join + 1) == std::string::npos);
     return true;
 }
 

@@ -497,19 +497,42 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
     }
     out += " {\n";
 
-    // Block labels: blocks are emitted in creation order, so their inst_start
-    // offsets are monotonic. Only a block some terminator can jump to needs a
-    // label: an unreferenced label is dead text and an extra jump target for the
-    // C compiler, which the legacy translator never emitted. Every `goto` the
+    // Where each block starts, by block id (blocks are emitted in creation
+    // order, so the offsets are monotonic and index the instruction stream).
+    std::vector<uint32_t> block_start(function.blocks.size(), MIR_INVALID_ID);
+    for (uint32_t b = 0; b < function.blocks.size(); ++b) {
+        const MIRBlock& blk = function.blocks[b];
+        if (blk.id < block_start.size() && blk.inst_start != MIR_INVALID_ID) {
+            block_start[blk.id] = blk.inst_start;
+        }
+    }
+    // A branch to the block that begins at the very next instruction is a
+    // *fall-through*: the emitted C would jump to the statement right after it.
+    // Dropping it is a size and runtime win, not cosmetics — the C backend has
+    // no optimizer, so the jump survives into the object file, and in a loop
+    // body it is executed on every iteration (the legacy translator emitted no
+    // such jump). It also cascades into the label set below: a block whose only
+    // reference falls through no longer needs a label at all.
+    auto is_fallthrough = [&](uint32_t inst_index, uint32_t block_id) -> bool {
+        if (block_id >= block_start.size()) return false;
+        const uint32_t s = block_start[block_id];
+        return s != MIR_INVALID_ID && s == inst_index + 1;
+    };
+    // Block labels: only a block some terminator can *jump to* needs one: an
+    // unreferenced label is dead text and an extra jump target for the C
+    // compiler, which the legacy translator never emitted. Every `goto` the
     // emitter can print comes from a `Block` operand (`Br`/`CondBr`), so
-    // collecting those operands is exactly the referenced set.
+    // collecting those operands — minus the fall-throughs, which print nothing —
+    // is exactly the referenced set.
     std::vector<uint8_t> block_referenced(function.blocks.size(), 0);
-    for (const MIRInstruction& inst : function.instructions) {
+    for (uint32_t ii = 0; ii < function.instructions.size(); ++ii) {
+        const MIRInstruction& inst = function.instructions[ii];
         for (uint32_t i = 0; i < inst.operand_count; ++i) {
             const MIROperand* op = operand_at(function, inst, i);
-            if (op && op->kind() == MIROperandKind::Block && op->id < block_referenced.size()) {
-                block_referenced[op->id] = 1;
-            }
+            if (!op || op->kind() != MIROperandKind::Block) continue;
+            if (op->id >= block_referenced.size()) continue;
+            if (is_fallthrough(ii, op->id)) continue;
+            block_referenced[op->id] = 1;
         }
     }
     std::vector<BlockId> label_at(function.instructions.size(), MIR_INVALID_ID);
@@ -1469,7 +1492,10 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
             case MIROpcode::Br: {
                 const MIROperand* target = operand_at(function, inst, 0);
                 if (!target) { error = "br missing target"; return false; }
-                out += "goto __chx_bb" + std::to_string(target->id) + ";\n";
+                // A branch to the next block needs no jump: control falls into it.
+                if (!is_fallthrough(idx, target->id)) {
+                    out += "goto __chx_bb" + std::to_string(target->id) + ";\n";
+                }
                 break;
             }
             case MIROpcode::CondBr: {
@@ -1477,8 +1503,18 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const MIROperand* t = operand_at(function, inst, 1);
                 const MIROperand* f = operand_at(function, inst, 2);
                 if (!cond || !t || !f) { error = "cond_br missing operands"; return false; }
-                out += "if (" + operand_expr(function, module, *cond) + ") goto __chx_bb" +
-                       std::to_string(t->id) + "; else goto __chx_bb" + std::to_string(f->id) + ";\n";
+                const std::string cexpr = operand_expr(function, module, *cond);
+                if (is_fallthrough(idx, f->id)) {
+                    // the false arm falls through, so only the true jump is emitted
+                    out += "if (" + cexpr + ") goto __chx_bb" + std::to_string(t->id) + ";\n";
+                } else if (is_fallthrough(idx, t->id)) {
+                    // the true arm falls through: jump on the negated condition
+                    out += "if (!(" + cexpr + ")) goto __chx_bb" + std::to_string(f->id) +
+                           ";\n";
+                } else {
+                    out += "if (" + cexpr + ") goto __chx_bb" + std::to_string(t->id) +
+                           "; else goto __chx_bb" + std::to_string(f->id) + ";\n";
+                }
                 break;
             }
             case MIROpcode::Unreachable: {

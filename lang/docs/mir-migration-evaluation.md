@@ -249,7 +249,14 @@ Concrete emit-level waste to remove:
    has a single use; the existing single-use inlining covers `Value` params but
    not these `Place`-typed spills.
 4. **Redundant blocks/terminators** (`__chx_bbN:; return;` epilogues, gotos for
-   trivial if/else).
+   trivial if/else). **RESOLVED — action C4 (sessions 8 and 16):** an
+   unreferenced label is no longer emitted (session 8), and a branch to the
+   block physically next to it is a fall-through and prints nothing — a `Br`
+   emits no statement, a `CondBr` with one falling-through arm becomes a
+   single-arm `if`. Measured interleaved A/B on the main suite: standalone
+   `goto`s 5,723 → **1,738**, fall-through jumps 3,985 → **0**, `if/else goto`
+   4,501 → **0**, C lines 106,373 → **96,909**, `tests-tcc.exe` 4,292,216 →
+   **4,248,581 B**; probe 11,723 → **10,743 lines** / 448,625 → **444,239 B**.
 
 ### 1.3 Compiler binary & code volume
 
@@ -486,10 +493,31 @@ logic; measured by (backend emitter LOC / total MIR LOC) trend.
    unchanged/slightly better (5 interleaved A/B pairs, median 3.85 s → 3.81 s).
    The `Param` inliner covers the `Place`-typed spill as the item asked; the
    aggregate case is intentionally left alone (see §1.2 status update).
-4. ~~Emit no `goto`/block label for straight-line statements~~ **DONE (session
-   8, the label half)**: a label is emitted only for a block some `Block`
-   operand jumps to — suite labels 17,216 → **11,660** (−32%), `goto`s unchanged,
-   C lines 114,280 → **108,475**. *Still open:* dropping dead epilogue blocks.
+4. ~~Emit no `goto`/block label for straight-line statements~~ **DONE (sessions 8
+   and 16)**. Session 8: a label is emitted only for a block some `Block`
+   operand jumps to — suite labels 17,216 → **11,660** (−32%), C lines
+   114,280 → **108,475**. Session 16 (the *branch* half): a branch whose target
+   starts at the very next instruction is a fall-through and prints nothing — a
+   `Br` emits no statement at all, and a `CondBr` with one falling-through arm
+   becomes a *single-arm* `if` (negating the condition when the true arm falls
+   through). The referenced-label set is computed from the non-fall-through
+   operands, so the two halves compound. Measured interleaved A/B on the same
+   machine and mode, `TCCCompiler` built from this tree both ways:
+   main-suite standalone `goto`s **5,723 → 1,738**, pure fall-through jumps
+   **3,985 → 0**, `if/else goto` with a falling-through arm **4,501 → 0** (of an
+   unchanged 4,611 `CondBr`s), `goto` tokens **14,945 → 6,459**, C lines
+   **106,373 → 96,909** (−8.9%), `tests-tcc.exe` **4,292,216 → 4,248,581 B**,
+   probe C **11,723 → 10,743** lines and probe exe **448,625 → 444,239 B**,
+   suite compile 3.03 s → **2.98 s** (median of 3, ranges 3.01–3.03 and
+   2.96–2.98). This is a *runtime* item too: the C backend
+   has no optimizer, so the jump was compiled into the object file and executed
+   every iteration in a loop body. Runtime ≥ parity — `benchprobe` 0.60 s →
+   0.59–0.60 s, `bcryptbench` cost-12 median **9.72 s → 9.42 s**, both with
+   identical output; `--tcc` **2300/2300**, `--llvm` **2298/2298**, `MIRTests`
+   **1115 checks**. Invariance: with label/`goto` lines filtered out and the
+   pre-existing `__cgs__N`/declaration-order jitter normalised, before/after C
+   differs by **4 lines** over the whole suite (a same-compiler two-run baseline
+   differs by 6).
 **Acceptance.** Probe C lines and executable text ≤ legacy on `perfprobe`; no
 zero-loop on an alloca that is fully initialized field-wise; runtime ≥ parity on
 the `benchprobe` loop and the bcrypt cost-12 benchmark.
@@ -497,6 +525,15 @@ the `benchprobe` loop and the bcrypt cost-12 benchmark.
 **407,577** B since the evaluation, against legacy 8,285 lines / 285,299 B: the
 C1+C3+C2+C4 fixes closed ~40% of the line gap and ~45% of the text gap without
 touching runtime-relevant zeroing; the acceptance is not met yet.
+
+**Status (session 16).** Probe C **10,743 lines / 444,239 B** and suite C
+**96,909 lines** with `tests-tcc.exe` **4,248,581 B** — against legacy 8,285
+lines / 285,299 B the probe line gap is now ~57% closed (was ~40% after session
+8). Runtime half of the acceptance is **met**: `benchprobe` 0.60 → 0.59–0.60 s
+and `bcryptbench` cost-12 median 9.72 → **9.42 s**, both identical output, with
+no zero-loop change (session 16 only touched branch and label emission). The
+size half is still missed: what is left in C is the two zeroing classes named
+against item 1 above.
 
 ### D. Fix the lowering hot path (P1)
 
@@ -598,6 +635,17 @@ backend is another 2k-line emitter with its own bugs.
 > measurement), but the direction after sessions 7–8 is a ~8% CPU reduction and a
 > 9.6% smaller probe C. Every gate is still missed; C.2/C.4, D.1/D.3/D.4 and
 > A2/A3/B remain open.
+>
+> **Session 16 (C.4, branch half) moves the C-size gates.** Straight-line
+> branches no longer print a jump: main-suite C **106,373 → 96,909 lines** and
+> `goto`s **14,945 → 6,459**, `tests-tcc.exe` **4,292,216 → 4,248,581 B**
+> (−1.0%), probe **11,723 → 10,743 lines** / **448,625 → 444,239 B**, suite
+> compile 3.03 s → 2.98 s; runtime ≥ parity (`bcryptbench` cost-12 median
+> 9.72 s → 9.42 s, `benchprobe` unchanged, identical output), `--tcc`
+> 2300/2300, `--llvm` 2298/2298. The probe line gate (≤ 8,285) and the
+> compile-time/RSS gates are still missed: what is left of C is the
+> constructor-result temp and the `apply_struct_defaults` zeroes, and the
+> compile-time gap is D (per-instruction cost) plus E (parallel lowering).
 >
 > **Session 9–10 add no gate movement, by design.** Session 9 (conditional
 > struct-literal zeroing) cut main-suite zero loops 2,655 → 1,231 and probe zero

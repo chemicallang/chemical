@@ -1402,9 +1402,30 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const MIROperand* dest = operand_at(function, inst, 0);
                 if (!dest) { error = "memset missing destination"; return false; }
                 const std::string pn = place_name(module, function, dest->id);
-                const std::string iv = "__chx_zi" + std::to_string(idx);
-                out += "for (unsigned long " + iv + " = 0; " + iv + " < sizeof(" + pn +
-                       "); ++" + iv + ") ((unsigned char*)&" + pn + ")[" + iv + "] = 0;\n";
+                // `zero_init(place)` is the only shape the lowerer emits: the
+                // whole place, zeroed. A scalar is a single store; everything
+                // that lives in memory is a real `memset`, which the C compiler
+                // lowers to width-sized stores (or a libcall) rather than the
+                // per-byte loop this used to spell out. That loop was a measured
+                // runtime cost: it sits *inside* `vector<T>::resize`'s growth
+                // loop, once per element — 64 byte-stores per element for a
+                // 64-byte T. `memcpy` is already emitted bare here, so `memset`
+                // needs no new declaration or include.
+                bool scalar = false;
+                if (dest->kind() == MIROperandKind::Place && dest->id < function.places.size()) {
+                    const TypeId dt = function.places[dest->id].type;
+                    if (dt != MIR_INVALID_ID && dt < module.types.size()) {
+                        const MIRTypeKind k = module.types.get(dt).kind;
+                        scalar = k == MIRTypeKind::Bool || k == MIRTypeKind::Int ||
+                                 k == MIRTypeKind::Float || k == MIRTypeKind::Pointer ||
+                                 k == MIRTypeKind::Reference;
+                    }
+                }
+                if (scalar) {
+                    out += pn + " = 0;\n";
+                } else {
+                    out += "memset(&" + pn + ", 0, sizeof(" + pn + "));\n";
+                }
                 break;
             }
             case MIROpcode::FunctionAddr: {

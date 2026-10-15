@@ -74,6 +74,27 @@ struct MIRTypeRecord {
     // Aggregates only: start index into MIRTypeTable::fields (ordered runtime
     // fields, including inherited bases first). MIR_INVALID_ID = no fields.
     uint32_t field_index = MIR_INVALID_ID;
+    /**
+     * An aggregate's explicit `__chx_align(N)` request (0 = natural). It is an
+     * *input* to `compute_aggregate_layout`, not a result, so it lives on the
+     * record: the C declaration printer has to write the attribute out or the
+     * C compiler would lay the aggregate out with less alignment than MIR
+     * recorded. Source spelling is compared by `equal`/`hash_of`.
+     */
+    uint32_t explicit_alignment = 0;
+};
+
+/**
+ * Spelling facts of a field that the source carries but layout does not, kept
+ * in the field pool (never interned) so a declaration printer can spell a field
+ * from MIR alone — action A3 of mir-migration-evaluation.md.
+ */
+enum MIRFieldFlags : uint8_t {
+    MFF_NONE = 0x00,
+    MFF_VOLATILE = 0x01,         // the member is `volatile`
+    MFF_FAT_POINTER = 0x02,      // capturing-function member: `__chemical_fat_pointer__*`
+    MFF_ANONYMOUS_STRUCT = 0x04, // declared as an inline `struct { ... } name;`
+    MFF_ANONYMOUS_UNION = 0x08,  // declared as an inline `union { ... } name;`
 };
 
 /** One ordered runtime field of an aggregate (struct/union/variant). */
@@ -83,6 +104,7 @@ struct MIRFieldInfo {
     uint32_t name_length = 0;
     uint32_t index = 0;       // field index within the LLVM aggregate (for GEP)
     uint8_t kind = 0;         // MIRFieldKind
+    uint8_t flags = MFF_NONE; // MIRFieldFlags (spelling, not layout)
     /**
      * Byte offset of the field inside its aggregate, and the explicit
      * alignment the source asked for (`__chx_align(N)`, 0 = natural). Both are
@@ -219,6 +241,7 @@ struct MIRTypeTable {
         mix(r.data_count);
         mix(r.int_kind);
         mix(r.field_index);
+        mix(r.explicit_alignment);
         if (r.kind == MIRTypeKind::Function) {
             for (uint32_t i = 0; i < r.data_count; ++i) {
                 const uint32_t idx = r.data_offset + i;
@@ -239,7 +262,8 @@ struct MIRTypeTable {
         if (a.kind != b.kind || a.flags != b.flags || a.size != b.size ||
             a.alignment != b.alignment || a.element != b.element || a.decl != b.decl ||
             a.data_count != b.data_count || a.int_kind != b.int_kind ||
-            a.field_index != b.field_index) {
+            a.field_index != b.field_index ||
+            a.explicit_alignment != b.explicit_alignment) {
             return false;
         }
         // Only function types store parameter types in the shared data pool;

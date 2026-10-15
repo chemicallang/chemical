@@ -39,8 +39,11 @@ compiler):
 
 Root causes (all with file/line evidence in the evaluation doc):
 
-1. **Declarations are still AST-based.** `MIRDeclEmitter` walks the AST (not
-   `MIRTypeRecord`). There is no single decl source for C, LLVM, JVM, JS.
+1. **Declarations are still AST-based — partially addressed (session 18).**
+   Aggregate *bodies* now print from MIR (`MIRDeclPrinter`, action A3's first
+   bite); what still walks the AST is the collection walk and the remaining decl
+   kinds — prototypes, globals + constant initializers, typedefs, vtables and
+   static stubs. There is no single decl source for C, LLVM, JVM, JS yet.
    **Aggregate layout is no longer on this list** (session 10: `MIRLayout.h`
    computes every aggregate `size`/`alignment` and every field offset, action
    A1), and neither is **C type spelling** (action A2, verified session 15:
@@ -51,8 +54,12 @@ Root causes (all with file/line evidence in the evaluation doc):
 2. **Every backend is a full independent dispatcher** (`MIREmitter` 1.6k lines,
    `CodegenMir` 2.4k lines), but the **ABI classification is now shared**
    (`compiler/mir/MIRABI.h`, action B step 1, session 15) instead of written out
-   nine times across three translation units. Shared traversal, naming, block
-   iteration and `MIRValueFacts` are still open.
+   nine times across three translation units, and so are the **per-function
+   facts** — block offsets/labels, place write counts, parameter aliasing
+   (`compiler/mir/MIRFacts.h`, action B step 2, session 18), which
+   `emit_function_c` used to re-derive inline. Still open: shared traversal,
+   naming, and the interface **vtable layout** (slot order) that
+   `MIRDeclEmitter` and `CodegenMir::mir_vtable_*` still derive independently.
 3. **Hot-path violations of the plan**: 18 `unordered_map`/sets in `MIRLowerer`,
    and `MIRLowerer.cpp` is one 8,224-line TU. The O(n) linear-scan
    `MIRTypeTable::intern` / `MIRConstantPool::add` were **fixed in session 7**
@@ -74,6 +81,120 @@ Root causes (all with file/line evidence in the evaluation doc):
 Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
+
+### Session 18 (2026-10-15) — declarations print from MIR (action A3, first bite) + shared per-function facts (action B, second step)
+
+Two changes, both **output-invariant** by measurement (method and numbers below).
+
+**A3 — the C declaration path stops walking the AST for aggregate bodies.**
+
+- New AST-free `compiler/mir/MIRDeclPrinter.{h,cpp}` in MIR core.
+  `aggregate_body_c(module, TypeId)` returns the whole C body of a
+  struct/union/variant: the header (including `__chx_align_struct(N)`),
+  inherited bases first, `__chx_align(N)`/`volatile` member prefixes, the
+  variant tag `int __chx__vt_621827;` with an inline `union` of the case payload
+  structs, and the inline `struct { … } name;` form for an anonymous member.
+  `inline_aggregate_c` returns the one-line form the driver writes for a
+  synthesized inline struct; `member_declarator_c` spells a single field.
+- MIR learned the two facts the printer cannot derive from layout, both in the
+  **field pool** (never interned, so type identity is untouched except where
+  noted): `MIRFieldInfo::flags` (`MFF_VOLATILE`, `MFF_FAT_POINTER`,
+  `MFF_ANONYMOUS_STRUCT`/`MFF_ANONYMOUS_UNION`) and `MIRTypeRecord::explicit_alignment`
+  (an *input* to `compute_aggregate_layout`, so it belongs on the record —
+  without the attribute the C compiler would lay the struct out with less
+  alignment than MIR recorded; it is compared by `equal`/`hash_of` because a
+  different explicit alignment is a different layout). `MIRTypeBuilder` fills
+  both.
+- `MIRDeclEmitter::declare_struct_def_only`/`declare_union_def_only`/
+  `declare_variant_def_only` are now just their (AST-side) early-declare
+  prologue plus a call to the printer. `emit_member`/`emit_field` — the AST
+  member walk, including the `UnnamedStruct`/`UnnamedUnion`/`StructMember`
+  spelling and the required-alignment/volatile/capturing-function branches — are
+  **deleted**, and the driver's inline-struct loop prints via
+  `inline_aggregate_c` instead of `emit_field`. The member *spelling* was already
+  MIR's (`decl_spelling` → `c_declarator`); what moved into MIR is the
+  enumeration, formatting and the field facts.
+- `MIRTests` **1115 → 1126**: exact expected text for a struct, an aligned
+  struct, a union, a variant (base + tag + two payload cases), volatile /
+  fat-pointer / aligned members, the nested anonymous-member form, the inline
+  form, and the empty result for unnamed/unsupported ids.
+
+**B — `MIRFunctionFacts`: the shared per-function analysis.**
+
+- New AST-free `compiler/mir/MIRFacts.{h,cpp}`.
+  `compute_function_facts(module, fn, out)` fills a `MIRFunctionFacts`:
+  `block_start`, `block_starts_inst`, `block_referenced`, `label_at_inst`
+  (+ `is_fallthrough_inst`), `place_writes`, `place_addressed`,
+  `param_index_at_inst`, `param_alias`.
+- `emit_function_c` used to compute every one of those inline (~150 lines); it
+  now reads the facts (~10 lines). The analysis was **transcribed, not
+  re-derived**: the same opcode set counts a place write, the same "only operand
+  0 of a plain load/store may name the place" rule sets `place_addressed`, the
+  same one-write/not-addressed/non-aggregate rule sets `param_alias`, the same
+  fall-through-excluded operand set produces the referenced labels, and the
+  argument-index bound is the function type's `data_count` as before. The C
+  emitter keeps what is C's: the inline-expression map and the emitted text.
+- `MIRTests` **1126 → 1154**: a function whose two scalar parameters are aliased
+  to their arguments (write counts, escape flags, argument indices, no label on
+  the entry block), and a two-arm branch (the fall-through arm is not a reference
+  and gets no label; the other arm and the join do; a twice-written local is
+  never a parameter alias).
+
+**What is left in A3/B.** A3's residual is the *collection* walk and the decl
+kinds that still spell from AST: prototypes (`function_proto` already delegates
+to MIR's `c_function_proto`), globals + constant initializers
+(`const_value_expr`), typedefs/typealiases, interface vtables and static stubs,
+plus the `inline_structs` trigger. B's residual is shared traversal/naming
+(`place_name`, `__chx_aN`, `__chx_bbN` are C's own) — the vtable *layout* (slot
+order) is still derived independently by `MIRDeclEmitter` (C) and
+`CodegenMir::mir_vtable_*` (LLVM), which is the next shared service worth
+building.
+
+**Measurement and verification (this Windows checkout, `Debug`, `debug_quick`,
+`--no-cache`).** The translated C is *not* byte-reproducible: the
+`__cgs__N`/`__cfg__N`/`__chemda_cap_N` generic-instantiation numbering and the
+forward-declaration order differ between runs of the *same* binary. So the
+comparison below normalizes those labels (each `<label><digits>` → `<label>#`)
+and compares the sorted line multiset, and it reports the **same-binary two-run
+noise floor** beside each result:
+
+| Metric | Value |
+|---|---:|
+| Main-suite C lines (`Translated.c`) | 97,144 before and after (identical) |
+| Same-binary two-run noise floor (normalized) | 102 lines |
+| Pre-change vs A3 (normalized) | 96 lines |
+| Pre-change vs A3+B (normalized) | 111 lines |
+| A3-only vs A3+B (normalized) | 108 lines |
+| Main-suite C text differing *unnormalized* | 8,131 (noise floor) / 8,206 (pre-change vs A3+B) lines |
+| `--tcc` suite | **2305/2305** |
+| `--llvm` suite | **2303/2303** (after one pre-existing flaky abort — see below) |
+| `--tcc --libs` | **718/719** (the known environment-sensitive `test_fs_directory_iteration`) |
+| `MIRTests` | **1115 → 1154 checks** |
+
+Every residual normalized line is a generic-instantiation reference
+(`std_stdspan__cgs__#constructor` with a different type argument, etc.), i.e.
+the same jitter the noise floor is made of: no declaration or body changed
+shape. Declaration shapes the main suite does not cover were checked end to end
+with a probe (`lang/compiled/mir_a3_probe`, gitignored): inheritance, an
+`@align(16)` struct with an `@align(8)` member, a `@volatile` member, an
+anonymous union of anonymous structs and a variant with payloads — it builds and
+runs with identical expected values on both backends, and the emitted C shows
+`__chx_align_struct(16) mir_a3_probe_Aligned16 {`, `__chx_align(8) char j;`,
+`volatile int v;`, the inline `union { … } storage;` and the variant's tag +
+case structs.
+
+> ⚠️ **The `--llvm` suite is flaky on this machine (pre-existing, not this
+> change).** Two consecutive runs aborted while *building the test executable*:
+> `Compiler.exe` printed `RUNTIME ERROR: invalid memory access` and exited 255,
+> so no `tests.exe` was produced (an older one stays on disk and `test.sh`'s
+> `set -e` stops the run). The first of those used the binary captured **before**
+> this session (i.e. the previous commit), the second the A3-only binary — and
+> the LLVM job skips C emission entirely (`lower_and_emit` returns before
+> `emit_function_c` when `llvm_collect`), so none of this can come from the
+> C-emitter work here. A third run, with the A3+B binary, completed normally and
+> reported **`--llvm` 2303/2303**. Treat the suite as flaky here and the abort as
+> pre-existing; the standalone probe above also built and ran on both backends
+> (exit 0, expected output).
 
 ### Session 17 (2026-10-15) — the result temporary is no longer zeroed when the construction covers it (action C1, fourth bite)
 

@@ -2,6 +2,8 @@
 
 #include "MIREmitter.h"
 
+#include "MIRFacts.h"
+
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -497,55 +499,19 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
     }
     out += " {\n";
 
-    // Where each block starts, by block id (blocks are emitted in creation
-    // order, so the offsets are monotonic and index the instruction stream).
-    std::vector<uint32_t> block_start(function.blocks.size(), MIR_INVALID_ID);
-    for (uint32_t b = 0; b < function.blocks.size(); ++b) {
-        const MIRBlock& blk = function.blocks[b];
-        if (blk.id < block_start.size() && blk.inst_start != MIR_INVALID_ID) {
-            block_start[blk.id] = blk.inst_start;
-        }
-    }
-    // A branch to the block that begins at the very next instruction is a
-    // *fall-through*: the emitted C would jump to the statement right after it.
-    // Dropping it is a size and runtime win, not cosmetics — the C backend has
-    // no optimizer, so the jump survives into the object file, and in a loop
-    // body it is executed on every iteration (the legacy translator emitted no
-    // such jump). It also cascades into the label set below: a block whose only
-    // reference falls through no longer needs a label at all.
-    auto is_fallthrough = [&](uint32_t inst_index, uint32_t block_id) -> bool {
-        if (block_id >= block_start.size()) return false;
-        const uint32_t s = block_start[block_id];
-        return s != MIR_INVALID_ID && s == inst_index + 1;
-    };
-    // Block labels: only a block some terminator can *jump to* needs one: an
-    // unreferenced label is dead text and an extra jump target for the C
-    // compiler, which the legacy translator never emitted. Every `goto` the
-    // emitter can print comes from a `Block` operand (`Br`/`CondBr`), so
-    // collecting those operands — minus the fall-throughs, which print nothing —
-    // is exactly the referenced set.
-    std::vector<uint8_t> block_referenced(function.blocks.size(), 0);
-    for (uint32_t ii = 0; ii < function.instructions.size(); ++ii) {
-        const MIRInstruction& inst = function.instructions[ii];
-        for (uint32_t i = 0; i < inst.operand_count; ++i) {
-            const MIROperand* op = operand_at(function, inst, i);
-            if (!op || op->kind() != MIROperandKind::Block) continue;
-            if (op->id >= block_referenced.size()) continue;
-            if (is_fallthrough(ii, op->id)) continue;
-            block_referenced[op->id] = 1;
-        }
-    }
-    std::vector<BlockId> label_at(function.instructions.size(), MIR_INVALID_ID);
-    // which instruction indices begin a block (used by the load/store collapse
-    // below to keep a collapsed read inside one basic block)
-    std::vector<uint8_t> block_starts(function.instructions.size(), 0);
-    for (uint32_t b = 0; b < function.blocks.size(); ++b) {
-        const MIRBlock& blk = function.blocks[b];
-        if (blk.inst_start == MIR_INVALID_ID || blk.inst_start >= label_at.size()) continue;
-        block_starts[blk.inst_start] = 1;
-        if (blk.id >= block_referenced.size() || !block_referenced[blk.id]) continue;
-        label_at[blk.inst_start] = blk.id;
-    }
+    // Per-function facts (evaluation action B): block offsets and labels, place
+    // write counts, parameter aliasing. Computed once in MIR core (`MIRFacts`)
+    // so every backend reads the same answer instead of re-deriving it — this
+    // file used to run the whole analysis itself.
+    //
+    // `label_at_inst` drops a block nothing jumps to: an unreferenced label is
+    // dead text and an extra jump target for the C compiler, which the legacy
+    // translator never emitted, and a branch to the block starting at the very
+    // next instruction is a fall-through that prints no jump at all.
+    MIRFunctionFacts facts;
+    compute_function_facts(module, function, facts);
+    const std::vector<BlockId>& label_at = facts.label_at_inst;
+    const std::vector<uint8_t>& block_starts = facts.block_starts_inst;
 
     // Build the single-use inlining map: a pure value used exactly once is
     // collapsed into its use site (address chains, arithmetic, casts,
@@ -703,106 +669,17 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 return false;
         }
     };
-    // Which places are written more than once (their initializing store)?
-    // A parameter slot written only by its initial spill can be read by name
+    // Which places are written more than once (their initializing store)? A
+    // parameter slot written only by its initial spill can be read by name
     // instead of through a temporary (`v = p; *v` -> `*p`).
-    std::vector<uint32_t> place_writes(function.places.size(), 0);
-    for (const MIRInstruction& inst : function.instructions) {
-        switch (inst.opcode()) {
-            case MIROpcode::Store:
-            case MIROpcode::Assign:
-            case MIROpcode::CopyInit:
-            case MIROpcode::MoveInit:
-            case MIROpcode::Init:
-            case MIROpcode::MemCpy:
-            case MIROpcode::MemSet: {
-                const MIROperand* d = operand_at(function, inst, 0);
-                if (d && d->kind() == MIROperandKind::Place && d->id < place_writes.size()) {
-                    ++place_writes[d->id];
-                }
-                break;
-            }
-            default:
-                break;
-        }
-    }
+    const std::vector<uint32_t>& place_writes = facts.place_writes;
     // Param instruction -> its C argument index (`__chx_aN`), independent of
     // whether the Param itself is emitted (single-use Params are inlined).
-    std::vector<uint32_t> param_idx_at(function.instructions.size(), MIR_INVALID_ID);
-    {
-        uint32_t pi = 0;
-        for (size_t ii = 0; ii < function.instructions.size(); ++ii) {
-            if (function.instructions[ii].opcode() == MIROpcode::Param) {
-                param_idx_at[ii] = pi++;
-            }
-        }
-    }
+    const std::vector<uint32_t>& param_idx_at = facts.param_index_at_inst;
     // A scalar parameter passed by value and never reassigned or addressed
     // *is* the C argument: alias it, so neither its stack slot nor the
-    // prologue spill store is emitted at all. (The LLVM backend needs no
-    // equivalent: mem2reg promotes those allocas there.) Aggregates are left
-    // alone — their place holds either a copy of the pointee or the hidden
-    // argument pointer, and their by-value semantics must not be skipped.
-    std::vector<uint32_t> param_alias(function.places.size(), MIR_INVALID_ID);
-    {
-        // a use other than a plain read of the place, or its own initializing
-        // store, means the place must keep its own storage
-        std::vector<uint8_t> addressed(function.places.size(), 0);
-        // the argument index the place's single store copies, when that store
-        // stores the parameter value itself
-        std::vector<uint32_t> candidate(function.places.size(), MIR_INVALID_ID);
-        auto is_param_place = [&](const MIROperand* op) {
-            return op && op->kind() == MIROperandKind::Place && op->id < addressed.size() &&
-                   function.places[op->id].storage_class ==
-                       static_cast<uint8_t>(MIRStorageClass::Parameter);
-        };
-        for (const MIRInstruction& inst : function.instructions) {
-            const bool readable = inst.opcode() == MIROpcode::Load;
-            const bool writable = inst.opcode() == MIROpcode::Store;
-            const MIROperand* d = operand_at(function, inst, 0);
-            if (is_param_place(d)) {
-                if (!readable && !writable) {
-                    addressed[d->id] = 1;
-                } else if (writable && candidate[d->id] == MIR_INVALID_ID) {
-                    const MIROperand* s = operand_at(function, inst, 1);
-                    if (s && s->kind() == MIROperandKind::Value && s->id < function.values.size()) {
-                        const MIRValueDef& vd = function.values[s->id];
-                        if (vd.def_inst != MIR_INVALID_ID &&
-                            vd.def_inst < function.instructions.size() &&
-                            function.instructions[vd.def_inst].opcode() == MIROpcode::Param) {
-                            candidate[d->id] = param_idx_at[vd.def_inst];
-                        }
-                    }
-                }
-            }
-            // only operand 0 of a plain read/write may name the place
-            for (uint32_t i = 1; i < inst.operand_count; ++i) {
-                const MIROperand* op = operand_at(function, inst, i);
-                if (is_param_place(op)) addressed[op->id] = 1;
-            }
-        }
-        for (PlaceId p = 0; p < function.places.size(); ++p) {
-            if (candidate[p] == MIR_INVALID_ID || candidate[p] >= ptypes.size()) continue;
-            // exactly one write (that store) and no address taken anywhere
-            if (place_writes[p] != 1 || addressed[p]) continue;
-            const MIRPlaceDef& pd = function.places[p];
-            if (pd.type >= module.types.size()) continue;
-            switch (module.types.get(pd.type).kind) {
-                case MIRTypeKind::Void:
-                case MIRTypeKind::Array:
-                case MIRTypeKind::Struct:
-                case MIRTypeKind::Union:
-                case MIRTypeKind::Variant:
-                case MIRTypeKind::Function:
-                case MIRTypeKind::Opaque:
-                    continue;
-                default:
-                    break;
-            }
-            param_alias[p] = candidate[p];
-        }
-        g_param_alias = &param_alias;
-    }
+    // prologue spill store is emitted at all (evaluation action C3).
+    g_param_alias = &facts.param_alias;
 
     for (size_t ii = 0; ii < function.instructions.size(); ++ii) {
         const MIRInstruction& inst = function.instructions[ii];
@@ -892,14 +769,15 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
         // An aliased parameter place has no storage of its own: neither its
         // declaration nor its prologue spill store is emitted.
         if (inst.opcode() == MIROpcode::Alloca &&
-            inst.result_or_place < param_alias.size() &&
-            param_alias[inst.result_or_place] != MIR_INVALID_ID) {
+            inst.result_or_place < facts.param_alias.size() &&
+            facts.param_alias[inst.result_or_place] != MIR_INVALID_ID) {
             continue;
         }
         if (inst.opcode() == MIROpcode::Store) {
             const MIROperand* d = operand_at(function, inst, 0);
-            if (d && d->kind() == MIROperandKind::Place && d->id < param_alias.size() &&
-                param_alias[d->id] != MIR_INVALID_ID) {
+            if (d && d->kind() == MIROperandKind::Place &&
+                d->id < facts.param_alias.size() &&
+                facts.param_alias[d->id] != MIR_INVALID_ID) {
                 continue;
             }
         }
@@ -1514,7 +1392,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const MIROperand* target = operand_at(function, inst, 0);
                 if (!target) { error = "br missing target"; return false; }
                 // A branch to the next block needs no jump: control falls into it.
-                if (!is_fallthrough(idx, target->id)) {
+                if (!facts.is_fallthrough_inst(function, idx, target->id)) {
                     out += "goto __chx_bb" + std::to_string(target->id) + ";\n";
                 }
                 break;
@@ -1525,10 +1403,10 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const MIROperand* f = operand_at(function, inst, 2);
                 if (!cond || !t || !f) { error = "cond_br missing operands"; return false; }
                 const std::string cexpr = operand_expr(function, module, *cond);
-                if (is_fallthrough(idx, f->id)) {
+                if (facts.is_fallthrough_inst(function, idx, f->id)) {
                     // the false arm falls through, so only the true jump is emitted
                     out += "if (" + cexpr + ") goto __chx_bb" + std::to_string(t->id) + ";\n";
-                } else if (is_fallthrough(idx, t->id)) {
+                } else if (facts.is_fallthrough_inst(function, idx, t->id)) {
                     // the true arm falls through: jump on the negated condition
                     out += "if (!(" + cexpr + ")) goto __chx_bb" + std::to_string(f->id) +
                            ";\n";

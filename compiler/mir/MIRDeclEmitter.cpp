@@ -30,9 +30,6 @@
 #include "ast/structures/Namespace.h"
 #include "ast/structures/If.h"
 #include "ast/structures/Scope.h"
-#include "ast/structures/StructMember.h"
-#include "ast/structures/UnnamedStruct.h"
-#include "ast/structures/UnnamedUnion.h"
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/EmbeddedNode.h"
@@ -665,111 +662,35 @@ void MIRDeclEmitter::early_declare_node(BufferedWriter& w, ASTNode* node) {
 // struct / union / variant definitions
 // ---------------------------------------------------------------------------
 
-static void write_indent(BufferedWriter& w, int indent) {
-    w.append_char('\n');
-    for (int i = 0; i < indent; ++i) w.append_char('\t');
-}
-
-void MIRDeclEmitter::emit_member(BufferedWriter& w, BaseDefMember* member, int indent) {
-    if (!member) return;
-    switch (member->kind()) {
-        case ASTNodeKind::UnnamedStruct: {
-            w.append("struct {", 8);
-            for (BaseDefMember* f : member->as_unnamed_struct_unsafe()->variables()) {
-                write_indent(w, indent + 1);
-                emit_member(w, f, indent + 1);
-            }
-            write_indent(w, indent);
-            w.append("} ", 2);
-            w << member->name;
-            w.append_char(';');
-            return;
-        }
-        case ASTNodeKind::UnnamedUnion: {
-            w.append("union {", 7);
-            for (BaseDefMember* f : member->as_unnamed_union_unsafe()->variables()) {
-                write_indent(w, indent + 1);
-                emit_member(w, f, indent + 1);
-            }
-            write_indent(w, indent);
-            w.append("} ", 2);
-            w << member->name;
-            w.append_char(';');
-            return;
-        }
-        case ASTNodeKind::StructMember: {
-            auto* sm = member->as_struct_member_unsafe();
-            if (sm->get_required_alignment() > 0) {
-                w.append("__chx_align(", 12);
-                w << sm->get_required_alignment();
-                w.append(") ", 2);
-            }
-            if (sm->is_volatile()) w.append("volatile ", 9);
-            if (sm->type && sm->type->kind() == BaseTypeKind::CapturingFunction) {
-                w.append("__chemical_fat_pointer__* ", 25);
-                w << sm->name;
-            } else {
-                w << decl_spelling(sm->type, std::string(sm->name.data(), sm->name.size()));
-            }
-            w.append_char(';');
-            return;
-        }
-        default:
-            w << decl_spelling(member->known_type(), std::string(member->name.data(), member->name.size()));
-            w.append_char(';');
-            return;
+// The C body of an aggregate comes from MIR (action A3): `aggregate_body_c`
+// spells every member, the inherited bases, the variant tag and the inline case
+// payloads from the type/field tables. The front end only decides *that* this
+// declaration exists (and in what order), which is what the surrounding walk is
+// for. Unreachable by construction: a declared aggregate always maps to a named
+// MIR type; if it ever does not, the body is absent and the C compile fails
+// loudly rather than the module silently losing a definition.
+void MIRDeclEmitter::declare_aggregate_body(BufferedWriter& w, BaseType* type,
+                                            const char* what) {
+    if (!type) return;
+    const TypeId id = types_.map(type);
+    const std::string body = aggregate_body_c(module_, id);
+    if (body.empty()) {
+        const std::string msg = std::string("\n/* MIR declaration: unmapped or unnamed ") +
+                                what + " - its C body could not be printed */";
+        w.append(msg.data(), msg.size());
+        return;
     }
+    w << body;
 }
 
 void MIRDeclEmitter::declare_struct_def_only(BufferedWriter& w, StructDefinition* def) {
     early_declare_composed_variables(w, *def);
-    w.append_char('\n');
-    if (def->get_required_alignment() > 0) {
-        w << "__chx_align_struct(" << def->get_required_alignment() << ") ";
-        mangler_.mangle(w, def);
-    } else {
-        w.append("struct ", 7);
-        mangler_.mangle(w, def);
-    }
-    w.append(" {", 2);
-    for (auto& inherits : def->inherited) {
-        StructDefinition* sd = inherits.type ? inherits.type->get_direct_linked_struct() : nullptr;
-        if (sd) {
-            w.append("\n\tstruct ", 9);
-            mangler_.mangle(w, sd);
-            w.append_char(' ');
-            w << sd->name_view();
-            w.append_char(';');
-        }
-    }
-    for (BaseDefMember* var : def->variables()) {
-        write_indent(w, 1);
-        emit_member(w, var, 1);
-    }
-    w.append("\n};", 3);
+    declare_aggregate_body(w, def->known_type(), "struct");
 }
 
 void MIRDeclEmitter::declare_union_def_only(BufferedWriter& w, UnionDef* def) {
     early_declare_composed_variables(w, *def);
-    w.append_char('\n');
-    w.append("union ", 6);
-    mangler_.mangle(w, def);
-    w.append(" {", 2);
-    for (auto& inherits : def->inherited) {
-        StructDefinition* sd = inherits.type ? inherits.type->get_direct_linked_struct() : nullptr;
-        if (sd) {
-            w.append("\n\tstruct ", 9);
-            mangler_.mangle(w, sd);
-            w.append_char(' ');
-            w << sd->name_view();
-            w.append_char(';');
-        }
-    }
-    for (BaseDefMember* var : def->variables()) {
-        write_indent(w, 1);
-        emit_member(w, var, 1);
-    }
-    w.append("\n};", 3);
+    declare_aggregate_body(w, def->known_type(), "union");
 }
 
 void MIRDeclEmitter::declare_variant_def_only(BufferedWriter& w, VariantDefinition* def) {
@@ -784,36 +705,7 @@ void MIRDeclEmitter::declare_variant_def_only(BufferedWriter& w, VariantDefiniti
             early_declare_type(w, val.second->type, def);
         }
     }
-    w.append_char('\n');
-    w.append("struct ", 7);
-    mangler_.mangle(w, def);
-    w.append(" {", 2);
-    for (auto& inherits : def->inherited) {
-        StructDefinition* sd = inherits.type ? inherits.type->get_direct_linked_struct() : nullptr;
-        if (sd) {
-            w.append("\n\tstruct ", 9);
-            mangler_.mangle(w, sd);
-            w.append_char(' ');
-            w << sd->name_view();
-            w.append_char(';');
-        }
-    }
-    w.append("\n\tint __chx__vt_621827;", 23);
-    w.append("\n\tunion {", 9);
-    for (BaseDefMember* var : def->variables()) {
-        auto* member = var->as_variant_member_unsafe();
-        w.append("\n\t\tstruct {", 11);
-        for (auto& val : member->values) {
-            w.append("\n\t\t\t", 3);
-            w << decl_spelling(val.second->type, std::string(val.second->name.data(), val.second->name.size()));
-            w.append_char(';');
-        }
-        w.append("\n\t\t} ", 5);
-        w << member->name;
-        w.append_char(';');
-    }
-    w.append("\n\t};", 4);
-    w.append("\n};", 3);
+    declare_aggregate_body(w, def->known_type(), "variant");
 }
 
 void MIRDeclEmitter::declare_struct_iterations(BufferedWriter& w, StructDefinition* def) {

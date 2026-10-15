@@ -27,6 +27,39 @@ Branch: `mir`. Supersedes nothing; complements `compiler/mir/README.md`,
 > (D4), the 18 `unordered_map`s (D3) and parallel file lowering (E), which is the
 > only lever sized to the 2.3× compile-time gap.
 >
+> **Status update (2026-10-15, session 18) — architecture, not a gate: A3's
+> first bite and B's second step landed.** The C declaration path no longer walks
+> the AST to spell an aggregate body: `compiler/mir/MIRDeclPrinter` prints
+> structs/unions/variants (inherited bases, `__chx_align_struct(N)`,
+> `__chx_align(N)`/`volatile` members, the variant tag + inline case payloads,
+> and the inline anonymous-member form) from MIR alone; `MIRFieldInfo` grew the
+> spelling facts it needs (`flags`) and `MIRTypeRecord` the explicit alignment
+> (a layout *input*), so there is nothing left for the emitter to ask the AST
+> about a field; `MIRDeclEmitter::emit_member`/`emit_field` are deleted and the
+> driver prints synthesized inline structs from MIR too. Separately,
+> `compiler/mir/MIRFacts` (`compute_function_facts`) now computes the
+> per-function analysis `emit_function_c` used to run inline — block
+> offsets/labels/fall-throughs, place write counts, `place_addressed`,
+> `param_alias` — ≈150 lines of analysis replaced by ≈10 lines of reads.
+> **Output-invariant by measurement**: main-suite C is 97,144 lines before and
+> after; the normalized C diff is 96 (A3) / 111 (A3+B) lines against a 102-line
+> *same-binary two-run* noise floor (all residual lines are generic-instantiation
+> jitter); `--tcc` **2305/2305**; `MIRTests` **1115 → 1154 checks**. A shape
+> probe (inheritance, `@align`, `@volatile`, anonymous unions, variant payloads;
+> `lang/compiled/mir_a3_probe`, gitignored) builds and runs with the expected
+> output on both backends. Suite results with the rebuilt compilers: `--tcc`
+> **2305/2305**, `--llvm` **2303/2303**, `--tcc --libs` **718/719** (the known
+> environment-sensitive `test_fs_directory_iteration`), `MIRTests` **1154
+> checks**. **No
+> headline gate moves** — the two below are still the remaining zeroing classes
+> (C) and D/E (compile time / RSS), and the line gate is still missed. One
+> environment caveat: on this Windows machine the `--llvm` test-exe build
+> aborted twice with a JIT `RUNTIME ERROR: invalid memory access` (exit 255) —
+> once with the binary captured **before** this change, once with the A3-only
+> one — before a later run completed at 2303/2303. The LLVM job skips C emission
+> entirely, so that flake is not caused by this work. Details:
+> `compiler/mir/README.md`, session 18.
+>
 > **Status update (2026-10-15, session 17) — the first headline-gate bite since
 > this document was written.** Action C1's named remainder is done where it is
 > provable: a `T(args)` result temporary (and the `apply_struct_defaults`
@@ -438,7 +471,16 @@ for aggregates (fixed by item 1 below); two independent C type spellers.
 3. Replace `MIRDeclEmitter`'s AST walk with a MIR declaration table
    (`MIRTypeDecl`/`MIRPrototype`/`MIRGlobal`, already sketched in the plan §2.5)
    populated by the lowerer, so declarations are emitted from MIR for every
-   backend.
+   backend. **PARTLY DONE (session 18).** Aggregate *bodies* no longer walk the
+   AST: `compiler/mir/MIRDeclPrinter.cpp` (`aggregate_body_c`,
+   `inline_aggregate_c`, `member_declarator_c`) spells a struct/union/variant
+   from `MIRTypeRecord`/`MIRFieldInfo` alone, `MIRDeclEmitter`'s three
+   `declare_*_def_only` call it, `emit_member`/`emit_field` are deleted, and the
+   field facts it needed are now recorded by `MIRTypeBuilder`
+   (`MIRFieldInfo::flags`, `MIRTypeRecord::explicit_alignment`). Still on the
+   AST: the collection walk, prototypes, globals + constant initializers
+   (`const_value_expr`), typedefs, interface vtables/static stubs. The table
+   itself (`MIRTypeDecl`/`MIRPrototype`/`MIRGlobal`) is still the next step.
 **Acceptance.** No AST headers in the declaration path; one C type speller;
 `MIRTypeRecord.size/alignment` non-zero for aggregates and verified by
 `MIRTests`; C + LLVM output unchanged or smaller.
@@ -455,6 +497,20 @@ place/symbol/constant naming, and block iteration. Backends implement only
 `opcode → target construct`. Use `opcode_portability()` to keep `NativeOnly`
 opcodes (raw pointers, `InlineAsm`, atomics) out of JVM/JS and report a
 diagnostic for them.
+
+**Step 2 DONE (session 18) — `compiler/mir/MIRFacts.h`.** The per-function
+facts a backend needs before it can spill a place, alias a parameter or place a
+label are now MIR's: `compute_function_facts(module, fn, out)` fills
+`block_start`/`block_starts_inst`/`block_referenced`/`label_at_inst`
+(+ `is_fallthrough_inst`), `place_writes`, `place_addressed`,
+`param_index_at_inst` and `param_alias`. `emit_function_c` reads them instead of
+running the ≈150-line analysis inline (the analysis was transcribed exactly, not
+re-derived, so the C output is unchanged — 97,144 lines either side, normalized
+diff within the 102-line same-binary noise floor). `MIRTests` gained two
+functions' worth of assertions (1154 checks). **Still open in B:** shared
+traversal, place/symbol/constant naming, and the interface **vtable layout**
+(slot order) that `MIRDeclEmitter` (C) and `CodegenMir::mir_vtable_*` (LLVM)
+still derive independently — that is the next shared service.
 
 **Step 1 DONE (session 15) — `compiler/mir/MIRABI.h`.** The parameter/return
 classification is now shared rather than re-derived: the same rules had been

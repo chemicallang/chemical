@@ -2190,19 +2190,13 @@ bool mir_translate_after_declaration(
         for (auto& entry : module.inline_structs) {
             auto* bt = static_cast<BaseType*>(entry.second);
             if (!bt || bt->kind() != BaseTypeKind::Struct) continue;
-            auto* sty = bt->as_struct_type_unsafe();
+            // the C body of a synthesized inline struct comes from MIR (action A3)
+            const std::string body = mir::inline_aggregate_c(module, entry.first);
+            if (body.empty()) continue;
             const std::string name = module.types.name_of(entry.first);
-            if (name.empty()) continue;
             if (!emitted.insert(name).second) continue;
             visitor.new_line_and_indent();
-            visitor.write("struct ");
-            visitor.write(chem::string_view(name.data(), static_cast<unsigned>(name.size())));
-            visitor.write(" { ");
-            for (BaseDefMember* var : sty->variables()) {
-                decl_emitter.emit_field(visitor.writer, var);
-                visitor.write(' ');
-            }
-            visitor.write("};");
+            visitor.write_str(body);
         }
         const size_t def_end = visitor.writer.getPosition();
         if (def_end > def_start) {

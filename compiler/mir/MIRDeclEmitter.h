@@ -12,6 +12,7 @@
 #pragma once
 
 #include "MIRModule.h"
+#include "MIRDeclPrinter.h"
 
 #include <functional>
 #include <string>
@@ -89,12 +90,6 @@ public:
     /** C prototype spelling of a function declaration (no trailing `;`). */
     std::string function_proto(FunctionDeclaration* decl);
 
-    /**
-     * Emit a single struct/union member declarator (no leading indent). Used to
-     * emit the fields of an inline (anonymous/locally-named) struct type.
-     */
-    void emit_field(BufferedWriter& w, BaseDefMember* member) { emit_member(w, member, 1); }
-
 private:
     // --- declare-pass helpers ---
     void declare_contained_func(BufferedWriter& w, FunctionDeclaration* decl, bool terminate);
@@ -137,8 +132,12 @@ private:
     std::string struct_default_expr(StructDefinition* sd);
     void write_escaped_string(BufferedWriter& w, const std::string& s);
 
-    /** Emit one struct/union member (including anonymous aggregates). */
-    void emit_member(BufferedWriter& w, BaseDefMember* member, int indent);
+    /**
+     * Emit the C body of an aggregate declaration (`struct`/`union`/`variant`)
+     * from MIR — see MIRDeclPrinter. `what` names the construct for the
+     * (unreachable) diagnostic comment.
+     */
+    void declare_aggregate_body(BufferedWriter& w, BaseType* type, const char* what);
 
     // --- state ---
     MIRModule& module_;

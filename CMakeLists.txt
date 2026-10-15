@@ -673,9 +673,11 @@ set(COMMON_SOURCES
         compiler/mir/MIRBuilder.cpp
         compiler/mir/MIRDump.cpp
         compiler/mir/MIRVerifier.cpp
+        compiler/mir/MIRFacts.cpp
         compiler/mir/MIRTypeBuilder.cpp
         compiler/mir/MIRLowerer.cpp
         compiler/mir/MIREmitter.cpp
+        compiler/mir/MIRDeclPrinter.cpp
         compiler/mir/MIRDeclEmitter.cpp
 )
 
@@ -897,6 +899,8 @@ add_executable(MIRTests
         compiler/mir/MIRDump.cpp
         compiler/mir/MIRVerifier.cpp
         compiler/mir/MIREmitter.cpp
+        compiler/mir/MIRDeclPrinter.cpp
+        compiler/mir/MIRFacts.cpp
 )
 target_include_directories(MIRTests PRIVATE ${COMMON_INCLUDE_DIRS})
 

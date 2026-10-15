@@ -7,7 +7,9 @@
 
 #include "compiler/mir/MIR.h"
 #include "compiler/mir/MIRBuilder.h"
+#include "compiler/mir/MIRDeclPrinter.h"
 #include "compiler/mir/MIREmitter.h"
+#include "compiler/mir/MIRFacts.h"
 
 #include <cassert>
 #include <cstddef>
@@ -447,6 +449,7 @@ struct FieldSpec {
     TypeId type;
     uint32_t align = 0;
     MIRFieldKind kind = MIRFieldKind::Direct;
+    uint8_t flags = MFF_NONE;
 };
 
 static TypeId mir_layout_int(MIRModule& m, uint32_t size, MIRIntKind ik) {
@@ -494,12 +497,14 @@ static TypeId mir_layout_agg(MIRModule& m, MIRTypeKind kind,
                              uint32_t explicit_align = 0) {
     MIRTypeRecord r;
     r.kind = kind;
+    r.explicit_alignment = explicit_align;
     r.data_count = static_cast<uint32_t>(fields.size());
     std::vector<MIRFieldInfo> fs;
     for (const FieldSpec& f : fields) {
         MIRFieldInfo fi;
         fi.type = f.type;
         fi.kind = static_cast<uint8_t>(f.kind);
+        fi.flags = f.flags;
         fi.align = f.align;
         fi.index = static_cast<uint32_t>(fs.size());
         fi.name_offset = static_cast<uint32_t>(m.types.field_names.size());
@@ -642,6 +647,235 @@ static bool test_aggregate_layout() {
     return true;
 }
 
+// ── per-function facts (action B) ──────────────────────────────────────────
+// `compute_function_facts` is the analysis the C emitter used to run inline;
+// these pin the answers both the emitter and any future backend read.
+static bool test_function_facts() {
+    MIRModule module;
+    MIRTypeRecord ir;
+    ir.kind = MIRTypeKind::Int;
+    ir.flags = TF_SIGNED;
+    ir.size = 4;
+    ir.alignment = 4;
+    const TypeId i32 = module.types.intern(ir);
+    MIRTypeRecord br;
+    br.kind = MIRTypeKind::Bool;
+    br.size = 1;
+    br.alignment = 1;
+    const TypeId bool_t = module.types.intern(br);
+
+    // a) a scalar parameter written once by its own spill is its argument
+    {
+        TypeId params[2] = {i32, i32};
+        MIRTypeRecord fr;
+        fr.kind = MIRTypeKind::Function;
+        fr.element = i32;
+        fr.data_offset = module.types.append_data(params, 2);
+        fr.data_count = 2;
+        fr.size = 8;
+        fr.alignment = 8;
+        const TypeId ftype = module.types.intern(fr);
+
+        MIRArena arena;
+        MIRFunction fn;
+        fn.function_type = ftype;
+        MIRBuilder b(arena, module, fn);
+        const BlockId entry = b.create_block();
+        b.set_block(entry);
+        fn.entry_block = entry;
+
+        const ValueId pa = b.param(i32);
+        const PlaceId ppa = b.alloca(i32, MIRStorageClass::Parameter);
+        b.store(ppa, pa);
+        const ValueId pb = b.param(i32);
+        const PlaceId ppb = b.alloca(i32, MIRStorageClass::Parameter);
+        b.store(ppb, pb);
+        const ValueId la = b.load(ppa, i32);
+        const ValueId lb = b.load(ppb, i32);
+        const ValueId sum = b.binary(
+            la, lb, module.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Add)), i32);
+        b.ret(sum);
+        CHECK(b.ok());
+
+        MIRFunctionFacts f;
+        compute_function_facts(module, fn, f);
+        // both parameter places are aliased to their argument, in order
+        CHECK(f.param_alias.size() == fn.places.size());
+        CHECK(f.param_alias[ppa] == 0u);
+        CHECK(f.param_alias[ppb] == 1u);
+        CHECK(f.place_writes[ppa] == 1u);
+        CHECK(f.place_writes[ppb] == 1u);
+        CHECK(f.place_addressed[ppa] == 0u);
+        // every `Param` instruction carries its argument index
+        uint32_t params_seen = 0;
+        for (uint32_t ii = 0; ii < fn.instructions.size(); ++ii) {
+            if (fn.instructions[ii].opcode() != MIROpcode::Param) continue;
+            CHECK(f.param_index_at_inst[ii] == params_seen);
+            ++params_seen;
+        }
+        CHECK(params_seen == 2u);
+        // one block, nothing jumps to it, nothing falls through
+        CHECK(f.block_start[entry] == 0u);
+        CHECK(f.block_starts_inst[0] == 1u);
+        CHECK(f.block_referenced[entry] == 0u);
+        CHECK(f.label_at_inst[0] == MIR_INVALID_ID);
+    }
+
+    // b) a two-arm branch: the fall-through arm is not a reference and gets no
+    //    label; the other arm does
+    {
+        MIRTypeRecord fr;
+        fr.kind = MIRTypeKind::Function;
+        fr.element = i32;
+        fr.size = 8;
+        fr.alignment = 8;
+        const TypeId ftype = module.types.intern(fr);
+
+        MIRArena arena;
+        MIRFunction fn;
+        fn.function_type = ftype;
+        MIRBuilder b(arena, module, fn);
+        const BlockId entry = b.create_block();
+        const BlockId then_b = b.create_block();
+        const BlockId else_b = b.create_block();
+        const BlockId join = b.create_block();
+        b.set_block(entry);
+        fn.entry_block = entry;
+        const ValueId ten = b.const_int(i32, module.constants.add_int(i32, 10));
+        const ValueId zero = b.const_int(i32, module.constants.add_int(i32, 0));
+        const ValueId cond = b.compare(
+            ten, zero, module.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Eq)),
+            bool_t);
+        const PlaceId p = b.alloca(i32, MIRStorageClass::Local);
+        b.cond_br(cond, then_b, else_b);
+        b.set_block(then_b);
+        b.store(p, ten);
+        b.br(join);
+        b.set_block(else_b);
+        b.store(p, zero);
+        b.br(join);
+        b.set_block(join);
+        b.ret(b.load(p, i32));
+        CHECK(b.ok());
+
+        MIRFunctionFacts f;
+        compute_function_facts(module, fn, f);
+        CHECK(f.block_start[entry] == 0u);
+        // the arm that starts right after the terminator falls through: no
+        // reference, hence no label
+        const uint32_t then_start = f.block_start[then_b];
+        CHECK(f.block_starts_inst[then_start] == 1u);
+        CHECK(f.is_fallthrough_inst(fn, then_start - 1, then_b));
+        CHECK(f.block_referenced[then_b] == 0u);
+        CHECK(f.label_at_inst[then_start] == MIR_INVALID_ID);
+        // the other arm and the join are jumped to and labelled
+        const uint32_t else_start = f.block_start[else_b];
+        const uint32_t join_start = f.block_start[join];
+        CHECK(f.block_referenced[else_b] == 1u);
+        CHECK(f.block_referenced[join] == 1u);
+        CHECK(f.label_at_inst[else_start] == else_b);
+        CHECK(f.label_at_inst[join_start] == join);
+        // `then_b`'s branch to `join` is a real jump; `else_b`'s is a fall-through
+        CHECK(!f.is_fallthrough_inst(fn, else_start - 1, join));
+        CHECK(f.is_fallthrough_inst(fn, join_start - 1, join));
+        // the local is written twice: never a parameter alias
+        CHECK(f.place_writes[p] == 2u);
+        CHECK(f.param_alias[p] == MIR_INVALID_ID);
+    }
+    return true;
+}
+
+// ── declaration printer (action A3) ────────────────────────────────────────
+// The C text of a declaration is MIR's business (`MIRDeclPrinter`); these pin
+// the exact spelling the AST-walking declaration emitter used to write, since
+// the emitted C is compared against it byte for byte.
+static bool test_decl_printer() {
+    MIRModule m;
+    const TypeId ch = mir_layout_int(m, 1, IK_CHAR);
+    const TypeId i32 = mir_layout_int(m, 4, IK_INT);
+    const TypeId dbl = mir_layout_float(m, 8);
+
+    // struct
+    {
+        const TypeId s = mir_layout_agg(m, MIRTypeKind::Struct, {{"c", ch}, {"i", i32}});
+        m.types.set_name(s, "S", 1);
+        CHECK(aggregate_body_c(m, s) == "\nstruct S {\n\tchar c;\n\tint i;\n};");
+        CHECK(inline_aggregate_c(m, s) == "struct S { char c; int i; };");
+    }
+    // struct with an explicit `__chx_align_struct(N)`
+    {
+        const TypeId s = mir_layout_agg(m, MIRTypeKind::Struct, {{"i", i32}}, 16);
+        m.types.set_name(s, "Aligned", 7);
+        CHECK(aggregate_body_c(m, s) ==
+              "\n__chx_align_struct(16) Aligned {\n\tint i;\n};");
+    }
+    // union
+    {
+        const TypeId u = mir_layout_agg(m, MIRTypeKind::Union, {{"i", i32}, {"c", ch}});
+        m.types.set_name(u, "U", 1);
+        CHECK(aggregate_body_c(m, u) == "\nunion U {\n\tint i;\n\tchar c;\n};");
+    }
+    // variant: inherited base, tag, then an inline union of the case payloads
+    {
+        const TypeId base = mir_layout_agg(m, MIRTypeKind::Struct, {{"i", i32}});
+        m.types.set_name(base, "Base", 4);
+        const TypeId case_a =
+            mir_layout_agg(m, MIRTypeKind::Struct,
+                           {{"x", i32, 0, MIRFieldKind::VariantParam}});
+        const TypeId case_b =
+            mir_layout_agg(m, MIRTypeKind::Struct,
+                           {{"c", ch, 0, MIRFieldKind::VariantParam},
+                            {"d", dbl, 0, MIRFieldKind::VariantParam}});
+        const TypeId v = mir_layout_agg(
+            m, MIRTypeKind::Variant,
+            {{"Base", base, 0, MIRFieldKind::Base},
+             {"__chx__vt_621827", i32, 0, MIRFieldKind::VariantTag},
+             {"A", case_a, 0, MIRFieldKind::VariantCase},
+             {"B", case_b, 0, MIRFieldKind::VariantCase}});
+        m.types.set_name(v, "V", 1);
+        const std::string expected =
+            "\nstruct V {\n\tstruct Base Base;\n\tint __chx__vt_621827;\n\tunion {"
+            // two tabs on a case parameter: the walk this replaces wrote
+            // `append("\n\t\t\t", 3)`, so the count cut the third tab off
+            "\n\t\tstruct {\n\t\tint x;\n\t\t} A;"
+            "\n\t\tstruct {\n\t\tchar c;\n\t\tdouble d;\n\t\t} B;"
+            "\n\t};\n};";
+        CHECK(aggregate_body_c(m, v) == expected);
+        // a variant has no one-line form
+        CHECK(inline_aggregate_c(m, v).empty());
+    }
+    // member spelling: alignment, volatile, capturing-function, anonymous form
+    {
+        const TypeId s = mir_layout_agg(
+            m, MIRTypeKind::Struct,
+            {{"a", ch, 8, MIRFieldKind::Direct},
+             {"v", i32, 0, MIRFieldKind::Direct, MFF_VOLATILE},
+             {"cb", i32, 0, MIRFieldKind::Direct, MFF_FAT_POINTER}});
+        m.types.set_name(s, "M", 1);
+        CHECK(aggregate_body_c(m, s) ==
+              "\nstruct M {\n\t__chx_align(8) char a;\n\tvolatile int v;\n"
+              "\t__chemical_fat_pointer__* cb;\n};");
+    }
+    // an anonymous member keeps its inline body, nested one level deeper
+    {
+        const TypeId inner = mir_layout_agg(m, MIRTypeKind::Struct, {{"i", i32}});
+        const TypeId s = mir_layout_agg(
+            m, MIRTypeKind::Struct,
+            {{"u", inner, 0, MIRFieldKind::Direct, MFF_ANONYMOUS_UNION}});
+        m.types.set_name(s, "Anon", 4);
+        CHECK(aggregate_body_c(m, s) ==
+              "\nstruct Anon {\n\tunion {\n\t\tint i;\n\t} u;\n};");
+    }
+    // unnamed / unsupported ids are reported as nothing rather than misprinted
+    {
+        const TypeId void_t = m.types.intern(MIRTypeRecord{});
+        CHECK(aggregate_body_c(m, void_t).empty());
+        CHECK(aggregate_body_c(m, MIR_INVALID_ID).empty());
+        CHECK(inline_aggregate_c(m, MIR_INVALID_ID).empty());
+    }
+    return true;
+}
+
 int main() {
     bool ok = true;
     ok &= test_arena();
@@ -652,6 +886,8 @@ int main() {
     ok &= test_control_flow_emitter();
     ok &= test_type_names();
     ok &= test_aggregate_layout();
+    ok &= test_function_facts();
+    ok &= test_decl_printer();
     if (!ok) {
         std::cerr << "mir_tests: FAILED\n";
         return 1;

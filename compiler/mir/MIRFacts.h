@@ -1,0 +1,82 @@
+// Copyright (c) Chemical Language Foundation 2025.
+//
+// Backend-neutral per-function facts, computed once from a lowered function and
+// read by the emitters. This is action B of mir-migration-evaluation.md: the
+// facts a backend needs before it can spill a place, alias a parameter or place
+// a label are MIR's to publish, not each emitter's to re-derive. The C emitter
+// computes them today (it is the one with a `place`-based code shape); the LLVM
+// emitter promotes places with mem2reg and needs none, and a JVM/JS backend
+// reads the same struct instead of growing its own analysis.
+//
+// AST-free and target-free (it reads the function and the interned type table
+// only), so it lives in MIR core and is covered by the standalone MIRTests
+// target. Nothing here spells anything: the facts are ids and counts.
+
+#pragma once
+
+#include "MIRModule.h"
+
+#include <cstdint>
+#include <vector>
+
+namespace mir {
+
+/**
+ * Everything a backend needs to know about a function's shape before emitting
+ * it. Turing-complete *analysis*, not policy: what a backend does with
+ * `param_alias` (skip the spill) or `label_at_inst` (print a label) is its own
+ * business.
+ *
+ * Every vector is indexed by the id its name says; a vector is sized for the
+ * whole function even when a fact is MIR_INVALID_ID (0 is a valid id, so
+ * sentinels — not length — mark "absent").
+ */
+struct MIRFunctionFacts {
+    /** Instruction index each block begins at, by `BlockId`. */
+    std::vector<uint32_t> block_start;
+    /** 1 at every instruction index that begins a block. */
+    std::vector<uint8_t> block_starts_inst;
+    /**
+     * 1 for a block some terminator operand *jumps* to, by `BlockId`. A branch
+     * to the block that starts at the very next instruction is a fall-through
+     * and is not a jump — see `is_fallthrough_inst`.
+     */
+    std::vector<uint8_t> block_referenced;
+    /** Label block id at each instruction index, or MIR_INVALID_ID for none. */
+    std::vector<BlockId> label_at_inst;
+
+    /** Writes (destination operand of the writing opcodes) per place, by `PlaceId`. */
+    std::vector<uint32_t> place_writes;
+    /**
+     * 1 when a place is used somewhere other than operand 0 of a plain
+     * load/store — i.e. its address may escape and it must keep its own storage.
+     */
+    std::vector<uint8_t> place_addressed;
+    /** C-argument-style index of each `Param` instruction, by instruction index. */
+    std::vector<uint32_t> param_index_at_inst;
+    /**
+     * A by-value scalar (non-aggregate, non-array) parameter place that is
+     * written exactly once, by its own `Param` spill, and never addressed *is*
+     * its argument: the value a backend would spill is already in the argument
+     * slot, so the spill (and its storage) can be skipped. Holds the argument
+     * index, or MIR_INVALID_ID when the place must keep its own storage.
+     *
+     * Aggregates are deliberately excluded: such a place holds either a copy of
+     * the pointee or the hidden argument pointer, and skipping its by-value
+     * semantics would be wrong.
+     */
+    std::vector<uint32_t> param_alias;
+
+    /** True when the block starting `block_id` begins right after instruction `inst`. */
+    bool is_fallthrough_inst(const MIRFunction& fn, uint32_t inst, BlockId block_id) const {
+        if (block_id >= block_start.size()) return false;
+        const uint32_t s = block_start[block_id];
+        return s != MIR_INVALID_ID && s == inst + 1;
+    }
+};
+
+/** Compute `out` for `function`, which must belong to `module`. */
+void compute_function_facts(const MIRModule& module, const MIRFunction& function,
+                            MIRFunctionFacts& out);
+
+} // namespace mir

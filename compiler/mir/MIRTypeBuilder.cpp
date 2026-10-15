@@ -181,10 +181,11 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
 
     std::vector<MIRFieldInfo> fs;
     auto push_field = [&](const std::string& name, TypeId t, MIRFieldKind fk,
-                          uint32_t explicit_align = 0) {
+                          uint32_t explicit_align = 0, uint8_t spelling_flags = MFF_NONE) {
         MIRFieldInfo fi;
         fi.type = t;
         fi.kind = static_cast<uint8_t>(fk);
+        fi.flags = spelling_flags;
         fi.index = static_cast<uint32_t>(fs.size());
         fi.align = explicit_align;
         fi.name_offset = static_cast<uint32_t>(module_.types.field_names.size());
@@ -212,7 +213,18 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
             // alignment (the emitter writes the attribute out verbatim)
             StructMember* sm = var->as_struct_member();
             const uint32_t req = sm ? sm->get_required_alignment() : 0;
-            push_field(std::string(nv.data(), nv.size()), vt, MIRFieldKind::Direct, req);
+            // spelling facts the member carries but layout does not, so the C
+            // declaration printer can spell the field from MIR alone (action A3)
+            uint8_t sflags = MFF_NONE;
+            if (sm && sm->is_volatile()) sflags |= MFF_VOLATILE;
+            BaseType* mt = var->known_type();
+            if (mt && mt->kind() == BaseTypeKind::CapturingFunction) sflags |= MFF_FAT_POINTER;
+            switch (var->kind()) {
+                case ASTNodeKind::UnnamedStruct: sflags |= MFF_ANONYMOUS_STRUCT; break;
+                case ASTNodeKind::UnnamedUnion: sflags |= MFF_ANONYMOUS_UNION; break;
+                default: break;
+            }
+            push_field(std::string(nv.data(), nv.size()), vt, MIRFieldKind::Direct, req, sflags);
         }
     };
 
@@ -292,6 +304,7 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
     if (decl && decl->kind() == ASTNodeKind::StructDecl) {
         explicit_align = decl->as_struct_def_unsafe()->get_required_alignment();
     }
+    rec.explicit_alignment = explicit_align;
     compute_aggregate_layout(module_.types, id, explicit_align);
 }
 

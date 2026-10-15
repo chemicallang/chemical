@@ -114,18 +114,29 @@ their own files:
   (`lower_captured_variable`, `lower_extraction_value`,
   `lower_capturing_function_call`, `materialize_capturing_lambda`, `lower_lambda`,
   `materialize_noncapturing_lambda`).
+- **`compiler/mir/MIRLowerConst.cpp`** (377 lines) — the global-initializer
+  constant-expression builder (`build_global_initializer`, `build_const_expr` /
+  `_array` / `_struct_value` / `_struct_default` / `_variant` / `_variant_bare` /
+  `_call`).
 - **`compiler/mir/MIRLowererInternal.h`** — the single helper those TUs share
   (`is_void_type`), moved out of the anonymous namespace `MIRLowerer.cpp` still
   uses internally.
 
-`MIRLowerer.cpp` is **9,026 → 7,277 lines**. This is a **pure move** — the emitted
+`MIRLowerer.cpp` is **9,026 → 7,014 lines**. This is a **pure move** — the emitted
 C is identical (96,915 lines, 194 `memset` sites, unchanged) and the suites are
 green: `--tcc` **2305/2305**, `--llvm` **2303/2303**. The win is the compiler's
-own **incremental build** (touching an async/lambda method now recompiles one
-small TU) and reviewability; it does **not**, by itself, move the compile-time
+own **incremental build** (touching an async/lambda/const method now recompiles
+one small TU) and reviewability; it does **not**, by itself, move the compile-time
 gate — that still needs the dense lowering tables (D3), the per-instruction cost
 (D), and parallel lowering (E). `MIRLowerExpr`/`Stmt`/`Call`/`Aggregate` are the
 remaining split.
+
+> ⚠️ **The compile-time gate is not measurable on this Windows checkout.** Three
+> identical cold `TCCCompiler build.lab --no-cache` runs took 15.6 s / 24.4 s /
+> 23.5 s — run-to-run variance larger than any change — and Windows baselines are
+> the untracked M3. So D3/per-instruction work here can be justified by the plan
+> and verified for correctness (identical C), but not for a compile-time delta;
+> that needs the Linux L1 or the M3 baselines.
 
 ### Session 26 (2026-10-15) — multi-statement constructors no longer zero the result temp (action C1)
 

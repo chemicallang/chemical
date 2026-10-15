@@ -678,6 +678,7 @@ set(COMMON_SOURCES
         compiler/mir/MIRLowerer.cpp
         compiler/mir/MIRLowerAsync.cpp
         compiler/mir/MIRLowerLambda.cpp
+        compiler/mir/MIRLowerConst.cpp
         compiler/mir/MIREmitter.cpp
         compiler/mir/MIRDeclPrinter.cpp
         compiler/mir/MIRDeclEmitter.cpp

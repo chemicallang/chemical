@@ -12,6 +12,7 @@
 #include "MIRConstExpr.h"
 #include "MIRSymbolTable.h"
 #include "MIRVtableTable.h"
+#include "MIRGlobalDecl.h"
 #include "MIRFunction.h"
 
 #include <span>
@@ -27,25 +28,18 @@ enum class MIROutputMode : uint8_t {
     Interpret,
 };
 
-/** Spelling flags of a top-level global (see MIRGlobal). */
-enum MIRGlobalFlags : uint8_t {
-    MGF_NONE = 0x00,
-    MGF_THREAD_LOCAL = 0x01,
-    MGF_VOLATILE = 0x02,
-};
-
 /**
  * A top-level global *definition*: its symbol (name, type and linkage live on
  * the symbol record) plus its constant initializer. Populated by the
  * front-end collection pass so both backends define globals from MIR rather
  * than walking the AST — action A3 of mir-migration-evaluation.md. The C
  * emitter prints `const_expr_c(module, init)` and the LLVM emitter builds a
- * `Constant` from the same tree.
+ * `Constant` from the same tree. `flags` uses `MIRGlobalDeclFlags` (MIRGlobalDecl.h).
  */
 struct MIRGlobal {
     SymbolId symbol = MIR_INVALID_ID;
     ConstExprId init = MIR_INVALID_ID;
-    uint8_t flags = MGF_NONE;
+    uint8_t flags = MGD_NONE;
 };
 
 /**

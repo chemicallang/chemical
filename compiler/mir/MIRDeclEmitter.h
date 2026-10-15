@@ -134,7 +134,6 @@ private:
     // --- type/value spelling ---
     std::string type_spelling(BaseType* type);
     std::string decl_spelling(BaseType* type, const std::string& name);
-    TypeId function_type_of(FunctionDeclaration* decl);
 
     /**
      * Emit the C body of an aggregate declaration (`struct`/`union`/`variant`)

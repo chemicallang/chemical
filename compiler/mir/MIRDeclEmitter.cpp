@@ -6,6 +6,8 @@
 #include "MIRABI.h"
 #include "MIRTypeBuilder.h"
 #include "MIRVtable.h"
+#include "MIRPrototype.h"
+#include "MIRGlobalDecl.h"
 
 #include "ast/base/BaseType.h"
 #include "ast/base/Value.h"
@@ -68,60 +70,14 @@ std::string MIRDeclEmitter::decl_spelling(BaseType* type, const std::string& nam
     return c_declarator(module_, types_.map(type), name);
 }
 
-// A method of an `impl StaticInterface for T` is emitted with the interface's
-// erased self ABI (`void**`), not `T*`: the interface's own method declaration
-// carries that type and the impl's definition must match. Returns the
-// interface's matching method (whose self param has the erased type), or null.
-FunctionDeclaration* mir_static_iface_base_method(FunctionDeclaration* decl) {
-    if (!decl) return nullptr;
-    ASTNode* parent = decl->parent();
-    if (!parent || parent->kind() != ASTNodeKind::ImplDecl) return nullptr;
-    auto* impl = parent->as_impl_def_unsafe();
-    if (!impl->interface_type) return nullptr;
-    auto* iface = impl->interface_type->get_direct_linked_interface();
-    if (!iface || !iface->is_static()) return nullptr;
-    return iface->direct_child_function(decl->name_view());
-}
-
-TypeId MIRDeclEmitter::function_type_of(FunctionDeclaration* decl) {
-    const TypeId ret = decl->returnType ? types_.map(decl->returnType) : types_.void_type();
-    const bool sret = abi::needs_sret(module_, ret);
-    std::vector<TypeId> ptypes;
-    if (sret) ptypes.push_back(types_.pointer_type(ret, true));
-
-    FunctionParam* self_param = decl->has_self_param() ? decl->get_self_param() : nullptr;
-    bool self_in_params = false;
-    for (FunctionParam* p : decl->params) {
-        if (p == self_param) { self_in_params = true; break; }
-    }
-    if (self_in_params) self_param = nullptr;
-
-    auto map_param = [&](FunctionParam* p) {
-        TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
-        if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
-            pt = types_.pointer_type(module_.types.get(pt).element, true);
-        } else if (abi::is_aggregate(module_, pt)) {
-            pt = types_.pointer_type(pt, true);
-        }
-        return pt;
-    };
-    if (self_param) {
-        FunctionDeclaration* base = mir_static_iface_base_method(decl);
-        FunctionParam* base_self = base ? base->get_self_param() : nullptr;
-        ptypes.push_back(base_self && base_self->type ? types_.map(base_self->type)
-                                                      : map_param(self_param));
-    }
-    for (FunctionParam* p : decl->params) ptypes.push_back(map_param(p));
-    if (decl->isVariadic() && !decl->params.empty()) ptypes.pop_back();
-
-    return types_.function_signature(sret ? types_.void_type() : ret, ptypes, decl->isVariadic());
-}
+// The prototype ABI (sret, aggregates/arrays by pointer, the static-interface
+// erased self, variadic tail) lives in MIRPrototype so the C prototype and the
+// LLVM call/symbol cannot drift — see `mir::mir_function_signature`.
 
 std::string MIRDeclEmitter::function_proto(FunctionDeclaration* decl) {
-    std::string name = mangle_name(decl);
-    if (decl->is_std_call()) name = "__chem_stdcall " + name;
-    const TypeId ftype = function_type_of(decl);
-    return c_function_proto(module_, ftype, name);
+    MIRPrototype proto;
+    build_function_prototype(mangler_, types_, module_, decl, proto);
+    return c_function_proto(module_, proto.type, proto.name);
 }
 
 std::string MIRDeclEmitter::mangle_name(ASTNode* node) {
@@ -301,15 +257,16 @@ static bool is_linkage_public(AccessSpecifier spec) {
 void MIRDeclEmitter::declare_contained_func(BufferedWriter& w, FunctionDeclaration* decl,
                                              bool terminate) {
     if (decl->is_comptime()) return;
+    // The prototype (name, signature, linkage flags) is a MIR record built by the
+    // shared `build_function_prototype` (action A3), the same one the LLVM path
+    // uses via `mir_function_signature`.
+    MIRPrototype proto;
+    build_function_prototype(mangler_, types_, module_, decl, proto);
     w.append_char('\n');
-    const bool is_static = decl->body.has_value() && !decl->is_linkage_public();
-    std::string name = mangle_name(decl);
-    if (decl->is_std_call()) name = "__chem_stdcall " + name;
-    const TypeId ftype = function_type_of(decl);
-    if (decl->is_extern()) w.append("extern ", 7);
-    if (is_static) w.append("static ", 7);
-    if (decl->is_dll_import()) w.append("__chem_dllimport ", 17);
-    w << c_function_proto(module_, ftype, name);
+    if (proto.flags & MPF_EXTERN) w.append("extern ", 7);
+    if (proto.flags & MPF_STATIC) w.append("static ", 7);
+    if (proto.flags & MPF_DLLIMPORT) w.append("__chem_dllimport ", 17);
+    w << c_function_proto(module_, proto.type, proto.name);
     if (terminate) w.append_char(';');
 }
 
@@ -682,17 +639,31 @@ void MIRDeclEmitter::declare_interface(BufferedWriter& w, InterfaceDefinition* d
 // globals
 // ---------------------------------------------------------------------------
 
+namespace {
+/** The C declarator of a global declaration (see MIRGlobalDecl.h). */
+std::string global_decl_spelling(const MIRModule& module, const MIRGlobalDecl& d) {
+    if (d.unsized_array) return c_declarator(module, d.elem, d.name + "[]");
+    if (d.type == MIR_INVALID_ID) return "void " + d.name;
+    return c_declarator(module, d.type, d.name);
+}
+} // namespace
+
 void MIRDeclEmitter::declare_var(BufferedWriter& w, VarInitStatement* init) {
     if (!init->is_top_level()) return;
     if (init->is_comptime()) return;
+    // name / declared type / unsized-array / flags come from the shared
+    // `build_global_declaration` (action A3), the same record `implement_global`
+    // prints its definition from.
+    MIRGlobalDecl decl;
+    build_global_declaration(mangler_, types_, module_, init, decl);
     BaseType* init_type = init->type ? init->type : (init->value ? init->value->getType() : nullptr);
     early_declare_type(w, init_type, nullptr);
     w.append_char('\n');
-    const bool is_static = !init->is_linkage_public();
-    if (init->is_thread_local()) w.append("__chx_thread_local ", 19);
-    if (is_static) w.append("static ", 7);
-    if (init->is_volatile()) w.append("volatile ", 9);
-    w << decl_spelling(init_type, mangle_name(init));
+    if (decl.flags & MGD_THREAD_LOCAL) w.append("__chx_thread_local ", 19);
+    if (decl.flags & MGD_STATIC) w.append("static ", 7);
+    if (decl.flags & MGD_VOLATILE) w.append("volatile ", 9);
+    const std::string spelling = global_decl_spelling(module_, decl);
+    w.append(spelling.data(), spelling.size());
     w.append_char(';');
 }
 
@@ -773,15 +744,14 @@ void MIRDeclEmitter::implement_global(BufferedWriter& w, ASTNode* node, ConstExp
     // MIR_INVALID_ID means the global had no initializer (the declaration pass
     // already wrote its declaration).
     if (init == MIR_INVALID_ID) return;
-    BaseType* init_type = init_stmt->type ? init_stmt->type
-                                          : (init_stmt->value ? init_stmt->value->getType()
-                                                              : nullptr);
+    MIRGlobalDecl decl;
+    build_global_declaration(mangler_, types_, module_, init_stmt, decl);
     w.append_char('\n');
-    const bool is_static = !init_stmt->is_linkage_public();
-    if (init_stmt->is_thread_local()) w.append("__chx_thread_local ", 19);
-    if (is_static) w.append("static ", 7);
-    if (init_stmt->is_volatile()) w.append("volatile ", 9);
-    w << decl_spelling(init_type, mangle_name(init_stmt));
+    if (decl.flags & MGD_THREAD_LOCAL) w.append("__chx_thread_local ", 19);
+    if (decl.flags & MGD_STATIC) w.append("static ", 7);
+    if (decl.flags & MGD_VOLATILE) w.append("volatile ", 9);
+    const std::string spelling = global_decl_spelling(module_, decl);
+    w.append(spelling.data(), spelling.size());
     w.append(" = ", 3);
     const std::string expr = const_expr_c(module_, init);
     w.append(expr.data(), expr.size());

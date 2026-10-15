@@ -27,6 +27,26 @@ Branch: `mir`. Supersedes nothing; complements `compiler/mir/README.md`,
 > (D4), the 18 `unordered_map`s (D3) and parallel file lowering (E), which is the
 > only lever sized to the 2.3× compile-time gap.
 >
+> **Status update (2026-10-15, session 23) — one global-declaration spelling.**
+> `compiler/mir/MIRGlobalDecl.{h,cpp}` (`MIRGlobalDecl` +
+> `build_global_declaration`) is the single spelling of a global's
+> name/declared-type (incl. unsized `T[]`)/flags, consumed by `declare_var` and
+> `implement_global`; `MIRGlobal::flags` shares the enum. **Output-invariant**:
+> C 97,144 lines either side, normalized diff 50 against a 46-line noise floor;
+> `--tcc` **2305/2305**, `--llvm` **2303/2303**, `--tcc/--llvm --libs`
+> **718/719**, `MIRTests` **1170 checks**. Details: `compiler/mir/README.md`,
+> session 23.
+>
+> **Status update (2026-10-15, session 22) — one function-prototype ABI.**
+> `compiler/mir/MIRPrototype.{h,cpp}` (`MIRPrototype` + `mir_function_signature`
+> + `build_function_prototype`) is now the single implementation of the prototype
+> ABI, consumed by the C emitter and by `MIRLowerer::intern_function`
+> (`MIRDeclEmitter::function_type_of` deleted). **Output-invariant**: C 97,144
+> lines either side, previous-step → this-step normalized diff 50 against a
+> 46-line noise floor; `--tcc` **2305/2305**, `--llvm` **2303/2303**,
+> `--tcc/--llvm --libs` **718/719**, `MIRTests` **1170 checks**. Details:
+> `compiler/mir/README.md`, session 22.
+>
 > **Status update (2026-10-15, session 21) — vtable declarations are MIR
 > records; the LLVM driver no longer reads the AST.** `MIRModule::vtables`
 > (`MIRVtableTable`) now holds a type record per interface and a definition
@@ -537,7 +557,25 @@ for aggregates (fixed by item 1 below); two independent C type spellers.
    The C declaration pass still uses `mir_vtable_slots`; the C-side vtable
    *declarations*, prototypes, typedefs, the globals' declaration flags, the
    collection walk and the general `MIRTypeDecl`/`MIRPrototype` records are still
-   the next step.
+   the next step. **Fourth bite DONE (session 22): one function-prototype ABI.**
+   `compiler/mir/MIRPrototype.{h,cpp}` (`MIRPrototype`,
+   `mir_function_signature`, `build_function_prototype`) is now the single
+   implementation of the prototype ABI, consumed by the C emitter
+   (`declare_contained_func`/`function_proto`) and by
+   `MIRLowerer::intern_function` (both used to carry a "must match" copy;
+   `MIRDeclEmitter::function_type_of` is deleted). Measured output-invariant
+   (97,144 lines either side; 50-line normalized diff against a 46-line noise
+   floor). Remaining on the AST: typedefs, the globals' declaration flags and the
+   declaration *ordering* (the `MIRTypeDecl` records and a declaration-list walk).
+   **Fifth bite DONE (session 23): one global-declaration spelling.**
+   `compiler/mir/MIRGlobalDecl.{h,cpp}` (`MIRGlobalDecl`,
+   `build_global_declaration`) is now the single spelling of a global's
+   name/declared-type (incl. unsized `T[]`)/flags, consumed by both `declare_var`
+   and `implement_global`; `MIRGlobal::flags` shares the same enum. Output
+   invariant (97,144 lines either side, 50-line diff against a 46-line floor).
+   Remaining on the AST: typedefs (already MIR-spelled via `decl_spelling`) and
+   the declaration *ordering* (the `MIRTypeDecl` records and a declaration-list
+   walk).
 **Acceptance.** No AST headers in the declaration path; one C type speller;
 `MIRTypeRecord.size/alignment` non-zero for aggregates and verified by
 `MIRTests`; C + LLVM output unchanged or smaller.

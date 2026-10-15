@@ -99,6 +99,85 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 23 (2026-10-15) — one global-declaration spelling (action A3, globals)
+
+`MIRDeclEmitter::declare_var` (the declaration) and `implement_global` (the
+definition) each computed the same global spelling from the `VarInitStatement`:
+the mangled name, the declared type — including the unsized-`T[]` declarator —
+and the thread-local/static/volatile flags. It is now one record and one
+builder:
+
+- New `compiler/mir/MIRGlobalDecl.{h,cpp}`: `MIRGlobalDecl` (`name`, `type`,
+  `elem` + `unsized_array`, `flags`) and
+  `build_global_declaration(mangler, types, module, init, out)`, which maps the
+  declared type (or the stored child type for an unsized array) and sets the
+  `MIRGlobalDeclFlags` (`thread_local` / `volatile` / `static`).
+- `declare_var` and `implement_global` both consume it; a small
+  `global_decl_spelling` helper emits the `T name[]` form for an unsized array.
+- `MIRGlobal::flags` (the definition-table entry, `MIRModule.h`) now uses the
+  same `MIRGlobalDeclFlags` instead of a second enum.
+
+Measured output-invariant for C: main-suite C is 97,144 lines either side, the
+previous-step → this-step normalized diff is **50** against a **46**-line
+same-binary noise floor, and no global-declaration line differs (every residual
+is a generic-instantiation ordering/attribution reference).
+
+| Suite | Result |
+|---|---|
+| `--tcc` | **2305/2305** |
+| `--llvm` | **2303/2303** |
+| `--tcc --libs` / `--llvm --libs` | **718/719** (the known `test_fs_directory_iteration`) |
+| `MIRTests` | **1170 checks** |
+
+**What is left in A3.** Typedefs are already MIR-spelled (`decl_spelling` →
+`c_declarator`); the remaining AST use in the declaration path is the declaration
+*ordering* (struct bodies interleaved with their method prototypes) plus the
+`MIRTypeDecl` records and a declaration-list walk that would let `MIRDeclEmitter`
+be a pure printer. Prototypes, aggregate bodies, global declarations/definitions
+and interface vtables are all MIR now.
+
+### Session 22 (2026-10-15) — one function-prototype ABI (action A3, prototypes)
+
+The function *prototype* ABI — sret for struct-like returns, aggregates/arrays by
+pointer, the static-interface erased self, the variadic tail marker — was built
+in **two** places, each carrying a "must match the other" comment: the C
+declaration emitter (`MIRDeclEmitter::function_type_of`) and the LLVM
+symbol/call path (`MIRLowerer::intern_function`). It is now one function:
+
+- New `compiler/mir/MIRPrototype.{h,cpp}`: `MIRPrototype` (`name`, signature
+  `type`, extern/static/dllimport `flags`), `mir_function_signature(types,
+  module, decl)` — the single ABI implementation, moved verbatim from
+  `function_type_of` (including `static_iface_base_method`) — and
+  `build_function_prototype(mangler, types, module, decl, out)`.
+- `MIRDeclEmitter::function_type_of` and its `mir_static_iface_base_method`
+  helper are **deleted**; `declare_contained_func`/`function_proto` build a
+  `MIRPrototype` and print from it.
+- `MIRLowerer::intern_function` calls `mir_function_signature` instead of its
+  inline copy.
+
+The C declaration pass still calls the builder with the AST declaration — it is
+the declaration-collection pass, which the binding rule allows to see the AST;
+what moved is the *spelling* (one implementation) and the record the printer
+consumes, matching how `MIRVtable` handled the C vtable path.
+
+Measured output-invariant for C: main-suite C is 97,144 lines either side, the
+previous-step → this-step normalized diff is **50** against a **46**-line
+same-binary noise floor, and no prototype line differs (every residual is a
+generic-instantiation ordering/attribution reference).
+
+| Suite | Result |
+|---|---|
+| `--tcc` | **2305/2305** |
+| `--llvm` | **2303/2303** |
+| `--tcc --libs` / `--llvm --libs` | **718/719** (the known `test_fs_directory_iteration`) |
+| `MIRTests` | **1170 checks** |
+
+**What is left in A3.** The C declaration pass still walks the AST for typedefs,
+the globals' declaration flags, and the declaration *ordering* (struct bodies
+interleaved with their method prototypes) — the `MIRTypeDecl` records and a
+declaration-list walk are the end state. Prototypes, aggregate bodies, global
+definitions and interface vtables are all MIR now; the LLVM side reads no AST.
+
 ### Session 21 (2026-10-15) — vtable declarations are MIR records (action A3 interface residual + B)
 
 `mir_emit_llvm_module` still walked the AST: it iterated `module->direct_files`,

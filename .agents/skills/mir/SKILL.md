@@ -102,6 +102,14 @@ Full statements: `lang/docs/mir-implementation-plan.md` §0 rule 9,
   with resolved callee names) so the **LLVM driver emits vtables from MIR and
   reads no AST**. AST-aware (a slot is an interface method), so it is in the
   compiler but not in MIRTests.
+- `compiler/mir/MIRPrototype.{h,cpp}` — the **single** function-prototype ABI
+  (`MIRPrototype`, `mir_function_signature`, `build_function_prototype`),
+  consumed by the C declaration emitter and by `MIRLowerer::intern_function`
+  (the two former copies carried a "must match" comment). AST-aware.
+- `compiler/mir/MIRGlobalDecl.{h,cpp}` — the **single** global-declaration
+  spelling (`MIRGlobalDecl`, `build_global_declaration`): name, declared type
+  (incl. the unsized `T[]` declarator) and thread-local/volatile/static flags,
+  consumed by both `declare_var` and `implement_global`. AST-aware.
 - `compiler/CodegenMir.cpp` — MIR→LLVM lowering (AST-free, `COMPILER_BUILD`
   only); the driver is `ASTProcessor::mir_compile_module` in
   `compiler/ASTCompiler.cpp`.

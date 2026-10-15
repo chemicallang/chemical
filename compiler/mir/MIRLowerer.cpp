@@ -2,6 +2,7 @@
 
 #include "MIRLowerer.h"
 #include "MIRABI.h"
+#include "MIRPrototype.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -2304,8 +2305,8 @@ ConstExprId MIRLowerer::build_global_initializer(VarInitStatement* vi) {
     MIRGlobal g;
     g.symbol = sym;
     g.init = init;
-    if (vi->is_thread_local()) g.flags |= MGF_THREAD_LOCAL;
-    if (vi->is_volatile()) g.flags |= MGF_VOLATILE;
+    if (vi->is_thread_local()) g.flags |= MGD_THREAD_LOCAL;
+    if (vi->is_volatile()) g.flags |= MGD_VOLATILE;
     module_.globals.push_back(g);
     return init;
 }
@@ -2572,27 +2573,12 @@ SymbolId MIRLowerer::intern_function(FunctionDeclaration* decl) {
     auto it = func_symbols_.find(decl);
     if (it != func_symbols_.end()) return it->second;
 
-    // Mirror the declaration ABI emitted by MIRDeclEmitter::function_type_of so
-    // an extern (bodyless) function's LLVM prototype is exactly the one LLVM
-    // call sites expect: sret for struct-like returns, aggregates/arrays passed
-    // by pointer, and the variadic tail marker dropped.
-    const TypeId ret = decl->returnType ? types_.map(decl->returnType) : types_.void_type();
-    const bool sret = abi::needs_sret(module_, ret);
-    std::vector<TypeId> ptypes;
-    ptypes.reserve(decl->params.size() + 1);
-    if (sret) ptypes.push_back(types_.pointer_type(ret, true));
-    for (FunctionParam* p : decl->params) {
-        TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
-        if (pt != MIR_INVALID_ID && module_.types.get(pt).kind == MIRTypeKind::Array) {
-            pt = types_.pointer_type(module_.types.get(pt).element, true);
-        } else if (abi::is_aggregate(module_, pt)) {
-            pt = types_.pointer_type(pt, true);
-        }
-        ptypes.push_back(pt);
-    }
-    if (decl->isVariadic() && !decl->params.empty()) ptypes.pop_back();
-    TypeId ftype = types_.function_signature(sret ? types_.void_type() : ret, ptypes,
-                                             decl->isVariadic());
+    // The declaration ABI (sret for struct-like returns, aggregates/arrays
+    // passed by pointer, the static-interface erased self, the variadic tail
+    // marker dropped) is the shared `mir_function_signature`, so an extern
+    // (bodyless) function's LLVM prototype is exactly the one the C declaration
+    // pass writes and LLVM call sites expect.
+    TypeId ftype = mir_function_signature(types_, module_, decl);
 
     MIRSymbolRecord rec;
     rec.kind = MIRSymbolKind::Function;

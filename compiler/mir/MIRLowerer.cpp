@@ -1076,12 +1076,18 @@ bool MIRLowerer::apply_struct_defaults(PlaceId temp, ExtendableMembersContainerN
         const TypeId bmt = types_.map(bt);
         const PlaceId btmp = builder_->alloca(bmt, MIRStorageClass::Temporary);
         if (btmp == MIR_INVALID_ID) continue;
-        builder_->zero_init(btmp);
         FunctionDeclaration* dc = nullptr;
         if (base->kind() == ASTNodeKind::StructDecl) {
             dc = base->as_struct_def_unsafe()->default_constructor_func();
         }
         if (dc && dc->is_generated_fn()) dc = nullptr;
+        // the whole-temp zero is dead when the construction writes every member:
+        // a `return T{...}` constructor's result is a whole-value copy of a fully
+        // defined temporary, and a generated constructor / recursive default
+        // pass is covered by the predicate (action C1)
+        const bool base_covers =
+            dc ? constructor_writes_whole_value(dc) : default_init_writes_all_fields(bec);
+        if (!base_covers) builder_->zero_init(btmp);
         if (dc) {
             builder_->init(btmp, intern_function(dc), nullptr, 0);
         } else if (!apply_struct_defaults(btmp, bec, {}, error)) {
@@ -1105,7 +1111,13 @@ bool MIRLowerer::apply_struct_defaults(PlaceId temp, ExtendableMembersContainerN
                 FunctionDeclaration* dc = msd->default_constructor_func();
                 const TypeId mtid = types_.map(mt);
                 const PlaceId mtmp = builder_->alloca(mtid, MIRStorageClass::Temporary);
-                builder_->zero_init(mtmp);
+                // as for the inherited-base temporary: a `return T{...}`
+                // constructor or a fully covering recursive default pass makes
+                // the whole-temp zero dead (action C1)
+                const bool member_covers =
+                    (dc && !dc->is_generated_fn()) ? constructor_writes_whole_value(dc)
+                                                   : default_init_writes_all_fields(msd);
+                if (!member_covers) builder_->zero_init(mtmp);
                 if (dc && !dc->is_generated_fn()) {
                     builder_->init(mtmp, intern_function(dc), nullptr, 0);
                 } else {
@@ -1167,6 +1179,81 @@ bool MIRLowerer::struct_literal_defines_all_fields(ExtendableMembersContainerNod
         ASTNode* mn = mt ? mt->get_direct_linked_canonical_node() : nullptr;
         if (mn && mn->kind() == ASTNodeKind::StructDecl) continue;
         return false;
+    }
+    return true;
+}
+
+// Whether default-initializing `def` writes every runtime member of the value,
+// so that a temporary which is only ever default-initialized does not need the
+// whole-value `zero_init` that defines the bytes nothing writes. This mirrors
+// the write set of `apply_struct_defaults` (and of the generated parameterless
+// constructor, whose body is `apply_struct_defaults_ptr`) and is deliberately
+// conservative:
+//  * a `struct` built through a user constructor may leave a field unset, so it
+//    is not provable;
+//  * a member with no default value that is not a `struct` type is skipped by
+//    `apply_struct_defaults` entirely (only the zero defines it);
+//  * only `struct` containers qualify -- a union/variant/interface member is
+//    not laid out or written the same way.
+bool MIRLowerer::default_init_writes_all_fields(ExtendableMembersContainerNode* def, int depth) {
+    if (!def || def->kind() != ASTNodeKind::StructDecl) return false;
+    if (depth > 64) return false; // illegal by-value cycle; be conservative
+    // a user (non-generated) parameterless constructor decides its own writes
+    FunctionDeclaration* dc = def->default_constructor_func();
+    if (dc && !dc->is_generated_fn()) return false;
+    for (InheritedType& inh : def->inherited) {
+        BaseType* bt = inh.type;
+        ASTNode* base = bt ? bt->get_direct_linked_canonical_node() : nullptr;
+        if (!base) return false;
+        auto* bec = base->as_extendable_member_container();
+        if (!bec) return false;
+        // an empty-named base is skipped by apply_struct_defaults and stays unset
+        if (bec->name_view().empty()) return false;
+        if (!default_init_writes_all_fields(bec, depth + 1)) return false;
+    }
+    for (BaseDefMember* var : def->variables()) {
+        if (!var) continue;
+        if (var->default_value()) continue;
+        BaseType* mt = var->known_type();
+        ASTNode* mn = mt ? mt->get_direct_linked_canonical_node() : nullptr;
+        if (!mn || mn->kind() != ASTNodeKind::StructDecl) return false;
+        if (!default_init_writes_all_fields(mn->as_struct_def_unsafe(), depth + 1)) return false;
+    }
+    return true;
+}
+
+// Whether a constructor's result is produced by a whole-value copy of a fully
+// lowered temporary, which defines every byte of the result -- so a `zero_init`
+// guarding the result temporary at the call site is dead.
+//
+// Every constructor in this codebase (and the documented style) has the body
+// `{ return T { field: expr, ... } }`. Such a literal is lowered to its own
+// temporary, and `return` in a struct-returning function lowers to a
+// *whole-value store* of that temporary into the sret destination
+// (`MIRLowerer::lower_stmt`, `ReturnStmt` with `sret_` set), so the store
+// overwrites every byte a caller-side zero would have written. A constructor
+// that assigns `self.field` instead, that can also exit by another path, or
+// whose return value is not a literal of the same container (e.g. one needing an
+// implicit conversion) is not provable and keeps the zero.
+//
+// If the return lowering ever becomes an in-place construction straight into
+// the sret (no temporary and no store), this proof must be revisited.
+bool MIRLowerer::constructor_writes_whole_value(FunctionDeclaration* ctor) {
+    if (!ctor || !ctor->body.has_value()) return false;
+    auto* def = ctor->parent() ? ctor->parent()->as_extendable_member_container() : nullptr;
+    if (!def) return false;
+    const Scope& body = ctor->body.value();
+    if (body.nodes.empty()) return false;
+    for (ASTNode* node : body.nodes) {
+        // any other statement (an assignment, an early `if`) makes the exit
+        // paths unprovable
+        if (!node || node->kind() != ASTNodeKind::ReturnStmt) return false;
+        auto* ret = static_cast<ReturnStatement*>(node);
+        Value* v = ret->value;
+        if (!v || v->val_kind() != ValueKind::StructValue) return false;
+        // the literal must construct the same container: a different type would
+        // leave the result to that type's implicit constructor
+        if (v->as_struct_value_unsafe()->linked_extendable() != def) return false;
     }
     return true;
 }
@@ -3335,7 +3422,19 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 }
                 if (ctor) {
                     const SymbolId sym = intern_function(ctor);
-                    builder_->zero_init(place);
+                    // the result temp's zero is dead when the construction writes
+                    // every member: a `return T{...}` constructor's result is a
+                    // whole-value copy of a fully defined temporary, and a
+                    // generated constructor's body is exactly
+                    // apply_struct_defaults_ptr over the container
+                    // (evaluation §1.2, action C1)
+                    ExtendableMembersContainerNode* cdef =
+                        ctor->parent() ? ctor->parent()->as_extendable_member_container() : nullptr;
+                    const bool covered = constructor_writes_whole_value(ctor) ||
+                        (ctor->is_generated_fn() && default_init_writes_all_fields(cdef));
+                    if (!covered) {
+                        builder_->zero_init(place);
+                    }
                     builder_->init(place, sym, cargs.data(), static_cast<uint32_t>(cargs.size()));
                 } else if (!cargs.empty()) {
                     error = "no matching constructor for aggregate construction";
@@ -3401,7 +3500,18 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         }
                         if (ctor) {
                             const SymbolId sym = intern_function(ctor);
-                            builder_->zero_init(place);
+                            // as above: a `return T{...}` constructor writes the
+                            // whole result, and a generated constructor covers
+                            // every field exactly when default init does (C1)
+                            ExtendableMembersContainerNode* cdef =
+                                ctor->parent() ? ctor->parent()->as_extendable_member_container()
+                                               : nullptr;
+                            const bool covered = constructor_writes_whole_value(ctor) ||
+                                (ctor->is_generated_fn() &&
+                                 default_init_writes_all_fields(cdef));
+                            if (!covered) {
+                                builder_->zero_init(place);
+                            }
                             builder_->init(place, sym, cargs.data(), static_cast<uint32_t>(cargs.size()));
                         } else if (!cargs.empty()) {
                             error = "no matching constructor for aggregate construction";

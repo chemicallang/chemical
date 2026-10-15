@@ -432,6 +432,28 @@ private:
      */
     bool struct_literal_defines_all_fields(ExtendableMembersContainerNode* def,
                                            const std::set<std::string>& explicit_fields);
+    /**
+     * Whether default-initializing `def` is guaranteed to write every runtime
+     * member of the value — i.e. whether `apply_struct_defaults` (or the
+     * generated parameterless constructor that runs it through
+     * `apply_struct_defaults_ptr`) leaves no byte undefined. When it holds, the
+     * whole-value `zero_init` guarding a temporary that is only ever
+     * default-initialized is dead (evaluation §1.2, action C1).
+     *
+     * Mirrors `apply_struct_defaults` exactly and is deliberately conservative:
+     * a base/member built through a *user* constructor or any member with no
+     * default value that is not a `struct` type returns false. `depth` guards an
+     * illegal by-value cycle (which `apply_struct_defaults` would itself
+     * recurse into).
+     */
+    bool default_init_writes_all_fields(ExtendableMembersContainerNode* def, int depth = 0);
+    /**
+     * Whether a constructor's result is a whole-value copy of a fully lowered
+     * temporary, so its bytes are all defined and the `zero_init` guarding the
+     * result temporary at a `T(args)` call site is dead. True for the omnipresent
+     * `{ return T { field: expr, ... } }` shape (action C1).
+     */
+    bool constructor_writes_whole_value(FunctionDeclaration* ctor);
     /** Like `apply_struct_defaults` but through a `self` pointer (generated ctor). */
     bool apply_struct_defaults_ptr(ValueId self_ptr, ExtendableMembersContainerNode* def,
                                    std::string& error);

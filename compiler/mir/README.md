@@ -63,13 +63,105 @@ Root causes (all with file/line evidence in the evaluation doc):
    aggregate `Alloca` (584 in one small probe; legacy: 0), aggregate
    load-then-assign double copies, redundant scalar param spills, and dead
    epilogue blocks. Session 16 removed the last branch-emission waste (every
-   straight-line `Br`/`CondBr` arm used to print a jump); what remains of this
-   bullet is the constructor-result temp and the `apply_struct_defaults`
-   zeroes, plus the zero loops themselves.
+   straight-line `Br`/`CondBr` arm used to print a jump) and **session 17
+   removed the constructor-result temp and the `apply_struct_defaults` zeroes
+   wherever the construction provably writes the whole value** (the two
+   predicates are named below); what remains of this bullet is the zero loops
+   themselves — an array literal's tail, `zeroed<T>()`, a temporary filled
+   through a pointer, session 11's variant rule, and default-initializations
+   that are *not* provably complete.
 
 Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
+
+### Session 17 (2026-10-15) — the result temporary is no longer zeroed when the construction covers it (action C1, fourth bite)
+
+A `T(args)` result temporary carried a whole-value `zero_init` even when the
+constructor writes every byte of it, and `apply_struct_defaults` zeroed each
+base/member temporary it built. Both are dead bytes whenever the construction
+defines the whole value, so `MIRLowerer` now emits them only when that cannot be
+proved. Two new conservative predicates decide it (both AST-level, both mirrored
+exactly against the lowering they guard):
+
+- **`constructor_writes_whole_value(ctor)`** — the constructor's body consists
+  solely of `return T { ... }` statements constructing its own container. Such a
+  literal lowers to a temporary of its own and `return` in a struct-returning
+  function lowers to a *whole-value store* of that temporary into the sret
+  destination (`lower_stmt`, `ReturnStmt` with `sret_` set), so the callee
+  overwrites every byte a caller-side zero would have written — no field-coverage
+  reasoning is needed. This is the shape of essentially every constructor in the
+  tree and in `lang/libs` (`vector.make`, `string_view.constructor`,
+  `string.empty_str`, …). Any other statement in the body, a return value that is
+  not a literal of the same container, or a body that can exit by another path
+  makes it false.
+- **`default_init_writes_all_fields(def)`** — for the *generated* parameterless
+  constructor (whose body is `apply_struct_defaults_ptr`) and for the recursive
+  default pass. It mirrors the write set of `apply_struct_defaults` exactly: a
+  base or member built through a *user* parameterless constructor, a base/member
+  that is not a `struct` container, or a member with no default value that is not
+  a `struct` type all return false (the zero stays). It is depth-limited so an
+  illegal by-value cycle cannot recurse forever.
+
+Applied at four call sites: the two `T(args)` aggregate-construction paths, the
+inherited-base temporary, and the member temporary inside
+`apply_struct_defaults`. The root-cause bullet above is updated accordingly.
+
+This is a *runtime* win as much as a size win: the C backend has no optimizer, so
+each `zero_init` is a byte-wise loop that survives into the object file, and these
+constructions are the ones library code performs everywhere.
+
+Measured (this checkout, `Debug`, `debug_quick`, `--no-cache`, `--emit-c`;
+`TCCCompiler` built from this tree with and without the change):
+
+| Metric | before | after |
+|---|---:|---:|
+| Probe (`perfprobe`) zero loops | 37 | **25** (−32%) |
+| Probe generated C lines | 10,743 | **10,731** |
+| Probe generated C bytes | 474,614 | **473,067** |
+| Probe executable | 444,223 B | **442,993 B** |
+| Main-suite C zero loops | 539 | **440** (−18%) |
+| Main-suite generated C lines | 96,909 | **96,810** |
+| `tests-tcc.exe` | 4,248,688 B | **4,238,513 B** |
+
+The probe prints the identical line. Invariance: with the zero-loop lines
+filtered out and the pre-existing `__cgs__N`/`__cfg__N`/`__chemda_N`/`__chx_*N`
+numbering and declaration-order jitter normalized, before/after C differs by **4
+lines on the probe and 154 on the suite**, against a *same-compiler two-run*
+noise floor of **4 and 168** — i.e. nothing but the removed zeros changed.
+
+Regression tests: `lang/tests/common/src/values/ctor_coverage.ch` (5 tests — a
+`return T { ... }` constructor, a nested member default construction, an
+inherited base default construction, a generated default constructor, and the
+conservative multi-statement case). They assert *values*, so a wrongly loosened
+proof shows up as garbage in the result; the paths they cover are visible in the
+emitted C (`CtorInner.make(&p)` with no zero before the whole-value store).
+
+Suites: `--tcc` **2305/2305** (was 2300; the 5 new tests), `--llvm`
+**2303/2303** (was 2298), `--tcc --async` **53/53**, `--tcc --libs` **718/719**
+(the known environment-sensitive `fs` iteration test), `--tcc --interpret`
+**1895/1895**, `MIRTests` **1115 checks**.
+
+**Residual (why this class is not fully gone).** A constructor whose body is not
+a single `return T { ... }` keeps its zero — e.g.
+`{ var m = T { ... }; <call>; return m }` (`std::mutex.constructor`,
+`std::CondVar.constructor`). Closing that needs a body-level proof that the
+returned local is initialized by a covering literal and never reassigned.
+A temporary whose *address* is handed to a call that fills it (the async
+`Waker.clone` shape), an array literal's tail, `zeroed<T>()`, the session-11
+variant rule and genuinely incomplete struct literals are all unchanged. A
+separate, still-open size/runtime cost adjacent to this one: `zero_init` is
+emitted as a byte-wise loop even for a scalar (an `int` temp costs a 4-iteration
+loop instead of one store).
+
+> ⚠️ **Measure from a fresh build.** This session began with a
+> `cmake-build-debug/TCCCompiler` linked *before* a later `MIREmitter.cpp` edit
+> whose mtime had been restored to precede the `.o`, so `make` reported the
+> target up to date and the first measurements reproduced the *pre*-C4 numbers
+> (106,373 lines / 14,945 `goto`s) although an `MIRTests` rebuilt later already
+> contained that change. `cmake --build cmake-build-debug --target TCCCompiler`
+> recompiled it and the documented session-16 numbers then reproduced exactly
+> (96,909 lines / 6,459 `goto`s); all numbers above are from the rebuilt binary.
 
 ### Session 16 (2026-10-14) — straight-line branches no longer emit a jump (action C4, second half)
 

@@ -26,6 +26,21 @@ Branch: `mir`. Supersedes nothing; complements `compiler/mir/README.md`,
 > `apply_struct_defaults` zero-inits, splitting the 8,537-line `MIRLowerer.cpp`
 > (D4), the 18 `unordered_map`s (D3) and parallel file lowering (E), which is the
 > only lever sized to the 2.3× compile-time gap.
+>
+> **Status update (2026-10-15, session 17) — the first headline-gate bite since
+> this document was written.** Action C1's named remainder is done where it is
+> provable: a `T(args)` result temporary (and the `apply_struct_defaults`
+> base/member temporaries) is no longer zeroed when the construction provably
+> writes the whole value — a constructor whose body is `{ return T { ... } }`,
+> or a generated/recursive default initialization covering every field. Measured
+> on this checkout: main-suite C zero loops **539 → 440 (−18%)**, probe zero
+> loops **37 → 25**, probe exe **444,223 → 442,993 B**, `tests-tcc.exe`
+> **4,248,688 → 4,238,513 B**; suites green (`--tcc` **2305/2305**,
+> `--llvm` **2303/2303**, `--tcc --async` **53/53**, `--tcc --interpret`
+> **1895/1895**, `MIRTests` **1115 checks**). Details and the residual (a
+> multi-statement constructor body, a temporary filled through a call) are in the
+> MIR README, session 17. The line gate is still missed and the compile-time/RSS
+> gates are untouched (D/E remain the levers).
 
 The four goals this document optimises for (per project direction): **compiler
 throughput, compiler peak memory & binary size, generated-code quality (runtime
@@ -197,7 +212,11 @@ Probe (identical source and output):
 > constructor-result temporary (`Type(args)`) and the `apply_struct_defaults`
 > `zero_init`s, which need a "constructor covers every field" proof. An attempt to
 > unify `apply_struct_defaults` onto the in-place `apply_struct_defaults_ptr` was
-> reverted — it grew generated C without removing any targeted zero.
+> reverted — it grew generated C without removing any targeted zero. **That proof
+> landed in session 17** (see §2C.1 and the MIR README, session 17): where the
+> constructor's body is `{ return T { ... } }`, or the default initialization
+> provably covers every field, the zero is gone — main-suite zero loops
+> **539 → 440**, probe zero loops **37 → 25**.
 
 The main test executable corroborates it: `tests-tcc.exe` is **3.24 MB (legacy)
 vs 5.32 MB (MIR)** (+64%). The plan's explicit intent — *"we will deliberately
@@ -474,11 +493,25 @@ logic; measured by (backend emitter LOC / total MIR LOC) trend.
    inherited base keeps the zero). Main-suite C zero loops **1,231 → 539 (−56%)**,
    main-suite C lines **107,191 → 106,373**, probe zero loops **93 → 37**, probe
    exe **454,718 → 448,640 B**; `--tcc` **2300/2300**, `--llvm` **2298/2298**,
-   `--tcc --async` **53/53**, `MIRTests` **1111 checks OK**. Still open: the
-   constructor-result temp (`Type(args)`) and the four `zero_init`s inside
-   `apply_struct_defaults` (a "constructor covers all fields" proof is needed —
-   delegating to the in-place `apply_struct_defaults_ptr` was tried and reverted
-   because it grew the emitted C).
+   `--tcc --async` **53/53**, `MIRTests` **1111 checks OK**. **Fourth bite DONE
+   (session 17):** the constructor-result temp (`Type(args)`) and the
+   `apply_struct_defaults` base/member temporaries are no longer zeroed when the
+   construction provably writes the whole value — a constructor whose body is
+   `{ return T { ... } }` (its result is a whole-value store of a fully lowered
+   literal temporary) or a generated/recursive default initialization that
+   covers every field (`MIRLowerer::constructor_writes_whole_value` /
+   `default_init_writes_all_fields`). Main-suite C zero loops **539 → 440
+   (−18%)**, main-suite C lines **96,909 → 96,810**, probe zero loops **37 → 25**,
+   probe exe **444,223 → 442,993 B**, `tests-tcc.exe` **4,248,688 → 4,238,513 B**;
+   `--tcc` **2305/2305** (5 new tests in
+   `lang/tests/common/src/values/ctor_coverage.ch`), `--llvm` **2303/2303**,
+   `--tcc --async` **53/53**, `--tcc --interpret` **1895/1895**, `MIRTests`
+   **1115 checks OK**. Still open in this class: a constructor whose body is not
+   a single `return T { ... }` (e.g. `{ var m = T { ... }; <call>; return m }`,
+   as in `std::mutex.constructor` / `std::CondVar.constructor`), a temporary
+   whose address is filled by a call, and default-initializations that are not
+   provably complete; the per-constructor details are in the MIR README,
+   session 17.
 2. ~~Collapse `temp = *src; dest = temp` into one copy/`memcpy`; extend the
    single-use collapse to aggregate places and loaded values~~ **DONE
    (session 8)**: a deref load whose only use is the immediately following store
@@ -644,8 +677,17 @@ backend is another 2k-line emitter with its own bugs.
 > 9.72 s → 9.42 s, `benchprobe` unchanged, identical output), `--tcc`
 > 2300/2300, `--llvm` 2298/2298. The probe line gate (≤ 8,285) and the
 > compile-time/RSS gates are still missed: what is left of C is the
-> constructor-result temp and the `apply_struct_defaults` zeroes, and the
-> compile-time gap is D (per-instruction cost) plus E (parallel lowering).
+> remaining zeroing classes (session 17 removed the constructor-result temp and
+> the `apply_struct_defaults` zeroes wherever the construction covers the value),
+> and the compile-time gap is D (per-instruction cost) plus E (parallel lowering).
+>
+> **Session 17 (C.1, fourth bite) moves the zero-loop count, not the line gate.**
+> Main-suite zero loops **539 → 440**, probe zero loops **37 → 25**, probe C
+> **10,743 → 10,731 lines** / **474,614 → 473,067 B**, probe exe **444,223 →
+> 442,993 B**, `tests-tcc.exe` **4,248,688 → 4,238,513 B**, `--tcc` **2305/2305**,
+> `--llvm` **2303/2303**, `--tcc --async` **53/53**, `--tcc --interpret`
+> **1895/1895**, `MIRTests` **1115 checks**. The probe line gate (≤ 8,285),
+> the compile-time and RSS gates are still missed.
 >
 > **Session 9–10 add no gate movement, by design.** Session 9 (conditional
 > struct-literal zeroing) cut main-suite zero loops 2,655 → 1,231 and probe zero

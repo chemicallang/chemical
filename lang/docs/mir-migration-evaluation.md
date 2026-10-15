@@ -31,11 +31,11 @@ Branch: `mir`. Supersedes nothing; complements `compiler/mir/README.md`,
 > longer zero the result temp.** `constructor_writes_whole_value` gained the
 > `... <setup>; return T{...}` and `... var m = T{...}; ...; return m` shapes
 > (ordered_map / unordered_map / mutex / CondVar). Main-suite `memset` sites
-> **424 → 199 (−53%)** across sessions 25–26, generated C **97,144 → 96,920**
-> lines, `tests-tcc.exe` **−9.7 KB**; output differs only by the removed
-> `memset`s; a probe prints identical correct output on both backends; `--tcc`
-> **2305/2305**, `--llvm` **2303/2303**, `--tcc/--llvm --libs` **718/719**.
-> Details: `compiler/mir/README.md`, session 26.
+> **424 → 194 (−54%)** across sessions 25–26, generated C **97,144 → 96,915**
+> lines, `tests-tcc.exe` **3,665,077 → 3,654,837 B**; output differs only by the
+> removed `memset`s; probes print identical correct output on both backends;
+> `--tcc` **2305/2305**, `--llvm` **2303/2303**, `--tcc/--llvm --libs`
+> **718/719**. Details: `compiler/mir/README.md`, session 26.
 >
 > **Status update (2026-10-15, session 25) — generated code: two dead
 > `zero_init`s removed.** A full array literal and a `dyn<T>` fat pointer no
@@ -738,11 +738,12 @@ logic; measured by (backend emitter LOC / total MIR LOC) trend.
    `constructor_writes_whole_value` now also proves `... <setup>; return T{...}`
    (only a `return` writes the hidden sret) and `... var m = T{...}; ...; return m`
    — the `std::ordered_map`/`unordered_map`/`mutex`/`CondVar` shapes. Main-suite
-   `memset` sites **424 → 199 (−53%)**, C **97,144 → 96,920** lines,
-   `tests-tcc.exe` **−9.7 KB** cumulative; a probe prints identical correct output
-   on both backends. Remaining in C1: a constructor of another shape, call-filled
-   temporaries, partial array literals, `zeroed<T>()` and the string-into-`char[]`
-   tail.
+   `memset` sites **424 → 194 (−54%)**, C **97,144 → 96,915** lines,
+   `tests-tcc.exe` **3,665,077 → 3,654,837 B**; a probe (multi-statement
+   `@make`, `var m = T{...}; return m`, `std::mutex` lock/unlock) prints
+   identical correct output on both backends. Remaining in C1 is the deliberately
+   conservative residue (another ctor shape, call-filled temporaries, partial
+   array literals, `zeroed<T>()`, the string-into-`char[]` and union tails).
 2. ~~Collapse `temp = *src; dest = temp` into one copy/`memcpy`; extend the
    single-use collapse to aggregate places and loaded values~~ **DONE
    (session 8)**: a deref load whose only use is the immediately following store

@@ -1311,8 +1311,41 @@ bool MIRLowerer::constructor_writes_whole_value(FunctionDeclaration* ctor) {
             if (i + 1 != body.nodes.size()) return false; // the return must be last
             auto* ret = static_cast<ReturnStatement*>(node);
             Value* v = ret->value;
-            if (!v || v->val_kind() != ValueKind::Identifier) return false;
-            ASTNode* linked = v->linked_node();
+            // Resolve `return m`: a bare identifier, or a one-element access
+            // chain to it. A chain whose `values` were consumed while lowering
+            // the constructor is resolved to the body's unique local built from
+            // a literal of the container (a constructor returns its own value).
+            ASTNode* linked = nullptr;
+            if (v && v->val_kind() == ValueKind::Identifier) {
+                linked = v->linked_node();
+            } else if (v && v->val_kind() == ValueKind::AccessChain) {
+                auto* ch = v->as_access_chain_unsafe();
+                if (ch->values.empty()) {
+                    // the chain was consumed while lowering the constructor:
+                    // resolve to the body's unique local built from a literal of
+                    // the container (a constructor returns its own value).
+                    for (ASTNode* n : body.nodes) {
+                        if (!n || n->kind() != ASTNodeKind::VarInitStmt) continue;
+                        auto* cand = n->as_var_init_unsafe();
+                        if (!cand->value || cand->value->val_kind() != ValueKind::StructValue) {
+                            continue;
+                        }
+                        if (cand->value->as_struct_value_unsafe()->linked_extendable() != def) {
+                            continue;
+                        }
+                        if (linked) {
+                            linked = nullptr; // ambiguous: reject
+                            break;
+                        }
+                        linked = n;
+                    }
+                } else {
+                    Value* leaf = ch->values.back();
+                    if (leaf && leaf->val_kind() == ValueKind::Identifier) {
+                        linked = leaf->linked_node();
+                    }
+                }
+            }
             if (!linked || linked->kind() != ASTNodeKind::VarInitStmt) return false;
             auto* vi = linked->as_var_init_unsafe();
             if (!vi->value || vi->value->val_kind() != ValueKind::StructValue) return false;

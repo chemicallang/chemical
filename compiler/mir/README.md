@@ -115,36 +115,45 @@ forms — so `constructor_writes_whole_value` gained two more provable shapes:
   `return` inside an `if`/loop cannot hide another exit path.
 - **`... var m = T { ... }; <no-write stmts>; return m`.** `m` is fully defined by
   its literal (a literal that does not cover every field is itself zeroed, so
-  either way the value is complete) and `return m` is a whole-value store.
+  either way the value is complete) and `return m` is a whole-value store. The
+  returned local is found through a bare identifier, a one-element access chain,
+  or — when lowering consumed the chain's `values` — the body's unique local
+  built from a literal of the container (a constructor returns its own value).
 
-The literal must construct the *same* container (`linked_extendable() == def`),
-matching the existing proof, and any other statement kind (assignment, `if`,
-loop, extra `return`) keeps the zero.
+Statement kinds the proof treats as harmless before/among the return: `var`, a
+bare expression, a bare call (`AccessChainNode` — e.g. `memset(...)`,
+`InitializeSRWLock(...)`), and all of the above for shape 2. Any other statement
+kind (an assignment, an `if`, a loop, an extra `return`) keeps the zero. The
+literal must construct the *same* container (`linked_extendable() == def`),
+matching the existing proof.
 
 Measured on this checkout (`Debug`, `debug_quick`, `--no-cache`, `--emit-c`):
 
-| Metric | baseline | session 25 | now |
+| Metric | baseline | after arrays/dyn | now |
 |---|---:|---:|---:|
-| Main-suite `memset` sites | 424 | 273 | **199** (**−53%**) |
-| Main-suite generated C lines | 97,144 | 96,994 | **96,920** |
-| `tests-tcc.exe` | 3,665,077 B | 3,656,373 B | **3,655,349 B** |
+| Main-suite `memset` sites | 424 | 233 | **194** (**−54%**) |
+| Main-suite generated C lines | 97,144 | 96,953 | **96,915** |
+| `tests-tcc.exe` (no `--emit-c`) | 3,665,077 B | 3,656,373 B | **3,654,837 B** |
 
-**Output-invariant except the removals:** the previous-step → this-step normalized
-line multiset differs by exactly the removed `memset`s (34) plus the usual
-generic-ordering jitter (20/20). Verified at runtime with a probe (a
-multi-statement `@make` and a `var m = T { ... }; return m`): **identical correct
-output on both backends**.
+**Output-invariant except the removals:** the baseline → this-step normalized
+line multiset differs by exactly the removed `memset`s (191) plus the usual
+generic-ordering jitter (24/24). Verified at runtime with a probe (a
+multi-statement `@make`, a `var m = T { ... }; return m`, and a real
+`std::mutex` lock/unlock): **identical correct output on both backends**.
 
 | Suite | Result |
 |---|---|
 | `--tcc` | **2305/2305** |
 | `--llvm` | **2303/2303** |
-| `--tcc --libs` / `--llvm --libs` | **718/719** (the known `test_fs_directory_iteration`; the documented `--llvm --libs` compiler flake showed once, green on re-run) |
+| `--tcc --libs` / `--llvm --libs` | **718/719** (the known `test_fs_directory_iteration`; the documented `--llvm` compiler flake showed on some runs, green on re-run) |
 
-**What is left of C1.** A constructor whose body is not one of the three shapes
-(e.g. one that assigns `self.field` through an early `if`, or returns a value
-needing an implicit conversion), a temporary whose *address* a call fills, a
-partial array literal's tail, `zeroed<T>()`, and the string-into-`char[]` tail.
+**What is left of C1 (the residue is deliberately not removed).** A constructor
+whose body is another shape, a temporary whose *address* a call fills, a partial
+array literal's tail, `zeroed<T>()`, the string-into-`char[]` tail, a union
+literal's tail, a default-initialized array, and a struct literal with an
+inherited base that a nested default pass fills — every one of these either has a
+byte only the zero defines, or would need an interprocedural / path-sensitive
+proof. The remaining ~194 `memset` sites in the main suite are in that set.
 
 ### Session 25 (2026-10-15) — two more dead `zero_init`s (action C1, generated code / runtime)
 

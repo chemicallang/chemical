@@ -99,6 +99,34 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 27 (2026-10-15) — split `MIRLowerer.cpp` (action D4)
+
+`MIRLowerer.cpp` was a single 9,026-line translation unit — the plan asked for
+per-construct TUs (evaluation §1.3). The two largest cohesive groups are now
+their own files:
+
+- **`compiler/mir/MIRLowerAsync.cpp`** (1,170 lines) — the async/coroutine
+  lowering (`async_slot_field`, `lower_async_function`, `async_emit_frame_helpers`,
+  `async_lower_await_var_init`/`_poll_body`/`_drop_body`/`_ramp`,
+  `lower_async_main_trampoline`) and its three file-local statics
+  (`mir_slot_is_destructible`, `mir_sym_name`, `mir_named_field_type`).
+- **`compiler/mir/MIRLowerLambda.cpp`** (814 lines) — lambda/capturing lowering
+  (`lower_captured_variable`, `lower_extraction_value`,
+  `lower_capturing_function_call`, `materialize_capturing_lambda`, `lower_lambda`,
+  `materialize_noncapturing_lambda`).
+- **`compiler/mir/MIRLowererInternal.h`** — the single helper those TUs share
+  (`is_void_type`), moved out of the anonymous namespace `MIRLowerer.cpp` still
+  uses internally.
+
+`MIRLowerer.cpp` is **9,026 → 7,277 lines**. This is a **pure move** — the emitted
+C is identical (96,915 lines, 194 `memset` sites, unchanged) and the suites are
+green: `--tcc` **2305/2305**, `--llvm` **2303/2303**. The win is the compiler's
+own **incremental build** (touching an async/lambda method now recompiles one
+small TU) and reviewability; it does **not**, by itself, move the compile-time
+gate — that still needs the dense lowering tables (D3), the per-instruction cost
+(D), and parallel lowering (E). `MIRLowerExpr`/`Stmt`/`Call`/`Aggregate` are the
+remaining split.
+
 ### Session 26 (2026-10-15) — multi-statement constructors no longer zero the result temp (action C1)
 
 Session 17 skipped the caller-side `zero_init` of a `T(args)` result temporary only

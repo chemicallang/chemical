@@ -81,8 +81,15 @@ Full statements: `lang/docs/mir-implementation-plan.md` §0 rule 9,
 
 ## Files
 
-- `compiler/mir/MIRLowerer.{h,cpp}` — AST→MIR lowering (includes AST headers),
-  including `lower_async_function` / `async_lower_poll_body` / `async_lower_ramp`.
+- `compiler/mir/MIRLowerer.{h,cpp}` — AST→MIR lowering (includes AST headers).
+  The async/coroutine group lives in `compiler/mir/MIRLowerAsync.cpp`
+  (`lower_async_function`, `async_lower_poll_body`/`_ramp`/`_drop_body`, the
+  frame helpers, `lower_async_main_trampoline`) and the lambda/capturing group in
+  `compiler/mir/MIRLowerLambda.cpp` (`lower_lambda`,
+  `materialize_capturing_lambda`, `lower_capturing_function_call`, …);
+  `compiler/mir/MIRLowererInternal.h` holds the one helper (`is_void_type`) they
+  share. `MIRLowerer.cpp` is still the bulk (`lower_expr`/`lower_stmt`/calls/
+  aggregates); splitting those is the remaining D4 work.
 - `compiler/mir/MIRTypeBuilder.{h,cpp}` — `BaseType*` → `TypeId` (only core file
   that includes AST types). `named_struct(name)` creates an opaque named struct
   (used for the coroutine frame).

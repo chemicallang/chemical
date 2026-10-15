@@ -27,6 +27,14 @@ Branch: `mir`. Supersedes nothing; complements `compiler/mir/README.md`,
 > (D4), the 18 `unordered_map`s (D3) and parallel file lowering (E), which is the
 > only lever sized to the 2.3× compile-time gap.
 >
+> **Status update (2026-10-15, session 27) — D4 first step: `MIRLowerer.cpp`
+> split.** The async group is now `MIRLowerAsync.cpp` and the lambda/capturing
+> group `MIRLowerLambda.cpp` (shared `MIRLowererInternal.h`); `MIRLowerer.cpp`
+> is **9,026 → 7,277 lines**. Pure move — identical emitted C (96,915 lines,
+> 194 `memset` sites); `--tcc` **2305/2305**, `--llvm` **2303/2303**. Enabler
+> work for the compile-time gate (the gate still needs D3 / per-instruction /
+> E). Details: `compiler/mir/README.md`, session 27.
+>
 > **Status update (2026-10-15, session 26) — multi-statement constructors no
 > longer zero the result temp.** `constructor_writes_whole_value` gained the
 > `... <setup>; return T{...}` and `... var m = T{...}; ...; return m` shapes
@@ -831,6 +839,12 @@ attributed down to per-function self time with no `perf` — and disproved the
 "one hot function" hypothesis: the cost is per-instruction overhead and the tail
 of ~1,510 small generic instantiations, so D3 (dense tables) and lower per-
 instruction cost are the levers, not a targeted rewrite.
+**Update (session 27).** D4's first step landed: the async group moved to
+`MIRLowerAsync.cpp` and the lambda/capturing group to `MIRLowerLambda.cpp`
+(shared `MIRLowererInternal.h`), so `MIRLowerer.cpp` is **9,026 → 7,277 lines**
+(a pure move — identical emitted C). It is **enabler work**: it speeds the
+compiler's own incremental builds and review but does not move the compile-time
+gate, which still needs D3, per-instruction cost, and E.
 
 ### E. Parallelise lowering (P2, after D)
 

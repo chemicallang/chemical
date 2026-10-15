@@ -1235,8 +1235,46 @@ bool MIRLowerer::default_init_writes_all_fields(ExtendableMembersContainerNode* 
 //
 // If the return lowering ever becomes an in-place construction straight into
 // the sret (no temporary and no store), this proof must be revisited.
+bool MIRLowerer::function_body_is_readable(FunctionDeclaration* fn) {
+    if (!fn) return false;
+    if (fn->is_body_retained()) return true;
+    if (!current_module_file_scopes_) return false;
+    ASTNode* file_scope = fn->get_ancestor_by_kind(ASTNodeKind::FileScope);
+    return file_scope &&
+           current_module_file_scopes_->find(file_scope) != current_module_file_scopes_->end();
+}
+
+void MIRLowerer::prime_constructor_fact(FunctionDeclaration* fn) {
+    if (!fn || !fn->is_constructor_fn() || fn->is_ctor_whole_value_known()) return;
+    if (!fn->body.has_value()) return;
+    if (!function_body_is_readable(fn)) return;
+    fn->set_ctor_writes_whole_value(constructor_writes_whole_value(fn));
+}
+
+bool MIRLowerer::construction_writes_whole_value(FunctionDeclaration* ctor,
+                                                 ExtendableMembersContainerNode* cdef) {
+    bool ctor_covers = false;
+    if (ctor->is_ctor_whole_value_known()) {
+        // the proof ran earlier, while the constructor's own module still had its
+        // body; a later module must not re-read a possibly-freed body
+        ctor_covers = ctor->ctor_writes_whole_value();
+    } else if (function_body_is_readable(ctor)) {
+        ctor_covers = constructor_writes_whole_value(ctor);
+        ctor->set_ctor_writes_whole_value(ctor_covers);
+    }
+    return ctor_covers ||
+           (ctor->is_generated_fn() && default_init_writes_all_fields(cdef));
+}
+
 bool MIRLowerer::constructor_writes_whole_value(FunctionDeclaration* ctor) {
     if (!ctor || !ctor->body.has_value()) return false;
+    // The body of a non-retained function is allocated on the module allocator,
+    // which `process_module_tcc` clears once that module is compiled. A
+    // reference from a later module keeps only the job-allocated declaration
+    // alive, so its `body`'s statement nodes are already freed — reading them is
+    // a use-after-free. Only inspect a body that is retained for the whole job
+    // or was parsed as part of the module currently being lowered.
+    if (!function_body_is_readable(ctor)) return false;
     auto* def = ctor->parent() ? ctor->parent()->as_extendable_member_container() : nullptr;
     if (!def) return false;
     const Scope& body = ctor->body.value();
@@ -3529,8 +3567,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     // (evaluation §1.2, action C1)
                     ExtendableMembersContainerNode* cdef =
                         ctor->parent() ? ctor->parent()->as_extendable_member_container() : nullptr;
-                    const bool covered = constructor_writes_whole_value(ctor) ||
-                        (ctor->is_generated_fn() && default_init_writes_all_fields(cdef));
+                    const bool covered = construction_writes_whole_value(ctor, cdef);
                     if (!covered) {
                         builder_->zero_init(place);
                     }
@@ -3605,9 +3642,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                             ExtendableMembersContainerNode* cdef =
                                 ctor->parent() ? ctor->parent()->as_extendable_member_container()
                                                : nullptr;
-                            const bool covered = constructor_writes_whole_value(ctor) ||
-                                (ctor->is_generated_fn() &&
-                                 default_init_writes_all_fields(cdef));
+                            const bool covered = construction_writes_whole_value(ctor, cdef);
                             if (!covered) {
                                 builder_->zero_init(place);
                             }
@@ -6791,6 +6826,11 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     if (decl->is_async()) {
         return lower_async_function(decl, arena, func, error);
     }
+    // Cache the "constructor writes the whole result" proof now, while this
+    // function's body (which this module owns) is still alive, so a dependent
+    // module can consume it without reading a freed body (see
+    // construction_writes_whole_value).
+    prime_constructor_fact(decl);
     arena_ = &arena;
     current_func_ = decl;
     if (set_current_func_) set_current_func_(decl);

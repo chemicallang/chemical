@@ -278,6 +278,29 @@ public:
      */
     void set_debug_info(bool on) { debug_info_ = on; }
 
+    /**
+     * The `FileScope`s of the files that were parsed for the module currently
+     * being lowered. A non-retained function's body lives on the module
+     * allocator, which is cleared once its module is compiled, so a body
+     * reached through any other file may already be freed (a cross-module
+     * reference only keeps the job-allocated *declaration* alive). Lowering
+     * may only inspect the body of a function that is either body-retained or
+     * declared in one of these files. The set must outlive the lowering; the
+     * driver passes a per-module set.
+     */
+    void set_current_module_file_scopes(const std::unordered_set<ASTNode*>* scopes) {
+        current_module_file_scopes_ = scopes;
+    }
+
+    /**
+     * Compute and cache the "constructor writes the whole result" fact on `fn`
+     * while its body is known to be alive (call this when lowering the
+     * constructor itself, which happens in the module that owns it). A later
+     * module then consumes the cached fact instead of re-reading a body its
+     * module allocator already freed.
+     */
+    void prime_constructor_fact(FunctionDeclaration* fn);
+
 private:
     MIRExprResult lower_expr(Value* value, std::string& error);
     bool lower_stmt(ASTNode* node, std::string& error);
@@ -467,6 +490,23 @@ private:
      * `{ return T { field: expr, ... } }` shape (action C1).
      */
     bool constructor_writes_whole_value(FunctionDeclaration* ctor);
+    /**
+     * Whether the temporary at a `T(args)` construction site may skip its
+     * whole-value `zero_init`: the constructor's body writes every byte, or the
+     * constructor is compiler-generated and its body is exactly
+     * `apply_struct_defaults_ptr` over `cdef` (action C1). The body proof is
+     * cached on the declaration the first time it is computed while the body is
+     * alive, so a later module never re-reads a freed body.
+     */
+    bool construction_writes_whole_value(FunctionDeclaration* ctor,
+                                         ExtendableMembersContainerNode* cdef);
+    /**
+     * Whether `fn`'s body is safe to inspect: it is retained for the whole job,
+     * or it was parsed as part of the module currently being lowered. A body from
+     * an earlier module was freed by `mod_allocator->clear()` (only the
+     * job-allocated declaration survives), so reading it is a use-after-free.
+     */
+    bool function_body_is_readable(FunctionDeclaration* fn);
     /** Like `apply_struct_defaults` but through a `self` pointer (generated ctor). */
     bool apply_struct_defaults_ptr(ValueId self_ptr, ExtendableMembersContainerNode* def,
                                    std::string& error);
@@ -606,6 +646,12 @@ private:
     std::function<bool(uint64_t, MIRSourceLoc&)> source_loc_provider_;
     /** Record debug-only metadata (place names, lexical scopes). See set_debug_info. */
     bool debug_info_ = false;
+    /**
+     * Files parsed for the module currently being lowered, or null when unknown.
+     * Guards body inspection against module-allocator reuse — see
+     * `set_current_module_file_scopes`.
+     */
+    const std::unordered_set<ASTNode*>* current_module_file_scopes_ = nullptr;
     std::unordered_map<std::string, SymbolId> extern_symbols_;
     /** Struct temporaries whose destruction is deferred to the statement end. */
     std::vector<std::pair<PlaceId, BaseType*>> stmt_temps_;

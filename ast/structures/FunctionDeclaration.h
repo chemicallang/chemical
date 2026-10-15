@@ -174,6 +174,16 @@ struct FuncDeclAttributes {
     bool retained_body = false;
 
     /**
+     * MIR fact cached on the declaration while its (possibly module-allocated)
+     * body is still alive. `ctor_whole_value_known` marks the proof as computed;
+     * when set, `ctor_whole_value` holds its result. MIR lowering consumes this
+     * instead of re-reading the body, which a later module's allocator clear
+     * would have freed. See `MIRLowerer::prime_constructor_fact`.
+     */
+    bool ctor_whole_value_known = false;
+    bool ctor_whole_value = false;
+
+    /**
      * contract flag type, 0 means no contract
      */
     uint8_t contract_flag = 0;
@@ -439,6 +449,31 @@ public:
 
     inline void set_is_body_retained(bool value) {
         attrs.retained_body = value;
+    }
+
+    /**
+     * See `FuncDeclAttributes::ctor_whole_value_known`: whether the cached
+     * "constructor writes the whole result" proof has been computed.
+     */
+    inline bool is_ctor_whole_value_known() const {
+        return attrs.ctor_whole_value_known;
+    }
+
+    /**
+     * The cached "constructor writes the whole result" proof (valid only when
+     * `is_ctor_whole_value_known()` is true).
+     */
+    inline bool ctor_writes_whole_value() const {
+        return attrs.ctor_whole_value;
+    }
+
+    /**
+     * Record the "constructor writes the whole result" proof. Must only be
+     * called while the constructor's body is known to be alive.
+     */
+    inline void set_ctor_writes_whole_value(bool value) {
+        attrs.ctor_whole_value_known = true;
+        attrs.ctor_whole_value = value;
     }
 
     inline uint8_t get_contract_flag() const {

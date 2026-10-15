@@ -99,6 +99,43 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 28 (2026-10-15) — cross-module constructor bodies are no longer read (crash fix)
+
+The intermittent `--llvm --libs` compiler crash was a **heap-use-after-free**, caught
+deterministically by address sanitizer on an ASan `TCCCompiler`
+(`-DENABLE_ASAN=ON`; it needs `/STACK:67108864` because ASan frames trip the
+comptime stack guard). ASan pinned it on `constructor_writes_whole_value` reading a
+constructor's `body`, freed by the per-module `mod_allocator->clear()` — the C1
+optimization was the only lowering code that inspected a *callee's* body.
+
+Root cause is a module-lifetime rule: the parser puts a function's **declaration**
+(and its type nodes) on the **job** allocator but its **body** on the **module**
+allocator unless the body is retained (`parser/structures/Function.cpp`,
+"comptime/generic/`@retained` bodies → job, every other function's body → module").
+A module re-parses its own direct files fresh, but a **dependency** file is reused
+from the import cache, so its job-allocated declarations outlive their
+module-allocated bodies. Reading such a body from a dependent module is a
+use-after-free.
+
+Fix, in two parts:
+
+- **Guard** — `MIRLowerer::function_body_is_readable`: a body may only be inspected
+  if `is_body_retained()` or its `FileScope` is one of the module's own fresh files,
+  passed by `ASTProcessor::implement_module` via `set_current_module_file_scopes`
+  (direct files are always re-parsed into a new `ASTFileResult`).
+- **Cache the fact while the body is alive** — `lower_function` calls
+  `prime_constructor_fact`, which stores the C1 proof on the (job-lifetime)
+  declaration (`FuncDeclAttributes::ctor_whole_value_known`/`_ctor_whole_value`);
+  `construction_writes_whole_value` consumes the cached fact, so a dependent module
+  never re-reads a freed body. This keeps — and slightly improves — the C1 win.
+
+Verified: ASan `--arg-test-libs` **16/16 clean** (previously tripped within ~4–8);
+`--tcc` **2305/2305**, `--llvm` **2303/2303**, `--libs` **718/719** on both backends
+(the one failure is the environment-sensitive `test_fs_directory_iteration`),
+`MIRTests` 1180 checks. Main-suite C translation: **184 `memset`** (was 194 at the
+C1 baseline — the cached fact is more accurate than a possibly-clobbered freed
+body), 96,888 lines. See `lang/docs/mir-llvm-migration.md` §2.3.
+
 ### Session 27 (2026-10-15) — split `MIRLowerer.cpp` (action D4)
 
 `MIRLowerer.cpp` was a single 9,026-line translation unit — the plan asked for
@@ -1789,6 +1826,11 @@ uses the name pool, not layout. Needed before LLVM lowering.
   facts in an emitter; missing facts get added to MIR. Only `MIRTypeBuilder` and
   `MIRLowerer` touch the AST.
 - No `std::unordered_map`/`chem::string` per instruction; dense ID tables only.
+- **Never read a cross-module function body during lowering.** A body lives on the
+  module allocator (freed after its module) unless `is_body_retained()`; only the
+  job-allocated *declaration* survives. Cross-module facts must be cached on the
+  declaration while the body is alive (`prime_constructor_fact`), and body reads
+  gated by `function_body_is_readable` (Session 28).
 - Effects/portability/compaction safety are opcode-static.
 - Every block ends in exactly one terminator; use-counts updated on append.
 - `MIRTests` must stay green before every MIR commit.

@@ -2440,6 +2440,20 @@ int ASTProcessor::implement_module(
         return v ? v->evaluated_value(c_visitor.comptime_scope) : nullptr;
     });
 
+    // The module's own files are re-parsed fresh for this module (a new
+    // `ASTFileResult` per file), so a body reached through one of their
+    // `FileScope`s is still alive; a body from a dependency module's reused
+    // declaration was freed when that module's allocator was cleared. The
+    // lowerer needs this to decide whether a constructor body may be inspected.
+    std::unordered_set<ASTNode*> current_module_file_scopes;
+    current_module_file_scopes.reserve(module->direct_files.size());
+    for (auto& file_ptr : module->direct_files) {
+        if (file_ptr.result) {
+            current_module_file_scopes.insert((ASTNode*) &file_ptr.result->unit.scope);
+        }
+    }
+    mir_lowerer.set_current_module_file_scopes(&current_module_file_scopes);
+
     // generic instantiations for this module: lowered by MIR (function bodies);
     // non-function nodes still go through the legacy visitor as declarations
     if (mir_translate_after_declaration(c_visitor, mir_module, mir_types, mir_lowerer,

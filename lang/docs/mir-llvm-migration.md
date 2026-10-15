@@ -454,6 +454,60 @@ backend gets them too.
 `./scripts/test.sh --llvm` (the main suite) is **green**: 2298 / 2298 as of
 session 4. The earlier `fatal: llvm_pointer called on bare Value` abort is gone.
 
+> ✅ **`--llvm --libs` intermittent crash: FIXED (2026-10-15).** It was a
+> **heap-use-after-free**, not a lifetime gap in generic instantiation. ASan on a
+> `TCCCompiler` built with `ENABLE_ASAN=ON` (and `/STACK:67108864`, because ASan
+> frames trip the comptime stack guard) caught it deterministically: the report
+> pointed at `MIRLowerer::constructor_writes_whole_value` reading a constructor's
+> `body`, with the free in `LabBuildCompiler::process_module_tcc`'s per-module
+> `mod_allocator->clear()` (`ASTAllocator::clear`).
+>
+> **Root cause.** The parser allocates a function's *declaration* (and all its
+> type nodes) on the **job** allocator but its *body* on the **module** allocator
+> unless the body is retained (`parser/structures/Function.cpp` "HARD_RULE:
+> comptime/generic/`@retained` bodies go to the job allocator, every other
+> function's body to the module allocator"). A module therefore re-parses its own
+> direct files fresh each time, but a *dependency* file is reused from the import
+> `cache` (`ASTProcessor::import_chemical_files_recursive`), so its
+> job-allocated declarations survive across the dependent module while their
+> module-allocated bodies were freed by `mod_allocator->clear()` after the owning
+> module. Any caller that reads a cross-module function's body is then a
+> use-after-free. The C1 optimization (`constructor_writes_whole_value`) was the
+> only lowering code that inspected a callee's body, so a `T(args)` whose
+> constructor came from an already-compiled dependency (e.g. `std::mutex`) read
+> freed statements — nondeterministically, because the freed arena may or may not
+> have been overwritten since.
+>
+> **Fix.** Lowering may only inspect a body that is `is_body_retained()` or lives
+> in a file parsed for the module currently being lowered
+> (`MIRLowerer::function_body_is_readable`; the driver passes the module's fresh
+> `FileScope`s from `implement_module`, and direct files are always re-parsed into
+> a new `ASTFileResult`). To keep the C1 win, the proof is **computed once while
+> the constructor's own body is alive** — when the constructor is lowered
+> (`lower_function` → `prime_constructor_fact`) — and **cached on the
+> job-lifetime declaration** (`FuncDeclAttributes::ctor_whole_value_known` /
+> `ctor_whole_value`); a later module consumes the cached fact instead of
+> re-reading a freed body (`construction_writes_whole_value`). Generated
+> constructors still use `default_init_writes_all_fields`, which only reads
+> job-lifetime containers.
+>
+> **Verification.** `TCCCompiler --arg-test-libs` under ASan: 16/16 clean runs
+> (previously tripped within ~4–8). Main suites `--tcc` 2305/2305, `--llvm`
+> 2303/2303; `--libs` 718/719 on both backends (the one failure is the
+> environment-sensitive `test_fs_directory_iteration`); `MIRTests` 1180 checks.
+> The main-suite C translation has **184** `memset` (was 194 at the C1 baseline —
+> the cached fact is more accurate than re-reading a possibly-clobbered freed
+> body).
+>
+> **Diagnosing aids (kept).** `core/targets/Compiler.cpp` installs a **vectored**
+> exception handler behind `CHEM_CRASH_BT=1` that symbolicates any *non-JIT* crash
+> via dbghelp (TinyCC's JIT fault handler preempts it, so it does not fire for a
+> JIT-hosted fault); the reported PC can be resolved offline against the PDB with
+> `llvm-pdbutil dump -symbols cmake-build-debug/Compiler.pdb` (section `.text`
+> starts at RVA `0x1000`); and `--emit-c` plus counting `memset` in
+> `lang/tests/build/chemical-tests.dir/Translated.c` is the C1 metric.
+
+
 **`--llvm --libs` no longer aborts in the compiler** (re-checked 2026-10-13,
 session 11): the full lib test exe builds cleanly — build the LLVM compiler and
 run the libs suite, or reproduce directly with

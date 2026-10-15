@@ -27,6 +27,18 @@ Branch: `mir`. Supersedes nothing; complements `compiler/mir/README.md`,
 > (D4), the 18 `unordered_map`s (D3) and parallel file lowering (E), which is the
 > only lever sized to the 2.3× compile-time gap.
 >
+> **Status update (2026-10-15, session 20) — B's third step: the vtable layout is
+> shared.** The interface vtable slot order and self-erased slot types were the
+> last algorithm both backends derived independently; they now come from
+> `compiler/mir/MIRVtable.{h,cpp}` (`mir_vtable_slots`), consumed by
+> `MIRDeclEmitter` (C) and `mir_emit_llvm_module` (LLVM). **Output-invariant**:
+> main-suite C 97,144 lines either side, A3→A3+B normalized diff 60 against a
+> 46-line same-binary noise floor (no vtable line differs); `--tcc` **2305/2305**,
+> `--llvm` **2303/2303**, `--tcc/--llvm --libs` **718/719**, `MIRTests`
+> **1170 checks**. No headline gate moves; still open in B: shared traversal/
+> naming and the vtable *declaration* records. Details: `compiler/mir/README.md`,
+> session 20.
+>
 > **Status update (2026-10-15, session 19) — A3's second bite: global
 > initializers are MIR.** The initializer walk that lived in *both* backends
 > (`MIRDeclEmitter::const_value_expr` for C, `GlobalConstantLowerer` for LLVM,
@@ -535,9 +547,25 @@ running the ≈150-line analysis inline (the analysis was transcribed exactly, n
 re-derived, so the C output is unchanged — 97,144 lines either side, normalized
 diff within the 102-line same-binary noise floor). `MIRTests` gained two
 functions' worth of assertions (1154 checks). **Still open in B:** shared
-traversal, place/symbol/constant naming, and the interface **vtable layout**
-(slot order) that `MIRDeclEmitter` (C) and `CodegenMir::mir_vtable_*` (LLVM)
-still derive independently — that is the next shared service.
+traversal and place/symbol/constant naming.
+
+**Step 3 DONE (session 20) — `compiler/mir/MIRVtable.{h,cpp}`.** The interface
+vtable slot **order** and each slot's self-erased function **type** — the last
+algorithm the two backends derived independently (`MIRDeclEmitter`'s
+`vtable_slot_type` + recursive walk, `mir_emit_llvm_module`'s
+`slots_of`/`slot_ftype`) — are now computed once by
+`mir::mir_vtable_slots(types, module, iface, out, out_funcs)` /
+`mir::mir_vtable_slot_type(...)` and consumed by both. `MIRVtableSlot` is the
+shared record. The slot *spelling* (C `c_decl_type` vs LLVM `mir_fn_type`) and
+the callee resolution stay backend-side. Measured output-invariant for C
+(main-suite C 97,144 lines either side, A3→A3+B normalized diff 60 against a
+46-line same-binary noise floor; no vtable line differs); `--tcc` **2305/2305**,
+`--llvm` **2303/2303**, `--tcc/--llvm --libs` **718/719**, `MIRTests`
+**1170 checks**. It also aligns a latent LLVM/C divergence (the old LLVM
+`slot_ftype` used a local `is_agg` that excluded typedef structs and arrays from
+sret). Still open in B: shared traversal/naming and the vtable *declaration*
+records (so the LLVM driver stops walking the AST for interfaces/impls), plus
+the primitive-impl slot alignment noted in the MIR README.
 
 **Step 1 DONE (session 15) — `compiler/mir/MIRABI.h`.** The parameter/return
 classification is now shared rather than re-derived: the same rules had been

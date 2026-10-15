@@ -99,6 +99,56 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 20 (2026-10-15) — the interface-vtable layout is shared (action B, third step)
+
+The vtable slot **order** and each slot's **self-erased function type** were
+derived independently by the two backends: the C declaration emitter
+(`MIRDeclEmitter::vtable_slot_type` plus its recursive inherited-then-own walk)
+and the LLVM emitter (`mir_emit_llvm_module`'s `slots_of`/`slot_ftype`). They are
+now computed **once** in the new AST-aware `compiler/mir/MIRVtable.{h,cpp}`:
+
+- `MIRVtableSlot` (a `std::string name` + `TypeId type`) and
+  `mir_vtable_slot_type(types, module, func)` — the erased-self signature of one
+  method.
+- `mir_vtable_slots(types, module, iface, out, out_funcs = nullptr)` — the
+  canonical order (inherited interfaces recursively, then
+  `instantiated_functions()`), with an optional parallel `FunctionDeclaration*`
+  list for callers that must resolve a definition's callee.
+
+`MIRDeclEmitter::create_vtable_type`/`create_vtable` and
+`mir_emit_llvm_module`'s interface/impl/primitive vtable blocks all consume it,
+so the layout cannot drift. The slot *spelling* (C `c_decl_type` vs LLVM
+`mir_fn_type`) and the *callee resolution* (mangling, `active_user`) stay with
+each backend — those are genuinely backend-specific, not layout.
+
+The shared `mir_vtable_slot_type` uses the canonical `abi::needs_sret`, which
+also fixes a latent divergence: the old LLVM `slot_ftype` used a local `is_agg`
+that excluded typedef structs and arrays, so a vtable method returning a `dyn`
+fat pointer or an array would have been spelled with the sret pointer in a
+different position than the C backend. No exercised vtable slot hits that case
+(the suites are unchanged), so this is a correctness alignment, not an output
+change.
+
+Measured output-invariant for C: main-suite C is 97,144 lines either side, and
+the A3→A3+B normalized diff is **60** lines against a **46**-line same-binary
+noise floor — every residual line is a generic-instantiation ordering/attribution
+reference; **no vtable line differs**.
+
+| Suite | Result |
+|---|---|
+| `--tcc` | **2305/2305** |
+| `--llvm` | **2303/2303** |
+| `--tcc --libs` / `--llvm --libs` | **718/719** (the known `test_fs_directory_iteration`) |
+| `MIRTests` | **1170 checks** |
+
+**What is left in B.** Shared traversal / naming and the vtable *declaration*
+records (so `mir_emit_llvm_module` no longer walks the AST for interfaces/impls)
+remain. `MIRDeclEmitter::create_vtable_primitive` still emits only the
+interface's own self-param methods in `instantiated_functions()` order, so a
+primitive impl of an interface with inherited slots could still misalign — a
+pre-existing, un-exercised divergence, left for when the primitive path moves
+onto the shared slot list.
+
 ### Session 19 (2026-10-15) — global initializers are a MIR constant tree (action A3, second bite)
 
 The initializer of a top-level global was walked from the AST **twice**, once per

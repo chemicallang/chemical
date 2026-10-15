@@ -9,6 +9,7 @@
 #include "compiler/mir/MIRLowerer.h"
 #include "compiler/mir/MIRArena.h"
 #include "compiler/mir/MIRDump.h"
+#include "compiler/mir/MIRVtable.h"
 #include "compiler/mangler/NameMangler.h"
 #include "preprocess/2c/BufferedWriter.h"
 #include "preprocess/2c/TranslationContext.h"
@@ -93,67 +94,38 @@ static void mir_emit_llvm_module(Codegen& gen, LabModule* module,
     for (const mir::MIRFunction& fn : m.functions) gen.mir_function(m, fn.symbol);
 
     // ── interface vtables ───────────────────────────────────────────────────
+    // The ordered slot list and each slot's self-erased function type come from
+    // the shared MIR vtable layout (`mir::mir_vtable_slots`, MIRVtable.h), so
+    // this backend cannot drift from the C one.
     auto vtable_type_name = [&](InterfaceDefinition* iface) -> std::string {
         return "__chx_" + mangle(iface) + "_vt_t";
     };
-    auto is_agg = [&](mir::TypeId t) -> bool {
-        if (t >= m.types.size()) return false;
-        const mir::MIRTypeRecord& r = m.types.get(t);
-        if (r.flags & mir::TF_TYPEDEF) return false;
-        return r.kind == mir::MIRTypeKind::Struct || r.kind == mir::MIRTypeKind::Union ||
-               r.kind == mir::MIRTypeKind::Variant;
-    };
-    std::function<std::vector<FunctionDeclaration*>(InterfaceDefinition*)> slots_of =
-        [&](InterfaceDefinition* iface) -> std::vector<FunctionDeclaration*> {
-        std::vector<FunctionDeclaration*> out;
-        for (auto& inh : iface->inherited) {
-            InterfaceDefinition* inherited =
-                inh.type ? inh.type->get_direct_linked_interface() : nullptr;
-            if (inherited) {
-                auto s = slots_of(inherited);
-                out.insert(out.end(), s.begin(), s.end());
-            }
+    auto slot_ftys = [&](const std::vector<mir::MIRVtableSlot>& slots,
+                         std::vector<llvm::FunctionType*>& out) -> bool {
+        out.clear();
+        for (const mir::MIRVtableSlot& s : slots) {
+            llvm::FunctionType* ft = gen.mir_fn_type(m, s.type);
+            if (!ft) return false;
+            out.push_back(ft);
         }
-        for (FunctionDeclaration* f : iface->instantiated_functions()) out.push_back(f);
-        return out;
+        return true;
     };
-    auto slot_ftype = [&](FunctionDeclaration* func) -> llvm::FunctionType* {
-        FunctionParam* self = func->get_self_param();
-        mir::TypeId ret = func->returnType ? types.map(func->returnType) : types.void_type();
-        const bool sret = is_agg(ret);
-        std::vector<mir::TypeId> ptypes;
-        if (self) ptypes.push_back(types.pointer_type(types.void_type(), true));
-        if (sret) ptypes.push_back(types.pointer_type(ret, true));
-        bool skipped_self = false;
-        for (FunctionParam* p : func->params) {
-            if (p == self && !skipped_self) { skipped_self = true; continue; }
-            mir::TypeId pt = p && p->type ? types.map(p->type) : types.opaque_type();
-            if (pt < m.types.size()) {
-                if (m.types.get(pt).kind == mir::MIRTypeKind::Array) {
-                    pt = types.pointer_type(m.types.get(pt).element, true);
-                } else if (is_agg(pt)) {
-                    pt = types.pointer_type(pt, true);
-                }
-            }
-            ptypes.push_back(pt);
-        }
-        mir::TypeId stype = types.function_signature(sret ? types.void_type() : ret, ptypes,
-                                                     func->isVariadic());
-        return gen.mir_fn_type(m, stype);
+    auto slot_names = [&](const std::vector<mir::MIRVtableSlot>& slots) {
+        std::vector<std::string> names;
+        names.reserve(slots.size());
+        for (const mir::MIRVtableSlot& s : slots) names.push_back(s.name);
+        return names;
     };
     for (ASTNode* n : nodes) {
         if (n->kind() != ASTNodeKind::InterfaceDecl) continue;
         auto* iface = n->as_interface_def_unsafe();
         const std::string tn = vtable_type_name(iface);
-        auto slots = slots_of(iface);
+        std::vector<mir::MIRVtableSlot> slots;
+        mir::mir_vtable_slots(types, m, iface, slots);
         std::vector<llvm::FunctionType*> ftys;
-        std::vector<std::string> names;
-        for (FunctionDeclaration* f : slots) {
-            ftys.push_back(slot_ftype(f));
-            names.push_back(std::string(f->name_view().data(), f->name_view().size()));
-        }
+        if (!slot_ftys(slots, ftys)) continue;
         gen.mir_vtable_struct(tn, ftys);
-        gen.mir_vtable_methods_[tn] = names;
+        gen.mir_vtable_methods_[tn] = slot_names(slots);
     }
     for (ASTNode* n : nodes) {
         if (n->kind() != ASTNodeKind::ImplDecl) continue;
@@ -166,6 +138,9 @@ static void mir_emit_llvm_module(Codegen& gen, LabModule* module,
             impl->struct_type ? impl->struct_type->get_members_container() : nullptr;
         ExtendableMembersContainerNode* container =
             container_mc ? container_mc->as_extendable_members_container_unsafe() : nullptr;
+        std::vector<mir::MIRVtableSlot> slots;
+        std::vector<FunctionDeclaration*> funcs;
+        mir::mir_vtable_slots(types, m, iface, slots, &funcs);
         if (!container) {
             // Primitive impl (`impl Interface for int`): there is no members
             // container, so the vtable is built from the impl's own methods —
@@ -180,20 +155,14 @@ static void mir_emit_llvm_module(Codegen& gen, LabModule* module,
                 gen.mangler.mangle_vtable_name(w, iface, impl->struct_type);
                 gname.assign(w.data(), w.getPosition());
             }
-            auto slots = slots_of(iface);
             std::vector<llvm::FunctionType*> ftys;
-            bool ok = true;
-            for (FunctionDeclaration* f : slots) {
-                llvm::FunctionType* sft = slot_ftype(f);
-                if (!sft) { ok = false; break; }
-                ftys.push_back(sft);
-            }
-            if (!ok || ftys.empty()) continue;
+            if (!slot_ftys(slots, ftys)) continue;
+            if (ftys.empty()) continue;
             llvm::StructType* vts = gen.mir_vtable_struct(tn, ftys);
-            if (vts->getNumElements() != slots.size()) continue;
+            if (vts->getNumElements() != funcs.size()) continue;
             std::vector<llvm::Constant*> init;
-            for (size_t si = 0; si < slots.size(); ++si) {
-                FunctionDeclaration* f = slots[si];
+            for (size_t si = 0; si < funcs.size(); ++si) {
+                FunctionDeclaration* f = funcs[si];
                 llvm::Function* lf = nullptr;
                 if (f->has_self_param()) {
                     FunctionDeclaration* overrider = impl->direct_child_function(f->name_view());
@@ -204,10 +173,7 @@ static void mir_emit_llvm_module(Codegen& gen, LabModule* module,
                                         vts->getElementType(si))));
             }
             if (gen.mir_vtable_methods_.find(tn) == gen.mir_vtable_methods_.end()) {
-                std::vector<std::string> slot_names;
-                for (FunctionDeclaration* f : slots)
-                    slot_names.emplace_back(f->name_view().data(), f->name_view().size());
-                gen.mir_vtable_methods_[tn] = std::move(slot_names);
+                gen.mir_vtable_methods_[tn] = slot_names(slots);
             }
             // External linkage: the vtable name is program-unique (it embeds
             // both the interface's and the impl type's mangled names), and a
@@ -228,10 +194,9 @@ static void mir_emit_llvm_module(Codegen& gen, LabModule* module,
             gen.mangler.mangle_vtable_name(w, iface, container);
             gname.assign(w.data(), w.getPosition());
         }
-        auto slots = slots_of(iface);
         std::vector<llvm::Constant*> init;
         bool ok = true;
-        for (FunctionDeclaration* f : slots) {
+        for (FunctionDeclaration* f : funcs) {
             FunctionDeclaration* overrider = container->direct_child_function(f->name_view());
             std::string fname;
             if (overrider) {
@@ -251,23 +216,14 @@ static void mir_emit_llvm_module(Codegen& gen, LabModule* module,
         // interface declaration may live in a *different* module than the impl,
         // so the type must be registered here from the impl's interface.
         std::vector<llvm::FunctionType*> ftys;
-        for (FunctionDeclaration* f : slots) {
-            llvm::FunctionType* sft = slot_ftype(f);
-            if (!sft) { ok = false; break; }
-            ftys.push_back(sft);
-        }
-        if (!ok) continue;
+        if (!slot_ftys(slots, ftys)) continue;
         llvm::StructType* vts = gen.mir_vtable_struct(tn, ftys);
         if (vts->getNumElements() != init.size()) continue;
         // `DynamicCall` resolves the method name to a slot index via this map;
         // the interface may be declared in another module, so make sure the
         // slot-name list is registered for the impl's interface too.
         if (gen.mir_vtable_methods_.find(tn) == gen.mir_vtable_methods_.end()) {
-            std::vector<std::string> slot_names;
-            for (FunctionDeclaration* f : slots) {
-                slot_names.emplace_back(f->name_view().data(), f->name_view().size());
-            }
-            gen.mir_vtable_methods_[tn] = std::move(slot_names);
+            gen.mir_vtable_methods_[tn] = slot_names(slots);
         }
         auto* gv = new llvm::GlobalVariable(
             *gen.module, vts, true, llvm::GlobalValue::ExternalLinkage,

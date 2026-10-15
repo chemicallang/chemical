@@ -94,6 +94,11 @@ Full statements: `lang/docs/mir-implementation-plan.md` §0 rule 9,
   driven; see the evaluation doc actions A/B). Global **definitions** are now
   MIR-driven (`implement_global` → `MIRDeclPrinter::const_expr_c` over a
   `MIRConstExpr` tree); the AST value walk is gone.
+- `compiler/mir/MIRVtable.{h,cpp}` — the **shared** interface-vtable layout
+  (`MIRVtableSlot`, `mir_vtable_slots`, `mir_vtable_slot_type`): slot order and
+  self-erased slot types, consumed by both the C declaration emitter and the
+  LLVM emitter so the layout exists once. AST-aware (a slot is an interface
+  method), so it is in the compiler but not in MIRTests.
 - `compiler/CodegenMir.cpp` — MIR→LLVM lowering (AST-free, `COMPILER_BUILD`
   only); the driver is `ASTProcessor::mir_compile_module` in
   `compiler/ASTCompiler.cpp`.

@@ -32,6 +32,8 @@ using InstId = uint32_t;
 using SymbolId = uint32_t;
 /** module-level constant identity (index into MIRConstantPool) */
 using ConstantId = uint32_t;
+/** module-level constant-expression identity (index into MIRConstExprTable) */
+using ConstExprId = uint32_t;
 
 /** sentinel for "no id" */
 constexpr uint32_t MIR_INVALID_ID = 0xFFFFFFFFu;

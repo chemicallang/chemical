@@ -6,6 +6,10 @@
 
 #include "MIREmitter.h"
 
+#include <charconv>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
 #include <string>
 
 namespace mir {
@@ -17,6 +21,54 @@ const char* k_variant_tag_name = "__chx__vt_621827";
 void append_indent(std::string& out, int indent) {
     out += '\n';
     for (int i = 0; i < indent; ++i) out += '\t';
+}
+
+// ── scalar formatting (mirrors preprocess/2c/BufferedWriter) ────────────────
+
+/** Reproduces `BufferedWriter::append_float` exactly (to_chars general/9, `.0`, `f`). */
+std::string format_float(float v) {
+    char buf[64];
+    auto [ptr, ec] = std::to_chars(buf, buf + sizeof(buf), v, std::chars_format::general, 9);
+    if (ec != std::errc()) return "NaN";
+    std::string out(buf, ptr);
+    if (std::isfinite(v) && v == std::trunc(v) && std::abs(v) < 1e9f) out += ".0";
+    out += 'f';
+    return out;
+}
+
+/** Reproduces `BufferedWriter::append_double` exactly (to_chars general/17, `.0`). */
+std::string format_double(double v) {
+    char buf[80];
+    auto [ptr, ec] = std::to_chars(buf, buf + sizeof(buf), v, std::chars_format::general, 17);
+    if (ec != std::errc()) return "NaN";
+    std::string out(buf, ptr);
+    if (std::isfinite(v) && v == std::trunc(v) && std::abs(v) < 1e17) out += ".0";
+    return out;
+}
+
+/** Mirrors `MIRDeclEmitter::write_escaped_string` (the C string-literal form). */
+void append_escaped_string(std::string& out, const char* s, uint32_t n) {
+    out += '"';
+    for (uint32_t i = 0; i < n; ++i) {
+        const char c = s[i];
+        switch (c) {
+            case '\\': out += "\\\\"; break;
+            case '"':  out += "\\\""; break;
+            case '\n': out += "\\n"; break;
+            case '\r': out += "\\r"; break;
+            case '\t': out += "\\t"; break;
+            default:
+                if (static_cast<unsigned char>(c) < 0x20) {
+                    char buf[8];
+                    std::snprintf(buf, sizeof(buf), "\\%03o",
+                                  static_cast<unsigned>(static_cast<unsigned char>(c)));
+                    out += buf;
+                } else {
+                    out += c;
+                }
+        }
+    }
+    out += '"';
 }
 
 bool is_base(const MIRFieldInfo& f) {
@@ -86,6 +138,85 @@ std::string member_declarator_at(const MIRModule& module, const MIRFieldInfo& fi
 }
 
 } // namespace
+
+std::string const_expr_c(const MIRModule& module, ConstExprId id) {
+    if (id == MIR_INVALID_ID || id >= module.const_exprs.size()) return "0";
+    const MIRConstExpr& e = module.const_exprs.get(id);
+    switch (e.kind) {
+        case MIRConstKind::Zero:
+            return "0";
+        case MIRConstKind::Int: {
+            bool unsig = (e.flags & MCF_UNSIGNED) != 0;
+            if (!unsig && e.type < module.types.size()) {
+                const MIRTypeRecord& r = module.types.get(e.type);
+                if (r.kind == MIRTypeKind::Int && !(r.flags & TF_SIGNED)) unsig = true;
+            }
+            return unsig ? std::to_string(static_cast<unsigned long long>(e.bits))
+                         : std::to_string(static_cast<long long>(e.bits));
+        }
+        case MIRConstKind::Float: {
+            const uint32_t b = static_cast<uint32_t>(e.bits);
+            float f = 0.0f;
+            std::memcpy(&f, &b, sizeof(f));
+            return format_float(f);
+        }
+        case MIRConstKind::Double: {
+            double d = 0.0;
+            std::memcpy(&d, &e.bits, sizeof(d));
+            return format_double(d);
+        }
+        case MIRConstKind::Bool:
+            return e.bits ? "1" : "0";
+        case MIRConstKind::Null:
+            return "NULL";
+        case MIRConstKind::String: {
+            std::string out;
+            append_escaped_string(out, module.const_exprs.data.data() + e.data_offset,
+                                  e.data_count);
+            return out;
+        }
+        case MIRConstKind::Negate: {
+            const MIRConstChild* c = module.const_exprs.child(id, 0);
+            return "-" + const_expr_c(module, c ? c->expr : MIR_INVALID_ID);
+        }
+        case MIRConstKind::FunctionRef: {
+            if (e.symbol >= module.symbols.size()) return "0";
+            return module.symbols.mangled_name(module.symbols.get(e.symbol));
+        }
+        case MIRConstKind::Aggregate: {
+            const bool is_array = e.type < module.types.size() &&
+                                  module.types.get(e.type).kind == MIRTypeKind::Array;
+            std::string out;
+            if (e.flags & MCF_CAST_PREFIX) out += "(" + c_type_of(module, e.type) + ") ";
+            out += '{';
+            bool first = true;
+            for (uint32_t i = 0; i < e.child_count; ++i) {
+                const MIRConstChild* c = module.const_exprs.child(id, i);
+                if (!c) break;
+                if (!first) out += ", ";
+                if (!is_array) out += "." + module.const_exprs.child_name(*c) + " = ";
+                out += const_expr_c(module, c->expr);
+                first = false;
+            }
+            if (first) out += '0'; // an empty array literal is `{0}`
+            out += '}';
+            return out;
+        }
+        case MIRConstKind::Variant: {
+            std::string out = "(" + c_type_of(module, e.type) + ") { ." +
+                              k_variant_tag_name + " = " + std::to_string(e.case_index);
+            for (uint32_t i = 0; i < e.child_count; ++i) {
+                const MIRConstChild* c = module.const_exprs.child(id, i);
+                if (!c) break;
+                out += ", ." + module.const_exprs.child_name(*c) + " = " +
+                       const_expr_c(module, c->expr);
+            }
+            out += " }";
+            return out;
+        }
+    }
+    return "0";
+}
 
 std::string member_declarator_c(const MIRModule& module, const MIRFieldInfo& field) {
     return member_declarator_at(module, field, 1);

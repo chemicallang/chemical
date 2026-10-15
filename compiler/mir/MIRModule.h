@@ -9,6 +9,7 @@
 #include "MIRTypeTable.h"
 #include "MIRLayout.h"
 #include "MIRConstantPool.h"
+#include "MIRConstExpr.h"
 #include "MIRSymbolTable.h"
 #include "MIRFunction.h"
 
@@ -23,6 +24,27 @@ enum class MIROutputMode : uint8_t {
     DebugComplete,
     Release,
     Interpret,
+};
+
+/** Spelling flags of a top-level global (see MIRGlobal). */
+enum MIRGlobalFlags : uint8_t {
+    MGF_NONE = 0x00,
+    MGF_THREAD_LOCAL = 0x01,
+    MGF_VOLATILE = 0x02,
+};
+
+/**
+ * A top-level global *definition*: its symbol (name, type and linkage live on
+ * the symbol record) plus its constant initializer. Populated by the
+ * front-end collection pass so both backends define globals from MIR rather
+ * than walking the AST — action A3 of mir-migration-evaluation.md. The C
+ * emitter prints `const_expr_c(module, init)` and the LLVM emitter builds a
+ * `Constant` from the same tree.
+ */
+struct MIRGlobal {
+    SymbolId symbol = MIR_INVALID_ID;
+    ConstExprId init = MIR_INVALID_ID;
+    uint8_t flags = MGF_NONE;
 };
 
 /**
@@ -42,6 +64,10 @@ struct MIRModule {
     MIRSymbolTable symbols;
     MIRModuleLayout layout;
     std::vector<MIRFunction> functions;
+    /** Constant-expression trees for global initializers (see MIRGlobal). */
+    MIRConstExprTable const_exprs;
+    /** Top-level global definitions, with their initializer trees. */
+    std::vector<MIRGlobal> globals;
     /**
      * Absolute source file paths, indexed by `MIRSourceLoc::file`. Shared by the
      * whole module (a `MIRSourceLoc` stores only the id, keeping the core
@@ -72,8 +98,10 @@ struct MIRModule {
     void clear() {
         types = {};
         constants = {};
+        const_exprs = {};
         symbols = {};
         functions.clear();
+        globals.clear();
         source_files.clear();
     }
 };

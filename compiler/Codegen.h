@@ -200,6 +200,13 @@ public:
     llvm::DIType* mir_di_type(const mir::MIRModule& module, uint32_t type);
     /** Declare LLVM globals for the module's MIR global symbols. */
     void mir_declare_globals(const mir::MIRModule& module);
+    /**
+     * Apply each `MIRGlobal`'s constant-expression initializer to the LLVM global
+     * `mir_declare_globals` declared for it (action A3 of
+     * mir-migration-evaluation.md). The initializer tree is target-neutral and
+     * produced once by `MIRLowerer`; this pass reads no AST.
+     */
+    void mir_apply_global_initializers(const mir::MIRModule& module);
     /** Clear per-module MIR caches (call on module switch). */
     void mir_reset_caches() {
         mir_type_cache_.clear();

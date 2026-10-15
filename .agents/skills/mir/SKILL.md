@@ -36,8 +36,8 @@ The AST is a **front-end** artifact (parser, symres, type-checking, `MIRLowerer`
 | calling convention, sret/param rules | `MIRABI` | AST function/parameter types |
 | per-function facts (block offsets, fall-throughs, place writes/addressed, param aliasing) | `MIRFacts` (`compute_function_facts`) | re-running the analysis in the emitter |
 | names, mangling, linkage | MIR symbol table / `MIRFunction::name` | `mangler_`/AST declaration walks |
-| constants and initializers | `MIRConstantPool` | AST `Value*` literals |
-| aggregate/prototype/global declarations | MIR declaration tables (`MIRDeclPrinter` now; `MIRTypeDecl`/`MIRPrototype`/`MIRGlobal` as they land) | `StructDefinition`/`FunctionDeclaration` member walks |
+| constants and initializers | `MIRConstantPool`, `MIRConstExprTable` (`MIRConstExpr.h`; global initializers) | AST `Value*` literals |
+| aggregate/prototype/global declarations | MIR declaration tables (`MIRDeclPrinter` + `MIRGlobal` now; `MIRTypeDecl`/`MIRPrototype` as they land) | `StructDefinition`/`FunctionDeclaration` member walks |
 
 Concretely, a backend must **not**: include an `ast/` header; take an
 `ASTNode*`/`BaseType*`/`StructDefinition*`/`FunctionDeclaration*` parameter; walk
@@ -89,15 +89,19 @@ Full statements: `lang/docs/mir-implementation-plan.md` §0 rule 9,
 - `compiler/mir/MIRBuilder.{h,cpp}` — typed construction API
   (`alloca_frame`, `async_frame_alloc`, `call_indirect_sret`, …).
 - `compiler/mir/MIREmitter.{h,cpp}` — MIR→C (AST-free).
-- `compiler/mir/MIRDeclEmitter.{h,cpp}` — **AST-based** C declarations /
-  prototypes / globals / vtables (the type/decl layer that is *not* yet MIR
-  driven; see the evaluation doc actions A/B).
+- `compiler/mir/MIRDeclEmitter.{h,cpp}` — AST-based C declarations /
+  prototypes / vtables (the collection/decl layer that is *not* yet fully MIR
+  driven; see the evaluation doc actions A/B). Global **definitions** are now
+  MIR-driven (`implement_global` → `MIRDeclPrinter::const_expr_c` over a
+  `MIRConstExpr` tree); the AST value walk is gone.
 - `compiler/CodegenMir.cpp` — MIR→LLVM lowering (AST-free, `COMPILER_BUILD`
   only); the driver is `ASTProcessor::mir_compile_module` in
   `compiler/ASTCompiler.cpp`.
 - `compiler/mir/MIRTypes.h` (`MIRStorageClass`), `MIRInstruction.h` (opcodes),
   `MIRFunction.h` (`MIRPlaceDef.frame_field`), `MIRTypeTable.h`, `MIRArena.h`,
-  `MIRDump.h`, `MIRVerifier.h`, `MIRConstantPool.h`, `MIRSymbolTable.h`.
+  `MIRDump.h`, `MIRVerifier.h`, `MIRConstantPool.h`, `MIRConstExpr.h`
+  (global-initializer trees; `MIRGlobal` lives in `MIRModule.h`),
+  `MIRSymbolTable.h`.
 - `compiler/async/AsyncCTypes.{h,cpp}` — resolve the `FutureHandle<T>` /
   `FutureTable<T>` / `Poll<T>` / `Context*` types; **shared** by MIR's C and
   LLVM async lowering so both agree.

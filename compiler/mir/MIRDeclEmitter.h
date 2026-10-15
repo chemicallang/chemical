@@ -81,6 +81,14 @@ public:
     /** Emit the definitions owned by declarations (globals, vtables). */
     void implement(BufferedWriter& w, ASTNode* node);
 
+    /**
+     * Emit the definition of a top-level global from MIR (action A3): the
+     * initializer is the constant-expression tree `init` produced by
+     * `MIRLowerer::build_global_initializer`, printed by `const_expr_c`. No AST
+     * value walk happens here.
+     */
+    void implement_global(BufferedWriter& w, ASTNode* node, ConstExprId init);
+
     /** Emit stub implementations for unimplemented static interfaces. */
     void end_translate(BufferedWriter& w);
 
@@ -128,9 +136,6 @@ private:
     std::string type_spelling(BaseType* type);
     std::string decl_spelling(BaseType* type, const std::string& name);
     TypeId function_type_of(FunctionDeclaration* decl);
-    std::string const_value_expr(Value* value);
-    std::string struct_default_expr(StructDefinition* sd);
-    void write_escaped_string(BufferedWriter& w, const std::string& s);
 
     /**
      * Emit the C body of an aggregate declaration (`struct`/`union`/`variant`)

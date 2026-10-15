@@ -61,4 +61,15 @@ std::string inline_aggregate_c(const MIRModule& module, TypeId id);
  */
 std::string member_declarator_c(const MIRModule& module, const MIRFieldInfo& field);
 
+/**
+ * The C text of a global initializer constant expression, derived from MIR
+ * alone (action A3 of mir-migration-evaluation.md). This replaces the AST-
+ * walking `MIRDeclEmitter::const_value_expr`: a scalar prints its literal, a
+ * struct/union prints designated initializers (`.` + field path), an array
+ * prints positional elements, a variant prints its tag plus the active case's
+ * payload, and a function reference prints its mangled symbol name. Returns
+ * `"0"` for a missing/zero expression.
+ */
+std::string const_expr_c(const MIRModule& module, ConstExprId id);
+
 } // namespace mir

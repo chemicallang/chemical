@@ -2453,3 +2453,298 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
     mir_di_sp_ = nullptr;
     return true;
 }
+
+// ── Global initializers from MIR constant expressions (action A3) ────────────
+//
+// `MIRLowerer` lowers a top-level global's initializer into a target-neutral
+// constant-expression tree (`MIRConstExpr.h`) once; this builds the LLVM
+// `Constant` from it. The AST-walking `GlobalConstantLowerer` it replaces lived
+// in ASTCompiler.cpp. No AST is read here.
+
+namespace {
+
+/** Builds an `llvm::Constant` from a `MIRConstExpr` tree. */
+class MIRConstBuilder {
+public:
+    MIRConstBuilder(Codegen& gen, const mir::MIRModule& m)
+        : gen_(gen), m_(m), ctx_(gen.module->getContext()) {}
+
+    llvm::Constant* build(mir::ConstExprId id, llvm::Type* want) {
+        if (++depth_ > 128) {
+            --depth_;
+            return llvm::Constant::getNullValue(want);
+        }
+        llvm::Constant* c = build_impl(id, want);
+        --depth_;
+        return c;
+    }
+
+private:
+    Codegen& gen_;
+    const mir::MIRModule& m_;
+    llvm::LLVMContext& ctx_;
+    int depth_ = 0;
+    unsigned str_counter_ = 0;
+
+    bool valid(mir::TypeId t) const {
+        return t != mir::MIR_INVALID_ID && t < m_.types.size();
+    }
+
+    static llvm::Constant* null(llvm::Type* want) {
+        return llvm::Constant::getNullValue(want);
+    }
+
+    /** The tree child of aggregate `id` whose designator equals `name`. */
+    const mir::MIRConstChild* find_child(mir::ConstExprId id, const std::string& name) const {
+        const mir::MIRConstExpr& e = m_.const_exprs.get(id);
+        for (uint32_t i = 0; i < e.child_count; ++i) {
+            const mir::MIRConstChild* c = m_.const_exprs.child(id, i);
+            if (c && m_.const_exprs.child_name(*c) == name) return c;
+        }
+        return nullptr;
+    }
+
+    llvm::Constant* build_impl(mir::ConstExprId id, llvm::Type* want) {
+        if (!want) want = llvm::Type::getInt8Ty(ctx_);
+        if (id == mir::MIR_INVALID_ID || id >= m_.const_exprs.size()) return null(want);
+        const mir::MIRConstExpr& e = m_.const_exprs.get(id);
+        switch (e.kind) {
+            case mir::MIRConstKind::Zero:
+                return null(want);
+            case mir::MIRConstKind::Int:
+                return int_constant(e.bits, want);
+            case mir::MIRConstKind::Bool:
+                return bool_constant(e.bits != 0, want);
+            case mir::MIRConstKind::Float: {
+                const uint32_t b = static_cast<uint32_t>(e.bits);
+                float f = 0.0f;
+                std::memcpy(&f, &b, sizeof(f));
+                return fp_constant(static_cast<double>(f), want);
+            }
+            case mir::MIRConstKind::Double: {
+                double d = 0.0;
+                std::memcpy(&d, &e.bits, sizeof(d));
+                return fp_constant(d, want);
+            }
+            case mir::MIRConstKind::Null:
+                return null(want);
+            case mir::MIRConstKind::String:
+                return string_constant(e, want);
+            case mir::MIRConstKind::Negate: {
+                const mir::MIRConstChild* c = m_.const_exprs.child(id, 0);
+                const mir::ConstExprId child = c ? c->expr : mir::MIR_INVALID_ID;
+                if (want->isFloatingPointTy()) {
+                    llvm::Constant* inner = build(child, want);
+                    if (auto* cf = llvm::dyn_cast<llvm::ConstantFP>(inner)) {
+                        return llvm::ConstantFP::get(want, -cf->getValueAPF());
+                    }
+                    return null(want);
+                }
+                llvm::Constant* inner = build(child, want);
+                if (inner && inner->getType()->isIntegerTy()) {
+                    return llvm::ConstantExpr::getNeg(inner);
+                }
+                return inner;
+            }
+            case mir::MIRConstKind::FunctionRef:
+                return function_ref(e.symbol, want);
+            case mir::MIRConstKind::Aggregate:
+                return aggregate_constant(id, e, want);
+            case mir::MIRConstKind::Variant:
+                return variant_constant(id, e, want);
+        }
+        return null(want);
+    }
+
+    llvm::Constant* int_constant(uint64_t num, llvm::Type* want) {
+        if (want->isPointerTy()) return int_constant_ptr(num, want);
+        if (want->isIntegerTy(1)) return llvm::ConstantInt::get(want, num ? 1 : 0);
+        if (want->isIntegerTy()) return llvm::ConstantInt::get(want, num, /*isSigned=*/true);
+        if (want->isFloatTy()) {
+            return llvm::ConstantFP::get(want, static_cast<float>(static_cast<int64_t>(num)));
+        }
+        if (want->isDoubleTy()) {
+            return llvm::ConstantFP::get(want, static_cast<double>(static_cast<int64_t>(num)));
+        }
+        return null(want);
+    }
+
+    llvm::Constant* bool_constant(bool b, llvm::Type* want) {
+        if (want->isIntegerTy()) return llvm::ConstantInt::get(want, b ? 1 : 0);
+        if (want->isPointerTy()) return int_constant_ptr(b ? 1 : 0, want);
+        if (want->isFloatingPointTy()) return llvm::ConstantFP::get(want, b ? 1.0 : 0.0);
+        return null(want);
+    }
+
+    llvm::Constant* fp_constant(double d, llvm::Type* want) {
+        if (want->isFloatTy()) return llvm::ConstantFP::get(want, static_cast<float>(d));
+        if (want->isDoubleTy()) return llvm::ConstantFP::get(want, d);
+        if (want->isIntegerTy()) {
+            return llvm::ConstantInt::get(want, static_cast<uint64_t>(static_cast<int64_t>(d)));
+        }
+        return null(want);
+    }
+
+    llvm::Constant* int_constant_ptr(uint64_t num, llvm::Type* want) {
+        return llvm::ConstantExpr::getIntToPtr(
+            llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx_), num), want);
+    }
+
+    llvm::Constant* function_ref(uint32_t symbol, llvm::Type* want) {
+        (void)want;
+        if (symbol >= m_.symbols.size()) return nullptr;
+        return gen_.mir_function(m_, symbol); // opaque pointer
+    }
+
+    llvm::Constant* string_constant(const mir::MIRConstExpr& e, llvm::Type* want) {
+        std::string s(m_.const_exprs.data.data() + e.data_offset, e.data_count);
+        if (want->isPointerTy()) {
+            llvm::Constant* arr = llvm::ConstantDataArray::getString(ctx_, s, true);
+            return new llvm::GlobalVariable(*gen_.module, arr->getType(), true,
+                                            llvm::GlobalValue::PrivateLinkage, arr,
+                                            ".mir.str." + std::to_string(str_counter_++));
+        }
+        if (auto* at = llvm::dyn_cast<llvm::ArrayType>(want)) {
+            llvm::Type* et = at->getElementType();
+            const uint64_t n = at->getNumElements() ? at->getNumElements() : s.size() + 1;
+            llvm::ArrayType* rt = llvm::ArrayType::get(et, n);
+            std::vector<llvm::Constant*> elems;
+            for (unsigned char ch : s) elems.push_back(llvm::ConstantInt::get(et, ch));
+            while (elems.size() < n) elems.push_back(null(et));
+            if (elems.size() != n) return null(want);
+            return llvm::ConstantArray::get(rt, elems);
+        }
+        return null(want);
+    }
+
+    llvm::Constant* aggregate_constant(mir::ConstExprId id, const mir::MIRConstExpr& e,
+                                       llvm::Type* want) {
+        const mir::MIRTypeRecord* rec = valid(e.type) ? &m_.types.get(e.type) : nullptr;
+        if (auto* at = llvm::dyn_cast<llvm::ArrayType>(want)) {
+            llvm::Type* et = at->getElementType();
+            std::vector<llvm::Constant*> elems;
+            elems.reserve(e.child_count);
+            for (uint32_t i = 0; i < e.child_count; ++i) {
+                const mir::MIRConstChild* c = m_.const_exprs.child(id, i);
+                elems.push_back(build(c ? c->expr : mir::MIR_INVALID_ID, et));
+            }
+            while (elems.size() < at->getNumElements()) elems.push_back(null(et));
+            if (elems.size() != at->getNumElements()) return null(want);
+            return llvm::ConstantArray::get(at, elems);
+        }
+        auto* st = llvm::dyn_cast<llvm::StructType>(want);
+        if (!st) return null(want);
+        std::vector<llvm::Constant*> elems;
+        elems.reserve(st->getNumElements());
+        for (uint32_t i = 0; i < st->getNumElements(); ++i) {
+            llvm::Type* ft = st->getElementType(i);
+            const mir::MIRFieldInfo* f = rec ? m_.types.field_of(e.type, i) : nullptr;
+            const mir::MIRConstChild* c =
+                f ? find_child(id, m_.types.field_name_of(*f)) : nullptr;
+            elems.push_back(build(c ? c->expr : mir::MIR_INVALID_ID, ft));
+        }
+        return llvm::ConstantStruct::get(st, elems);
+    }
+
+    llvm::Constant* variant_constant(mir::ConstExprId id, const mir::MIRConstExpr& e,
+                                     llvm::Type* want) {
+        const mir::MIRTypeRecord* rec = valid(e.type) ? &m_.types.get(e.type) : nullptr;
+        auto* st = llvm::dyn_cast<llvm::StructType>(want);
+        if (!st) return null(want);
+        std::vector<llvm::Constant*> elems;
+        elems.reserve(st->getNumElements());
+        for (uint32_t i = 0; i < st->getNumElements(); ++i) {
+            llvm::Type* ft = st->getElementType(i);
+            const mir::MIRFieldInfo* f = rec ? m_.types.field_of(e.type, i) : nullptr;
+            if (!f) {
+                elems.push_back(null(ft));
+                continue;
+            }
+            switch (static_cast<mir::MIRFieldKind>(f->kind)) {
+                case mir::MIRFieldKind::Base: {
+                    const mir::MIRConstChild* c = find_child(id, m_.types.field_name_of(*f));
+                    elems.push_back(build(c ? c->expr : mir::MIR_INVALID_ID, ft));
+                    break;
+                }
+                case mir::MIRFieldKind::VariantTag:
+                    elems.push_back(ft->isIntegerTy()
+                                        ? static_cast<llvm::Constant*>(llvm::ConstantInt::get(
+                                              ft, static_cast<uint64_t>(e.case_index)))
+                                        : null(ft));
+                    break;
+                case mir::MIRFieldKind::VariantCase: {
+                    auto* cst = llvm::dyn_cast<llvm::StructType>(ft);
+                    if (!cst) {
+                        elems.push_back(null(ft));
+                        break;
+                    }
+                    const std::string cname = m_.types.field_name_of(*f);
+                    std::vector<llvm::Constant*> case_elems;
+                    case_elems.reserve(cst->getNumElements());
+                    bool any = false;
+                    for (uint32_t j = 0; j < cst->getNumElements(); ++j) {
+                        llvm::Type* cft = cst->getElementType(j);
+                        const mir::MIRFieldInfo* cf = m_.types.field_of(f->type, j);
+                        const mir::MIRConstChild* c =
+                            cf ? find_child(id, cname + "." + m_.types.field_name_of(*cf))
+                               : nullptr;
+                        if (c) any = true;
+                        case_elems.push_back(build(c ? c->expr : mir::MIR_INVALID_ID, cft));
+                    }
+                    elems.push_back(any ? static_cast<llvm::Constant*>(
+                                              llvm::ConstantStruct::get(cst, case_elems))
+                                        : null(ft));
+                    break;
+                }
+                default:
+                    elems.push_back(null(ft));
+                    break;
+            }
+        }
+        return llvm::ConstantStruct::get(st, elems);
+    }
+};
+
+} // namespace
+
+void Codegen::mir_apply_global_initializers(const mir::MIRModule& m) {
+    MIRConstBuilder builder(*this, m);
+    for (const mir::MIRGlobal& g : m.globals) {
+        if (g.init == mir::MIR_INVALID_ID) continue;
+        if (g.symbol >= m.symbols.size()) continue;
+        const mir::MIRSymbolRecord& rec = m.symbols.get(g.symbol);
+        const std::string name = m.symbols.mangled_name(rec);
+        llvm::GlobalVariable* gv = module->getNamedGlobal(name);
+        if (!gv) {
+            auto it = mir_global_cache_.find(g.symbol);
+            if (it != mir_global_cache_.end()) gv = it->second;
+        }
+        // An `@extern` global is a declaration (no initializer); never turn it
+        // into a definition — that would interpose the real symbol (libc's
+        // `stdout`). `mir_declare_globals` gave a definition a null initializer.
+        if (!gv || !gv->hasInitializer()) continue;
+        // Another pass may already have defined this symbol.
+        if (gv->getInitializer() && !gv->getInitializer()->isNullValue() &&
+            !llvm::isa<llvm::ConstantAggregateZero>(gv->getInitializer())) {
+            continue;
+        }
+        llvm::Constant* c = builder.build(g.init, gv->getValueType());
+        if (!c) continue;
+        if (c->getType() == gv->getValueType()) {
+            gv->setInitializer(c);
+            continue;
+        }
+        // An unsized `[0 x T]` global whose initializer carries the real extent
+        // (`const x : char[] = "..."`): rebuild it with the inferred type so
+        // indexing/GEP sees the data, as C's `char x[] = "..."` does.
+        auto* old_at = llvm::dyn_cast<llvm::ArrayType>(gv->getValueType());
+        auto* new_at = llvm::dyn_cast<llvm::ArrayType>(c->getType());
+        if (old_at && new_at && old_at->getNumElements() == 0 && new_at->getNumElements() > 0) {
+            auto* ng = new llvm::GlobalVariable(*module, c->getType(), gv->isConstant(),
+                                                gv->getLinkage(), c, name);
+            ng->setAlignment(gv->getAlign());
+            mir_global_cache_[g.symbol] = ng;
+            gv->eraseFromParent();
+        }
+    }
+}

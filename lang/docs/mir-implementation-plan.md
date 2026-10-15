@@ -101,9 +101,9 @@ rule in this section wins.
    MIR: types and layout from `MIRTypeTable`/`MIRLayout` (never `sizeof`/`offsetof`
    of a source type), the calling convention from `MIRABI`, per-function facts
    from `MIRFacts`, names/mangling/linkage from the MIR symbol table, constants
-   from `MIRConstantPool`, and declarations from MIR declaration tables
-   (`MIRDeclPrinter` today; `MIRTypeDecl`/`MIRPrototype`/`MIRGlobal` as they
-   land). A backend must not include an `ast/` header, take an
+   from `MIRConstantPool`/`MIRConstExprTable`, and declarations from MIR
+   declaration tables (`MIRDeclPrinter` + `MIRGlobal` today;
+   `MIRTypeDecl`/`MIRPrototype` as they land). A backend must not include an `ast/` header, take an
    `ASTNode*`/`BaseType*`/`StructDefinition*`/`FunctionDeclaration*` parameter,
    walk source nodes, or re-derive layout, ABI, declarations, destructor rules
    or lifetime from source form. The only AST-aware MIR components are the

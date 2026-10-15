@@ -27,6 +27,20 @@ Branch: `mir`. Supersedes nothing; complements `compiler/mir/README.md`,
 > (D4), the 18 `unordered_map`s (D3) and parallel file lowering (E), which is the
 > only lever sized to the 2.3× compile-time gap.
 >
+> **Status update (2026-10-15, session 19) — A3's second bite: global
+> initializers are MIR.** The initializer walk that lived in *both* backends
+> (`MIRDeclEmitter::const_value_expr` for C, `GlobalConstantLowerer` for LLVM,
+> ~370 lines) is replaced by one AST-free constant-expression tree
+> (`compiler/mir/MIRConstExpr.h`) built once by `MIRLowerer::build_global_initializer`
+> and recorded in `MIRModule::globals`; C prints it (`MIRDeclPrinter::const_expr_c`)
+> and LLVM builds its `Constant` from it (`Codegen::mir_apply_global_initializers`).
+> **Output-invariant**: main-suite C is 97,144 lines either side, normalized diff
+> 42/52 against a **46-line** same-binary noise floor; `--tcc` **2305/2305**,
+> `--llvm` **2303/2303**, `--tcc/--llvm --libs` **718/719**, `MIRTests`
+> **1154 → 1170**. No headline gate moves (this is architecture, not C/D/E); the
+> remaining A3 work is the collection walk and the `MIRTypeDecl`/`MIRPrototype`
+> records. Details: `compiler/mir/README.md`, session 19.
+>
 > **Status update (2026-10-15, session 18) — architecture, not a gate: A3's
 > first bite and B's second step landed.** The C declaration path no longer walks
 > the AST to spell an aggregate body: `compiler/mir/MIRDeclPrinter` prints
@@ -479,8 +493,21 @@ for aggregates (fixed by item 1 below); two independent C type spellers.
    field facts it needed are now recorded by `MIRTypeBuilder`
    (`MIRFieldInfo::flags`, `MIRTypeRecord::explicit_alignment`). Still on the
    AST: the collection walk, prototypes, globals + constant initializers
-   (`const_value_expr`), typedefs, interface vtables/static stubs. The table
-   itself (`MIRTypeDecl`/`MIRPrototype`/`MIRGlobal`) is still the next step.
+   (`const_value_expr`), typedefs, interface vtables/static stubs. **Second bite
+   DONE (session 19): `MIRGlobal` + constant-expression tree.** A top-level
+   global's initializer is now a target-neutral `MIRConstExpr` tree
+   (`compiler/mir/MIRConstExpr.h`) built once by the AST-aware lowering boundary
+   (`MIRLowerer::build_global_initializer`) and recorded in `MIRModule::globals`;
+   the C backend prints it with `MIRDeclPrinter::const_expr_c` and the LLVM
+   backend builds its `Constant` with `Codegen::mir_apply_global_initializers`.
+   Both AST walkers — `MIRDeclEmitter::const_value_expr`/`struct_default_expr`
+   and `GlobalConstantLowerer` (~370 lines) — are **deleted**. Measured
+   output-invariant (main-suite C 97,144 lines either side; normalized diff
+   42/52 against a 46-line same-binary noise floor); `--tcc` **2305/2305**,
+   `--llvm` **2303/2303**, `--tcc/--llvm --libs` **718/719**, `MIRTests`
+   **1154 → 1170**. The globals' *declaration* flags, the collection walk,
+   prototypes, typedefs, interface vtables/static stubs and the general
+   `MIRTypeDecl`/`MIRPrototype` records are still the next step.
 **Acceptance.** No AST headers in the declaration path; one C type speller;
 `MIRTypeRecord.size/alignment` non-zero for aggregates and verified by
 `MIRTests`; C + LLVM output unchanged or smaller.

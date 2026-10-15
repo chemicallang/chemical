@@ -33,19 +33,6 @@
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/EmbeddedNode.h"
-#include "ast/values/IntNumValue.h"
-#include "ast/values/FloatValue.h"
-#include "ast/values/DoubleValue.h"
-#include "ast/values/BoolValue.h"
-#include "ast/values/StringValue.h"
-#include "ast/values/ArrayValue.h"
-#include "ast/values/NullValue.h"
-#include "ast/values/Negative.h"
-#include "ast/values/ComptimeValue.h"
-#include "ast/values/StructValue.h"
-#include "ast/values/FunctionCall.h"
-#include "ast/values/AccessChain.h"
-#include "ast/values/CastedValue.h"
 #include "compiler/mangler/NameMangler.h"
 #include "preprocess/2c/BufferedWriter.h"
 #include "core/source/LocationManager.h"
@@ -141,235 +128,6 @@ std::string MIRDeclEmitter::mangle_name(ASTNode* node) {
     BufferedWriter w(256);
     mangler_.mangle(w, node);
     return std::string(w.data(), w.getPosition());
-}
-
-void MIRDeclEmitter::write_escaped_string(BufferedWriter& w, const std::string& s) {
-    w.append_char('"');
-    for (char c : s) {
-        switch (c) {
-            case '\\': w.append("\\\\", 2); break;
-            case '"':  w.append("\\\"", 2); break;
-            case '\n': w.append("\\n", 2); break;
-            case '\r': w.append("\\r", 2); break;
-            case '\t': w.append("\\t", 2); break;
-            default:
-                if (static_cast<unsigned char>(c) < 0x20) {
-                    char buf[8];
-                    std::snprintf(buf, sizeof(buf), "\\%03o",
-                                  static_cast<unsigned>(static_cast<unsigned char>(c)));
-                    w.append(buf, std::strlen(buf));
-                } else {
-                    w.append_char(c);
-                }
-        }
-    }
-    w.append_char('"');
-}
-
-std::string MIRDeclEmitter::struct_default_expr(StructDefinition* sd) {
-    if (!sd) return "{}";
-    std::string s = "(" + type_spelling(sd->known_type()) + ") {";
-    bool first = true;
-    auto add = [&](const std::string& field, const std::string& expr) {
-        if (!first) s += ", ";
-        s += "." + field + " = " + expr;
-        first = false;
-    };
-    for (auto& inh : sd->inherited) {
-        StructDefinition* base = inh.type ? inh.type->get_direct_linked_struct() : nullptr;
-        if (!base) continue;
-        add(std::string(base->name_view().data(), base->name_view().size()),
-            struct_default_expr(base));
-    }
-    for (BaseDefMember* var : sd->variables()) {
-        if (!var) continue;
-        Value* def = var->default_value();
-        if (!def) continue;
-        add(std::string(var->name.data(), var->name.size()), const_value_expr(def));
-    }
-    s += "}";
-    return s;
-}
-
-std::string MIRDeclEmitter::const_value_expr(Value* value) {
-    if (!value) return "0";
-    switch (value->val_kind()) {
-        case ValueKind::IntN: {
-            auto* v = value->as_int_num_value_unsafe();
-            if (v->is_unsigned()) return std::to_string(v->get_num_value());
-            return std::to_string(static_cast<long long>(v->get_num_value()));
-        }
-        case ValueKind::Float: {
-            BufferedWriter w(64);
-            w << value->as_float_unsafe()->value;
-            return std::string(w.data(), w.getPosition());
-        }
-        case ValueKind::Double: {
-            BufferedWriter w(64);
-            w << value->as_double_unsafe()->value;
-            return std::string(w.data(), w.getPosition());
-        }
-        case ValueKind::Bool:
-            return value->as_bool_unsafe()->value ? "1" : "0";
-        case ValueKind::String: {
-            auto* sv = value->as_string_unsafe();
-            BufferedWriter w(sv->value.size() + 8);
-            write_escaped_string(w, std::string(sv->value.data(), sv->value.size()));
-            return std::string(w.data(), w.getPosition());
-        }
-        case ValueKind::NullValue:
-            return "NULL";
-        case ValueKind::NegativeValue:
-            return "-" + const_value_expr(value->as_negative_value_unsafe()->getValue());
-        case ValueKind::ComptimeValue: {
-            auto* cv = static_cast<ComptimeValue*>(value);
-            Value* inner = cv->getValue();
-            return inner ? const_value_expr(inner) : "0";
-        }
-        case ValueKind::ArrayValue: {
-            auto* arr = value->as_array_value_unsafe();
-            std::string s = "{";
-            bool first = true;
-            for (Value* v : arr->values) {
-                if (!first) s += ", ";
-                s += const_value_expr(v);
-                first = false;
-            }
-            if (first) s += "0";
-            s += "}";
-            return s;
-        }
-        case ValueKind::StructValue: {
-            auto* sv = value->as_struct_value_unsafe();
-            std::string s = "{";
-            bool first = true;
-            auto add = [&](const std::string& field, const std::string& expr) {
-                if (!first) s += ", ";
-                s += "." + field + " = " + expr;
-                first = false;
-            };
-            for (auto& entry : sv->values) {
-                add(std::string(entry.second.name.data(), entry.second.name.size()),
-                    const_value_expr(entry.second.value));
-            }
-            // default-initialize inherited bases and direct members not set
-            StructDefinition* sd = value->getType()
-                                       ? value->getType()->get_direct_linked_struct() : nullptr;
-            if (sd) {
-                for (auto& inh : sd->inherited) {
-                    StructDefinition* base = inh.type ? inh.type->get_direct_linked_struct() : nullptr;
-                    if (!base) continue;
-                    if (sv->values.find(base->name_view()) != sv->values.end()) continue;
-                    add(std::string(base->name_view().data(), base->name_view().size()),
-                        struct_default_expr(base));
-                }
-                for (BaseDefMember* var : sd->variables()) {
-                    if (!var) continue;
-                    if (!sd->isDirectChild(var)) continue;
-                    if (sv->values.find(var->name) != sv->values.end()) continue;
-                    Value* def = var->default_value();
-                    if (!def) continue;
-                    add(std::string(var->name.data(), var->name.size()), const_value_expr(def));
-                }
-            }
-            s += "}";
-            return s;
-        }
-        case ValueKind::FunctionCall: {
-            // variant construction: `Variant.Member(args)`
-            auto* call = value->as_func_call_unsafe();
-            ASTNode* vleaf = nullptr;
-            if (call->parent_val) {
-                if (call->parent_val->val_kind() == ValueKind::AccessChain) {
-                    auto* ch = call->parent_val->as_access_chain_unsafe();
-                    if (!ch->values.empty()) vleaf = ch->values.back()->linked_node();
-                } else {
-                    vleaf = call->parent_val->linked_node();
-                }
-            }
-            if (vleaf && vleaf->kind() == ASTNodeKind::VariantMember) {
-                auto* vm = vleaf->as_variant_member_unsafe();
-                VariantDefinition* vd = vm->parent();
-                const long idx = vd ? vd->direct_child_index(vm->name) : 0;
-                std::string s = "(" + type_spelling(call->getType()) + ") { .__chx__vt_621827 = " +
-                                std::to_string(idx < 0 ? 0 : idx);
-                size_t ai = 0;
-                for (auto& entry : vm->values) {
-                    VariantMemberParam* param = entry.second;
-                    Value* arg = nullptr;
-                    if (ai < call->values.size()) {
-                        arg = call->values[ai];
-                        ai++;
-                    } else if (param) {
-                        arg = param->def_value;
-                    }
-                    if (!arg) continue;
-                    const std::string mname(vm->name.data(), vm->name.size());
-                    const std::string pname(entry.first.data(), entry.first.size());
-                    s += ", ." + mname + "." + pname + " = " + const_value_expr(arg);
-                }
-                if (vd) {
-                    for (auto& inh : vd->inherited) {
-                        StructDefinition* base =
-                            inh.type ? inh.type->get_direct_linked_struct() : nullptr;
-                        if (!base) continue;
-                        s += ", ." + std::string(base->name_view().data(), base->name_view().size()) +
-                             " = " + struct_default_expr(base);
-                    }
-                }
-                s += " }";
-                return s;
-            }
-            // a comptime function call folds to its constant result
-            if (value_eval_) {
-                Value* ev = value_eval_(call);
-                if (ev && ev != call) return const_value_expr(ev);
-            }
-            return "0";
-        }
-        case ValueKind::AccessChain: {
-            // a bare variant member (`Variant.Member`, no args) or a chain whose
-            // leaf is the constructor call
-            auto* ch = value->as_access_chain_unsafe();
-            if (ch->values.empty()) return "0";
-            Value* last = ch->values.back();
-            if (last->val_kind() == ValueKind::FunctionCall) return const_value_expr(last);
-            ASTNode* linked = last->linked_node();
-            if (linked) {
-                if (linked->kind() == ASTNodeKind::VariantMember) {
-                    auto* vm = linked->as_variant_member_unsafe();
-                    VariantDefinition* vd = vm->parent();
-                    const long idx = vd ? vd->direct_child_index(vm->name) : 0;
-                    std::string s = "(" + type_spelling(value->getType()) +
-                                    ") { .__chx__vt_621827 = " + std::to_string(idx < 0 ? 0 : idx);
-                    if (vd) {
-                        for (auto& inh : vd->inherited) {
-                            StructDefinition* base =
-                                inh.type ? inh.type->get_direct_linked_struct() : nullptr;
-                            if (!base) continue;
-                            s += ", ." + std::string(base->name_view().data(), base->name_view().size()) +
-                                 " = " + struct_default_expr(base);
-                        }
-                    }
-                    s += " }";
-                    return s;
-                }
-                if (linked->kind() == ASTNodeKind::FunctionDecl) {
-                    // a global function pointer/reference (`fn<T>`)
-                    return mangle_name(linked);
-                }
-                if (linked->kind() == ASTNodeKind::VarInitStmt) {
-                    auto* vi = linked->as_var_init_unsafe();
-                    if (vi->value) return const_value_expr(vi->value);
-                }
-            }
-            return "0";
-        }
-        case ValueKind::CastedValue:
-            return const_value_expr(value->as_casted_value_unsafe()->value);
-        default:
-            return "0";
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1035,6 +793,28 @@ void MIRDeclEmitter::declare(BufferedWriter& w, ASTNode* node) {
 // implement-pass: globals + vtables
 // ---------------------------------------------------------------------------
 
+void MIRDeclEmitter::implement_global(BufferedWriter& w, ASTNode* node, ConstExprId init) {
+    auto* init_stmt = node->as_var_init_unsafe();
+    if (!init_stmt->is_top_level()) return;
+    if (init_stmt->is_comptime()) return;
+    // MIR_INVALID_ID means the global had no initializer (the declaration pass
+    // already wrote its declaration).
+    if (init == MIR_INVALID_ID) return;
+    BaseType* init_type = init_stmt->type ? init_stmt->type
+                                          : (init_stmt->value ? init_stmt->value->getType()
+                                                              : nullptr);
+    w.append_char('\n');
+    const bool is_static = !init_stmt->is_linkage_public();
+    if (init_stmt->is_thread_local()) w.append("__chx_thread_local ", 19);
+    if (is_static) w.append("static ", 7);
+    if (init_stmt->is_volatile()) w.append("volatile ", 9);
+    w << decl_spelling(init_type, mangle_name(init_stmt));
+    w.append(" = ", 3);
+    const std::string expr = const_expr_c(module_, init);
+    w.append(expr.data(), expr.size());
+    w.append_char(';');
+}
+
 void MIRDeclEmitter::implement(BufferedWriter& w, ASTNode* node) {
     switch (node->kind()) {
         case ASTNodeKind::NamespaceDecl: {
@@ -1047,24 +827,11 @@ void MIRDeclEmitter::implement(BufferedWriter& w, ASTNode* node) {
             for (ASTNode* child : node->as_scope_unsafe()->nodes) implement(w, child);
             return;
         }
-        case ASTNodeKind::VarInitStmt: {
-            auto* init = node->as_var_init_unsafe();
-            if (!init->is_top_level()) return;
-            if (init->is_comptime()) return;
-            if (!init->value) return;
-            BaseType* init_type = init->type ? init->type : init->value->getType();
-            w.append_char('\n');
-            const bool is_static = !init->is_linkage_public();
-            if (init->is_thread_local()) w.append("__chx_thread_local ", 19);
-            if (is_static) w.append("static ", 7);
-            if (init->is_volatile()) w.append("volatile ", 9);
-            w << decl_spelling(init_type, mangle_name(init));
-            w.append(" = ", 3);
-            Value* ivalue = init->value;
-            w << const_value_expr(ivalue);
-            w.append_char(';');
+        case ASTNodeKind::VarInitStmt:
+            // a global definition is written by `implement_global` (its
+            // initializer is a MIR constant-expression tree, action A3), so the
+            // driver routes VarInitStmt there instead of here.
             return;
-        }
         case ASTNodeKind::StructDecl:
         case ASTNodeKind::VariantDecl:
         case ASTNodeKind::UnionDecl: {

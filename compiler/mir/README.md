@@ -99,6 +99,77 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 19 (2026-10-15) — global initializers are a MIR constant tree (action A3, second bite)
+
+The initializer of a top-level global was walked from the AST **twice**, once per
+backend: the C emitter (`MIRDeclEmitter::const_value_expr` / `struct_default_expr`)
+spelled C text and the LLVM emitter (`GlobalConstantLowerer`, ~370 lines) built an
+`llvm::Constant`. Both read the same `Value*` tree with the same rules. There is
+now **one** AST walk, at the lowering boundary, producing a target-neutral tree
+the two backends render:
+
+- New AST-free `compiler/mir/MIRConstExpr.h`: a `MIRConstExprTable` of
+  `MIRConstExpr` nodes (`Zero/Int/Float/Double/Bool/Null/String/Negate/
+  Aggregate/Variant/FunctionRef`) plus a child pool. A designator is a **dotted
+  field path** (`Case.param`, `Base.field`), the same convention the type table
+  already uses for field names; array elements are positional.
+- `MIRModule` gains `const_exprs` (the tree pool) and `globals`
+  (`std::vector<MIRGlobal>`: symbol + initializer id + TLS/volatile flags).
+- `MIRLowerer::build_global_initializer` interns the global's symbol and lowers
+  its `Value*` into the tree — the **only** AST walk. It mirrors
+  `const_value_expr` exactly (explicit members in source order, then inherited
+  bases, then defaulted direct members; variant tag + active-case payload + base
+  defaults; comptime calls folded through the interpreter).
+- `MIRDeclPrinter::const_expr_c` prints the tree for C (AST-free); it reproduces
+  the old spelling (designators, the `(T) { … }` cast on a default
+  construction, the `(T) { .__chx__vt_621827 = N, … }` variant form) and
+  `BufferedWriter`'s float formatting.
+- `Codegen::mir_apply_global_initializers` (CodegenMir.cpp) builds the LLVM
+  `Constant` from the same tree (AST-free), including the unsized-`char[]`
+  re-size.
+
+`MIRDeclEmitter::const_value_expr`, `struct_default_expr`, `write_escaped_string`
+and ASTCompiler.cpp's `GlobalConstantLowerer` class are **deleted**; the AST value
+headers they pulled into the declaration path are no longer needed by the
+initializer path.
+
+**Measurement and verification (this Windows checkout, `Debug`, `debug_quick`,
+`--no-cache`, `--emit-c`).** The translated C is not byte-reproducible
+(`__cgs__N`/`__cfg__N`/`__chemda_N` numbering and forward-declaration order), so
+the comparison normalises those labels and compares the line multiset, against
+the **same-binary two-run** noise floor:
+
+| Metric | Value |
+|---|---:|
+| Main-suite C lines | 97,144 before and after (identical) |
+| Main-suite C bytes | 4,195,236 (before) / 4,195,250 (after) — run jitter |
+| Same-binary two-run noise floor (normalized) | 46 lines |
+| Pre-change vs change (normalized) | 42 / 52 lines |
+| `--tcc` suite | **2305/2305** |
+| `--llvm` suite | **2303/2303** |
+| `--tcc --libs` / `--llvm --libs` | **718/719** (the known environment-sensitive `test_fs_directory_iteration`) |
+| `MIRTests` | **1154 → 1170 checks** |
+
+The normalized diff is *inside* the noise floor and every residual line is a
+generic-instantiation ordering/attribution reference — no global initializer
+changed shape. A probe (`lang/compiled/a3probe`, gitignored) with scalar, string,
+`char[]`-literal, array-literal, struct-literal, nested-struct and enum globals
+builds and runs on both backends with **identical** output, and the LLVM
+initializers are non-zero (struct defaults, nested members, string data all
+present), confirming the tree is actually consumed and not a no-op.
+
+> **Discovered, pre-existing, unchanged:** an enum-member initializer
+> (`const c : Color = Color.Green`) prints `0` on *both* backends — neither the
+> old `const_value_expr` nor `GlobalConstantLowerer` folded an `EnumMember` leaf.
+> The two backends agree, so this is not a regression; folding it would change
+> output and is left to a separate fix.
+
+**What is left in A3.** The initializer walk is gone; the *collection* walk and
+the decl kinds that still spell from AST (prototypes, typedefs, globals'
+declaration flags, interface vtables/static stubs) remain — the
+`MIRTypeDecl`/`MIRPrototype` records the plan names are still the next step. The
+shared interface **vtable layout** (action B) is unchanged.
+
 ### Session 18 (2026-10-15) — declarations print from MIR (action A3, first bite) + shared per-function facts (action B, second step)
 
 Two changes, both **output-invariant** by measurement (method and numbers below).

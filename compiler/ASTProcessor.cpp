@@ -2133,7 +2133,10 @@ bool mir_translate_after_declaration(
                 case ASTNodeKind::VarInitStmt: {
                     auto* vi = node->as_var_init_unsafe();
                     if (vi->is_top_level() && !vi->is_comptime()) {
-                        decl_emitter.implement(visitor.writer, node);
+                        // lower the initializer to a MIR constant-expression tree
+                        // once (action A3), then define the global from MIR
+                        const mir::ConstExprId init = lowerer.build_global_initializer(vi);
+                        decl_emitter.implement_global(visitor.writer, node, init);
                     }
                     continue;
                 }

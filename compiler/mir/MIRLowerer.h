@@ -23,6 +23,9 @@
 class ASTNode;
 class Value;
 class StructValue;
+class ArrayValue;
+class StructDefinition;
+class VariantMember;
 class FunctionDeclaration;
 class FunctionParam;
 class VarInitStatement;
@@ -180,6 +183,16 @@ public:
      * here is therefore interned as `External` (a reference).
      */
     void add_owned_global(VarInitStatement* vi) { owned_globals_.insert(vi); }
+
+    /**
+     * Build the constant-expression initializer of a top-level global and record
+     * a `MIRGlobal` definition for it (action A3 of mir-migration-evaluation.md).
+     * Both backends render the same tree — the C emitter via `const_expr_c`, the
+     * LLVM emitter via its own constant builder — so neither walks the AST. Also
+     * interns the global's symbol (with the linkage `owned_globals_` implies).
+     * Returns the initializer id (`MIR_INVALID_ID` when the global has no value).
+     */
+    ConstExprId build_global_initializer(VarInitStatement* vi);
 
     /** On-demand mangler for symbols not pre-registered (e.g. methods). */
     void set_mangler(std::function<std::string(ASTNode*)> fn) {
@@ -510,6 +523,23 @@ private:
     SymbolId intern_function(FunctionDeclaration* decl);
     SymbolId intern_global(VarInitStatement* vi);
     SymbolId intern_named_global(const std::string& name);
+
+    // ── global initializer constant expressions (action A3) ──────────────────
+    /** A general `Value*` → constant-expression node (see MIRConstExpr.h). */
+    ConstExprId build_const_expr(Value* value);
+    /** A `(T){ .base = ..., .member = default }` default construction of `sd`. */
+    ConstExprId build_const_struct_default(StructDefinition* sd);
+    /** A struct literal, including its inherited bases and defaulted members. */
+    ConstExprId build_const_struct_value(StructValue* sv);
+    /** An array literal (positional children; the tail is left to the backend). */
+    ConstExprId build_const_array(ArrayValue* av);
+    /** A `FunctionCall`/`AccessChain`: variant construction, comptime fold, or a
+     *  function reference / global-constant leaf. */
+    ConstExprId build_const_call(Value* value);
+    /** A variant-construction node (`Variant.Member(args)`). */
+    ConstExprId build_const_variant(VariantMember* vm, FunctionCall* call);
+    /** A bare variant member (`Variant.Member`, no args). */
+    ConstExprId build_const_variant_bare(VariantMember* vm, BaseType* type);
     PlaceId place_for_linked(ASTNode* linked) const;
     void bind(ASTNode* linked, PlaceId place) { var_places_[linked] = place; }
     void bind_name(const chem::string_view& name, PlaceId place) {

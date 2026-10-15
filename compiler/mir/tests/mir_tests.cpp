@@ -876,6 +876,104 @@ static bool test_decl_printer() {
     return true;
 }
 
+// ── constant-expression printer (action A3) ─────────────────────────────────
+// A global initializer is now a target-neutral MIR constant-expression tree
+// (`MIRConstExpr.h`) that both backends render. These pin the C spelling
+// `const_expr_c` produces, which replaces the AST-walking
+// `MIRDeclEmitter::const_value_expr`.
+static bool test_const_expr_printer() {
+    MIRModule m;
+    MIRConstExprTable& ce = m.const_exprs;
+    const TypeId i32 = mir_layout_int(m, 4, IK_INT);
+    const TypeId ch = mir_layout_int(m, 1, IK_CHAR);
+    const TypeId ptr = mir_layout_ptr(m, ch);
+    const TypeId arr = mir_layout_array(m, i32, 3);
+    const TypeId s = mir_layout_agg(m, MIRTypeKind::Struct, {{"a", i32}, {"b", i32}});
+    m.types.set_name(s, "S", 1);
+
+    auto mk_child = [&](const char* n, ConstExprId e) {
+        MIRConstChild c;
+        c.expr = e;
+        const std::string name(n);
+        c.name_offset = ce.intern_name(name.data(), static_cast<uint32_t>(name.size()));
+        c.name_length = static_cast<uint32_t>(name.size());
+        return c;
+    };
+
+    // scalars
+    CHECK(const_expr_c(m, ce.add_int(i32, 42)) == "42");
+    CHECK(const_expr_c(m, ce.add_negate(i32, ce.add_int(i32, 5))) == "-5");
+    CHECK(const_expr_c(m, ce.add_float(mir_layout_float(m, 4), 2.0f)) == "2.0f");
+    CHECK(const_expr_c(m, ce.add_double(mir_layout_float(m, 8), 2.0)) == "2.0");
+    CHECK(const_expr_c(m, ce.add_bool(i32, true)) == "1");
+    CHECK(const_expr_c(m, ce.add_null(ptr)) == "NULL");
+    CHECK(const_expr_c(m, ce.add_string(ptr, "hi", 2)) == "\"hi\"");
+    CHECK(const_expr_c(m, MIR_INVALID_ID) == "0");
+    CHECK(const_expr_c(m, ce.add_zero(i32)) == "0");
+    // an unsigned literal prints without a sign
+    {
+        MIRTypeRecord ur;
+        ur.kind = MIRTypeKind::Int;
+        ur.size = 4;
+        ur.alignment = 4;
+        ur.int_kind = IK_UINT;
+        const TypeId u32 = m.types.intern(ur);
+        CHECK(const_expr_c(m, ce.add_int(u32, 4000000000u)) == "4000000000");
+    }
+
+    // array: positional elements, `{0}` when empty
+    {
+        std::vector<MIRConstChild> elems;
+        MIRConstChild c0;
+        c0.expr = ce.add_int(i32, 10);
+        elems.push_back(c0);
+        MIRConstChild c1;
+        c1.expr = ce.add_int(i32, 20);
+        elems.push_back(c1);
+        CHECK(const_expr_c(m, ce.add_with_children(MIRConstKind::Aggregate, arr, elems)) ==
+              "{10, 20}");
+        CHECK(const_expr_c(m, ce.add_with_children(MIRConstKind::Aggregate, arr, {})) == "{0}");
+    }
+
+    // struct: designated initializers; a default construction keeps its cast
+    {
+        std::vector<MIRConstChild> kids;
+        kids.push_back(mk_child("a", ce.add_int(i32, 1)));
+        kids.push_back(mk_child("b", ce.add_int(i32, 2)));
+        CHECK(const_expr_c(m, ce.add_with_children(MIRConstKind::Aggregate, s, kids)) ==
+              "{.a = 1, .b = 2}");
+        CHECK(const_expr_c(m, ce.add_with_children(MIRConstKind::Aggregate, s, kids, 0,
+                                                   MCF_CAST_PREFIX)) ==
+              "(struct S) {.a = 1, .b = 2}");
+    }
+
+    // variant: the tag plus the active case's payload (a dotted designator)
+    {
+        const TypeId case_a = mir_layout_agg(
+            m, MIRTypeKind::Struct, {{"x", i32, 0, MIRFieldKind::VariantParam}});
+        const TypeId v = mir_layout_agg(
+            m, MIRTypeKind::Variant,
+            {{"__chx__vt_621827", i32, 0, MIRFieldKind::VariantTag},
+             {"A", case_a, 0, MIRFieldKind::VariantCase}});
+        m.types.set_name(v, "V", 1);
+        std::vector<MIRConstChild> kids;
+        kids.push_back(mk_child("A.x", ce.add_int(i32, 7)));
+        CHECK(const_expr_c(m, ce.add_with_children(MIRConstKind::Variant, v, kids, 0)) ==
+              "(struct V) { .__chx__vt_621827 = 0, .A.x = 7 }");
+    }
+
+    // function reference: its mangled symbol name
+    {
+        MIRSymbolRecord rec;
+        rec.kind = MIRSymbolKind::Function;
+        const std::string fn = "main_f";
+        const SymbolId sym = m.symbols.add(rec, fn.data(), static_cast<uint32_t>(fn.size()),
+                                           fn.data(), static_cast<uint32_t>(fn.size()));
+        CHECK(const_expr_c(m, ce.add_symbol(ptr, sym)) == "main_f");
+    }
+    return true;
+}
+
 int main() {
     bool ok = true;
     ok &= test_arena();
@@ -888,6 +986,7 @@ int main() {
     ok &= test_aggregate_layout();
     ok &= test_function_facts();
     ok &= test_decl_printer();
+    ok &= test_const_expr_printer();
     if (!ok) {
         std::cerr << "mir_tests: FAILED\n";
         return 1;

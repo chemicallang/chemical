@@ -974,6 +974,91 @@ static bool test_const_expr_printer() {
     return true;
 }
 
+// ── declaration-list printer (action A3) ───────────────────────────────────
+// The C declaration pass now records an ordered `MIRDeclList` and this AST-free
+// printer renders it; these pin the item spellings.
+static bool test_decl_list_printer() {
+    MIRModule m;
+    const TypeId i32 = mir_layout_int(m, 4, IK_INT);
+    const TypeId ch = mir_layout_int(m, 1, IK_CHAR);
+    const TypeId s = mir_layout_agg(m, MIRTypeKind::Struct, {{"i", i32}});
+    m.types.set_name(s, "S", 1);
+
+    // an `int f(void)` function type for the prototype / vtable-slot items
+    MIRTypeRecord fr;
+    fr.kind = MIRTypeKind::Function;
+    fr.element = i32;
+    const TypeId ft = m.types.intern(fr);
+
+    MIRDeclList list;
+    auto push = [&](MIRDeclItem it) { list.items.push_back(std::move(it)); };
+
+    MIRDeclItem fwd;
+    fwd.kind = MIRDeclKind::ForwardStruct;
+    fwd.name = "S";
+    push(fwd);
+    MIRDeclItem fwu;
+    fwu.kind = MIRDeclKind::ForwardUnion;
+    fwu.name = "U";
+    push(fwu);
+    MIRDeclItem ab;
+    ab.kind = MIRDeclKind::AggregateBody;
+    ab.type = s;
+    ab.what = "struct";
+    push(ab);
+    MIRDeclItem td;
+    td.kind = MIRDeclKind::Typedef;
+    td.name = "Alias";
+    td.type = i32;
+    push(td);
+    MIRDeclItem tda;
+    tda.kind = MIRDeclKind::Typedef;
+    tda.name = "Buf";
+    tda.unsized_array = true;
+    tda.elem = ch;
+    push(tda);
+    MIRDeclItem proto;
+    proto.kind = MIRDeclKind::Prototype;
+    proto.proto.name = "f";
+    proto.proto.type = ft;
+    proto.proto.flags = MPF_EXTERN;
+    push(proto);
+    MIRDeclItem g;
+    g.kind = MIRDeclKind::Global;
+    g.global.name = "g";
+    g.global.type = i32;
+    g.global.flags = MGD_STATIC;
+    push(g);
+    MIRDeclItem vt;
+    vt.kind = MIRDeclKind::VtableType;
+    vt.name = "__chx_I_vt_t";
+    {
+        MIRVtableSlot sl;
+        sl.name = "go";
+        sl.type = ft;
+        vt.slots.push_back(sl);
+    }
+    push(vt);
+    MIRDeclItem ve;
+    ve.kind = MIRDeclKind::VtableExtern;
+    ve.type_name = "__chx_I_vt_t";
+    ve.name = "I_impl";
+    push(ve);
+
+    const std::string out = decl_list_c(m, list);
+    CHECK(out.find("\nstruct S;") != std::string::npos);
+    CHECK(out.find("\nunion U;") != std::string::npos);
+    CHECK(out.find("\nstruct S {\n\tint i;\n};") != std::string::npos);
+    CHECK(out.find("\ntypedef int Alias;") != std::string::npos);
+    CHECK(out.find("\ntypedef char Buf[];") != std::string::npos);
+    CHECK(out.find("\nextern int f(void);") != std::string::npos);
+    CHECK(out.find("\nstatic int g;") != std::string::npos);
+    CHECK(out.find("\ntypedef struct __chx_I_vt_t {") != std::string::npos);
+    CHECK(out.find("\n} __chx_I_vt_t;") != std::string::npos);
+    CHECK(out.find("\nextern const __chx_I_vt_t I_impl;") != std::string::npos);
+    return true;
+}
+
 int main() {
     bool ok = true;
     ok &= test_arena();
@@ -987,6 +1072,7 @@ int main() {
     ok &= test_function_facts();
     ok &= test_decl_printer();
     ok &= test_const_expr_printer();
+    ok &= test_decl_list_printer();
     if (!ok) {
         std::cerr << "mir_tests: FAILED\n";
         return 1;

@@ -48,28 +48,6 @@ namespace mir {
 // small helpers
 // ---------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------
-// type / value spelling
-// ---------------------------------------------------------------------------
-
-std::string MIRDeclEmitter::type_spelling(BaseType* type) {
-    if (!type) return "void";
-    return c_type_of(module_, types_.map(type));
-}
-
-std::string MIRDeclEmitter::decl_spelling(BaseType* type, const std::string& name) {
-    if (!type) return "void " + name;
-    if (type->kind() == BaseTypeKind::Array) {
-        auto* at = type->as_array_type();
-        if (at && !at->has_array_size()) {
-            // an unsized array (`char[]`) is declared `char name[]` (MIR maps it
-            // to a pointer for decay, which is wrong for a declaration)
-            return c_declarator(module_, types_.map(at->known_child_type()), name + "[]");
-        }
-    }
-    return c_declarator(module_, types_.map(type), name);
-}
-
 // The prototype ABI (sret, aggregates/arrays by pointer, the static-interface
 // erased self, variadic tail) lives in MIRPrototype so the C prototype and the
 // LLVM call/symbol cannot drift — see `mir::mir_function_signature`.
@@ -186,58 +164,71 @@ void MIRDeclEmitter::emit_preamble(BufferedWriter& w) {
 // forward declarations / type aliases
 // ---------------------------------------------------------------------------
 
-void MIRDeclEmitter::fwd_declare(BufferedWriter& w, ASTNode* node) {
+void MIRDeclEmitter::fwd_declare(ASTNode* node) {
     switch (node->kind()) {
         case ASTNodeKind::NamespaceDecl:
-            for (ASTNode* child : node->as_namespace_unsafe()->nodes) fwd_declare(w, child);
+            for (ASTNode* child : node->as_namespace_unsafe()->nodes) fwd_declare(child);
             break;
         case ASTNodeKind::Scope:
-            for (ASTNode* child : node->as_scope_unsafe()->nodes) fwd_declare(w, child);
+            for (ASTNode* child : node->as_scope_unsafe()->nodes) fwd_declare(child);
             break;
         case ASTNodeKind::StructDecl:
-        case ASTNodeKind::VariantDecl:
-            w.append("\nstruct ", 8);
-            mangler_.mangle(w, node);
-            w.append_char(';');
+        case ASTNodeKind::VariantDecl: {
+            MIRDeclItem it;
+            it.kind = MIRDeclKind::ForwardStruct;
+            it.name = mangle_name(node);
+            decl_list_.items.push_back(std::move(it));
             break;
-        case ASTNodeKind::UnionDecl:
-            w.append("\nunion ", 7);
-            mangler_.mangle(w, node);
-            w.append_char(';');
+        }
+        case ASTNodeKind::UnionDecl: {
+            MIRDeclItem it;
+            it.kind = MIRDeclKind::ForwardUnion;
+            it.name = mangle_name(node);
+            decl_list_.items.push_back(std::move(it));
             break;
+        }
         default:
             break;
     }
 }
 
-void MIRDeclEmitter::declare_typedef(BufferedWriter& w, TypealiasStatement* stmt) {
+void MIRDeclEmitter::declare_typedef(TypealiasStatement* stmt) {
     if (!stmt || stmt->has_declared) return;
     stmt->has_declared = true;
     // declaring the underlying type first pulls in composed/capturing-function
     // instance structs the typedef's type depends on
-    early_declare_type(w, stmt->actual_type, nullptr, true, true);
-    w.append_char('\n');
-    w.append("typedef ", 8);
-    w << decl_spelling(stmt->actual_type, mangle_name(stmt));
-    w.append_char(';');
+    early_declare_type(stmt->actual_type, nullptr, true, true);
+    MIRDeclItem it;
+    it.kind = MIRDeclKind::Typedef;
+    it.name = mangle_name(stmt);
+    BaseType* t = stmt->actual_type;
+    if (t) {
+        if (t->kind() == BaseTypeKind::Array && !t->as_array_type()->has_array_size()) {
+            it.unsized_array = true;
+            it.elem = types_.map(t->as_array_type()->known_child_type());
+        } else {
+            it.type = types_.map(t);
+        }
+    }
+    decl_list_.items.push_back(std::move(it));
 }
 
-void MIRDeclEmitter::declare_type_alias(BufferedWriter& w, ASTNode* node) {
+void MIRDeclEmitter::declare_type_alias(ASTNode* node) {
     switch (node->kind()) {
         case ASTNodeKind::TypealiasStmt:
-            declare_typedef(w, node->as_typealias_unsafe());
+            declare_typedef(node->as_typealias_unsafe());
             break;
         case ASTNodeKind::NamespaceDecl:
-            for (ASTNode* child : node->as_namespace_unsafe()->nodes) declare_type_alias(w, child);
+            for (ASTNode* child : node->as_namespace_unsafe()->nodes) declare_type_alias(child);
             break;
         case ASTNodeKind::Scope:
-            for (ASTNode* child : node->as_scope_unsafe()->nodes) declare_type_alias(w, child);
+            for (ASTNode* child : node->as_scope_unsafe()->nodes) declare_type_alias(child);
             break;
         case ASTNodeKind::IfStmt: {
             auto* stmt = node->as_if_stmt_unsafe();
             if (stmt->computed_scope.has_value()) {
                 Scope* scope = stmt->computed_scope.value();
-                if (scope) for (ASTNode* child : scope->nodes) declare_type_alias(w, child);
+                if (scope) for (ASTNode* child : scope->nodes) declare_type_alias(child);
             }
             break;
         }
@@ -250,59 +241,51 @@ void MIRDeclEmitter::declare_type_alias(BufferedWriter& w, ASTNode* node) {
 // declare-pass: functions / members
 // ---------------------------------------------------------------------------
 
-static bool is_linkage_public(AccessSpecifier spec) {
-    return spec == AccessSpecifier::Public;
-}
-
-void MIRDeclEmitter::declare_contained_func(BufferedWriter& w, FunctionDeclaration* decl,
-                                             bool terminate) {
+void MIRDeclEmitter::declare_contained_func(FunctionDeclaration* decl, bool terminate) {
     if (decl->is_comptime()) return;
     // The prototype (name, signature, linkage flags) is a MIR record built by the
     // shared `build_function_prototype` (action A3), the same one the LLVM path
     // uses via `mir_function_signature`.
-    MIRPrototype proto;
-    build_function_prototype(mangler_, types_, module_, decl, proto);
-    w.append_char('\n');
-    if (proto.flags & MPF_EXTERN) w.append("extern ", 7);
-    if (proto.flags & MPF_STATIC) w.append("static ", 7);
-    if (proto.flags & MPF_DLLIMPORT) w.append("__chem_dllimport ", 17);
-    w << c_function_proto(module_, proto.type, proto.name);
-    if (terminate) w.append_char(';');
+    MIRDeclItem it;
+    it.kind = MIRDeclKind::Prototype;
+    build_function_prototype(mangler_, types_, module_, decl, it.proto);
+    decl_list_.items.push_back(std::move(it));
+    (void)terminate; // always terminated in the declare pass
 }
 
 // ---------------------------------------------------------------------------
 // early declaration (composed variable ordering)
 // ---------------------------------------------------------------------------
 
-void MIRDeclEmitter::early_declare_type(BufferedWriter& w, BaseType* type, ASTNode* container,
+void MIRDeclEmitter::early_declare_type(BaseType* type, ASTNode* container,
                                         bool do_ref, bool do_ptr) {
     if (!type) return;
     switch (type->kind()) {
         case BaseTypeKind::Reference:
-            if (do_ref) early_declare_type(w, type->as_reference_type_unsafe()->type, container, do_ref, do_ptr);
+            if (do_ref) early_declare_type(type->as_reference_type_unsafe()->type, container, do_ref, do_ptr);
             return;
         case BaseTypeKind::Pointer:
-            if (do_ptr) early_declare_type(w, type->as_pointer_type_unsafe()->type, container, do_ref, do_ptr);
+            if (do_ptr) early_declare_type(type->as_pointer_type_unsafe()->type, container, do_ref, do_ptr);
             return;
         case BaseTypeKind::Linked: {
             ASTNode* linked = type->as_linked_type_unsafe()->linked;
-            if (linked != container) early_declare_node(w, linked);
+            if (linked != container) early_declare_node(linked);
             return;
         }
         case BaseTypeKind::Dynamic:
-            early_declare_type(w, type->as_dynamic_type_unsafe()->referenced, container);
+            early_declare_type(type->as_dynamic_type_unsafe()->referenced, container);
             return;
         case BaseTypeKind::CapturingFunction:
-            early_declare_type(w, type->as_capturing_func_type_unsafe()->instance_type, container, do_ref, do_ptr);
+            early_declare_type(type->as_capturing_func_type_unsafe()->instance_type, container, do_ref, do_ptr);
             return;
         case BaseTypeKind::Array:
-            early_declare_type(w, type->as_array_type_unsafe()->elem_type, container);
+            early_declare_type(type->as_array_type_unsafe()->elem_type, container);
             return;
         case BaseTypeKind::Generic: {
             auto* gt = type->as_generic_type_unsafe();
             ASTNode* linked = gt->referenced ? gt->referenced->linked : nullptr;
-            if (linked && linked != container) early_declare_node(w, linked);
-            for (BaseType* ty : gt->types) early_declare_type(w, ty, container);
+            if (linked && linked != container) early_declare_node(linked);
+            for (BaseType* ty : gt->types) early_declare_type(ty, container);
             return;
         }
         default:
@@ -310,7 +293,7 @@ void MIRDeclEmitter::early_declare_type(BufferedWriter& w, BaseType* type, ASTNo
     }
 }
 
-void MIRDeclEmitter::early_declare_composed_variables(BufferedWriter& w, VariablesContainer& container) {
+void MIRDeclEmitter::early_declare_composed_variables(VariablesContainer& container) {
     for (BaseDefMember* variable : container.variables()) {
         BaseType* t = variable->known_type();
         if (!t) continue;
@@ -318,18 +301,18 @@ void MIRDeclEmitter::early_declare_composed_variables(BufferedWriter& w, Variabl
         // declaration; declaring it pulls in the alias typedef which in turn
         // early-declares the capturing-function instance struct.
         ASTNode* node = t->get_direct_linked_node();
-        if (node) early_declare_node(w, node);
+        if (node) early_declare_node(node);
     }
     for (auto& inh : container.inherited) {
         ASTNode* node = inh.type ? inh.type->get_direct_linked_node() : nullptr;
-        if (node) early_declare_node(w, node);
+        if (node) early_declare_node(node);
     }
 }
 
-void MIRDeclEmitter::early_declare_node(BufferedWriter& w, ASTNode* node) {
+void MIRDeclEmitter::early_declare_node(ASTNode* node) {
     switch (node->kind()) {
         case ASTNodeKind::TypealiasStmt: {
-            declare_typedef(w, node->as_typealias_unsafe());
+            declare_typedef(node->as_typealias_unsafe());
             return;
         }
         case ASTNodeKind::StructDecl:
@@ -343,7 +326,7 @@ void MIRDeclEmitter::early_declare_node(BufferedWriter& w, ASTNode* node) {
                     auto* def = node->as_struct_def_unsafe();
                     if (!def->has_declared) {
                         def->has_declared = true;
-                        declare_struct_def_only(w, def);
+                        declare_struct_def_only(def);
                     }
                     break;
                 }
@@ -351,7 +334,7 @@ void MIRDeclEmitter::early_declare_node(BufferedWriter& w, ASTNode* node) {
                     auto* def = node->as_variant_def_unsafe();
                     if (!def->has_declared) {
                         def->has_declared = true;
-                        declare_variant_def_only(w, def);
+                        declare_variant_def_only(def);
                     }
                     break;
                 }
@@ -359,7 +342,7 @@ void MIRDeclEmitter::early_declare_node(BufferedWriter& w, ASTNode* node) {
                     auto* def = node->as_union_def_unsafe();
                     if (!def->has_declared) {
                         def->has_declared = true;
-                        declare_union_def_only(w, def);
+                        declare_union_def_only(def);
                     }
                     break;
                 }
@@ -385,77 +368,72 @@ void MIRDeclEmitter::early_declare_node(BufferedWriter& w, ASTNode* node) {
 // for. Unreachable by construction: a declared aggregate always maps to a named
 // MIR type; if it ever does not, the body is absent and the C compile fails
 // loudly rather than the module silently losing a definition.
-void MIRDeclEmitter::declare_aggregate_body(BufferedWriter& w, BaseType* type,
-                                            const char* what) {
+void MIRDeclEmitter::declare_aggregate_body(BaseType* type, const char* what) {
     if (!type) return;
-    const TypeId id = types_.map(type);
-    const std::string body = aggregate_body_c(module_, id);
-    if (body.empty()) {
-        const std::string msg = std::string("\n/* MIR declaration: unmapped or unnamed ") +
-                                what + " - its C body could not be printed */";
-        w.append(msg.data(), msg.size());
-        return;
-    }
-    w << body;
+    MIRDeclItem it;
+    it.kind = MIRDeclKind::AggregateBody;
+    it.type = types_.map(type);
+    it.what = what;
+    decl_list_.items.push_back(std::move(it));
 }
 
-void MIRDeclEmitter::declare_struct_def_only(BufferedWriter& w, StructDefinition* def) {
-    early_declare_composed_variables(w, *def);
-    declare_aggregate_body(w, def->known_type(), "struct");
+void MIRDeclEmitter::declare_struct_def_only(StructDefinition* def) {
+    early_declare_composed_variables(*def);
+    declare_aggregate_body(def->known_type(), "struct");
 }
 
-void MIRDeclEmitter::declare_union_def_only(BufferedWriter& w, UnionDef* def) {
-    early_declare_composed_variables(w, *def);
-    declare_aggregate_body(w, def->known_type(), "union");
+void MIRDeclEmitter::declare_union_def_only(UnionDef* def) {
+    early_declare_composed_variables(*def);
+    declare_aggregate_body(def->known_type(), "union");
 }
 
-void MIRDeclEmitter::declare_variant_def_only(BufferedWriter& w, VariantDefinition* def) {
+void MIRDeclEmitter::declare_variant_def_only(VariantDefinition* def) {
     // declare inherited + sub variables first
     for (auto& inh : def->inherited) {
         ASTNode* n = inh.type ? inh.type->get_direct_linked_node() : nullptr;
-        if (n) early_declare_node(w, n);
+        if (n) early_declare_node(n);
     }
     for (BaseDefMember* var : def->variables()) {
         auto* member = var->as_variant_member_unsafe();
         for (auto& val : member->values) {
-            early_declare_type(w, val.second->type, def);
+            early_declare_type(val.second->type, def);
         }
     }
-    declare_aggregate_body(w, def->known_type(), "variant");
+    declare_aggregate_body(def->known_type(), "variant");
 }
 
-void MIRDeclEmitter::declare_struct_iterations(BufferedWriter& w, StructDefinition* def) {
+void MIRDeclEmitter::declare_struct_iterations(StructDefinition* def) {
     if (!def->has_declared) {
         def->has_declared = true;
-        declare_struct_def_only(w, def);
+        declare_struct_def_only(def);
     }
     for (FunctionDeclaration* func : def->non_gen_range()) {
-        declare_contained_func(w, func, true);
+        declare_contained_func(func, true);
     }
     for (ASTNode* child : def->evaluated_nodes()) {
         if (child->kind() == ASTNodeKind::ImplDecl) {
-            declare_impl(w, child->as_impl_def_unsafe());
+            declare_impl(child->as_impl_def_unsafe());
         }
     }
 }
 
-void MIRDeclEmitter::declare_union_iterations(BufferedWriter& w, UnionDef* def) {
+void MIRDeclEmitter::declare_union_iterations(UnionDef* def) {
     if (!def->has_declared) {
         def->has_declared = true;
-        declare_union_def_only(w, def);
+        declare_union_def_only(def);
     }
     for (FunctionDeclaration* func : def->non_gen_range()) {
-        declare_contained_func(w, func, true);
+        declare_contained_func(func, true);
     }
 }
 
-void MIRDeclEmitter::declare_variant_iterations(BufferedWriter& w, VariantDefinition* def) {
+void MIRDeclEmitter::declare_variant_iterations(VariantDefinition* def) {
     if (!def->has_declared) {
         def->has_declared = true;
-        declare_variant_def_only(w, def);
+        declare_variant_def_only(def);
     }
     for (FunctionDeclaration* func : def->non_gen_range()) {
-        declare_contained_func(w, func, true);
+        declare_contained_func(func, true);
     }
 }
 
@@ -463,47 +441,36 @@ void MIRDeclEmitter::declare_variant_iterations(BufferedWriter& w, VariantDefini
 // vtables
 // ---------------------------------------------------------------------------
 
-void MIRDeclEmitter::vtable_type_name(BufferedWriter& w, InterfaceDefinition* interface) {
-    w.append("__chx_", 6);
-    mangler_.mangle(w, interface);
-    w.append("_vt_t", 5);
+std::string MIRDeclEmitter::vtable_type_name(InterfaceDefinition* interface) {
+    return "__chx_" + mangle_name(interface) + "_vt_t";
 }
 
-void MIRDeclEmitter::vtable_name(BufferedWriter& w, InterfaceDefinition* interface,
-                                 ExtendableMembersContainerNode* def) {
+std::string MIRDeclEmitter::vtable_name(InterfaceDefinition* interface,
+                                        ExtendableMembersContainerNode* def) {
+    BufferedWriter w(256);
     mangler_.mangle_vtable_name(w, interface, def);
+    return std::string(w.data(), w.getPosition());
 }
 
-void MIRDeclEmitter::create_vtable_type(BufferedWriter& w, InterfaceDefinition* interface) {
+void MIRDeclEmitter::create_vtable_type(InterfaceDefinition* interface) {
     // the ordered slot list (inherited first, then own methods) and each slot's
     // self-erased type come from the shared MIR vtable layout (MIRVtable.h), so
     // the C and LLVM backends cannot drift
-    std::vector<MIRVtableSlot> slots;
-    mir_vtable_slots(types_, module_, interface, slots);
-    w.append_char('\n');
-    w.append("typedef struct ", 15);
-    vtable_type_name(w, interface);
-    w.append(" {", 2);
+    MIRDeclItem it;
+    it.kind = MIRDeclKind::VtableType;
+    it.name = vtable_type_name(interface);
     interface->active_user = nullptr;
-    for (const MIRVtableSlot& slot : slots) {
-        w.append_char('\n');
-        w << c_decl_type(module_, slot.type, slot.name);
-        w.append_char(';');
-    }
-    w.append("\n}", 2);
-    w.append_char(' ');
-    vtable_type_name(w, interface);
-    w.append_char(';');
+    mir_vtable_slots(types_, module_, interface, it.slots);
+    decl_list_.items.push_back(std::move(it));
 }
 
-void MIRDeclEmitter::declare_vtable_extern(BufferedWriter& w, InterfaceDefinition* interface,
+void MIRDeclEmitter::declare_vtable_extern(InterfaceDefinition* interface,
                                            ExtendableMembersContainerNode* def) {
-    w.append_char('\n');
-    w.append("extern const ", 13);
-    vtable_type_name(w, interface);
-    w.append_char(' ');
-    vtable_name(w, interface, def);
-    w.append_char(';');
+    MIRDeclItem it;
+    it.kind = MIRDeclKind::VtableExtern;
+    it.type_name = vtable_type_name(interface);
+    it.name = vtable_name(interface, def);
+    decl_list_.items.push_back(std::move(it));
 }
 
 void MIRDeclEmitter::create_vtable(BufferedWriter& w, InterfaceDefinition* interface,
@@ -513,9 +480,11 @@ void MIRDeclEmitter::create_vtable(BufferedWriter& w, InterfaceDefinition* inter
     mir_vtable_slots(types_, module_, interface, slots, &funcs);
     w.append_char('\n');
     w.append("const ", 6);
-    vtable_type_name(w, interface);
+    const std::string tn = vtable_type_name(interface);
+    w.append(tn.data(), tn.size());
     w.append_char(' ');
-    vtable_name(w, interface, def);
+    const std::string vn = vtable_name(interface, def);
+    w.append(vn.data(), vn.size());
     w.append(" = {", 4);
     for (size_t i = 0; i < funcs.size(); ++i) {
         FunctionDeclaration* func = funcs[i];
@@ -551,23 +520,29 @@ void MIRDeclEmitter::create_vtable(BufferedWriter& w, InterfaceDefinition* inter
     w.append("\n};", 3);
 }
 
-void MIRDeclEmitter::declare_vtable_primitive_extern(BufferedWriter& w, InterfaceDefinition* interface,
+void MIRDeclEmitter::declare_vtable_primitive_extern(InterfaceDefinition* interface,
                                                      BaseType* impl) {
-    w.append_char('\n');
-    w.append("extern const ", 13);
-    vtable_type_name(w, interface);
-    w.append_char(' ');
+    MIRDeclItem it;
+    it.kind = MIRDeclKind::VtableExtern;
+    it.type_name = vtable_type_name(interface);
+    BufferedWriter w(256);
     mangler_.mangle_vtable_name(w, interface, impl);
-    w.append_char(';');
+    it.name.assign(w.data(), w.getPosition());
+    decl_list_.items.push_back(std::move(it));
 }
 
 void MIRDeclEmitter::create_vtable_primitive(BufferedWriter& w, InterfaceDefinition* interface,
                                              ImplDefinition* def) {
     w.append_char('\n');
     w.append("const ", 6);
-    vtable_type_name(w, interface);
+    const std::string tn = vtable_type_name(interface);
+    w.append(tn.data(), tn.size());
     w.append_char(' ');
-    mangler_.mangle_vtable_name(w, interface, def->struct_type);
+    {
+        BufferedWriter nw(256);
+        mangler_.mangle_vtable_name(nw, interface, def->struct_type);
+        w.append(nw.data(), nw.getPosition());
+    }
     w.append(" = {", 4);
     for (FunctionDeclaration* func : interface->instantiated_functions()) {
         if (!func->has_self_param()) continue;
@@ -585,7 +560,7 @@ void MIRDeclEmitter::create_vtable_primitive(BufferedWriter& w, InterfaceDefinit
 // impl / interface declarations
 // ---------------------------------------------------------------------------
 
-void MIRDeclEmitter::declare_impl(BufferedWriter& w, ImplDefinition* def) {
+void MIRDeclEmitter::declare_impl(ImplDefinition* def) {
     if (!def->struct_type) return;
     InterfaceDefinition* interface_def = def->interface_type
         ? def->interface_type->get_direct_linked_interface() : nullptr;
@@ -596,40 +571,40 @@ void MIRDeclEmitter::declare_impl(BufferedWriter& w, ImplDefinition* def) {
     if (container) {
         interface_def->active_user = container;
         for (FunctionDeclaration* func : def->instantiated_functions()) {
-            declare_contained_func(w, func, true);
+            declare_contained_func(func, true);
         }
         interface_def->active_user = nullptr;
         if (interface_def->generates_vtable()) {
             if (!interface_def->has_declared) {
-                create_vtable_type(w, interface_def);
+                create_vtable_type(interface_def);
                 interface_def->has_declared = true;
             }
-            declare_vtable_extern(w, interface_def, container);
+            declare_vtable_extern(interface_def, container);
         }
     } else {
         for (FunctionDeclaration* func : def->instantiated_functions()) {
-            declare_contained_func(w, func, true);
+            declare_contained_func(func, true);
         }
         if (interface_def->generates_vtable()) {
             if (!interface_def->has_declared) {
-                create_vtable_type(w, interface_def);
+                create_vtable_type(interface_def);
                 interface_def->has_declared = true;
             }
-            declare_vtable_primitive_extern(w, interface_def, def->struct_type);
+            declare_vtable_primitive_extern(interface_def, def->struct_type);
         }
     }
 }
 
-void MIRDeclEmitter::declare_interface(BufferedWriter& w, InterfaceDefinition* def) {
+void MIRDeclEmitter::declare_interface(InterfaceDefinition* def) {
     if (def->is_static()) {
         for (FunctionDeclaration* func : def->non_gen_range()) {
-            declare_contained_func(w, func, true);
+            declare_contained_func(func, true);
         }
         if (!def->is_extern() && static_recorder_) static_recorder_(def);
     } else {
         def->active_user = nullptr;
         if (!def->has_declared && def->generates_vtable()) {
-            create_vtable_type(w, def);
+            create_vtable_type(def);
         }
         def->has_declared = true;
     }
@@ -639,73 +614,59 @@ void MIRDeclEmitter::declare_interface(BufferedWriter& w, InterfaceDefinition* d
 // globals
 // ---------------------------------------------------------------------------
 
-namespace {
-/** The C declarator of a global declaration (see MIRGlobalDecl.h). */
-std::string global_decl_spelling(const MIRModule& module, const MIRGlobalDecl& d) {
-    if (d.unsized_array) return c_declarator(module, d.elem, d.name + "[]");
-    if (d.type == MIR_INVALID_ID) return "void " + d.name;
-    return c_declarator(module, d.type, d.name);
-}
-} // namespace
-
-void MIRDeclEmitter::declare_var(BufferedWriter& w, VarInitStatement* init) {
+void MIRDeclEmitter::declare_var(VarInitStatement* init) {
     if (!init->is_top_level()) return;
     if (init->is_comptime()) return;
     // name / declared type / unsized-array / flags come from the shared
     // `build_global_declaration` (action A3), the same record `implement_global`
     // prints its definition from.
-    MIRGlobalDecl decl;
-    build_global_declaration(mangler_, types_, module_, init, decl);
+    MIRDeclItem it;
+    it.kind = MIRDeclKind::Global;
+    build_global_declaration(mangler_, types_, module_, init, it.global);
     BaseType* init_type = init->type ? init->type : (init->value ? init->value->getType() : nullptr);
-    early_declare_type(w, init_type, nullptr);
-    w.append_char('\n');
-    if (decl.flags & MGD_THREAD_LOCAL) w.append("__chx_thread_local ", 19);
-    if (decl.flags & MGD_STATIC) w.append("static ", 7);
-    if (decl.flags & MGD_VOLATILE) w.append("volatile ", 9);
-    const std::string spelling = global_decl_spelling(module_, decl);
-    w.append(spelling.data(), spelling.size());
-    w.append_char(';');
+    early_declare_type(init_type, nullptr);
+    decl_list_.items.push_back(std::move(it));
 }
 
 // ---------------------------------------------------------------------------
 // top-level declare
 // ---------------------------------------------------------------------------
 
-void MIRDeclEmitter::declare(BufferedWriter& w, ASTNode* node) {
+void MIRDeclEmitter::declare(ASTNode* node) {
     switch (node->kind()) {
         case ASTNodeKind::NamespaceDecl: {
             auto* ns = node->as_namespace_unsafe();
             if (ns->is_comptime()) return;
-            for (ASTNode* child : ns->nodes) declare(w, child);
+            for (ASTNode* child : ns->nodes) declare(child);
             return;
         }
         case ASTNodeKind::Scope: {
-            for (ASTNode* child : node->as_scope_unsafe()->nodes) declare(w, child);
+            for (ASTNode* child : node->as_scope_unsafe()->nodes) declare(child);
             return;
         }
         case ASTNodeKind::FunctionDecl:
-            declare_contained_func(w, node->as_function_unsafe(), true);
+            declare_contained_func(node->as_function_unsafe(), true);
             return;
         case ASTNodeKind::StructDecl:
-            declare_struct_iterations(w, node->as_struct_def_unsafe());
+            declare_struct_iterations(node->as_struct_def_unsafe());
             return;
         case ASTNodeKind::UnionDecl:
-            declare_union_iterations(w, node->as_union_def_unsafe());
+            declare_union_iterations(node->as_union_def_unsafe());
             return;
         case ASTNodeKind::VariantDecl:
-            declare_variant_iterations(w, node->as_variant_def_unsafe());
+            declare_variant_iterations(node->as_variant_def_unsafe());
             return;
         case ASTNodeKind::InterfaceDecl:
-            declare_interface(w, node->as_interface_def_unsafe());
+            declare_interface(node->as_interface_def_unsafe());
             return;
         case ASTNodeKind::ImplDecl:
-            declare_impl(w, node->as_impl_def_unsafe());
+            declare_impl(node->as_impl_def_unsafe());
             return;
         case ASTNodeKind::VarInitStmt:
-            declare_var(w, node->as_var_init_unsafe());
+            declare_var(node->as_var_init_unsafe());
             return;
         case ASTNodeKind::TypealiasStmt: {
-            declare_typedef(w, node->as_typealias_unsafe());
+            declare_typedef(node->as_typealias_unsafe());
             return;
         }
         case ASTNodeKind::IfStmt: {
@@ -713,7 +674,7 @@ void MIRDeclEmitter::declare(BufferedWriter& w, ASTNode* node) {
             if (!stmt->is_top_level()) return;
             if (stmt->computed_scope.has_value()) {
                 Scope* scope = stmt->computed_scope.value();
-                if (scope) for (ASTNode* child : scope->nodes) declare(w, child);
+                if (scope) for (ASTNode* child : scope->nodes) declare(child);
             }
             return;
         }
@@ -722,7 +683,7 @@ void MIRDeclEmitter::declare(BufferedWriter& w, ASTNode* node) {
             ASTNode* repl = embedded_decl_repl_ ? embedded_decl_repl_(en) : nullptr;
             if (repl) {
                 en->replacement = repl;
-                declare(w, repl);
+                declare(repl);
             }
             return;
         }
@@ -731,6 +692,11 @@ void MIRDeclEmitter::declare(BufferedWriter& w, ASTNode* node) {
         default:
             return;
     }
+}
+
+void MIRDeclEmitter::print_decl_list(BufferedWriter& w) {
+    const std::string text = decl_list_c(module_, decl_list_);
+    w.append(text.data(), text.size());
 }
 
 // ---------------------------------------------------------------------------

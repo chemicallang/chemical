@@ -27,6 +27,16 @@ Branch: `mir`. Supersedes nothing; complements `compiler/mir/README.md`,
 > (D4), the 18 `unordered_map`s (D3) and parallel file lowering (E), which is the
 > only lever sized to the 2.3× compile-time gap.
 >
+> **Status update (2026-10-15, session 24) — the C declare pass prints from a
+> declaration list.** `compiler/mir/MIRDeclList.h` (AST-free item kinds) +
+> `MIRDeclPrinter::decl_list_c` (MIR core, `MIRTests`-covered) replace the
+> declare pass's inline printing; `MIRDeclEmitter` records, `declare_module`
+> prints once. **Output-invariant** by the normalized line multiset (46/60 vs a
+> 56-line same-binary floor — the C reorders generics run-to-run, so the multiset
+> is the invariant); `--tcc` **2305/2305**, `--llvm` **2303/2303`,
+> `--tcc/--llvm --libs` **718/719**, `MIRTests` **1170 → 1180**. Details:
+> `compiler/mir/README.md`, session 24.
+>
 > **Status update (2026-10-15, session 23) — one global-declaration spelling.**
 > `compiler/mir/MIRGlobalDecl.{h,cpp}` (`MIRGlobalDecl` +
 > `build_global_declaration`) is the single spelling of a global's
@@ -575,7 +585,14 @@ for aggregates (fixed by item 1 below); two independent C type spellers.
    invariant (97,144 lines either side, 50-line diff against a 46-line floor).
    Remaining on the AST: typedefs (already MIR-spelled via `decl_spelling`) and
    the declaration *ordering* (the `MIRTypeDecl` records and a declaration-list
-   walk).
+   walk). **Sixth bite DONE (session 24): the C declare pass prints from a
+   declaration list.** `compiler/mir/MIRDeclList.h` (AST-free item kinds) +
+   `MIRDeclPrinter::decl_list_c` (MIR core, `MIRTests`-covered) replace the
+   declare-pass AST walk's inline printing; `MIRDeclEmitter` records and
+   `ASTProcessor::declare_module` prints once. Output-invariant by the normalized
+   line multiset (46/60 vs a 56-line same-binary floor — the C reorders generics
+   run-to-run); `MIRTests` **1170 → 1180**. Remaining: the collection walk itself
+   (the allowed front-end pass) and the implement pass's interleaved definitions.
 **Acceptance.** No AST headers in the declaration path; one C type speller;
 `MIRTypeRecord.size/alignment` non-zero for aggregates and verified by
 `MIRTests`; C + LLVM output unchanged or smaller.

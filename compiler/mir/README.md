@@ -99,6 +99,48 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 24 (2026-10-15) — the C declaration pass prints from a declaration list (action A3, endgame)
+
+The C declaration pass walked the AST *and* printed C in the same methods. It now
+**records** an ordered declaration list and prints it with an AST-free printer:
+
+- New `compiler/mir/MIRDeclList.h` (AST-free): `MIRDeclKind`
+  (`ForwardStruct`/`ForwardUnion`/`AggregateBody`/`Typedef`/`Prototype`/`Global`/
+  `VtableType`/`VtableExtern`) and `MIRDeclList`.
+- `MIRDeclPrinter::decl_list_c` (MIR core, `MIRTests`-covered) renders the list;
+  `global_decl_spelling` moved there and is exported (the definition emitter
+  shares it).
+- `MIRDeclEmitter`'s declare pass now records into `decl_list_`
+  (`fwd_declare`/`declare_type_alias`/`declare` no longer take a writer;
+  `create_vtable_type`/`declare_vtable_extern`/`declare_vtable_primitive_extern`
+  push items). `print_decl_list` renders it. `ASTProcessor::declare_module`
+  builds the list and prints once. The unused `type_spelling`/`decl_spelling`
+  helpers are deleted.
+- The **implement** pass (function bodies, global *definitions*, vtable
+  *definitions*) is unchanged — it is interleaved with lowered bodies, so it is
+  not a list.
+
+**Output-invariance.** The generated C reorders generic instantiations *between
+runs of the same binary* (~84k of 97k lines move; the documented jitter), so the
+meaningful invariant is the normalized line multiset: 97,144 lines either side,
+refactor-vs-previous multiset diff **46/60** against a **56**-line same-binary
+floor. The declaration-list conversion preserves the emission call order by
+construction, and the C still compiles and runs.
+
+| Suite | Result |
+|---|---|
+| `--tcc` | **2305/2305** |
+| `--llvm` | **2303/2303** |
+| `--tcc --libs` / `--llvm --libs` | **718/719** (the known `test_fs_directory_iteration`; the LLVM run showed the documented one-off compiler `invalid memory access` flake once, green on re-run) |
+| `MIRTests` | **1170 → 1180** (10 checks for `decl_list_c`) |
+
+**Where A3 stands.** The *spelling* of every declaration — aggregate bodies,
+prototypes, global declarations, typedefs and vtable types — is MIR now, and the
+C declare pass prints from `MIRDeclList`. The remaining AST use is (a) the
+collection walk itself (the declaration-collection pass, which the binding rule
+explicitly allows to read the AST) and (b) the implement pass's definitions,
+interleaved with lowered bodies. Both are structural, not spelling.
+
 ### Session 23 (2026-10-15) — one global-declaration spelling (action A3, globals)
 
 `MIRDeclEmitter::declare_var` (the declaration) and `implement_global` (the

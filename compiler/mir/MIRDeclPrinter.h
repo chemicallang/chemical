@@ -20,6 +20,7 @@
 #pragma once
 
 #include "MIRModule.h"
+#include "MIRDeclList.h"
 
 #include <string>
 
@@ -71,5 +72,22 @@ std::string member_declarator_c(const MIRModule& module, const MIRFieldInfo& fie
  * `"0"` for a missing/zero expression.
  */
 std::string const_expr_c(const MIRModule& module, ConstExprId id);
+
+/**
+ * The C text of a whole declaration list, in order (action A3). This is the
+ * AST-free printer the C declaration pass now drives: the pass records
+ * `MIRDeclItem`s (fwd declarations, aggregate bodies, typedefs, prototypes,
+ * global declarations and vtable types/externs) and this renders them. Function
+ * bodies, global definitions and vtable definitions are not part of the list —
+ * they are emitted inline by the implement pass.
+ */
+std::string decl_list_c(const MIRModule& module, const MIRDeclList& list);
+
+/**
+ * The C declarator of a global/typedef declaration (see MIRGlobalDecl.h):
+ * `T name`, `T name[]` for an unsized array, or `void name`. Shared by the
+ * declaration list printer and the definition emitter.
+ */
+std::string global_decl_spelling(const MIRModule& module, const MIRGlobalDecl& d);
 
 } // namespace mir

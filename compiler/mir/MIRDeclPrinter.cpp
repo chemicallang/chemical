@@ -218,6 +218,68 @@ std::string const_expr_c(const MIRModule& module, ConstExprId id) {
     return "0";
 }
 
+/** The C declarator of a global declaration (see MIRGlobalDecl.h). */
+std::string global_decl_spelling(const MIRModule& module, const MIRGlobalDecl& d) {
+    if (d.unsized_array) return c_declarator(module, d.elem, d.name + "[]");
+    if (d.type == MIR_INVALID_ID) return "void " + d.name;
+    return c_declarator(module, d.type, d.name);
+}
+
+std::string decl_list_c(const MIRModule& module, const MIRDeclList& list) {
+    std::string out;
+    for (const MIRDeclItem& it : list.items) {
+        switch (it.kind) {
+            case MIRDeclKind::ForwardStruct:
+                out += "\nstruct " + it.name + ";";
+                break;
+            case MIRDeclKind::ForwardUnion:
+                out += "\nunion " + it.name + ";";
+                break;
+            case MIRDeclKind::AggregateBody: {
+                const std::string body = aggregate_body_c(module, it.type);
+                if (body.empty()) {
+                    out += "\n/* MIR declaration: unmapped or unnamed " + it.what +
+                           " - its C body could not be printed */";
+                } else {
+                    out += body;
+                }
+                break;
+            }
+            case MIRDeclKind::Typedef:
+                out += "\ntypedef " + global_decl_spelling(module, MIRGlobalDecl{it.name, it.type,
+                                                                               it.elem, it.unsized_array}) + ";";
+                break;
+            case MIRDeclKind::Prototype:
+                out += "\n";
+                if (it.proto.flags & MPF_EXTERN) out += "extern ";
+                if (it.proto.flags & MPF_STATIC) out += "static ";
+                if (it.proto.flags & MPF_DLLIMPORT) out += "__chem_dllimport ";
+                out += c_function_proto(module, it.proto.type, it.proto.name);
+                out += ";";
+                break;
+            case MIRDeclKind::Global:
+                out += "\n";
+                if (it.global.flags & MGD_THREAD_LOCAL) out += "__chx_thread_local ";
+                if (it.global.flags & MGD_STATIC) out += "static ";
+                if (it.global.flags & MGD_VOLATILE) out += "volatile ";
+                out += global_decl_spelling(module, it.global);
+                out += ";";
+                break;
+            case MIRDeclKind::VtableType:
+                out += "\ntypedef struct " + it.name + " {";
+                for (const MIRVtableSlot& slot : it.slots) {
+                    out += "\n" + c_decl_type(module, slot.type, slot.name) + ";";
+                }
+                out += "\n} " + it.name + ";";
+                break;
+            case MIRDeclKind::VtableExtern:
+                out += "\nextern const " + it.type_name + " " + it.name + ";";
+                break;
+        }
+    }
+    return out;
+}
+
 std::string member_declarator_c(const MIRModule& module, const MIRFieldInfo& field) {
     return member_declarator_at(module, field, 1);
 }

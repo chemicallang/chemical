@@ -110,6 +110,12 @@ Full statements: `lang/docs/mir-implementation-plan.md` §0 rule 9,
   spelling (`MIRGlobalDecl`, `build_global_declaration`): name, declared type
   (incl. the unsized `T[]` declarator) and thread-local/volatile/static flags,
   consumed by both `declare_var` and `implement_global`. AST-aware.
+- `compiler/mir/MIRDeclList.h` + `MIRDeclPrinter::decl_list_c` — the declaration
+  list (action A3 endgame): the C declare pass records `MIRDeclItem`s
+  (fwd/aggregate body/typedef/prototype/global/vtable type+extern) and an
+  AST-free printer renders them. `MIRDeclList.h` is AST-free and
+  `MIRTests`-covered; the builder (`MIRDeclEmitter`) is the allowed collection
+  pass.
 - `compiler/CodegenMir.cpp` — MIR→LLVM lowering (AST-free, `COMPILER_BUILD`
   only); the driver is `ASTProcessor::mir_compile_module` in
   `compiler/ASTCompiler.cpp`.

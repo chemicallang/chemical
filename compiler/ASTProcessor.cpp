@@ -1759,13 +1759,13 @@ int ASTProcessor::declare_module(
 
     auto& w = c_visitor.writer;
     auto fwd_all = [&](const std::vector<ASTNode*>& nodes) {
-        for (ASTNode* node : nodes) decl_emitter.fwd_declare(w, node);
+        for (ASTNode* node : nodes) decl_emitter.fwd_declare(node);
     };
     auto alias_all = [&](const std::vector<ASTNode*>& nodes) {
-        for (ASTNode* node : nodes) decl_emitter.declare_type_alias(w, node);
+        for (ASTNode* node : nodes) decl_emitter.declare_type_alias(node);
     };
     auto declare_all = [&](const std::vector<ASTNode*>& nodes) {
-        for (ASTNode* node : nodes) decl_emitter.declare(w, node);
+        for (ASTNode* node : nodes) decl_emitter.declare(node);
     };
 
     // forward declare dependencies & dependencies of dependencies & current module
@@ -1798,6 +1798,10 @@ int ASTProcessor::declare_module(
         }
         declare_all(file.unit.scope.body.nodes);
     }
+
+    // The declaration pass recorded an ordered MIRDeclList; the AST-free
+    // `MIRDeclPrinter::decl_list_c` renders it (action A3).
+    decl_emitter.print_decl_list(w);
 
     if (print_translation_diagnostics(c_visitor)) {
         had_errors = true;

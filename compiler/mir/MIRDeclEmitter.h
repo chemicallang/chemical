@@ -69,14 +69,18 @@ public:
     /** Emit the fixed preamble (typedefs, malloc/free, macros). */
     void emit_preamble(BufferedWriter& w);
 
+    // The declare pass *records* declarations into `decl_list_` (it still walks
+    // the AST — it is the collection pass); `print_decl_list` renders them with
+    // the AST-free `MIRDeclPrinter::decl_list_c` (action A3).
     /** Forward-declare struct/union tags for a top-level node. */
-    void fwd_declare(BufferedWriter& w, ASTNode* node);
-
-    /** Emit `typedef ...` declarations for a top-level node. */
-    void declare_type_alias(BufferedWriter& w, ASTNode* node);
-
-    /** Emit the full declaration of a top-level node (struct body, prototype...). */
-    void declare(BufferedWriter& w, ASTNode* node);
+    void fwd_declare(ASTNode* node);
+    /** Record `typedef ...` declarations for a top-level node. */
+    void declare_type_alias(ASTNode* node);
+    /** Record the full declaration of a top-level node (struct body, prototype...). */
+    void declare(ASTNode* node);
+    /** Print the recorded declaration list. */
+    void print_decl_list(BufferedWriter& w);
+    const MIRDeclList& decl_list() const { return decl_list_; }
 
     /** Emit the definitions owned by declarations (globals, vtables). */
     void implement(BufferedWriter& w, ASTNode* node);
@@ -99,48 +103,45 @@ public:
     std::string function_proto(FunctionDeclaration* decl);
 
 private:
-    // --- declare-pass helpers ---
-    void declare_contained_func(BufferedWriter& w, FunctionDeclaration* decl, bool terminate);
-    void declare_struct_iterations(BufferedWriter& w, StructDefinition* def);
-    void declare_union_iterations(BufferedWriter& w, UnionDef* def);
-    void declare_variant_iterations(BufferedWriter& w, VariantDefinition* def);
-    void declare_struct_def_only(BufferedWriter& w, StructDefinition* def);
-    void declare_union_def_only(BufferedWriter& w, UnionDef* def);
-    void declare_variant_def_only(BufferedWriter& w, VariantDefinition* def);
-    void declare_impl(BufferedWriter& w, ImplDefinition* def);
-    void declare_interface(BufferedWriter& w, InterfaceDefinition* def);
-    void declare_var(BufferedWriter& w, VarInitStatement* init);
-    void declare_typedef(BufferedWriter& w, TypealiasStatement* stmt);
+    // --- declare-pass helpers (record into decl_list_) ---
+    void declare_contained_func(FunctionDeclaration* decl, bool terminate);
+    void declare_struct_iterations(StructDefinition* def);
+    void declare_union_iterations(UnionDef* def);
+    void declare_variant_iterations(VariantDefinition* def);
+    void declare_struct_def_only(StructDefinition* def);
+    void declare_union_def_only(UnionDef* def);
+    void declare_variant_def_only(VariantDefinition* def);
+    void declare_impl(ImplDefinition* def);
+    void declare_interface(InterfaceDefinition* def);
+    void declare_var(VarInitStatement* init);
+    void declare_typedef(TypealiasStatement* stmt);
 
-    void early_declare_node(BufferedWriter& w, ASTNode* node);
-    void early_declare_composed_variables(BufferedWriter& w, VariablesContainer& container);
-    void early_declare_type(BufferedWriter& w, BaseType* type, ASTNode* container,
+    void early_declare_node(ASTNode* node);
+    void early_declare_composed_variables(VariablesContainer& container);
+    void early_declare_type(BaseType* type, ASTNode* container,
                             bool do_ref = false, bool do_ptr = false);
 
     // --- vtable helpers ---
-    void vtable_type_name(BufferedWriter& w, InterfaceDefinition* interface);
-    void vtable_name(BufferedWriter& w, InterfaceDefinition* interface,
-                     ExtendableMembersContainerNode* def);
-    void create_vtable_type(BufferedWriter& w, InterfaceDefinition* interface);
-    void declare_vtable_extern(BufferedWriter& w, InterfaceDefinition* interface,
+    std::string vtable_type_name(InterfaceDefinition* interface);
+    std::string vtable_name(InterfaceDefinition* interface,
+                            ExtendableMembersContainerNode* def);
+    void create_vtable_type(InterfaceDefinition* interface);
+    void declare_vtable_extern(InterfaceDefinition* interface,
                                ExtendableMembersContainerNode* def);
     void create_vtable(BufferedWriter& w, InterfaceDefinition* interface,
                        ExtendableMembersContainerNode* def);
-    void declare_vtable_primitive_extern(BufferedWriter& w, InterfaceDefinition* interface,
-                                         BaseType* impl);
+    void declare_vtable_primitive_extern(InterfaceDefinition* interface, BaseType* impl);
     void create_vtable_primitive(BufferedWriter& w, InterfaceDefinition* interface,
                                  ImplDefinition* def);
 
     // --- type/value spelling ---
-    std::string type_spelling(BaseType* type);
-    std::string decl_spelling(BaseType* type, const std::string& name);
 
     /**
-     * Emit the C body of an aggregate declaration (`struct`/`union`/`variant`)
-     * from MIR — see MIRDeclPrinter. `what` names the construct for the
-     * (unreachable) diagnostic comment.
+     * Record the C body of an aggregate declaration (`struct`/`union`/`variant`)
+     * — see MIRDeclPrinter. `what` names the construct for the (unreachable)
+     * diagnostic comment.
      */
-    void declare_aggregate_body(BufferedWriter& w, BaseType* type, const char* what);
+    void declare_aggregate_body(BaseType* type, const char* what);
 
     // --- state ---
     MIRModule& module_;
@@ -154,6 +155,9 @@ private:
     std::function<ASTNode*(EmbeddedNode*)> embedded_decl_repl_;
     std::function<void(InterfaceDefinition*)> static_recorder_;
     std::function<Value*(Value*)> value_eval_;
+
+    /** The declaration pass output (see MIRDeclList.h). */
+    MIRDeclList decl_list_;
 
     /** Containers whose early-declare walk is on the stack (cycle guard). */
     std::unordered_set<ASTNode*> early_declare_in_progress_;

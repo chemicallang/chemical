@@ -9,6 +9,19 @@ This skill documents the **C++ AST framework** that every compiler pass, backend
 plugin builds on. It covers how nodes are structured, discriminated, allocated, traversed,
 and cross-linked.
 
+> **🚫 Binding rule — no backend may read the AST; every backend works from MIR.**
+> The AST is a **front-end** artifact (parser, symres, type-checking, `MIRLowerer`).
+> **No code generator may touch it:** no `ast/` include in an emitter, no
+> `ASTNode*`/`BaseType*`/`StructDefinition*`/`FunctionDeclaration*` parameter, no
+> source-node walk, and no re-deriving layout, ABI, declarations, destructor rules
+> or lifetime from source form. Backends (`MIREmitter` for C,
+> `compiler/CodegenMir.cpp` for LLVM, and any JVM/JS/WASM backend later) consume
+> MIR only — see the [mir skill](../mir/SKILL.md). If you are adding a method to an
+> AST node so a backend can ask it a question (e.g. `llvm_type(Codegen&)`), that is
+> the wrong layer: publish the fact in MIR instead. Statements:
+> `lang/docs/mir-implementation-plan.md` §0 rule 9, `lang/docs/mir-design.md` §16,
+> `compiler/mir/README.md`.
+
 > **Companion skill:** The [Compiler API skill](../compiler_api/SKILL.md) documents the
 > *binding* side — `lang/libs/compiler/` Chemical wrappers and the `as_*_unsafe()` cast
 > surface. This document focuses on the C++ internals; where casting and the binding enum

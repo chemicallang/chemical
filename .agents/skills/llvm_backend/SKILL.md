@@ -18,6 +18,23 @@ LLVM IR, which LLVM then optimizes and lowers to machine code. It never walks th
 AST itself — MIR is the single lowering for every backend, and the C backend
 (`MIREmitter`) is the reference it mirrors.
 
+> **🚫 Binding rule — no backend may read the AST; every backend works from MIR.**
+> This backend is a dispatcher over MIR and must never touch the AST. The AST is a
+> front-end artifact (parser, symres, type-check, `MIRLowerer`); **no backend may
+> touch it.** `CodegenMir.cpp` is a dispatcher over MIR only: types/layout from
+> `MIRTypeTable`/`MIRLayout`, calling convention from `MIRABI`, per-function facts
+> from `MIRFacts`, symbols/mangling/linkage/constants from the MIR module, and
+> declarations from MIR declaration tables. **No `ast/` include, no
+> `ASTNode*`/`BaseType*`/`StructDefinition*`/`FunctionDeclaration*` parameter, no
+> source-node walk, and no re-deriving layout, ABI, declarations, destructor
+> rules or lifetime from source form.** If a fact is missing, **add it to MIR** —
+> never fetch it from the AST. Only `MIRTypeBuilder` and `MIRLowerer` (plus the
+> front-end declaration collection pass) may see the AST, because they exist to
+> *feed* MIR. Rule statement: `lang/docs/mir-implementation-plan.md` §0 rule 9,
+> `lang/docs/mir-design.md` §16, `compiler/mir/README.md`. Note the one surviving
+> legacy exception — `ast/*::llvm_type(Codegen&)` methods are still referenced by
+> the deleted AST lowering; do not extend or call them from new code.
+
 ## Architecture Overview
 
 ### Pipeline

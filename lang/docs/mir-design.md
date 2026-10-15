@@ -30,7 +30,9 @@ Chemical should introduce a typed, instruction-based, multi-level MIR with:
 * Explicit control flow, including both structured regions and canonical CFG.
 * Optional source locations and stable debug identities on instructions and
   variables when diagnostics/debugging are enabled.
-* No backend-specific syntax or AST `Value*` ownership in the core MIR.
+* No backend-specific syntax or AST `Value*` ownership in the core MIR, and —
+  the other side of the same boundary — no backend may read the AST: every code
+  generator consumes MIR only (see §16).
 
 The MIR is not an AST rewrite and is not LLVM IR with different names. It is a
 typed semantic contract between the resolved/type-checked AST and all future
@@ -2057,6 +2059,26 @@ differential debugging; it is never a production path.
 ## 16. Design Rules For Future Implementers
 
 These rules should be repeated in code-review checklists and contributor docs:
+
+> **Binding rule — no backend may read the AST; every backend works from MIR.**
+> The AST is a front-end artifact (parser, symres, type-check, `MIRLowerer`) and
+> **no code generator may touch it**. A backend is a dispatcher over MIR: types
+> and layout from `MIRTypeTable`/`MIRLayout`, the calling convention from
+> `MIRABI`, per-function facts from `MIRFacts`, names/mangling/linkage from the
+> MIR symbol table, constants from `MIRConstantPool`, and declarations from MIR
+> declaration tables (`MIRDeclPrinter` today; `MIRTypeDecl`/`MIRPrototype`/
+> `MIRGlobal` as they land). No `ast/` include, no `ASTNode*`/`BaseType*`/
+> `StructDefinition*`/`FunctionDeclaration*` parameter, no source-node walk, and
+> no re-derivation of layout, ABI, declarations, destructor rules or lifetime
+> from source form. The only AST-aware MIR components are the lowering boundary
+> (`MIRTypeBuilder`, `MIRLowerer`) and the front-end declaration collection pass;
+> they *feed* MIR and are never a backend's source of truth. A fact a backend
+> needs that MIR does not publish yet is **added to MIR** (a field/type fact, a
+> declaration record, a fact pass) — not obtained by reaching back into the AST.
+> This is what keeps a new backend (JVM, JS, WASM) a thin dispatcher + printer
+> instead of another front end, and it is the rule that `mir-design.md` §1's
+> "a typed semantic contract between the resolved/type-checked AST and all
+> future backends" means in practice.
 
 1. Lower semantic decisions once, in AST-to-MIR lowering. Backends do not
    rediscover overloads, implicit constructors, receivers, or destructor rules.

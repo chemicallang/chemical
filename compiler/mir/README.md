@@ -18,6 +18,23 @@ here. Binding rules: **no feature flags, no legacy fallback, no capability
 analysis;** generated C must stay functionally equivalent (not textually);
 the release compiler must stay under 4 MB.
 
+> **⚠️ Binding rule — no backend may read the AST; every backend works from MIR.**
+> The AST is a *front-end* artifact (parser, symres, type-check, `MIRLowerer`);
+> **no code generator may touch it.** Every backend consumes MIR only: types and
+> layout from `MIRTypeTable`/`MIRLayout`, the calling convention from `MIRABI`,
+> per-function facts from `MIRFacts`, names/mangling/linkage from the MIR symbol
+> table, constants from `MIRConstantPool`, declarations from MIR declaration
+> tables (`MIRDeclPrinter` today; `MIRTypeDecl`/`MIRPrototype`/`MIRGlobal` as they
+> land). No `ast/` include, no `ASTNode*`/`BaseType*`/`StructDefinition*`/
+> `FunctionDeclaration*` parameter, no source-node walk, no re-derivation of
+> layout/ABI/declarations/destructor rules/lifetime from source form. The only
+> AST-aware MIR components are the lowering boundary (`MIRTypeBuilder`,
+> `MIRLowerer`) and the front-end declaration collection pass — they *feed* MIR
+> and are never a backend's source of truth. A fact a backend needs that MIR does
+> not publish yet is **added to MIR**, never fetched from the AST. Rationale and
+> the review checklist live in `lang/docs/mir-implementation-plan.md` §0.9 and
+> `lang/docs/mir-design.md` §16.
+
 ## ⚠️ Post-migration evaluation (2026-10-12) — read before optimising
 
 The migration is functionally complete and green, but it **regresses every
@@ -1341,6 +1358,10 @@ uses the name pool, not layout. Needed before LLVM lowering.
 ## Invariants to preserve
 
 - No `ASTNode*`/`Value*`/`FunctionDeclaration*` retained in persisted MIR.
+- **No backend reads the AST — backends are MIR-only.** No `ast/` include, no
+  source-node parameter or walk, no re-derived layout/ABI/declaration/lifetime
+  facts in an emitter; missing facts get added to MIR. Only `MIRTypeBuilder` and
+  `MIRLowerer` touch the AST.
 - No `std::unordered_map`/`chem::string` per instruction; dense ID tables only.
 - Effects/portability/compaction safety are opcode-static.
 - Every block ends in exactly one terminator; use-counts updated on append.

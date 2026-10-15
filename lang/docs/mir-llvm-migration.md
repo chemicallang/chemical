@@ -861,6 +861,28 @@ Same as `mir-implementation-plan.md` §0. No `--use-mir`/`--no-llvm`, no
 lower a construct, that is a **bug to fix**, not a branch to add. A lowering
 failure must be a diagnostic, not a fallback.
 
+### 5.2b No backend may read the AST — every backend works from MIR
+
+Binding rule, same text as `mir-implementation-plan.md` §0 rule 9 and
+`mir-design.md` §16. The AST is a front-end artifact (parser, symres,
+type-check, `MIRLowerer`); **no code generator may touch it**. `CodegenMir.cpp`
+and `MIREmitter.cpp` are dispatchers over MIR only: types/layout from
+`MIRTypeTable`/`MIRLayout`, calling convention from `MIRABI`, per-function facts
+from `MIRFacts`, names/mangling/linkage and constants from the MIR module,
+declarations from MIR declaration tables (`MIRDeclPrinter` today;
+`MIRTypeDecl`/`MIRPrototype`/`MIRGlobal` as they land). No `ast/` include, no
+`ASTNode*`/`BaseType*`/`StructDefinition*`/`FunctionDeclaration*` parameter, no
+source-node walk, no re-derivation of layout, ABI, declarations, destructor
+rules or lifetime from source form. Only the lowering boundary
+(`MIRTypeBuilder`, `MIRLowerer`) and the front-end declaration collection pass
+may see the AST; they *feed* MIR and are never a backend's source of truth. A
+fact a backend needs that MIR does not publish is **added to MIR** — a field or
+type fact on the record, a declaration record, a fact pass — never fetched from
+the AST. This is what keeps C and LLVM from drifting and makes a future
+JVM/JS/WASM target a thin dispatcher + printer rather than another front end.
+Legacy `ast/*::llvm_type(Codegen&)` helpers predate this rule: do not call or
+extend them from new code.
+
 ### 5.3 Performance / size
 
 - MIR construction + C emission ≤ direct 2c translation time for `debug_quick`

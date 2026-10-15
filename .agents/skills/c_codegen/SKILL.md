@@ -5,6 +5,29 @@ description: Comprehensive guide to the C translation backend (2c) — how Chemi
 
 # C Codegen (2c Backend)
 
+> **⚠️ HISTORICAL — the AST-walking 2c visitor is deleted.** The C target is now
+> produced from **MIR**: `MIRLowerer` (AST→MIR) + `MIRDeclEmitter`/`MIRDeclPrinter`
+> (declarations) + `MIREmitter` (MIR→C). The classes described below
+> (`ToCAstVisitor`, `SubVisitor`, `CTopLevelDeclarationVisitor`,
+> `CDestructionVisitor`) and their files are **gone** — `preprocess/2c/` now holds
+> only `TranslationContext.{h,cpp}`, `2cBackendContext.h` and `BufferedWriter.h`
+> (the emitters in `compiler/mir/` use the writer). Keep this file only for that
+> writer/driver background. The live documents are `compiler/mir/README.md` and
+> the `mir` skill.
+>
+> **🚫 Binding rule — no backend may read the AST; every backend works from MIR.**
+> The AST is a front-end artifact (parser, symres, type-check, `MIRLowerer`) and
+> **no code generator may touch it.** The C emitter is a dispatcher over MIR only:
+> types/layout from `MIRTypeTable`/`MIRLayout`, calling convention from `MIRABI`,
+> per-function facts from `MIRFacts`, names/mangling/linkage and constants from the
+> MIR module, declarations from MIR declaration tables. **No `ast/` include, no
+> `ASTNode*`/`BaseType*`/`StructDefinition*`/`FunctionDeclaration*` parameter, no
+> source-node walk, no re-derived layout/ABI/declaration/lifetime facts.** A fact
+> a backend needs that MIR does not publish is **added to MIR**, never fetched
+> from the AST. Only `MIRTypeBuilder` and `MIRLowerer` may see the AST. Rule
+> statement: `lang/docs/mir-implementation-plan.md` §0 rule 9, `lang/docs/mir-design.md`
+> §16, `compiler/mir/README.md`. Never add to the AST-based declaration path.
+
 The "2c" backend translates the Chemical AST into C code. This is used by `TCCCompiler` and is also the foundation for the TinyCC JIT compilation path. The 2c backend produces readable, portable C that can be compiled with any C compiler.
 
 > **Not to be confused with `compiler/ctranslator/CTranslator`.** That class does the

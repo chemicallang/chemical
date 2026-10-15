@@ -23,6 +23,37 @@ pointer plus the most important operational facts.
 > is green; the handoff/contract is `lang/docs/mir-llvm-migration.md`. The old AST
 > LLVM lowering is dead but not yet deleted.
 
+## 🚫 Binding rule — no backend may read the AST; every backend works from MIR
+
+The AST is a **front-end** artifact (parser, symres, type-checking, `MIRLowerer`).
+**No code generator may touch it.** Both backends (`MIREmitter` for C,
+`compiler/CodegenMir.cpp` for LLVM) and every future one (JVM, JS, WASM) are
+**dispatchers over MIR only**:
+
+| A backend needs | It reads | Never |
+|---|---|---|
+| types, layout, field offsets | `MIRTypeTable`, `MIRLayout`, `MIRTypeRecord`/`MIRFieldInfo` | `BaseType::size()`, `sizeof`/`offsetof` of a source type |
+| calling convention, sret/param rules | `MIRABI` | AST function/parameter types |
+| per-function facts (block offsets, fall-throughs, place writes/addressed, param aliasing) | `MIRFacts` (`compute_function_facts`) | re-running the analysis in the emitter |
+| names, mangling, linkage | MIR symbol table / `MIRFunction::name` | `mangler_`/AST declaration walks |
+| constants and initializers | `MIRConstantPool` | AST `Value*` literals |
+| aggregate/prototype/global declarations | MIR declaration tables (`MIRDeclPrinter` now; `MIRTypeDecl`/`MIRPrototype`/`MIRGlobal` as they land) | `StructDefinition`/`FunctionDeclaration` member walks |
+
+Concretely, a backend must **not**: include an `ast/` header; take an
+`ASTNode*`/`BaseType*`/`StructDefinition*`/`FunctionDeclaration*` parameter; walk
+source nodes; or re-derive layout, ABI, declarations, destructor rules or
+lifetime from source form. The **only** AST-aware MIR components are the lowering
+boundary (`MIRTypeBuilder`, `MIRLowerer`) and the front-end declaration
+collection pass — they *feed* MIR and are never a backend's source of truth.
+
+When a backend needs a fact MIR does not publish, **publish it in MIR** (a field
+or type fact on the record, a declaration record, a fact pass) — never reach back
+into the AST. This is what makes JVM/JS/WASM thin printers instead of new front
+ends, and it is the rule that keeps C and LLVM from drifting.
+
+Full statements: `lang/docs/mir-implementation-plan.md` §0 rule 9,
+`lang/docs/mir-design.md` §16, `compiler/mir/README.md` (top + *Invariants*).
+
 ## Status
 
 - Branch `mir`. Contract: `lang/docs/mir-implementation-plan.md`,

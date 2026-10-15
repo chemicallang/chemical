@@ -95,6 +95,32 @@ rule in this section wins.
    break caused by a port. The replacement is monotone: the legacy footprint only
    shrinks.
 
+9. **No backend may read the AST — every backend must work from MIR.** The AST
+   is a *front-end* artifact: the parser, symres, type-checking and `MIRLowerer`
+   read it, and **no code generator may**. Every backend is a dispatcher over
+   MIR: types and layout from `MIRTypeTable`/`MIRLayout` (never `sizeof`/`offsetof`
+   of a source type), the calling convention from `MIRABI`, per-function facts
+   from `MIRFacts`, names/mangling/linkage from the MIR symbol table, constants
+   from `MIRConstantPool`, and declarations from MIR declaration tables
+   (`MIRDeclPrinter` today; `MIRTypeDecl`/`MIRPrototype`/`MIRGlobal` as they
+   land). A backend must not include an `ast/` header, take an
+   `ASTNode*`/`BaseType*`/`StructDefinition*`/`FunctionDeclaration*` parameter,
+   walk source nodes, or re-derive layout, ABI, declarations, destructor rules
+   or lifetime from source form. The only AST-aware MIR components are the
+   lowering boundary itself (`MIRTypeBuilder`, `MIRLowerer`) and the front-end
+   declaration collection pass; both exist to *feed* MIR, and neither may be a
+   backend's source of truth. When a backend needs a fact MIR does not publish
+   yet, **publish it in MIR** — a field/type fact on the record, a declaration
+   record, a fact pass — rather than reaching back into the AST. This is the
+   whole point of the migration: a new backend (JVM, JS, WASM) must be a thin
+   dispatcher + printer over the same MIR core, never another front end.
+   *Rationale:* a backend that can still see the AST re-implements semantics
+   (types, layout, lifetime, constructors) a second time, drifts from the other
+   backends, and makes every new target a full re-derivation instead of a
+   dispatch table. The migration deleted the AST→C and AST→LLVM lowering for
+   exactly this reason; do not reintroduce the dependency one convenient
+   `BaseType*` at a time.
+
 ### Why not a flag? (the deliberate trade)
 
 The conventional approach — keep the old backend behind a flag, add MIR

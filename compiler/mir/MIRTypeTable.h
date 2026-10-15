@@ -8,6 +8,7 @@
 #include "MIRTypes.h"
 
 #include <cstdint>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -134,6 +135,7 @@ struct MIRTypeTable {
 
     /** Attach a C-emittable name to a (named aggregate) type. */
     void set_name(TypeId id, const char* name, uint32_t len) {
+        std::lock_guard<std::mutex> lock(mtx_);
         if (id >= types.size()) return;
         types[id].name_offset = static_cast<uint32_t>(names.size());
         types[id].name_length = len;
@@ -151,6 +153,7 @@ struct MIRTypeTable {
 
     /** Append a range of fields, returning the start index. */
     uint32_t append_fields(const std::vector<MIRFieldInfo>& fs) {
+        std::lock_guard<std::mutex> lock(mtx_);
         uint32_t off = static_cast<uint32_t>(fields.size());
         fields.insert(fields.end(), fs.begin(), fs.end());
         return off;
@@ -184,6 +187,7 @@ struct MIRTypeTable {
 
     /** Append a range of TypeIds to the shared data pool, returning its offset. */
     uint32_t append_data(const TypeId* ids, uint32_t count) {
+        std::lock_guard<std::mutex> lock(mtx_);
         uint32_t off = static_cast<uint32_t>(data.size());
         for (uint32_t i = 0; i < count; ++i) data.push_back(ids[i]);
         return off;
@@ -202,6 +206,7 @@ struct MIRTypeTable {
      * ~7M (the fallback scans for the ~1k genuinely new records).
      */
     TypeId intern(const MIRTypeRecord& rec) {
+        std::lock_guard<std::mutex> lock(mtx_);
         const uint64_t h = hash_of(rec);
         auto hit = intern_index_.find(h);
         if (hit != intern_index_.end() && hit->second < types.size() &&
@@ -218,6 +223,17 @@ struct MIRTypeTable {
         const TypeId id = static_cast<TypeId>(types.size() - 1);
         intern_index_[h] = id;
         return id;
+    }
+
+    /** Drop every type, pool and the interning index (reused `MIRModule`). */
+    void clear() {
+        std::lock_guard<std::mutex> lock(mtx_);
+        types.clear();
+        data.clear();
+        names.clear();
+        fields.clear();
+        field_names.clear();
+        intern_index_.clear();
     }
 
     /**
@@ -277,6 +293,10 @@ struct MIRTypeTable {
         }
         return true;
     }
+
+private:
+    /** Guards the mutators (action E1: shared interning under parallel lowering). */
+    std::mutex mtx_;
 };
 
 } // namespace mir

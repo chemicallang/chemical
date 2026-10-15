@@ -827,10 +827,19 @@ against item 1 above.
 3. Replace the 18 `unordered_map`s in `MIRLowerer` with dense vectors keyed by
    AST-node id or a per-function symbol/lookup table (plan §6.1). Needs a
    profiler or finer phase timers to target (see D5).
+   **Measured and rejected (session 29):** with the new `-DMIR_OPS_COUNTERS`
+   tool, all eighteen maps together are ~0.4 M operations on a 296,017-instruction
+   main-suite lowering (~1% of the 2.9–3.2 s phase, ~0.3% of the cold build).
+   Dense tables cannot move the gate; the cost is per-function/per-instruction C++
+   overhead in the `Debug` compiler. See `compiler/mir/README.md`, session 29.
 4. Split `MIRLowerer.cpp` into `MIRLowerExpr/Stmt/Call/Aggregate/Lambda/Async`.
 5. Add phase timers (behind an env var, off by default) so the remaining
    `MIRLowerer` time can be attributed without `perf`, which is unavailable on
    this machine (`perf_event_paranoid=4`).
+   **DONE (session 29, partial):** `-DMIR_OPS_COUNTERS` (CMake option, off by
+   default → zero cost) + `MIR_OPS=1` counts lowering calls, emitted instructions,
+   time inside `lower_function`, and the hot-table operations, printed at exit
+   (`compiler/mir/MIRHotOps.h`). It is what D3's rejection above is based on.
 **Acceptance.** Main-suite cold compile ≤ 1.05× legacy; peak RSS ≤ 1.05× legacy;
 no `std::string` allocation on the identifier path (verifiable by review/instr).
 **Status.** Action D is ~20% done by the CPU-time measure: the quadratic
@@ -854,11 +863,79 @@ work here can only be verified for correctness, not for a compile-time delta.
 ### E. Parallelise lowering (P2, after D)
 
 **Symptom.** Serial per-module lowering.
-**Evidence.** §1.5.
+**Evidence.** §1.5; session 29 measured **≈2.9–3.2 s of `lower_function` inside a
+~9.5–10.8 s cold suite build** for 296,017 emitted MIR instructions on 6,726
+functions (no redundancy: 6,721/6,726 distinct).
 **Action.** Stage 9: file/function-parallel lowering with reusable per-worker
 arena/buffers and slot-direct deterministic merge.
 **Acceptance.** ≥1.5× on 4+ cores for large modules; no RSS regression on small
 modules.
+
+**Code-grounded plan (session 30 — read before starting).** The emission seam is
+already good: `lower_and_emit` (`ASTProcessor.cpp`) lowers one function into a
+per-function `MIRArena` and emits its C into a **local `std::string`** before
+appending to `visitor.writer`, and the async path already writes
+`pre + poll + post + ramp` in order. So a "function artifact = bytes + source
+slot" model is a small step, not a rewrite. The blockers are all in the **shared,
+mutable module state** the single `MIRLowerer`/`MIRModule`/`MIRTypeBuilder` hold:
+
+1. **Shadowing symbol cache (the hard one).** `MIRLowerer::intern_function` dedupes
+   through the *per-lowerer* `func_symbols_` and then unconditionally
+   `module_.symbols.add(...)`. Two workers with their own lowerer would both miss
+   their cache and add **two symbols for one mangled name**. E needs either a
+   shared, thread-safe `mangled-name → SymbolId` index in `MIRSymbolTable` (so
+   `add` dedupes) or a shared `FunctionDeclaration* → SymbolId` table. The
+   `MIRSymbolTable` dedup-by-name route is the durable one (it also retires the
+   transient AST-pointer cache).
+2. **Type/constant interning.** `MIRTypeBuilder::map` hits a per-file
+   `unordered_map` `memo_`, then interns into the shared `MIRTypeTable` /
+   `MIRConstantPool` (already deduplicating by value). Both the memo and the
+   `intern` paths become concurrent; the pools need a lock (or sharding) and the
+   memo must become worker-local (or `clear_memo` per worker).
+3. **C `visitor` state.** `lower_and_emit`/`lower_impl` mutate shared
+   `CTranslationContext` (`visitor.error(...)`, `iface->active_user`,
+   `remove_static_interface_for_stub_impl`, the `mangler`). These must move into
+   the worker or be serialised. `mangler_` (`std::function` → `std::string`) is
+   the one shared read that also allocates; its thread-safety is unverified.
+4. **Order nondeterminism.** `module_.symbols`/`globals`/`functions` are appended
+   during lowering; concurrent appends make ids and the collected-function order
+   nondeterministic. For the LLVM path (`mir_llvm_collect`) `module.functions` is
+   iterative; for the C path the merge must be **slot-direct in source order**
+   (the plan's §6.11) so the C stays functionally identical.
+
+**Staged steps (each output-invariant + measured):**
+
+- **E1 — shared interning.** Add a `name → id` index (mutex-guarded) to
+  `MIRSymbolTable` so `add` dedupes; make `MIRTypeTable`/`MIRConstantPool`
+  intern thread-safe. Verify: serial behaviour unchanged (`--tcc/--llvm`
+  suites + `MIRTests`), interning cost ≤ noise (the locks are uncontended on the
+  serial path).
+  **DONE (session 31), with one deviation.** The three tables' mutators are
+  mutex-guarded and grew `clear()`; `MIRTests::test_table_thread_safety` hammers
+  them from 8 threads (1180 → 4400 checks). But **symbol ids are deliberately not
+  deduplicated**: the backends already match symbols by mangled name, so a shared
+  name index would only risk cross-kind collisions and entangle the weak-stub
+  pass — a proven-unnecessary optimisation. Interleaved A/B of the pre/post
+  `TCCCompiler` shows no measurable cost. Suites: `--tcc` 2305/2305, `--llvm`
+  2303/2303, `--libs` 718/719. See `compiler/mir/README.md`, session 31.
+- **E2 — worker context, still serial.** Introduce the plan's `MIRTaskContext`
+  (per-worker `MIRLowerer` + `MIRArena` + output buffer) and route
+  `lower_and_emit` through it, with exactly one worker. Verify: identical C.
+- **E3 — parallel file/function tasks.** Run the module's functions through a
+  thread pool above a measured size threshold (the plan's "≥10 sufficiently large
+  functions"); merge slot-direct. Verify: `--tcc/--llvm` suites green, C
+  functionally identical, peak RSS not regressed.
+- **E4 — measure the gate.** ≥1.5× on 4+ cores for a large module; raise/disable
+  the threshold if a shape regresses time or RSS.
+
+**Honest payoff bound.** Lowering is ~30% of the cold build, so 8-core
+parallelism caps the win at roughly **−20–25% cold build time** (~9.5 s → ~7.3 s),
+which **still misses the ≤2.94 s gate**. E is the largest single lever but not
+sufficient on its own; it must land *after* (or beside) a **release-build
+re-measure (M1)** — the gate has only ever been measured with a `Debug` compiler
+(§0) — and probably alongside fewer-instruction lowering. Parallelism also risks
+peak RSS (NFR-2), so the threshold is load-bearing, not cosmetic.
+
 
 ### D6. Hot-path rule violations (P2, opportunistically)
 

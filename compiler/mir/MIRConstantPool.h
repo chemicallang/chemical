@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <mutex>
 #include <unordered_map>
 #include <vector>
 
@@ -48,24 +49,23 @@ struct MIRConstantPool {
      * identical to a pure linear scan. The pool is append-only, so an entry's
      * key can never go stale; the index just skips the scan for repeats (most
      * `add` calls re-add one of a few hundred integral constants).
+     *
+     * Thread-safety (action E1): the mutators are mutex-guarded so several
+     * lowering workers can intern concurrently. A payload append and the intern
+     * that references it (`add_string`) stay under one lock so two workers can
+     * never interleave their `data` writes.
      */
     ConstantId add(const MIRConstant& c) {
-        const uint64_t h = hash_of(c);
-        auto hit = index_.find(h);
-        if (hit != index_.end() && hit->second < constants.size() &&
-            matches(constants[hit->second], c)) {
-            return hit->second;
-        }
-        for (uint32_t i = 0; i < constants.size(); ++i) {
-            if (matches(constants[i], c)) {
-                index_[h] = i;
-                return i;
-            }
-        }
-        constants.push_back(c);
-        const ConstantId id = static_cast<ConstantId>(constants.size() - 1);
-        index_[h] = id;
-        return id;
+        std::lock_guard<std::mutex> lock(mtx_);
+        return add_unlocked(c);
+    }
+
+    /** Drop every constant and payload byte (used when a `MIRModule` is reused). */
+    void clear() {
+        std::lock_guard<std::mutex> lock(mtx_);
+        constants.clear();
+        data.clear();
+        index_.clear();
     }
 
     /** Exactly the comparison `add` performs. */
@@ -146,11 +146,36 @@ struct MIRConstantPool {
         MIRConstant c;
         c.kind = MIRConstantKind::String;
         c.type = t;
+        std::lock_guard<std::mutex> lock(mtx_);
         c.data_offset = static_cast<uint32_t>(data.size());
         c.data_count = len;
         if (len) data.insert(data.end(), s, s + len);
-        return add(c);
+        return add_unlocked(c);
     }
+
+private:
+    /** The intern body; the caller must hold `mtx_`. */
+    ConstantId add_unlocked(const MIRConstant& c) {
+        const uint64_t h = hash_of(c);
+        auto hit = index_.find(h);
+        if (hit != index_.end() && hit->second < constants.size() &&
+            matches(constants[hit->second], c)) {
+            return hit->second;
+        }
+        for (uint32_t i = 0; i < constants.size(); ++i) {
+            if (matches(constants[i], c)) {
+                index_[h] = i;
+                return i;
+            }
+        }
+        constants.push_back(c);
+        const ConstantId id = static_cast<ConstantId>(constants.size() - 1);
+        index_[h] = id;
+        return id;
+    }
+
+    /** Guards the mutators (action E1: shared interning under parallel lowering). */
+    std::mutex mtx_;
 };
 
 } // namespace mir

@@ -8,6 +8,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <optional>
+#include <chrono>
 
 #include "ast/base/BaseType.h"
 #include "ast/types/GenericType.h"
@@ -114,6 +115,28 @@
 #include "MIREmitter.h"
 
 namespace mir {
+
+// --- optional D5 instrumentation (see MIRHotOps.h) --------------------------
+#ifdef MIR_OPS_COUNTERS
+MIRHotOps g_hot_ops;
+namespace {
+struct MIRHotOpsPrinter {
+    ~MIRHotOpsPrinter() {
+        if (std::getenv("MIR_OPS") == nullptr) return;
+        std::cerr << "[MIR_OPS] functions=" << g_hot_ops.functions
+                  << " instrs=" << g_hot_ops.instrs
+                  << " lower_ms=" << (g_hot_ops.lower_ns / 1000000ULL)
+                  << " place_lookup=" << g_hot_ops.place_lookup
+                  << " place_bind=" << g_hot_ops.place_bind
+                  << " name_lookup=" << g_hot_ops.name_lookup
+                  << " name_bind=" << g_hot_ops.name_bind
+                  << " type_map=" << g_hot_ops.type_map
+                  << " intern=" << g_hot_ops.intern << std::endl;
+    }
+} g_hot_ops_printer;
+} // namespace
+#endif
+// ---------------------------------------------------------------------------
 
 namespace {
 
@@ -328,6 +351,7 @@ bool compound_binary(Operation op, MIRBinaryOp& out) {
 
 PlaceId MIRLowerer::place_for_linked(ASTNode* linked) const {
     if (!linked) return MIR_INVALID_ID;
+    MIR_OP(place_lookup);
     auto it = var_places_.find(linked);
     if (it == var_places_.end()) return MIR_INVALID_ID;
     return it->second;
@@ -2456,6 +2480,7 @@ SymbolId MIRLowerer::intern_named_global(const std::string& name) {
 }
 
 SymbolId MIRLowerer::intern_function(FunctionDeclaration* decl) {
+    MIR_OP(intern);
     auto it = func_symbols_.find(decl);
     if (it != func_symbols_.end()) return it->second;
 
@@ -6823,6 +6848,17 @@ bool MIRLowerer::lower_static_interface_stub(FunctionDeclaration* decl, MIRArena
 
 bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
                                 MIRFunction& func, std::string& error) {
+    MIR_OP(functions);
+#ifdef MIR_OPS_COUNTERS
+    struct LowerTimer {
+        std::chrono::steady_clock::time_point t0 = std::chrono::steady_clock::now();
+        ~LowerTimer() {
+            g_hot_ops.lower_ns += static_cast<unsigned long long>(
+                std::chrono::duration_cast<std::chrono::nanoseconds>(
+                    std::chrono::steady_clock::now() - t0).count());
+        }
+    } lower_timer;
+#endif
     if (decl->is_async()) {
         return lower_async_function(decl, arena, func, error);
     }

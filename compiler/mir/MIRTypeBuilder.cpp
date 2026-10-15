@@ -1,6 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "MIRTypeBuilder.h"
+#include "MIRHotOps.h"
 
 #include "ast/base/BaseType.h"
 #include "ast/base/BaseTypeKind.h"
@@ -371,6 +372,7 @@ TypeId MIRTypeBuilder::function_signature(TypeId return_type, const std::vector<
 
 TypeId MIRTypeBuilder::map(BaseType* type) {
     if (!type) return opaque_type();
+    MIR_OP(type_map);
 
     auto it = memo_.find(type);
     if (it != memo_.end()) return it->second;

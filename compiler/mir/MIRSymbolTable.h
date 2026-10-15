@@ -9,6 +9,7 @@
 #include "MIRTypes.h"
 
 #include <cstdint>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -48,9 +49,22 @@ struct MIRSymbolTable {
     const MIRSymbolRecord& get(SymbolId id) const { return symbols[id]; }
     uint32_t size() const { return static_cast<uint32_t>(symbols.size()); }
 
+    /**
+     * Intern a symbol record.
+     *
+     * Thread-safety (action E1): `add` is the only mutator and it is
+     * mutex-guarded, so several lowering workers can intern concurrently. The
+     * ids/records are *not* deduplicated — the backends match symbols by mangled
+     * name, not by id (see `mangled_name`), so duplicate ids for one name are
+     * already tolerated. Readers must consume a `get`/`mangled_name` result
+     * without an intervening `add` on another thread reallocating the pools;
+     * callers that lower and emit in the same thread (the planned worker model)
+     * satisfy this.
+     */
     SymbolId add(MIRSymbolRecord r,
                  const char* name, uint32_t name_len,
                  const char* mangled, uint32_t mangled_len) {
+        std::lock_guard<std::mutex> lock(mtx_);
         r.name_offset = static_cast<uint32_t>(names.size());
         r.name_length = name_len;
         if (name_len) names.insert(names.end(), name, name + name_len);
@@ -59,6 +73,13 @@ struct MIRSymbolTable {
         if (mangled_len) names.insert(names.end(), mangled, mangled + mangled_len);
         symbols.push_back(r);
         return static_cast<SymbolId>(symbols.size() - 1);
+    }
+
+    /** Drop every record and name (used when a `MIRModule` is reused). */
+    void clear() {
+        std::lock_guard<std::mutex> lock(mtx_);
+        symbols.clear();
+        names.clear();
     }
 
     const char* name_data(const MIRSymbolRecord& r) const {
@@ -78,6 +99,10 @@ struct MIRSymbolTable {
         return std::string(r.mangled_length ? mangled_data(r) : name_data(r),
                            r.mangled_length ? r.mangled_length : r.name_length);
     }
+
+private:
+    /** Guards `add`/`clear` (action E1: shared interning under parallel lowering). */
+    std::mutex mtx_;
 };
 
 } // namespace mir

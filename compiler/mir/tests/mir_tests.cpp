@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <iostream>
 #include <string>
+#include <thread>
 #include <vector>
 
 using namespace mir;
@@ -1059,10 +1060,109 @@ static bool test_decl_list_printer() {
     return true;
 }
 
+// ── E1: concurrent interning into the shared module tables ─────────────────
+// Several lowering workers intern into one `MIRModule`; the type/constant pools
+// must hand back the same id for the same content from any thread, and the
+// symbol table must never lose or tear a record. See mir-migration-evaluation.md
+// §2E (stage E1).
+static bool test_table_thread_safety() {
+    constexpr int kThreads = 8;
+    constexpr int kPer = 200;
+
+    // Types: content-based interning must be order-independent under contention.
+    MIRTypeTable types;
+    std::vector<TypeId> expect_type(kPer, MIR_INVALID_ID);
+    for (int i = 0; i < kPer; ++i) {
+        MIRTypeRecord r;
+        r.kind = MIRTypeKind::Int;
+        r.size = static_cast<uint32_t>(i + 1);
+        r.alignment = 1;
+        expect_type[i] = types.intern(r);
+    }
+    std::vector<std::thread> workers;
+    std::vector<char> type_ok(kThreads, 0);
+    for (int t = 0; t < kThreads; ++t) {
+        workers.emplace_back([&types, &expect_type, &type_ok, t]() {
+            bool ok = true;
+            for (int i = 0; i < kPer; ++i) {
+                const int j = (i * 7 + t) % kPer; // same set, different order
+                MIRTypeRecord r;
+                r.kind = MIRTypeKind::Int;
+                r.size = static_cast<uint32_t>(j + 1);
+                r.alignment = 1;
+                if (types.intern(r) != expect_type[j]) ok = false;
+            }
+            type_ok[t] = ok ? 1 : 0;
+        });
+    }
+    for (auto& w : workers) w.join();
+    CHECK(types.size() == static_cast<uint32_t>(kPer));
+    for (int t = 0; t < kThreads; ++t) CHECK(type_ok[t]);
+
+    // Constants: `add_int` with equal content -> the same id from any thread.
+    MIRTypeRecord i32r;
+    i32r.kind = MIRTypeKind::Int;
+    i32r.size = 4;
+    i32r.alignment = 1; // matches expect_type[3], so interning adds no record
+    const TypeId i32 = types.intern(i32r);
+    CHECK(i32 == expect_type[3]);
+
+    MIRConstantPool pool;
+    std::vector<ConstantId> expect_const(kPer, MIR_INVALID_ID);
+    for (int i = 0; i < kPer; ++i) {
+        expect_const[i] = pool.add_int(i32, static_cast<uint64_t>(i));
+    }
+    workers.clear();
+    std::vector<char> const_ok(kThreads, 0);
+    for (int t = 0; t < kThreads; ++t) {
+        workers.emplace_back([&pool, &expect_const, &const_ok, i32, t]() {
+            bool ok = true;
+            for (int i = 0; i < kPer; ++i) {
+                const int j = (i * 13 + t) % kPer;
+                if (pool.add_int(i32, static_cast<uint64_t>(j)) != expect_const[j]) ok = false;
+            }
+            const_ok[t] = ok ? 1 : 0;
+        });
+    }
+    for (auto& w : workers) w.join();
+    CHECK(pool.size() == static_cast<uint32_t>(kPer));
+    for (int t = 0; t < kThreads; ++t) CHECK(const_ok[t]);
+
+    // Symbols are deliberately NOT deduplicated (backends match by mangled name),
+    // so assert the guard keeps every record whole and every id readable.
+    MIRSymbolTable symbols;
+    std::vector<SymbolId> ids(static_cast<size_t>(kThreads) * kPer, MIR_INVALID_ID);
+    workers.clear();
+    for (int t = 0; t < kThreads; ++t) {
+        workers.emplace_back([&symbols, &ids, t]() {
+            for (int i = 0; i < kPer; ++i) {
+                const std::string nm = "fn_" + std::to_string(t) + "_" + std::to_string(i);
+                MIRSymbolRecord rec;
+                rec.kind = MIRSymbolKind::Function;
+                ids[static_cast<size_t>(t) * kPer + i] =
+                    symbols.add(rec, nm.data(), static_cast<uint32_t>(nm.size()),
+                                nm.data(), static_cast<uint32_t>(nm.size()));
+            }
+        });
+    }
+    for (auto& w : workers) w.join();
+    CHECK(symbols.size() == static_cast<uint32_t>(kThreads) * kPer);
+    for (int t = 0; t < kThreads; ++t) {
+        for (int i = 0; i < kPer; ++i) {
+            const SymbolId id = ids[static_cast<size_t>(t) * kPer + i];
+            CHECK(id < symbols.size());
+            const std::string nm = "fn_" + std::to_string(t) + "_" + std::to_string(i);
+            CHECK(symbols.mangled_name(symbols.get(id)) == nm);
+        }
+    }
+    return true;
+}
+
 int main() {
     bool ok = true;
     ok &= test_arena();
     ok &= test_instruction_encoding();
+    ok &= test_table_thread_safety();
     ok &= test_function_build_dump();
     ok &= test_builder();
     ok &= test_emitter();

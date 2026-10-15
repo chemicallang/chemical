@@ -58,11 +58,18 @@ option(VERBOSE "Enable verbose output (for debugging)" OFF)
 option(ENABLE_ASAN "Enable AddressSanitizer for Debug builds to catch bugs" OFF)
 option(DISABLE_RTTI_EXCEPTIONS "Disable RTTI and exceptions for our own targets where safe" ON)
 option(CHEMICAL_MUSL "The compiler is built for/run on musl libc. Used to select musl-specific behaviour (e.g. pthread type sizes)." OFF)
+option(MIR_OPS_COUNTERS "Instrument MIR lowering with operation/phase counters (profiling builds only; zero cost when OFF). Print with MIR_OPS=1." OFF)
 
 # Compile-time musl flag. When a target triple is given to the compiler at
 # runtime it takes precedence (see prepare_target_data / init_target_data).
 if (CHEMICAL_MUSL)
     add_compile_definitions(CHEMICAL_MUSL)
+endif()
+
+# MIR lowering counters (see compiler/mir/MIRHotOps.h). Off by default; when on
+# it is a profiling build, so define the macro for every target in this dir.
+if (MIR_OPS_COUNTERS)
+    add_compile_definitions(MIR_OPS_COUNTERS)
 endif()
 
 # Debug builds error messages that are more helpful

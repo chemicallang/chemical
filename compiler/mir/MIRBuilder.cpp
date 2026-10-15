@@ -1,6 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "MIRBuilder.h"
+#include "MIRHotOps.h"
 
 namespace mir {
 
@@ -102,6 +103,7 @@ uint32_t MIRBuilder::add_source(const MIRSourceLoc& loc) {
 
 uint32_t MIRBuilder::emit_impl(MIROpcode op, uint32_t result_or_place,
                                const MIROperand* operands, uint32_t count) {
+    MIR_OP(instrs);
     if (current_block_ == MIR_INVALID_ID || terminated_) {
         ok_ = false;
         error_ = "emit: no current block or block already terminated";

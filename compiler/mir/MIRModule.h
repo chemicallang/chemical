@@ -49,9 +49,10 @@ struct MIRGlobal {
  */
 
 /**
- * A module's MIR. Tables are populated serially before workers start, then
- * treated as immutable. Functions are appended by the coordinator after their
- * artifacts are validated.
+ * A module's MIR. The interning tables (`types`, `constants`, `symbols`) are
+ * mutex-guarded (action E1), so lowering workers may intern concurrently; the
+ * other tables are populated by the coordinator. Functions are appended by the
+ * coordinator after their artifacts are validated.
  */
 struct MIRModule {
     MIRTypeTable types;
@@ -93,10 +94,10 @@ struct MIRModule {
     }
 
     void clear() {
-        types = {};
-        constants = {};
+        types.clear();
+        constants.clear();
         const_exprs = {};
-        symbols = {};
+        symbols.clear();
         functions.clear();
         globals.clear();
         vtables.clear();

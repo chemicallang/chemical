@@ -10,6 +10,7 @@
 #include "MIRModule.h"
 #include "MIRTypeBuilder.h"
 #include "MIRBuilder.h"
+#include "MIRHotOps.h"
 #include "std/chem_string_view.h"
 #include "compiler/async/AsyncLoweringPlan.h"
 
@@ -581,9 +582,13 @@ private:
     /** A bare variant member (`Variant.Member`, no args). */
     ConstExprId build_const_variant_bare(VariantMember* vm, BaseType* type);
     PlaceId place_for_linked(ASTNode* linked) const;
-    void bind(ASTNode* linked, PlaceId place) { var_places_[linked] = place; }
+    void bind(ASTNode* linked, PlaceId place) {
+        MIR_OP(place_bind);
+        var_places_[linked] = place;
+    }
     void bind_name(const chem::string_view& name, PlaceId place) {
         if (name.empty()) return;
+        MIR_OP(name_bind);
         name_places_[std::string(name.data(), name.size())] = place;
         // Debug-info builds only: remember the source identifier so the LLVM
         // emitter can attach a `DILocalVariable` + `llvm.dbg.declare` to the
@@ -595,6 +600,7 @@ private:
     }
     PlaceId place_for_name(const chem::string_view& name) const {
         if (name.empty()) return MIR_INVALID_ID;
+        MIR_OP(name_lookup);
         auto it = name_places_.find(std::string(name.data(), name.size()));
         return it == name_places_.end() ? MIR_INVALID_ID : it->second;
     }

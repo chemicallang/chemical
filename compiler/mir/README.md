@@ -99,6 +99,99 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 31 (2026-10-15) — E1: shared interning is thread-safe
+
+Stage E1 of the parallel-lowering plan (`mir-migration-evaluation.md` §2E). The
+shared module intern tables are now safe to populate from several workers:
+
+- `MIRTypeTable` (`intern`, `append_data`, `append_fields`, `set_name`),
+  `MIRConstantPool` (`add` + every `add_*`; a payload append and the intern that
+  references it stay under one lock, so two workers can never interleave their
+  `data` writes) and `MIRSymbolTable` (`add`) each guard their mutators with a
+  `std::mutex` and grew a `clear()`; `MIRModule::clear()` uses them.
+- **Symbol ids stay un-deduplicated on purpose.** The backends match symbols by
+  *mangled name*, not id (`MIRSymbolTable::mangled_name`), so two workers may
+  intern the same name and both records are valid — no cross-kind name-collision
+  risk from a global name index, and no interaction with the weak-stub pass. The
+  doc comment on `add` records the contract: a reader must consume a
+  `get`/`mangled_name` result without another thread's `add` reallocating the
+  pools in between (the planned worker model lowers and emits in one thread).
+- **Verification.** New `MIRTests::test_table_thread_safety`: 8 threads × 200
+  interns each against one `MIRTypeTable`/`MIRConstantPool` (content-based ids
+  must agree with a serially-built reference, and the pool must not grow past the
+  distinct count) plus 8 × 200 concurrent `MIRSymbolTable::add` (every record
+  intact and its mangled name readable). `MIRTests` **1180 → 4400 checks**, OK.
+- **Cost.** Interleaved A/B of the pre/post `TCCCompiler` on the main-suite cold
+  compile: pre 12.25/13.07/13.40/16.80 s, post 12.17/13.02/15.05/15.79 s —
+  ranges overlap, i.e. **below this machine's noise** (uncontended locks).
+- **Suites.** `--tcc` **2305/2305**, `--llvm` **2303/2303**, `--tcc/--llvm --libs`
+  **718/719** (the environment-sensitive `test_fs_directory_iteration`).
+
+Next per §2E: **E2** — the one-worker `MIRTaskContext` seam (per-worker
+`MIRLowerer` + `MIRArena` + output buffer), still serial and output-invariant.
+
+### Session 30 (2026-10-15) — E (parallel lowering) scoped against the real code
+
+Started action E. Read the lowering/emission seam and wrote the code-grounded
+staged plan into `mir-migration-evaluation.md` §2E rather than landing a
+half-parallel lowering blind. Findings that shape it:
+
+- The emission seam is already artifact-shaped: `lower_and_emit` lowers one
+  function into a per-function `MIRArena` and emits its C into a **local
+  `std::string`** before appending to `visitor.writer` (the async path already
+  concatenates `pre + poll + post + ramp` in order). So "function artifact =
+  bytes + source slot" is a small step.
+- The blockers are the **shared mutable module state**: (1) `intern_function`
+  dedupes via the *per-lowerer* `func_symbols_` then unconditionally appends to
+  `module_.symbols` — two workers would add two symbols for one mangled name, so
+  `MIRSymbolTable` needs a shared, thread-safe `name → id` index; (2) the
+  `MIRTypeBuilder` memo + the `MIRTypeTable`/`MIRConstantPool` interns become
+  concurrent; (3) `CTranslationContext` (`visitor.error`, `iface->active_user`,
+  the mangler) is mutated during lowering and must move to the worker; (4)
+  concurrent interning makes ids/order nondeterministic, so the C merge must be
+  slot-direct in source order.
+
+Staged E1–E4 and an honest payoff bound (lowering ≈ 30 % of the cold build, so
+8-core parallelism caps at ≈ **−20–25 %**, still short of the ≤2.94 s gate —
+hence E alongside a release re-measure) are in §2E. No speculative locks or
+worker machinery landed yet: they would be unmeasured churn until the parallel
+consumer exists.
+
+### Session 29 (2026-10-15) — D3 ("dense tables") is measured and rejected; the D5 counter tool lands
+
+Action D3 (replace `MIRLowerer`'s `std::unordered_map`s with dense tables) was
+started and **stopped on measurement**. The plan itself says D3 "needs a profiler
+or finer phase timers to target" (`mir-migration-evaluation.md` §2D item 3), and
+there is no `perf` on this machine, so the tool came first.
+
+**New tool (D5).** `cmake -DMIR_OPS_COUNTERS=ON` + `MIR_OPS=1` prints a one-line
+tally of lowering work at process exit (`compiler/mir/MIRHotOps.h`; the sites are
+`MIR_OP(...)` macros that compile to nothing when the option is off — default
+builds are byte-for-byte unaffected, verified by rebuild + green suite).
+
+**Measurement** (main suite, `Debug` compiler, `debug_quick`, `--no-cache`,
+two runs):
+
+| Counter | Value |
+|---|---:|
+| `lower_function` calls | 6,726 (6,667–6,723 distinct → **no redundancy**) |
+| MIR instructions emitted | **296,017** |
+| time inside `lower_function` | **2,906–3,194 ms** (≈ 10 µs/instr, ≈ 440 µs/fn) |
+| `MIRTypeBuilder::map` (memo) | 387k |
+| `var_places_` finds / binds | 54k / 20k |
+| `name_places_` finds / binds | 2k / 20k |
+| `intern_function` | 28.5k |
+
+**Verdict.** All eighteen maps together account for ~0.4 M operations — tens of
+milliseconds, i.e. **≈ 1 % of the lowering phase and ≈ 0.3 % of a cold suite
+build**. Dense tables cannot move the compile-time gate. The cost is *per
+function / per instruction* in an unoptimised (`Debug`) compiler plus the front
+end, exactly as session 8 found ("no hot function"). The sized levers remain
+**E — parallel lowering** (≈ 3 s of serial lowering inside a ~9.5–10.8 s cold
+build) and a **release-build re-measure** (the gate has only ever been measured
+with a `Debug` compiler — `mir-migration-evaluation.md` §0). D3 is left undone on
+purpose; the numbers above are the reason.
+
 ### Session 28 (2026-10-15) — cross-module constructor bodies are no longer read (crash fix)
 
 The intermittent `--llvm --libs` compiler crash was a **heap-use-after-free**, caught

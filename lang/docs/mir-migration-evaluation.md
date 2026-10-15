@@ -27,6 +27,16 @@ Branch: `mir`. Supersedes nothing; complements `compiler/mir/README.md`,
 > (D4), the 18 `unordered_map`s (D3) and parallel file lowering (E), which is the
 > only lever sized to the 2.3× compile-time gap.
 >
+> **Status update (2026-10-15, session 26) — multi-statement constructors no
+> longer zero the result temp.** `constructor_writes_whole_value` gained the
+> `... <setup>; return T{...}` and `... var m = T{...}; ...; return m` shapes
+> (ordered_map / unordered_map / mutex / CondVar). Main-suite `memset` sites
+> **424 → 199 (−53%)** across sessions 25–26, generated C **97,144 → 96,920**
+> lines, `tests-tcc.exe` **−9.7 KB**; output differs only by the removed
+> `memset`s; a probe prints identical correct output on both backends; `--tcc`
+> **2305/2305**, `--llvm` **2303/2303**, `--tcc/--llvm --libs` **718/719**.
+> Details: `compiler/mir/README.md`, session 26.
+>
 > **Status update (2026-10-15, session 25) — generated code: two dead
 > `zero_init`s removed.** A full array literal and a `dyn<T>` fat pointer no
 > longer zero a temporary they fully write. Main-suite `memset` sites
@@ -723,9 +733,16 @@ logic; measured by (backend emitter LOC / total MIR LOC) trend.
    `memset` sites **424 → 233 (−45%)**, generated C **97,144 → 96,953** lines,
    `tests-tcc.exe` **−8.7 KB**; output differs only by the removed `memset`s (plus
    the usual generic-ordering jitter); `--tcc` **2305/2305**, `--llvm`
-   **2303/2303**, `--tcc/--llvm --libs` **718/719**. Remaining in C1: the
-   multi-statement constructor cover, call-filled temporaries, partial array
-   literals, `zeroed<T>()` and the string-into-`char[]` tail.
+   **2303/2303**, `--tcc/--llvm --libs` **718/719**. **Sixth bite DONE (session
+   26): multi-statement constructors no longer zero the result temp.**
+   `constructor_writes_whole_value` now also proves `... <setup>; return T{...}`
+   (only a `return` writes the hidden sret) and `... var m = T{...}; ...; return m`
+   — the `std::ordered_map`/`unordered_map`/`mutex`/`CondVar` shapes. Main-suite
+   `memset` sites **424 → 199 (−53%)**, C **97,144 → 96,920** lines,
+   `tests-tcc.exe` **−9.7 KB** cumulative; a probe prints identical correct output
+   on both backends. Remaining in C1: a constructor of another shape, call-filled
+   temporaries, partial array literals, `zeroed<T>()` and the string-into-`char[]`
+   tail.
 2. ~~Collapse `temp = *src; dest = temp` into one copy/`memcpy`; extend the
    single-use collapse to aggregate places and loaded values~~ **DONE
    (session 8)**: a deref load whose only use is the immediately following store

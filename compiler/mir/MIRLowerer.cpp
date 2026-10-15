@@ -1245,16 +1245,94 @@ bool MIRLowerer::constructor_writes_whole_value(FunctionDeclaration* ctor) {
     if (!def) return false;
     const Scope& body = ctor->body.value();
     if (body.nodes.empty()) return false;
+
+    // Shape 1 (the common one): the body is only `return T { ... }` statements.
+    // Each lowers to a whole-value store of the literal's own (fully defined)
+    // temporary into the sret destination.
+    bool all_return_literals = true;
     for (ASTNode* node : body.nodes) {
-        // any other statement (an assignment, an early `if`) makes the exit
-        // paths unprovable
-        if (!node || node->kind() != ASTNodeKind::ReturnStmt) return false;
+        if (!node || node->kind() != ASTNodeKind::ReturnStmt) {
+            all_return_literals = false;
+            break;
+        }
         auto* ret = static_cast<ReturnStatement*>(node);
         Value* v = ret->value;
-        if (!v || v->val_kind() != ValueKind::StructValue) return false;
-        // the literal must construct the same container: a different type would
-        // leave the result to that type's implicit constructor
-        if (v->as_struct_value_unsafe()->linked_extendable() != def) return false;
+        if (!v || v->val_kind() != ValueKind::StructValue) {
+            all_return_literals = false;
+            break;
+        }
+        if (v->as_struct_value_unsafe()->linked_extendable() != def) {
+            all_return_literals = false;
+            break;
+        }
+    }
+    if (all_return_literals) return true;
+
+    // Shape 3: `... <setup stmts>; return T { ... }`. The only statement that
+    // writes the hidden sret is a `return`, so a body whose *only* return is a
+    // final `return T { ... }` of the same container covers the result no matter
+    // what precedes it -- the preceding statements write locals, not the sret.
+    // Restricted to `var`/expression statements before the return, so a nested
+    // `return` (inside an `if`/loop) cannot hide another exit path.
+    if (!body.nodes.empty()) {
+        bool setup_only = true;
+        for (size_t i = 0; i + 1 < body.nodes.size(); ++i) {
+            ASTNode* n = body.nodes[i];
+            if (!n || (n->kind() != ASTNodeKind::VarInitStmt &&
+                       n->kind() != ASTNodeKind::ValueWrapper &&
+                       n->kind() != ASTNodeKind::AccessChainNode)) {
+                setup_only = false;
+                break;
+            }
+        }
+        ASTNode* last = body.nodes.back();
+        if (setup_only && last && last->kind() == ASTNodeKind::ReturnStmt) {
+            auto* ret = static_cast<ReturnStatement*>(last);
+            Value* v = ret->value;
+            if (v && v->val_kind() == ValueKind::StructValue &&
+                v->as_struct_value_unsafe()->linked_extendable() == def) {
+                return true;
+            }
+        }
+    }
+
+    // Shape 2: `... var m = T { ... }; <no-write stmts>; return m`. `m` is fully
+    // defined by its literal -- a literal that does not cover every field is
+    // itself zeroed, so either way the value is complete -- and `return m` is a
+    // whole-value store of `m` into the sret, so the result temporary needs no
+    // caller-side zero. Any statement that could leave `m` partially defined
+    // (an assignment to it, an `if`, a loop, an early return) disqualifies the
+    // body; a bare `var` or expression/call statement is harmless (writing a
+    // field of `m` cannot un-define the bytes already written).
+    for (size_t i = 0; i < body.nodes.size(); ++i) {
+        ASTNode* node = body.nodes[i];
+        if (!node) return false;
+        if (node->kind() == ASTNodeKind::ReturnStmt) {
+            if (i + 1 != body.nodes.size()) return false; // the return must be last
+            auto* ret = static_cast<ReturnStatement*>(node);
+            Value* v = ret->value;
+            if (!v || v->val_kind() != ValueKind::Identifier) return false;
+            ASTNode* linked = v->linked_node();
+            if (!linked || linked->kind() != ASTNodeKind::VarInitStmt) return false;
+            auto* vi = linked->as_var_init_unsafe();
+            if (!vi->value || vi->value->val_kind() != ValueKind::StructValue) return false;
+            if (vi->value->as_struct_value_unsafe()->linked_extendable() != def) return false;
+            // `m` must be a direct statement of this body, so no other statement
+            // here could alias its name
+            bool declared_here = false;
+            for (ASTNode* n : body.nodes) {
+                if (n == linked) {
+                    declared_here = true;
+                    break;
+                }
+            }
+            if (!declared_here) return false;
+            continue;
+        }
+        if (node->kind() == ASTNodeKind::VarInitStmt) continue;
+        if (node->kind() == ASTNodeKind::ValueWrapper) continue;
+        if (node->kind() == ASTNodeKind::AccessChainNode) continue;
+        return false;
     }
     return true;
 }

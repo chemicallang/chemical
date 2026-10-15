@@ -99,6 +99,53 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 26 (2026-10-15) — multi-statement constructors no longer zero the result temp (action C1)
+
+Session 17 skipped the caller-side `zero_init` of a `T(args)` result temporary only
+when the constructor's body was solely `return T { ... }`. The largest remaining
+zeroing class was the **multi-statement** constructor — `std::ordered_map.make`,
+`std::unordered_map.make`, `std::mutex`/`std::CondVar` and their `recursive`
+forms — so `constructor_writes_whole_value` gained two more provable shapes:
+
+- **`... <setup>; return T { ... }`.** The only statement that writes the hidden
+  sret is a `return`, so a body whose *only* `return` is a final `return T { ... }`
+  of the same container covers the result regardless of what precedes it (the
+  setup statements write locals, not the sret). Restricted to `var`, bare
+  expression and bare-call (`AccessChainNode`) setup statements so a nested
+  `return` inside an `if`/loop cannot hide another exit path.
+- **`... var m = T { ... }; <no-write stmts>; return m`.** `m` is fully defined by
+  its literal (a literal that does not cover every field is itself zeroed, so
+  either way the value is complete) and `return m` is a whole-value store.
+
+The literal must construct the *same* container (`linked_extendable() == def`),
+matching the existing proof, and any other statement kind (assignment, `if`,
+loop, extra `return`) keeps the zero.
+
+Measured on this checkout (`Debug`, `debug_quick`, `--no-cache`, `--emit-c`):
+
+| Metric | baseline | session 25 | now |
+|---|---:|---:|---:|
+| Main-suite `memset` sites | 424 | 273 | **199** (**−53%**) |
+| Main-suite generated C lines | 97,144 | 96,994 | **96,920** |
+| `tests-tcc.exe` | 3,665,077 B | 3,656,373 B | **3,655,349 B** |
+
+**Output-invariant except the removals:** the previous-step → this-step normalized
+line multiset differs by exactly the removed `memset`s (34) plus the usual
+generic-ordering jitter (20/20). Verified at runtime with a probe (a
+multi-statement `@make` and a `var m = T { ... }; return m`): **identical correct
+output on both backends**.
+
+| Suite | Result |
+|---|---|
+| `--tcc` | **2305/2305** |
+| `--llvm` | **2303/2303** |
+| `--tcc --libs` / `--llvm --libs` | **718/719** (the known `test_fs_directory_iteration`; the documented `--llvm --libs` compiler flake showed once, green on re-run) |
+
+**What is left of C1.** A constructor whose body is not one of the three shapes
+(e.g. one that assigns `self.field` through an early `if`, or returns a value
+needing an implicit conversion), a temporary whose *address* a call fills, a
+partial array literal's tail, `zeroed<T>()`, and the string-into-`char[]` tail.
+
 ### Session 25 (2026-10-15) — two more dead `zero_init`s (action C1, generated code / runtime)
 
 Two whole-temp `zero_init`s were provably dead and are now conditional:

@@ -4187,8 +4187,20 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 decay = true;
             }
             const PlaceId place = builder_->alloca(at, MIRStorageClass::Temporary);
-            // zero the array so elements not covered by the literal are 0
-            builder_->zero_init(place);
+            // Zero the array so elements not covered by the literal are 0 -- but
+            // only when the literal leaves tail elements. A literal that fills
+            // the array (the common case, including the decayed unsized form,
+            // which is sized to the literal) writes every element, so the
+            // whole-array zero is dead bytes the legacy backend never emitted
+            // (evaluation §1.2, action C1).
+            const bool full_literal =
+                at != MIR_INVALID_ID && at < module_.types.size() &&
+                module_.types.get(at).kind == MIRTypeKind::Array &&
+                arr->values.size() >=
+                    static_cast<size_t>(module_.types.get(at).data_count);
+            if (!full_literal) {
+                builder_->zero_init(place);
+            }
             const TypeId ut = types_.u32_type();
             BaseType* elem_bt = arr->known_elem_type();
             for (size_t i = 0; i < arr->values.size(); ++i) {
@@ -4591,7 +4603,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             const TypeId ft = types_.fat_pointer_type();
             const TypeId voidp = types_.pointer_type(types_.opaque_type(), true);
             const PlaceId temp = builder_->alloca(ft, MIRStorageClass::Temporary);
-            builder_->zero_init(temp);
+            // A fat pointer is `{ void* first; void* second; }` with no padding,
+            // and both fields are written just below -- the whole-temp zero was
+            // dead bytes (evaluation §1.2, action C1).
             ValueId obj_ptr = MIR_NULL;
             // A fat pointer is an *escaping* address: it routinely outlives the
             // call that produced it (that is the whole point of `ret : dyn I`).

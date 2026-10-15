@@ -27,6 +27,14 @@ Branch: `mir`. Supersedes nothing; complements `compiler/mir/README.md`,
 > (D4), the 18 `unordered_map`s (D3) and parallel file lowering (E), which is the
 > only lever sized to the 2.3× compile-time gap.
 >
+> **Status update (2026-10-15, session 25) — generated code: two dead
+> `zero_init`s removed.** A full array literal and a `dyn<T>` fat pointer no
+> longer zero a temporary they fully write. Main-suite `memset` sites
+> **424 → 233 (−45%)**, generated C **97,144 → 96,953** lines, `tests-tcc.exe`
+> **−8.7 KB**; the C output differs only by the removed `memset`s; `--tcc`
+> **2305/2305**, `--llvm` **2303/2303**, `--tcc/--llvm --libs` **718/719**.
+> Details: `compiler/mir/README.md`, session 25.
+>
 > **Status update (2026-10-15, session 24) — the C declare pass prints from a
 > declaration list.** `compiler/mir/MIRDeclList.h` (AST-free item kinds) +
 > `MIRDeclPrinter::decl_list_c` (MIR core, `MIRTests`-covered) replace the
@@ -710,7 +718,14 @@ logic; measured by (backend emitter LOC / total MIR LOC) trend.
    as in `std::mutex.constructor` / `std::CondVar.constructor`), a temporary
    whose address is filled by a call, and default-initializations that are not
    provably complete; the per-constructor details are in the MIR README,
-   session 17.
+   session 17. **Fifth bite DONE (session 25): a full array literal and a
+   `dyn<T>` fat pointer no longer zero a temporary they fully write.** Main-suite
+   `memset` sites **424 → 233 (−45%)**, generated C **97,144 → 96,953** lines,
+   `tests-tcc.exe` **−8.7 KB**; output differs only by the removed `memset`s (plus
+   the usual generic-ordering jitter); `--tcc` **2305/2305**, `--llvm`
+   **2303/2303**, `--tcc/--llvm --libs` **718/719**. Remaining in C1: the
+   multi-statement constructor cover, call-filled temporaries, partial array
+   literals, `zeroed<T>()` and the string-into-`char[]` tail.
 2. ~~Collapse `temp = *src; dest = temp` into one copy/`memcpy`; extend the
    single-use collapse to aggregate places and loaded values~~ **DONE
    (session 8)**: a deref load whose only use is the immediately following store

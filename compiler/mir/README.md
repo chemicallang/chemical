@@ -99,6 +99,46 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 25 (2026-10-15) — two more dead `zero_init`s (action C1, generated code / runtime)
+
+Two whole-temp `zero_init`s were provably dead and are now conditional:
+
+- **A full array literal.** `lower_expr`'s `ValueKind::ArrayValue` case zeroed the
+  array temporary before writing every element. When the literal fills the
+  declared array (`values.size() >= data_count`, including the decayed unsized
+  form, which is sized to the literal) every byte is written, so the whole-array
+  zero was dead. A *partial* literal (`[1,2,3]` into `[5]int`) still zeroes the
+  tail, as before.
+- **A `dyn<T>` fat pointer.** The `DynamicValue` case built
+  `{ void* first; void* second; }` and zeroed it, then wrote **both** fields
+  (`first` = the object address, `second` = the vtable). No padding, so the zero
+  was dead.
+
+Measured on this checkout (`Debug`, `debug_quick`, `--no-cache`, `--emit-c`):
+
+| Metric | before | after |
+|---|---:|---:|
+| Main-suite generated C lines | 97,144 | **96,953** (−191) |
+| Main-suite `memset` sites | 424 | **233** (**−45%**) |
+| `tests-tcc.exe` | 3,665,077 B | **3,656,373 B** (−8.7 KB) |
+
+**Output-invariant except the removals.** The normalized line multiset differs by
+exactly the removed `memset` lines (151 array + 40 fat-pointer) plus the usual
+generic-instantiation ordering jitter (42/42) — no other line changed.
+
+| Suite | Result |
+|---|---|
+| `--tcc` | **2305/2305** |
+| `--llvm` | **2303/2303** |
+| `--tcc --libs` / `--llvm --libs` | **718/719** (the known `test_fs_directory_iteration`) |
+
+**What is left of C1.** The `Type(args)` result temporary is still zeroed when the
+constructor's body is not provably covering — the multi-statement shape
+`{ var m = T { ... }; <call>; return m }` (`std::ordered_map.make`,
+`std::mutex.constructor`, `std::CondVar.constructor`) is the largest remaining
+class (the docs' session 17 residual), plus a temporary whose address a call
+fills, partial array literals, `zeroed<T>()` and the string-into-`char[]` tail.
+
 ### Session 24 (2026-10-15) — the C declaration pass prints from a declaration list (action A3, endgame)
 
 The C declaration pass walked the AST *and* printed C in the same methods. It now

@@ -99,6 +99,55 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 21 (2026-10-15) — vtable declarations are MIR records (action A3 interface residual + B)
+
+`mir_emit_llvm_module` still walked the AST: it iterated `module->direct_files`,
+found `InterfaceDecl`/`ImplDecl` nodes and built the vtable struct types and
+global definitions inline — the last place a backend read the AST. Those
+declarations are now MIR records built by the front end:
+
+- New AST-free `compiler/mir/MIRVtableTable.h`: `MIRVtableSlot` (`name`, `type`,
+  and the resolved callee `target`), `MIRVtableRecord` (the `name`, the struct
+  `type_name`, a `kind` — 0 type / 1 container impl / 2 primitive impl — and the
+  slots) and `MIRVtableTable` (`types` + `defs`). `MIRModule` gained `vtables`.
+- `mir::build_module_vtables(mangler, types, module, nodes)`
+  (`compiler/mir/MIRVtable.cpp`) builds the records from a module's top-level
+  interface/impl nodes. It resolves each slot's callee **once** — the mangling
+  and the interface's `active_user` override — and stores the mangled name; the
+  C and LLVM paths both used to resolve it themselves.
+- Called from `ASTProcessor::implement_module` before the LLVM finish hook
+  (only on the LLVM path), so `mir_emit_llvm_module` reads `m.vtables` and no
+  longer touches the AST at all. Its `mangle`/`nodes` locals and the entire
+  interface/impl walk are deleted.
+
+The C declaration pass is unchanged: `MIRDeclEmitter::create_vtable_type` /
+`create_vtable` keep using `mir_vtable_slots`, which is fine — that emitter is
+the declaration-collection pass, which the binding rule explicitly allows to see
+the AST. What the change removes is a *backend* reading it.
+
+Measured output-invariant for C (the C path's emission is byte-for-byte the same
+modulo the usual jitter): main-suite C is 97,144 lines either side, the
+previous-B-step → this-step normalized diff is **66** against a **46**-line
+same-binary noise floor, and **no vtable line differs** (every residual is a
+generic-instantiation ordering/attribution reference).
+
+| Suite | Result |
+|---|---|
+| `--tcc` | **2305/2305** |
+| `--llvm` | **2303/2303** |
+| `--tcc --libs` / `--llvm --libs` | **718/719** (the known `test_fs_directory_iteration`) |
+| `MIRTests` | **1170 checks** |
+
+The `dyn<I>` / interface-inheritance / primitive-impl tests
+(`lang/tests/common/src/decls/interfaces/{basic,dynamic,primitive_impl}.ch`,
+`lang/tests/src/basic/interface/external.ch`) exercise the records on both
+backends.
+
+**What is left in A3.** The C declaration pass still walks the AST for
+prototypes, typedefs, the globals' declaration flags and the interface/vtable
+*declarations* (the `MIRPrototype`/`MIRTypeDecl` records). That pass is allowed
+to, but the records are the end state. **B** still has shared traversal/naming.
+
 ### Session 20 (2026-10-15) — the interface-vtable layout is shared (action B, third step)
 
 The vtable slot **order** and each slot's **self-erased function type** were

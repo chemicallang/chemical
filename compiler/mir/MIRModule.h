@@ -11,6 +11,7 @@
 #include "MIRConstantPool.h"
 #include "MIRConstExpr.h"
 #include "MIRSymbolTable.h"
+#include "MIRVtableTable.h"
 #include "MIRFunction.h"
 
 #include <span>
@@ -68,6 +69,8 @@ struct MIRModule {
     MIRConstExprTable const_exprs;
     /** Top-level global definitions, with their initializer trees. */
     std::vector<MIRGlobal> globals;
+    /** Interface vtable type/definition records (see MIRVtableTable.h). */
+    MIRVtableTable vtables;
     /**
      * Absolute source file paths, indexed by `MIRSourceLoc::file`. Shared by the
      * whole module (a `MIRSourceLoc` stores only the id, keeping the core
@@ -102,6 +105,7 @@ struct MIRModule {
         symbols = {};
         functions.clear();
         globals.clear();
+        vtables.clear();
         source_files.clear();
     }
 };

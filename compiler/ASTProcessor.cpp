@@ -51,6 +51,7 @@
 #include "compiler/async/AwaitNormalizePass.h"
 #include "compiler/mir/MIREmitter.h"
 #include "compiler/mir/MIRDeclEmitter.h"
+#include "compiler/mir/MIRVtable.h"
 #include "compiler/cbi/model/ASTBuilder.h"
 #include "compiler/mangler/NameMangler.h"
 
@@ -2480,6 +2481,17 @@ int ASTProcessor::implement_module(
     // (see `mir_lower_static_interface_stubs`); the C backend instead emits them
     // once at job end, from `ASTProcessor::emit_static_interface_stubs`.
     if (mir_llvm_collect) {
+        // Build the vtable type/definition records from the module's top-level
+        // declarations, so the LLVM driver emits vtables from MIR (action A3/B)
+        // instead of walking the AST itself.
+        {
+            std::vector<ASTNode*> top;
+            for (auto& file_ptr : module->direct_files) {
+                if (!file_ptr.result) continue;
+                for (ASTNode* n : file_ptr.result->unit.scope.body.nodes) top.push_back(n);
+            }
+            mir::build_module_vtables(c_visitor.mangler, mir_types, mir_module, top);
+        }
         if (mir_lower_static_interface_stubs(c_visitor, mir_module, mir_lowerer,
                                              mir_arena) != 0) {
             had_errors = true;

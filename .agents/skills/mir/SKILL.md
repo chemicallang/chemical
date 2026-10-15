@@ -37,7 +37,7 @@ The AST is a **front-end** artifact (parser, symres, type-checking, `MIRLowerer`
 | per-function facts (block offsets, fall-throughs, place writes/addressed, param aliasing) | `MIRFacts` (`compute_function_facts`) | re-running the analysis in the emitter |
 | names, mangling, linkage | MIR symbol table / `MIRFunction::name` | `mangler_`/AST declaration walks |
 | constants and initializers | `MIRConstantPool`, `MIRConstExprTable` (`MIRConstExpr.h`; global initializers) | AST `Value*` literals |
-| aggregate/prototype/global declarations | MIR declaration tables (`MIRDeclPrinter` + `MIRGlobal` now; `MIRTypeDecl`/`MIRPrototype` as they land) | `StructDefinition`/`FunctionDeclaration` member walks |
+| aggregate/prototype/global declarations | MIR declaration tables (`MIRDeclPrinter` + `MIRGlobal` + `MIRVtableTable` now; `MIRTypeDecl`/`MIRPrototype` as they land) | `StructDefinition`/`FunctionDeclaration` member walks |
 
 Concretely, a backend must **not**: include an `ast/` header; take an
 `ASTNode*`/`BaseType*`/`StructDefinition*`/`FunctionDeclaration*` parameter; walk
@@ -97,8 +97,11 @@ Full statements: `lang/docs/mir-implementation-plan.md` §0 rule 9,
 - `compiler/mir/MIRVtable.{h,cpp}` — the **shared** interface-vtable layout
   (`MIRVtableSlot`, `mir_vtable_slots`, `mir_vtable_slot_type`): slot order and
   self-erased slot types, consumed by both the C declaration emitter and the
-  LLVM emitter so the layout exists once. AST-aware (a slot is an interface
-  method), so it is in the compiler but not in MIRTests.
+  LLVM emitter so the layout exists once. Also `build_module_vtables`, which
+  fills `MIRModule::vtables` (`MIRVtableTable.h`: vtable type/definition records
+  with resolved callee names) so the **LLVM driver emits vtables from MIR and
+  reads no AST**. AST-aware (a slot is an interface method), so it is in the
+  compiler but not in MIRTests.
 - `compiler/CodegenMir.cpp` — MIR→LLVM lowering (AST-free, `COMPILER_BUILD`
   only); the driver is `ASTProcessor::mir_compile_module` in
   `compiler/ASTCompiler.cpp`.

@@ -27,6 +27,18 @@ Branch: `mir`. Supersedes nothing; complements `compiler/mir/README.md`,
 > (D4), the 18 `unordered_map`s (D3) and parallel file lowering (E), which is the
 > only lever sized to the 2.3× compile-time gap.
 >
+> **Status update (2026-10-15, session 21) — vtable declarations are MIR
+> records; the LLVM driver no longer reads the AST.** `MIRModule::vtables`
+> (`MIRVtableTable`) now holds a type record per interface and a definition
+> record per impl (ordered slots, self-erased types, resolved callee names),
+> built by `mir::build_module_vtables` in `implement_module`.
+> `mir_emit_llvm_module` consumes them and its interface/impl AST walk is
+> deleted — the last place a backend read the AST. **Output-invariant**: C is
+> 97,144 lines either side, previous-step → this-step normalized diff 66 against
+> a 46-line noise floor (no vtable line differs); `--tcc` **2305/2305**,
+> `--llvm` **2303/2303**, `--tcc/--llvm --libs` **718/719**, `MIRTests`
+> **1170 checks**. Details: `compiler/mir/README.md`, session 21.
+>
 > **Status update (2026-10-15, session 20) — B's third step: the vtable layout is
 > shared.** The interface vtable slot order and self-erased slot types were the
 > last algorithm both backends derived independently; they now come from
@@ -517,9 +529,15 @@ for aggregates (fixed by item 1 below); two independent C type spellers.
    output-invariant (main-suite C 97,144 lines either side; normalized diff
    42/52 against a 46-line same-binary noise floor); `--tcc` **2305/2305**,
    `--llvm` **2303/2303**, `--tcc/--llvm --libs` **718/719**, `MIRTests`
-   **1154 → 1170**. The globals' *declaration* flags, the collection walk,
-   prototypes, typedefs, interface vtables/static stubs and the general
-   `MIRTypeDecl`/`MIRPrototype` records are still the next step.
+   **1154 → 1170**. **Third bite DONE (session 21): interface vtables are MIR
+   records.** `MIRModule::vtables` (`MIRVtableTable`) holds a type record per
+   interface and a definition record per impl, with resolved callee names, built
+   by `mir::build_module_vtables` in `implement_module` — so
+   `mir_emit_llvm_module` no longer walks the AST at all (see item B step 4).
+   The C declaration pass still uses `mir_vtable_slots`; the C-side vtable
+   *declarations*, prototypes, typedefs, the globals' declaration flags, the
+   collection walk and the general `MIRTypeDecl`/`MIRPrototype` records are still
+   the next step.
 **Acceptance.** No AST headers in the declaration path; one C type speller;
 `MIRTypeRecord.size/alignment` non-zero for aggregates and verified by
 `MIRTests`; C + LLVM output unchanged or smaller.
@@ -566,6 +584,21 @@ the callee resolution stay backend-side. Measured output-invariant for C
 sret). Still open in B: shared traversal/naming and the vtable *declaration*
 records (so the LLVM driver stops walking the AST for interfaces/impls), plus
 the primitive-impl slot alignment noted in the MIR README.
+
+**Step 4 DONE (session 21) — `MIRVtableTable.h` + `build_module_vtables`.** The
+interface/impl vtable *declarations* are now MIR records: `MIRModule::vtables`
+(`MIRVtableTable`) holds a type record per interface and a definition record per
+(interface, impl), each with its ordered slots, self-erased types and resolved
+callee mangled names. They are built by
+`mir::build_module_vtables(mangler, types, module, nodes)` in
+`ASTProcessor::implement_module`, so **`mir_emit_llvm_module` no longer walks the
+AST at all** — the last place a backend read it. The C declaration pass keeps
+using `mir_vtable_slots` (it is the allowed collection pass). Measured
+output-invariant for C (97,144 lines either side; previous-step → this-step
+normalized diff 66 against a 46-line noise floor, no vtable line differs);
+`--tcc` **2305/2305**, `--llvm` **2303/2303**, `--tcc/--llvm --libs`
+**718/719**, `MIRTests` **1170 checks**. Still open in B: shared traversal/
+naming.
 
 **Step 1 DONE (session 15) — `compiler/mir/MIRABI.h`.** The parameter/return
 classification is now shared rather than re-derived: the same rules had been

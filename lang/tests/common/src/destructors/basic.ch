@@ -244,8 +244,9 @@ var my_string_destr_count : int = 0
 struct my_string {
 
     @constructor
+    @expand
     comptime func make(value : %literal_string) {
-        return %runtime_value(constructor(value, intrinsics::size(value)))
+        return constructor(value, intrinsics::size(value))
     }
 
     @constructor

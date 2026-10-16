@@ -30,8 +30,9 @@ struct TrackedTemp {
     var length : size_t
 
     @constructor
+    @expand
     comptime func make(value : %literal_string) {
-        return %runtime_value(constructor2(value, intrinsics::size(value), false))
+        return constructor2(value, intrinsics::size(value), false)
     }
 
     @constructor

@@ -1278,7 +1278,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             if (fd->is_comptime() && comptime_eval_) {
                 if (is_comptime_template_fn(fd)) {
                     return inline_comptime_template(fd, MIRExprResult::void_result(),
-                                                    call->values, error);
+                                                    call, call->values, error);
                 }
                 Value* evaluated = comptime_eval_(call, fd);
                 if (!evaluated) {

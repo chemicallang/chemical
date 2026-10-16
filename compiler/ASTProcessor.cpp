@@ -2544,6 +2544,18 @@ int ASTProcessor::implement_module(
         auto* block = static_cast<ComptimeBlock*>(node);
         c_visitor.comptime_scope.interpret(&block->body);
     });
+    // `@expand` establishes the call site for the duration of the inline so
+    // call-site introspection intrinsics (intrinsics::get_call_loc, …) resolve
+    // to the call, exactly as the interpreter's own frame would.
+    mir_lowerer.set_comptime_call_site([&c_visitor](FunctionCall* call, bool push) {
+        auto* global = c_visitor.comptime_scope.global;
+        if (!global) return;
+        if (push) {
+            global->call_stack.push_back(call);
+        } else if (!global->call_stack.empty()) {
+            global->call_stack.pop_back();
+        }
+    });
     mir_lowerer.set_current_func([&c_visitor, &mir_visitor_mutex](FunctionTypeBody* f) {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         c_visitor.current_func_type = f;
@@ -2850,6 +2862,18 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         auto* block = static_cast<ComptimeBlock*>(node);
         c_visitor.comptime_scope.interpret(&block->body);
+    });
+    // `@expand` establishes the call site for the duration of the inline so
+    // call-site introspection intrinsics (intrinsics::get_call_loc, …) resolve
+    // to the call, exactly as the interpreter's own frame would.
+    mir_lowerer.set_comptime_call_site([&c_visitor](FunctionCall* call, bool push) {
+        auto* global = c_visitor.comptime_scope.global;
+        if (!global) return;
+        if (push) {
+            global->call_stack.push_back(call);
+        } else if (!global->call_stack.empty()) {
+            global->call_stack.pop_back();
+        }
     });
     mir_lowerer.set_current_func([&c_visitor, &mir_visitor_mutex](FunctionTypeBody* f) {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);

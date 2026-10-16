@@ -298,6 +298,7 @@ public:
         comptime_value_eval_ = o.comptime_value_eval_;
         comptime_ctor_eval_ = o.comptime_ctor_eval_;
         comptime_block_eval_ = o.comptime_block_eval_;
+        comptime_call_site_ = o.comptime_call_site_;
         symbol_lookup_ = o.symbol_lookup_;
         set_current_func_ = o.set_current_func_;
         impls_index_ = o.impls_index_;
@@ -338,6 +339,17 @@ public:
     /** Interpret a `comptime { }` block (interpreter-backed, no runtime code). */
     void set_comptime_block_eval(std::function<void(ASTNode*)> fn) {
         comptime_block_eval_ = std::move(fn);
+    }
+
+    /**
+     * Push/pop the interpreter's call stack for the duration of an `@expand`
+     * inline. Call-site introspection intrinsics (`intrinsics::get_call_loc`,
+     * `get_line_no`, …) resolve through that stack; inlining bypasses the
+     * interpreter's own frame for the call, so without this the site would be
+     * reported as the macro's own body.
+     */
+    void set_comptime_call_site(std::function<void(FunctionCall*, bool)> fn) {
+        comptime_call_site_ = std::move(fn);
     }
 
     /** Fallback lookup of a top-level function by name (symbol table). */
@@ -731,6 +743,7 @@ private:
     bool is_comptime_template_fn(FunctionDeclaration* fd);
     /** Inline a comptime-template call; returns the body's `return` value. */
     MIRExprResult inline_comptime_template(FunctionDeclaration* fd, MIRExprResult recv,
+                                           FunctionCall* call,
                                            const std::vector<Value*>& call_values,
                                            std::string& error);
 
@@ -830,6 +843,7 @@ private:
     std::function<Value*(Value*)> comptime_value_eval_;
     std::function<Value*(FunctionDeclaration*, Value*)> comptime_ctor_eval_;
     std::function<void(ASTNode*)> comptime_block_eval_;
+    std::function<void(FunctionCall*, bool)> comptime_call_site_;
     std::function<FunctionDeclaration*(const std::string&)> symbol_lookup_;
     std::function<void(FunctionTypeBody*)> set_current_func_;
     ImplementationsIndex* impls_index_ = nullptr;

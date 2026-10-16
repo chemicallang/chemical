@@ -991,7 +991,7 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
     // arguments may be comptime-only values such as expressive strings)
     if (fd->is_comptime() && comptime_eval_) {
         if (is_comptime_template_fn(fd)) {
-            return inline_comptime_template(fd, recv, call->values, error);
+            return inline_comptime_template(fd, recv, call, call->values, error);
         }
         Value* evaluated = comptime_eval_(call, fd);
         if (!evaluated) {

@@ -522,11 +522,12 @@ public namespace lab {
         return parent_path(std::string_view(path, len))
     }
 
+    @expand
     public comptime func curr_dir() : std::string {
         const call_loc = intrinsics::get_call_loc(9999) // this gets the first runtime call location to this function
         const loc_path = intrinsics::get_loc_file_path(call_loc)
         const loc_path_size = intrinsics::size(loc_path)
-        return %runtime_value(curr_dir_of(loc_path, loc_path_size)) as std::string
+        return curr_dir_of(loc_path, loc_path_size)
     }
 
     // TODO: remove retained, once runtime magic val support is available
@@ -535,11 +536,12 @@ public namespace lab {
         return std::string_view(path, len)
     }
 
+    @expand
     public comptime func get_my_path() : std::string_view {
         const call_loc = intrinsics::get_call_loc(9999) // this gets the first runtime call location to this function
         const loc_path = intrinsics::get_loc_file_path(call_loc)
         const loc_path_size = intrinsics::size(loc_path)
-        return %runtime_value(view_of(loc_path, loc_path_size)) as std::string_view
+        return view_of(loc_path, loc_path_size)
     }
 
     // TODO: remove retained, once runtime magic val support is available
@@ -549,8 +551,9 @@ public namespace lab {
         return str;
     }
 
-    public comptime func rel_path_to(path : *char) : std::string {
-        return %runtime_value(appended_str(curr_dir(), path)) as std::string
+    @expand
+    public comptime func rel_path_to(path : %runtime<*char>) : std::string {
+        return appended_str(curr_dir(), path)
     }
 
 }

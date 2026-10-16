@@ -106,6 +106,7 @@ bool MIRLowerer::is_comptime_template_fn(FunctionDeclaration* fd) {
 }
 
 MIRExprResult MIRLowerer::inline_comptime_template(FunctionDeclaration* fd, MIRExprResult recv,
+                                                   FunctionCall* call,
                                                    const std::vector<Value*>& call_values,
                                                    std::string& error) {
     if (!fd || !fd->body.has_value()) {
@@ -267,7 +268,12 @@ MIRExprResult MIRLowerer::inline_comptime_template(FunctionDeclaration* fd, MIRE
         }
         if (ok) {
             inline_frames_.push_back(frame);
+            // establish the call site so call-site introspection intrinsics
+            // (intrinsics::get_call_loc, …) resolve to this call, exactly as the
+            // interpreter's frame would
+            if (comptime_call_site_ && call) comptime_call_site_(call, true);
             ok = lower_scope_nodes(fd->body.value().nodes, error);
+            if (comptime_call_site_ && call) comptime_call_site_(call, false);
             if (ok && !builder_->current_block_terminated()) {
                 emit_drops_from(dmark);
                 builder_->br(frame.end_block);

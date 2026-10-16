@@ -706,130 +706,130 @@ public comptime func atomic_fence(order : memory_order = memory_order.seq_cst) {
 public comptime func atomic_load_u64(x : %runtime<*u64>, order : memory_order = memory_order.seq_cst) : u64 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__load_u64_dispatch(x)) as u64
+            return (__chx__load_u64_dispatch(x)) as u64
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_load(x, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u64
+            return (intrinsics::llvm::atomic_load(x, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u64
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_load(x, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u64
+        return (intrinsics::llvm::atomic_load(x, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u64
     }
 }
 
 public comptime func atomic_store_u64(x : %runtime<*mut u64>, y : %maybe_runtime<u64>, order : memory_order = memory_order.seq_cst) : int {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__store_u64_dispatch(x, y)) as int
+            return (__chx__store_u64_dispatch(x, y)) as int
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_store(x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as int
+            return (intrinsics::llvm::atomic_store(x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as int
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_store(x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as int
+        return (intrinsics::llvm::atomic_store(x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as int
     }
 }
 
 public comptime func atomic_compare_exchange_weak_u64(x : %runtime<*mut u64>, expected : %runtime<*mut u64>, y : %maybe_runtime<u64>, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__cas_u64_dispatch(x, expected, y)) as bool
+            return (__chx__cas_u64_dispatch(x, expected, y)) as bool
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
+            return (intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(success_order))
-        return %runtime_value(intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, 0, 0, scope_to_int(llvm_atomic_sync_scope.system)))
+        return (intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, 0, 0, scope_to_int(llvm_atomic_sync_scope.system)))
     }
 }
 
 public comptime func atomic_compare_exchange_strong_u64(x : %runtime<*mut u64>, expected : %runtime<*mut u64>, y : %maybe_runtime<u64>, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__cas_u64_dispatch(x, expected, y)) as bool
+            return (__chx__cas_u64_dispatch(x, expected, y)) as bool
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
+            return (intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(success_order))
-        return %runtime_value(intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, 0, 0, scope_to_int(llvm_atomic_sync_scope.system)))
+        return (intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, 0, 0, scope_to_int(llvm_atomic_sync_scope.system)))
     }
 }
 
 public comptime func atomic_exchange_u64(x : %runtime<*mut u64>, y : %maybe_runtime<u64>, order : memory_order = memory_order.seq_cst) : u64 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__exchange_u64_dispatch(x, y)) as u64
+            return (__chx__exchange_u64_dispatch(x, y)) as u64
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Xchg), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u64
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Xchg), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u64
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(0, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u64
+        return (intrinsics::llvm::atomic_op(0, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u64
     }
 }
 
 public comptime func atomic_fetch_add_u64(x : %runtime<*mut u64>, y : %maybe_runtime<u64>, order : memory_order = memory_order.seq_cst) : u64 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__fetch_add_u64_dispatch(x, y)) as u64
+            return (__chx__fetch_add_u64_dispatch(x, y)) as u64
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Add), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u64
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Add), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u64
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(1, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u64
+        return (intrinsics::llvm::atomic_op(1, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u64
     }
 }
 
 public comptime func atomic_fetch_sub_u64(x : %runtime<*mut u64>, y : %maybe_runtime<u64>, order : memory_order = memory_order.seq_cst) : u64 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__fetch_sub_u64_dispatch(x, y)) as u64
+            return (__chx__fetch_sub_u64_dispatch(x, y)) as u64
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Sub), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u64
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Sub), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u64
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(2, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u64
+        return (intrinsics::llvm::atomic_op(2, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u64
     }
 }
 
 public comptime func atomic_fetch_and_u64(x : %runtime<*mut u64>, y : %maybe_runtime<u64>, order : memory_order = memory_order.seq_cst) : u64 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__fetch_and_u64_dispatch(x, y)) as u64
+            return (__chx__fetch_and_u64_dispatch(x, y)) as u64
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.And), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u64
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.And), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u64
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(3, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u64
+        return (intrinsics::llvm::atomic_op(3, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u64
     }
 }
 
 public comptime func atomic_fetch_or_u64(x : %runtime<*mut u64>, y : %maybe_runtime<u64>, order : memory_order = memory_order.seq_cst) : u64 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__fetch_or_u64_dispatch(x, y)) as u64
+            return (__chx__fetch_or_u64_dispatch(x, y)) as u64
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Or), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u64
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Or), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u64
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(5, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u64
+        return (intrinsics::llvm::atomic_op(5, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u64
     }
 }
 
 public comptime func atomic_fetch_xor_u64(x : %runtime<*mut u64>, y : %maybe_runtime<u64>, order : memory_order = memory_order.seq_cst) : u64 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__fetch_xor_u64_dispatch(x, y)) as u64
+            return (__chx__fetch_xor_u64_dispatch(x, y)) as u64
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Xor), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u64
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Xor), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u64
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(6, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u64
+        return (intrinsics::llvm::atomic_op(6, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u64
     }
 }
 
@@ -840,130 +840,130 @@ public comptime func atomic_fetch_xor_u64(x : %runtime<*mut u64>, y : %maybe_run
 public comptime func atomic_load_u32(x : %runtime<*u32>, order : memory_order = memory_order.seq_cst) : u32 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__load_u32_dispatch(x)) as u32
+            return (__chx__load_u32_dispatch(x)) as u32
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_load(x, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u32
+            return (intrinsics::llvm::atomic_load(x, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u32
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_load(x, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u32
+        return (intrinsics::llvm::atomic_load(x, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u32
     }
 }
 
 public comptime func atomic_store_u32(x : %runtime<*mut u32>, y : %maybe_runtime<u32>, order : memory_order = memory_order.seq_cst) : int {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__store_u32_dispatch(x, y)) as int
+            return (__chx__store_u32_dispatch(x, y)) as int
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_store(x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as int
+            return (intrinsics::llvm::atomic_store(x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as int
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_store(x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as int
+        return (intrinsics::llvm::atomic_store(x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as int
     }
 }
 
 public comptime func atomic_compare_exchange_weak_u32(x : %runtime<*mut u32>, expected : %runtime<*mut u32>, y : %maybe_runtime<u32>, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__cas_u32_dispatch(x, expected, y)) as bool
+            return (__chx__cas_u32_dispatch(x, expected, y)) as bool
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
+            return (intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(success_order))
-        return %runtime_value(intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, 0, 0, scope_to_int(llvm_atomic_sync_scope.system)))
+        return (intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, 0, 0, scope_to_int(llvm_atomic_sync_scope.system)))
     }
 }
 
 public comptime func atomic_compare_exchange_strong_u32(x : %runtime<*mut u32>, expected : %runtime<*mut u32>, y : %maybe_runtime<u32>, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__cas_u32_dispatch(x, expected, y)) as bool
+            return (__chx__cas_u32_dispatch(x, expected, y)) as bool
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
+            return (intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(success_order))
-        return %runtime_value(intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, 0, 0, scope_to_int(llvm_atomic_sync_scope.system)))
+        return (intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, 0, 0, scope_to_int(llvm_atomic_sync_scope.system)))
     }
 }
 
 public comptime func atomic_exchange_u32(x : %runtime<*mut u32>, y : %maybe_runtime<u32>, order : memory_order = memory_order.seq_cst) : u32 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__exchange_u32_dispatch(x, y)) as u32
+            return (__chx__exchange_u32_dispatch(x, y)) as u32
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Xchg), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u32
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Xchg), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u32
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(0, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u32
+        return (intrinsics::llvm::atomic_op(0, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u32
     }
 }
 
 public comptime func atomic_fetch_add_u32(x : %runtime<*mut u32>, y : %maybe_runtime<u32>, order : memory_order = memory_order.seq_cst) : u32 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__fetch_add_u32_dispatch(x, y)) as u32
+            return (__chx__fetch_add_u32_dispatch(x, y)) as u32
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Add), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u32
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Add), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u32
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(1, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u32
+        return (intrinsics::llvm::atomic_op(1, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u32
     }
 }
 
 public comptime func atomic_fetch_sub_u32(x : %runtime<*mut u32>, y : %maybe_runtime<u32>, order : memory_order = memory_order.seq_cst) : u32 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__fetch_sub_u32_dispatch(x, y)) as u32
+            return (__chx__fetch_sub_u32_dispatch(x, y)) as u32
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Sub), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u32
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Sub), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u32
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(2, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u32
+        return (intrinsics::llvm::atomic_op(2, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u32
     }
 }
 
 public comptime func atomic_fetch_and_u32(x : %runtime<*mut u32>, y : %maybe_runtime<u32>, order : memory_order = memory_order.seq_cst) : u32 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__fetch_and_u32_dispatch(x, y)) as u32
+            return (__chx__fetch_and_u32_dispatch(x, y)) as u32
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.And), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u32
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.And), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u32
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(3, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u32
+        return (intrinsics::llvm::atomic_op(3, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u32
     }
 }
 
 public comptime func atomic_fetch_or_u32(x : %runtime<*mut u32>, y : %maybe_runtime<u32>, order : memory_order = memory_order.seq_cst) : u32 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__fetch_or_u32_dispatch(x, y)) as u32
+            return (__chx__fetch_or_u32_dispatch(x, y)) as u32
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Or), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u32
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Or), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u32
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(5, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u32
+        return (intrinsics::llvm::atomic_op(5, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u32
     }
 }
 
 public comptime func atomic_fetch_xor_u32(x : %runtime<*mut u32>, y : %maybe_runtime<u32>, order : memory_order = memory_order.seq_cst) : u32 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__fetch_xor_u32_dispatch(x, y)) as u32
+            return (__chx__fetch_xor_u32_dispatch(x, y)) as u32
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Xor), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u32
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Xor), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u32
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(6, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u32
+        return (intrinsics::llvm::atomic_op(6, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u32
     }
 }
 
@@ -974,130 +974,130 @@ public comptime func atomic_fetch_xor_u32(x : %runtime<*mut u32>, y : %maybe_run
 public comptime func atomic_load_u16(x : %runtime<*u16>, order : memory_order = memory_order.seq_cst) : u16 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__load_u16_dispatch(x)) as u16
+            return (__chx__load_u16_dispatch(x)) as u16
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_load(x, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u16
+            return (intrinsics::llvm::atomic_load(x, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u16
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_load(x, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u16
+        return (intrinsics::llvm::atomic_load(x, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u16
     }
 }
 
 public comptime func atomic_store_u16(x : %runtime<*mut u16>, y : %maybe_runtime<u16>, order : memory_order = memory_order.seq_cst) : int {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__store_u16_dispatch(x, y)) as int
+            return (__chx__store_u16_dispatch(x, y)) as int
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_store(x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as int
+            return (intrinsics::llvm::atomic_store(x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as int
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_store(x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as int
+        return (intrinsics::llvm::atomic_store(x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as int
     }
 }
 
 public comptime func atomic_compare_exchange_weak_u16(x : %runtime<*mut u16>, expected : %runtime<*mut u16>, y : %maybe_runtime<u16>, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__cas_u16_dispatch(x, expected, y)) as bool
+            return (__chx__cas_u16_dispatch(x, expected, y)) as bool
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
+            return (intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(success_order))
-        return %runtime_value(intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, 0, 0, scope_to_int(llvm_atomic_sync_scope.system)))
+        return (intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, 0, 0, scope_to_int(llvm_atomic_sync_scope.system)))
     }
 }
 
 public comptime func atomic_compare_exchange_strong_u16(x : %runtime<*mut u16>, expected : %runtime<*mut u16>, y : %maybe_runtime<u16>, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__cas_u16_dispatch(x, expected, y)) as bool
+            return (__chx__cas_u16_dispatch(x, expected, y)) as bool
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
+            return (intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(success_order))
-        return %runtime_value(intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, 0, 0, scope_to_int(llvm_atomic_sync_scope.system)))
+        return (intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, 0, 0, scope_to_int(llvm_atomic_sync_scope.system)))
     }
 }
 
 public comptime func atomic_exchange_u16(x : %runtime<*mut u16>, y : %maybe_runtime<u16>, order : memory_order = memory_order.seq_cst) : u16 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__exchange_u16_dispatch(x, y)) as u16
+            return (__chx__exchange_u16_dispatch(x, y)) as u16
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Xchg), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u16
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Xchg), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u16
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(0, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u16
+        return (intrinsics::llvm::atomic_op(0, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u16
     }
 }
 
 public comptime func atomic_fetch_add_u16(x : %runtime<*mut u16>, y : %maybe_runtime<u16>, order : memory_order = memory_order.seq_cst) : u16 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__fetch_add_u16_dispatch(x, y)) as u16
+            return (__chx__fetch_add_u16_dispatch(x, y)) as u16
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Add), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u16
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Add), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u16
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(1, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u16
+        return (intrinsics::llvm::atomic_op(1, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u16
     }
 }
 
 public comptime func atomic_fetch_sub_u16(x : %runtime<*mut u16>, y : %maybe_runtime<u16>, order : memory_order = memory_order.seq_cst) : u16 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__fetch_sub_u16_dispatch(x, y)) as u16
+            return (__chx__fetch_sub_u16_dispatch(x, y)) as u16
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Sub), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u16
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Sub), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u16
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(2, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u16
+        return (intrinsics::llvm::atomic_op(2, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u16
     }
 }
 
 public comptime func atomic_fetch_and_u16(x : %runtime<*mut u16>, y : %maybe_runtime<u16>, order : memory_order = memory_order.seq_cst) : u16 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__fetch_and_u16_dispatch(x, y)) as u16
+            return (__chx__fetch_and_u16_dispatch(x, y)) as u16
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.And), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u16
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.And), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u16
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(3, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u16
+        return (intrinsics::llvm::atomic_op(3, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u16
     }
 }
 
 public comptime func atomic_fetch_or_u16(x : %runtime<*mut u16>, y : %maybe_runtime<u16>, order : memory_order = memory_order.seq_cst) : u16 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__fetch_or_u16_dispatch(x, y)) as u16
+            return (__chx__fetch_or_u16_dispatch(x, y)) as u16
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Or), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u16
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Or), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u16
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(5, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u16
+        return (intrinsics::llvm::atomic_op(5, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u16
     }
 }
 
 public comptime func atomic_fetch_xor_u16(x : %runtime<*mut u16>, y : %maybe_runtime<u16>, order : memory_order = memory_order.seq_cst) : u16 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__fetch_xor_u16_dispatch(x, y)) as u16
+            return (__chx__fetch_xor_u16_dispatch(x, y)) as u16
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Xor), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u16
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Xor), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u16
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(6, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u16
+        return (intrinsics::llvm::atomic_op(6, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u16
     }
 }
 
@@ -1108,130 +1108,130 @@ public comptime func atomic_fetch_xor_u16(x : %runtime<*mut u16>, y : %maybe_run
 public comptime func atomic_load_u8(x : %runtime<*u8>, order : memory_order = memory_order.seq_cst) : u8 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__load_u8_dispatch(x)) as u8
+            return (__chx__load_u8_dispatch(x)) as u8
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_load(x, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u8
+            return (intrinsics::llvm::atomic_load(x, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u8
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_load(x, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u8
+        return (intrinsics::llvm::atomic_load(x, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u8
     }
 }
 
 public comptime func atomic_store_u8(x : %runtime<*mut u8>, y : %maybe_runtime<u8>, order : memory_order = memory_order.seq_cst) : int {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__store_u8_dispatch(x, y)) as int
+            return (__chx__store_u8_dispatch(x, y)) as int
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_store(x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as int
+            return (intrinsics::llvm::atomic_store(x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as int
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_store(x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as int
+        return (intrinsics::llvm::atomic_store(x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as int
     }
 }
 
 public comptime func atomic_compare_exchange_weak_u8(x : %runtime<*mut u8>, expected : %runtime<*mut u8>, y : %maybe_runtime<u8>, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__cas_u8_dispatch(x, expected, y)) as bool
+            return (__chx__cas_u8_dispatch(x, expected, y)) as bool
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
+            return (intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(success_order))
-        return %runtime_value(intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, 0, 0, scope_to_int(llvm_atomic_sync_scope.system)))
+        return (intrinsics::llvm::atomic_cmp_exch_weak(x, expected, y, 0, 0, scope_to_int(llvm_atomic_sync_scope.system)))
     }
 }
 
 public comptime func atomic_compare_exchange_strong_u8(x : %runtime<*mut u8>, expected : %runtime<*mut u8>, y : %maybe_runtime<u8>, success_order : memory_order = memory_order.seq_cst, failure_order : memory_order = memory_order.seq_cst) : bool {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__cas_u8_dispatch(x, expected, y)) as bool
+            return (__chx__cas_u8_dispatch(x, expected, y)) as bool
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
+            return (intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, llvm_mem_order(success_order), llvm_mem_order(failure_order), scope_to_int(llvm_atomic_sync_scope.system)))
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(success_order))
-        return %runtime_value(intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, 0, 0, scope_to_int(llvm_atomic_sync_scope.system)))
+        return (intrinsics::llvm::atomic_cmp_exch_strong(x, expected, y, 0, 0, scope_to_int(llvm_atomic_sync_scope.system)))
     }
 }
 
 public comptime func atomic_exchange_u8(x : %runtime<*mut u8>, y : %maybe_runtime<u8>, order : memory_order = memory_order.seq_cst) : u8 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__exchange_u8_dispatch(x, y)) as u8
+            return (__chx__exchange_u8_dispatch(x, y)) as u8
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Xchg), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u8
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Xchg), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u8
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(0, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u8
+        return (intrinsics::llvm::atomic_op(0, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u8
     }
 }
 
 public comptime func atomic_fetch_add_u8(x : %runtime<*mut u8>, y : %maybe_runtime<u8>, order : memory_order = memory_order.seq_cst) : u8 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__fetch_add_u8_dispatch(x, y)) as u8
+            return (__chx__fetch_add_u8_dispatch(x, y)) as u8
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Add), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u8
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Add), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u8
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(1, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u8
+        return (intrinsics::llvm::atomic_op(1, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u8
     }
 }
 
 public comptime func atomic_fetch_sub_u8(x : %runtime<*mut u8>, y : %maybe_runtime<u8>, order : memory_order = memory_order.seq_cst) : u8 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__fetch_sub_u8_dispatch(x, y)) as u8
+            return (__chx__fetch_sub_u8_dispatch(x, y)) as u8
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Sub), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u8
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Sub), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u8
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(2, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u8
+        return (intrinsics::llvm::atomic_op(2, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u8
     }
 }
 
 public comptime func atomic_fetch_and_u8(x : %runtime<*mut u8>, y : %maybe_runtime<u8>, order : memory_order = memory_order.seq_cst) : u8 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__fetch_and_u8_dispatch(x, y)) as u8
+            return (__chx__fetch_and_u8_dispatch(x, y)) as u8
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.And), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u8
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.And), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u8
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(3, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u8
+        return (intrinsics::llvm::atomic_op(3, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u8
     }
 }
 
 public comptime func atomic_fetch_or_u8(x : %runtime<*mut u8>, y : %maybe_runtime<u8>, order : memory_order = memory_order.seq_cst) : u8 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__fetch_or_u8_dispatch(x, y)) as u8
+            return (__chx__fetch_or_u8_dispatch(x, y)) as u8
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Or), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u8
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Or), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u8
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(5, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u8
+        return (intrinsics::llvm::atomic_op(5, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u8
     }
 }
 
 public comptime func atomic_fetch_xor_u8(x : %runtime<*mut u8>, y : %maybe_runtime<u8>, order : memory_order = memory_order.seq_cst) : u8 {
     comptime if(has_atomic_builtins()) {
         comptime if(intrinsics::get_backend_name() == "C") {
-            return %runtime_value(__chx__fetch_xor_u8_dispatch(x, y)) as u8
+            return (__chx__fetch_xor_u8_dispatch(x, y)) as u8
         } else {
-            return %runtime_value(intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Xor), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u8
+            return (intrinsics::llvm::atomic_op(llvm_atomic_op_to_int(llvm_atomic_op.Xor), x, y, llvm_mem_order(order), scope_to_int(llvm_atomic_sync_scope.system))) as u8
         }
     } else {
         intrinsics::llvm::atomic_signal_fence(llvm_mem_order(order))
-        return %runtime_value(intrinsics::llvm::atomic_op(6, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u8
+        return (intrinsics::llvm::atomic_op(6, x, y, 0, scope_to_int(llvm_atomic_sync_scope.system))) as u8
     }
 }
 

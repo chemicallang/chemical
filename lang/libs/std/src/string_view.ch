@@ -10,7 +10,7 @@ public namespace std {
         @implicit
         @constructor
         comptime func make(value : %literal_string) {
-            return %runtime_value(constructor(value, intrinsics::size(value)))
+            return constructor(value, intrinsics::size(value))
         }
 
         @constructor

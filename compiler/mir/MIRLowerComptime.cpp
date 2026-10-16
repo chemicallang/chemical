@@ -92,7 +92,8 @@ bool MIRLowerer::is_comptime_template_fn(FunctionDeclaration* fd) {
     for (FunctionParam* p : fd->params) {
         if (!p || !p->type) continue;
         const BaseTypeKind k = p->type->kind();
-        if (k == BaseTypeKind::Runtime || k == BaseTypeKind::MaybeRuntime) {
+        if (k == BaseTypeKind::Runtime || k == BaseTypeKind::MaybeRuntime ||
+            k == BaseTypeKind::Literal) {
             return true;
         }
     }

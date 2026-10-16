@@ -452,7 +452,8 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
                 if (!ctor && acall->values.empty()) ctor = conv_type->get_def_constructor();
                 const TypeId mt = types_.map(conv_type);
                 const PlaceId tmp = builder_->alloca(mt, MIRStorageClass::Temporary);
-                std::vector<MIROperand> cargs;
+                MIRArgScope _ag_scope(*this);
+                std::vector<MIROperand>& cargs = _ag_scope.v;
                 const bool ctor_self = ctor && ctor->get_self_param() != nullptr;
                 if (!lower_call_args_for(ctor, ctor_self, acall->values, cargs, error)) {
                     return MIRExprResult::error();
@@ -523,7 +524,8 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
                 }
                 const TypeId mt = types_.map(inst);
                 const PlaceId tmp = builder_->alloca(mt, MIRStorageClass::Temporary);
-                std::vector<MIROperand> cargs;
+                MIRArgScope _ag_scope(*this);
+                std::vector<MIROperand>& cargs = _ag_scope.v;
                 std::vector<Value*> one{arg};
                 if (!lower_call_args(one, cargs, error)) return MIRExprResult::error();
                 const SymbolId sym = intern_function(imp);
@@ -544,7 +546,8 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
             }
             const TypeId mt = types_.map(conv_type);
             const PlaceId tmp = builder_->alloca(mt, MIRStorageClass::Temporary);
-            std::vector<MIROperand> cargs;
+            MIRArgScope _ag_scope(*this);
+            std::vector<MIROperand>& cargs = _ag_scope.v;
             std::vector<Value*> one{arg};
             if (!lower_call_args(one, cargs, error)) return MIRExprResult::error();
             const SymbolId sym = intern_function(imp);
@@ -1056,7 +1059,8 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
         return MIRExprResult::value(dv, dtype);
     }
 
-    std::vector<MIROperand> args;
+    MIRArgScope _ag_scope(*this);
+    std::vector<MIROperand>& args = _ag_scope.v;
     if (!append_receiver_arg(recv, recv_type, fd, args, error)) {
         return MIRExprResult::error();
     }

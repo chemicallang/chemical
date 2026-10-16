@@ -1080,7 +1080,8 @@ bool MIRLowerer::lower_async_main_trampoline(FunctionDeclaration* decl, const MI
     // call the ramp: it writes the FutureHandle<T> through its sret slot
     const PlaceId handle_place = b.alloca(handle_t, MIRStorageClass::Local);
     {
-        std::vector<MIROperand> args;
+        MIRArgScope _ag_scope(*this);
+        std::vector<MIROperand>& args = _ag_scope.v;
         args.reserve(params.size() + 1);
         args.push_back(MIROperand::value(b.address_of(handle_place, handle_ptr_t), handle_ptr_t));
         for (size_t i = 0; i < params.size(); ++i) {

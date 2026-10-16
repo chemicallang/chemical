@@ -14,6 +14,7 @@
 #include "std/chem_string_view.h"
 #include "compiler/async/AsyncLoweringPlan.h"
 
+#include <deque>
 #include <functional>
 #include <set>
 #include <string>
@@ -149,8 +150,11 @@ struct MIRStringEq {
  * place bindings, callee -> symbol bindings). Not thread-safe; one instance is
  * owned by each worker (or created per function).
  */
+struct MIRArgScope;
+
 class MIRLowerer {
 public:
+    friend struct MIRArgScope;
     MIRLowerer(MIRModule& module, MIRTypeBuilder& types)
         : module_(module), types_(types) {}
 
@@ -688,6 +692,21 @@ private:
      */
     std::unordered_map<FunctionParam*, ValueId> aggregate_param_ptrs_;
     std::vector<std::pair<PlaceId, BaseType*>> call_temps_;
+    /**
+     * Pooled operand buffers for call/construction arguments, so lowering a call
+     * does not allocate a fresh `std::vector<MIROperand>` per call site. A deque
+     * so acquiring a nested buffer cannot invalidate an outer buffer's address;
+     * a buffer keeps its capacity across reuse. Driven by `MIRArgScope`.
+     */
+    std::deque<std::vector<MIROperand>> arg_pool_;
+    size_t arg_pool_depth_ = 0;
+    std::vector<MIROperand>& acquire_args() {
+        if (arg_pool_depth_ == arg_pool_.size()) arg_pool_.emplace_back();
+        std::vector<MIROperand>& v = arg_pool_[arg_pool_depth_++];
+        v.clear();
+        return v;
+    }
+    void release_args() { --arg_pool_depth_; }
     struct MIRDestructible {
         PlaceId place;
         PlaceId flag;
@@ -800,6 +819,25 @@ private:
     std::vector<PlaceId> async_result_places_;
     std::vector<std::vector<std::pair<PlaceId, uint32_t>>> async_spills_;
     std::vector<BlockId> async_cont_blocks_;
+};
+
+/**
+ * RAII handle over `MIRLowerer`'s pooled operand buffers. Construct it in place
+ * of a local `std::vector<MIROperand>`:
+ *
+ *     MIRArgScope _args(*this);
+ *     std::vector<MIROperand>& args = _args.v;
+ *
+ * and drop the local when it goes out of scope. Recursion-safe (each nesting
+ * level takes a deeper pool slot) and allocation-free after the pool warms up.
+ */
+struct MIRArgScope {
+    MIRLowerer& owner;
+    std::vector<MIROperand>& v;
+    explicit MIRArgScope(MIRLowerer& o) : owner(o), v(o.acquire_args()) {}
+    ~MIRArgScope() { owner.release_args(); }
+    MIRArgScope(const MIRArgScope&) = delete;
+    MIRArgScope& operator=(const MIRArgScope&) = delete;
 };
 
 } // namespace mir

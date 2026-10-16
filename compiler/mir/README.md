@@ -99,6 +99,29 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 38 (2026-10-16) — pooled operand buffers: no per-call argument vector
+
+`lower_call_args` and the construction sites each declared a fresh
+`std::vector<MIROperand>` for the call's arguments, so every call/construction in
+the AST heap-allocated (libstdc++ vectors have no inline storage). `MIRLowerer`
+now owns a pool of operand buffers and `MIRArgScope` hands one out (cleared, but
+keeping its capacity) and returns it on scope exit:
+
+```cpp
+MIRArgScope _args(*this);
+std::vector<MIROperand>& args = _args.v;
+```
+
+Thirteen sites converted. The pool is a `std::deque` so acquiring a nested buffer
+cannot invalidate an outer buffer's address, and it is indexed by a depth
+counter, so recursive lowering (a call inside an argument) takes a deeper slot;
+after warm-up the common path allocates nothing.
+
+Output-invariant: main-suite C is 96,825 lines either side and the normalized
+line-multiset diff is **40** against the **62-line** same-binary floor.
+`MIRTests` 4400; `--tcc` **2307/2307**; `--llvm` **2305/2305**;
+`--tcc --interpret` **1897/1897**.
+
 ### Session 37 (2026-10-16) — lowering allocation sweep: no per-identifier / per-literal strings
 
 The lowering hot path constructed strings and containers it did not need. This

@@ -528,7 +528,8 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     }
                     const TypeId mt = types_.map(member_type);
                     const PlaceId tmp = builder_->alloca(mt, MIRStorageClass::Temporary);
-                    std::vector<MIROperand> cargs;
+                    MIRArgScope _ag_scope(*this);
+                    std::vector<MIROperand>& cargs = _ag_scope.v;
                     std::vector<Value*> one{init.value};
                     if (!lower_call_args(one, cargs, error)) return MIRExprResult::error();
                     const SymbolId sym = intern_function(implicit);
@@ -675,7 +676,8 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 if (ev) return lower_expr(ev, error);
             }
             FunctionDeclaration* fd = nullptr;
-            std::vector<MIROperand> args;
+            MIRArgScope _ag_scope(*this);
+            std::vector<MIROperand>& args = _ag_scope.v;
 
             // variant construction: `Variant.Member(args)` / `ns.Variant.Member(args)`
             {
@@ -855,7 +857,8 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     Value* ev = comptime_eval_(call, ctor);
                     if (ev) return lower_expr(ev, error);
                 }
-                std::vector<MIROperand> cargs;
+                MIRArgScope _ag_scope(*this);
+                std::vector<MIROperand>& cargs = _ag_scope.v;
                 // constructors have no `self` parameter in `params` (the result
                 // is passed through the hidden sret pointer)
                 const bool ctor_self = ctor && ctor->get_self_param() != nullptr;
@@ -930,7 +933,8 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         if (!ctor && call->getType() && call->values.empty()) {
                             ctor = call->getType()->get_def_constructor();
                         }
-                        std::vector<MIROperand> cargs;
+                        MIRArgScope _ag_scope(*this);
+                        std::vector<MIROperand>& cargs = _ag_scope.v;
                         const bool ctor_self = ctor && ctor->get_self_param() != nullptr;
                         if (!lower_call_args_for(ctor, ctor_self, call->values, cargs, error)) {
                             return MIRExprResult::error();
@@ -1065,7 +1069,8 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                                         ast_params.push_back(p ? p->type : nullptr);
                                     }
                                 }
-                                std::vector<MIROperand> cargs;
+                                MIRArgScope _ag_scope(*this);
+                                std::vector<MIROperand>& cargs = _ag_scope.v;
                                 const size_t cmark = call_temps_.size();
                                 if (!lower_call_args_for(nullptr, false, call->values, cargs,
                                                          error, &ast_params)) {
@@ -1121,7 +1126,8 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                                 (fpr.kind == MIRExprKind::Place)
                                     ? builder_->load(static_cast<PlaceId>(fpr.id), fpr.type)
                                     : static_cast<ValueId>(fpr.id);
-                            std::vector<MIROperand> cargs;
+                            MIRArgScope _ag_scope(*this);
+                            std::vector<MIROperand>& cargs = _ag_scope.v;
                             const size_t cmark = call_temps_.size();
                             if (!lower_call_args_for(nullptr, false, call->values, cargs, error,
                                                      &ast_params)) {
@@ -1218,7 +1224,8 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         }
                     }
                     const ValueId fnptr = builder_->load(fp, ft);
-                    std::vector<MIROperand> cargs;
+                    MIRArgScope _ag_scope(*this);
+                    std::vector<MIROperand>& cargs = _ag_scope.v;
                     const size_t cmark = call_temps_.size();
                     if (!lower_call_args_for(nullptr, false, call->values, cargs, error,
                                              &ast_params)) {

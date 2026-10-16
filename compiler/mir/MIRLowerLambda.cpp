@@ -244,7 +244,8 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
     const ValueId dataptr = (dr.kind == MIRExprKind::Place)
                                 ? builder_->load(static_cast<PlaceId>(dr.id), dr.type)
                                 : static_cast<ValueId>(dr.id);
-    std::vector<MIROperand> cargs;
+    MIRArgScope _ag_scope(*this);
+    std::vector<MIROperand>& cargs = _ag_scope.v;
     cargs.push_back(MIROperand::value(dataptr, vpt));
     // The closure's AST function type carries the parameter types, so pass them
     // down: `lower_call_args_for` uses them to tell a by-value aggregate

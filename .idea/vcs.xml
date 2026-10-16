@@ -2,6 +2,7 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/assignfy" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/cars" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/components" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/components-e2e" vcs="Git" />
@@ -9,11 +10,13 @@
     <mapping directory="$PROJECT_DIR$/lang/compiled/mbedtls" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/mongodb" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/playground" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/probe_remote/build/remote/github.com/chemicallang/mongodb" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/compiled/probe_remote/build/remote/github.com/chemicallang/mongodb@linux-x64" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/quiz" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/secure_net" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/totp" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lang/compiled/wakaztahir.github.io" vcs="Git" />
-    <mapping directory="$PROJECT_DIR$/lang/tests/build/chemical-tests.dir/remote/github.com/chemicallang/example@v1.0" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/lang/tests/submod3/build/remote/github.com/chemicallang/example@v1.0" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/lib/lsp-framework" vcs="Git" />
   </component>
 </project>

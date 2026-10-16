@@ -99,6 +99,23 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 42 (2026-10-16) — reuse the per-function emitter scratch tables; drop a field-path copy
+
+- `emit_function_c` no longer allocates its per-function scratch on every call:
+  `MIRFunctionFacts` (seven vectors), the inline-expression table
+  (`std::vector<std::string>`) and the parameter-type list are now single reused
+  `thread_local` objects (`assign`/`clear` keep their capacity), and `MIRFacts`'
+  internal `candidate` table is the same. One emitter runs per thread, and
+  emitting two functions is never nested, so a thread_local is the right home.
+- `member_field_path` writes the (possibly inherited) field path straight into
+  its output instead of building an intermediate string and copying it, once per
+  member access.
+
+Output-invariant: main-suite C is 96,825 lines either side and the normalized
+diff is **50** (the same-binary floor is 62). `MIRTests` 4400; `--tcc`
+**2307/2307**; `--llvm` **2305/2305**; `--tcc --async` **53/53**; `--tcc --interpret`
+**1897/1897**; `--tcc --libs` **718/719**.
+
 ### Session 41 (2026-10-16) — the C emitter appends straight into the buffer
 
 The emitter built a heap `std::string` per operand / type / field access:

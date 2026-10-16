@@ -613,7 +613,9 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                            function.symbol < module.symbols.size() &&
                            module.symbols.get(function.symbol).linkage == MIRLinkage::Internal;
 
-    std::vector<TypeId> ptypes;
+    // reused across calls so the parameter-type list does not reallocate per function
+    static thread_local std::vector<TypeId> ptypes;
+    ptypes.clear();
     ptypes.reserve(ftr.data_count);
     for (uint32_t i = 0; i < ftr.data_count; ++i) {
         ptypes.push_back(module.types.data[ftr.data_offset + i]);
@@ -647,7 +649,9 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
     // dead text and an extra jump target for the C compiler, which the legacy
     // translator never emitted, and a branch to the block starting at the very
     // next instruction is a fall-through that prints no jump at all.
-    MIRFunctionFacts facts;
+    // Reused across calls (one emitter runs per thread): the facts vectors keep
+    // their capacity, so computing facts allocates nothing after warm-up.
+    static thread_local MIRFunctionFacts facts;
     compute_function_facts(module, function, facts);
     const std::vector<BlockId>& label_at = facts.label_at_inst;
     const std::vector<uint8_t>& block_starts = facts.block_starts_inst;
@@ -656,7 +660,10 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
     // collapsed into its use site (address chains, arithmetic, casts,
     // constants). This keeps the generated C close to the legacy translator's
     // output and avoids TinyCC spilling a stack temporary per MIR instruction.
-    std::vector<std::string> inline_expr(function.values.size());
+    // Reused across calls so the inline-expression table does not reallocate per
+    // function; `assign` keeps its capacity.
+    static thread_local std::vector<std::string> inline_expr;
+    inline_expr.assign(function.values.size(), std::string());
     struct InlineGuard {
         const std::vector<std::string>* prev;
         const std::vector<uint32_t>* prev_alias;

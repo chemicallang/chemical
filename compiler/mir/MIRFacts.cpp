@@ -114,7 +114,9 @@ void compute_function_facts(const MIRModule& module, const MIRFunction& function
     {
         // the argument index a place's single store copies, when that store
         // stores the parameter value itself
-        std::vector<uint32_t> candidate(nplace, MIR_INVALID_ID);
+        // reused across calls so the candidate table does not reallocate per function
+        static thread_local std::vector<uint32_t> candidate;
+        candidate.assign(nplace, MIR_INVALID_ID);
         auto is_param_place = [&](const MIROperand* op) {
             return op && op->kind() == MIROperandKind::Place && op->id < nplace &&
                    function.places[op->id].storage_class ==

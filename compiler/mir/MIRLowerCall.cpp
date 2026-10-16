@@ -44,9 +44,9 @@ bool MIRLowerer::member_field_path(Value* base, Value* member, std::string& out,
     }
     ASTNode* cn = bt ? bt->get_direct_linked_canonical_node() : nullptr;
     if (mnode && cn) {
-        std::string path;
-        if (inherited_field_path(cn, mnode, path)) {
-            out = path;
+        // `inherited_field_path` only writes `out` on success, so a direct write
+        // avoids the intermediate string + copy this used to build per access.
+        if (inherited_field_path(cn, mnode, out)) {
             return true;
         }
     }

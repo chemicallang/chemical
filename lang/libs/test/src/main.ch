@@ -260,5 +260,5 @@ public comptime func test_runner_handle() : TestRunnerHandle {
 
 public comptime func test_runner(argc : %maybe_runtime<int>, argv : %runtime<**char>) : int {
     const t = get_tests()
-    return %runtime_value(run_test_runner(std::span<TestFunction>(t), argc, argv)) as int
+    return run_test_runner(std::span<TestFunction>(t), argc, argv)
 }

@@ -375,9 +375,10 @@ func ut_parse_args(argc : int, argv : **char, names : &mut vector<string_view>, 
 // `universal_test_runner` is comptime so `ut_all()` is evaluated at the user's
 // call site -- i.e. after the module containing the #universal_test declarations
 // has been parsed and collected (mirrors the `test` library's `test_runner`).
+@expand
 public comptime func universal_test_runner(argc : %maybe_runtime<int>, argv : %runtime<**char>) : int {
     const tests = ut_all()
-    return %runtime_value(run_universal_tests(std::span<UTFunction>(tests), argc, argv)) as int
+    return run_universal_tests(std::span<UTFunction>(tests), argc, argv)
 }
 
 /**
@@ -483,7 +484,8 @@ public func make_universal_runner_handle(tests : std::span<UTFunction>) : TestRu
  * Comptime builder for a runnable #universal_test runner handle. Evaluated at
  * the call site so `ut_all()` sees the caller's declarations.
  */
+@expand
 public comptime func universal_test_runner_handle() : TestRunnerHandle {
     const tests = ut_all()
-    return %runtime_value(make_universal_runner_handle(std::span<UTFunction>(tests)))
+    return make_universal_runner_handle(std::span<UTFunction>(tests))
 }

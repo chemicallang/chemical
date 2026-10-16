@@ -7,11 +7,12 @@ struct Pair66 {
 
     @implicit
     @constructor
+    @expand
     comptime func check(value : bool) {
         if(value){
-            return %runtime_value(first())
+            return first()
         } else {
-            return %runtime_value(second())
+            return second()
         }
     }
 
@@ -106,8 +107,9 @@ comptime func return_runtime_sum() : (a : int, b : int) => int {
     return runtime_sum;
 }
 
+@expand
 comptime func sum_multiple(x : int) : int {
-    return %runtime_value(runtime_sum(x * 2, x * 2)) as int;
+    return runtime_sum(x * 2, x * 2);
 }
 
 func ret_struct_comptime() : Pair66 {
@@ -129,8 +131,9 @@ func ret_struct_implicit_b() : Pair66 {
 @retained
 struct CompTimeCounter {
     @constructor
+    @expand
     comptime func constructor(thing : %runtime<*mut int>) {
-        return %runtime_value(actual(thing, 1));
+        return actual(thing, 1);
     }
     @constructor
     func actual(thing : *mut int, inc : int) {

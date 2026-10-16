@@ -99,6 +99,42 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 34 (2026-10-16) — an empty array literal no longer double-writes a struct field (action C1, seventh bite)
+
+A struct literal with an **empty** array initializer for a fixed-size array field
+— `default_function_instance { …, buffer : [] }`, the shape `std::function` uses
+everywhere (`lang/libs/std/src/function.ch`) — wrote the field's bytes **three
+times**: the whole-temp `zero_init` (forced by the partial-array guard), a zeroed
+scratch `char[N]` temporary, and a whole-width `memcpy` of that scratch into the
+field. The scratch and the copy are dead once the enclosing temp is zeroed: the
+field's bytes are already defined.
+
+`MIRLowerer`'s struct-literal lowering now skips the field store when the
+initializer is an empty array literal for a fixed-size array field and the
+enclosing temp is `zero_init`'d (`!all_defined`), leaving the field defined by
+the temp zero. This is exact: an empty literal into a fixed array means "all
+zeroes", which is what the temp zero wrote.
+
+Measured (main suite, `Debug`, `debug_quick`, `--no-cache`, `--emit-c`): `memset`
+sites **212 → 200 (−6%)**, generated C **96,803 → 96,767** lines. The before →
+after normalized line multiset differs by only the removed sites (**12 `memset` +
+12 `memcpy` + scratch allocas**) plus the usual generic-instantiation ordering
+jitter, against a **62-line** same-binary two-run floor.
+
+| Suite | Result |
+|---|---|
+| `MIRTests` | **4400 checks** |
+| `--tcc` | **2305/2305** |
+| `--llvm` | **2303/2303** |
+| `--tcc --libs` | **718/719** (the known environment-sensitive `test_fs_directory_iteration`) |
+
+**Residual of this class.** A *non-empty* partial array literal (`buffer : [1,2,3]`
+into `[32]char`) still materializes a full-width scratch and copies the whole
+array; only the provided elements are live. Writing those elements in place into
+the field address (and letting the temp zero cover the tail) would remove another
+scratch `memset`+`memcpy` per site, but needs an in-place element store into a
+field address. Left for the next bite.
+
 ### Session 33 (2026-10-16) — D4: `MIRLowerer.cpp` split into per-construct TUs
 
 `MIRLowerer.cpp` was a single 7,090-line translation unit — the plan asked for

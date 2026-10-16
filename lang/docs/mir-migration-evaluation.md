@@ -770,6 +770,15 @@ logic; measured by (backend emitter LOC / total MIR LOC) trend.
    identical correct output on both backends. Remaining in C1 is the deliberately
    conservative residue (another ctor shape, call-filled temporaries, partial
    array literals, `zeroed<T>()`, the string-into-`char[]` and union tails).
+   **Seventh bite DONE (session 34): an empty array literal for a fixed-size
+   array field no longer double-writes the field.** The struct-literal lowering
+   skips the field store when the initializer is an empty array literal and the
+   enclosing temp is `zero_init`'d (`buffer : []` in `std::default::function_instance`).
+   Main-suite `memset` sites **212 → 200**, C **96,803 → 96,767** lines; the
+   normalized line multiset differs only by the removed sites (12 `memset` +
+   12 `memcpy` + scratch allocas) plus jitter, against a 62-line floor.
+   `MIRTests` 4400, `--tcc` 2305/2305, `--llvm` 2303/2303, `--libs` 718/719. The
+   *non-empty* partial array literal still builds a full-width scratch (next bite).
 2. ~~Collapse `temp = *src; dest = temp` into one copy/`memcpy`; extend the
    single-use collapse to aggregate places and loaded values~~ **DONE
    (session 8)**: a deref load whose only use is the immediately following store

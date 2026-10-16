@@ -458,6 +458,25 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 auto& init = it.value();
                 const ConstantId fc = module_.constants.add_string(
                     MIR_INVALID_ID, init.name.data(), static_cast<uint32_t>(init.name.size()));
+                // An empty array literal for a fixed-size array field
+                // (`buffer : []`, the `std::default_function_instance` shape) means
+                // "all zeroes". The partial-array guard above has already forced
+                // the whole-temp `zero_init`, so every byte of the field is
+                // defined: materializing a zeroed scratch array and copying its
+                // whole width into the field is dead work the legacy backend never
+                // emitted (action C1). Skip the store and rely on the temp zero.
+                if (!all_defined && init.value &&
+                    init.value->val_kind() == ValueKind::ArrayValue &&
+                    init.value->as_array_value_unsafe()->values.empty()) {
+                    BaseType* ft = nullptr;
+                    auto mtw = sv->child_type_w_index(init.name);
+                    if (mtw.second != -1) ft = mtw.first;
+                    auto* fat = ft ? ft->canonical()->as_array_type() : nullptr;
+                    if (fat && fat->has_array_size()) {
+                        ++it;
+                        continue;
+                    }
+                }
                 // implicit conversion: if the member type has an implicit
                 // constructor for the initializer value, construct into the field
                 FunctionDeclaration* implicit = nullptr;

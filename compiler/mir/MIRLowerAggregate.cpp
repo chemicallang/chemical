@@ -197,7 +197,12 @@ bool MIRLowerer::function_body_is_readable(FunctionDeclaration* fn) {
 }
 
 void MIRLowerer::prime_constructor_fact(FunctionDeclaration* fn) {
-    if (!fn || !fn->is_constructor_fn() || fn->is_ctor_whole_value_known()) return;
+    if (!fn || !fn->is_constructor_fn()) return;
+    // The `ctor_writes_whole_value` fact is cached on the (shared) declaration, so
+    // several workers must not compute/store it at once.
+    std::unique_lock<std::recursive_mutex> lk;
+    if (visitor_mutex_) lk = std::unique_lock<std::recursive_mutex>(*visitor_mutex_);
+    if (fn->is_ctor_whole_value_known()) return;
     if (!fn->body.has_value()) return;
     if (!function_body_is_readable(fn)) return;
     fn->set_ctor_writes_whole_value(constructor_writes_whole_value(fn));
@@ -205,6 +210,8 @@ void MIRLowerer::prime_constructor_fact(FunctionDeclaration* fn) {
 
 bool MIRLowerer::construction_writes_whole_value(FunctionDeclaration* ctor,
                                                  ExtendableMembersContainerNode* cdef) {
+    std::unique_lock<std::recursive_mutex> lk;
+    if (visitor_mutex_) lk = std::unique_lock<std::recursive_mutex>(*visitor_mutex_);
     bool ctor_covers = false;
     if (ctor->is_ctor_whole_value_known()) {
         // the proof ran earlier, while the constructor's own module still had its

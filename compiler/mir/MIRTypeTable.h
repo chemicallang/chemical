@@ -255,6 +255,16 @@ struct MIRTypeTable {
         return off;
     }
 
+    /** Thread-safe read of the shared `data` pool (action E3d). */
+    TypeId data_at(uint32_t index) const {
+        std::shared_lock<std::shared_mutex> lock(mtx_);
+        return data[index];
+    }
+    uint32_t data_size() const {
+        std::shared_lock<std::shared_mutex> lock(mtx_);
+        return static_cast<uint32_t>(data.size());
+    }
+
     /**
      * Intern a type record.
      *

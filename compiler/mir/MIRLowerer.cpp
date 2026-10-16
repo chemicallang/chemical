@@ -148,6 +148,20 @@ PlaceId MIRLowerer::place_for_linked(ASTNode* linked) const {
     return it->second;
 }
 
+Value* MIRLowerer::captured_comptime_value_locked(ASTNode* linked) {
+    std::unique_lock<std::recursive_mutex> lk;
+    if (visitor_mutex_) lk = std::unique_lock<std::recursive_mutex>(*visitor_mutex_);
+    return captured_comptime_value(linked);
+}
+
+Value* MIRLowerer::captured_ref_value_locked(CapturedComptimeValues* owner, int index) {
+    if (!owner || index < 0) return nullptr;
+    std::unique_lock<std::recursive_mutex> lk;
+    if (visitor_mutex_) lk = std::unique_lock<std::recursive_mutex>(*visitor_mutex_);
+    if (static_cast<size_t>(index) >= owner->refs.size()) return nullptr;
+    return owner->refs[index].evaluated;
+}
+
 PlaceId MIRLowerer::resolve_place(Value* v, std::string& error) {
     if (!v) {
         error = "null place expression";
@@ -383,7 +397,7 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
     }
     if (t && t->val_kind() == ValueKind::Identifier) {
         auto* id = t->as_identifier_unsafe();
-        if (Value* cv = captured_comptime_value(id->linked)) {
+        if (Value* cv = captured_comptime_value_locked(id->linked)) {
             return lower_expr(cv, error);
         }
         if (id->linked && id->linked->kind() == ASTNodeKind::VariantCaseVariable) {

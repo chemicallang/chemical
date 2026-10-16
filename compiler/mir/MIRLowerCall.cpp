@@ -1347,11 +1347,9 @@ MIRExprResult MIRLowerer::lower_atomic_intrinsic(FunctionCall* call, FunctionDec
         if (!v) return false;
         if (v->val_kind() == ValueKind::FunctionCall) {
             auto* c = v->as_func_call_unsafe();
-            if (c->captured_ref_owner && c->captured_ref_index >= 0 &&
-                c->captured_ref_index <
-                    static_cast<int>(c->captured_ref_owner->refs.size())) {
-                Value* r = c->captured_ref_owner->refs[c->captured_ref_index].evaluated;
-                if (r) v = r;
+            if (Value* r = captured_ref_value_locked(c->captured_ref_owner,
+                                                     c->captured_ref_index)) {
+                v = r;
             }
         }
         if (v->val_kind() == ValueKind::IntN) {

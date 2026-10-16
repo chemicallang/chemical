@@ -50,7 +50,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             // instantiated FunctionDecl, so it lowers like an identifier
         case ValueKind::Identifier: {
             auto* id = value->as_identifier_unsafe();
-            if (Value* cv = captured_comptime_value(id->linked)) {
+            if (Value* cv = captured_comptime_value_locked(id->linked)) {
                 return lower_expr(cv, error);
             }
             if (id->linked && id->linked->kind() == ASTNodeKind::VariantCaseVariable) {
@@ -668,12 +668,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     return lower_atomic_intrinsic(call, afd, error);
                 }
             }
-            if (call->captured_ref_owner && call->captured_ref_index >= 0 &&
-                call->captured_ref_index <
-                    static_cast<int>(call->captured_ref_owner->refs.size())) {
-                Value* ev =
-                    call->captured_ref_owner->refs[call->captured_ref_index].evaluated;
-                if (ev) return lower_expr(ev, error);
+            if (Value* ev = captured_ref_value_locked(call->captured_ref_owner,
+                                                      call->captured_ref_index)) {
+                return lower_expr(ev, error);
             }
             FunctionDeclaration* fd = nullptr;
             MIRArgScope _ag_scope(*this);

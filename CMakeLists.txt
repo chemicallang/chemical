@@ -56,6 +56,7 @@ endif()
 option(BUILD_COMPILER "Build full Compiler (requires LLVM/Clang/LLD). Turn OFF to avoid building LLVM-linked Compiler." ON)
 option(VERBOSE "Enable verbose output (for debugging)" OFF)
 option(ENABLE_ASAN "Enable AddressSanitizer for Debug builds to catch bugs" OFF)
+option(ENABLE_TSAN "Enable ThreadSanitizer for Debug builds to catch data races" OFF)
 option(DISABLE_RTTI_EXCEPTIONS "Disable RTTI and exceptions for our own targets where safe" ON)
 option(CHEMICAL_MUSL "The compiler is built for/run on musl libc. Used to select musl-specific behaviour (e.g. pthread type sizes)." OFF)
 option(MIR_OPS_COUNTERS "Instrument MIR lowering with operation/phase counters (profiling builds only; zero cost when OFF). Print with MIR_OPS=1." OFF)
@@ -825,6 +826,15 @@ if(ENABLE_ASAN AND CMAKE_BUILD_TYPE MATCHES Debug)
     # For example, applying to TCCCompiler:
     target_compile_options(TCCCompiler PRIVATE ${ASAN_COMPILE_FLAG})
     target_link_options(TCCCompiler PRIVATE ${ASAN_LINK_FLAG})
+endif()
+
+# ThreadSanitizer: catch data races in the (parallel) MIR lowering. Applied to
+# the TCCCompiler only (same reasoning as ASAN above).
+if(ENABLE_TSAN AND CMAKE_BUILD_TYPE MATCHES Debug)
+    if(NOT MSVC)
+        target_compile_options(TCCCompiler PRIVATE -fsanitize=thread -fno-omit-frame-pointer -g)
+        target_link_options(TCCCompiler PRIVATE -fsanitize=thread -fno-omit-frame-pointer)
+    endif()
 endif()
 
 # Helper: disable RTTI + exceptions for a given target in a portable way.

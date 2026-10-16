@@ -99,6 +99,42 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 48 (2026-10-16) — hunting the E3d race with ThreadSanitizer
+
+Added `-DENABLE_TSAN=ON` (a `TCCCompiler`-only ThreadSanitizer build, mirroring
+`ENABLE_ASAN`) and ran the enabled parallel-lowering path under it. TSan found
+real races; three were in E3d's path and are fixed:
+
+- **Unlocked `data`-pool reads.** `emit_function_c` (and the async emitter) read
+  `module.types.data[i]` directly to get a function type's parameter types,
+  racing `MIRTypeTable::append_data`'s `push_back`. Added locked
+  `MIRTypeTable::data_at`/`data_size` and used them in `MIREmitter.cpp` /
+  `MIRLowerAsync.cpp`.
+- **Comptime captured-value reads.** `lower_expr` read
+  `CapturedComptimeVariable` / `%runtime_value` captured refs' `.evaluated` while
+  the comptime interpreter (`eval_comptime_call`, already lock-guarded) lazily
+  filled them. Added `MIRLowerer::captured_comptime_value_locked` /
+  `captured_ref_value_locked` and used them.
+- **Constructor-fact cache.** `prime_constructor_fact` /
+  `construction_writes_whole_value` read and wrote the shared `FunctionDeclaration`
+  `ctor_whole_value_known` flag; now under the visitor lock.
+- Removed the visitor lock from the **type-name resolver** (it reads no shared
+  mutable mangler state, and holding it inverted the builder→visitor lock order
+  `map` uses).
+
+TSan also flagged many **pre-existing** races in the parallel *symres*
+(`FunctionDeclaration::set_has_usage`, `TypeLoc`/`BaseType` reads) — not E3d.
+
+**Still gated off.** With the fixes the crash is gone, but the emitted C is still
+corrupted nondeterministically — e.g. a forward declaration's name gains a path
+fragment (`main_Deletable` → `test-cbor_main_Deletable`) and the file contains NUL
+bytes. TSan did not catch this one as a plain field race, so it is either a
+different class of bug (a shared `BufferedWriter`/name buffer reused across
+workers) or a race TSan's schedule missed. `kEnableParallelLowering` stays false;
+the race fixes and the TSan option are kept (they are correct either way).
+`MIRTests` 4400; `--tcc` **2307/2307**; `--llvm` **2305/2305**; `--tcc --async`
+**53/53**; `--tcc --interpret` **1897/1897**; main-suite C unchanged.
+
 ### Session 47 (2026-10-16) — E3d stage 3: parallel-lowering machinery + two shared-state fixes (driver gated off)
 
 Built the E3d stage-3 machinery and closed two more shared-state gaps, then found

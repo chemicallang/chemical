@@ -1046,8 +1046,8 @@ bool MIRLowerer::lower_async_main_trampoline(FunctionDeclaration* decl, const MI
         const MIRTypeRecord& ftr = module_.types.get(ramp.function_type);
         std::vector<TypeId> ptypes;
         for (uint32_t i = 1; i < ftr.data_count; ++i) {
-            if (ftr.data_offset + i >= module_.types.data.size()) break;
-            ptypes.push_back(module_.types.data[ftr.data_offset + i]);
+            if (ftr.data_offset + i >= module_.types.data_size()) break;
+            ptypes.push_back(module_.types.data_at(ftr.data_offset + i));
         }
         const TypeId ftype = types_.function_signature(i32, ptypes);
         MIRSymbolRecord rec;
@@ -1073,7 +1073,7 @@ bool MIRLowerer::lower_async_main_trampoline(FunctionDeclaration* decl, const MI
     std::vector<TypeId> ptypes;
     std::vector<ValueId> params;
     for (uint32_t i = 0; i < ftr.data_count; ++i) {
-        const TypeId pt = module_.types.data[ftr.data_offset + i];
+        const TypeId pt = module_.types.data_at(ftr.data_offset + i);
         ptypes.push_back(pt);
         params.push_back(b.param(pt));
     }

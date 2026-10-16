@@ -2429,8 +2429,10 @@ int ASTProcessor::implement_module(
     // a locked operation that calls another (e.g. `intern_method_function`
     // around the mangler) does not deadlock.
     std::recursive_mutex mir_visitor_mutex;
-    mir_types.set_name_resolver([&c_visitor, &mir_visitor_mutex](ASTNode* n) {
-        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
+    // Type-name mangling is serialized by the builder's own lock and reads no
+    // shared mutable mangler state, so it does not take the visitor lock (which
+    // would invert the builder->visitor order).
+    mir_types.set_name_resolver([&c_visitor](ASTNode* n) {
         return mir_mangle_name(c_visitor.mangler, n);
     });
     mir::MIRTaskContext mir_task(mir_module, mir_types);
@@ -2689,8 +2691,10 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
     // a locked operation that calls another (e.g. `intern_method_function`
     // around the mangler) does not deadlock.
     std::recursive_mutex mir_visitor_mutex;
-    mir_types.set_name_resolver([&c_visitor, &mir_visitor_mutex](ASTNode* n) {
-        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
+    // Type-name mangling is serialized by the builder's own lock and reads no
+    // shared mutable mangler state, so it does not take the visitor lock (which
+    // would invert the builder->visitor order).
+    mir_types.set_name_resolver([&c_visitor](ASTNode* n) {
         return mir_mangle_name(c_visitor.mangler, n);
     });
     mir::MIRTaskContext mir_task(mir_module, mir_types);

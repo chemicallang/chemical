@@ -347,7 +347,7 @@ static void append_fn_ptr_type(const MIRModule& module, const MIRTypeRecord& r, 
     }
     for (uint32_t i = 0; i < r.data_count; ++i) {
         if (!first) out += ", ";
-        append_c_type_of(module, module.types.data[r.data_offset + i], out);
+        append_c_type_of(module, module.types.data_at(r.data_offset + i), out);
         first = false;
     }
     if (r.flags & TF_VARIADIC) {
@@ -379,7 +379,7 @@ static std::string decl_type(const MIRModule& module, TypeId type, const std::st
     if (sret) params += c_type_of(module, r.element) + "*";
     for (uint32_t i = 0; i < r.data_count; ++i) {
         if (!params.empty()) params += ", ";
-        params += declarator(module, module.types.data[r.data_offset + i],
+        params += declarator(module, module.types.data_at(r.data_offset + i),
                              "__chx_a" + std::to_string(i));
     }
     if (r.flags & TF_VARIADIC) {
@@ -475,7 +475,7 @@ std::string c_function_proto(const MIRModule& module, TypeId function_type,
     if (sret) params += c_type_of(module, r.element) + "*";
     for (uint32_t i = 0; i < r.data_count; ++i) {
         if (!params.empty()) params += ", ";
-        params += declarator(module, module.types.data[r.data_offset + i],
+        params += declarator(module, module.types.data_at(r.data_offset + i),
                              "__chx_a" + std::to_string(i));
     }
     if (r.flags & TF_VARIADIC) {
@@ -618,7 +618,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
     ptypes.clear();
     ptypes.reserve(ftr.data_count);
     for (uint32_t i = 0; i < ftr.data_count; ++i) {
-        ptypes.push_back(module.types.data[ftr.data_offset + i]);
+        ptypes.push_back(module.types.data_at(ftr.data_offset + i));
     }
 
     if (is_static) out += "static ";

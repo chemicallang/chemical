@@ -1,6 +1,7 @@
 /cmake-build-debug/
 /cmake-build-asan/
 /cmake-build-debugwsl/
+/cmake-build-tsan/
 /cmake-build-debugubuntu/
 /cmake-build-debugalpine/
 /cmake-build-debugalpinewsl/

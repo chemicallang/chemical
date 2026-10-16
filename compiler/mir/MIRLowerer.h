@@ -24,6 +24,7 @@
 #include <vector>
 
 class ASTNode;
+struct CapturedComptimeValues;
 class Value;
 class StructValue;
 class ArrayValue;
@@ -709,6 +710,14 @@ private:
         else if (mangler_) mangle_buf_ = mangler_(n);
         return mangle_buf_;
     }
+    /**
+     * Read a captured-comptime bridge value under the visitor lock: the comptime
+     * interpreter lazily fills `refs[].evaluated` from the same AST node, so the
+     * read must not run concurrently with an evaluation.
+     */
+    Value* captured_comptime_value_locked(ASTNode* linked);
+    /** Read a `%runtime_value` captured-ref's evaluated value under the lock. */
+    Value* captured_ref_value_locked(CapturedComptimeValues* owner, int index);
     void bind_name(const chem::string_view& name, PlaceId place) {
         if (name.empty()) return;
         MIR_OP(name_bind);

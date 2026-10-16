@@ -28,37 +28,48 @@ interpreter's last lowering-time job.
 > be deleted yet; see §5.4 and §8.
 
 > **Migration progress (2026-10).** Source migration is underway, one unit per
-> commit, `--tcc`/`--llvm`/`--interpret` green at each step. **124 of 149**
-> `%runtime_value` uses are gone:
-> - **atomic.ch, 120 sites** — the wrappers are templates with `%runtime` /
->   `%maybe_runtime` operands; the wrapper was redundant.
-> - **`string_view.make`, `string.make(%literal_string)`** — `%literal`
->   constructors.
-> - **`test_runner`, `test_runner_handle`** — runner helpers.
+> commit, `--tcc`/`--llvm`/`--interpret` green at each step. **128 of 149**
+> `%runtime_value` uses are gone.
 >
-> This required three compiler fixes (commit `mir: inline cast-bodied comptime
-> templates correctly`):
-> 1. detect the **raw** parameter kind — `BaseType::canonical()` unwraps
->    `%runtime`/`%maybe_runtime`/`%literal`, so the old check never matched and
->    detection fell back to the body's return node (which a `… as T` cast hid);
-> 2. index call values past the **receiver** slot (`fd->params` includes `self`,
->    call-values do not);
-> 3. publish comptime **locals** (e.g. `const t = get_tests()`) into the inline's
->    comptime bindings, not just parameters.
+> **The explicit replacement is `@expand`** (commit `add @expand: explicit
+> compile-time code functions`). A `comptime func` is either *evaluated* to a
+> value or *lowered* at its call site; the form did not say which, and inference
+> is unsound (it cannot tell `lab.curr_dir` from `comptime_fnv1_hash`). `@expand`
+> makes it a declared fact — the compiler never inspects the body:
 >
-> **Remaining (25)** fall into two groups that still need the replacement
-> mechanism beyond a mechanical edit:
-> - **markerless templates** — `lab.curr_dir`/`get_my_path`/`rel_path_to`,
->   `panic`, `ASTBuilder.allocate`, `std. function.make`, `universal_test`'s
->   handle builder. After `%runtime_value` is gone there is no marker at all:
->   the function has no `%runtime`/`%literal` parameter and no template body, so
->   it is indistinguishable from a pure comptime value function. They need an
->   explicit "lower at call site" signal (a function marker, or conversion to a
->   normal function).
+> ```chemical
+> @expand
+> comptime func curr_dir() : std::string {
+>     const loc = intrinsics::get_call_loc(9999)
+>     return curr_dir_of(loc, intrinsics::size(loc))   // no %runtime_value
+> }
+> ```
+>
+> Migrated: **atomic.ch (120)**, **string_view.make**, **string.make(%literal_string)**,
+> **test_runner**, **test_runner_handle**, **lab.curr_dir / get_my_path /
+> rel_path_to**, **panic**.
+>
+> Compiler work this required:
+> 1. raw-kind parameter detection (`BaseType::canonical()` unwraps the markers,
+>    so the old check never matched);
+> 2. call-value indexing past the receiver slot (`fd->params` includes `self`);
+> 3. publishing comptime **locals**, not just parameters;
+> 4. the inline establishing the **call site** (call node on the interpreter call
+>    stack) so `intrinsics::get_call_loc` resolves to the call, not the macro body;
+> 5. a nested-inline **use-after-free** fix — the inline `return` held
+>    `ComptimeInlineFrame&` across `lower_expr`, which can reallocate
+>    `inline_frames_` and leave the reference dangling.
+>
+> **Remaining (21).** Three groups need the inline to handle their shape, not a
+> mechanical edit:
+> - **implicit array→span conversion** — `span.make2` (`intrinsics::size` of a
+>   run-time array; the conversion builds a struct with an unset member);
 > - **expressive-string materialization** — `string.make(%expressive_string)`,
->   `append_expr`, `stream.print`/`println`. Inlining `append_expr` currently
->   emits a struct where a `&mut self` pointer is expected, so the expressive
->   path needs its receiver handling fixed before it can inline.
+>   `append_expr`, `stream.print`/`println` (the `&mut self` receiver is emitted
+>   as a value where a pointer is expected);
+> - **lambda / builder macros** — `function.make` (a lambda comptime operand),
+>   `ASTBuilder.allocate` (needs the plugin target to exercise), `universal_test`'s
+>   handle builder; plus the `lang/tests` fixtures that exercise `%runtime_value`.
 
 ---
 

@@ -69,10 +69,11 @@ struct CAP_FnInstance {
     var buffer : [32]char
 
     @make
+    @expand
     comptime func make(lambda : () => void) {
         const ptr = intrinsics::get_lambda_fn_ptr(lambda)
         const cap = intrinsics::get_lambda_cap_ptr(lambda)
-        return %runtime_value(make2(ptr, cap))
+        return make2(ptr, cap)
     }
 
     @make

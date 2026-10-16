@@ -10,6 +10,7 @@
 #include "compiler/mir/MIRDeclPrinter.h"
 #include "compiler/mir/MIREmitter.h"
 #include "compiler/mir/MIRFacts.h"
+#include "compiler/mir/MIRInterpreter.h"
 
 #include <cassert>
 #include <cstddef>
@@ -1156,6 +1157,98 @@ static bool test_table_thread_safety() {
     return true;
 }
 
+// ── interpreter round-trip: run a hand-built function ───────────────────────
+static bool test_interpreter_roundtrip() {
+    MIRModule module;
+
+    MIRTypeRecord ir;
+    ir.kind = MIRTypeKind::Int;
+    ir.flags = TF_SIGNED;
+    ir.size = 4;
+    ir.alignment = 4;
+    const TypeId i32 = module.types.intern(ir);
+
+    MIRTypeRecord fr;
+    fr.kind = MIRTypeKind::Function;
+    fr.size = 8;
+    fr.alignment = 8;
+    fr.element = i32; // return type
+    const TypeId fty = module.types.intern(fr);
+
+    MIRSymbolRecord srec;
+    srec.kind = MIRSymbolKind::Function;
+    srec.linkage = MIRLinkage::External;
+    srec.type = fty;
+    const SymbolId sym = module.symbols.add(srec, "add", 3, "add", 3);
+
+    MIRArena arena;
+    MIRFunction fn;
+    fn.symbol = sym;
+    fn.function_type = fty;
+    for (int i = 0; i < 3; ++i) {
+        MIRValueDef vd;
+        vd.type = i32;
+        fn.values.push_back(vd);
+    }
+
+    auto emit_param = [&](ValueId v) -> bool {
+        const uint32_t off = static_cast<uint32_t>(fn.operands.size());
+        CHECK(fn.operands.push(arena, MIROperand::type(i32)));
+        MIRInstruction p = MIRInstruction::make(MIROpcode::Param);
+        p.result_or_place = v;
+        p.operand_offset = off;
+        p.operand_count = 1;
+        CHECK(fn.instructions.push(arena, p));
+        return true;
+    };
+    CHECK(emit_param(0));
+    CHECK(emit_param(1));
+
+    // %v2 = %v0 + %v1
+    const ConstantId add_op =
+        module.constants.add_int(i32, static_cast<uint64_t>(MIRBinaryOp::Add));
+    {
+        const uint32_t off = static_cast<uint32_t>(fn.operands.size());
+        CHECK(fn.operands.push(arena, MIROperand::value(0, i32)));
+        CHECK(fn.operands.push(arena, MIROperand::value(1, i32)));
+        CHECK(fn.operands.push(arena, MIROperand::constant(add_op, MIR_INVALID_ID)));
+        CHECK(fn.operands.push(arena, MIROperand::type(i32)));
+        MIRInstruction b = MIRInstruction::make(MIROpcode::Binary);
+        b.result_or_place = 2;
+        b.operand_offset = off;
+        b.operand_count = 4;
+        CHECK(fn.instructions.push(arena, b));
+    }
+
+    // return %v2
+    {
+        const uint32_t off = static_cast<uint32_t>(fn.operands.size());
+        CHECK(fn.operands.push(arena, MIROperand::value(2, i32)));
+        MIRInstruction r = MIRInstruction::make(MIROpcode::Return);
+        r.operand_offset = off;
+        r.operand_count = 1;
+        CHECK(fn.instructions.push(arena, r));
+    }
+
+    MIRBlock blk;
+    blk.id = 0;
+    blk.inst_start = 0;
+    blk.inst_count = 3; // the two params + the binary; the return terminates
+    CHECK(fn.blocks.push(arena, blk));
+    fn.entry_block = 0;
+
+    module.functions.push_back(fn);
+
+    MIRInterpreter interp(module);
+    CHECK(interp.has_function("add"));
+    uint64_t args[2] = {40, 2};
+    uint64_t result = 0;
+    std::string err;
+    CHECK(interp.call("add", args, 2, result, err));
+    CHECK(result == 42);
+    return true;
+}
+
 int main() {
     bool ok = true;
     ok &= test_arena();
@@ -1164,6 +1257,7 @@ int main() {
     ok &= test_function_build_dump();
     ok &= test_builder();
     ok &= test_emitter();
+    ok &= test_interpreter_roundtrip();
     ok &= test_control_flow_emitter();
     ok &= test_type_names();
     ok &= test_aggregate_layout();

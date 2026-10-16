@@ -438,22 +438,151 @@ green; performance gate §6.4 met.
 
 ### Phase 5 — Comptime on MIR, then delete the AST interpreter
 
-- Hook `MIRLowerer`'s comptime callbacks (`set_comptime_eval`,
-  `set_comptime_value_eval`, `set_comptime_ctor_eval`, `set_comptime_block_eval`,
-  `set_comptime_if_resolver`) so `comptime` function calls and `%runtime_value`
-  are evaluated by **lowering the comptime callee to MIR and running it in the
-  engine**, rather than by the AST interpreter.
-- Keep a tiny AST shim only if a genuinely pre-MIR need remains
-  (`comptime if` branch selection during declaration, array-length constants —
-  `IfStatement::get_condition_const`, `SymResLinkBody.cpp:2562`,
-  `LinkSignature.cpp:644`). If the condition is lowered to MIR and run, even
-  that shim can go; evaluate case-by-case and document what remains and why.
-- Delete `compiler/Interpreter/Core.cpp`, the `evaluated_value` chain, and the
-  interpreter-friendly std types — after confirming no caller remains
-  (`grep` for `evaluated_value`, `InterpretScope`, `FunctionDeclaration::call`).
+**Status: not started. This is the remaining work and it is a migration, not a
+patch.** The interpretation job's *runtime* is on MIR (§ Phase 4), but the
+compiler still uses the AST interpreter for **comptime evaluation during
+lowering and symres**, which is on every compile path (C, LLVM, interpret, and
+CBI plugins). Deleting the AST interpreter requires moving all of that first.
+
+#### 5.1 The exact surface (inventory, verified in the tree)
+
+The only callers of the AST interpreter outside `ast/values/*` and
+`ast/structures/FunctionDeclaration.cpp` (the interpreter's own implementation)
+are:
+
+| Caller | What it evaluates |
+|---|---|
+| `MIRLowerer::set_comptime_eval` → `CTranslationContext::eval_comptime_call` | a `comptime` callee (`lower_call`/`lower_method_call`/ctor paths) |
+| `MIRLowerer::set_comptime_value_eval` | a `Value*` (`v->evaluated_value`) — used for `%runtime_value`, index/field comptime reads |
+| `MIRLowerer::set_comptime_ctor_eval` → `eval_comptime_ctor` | a comptime constructor |
+| `MIRLowerer::set_comptime_block_eval` | a `comptime { … }` block (`comptime_scope.interpret`) |
+| `MIRLowerer::set_comptime_if_resolver` → `IfStatement::get_or_resolve_scope` | a `comptime if` condition |
+| `MIRDeclEmitter::set_value_eval` (`ASTProcessor.cpp`) | the front-end declaration pass's `Value*` evaluation |
+| `SymResLinkBody.cpp:2562`, `LinkSignature.cpp:644` | `array_size_value->evaluated_value` |
+| `compiler/Interpreter/Core.cpp` | the interpreter itself (statements, loops, scopes) |
+
+`CTranslationContext::eval_comptime_call` funnels to
+`evaluate_comptime_func` → `FunctionDeclaration::call(&comptime_scope, …)`, and
+then `result->evaluated_value(comptime_scope)` for a `RuntimeValue`.
+
+CBI macro plugins do **not** embed the interpreter (they are TCC-compiled from
+`lang/libs/compiler` and call compiler callbacks); the interpreter runs inside
+the compiler only. So plugins are not a separate blocker — but every callback
+above runs *during lowering*, which is the same lowering plugins trigger.
+
+#### 5.2 Why this is hard (the real design problem)
+
+A MIR interpretation of a comptime function returns a **raw** value, but every
+call site needs an AST `Value*` that lowering then folds. Concretely:
+
+1. **Result bridge.** Scalar results (`int/u*/f32/f64/bool/pointer`) map to
+   `IntNumValue`/`FloatValue`/`DoubleValue`/`BoolValue`/`NullValue` directly.
+   Aggregate results (structs, variants, arrays) must be rebuilt as
+   `StructValue`/`ArrayValue` trees — which is most of what the interpreter's
+   `StructValue::initialized_value` does today. That bridge is the bulk of the
+   work and must be exact (field paths, variant tags, nested destructible
+   fields).
+2. **Argument lowering.** A comptime call's arguments are AST `Value*`s that
+   may reference the *enclosing* function's locals. Lowering them to raw MIR
+   argument values needs an execution context that can see the enclosing
+   frame, i.e. the comptime evaluation is not an isolated function call — it
+   is a nested execution of the same program. (Comptime args are usually
+   literals/consts, but not always.)
+3. **Re-entrancy.** The comptime callbacks fire *while* `MIRLowerer` is mid
+   function. Lowering the comptime callee needs a separate lowerer/arena, but
+   `MIRLowerer` is stateful (bindings, current function, `builder_`) and the
+   callbacks capture the shared `CTranslationContext`. `copy_callbacks_from`
+   gives a nested lowerer the callbacks, but not the enclosing frame.
+4. **Memory shape.** `MIRInterpreter` today runs a whole `MIRModule` from
+   `main`. Comptime needs "run one function with these argument bits and give
+   me the result bits", plus a way to hand back an aggregate. (The engine's
+   internals already support this; it needs a public entry point and a
+   result-materialisation contract.)
+
+Because of 1–3, the honest approach is **not** "call `MIRInterpreter` from
+`eval_comptime_call`". It is one of:
+
+- **(A) Nested execution with a shared frame.** Extend the engine to run a
+   comptime `MIRFunction` against the current execution frame (so argument
+   values are read from the live frame), and add the `Value*` result bridge.
+   Biggest change, but preserves the semantics exactly.
+- **(B) Two-phase comptime.** Lower comptime-annotated functions eagerly to MIR
+   before the normal pass, run them with a dedicated context, and cache results;
+   then the normal lowering reads cached constants instead of calling the AST
+   interpreter. Cleaner separation; needs a new pass and a comptime dependency
+   order.
+- **(C) Keep a minimal AST evaluator.** Retain only `Value::evaluated_value`
+   for `Value*` shaping (the result bridge) and delete the statement/scope
+   interpreter (`compiler/Interpreter/Core.cpp`), the `FunctionDeclaration::call`
+   body, and the interpreter-friendly std types. This is the smallest safe
+   reduction and is a legitimate intermediate state, but it does **not** remove
+   `evaluated_value`.
+
+#### 5.3 Worklist (incremental, each step keeps every suite green)
+
+1. **Engine entry point.** Add `MIRInterpreter::call_function(name, args,
+   nargs, out_result_bits, out_aggregate_bytes)` so a comptime driver can run
+   one function in isolation. Pure addition; no behaviour change.
+2. **Result bridge, scalars first.** A `Value*` builder for scalar MIR results
+   (`IntNumValue`/`FloatValue`/`DoubleValue`/`BoolValue`/`NullValue`).
+3. **Route `set_comptime_value_eval` for scalar-only `Value*`s** through the
+   engine, with the AST path still used for aggregates; measure how many
+   callbacks that covers (instrument, don't guess).
+4. **Aggregate bridge.** Rebuild `StructValue`/`ArrayValue`/variant values from
+   MIR bytes using `MIRTypeTable` layout (field paths already resolve in the
+   engine).
+5. **Comptime driver (approach A or B).** Resolve the re-entrancy/argument
+   problem above; switch `set_comptime_eval`/`_ctor_eval`/`_block_eval` and the
+   two symres array-size sites to it. `set_comptime_if_resolver` last.
+6. **Delete.** Remove `compiler/Interpreter/Core.cpp`, the `evaluated_value`
+   overrides, `InterpretScope`/`GlobalInterpretScope`, `FunctionDeclaration::call`
+   (keep only the declaration), and the interpreter-friendly std types. Confirm
+   with `grep -R "evaluated_value\|InterpretScope\|->call(&" compiler/ ast/`.
 
 **DoD:** no AST-interpretation execution path remains; all suites green;
 `--interpret` performance gate still met.
+
+> Do **not** attempt steps 4–6 before steps 1–3 are green. The comptime path is
+> on every build; a partial migration that changes comptime results silently
+> changes every backend's output.
+
+#### 5.4 The unavoidable residual (why "delete the AST interpreter" has a floor)
+
+`symres` resolves a top-level `comptime if` **before MIR exists** —
+`IfStatement::get_condition_const` calls `condition->evaluated_value(scope)`,
+and the condition is almost always a call to a **compiler intrinsic** whose body
+is a C++ `FunctionDeclaration::call` override (`intrinsics::is_comptime`,
+`is_runtime`, `is_interpretation`, `is_target`, `is_clang`, `satisfies`,
+`get_child_fn`, `get_lambda_fn_ptr`, `get_raw_location`, …). There is no MIR at
+that point and there never can be: the intrinsic's result decides which branch
+even exists, which decides what to lower. The same is true of the two
+array-length sites (`SymResLinkBody`, `LinkSignature`).
+
+So Phase 5's realistic end state is **not** "zero AST evaluation". It is:
+
+- **Lowering-time comptime** (functions, blocks, `%runtime_value`, ctors) → MIR
+  engine (steps 1–5).
+- **A residual, symres-time evaluator** for `comptime if` conditions, array
+  lengths, and the compiler intrinsics → kept, but shrunk to
+  `Value::evaluated_value` plus the intrinsic `call` overrides. The statement
+  interpreter (`compiler/Interpreter/Core.cpp`), `InterpretScope`,
+  `FunctionDeclaration::call`'s body execution, and the interpreter-friendly std
+  types can then go — because nothing left *runs statements*; only *expressions*
+  are folded.
+
+The revised DoD: `compiler/Interpreter/Core.cpp` and the statement/scope
+interpreter are gone; `Value::evaluated_value` survives only for
+symres-time constant folding and intrinsic evaluation; all suites green. Truly
+deleting `evaluated_value` would require re-resolving `comptime if`/array
+lengths *after* a first lowering pass — a larger compiler restructuring, out of
+scope for this plan.
+
+**Recommendation:** approach **(B) two-phase comptime** is the least risky path
+to the revised DoD: it isolates comptime to its own pass (no re-entrancy into a
+live lowering frame), gives the `Value*` bridge a single place to live, and lets
+each backend read folded constants instead of calling into the interpreter.
+
+
 
 ---
 

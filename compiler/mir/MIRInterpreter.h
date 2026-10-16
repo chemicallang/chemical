@@ -39,6 +39,16 @@ public:
     /** True if a function with symbol name `entry` exists in the module. */
     bool has_function(const std::string& entry) const;
 
+    /**
+     * Call a module function by symbol name with raw 64-bit argument cells,
+     * returning its raw 64-bit scalar result. This is the entry point a comptime
+     * driver will use (see lang/docs/mir-interpretation-plan.md Phase 5 step 1);
+     * it is also exercised by MIRTests. Aggregate (sret) results are not
+     * supported here yet.
+     */
+    bool call(const std::string& name, const uint64_t* args, uint32_t nargs,
+              uint64_t& out_result, std::string& error);
+
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;

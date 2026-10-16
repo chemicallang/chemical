@@ -1532,6 +1532,17 @@ bool MIRInterpreter::has_function(const std::string& entry) const {
     return impl_->fn_by_name.find(entry) != impl_->fn_by_name.end();
 }
 
+bool MIRInterpreter::call(const std::string& name, const uint64_t* args, uint32_t nargs,
+                          uint64_t& out_result, std::string& error) {
+    auto it = impl_->fn_by_name.find(name);
+    if (it == impl_->fn_by_name.end()) {
+        error = "no function named '" + name + "' in the MIR module";
+        return false;
+    }
+    out_result = impl_->call_function(it->second, args, nargs);
+    return true;
+}
+
 bool MIRInterpreter::run(const std::string& entry, int argc, const char* const* argv,
                          long long& out_result, std::string& error) {
     auto it = impl_->fn_by_name.find(entry);

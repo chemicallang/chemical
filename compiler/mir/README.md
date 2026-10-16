@@ -99,6 +99,35 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 37 (2026-10-16) — lowering allocation sweep: no per-identifier / per-literal strings
+
+The lowering hot path constructed strings and containers it did not need. This
+session removes the per-node ones (intended output-neutral; the suites are green):
+
+- **`MIRFieldNameSet` replaces the `std::set<std::string>`** built for every
+  struct literal's explicit-field set. It is a `std::vector<chem::string_view>`
+  over the (AST-owned) field names with a linear `contains`/`erase` — a struct
+  has a handful of fields, so the scan beats a red-black tree that
+  heap-allocates a node and copies every name. `apply_struct_defaults` and
+  `struct_literal_defines_all_fields` take it; the per-field `std::string nm` in
+  both (and in `apply_struct_defaults_ptr`) is gone — the field's
+  `chem::string_view` is used directly for the `add_string` ConstantId.
+- **Transparent name-map lookup.** `name_places_`, `named_method_symbols_`,
+  `named_globals_` and `extern_symbols_` stay keyed by owned `std::string` but
+  now use a transparent `MIRStringHash`/`MIRStringEq`, so a lookup by
+  `chem::string_view` (an identifier, a parameter/method name) no longer
+  constructs a temporary `std::string`. `place_for_name` — the per-lookup
+  allocation the evaluation doc named — is fixed.
+- **`emit_function_c` reserves its output.** The generated C for one function
+  runs to many KB; `out.reserve(instructions * 24 + 128)` stops `out`
+  reallocating as it grows.
+
+These apply the plan's "no per-node strings / no hot-path `unordered_map`" rule
+where it is cheap. Still open for a later pass: the `std::function` mangler
+returning a fresh `std::string` per function/global (the legacy visitor mangled
+straight into a `BufferedWriter`), the per-call `std::vector<MIROperand>` argument
+buffers, and the `place_name`/`operand_expr` string temporaries in `MIREmitter`.
+
 ### Session 36 (2026-10-16) — the primitive-impl vtable aligns with the shared layout (action B, correctness)
 
 `MIRDeclEmitter::create_vtable_primitive` built the vtable **definition** by

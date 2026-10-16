@@ -83,6 +83,67 @@ struct MIRExprResult {
     bool ok() const { return kind != MIRExprKind::Error; }
 };
 
+// ── allocation-light lowering support ──────────────────────────────────────
+//
+// The lowering hot path must not allocate per node. These two helpers replace
+// the two worst offenders: a `std::set<std::string>` built for every struct
+// literal, and `std::string` key construction on every name-map lookup.
+
+/**
+ * The set of fields a struct literal sets explicitly. A struct has a handful of
+ * fields, so a linear scan over the (borrowed, unowned) `chem::string_view`
+ * names beats `std::set<std::string>`, which heap-allocates a node and copies
+ * every name. The views point into AST-owned storage that outlives the
+ * surrounding lowering call, so no ownership is needed.
+ */
+struct MIRFieldNameSet {
+    std::vector<chem::string_view> names;
+
+    void insert(const chem::string_view& n) { names.push_back(n); }
+    bool contains(const chem::string_view& n) const {
+        for (const chem::string_view& x : names) {
+            if (x == n) return true;
+        }
+        return false;
+    }
+    void erase(const chem::string_view& n) {
+        for (auto it = names.begin(); it != names.end(); ++it) {
+            if (*it == n) {
+                names.erase(it);
+                return;
+            }
+        }
+    }
+};
+
+/** A view over any of the name spellings the maps are keyed/looked up by. */
+inline chem::string_view mir_name_view(const chem::string_view& s) { return s; }
+inline chem::string_view mir_name_view(const std::string& s) {
+    return chem::string_view(s.data(), s.size());
+}
+inline chem::string_view mir_name_view(const char* s) { return chem::string_view(s); }
+
+/**
+ * Transparent hashing/equality for the `std::string`-keyed lowering maps, so a
+ * lookup by `chem::string_view` (an identifier, a field/parameter name) does not
+ * construct a temporary `std::string`. The stored keys stay owned `std::string`s.
+ */
+struct MIRStringHash {
+    using is_transparent = void;
+    template <class T>
+    size_t operator()(const T& s) const {
+        return std::hash<chem::string_view>{}(mir_name_view(s));
+    }
+};
+
+struct MIRStringEq {
+    using is_transparent = void;
+    template <class A, class B>
+    bool operator()(const A& a, const B& b) const {
+        return mir_name_view(a) == mir_name_view(b);
+    }
+};
+
 /**
  * Lowers one resolved function at a time. Holds per-function state (variable ->
  * place bindings, callee -> symbol bindings). Not thread-safe; one instance is
@@ -459,7 +520,7 @@ private:
     void flush_stmt_temps(size_t mark);
     /** Apply default field values / base default constructors for unset fields. */
     bool apply_struct_defaults(PlaceId temp, ExtendableMembersContainerNode* def,
-                               const std::set<std::string>& explicit_fields,
+                               const MIRFieldNameSet& explicit_fields,
                                std::string& error);
     /**
      * Whether a struct literal with `explicit_fields` set will define every
@@ -468,7 +529,7 @@ private:
      * that would be left uninitialized (no default, not a struct) returns false.
      */
     bool struct_literal_defines_all_fields(ExtendableMembersContainerNode* def,
-                                           const std::set<std::string>& explicit_fields);
+                                           const MIRFieldNameSet& explicit_fields);
     /**
      * Whether default-initializing `def` is guaranteed to write every runtime
      * member of the value — i.e. whether `apply_struct_defaults` (or the
@@ -605,7 +666,7 @@ private:
     PlaceId place_for_name(const chem::string_view& name) const {
         if (name.empty()) return MIR_INVALID_ID;
         MIR_OP(name_lookup);
-        auto it = name_places_.find(std::string(name.data(), name.size()));
+        auto it = name_places_.find(name);
         return it == name_places_.end() ? MIR_INVALID_ID : it->second;
     }
 
@@ -614,7 +675,7 @@ private:
     MIRBuilder* builder_ = nullptr;
     MIRArena* arena_ = nullptr;
     std::unordered_map<ASTNode*, PlaceId> var_places_;
-    std::unordered_map<std::string, PlaceId> name_places_;
+    std::unordered_map<std::string, PlaceId, MIRStringHash, MIRStringEq> name_places_;
     /**
      * For every by-value aggregate (struct/union/variant) parameter of the
      * function being lowered: the hidden *pointer* the argument arrived in
@@ -634,10 +695,10 @@ private:
     };
     std::vector<MIRDestructible> destructibles_;
     std::unordered_map<FunctionDeclaration*, SymbolId> func_symbols_;
-    std::unordered_map<std::string, SymbolId> named_method_symbols_;
+    std::unordered_map<std::string, SymbolId, MIRStringHash, MIRStringEq> named_method_symbols_;
     std::unordered_map<ASTNode*, SymbolId> global_symbols_;
     std::unordered_set<VarInitStatement*> owned_globals_;
-    std::unordered_map<std::string, SymbolId> named_globals_;
+    std::unordered_map<std::string, SymbolId, MIRStringHash, MIRStringEq> named_globals_;
     std::function<std::string(ASTNode*)> mangler_;
     std::function<std::string(ASTNode*, BaseType*)> vtable_mangler_;
     std::function<Scope*(IfStatement*, std::string&)> comptime_if_resolver_;
@@ -662,7 +723,7 @@ private:
      * `set_current_module_file_scopes`.
      */
     const std::unordered_set<ASTNode*>* current_module_file_scopes_ = nullptr;
-    std::unordered_map<std::string, SymbolId> extern_symbols_;
+    std::unordered_map<std::string, SymbolId, MIRStringHash, MIRStringEq> extern_symbols_;
     /** Struct temporaries whose destruction is deferred to the statement end. */
     std::vector<std::pair<PlaceId, BaseType*>> stmt_temps_;
     FunctionTypeBody* current_func_ = nullptr;

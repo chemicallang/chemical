@@ -417,9 +417,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             }
             // The names the literal sets explicitly, computed before emission so
             // the zero_init can be skipped when nothing is left unset.
-            std::set<std::string> explicit_fields;
+            MIRFieldNameSet explicit_fields;
             for (auto& kv : sv->values) {
-                explicit_fields.insert(std::string(kv.first.data(), kv.first.size()));
+                explicit_fields.insert(kv.first);
             }
             // Fields the literal *fully* defines. An array literal shorter than
             // the field's declared size lowers to a temp of exactly the literal's
@@ -427,7 +427,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             // by the array lowering, but a partial one decays), so the field's
             // tail is defined only by the enclosing zero_init -- treat such a
             // field as unset for the zero decision.
-            std::set<std::string> zero_defined_fields = explicit_fields;
+            MIRFieldNameSet zero_defined_fields = explicit_fields;
             for (auto& kv : sv->values) {
                 Value* iv = kv.second.value;
                 if (!iv || iv->val_kind() != ValueKind::ArrayValue) continue;
@@ -438,8 +438,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 if (!fat || !fat->has_array_size()) continue;
                 if (static_cast<uint64_t>(iv->as_array_value_unsafe()->values.size()) <
                     fat->get_array_size()) {
-                    zero_defined_fields.erase(
-                        std::string(kv.first.data(), kv.first.size()));
+                    zero_defined_fields.erase(kv.first);
                 }
             }
             // Zero the temp so members that are not explicitly set are

@@ -465,6 +465,11 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
     }
     const MIRTypeRecord& ftr = module.types.get(function.function_type);
 
+    // The generated C for one function runs to many KB (aggregate-heavy
+    // functions far more), so reserve up front and stop `out` reallocating as
+    // it grows. ~24 bytes per instruction is a deliberately rough estimate.
+    out.reserve(out.size() + function.instructions.size() * 24 + 128);
+
     std::string fnname;
     if (!symbol_name(module, function.symbol, fnname) || fnname.empty()) {
         fnname = "__chx_fn" + std::to_string(function.symbol);

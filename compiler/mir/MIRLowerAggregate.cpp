@@ -9,7 +9,7 @@
 namespace mir {
 
 bool MIRLowerer::apply_struct_defaults(PlaceId temp, ExtendableMembersContainerNode* def,
-                                       const std::set<std::string>& explicit_fields,
+                                       const MIRFieldNameSet& explicit_fields,
                                        std::string& error) {
     if (!def) return true;
     // inherited bases: default-construct them (or recurse into their defaults)
@@ -21,7 +21,7 @@ bool MIRLowerer::apply_struct_defaults(PlaceId temp, ExtendableMembersContainerN
         if (!bec) continue;
         const chem::string_view bn = bec->name_view();
         if (bn.empty()) continue;
-        if (explicit_fields.count(std::string(bn.data(), bn.size()))) continue;
+        if (explicit_fields.contains(bn)) continue;
         const ConstantId bfc = module_.constants.add_string(
             MIR_INVALID_ID, bn.data(), static_cast<uint32_t>(bn.size()));
         const TypeId bmt = types_.map(bt);
@@ -49,10 +49,9 @@ bool MIRLowerer::apply_struct_defaults(PlaceId temp, ExtendableMembersContainerN
     // direct members with a default value (or a member struct with a default ctor)
     for (BaseDefMember* var : def->variables()) {
         if (!var) continue;
-        const std::string nm(var->name.data(), var->name.size());
-        if (explicit_fields.count(nm)) continue;
+        if (explicit_fields.contains(var->name)) continue;
         const ConstantId fc = module_.constants.add_string(
-            MIR_INVALID_ID, nm.data(), static_cast<uint32_t>(nm.size()));
+            MIR_INVALID_ID, var->name.data(), static_cast<uint32_t>(var->name.size()));
         BaseType* mt = var->known_type();
         Value* dv = var->default_value();
         if (!dv) {
@@ -108,7 +107,7 @@ bool MIRLowerer::apply_struct_defaults(PlaceId temp, ExtendableMembersContainerN
 // -- leaves a byte that only the whole-temp `zero_init` defines. Mirrors the
 // `continue` paths of `apply_struct_defaults` exactly.
 bool MIRLowerer::struct_literal_defines_all_fields(ExtendableMembersContainerNode* def,
-                                                   const std::set<std::string>& explicit_fields) {
+                                                   const MIRFieldNameSet& explicit_fields) {
     if (!def) return false;
     for (InheritedType& inh : def->inherited) {
         BaseType* bt = inh.type;
@@ -123,8 +122,7 @@ bool MIRLowerer::struct_literal_defines_all_fields(ExtendableMembersContainerNod
     }
     for (BaseDefMember* var : def->variables()) {
         if (!var) continue;
-        const std::string nm(var->name.data(), var->name.size());
-        if (explicit_fields.count(nm)) continue;
+        if (explicit_fields.contains(var->name)) continue;
         if (var->default_value()) continue;
         BaseType* mt = var->known_type();
         ASTNode* mn = mt ? mt->get_direct_linked_canonical_node() : nullptr;
@@ -386,9 +384,8 @@ bool MIRLowerer::apply_struct_defaults_ptr(ValueId self_ptr, ExtendableMembersCo
     }
     for (BaseDefMember* var : def->variables()) {
         if (!var) continue;
-        const std::string nm(var->name.data(), var->name.size());
         const ConstantId fc = module_.constants.add_string(
-            MIR_INVALID_ID, nm.data(), static_cast<uint32_t>(nm.size()));
+            MIR_INVALID_ID, var->name.data(), static_cast<uint32_t>(var->name.size()));
         BaseType* mt = var->known_type();
         Value* dv = var->default_value();
         if (!dv) {

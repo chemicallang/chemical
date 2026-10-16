@@ -159,6 +159,19 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 if (r.type != vt) val = builder_->cast(val, vt);
                 builder_->store(place, val);
             }
+            // Inside a comptime-template inline, a `const` local whose value is
+            // computable at comptime must also be visible to nested comptime
+            // calls (a nested comptime constructor, `intrinsics::size`, …) that
+            // are evaluated through the interpret scope. Publish it by name so
+            // both the identifier lowering and the interpreter's scope see the
+            // folded value. `comptime_bindings_` is save/restored around the
+            // inline, so this never leaks past the body.
+            if (!inline_frames_.empty() && vi->is_const() && comptime_value_eval_ && vi->value) {
+                if (Value* cv = comptime_value_eval_(vi->value)) {
+                    const auto nm = vi->name_view();
+                    comptime_bindings_[std::string(nm.data(), nm.size())] = cv;
+                }
+            }
             return true;
         }
         case ASTNodeKind::AssignmentStmt: {

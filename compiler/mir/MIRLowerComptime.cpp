@@ -78,19 +78,25 @@ bool scope_has_template(Scope* s) {
 
 bool MIRLowerer::is_comptime_template_fn(FunctionDeclaration* fd) {
     if (!fd || !fd->is_comptime() || !fd->body.has_value()) return false;
-    // constructors keep the existing implicit-constructor path (it also runs
-    // `comptime_ctor_eval`); inlining them crashes the compiler today (see
-    // lang/docs/runtime-value-replacement.md step 2).
-    if (fd->is_constructor_fn()) return false;
+    const bool has_template = scope_has_template(&fd->body.value());
+    // A constructor that still returns a `%runtime_value`/`%runtime_block_value`
+    // stays on the existing implicit-constructor path (which also runs the
+    // comptime constructor evaluation). A migrated constructor — whose body no
+    // longer returns a template — inlines like any other template.
+    if (fd->is_constructor_fn() && has_template) return false;
+    // A comptime-template function is recognised by a *marker* parameter:
+    // `%runtime<T>` / `%maybe_runtime<T>` (a runtime operand) or
+    // `%literal`/`%expressive_string` (a comptime operand). Inspect the RAW
+    // kind — `BaseType::canonical()` deliberately unwraps exactly these markers
+    // (see BaseType.cpp), so a canonicalized check would never match.
     for (FunctionParam* p : fd->params) {
         if (!p || !p->type) continue;
-        BaseType* t = p->type->canonical();
-        if (t && (t->kind() == BaseTypeKind::Runtime ||
-                  t->kind() == BaseTypeKind::MaybeRuntime)) {
+        const BaseTypeKind k = p->type->kind();
+        if (k == BaseTypeKind::Runtime || k == BaseTypeKind::MaybeRuntime) {
             return true;
         }
     }
-    return scope_has_template(&fd->body.value());
+    return has_template;
 }
 
 MIRExprResult MIRLowerer::inline_comptime_template(FunctionDeclaration* fd, MIRExprResult recv,
@@ -115,12 +121,22 @@ MIRExprResult MIRLowerer::inline_comptime_template(FunctionDeclaration* fd, MIRE
     };
     std::vector<BoundArg> bounds(fd->params.size());
     bool ok = true;
+    // `fd->params` includes the receiver but `call_values` does not, so the
+    // argument index must skip the receiver slot rather than reuse the param
+    // index.
+    size_t argi = 0;
     for (size_t i = 0; ok && i < fd->params.size(); ++i) {
         FunctionParam* p = fd->params[i];
         if (!p || p == callee_self) continue;
-        Value* arg = (i < call_values.size()) ? call_values[i] : p->defValue;
+        Value* arg = (argi < call_values.size()) ? call_values[argi] : p->defValue;
+        ++argi;
         if (!arg) {
-            error = "missing comptime template argument";
+            error = "missing comptime template argument '" +
+                    std::string(p->name.data(), p->name.size()) + "' for '" +
+                    fd->name_str() + "' (i=" + std::to_string(i) +
+                    " params=" + std::to_string(fd->params.size()) +
+                    " values=" + std::to_string(call_values.size()) +
+                    " self=" + (callee_self ? "y" : "n") + ")";
             ok = false;
             break;
         }

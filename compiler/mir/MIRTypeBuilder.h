@@ -142,6 +142,10 @@ public:
             rec.data_count = 2;
             rec.field_index = fidx;
         });
+        // The fat pointer is built by hand (not via `map`), so its field offsets
+        // are not filled by the normal layout step; a MIR consumer that reads
+        // offsets (the interpreter, the LLVM GEP path) needs them.
+        compute_aggregate_layout(module_.types, fat_pointer_id_);
         return fat_pointer_id_;
     }
 

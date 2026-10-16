@@ -53,6 +53,6 @@ void mir_vtable_slots(MIRTypeBuilder& types, MIRModule& module, InterfaceDefinit
  * is what lets `mir_emit_llvm_module` stop walking the AST.
  */
 void build_module_vtables(NameMangler& mangler, MIRTypeBuilder& types, MIRModule& module,
-                          const std::vector<ASTNode*>& nodes);
+                          const std::vector<ASTNode*>& nodes, bool clear = true);
 
 } // namespace mir

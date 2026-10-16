@@ -30,6 +30,7 @@
 namespace mir {
 struct MIRModule;
 class MIRTypeBuilder;
+struct MIRInterpProgram;
 }
 
 #include "symres/LinkSignatureAPI.h"
@@ -608,6 +609,24 @@ public:
      * IR for the fully-populated MIR module.
      */
     std::function<void(mir::MIRTypeBuilder&, mir::MIRModule&)> mir_llvm_finish;
+
+    /**
+     * When set, `implement_module` uses this job-wide MIR program's tables
+     * (module/types/task/mutex) instead of a fresh per-module module, so the
+     * interpretation job accumulates every function's MIR and can later run it.
+     * The C/LLVM paths leave it null.
+     */
+    mir::MIRInterpProgram* mir_interp_program = nullptr;
+
+    /**
+     * Declare + implement a module for the interpretation job: lowers every
+     * function body into `*mir_interp_program` (collect mode) without emitting a
+     * linkable object. Mirrors `mir_compile_module` minus the LLVM emission.
+     */
+    int interpret_module(
+        CTranslationContext& visitor,
+        LabModule* module
+    );
 
 #ifdef COMPILER_BUILD
 

@@ -50,6 +50,7 @@
 #include "compiler/mir/MIRLowerer.h"
 #include "compiler/mir/MIRTaskContext.h"
 #include "compiler/mir/MIRMangleBuffer.h"
+#include "compiler/mir/MIRInterpProgram.h"
 
 #include "ctpl.h"
 
@@ -2418,24 +2419,27 @@ int ASTProcessor::implement_module(
     // MIR module tables live across the files of this module so cross-function
     // symbols/types are shared. A fresh arena per function is reset in the
     // driver (MIR is emitted immediately, then discarded).
-    mir::MIRModule mir_module;
+    //
+    // The interpretation job passes a job-wide `MIRInterpProgram` instead: the
+    // module, types, task and lock are shared across every source module and the
+    // arena is never reset, so all lowered functions stay alive to be executed.
+    mir::MIRModule mir_module_local;
+    mir::MIRTypeBuilder mir_types_local(mir_module_local);
+    mir::MIRTaskContext mir_task_local(mir_module_local, mir_types_local);
+    std::recursive_mutex mir_mutex_local;
+    mir::MIRModule& mir_module = mir_interp_program ? mir_interp_program->module : mir_module_local;
+    mir::MIRTypeBuilder& mir_types = mir_interp_program ? *mir_interp_program->types : mir_types_local;
+    mir::MIRTaskContext& mir_task = mir_interp_program ? *mir_interp_program->task : mir_task_local;
+    std::recursive_mutex& mir_visitor_mutex =
+        mir_interp_program ? mir_interp_program->visitor_mutex : mir_mutex_local;
     mir_module.layout.is64Bit = c_visitor.comptime_scope.target_data.is64Bit;
     mir_module.layout.windows = c_visitor.comptime_scope.target_data.windows;
-    mir::MIRTypeBuilder mir_types(mir_module);
-    // One lock for every access to the shared `c_visitor` (the mangler, the
-    // comptime scope, the AST allocator, diagnostics, `iface->active_user`,
-    // `current_func_type`). Lowering workers run the pure MIR computation
-    // lock-free and take this only around those shared operations. Recursive so
-    // a locked operation that calls another (e.g. `intern_method_function`
-    // around the mangler) does not deadlock.
-    std::recursive_mutex mir_visitor_mutex;
     // Type-name mangling is serialized by the builder's own lock and reads no
     // shared mutable mangler state, so it does not take the visitor lock (which
     // would invert the builder->visitor order).
     mir_types.set_name_resolver([&c_visitor](ASTNode* n) {
         return mir_mangle_name(c_visitor.mangler, n);
     });
-    mir::MIRTaskContext mir_task(mir_module, mir_types);
     mir::MIRLowerer& mir_lowerer = mir_task.lowerer;
     mir_lowerer.set_visitor_mutex(&mir_visitor_mutex);
     // Source locations and debug metadata (place names, lexical scopes) are only
@@ -2654,7 +2658,8 @@ int ASTProcessor::implement_module(
                 if (!file_ptr.result) continue;
                 for (ASTNode* n : file_ptr.result->unit.scope.body.nodes) top.push_back(n);
             }
-            mir::build_module_vtables(c_visitor.mangler, mir_types, mir_module, top);
+            mir::build_module_vtables(c_visitor.mangler, mir_types, mir_module, top,
+                                      /*clear=*/mir_interp_program == nullptr);
         }
         if (mir_lower_static_interface_stubs(c_visitor, mir_module, mir_lowerer,
                                              mir_arena) != 0) {
@@ -2675,6 +2680,18 @@ int ASTProcessor::implement_module(
     // the generated c cannot be trusted when errors were reported
     return had_errors ? 1 : 0;
 
+}
+
+int ASTProcessor::interpret_module(CTranslationContext& c_visitor, LabModule* module) {
+    // Lower every function body into the job-wide interpretation program (collect
+    // mode) instead of emitting linkable C. Mirrors `mir_compile_module` minus
+    // the LLVM emission; the caller sets `mir_interp_program`.
+    const bool prev_collect = mir_llvm_collect;
+    mir_llvm_collect = true;
+    int result = declare_module(c_visitor, module);
+    if (result == 0) result = implement_module(c_visitor, module);
+    mir_llvm_collect = prev_collect;
+    return result;
 }
 
 int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {

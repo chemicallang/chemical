@@ -37,6 +37,10 @@
 #include "compiler/ASTProcessor.h"
 #include "ast/structures/Namespace.h"
 #include "preprocess/2c/TranslationContext.h"
+#include "preprocess/2c/BufferedWriter.h"
+#include "compiler/mir/MIRInterpProgram.h"
+#include "compiler/mir/MIRInterpreter.h"
+#include "compiler/mir/MIRModule.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "integration/libtcc/LibTccInteg.h"
 #include "ctpl.h"
@@ -44,6 +48,7 @@
 #include "utils/PathUtils.h"
 #include "preprocess/RepresentationVisitor.h"
 #include <sstream>
+#include <cstdlib>
 #include <filesystem>
 #include <iostream>
 #include <cstdlib>
@@ -4911,8 +4916,12 @@ int LabBuildCompiler::do_interpretation_job(LabJob* job) {
         std::cout << "[lab] " << "allocating instances objects required for building" << std::endl;
     }
 
-    // interpretation scope for interpreting compile time function calls
-    GlobalInterpretScope global(job->mode, job->target_data, nullptr, this, *job_allocator, type_builder, loc_man, true);
+    // The interpretation job lowers every module to MIR and runs the MIR
+    // interpreter. `interpretation_mode` is off so the tests take the compiled
+    // (`printf`) branches: interpretation is the same semantics as the code
+    // generators, executed by a different engine. See
+    // lang/docs/mir-interpretation-plan.md.
+    GlobalInterpretScope global(job->mode, job->target_data, nullptr, this, *job_allocator, type_builder, loc_man, false);
     global.should_destruct_values = false;
 
     // we hold the instantiated types inside this container
@@ -4926,6 +4935,17 @@ int LabBuildCompiler::do_interpretation_job(LabJob* job) {
 
     // create or rebind the global container (comptime functions like intrinsics namespace)
     create_or_rebind_container(this, global, resolver, job->target_data);
+
+    // One shared MIR module/arena across all source modules, and a CVisitor the
+    // lowering uses exactly as the compile paths do.
+    mir::MIRInterpProgram mir_program;
+    CTranslationContext mir_c_visitor(binder, global, mangler, *file_allocator, loc_man,
+                                      coreNodes, implsIndex, options->debug_info,
+                                      options->minify_c);
+    ToCBackendContext mir_c_context(&mir_c_visitor);
+    global.backend_context = &mir_c_context;
+    processor.mir_interp_program = &mir_program;
+    mir_c_visitor.prepare_translate();
 
     // process each module: parse, symres, typecheck (no C translation)
     const auto total_modules = dependencies.size();
@@ -4974,6 +4994,17 @@ int LabBuildCompiler::do_interpretation_job(LabJob* job) {
             }
             return 1;
         }
+
+        // lower the module's function bodies and globals into the shared MIR
+        // program (collect mode) so the interpreter can run them below
+        {
+            const int mir_status = processor.interpret_module(mir_c_visitor, mod);
+            if (mir_status != 0) {
+                std::cout << "[lab] " << rang::fg::red << "error: " << rang::fg::reset
+                          << "failure lowering module " << *mod << " to MIR" << std::endl;
+                return mir_status;
+            }
+        }
     }
 
     // find the main function by iterating over module's direct files
@@ -5000,55 +5031,22 @@ int LabBuildCompiler::do_interpretation_job(LabJob* job) {
         return 1;
     }
 
-    std::cout << "[lab] " << "Interpreting main()..." << std::endl;
-
-    // create a scope for calling main
-    InterpretScope call_scope(&global, *job_allocator, &global);
-
-    // interpret module-level variable declarations before main()
-    // these are declared in the global scope so all function scopes can find them
-    for(auto mod : dependencies) {
-        switch(mod->type) {
-            case LabModuleType::CFile:
-            case LabModuleType::CPPFile:
-            case LabModuleType::ObjFile:
-                continue;
-            default:
-                break;
-        }
-        for(auto& file_meta : mod->direct_files) {
-            auto& nodes = file_meta.result->unit.scope.body.nodes;
-            for(const auto node : nodes) {
-                if(node->kind() == ASTNodeKind::VarInitStmt) {
-                    global.interpret(node);
-                }
-            }
-        }
+    // Resolve main's mangled name exactly as the lowerer interned it.
+    std::string main_mangled;
+    {
+        BufferedWriter mw(256);
+        mangler.mangle(mw, main_fn);
+        main_mangled.assign(mw.data(), mw.getPosition());
     }
-
-    // call main with no arguments (the interpretation module main takes no args)
-    // if main does have parameters, we create default ones
-    std::vector<Value*> call_args;
-
-    // Check if main has parameters and create defaults if so
-    if(main_fn->expectedArgsSize() > 0) {
-        // Create argc = 0 using IntNumValue (signed 32-bit int)
-        auto argc_val = IntNumValue::create_number(*job_allocator, type_builder, 32, true, 0, ZERO_LOC);
-        call_args.push_back(argc_val);
-
-        // Create argv = null using NullValue
-        auto argv_val = new (job_allocator->allocate<NullValue>()) NullValue(type_builder.getNullPtrType(), ZERO_LOC);
-        call_args.push_back(argv_val);
-    }
-
-    // Call main with the arguments
-    const auto result = main_fn->call(&call_scope, call_args, nullptr, &call_scope, false, nullptr);
-
-    if(result) {
-        auto eval_result = result->evaluated_value(call_scope);
-        std::cout << "[lab] " << "Interpretation job completed with return value" << std::endl;
-    } else {
-        std::cout << "[lab] " << "Interpretation job completed (no return value)" << std::endl;
+    std::cout << "[lab] " << "Running main() through the MIR interpreter..." << std::endl;
+    mir::MIRInterpreter interp(mir_program.module);
+    long long rc = 0;
+    std::string interp_error;
+    const char* argv0[1] = {"chemical"};
+    if (!interp.run(main_mangled, 0, argv0, rc, interp_error)) {
+        std::cerr << "[lab] " << rang::fg::red << "error: " << rang::fg::reset
+                  << "MIR interpreter: " << interp_error << std::endl;
+        return 1;
     }
 
     // remove non-public nodes

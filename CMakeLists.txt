@@ -697,6 +697,7 @@ set(COMMON_SOURCES
         compiler/mir/MIRVtable.cpp
         compiler/mir/MIRPrototype.cpp
         compiler/mir/MIRGlobalDecl.cpp
+        compiler/mir/MIRInterpreter.cpp
 )
 
 # Chemical LSP Executable Target
@@ -928,6 +929,7 @@ add_executable(MIRTests
         compiler/mir/MIREmitter.cpp
         compiler/mir/MIRDeclPrinter.cpp
         compiler/mir/MIRFacts.cpp
+        compiler/mir/MIRInterpreter.cpp
 )
 target_include_directories(MIRTests PRIVATE ${COMMON_INCLUDE_DIRS})
 

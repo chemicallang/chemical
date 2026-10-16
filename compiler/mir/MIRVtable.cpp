@@ -91,8 +91,8 @@ void mir_vtable_slots(MIRTypeBuilder& types, MIRModule& module, InterfaceDefinit
 }
 
 void build_module_vtables(NameMangler& mangler, MIRTypeBuilder& types, MIRModule& module,
-                          const std::vector<ASTNode*>& nodes) {
-    module.vtables.clear();
+                          const std::vector<ASTNode*>& nodes, bool clear) {
+    if (clear) module.vtables.clear();
 
     // One struct type per interface, whether or not it is implemented here (the
     // interface may be declared in this module and implemented in another).

@@ -2,29 +2,17 @@
 
 // The interpretation job finds and calls this main() function.
 // It runs common tests via run_common_tests().
-
-// Async at comptime is eager: the interpreter has no executor, symres does not
-// wrap async return types here, and `await` just yields its inner expression.
-// This locks that behavior (see lang/docs/async-library-integration.md §3.1).
-async func interp_eager_add(a : int, b : int) : int {
-    return a + b
-}
-
-async func interp_await_chain(a : int) : int {
-    var first = await interp_eager_add(a, 1)
-    var second = await interp_eager_add(first, 1)
-    return second
-}
-
-func run_interpret_async_tests() {
-    test("async/await is eager during interpretation", () => {
-        return interp_await_chain(40) == 42
-    })
-}
+//
+// The interpretation job runs the *same MIR* as the compiled backends, so it
+// no longer has an AST-interpreter-specific eager `async` mode. Async functions
+// are coroutines on every path; a future must be driven by an executor, which
+// the interpreter does not provide. The old `run_interpret_async_tests` (which
+// locked the eager behaviour of the AST interpreter, see
+// `lang/docs/async-library-integration.md` §3.1) is therefore gone with the AST
+// interpreter. Comptime async remains eager and is locked by the compiler tests.
 
 public func main() {
     run_common_tests();
     run_native_common_tests();
-    run_interpret_async_tests();
     print_test_stats();
 }

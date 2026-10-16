@@ -109,6 +109,39 @@ impl PrimitiveImplInterface3 for int {
     }
 }
 
+// A primitive impl of an interface that *inherits* another interface: the
+// derived interface's vtable has both the inherited slot and its own, and the
+// primitive vtable definition must be aligned with that type (an unaligned
+// initializer put the own method in the inherited slot and left the own slot
+// null, so a dynamic call on it jumped through a null pointer).
+interface PrimInheritBase {
+    func prim_base_val(&self) : int
+}
+
+interface PrimInheritDerived : PrimInheritBase {
+    func prim_derived_val(&self) : int
+}
+
+impl PrimInheritBase for int {
+    func prim_base_val(&self) : int {
+        return *self + 1
+    }
+}
+
+impl PrimInheritDerived for int {
+    func prim_derived_val(&self) : int {
+        return *self + 2
+    }
+}
+
+func dyn_prim_inherit_derived(i : dyn PrimInheritDerived) : int {
+    return i.prim_derived_val()
+}
+
+func dyn_prim_inherit_base(i : dyn PrimInheritBase) : int {
+    return i.prim_base_val()
+}
+
 func test_primitive_implementations() {
     test("direct call on primitive impl method works - 1", () => {
         var i : int = 234
@@ -269,5 +302,13 @@ func test_primitive_implementations() {
     test("primitive impl on static interface from external module works", () => {
         var i : int = 233
         return i.curr_mod_give2() == 240
+    })
+    test("dynamic call on a primitive impl of an inheriting interface resolves the inherited slot", () => {
+        var i : int = 10
+        return dyn_prim_inherit_base(dyn<PrimInheritBase>(i)) == 11
+    })
+    test("dynamic call on a primitive impl of an inheriting interface resolves its own slot", () => {
+        var i : int = 10
+        return dyn_prim_inherit_derived(dyn<PrimInheritDerived>(i)) == 12
     })
 }

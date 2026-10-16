@@ -544,14 +544,29 @@ void MIRDeclEmitter::create_vtable_primitive(BufferedWriter& w, InterfaceDefinit
         w.append(nw.data(), nw.getPosition());
     }
     w.append(" = {", 4);
-    for (FunctionDeclaration* func : interface->instantiated_functions()) {
-        if (!func->has_self_param()) continue;
-        FunctionDeclaration* overrider = def->direct_child_function(func->name_view());
-        if (overrider) {
-            w.append_char('\n');
-            w << mangle_name(overrider);
-            w.append_char(',');
+    // The ordered slot list must match the vtable *type* (`create_vtable_type`):
+    // inherited interface slots first, then the interface's own methods — every
+    // one of them — so a primitive impl of an interface that inherits (or
+    // declares non-self methods) stays aligned with the type. A non-self slot
+    // and a self slot with no overrider are null entries, exactly as
+    // `build_module_vtables` records the primitive vtable for LLVM; a dropped
+    // entry would shift every later slot.
+    std::vector<MIRVtableSlot> slots;
+    std::vector<FunctionDeclaration*> funcs;
+    mir_vtable_slots(types_, module_, interface, slots, &funcs);
+    for (FunctionDeclaration* func : funcs) {
+        w.append_char('\n');
+        std::string name;
+        if (func && func->has_self_param()) {
+            FunctionDeclaration* overrider = def->direct_child_function(func->name_view());
+            if (overrider) name = mangle_name(overrider);
         }
+        if (name.empty()) {
+            w.append_char('0');
+        } else {
+            w.append(name.data(), name.size());
+        }
+        w.append_char(',');
     }
     w.append("\n};", 3);
 }

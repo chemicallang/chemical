@@ -682,7 +682,13 @@ the callee resolution stay backend-side. Measured output-invariant for C
 `slot_ftype` used a local `is_agg` that excluded typedef structs and arrays from
 sret). Still open in B: shared traversal/naming and the vtable *declaration*
 records (so the LLVM driver stops walking the AST for interfaces/impls), plus
-the primitive-impl slot alignment noted in the MIR README.
+the primitive-impl slot alignment noted in the MIR README. **The primitive-impl
+alignment is now FIXED (session 36):** `create_vtable_primitive` iterates the
+shared `mir_vtable_slots` (inherited-then-own, every method) and emits a null
+entry for a non-self/`no-overrider` slot, so the primitive vtable definition
+matches its type; regression tests in `primitive_impl.ch` (`--tcc` **2307/2307**,
+`--interpret` **1897/1897**, `--llvm` **2305/2305**). Still open in B: shared
+traversal/naming.
 
 **Step 4 DONE (session 21) — `MIRVtableTable.h` + `build_module_vtables`.** The
 interface/impl vtable *declarations* are now MIR records: `MIRModule::vtables`

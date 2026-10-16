@@ -99,6 +99,37 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 36 (2026-10-16) — the primitive-impl vtable aligns with the shared layout (action B, correctness)
+
+`MIRDeclEmitter::create_vtable_primitive` built the vtable **definition** by
+iterating the interface's own `instantiated_functions()` (self methods with an
+overrider only), while the vtable **type** (`create_vtable_type`) uses the shared
+`mir_vtable_slots` — inherited interface slots first, then every own method. For
+a primitive impl of an interface that inherits (or declares a non-self method)
+the two disagreed: the own method landed in the *inherited* slot and the own slot
+was left null, so a dynamic call through the derived interface jumped through a
+null pointer.
+
+The primitive definition now iterates the shared `mir_vtable_slots` too, emitting
+one entry per slot — a self method with a `direct_child_function` overrider
+resolves to that callee, and a non-self slot or a self slot with no overrider is a
+null entry (matching `build_module_vtables`' kind-2 records for LLVM). The slot
+*layout* now comes from one place for both backends and both vtable kinds.
+
+Probe (`lang/compiled/prim_probe`, gitignored): `PrimDerived : PrimBase` implemented
+for `int` now emits `{ 0, prim_probe_int_derived_val }` (was `{ prim_probe_int_derived_val }`,
+which put the own method in the base slot). Regression tests in
+`lang/tests/common/src/decls/interfaces/primitive_impl.ch`: a dynamic call on the
+derived interface resolves its own slot (`== 12`; previously a null-pointer jump)
+and the base interface resolves the inherited slot (`== 11`).
+
+| Suite | Result |
+|---|---|
+| `--tcc` | **2305 → 2307/2307** |
+| `--tcc --interpret` | **1895 → 1897/1897** |
+| `--llvm` | **2303 → 2305/2305** |
+| `--tcc --libs` | **718/719** (the known `test_fs_directory_iteration`) |
+
 ### Session 35 (2026-10-16) — a pointer-target zero for anonymous-aggregate array fields (action C1, eighth bite)
 
 Session 34 skipped the field store for an *empty* array literal in the struct

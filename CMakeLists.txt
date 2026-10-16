@@ -683,6 +683,10 @@ set(COMMON_SOURCES
         compiler/mir/MIRFacts.cpp
         compiler/mir/MIRTypeBuilder.cpp
         compiler/mir/MIRLowerer.cpp
+        compiler/mir/MIRLowerExpr.cpp
+        compiler/mir/MIRLowerStmt.cpp
+        compiler/mir/MIRLowerCall.cpp
+        compiler/mir/MIRLowerAggregate.cpp
         compiler/mir/MIRLowerAsync.cpp
         compiler/mir/MIRLowerLambda.cpp
         compiler/mir/MIRLowerConst.cpp

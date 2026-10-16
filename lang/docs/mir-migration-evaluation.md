@@ -37,6 +37,16 @@ Branch: `mir`. Supersedes nothing; complements `compiler/mir/README.md`,
 > measurable on this Windows checkout** (identical cold runs: 15.6/24.4/23.5 s).
 > Details: `compiler/mir/README.md`, session 27.
 >
+> **Status update (2026-10-16, session 33) — D4 done: `MIRLowerer.cpp` split.**
+> The remaining 7,090-line TU is now the core `MIRLowerer.cpp` (867) plus
+> `MIRLowerExpr.cpp` (1,858), `MIRLowerStmt.cpp` (2,176), `MIRLowerCall.cpp`
+> (1,523) and `MIRLowerAggregate.cpp` (473), with the shared AST-aware free
+> helpers in a new `MIRLowererHelpers.h` (`inline`). Pure move, output-invariant
+> (emitted C 96,803 lines either side; normalized diff **52** against a **62-line**
+> same-binary floor); `MIRTests` **4400**, `--tcc` **2305/2305**, `--llvm`
+> **2303/2303**, `--tcc --libs` **718/719**. No gate moves — reviewability and the
+> compiler's own incremental build. Details: `compiler/mir/README.md`, session 33.
+>
 > **Status update (2026-10-15, session 26) — multi-statement constructors no
 > longer zero the result temp.** `constructor_writes_whole_value` gained the
 > `... <setup>; return T{...}` and `... var m = T{...}; ...; return m` shapes
@@ -418,9 +428,13 @@ Concrete emit-level waste to remove:
 
 MIR added materially more code than it deleted, in direct tension with the
 "delete as you add / stay under 4 MB" budget (`mir-implementation-plan.md`
-§1.4). `MIRLowerer.cpp` is a single **8,224-line** translation unit (the plan
+§1.4). `MIRLowerer.cpp` was a single **8,224-line** translation unit (the plan
 specified `MIRLowerExpr/Stmt/Call/Lambda`); `lower_expr` alone is 1,745 lines and
-`lower_stmt` 1,072. This slows the compiler's own build and makes review hard.
+`lower_stmt` 1,072. This slowed the compiler's own build and made review hard.
+**Split (session 33):** `MIRLowerer.cpp` is now **867 lines**, with
+`MIRLowerExpr.cpp` (1,858), `MIRLowerStmt.cpp` (2,176), `MIRLowerCall.cpp`
+(1,523) and `MIRLowerAggregate.cpp` (473) beside the already-split
+async/lambda/const TUs.
 
 > The binary numbers are `Debug`; the release `< 4 MB` budget must be confirmed
 > with a release build (tracked as **M1** below). The *direction* is unambiguous.
@@ -517,7 +531,9 @@ per cold main-suite compile (`MIR_PROF` instrumentation, since removed):
   ×388, `make` ×331, `resize` ×74, `push` ×65). So the fix is the
   **per-instruction** cost (builder/arena/type-mapping overhead) or lowering
   fewer instantiated copies — not rewriting one hot function.
-- **`MIRLowerer.cpp` is one 8,224-line TU** (build-time and review cost).
+- **`MIRLowerer.cpp` was one 8,224-line TU** (build-time and review cost).
+  **Split (session 33):** core is 867 lines; the per-construct TUs are listed in
+  §1.3. Remaining per-instruction / low-value work in D is unchanged.
 - **Lowering is serial per module.** Stage 9 (parallel file lowering) is not
   implemented; `implement_module` walks files one at a time and clears a
   per-file memo (`ASTProcessor.cpp` L2354–2376).
@@ -833,6 +849,17 @@ against item 1 above.
    Dense tables cannot move the gate; the cost is per-function/per-instruction C++
    overhead in the `Debug` compiler. See `compiler/mir/README.md`, session 29.
 4. Split `MIRLowerer.cpp` into `MIRLowerExpr/Stmt/Call/Aggregate/Lambda/Async`.
+   **DONE (session 33).** The async/lambda/const groups moved in session 27; the
+   remaining bulk is now `MIRLowerExpr.cpp` (1,858), `MIRLowerStmt.cpp` (2,176),
+   `MIRLowerCall.cpp` (1,523), `MIRLowerAggregate.cpp` (473), leaving the core
+   `MIRLowerer.cpp` at **867 lines** (place resolution, `lower_address_of`,
+   moves/drops, the static-interface stub, `lower_function`). The AST-aware free
+   helpers became an `inline` `compiler/mir/MIRLowererHelpers.h`. Pure move,
+   output-invariant (emitted C 96,803 lines either side; normalized diff 52
+   against a 62-line same-binary floor); `MIRTests` 4400, `--tcc` 2305/2305,
+   `--llvm` 2303/2303, `--libs` 718/719. Reviewability + incremental-build win;
+   the compile-time gate still needs D3/per-instruction/E. See
+   `compiler/mir/README.md`, session 33.
 5. Add phase timers (behind an env var, off by default) so the remaining
    `MIRLowerer` time can be attributed without `perf`, which is unavailable on
    this machine (`perf_event_paranoid=4`).

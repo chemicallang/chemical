@@ -99,6 +99,46 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 33 (2026-10-16) — D4: `MIRLowerer.cpp` split into per-construct TUs
+
+`MIRLowerer.cpp` was a single 7,090-line translation unit — the plan asked for
+`MIRLowerExpr/Stmt/Call/Aggregate` (evaluation §1.3, §2D.4). The async/lambda/const
+groups were already split (session 27); the remaining bulk is now split too:
+
+- **`MIRLowerer.cpp` (867 lines)** — the core: place resolution
+  (`place_for_linked`/`resolve_place*`, `resolve_method_fallback`,
+  `intern_method_function`), `lower_address_of`, the move/drop machinery
+  (`mark_moved`/`clear_moved_ref`/`emit_drops*`), the static-interface stub and
+  `lower_function`.
+- **`MIRLowerExpr.cpp` (1,858)** — `lower_expr`.
+- **`MIRLowerStmt.cpp` (2,176)** — `lower_stmt`, `lower_incdec_value`, and the
+  control-flow lowering (`lower_scope*`, `lower_if*`, `lower_switch*`,
+  `lower_loop*`, `lower_while`/`lower_do_while`/`lower_for`/`lower_for_in`,
+  `lower_asm_operand`, `note_source`).
+- **`MIRLowerCall.cpp` (1,523)** — calls, receiver/method dispatch, member chains,
+  patterns, operator overloads, symbol interning (`intern_function`/`intern_global`),
+  and the atomic intrinsics.
+- **`MIRLowerAggregate.cpp` (473)** — `apply_struct_defaults*`, the
+  constructor/whole-value proofs, `store_anon_aggregate`, the call-temp registry.
+
+New **`compiler/mir/MIRLowererHelpers.h`** holds the AST-aware free helpers that
+were an anonymous namespace in the old file (`struct_derives_from`,
+`resolve_sizeof_operand`, `captured_comptime_value`, `inherited_field_path`,
+`is_implicit_field_node`, `map_binary`, `operator_method_name`/`compound_method_name`,
+`compound_binary`, and `AtomicIntrinsic`/`atomic_intrinsic_of`) as `inline` in
+`namespace mir`, so every TU sees one definition. It is the lowering boundary
+only — no backend includes it.
+
+**Pure move, output-invariant by measurement.** Main-suite emitted C is 96,803
+lines either side; the before → after normalized line-multiset diff is **52**
+against a **62-line same-binary two-run floor** (the generic-instantiation
+ordering jitter). `MIRTests` **4400 checks**; `--tcc` **2305/2305**; `--llvm`
+**2303/2303**; `--tcc --libs` **718/719** (the known environment-sensitive
+`test_fs_directory_iteration`). **No headline gate moves** — this is
+reviewability + the compiler's own incremental build (touching an expression
+case no longer recompiles the statement and call TUs), the enabler the plan names
+before D3 / the per-instruction cost / E.
+
 ### Session 32 (2026-10-16) — E2 + E3a: the worker seam, then reference-stable intern pools
 
 **E2 — one worker, output-invariant.** `compiler/mir/MIRTaskContext.h` holds the

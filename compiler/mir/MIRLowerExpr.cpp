@@ -100,7 +100,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 VariableIdentifier self_id(current_self_param_->name,
                                            current_self_param_->type, ZERO_LOC);
                 self_id.linked = current_self_param_;
-                std::vector<Value*> chain = {&self_id, id};
+                Value* chain[2] = {&self_id, id};
                 return lower_member_chain(chain, 2, error);
             }
             PlaceId place = place_for_linked(id->linked);
@@ -337,7 +337,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             }
             // member access: walk the chain from the base, taking the address of
             // each intermediate field and loading the last
-            return lower_member_chain(chain->values, chain->values.size(), error);
+            return lower_member_chain(chain->values.data(), chain->values.size(), error);
         }
         case ValueKind::StructValue: {
             auto* sv = value->as_struct_value_unsafe();

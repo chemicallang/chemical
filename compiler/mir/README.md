@@ -99,6 +99,18 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 43 (2026-10-16) — one fewer heap vector per unqualified field access
+
+`lower_member_chain` took a `std::vector<Value*>&`, and the unqualified-field
+path in `lower_expr` built a two-element `std::vector` for every bare `field`
+(an implicit `self.field` inside a method) — a heap allocation per access. It now
+takes `Value* const*` + count; the field path uses a stack array and the other two
+callers pass `vec.data()`.
+
+Output-invariant: main-suite C is 96,825 lines either side and the normalized
+diff is **52** (floor 62). `MIRTests` 4400; `--tcc` **2307/2307**; `--llvm`
+**2305/2305**; `--tcc --interpret` **1897/1897**; `--tcc --libs` **718/719**.
+
 ### Session 42 (2026-10-16) — reuse the per-function emitter scratch tables; drop a field-path copy
 
 - `emit_function_c` no longer allocates its per-function scratch on every call:

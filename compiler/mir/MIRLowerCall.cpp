@@ -609,7 +609,7 @@ bool MIRLowerer::append_default_args(FunctionDeclaration* fd, size_t provided,
     return true;
 }
 
-MIRExprResult MIRLowerer::lower_member_chain(const std::vector<Value*>& values, size_t count,
+MIRExprResult MIRLowerer::lower_member_chain(Value* const* values, size_t count,
                                              std::string& error) {
     if (count == 0) {
         error = "empty member chain";
@@ -965,7 +965,7 @@ MIRExprResult MIRLowerer::lower_receiver(const std::vector<Value*>& values, size
             return r;
         }
     }
-    return lower_member_chain(values, count, error);
+    return lower_member_chain(values.data(), count, error);
 }
 
 MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_type,

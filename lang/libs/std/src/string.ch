@@ -70,7 +70,7 @@ public struct string {
 
     @constructor
     comptime func make(value : %literal_string) {
-        return %runtime_value(constructor2(value, intrinsics::size(value), false))
+        return constructor2(value, intrinsics::size(value), false)
     }
 
     @implicit

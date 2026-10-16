@@ -99,6 +99,37 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 41 (2026-10-16) — the C emitter appends straight into the buffer
+
+The emitter built a heap `std::string` per operand / type / field access:
+`place_name`/`vname`, `operand_expr`, `c_type_of`, `declarator` and the
+`member_access`/`const_literal`/`symbol_name`/`constant_string` helpers all
+returned a fresh `std::string`, and the emit loop concatenated them
+(`out += declarator(...) + " = " + operand_expr(...) + ";\n"`). For a Debug
+compiler that is a construction — and, for the longer aggregate / mangled names,
+a heap allocation — per operand of every one of ~300k instructions.
+
+Every speller now has an **append** form writing into `out` directly
+(`append_place_name`, `append_vname`, `append_operand_expr`, `append_c_type_of`,
+`append_declarator`, `append_member_access`, `append_const_literal`,
+`append_symbol_name`, `append_constant_string`, `append_escape_c_string`,
+`append_fn_ptr_type`, plus `append_uint` for ids/counts); the string-returning
+functions are thin wrappers over them (the declaration path and the single-use
+inline map still want strings). The emit loop's cases — Alloca, Param, Const*,
+Load, Store, FieldAddr, IndexAddr, AddressOf, Unary, Binary/Compare, Cast, Call,
+Return, CopyInit/MoveInit, SetDrop, Drop, Destroy, MemCpy, MemSet, FunctionAddr,
+GlobalAddr, Init, Br, CondBr, SizeOf/AlignOf/OffsetOf — were converted to append;
+only a short field name or a twice-used access expression is still materialized
+into a small (SSO) local.
+
+Output-invariant: main-suite C is 96,825 lines either side and the normalized
+diff is **62** (the same-binary floor). `MIRTests` 4400; `--tcc` **2307/2307**;
+`--llvm` **2305/2305**; `--tcc --async` **53/53**; `--tcc --interpret`
+**1897/1897**; `--tcc --libs` **718/719**.
+
+Still string-based (rarer): the async opcodes, `InlineAsm`, `CallIndirect`,
+`DynamicCall`, and the declaration emitter's own spellers.
+
 ### Session 40 (2026-10-16) — reuse the emit body buffer
 
 The non-async path emitted each function into a fresh local `std::string c` and

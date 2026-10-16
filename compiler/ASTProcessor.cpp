@@ -48,6 +48,7 @@
 #include "compiler/mir/MIRArena.h"
 #include "compiler/mir/MIRTypeBuilder.h"
 #include "compiler/mir/MIRLowerer.h"
+#include "compiler/mir/MIRTaskContext.h"
 #include "compiler/async/AwaitNormalizePass.h"
 #include "compiler/mir/MIREmitter.h"
 #include "compiler/mir/MIRDeclEmitter.h"
@@ -1881,13 +1882,13 @@ void mir_collect_owned_globals(const std::vector<ASTNode*>& nodes,
 // visitor (declarations and not-yet-ported constructs) for now.
 bool mir_translate_after_declaration(
         CTranslationContext& visitor,
-        mir::MIRModule& module,
-        mir::MIRTypeBuilder& types,
-        mir::MIRLowerer& lowerer,
-        mir::MIRArena& arena,
+        mir::MIRTaskContext& task,
         mir::MIRDeclEmitter& decl_emitter,
         const std::vector<ASTNode*>& nodes,
         bool llvm_collect = false) {
+    mir::MIRModule& module = task.module();
+    mir::MIRTypeBuilder& types = task.types();
+    mir::MIRLowerer& lowerer = task.lowerer;
     // pass 0: name the aggregate types emitted by declare_module so MIR's C
     // type spelling matches the legacy struct/union/variant declarations
     for (ASTNode* node : nodes) {
@@ -1921,9 +1922,9 @@ bool mir_translate_after_declaration(
     }
 
     bool had_errors = false;
-    auto flush_lambdas = [&lowerer, &visitor]() {
+    auto flush_lambdas = [&lowerer, &task]() {
         for (std::string& def : lowerer.lambda_defs()) {
-            visitor.writer.append(def.data(), def.size());
+            task.out.append(def.data(), def.size());
         }
         lowerer.clear_lambda_defs();
     };
@@ -1935,11 +1936,12 @@ bool mir_translate_after_declaration(
     auto lower_and_emit = [&](FunctionDeclaration* decl) -> bool {
         if (!mir_eligible_function(decl)) return false;
         // The LLVM backend keeps every lowered function (and therefore the
-        // arena) alive so it can emit LLVM IR for the whole module afterwards.
-        if (!llvm_collect) arena.reset();
+        // arena) alive so it can emit LLVM IR for the whole module afterwards,
+        // so it must not rewind the arena per function.
+        task.begin_function(!llvm_collect);
         mir::MIRFunction fn;
         std::string error;
-        if (!lowerer.lower_function(decl, arena, fn, error)) {
+        if (!lowerer.lower_function(decl, task.arena, fn, error)) {
             lowerer.clear_lambda_defs();
             std::cerr << "[MIR] lowering failed (" << (decl->name_str()) << " @ "
                       << mir_mangle_name(visitor.mangler, decl) << "): " << error
@@ -1960,7 +1962,7 @@ bool mir_translate_after_declaration(
             if (lowerer.is_async_main_entry(decl)) {
                 mir::MIRFunction tramp;
                 std::string tramp_error;
-                if (!lowerer.lower_async_main_trampoline(decl, fn, arena, tramp, tramp_error)) {
+                if (!lowerer.lower_async_main_trampoline(decl, fn, task.arena, tramp, tramp_error)) {
                     std::cerr << "[MIR] async main trampoline lowering failed ("
                               << decl->name_str() << "): " << tramp_error << "\n";
                     return false;
@@ -2000,18 +2002,18 @@ bool mir_translate_after_declaration(
             }
             flush_lambdas();
             std::string pre = lowerer.async_pre_decls();
-            visitor.writer.append(pre.data(), pre.size());
-            visitor.writer.append(poll_c.data(), poll_c.size());
+            task.out.append(pre.data(), pre.size());
+            task.out.append(poll_c.data(), poll_c.size());
             std::string post = lowerer.async_post_decls();
-            visitor.writer.append(post.data(), post.size());
-            visitor.writer.append(c.data(), c.size());
+            task.out.append(post.data(), post.size());
+            task.out.append(c.data(), c.size());
             // an application's `async func main` is renamed to
             // `__chx_async_main`, so it also needs the synchronous `int main`
             // trampoline that drives the future it returns to completion
             if (lowerer.is_async_main_entry(decl)) {
                 mir::MIRFunction tramp;
                 std::string tramp_error;
-                if (!lowerer.lower_async_main_trampoline(decl, fn, arena, tramp, tramp_error)) {
+                if (!lowerer.lower_async_main_trampoline(decl, fn, task.arena, tramp, tramp_error)) {
                     std::cerr << "[MIR] async main trampoline lowering failed ("
                               << decl->name_str() << "): " << tramp_error << "\n";
                     return false;
@@ -2022,8 +2024,9 @@ bool mir_translate_after_declaration(
                               << decl->name_str() << "): " << tramp_emit_error << "\n";
                     return false;
                 }
-                visitor.writer.append(tramp_c.data(), tramp_c.size());
+                task.out.append(tramp_c.data(), tramp_c.size());
             }
+            visitor.writer.append(task.out.data(), task.out.size());
             return true;
         }
         std::string c, emit_error;
@@ -2034,7 +2037,8 @@ bool mir_translate_after_declaration(
             return false;
         }
         flush_lambdas();
-        visitor.writer.append(c.data(), c.size());
+        task.out.append(c.data(), c.size());
+        visitor.writer.append(task.out.data(), task.out.size());
         return true;
     };
     // Lower an interface implementation: overridden methods and the interface's
@@ -2310,7 +2314,8 @@ int ASTProcessor::implement_module(
     mir_types.set_name_resolver([&c_visitor](ASTNode* n) {
         return mir_mangle_name(c_visitor.mangler, n);
     });
-    mir::MIRLowerer mir_lowerer(mir_module, mir_types);
+    mir::MIRTaskContext mir_task(mir_module, mir_types);
+    mir::MIRLowerer& mir_lowerer = mir_task.lowerer;
     // Source locations and debug metadata (place names, lexical scopes) are only
     // needed for debug info; the common (release / debug_quick) path pays nothing.
     mir_lowerer.set_debug_info(options->debug_info);
@@ -2411,7 +2416,7 @@ int ASTProcessor::implement_module(
         };
         return search(module, name);
     });
-    mir::MIRArena mir_arena;
+    mir::MIRArena& mir_arena = mir_task.arena;
 
     // Attribute this module's own top-level globals before any lowering: a
     // global is defined by the module that declares it, and merely referenced
@@ -2456,8 +2461,7 @@ int ASTProcessor::implement_module(
 
     // generic instantiations for this module: lowered by MIR (function bodies);
     // non-function nodes still go through the legacy visitor as declarations
-    if (mir_translate_after_declaration(c_visitor, mir_module, mir_types, mir_lowerer,
-                                        mir_arena, mir_decl,
+    if (mir_translate_after_declaration(c_visitor, mir_task, mir_decl,
                                         container.get_current_module_instantiations(),
                                         mir_llvm_collect)) {
         had_errors = true;
@@ -2475,7 +2479,7 @@ int ASTProcessor::implement_module(
 #endif
 
         // translating to c: function bodies via MIR, declarations via legacy
-        if(mir_translate_after_declaration(c_visitor, mir_module, mir_types, mir_lowerer, mir_arena, mir_decl, unit.scope.body.nodes, mir_llvm_collect)) {
+        if(mir_translate_after_declaration(c_visitor, mir_task, mir_decl, unit.scope.body.nodes, mir_llvm_collect)) {
             had_errors = true;
         }
 
@@ -2541,7 +2545,8 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
     mir_types.set_name_resolver([&c_visitor](ASTNode* n) {
         return mir_mangle_name(c_visitor.mangler, n);
     });
-    mir::MIRLowerer mir_lowerer(mir_module, mir_types);
+    mir::MIRTaskContext mir_task(mir_module, mir_types);
+    mir::MIRLowerer& mir_lowerer = mir_task.lowerer;
     // Source locations and debug metadata (place names, lexical scopes) are only
     // needed for debug info; the common (release / debug_quick) path pays nothing.
     mir_lowerer.set_debug_info(options->debug_info);
@@ -2611,7 +2616,6 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
     mir_lowerer.set_embedded_value_repl([&c_visitor](EmbeddedValue* v) -> Value* {
         return c_visitor.resolve_embedded_value(v);
     });
-    mir::MIRArena mir_arena;
     mir::MIRDeclEmitter mir_decl(mir_module, mir_types, c_visitor.mangler, loc_man,
                                  c_visitor.comptime_scope, c_visitor.binder, c_visitor.allocator);
     mir_decl.set_embedded_decl_repl([&c_visitor](EmbeddedNode* node) -> ASTNode* {
@@ -2662,6 +2666,5 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
     }
     c_visitor.unimplemented_static_interfaces.clear();
     if (stub_nodes.empty()) return 0;
-    return mir_translate_after_declaration(c_visitor, mir_module, mir_types, mir_lowerer,
-                                           mir_arena, mir_decl, stub_nodes) ? 1 : 0;
+    return mir_translate_after_declaration(c_visitor, mir_task, mir_decl, stub_nodes) ? 1 : 0;
 }

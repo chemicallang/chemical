@@ -99,6 +99,41 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 45 (2026-10-16) — E3d stage 1: the module tables are lock-safe for concurrent access
+
+Parallel lowering and emission need the module intern tables to be safe to read
+while another worker appends. E3a/E3c made the byte/element pools reference-stable,
+but the *record* vectors (`MIRTypeTable::types`, `MIRConstantPool::constants`,
+`MIRSymbolTable::symbols`) still returned references from `get()` and reallocated
+on append — so a concurrent reader's reference dangled. This stage closes that and
+makes every record mutation locked:
+
+- `get()` on all three tables now returns the record **by value** under a
+  **`std::shared_lock`** (`size()` too); the E1 `std::mutex` became a
+  `std::shared_mutex`, so any number of readers run concurrently and a writer
+  excludes them. `MIRTypeTable::field_of` locks its record read and returns a
+  pointer into the stable `fields` deque.
+- Direct record writes are gone: `MIRTypeTable` gained locked `push` (variant
+  case payloads / synthesized structs) and `update` (the
+  `data_count`/`field_index`/`explicit_alignment` fill); `MIRSymbolTable` gained a
+  locked `set_type` (the function-signature back-patch). `fill_aggregate_fields`,
+  the async-frame and lambda-closure fills and every `symbols[i].type = …` use
+  them, so no `types[i]`/`symbols[i]`/`constants[i]` is touched outside the lock.
+- `MIRConstExprTable` stays lock-free on purpose: global initializers are built and
+  emitted as serial units (globals are not parallelized), so it is never touched by
+  two workers at once.
+
+Output-invariant: main-suite C is 96,825 lines either side, normalized diff 46
+(floor 62). `MIRTests` 4400; `--tcc` **2307/2307**; `--llvm` **2305/2305**;
+`--tcc --interpret` **1897/1897**.
+
+**Next for E3d** (not yet done): the shared `CTranslationContext` state — the
+comptime callbacks, `iface->active_user`, `visitor.error`/`Diagnoser`,
+`current_func_type`, the AST allocator and the embedded-replacement path — still
+needs per-worker ownership or a shared lock, and the C output merge must be
+slot-direct in source order. The table lock alone does not make the
+walk-and-emit loop parallel-safe.
+
 ### Session 44 (2026-10-16) — the mangler appends into a reused buffer
 
 `MIRLowerer`'s `mangler_` callback returned a fresh `std::string` for every

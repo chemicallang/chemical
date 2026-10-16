@@ -2619,7 +2619,12 @@ private:
 
     llvm::Constant* aggregate_constant(mir::ConstExprId id, const mir::MIRConstExpr& e,
                                        llvm::Type* want) {
-        const mir::MIRTypeRecord* rec = valid(e.type) ? &m_.types.get(e.type) : nullptr;
+        mir::MIRTypeRecord rec_storage;
+        const mir::MIRTypeRecord* rec = nullptr;
+        if (valid(e.type)) {
+            rec_storage = m_.types.get(e.type);
+            rec = &rec_storage;
+        }
         if (auto* at = llvm::dyn_cast<llvm::ArrayType>(want)) {
             llvm::Type* et = at->getElementType();
             std::vector<llvm::Constant*> elems;
@@ -2648,7 +2653,12 @@ private:
 
     llvm::Constant* variant_constant(mir::ConstExprId id, const mir::MIRConstExpr& e,
                                      llvm::Type* want) {
-        const mir::MIRTypeRecord* rec = valid(e.type) ? &m_.types.get(e.type) : nullptr;
+        mir::MIRTypeRecord rec_storage;
+        const mir::MIRTypeRecord* rec = nullptr;
+        if (valid(e.type)) {
+            rec_storage = m_.types.get(e.type);
+            rec = &rec_storage;
+        }
         auto* st = llvm::dyn_cast<llvm::StructType>(want);
         if (!st) return null(want);
         std::vector<llvm::Constant*> elems;

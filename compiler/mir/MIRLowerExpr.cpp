@@ -1208,14 +1208,13 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         }
                     }
                     if (ft != MIR_INVALID_ID && ft < module_.types.size()) {
-                        const MIRTypeRecord& ftr = module_.types.get(ft);
-                        const MIRTypeRecord* eff = &ftr;
-                        if ((ftr.kind == MIRTypeKind::Pointer ||
-                             ftr.kind == MIRTypeKind::Reference) &&
-                            ftr.element < module_.types.size()) {
-                            eff = &module_.types.get(ftr.element);
+                        MIRTypeRecord eff = module_.types.get(ft);
+                        if ((eff.kind == MIRTypeKind::Pointer ||
+                             eff.kind == MIRTypeKind::Reference) &&
+                            eff.element < module_.types.size()) {
+                            eff = module_.types.get(eff.element);
                         }
-                        if (eff->kind == MIRTypeKind::Struct) {
+                        if (eff.kind == MIRTypeKind::Struct) {
                             // capturing function instance (`std::function`) call
                             BaseType* recv_ast =
                                 call->parent_val ? call->parent_val->getType() : nullptr;

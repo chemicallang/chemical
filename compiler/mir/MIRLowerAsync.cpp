@@ -323,9 +323,11 @@ void MIRLowerer::async_emit_frame_helpers(FunctionDeclaration* decl) {
             r.int_kind = IK_U8;
             push(async_drop_flag_field(static_cast<unsigned>(id)), module_.types.intern(r));
         }
-        MIRTypeRecord& fr = module_.types.types[async_frame_type_];
-        fr.data_count = static_cast<uint32_t>(fs.size());
-        fr.field_index = module_.types.append_fields(fs);
+        const uint32_t fidx = module_.types.append_fields(fs);
+        module_.types.update(async_frame_type_, [&](MIRTypeRecord& fr) {
+            fr.data_count = static_cast<uint32_t>(fs.size());
+            fr.field_index = fidx;
+        });
         // a frame is an aggregate: give it its size/alignment/field offsets too,
         // so `sizeof(frame)` and slot addressing come from MIR
         compute_aggregate_layout(module_.types, async_frame_type_);
@@ -478,7 +480,7 @@ bool MIRLowerer::async_lower_poll_body(FunctionDeclaration* decl, std::string& e
     const TypeId ctx_ptr = types_.map(async_context_);
     std::vector<TypeId> pts{poll_ptr, void_ptr, ctx_ptr};
     const TypeId ftype = types_.function_signature(types_.void_type(), pts);
-    module_.symbols.symbols[sym].type = ftype;
+    module_.symbols.set_type(sym, ftype);
     fn.function_type = ftype;
 
     MIRBuilder b(*arena_, module_, fn);
@@ -680,7 +682,7 @@ bool MIRLowerer::async_lower_drop_body(FunctionDeclaration* decl, std::string& e
         const TypeId ft = types_.function_signature(ret, params);
         SymbolId sym = module_.symbols.add(rec, name.data(), static_cast<uint32_t>(name.size()),
                                            name.data(), static_cast<uint32_t>(name.size()));
-        module_.symbols.symbols[sym].type = ft;
+        module_.symbols.set_type(sym, ft);
         return sym;
     };
 
@@ -688,7 +690,7 @@ bool MIRLowerer::async_lower_drop_body(FunctionDeclaration* decl, std::string& e
     const SymbolId drop_sym =
         func_symbol(drop_name, {void_ptr}, types_.void_type(), MIRLinkage::Internal);
     fn.symbol = drop_sym;
-    fn.function_type = module_.symbols.symbols[drop_sym].type;
+    fn.function_type = module_.symbols.get(drop_sym).type;
 
     MIRBuilder b(*arena_, module_, fn);
     builder_ = &b;
@@ -852,7 +854,7 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
         }
         const TypeId ftype = types_.function_signature(types_.void_type(), ptypes);
         func.symbol = intern_function(decl);
-        module_.symbols.symbols[func.symbol].type = ftype;
+        module_.symbols.set_type(func.symbol, ftype);
         func.function_type = ftype;
     }
 
@@ -1057,7 +1059,7 @@ bool MIRLowerer::lower_async_main_trampoline(FunctionDeclaration* decl, const MI
         const SymbolId sym =
             module_.symbols.add(rec, main_name, 4, main_name, 4);
         func.symbol = sym;
-        module_.symbols.symbols[sym].type = ftype;
+        module_.symbols.set_type(sym, ftype);
         func.function_type = ftype;
     }
 

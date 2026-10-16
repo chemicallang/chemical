@@ -276,8 +276,7 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
             cr.kind = MIRTypeKind::Struct;
             cr.data_count = static_cast<uint32_t>(case_fields.size());
             cr.field_index = module_.types.append_fields(case_fields);
-            TypeId case_id = static_cast<TypeId>(module_.types.types.size());
-            module_.types.types.push_back(cr);
+            const TypeId case_id = module_.types.push(cr);
             // the case payload is an aggregate too: give it its layout
             compute_aggregate_layout(module_.types, case_id);
             const chem::string_view mn = member->name_view();
@@ -293,16 +292,18 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
         add_members(vcb);
     }
 
-    MIRTypeRecord& rec = module_.types.types[id];
-    rec.data_count = static_cast<uint32_t>(fs.size());
-    rec.field_index = fs.empty() ? MIR_INVALID_ID : module_.types.append_fields(fs);
+    const uint32_t fidx = fs.empty() ? MIR_INVALID_ID : module_.types.append_fields(fs);
     // size, alignment and each field's byte offset, from the canonical table
     // alone (never from the host or from the AST again)
     uint32_t explicit_align = 0;
     if (decl && decl->kind() == ASTNodeKind::StructDecl) {
         explicit_align = decl->as_struct_def_unsafe()->get_required_alignment();
     }
-    rec.explicit_alignment = explicit_align;
+    module_.types.update(id, [&](MIRTypeRecord& rec) {
+        rec.data_count = static_cast<uint32_t>(fs.size());
+        rec.field_index = fidx;
+        rec.explicit_alignment = explicit_align;
+    });
     compute_aggregate_layout(module_.types, id, explicit_align);
 }
 

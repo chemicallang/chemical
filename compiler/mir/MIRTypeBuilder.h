@@ -135,9 +135,11 @@ public:
             fi.name_length = static_cast<uint32_t>(nlen);
             fs.push_back(fi);
         }
-        MIRTypeRecord& rec = module_.types.types[fat_pointer_id_];
-        rec.data_count = 2;
-        rec.field_index = module_.types.append_fields(fs);
+        const uint32_t fidx = module_.types.append_fields(fs);
+        module_.types.update(fat_pointer_id_, [&](MIRTypeRecord& rec) {
+            rec.data_count = 2;
+            rec.field_index = fidx;
+        });
         return fat_pointer_id_;
     }
 

@@ -345,9 +345,11 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
             fi.name_length = static_cast<uint32_t>(cap->name.size());
             cap_fields.push_back(fi);
         }
-        MIRTypeRecord& cr = module_.types.types[cap_type];
-        cr.data_count = static_cast<uint32_t>(cap_fields.size());
-        cr.field_index = module_.types.append_fields(cap_fields);
+        const uint32_t cfidx = module_.types.append_fields(cap_fields);
+        module_.types.update(cap_type, [&](MIRTypeRecord& cr) {
+            cr.data_count = static_cast<uint32_t>(cap_fields.size());
+            cr.field_index = cfidx;
+        });
         // a closure struct is an aggregate too: give it its layout
         compute_aggregate_layout(module_.types, cap_type);
     }

@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <cstring>
 #include <mutex>
+#include <shared_mutex>
 #include <unordered_map>
 #include <vector>
 
@@ -44,8 +45,15 @@ struct MIRConstantPool {
     /** hash -> a representative constant id (see `add`) */
     std::unordered_map<uint64_t, ConstantId> index_;
 
-    const MIRConstant& get(ConstantId id) const { return constants[id]; }
-    uint32_t size() const { return static_cast<uint32_t>(constants.size()); }
+    /** Thread-safe copy of the record (action E3d: no reference escapes). */
+    MIRConstant get(ConstantId id) const {
+        std::shared_lock<std::shared_mutex> lock(mtx_);
+        return constants[id];
+    }
+    uint32_t size() const {
+        std::shared_lock<std::shared_mutex> lock(mtx_);
+        return static_cast<uint32_t>(constants.size());
+    }
 
     /**
      * Intern a constant. `index_` is a hint only: a hit is re-verified against
@@ -60,13 +68,13 @@ struct MIRConstantPool {
      * never interleave their `data` writes.
      */
     ConstantId add(const MIRConstant& c) {
-        std::lock_guard<std::mutex> lock(mtx_);
+        std::lock_guard<std::shared_mutex> lock(mtx_);
         return add_unlocked(c);
     }
 
     /** Drop every constant and payload byte (used when a `MIRModule` is reused). */
     void clear() {
-        std::lock_guard<std::mutex> lock(mtx_);
+        std::lock_guard<std::shared_mutex> lock(mtx_);
         constants.clear();
         data.clear();
         index_.clear();
@@ -148,7 +156,7 @@ struct MIRConstantPool {
         MIRConstant c;
         c.kind = MIRConstantKind::String;
         c.type = t;
-        std::lock_guard<std::mutex> lock(mtx_);
+        std::lock_guard<std::shared_mutex> lock(mtx_);
         c.data_offset = data.append(s, len);
         c.data_count = len;
         return add_unlocked(c);
@@ -176,7 +184,7 @@ private:
     }
 
     /** Guards the mutators (action E1: shared interning under parallel lowering). */
-    std::mutex mtx_;
+    mutable std::shared_mutex mtx_;
 };
 
 } // namespace mir

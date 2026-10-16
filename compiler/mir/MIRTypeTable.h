@@ -11,6 +11,7 @@
 #include <cstdint>
 #include <deque>
 #include <mutex>
+#include <shared_mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -150,7 +151,7 @@ struct MIRTypeTable {
 
     /** Attach a C-emittable name to a (named aggregate) type. */
     void set_name(TypeId id, const char* name, uint32_t len) {
-        std::lock_guard<std::mutex> lock(mtx_);
+        std::lock_guard<std::shared_mutex> lock(mtx_);
         if (id >= types.size()) return;
         types[id].name_offset = names.append(name, len);
         types[id].name_length = len;
@@ -159,6 +160,7 @@ struct MIRTypeTable {
         return names.data_at(r.name_offset);
     }
     std::string name_of(TypeId id) const {
+        std::shared_lock<std::shared_mutex> lock(mtx_);
         if (id >= types.size()) return {};
         const MIRTypeRecord& r = types[id];
         if (r.name_length == 0) return {};
@@ -167,10 +169,32 @@ struct MIRTypeTable {
 
     /** Append a range of fields, returning the start index. */
     uint32_t append_fields(const std::vector<MIRFieldInfo>& fs) {
-        std::lock_guard<std::mutex> lock(mtx_);
+        std::lock_guard<std::shared_mutex> lock(mtx_);
         uint32_t off = static_cast<uint32_t>(fields.size());
         fields.insert(fields.end(), fs.begin(), fs.end());
         return off;
+    }
+
+    /**
+     * Append a non-interned record (variant case payloads, synthesized inline
+     * structs), returning its id. Locked like `intern` (action E3d).
+     */
+    TypeId push(const MIRTypeRecord& rec) {
+        std::lock_guard<std::shared_mutex> lock(mtx_);
+        types.push_back(rec);
+        return static_cast<TypeId>(types.size() - 1);
+    }
+
+    /**
+     * Mutate an interned record under the exclusive lock (build-phase fill:
+     * data_count/field_index/explicit_alignment). `fn` must not call back into
+     * the table (no `intern`/`append_fields`/`update` inside it).
+     */
+    template <class F>
+    void update(TypeId id, F&& fn) {
+        std::lock_guard<std::shared_mutex> lock(mtx_);
+        if (id >= types.size()) return;
+        fn(types[id]);
     }
 
     /**
@@ -179,7 +203,7 @@ struct MIRTypeTable {
      * reallocating a `const char*` a reader still holds.
      */
     uint32_t append_field_name(const char* n, uint32_t len) {
-        std::lock_guard<std::mutex> lock(mtx_);
+        std::lock_guard<std::shared_mutex> lock(mtx_);
         return field_names.append(n, len);
     }
 
@@ -189,29 +213,43 @@ struct MIRTypeTable {
     }
 
     MIRFieldInfo* field_of(TypeId agg, uint32_t i) {
+        std::shared_lock<std::shared_mutex> lock(mtx_);
         if (agg >= types.size()) return nullptr;
         const MIRTypeRecord& r = types[agg];
         if (r.field_index == MIR_INVALID_ID || i >= r.data_count) return nullptr;
         const uint32_t idx = r.field_index + i;
         if (idx >= fields.size()) return nullptr;
+        // `fields` is a deque, so the returned pointer stays valid after the lock
         return &fields[idx];
     }
 
     const MIRFieldInfo* field_of(TypeId agg, uint32_t i) const {
+        std::shared_lock<std::shared_mutex> lock(mtx_);
         if (agg >= types.size()) return nullptr;
         const MIRTypeRecord& r = types[agg];
         if (r.field_index == MIR_INVALID_ID || i >= r.data_count) return nullptr;
         const uint32_t idx = r.field_index + i;
         if (idx >= fields.size()) return nullptr;
+        // `fields` is a deque, so the returned pointer stays valid after the lock
         return &fields[idx];
     }
 
-    const MIRTypeRecord& get(TypeId id) const { return types[id]; }
-    uint32_t size() const { return static_cast<uint32_t>(types.size()); }
+    /**
+     * Thread-safe copy of the record (action E3d: no reference escapes into the
+     * reallocating `types` vector while another worker may append to it).
+     */
+    MIRTypeRecord get(TypeId id) const {
+        std::shared_lock<std::shared_mutex> lock(mtx_);
+        return types[id];
+    }
+    uint32_t size() const {
+        std::shared_lock<std::shared_mutex> lock(mtx_);
+        return static_cast<uint32_t>(types.size());
+    }
 
     /** Append a range of TypeIds to the shared data pool, returning its offset. */
     uint32_t append_data(const TypeId* ids, uint32_t count) {
-        std::lock_guard<std::mutex> lock(mtx_);
+        std::lock_guard<std::shared_mutex> lock(mtx_);
         uint32_t off = static_cast<uint32_t>(data.size());
         for (uint32_t i = 0; i < count; ++i) data.push_back(ids[i]);
         return off;
@@ -230,7 +268,7 @@ struct MIRTypeTable {
      * ~7M (the fallback scans for the ~1k genuinely new records).
      */
     TypeId intern(const MIRTypeRecord& rec) {
-        std::lock_guard<std::mutex> lock(mtx_);
+        std::lock_guard<std::shared_mutex> lock(mtx_);
         const uint64_t h = hash_of(rec);
         auto hit = intern_index_.find(h);
         if (hit != intern_index_.end() && hit->second < types.size() &&
@@ -251,7 +289,7 @@ struct MIRTypeTable {
 
     /** Drop every type, pool and the interning index (reused `MIRModule`). */
     void clear() {
-        std::lock_guard<std::mutex> lock(mtx_);
+        std::lock_guard<std::shared_mutex> lock(mtx_);
         types.clear();
         data.clear();
         names.clear();
@@ -319,8 +357,9 @@ struct MIRTypeTable {
     }
 
 private:
-    /** Guards the mutators (action E1: shared interning under parallel lowering). */
-    std::mutex mtx_;
+    /** Guards reads and the mutators (action E1/E3d: shared interning under
+     *  parallel lowering). Readers take a shared lock, mutators an exclusive one. */
+    mutable std::shared_mutex mtx_;
 };
 
 } // namespace mir

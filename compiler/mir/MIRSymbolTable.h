@@ -11,6 +11,7 @@
 
 #include <cstdint>
 #include <mutex>
+#include <shared_mutex>
 #include <string>
 #include <vector>
 
@@ -49,8 +50,21 @@ struct MIRSymbolTable {
     std::vector<MIRSymbolRecord> symbols;
     MIRBytePool names;
 
-    const MIRSymbolRecord& get(SymbolId id) const { return symbols[id]; }
-    uint32_t size() const { return static_cast<uint32_t>(symbols.size()); }
+    /** Thread-safe copy of the record (action E3d: no reference escapes). */
+    MIRSymbolRecord get(SymbolId id) const {
+        std::shared_lock<std::shared_mutex> lock(mtx_);
+        return symbols[id];
+    }
+    uint32_t size() const {
+        std::shared_lock<std::shared_mutex> lock(mtx_);
+        return static_cast<uint32_t>(symbols.size());
+    }
+    /** Set a symbol's type under the lock (the function-signature back-patch). */
+    void set_type(SymbolId id, TypeId type) {
+        std::lock_guard<std::shared_mutex> lock(mtx_);
+        if (id >= symbols.size()) return;
+        symbols[id].type = type;
+    }
 
     /**
      * Intern a symbol record.
@@ -67,7 +81,7 @@ struct MIRSymbolTable {
     SymbolId add(MIRSymbolRecord r,
                  const char* name, uint32_t name_len,
                  const char* mangled, uint32_t mangled_len) {
-        std::lock_guard<std::mutex> lock(mtx_);
+        std::lock_guard<std::shared_mutex> lock(mtx_);
         r.name_offset = names.append(name, name_len);
         r.name_length = name_len;
         r.mangled_offset = names.append(mangled, mangled_len);
@@ -78,7 +92,7 @@ struct MIRSymbolTable {
 
     /** Drop every record and name (used when a `MIRModule` is reused). */
     void clear() {
-        std::lock_guard<std::mutex> lock(mtx_);
+        std::lock_guard<std::shared_mutex> lock(mtx_);
         symbols.clear();
         names.clear();
     }
@@ -103,7 +117,7 @@ struct MIRSymbolTable {
 
 private:
     /** Guards `add`/`clear` (action E1: shared interning under parallel lowering). */
-    std::mutex mtx_;
+    mutable std::shared_mutex mtx_;
 };
 
 } // namespace mir

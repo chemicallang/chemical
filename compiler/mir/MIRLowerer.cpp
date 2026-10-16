@@ -571,7 +571,7 @@ bool MIRLowerer::lower_static_interface_stub(FunctionDeclaration* decl, MIRArena
     stmt_temps_.clear();
 
     func.symbol = intern_function(decl);
-    func.function_type = module_.symbols.symbols[func.symbol].type;
+    func.function_type = module_.symbols.get(func.symbol).type;
 
     MIRBuilder b(arena, module_, func);
     builder_ = &b;
@@ -713,7 +713,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
         }
         const TypeId ftype = types_.function_signature(sret_ ? types_.void_type() : ret, ptypes,
                                                       decl->isVariadic());
-        module_.symbols.symbols[func.symbol].type = ftype;
+        module_.symbols.set_type(func.symbol, ftype);
         func.function_type = ftype;
     }
 

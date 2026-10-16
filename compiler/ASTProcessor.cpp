@@ -1886,6 +1886,7 @@ bool mir_translate_after_declaration(
         mir::MIRTaskContext& task,
         mir::MIRDeclEmitter& decl_emitter,
         const std::vector<ASTNode*>& nodes,
+        std::recursive_mutex& visitor_mutex,
         bool llvm_collect = false) {
     mir::MIRModule& module = task.module();
     mir::MIRTypeBuilder& types = task.types();
@@ -2056,7 +2057,10 @@ bool mir_translate_after_declaration(
         // legacy end_translate stub pass does not also emit its default methods.
         std::function<void(InterfaceDefinition*)> mark_static_impl = [&](InterfaceDefinition* i) {
             if (!i) return;
-            if (i->is_static()) visitor.remove_static_interface_for_stub_impl(i);
+            if (i->is_static()) {
+                std::lock_guard<std::recursive_mutex> lk(visitor_mutex);
+                visitor.remove_static_interface_for_stub_impl(i);
+            }
             for (auto& inherits : i->inherited) {
                 if (inherits.type) {
                     mark_static_impl(inherits.type->get_direct_linked_node()->as_interface_def());
@@ -2075,6 +2079,9 @@ bool mir_translate_after_declaration(
         ExtendableMembersContainerNode* prev = iface ? iface->active_user : nullptr;
         for (ASTNode* m : impl->evaluated_nodes()) {
             if (!m || m->kind() != ASTNodeKind::FunctionDecl) continue;
+            // `active_user` and the mangler are shared translator state: hold the
+            // visitor lock across setting it and lowering the method.
+            std::lock_guard<std::recursive_mutex> lk(visitor_mutex);
             if (iface) iface->active_user = for_decl;
             const bool ok = lower_and_emit(m->as_function_unsafe());
             if (iface) iface->active_user = prev;
@@ -2085,6 +2092,7 @@ bool mir_translate_after_declaration(
         if (iface && for_decl) {
             for (FunctionDeclaration* func : iface->instantiated_functions()) {
                 if (impl->contains_direct_func(func->name_view())) continue;
+                std::lock_guard<std::recursive_mutex> lk(visitor_mutex);
                 iface->active_user = for_decl;
                 const bool ok = lower_and_emit(func);
                 iface->active_user = prev;
@@ -2119,7 +2127,10 @@ bool mir_translate_after_declaration(
             // Generic function declarations are templates; their instantiated
             // copies are lowered separately.
             if (child->kind() == ASTNodeKind::GenericFuncDecl) continue;
-            visitor.error(child) << "MIR lowering of container member failed";
+            {
+                std::lock_guard<std::recursive_mutex> lk(visitor_mutex);
+                visitor.error(child) << "MIR lowering of container member failed";
+            }
         }
         return true;
     };
@@ -2132,6 +2143,7 @@ bool mir_translate_after_declaration(
                     // extern/comptime functions have no MIR body; their
                     // prototypes are emitted by the MIR declaration pass.
                     if (mir_eligible_function(fd) && !lower_and_emit(fd)) {
+                        std::lock_guard<std::recursive_mutex> lk(visitor_mutex);
                         visitor.error(node) << "MIR lowering failed";
                     }
                     continue;
@@ -2153,6 +2165,7 @@ bool mir_translate_after_declaration(
                 }
                 case ASTNodeKind::ImplDecl:
                     if (!lower_impl(node->as_impl_def_unsafe())) {
+                        std::lock_guard<std::recursive_mutex> lk(visitor_mutex);
                         visitor.error(node) << "MIR lowering of impl failed";
                     }
                     continue;
@@ -2313,16 +2326,26 @@ int ASTProcessor::implement_module(
     mir_module.layout.is64Bit = c_visitor.comptime_scope.target_data.is64Bit;
     mir_module.layout.windows = c_visitor.comptime_scope.target_data.windows;
     mir::MIRTypeBuilder mir_types(mir_module);
-    mir_types.set_name_resolver([&c_visitor](ASTNode* n) {
+    // One lock for every access to the shared `c_visitor` (the mangler, the
+    // comptime scope, the AST allocator, diagnostics, `iface->active_user`,
+    // `current_func_type`). Lowering workers run the pure MIR computation
+    // lock-free and take this only around those shared operations. Recursive so
+    // a locked operation that calls another (e.g. `intern_method_function`
+    // around the mangler) does not deadlock.
+    std::recursive_mutex mir_visitor_mutex;
+    mir_types.set_name_resolver([&c_visitor, &mir_visitor_mutex](ASTNode* n) {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         return mir_mangle_name(c_visitor.mangler, n);
     });
     mir::MIRTaskContext mir_task(mir_module, mir_types);
     mir::MIRLowerer& mir_lowerer = mir_task.lowerer;
+    mir_lowerer.set_visitor_mutex(&mir_visitor_mutex);
     // Source locations and debug metadata (place names, lexical scopes) are only
     // needed for debug info; the common (release / debug_quick) path pays nothing.
     mir_lowerer.set_debug_info(options->debug_info);
     if (options->debug_info) {
-        mir_lowerer.set_source_loc_provider([this, &mir_module](uint64_t enc, mir::MIRSourceLoc& out) -> bool {
+        mir_lowerer.set_source_loc_provider([this, &mir_module, &mir_visitor_mutex](uint64_t enc, mir::MIRSourceLoc& out) -> bool {
+            std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
             if (enc == 0) return false;
             const SourceLocation loc(enc);
             const LocationManager::LocationPosData pos = loc_man.getLocationPos(loc);
@@ -2335,15 +2358,18 @@ int ASTProcessor::implement_module(
             return true;
         });
     }
-    mir_lowerer.set_mangler([&c_visitor](ASTNode* n) {
+    mir_lowerer.set_mangler([&c_visitor, &mir_visitor_mutex](ASTNode* n) {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         return mir_mangle_name(c_visitor.mangler, n);
     });
-    mir_lowerer.set_mangler_into([&c_visitor](ASTNode* n, std::string& out) {
+    mir_lowerer.set_mangler_into([&c_visitor, &mir_visitor_mutex](ASTNode* n, std::string& out) {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         BufferedWriter& w = mir::mangle_writer();
         c_visitor.mangler.mangle(w, n);
         out.append(w.data(), w.getPosition());
     });
-    mir_lowerer.set_vtable_mangler([&c_visitor](ASTNode* iface, BaseType* impl) -> std::string {
+    mir_lowerer.set_vtable_mangler([&c_visitor, &mir_visitor_mutex](ASTNode* iface, BaseType* impl) -> std::string {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         if (!iface || !impl) return std::string();
         BufferedWriter w(256);
         auto* idef = iface->as_interface_def_unsafe();
@@ -2357,7 +2383,8 @@ int ASTProcessor::implement_module(
         }
         return std::string(w.data(), w.getPosition());
     });
-    mir_lowerer.set_comptime_if_resolver([&c_visitor](IfStatement* stmt, std::string& err) -> Scope* {
+    mir_lowerer.set_comptime_if_resolver([&c_visitor, &mir_visitor_mutex](IfStatement* stmt, std::string& err) -> Scope* {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         auto resolved = stmt->get_or_resolve_scope(c_visitor.comptime_scope, c_visitor);
         if (!resolved.has_value() || resolved.value() == nullptr) {
             err = "failed to resolve comptime if";
@@ -2365,34 +2392,43 @@ int ASTProcessor::implement_module(
         }
         return resolved.value();
     });
-    mir_lowerer.set_comptime_eval([&c_visitor](FunctionCall* call, FunctionDeclaration* decl) {
+    mir_lowerer.set_comptime_eval([&c_visitor, &mir_visitor_mutex](FunctionCall* call, FunctionDeclaration* decl) {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         return c_visitor.eval_comptime_call(call, decl);
     });
-    mir_lowerer.set_comptime_value_eval([&c_visitor](Value* v) -> Value* {
+    mir_lowerer.set_comptime_value_eval([&c_visitor, &mir_visitor_mutex](Value* v) -> Value* {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         if (!v) return nullptr;
         return v->evaluated_value(c_visitor.comptime_scope);
     });
-    mir_lowerer.set_comptime_ctor_eval([&c_visitor](FunctionDeclaration* ctor, Value* arg) {
+    mir_lowerer.set_comptime_ctor_eval([&c_visitor, &mir_visitor_mutex](FunctionDeclaration* ctor, Value* arg) {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         return c_visitor.eval_comptime_ctor(ctor, arg);
     });
-    mir_lowerer.set_comptime_block_eval([&c_visitor](ASTNode* node) {
+    mir_lowerer.set_comptime_block_eval([&c_visitor, &mir_visitor_mutex](ASTNode* node) {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         auto* block = static_cast<ComptimeBlock*>(node);
         c_visitor.comptime_scope.interpret(&block->body);
     });
-    mir_lowerer.set_current_func([&c_visitor](FunctionTypeBody* f) {
+    mir_lowerer.set_current_func([&c_visitor, &mir_visitor_mutex](FunctionTypeBody* f) {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         c_visitor.current_func_type = f;
     });
     mir_lowerer.set_impls(&c_visitor.implsIndex, &c_visitor.coreNodes);
-    mir_lowerer.set_embedded_repl([&c_visitor](EmbeddedNode* node) -> ASTNode* {
+    mir_lowerer.set_embedded_repl([&c_visitor, &mir_visitor_mutex](EmbeddedNode* node) -> ASTNode* {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         return c_visitor.resolve_embedded_node(node);
     });
-    mir_lowerer.set_async_normalize([&c_visitor](FunctionDeclaration* d) {
+    mir_lowerer.set_async_normalize([&c_visitor, &mir_visitor_mutex](FunctionDeclaration* d) {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         normalize_async_body(c_visitor.allocator, d);
     });
-    mir_lowerer.set_embedded_value_repl([&c_visitor](EmbeddedValue* v) -> Value* {
+    mir_lowerer.set_embedded_value_repl([&c_visitor, &mir_visitor_mutex](EmbeddedValue* v) -> Value* {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         return c_visitor.resolve_embedded_value(v);
     });
-    mir_lowerer.set_symbol_lookup([this, module](const std::string& name) -> FunctionDeclaration* {
+    mir_lowerer.set_symbol_lookup([this, module, &mir_visitor_mutex](const std::string& name) -> FunctionDeclaration* {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         if (resolver) {
             ASTNode* node = resolver->getSymbolTable().resolve(
                 chem::string_view(name.data(), static_cast<unsigned>(name.size())));
@@ -2470,6 +2506,7 @@ int ASTProcessor::implement_module(
     // non-function nodes still go through the legacy visitor as declarations
     if (mir_translate_after_declaration(c_visitor, mir_task, mir_decl,
                                         container.get_current_module_instantiations(),
+                                        mir_visitor_mutex,
                                         mir_llvm_collect)) {
         had_errors = true;
     }
@@ -2486,7 +2523,7 @@ int ASTProcessor::implement_module(
 #endif
 
         // translating to c: function bodies via MIR, declarations via legacy
-        if(mir_translate_after_declaration(c_visitor, mir_task, mir_decl, unit.scope.body.nodes, mir_llvm_collect)) {
+        if(mir_translate_after_declaration(c_visitor, mir_task, mir_decl, unit.scope.body.nodes, mir_visitor_mutex, mir_llvm_collect)) {
             had_errors = true;
         }
 
@@ -2549,16 +2586,26 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
     mir_module.layout.is64Bit = c_visitor.comptime_scope.target_data.is64Bit;
     mir_module.layout.windows = c_visitor.comptime_scope.target_data.windows;
     mir::MIRTypeBuilder mir_types(mir_module);
-    mir_types.set_name_resolver([&c_visitor](ASTNode* n) {
+    // One lock for every access to the shared `c_visitor` (the mangler, the
+    // comptime scope, the AST allocator, diagnostics, `iface->active_user`,
+    // `current_func_type`). Lowering workers run the pure MIR computation
+    // lock-free and take this only around those shared operations. Recursive so
+    // a locked operation that calls another (e.g. `intern_method_function`
+    // around the mangler) does not deadlock.
+    std::recursive_mutex mir_visitor_mutex;
+    mir_types.set_name_resolver([&c_visitor, &mir_visitor_mutex](ASTNode* n) {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         return mir_mangle_name(c_visitor.mangler, n);
     });
     mir::MIRTaskContext mir_task(mir_module, mir_types);
     mir::MIRLowerer& mir_lowerer = mir_task.lowerer;
+    mir_lowerer.set_visitor_mutex(&mir_visitor_mutex);
     // Source locations and debug metadata (place names, lexical scopes) are only
     // needed for debug info; the common (release / debug_quick) path pays nothing.
     mir_lowerer.set_debug_info(options->debug_info);
     if (options->debug_info) {
-        mir_lowerer.set_source_loc_provider([this, &mir_module](uint64_t enc, mir::MIRSourceLoc& out) -> bool {
+        mir_lowerer.set_source_loc_provider([this, &mir_module, &mir_visitor_mutex](uint64_t enc, mir::MIRSourceLoc& out) -> bool {
+            std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
             if (enc == 0) return false;
             const SourceLocation loc(enc);
             const LocationManager::LocationPosData pos = loc_man.getLocationPos(loc);
@@ -2571,15 +2618,18 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
             return true;
         });
     }
-    mir_lowerer.set_mangler([&c_visitor](ASTNode* n) {
+    mir_lowerer.set_mangler([&c_visitor, &mir_visitor_mutex](ASTNode* n) {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         return mir_mangle_name(c_visitor.mangler, n);
     });
-    mir_lowerer.set_mangler_into([&c_visitor](ASTNode* n, std::string& out) {
+    mir_lowerer.set_mangler_into([&c_visitor, &mir_visitor_mutex](ASTNode* n, std::string& out) {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         BufferedWriter& w = mir::mangle_writer();
         c_visitor.mangler.mangle(w, n);
         out.append(w.data(), w.getPosition());
     });
-    mir_lowerer.set_vtable_mangler([&c_visitor](ASTNode* iface, BaseType* impl) -> std::string {
+    mir_lowerer.set_vtable_mangler([&c_visitor, &mir_visitor_mutex](ASTNode* iface, BaseType* impl) -> std::string {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         if (!iface || !impl) return std::string();
         BufferedWriter w(256);
         auto* idef = iface->as_interface_def_unsafe();
@@ -2593,7 +2643,8 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
         }
         return std::string(w.data(), w.getPosition());
     });
-    mir_lowerer.set_comptime_if_resolver([&c_visitor](IfStatement* stmt, std::string& err) -> Scope* {
+    mir_lowerer.set_comptime_if_resolver([&c_visitor, &mir_visitor_mutex](IfStatement* stmt, std::string& err) -> Scope* {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         auto resolved = stmt->get_or_resolve_scope(c_visitor.comptime_scope, c_visitor);
         if (!resolved.has_value() || resolved.value() == nullptr) {
             err = "failed to resolve comptime if";
@@ -2601,31 +2652,39 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
         }
         return resolved.value();
     });
-    mir_lowerer.set_comptime_eval([&c_visitor](FunctionCall* call, FunctionDeclaration* decl) {
+    mir_lowerer.set_comptime_eval([&c_visitor, &mir_visitor_mutex](FunctionCall* call, FunctionDeclaration* decl) {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         return c_visitor.eval_comptime_call(call, decl);
     });
-    mir_lowerer.set_comptime_value_eval([&c_visitor](Value* v) -> Value* {
+    mir_lowerer.set_comptime_value_eval([&c_visitor, &mir_visitor_mutex](Value* v) -> Value* {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         if (!v) return nullptr;
         return v->evaluated_value(c_visitor.comptime_scope);
     });
-    mir_lowerer.set_comptime_ctor_eval([&c_visitor](FunctionDeclaration* ctor, Value* arg) {
+    mir_lowerer.set_comptime_ctor_eval([&c_visitor, &mir_visitor_mutex](FunctionDeclaration* ctor, Value* arg) {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         return c_visitor.eval_comptime_ctor(ctor, arg);
     });
-    mir_lowerer.set_comptime_block_eval([&c_visitor](ASTNode* node) {
+    mir_lowerer.set_comptime_block_eval([&c_visitor, &mir_visitor_mutex](ASTNode* node) {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         auto* block = static_cast<ComptimeBlock*>(node);
         c_visitor.comptime_scope.interpret(&block->body);
     });
-    mir_lowerer.set_current_func([&c_visitor](FunctionTypeBody* f) {
+    mir_lowerer.set_current_func([&c_visitor, &mir_visitor_mutex](FunctionTypeBody* f) {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         c_visitor.current_func_type = f;
     });
     mir_lowerer.set_impls(&c_visitor.implsIndex, &c_visitor.coreNodes);
-    mir_lowerer.set_embedded_repl([&c_visitor](EmbeddedNode* node) -> ASTNode* {
+    mir_lowerer.set_embedded_repl([&c_visitor, &mir_visitor_mutex](EmbeddedNode* node) -> ASTNode* {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         return c_visitor.resolve_embedded_node(node);
     });
-    mir_lowerer.set_async_normalize([&c_visitor](FunctionDeclaration* d) {
+    mir_lowerer.set_async_normalize([&c_visitor, &mir_visitor_mutex](FunctionDeclaration* d) {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         normalize_async_body(c_visitor.allocator, d);
     });
-    mir_lowerer.set_embedded_value_repl([&c_visitor](EmbeddedValue* v) -> Value* {
+    mir_lowerer.set_embedded_value_repl([&c_visitor, &mir_visitor_mutex](EmbeddedValue* v) -> Value* {
+        std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         return c_visitor.resolve_embedded_value(v);
     });
     mir::MIRDeclEmitter mir_decl(mir_module, mir_types, c_visitor.mangler, loc_man,
@@ -2678,5 +2737,6 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
     }
     c_visitor.unimplemented_static_interfaces.clear();
     if (stub_nodes.empty()) return 0;
-    return mir_translate_after_declaration(c_visitor, mir_task, mir_decl, stub_nodes) ? 1 : 0;
+    return mir_translate_after_declaration(c_visitor, mir_task, mir_decl, stub_nodes,
+                                           mir_visitor_mutex) ? 1 : 0;
 }

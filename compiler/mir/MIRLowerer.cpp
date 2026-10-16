@@ -247,6 +247,11 @@ SymbolId MIRLowerer::intern_method_function(FunctionDeclaration* decl, BaseType*
 
     // an interface default method is emitted once per implementing struct; the
     // mangler keys its name off `active_user`, so set it while mangling
+    // `active_user` and the mangler are shared translator state: hold the
+    // visitor lock across setting it and mangling (the mangler callback re-locks
+    // recursively).
+    std::unique_lock<std::recursive_mutex> visitor_lock;
+    if (visitor_mutex_) visitor_lock = std::unique_lock<std::recursive_mutex>(*visitor_mutex_);
     const auto prev = iface->active_user;
     iface->active_user = user;
     const std::string& name = mangle(decl);

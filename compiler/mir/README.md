@@ -99,6 +99,37 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 46 (2026-10-16) — E3d stage 2: the shared `CTranslationContext` access is serialised
+
+Stage 1 made the module tables safe to read concurrently; the other half of the
+E3d blocker is the shared `CTranslationContext` the lowering callbacks touch. A
+single **`std::recursive_mutex`** now guards every such access, so a worker's pure
+MIR computation stays lock-free and only the shared operations serialize:
+
+- every callback wired in `implement_module` / `emit_static_interface_stubs` — the
+  name resolver, the source-location provider, the manglers, the comptime
+  if-resolver / eval / value-eval / ctor-eval / block-eval, `set_current_func`,
+  the embedded node/value resolution, `async_normalize` and `symbol_lookup` —
+  takes the lock for its body.
+- `MIRLowerer` holds the same lock (`set_visitor_mutex`) around
+  `intern_method_function`, which sets `iface->active_user` and mangles (the
+  mangler callback re-locks recursively — hence a recursive mutex).
+- `mir_translate_after_declaration` takes the lock and holds it across the
+  `iface->active_user` set / lower / restore in `lower_impl`, and around every
+  `visitor.error` diagnostic, so `active_user` (read by the mangler) and the
+  `Diagnoser` are never touched by two workers at once.
+
+Recursive, so a locked operation that calls another locked one (mangling inside
+`intern_method_function`) does not deadlock. Output-invariant: main-suite C is
+96,825 lines either side, normalized diff 48 (floor 62). `MIRTests` 4400;
+`--tcc` **2307/2307**; `--llvm` **2305/2305**; `--tcc --async` **53/53**;
+`--tcc --interpret` **1897/1897**; `--tcc --libs` **718/719**.
+
+**Next for E3d** (stage 3): the thread pool and the ordered merge — dispatch the
+function tasks to a `ctpl::thread_pool` with one `MIRTaskContext` per worker, and
+merge each worker's buffer into `visitor.writer` in source order, interleaving the
+serial structural units (globals, vtables, the inline-struct `move_range`).
+
 ### Session 45 (2026-10-16) — E3d stage 1: the module tables are lock-safe for concurrent access
 
 Parallel lowering and emission need the module intern tables to be safe to read

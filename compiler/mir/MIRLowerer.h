@@ -16,6 +16,7 @@
 
 #include <deque>
 #include <functional>
+#include <mutex>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -272,6 +273,13 @@ public:
     void set_mangler_into(std::function<void(ASTNode*, std::string&)> fn) {
         mangler_into_ = std::move(fn);
     }
+    /**
+     * The shared lock guarding every access to the `CTranslationContext` (the
+     * mangler, comptime scope, allocator, `iface->active_user`). Set by the
+     * translation driver; null in the standalone/serial build. Lets the lowerer
+     * serialize the few shared-state operations while the rest runs lock-free.
+     */
+    void set_visitor_mutex(std::recursive_mutex* m) { visitor_mutex_ = m; }
 
     /** Mangler for a dynamic-dispatch vtable global (interface + impl type). */
     void set_vtable_mangler(std::function<std::string(ASTNode*, BaseType*)> fn) {
@@ -738,6 +746,8 @@ private:
     std::unordered_map<std::string, SymbolId, MIRStringHash, MIRStringEq> named_globals_;
     std::function<std::string(ASTNode*)> mangler_;
     std::function<void(ASTNode*, std::string&)> mangler_into_;
+    /** Shared `CTranslationContext` lock (see `set_visitor_mutex`), or null. */
+    std::recursive_mutex* visitor_mutex_ = nullptr;
     /** Reused output for `mangle` (keeps capacity across declarations). */
     std::string mangle_buf_;
     std::function<std::string(ASTNode*, BaseType*)> vtable_mangler_;

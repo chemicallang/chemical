@@ -1693,37 +1693,52 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
             case MIROpcode::CallIndirect: {
                 const MIROperand* fn = operand_at(function, inst, 0);
                 if (!fn) { error = "call_indirect missing callee"; return false; }
-                std::string callee = operand_expr(function, module, *fn);
+                std::string callee;
+                append_operand_expr(function, module, *fn, callee);
                 // the callee value is a function pointer; give it its precise
                 // function-pointer type so the call type-checks
                 if (fn->type() < module.types.size()) {
                     const MIRTypeRecord& fr = module.types.get(fn->type());
                     if (fr.kind == MIRTypeKind::Function) {
-                        callee = "((" + fn_ptr_type(module, fr) + ")" + callee + ")";
+                        std::string typed = "((";
+                        append_fn_ptr_type(module, fr, typed);
+                        typed += ")";
+                        typed += callee;
+                        typed += ")";
+                        callee = std::move(typed);
                     }
                 }
                 // sret if the operand after the callee is a place (aggregate return)
                 const MIROperand* maybe_place = operand_at(function, inst, 1);
                 const bool sret = maybe_place && maybe_place->kind() == MIROperandKind::Place;
                 uint32_t arg_start = sret ? 2 : 1;
-                std::string call = callee + "(";
-                if (sret) call += "&" + place_name(module, function, maybe_place->id);
+                std::string call = callee;
+                call += "(";
+                if (sret) {
+                    call += "&";
+                    append_place_name(module, function, maybe_place->id, call);
+                }
                 for (uint32_t a = arg_start; a < inst.operand_count; ++a) {
                     if (a != arg_start || sret) call += ", ";
-                    call += operand_expr(function, module, *operand_at(function, inst, a));
+                    append_operand_expr(function, module, *operand_at(function, inst, a), call);
                 }
                 call += ")";
                 if (sret) {
-                    out += call + ";\n";
+                    out += call;
+                    out += ";\n";
                     break;
                 }
                 const bool is_void = inst.result_or_place >= function.values.size() ||
-                    c_type_of(module, function.values[inst.result_or_place].type) == "void";
+                    c_type_spells_void(module, function.values[inst.result_or_place].type);
                 if (is_void) {
-                    out += call + ";\n";
+                    out += call;
+                    out += ";\n";
                 } else {
-                    out += declarator(module, function.values[inst.result_or_place].type,
-                                      vname(inst.result_or_place)) + " = " + call + ";\n";
+                    append_declarator(module, function.values[inst.result_or_place].type,
+                                      vname(inst.result_or_place), out);
+                    out += " = ";
+                    out += call;
+                    out += ";\n";
                 }
                 break;
             }
@@ -1826,23 +1841,35 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     error = "async_await missing operands";
                     return false;
                 }
-                const std::string fexpr = place_name(module, function, fr->id);
-                const std::string cexpr = place_name(module, function, child->id);
-                const std::string rexpr = place_name(module, function, result->id);
-                const std::string pexpr = place_name(module, function, ret->id);
-                const std::string pty = c_type_of(module, poll_ty->type());
-                const std::string fpty = c_type_of(module, fn_poll_ty->type());
+                std::string fexpr, cexpr, rexpr, pexpr, pty, fpty;
+                append_place_name(module, function, fr->id, fexpr);
+                append_place_name(module, function, child->id, cexpr);
+                append_place_name(module, function, result->id, rexpr);
+                append_place_name(module, function, ret->id, pexpr);
+                append_c_type_of(module, poll_ty->type(), pty);
+                append_c_type_of(module, fn_poll_ty->type(), fpty);
                 const uint32_t resume_state =
                     state->id < module.constants.size()
                         ? static_cast<uint32_t>(module.constants.get(state->id).bits)
                         : 0;
-                out += "{\n        " + pty + " __chx__p = (*({ " + pty + " __chx__t; " +
-                       cexpr + ".vtbl->poll(&__chx__t, " + cexpr + ".frame, " + fexpr +
-                       "->__cx); &__chx__t; }));\n";
+                out += "{\n        ";
+                out += pty;
+                out += " __chx__p = (*({ ";
+                out += pty;
+                out += " __chx__t; ";
+                out += cexpr;
+                out += ".vtbl->poll(&__chx__t, ";
+                out += cexpr;
+                out += ".frame, ";
+                out += fexpr;
+                out += "->__cx); &__chx__t; }));\n";
                 out += "        if(__chx__p.__chx__vt_621827 != 0) {\n";
                 if (resume_state != 0) {
-                    out += "            " + fexpr + "->__state = " + std::to_string(resume_state) +
-                           "u;\n";
+                    out += "            ";
+                    out += fexpr;
+                    out += "->__state = ";
+                    append_uint(out, resume_state);
+                    out += "u;\n";
                 }
                 const uint32_t n =
                     spill_n->id < module.constants.size()
@@ -1857,15 +1884,31 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                         error = "async_await bad spill field";
                         return false;
                     }
-                    out += "            " + fexpr + "->" + fname + " = " +
-                           place_name(module, function, loc->id) + ";\n";
+                    out += "            ";
+                    out += fexpr;
+                    out += "->";
+                    out += fname;
+                    out += " = ";
+                    append_place_name(module, function, loc->id, out);
+                    out += ";\n";
                 }
-                out += "            *" + pexpr + " = (" + fpty +
-                       "){ .__chx__vt_621827 = 1 };\n";
+                out += "            *";
+                out += pexpr;
+                out += " = (";
+                out += fpty;
+                out += "){ .__chx__vt_621827 = 1 };\n";
                 out += "            return;\n        }\n";
-                out += "        " + rexpr + " = __chx__p.Ready.value;\n";
-                out += "        " + cexpr + ".vtbl->drop(" + cexpr + ".frame);\n";
-                out += "        " + cexpr + ".frame = (void*) 0;\n    }\n";
+                out += "        ";
+                out += rexpr;
+                out += " = __chx__p.Ready.value;\n";
+                out += "        ";
+                out += cexpr;
+                out += ".vtbl->drop(";
+                out += cexpr;
+                out += ".frame);\n";
+                out += "        ";
+                out += cexpr;
+                out += ".frame = (void*) 0;\n    }\n";
                 break;
             }
             case MIROpcode::AsyncFinish: {
@@ -1876,22 +1919,30 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     error = "async_finish missing operands";
                     return false;
                 }
-                const std::string fexpr = place_name(module, function, fr->id);
-                const std::string pexpr = place_name(module, function, ret->id);
-                const std::string fpty = c_type_of(module, fn_poll_ty->type());
-                out += fexpr + "->__state = 0xFFFFFFFFu;\n        *" + pexpr + " = (" + fpty +
-                       "){ .__chx__vt_621827 = 0, .Ready.value = " + fexpr +
-                       "->__result };\n        return;\n";
+                append_place_name(module, function, fr->id, out);
+                out += "->__state = 0xFFFFFFFFu;\n        *";
+                append_place_name(module, function, ret->id, out);
+                out += " = (";
+                append_c_type_of(module, fn_poll_ty->type(), out);
+                out += "){ .__chx__vt_621827 = 0, .Ready.value = ";
+                append_place_name(module, function, fr->id, out);
+                out += "->__result };\n        return;\n";
                 break;
             }
             case MIROpcode::AsyncFrameAlloc: {
                 const MIROperand* frame_ty = operand_at(function, inst, 0);
                 if (!frame_ty) { error = "async_frame_alloc missing type"; return false; }
-                const std::string fname = c_type_of(module, frame_ty->type());
-                out += declarator(module, function.values[inst.result_or_place].type,
-                                  vname(inst.result_or_place)) + " = (" + fname +
-                       "*) chemical_async_frame_alloc(sizeof(" + fname + "), _Alignof(" + fname +
-                       "));\n";
+                std::string fname;
+                append_c_type_of(module, frame_ty->type(), fname);
+                append_declarator(module, function.values[inst.result_or_place].type,
+                                  vname(inst.result_or_place), out);
+                out += " = (";
+                out += fname;
+                out += "*) chemical_async_frame_alloc(sizeof(";
+                out += fname;
+                out += "), _Alignof(";
+                out += fname;
+                out += "));\n";
                 break;
             }
             case MIROpcode::AsyncRampFinish: {
@@ -1904,8 +1955,6 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     error = "async_ramp_finish missing operands";
                     return false;
                 }
-                const std::string fexpr = place_name(module, function, fr->id);
-                const std::string sexpr = place_name(module, function, sret->id);
                 std::string vname2;
                 if (!constant_string(module, vtbl->id, vname2)) {
                     error = "async_ramp_finish bad vtbl name";
@@ -1915,10 +1964,19 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     state->id < module.constants.size()
                         ? static_cast<uint32_t>(module.constants.get(state->id).bits)
                         : 0;
-                out += fexpr + "->__state = " + std::to_string(st) + "u;\n";
-                out += "        *" + sexpr + " = (" + c_type_of(module, handle_ty->type()) +
-                       "){ .frame = (void*) " + fexpr + ", .vtbl = &" + vname2 +
-                       " };\n        return;\n";
+                append_place_name(module, function, fr->id, out);
+                out += "->__state = ";
+                append_uint(out, st);
+                out += "u;\n";
+                out += "        *";
+                append_place_name(module, function, sret->id, out);
+                out += " = (";
+                append_c_type_of(module, handle_ty->type(), out);
+                out += "){ .frame = (void*) ";
+                append_place_name(module, function, fr->id, out);
+                out += ", .vtbl = &";
+                out += vname2;
+                out += " };\n        return;\n";
                 break;
             }
             case MIROpcode::InlineAsm: {
@@ -2011,28 +2069,43 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     error = "dynamic_call invalid names";
                     return false;
                 }
-                const std::string base = (fat->kind() == MIROperandKind::Place)
-                                             ? place_name(module, function, fat->id)
-                                             : operand_expr(function, module, *fat);
+                std::string access;
+                if (fat->kind() == MIROperandKind::Place) {
+                    append_place_name(module, function, fat->id, access);
+                } else {
+                    append_operand_expr(function, module, *fat, access);
+                }
                 const bool arrow =
                     fat->type() < module.types.size() &&
                     (module.types.get(fat->type()).kind == MIRTypeKind::Pointer ||
                      module.types.get(fat->type()).kind == MIRTypeKind::Reference);
-                const std::string access = base + (arrow ? "->" : ".");
-                std::string call = "((" + vt_name + "*)" + access + "second)->" + m_name + "(" +
-                                   access + "first";
+                access += arrow ? "->" : ".";
+                std::string call = "((";
+                call += vt_name;
+                call += "*)";
+                call += access;
+                call += "second)->";
+                call += m_name;
+                call += "(";
+                call += access;
+                call += "first";
                 for (uint32_t a = 3; a < inst.operand_count; ++a) {
-                    call += ", " + operand_expr(function, module, *operand_at(function, inst, a));
+                    call += ", ";
+                    append_operand_expr(function, module, *operand_at(function, inst, a), call);
                 }
                 call += ")";
                 const bool is_void =
                     inst.result_or_place >= function.values.size() ||
-                    c_type_of(module, function.values[inst.result_or_place].type) == "void";
+                    c_type_spells_void(module, function.values[inst.result_or_place].type);
                 if (is_void) {
-                    out += call + ";\n";
+                    out += call;
+                    out += ";\n";
                 } else {
-                    out += declarator(module, function.values[inst.result_or_place].type,
-                                      vname(inst.result_or_place)) + " = " + call + ";\n";
+                    append_declarator(module, function.values[inst.result_or_place].type,
+                                      vname(inst.result_or_place), out);
+                    out += " = ";
+                    out += call;
+                    out += ";\n";
                 }
                 break;
             }

@@ -118,17 +118,19 @@ functions are thin wrappers over them (the declaration path and the single-use
 inline map still want strings). The emit loop's cases — Alloca, Param, Const*,
 Load, Store, FieldAddr, IndexAddr, AddressOf, Unary, Binary/Compare, Cast, Call,
 Return, CopyInit/MoveInit, SetDrop, Drop, Destroy, MemCpy, MemSet, FunctionAddr,
-GlobalAddr, Init, Br, CondBr, SizeOf/AlignOf/OffsetOf — were converted to append;
-only a short field name or a twice-used access expression is still materialized
-into a small (SSO) local.
+GlobalAddr, Init, Br, CondBr, SizeOf/AlignOf/OffsetOf), the indirect/dynamic
+calls (`CallIndirect`, `DynamicCall`) and the async opcodes (`AsyncAwait`,
+`AsyncFinish`, `AsyncFrameAlloc`, `AsyncRampFinish`) all append directly. Only a
+short field name or a twice-used access expression is still materialized into a
+small (SSO) local.
 
 Output-invariant: main-suite C is 96,825 lines either side and the normalized
 diff is **62** (the same-binary floor). `MIRTests` 4400; `--tcc` **2307/2307**;
 `--llvm` **2305/2305**; `--tcc --async` **53/53**; `--tcc --interpret`
 **1897/1897**; `--tcc --libs` **718/719**.
 
-Still string-based (rarer): the async opcodes, `InlineAsm`, `CallIndirect`,
-`DynamicCall`, and the declaration emitter's own spellers.
+Still string-based (rarer): `InlineAsm`'s operand list and the declaration
+emitter's own spellers.
 
 ### Session 40 (2026-10-16) — reuse the emit body buffer
 

@@ -1188,6 +1188,11 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     out += ";\n";
                 } else {
                     // arrays are not assignable in C: copy the source bytes
+                    // (defensive: a bogus place id would index out of range)
+                    if (p->id >= function.places.size()) {
+                        error = "invalid place id during C emission";
+                        return false;
+                    }
                     const TypeId dst_t = function.places[p->id].type;
                     if (dst_t != MIR_INVALID_ID && dst_t < module.types.size() &&
                         module.types.get(dst_t).kind == MIRTypeKind::Array) {

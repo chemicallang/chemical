@@ -747,7 +747,11 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             // a `return` inside an inlined comptime template branches to the
             // inline end block with the value, instead of returning the function
             if (!inline_frames_.empty()) {
-                ComptimeInlineFrame& frame = inline_frames_.back();
+                // Copy the frame: lowering the returned expression may inline a
+                // nested `@expand` template, which push_back()s to
+                // `inline_frames_` and can reallocate it. Holding a reference
+                // across that call left `frame` dangling (garbage result_place).
+                ComptimeInlineFrame frame = inline_frames_.back();
                 MIRExprResult r = MIRExprResult::void_result();
                 if (!frame.void_result && rs->value) {
                     r = lower_expr(rs->value, error);

@@ -466,7 +466,6 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& allocator, ASTAlloca
     }
 
     const auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration("", { typeBuilder.getVoidType(), ZERO_LOC }, false, parent_node, 0, specifier, false);
-    annotate(decl);
 
     if(is_comptime) {
         decl->set_comptime(true);
@@ -476,6 +475,10 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& allocator, ASTAlloca
         decl->set_async(true);
         decl->data.is_async = true;
     }
+
+    // annotations are applied after the comptime/async modifiers so a handler
+    // can validate against them (e.g. `@expand` requires a comptime function)
+    annotate(decl);
 
     ASTNode* final_node = decl;
 

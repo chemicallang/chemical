@@ -96,6 +96,23 @@ void annot_handler_constructor(Parser* parser, ASTNode* node, std::vector<Value*
     }
 }
 
+void annot_handler_expand(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
+    if(!args.empty()) {
+        parser->error("expand annotation doesn't accept arguments");
+        return;
+    }
+    const auto func = node->as_function();
+    if(!func) {
+        parser->error("expand annotation may only be applied to a function");
+        return;
+    }
+    if(!func->is_comptime()) {
+        parser->error("expand annotation requires a comptime function");
+        return;
+    }
+    func->set_expand(true);
+}
+
 void annot_handler_delete(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     const auto func = node->as_function();
     if(func) {
@@ -395,6 +412,7 @@ void AnnotationController::initialize() {
             { "export", { annot_handler_no_mangle, "export", AnnotationDefType::Handler } },
             { "constructor", { annot_handler_constructor, "constructor", AnnotationDefType::Handler } },
             { "make", { annot_handler_constructor, "make", AnnotationDefType::Handler } },
+            { "expand", { annot_handler_expand, "expand", AnnotationDefType::Handler } },
             { "delete", { annot_handler_delete, "delete", AnnotationDefType::Handler } },
             { "unsafe", { annot_handler_unsafe, "unsafe", AnnotationDefType::Handler } },
             { "never_destructed", { annot_handler_never_destructed, "never_destructed", AnnotationDefType::Handler } },

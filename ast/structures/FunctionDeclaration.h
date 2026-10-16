@@ -152,6 +152,15 @@ struct FuncDeclAttributes {
     bool is_generated = false;
 
     /**
+     * `@expand`: an explicit compile-time code function. The call is replaced
+     * by the lowered body at the call site (comptime arguments are folded and
+     * the function is instantiated per distinct comptime-argument tuple). This
+     * is the explicit replacement for `%runtime_value`'s role; the compiler
+     * never infers it from the body.
+     */
+    bool is_expand = false;
+
+    /**
      * did user put stdcall annotation over it
      */
     bool std_call = false;
@@ -268,6 +277,18 @@ public:
 
     inline void set_comptime(bool value) {
         attrs.is_comptime = value;
+    }
+
+    /**
+     * `@expand`: this compile-time function's call is replaced by its lowered
+     * body at the call site. Explicit — the compiler never infers it.
+     */
+    inline bool is_expand_fn() {
+        return attrs.is_expand;
+    }
+
+    inline void set_expand(bool value) {
+        attrs.is_expand = value;
     }
 
     inline bool is_async() {

@@ -78,6 +78,11 @@ bool scope_has_template(Scope* s) {
 
 bool MIRLowerer::is_comptime_template_fn(FunctionDeclaration* fd) {
     if (!fd || !fd->is_comptime() || !fd->body.has_value()) return false;
+    // The explicit, declared form: `@expand comptime func`. The compiler never
+    // infers this from the body — the annotation is the whole signal.
+    if (fd->is_expand_fn()) return true;
+    // Migration fallback (removed once every template carries `@expand` and
+    // `%runtime_value` is deleted): a marker parameter or a template body.
     const bool has_template = scope_has_template(&fd->body.value());
     // A constructor that still returns a `%runtime_value`/`%runtime_block_value`
     // stays on the existing implicit-constructor path (which also runs the

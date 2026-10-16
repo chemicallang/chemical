@@ -540,6 +540,13 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
         }
         if (!imp) imp = conv_type->implicit_constructor_for(arg);
         if (imp) {
+            // an `@expand` implicit constructor is lowered at this site; the
+            // interpreter would otherwise return an eagerly-built struct value
+            if (imp->is_expand_fn()) {
+                std::vector<Value*> one{arg};
+                return inline_comptime_template(imp, MIRExprResult::void_result(), nullptr,
+                                                one, error);
+            }
             if (imp->is_comptime() && comptime_ctor_eval_) {
                 Value* ev = comptime_ctor_eval_(imp, arg);
                 if (ev) return lower_expr(ev, error);

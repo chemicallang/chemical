@@ -515,6 +515,23 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     }
                 }
                 if (implicit) {
+                    // an `@expand` constructor is lowered at this site
+                    if (implicit->is_expand_fn()) {
+                        MIRExprResult er = inline_comptime_template(
+                            implicit, MIRExprResult::void_result(), nullptr,
+                            std::vector<Value*>{init.value}, error);
+                        if (!er.ok()) return er;
+                        if (er.kind == MIRExprKind::Place) {
+                            builder_->field_store_place(temp, fc, static_cast<PlaceId>(er.id));
+                        } else if (er.kind == MIRExprKind::Value) {
+                            builder_->field_store(temp, fc, static_cast<ValueId>(er.id));
+                        } else {
+                            error = "comptime constructor did not produce a value";
+                            return MIRExprResult::error();
+                        }
+                        ++it;
+                        continue;
+                    }
                     if (implicit->is_comptime() && comptime_ctor_eval_) {
                         Value* evaluated = comptime_ctor_eval_(implicit, init.value);
                         if (evaluated) {
@@ -854,6 +871,11 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 if (!sd) sd = ctor_node->as_struct_def();
                 FunctionDeclaration* ctor = sd ? sd->constructor_func(call->values) : nullptr;
                 if (!ctor && ctype && call->values.empty()) ctor = ctype->get_def_constructor();
+                // an `@expand` constructor is lowered at this call site
+                if (ctor && ctor->is_expand_fn()) {
+                    return inline_comptime_template(ctor, MIRExprResult::void_result(),
+                                                    call, call->values, error);
+                }
                 // evaluate a comptime constructor before lowering its arguments
                 // (they may be comptime-only values such as expressive strings)
                 if (ctor && ctor->is_comptime() && comptime_eval_) {

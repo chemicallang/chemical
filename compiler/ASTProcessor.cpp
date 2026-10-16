@@ -49,6 +49,7 @@
 #include "compiler/mir/MIRTypeBuilder.h"
 #include "compiler/mir/MIRLowerer.h"
 #include "compiler/mir/MIRTaskContext.h"
+#include "compiler/mir/MIRMangleBuffer.h"
 #include "compiler/async/AwaitNormalizePass.h"
 #include "compiler/mir/MIREmitter.h"
 #include "compiler/mir/MIRDeclEmitter.h"
@@ -1822,7 +1823,7 @@ bool mir_eligible_function(FunctionDeclaration* decl) {
 }
 
 std::string mir_mangle_name(NameMangler& mangler, ASTNode* decl) {
-    BufferedWriter w(256);
+    BufferedWriter& w = mir::mangle_writer();
     mangler.mangle(w, decl);
     return std::string(w.data(), w.getPosition());
 }

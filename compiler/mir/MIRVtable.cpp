@@ -4,6 +4,8 @@
 
 #include "MIRVtable.h"
 
+#include "MIRMangleBuffer.h"
+
 #include "MIRTypeBuilder.h"
 #include "MIRABI.h"
 
@@ -51,7 +53,7 @@ TypeId mir_vtable_slot_type(MIRTypeBuilder& types, MIRModule& module,
 namespace {
 
 std::string mangle_node(NameMangler& mangler, ASTNode* node) {
-    BufferedWriter w(256);
+    BufferedWriter& w = mangle_writer();
     mangler.mangle(w, node);
     return std::string(w.data(), w.getPosition());
 }

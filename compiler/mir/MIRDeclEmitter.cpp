@@ -2,6 +2,8 @@
 
 #include "MIRDeclEmitter.h"
 
+#include "MIRMangleBuffer.h"
+
 #include "MIREmitter.h"
 #include "MIRABI.h"
 #include "MIRTypeBuilder.h"
@@ -60,7 +62,7 @@ std::string MIRDeclEmitter::function_proto(FunctionDeclaration* decl) {
 
 std::string MIRDeclEmitter::mangle_name(ASTNode* node) {
     if (!node) return std::string();
-    BufferedWriter w(256);
+    BufferedWriter& w = mangle_writer();
     mangler_.mangle(w, node);
     return std::string(w.data(), w.getPosition());
 }

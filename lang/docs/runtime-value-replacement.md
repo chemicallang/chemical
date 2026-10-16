@@ -28,8 +28,8 @@ interpreter's last lowering-time job.
 > be deleted yet; see §5.4 and §8.
 
 > **Migration progress (2026-10).** Source migration is underway, one unit per
-> commit, `--tcc`/`--llvm`/`--interpret` green at each step. **141 of 149**
-> `%runtime_value` uses are gone (the last 8 are described at the end).
+> commit, `--tcc`/`--llvm`/`--interpret` green at each step. **146 of 149**
+> `%runtime_value` uses are gone (the last 3 are described at the end).
 >
 > **The explicit replacement is `@expand`** (commit `add @expand: explicit
 > compile-time code functions`). A `comptime func` is either *evaluated* to a
@@ -45,12 +45,18 @@ interpreter's last lowering-time job.
 > }
 > ```
 >
-> Migrated: **atomic.ch (120)**, **string_view.make**, **string.make(%literal_string)**,
-> **test_runner**, **test_runner_handle**, **lab.curr_dir / get_my_path /
-> rel_path_to**, **panic**, **stream.print** / **println**, **span.make2(vector)**,
-> **universal_test**'s runners, and the `%literal_string` constructor fixtures
-> (`comptime/basic`, `functions/constructors`, `destructors/basic`,
-> `temp_arg_destruct`).
+> Migrated: **atomic.ch (120)**, **string_view.make**, **string.make** (both
+> overloads), **append_expr**, **test_runner**, **test_runner_handle**,
+> **lab.curr_dir / get_my_path / rel_path_to**, **panic**, **stream.print** /
+> **println**, **span.make2** (both overloads), **universal_test**'s runners,
+> and the constructor fixtures (`comptime/basic`, `functions/constructors`,
+> `destructors/basic`, `capturing_call`, `temp_arg_destruct`, `for_in_custom`).
+>
+> **`@expand` is a *splice*, not a hygienic inline** (commit `mir: @expand
+> splices in the caller's scope`): the body is lowered in the **caller's**
+> scope, with the callee's bindings layered on top (a journal restores the
+> caller's scope exactly). This is what the expressive-string, array-size and
+> lambda cases needed — they all resolve in the caller's context.
 >
 > Compiler work this required:
 > 1. raw-kind parameter detection (`BaseType::canonical()` unwraps the markers,
@@ -63,21 +69,14 @@ interpreter's last lowering-time job.
 >    `ComptimeInlineFrame&` across `lower_expr`, which can reallocate
 >    `inline_frames_` and leave the reference dangling.
 >
-> **Remaining (8).** Each needs the inline to handle a shape it does not yet,
-> not a mechanical edit:
-> - **array element count** — `span.make2(array)` and `for_in_custom`'s
->   constructor: the argument's type has decayed to `[]T`, so
->   `intrinsics::size(array)` cannot fold (the size lives in the value, not the
->   type; a first attempt only found it for array *literals*, not for the
->   `lab` build code's identifier argument).
-> - **expressive-string materialization** — `string.make(%expressive_string)`
->   and `append_expr`: `intrinsics::expr_str_block_value` generates code that
->   references the **caller's** locals, but the inline lowers the body in the
->   callee's scope (the caller's bindings are not visible).
-> - **lambda operands** — `function.make` and `capturing_call`'s constructor: a
->   lambda passed as a comptime operand is not handled by the inline.
-> - **builder macro** — `ASTBuilder.allocate` (the compiler-plugin library is
->   not standalone-compilable, so it cannot be exercised from `--tcc`).
+> **Remaining (3).**
+> - **`function.make`** — its body folds
+>   `intrinsics::get_lambda_cap_destructor(lambda)`, whose folded value is a
+>   `VariantCase` the MIR lowerer cannot emit; that intrinsic needs a lowering
+>   rule (it is a no-capture-lambda case).
+> - **`ASTBuilder.allocate` (2)** — the `compiler` plugin library is not
+>   standalone-compilable, and migrating it deadlocks the plugin build; a
+>   follow-up.
 
 ---
 

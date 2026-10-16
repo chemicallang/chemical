@@ -1,7 +1,7 @@
 // ========================
 // Inline-asm CAS primitives (C backend only, x86_64)
 // These are @retained regular functions with inline asm.
-// They are called from comptime funcs via %runtime_value(...).
+// They are called from `@expand` comptime funcs, which lower the call in place.
 // ========================
 
 @retained func __chx__cas_u64(ptr : *mut u64, expected : *mut u64, desired : u64) : bool {

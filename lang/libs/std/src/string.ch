@@ -375,8 +375,9 @@ public struct string {
         }
     }
 
+    @expand
     comptime func append_expr(&mut self, expr : %expressive_string) {
-        return %runtime_value(intrinsics::expr_str_block_value(StringStream { str : self }, expr)) as void
+        intrinsics::expr_str_block_value(StringStream { str : self }, expr)
     }
 
     func append_char_ptr(&mut self, value : *char) {

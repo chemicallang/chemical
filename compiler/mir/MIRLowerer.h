@@ -707,9 +707,34 @@ private:
     ConstExprId build_const_variant(VariantMember* vm, FunctionCall* call);
     /** A bare variant member (`Variant.Member`, no args). */
     ConstExprId build_const_variant_bare(VariantMember* vm, BaseType* type);
+    // ── inline splice scope ─────────────────────────────────────────────────
+    // An `@expand` splice lowers the callee body in the *caller's* scope, so
+    // the callee's bindings are layered on top of the caller's. This journal
+    // records each binding added during the splice so it can be undone exactly,
+    // leaving the caller's scope untouched.
+    struct ScopeUndo {
+        uint8_t kind = 0;   // 0 var_places_, 1 name_places_, 2 comptime
+        ASTNode* node = nullptr;
+        std::string name;
+        bool existed = false;
+        PlaceId place = MIR_INVALID_ID;
+        Value* cval = nullptr;
+    };
+    std::vector<ScopeUndo> scope_undo_;
+    bool scope_journal_ = false;
+    void undo_scope_from(size_t mark);
+    void set_comptime_binding(const std::string& key, Value* value);
     PlaceId place_for_linked(ASTNode* linked) const;
     void bind(ASTNode* linked, PlaceId place) {
         MIR_OP(place_bind);
+        if (scope_journal_) {
+            ScopeUndo u;
+            u.kind = 0;
+            u.node = linked;
+            auto it = var_places_.find(linked);
+            if (it != var_places_.end()) { u.existed = true; u.place = it->second; }
+            scope_undo_.push_back(std::move(u));
+        }
         var_places_[linked] = place;
     }
     /**
@@ -771,7 +796,16 @@ private:
     void bind_name(const chem::string_view& name, PlaceId place) {
         if (name.empty()) return;
         MIR_OP(name_bind);
-        name_places_[std::string(name.data(), name.size())] = place;
+        std::string key(name.data(), name.size());
+        if (scope_journal_) {
+            ScopeUndo u;
+            u.kind = 1;
+            u.name = key;
+            auto it = name_places_.find(name);
+            if (it != name_places_.end()) { u.existed = true; u.place = it->second; }
+            scope_undo_.push_back(std::move(u));
+        }
+        name_places_[key] = place;
         // Debug-info builds only: remember the source identifier so the LLVM
         // emitter can attach a `DILocalVariable` + `llvm.dbg.declare` to the
         // place's alloca. The common release / debug_quick path pays nothing.

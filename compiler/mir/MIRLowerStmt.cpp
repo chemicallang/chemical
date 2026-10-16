@@ -169,7 +169,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             if (!inline_frames_.empty() && vi->is_const() && comptime_value_eval_ && vi->value) {
                 if (Value* cv = comptime_value_eval_(vi->value)) {
                     const auto nm = vi->name_view();
-                    comptime_bindings_[std::string(nm.data(), nm.size())] = cv;
+                    set_comptime_binding(std::string(nm.data(), nm.size()), cv);
                 }
             }
             return true;

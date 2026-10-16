@@ -105,6 +105,40 @@ bool MIRLowerer::is_comptime_template_fn(FunctionDeclaration* fd) {
     return has_template;
 }
 
+void MIRLowerer::set_comptime_binding(const std::string& key, Value* value) {
+    if (scope_journal_) {
+        ScopeUndo u;
+        u.kind = 2;
+        u.name = key;
+        auto it = comptime_bindings_.find(key);
+        if (it != comptime_bindings_.end()) { u.existed = true; u.cval = it->second; }
+        scope_undo_.push_back(std::move(u));
+    }
+    comptime_bindings_[key] = value;
+}
+
+void MIRLowerer::undo_scope_from(size_t mark) {
+    while (scope_undo_.size() > mark) {
+        ScopeUndo u = std::move(scope_undo_.back());
+        scope_undo_.pop_back();
+        switch (u.kind) {
+            case 0:
+                if (u.existed) var_places_[u.node] = u.place;
+                else var_places_.erase(u.node);
+                break;
+            case 1:
+                if (u.existed) name_places_[u.name] = u.place;
+                else name_places_.erase(u.name);
+                break;
+            case 2:
+                if (u.existed) comptime_bindings_[u.name] = u.cval;
+                else comptime_bindings_.erase(u.name);
+                break;
+            default: break;
+        }
+    }
+}
+
 MIRExprResult MIRLowerer::inline_comptime_template(FunctionDeclaration* fd, MIRExprResult recv,
                                                    FunctionCall* call,
                                                    const std::vector<Value*>& call_values,
@@ -179,14 +213,15 @@ MIRExprResult MIRLowerer::inline_comptime_template(FunctionDeclaration* fd, MIRE
     }
     if (!ok) return MIRExprResult::error();
 
-    auto saved_var = std::move(var_places_);
-    auto saved_name = std::move(name_places_);
-    auto saved_comptime = std::move(comptime_bindings_);
     FunctionParam* saved_self = current_self_param_;
     const size_t dmark = destructibles_.size();
-    var_places_.clear();
-    name_places_.clear();
-    comptime_bindings_.clear();
+    // Splice: layer the callee's bindings over the caller's (do NOT clear them),
+    // so the body is lowered in the caller's scope — a call-site macro, not a
+    // hygienic inline. The journal records every added binding so the caller's
+    // scope is restored exactly afterwards.
+    const bool saved_journal = scope_journal_;
+    scope_journal_ = true;
+    const size_t umark = scope_undo_.size();
     current_self_param_ = callee_self;
 
     // Bind a runtime operand into a fresh place of the parameter's type.
@@ -199,7 +234,20 @@ MIRExprResult MIRLowerer::inline_comptime_template(FunctionDeclaration* fd, MIRE
         if (place == MIR_INVALID_ID) return false;
         if (r.kind == MIRExprKind::Place) {
             const PlaceId sp = static_cast<PlaceId>(r.id);
-            if (agg && pt == r.type) {
+            // a reference (`&mut self`) or pointer parameter receives the
+            // *address* of the argument place; the value is already indirect
+            BaseType* dtyp = p->type;
+            BaseType* eff = dtyp;
+            if (dtyp && dtyp->kind() == BaseTypeKind::Runtime) {
+                eff = dtyp->as_runtime_type_unsafe()->underlying;
+            } else if (dtyp && dtyp->kind() == BaseTypeKind::MaybeRuntime) {
+                eff = dtyp->as_maybe_runtime_type_unsafe()->underlying;
+            }
+            const bool ref_param = eff && (eff->kind() == BaseTypeKind::Reference ||
+                                           eff->kind() == BaseTypeKind::Pointer);
+            if (ref_param && r.type != pt) {
+                builder_->store(place, builder_->address_of(sp, pt));
+            } else if (agg && pt == r.type) {
                 builder_->move_init(place, sp, pt);
             } else {
                 builder_->store(place, builder_->load(sp, r.type));
@@ -248,7 +296,7 @@ MIRExprResult MIRLowerer::inline_comptime_template(FunctionDeclaration* fd, MIRE
                 break;
             }
         } else {
-            comptime_bindings_[std::string(p->name.data(), p->name.size())] = b.cv;
+            set_comptime_binding(std::string(p->name.data(), p->name.size()), b.cv);
         }
     }
 
@@ -292,9 +340,8 @@ MIRExprResult MIRLowerer::inline_comptime_template(FunctionDeclaration* fd, MIRE
         }
     }
 
-    var_places_ = std::move(saved_var);
-    name_places_ = std::move(saved_name);
-    comptime_bindings_ = std::move(saved_comptime);
+    scope_journal_ = saved_journal;
+    undo_scope_from(umark);
     current_self_param_ = saved_self;
     destructibles_.resize(dmark);
     return ok ? result : MIRExprResult::error();

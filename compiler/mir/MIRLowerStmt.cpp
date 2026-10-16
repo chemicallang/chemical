@@ -757,6 +757,31 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                     r = lower_expr(rs->value, error);
                     if (!r.ok()) return false;
                 }
+                // a returned local destructible is *moved out* of the splice, not
+                // dropped: clear its drop flag before the scope drops run (as the
+                // non-inline return path does)
+                if (!frame.void_result && rs->value) {
+                    Value* rv = rs->value;
+                    for (int guard = 0; guard < 4 && rv; ++guard) {
+                        if (rv->val_kind() == ValueKind::AccessChain) {
+                            auto* c = rv->as_access_chain_unsafe();
+                            if (c->values.size() == 1) { rv = c->values[0]; continue; }
+                            break;
+                        }
+                        if (rv->val_kind() == ValueKind::UnsafeValue) {
+                            auto* u = static_cast<UnsafeValue*>(rv);
+                            if (u->getValue()) { rv = u->getValue(); continue; }
+                            break;
+                        }
+                        break;
+                    }
+                    if (rv->val_kind() == ValueKind::Identifier) {
+                        auto* id = rv->as_identifier_unsafe();
+                        PlaceId rp = place_for_linked(id->linked);
+                        if (rp == MIR_INVALID_ID) rp = place_for_name(id->value);
+                        if (rp != MIR_INVALID_ID) mark_moved(rp);
+                    }
+                }
                 emit_drops_from(frame.dmark);
                 if (!frame.void_result) {
                     const bool rsret = abi::needs_sret(module_, frame.result_type);

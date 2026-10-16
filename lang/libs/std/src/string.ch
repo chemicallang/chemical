@@ -75,12 +75,11 @@ public struct string {
 
     @implicit
     @constructor
+    @expand
     comptime func make(expr : %expressive_string) {
-        return %runtime_block_value {
-            var str = std::string()
-            str.append_expr(expr)
-            str;
-        }
+        var str = std::string()
+        str.append_expr(expr)
+        return str
     }
 
     @constructor

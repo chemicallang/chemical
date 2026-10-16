@@ -19,8 +19,9 @@ struct span<T> {
 
     @implicit
     @constructor
+    @expand
     comptime func make2(array : []%maybe_runtime<T>) {
-        return %runtime_value(constructor<T>(array, intrinsics::size(array)))
+        return constructor<T>(array, intrinsics::size(array))
     }
 
     @constructor

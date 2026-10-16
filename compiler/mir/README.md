@@ -99,6 +99,52 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 35 (2026-10-16) — a pointer-target zero for anonymous-aggregate array fields (action C1, eighth bite)
+
+Session 34 skipped the field store for an *empty* array literal in the struct
+literal's **main** field loop. The same shape inside an **anonymous aggregate**
+(`buffer : []` in `std::string`'s `storage.sso`, `lang/libs/std/src/string.ch`)
+went through `store_anon_aggregate`, which still built a zeroed scratch array and
+copied it — and there, once through `lower_arg_converted` → `field_store_ptr` →
+`load`, it emitted **three copies of the zeroes**:
+
+```c
+char __chx_p4[16];
+memset(&__chx_p4, 0, sizeof(__chx_p4));
+char __chx_v4[16];
+memcpy(__chx_v4, __chx_p4, sizeof(__chx_v4));
+memcpy(&__chx_v3->buffer, __chx_v4, sizeof(__chx_v3->buffer));
+```
+
+`MemSet` already carried a `(dest, byte, size)` shape (used by the LLVM emitter)
+but nothing lowered it with an address destination and the C emitter assumed a
+place. Now:
+
+- `MIRBuilder::memset_ptr(ValueId dest, ValueId byte, ValueId size)` emits the
+  general shape with the destination an **address value**.
+- The C emitter's `MemSet` case handles it (`memset(ptr, byte, size)`); the LLVM
+  emitter already did.
+- `store_anon_aggregate` gained `enclosing_zeroed`: an empty array literal for a
+  fixed-size array field is **skipped** when the enclosing temp is already
+  `zero_init`'d, and otherwise **zeroed through its address** — one `memset`
+  replaces the scratch + double copy. The flag is threaded through its recursion
+  from the struct literal's `all_defined`.
+
+`make_with_char` is now `memset((&__chx_v3->buffer), 0, 16);` (was four lines /
+three copies). The transformation fires at one site in the main suite (only one
+`buffer : []` literal exists), so the size delta is small — main-suite C
+**96,767 → 96,763** lines — but it removes a triple array copy from a real
+`std::string` constructor, and the pointer-zero primitive is now available to any
+anonymous-aggregate lowering.
+
+| Suite | Result |
+|---|---|
+| `MIRTests` | **4400 checks** |
+| `--tcc` | **2305/2305** |
+| `--llvm` | **2303/2303** |
+| `--tcc --libs` | **718/719** (the known environment-sensitive `test_fs_directory_iteration`) |
+| normalized C diff | only the changed site (a `memset` replaced by a `memset`, scratch + 2 `memcpy` removed) plus jitter |
+
 ### Session 34 (2026-10-16) — an empty array literal no longer double-writes a struct field (action C1, seventh bite)
 
 A struct literal with an **empty** array initializer for a fixed-size array field

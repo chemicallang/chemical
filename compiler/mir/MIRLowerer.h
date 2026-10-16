@@ -511,8 +511,12 @@ private:
     /** Like `apply_struct_defaults` but through a `self` pointer (generated ctor). */
     bool apply_struct_defaults_ptr(ValueId self_ptr, ExtendableMembersContainerNode* def,
                                    std::string& error);
-    /** Store an anonymous struct/union literal's fields into `addr` in place. */
-    bool store_anon_aggregate(ValueId addr, StructValue* sv, std::string& error);
+    /** Store an anonymous struct/union literal's fields into `addr` in place.
+     *  `enclosing_zeroed` is true when the enclosing aggregate temporary is
+     *  already `zero_init`'d, so a field an empty array literal would zero is
+     *  already defined and the store can be skipped. */
+    bool store_anon_aggregate(ValueId addr, StructValue* sv, std::string& error,
+                              bool enclosing_zeroed = false);
     /** Append the receiver operand for a method/extension call to `args`. */
     bool append_receiver_arg(MIRExprResult recv, BaseType* recv_type,
                              FunctionDeclaration* fd, std::vector<MIROperand>& args,

@@ -502,7 +502,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         const TypeId mt = types_.map(member_type);
                         const ValueId faddr = builder_->field_addr(temp, fc, mt);
                         if (!store_anon_aggregate(faddr, init.value->as_struct_value_unsafe(),
-                                                  error)) {
+                                                  error, !all_defined)) {
                             return MIRExprResult::error();
                         }
                         ++it;

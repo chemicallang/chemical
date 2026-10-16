@@ -426,7 +426,8 @@ bool MIRLowerer::apply_struct_defaults_ptr(ValueId self_ptr, ExtendableMembersCo
     return true;
 }
 
-bool MIRLowerer::store_anon_aggregate(ValueId addr, StructValue* sv, std::string& error) {
+bool MIRLowerer::store_anon_aggregate(ValueId addr, StructValue* sv, std::string& error,
+                                      bool enclosing_zeroed) {
     if (!sv) return true;
     for (auto& kv : sv->values) {
         const StructMemberInitializer& init = kv.second;
@@ -437,13 +438,40 @@ bool MIRLowerer::store_anon_aggregate(ValueId addr, StructValue* sv, std::string
             auto mtw = sv->child_type_w_index(init.name);
             if (mtw.second != -1) mt = mtw.first;
         }
+        // An empty array literal for a fixed-size array field inside an
+        // anonymous aggregate (`buffer : []` in `std::string`'s SSO storage)
+        // means "all zeroes". When the enclosing temporary is already zeroed
+        // the field is defined and the store is skipped; otherwise zero the
+        // field through its address, instead of the zeroed scratch array plus
+        // whole-width copy `lower_arg_converted` would emit (action C1).
+        if (init.value && init.value->val_kind() == ValueKind::ArrayValue &&
+            init.value->as_array_value_unsafe()->values.empty()) {
+            auto* fat = mt ? mt->canonical()->as_array_type() : nullptr;
+            if (fat && fat->has_array_size()) {
+                if (enclosing_zeroed) continue;
+                const TypeId ft = types_.map(mt);
+                if (ft != MIR_INVALID_ID && ft < module_.types.size()) {
+                    const ValueId faddr = builder_->field_addr_ptr(addr, fc, ft);
+                    const TypeId u8 = types_.char_type();
+                    const TypeId usz = types_.u64_type();
+                    const ValueId byte = builder_->const_int(
+                        u8, module_.constants.add_int(u8, 0));
+                    const ValueId bytes = builder_->const_int(
+                        usz, module_.constants.add_int(
+                                 usz, module_.types.get(ft).size));
+                    builder_->memset_ptr(faddr, byte, bytes);
+                    continue;
+                }
+            }
+        }
         if (init.value && init.value->val_kind() == ValueKind::StructValue) {
             ASTNode* mn = mt ? mt->get_direct_linked_canonical_node() : nullptr;
             if (mn && (mn->kind() == ASTNodeKind::UnnamedUnion ||
                        mn->kind() == ASTNodeKind::UnnamedStruct)) {
                 const TypeId ft = types_.map(mt);
                 const ValueId faddr = builder_->field_addr_ptr(addr, fc, ft);
-                if (!store_anon_aggregate(faddr, init.value->as_struct_value_unsafe(), error)) {
+                if (!store_anon_aggregate(faddr, init.value->as_struct_value_unsafe(), error,
+                                          enclosing_zeroed)) {
                     return false;
                 }
                 continue;

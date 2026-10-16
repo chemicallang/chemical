@@ -194,6 +194,8 @@ public:
     /** Copy `size` bytes from a pointer into a place. */
     void memcpy_size(PlaceId dest, ValueId src_ptr, ValueId size);
     void memset(PlaceId dest, ValueId byte, ValueId size);
+    /** `memset(ptr, byte, size)` where the destination is an address value. */
+    void memset_ptr(ValueId dest, ValueId byte, ValueId size);
     /** Zero the entire storage of `dest` (`memset(&dest, 0, sizeof(dest))`). */
     void zero_init(PlaceId dest);
 

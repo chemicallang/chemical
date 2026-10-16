@@ -720,6 +720,15 @@ void MIRBuilder::zero_init(PlaceId dest) {
     emit(MIROpcode::MemSet, MIR_NULL, {MIROperand::place(dest, dt)});
 }
 
+void MIRBuilder::memset_ptr(ValueId dest, ValueId byte, ValueId size) {
+    TypeId dt = dest < func_.values.size() ? func_.values[dest].type : MIR_INVALID_ID;
+    TypeId bt = byte < func_.values.size() ? func_.values[byte].type : MIR_INVALID_ID;
+    TypeId zt = size < func_.values.size() ? func_.values[size].type : MIR_INVALID_ID;
+    emit(MIROpcode::MemSet, MIR_NULL,
+         {MIROperand::value(dest, dt), MIROperand::value(byte, bt),
+          MIROperand::value(size, zt)});
+}
+
 // ── terminators ────────────────────────────────────────────────────────────
 
 void MIRBuilder::ret(ValueId value) {

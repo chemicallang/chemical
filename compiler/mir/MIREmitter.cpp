@@ -1279,8 +1279,9 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
             case MIROpcode::MemSet: {
                 const MIROperand* dest = operand_at(function, inst, 0);
                 if (!dest) { error = "memset missing destination"; return false; }
-                const std::string pn = place_name(module, function, dest->id);
-                // `zero_init(place)` is the only shape the lowerer emits: the
+                const MIROperand* byte = operand_at(function, inst, 1);
+                const MIROperand* size = operand_at(function, inst, 2);
+                // `zero_init(place)` is the short shape the lowerer emits: the
                 // whole place, zeroed. A scalar is a single store; everything
                 // that lives in memory is a real `memset`, which the C compiler
                 // lowers to width-sized stores (or a libcall) rather than the
@@ -1289,21 +1290,44 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 // loop, once per element — 64 byte-stores per element for a
                 // 64-byte T. `memcpy` is already emitted bare here, so `memset`
                 // needs no new declaration or include.
-                bool scalar = false;
-                if (dest->kind() == MIROperandKind::Place && dest->id < function.places.size()) {
-                    const TypeId dt = function.places[dest->id].type;
-                    if (dt != MIR_INVALID_ID && dt < module.types.size()) {
-                        const MIRTypeKind k = module.types.get(dt).kind;
-                        scalar = k == MIRTypeKind::Bool || k == MIRTypeKind::Int ||
-                                 k == MIRTypeKind::Float || k == MIRTypeKind::Pointer ||
-                                 k == MIRTypeKind::Reference;
+                //
+                // `memset_ptr` is the general shape: a byte and a size operand,
+                // with the destination an address value (a field inside an
+                // anonymous aggregate) rather than a place.
+                if (dest->kind() == MIROperandKind::Place && !byte && !size) {
+                    const std::string pn = place_name(module, function, dest->id);
+                    bool scalar = false;
+                    if (dest->id < function.places.size()) {
+                        const TypeId dt = function.places[dest->id].type;
+                        if (dt != MIR_INVALID_ID && dt < module.types.size()) {
+                            const MIRTypeKind k = module.types.get(dt).kind;
+                            scalar = k == MIRTypeKind::Bool || k == MIRTypeKind::Int ||
+                                     k == MIRTypeKind::Float || k == MIRTypeKind::Pointer ||
+                                     k == MIRTypeKind::Reference;
+                        }
                     }
+                    if (scalar) {
+                        out += pn + " = 0;\n";
+                    } else {
+                        out += "memset(&" + pn + ", 0, sizeof(" + pn + "));\n";
+                    }
+                    break;
                 }
-                if (scalar) {
-                    out += pn + " = 0;\n";
+                const std::string dexpr =
+                    (dest->kind() == MIROperandKind::Place)
+                        ? ("&" + place_name(module, function, dest->id))
+                        : operand_expr(function, module, *dest);
+                const std::string bexpr = byte ? operand_expr(function, module, *byte) : "0";
+                std::string sexpr;
+                if (size) {
+                    sexpr = operand_expr(function, module, *size);
+                } else if (dest->kind() == MIROperandKind::Place) {
+                    sexpr = "sizeof(" + place_name(module, function, dest->id) + ")";
                 } else {
-                    out += "memset(&" + pn + ", 0, sizeof(" + pn + "));\n";
+                    error = "memset with an address destination needs a size operand";
+                    return false;
                 }
+                out += "memset(" + dexpr + ", " + bexpr + ", " + sexpr + ");\n";
                 break;
             }
             case MIROpcode::FunctionAddr: {

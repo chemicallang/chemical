@@ -1,6 +1,7 @@
 # MIR Interpretation Plan (v1.0)
 
-Status: implementation plan
+Status: **Phases 0–4 DONE** (interpretation job runs on MIR; all suites green).
+Phase 5 (comptime on MIR, then delete the AST interpreter) is **remaining**.
 Constraint (binding): **maximum performance, both at compile time and at
 run time.** The MIR interpreter must be fast enough that
 `./scripts/test.sh --tcc --interpret` stays "really fast", and the code we add
@@ -9,6 +10,25 @@ later" on the hot path.
 Owner: MIR core (`compiler/mir/`), the build job driver
 (`compiler/lab/LabBuildCompiler.cpp`), and the front end
 (`compiler/ASTProcessor.cpp`).
+
+> **Status (this session).** `--arg-interpret` now lowers every module to MIR
+> (`ASTProcessor::interpret_module` + a job-wide `mir::MIRInterpProgram`) and
+> runs it through the new `mir::MIRInterpreter` engine
+> (`compiler/mir/MIRInterpreter.{h,cpp}`). `interpretation_mode` is off, so the
+> tests take the compiled (`printf`) branches: interpretation is the same
+> semantics as C/LLVM, exactly the goal below.
+>
+> Green: `MIRTests` 4400 · `--tcc` 2307/2307 · `--llvm` 2305/2305 ·
+> `--tcc --interpret` **1896/1896 (via MIR)** · `--libs` 718/719 (known env
+> failure) · `--async` 53/53.
+>
+> Phase 5 is the remaining work: the `comptime` evaluation callbacks
+> (`MIRLowerer::set_comptime_eval` / `_value_eval` / `_ctor_eval` / `_block_eval`
+> / `set_comptime_if_resolver`) still call the AST interpreter
+> (`CTranslationContext::eval_comptime_call`, `Value::evaluated_value`), and
+> `compiler/Interpreter/Core.cpp` is still built. Migrating those to "lower the
+> comptime callee to MIR and run it" is what lets the AST interpreter be
+> deleted; it is a separate, larger change and is **not** part of this session.
 
 ---
 

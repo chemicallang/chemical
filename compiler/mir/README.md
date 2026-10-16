@@ -99,6 +99,46 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 50 (2026-10-16) — the interpretation job runs on MIR
+
+`--arg-interpret` no longer uses the AST interpreter. `do_interpretation_job`
+now lowers every module to MIR and runs that MIR: the job builds one shared
+`mir::MIRInterpProgram` (module + arena + task), each module is lowered in
+collect mode via the new `ASTProcessor::interpret_module`, and `main` is run by
+`mir::MIRInterpreter`. `interpretation_mode` is off, so tests take the compiled
+(`printf`) branches — interpretation is the same semantics as C/LLVM, which is
+the whole point. See `lang/docs/mir-interpretation-plan.md` (Phases 0–4 done).
+
+The engine (`compiler/mir/MIRInterpreter.{h,cpp}`) is AST-free and
+single-threaded. Load time builds flat side tables (type facts, field offsets,
+callee targets, constant bits, global storage, vtable slots); the loop reads
+only those. It implements the scalar/control core, aggregates as addresses with
+`Load` copies, C integer promotion/conversion, C pointer arithmetic
+(including addressable values), the sret/aggregate-by-pointer ABI, drops and
+destructors, and interface `DynamicCall` through the shared `MIRVtableTable`.
+Host bindings cover the libc the suite uses (`printf` with a small formatter,
+`malloc`, `memcpy`, `memset`, …).
+
+Two MIR bugs surfaced and were fixed on the way:
+
+- `MIRTypeBuilder::fat_pointer_type` never computed its field offsets (both 0);
+  it now calls `compute_aggregate_layout`. The C emitter spells fields by name
+  so it is unaffected — but the interpreter and the LLVM GEP path need real
+  offsets. This is the one change with any reach beyond the interpreter; both
+  `--tcc` and `--llvm` stay green.
+- `build_module_vtables` cleared `module.vtables` on every call; it now takes a
+  `clear` flag so the interpretation job (one shared module across source
+  modules) accumulates vtable records instead of keeping only the last
+  module's.
+
+Green: `MIRTests` 4400 · `--tcc` 2307/2307 · `--llvm` 2305/2305 ·
+`--tcc --interpret` **1896/1896 (through the engine)** · `--libs` 718/719
+(known env failure) · `--async` 53/53.
+
+Phase 5 (comptime on MIR, then delete `compiler/Interpreter/`) is **remaining**:
+the `MIRLowerer` comptime callbacks still call the AST interpreter, so it cannot
+be deleted yet.
+
 ### Session 49 (2026-10-16) — the E3d blocker is cross-function AST/comptime contamination
 
 Instrumented the parallel path with a diagnostic that fires when `intern_global`

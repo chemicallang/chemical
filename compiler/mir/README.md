@@ -99,6 +99,30 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 49 (2026-10-16) — the E3d blocker is cross-function AST/comptime contamination
+
+Instrumented the parallel path with a diagnostic that fires when `intern_global`
+is reached for a **non-top-level** `VarInitStatement` (a local/parameter
+mis-resolved as a global). On the main suite it fires, e.g. for `world` — the
+parameter of `make_greeting_from_expr`, whose `${world}` reference should resolve
+to the parameter's place. The corrupted C corroborates it: the parallel output for
+`make_greeting_from_expr` referenced `greeting`, a local of a *different*
+function.
+
+So the failure is **not a missing field lock**: a worker's lowering resolves a
+reference through a `linked`/comptime value owned by — or mutated by — another
+function. The candidates are the shared AST (`Identifier::linked`, mutated by a
+concurrent comptime evaluation) and the module-level captured-comptime ref pool.
+Making this safe needs one of:
+
+- per-worker AST views for the nodes comptime evaluation can rewrite, or
+- serialising comptime evaluation **and** every AST read that can observe its
+  result (a large surface), or
+- the plan's "seal" design (lower serially, freeze the tables, emit in parallel).
+
+The driver stays off (`kEnableParallelLowering = false`); the diagnostic was
+removed. `MIRTests` 4400; `--tcc` **2307/2307**; main-suite C unchanged.
+
 ### Session 48 (2026-10-16) — hunting the E3d race with ThreadSanitizer
 
 Added `-DENABLE_TSAN=ON` (a `TCCCompiler`-only ThreadSanitizer build, mirroring

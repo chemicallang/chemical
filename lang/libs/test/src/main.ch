@@ -255,7 +255,7 @@ public func make_test_runner_handle(tests : std::span<TestFunction>) : TestRunne
  */
 public comptime func test_runner_handle() : TestRunnerHandle {
     const t = get_tests()
-    return %runtime_value(make_test_runner_handle(std::span<TestFunction>(t)))
+    return make_test_runner_handle(std::span<TestFunction>(t))
 }
 
 public comptime func test_runner(argc : %maybe_runtime<int>, argv : %runtime<**char>) : int {

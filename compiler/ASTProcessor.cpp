@@ -2338,6 +2338,11 @@ int ASTProcessor::implement_module(
     mir_lowerer.set_mangler([&c_visitor](ASTNode* n) {
         return mir_mangle_name(c_visitor.mangler, n);
     });
+    mir_lowerer.set_mangler_into([&c_visitor](ASTNode* n, std::string& out) {
+        BufferedWriter& w = mir::mangle_writer();
+        c_visitor.mangler.mangle(w, n);
+        out.append(w.data(), w.getPosition());
+    });
     mir_lowerer.set_vtable_mangler([&c_visitor](ASTNode* iface, BaseType* impl) -> std::string {
         if (!iface || !impl) return std::string();
         BufferedWriter w(256);
@@ -2568,6 +2573,11 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
     }
     mir_lowerer.set_mangler([&c_visitor](ASTNode* n) {
         return mir_mangle_name(c_visitor.mangler, n);
+    });
+    mir_lowerer.set_mangler_into([&c_visitor](ASTNode* n, std::string& out) {
+        BufferedWriter& w = mir::mangle_writer();
+        c_visitor.mangler.mangle(w, n);
+        out.append(w.data(), w.getPosition());
     });
     mir_lowerer.set_vtable_mangler([&c_visitor](ASTNode* iface, BaseType* impl) -> std::string {
         if (!iface || !impl) return std::string();

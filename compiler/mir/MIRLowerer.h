@@ -264,6 +264,14 @@ public:
     void set_mangler(std::function<std::string(ASTNode*)> fn) {
         mangler_ = std::move(fn);
     }
+    /**
+     * Append-style mangler: writes the mangled name into a reused buffer instead
+     * of returning a fresh `std::string` (see `mangle`). Preferred over
+     * `set_mangler` when both are set.
+     */
+    void set_mangler_into(std::function<void(ASTNode*, std::string&)> fn) {
+        mangler_into_ = std::move(fn);
+    }
 
     /** Mangler for a dynamic-dispatch vtable global (interface + impl type). */
     void set_vtable_mangler(std::function<std::string(ASTNode*, BaseType*)> fn) {
@@ -655,6 +663,16 @@ private:
         MIR_OP(place_bind);
         var_places_[linked] = place;
     }
+    /**
+     * Mangle `n` into a reused buffer and return it. Valid until the next
+     * `mangle` call — every caller uses it immediately and never holds two.
+     */
+    const std::string& mangle(ASTNode* n) {
+        mangle_buf_.clear();
+        if (mangler_into_) mangler_into_(n, mangle_buf_);
+        else if (mangler_) mangle_buf_ = mangler_(n);
+        return mangle_buf_;
+    }
     void bind_name(const chem::string_view& name, PlaceId place) {
         if (name.empty()) return;
         MIR_OP(name_bind);
@@ -719,6 +737,9 @@ private:
     std::unordered_set<VarInitStatement*> owned_globals_;
     std::unordered_map<std::string, SymbolId, MIRStringHash, MIRStringEq> named_globals_;
     std::function<std::string(ASTNode*)> mangler_;
+    std::function<void(ASTNode*, std::string&)> mangler_into_;
+    /** Reused output for `mangle` (keeps capacity across declarations). */
+    std::string mangle_buf_;
     std::function<std::string(ASTNode*, BaseType*)> vtable_mangler_;
     std::function<Scope*(IfStatement*, std::string&)> comptime_if_resolver_;
     std::function<Value*(FunctionCall*, FunctionDeclaration*)> comptime_eval_;

@@ -99,6 +99,21 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 44 (2026-10-16) — the mangler appends into a reused buffer
+
+`MIRLowerer`'s `mangler_` callback returned a fresh `std::string` for every
+mangled declaration (function, global, interface default method). It now has an
+append-style counterpart (`set_mangler_into`) and a reusable `mangle(ASTNode*)`
+that writes into one member buffer; `intern_function`, `intern_global`,
+`intern_method_function`, the dynamic-dispatch vtable name and the async mangled
+name all consume it. Each caller uses the buffer immediately and never holds two,
+so a single buffer is safe (documented on `mangle`).
+
+Output-invariant: main-suite C is 96,825 lines either side and the normalized
+diff is **58** (floor 62). `MIRTests` 4400; `--tcc` **2307/2307**; `--llvm`
+**2305/2305**; `--tcc --async` **53/53**; `--tcc --interpret` **1897/1897**;
+`--tcc --libs` **718/719**.
+
 ### Session 43 (2026-10-16) — one fewer heap vector per unqualified field access
 
 `lower_member_chain` took a `std::vector<Value*>&`, and the unqualified-field

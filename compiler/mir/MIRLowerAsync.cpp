@@ -182,8 +182,7 @@ bool MIRLowerer::lower_async_function(FunctionDeclaration* decl, MIRArena& arena
     async_poll_base_ = t.poll;
     async_context_ = t.context_ptr;
 
-    async_mangled_.clear();
-    if (mangler_) async_mangled_ = mangler_(decl);
+    async_mangled_.assign(mangle(decl));
     if (async_mangled_.empty()) {
         const chem::string_view nv = decl->name_view();
         async_mangled_.assign(nv.data(), nv.size());

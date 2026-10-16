@@ -1014,13 +1014,17 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
             error = "dynamic receiver interface could not be resolved";
             return MIRExprResult::error();
         }
-        std::string iface_name;
-        if (mangler_) iface_name = mangler_(iface_node);
-        if (iface_name.empty()) {
-            const chem::string_view nv = iface_node->as_interface_def_unsafe()->name_view();
-            iface_name.assign(nv.data(), nv.size());
+        std::string vt_name = "__chx_";
+        {
+            const std::string& mn = mangle(iface_node);
+            if (mn.empty()) {
+                const chem::string_view nv = iface_node->as_interface_def_unsafe()->name_view();
+                vt_name.append(nv.data(), nv.size());
+            } else {
+                vt_name.append(mn.data(), mn.size());
+            }
         }
-        const std::string vt_name = "__chx_" + iface_name + "_vt_t";
+        vt_name += "_vt_t";
         const ConstantId vt_c = module_.constants.add_string(
             MIR_INVALID_ID, vt_name.data(), static_cast<uint32_t>(vt_name.size()));
         const chem::string_view mv = fd->name_view();
@@ -1261,14 +1265,13 @@ SymbolId MIRLowerer::intern_global(VarInitStatement* vi) {
             rec.type = types_.map(gt);
         }
     }
-    std::string name;
-    if (mangler_) name = mangler_(vi);
-    if (name.empty()) {
+    if (mangle(vi).empty()) {
         const chem::string_view nv = vi->name_view();
-        name.assign(nv.data(), nv.size());
+        mangle_buf_.assign(nv.data(), nv.size());
     }
-    SymbolId s = module_.symbols.add(rec, name.data(), static_cast<uint32_t>(name.size()),
-                                     name.data(), static_cast<uint32_t>(name.size()));
+    SymbolId s = module_.symbols.add(rec, mangle_buf_.data(),
+                                     static_cast<uint32_t>(mangle_buf_.size()),
+                                     mangle_buf_.data(), static_cast<uint32_t>(mangle_buf_.size()));
     global_symbols_[vi] = s;
     return s;
 }
@@ -1317,14 +1320,13 @@ SymbolId MIRLowerer::intern_function(FunctionDeclaration* decl) {
 
     // NOTE: mangled name is filled by the serial symbol builder (PR3b) using
     // NameMangler; MIR must not retain FunctionDeclaration pointers.
-    std::string name;
-    if (mangler_) name = mangler_(decl);
-    if (name.empty()) {
+    if (mangle(decl).empty()) {
         const chem::string_view nv = decl->name_view();
-        name.assign(nv.data(), nv.size());
+        mangle_buf_.assign(nv.data(), nv.size());
     }
-    SymbolId s = module_.symbols.add(rec, name.data(), static_cast<uint32_t>(name.size()),
-                                     name.data(), static_cast<uint32_t>(name.size()));
+    SymbolId s = module_.symbols.add(rec, mangle_buf_.data(),
+                                     static_cast<uint32_t>(mangle_buf_.size()),
+                                     mangle_buf_.data(), static_cast<uint32_t>(mangle_buf_.size()));
     func_symbols_[decl] = s;
     return s;
 }

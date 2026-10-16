@@ -249,7 +249,7 @@ SymbolId MIRLowerer::intern_method_function(FunctionDeclaration* decl, BaseType*
     // mangler keys its name off `active_user`, so set it while mangling
     const auto prev = iface->active_user;
     iface->active_user = user;
-    std::string name = mangler_ ? mangler_(decl) : "";
+    const std::string& name = mangle(decl);
     iface->active_user = prev;
     if (name.empty()) return intern_function(decl);
 

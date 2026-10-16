@@ -2030,15 +2030,16 @@ bool mir_translate_after_declaration(
             visitor.writer.append(task.out.data(), task.out.size());
             return true;
         }
-        std::string c, emit_error;
-        if (!mir::emit_function_c(fn, module, c, emit_error)) {
+        std::string emit_error;
+        task.body.clear();
+        if (!mir::emit_function_c(fn, module, task.body, emit_error)) {
             lowerer.clear_lambda_defs();
             std::cerr << "[MIR] emission failed (" << (decl->name_str()) << "): " << emit_error
                       << " -- falling back to the legacy visitor\n";
             return false;
         }
         flush_lambdas();
-        task.out.append(c.data(), c.size());
+        task.out.append(task.body.data(), task.body.size());
         visitor.writer.append(task.out.data(), task.out.size());
         return true;
     };

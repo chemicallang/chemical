@@ -42,6 +42,9 @@ struct MIRTaskContext {
     MIRLowerer lowerer;
     MIRArena arena;
     std::string out;
+    /** Reused scratch for one function's emitted body, so emitting does not
+     *  allocate a fresh string per function (its capacity persists). */
+    std::string body;
 
     MIRTaskContext(MIRModule& module, MIRTypeBuilder& types)
         : lowerer(module, types), arena() {}

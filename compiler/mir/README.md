@@ -99,6 +99,18 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 40 (2026-10-16) — reuse the emit body buffer
+
+The non-async path emitted each function into a fresh local `std::string c` and
+then copied it into the per-worker `task.out`. `MIRTaskContext` now owns a reused
+`body` scratch; the emitter writes there (its capacity persists across functions)
+and the result is appended, so emitting a function allocates only when the buffer
+must grow.
+
+Output-invariant: main-suite C is 96,825 lines either side and the normalized
+diff is **58** against the **62-line** same-binary floor. `MIRTests` 4400;
+`--tcc` **2307/2307**; `--llvm` **2305/2305**; `--tcc --interpret` **1897/1897**.
+
 ### Session 39 (2026-10-16) — one reused mangling buffer (no malloc per mangled name)
 
 `mir_mangle_name`, `MIRDeclEmitter::mangle_name` and `MIRVtable::mangle_node` each

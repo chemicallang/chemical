@@ -5,6 +5,7 @@
 /cmake-build-debugalpine/
 /cmake-build-debugalpinewsl/
 /cmake-build-debugubuntuwsl/
+/cmake-build-release/
 out
 .vs
 debug

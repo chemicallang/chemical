@@ -289,10 +289,8 @@ void MIRLowerer::async_emit_frame_helpers(FunctionDeclaration* decl) {
             fi.type = ft;
             fi.kind = static_cast<uint8_t>(MIRFieldKind::Direct);
             fi.index = static_cast<uint32_t>(fs.size());
-            fi.name_offset = static_cast<uint32_t>(module_.types.field_names.size());
+            fi.name_offset = module_.types.append_field_name(fname.data(), static_cast<uint32_t>(fname.size()));
             fi.name_length = static_cast<uint32_t>(fname.size());
-            module_.types.field_names.insert(module_.types.field_names.end(),
-                                             fname.begin(), fname.end());
             fs.push_back(fi);
         };
         push("__state", types_.u32_type());
@@ -608,7 +606,7 @@ bool MIRLowerer::async_lower_poll_body(FunctionDeclaration* decl, std::string& e
         for (auto& sp : async_spills_[i]) {
             // sp.first is the local place; the frame field name is the constant
             const MIRConstant& c = module_.constants.get(sp.second);
-            std::string fname(module_.constants.data.data() + c.data_offset, c.data_count);
+            std::string fname(module_.constants.data.data_at(c.data_offset), c.data_count);
             const TypeId lpt = builder_->function().places[sp.first].type;
             const ConstantId fc = module_.constants.add_string(MIR_INVALID_ID, fname.data(),
                                                                static_cast<uint32_t>(fname.size()));

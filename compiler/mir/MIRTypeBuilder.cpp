@@ -189,9 +189,8 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
         fi.flags = spelling_flags;
         fi.index = static_cast<uint32_t>(fs.size());
         fi.align = explicit_align;
-        fi.name_offset = static_cast<uint32_t>(module_.types.field_names.size());
+        fi.name_offset = module_.types.append_field_name(name.data(), static_cast<uint32_t>(name.size()));
         fi.name_length = static_cast<uint32_t>(name.size());
-        module_.types.field_names.insert(module_.types.field_names.end(), name.begin(), name.end());
         fs.push_back(fi);
     };
     auto add_bases = [&](VariablesContainer* vc) {
@@ -269,10 +268,8 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
                 fi.kind = static_cast<uint8_t>(MIRFieldKind::VariantParam);
                 fi.index = ci++;
                 const chem::string_view pn = param->name;
-                fi.name_offset = static_cast<uint32_t>(module_.types.field_names.size());
+                fi.name_offset = module_.types.append_field_name(pn.data(), static_cast<uint32_t>(pn.size()));
                 fi.name_length = static_cast<uint32_t>(pn.size());
-                module_.types.field_names.insert(module_.types.field_names.end(), pn.data(),
-                                                 pn.data() + pn.size());
                 case_fields.push_back(fi);
             }
             MIRTypeRecord cr;

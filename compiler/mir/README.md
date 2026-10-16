@@ -99,6 +99,79 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 32 (2026-10-16) — E2 + E3a: the worker seam, then reference-stable intern pools
+
+**E2 — one worker, output-invariant.** `compiler/mir/MIRTaskContext.h` holds the
+per-worker state the plan calls for (a private `MIRLowerer` + `MIRArena` + private
+output buffer). `ASTProcessor::lower_and_emit` lowers a function (and its lambda
+bodies) into the context's buffer and the coordinator appends it to the module
+writer in source order — one context today, but the seam a worker thread will run
+is exactly the one the serial path runs, so serial and parallel cannot drift.
+Verified output-invariant: normalized emitted-C diff **68** lines against a
+**136**-line same-binary noise floor (the generic-instantiation ordering jitter),
+`--tcc` 2305/2305, `--llvm` 2303/2303.
+
+**E3a — the interning pools are reference-stable.** E1 guarded the tables'
+mutators, but their byte pools were still `std::vector<char>`: `name_data`/
+`data_at` hand a reader a `const char*` + length *into* the pool, so another
+worker's append reallocating the pool dangles that pointer. Every text/payload
+pool (`MIRTypeTable::names`/`field_names`, `MIRConstantPool::data`,
+`MIRConstExprTable::data`/`names`, `MIRSymbolTable::names`) is now a `MIRBytePool`
+(`compiler/mir/MIRBytePool.h`): a `std::deque<std::string>` whose entries are
+individually allocated, so an entry's bytes are both **stable and contiguous**
+for its whole lifetime and an "offset" is an entry index. `append_field_name` is
+a guarded mutator so field names may be appended from several workers.
+
+- **The *record* containers stay `std::vector` — measured, not assumed.** Making
+  `types`/`fields`/`constants`/`symbols`/`exprs`/`children` `std::deque` too (for
+  the same stability) cost **+27 % user time** on the main-suite cold compile
+  (4.00 s → 5.08 s; RSS unchanged): the hot `equal`/`hash_of` scan indexes the
+  record vectors constantly, and deque indexing is not vector indexing. So the
+  containers that only hand out opaque ids keep the fast vector, and the pools
+  that hand out raw pointers — the real dangling risk — are the stable ones.
+  A `const MIRTypeRecord&`/`MIRFieldInfo*` from `get`/`field_of` is therefore
+  valid only until the next `intern`/`append_fields`; **sealing** those tables
+  before the parallel phase (E3c) is what makes them safe to read concurrently.
+- **Cost.** Post-E3a `TCCCompiler` main-suite cold compile: user
+  **3.83/4.04/4.08 s**, peak RSS **56.0–56.8 MB**; the E2 baseline measured the
+  same session: user **3.90/3.98/4.01 s**, RSS **56.4–57.3 MB** → within noise,
+  no time or memory regression.
+- **Verification.** `MIRTests` 4400 checks OK; `--tcc` **2305/2305**; `--llvm`
+  **2303/2303**; `--tcc --libs` **718/719** (`test_fs_directory_iteration`);
+  emitted C invariant (68 < 136).
+
+**E3c — storage classes by read pattern.** The remaining dangling class was the
+containers that hand out *element pointers* or are indexed by a reader while
+another worker may append. Those are split out by how each container is read:
+
+- `types` (and `MIRConstantPool::constants`, `MIRSymbolTable::symbols`,
+  `MIRConstExprTable::exprs`) stay `std::vector` — hot in the intern scan, and
+  only opaque ids escape them.
+- `MIRTypeTable::data`/`fields` and `MIRConstExprTable::children` became
+  `std::deque` — **cold** (never in the intern scan) but they hand out element
+  pointers (`field_of`, `child`) and `data` is indexed by both emitters, so they
+  must not realloc under a reader. Because they are cold, this is free.
+- `names`/`field_names`/payload pools are `MIRBytePool` (stable *and*
+  contiguous).
+
+So after E1 + E3a + E3c a reader never holds a pointer/reference into a
+container another worker can realloc: the mutators are locked (E1), the byte
+pools are stable (E3a), the pointer-handing element pools are stable deques
+(E3c), and the remaining hot vectors hand out only ids.
+
+- **Cost.** Post-E3c `TCCCompiler` main-suite cold compile: user
+  **4.07/4.07/4.15 s**, peak RSS **56.1–57.7 MB**; E3a was 3.83–4.08 s /
+  56.0–56.8 MB and the E2 baseline 3.90–4.01 s / 56.4–57.3 MB → within noise.
+- **Verification.** `MIRTests` 4400 checks OK; `--tcc` **2305/2305**; `--llvm`
+  **2303/2303**; `--tcc --libs` **718/719**; emitted C invariant (94 < 136).
+
+Next per §2E: **E3d** — the threshold-gated pool with a slot-direct merge. That
+is the one step that needs the worker machinery *and* the per-worker `MIRLowerer`
+state (`c_visitor` mutations — `current_func_type`, `iface->active_user`, the
+mangler) moved off the shared context, and the plan sequences it after the
+release-build re-measure (M1). Landing it without a measured win is the
+"unmeasured churn" this document rejects.
+
 ### Session 31 (2026-10-15) — E1: shared interning is thread-safe
 
 Stage E1 of the parallel-lowering plan (`mir-migration-evaluation.md` §2E). The

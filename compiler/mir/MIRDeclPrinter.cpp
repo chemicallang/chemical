@@ -171,7 +171,7 @@ std::string const_expr_c(const MIRModule& module, ConstExprId id) {
             return "NULL";
         case MIRConstKind::String: {
             std::string out;
-            append_escaped_string(out, module.const_exprs.data.data() + e.data_offset,
+            append_escaped_string(out, module.const_exprs.data.data_at(e.data_offset),
                                   e.data_count);
             return out;
         }

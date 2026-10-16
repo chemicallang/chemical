@@ -7,6 +7,7 @@
 #pragma once
 
 #include "MIRTypes.h"
+#include "MIRBytePool.h"
 
 #include <cstdint>
 #include <mutex>
@@ -43,8 +44,10 @@ struct MIRSymbolRecord {
 };
 
 struct MIRSymbolTable {
+    /** `names` is reference-stable on append (action E3, see MIRBytePool.h);
+     * `symbols` stays a vector since only opaque ids escape it. */
     std::vector<MIRSymbolRecord> symbols;
-    std::vector<char> names;
+    MIRBytePool names;
 
     const MIRSymbolRecord& get(SymbolId id) const { return symbols[id]; }
     uint32_t size() const { return static_cast<uint32_t>(symbols.size()); }
@@ -65,12 +68,10 @@ struct MIRSymbolTable {
                  const char* name, uint32_t name_len,
                  const char* mangled, uint32_t mangled_len) {
         std::lock_guard<std::mutex> lock(mtx_);
-        r.name_offset = static_cast<uint32_t>(names.size());
+        r.name_offset = names.append(name, name_len);
         r.name_length = name_len;
-        if (name_len) names.insert(names.end(), name, name + name_len);
-        r.mangled_offset = static_cast<uint32_t>(names.size());
+        r.mangled_offset = names.append(mangled, mangled_len);
         r.mangled_length = mangled_len;
-        if (mangled_len) names.insert(names.end(), mangled, mangled + mangled_len);
         symbols.push_back(r);
         return static_cast<SymbolId>(symbols.size() - 1);
     }
@@ -83,10 +84,10 @@ struct MIRSymbolTable {
     }
 
     const char* name_data(const MIRSymbolRecord& r) const {
-        return names.data() + r.name_offset;
+        return names.data_at(r.name_offset);
     }
     const char* mangled_data(const MIRSymbolRecord& r) const {
-        return names.data() + r.mangled_offset;
+        return names.data_at(r.mangled_offset);
     }
 
     /**

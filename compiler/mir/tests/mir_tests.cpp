@@ -508,10 +508,8 @@ static TypeId mir_layout_agg(MIRModule& m, MIRTypeKind kind,
         fi.flags = f.flags;
         fi.align = f.align;
         fi.index = static_cast<uint32_t>(fs.size());
-        fi.name_offset = static_cast<uint32_t>(m.types.field_names.size());
         fi.name_length = static_cast<uint32_t>(std::string(f.name).size());
-        m.types.field_names.insert(m.types.field_names.end(), f.name,
-                                   f.name + fi.name_length);
+        fi.name_offset = m.types.append_field_name(f.name, fi.name_length);
         fs.push_back(fi);
     }
     r.field_index = fs.empty() ? MIR_INVALID_ID : m.types.append_fields(fs);

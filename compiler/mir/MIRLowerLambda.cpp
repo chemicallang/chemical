@@ -340,11 +340,8 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
             fi.type = ft;
             fi.kind = static_cast<uint8_t>(MIRFieldKind::Direct);
             fi.index = static_cast<uint32_t>(cap_fields.size());
-            fi.name_offset = static_cast<uint32_t>(module_.types.field_names.size());
+            fi.name_offset = module_.types.append_field_name(cap->name.data(), static_cast<uint32_t>(cap->name.size()));
             fi.name_length = static_cast<uint32_t>(cap->name.size());
-            module_.types.field_names.insert(module_.types.field_names.end(),
-                                             cap->name.data(),
-                                             cap->name.data() + cap->name.size());
             cap_fields.push_back(fi);
         }
         MIRTypeRecord& cr = module_.types.types[cap_type];

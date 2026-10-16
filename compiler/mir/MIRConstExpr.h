@@ -23,9 +23,11 @@
 #pragma once
 
 #include "MIRTypes.h"
+#include "MIRBytePool.h"
 
 #include <cstdint>
 #include <cstring>
+#include <deque>
 #include <string>
 #include <vector>
 
@@ -85,10 +87,14 @@ struct MIRConstExpr {
  * stable.
  */
 struct MIRConstExprTable {
+    /** `exprs` is a vector (ids, not references, escape it — see MIRTypeTable's
+     * storage note); `children` is a `std::deque` because `child` hands out an
+     * element pointer and it is cold; `data`/`names` are `MIRBytePool`
+     * (reference-stable on append, see MIRBytePool.h). */
     std::vector<MIRConstExpr> exprs;
-    std::vector<MIRConstChild> children;
-    std::vector<char> data;
-    std::vector<char> names;
+    std::deque<MIRConstChild> children;
+    MIRBytePool data;
+    MIRBytePool names;
 
     ConstExprId add(const MIRConstExpr& e) {
         exprs.push_back(e);
@@ -97,14 +103,12 @@ struct MIRConstExprTable {
     const MIRConstExpr& get(ConstExprId id) const { return exprs[id]; }
     uint32_t size() const { return static_cast<uint32_t>(exprs.size()); }
 
-    const char* name_data(const MIRConstChild& c) const { return names.data() + c.name_offset; }
+    const char* name_data(const MIRConstChild& c) const { return names.data_at(c.name_offset); }
     std::string child_name(const MIRConstChild& c) const {
         return c.name_length ? std::string(name_data(c), c.name_length) : std::string();
     }
     uint32_t intern_name(const char* s, uint32_t n) {
-        const uint32_t off = static_cast<uint32_t>(names.size());
-        if (n) names.insert(names.end(), s, s + n);
-        return off;
+        return names.append(s, n);
     }
     const MIRConstChild* child(ConstExprId id, uint32_t i) const {
         const MIRConstExpr& e = exprs[id];
@@ -160,9 +164,8 @@ struct MIRConstExprTable {
         MIRConstExpr e;
         e.kind = MIRConstKind::String;
         e.type = t;
-        e.data_offset = static_cast<uint32_t>(data.size());
+        e.data_offset = data.append(s, n);
         e.data_count = n;
-        if (n) data.insert(data.end(), s, s + n);
         return add(e);
     }
     ConstExprId add_symbol(TypeId t, SymbolId sym) {

@@ -921,7 +921,30 @@ mutable module state** the single `MIRLowerer`/`MIRModule`/`MIRTypeBuilder` hold
 - **E2 — worker context, still serial.** Introduce the plan's `MIRTaskContext`
   (per-worker `MIRLowerer` + `MIRArena` + output buffer) and route
   `lower_and_emit` through it, with exactly one worker. Verify: identical C.
-- **E3 — parallel file/function tasks.** Run the module's functions through a
+  **DONE (session 32).** One context; the C is invariant (normalized diff 68 <
+  the 136-line same-binary jitter floor) and the suites are green.
+- **E3a — reference-stable intern pools.** E1 guarded the tables' mutators but
+  their byte pools were still `std::vector<char>`, so a worker's append could
+  realloc and dangle a `const char*` another worker's `name_data`/`data_at` had
+  returned. Every text/payload pool is now a `MIRBytePool` (individually-allocated
+  entries: stable *and* contiguous). **DONE (session 32), with one measured
+  deviation.** The *record* containers were **left `std::vector`** — making them
+  `std::deque` too cost **+27 % user time** (4.00 s → 5.08 s, RSS unchanged)
+  because the hot `equal`/`hash_of` scan indexes them constantly. So the fast
+  vector stays where only opaque ids escape, and the stable byte pool is where a
+  raw pointer escapes. Post-E3a cost is within noise (user 3.83–4.08 s vs the E2
+  baseline 3.90–4.01 s; RSS 56.0–56.8 MB vs 56.4–57.3 MB).
+- **E3c — storage class per read pattern.** **DONE (session 32).** Rather than
+  requiring a seal, the containers are classified by how they are read: the hot
+  record vectors (`types`/`constants`/`symbols`/`exprs`) hand out only opaque
+  ids; the pointer-handing / concurrently-indexed but *cold* pools
+  (`MIRTypeTable::data`/`fields`, `MIRConstExprTable::children`) are
+  reference-stable `std::deque`; the text/payload pools are `MIRBytePool`. After
+  E1+E3a+E3c a reader never holds a pointer/reference into a container another
+  worker can realloc. Cost within noise (user 4.07–4.15 s vs the 3.90–4.01 s
+  baseline; RSS 56.1–57.7 MB), emitted C invariant (94 < 136-line floor), suites
+  green. A hard seal is therefore unnecessary for reader safety.
+- **E3d — parallel file/function tasks.** Run the module's functions through a
   thread pool above a measured size threshold (the plan's "≥10 sufficiently large
   functions"); merge slot-direct. Verify: `--tcc/--llvm` suites green, C
   functionally identical, peak RSS not regressed.

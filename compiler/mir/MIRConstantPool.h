@@ -7,6 +7,7 @@
 #pragma once
 
 #include "MIRTypes.h"
+#include "MIRBytePool.h"
 
 #include <cstdint>
 #include <cstring>
@@ -35,8 +36,11 @@ struct MIRConstant {
 };
 
 struct MIRConstantPool {
+    /** `data` (the payload bytes) is reference-stable on append (action E3,
+     * see MIRBytePool.h); `constants` stays a vector since ids, not references,
+     * escape it. */
     std::vector<MIRConstant> constants;
-    std::vector<char> data;
+    MIRBytePool data;
     /** hash -> a representative constant id (see `add`) */
     std::unordered_map<uint64_t, ConstantId> index_;
 
@@ -71,10 +75,9 @@ struct MIRConstantPool {
     /** Exactly the comparison `add` performs. */
     bool matches(const MIRConstant& o, const MIRConstant& c) const {
         if (o.kind != c.kind || o.bits != c.bits || o.data_count != c.data_count) return false;
-        for (uint32_t j = 0; j < c.data_count; ++j) {
-            if (data[o.data_offset + j] != data[c.data_offset + j]) return false;
-        }
-        return true;
+        if (c.data_count == 0) return true;
+        // each payload is one contiguous, stable entry
+        return data.text(o.data_offset) == data.text(c.data_offset);
     }
 
     /**
@@ -92,9 +95,8 @@ struct MIRConstantPool {
         mix(static_cast<uint64_t>(c.kind));
         mix(c.bits);
         mix(c.data_count);
-        for (uint32_t j = 0; j < c.data_count; ++j) {
-            const uint32_t idx = c.data_offset + j;
-            mix(idx < data.size() ? static_cast<uint8_t>(data[idx]) : 0u);
+        if (c.data_count) {
+            for (char ch : data.text(c.data_offset)) mix(static_cast<uint8_t>(ch));
         }
         return h;
     }
@@ -147,9 +149,8 @@ struct MIRConstantPool {
         c.kind = MIRConstantKind::String;
         c.type = t;
         std::lock_guard<std::mutex> lock(mtx_);
-        c.data_offset = static_cast<uint32_t>(data.size());
+        c.data_offset = data.append(s, len);
         c.data_count = len;
-        if (len) data.insert(data.end(), s, s + len);
         return add_unlocked(c);
     }
 

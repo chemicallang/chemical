@@ -91,7 +91,7 @@ std::string place_name(const MIRModule& module, const MIRFunction& fn, PlaceId i
             const MIRConstant& c = module.constants.get(pd.frame_field);
             if (c.kind == MIRConstantKind::String) {
                 return "__chx__af->" +
-                       std::string(module.constants.data.data() + c.data_offset, c.data_count);
+                       std::string(module.constants.data.data_at(c.data_offset), c.data_count);
             }
         }
     }
@@ -165,7 +165,7 @@ bool constant_string(const MIRModule& module, ConstantId cid, std::string& out) 
     if (cid >= module.constants.size()) return false;
     const MIRConstant& c = module.constants.get(cid);
     if (c.kind != MIRConstantKind::String) return false;
-    out.assign(module.constants.data.data() + c.data_offset, c.data_count);
+    out.assign(module.constants.data.data_at(c.data_offset), c.data_count);
     return true;
 }
 
@@ -404,7 +404,7 @@ bool const_literal(const MIRModule& module, ConstantId cid, TypeId cast_type, st
             return true;
         }
         case MIRConstantKind::String:
-            out = escape_c_string(module.constants.data.data() + c.data_offset, c.data_count);
+            out = escape_c_string(module.constants.data.data_at(c.data_offset), c.data_count);
             return true;
         case MIRConstantKind::Bytes:
             out = "0";

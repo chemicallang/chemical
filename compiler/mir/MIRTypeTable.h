@@ -6,8 +6,10 @@
 #pragma once
 
 #include "MIRTypes.h"
+#include "MIRBytePool.h"
 
 #include <cstdint>
+#include <deque>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -127,28 +129,40 @@ enum class MIRFieldKind : uint8_t {
 
 
 struct MIRTypeTable {
+    /**
+     * Three storage classes, chosen by how the container is *read* (action E3):
+     *
+     *  - `types`: a `std::vector`, because the hot `equal`/`hash_of` intern scan
+     *    indexes it constantly and a `std::deque` there cost ~27 % user time on
+     *    the main suite. Only the opaque `TypeId` escapes it (see the note on
+     *    `get`), so a realloc invalidates nothing a reader legitimately holds.
+     *  - `data`/`fields`: `std::deque`, because they are *cold* (never in the
+     *    intern scan) but hand out element pointers (`field_of`) and are indexed
+     *    by emitters concurrently, so they must not realloc under a reader.
+     *  - `names`/`field_names`: `MIRBytePool`, because readers hold a raw
+     *    `const char*` + length *into* them (see MIRBytePool.h).
+     */
     std::vector<MIRTypeRecord> types;
-    std::vector<TypeId> data;
-    std::vector<char> names;
-    std::vector<MIRFieldInfo> fields;
-    std::vector<char> field_names;
+    std::deque<TypeId> data;
+    MIRBytePool names;
+    std::deque<MIRFieldInfo> fields;
+    MIRBytePool field_names;
 
     /** Attach a C-emittable name to a (named aggregate) type. */
     void set_name(TypeId id, const char* name, uint32_t len) {
         std::lock_guard<std::mutex> lock(mtx_);
         if (id >= types.size()) return;
-        types[id].name_offset = static_cast<uint32_t>(names.size());
+        types[id].name_offset = names.append(name, len);
         types[id].name_length = len;
-        if (len) names.insert(names.end(), name, name + len);
     }
     const char* name_data(const MIRTypeRecord& r) const {
-        return names.data() + r.name_offset;
+        return names.data_at(r.name_offset);
     }
     std::string name_of(TypeId id) const {
         if (id >= types.size()) return {};
         const MIRTypeRecord& r = types[id];
         if (r.name_length == 0) return {};
-        return std::string(names.data() + r.name_offset, r.name_length);
+        return std::string(names.data_at(r.name_offset), r.name_length);
     }
 
     /** Append a range of fields, returning the start index. */
@@ -159,9 +173,19 @@ struct MIRTypeTable {
         return off;
     }
 
+    /**
+     * Intern a field name, returning its stable offset (action E3). Guarded like
+     * the other mutators, so workers can append field names concurrently without
+     * reallocating a `const char*` a reader still holds.
+     */
+    uint32_t append_field_name(const char* n, uint32_t len) {
+        std::lock_guard<std::mutex> lock(mtx_);
+        return field_names.append(n, len);
+    }
+
     std::string field_name_of(const MIRFieldInfo& f) const {
         if (f.name_length == 0) return {};
-        return std::string(field_names.data() + f.name_offset, f.name_length);
+        return std::string(field_names.data_at(f.name_offset), f.name_length);
     }
 
     MIRFieldInfo* field_of(TypeId agg, uint32_t i) {

@@ -1014,7 +1014,7 @@ void MIRLowerer::register_destructible(PlaceId place, BaseType* type) {
         if (pd.storage_class == static_cast<uint8_t>(MIRStorageClass::FrameField) &&
             pd.frame_field < module_.constants.size()) {
             const MIRConstant& c = module_.constants.get(pd.frame_field);
-            std::string fname(module_.constants.data.data() + c.data_offset, c.data_count);
+            std::string fname(module_.constants.data.data_at(c.data_offset), c.data_count);
             const std::string prefix = "__chx_slot_";
             if (fname.rfind(prefix, 0) == 0) {
                 const std::string df = "__chx_drop_" + fname.substr(prefix.size());

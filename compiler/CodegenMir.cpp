@@ -382,7 +382,7 @@ llvm::DIType* Codegen::mir_di_type(const mir::MIRModule& m, uint32_t tid) {
                     if (!ft) continue;
                     const uint64_t fsize =
                         (f.type < m.types.size() ? m.types.get(f.type).size : 0) * 8;
-                    std::string fname(m.types.field_names.data() + f.name_offset,
+                    std::string fname(m.types.field_names.data_at(f.name_offset),
                                       f.name_length);
                     elems.push_back(diBuilder->createMemberType(
                         file, fname, file, 0, fsize, f.align * 8, f.offset * 8,
@@ -562,7 +562,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
             if (cid >= m.constants.size()) continue;
             const MIRConstant& c = m.constants.get(cid);
             if (c.kind != MIRConstantKind::String || c.data_count == 0) continue;
-            std::string name(m.constants.data.data() + c.data_offset, c.data_count);
+            std::string name(m.constants.data.data_at(c.data_offset), c.data_count);
             llvm::DIType* dt = mir_di_type(m, pd.type);
             // The scope the place was declared in (a lexical block), so the
             // variable scopes the way the source did and LLVM keeps the block.
@@ -617,7 +617,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                 return llvm::ConstantFP::get(builder->getDoubleTy(), d);
             }
             case MIRConstantKind::String: {
-                std::string s(m.constants.data.data() + c.data_offset, c.data_count);
+                std::string s(m.constants.data.data_at(c.data_offset), c.data_count);
                 return llvm::ConstantDataArray::getString(*ctx, s, true);
             }
             default:
@@ -629,7 +629,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
         if (cid >= m.constants.size()) return false;
         const MIRConstant& c = m.constants.get(cid);
         if (c.kind != MIRConstantKind::String) return false;
-        out.assign(m.constants.data.data() + c.data_offset, c.data_count);
+        out.assign(m.constants.data.data_at(c.data_offset), c.data_count);
         return true;
     };
 
@@ -640,7 +640,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
             const MIRFieldInfo* f = m.types.field_of(agg, i);
             if (!f) continue;
             if (f->name_length != name.size()) continue;
-            if (std::memcmp(m.types.field_names.data() + f->name_offset, name.data(),
+            if (std::memcmp(m.types.field_names.data_at(f->name_offset), name.data(),
                             name.size()) == 0) {
                 return static_cast<int>(i);
             }
@@ -2597,7 +2597,7 @@ private:
     }
 
     llvm::Constant* string_constant(const mir::MIRConstExpr& e, llvm::Type* want) {
-        std::string s(m_.const_exprs.data.data() + e.data_offset, e.data_count);
+        std::string s(m_.const_exprs.data.data_at(e.data_offset), e.data_count);
         if (want->isPointerTy()) {
             llvm::Constant* arr = llvm::ConstantDataArray::getString(ctx_, s, true);
             return new llvm::GlobalVariable(*gen_.module, arr->getType(), true,

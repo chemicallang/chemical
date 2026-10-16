@@ -2494,14 +2494,46 @@ int ASTProcessor::implement_module(
         }
         return resolved.value();
     });
-    mir_lowerer.set_comptime_eval([&c_visitor, &mir_visitor_mutex](FunctionCall* call, FunctionDeclaration* decl) {
+    // While a comptime template is being inlined, publish its folded comptime
+    // parameters into the interpret scope so a nested comptime intrinsic
+    // (`intrinsics::size`, `satisfies`, `llvm_mem_order`, …) folds with the
+    // callee's parameters visible.
+    auto push_comptime_bindings = [&c_visitor, &mir_lowerer]() {
+        std::vector<std::pair<chem::string_view, Value*>> saved;
+        const auto& binds = mir_lowerer.comptime_binding_names();
+        for (const auto& kv : binds) {
+            chem::string_view k(kv.first.data(), kv.first.size());
+            auto it = c_visitor.comptime_scope.values.find(k);
+            saved.emplace_back(k, it == c_visitor.comptime_scope.values.end() ? nullptr
+                                                                             : it->second);
+            c_visitor.comptime_scope.values[k] = kv.second;
+        }
+        return saved;
+    };
+    auto pop_comptime_bindings =
+        [&c_visitor](std::vector<std::pair<chem::string_view, Value*>>& saved) {
+            for (auto& sv : saved) {
+                if (sv.second) c_visitor.comptime_scope.values[sv.first] = sv.second;
+                else c_visitor.comptime_scope.values.erase(sv.first);
+            }
+        };
+    mir_lowerer.set_comptime_eval([&c_visitor, &mir_visitor_mutex, &push_comptime_bindings,
+                                   &pop_comptime_bindings](FunctionCall* call,
+                                                           FunctionDeclaration* decl) {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
-        return c_visitor.eval_comptime_call(call, decl);
+        auto saved = push_comptime_bindings();
+        Value* r = c_visitor.eval_comptime_call(call, decl);
+        pop_comptime_bindings(saved);
+        return r;
     });
-    mir_lowerer.set_comptime_value_eval([&c_visitor, &mir_visitor_mutex](Value* v) -> Value* {
+    mir_lowerer.set_comptime_value_eval([&c_visitor, &mir_visitor_mutex, &push_comptime_bindings,
+                                         &pop_comptime_bindings](Value* v) -> Value* {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         if (!v) return nullptr;
-        return v->evaluated_value(c_visitor.comptime_scope);
+        auto saved = push_comptime_bindings();
+        Value* r = v->evaluated_value(c_visitor.comptime_scope);
+        pop_comptime_bindings(saved);
+        return r;
     });
     mir_lowerer.set_comptime_ctor_eval([&c_visitor, &mir_visitor_mutex](FunctionDeclaration* ctor, Value* arg) {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
@@ -2769,14 +2801,46 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
         }
         return resolved.value();
     });
-    mir_lowerer.set_comptime_eval([&c_visitor, &mir_visitor_mutex](FunctionCall* call, FunctionDeclaration* decl) {
+    // While a comptime template is being inlined, publish its folded comptime
+    // parameters into the interpret scope so a nested comptime intrinsic
+    // (`intrinsics::size`, `satisfies`, `llvm_mem_order`, …) folds with the
+    // callee's parameters visible.
+    auto push_comptime_bindings = [&c_visitor, &mir_lowerer]() {
+        std::vector<std::pair<chem::string_view, Value*>> saved;
+        const auto& binds = mir_lowerer.comptime_binding_names();
+        for (const auto& kv : binds) {
+            chem::string_view k(kv.first.data(), kv.first.size());
+            auto it = c_visitor.comptime_scope.values.find(k);
+            saved.emplace_back(k, it == c_visitor.comptime_scope.values.end() ? nullptr
+                                                                             : it->second);
+            c_visitor.comptime_scope.values[k] = kv.second;
+        }
+        return saved;
+    };
+    auto pop_comptime_bindings =
+        [&c_visitor](std::vector<std::pair<chem::string_view, Value*>>& saved) {
+            for (auto& sv : saved) {
+                if (sv.second) c_visitor.comptime_scope.values[sv.first] = sv.second;
+                else c_visitor.comptime_scope.values.erase(sv.first);
+            }
+        };
+    mir_lowerer.set_comptime_eval([&c_visitor, &mir_visitor_mutex, &push_comptime_bindings,
+                                   &pop_comptime_bindings](FunctionCall* call,
+                                                           FunctionDeclaration* decl) {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
-        return c_visitor.eval_comptime_call(call, decl);
+        auto saved = push_comptime_bindings();
+        Value* r = c_visitor.eval_comptime_call(call, decl);
+        pop_comptime_bindings(saved);
+        return r;
     });
-    mir_lowerer.set_comptime_value_eval([&c_visitor, &mir_visitor_mutex](Value* v) -> Value* {
+    mir_lowerer.set_comptime_value_eval([&c_visitor, &mir_visitor_mutex, &push_comptime_bindings,
+                                         &pop_comptime_bindings](Value* v) -> Value* {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         if (!v) return nullptr;
-        return v->evaluated_value(c_visitor.comptime_scope);
+        auto saved = push_comptime_bindings();
+        Value* r = v->evaluated_value(c_visitor.comptime_scope);
+        pop_comptime_bindings(saved);
+        return r;
     });
     mir_lowerer.set_comptime_ctor_eval([&c_visitor, &mir_visitor_mutex](FunctionDeclaration* ctor, Value* arg) {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);

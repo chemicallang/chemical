@@ -731,6 +731,49 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                      MIROperand::type(types_.map(async_poll_base_))});
                 return true;
             }
+            // a `return` inside an inlined comptime template branches to the
+            // inline end block with the value, instead of returning the function
+            if (!inline_frames_.empty()) {
+                ComptimeInlineFrame& frame = inline_frames_.back();
+                MIRExprResult r = MIRExprResult::void_result();
+                if (!frame.void_result && rs->value) {
+                    r = lower_expr(rs->value, error);
+                    if (!r.ok()) return false;
+                }
+                emit_drops_from(frame.dmark);
+                if (!frame.void_result) {
+                    const bool rsret = abi::needs_sret(module_, frame.result_type);
+                    if (r.kind == MIRExprKind::Place) {
+                        const PlaceId sp = static_cast<PlaceId>(r.id);
+                        const TypeId pt = builder_->function().places[sp].type;
+                        if (rsret && pt == frame.result_type) {
+                            builder_->move_init(frame.result_place, sp, frame.result_type);
+                        } else {
+                            builder_->store(frame.result_place, builder_->load(sp, pt));
+                        }
+                    } else if (r.kind == MIRExprKind::Address) {
+                        const ValueId av = static_cast<ValueId>(r.id);
+                        if (rsret) {
+                            const ValueId loaded = builder_->load_indirect(av, frame.result_type);
+                            builder_->copy_init(frame.result_place, loaded, frame.result_type);
+                        } else {
+                            builder_->store(frame.result_place, av);
+                        }
+                    } else if (r.kind == MIRExprKind::Value) {
+                        const ValueId vv = static_cast<ValueId>(r.id);
+                        if (rsret) {
+                            builder_->copy_init(frame.result_place, vv, frame.result_type);
+                        } else {
+                            builder_->store(frame.result_place, vv);
+                        }
+                    } else {
+                        error = "comptime template returned a void value";
+                        return false;
+                    }
+                }
+                builder_->br(frame.end_block);
+                return true;
+            }
             // returning a local destructible moves it out (do not drop it here)
             if (rs->value) {
                 Value* rv = rs->value;

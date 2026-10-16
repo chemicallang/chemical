@@ -718,6 +718,43 @@ private:
     Value* captured_comptime_value_locked(ASTNode* linked);
     /** Read a `%runtime_value` captured-ref's evaluated value under the lock. */
     Value* captured_ref_value_locked(CapturedComptimeValues* owner, int index);
+
+    // ── comptime-template inlining (Phase 5) ───────────────────────────────
+    /**
+     * True when `fd` is a `comptime func` that must be *lowered*, not
+     * interpreted: it returns a runtime template (`%runtime_value` /
+     * `%runtime_block_value`) or takes `%runtime` / `%maybe_runtime` / `self`
+     * operands. Such a call is expanded by inlining the callee's body — the
+     * comptime operands folded to constants, the runtime operands bound to the
+     * caller's argument results. See lang/docs/runtime-value-replacement.md.
+     */
+    bool is_comptime_template_fn(FunctionDeclaration* fd);
+    /** Inline a comptime-template call; returns the body's `return` value. */
+    MIRExprResult inline_comptime_template(FunctionDeclaration* fd, MIRExprResult recv,
+                                           const std::vector<Value*>& call_values,
+                                           std::string& error);
+
+    struct ComptimeInlineFrame {
+        BlockId end_block = MIR_NULL;
+        PlaceId result_place = MIR_INVALID_ID;
+        TypeId result_type = MIR_INVALID_ID;
+        size_t dmark = 0; // destructibles_ size at inline start
+        bool void_result = false;
+    };
+    std::vector<ComptimeInlineFrame> inline_frames_;
+    /**
+     * Comptime parameters of the inlined callee, keyed by name, bound to their
+     * folded values. Read by `lower_expr` for identifier references, and pushed
+     * into the comptime interpret scope by the compiler callbacks so a nested
+     * comptime intrinsic (`intrinsics::size`, `satisfies`, …) folds with the
+     * callee's parameters visible.
+     */
+    std::unordered_map<std::string, Value*> comptime_bindings_;
+public:
+    const std::unordered_map<std::string, Value*>& comptime_binding_names() const {
+        return comptime_bindings_;
+    }
+private:
     void bind_name(const chem::string_view& name, PlaceId place) {
         if (name.empty()) return;
         MIR_OP(name_bind);

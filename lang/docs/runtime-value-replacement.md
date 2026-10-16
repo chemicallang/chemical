@@ -9,6 +9,25 @@ execution engine cannot represent. This document audits every use and proposes a
 MIR-native replacement that deletes the mechanism — and, with it, the AST
 interpreter's last lowering-time job.
 
+> **Implementation status (2026-10).** Step 1 is in the working tree and green:
+> `MIRLowerComptime.cpp` inlines a comptime template call instead of interpreting
+> it — it evaluates the arguments in the caller's context, swaps to the callee's
+> parameter bindings (runtime operands become places, comptime operands fold to
+> constants), lowers the body with an inline-return frame, and publishes the
+> folded comptime parameter *names* into the interpret scope
+> (`MIRLowerer::comptime_binding_names()`) so a nested comptime intrinsic
+> (`intrinsics::size`, `satisfies`, `llvm_mem_order`, …) folds with the callee's
+> parameters visible. Covered: **free functions and methods** (the
+> `atomic.ch` wrappers, `std`'s `append_expr`, the `lab`/`test` helpers). All
+> suites green with the hook active and **no fallback** — `MIRTests` 4417,
+> `--tcc` 2307/2307, `--llvm` 2305/2305, `--interpret` 1896/1896, `--libs`
+> 718/719.
+>
+> **Still on the interpreter:** **constructors** (inlining them currently crashes
+> the compiler — a follow-up) and **pure comptime functions** (value folding and
+> `comptime if`/array-size resolution at symres time). So the interpreter cannot
+> be deleted yet; see §5.4 and §8.
+
 ---
 
 ## 1. What `%runtime_value` does today

@@ -50,6 +50,12 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             // instantiated FunctionDecl, so it lowers like an identifier
         case ValueKind::Identifier: {
             auto* id = value->as_identifier_unsafe();
+            if (!comptime_bindings_.empty() && !id->value.empty()) {
+                auto it = comptime_bindings_.find(std::string(id->value.data(), id->value.size()));
+                if (it != comptime_bindings_.end()) {
+                    return lower_expr(it->second, error);
+                }
+            }
             if (Value* cv = captured_comptime_value_locked(id->linked)) {
                 return lower_expr(cv, error);
             }
@@ -1270,6 +1276,10 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 return MIRExprResult::void_result();
             }
             if (fd->is_comptime() && comptime_eval_) {
+                if (is_comptime_template_fn(fd)) {
+                    return inline_comptime_template(fd, MIRExprResult::void_result(),
+                                                    call->values, error);
+                }
                 Value* evaluated = comptime_eval_(call, fd);
                 if (!evaluated) {
                     // a void comptime call whose evaluation produced no value

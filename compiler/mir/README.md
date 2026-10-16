@@ -99,6 +99,44 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 47 (2026-10-16) — E3d stage 3: parallel-lowering machinery + two shared-state fixes (driver gated off)
+
+Built the E3d stage-3 machinery and closed two more shared-state gaps, then found
+a remaining race and **gated the parallel driver off** rather than land corrupted
+output.
+
+Landed:
+
+- **`MIRTypeBuilder` is lock-guarded.** It is shared by all workers and its
+  `memo_`/`decl_ids_`/`decl_types_`/`fat_pointer_id_`/`inline_counter_` caches
+  were unsynchronized. `map` takes a recursive `builder_mtx_` (it recurses);
+  `named_struct` and `aggregate_type`/`fill_aggregate_fields` use the locked
+  `MIRTypeTable::push`/`update`/`size` instead of touching `types[]` directly.
+- **`MIRBytePool` reads are lock-guarded.** The entries are stable, but
+  `std::deque`'s chunk map can reallocate on a concurrent `push_back`, so a bare
+  `data_at` read raced the append. Appends take an exclusive lock, reads a shared
+  one; the returned bytes stay valid after the lock (entries are immutable).
+- **The machinery**: `mir_lower_and_emit_into` (the C-path body of
+  `lower_and_emit`, extracted so a worker can run it against its own
+  `MIRTaskContext`), `mir_collect_parallel_functions` (the source-order collector
+  mirroring `process_nodes`), `MIRLowerer::copy_callbacks_from` (a worker's
+  lowerer reuses the driver's callback wiring), and the `ctpl::thread_pool`
+  driver that pre-lowers the plain functions into per-function buffers that
+  `lower_and_emit` appends at their source-order slots. `MIRModule::record_inline_struct`
+  is now locked (workers append to it).
+
+**Blocker — the driver is gated off (`kEnableParallelLowering = false`).** With
+one worker the output is byte-identical to serial, but with more than one worker
+the **mangled name written into the type/symbol pools is corrupted**
+(nondeterministically, e.g. `main_Deletable` → `main\0github._Deletable`). Locking
+the pools/fields and the builder did not fix it, so a shared *name-mangling*
+buffer still races despite `mir::mangle_writer()` being `thread_local`; the next
+step is to find that buffer (candidates: a `NameMangler` scratch, the `mangle_buf_`
+path, or a `decl_list_`/`MIRDeclItem` interaction) before re-enabling. Until then
+the compiler is exactly as before: `MIRTests` 4400; `--tcc` **2307/2307**;
+`--llvm` **2305/2305**; `--tcc --async` **53/53**; `--tcc --interpret` **1897/1897**;
+`--tcc --libs` **718/719**; main-suite C unchanged (96,825 lines, normalized diff 50).
+
 ### Session 46 (2026-10-16) — E3d stage 2: the shared `CTranslationContext` access is serialised
 
 Stage 1 made the module tables safe to read concurrently; the other half of the

@@ -162,8 +162,7 @@ TypeId MIRTypeBuilder::aggregate_type(MIRTypeKind kind, const void* decl, BaseTy
         r.int_kind = IK_INT;
     }
 
-    TypeId id = static_cast<TypeId>(module_.types.types.size());
-    module_.types.types.push_back(r);
+    TypeId id = module_.types.push(r);
     decl_types_[agg_key] = id;
     if (name_resolver_ && decl) {
         std::string name = name_resolver_(reinterpret_cast<ASTNode*>(const_cast<void*>(decl)));
@@ -178,7 +177,7 @@ TypeId MIRTypeBuilder::aggregate_type(MIRTypeKind kind, const void* decl, BaseTy
 void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode* decl,
                                            BaseType* type) {
     if (kind == MIRTypeKind::Int) return; // enums have no fields
-    if (id >= module_.types.types.size()) return;
+    if (id >= module_.types.size()) return;
 
     std::vector<MIRFieldInfo> fs;
     auto push_field = [&](const std::string& name, TypeId t, MIRFieldKind fk,
@@ -370,6 +369,7 @@ TypeId MIRTypeBuilder::function_signature(TypeId return_type, const std::vector<
 
 TypeId MIRTypeBuilder::map(BaseType* type) {
     if (!type) return opaque_type();
+    std::lock_guard<std::recursive_mutex> lk(builder_mtx_);
     MIR_OP(type_map);
 
     auto it = memo_.find(type);

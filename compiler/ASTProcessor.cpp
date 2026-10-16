@@ -50,6 +50,13 @@
 #include "compiler/mir/MIRLowerer.h"
 #include "compiler/mir/MIRTaskContext.h"
 #include "compiler/mir/MIRMangleBuffer.h"
+
+#include "ctpl.h"
+
+#include <atomic>
+#include <future>
+#include <thread>
+#include <unordered_map>
 #include "compiler/async/AwaitNormalizePass.h"
 #include "compiler/mir/MIREmitter.h"
 #include "compiler/mir/MIRDeclEmitter.h"
@@ -1881,6 +1888,142 @@ void mir_collect_owned_globals(const std::vector<ASTNode*>& nodes,
 // MIR translation of a file's top-level nodes: eligible functions are lowered
 // and their C bodies emitted from MIR; other nodes still go through the legacy
 // visitor (declarations and not-yet-ported constructs) for now.
+// Lower one function through MIR and fill `task.out` with its C; the driver
+// appends `task.out` at the function's source-order slot. This is the C-path
+// body of `lower_and_emit`, extracted so a parallel worker can run it against
+// its own task context. Returns false on ineligibility or a lowering/emission
+// failure (the caller then takes the inline path, which reports the diagnostic).
+static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& module,
+                                    FunctionDeclaration* decl, bool llvm_collect,
+                                    std::string& error) {
+    if (!mir_eligible_function(decl)) return false;
+    mir::MIRLowerer& lowerer = task.lowerer;
+    task.begin_function(!llvm_collect);
+    mir::MIRFunction fn;
+    if (!lowerer.lower_function(decl, task.arena, fn, error)) {
+        lowerer.clear_lambda_defs();
+        return false;
+    }
+    auto flush_lambdas = [&lowerer, &task]() {
+        for (std::string& def : lowerer.lambda_defs()) task.out.append(def.data(), def.size());
+        lowerer.clear_lambda_defs();
+    };
+    if (llvm_collect) {
+        module.functions.push_back(fn);
+        if (decl->is_async()) {
+            module.functions.push_back(lowerer.async_poll());
+            module.functions.push_back(lowerer.async_drop());
+        }
+        if (lowerer.is_async_main_entry(decl)) {
+            mir::MIRFunction tramp;
+            std::string tramp_error;
+            if (!lowerer.lower_async_main_trampoline(decl, fn, task.arena, tramp, tramp_error)) {
+                error = tramp_error;
+                return false;
+            }
+            module.functions.push_back(tramp);
+        }
+        for (const mir::MIRFunction& lf : lowerer.lambda_functions()) {
+            module.functions.push_back(lf);
+        }
+        lowerer.clear_lambda_defs();
+        return true;
+    }
+    std::string emit_error;
+    if (decl->is_async()) {
+        std::string poll_c, poll_e, c;
+        if (!mir::emit_function_c(lowerer.async_poll(), module, poll_c, poll_e)) {
+            error = poll_e;
+            lowerer.clear_lambda_defs();
+            return false;
+        }
+        if (!mir::emit_function_c(fn, module, c, emit_error)) {
+            error = emit_error;
+            lowerer.clear_lambda_defs();
+            return false;
+        }
+        flush_lambdas();
+        task.out.append(lowerer.async_pre_decls());
+        task.out.append(poll_c);
+        task.out.append(lowerer.async_post_decls());
+        task.out.append(c);
+        if (lowerer.is_async_main_entry(decl)) {
+            mir::MIRFunction tramp;
+            std::string tramp_error;
+            if (!lowerer.lower_async_main_trampoline(decl, fn, task.arena, tramp, tramp_error)) {
+                error = tramp_error;
+                return false;
+            }
+            std::string tramp_c, tramp_emit_error;
+            if (!mir::emit_function_c(tramp, module, tramp_c, tramp_emit_error)) {
+                error = tramp_emit_error;
+                return false;
+            }
+            task.out.append(tramp_c);
+        }
+        return true;
+    }
+    task.body.clear();
+    if (!mir::emit_function_c(fn, module, task.body, emit_error)) {
+        error = emit_error;
+        lowerer.clear_lambda_defs();
+        return false;
+    }
+    flush_lambdas();
+    task.out.append(task.body);
+    return true;
+}
+
+// Collect, in source order, the plain functions `process_nodes` would lower via
+// `lower_and_emit` (top-level functions and struct/union/variant methods), so
+// they can be lowered in parallel and merged at their slots. Impl methods and
+// functions produced by embedded-node replacement are deliberately excluded —
+// they stay on the serial path (impl methods need `iface->active_user` set).
+static void mir_collect_parallel_functions(const std::vector<ASTNode*>& nodes,
+                                           std::vector<FunctionDeclaration*>& out) {
+    for (ASTNode* node : nodes) {
+        if (!node) continue;
+        switch (node->kind()) {
+            case ASTNodeKind::FunctionDecl: {
+                auto* fd = node->as_function();
+                if (mir_eligible_function(fd)) out.push_back(fd);
+                break;
+            }
+            case ASTNodeKind::StructDecl:
+            case ASTNodeKind::VariantDecl:
+            case ASTNodeKind::UnionDecl: {
+                auto* def = node->as_extendable_member_container();
+                if (!def) break;
+                for (ASTNode* c : def->evaluated_nodes()) {
+                    if (c && c->kind() == ASTNodeKind::FunctionDecl) {
+                        auto* fd = c->as_function_unsafe();
+                        if (mir_eligible_function(fd)) out.push_back(fd);
+                    }
+                }
+                break;
+            }
+            case ASTNodeKind::NamespaceDecl: {
+                auto* ns = node->as_namespace_unsafe();
+                if (!ns->is_comptime()) mir_collect_parallel_functions(ns->nodes, out);
+                break;
+            }
+            case ASTNodeKind::Scope:
+                mir_collect_parallel_functions(node->as_scope_unsafe()->nodes, out);
+                break;
+            case ASTNodeKind::IfStmt: {
+                auto* stmt = node->as_if_stmt_unsafe();
+                if (stmt->is_top_level() && stmt->computed_scope.has_value()) {
+                    Scope* taken = stmt->computed_scope.value();
+                    if (taken) mir_collect_parallel_functions(taken->nodes, out);
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+}
+
 bool mir_translate_after_declaration(
         CTranslationContext& visitor,
         mir::MIRTaskContext& task,
@@ -1924,123 +2067,76 @@ bool mir_translate_after_declaration(
     }
 
     bool had_errors = false;
-    auto flush_lambdas = [&lowerer, &task]() {
-        for (std::string& def : lowerer.lambda_defs()) {
-            task.out.append(def.data(), def.size());
-        }
-        lowerer.clear_lambda_defs();
-    };
     const size_t file_start = visitor.writer.getPosition();
+
+    // (C path) Lower the plain functions in parallel and append their buffers at
+    // their source-order slots below. The LLVM path must keep
+    // `module.functions` in source order, so it stays serial; impl methods and
+    // embedded-node-produced functions stay serial too (see the collector).
+    std::unordered_map<FunctionDeclaration*, std::string> pre_lowered;
+    // The parallel driver is off until the shared name-mangling buffer race is
+    // fixed (see compiler/mir/README.md, session 47): with more than one worker
+    // the mangled name written into the type/symbol pools is corrupted. With a
+    // single worker the output is correct, so the machinery below is kept but
+    // gated; the table/pool locks it relies on are always on.
+    constexpr bool kEnableParallelLowering = false;
+    if (kEnableParallelLowering && !llvm_collect) {
+        std::vector<FunctionDeclaration*> parallel_fns;
+        mir_collect_parallel_functions(nodes, parallel_fns);
+        constexpr size_t kMinParallelFunctions = 24;
+        if (parallel_fns.size() >= kMinParallelFunctions) {
+            unsigned nworkers = std::thread::hardware_concurrency();
+            if (nworkers == 0) nworkers = 4;
+            if (nworkers > parallel_fns.size()) nworkers = static_cast<unsigned>(parallel_fns.size());
+            std::atomic<size_t> next{0};
+            std::vector<std::vector<std::pair<FunctionDeclaration*, std::string>>> results(nworkers);
+            ctpl::thread_pool local_pool(static_cast<int>(nworkers));
+            std::vector<std::future<void>> futs;
+            futs.reserve(nworkers);
+            for (unsigned w = 0; w < nworkers; ++w) {
+                futs.push_back(local_pool.push([&, w](int) {
+                    // One worker context per thread: its own lowerer (wired with
+                    // the driver's callbacks), arena and output buffer.
+                    mir::MIRTaskContext ctx(module, types);
+                    ctx.lowerer.copy_callbacks_from(task.lowerer);
+                    auto& r = results[w];
+                    for (;;) {
+                        const size_t i = next.fetch_add(1);
+                        if (i >= parallel_fns.size()) break;
+                        FunctionDeclaration* fd = parallel_fns[i];
+                        std::string err;
+                        if (mir_lower_and_emit_into(ctx, module, fd, false, err)) {
+                            r.emplace_back(fd, std::move(ctx.out));
+                        }
+                    }
+                }));
+            }
+            for (auto& f : futs) f.get();
+            for (auto& r : results) {
+                for (auto& pr : r) pre_lowered.emplace(pr.first, std::move(pr.second));
+            }
+        }
+    }
+
     // Lower one function (top-level, method, or generic instantiation) through
-    // MIR and append its C. Returns false when the function is not MIR-eligible
-    // or lowering/emission failed, so the caller can fall back to the legacy
-    // visitor for that function.
+    // MIR and append its C. A function pre-lowered above appends its buffer;
+    // everything else (impl methods, embedded-produced functions, and the
+    // serial/llvm path) lowers here. Returns false when the function cannot be
+    // lowered, so the caller can report the diagnostic.
     auto lower_and_emit = [&](FunctionDeclaration* decl) -> bool {
-        if (!mir_eligible_function(decl)) return false;
-        // The LLVM backend keeps every lowered function (and therefore the
-        // arena) alive so it can emit LLVM IR for the whole module afterwards,
-        // so it must not rewind the arena per function.
-        task.begin_function(!llvm_collect);
-        mir::MIRFunction fn;
+        auto it = pre_lowered.find(decl);
+        if (it != pre_lowered.end()) {
+            visitor.writer.append(it->second.data(), it->second.size());
+            return true;
+        }
         std::string error;
-        if (!lowerer.lower_function(decl, task.arena, fn, error)) {
-            lowerer.clear_lambda_defs();
-            std::cerr << "[MIR] lowering failed (" << (decl->name_str()) << " @ "
-                      << mir_mangle_name(visitor.mangler, decl) << "): " << error
-                      << " -- falling back to the legacy visitor\n";
+        if (!mir_lower_and_emit_into(task, module, decl, llvm_collect, error)) {
+            if (mir_eligible_function(decl)) {
+                std::cerr << "[MIR] lowering/emission failed (" << decl->name_str()
+                          << "): " << error << "\n";
+            }
             return false;
         }
-        if (llvm_collect) {
-            module.functions.push_back(fn);
-            if (decl->is_async()) {
-                module.functions.push_back(lowerer.async_poll());
-                // the coroutine `__drop`: the LLVM emitter defines the
-                // FutureTable's `drop` slot from it (the C backend emits an
-                // equivalent body as text instead)
-                module.functions.push_back(lowerer.async_drop());
-            }
-            // an application's `async func main` also needs the synchronous
-            // `int main` trampoline, whose ramp was just collected above
-            if (lowerer.is_async_main_entry(decl)) {
-                mir::MIRFunction tramp;
-                std::string tramp_error;
-                if (!lowerer.lower_async_main_trampoline(decl, fn, task.arena, tramp, tramp_error)) {
-                    std::cerr << "[MIR] async main trampoline lowering failed ("
-                              << decl->name_str() << "): " << tramp_error << "\n";
-                    return false;
-                }
-                module.functions.push_back(tramp);
-            }
-            // lambda bodies materialized while lowering this function live in
-            // the same arena, so collect them now (the C backend emits them from
-            // `lambda_defs()` instead)
-            for (const mir::MIRFunction& lf : lowerer.lambda_functions()) {
-                module.functions.push_back(lf);
-            }
-            // The LLVM target never uses the generated C (it emits LLVM IR from
-            // the collected MIR), so the C emission is skipped. This also keeps
-            // the C emitter unaware of constructs only the LLVM backend
-            // produces, such as the `intrinsics::llvm::atomic_*` ops.
-            lowerer.clear_lambda_defs();
-            return true;
-        }
-        if (decl->is_async()) {
-            // async: emit the frame helpers, then the __poll, then the
-            // vtable/drop, then the ramp (all MIR-driven). Only write anything
-            // once every part emitted successfully.
-            std::string poll_c, poll_e;
-            std::string c, emit_error;
-            if (!mir::emit_function_c(lowerer.async_poll(), module, poll_c, poll_e)) {
-                lowerer.clear_lambda_defs();
-                std::cerr << "[MIR] async poll emission failed (" << (decl->name_str())
-                          << "): " << poll_e << " -- falling back to the legacy visitor\n";
-                return false;
-            }
-            if (!mir::emit_function_c(fn, module, c, emit_error)) {
-                lowerer.clear_lambda_defs();
-                std::cerr << "[MIR] async ramp emission failed (" << (decl->name_str())
-                          << "): " << emit_error << " -- falling back to the legacy visitor\n";
-                return false;
-            }
-            flush_lambdas();
-            std::string pre = lowerer.async_pre_decls();
-            task.out.append(pre.data(), pre.size());
-            task.out.append(poll_c.data(), poll_c.size());
-            std::string post = lowerer.async_post_decls();
-            task.out.append(post.data(), post.size());
-            task.out.append(c.data(), c.size());
-            // an application's `async func main` is renamed to
-            // `__chx_async_main`, so it also needs the synchronous `int main`
-            // trampoline that drives the future it returns to completion
-            if (lowerer.is_async_main_entry(decl)) {
-                mir::MIRFunction tramp;
-                std::string tramp_error;
-                if (!lowerer.lower_async_main_trampoline(decl, fn, task.arena, tramp, tramp_error)) {
-                    std::cerr << "[MIR] async main trampoline lowering failed ("
-                              << decl->name_str() << "): " << tramp_error << "\n";
-                    return false;
-                }
-                std::string tramp_c, tramp_emit_error;
-                if (!mir::emit_function_c(tramp, module, tramp_c, tramp_emit_error)) {
-                    std::cerr << "[MIR] async main trampoline emission failed ("
-                              << decl->name_str() << "): " << tramp_emit_error << "\n";
-                    return false;
-                }
-                task.out.append(tramp_c.data(), tramp_c.size());
-            }
-            visitor.writer.append(task.out.data(), task.out.size());
-            return true;
-        }
-        std::string emit_error;
-        task.body.clear();
-        if (!mir::emit_function_c(fn, module, task.body, emit_error)) {
-            lowerer.clear_lambda_defs();
-            std::cerr << "[MIR] emission failed (" << (decl->name_str()) << "): " << emit_error
-                      << " -- falling back to the legacy visitor\n";
-            return false;
-        }
-        flush_lambdas();
-        task.out.append(task.body.data(), task.body.size());
         visitor.writer.append(task.out.data(), task.out.size());
         return true;
     };

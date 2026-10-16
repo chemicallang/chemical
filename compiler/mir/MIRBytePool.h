@@ -21,6 +21,8 @@
 
 #include <cstdint>
 #include <deque>
+#include <mutex>
+#include <shared_mutex>
 #include <string>
 
 namespace mir {
@@ -29,20 +31,42 @@ class MIRBytePool {
 public:
     /** Append `n` bytes and return the entry index (the stable "offset"). */
     uint32_t append(const char* s, uint32_t n) {
+        std::lock_guard<std::shared_mutex> lock(mtx_);
         entries_.emplace_back(s, n);
         return static_cast<uint32_t>(entries_.size() - 1);
     }
 
-    /** Pointer to an entry's contiguous bytes (never invalidated by append). */
-    const char* data_at(uint32_t index) const { return entries_[index].data(); }
+    /**
+     * Pointer to an entry's contiguous bytes. The lock is only needed to look
+     * the entry up (`std::deque`'s chunk map can reallocate on a concurrent
+     * append even though the entry itself never moves); the returned bytes are
+     * immutable, so the caller may read them after the lock is released.
+     */
+    const char* data_at(uint32_t index) const {
+        std::shared_lock<std::shared_mutex> lock(mtx_);
+        return entries_[index].data();
+    }
 
-    const std::string& text(uint32_t index) const { return entries_[index]; }
+    const std::string& text(uint32_t index) const {
+        std::shared_lock<std::shared_mutex> lock(mtx_);
+        return entries_[index];
+    }
 
-    size_t size() const { return entries_.size(); }
-    bool empty() const { return entries_.empty(); }
-    void clear() { entries_.clear(); }
+    size_t size() const {
+        std::shared_lock<std::shared_mutex> lock(mtx_);
+        return entries_.size();
+    }
+    bool empty() const {
+        std::shared_lock<std::shared_mutex> lock(mtx_);
+        return entries_.empty();
+    }
+    void clear() {
+        std::lock_guard<std::shared_mutex> lock(mtx_);
+        entries_.clear();
+    }
 
 private:
+    mutable std::shared_mutex mtx_;
     std::deque<std::string> entries_;
 };
 

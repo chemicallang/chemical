@@ -16,6 +16,7 @@
 #include "MIRFunction.h"
 
 #include <span>
+#include <mutex>
 #include <vector>
 
 namespace mir {
@@ -86,7 +87,10 @@ struct MIRModule {
      * `second` is a `BaseType*` (a `StructType`).
      */
     std::vector<std::pair<uint32_t, void*>> inline_structs;
+    /** Guards `inline_structs` (appended from parallel lowering workers). */
+    std::mutex inline_structs_mtx_;
     void record_inline_struct(uint32_t id, void* type) {
+        std::lock_guard<std::mutex> lock(inline_structs_mtx_);
         for (auto& p : inline_structs) {
             if (p.first == id) return;
         }
@@ -96,7 +100,7 @@ struct MIRModule {
     void clear() {
         types.clear();
         constants.clear();
-        const_exprs = {};
+        const_exprs.clear();
         symbols.clear();
         functions.clear();
         globals.clear();

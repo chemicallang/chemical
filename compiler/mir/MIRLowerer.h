@@ -281,6 +281,34 @@ public:
      */
     void set_visitor_mutex(std::recursive_mutex* m) { visitor_mutex_ = m; }
 
+    /**
+     * Copy the translation callbacks (mangler, comptime, embedded, debug, the
+     * shared lock, the impl indexes) from another lowerer, so a parallel
+     * worker's lowerer behaves exactly like the driver's without re-wiring each
+     * callback. The `std::function`s capture the same shared state, so the
+     * copies are equivalent.
+     */
+    void copy_callbacks_from(const MIRLowerer& o) {
+        mangler_ = o.mangler_;
+        mangler_into_ = o.mangler_into_;
+        vtable_mangler_ = o.vtable_mangler_;
+        comptime_if_resolver_ = o.comptime_if_resolver_;
+        comptime_eval_ = o.comptime_eval_;
+        comptime_value_eval_ = o.comptime_value_eval_;
+        comptime_ctor_eval_ = o.comptime_ctor_eval_;
+        comptime_block_eval_ = o.comptime_block_eval_;
+        symbol_lookup_ = o.symbol_lookup_;
+        set_current_func_ = o.set_current_func_;
+        impls_index_ = o.impls_index_;
+        core_nodes_ = o.core_nodes_;
+        embedded_repl_ = o.embedded_repl_;
+        embedded_value_repl_ = o.embedded_value_repl_;
+        async_normalize_ = o.async_normalize_;
+        source_loc_provider_ = o.source_loc_provider_;
+        debug_info_ = o.debug_info_;
+        visitor_mutex_ = o.visitor_mutex_;
+    }
+
     /** Mangler for a dynamic-dispatch vtable global (interface + impl type). */
     void set_vtable_mangler(std::function<std::string(ASTNode*, BaseType*)> fn) {
         vtable_mangler_ = std::move(fn);

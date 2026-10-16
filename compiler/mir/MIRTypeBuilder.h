@@ -11,6 +11,7 @@
 
 #include <functional>
 #include <map>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -44,11 +45,12 @@ public:
     TypeId named_struct(const std::string& name) {
         MIRTypeRecord r;
         r.kind = MIRTypeKind::Struct;
-        r.decl = static_cast<uint32_t>(module_.types.types.size()) + 0x40000000u;
         r.size = 0;
         r.alignment = 1;
-        TypeId id = static_cast<TypeId>(module_.types.types.size());
-        module_.types.types.push_back(r);
+        const TypeId id = module_.types.push(r);
+        module_.types.update(id, [&](MIRTypeRecord& rec) {
+            rec.decl = id + 0x40000000u;
+        });
         module_.types.set_name(id, name.data(), static_cast<uint32_t>(name.size()));
         return id;
     }
@@ -182,7 +184,10 @@ public:
      * files, so an address can be reused for a different type; a stale memo
      * would then return the wrong `TypeId`. Call this after each file.
      */
-    void clear_memo() { memo_.clear(); }
+    void clear_memo() {
+        std::lock_guard<std::recursive_mutex> lk(builder_mtx_);
+        memo_.clear();
+    }
 
 private:
     MIRModule& module_;
@@ -196,6 +201,12 @@ private:
     std::function<std::string(ASTNode*)> name_resolver_;
     TypeId fat_pointer_id_ = MIR_INVALID_ID;
     uint32_t inline_counter_ = 0;
+    /**
+     * Guards `memo_`, `decl_ids_`, `decl_types_`, `fat_pointer_id_` and
+     * `inline_counter_` (action E3d): several lowering workers share one builder,
+     * so its caches must not be raced. Recursive because `map` recurses.
+     */
+    mutable std::recursive_mutex builder_mtx_;
 };
 
 } // namespace mir

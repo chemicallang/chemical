@@ -13,8 +13,9 @@ public struct span<T> {
 
     @implicit
     @constructor
+    @expand
     comptime func make2(vec : %maybe_runtime<&vector<T>>) {
-        return %runtime_value(constructor<T>(vec.data(), vec.size()))
+        return constructor<T>(vec.data(), vec.size())
     }
 
     @constructor

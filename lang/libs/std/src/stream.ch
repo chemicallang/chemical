@@ -246,10 +246,12 @@ public struct CommandLineStream {
 
 }
 
+@expand
 public comptime func print(expr : %expressive_string) : any {
-    return %runtime_value(intrinsics::expr_str_block_value(CommandLineStream{}, expr))
+    return intrinsics::expr_str_block_value(CommandLineStream{}, expr)
 }
 
+@expand
 public comptime func println(expr : %expressive_string) : any {
-    return %runtime_value(intrinsics::expr_str_block_value(CommandLineStream{}, expr, '\n'))
+    return intrinsics::expr_str_block_value(CommandLineStream{}, expr, '\n')
 }

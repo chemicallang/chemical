@@ -109,6 +109,33 @@ bool is_self_param(FunctionDeclaration* fd, FunctionParam* p) {
 // not: call-site/location intrinsics, `is_comptime`/`is_runtime`,
 // `intrinsics::vector`, and string `+`/comparison. Rather than (silently) change
 // those results, the driver declines any function that touches them.
+/**
+ * Intrinsics whose *interpreter* semantics the MIR engine does not reproduce:
+ * call-site/location introspection, comptime-mode detection, the
+ * interpreter-only `vector`, and expressive-string materialization.
+ */
+bool intrinsic_diverges(FunctionDeclaration* fd) {
+    const chem::string_view name = fd->name_view();
+    static const char* kDivergent[] = {
+        "is_comptime", "is_runtime", "is_interpretation",
+        "get_call_loc", "get_line_no", "get_char_no", "get_caller_line_no",
+        "get_caller_char_no", "get_loc_file_path", "get_raw_location",
+        "get_current_file_path", "expr_str_block_value", "vector",
+    };
+    for (const char* n : kDivergent) {
+        if (name == chem::string_view(n)) return true;
+    }
+    // the interpreter-only `intrinsics::vector<T>` type: its constructor is
+    // `constructor` and its methods `size`/`push`/`get`/`remove`, so identify it
+    // by the owning definition's name rather than the (common) method names
+    ASTNode* par = fd->get_parent();
+    if (par && par->kind() == ASTNodeKind::StructDecl &&
+        par->as_struct_def_unsafe()->name_view() == chem::string_view("vector")) {
+        return true;
+    }
+    return false;
+}
+
 struct Eligibility {
     bool ok = true;
     std::unordered_set<FunctionDeclaration*> callees;
@@ -176,14 +203,19 @@ bool value_eligible(Value* v, Eligibility& e) {
             FunctionDeclaration* fd = call->safe_linked_func();
             if (fd) {
                 if (!fd->body.has_value()) {
-                    // an intrinsic / extern with no body: the engine cannot run
-                    // it, and its interpreter semantics differ — decline
-                    if (std::getenv("CT_STAT")) {
-                        std::fprintf(stderr, "[CTSTAT] INELIG no-body callee %s\n",
-                                     fd->name_str().c_str());
+                    // A no-body callee is a compiler intrinsic (folded by the
+                    // lowerer at lowering time) or an extern the engine binds as
+                    // a host function — both are fine, EXCEPT the intrinsics
+                    // whose interpreter semantics the engine does not reproduce.
+                    if (intrinsic_diverges(fd)) {
+                        if (std::getenv("CT_STAT")) {
+                            std::fprintf(stderr, "[CTSTAT] INELIG divergent intrinsic %s\n",
+                                         fd->name_str().c_str());
+                        }
+                        e.ok = false;
+                        return false;
                     }
-                    e.ok = false;
-                    return false;
+                    return true; // no callee to lower
                 }
                 e.callees.insert(fd);
             }

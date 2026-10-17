@@ -119,9 +119,9 @@ bool is_self_param(FunctionDeclaration* fd, FunctionParam* p) {
 bool intrinsic_diverges(FunctionDeclaration* fd) {
     const chem::string_view name = fd->name_view();
     static const char* kDivergent[] = {
-        "get_call_loc", "get_line_no", "get_char_no", "get_caller_line_no",
+        "get_call_loc", "get_line_no", "get_char_no",
         "get_caller_char_no", "get_loc_file_path", "get_raw_location",
-        "get_current_file_path", "expr_str_block_value", "vector",
+        "get_current_file_path", "expr_str_block_value", "vector", "decode_location",
     };
     for (const char* n : kDivergent) {
         if (name == chem::string_view(n)) return true;

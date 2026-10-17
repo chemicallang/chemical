@@ -759,6 +759,18 @@ public:
     void invoke_call_site(FunctionCall* call, bool push) {
         if (comptime_call_site_) comptime_call_site_(call, push);
     }
+    /**
+     * Copy only the comptime callbacks (not the declaration/lowering callbacks,
+     * which a driver must not inherit). Lets a driven callee fold a comptime
+     * intrinsic at lowering time — the §5.4 `call`-override residual.
+     */
+    void copy_comptime_callbacks_from(const MIRLowerer& o) {
+        comptime_eval_ = o.comptime_eval_;
+        comptime_value_eval_ = o.comptime_value_eval_;
+        comptime_ctor_eval_ = o.comptime_ctor_eval_;
+        comptime_block_eval_ = o.comptime_block_eval_;
+        comptime_call_site_ = o.comptime_call_site_;
+    }
 private:
     // ── comptime-template inlining (Phase 5) ───────────────────────────────
     /**

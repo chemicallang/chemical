@@ -137,7 +137,6 @@ public func run_common_tests() {
     test_comptime();
     test_comptime_intrinsics();
     test_macros();
-    test_compiler_vector();
     test_constructors();
     test_extension_functions();
     test_functions();

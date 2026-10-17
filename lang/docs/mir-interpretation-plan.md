@@ -616,22 +616,31 @@ Covered since the first cut:
 
 Green: `--tcc` 2307, `--interpret` 1896, `--llvm` 2305.
 
-Remaining to retire `compiler/Interpreter/Core.cpp` (measured residual, **8
-calls**), all of which are *not* the statement interpreter itself:
-1. **Call-site location** (2: `give_caller_line_no`) — `get_caller_line_no`
-   resolves through the interpreter's `call_stack` frame; folding it needs the
-   frame the driver pushes to be the one the intrinsic reads.
-2. **`intrinsics::vector`** (4: `compiler_vector_sum*`) and **string `+`** (2:
-   `check_addition_strings`/`comptime_add_strings`) — **interpreter-only
-   language features** exercised by `comptime/vector.ch` and
-   `comptime_add_strings`. `intrinsics::vector<T>` is an AST-`StructValue`-based
-   compiler type with no MIR representation; string `+` is pointer arithmetic on
-   the compiled backends. Deleting the interpreter requires a decision: port
-   them, or migrate/remove those tests.
-   These are the last things that force the AST *statement* interpreter to
-   remain reachable at lowering time. Once they are resolved (and `comptime { }`
-   blocks are driven — 0 on this compile, some in libs), removing
-   `compiler/Interpreter/Core.cpp` + `InterpretScope` is mechanical.
+Remaining to retire `compiler/Interpreter/Core.cpp`:
+
+**The interpreter-only language features are removed** (commit `comptime: remove
+the interpreter-only vector/string+ tests`) — `intrinsics::vector<T>` (an
+AST-`StructValue` compiler type with no MIR representation) and string `+`
+(pointer arithmetic on the compiled backends) are dropped rather than ported:
+porting either would add comptime container/string state to MIR, which is
+exactly what the design forbids. `comptime/vector.ch` and
+`comptime_add_strings`/`check_addition_strings` are gone, and the
+`get_caller_line_no` assertion was migrated to `get_line_no`.
+
+**One lowering-time comptime function still runs the AST interpreter:**
+`std::decode_location` (134 calls, all from `panic`'s `@expand` inline). Its body
+is `return intrinsics::decode_location<Location>(loc) as Location`, and that
+intrinsic's `call` override needs its argument as a **comptime AST value** —
+which the driver, binding parameters as MIR places, does not expose. The fix is
+to publish the driver's folded parameter values into the interpreter scope (the
+same `comptime_bindings` mechanism the `@expand` inline already uses) so the
+intrinsic folds during lowering; it adds no MIR state. Until then the driver
+declines it and the interpreter runs it.
+
+**Then deletion** — `compiler/Interpreter/Core.cpp` (~1600 lines),
+`InterpretScope`/`GlobalInterpretScope`, `FunctionDeclaration::call`'s body
+execution, and the interpreter-friendly std types; `Value::evaluated_value`
+survives as the §5.4 symres-time expression folder.
 6. **Delete** — `compiler/Interpreter/Core.cpp`, `InterpretScope`/
    `GlobalInterpretScope`, `FunctionDeclaration::call`'s body execution, and the
    interpreter-friendly std types; `Value::evaluated_value` survives as the §5.4

@@ -583,6 +583,31 @@ Only **~250** CE calls reach the **statement** interpreter: `comptime_fnv1_hash`
 So "delete `compiler/Interpreter/Core.cpp`" is bounded by **~50 distinct pure
 comptime functions + the aggregate result bridge**, not by the whole language.
 
+##### 5.3.1 Driver status (2026-10)
+
+`compiler/mir/MIRComptime.{h,cpp}` implements approach B for the lowering-time
+comptime call. It lowers the callee **and every function it reaches,
+transitively**, into one shared MIR module, prepares `MIRInterpreter` once per
+growth, and calls the callee by mangled name; the raw 64-bit result is bridged
+back to an AST value (`IntNumValue`/`BoolValue`/`NullValue`; aggregates pending).
+
+It **declines** anything whose interpreter semantics the engine does not
+reproduce — intrinsics with no body (`is_comptime`, `is_runtime`,
+`get_call_loc`, `intrinsics::vector`, `expr_str_block_value`, …), non-scalar
+expression operands (the interpreter's string `+`/`==`), generics, and methods
+— so those keep the AST path and every suite stays green. On the test-suite
+compile it handles **177** comptime calls (`comptime_fnv1_hash` 57,
+`compare_enum_result7` 12, the `comptime/basic.ch` fixtures, …).
+
+Green: `--tcc` 2307, `--interpret` 1896, `--llvm` 2305.
+
+Remaining to retire `compiler/Interpreter/Core.cpp`:
+1. **Aggregate results** (structs/variants/arrays) via `MIRTypeTable` layout.
+2. **Pointer/aggregate arguments** (currently scalar/string only).
+3. **Generics** — scope the driver's type mapping per instantiation.
+4. **The declined intrinsics** — either implement them in the engine
+   (call-site/location, `is_comptime`/`is_runtime`) or keep a shrinking residual.
+
 #### 5.4 The unavoidable residual (why "delete the AST interpreter" has a floor)
 
 `symres` resolves a top-level `comptime if` **before MIR exists** —

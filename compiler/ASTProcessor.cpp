@@ -16,6 +16,7 @@ static void ct_stat(const char* tag, const char* name) {
 #include "compiler/SymbolResolver.h"
 #include "compiler/typeverify/TypeVerifyAPI.h"
 #include "preprocess/2c/TranslationContext.h"
+#include "compiler/mir/MIRComptime.h"
 #include "utils/Benchmark.h"
 #include "utils/JoinedTasks.h"
 #include <sstream>
@@ -2539,13 +2540,27 @@ int ASTProcessor::implement_module(
                 else c_visitor.comptime_scope.values.erase(sv.first);
             }
         };
-    mir_lowerer.set_comptime_eval([&c_visitor, &mir_visitor_mutex, &push_comptime_bindings,
+    // Phase-5.3: a real comptime function is lowered to its own MIR module and
+    // run on the MIR engine; anything the driver cannot handle yet still falls
+    // back to the AST interpreter.
+    mir::MIRComptime ct_driver;
+    mir_lowerer.set_comptime_eval([&c_visitor, &mir_visitor_mutex, &mir_lowerer, &ct_driver,
+                                   &push_comptime_bindings,
                                    &pop_comptime_bindings](FunctionCall* call,
-                                                           FunctionDeclaration* decl) {
+                                                           FunctionDeclaration* decl) -> Value* {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         ct_stat_decl("CE", decl);
         auto saved = push_comptime_bindings();
-        Value* r = c_visitor.eval_comptime_call(call, decl);
+        std::string derr;
+        mir::MIRComptimeContext cctx;
+        cctx.host = &mir_lowerer;
+        cctx.allocator = &c_visitor.allocator;
+        cctx.type_builder = c_visitor.comptime_scope.global
+                                ? &c_visitor.comptime_scope.global->typeBuilder
+                                : nullptr;
+        cctx.scope = &c_visitor.comptime_scope;
+        Value* r = ct_driver.evaluate(cctx, decl, call, derr);
+        if (!r) r = c_visitor.eval_comptime_call(call, decl);
         pop_comptime_bindings(saved);
         return r;
     });
@@ -2863,13 +2878,27 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
                 else c_visitor.comptime_scope.values.erase(sv.first);
             }
         };
-    mir_lowerer.set_comptime_eval([&c_visitor, &mir_visitor_mutex, &push_comptime_bindings,
+    // Phase-5.3: a real comptime function is lowered to its own MIR module and
+    // run on the MIR engine; anything the driver cannot handle yet still falls
+    // back to the AST interpreter.
+    mir::MIRComptime ct_driver;
+    mir_lowerer.set_comptime_eval([&c_visitor, &mir_visitor_mutex, &mir_lowerer, &ct_driver,
+                                   &push_comptime_bindings,
                                    &pop_comptime_bindings](FunctionCall* call,
-                                                           FunctionDeclaration* decl) {
+                                                           FunctionDeclaration* decl) -> Value* {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         ct_stat_decl("CE", decl);
         auto saved = push_comptime_bindings();
-        Value* r = c_visitor.eval_comptime_call(call, decl);
+        std::string derr;
+        mir::MIRComptimeContext cctx;
+        cctx.host = &mir_lowerer;
+        cctx.allocator = &c_visitor.allocator;
+        cctx.type_builder = c_visitor.comptime_scope.global
+                                ? &c_visitor.comptime_scope.global->typeBuilder
+                                : nullptr;
+        cctx.scope = &c_visitor.comptime_scope;
+        Value* r = ct_driver.evaluate(cctx, decl, call, derr);
+        if (!r) r = c_visitor.eval_comptime_call(call, decl);
         pop_comptime_bindings(saved);
         return r;
     });

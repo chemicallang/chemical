@@ -522,7 +522,6 @@ set(COMMON_SOURCES
         ast/values/PointerValue.cpp
         ast/values/BlockValue.h
         ast/values/BlockValue.cpp
-        ast/values/RuntimeBlockValue.h
         preprocess/visitors/NonRecursiveVisitor.h
         ast/base/ast_fwd.h
         ast/base/IntNTypeKind.h
@@ -674,7 +673,6 @@ set(COMMON_SOURCES
         ast/values/ReferenceOfValue.cpp
         compiler/lab/LabJobAttributes.h
         compiler/symres/GenericInstantiatorPassAPI.h
-        ast/structures/CapturedComptimeVariable.h
         # ── MIR (mid-level IR) ────────────────────────────────────────────
         compiler/mir/MIRArena.cpp
         compiler/mir/MIRInstruction.cpp
@@ -699,6 +697,7 @@ set(COMMON_SOURCES
         compiler/mir/MIRPrototype.cpp
         compiler/mir/MIRGlobalDecl.cpp
         compiler/mir/MIRInterpreter.cpp
+        compiler/mir/MIRComptime.cpp
 )
 
 # Chemical LSP Executable Target

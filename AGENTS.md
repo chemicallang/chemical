@@ -191,9 +191,9 @@ Manual:
 ```
 
 The `--arg-interpret` flag causes `build.lab` to create a `LabJobType::Interpretation` job instead of a compiled executable. The compiler calls `do_interpretation_job()` in `compiler/lab/LabBuildCompiler.cpp`, which:
-- Parses, symres, and typechecks `interpret/` + `common/` modules
-- Initializes module-level `VarInitStmt` nodes on the global scope
-- Finds the `main()` function and calls it directly via the AST interpreter
+- Parses, symres, and typechecks every module of the job
+- Lowers each module's functions and globals into one shared MIR program
+- Finds `main()` and runs it on `mir::MIRInterpreter` (the same MIR the code generators consume)
 - Never generates object code or links an executable
 
 ### Compiled (Runtime) Tests
@@ -260,22 +260,32 @@ Uses `comptime if(intrinsics::is_interpretation())` to select the `println` path
 
 ### Interpretation Mode Details
 
-**Entry:** `do_interpretation_job()` in `compiler/lab/LabBuildCompiler.cpp:4701`.
+**Entry:** `do_interpretation_job()` in `compiler/lab/LabBuildCompiler.cpp`.
 
-**Module-level variable initialization:** Before calling `main()`, the interpreter iterates all module dependencies and interprets `VarInitStmt` nodes (top-level `var`/`const` declarations) on the global scope. This ensures counters like `total_tests`, `tests_passed`, `tests_failed` are initialized before any test runs.
+**There is no AST statement interpreter.** Interpretation lowers the job's
+modules to one shared MIR program and runs it on `mir::MIRInterpreter`:
 
-**Lambda support:** `LambdaFunction::call()` (in `ast/values/LambdaFunction.cpp`) creates an `InterpretScope`, handles `self_param`, parameters, and captures, then interprets the lambda `Scope` body. Lambda calls are dispatched from `interpret_value` in `FunctionCall.cpp`.
+1. Every module is parsed, symres'd and typechecked.
+2. `ASTProcessor::interpret_module` lowers the module's function bodies and
+   globals into the shared MIR program (collect mode).
+3. `main()` is found, its mangled name resolved exactly as the lowerer interned
+   it, and `MIRInterpreter::run` executes it. No object code is generated and no
+   executable is linked.
 
-**Expressive string printing:** `intrinsics::expr_println` (class `InterpretExprPrintLn` in `ast/utils/GlobalFunctions.cpp`) is an intrinsic that:
-1. Evaluates its single `%expressive_string` argument
-2. Iterates `ExpressiveString::values` (alternating `StringValue` literals and expression nodes)
-3. String literals → written directly to `std::cout`
-4. Expression nodes → `evaluated_value(scope)` then printed via `RepresentationVisitor::visit()` with `interpret_representation = true` (no quotes/escapes)
-5. `expr_println` appends `\n`; `expr_print` does not
+`interpretation_mode` is **off** for the job, so
+`comptime if(intrinsics::is_interpretation())` takes the compiled branch: an
+interpreted run must produce byte-identical output to the compiled binary. A
+compiled-vs-interpreted difference is a `MIRInterpreter` bug, not a language
+limitation.
 
-**`intrinsics::is_interpretation()`:** Checks `call_scope->global->build_compiler->current_job->type == LabJobType::Interpretation`. Used inside `comptime if` to eliminate the runtime branch during codegen.
-
-**`intrinsics::expr_print` vs `intrinsics::println`:** The old `print`/`println` are variadic (`any...`), printing each argument space-separated. The new `expr_print`/`expr_println` take a single `%expressive_string` argument, enabling backtick template strings with `${}` interpolation.
+Lowering-time `comptime func` calls run on the same engine through
+`mir::MIRComptime`, which declines anything the engine does not reproduce
+exactly. What still folds on the AST is expression-only: symres-time `comptime
+if` conditions, array lengths and `const` initializers, evaluated by
+`Value::evaluated_value` plus the compiler-intrinsic `FunctionDeclaration::call`
+overrides (`ast/utils/GlobalFunctions.cpp`). Do not add statement execution
+there — new capability goes into MIR. Full design:
+`lang/docs/mir-interpretation-plan.md`; load the `interpreter` skill.
 
 ## Skills
 
@@ -338,7 +348,7 @@ The following skills are available in `.agents/skills/`. An AI agent should load
 |-------|----------|-------------|
 | Compiler API | `.agents/skills/compiler_api/SKILL.md` | Compiler API bindings in `lang/libs/compiler/`: ASTBuilder, Lexer, Parser, SymbolResolver, SourceProvider, BatchAllocator |
 | Intrinsics & Reflection | `.agents/skills/intrinsics_compiler_reflection/SKILL.md` | Compiler intrinsics: all `intrinsics::*` functions, interpreter-friendly std types (`InterpretVector`), reflection APIs for module/type/function metadata, how to add new intrinsics |
-| Interpreter Internals | `.agents/skills/interpreter/SKILL.md` | AST interpreter: `InterpretScope`, move semantics (`move_clear_source`), temp struct destruction, pointer bounds, function calls, debugging interpretation tests, interpreter-friendly std data structures |
+| Interpreter Internals | `.agents/skills/interpreter/SKILL.md` | Interpretation and comptime after the MIR migration: `MIRInterpreter`, `MIRComptime`, the residual AST expression folder (`evaluated_value`, `InterpretScope`, `PointerValue`), and debugging `--interpret`/comptime failures |
 | JSON Serialization | `.agents/skills/json_serialization/SKILL.md` | JSON via the `json` runtime library (`JsonValue`, `JsonEncoder`/`JsonDecoder`, `TypeDecoder<T>` dispatch) and the `json_cbi` `#json(Struct)` macro that generates `std::Serializer`/`std::Deserializer` impls — full pipeline, CBI bindings it relies on, and codegen/symres gotchas |
 
 ### How to load a skill
@@ -702,29 +712,20 @@ All intrinsics are called via `intrinsics::name()`. Load the `intrinsics_compile
 | `intrinsics::get_child_fn<T>(name)` | `*T` | Pointer to child function by name |
 | `intrinsics::get_marked_decls<T>(name)` | `[]T` | Array of declarations with given annotation |
 
-## Interpreter Limitations (Current)
+## Interpretation (MIR) Notes
 
-The AST interpreter supports most language features but has known gaps:
+The MIR interpreter executes exactly the MIR the code generators consume, so
+there is no separate "interpreter-friendly" feature set any more: if a program
+symres/typechecks, the engine runs it. Known engine limits are coroutine
+(`Async*`) opcodes and `DynamicCall`/vtables, which report
+`[lab] error: MIR interpreter: ...` instead of executing; extend
+`MIRInterpreter` (and `MIRTests`) when you need them.
 
-### Not Yet Interpreter-Friendly
-
-| Standard Library Type | Status | Workaround |
-|----------------------|--------|------------|
-| `std::string` methods | Partial — string literals work, `append`/`append_view`/`copy` NOT implemented | Use `intrinsics::expr_println` with backtick templates |
-| `std::unordered_map<K,V>` | NOT implemented | Use compiled mode for map-heavy code |
-| `std::string_view` | NOT implemented | Use `*char` literals |
-| `std::span<T>` | NOT implemented | Use raw pointer + length |
-| `vector<T>.get()` | Returns copy, not reference | `v.get(i) = val` won't modify vector in interpreter |
-| `vector<T>.get_ptr()` | NOT implemented | Use compiled mode |
-| `vector<T>` iteration | NOT implemented | Use indexed `for` loop |
-| `@test` annotation dispatch | NOT implemented | Use manual `test()` calls in interpret mode |
-
-### Interpreter-Specific Gotchas
-
-- **Pointer bounds enforced**: Interpreter tracks `behind`/`ahead` bytes; compiled mode doesn't. Tests may fail in interpret but pass compiled.
-- **`&raw struct_val`**: Not supported. Use `&mut struct_val` instead.
-- **Struct pointers**: `&raw struct_val` returns error from `AddrOfValue::evaluated_value()`.
-- **Float→Int casts**: Supported. Other cast combinations may fail with "unknown operation between values".
+The AST layer only folds expressions at symres time (`comptime if` conditions,
+array lengths, `const` initializers) and evaluates compiler intrinsics. Pointer
+bounds are still simulated there (`PointerValue` tracks `behind`/`ahead`), so a
+comptime pointer that walks outside its allocation fails to fold rather than
+producing a value.
 
 ## TLS / HTTP Integration Patterns
 
@@ -1076,126 +1077,24 @@ This allocates a temp, passes it as a hidden sret pointer, and dereferences the 
 
 In a method chain like `a.b().c()`, the receiver of `c()` is the result of `b()`. When `c()` has no `&self` parameter (no receiver needed), the C codegen in `preprocess/2c/2cASTVisitor.cpp` must **not** create a receiver pointer variable. Before the fix, it created an unused `struct Type* __chx__recv__N` variable, producing "unused variable" warnings.
 
-## Interpreter Internals (For Comptime Test Development)
+## Comptime & Interpretation Internals
 
-The AST interpreter (`compiler/Interpreter/`) evaluates Chemical code directly without generating C or LLVM IR. It's used for:
-- **Comptime evaluation**: `comptime` functions and `comptime { }` blocks run in the interpreter
-- **Interpretation tests**: `--arg-interpret` runs the test suite through the interpreter
+| Component | File | Purpose |
+|-----------|------|---------|
+| `MIRInterpreter` | `compiler/mir/MIRInterpreter.{h,cpp}` | Single-threaded, AST-free engine over a populated `MIRModule`; `prepare()` builds dense side tables (types, field offsets, symbols, constants, globals); API is `run` / `call` / `call_sret` |
+| `MIRComptime` | `compiler/mir/MIRComptime.{h,cpp}` | Lowering-time comptime driver: lowers a `comptime func` (and everything it reaches) to MIR, runs it, bridges the result back to an AST `Value*`; declines what the engine does not reproduce |
+| `MIRInterpProgram` | `compiler/mir/MIRInterpProgram.h` | The shared MIR program/module an interpretation job lowers into |
+| `Value::evaluated_value` | `ast/base/Value.cpp`, `ast/values/*.cpp` | Residual **expression** folding used at symres time only |
+| `InterpretScope` | `ast/base/InterpretScope.h` | Value map for parameter binding plus arithmetic folding (`evaluate`); no statements |
+| `PointerValue` | `ast/values/PointerValue.{h,cpp}` | Comptime pointer with `behind`/`ahead` bounds |
+| `GlobalInterpretScope` | `ast/base/GlobalInterpretScope.h` | Per-job global state: `typeBuilder`, `target_data`, `backend_context`, diagnoser |
+| Compiler intrinsics | `ast/utils/GlobalFunctions.cpp` | `FunctionDeclaration::call` overrides that produce `intrinsics::*` values |
 
-### Core Classes
-
-| Class | File | Purpose |
-|-------|------|---------|
-| `InterpretScope` | `ast/base/InterpretScope.h` | Per-function/per-block scope with value map, parent chain, and pointer to `GlobalInterpretScope` |
-| `GlobalInterpretScope` | `ast/base/GlobalInterpretScope.h` | Global state — holds allocator, type builder, call stack, backend context |
-| `PointerValue` | `ast/values/PointerValue.h` | Simulates C pointers with `data` (void*), `behind` (bytes before), `ahead` (bytes after) for bounds checking |
-| `Value` | `ast/base/Value.h` | Base class for all interpreted values (IntN, Bool, Float, String, Struct, etc.) |
-
-### Pointer Model (`PointerValue`)
-
-The interpreter simulates pointer semantics with bounds tracking:
-
-```cpp
-class PointerValue {
-    void* data;        // Pointer to the actual data
-    size_t behind;     // Bytes available BEFORE data (for backward navigation)
-    size_t ahead;      // Bytes available AFTER data (for forward navigation)
-};
-```
-
-- **Increment**: `data += sizeof(T)`, `behind += sizeof(T)`, `ahead -= sizeof(T)` — fails if `amount > ahead`
-- **Decrement**: `data -= sizeof(T)`, `behind -= sizeof(T)`, `ahead += sizeof(T)` — fails if `amount > behind`
-- **Dereference**: checks `typeSize <= ahead` — fails if the type is larger than available bytes
-
-**Critical rule for test authors**: Pointer bounds are ENFORCED in interpretation mode but NOT in compiled mode (native C doesn't track bounds). Tests that pass pointers past element boundaries will fail in interpretation mode but work when compiled.
-
-**Bounds safety**: When a deref fails due to bounds mismatch, the interpreter returns a null value instead of crashing. The invalid pointer access is silently tolerated to match runtime behavior.
-
-### Reference Handling (`&mut i` vs `&raw mut i`)
-
-The parser distinguishes between two types of address-taking:
-
-```chemical
-var j = &mut i;       // Creates ReferenceOfValue → evaluates to PointerValue (interpreter)
-var k = &raw mut i;   // Creates AddrOfValue → evaluates to PointerValue (interpreter)
-```
-
-- `ReferenceOfValue::evaluated_value()` (in `ast/values/ReferenceOfValue.cpp`) creates a `PointerValue` pointing to the inner value's data field with bounds set to the type size.
-- `AddrOfValue::evaluated_value()` (in `ast/values/AddrOfValue.cpp`) creates a `PointerValue` similarly but handles more types (IntN, String, Bool, Float, Double, PointerValue).
-
-Both work identically in the interpreter — `*j = *j + 1` works for both `&mut i` and `&raw mut i`.
-
-### How Values Are Destroyed
-
-When an `InterpretScope` ends, its destructor calls `destroy_values()`:
-
-```cpp
-InterpretScope::~InterpretScope() {
-    if(should_destruct_values) {
-        destroy_values();
-    }
-}
-```
-
-`destroy_values()` iterates all values in the scope and for struct values with destructors (`@delete`), it creates a child scope and interprets the destructor body. The `self` parameter is removed from the child scope before destruction to prevent recursive cleanup.
-
-**Important**: PointerValues are NOT explicitly destroyed during scope cleanup — they're allocated on the arena allocator which is batch-cleared. However, their `data` pointer becomes dangling if the pointed-to value was also arena-allocated and the arena is cleared.
-
-### How Function Calls Work
-
-`FunctionDeclaration::call()` (in `ast/structures/FunctionDecl.cpp`):
-1. Saves and replaces `global->current_func_type`
-2. Pushes the call onto `global->call_stack`
-3. Creates an `InterpretScope fn_scope(global, func_allocator, global)` — parent=global, global=global
-4. Declares `self`, arguments, and default-value parameters in `fn_scope`
-5. Interprets the function body via `fn_scope.interpret(&body.value())`
-6. Reads `fn_scope.returnValue` and restores `current_func_type`/call_stack
-7. Returns the return value
-
-### Adding a New Comptime Test
-
-1. **Pick the right location**:
-   - `lang/tests/src/comptime/` — comptime-specific features (basic.ch, features.ch, expressions.ch, etc.)
-   - `lang/tests/common/src/` — tests shared between compiled and interpret modes
-   - `lang/tests/native_common/src/` — tests using pointer arithmetic (interpret + compiled, NOT JVM)
-
-2. **Write the test function**:
-   ```chemical
-   comptime func my_new_feature(a : int, b : int) : int {
-       return a + b;
-   }
-   
-   func test_my_feature() {
-       test("my new feature works", () => {
-           return my_new_feature(3, 4) == 7;
-       });
-   }
-   ```
-
-3. **Register in the test runner**:
-   - For interpret tests: add `test_my_feature();` to `run_common_tests()` in `lang/tests/common/src/main.ch`
-   - For native_common tests: add to `run_native_common_tests()` in `lang/tests/native_common/src/main.ch`
-   - For compiled-only tests: add to `main()` in `lang/tests/src/tests.ch`
-
-4. **Run the tests**:
-   ```bash
-   ./scripts/test.sh --tcc --interpret --no-build   # Interpret mode
-   ./scripts/test.sh --tcc --no-build                # Compiled mode
-   ```
-
-### Common Pitfalls for Comptime Tests
-
-1. **Pointer arithmetic past end of array/string**: Works in compiled mode but fails in interpreter with `cannot dereference pointer while type size is larger than bytes available`. Use `ahead`-safe operations.
-
-2. **Taking address of struct fields (`&raw p.field`)**: Not supported in interpreter ("address of struct not supported in comptime"). Use intermediate variables or pass by reference.
-
-3. **`void*` pointers**: Cannot be dereferenced directly in interpreter (unknown type). Cast to a concrete pointer type first.
-
-4. **Function pointers as parameters**: When passing a function as a parameter (e.g., `test(name, myFunc)` where `assert()` calls the passed function), the function reference must be resolvable through the Identifier's `linked` field. If the function can't be linked, the error "calling a function that is not found or has no body" appears (non-fatal).
-
-5. **Destructor bodies must be interpretable**: If a struct has an `@delete` destructor, the body must be valid Chemical code that the interpreter can evaluate. Empty destructors `{}` work fine.
-
-6. **Float/Double to IntN casts**: The interpreter supports `float→int` and `double→int` casting. Other cast combinations may fail with "unknown operation between values".
+`FunctionDeclaration::call` binds `self`/params into an `InterpretScope` and
+folds a body that is a single `return <expr>` (or a bare expression); any other
+body is reported, because real comptime functions are lowered and run by
+`MIRComptime`. `LambdaFunction::call` likewise only reports that lambda bodies
+are evaluated by the engine.
 
 ### Test Suite Entry Points
 
@@ -1206,153 +1105,19 @@ InterpretScope::~InterpretScope() {
 | Common (shared) | `run_common_tests()` | `common_tests` | `lang/tests/common/src/main.ch` |
 | Native-common | `run_native_common_tests()` | `native_common_tests` | `lang/tests/native_common/src/main.ch` |
 
-### What's Supported in the Interpreter
+### Debugging Interpretation / Comptime Failures
 
-**Numbers**: `i8`–`i64`, `u8`–`u64`, `int`, `uint`, `long`, `ulong`, `float`, `double`, `bool`, `char`
-
-**Operators**: `+`, `-`, `*`, `/`, `%`, `<<`, `>>`, `&`, `|`, `^`, `~`, `&&`, `||`, `!`, `==`, `!=`, `<`, `>`, `<=`, `>=`
-
-**Control flow**: `if/else`, `while`, `do-while`, `for`, `for-in`, `break`, `continue`, `return`, `switch`
-
-**Pointers**: `*`, `&raw`, `&mut`, `ptr++`, `ptr--`, `ptr + n`, `ptr - n`, `ptr - ptr`, comparison, double-deref `**ptr`
-
-**Structs**: Construction `{ field: val }`, member access, mutation, destructors
-
-**Generics**: Basic generic structs and functions
-
-**Casting**: `intN→intN`, `intN→long`, `long→intN`, `float→intN`, `double→intN`, `intN→pointer`
-
-**Not yet supported**: Full variant type matching at comptime (the else-expression path for break/continue/return/defValue IS supported — test 76 passes), struct pointers (`&raw struct_val` — use `&mut` references instead), variadic function calls, `@test` annotation dispatch
-
-### Interpreter Move Semantics (Critical Knowledge)
-
-The interpreter implements move semantics via `InterpretScope::move_clear_source()` — a **pointer-matching** approach that scans the scope chain for any variable pointing to the same `StructValue*` pointer and clears it (sets to `nullptr`). This prevents double-destruction when a destructible struct is moved.
-
-#### Why Pointer-Matching Instead of AST Type Checks
-
-The compiler may replace `VariableIdentifier` AST nodes with the resolved `StructValue` during resolution. Old code that checked `val_kind() == ValueKind::Identifier` would miss this case. The pointer-matching approach (`val == valuePtr`) works regardless of what the AST looks like.
-
-#### The `move_clear_source()` function (in `ast/base/InterpretScope.cpp`)
-
-```cpp
-void InterpretScope::move_clear_source(Value* initializer, const chem::string_view& new_name) {
-    if(!initializer || initializer->val_kind() != ValueKind::StructValue) return;
-    auto structVal = initializer->as_struct_value_unsafe();
-    auto ext = structVal->linked_extendable();
-    if(!ext || ext->kind() != ASTNodeKind::StructDecl) return;
-    auto sd = (StructDefinition*)ext;
-    if(!sd->has_destructor()) return;
-    InterpretScope* scanScope = this;
-    while(scanScope) {
-        for(auto& [name, val] : scanScope->values) {
-            if(name != new_name && val == initializer) {
-                val = nullptr;
-                return;
-            }
-        }
-        scanScope = scanScope->parent;
-    }
-}
-```
-
-Key points:
-- Only runs for destructible structs (`has_destructor()`)
-- Scans up the parent chain (local scope → function scope → global)
-- Skips `new_name` to avoid self-clearing (e.g., `var x = x` shouldn't nullify `x`)
-- Uses `new_name.empty()` to indicate "clear anything that matches" (used in function args, variant constructors, struct member inits)
-
-#### Places that call move_clear_source()
-
-| Location | File | `new_name` | Purpose |
-|----------|------|-----------|---------|
-| `VarInitStatement::interpret()` | `compiler/Interpreter/Core.cpp` | `stmt->name_view()` | `var y = x` → clears `x` (move) |
-| `AssignStatement::interpret()` | `compiler/Interpreter/Core.cpp` | LHS name | `a = d` → clears `d` (move) |
-| `StructValue::initialized_value()` | `ast/values/StructValue.cpp` | empty | Struct member init move |
-| `FunctionCall::interpret_value()` (variant ctor) | `ast/values/FunctionCall.cpp` | empty | Variant constructor move |
-| `FunctionDeclaration::call()` | `ast/structures/FunctionDecl.cpp` | empty | Function argument move |
-
-#### Temp Struct Destruction (Bare Expressions)
-
-Bare expressions that produce destructible structs (e.g., `create_destructible(...)`, `d.copy().copy()`) need their temps destructed. The interpreter handles this in three places:
-
-1. **`ValueWrapperNode::interpret()`** — Wraps bare expression statements. If the value is a `FunctionCall`, evaluates it and calls `destruct_temp_struct()`. If it's an `AccessChain`, evaluates each step, collects all `FunctionCall` results, then destructs them all.
-
-2. **`AccessChainNode::interpret()`** — Same pattern: evaluates chain step-by-step, collects temps, destructs all at end. Handles `d.copy().copy().copy()` where ALL intermediate results must be cleaned up.
-
-3. **`AccessChain::evaluated_value()`** — When the chain starts with a FunctionCall (`create_destructible(...).data`), destructs the intermediate struct temp after extracting the field value.
-
-#### `destruct_temp_struct()` Helper (in `compiler/Interpreter/Core.cpp`)
-
-```cpp
-static void destruct_temp_struct(InterpretScope& scope, Value* val) {
-    if(!val || val->val_kind() != ValueKind::StructValue) return;
-    auto structVal = val->as_struct_value_unsafe();
-    auto ext = structVal->linked_extendable();
-    if(!ext) return;
-    auto container = ext;
-    if(!container->has_destructor()) return;
-    auto destructor_fn = container->destructor_func();
-    if(!destructor_fn || !destructor_fn->body.has_value()) return;
-    InterpretScope temp_scope(scope.global, scope.allocator, scope.global);
-    temp_scope.declare("self", val);
-    temp_scope.interpret(&destructor_fn->body.value());
-    // Remove self so it's not destructed again when temp_scope is destroyed
-    auto self_it = temp_scope.values.find("self");
-    if(self_it != temp_scope.values.end()) {
-        temp_scope.values.erase(self_it);
-    }
-}
-```
-
-Critical: The destructor runs in a **temp scope** with `self` removed after interpretation — prevents double-destruction when `temp_scope` is destroyed.
-
-#### AssignStatement Old-Value Destruction
-
-Assignment uses a careful 3-step approach:
-1. **Save** the old LHS value pointer (before `set_value` overwrites it)
-2. **Perform** assignment via `set_value()` (evaluates RHS, may take pointer to LHS)
-3. **Destruct** the old LHS value (safe because RHS has already been resolved)
-4. **Clear** the RHS source (move semantics)
-
-This ordering is critical for self-referencing assignments like `x = f(x.get_ptr(), N)`, where the RHS function takes a pointer to the LHS data.
-
-#### Array Value Destruction
-
-`InterpretScope::destroy_values()` recursively destructs structs, including:
-- `StructValue` with destructor → calls destructor body + recursively destructs members
-- `ArrayValue` → destructs each element that is a struct value with a destructor
-- Elements populated by `evaluated_value()` or `set_value()` — modifications through `&arr[i]` affect actual elements via `PointerValue`
-
-### Remaining Interpretation Test Failures (as of fix session)
-
-After fixing 16 of 32 baseline failures, the following 16 tests remain. Categorized by root cause:
-
-| Tests | Root Cause | Difficulty |
-|-------|-----------|-----------|
-| 757-760 | **Array element destruction** — elements set via pointer in array aren't tracked by scope, so `destroy_values` doesn't find them | Medium |
-| 798-799, 822 | **Method chain dispatch** — `get_parent_from()` returns `nullptr` for `self` in chained method calls like `d.copy().copy()`. The interpreter cannot dispatch methods through chains where the receiver is a temporary | Hard |
-| 811-812 | **Self-referencing assignment** — deeper pointer/copy semantics where the destructor of the old LHS corrupts data that the new value depends on | Hard |
-| 722-723, 800 | **Generic dispatch move semantics** — generic function monomorphization may not trigger the same move-semantic paths | Medium |
-| 629, 831, 838 | **Edge cases** — miscellanous edge cases that need individual investigation | Varies |
-| 784 | **Variant destruct** — partially fixed, a variant path may not be fully covered | Medium |
-
-### Debugging Interpretation Test Failures
-
-1. Check test output for `[InterpretError]` messages — exact failure locations
-2. Look for `"cannot dereference pointer"` — pointer went past allocated bounds
-3. Look for `"function call"` — a function reference couldn't be resolved
-4. Look for `"Operation between values"` — incompatible type operation
-5. Add `std::cerr << "[DEBUG] ..." << std::endl;` to interpreter source files
-6. The worst failures (`"RUNTIME ERROR: invalid memory access"`) happen when `deref()` crashes — the interpreter now returns `getNullValue()` instead (non-fatal)
-7. For struct destruction issues, add debug output in `InterpretScope::destroy_values()`
-8. To trace value tracking, add `scope.print_values()` in key locations
-
-### Native_common Tests
-
-Tests in `lang/tests/native_common/src/` run AFTER common tests (as test 98+) from `run_native_common_tests()`. These tests use pointer arithmetic and have known issues in interpretation mode:
-- **Pointer bounds mismatch**: When a pointer is incremented past its allocated buffer, `ahead` becomes 0 and dereferencing fails with a bounds check. The interpreter returns null instead of crashing, but tests may get wrong results.
-- **Struct pointers (`&raw struct_val`)**: Not supported — returns an error from `AddrOfValue::evaluated_value()`.
-- **Error visibility**: Failures in native_common tests don't produce "Test N failed" output because the error happens inside the lambda before `test()` can print. Look for `[warning]` or `[InterpretError]` messages to diagnose.
+1. `./scripts/test.sh --tcc --interpret` — the interpretation suite (`-bt` adds a
+   GDB backtrace).
+2. `./cmake-build-debug/MIRTests` — engine smoke tests; extend them with any new
+   opcode.
+3. `[lab] error: MIR interpreter: <message>` — the engine declined or trapped;
+   the message names the function/opcode.
+4. `MIRDump` (`compiler/mir/MIRDump.{h,cpp}`) prints the lowered MIR — the
+   fastest way to see what the engine is asked to run.
+5. A comptime diagnostic at a call site means `MIRComptime` declined and the AST
+   folder could not fold (usually a body with statements or an unsupported
+   value kind).
 
 ## Debugging: Isolating a Single Test Case
 

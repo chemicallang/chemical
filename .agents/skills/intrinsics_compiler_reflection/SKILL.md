@@ -1,6 +1,6 @@
 ---
 name: Compiler Intrinsics and Reflection
-description: Comprehensive guide to Chemical's compiler intrinsic functions and reflection APIs — how GlobalFunctions.cpp provides interpreter-friendly implementations, compile-time reflection, and metadata access.
+description: Comprehensive guide to Chemical's compiler intrinsic functions and reflection APIs — how GlobalFunctions.cpp provides compile-time implementations, reflection, and metadata access.
 ---
 
 # Compiler Intrinsics and Reflection
@@ -45,7 +45,7 @@ public:
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `ast/utils/GlobalFunctions.cpp` | 3369 | All intrinsic function implementations + the interpreter-friendly `InterpretVector` + registration (`IntrinsicsNamespace`, `create_container`, `rebind_container`) |
+| `ast/utils/GlobalFunctions.cpp` | — | All intrinsic function implementations + registration (`IntrinsicsNamespace`, `create_container`, `rebind_container`) |
 | `ast/utils/GlobalFunctions.cpp` (`#include`s at :1-57) | — | The intrinsic classes are local to this translation unit — there is no `GlobalFunctions.h` |
 | `compiler/lab/BackendContext.h` | 100 | Pure-virtual backend interface (`name`, `emit`, `forget`, `mem_copy`, `supports`, atomics) that codegen intrinsics call |
 | `compiler/lab/backend/atomics.h` | — | `BackendAtomicMemoryOrder`, `BackendAtomicSyncScope`, `BackendAtomicOp` enums used by `intrinsics::llvm::atomic_*` |
@@ -55,7 +55,7 @@ public:
 
 The `intrinsics` namespace is **not** declared in a `.ch` file — it is built in C++ and injected into every symbol resolver:
 
-1. `struct IntrinsicsNamespace : public Namespace` (`GlobalFunctions.cpp:2822`) is named `"intrinsics"` and owns one member per intrinsic plus the `LLVMNamespace llvmNamespace` (:2779), `MemNamespace memNamespace` (:2807), and `InterpretVector::InterpretVectorNode vectorNode` (:2842).
+1. `struct IntrinsicsNamespace : public Namespace` is named `"intrinsics"` and owns one member per intrinsic plus the `LLVMNamespace llvmNamespace` and `MemNamespace memNamespace`.
 2. Its constructor (`:2891-2921`) builds each `FunctionDeclaration` child and puts them in `nodes = { &interpretSupports, &printFn, ... }`. **A class that is not listed in `nodes` is not reachable from Chemical.**
 3. `struct GlobalContainer` (`:2971`) owns the `IntrinsicsNamespace intrinsics_namespace`, the top-level `InterpretDefined defined`, and `DefThing defThing` (which materializes the `def` target-data object).
 4. `GlobalInterpretScope::create_container` (`:3342`) and `rebind_container` (`:3311`) run `TopLevelDeclSymDeclare::VisitNamespaceDecl` on the namespace. That visitor (`compiler/symres/DeclareTopLevel.cpp:263`) calls `linker.declare_tld_node("intrinsics", ns, ...)` and registers every child in the namespace's `extended` map with `MapSymbolDeclarer`. Lookups like `intrinsics::get_tests` then walk `Namespace::extended`.
@@ -232,59 +232,14 @@ These expose closure internals and are consumed by codegen instead of the interp
 | `intrinsics::sizeof_lambda_captured(thing)` | `InterpretSizeOfLambdaCaptured` (`:1901`) | `SizeOfLambdaCaptured` | Size (u64) of captured data |
 | `intrinsics::alignof_lambda_captured(thing)` | `InterpretAlignOfLambdaCaptured` (`:1936`) | `AlignOfLambdaCaptured` | Alignment (u64) of captured data |
 
-### 10. Interpreter-Friendly Standard Library (`InterpretVector`)
+### 10. No Interpreter-Only Standard Library
 
-The `InterpretVector` namespace (`GlobalFunctions.cpp:73-289`) provides a full interpreter-friendly implementation of `std::vector<T>`, reachable as **`intrinsics::vector<T>`** (not as `std::vector`):
-
-```cpp
-namespace InterpretVector {
-    class InterpretVectorNode : public StructDefinition {      // :135
-        GenericTypeParameter typeParam;                        // T
-        InterpretVectorConstructor constructorFn;              // :77
-        InterpretVectorSize sizeFn;                            // :86
-        InterpretVectorGet getFn;                              // :97
-        InterpretVectorPush pushFn;                            // :110
-        InterpretVectorRemove removeFn;                        // :123
-    };
-    class InterpretVectorVal : public StructValue {            // :153
-        std::vector<Value*> values;                            // actual elements
-    };
-}
-```
-
-**Supported operations:**
-
-| Method | Implementation |
-|--------|----------------|
-| `intrinsics::vector<T>()` | `InterpretVectorConstructor::call` creates an empty `InterpretVectorVal` (`:178-185`) |
-| `.size()` | `values.size()` as an `int` (`:199-201`) |
-| `.get(index)` | `values[index]->scope_value(...)` — a **copy**, not a reference (TODO at `:204`) |
-| `.push(value)` | `values.emplace_back(call->values[0]->scope_value(*call_scope))` (`:247-250`) |
-| `.remove(index)` | `values.erase(values.begin() + index)` (`:266-275`) |
-
-**How it works:**
-- `InterpretVectorNode` is a `StructDefinition` whose child functions are `InterpretVectorConstructor`, `InterpretVectorSize`, `InterpretVectorGet`, `InterpretVectorPush`, `InterpretVectorRemove` (`:166-287`).
-- `InterpretVectorVal` extends `StructValue` and holds a `std::vector<Value*>` for the actual data (`:153-164`).
-- When `intrinsics::vector<T>` is used in interpretation mode, the constructor creates an `InterpretVectorVal` instead of the runtime `std::vector<T>` C++ implementation (`:178-185`).
-
-Example (`lang/tests/common/src/comptime/vector.ch`):
-```chemical
-comptime func compiler_vector_sum(a : int) : int {
-    var vec = intrinsics::vector<int>();
-    vec.push(a); vec.push(10); vec.push(20); vec.push(40); vec.remove(3);
-    var sum = 0; var i = 0;
-    while(i < vec.size()) { sum += vec.get(i as uint) as int; i++; }
-    return sum
-}
-```
-
-**Current limitations (future work):**
-- `.get()` returns a **copy**, not a reference — `v.get(0) = 42` won't modify the vector
-- No `operator[]` overload in the interpreter
-- No `get_ptr()` and no capacity management
-- `std::unordered_map<K, V>` not yet interpreter-friendly
-- `std::string` operations (`append`, `append_view`, `append_string`) not implemented as intrinsics
-- `std::string_view` / `std::span<T>` not implemented as intrinsics
+`intrinsics::vector<T>` (and the `InterpretVector*` classes that implemented it)
+was **deleted** with the AST interpreter. Comptime now runs on the MIR
+interpreter, so comptime code uses the same `std::string` / `std::vector<T>` /
+`std::unordered_map` implementations as compiled code. The AST layer only folds
+literals (`IntNumValue`, `BoolValue`, `StringValue`, `ArrayValue`,
+`StructValue`, `PointerValue`) and compiler intrinsics.
 
 ### 11. Backend-Provided (LLVM Atomic) Intrinsics
 
@@ -330,7 +285,6 @@ Every intrinsic is implemented by a C++ `FunctionDeclaration::call()` that runs 
 | `expr_str_block_value` | ✅ | ✅ | ❌ | Generates a `BlockValue` of `stream.writeX` calls; needs impls index |
 | `get_lambda_*`, `sizeof_lambda_captured`, `alignof_lambda_captured` | ➖ | ✅ | ✅ | Produce `ExtractionValue`s consumed by closure codegen |
 | `llvm::atomic_*` | ❌ | ✅ | ✅ | Require `backend_context`; C backend supports only via inline asm on `atomic_op`/`signal_fence`, other ops error |
-| `vector<T>` | ✅ | ✅ | ❌ | Interpreter-only container (`InterpretVectorVal`) |
 
 Legend: ✅ works, ➖ limited/needs a backend, ❌ not usable there. "Comptime during codegen" means the intrinsic is callable from a `comptime` function/block that a backend evaluates (LLVM or 2c) — the common path for `std::atomic` and `std::string.append`.
 
@@ -436,13 +390,12 @@ new (allocator.allocate<NullValue>())
 return nullptr;
 ```
 
-## The Interpreter-Friendly Standard Library (overview)
+## No Interpreter-Only Standard Library
 
-The interpreter provides its own implementations of certain standard library types so they can be used during comptime/interpretation. These use the same machinery as intrinsics (C++ `StructDefinition` + `FunctionDeclaration` children + `StructValue` data).
-
-- **`InterpretVector`** (section 10) — the only fully implemented interpreter-friendly container, exposed as `intrinsics::vector<T>`.
-- `std::string` is represented by `StringValue` holding a `chem::string_view`; `append*` methods are not implemented.
-- `std::unordered_map`, `std::string_view`, `std::span<T>` are not implemented for the interpreter.
+There is no separate interpreter standard library any more (see section 10):
+comptime runs on `MIRInterpreter` over the same MIR the backends consume, so it
+uses the real `std::string` / `std::vector<T>` implementations. The AST layer
+only folds literals and intrinsics.
 
 ### How RepresentationVisitor powers printing
 
@@ -476,18 +429,13 @@ Based on the project's roadmap:
 - **Call chain introspection**: Access full call stack at compile time
 - **`get_marked_decls<T>()`**: enumerate *all* decls carrying a marker (today only `get_single_marked_decl_ptr` + `get_tests` exist)
 
-### 2. Interpreter-Friendly Standard Library
-- **`std::vector<T>`**: Already partially implemented (`InterpretVector`), needs:
-  - Return references from `.get()` instead of copies
-  - Support `operator[]` in the interpreter
-  - `get_ptr()`, `reserve()`, iteration
-- **`std::string`**: Need interpreter-friendly intrinsics for:
-  - `append()`, `append_view()`, `append_string()`
-  - `size()`, `get()`, `to_view()`
-  - Copy constructor and assignment
-- **`std::unordered_map<K, V>`**: Need a full `InterpretUnorderedMap` similar to `InterpretVector`
-- **`std::string_view`**: Need lightweight view intrinsic
-- **`std::span<T>`**: Need bounded view intrinsic
+### 2. Comptime Evaluation
+Comptime code now runs on the MIR interpreter and uses the real `std::string` /
+`std::vector<T>` / `std::unordered_map` first-class implementations, so the old
+`InterpretVector` container (deleted with the AST interpreter) does not need a
+replacement. What remains future work is only the symres-time **expression**
+folder: it folds literals (`IntNumValue`, `StringValue`, `ArrayValue`,
+`StructValue`, …), not container methods.
 
 ### 3. Automatic Serializer/Deserializer Generation
 - Use `get_child_fn<T>` and marker lookups to find struct fields at compile time
@@ -516,7 +464,7 @@ func to_json<T>(val : T) : json::JsonValue {
 
 ## Related Skills
 
-- **Interpreter Internals** (`.agents/skills/interpreter/SKILL.md`) — The AST interpreter, scope management, move semantics, `InterpretVector` internals
+- **Interpreter Internals** (`.agents/skills/interpreter/SKILL.md`) — The MIR interpreter, the comptime driver, and the residual AST expression folder
 - **Symbol Resolution** (`.agents/skills/symres/SKILL.md`) — How symbols are resolved; relevant for `intrinsics::*` namespace declaration and `get_child_fn`
 - **Compiler API** (`.agents/skills/compiler_api/SKILL.md`) — The C++ `ASTNode`/`Value`/`BaseType` hierarchy and `lang/libs/compiler/` binding wrappers used when implementing intrinsics
 - **Annotations** (`.agents/skills/annotations/SKILL.md`) — `AnnotationController`, `@test.*` markers, `get_tests`/`get_single_marked_decl_ptr` data source

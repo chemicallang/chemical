@@ -99,6 +99,75 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 51 (2026-10-17) — interpreter setup stops dominating (single-writer tables, incremental side tables, lazy field slots)
+
+Constructing a `mir::MIRInterpreter` and taking the shared table locks were the
+largest fixed costs left on a comptime-heavy path: a comptime driver lowers a
+whole callee graph but executes only a handful of it, so most of the work done
+at construction was thrown away. Four changes, all in the shared core:
+
+- **Lock elision for a single writer** (`compiler/mir/MIRTableLock.h`, new). The
+  module tables took a `std::shared_mutex` on every access — required for
+  parallel lowering (action E1), pure overhead while one thread is lowering.
+  Each table now owns a `MIRTableLockPolicy`, and its accesses go through
+  `MIRReadLock`/`MIRWriteLock`, which take no lock at all once the owner calls
+  `set_single_threaded(true)`. `ASTProcessor` marks every `MIRModule` it builds
+  that way (`!kEnableParallelLowering`, the flag session 47 gated off, now at
+  namespace scope), so the shipping pipeline reads its tables unlocked while
+  readers may still run concurrently — the flag only rules out a concurrent
+  *writer*. Turning the parallel driver back on flips the same flag and the
+  old locking behaviour comes back.
+- **Incremental side tables + `MIRInterpreter::update()`**. Every MIR table is
+  append-only with stable ids, so each `build_*` now consumes only the records
+  added since its last pass (one `built_*` cursor per table; a table that
+  shrinks resets its cursor). `update()` runs them and is called from the
+  constructor, `call`, `call_sret` and `run` — not from `has_function`, which
+  stays `const`.
+- **Field slots are built on first call** (`ensure_field_slots`). The old
+  constructor resolved every field/index operand of *every* lowered function
+  into a 16-byte slot; that was the single biggest construction cost. Slots are
+  now built per function the first time it runs, with `operand_count` detecting
+  an in-place body replacement.
+- **One comptime engine** (`MIRComptime::Impl::engine()`). A comptime call used
+  to rebuild an interpreter; it now creates one and `update()`s it when the
+  module has grown.
+
+**The `const_str` bug this introduced, and the fix.** String constants moved
+from a `malloc` per constant into one `std::deque<char>` blob. That is wrong in
+a way that looks harmless: a deque is contiguous only *within* an internal
+chunk (512 bytes for `char`), while `const_str` is handed to interpreted code
+as a raw `*char` that is read linearly — so a string straddling a chunk
+boundary walks into the unrelated heap after the first chunk. On
+`FILE_ORDER_SEED=42 ./scripts/test.sh --tcc --interpret` **177** constants read
+foreign memory and `Test 1793 [string literal exact-fit char array]` failed
+(HEAD passes that seed, and the compiled `--tcc` suite passed it too, so the
+fault was interpreter-only). Canary bytes after every constant proved nothing
+was *written* out of bounds — only reads diverged. Storage is now a 4 KiB block
+arena (`intern_string_constant`): an entry that does not fit in the current
+block starts a new one, so no constant ever straddles, the pointers stay valid
+as the append-only module grows, and it still costs one allocation per 4 KiB
+instead of one `malloc` per constant.
+
+Measured (cold `lang/tests/build.lab`, `--no-cache`, same command on both
+binaries, `MIR_OPS_COUNTERS=OFF`, runs uninterleaved):
+
+| Workload | HEAD | Session 51 | Δ |
+|---|---:|---:|---:|
+| Main-suite compile, `debug_quick` (5 runs) | 1.772 s | 1.678 s | **−5.3%** |
+| Interpretation job, `debug_complete` (3 runs) | 1.070 s | 0.967 s | **−9.7%** |
+| Main-suite compile, `debug_complete` (3 runs) | 1.867 s | 1.867 s | noise |
+| Peak RSS | ~49 MB | ~49 MB | flat |
+
+Green: `MIRTests` 4417 · `--tcc` 2304/2304 · `--llvm` 2302/2302 ·
+`--tcc --interpret` 1893/1893 at the default seed **and** at
+`FILE_ORDER_SEED=42` and `=7` · `--async` 53/53. `--negative` fails at HEAD too
+(a `memset` redefinition in the translated C), so it is not this session's.
+
+Housekeeping: the local CMake cache had `MIR_OPS_COUNTERS=ON` left over from
+profiling; it is back to the documented default (`OFF`). With it on,
+`MIRTests` does not link at all — the counter object it references lives in
+`MIRLowerer.cpp`, which is not part of that target.
+
 ### Session 50 (2026-10-16) — the interpretation job runs on MIR
 
 `--arg-interpret` no longer uses the AST interpreter. `do_interpretation_job`

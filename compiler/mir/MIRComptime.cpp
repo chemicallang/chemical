@@ -74,7 +74,27 @@ struct MIRComptime::Impl {
      * driver instance so it does not clobber the in-progress lowering state. */
     bool lowering = false;
 
-    Impl() : module(), types(module), task(std::make_unique<MIRTaskContext>(module, types)) {}
+    Impl() : module(), types(module), task(std::make_unique<MIRTaskContext>(module, types)) {
+        // The driver lowers and runs on the calling thread only.
+        module.set_single_threaded(true);
+    }
+
+    /**
+     * The engine, brought up to date with the module (created on first use).
+     * Every MIR table is append-only with stable ids, so a grown module costs an
+     * incremental `MIRInterpreter::update()` — only the records added since the
+     * last build are consumed — instead of the full side-table rebuild a fresh
+     * interpreter used to pay (that rebuild dominated comptime-heavy lowering).
+     */
+    MIRInterpreter& engine() {
+        if (!interp) {
+            interp = std::make_unique<MIRInterpreter>(module);
+        } else if (dirty) {
+            interp->update();
+        }
+        dirty = false;
+        return *interp;
+    }
 };
 
 MIRComptime::MIRComptime() : impl_(new Impl()) {}
@@ -748,11 +768,8 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
         for (FunctionDeclaration* d : reachable) impl_->lowered.erase(d);
     }
 
-    // 3. (re)prepare the engine when the module grew
-    if (impl_->dirty || !impl_->interp) {
-        impl_->interp = std::make_unique<MIRInterpreter>(impl_->module);
-        impl_->dirty = false;
-    }
+    // 3. (re)prepare the engine when the module grew (incremental update)
+    impl_->engine();
 
     // 4. run the callee
     const std::string name =
@@ -961,10 +978,8 @@ bool MIRComptime::evaluate_block(const MIRComptimeContext& ctx, ComptimeBlock* b
         error = "comptime block was not lowered";
         return false;
     }
-    if (impl_->dirty || !impl_->interp) {
-        impl_->interp = std::make_unique<MIRInterpreter>(impl_->module);
-        impl_->dirty = false;
-    }
+    // bring the engine up to date with the module (incremental update)
+    impl_->engine();
     const std::string name =
         impl_->module.symbols.mangled_name(impl_->module.symbols.get(target));
     uint64_t ignored = 0;

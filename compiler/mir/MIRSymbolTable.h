@@ -8,6 +8,7 @@
 
 #include "MIRTypes.h"
 #include "MIRBytePool.h"
+#include "MIRTableLock.h"
 
 #include <cstdint>
 #include <mutex>
@@ -45,6 +46,9 @@ struct MIRSymbolRecord {
 };
 
 struct MIRSymbolTable {
+    /** Declare a single mutating thread (see MIRTableLock.h). */
+    void set_single_threaded(bool v) noexcept { lock_policy_.set_single_threaded(v); }
+    bool single_threaded() const noexcept { return lock_policy_.single_threaded(); }
     /** `names` is reference-stable on append (action E3, see MIRBytePool.h);
      * `symbols` stays a vector since only opaque ids escape it. */
     std::vector<MIRSymbolRecord> symbols;
@@ -52,16 +56,16 @@ struct MIRSymbolTable {
 
     /** Thread-safe copy of the record (action E3d: no reference escapes). */
     MIRSymbolRecord get(SymbolId id) const {
-        std::shared_lock<std::shared_mutex> lock(mtx_);
+        MIRReadLock lock(mtx_, single_threaded());
         return symbols[id];
     }
     uint32_t size() const {
-        std::shared_lock<std::shared_mutex> lock(mtx_);
+        MIRReadLock lock(mtx_, single_threaded());
         return static_cast<uint32_t>(symbols.size());
     }
     /** Set a symbol's type under the lock (the function-signature back-patch). */
     void set_type(SymbolId id, TypeId type) {
-        std::lock_guard<std::shared_mutex> lock(mtx_);
+        MIRWriteLock lock(mtx_, single_threaded());
         if (id >= symbols.size()) return;
         symbols[id].type = type;
     }
@@ -81,7 +85,7 @@ struct MIRSymbolTable {
     SymbolId add(MIRSymbolRecord r,
                  const char* name, uint32_t name_len,
                  const char* mangled, uint32_t mangled_len) {
-        std::lock_guard<std::shared_mutex> lock(mtx_);
+        MIRWriteLock lock(mtx_, single_threaded());
         r.name_offset = names.append(name, name_len);
         r.name_length = name_len;
         r.mangled_offset = names.append(mangled, mangled_len);
@@ -92,7 +96,7 @@ struct MIRSymbolTable {
 
     /** Drop every record and name (used when a `MIRModule` is reused). */
     void clear() {
-        std::lock_guard<std::shared_mutex> lock(mtx_);
+        MIRWriteLock lock(mtx_, single_threaded());
         symbols.clear();
         names.clear();
     }
@@ -116,6 +120,7 @@ struct MIRSymbolTable {
     }
 
 private:
+    MIRTableLockPolicy lock_policy_;
     /** Guards `add`/`clear` (action E1: shared interning under parallel lowering). */
     mutable std::shared_mutex mtx_;
 };

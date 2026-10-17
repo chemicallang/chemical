@@ -8,6 +8,7 @@
 
 #include "MIRTypes.h"
 #include "MIRBytePool.h"
+#include "MIRTableLock.h"
 
 #include <cstdint>
 #include <cstring>
@@ -37,6 +38,9 @@ struct MIRConstant {
 };
 
 struct MIRConstantPool {
+    /** Declare a single mutating thread (see MIRTableLock.h). */
+    void set_single_threaded(bool v) noexcept { lock_policy_.set_single_threaded(v); }
+    bool single_threaded() const noexcept { return lock_policy_.single_threaded(); }
     /** `data` (the payload bytes) is reference-stable on append (action E3,
      * see MIRBytePool.h); `constants` stays a vector since ids, not references,
      * escape it. */
@@ -47,11 +51,11 @@ struct MIRConstantPool {
 
     /** Thread-safe copy of the record (action E3d: no reference escapes). */
     MIRConstant get(ConstantId id) const {
-        std::shared_lock<std::shared_mutex> lock(mtx_);
+        MIRReadLock lock(mtx_, single_threaded());
         return constants[id];
     }
     uint32_t size() const {
-        std::shared_lock<std::shared_mutex> lock(mtx_);
+        MIRReadLock lock(mtx_, single_threaded());
         return static_cast<uint32_t>(constants.size());
     }
 
@@ -68,13 +72,13 @@ struct MIRConstantPool {
      * never interleave their `data` writes.
      */
     ConstantId add(const MIRConstant& c) {
-        std::lock_guard<std::shared_mutex> lock(mtx_);
+        MIRWriteLock lock(mtx_, single_threaded());
         return add_unlocked(c);
     }
 
     /** Drop every constant and payload byte (used when a `MIRModule` is reused). */
     void clear() {
-        std::lock_guard<std::shared_mutex> lock(mtx_);
+        MIRWriteLock lock(mtx_, single_threaded());
         constants.clear();
         data.clear();
         index_.clear();
@@ -156,7 +160,7 @@ struct MIRConstantPool {
         MIRConstant c;
         c.kind = MIRConstantKind::String;
         c.type = t;
-        std::lock_guard<std::shared_mutex> lock(mtx_);
+        MIRWriteLock lock(mtx_, single_threaded());
         c.data_offset = data.append(s, len);
         c.data_count = len;
         return add_unlocked(c);
@@ -183,6 +187,7 @@ private:
         return id;
     }
 
+    MIRTableLockPolicy lock_policy_;
     /** Guards the mutators (action E1: shared interning under parallel lowering). */
     mutable std::shared_mutex mtx_;
 };

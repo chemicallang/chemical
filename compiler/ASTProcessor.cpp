@@ -485,6 +485,18 @@ static SymResLinkBodyResult link_body_task(SymbolResolver* resolver, ASTFileResu
 namespace {
 
 /**
+ * Whether several workers may lower MIR functions at once.
+ *
+ * Off until the shared name-mangling buffer race is fixed (see
+ * compiler/mir/README.md, session 47): with more than one worker the mangled
+ * name written into the type/symbol pools is corrupted. With a single worker the
+ * output is correct, so the machinery in `mir_translate_after_declaration` is
+ * kept but gated; the MIR module is then marked single-writer so its tables skip
+ * their locks (see MIRTableLock.h).
+ */
+constexpr bool kEnableParallelLowering = false;
+
+/**
  * waits for all the given futures, returning true if any of them reported errors
  * the vector is emptied, so a next phase can reuse it
  */
@@ -1771,6 +1783,7 @@ int ASTProcessor::declare_module(
     // aggregate names are derived deterministically from the mangler, so the
     // implement pass (which owns its own MIR state) spells them identically.
     mir::MIRModule decl_module;
+    decl_module.set_single_threaded(!kEnableParallelLowering);
     mir::MIRTypeBuilder decl_types(decl_module);
     decl_types.set_name_resolver([&c_visitor](ASTNode* n) {
         return mir_mangle_name(c_visitor.mangler, n);
@@ -2101,12 +2114,6 @@ bool mir_translate_after_declaration(
     // `module.functions` in source order, so it stays serial; impl methods and
     // embedded-node-produced functions stay serial too (see the collector).
     std::unordered_map<FunctionDeclaration*, std::string> pre_lowered;
-    // The parallel driver is off until the shared name-mangling buffer race is
-    // fixed (see compiler/mir/README.md, session 47): with more than one worker
-    // the mangled name written into the type/symbol pools is corrupted. With a
-    // single worker the output is correct, so the machinery below is kept but
-    // gated; the table/pool locks it relies on are always on.
-    constexpr bool kEnableParallelLowering = false;
     if (kEnableParallelLowering && !llvm_collect) {
         std::vector<FunctionDeclaration*> parallel_fns;
         mir_collect_parallel_functions(nodes, parallel_fns);
@@ -2450,6 +2457,7 @@ int ASTProcessor::implement_module(
     // module, types, task and lock are shared across every source module and the
     // arena is never reset, so all lowered functions stay alive to be executed.
     mir::MIRModule mir_module_local;
+    mir_module_local.set_single_threaded(!kEnableParallelLowering);
     mir::MIRTypeBuilder mir_types_local(mir_module_local);
     mir::MIRTaskContext mir_task_local(mir_module_local, mir_types_local);
     std::recursive_mutex mir_mutex_local;
@@ -2814,6 +2822,7 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
     if (c_visitor.unimplemented_static_interfaces.empty()) return 0;
 
     mir::MIRModule mir_module;
+    mir_module.set_single_threaded(!kEnableParallelLowering);
     mir_module.layout.is64Bit = c_visitor.comptime_scope.target_data.is64Bit;
     mir_module.layout.windows = c_visitor.comptime_scope.target_data.windows;
     mir::MIRTypeBuilder mir_types(mir_module);

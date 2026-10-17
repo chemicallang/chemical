@@ -189,7 +189,8 @@ public:
      * would then return the wrong `TypeId`. Call this after each file.
      */
     void clear_memo() {
-        std::lock_guard<std::recursive_mutex> lk(builder_mtx_);
+        std::unique_lock<std::recursive_mutex> lk(builder_mtx_, std::defer_lock);
+        if (!module_.single_threaded()) lk.lock();
         memo_.clear();
     }
 

@@ -73,6 +73,20 @@ struct MIRModule {
      * AST-free). Populated by the lowerer's source-location provider.
      */
     std::vector<std::string> source_files;
+    /**
+     * Declare that one thread performs every mutation of this module's tables
+     * (the shipping pipeline). Every reader then skips its table lock; readers
+     * may still run concurrently, because the flag only rules out a concurrent
+     * *writer*. Leave it off when lowering is parallelised again (see
+     * MIRTableLock.h and `kEnableParallelLowering` in ASTProcessor.cpp).
+     */
+    void set_single_threaded(bool v) {
+        types.set_single_threaded(v);
+        constants.set_single_threaded(v);
+        symbols.set_single_threaded(v);
+    }
+    bool single_threaded() const { return types.single_threaded(); }
+
     /** Intern a source file path; returns its id. */
     uint32_t source_file(const std::string& path) {
         for (uint32_t i = 0; i < source_files.size(); ++i) {

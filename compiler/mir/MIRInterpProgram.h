@@ -32,7 +32,11 @@ struct MIRInterpProgram {
 
     MIRInterpProgram()
         : types(new MIRTypeBuilder(module)),
-          task(new MIRTaskContext(module, *types)) {}
+          task(new MIRTaskContext(module, *types)) {
+        // One thread lowers (and the interpreter only reads), so the module
+        // tables never need their locks (see MIRTableLock.h).
+        module.set_single_threaded(true);
+    }
 };
 
 } // namespace mir

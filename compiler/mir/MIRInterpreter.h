@@ -28,6 +28,15 @@ public:
     MIRInterpreter& operator=(const MIRInterpreter&) = delete;
 
     /**
+     * Re-derive the side tables after the module grew. The comptime driver
+     * lowers each callee into the same `MIRModule` between calls, and every MIR
+     * table is append-only with stable ids, so this only consumes the records
+     * added since the last build instead of rebuilding every table from scratch
+     * (that rebuild dominated comptime-heavy lowering).
+     */
+    void update();
+
+    /**
      * Run the function whose symbol name is `entry` (mangled or plain). Returns
      * true if a function was found and ran to completion; `out_result` receives
      * its scalar return value (0 for a void function). On failure `error` is set.

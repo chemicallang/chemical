@@ -123,14 +123,63 @@ struct MIRInterpreter::Impl {
     std::vector<TypeInfo> types;
     std::vector<uint64_t> const_bits;
     std::vector<const char*> const_str;
+    /**
+     * NUL-terminated storage for every string constant, in fixed 4 KiB blocks.
+     *
+     * `const_str` is handed to interpreted code as a raw `*char` and read
+     * linearly, so every entry must be one contiguous run of bytes. A
+     * `std::deque<char>` looks like it offers that (its `push_back` never
+     * invalidates an earlier element) but it does not: consecutive elements are
+     * contiguous only *within* one internal chunk, and a string that straddles a
+     * chunk boundary reads the unrelated heap that follows the first chunk —
+     * 177 constants of one test-suite run were affected. Each block is a single
+     * heap allocation that no entry ever straddles, the pointers stay valid as
+     * the append-only module grows, and the module's whole string payload costs
+     * one allocation per 4 KiB instead of one malloc per constant.
+     */
+    std::vector<std::unique_ptr<char[]>> const_blocks;
+    static constexpr size_t kConstBlockSize = 4096;
+    size_t const_block_used_ = 0;
+    size_t const_block_cap_ = 0;
     std::vector<Callee> callees;       // one per symbol
     std::vector<uint8_t*> global_addr; // one per symbol
     std::vector<std::string> sym_name; // one per symbol
     std::unordered_map<std::string, size_t> fn_by_name;
-    std::vector<std::vector<FieldSlot>> field_slots; // per function, by operand index
+    /**
+     * Resolved field/index slots of one function, by operand index. Built on the
+     * function's first call: a comptime driver lowers the whole callee graph
+     * into the module but only ever runs a handful of those functions, so
+     * pre-resolving every function at construction was the single largest cost
+     * of a rebuild. `operand_count` detects an in-place body replacement.
+     */
+    struct FunctionSlots {
+        std::vector<FieldSlot> slots;
+        uint32_t operand_count = 0;
+        bool built = false;
+    };
+    std::vector<FunctionSlots> field_slots;
     std::unordered_map<std::string, std::vector<std::string>> vtable_methods; // type name -> slots
     std::unordered_map<std::string, uint8_t*> vtable_addr_by_name;            // def name -> storage
     std::vector<std::vector<const Callee*>> vtable_storage;                   // owning storage
+
+    /**
+     * Incremental build cursors. Every MIR table is append-only and ids are
+     * stable, so each `build_*` only consumes the records added since the last
+     * pass; a shrinking table (a cleared/reused module) resets its table.
+     */
+    uint32_t built_types = 0;
+    uint32_t built_constants = 0;
+    uint32_t built_functions = 0;
+    uint32_t built_globals = 0;
+    uint32_t built_symbols = 0;
+    uint32_t built_vtypes = 0;
+    uint32_t built_vdefs = 0;
+    /** Symbol name -> global storage (a symbol and its global share one store). */
+    std::unordered_map<std::string, uint8_t*> global_by_name;
+    /** Symbols whose callee was still unresolved: a MIR body may appear later. */
+    std::vector<uint32_t> pending_symbols;
+    bool vtables_changed_ = false;
+    size_t wired_symbols_ = 0;
 
     std::vector<std::unique_ptr<Frame>> pool;
     size_t depth = 0;
@@ -140,8 +189,13 @@ struct MIRInterpreter::Impl {
     // ── type facts ─────────────────────────────────────────────────────────
     void build_types() {
         const uint32_t n = module.types.size();
-        types.assign(n, TypeInfo{});
-        for (uint32_t i = 0; i < n; ++i) {
+        if (n < types.size()) {
+            types.clear();
+            built_types = 0;
+        }
+        if (n == types.size()) return;
+        types.resize(n);
+        for (uint32_t i = built_types; i < n; ++i) {
             const MIRTypeRecord r = module.types.get(i);
             TypeInfo& t = types[i];
             t.size = r.size;
@@ -174,6 +228,7 @@ struct MIRInterpreter::Impl {
                     break;
             }
         }
+        built_types = n;
     }
 
     const TypeInfo& ti(TypeId t) const {
@@ -190,20 +245,50 @@ struct MIRInterpreter::Impl {
     }
 
     // ── constants ──────────────────────────────────────────────────────────
+    /**
+     * Copy one string constant into the block arena, NUL-terminated. The entry
+     * is kept whole: if it does not fit in the current block, a new block is
+     * taken (a single constant longer than a block gets a block of its own), so
+     * the returned pointer is a contiguous `len + 1` byte run.
+     */
+    char* intern_string_constant(const char* src, uint32_t len) {
+        const size_t need = static_cast<size_t>(len) + 1;
+        if (const_blocks.empty() || const_block_used_ + need > const_block_cap_) {
+            const size_t cap = need > kConstBlockSize ? need : kConstBlockSize;
+            const_blocks.emplace_back(std::make_unique<char[]>(cap));
+            const_block_cap_ = cap;
+            const_block_used_ = 0;
+        }
+        char* dst = const_blocks.back().get() + const_block_used_;
+        if (len) std::memcpy(dst, src, len);
+        dst[len] = '\0';
+        const_block_used_ += need;
+        return dst;
+    }
+
     void build_constants() {
         const uint32_t n = module.constants.size();
-        const_bits.assign(n, 0);
-        const_str.assign(n, nullptr);
-        for (uint32_t i = 0; i < n; ++i) {
+        if (n < const_bits.size()) {
+            // a cleared/reused module: drop the side tables. The blocks are kept
+            // (not freed) so a `*char` already handed to interpreted code still
+            // points at live, correctly terminated text.
+            const_bits.clear();
+            const_str.clear();
+            built_constants = 0;
+        }
+        if (n == const_bits.size()) return;
+        const_bits.resize(n, 0);
+        const_str.resize(n, nullptr);
+        for (uint32_t i = built_constants; i < n; ++i) {
             const MIRConstant c = module.constants.get(i);
             const_bits[i] = c.bits;
             if (c.kind == MIRConstantKind::String) {
-                char* buf = static_cast<char*>(std::malloc(c.data_count + 1));
-                std::memcpy(buf, module.constants.data.data_at(c.data_offset), c.data_count);
-                buf[c.data_count] = '\0';
-                const_str[i] = buf;
+                const_str[i] =
+                    intern_string_constant(module.constants.data.data_at(c.data_offset),
+                                           c.data_count);
             }
         }
+        built_constants = n;
     }
 
     std::string constant_text(ConstantId cid) const {
@@ -284,30 +369,18 @@ struct MIRInterpreter::Impl {
     }
 
     void build_symbols_and_globals() {
-        const uint32_t nsym = module.symbols.size();
-        callees.assign(nsym, Callee{});
-        global_addr.assign(nsym, nullptr);
-        sym_name.assign(nsym, std::string());
-
-        for (size_t i = 0; i < module.functions.size(); ++i) {
-            fn_by_name[symbol_name(module.functions[i].symbol)] = i;
+        // a cleared/reused module invalidates every cursor and every side table
+        if (module.functions.size() < built_functions || module.globals.size() < built_globals ||
+            module.symbols.size() < callees.size()) {
+            callees.clear();
+            global_addr.clear();
+            sym_name.clear();
+            fn_by_name.clear();
+            global_by_name.clear();
+            pending_symbols.clear();
+            built_functions = built_globals = built_symbols = 0;
         }
 
-        for (uint32_t s = 0; s < nsym; ++s) {
-            const std::string name = symbol_name(s);
-            sym_name[s] = name;
-            auto it = fn_by_name.find(name);
-            if (it != fn_by_name.end()) {
-                callees[s].kind = Callee::Kind::Mir;
-                callees[s].fn_index = it->second;
-            } else if (auto* h = host_for(name.c_str())) {
-                callees[s].kind = Callee::Kind::Host;
-                callees[s].host = h;
-            }
-        }
-
-        // globals: storage keyed by symbol name (duplicate interned ids for one
-        // global resolve to one store, matching the linker's name-based view).
         auto glb_size = [&](TypeId t, ConstExprId init) -> uint32_t {
             uint32_t sz = (t < types.size()) ? types[t].size : 0;
             if (sz == 0 && init != MIR_INVALID_ID && init < module.const_exprs.size()) {
@@ -316,32 +389,108 @@ struct MIRInterpreter::Impl {
             }
             return sz ? sz : 8;
         };
-        std::unordered_map<std::string, uint8_t*> by_name;
-        for (const MIRGlobal& g : module.globals) {
+
+        // 1. globals: storage keyed by symbol name (duplicate interned ids for one
+        // global resolve to one store, matching the linker's name-based view).
+        for (uint32_t gi = built_globals; gi < module.globals.size(); ++gi) {
+            const MIRGlobal& g = module.globals[gi];
             const std::string name = symbol_name(g.symbol);
             if (name.empty()) continue;
             const MIRSymbolRecord r = module.symbols.get(g.symbol);
             const uint32_t sz = glb_size(r.type, g.init);
-            auto it = by_name.find(name);
+            auto it = global_by_name.find(name);
             uint8_t* storage;
-            if (it != by_name.end()) {
+            if (it != global_by_name.end()) {
                 storage = it->second;
             } else {
                 storage = static_cast<uint8_t*>(std::calloc(1, sz));
-                by_name[name] = storage;
+                global_by_name[name] = storage;
             }
             if (g.init != MIR_INVALID_ID) eval_const_into(storage, r.type, g.init);
         }
-        for (uint32_t s = 0; s < nsym; ++s) {
-            const MIRSymbolRecord r = module.symbols.get(s);
-            if (r.kind != MIRSymbolKind::Global) continue;
-            auto it = by_name.find(sym_name[s]);
-            if (it != by_name.end()) {
-                global_addr[s] = it->second;
+        built_globals = static_cast<uint32_t>(module.globals.size());
+
+        // 2. callee name -> function index. A re-lowered callee is appended again
+        // (call-site dependent MIR), so an existing name is re-pointed below.
+        const uint32_t nfn = static_cast<uint32_t>(module.functions.size());
+        std::vector<std::string> renamed;
+        for (uint32_t i = built_functions; i < nfn; ++i) {
+            std::string name = symbol_name(module.functions[i].symbol);
+            auto it = fn_by_name.find(name);
+            if (it != fn_by_name.end()) {
+                it->second = i;
+                renamed.push_back(std::move(name));
             } else {
-                uint8_t* st = static_cast<uint8_t*>(std::calloc(1, glb_size(r.type, MIR_INVALID_ID)));
-                by_name[sym_name[s]] = st;
-                global_addr[s] = st;
+                fn_by_name.emplace(std::move(name), i);
+            }
+        }
+        built_functions = nfn;
+
+        // 3. new symbols: classify the callee, and give a global its storage
+        const uint32_t nsym = module.symbols.size();
+        callees.resize(nsym, Callee{});
+        global_addr.resize(nsym, nullptr);
+        sym_name.resize(nsym);
+        for (uint32_t s = built_symbols; s < nsym; ++s) {
+            std::string name = symbol_name(s);
+            auto it = fn_by_name.find(name);
+            if (it != fn_by_name.end()) {
+                callees[s].kind = Callee::Kind::Mir;
+                callees[s].fn_index = it->second;
+            } else if (auto* h = host_for(name.c_str())) {
+                callees[s].kind = Callee::Kind::Host;
+                callees[s].host = h;
+            } else {
+                pending_symbols.push_back(s);
+            }
+            const MIRSymbolRecord r = module.symbols.get(s);
+            if (r.kind == MIRSymbolKind::Global) {
+                auto g = global_by_name.find(name);
+                if (g != global_by_name.end()) {
+                    global_addr[s] = g->second;
+                } else {
+                    uint8_t* st =
+                        static_cast<uint8_t*>(std::calloc(1, glb_size(r.type, MIR_INVALID_ID)));
+                    global_by_name[name] = st;
+                    global_addr[s] = st;
+                }
+            }
+            sym_name[s] = std::move(name);
+        }
+        built_symbols = nsym;
+
+        // 4. a callee that was unresolved before may have a MIR body now
+        if (!pending_symbols.empty() && !fn_by_name.empty()) {
+            size_t keep = 0;
+            for (size_t i = 0; i < pending_symbols.size(); ++i) {
+                const uint32_t s = pending_symbols[i];
+                if (callees[s].kind == Callee::Kind::Unresolved) {
+                    auto it = fn_by_name.find(sym_name[s]);
+                    if (it != fn_by_name.end()) {
+                        callees[s].kind = Callee::Kind::Mir;
+                        callees[s].fn_index = it->second;
+                        continue;
+                    }
+                }
+                pending_symbols[keep++] = s;
+            }
+            pending_symbols.resize(keep);
+        }
+
+        // 5. re-point symbols of a re-lowered callee at its newest body (a full
+        // rebuild would resolve the name the same way).
+        if (!renamed.empty()) {
+            for (const std::string& name : renamed) {
+                const size_t idx = fn_by_name[name];
+                for (uint32_t s = 0; s < nsym; ++s) {
+                    if (callees[s].kind == Callee::Kind::Mir && sym_name[s] == name) {
+                        callees[s].fn_index = idx;
+                    } else if (callees[s].kind == Callee::Kind::Unresolved &&
+                               sym_name[s] == name) {
+                        callees[s].kind = Callee::Kind::Mir;
+                        callees[s].fn_index = idx;
+                    }
+                }
             }
         }
     }
@@ -356,39 +505,63 @@ struct MIRInterpreter::Impl {
 
     // ── interface vtables (for DynamicCall) ────────────────────────────────
     void build_vtables() {
-        std::unordered_map<std::string, const Callee*> callee_by_name;
-        for (uint32_t s = 0; s < callees.size(); ++s) {
-            if (callees[s].kind != Callee::Kind::Unresolved)
-                callee_by_name[sym_name[s]] = &callees[s];
+        if (module.vtables.types.size() < built_vtypes ||
+            module.vtables.defs.size() < built_vdefs) {
+            vtable_methods.clear();
+            vtable_addr_by_name.clear();
+            vtable_storage.clear();
+            built_vtypes = built_vdefs = 0;
+            vtables_changed_ = true;
         }
-        for (const MIRVtableRecord& t : module.vtables.types) {
+        if (built_vtypes == module.vtables.types.size() &&
+            built_vdefs == module.vtables.defs.size()) {
+            return;
+        }
+        for (uint32_t i = built_vtypes; i < module.vtables.types.size(); ++i) {
+            const MIRVtableRecord& t = module.vtables.types[i];
             std::vector<std::string> names;
             names.reserve(t.slots.size());
             for (const MIRVtableSlot& sl : t.slots) names.push_back(sl.name);
             vtable_methods[t.name] = std::move(names);
         }
-        for (const MIRVtableRecord& d : module.vtables.defs) {
-            std::vector<const Callee*> row(d.slots.size(), nullptr);
-            for (size_t i = 0; i < d.slots.size(); ++i) {
-                if (d.slots[i].target.empty()) continue;
-                auto it = callee_by_name.find(d.slots[i].target);
-                if (it != callee_by_name.end()) row[i] = it->second;
+        built_vtypes = static_cast<uint32_t>(module.vtables.types.size());
+        if (built_vdefs < module.vtables.defs.size()) {
+            std::unordered_map<std::string, const Callee*> callee_by_name;
+            for (uint32_t s = 0; s < callees.size(); ++s) {
+                if (callees[s].kind != Callee::Kind::Unresolved)
+                    callee_by_name[sym_name[s]] = &callees[s];
             }
-            vtable_storage.push_back(std::move(row));
-            uint8_t* addr = reinterpret_cast<uint8_t*>(vtable_storage.back().data());
-            vtable_addr_by_name[d.name] = addr;
-            if (!d.type_name.empty() && vtable_addr_by_name.find(d.type_name) ==
-                                            vtable_addr_by_name.end()) {
-                vtable_addr_by_name[d.type_name] = addr;
+            for (uint32_t i = built_vdefs; i < module.vtables.defs.size(); ++i) {
+                const MIRVtableRecord& d = module.vtables.defs[i];
+                std::vector<const Callee*> row(d.slots.size(), nullptr);
+                for (size_t k = 0; k < d.slots.size(); ++k) {
+                    if (d.slots[k].target.empty()) continue;
+                    auto it = callee_by_name.find(d.slots[k].target);
+                    if (it != callee_by_name.end()) row[k] = it->second;
+                }
+                vtable_storage.push_back(std::move(row));
+                uint8_t* addr = reinterpret_cast<uint8_t*>(vtable_storage.back().data());
+                vtable_addr_by_name[d.name] = addr;
+                if (!d.type_name.empty() && vtable_addr_by_name.find(d.type_name) ==
+                                                vtable_addr_by_name.end()) {
+                    vtable_addr_by_name[d.type_name] = addr;
+                }
             }
+            built_vdefs = static_cast<uint32_t>(module.vtables.defs.size());
+            vtables_changed_ = true;
         }
     }
 
     void wire_vtable_globals() {
+        // no interface in the module (a comptime module has none): nothing to do
+        if (vtable_addr_by_name.empty() || callees.empty()) return;
+        if (!vtables_changed_ && wired_symbols_ == callees.size()) return;
         for (uint32_t s = 0; s < global_addr.size(); ++s) {
             auto it = vtable_addr_by_name.find(sym_name[s]);
             if (it != vtable_addr_by_name.end()) global_addr[s] = it->second;
         }
+        wired_symbols_ = callees.size();
+        vtables_changed_ = false;
     }
 
     // ── const-expr evaluation (global initializers) ────────────────────────
@@ -487,54 +660,70 @@ struct MIRInterpreter::Impl {
         return &fn.operands[ins.operand_offset + i];
     }
 
-    void build_field_slots() {
-        field_slots.resize(module.functions.size());
-        for (size_t fi = 0; fi < module.functions.size(); ++fi) {
-            const MIRFunction& fn = module.functions[fi];
-            std::vector<FieldSlot>& fs = field_slots[fi];
-            fs.assign(fn.operands.size(), FieldSlot{});
-            for (uint32_t ii = 0; ii < fn.instructions.size(); ++ii) {
-                const MIRInstruction& ins = fn.instructions[ii];
-                if (ins.operand_count < 2) continue;
-                const MIROperand* o0 = op_at(fn, ins, 0);
-                const MIROperand* o1 = op_at(fn, ins, 1);
-                if (!o0 || !o1) continue;
-                TypeId agg = MIR_INVALID_ID;
-                switch (ins.opcode()) {
-                    case MIROpcode::Load:
-                    case MIROpcode::Store:
-                    case MIROpcode::FieldAddr:
-                        if (o1->kind() != MIROperandKind::Constant) continue;
-                        agg = base_aggregate(fn, *o0);
-                        break;
-                    case MIROpcode::OffsetOf:
-                        if (o1->kind() != MIROperandKind::Constant) continue;
-                        agg = o0->type();
-                        break;
-                    case MIROpcode::DynamicCall: {
-                        const MIROperand* meth = op_at(fn, ins, 2);
-                        if (!meth) continue;
-                        const std::string vt_name = constant_text(o1->id);
-                        const std::string m_name = constant_text(meth->id);
-                        auto it = vtable_methods.find(vt_name);
-                        if (it != vtable_methods.end()) {
-                            for (uint32_t k = 0; k < it->second.size(); ++k) {
-                                if (it->second[k] == m_name) {
-                                    fs[ins.operand_offset + 1].dyn_slot = k;
-                                    break;
-                                }
+    /**
+     * The field/index slots of one function, resolved on first use. A comptime
+     * driver lowers a whole callee graph into the module but runs only a few of
+     * its functions, so resolving every operand of every function up front (a
+     * 16-byte slot per operand) was pure waste — it is what made constructing an
+     * interpreter dominate comptime-heavy lowering.
+     */
+    const std::vector<FieldSlot>& ensure_field_slots(size_t fn_index) {
+        if (field_slots.size() <= fn_index) field_slots.resize(module.functions.size());
+        FunctionSlots& s = field_slots[fn_index];
+        const MIRFunction& fn = module.functions[fn_index];
+        if (s.built && s.operand_count == fn.operands.size()) return s.slots;
+        s.slots.clear();
+        s.built = true;
+        build_field_slots(fn_index, s);
+        s.operand_count = fn.operands.size();
+        return s.slots;
+    }
+
+    void build_field_slots(size_t fi, FunctionSlots& target) {
+        const MIRFunction& fn = module.functions[fi];
+        std::vector<FieldSlot>& fs = target.slots;
+        fs.assign(fn.operands.size(), FieldSlot{});
+        for (uint32_t ii = 0; ii < fn.instructions.size(); ++ii) {
+            const MIRInstruction& ins = fn.instructions[ii];
+            if (ins.operand_count < 2) continue;
+            const MIROperand* o0 = op_at(fn, ins, 0);
+            const MIROperand* o1 = op_at(fn, ins, 1);
+            if (!o0 || !o1) continue;
+            TypeId agg = MIR_INVALID_ID;
+            switch (ins.opcode()) {
+                case MIROpcode::Load:
+                case MIROpcode::Store:
+                case MIROpcode::FieldAddr:
+                    if (o1->kind() != MIROperandKind::Constant) continue;
+                    agg = base_aggregate(fn, *o0);
+                    break;
+                case MIROpcode::OffsetOf:
+                    if (o1->kind() != MIROperandKind::Constant) continue;
+                    agg = o0->type();
+                    break;
+                case MIROpcode::DynamicCall: {
+                    const MIROperand* meth = op_at(fn, ins, 2);
+                    if (!meth) continue;
+                    const std::string vt_name = constant_text(o1->id);
+                    const std::string m_name = constant_text(meth->id);
+                    auto it = vtable_methods.find(vt_name);
+                    if (it != vtable_methods.end()) {
+                        for (uint32_t k = 0; k < it->second.size(); ++k) {
+                            if (it->second[k] == m_name) {
+                                fs[ins.operand_offset + 1].dyn_slot = k;
+                                break;
                             }
                         }
-                        continue;
                     }
-                    default:
-                        continue;
+                    continue;
                 }
-                if (agg == MIR_INVALID_ID) continue;
-                FieldSlot slot;
-                if (resolve_field(agg, constant_text(o1->id), slot)) {
-                    fs[ins.operand_offset + 1] = slot;
-                }
+                default:
+                    continue;
+            }
+            if (agg == MIR_INVALID_ID) continue;
+            FieldSlot slot;
+            if (resolve_field(agg, constant_text(o1->id), slot)) {
+                fs[ins.operand_offset + 1] = slot;
             }
         }
     }
@@ -987,7 +1176,7 @@ struct MIRInterpreter::Impl {
         Frame& f = *pool[depth++];
         f.arena.reset();
         f.prepare(&fn, types);
-        const std::vector<FieldSlot>& fslots = field_slots[fn_index];
+        const std::vector<FieldSlot>& fslots = ensure_field_slots(fn_index);
         const TypeId ret_tid =
             (fn.function_type != MIR_INVALID_ID && fn.function_type < module.types.size())
                 ? module.types.get(fn.function_type).element
@@ -1514,18 +1703,18 @@ uint64_t MIRInterpreter::Impl::host_printf(void*, const uint64_t* a, uint32_t n)
 // ── lifecycle ──────────────────────────────────────────────────────────────
 
 MIRInterpreter::MIRInterpreter(const MIRModule& module) : impl_(new Impl(module)) {
+    update();
+}
+
+MIRInterpreter::~MIRInterpreter() = default;
+
+void MIRInterpreter::update() {
     impl_->build_types();
     impl_->build_constants();
     impl_->build_symbols_and_globals();
     impl_->build_vtables();
     impl_->wire_vtable_globals();
-    impl_->build_field_slots();
-}
-
-MIRInterpreter::~MIRInterpreter() {
-    for (uint32_t i = 0; i < impl_->const_str.size(); ++i) {
-        if (impl_->const_str[i]) std::free(const_cast<char*>(impl_->const_str[i]));
-    }
+    // field slots stay lazy (built per function on its first call)
 }
 
 bool MIRInterpreter::has_function(const std::string& entry) const {
@@ -1534,6 +1723,7 @@ bool MIRInterpreter::has_function(const std::string& entry) const {
 
 bool MIRInterpreter::call(const std::string& name, const uint64_t* args, uint32_t nargs,
                           uint64_t& out_result, std::string& error) {
+    update();
     auto it = impl_->fn_by_name.find(name);
     if (it == impl_->fn_by_name.end()) {
         error = "no function named '" + name + "' in the MIR module";
@@ -1545,6 +1735,7 @@ bool MIRInterpreter::call(const std::string& name, const uint64_t* args, uint32_
 
 bool MIRInterpreter::call_sret(const std::string& name, const uint64_t* args, uint32_t nargs,
                                void* out_buf, std::string& error) {
+    update();
     auto it = impl_->fn_by_name.find(name);
     if (it == impl_->fn_by_name.end()) {
         error = "no function named '" + name + "' in the MIR module";
@@ -1560,6 +1751,7 @@ bool MIRInterpreter::call_sret(const std::string& name, const uint64_t* args, ui
 
 bool MIRInterpreter::run(const std::string& entry, int argc, const char* const* argv,
                          long long& out_result, std::string& error) {
+    update();
     auto it = impl_->fn_by_name.find(entry);
     if (it == impl_->fn_by_name.end()) {
         error = "no function named '" + entry + "' in the MIR module";

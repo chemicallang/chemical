@@ -369,7 +369,11 @@ TypeId MIRTypeBuilder::function_signature(TypeId return_type, const std::vector<
 
 TypeId MIRTypeBuilder::map(BaseType* type) {
     if (!type) return opaque_type();
-    std::lock_guard<std::recursive_mutex> lk(builder_mtx_);
+    // The memo/declaration caches are only raced by parallel lowering; the
+    // shipping pipeline is single-writer, so the recursive mutex is elided there
+    // (see MIRTableLock.h). Recursion inside `map` re-enters this same thread.
+    std::unique_lock<std::recursive_mutex> lk(builder_mtx_, std::defer_lock);
+    if (!module_.single_threaded()) lk.lock();
     MIR_OP(type_map);
 
     auto it = memo_.find(type);

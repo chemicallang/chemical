@@ -287,10 +287,4 @@ public:
         FunctionType::copy_into(other, allocator, new_parent);
     }
 
-    /**
-     * called by return statement to set the return value and stop
-     * interpretation of function body
-     */
-    virtual void set_return(InterpretScope& scope, Value* value) = 0;
-
 };

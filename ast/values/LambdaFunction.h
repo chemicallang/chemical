@@ -68,8 +68,4 @@ public:
 
     Value* call(InterpretScope* call_scope, ASTAllocator& func_allocator, Value* parent, std::vector<Value*>& call_args);
 
-    void set_return(InterpretScope &scope, Value *value) override {
-        // the AST statement interpreter that used this has been deleted
-    }
-
 };

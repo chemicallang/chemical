@@ -4922,7 +4922,6 @@ int LabBuildCompiler::do_interpretation_job(LabJob* job) {
     // generators, executed by a different engine. See
     // lang/docs/mir-interpretation-plan.md.
     GlobalInterpretScope global(job->mode, job->target_data, nullptr, this, *job_allocator, type_builder, loc_man, false);
-    global.should_destruct_values = false;
 
     // we hold the instantiated types inside this container
     InstantiationsContainer instContainer;

@@ -69,224 +69,6 @@
     #define IS_LITTLE_ENDIAN (__BYTE_ORDER == __LITTLE_ENDIAN)
 #endif
 
-namespace InterpretVector {
-
-    class InterpretVectorNode;
-
-    class InterpretVectorConstructor : public FunctionDeclaration {
-    public:
-
-        explicit InterpretVectorConstructor(InterpretVectorNode* node);
-
-        Value* call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs);
-
-    };
-
-    class InterpretVectorSize : public FunctionDeclaration {
-    public:
-
-        FunctionParam selfParam;
-
-        explicit InterpretVectorSize(TypeBuilder& cache, InterpretVectorNode* node);
-
-        Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final;
-
-    };
-
-    class InterpretVectorGet : public FunctionDeclaration {
-    public:
-
-        FunctionParam selfParam;
-        FunctionParam indexParam;
-        LinkedType returnLinkedType;
-
-        explicit InterpretVectorGet(TypeBuilder& cache, InterpretVectorNode* node);
-
-        Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final;
-
-    };
-
-    class InterpretVectorPush : public FunctionDeclaration {
-    public:
-
-        FunctionParam selfParam;
-        LinkedType valueType;
-        FunctionParam valueParam;
-
-        explicit InterpretVectorPush(TypeBuilder& cache, InterpretVectorNode* node);
-
-        Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final;
-
-    };
-
-    class InterpretVectorRemove : public FunctionDeclaration {
-    public:
-
-        FunctionParam selfParam;
-        FunctionParam indexParam;
-
-        explicit InterpretVectorRemove(TypeBuilder& cache, InterpretVectorNode* node);
-
-        Value *call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) final;
-
-    };
-
-    class InterpretVectorNode : public StructDefinition {
-    public:
-
-        GenericTypeParameter typeParam;
-
-        LinkedType selfType;
-        ReferenceType selfReference;
-
-        InterpretVectorConstructor constructorFn;
-        InterpretVectorSize sizeFn;
-        InterpretVectorGet getFn;
-        InterpretVectorPush pushFn;
-        InterpretVectorRemove removeFn;
-
-        explicit InterpretVectorNode(TypeBuilder& cache, ASTNode* parent_node);
-
-    };
-
-    class InterpretVectorVal : public StructValue {
-    public:
-        std::vector<Value*> values;
-        explicit InterpretVectorVal(InterpretVectorNode* node) : StructValue(
-            node->known_type(),
-            (StructDefinition*) node,
-            (StructDefinition*) node,
-            ZERO_LOC
-        ) {
-
-        }
-    };
-
-    InterpretVectorConstructor::InterpretVectorConstructor(InterpretVectorNode* node) : FunctionDeclaration(
-            "constructor",
-            {&node->selfType, ZERO_LOC},
-            false,
-            node,
-            ZERO_LOC,
-            AccessSpecifier::Public,
-            true
-    ) {
-        set_constructor_fn(true);
-    }
-
-    Value *InterpretVectorConstructor::call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
-        if(call->generic_list.empty()) {
-            call_scope->error("expected a generic argument for intrinsics::vector", call);
-            return nullptr;
-        }
-        const auto node = (InterpretVectorNode*) parent();
-        return new (allocator.allocate<InterpretVectorVal>()) InterpretVectorVal(node);
-    }
-
-    InterpretVectorSize::InterpretVectorSize(TypeBuilder& cache, InterpretVectorNode* node) : FunctionDeclaration(
-            "size",
-            {cache.getIntType(), ZERO_LOC},
-            false,
-            node,
-            ZERO_LOC,
-            AccessSpecifier::Public,
-            true
-    ), selfParam("self", TypeLoc(&node->selfReference, ZERO_LOC), 0, nullptr, true, this, ZERO_LOC) {
-        params.emplace_back(&selfParam);
-    }
-
-    Value *InterpretVectorSize::call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
-        return new (allocator.allocate<IntNumValue>()) IntNumValue(static_cast<InterpretVectorVal*>(parent_val)->values.size(), call_scope->global->typeBuilder.getIntType(), ZERO_LOC);
-    }
-
-
-    // TODO interpret vector get should return a reference to T
-    InterpretVectorGet::InterpretVectorGet(TypeBuilder& cache, InterpretVectorNode* node) : FunctionDeclaration(
-            "get",
-            {&returnLinkedType, ZERO_LOC},
-            false,
-            node,
-            ZERO_LOC,
-            AccessSpecifier::Public,
-            true
-    ), returnLinkedType(&node->typeParam), selfParam("self", {&node->selfReference, ZERO_LOC}, 0, nullptr, true, this, ZERO_LOC),
-        indexParam("index", { cache.getUIntType(), ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC)
-    {
-        params.emplace_back(&selfParam);
-        params.emplace_back(&indexParam);
-    }
-
-    Value *InterpretVectorGet::call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
-        const auto index_val = call->values[0]->evaluated_value(*call_scope);
-        const auto number = index_val->get_number();
-        if(number.has_value()) {
-            return static_cast<InterpretVectorVal*>(parent_val)->values[number.value()]->scope_value(*call_scope);
-        } else {
-            call_scope->error("vector::get only supports integer value as an index", call);
-            return new (call_scope->allocate<NullValue>()) NullValue(call_scope->global->typeBuilder.getNullPtrType(), call->encoded_location());
-        }
-
-    }
-
-    InterpretVectorPush::InterpretVectorPush(TypeBuilder& cache, InterpretVectorNode* node) : FunctionDeclaration(
-            "push",
-            {cache.getVoidType(), ZERO_LOC},
-            false,
-            node,
-            ZERO_LOC,
-            AccessSpecifier::Public,
-            true
-    ), selfParam("self", { &node->selfReference, ZERO_LOC }, 0, nullptr, true, this, ZERO_LOC),
-                                                                                              valueType(&node->typeParam), valueParam("value", { &valueType, ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC)
-    {
-        params.emplace_back(&selfParam);
-        params.emplace_back(&valueParam);
-    }
-
-    Value *InterpretVectorPush::call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
-        static_cast<InterpretVectorVal*>(parent_val)->values.emplace_back(call->values[0]->scope_value(*call_scope));
-        return nullptr;
-    }
-
-    InterpretVectorRemove::InterpretVectorRemove(TypeBuilder& cache, InterpretVectorNode* node) : FunctionDeclaration(
-            "remove",
-            {cache.getVoidType(), ZERO_LOC},
-            false,
-            node,
-            ZERO_LOC,
-            AccessSpecifier::Public,
-            true
-    ), selfParam("self", { &node->selfReference, ZERO_LOC }, 0, nullptr, true, this, ZERO_LOC),
-                                                                                                  indexParam("index", { cache.getUIntType(), ZERO_LOC }, 1, nullptr, false, this, ZERO_LOC)
-    {
-        params.emplace_back(&selfParam);
-        params.emplace_back(&indexParam);
-    }
-    Value *InterpretVectorRemove::call(InterpretScope *call_scope, ASTAllocator& allocator, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
-        auto& ref = static_cast<InterpretVectorVal*>(parent_val)->values;
-        const auto ind = call->values[0]->evaluated_value(*call_scope)->get_number();
-        if(ind.has_value()) {
-            ref.erase(ref.begin() + ind.value());
-        } else {
-            call_scope->error("expected a number value for index", call);
-        }
-        return nullptr;
-    }
-
-    InterpretVectorNode::InterpretVectorNode(
-            TypeBuilder& cache,
-            ASTNode* parent_node
-    ): StructDefinition("vector", parent_node, ZERO_LOC, AccessSpecifier::Public),
-        constructorFn(this), sizeFn(cache, this), getFn(cache, this), pushFn(cache, this), removeFn(cache, this),
-        typeParam("T", nullptr, this, 0, ZERO_LOC),
-        selfType(this), selfReference(&selfType, ZERO_LOC)
-    {
-        set_compiler_decl(true);
-        insert_functions({ &constructorFn, &sizeFn, &getFn, &pushFn, &removeFn });
-    }
-
-}
-
 class InterpretPrint : public FunctionDeclaration {
 public:
 
@@ -2865,7 +2647,6 @@ public:
     InterpretIsRuntime isRuntimeFn;
     InterpretIsComptime isComptimeFn;
     InterpretSize sizeFn;
-    InterpretVector::InterpretVectorNode vectorNode;
     InterpretSatisfies satisfiesFn;
     InterpretIs isFn;
     InterpretIsSameType isSameTypeFn;
@@ -2921,7 +2702,7 @@ public:
         llvmNamespace(cache, this), memNamespace(cache, this),
         interpretSupports(cache, this), printFn(cache, this), printlnFn(cache, this), to_stringFn(cache, this), type_to_stringFn(cache, this),
         retStructPtr(cache, this), verFn(cache, this),         isTccFn(cache, this), isClangFn(cache, this), isInterpretationFn(cache, this), isRuntimeFn(cache, this), isComptimeFn(cache, this),
-        sizeFn(cache, this), vectorNode(cache, this), satisfiesFn(cache, this), isFn(cache, this), isSameTypeFn(cache, this), satisfiesValueFn(cache, this),
+        sizeFn(cache, this), satisfiesFn(cache, this), isFn(cache, this), isSameTypeFn(cache, this), satisfiesValueFn(cache, this),
         get_target_fn(cache, this), get_build_dir(cache, this), get_compiler_path(cache, this), get_current_file_path(cache, this), get_raw_location(cache, this), get_raw_loc_of(cache, this),
         get_call_loc(cache, this), decode_location(cache, this), get_char_no(cache, this), get_caller_line_no(cache, this), get_caller_char_no(cache, this),
         get_loc_file_path(cache, this), get_module_scope(cache, this), get_module_name(cache, this), get_module_dir(cache, this),
@@ -2936,7 +2717,7 @@ public:
         nodes = {
             &llvmNamespace, &memNamespace,
             &interpretSupports, &printFn, &printlnFn, &to_stringFn, &type_to_stringFn, &retStructPtr, &verFn,
-            &isTccFn, &isClangFn, &isInterpretationFn, &isRuntimeFn, &isComptimeFn, &sizeFn, &vectorNode, &satisfiesFn, &isFn, &isSameTypeFn, &satisfiesValueFn,
+            &isTccFn, &isClangFn, &isInterpretationFn, &isRuntimeFn, &isComptimeFn, &sizeFn, &satisfiesFn, &isFn, &isSameTypeFn, &satisfiesValueFn,
             &get_raw_location, &get_raw_loc_of, &get_call_loc, &decode_location, &get_line_no, &get_char_no, &get_caller_line_no,
             &get_caller_char_no, &get_target_fn, &get_build_dir, &get_compiler_path, &get_current_file_path, &get_loc_file_path, &get_tests_fn, &get_universal_tests_fn,
             &get_single_marked_decl_ptr, &get_module_scope, &get_module_name, &get_module_dir, &get_child_fn, &forget_fn, &error_fn,

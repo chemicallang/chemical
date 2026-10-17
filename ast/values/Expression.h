@@ -62,20 +62,6 @@ public:
 
     FunctionDeclaration* get_overloaded_func(const CoreNodes& coreNodes, const ImplementationsIndex& implsIndex);
 
-    /**
-     * Interpreter inline cache for operator-overload resolution.
-     *
-     * The operand types of an Expression are fixed after symbol resolution, so
-     * the (name-based) overload lookup only needs to run once. Without this,
-     * every evaluation of a binary expression inside a hot interpreted loop
-     * re-resolved the overload, which dominated interpretation time.
-     * The cache is invalidated if either operand's type pointer changes.
-     */
-    std::atomic<FunctionDeclaration*> cached_overloaded_func{nullptr};
-    std::atomic<BaseType*> cached_overload_first_type{nullptr};
-    std::atomic<BaseType*> cached_overload_second_type{nullptr};
-    std::atomic<bool> overload_resolution_cached{false};
-
     BaseType* get_determined_type(
         const TypeBuilder& typeBuilder,
         const CoreNodes& coreNodes,

@@ -409,10 +409,6 @@ StructValue* StructValue::initialized_value(InterpretScope& scope) {
     struct_value->values.reserve(values.size());
     for (auto & value: values) {
         auto val = value.second.value->scope_value(scope);
-        // Move semantics: if the initializer references an existing destructible struct
-        // variable in the scope, clear the source (move). Uses pointer-matching instead
-        // of AST node type checks, because the compiler may have replaced identifiers.
-        scope.move_clear_source(val, chem::string_view());
         if(definition && val) {
             // Check if we need implicit constructor conversion
             for(const auto var : definition->variables()) {

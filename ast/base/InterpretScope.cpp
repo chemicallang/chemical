@@ -8,7 +8,6 @@
 #include "GlobalInterpretScope.h"
 #include "ast/base/TypeBuilder.h"
 #include "Value.h"
-#include <iostream>
 #include "ast/structures/Scope.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/IntNumValue.h"
@@ -38,28 +37,6 @@ Value* InterpretScope::getNullValue() {
     return global->typeBuilder.getNullValue();
 }
 
-bool InterpretScope::stack_space_exhausted(ASTNode* node) {
-    // Enough space is kept in reserve to report the diagnostic and unwind the
-    // already nested calls, so the compiler never runs out of stack.
-    constexpr size_t STACK_RESERVE = 512 * 1024;
-    // Only used when the platform cannot tell us how much stack is left, the
-    // observed limit at which a thread crashes is far higher than this
-    constexpr size_t FALLBACK_MAX_DEPTH = 1000;
-
-    const auto remaining = chem::remaining_stack_bytes();
-    bool exhausted;
-    if(remaining != 0) {
-        exhausted = remaining <= STACK_RESERVE;
-    } else {
-        exhausted = global != nullptr && global->call_stack.size() >= FALLBACK_MAX_DEPTH;
-    }
-    if(!exhausted) {
-        return false;
-    }
-    error("the compiler ran out of stack space while evaluating this call, "
-          "a recursive function that never returns is the most likely cause", node);
-    return true;
-}
 
 void InterpretScope::declare(const chem::string_view& name, Value* value) {
     values[name] = value;
@@ -87,18 +64,6 @@ std::pair<value_iterator, InterpretScope&> InterpretScope::find_value_iterator(c
     }
 }
 
-void InterpretScope::erase_value(const chem::string_view& name) {
-    auto iterator = find_value_iterator(name);
-    if(iterator.first == iterator.second.values.end()) {
-        std::cerr << ANSI_COLOR_RED << "couldn't locate value " << name << " for removal" << ANSI_COLOR_RESET
-                  << std::endl;
-#ifdef DEBUG
-        print_values();
-#endif
-    } else {
-        iterator.second.values.erase(iterator.first);
-    }
-}
 
 bool operate(Operation op, bool first, bool second) {
     switch(op) {
@@ -587,163 +552,7 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
     }
 }
 
-InterpretScope::~InterpretScope() {
-    if(should_destruct_values) {
-        destroy_values();
-    }
-}
-
-void InterpretScope::destroy_value(Value* val) {
-    // Running a user `@delete` body needs the AST statement interpreter, which
-    // has been deleted. Comptime values live in the arena, so not invoking the
-    // destructor body only leaks comptime memory — it never changes a runtime
-    // value. Member values are still destroyed recursively below.
-    (void) val;
-}
-
-/**
- * Recursively destroys a value held in an interpret scope.
- *
- * Structs run their user `@delete` destructor (via InterpretScope::destroy_value)
- * and then recursively destroy their members, matching the C backend (which calls
- * the user destructor and then emits member destruction). Arrays destroy each
- * struct element, resolving Identifier elements (produced by move semantics) to
- * the actual value first. This is a free function so it is not re-instantiated
- * for every entry of every scope.
- */
-static void destroy_value_recursive(InterpretScope& scope, Value* target_val) {
-    if(!target_val) return;
-    if(target_val->val_kind() == ValueKind::StructValue) {
-        // Run the user-defined destructor (if any) via the centralized helper.
-        scope.destroy_value(target_val);
-        // Always recursively destruct member values, matching C backend behavior:
-        // the C codegen calls the user destructor first, then generates member
-        // destruction code. With proper move semantics in struct literal initialization,
-        // the source variable is cleared before it's stored as a member, so there's
-        // no double-destruction risk.
-        auto structVal = target_val->as_struct_value_unsafe();
-        for(auto& [member_name, member_init] : structVal->values) {
-            if(member_init.value) {
-                destroy_value_recursive(scope, member_init.value);
-            }
-        }
-    } else if(target_val->val_kind() == ValueKind::ArrayValue) {
-        auto arrVal = target_val->as_array_value_unsafe();
-        // Destruct each element that is a struct value with a destructor, from
-        // the last element to the first (mir-design.md §7.4).
-        // Elements were populated by evaluated_value() or by set_value() and
-        // AddrOfValue already creates PointerValues pointing directly into this
-        // vector, so modifications through &arr[i] affect the actual elements.
-        for(size_t ei = arrVal->values.size(); ei-- > 0;) {
-            auto elemVal = arrVal->values[ei];
-            if(!elemVal) continue;
-            // Resolve Identifier elements (from move semantics like [d])
-            // to the actual struct value so the destructor can run.
-            if(elemVal->val_kind() == ValueKind::Identifier) {
-                auto idVal = elemVal->as_identifier_unsafe();
-                auto resolved = scope.find_value(idVal->value);
-                if(resolved) {
-                    elemVal = resolved;
-                    arrVal->values[ei] = resolved;
-                }
-            }
-            destroy_value_recursive(scope, elemVal);
-        }
-    }
-}
-
-void InterpretScope::destroy_values() {
-    // Destruction is normative in reverse initialization order (mir-design.md
-    // §7.4): the most recently declared local is destroyed first, matching the
-    // C and LLVM backends. `values` is insertion-ordered, so iterate backwards.
-    for (auto it = values.end(); it != values.begin();) {
-        --it;
-        Value* val = it->second;
-        if (val == nullptr) continue;
-        destroy_value_recursive(*this, val);
-    }
-}
-
-void InterpretScope::move_clear_source(Value* initializer, const chem::string_view& new_name) {
-    if(!initializer) return;
-    
-    bool shouldClear = false;
-    
-    if(initializer->val_kind() == ValueKind::StructValue) {
-        auto structVal = initializer->as_struct_value_unsafe();
-        auto ext = structVal->linked_extendable();
-        if(ext && (ext->kind() == ASTNodeKind::StructDecl || ext->kind() == ASTNodeKind::VariantDecl)) {
-            auto container = (ExtendableMembersContainerNode*)ext;
-            if(container->has_destructor()) {
-                shouldClear = true;
-            }
-        }
-    } else if(initializer->val_kind() == ValueKind::ArrayValue) {
-        auto arrVal = initializer->as_array_value_unsafe();
-        for(auto elem : arrVal->values) {
-            if(!elem) continue;
-            Value* actualElem = elem;
-            // Resolve Identifier elements to their actual value to check
-            // if they contain destructible structs (e.g. [d] where d is a struct).
-            if(elem->val_kind() == ValueKind::Identifier) {
-                auto idVal = elem->as_identifier_unsafe();
-                actualElem = find_value(idVal->value);
-            }
-            if(actualElem && actualElem->val_kind() == ValueKind::StructValue) {
-                auto sv = actualElem->as_struct_value_unsafe();
-                auto ext = sv->linked_extendable();
-                if(ext && (ext->kind() == ASTNodeKind::StructDecl || ext->kind() == ASTNodeKind::VariantDecl)) {
-                    auto container = (ExtendableMembersContainerNode*)ext;
-                    if(container->has_destructor()) {
-                        shouldClear = true;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    
-    if(!shouldClear) return;
-    
-    InterpretScope* scanScope = this;
-    while(scanScope) {
-        for(auto& [name, val] : scanScope->values) {
-            if(name != new_name) {
-                if(val == initializer) {
-                    val = nullptr;
-                    return;
-                }
-                // For ArrayValue initializers, also check if any scope variable
-                // holds a struct that matches an element in the array.
-                if(initializer->val_kind() == ValueKind::ArrayValue && val != nullptr) {
-                    auto arrVal = initializer->as_array_value_unsafe();
-                    for(size_t ei = 0; ei < arrVal->values.size(); ei++) {
-                        auto elem = arrVal->values[ei];
-                        if(!elem) continue;
-                        if(val == elem) {
-                            val = nullptr;
-                            return;
-                        }
-                        // Identifier elements (from [d] syntax) need to be resolved
-                        // to their actual value for comparison.
-                        if(elem->val_kind() == ValueKind::Identifier) {
-                            auto idVal = elem->as_identifier_unsafe();
-                            auto actualVal = find_value(idVal->value);
-                            if(actualVal && val == actualVal) {
-                                val = nullptr;
-                                // Replace the identifier in the array with the actual
-                                // value so that array destruction properly cleans it up.
-                                arrVal->values[ei] = actualVal;
-                                return;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        scanScope = scanScope->parent;
-    }
-}
+InterpretScope::~InterpretScope() = default;
 
 Value* InterpretScope::coerce_to_type(Value* value, BaseType* type) {
     if(!value || !type) return value;
@@ -770,16 +579,6 @@ Value* InterpretScope::coerce_to_type(Value* value, BaseType* type) {
     return new (allocate<IntNumValue>()) IntNumValue(coerced, target, value->encoded_location());
 }
 
-void InterpretScope::print_values() {
-    std::cout << "Values:" << std::endl;
-    for (auto const &value: values) {
-        std::cout << value.first << " : " << value.second->representation() << std::endl;
-    }
-    if(parent != nullptr) {
-        std::cout << "Parent ";
-        parent->print_values();
-    }
-}
 // `if` / `switch` / `loop` used as values are evaluated by lowering them to MIR;
 // the AST statement interpreter that evaluated their bodies here is gone.
 Value* IfValue::evaluated_value(InterpretScope& scope) {

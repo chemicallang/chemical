@@ -6,9 +6,7 @@
 
 #pragma once
 
-#include <string>
-#include <unordered_map>
-#include <memory>
+#include <utility>
 
 #include "ASTNode.h"
 #include "ast/base/ASTAllocator.h"
@@ -24,18 +22,10 @@ class BaseType;
 
 class GlobalInterpretScope;
 
-class Scope;
-
 class ASTNode;
-
-class LocationManager;
-
-class ASTDiagnoser;
 
 using value_map = ScopeValueMap;
 using value_iterator = value_map::iterator;
-
-class FunctionType;
 
 class InterpretScope {
 public:
@@ -64,12 +54,6 @@ public:
     ASTAllocator& allocator;
 
     /**
-     * When set to false (e.g. global scope), values in this scope are NOT
-     * released when the scope ends.
-     */
-    bool should_destruct_values = true;
-
-    /**
      * constructor
      */
     explicit InterpretScope(
@@ -91,8 +75,7 @@ public:
     InterpretScope(const InterpretScope& copy) = delete;
 
     /**
-     * a helper function to allocate objects so they are destroyed when the scope dies
-     * instead of when the allocator dies
+     * a helper function to allocate objects from this scope's (arena) allocator
      */
     template<typename T>
     FORCE_INLINE T* allocate() {
@@ -105,23 +88,9 @@ public:
     Value* getNullValue();
 
     /**
-     * interpreted calls run on the C++ stack, so a function which never returns —
-     * like a comptime function calling itself — would exhaust the thread's stack and
-     * crash the compiler. This reports an error at the given node and returns true
-     * once too little stack space is left to keep nesting calls, so callers must not
-     * evaluate another nested call.
-     */
-    bool stack_space_exhausted(ASTNode* node);
-
-    /**
      * declares a value with this name in current scope
      */
     void declare(const chem::string_view& name, Value* value);
-
-    /**
-     * erases a value by the key name from the value map safely
-     */
-    void erase_value(const chem::string_view& name);
 
     /**
      * return value with name, or nullptr.
@@ -155,18 +124,6 @@ public:
      * perform an operation between two values
      */
     Value* evaluate(Operation operation, Value* fEvl, Value* sEvl, SourceLocation location, Value* debugValue);
-
-    /**
-     * print all values
-     */
-    void print_values();
-
-    /**
-     * get if it's 64bit
-     */
-    inline constexpr bool isInterpret64Bit() {
-        return sizeof(void*) == 8;
-    }
 
     /**
      *  emit an error for given node
@@ -239,47 +196,20 @@ public:
     }
 
     /**
-     * Recursively releases struct/array member values held by this scope. The
-     * user `@delete` body is not executed (that needed the deleted statement
-     * interpreter); comptime values live in the arena.
-     */
-    void destroy_values();
-
-    /**
-     * Kept as the single temp-value cleanup hook. Running a user `@delete` body
-     * needed the deleted statement interpreter, so this is now a no-op for
-     * comptime values (they live in the arena).
-     */
-    void destroy_value(Value* val);
-
-    /**
-     * Move semantics helper: after declaring a new variable that holds a destructible
-     * struct, scan the scope chain for any existing variable pointing to the same
-     * StructValue pointer and clear it (set to nullptr). This prevents double-
-     * destruction when a struct is moved from one variable to another.
-     * Works correctly regardless of whether the AST node is a VariableIdentifier
-     * or has been replaced by the compiler during resolution.
-     */
-    void move_clear_source(Value* initializer, const chem::string_view& new_name);
-
-    /**
      * Coerces an already-evaluated value to the given target type.
      *
      * Currently this normalizes integer values to the target's bit width
-     * (truncation for narrower types, sign extension for signed types), so the
-     * interpreter matches the C and LLVM backends for narrow integer types
-     * (u8/i8/u16/i16/...). Without this, an out-of-range intermediate (e.g. the
-     * literal 300 stored into a `u8`) would keep its full 64-bit value.
+     * (truncation for narrower types, sign extension for signed types), so a
+     * folded comptime expression matches the C and LLVM backends for narrow
+     * integer types (u8/i8/u16/i16/...). Without this, an out-of-range
+     * intermediate (e.g. the literal 300 stored into a `u8`) would keep its
+     * full 64-bit value.
      *
      * Returns the (possibly newly allocated) coerced value, or `value` unchanged
      * when the target type is null or no coercion applies.
      */
     Value* coerce_to_type(Value* value, BaseType* type);
 
-    /**
-     * Values that want to be deleted when the scope ends
-     * must be deleted in this destructor
-     */
     virtual ~InterpretScope();
 
 };

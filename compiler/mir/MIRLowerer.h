@@ -773,12 +773,12 @@ public:
 private:
     // ── comptime-template inlining (Phase 5) ───────────────────────────────
     /**
-     * True when `fd` is a `comptime func` that must be *lowered*, not
-     * interpreted: it returns a runtime template (`%runtime_value` /
-     * `%runtime_block_value`) or takes `%runtime` / `%maybe_runtime` / `self`
-     * operands. Such a call is expanded by inlining the callee's body — the
-     * comptime operands folded to constants, the runtime operands bound to the
-     * caller's argument results. See lang/docs/runtime-value-replacement.md.
+     * True when `fd` is a `comptime func` that must be *lowered at its call
+     * site*, not driven as a whole: an `@expand` splice, or a function with
+     * `%runtime` / `%maybe_runtime` / `%literal` (or `self`) operands. Such a
+     * call is expanded by inlining the callee's body — the comptime operands
+     * folded to constants, the runtime operands bound to the caller's argument
+     * results. See lang/docs/runtime-value-replacement.md.
      */
     bool is_comptime_template_fn(FunctionDeclaration* fd);
     /** Inline a comptime-template call; returns the body's `return` value. */

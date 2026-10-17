@@ -1,9 +1,8 @@
 // Copyright (c) Chemical Language Foundation 2025.
 //
 // The MIR interpreter: a single-threaded execution engine over a fully
-// populated `MIRModule`. It is the interpretation job's substitute for the
-// (soon deleted) AST interpreter, so that `--arg-interpret` executes the *same*
-// MIR every code generator consumes.
+// populated `MIRModule`. It replaces the deleted AST interpreter, so that
+// `--arg-interpret` executes the *same* MIR every code generator consumes.
 //
 // It is AST-free (it reads only MIR tables) and single-threaded (no locks on the
 // hot path). Everything the loop needs — type facts, field offsets, symbol

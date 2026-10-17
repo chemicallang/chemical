@@ -50,9 +50,9 @@ public:
 
     /**
      * Evaluate `fd(...)` on the MIR engine. Returns the result as an AST value,
-     * or nullptr when the call is out of scope for the driver (an intrinsic, a
-     * template, a non-scalar return, an unsupported argument, …) — the caller
-     * then keeps the AST interpreter.
+     * or nullptr when the call is out of scope for the driver (a template, an
+     * intrinsic with no body, an unsupported argument, …) — the caller then
+     * folds it through the expression layer (`comptime_eval`'s fallback).
      */
     Value* evaluate(const MIRComptimeContext& ctx, FunctionDeclaration* fd,
                     FunctionCall* call, bool& handled, std::string& error);
@@ -73,9 +73,6 @@ public:
      * does not need the deleted interpreter.
      */
     Value* evaluate_value(const MIRComptimeContext& ctx, Value* v, std::string& error);
-
-    /** Number of functions lowered into the driver's module (diagnostics). */
-    unsigned lowered_function_count() const;
 
 private:
     struct Impl;

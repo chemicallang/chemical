@@ -878,9 +878,6 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
                                 if(defValue) {
                                     auto val = defValue->scope_value(scope);
                                     structVal->values.emplace(field->name, StructMemberInitializer { field->name, val });
-                                    if(val) {
-                                        scope.move_clear_source(val, field->name);
-                                    }
                                 }
                             }
                             // Call inherited struct's @make constructor to fill fields
@@ -934,13 +931,6 @@ Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent)
                                 &scope, imp_args, (Value*)nullptr, &imp_scope, true, (Value*)nullptr
                             );
                         }
-                        // Move semantics: if the argument references an existing destructible
-                        // struct variable in the caller's scope, clear the source to prevent
-                        // double-destruction. Uses pointer-matching instead of AST node type
-                        // checks, because the compiler may have replaced identifiers.
-                        if(idx < call->values.size()) {
-                            scope.move_clear_source(paramVal, chem::string_view());
-                        }
                         structVal->values.insert({paramName, StructMemberInitializer(paramName, paramVal)});
                     }
                 }
@@ -959,11 +949,7 @@ Value* FunctionCall::evaluated_value(InterpretScope &scope) {
     // rather than traversing into its inner parent_val via get_parent_from.
     if(parent_val && parent_val->val_kind() == ValueKind::FunctionCall) {
         auto evaluated = parent_val->evaluated_value(scope);
-        auto result = interpret_value_with_evaluated_parent(this, scope, evaluated);
-        if(evaluated && evaluated != result) {
-            scope.destroy_value(evaluated);
-        }
-        return result;
+        return interpret_value_with_evaluated_parent(this, scope, evaluated);
     }
     const auto parent = get_parent_from(parent_val);
     Value* evaluated_parent;
@@ -994,13 +980,7 @@ Value* FunctionCall::evaluated_value(InterpretScope &scope) {
     } else {
         evaluated_parent = parent ? parent->evaluated_value(scope) : parent;
     }
-    auto result = interpret_value(this, scope, evaluated_parent);
-    // If the parent was itself a FunctionCall (temp from nested method call),
-    // destruct the intermediate temp after using it as the receiver.
-    if(parent && parent->val_kind() == ValueKind::FunctionCall && evaluated_parent && evaluated_parent != result) {
-        scope.destroy_value(evaluated_parent);
-    }
-    return result;
+    return interpret_value(this, scope, evaluated_parent);
 }
 
 FunctionCall *FunctionCall::copy(ASTAllocator& allocator) {

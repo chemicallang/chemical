@@ -3,10 +3,9 @@
 // Comptime-template inlining (Phase 5 of the interpretation plan; see
 // lang/docs/runtime-value-replacement.md).
 //
-// A `comptime func` whose body returns a runtime template (`%runtime_value` /
-// `%runtime_block_value`) or which takes `%runtime` / `%maybe_runtime` / `self`
-// operands is *code shaping*, not value computation. Today the AST interpreter
-// runs it to build an AST template; this file lowers the body directly instead:
+// A `comptime func` marked `@expand`, or one that takes `%runtime` /
+// `%maybe_runtime` / `%literal` (or `self`) operands, is *code shaping*, not
+// value computation. This file lowers its body directly at the call site:
 // comptime operands are folded to constants, runtime operands are bound to the
 // caller's argument results, and the body's `return` becomes the call's value.
 // The folded comptime parameters are also published (by name) so a nested

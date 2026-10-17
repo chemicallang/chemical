@@ -18,8 +18,6 @@ GlobalInterpretScope::GlobalInterpretScope(
 ) : ASTDiagnoser(loc_man), InterpretScope(nullptr, allocator, this), mode(mode), target_data(target_data),
     backend_context(context), build_compiler(buildCompiler), allocator(allocator), typeBuilder(typeBuilder),
     interpretation_mode(interpretation_mode) {
-    // Global scope should not destruct values - it's reused and outlives individual interpretations
-    should_destruct_values = false;
 }
 
 GlobalInterpretScope::~GlobalInterpretScope() = default;

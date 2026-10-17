@@ -6,8 +6,8 @@
 #include <cstdlib>
 #include <memory>
 
-// Phase-5.3 measurement: count what the AST interpreter still evaluates during
-// lowering (env-gated, no effect in normal builds).
+// Comptime-driver instrumentation: count what the driver evaluates, declines
+// and folds during lowering (env-gated, no effect in normal builds).
 static void ct_stat(const char* tag, const char* name) {
     if (std::getenv("CT_STAT")) std::fprintf(stderr, "[CTSTAT] %s %s\n", tag, name ? name : "?");
 }
@@ -2545,9 +2545,9 @@ int ASTProcessor::implement_module(
                 else c_visitor.comptime_scope.values.erase(sv.first);
             }
         };
-    // Phase-5.3: a real comptime function is lowered to its own MIR module and
-    // run on the MIR engine; anything the driver cannot handle yet still falls
-    // back to the AST interpreter.
+    // A comptime function call is lowered to the driver's MIR module and run on
+    // the MIR engine; a declaration with no body (a compiler intrinsic) falls
+    // back to its `call` override through the expression layer.
     mir::MIRComptime ct_driver;
     mir_lowerer.set_comptime_eval([&c_visitor, &mir_visitor_mutex, &mir_lowerer, &ct_driver,
                                    &push_comptime_bindings,
@@ -2910,9 +2910,9 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
                 else c_visitor.comptime_scope.values.erase(sv.first);
             }
         };
-    // Phase-5.3: a real comptime function is lowered to its own MIR module and
-    // run on the MIR engine; anything the driver cannot handle yet still falls
-    // back to the AST interpreter.
+    // A comptime function call is lowered to the driver's MIR module and run on
+    // the MIR engine; a declaration with no body (a compiler intrinsic) falls
+    // back to its `call` override through the expression layer.
     mir::MIRComptime ct_driver;
     mir_lowerer.set_comptime_eval([&c_visitor, &mir_visitor_mutex, &mir_lowerer, &ct_driver,
                                    &push_comptime_bindings,

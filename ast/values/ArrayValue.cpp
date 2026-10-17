@@ -135,10 +135,9 @@ Value* ArrayValue::evaluated_value(InterpretScope& scope) {
                 }
             } else if(elem->val_kind() != ValueKind::Identifier) {
                 // Evaluate non-identifier, non-StructValue elements (DereferenceValue,
-                // FunctionCall, etc.) so they produce their computed values.
-                // Identifier elements (variable references) are NOT evaluated because
-                // that would share the same struct with the source variable, causing
-                // double-destruction. For those, move_clear_source handles cleanup.
+                // FunctionCall, etc.) so they produce their computed values. Identifier
+                // elements (variable references) are left as references to the source
+                // variable and resolve when the array value is read.
                 auto evalVal = elem->evaluated_value(scope);
                 if(evalVal && evalVal != elem) {
                     values[i] = evalVal;

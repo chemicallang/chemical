@@ -80,10 +80,6 @@ struct MIRComptime::Impl {
 MIRComptime::MIRComptime() : impl_(new Impl()) {}
 MIRComptime::~MIRComptime() = default;
 
-unsigned MIRComptime::lowered_function_count() const {
-    return static_cast<unsigned>(impl_->module.functions.size());
-}
-
 namespace {
 
 /** A scalar return type the driver can bridge back to an AST value. */
@@ -124,32 +120,19 @@ bool is_runtime_marker_param(FunctionParam* p) {
 }
 
 // ── eligibility: can the MIR engine reproduce this function's result? ───────
-// The AST interpreter has its own semantics for a few things the engine does
-// not: call-site/location intrinsics, `is_comptime`/`is_runtime`,
-// `intrinsics::vector`, and string `+`/comparison. Rather than (silently) change
-// those results, the driver declines any function that touches them.
-/**
- * Intrinsics whose *interpreter* semantics the MIR engine does not reproduce:
- * call-site/location introspection, comptime-mode detection, the
- * interpreter-only `vector`, and expressive-string materialization.
- */
+// A few compiler intrinsics need an AST-level argument or a call-stack frame
+// (call-site/location introspection, expressive-string materialization), which
+// the engine does not model. Rather than (silently) change those results, the
+// driver declines any function that calls them.
 bool intrinsic_diverges(FunctionDeclaration* fd) {
     const chem::string_view name = fd->name_view();
     static const char* kDivergent[] = {
         "get_call_loc", "get_line_no", "get_char_no",
         "get_caller_char_no", "get_loc_file_path", "get_raw_location",
-        "get_current_file_path", "expr_str_block_value", "vector", "decode_location",
+        "get_current_file_path", "expr_str_block_value",
     };
     for (const char* n : kDivergent) {
         if (name == chem::string_view(n)) return true;
-    }
-    // the interpreter-only `intrinsics::vector<T>` type: its constructor is
-    // `constructor` and its methods `size`/`push`/`get`/`remove`, so identify it
-    // by the owning definition's name rather than the (common) method names
-    ASTNode* par = fd->get_parent();
-    if (par && par->kind() == ASTNodeKind::StructDecl &&
-        par->as_struct_def_unsafe()->name_view() == chem::string_view("vector")) {
-        return true;
     }
     return false;
 }

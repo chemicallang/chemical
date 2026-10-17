@@ -651,9 +651,6 @@ public:
         Value* debug_value = nullptr
     );
 
-    // called by the return statement
-    void set_return(InterpretScope& func_scope, Value *value) final;
-
     FunctionDeclaration *as_function() final;
 
 };

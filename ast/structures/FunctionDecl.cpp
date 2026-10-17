@@ -236,11 +236,6 @@ Value *FunctionDeclaration::call(
     return call(call_scope, call_obj->values, parent, &fn_scope, evaluate_refs, call_obj);
 }
 
-// called by the return statement (the statement interpreter that used this has
-// been deleted; kept because FunctionType declares it pure virtual)
-void FunctionDeclaration::set_return(InterpretScope& func_scope, Value *value) {
-}
-
 Value *FunctionDeclaration::call(
     InterpretScope *call_scope,
     std::vector<Value*>& call_args,

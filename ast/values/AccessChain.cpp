@@ -144,21 +144,8 @@ void AccessChain::set_value(InterpretScope &scope, Value *rawValue, Operation op
     } else {
         auto parent = parent_value(scope);
         if(parent) {
-            // Save the old value before assignment for destructor call
-            Value* oldVal = nullptr;
-            if(op == Operation::Assignment) {
-                auto lastVal = values[values.size() - 1];
-                auto id = lastVal->as_identifier();
-                if(id != nullptr) {
-                    oldVal = parent->child(scope, id->value);
-                }
-            }
             auto newVal = rawValue->scope_value(scope);
             values[values.size() - 1]->set_value_in(scope, parent, newVal, op, passed_loc);
-            // Destruct the old value if it's a destructible struct being replaced
-            if(oldVal) {
-                scope.destroy_value(oldVal);
-            }
         } else {
             scope.error(this) << "(access chain) parent is null for set_value";
         }
@@ -230,14 +217,6 @@ Value* AccessChain::evaluated_value(InterpretScope &scope) {
     if(values.size() == 1) return values[0]->evaluated_value(scope);
     Value* evaluated = values[0]->evaluated_value(scope);
     auto result = evaluate_from(values, scope, evaluated, 1);
-    // If the first value in the chain is a FunctionCall that returns a destructible
-    // struct, destruct the intermediate temp. The result is a field/method of that
-    // struct, not the struct itself, so the struct temp must be cleaned up.
-    // E.g.: create_destructible(...).data → destruct the create_destructible temp.
-    if(values.size() > 1 && values[0]->val_kind() == ValueKind::FunctionCall &&
-       evaluated && evaluated->val_kind() == ValueKind::StructValue) {
-        scope.destroy_value(evaluated);
-    }
     return result;
 }
 

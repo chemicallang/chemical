@@ -232,9 +232,8 @@ Value* PointerValue::deref(InterpretScope& scope, SourceLocation value_loc, Valu
             // data was set by AddrOfValue to point to a StructValue
             auto srcStruct = (StructValue*) data;
             if(srcStruct) {
-                // Only copy non-destructible (trivially copyable) structs.
-                // For destructible structs and variants, return the original
-                // since move semantics handle cleanup via move_clear_source.
+                // Only copy non-destructible (trivially copyable) structs. For
+                // destructible structs and variants, return the original value.
                 auto ext = srcStruct->linked_extendable();
                 if(ext && ext->kind() == ASTNodeKind::StructDecl) {
                     auto sd = (StructDefinition*)ext;

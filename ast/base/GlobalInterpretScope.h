@@ -20,8 +20,6 @@ class BackendContext;
 
 class LabBuildCompiler;
 
-class Namespace;
-
 class SymbolResolver;
 
 struct GlobalContainer;
@@ -98,13 +96,6 @@ public:
      * the type cache is used to get types
      */
     TypeBuilder& typeBuilder;
-
-    /**
-     * Break value for loop value expressions (e.g., var j = loop { break i; }).
-     * Stored on the global scope so it survives child scope destruction (if/switch
-     * bodies create child scopes that are destroyed before the loop's body scope
-     * can read the break value).
-     */
 
     /**
      * The constructor

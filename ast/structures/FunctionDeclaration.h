@@ -514,18 +514,6 @@ public:
         return attrs.contract_flag != 0;
     }
 
-    inline bool is_auto_called_func() {
-        return is_delete_fn() || is_constructor_fn();
-    }
-
-    /**
-     * check if the function actually exits at runtime
-     * comptime functions or functions which have no usage do not exist
-     */
-    inline bool exists_at_runtime() {
-        return !is_comptime();
-    }
-
     ASTNode* get_parent() final {
         return parent();
     }
@@ -589,29 +577,6 @@ public:
     void ensure_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def);
 
     using FunctionType::as_extension_func;
-
-    /**
-     * if there's no body then returns the location of function
-     */
-    SourceLocation body_location() {
-        return (body.has_value()) ? body->encoded_location() : ASTNode::encoded_location();
-    }
-
-    /**
-     * we return generic iteration if it already exists
-     */
-    int16_t register_call_with_existing(ASTDiagnoser& diagnoser, FunctionCall* call, BaseType* expected_type);
-
-    void register_parent_iteration(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, int16_t parent_itr);
-
-    int16_t get_parent_iteration();
-
-    /**
-     * a call notifies a function, during symbol resolution that it exists
-     * when this happens, generics are checked, proper types are registered in generic
-     * @return iteration that corresponds to this call
-     */
-    int16_t register_call(ASTAllocator& astAllocator, ASTDiagnoser& diagnoser, FunctionCall* call, BaseType* expected_type);
 
     /**
      * get known function type, which is this

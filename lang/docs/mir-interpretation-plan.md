@@ -592,21 +592,43 @@ growth, and calls the callee by mangled name; the raw 64-bit result is bridged
 back to an AST value (`IntNumValue`/`BoolValue`/`NullValue`; aggregates pending).
 
 It **declines** anything whose interpreter semantics the engine does not
-reproduce — intrinsics with no body (`is_comptime`, `is_runtime`,
-`get_call_loc`, `intrinsics::vector`, `expr_str_block_value`, …), non-scalar
-expression operands (the interpreter's string `+`/`==`), generics, and methods
-— so those keep the AST path and every suite stays green. On the test-suite
-compile it handles **177** comptime calls (`comptime_fnv1_hash` 57,
-`compare_enum_result7` 12, the `comptime/basic.ch` fixtures, …).
+reproduce, so those keep the AST path and every suite stays green. On the
+test-suite compile it handles **423** comptime calls (~92% of the real ones) —
+`comptime_fnv1_hash`, `decode_location`, `comptime_size_of`, `Layout::of`, the
+`comptime/basic.ch` fixtures, `Pair66` constructors, …
+
+Covered since the first cut:
+1. **Generics.** Unique mangled names inside the driver's module — generic
+   instantiations share the host's mangled name, which the module-local
+   `fn_by_name` lookup collided on.
+2. **Flat-struct results** (`MIRInterpreter::call_sret` + `MIRTypeTable` layout
+   read back into a `StructValue`); a self-referencing struct type
+   canonicalizes to a `LinkedType`, so the return check resolves the linked node.
+3. **No-body callees** (intrinsics the lowerer folds, externs the engine binds as
+   hosts) — declined only when they *diverge* (`is_comptime`/`is_runtime`,
+   call-site/location introspection, `intrinsics::vector`).
+4. **Expressions** — declined only for string `+` (the interpreter's
+   concatenation); pointer arithmetic/comparison and string-literal equality
+   (identical contents are interned) match the engine.
 
 Green: `--tcc` 2307, `--interpret` 1896, `--llvm` 2305.
 
-Remaining to retire `compiler/Interpreter/Core.cpp`:
-1. **Aggregate results** (structs/variants/arrays) via `MIRTypeTable` layout.
-2. **Pointer/aggregate arguments** (currently scalar/string only).
-3. **Generics** — scope the driver's type mapping per instantiation.
-4. **The declined intrinsics** — either implement them in the engine
-   (call-site/location, `is_comptime`/`is_runtime`) or keep a shrinking residual.
+Remaining to retire `compiler/Interpreter/Core.cpp` (measured residual, ~36
+calls):
+1. **Void results** (`atomic_fence`) — return a void marker, not a value.
+2. **Methods** (`comptime_func_container::give_arg`) — marshal the receiver.
+3. **Function-pointer results** (`return_runtime_sum`, `give_me_some_sum`,
+   `give_me_gen_sum`) — bridge the address back to a function reference.
+4. **Array/slice results** (`get_tests`) — the `ArrayValue` bridge.
+5. **The divergent intrinsics** (`is_comptime`/`is_runtime`, `get_call_loc`,
+   `expr_str_block_value`) and `intrinsics::vector` — implement in the engine, or
+   migrate the interpreter-only tests (`comptime/intrinsics.ch`,
+   `comptime/vector.ch`, `comptime_test_comparison_strings`, `comptime_add_strings`)
+   to the unified semantics.
+6. **Delete** — `compiler/Interpreter/Core.cpp`, `InterpretScope`/
+   `GlobalInterpretScope`, `FunctionDeclaration::call`'s body execution, and the
+   interpreter-friendly std types; `Value::evaluated_value` survives as the §5.4
+   symres-time expression folder.
 
 #### 5.4 The unavoidable residual (why "delete the AST interpreter" has a floor)
 

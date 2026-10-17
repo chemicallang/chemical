@@ -67,16 +67,23 @@ interpreter's last lowering-time job.
 >    stack) so `intrinsics::get_call_loc` resolves to the call, not the macro body;
 > 5. a nested-inline **use-after-free** fix — the inline `return` held
 >    `ComptimeInlineFrame&` across `lower_expr`, which can reallocate
->    `inline_frames_` and leave the reference dangling.
+>    `inline_frames_` and leave the reference dangling;
+> 6. **lambda isolation** — a lambda materialized inside a splice inherited the
+>    splice's `inline_frames_`/`comptime_bindings_`, so its `return` branched to
+>    the *caller's* block and stored into a caller place (an instruction in the
+>    lambda's function referencing a place it does not own).
 >
-> **Remaining (3).**
-> - **`function.make`** — its body folds
->   `intrinsics::get_lambda_cap_destructor(lambda)`, whose folded value is a
->   `VariantCase` the MIR lowerer cannot emit; that intrinsic needs a lowering
->   rule (it is a no-capture-lambda case).
-> - **`ASTBuilder.allocate` (2)** — the `compiler` plugin library is not
->   standalone-compilable, and migrating it deadlocks the plugin build; a
->   follow-up.
+> **Remaining (3).** Both now reach a bug *outside* the `%runtime_value`
+> migration:
+> - **`function.make`** — inlining it into an async caller (through
+>   `spawn_blocking`'s `std::function` conversion) mis-wires the async state
+>   machine: a `Result`-typed slot is assigned the
+>   `default_function_instance` value. The lambda-isolation fix below cleared
+>   the earlier bad-place crash; what remains is an async-lowering interaction.
+> - **`ASTBuilder.allocate` (2)** — migrating it deadlocks the
+>   `--tcc --plugins` build (every thread parked on `futex_do_wait`), and it
+>   persists after the splice fix. The `compiler` plugin library is also not
+>   standalone-compilable, so it can only be exercised through `--plugins`.
 
 ---
 

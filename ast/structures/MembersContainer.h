@@ -432,30 +432,7 @@ public:
     /**
      * get the overriding info for the given function (to know which function is the given function overriding and in which interface / struct)
      */
-    [[deprecated]]
     FunctionOverridingInfo get_func_overriding_info(FunctionDeclaration* function);
-
-    /**
-     * get the overriding struct / interface and the function being overridden
-     * @deprecated
-     */
-    [[deprecated]]
-    std::pair<ASTNode*, FunctionDeclaration*> get_overriding_info(FunctionDeclaration* function) {
-        const auto info = get_func_overriding_info(function);
-        return { info.base_container, info.base_func };
-    }
-
-    /**
-     * get a function with signature equal to given func type, present in direct or inherited functions
-     * it also checks for the function name
-     */
-    std::pair<ASTNode*, FunctionDeclaration*> get_func_with_signature(FunctionDeclaration* function);
-
-    /**
-    /**
-     * get the interface overriding info, this means that the function being overridden is present in an interface
-     */
-    std::pair<InterfaceDefinition*, FunctionDeclaration*> get_interface_overriding_info(FunctionDeclaration* function);
 
     /**
      * get overriding interface for the following function, means function being overridden is present in an interface

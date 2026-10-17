@@ -319,25 +319,9 @@ FunctionOverridingInfo MembersContainer::get_func_overriding_info(FunctionDeclar
     return { nullptr, nullptr, nullptr };
 }
 
-std::pair<ASTNode*, FunctionDeclaration*> MembersContainer::get_func_with_signature(FunctionDeclaration* function) {
-    auto direct = direct_child_function(function->name_view());
-    if(direct) return { this, direct };
-    return get_overriding_info(function);
-}
-
-std::pair<InterfaceDefinition*, FunctionDeclaration*> MembersContainer::get_interface_overriding_info(FunctionDeclaration* function) {
-    const auto info = get_overriding_info(function);
-    const auto interface = info.first ? info.first->as_interface_def() : nullptr;
-    if(interface) {
-        return { interface, info.second };
-    } else {
-        return { nullptr, nullptr };
-    }
-}
-
 InterfaceDefinition* MembersContainer::get_overriding_interface(FunctionDeclaration* function) {
-    const auto info = get_overriding_info(function);
-    return info.first ? info.first->as_interface_def() : nullptr;
+    const auto info = get_func_overriding_info(function);
+    return info.base_container ? info.base_container->as_interface_def() : nullptr;
 }
 
 FunctionDeclaration* MembersContainer::get_first_constructor() {

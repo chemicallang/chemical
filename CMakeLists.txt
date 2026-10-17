@@ -403,7 +403,6 @@ set(COMMON_SOURCES
         ast/types/ArrayType.cpp
         ast/base/ASTAny.h
         ast/base/ASTAny.cpp
-        ast/base/ChainPart.h
         ast/statements/UsingStmt.h
         ast/statements/Using.cpp
         ast/statements/DestructStmt.h
@@ -479,7 +478,6 @@ set(COMMON_SOURCES
         core/source/LocationManager.h
         core/source/LocationManager.cpp
         core/source/SourceLocation.h
-        ast/base/LocatedIdentifier.h
         ast/base/BatchAllocator.h
         parser/utils/parse_num.h
         lexer/Lexer.h

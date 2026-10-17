@@ -143,16 +143,6 @@ FunctionDeclaration* default_build_lab_get_method(ASTAllocator& allocator, TypeB
     return decl;
 }
 
-//LocatedIdentifier LOC_ID(BatchAllocator& allocator, std::string identifier, SourceLocation location) {
-//    const auto size = identifier.size();
-//    const auto ptr = allocate(allocator, identifier.data(), size);
-//#ifdef LSP_BUILD
-//    return { chem::string_view(ptr, size), location };
-//#else
-//    return { chem::string_view(ptr, size) };
-//#endif
-//}
-
 bool ASTNode::is_top_level() const {
     if(!parent()) return true;
     switch(parent()->kind()) {

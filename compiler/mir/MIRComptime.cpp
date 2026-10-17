@@ -88,6 +88,7 @@ bool scalar_return(BaseType* canonical) {
         case BaseTypeKind::Struct:
         case BaseTypeKind::Union:
         case BaseTypeKind::Void:
+        case BaseTypeKind::Function:
             return true;
         case BaseTypeKind::Linked: {
             // a self-referencing struct type canonicalizes to its Linked form
@@ -291,6 +292,18 @@ bool value_eligible(Value* v, Eligibility& e) {
     }
 }
 
+/** The expression of the single `return` in `body`, if it has exactly one. */
+Value* single_return_expr(Scope& body) {
+    Value* found = nullptr;
+    for (ASTNode* n : body.nodes) {
+        if (n && n->kind() == ASTNodeKind::ReturnStmt) {
+            if (found) return nullptr;
+            found = n->as_return()->value;
+        }
+    }
+    return found;
+}
+
 /** Read a scalar field of MIR type `r` at `p` back into an AST value. */
 Value* read_scalar_value(const MIRComptimeContext& ctx, const MIRTypeRecord& r,
                          const uint8_t* p, SourceLocation loc) {
@@ -340,6 +353,57 @@ Value* read_scalar_value(const MIRComptimeContext& ctx, const MIRTypeRecord& r,
         default:
             return nullptr; // nested aggregate: out of scope for now
     }
+}
+
+/** Write a flat AST struct value's scalar fields into MIR bytes (receiver args). */
+bool write_struct_bytes(MIRTypeBuilder& types, MIRModule& module, StructValue* sv,
+                        std::vector<uint8_t>& buf) {
+    BaseType* rt = sv->getType();
+    const TypeId rtid = rt ? types.map(rt) : MIR_INVALID_ID;
+    if (rtid == MIR_INVALID_ID || rtid >= module.types.size()) return false;
+    compute_aggregate_layout(module.types, rtid);
+    const MIRTypeRecord rec = module.types.get(rtid);
+    buf.assign(rec.size ? rec.size : 1, 0);
+    if (rec.field_index == MIR_INVALID_ID) return true;
+    for (uint32_t i = 0; i < rec.data_count; ++i) {
+        const MIRFieldInfo& fi = module.types.fields[rec.field_index + i];
+        const char* nm = module.types.field_names.data_at(fi.name_offset);
+        auto it = sv->values.find(chem::string_view(nm, fi.name_length));
+        if (it == sv->values.end() || !it->second.value) return false;
+        Value* fv = it->second.value;
+        const MIRTypeRecord fr = module.types.get(fi.type);
+        const size_t n = fr.size > 8 ? 8 : fr.size;
+        switch (fv->val_kind()) {
+            case ValueKind::IntN: {
+                const uint64_t v = fv->as_int_num_value_unsafe()->get_num_value();
+                std::memcpy(buf.data() + fi.offset, &v, n);
+                break;
+            }
+            case ValueKind::Bool: {
+                const uint8_t b = fv->as_bool_unsafe()->value ? 1 : 0;
+                std::memcpy(buf.data() + fi.offset, &b, n);
+                break;
+            }
+            case ValueKind::Float: {
+                const float f = fv->as_float_unsafe()->value;
+                std::memcpy(buf.data() + fi.offset, &f, n);
+                break;
+            }
+            case ValueKind::Double: {
+                const double d = fv->as_double_unsafe()->value;
+                std::memcpy(buf.data() + fi.offset, &d, n);
+                break;
+            }
+            case ValueKind::NullValue: {
+                const uint64_t z = 0;
+                std::memcpy(buf.data() + fi.offset, &z, n);
+                break;
+            }
+            default:
+                return false; // nested aggregate: out of scope
+        }
+    }
+    return true;
 }
 
 /** Rebuild an AST struct value from a flat MIR struct's bytes. */
@@ -419,10 +483,9 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
     if (!call) return nullptr;
     BaseType* rtc = fd->returnType ? fd->returnType->canonical() : nullptr;
     if (!scalar_return(rtc)) CT_DECLINE("non-scalar/struct return");
-    // methods carry a receiver the driver does not marshal yet; a generic
-    // instantiation binds its parameters from the instantiation site, which the
-    // driver's type mapping is not yet scoped to
-    if (fd->has_self_param()) CT_DECLINE("method (self receiver)");
+    // a generic instantiation binds its parameters from the instantiation site,
+    // which the driver's type mapping is not yet scoped to
+    (void) 0;
 
     // unique mangled names inside the driver's module: generic instantiations
     // share the host's mangled name, which a module-local lookup would collide on
@@ -453,10 +516,29 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
         }
     }
 
-    // 1. fold + marshal the arguments
+    // 1. fold + marshal the arguments (the receiver first for a method)
     std::vector<uint64_t> cells;
     std::vector<std::vector<char>> keep;
+    std::vector<std::vector<uint8_t>> keep_structs;
     std::unordered_map<std::string, size_t> interned;
+    if (fd->has_self_param()) {
+        Value* rexpr = nullptr;
+        if (call->parent_val && call->parent_val->val_kind() == ValueKind::AccessChain) {
+            auto* ch = call->parent_val->as_access_chain_unsafe();
+            if (!ch->values.empty()) rexpr = ch->values.front();
+        }
+        if (!rexpr) return nullptr;
+        Value* rv = rexpr->evaluated_value(*ctx.scope);
+        if (!rv || rv->val_kind() != ValueKind::StructValue) {
+            CT_DECLINE("method receiver is not a comptime struct");
+        }
+        keep_structs.emplace_back();
+        if (!write_struct_bytes(impl_->types, impl_->module, rv->as_struct_value_unsafe(),
+                                keep_structs.back())) {
+            return nullptr;
+        }
+        cells.push_back(reinterpret_cast<uint64_t>(keep_structs.back().data()));
+    }
     for (size_t i = 0; i < fd->params.size(); ++i) {
         FunctionParam* p = fd->params[i];
         if (!p || is_self_param(fd, p)) continue;
@@ -494,6 +576,22 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
     // 4. run the callee
     const std::string name =
         impl_->module.symbols.mangled_name(impl_->module.symbols.get(target));
+    // A function-pointer result cannot travel as an engine cell: fold the
+    // function's (single) return expression as an AST value (the §5.4
+    // expression layer).
+    if (rtc->kind() == BaseTypeKind::Function) {
+        Value* ret = single_return_expr(fd->body.value());
+        if (!ret) return nullptr;
+        Value* v = ret->evaluated_value(*ctx.scope);
+        if (!v) return nullptr;
+        handled = true;
+        if (std::getenv("CT_STAT")) {
+            std::fprintf(stderr, "[CTSTAT] DRV %s fd=%p fnptr\n", fd->name_str().c_str(),
+                         (void*) fd);
+        }
+        return v;
+    }
+
     // void result: run the function for its comptime side effects; the caller
     // treats a null result as the void call
     if (rtc->kind() == BaseTypeKind::Void) {

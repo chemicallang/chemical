@@ -99,7 +99,6 @@
 #include "ast/values/IfValue.h"
 #include "ast/values/SwitchValue.h"
 #include "ast/values/LoopValue.h"
-#include "ast/values/WrapValue.h"
 #include "utils/RepresentationUtils.h"
 #include "preprocess/2c/TranslationContext.h"
 
@@ -833,12 +832,6 @@ void RepresentationVisitor::VisitExpressiveString(ExpressiveString* value) {
     for(auto val : value->values) {
         visit(val);
     }
-}
-
-void RepresentationVisitor::VisitWrapValue(WrapValue* value) {
-    write("%runtime_value(");
-    visit(value->underlying);
-    write(')');
 }
 
 void RepresentationVisitor::VisitFunctionCall(FunctionCall *call) {

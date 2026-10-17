@@ -334,7 +334,6 @@ public:
 
     void VisitExpressiveString(ExpressiveString* value);
 
-    void VisitWrapValue(WrapValue* value);
 
     // Types
 

@@ -79,10 +79,6 @@ Value* CastedValue::evaluated_value(InterpretScope &scope) {
                     scope.error("could not cast integer value to pointer", this);
                     return eval;
                 }
-                case ValueKind::WrapValue:
-                    // currently we shouldn't error out here, we use this
-                    // maybe in the future, we should verify the underlying value
-                    return eval;
                 default:
                     // in codegen mode (outside interpretation), the backends
                     // translate the casted expression (with the cast preserved)

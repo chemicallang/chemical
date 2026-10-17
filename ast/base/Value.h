@@ -33,8 +33,6 @@ class BaseType;
 
 class ASTDiagnoser;
 
-class WrapValue;
-
 /**
  * @brief Base class for all values in the AST.
  */
@@ -475,10 +473,6 @@ public:
         return k == ValueKind::AddrOfValue;
     }
 
-    static constexpr inline bool isWrapValue(ValueKind k) {
-        return k == ValueKind::WrapValue;
-    }
-
     // --------------------------------------------
     // ------- as_value methods begin here ---------
     // --------------------------------------------
@@ -589,10 +583,6 @@ public:
 
     inline AddrOfValue* as_addr_of_value() {
         return isAddrOfValue(val_kind()) ? ((AddrOfValue*) this) : nullptr;
-    }
-
-    inline WrapValue* as_wrap_value() {
-        return isWrapValue(val_kind()) ? ((WrapValue*) this) : nullptr;
     }
 
     inline PatternMatchExpr* as_pattern_match_expr() {
@@ -736,11 +726,6 @@ public:
     inline ReferenceOfValue* as_reference_of_value_unsafe() {
         CHECK_CAST(ValueKind::ReferenceOfValue);
         return ((ReferenceOfValue*) this);
-    }
-
-    inline WrapValue* as_wrap_value_unsafe() {
-        CHECK_CAST(ValueKind::WrapValue);
-        return ((WrapValue*) this);
     }
 
     inline PatternMatchExpr* as_pattern_match_expr_unsafe() {

@@ -535,7 +535,6 @@ set(COMMON_SOURCES
         ast/structures/GenericStructDecl.cpp
         ast/structures/GenericMembersDecl.h
         compiler/symres/SymbolRange.h
-        ast/values/WrapValue.h
         ast/structures/GenericVariantDecl.h
         ast/structures/GenericUnionDecl.h
         ast/structures/GenericInterfaceDecl.h

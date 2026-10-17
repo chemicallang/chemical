@@ -395,10 +395,6 @@ public:
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
 
-    inline void VisitWrapValue(WrapValue* value) {
-        static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
-    }
-
     inline void VisitExtractionValue(ExtractionValue* value) {
         static_cast<Derived*>(this)->VisitCommonValue((Value*) value);
     }
@@ -865,9 +861,6 @@ public:
             case ValueKind::BlockValue:
                 static_cast<Derived*>(this)->VisitBlockValue((BlockValue*) value);
                 return;
-            case ValueKind::WrapValue:
-                static_cast<Derived*>(this)->VisitWrapValue((WrapValue*) value);
-                return;
             case ValueKind::ExtractionValue:
                 static_cast<Derived*>(this)->VisitExtractionValue((ExtractionValue*) value);
                 return;
@@ -1259,9 +1252,6 @@ public:
     }
     inline void VisitByPtrTypeNoNullCheck(LoopValue* value) {
         static_cast<Derived*>(this)->VisitLoopValue(value);
-    }
-    inline void VisitByPtrTypeNoNullCheck(WrapValue* value) {
-        static_cast<Derived*>(this)->VisitWrapValue(value);
     }
     inline void VisitByPtrTypeNoNullCheck(ExpressiveString* value) {
         static_cast<Derived*>(this)->VisitExpressiveString(value);

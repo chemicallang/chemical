@@ -23,7 +23,6 @@
 #include "ast/values/FunctionCall.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/values/VariableIdentifier.h"
-#include "ast/values/WrapValue.h"
 #include "ast/values/CastedValue.h"
 #include "ast/types/IntNType.h"
 #include "std/except.h"
@@ -186,17 +185,6 @@ inline BoolValue* pack_bool(InterpretScope& scope, bool value, SourceLocation lo
 
 Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, SourceLocation location, Value* debugValue) {
     auto& scope = *this;
-    // Fully resolve WrapValue transparently: unwrap and evaluate the underlying
-    if(fEvl->kind() == ValueKind::WrapValue) {
-        const auto underlying = fEvl->as_wrap_value_unsafe()->underlying;
-        fEvl = underlying->evaluated_value(scope);
-        if(!fEvl) return nullptr;
-    }
-    if(sEvl->kind() == ValueKind::WrapValue) {
-        const auto underlying = sEvl->as_wrap_value_unsafe()->underlying;
-        sEvl = underlying->evaluated_value(scope);
-        if(!sEvl) return nullptr;
-    }
     // Resolve complex values that should not reach the core evaluation logic
     {
         auto resVal = fEvl->evaluated_value(scope);

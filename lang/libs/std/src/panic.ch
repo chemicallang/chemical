@@ -10,6 +10,7 @@ public func raw_panic(message : *char, location : Location) {
     abort()
 }
 
+@expand
 comptime func decode_location(loc : ubigint) : Location {
     return intrinsics::decode_location<Location>(loc) as Location
 }

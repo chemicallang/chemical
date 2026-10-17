@@ -543,8 +543,7 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
             auto* ch = call->parent_val->as_access_chain_unsafe();
             if (!ch->values.empty()) rexpr = ch->values.front();
         }
-        if (!rexpr) return nullptr;
-        Value* rv = rexpr->evaluated_value(*ctx.scope);
+        Value* rv = rexpr ? rexpr->evaluated_value(*ctx.scope) : nullptr;
         if (rv && rv->val_kind() == ValueKind::StructValue) {
             keep_structs.emplace_back();
             if (!write_struct_bytes(impl_->types, impl_->module, rv->as_struct_value_unsafe(),
@@ -558,15 +557,29 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
             cells.push_back(0);
         }
     }
-    for (size_t i = 0; i < fd->params.size(); ++i) {
-        FunctionParam* p = fd->params[i];
-        if (!p || is_self_param(fd, p)) continue;
-        Value* a = (i < call->values.size()) ? call->values[i] : p->defValue;
+    // `call->values` holds the explicit arguments only — `self` (and any other
+    // leading implicit parameter) is passed as the receiver, exactly as the
+    // interpreter's FunctionDeclaration::call maps them: arg i is
+    // func_param_for_arg_at(i), whose offset skips those implicit parameters.
+    const size_t supplied = call->values.size();
+    const size_t expected = fd->expectedArgsSize();
+    const size_t total = supplied > expected ? supplied : expected;
+    for (size_t i = 0; i < total; ++i) {
+        FunctionParam* p = fd->func_param_for_arg_at(static_cast<unsigned>(i));
+        if (!p) return nullptr;
+        Value* a = i < supplied ? call->values[i] : p->defValue;
         if (!a) return nullptr;
         Value* av = a->evaluated_value(*ctx.scope);
-        if (!av) return nullptr;
+        if (!av) {
+            if (std::getenv("CT_STAT")) std::fprintf(stderr, "[CTSTAT] ARGFAIL %s\n", fd->name_str().c_str());
+            return nullptr;
+        }
         uint64_t cell = 0;
-        if (!marshal_arg(av, cell, keep, interned)) return nullptr;
+        if (!marshal_arg(av, cell, keep, interned)) {
+            if (std::getenv("CT_STAT")) std::fprintf(stderr, "[CTSTAT] MARSHALFAIL %s kind=%d\n",
+                                                     fd->name_str().c_str(), (int) av->val_kind());
+            return nullptr;
+        }
         cells.push_back(cell);
     }
 
@@ -583,6 +596,10 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
         impl_->task->begin_function(false); // keep the arena: the MIR stays live
         MIRFunction fn;
         if (!impl_->task->lowerer.lower_function(d, impl_->task->arena, fn, error)) {
+            if (std::getenv("CT_STAT")) {
+                std::fprintf(stderr, "[CTSTAT] LOWERFAIL %s: %s\n", d->name_str().c_str(),
+                             error.c_str());
+            }
             error.clear();
             return nullptr;
         }
@@ -591,7 +608,10 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
         impl_->dirty = true;
     }
     const SymbolId target = impl_->lowered.count(fd) ? impl_->lowered[fd] : MIR_INVALID_ID;
-    if (target == MIR_INVALID_ID) return nullptr;
+    if (target == MIR_INVALID_ID) {
+        if (std::getenv("CT_STAT")) std::fprintf(stderr, "[CTSTAT] NOTARGET %s\n", fd->name_str().c_str());
+        return nullptr;
+    }
 
     // 3. (re)prepare the engine when the module grew
     if (impl_->dirty || !impl_->interp) {
@@ -662,6 +682,10 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
     uint64_t out = 0;
     if (!impl_->interp->call(name, cells.data(), static_cast<uint32_t>(cells.size()),
                              out, error)) {
+        if (std::getenv("CT_STAT")) {
+            std::fprintf(stderr, "[CTSTAT] CALLFAIL %s: %s\n", fd->name_str().c_str(),
+                         error.c_str());
+        }
         error.clear();
         return nullptr;
     }

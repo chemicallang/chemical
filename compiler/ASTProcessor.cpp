@@ -28,6 +28,7 @@ static void ct_stat(const char* tag, const char* name) {
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/ComptimeBlock.h"
+#include "ast/utils/ASTUtils.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/ImplDefinition.h"
 #include "ast/statements/ChildrenMapNode.h"
@@ -2525,6 +2526,7 @@ int ASTProcessor::implement_module(
     // (`intrinsics::size`, `satisfies`, `llvm_mem_order`, …) folds with the
     // callee's parameters visible.
     auto push_comptime_bindings = [&c_visitor, &mir_lowerer]() {
+        mir_lowerer.note_comptime_binding_consumed();
         std::vector<std::pair<chem::string_view, Value*>> saved;
         const auto& binds = mir_lowerer.comptime_binding_names();
         for (const auto& kv : binds) {
@@ -2889,6 +2891,7 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
     // (`intrinsics::size`, `satisfies`, `llvm_mem_order`, …) folds with the
     // callee's parameters visible.
     auto push_comptime_bindings = [&c_visitor, &mir_lowerer]() {
+        mir_lowerer.note_comptime_binding_consumed();
         std::vector<std::pair<chem::string_view, Value*>> saved;
         const auto& binds = mir_lowerer.comptime_binding_names();
         for (const auto& kv : binds) {
@@ -2953,9 +2956,31 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
         pop_comptime_bindings(saved);
         return r;
     });
-    mir_lowerer.set_comptime_ctor_eval([&c_visitor, &mir_visitor_mutex](FunctionDeclaration* ctor, Value* arg) {
+    mir_lowerer.set_comptime_ctor_eval([&c_visitor, &mir_visitor_mutex, &mir_lowerer, &ct_driver,
+                                         &push_comptime_bindings,
+                                         &pop_comptime_bindings](FunctionDeclaration* ctor,
+                                                                 Value* arg) -> Value* {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         ct_stat_decl("CC", ctor);
+        if (ctor && ctor->is_comptime() && ctor->body.has_value()) {
+            BaseType* expected = ctor->params.empty() ? nullptr : ctor->params[0]->type;
+            if (FunctionCall* call =
+                    call_with_arg(ctor, arg, expected, c_visitor.allocator, c_visitor)) {
+                auto saved = push_comptime_bindings();
+                mir::MIRComptimeContext cctx;
+                cctx.host = &mir_lowerer;
+                cctx.allocator = &c_visitor.allocator;
+                cctx.type_builder = c_visitor.comptime_scope.global
+                                        ? &c_visitor.comptime_scope.global->typeBuilder
+                                        : nullptr;
+                cctx.scope = &c_visitor.comptime_scope;
+                bool handled = false;
+                std::string derr;
+                Value* r = ct_driver.evaluate(cctx, ctor, call, handled, derr);
+                pop_comptime_bindings(saved);
+                if (handled) return r;
+            }
+        }
         return c_visitor.eval_comptime_ctor(ctor, arg);
     });
     mir_lowerer.set_comptime_block_eval([&c_visitor, &mir_visitor_mutex, &mir_lowerer,

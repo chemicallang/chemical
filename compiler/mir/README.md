@@ -135,9 +135,13 @@ Green: `MIRTests` 4400 · `--tcc` 2307/2307 · `--llvm` 2305/2305 ·
 `--tcc --interpret` **1896/1896 (through the engine)** · `--libs` 718/719
 (known env failure) · `--async` 53/53.
 
-Phase 5 (comptime on MIR, then delete `compiler/Interpreter/`) is **remaining**:
-the `MIRLowerer` comptime callbacks still call the AST interpreter, so it cannot
-be deleted yet.
+Phase 5 (comptime on MIR) is **done**: the AST statement interpreter
+(`compiler/Interpreter/Core.cpp`) is deleted. A lowering-time comptime call is
+lowered and executed by `compiler/mir/MIRComptime.cpp` (a statement-level
+`comptime { }` block too, via `evaluate_block`); the AST evaluator that survives
+is the expression layer only — symres-time folding of self-contained expressions
+and the compiler-intrinsic `call` overrides (see
+`lang/docs/mir-interpretation-plan.md` §5.3.1/§5.4).
 
 ### Session 49 (2026-10-16) — the E3d blocker is cross-function AST/comptime contamination
 

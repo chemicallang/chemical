@@ -17,6 +17,9 @@
 #include "ast/structures/Scope.h"
 #include "ast/structures/ComptimeBlock.h"
 #include "ast/structures/EnumDeclaration.h"
+#include "ast/structures/VariablesContainer.h"
+#include "ast/structures/UnnamedUnion.h"
+#include "ast/structures/UnnamedStruct.h"
 #include "ast/structures/If.h"
 #include "ast/statements/Return.h"
 #include "ast/statements/VarInit.h"
@@ -115,13 +118,9 @@ bool is_self_param(FunctionDeclaration* fd, FunctionParam* p) {
     return fd->has_self_param() && fd->get_self_param() == p;
 }
 
-/** A parameter that is a runtime operand (`%runtime<T>` / `%maybe_runtime<T>` /
- * `%literal`) has no comptime value to publish. */
 bool is_runtime_marker_param(FunctionParam* p) {
     if (!p || !p->type) return false;
-    const BaseTypeKind k = p->type->kind();
-    return k == BaseTypeKind::Runtime || k == BaseTypeKind::MaybeRuntime ||
-           k == BaseTypeKind::Literal;
+    return p->type->kind() == BaseTypeKind::Runtime;
 }
 
 // ── eligibility: can the MIR engine reproduce this function's result? ───────
@@ -324,7 +323,8 @@ Value* single_return_expr(Scope& body) {
 
 /** Read a scalar field of MIR type `r` at `p` back into an AST value. */
 Value* read_scalar_value(const MIRComptimeContext& ctx, const MIRTypeRecord& r,
-                         const uint8_t* p, SourceLocation loc) {
+                         const uint8_t* p, SourceLocation loc,
+                         const std::unordered_map<uint64_t, std::string>* cells) {
     switch (r.kind) {
         case MIRTypeKind::Bool: {
             uint8_t b = 0;
@@ -361,6 +361,17 @@ Value* read_scalar_value(const MIRComptimeContext& ctx, const MIRTypeRecord& r,
         case MIRTypeKind::Function: {
             uint64_t v = 0;
             std::memcpy(&v, p, 8);
+            // a `*char`/pointer cell that came from a comptime string literal is
+            // carried as a StringValue (as the interpreter did), so the lowering
+            // emits a real string constant instead of an interpreter address
+            if (cells) {
+                auto it = cells->find(v);
+                if (it != cells->end()) {
+                    return new (ctx.allocator->allocate<StringValue>())
+                        StringValue(chem::string_view(it->second.data(), it->second.size()),
+                                    ctx.type_builder->getStringType(), loc);
+                }
+            }
             if (!v) {
                 return new (ctx.allocator->allocate<NullValue>())
                     NullValue(ctx.type_builder->getNullPtrType(), loc);
@@ -424,30 +435,119 @@ bool write_struct_bytes(MIRTypeBuilder& types, MIRModule& module, StructValue* s
     return true;
 }
 
-/** Rebuild an AST struct value from a flat MIR struct's bytes. */
+/** Bridge a union value: only the first declared member is materialized (the
+ * active member in the comptime values we bridge, e.g.
+ * `std::string.storage.constant`). */
+Value* read_union_value(const MIRComptimeContext& ctx, MIRTypeBuilder& types, MIRModule& module,
+                        const uint8_t* bytes, SourceLocation loc, TypeId tid, BaseType* ast_type,
+                        const std::unordered_map<uint64_t, std::string>* cells);
+
+/** Resolve an aggregate AST type (named or unnamed) to its member container. */
+bool aggregate_container(BaseType* ast_type, VariablesContainerBase*& container,
+                         ExtendableMembersContainerNode*& def, ASTNode*& node) {
+    container = nullptr;
+    def = nullptr;
+    node = nullptr;
+    if (!ast_type) return false;
+    BaseType* canon = ast_type->canonical();
+    ASTNode* nd = canon ? canon->get_direct_linked_canonical_node() : nullptr;
+    if (!nd) return false;
+    switch (nd->kind()) {
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::UnionDecl:
+        case ASTNodeKind::VariantDecl: {
+            auto* ed = nd->as_extendable_members_container_unsafe();
+            container = ed;
+            def = ed;
+            node = nd;
+            return true;
+        }
+        case ASTNodeKind::UnnamedStruct:
+            container = nd->as_unnamed_struct_unsafe();
+            node = nd;
+            return true;
+        case ASTNodeKind::UnnamedUnion:
+            container = nd->as_unnamed_union_unsafe();
+            node = nd;
+            return true;
+        default:
+            return false;
+    }
+}
+
 Value* read_struct_value(const MIRComptimeContext& ctx, MIRTypeBuilder& types, MIRModule& module,
-                         BaseType* ast_type, const uint8_t* bytes, SourceLocation loc) {
-    if (!ast_type) return nullptr;
-    ASTNode* nd = ast_type->canonical() ? ast_type->canonical()->get_direct_linked_canonical_node()
-                                        : nullptr;
-    if (!nd || nd->kind() != ASTNodeKind::StructDecl) return nullptr;
-    auto* sd = nd->as_struct_def_unsafe();
+                         BaseType* ast_type, const uint8_t* bytes, SourceLocation loc,
+                         const std::unordered_map<uint64_t, std::string>* cells) {
+    VariablesContainerBase* container = nullptr;
+    ExtendableMembersContainerNode* def = nullptr;
+    ASTNode* node = nullptr;
+    if (!aggregate_container(ast_type, container, def, node)) return nullptr;
     const TypeId tid = types.map(ast_type);
     if (tid == MIR_INVALID_ID || tid >= module.types.size()) return nullptr;
     compute_aggregate_layout(module.types, tid);
     const MIRTypeRecord rec = module.types.get(tid);
     if (rec.kind != MIRTypeKind::Struct || rec.field_index == MIR_INVALID_ID) return nullptr;
-    auto* sv = new (ctx.allocator->allocate<StructValue>())
-        StructValue(ast_type, sd, sd, loc);
+    auto* sv = def ? new (ctx.allocator->allocate<StructValue>())
+                         StructValue(ast_type, def, container, loc)
+                   : new (ctx.allocator->allocate<StructValue>()) StructValue(ast_type, loc);
+    if (!def) sv->resolve_container(node);
     for (uint32_t i = 0; i < rec.data_count; ++i) {
         const MIRFieldInfo& fi = module.types.fields[rec.field_index + i];
-        const MIRTypeRecord fr = module.types.get(fi.type);
-        Value* fv = read_scalar_value(ctx, fr, bytes + fi.offset, loc);
-        if (!fv) return nullptr;
         const char* nm = module.types.field_names.data_at(fi.name_offset);
         const chem::string_view name(nm, fi.name_length);
+        const MIRTypeRecord fr = module.types.get(fi.type);
+        BaseType* member_type = nullptr;
+        for (auto* v : container->variables()) {
+            if (v && v->name == name) { member_type = v->known_type(); break; }
+        }
+        Value* fv = nullptr;
+        if (fr.kind == MIRTypeKind::Struct) {
+            fv = read_struct_value(ctx, types, module, member_type, bytes + fi.offset, loc,
+                                  cells);
+        } else if (fr.kind == MIRTypeKind::Union) {
+            fv = read_union_value(ctx, types, module, bytes + fi.offset, loc, fi.type, member_type,
+                                  cells);
+        } else {
+            fv = read_scalar_value(ctx, fr, bytes + fi.offset, loc, cells);
+        }
+        if (!fv) return nullptr;
         sv->values.emplace(name, StructMemberInitializer{name, fv});
     }
+    return sv;
+}
+
+Value* read_union_value(const MIRComptimeContext& ctx, MIRTypeBuilder& types, MIRModule& module,
+                        const uint8_t* bytes, SourceLocation loc, TypeId tid, BaseType* ast_type,
+                        const std::unordered_map<uint64_t, std::string>* cells) {
+    VariablesContainerBase* container = nullptr;
+    ExtendableMembersContainerNode* def = nullptr;
+    ASTNode* node = nullptr;
+    if (!aggregate_container(ast_type, container, def, node)) return nullptr;
+    if (tid == MIR_INVALID_ID || tid >= module.types.size()) return nullptr;
+    compute_aggregate_layout(module.types, tid);
+    const MIRTypeRecord rec = module.types.get(tid);
+    if (rec.field_index == MIR_INVALID_ID || rec.data_count == 0) return nullptr;
+    // the active member is the first one in the values we bridge
+    const MIRFieldInfo& fi = module.types.fields[rec.field_index];
+    const char* nm = module.types.field_names.data_at(fi.name_offset);
+    const chem::string_view name(nm, fi.name_length);
+    BaseType* member_type = nullptr;
+    for (auto* v : container->variables()) {
+        if (v && v->name == name) { member_type = v->known_type(); break; }
+    }
+    const MIRTypeRecord fr = module.types.get(fi.type);
+    Value* mv = nullptr;
+    if (fr.kind == MIRTypeKind::Struct || fr.kind == MIRTypeKind::Union) {
+        mv = read_struct_value(ctx, types, module, member_type, bytes + fi.offset, loc, cells);
+    } else {
+        mv = read_scalar_value(ctx, fr, bytes + fi.offset, loc, cells);
+    }
+    if (!mv) return nullptr;
+    auto* sv = def ? new (ctx.allocator->allocate<StructValue>())
+                         StructValue(ast_type, def, container, loc)
+                   : new (ctx.allocator->allocate<StructValue>()) StructValue(ast_type, loc);
+    if (!def) sv->resolve_container(node);
+    sv->values.emplace(name, StructMemberInitializer{name, mv});
     return sv;
 }
 
@@ -488,6 +588,13 @@ bool marshal_arg(Value* av, uint64_t& cell, std::vector<std::vector<char>>& keep
 
 Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration* fd,
                              FunctionCall* call, bool& handled, std::string& error) {
+    if (impl_->lowering) {
+        // reached while another callee is being lowered (a nested comptime call
+        // in a driven body): use a fresh driver so the in-progress lowerer state
+        // is not clobbered
+        MIRComptime nested;
+        return nested.evaluate(ctx, fd, call, handled, error);
+    }
     handled = false;
 #define CT_DECLINE(reason) do { if (std::getenv("CT_STAT")) { \
     std::fprintf(stderr, "[CTSTAT] DECLINE %s: %s\n", fd && fd->name_str().size() ? fd->name_str().c_str() : "?", reason); } \
@@ -650,6 +757,13 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
         if (std::getenv("CT_STAT")) std::fprintf(stderr, "[CTSTAT] NOTARGET %s\n", fd->name_str().c_str());
         return nullptr;
     }
+    // A lowering that consumed a published comptime parameter is call-site
+    // dependent (e.g. `intrinsics::size(value)` in std::string's literal
+    // constructor). Its MIR must not be reused for another call site: drop it so
+    // the next call re-lowers with its own parameters.
+    if (ctx.host->take_comptime_binding_consumed()) {
+        for (FunctionDeclaration* d : reachable) impl_->lowered.erase(d);
+    }
 
     // 3. (re)prepare the engine when the module grew
     if (impl_->dirty || !impl_->interp) {
@@ -660,6 +774,12 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
     // 4. run the callee
     const std::string name =
         impl_->module.symbols.mangled_name(impl_->module.symbols.get(target));
+    // map each interned string cell back to its bytes, so the result bridge can
+    // carry a `*char` that points at a comptime literal as a StringValue
+    std::unordered_map<uint64_t, std::string> string_cells;
+    for (const auto& kv : interned) {
+        string_cells.emplace(reinterpret_cast<uint64_t>(keep[kv.second].data()), kv.first);
+    }
     // A function-pointer result cannot travel as an engine cell: fold the
     // function's (single) return expression as an AST value (the §5.4
     // expression layer).
@@ -705,7 +825,8 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
             return nullptr;
         }
         Value* bridged = read_struct_value(ctx, impl_->types, impl_->module, rtc, buf.data(),
-                                           call->encoded_location());
+                                           call->encoded_location(),
+                                           string_cells.empty() ? nullptr : &string_cells);
         if (!bridged && std::getenv("CT_STAT")) {
             std::fprintf(stderr, "[CTSTAT] AGGFAIL %s tid=%u\n", fd->name_str().c_str(), tid);
         }

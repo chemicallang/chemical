@@ -766,6 +766,7 @@ public:
      * the driver's published parameter bindings visible.
      */
     void copy_comptime_fold_callbacks_from(const MIRLowerer& o) {
+        comptime_eval_ = o.comptime_eval_;
         comptime_value_eval_ = o.comptime_value_eval_;
         comptime_call_site_ = o.comptime_call_site_;
     }
@@ -802,6 +803,7 @@ private:
      * callee's parameters visible.
      */
     std::unordered_map<std::string, Value*> comptime_bindings_;
+    bool comptime_binding_consumed_ = false;
 public:
     const std::unordered_map<std::string, Value*>& comptime_binding_names() const {
         return comptime_bindings_;
@@ -816,6 +818,17 @@ public:
     /** Publish a folded comptime parameter by name (driver use). */
     void publish_comptime_binding(const std::string& key, Value* value) {
         set_comptime_binding(key, value);
+    }
+    /**
+     * Set when a published comptime parameter is consumed to fold a value while
+     * a callee is being lowered. Such a lowering is *call-site dependent*, so the
+     * driver must not reuse its MIR for another call site.
+     */
+    void note_comptime_binding_consumed() { comptime_binding_consumed_ = true; }
+    bool take_comptime_binding_consumed() {
+        const bool v = comptime_binding_consumed_;
+        comptime_binding_consumed_ = false;
+        return v;
     }
 private:
     void bind_name(const chem::string_view& name, PlaceId place) {

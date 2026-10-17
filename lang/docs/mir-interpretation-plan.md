@@ -616,35 +616,44 @@ Covered since the first cut:
 
 Green: `--tcc` 2307, `--interpret` 1896, `--llvm` 2305.
 
-Remaining to retire `compiler/Interpreter/Core.cpp`:
+**The AST statement interpreter is deleted** (`compiler/Interpreter/Core.cpp`,
+~1600 lines, plus `InterpretScope`'s statement API). What remains of the AST
+evaluator is the **expression layer only** — symres-time folding of
+self-contained expressions and the compiler-intrinsic `call` overrides (§5.4).
 
-**The interpreter-only language features are removed** (commit `comptime: remove
-the interpreter-only vector/string+ tests`) — `intrinsics::vector<T>` (an
-AST-`StructValue` compiler type with no MIR representation) and string `+`
-(pointer arithmetic on the compiled backends) are dropped rather than ported:
-porting either would add comptime container/string state to MIR, which is
-exactly what the design forbids. `comptime/vector.ch` and
-`comptime_add_strings`/`check_addition_strings` are gone, and the
-`get_caller_line_no` assertion was migrated to `get_line_no`.
+The phases that got there:
 
-**One lowering-time comptime function still runs the AST interpreter:**
-`std::decode_location` (134 calls, all from `panic`'s `@expand` inline). Its body
-is `return intrinsics::decode_location<Location>(loc) as Location`, and that
-intrinsic's `call` override needs its argument as a **comptime AST value** —
-which the driver, binding parameters as MIR places, does not expose. The fix is
-to publish the driver's folded parameter values into the interpreter scope (the
-same `comptime_bindings` mechanism the `@expand` inline already uses) so the
-intrinsic folds during lowering; it adds no MIR state. Until then the driver
-declines it and the interpreter runs it.
+1. **`@expand`** (`comptime func` marked `@expand`) replaces `%runtime_value`:
+   the call is spliced into the caller, so the body is lowered in the caller's
+   scope. All 149 `%runtime_value` sources were migrated to it.
+2. **The driver covers every lowering-time comptime call.** `evaluate_block()`
+   runs a statement-level `comptime { }` block as a synthetic void function;
+   `evaluate_value()` folds a nested comptime call by re-entering the driver
+   (with a fresh driver instance when reached during another callee's lowering);
+   the callee's folded comptime parameters are published so a nested fold
+   (`llvm_mem_order(order)` in an atomic intrinsic argument) resolves them; the
+   result bridge reads nested structs and unions (e.g. `std::string.storage`) and
+   carries a `*char` that points at a comptime literal as a `StringValue` (so the
+   lowering emits a real string constant). A lowering that *consumed* a published
+   parameter is call-site dependent and is not cached — the next call site
+   re-lowers it (`intrinsics::size(value)` in `std::string`'s literal
+   constructor would otherwise bake the first call's length).
+3. **The interpreter-only language features are removed** — `intrinsics::vector<T>`
+   (an AST-`StructValue` compiler type with no MIR representation) and string `+`
+   (pointer arithmetic on the compiled backends) are dropped rather than ported:
+   porting either would add comptime container/string state to MIR, which is
+   exactly what the design forbids. `comptime/vector.ch` and
+   `comptime_add_strings`/`check_addition_strings` are gone, the
+   `get_caller_line_no` assertion was migrated to `get_line_no`, and
+   `decode_location` became an `@expand` template so its `Location` intrinsic
+   folds at the call site.
+4. **`FunctionDeclaration::call`** now folds a single `return <expr>` (or a bare
+   expression) body — this is how a `comptime if` condition and a top-level
+   `const` initializer still resolve — and reports any body that needs
+   statements. `LambdaFunction::call` no longer runs a body, and
+   `Expression::evaluated_value` no longer dispatches operator-overload bodies.
 
-**Then deletion** — `compiler/Interpreter/Core.cpp` (~1600 lines),
-`InterpretScope`/`GlobalInterpretScope`, `FunctionDeclaration::call`'s body
-execution, and the interpreter-friendly std types; `Value::evaluated_value`
-survives as the §5.4 symres-time expression folder.
-6. **Delete** — `compiler/Interpreter/Core.cpp`, `InterpretScope`/
-   `GlobalInterpretScope`, `FunctionDeclaration::call`'s body execution, and the
-   interpreter-friendly std types; `Value::evaluated_value` survives as the §5.4
-   symres-time expression folder.
+Green: `--tcc` 2304, `--interpret` 1893, `--llvm` 2302, `--plugins` 1296.
 
 #### 5.4 The unavoidable residual (why "delete the AST interpreter" has a floor)
 

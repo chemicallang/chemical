@@ -443,6 +443,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     MIRBuilder* saved_builder = builder_;
     MIRArena* saved_arena = arena_;
     FunctionTypeBody* saved_cur = current_func_;
+    const bool saved_comptime_fn = current_fn_is_comptime_;
     auto saved_var = std::move(var_places_);
     auto saved_name = std::move(name_places_);
     auto saved_destructibles = std::move(destructibles_);
@@ -485,6 +486,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     MIRBuilder b(*saved_arena, module_, fn);
     builder_ = &b;
     current_func_ = lamb;
+    current_fn_is_comptime_ = false;
     if (set_current_func_) set_current_func_(lamb);
     const BlockId entry = b.create_block();
     b.set_block(entry);
@@ -555,6 +557,7 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     builder_ = saved_builder;
     arena_ = saved_arena;
     current_func_ = saved_cur;
+    current_fn_is_comptime_ = saved_comptime_fn;
     if (set_current_func_) set_current_func_(saved_cur);
     var_places_ = std::move(saved_var);
     name_places_ = std::move(saved_name);
@@ -695,6 +698,7 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     MIRBuilder* saved_builder = builder_;
     MIRArena* saved_arena = arena_;
     FunctionTypeBody* saved_cur = current_func_;
+    const bool saved_comptime_fn = current_fn_is_comptime_;
     auto saved_var = std::move(var_places_);
     auto saved_name = std::move(name_places_);
     auto saved_destructibles = std::move(destructibles_);
@@ -732,6 +736,7 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     MIRBuilder b(*saved_arena, module_, fn);
     builder_ = &b;
     current_func_ = lamb;
+    current_fn_is_comptime_ = false;
     if (set_current_func_) set_current_func_(lamb);
     const BlockId entry = b.create_block();
     b.set_block(entry);
@@ -801,6 +806,7 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     builder_ = saved_builder;
     arena_ = saved_arena;
     current_func_ = saved_cur;
+    current_fn_is_comptime_ = saved_comptime_fn;
     if (set_current_func_) set_current_func_(saved_cur);
     var_places_ = std::move(saved_var);
     name_places_ = std::move(saved_name);

@@ -1290,6 +1290,18 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 if (p != MIR_INVALID_ID) mark_moved(p);
                 return MIRExprResult::void_result();
             }
+            // comptime-mode intrinsics: fold from the function being lowered.
+            // Interpretation is the same semantics as compiled mode, so
+            // is_interpretation() is constant false.
+            if (fd->name_view() == chem::string_view("is_comptime") ||
+                fd->name_view() == chem::string_view("is_runtime") ||
+                fd->name_view() == chem::string_view("is_interpretation")) {
+                const bool is_ct = fd->name_view() == chem::string_view("is_comptime") &&
+                                   current_fn_is_comptime_;
+                const TypeId bt = types_.bool_type();
+                return MIRExprResult::value(
+                    builder_->const_bool(bt, module_.constants.add_bool(bt, is_ct)), bt);
+            }
             if (fd->is_comptime() && comptime_eval_) {
                 if (is_comptime_template_fn(fd)) {
                     return inline_comptime_template(fd, MIRExprResult::void_result(),

@@ -563,6 +563,7 @@ bool MIRLowerer::lower_static_interface_stub(FunctionDeclaration* decl, MIRArena
     // not-yet-defined function already assumes — and the body is trivial.
     arena_ = &arena;
     current_func_ = decl;
+    current_fn_is_comptime_ = decl->is_comptime();
     if (set_current_func_) set_current_func_(decl);
     var_places_.clear();
     name_places_.clear();
@@ -645,6 +646,7 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     prime_constructor_fact(decl);
     arena_ = &arena;
     current_func_ = decl;
+    current_fn_is_comptime_ = decl->is_comptime();
     if (set_current_func_) set_current_func_(decl);
     var_places_.clear();
     name_places_.clear();

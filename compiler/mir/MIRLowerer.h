@@ -879,6 +879,8 @@ private:
     std::function<void(FunctionCall*, bool)> comptime_call_site_;
     std::function<FunctionDeclaration*(const std::string&)> symbol_lookup_;
     std::function<void(FunctionTypeBody*)> set_current_func_;
+    /** True while lowering a `comptime func` (folds is_comptime()/is_runtime()). */
+    bool current_fn_is_comptime_ = false;
     ImplementationsIndex* impls_index_ = nullptr;
     CoreNodes* core_nodes_ = nullptr;
     std::function<ASTNode*(EmbeddedNode*)> embedded_repl_;

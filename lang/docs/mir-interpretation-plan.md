@@ -593,7 +593,7 @@ back to an AST value (`IntNumValue`/`BoolValue`/`NullValue`; aggregates pending)
 
 It **declines** anything whose interpreter semantics the engine does not
 reproduce, so those keep the AST path and every suite stays green. On the
-test-suite compile it handles **429** comptime calls (~95% of the real ones) —
+test-suite compile it handles **441** comptime calls (~98% of the real ones) —
 `comptime_fnv1_hash`, `decode_location`, `comptime_size_of`, `Layout::of`, the
 `comptime/basic.ch` fixtures, `Pair66` constructors, …
 
@@ -616,21 +616,21 @@ Covered since the first cut:
 
 Green: `--tcc` 2307, `--interpret` 1896, `--llvm` 2305.
 
-Remaining to retire `compiler/Interpreter/Core.cpp` (measured residual, **22
+Remaining to retire `compiler/Interpreter/Core.cpp` (measured residual, **10
 calls**):
-1. **Function-pointer results** (12: `return_runtime_sum`, `give_me_some_sum`,
-   `give_me_gen_sum`) — bridge the engine's function address back to an AST
-   function reference.
-2. **Methods** (2: `comptime_func_container::give_arg`) — marshal the receiver
-   (materialize its struct bytes and pass a pointer).
-3. **Array/slice results** (2: `get_tests`) — the `ArrayValue` bridge.
-4. **Call-site location** (2: `give_caller_line_no`) — the engine needs the
+1. **Array/slice results** (2: `get_tests`) — the `ArrayValue` bridge.
+2. **Call-site location** (2: `give_caller_line_no`) — the engine needs the
    enclosing call's site.
-5. **`intrinsics::vector`** (4: `compiler_vector_sum*`) and **string `+`** (2:
-   `check_addition_strings`/`comptime_add_strings`) — implement in the engine, or
-   migrate the interpreter-only tests (`comptime/vector.ch`,
-   `comptime_add_strings`). String `+` concatenation is interpreter-only syntax
-   (the compiled backends would do pointer arithmetic).
+3. **Method receivers that are runtime values** (2:
+   `comptime_func_container::give_arg`) — the receiver is a runtime operand, so
+   it cannot be materialized at comptime; the engine would need a runtime
+   receiver, or the caller must pass it.
+4. **`intrinsics::vector`** (4: `compiler_vector_sum*`) and **string `+`** (2:
+   `check_addition_strings`/`comptime_add_strings`) — **interpreter-only
+   language features** exercised by `comptime/vector.ch` and
+   `comptime_add_strings`. Deleting the interpreter requires a decision: port
+   them to the engine, or migrate/remove those tests (string `+` is
+   pointer-arithmetic on the compiled backends today).
 6. **Delete** — `compiler/Interpreter/Core.cpp`, `InterpretScope`/
    `GlobalInterpretScope`, `FunctionDeclaration::call`'s body execution, and the
    interpreter-friendly std types; `Value::evaluated_value` survives as the §5.4

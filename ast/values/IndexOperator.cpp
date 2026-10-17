@@ -1,28 +1,16 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "IndexOperator.h"
-#include "ast/values/AccessChain.h"
-#include "ast/base/ASTNode.h"
-#include "ast/base/GlobalInterpretScope.h"
+#include "ast/structures/FunctionDeclaration.h"
+#include "compiler/ASTDiagnoser.h"
+#include "ast/types/LinkedType.h"
 #include "ast/base/TypeBuilder.h"
-#include "ast/structures/StructDefinition.h"
 #include "ast/types/ArrayType.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/types/VoidType.h"
 #include "ast/statements/Typealias.h"
-#include "ast/values/StringValue.h"
-#include "ast/values/ArrayValue.h"
-#include "ast/values/IntNumValue.h"
-#include "ast/base/InterpretScope.h"
-#include "PointerValue.h"
-#include "ast/values/FloatValue.h"
-#include "ast/values/DoubleValue.h"
-#include "ast/values/FunctionCall.h"
-#include "ast/values/StructValue.h"
 #include "compiler/symres/ImplementationsIndex.h"
-#include "compiler/lab/LabBuildCompiler.h"
-#include <cstring>
 
 
 // TODO: make this function on BaseType

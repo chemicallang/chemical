@@ -2,15 +2,9 @@
 
 #include "DereferenceValue.h"
 #include "ast/types/ReferenceType.h"
-#include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/TypeBuilder.h"
 #include "ast/base/BaseType.h"
-#include "ast/values/StringValue.h"
-#include "ast/values/IntNumValue.h"
-#include "ast/values/PointerValue.h"
-#include "ast/values/StructValue.h"
 #include "ast/base/InterpretScope.h"
-#include <iostream>
 
 bool DereferenceValue::determine_type(const TypeBuilder& typeBuilder) {
     const auto type = value->getType();

@@ -1,18 +1,12 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "VariableIdentifier.h"
+#include "ast/structures/FunctionDeclaration.h"
+#include "ast/structures/StructMember.h"
 #include <memory>
-#include "ast/values/AccessChain.h"
-#include "ast/values/StructValue.h"
-#include "ast/values/NullValue.h"
 #include "compiler/lab/LabBuildCompiler.h"
 #include "ast/structures/EnumMember.h"
 #include "ast/structures/Namespace.h"
-#include "ast/structures/ImplDefinition.h"
-#include "ast/structures/FileScope.h"
-#include "ast/structures/Scope.h"
-#include "ast/types/VoidType.h"
-#include "TypeInsideValue.h"
 
 VarInitStatement* declaration(Value* value) {
     if(Value::isIdentifier(value->val_kind())) {

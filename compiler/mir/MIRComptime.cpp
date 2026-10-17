@@ -144,21 +144,6 @@ struct Eligibility {
 bool value_eligible(Value* v, Eligibility& e);
 bool scope_eligible(Scope* s, Eligibility& e);
 
-bool operand_is_non_scalar(Value* v) {
-    BaseType* t = v ? v->getType() : nullptr;
-    BaseType* c = t ? t->canonical() : nullptr;
-    if (!c) return false;
-    switch (c->kind()) {
-        case BaseTypeKind::IntN:
-        case BaseTypeKind::Float:
-        case BaseTypeKind::Double:
-        case BaseTypeKind::Bool:
-            return false;
-        default:
-            return true;
-    }
-}
-
 bool stmt_eligible(ASTNode* n, Eligibility& e) {
     if (!n) return true;
     switch (n->kind()) {
@@ -271,11 +256,17 @@ bool value_eligible(Value* v, Eligibility& e) {
         case ValueKind::BlockValue:
             return scope_eligible(&static_cast<BlockValue*>(v)->scope, e);
         case ValueKind::Expression: {
-            // the interpreter has string `+` and content `==`; the engine
-            // compares pointers — decline any non-scalar operand expression
+            // The interpreter concatenates string literals with `+`; the engine
+            // would do pointer arithmetic — decline that. Equality on string
+            // literals is fine: the driver interns identical contents to one
+            // buffer, so the engine's pointer comparison matches. Pointer
+            // arithmetic/comparison (`str + 1`, `p < q`) matches natively.
             auto* ex = v->as_expression_unsafe();
-            if (operand_is_non_scalar(ex->firstValue) ||
-                operand_is_non_scalar(ex->secondValue)) {
+            const bool str_operand =
+                (ex->firstValue && ex->firstValue->val_kind() == ValueKind::String) ||
+                (ex->secondValue && ex->secondValue->val_kind() == ValueKind::String);
+            if (str_operand && ex->operation != Operation::IsEqual &&
+                ex->operation != Operation::IsNotEqual) {
                 e.ok = false;
                 return false;
             }

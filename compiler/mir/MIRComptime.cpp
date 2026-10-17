@@ -482,7 +482,23 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
     if (fd->is_expand_fn()) return nullptr;
     if (!call) return nullptr;
     BaseType* rtc = fd->returnType ? fd->returnType->canonical() : nullptr;
-    if (!scalar_return(rtc)) CT_DECLINE("non-scalar/struct return");
+    // A result type the engine cannot carry as a cell (array/slice, variant):
+    // fold the function's single return expression as an AST value — the §5.4
+    // expression layer (the expression is self-contained, e.g. an intrinsic
+    // call, so no statements run).
+    if (!scalar_return(rtc)) {
+        if (Value* ret = single_return_expr(fd->body.value())) {
+            if (Value* v = ret->evaluated_value(*ctx.scope)) {
+                handled = true;
+                if (std::getenv("CT_STAT")) {
+                    std::fprintf(stderr, "[CTSTAT] DRV %s fd=%p folded\n",
+                                 fd->name_str().c_str(), (void*) fd);
+                }
+                return v;
+            }
+        }
+        CT_DECLINE("unsupported result");
+    }
     // a generic instantiation binds its parameters from the instantiation site,
     // which the driver's type mapping is not yet scoped to
     (void) 0;
@@ -529,15 +545,18 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
         }
         if (!rexpr) return nullptr;
         Value* rv = rexpr->evaluated_value(*ctx.scope);
-        if (!rv || rv->val_kind() != ValueKind::StructValue) {
-            CT_DECLINE("method receiver is not a comptime struct");
+        if (rv && rv->val_kind() == ValueKind::StructValue) {
+            keep_structs.emplace_back();
+            if (!write_struct_bytes(impl_->types, impl_->module, rv->as_struct_value_unsafe(),
+                                    keep_structs.back())) {
+                return nullptr;
+            }
+            cells.push_back(reinterpret_cast<uint64_t>(keep_structs.back().data()));
+        } else {
+            // a comptime method whose receiver is a runtime value: the body must
+            // not dereference `self` (the engine has no comptime bytes for it)
+            cells.push_back(0);
         }
-        keep_structs.emplace_back();
-        if (!write_struct_bytes(impl_->types, impl_->module, rv->as_struct_value_unsafe(),
-                                keep_structs.back())) {
-            return nullptr;
-        }
-        cells.push_back(reinterpret_cast<uint64_t>(keep_structs.back().data()));
     }
     for (size_t i = 0; i < fd->params.size(); ++i) {
         FunctionParam* p = fd->params[i];
@@ -551,7 +570,14 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
         cells.push_back(cell);
     }
 
-    // 2. lower the callee and every function it reaches
+    // 2. lower the callee and every function it reaches. The call site is
+    // pushed for the whole evaluation so location intrinsics folded during
+    // lowering resolve against it (as the @expand inline does).
+    impl_->task->lowerer.invoke_call_site(call, true);
+    struct CallSitePop {
+        MIRLowerer* l; FunctionCall* c;
+        ~CallSitePop() { if (l) l->invoke_call_site(c, false); }
+    } call_site_pop{&impl_->task->lowerer, call};
     for (FunctionDeclaration* d : reachable) {
         if (impl_->lowered.count(d)) continue;
         impl_->task->begin_function(false); // keep the arena: the MIR stays live

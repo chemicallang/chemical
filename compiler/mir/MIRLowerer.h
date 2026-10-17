@@ -754,6 +754,11 @@ public:
      * module-local `fn_by_name` lookup would then collide on.
      */
     std::string mangled_name_copy(ASTNode* n) { return std::string(mangle(n)); }
+    /** Push/pop the interpreter call stack for a driven comptime call (a driver
+     * reuses the host's call-site callback so location intrinsics resolve). */
+    void invoke_call_site(FunctionCall* call, bool push) {
+        if (comptime_call_site_) comptime_call_site_(call, push);
+    }
 private:
     // ── comptime-template inlining (Phase 5) ───────────────────────────────
     /**

@@ -25,16 +25,14 @@ class Value;
  * built lazily so that large scopes (globals, functions with many locals) still
  * get O(1) lookups without per-entry node allocations.
  *
- * The public surface intentionally mirrors the subset of std::unordered_map the
- * interpreter relied on: operator[], find, end, erase(key/iterator), clear,
- * begin/end iteration, and a value_type compatible with structured bindings.
+ * The public surface is the subset the comptime folder relies on: operator[],
+ * find, end, erase(key) and a value_type compatible with structured bindings.
  */
 class ScopeValueMap {
 public:
 
     using value_type = std::pair<chem::string_view, Value*>;
     using iterator = value_type*;
-    using const_iterator = const value_type*;
 
     static constexpr std::size_t INDEX_THRESHOLD = 12;
 
@@ -44,15 +42,7 @@ public:
     ScopeValueMap(const ScopeValueMap&) = delete;
     ScopeValueMap& operator=(const ScopeValueMap&) = delete;
 
-    iterator begin() noexcept { return entries.data(); }
     iterator end() noexcept { return entries.data() + entries.size(); }
-    const_iterator begin() const noexcept { return entries.data(); }
-    const_iterator end() const noexcept { return entries.data() + entries.size(); }
-    const_iterator cbegin() const noexcept { return entries.data(); }
-    const_iterator cend() const noexcept { return entries.data() + entries.size(); }
-
-    bool empty() const noexcept { return entries.empty(); }
-    std::size_t size() const noexcept { return entries.size(); }
 
     Value*& operator[](const chem::string_view& key) {
         if(index.empty()) {
@@ -99,20 +89,6 @@ public:
             }
         }
         return 0;
-    }
-
-    iterator erase(iterator position) {
-        const auto offset = static_cast<std::size_t>(position - entries.data());
-        auto result = entries.erase(entries.begin() + offset);
-        if(!index.empty()) {
-            rebuild_index();
-        }
-        return entries.data() + (result - entries.begin());
-    }
-
-    void clear() {
-        entries.clear();
-        index.clear();
     }
 
 private:

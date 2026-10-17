@@ -500,7 +500,6 @@ set(COMMON_SOURCES
         ast/values/NewTypedValue.h
         ast/values/NewValue.h
         ast/values/PlacementNewValue.h
-        ast/values/NewValue.cpp
         compiler/cbi/bindings/ParserCBI.cpp
         ast/statements/ValueWrapperNode.h
         compiler/cbi/bindings/SymbolResolverCBI.h
@@ -509,7 +508,6 @@ set(COMMON_SOURCES
         ast/values/ComptimeValue.h
         ast/values/UnsafeValue.h
         ast/values/AwaitExpression.h
-        ast/values/AwaitExpression.cpp
         ast/values/GenericInstIdentifier.h
         ast/values/GenericInstIdentifier.cpp
         compiler/async/AsyncLoweringPlan.h
@@ -621,7 +619,6 @@ set(COMMON_SOURCES
         ast/statements/PatternMatchExprNode.h
         ast/statements/PlacementNewNode.h
         ast/values/InValue.h
-        ast/values/InValue.cpp
         compiler/frontend/AnnotationController.h
         compiler/frontend/AnnotationController.cpp
         lang/libs/cstd/posix/io/spawn.ch

@@ -24,9 +24,6 @@ class GlobalInterpretScope;
 
 class ASTNode;
 
-using value_map = ScopeValueMap;
-using value_iterator = value_map::iterator;
-
 class InterpretScope {
 public:
 
@@ -98,13 +95,6 @@ public:
      * reach the owning scope (0 = this scope). Used by identifier inline caching.
      */
     Value* find_value(const chem::string_view& name, unsigned* out_depth = nullptr);
-
-    /**
-     * @return iterator for found value, the map that it was found in.
-     * If out_depth is non-null, it receives the number of parent hops taken to
-     * reach the owning scope (0 = this scope).
-     */
-    std::pair<value_iterator, InterpretScope&> find_value_iterator(const chem::string_view& name, unsigned* out_depth = nullptr);
 
     /**
      * Returns the ancestor scope `depth` hops up the parent chain, or nullptr if

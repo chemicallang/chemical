@@ -53,18 +53,6 @@ Value* InterpretScope::find_value(const chem::string_view& name, unsigned* out_d
     }
 }
 
-std::pair<value_iterator, InterpretScope&> InterpretScope::find_value_iterator(const chem::string_view& name, unsigned* out_depth) {
-    auto found = values.find(name);
-    if (found == values.end()) {
-        if(parent == nullptr) return { values.end(), *this };
-        if(out_depth) ++(*out_depth);
-        return parent->find_value_iterator(name, out_depth);
-    } else {
-        return { found, *this };
-    }
-}
-
-
 bool operate(Operation op, bool first, bool second) {
     switch(op) {
         case Operation::LogicalAND:

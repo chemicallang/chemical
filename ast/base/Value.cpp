@@ -597,14 +597,6 @@ std::optional<uint64_t> Value::get_number() {
     }
 }
 
-float Value::get_the_float() {
-    return ((FloatValue*) this)->value;
-}
-
-double Value::get_the_double() {
-    return ((DoubleValue*) this)->value;
-}
-
 Value* Value::get_first_value_from_value_node(ASTNode* node) {
     const auto k = node->kind();
     switch(k) {
@@ -765,21 +757,6 @@ bool Value::is_equal(Value* other, ValueKind kind, ValueKind other_kind) {
         }
     }
     return false;
-}
-
-VariableIdentifier* Value::get_single_id() {
-    switch(kind()) {
-        case ValueKind::AccessChain: {
-            auto& values = as_access_chain_unsafe()->values;
-            return values.size() == 1 ? values.back()->as_identifier() : nullptr;
-        }
-        case ValueKind::Identifier:
-        case ValueKind::GenericInstIdentifier:
-            // the kind is already established here
-            return as_identifier_unsafe();
-        default:
-            return nullptr;
-    }
 }
 
 VariableIdentifier* Value::get_last_id() {

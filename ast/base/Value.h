@@ -188,11 +188,6 @@ public:
     }
 
     /**
-     * get as a single identifier, regardless if wrapped in access chain
-     */
-    VariableIdentifier* get_single_id();
-
-    /**
      * last identifier of this chain value
      */
     VariableIdentifier* get_last_id();
@@ -379,14 +374,6 @@ public:
     }
 
     /**
-     * just a helper method, to evaluate a value as a boolean
-     */
-    inline bool evaluated_bool(InterpretScope& scope) {
-        auto val = evaluated_value(scope);
-        return val && val->get_the_bool();
-    }
-
-    /**
      * a function to be overridden by bool values to return actual values
      */
     bool get_the_bool();
@@ -402,16 +389,6 @@ public:
      * otherwise nullopt
      */
     std::optional<uint64_t> get_number();
-
-    /**
-     * a function to be overridden by values that can return float
-     */
-    float get_the_float();
-
-    /**
-     * a function to be overridden by values that can return double
-     */
-    double get_the_double();
 
     /**
      * virtual default destructor

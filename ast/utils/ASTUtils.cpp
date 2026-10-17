@@ -132,14 +132,6 @@ Value* build_parent_chain(Value* value, ASTAllocator& allocator) {
     }
 }
 
-void evaluate_values(std::vector<Value*>& values, InterpretScope& scope) {
-    for(auto& value : values) {
-        auto evaluated = value->evaluated_value(scope);
-        if(evaluated == value) continue;
-        value = evaluated;
-    }
-}
-
 FunctionCall* call_with_arg(FunctionDeclaration* decl, Value* arg, BaseType* expected_type, ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     const auto location = arg->encoded_location();
     auto& id_view = decl->identifier;

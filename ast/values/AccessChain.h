@@ -103,15 +103,6 @@ public:
     uint64_t byte_size(const TargetData& target) final;
 
 
-    Value *parent(InterpretScope &scope);
-
-    inline Value* parent_value(InterpretScope &scope);
-
-    // set value of this access chain
-    void set_value(InterpretScope &scope, Value *rawValue, Operation op, SourceLocation location);
-
-    Value *pointer(InterpretScope &scope);
-
     Value* evaluated_value(InterpretScope &scope);
 
 

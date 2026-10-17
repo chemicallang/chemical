@@ -55,10 +55,6 @@ public:
     DereferenceValue *copy(ASTAllocator& allocator) final;
 
 
-    void set_value(InterpretScope& scope, Value* rawValue, Operation op, SourceLocation location);
-
-    void set_child_value(InterpretScope& scope, const chem::string_view& name, Value* value, Operation op) override;
-
     /**
      * member lookup on a dereferenced pointer: `(*ptr).member`
      *

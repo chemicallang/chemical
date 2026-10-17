@@ -39,9 +39,6 @@ public:
 
     uint64_t byte_size(const TargetData& target) final;
 
-    Value *index(InterpretScope &scope, int i) final;
-
-
     StringValue *copy(ASTAllocator& allocator) final {
         return new (allocator.allocate<StringValue>()) StringValue(value, getType(), encoded_location());
     }

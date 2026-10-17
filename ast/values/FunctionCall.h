@@ -91,8 +91,6 @@ public:
 
     bool compile_time_computable() final;
 
-    Value *find_in(InterpretScope &scope, Value *parent) final;
-
     Value* evaluated_value(InterpretScope &scope) final;
 
     FunctionCall *copy(ASTAllocator& allocator) final;

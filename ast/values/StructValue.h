@@ -85,14 +85,6 @@ public:
 
     bool diagnose_missing_members_for_init(ASTDiagnoser& diagnoser);
 
-    Value *call_member(
-            InterpretScope &scope,
-            const chem::string_view &name,
-            std::vector<Value*> &params
-    ) final;
-
-    void set_child_value(InterpretScope& scope, const chem::string_view &name, Value *value, Operation op);
-
     StructValue* initialized_value(InterpretScope& scope);
 
     Value *evaluated_value(InterpretScope &scope) final;

@@ -344,56 +344,6 @@ ASTNode *StructValue::linked_node() {
     }
 }
 
-Value *StructValue::call_member(
-        InterpretScope &scope,
-        const chem::string_view &name,
-        std::vector<Value*> &params
-) {
-    auto fn = definition->member(name);
-    if (fn == nullptr) {
-        scope.error(this) << "couldn't find member function by name " << name << " in a struct by name " << getRefType()->representation();
-        return nullptr;
-    }
-#ifdef DEBUG
-    if (!fn->body.has_value()) {
-        scope.error(this) << "function doesn't have body in a struct " << name.str();
-        return nullptr;
-    }
-#endif
-    InterpretScope child(nullptr, scope.allocator, scope.global);
-    child.declare("this", this);
-    auto value = fn->call(&scope, params, this, &child);
-    return value;
-}
-
-void StructValue::set_child_value(InterpretScope& scope, const chem::string_view &name, Value *value, Operation op) {
-    auto ptr = values.find(name);
-    if (ptr == values.end()) {
-        // If the child name is not found, insert it rather than silently ignoring.
-        // This handles placement new into uninitialized structs/variants where
-        // the target struct has empty values but the source provides field data.
-        values.emplace(name, StructMemberInitializer { name, value });
-        return;
-    }
-    // Normalize integer values to the field's declared type (e.g. storing 300
-    // into a `u8` field must truncate to 44), matching the compiled backends.
-    if(definition && value) {
-        for(const auto var : definition->variables()) {
-            if(var->name == name) {
-                value = scope.coerce_to_type(value, var->known_type());
-                break;
-            }
-        }
-    }
-    // Compound assignment on a field (`s.a += x`): apply the operator to the
-    // field's current value before storing, matching the compiled backends.
-    if(op != Operation::Assignment && ptr.value().value) {
-        value = scope.evaluate(op, ptr.value().value, value, encoded_location(), this);
-        if(!value) return;
-    }
-    ptr.value().value = value;
-}
-
 Value *StructValue::evaluated_value(InterpretScope &scope) {
     return initialized_value(scope);
 }

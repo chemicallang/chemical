@@ -314,32 +314,3 @@ Value* PointerValue::deref(InterpretScope& scope, SourceLocation value_loc, Valu
             return nullptr;
     }
 }
-
-void PointerValue::set_child_value(InterpretScope& scope, const chem::string_view& name, Value* value, Operation op) {
-    if(backingArray) {
-        if(elementIndex < backingArray->values.size()) {
-            auto elem = backingArray->values[elementIndex];
-            if(elem) {
-                elem->set_child_value(scope, name, value, op);
-                return;
-            }
-        }
-    }
-    auto pointeeType = getType();
-    if(pointeeType) {
-        auto kind = pointeeType->kind();
-        if(kind == BaseTypeKind::Linked || kind == BaseTypeKind::Struct || kind == BaseTypeKind::Union || kind == BaseTypeKind::Generic) {
-            if(!pointeeType->get_direct_linked_enum()) {
-                auto structVal = (StructValue*) data;
-                if(structVal) {
-                    structVal->set_child_value(scope, name, value, op);
-                    return;
-                }
-            }
-        }
-    }
-    auto dereffed = deref(scope, encoded_location(), this);
-    if(dereffed) {
-        dereffed->set_child_value(scope, name, value, op);
-    }
-}

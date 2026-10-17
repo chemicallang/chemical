@@ -116,52 +116,6 @@ AccessChain *AccessChain::copy(ASTAllocator& allocator) {
     return chain;
 }
 
-Value *AccessChain::parent(InterpretScope &scope) {
-    Value *current = values[0];
-    unsigned i = 1;
-    while (i < (values.size() - 1)) {
-        current = values[i]->find_in(scope, current);
-        if (current == nullptr) {
-            scope.error(this) << "child '" << values[i]->representation() << "' in access chain '" << Value::representation()  << "' not found";
-            return nullptr;
-        }
-        i++;
-    }
-    return current;
-}
-
-inline Value* AccessChain::parent_value(InterpretScope &scope) {
-    // Do NOT call evaluated_value() on the parent — that would create a copy
-    // of the intermediate struct value, causing modifications through the chain
-    // (e.g., d2.d.a = 90) to be lost. The raw parent pointer from child() is
-    // the actual value stored in the struct and is what set_child_value needs.
-    return parent(scope);
-}
-
-void AccessChain::set_value(InterpretScope &scope, Value *rawValue, Operation op, SourceLocation passed_loc) {
-    if (values.size() <= 1) {
-        values[0]->set_value(scope, rawValue, op, passed_loc);
-    } else {
-        auto parent = parent_value(scope);
-        if(parent) {
-            auto newVal = rawValue->scope_value(scope);
-            values[values.size() - 1]->set_value_in(scope, parent, newVal, op, passed_loc);
-        } else {
-            scope.error(this) << "(access chain) parent is null for set_value";
-        }
-    }
-}
-
-Value *AccessChain::pointer(InterpretScope &scope) {
-    if (values.size() <= 1) {
-        return values[0];
-    } else {
-        auto parent = parent_value(scope);
-        return values[values.size() - 1]->find_in(scope, parent);
-    }
-}
-
-
 void copy_from(ASTAllocator& allocator, std::vector<Value*>& destination, std::vector<Value*>& source, unsigned from) {
     const auto size = source.size();
     while(from < size) {

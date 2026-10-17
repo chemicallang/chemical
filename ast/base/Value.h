@@ -208,39 +208,6 @@ public:
     virtual Value* child(InterpretScope& scope, const chem::string_view& name);
 
     /**
-     * this function returns a function declaration for a member function
-     */
-    virtual Value* call_member(InterpretScope& scope, const chem::string_view& name, std::vector<Value*>& values);
-
-    /**
-     * index operator [] calls this on a value
-     */
-    virtual Value* index(InterpretScope& scope, int i);
-
-    /**
-     * set the child value, with given name, performing operation op
-     */
-    virtual void set_child_value(InterpretScope& scope, const chem::string_view& name, Value* value, Operation op);
-
-    /**
-     * this function expects this identifier value to find itself in the parent value given to it
-     * this is only expected to be overridden by identifiers
-     * @param parent
-     * @return
-     */
-    virtual Value* find_in(InterpretScope& scope, Value* parent);
-
-    /**
-     * set the value of this value, this is lhs in assignment
-     */
-    virtual void set_value(InterpretScope& scope, Value* value, Operation op, SourceLocation location);
-
-    /**
-     * called on a identifier to set it's value in the given parent
-     */
-    virtual void set_value_in(InterpretScope& scope, Value* parent, Value* value, Operation op, SourceLocation location);
-
-    /**
      * give representation of the value as it appears in source
      * this doesn't need to be 100% accurate
      * @return

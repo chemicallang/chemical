@@ -10,16 +10,6 @@
 #include "compiler/lab/TargetData.h"
 #include <iostream>
 
-Value *StringValue::index(InterpretScope &scope, int i) {
-#ifdef DEBUG
-    if (i < 0 || i >= value.size()) {
-        std::cerr << "[InterpretError] access index " << std::to_string(i) << " out of bounds for string " << value <<
-        " of length " << std::to_string(value.size());
-    }
-#endif
-    return new (scope.allocate<IntNumValue>()) IntNumValue(value[i], scope.global->typeBuilder.getCharType(), encoded_location());
-}
-
 uint64_t StringValue::byte_size(const TargetData& target) {
     return target.is64Bit ? 8 : 4;
 }

@@ -84,13 +84,6 @@ public:
 
     Value *child(InterpretScope &scope, const chem::string_view &name) final;
 
-    // will find value by this name in the parent
-    Value *find_in(InterpretScope &scope, Value *parent) final;
-
-    void set_value_in(InterpretScope &scope, Value *parent, Value *next_value, Operation op, SourceLocation location);
-
-    void set_value(InterpretScope &scope, Value *rawValue, Operation op, SourceLocation location);
-
     void process_linked();
 
     void process_linked(ASTDiagnoser* linker, FunctionTypeBody* curr_func);

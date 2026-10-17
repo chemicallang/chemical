@@ -379,16 +379,6 @@ bool FunctionCall::compile_time_computable() {
     return func && func->is_comptime();
 }
 
-Value *FunctionCall::find_in(InterpretScope &scope, Value *parent) {
-    auto id = parent->as_identifier();
-    if(id != nullptr) {
-        return parent->call_member(scope, id->value, values);
-    } else {
-        scope.error("No identifier for function call", this);
-        return nullptr;
-    }
-}
-
 /**
  * Handles a call whose callable came from evaluating `parent_val` (e.g. the
  * result of `intrinsics::get_child_fn<T>("name")`, an AccessChain/Identifier

@@ -41,15 +41,11 @@ public:
     }
 
 
-    void set_value(InterpretScope& scope, Value* rawValue, Operation op, SourceLocation location);
-
     ASTNode *linked_node() final;
 
     bool primitive() final {
         return false;
     }
-
-    Value *find_in(InterpretScope &scope, Value *parent) final;
 
     IndexOperator* copy(ASTAllocator& allocator) final {
         auto op = new (allocator.allocate<IndexOperator>()) IndexOperator((Value*) parent_val->copy(allocator), getType(), encoded_location());

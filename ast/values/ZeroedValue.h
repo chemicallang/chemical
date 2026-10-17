@@ -27,7 +27,4 @@ public:
     }
 
 
-    Value* child(InterpretScope& scope, const chem::string_view& name) override;
-
-
 };

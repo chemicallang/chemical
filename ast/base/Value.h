@@ -147,16 +147,6 @@ public:
      */
     bool isValueIntegerLiteral();
 
-    /**
-     * check if its a literal value
-     */
-    bool isValueLiteral();
-
-    /**
-     * check if value is a r value in backend
-     * this basically doesn't consider functions that return structs r values
-     */
-    bool isValueRValueInBackend();
 
     /**
      * check if value is a r value in frontend
@@ -224,17 +214,6 @@ public:
      */
     void report_addr_taken_of_chain_id();
 
-    /**
-     * get the pure type from known type directly
-     */
-    BaseType* pure_type_ptr();
-
-    /**
-     * should build chain type returns true if a single identifier is linked with a union
-     * meaning if you try to access a child of a union, this method would return true
-     * because unions mean different types
-     */
-    static bool should_build_chain_type(std::vector<Value*>& chain, unsigned index);
 
     /**
      * is this value has a pointer type (includes strings)
@@ -275,10 +254,6 @@ public:
      */
     bool is_ref(ASTAllocator& allocator);
 
-    /**
-     * check if this value references other values  (access chain or identifier)
-     */
-    bool is_ref_value();
 
     /**
      * this checks if this value is mutable
@@ -286,15 +261,7 @@ public:
      */
     bool check_is_mutable(bool assigning);
 
-    /**
-     * is this value an l value, in C++ l values are those that have backing storage
-     */
-    bool is_ref_l_value();
 
-    /**
-     * is this value a function call
-     */
-    bool is_chain_func_call();
 
     /**
      * check if this is a function call
@@ -306,16 +273,6 @@ public:
      */
     bool is_ref_moved();
 
-    /**
-     * will get this value as identifier, if it's wrapped in access chain or not
-     */
-    VariableIdentifier* get_chain_id();
-
-    /**
-     * a value that references a struct that is mem copied into arguments
-     * however the value is not moved, because it's not movable
-     */
-    bool requires_memcpy_ref_struct(BaseType* known_type);
 
 
     /**

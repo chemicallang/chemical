@@ -27,52 +27,6 @@ PointerValue* PointerValue::cast(InterpretScope& scope, BaseType* new_type) {
     );
 }
 
-void PointerValue::increment_in_place(InterpretScope& scope, size_t amount, Value* debugValue) {
-    if(backingArray) {
-        auto newIndex = elementIndex + amount;
-        if(newIndex >= backingArray->values.size()) {
-            newIndex = backingArray->values.size() - 1;
-        }
-        elementIndex = newIndex;
-        return;
-    }
-    const auto castedTypeSize = getType()->byte_size(scope.global->target_data);
-    const auto amountBytes = castedTypeSize * amount;
-    if(amountBytes <= ahead) {
-        data = ((char*) data) + amountBytes;
-        behind = behind + amountBytes;
-        ahead = ahead - amountBytes;
-    } else {
-        // clamp to end — native codegen doesn't bounds-check
-        data = ((char*) data) + ahead;
-        behind = behind + ahead;
-        ahead = 0;
-    }
-}
-
-void PointerValue::decrement_in_place(InterpretScope& scope, size_t amount, Value* debugValue) {
-    if(backingArray) {
-        if(amount > elementIndex) {
-            elementIndex = 0;
-        } else {
-            elementIndex -= amount;
-        }
-        return;
-    }
-    const auto castedTypeSize = getType()->byte_size(scope.global->target_data);
-    const auto amountBytes = castedTypeSize * amount;
-    if(amountBytes <= behind) {
-        data = ((char*) data) - amountBytes;
-        behind = behind - amountBytes;
-        ahead = ahead + amountBytes;
-    } else {
-        // clamp to start — native codegen doesn't bounds-check
-        data = ((char*) data) - behind;
-        ahead = ahead + behind;
-        behind = 0;
-    }
-}
-
 PointerValue* PointerValue::increment(InterpretScope& scope, size_t amount, SourceLocation new_loc, Value* debugValue) {
     if(backingArray) {
         auto newIndex = elementIndex + amount;

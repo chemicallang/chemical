@@ -115,13 +115,6 @@ FunctionType* FunctionCall::known_func_type() {
     }
 }
 
-BaseType* FunctionCall::get_arg_type(unsigned int index) {
-    auto func_type = parent_val->getType()->as_function_type();
-    auto param = func_type->func_param_for_arg_at(index);
-    return param->type;
-}
-
-
 void FunctionCall::infer_generic_args(ASTAllocator& allocator, ASTDiagnoser& diagnoser, std::vector<TypeLoc>& inferred) {
     const auto func_type = known_func_type();
     if(func_type) {

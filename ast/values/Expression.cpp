@@ -33,53 +33,6 @@ inline EnumDeclaration* getEnumDecl(BaseType* type) {
     return type->get_direct_linked_enum();
 }
 
-void Expression::replace_number_values(ASTAllocator& allocator, TypeBuilder& typeBuilder, BaseType* firstType, BaseType* secondType, Operation operation, TargetData& targetData) {
-    if(firstType->kind() == BaseTypeKind::IntN && secondType->kind() == BaseTypeKind::IntN) {
-        const auto is_shift = operation == Operation::LeftShift || operation == Operation::RightShift;
-        if(is_shift) {
-            if(secondValue->val_kind() == ValueKind::IntN) {
-                auto valNType = (IntNType*) secondValue->getType()->canonical();
-                auto targetNType = (IntNType*) firstType;
-                if(valNType->num_bits(targetData) <= targetNType->num_bits(targetData)) {
-                    auto value = ((IntNumValue*)secondValue)->get_num_value();
-                    secondValue = ((IntNType*) firstType)->create(allocator, typeBuilder, value, secondValue->encoded_location());
-                }
-            }
-        } else {
-            if(firstValue->val_kind() == ValueKind::IntN) {
-                auto valNType = (IntNType*) firstValue->getType()->canonical();
-                auto targetNType = (IntNType*) secondType;
-                if(valNType->num_bits(targetData) < targetNType->num_bits(targetData)) {
-                    auto value = ((IntNumValue*)firstValue)->get_num_value();
-                    firstValue = ((IntNType*) secondType)->create(allocator, typeBuilder, value, firstValue->encoded_location());
-                }
-            } else if(secondValue->val_kind() == ValueKind::IntN){
-                auto valNType = (IntNType*) secondValue->getType()->canonical();
-                auto targetNType = (IntNType*) firstType;
-                if(valNType->num_bits(targetData) < targetNType->num_bits(targetData)) {
-                    auto value = ((IntNumValue*)secondValue)->get_num_value();
-                    secondValue = ((IntNType*) firstType)->create(allocator, typeBuilder, value, secondValue->encoded_location());
-                }
-            }
-        }
-    }
-    const auto first = getEnumDecl(firstType);
-    if(first && secondValue->kind() == ValueKind::IntN) {
-        const auto second = secondValue->as_int_num_value_unsafe();
-        if(second) {
-            secondValue = first->get_underlying_integer_type()->create(allocator, typeBuilder, second->value, secondValue->encoded_location());
-        }
-    } else {
-        const auto second = getEnumDecl(secondType);
-        if(second && firstValue->kind() == ValueKind::IntN) {
-            const auto firstVal = firstValue->as_int_num_value_unsafe();
-            if(firstVal) {
-                firstValue = second->get_underlying_integer_type()->create(allocator, typeBuilder, firstVal->value, firstValue->encoded_location());
-            }
-        }
-    }
-}
-
 FunctionDeclaration* Expression::get_overloaded_func(const CoreNodes& coreNodes, const ImplementationsIndex& implsIndex) {
     const auto first_canonical = firstValue->getType()->canonical();
     const auto node = first_canonical->get_linked_canonical_node(true, false);

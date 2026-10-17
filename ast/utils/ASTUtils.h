@@ -23,8 +23,6 @@ Value* build_parent_chain(std::vector<Value*>& values, ASTAllocator& allocator);
 
 Value* build_parent_chain(Value* value, ASTAllocator& allocator);
 
-void evaluate_values(std::vector<Value*>& values, InterpretScope& scope);
-
 /**
  * call the given function declaration with given argument
  * doesn't link the value according to implicit constructor type

@@ -44,87 +44,11 @@
 #include "std/except.h"
 
 
-bool isTypeRValue(BaseType* type) {
-    switch(type->kind()) {
-        case BaseTypeKind::Bool:
-        case BaseTypeKind::IntN:
-        case BaseTypeKind::Float:
-        case BaseTypeKind::Double:
-        case BaseTypeKind::LongDouble:
-        case BaseTypeKind::Float128:
-            return true;
-        case BaseTypeKind::Linked: {
-            const auto linked = type->as_linked_type_unsafe()->linked;
-            switch (linked->kind()) {
-                case ASTNodeKind::TypealiasStmt:
-                    return isTypeRValue(linked->as_typealias_unsafe()->actual_type);
-                default:
-                    return false;
-            }
-        }
-        default:
-            return false;
-    }
-}
-
 bool Value::isValueIntegerLiteral() {
     switch(kind()) {
         case ValueKind::Bool:
         case ValueKind::IntN:
             return true;
-        default:
-            return false;
-    }
-}
-
-bool Value::isValueLiteral() {
-    switch(kind()) {
-        case ValueKind::Bool:
-        case ValueKind::IntN:
-        case ValueKind::Double:
-        case ValueKind::Float:
-            return true;
-        default:
-            return false;
-    }
-}
-
-bool Value::isValueRValueInBackend() {
-    switch(kind()) {
-        case ValueKind::Bool:
-        case ValueKind::IntN:
-        case ValueKind::Double:
-        case ValueKind::Float:
-        case ValueKind::NegativeValue:
-        case ValueKind::BitwiseNot:
-        case ValueKind::SizeOfValue:
-        case ValueKind::AlignOfValue:
-        case ValueKind::OffsetOfValue:
-        case ValueKind::Expression:
-        case ValueKind::NullValue:
-        case ValueKind::InValue:
-        case ValueKind::IsValue:
-        case ValueKind::AwaitExpr:
-            return true;
-        case ValueKind::FunctionCall:
-            return isTypeRValue(getType());
-        case ValueKind::AccessChain: {
-            const auto last = as_access_chain_unsafe()->values.back();
-            if (last->kind() == ValueKind::FunctionCall) {
-                return isTypeRValue(last->getType());
-            } else {
-                return false;
-            }
-        }
-        case ValueKind::Identifier:{
-            const auto linked = linked_node();
-            switch(linked->kind()) {
-                case ASTNodeKind::FunctionParam:
-                    return isTypeRValue(linked->as_func_param_unsafe()->type);
-                default:
-                    return false;
-            }
-        }
         default:
             return false;
     }
@@ -249,17 +173,6 @@ bool Value::is_ref(ASTAllocator& allocator) {
     return linked != nullptr && linked->is_ref(allocator);
 }
 
-bool Value::is_ref_value() {
-    switch(val_kind()) {
-        case ValueKind::AccessChain:
-            return true;
-        case ValueKind::Identifier:
-            return true;
-        default:
-            return false;
-    }
-}
-
 bool is_node_assignable(ASTNode* node) {
     const auto linked_kind = node->kind();
     switch(linked_kind) {
@@ -324,26 +237,6 @@ bool is_node_mutable(ASTNode* node, FunctionType* func_type, SymbolResolver& res
         }
         default:
             return false;
-    }
-}
-
-bool Value::is_ref_l_value() {
-    const auto kind = val_kind();
-    switch(kind) {
-        case ValueKind::StructValue:
-            return true;
-        case ValueKind::AwaitExpr:
-            // `await e` yields an rvalue result, it is never an l-value
-            return false;
-        case ValueKind::AccessChain:
-            if(as_access_chain_unsafe()->values.back()->kind() == ValueKind::IndexOperator) {
-                return true;
-            }
-            // intentional fallthrough
-        default: {
-            const auto linked = linked_node();
-            return linked && is_node_assignable(linked);
-        }
     }
 }
 
@@ -422,14 +315,6 @@ bool Value::check_is_mutable(bool assigning) {
     }
 }
 
-bool Value::is_chain_func_call() {
-    auto chain = as_access_chain();
-    if(chain && chain->values.back()->as_func_call() != nullptr) {
-        return true;
-    }
-    return false;
-}
-
 bool Value::is_func_call() {
     switch(kind()) {
         case ValueKind::FunctionCall:
@@ -454,21 +339,6 @@ bool Value::is_ref_moved() {
     }
 }
 
-VariableIdentifier* Value::get_chain_id() {
-    switch(kind()) {
-        case ValueKind::AccessChain:
-            // the leaf of a chain is not necessarily an identifier (it can be a
-            // call or an index operation), so this one stays nullable
-            return as_access_chain_unsafe()->values.size() == 1 ? as_access_chain_unsafe()->values.back()->as_identifier() : nullptr;
-        case ValueKind::Identifier:
-        case ValueKind::GenericInstIdentifier:
-            // the kind is already established here
-            return as_identifier_unsafe();
-        default:
-            return nullptr;
-    }
-}
-
 bool Value::reference() {
     const auto kind = val_kind();
     switch(kind) {
@@ -480,27 +350,6 @@ bool Value::reference() {
         default:
             return false;
     }
-}
-
-bool Value::requires_memcpy_ref_struct(BaseType* known_type) {
-    // is referencing another struct, that is non movable and must be mem copied into the pointer
-    const auto kind = val_kind();
-    if(kind == ValueKind::Identifier || (kind == ValueKind::AccessChain && as_access_chain_unsafe()->values.back()->as_func_call() == nullptr)) {
-        auto linked = known_type->get_direct_linked_canonical_node();
-        if (linked) {
-            switch(linked->kind()) {
-                case ASTNodeKind::UnnamedStruct:
-                case ASTNodeKind::UnnamedUnion:
-                case ASTNodeKind::StructDecl:
-                case ASTNodeKind::VariantDecl:
-                case ASTNodeKind::UnionDecl:
-                    return true;
-                default:
-                    return false;
-            }
-        }
-    }
-    return false;
 }
 
 Value* Value::child(InterpretScope& scope, const chem::string_view& name) {
@@ -643,70 +492,6 @@ Value* Value::scope_value(InterpretScope& scope) {
     } else {
         return eval;
     }
-}
-
-BaseType* Value::pure_type_ptr() {
-    return getType()->canonical();
-}
-
-bool is_largest_member(VariablesContainerBase* container, std::vector<Value*>& chain, unsigned index) {
-    if (index < chain.size()) {
-        return container->largest_member() == chain[index]->linked_node();
-    } else {
-        return true;
-    }
-}
-
-bool Value::should_build_chain_type(std::vector<Value*>& chain, unsigned index) {
-    while(index < chain.size()) {
-        const auto linked = chain[index]->linked_node();
-        if (linked) {
-            switch (linked->kind()) {
-                case ASTNodeKind::UnionDecl: {
-                    const auto container = linked->as_union_def_unsafe();
-                    if (index + 1 < chain.size()) {
-                        if (container->largest_member() != chain[index + 1]->linked_node()) {
-                            // non-largest member of the union being accessed
-                            // we need to build the chain type
-                            return true;
-                        }
-                        // largest member of the union being accessed
-                        // next member can be a union as well, lets check that
-                        index++;
-                        continue;
-                    } else {
-                        // user didn't access anything inside the union
-                        // so we shouldn't build chain type (return false)
-                        // this is the last value in the chain, so we return
-                        return false;
-                    }
-                }
-                case ASTNodeKind::UnnamedUnion: {
-                    const auto container = linked->as_unnamed_union_unsafe();
-                    if (index + 1 < chain.size()) {
-                        if (container->largest_member() != chain[index + 1]->linked_node()) {
-                            // non-largest member of the union being accessed
-                            // we need to build the chain type
-                            return true;
-                        }
-                        // largest member of the union being accessed
-                        // next member can be a union as well, lets check that
-                        index++;
-                        continue;
-                    } else {
-                        // user didn't access anything inside the union
-                        // so we shouldn't build chain type (return false)
-                        // this is the last value in the chain, so we return
-                        return false;
-                    }
-                }
-                default:
-                    break;
-            }
-        }
-        index++;
-    }
-    return false;
 }
 
 bool Value::is_equal(Value* other, ValueKind kind, ValueKind other_kind) {

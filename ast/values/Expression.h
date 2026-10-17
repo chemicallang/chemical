@@ -55,8 +55,6 @@ public:
      * @param firstType type of the first value
      * @param secondType type of the second value
      */
-    void replace_number_values(ASTAllocator& allocator, TypeBuilder& typeBuilder, BaseType* firstType, BaseType* secondType, Operation operation, TargetData& targetData);
-
     uint64_t byte_size(const TargetData& target) final;
 
 

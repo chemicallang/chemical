@@ -71,16 +71,6 @@ public:
     PointerValue* cast(InterpretScope& scope, BaseType* type);
 
     /**
-     * increment this pointer value in place
-     */
-    void increment_in_place(InterpretScope& scope, size_t amount, Value* debugValue);
-
-    /**
-     * increment this pointer value in place
-     */
-    void decrement_in_place(InterpretScope& scope, size_t amount, Value* debugValue);
-
-    /**
      * when user performs an increment
      */
     PointerValue* increment(InterpretScope& scope, size_t amount, SourceLocation location, Value* debugValue);

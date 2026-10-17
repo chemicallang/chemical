@@ -78,8 +78,6 @@ public:
     /**
      * argument type
      */
-    BaseType* get_arg_type(unsigned int index);
-
     ASTNode *linked_node() final;
 
 

@@ -31,6 +31,14 @@ interpreter's last lowering-time job.
 > commit, `--tcc`/`--llvm`/`--interpret` green at each step. **All 149**
 > `%runtime_value` / `%runtime_block_value` uses are gone — no site remains.
 >
+> **The constructs themselves are deleted** (commit `remove RuntimeValue /
+> RuntimeBlockValue and the comptime-capture machinery`): the `RuntimeValue` /
+> `RuntimeBlockValue` nodes, the `%runtime_value` / `%runtime_block_value`
+> syntax, the symres capture (`CapturedComptimeVariable`/`CapturedComptimeValues`,
+> `capturing_runtime_stack`, `AutoComptimeCapture`) and their MIR/visitor cases.
+> `ValueKind`/`ASTNodeKind` and their CBI `.ch` mirrors are updated in lockstep.
+> Green: `--tcc` 2307, `--interpret` 1896, `--llvm` 2305, `--plugins` 1296.
+>
 > **The explicit replacement is `@expand`** (commit `add @expand: explicit
 > compile-time code functions`). A `comptime func` is either *evaluated* to a
 > value or *lowered* at its call site; the form did not say which, and inference

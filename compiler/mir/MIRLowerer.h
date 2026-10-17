@@ -746,6 +746,15 @@ private:
         else if (mangler_) mangle_buf_ = mangler_(n);
         return mangle_buf_;
     }
+public:
+    /**
+     * The mangled name of `n` as a copy. A driver that lowers into its own
+     * module (`MIRComptime`) uses this to build a *unique* per-declaration name:
+     * generic instantiations share the host's mangled name, which a
+     * module-local `fn_by_name` lookup would then collide on.
+     */
+    std::string mangled_name_copy(ASTNode* n) { return std::string(mangle(n)); }
+private:
     // ── comptime-template inlining (Phase 5) ───────────────────────────────
     /**
      * True when `fd` is a `comptime func` that must be *lowered*, not

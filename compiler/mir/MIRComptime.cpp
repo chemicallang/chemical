@@ -10,6 +10,7 @@
 #include "MIRInterpreter.h"
 #include "MIRLowerer.h"
 #include "MIRABI.h"
+#include "MIRLayout.h"
 
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/FunctionParam.h"
@@ -30,6 +31,7 @@
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/ReferenceOfValue.h"
 #include "ast/values/IndexOperator.h"
+#include "ast/values/IsValue.h"
 #include "ast/values/BlockValue.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/values/StructValue.h"
@@ -37,12 +39,16 @@
 #include "ast/values/BoolValue.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/NullValue.h"
+#include "ast/values/FloatValue.h"
+#include "ast/values/DoubleValue.h"
+#include "ast/values/StructMemberInitializer.h"
 #include "ast/types/IntNType.h"
 #include "ast/base/TypeBuilder.h"
 #include "ast/base/ASTAllocator.h"
 #include "ast/base/InterpretScope.h"
 
 #include <cstdio>
+#include <cstring>
 #include <cstdlib>
 #include <unordered_set>
 #include <vector>
@@ -56,6 +62,7 @@ struct MIRComptime::Impl {
     std::unique_ptr<MIRInterpreter> interp;
     std::unordered_map<FunctionDeclaration*, SymbolId> lowered;
     bool dirty = false;
+    bool mangler_set = false;
 
     Impl() : module(), types(module), task(std::make_unique<MIRTaskContext>(module, types)) {}
 };
@@ -78,7 +85,16 @@ bool scalar_return(BaseType* canonical) {
         case BaseTypeKind::Pointer:
         case BaseTypeKind::Reference:
         case BaseTypeKind::NullPtr:
+        case BaseTypeKind::Struct:
+        case BaseTypeKind::Union:
             return true;
+        case BaseTypeKind::Linked: {
+            // a self-referencing struct type canonicalizes to its Linked form
+            ASTNode* n = canonical->get_direct_linked_canonical_node();
+            return n && (n->kind() == ASTNodeKind::StructDecl ||
+                         n->kind() == ASTNodeKind::UnionDecl ||
+                         n->kind() == ASTNodeKind::VariantDecl);
+        }
         default:
             return false;
     }
@@ -207,6 +223,19 @@ bool value_eligible(Value* v, Eligibility& e) {
             auto* io = v->as_index_op_unsafe();
             return value_eligible(io->parent_val, e) && value_eligible(io->idx, e);
         }
+        case ValueKind::IsValue: {
+            auto* isv = v->as_is_value_unsafe();
+            ASTNode* ln = isv->type ? isv->type->get_direct_linked_node() : nullptr;
+            if (!ln || ln->kind() != ASTNodeKind::VariantMember) {
+                // a type test (`T is int`): the engine folds it only when the
+                // comptime result is known; decline otherwise
+                if (!isv->get_comp_time_result().has_value()) {
+                    e.ok = false;
+                    return false;
+                }
+            }
+            return value_eligible(isv->value, e);
+        }
         case ValueKind::BlockValue:
             return scope_eligible(&static_cast<BlockValue*>(v)->scope, e);
         case ValueKind::Expression: {
@@ -237,6 +266,84 @@ bool value_eligible(Value* v, Eligibility& e) {
         default:
             return true;
     }
+}
+
+/** Read a scalar field of MIR type `r` at `p` back into an AST value. */
+Value* read_scalar_value(const MIRComptimeContext& ctx, const MIRTypeRecord& r,
+                         const uint8_t* p, SourceLocation loc) {
+    switch (r.kind) {
+        case MIRTypeKind::Bool: {
+            uint8_t b = 0;
+            std::memcpy(&b, p, 1);
+            return new (ctx.allocator->allocate<BoolValue>())
+                BoolValue(b != 0, ctx.type_builder->getBoolType(), loc);
+        }
+        case MIRTypeKind::Int: {
+            uint64_t v = 0;
+            std::memcpy(&v, p, r.size > 8 ? 8 : r.size);
+            if ((r.flags & TF_SIGNED) && r.size > 0 && r.size < 8) {
+                const uint64_t sign = 1ull << (r.size * 8 - 1);
+                if (v & sign) v |= ~((sign << 1) - 1);
+            }
+            auto* it = static_cast<IntNType*>((r.flags & TF_SIGNED)
+                                                  ? (BaseType*) ctx.type_builder->getI64Type()
+                                                  : (BaseType*) ctx.type_builder->getU64Type());
+            return new (ctx.allocator->allocate<IntNumValue>()) IntNumValue(v, it, loc);
+        }
+        case MIRTypeKind::Float: {
+            if (r.size == 8) {
+                double d = 0;
+                std::memcpy(&d, p, 8);
+                return new (ctx.allocator->allocate<DoubleValue>())
+                    DoubleValue(d, ctx.type_builder->getDoubleType(), loc);
+            }
+            float f = 0;
+            std::memcpy(&f, p, 4);
+            return new (ctx.allocator->allocate<FloatValue>())
+                FloatValue(f, ctx.type_builder->getFloatType(), loc);
+        }
+        case MIRTypeKind::Pointer:
+        case MIRTypeKind::Reference:
+        case MIRTypeKind::Function: {
+            uint64_t v = 0;
+            std::memcpy(&v, p, 8);
+            if (!v) {
+                return new (ctx.allocator->allocate<NullValue>())
+                    NullValue(ctx.type_builder->getNullPtrType(), loc);
+            }
+            return new (ctx.allocator->allocate<IntNumValue>())
+                IntNumValue(v, ctx.type_builder->getU64Type(), loc);
+        }
+        default:
+            return nullptr; // nested aggregate: out of scope for now
+    }
+}
+
+/** Rebuild an AST struct value from a flat MIR struct's bytes. */
+Value* read_struct_value(const MIRComptimeContext& ctx, MIRTypeBuilder& types, MIRModule& module,
+                         BaseType* ast_type, const uint8_t* bytes, SourceLocation loc) {
+    if (!ast_type) return nullptr;
+    ASTNode* nd = ast_type->canonical() ? ast_type->canonical()->get_direct_linked_canonical_node()
+                                        : nullptr;
+    if (!nd || nd->kind() != ASTNodeKind::StructDecl) return nullptr;
+    auto* sd = nd->as_struct_def_unsafe();
+    const TypeId tid = types.map(ast_type);
+    if (tid == MIR_INVALID_ID || tid >= module.types.size()) return nullptr;
+    compute_aggregate_layout(module.types, tid);
+    const MIRTypeRecord rec = module.types.get(tid);
+    if (rec.kind != MIRTypeKind::Struct || rec.field_index == MIR_INVALID_ID) return nullptr;
+    auto* sv = new (ctx.allocator->allocate<StructValue>())
+        StructValue(ast_type, sd, sd, loc);
+    for (uint32_t i = 0; i < rec.data_count; ++i) {
+        const MIRFieldInfo& fi = module.types.fields[rec.field_index + i];
+        const MIRTypeRecord fr = module.types.get(fi.type);
+        Value* fv = read_scalar_value(ctx, fr, bytes + fi.offset, loc);
+        if (!fv) return nullptr;
+        const char* nm = module.types.field_names.data_at(fi.name_offset);
+        const chem::string_view name(nm, fi.name_length);
+        sv->values.emplace(name, StructMemberInitializer{name, fv});
+    }
+    return sv;
 }
 
 /** Marshal one comptime argument into a raw 64-bit cell. */
@@ -276,6 +383,9 @@ bool marshal_arg(Value* av, uint64_t& cell, std::vector<std::vector<char>>& keep
 
 Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration* fd,
                              FunctionCall* call, std::string& error) {
+#define CT_DECLINE(reason) do { if (std::getenv("CT_STAT")) { \
+    std::fprintf(stderr, "[CTSTAT] DECLINE %s: %s\n", fd && fd->name_str().size() ? fd->name_str().c_str() : "?", reason); } \
+    return nullptr; } while (0)
     if (!ctx.host || !ctx.allocator || !ctx.type_builder || !ctx.scope) return nullptr;
     if (!fd || !fd->body.has_value()) return nullptr;
     if (!fd->is_comptime()) return nullptr;
@@ -284,12 +394,23 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
     if (fd->is_expand_fn()) return nullptr;
     if (!call) return nullptr;
     BaseType* rtc = fd->returnType ? fd->returnType->canonical() : nullptr;
-    if (!scalar_return(rtc)) return nullptr;
+    if (!scalar_return(rtc)) CT_DECLINE("non-scalar/struct return");
     // methods carry a receiver the driver does not marshal yet; a generic
     // instantiation binds its parameters from the instantiation site, which the
     // driver's type mapping is not yet scoped to
-    if (fd->has_self_param()) return nullptr;
-    if (fd->generic_parent) return nullptr;
+    if (fd->has_self_param()) CT_DECLINE("method (self receiver)");
+
+    // unique mangled names inside the driver's module: generic instantiations
+    // share the host's mangled name, which a module-local lookup would collide on
+    if (!impl_->mangler_set) {
+        MIRLowerer* host = ctx.host;
+        impl_->task->lowerer.set_mangler_into([host](ASTNode* n, std::string& out) {
+            out.assign(host->mangled_name_copy(n));
+            out += '#';
+            out += std::to_string(reinterpret_cast<uintptr_t>(n));
+        });
+        impl_->mangler_set = true;
+    }
 
     // 0. eligibility — this function and everything it calls, transitively:
     // every reachable function must have a body the engine can run and use no
@@ -303,7 +424,7 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
             if (!seen.insert(d).second) continue;
             if (!d->body.has_value()) return nullptr;
             Eligibility e;
-            if (!scope_eligible(&d->body.value(), e) || !e.ok) return nullptr;
+            if (!scope_eligible(&d->body.value(), e) || !e.ok) CT_DECLINE("ineligible body");
             for (FunctionDeclaration* c : e.callees) reachable.push_back(c);
         }
     }
@@ -349,6 +470,33 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
     // 4. run the callee
     const std::string name =
         impl_->module.symbols.mangled_name(impl_->module.symbols.get(target));
+    // aggregate result: sret (the result bytes are read back below)
+    if (abi::needs_sret(impl_->module, impl_->types.map(rtc))) {
+        const TypeId tid = impl_->types.map(rtc);
+        if (tid == MIR_INVALID_ID || tid >= impl_->module.types.size()) return nullptr;
+        compute_aggregate_layout(impl_->module.types, tid);
+        const MIRTypeRecord rec = impl_->module.types.get(tid);
+        std::vector<uint8_t> buf(rec.size ? rec.size : 1, 0);
+        if (!impl_->interp->call_sret(name, cells.data(), static_cast<uint32_t>(cells.size()),
+                                      buf.data(), error)) {
+            if (std::getenv("CT_STAT")) {
+                std::fprintf(stderr, "[CTSTAT] AGGFAIL %s call_sret\n", fd->name_str().c_str());
+            }
+            error.clear();
+            return nullptr;
+        }
+        Value* bridged = read_struct_value(ctx, impl_->types, impl_->module, rtc, buf.data(),
+                                           call->encoded_location());
+        if (!bridged && std::getenv("CT_STAT")) {
+            std::fprintf(stderr, "[CTSTAT] AGGFAIL %s tid=%u\n", fd->name_str().c_str(), tid);
+        }
+        if (bridged && std::getenv("CT_STAT")) {
+            std::fprintf(stderr, "[CTSTAT] DRV %s fd=%p struct\n", fd->name_str().c_str(),
+                         (void*) fd);
+        }
+        return bridged;
+    }
+
     uint64_t out = 0;
     if (!impl_->interp->call(name, cells.data(), static_cast<uint32_t>(cells.size()),
                              out, error)) {
@@ -356,7 +504,8 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
         return nullptr;
     }
     if (std::getenv("CT_STAT")) {
-        std::fprintf(stderr, "[CTSTAT] DRV %s :: %s\n", fd->name_str().c_str(), name.c_str());
+        std::fprintf(stderr, "[CTSTAT] DRV %s fd=%p out=%llu sym=%s\n", fd->name_str().c_str(),
+                     (void*) fd, (unsigned long long) out, name.c_str());
     }
 
     // 5. bridge the raw result back to an AST value

@@ -49,6 +49,14 @@ public:
     bool call(const std::string& name, const uint64_t* args, uint32_t nargs,
               uint64_t& out_result, std::string& error);
 
+    /**
+     * Call a function whose return is an aggregate (sret): `out_buf` receives
+     * the result bytes. `args` are the ordinary arguments; the hidden sret
+     * pointer is prepended.
+     */
+    bool call_sret(const std::string& name, const uint64_t* args, uint32_t nargs,
+                   void* out_buf, std::string& error);
+
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;

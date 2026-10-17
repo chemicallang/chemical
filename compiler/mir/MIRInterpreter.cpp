@@ -1543,6 +1543,21 @@ bool MIRInterpreter::call(const std::string& name, const uint64_t* args, uint32_
     return true;
 }
 
+bool MIRInterpreter::call_sret(const std::string& name, const uint64_t* args, uint32_t nargs,
+                               void* out_buf, std::string& error) {
+    auto it = impl_->fn_by_name.find(name);
+    if (it == impl_->fn_by_name.end()) {
+        error = "no function named '" + name + "' in the MIR module";
+        return false;
+    }
+    std::vector<uint64_t> cells;
+    cells.reserve(static_cast<size_t>(nargs) + 1);
+    cells.push_back(reinterpret_cast<uint64_t>(out_buf));
+    for (uint32_t i = 0; i < nargs; ++i) cells.push_back(args[i]);
+    impl_->call_function(it->second, cells.data(), nargs + 1);
+    return true;
+}
+
 bool MIRInterpreter::run(const std::string& entry, int argc, const char* const* argv,
                          long long& out_result, std::string& error) {
     auto it = impl_->fn_by_name.find(entry);

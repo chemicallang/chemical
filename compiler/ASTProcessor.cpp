@@ -43,7 +43,10 @@ static void ct_stat_decl(const char* tag, FunctionDeclaration* d) {
         auto* sd = par->as_struct_def_unsafe();
         owner.assign(sd->name_view().data(), sd->name_view().size());
     }
-    std::fprintf(stderr, "[CTSTAT] %s %s::%s\n", tag, owner.c_str(), d->name_str().c_str());
+    std::fprintf(stderr, "[CTSTAT] %s %s::%s body=%d gen=%d self=%d\n", tag, owner.c_str(),
+                 d->name_str().c_str(), (int) d->body.has_value(),
+                 (int) (d->generic_parent != nullptr),
+                 (int) d->has_self_param());
 }
 
 #include "lexer/Lexer.h"
@@ -2549,7 +2552,6 @@ int ASTProcessor::implement_module(
                                    &pop_comptime_bindings](FunctionCall* call,
                                                            FunctionDeclaration* decl) -> Value* {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
-        ct_stat_decl("CE", decl);
         auto saved = push_comptime_bindings();
         std::string derr;
         mir::MIRComptimeContext cctx;
@@ -2560,7 +2562,10 @@ int ASTProcessor::implement_module(
                                 : nullptr;
         cctx.scope = &c_visitor.comptime_scope;
         Value* r = ct_driver.evaluate(cctx, decl, call, derr);
-        if (!r) r = c_visitor.eval_comptime_call(call, decl);
+        if (!r) {
+            ct_stat_decl("FB", decl);
+            r = c_visitor.eval_comptime_call(call, decl);
+        }
         pop_comptime_bindings(saved);
         return r;
     });
@@ -2887,7 +2892,6 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
                                    &pop_comptime_bindings](FunctionCall* call,
                                                            FunctionDeclaration* decl) -> Value* {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
-        ct_stat_decl("CE", decl);
         auto saved = push_comptime_bindings();
         std::string derr;
         mir::MIRComptimeContext cctx;
@@ -2898,7 +2902,10 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
                                 : nullptr;
         cctx.scope = &c_visitor.comptime_scope;
         Value* r = ct_driver.evaluate(cctx, decl, call, derr);
-        if (!r) r = c_visitor.eval_comptime_call(call, decl);
+        if (!r) {
+            ct_stat_decl("FB", decl);
+            r = c_visitor.eval_comptime_call(call, decl);
+        }
         pop_comptime_bindings(saved);
         return r;
     });

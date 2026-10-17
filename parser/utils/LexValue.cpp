@@ -31,7 +31,6 @@
 #include "parse_num.h"
 #include "ast/statements/IncDecNode.h"
 #include "ast/values/ComptimeValue.h"
-#include "ast/values/RuntimeBlockValue.h"
 #include "ast/values/UnsafeValue.h"
 #include "ast/values/AwaitExpression.h"
 #include "ast/values/SizeOfValue.h"
@@ -48,7 +47,6 @@
 #include "ast/values/AddrOfValue.h"
 #include "preprocess/2c/BufferedWriter.h"
 #include "ast/values/ExpressiveString.h"
-#include "ast/values/RuntimeValue.h"
 
 bool is_escaped_self(char self) {
     switch(self) {
@@ -797,41 +795,8 @@ Value* Parser::parseMagicValue(ASTAllocator& allocator) {
         unexpected_error("a keyword or identifier expected after symbol '%'");
         return nullptr;
     }
-    const auto hasher = std::hash<chem::string_view>();
-    switch (hasher(kid->value)) {
-        case hasher("runtime_value"): {
-            if (token->type != TokenType::LParen) {
-                unexpected_error("expected a '(' after '%runtime_value'");
-            } else {
-                token++;
-            }
-            const auto expr = parseExpression(allocator, true, true);
-            if (expr == nullptr) {
-                unexpected_error("expected an expression after '%runtime_value('");
-                return nullptr;
-            }
-            if (token->type != TokenType::RParen) {
-                unexpected_error("expected a ')' after '%runtime_value'");
-            } else {
-                token++;
-            }
-            const auto runtime_type = new (allocator.allocate<RuntimeType>()) RuntimeType(nullptr);
-            return new (allocator.allocate<RuntimeValue>()) RuntimeValue(expr, runtime_type);
-        }
-        case hasher("runtime_block_value"): {
-            auto scopeOpt = parseNestedBraceBlock("runtime_block_value", allocator);
-            if (!scopeOpt.has_value()) {
-                error("expected a block body for %runtime_block_value");
-                return nullptr;
-            }
-            auto scope = std::move(scopeOpt.value());
-            const auto runtime_type = new (allocator.allocate<RuntimeType>()) RuntimeType(nullptr);
-            return new (allocator.allocate<RuntimeBlockValue>()) RuntimeBlockValue(parent_node, std::move(scope), runtime_type, loc_single(token));
-        }
-        default:
-            error("unknown identifier after symbol '%', unrecognized magic value");
-            return nullptr;
-    }
+    error("unknown identifier after symbol '%', unrecognized magic value");
+    return nullptr;
 }
 
 Value* Parser::parseAccessChainOrValueNoAfter(ASTAllocator& allocator, bool parseStruct) {

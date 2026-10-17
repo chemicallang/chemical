@@ -24,7 +24,6 @@
 #include "ast/values/ExtractionValue.h"
 #include "ast/values/ExpressiveString.h"
 #include "ast/values/BlockValue.h"
-#include "ast/values/RuntimeBlockValue.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/FunctionCall.h"

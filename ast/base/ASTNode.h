@@ -1015,14 +1015,6 @@ public:
     }
 
     /**
-     * return if this is a captured comptime variable
-     */
-    inline CapturedComptimeVariable* as_captured_comptime_var_unsafe() {
-        CHECK_CAST(ASTNodeKind::CapturedComptimeVariable);
-        return (CapturedComptimeVariable*) this;
-    }
-
-    /**
      * return if this is a return statement
      */
     inline ReturnStatement *as_return_unsafe() {

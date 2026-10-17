@@ -27,73 +27,21 @@
 #include "ast/statements/Return.h"
 #include "ast/types/RuntimeType.h"
 #include "ast/types/MaybeRuntimeType.h"
-#include "ast/values/RuntimeValue.h"
-#include "ast/values/RuntimeBlockValue.h"
 
 #include <string>
 #include <vector>
 
 namespace mir {
 
-namespace {
-
-bool value_is_template(Value* v) {
-    if (!v) return false;
-    const ValueKind k = v->val_kind();
-    return k == ValueKind::RuntimeValue || k == ValueKind::RuntimeBlockValue;
-}
-
-bool scope_has_template(Scope* s);
-
-bool stmt_has_template(ASTNode* n) {
-    if (!n) return false;
-    switch (n->kind()) {
-        case ASTNodeKind::ReturnStmt:
-            return value_is_template(n->as_return()->value);
-        case ASTNodeKind::IfStmt: {
-            auto* ifs = n->as_if_stmt_unsafe();
-            if (scope_has_template(&ifs->ifBody)) return true;
-            for (auto& e : ifs->elseIfs) {
-                if (scope_has_template(&e.second)) return true;
-            }
-            if (ifs->elseBody.has_value() && scope_has_template(&ifs->elseBody.value())) return true;
-            return false;
-        }
-        case ASTNodeKind::Scope:
-            return scope_has_template(n->as_scope());
-        default:
-            return false;
-    }
-}
-
-bool scope_has_template(Scope* s) {
-    if (!s) return false;
-    for (ASTNode* n : s->nodes) {
-        if (stmt_has_template(n)) return true;
-    }
-    return false;
-}
-
-} // namespace
-
 bool MIRLowerer::is_comptime_template_fn(FunctionDeclaration* fd) {
     if (!fd || !fd->is_comptime() || !fd->body.has_value()) return false;
     // The explicit, declared form: `@expand comptime func`. The compiler never
-    // infers this from the body — the annotation is the whole signal.
+    // inspects the body to decide.
     if (fd->is_expand_fn()) return true;
-    // Migration fallback (removed once every template carries `@expand` and
-    // `%runtime_value` is deleted): a marker parameter or a template body.
-    const bool has_template = scope_has_template(&fd->body.value());
-    // A constructor that still returns a `%runtime_value`/`%runtime_block_value`
-    // stays on the existing implicit-constructor path (which also runs the
-    // comptime constructor evaluation). A migrated constructor — whose body no
-    // longer returns a template — inlines like any other template.
-    if (fd->is_constructor_fn() && has_template) return false;
-    // A comptime-template function is recognised by a *marker* parameter:
-    // `%runtime<T>` / `%maybe_runtime<T>` (a runtime operand) or
-    // `%literal`/`%expressive_string` (a comptime operand). Inspect the RAW
-    // kind — `BaseType::canonical()` deliberately unwraps exactly these markers
-    // (see BaseType.cpp), so a canonicalized check would never match.
+    // A marker parameter also makes a comptime function a template:
+    // `%runtime<T>` / `%maybe_runtime<T>` (a runtime operand) or `%literal`
+    // (a comptime operand). Inspect the RAW kind — `BaseType::canonical()`
+    // deliberately unwraps exactly these markers (see BaseType.cpp).
     for (FunctionParam* p : fd->params) {
         if (!p || !p->type) continue;
         const BaseTypeKind k = p->type->kind();
@@ -102,7 +50,7 @@ bool MIRLowerer::is_comptime_template_fn(FunctionDeclaration* fd) {
             return true;
         }
     }
-    return has_template;
+    return false;
 }
 
 void MIRLowerer::set_comptime_binding(const std::string& key, Value* value) {

@@ -15,7 +15,6 @@
 #include "ast/values/FloatValue.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/FunctionCall.h"
-#include "ast/structures/CapturedComptimeVariable.h"
 #include "ast/statements/Return.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/UnionDef.h"

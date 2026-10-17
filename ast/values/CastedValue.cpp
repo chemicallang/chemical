@@ -87,13 +87,11 @@ Value* CastedValue::evaluated_value(InterpretScope &scope) {
                     // in codegen mode (outside interpretation), the backends
                     // translate the casted expression (with the cast preserved)
                     // directly at the codegen site: a runtime variable reference
-                    // (Identifier that couldn't be resolved to a value) or a
-                    // %runtime_value / %runtime_block_value cannot be evaluated
-                    // to a pointer at comptime, so keep the cast instead of
-                    // erroring out on the unevaluated expression
+                    // (Identifier that couldn't be resolved to a value) cannot be
+                    // evaluated to a pointer at comptime, so keep the cast
+                    // instead of erroring out on the unevaluated expression
                     if(!scope.global->interpretation_mode &&
-                       (value->val_kind() == ValueKind::RuntimeValue || value->val_kind() == ValueKind::RuntimeBlockValue ||
-                        eval->val_kind() == ValueKind::Identifier)) {
+                       eval->val_kind() == ValueKind::Identifier) {
                         return this;
                     }
                     scope.error("unknown value being casted to a pointer", this);

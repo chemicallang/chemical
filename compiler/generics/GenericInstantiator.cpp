@@ -13,7 +13,6 @@
 #include "ast/structures/GenericVariantDecl.h"
 #include "ast/structures/GenericTypeDecl.h"
 #include "ast/structures/GenericImplDecl.h"
-#include "ast/structures/CapturedComptimeVariable.h"
 #include "compiler/symres/ImplementationsIndex.h"
 #include "ast/utils/GenericUtils.h"
 
@@ -79,28 +78,6 @@ void GenericInstantiator::VisitFunctionCall(FunctionCall *call) {
 
 bool GenericInstantiator::relink_identifier(VariableIdentifier* val) {
     const auto id = val->as_identifier_unsafe();
-
-    // identifiers that symres linked to a CapturedComptimeVariable are a bridge
-    // to the comptime environment: they reference a variable captured from the
-    // enclosing comptime function's scope into a %runtime_value /
-    // %runtime_block_value. the backends resolve the captured value through this
-    // bridge at codegen time, so instantiation must never relink such an
-    // identifier to a symbol that merely shares the same name (for example an
-    // instantiated function parameter). the type can still change because of
-    // generics, so it is updated to the concrete type of this instantiation
-    // while the capture bridge is kept intact: prefer the concrete declaration
-    // in the symbol table (parameters and locals of the instantiation),
-    // otherwise copy the master declaration's type and concretize the copy
-    const auto linked = id->linked;
-    if(linked && linked->kind() == ASTNodeKind::CapturedComptimeVariable) {
-        const auto captured_node = table.resolve(id->value);
-        if(captured_node) {
-            id->setType(captured_node->getType());
-        } else {
-            id->setType(linked->as_captured_comptime_var_unsafe()->linked->known_type());
-        }
-        return true;
-    }
 
     const auto node = table.resolve(id->value);
     if(node) {
@@ -188,22 +165,7 @@ void relink_parent(AccessChain* chain, GenericInstantiator& instantiator, Functi
             return;
         }
         const auto parent = chain->values[i - 1];
-        // identifiers linked with a CapturedComptimeVariable are a bridge to the
-        // master declaration whose type is still generic, so children are
-        // resolved against the concrete type of the captured identifier (set by
-        // relink_identifier) to find the monomorphized members for this
-        // instantiation
-        ASTNode* child = nullptr;
-        if(parent->kind() == ValueKind::Identifier) {
-            const auto pid = parent->as_identifier_unsafe();
-            if(pid->linked && pid->linked->kind() == ASTNodeKind::CapturedComptimeVariable) {
-                child = provide_child(&instantiator.child_resolver, pid->getType(), id->value, nullptr);
-            } else {
-                child = provide_child(&instantiator.child_resolver, parent, id->value, nullptr);
-            }
-        } else {
-            child = provide_child(&instantiator.child_resolver, parent, id->value, nullptr);
-        }
+        ASTNode* child = provide_child(&instantiator.child_resolver, parent, id->value, nullptr);
         if(child) {
             id->linked = child;
             id->setType(child->known_type());
@@ -732,17 +694,6 @@ void GenericInstantiator::VisitDereferenceValue(DereferenceValue* value) {
     if(!value->determine_type(typeBuilder)) {
         diagnoser.error("only pointer types can be de-referenced", value);
     }
-}
-
-void GenericInstantiator::VisitRuntimeValue(RuntimeValue* value) {
-    RecursiveVisitor<GenericInstantiator>::VisitRuntimeValue(value);
-    value->getType()->as_runtime_type_unsafe()->underlying = value->underlying->getType();
-}
-
-void GenericInstantiator::VisitRuntimeBlockValue(RuntimeBlockValue* value) {
-    RecursiveVisitor<GenericInstantiator>::VisitRuntimeBlockValue(value);
-    const auto val = value->get_stmt_expr();
-    if (val) value->getType()->as_runtime_type_unsafe()->underlying = val->getType();
 }
 
 void GenericInstantiator::VisitExpression(Expression *expr) {

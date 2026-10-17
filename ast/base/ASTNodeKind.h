@@ -67,7 +67,6 @@ enum class ASTNodeKind : uint8_t {
     GenericTypeParam,
     VariantMemberParam,
     CapturedVariable,
-    CapturedComptimeVariable,
     VariantCaseVariable,
     PatternMatchId,
 

@@ -202,7 +202,6 @@ public:
 
     void VisitBlockValue(BlockValue* value);
 
-    void VisitRuntimeBlockValue(RuntimeBlockValue* value);
 
     void VisitStructValue(StructValue* value);
 

@@ -5,7 +5,6 @@
 #include "preprocess/visitors/NonRecursiveVisitor.h"
 #include "SymbolTable.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
-#include "ast/structures/CapturedComptimeVariable.h"
 
 /**
  * when a variable is outside evaluation scope, for example an identifier lambda referencing a variable above lambda
@@ -13,8 +12,6 @@
  */
 enum class OutScopeResBehavior : uint8_t {
     Error,
-    // with this comptime variables are automatically wrapped in a comptime captured variable node
-    AutoComptimeCapture
 };
 
 class SymResLinkBody : public NonRecursiveVisitor<SymResLinkBody> {
@@ -98,14 +95,6 @@ public:
      * resolution behavior for variables outside evaluation scope
      */
     OutScopeResBehavior out_scope_res_behavior = OutScopeResBehavior::Error;
-
-    /**
-     * the stack of %runtime_value / %runtime_block_value being symbol
-     * resolved. identifiers referencing variables from outside the runtime
-     * value's scope (AutoComptimeCapture) are captured into the top of this
-     * stack (the innermost enclosing runtime value)
-     */
-    std::vector<CapturedComptimeValues*> capturing_runtime_stack;
 
     /**
      * constructor
@@ -422,10 +411,6 @@ public:
     void VisitNewTypedValue(NewTypedValue* value);
 
     void VisitPlacementNewValue(PlacementNewValue* value);
-
-    void VisitRuntimeValue(RuntimeValue* value);
-
-    void VisitRuntimeBlockValue(RuntimeBlockValue* value);
 
     void VisitNotValue(NotValue* value);
 

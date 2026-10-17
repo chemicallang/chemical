@@ -7,7 +7,6 @@
 #include "ast/values/NullValue.h"
 #include "compiler/lab/LabBuildCompiler.h"
 #include "ast/structures/EnumMember.h"
-#include "ast/structures/CapturedComptimeVariable.h"
 #include "ast/structures/Namespace.h"
 #include "ast/structures/ImplDefinition.h"
 #include "ast/structures/FileScope.h"
@@ -423,34 +422,6 @@ Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
         case ASTNodeKind::EnumMember: {
             const auto mem = linked->as_enum_member_unsafe();
             return mem->evaluate(scope.allocator, scope.global->typeBuilder, encoded_location());
-        }
-        case ASTNodeKind::CapturedComptimeVariable: {
-            // an identifier that references a variable auto captured from the
-            // comptime environment (a parameter/local of a comptime function
-            // used inside a %runtime_value / %runtime_block_value). when the
-            // runtime value was returned, evaluated_value evaluated the
-            // captured variables and stored them in the owning runtime value's
-            // refs (which the bridge node points to), so the value is resolved
-            // through there. this also works when the interpreter re-evaluates
-            // the expression during codegen translation (e.g. a nested comptime
-            // intrinsic call like intrinsics::size inside the returned
-            // expression)
-            const auto captured = linked->as_captured_comptime_var_unsafe();
-            if(captured->parent_refs && captured->index < captured->parent_refs->refs.size() && captured->parent_refs->refs[captured->index].evaluated) {
-                return captured->parent_refs->refs[captured->index].evaluated;
-            }
-            // the runtime value was not evaluated (e.g. pure interpretation
-            // mode, where %runtime_value evaluates its underlying expression
-            // directly): the value is in the live interpret scope chain
-            InterpretScope* chain = &scope;
-            while(chain != nullptr && chain != scope.global) {
-                const auto found = chain->values.find(value);
-                if(found != chain->values.end()) {
-                    return found->second;
-                }
-                chain = chain->parent;
-            }
-            return this;
         }
         default:
             return this;

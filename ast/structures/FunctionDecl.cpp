@@ -244,18 +244,6 @@ Value *FunctionDeclaration::call(
 // called by the return statement
 void FunctionDeclaration::set_return(InterpretScope& func_scope, Value *value) {
     if(value) {
-        // When a comptime function that is called from the runtime mode
-        // (codegen) returns a runtime value (%runtime_value /
-        // %runtime_block_value), the returned expression references comptime
-        // variables that were automatically captured (CapturedComptimeVariable)
-        // from the enclosing comptime function's scope. Evaluating the return
-        // expression right here (evaluated_value) evaluates those captured
-        // variables into an evaluated copy of the runtime value, while this
-        // interpret scope is still alive, so the returned value is fully
-        // self-contained and can be translated by the backend after the scope
-        // has been destroyed (the copy holds the evaluated values, the original
-        // runtime value acts as a template).
-        //
         // Evaluate the return value expression in the current scope (func_scope),
         // not in the function-level scope (*target). Variables like variant case
         // variables are declared in nested scopes inside the function body and

@@ -52,8 +52,6 @@ enum class ValueKind : uint8_t {
     PatternMatchExpr,
     ExtractionValue,
     WrapValue,
-    RuntimeValue,
-    RuntimeBlockValue,
 
     EmbeddedValue,
 

@@ -287,9 +287,7 @@ public:
 
     void VisitDereferenceValue(DereferenceValue* value);
 
-    void VisitRuntimeValue(RuntimeValue* value);
 
-    void VisitRuntimeBlockValue(RuntimeBlockValue* value);
 
     void VisitExpression(Expression *expr);
 

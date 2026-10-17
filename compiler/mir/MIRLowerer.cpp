@@ -36,10 +36,8 @@
 #include "ast/values/ReferenceOfValue.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/values/StructValue.h"
-#include "ast/values/RuntimeValue.h"
 #include "ast/values/DynamicValue.h"
 #include "ast/values/ComptimeValue.h"
-#include "ast/structures/CapturedComptimeVariable.h"
 #include "ast/values/StructMemberInitializer.h"
 #include "ast/values/ValueNode.h"
 #include "ast/values/AccessChain.h"
@@ -92,7 +90,6 @@
 #include "ast/values/LoopValue.h"
 #include "ast/values/PatternMatchExpr.h"
 #include "ast/values/InValue.h"
-#include "ast/values/RuntimeBlockValue.h"
 #include "ast/values/BlockValue.h"
 #include "ast/statements/PatternMatchExprNode.h"
 #include "ast/statements/Return.h"
@@ -146,20 +143,6 @@ PlaceId MIRLowerer::place_for_linked(ASTNode* linked) const {
     auto it = var_places_.find(linked);
     if (it == var_places_.end()) return MIR_INVALID_ID;
     return it->second;
-}
-
-Value* MIRLowerer::captured_comptime_value_locked(ASTNode* linked) {
-    std::unique_lock<std::recursive_mutex> lk;
-    if (visitor_mutex_) lk = std::unique_lock<std::recursive_mutex>(*visitor_mutex_);
-    return captured_comptime_value(linked);
-}
-
-Value* MIRLowerer::captured_ref_value_locked(CapturedComptimeValues* owner, int index) {
-    if (!owner || index < 0) return nullptr;
-    std::unique_lock<std::recursive_mutex> lk;
-    if (visitor_mutex_) lk = std::unique_lock<std::recursive_mutex>(*visitor_mutex_);
-    if (static_cast<size_t>(index) >= owner->refs.size()) return nullptr;
-    return owner->refs[index].evaluated;
 }
 
 PlaceId MIRLowerer::resolve_place(Value* v, std::string& error) {
@@ -397,9 +380,6 @@ MIRExprResult MIRLowerer::lower_address_of(Value* inner, std::string& error) {
     }
     if (t && t->val_kind() == ValueKind::Identifier) {
         auto* id = t->as_identifier_unsafe();
-        if (Value* cv = captured_comptime_value_locked(id->linked)) {
-            return lower_expr(cv, error);
-        }
         if (id->linked && id->linked->kind() == ASTNodeKind::VariantCaseVariable) {
             return lower_variant_payload(id->linked->as_variant_case_var_unsafe(), true, error);
         }

@@ -42,10 +42,8 @@
 #include "ast/values/ReferenceOfValue.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/values/StructValue.h"
-#include "ast/values/RuntimeValue.h"
 #include "ast/values/DynamicValue.h"
 #include "ast/values/ComptimeValue.h"
-#include "ast/structures/CapturedComptimeVariable.h"
 #include "ast/values/StructMemberInitializer.h"
 #include "ast/values/ValueNode.h"
 #include "ast/values/AccessChain.h"
@@ -98,7 +96,6 @@
 #include "ast/values/LoopValue.h"
 #include "ast/values/PatternMatchExpr.h"
 #include "ast/values/InValue.h"
-#include "ast/values/RuntimeBlockValue.h"
 #include "ast/values/BlockValue.h"
 #include "ast/statements/PatternMatchExprNode.h"
 #include "ast/statements/Return.h"
@@ -174,14 +171,6 @@ inline BaseType* resolve_sizeof_operand(BaseType* t) {
         }
     }
     return t;
-}
-
-/** Resolve a captured-comptime bridge node to its evaluated value, if any. */
-inline Value* captured_comptime_value(ASTNode* linked) {
-    if (!linked || linked->kind() != ASTNodeKind::CapturedComptimeVariable) return nullptr;
-    auto* ccv = static_cast<CapturedComptimeVariable*>(linked);
-    if (!ccv->parent_refs || ccv->index >= ccv->parent_refs->refs.size()) return nullptr;
-    return ccv->parent_refs->refs[ccv->index].evaluated;
 }
 
 // The ABI classification (`needs_aggregate_path` / `needs_sret_return` /

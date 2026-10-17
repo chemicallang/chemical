@@ -16,7 +16,6 @@ class ASTDiagnoser;
 
 class GenericInstantiatorAPI;
 
-struct CapturedComptimeValues;
 
 #include "ast/structures/BaseGenericDecl.h"
 
@@ -26,18 +25,6 @@ public:
     Value* parent_val;
     std::vector<TypeLoc> generic_list;
     std::vector<Value*> values;
-
-    /**
-     * when this comptime call sits inside a %runtime_value / %runtime_block_value,
-     * these point to the owning runtime value's captured refs (and this call's
-     * index within them). set at symbol resolution; when the runtime value is
-     * evaluated (evaluated_value), the call node is re-pointed to the evaluated
-     * copy, whose ref holds the already-evaluated result of this call. the
-     * backends translate that stored result instead of re-evaluating the call
-     * after the enclosing comptime scope has been destroyed
-     */
-    CapturedComptimeValues* captured_ref_owner = nullptr;
-    int captured_ref_index = -1;
 
     /**
      * constructor

@@ -56,9 +56,6 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     return lower_expr(it->second, error);
                 }
             }
-            if (Value* cv = captured_comptime_value_locked(id->linked)) {
-                return lower_expr(cv, error);
-            }
             if (id->linked && id->linked->kind() == ASTNodeKind::VariantCaseVariable) {
                 return lower_variant_payload(id->linked->as_variant_case_var_unsafe(), false, error);
             }
@@ -690,10 +687,6 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     atomic_intrinsic_of(afd) != AtomicIntrinsic::None) {
                     return lower_atomic_intrinsic(call, afd, error);
                 }
-            }
-            if (Value* ev = captured_ref_value_locked(call->captured_ref_owner,
-                                                      call->captured_ref_index)) {
-                return lower_expr(ev, error);
             }
             FunctionDeclaration* fd = nullptr;
             MIRArgScope _ag_scope(*this);
@@ -1641,19 +1634,12 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             }
             return MIRExprResult::value(mem, pp.type);
         }
-        case ValueKind::RuntimeBlockValue:
         case ValueKind::BlockValue: {
-            // a `{ ... }` / `%runtime_block_value { ... }` statement-expression:
-            // its trailing value (or symres-calculated value) is the result
-            Scope* scope = nullptr;
-            Value* calculated = nullptr;
-            if (value->val_kind() == ValueKind::RuntimeBlockValue) {
-                scope = &static_cast<RuntimeBlockValue*>(value)->scope;
-            } else {
-                auto* bv = static_cast<BlockValue*>(value);
-                scope = &bv->scope;
-                calculated = bv->getCalculatedValue();
-            }
+            // a `{ ... }` statement-expression: its trailing value (or the
+            // symres-calculated value) is the result
+            auto* bv = static_cast<BlockValue*>(value);
+            Scope* scope = &bv->scope;
+            Value* calculated = bv->getCalculatedValue();
             const TypeId vt = type;
             const PlaceId dest = builder_->alloca(vt, MIRStorageClass::Temporary);
             if (calculated) {
@@ -1810,8 +1796,6 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             if (abi::is_aggregate(module_, zt)) return MIRExprResult::place(tmp, zt);
             return MIRExprResult::value(builder_->load(tmp, zt), zt);
         }
-        case ValueKind::RuntimeValue:
-            return lower_expr(static_cast<RuntimeValue*>(value)->underlying, error);
         case ValueKind::DynamicValue: {
             auto* dv = static_cast<DynamicValue*>(value);
             BaseType* iface_t = dv->getInterfaceType();

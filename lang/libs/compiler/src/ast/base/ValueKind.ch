@@ -43,8 +43,6 @@ public enum ValueKind {
     PatternMatchExpr,
     ExtractionValue,
     WrapValue,
-    RuntimeValue,
-    RuntimeBlockValue,
 
     EmbeddedValue,
 

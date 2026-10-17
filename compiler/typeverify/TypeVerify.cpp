@@ -6,7 +6,6 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/values/StructValue.h"
-#include "ast/values/RuntimeValue.h"
 #include "ast/structures/Namespace.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/ImplDefinition.h"
@@ -563,10 +562,6 @@ void TypeVerifier::VisitPatternMatchExpr(PatternMatchExpr* expr) {
     if(elseVal) {
         visit_maybe_deref_val(*this, elseVal, true);
     }
-}
-
-void TypeVerifier::VisitRuntimeValue(RuntimeValue* value) {
-    visit(value->underlying);
 }
 
 constexpr auto NonPublicDeclCallError = "calling a non-public function in a public generic declaration is not allowed, please use public/protected";

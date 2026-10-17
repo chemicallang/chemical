@@ -61,7 +61,6 @@
 #include <sstream>
 #include <iostream>
 #include "ChildResolution.h"
-#include "ast/structures/CapturedComptimeVariable.h"
 #include "compiler/symres/ChildResolver.h"
 #include "std/except.h"
 
@@ -216,8 +215,6 @@ BaseType* ASTNode::getType() {
             return as_for_in_loop_unsafe()->known_type();
         case ASTNodeKind::CapturedVariable:
             return as_captured_var_unsafe()->known_type();
-        case ASTNodeKind::CapturedComptimeVariable:
-            return as_captured_comptime_var_unsafe()->known_type();
         case ASTNodeKind::EnumDecl:
             return as_enum_decl_unsafe()->known_type();
         case ASTNodeKind::EnumMember:
@@ -924,8 +921,6 @@ ASTNode* ASTNode::child(const ChildResolver* resolver, const chem::string_view &
             return container_child(resolver, as_members_container_unsafe(), name);
         case ASTNodeKind::CapturedVariable:
             return as_captured_var_unsafe()->linked->child(name);
-        case ASTNodeKind::CapturedComptimeVariable:
-            return as_captured_comptime_var_unsafe()->linked->child(name);
         case ASTNodeKind::GenericStructDecl:
             return as_gen_struct_def_unsafe()->master_impl->ASTNode::child(name);
         case ASTNodeKind::GenericUnionDecl:

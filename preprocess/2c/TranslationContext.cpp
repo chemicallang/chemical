@@ -140,22 +140,14 @@ static Value* evaluate_comptime_func(
 }
 
 Value* CTranslationContext::eval_comptime_call(FunctionCall* call, FunctionDeclaration* decl) {
-    Value* result = evaluate_comptime_func(*this, decl, call);
-    if (result && result->val_kind() == ValueKind::RuntimeValue) {
-        return result->evaluated_value(comptime_scope);
-    }
-    return result;
+    return evaluate_comptime_func(*this, decl, call);
 }
 
 Value* CTranslationContext::eval_comptime_ctor(FunctionDeclaration* ctor, Value* arg) {
     BaseType* expected = ctor->params.empty() ? nullptr : ctor->params[0]->type;
     FunctionCall* call = call_with_arg(ctor, arg, expected, allocator, *this);
     if (!call) return nullptr;
-    Value* result = evaluate_comptime_func(*this, ctor, call);
-    if (result && result->val_kind() == ValueKind::RuntimeValue) {
-        return result->evaluated_value(comptime_scope);
-    }
-    return result;
+    return evaluate_comptime_func(*this, ctor, call);
 }
 
 static ASTNode* embedded_repl(CTranslationContext& visitor, EmbeddedNode* node, CBIFunctionType type) {

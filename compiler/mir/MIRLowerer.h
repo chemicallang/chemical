@@ -760,15 +760,13 @@ public:
         if (comptime_call_site_) comptime_call_site_(call, push);
     }
     /**
-     * Copy only the comptime callbacks (not the declaration/lowering callbacks,
-     * which a driver must not inherit). Lets a driven callee fold a comptime
-     * intrinsic at lowering time — the §5.4 `call`-override residual.
+     * Copy the callbacks a nested fold needs (not the declaration/lowering
+     * callbacks, which a driver must not inherit): a value fold such as the
+     * `int_arg` of an atomic intrinsic, and the call-site push. Both run with
+     * the driver's published parameter bindings visible.
      */
-    void copy_comptime_callbacks_from(const MIRLowerer& o) {
-        comptime_eval_ = o.comptime_eval_;
+    void copy_comptime_fold_callbacks_from(const MIRLowerer& o) {
         comptime_value_eval_ = o.comptime_value_eval_;
-        comptime_ctor_eval_ = o.comptime_ctor_eval_;
-        comptime_block_eval_ = o.comptime_block_eval_;
         comptime_call_site_ = o.comptime_call_site_;
     }
 private:
@@ -807,6 +805,17 @@ private:
 public:
     const std::unordered_map<std::string, Value*>& comptime_binding_names() const {
         return comptime_bindings_;
+    }
+    /** Snapshot / restore the comptime parameter bindings (driver use). */
+    std::unordered_map<std::string, Value*> snapshot_comptime_bindings() const {
+        return comptime_bindings_;
+    }
+    void restore_comptime_bindings(std::unordered_map<std::string, Value*> m) {
+        comptime_bindings_ = std::move(m);
+    }
+    /** Publish a folded comptime parameter by name (driver use). */
+    void publish_comptime_binding(const std::string& key, Value* value) {
+        set_comptime_binding(key, value);
     }
 private:
     void bind_name(const chem::string_view& name, PlaceId place) {

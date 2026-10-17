@@ -64,89 +64,10 @@ public:
     ASTAllocator& allocator;
 
     /**
-     * Return value for the current function being interpreted.
-     * This is set by set_return() and retrieved by call() after
-     * body interpretation completes. Stored here instead of on
-     * AST nodes to avoid storing comptime state in the AST.
-     */
-    Value* returnValue = nullptr;
-
-    /**
-     * Implicit arguments map — populated by `provide` statements.
-     * When a function with implicit parameters is called, the interpreter
-     * looks up the parameter name in this map from the caller's scope.
-     *
-     * Lazily allocated: most scopes never contain `provide` statements, so the
-     * map is only created on first use. Access via implicit_args_ref() /
-     * implicit_args_if_any().
-     */
-    std::unique_ptr<std::unordered_map<chem::string_view, Value*>> implicit_args;
-
-    /**
-     * Returns the implicit-args map, allocating it on first use.
-     */
-    std::unordered_map<chem::string_view, Value*>& implicit_args_ref() {
-        if(!implicit_args) {
-            implicit_args = std::make_unique<std::unordered_map<chem::string_view, Value*>>();
-        }
-        return *implicit_args;
-    }
-
-    /**
-     * Returns the implicit-args map, or nullptr if none was ever created.
-     */
-    const std::unordered_map<chem::string_view, Value*>* implicit_args_if_any() const {
-        return implicit_args.get();
-    }
-
-    /**
-     * When set to false (e.g. global scope), values in this scope
-     * are NOT destructed when the scope ends.
+     * When set to false (e.g. global scope), values in this scope are NOT
+     * released when the scope ends.
      */
     bool should_destruct_values = true;
-
-    /**
-     * When a return statement is interpreted inside this scope,
-     * this flag is set to stop further interpretation of sibling
-     * nodes in all parent scopes up to the function scope.
-     * Prevents non-loop scopes (like if-blocks) from continuing
-     * after a return has been processed.
-     */
-    bool stopInterpretation = false;
-
-    /**
-     * When a break A with a value (break i) is interpreted inside a loop,
-     * the evaluated value is stored here so that LoopValue::evaluated_value()
-     * can retrieve it. Stored on the scope rather than on AST nodes to avoid
-     * polluting the AST with interpretation state.
-     */
-    Value* loop_break_value = nullptr;
-
-    /**
-     * Marks this scope as the evaluation frame of a `loop { }` value expression.
-     * `break value` statements walk the scope chain upward to the nearest scope
-     * with this flag set and store their value there. This keeps break values
-     * per-execution (no shared global slot) and survives intermediate child
-     * scope destruction.
-     */
-    bool is_loop_value_scope = false;
-
-    /**
-     * Marks this scope as the execution frame of a loop (for / while / do-while /
-     * loop / for-in). `break` and `continue` statements walk the scope chain
-     * upward to the nearest scope with this flag set and raise `loop_signal`
-     * there. This replaces the previous per-AST-node `stoppedInterpretation`
-     * flags, making loop control per-execution (reentrancy-safe).
-     */
-    bool is_loop_scope = false;
-
-    /**
-     * Pending loop control signal for this loop frame:
-     *   0 = none, 1 = break, 2 = continue
-     * Set by raise_loop_break() / raise_loop_continue() and consumed by the loop
-     * interpreter after each iteration.
-     */
-    int loop_signal = 0;
 
     /**
      * constructor
@@ -236,11 +157,6 @@ public:
     Value* evaluate(Operation operation, Value* fEvl, Value* sEvl, SourceLocation location, Value* debugValue);
 
     /**
-     * this node will be interpreted in this interpret scope
-     */
-    void interpret(ASTNode* node);
-
-    /**
      * print all values
      */
     void print_values();
@@ -323,23 +239,16 @@ public:
     }
 
     /**
-     * Iterates over all values in this scope and calls destructors
-     * for struct values that have destructor functions defined.
-     * The returnValue is skipped (it has been moved to the caller).
+     * Recursively releases struct/array member values held by this scope. The
+     * user `@delete` body is not executed (that needed the deleted statement
+     * interpreter); comptime values live in the arena.
      */
     void destroy_values();
 
     /**
-     * Runs the user-defined `@delete` destructor for a single value, if it is a
-     * struct/variant value whose type has a destructor with a body. The destructor
-     * body runs in a temporary scope with `self` bound to the value. `self` is
-     * removed before the temporary scope is destroyed so the value is not
-     * destructed a second time.
-     *
-     * This is the single place that invokes user destructors for temporary values
-     * (bare expression results, access-chain intermediates, index parents, etc.).
-     * It does NOT recursively destruct member values — that is handled by
-     * destroy_values() during scope teardown.
+     * Kept as the single temp-value cleanup hook. Running a user `@delete` body
+     * needed the deleted statement interpreter, so this is now a no-op for
+     * comptime values (they live in the arena).
      */
     void destroy_value(Value* val);
 

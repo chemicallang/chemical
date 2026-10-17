@@ -69,23 +69,7 @@ public:
     Value* call(InterpretScope* call_scope, ASTAllocator& func_allocator, Value* parent, std::vector<Value*>& call_args);
 
     void set_return(InterpretScope &scope, Value *value) override {
-        if(value) {
-            // Same scope-walking as FunctionDeclaration::set_return:
-            // walk up the scope chain to find the function-level scope.
-            InterpretScope* target = &scope;
-            while(target->parent != nullptr && target->parent != (InterpretScope*) scope.global) {
-                target = target->parent;
-            }
-            target->returnValue = value->evaluated_value(scope);
-        }
-        // Stop interpreting statement siblings after a return.
-        // Without this, a `return true;` inside an `if` inside a lambda would
-        // not prevent a subsequent `return false;` from overwriting returnValue.
-        InterpretScope* stop_target = &scope;
-        while(stop_target != nullptr && stop_target != (InterpretScope*) scope.global) {
-            stop_target->stopInterpretation = true;
-            stop_target = stop_target->parent;
-        }
+        // the AST statement interpreter that used this has been deleted
     }
 
 };

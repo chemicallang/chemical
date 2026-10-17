@@ -362,7 +362,16 @@ ConstExprId MIRLowerer::build_const_call(Value* value) {
     if (vleaf && vleaf->kind() == ASTNodeKind::VariantMember) {
         return build_const_variant(vleaf->as_variant_member_unsafe(), fc);
     }
-    // a comptime function call folds to its constant result
+    // a comptime function call folds to its constant result. A `comptime func`
+    // with a body is lowered and run by the MIR comptime driver; only values that
+    // fold without a body (intrinsics, single-expression functions) still go
+    // through the expression layer.
+    if (FunctionDeclaration* fd = fc->safe_linked_func()) {
+        if (fd->is_comptime() && comptime_eval_ && !is_comptime_template_fn(fd)) {
+            Value* ev = comptime_eval_(fc, fd);
+            if (ev && ev != fc) return build_const_expr(ev);
+        }
+    }
     if (comptime_value_eval_) {
         Value* ev = comptime_value_eval_(fc);
         if (ev && ev != fc) return build_const_expr(ev);

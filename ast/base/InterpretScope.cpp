@@ -18,6 +18,9 @@
 #include "ast/values/StructValue.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/FunctionDeclaration.h"
+#include "ast/values/IfValue.h"
+#include "ast/values/SwitchValue.h"
+#include "ast/values/LoopValue.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/values/VariableIdentifier.h"
@@ -579,8 +582,6 @@ Value* InterpretScope::evaluate(Operation operation, Value* fEvl, Value* sEvl, S
                 }
             }
         }
-        std::fprintf(stderr, "[DBG_EVAL] unknown operation: fKind=%d sKind=%d op=%d\n",
-            (int)fKind, (int)sKind, (int)operation);
         scope.error("Operation between values of unknown kind", debugValue);
         return nullptr;
     }
@@ -593,28 +594,11 @@ InterpretScope::~InterpretScope() {
 }
 
 void InterpretScope::destroy_value(Value* val) {
-    if(!val || val->val_kind() != ValueKind::StructValue) return;
-    auto structVal = val->as_struct_value_unsafe();
-    auto ext = structVal->linked_extendable();
-    if(!ext) return;
-    if(ext->kind() != ASTNodeKind::StructDecl && ext->kind() != ASTNodeKind::VariantDecl) return;
-    if(!ext->has_destructor()) return;
-    auto destructor_fn = ext->destructor_func();
-    if(!destructor_fn || !destructor_fn->body.has_value()) return;
-
-    const auto prev_func = global->current_func_type;
-    global->current_func_type = destructor_fn;
-
-    InterpretScope temp_scope(global, allocator, global);
-    temp_scope.declare("self", val);
-    temp_scope.interpret(&destructor_fn->body.value());
-    // Remove self so it is not destructed again when temp_scope is destroyed.
-    auto self_it = temp_scope.values.find("self");
-    if(self_it != temp_scope.values.end()) {
-        temp_scope.values.erase(self_it);
-    }
-
-    global->current_func_type = prev_func;
+    // Running a user `@delete` body needs the AST statement interpreter, which
+    // has been deleted. Comptime values live in the arena, so not invoking the
+    // destructor body only leaks comptime memory — it never changes a runtime
+    // value. Member values are still destroyed recursively below.
+    (void) val;
 }
 
 /**
@@ -676,8 +660,6 @@ void InterpretScope::destroy_values() {
         --it;
         Value* val = it->second;
         if (val == nullptr) continue;
-        // Skip the return value (it's been moved to the caller)
-        if(val == returnValue) continue;
         destroy_value_recursive(*this, val);
     }
 }
@@ -797,4 +779,20 @@ void InterpretScope::print_values() {
         std::cout << "Parent ";
         parent->print_values();
     }
+}
+// `if` / `switch` / `loop` used as values are evaluated by lowering them to MIR;
+// the AST statement interpreter that evaluated their bodies here is gone.
+Value* IfValue::evaluated_value(InterpretScope& scope) {
+    scope.error("if used as a value is evaluated by the MIR engine, not at symbol resolution", this);
+    return nullptr;
+}
+
+Value* SwitchValue::evaluated_value(InterpretScope& scope) {
+    scope.error("switch used as a value is evaluated by the MIR engine, not at symbol resolution", this);
+    return nullptr;
+}
+
+Value* LoopValue::evaluated_value(InterpretScope& scope) {
+    scope.error("loop used as a value is evaluated by the MIR engine, not at symbol resolution", this);
+    return nullptr;
 }

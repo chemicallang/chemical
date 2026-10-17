@@ -18,6 +18,7 @@
 
 class FunctionDeclaration;
 class FunctionCall;
+class ComptimeBlock;
 class Value;
 class ASTAllocator;
 class TypeBuilder;
@@ -55,6 +56,23 @@ public:
      */
     Value* evaluate(const MIRComptimeContext& ctx, FunctionDeclaration* fd,
                     FunctionCall* call, bool& handled, std::string& error);
+
+    /**
+     * Evaluate a statement-level `comptime { ... }` block on the MIR engine.
+     * The block's statements are lowered as a synthetic void function (its own
+     * scope: a comptime block cannot see the enclosing function's runtime
+     * locals) and run. Returns false with `error` when the engine cannot run it.
+     */
+    bool evaluate_block(const MIRComptimeContext& ctx, ComptimeBlock* block, std::string& error);
+
+    /**
+     * Fold one comptime expression. A comptime call (`f(g(1))`) is lowered and
+     * run by the driver (the AST layer cannot run a body); anything else folds
+     * through `evaluated_value`. Used by the compiler's value-eval callback so a
+     * nested fold (`llvm_mem_order(order)` → `convert_mem_order_to_llvm(order)`)
+     * does not need the deleted interpreter.
+     */
+    Value* evaluate_value(const MIRComptimeContext& ctx, Value* v, std::string& error);
 
     /** Number of functions lowered into the driver's module (diagnostics). */
     unsigned lowered_function_count() const;

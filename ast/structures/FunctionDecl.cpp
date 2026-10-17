@@ -16,6 +16,8 @@
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferenceType.h"
 #include "ast/statements/VarInit.h"
+#include "ast/statements/Return.h"
+#include "ast/statements/ValueWrapperNode.h"
 #include "ast/types/LinkedType.h"
 #include "ast/structures/GenericStructDecl.h"
 #include "ast/types/VoidType.h"
@@ -199,6 +201,29 @@ bool FunctionDeclaration::put_as_extension_function(ASTDiagnoser& diagnoser) {
     return true;
 }
 
+/**
+ * The AST statement interpreter is gone. What remains here is the expression
+ * layer: a comptime function whose body is a single `return <expr>` (or a bare
+ * expression) can still be folded at symbol-resolution time — this is how
+ * `comptime if(has_atomic_builtins())` and `const` initializers are evaluated.
+ * Any body that needs statements is reported: those calls are lowered and run
+ * by the MIR comptime driver.
+ */
+static Value* fold_expression_body(InterpretScope& fn_scope, Scope& body) {
+    if (body.nodes.size() != 1) return nullptr;
+    ASTNode* node = body.nodes.front();
+    if (!node) return nullptr;
+    if (node->kind() == ASTNodeKind::ReturnStmt) {
+        auto* ret = static_cast<ReturnStatement*>(node);
+        if (!ret->value) return fn_scope.getNullValue();
+        return ret->value->evaluated_value(fn_scope);
+    }
+    if (node->kind() == ASTNodeKind::ValueWrapper) {
+        return static_cast<ValueWrapperNode*>(node)->value->evaluated_value(fn_scope);
+    }
+    return nullptr;
+}
+
 Value *FunctionDeclaration::call(
     InterpretScope *call_scope,
     ASTAllocator& func_allocator,
@@ -206,343 +231,57 @@ Value *FunctionDeclaration::call(
     Value* parent,
     bool evaluate_refs
 ) {
-    const auto global = call_scope->global;
-    // interpreted calls recurse on the C++ stack, so a function which never returns
-    // (like a comptime function calling itself) must be stopped before the stack of
-    // the thread is exhausted, which would crash the compiler
-    if(call_scope->stack_space_exhausted(call_obj != nullptr ? (ASTNode*) call_obj : (ASTNode*) this)) {
-        return call_scope->getNullValue();
-    }
-    const auto prev_func = global->current_func_type;
-    global->current_func_type = this;
-    global->call_stack.emplace_back(call_obj);
-    InterpretScope fn_scope(global, func_allocator, global);
-    // Propagate implicit args from the lexical scope chain into this function scope.
-    // When a provide block stores implicit args in a scope, inner function calls create
-    // new scopes with parent=global — they won't find the provide's scope via parent chain.
-    // By copying args here, inner nested calls can find them through call_scope->implicit_args.
-    {
-        InterpretScope* propagate = call_scope;
-        while(propagate) {
-            if(auto* map = propagate->implicit_args_if_any()) {
-                auto& dst = fn_scope.implicit_args_ref();
-                for(auto& [name, val] : *map) {
-                    if(dst.find(name) == dst.end()) {
-                        dst[name] = val;
-                    }
-                }
-            }
-            propagate = propagate->parent;
-        }
-    }
-    const auto value = call(call_scope, call_obj->values, parent, &fn_scope, evaluate_refs, call_obj);
-    global->call_stack.pop_back();
-    global->current_func_type = prev_func;
-    return value;
+    if (!call_scope || !call_obj) return nullptr;
+    InterpretScope fn_scope(call_scope->global, func_allocator, call_scope->global);
+    return call(call_scope, call_obj->values, parent, &fn_scope, evaluate_refs, call_obj);
 }
 
-// called by the return statement
+// called by the return statement (the statement interpreter that used this has
+// been deleted; kept because FunctionType declares it pure virtual)
 void FunctionDeclaration::set_return(InterpretScope& func_scope, Value *value) {
-    if(value) {
-        // Evaluate the return value expression in the current scope (func_scope),
-        // not in the function-level scope (*target). Variables like variant case
-        // variables are declared in nested scopes inside the function body and
-        // would not be found when evaluating from the function-level scope.
-        auto evaluated = value->evaluated_value(func_scope);
-        // Normalize integer return values to the declared return type (e.g.
-        // returning 300 from a function returning `u8` must yield 44), matching
-        // the compiled backends.
-        if(returnType) {
-            evaluated = func_scope.coerce_to_type(evaluated, returnType);
-        }
-        // Walk up the scope chain to find the function-level scope
-        // (created by call() with the global as parent).
-        // set_return may be called with a nested scope (inside if/block/etc.),
-        // but call() reads returnValue from the top-level fn_scope.
-        InterpretScope* target = &func_scope;
-        while(target->parent != nullptr && target->parent != func_scope.global) {
-            target = target->parent;
-        }
-        target->returnValue = evaluated;
-    }
-    // Propagate the stop signal up the InterpretScope chain so that
-    // non-loop scopes (e.g. if-block bodies) also stop iterating.
-    // Without this, nested scopes continue interpreting sibling nodes
-    // after a return, potentially overwriting the return value.
-    InterpretScope* stop_target = &func_scope;
-    while(stop_target != nullptr && stop_target != func_scope.global) {
-        stop_target->stopInterpretation = true;
-        stop_target = stop_target->parent;
-    }
-}
-
-FunctionDeclaration *FunctionDeclaration::as_function() {
-    return this;
 }
 
 Value *FunctionDeclaration::call(
     InterpretScope *call_scope,
-    std::vector<Value*> &call_args,
-    Value* parent,
+    std::vector<Value*>& call_args,
+    Value* parent_val,
     InterpretScope *fn_scope,
     bool evaluate_refs,
     Value* debug_value
 ) {
+    if (!call_scope || !fn_scope) return nullptr;
     auto self_param = get_self_param();
-    if(self_param) {
-        fn_scope->declare(self_param->name, parent);
-    }
-    auto i = 0;
+    if (self_param) fn_scope->declare(self_param->name, parent_val);
+
+    size_t i = 0;
     while (i < call_args.size()) {
-        const auto param = func_param_for_arg_at(i);
-        if(!param) break;
-        Value* param_val;
-        const auto arg = call_args[i];
-        param_val = arg->scope_value(*call_scope);
-        // Pass-by-value semantics for non-destructor structs passed to non-reference parameters:
-        // create a copy so modifications inside the function don't affect the caller's value.
-        if(param_val && param_val->val_kind() == ValueKind::StructValue && param && param->type &&
-           !param->type->is_reference() && !param->type->is_pointer()) {
-            auto sv = param_val->as_struct_value_unsafe();
-            auto ext = sv->linked_extendable();
-            if(ext && ext->kind() == ASTNodeKind::StructDecl) {
-                auto sd = (StructDefinition*)ext;
-                if(!sd->has_destructor()) {
-                    param_val = sv->copy(fn_scope->allocator);
-                }
-            }
-        }
-        // Normalize integer arguments to the parameter's declared type (e.g.
-        // passing 300 to a `u8` parameter must truncate to 44), matching the
-        // compiled backends.
-        if(param && param->type && param_val) {
-            param_val = call_scope->coerce_to_type(param_val, param->type);
-        }
-        // Move semantics: if the argument references an existing destructible struct
-        // variable in the caller's scope, clear the source so it's not destructed
-        // again when the caller's scope ends. Uses pointer-matching instead of AST
-        // node type checks, because the compiler may have replaced identifiers.
-        call_scope->move_clear_source(param_val, chem::string_view());
-        // Check if this argument needs implicit constructor conversion
-        if(param && param->type && param_val) {
-            auto imp_cons = param->type->implicit_constructor_for(param_val);
-            if(imp_cons && imp_cons != this) {
-                InterpretScope imp_scope(call_scope->global, fn_scope->allocator, call_scope->global);
-                std::vector<Value*> imp_args = { param_val->evaluated_value(*call_scope) };
-                Value* newVal = imp_cons->call(
-                    call_scope, imp_args, (Value*)nullptr, &imp_scope, true, debug_value
-                );
-                if(newVal) {
-                    param_val = newVal;
-                }
-            }
-        }
-        fn_scope->declare(param->name, param_val);
+        FunctionParam* param = func_param_for_arg_at(static_cast<unsigned>(i));
+        if (!param) break;
+        Value* arg = call_args[i];
+        fn_scope->declare(param->name, arg ? arg->scope_value(*call_scope) : nullptr);
         i++;
     }
-    auto expected_args = expectedArgsSize();
-    while(i < expected_args) {
-        auto param = func_param_for_arg_at(i);
-        if (param) {
-            if(param->defValue) {
-                Value* param_val = param->defValue->scope_value(*call_scope);
-                // Apply implicit constructor conversion for default values
-                if(param->type && param_val) {
-                    auto imp_cons = param->type->implicit_constructor_for(param_val);
-                    if(imp_cons && imp_cons != this) {
-                        InterpretScope imp_scope(call_scope->global, fn_scope->allocator, call_scope->global);
-                        std::vector<Value*> imp_args = { param_val->evaluated_value(*call_scope) };
-                        Value* newVal = imp_cons->call(
-                            call_scope, imp_args, (Value*)nullptr, &imp_scope, true, debug_value
-                        );
-                        if(newVal) {
-                            param_val = newVal;
-                        }
-                    }
-                }
-                fn_scope->declare(param->name, param_val);
-            } else if(!isInVarArgs(i)) {
-                call_scope->error("function parameter doesn't have default value, no argument exists for it", debug_value);
-            }
-        }
-        i++;
-    }
-    // Handle implicit parameters (those before explicit params in the params list).
-    // These are NOT reachable via func_param_for_arg_at() because it uses
-    // explicit_func_arg_offset() = total_implicit_params(), which skips them.
-    // Instead, iterate params directly to find undeclared implicit params.
-    for(const auto& param : params) {
-        if(!param->is_implicit()) break;
-        if(param->name == "self") continue; // handled above
-        // Skip if already declared (e.g. from call_args for mixed implicit+explicit)
-        if(fn_scope->values.find(param->name) != fn_scope->values.end()) {
-            continue;
-        }
-        // Look up implicit args: first check the lexical scope chain (call_scope),
-        // then fall back to fn_scope which has args propagated from the outer call().
-        // This handles nested function calls where the provide block's scope is not
-        // in the parent chain of the nested function's call_scope.
-        Value* implicit_val = nullptr;
-        InterpretScope* lookup_scope = call_scope;
-        while(lookup_scope) {
-            if(auto* map = lookup_scope->implicit_args_if_any()) {
-                auto found = map->find(param->name);
-                if(found != map->end()) {
-                    implicit_val = found->second;
-                    break;
-                }
-            }
-            lookup_scope = lookup_scope->parent;
-        }
-        if(!implicit_val && fn_scope) {
-            if(auto* map = fn_scope->implicit_args_if_any()) {
-                auto found = map->find(param->name);
-                if(found != map->end()) {
-                    implicit_val = found->second;
-                }
-            }
-        }
-        if(implicit_val) {
-            fn_scope->declare(param->name, implicit_val);
-        } else if(param->defValue) {
+    const size_t expected = expectedArgsSize();
+    while (i < expected) {
+        FunctionParam* param = func_param_for_arg_at(static_cast<unsigned>(i));
+        if (param && param->defValue) {
             fn_scope->declare(param->name, param->defValue->scope_value(*call_scope));
-        } else if(!isInVarArgs(param->index)) {
-            call_scope->error(debug_value) << "couldn't find implicit argument '" << param->name << "' in current scope";
         }
+        i++;
     }
-    if(!body.has_value()) {
-        // Function with no body (extern declaration).
-        // Return a zero value of the appropriate return type instead of nullptr.
-        // This allows tests to call extern functions and get predictable results.
-        if(returnType) {
-            auto retCanon = returnType->canonical();
-            if(retCanon) {
-                switch(retCanon->kind()) {
-                    case BaseTypeKind::IntN: {
-                        auto intType = retCanon->as_intn_type_unsafe();
-                        return new (fn_scope->allocate<IntNumValue>()) IntNumValue(0, intType, encoded_location());
-                    }
-                    case BaseTypeKind::Bool: {
-                        return new (fn_scope->allocate<BoolValue>()) BoolValue(false, call_scope->global->typeBuilder.getBoolType(), encoded_location());
-                    }
-                    case BaseTypeKind::Float: {
-                        return new (fn_scope->allocate<FloatValue>()) FloatValue(0.0f, (FloatType*)retCanon, encoded_location());
-                    }
-                    case BaseTypeKind::Double: {
-                        return new (fn_scope->allocate<DoubleValue>()) DoubleValue(0.0, (DoubleType*)retCanon, encoded_location());
-                    }
-                    case BaseTypeKind::Pointer: {
-                        auto ptrType = retCanon->as_pointer_type_unsafe();
-                        return new (fn_scope->allocate<PointerValue>()) PointerValue(nullptr, ptrType->type, 0, 0, encoded_location());
-                    }
-                    default:
-                        break;
-                }
-            }
-        }
-        return call_scope->getNullValue();
+
+    if (body.has_value()) {
+        Value* folded = fold_expression_body(*fn_scope, body.value());
+        if (folded) return folded;
     }
-    {
-        InterpretScope body_scope(fn_scope, fn_scope->allocator, fn_scope->global);
-        body_scope.interpret(&body.value());
-        if(fn_scope->returnValue) {
-            body_scope.returnValue = fn_scope->returnValue;
-        }
-    }
-    if(!fn_scope->returnValue && is_constructor_fn() && is_generated_fn()) {
-        const auto linkedNode = returnType->linked_node();
-        if(linkedNode && linkedNode->kind() == ASTNodeKind::StructDecl) {
-            auto structDef = static_cast<StructDefinition*>(linkedNode);
-            auto retType = returnType.copy(fn_scope->allocator);
-            auto structVal = new (fn_scope->allocate<StructValue>()) StructValue(
-                retType,
-                structDef,
-                static_cast<VariablesContainerBase*>(structDef),
-                encoded_location()
-            );
-            // Step 1: Initialize inherited structs by calling their default constructors
-            for(auto& inherited : structDef->inherited) {
-                const auto node = inherited.type->get_direct_linked_canonical_node();
-                if(node && node->kind() == ASTNodeKind::StructDecl) {
-                    const auto parentDef = node->as_struct_def_unsafe();
-                    const auto parentCons = parentDef->default_constructor_func();
-                    if(parentCons) {
-                        InterpretScope nested_scope(fn_scope->global, fn_scope->allocator, fn_scope->global);
-                        std::vector<Value*> nested_call_args;
-                        Value* parentVal = parentCons->call(
-                            call_scope, nested_call_args, (Value*) nullptr, &nested_scope, true, (Value*) nullptr
-                        );
-                        if(parentVal && parentVal->kind() == ValueKind::StructValue) {
-                            auto parentStructVal = parentVal->as_struct_value_unsafe();
-                            for(auto& [pname, pmember] : parentStructVal->values) {
-                                if(structVal->values.find(pname) == structVal->values.end()) {
-                                    structVal->values.emplace(pname, pmember);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            // Step 2: Initialize member variables (default values + struct default constructors)
-            for(const auto var : structDef->variables()) {
-                // Skip inherited members that were already initialized above
-                if(structVal->values.find(var->name) != structVal->values.end()) {
-                    continue;
-                }
-                const auto defVal = var->default_value();
-                if(defVal) {
-                    auto val = defVal->scope_value(*fn_scope);
-                    const StructMemberInitializer init(var->name, val);
-                    structVal->values.emplace(var->name, init);
-                } else if(var->kind() == ASTNodeKind::StructMember) {
-                    const auto member = static_cast<StructMember*>(var);
-                    const auto kt = member->known_type();
-                    if(kt) {
-                        const auto linked = kt->get_direct_linked_canonical_node();
-                        if(linked && linked->kind() == ASTNodeKind::StructDecl) {
-                            const auto defCons = linked->as_struct_def_unsafe()->default_constructor_func();
-                            if(defCons) {
-                                InterpretScope nested_scope(fn_scope->global, fn_scope->allocator, fn_scope->global);
-                                std::vector<Value*> nested_call_args;
-                                Value* nestedVal = defCons->call(
-                                    call_scope, nested_call_args, (Value*) nullptr, &nested_scope, true, (Value*) nullptr
-                                );
-                                if(nestedVal) {
-                                    const StructMemberInitializer memberInit(var->name, nestedVal);
-                                    structVal->values.emplace(var->name, memberInit);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            fn_scope->returnValue = structVal;
-        }
-    }
-    // Step 3: If the return value needs implicit constructor conversion, call the implicit constructor
-    if(fn_scope->returnValue && returnType) {
-        auto imp_cons = returnType->implicit_constructor_for(fn_scope->returnValue);
-        if(imp_cons && imp_cons != this) {
-            InterpretScope imp_scope(call_scope->global, fn_scope->allocator, call_scope->global);
-            std::vector<Value*> imp_args = { fn_scope->returnValue };
-            Value* newVal = imp_cons->call(
-                call_scope, imp_args, (Value*) nullptr, &imp_scope, true, debug_value
-            );
-            if(newVal) {
-                fn_scope->returnValue = newVal;
-            }
-        }
-    }
-    // Self reference parameter (&self) should not be destructed when fn_scope ends.
-    // The struct value is owned by the caller's scope; destructing it here would
-    // prematurely call the destructor on the caller's struct.
-    if(self_param && self_param->type && self_param->type->is_reference()) {
-        auto self_it = fn_scope->values.find(self_param->name);
-        if(self_it != fn_scope->values.end()) {
-            self_it->second = nullptr;
-        }
-    }
-    return fn_scope->returnValue;
+    call_scope->error("comptime function has a statement body that cannot be folded at "
+                      "symbol resolution (comptime calls are evaluated by the MIR driver)",
+                      debug_value ? (ASTNode*) debug_value : (ASTNode*) this);
+    return nullptr;
+}
+
+FunctionDeclaration *FunctionDeclaration::as_function() {
+    return this;
 }
 
 BaseType* CapturedVariable::known_type() {

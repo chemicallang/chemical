@@ -15,6 +15,8 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/Scope.h"
+#include "ast/structures/ComptimeBlock.h"
+#include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/If.h"
 #include "ast/statements/Return.h"
 #include "ast/statements/VarInit.h"
@@ -43,7 +45,9 @@
 #include "ast/values/DoubleValue.h"
 #include "ast/values/StructMemberInitializer.h"
 #include "ast/types/IntNType.h"
+#include "ast/types/VoidType.h"
 #include "ast/base/TypeBuilder.h"
+#include "ast/base/TypeLoc.h"
 #include "ast/base/ASTAllocator.h"
 #include "ast/base/InterpretScope.h"
 
@@ -63,6 +67,9 @@ struct MIRComptime::Impl {
     std::unordered_map<FunctionDeclaration*, SymbolId> lowered;
     bool dirty = false;
     bool mangler_set = false;
+    /** true while a callee is being lowered: a re-entrant fold must use a fresh
+     * driver instance so it does not clobber the in-progress lowering state. */
+    bool lowering = false;
 
     Impl() : module(), types(module), task(std::make_unique<MIRTaskContext>(module, types)) {}
 };
@@ -91,11 +98,13 @@ bool scalar_return(BaseType* canonical) {
         case BaseTypeKind::Function:
             return true;
         case BaseTypeKind::Linked: {
-            // a self-referencing struct type canonicalizes to its Linked form
+            // a self-referencing struct type canonicalizes to its Linked form;
+            // an enum is carried as its underlying integer
             ASTNode* n = canonical->get_direct_linked_canonical_node();
             return n && (n->kind() == ASTNodeKind::StructDecl ||
                          n->kind() == ASTNodeKind::UnionDecl ||
-                         n->kind() == ASTNodeKind::VariantDecl);
+                         n->kind() == ASTNodeKind::VariantDecl ||
+                         n->kind() == ASTNodeKind::EnumDecl);
         }
         default:
             return false;
@@ -104,6 +113,15 @@ bool scalar_return(BaseType* canonical) {
 
 bool is_self_param(FunctionDeclaration* fd, FunctionParam* p) {
     return fd->has_self_param() && fd->get_self_param() == p;
+}
+
+/** A parameter that is a runtime operand (`%runtime<T>` / `%maybe_runtime<T>` /
+ * `%literal`) has no comptime value to publish. */
+bool is_runtime_marker_param(FunctionParam* p) {
+    if (!p || !p->type) return false;
+    const BaseTypeKind k = p->type->kind();
+    return k == BaseTypeKind::Runtime || k == BaseTypeKind::MaybeRuntime ||
+           k == BaseTypeKind::Literal;
 }
 
 // ── eligibility: can the MIR engine reproduce this function's result? ───────
@@ -507,6 +525,7 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
     // share the host's mangled name, which a module-local lookup would collide on
     if (!impl_->mangler_set) {
         MIRLowerer* host = ctx.host;
+        impl_->task->lowerer.copy_comptime_fold_callbacks_from(*host);
         impl_->task->lowerer.set_mangler_into([host](ASTNode* n, std::string& out) {
             out.assign(host->mangled_name_copy(n));
             out += '#';
@@ -543,7 +562,7 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
             auto* ch = call->parent_val->as_access_chain_unsafe();
             if (!ch->values.empty()) rexpr = ch->values.front();
         }
-        Value* rv = rexpr ? rexpr->evaluated_value(*ctx.scope) : nullptr;
+        Value* rv = rexpr ? evaluate_value(ctx, rexpr, error) : nullptr;
         if (rv && rv->val_kind() == ValueKind::StructValue) {
             keep_structs.emplace_back();
             if (!write_struct_bytes(impl_->types, impl_->module, rv->as_struct_value_unsafe(),
@@ -561,6 +580,7 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
     // leading implicit parameter) is passed as the receiver, exactly as the
     // interpreter's FunctionDeclaration::call maps them: arg i is
     // func_param_for_arg_at(i), whose offset skips those implicit parameters.
+    std::vector<std::pair<std::string, Value*>> publish_bindings;
     const size_t supplied = call->values.size();
     const size_t expected = fd->expectedArgsSize();
     const size_t total = supplied > expected ? supplied : expected;
@@ -569,7 +589,7 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
         if (!p) return nullptr;
         Value* a = i < supplied ? call->values[i] : p->defValue;
         if (!a) return nullptr;
-        Value* av = a->evaluated_value(*ctx.scope);
+        Value* av = evaluate_value(ctx, a, error);
         if (!av) {
             if (std::getenv("CT_STAT")) std::fprintf(stderr, "[CTSTAT] ARGFAIL %s\n", fd->name_str().c_str());
             return nullptr;
@@ -581,7 +601,20 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
             return nullptr;
         }
         cells.push_back(cell);
+        if (!is_runtime_marker_param(p)) {
+            publish_bindings.emplace_back(std::string(p->name.data(), p->name.size()), av);
+        }
     }
+
+    // publish the callee's folded comptime parameters, so a nested fold reached
+    // during lowering (`llvm_mem_order(order)` in an atomic intrinsic argument)
+    // resolves them
+    struct BindingRestore {
+        MIRLowerer* host = nullptr;
+        std::unordered_map<std::string, Value*> saved;
+        ~BindingRestore() { if (host) host->restore_comptime_bindings(std::move(saved)); }
+    } binding_restore{ctx.host, ctx.host->snapshot_comptime_bindings()};
+    for (auto& kv : publish_bindings) ctx.host->publish_comptime_binding(kv.first, kv.second);
 
     // 2. lower the callee and every function it reaches. The call site is
     // pushed for the whole evaluation so location intrinsics folded during
@@ -591,6 +624,11 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
         MIRLowerer* l; FunctionCall* c;
         ~CallSitePop() { if (l) l->invoke_call_site(c, false); }
     } call_site_pop{&impl_->task->lowerer, call};
+    impl_->lowering = true;
+    struct LoweringGuard {
+        Impl* impl;
+        ~LoweringGuard() { impl->lowering = false; }
+    } lowering_guard{impl_.get()};
     for (FunctionDeclaration* d : reachable) {
         if (impl_->lowered.count(d)) continue;
         impl_->task->begin_function(false); // keep the arena: the MIR stays live
@@ -711,9 +749,123 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
                              IntNumValue(out, ctx.type_builder->getU64Type(), loc)
                        : (Value*) new (ctx.allocator->allocate<NullValue>())
                              NullValue(ctx.type_builder->getNullPtrType(), loc);
+        case BaseTypeKind::Linked: {
+            // an enum result is carried as its underlying integer
+            ASTNode* n = rtc->get_direct_linked_canonical_node();
+            if (n && n->kind() == ASTNodeKind::EnumDecl) {
+                auto* en = static_cast<EnumDeclaration*>(n);
+                auto* it = en->underlying_integer_type
+                               ? en->underlying_integer_type
+                               : ctx.type_builder->getIntType();
+                return new (ctx.allocator->allocate<IntNumValue>()) IntNumValue(out, it, loc);
+            }
+            return nullptr;
+        }
         default:
             return nullptr;
     }
 }
+Value* MIRComptime::evaluate_value(const MIRComptimeContext& ctx, Value* v,
+                                    std::string& error) {
+    if (!v || !ctx.scope) return nullptr;
+    if (v->val_kind() == ValueKind::AccessChain) {
+        auto* chain = v->as_access_chain_unsafe();
+        if (chain->values.size() == 1) return evaluate_value(ctx, chain->values.front(), error);
+    }
+    if (v->val_kind() == ValueKind::FunctionCall) {
+        auto* call = v->as_func_call_unsafe();
+        FunctionDeclaration* callee = call->safe_linked_func();
+        if (callee && callee->is_comptime() && callee->body.has_value() &&
+            !callee->is_expand_fn()) {
+            if (impl_->lowering) {
+                // reached during another callee's lowering: use a fresh driver so
+                // the in-progress lowerer state is not clobbered
+                MIRComptime nested;
+                return nested.evaluate_value(ctx, v, error);
+            }
+            bool handled = false;
+            std::string nested_error;
+            Value* r = evaluate(ctx, callee, call, handled, nested_error);
+            if (handled) return r;
+            error = nested_error;
+            return nullptr;
+        }
+    }
+    return v->evaluated_value(*ctx.scope);
+}
+
+bool MIRComptime::evaluate_block(const MIRComptimeContext& ctx, ComptimeBlock* block,
+                                 std::string& error) {
+    if (!ctx.host || !ctx.allocator || !ctx.type_builder || !block) {
+        error = "comptime block has no lowering context";
+        return false;
+    }
+    // A comptime block runs in its own scope: it must not read the enclosing
+    // function's runtime locals, so model it as a synthetic void function.
+    auto* fd = new (ctx.allocator->allocate<FunctionDeclaration>())
+        FunctionDeclaration(chem::string_view("__comptime_block"),
+                            TypeLoc(ctx.type_builder->getVoidType(), block->encoded_location()), false,
+                            block->parent(), block->encoded_location());
+    fd->set_comptime(true);
+    fd->body.emplace(fd, block->encoded_location());
+    fd->body->nodes = block->body.nodes;
+
+    if (!impl_->mangler_set) {
+        MIRLowerer* host = ctx.host;
+        impl_->task->lowerer.copy_comptime_fold_callbacks_from(*host);
+        impl_->task->lowerer.set_mangler_into([host](ASTNode* n, std::string& out) {
+            out.assign(host->mangled_name_copy(n));
+            out += '#';
+            out += std::to_string(reinterpret_cast<uintptr_t>(n));
+        });
+        impl_->mangler_set = true;
+    }
+
+    std::vector<FunctionDeclaration*> reachable;
+    {
+        std::unordered_set<FunctionDeclaration*> seen;
+        reachable.push_back(fd);
+        for (size_t i = 0; i < reachable.size(); ++i) {
+            FunctionDeclaration* d = reachable[i];
+            if (!seen.insert(d).second) continue;
+            if (!d->body.has_value()) {
+                error = "comptime block reaches a declaration without a body";
+                return false;
+            }
+            Eligibility e;
+            if (!scope_eligible(&d->body.value(), e) || !e.ok) {
+                error = "comptime block uses a construct the MIR engine does not support";
+                return false;
+            }
+            for (FunctionDeclaration* c : e.callees) reachable.push_back(c);
+        }
+    }
+
+    for (FunctionDeclaration* d : reachable) {
+        if (impl_->lowered.count(d)) continue;
+        impl_->task->begin_function(false);
+        MIRFunction fn;
+        if (!impl_->task->lowerer.lower_function(d, impl_->task->arena, fn, error)) {
+            return false;
+        }
+        impl_->lowered.emplace(d, fn.symbol);
+        impl_->module.functions.push_back(std::move(fn));
+        impl_->dirty = true;
+    }
+    const SymbolId target = impl_->lowered.count(fd) ? impl_->lowered[fd] : MIR_INVALID_ID;
+    if (target == MIR_INVALID_ID) {
+        error = "comptime block was not lowered";
+        return false;
+    }
+    if (impl_->dirty || !impl_->interp) {
+        impl_->interp = std::make_unique<MIRInterpreter>(impl_->module);
+        impl_->dirty = false;
+    }
+    const std::string name =
+        impl_->module.symbols.mangled_name(impl_->module.symbols.get(target));
+    uint64_t ignored = 0;
+    return impl_->interp->call(name, nullptr, 0, ignored, error);
+}
+
 
 } // namespace mir

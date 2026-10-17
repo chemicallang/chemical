@@ -517,31 +517,14 @@ Value *Expression::evaluate(InterpretScope &scope) {
         }
     }
     
-    // Dispatch operator overloads: call the impl function with self=fEvl and rhs=sEvl
+    // Operator overloads are functions: their bodies are evaluated by the MIR
+    // engine, not here (the AST statement interpreter has been deleted).
     if(overloaded) {
-        const auto prev_func = glob->current_func_type;
-        glob->current_func_type = overloaded;
-        glob->call_stack.emplace_back(nullptr);
-        InterpretScope fn_scope(glob, glob->allocator, glob);
-        InterpretScope* prop = &scope;
-        while(prop) {
-            if(auto* src = prop->implicit_args_if_any()) {
-                auto& dst = fn_scope.implicit_args_ref();
-                for(auto& [name, val] : *src) {
-                    if(dst.find(name) == dst.end()) {
-                        dst[name] = val;
-                    }
-                }
-            }
-            prop = prop->parent;
-        }
-        std::vector<Value*> opArgs = { sEvl };
-        auto result = overloaded->call(&scope, opArgs, fEvl, &fn_scope, true, this);
-        glob->call_stack.pop_back();
-        glob->current_func_type = prev_func;
-        return result;
+        scope.error("comptime operator overload evaluation is not supported "
+                    "(operator bodies are evaluated by the MIR engine)", this);
+        return nullptr;
     }
-    
+
     return scope.evaluate(operation, fEvl, sEvl, encoded_location(), this);
 }
 

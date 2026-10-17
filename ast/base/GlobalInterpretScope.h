@@ -105,7 +105,6 @@ public:
      * bodies create child scopes that are destroyed before the loop's body scope
      * can read the break value).
      */
-    Value* loop_break_value = nullptr;
 
     /**
      * The constructor

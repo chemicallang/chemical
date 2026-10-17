@@ -2570,13 +2570,22 @@ int ASTProcessor::implement_module(
         pop_comptime_bindings(saved);
         return r;
     });
-    mir_lowerer.set_comptime_value_eval([&c_visitor, &mir_visitor_mutex, &push_comptime_bindings,
+    mir_lowerer.set_comptime_value_eval([&c_visitor, &mir_visitor_mutex, &mir_lowerer, &ct_driver,
+                                         &push_comptime_bindings,
                                          &pop_comptime_bindings](Value* v) -> Value* {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         if (!v) return nullptr;
         ct_stat("CV", std::to_string(static_cast<int>(v->val_kind())).c_str());
         auto saved = push_comptime_bindings();
-        Value* r = v->evaluated_value(c_visitor.comptime_scope);
+        std::string derr;
+        mir::MIRComptimeContext cctx;
+        cctx.host = &mir_lowerer;
+        cctx.allocator = &c_visitor.allocator;
+        cctx.type_builder = c_visitor.comptime_scope.global
+                                ? &c_visitor.comptime_scope.global->typeBuilder
+                                : nullptr;
+        cctx.scope = &c_visitor.comptime_scope;
+        Value* r = ct_driver.evaluate_value(cctx, v, derr);
         pop_comptime_bindings(saved);
         return r;
     });
@@ -2585,11 +2594,25 @@ int ASTProcessor::implement_module(
         ct_stat_decl("CC", ctor);
         return c_visitor.eval_comptime_ctor(ctor, arg);
     });
-    mir_lowerer.set_comptime_block_eval([&c_visitor, &mir_visitor_mutex](ASTNode* node) {
+    mir_lowerer.set_comptime_block_eval([&c_visitor, &mir_visitor_mutex, &mir_lowerer,
+                                          &ct_driver, &push_comptime_bindings,
+                                          &pop_comptime_bindings](ASTNode* node) {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         ct_stat("CB", "block");
         auto* block = static_cast<ComptimeBlock*>(node);
-        c_visitor.comptime_scope.interpret(&block->body);
+        auto saved = push_comptime_bindings();
+        mir::MIRComptimeContext cctx;
+        cctx.host = &mir_lowerer;
+        cctx.allocator = &c_visitor.allocator;
+        cctx.type_builder = c_visitor.comptime_scope.global
+                                ? &c_visitor.comptime_scope.global->typeBuilder
+                                : nullptr;
+        cctx.scope = &c_visitor.comptime_scope;
+        std::string derr;
+        if (!ct_driver.evaluate_block(cctx, block, derr)) {
+            c_visitor.error(block) << "couldn't evaluate comptime block: " << derr;
+        }
+        pop_comptime_bindings(saved);
     });
     // `@expand` establishes the call site for the duration of the inline so
     // call-site introspection intrinsics (intrinsics::get_call_loc, …) resolve
@@ -2911,13 +2934,22 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
         pop_comptime_bindings(saved);
         return r;
     });
-    mir_lowerer.set_comptime_value_eval([&c_visitor, &mir_visitor_mutex, &push_comptime_bindings,
+    mir_lowerer.set_comptime_value_eval([&c_visitor, &mir_visitor_mutex, &mir_lowerer, &ct_driver,
+                                         &push_comptime_bindings,
                                          &pop_comptime_bindings](Value* v) -> Value* {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         if (!v) return nullptr;
         ct_stat("CV", std::to_string(static_cast<int>(v->val_kind())).c_str());
         auto saved = push_comptime_bindings();
-        Value* r = v->evaluated_value(c_visitor.comptime_scope);
+        std::string derr;
+        mir::MIRComptimeContext cctx;
+        cctx.host = &mir_lowerer;
+        cctx.allocator = &c_visitor.allocator;
+        cctx.type_builder = c_visitor.comptime_scope.global
+                                ? &c_visitor.comptime_scope.global->typeBuilder
+                                : nullptr;
+        cctx.scope = &c_visitor.comptime_scope;
+        Value* r = ct_driver.evaluate_value(cctx, v, derr);
         pop_comptime_bindings(saved);
         return r;
     });
@@ -2926,11 +2958,25 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
         ct_stat_decl("CC", ctor);
         return c_visitor.eval_comptime_ctor(ctor, arg);
     });
-    mir_lowerer.set_comptime_block_eval([&c_visitor, &mir_visitor_mutex](ASTNode* node) {
+    mir_lowerer.set_comptime_block_eval([&c_visitor, &mir_visitor_mutex, &mir_lowerer,
+                                          &ct_driver, &push_comptime_bindings,
+                                          &pop_comptime_bindings](ASTNode* node) {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         ct_stat("CB", "block");
         auto* block = static_cast<ComptimeBlock*>(node);
-        c_visitor.comptime_scope.interpret(&block->body);
+        auto saved = push_comptime_bindings();
+        mir::MIRComptimeContext cctx;
+        cctx.host = &mir_lowerer;
+        cctx.allocator = &c_visitor.allocator;
+        cctx.type_builder = c_visitor.comptime_scope.global
+                                ? &c_visitor.comptime_scope.global->typeBuilder
+                                : nullptr;
+        cctx.scope = &c_visitor.comptime_scope;
+        std::string derr;
+        if (!ct_driver.evaluate_block(cctx, block, derr)) {
+            c_visitor.error(block) << "couldn't evaluate comptime block: " << derr;
+        }
+        pop_comptime_bindings(saved);
     });
     // `@expand` establishes the call site for the duration of the inline so
     // call-site introspection intrinsics (intrinsics::get_call_loc, …) resolve

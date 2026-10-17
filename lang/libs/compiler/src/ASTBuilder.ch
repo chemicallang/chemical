@@ -934,12 +934,12 @@ public func (builder : &mut ASTBuilder) allocate_view(view : &std::string_view) 
     return builder.allocator.allocate_view(view);
 }
 
-public comptime func <T> (builder : &mut ASTBuilder) allocate() : *mut T {
+public func <T> (builder : &mut ASTBuilder) allocate() : *mut T {
     // TODO get destructor function
     var delete_fn = intrinsics::get_child_fn<T>("delete") as (obj : *void) => void;
     if(delete_fn != null) {
-        return %runtime_value(builder.allocate_with_cleanup(sizeof(T), alignof(T), delete_fn)) as *mut T
+        return builder.allocate_with_cleanup(sizeof(T), alignof(T), delete_fn)
     } else {
-        return %runtime_value(builder.allocate_size(sizeof(T), alignof(T))) as *mut T
+        return builder.allocate_size(sizeof(T), alignof(T))
     }
 }

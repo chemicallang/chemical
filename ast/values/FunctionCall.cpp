@@ -41,7 +41,6 @@
 #include "ast/structures/FileScope.h"
 #include <cstdio>
 
-
 uint64_t FunctionCall::byte_size(const TargetData& target) {
     return getType()->byte_size(target);
 }
@@ -181,7 +180,6 @@ ASTNode *FunctionCall::linked_node() {
     const auto known = getType();
     return known ? known->linked_node() : nullptr;
 }
-
 
 void constructor_not_found_err(Diag& diag, ExtendableMembersContainerNode* parent_struct, FunctionCall* call) {
     diag << "struct with name " << parent_struct->name_view() << " doesn't have a constructor ";

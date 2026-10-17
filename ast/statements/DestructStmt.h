@@ -5,14 +5,6 @@
 #include "ast/base/ASTNode.h"
 #include "ast/values/VariableIdentifier.h"
 
-class ExtendableMembersContainerNode;
-
-struct DestructData {
-    ExtendableMembersContainerNode* parent_node;
-    FunctionDeclaration* destructor_func;
-    uint64_t array_size; // 0 if not known
-};
-
 class DestructStmt : public ASTNode {
 public:
 
@@ -55,8 +47,6 @@ public:
         free_after = value;
     }
 
-    DestructData get_data(ASTAllocator& allocator);
-
     DestructStmt* copy(ASTAllocator &allocator) override {
         return new (allocator.allocate<DestructStmt>()) DestructStmt(
             array_value ? array_value->copy(allocator) : nullptr,
@@ -67,6 +57,5 @@ public:
             encoded_location()
         );
     }
-
 
 };

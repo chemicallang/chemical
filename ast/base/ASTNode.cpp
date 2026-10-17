@@ -370,18 +370,6 @@ uint64_t ASTNode::byte_size(const TargetData& target) {
     return holdingType->byte_size(target);
 }
 
-ASTNode* ASTNode::root_parent() {
-    ASTNode* current = this;
-    while(true) {
-        const auto parent = current->parent();
-        if(parent) {
-            current = parent;
-        } else {
-            return current;
-        }
-    };
-}
-
 ASTNode* ASTNode::get_ancestor_by_kind(ASTNodeKind k) {
     if(kind() == k) {
         return this;

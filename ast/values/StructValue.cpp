@@ -24,7 +24,6 @@
 #include <sstream>
 #include <iostream>
 
-
 bool StructValue::primitive() {
     return false;
 }
@@ -43,22 +42,6 @@ bool node_allows_direct_init(ASTNode* node) {
             return true;
         default:
             return false;
-    }
-}
-
-const chem::string_view& StructValue::linked_name_view() {
-    if(definition) {
-        return definition->name_view();
-    } else {
-        const auto refType = getRefType();
-        switch(refType->kind()) {
-            case BaseTypeKind::Struct:
-                return refType->as_struct_type_unsafe()->name;
-            case BaseTypeKind::Union:
-                return refType->as_union_type_unsafe()->name;
-            default:
-                return "";
-        }
     }
 }
 

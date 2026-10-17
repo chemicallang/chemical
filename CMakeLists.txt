@@ -407,7 +407,6 @@ set(COMMON_SOURCES
         ast/statements/UsingStmt.h
         ast/statements/Using.cpp
         ast/statements/DestructStmt.h
-        ast/statements/DestructStmt.cpp
         ast/values/RetStructParamValue.h
         ast/values/RetStructParamValue.cpp
         compiler/lab/LabBuildContext.h

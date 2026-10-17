@@ -49,35 +49,6 @@ void AccessChain::relink_parent() {
     }
 }
 
-bool AccessChain::is_alias_into_destroyed_temp() {
-    if(values.size() < 2) {
-        return false;
-    }
-    const auto first = values.front();
-    if(first->val_kind() != ValueKind::FunctionCall) {
-        return false;
-    }
-    // chains ending in a function call (`f().method()`) produce the call's own
-    // result, which is owned by the consumer and must be destroyed normally
-    const auto last = values.back();
-    const auto last_id = last->as_identifier();
-    if(last_id != nullptr && last_id->linked != nullptr && last_id->linked->kind() == ASTNodeKind::FunctionDecl) {
-        return false;
-    }
-    const auto call = first->as_func_call_unsafe();
-    const auto func_type = call->function_type();
-    if(func_type == nullptr) {
-        return false;
-    }
-    const auto return_type = func_type->returnType->canonical();
-    if(return_type->kind() == BaseTypeKind::Reference) {
-        // a call returning a reference doesn't produce a temporary to destroy
-        return false;
-    }
-    const auto container = return_type->get_members_container();
-    return container != nullptr && container->destructor_func() != nullptr;
-}
-
 bool AccessChain::primitive() {
     return false;
 }

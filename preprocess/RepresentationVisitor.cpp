@@ -187,10 +187,6 @@ void RepresentationVisitor::write_str(const std::string& value) {
     output.write(value.c_str(), (std::streamsize) value.size());
 }
 
-void RepresentationVisitor::write_view(std::string_view& view) {
-    output.write(view.data(), (std::streamsize) view.size());
-}
-
 void RepresentationVisitor::write(const chem::string_view& view) {
     output.write(view.data(), (std::streamsize) view.size());
 }

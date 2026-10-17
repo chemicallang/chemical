@@ -105,13 +105,6 @@ void CTranslationContext::indent() {
     }
 }
 
-std::string CTranslationContext::get_local_temp_var_name() {
-    std::string name;
-    name.append("__chx__lv__");
-    name.append(std::to_string(local_temp_var_counter++));
-    return name;
-}
-
 /**
  * evaluates the given comptime function call and returns its evaluated value.
  */
@@ -302,7 +295,6 @@ void CTranslationContext::file_level_reset() {
 void CTranslationContext::reset() {
     current_func_type = nullptr;
     indentation_level = 0;
-    local_temp_var_counter = 0;
 }
 
 // ---------------------------------------------------------------------------

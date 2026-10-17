@@ -43,7 +43,6 @@
 #include "ast/values/ValueNode.h"
 #include "std/except.h"
 
-
 bool Value::isValueIntegerLiteral() {
     switch(kind()) {
         case ValueKind::Bool:
@@ -144,7 +143,6 @@ ASTNode* direct_linked_node(Value* value) {
         return value->linked_node();
     }
 }
-
 
 // stored pointer into a variable, that must be loaded, before using
 bool Value::is_stored_ptr_or_ref(ASTAllocator& allocator) {
@@ -359,7 +357,6 @@ Value* Value::child(InterpretScope& scope, const chem::string_view& name) {
     return nullptr;
 }
 
-
 ASTNode* Value::get_chain_last_linked() {
     switch(kind()) {
         case ValueKind::Identifier: {
@@ -556,7 +553,6 @@ VariableIdentifier* Value::get_last_id() {
             return nullptr;
     }
 }
-
 
 //BaseType* implicit_constructor_type(ASTAllocator& allocator, BaseType* return_type, Value* value) {
 //    auto k = return_type->kind();

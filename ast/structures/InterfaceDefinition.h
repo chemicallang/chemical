@@ -210,8 +210,6 @@ public:
 
     void register_impl(ImplDefinition* definition);
 
-    int vtable_function_index(FunctionDeclaration* decl);
-
     uint64_t byte_size(const TargetData& target) final;
 
     inline BaseType* known_type() {

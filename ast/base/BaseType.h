@@ -128,10 +128,6 @@ public:
     virtual BaseType *copy(ASTAllocator& allocator) = 0;
 
     /**
-     * is this type a reference to the given node
-     */
-    bool is_reference_to(ASTNode* node);
-
     /**
      * checks if this type is a reference
      */
@@ -153,10 +149,6 @@ public:
     ReferenceType* getReferenceCanonical();
 
     /**
-     * get loadable referred to type
-     */
-    BaseType* getLoadableReferredType();
-
     /**
      * just return the linked node
      */
@@ -197,18 +189,6 @@ public:
      * whether the given value satisfies the current type
      */
     virtual bool satisfies(Value* value, bool assignment);
-
-    /**
-     * if this value can be auto dereferenced, the type of dereferenced value is returned
-     * the expected type should be a reference for that to happen, otherwise a null pointer is
-     * returned
-     */
-    BaseType* getAutoDerefType(BaseType* expected_type);
-
-    /**
-     * get de-referenced type, &int -> int
-     */
-    BaseType* removeReferenceFromType();
 
     /**
      * representation is representation of the type as a string
@@ -369,10 +349,6 @@ public:
     InterfaceDefinition* get_direct_linked_interface();
 
     /**
-     * get direct or referenced struct, this means either the type should be Struct or Struct&
-     */
-    StructDefinition* get_ref_or_linked_struct();
-
     /**
      * if this is a directly referenced / generic variant, get it
      */
@@ -392,20 +368,12 @@ public:
     StructDefinition* get_direct_linked_movable_struct();
 
     /**
-     * get linked struct that is non movable (meaning has no destructor or move fn or implicit copy)
-     */
-    StructDefinition* get_direct_non_movable_struct();
-
     /**
      * gets the function type (considers type aliases)
      */
     FunctionType* get_canonical_function_type();
 
     /**
-     * this gets the function type, if any
-     */
-    FunctionType* get_function_type();
-
     /**
      * get the capturing function type, handles references to capturing function types as well
      */

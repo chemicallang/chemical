@@ -19,7 +19,6 @@ class TypeBuilder;
 
 struct TargetData;
 
-
 #include "BaseTypeKind.h"
 #include "ValueKind.h"
 #include "std/chem_string_view.h"
@@ -147,7 +146,6 @@ public:
      */
     bool isValueIntegerLiteral();
 
-
     /**
      * check if value is a r value in frontend
      */
@@ -214,7 +212,6 @@ public:
      */
     void report_addr_taken_of_chain_id();
 
-
     /**
      * is this value has a pointer type (includes strings)
      */
@@ -254,14 +251,11 @@ public:
      */
     bool is_ref(ASTAllocator& allocator);
 
-
     /**
      * this checks if this value is mutable
      * basically something that you can assign to
      */
     bool check_is_mutable(bool assigning);
-
-
 
     /**
      * check if this is a function call
@@ -272,8 +266,6 @@ public:
      * check if this value is a reference and moved
      */
     bool is_ref_moved();
-
-
 
     /**
      * is an int num value, this includes referenced values

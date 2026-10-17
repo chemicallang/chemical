@@ -261,12 +261,6 @@ public:
     ASTNode *child_member_or_inherited_struct(const chem::string_view& name);
 
     /**
-     * ensure the inherited variables refer to structs / interfaces / unions that
-     * are at least this spec
-     */
-    void ensure_inherited_visibility(ASTDiagnoser& diagnoser, AccessSpecifier at_least_spec);
-
-    /**
      * when child is located up somewhere in inheritance tree, we build the path to it
      * the last index in the path is of the child, all the indexes before are indexes to
      * the inherited structs

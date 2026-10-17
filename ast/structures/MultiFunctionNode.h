@@ -41,8 +41,6 @@ public:
         return functions.front()->specifier();
     }
 
-    FunctionDeclaration* func_for_call(std::vector<Value*>& args);
-
 };
 
 OverridableFuncHandlingResult handle_name_overload_function(

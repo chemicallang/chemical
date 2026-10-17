@@ -87,10 +87,6 @@ public:
     }
 
     /**
-     * write this string view to the stream
-     */
-    void write_view(std::string_view& view);
-
     /**
      * write this string view to the stream
      */

@@ -3,15 +3,6 @@
 #include "MultiFunctionNode.h"
 #include "ast/structures/FunctionDeclaration.h"
 
-FunctionDeclaration* MultiFunctionNode::func_for_call(std::vector<Value*>& args) {
-    for(auto func : functions) {
-        if(func->expectedArgsSize() == args.size() && func->satisfy_args(args)) {
-            return func;
-        }
-    }
-    return nullptr;
-}
-
 OverridableFuncHandlingResult handle_name_overload_function(
         ASTAllocator& astAllocator,
         ASTNode* previous_node,

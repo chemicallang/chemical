@@ -14,7 +14,6 @@
 #include "ast/structures/GenericVariantDecl.h"
 #include "compiler/ASTDiagnoser.h"
 
-
 bool CapturingFunctionType::satisfies(BaseType *type) {
     switch(type->kind()) {
         case BaseTypeKind::Function:
@@ -78,17 +77,6 @@ FunctionParam* FunctionType::func_param_for_arg_at(unsigned index) {
     } else {
         return nullptr;
     }
-}
-
-FunctionParam* FunctionType::implicit_param_for(const chem::string_view& name) {
-    for(auto param : params) {
-        if(param->is_implicit() && param->name == name) {
-            return param;
-        } else {
-            break;
-        }
-    }
-    return nullptr;
 }
 
 bool FunctionType::satisfy_args(std::vector<Value*>& forArgs) {

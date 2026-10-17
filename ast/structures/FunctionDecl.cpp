@@ -68,7 +68,6 @@ BaseType* FunctionDeclaration::inner_return_type() {
     return rt;
 }
 
-
 FunctionParam *FunctionParam::copy(ASTAllocator& allocator) const {
     const auto param = new (allocator.allocate<FunctionParam>()) FunctionParam(
             name,
@@ -81,14 +80,6 @@ FunctionParam *FunctionParam::copy(ASTAllocator& allocator) const {
     );
     param->attrs = attrs;
     return param;
-}
-
-void FunctionDeclaration::make_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
-    if(!has_self_param() || params.size() > 1 || params.empty()) {
-        params.clear();
-        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", TypeLoc( new (allocator.allocate<ReferenceType>()) ReferenceType(new (allocator.allocate<LinkedType>()) LinkedType(def)), def->encoded_location() ), 0, nullptr, true, this, ZERO_LOC));
-    }
-    returnType = {new(allocator.allocate<VoidType>()) VoidType(), returnType.getLocation()};
 }
 
 void check_returns_void(ASTDiagnoser& diagnoser, FunctionDeclaration* decl) {
@@ -129,16 +120,6 @@ void FunctionDeclaration::ensure_constructor(ASTAllocator& allocator, ASTDiagnos
 void FunctionDeclaration::ensure_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def) {
     check_returns_void(diagnoser, this);
     check_self_param(diagnoser, this, def);
-}
-
-void FunctionDeclaration::ensure_clear_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def) {
-    check_returns_void(diagnoser, this);
-    check_self_param(diagnoser, this, def);
-}
-
-void FunctionDeclaration::ensure_move_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser, ASTNode* def) {
-    returnType = {new(allocator.allocate<LinkedType>()) LinkedType(def), returnType.getLocation()};
-    check_self_other_params(diagnoser, this, def);
 }
 
 bool FunctionDeclaration::put_as_extension_function(ASTDiagnoser& diagnoser) {

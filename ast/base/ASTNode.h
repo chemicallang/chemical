@@ -172,10 +172,6 @@ public:
     }
 
     /**
-     * This get's the root parent of the current node
-     */
-    ASTNode* root_parent();
-
     /**
      * get by this kind a node that is ancestor of this node
      */

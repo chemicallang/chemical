@@ -150,8 +150,6 @@ public:
         return (StructDefinition*) definition;
     }
 
-    const chem::string_view& linked_name_view();
-
     bool allows_direct_init();
 
     bool is_union() {

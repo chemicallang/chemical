@@ -180,10 +180,6 @@ public:
     FunctionParam* func_param_for_arg_at(unsigned index);
 
     /**
-     * get implicit parameter for given name
-     */
-    FunctionParam* implicit_param_for(const chem::string_view& name);
-
     /**
      * do parameter types match with the given function parameter types
      */

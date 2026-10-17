@@ -10,17 +10,6 @@
 #include "std/except.h"
 
 
-int InterfaceDefinition::vtable_function_index(FunctionDeclaration* decl) {
-    int i = 0;
-    for(const auto func : evaluated_nodes()) {
-        if(func == decl) {
-            return i;
-        }
-        i++;
-    }
-    return -1;
-}
-
 uint64_t InterfaceDefinition::byte_size(const TargetData& target) {
     // a single pointer
     // this is required, because well user can write types like std::Result<ArrayDecoder, SerializationError>

@@ -373,11 +373,6 @@ InterfaceDefinition* BaseType::get_direct_linked_interface() {
     return ref_node ? ref_node->as_interface_def() : nullptr;
 }
 
-StructDefinition* BaseType::get_ref_or_linked_struct() {
-    const auto node = get_ref_or_linked_node();
-    return node ? node->as_struct_def() : nullptr;
-}
-
 VariantDefinition* BaseType::get_direct_linked_variant() {
     const auto ref_node = get_direct_linked_canonical_node();
     return ref_node ? ref_node->as_variant_def() : nullptr;
@@ -391,15 +386,6 @@ EnumDeclaration* BaseType::get_direct_linked_enum() {
 StructDefinition* BaseType::get_direct_linked_movable_struct() {
     const auto direct_ref_struct = get_direct_linked_struct();
     if(direct_ref_struct && direct_ref_struct->destructor_func()) {
-        return direct_ref_struct;
-    } else {
-        return nullptr;
-    }
-}
-
-StructDefinition* BaseType::get_direct_non_movable_struct() {
-    const auto direct_ref_struct = get_direct_linked_struct();
-    if(direct_ref_struct && direct_ref_struct->destructor_func() == nullptr) {
         return direct_ref_struct;
     } else {
         return nullptr;
@@ -426,17 +412,6 @@ FunctionType* BaseType::get_canonical_function_type() {
             return get_func_type_from_linked(as_generic_type_unsafe()->referenced);
         case BaseTypeKind::CapturingFunction:
             return as_capturing_func_type_unsafe()->func_type->get_canonical_function_type();
-        default:
-            return nullptr;
-    }
-}
-
-FunctionType* BaseType::get_function_type() {
-    switch(kind()) {
-        case BaseTypeKind::Function:
-            return (FunctionType*) this;
-        case BaseTypeKind::CapturingFunction:
-            return as_capturing_func_type_unsafe()->func_type->as_function_type();
         default:
             return nullptr;
     }
@@ -694,56 +669,6 @@ bool BaseType::isPointerOrReferenceCanonical() {
             return isNodePointerOrRefCanonical(as_generic_type_unsafe()->referenced->linked);
         default:
             return false;
-    }
-}
-
-bool BaseType::is_reference_to(ASTNode* node) {
-    if(kind() == BaseTypeKind::Reference) {
-        const auto child_type = ((ReferenceType*) this)->type;
-        const auto child_type_kind = child_type->kind();
-        if(child_type_kind == BaseTypeKind::Linked && ((LinkedType*) child_type)->linked == node) {
-            return true;
-        }
-    }
-    return false;
-}
-
-BaseType* BaseType::getLoadableReferredType() {
-    if(kind() == BaseTypeKind::Reference) {
-        const auto ref = as_reference_type_unsafe()->type->canonical();
-        const auto ref_kind = ref->kind();
-        if(BaseType::isLoadableReferencee(ref_kind)) {
-            return ref;
-        }
-    }
-    return nullptr;
-}
-
-BaseType* BaseType::getAutoDerefType(BaseType* expected_type) {
-    const auto value_type_pure = canonical();
-    const auto value_type_k = value_type_pure->kind();
-    const auto exp_type_pure = expected_type->canonical();
-    const auto exp_type_k = exp_type_pure->kind();
-    switch(value_type_k) {
-        case BaseTypeKind::Reference: {
-            const auto ref_type = value_type_pure->as_reference_type_unsafe();
-            const auto pure_referencee = ref_type->type->canonical();
-            if((pure_referencee->is_same(exp_type_pure) || exp_type_pure->kind() == BaseTypeKind::Any) && BaseType::isIntNType(pure_referencee->kind())) {
-                return pure_referencee;
-            }
-            return nullptr;
-        }
-        default:
-            return nullptr;
-    }
-}
-
-BaseType* BaseType::removeReferenceFromType() {
-    const auto pure_t = canonical();
-    if(pure_t->kind() == BaseTypeKind::Reference) {
-        return pure_t->as_reference_type_unsafe()->type;
-    } else {
-        return this;
     }
 }
 

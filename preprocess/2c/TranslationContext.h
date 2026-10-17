@@ -98,11 +98,6 @@ public:
     unsigned int indentation_level = 0;
 
     /**
-     * local temporary variable counter, we create these variables for allocations
-     */
-    unsigned int local_temp_var_counter = 0;
-
-    /**
      * a typedef struct containing two void pointers is prepared
      */
     std::string fat_pointer_type;
@@ -224,7 +219,6 @@ public:
     /**
      * get a local variable name, that is unique
      */
-    std::string get_local_temp_var_name();
 
     /**
      * indentation of \t will be added for current indentation level

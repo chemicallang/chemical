@@ -32,7 +32,6 @@
 
 #include "ImplDefinition.h"
 
-
 ASTNode *VariablesContainer::child_member_or_inherited_struct(const chem::string_view& name) {
     auto direct_var = direct_variable(name);
     if(direct_var) return direct_var;
@@ -67,17 +66,6 @@ BaseDefMember* VariablesContainerBase::largest_member() {
         }
     }
     return member;
-}
-
-void VariablesContainer::ensure_inherited_visibility(ASTDiagnoser& diagnoser, AccessSpecifier at_least_spec) {
-    for(auto& inh : inherited) {
-        const auto linked = inh.type->get_direct_linked_node();
-        if(linked) {
-            if(linked->specifier() < at_least_spec) {
-                diagnoser.error(inh.type.encoded_location()) << "must refer to a node with at least '" << to_string(at_least_spec) << "' access specifier";
-            }
-        }
-    }
 }
 
 uint64_t VariablesContainerBase::total_byte_size(const TargetData& target) {
@@ -127,22 +115,6 @@ bool VariablesContainer::isDirectChild(ASTNode* node) {
         default:
             return p == this;
     }
-}
-
-unsigned int MembersContainer::init_values_req_size() {
-    unsigned int i = 0;
-    for(auto& inherit : inherited) {
-        auto direct = inherit.type->get_direct_linked_struct();
-        if(direct && !direct->variables().empty()) {
-            i++;
-        }
-    }
-    for(auto& var : variables()) {
-        if(var->default_value() == nullptr) {
-            i++;
-        }
-    }
-    return i;
 }
 
 bool MembersContainer::getAllMembersDefaultInitialized() {
@@ -347,20 +319,11 @@ FunctionOverridingInfo MembersContainer::get_func_overriding_info(FunctionDeclar
     return { nullptr, nullptr, nullptr };
 }
 
-FunctionDeclaration* MembersContainer::getExactImplementationOf(FunctionDeclaration* base_func) {
-    return direct_child_function(base_func->name_view());
-}
-
 std::pair<ASTNode*, FunctionDeclaration*> MembersContainer::get_func_with_signature(FunctionDeclaration* function) {
     auto direct = direct_child_function(function->name_view());
     if(direct) return { this, direct };
     return get_overriding_info(function);
 }
-
-// returns the function that is being overridden by given function in the parameter
-FunctionDeclaration* MembersContainer::get_overriding(FunctionDeclaration* function) {
-    return get_overriding_info(function).second;
-};
 
 std::pair<InterfaceDefinition*, FunctionDeclaration*> MembersContainer::get_interface_overriding_info(FunctionDeclaration* function) {
     const auto info = get_overriding_info(function);
@@ -668,12 +631,6 @@ void MembersContainer::insert_func(GenericFuncDecl* decl) {
     indexes[decl->master_impl->name_view()] = decl;
 }
 
-void MembersContainer::insert_functions(const std::initializer_list<FunctionDeclaration*>& decls) {
-    for(const auto d : decls) {
-        insert_func(d);
-    }
-}
-
 FunctionDeclaration* MembersContainer::create_def_constructor(ASTAllocator& allocator, const chem::string_view& parent_name, ASTNode* returnNode) {
     const auto loc = encoded_location();
     const auto returnType = new (allocator.allocate<LinkedType>()) LinkedType(returnNode);
@@ -715,11 +672,6 @@ FunctionDeclaration* MembersContainer::create_def_destructor(ASTAllocator& alloc
         return nullptr;
     }
     return create_destructor(allocator, returnNode, is_extern);
-}
-
-BaseType* MembersContainer::create_linked_type(const chem::string_view& name, ASTAllocator& allocator) {
-    const auto linked_type = new (allocator.allocate<LinkedType>()) LinkedType(this);
-    return linked_type;
 }
 
 bool MembersContainer::extends_node(ASTNode* other) {

@@ -358,10 +358,6 @@ public:
     }
 
     /**
-     * required size for initializing this struct using values
-     */
-    unsigned int init_values_req_size();
-
     /**
      * will provide a destructor function if there's one
      */
@@ -378,10 +374,6 @@ public:
     void insert_func(GenericFuncDecl* decl);
 
     /**
-     * will insert all the given functions
-     */
-    void insert_functions(const std::initializer_list<FunctionDeclaration*>& decls);
-
     /**
      * create a destructor function and put it into functions
      */
@@ -432,12 +424,6 @@ public:
     }
 
     /**
-     * this creates a linked type to this members container, so that
-     * generic parameters are accounted for
-     */
-    BaseType* create_linked_type(const chem::string_view& name, ASTAllocator& allocator);
-
-    /**
      * check if the other node extends given node
      * for example this container represents a struct X : public Y
      */
@@ -460,22 +446,12 @@ public:
     }
 
     /**
-     * get exact implementation function (present usually in 'impl') with the given name that overrides
-     * a method with the given name in the given base interface
-     */
-    FunctionDeclaration* getExactImplementationOf(FunctionDeclaration* base_func);
-
-    /**
      * get a function with signature equal to given func type, present in direct or inherited functions
      * it also checks for the function name
      */
     std::pair<ASTNode*, FunctionDeclaration*> get_func_with_signature(FunctionDeclaration* function);
 
     /**
-     * get the function being overridden of this struct, the interface whose function
-     */
-    FunctionDeclaration* get_overriding(FunctionDeclaration* function);
-
     /**
      * get the interface overriding info, this means that the function being overridden is present in an interface
      */

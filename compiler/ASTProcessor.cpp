@@ -2,7 +2,16 @@
 
 #include "ASTProcessor.h"
 
+#include <cstdio>
+#include <cstdlib>
 #include <memory>
+
+// Phase-5.3 measurement: count what the AST interpreter still evaluates during
+// lowering (env-gated, no effect in normal builds).
+static void ct_stat(const char* tag, const char* name) {
+    if (std::getenv("CT_STAT")) std::fprintf(stderr, "[CTSTAT] %s %s\n", tag, name ? name : "?");
+}
+
 #include "parser/Parser.h"
 #include "compiler/SymbolResolver.h"
 #include "compiler/typeverify/TypeVerifyAPI.h"
@@ -16,6 +25,7 @@
 #include "rang.hpp"
 #include "preprocess/RepresentationVisitor.h"
 #include "ast/structures/FunctionDeclaration.h"
+#include "ast/structures/StructDefinition.h"
 #include "ast/structures/ComptimeBlock.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/ImplDefinition.h"
@@ -23,6 +33,17 @@
 #include "ast/statements/VarInit.h"
 #include <filesystem>
 #include <random>
+
+static void ct_stat_decl(const char* tag, FunctionDeclaration* d) {
+    if (!std::getenv("CT_STAT") || !d) return;
+    std::string owner;
+    ASTNode* par = d->get_parent();
+    if (par && par->kind() == ASTNodeKind::StructDecl) {
+        auto* sd = par->as_struct_def_unsafe();
+        owner.assign(sd->name_view().data(), sd->name_view().size());
+    }
+    std::fprintf(stderr, "[CTSTAT] %s %s::%s\n", tag, owner.c_str(), d->name_str().c_str());
+}
 
 #include "lexer/Lexer.h"
 #include "stream/FileInputSource.h"
@@ -2487,6 +2508,7 @@ int ASTProcessor::implement_module(
     });
     mir_lowerer.set_comptime_if_resolver([&c_visitor, &mir_visitor_mutex](IfStatement* stmt, std::string& err) -> Scope* {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
+        ct_stat("CI", "comptime_if");
         auto resolved = stmt->get_or_resolve_scope(c_visitor.comptime_scope, c_visitor);
         if (!resolved.has_value() || resolved.value() == nullptr) {
             err = "failed to resolve comptime if";
@@ -2521,6 +2543,7 @@ int ASTProcessor::implement_module(
                                    &pop_comptime_bindings](FunctionCall* call,
                                                            FunctionDeclaration* decl) {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
+        ct_stat_decl("CE", decl);
         auto saved = push_comptime_bindings();
         Value* r = c_visitor.eval_comptime_call(call, decl);
         pop_comptime_bindings(saved);
@@ -2530,6 +2553,7 @@ int ASTProcessor::implement_module(
                                          &pop_comptime_bindings](Value* v) -> Value* {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         if (!v) return nullptr;
+        ct_stat("CV", std::to_string(static_cast<int>(v->val_kind())).c_str());
         auto saved = push_comptime_bindings();
         Value* r = v->evaluated_value(c_visitor.comptime_scope);
         pop_comptime_bindings(saved);
@@ -2537,10 +2561,12 @@ int ASTProcessor::implement_module(
     });
     mir_lowerer.set_comptime_ctor_eval([&c_visitor, &mir_visitor_mutex](FunctionDeclaration* ctor, Value* arg) {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
+        ct_stat_decl("CC", ctor);
         return c_visitor.eval_comptime_ctor(ctor, arg);
     });
     mir_lowerer.set_comptime_block_eval([&c_visitor, &mir_visitor_mutex](ASTNode* node) {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
+        ct_stat("CB", "block");
         auto* block = static_cast<ComptimeBlock*>(node);
         c_visitor.comptime_scope.interpret(&block->body);
     });
@@ -2806,6 +2832,7 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
     });
     mir_lowerer.set_comptime_if_resolver([&c_visitor, &mir_visitor_mutex](IfStatement* stmt, std::string& err) -> Scope* {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
+        ct_stat("CI", "comptime_if");
         auto resolved = stmt->get_or_resolve_scope(c_visitor.comptime_scope, c_visitor);
         if (!resolved.has_value() || resolved.value() == nullptr) {
             err = "failed to resolve comptime if";
@@ -2840,6 +2867,7 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
                                    &pop_comptime_bindings](FunctionCall* call,
                                                            FunctionDeclaration* decl) {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
+        ct_stat_decl("CE", decl);
         auto saved = push_comptime_bindings();
         Value* r = c_visitor.eval_comptime_call(call, decl);
         pop_comptime_bindings(saved);
@@ -2849,6 +2877,7 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
                                          &pop_comptime_bindings](Value* v) -> Value* {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
         if (!v) return nullptr;
+        ct_stat("CV", std::to_string(static_cast<int>(v->val_kind())).c_str());
         auto saved = push_comptime_bindings();
         Value* r = v->evaluated_value(c_visitor.comptime_scope);
         pop_comptime_bindings(saved);
@@ -2856,10 +2885,12 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
     });
     mir_lowerer.set_comptime_ctor_eval([&c_visitor, &mir_visitor_mutex](FunctionDeclaration* ctor, Value* arg) {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
+        ct_stat_decl("CC", ctor);
         return c_visitor.eval_comptime_ctor(ctor, arg);
     });
     mir_lowerer.set_comptime_block_eval([&c_visitor, &mir_visitor_mutex](ASTNode* node) {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
+        ct_stat("CB", "block");
         auto* block = static_cast<ComptimeBlock*>(node);
         c_visitor.comptime_scope.interpret(&block->body);
     });

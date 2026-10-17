@@ -513,7 +513,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 }
                 if (implicit) {
                     // an `@expand` constructor is lowered at this site
-                    if (implicit->is_expand_fn()) {
+                    if (is_comptime_template_fn(implicit)) {
                         MIRExprResult er = inline_comptime_template(
                             implicit, MIRExprResult::void_result(), nullptr,
                             std::vector<Value*>{init.value}, error);
@@ -865,7 +865,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                 FunctionDeclaration* ctor = sd ? sd->constructor_func(call->values) : nullptr;
                 if (!ctor && ctype && call->values.empty()) ctor = ctype->get_def_constructor();
                 // an `@expand` constructor is lowered at this call site
-                if (ctor && ctor->is_expand_fn()) {
+                if (ctor && is_comptime_template_fn(ctor)) {
                     return inline_comptime_template(ctor, MIRExprResult::void_result(),
                                                     call, call->values, error);
                 }

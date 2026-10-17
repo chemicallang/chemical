@@ -519,7 +519,7 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
             if (!imp && inst) imp = inst->implicit_constructor_for(arg);
             if (imp) {
                 // an `@expand` lambda constructor is lowered at this site
-                if (imp->is_expand_fn()) {
+                if (is_comptime_template_fn(imp)) {
                     std::vector<Value*> one{arg};
                     return inline_comptime_template(imp, MIRExprResult::void_result(), nullptr,
                                                     one, error);
@@ -548,7 +548,7 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
         if (imp) {
             // an `@expand` implicit constructor is lowered at this site; the
             // interpreter would otherwise return an eagerly-built struct value
-            if (imp->is_expand_fn()) {
+            if (is_comptime_template_fn(imp)) {
                 std::vector<Value*> one{arg};
                 return inline_comptime_template(imp, MIRExprResult::void_result(), nullptr,
                                                 one, error);

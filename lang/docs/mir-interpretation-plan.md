@@ -546,6 +546,43 @@ Because of 1–3, the honest approach is **not** "call `MIRInterpreter` from
 > on every build; a partial migration that changes comptime results silently
 > changes every backend's output.
 
+##### 5.3.0 Measured surface (2026-10, `CT_STAT=1` on the test-suite compile)
+
+`set_comptime_eval`/`_value_eval`/`_ctor_eval`/`_block_eval` are env-gated
+counters (`ct_stat*` in `compiler/ASTProcessor.cpp`). On `lang/tests/build.lab`:
+
+| callback | calls | what it is |
+|---|---:|---|
+| `set_comptime_eval` (CE) | 3517 | 108 distinct callees |
+| `set_comptime_value_eval` (CV) | 3195 | `Value*` expression folds |
+| `set_comptime_ctor_eval` (CC) | 0 | all ctors are templates now |
+| `set_comptime_block_eval` / `_if_resolver` | 0 | not hit by this compile |
+
+**The key finding:** almost all CE calls are **compiler intrinsics** — C++
+`FunctionDeclaration::call` overrides that execute no statements and therefore
+*already* survive as the §5.4 residual:
+
+| callee | calls |
+|---|---:|
+| `intrinsics::size` | 1385 |
+| `satisfies` | 318 |
+| `get_loc_file_path` / `get_call_loc` | 237 / 237 |
+| `get_lambda_fn_ptr` / `_cap_ptr` / `sizeof_lambda_captured` / `_cap_destructor` / `alignof_lambda_captured` | 149 / 149 / 145 / 145 / 145 |
+| `decode_location` | 134 |
+| `expr_str_block_value` | 50 |
+| `is_same_type` / `value_satisfies` | 48 / 26 |
+| `comptime_size_of` / `comptime_align_of` / `defined` / `atomic_fence` / `get_single_marked_decl_ptr` | 20/18/4/6/4 |
+
+Only **~250** CE calls reach the **statement** interpreter: `comptime_fnv1_hash`
+(57), `Layout::of` (16), `comptime_func_call_gen1` (16), `compare_enum_result7`
+(12), `comptime_give_char_by_offset(s)` (12), the `comptime/basic.ch` fixtures
+(`comptime_primitive`, `comptime_logical_*`, `pair_66`, `comptime_sum`, …), and
+`Pair66`/`comptime_func_container` methods. CV is similarly expression folding
+(`AccessChain`, `String`, `LambdaFunc`, `IntN`) — §5.4 says it survives.
+
+So "delete `compiler/Interpreter/Core.cpp`" is bounded by **~50 distinct pure
+comptime functions + the aggregate result bridge**, not by the whole language.
+
 #### 5.4 The unavoidable residual (why "delete the AST interpreter" has a floor)
 
 `symres` resolves a top-level `comptime if` **before MIR exists** —

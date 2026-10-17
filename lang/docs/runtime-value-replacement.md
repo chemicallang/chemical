@@ -28,8 +28,8 @@ interpreter's last lowering-time job.
 > be deleted yet; see §5.4 and §8.
 
 > **Migration progress (2026-10).** Source migration is underway, one unit per
-> commit, `--tcc`/`--llvm`/`--interpret` green at each step. **146 of 149**
-> `%runtime_value` uses are gone (the last 3 are described at the end).
+> commit, `--tcc`/`--llvm`/`--interpret` green at each step. **All 149**
+> `%runtime_value` / `%runtime_block_value` uses are gone — no site remains.
 >
 > **The explicit replacement is `@expand`** (commit `add @expand: explicit
 > compile-time code functions`). A `comptime func` is either *evaluated* to a
@@ -71,19 +71,22 @@ interpreter's last lowering-time job.
 > 6. **lambda isolation** — a lambda materialized inside a splice inherited the
 >    splice's `inline_frames_`/`comptime_bindings_`, so its `return` branched to
 >    the *caller's* block and stored into a caller place (an instruction in the
->    lambda's function referencing a place it does not own).
+>    lambda's function referencing a place it does not own);
+> 7. **a splice is synchronous** — `async_` is cleared for the spliced body, so a
+>    `comptime func`'s `return` in an `async` caller is an inline-return, not an
+>    async return.
 >
-> **Remaining (3).** Both now reach a bug *outside* the `%runtime_value`
-> migration:
-> - **`function.make`** — inlining it into an async caller (through
->   `spawn_blocking`'s `std::function` conversion) mis-wires the async state
->   machine: a `Result`-typed slot is assigned the
->   `default_function_instance` value. The lambda-isolation fix below cleared
->   the earlier bad-place crash; what remains is an async-lowering interaction.
-> - **`ASTBuilder.allocate` (2)** — migrating it deadlocks the
->   `--tcc --plugins` build (every thread parked on `futex_do_wait`), and it
->   persists after the splice fix. The `compiler` plugin library is also not
->   standalone-compilable, so it can only be exercised through `--plugins`.
+> **Done.** The last two were not `%runtime_value` problems:
+> - **`function.make`** — a splice is synchronous (`async_ = false` for its
+>   body): a `comptime func`'s `return` inside an `async` caller was being
+>   treated as an async return, completing the caller on the first poll. With
+>   the lambda-isolation fix below, it migrates.
+> - **`ASTBuilder.allocate`** — became a **normal generic function** rather
+>   than a splice. Its only compile-time needs are the generic `T`,
+>   `sizeof`/`alignof` and `get_child_fn<T>`, which all fold in a normal generic
+>   function; the comptime splice deadlocked the `--tcc --plugins` build (the
+>   allocator's shared mutex in the CBI path). Verified by `--plugins`
+>   (1296/1296).
 
 ---
 

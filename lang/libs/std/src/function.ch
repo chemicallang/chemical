@@ -27,13 +27,14 @@ public struct default_function_instance {
     //  and here we'd use a type that takes literal capturing + non capturing lambdas
     //  this should reject any runtime lambdas
     @make
+    @expand
     comptime func make(lambda : () => void) {
         const ptr = intrinsics::get_lambda_fn_ptr(lambda)
         const cap = intrinsics::get_lambda_cap_ptr(lambda)
         const destr = intrinsics::get_lambda_cap_destructor(lambda)
         const size_data = intrinsics::sizeof_lambda_captured(lambda);
         const align_data = intrinsics::alignof_lambda_captured(lambda)
-        return %runtime_value(make2(ptr, cap, destr as destructor_type, size_data, align_data))
+        return make2(ptr, cap, destr as destructor_type, size_data, align_data)
     }
 
     @make

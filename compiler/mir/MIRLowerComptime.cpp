@@ -214,6 +214,7 @@ MIRExprResult MIRLowerer::inline_comptime_template(FunctionDeclaration* fd, MIRE
     if (!ok) return MIRExprResult::error();
 
     FunctionParam* saved_self = current_self_param_;
+    const bool saved_async = async_;
     const size_t dmark = destructibles_.size();
     // Splice: layer the callee's bindings over the caller's (do NOT clear them),
     // so the body is lowered in the caller's scope — a call-site macro, not a
@@ -223,6 +224,10 @@ MIRExprResult MIRLowerer::inline_comptime_template(FunctionDeclaration* fd, MIRE
     scope_journal_ = true;
     const size_t umark = scope_undo_.size();
     current_self_param_ = callee_self;
+    // an @expand function is a synchronous `comptime func`: its `return` is an
+    // inline-return, even when spliced into an async caller (otherwise it would
+    // be treated as an async return and complete the caller early)
+    async_ = false;
 
     // Bind a runtime operand into a fresh place of the parameter's type.
     auto bind_runtime = [&](FunctionParam* p, MIRExprResult r) -> bool {
@@ -343,6 +348,7 @@ MIRExprResult MIRLowerer::inline_comptime_template(FunctionDeclaration* fd, MIRE
     scope_journal_ = saved_journal;
     undo_scope_from(umark);
     current_self_param_ = saved_self;
+    async_ = saved_async;
     destructibles_.resize(dmark);
     return ok ? result : MIRExprResult::error();
 }

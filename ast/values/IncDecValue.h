@@ -41,7 +41,6 @@ public:
 
     BaseType* determine_type(ASTDiagnoser& diagnoser, const CoreNodes& coreNodes, const ImplementationsIndex& implsIndex);
 
-    Value* evaluated_value(InterpretScope &scope) override;
 
     IncDecValue* copy(ASTAllocator &allocator) final {
         return new (allocator.allocate<IncDecValue>()) IncDecValue(

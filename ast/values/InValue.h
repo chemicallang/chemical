@@ -53,7 +53,6 @@ public:
         return inValue;
     }
 
-    Value* evaluated_value(InterpretScope &scope) override;
 
 
 };

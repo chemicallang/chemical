@@ -144,7 +144,6 @@ public:
 
     VariantMember* find_member_from_expr(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
-    Value* evaluated_value(InterpretScope &scope) override;
 
     void copy_to_constructed(ASTAllocator& allocator, PatternMatchExpr* copied) {
         for(const auto name : param_names) {

@@ -65,7 +65,6 @@ public:
         return inner->linked_node();
     }
 
-    Value* evaluated_value(InterpretScope& scope) override;
 
 
 };

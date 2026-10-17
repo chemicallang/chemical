@@ -33,7 +33,6 @@ public:
         return type->linked_node();
     }
 
-    Value* evaluated_value(InterpretScope &scope) override;
 
 
 };

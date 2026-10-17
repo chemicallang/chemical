@@ -26,7 +26,6 @@ public:
         );
     }
 
-    Value* evaluated_value(InterpretScope& scope) override;
 
     Value* child(InterpretScope& scope, const chem::string_view& name) override;
 

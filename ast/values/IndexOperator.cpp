@@ -206,12 +206,6 @@ Value* index_inside(InterpretScope& scope, Value* value, Value* indexVal, Source
     }
 }
 
-Value* IndexOperator::evaluated_value(InterpretScope &scope) {
-    Value* eval = parent_val->evaluated_value(scope);
-    if(!eval) return nullptr;
-    return index_inside(scope, eval, idx, idx->encoded_location());
-}
-
 void IndexOperator::set_value(InterpretScope& scope, Value* rawValue, Operation op, SourceLocation location) {
     // Evaluate the parent to get the array or pointer
     auto parentEval = parent_val->evaluated_value(scope);

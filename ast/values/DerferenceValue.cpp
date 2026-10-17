@@ -30,33 +30,6 @@ bool DereferenceValue::determine_type(const TypeBuilder& typeBuilder) {
     }
 }
 
-Value* DereferenceValue::evaluated_value(InterpretScope &scope) {
-    const auto eval = value->evaluated_value(scope);
-    if(!eval) return nullptr;
-    const auto k = eval->val_kind();
-    switch(k) {
-        case ValueKind::String:{
-            const auto val = eval->as_string_unsafe();
-            return new (scope.allocate<IntNumValue>()) IntNumValue(val->value[0], scope.global->typeBuilder.getCharType(), encoded_location());
-        }
-        case ValueKind::PointerValue: {
-            const auto val = (PointerValue*) eval;
-            return val->deref(scope, encoded_location(), this);
-        }
-        default: {
-            // Try evaluating further (handles AddrOfValue→PointerValue, etc.)
-            const auto further = eval->evaluated_value(scope);
-            if(further && further != eval) {
-                if(further->val_kind() == ValueKind::PointerValue) {
-                    return ((PointerValue*)further)->deref(scope, encoded_location(), this);
-                }
-                return further;
-            }
-            return eval;
-        }
-    }
-}
-
 void DereferenceValue::set_value(InterpretScope& scope, Value* rawValue, Operation op, SourceLocation location) {
     // Evaluate the inner expression first
     const auto ptrEval = value->evaluated_value(scope);

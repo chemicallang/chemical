@@ -54,7 +54,6 @@ public:
 
     DereferenceValue *copy(ASTAllocator& allocator) final;
 
-    Value* evaluated_value(InterpretScope &scope) override;
 
     void set_value(InterpretScope& scope, Value* rawValue, Operation op, SourceLocation location);
 

@@ -2561,8 +2561,9 @@ int ASTProcessor::implement_module(
                                 ? &c_visitor.comptime_scope.global->typeBuilder
                                 : nullptr;
         cctx.scope = &c_visitor.comptime_scope;
-        Value* r = ct_driver.evaluate(cctx, decl, call, derr);
-        if (!r) {
+        bool handled = false;
+        Value* r = ct_driver.evaluate(cctx, decl, call, handled, derr);
+        if (!handled) {
             ct_stat_decl("FB", decl);
             r = c_visitor.eval_comptime_call(call, decl);
         }
@@ -2901,8 +2902,9 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
                                 ? &c_visitor.comptime_scope.global->typeBuilder
                                 : nullptr;
         cctx.scope = &c_visitor.comptime_scope;
-        Value* r = ct_driver.evaluate(cctx, decl, call, derr);
-        if (!r) {
+        bool handled = false;
+        Value* r = ct_driver.evaluate(cctx, decl, call, handled, derr);
+        if (!handled) {
             ct_stat_decl("FB", decl);
             r = c_visitor.eval_comptime_call(call, decl);
         }

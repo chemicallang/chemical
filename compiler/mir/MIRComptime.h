@@ -54,7 +54,7 @@ public:
      * then keeps the AST interpreter.
      */
     Value* evaluate(const MIRComptimeContext& ctx, FunctionDeclaration* fd,
-                    FunctionCall* call, std::string& error);
+                    FunctionCall* call, bool& handled, std::string& error);
 
     /** Number of functions lowered into the driver's module (diagnostics). */
     unsigned lowered_function_count() const;

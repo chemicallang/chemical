@@ -87,6 +87,7 @@ bool scalar_return(BaseType* canonical) {
         case BaseTypeKind::NullPtr:
         case BaseTypeKind::Struct:
         case BaseTypeKind::Union:
+        case BaseTypeKind::Void:
             return true;
         case BaseTypeKind::Linked: {
             // a self-referencing struct type canonicalizes to its Linked form
@@ -404,7 +405,8 @@ bool marshal_arg(Value* av, uint64_t& cell, std::vector<std::vector<char>>& keep
 } // namespace
 
 Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration* fd,
-                             FunctionCall* call, std::string& error) {
+                             FunctionCall* call, bool& handled, std::string& error) {
+    handled = false;
 #define CT_DECLINE(reason) do { if (std::getenv("CT_STAT")) { \
     std::fprintf(stderr, "[CTSTAT] DECLINE %s: %s\n", fd && fd->name_str().size() ? fd->name_str().c_str() : "?", reason); } \
     return nullptr; } while (0)
@@ -492,6 +494,19 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
     // 4. run the callee
     const std::string name =
         impl_->module.symbols.mangled_name(impl_->module.symbols.get(target));
+    // void result: run the function for its comptime side effects; the caller
+    // treats a null result as the void call
+    if (rtc->kind() == BaseTypeKind::Void) {
+        uint64_t ignored = 0;
+        if (!impl_->interp->call(name, cells.data(), static_cast<uint32_t>(cells.size()),
+                                 ignored, error)) {
+            error.clear();
+            return nullptr;
+        }
+        handled = true;
+        return nullptr;
+    }
+
     // aggregate result: sret (the result bytes are read back below)
     if (abi::needs_sret(impl_->module, impl_->types.map(rtc))) {
         const TypeId tid = impl_->types.map(rtc);
@@ -516,6 +531,7 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
             std::fprintf(stderr, "[CTSTAT] DRV %s fd=%p struct\n", fd->name_str().c_str(),
                          (void*) fd);
         }
+        if (bridged) handled = true;
         return bridged;
     }
 
@@ -525,6 +541,7 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
         error.clear();
         return nullptr;
     }
+    handled = true;
     if (std::getenv("CT_STAT")) {
         std::fprintf(stderr, "[CTSTAT] DRV %s fd=%p out=%llu sym=%s\n", fd->name_str().c_str(),
                      (void*) fd, (unsigned long long) out, name.c_str());

@@ -593,7 +593,7 @@ back to an AST value (`IntNumValue`/`BoolValue`/`NullValue`; aggregates pending)
 
 It **declines** anything whose interpreter semantics the engine does not
 reproduce, so those keep the AST path and every suite stays green. On the
-test-suite compile it handles **423** comptime calls (~92% of the real ones) —
+test-suite compile it handles **429** comptime calls (~93% of the real ones) —
 `comptime_fnv1_hash`, `decode_location`, `comptime_size_of`, `Layout::of`, the
 `comptime/basic.ch` fixtures, `Pair66` constructors, …
 
@@ -610,21 +610,24 @@ Covered since the first cut:
 4. **Expressions** — declined only for string `+` (the interpreter's
    concatenation); pointer arithmetic/comparison and string-literal equality
    (identical contents are interned) match the engine.
+5. **Comptime-mode intrinsics** — `is_comptime`/`is_runtime`/`is_interpretation`
+   fold in the lowerer from the function being lowered (interpretation now has
+   the same semantics as compiled mode, so `is_interpretation` is false).
 
 Green: `--tcc` 2307, `--interpret` 1896, `--llvm` 2305.
 
-Remaining to retire `compiler/Interpreter/Core.cpp` (measured residual, ~36
+Remaining to retire `compiler/Interpreter/Core.cpp` (measured residual, ~30
 calls):
 1. **Void results** (`atomic_fence`) — return a void marker, not a value.
 2. **Methods** (`comptime_func_container::give_arg`) — marshal the receiver.
 3. **Function-pointer results** (`return_runtime_sum`, `give_me_some_sum`,
    `give_me_gen_sum`) — bridge the address back to a function reference.
 4. **Array/slice results** (`get_tests`) — the `ArrayValue` bridge.
-5. **The divergent intrinsics** (`is_comptime`/`is_runtime`, `get_call_loc`,
+5. **The remaining divergent intrinsics** (`get_caller_line_no`/`get_call_loc`,
    `expr_str_block_value`) and `intrinsics::vector` — implement in the engine, or
-   migrate the interpreter-only tests (`comptime/intrinsics.ch`,
-   `comptime/vector.ch`, `comptime_test_comparison_strings`, `comptime_add_strings`)
-   to the unified semantics.
+   migrate the interpreter-only tests (`comptime/vector.ch`,
+   `comptime_add_strings`) to the unified semantics (string `+` concatenation is
+   interpreter-only syntax).
 6. **Delete** — `compiler/Interpreter/Core.cpp`, `InterpretScope`/
    `GlobalInterpretScope`, `FunctionDeclaration::call`'s body execution, and the
    interpreter-friendly std types; `Value::evaluated_value` survives as the §5.4

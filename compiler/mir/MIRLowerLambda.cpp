@@ -463,6 +463,12 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     auto saved_continue = std::move(continue_targets_);
     const ValueId saved_closure = lambda_closure_ptr_;
     const TypeId saved_closure_t = lambda_closure_type_;
+    // a lambda body is its own function: do not inherit the enclosing splice's
+    // inline frames (a `return` would branch to the caller's block/place) or its
+    // comptime bindings; and do not journal the lambda's locals into it
+    auto saved_inline = std::move(inline_frames_);
+    auto saved_comptime = std::move(comptime_bindings_);
+    const bool saved_journal = scope_journal_;
 
     var_places_.clear();
     name_places_.clear();
@@ -473,6 +479,9 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     pattern_results_.clear();
     break_targets_.clear();
     continue_targets_.clear();
+    inline_frames_.clear();
+    comptime_bindings_.clear();
+    scope_journal_ = false;
     // a lambda body is synchronous even when declared inside an async function
     async_ = false;
 
@@ -567,6 +576,9 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     continue_targets_ = std::move(saved_continue);
     lambda_closure_ptr_ = saved_closure;
     lambda_closure_type_ = saved_closure_t;
+    inline_frames_ = std::move(saved_inline);
+    comptime_bindings_ = std::move(saved_comptime);
+    scope_journal_ = saved_journal;
 
     if (!ok) return false;
 
@@ -699,6 +711,11 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     const bool saved_async = async_;
     auto saved_break = std::move(break_targets_);
     auto saved_continue = std::move(continue_targets_);
+    // a lambda body is its own function: do not inherit the enclosing splice's
+    // inline frames or comptime bindings, and do not journal its locals into it
+    auto saved_inline = std::move(inline_frames_);
+    auto saved_comptime = std::move(comptime_bindings_);
+    const bool saved_journal = scope_journal_;
 
     var_places_.clear();
     name_places_.clear();
@@ -709,6 +726,9 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     pattern_results_.clear();
     break_targets_.clear();
     continue_targets_.clear();
+    inline_frames_.clear();
+    comptime_bindings_.clear();
+    scope_journal_ = false;
     // a lambda body is synchronous even when declared inside an async function
     async_ = false;
 
@@ -798,6 +818,9 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     async_ = saved_async;
     break_targets_ = std::move(saved_break);
     continue_targets_ = std::move(saved_continue);
+    inline_frames_ = std::move(saved_inline);
+    comptime_bindings_ = std::move(saved_comptime);
+    scope_journal_ = saved_journal;
 
     if (!ok) return MIRExprResult::error();
 

@@ -2072,6 +2072,56 @@ static void mir_collect_parallel_functions(const std::vector<ASTNode*>& nodes,
     }
 }
 
+// Resolve top-level embedded-node declarations (e.g. `#styled`, `#universal`)
+// with their full node replacement before any body is pre-lowered. The serial
+// path resolves each declaration at its source slot, so a body lowered later
+// sees the signature state that declaration published — e.g. the generated
+// class name a styled wrap stores for a later `#html` block to inject as a
+// `class` attribute. Pre-lowering a body ahead of that slot would otherwise
+// observe a half-initialized signature (the declaration-only replacement ran,
+// the full one has not). Nodes resolved here are remembered so `process_nodes`
+// reuses the replacement instead of running the side-effecting macro twice.
+static void mir_presolve_embedded_decls(
+        CTranslationContext& visitor, const std::vector<ASTNode*>& nodes,
+        std::unordered_set<EmbeddedNode*>& presolved) {
+    for (ASTNode* node : nodes) {
+        if (!node) continue;
+        switch (node->kind()) {
+            case ASTNodeKind::EmbeddedNode: {
+                auto* en = node->as_embedded_node_unsafe();
+                ASTNode* repl = visitor.resolve_embedded_node(en);
+                if (!repl) repl = en->replacement;
+                if (repl) en->replacement = repl;
+                presolved.insert(en);
+                break;
+            }
+            case ASTNodeKind::NamespaceDecl: {
+                auto* ns = node->as_namespace_unsafe();
+                if (!ns->is_comptime()) {
+                    mir_presolve_embedded_decls(visitor, ns->nodes, presolved);
+                }
+                break;
+            }
+            case ASTNodeKind::Scope:
+                mir_presolve_embedded_decls(visitor, node->as_scope_unsafe()->nodes,
+                                            presolved);
+                break;
+            case ASTNodeKind::IfStmt: {
+                auto* stmt = node->as_if_stmt_unsafe();
+                if (stmt->is_top_level() && stmt->computed_scope.has_value()) {
+                    Scope* taken = stmt->computed_scope.value();
+                    if (taken) {
+                        mir_presolve_embedded_decls(visitor, taken->nodes, presolved);
+                    }
+                }
+                break;
+            }
+            default:
+                break;
+        }
+    }
+}
+
 bool mir_translate_after_declaration(
         CTranslationContext& visitor,
         mir::MIRTaskContext& task,
@@ -2122,11 +2172,18 @@ bool mir_translate_after_declaration(
     // `module.functions` in source order, so it stays serial; impl methods and
     // embedded-node-produced functions stay serial too (see the collector).
     std::unordered_map<FunctionDeclaration*, std::string> pre_lowered;
+    // Top-level embedded declarations resolved before pre-lowering (see
+    // `mir_presolve_embedded_decls`); `process_nodes` reuses these so the macro
+    // replacement runs exactly once.
+    std::unordered_set<EmbeddedNode*> presolved_embedded;
     if (kEnableParallelLowering && !llvm_collect) {
         std::vector<FunctionDeclaration*> parallel_fns;
         mir_collect_parallel_functions(nodes, parallel_fns);
         constexpr size_t kMinParallelFunctions = 24;
         if (parallel_fns.size() >= kMinParallelFunctions) {
+            // Bodies are about to be lowered out of source order, so resolve the
+            // declarations first (their signatures are read by bodies).
+            mir_presolve_embedded_decls(visitor, nodes, presolved_embedded);
             unsigned nworkers = std::thread::hardware_concurrency();
             if (nworkers == 0) nworkers = 4;
             if (const char* wenv = std::getenv("CHEM_MIR_LOWER_WORKERS")) {
@@ -2340,8 +2397,13 @@ bool mir_translate_after_declaration(
                 }
                 case ASTNodeKind::EmbeddedNode: {
                     auto* en = node->as_embedded_node_unsafe();
-                    ASTNode* repl = visitor.resolve_embedded_node(en);
-                    if (!repl) repl = en->replacement;
+                    ASTNode* repl = nullptr;
+                    if (presolved_embedded.count(en)) {
+                        repl = en->replacement;
+                    } else {
+                        repl = visitor.resolve_embedded_node(en);
+                        if (!repl) repl = en->replacement;
+                    }
                     if (repl) {
                         en->replacement = repl;
                         std::vector<ASTNode*> one{repl};

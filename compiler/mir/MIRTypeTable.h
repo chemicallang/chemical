@@ -7,10 +7,10 @@
 
 #include "MIRTypes.h"
 #include "MIRBytePool.h"
+#include "MIRStableArray.h"
 #include "MIRTableLock.h"
 
 #include <cstdint>
-#include <deque>
 #include <mutex>
 #include <shared_mutex>
 #include <string>
@@ -143,20 +143,19 @@ struct MIRTypeTable {
     /**
      * Three storage classes, chosen by how the container is *read* (action E3):
      *
-     *  - `types`: a `std::vector`, because the hot `equal`/`hash_of` intern scan
-     *    indexes it constantly and a `std::deque` there cost ~27 % user time on
-     *    the main suite. Only the opaque `TypeId` escapes it (see the note on
-     *    `get`), so a realloc invalidates nothing a reader legitimately holds.
-     *  - `data`/`fields`: `std::deque`, because they are *cold* (never in the
-     *    intern scan) but hand out element pointers (`field_of`) and are indexed
-     *    by emitters concurrently, so they must not realloc under a reader.
+     *  - `types`: a stable append-only array, because the hot `equal`/`hash_of`
+     *    intern scan indexes it constantly and its records are read lock-free by
+     *    every worker (action E3d).
+     *  - `data`/`fields`: the same stable array, because they hand out element
+     *    pointers (`field_of`) and are indexed by emitters concurrently, so they
+     *    must not realloc under a reader.
      *  - `names`/`field_names`: `MIRBytePool`, because readers hold a raw
      *    `const char*` + length *into* them (see MIRBytePool.h).
      */
-    std::vector<MIRTypeRecord> types;
-    std::deque<TypeId> data;
+    MIRStableArray<MIRTypeRecord> types;
+    MIRStableArray<TypeId> data;
     MIRBytePool names;
-    std::deque<MIRFieldInfo> fields;
+    MIRStableArray<MIRFieldInfo> fields;
     MIRBytePool field_names;
 
     /** Attach a C-emittable name to a (named aggregate) type. */
@@ -170,7 +169,6 @@ struct MIRTypeTable {
         return names.data_at(r.name_offset);
     }
     std::string name_of(TypeId id) const {
-        MIRReadLock lock(mtx_, single_threaded());
         if (id >= types.size()) return {};
         const MIRTypeRecord& r = types[id];
         if (r.name_length == 0) return {};
@@ -184,7 +182,6 @@ struct MIRTypeTable {
      * consume it immediately, which is the contract the pool documents.
      */
     std::string_view name_view(TypeId id) const {
-        MIRReadLock lock(mtx_, single_threaded());
         if (id >= types.size()) return {};
         const MIRTypeRecord& r = types[id];
         if (r.name_length == 0) return {};
@@ -197,9 +194,7 @@ struct MIRTypeTable {
     /** Append a range of fields, returning the start index. */
     uint32_t append_fields(const std::vector<MIRFieldInfo>& fs) {
         MIRWriteLock lock(mtx_, single_threaded());
-        uint32_t off = static_cast<uint32_t>(fields.size());
-        fields.insert(fields.end(), fs.begin(), fs.end());
-        return off;
+        return fields.append(fs.data(), static_cast<uint32_t>(fs.size()));
     }
 
     /**
@@ -247,56 +242,48 @@ struct MIRTypeTable {
     }
 
     MIRFieldInfo* field_of(TypeId agg, uint32_t i) {
-        MIRReadLock lock(mtx_, single_threaded());
         if (agg >= types.size()) return nullptr;
         const MIRTypeRecord& r = types[agg];
         if (r.field_index == MIR_INVALID_ID || i >= r.data_count) return nullptr;
         const uint32_t idx = r.field_index + i;
         if (idx >= fields.size()) return nullptr;
-        // `fields` is a deque, so the returned pointer stays valid after the lock
+        // `fields` is a stable array, so the returned pointer stays valid
         return &fields[idx];
     }
 
     const MIRFieldInfo* field_of(TypeId agg, uint32_t i) const {
-        MIRReadLock lock(mtx_, single_threaded());
         if (agg >= types.size()) return nullptr;
         const MIRTypeRecord& r = types[agg];
         if (r.field_index == MIR_INVALID_ID || i >= r.data_count) return nullptr;
         const uint32_t idx = r.field_index + i;
         if (idx >= fields.size()) return nullptr;
-        // `fields` is a deque, so the returned pointer stays valid after the lock
+        // `fields` is a stable array, so the returned pointer stays valid
         return &fields[idx];
     }
 
     /**
-     * Thread-safe copy of the record (action E3d: no reference escapes into the
-     * reallocating `types` vector while another worker may append to it).
+     * Lock-free copy of the record (action E3d: `types` is an append-only stable
+     * array, so another worker's append never moves the record a reader copies).
      */
     MIRTypeRecord get(TypeId id) const {
-        MIRReadLock lock(mtx_, single_threaded());
         return types[id];
     }
     uint32_t size() const {
-        MIRReadLock lock(mtx_, single_threaded());
-        return static_cast<uint32_t>(types.size());
+        return types.size();
     }
 
     /** Append a range of TypeIds to the shared data pool, returning its offset. */
     uint32_t append_data(const TypeId* ids, uint32_t count) {
         MIRWriteLock lock(mtx_, single_threaded());
-        uint32_t off = static_cast<uint32_t>(data.size());
-        for (uint32_t i = 0; i < count; ++i) data.push_back(ids[i]);
-        return off;
+        return data.append(ids, count);
     }
 
-    /** Thread-safe read of the shared `data` pool (action E3d). */
+    /** Lock-free read of the shared `data` pool (action E3d). */
     TypeId data_at(uint32_t index) const {
-        MIRReadLock lock(mtx_, single_threaded());
         return data[index];
     }
     uint32_t data_size() const {
-        MIRReadLock lock(mtx_, single_threaded());
-        return static_cast<uint32_t>(data.size());
+        return data.size();
     }
 
     /**
@@ -314,19 +301,21 @@ struct MIRTypeTable {
     TypeId intern(const MIRTypeRecord& rec) {
         MIRWriteLock lock(mtx_, single_threaded());
         const uint64_t h = hash_of(rec);
+        const uint32_t n = types.size();
         auto hit = intern_index_.find(h);
-        if (hit != intern_index_.end() && hit->second < types.size() &&
+        if (hit != intern_index_.end() && hit->second < n &&
             equal(types[hit->second], rec)) {
             return hit->second;
         }
-        for (uint32_t i = 0; i < types.size(); ++i) {
-            if (equal(types[i], rec)) {
-                intern_index_[h] = i;
-                return i;
-            }
+        const uint32_t found = types.find_writer([this, &rec](const MIRTypeRecord& r) {
+            return equal(r, rec);
+        });
+        if (found != MIRStableArray<MIRTypeRecord>::kNotFound) {
+            intern_index_[h] = found;
+            return found;
         }
         types.push_back(rec);
-        const TypeId id = static_cast<TypeId>(types.size() - 1);
+        const TypeId id = static_cast<TypeId>(n);
         intern_index_[h] = id;
         return id;
     }
@@ -402,8 +391,9 @@ struct MIRTypeTable {
 
 private:
     MIRTableLockPolicy lock_policy_;
-    /** Guards reads and the mutators (action E1/E3d: shared interning under
-     *  parallel lowering). Readers take a shared lock, mutators an exclusive one. */
+    /** Guards the mutators only (action E1/E3d): readers are lock-free against
+     *  the stable arrays/byte pool, so the exclusive lock is only needed to
+     *  serialize appends when more than one lowering worker runs. */
     mutable std::shared_mutex mtx_;
 };
 

@@ -328,6 +328,18 @@ Value* single_return_expr(Scope& body) {
     return found;
 }
 
+/**
+ * A bridged AST value (its field-name keys, a bridged string) outlives the
+ * comptime driver and its module byte pool / local string cells: the driver is a
+ * local in the lowering pass, while `codegen` reads the value afterwards. A view
+ * into `field_names` (or into a caller-local `std::string`) would therefore
+ * dangle — and be clobbered when the next driver reuses the pool's blocks — so
+ * copy the bytes into the AST allocator, which lives until the AST is destroyed.
+ */
+chem::string_view stable_name(const MIRComptimeContext& ctx, const char* data, uint32_t len) {
+    return chem::string_view(ctx.allocator->allocate_str(data, len), len);
+}
+
 /** Read a scalar field of MIR type `r` at `p` back into an AST value. */
 Value* read_scalar_value(const MIRComptimeContext& ctx, const MIRTypeRecord& r,
                          const uint8_t* p, SourceLocation loc,
@@ -375,7 +387,8 @@ Value* read_scalar_value(const MIRComptimeContext& ctx, const MIRTypeRecord& r,
                 auto it = cells->find(v);
                 if (it != cells->end()) {
                     return new (ctx.allocator->allocate<StringValue>())
-                        StringValue(chem::string_view(it->second.data(), it->second.size()),
+                        StringValue(stable_name(ctx, it->second.data(),
+                                                static_cast<uint32_t>(it->second.size())),
                                     ctx.type_builder->getStringType(), loc);
                 }
             }
@@ -501,7 +514,7 @@ Value* read_struct_value(const MIRComptimeContext& ctx, MIRTypeBuilder& types, M
     for (uint32_t i = 0; i < rec.data_count; ++i) {
         const MIRFieldInfo& fi = module.types.fields[rec.field_index + i];
         const char* nm = module.types.field_names.data_at(fi.name_offset);
-        const chem::string_view name(nm, fi.name_length);
+        const chem::string_view name = stable_name(ctx, nm, fi.name_length);
         const MIRTypeRecord fr = module.types.get(fi.type);
         BaseType* member_type = nullptr;
         for (auto* v : container->variables()) {
@@ -537,7 +550,7 @@ Value* read_union_value(const MIRComptimeContext& ctx, MIRTypeBuilder& types, MI
     // the active member is the first one in the values we bridge
     const MIRFieldInfo& fi = module.types.fields[rec.field_index];
     const char* nm = module.types.field_names.data_at(fi.name_offset);
-    const chem::string_view name(nm, fi.name_length);
+    const chem::string_view name = stable_name(ctx, nm, fi.name_length);
     BaseType* member_type = nullptr;
     for (auto* v : container->variables()) {
         if (v && v->name == name) { member_type = v->known_type(); break; }

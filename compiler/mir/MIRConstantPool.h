@@ -8,6 +8,7 @@
 
 #include "MIRTypes.h"
 #include "MIRBytePool.h"
+#include "MIRStableArray.h"
 #include "MIRTableLock.h"
 
 #include <cstdint>
@@ -42,21 +43,19 @@ struct MIRConstantPool {
     void set_single_threaded(bool v) noexcept { lock_policy_.set_single_threaded(v); }
     bool single_threaded() const noexcept { return lock_policy_.single_threaded(); }
     /** `data` (the payload bytes) is reference-stable on append (action E3,
-     * see MIRBytePool.h); `constants` stays a vector since ids, not references,
-     * escape it. */
-    std::vector<MIRConstant> constants;
+     * see MIRBytePool.h); `constants` is a stable append-only array so readers
+     * need no lock (action E3d). */
+    MIRStableArray<MIRConstant> constants;
     MIRBytePool data;
     /** hash -> a representative constant id (see `add`) */
     std::unordered_map<uint64_t, ConstantId> index_;
 
-    /** Thread-safe copy of the record (action E3d: no reference escapes). */
+    /** Lock-free copy of the record (action E3d). */
     MIRConstant get(ConstantId id) const {
-        MIRReadLock lock(mtx_, single_threaded());
         return constants[id];
     }
     uint32_t size() const {
-        MIRReadLock lock(mtx_, single_threaded());
-        return static_cast<uint32_t>(constants.size());
+        return constants.size();
     }
 
     /**
@@ -170,25 +169,28 @@ private:
     /** The intern body; the caller must hold `mtx_`. */
     ConstantId add_unlocked(const MIRConstant& c) {
         const uint64_t h = hash_of(c);
+        const uint32_t n = constants.size();
         auto hit = index_.find(h);
-        if (hit != index_.end() && hit->second < constants.size() &&
-            matches(constants[hit->second], c)) {
+        if (hit != index_.end() && hit->second < n && matches(constants[hit->second], c)) {
             return hit->second;
         }
-        for (uint32_t i = 0; i < constants.size(); ++i) {
-            if (matches(constants[i], c)) {
-                index_[h] = i;
-                return i;
-            }
+        const uint32_t found = constants.find_writer([this, &c](const MIRConstant& r) {
+            return matches(r, c);
+        });
+        if (found != MIRStableArray<MIRConstant>::kNotFound) {
+            index_[h] = found;
+            return found;
         }
         constants.push_back(c);
-        const ConstantId id = static_cast<ConstantId>(constants.size() - 1);
+        const ConstantId id = static_cast<ConstantId>(n);
         index_[h] = id;
         return id;
     }
 
     MIRTableLockPolicy lock_policy_;
-    /** Guards the mutators (action E1: shared interning under parallel lowering). */
+    /** Guards the mutators only (action E1/E3d): readers are lock-free against
+     *  the stable array/byte pool, so the exclusive lock only serializes appends
+     *  when more than one lowering worker runs. */
     mutable std::shared_mutex mtx_;
 };
 

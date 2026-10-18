@@ -264,6 +264,72 @@ difference.
 prototype/vtable spellers, `MIRLowerAsync`'s per-async-function declaration
 concatenations, the `InlineAsm` operand list, and `MIRComptime`'s name maps.
 
+### Session 55 (2026-10-18) — E3d landed: lock-free stable tables + parallel lowering is a net win
+
+The last blocker on E3d was the reader lock itself. E1/E3a/E3c made every table
+*stable* under an append, but a reader still took a `std::shared_mutex` shared
+lock so it would not race a realloc; under parallel lowering that hot lock's
+refcount (one cache line) serialized the workers and made the phase a net loss.
+
+**`compiler/mir/MIRStableArray.h`** — an append-only array whose elements never
+move and whose reads take **no lock**. Storage is block-chunked (`new T[1024]`
+blocks, never freed until destruction), so `&arr[i]`, a `MIRFieldInfo*` and a
+`const char*` into a pooled string stay valid across any later append — the
+identity guarantee the old `std::deque` gave. The block pointers live in a small
+map published through an atomic pointer; growing the map copies the pointers and
+*retains* the old map, so a reader that loaded an older map still finds every
+block it could hold an id for. A reader is two atomic loads; a writer-input scan
+(`find_writer`, the intern fallback) pays the indirection once per block.
+
+- `MIRTypeTable::types`/`data`/`fields`, `MIRConstantPool::constants`,
+  `MIRSymbolTable::symbols` and `MIRBytePool::entries` became `MIRStableArray`.
+  Every read path (`get`, `size`, `name_of`/`name_view`, `data_at`, `field_of`,
+  `name_data`, `data_at`/`text`) is now lock-free; only the mutators take the
+  exclusive write lock, and only when the table is not single-threaded.
+- The parallel phase already scopes `module.set_single_threaded(false)` around
+  the worker run and back to `true` after the join, so a module that never enters
+  it pays no lock at all. `MIRReadLock` is now unused.
+- **A copy-on-grow design was tried first and rejected:** publishing a fresh flat
+  buffer on growth breaks element *identity* — a caller holding a `MIRFieldInfo&`
+  across a growth reads the old buffer — and failed comptime tests 714/715
+  deterministically. Chunked storage (elements fixed in place) is required.
+
+**The storage change exposed a latent bridge lifetime bug (fixed here).** The
+comptime driver's `MIRModule` is a local in the lowering pass, but the AST values
+it bridges back (`StructValue::values` keys, a bridged `*char` string) were
+`chem::string_view`s pointing *into* the driver's `field_names` pool (or a
+caller-local `std::string`). `codegen` reads those values after the driver is
+gone, so the keys dangled; `std::deque`'s freed chunks kept the bytes alive by
+luck, while the stable array's blocks are reused in place by the next driver and
+clobbered them deterministically. `MIRComptime`'s `read_struct_value`/
+`read_union_value`/`read_scalar_value` now copy the bytes into the AST allocator
+(`stable_name` → `BatchAllocator::allocate_str`, lived until the AST dies), which
+is the correct lifetime.
+
+**Pre-lowering also had to restore declaration-before-body ordering.** A body's
+`#html`/macro lowering reads signatures the top-level embedded declarations
+publish — a `#styled` wrap's generated class name is the concrete case (the
+`styled_wrap_owns_css_linked_to_element` plugin test). The serial pass resolves
+each declaration at its source slot, so a later body sees the signature
+populated; pre-lowering a body ahead of that slot ran its `#html` conversion
+against a half-initialized signature (the declaration-only replacement had run,
+the full one had not) and dropped the wrapper class. `mir_presolve_embedded_decls`
+now resolves the top-level embedded declarations first, and `process_nodes`
+reuses those replacements so the side-effecting macro still runs exactly once.
+
+**Measurements** (main suite, `--mode debug_complete --no-cache`, loaded 12-core
+box, min of alternating runs): serial min wall 3.21 s / user ~4.03 s / RSS
+~57 MB; parallel min wall **2.71 s** / user ~4.05 s / RSS ~61 MB → **wall −15 %,
+user unchanged, RSS +~7 %**.
+
+**Output-invariant.** Emitted C for a 40-function module is byte-identical
+(normalizing GEP temps) across `CHEM_MIR_LOWER_WORKERS=1` and `=8`, and against
+the pre-change serial binary.
+
+**Verification.** `--tcc` **2307/2307** · `--llvm` **2305/2305** ·
+`--tcc --interpret` **1896/1896** · `--tcc --async` **53/53** ·
+`--tcc --plugins` **1296/1296** · `MIRTests` **4489 checks**.
+
 ### Session 54 (2026-10-18) — shared traversal, operand decode and naming (action B)
 
 The last "still open in B" architectural item was the walk and the lookups
@@ -935,12 +1001,10 @@ pools are stable (E3a), the pointer-handing element pools are stable deques
 - **Verification.** `MIRTests` 4400 checks OK; `--tcc` **2305/2305**; `--llvm`
   **2303/2303**; `--tcc --libs` **718/719**; emitted C invariant (94 < 136).
 
-Next per §2E: **E3d** — the threshold-gated pool with a slot-direct merge. That
-is the one step that needs the worker machinery *and* the per-worker `MIRLowerer`
-state (`c_visitor` mutations — `current_func_type`, `iface->active_user`, the
-mangler) moved off the shared context, and the plan sequences it after the
-release-build re-measure (M1). Landing it without a measured win is the
-"unmeasured churn" this document rejects.
+Next per §2E: **E3d — landed (session 55).** The threshold-gated worker run with
+the lock-free stable tables and the ordered merge is live; parallel lowering is
+now a measured net win (wall −15 %, user unchanged). See session 55 for the
+lifetime bug the storage change exposed and how it was fixed.
 
 ### Session 31 (2026-10-15) — E1: shared interning is thread-safe
 

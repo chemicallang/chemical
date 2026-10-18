@@ -3,23 +3,19 @@
 // Lock policy for the shared module tables (`MIRTypeTable`, `MIRConstantPool`,
 // `MIRSymbolTable`).
 //
-// Those tables support several lowering workers interning concurrently (action
-// E1), so every access takes a `std::shared_mutex`. That is required when the
-// pipeline really is parallel — but the shipping pipeline is single-writer: one
-// thread lowers and emits, so the lock is pure overhead on the hottest lookups
-// (a type/constant read per emitted operand, a type intern per lowered
-// expression).
-//
-// A table is therefore told, once, whether its owner guarantees a single
-// *writer* thread (`MIRTableLockPolicy::set_single_threaded`). Concurrent
-// *readers* are always fine: the flag says "no other thread mutates", so a
-// reader may skip the lock whenever it holds. Mutation still uses the mutex
-// whenever the flag is off, so an accidentally-parallel caller keeps the old
-// (correct) behaviour rather than racing.
+// Reads of those tables are lock-free against their stable storage (action E3d,
+// see MIRStableArray.h / MIRBytePool.h): a reader never races an append. Only
+// *mutation* (interning, appending a field/payload) needs exclusion, and only
+// when more than one lowering worker runs. A table is therefore told, once,
+// whether its owner guarantees a single *writer* thread
+// (`MIRTableLockPolicy::set_single_threaded`); when it does, the mutators skip
+// the lock entirely. When it does not, the mutators take the exclusive lock, so
+// an accidentally-parallel caller keeps the old (correct) behaviour.
 
 #pragma once
 
 #include <atomic>
+#include <mutex>
 #include <shared_mutex>
 
 namespace mir {

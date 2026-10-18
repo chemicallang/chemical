@@ -8,6 +8,7 @@
 
 #include "MIRTypes.h"
 #include "MIRBytePool.h"
+#include "MIRStableArray.h"
 #include "MIRTableLock.h"
 
 #include <cstdint>
@@ -51,18 +52,17 @@ struct MIRSymbolTable {
     void set_single_threaded(bool v) noexcept { lock_policy_.set_single_threaded(v); }
     bool single_threaded() const noexcept { return lock_policy_.single_threaded(); }
     /** `names` is reference-stable on append (action E3, see MIRBytePool.h);
-     * `symbols` stays a vector since only opaque ids escape it. */
-    std::vector<MIRSymbolRecord> symbols;
+     * `symbols` is a stable append-only array so readers need no lock (action
+     * E3d). */
+    MIRStableArray<MIRSymbolRecord> symbols;
     MIRBytePool names;
 
-    /** Thread-safe copy of the record (action E3d: no reference escapes). */
+    /** Lock-free copy of the record (action E3d). */
     MIRSymbolRecord get(SymbolId id) const {
-        MIRReadLock lock(mtx_, single_threaded());
         return symbols[id];
     }
     uint32_t size() const {
-        MIRReadLock lock(mtx_, single_threaded());
-        return static_cast<uint32_t>(symbols.size());
+        return symbols.size();
     }
     /** Set a symbol's type under the lock (the function-signature back-patch). */
     void set_type(SymbolId id, TypeId type) {
@@ -78,10 +78,8 @@ struct MIRSymbolTable {
      * mutex-guarded, so several lowering workers can intern concurrently. The
      * ids/records are *not* deduplicated — the backends match symbols by mangled
      * name, not by id (see `mangled_name`), so duplicate ids for one name are
-     * already tolerated. Readers must consume a `get`/`mangled_name` result
-     * without an intervening `add` on another thread reallocating the pools;
-     * callers that lower and emit in the same thread (the planned worker model)
-     * satisfy this.
+     * already tolerated. The stable array/byte pool (action E3d) keep a record a
+     * reader already holds valid across a concurrent `add`.
      */
     SymbolId add(MIRSymbolRecord r,
                  const char* name, uint32_t name_len,
@@ -128,7 +126,9 @@ struct MIRSymbolTable {
 
 private:
     MIRTableLockPolicy lock_policy_;
-    /** Guards `add`/`clear` (action E1: shared interning under parallel lowering). */
+    /** Guards the mutators only (action E1/E3d): readers are lock-free against
+     *  the stable array/byte pool, so the exclusive lock only serializes appends
+     *  when more than one lowering worker runs. */
     mutable std::shared_mutex mtx_;
 };
 

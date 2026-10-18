@@ -67,7 +67,7 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
             TypeId vt = types_.map(vi->known_type());
             PlaceId place = MIR_INVALID_ID;
             if (async_) {
-                const std::string rf = async_resident_field(vi);
+                const MIRNumberedName rf = async_resident_field(vi);
                 if (!rf.empty()) {
                     const ConstantId fc = module_.constants.add_string(
                         MIR_INVALID_ID, rf.data(), static_cast<uint32_t>(rf.size()));
@@ -1169,7 +1169,8 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
         }
         case ASTNodeKind::InlineAsmStmt: {
             auto* ia = node->as_inline_asm_unsafe();
-            std::vector<MIROperand> ops;
+            MIRArgScope _ops_scope(*this);
+            std::vector<MIROperand>& ops = _ops_scope.v;
             const ConstantId tmpl = module_.constants.add_string(
                 MIR_INVALID_ID, ia->asm_template.data(),
                 static_cast<uint32_t>(ia->asm_template.size()));
@@ -1881,7 +1882,9 @@ bool MIRLowerer::lower_for_in(ForInLoop* loop, std::string& error) {
         module_.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Ne));
     const ValueId one32 = builder_->const_int(u32t, module_.constants.add_int(u32t, 1));
     static uint64_t s_forin_counter = 0;
-    const std::string uniq = std::to_string(s_forin_counter++);
+    // the loop counter, spelled once into a stack buffer: every cursor name
+    // built from it is only bound as a lowering name (a map key)
+    const uint64_t uniq = s_forin_counter++;
 
     auto emit_idx_step = [&](bool increment) {
         if (idx_place == MIR_INVALID_ID) return;
@@ -2067,8 +2070,8 @@ bool MIRLowerer::lower_for_in(ForInLoop* loop, std::string& error) {
         if (begin_fd && valid_fd && current_fd && next_fd) {
             const TypeId cursor_t = types_.map(begin_fd->returnType);
             const PlaceId cursor_place = builder_->alloca(cursor_t, MIRStorageClass::Temporary);
-            std::string cursor_name = "__chx_forin_chunk_cursor_" + uniq;
-            bind_name(chem::string_view(cursor_name.data(), cursor_name.size()), cursor_place);
+            const MIRNumberedName cursor_name("__chx_forin_chunk_cursor_", uniq);
+            bind_name(cursor_name.view(), cursor_place);
             MIRExprResult br = call_method_values(begin_fd, recv_place, expr_c, {}, error);
             if (!br.ok()) return false;
             if (!store_ptr(cursor_place, br, cursor_t)) return false;
@@ -2203,8 +2206,8 @@ bool MIRLowerer::lower_for_in(ForInLoop* loop, std::string& error) {
         }
         const TypeId cursor_t = types_.map(begin_fd->returnType);
         const PlaceId cursor_place = builder_->alloca(cursor_t, MIRStorageClass::Temporary);
-        std::string cursor_name = "__chx_forin_cursor_" + uniq;
-        bind_name(chem::string_view(cursor_name.data(), cursor_name.size()), cursor_place);
+        const MIRNumberedName cursor_name("__chx_forin_cursor_", uniq);
+        bind_name(cursor_name.view(), cursor_place);
         MIRExprResult br = call_method_values(begin_fd, recv_place, expr_c, {}, error);
         if (!br.ok()) return false;
         if (!store_ptr(cursor_place, br, cursor_t)) return false;

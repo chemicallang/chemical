@@ -175,7 +175,8 @@ ConstExprId MIRLowerer::build_const_expr(Value* value) {
 
 ConstExprId MIRLowerer::build_const_array(ArrayValue* av) {
     const TypeId t = (av && av->getType()) ? types_.map(av->getType()) : MIR_INVALID_ID;
-    std::vector<MIRConstChild> kids;
+    MIRScratch<MIRConstChild> _kids(*this);
+    std::vector<MIRConstChild>& kids = _kids.v;
     if (av) {
         kids.reserve(av->values.size());
         for (Value* v : av->values) {
@@ -190,7 +191,8 @@ ConstExprId MIRLowerer::build_const_array(ArrayValue* av) {
 ConstExprId MIRLowerer::build_const_struct_default(StructDefinition* sd) {
     if (!sd) return module_.const_exprs.add_zero(MIR_INVALID_ID);
     const TypeId t = sd->known_type() ? types_.map(sd->known_type()) : MIR_INVALID_ID;
-    std::vector<MIRConstChild> kids;
+    MIRScratch<MIRConstChild> _kids(*this);
+    std::vector<MIRConstChild>& kids = _kids.v;
     auto add = [&](const chem::string_view& name, ConstExprId id) {
         MIRConstChild c;
         c.expr = id;
@@ -216,7 +218,8 @@ ConstExprId MIRLowerer::build_const_struct_default(StructDefinition* sd) {
 
 ConstExprId MIRLowerer::build_const_struct_value(StructValue* sv) {
     const TypeId t = (sv && sv->getType()) ? types_.map(sv->getType()) : MIR_INVALID_ID;
-    std::vector<MIRConstChild> kids;
+    MIRScratch<MIRConstChild> _kids(*this);
+    std::vector<MIRConstChild>& kids = _kids.v;
     auto add = [&](const chem::string_view& name, ConstExprId id) {
         MIRConstChild c;
         c.expr = id;
@@ -260,7 +263,8 @@ ConstExprId MIRLowerer::build_const_variant(VariantMember* vm, FunctionCall* cal
     const long idx = vd ? vd->direct_child_index(vm->name) : 0;
     const TypeId t = (call && call->getType()) ? types_.map(call->getType()) : MIR_INVALID_ID;
     const std::string case_name(vm->name.data(), vm->name.size());
-    std::vector<MIRConstChild> kids;
+    MIRScratch<MIRConstChild> _kids(*this);
+    std::vector<MIRConstChild>& kids = _kids.v;
     auto add = [&](const std::string& name, ConstExprId id) {
         MIRConstChild c;
         c.expr = id;
@@ -301,7 +305,8 @@ ConstExprId MIRLowerer::build_const_variant_bare(VariantMember* vm, BaseType* ty
     VariantDefinition* vd = vm->parent();
     const long idx = vd ? vd->direct_child_index(vm->name) : 0;
     const TypeId t = type ? types_.map(type) : MIR_INVALID_ID;
-    std::vector<MIRConstChild> kids;
+    MIRScratch<MIRConstChild> _kids(*this);
+    std::vector<MIRConstChild>& kids = _kids.v;
     auto add = [&](const char* name, uint32_t len, ConstExprId id) {
         MIRConstChild c;
         c.expr = id;

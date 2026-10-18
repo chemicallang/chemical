@@ -46,6 +46,17 @@ std::string c_type_of(const MIRModule& module, TypeId type);
 void append_c_type_of(const MIRModule& module, TypeId type, std::string& out);
 void append_c_declarator(const MIRModule& module, TypeId type, std::string_view name,
                          std::string& out);
+/**
+ * `append_c_declarator` for a `name` that lives in `decl_scratch(0)`: starts at
+ * scratch depth 1 so the nested declarators of `type` (which acquire slot 0 at
+ * depth 0) cannot clobber the buffer `name` points into.
+ */
+void append_c_declarator_scratched(const MIRModule& module, TypeId type, std::string_view name,
+                                   std::string& out);
+void append_c_decl_type(const MIRModule& module, TypeId type, std::string_view name,
+                        std::string& out);
+void append_c_function_proto(const MIRModule& module, TypeId function_type,
+                             std::string_view name, std::string& out);
 
 /**
  * C declarator for an entity named `name` of MIR type `type`. Handles
@@ -54,6 +65,7 @@ void append_c_declarator(const MIRModule& module, TypeId type, std::string_view 
  * emitter so prototypes and definitions spell types identically.
  */
 std::string c_decl_type(const MIRModule& module, TypeId type, std::string_view name);
+
 
 /**
  * Full C declarator for `name` of type `type`, handling arrays and

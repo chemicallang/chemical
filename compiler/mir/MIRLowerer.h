@@ -53,6 +53,7 @@ class LambdaFunction;
 class CapturedVariable;
 class ExtractionValue;
 class FunctionTypeBody;
+class FunctionType;
 class CapturingFunctionType;
 class BaseType;
 class ForInLoop;
@@ -97,25 +98,73 @@ struct MIRExprResult {
  * names beats `std::set<std::string>`, which heap-allocates a node and copies
  * every name. The views point into AST-owned storage that outlives the
  * surrounding lowering call, so no ownership is needed.
+ *
+ * The first `k_inline` names live in the object itself: one of these is built
+ * (and copied) for every struct literal, and a `std::vector` would allocate
+ * twice for even a two-field struct. Only a struct with more fields than
+ * `k_inline` touches the heap.
  */
 struct MIRFieldNameSet {
-    std::vector<chem::string_view> names;
+    static constexpr uint32_t k_inline = 8;
+    chem::string_view inline_names[k_inline];
+    uint32_t count = 0;
+    std::vector<chem::string_view> overflow;
 
-    void insert(const chem::string_view& n) { names.push_back(n); }
+    void insert(const chem::string_view& n) {
+        if (count < k_inline) {
+            inline_names[count++] = n;
+            return;
+        }
+        overflow.push_back(n);
+    }
     bool contains(const chem::string_view& n) const {
-        for (const chem::string_view& x : names) {
+        for (uint32_t i = 0; i < count; ++i) {
+            if (inline_names[i] == n) return true;
+        }
+        for (const chem::string_view& x : overflow) {
             if (x == n) return true;
         }
         return false;
     }
+    /** Only membership matters, so the erased slot is filled from the back. */
     void erase(const chem::string_view& n) {
-        for (auto it = names.begin(); it != names.end(); ++it) {
+        for (uint32_t i = 0; i < count; ++i) {
+            if (inline_names[i] == n) {
+                inline_names[i] = inline_names[--count];
+                return;
+            }
+        }
+        for (auto it = overflow.begin(); it != overflow.end(); ++it) {
             if (*it == n) {
-                names.erase(it);
+                overflow.erase(it);
                 return;
             }
         }
     }
+};
+
+/**
+ * One reused buffer per nesting level. A lowering pass that needs a temporary
+ * list acquires one for its scope and gives it back on exit, so after warm-up
+ * the buffer keeps its capacity instead of heap-allocating per node. Indexed by
+ * a depth counter, so a nested acquisition (a call inside an argument) takes a
+ * deeper slot and cannot clobber an outer buffer. `std::deque`, so acquiring
+ * cannot invalidate an outer buffer's address.
+ */
+template <class T>
+class MIRScratchPool {
+public:
+    std::vector<T>& acquire() {
+        if (depth_ == bufs_.size()) bufs_.emplace_back();
+        std::vector<T>& v = bufs_[depth_++];
+        v.clear();
+        return v;
+    }
+    void release() { --depth_; }
+
+private:
+    std::deque<std::vector<T>> bufs_;
+    size_t depth_ = 0;
 };
 
 /** A view over any of the name spellings the maps are keyed/looked up by. */
@@ -152,6 +201,7 @@ struct MIRStringEq {
  * owned by each worker (or created per function).
  */
 struct MIRArgScope;
+template <class T> struct MIRScratch;
 
 /**
  * Comptime parameters of the inlined callee, keyed by name. Transparent
@@ -161,9 +211,50 @@ struct MIRArgScope;
 using MIRComptimeBindings =
     std::unordered_map<std::string, Value*, MIRStringHash, MIRStringEq>;
 
+/**
+ * `prefix` immediately followed by a decimal number, spelled into a stack
+ * buffer.
+ *
+ * Every name MIR invents for a frame field, a cursor or a drop flag is copied
+ * straight into a module byte pool (or used as a lookup key) and then thrown
+ * away, so a `std::string` per name is pure waste — and these names are built
+ * per async slot per await site, and per loop. `data()`/`size()` feed both a
+ * `chem::string_view` and the `add_string(_, data, size)` spelling; a default
+ * constructed value is the "no name" case (`empty()`).
+ *
+ * The buffer holds 48 bytes: the longest prefix used
+ * (`__chx_forin_chunk_cursor_`) plus 20 digits still fits.
+ */
+struct MIRNumberedName {
+    char bytes[48];
+    uint32_t len = 0;
+
+    MIRNumberedName() = default;
+
+    MIRNumberedName(const char* prefix, uint64_t n) {
+        while (prefix[len] != '\0') {
+            bytes[len] = prefix[len];
+            ++len;
+        }
+        char digits[20];
+        int dn = 0;
+        do {
+            digits[dn++] = static_cast<char>('0' + (n % 10));
+            n /= 10;
+        } while (n);
+        while (dn) bytes[len++] = digits[--dn];
+    }
+
+    bool empty() const { return len == 0; }
+    const char* data() const { return bytes; }
+    uint32_t size() const { return len; }
+    chem::string_view view() const { return chem::string_view(bytes, len); }
+};
+
 class MIRLowerer {
 public:
     friend struct MIRArgScope;
+    template <class T> friend struct MIRScratch;
     MIRLowerer(MIRModule& module, MIRTypeBuilder& types)
         : module_(module), types_(types) {}
 
@@ -301,6 +392,7 @@ public:
         mangler_ = o.mangler_;
         mangler_into_ = o.mangler_into_;
         vtable_mangler_ = o.vtable_mangler_;
+        vtable_mangler_into_ = o.vtable_mangler_into_;
         comptime_if_resolver_ = o.comptime_if_resolver_;
         comptime_eval_ = o.comptime_eval_;
         comptime_value_eval_ = o.comptime_value_eval_;
@@ -322,6 +414,15 @@ public:
     /** Mangler for a dynamic-dispatch vtable global (interface + impl type). */
     void set_vtable_mangler(std::function<std::string(ASTNode*, BaseType*)> fn) {
         vtable_mangler_ = std::move(fn);
+    }
+    /**
+     * Append-style vtable mangler (see `vtable_mangle`), preferred over
+     * `set_vtable_mangler` when both are set — the string-returning form
+     * allocates a `std::string` per `dyn<T>` value lowered.
+     */
+    void set_vtable_mangler_into(
+        std::function<void(ASTNode*, BaseType*, std::string&)> fn) {
+        vtable_mangler_into_ = std::move(fn);
     }
 
     /** Resolve the taken scope of a `comptime if` (evaluated by the interpreter). */
@@ -522,6 +623,11 @@ private:
      */
     void clear_moved_ref(Value* value);
     PlaceId resolve_place(Value* v, std::string& error);
+    /**
+     * `resolve_place` for a caller that only needs the yes/no answer and
+     * discards the message — it builds no diagnostic string on the miss path.
+     */
+    PlaceId resolve_place_silent(Value* v);
     /** Like resolve_place, but also lowers call results to their temporary place. */
     PlaceId resolve_place_or_lower(Value* v, std::string& error);
     /** Resolve an extension method by name on the receiver's canonical container. */
@@ -536,6 +642,12 @@ private:
     SymbolId intern_method_function(FunctionDeclaration* decl, BaseType* recv_type);
     MIRExprResult lower_address_of(Value* inner, std::string& error);
     bool member_name(Value* v, std::string& out, std::string& error);
+    /**
+     * The member name a `Value` names, as a view into AST-owned storage (empty
+     * when it does not name a member). Use this on paths that only compare or
+     * hash the name — `member_name` copies it into a `std::string`.
+     */
+    chem::string_view member_name_view(Value* v);
     /** Resolve a (possibly inherited) member to its dotted C field path. */
     bool member_field_path(Value* base, Value* member, std::string& out, std::string& error);
     /**
@@ -545,10 +657,15 @@ private:
     FunctionParam* aggregate_param_operand(Value* v);
     bool lower_call_args(const std::vector<Value*>& values, std::vector<MIROperand>& args,
                          std::string& error);
+    /**
+     * Lower a call's arguments. `ast_fn` is the call's AST function type for an
+     * indirect call (null for a direct one): it supplies the parameter types,
+     * which decide by-value vs by-reference argument handling. Passed as the
+     * AST node itself, so no per-call `std::vector<BaseType*>` is built.
+     */
     bool lower_call_args_for(FunctionDeclaration* fd, bool self_included,
                              const std::vector<Value*>& values, std::vector<MIROperand>& args,
-                             std::string& error,
-                             const std::vector<BaseType*>* extra_params = nullptr);
+                             std::string& error, const FunctionType* ast_fn = nullptr);
     MIRExprResult lower_arg_converted(Value* arg, BaseType* param_type, std::string& error);
     bool push_call_arg(MIRExprResult r, std::vector<MIROperand>& args, std::string& error);
     void destroy_call_temps(std::string& error);
@@ -689,10 +806,10 @@ private:
     void async_emit_spill(const struct AwaitSite& site);
     void async_emit_reload(const struct AwaitSite& site);
     void async_emit_pending_return();
-    std::string async_slot_field(unsigned id) const;
-    std::string async_child_field(unsigned id) const;
-    std::string async_drop_flag_field(unsigned id) const;
-    std::string async_resident_field(ASTNode* node) const;
+    MIRNumberedName async_slot_field(unsigned id) const;
+    MIRNumberedName async_child_field(unsigned id) const;
+    MIRNumberedName async_drop_flag_field(unsigned id) const;
+    MIRNumberedName async_resident_field(ASTNode* node) const;
     PlaceId async_resident_place(ASTNode* node) const;
 
     SymbolId intern_function(FunctionDeclaration* decl);
@@ -723,7 +840,15 @@ private:
     struct ScopeUndo {
         uint8_t kind = 0;   // 0 var_places_, 1 name_places_, 2 comptime
         ASTNode* node = nullptr;
-        std::string name;
+        /**
+         * A view of the *map's own key* (kinds 1/2), not a copy: a binding is
+         * journalled for every local declared inside a splice/loop body, and
+         * `std::unordered_map` keeps element addresses stable across rehash, so
+         * undo can use the view and erase by iterator without reading it after
+         * the element dies. A copy per binding would double the cost of the
+         * journal.
+         */
+        chem::string_view name;
         bool existed = false;
         PlaceId place = MIR_INVALID_ID;
         Value* cval = nullptr;
@@ -735,15 +860,26 @@ private:
     PlaceId place_for_linked(ASTNode* linked) const;
     void bind(ASTNode* linked, PlaceId place) {
         MIR_OP(place_bind);
-        if (scope_journal_) {
-            ScopeUndo u;
-            u.kind = 0;
-            u.node = linked;
-            auto it = var_places_.find(linked);
-            if (it != var_places_.end()) { u.existed = true; u.place = it->second; }
-            scope_undo_.push_back(std::move(u));
+        auto it = var_places_.find(linked);
+        if (it == var_places_.end()) {
+            var_places_.emplace(linked, place);
+            if (scope_journal_) {
+                ScopeUndo u;
+                u.kind = 0;
+                u.node = linked;
+                scope_undo_.push_back(std::move(u));
+            }
+        } else {
+            if (scope_journal_) {
+                ScopeUndo u;
+                u.kind = 0;
+                u.node = linked;
+                u.existed = true;
+                u.place = it->second;
+                scope_undo_.push_back(std::move(u));
+            }
+            it->second = place;
         }
-        var_places_[linked] = place;
     }
     /**
      * Mangle `n` into a reused buffer and return it. Valid until the next
@@ -754,6 +890,16 @@ private:
         if (mangler_into_) mangler_into_(n, mangle_buf_);
         else if (mangler_) mangle_buf_ = mangler_(n);
         return mangle_buf_;
+    }
+    /**
+     * Mangle the vtable global of `iface` for `impl_type` into a reused buffer.
+     * Valid until the next `vtable_mangle` call — use it immediately.
+     */
+    const std::string& vtable_mangle(ASTNode* iface, BaseType* impl_type) {
+        vtable_mangle_buf_.clear();
+        if (vtable_mangler_into_) vtable_mangler_into_(iface, impl_type, vtable_mangle_buf_);
+        else if (vtable_mangler_) vtable_mangle_buf_ = vtable_mangler_(iface, impl_type);
+        return vtable_mangle_buf_;
     }
 public:
     /**
@@ -843,16 +989,30 @@ private:
     void bind_name(const chem::string_view& name, PlaceId place) {
         if (name.empty()) return;
         MIR_OP(name_bind);
-        std::string key(name.data(), name.size());
-        if (scope_journal_) {
-            ScopeUndo u;
-            u.kind = 1;
-            u.name = key;
-            auto it = name_places_.find(name);
-            if (it != name_places_.end()) { u.existed = true; u.place = it->second; }
-            scope_undo_.push_back(std::move(u));
+        // Look up with the view and insert the key in place: a re-binding (every
+        // local inside a loop body, on every iteration) allocates nothing, and a
+        // fresh binding pays exactly one allocation — the map key — instead of
+        // one for a temporary key plus another for the copy inside the map.
+        auto it = name_places_.find(name);
+        if (it == name_places_.end()) {
+            it = name_places_.emplace(std::string(name.data(), name.size()), place).first;
+            if (scope_journal_) {
+                ScopeUndo u;
+                u.kind = 1;
+                u.name = chem::string_view(it->first.data(), it->first.size());
+                scope_undo_.push_back(std::move(u));
+            }
+        } else {
+            if (scope_journal_) {
+                ScopeUndo u;
+                u.kind = 1;
+                u.name = chem::string_view(it->first.data(), it->first.size());
+                u.existed = true;
+                u.place = it->second;
+                scope_undo_.push_back(std::move(u));
+            }
+            it->second = place;
         }
-        name_places_[key] = place;
         // Debug-info builds only: remember the source identifier so the LLVM
         // emitter can attach a `DILocalVariable` + `llvm.dbg.declare` to the
         // place's alloca. The common release / debug_quick path pays nothing.
@@ -887,20 +1047,18 @@ private:
     std::unordered_map<FunctionParam*, ValueId> aggregate_param_ptrs_;
     std::vector<std::pair<PlaceId, BaseType*>> call_temps_;
     /**
-     * Pooled operand buffers for call/construction arguments, so lowering a call
-     * does not allocate a fresh `std::vector<MIROperand>` per call site. A deque
-     * so acquiring a nested buffer cannot invalidate an outer buffer's address;
-     * a buffer keeps its capacity across reuse. Driven by `MIRArgScope`.
+     * Pooled buffers for the lists lowering builds per node — call/construction
+     * arguments, function-signature parameter types, constant-tree children — so
+     * none of them allocates a fresh `std::vector` per site. Driven by
+     * `MIRArgScope` / `MIRScratch<T>`; one pool per element type so a nested
+     * acquisition cannot clobber an outer buffer of a different kind.
      */
-    std::deque<std::vector<MIROperand>> arg_pool_;
-    size_t arg_pool_depth_ = 0;
-    std::vector<MIROperand>& acquire_args() {
-        if (arg_pool_depth_ == arg_pool_.size()) arg_pool_.emplace_back();
-        std::vector<MIROperand>& v = arg_pool_[arg_pool_depth_++];
-        v.clear();
-        return v;
-    }
-    void release_args() { --arg_pool_depth_; }
+    MIRScratchPool<MIROperand> arg_pool_;
+    MIRScratchPool<TypeId> type_pool_;
+    MIRScratchPool<MIRConstChild> const_child_pool_;
+
+    /** The scratch pool a `MIRScratch<T>` scope draws its buffer from. */
+    template <class T> MIRScratchPool<T>& scratch_pool();
     struct MIRDestructible {
         PlaceId place;
         PlaceId flag;
@@ -919,6 +1077,16 @@ private:
     /** Reused output for `mangle` (keeps capacity across declarations). */
     std::string mangle_buf_;
     std::function<std::string(ASTNode*, BaseType*)> vtable_mangler_;
+    std::function<void(ASTNode*, BaseType*, std::string&)> vtable_mangler_into_;
+    /** Reused output for `vtable_mangle` (keeps capacity across values). */
+    std::string vtable_mangle_buf_;
+    /**
+     * Reused buffer for a variant payload's `<case>.<param>` designator. Every
+     * use interns the bytes into the constant pool before lowering anything
+     * else, so one buffer per lowerer is enough.
+     */
+    std::string variant_path_buf_;
+    std::string& variant_field_path_buf() { return variant_path_buf_; }
     std::function<Scope*(IfStatement*, std::string&)> comptime_if_resolver_;
     std::function<Value*(FunctionCall*, FunctionDeclaration*)> comptime_eval_;
     std::function<Value*(Value*)> comptime_value_eval_;
@@ -1024,6 +1192,27 @@ private:
 };
 
 /**
+ * RAII handle over a `MIRLowerer` scratch pool of element type `T` (see
+ * `MIRScratchPool`). Use it in place of a local `std::vector<T>`:
+ *
+ *     MIRScratch<TypeId> _types(*this);
+ *     std::vector<TypeId>& ptypes = _types.v;
+ *
+ * Recursion-safe (each nesting level takes a deeper pool slot) and
+ * allocation-free after the pool warms up. Destroyed in reverse declaration
+ * order, which is what keeps the pool's depth counter consistent.
+ */
+template <class T>
+struct MIRScratch {
+    MIRScratchPool<T>& pool;
+    std::vector<T>& v;
+    explicit MIRScratch(MIRLowerer& o) : pool(o.scratch_pool<T>()), v(pool.acquire()) {}
+    ~MIRScratch() { pool.release(); }
+    MIRScratch(const MIRScratch&) = delete;
+    MIRScratch& operator=(const MIRScratch&) = delete;
+};
+
+/**
  * RAII handle over `MIRLowerer`'s pooled operand buffers. Construct it in place
  * of a local `std::vector<MIROperand>`:
  *
@@ -1034,12 +1223,21 @@ private:
  * level takes a deeper pool slot) and allocation-free after the pool warms up.
  */
 struct MIRArgScope {
-    MIRLowerer& owner;
+    MIRScratch<MIROperand> scratch;
     std::vector<MIROperand>& v;
-    explicit MIRArgScope(MIRLowerer& o) : owner(o), v(o.acquire_args()) {}
-    ~MIRArgScope() { owner.release_args(); }
+    explicit MIRArgScope(MIRLowerer& o) : scratch(o), v(scratch.v) {}
     MIRArgScope(const MIRArgScope&) = delete;
     MIRArgScope& operator=(const MIRArgScope&) = delete;
 };
+
+template <> inline MIRScratchPool<MIROperand>& MIRLowerer::scratch_pool<MIROperand>() {
+    return arg_pool_;
+}
+template <> inline MIRScratchPool<TypeId>& MIRLowerer::scratch_pool<TypeId>() {
+    return type_pool_;
+}
+template <> inline MIRScratchPool<MIRConstChild>& MIRLowerer::scratch_pool<MIRConstChild>() {
+    return const_child_pool_;
+}
 
 } // namespace mir

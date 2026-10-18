@@ -8,17 +8,23 @@
 
 namespace mir {
 
-bool MIRLowerer::member_name(Value* v, std::string& out, std::string& error) {
+chem::string_view MIRLowerer::member_name_view(Value* v) {
     Value* t = v;
     if (t && t->val_kind() == ValueKind::AccessChain) {
         auto* c = t->as_access_chain_unsafe();
         if (c->values.size() == 1) t = c->values[0];
     }
-    if (!t || t->val_kind() != ValueKind::Identifier) {
+    if (!t || t->val_kind() != ValueKind::Identifier) return chem::string_view();
+    // the bytes are owned by the AST (which outlives the lowering call)
+    return t->as_identifier_unsafe()->value;
+}
+
+bool MIRLowerer::member_name(Value* v, std::string& out, std::string& error) {
+    const chem::string_view name = member_name_view(v);
+    if (name.empty()) {
         error = "member is not an identifier";
         return false;
     }
-    const chem::string_view name = t->as_identifier_unsafe()->value;
     out.assign(name.data(), name.size());
     return true;
 }
@@ -50,7 +56,14 @@ bool MIRLowerer::member_field_path(Value* base, Value* member, std::string& out,
             return true;
         }
     }
-    return member_name(member, out, error);
+    // no intermediate string: the view is copied straight into `out`
+    const chem::string_view mname = member_name_view(member);
+    if (mname.empty()) {
+        error = "member is not an identifier";
+        return false;
+    }
+    out.assign(mname.data(), mname.size());
+    return true;
 }
 
 FunctionParam* MIRLowerer::aggregate_param_operand(Value* v) {
@@ -77,14 +90,15 @@ bool MIRLowerer::lower_call_args(const std::vector<Value*>& values,
 bool MIRLowerer::lower_call_args_for(FunctionDeclaration* fd, bool self_included,
                                      const std::vector<Value*>& values,
                                      std::vector<MIROperand>& args, std::string& error,
-                                     const std::vector<BaseType*>* extra_params) {
+                                     const FunctionType* ast_fn) {
     const size_t offset = self_included ? 1 : 0;
     for (size_t i = 0; i < values.size(); ++i) {
         BaseType* param_type = nullptr;
         if (fd && i + offset < fd->params.size()) {
             param_type = fd->params[i + offset]->type;
-        } else if (!fd && extra_params && i + offset < extra_params->size()) {
-            param_type = (*extra_params)[i + offset];
+        } else if (!fd && ast_fn && i + offset < ast_fn->params.size()) {
+            FunctionParam* ap = ast_fn->params[i + offset];
+            param_type = ap ? ap->type : nullptr;
         }
         MIRExprResult r = lower_arg_converted(values[i], param_type, error);
         if (!r.ok()) return false;
@@ -342,10 +356,15 @@ void MIRLowerer::register_destructible(PlaceId place, BaseType* type) {
         if (pd.storage_class == static_cast<uint8_t>(MIRStorageClass::FrameField) &&
             pd.frame_field < module_.constants.size()) {
             const MIRConstant& c = module_.constants.get(pd.frame_field);
-            std::string fname(module_.constants.data.data_at(c.data_offset), c.data_count);
-            const std::string prefix = "__chx_slot_";
-            if (fname.rfind(prefix, 0) == 0) {
-                const std::string df = "__chx_drop_" + fname.substr(prefix.size());
+            static constexpr std::string_view k_slot_prefix = "__chx_slot_";
+            const std::string_view fname(module_.constants.data.data_at(c.data_offset),
+                                         c.data_count);
+            if (fname.rfind(k_slot_prefix, 0) == 0) {
+                // `__chx_drop_<slot>` built in one buffer: no `fname` copy and no
+                // `substr` temporary per registered destructible
+                std::string df("__chx_drop_");
+                df.append(fname.data() + k_slot_prefix.size(),
+                          fname.size() - k_slot_prefix.size());
                 const ConstantId dfc = module_.constants.add_string(
                     MIR_INVALID_ID, df.data(), static_cast<uint32_t>(df.size()));
                 flag = builder_->alloca_frame(types_.bool_type(), dfc);
@@ -420,17 +439,20 @@ MIRExprResult MIRLowerer::lower_arg_converted(Value* arg, BaseType* param_type,
     // match its name against the parameter type and construct directly.
     if (conv_type && arg && arg->val_kind() == ValueKind::FunctionCall) {
         auto* acall = arg->as_func_call_unsafe();
-        std::string cname;
+        // a view, not a `std::string`: this runs for every call argument that is
+        // itself a call, and the name is only compared below
+        chem::string_view cname;
         bool have = false;
         if (acall->parent_val) {
             if (acall->parent_val->val_kind() == ValueKind::Identifier) {
-                auto* id = acall->parent_val->as_identifier_unsafe();
-                cname.assign(id->value.data(), id->value.size());
+                cname = acall->parent_val->as_identifier_unsafe()->value;
                 have = true;
             } else if (acall->parent_val->val_kind() == ValueKind::AccessChain) {
                 auto* ch = acall->parent_val->as_access_chain_unsafe();
-                std::string e;
-                if (!ch->values.empty() && member_name(ch->values.back(), cname, e)) have = true;
+                if (!ch->values.empty()) {
+                    cname = member_name_view(ch->values.back());
+                    have = !cname.empty();
+                }
             }
         }
         ASTNode* ln = conv_type->get_direct_linked_canonical_node();
@@ -1060,7 +1082,8 @@ MIRExprResult MIRLowerer::lower_method_call(MIRExprResult recv, BaseType* recv_t
             fat = static_cast<ValueId>(recv.id);
         }
         const size_t cmark = call_temps_.size();
-        std::vector<MIROperand> dargs;
+        MIRArgScope _dargs(*this);
+        std::vector<MIROperand>& dargs = _dargs.v;
         if (!lower_call_args_for(fd, true, call->values, dargs, error)) {
             return MIRExprResult::error();
         }
@@ -1420,7 +1443,8 @@ MIRExprResult MIRLowerer::lower_atomic_intrinsic(FunctionCall* call, FunctionDec
         return true;
     };
 
-    std::vector<MIROperand> ops;
+    MIRArgScope _ops_scope(*this);
+    std::vector<MIROperand>& ops = _ops_scope.v;
     switch (kind) {
         case AtomicIntrinsic::Fence:
         case AtomicIntrinsic::SignalFence: {

@@ -53,15 +53,28 @@ bool MIRLowerer::is_comptime_template_fn(FunctionDeclaration* fd) {
 }
 
 void MIRLowerer::set_comptime_binding(const std::string& key, Value* value) {
+    // Same shape as `bind_name`: one lookup, one allocation for a new key, and
+    // the journal holds a view of the map's own key rather than a copy.
+    auto it = comptime_bindings_.find(key);
+    if (it == comptime_bindings_.end()) {
+        it = comptime_bindings_.emplace(key, value).first;
+        if (scope_journal_) {
+            ScopeUndo u;
+            u.kind = 2;
+            u.name = chem::string_view(it->first.data(), it->first.size());
+            scope_undo_.push_back(std::move(u));
+        }
+        return;
+    }
     if (scope_journal_) {
         ScopeUndo u;
         u.kind = 2;
-        u.name = key;
-        auto it = comptime_bindings_.find(key);
-        if (it != comptime_bindings_.end()) { u.existed = true; u.cval = it->second; }
+        u.name = chem::string_view(it->first.data(), it->first.size());
+        u.existed = true;
+        u.cval = it->second;
         scope_undo_.push_back(std::move(u));
     }
-    comptime_bindings_[key] = value;
+    it->second = value;
 }
 
 void MIRLowerer::undo_scope_from(size_t mark) {
@@ -69,18 +82,30 @@ void MIRLowerer::undo_scope_from(size_t mark) {
         ScopeUndo u = std::move(scope_undo_.back());
         scope_undo_.pop_back();
         switch (u.kind) {
-            case 0:
-                if (u.existed) var_places_[u.node] = u.place;
-                else var_places_.erase(u.node);
+            case 0: {
+                auto it = var_places_.find(u.node);
+                if (it == var_places_.end()) break;
+                if (u.existed) it->second = u.place;
+                else var_places_.erase(it);
                 break;
-            case 1:
-                if (u.existed) name_places_[u.name] = u.place;
-                else name_places_.erase(u.name);
+            }
+            case 1: {
+                // find with the journalled view, then assign through the
+                // iterator / erase by iterator: no key is rebuilt and the view
+                // is never touched after the element is destroyed
+                auto it = name_places_.find(u.name);
+                if (it == name_places_.end()) break;
+                if (u.existed) it->second = u.place;
+                else name_places_.erase(it);
                 break;
-            case 2:
-                if (u.existed) comptime_bindings_[u.name] = u.cval;
-                else comptime_bindings_.erase(u.name);
+            }
+            case 2: {
+                auto it = comptime_bindings_.find(u.name);
+                if (it == comptime_bindings_.end()) break;
+                if (u.existed) it->second = u.cval;
+                else comptime_bindings_.erase(it);
                 break;
+            }
             default: break;
         }
     }

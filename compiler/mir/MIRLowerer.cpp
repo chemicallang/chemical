@@ -145,6 +145,17 @@ PlaceId MIRLowerer::place_for_linked(ASTNode* linked) const {
     return it->second;
 }
 
+PlaceId MIRLowerer::resolve_place_silent(Value* v) {
+    if (!v) return MIR_INVALID_ID;
+    Value* t = v;
+    if (t->val_kind() == ValueKind::AccessChain) {
+        auto* c = t->as_access_chain_unsafe();
+        if (c->values.size() == 1) t = c->values[0];
+    }
+    if (t->val_kind() != ValueKind::Identifier) return MIR_INVALID_ID;
+    return place_for_linked(t->as_identifier_unsafe()->linked);
+}
+
 PlaceId MIRLowerer::resolve_place(Value* v, std::string& error) {
     if (!v) {
         error = "null place expression";
@@ -259,8 +270,8 @@ SymbolId MIRLowerer::intern_method_function(FunctionDeclaration* decl, BaseType*
     if (it != named_method_symbols_.end()) return it->second;
 
     TypeId ret = decl->returnType ? types_.map(decl->returnType) : types_.void_type();
-    std::vector<TypeId> ptypes;
-    ptypes.reserve(decl->params.size());
+    MIRScratch<TypeId> _ptypes(*this);
+    std::vector<TypeId>& ptypes = _ptypes.v;
     for (FunctionParam* p : decl->params) {
         ptypes.push_back(p && p->type ? types_.map(p->type) : types_.opaque_type());
     }
@@ -674,7 +685,8 @@ bool MIRLowerer::lower_function(FunctionDeclaration* decl, MIRArena& arena,
     }
     if (self_in_params) self_param = nullptr; // already bound by the params loop
     {
-        std::vector<TypeId> ptypes;
+        MIRScratch<TypeId> _ptypes(*this);
+        std::vector<TypeId>& ptypes = _ptypes.v;
         if (sret_) {
             sret_ptr_type_ = types_.pointer_type(ret, true);
             ptypes.push_back(sret_ptr_type_);

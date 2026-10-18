@@ -2504,10 +2504,14 @@ int ASTProcessor::implement_module(
         c_visitor.mangler.mangle(w, n);
         out.append(w.data(), w.getPosition());
     });
-    mir_lowerer.set_vtable_mangler([&c_visitor, &mir_visitor_mutex](ASTNode* iface, BaseType* impl) -> std::string {
+    // append-style: no `BufferedWriter(256)` and no returned `std::string` per
+    // `dyn<T>` value lowered (see `set_mangler_into`)
+    mir_lowerer.set_vtable_mangler_into([&c_visitor, &mir_visitor_mutex](
+                                            ASTNode* iface, BaseType* impl,
+                                            std::string& out) {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
-        if (!iface || !impl) return std::string();
-        BufferedWriter w(256);
+        if (!iface || !impl) return;
+        BufferedWriter& w = mir::mangle_writer();
         auto* idef = iface->as_interface_def_unsafe();
         ASTNode* inode = impl->get_direct_linked_canonical_node();
         if (!inode) inode = impl->get_direct_linked_node();
@@ -2517,7 +2521,7 @@ int ASTProcessor::implement_module(
         } else {
             c_visitor.mangler.mangle_vtable_name(w, idef, impl);
         }
-        return std::string(w.data(), w.getPosition());
+        out.append(w.data(), w.getPosition());
     });
     mir_lowerer.set_comptime_if_resolver([&c_visitor, &mir_visitor_mutex](IfStatement* stmt, std::string& err) -> Scope* {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
@@ -2870,10 +2874,14 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
         c_visitor.mangler.mangle(w, n);
         out.append(w.data(), w.getPosition());
     });
-    mir_lowerer.set_vtable_mangler([&c_visitor, &mir_visitor_mutex](ASTNode* iface, BaseType* impl) -> std::string {
+    // append-style: no `BufferedWriter(256)` and no returned `std::string` per
+    // `dyn<T>` value lowered (see `set_mangler_into`)
+    mir_lowerer.set_vtable_mangler_into([&c_visitor, &mir_visitor_mutex](
+                                            ASTNode* iface, BaseType* impl,
+                                            std::string& out) {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);
-        if (!iface || !impl) return std::string();
-        BufferedWriter w(256);
+        if (!iface || !impl) return;
+        BufferedWriter& w = mir::mangle_writer();
         auto* idef = iface->as_interface_def_unsafe();
         ASTNode* inode = impl->get_direct_linked_canonical_node();
         if (!inode) inode = impl->get_direct_linked_node();
@@ -2883,7 +2891,7 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
         } else {
             c_visitor.mangler.mangle_vtable_name(w, idef, impl);
         }
-        return std::string(w.data(), w.getPosition());
+        out.append(w.data(), w.getPosition());
     });
     mir_lowerer.set_comptime_if_resolver([&c_visitor, &mir_visitor_mutex](IfStatement* stmt, std::string& err) -> Scope* {
         std::lock_guard<std::recursive_mutex> lk(mir_visitor_mutex);

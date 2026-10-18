@@ -251,22 +251,14 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
     // every destructible temporary argument was registered as caller-owned, so
     // both sides destroyed it — a double free (`http::server` handing a
     // `req_opt.take()` temporary to a `std::function` route handler).
-    std::vector<BaseType*> ast_params;
-    {
-        FunctionType* cap_ft = cap ? cap->get_func_type() : nullptr;
-        if (cap_ft) {
-            for (FunctionParam* p : cap_ft->params) {
-                ast_params.push_back(p ? p->type : nullptr);
-            }
-        }
-    }
+    FunctionType* cap_ft = cap ? cap->get_func_type() : nullptr;
     const size_t ccap = call_temps_.size();
-    if (!lower_call_args_for(nullptr, false, call->values, cargs, error, &ast_params)) {
+    if (!lower_call_args_for(nullptr, false, call->values, cargs, error, cap_ft)) {
         return MIRExprResult::error();
     }
     const TypeId crt = types_.map(call->getType());
-    std::vector<TypeId> cptypes;
-    cptypes.reserve(cargs.size());
+    MIRScratch<TypeId> _cptypes(*this);
+    std::vector<TypeId>& cptypes = _cptypes.v;
     for (auto& op : cargs) cptypes.push_back(op.type());
     const TypeId cftype = types_.function_signature(crt, cptypes);
     const ValueId cfn = builder_->cast(fnptr, cftype);
@@ -281,13 +273,15 @@ MIRExprResult MIRLowerer::lower_capturing_function_call(MIRExprResult recv, Base
         // the legacy capturing-function ABI is `(this, sret, params)`, so the
         // sret pointer is a regular leading argument after the data pointer
         const TypeId sptr_t = types_.pointer_type(crt, true);
-        std::vector<TypeId> stypes;
+        MIRScratch<TypeId> _stypes(*this);
+        std::vector<TypeId>& stypes = _stypes.v;
         stypes.push_back(vpt);
         stypes.push_back(sptr_t);
         for (size_t i = 1; i < cargs.size(); ++i) stypes.push_back(cargs[i].type());
         const TypeId sftype = types_.function_signature(types_.void_type(), stypes);
         const ValueId scfn = builder_->cast(fnptr, sftype);
-        std::vector<MIROperand> sargs;
+        MIRArgScope _sargs_scope(*this);
+        std::vector<MIROperand>& sargs = _sargs_scope.v;
         sargs.push_back(cargs[0]);
         sargs.push_back(MIROperand::value(builder_->address_of(tmp, sptr_t), sptr_t));
         for (size_t i = 1; i < cargs.size(); ++i) sargs.push_back(cargs[i]);
@@ -414,7 +408,8 @@ bool MIRLowerer::materialize_capturing_lambda(LambdaFunction* lamb, std::string&
     //    comes before the sret pointer)
     const TypeId ret = lamb->returnType ? types_.map(lamb->returnType) : types_.void_type();
     const bool l_sret = abi::needs_sret(module_, ret);
-    std::vector<TypeId> ptypes;
+    MIRScratch<TypeId> _ptypes(*this);
+    std::vector<TypeId>& ptypes = _ptypes.v;
     ptypes.push_back(void_ptr);
     if (l_sret) ptypes.push_back(types_.pointer_type(ret, true));
     for (FunctionParam* p : lamb->params) {
@@ -668,7 +663,8 @@ MIRExprResult MIRLowerer::materialize_noncapturing_lambda(LambdaFunction* lamb,
     const bool needs_this = lamb->isCapturing();
     const TypeId void_ptr_t = types_.pointer_type(types_.void_type(), true);
 
-    std::vector<TypeId> ptypes;
+    MIRScratch<TypeId> _ptypes(*this);
+    std::vector<TypeId>& ptypes = _ptypes.v;
     if (needs_this) ptypes.push_back(void_ptr_t);
     if (l_sret) ptypes.push_back(types_.pointer_type(ret, true));
     for (FunctionParam* p : lamb->params) {

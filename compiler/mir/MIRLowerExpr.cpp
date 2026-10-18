@@ -769,9 +769,12 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                             arg = param->def_value;
                         }
                         if (!arg) continue;
-                        const std::string mname(vm->name.data(), vm->name.size());
-                        const std::string pname(entry.first.data(), entry.first.size());
-                        const std::string fname = mname + "." + pname;
+                        // `<case>.<param>` into one reusable buffer: this ran three
+                        // `std::string`s per variant argument
+                        std::string& fname = variant_field_path_buf();
+                        fname.assign(vm->name.data(), vm->name.size());
+                        fname += '.';
+                        fname.append(entry.first.data(), entry.first.size());
                         const ConstantId fc = module_.constants.add_string(
                             MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
                         MIRExprResult r = lower_arg_converted(
@@ -931,9 +934,10 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     // namespace-qualified aggregate construction: the callee is
                     // not a function, the receiver is not an addressable place,
                     // and the result is an aggregate
-                    std::string probe;
+                    // a yes/no answer: the silent form builds no diagnostic string
+                    // (this runs for every method call)
                     const bool recv_is_place =
-                        resolve_place(chain->values[0], probe) != MIR_INVALID_ID;
+                        resolve_place_silent(chain->values[0]) != MIR_INVALID_ID;
                     const TypeId ct = types_.map(call->getType());
                     // a struct-member callee is a field call (`st.task()`), never
                     // an aggregate construction -- the receiver may be a captured
@@ -1082,18 +1086,14 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                                     (fpr.kind == MIRExprKind::Place)
                                         ? builder_->load(static_cast<PlaceId>(fpr.id), fpr.type)
                                         : static_cast<ValueId>(fpr.id);
+                                // the AST function type itself carries the parameter
+                                // types: no per-call `std::vector<BaseType*>`
                                 FunctionType* ft_fn = rtc->get_canonical_function_type();
-                                std::vector<BaseType*> ast_params;
-                                if (ft_fn) {
-                                    for (FunctionParam* p : ft_fn->params) {
-                                        ast_params.push_back(p ? p->type : nullptr);
-                                    }
-                                }
                                 MIRArgScope _ag_scope(*this);
                                 std::vector<MIROperand>& cargs = _ag_scope.v;
                                 const size_t cmark = call_temps_.size();
                                 if (!lower_call_args_for(nullptr, false, call->values, cargs,
-                                                         error, &ast_params)) {
+                                                         error, ft_fn)) {
                                     return MIRExprResult::error();
                                 }
                                 const TypeId crt = types_.map(call->getType());
@@ -1127,15 +1127,9 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                             call->parent_val->val_kind() == ValueKind::AccessChain) {
                             auto* sm = linked_fn->as_struct_member_unsafe();
                             BaseType* ft_ast = sm ? sm->type : nullptr;
-                            std::vector<BaseType*> ast_params;
                             FunctionType* ft_fn =
                                 ft_ast ? ft_ast->canonical()->get_canonical_function_type()
                                        : nullptr;
-                            if (ft_fn) {
-                                for (FunctionParam* p : ft_fn->params) {
-                                    ast_params.push_back(p ? p->type : nullptr);
-                                }
-                            }
                             MIRExprResult fpr = lower_expr(call->parent_val, error);
                             if (!fpr.ok()) return fpr;
                             if (fpr.type != MIR_INVALID_ID && fpr.type < module_.types.size() &&
@@ -1150,7 +1144,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                             std::vector<MIROperand>& cargs = _ag_scope.v;
                             const size_t cmark = call_temps_.size();
                             if (!lower_call_args_for(nullptr, false, call->values, cargs, error,
-                                                     &ast_params)) {
+                                                     ft_fn)) {
                                 return MIRExprResult::error();
                             }
                             const TypeId rt = types_.map(call->getType());
@@ -1205,9 +1199,10 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                         return MIRExprResult::error();
                     }
                     const TypeId ft = builder_->function().places[fp].type;
-                    // AST parameter types of the function pointer (to know which
-                    // arguments are by-value vs by-reference)
-                    std::vector<BaseType*> ast_params;
+                    // the function pointer's AST function type (its parameter
+                    // types decide by-value vs by-reference) — read directly, so
+                    // no per-call `std::vector<BaseType*>` is built
+                    FunctionType* ast_fn = nullptr;
                     {
                         BaseType* fp_ast = nullptr;
                         if (linked_fn) {
@@ -1218,14 +1213,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                             }
                         }
                         if (!fp_ast && call->parent_val) fp_ast = call->parent_val->getType();
-                        if (fp_ast) {
-                            FunctionType* ft_ast = fp_ast->canonical()->get_canonical_function_type();
-                            if (ft_ast) {
-                                for (FunctionParam* p : ft_ast->params) {
-                                    ast_params.push_back(p ? p->type : nullptr);
-                                }
-                            }
-                        }
+                        if (fp_ast) ast_fn = fp_ast->canonical()->get_canonical_function_type();
                     }
                     if (ft != MIR_INVALID_ID && ft < module_.types.size()) {
                         MIRTypeRecord eff = module_.types.get(ft);
@@ -1247,7 +1235,7 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
                     std::vector<MIROperand>& cargs = _ag_scope.v;
                     const size_t cmark = call_temps_.size();
                     if (!lower_call_args_for(nullptr, false, call->values, cargs, error,
-                                             &ast_params)) {
+                                             ast_fn)) {
                         return MIRExprResult::error();
                     }
                     const TypeId rt = types_.map(call->getType());
@@ -1815,12 +1803,15 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
             BaseType* iface_t = dv->getInterfaceType();
             ASTNode* iface_node =
                 iface_t ? iface_t->get_direct_linked_canonical_node() : nullptr;
-            if (!iface_node || !vtable_mangler_) {
+            if (!iface_node || (!vtable_mangler_ && !vtable_mangler_into_)) {
                 error = "dynamic value interface could not be resolved";
                 return MIRExprResult::error();
             }
+            // copied out of the reused buffer: the object's address is lowered
+            // below (which may mangle another vtable and reuse the buffer), and
+            // the symbol is only interned after that
             const std::string vt =
-                vtable_mangler_(iface_node, dv->value ? dv->value->getType() : nullptr);
+                vtable_mangle(iface_node, dv->value ? dv->value->getType() : nullptr);
             if (vt.empty()) {
                 error = "dynamic value vtable name is empty";
                 return MIRExprResult::error();

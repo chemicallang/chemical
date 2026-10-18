@@ -120,18 +120,21 @@ static bool mir_slot_is_destructible(BaseType* type) {
     return arr->elem_type->canonical()->get_destructor() != nullptr;
 }
 
-std::string MIRLowerer::async_slot_field(unsigned id) const {
-    return "__chx_slot_" + std::to_string(id);
+// These three are spelled into a stack buffer: the caller immediately interns
+// the bytes into the module's constant pool, so a `std::string` per field (per
+// slot, per await site) would only be allocated to be copied and freed.
+MIRNumberedName MIRLowerer::async_slot_field(unsigned id) const {
+    return MIRNumberedName("__chx_slot_", id);
 }
-std::string MIRLowerer::async_child_field(unsigned id) const {
-    return "__chx_child_" + std::to_string(id);
+MIRNumberedName MIRLowerer::async_child_field(unsigned id) const {
+    return MIRNumberedName("__chx_child_", id);
 }
-std::string MIRLowerer::async_drop_flag_field(unsigned id) const {
-    return "__chx_drop_" + std::to_string(id);
+MIRNumberedName MIRLowerer::async_drop_flag_field(unsigned id) const {
+    return MIRNumberedName("__chx_drop_", id);
 }
-std::string MIRLowerer::async_resident_field(ASTNode* node) const {
+MIRNumberedName MIRLowerer::async_resident_field(ASTNode* node) const {
     auto it = async_resident_.find(node);
-    if (it == async_resident_.end()) return std::string();
+    if (it == async_resident_.end()) return MIRNumberedName();
     return async_slot_field(it->second);
 }
 PlaceId MIRLowerer::async_resident_place(ASTNode* node) const {
@@ -246,28 +249,46 @@ void MIRLowerer::async_emit_frame_helpers(FunctionDeclaration* decl) {
     async_pre_decls_ += "struct " + frame + ";\n";
     async_pre_decls_ += "struct " + frame + " { uint32_t __state; " + inner_c + " __result; " +
                         ctx_c + " __cx;";
+    // The frame's field list is spelled by appending: the per-field name is a
+    // stack buffer and the type a `c_type_of` temporary, so a `+` chain here
+    // would allocate several throwaway strings per slot.
     for (size_t i = 0; i < async_plan_.sites.size(); ++i) {
         BaseType* ct = async_plan_.sites[i].awaited_handle_type;
-        async_pre_decls_ += " " +
-                            (ct ? c_type_of(module_, types_.map(ct)) : std::string("void*")) + " " +
-                            async_child_field(static_cast<unsigned>(i)) + ";";
+        const MIRNumberedName child = async_child_field(static_cast<unsigned>(i));
+        async_pre_decls_ += ' ';
+        if (ct) async_pre_decls_ += c_type_of(module_, types_.map(ct));
+        else async_pre_decls_ += "void*";
+        async_pre_decls_ += ' ';
+        async_pre_decls_.append(child.data(), child.size());
+        async_pre_decls_ += ';';
     }
     for (size_t id = 0; id < async_plan_.slots.size(); ++id) {
         BaseType* st = async_plan_.slots[id].type;
-        const std::string nm = async_slot_field(static_cast<unsigned>(id));
+        const MIRNumberedName nm = async_slot_field(static_cast<unsigned>(id));
         if (st != nullptr && st->kind() == BaseTypeKind::Array) {
             auto* arr = st->as_array_type_unsafe();
-            async_pre_decls_ += " " + c_type_of(module_, types_.map(arr->elem_type)) + " " + nm +
-                                "[" + std::to_string(arr->get_array_size()) + "];";
+            async_pre_decls_ += ' ';
+            async_pre_decls_ += c_type_of(module_, types_.map(arr->elem_type));
+            async_pre_decls_ += ' ';
+            async_pre_decls_.append(nm.data(), nm.size());
+            async_pre_decls_ += '[';
+            append_uint(async_pre_decls_, arr->get_array_size());
+            async_pre_decls_ += "];";
         } else {
-            async_pre_decls_ += " " + (st ? c_type_of(module_, types_.map(st))
-                                          : std::string("void*")) + " " + nm + ";";
+            async_pre_decls_ += ' ';
+            if (st) async_pre_decls_ += c_type_of(module_, types_.map(st));
+            else async_pre_decls_ += "void*";
+            async_pre_decls_ += ' ';
+            async_pre_decls_.append(nm.data(), nm.size());
+            async_pre_decls_ += ';';
         }
     }
     for (size_t id = 0; id < async_plan_.slots.size(); ++id) {
         if (async_drop_flag_slots_.count(static_cast<unsigned>(id)) != 0) {
-            async_pre_decls_ += " uint8_t " + async_drop_flag_field(static_cast<unsigned>(id)) +
-                                ";";
+            const MIRNumberedName flag = async_drop_flag_field(static_cast<unsigned>(id));
+            async_pre_decls_ += " uint8_t ";
+            async_pre_decls_.append(flag.data(), flag.size());
+            async_pre_decls_ += ';';
         }
     }
     async_pre_decls_ += " };\n";
@@ -280,7 +301,7 @@ void MIRLowerer::async_emit_frame_helpers(FunctionDeclaration* decl) {
     {
         const TypeId void_ptr = types_.pointer_type(types_.void_type(), true);
         std::vector<MIRFieldInfo> fs;
-        auto push = [&](const std::string& fname, TypeId ft) {
+        auto push = [&](chem::string_view fname, TypeId ft) {
             MIRFieldInfo fi;
             fi.type = ft;
             fi.kind = static_cast<uint8_t>(MIRFieldKind::Direct);
@@ -294,7 +315,7 @@ void MIRLowerer::async_emit_frame_helpers(FunctionDeclaration* decl) {
         push("__cx", async_context_ ? types_.map(async_context_) : void_ptr);
         for (size_t i = 0; i < async_plan_.sites.size(); ++i) {
             BaseType* ct = async_plan_.sites[i].awaited_handle_type;
-            push(async_child_field(static_cast<unsigned>(i)),
+            push(async_child_field(static_cast<unsigned>(i)).view(),
                  ct ? types_.map(ct) : void_ptr);
         }
         for (size_t id = 0; id < async_plan_.slots.size(); ++id) {
@@ -309,7 +330,7 @@ void MIRLowerer::async_emit_frame_helpers(FunctionDeclaration* decl) {
                     ft = types_.map(st);
                 }
             }
-            push(async_slot_field(static_cast<unsigned>(id)), ft);
+            push(async_slot_field(static_cast<unsigned>(id)).view(), ft);
         }
         for (size_t id = 0; id < async_plan_.slots.size(); ++id) {
             if (async_drop_flag_slots_.count(static_cast<unsigned>(id)) == 0) continue;
@@ -318,7 +339,7 @@ void MIRLowerer::async_emit_frame_helpers(FunctionDeclaration* decl) {
             r.size = 1;
             r.alignment = 1;
             r.int_kind = IK_U8;
-            push(async_drop_flag_field(static_cast<unsigned>(id)), module_.types.intern(r));
+            push(async_drop_flag_field(static_cast<unsigned>(id)).view(), module_.types.intern(r));
         }
         const uint32_t fidx = module_.types.append_fields(fs);
         module_.types.update(async_frame_type_, [&](MIRTypeRecord& fr) {
@@ -349,12 +370,15 @@ void MIRLowerer::async_emit_frame_helpers(FunctionDeclaration* decl) {
             SymbolId dtor = destructor_symbol(slot.type);
             std::string dname = mir_sym_name(module_, dtor);
             if (dname.empty()) continue;
-            const std::string field = "__chx__af->" + async_slot_field(id);
+            const MIRNumberedName slot_field = async_slot_field(id);
+            std::string field = "__chx__af->";
+            field.append(slot_field.data(), slot_field.size());
             // an array slot destroys each element, last to first
             BaseType* canon = slot.type->canonical();
             std::string call;
             if (canon && canon->kind() == BaseTypeKind::Array) {
-                const std::string iv = "__chx_di" + std::to_string(id);
+                const MIRNumberedName iv_name("__chx_di", id);
+                const std::string iv(iv_name.data(), iv_name.size());
                 call = "for (unsigned long " + iv + " = " +
                        std::to_string(canon->as_array_type_unsafe()->get_array_size()) +
                        "; " + iv + "-- > 0;) " + dname + "(&" + field + "[" + iv + "])";
@@ -362,13 +386,17 @@ void MIRLowerer::async_emit_frame_helpers(FunctionDeclaration* decl) {
                 call = dname + "(&" + field + ")";
             }
             if (async_drop_flag_slots_.count(id) != 0) {
-                async_post_decls_ += "            if(__chx__af->" + async_drop_flag_field(id) +
-                                     ") { " + call + "; }\n";
+                const MIRNumberedName flag = async_drop_flag_field(id);
+                async_post_decls_ += "            if(__chx__af->";
+                async_post_decls_.append(flag.data(), flag.size());
+                async_post_decls_ += ") { " + call + "; }\n";
             } else {
                 async_post_decls_ += "            " + call + ";\n";
             }
         }
-        const std::string child = "__chx__af->" + async_child_field(static_cast<unsigned>(i));
+        const MIRNumberedName child_name = async_child_field(static_cast<unsigned>(i));
+        const std::string child = std::string("__chx__af->") +
+                                  std::string(child_name.data(), child_name.size());
         async_post_decls_ += "            if(" + child + ".frame != (void*) 0) { " + child +
                              ".vtbl->drop(" + child + ".frame); " + child +
                              ".frame = (void*) 0; }\n";
@@ -398,7 +426,7 @@ bool MIRLowerer::async_lower_await_var_init(VarInitStatement* stmt, size_t site_
         return false;
     }
     // The child future lives in a frame field so it survives suspension.
-    const std::string child_name = async_child_field(static_cast<unsigned>(site_index));
+    const MIRNumberedName child_name = async_child_field(static_cast<unsigned>(site_index));
     const ConstantId child_fc = module_.constants.add_string(MIR_INVALID_ID, child_name.data(),
                                                              static_cast<uint32_t>(child_name.size()));
     PlaceId child_place = async_child_places_[site_index];
@@ -422,7 +450,8 @@ bool MIRLowerer::async_lower_await_var_init(VarInitStatement* stmt, size_t site_
                                   static_cast<ValueId>(child.id));
     }
     // poll
-    std::vector<MIROperand> ops;
+    MIRArgScope _ops_scope(*this);
+    std::vector<MIROperand>& ops = _ops_scope.v;
     ops.push_back(MIROperand::place(async_poll_frame_, async_frame_ptr_type_));
     ops.push_back(MIROperand::place(child_place, types_.map(site.awaited_handle_type)));
     ops.push_back(MIROperand::place(result_place, types_.map(site.awaited_type)));
@@ -439,7 +468,7 @@ bool MIRLowerer::async_lower_await_var_init(VarInitStatement* stmt, size_t site_
         if (async_resident_.count(slot.node) != 0) continue;
         PlaceId lp = place_for_linked(slot.node);
         if (lp == MIR_INVALID_ID) continue;
-        const std::string fname = async_slot_field(id);
+        const MIRNumberedName fname = async_slot_field(id);
         const ConstantId fc = module_.constants.add_string(MIR_INVALID_ID, fname.data(),
                                                            static_cast<uint32_t>(fname.size()));
         spills.emplace_back(lp, fc);
@@ -558,7 +587,7 @@ bool MIRLowerer::async_lower_poll_body(FunctionDeclaration* decl, std::string& e
         // the frame stores the declared type (aggregates by value), so the poll
         // parameter is the declared type too (not the hidden pointer form)
         TypeId pt = p && p->type ? types_.map(p->type) : types_.opaque_type();
-        const std::string rf = async_resident_field(p);
+        const MIRNumberedName rf = async_resident_field(p);
         if (!rf.empty()) {
             const ConstantId fc = module_.constants.add_string(MIR_INVALID_ID, rf.data(),
                                                                static_cast<uint32_t>(rf.size()));
@@ -572,7 +601,7 @@ bool MIRLowerer::async_lower_poll_body(FunctionDeclaration* decl, std::string& e
                                    [&](const AsyncFrameSlot& s) { return s.node == p; });
             if (it != async_plan_.slots.end()) {
                 const unsigned sid = static_cast<unsigned>(it - async_plan_.slots.begin());
-                const std::string sf = async_slot_field(sid);
+                const MIRNumberedName sf = async_slot_field(sid);
                 const ConstantId fc = module_.constants.add_string(
                     MIR_INVALID_ID, sf.data(), static_cast<uint32_t>(sf.size()));
                 ValueId sv = b.field_load_ptr(af, fc, pt);
@@ -612,7 +641,8 @@ bool MIRLowerer::async_lower_poll_body(FunctionDeclaration* decl, std::string& e
             b.store(sp.first, sv);
         }
         // AsyncAwait with resume_state = 0
-        std::vector<MIROperand> ops;
+        MIRArgScope _ops_scope(*this);
+    std::vector<MIROperand>& ops = _ops_scope.v;
         ops.push_back(MIROperand::place(async_poll_frame_, async_frame_ptr_type_));
         ops.push_back(MIROperand::place(async_child_places_[i],
                                         types_.map(site.awaited_handle_type)));
@@ -740,12 +770,12 @@ bool MIRLowerer::async_lower_drop_body(FunctionDeclaration* decl, std::string& e
                 slot_ty = types_.sized_array_type(types_.map(arr->elem_type),
                                                   arr->get_array_size());
             }
-            const std::string fname = async_slot_field(id);
+            const MIRNumberedName fname = async_slot_field(id);
             const ConstantId fc = module_.constants.add_string(
                 MIR_INVALID_ID, fname.data(), static_cast<uint32_t>(fname.size()));
             const PlaceId place = b.alloca_frame(slot_ty, fc);
             if (async_drop_flag_slots_.count(id) != 0) {
-                const std::string df = async_drop_flag_field(id);
+                const MIRNumberedName df = async_drop_flag_field(id);
                 const ConstantId dfc = module_.constants.add_string(
                     MIR_INVALID_ID, df.data(), static_cast<uint32_t>(df.size()));
                 const ValueId flag = b.field_load_ptr(af, dfc, u8);
@@ -758,7 +788,7 @@ bool MIRLowerer::async_lower_drop_body(FunctionDeclaration* decl, std::string& e
         BaseType* handle_bt = async_plan_.sites[i].awaited_handle_type;
         if (handle_bt == nullptr) { b.br(done_b); continue; }
         const TypeId handle_ty = types_.map(handle_bt);
-        const std::string child_name = async_child_field(static_cast<unsigned>(i));
+        const MIRNumberedName child_name = async_child_field(static_cast<unsigned>(i));
         const ConstantId cfc = module_.constants.add_string(
             MIR_INVALID_ID, child_name.data(), static_cast<uint32_t>(child_name.size()));
         const PlaceId child_temp = b.alloca(handle_ty, MIRStorageClass::Local);
@@ -829,7 +859,8 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
     }
     if (self_in_params) self_param = nullptr;
     {
-        std::vector<TypeId> ptypes;
+        MIRScratch<TypeId> _ptypes(*this);
+        std::vector<TypeId>& ptypes = _ptypes.v;
         ptypes.push_back(sret_ptr_type_);
         if (self_param) {
             TypeId pt = self_param->type ? types_.map(self_param->type) : types_.opaque_type();
@@ -918,7 +949,7 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
                                [&](const AsyncFrameSlot& s) { return s.node == p; });
         if (it != async_plan_.slots.end()) {
             const unsigned sid = static_cast<unsigned>(it - async_plan_.slots.begin());
-            const std::string sf = async_slot_field(sid);
+            const MIRNumberedName sf = async_slot_field(sid);
             const ConstantId fc = module_.constants.add_string(MIR_INVALID_ID, sf.data(),
                                                                static_cast<uint32_t>(sf.size()));
             const MIRTypeRecord& pr = module_.types.get(pt);
@@ -934,7 +965,7 @@ bool MIRLowerer::async_lower_ramp(FunctionDeclaration* decl, MIRFunction& func,
             }
             b.field_store_ptr(af, fc, src);
             if (async_drop_flag_slots_.count(sid) != 0) {
-                const std::string df = async_drop_flag_field(sid);
+                const MIRNumberedName df = async_drop_flag_field(sid);
                 const ConstantId dfc = module_.constants.add_string(MIR_INVALID_ID, df.data(),
                                                                     static_cast<uint32_t>(df.size()));
                 ValueId one = b.const_int(types_.u32_type(),
@@ -1041,7 +1072,8 @@ bool MIRLowerer::lower_async_main_trampoline(FunctionDeclaration* decl, const MI
     func.clear();
     {
         const MIRTypeRecord& ftr = module_.types.get(ramp.function_type);
-        std::vector<TypeId> ptypes;
+        MIRScratch<TypeId> _ptypes(*this);
+        std::vector<TypeId>& ptypes = _ptypes.v;
         for (uint32_t i = 1; i < ftr.data_count; ++i) {
             if (ftr.data_offset + i >= module_.types.data_size()) break;
             ptypes.push_back(module_.types.data_at(ftr.data_offset + i));
@@ -1067,8 +1099,10 @@ bool MIRLowerer::lower_async_main_trampoline(FunctionDeclaration* decl, const MI
     func.entry_block = entry;
 
     const MIRTypeRecord& ftr = module_.types.get(func.function_type);
-    std::vector<TypeId> ptypes;
-    std::vector<ValueId> params;
+    MIRScratch<TypeId> _sig_types(*this);
+    std::vector<TypeId>& ptypes = _sig_types.v;
+    MIRScratch<ValueId> _sig_params(*this);
+    std::vector<ValueId>& params = _sig_params.v;
     for (uint32_t i = 0; i < ftr.data_count; ++i) {
         const TypeId pt = module_.types.data_at(ftr.data_offset + i);
         ptypes.push_back(pt);

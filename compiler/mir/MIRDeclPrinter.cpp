@@ -11,6 +11,7 @@
 #include "MIRDeclPrinter.h"
 
 #include "MIREmitter.h"
+#include "MIRMangleBuffer.h"
 
 #include <charconv>
 #include <cmath>
@@ -265,7 +266,14 @@ void append_const_expr_c(const MIRModule& module, ConstExprId id, std::string& o
 void append_global_decl_spelling(const MIRModule& module, const MIRGlobalDecl& d,
                                  std::string& out) {
     if (d.unsized_array) {
-        append_c_declarator(module, d.elem, std::string(d.name) + "[]", out);
+        // The brackets belong to the declarator, so the name (with `[]`
+        // appended) is spelled once into `decl_scratch(0)` instead of a
+        // `name + "[]"` temporary — entered at depth 1 so the nested
+        // declarators of `d.elem` cannot clobber the scratch the name lives in.
+        std::string& buffered = decl_scratch(0);
+        buffered += d.name;
+        buffered += "[]";
+        append_c_declarator_scratched(module, d.elem, buffered, out);
         return;
     }
     if (d.type == MIR_INVALID_ID) {
@@ -328,7 +336,7 @@ std::string decl_list_c(const MIRModule& module, const MIRDeclList& list) {
                 if (it.proto.flags & MPF_EXTERN) out += "extern ";
                 if (it.proto.flags & MPF_STATIC) out += "static ";
                 if (it.proto.flags & MPF_DLLIMPORT) out += "__chem_dllimport ";
-                out += c_function_proto(module, it.proto.type, it.proto.name);
+                append_c_function_proto(module, it.proto.type, it.proto.name, out);
                 out += ';';
                 break;
             case MIRDeclKind::Global:
@@ -345,7 +353,7 @@ std::string decl_list_c(const MIRModule& module, const MIRDeclList& list) {
                 out += " {";
                 for (const MIRVtableSlot& slot : it.slots) {
                     out += '\n';
-                    out += c_decl_type(module, slot.type, slot.name);
+                    append_c_decl_type(module, slot.type, slot.name, out);
                     out += ';';
                 }
                 out += "\n} ";

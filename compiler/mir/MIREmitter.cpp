@@ -3,6 +3,7 @@
 #include "MIREmitter.h"
 
 #include "MIRFacts.h"
+#include "MIRMangleBuffer.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -394,52 +395,78 @@ static void append_fn_ptr_type(const MIRModule& module, const MIRTypeRecord& r, 
 
 static std::string declarator(const MIRModule& module, TypeId type, std::string_view name);
 
-// The declarator for an entity named `name` whose type is `type`. Recurses
-// through function return types so a function returning a function pointer is
-// spelled with nested declarators (`int(*(*name)(params))(retparams)`), matching
-// the legacy `wrap_nested_func_return` spelling.
-static std::string decl_type(const MIRModule& module, TypeId type, std::string_view name) {
+static void append_c_declarator_at(const MIRModule& module, TypeId type, std::string_view name,
+                                   std::string& out, uint32_t depth);
+
+// The declarator for an entity named `name` whose type is `type`, appended to
+// `out`. Recurses through function return types so a function returning a
+// function pointer is spelled with nested declarators
+// (`int(*(*name)(params))(retparams)`), matching the legacy
+// `wrap_nested_func_return` spelling.
+//
+// A nested declarator needs its name as one contiguous span before the return
+// type can be spelled in front of it, and the parameter list needs the same, so
+// both live in `decl_scratch` — this runs for every parameter of every
+// prototype and every function-pointer-typed declaration, and a throwaway
+// `std::string` each time is pure waste. `depth` keeps a recursive call from
+// clobbering a buffer its caller is still reading.
+static void append_decl_type(const MIRModule& module, TypeId type, std::string_view name,
+                             std::string& out, uint32_t depth) {
     if (type == MIR_INVALID_ID || type >= module.types.size()) {
-        std::string s("void ");
-        s += name;
-        return s;
+        out += "void ";
+        out += name;
+        return;
     }
     const MIRTypeRecord& r = module.types.get(type);
     if (r.kind != MIRTypeKind::Function) {
-        std::string s = c_type_of(module, type);
-        s += ' ';
-        s += name;
-        return s;
+        append_c_type_of(module, type, out);
+        out += ' ';
+        out += name;
+        return;
     }
     const bool sret = mir_struct_like_return(module, r.element);
-    std::string params;
-    if (sret) params += c_type_of(module, r.element) + "*";
+    std::string& params = decl_scratch(depth);
+    if (sret) {
+        append_c_type_of(module, r.element, params);
+        params += '*';
+    }
     for (uint32_t i = 0; i < r.data_count; ++i) {
         if (!params.empty()) params += ", ";
         char nm[24];
-        params += declarator(module, module.types.data_at(r.data_offset + i),
-                             param_arg_name(nm, i));
+        append_c_declarator_at(module, module.types.data_at(r.data_offset + i),
+                               param_arg_name(nm, i), params, depth + 1);
     }
     if (r.flags & TF_VARIADIC) {
         if (!params.empty()) params += ", ";
         params += "...";
     }
-    if (params.empty()) params = "void";
-    std::string inner("(*");
+    if (params.empty()) params += "void";
+    std::string& inner = decl_scratch(depth + 1);
+    inner += "(*";
     inner += name;
     inner += ")(";
     inner += params;
     inner += ')';
     if (sret) {
-        std::string s("void ");
-        s += inner;
-        return s;
+        out += "void ";
+        out += inner;
+        return;
     }
-    return decl_type(module, r.element, inner);
+    append_decl_type(module, r.element, inner, out, depth + 2);
 }
 
 void append_c_declarator(const MIRModule& module, TypeId type, std::string_view name,
                          std::string& out) {
+    append_c_declarator_at(module, type, name, out, 0);
+}
+
+void append_c_declarator_scratched(const MIRModule& module, TypeId type, std::string_view name,
+                                   std::string& out) {
+    append_c_declarator_at(module, type, name, out, 1);
+}
+
+static void append_c_declarator_at(const MIRModule& module, TypeId type, std::string_view name,
+                                   std::string& out, uint32_t depth) {
     if (type == MIR_INVALID_ID || type >= module.types.size()) {
         out += "void ";
         out += name;
@@ -447,38 +474,63 @@ void append_c_declarator(const MIRModule& module, TypeId type, std::string_view 
     }
     const MIRTypeRecord& r = module.types.get(type);
     if (r.kind == MIRTypeKind::Function) {
-        out += decl_type(module, type, name);
+        append_decl_type(module, type, name, out, depth);
         return;
     }
     if (r.kind == MIRTypeKind::Array) {
-        // collect dimensions outer-to-inner so `[4][256]T` spells `T name[4][256]`
-        std::string dims;
+        // `[4][256]T` spells `T name[4][256]`: collect the innermost element and
+        // whether an array in the chain holds a function type (only then does
+        // the name need its bracket suffix before the declarator is spelled).
+        // Two cheap type walks instead of a `std::string dims` per array-typed
+        // declarator, which is what every array local, member and parameter is.
         TypeId cur = type;
+        bool fn_elem = false;
         while (cur != MIR_INVALID_ID && cur < module.types.size() &&
                module.types.get(cur).kind == MIRTypeKind::Array) {
-            const MIRTypeRecord& rr = module.types.get(cur);
-            dims += "[";
-            append_uint(dims, rr.data_count);
-            dims += "]";
-            const MIRTypeRecord& elem = module.types.get(rr.element);
-            if (elem.kind == MIRTypeKind::Function) {
-                out += decl_type(module, rr.element, std::string(name) + dims);
-                return;
+            const TypeId elem = module.types.get(cur).element;
+            if (elem != MIR_INVALID_ID && elem < module.types.size() &&
+                module.types.get(elem).kind == MIRTypeKind::Function) {
+                fn_elem = true;
+                cur = elem;
+                break;
             }
-            cur = rr.element;
+            cur = elem;
         }
-        append_c_declarator(module, cur, name, out);
-        out += dims;
+        if (fn_elem) {
+            std::string& suffixed = decl_scratch(depth);
+            suffixed += name;
+            for (TypeId d = type; d != MIR_INVALID_ID && d < module.types.size() &&
+                                   module.types.get(d).kind == MIRTypeKind::Array;
+                 d = module.types.get(d).element) {
+                suffixed += '[';
+                append_uint(suffixed, module.types.get(d).data_count);
+                suffixed += ']';
+            }
+            append_decl_type(module, cur, suffixed, out, depth + 1);
+            return;
+        }
+        append_c_declarator_at(module, cur, name, out, depth);
+        for (TypeId d = type; d != MIR_INVALID_ID && d < module.types.size() &&
+                               module.types.get(d).kind == MIRTypeKind::Array;
+             d = module.types.get(d).element) {
+            out += '[';
+            append_uint(out, module.types.get(d).data_count);
+            out += ']';
+        }
         return;
     }
     if (r.kind == MIRTypeKind::Pointer || r.kind == MIRTypeKind::Reference) {
         const MIRTypeRecord& pointee = module.types.get(r.element);
         if (pointee.kind == MIRTypeKind::Array) {
             // pointer to array: `int (*name)[N]`
-            append_c_declarator(module, pointee.element, "(*" + std::string(name) + ")", out);
-            out += "[";
+            std::string& wrapped = decl_scratch(depth);
+            wrapped += "(*";
+            wrapped += name;
+            wrapped += ')';
+            append_c_declarator_at(module, pointee.element, wrapped, out, depth + 1);
+            out += '[';
             append_uint(out, pointee.data_count);
-            out += "]";
+            out += ']';
             return;
         }
     }
@@ -500,7 +552,14 @@ static std::string declarator(const MIRModule& module, TypeId type, std::string_
 }
 
 std::string c_decl_type(const MIRModule& module, TypeId type, std::string_view name) {
-    return decl_type(module, type, name);
+    std::string out;
+    append_decl_type(module, type, name, out, 0);
+    return out;
+}
+
+void append_c_decl_type(const MIRModule& module, TypeId type, std::string_view name,
+                        std::string& out) {
+    append_decl_type(module, type, name, out, 0);
 }
 
 std::string c_declarator(const MIRModule& module, TypeId type, std::string_view name) {
@@ -509,44 +568,60 @@ std::string c_declarator(const MIRModule& module, TypeId type, std::string_view 
 
 std::string c_function_proto(const MIRModule& module, TypeId function_type,
                              std::string_view name) {
+    std::string out;
+    append_c_function_proto(module, function_type, name, out);
+    return out;
+}
+
+void append_c_function_proto(const MIRModule& module, TypeId function_type,
+                             std::string_view name, std::string& out) {
     if (function_type == MIR_INVALID_ID || function_type >= module.types.size()) {
-        std::string s("void ");
-        s += name;
-        s += "(void)";
-        return s;
+        out += "void ";
+        out += name;
+        out += "(void)";
+        return;
     }
     const MIRTypeRecord& r = module.types.get(function_type);
     if (r.kind != MIRTypeKind::Function) {
-        return decl_type(module, function_type, name);
+        append_decl_type(module, function_type, name, out, 0);
+        return;
     }
     const bool sret = mir_struct_like_return(module, r.element);
-    std::string params;
-    if (sret) params += c_type_of(module, r.element) + "*";
+    // the parameter list, and then the `name(params)` span a nested declarator
+    // needs, come from the reusable scratch instead of a throwaway string per
+    // prototype item
+    std::string& params = decl_scratch(0);
+    if (sret) {
+        append_c_type_of(module, r.element, params);
+        params += '*';
+    }
     for (uint32_t i = 0; i < r.data_count; ++i) {
         if (!params.empty()) params += ", ";
         char nm[24];
-        params += declarator(module, module.types.data_at(r.data_offset + i),
-                             param_arg_name(nm, i));
+        append_c_declarator_at(module, module.types.data_at(r.data_offset + i),
+                               param_arg_name(nm, i), params, 2);
     }
     if (r.flags & TF_VARIADIC) {
         if (!params.empty()) params += ", ";
         params += "...";
     }
-    if (params.empty()) params = "void";
+    if (params.empty()) params += "void";
     if (module.types.get(r.element).kind == MIRTypeKind::Function) {
-        std::string nested(name);
+        std::string& nested = decl_scratch(1);
+        nested += name;
         nested += '(';
         nested += params;
         nested += ')';
-        return decl_type(module, r.element, nested);
+        append_decl_type(module, r.element, nested, out, 3);
+        return;
     }
-    std::string s = sret ? std::string("void") : c_type_of(module, r.element);
-    s += ' ';
-    s += name;
-    s += '(';
-    s += params;
-    s += ')';
-    return s;
+    if (sret) out += "void";
+    else append_c_type_of(module, r.element, out);
+    out += ' ';
+    out += name;
+    out += '(';
+    out += params;
+    out += ')';
 }
 
 namespace {

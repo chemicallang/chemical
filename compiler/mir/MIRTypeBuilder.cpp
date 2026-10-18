@@ -181,7 +181,17 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
     if (kind == MIRTypeKind::Int) return; // enums have no fields
     if (id >= module_.types.size()) return;
 
+    // The field count is known for the member path, so `fs` grows once instead
+    // of through a handful of `push_back` reallocations per aggregate. (A
+    // variant's count is the tag + its cases + the bases, hence the slack.)
     std::vector<MIRFieldInfo> fs;
+    {
+        size_t hint = 0;
+        if (auto* vc = decl ? decl->as_extendable_member_container() : nullptr) {
+            hint = vc->variables().size() + 2;
+        }
+        fs.reserve(hint ? hint : 4);
+    }
     // `std::string_view`, not `std::string`: every caller already holds the
     // AST's name bytes, and constructing a `std::string` per field only to hand
     // its bytes straight to the pool allocated for nothing.

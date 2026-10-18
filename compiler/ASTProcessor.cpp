@@ -494,7 +494,7 @@ namespace {
  * kept but gated; the MIR module is then marked single-writer so its tables skip
  * their locks (see MIRTableLock.h).
  */
-constexpr bool kEnableParallelLowering = false;
+constexpr bool kEnableParallelLowering = true;
 
 /**
  * waits for all the given futures, returning true if any of them reported errors
@@ -1938,6 +1938,14 @@ static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& m
                                     std::string& error) {
     if (!mir_eligible_function(decl)) return false;
     mir::MIRLowerer& lowerer = task.lowerer;
+    // Publish this worker's lowerer as the thread's current one for the shared
+    // comptime callbacks (see MIRLowerer::current_lowering): with several
+    // workers, a nested intrinsic fold must read the *worker's* folded comptime
+    // parameter bindings, not the driver's or another worker's.
+    struct CurrentLoweringRestore {
+        mir::MIRLowerer* prev;
+        ~CurrentLoweringRestore() { mir::MIRLowerer::set_current_lowering(prev); }
+    } current_lowering_restore{mir::MIRLowerer::set_current_lowering(&lowerer)};
     task.begin_function(!llvm_collect);
     mir::MIRFunction fn;
     if (!lowerer.lower_function(decl, task.arena, fn, error)) {
@@ -2121,7 +2129,16 @@ bool mir_translate_after_declaration(
         if (parallel_fns.size() >= kMinParallelFunctions) {
             unsigned nworkers = std::thread::hardware_concurrency();
             if (nworkers == 0) nworkers = 4;
+            if (const char* wenv = std::getenv("CHEM_MIR_LOWER_WORKERS")) {
+                const int v = std::atoi(wenv);
+                if (v > 0) nworkers = static_cast<unsigned>(v);
+            }
             if (nworkers > parallel_fns.size()) nworkers = static_cast<unsigned>(parallel_fns.size());
+            // Multi-writer table locking is only needed while the workers run.
+            // Outside this block the module stays single-threaded, so its table
+            // reads are lock-free and a module/file that never enters the
+            // parallel phase pays no lock at all.
+            module.set_single_threaded(false);
             std::atomic<size_t> next{0};
             std::vector<std::vector<std::pair<FunctionDeclaration*, std::string>>> results(nworkers);
             ctpl::thread_pool local_pool(static_cast<int>(nworkers));
@@ -2146,6 +2163,7 @@ bool mir_translate_after_declaration(
                 }));
             }
             for (auto& f : futs) f.get();
+            module.set_single_threaded(true);
             for (auto& r : results) {
                 for (auto& pr : r) pre_lowered.emplace(pr.first, std::move(pr.second));
             }
@@ -2457,7 +2475,9 @@ int ASTProcessor::implement_module(
     // module, types, task and lock are shared across every source module and the
     // arena is never reset, so all lowered functions stay alive to be executed.
     mir::MIRModule mir_module_local;
-    mir_module_local.set_single_threaded(!kEnableParallelLowering);
+    // Single-threaded (lock-free table reads) by default. The parallel lowering
+    // phase flips this to false only for the duration of its worker run.
+    mir_module_local.set_single_threaded(true);
     mir::MIRTypeBuilder mir_types_local(mir_module_local);
     mir::MIRTaskContext mir_task_local(mir_module_local, mir_types_local);
     std::recursive_mutex mir_mutex_local;
@@ -2538,9 +2558,11 @@ int ASTProcessor::implement_module(
     // (`intrinsics::size`, `satisfies`, `llvm_mem_order`, …) folds with the
     // callee's parameters visible.
     auto push_comptime_bindings = [&c_visitor, &mir_lowerer]() {
-        mir_lowerer.note_comptime_binding_consumed();
+        mir::MIRLowerer* host = mir::MIRLowerer::current_lowering();
+        if (!host) host = &mir_lowerer;
+        host->note_comptime_binding_consumed();
         std::vector<std::pair<chem::string_view, Value*>> saved;
-        const auto& binds = mir_lowerer.comptime_binding_names();
+        const auto& binds = host->comptime_binding_names();
         for (const auto& kv : binds) {
             chem::string_view k(kv.first.data(), kv.first.size());
             auto it = c_visitor.comptime_scope.values.find(k);
@@ -2569,7 +2591,8 @@ int ASTProcessor::implement_module(
         auto saved = push_comptime_bindings();
         std::string derr;
         mir::MIRComptimeContext cctx;
-        cctx.host = &mir_lowerer;
+        mir::MIRLowerer* host = mir::MIRLowerer::current_lowering();
+        cctx.host = host ? host : &mir_lowerer;
         cctx.allocator = &c_visitor.allocator;
         cctx.type_builder = c_visitor.comptime_scope.global
                                 ? &c_visitor.comptime_scope.global->typeBuilder
@@ -2593,7 +2616,8 @@ int ASTProcessor::implement_module(
         auto saved = push_comptime_bindings();
         std::string derr;
         mir::MIRComptimeContext cctx;
-        cctx.host = &mir_lowerer;
+        mir::MIRLowerer* host = mir::MIRLowerer::current_lowering();
+        cctx.host = host ? host : &mir_lowerer;
         cctx.allocator = &c_visitor.allocator;
         cctx.type_builder = c_visitor.comptime_scope.global
                                 ? &c_visitor.comptime_scope.global->typeBuilder
@@ -2616,7 +2640,8 @@ int ASTProcessor::implement_module(
         auto* block = static_cast<ComptimeBlock*>(node);
         auto saved = push_comptime_bindings();
         mir::MIRComptimeContext cctx;
-        cctx.host = &mir_lowerer;
+        mir::MIRLowerer* host = mir::MIRLowerer::current_lowering();
+        cctx.host = host ? host : &mir_lowerer;
         cctx.allocator = &c_visitor.allocator;
         cctx.type_builder = c_visitor.comptime_scope.global
                                 ? &c_visitor.comptime_scope.global->typeBuilder
@@ -2908,9 +2933,11 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
     // (`intrinsics::size`, `satisfies`, `llvm_mem_order`, …) folds with the
     // callee's parameters visible.
     auto push_comptime_bindings = [&c_visitor, &mir_lowerer]() {
-        mir_lowerer.note_comptime_binding_consumed();
+        mir::MIRLowerer* host = mir::MIRLowerer::current_lowering();
+        if (!host) host = &mir_lowerer;
+        host->note_comptime_binding_consumed();
         std::vector<std::pair<chem::string_view, Value*>> saved;
-        const auto& binds = mir_lowerer.comptime_binding_names();
+        const auto& binds = host->comptime_binding_names();
         for (const auto& kv : binds) {
             chem::string_view k(kv.first.data(), kv.first.size());
             auto it = c_visitor.comptime_scope.values.find(k);
@@ -2939,7 +2966,8 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
         auto saved = push_comptime_bindings();
         std::string derr;
         mir::MIRComptimeContext cctx;
-        cctx.host = &mir_lowerer;
+        mir::MIRLowerer* host = mir::MIRLowerer::current_lowering();
+        cctx.host = host ? host : &mir_lowerer;
         cctx.allocator = &c_visitor.allocator;
         cctx.type_builder = c_visitor.comptime_scope.global
                                 ? &c_visitor.comptime_scope.global->typeBuilder
@@ -2963,7 +2991,8 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
         auto saved = push_comptime_bindings();
         std::string derr;
         mir::MIRComptimeContext cctx;
-        cctx.host = &mir_lowerer;
+        mir::MIRLowerer* host = mir::MIRLowerer::current_lowering();
+        cctx.host = host ? host : &mir_lowerer;
         cctx.allocator = &c_visitor.allocator;
         cctx.type_builder = c_visitor.comptime_scope.global
                                 ? &c_visitor.comptime_scope.global->typeBuilder
@@ -2985,7 +3014,8 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
                     call_with_arg(ctor, arg, expected, c_visitor.allocator, c_visitor)) {
                 auto saved = push_comptime_bindings();
                 mir::MIRComptimeContext cctx;
-                cctx.host = &mir_lowerer;
+                mir::MIRLowerer* host = mir::MIRLowerer::current_lowering();
+        cctx.host = host ? host : &mir_lowerer;
                 cctx.allocator = &c_visitor.allocator;
                 cctx.type_builder = c_visitor.comptime_scope.global
                                         ? &c_visitor.comptime_scope.global->typeBuilder
@@ -3008,7 +3038,8 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
         auto* block = static_cast<ComptimeBlock*>(node);
         auto saved = push_comptime_bindings();
         mir::MIRComptimeContext cctx;
-        cctx.host = &mir_lowerer;
+        mir::MIRLowerer* host = mir::MIRLowerer::current_lowering();
+        cctx.host = host ? host : &mir_lowerer;
         cctx.allocator = &c_visitor.allocator;
         cctx.type_builder = c_visitor.comptime_scope.global
                                 ? &c_visitor.comptime_scope.global->typeBuilder

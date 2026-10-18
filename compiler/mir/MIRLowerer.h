@@ -382,6 +382,21 @@ public:
     void set_visitor_mutex(std::recursive_mutex* m) { visitor_mutex_ = m; }
 
     /**
+     * The lowerer currently lowering on this thread. The translation driver
+     * wires the shared comptime callbacks once (capturing the *driver* lowerer);
+     * a parallel worker lowers through its own lowerer, so the callbacks consult
+     * this to publish and read the worker's folded comptime parameter bindings
+     * (`intrinsics::size`, `decode_location`, …) instead of another worker's or
+     * the driver's. Null outside a lowering; the callbacks then fall back to the
+     * driver's lowerer (the serial behaviour). Set around a function's lowering
+     * in `mir_lower_and_emit_into`; a nested driver's own `lower_function` does
+     * not overwrite it.
+     */
+    static MIRLowerer* current_lowering() noexcept;
+    /** Set the per-thread current lowerer, returning the previous one. */
+    static MIRLowerer* set_current_lowering(MIRLowerer* l) noexcept;
+
+    /**
      * Copy the translation callbacks (mangler, comptime, embedded, debug, the
      * shared lock, the impl indexes) from another lowerer, so a parallel
      * worker's lowerer behaves exactly like the driver's without re-wiring each

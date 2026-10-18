@@ -69,7 +69,11 @@ struct MIRComptime::Impl {
     std::unique_ptr<MIRInterpreter> interp;
     std::unordered_map<FunctionDeclaration*, SymbolId> lowered;
     bool dirty = false;
-    bool mangler_set = false;
+    /** The lowerer whose mangle callbacks `task` currently borrows. Re-captured
+     * whenever the driver is entered from a different lowerer (a parallel worker
+     * owns its lowerer only for the duration of the function it lowers, so a
+     * cached host pointer would dangle once that worker returns). */
+    MIRLowerer* mangler_host = nullptr;
     /** true while a callee is being lowered: a re-entrant fold must use a fresh
      * driver instance so it does not clobber the in-progress lowering state. */
     bool lowering = false;
@@ -633,7 +637,7 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
 
     // unique mangled names inside the driver's module: generic instantiations
     // share the host's mangled name, which a module-local lookup would collide on
-    if (!impl_->mangler_set) {
+    if (impl_->mangler_host != ctx.host) {
         MIRLowerer* host = ctx.host;
         impl_->task->lowerer.copy_comptime_fold_callbacks_from(*host);
         impl_->task->lowerer.set_mangler_into([host](ASTNode* n, std::string& out) {
@@ -641,7 +645,7 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
             out += '#';
             out += std::to_string(reinterpret_cast<uintptr_t>(n));
         });
-        impl_->mangler_set = true;
+        impl_->mangler_host = host;
     }
 
     // 0. eligibility — this function and everything it calls, transitively:
@@ -931,7 +935,7 @@ bool MIRComptime::evaluate_block(const MIRComptimeContext& ctx, ComptimeBlock* b
     fd->body.emplace(fd, block->encoded_location());
     fd->body->nodes = block->body.nodes;
 
-    if (!impl_->mangler_set) {
+    if (impl_->mangler_host != ctx.host) {
         MIRLowerer* host = ctx.host;
         impl_->task->lowerer.copy_comptime_fold_callbacks_from(*host);
         impl_->task->lowerer.set_mangler_into([host](ASTNode* n, std::string& out) {
@@ -939,7 +943,7 @@ bool MIRComptime::evaluate_block(const MIRComptimeContext& ctx, ComptimeBlock* b
             out += '#';
             out += std::to_string(reinterpret_cast<uintptr_t>(n));
         });
-        impl_->mangler_set = true;
+        impl_->mangler_host = host;
     }
 
     std::vector<FunctionDeclaration*> reachable;

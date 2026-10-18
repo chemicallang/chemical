@@ -391,12 +391,30 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
     // The memo/declaration caches are only raced by parallel lowering; the
     // shipping pipeline is single-writer, so the recursive mutex is elided there
     // (see MIRTableLock.h). Recursion inside `map` re-enters this same thread.
-    std::unique_lock<std::recursive_mutex> lk(builder_mtx_, std::defer_lock);
-    if (!module_.single_threaded()) lk.lock();
+    const bool multi = !module_.single_threaded();
     MIR_OP(type_map);
+    // Lock-free fast path: a per-thread memo of already-mapped types. Only a
+    // genuine miss (a type no other worker mapped under this epoch) takes the
+    // builder lock.
+    ThreadMemo* tm = nullptr;
+    if (multi) {
+        tm = &thread_memo();
+        const uint64_t e = epoch_.load(std::memory_order_relaxed);
+        if (tm->epoch != e) {
+            tm->epoch = e;
+            tm->memo.clear();
+        }
+        auto hit = tm->memo.find(type);
+        if (hit != tm->memo.end()) return hit->second;
+    }
+    std::unique_lock<std::recursive_mutex> lk(builder_mtx_, std::defer_lock);
+    if (multi) lk.lock();
 
     auto it = memo_.find(type);
-    if (it != memo_.end()) return it->second;
+    if (it != memo_.end()) {
+        if (tm) tm->memo[type] = it->second;
+        return it->second;
+    }
 
     TypeId id = opaque_type();
     switch (type->kind()) {
@@ -574,6 +592,7 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
     }
 
     memo_[type] = id;
+    if (tm) tm->memo[type] = id;
     return id;
 }
 

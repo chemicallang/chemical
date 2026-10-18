@@ -45,8 +45,15 @@ public:
 
     /**
      * the current function call is the last one
+     *
+     * Per-thread: lowering workers lower (and inline `@expand` comptime
+     * templates) concurrently, so a single shared stack would interleave each
+     * worker's in-flight call sites and make `intrinsics::get_call_loc` /
+     * `is_comptime` resolve against another worker's frame. One stack per thread
+     * keeps each worker's nesting independent; on the serial path the thread is
+     * the only one, so behaviour is unchanged.
      */
-    std::vector<FunctionCall*> call_stack;
+    inline static thread_local std::vector<FunctionCall*> call_stack;
 
     /**
      * a pointer to build compiler is stored, so compile time

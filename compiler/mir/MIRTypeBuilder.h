@@ -9,6 +9,7 @@
 
 #include "MIRModule.h"
 
+#include <atomic>
 #include <functional>
 #include <map>
 #include <mutex>
@@ -23,7 +24,9 @@ namespace mir {
 
 class MIRTypeBuilder {
 public:
-    explicit MIRTypeBuilder(MIRModule& module) : module_(module) {}
+    explicit MIRTypeBuilder(MIRModule& module) : module_(module) {
+        epoch_.store(next_epoch(), std::memory_order_relaxed);
+    }
 
     /**
      * Resolver for the C-emittable name of a named aggregate declaration. Set
@@ -192,6 +195,7 @@ public:
         std::unique_lock<std::recursive_mutex> lk(builder_mtx_, std::defer_lock);
         if (!module_.single_threaded()) lk.lock();
         memo_.clear();
+        epoch_.store(next_epoch(), std::memory_order_relaxed);
     }
 
 private:
@@ -212,6 +216,35 @@ private:
      * so its caches must not be raced. Recursive because `map` recurses.
      */
     mutable std::recursive_mutex builder_mtx_;
+
+    // --- lock-free memo fast path (action E3d) ------------------------------
+    /**
+     * A per-thread copy of `memo_`. While several workers share one builder the
+     * hot `map` (a `BaseType*` already mapped) is a pure read; routing every one
+     * of the 401k calls through `builder_mtx_` serialized all workers on that
+     * single recursive mutex — 12-way lowering inflated the summed per-function
+     * span from 1.6s to 7s. A thread now keeps its own memo and only takes the
+     * lock on a genuine miss, where the shared `memo_` stays the cross-worker
+     * cache. This mirrors the invariant that interning is structural: two
+     * workers computing the same type reach the same canonical `TypeId`.
+     *
+     * `epoch` makes the file-allocator address reuse `clear_memo` guards against
+     * safe: a memo whose epoch differs from the builder's is discarded, so an id
+     * for a `BaseType*` address a later file reused is never returned.
+     */
+    struct ThreadMemo {
+        uint64_t epoch = 0;
+        std::unordered_map<const BaseType*, TypeId> memo;
+    };
+    static ThreadMemo& thread_memo() {
+        static thread_local ThreadMemo tm;
+        return tm;
+    }
+    static uint64_t next_epoch() noexcept {
+        static std::atomic<uint64_t> counter{1};
+        return counter.fetch_add(1, std::memory_order_relaxed);
+    }
+    std::atomic<uint64_t> epoch_{0};
 };
 
 } // namespace mir

@@ -11,6 +11,29 @@
 #include <optional>
 #include <chrono>
 
+namespace mir {
+
+// The lowerer currently lowering on this thread. The translation driver wires
+// the shared comptime callbacks once (they capture the *driver* lowerer); a
+// parallel worker lowers through its own lowerer, so the callbacks consult this
+// to publish/read the worker's folded comptime parameter bindings rather than
+// the driver's. Null outside a lowering, in which case the callbacks fall back
+// to the driver (the serial behaviour). Kept in a translation unit (not a
+// header) so every backend shares one definition.
+static thread_local MIRLowerer* tls_current_lowering = nullptr;
+
+MIRLowerer* MIRLowerer::current_lowering() noexcept {
+    return tls_current_lowering;
+}
+
+MIRLowerer* MIRLowerer::set_current_lowering(MIRLowerer* l) noexcept {
+    MIRLowerer* prev = tls_current_lowering;
+    tls_current_lowering = l;
+    return prev;
+}
+
+} // namespace mir
+
 #include "ast/base/BaseType.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/DynamicType.h"

@@ -16,5 +16,6 @@
 #include "MIRConstantPool.h"
 #include "MIRSymbolTable.h"
 #include "MIRModule.h"
+#include "MIRTraversal.h"
 #include "MIRDump.h"
 #include "MIRVerifier.h"

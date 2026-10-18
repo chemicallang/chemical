@@ -22,6 +22,35 @@
 namespace mir {
 
 /**
+ * Per-value facts, by `ValueId` — the classification a compacting backend
+ * applies before it recomputes a value at its use site. `MIRValueDef` already
+ * carries the raw `use_count`/`def_inst`; this derives the portable predicates
+ * from them plus the defining opcode's static flags, so the C emitter and a
+ * future JVM/JS backend share one answer instead of each re-deriving it.
+ */
+struct MIRValueFacts {
+    /**
+     * The opcode defining each value, by `ValueId`, or
+     * `static_cast<uint16_t>(MIROpcode::Count)` when the value has no defining
+     * instruction.
+     */
+    std::vector<uint16_t> def_opcode;
+    /** 1 when the value is used exactly once (a single compaction candidate). */
+    std::vector<uint8_t> single_use;
+    /**
+     * 1 when the value is `single_use` *and* its defining opcode is pure (no
+     * side effects — `opcode_flags & OF_Pure`): a backend may recompute it at
+     * its use site without changing observable behavior. The C emitter layers
+     * its own policy (integer promotion, load fusion) on top.
+     */
+    std::vector<uint8_t> single_use_pure;
+};
+
+/** Compute `out` for `function`, which must belong to `module`. */
+void compute_value_facts(const MIRModule& module, const MIRFunction& function,
+                         MIRValueFacts& out);
+
+/**
  * Everything a backend needs to know about a function's shape before emitting
  * it. Turing-complete *analysis*, not policy: what a backend does with
  * `param_alias` (skip the spill) or `label_at_inst` (print a label) is its own

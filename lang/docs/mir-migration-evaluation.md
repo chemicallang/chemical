@@ -14,6 +14,25 @@ Branch: `mir`. Supersedes nothing; complements `compiler/mir/README.md`,
 > still AST-based). All numbers below are measured on the L1 machine against the
 > pre-MIR `main` compiler, same source, same mode.
 >
+> **Status update (2026-10-18, session 54) — B's last architectural item:
+> shared traversal, operand decode and naming.** The walk and the lookups were
+> still copied per backend: `operand_at` existed in `MIREmitter.cpp`,
+> `MIRFacts.cpp` and as a lambda in `CodegenMir`, the block instruction-range
+> arithmetic was open-coded in `CodegenMir`, and the LLVM emitter hand-rolled
+> the same symbol-name and string-constant reads six more times. New AST-free,
+> target-free core header `compiler/mir/MIRTraversal.h` provides `operand_at`,
+> `MIRBlockRange`/`block_range`, `for_each_block(_inst)`, `symbol_name_view` and
+> `constant_string_view`; both emitters, `MIRFacts`, `MIRInterpreter` and
+> `MIRDump` consume them. `MIRFacts.h` also gains `MIRValueFacts`
+> (`compute_value_facts`: `def_opcode`/`single_use`/`single_use_pure`), the
+> compaction classification the C emitter now reads instead of poking
+> `MIRValueDef::use_count`. **Output-invariant** (name == mangled in the
+> lowerer; `data.text` == the `(data_at, data_count)` payload; same block clamp;
+> `single_use == (use_count == 1)`). `MIRTests` **4462 → 4489**;
+> `--llvm` **2305/2305**, `--tcc` **2307/2307**, `--tcc --interpret`
+> **1896/1896**. No headline gate moves. Details: `compiler/mir/README.md`,
+> session 54.
+>
 > **Status update (2026-10-18, session 53) — the aggregate access layout is
 > shared.** A backend that builds an aggregate type itself (LLVM) needs an
 > ordered element list — one element per padding run and one shared element per
@@ -498,8 +517,10 @@ The intended shape is "one MIR, small per-backend emitters". Today:
   `abi::is_struct_like`, `abi::is_pointer_like`, `abi::is_void`) and
   `MIRLowerer`, `MIRDeclEmitter` and `CodegenMir` all call it — four hand-synced
   copies became one definition, and the "must match *exactly*" comments that
-  guarded them are gone. Shared **traversal/naming/layout services** are still
-  open (B is not done).
+  guarded them are gone. Shared **traversal/operand-decode/naming services** are
+  now in place too (`compiler/mir/MIRTraversal.h`, action B step 6, session 54),
+  along with the per-function (`MIRFacts`) and per-value (`MIRValueFacts`) facts;
+  the residual is the AST the C declaration collection pass still sees.
 
 **What is genuinely good and must be preserved:** MIR is AST-free at its core
 (`CodegenMir.cpp` has zero AST type references; only `MIRTypeBuilder`,
@@ -749,6 +770,21 @@ Output-invariant by construction; `MIRTests` gained `test_aggregate_plan`
 (4417 → **4462**); `--llvm` **2305/2305**, `--tcc` **2307/2307**,
 `--tcc --interpret` **1896/1896**. Still open in B: shared traversal and
 place/symbol/constant naming.
+**Step 6 DONE (session 54) — `compiler/mir/MIRTraversal.h` + `MIRValueFacts`.**
+The walk and the lookups are now core. `MIRTraversal.h` (AST-free, target-free,
+inline) provides `operand_at` (the copy in `MIREmitter.cpp`, the copy in
+`MIRFacts.cpp` and `CodegenMir`'s `arg` lambda collapse into it),
+`MIRBlockRange`/`block_range` (the block instruction-range arithmetic), the
+`for_each_block`/`for_each_block_inst` idiom (`MIRDump` consumes it),
+`symbol_name_view` and `constant_string_view` (the symbol/constant reads
+`MIREmitter`, `CodegenMir` and `MIRInterpreter` each spelled by hand).
+`MIRFacts.h` gains `MIRValueFacts` — `def_opcode`/`single_use`/`single_use_pure`
+for the compaction classification — computed by `compute_value_facts` and read
+by the C emitter's inline pass instead of `MIRValueDef::use_count` directly.
+Output-invariant by construction; `MIRTests` **4462 → 4489** (`test_value_facts`,
+`test_traversal_helpers`); `--llvm` **2305/2305**, `--tcc` **2307/2307**,
+`--tcc --interpret` **1896/1896**. **B's remaining item is the AST the C
+declaration collection pass still sees** (deliberately allowed).
 **Acceptance.** Each new backend adds only a dispatcher + printer, no layout/ABI
 logic; measured by (backend emitter LOC / total MIR LOC) trend.
 

@@ -78,8 +78,12 @@ Root causes (all with file/line evidence in the evaluation doc):
    (`compiler/mir/MIRVtable.h`, action B steps 3–4): slot order, self-erased slot
    types and the resolved callees are computed once and read by both emitters —
    and the **aggregate access layout** a backend that builds the type itself
-   indexes with GEP (`mir::compute_aggregate_plan`, session 53). Still open:
-   shared traversal and place/symbol/constant naming.
+   indexes with GEP (`mir::compute_aggregate_plan`, session 53). **Shared
+   traversal, operand decode and naming now exist too** (`compiler/mir/MIRTraversal.h`
+   — `operand_at`, `block_range`, `for_each_block(_inst)`, `symbol_name_view`,
+   `constant_string_view`; action B step 6, session 54), along with the
+   per-value compaction facts (`MIRValueFacts`). What remains in B is the AST
+   still visible to the C declaration collection pass (above).
 3. **Hot-path violations of the plan**: 18 `unordered_map`/sets in `MIRLowerer`,
    and `MIRLowerer.cpp` is one 8,224-line TU. The O(n) linear-scan
    `MIRTypeTable::intern` / `MIRConstantPool::add` were **fixed in session 7**
@@ -259,6 +263,54 @@ difference.
 **Still string-based** (left for a later pass, all cold): `MIRDeclEmitter`'s own
 prototype/vtable spellers, `MIRLowerAsync`'s per-async-function declaration
 concatenations, the `InlineAsm` operand list, and `MIRComptime`'s name maps.
+
+### Session 54 (2026-10-18) — shared traversal, operand decode and naming (action B)
+
+The last "still open in B" architectural item was the walk and the lookups
+themselves. Three translation units carried their own copy of the one-line
+operand accessor (`MIREmitter.cpp`, `MIRFacts.cpp`, and a lambda inside
+`CodegenMir::mir_emit_function`), the block's instruction-range arithmetic
+(`inst_start + inst_count + 1`, clamped) was open-coded in `CodegenMir`, and the
+LLVM emitter spelled the same symbol-name and string-constant reads three and
+three more times by hand. None of it is target-specific.
+
+New AST-free, target-free core header **`compiler/mir/MIRTraversal.h`**:
+
+- `operand_at(fn, inst, i)` — the one operand-decode accessor.
+- `MIRBlockRange` / `block_range(fn, block)` — a block's `[begin, end)` in the
+  instruction stream (terminator included, clamped to the stream).
+- `for_each_block` / `for_each_block_inst` — the traversal idiom a new backend
+  reads instead of re-walking; `MIRDump` now uses them.
+- `symbol_name_view(module, sym)` — the linker name (mangled, plain-name
+  fallback) as a view into the stable name pool.
+- `constant_string_view(module, cid)` — a String constant's bytes as a view into
+  the stable data pool.
+
+`MIREmitter` and `MIRFacts` drop their `operand_at` copies; `MIREmitter`'s
+`symbol_name`/`constant_string` (and their append twins) and `MIRInterpreter`'s
+`constant_text`/`constant_text_view` now go through the shared views;
+`CodegenMir` drops its `arg` lambda body, its block-range arithmetic and its six
+hand-rolled symbol/constant reads.
+
+**`MIRValueFacts` (the other half of the item).** `MIRFacts.h` gains
+`compute_value_facts`: per value, `def_opcode`, `single_use` and
+`single_use_pure` (`single_use` and the defining opcode is `OF_Pure`) — the
+classification a compacting backend reads before it recomputes a value at its
+use site. The C emitter's inline pass now reads `single_use` instead of poking
+`MIRValueDef::use_count` directly; the load-fusion / integer-promotion *policy*
+stays backend-side.
+
+**Output-invariant.** Every substitution is provably identical: the lowerer
+always interns a symbol's `name` and `mangled` spelling to the same bytes, so
+the mangled view equals the plain name `MIREmitter` read; `data.text(offset)`
+is exactly the `(data_at, data_count)` payload; `block_range` is the same
+clamp; `single_use == (use_count == 1)`. `MIRDump`'s walk is the same
+non-terminators-then-terminator sequence.
+
+Green: `--llvm` **2305/2305** · `--tcc` **2307/2307** ·
+`--tcc --interpret` **1896/1896** · `MIRTests` **4462 → 4489 checks** (new
+`test_value_facts`, `test_traversal_helpers`). No lowering or output change, so
+compile time, peak memory and binary size are untouched.
 
 ### Session 53 (2026-10-18) — the aggregate access plan is MIR's, not the LLVM backend's
 

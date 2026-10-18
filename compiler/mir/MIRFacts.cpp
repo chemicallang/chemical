@@ -5,15 +5,11 @@
 // reads the same answer.
 
 #include "MIRFacts.h"
+#include "MIRTraversal.h"
 
 namespace mir {
 
 namespace {
-
-const MIROperand* operand_at(const MIRFunction& fn, const MIRInstruction& inst, uint32_t i) {
-    if (i >= inst.operand_count) return nullptr;
-    return &fn.operands[inst.operand_offset + i];
-}
 
 /** Opcodes whose operand 0 is a written place. */
 bool writes_place(MIROpcode op) {
@@ -158,6 +154,39 @@ void compute_function_facts(const MIRModule& module, const MIRFunction& function
             if (pd.type >= module.types.size()) continue;
             if (!aliasable_param_kind(module.types.get(pd.type).kind)) continue;
             out.param_alias[p] = candidate[p];
+        }
+    }
+}
+
+void compute_value_facts(const MIRModule& module, const MIRFunction& function,
+                         MIRValueFacts& out) {
+    (void) module;
+    const uint32_t nval = static_cast<uint32_t>(function.values.size());
+    // `Count` is not a real opcode, so it is the "no defining instruction"
+    // sentinel (0 is a valid opcode — `Nop`).
+    const uint16_t none = static_cast<uint16_t>(MIROpcode::Count);
+    out.def_opcode.assign(nval, none);
+    out.single_use.assign(nval, 0);
+    out.single_use_pure.assign(nval, 0);
+
+    const uint32_t ninst = static_cast<uint32_t>(function.instructions.size());
+    for (uint32_t ii = 0; ii < ninst; ++ii) {
+        const MIRInstruction& inst = function.instructions[ii];
+        const ValueId v = inst.result_or_place;
+        if (v >= nval) continue;
+        // `result_or_place` also holds a place id for place-producing opcodes,
+        // which can collide with a value id; the recorded defining instruction
+        // filters those out.
+        if (function.values[v].def_inst != ii) continue;
+        out.def_opcode[v] = static_cast<uint16_t>(inst.opcode());
+    }
+
+    for (ValueId v = 0; v < nval; ++v) {
+        if (function.values[v].use_count != 1) continue;
+        out.single_use[v] = 1;
+        const uint16_t op = out.def_opcode[v];
+        if (op != none && opcode_is_pure(static_cast<MIROpcode>(op))) {
+            out.single_use_pure[v] = 1;
         }
     }
 }

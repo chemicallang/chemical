@@ -4,6 +4,7 @@
 
 #include "MIRFacts.h"
 #include "MIRMangleBuffer.h"
+#include "MIRTraversal.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -225,16 +226,16 @@ const char* unop_c(MIRUnaryOp op) {
 
 bool symbol_name(const MIRModule& module, SymbolId sym, std::string& out) {
     if (sym == MIR_INVALID_ID || sym >= module.symbols.size()) return false;
-    const MIRSymbolRecord& r = module.symbols.get(sym);
-    out.assign(module.symbols.name_data(r), r.name_length);
+    const std::string_view name = symbol_name_view(module, sym);
+    if (!name.empty()) out.assign(name.data(), name.size());
     return true;
 }
 
 bool constant_string(const MIRModule& module, ConstantId cid, std::string& out) {
     if (cid >= module.constants.size()) return false;
-    const MIRConstant& c = module.constants.get(cid);
-    if (c.kind != MIRConstantKind::String) return false;
-    out.assign(module.constants.data.data_at(c.data_offset), c.data_count);
+    if (module.constants.get(cid).kind != MIRConstantKind::String) return false;
+    const std::string_view s = constant_string_view(module, cid);
+    out.assign(s.data(), s.size());
     return true;
 }
 
@@ -248,16 +249,16 @@ std::string member_access(const MIRFunction& fn, const MIRModule& module, PlaceI
 // Append-style counterparts used by the emit loop (no temporary string).
 bool append_symbol_name(const MIRModule& module, SymbolId sym, std::string& out) {
     if (sym == MIR_INVALID_ID || sym >= module.symbols.size()) return false;
-    const MIRSymbolRecord& r = module.symbols.get(sym);
-    out.append(module.symbols.name_data(r), r.name_length);
+    const std::string_view name = symbol_name_view(module, sym);
+    if (!name.empty()) out.append(name.data(), name.size());
     return true;
 }
 
 bool append_constant_string(const MIRModule& module, ConstantId cid, std::string& out) {
     if (cid >= module.constants.size()) return false;
-    const MIRConstant& c = module.constants.get(cid);
-    if (c.kind != MIRConstantKind::String) return false;
-    out.append(module.constants.data.data_at(c.data_offset), c.data_count);
+    if (module.constants.get(cid).kind != MIRConstantKind::String) return false;
+    const std::string_view s = constant_string_view(module, cid);
+    out.append(s.data(), s.size());
     return true;
 }
 
@@ -717,11 +718,6 @@ std::string operand_expr(const MIRFunction& fn, const MIRModule& module,
     return s;
 }
 
-const MIROperand* operand_at(const MIRFunction& fn, const MIRInstruction& inst, uint32_t i) {
-    if (i >= inst.operand_count) return nullptr;
-    return &fn.operands[inst.operand_offset + i];
-}
-
 } // namespace
 
 bool emit_function_c(const MIRFunction& function, const MIRModule& module,
@@ -810,6 +806,13 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
     compute_function_facts(module, function, facts);
     const std::vector<BlockId>& label_at = facts.label_at_inst;
     const std::vector<uint8_t>& block_starts = facts.block_starts_inst;
+
+    // Per-value compaction facts (single-use / pure classification), also MIR's
+    // to publish so the inlining decision reads the same answer here and in any
+    // other backend.
+    static thread_local MIRValueFacts value_facts;
+    compute_value_facts(module, function, value_facts);
+    const std::vector<uint8_t>& single_use = value_facts.single_use;
 
     // Build the single-use inlining map: a pure value used exactly once is
     // collapsed into its use site (address chains, arithmetic, casts,
@@ -986,7 +989,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
         const MIRInstruction& inst = function.instructions[ii];
         const ValueId v = inst.result_or_place;
         if (v >= function.values.size()) continue;
-        if (function.values[v].use_count != 1) continue;
+        if (!single_use[v]) continue;
         if (inst.opcode() == MIROpcode::Param) {
             inline_expr[v] = "__chx_a" + std::to_string(param_idx_at[ii]);
             continue;

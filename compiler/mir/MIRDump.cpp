@@ -1,6 +1,7 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "MIRDump.h"
+#include "MIRTraversal.h"
 
 #include <sstream>
 
@@ -86,8 +87,7 @@ void dump_function(const MIRFunction& function, const MIRModule& module,
                    std::ostream& out) {
     (void) module; // reserved for symbol/type name resolution in the dump
     out << "func s" << function.symbol << " : ty" << function.function_type << " {\n";
-    for (uint32_t b = 0; b < function.blocks.size(); ++b) {
-        const MIRBlock& block = function.blocks[b];
+    for_each_block(function, [&](uint32_t, const MIRBlock& block) {
         out << "bb" << block.id << ":";
         if (block.arg_count) {
             out << "(";
@@ -99,16 +99,10 @@ void dump_function(const MIRFunction& function, const MIRModule& module,
         }
         out << "\n";
 
-        for (uint32_t i = 0; i < block.inst_count; ++i) {
-            const uint32_t idx = block.inst_start + i;
-            if (idx >= function.instructions.size()) break;
-            dump_instruction(function, function.instructions[idx], out, "  ");
-        }
-        const uint32_t term_idx = block.inst_start + block.inst_count;
-        if (term_idx < function.instructions.size()) {
-            dump_instruction(function, function.instructions[term_idx], out, "  ");
-        }
-    }
+        for_each_block_inst(function, block, [&](uint32_t, const MIRInstruction& inst) {
+            dump_instruction(function, inst, out, "  ");
+        });
+    });
     out << "}\n";
 }
 

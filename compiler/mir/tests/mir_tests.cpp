@@ -11,6 +11,7 @@
 #include "compiler/mir/MIREmitter.h"
 #include "compiler/mir/MIRFacts.h"
 #include "compiler/mir/MIRInterpreter.h"
+#include "compiler/mir/MIRTraversal.h"
 
 #include <cassert>
 #include <cstddef>
@@ -889,6 +890,152 @@ static bool test_function_facts() {
     return true;
 }
 
+// ── per-value facts (action B) ──────────────────────────────────────────────
+// `MIRValueFacts` publishes the single-use / pure classification the C emitter's
+// inline compaction and any other backend read, instead of each re-deriving it
+// from `MIRValueDef::use_count` and the opcode flags.
+static bool test_value_facts() {
+    MIRModule module;
+    MIRTypeRecord ir;
+    ir.kind = MIRTypeKind::Int;
+    ir.flags = TF_SIGNED;
+    ir.size = 4;
+    ir.alignment = 4;
+    const TypeId i32 = module.types.intern(ir);
+
+    TypeId params[1] = {i32};
+    MIRTypeRecord fr;
+    fr.kind = MIRTypeKind::Function;
+    fr.element = i32;
+    fr.data_offset = module.types.append_data(params, 1);
+    fr.data_count = 1;
+    fr.size = 8;
+    fr.alignment = 8;
+    const TypeId ftype = module.types.intern(fr);
+
+    MIRArena arena;
+    MIRFunction fn;
+    fn.function_type = ftype;
+    MIRBuilder b(arena, module, fn);
+    const BlockId entry = b.create_block();
+    b.set_block(entry);
+    fn.entry_block = entry;
+
+    const ValueId pa = b.param(i32);
+    const PlaceId ppa = b.alloca(i32, MIRStorageClass::Parameter);
+    b.store(ppa, pa);
+    const ValueId la = b.load(ppa, i32);
+    // `la` is read twice, so it is not a single-use candidate
+    const ValueId sum = b.binary(
+        la, la, module.constants.add_int(MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Add)), i32);
+    b.ret(sum);
+    CHECK(b.ok());
+
+    MIRValueFacts vf;
+    compute_value_facts(module, fn, vf);
+    CHECK(vf.def_opcode.size() == fn.values.size());
+    CHECK(vf.def_opcode[pa] == static_cast<uint16_t>(MIROpcode::Param));
+    CHECK(vf.def_opcode[la] == static_cast<uint16_t>(MIROpcode::Load));
+    CHECK(vf.def_opcode[sum] == static_cast<uint16_t>(MIROpcode::Binary));
+    // a `Param` is used once and is pure
+    CHECK(vf.single_use[pa] == 1u);
+    CHECK(vf.single_use_pure[pa] == 1u);
+    // a twice-read load is neither
+    CHECK(vf.single_use[la] == 0u);
+    CHECK(vf.single_use_pure[la] == 0u);
+    // a single-use `Binary` is pure; a single-use `Load` would be single_use but
+    // not single_use_pure (covered below)
+    CHECK(vf.single_use[sum] == 1u);
+    CHECK(vf.single_use_pure[sum] == 1u);
+
+    // a value with no defining instruction has the sentinel opcode
+    MIRValueFacts empty;
+    compute_value_facts(module, fn, empty);
+    CHECK(empty.def_opcode.size() == vf.def_opcode.size());
+    return true;
+}
+
+// ── traversal / operand-decode / naming (action B) ──────────────────────────
+static bool test_traversal_helpers() {
+    MIRModule module;
+    MIRTypeRecord ir;
+    ir.kind = MIRTypeKind::Int;
+    ir.flags = TF_SIGNED;
+    ir.size = 4;
+    ir.alignment = 4;
+    const TypeId i32 = module.types.intern(ir);
+
+    // symbol naming: the mangled spelling wins, the plain name is the fallback
+    MIRSymbolRecord rec;
+    rec.kind = MIRSymbolKind::Function;
+    rec.type = MIR_INVALID_ID;
+    const SymbolId sym = module.symbols.add(rec, "plain", 5, "mangled", 7);
+    CHECK(symbol_name_view(module, sym) == "mangled");
+    const SymbolId sym2 = module.symbols.add(rec, "plain2", 6, "", 0);
+    CHECK(symbol_name_view(module, sym2) == "plain2");
+    CHECK(symbol_name_view(module, MIR_INVALID_ID).empty());
+
+    // constant payload: only String constants carry text
+    const ConstantId cid = module.constants.add_string(i32, "hello", 5);
+    CHECK(constant_string_view(module, cid) == "hello");
+    const ConstantId cid_int = module.constants.add_int(i32, 7);
+    CHECK(constant_string_view(module, cid_int).empty());
+
+    TypeId params[1] = {i32};
+    MIRTypeRecord fr;
+    fr.kind = MIRTypeKind::Function;
+    fr.element = i32;
+    fr.data_offset = module.types.append_data(params, 1);
+    fr.data_count = 1;
+    fr.size = 8;
+    fr.alignment = 8;
+    const TypeId ftype = module.types.intern(fr);
+
+    MIRArena arena;
+    MIRFunction fn;
+    fn.function_type = ftype;
+    MIRBuilder b(arena, module, fn);
+    const BlockId entry = b.create_block();
+    b.set_block(entry);
+    fn.entry_block = entry;
+    const PlaceId p = b.alloca(i32, MIRStorageClass::Local);
+    const ValueId n = b.const_int(i32, module.constants.add_int(i32, 1));
+    b.store(p, n);
+    b.ret(b.load(p, i32));
+    CHECK(b.ok());
+
+    // block iteration covers both non-terminators and the terminator
+    CHECK(fn.blocks.size() == 1u);
+    const MIRBlockRange r = block_range(fn, fn.blocks[0]);
+    CHECK(r.begin == 0u);
+    CHECK(r.end == fn.instructions.size());
+
+    uint32_t blocks_seen = 0;
+    uint32_t insts_seen = 0;
+    bool block_index_ok = true;
+    for_each_block(fn, [&](uint32_t bi, const MIRBlock& blk) -> void {
+        if (bi != 0u) block_index_ok = false;
+        ++blocks_seen;
+        for_each_block_inst(fn, blk,
+                            [&](uint32_t, const MIRInstruction&) -> void { ++insts_seen; });
+    });
+    CHECK(block_index_ok);
+    CHECK(blocks_seen == 1u);
+    CHECK(insts_seen == fn.instructions.size());
+
+    // operand decode through the one accessor
+    const MIRInstruction& last = fn.instructions[fn.instructions.size() - 1];
+    CHECK(operand_at(fn, last, 0) != nullptr);
+    CHECK(operand_at(fn, last, last.operand_count) == nullptr);
+
+    // a block with no valid start owns an empty range
+    MIRBlock none;
+    none.inst_start = MIR_INVALID_ID;
+    const MIRBlockRange er = block_range(fn, none);
+    CHECK(er.begin == er.end);
+    return true;
+}
+
 // ── declaration printer (action A3) ────────────────────────────────────────
 // The C text of a declaration is MIR's business (`MIRDeclPrinter`); these pin
 // the exact spelling the AST-walking declaration emitter used to write, since
@@ -1367,6 +1514,8 @@ int main() {
     ok &= test_aggregate_layout();
     ok &= test_aggregate_plan();
     ok &= test_function_facts();
+    ok &= test_value_facts();
+    ok &= test_traversal_helpers();
     ok &= test_decl_printer();
     ok &= test_const_expr_printer();
     ok &= test_decl_list_printer();

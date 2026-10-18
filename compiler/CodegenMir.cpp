@@ -19,6 +19,7 @@
 #include "compiler/mir/MIRInstruction.h"
 #include "compiler/mir/MIRFunction.h"
 #include "compiler/mir/MIRLayout.h"
+#include "compiler/mir/MIRTraversal.h"
 #include "compiler/mir/MIRDump.h"
 
 #include <llvm/BinaryFormat/Dwarf.h>
@@ -244,9 +245,7 @@ llvm::Function* Codegen::mir_function(const mir::MIRModule& m, uint32_t symbol) 
     if (it != mir_fn_cache_.end()) return it->second;
     if (symbol >= m.symbols.size()) return nullptr;
     const MIRSymbolRecord& rec = m.symbols.get(symbol);
-    std::string name(rec.mangled_length ? m.symbols.mangled_data(rec)
-                                        : m.symbols.name_data(rec),
-                     rec.mangled_length ? rec.mangled_length : rec.name_length);
+    const std::string name = m.symbols.mangled_name(rec);
 
     const MIRFunction* body = nullptr;
     for (const MIRFunction& f : m.functions) {
@@ -313,9 +312,7 @@ void Codegen::mir_declare_globals(const mir::MIRModule& m) {
         const MIRSymbolRecord& rec = m.symbols.get(i);
         if (rec.kind != MIRSymbolKind::Global && rec.kind != MIRSymbolKind::External) continue;
         if (rec.type == MIR_INVALID_ID || rec.type >= m.types.size()) continue;
-        std::string name(rec.mangled_length ? m.symbols.mangled_data(rec)
-                                            : m.symbols.name_data(rec),
-                         rec.mangled_length ? rec.mangled_length : rec.name_length);
+        const std::string name = m.symbols.mangled_name(rec);
         if (llvm::GlobalVariable* existing = module->getGlobalVariable(name)) {
             mir_global_cache_[i] = existing;
             continue;
@@ -591,7 +588,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
             if (cid >= m.constants.size()) continue;
             const MIRConstant& c = m.constants.get(cid);
             if (c.kind != MIRConstantKind::String || c.data_count == 0) continue;
-            std::string name(m.constants.data.data_at(c.data_offset), c.data_count);
+            std::string name(m.constants.data.text(c.data_offset));
             llvm::DIType* dt = mir_di_type(m, pd.type);
             // The scope the place was declared in (a lexical block), so the
             // variable scopes the way the source did and LLVM keeps the block.
@@ -646,7 +643,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                 return llvm::ConstantFP::get(builder->getDoubleTy(), d);
             }
             case MIRConstantKind::String: {
-                std::string s(m.constants.data.data_at(c.data_offset), c.data_count);
+                std::string s(m.constants.data.text(c.data_offset));
                 return llvm::ConstantDataArray::getString(*ctx, s, true);
             }
             default:
@@ -658,7 +655,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
         if (cid >= m.constants.size()) return false;
         const MIRConstant& c = m.constants.get(cid);
         if (c.kind != MIRConstantKind::String) return false;
-        out.assign(m.constants.data.data_at(c.data_offset), c.data_count);
+        out.assign(m.constants.data.text(c.data_offset));
         return true;
     };
 
@@ -1203,13 +1200,11 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
     for (uint32_t bi = 0; bi < fn.blocks.size(); ++bi) {
         const MIRBlock& blk = fn.blocks[bi];
         builder->SetInsertPoint(blocks[bi]);
-        const uint32_t end = blk.inst_start + blk.inst_count + 1;
-        for (uint32_t ii = blk.inst_start; ii < end && ii < fn.instructions.size(); ++ii) {
+        const mir::MIRBlockRange range = mir::block_range(fn, blk);
+        for (uint32_t ii = range.begin; ii < range.end; ++ii) {
             const MIRInstruction& inst = fn.instructions[ii];
-            const uint32_t base = inst.operand_offset;
             auto arg = [&](uint32_t n) -> const MIROperand* {
-                if (n >= inst.operand_count) return nullptr;
-                return &fn.operands[base + n];
+                return mir::operand_at(fn, inst, n);
             };
             const uint32_t v = inst.result_or_place;
             // Attach the instruction's MIR source location (when present),
@@ -1280,10 +1275,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                             vals[v] = git->second;
                         } else if (s->id < m.symbols.size()) {
                             const MIRSymbolRecord& rec = m.symbols.get(s->id);
-                            std::string nm(rec.mangled_length ? m.symbols.mangled_data(rec)
-                                                              : m.symbols.name_data(rec),
-                                           rec.mangled_length ? rec.mangled_length
-                                                              : rec.name_length);
+                            const std::string nm = m.symbols.mangled_name(rec);
                             auto nit = mir_named_globals_.find(nm);
                             if (nit != mir_named_globals_.end()) {
                                 vals[v] = nit->second;

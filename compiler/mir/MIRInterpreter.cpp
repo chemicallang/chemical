@@ -7,6 +7,7 @@
 
 #include "MIRABI.h"
 #include "MIRInstruction.h"
+#include "MIRTraversal.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -284,28 +285,22 @@ struct MIRInterpreter::Impl {
             const MIRConstant c = module.constants.get(i);
             const_bits[i] = c.bits;
             if (c.kind == MIRConstantKind::String) {
-                const_str[i] =
-                    intern_string_constant(module.constants.data.data_at(c.data_offset),
-                                           c.data_count);
+                const std::string_view sv = constant_string_view(module, i);
+                const_str[i] = intern_string_constant(sv.data(), static_cast<uint32_t>(sv.size()));
             }
         }
         built_constants = n;
     }
 
     std::string constant_text(ConstantId cid) const {
-        const MIRConstant c = module.constants.get(cid);
-        if (c.kind != MIRConstantKind::String) return std::string();
-        return std::string(module.constants.data.data_at(c.data_offset), c.data_count);
+        return std::string(constant_string_view(module, cid));
     }
 
     /** `constant_text` without the copy — used on the field-lookup path, which
      * runs for every FieldAddr/IndexAddr instruction. The pool's bytes are
      * append-only and stable (MIRBytePool), so the view is valid for the lookup. */
     std::string_view constant_text_view(ConstantId cid) const {
-        if (cid >= module.constants.size()) return {};
-        const MIRConstant c = module.constants.get(cid);
-        if (c.kind != MIRConstantKind::String) return {};
-        return std::string_view(module.constants.data.data_at(c.data_offset), c.data_count);
+        return constant_string_view(module, cid);
     }
 
     // ── field resolution ───────────────────────────────────────────────────

@@ -74,9 +74,12 @@ Root causes (all with file/line evidence in the evaluation doc):
    nine times across three translation units, and so are the **per-function
    facts** — block offsets/labels, place write counts, parameter aliasing
    (`compiler/mir/MIRFacts.h`, action B step 2, session 18), which
-   `emit_function_c` used to re-derive inline. Still open: shared traversal,
-   naming, and the interface **vtable layout** (slot order) that
-   `MIRDeclEmitter` and `CodegenMir::mir_vtable_*` still derive independently.
+   `emit_function_c` used to re-derive inline — the interface **vtable layout**
+   (`compiler/mir/MIRVtable.h`, action B steps 3–4): slot order, self-erased slot
+   types and the resolved callees are computed once and read by both emitters —
+   and the **aggregate access layout** a backend that builds the type itself
+   indexes with GEP (`mir::compute_aggregate_plan`, session 53). Still open:
+   shared traversal and place/symbol/constant naming.
 3. **Hot-path violations of the plan**: 18 `unordered_map`/sets in `MIRLowerer`,
    and `MIRLowerer.cpp` is one 8,224-line TU. The O(n) linear-scan
    `MIRTypeTable::intern` / `MIRConstantPool::add` were **fixed in session 7**
@@ -256,6 +259,45 @@ difference.
 **Still string-based** (left for a later pass, all cold): `MIRDeclEmitter`'s own
 prototype/vtable spellers, `MIRLowerAsync`'s per-async-function declaration
 concatenations, the `InlineAsm` operand list, and `MIRComptime`'s name maps.
+
+### Session 53 (2026-10-18) — the aggregate access plan is MIR's, not the LLVM backend's
+
+Session 10 put every aggregate's `size`/`alignment`/field-`offset` in MIR
+(`MIRLayout.h`, action A1). A backend that lets a C compiler lay the type out
+(the C target) only needs those numbers. A backend that *builds* the aggregate
+itself needs one more thing: an explicit ordered element list — one element per
+padding run, and one **shared** element per union-member / variant-case overlap
+group (a struct type cannot have two fields at the same offset). The LLVM
+backend had derived that list inline in `mir_type` (~70 lines of overlap-group
+selection and padding walk), keyed by two ad-hoc maps in `Codegen`
+(`mir_agg_elems_`, `mir_field_elem_`).
+
+That list is a pure function of the type table — identical for every such
+backend — so it now lives in the core as `mir::compute_aggregate_plan` /
+`MIRAggregatePlan` / `MIRAggElement` (`compiler/mir/MIRLayout.h`, next to
+`compute_aggregate_layout`). It reports, per aggregate, the ordered elements
+(representative type + field range, or a padding byte count) plus the
+field → element map; the backend only spells each element (`mir_type(rep_type)`,
+or `[pad x i8]`) and keeps the plan for GEP and constant building. `Codegen`
+stores the plan in `mir_agg_plans_`; `mir_field_elem`, the constant builder's
+`plan_for` and the GEP path are behaviourally unchanged (they now read the core
+plan). `CodegenMir::mir_type`'s aggregate case shrank to a loop over the plan.
+
+**Output-invariant, on purpose.** The plan is the same sequence the inline code
+produced: an aggregate with no explicit alignment and no overlap maps field *i*
+to element *i* exactly as before; union/variant groups pick the same
+largest-aligned member; padding runs are the same byte counts. Nothing here
+touches lowering, the C backend or the interpreter.
+
+**Coverage.** New `MIRTests::test_aggregate_plan` pins the plan for
+interior/trailing padding, a union group, a variant (tag, pad, shared case
+group), an over-aligned `@maxalign` type and an explicitly aligned member — the
+same shapes `test_aggregate_layout` pins against the C compiler, but at the
+element level. `MIRTests` 4417 → **4462 checks**.
+
+Green: `--llvm` **2305/2305** · `--tcc` **2307/2307** ·
+`--tcc --interpret` **1896/1896** · `MIRTests` **4462 checks**. No lowering or
+emission change, so compile time, peak memory and binary size are untouched.
 
 ### Session 50 (2026-10-16) — the interpretation job runs on MIR
 

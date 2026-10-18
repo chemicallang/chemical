@@ -136,92 +136,30 @@ llvm::Type* Codegen::mir_type(const mir::MIRModule& m, uint32_t id) {
                                        : llvm::StructType::create(*ctx, name);
             mir_type_cache_[id] = st;
 
-            // Build the body from MIR's recorded layout, not from LLVM's: place
-            // each field at its MIR byte offset (padding where the MIR offset
-            // exceeds the running end, so an explicit `@align`/`@maxalign` is
-            // honored) and size the whole type to MIR's `r.size`. Union members
-            // and variant cases overlap in MIR, which a struct cannot express,
-            // so each overlap group becomes one storage element sized/aligned to
-            // the group; every field in the group maps to that element (opaque
-            // pointers make the field type irrelevant at the GEP).
-            //
-            // An aggregate with no explicit alignment and no overlap produces an
-            // element sequence identical to the field list, so the common case
-            // is unchanged.
+            // Build the body from the access layout MIR publishes (see
+            // `mir::compute_aggregate_plan`): each MIR field sits at its MIR byte
+            // offset (padding where the offset exceeds the running end, so an
+            // explicit `@align`/`@maxalign` is honored), union members and
+            // variant cases share one storage element per overlap group (a
+            // struct cannot have two fields at one offset; opaque pointers make
+            // the group's field type irrelevant at the GEP), and the whole type
+            // is sized to MIR's `r.size`. An aggregate with no explicit
+            // alignment and no overlap produces an element sequence identical to
+            // the field list, so the common case is unchanged.
+            mir::MIRAggregatePlan plan;
+            compute_aggregate_plan(m.types, id, plan);
             std::vector<llvm::Type*> elems;
-            std::vector<MIRAggElem> elems_info;
-            std::vector<uint32_t> field_elem(r.data_count, 0);
-            uint64_t cur = 0;
-            uint32_t i = 0;
-            const bool union_all = (r.kind == MIRTypeKind::Union);
-            const uint8_t case_kind = static_cast<uint8_t>(MIRFieldKind::VariantCase);
-            while (i < r.data_count) {
-                const MIRFieldInfo* f = m.types.field_of(id, i);
-                if (!f) {
-                    ++i;
-                    continue;
-                }
-                const bool overlap = union_all || f->kind == case_kind;
-                MIRAggElem info;
-                TypeId rep = f->type;
-                if (overlap) {
-                    // one shared storage element for the whole overlap group,
-                    // represented by the member with the largest aligned size
-                    // (so any member fits it); ties prefer the larger alignment
-                    uint32_t j = i;
-                    uint32_t best = i;
-                    uint32_t best_align = 0;
-                    uint64_t best_aligned = 0;
-                    while (j < r.data_count) {
-                        const MIRFieldInfo* g = m.types.field_of(id, j);
-                        if (!g) break;
-                        if (!(union_all || g->kind == case_kind)) break;
-                        const uint32_t ga = mir_field_alignment(m.types, *g);
-                        const uint64_t gs =
-                            mir_align_up(mir_field_size(m.types, *g), ga);
-                        if (gs > best_aligned || (gs == best_aligned && ga > best_align)) {
-                            best = j;
-                            best_align = ga;
-                            best_aligned = gs;
-                        }
-                        ++j;
-                    }
-                    rep = m.types.field_of(id, best)->type;
-                    info.field = i;
-                    info.field_count = j - i;
-                    i = j;
+            elems.reserve(plan.elements.size());
+            for (const mir::MIRAggElement& e : plan.elements) {
+                if (e.first_field == MIR_INVALID_ID) {
+                    elems.push_back(
+                        llvm::ArrayType::get(builder->getInt8Ty(), e.pad_bytes));
                 } else {
-                    info.field = i;
-                    info.field_count = 1;
-                    ++i;
+                    elems.push_back(mir_type(m, e.rep_type));
                 }
-                const uint32_t offset = f->offset;
-                if (offset > cur) {
-                    elems.push_back(llvm::ArrayType::get(builder->getInt8Ty(),
-                                                         offset - cur));
-                    elems_info.push_back(MIRAggElem{});
-                    cur = offset;
-                }
-                const uint32_t idx = static_cast<uint32_t>(elems.size());
-                elems.push_back(mir_type(m, rep));
-                elems_info.push_back(info);
-                for (uint32_t k = 0; k < info.field_count; ++k) {
-                    if (info.field + k < field_elem.size()) {
-                        field_elem[info.field + k] = idx;
-                    }
-                }
-                cur = offset + (rep < m.types.size() ? m.types.get(rep).size : 0);
-            }
-            // A field-less aggregate stays empty (`type {}`, alloc size 0), so
-            // the body matches the C backend's `struct S {}`. Only pad when MIR
-            // recorded a larger size (explicit alignment / overlap tail).
-            if (r.size > cur) {
-                elems.push_back(llvm::ArrayType::get(builder->getInt8Ty(), r.size - cur));
-                elems_info.push_back(MIRAggElem{});
             }
             st->setBody(elems);
-            mir_agg_elems_[id] = std::move(elems_info);
-            mir_field_elem_[id] = std::move(field_elem);
+            mir_agg_plans_[id] = std::move(plan);
             t = st;
             break;
         }
@@ -247,9 +185,9 @@ llvm::Type* Codegen::mir_type(const mir::MIRModule& m, uint32_t id) {
 }
 
 uint32_t Codegen::mir_field_elem(uint32_t agg, uint32_t field) const {
-    auto it = mir_field_elem_.find(agg);
-    if (it == mir_field_elem_.end() || field >= it->second.size()) return field;
-    return it->second[field];
+    auto it = mir_agg_plans_.find(agg);
+    if (it == mir_agg_plans_.end() || field >= it->second.field_elem.size()) return field;
+    return it->second.field_elem[field];
 }
 
 // ── Function declaration ────────────────────────────────────────────────────
@@ -2719,10 +2657,10 @@ private:
         return null(want);
     }
 
-    /** The MIR-owned element plan for aggregate `t` (see `mir_type`). */
-    const std::vector<Codegen::MIRAggElem>* plan_for(mir::TypeId t) const {
-        auto it = gen_.mir_agg_elems_.find(t);
-        if (it == gen_.mir_agg_elems_.end()) return nullptr;
+    /** The MIR-owned aggregate access plan for `t` (see `mir_type`). */
+    const mir::MIRAggregatePlan* plan_for(mir::TypeId t) const {
+        auto it = gen_.mir_agg_plans_.find(t);
+        if (it == gen_.mir_agg_plans_.end()) return nullptr;
         return &it->second;
     }
 
@@ -2775,19 +2713,19 @@ private:
         // Make sure `mir_type` has published the element plan (padding and
         // overlap elements) before we walk the struct body.
         if (valid(e.type)) gen_.mir_type(m_, e.type);
-        const std::vector<Codegen::MIRAggElem>* plan = plan_for(e.type);
+        const mir::MIRAggregatePlan* plan = plan_for(e.type);
         std::vector<llvm::Constant*> elems;
         elems.reserve(st->getNumElements());
         for (uint32_t i = 0; i < st->getNumElements(); ++i) {
             llvm::Type* ft = st->getElementType(i);
-            const Codegen::MIRAggElem* info =
-                (plan && i < plan->size()) ? &(*plan)[i] : nullptr;
+            const mir::MIRAggElement* info =
+                (plan && i < plan->elements.size()) ? &plan->elements[i] : nullptr;
             if (!info || info->field_count == 0 || !rec) {
                 elems.push_back(null(ft));  // padding / unknown
                 continue;
             }
             if (info->field_count == 1) {
-                const mir::MIRFieldInfo* f = m_.types.field_of(e.type, info->field);
+                const mir::MIRFieldInfo* f = m_.types.field_of(e.type, info->first_field);
                 const mir::MIRConstChild* c =
                     f ? find_child(id, m_.types.field_name_view(*f)) : nullptr;
                 elems.push_back(build(c ? c->expr : mir::MIR_INVALID_ID, ft));
@@ -2796,7 +2734,7 @@ private:
                 // own type and fit it into the shared storage element.
                 llvm::Constant* c = nullptr;
                 for (uint32_t k = 0; k < info->field_count && !c; ++k) {
-                    const mir::MIRFieldInfo* f = m_.types.field_of(e.type, info->field + k);
+                    const mir::MIRFieldInfo* f = m_.types.field_of(e.type, info->first_field + k);
                     if (!f) continue;
                     const mir::MIRConstChild* child =
                         find_child(id, m_.types.field_name_view(*f));
@@ -2821,18 +2759,18 @@ private:
         auto* st = llvm::dyn_cast<llvm::StructType>(want);
         if (!st) return null(want);
         if (valid(e.type)) gen_.mir_type(m_, e.type);
-        const std::vector<Codegen::MIRAggElem>* plan = plan_for(e.type);
+        const mir::MIRAggregatePlan* plan = plan_for(e.type);
         std::vector<llvm::Constant*> elems;
         elems.reserve(st->getNumElements());
         for (uint32_t i = 0; i < st->getNumElements(); ++i) {
             llvm::Type* ft = st->getElementType(i);
-            const Codegen::MIRAggElem* info =
-                (plan && i < plan->size()) ? &(*plan)[i] : nullptr;
+            const mir::MIRAggElement* info =
+                (plan && i < plan->elements.size()) ? &plan->elements[i] : nullptr;
             if (!info || info->field_count == 0 || !rec) {
                 elems.push_back(null(ft));  // padding / unknown
                 continue;
             }
-            const mir::MIRFieldInfo* f = m_.types.field_of(e.type, info->field);
+            const mir::MIRFieldInfo* f = m_.types.field_of(e.type, info->first_field);
             if (!f) {
                 elems.push_back(null(ft));
                 continue;
@@ -2845,7 +2783,7 @@ private:
                 // active (its `Case.param` children exist); build and fit it.
                 llvm::Constant* c = nullptr;
                 for (uint32_t k = 0; k < info->field_count && !c; ++k) {
-                    const mir::MIRFieldInfo* cf = m_.types.field_of(e.type, info->field + k);
+                    const mir::MIRFieldInfo* cf = m_.types.field_of(e.type, info->first_field + k);
                     if (!cf) continue;
                     auto* cst = llvm::dyn_cast<llvm::StructType>(gen_.mir_type(m_, cf->type));
                     if (!cst) continue;

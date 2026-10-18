@@ -15,6 +15,7 @@
 #include "std/chem_string_view.h"
 #include "backend/DebugInfoBuilder.h"
 #include "CodegenOptions.h"
+#include "mir/MIRLayout.h"
 
 class ASTAllocator;
 
@@ -110,21 +111,13 @@ public:
     std::unordered_map<std::string, std::vector<llvm::FunctionType*>> mir_vtable_slot_types_;
 
     /**
-     * MIR-authoritative aggregate element layout for the LLVM backend (action
-     * of mir-migration-evaluation.md: the backend consumes the MIR layout, it
-     * does not re-derive one). One entry per LLVM struct element, in body order:
-     * `field == 0xFFFFFFFF` is a padding element, otherwise it is the first MIR
-     * field index mapped here and `field_count` is the number of overlapping
-     * fields (1 for a normal member, > 1 for a union/variant overlap group).
-     * Filled by `mir_type`, read by `gep_path` and the constant builder.
+     * MIR-owned aggregate access layout, per aggregate type id (see
+     * `mir::compute_aggregate_plan`). The backend stores the plan it consumed
+     * from MIR so `gep_path` and the constant builder can map a MIR field index
+     * to its LLVM element (padding runs and union/variant overlap groups make the
+     * two differ). Filled by `mir_type`.
      */
-    struct MIRAggElem {
-        uint32_t field = 0xFFFFFFFFu;
-        uint32_t field_count = 0;
-    };
-    std::unordered_map<uint32_t, std::vector<MIRAggElem>> mir_agg_elems_;
-    /** aggregate type id -> MIR field index -> LLVM element (GEP) index. */
-    std::unordered_map<uint32_t, std::vector<uint32_t>> mir_field_elem_;
+    std::unordered_map<uint32_t, mir::MIRAggregatePlan> mir_agg_plans_;
 
     // MIR → LLVM debug info (per module / per function, when DI is enabled).
     llvm::DIFile* mir_di_file_ = nullptr;      // current module's source file
@@ -240,8 +233,7 @@ public:
         mir_vtable_types_.clear();
         mir_vtable_methods_.clear();
         mir_vtable_slot_types_.clear();
-        mir_agg_elems_.clear();
-        mir_field_elem_.clear();
+        mir_agg_plans_.clear();
         mir_di_file_ = nullptr;
         mir_di_sp_ = nullptr;
         mir_di_files_.clear();

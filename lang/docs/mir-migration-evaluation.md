@@ -14,6 +14,21 @@ Branch: `mir`. Supersedes nothing; complements `compiler/mir/README.md`,
 > still AST-based). All numbers below are measured on the L1 machine against the
 > pre-MIR `main` compiler, same source, same mode.
 >
+> **Status update (2026-10-18, session 53) — the aggregate access layout is
+> shared.** A backend that builds an aggregate type itself (LLVM) needs an
+> ordered element list — one element per padding run and one shared element per
+> union/variant overlap group — not just the size/offset numbers. That list is a
+> pure function of the type table, so it moved out of `CodegenMir::mir_type` into
+> the core: `mir::compute_aggregate_plan` / `MIRAggregatePlan` / `MIRAggElement`
+> (`compiler/mir/MIRLayout.h`). `Codegen` now stores the plan (`mir_agg_plans_`)
+> and its GEP/constant paths read it; `CodegenMir::mir_type` shrank to a loop
+> over the plan. **Output-invariant by construction** (same element sequence:
+> field *i* → element *i* with no overlap/alignment; union/variant pick the same
+> largest-aligned member). `MIRTests` **4417 → 4462** (new
+> `test_aggregate_plan`); `--llvm` **2305/2305**, `--tcc` **2307/2307**,
+> `--tcc --interpret` **1896/1896**. No headline gate moves. Details:
+> `compiler/mir/README.md`, session 53.
+>
 > **Status update (2026-10-14, session 15) — what this session closed in the
 > plan.** **A2 is done** (there is one C type speller — see §1.4 and §2A.2; the
 > "implemented twice" claim was stale), and **B has its first deliverable**
@@ -720,6 +735,20 @@ lines / 37 zero loops / 1,331 labels / 25 spills, probe exe 448,622 B (±2 B
 forward-declaration jitter), identical program output; `MIRTests` 1111,
 `--tcc` 2300/2300, `--llvm` 2298/2298. **Still open in B:** shared traversal,
 naming, block iteration and `MIRValueFacts`.
+**Step 5 DONE (session 53) — `mir::compute_aggregate_plan`.** The ordered
+element list a type-building backend indexes with GEP — one element per padding
+run, one shared element per union/variant overlap group, plus the field → element
+map — was derived inline in `CodegenMir::mir_type` and kept in two ad-hoc
+`Codegen` maps. It is a pure function of the type table (identical for every
+such backend), so it now lives in the AST-free core next to
+`compute_aggregate_layout` (`MIRLayout.h`): `MIRAggregatePlan` / `MIRAggElement`
+/ `compute_aggregate_plan(types, agg, out)`. `Codegen` keeps the plan per
+aggregate (`mir_agg_plans_`) for `mir_field_elem` and the constant builder; the
+LLVM `mir_type` aggregate case is now a loop over `plan.elements`.
+Output-invariant by construction; `MIRTests` gained `test_aggregate_plan`
+(4417 → **4462**); `--llvm` **2305/2305**, `--tcc` **2307/2307**,
+`--tcc --interpret` **1896/1896**. Still open in B: shared traversal and
+place/symbol/constant naming.
 **Acceptance.** Each new backend adds only a dispatcher + printer, no layout/ABI
 logic; measured by (backend emitter LOC / total MIR LOC) trend.
 

@@ -647,6 +647,110 @@ static bool test_aggregate_layout() {
     return true;
 }
 
+// ── aggregate access plan (core service for backends that build the type) ──
+// `compute_aggregate_plan` turns an aggregate's field/offset layout into the
+// ordered element list a backend indexes with GEP — one element per padding run
+// and one shared element per union/variant overlap group. It is a pure function
+// of the type table, so it is pinned here; the LLVM backend (the only consumer
+// today) reads it instead of re-deriving one, and a future JVM/JS backend gets
+// the same sequence.
+static bool test_aggregate_plan() {
+    MIRModule m;
+    const TypeId ch = mir_layout_int(m, 1, IK_CHAR);
+    const TypeId i32 = mir_layout_int(m, 4, IK_INT);
+    const TypeId i64 = mir_layout_int(m, 8, IK_I64);
+    const TypeId dbl = mir_layout_float(m, 8);
+
+    // a non-aggregate has no plan
+    {
+        MIRAggregatePlan p;
+        CHECK(!compute_aggregate_plan(m.types, i32, p));
+        CHECK(p.elements.empty());
+    }
+    // {char, int}: a padding element precedes the int
+    {
+        const TypeId t = mir_layout_agg(m, MIRTypeKind::Struct, {{"c", ch}, {"i", i32}});
+        MIRAggregatePlan p;
+        CHECK(compute_aggregate_plan(m.types, t, p));
+        CHECK(p.size == m.types.get(t).size);
+        CHECK(p.alignment == m.types.get(t).alignment);
+        CHECK(p.elements.size() == 3u);
+        CHECK(p.elements[0].first_field == 0u && p.elements[0].field_count == 1u &&
+              p.elements[0].rep_type == ch);
+        CHECK(p.elements[1].first_field == MIR_INVALID_ID && p.elements[1].pad_bytes == 3u);
+        CHECK(p.elements[2].first_field == 1u && p.elements[2].field_count == 1u &&
+              p.elements[2].rep_type == i32);
+        CHECK(p.field_elem.size() == 2u);
+        CHECK(p.field_elem[0] == 0u);
+        CHECK(p.field_elem[1] == 2u);
+    }
+    // {int, char}: trailing padding, no interior padding
+    {
+        const TypeId t = mir_layout_agg(m, MIRTypeKind::Struct, {{"i", i32}, {"c", ch}});
+        MIRAggregatePlan p;
+        CHECK(compute_aggregate_plan(m.types, t, p));
+        CHECK(p.elements.size() == 3u);
+        CHECK(p.elements[0].rep_type == i32);
+        CHECK(p.elements[1].rep_type == ch);
+        CHECK(p.elements[2].first_field == MIR_INVALID_ID && p.elements[2].pad_bytes == 3u);
+        CHECK(p.field_elem[0] == 0u && p.field_elem[1] == 1u);
+    }
+    // union: one shared element, represented by the largest aligned member
+    {
+        const TypeId u = mir_layout_agg(m, MIRTypeKind::Union,
+                                        {{"i", i32}, {"c", ch}, {"d", dbl}});
+        MIRAggregatePlan p;
+        CHECK(compute_aggregate_plan(m.types, u, p));
+        CHECK(p.elements.size() == 1u);
+        CHECK(p.elements[0].first_field == 0u);
+        CHECK(p.elements[0].field_count == 3u);
+        CHECK(p.elements[0].rep_type == dbl);
+        CHECK(p.field_elem.size() == 3u);
+        CHECK(p.field_elem[0] == 0u && p.field_elem[1] == 0u && p.field_elem[2] == 0u);
+    }
+    // variant: tag, padding, then one shared element for the case payloads
+    {
+        const TypeId case_a = mir_layout_agg(m, MIRTypeKind::Struct, {{"c", ch}});
+        const TypeId case_b = mir_layout_agg(m, MIRTypeKind::Struct, {{"d", dbl}, {"i", i32}});
+        const TypeId v = mir_layout_agg(m, MIRTypeKind::Variant,
+                                        {{"__chx__vt_621827", i32, 0, MIRFieldKind::VariantTag},
+                                         {"A", case_a, 0, MIRFieldKind::VariantCase},
+                                         {"B", case_b, 0, MIRFieldKind::VariantCase}});
+        MIRAggregatePlan p;
+        CHECK(compute_aggregate_plan(m.types, v, p));
+        CHECK(p.elements.size() == 3u);
+        CHECK(p.elements[0].rep_type == i32);               // tag
+        CHECK(p.elements[1].first_field == MIR_INVALID_ID); // padding to the overlap
+        CHECK(p.elements[1].pad_bytes == 4u);
+        CHECK(p.elements[2].first_field == 1u);             // A and B share it
+        CHECK(p.elements[2].field_count == 2u);
+        CHECK(p.elements[2].rep_type == case_b);            // largest aligned case
+        CHECK(p.field_elem[0] == 0u && p.field_elem[1] == 2u && p.field_elem[2] == 2u);
+    }
+    // over-alignment pads the tail
+    {
+        const TypeId t = mir_layout_agg(m, MIRTypeKind::Struct, {{"i", i32}}, 16);
+        MIRAggregatePlan p;
+        CHECK(compute_aggregate_plan(m.types, t, p));
+        CHECK(p.elements.size() == 2u);
+        CHECK(p.elements[0].rep_type == i32);
+        CHECK(p.elements[1].pad_bytes == 12u);
+    }
+    // an explicitly aligned member creates interior padding
+    {
+        const TypeId t = mir_layout_agg(m, MIRTypeKind::Struct, {{"a", i64}, {"b", ch, 32}});
+        MIRAggregatePlan p;
+        CHECK(compute_aggregate_plan(m.types, t, p));
+        CHECK(p.elements.size() == 4u);
+        CHECK(p.elements[0].rep_type == i64);
+        CHECK(p.elements[1].pad_bytes == 24u);
+        CHECK(p.elements[2].rep_type == ch);
+        CHECK(p.elements[3].pad_bytes == 31u);
+        CHECK(p.field_elem[0] == 0u && p.field_elem[1] == 2u);
+    }
+    return true;
+}
+
 // ── per-function facts (action B) ──────────────────────────────────────────
 // `compute_function_facts` is the analysis the C emitter used to run inline;
 // these pin the answers both the emitter and any future backend read.
@@ -1261,6 +1365,7 @@ int main() {
     ok &= test_control_flow_emitter();
     ok &= test_type_names();
     ok &= test_aggregate_layout();
+    ok &= test_aggregate_plan();
     ok &= test_function_facts();
     ok &= test_decl_printer();
     ok &= test_const_expr_printer();

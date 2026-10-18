@@ -18,6 +18,7 @@
 #include "MIRTypeTable.h"
 
 #include <cstdint>
+#include <vector>
 
 namespace mir {
 
@@ -124,6 +125,141 @@ inline void compute_aggregate_layout(MIRTypeTable& types, TypeId id,
 
     rec.alignment = max_align;
     rec.size = mir_align_up(offset, max_align);
+}
+
+/**
+ * One element of an aggregate's *access* layout: the sequence of storage slots
+ * a backend indexes into with GEP/`[i]` when it must address a field, together
+ * with the MIR field indices that live in each slot.
+ *
+ * `compute_aggregate_layout` above records each field's byte offset, which is
+ * all a backend that lets a C compiler lay the type out (the C target) needs.
+ * A backend that builds the aggregate itself (LLVM) needs something more: an
+ * explicit ordered list of elements, one per padding run, and one *shared*
+ * element for each overlap group (union members / variant case payloads overlap
+ * at the same offset), because a struct type cannot have two fields at one
+ * offset. That mapping is a pure function of the type table — identical for
+ * every such backend — so it is derived once here instead of re-derived in each
+ * backend.
+ */
+struct MIRAggElement {
+    /** MIR field index of this element's first field, or `MIR_INVALID_ID` for a padding run. */
+    uint32_t first_field = MIR_INVALID_ID;
+    /** Number of overlapping fields in this element: 1 for a normal field, >1 for a union/variant group, 0 for padding. */
+    uint32_t field_count = 0;
+    /** Byte count of a padding element (`first_field == MIR_INVALID_ID`); 0 otherwise. */
+    uint32_t pad_bytes = 0;
+    /**
+     * The MIR type a backend should spell as this element's storage type: for a
+     * field group, the member with the largest aligned size (ties prefer the
+     * larger alignment) so every member of the group fits; `MIR_INVALID_ID` for
+     * a padding run, where the backend spells `[pad_bytes x i8]` instead.
+     */
+    TypeId rep_type = MIR_INVALID_ID;
+};
+
+/** The ordered access layout of one aggregate type. See `compute_aggregate_plan`. */
+struct MIRAggregatePlan {
+    /** Storage elements in byte-offset order (padding runs included). */
+    std::vector<MIRAggElement> elements;
+    /** MIR field index -> index into `elements`. */
+    std::vector<uint32_t> field_elem;
+    /** Aggregate byte size (mirrors `MIRTypeRecord::size`). */
+    uint32_t size = 0;
+    /** Aggregate alignment (mirrors `MIRTypeRecord::alignment`). */
+    uint32_t alignment = 0;
+};
+
+/**
+ * Build the access plan for aggregate `agg`. Returns false (and leaves `out`
+ * cleared) for any non-aggregate kind. `types` must already carry the aggregate
+ * layout (`compute_aggregate_layout`), which `MIRTypeBuilder` guarantees before
+ * a backend runs.
+ */
+inline bool compute_aggregate_plan(const MIRTypeTable& types, TypeId agg,
+                                   MIRAggregatePlan& out) {
+    out.elements.clear();
+    out.field_elem.clear();
+    out.size = 0;
+    out.alignment = 0;
+    if (agg >= types.types.size()) return false;
+    const MIRTypeRecord& rec = types.types[agg];
+    if (rec.kind != MIRTypeKind::Struct && rec.kind != MIRTypeKind::Union &&
+        rec.kind != MIRTypeKind::Variant) {
+        return false;
+    }
+    out.size = rec.size;
+    out.alignment = rec.alignment;
+    out.field_elem.assign(rec.data_count, 0);
+
+    const bool union_all = rec.kind == MIRTypeKind::Union;
+    const uint8_t case_kind = static_cast<uint8_t>(MIRFieldKind::VariantCase);
+
+    uint64_t cur = 0;
+    uint32_t i = 0;
+    while (i < rec.data_count) {
+        const MIRFieldInfo* f = types.field_of(agg, i);
+        if (!f) {
+            ++i;
+            continue;
+        }
+        MIRAggElement elem;
+        const bool overlap = union_all || f->kind == case_kind;
+        TypeId rep = f->type;
+        if (overlap) {
+            // union member or variant case: gather the whole run of overlapping
+            // fields and pick the member with the largest aligned size as the
+            // element's storage type (ties prefer the larger alignment)
+            uint32_t best = i;
+            uint32_t best_align = 0;
+            uint64_t best_aligned = 0;
+            uint32_t j = i;
+            while (j < rec.data_count) {
+                const MIRFieldInfo* g = types.field_of(agg, j);
+                if (!g) break;
+                if (!(union_all || g->kind == case_kind)) break;
+                const uint32_t ga = mir_field_alignment(types, *g);
+                const uint64_t gs = mir_align_up(mir_field_size(types, *g), ga);
+                if (gs > best_aligned || (gs == best_aligned && ga > best_align)) {
+                    best = j;
+                    best_align = ga;
+                    best_aligned = gs;
+                }
+                ++j;
+            }
+            const MIRFieldInfo* rb = types.field_of(agg, best);
+            rep = rb ? rb->type : f->type;
+            elem.first_field = i;
+            elem.field_count = j - i;
+            i = j;
+        } else {
+            elem.first_field = i;
+            elem.field_count = 1;
+            ++i;
+        }
+
+        const uint32_t offset = f->offset;
+        if (offset > cur) {
+            MIRAggElement pad;
+            pad.pad_bytes = static_cast<uint32_t>(offset - cur);
+            out.elements.push_back(pad);
+            cur = offset;
+        }
+        elem.rep_type = rep;
+        const uint32_t idx = static_cast<uint32_t>(out.elements.size());
+        out.elements.push_back(elem);
+        for (uint32_t k = 0; k < elem.field_count; ++k) {
+            const uint32_t fld = elem.first_field + k;
+            if (fld < out.field_elem.size()) out.field_elem[fld] = idx;
+        }
+        cur = offset + (rep < types.types.size() ? types.types[rep].size : 0);
+    }
+    if (rec.size > cur) {
+        MIRAggElement pad;
+        pad.pad_bytes = static_cast<uint32_t>(rec.size - cur);
+        out.elements.push_back(pad);
+    }
+    return true;
 }
 
 } // namespace mir

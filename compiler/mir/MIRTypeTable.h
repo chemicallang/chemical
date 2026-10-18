@@ -14,6 +14,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -176,6 +177,23 @@ struct MIRTypeTable {
         return std::string(names.data_at(r.name_offset), r.name_length);
     }
 
+    /**
+     * The interned name of an aggregate, without the `std::string` copy
+     * `name_of` makes. The bytes live in `names` (stable on append), so the
+     * view stays valid as long as this table's pool is not cleared — emitters
+     * consume it immediately, which is the contract the pool documents.
+     */
+    std::string_view name_view(TypeId id) const {
+        MIRReadLock lock(mtx_, single_threaded());
+        if (id >= types.size()) return {};
+        const MIRTypeRecord& r = types[id];
+        if (r.name_length == 0) return {};
+        return std::string_view(names.data_at(r.name_offset), r.name_length);
+    }
+
+    /** True when `id` is an aggregate with a C-emittable name. */
+    bool has_name(TypeId id) const { return !name_view(id).empty(); }
+
     /** Append a range of fields, returning the start index. */
     uint32_t append_fields(const std::vector<MIRFieldInfo>& fs) {
         MIRWriteLock lock(mtx_, single_threaded());
@@ -219,6 +237,13 @@ struct MIRTypeTable {
     std::string field_name_of(const MIRFieldInfo& f) const {
         if (f.name_length == 0) return {};
         return std::string(field_names.data_at(f.name_offset), f.name_length);
+    }
+
+    /** `field_name_of` without the allocation — use it for comparisons and for
+     * appending a field name straight into an emitter's output buffer. */
+    std::string_view field_name_view(const MIRFieldInfo& f) const {
+        if (f.name_length == 0) return {};
+        return std::string_view(field_names.data_at(f.name_offset), f.name_length);
     }
 
     MIRFieldInfo* field_of(TypeId agg, uint32_t i) {

@@ -101,7 +101,14 @@ Full statements: `lang/docs/mir-implementation-plan.md` §0 rule 9,
   (used for the coroutine frame).
 - `compiler/mir/MIRBuilder.{h,cpp}` — typed construction API
   (`alloca_frame`, `async_frame_alloc`, `call_indirect_sret`, …).
-- `compiler/mir/MIREmitter.{h,cpp}` — MIR→C (AST-free).
+- `compiler/mir/MIREmitter.{h,cpp}` — MIR→C (AST-free). **Print by
+  appending**: every speller has an `append_*` form (`append_c_type_of`,
+  `append_c_declarator`, `append_vname_declarator`, `append_uint`) and the
+  string-returning `c_type_of`/`c_declarator`/`c_function_proto` (which now take
+  `std::string_view` names) are for callers that need to store or compare one.
+  Read MIR's own names with the pool-backed views (`MIRTypeTable::name_view` /
+  `field_name_view`, `MIRConstExprTable::child_name_view`,
+  `MIRSymbolTable::mangled_view`) rather than the `*_of` copies.
 - `compiler/mir/MIRDeclEmitter.{h,cpp}` — AST-based C declarations /
   prototypes / vtables (the collection/decl layer that is *not* yet fully MIR
   driven; see the evaluation doc actions A/B). Global **definitions** are now

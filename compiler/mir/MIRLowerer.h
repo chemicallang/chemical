@@ -153,11 +153,20 @@ struct MIRStringEq {
  */
 struct MIRArgScope;
 
+/**
+ * Comptime parameters of the inlined callee, keyed by name. Transparent
+ * hash/equality: `lower_expr` looks a binding up by the identifier's
+ * `chem::string_view`, so the per-identifier lookup builds no `std::string`.
+ */
+using MIRComptimeBindings =
+    std::unordered_map<std::string, Value*, MIRStringHash, MIRStringEq>;
+
 class MIRLowerer {
 public:
     friend struct MIRArgScope;
     MIRLowerer(MIRModule& module, MIRTypeBuilder& types)
         : module_(module), types_(types) {}
+
 
     /**
      * Lower `decl` into `func` using `arena`. On the first unsupported
@@ -802,17 +811,17 @@ private:
      * comptime intrinsic (`intrinsics::size`, `satisfies`, …) folds with the
      * callee's parameters visible.
      */
-    std::unordered_map<std::string, Value*> comptime_bindings_;
+    MIRComptimeBindings comptime_bindings_;
     bool comptime_binding_consumed_ = false;
 public:
-    const std::unordered_map<std::string, Value*>& comptime_binding_names() const {
+    const MIRComptimeBindings& comptime_binding_names() const {
         return comptime_bindings_;
     }
     /** Snapshot / restore the comptime parameter bindings (driver use). */
-    std::unordered_map<std::string, Value*> snapshot_comptime_bindings() const {
+    MIRComptimeBindings snapshot_comptime_bindings() const {
         return comptime_bindings_;
     }
-    void restore_comptime_bindings(std::unordered_map<std::string, Value*> m) {
+    void restore_comptime_bindings(MIRComptimeBindings m) {
         comptime_bindings_ = std::move(m);
     }
     /** Publish a folded comptime parameter by name (driver use). */

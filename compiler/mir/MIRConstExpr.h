@@ -104,6 +104,12 @@ struct MIRConstExprTable {
     uint32_t size() const { return static_cast<uint32_t>(exprs.size()); }
 
     const char* name_data(const MIRConstChild& c) const { return names.data_at(c.name_offset); }
+
+    /** The child's designator without an allocation (see `child_name`). */
+    std::string_view child_name_view(const MIRConstChild& c) const {
+        if (c.name_length == 0) return {};
+        return std::string_view(name_data(c), c.name_length);
+    }
     std::string child_name(const MIRConstChild& c) const {
         return c.name_length ? std::string(name_data(c), c.name_length) : std::string();
     }

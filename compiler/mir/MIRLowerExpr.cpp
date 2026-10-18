@@ -51,7 +51,8 @@ MIRExprResult MIRLowerer::lower_expr(Value* value, std::string& error) {
         case ValueKind::Identifier: {
             auto* id = value->as_identifier_unsafe();
             if (!comptime_bindings_.empty() && !id->value.empty()) {
-                auto it = comptime_bindings_.find(std::string(id->value.data(), id->value.size()));
+                // transparent lookup: no temporary `std::string` per identifier
+                auto it = comptime_bindings_.find(id->value);
                 if (it != comptime_bindings_.end()) {
                     note_comptime_binding_consumed();
                     return lower_expr(it->second, error);

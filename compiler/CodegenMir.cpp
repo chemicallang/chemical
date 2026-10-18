@@ -2495,11 +2495,11 @@ private:
     }
 
     /** The tree child of aggregate `id` whose designator equals `name`. */
-    const mir::MIRConstChild* find_child(mir::ConstExprId id, const std::string& name) const {
+    const mir::MIRConstChild* find_child(mir::ConstExprId id, std::string_view name) const {
         const mir::MIRConstExpr& e = m_.const_exprs.get(id);
         for (uint32_t i = 0; i < e.child_count; ++i) {
             const mir::MIRConstChild* c = m_.const_exprs.child(id, i);
-            if (c && m_.const_exprs.child_name(*c) == name) return c;
+            if (c && m_.const_exprs.child_name_view(*c) == name) return c;
         }
         return nullptr;
     }
@@ -2645,7 +2645,7 @@ private:
             llvm::Type* ft = st->getElementType(i);
             const mir::MIRFieldInfo* f = rec ? m_.types.field_of(e.type, i) : nullptr;
             const mir::MIRConstChild* c =
-                f ? find_child(id, m_.types.field_name_of(*f)) : nullptr;
+                f ? find_child(id, m_.types.field_name_view(*f)) : nullptr;
             elems.push_back(build(c ? c->expr : mir::MIR_INVALID_ID, ft));
         }
         return llvm::ConstantStruct::get(st, elems);
@@ -2672,7 +2672,7 @@ private:
             }
             switch (static_cast<mir::MIRFieldKind>(f->kind)) {
                 case mir::MIRFieldKind::Base: {
-                    const mir::MIRConstChild* c = find_child(id, m_.types.field_name_of(*f));
+                    const mir::MIRConstChild* c = find_child(id, m_.types.field_name_view(*f));
                     elems.push_back(build(c ? c->expr : mir::MIR_INVALID_ID, ft));
                     break;
                 }
@@ -2688,16 +2688,20 @@ private:
                         elems.push_back(null(ft));
                         break;
                     }
-                    const std::string cname = m_.types.field_name_of(*f);
+                    const std::string cname(m_.types.field_name_view(*f));
                     std::vector<llvm::Constant*> case_elems;
                     case_elems.reserve(cst->getNumElements());
                     bool any = false;
                     for (uint32_t j = 0; j < cst->getNumElements(); ++j) {
                         llvm::Type* cft = cst->getElementType(j);
                         const mir::MIRFieldInfo* cf = m_.types.field_of(f->type, j);
-                        const mir::MIRConstChild* c =
-                            cf ? find_child(id, cname + "." + m_.types.field_name_of(*cf))
-                               : nullptr;
+                        const mir::MIRConstChild* c = nullptr;
+                        if (cf) {
+                            std::string path(cname);
+                            path += '.';
+                            path += m_.types.field_name_view(*cf);
+                            c = find_child(id, path);
+                        }
                         if (c) any = true;
                         case_elems.push_back(build(c ? c->expr : mir::MIR_INVALID_ID, cft));
                     }

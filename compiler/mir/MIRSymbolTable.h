@@ -14,6 +14,7 @@
 #include <mutex>
 #include <shared_mutex>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace mir {
@@ -117,6 +118,12 @@ struct MIRSymbolTable {
     std::string mangled_name(const MIRSymbolRecord& r) const {
         return std::string(r.mangled_length ? mangled_data(r) : name_data(r),
                            r.mangled_length ? r.mangled_length : r.name_length);
+    }
+
+    /** `mangled_name` without the copy (stable pool bytes; append-only). */
+    std::string_view mangled_view(const MIRSymbolRecord& r) const {
+        if (r.mangled_length) return std::string_view(mangled_data(r), r.mangled_length);
+        return std::string_view(name_data(r), r.name_length);
     }
 
 private:

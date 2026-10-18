@@ -168,6 +168,95 @@ profiling; it is back to the documented default (`OFF`). With it on,
 `MIRTests` does not link at all — the counter object it references lives in
 `MIRLowerer.cpp`, which is not part of that target.
 
+### Session 52 (2026-10-18) — throwaway `std::string`s on the print/emit/lookup paths
+
+Sessions 37–44 removed the per-node *allocations* in lowering; what was left is
+the other half of the same class — a temporary `std::string` built only to be
+copied into a buffer, or a name copied out of MIR's own pools just to be
+`==`-compared. Each one is small, but they sit on paths that run once per field,
+once per constant-tree child, once per emitted instruction, and once per field
+access the interpreter executes. Nothing here changes a byte of output.
+
+- **The declaration printer appends.** `MIRDeclPrinter`'s member and constant
+expressions returned a fresh `std::string` per element (`member_declarator_at`
+built `c_declarator(...) + ";"`, `const_expr_c` recursed through `std::string`
+concatenation, `decl_list_c` concatenated each item's whole body). All of them
+now write into the caller's buffer: `append_member_declarator`,
+`append_const_expr_c` (with local `append_int64`/`append_float`/
+`append_double`), `append_global_decl_spelling`, `append_aggregate_body_c` and
+`append_inline_aggregate_c`. The public string-returning functions remain as thin
+wrappers (`MIRTests` asserts their exact text and it is unchanged), and
+`agg`/`inline_agg` bodies keep their byte-for-byte spelling — including the
+variant case's deliberately-short two-tab indent.
+- **MIR's own names are readable without a copy.** `MIRTypeTable::name_view` /
+`field_name_view`, `MIRConstExprTable::child_name_view` and
+`MIRSymbolTable::mangled_view` return `std::string_view` over the
+append-only pools (the contract `MIRBytePool` already documents), and the sites
+that only compare or append a name use them: the interpreter's field-path
+resolver (per field access), `CodegenMir`'s constant-tree `find_child` (per
+child, and its `field_name_of(*f) == name` comparison), and
+`mir_named_field_type` in the async lowering. `has_name` replaces
+`!name_of(id).empty()` in the type builder.
+- **One `std::string` per struct field is gone from the type builder.**
+`fill_aggregate_fields`' `push_field` took `const std::string&` and every caller
+built `std::string(nv.data(), nv.size())` from the AST's view; it takes
+`chem::string_view` now. The variant case name is built in one reused
+`thread_local` buffer instead of a three-way concatenation.
+- **The C emitter's spellers take views and have public append forms.**
+`append_c_type_of` / `append_c_declarator` moved into `MIREmitter.h` (with
+`append_uint`) so the declaration printer can use them; `c_decl_type`,
+`c_declarator` and `c_function_proto` accept `std::string_view`; and the ~20
+`append_declarator(..., vname(v), out)` sites in the emit loop became
+`append_vname_declarator(module, type, v, out)`, which writes `__chx_v<id>`
+itself for the scalar/pointer shape every instruction actually has. A function
+header is now printed straight into `out` (no parameter-list string), and
+parameter names come from a stack buffer (`param_arg_name`) rather than
+`"__chx_a" + std::to_string(i)`.
+- **Vtables and comptime bindings.** `build_module_vtables` appends the mangled
+name into each record's own string instead of building a `std::string` per slot
+and copying it, and uses the shared `mangle_writer()` instead of a fresh
+`BufferedWriter(256)` per vtable definition. `comptime_bindings_` gained the
+transparent `MIRStringHash`/`MIRStringEq`, so `lower_expr`'s per-identifier
+lookup (`comptime_bindings_.find(...)`) no longer constructs a `std::string`.
+- **The interpreter's field lookup takes a view.**
+`MIRInterpreter::resolve_field` takes `std::string_view` and slices the
+designator with `substr` instead of allocating a `std::string` per dotted
+segment; `constant_text_view` feeds it from the constant pool (the old path
+allocated a copy of the designator on every `FieldAddr`/`IndexAddr`) and
+`child_name_view` feeds it from the constant tree.
+
+**Measured** on this checkout (`Debug`, `debug_quick`, `--no-cache`, `--emit-c`,
+the same command on both binaries). Allocations are counted with an
+`LD_PRELOAD`ed `malloc`/`calloc`/`realloc`/`free` counter, which is the metric
+this class of change moves (wall time is in the noise):
+
+| Metric | HEAD | Session 52 | Δ |
+|---|---:|---:|---:|
+| Main-suite `malloc` calls | 696,700 | 660,550 | **−36,150 (−5.2%)** |
+| Main-suite bytes requested | 325.1 MB | 322.1 MB | −3.0 MB (−0.9%) |
+| Main-suite `realloc` calls | 186,306 | 186,306 | flat |
+| Main-suite compile, `debug_quick` (3 runs) | 1.71/1.72/1.72 s | 1.73/1.82/1.76 s | noise |
+| Main-suite emitted C lines | 99,686 | 99,686 | identical |
+
+**Output-invariant.** Main-suite C is 99,686 lines either side; the normalized
+line multiset (generic `__cgs__N` and lambda `__chemda_N` numbers folded) differs
+by **224–638** lines depending on the run, against a **788**-line same-binary
+two-run floor, and every residual line is such a renumbering — no structural
+difference.
+
+| Suite | Result |
+|---|---|
+| `MIRTests` | **4417 checks** |
+| `--tcc` | **2304/2304** |
+| `--llvm` | **2302/2302** |
+| `--tcc --interpret` | **1893/1893** |
+| `--tcc --async` | **53/53** |
+| `--tcc --libs` | **718/719** (the known environment-sensitive `test_fs_directory_iteration`) |
+
+**Still string-based** (left for a later pass, all cold): `MIRDeclEmitter`'s own
+prototype/vtable spellers, `MIRLowerAsync`'s per-async-function declaration
+concatenations, the `InlineAsm` operand list, and `MIRComptime`'s name maps.
+
 ### Session 50 (2026-10-16) — the interpretation job runs on MIR
 
 `--arg-interpret` no longer uses the AST interpreter. `do_interpretation_job`

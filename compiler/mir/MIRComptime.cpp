@@ -721,7 +721,7 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
     // resolves them
     struct BindingRestore {
         MIRLowerer* host = nullptr;
-        std::unordered_map<std::string, Value*> saved;
+        MIRComptimeBindings saved;
         ~BindingRestore() { if (host) host->restore_comptime_bindings(std::move(saved)); }
     } binding_restore{ctx.host, ctx.host->snapshot_comptime_bindings()};
     for (auto& kv : publish_bindings) ctx.host->publish_comptime_binding(kv.first, kv.second);

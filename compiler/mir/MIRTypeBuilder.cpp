@@ -31,6 +31,8 @@
 #include "ast/structures/BaseDefMember.h"
 #include "ast/structures/VariablesContainer.h"
 
+#include <string_view>
+
 namespace mir {
 
 namespace {
@@ -121,7 +123,7 @@ TypeId MIRTypeBuilder::pointer_like(MIRTypeKind kind, TypeId child, bool is_muta
 
 void MIRTypeBuilder::ensure_inline_struct_name(TypeId id, BaseType* struct_type) {
     if (id == MIR_INVALID_ID || !struct_type) return;
-    if (!module_.types.name_of(id).empty()) return;
+    if (module_.types.has_name(id)) return;
     const chem::string_view sv = struct_type->as_struct_type_unsafe()->name;
     std::string name;
     if (!sv.empty()) {
@@ -180,7 +182,10 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
     if (id >= module_.types.size()) return;
 
     std::vector<MIRFieldInfo> fs;
-    auto push_field = [&](const std::string& name, TypeId t, MIRFieldKind fk,
+    // `std::string_view`, not `std::string`: every caller already holds the
+    // AST's name bytes, and constructing a `std::string` per field only to hand
+    // its bytes straight to the pool allocated for nothing.
+    auto push_field = [&](std::string_view name, TypeId t, MIRFieldKind fk,
                           uint32_t explicit_align = 0, uint8_t spelling_flags = MFF_NONE) {
         MIRFieldInfo fi;
         fi.type = t;
@@ -199,7 +204,7 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
             if (!base) continue;
             TypeId bt = map(base->known_type());
             const chem::string_view nv = base->name_view();
-            push_field(std::string(nv.data(), nv.size()), bt, MIRFieldKind::Base);
+            push_field(nv.view(), bt, MIRFieldKind::Base);
         }
     };
     auto add_members = [&](VariablesContainerBase* vc) {
@@ -223,7 +228,7 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
                 case ASTNodeKind::UnnamedUnion: sflags |= MFF_ANONYMOUS_UNION; break;
                 default: break;
             }
-            push_field(std::string(nv.data(), nv.size()), vt, MIRFieldKind::Direct, req, sflags);
+            push_field(nv.view(), vt, MIRFieldKind::Direct, req, sflags);
         }
     };
 
@@ -279,10 +284,14 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
             // the case payload is an aggregate too: give it its layout
             compute_aggregate_layout(module_.types, case_id);
             const chem::string_view mn = member->name_view();
-            std::string cname = "__chx_case_" + std::to_string(id) + "_" +
-                                std::string(mn.data(), mn.size());
+            // one reused buffer: a variant case name is the only concat here
+            static thread_local std::string cname;
+            cname.assign("__chx_case_");
+            cname += std::to_string(id);
+            cname += '_';
+            cname.append(mn.data(), mn.size());
             module_.types.set_name(case_id, cname.data(), static_cast<uint32_t>(cname.size()));
-            push_field(std::string(mn.data(), mn.size()), case_id, MIRFieldKind::VariantCase);
+            push_field(mn.view(), case_id, MIRFieldKind::VariantCase);
         }
     } else if (vc) {
         add_bases(vc);

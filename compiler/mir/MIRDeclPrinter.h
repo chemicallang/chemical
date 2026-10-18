@@ -26,6 +26,10 @@
 
 namespace mir {
 
+// Append forms of the printers below. A caller that is already building a
+// declaration buffer should use these: printing a struct with N fields then
+// allocates no throwaway `std::string` per member.
+
 /**
  * Full C body of aggregate `id`, exactly as the declaration pass writes it:
  *
@@ -43,6 +47,9 @@ namespace mir {
  */
 std::string aggregate_body_c(const MIRModule& module, TypeId id);
 
+/** Append form of `aggregate_body_c` (writes nothing for an unnamed type). */
+void append_aggregate_body_c(const MIRModule& module, TypeId id, std::string& out);
+
 /**
  * The one-line body of a synthesized inline (anonymous or locally-named) struct
  * or union: `struct Name { int a; int b; };` — the form the driver writes for
@@ -52,6 +59,9 @@ std::string aggregate_body_c(const MIRModule& module, TypeId id);
  * Inherited bases are skipped, matching the member walk this replaces.
  */
 std::string inline_aggregate_c(const MIRModule& module, TypeId id);
+
+/** Append form of `inline_aggregate_c`. */
+void append_inline_aggregate_c(const MIRModule& module, TypeId id, std::string& out);
 
 /**
  * The declarator text of one member (no indent, includes the trailing `;`):

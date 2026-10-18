@@ -52,14 +52,19 @@ TypeId mir_vtable_slot_type(MIRTypeBuilder& types, MIRModule& module,
 
 namespace {
 
-std::string mangle_node(NameMangler& mangler, ASTNode* node) {
+// Append a mangled node name straight into a record's string (one allocation —
+// the record's own — instead of a `std::string` per slot that is then copied).
+void append_mangled(NameMangler& mangler, ASTNode* node, std::string& out) {
     BufferedWriter& w = mangle_writer();
     mangler.mangle(w, node);
-    return std::string(w.data(), w.getPosition());
+    out.append(w.data(), w.getPosition());
 }
 
-std::string vtable_type_name(NameMangler& mangler, InterfaceDefinition* iface) {
-    return "__chx_" + mangle_node(mangler, iface) + "_vt_t";
+void append_vtable_type_name(NameMangler& mangler, InterfaceDefinition* iface,
+                             std::string& out) {
+    out += "__chx_";
+    append_mangled(mangler, iface, out);
+    out += "_vt_t";
 }
 
 void collect_vtable_slots(MIRTypeBuilder& types, MIRModule& module, InterfaceDefinition* iface,
@@ -101,7 +106,7 @@ void build_module_vtables(NameMangler& mangler, MIRTypeBuilder& types, MIRModule
         auto* iface = n->as_interface_def_unsafe();
         MIRVtableRecord rec;
         rec.kind = 0;
-        rec.name = vtable_type_name(mangler, iface);
+        append_vtable_type_name(mangler, iface, rec.name);
         rec.type_name = rec.name;
         mir_vtable_slots(types, module, iface, rec.slots);
         module.vtables.types.push_back(std::move(rec));
@@ -121,12 +126,12 @@ void build_module_vtables(NameMangler& mangler, MIRTypeBuilder& types, MIRModule
             mc ? mc->as_extendable_members_container_unsafe() : nullptr;
         std::vector<FunctionDeclaration*> funcs;
         MIRVtableRecord rec;
-        rec.type_name = vtable_type_name(mangler, iface);
+        append_vtable_type_name(mangler, iface, rec.type_name);
         mir_vtable_slots(types, module, iface, rec.slots, &funcs);
         if (container) {
             rec.kind = 1;
             {
-                BufferedWriter w(256);
+                BufferedWriter& w = mangle_writer();
                 mangler.mangle_vtable_name(w, iface, container);
                 rec.name.assign(w.data(), w.getPosition());
             }
@@ -134,11 +139,11 @@ void build_module_vtables(NameMangler& mangler, MIRTypeBuilder& types, MIRModule
                 FunctionDeclaration* f = funcs[i];
                 FunctionDeclaration* overrider = container->direct_child_function(f->name_view());
                 if (overrider) {
-                    rec.slots[i].target = mangle_node(mangler, overrider);
+                    append_mangled(mangler, overrider, rec.slots[i].target);
                 } else {
                     ExtendableMembersContainerNode* prev = iface->active_user;
                     iface->active_user = container;
-                    rec.slots[i].target = mangle_node(mangler, f);
+                    append_mangled(mangler, f, rec.slots[i].target);
                     iface->active_user = prev;
                 }
             }
@@ -147,7 +152,7 @@ void build_module_vtables(NameMangler& mangler, MIRTypeBuilder& types, MIRModule
             // has a callee; the rest are null slots.
             rec.kind = 2;
             {
-                BufferedWriter w(256);
+                BufferedWriter& w = mangle_writer();
                 mangler.mangle_vtable_name(w, iface, impl->struct_type);
                 rec.name.assign(w.data(), w.getPosition());
             }
@@ -155,7 +160,7 @@ void build_module_vtables(NameMangler& mangler, MIRTypeBuilder& types, MIRModule
                 FunctionDeclaration* f = funcs[i];
                 if (!f->has_self_param()) continue;
                 FunctionDeclaration* overrider = impl->direct_child_function(f->name_view());
-                if (overrider) rec.slots[i].target = mangle_node(mangler, overrider);
+                if (overrider) append_mangled(mangler, overrider, rec.slots[i].target);
             }
         }
         module.vtables.defs.push_back(std::move(rec));

@@ -15,6 +15,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -297,23 +298,35 @@ struct MIRInterpreter::Impl {
         return std::string(module.constants.data.data_at(c.data_offset), c.data_count);
     }
 
+    /** `constant_text` without the copy — used on the field-lookup path, which
+     * runs for every FieldAddr/IndexAddr instruction. The pool's bytes are
+     * append-only and stable (MIRBytePool), so the view is valid for the lookup. */
+    std::string_view constant_text_view(ConstantId cid) const {
+        if (cid >= module.constants.size()) return {};
+        const MIRConstant c = module.constants.get(cid);
+        if (c.kind != MIRConstantKind::String) return {};
+        return std::string_view(module.constants.data.data_at(c.data_offset), c.data_count);
+    }
+
     // ── field resolution ───────────────────────────────────────────────────
-    bool resolve_field(TypeId agg, const std::string& dotted, FieldSlot& out) {
+    bool resolve_field(TypeId agg, std::string_view dotted, FieldSlot& out) {
         TypeId cur = agg;
         uint32_t off = 0;
         size_t start = 0;
         while (true) {
             const size_t dot = dotted.find('.', start);
-            const std::string seg = (dot == std::string::npos)
-                                        ? dotted.substr(start)
-                                        : dotted.substr(start, dot - start);
+            // a view into the designator, not a `std::string` per segment:
+            // this runs for every field access the interpreter executes
+            const std::string_view seg =
+                (dot == std::string_view::npos) ? dotted.substr(start)
+                                                : dotted.substr(start, dot - start);
             if (cur >= types.size()) return false;
             const MIRTypeRecord rec = module.types.get(cur);
             bool found = false;
             for (uint32_t i = 0; i < rec.data_count; ++i) {
                 const MIRFieldInfo* f = module.types.field_of(cur, i);
                 if (!f) break;
-                if (module.types.field_name_of(*f) == seg) {
+                if (module.types.field_name_view(*f) == seg) {
                     off += f->offset;
                     cur = f->type;
                     found = true;
@@ -321,7 +334,7 @@ struct MIRInterpreter::Impl {
                 }
             }
             if (!found) return false;
-            if (dot == std::string::npos) break;
+            if (dot == std::string_view::npos) break;
             start = dot + 1;
         }
         out.offset = off;
@@ -632,7 +645,7 @@ struct MIRInterpreter::Impl {
                         if (rec.kind == MIRTypeKind::Array) off = i * ti(rec.element).size;
                     } else {
                         FieldSlot fs;
-                        if (resolve_field(t, module.const_exprs.child_name(*c), fs)) off = fs.offset;
+                        if (resolve_field(t, module.const_exprs.child_name_view(*c), fs)) off = fs.offset;
                     }
                     const TypeId ct = module.const_exprs.get(c->expr).type;
                     eval_const_into(dst + off, ct, c->expr);
@@ -722,7 +735,7 @@ struct MIRInterpreter::Impl {
             }
             if (agg == MIR_INVALID_ID) continue;
             FieldSlot slot;
-            if (resolve_field(agg, constant_text(o1->id), slot)) {
+            if (resolve_field(agg, constant_text_view(o1->id), slot)) {
                 fs[ins.operand_offset + 1] = slot;
             }
         }

@@ -646,11 +646,11 @@ namespace {
 /** The type of the aggregate field named `name`, or MIR_INVALID_ID. */
 TypeId mir_named_field_type(const MIRTypeTable& tt, TypeId agg, const char* name) {
     if (agg >= tt.size()) return MIR_INVALID_ID;
-    const std::string want(name);
+    const std::string_view want(name);
     const MIRTypeRecord& r = tt.get(agg);
     for (uint32_t i = 0; i < r.data_count; ++i) {
         const MIRFieldInfo* f = tt.field_of(agg, i);
-        if (f && tt.field_name_of(*f) == want) return f->type;
+        if (f && tt.field_name_view(*f) == want) return f->type;
     }
     return MIR_INVALID_ID;
 }

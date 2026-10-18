@@ -6,8 +6,10 @@
 //
 // The emitter mirrors the C backend (`MIREmitter.cpp`) opcode-for-opcode, but
 // produces LLVM values instead of C text. Type layout comes from the MIR type
-// table (aggregate field lists filled by `MIRTypeBuilder`); LLVM's DataLayout is
-// authoritative for sizes/offsets.
+// table (aggregate field lists and their byte offsets/size, filled by
+// `MIRTypeBuilder`): the LLVM aggregate body is built to match MIR's recorded
+// layout, so `sizeof`/`alignof`/`offsetof` and every field address agree with
+// the C backend and the interpreter.
 
 #include "Codegen.h"
 #include "compiler/llvmimpl.h"
@@ -16,6 +18,7 @@
 #include "compiler/mir/MIRABI.h"
 #include "compiler/mir/MIRInstruction.h"
 #include "compiler/mir/MIRFunction.h"
+#include "compiler/mir/MIRLayout.h"
 #include "compiler/mir/MIRDump.h"
 
 #include <llvm/BinaryFormat/Dwarf.h>
@@ -29,8 +32,10 @@
 #include <llvm/IR/Function.h>
 #include <llvm/IR/GlobalVariable.h>
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/Instructions.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Type.h>
+#include <llvm/Support/Alignment.h>
 
 #include <cstring>
 #include <cstdlib>
@@ -130,23 +135,93 @@ llvm::Type* Codegen::mir_type(const mir::MIRModule& m, uint32_t id) {
                                        ? llvm::StructType::create(*ctx)
                                        : llvm::StructType::create(*ctx, name);
             mir_type_cache_[id] = st;
-            std::vector<llvm::Type*> elems;
-            elems.reserve(r.data_count);
-            for (uint32_t i = 0; i < r.data_count; ++i) {
-                const MIRFieldInfo* f = m.types.field_of(id, i);
-                if (!f) continue;
-                elems.push_back(mir_type(m, f->type));
-            }
-            // An aggregate with no fields stays zero-sized, matching the C
-            // backend: the C struct is `struct S { }` (TinyCC agrees with the
-            // interpreter's `byte_size`), so padding it with an `i8` here made
-            // `sizeof(S)` disagree between the runtime (`SizeOf`) and comptime.
 
-            // A field-less aggregate stays *empty* (`type {}`, alloc size 0), as
-            // C spells `struct S {}` under the extension the language relies on.
-            // Padding it to `{ i8 }` made `sizeof(S)` 1 against the interpreter's
-            // 0 and diverged from the C backend.
+            // Build the body from MIR's recorded layout, not from LLVM's: place
+            // each field at its MIR byte offset (padding where the MIR offset
+            // exceeds the running end, so an explicit `@align`/`@maxalign` is
+            // honored) and size the whole type to MIR's `r.size`. Union members
+            // and variant cases overlap in MIR, which a struct cannot express,
+            // so each overlap group becomes one storage element sized/aligned to
+            // the group; every field in the group maps to that element (opaque
+            // pointers make the field type irrelevant at the GEP).
+            //
+            // An aggregate with no explicit alignment and no overlap produces an
+            // element sequence identical to the field list, so the common case
+            // is unchanged.
+            std::vector<llvm::Type*> elems;
+            std::vector<MIRAggElem> elems_info;
+            std::vector<uint32_t> field_elem(r.data_count, 0);
+            uint64_t cur = 0;
+            uint32_t i = 0;
+            const bool union_all = (r.kind == MIRTypeKind::Union);
+            const uint8_t case_kind = static_cast<uint8_t>(MIRFieldKind::VariantCase);
+            while (i < r.data_count) {
+                const MIRFieldInfo* f = m.types.field_of(id, i);
+                if (!f) {
+                    ++i;
+                    continue;
+                }
+                const bool overlap = union_all || f->kind == case_kind;
+                MIRAggElem info;
+                TypeId rep = f->type;
+                if (overlap) {
+                    // one shared storage element for the whole overlap group,
+                    // represented by the member with the largest aligned size
+                    // (so any member fits it); ties prefer the larger alignment
+                    uint32_t j = i;
+                    uint32_t best = i;
+                    uint32_t best_align = 0;
+                    uint64_t best_aligned = 0;
+                    while (j < r.data_count) {
+                        const MIRFieldInfo* g = m.types.field_of(id, j);
+                        if (!g) break;
+                        if (!(union_all || g->kind == case_kind)) break;
+                        const uint32_t ga = mir_field_alignment(m.types, *g);
+                        const uint64_t gs =
+                            mir_align_up(mir_field_size(m.types, *g), ga);
+                        if (gs > best_aligned || (gs == best_aligned && ga > best_align)) {
+                            best = j;
+                            best_align = ga;
+                            best_aligned = gs;
+                        }
+                        ++j;
+                    }
+                    rep = m.types.field_of(id, best)->type;
+                    info.field = i;
+                    info.field_count = j - i;
+                    i = j;
+                } else {
+                    info.field = i;
+                    info.field_count = 1;
+                    ++i;
+                }
+                const uint32_t offset = f->offset;
+                if (offset > cur) {
+                    elems.push_back(llvm::ArrayType::get(builder->getInt8Ty(),
+                                                         offset - cur));
+                    elems_info.push_back(MIRAggElem{});
+                    cur = offset;
+                }
+                const uint32_t idx = static_cast<uint32_t>(elems.size());
+                elems.push_back(mir_type(m, rep));
+                elems_info.push_back(info);
+                for (uint32_t k = 0; k < info.field_count; ++k) {
+                    if (info.field + k < field_elem.size()) {
+                        field_elem[info.field + k] = idx;
+                    }
+                }
+                cur = offset + (rep < m.types.size() ? m.types.get(rep).size : 0);
+            }
+            // A field-less aggregate stays empty (`type {}`, alloc size 0), so
+            // the body matches the C backend's `struct S {}`. Only pad when MIR
+            // recorded a larger size (explicit alignment / overlap tail).
+            if (r.size > cur) {
+                elems.push_back(llvm::ArrayType::get(builder->getInt8Ty(), r.size - cur));
+                elems_info.push_back(MIRAggElem{});
+            }
             st->setBody(elems);
+            mir_agg_elems_[id] = std::move(elems_info);
+            mir_field_elem_[id] = std::move(field_elem);
             t = st;
             break;
         }
@@ -169,6 +244,12 @@ llvm::Type* Codegen::mir_type(const mir::MIRModule& m, uint32_t id) {
     }
     mir_type_cache_[id] = t;
     return t;
+}
+
+uint32_t Codegen::mir_field_elem(uint32_t agg, uint32_t field) const {
+    auto it = mir_field_elem_.find(agg);
+    if (it == mir_field_elem_.end() || field >= it->second.size()) return field;
+    return it->second[field];
 }
 
 // ── Function declaration ────────────────────────────────────────────────────
@@ -314,6 +395,9 @@ void Codegen::mir_declare_globals(const mir::MIRModule& m) {
         llvm::GlobalVariable* gv = new llvm::GlobalVariable(
             *module, t, false, llvm::GlobalValue::ExternalLinkage,
             is_extern ? nullptr : llvm::Constant::getNullValue(t), name);
+        const uint32_t galign = (rec.type < m.types.size())
+                                    ? m.types.get(rec.type).alignment : 0;
+        if (galign > 1) gv->setAlignment(llvm::Align(galign));
         mir_global_cache_[i] = gv;
     }
 }
@@ -460,6 +544,13 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                 frame_place = static_cast<int>(p);
             }
             llvm::AllocaInst* slot = top.CreateAlloca(mir_type(m, fn.places[p].type));
+            // MIR owns the alignment: honor an explicit `@align`/`@maxalign` the
+            // LLVM type cannot express (a struct's ABI alignment is derived from
+            // its members and cannot be raised).
+            const uint32_t palign = (fn.places[p].type < m.types.size())
+                                        ? m.types.get(fn.places[p].type).alignment
+                                        : 0;
+            if (palign > 1) slot->setAlignment(llvm::Align(palign));
             places[p] = slot;
             if (fn.places[p].debug_name != mir::MIR_INVALID_ID) {
                 named_places.emplace_back(p, slot);
@@ -693,7 +784,12 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
         llvm::Value* ptr = base_ptr;
         TypeId cur = agg;
         for (uint32_t idx : indices) {
-            ptr = builder->CreateStructGEP(mir_type(m, cur), ptr, idx);
+            // Sequence explicitly: `mir_type` publishes the field->element plan
+            // that `mir_field_elem` reads, so it must run first (argument
+            // evaluation order is unspecified).
+            llvm::Type* agg_ty = mir_type(m, cur);
+            const uint32_t elem = mir_field_elem(cur, idx);
+            ptr = builder->CreateStructGEP(agg_ty, ptr, elem);
             cur = m.types.field_of(cur, idx)->type;
         }
         return ptr;
@@ -1671,8 +1767,12 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                 case MIROpcode::SizeOf: {
                     const MIROperand* t = arg(0);
                     if (t) {
-                        uint64_t sz = module->getDataLayout().getTypeAllocSize(
-                            mir_type(m, t->type()));
+                        // MIR's recorded size, not LLVM's: the C backend spells
+                        // `sizeof(T)` and MIR's layout is verified against it, so
+                        // this keeps the two backends and the interpreter in
+                        // agreement (including `@align`/`@maxalign` padding).
+                        const uint64_t sz =
+                            (t->type() < m.types.size()) ? m.types.get(t->type()).size : 0;
                         vals[v] = llvm::ConstantInt::get(mir_type(m, fn.values[v].type), sz);
                     }
                     break;
@@ -1680,9 +1780,8 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                 case MIROpcode::AlignOf: {
                     const MIROperand* t = arg(0);
                     if (t) {
-                        uint64_t al = module->getDataLayout()
-                                          .getABITypeAlign(mir_type(m, t->type()))
-                                          .value();
+                        const uint64_t al =
+                            (t->type() < m.types.size()) ? m.types.get(t->type()).alignment : 1;
                         vals[v] = llvm::ConstantInt::get(mir_type(m, fn.values[v].type), al);
                     }
                     break;
@@ -1695,11 +1794,13 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     if (!const_string(f->id, fname)) break;
                     const int fi = field_index(t->type(), fname);
                     if (fi < 0) break;
-                    const llvm::StructLayout* sl =
-                        module->getDataLayout().getStructLayout(
-                            llvm::cast<llvm::StructType>(mir_type(m, t->type())));
-                    vals[v] = llvm::ConstantInt::get(mir_type(m, fn.values[v].type),
-                                                     sl->getElementOffset(fi));
+                    // MIR's recorded field offset (what the C `offsetof(T, f)`
+                    // the declaration compiles to produces).
+                    const MIRFieldInfo* fi_rec =
+                        (fi >= 0) ? m.types.field_of(t->type(), static_cast<uint32_t>(fi))
+                                  : nullptr;
+                    const uint64_t off = fi_rec ? fi_rec->offset : 0;
+                    vals[v] = llvm::ConstantInt::get(mir_type(m, fn.values[v].type), off);
                     break;
                 }
                 case MIROpcode::Call:
@@ -2138,7 +2239,8 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     const int tag_i0 = variant_tag_index(poll_ty);
                     if (tag_i0 < 0) break;
                     llvm::Value* tagp = builder->CreateStructGEP(
-                        poll_ll, poll_out, static_cast<uint32_t>(tag_i0));
+                        poll_ll, poll_out,
+                        mir_field_elem(poll_ty, static_cast<uint32_t>(tag_i0)));
                     builder->CreateStore(builder->getInt32(0), tagp);
                     std::vector<uint32_t> rt_idx;
                     TypeId ready_value_ty = MIR_INVALID_ID;
@@ -2617,6 +2719,37 @@ private:
         return null(want);
     }
 
+    /** The MIR-owned element plan for aggregate `t` (see `mir_type`). */
+    const std::vector<Codegen::MIRAggElem>* plan_for(mir::TypeId t) const {
+        auto it = gen_.mir_agg_elems_.find(t);
+        if (it == gen_.mir_agg_elems_.end()) return nullptr;
+        return &it->second;
+    }
+
+    /**
+     * Fit `c` (the active union member / variant case payload) into the shared
+     * storage element `want`, whose byte size is the overlap region. An equal
+     * size is a bitcast; a smaller member is padded to the region (a packed
+     * wrapper keeps the size exact) and then bitcast. This is how a union or
+     * variant initializer is written into MIR's overlapping layout from LLVM,
+     * which has no union.
+     */
+    llvm::Constant* fit_region(llvm::Constant* c, llvm::Type* want) {
+        if (!c) return nullptr;
+        if (c->getType() == want) return c;
+        const llvm::DataLayout& dl = gen_.module->getDataLayout();
+        const uint64_t want_sz = dl.getTypeAllocSize(want);
+        const uint64_t have_sz = dl.getTypeAllocSize(c->getType());
+        if (have_sz == want_sz) return llvm::ConstantExpr::getBitCast(c, want);
+        if (have_sz > want_sz) return null(want);
+        llvm::ArrayType* pad =
+            llvm::ArrayType::get(llvm::Type::getInt8Ty(ctx_), want_sz - have_sz);
+        llvm::StructType* wrapped =
+            llvm::StructType::get(ctx_, {c->getType(), pad}, /*isPacked=*/true);
+        llvm::Constant* padded = llvm::ConstantStruct::get(wrapped, {c, null(pad)});
+        return llvm::ConstantExpr::getBitCast(padded, want);
+    }
+
     llvm::Constant* aggregate_constant(mir::ConstExprId id, const mir::MIRConstExpr& e,
                                        llvm::Type* want) {
         mir::MIRTypeRecord rec_storage;
@@ -2639,14 +2772,40 @@ private:
         }
         auto* st = llvm::dyn_cast<llvm::StructType>(want);
         if (!st) return null(want);
+        // Make sure `mir_type` has published the element plan (padding and
+        // overlap elements) before we walk the struct body.
+        if (valid(e.type)) gen_.mir_type(m_, e.type);
+        const std::vector<Codegen::MIRAggElem>* plan = plan_for(e.type);
         std::vector<llvm::Constant*> elems;
         elems.reserve(st->getNumElements());
         for (uint32_t i = 0; i < st->getNumElements(); ++i) {
             llvm::Type* ft = st->getElementType(i);
-            const mir::MIRFieldInfo* f = rec ? m_.types.field_of(e.type, i) : nullptr;
-            const mir::MIRConstChild* c =
-                f ? find_child(id, m_.types.field_name_view(*f)) : nullptr;
-            elems.push_back(build(c ? c->expr : mir::MIR_INVALID_ID, ft));
+            const Codegen::MIRAggElem* info =
+                (plan && i < plan->size()) ? &(*plan)[i] : nullptr;
+            if (!info || info->field_count == 0 || !rec) {
+                elems.push_back(null(ft));  // padding / unknown
+                continue;
+            }
+            if (info->field_count == 1) {
+                const mir::MIRFieldInfo* f = m_.types.field_of(e.type, info->field);
+                const mir::MIRConstChild* c =
+                    f ? find_child(id, m_.types.field_name_view(*f)) : nullptr;
+                elems.push_back(build(c ? c->expr : mir::MIR_INVALID_ID, ft));
+            } else {
+                // A union: at most one member is initialized. Build it in its
+                // own type and fit it into the shared storage element.
+                llvm::Constant* c = nullptr;
+                for (uint32_t k = 0; k < info->field_count && !c; ++k) {
+                    const mir::MIRFieldInfo* f = m_.types.field_of(e.type, info->field + k);
+                    if (!f) continue;
+                    const mir::MIRConstChild* child =
+                        find_child(id, m_.types.field_name_view(*f));
+                    if (!child) continue;
+                    llvm::Constant* m = build(child->expr, gen_.mir_type(m_, f->type));
+                    c = fit_region(m, ft);
+                }
+                elems.push_back(c ? c : null(ft));
+            }
         }
         return llvm::ConstantStruct::get(st, elems);
     }
@@ -2661,13 +2820,59 @@ private:
         }
         auto* st = llvm::dyn_cast<llvm::StructType>(want);
         if (!st) return null(want);
+        if (valid(e.type)) gen_.mir_type(m_, e.type);
+        const std::vector<Codegen::MIRAggElem>* plan = plan_for(e.type);
         std::vector<llvm::Constant*> elems;
         elems.reserve(st->getNumElements());
         for (uint32_t i = 0; i < st->getNumElements(); ++i) {
             llvm::Type* ft = st->getElementType(i);
-            const mir::MIRFieldInfo* f = rec ? m_.types.field_of(e.type, i) : nullptr;
+            const Codegen::MIRAggElem* info =
+                (plan && i < plan->size()) ? &(*plan)[i] : nullptr;
+            if (!info || info->field_count == 0 || !rec) {
+                elems.push_back(null(ft));  // padding / unknown
+                continue;
+            }
+            const mir::MIRFieldInfo* f = m_.types.field_of(e.type, info->field);
             if (!f) {
                 elems.push_back(null(ft));
+                continue;
+            }
+            const bool overlap_case =
+                info->field_count > 1 ||
+                static_cast<mir::MIRFieldKind>(f->kind) == mir::MIRFieldKind::VariantCase;
+            if (overlap_case) {
+                // One shared element holds all case payloads. Exactly one case is
+                // active (its `Case.param` children exist); build and fit it.
+                llvm::Constant* c = nullptr;
+                for (uint32_t k = 0; k < info->field_count && !c; ++k) {
+                    const mir::MIRFieldInfo* cf = m_.types.field_of(e.type, info->field + k);
+                    if (!cf) continue;
+                    auto* cst = llvm::dyn_cast<llvm::StructType>(gen_.mir_type(m_, cf->type));
+                    if (!cst) continue;
+                    const std::string cname(m_.types.field_name_view(*cf));
+                    std::vector<llvm::Constant*> case_elems;
+                    case_elems.reserve(cst->getNumElements());
+                    bool any = false;
+                    for (uint32_t j = 0; j < cst->getNumElements(); ++j) {
+                        llvm::Type* cft = cst->getElementType(j);
+                        const mir::MIRFieldInfo* pcf = m_.types.field_of(cf->type, j);
+                        const mir::MIRConstChild* child = nullptr;
+                        if (pcf) {
+                            std::string path(cname);
+                            path += '.';
+                            path += m_.types.field_name_view(*pcf);
+                            child = find_child(id, path);
+                        }
+                        if (child) any = true;
+                        case_elems.push_back(
+                            build(child ? child->expr : mir::MIR_INVALID_ID, cft));
+                    }
+                    if (any) {
+                        llvm::Constant* cs = llvm::ConstantStruct::get(cst, case_elems);
+                        c = fit_region(cs, ft);
+                    }
+                }
+                elems.push_back(c ? c : null(ft));
                 continue;
             }
             switch (static_cast<mir::MIRFieldKind>(f->kind)) {
@@ -2682,34 +2887,6 @@ private:
                                               ft, static_cast<uint64_t>(e.case_index)))
                                         : null(ft));
                     break;
-                case mir::MIRFieldKind::VariantCase: {
-                    auto* cst = llvm::dyn_cast<llvm::StructType>(ft);
-                    if (!cst) {
-                        elems.push_back(null(ft));
-                        break;
-                    }
-                    const std::string cname(m_.types.field_name_view(*f));
-                    std::vector<llvm::Constant*> case_elems;
-                    case_elems.reserve(cst->getNumElements());
-                    bool any = false;
-                    for (uint32_t j = 0; j < cst->getNumElements(); ++j) {
-                        llvm::Type* cft = cst->getElementType(j);
-                        const mir::MIRFieldInfo* cf = m_.types.field_of(f->type, j);
-                        const mir::MIRConstChild* c = nullptr;
-                        if (cf) {
-                            std::string path(cname);
-                            path += '.';
-                            path += m_.types.field_name_view(*cf);
-                            c = find_child(id, path);
-                        }
-                        if (c) any = true;
-                        case_elems.push_back(build(c ? c->expr : mir::MIR_INVALID_ID, cft));
-                    }
-                    elems.push_back(any ? static_cast<llvm::Constant*>(
-                                              llvm::ConstantStruct::get(cst, case_elems))
-                                        : null(ft));
-                    break;
-                }
                 default:
                     elems.push_back(null(ft));
                     break;

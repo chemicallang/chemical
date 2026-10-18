@@ -175,6 +175,7 @@ public func run_common_tests() {
     test_unions();
     test_nodes();
     test_variants();
+    test_aggregate_field_layout();
     test_moves()
     test_static_interfaces()
     test_basic_interfaces()

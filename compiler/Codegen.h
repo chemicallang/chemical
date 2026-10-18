@@ -109,6 +109,23 @@ public:
     std::unordered_map<std::string, std::vector<std::string>> mir_vtable_methods_;
     std::unordered_map<std::string, std::vector<llvm::FunctionType*>> mir_vtable_slot_types_;
 
+    /**
+     * MIR-authoritative aggregate element layout for the LLVM backend (action
+     * of mir-migration-evaluation.md: the backend consumes the MIR layout, it
+     * does not re-derive one). One entry per LLVM struct element, in body order:
+     * `field == 0xFFFFFFFF` is a padding element, otherwise it is the first MIR
+     * field index mapped here and `field_count` is the number of overlapping
+     * fields (1 for a normal member, > 1 for a union/variant overlap group).
+     * Filled by `mir_type`, read by `gep_path` and the constant builder.
+     */
+    struct MIRAggElem {
+        uint32_t field = 0xFFFFFFFFu;
+        uint32_t field_count = 0;
+    };
+    std::unordered_map<uint32_t, std::vector<MIRAggElem>> mir_agg_elems_;
+    /** aggregate type id -> MIR field index -> LLVM element (GEP) index. */
+    std::unordered_map<uint32_t, std::vector<uint32_t>> mir_field_elem_;
+
     // MIR → LLVM debug info (per module / per function, when DI is enabled).
     llvm::DIFile* mir_di_file_ = nullptr;      // current module's source file
     llvm::DISubprogram* mir_di_sp_ = nullptr;  // current function's DISubprogram
@@ -198,6 +215,13 @@ public:
 
     /** LLVM DIType for a MIR type id (used by the MIR debug-info emission). */
     llvm::DIType* mir_di_type(const mir::MIRModule& module, uint32_t type);
+
+    /**
+     * The LLVM struct element index for MIR field `field` of aggregate `agg`
+     * (identity when the aggregate has no padding/overlap). The mapping is
+     * published by `mir_type`, so every GEP into an aggregate goes through it.
+     */
+    uint32_t mir_field_elem(uint32_t agg, uint32_t field) const;
     /** Declare LLVM globals for the module's MIR global symbols. */
     void mir_declare_globals(const mir::MIRModule& module);
     /**
@@ -216,6 +240,8 @@ public:
         mir_vtable_types_.clear();
         mir_vtable_methods_.clear();
         mir_vtable_slot_types_.clear();
+        mir_agg_elems_.clear();
+        mir_field_elem_.clear();
         mir_di_file_ = nullptr;
         mir_di_sp_ = nullptr;
         mir_di_files_.clear();

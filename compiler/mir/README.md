@@ -1496,6 +1496,15 @@ lines **754 → 627**, `goto` **779 → 674**, `return;` **399 → 73**; probe e
 (was ~59.2), i.e. no regression. `--tcc` **2307/2307**, `MIRTests` **4506 checks**
 (covering `place_escaped` / `place_last_write` / `first_use_inst`).
 
+**Release-vs-Release baseline (legacy `basemain`, same command, same machine).**
+The pre-MIR 2c compiler (`basemain/cmake-build-release/TCCCompiler`, no MIR
+symbols) compiles the main suite with **user 0.60–0.65 s / sys 0.24–0.25 s /
+wall 0.48–0.54 s, RSS 44.0 MB**, `tests-tcc.exe 3,243,929 B`; the MIR compiler is
+**user ~1.00 s / sys 0.49 / wall 0.80 s, RSS ~59.6 MB**, `tests-tcc.exe 3,942,322 B`.
+Like-for-like the gates are **1.67× compile (user and wall)**, **1.35× RSS**,
+**1.22× tests exe** — all above the 1.05× acceptance. This session's C work took
+the tests exe from **1.33× → 1.22×** of legacy; the compile/RSS gap is action D.
+
 **What remains (action C).** The dominant residue is structural, not the removed
 trampolines or the forwarded loads: the legacy 2c emitted **structured** control
 flow (`while`, `switch`, `if/else`, ~0 `goto`) while MIR emits a flat CFG (still

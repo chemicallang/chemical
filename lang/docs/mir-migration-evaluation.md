@@ -980,6 +980,13 @@ attributed down to per-function self time with no `perf` — and disproved the
 "one hot function" hypothesis: the cost is per-instruction overhead and the tail
 of ~1,510 small generic instantiations, so D3 (dense tables) and lower per-
 instruction cost are the levers, not a targeted rewrite.
+**Update (2026-10-19, Release).** Re-measured with `-DMIR_OPS_COUNTERS=ON` on the
+**Release** `TCCCompiler` compiling the main suite: `lower_function` is **828 ms**
+of the ~**1.0 s** user CPU (**≈74 %**), for **315,548** MIR instructions across
+**7,257** functions (≈2.6 µs/instruction on Release); `type_map` 411k, place
+lookups/binds 59k/22k, `intern_function` 29k. Like-for-like against the pre-MIR
+2c compiler the gate is **1.67× compile (user and wall)** and **1.35× RSS**, so
+the lowering per-instruction path is the single lever that matters for D.
 **Update (session 27).** D4's first step landed: the async group moved to
 `MIRLowerAsync.cpp`, lambda/capturing to `MIRLowerLambda.cpp`, and the
 const-expression builder to `MIRLowerConst.cpp` (shared `MIRLowererInternal.h`),

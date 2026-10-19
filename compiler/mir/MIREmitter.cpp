@@ -1103,10 +1103,14 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
     }
 
     uint32_t param_index = 0;
+    // Set when an `Alloca` folds its immediately-following plain `Store`
+    // into the declaration, so the loop skips that store.
+    uint32_t skip_inst = MIR_INVALID_ID;
     for (uint32_t idx = 0; idx < function.instructions.size(); ++idx) {
         if (label_at[idx] != MIR_INVALID_ID) {
             out += "__chx_bb" + std::to_string(label_at[idx]) + ":;\n";
         }
+        if (idx == skip_inst) continue;
         // A trampoline block emits nothing (see MIRFacts): its single `Br` is a
         // fall-through and jumps to it were redirected to its target, so it has
         // no label and this instruction is dropped.
@@ -1140,8 +1144,40 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
         switch (inst.opcode()) {
             case MIROpcode::Alloca: {
                 const PlaceId p = inst.result_or_place;
-                append_c_declarator(module, function.places[p].type, place_name(module, function, p), out);
-                out += ";\n";
+                // Fuse an immediately-following plain store into the
+                // declaration: `T __chx_pN; __chx_pN = <rhs>;` becomes
+                // `T __chx_pN = <rhs>;`. The store is adjacent and
+                // unconditional, so this is the same program with one line
+                // fewer. The lowering materializes a fresh local for nearly
+                // every expression and short-circuit condition, so this is
+                // one of the largest sources of flat-C lines (evaluation §C).
+                bool fused = false;
+                if (idx + 1 < function.instructions.size()) {
+                    const MIRInstruction& nxt = function.instructions[idx + 1];
+                    if (nxt.opcode() == MIROpcode::Store) {
+                        const MIROperand* sp = operand_at(function, nxt, 0);
+                        const MIROperand* sv = operand_at(function, nxt, 1);
+                        const MIROperand* sv2 = operand_at(function, nxt, 2);
+                        if (sp && sv && !sv2 && sp->kind() == MIROperandKind::Place &&
+                            sp->id == p &&
+                            (sv->kind() == MIROperandKind::Value ||
+                             sv->kind() == MIROperandKind::Constant) &&
+                            module.types.get(function.places[p].type).kind != MIRTypeKind::Array) {
+                            append_c_declarator(module, function.places[p].type,
+                                                place_name(module, function, p), out);
+                            out += " = ";
+                            append_operand_expr(function, module, *sv, out);
+                            out += ";\n";
+                            skip_inst = idx + 1;
+                            fused = true;
+                        }
+                    }
+                }
+                if (!fused) {
+                    append_c_declarator(module, function.places[p].type,
+                                        place_name(module, function, p), out);
+                    out += ";\n";
+                }
                 // An aggregate is *not* zeroed here unconditionally. The lowerer
                 // emits an explicit `MemSet` (`zero_init`) at exactly the sites
                 // that need well-defined tail bytes (a partial aggregate / array

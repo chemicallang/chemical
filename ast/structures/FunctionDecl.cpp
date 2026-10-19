@@ -42,6 +42,7 @@
 #include "ast/types/DoubleType.h"
 #include "ast/types/IntNType.h"
 #include "ast/base/TypeBuilder.h"
+#include "utils/StackSpace.h"
 
 BaseType* FunctionDeclaration::inner_return_type() {
     auto rt = const_cast<BaseType*>(returnType.getType());
@@ -226,6 +227,27 @@ Value *FunctionDeclaration::call(
     Value* debug_value
 ) {
     if (!call_scope || !fn_scope) return nullptr;
+    // Once a comptime evaluation in this thread has run the stack out, every
+    // fold after it returns immediately: the root cause is reported once and
+    // re-running would only repeat the deep recursion.
+    if (chem::comptime_stack_failed()) {
+        if (!chem::comptime_stack_reported()) {
+            chem::mark_comptime_stack_reported();
+            call_scope->error(chem::comptime_stack_error_message(),
+                              debug_value ? (ASTNode*) debug_value : (ASTNode*) this);
+        }
+        return nullptr;
+    }
+    if (chem::comptime_stack_exhausted()) {
+        // A comptime function which calls itself never returns; folding its body
+        // recurses on the compiler's own stack. The space kept in reserve lets us
+        // report the diagnostic and unwind the already nested calls.
+        chem::mark_comptime_stack_failed();
+        chem::mark_comptime_stack_reported();
+        call_scope->error(chem::comptime_stack_error_message(),
+                          debug_value ? (ASTNode*) debug_value : (ASTNode*) this);
+        return nullptr;
+    }
     auto self_param = get_self_param();
     if (self_param) fn_scope->declare(self_param->name, parent_val);
 
@@ -249,6 +271,8 @@ Value *FunctionDeclaration::call(
     if (body.has_value()) {
         Value* folded = fold_expression_body(*fn_scope, body.value());
         if (folded) return folded;
+        // the stack guard (or a previous failure) already reported this
+        if (chem::comptime_stack_failed()) return nullptr;
     }
     call_scope->error("comptime function has a statement body that cannot be folded at "
                       "symbol resolution (comptime calls are evaluated by the MIR driver)",

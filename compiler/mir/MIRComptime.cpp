@@ -11,6 +11,7 @@
 #include "MIRLowerer.h"
 #include "MIRABI.h"
 #include "MIRLayout.h"
+#include "utils/StackSpace.h"
 
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/FunctionParam.h"
@@ -608,6 +609,15 @@ bool marshal_arg(Value* av, uint64_t& cell, std::vector<std::vector<char>>& keep
 
 Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration* fd,
                              FunctionCall* call, bool& handled, std::string& error) {
+    if (chem::comptime_stack_failed()) {
+        return nullptr;
+    }
+    if (chem::comptime_stack_exhausted()) {
+        // a comptime function which calls itself never returns; lowering it
+        // recurses on the compiler's stack, so stop before overflowing it
+        chem::mark_comptime_stack_failed();
+        return nullptr;
+    }
     if (impl_->lowering) {
         // reached while another callee is being lowered (a nested comptime call
         // in a driven body): use a fresh driver so the in-progress lowerer state
@@ -819,6 +829,10 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
         uint64_t ignored = 0;
         if (!impl_->interp->call(name, cells.data(), static_cast<uint32_t>(cells.size()),
                                  ignored, error)) {
+            if (impl_->interp->stack_exhausted()) {
+                chem::mark_comptime_stack_failed();
+                return nullptr; // keep the error
+            }
             error.clear();
             return nullptr;
         }
@@ -837,6 +851,10 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
                                       buf.data(), error)) {
             if (std::getenv("CT_STAT")) {
                 std::fprintf(stderr, "[CTSTAT] AGGFAIL %s call_sret\n", fd->name_str().c_str());
+            }
+            if (impl_->interp->stack_exhausted()) {
+                chem::mark_comptime_stack_failed();
+                return nullptr; // keep the error
             }
             error.clear();
             return nullptr;
@@ -861,6 +879,10 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
         if (std::getenv("CT_STAT")) {
             std::fprintf(stderr, "[CTSTAT] CALLFAIL %s: %s\n", fd->name_str().c_str(),
                          error.c_str());
+        }
+        if (impl_->interp->stack_exhausted()) {
+            chem::mark_comptime_stack_failed();
+            return nullptr; // keep the error
         }
         error.clear();
         return nullptr;
@@ -906,6 +928,12 @@ Value* MIRComptime::evaluate(const MIRComptimeContext& ctx, FunctionDeclaration*
 Value* MIRComptime::evaluate_value(const MIRComptimeContext& ctx, Value* v,
                                     std::string& error) {
     if (!v || !ctx.scope) return nullptr;
+    if (chem::comptime_stack_failed()) return nullptr;
+    if (chem::comptime_stack_exhausted()) {
+        chem::mark_comptime_stack_failed();
+        error = chem::comptime_stack_error_message();
+        return nullptr;
+    }
     if (v->val_kind() == ValueKind::AccessChain) {
         auto* chain = v->as_access_chain_unsafe();
         if (chain->values.size() == 1) return evaluate_value(ctx, chain->values.front(), error);
@@ -934,6 +962,21 @@ Value* MIRComptime::evaluate_value(const MIRComptimeContext& ctx, Value* v,
 
 bool MIRComptime::evaluate_block(const MIRComptimeContext& ctx, ComptimeBlock* block,
                                  std::string& error) {
+    if (chem::comptime_stack_failed()) {
+        return false;
+    }
+    if (chem::comptime_stack_exhausted()) {
+        chem::mark_comptime_stack_failed();
+        error = chem::comptime_stack_error_message();
+        return false;
+    }
+    if (impl_->lowering) {
+        // reached while another callee is being lowered (a comptime block inside
+        // a driven body): use a fresh driver so the in-progress lowerer state is
+        // not clobbered
+        MIRComptime nested;
+        return nested.evaluate_block(ctx, block, error);
+    }
     if (!ctx.host || !ctx.allocator || !ctx.type_builder || !block) {
         error = "comptime block has no lowering context";
         return false;
@@ -978,6 +1021,15 @@ bool MIRComptime::evaluate_block(const MIRComptimeContext& ctx, ComptimeBlock* b
             for (FunctionDeclaration* c : e.callees) reachable.push_back(c);
         }
     }
+
+    // Mark the driver as lowering for the whole block: a comptime call reached
+    // while the synthetic block function is being lowered must use a fresh
+    // driver, or it re-enters this lowerer and clears its builder.
+    impl_->lowering = true;
+    struct LoweringGuard {
+        Impl* impl;
+        ~LoweringGuard() { impl->lowering = false; }
+    } lowering_guard{impl_.get()};
 
     for (FunctionDeclaration* d : reachable) {
         if (impl_->lowered.count(d)) continue;

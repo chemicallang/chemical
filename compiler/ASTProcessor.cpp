@@ -33,6 +33,8 @@ static void ct_stat(const char* tag, const char* name) {
 #include "ast/structures/ImplDefinition.h"
 #include "ast/statements/ChildrenMapNode.h"
 #include "ast/statements/VarInit.h"
+#include "ast/values/FunctionCall.h"
+#include "utils/StackSpace.h"
 #include <filesystem>
 #include <random>
 
@@ -2662,6 +2664,18 @@ int ASTProcessor::implement_module(
         cctx.scope = &c_visitor.comptime_scope;
         bool handled = false;
         Value* r = ct_driver.evaluate(cctx, decl, call, handled, derr);
+        if (!handled && chem::comptime_stack_failed()) {
+            // the driver stopped because the stack ran out (an unbounded
+            // recursion): report it once, then bail rather than falling back to
+            // the expression layer, which cannot fold the body
+            if (!chem::comptime_stack_reported()) {
+                chem::mark_comptime_stack_reported();
+                c_visitor.error(call->encoded_location())
+                    << (derr.empty() ? chem::comptime_stack_error_message() : derr.c_str());
+            }
+            pop_comptime_bindings(saved);
+            return nullptr;
+        }
         if (!handled) {
             ct_stat_decl("FB", decl);
             r = c_visitor.eval_comptime_call(call, decl);
@@ -2711,7 +2725,14 @@ int ASTProcessor::implement_module(
         cctx.scope = &c_visitor.comptime_scope;
         std::string derr;
         if (!ct_driver.evaluate_block(cctx, block, derr)) {
-            c_visitor.error(block) << "couldn't evaluate comptime block: " << derr;
+            if (chem::comptime_stack_failed()) {
+                if (!chem::comptime_stack_reported()) {
+                    chem::mark_comptime_stack_reported();
+                    c_visitor.error(block) << chem::comptime_stack_error_message();
+                }
+            } else {
+                c_visitor.error(block) << "couldn't evaluate comptime block: " << derr;
+            }
         }
         pop_comptime_bindings(saved);
     });
@@ -3037,6 +3058,18 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
         cctx.scope = &c_visitor.comptime_scope;
         bool handled = false;
         Value* r = ct_driver.evaluate(cctx, decl, call, handled, derr);
+        if (!handled && chem::comptime_stack_failed()) {
+            // the driver stopped because the stack ran out (an unbounded
+            // recursion): report it once, then bail rather than falling back to
+            // the expression layer, which cannot fold the body
+            if (!chem::comptime_stack_reported()) {
+                chem::mark_comptime_stack_reported();
+                c_visitor.error(call->encoded_location())
+                    << (derr.empty() ? chem::comptime_stack_error_message() : derr.c_str());
+            }
+            pop_comptime_bindings(saved);
+            return nullptr;
+        }
         if (!handled) {
             ct_stat_decl("FB", decl);
             r = c_visitor.eval_comptime_call(call, decl);
@@ -3109,7 +3142,14 @@ int ASTProcessor::emit_static_interface_stubs(CTranslationContext& c_visitor) {
         cctx.scope = &c_visitor.comptime_scope;
         std::string derr;
         if (!ct_driver.evaluate_block(cctx, block, derr)) {
-            c_visitor.error(block) << "couldn't evaluate comptime block: " << derr;
+            if (chem::comptime_stack_failed()) {
+                if (!chem::comptime_stack_reported()) {
+                    chem::mark_comptime_stack_reported();
+                    c_visitor.error(block) << chem::comptime_stack_error_message();
+                }
+            } else {
+                c_visitor.error(block) << "couldn't evaluate comptime block: " << derr;
+            }
         }
         pop_comptime_bindings(saved);
     });

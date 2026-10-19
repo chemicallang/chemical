@@ -65,6 +65,12 @@ public:
     bool call_sret(const std::string& name, const uint64_t* args, uint32_t nargs,
                    void* out_buf, std::string& error);
 
+    /**
+     * True when the most recent `call`/`call_sret`/`run` stopped because too
+     * little stack was left (an unbounded recursion), not for any other reason.
+     */
+    bool stack_exhausted() const;
+
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;

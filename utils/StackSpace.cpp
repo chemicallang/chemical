@@ -51,6 +51,12 @@ namespace chem {
         // cached per thread, because querying the bounds takes a system call
         thread_local StackBounds stack_bounds{0, 0, false};
 
+        // set once a comptime evaluation in this thread stops for lack of stack,
+        // and once the diagnostic has been reported; both stay set for the rest
+        // of the compilation (it fails as soon as the first one is set)
+        thread_local bool comptime_stack_failed_flag = false;
+        thread_local bool comptime_stack_reported_flag = false;
+
         /**
          * address of the calling frame, used to know how much of the stack is
          * already in use
@@ -109,6 +115,37 @@ namespace chem {
             return 0;
         }
         return stack_bounds.size - used;
+    }
+
+    // Enough space to report the diagnostic and unwind the already nested calls,
+    // so the compiler never runs out of stack. When the platform cannot tell us
+    // how much stack is left (remaining_stack_bytes() == 0) the check is skipped
+    // rather than producing a false positive.
+    bool comptime_stack_exhausted() {
+        constexpr size_t STACK_RESERVE = 512 * 1024;
+        const size_t remaining = remaining_stack_bytes();
+        return remaining != 0 && remaining <= STACK_RESERVE;
+    }
+
+    const char* comptime_stack_error_message() {
+        return "the compiler ran out of stack space while evaluating this call, "
+               "a recursive function that never returns is the most likely cause";
+    }
+
+    bool comptime_stack_failed() {
+        return comptime_stack_failed_flag;
+    }
+
+    void mark_comptime_stack_failed() {
+        comptime_stack_failed_flag = true;
+    }
+
+    bool comptime_stack_reported() {
+        return comptime_stack_reported_flag;
+    }
+
+    void mark_comptime_stack_reported() {
+        comptime_stack_reported_flag = true;
     }
 
 }

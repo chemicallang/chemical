@@ -240,6 +240,24 @@ void CTranslationContext::prepare_translate() {
         write("extern void* malloc(unsigned long size);\n");
     }
     write("extern void free(void* block);\n");
+    // The MIR emitter spells a struct copy and an aggregate zeroing as bare
+    // `memcpy`/`memset` (the C compiler lowers them to width-sized stores or a
+    // libcall). cstd declares the same functions, but the module that calls one
+    // can be translated *before* cstd's declaration block, so the call would be
+    // an implicit declaration later redefined incompatibly. Declare them up
+    // front, with the same `size_t` spelling cstd uses for the target, so every
+    // call sees a prototype and cstd's later declaration stays compatible.
+    const char* size_type = (comptime_scope.target_data.win64)
+                                ? "unsigned long long" : "unsigned long";
+    write("extern void* memset(void* dest, int ch, ");
+    write(size_type);
+    write(" count);\n");
+    write("extern void* memcpy(void* dest, const void* src, ");
+    write(size_type);
+    write(" count);\n");
+    write("extern void* memmove(void* dest, const void* src, ");
+    write(size_type);
+    write(" count);\n");
     write("#if defined(_MSC_VER)\n"
           "    #define __chem_stdcall __stdcall\n"
           "    #define __chem_dllimport __declspec(\"dllimport\")\n"

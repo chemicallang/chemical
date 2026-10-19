@@ -8,6 +8,7 @@
 #include "MIRABI.h"
 #include "MIRInstruction.h"
 #include "MIRTraversal.h"
+#include "utils/StackSpace.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -185,6 +186,12 @@ struct MIRInterpreter::Impl {
 
     std::vector<std::unique_ptr<Frame>> pool;
     size_t depth = 0;
+    /**
+     * set when `call_function` stopped descending because too little stack was
+     * left (an unbounded recursion): every nested call returns immediately and
+     * the top-level `call`/`call_sret`/`run` reports it instead of crashing.
+     */
+    bool stack_exhausted = false;
 
     explicit Impl(const MIRModule& m) : module(m) {}
 
@@ -1179,6 +1186,14 @@ struct MIRInterpreter::Impl {
 
     // ── the interpreter loop ───────────────────────────────────────────────
     uint64_t call_function(size_t fn_index, const uint64_t* args, uint32_t nargs) {
+        if (stack_exhausted) return 0;
+        if (chem::comptime_stack_exhausted()) {
+            // a comptime function which calls itself never returns; each nested
+            // call adds a frame on the compiler's stack, so stop before it
+            // overflows and let the top-level call report it
+            stack_exhausted = true;
+            return 0;
+        }
         const MIRFunction& fn = module.functions[fn_index];
         if (depth == pool.size()) pool.push_back(std::make_unique<Frame>());
         Frame& f = *pool[depth++];
@@ -1737,7 +1752,12 @@ bool MIRInterpreter::call(const std::string& name, const uint64_t* args, uint32_
         error = "no function named '" + name + "' in the MIR module";
         return false;
     }
+    impl_->stack_exhausted = false;
     out_result = impl_->call_function(it->second, args, nargs);
+    if (impl_->stack_exhausted) {
+        error = chem::comptime_stack_error_message();
+        return false;
+    }
     return true;
 }
 
@@ -1753,7 +1773,12 @@ bool MIRInterpreter::call_sret(const std::string& name, const uint64_t* args, ui
     cells.reserve(static_cast<size_t>(nargs) + 1);
     cells.push_back(reinterpret_cast<uint64_t>(out_buf));
     for (uint32_t i = 0; i < nargs; ++i) cells.push_back(args[i]);
+    impl_->stack_exhausted = false;
     impl_->call_function(it->second, cells.data(), nargs + 1);
+    if (impl_->stack_exhausted) {
+        error = chem::comptime_stack_error_message();
+        return false;
+    }
     return true;
 }
 
@@ -1778,8 +1803,17 @@ bool MIRInterpreter::run(const std::string& entry, int argc, const char* const* 
             nargs = ft.data_count < 2 ? ft.data_count : 2;
         }
     }
+    impl_->stack_exhausted = false;
     out_result = static_cast<long long>(impl_->call_function(fn_index, args, nargs));
+    if (impl_->stack_exhausted) {
+        error = chem::comptime_stack_error_message();
+        return false;
+    }
     return true;
+}
+
+bool MIRInterpreter::stack_exhausted() const {
+    return impl_->stack_exhausted;
 }
 
 } // namespace mir

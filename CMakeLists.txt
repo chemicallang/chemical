@@ -921,6 +921,9 @@ add_executable(MIRTests
         compiler/mir/MIRDeclPrinter.cpp
         compiler/mir/MIRFacts.cpp
         compiler/mir/MIRInterpreter.cpp
+        # `MIRInterpreter` reports a comptime-stack-exhaustion diagnostic through
+        # `chem::comptime_stack_error_message`; the MIR tests need its definition.
+        utils/StackSpace.cpp
 )
 target_include_directories(MIRTests PRIVATE ${COMMON_INCLUDE_DIRS})
 

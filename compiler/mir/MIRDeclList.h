@@ -8,7 +8,11 @@
 //
 // Only declarations live here — function *bodies*, global *definitions* and
 // vtable *definitions* are still emitted inline by the implement pass (they are
-// interleaved with lowered bodies), not through this list.
+// interleaved with lowered bodies), not through this list. Those definitions
+// read MIR records too, though: a global's definition comes from the
+// `MIRGlobal::decl` record the lowerer filled (`MIRGlobalDecl`, MIRGlobalDecl.h)
+// and a vtable's from the shared `mir::build_vtable_def_record`
+// (`MIRVtableRecord`, MIRVtableTable.h), neither from an AST re-read.
 //
 // AST-free (ids + names only), so it can be printed by the MIRTests-covered
 // `MIRDeclPrinter`.

@@ -2364,9 +2364,11 @@ bool mir_translate_after_declaration(
                     auto* vi = node->as_var_init_unsafe();
                     if (vi->is_top_level() && !vi->is_comptime()) {
                         // lower the initializer to a MIR constant-expression tree
-                        // once (action A3), then define the global from MIR
-                        const mir::ConstExprId init = lowerer.build_global_initializer(vi);
-                        decl_emitter.implement_global(visitor.writer, node, init);
+                        // once (action A3); `build_global_initializer` appends the
+                        // MIRGlobal record (initializer + declaration spelling), so
+                        // the global is defined from MIR with no AST re-read.
+                        lowerer.build_global_initializer(vi);
+                        decl_emitter.implement_global(visitor.writer, module.globals.back());
                     }
                     continue;
                 }

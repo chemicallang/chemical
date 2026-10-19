@@ -1310,6 +1310,67 @@ static bool test_decl_list_printer() {
     return true;
 }
 
+// ── vtable-definition printer (action A3) ──────────────────────────────────
+// The C definition emitter no longer resolves vtable callees by hand: the shared
+// `mir::build_vtable_def_record` resolves them and this AST-free printer renders
+// the record. These pin the two spellings — a container impl casts each slot to
+// its self-erased function type, a primitive impl does not and writes `0` for a
+// slot with no overrider (an unresolved container slot falls back to
+// `__chx_unresolved`).
+static bool test_vtable_def_printer() {
+    MIRModule m;
+    const TypeId i32 = mir_layout_int(m, 4, IK_INT);
+    MIRTypeRecord fr;
+    fr.kind = MIRTypeKind::Function;
+    fr.element = i32;
+    const TypeId ft = m.types.intern(fr);
+
+    MIRVtableRecord container;
+    container.kind = 1;
+    container.type_name = "__chx_I_vt_t";
+    container.name = "I_C";
+    {
+        MIRVtableSlot s;
+        s.name = "go";
+        s.type = ft;
+        s.target = "I_C_go";
+        container.slots.push_back(std::move(s));
+    }
+    {
+        MIRVtableSlot s;
+        s.name = "gone";
+        s.type = ft;
+        container.slots.push_back(std::move(s));
+    }
+    const std::string c = vtable_def_c(m, container);
+    CHECK(c.find("\nconst __chx_I_vt_t I_C = {\n(") != std::string::npos);
+    CHECK(c.find(") I_C_go,\n") != std::string::npos);
+    CHECK(c.find(") __chx_unresolved,\n") != std::string::npos);
+    CHECK(c.rfind("\n};") == c.size() - 3);
+
+    MIRVtableRecord prim;
+    prim.kind = 2;
+    prim.type_name = "__chx_I_vt_t";
+    prim.name = "I_int";
+    {
+        MIRVtableSlot s;
+        s.name = "go";
+        s.type = ft;
+        s.target = "I_int_go";
+        prim.slots.push_back(std::move(s));
+    }
+    {
+        MIRVtableSlot s;
+        s.name = "gone";
+        s.type = ft;
+        prim.slots.push_back(std::move(s));
+    }
+    const std::string p = vtable_def_c(m, prim);
+    CHECK(p.find("\nconst __chx_I_vt_t I_int = {\nI_int_go,\n0,\n};") != std::string::npos);
+    CHECK(p.find('(') == std::string::npos); // a primitive impl adds no cast
+    return true;
+}
+
 // ── E1: concurrent interning into the shared module tables ─────────────────
 // Several lowering workers intern into one `MIRModule`; the type/constant pools
 // must hand back the same id for the same content from any thread, and the
@@ -1519,6 +1580,7 @@ int main() {
     ok &= test_decl_printer();
     ok &= test_const_expr_printer();
     ok &= test_decl_list_printer();
+    ok &= test_vtable_def_printer();
     if (!ok) {
         std::cerr << "mir_tests: FAILED\n";
         return 1;

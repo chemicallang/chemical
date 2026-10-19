@@ -106,6 +106,57 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 57 (2026-10-19) — the declaration/definition path is MIR records end to end (action A3, endgame)
+
+The last AST re-reads on the C declaration path are gone. Three moves:
+
+**The declaration list is module data.** `MIRDeclList` used to be a local on
+`MIRDeclEmitter`; it is now `MIRModule::declarations`, so the ordered list of
+forward tags, aggregate bodies, typedefs, prototypes, global declarations and
+vtable type/externs is a first-class MIR module table the front end fills and
+the AST-free `MIRDeclPrinter::decl_list_c` renders. (An include cycle had to be
+broken first: `MIRDeclList.h` → `MIRPrototype.h` → `MIRModule.h`; `MIRPrototype.h`
+now forward-declares `struct MIRModule` instead of including it.)
+
+**A global's *definition* is the `MIRGlobal::decl` record.** `MIRGlobal` gains a
+`MIRGlobalDecl decl` filled by `MIRLowerer::build_global_initializer` (the
+name-agnostic spelling split out of `build_global_declaration` as
+`build_global_declaration_type`, with the name taken from the symbol table so it
+cannot drift from the symbol the module declares). `MIRDeclEmitter::implement_global`
+now takes that record — no `VarInitStatement` re-read, no re-mangle at implement
+time.
+
+**A vtable's *definition* is a `MIRVtableRecord`.** The hand-rolled callee
+resolution in `MIRDeclEmitter::create_vtable`/`create_vtable_primitive` is gone;
+both now call the shared `mir::build_vtable_def_record` (the same function the
+LLVM driver reaches through `build_module_vtables`) and print it with the new
+AST-free `MIRDeclPrinter::vtable_def_c` (container impl: `(type) callee,`;
+primitive impl: `callee|0,` with no cast). The record is produced by the shared
+builder rather than read from a prebuilt `module.vtables` because the impl set is
+discovered by the declaration walk — including `#json`/macro *embedded* impls that
+only the walk resolves — so a prebuilt node set would be fragile while adding no
+shared logic. **A latent LLVM-path bug was fixed in passing:** for an inherited
+interface method the slot's active user must be set on the *method's declaring
+interface* (`func->parent()`), not on the interface being implemented, or the slot
+names the base method (`…Interfacegive`) instead of the container's instantiation
+(`…Interface_Impl_give`). The C pass had used the declaring interface; the shared
+builder now does, for both backends.
+
+`MIRTests` gains `test_vtable_def_printer` (pins both spellings and the null/
+`__chx_unresolved` fallbacks). The `MIRTests` target also had to be un-broken: it
+referenced `chem::comptime_stack_error_message` (`MIRInterpreter`) without linking
+`utils/StackSpace.cpp` — pre-existing since Session 56; the source is now in the
+target.
+
+| Suite | Result |
+|---|---|
+| `--tcc` | **2307/2307** |
+| `--llvm` | **2305/2305** |
+| `--tcc --interpret` | **1896/1896** |
+| `--tcc --negative` | **318/318** |
+| `--tcc --plugins` | **1296/1296** |
+| `MIRTests` | **4495 checks** |
+
 ### Session 56 (2026-10-19) — negative suite green: comptime stack containment + front-end duplicate diagnostics
 
 The last failing suite is now clean: `--tcc --negative` **318/318**. Two unrelated

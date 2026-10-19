@@ -25,6 +25,7 @@
 
 class ASTNode;
 class InterfaceDefinition;
+class ImplDefinition;
 class FunctionDeclaration;
 class NameMangler;
 
@@ -45,6 +46,20 @@ TypeId mir_vtable_slot_type(MIRTypeBuilder& types, MIRModule& module,
 void mir_vtable_slots(MIRTypeBuilder& types, MIRModule& module, InterfaceDefinition* iface,
                       std::vector<MIRVtableSlot>& out,
                       std::vector<FunctionDeclaration*>* out_funcs = nullptr);
+
+/**
+ * Build the vtable *definition* record for one (interface, impl) pair — the
+ * container-impl (kind 1) or primitive-impl (kind 2) record with its slot
+ * callees resolved. `impl->struct_type`'s members container decides which: a
+ * members container means a container impl, otherwise a primitive one. This is
+ * the single implementation of "what a vtable definition contains", shared by
+ * `build_module_vtables` (which applies it to every impl in the module, for the
+ * LLVM backend) and the C definition emitter (which emits each impl's record as
+ * its walk reaches it) — so the two backends cannot drift.
+ */
+MIRVtableRecord build_vtable_def_record(NameMangler& mangler, MIRTypeBuilder& types,
+                                        MIRModule& module, InterfaceDefinition* iface,
+                                        ImplDefinition* impl);
 
 /**
  * Build the module's vtable type and definition records (`module.vtables`) from

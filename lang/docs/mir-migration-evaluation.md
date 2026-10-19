@@ -14,6 +14,29 @@ Branch: `mir`. Supersedes nothing; complements `compiler/mir/README.md`,
 > still AST-based). All numbers below are measured on the L1 machine against the
 > pre-MIR `main` compiler, same source, same mode.
 >
+> **Status update (2026-10-19, session 57) — A3 endgame: the declaration/
+> definition path is MIR records end to end; no AST re-read remains.** The
+> declaration list is now `MIRModule::declarations` (was an emitter local);
+> a global's *definition* prints from the `MIRGlobal::decl` record the lowerer
+> fills (`build_global_declaration_type` + the symbol table's mangled name), and
+> a vtable's *definition* prints from a `MIRVtableRecord` built by the shared
+> `mir::build_vtable_def_record` (the same function the LLVM driver reaches
+> through `build_module_vtables`) via the new AST-free
+> `MIRDeclPrinter::vtable_def_c` — `MIRDeclEmitter::create_vtable`/
+> `create_vtable_primitive` no longer resolve callees by hand. The record is
+> produced by the shared builder rather than read from a prebuilt table because
+> the impl set is discovered by the declaration walk (including macro-embedded
+> impls). **A latent LLVM-path bug is fixed in passing**: an inherited interface
+> method's slot must set the active user on the *declaring* interface
+> (`func->parent()`), matching the declaration pass — otherwise the slot names
+> the base method instead of the container's instantiation (`#json`-style and
+> variant-inheritance impls). **Output-invariant**: `--tcc` **2307/2307**,
+> `--llvm` **2305/2305**, `--tcc --interpret` **1896/1896**, `--tcc --negative`
+> **318/318**, `--tcc --plugins` **1296/1296**, `MIRTests` **4489 → 4495 checks**.
+> The `MIRTests` target also had to link `utils/StackSpace.cpp` (broken since
+> session 56). No headline gate moves. Details: `compiler/mir/README.md`,
+> session 57.
+>
 > **Status update (2026-10-18, session 54) — B's last architectural item:
 > shared traversal, operand decode and naming.** The walk and the lookups were
 > still copied per backend: `operand_at` existed in `MIREmitter.cpp`,

@@ -100,4 +100,14 @@ std::string decl_list_c(const MIRModule& module, const MIRDeclList& list);
  */
 std::string global_decl_spelling(const MIRModule& module, const MIRGlobalDecl& d);
 
+/**
+ * The C text of a vtable *definition*, derived from a `MIRVtableRecord` alone
+ * (action A3): `\nconst <type_name> <name> = {\n(<slot type>) <callee>,\n…\n};`
+ * for a container impl (kind 1, explicit function-pointer cast), or
+ * `\nconst <type_name> <name> = {\n<callee|0>,\n…\n};` for a primitive impl
+ * (kind 2, a null slot is `0`). The callee names are the record's resolved
+ * `slot.target`s, so the C emitter no longer resolves them by walking the AST.
+ */
+std::string vtable_def_c(const MIRModule& module, const MIRVtableRecord& rec);
+
 } // namespace mir

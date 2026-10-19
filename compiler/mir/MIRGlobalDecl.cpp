@@ -15,9 +15,8 @@
 
 namespace mir {
 
-void build_global_declaration(NameMangler& mangler, MIRTypeBuilder& types, MIRModule& module,
-                              VarInitStatement* init, MIRGlobalDecl& out) {
-    (void)module;
+void build_global_declaration_type(MIRTypeBuilder& types, VarInitStatement* init,
+                                   MIRGlobalDecl& out) {
     out = MIRGlobalDecl{};
     BaseType* t = init->type ? init->type : (init->value ? init->value->getType() : nullptr);
     if (t) {
@@ -30,14 +29,20 @@ void build_global_declaration(NameMangler& mangler, MIRTypeBuilder& types, MIRMo
             out.type = types.map(t);
         }
     }
+    if (init->is_thread_local()) out.flags |= MGD_THREAD_LOCAL;
+    if (!init->is_linkage_public()) out.flags |= MGD_STATIC;
+    if (init->is_volatile()) out.flags |= MGD_VOLATILE;
+}
+
+void build_global_declaration(NameMangler& mangler, MIRTypeBuilder& types, MIRModule& module,
+                              VarInitStatement* init, MIRGlobalDecl& out) {
+    (void)module;
+    build_global_declaration_type(types, init, out);
     {
         BufferedWriter w(256);
         mangler.mangle(w, init);
         out.name.assign(w.data(), w.getPosition());
     }
-    if (init->is_thread_local()) out.flags |= MGD_THREAD_LOCAL;
-    if (!init->is_linkage_public()) out.flags |= MGD_STATIC;
-    if (init->is_volatile()) out.flags |= MGD_VOLATILE;
 }
 
 } // namespace mir

@@ -69,9 +69,9 @@ public:
     /** Emit the fixed preamble (typedefs, malloc/free, macros). */
     void emit_preamble(BufferedWriter& w);
 
-    // The declare pass *records* declarations into `decl_list_` (it still walks
-    // the AST — it is the collection pass); `print_decl_list` renders them with
-    // the AST-free `MIRDeclPrinter::decl_list_c` (action A3).
+    // The declare pass *records* declarations into `module_.declarations` (it
+    // still walks the AST — it is the collection pass); `print_decl_list` renders
+    // them with the AST-free `MIRDeclPrinter::decl_list_c` (action A3).
     /** Forward-declare struct/union tags for a top-level node. */
     void fwd_declare(ASTNode* node);
     /** Record `typedef ...` declarations for a top-level node. */
@@ -80,18 +80,18 @@ public:
     void declare(ASTNode* node);
     /** Print the recorded declaration list. */
     void print_decl_list(BufferedWriter& w);
-    const MIRDeclList& decl_list() const { return decl_list_; }
+    const MIRDeclList& decl_list() const { return module_.declarations; }
 
     /** Emit the definitions owned by declarations (globals, vtables). */
     void implement(BufferedWriter& w, ASTNode* node);
 
     /**
      * Emit the definition of a top-level global from MIR (action A3): the
-     * initializer is the constant-expression tree `init` produced by
-     * `MIRLowerer::build_global_initializer`, printed by `const_expr_c`. No AST
-     * value walk happens here.
+     * initializer is the constant-expression tree `g.init` printed by
+     * `const_expr_c`, and the declaration spelling is the `g.decl` record the
+     * front-end collection pass filled. No AST walk happens here.
      */
-    void implement_global(BufferedWriter& w, ASTNode* node, ConstExprId init);
+    void implement_global(BufferedWriter& w, const MIRGlobal& g);
 
     /** Emit stub implementations for unimplemented static interfaces. */
     void end_translate(BufferedWriter& w);
@@ -103,7 +103,7 @@ public:
     std::string function_proto(FunctionDeclaration* decl);
 
 private:
-    // --- declare-pass helpers (record into decl_list_) ---
+    // --- declare-pass helpers (record into module_.declarations) ---
     void declare_contained_func(FunctionDeclaration* decl, bool terminate);
     void declare_struct_iterations(StructDefinition* def);
     void declare_union_iterations(UnionDef* def);
@@ -128,11 +128,14 @@ private:
     void create_vtable_type(InterfaceDefinition* interface);
     void declare_vtable_extern(InterfaceDefinition* interface,
                                ExtendableMembersContainerNode* def);
-    void create_vtable(BufferedWriter& w, InterfaceDefinition* interface,
-                       ExtendableMembersContainerNode* def);
+    /**
+     * Emit one impl's vtable definition from MIR (action A3): the record is built
+     * by the shared `mir::build_vtable_def_record` (the same one the LLVM path
+     * uses via `build_module_vtables`) and printed by the AST-free
+     * `MIRDeclPrinter::vtable_def_c`, so no callee is resolved here by hand.
+     */
+    void create_vtable(BufferedWriter& w, InterfaceDefinition* interface, ImplDefinition* def);
     void declare_vtable_primitive_extern(InterfaceDefinition* interface, BaseType* impl);
-    void create_vtable_primitive(BufferedWriter& w, InterfaceDefinition* interface,
-                                 ImplDefinition* def);
 
     // --- type/value spelling ---
 
@@ -155,9 +158,6 @@ private:
     std::function<ASTNode*(EmbeddedNode*)> embedded_decl_repl_;
     std::function<void(InterfaceDefinition*)> static_recorder_;
     std::function<Value*(Value*)> value_eval_;
-
-    /** The declaration pass output (see MIRDeclList.h). */
-    MIRDeclList decl_list_;
 
     /** Containers whose early-declare walk is on the stack (cycle guard). */
     std::unordered_set<ASTNode*> early_declare_in_progress_;

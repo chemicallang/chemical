@@ -13,8 +13,9 @@
 
 #pragma once
 
-#include "MIRModule.h"
+#include "MIRTypes.h"
 
+#include <cstdint>
 #include <string>
 
 class FunctionDeclaration;
@@ -22,6 +23,7 @@ class NameMangler;
 
 namespace mir {
 
+struct MIRModule;
 class MIRTypeBuilder;
 
 enum MIRPrototypeFlags : uint8_t {

@@ -299,6 +299,37 @@ std::string global_decl_spelling(const MIRModule& module, const MIRGlobalDecl& d
     return out;
 }
 
+std::string vtable_def_c(const MIRModule& module, const MIRVtableRecord& rec) {
+    // A container impl (kind 1) casts each slot to its self-erased function
+    // type; a primitive impl (kind 2) leaves the callee implicit and writes `0`
+    // for a slot with no overrider. Both are exactly what the declaration pass
+    // wrote member by member.
+    const bool cast = rec.kind == 1;
+    std::string out;
+    out += '\n';
+    out += "const ";
+    out += rec.type_name;
+    out += ' ';
+    out += rec.name;
+    out += " = {";
+    for (const MIRVtableSlot& slot : rec.slots) {
+        out += '\n';
+        if (cast) {
+            out += '(';
+            append_c_decl_type(module, slot.type, std::string_view(), out);
+            out += ") ";
+            if (!slot.target.empty()) out += slot.target;
+            else out += "__chx_unresolved";
+        } else {
+            if (!slot.target.empty()) out += slot.target;
+            else out += '0';
+        }
+        out += ',';
+    }
+    out += "\n};";
+    return out;
+}
+
 std::string decl_list_c(const MIRModule& module, const MIRDeclList& list) {
     std::string out;
     out.reserve(list.items.size() * 48 + 64);

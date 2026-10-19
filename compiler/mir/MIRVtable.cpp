@@ -95,6 +95,75 @@ void mir_vtable_slots(MIRTypeBuilder& types, MIRModule& module, InterfaceDefinit
     collect_vtable_slots(types, module, iface, out, out_funcs);
 }
 
+MIRVtableRecord build_vtable_def_record(NameMangler& mangler, MIRTypeBuilder& types,
+                                        MIRModule& module, InterfaceDefinition* iface,
+                                        ImplDefinition* impl) {
+    MembersContainer* mc =
+        impl->struct_type ? impl->struct_type->get_members_container() : nullptr;
+    ExtendableMembersContainerNode* container =
+        mc ? mc->as_extendable_members_container_unsafe() : nullptr;
+    std::vector<FunctionDeclaration*> funcs;
+    MIRVtableRecord rec;
+    append_vtable_type_name(mangler, iface, rec.type_name);
+    mir_vtable_slots(types, module, iface, rec.slots, &funcs);
+    if (container) {
+        rec.kind = 1;
+        {
+            BufferedWriter& w = mangle_writer();
+            mangler.mangle_vtable_name(w, iface, container);
+            rec.name.assign(w.data(), w.getPosition());
+        }
+        for (size_t i = 0; i < funcs.size(); ++i) {
+            FunctionDeclaration* f = funcs[i];
+            // Mirror the declaration pass exactly. A `self` method prefers the
+            // container's own override when it is a *direct* child; otherwise —
+            // for either a self or a non-self method — the interface method is
+            // mangled with the *declaring interface* temporarily set to the
+            // container as its active user, so the slot names the interface's
+            // instantiated implementation for this container. An inherited
+            // method's declaring interface is the base, not `iface`, so the
+            // active user must be set on `f->parent()`, not on `iface`.
+            ASTNode* parent = f->parent();
+            InterfaceDefinition* owner =
+                (parent && parent->kind() == ASTNodeKind::InterfaceDecl)
+                    ? parent->as_interface_def_unsafe() : nullptr;
+            bool resolved = false;
+            if (f->get_self_param()) {
+                FunctionDeclaration* overrider = container->direct_child_function(f->name_view());
+                if (overrider) {
+                    append_mangled(mangler, overrider, rec.slots[i].target);
+                    resolved = true;
+                }
+            }
+            if (!resolved && owner) {
+                ExtendableMembersContainerNode* prev = owner->active_user;
+                owner->active_user = container;
+                append_mangled(mangler, f, rec.slots[i].target);
+                owner->active_user = prev;
+                resolved = true;
+            }
+            // `!resolved` leaves the target empty: `vtable_def_c` writes
+            // `__chx_unresolved`, exactly as the declaration pass did.
+        }
+    } else {
+        // a primitive impl (`impl Interface for int`): only a `self` method has a
+        // callee; the rest are null slots.
+        rec.kind = 2;
+        {
+            BufferedWriter& w = mangle_writer();
+            mangler.mangle_vtable_name(w, iface, impl->struct_type);
+            rec.name.assign(w.data(), w.getPosition());
+        }
+        for (size_t i = 0; i < funcs.size(); ++i) {
+            FunctionDeclaration* f = funcs[i];
+            if (!f->has_self_param()) continue;
+            FunctionDeclaration* overrider = impl->direct_child_function(f->name_view());
+            if (overrider) append_mangled(mangler, overrider, rec.slots[i].target);
+        }
+    }
+    return rec;
+}
+
 void build_module_vtables(NameMangler& mangler, MIRTypeBuilder& types, MIRModule& module,
                           const std::vector<ASTNode*>& nodes, bool clear) {
     if (clear) module.vtables.clear();
@@ -113,57 +182,17 @@ void build_module_vtables(NameMangler& mangler, MIRTypeBuilder& types, MIRModule
     }
 
     // One definition per (non-static, generating) impl. The callee names are
-    // resolved here, mirroring what `mir_emit_llvm_module` used to do inline.
+    // resolved by the shared `build_vtable_def_record`, exactly as the C
+    // definition emitter does for the same impl.
     for (ASTNode* n : nodes) {
         if (!n || n->kind() != ASTNodeKind::ImplDecl) continue;
         auto* impl = n->as_impl_def_unsafe();
         InterfaceDefinition* iface =
             impl->interface_type ? impl->interface_type->get_direct_linked_interface() : nullptr;
         if (!iface || iface->is_static() || !iface->generates_vtable()) continue;
-        MembersContainer* mc =
-            impl->struct_type ? impl->struct_type->get_members_container() : nullptr;
-        ExtendableMembersContainerNode* container =
-            mc ? mc->as_extendable_members_container_unsafe() : nullptr;
-        std::vector<FunctionDeclaration*> funcs;
-        MIRVtableRecord rec;
-        append_vtable_type_name(mangler, iface, rec.type_name);
-        mir_vtable_slots(types, module, iface, rec.slots, &funcs);
-        if (container) {
-            rec.kind = 1;
-            {
-                BufferedWriter& w = mangle_writer();
-                mangler.mangle_vtable_name(w, iface, container);
-                rec.name.assign(w.data(), w.getPosition());
-            }
-            for (size_t i = 0; i < funcs.size(); ++i) {
-                FunctionDeclaration* f = funcs[i];
-                FunctionDeclaration* overrider = container->direct_child_function(f->name_view());
-                if (overrider) {
-                    append_mangled(mangler, overrider, rec.slots[i].target);
-                } else {
-                    ExtendableMembersContainerNode* prev = iface->active_user;
-                    iface->active_user = container;
-                    append_mangled(mangler, f, rec.slots[i].target);
-                    iface->active_user = prev;
-                }
-            }
-        } else {
-            // a primitive impl (`impl Interface for int`): only a `self` method
-            // has a callee; the rest are null slots.
-            rec.kind = 2;
-            {
-                BufferedWriter& w = mangle_writer();
-                mangler.mangle_vtable_name(w, iface, impl->struct_type);
-                rec.name.assign(w.data(), w.getPosition());
-            }
-            for (size_t i = 0; i < funcs.size(); ++i) {
-                FunctionDeclaration* f = funcs[i];
-                if (!f->has_self_param()) continue;
-                FunctionDeclaration* overrider = impl->direct_child_function(f->name_view());
-                if (overrider) append_mangled(mangler, overrider, rec.slots[i].target);
-            }
-        }
-        module.vtables.defs.push_back(std::move(rec));
+        if (!impl->struct_type) continue;
+        module.vtables.defs.push_back(
+            build_vtable_def_record(mangler, types, module, iface, impl));
     }
 }
 

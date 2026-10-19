@@ -179,14 +179,14 @@ void MIRDeclEmitter::fwd_declare(ASTNode* node) {
             MIRDeclItem it;
             it.kind = MIRDeclKind::ForwardStruct;
             it.name = mangle_name(node);
-            decl_list_.items.push_back(std::move(it));
+            module_.declarations.items.push_back(std::move(it));
             break;
         }
         case ASTNodeKind::UnionDecl: {
             MIRDeclItem it;
             it.kind = MIRDeclKind::ForwardUnion;
             it.name = mangle_name(node);
-            decl_list_.items.push_back(std::move(it));
+            module_.declarations.items.push_back(std::move(it));
             break;
         }
         default:
@@ -212,7 +212,7 @@ void MIRDeclEmitter::declare_typedef(TypealiasStatement* stmt) {
             it.type = types_.map(t);
         }
     }
-    decl_list_.items.push_back(std::move(it));
+    module_.declarations.items.push_back(std::move(it));
 }
 
 void MIRDeclEmitter::declare_type_alias(ASTNode* node) {
@@ -251,7 +251,7 @@ void MIRDeclEmitter::declare_contained_func(FunctionDeclaration* decl, bool term
     MIRDeclItem it;
     it.kind = MIRDeclKind::Prototype;
     build_function_prototype(mangler_, types_, module_, decl, it.proto);
-    decl_list_.items.push_back(std::move(it));
+    module_.declarations.items.push_back(std::move(it));
     (void)terminate; // always terminated in the declare pass
 }
 
@@ -376,7 +376,7 @@ void MIRDeclEmitter::declare_aggregate_body(BaseType* type, const char* what) {
     it.kind = MIRDeclKind::AggregateBody;
     it.type = types_.map(type);
     it.what = what;
-    decl_list_.items.push_back(std::move(it));
+    module_.declarations.items.push_back(std::move(it));
 }
 
 void MIRDeclEmitter::declare_struct_def_only(StructDefinition* def) {
@@ -463,7 +463,7 @@ void MIRDeclEmitter::create_vtable_type(InterfaceDefinition* interface) {
     it.name = vtable_type_name(interface);
     interface->active_user = nullptr;
     mir_vtable_slots(types_, module_, interface, it.slots);
-    decl_list_.items.push_back(std::move(it));
+    module_.declarations.items.push_back(std::move(it));
 }
 
 void MIRDeclEmitter::declare_vtable_extern(InterfaceDefinition* interface,
@@ -472,54 +472,19 @@ void MIRDeclEmitter::declare_vtable_extern(InterfaceDefinition* interface,
     it.kind = MIRDeclKind::VtableExtern;
     it.type_name = vtable_type_name(interface);
     it.name = vtable_name(interface, def);
-    decl_list_.items.push_back(std::move(it));
+    module_.declarations.items.push_back(std::move(it));
 }
 
 void MIRDeclEmitter::create_vtable(BufferedWriter& w, InterfaceDefinition* interface,
-                                   ExtendableMembersContainerNode* def) {
-    std::vector<MIRVtableSlot> slots;
-    std::vector<FunctionDeclaration*> funcs;
-    mir_vtable_slots(types_, module_, interface, slots, &funcs);
-    w.append_char('\n');
-    w.append("const ", 6);
-    const std::string tn = vtable_type_name(interface);
-    w.append(tn.data(), tn.size());
-    w.append_char(' ');
-    const std::string vn = vtable_name(interface, def);
-    w.append(vn.data(), vn.size());
-    w.append(" = {", 4);
-    for (size_t i = 0; i < funcs.size(); ++i) {
-        FunctionDeclaration* func = funcs[i];
-        w.append_char('\n');
-        FunctionParam* self = func->get_self_param();
-        std::string name = "__chx_unresolved";
-        ASTNode* parent = func->parent();
-        InterfaceDefinition* owner =
-            (parent && parent->kind() == ASTNodeKind::InterfaceDecl)
-                ? parent->as_interface_def_unsafe() : nullptr;
-        if (self) {
-            FunctionDeclaration* overrider = def->direct_child_function(func->name_view());
-            if (overrider) {
-                name = mangle_name(overrider);
-            } else if (owner) {
-                const auto prev = owner->active_user;
-                owner->active_user = def;
-                name = mangle_name(func);
-                owner->active_user = prev;
-            }
-        } else if (owner) {
-            const auto prev = owner->active_user;
-            owner->active_user = def;
-            name = mangle_name(func);
-            owner->active_user = prev;
-        }
-        w.append_char('(');
-        w << c_decl_type(module_, slots[i].type, "");
-        w.append(") ", 2);
-        w << name;
-        w.append_char(',');
-    }
-    w.append("\n};", 3);
+                                   ImplDefinition* def) {
+    // The definition (slot callees resolved) is a MIR record built by the shared
+    // `mir::build_vtable_def_record` — the same function the LLVM driver reaches
+    // through `build_module_vtables` — and rendered by the AST-free
+    // `MIRDeclPrinter::vtable_def_c`. No callee is resolved here by hand, so the
+    // C and LLVM backends cannot drift (action A3).
+    const MIRVtableRecord rec = build_vtable_def_record(mangler_, types_, module_, interface, def);
+    const std::string text = vtable_def_c(module_, rec);
+    w.append(text.data(), text.size());
 }
 
 void MIRDeclEmitter::declare_vtable_primitive_extern(InterfaceDefinition* interface,
@@ -530,47 +495,7 @@ void MIRDeclEmitter::declare_vtable_primitive_extern(InterfaceDefinition* interf
     BufferedWriter w(256);
     mangler_.mangle_vtable_name(w, interface, impl);
     it.name.assign(w.data(), w.getPosition());
-    decl_list_.items.push_back(std::move(it));
-}
-
-void MIRDeclEmitter::create_vtable_primitive(BufferedWriter& w, InterfaceDefinition* interface,
-                                             ImplDefinition* def) {
-    w.append_char('\n');
-    w.append("const ", 6);
-    const std::string tn = vtable_type_name(interface);
-    w.append(tn.data(), tn.size());
-    w.append_char(' ');
-    {
-        BufferedWriter nw(256);
-        mangler_.mangle_vtable_name(nw, interface, def->struct_type);
-        w.append(nw.data(), nw.getPosition());
-    }
-    w.append(" = {", 4);
-    // The ordered slot list must match the vtable *type* (`create_vtable_type`):
-    // inherited interface slots first, then the interface's own methods — every
-    // one of them — so a primitive impl of an interface that inherits (or
-    // declares non-self methods) stays aligned with the type. A non-self slot
-    // and a self slot with no overrider are null entries, exactly as
-    // `build_module_vtables` records the primitive vtable for LLVM; a dropped
-    // entry would shift every later slot.
-    std::vector<MIRVtableSlot> slots;
-    std::vector<FunctionDeclaration*> funcs;
-    mir_vtable_slots(types_, module_, interface, slots, &funcs);
-    for (FunctionDeclaration* func : funcs) {
-        w.append_char('\n');
-        std::string name;
-        if (func && func->has_self_param()) {
-            FunctionDeclaration* overrider = def->direct_child_function(func->name_view());
-            if (overrider) name = mangle_name(overrider);
-        }
-        if (name.empty()) {
-            w.append_char('0');
-        } else {
-            w.append(name.data(), name.size());
-        }
-        w.append_char(',');
-    }
-    w.append("\n};", 3);
+    module_.declarations.items.push_back(std::move(it));
 }
 
 // ---------------------------------------------------------------------------
@@ -642,7 +567,7 @@ void MIRDeclEmitter::declare_var(VarInitStatement* init) {
     build_global_declaration(mangler_, types_, module_, init, it.global);
     BaseType* init_type = init->type ? init->type : (init->value ? init->value->getType() : nullptr);
     early_declare_type(init_type, nullptr);
-    decl_list_.items.push_back(std::move(it));
+    module_.declarations.items.push_back(std::move(it));
 }
 
 // ---------------------------------------------------------------------------
@@ -712,7 +637,7 @@ void MIRDeclEmitter::declare(ASTNode* node) {
 }
 
 void MIRDeclEmitter::print_decl_list(BufferedWriter& w) {
-    const std::string text = decl_list_c(module_, decl_list_);
+    const std::string text = decl_list_c(module_, module_.declarations);
     w.append(text.data(), text.size());
 }
 
@@ -720,15 +645,13 @@ void MIRDeclEmitter::print_decl_list(BufferedWriter& w) {
 // implement-pass: globals + vtables
 // ---------------------------------------------------------------------------
 
-void MIRDeclEmitter::implement_global(BufferedWriter& w, ASTNode* node, ConstExprId init) {
-    auto* init_stmt = node->as_var_init_unsafe();
-    if (!init_stmt->is_top_level()) return;
-    if (init_stmt->is_comptime()) return;
-    // MIR_INVALID_ID means the global had no initializer (the declaration pass
-    // already wrote its declaration).
-    if (init == MIR_INVALID_ID) return;
-    MIRGlobalDecl decl;
-    build_global_declaration(mangler_, types_, module_, init_stmt, decl);
+void MIRDeclEmitter::implement_global(BufferedWriter& w, const MIRGlobal& g) {
+    // No initializer means the global had none: the declaration pass already
+    // wrote its declaration, so there is nothing to define. The declaration
+    // spelling and the initializer tree both come from MIR (action A3) — no AST
+    // value or type walk happens here.
+    if (g.init == MIR_INVALID_ID) return;
+    const MIRGlobalDecl& decl = g.decl;
     w.append_char('\n');
     if (decl.flags & MGD_THREAD_LOCAL) w.append("__chx_thread_local ", 19);
     if (decl.flags & MGD_STATIC) w.append("static ", 7);
@@ -736,7 +659,7 @@ void MIRDeclEmitter::implement_global(BufferedWriter& w, ASTNode* node, ConstExp
     const std::string spelling = global_decl_spelling(module_, decl);
     w.append(spelling.data(), spelling.size());
     w.append(" = ", 3);
-    const std::string expr = const_expr_c(module_, init);
+    const std::string expr = const_expr_c(module_, g.init);
     w.append(expr.data(), expr.size());
     w.append_char(';');
 }
@@ -776,13 +699,7 @@ void MIRDeclEmitter::implement(BufferedWriter& w, ASTNode* node) {
             InterfaceDefinition* interface_def = def->interface_type
                 ? def->interface_type->get_direct_linked_interface() : nullptr;
             if (!interface_def || interface_def->is_static()) return;
-            ExtendableMembersContainerNode* container = def->struct_type->get_members_container()
-                ? def->struct_type->get_members_container()->as_extendable_members_container_unsafe() : nullptr;
-            if (container) {
-                if (interface_def->generates_vtable()) create_vtable(w, interface_def, container);
-            } else {
-                if (interface_def->generates_vtable()) create_vtable_primitive(w, interface_def, def);
-            }
+            if (interface_def->generates_vtable()) create_vtable(w, interface_def, def);
             return;
         }
         case ASTNodeKind::IfStmt: {

@@ -120,7 +120,16 @@ ConstExprId MIRLowerer::build_global_initializer(VarInitStatement* vi) {
     g.init = init;
     if (vi->is_thread_local()) g.flags |= MGD_THREAD_LOCAL;
     if (vi->is_volatile()) g.flags |= MGD_VOLATILE;
-    module_.globals.push_back(g);
+    // The declaration spelling (name/type/unsized-array/TLS/static/volatile) is
+    // recorded here (action A3), so the C emitter prints the definition from MIR
+    // and never re-reads the AST at implement time. The name comes from the
+    // symbol table (already mangled by `intern_global`) rather than a fresh
+    // mangling, so it cannot drift from the symbol the module declares.
+    build_global_declaration_type(types_, vi, g.decl);
+    const MIRSymbolRecord& srec = module_.symbols.get(sym);
+    const std::string_view mangled = module_.symbols.mangled_view(srec);
+    g.decl.name.assign(mangled.data(), mangled.size());
+    module_.globals.push_back(std::move(g));
     return init;
 }
 

@@ -13,6 +13,7 @@
 #include "MIRSymbolTable.h"
 #include "MIRVtableTable.h"
 #include "MIRGlobalDecl.h"
+#include "MIRDeclList.h"
 #include "MIRFunction.h"
 
 #include <span>
@@ -41,6 +42,13 @@ struct MIRGlobal {
     SymbolId symbol = MIR_INVALID_ID;
     ConstExprId init = MIR_INVALID_ID;
     uint8_t flags = MGD_NONE;
+    /**
+     * The spelling of the global's *declaration* (name, declared type, the
+     * unsized-`T[]` declarator, TLS/static/volatile flags), filled by the
+     * front-end collection pass. The C emitter prints the definition from this
+     * record instead of re-reading the AST at implement time (action A3).
+     */
+    MIRGlobalDecl decl;
 };
 
 /**
@@ -67,6 +75,13 @@ struct MIRModule {
     std::vector<MIRGlobal> globals;
     /** Interface vtable type/definition records (see MIRVtableTable.h). */
     MIRVtableTable vtables;
+    /**
+     * The module's ordered declaration list (forward tags, aggregate bodies,
+     * typedefs, prototypes, global declarations and vtable type/externs), filled
+     * by the front-end collection pass and rendered by the AST-free
+     * `MIRDeclPrinter::decl_list_c` — action A3's declaration-path endgame.
+     */
+    MIRDeclList declarations;
     /**
      * Absolute source file paths, indexed by `MIRSourceLoc::file`. Shared by the
      * whole module (a `MIRSourceLoc` stores only the id, keeping the core
@@ -119,6 +134,7 @@ struct MIRModule {
         functions.clear();
         globals.clear();
         vtables.clear();
+        declarations.clear();
         source_files.clear();
     }
 };

@@ -48,4 +48,14 @@ struct MIRGlobalDecl {
 void build_global_declaration(NameMangler& mangler, MIRTypeBuilder& types, MIRModule& module,
                               VarInitStatement* init, MIRGlobalDecl& out);
 
+/**
+ * The name-agnostic half of `build_global_declaration`: the declared type (or
+ * unsized-`T[]` element), the unsized-array flag and the TLS/static/volatile
+ * flags, leaving `out.name` untouched. A caller that already has a mangled name
+ * (the lowerer, which mangles through its locked callback rather than a
+ * `NameMangler&`) fills the name itself.
+ */
+void build_global_declaration_type(MIRTypeBuilder& types, VarInitStatement* init,
+                                   MIRGlobalDecl& out);
+
 } // namespace mir

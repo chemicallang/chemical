@@ -173,6 +173,19 @@ bool MembersContainer::getAllMembersDefaultInitialized() {
 }
 
 void MembersContainer::take_members_from_parsed_nodes(SymbolResolver& linker, std::vector<ASTNode*>& from_nodes) {
+
+    // Constructors overload by argument type (a call picks the one whose
+    // parameters satisfy the arguments), and the std library relies on that
+    // (`string` has several `make` overloads). Any other same-named function
+    // would silently shadow the earlier one, so it is rejected.
+    auto same_name_is_overload = [](ASTNode* existing, FunctionDeclaration* incoming) -> bool {
+        if (existing == nullptr || incoming == nullptr || !incoming->is_constructor_fn()) {
+            return false;
+        }
+        return existing->kind() == ASTNodeKind::FunctionDecl
+               && existing->as_function_unsafe()->is_constructor_fn();
+    };
+
     for(const auto node : from_nodes) {
         switch(node->kind()) {
             case ASTNodeKind::StructMember:
@@ -195,13 +208,28 @@ void MembersContainer::take_members_from_parsed_nodes(SymbolResolver& linker, st
                 // TODO make all nodes unsafe
                 take_members_from_parsed_nodes(linker, node->as_unsafe_block_unsafe()->scope.nodes);
                 break;
-            case ASTNodeKind::FunctionDecl:
-                insert_func(node->as_function_unsafe());
+            case ASTNodeKind::FunctionDecl: {
+                const auto func = node->as_function_unsafe();
+                const auto existing = indexes.find(func->name_view());
+                if (existing != indexes.end() && !same_name_is_overload(existing->second, func)) {
+                    linker.error(node) << "couldn't insert member because '" << func->name_view() << "' already exists";
+                } else {
+                    insert_func(func);
+                }
                 break;
-            case ASTNodeKind::GenericFuncDecl:
+            }
+            case ASTNodeKind::GenericFuncDecl: {
                 // TODO multi function node doesn't support generic functions
-                insert_func(node->as_gen_func_decl_unsafe());
+                const auto func = node->as_gen_func_decl_unsafe();
+                const auto name = func->master_impl->name_view();
+                const auto existing = indexes.find(name);
+                if (existing != indexes.end() && !same_name_is_overload(existing->second, func->master_impl)) {
+                    linker.error(node) << "couldn't insert member because '" << name << "' already exists";
+                } else {
+                    insert_func(func);
+                }
                 break;
+            }
             default:
                 evaluated_container.emplace_back(node);
                 switch (node->kind()) {

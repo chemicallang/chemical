@@ -1431,7 +1431,18 @@ void SymResLinkBody::VisitForInLoopStmt(ForInLoop* node) {
 }
 
 void SymResLinkBody::VisitFunctionParam(FunctionParam* node) {
-    table.declare(node->name, node);
+    // A parameter is declared in the function's own scope. Two parameters with the
+    // same name in the same list are an error. A parameter (e.g. in a lambda or a
+    // nested scope) shadowing a symbol declared in an enclosing scope stays allowed,
+    // so only a previous declaration in the *current* scope is rejected.
+    const auto previous = table.declare_no_shadow_sym(node->name, node);
+    if(previous) {
+        if(previous->index >= table.current_scope_start()) {
+            diagnoser.error(node) << "symbol with name '" << node->name << "' already exists";
+            diagnoser.warn(previous->activeNode) << "symbol has a conflict";
+        }
+        table.declare(node->name, node);
+    }
     // While linking a generic declaration's body, materialize a fully concrete
     // parameter type (`Box<int>`) before the body runs. The signature pass defers
     // generic instantiations, so without this the parameter still refers to the

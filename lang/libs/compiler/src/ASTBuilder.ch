@@ -571,10 +571,6 @@ public struct UnionDef : VariablesContainer {
     func getFunctions(&self) : *mut VecRef<ASTNode>
 
     func getAttributes(&self, out : *mut InterfaceDefinitionAttrsCBI)
-    
-    func getMembers(&self) : *mut VecRef<BaseDefMember>
-
-    func getFunctions(&self) : *mut VecRef<ASTNode>
 
 }
 

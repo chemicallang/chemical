@@ -70,7 +70,7 @@ func neg_struct_with_underscore_only_fields(env : &mut TestEnv) {
 @test
 func neg_variant_duplicate_constructor(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "variant Result {\n    Ok : int\n    Ok : float\n}\nfunc main() {}\n"
+    var ch = "variant Result {\n    Ok(value : int)\n    Ok(value : float)\n}\nfunc main() {}\n"
     expect_compile_error(env, "variant_dup_ctor", ch, "already exists")
 }
 

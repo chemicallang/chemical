@@ -55,7 +55,7 @@ func neg_generic_missing_constraint(env : &mut TestEnv) {
 @test
 func neg_duplicate_generic_param_name(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "struct Foo 'T 'T {\n    var a : T\n    var b : T\n}\nfunc main() {}\n"
+    var ch = "struct Foo<T, T> {\n    var a : T\n    var b : T\n}\nfunc main() {}\n"
     expect_compile_error(env, "dup_generic_param", ch, "already exists")
 }
 

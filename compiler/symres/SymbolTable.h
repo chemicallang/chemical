@@ -625,6 +625,16 @@ public:
     }
 
     /**
+     * @brief The symbol-vector index at which the innermost scope began.
+     *
+     * A symbol whose BucketSymbol::index is >= this value was declared in the
+     * current (innermost) scope; a smaller index means an enclosing scope.
+     */
+    [[nodiscard]] inline long current_scope_start() const noexcept {
+        return scopeStack.empty() ? 0 : static_cast<long>(scopeStack.back().start);
+    }
+
+    /**
      * get symbol scope at index
      * @return nullptr if not found
      */

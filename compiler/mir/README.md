@@ -106,6 +106,62 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 56 (2026-10-19) — negative suite green: comptime stack containment + front-end duplicate diagnostics
+
+The last failing suite is now clean: `--tcc --negative` **318/318**. Two unrelated
+classes of bug were behind it.
+
+**Unbounded comptime recursion no longer crashes the compiler.** A `comptime func`
+that calls itself (`return f()`, or `f(n-1)` with `n = 1000000`) made the AST folder
+(`FunctionDeclaration::call` → `fold_expression_body`), the MIR comptime driver
+(`MIRComptime::evaluate*`) and the interpreter (`MIRInterpreter::call_function`) all
+recurse until the host stack overflows. **`utils/StackSpace.{h,cpp}`** now owns a
+*sticky, per-thread* state: `comptime_stack_exhausted()` (the low-stack detector,
+512 KB reserve) plus `comptime_stack_failed()`/`mark_comptime_stack_failed()` and
+`comptime_stack_reported()`/`mark_comptime_stack_reported()`. The first detector marks
+*failed*; the first reporter emits the diagnostic once and marks *reported*; every later
+evaluator bails silently. `MIRInterpreter::Impl` gains a `stack_exhausted` flag so its
+top-level `call`/`call_sret`/`run` report and every nested `call_function` returns
+immediately. `ASTProcessor`'s comptime-call and comptime-block lambdas report once
+through the shared state. (A local flag that reset on healthy-stack entries produced
+652 duplicate reports; a merely-sticky local still flooded the "statement body"
+fallback past the negative runner's 16 KB capture — one message per thread is what
+stays inside it.)
+
+**`MIRComptime::evaluate_block` re-entrancy.** Lowering a comptime block did not mark
+`impl_->lowering`, so a comptime call reached while the synthetic block function was
+being lowered re-entered the same lowerer and cleared its builder
+(`neg_comptime_non_const_expr`). It now sets a `LoweringGuard` for the block and
+forwards nested blocks to a fresh driver, mirroring `evaluate`.
+
+**Front-end duplicate diagnostics.** `func foo(a : int, a : int)` and two same-named
+interface methods were accepted (the second silently shadowing the first, leaking a
+duplicate C member). `MembersContainer::take_members_from_parsed_nodes` now rejects a
+duplicate function name **except a constructor overload** (the std `string`/`span`
+`make`/`make2` overloads rely on it — resolved by argument type from
+`non_gen_range()`). `SymResLinkBody::VisitFunctionParam` uses the new
+`SymbolTable::current_scope_start()` to reject two parameters with the same name in the
+*same* list while still allowing a lambda parameter to shadow an enclosing one. A bare
+`_` is now rejected as a struct/union field name (`var _ = expr` remains a valid local
+discard). The redundant `getMembers`/`getFunctions` duplicate in `compiler`'s `UnionDef`
+is removed.
+
+**memset worked around, not fixed — now fixed.** `CTranslationContext::prepare_translate`
+declares `memset`/`memcpy`/`memmove` with the target `size_t` spelling before any module
+is translated, so MIR's bare `MemSet`/`MemCpy` see a prototype and cstd's later
+declaration stays compatible (supersedes the inline-zero-loop workaround).
+
+| Suite | Result |
+|---|---|
+| `--tcc` | **2307/2307** |
+| `--llvm` | **2305/2305** |
+| `--tcc --interpret` | **1896/1896** |
+| `--tcc --negative` | **318/318** |
+| `--tcc --plugins` | **1296/1296** |
+| `--tcc --async` / `--regexp` / `--process` | **53/53**, **143/143**, **127/127** |
+| `--tcc --libs` | **716/719** (the known `test_fs_directory_iteration` + a load-induced bcrypt timeout; bcrypt passes in isolation) |
+| `MIRTests` | **4489 checks** |
+
 ### Session 51 (2026-10-17) — interpreter setup stops dominating (single-writer tables, incremental side tables, lazy field slots)
 
 Constructing a `mir::MIRInterpreter` and taking the shared table locks were the
@@ -2735,8 +2791,11 @@ uses the name pool, not layout. Needed before LLVM lowering.
 - **Array literals**: zero the temp; array fields are copied with `memcpy` using
   the **source** size; array params decay to element pointers; zero-length arrays
   cannot take `= {0}`.
-- **`memset` conflicts with cstd's `extern void* memset(...)`** — do not emit a
-  call to `memset`; use an inline zero loop.
+- **`memset` conflicts with cstd's `extern void* memset(...)`** — `CTranslationContext::prepare_translate`
+  declares `memset`/`memcpy`/`memmove` (with the target's `size_t` spelling) before
+  any module is translated, so emitting a bare `memset`/`memcpy` call resolves and
+  cstd's later declaration stays compatible. (An inline zero loop is no longer
+  required.)
 - **Compound assignment on struct fields** must load/apply/store. The same is true
   for **index and dereference targets** (`arr[i] += x`, `p[i] *= y`, `*p += z`):
   they must load the current element/pointee, apply the operator and store.

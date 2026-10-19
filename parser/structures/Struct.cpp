@@ -25,6 +25,13 @@ StructMember* Parser::parseStructMember(ASTAllocator& allocator, AccessSpecifier
         return nullptr;
     }
 
+    // A bare underscore is the discard placeholder, not a name: it may be used
+    // for a local (`var _ = expr`) but a struct/union field must be referable.
+    if(identifier->value == "_") {
+        error("expected an identifier for a struct member (a field cannot be named '_')");
+        return nullptr;
+    }
+
     auto member = new (allocator.allocate<StructMember>()) StructMember(allocate_view(allocator, identifier->value), { (BaseType*) typeBuilder.getVoidType(), ZERO_LOC }, nullptr, parent_node, loc_single(identifier), is_const, specifier);
     annotate(member);
 

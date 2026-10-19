@@ -989,30 +989,66 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
         const MIRInstruction& inst = function.instructions[ii];
         const ValueId v = inst.result_or_place;
         if (v >= function.values.size()) continue;
-        if (!single_use[v]) continue;
-        if (inst.opcode() == MIROpcode::Param) {
-            inline_expr[v] = "__chx_a" + std::to_string(param_idx_at[ii]);
-            continue;
-        }
         if (inst.opcode() == MIROpcode::Load) {
             const MIROperand* p = operand_at(function, inst, 0);
-            if (!p) continue;
-            // a plain load's only other operand is the result Type; a field/index
-            // load carries a Constant/Value and must not be inlined here.
+            // a plain load's only other operand is the result Type; a
+            // field/index load carries a Constant/Value and is never inlined.
             const MIROperand* f = operand_at(function, inst, 1);
             if (f && (f->kind() == MIROperandKind::Value ||
                       f->kind() == MIROperandKind::Constant)) {
                 continue;
             }
-            if (p->kind() == MIROperandKind::Place) {
-                if (function.places[p->id].storage_class !=
+            if (p && p->kind() == MIROperandKind::Place) {
+                const PlaceId pid = p->id;
+                if (function.places[pid].storage_class ==
                     static_cast<uint8_t>(MIRStorageClass::Parameter)) {
+                    if (single_use[v] && place_writes[pid] <= 1) {
+                        inline_expr[v] = place_name(module, function, pid);
+                    }
                     continue;
                 }
-                if (place_writes[p->id] > 1) continue; // reassigned: keep the load
-                inline_expr[v] = place_name(module, function, p->id);
+                // Forward a load from a non-parameter place across *all* of
+                // its uses (not just a single one) when the place is a
+                // non-addressed scalar and nothing writes it *after* the load.
+                // The last-write guard is function-wide, so a use in any block
+                // reads the same value the load did. The value then reads the
+                // local by name instead of round-tripping through a stack
+                // temporary (`T v = p; ...use v...` -> `...use p...`): the SSA
+                // materialization the legacy translator never emitted
+                // (evaluation action C4).
+                if (facts.place_escaped[pid]) continue;
+                const TypeId lt = function.values[v].type;
+                if (lt >= module.types.size()) continue;
+                switch (module.types.get(lt).kind) {
+                    case MIRTypeKind::Void:
+                    case MIRTypeKind::Array:
+                    case MIRTypeKind::Struct:
+                    case MIRTypeKind::Union:
+                    case MIRTypeKind::Variant:
+                    case MIRTypeKind::Function:
+                    case MIRTypeKind::Opaque:
+                        continue;
+                    default:
+                        break;
+                }
+                if (value_facts.first_use_inst.size() != function.values.size()) continue;
+                // Forward only when the place is never written after the load:
+                // a use site (or an expression containing the value, re-emitted
+                // at a later use) must observe the same value the load did. Any
+                // later write would make reading the place by name wrong.
+                if (facts.place_last_write[pid] != MIR_INVALID_ID &&
+                    facts.place_last_write[pid] > ii) {
+                    continue;
+                }
+                if (value_facts.first_use_inst[v] == MIR_INVALID_ID ||
+                    value_facts.first_use_inst[v] <= ii) {
+                    continue;
+                }
+                inline_expr[v] = place_name(module, function, pid);
                 continue;
             }
+            if (!single_use[v]) continue;
+            if (!p) continue;
             // A dereference used only by the store *immediately* after it
             // (`T v = *src; dest = v;`) collapses into that store instead of
             // materializing the temp: the read moves one statement later, so
@@ -1051,6 +1087,14 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     break;
             }
             inline_expr[v] = "*" + operand_expr(function, module, *p);
+            continue;
+        }
+        // A `Param` value is the C argument: a single-use one is its argument
+        // directly, so neither it nor its spill is materialized.
+        if (inst.opcode() == MIROpcode::Param) {
+            if (single_use[v]) {
+                inline_expr[v] = "__chx_a" + std::to_string(param_idx_at[ii]);
+            }
             continue;
         }
         if (!inlineable_opcode(inst.opcode())) continue;

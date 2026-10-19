@@ -887,6 +887,55 @@ static bool test_function_facts() {
         CHECK(f.place_writes[p] == 2u);
         CHECK(f.param_alias[p] == MIR_INVALID_ID);
     }
+
+    // c) escape + last-write tracking over every place: a local named by its
+    //    address escapes; a scalar local loaded then written has a later write
+    {
+        MIRTypeRecord fr;
+        fr.kind = MIRTypeKind::Function;
+        fr.element = i32;
+        fr.size = 8;
+        fr.alignment = 8;
+        const TypeId ftype = module.types.intern(fr);
+        MIRTypeRecord pr;
+        pr.kind = MIRTypeKind::Pointer;
+        pr.element = i32;
+        pr.size = 8;
+        pr.alignment = 8;
+        const TypeId pi32 = module.types.intern(pr);
+
+        MIRArena arena;
+        MIRFunction fn;
+        fn.function_type = ftype;
+        MIRBuilder b(arena, module, fn);
+        const BlockId entry = b.create_block();
+        b.set_block(entry);
+        fn.entry_block = entry;
+
+        const ValueId ten = b.const_int(i32, module.constants.add_int(i32, 10));
+        const PlaceId escaped = b.alloca(i32, MIRStorageClass::Local);
+        const PlaceId plain = b.alloca(i32, MIRStorageClass::Local);
+        b.store(plain, ten);
+        const ValueId l = b.load(plain, i32);
+        b.store(plain, l); // a write after the load
+        const ValueId addr = b.address_of(escaped, pi32);
+        (void)addr;
+        b.ret(b.load(plain, i32));
+        CHECK(b.ok());
+
+        MIRFunctionFacts f;
+        compute_function_facts(module, fn, f);
+        // `escaped` is named by `AddressOf`: its address escapes
+        CHECK(f.place_escaped[escaped] == 1u);
+        // `plain` is only loaded/stored directly: it does not escape
+        CHECK(f.place_escaped[plain] == 0u);
+        // and it is written twice, with the last write *after* the load
+        CHECK(f.place_writes[plain] == 2u);
+        CHECK(f.place_last_write[plain] != MIR_INVALID_ID);
+        CHECK(f.place_last_write[plain] > fn.values[l].def_inst);
+        // an escaped place that is never written has no last write
+        CHECK(f.place_last_write[escaped] == MIR_INVALID_ID);
+    }
     return true;
 }
 
@@ -947,6 +996,13 @@ static bool test_value_facts() {
     // not single_use_pure (covered below)
     CHECK(vf.single_use[sum] == 1u);
     CHECK(vf.single_use_pure[sum] == 1u);
+
+    // first / last use instruction: `la` is read twice by the same `Binary`,
+    // so it has one use instruction; `sum` is used later by the return.
+    CHECK(vf.first_use_inst[la] == fn.values[sum].def_inst);
+    CHECK(vf.last_use_inst[la] == fn.values[sum].def_inst);
+    CHECK(vf.first_use_inst[sum] != MIR_INVALID_ID);
+    CHECK(vf.first_use_inst[sum] > fn.values[sum].def_inst);
 
     // a value with no defining instruction has the sentinel opcode
     MIRValueFacts empty;

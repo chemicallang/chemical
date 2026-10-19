@@ -1475,18 +1475,34 @@ measured on the generated-code probe (`lang/compiled/perfprobe`, `--emit-c`):
    the emitter drops its label/instruction and prints the resolved target id. This
    is the per-`if`-without-else `goto`+label pair that the legacy *structured*
    translator never emitted.
+3. **Non-parameter place loads forwarded to their uses.** The legacy translator
+   read a local directly by name; MIR round-trips every read through a stack
+   temporary (`T v = p; ...use v...`) — the `__chx_vN = __chx_pN` residue. The
+   emitter now forwards a load from a **non-parameter** scalar place across *all*
+   of its uses when the place is a plain (non-aggregate) type, is never
+   **addressed/escaped** (named anywhere but as operand 0 of a direct read/write —
+   `place_escaped`, computed for *every* place, since a local's address can be
+   taken too and a destructor can write through it), is not written **after** the
+   load (`place_last_write <= load`), and every use lies after the load
+   instruction (`first_use_inst > load`). The last-write guard is required because
+   an inlined expression can be re-emitted at a use that follows a write (`v = p;
+   v = v+1; store p, v; use v` must not become `use p` after the store).
+   Parameter-place loads keep their original single-use spill-aliasing rule.
 
-Probe: C **10,801 → 10,243** lines (−5.2%), label lines **754 → 627**, `goto`
-**779 → 674**, `return;` **399 → 73**; `tests-tcc.exe` **4,322,203 → 4,318,778 B**;
-release suite compile user time ~**1.13 s** (was ~1.21). `--tcc` **2307/2307**,
-`MIRTests` **4495 checks**.
+Probe: C **10,801 → 9,524** lines (−11.8% total, −7.0% from forwarding), label
+lines **754 → 627**, `goto` **779 → 674**, `return;` **399 → 73**; probe exe
+**446,317 → 409,240 B** (−8.3%); `tests-tcc.exe` **4,322,203 → 3,942,323 B**
+(−8.8%); release suite compile user time ~**0.98 s** (was ~1.13) and RSS ~**59.6 MB**
+(was ~59.2), i.e. no regression. `--tcc` **2307/2307**, `MIRTests` **4506 checks**
+(covering `place_escaped` / `place_last_write` / `first_use_inst`).
 
 **What remains (action C).** The dominant residue is structural, not the removed
-trampolines: the legacy 2c emitted **structured** control flow (`while`, `switch`,
-`if/else`, ~0 `goto`) while MIR emits a flat CFG (still 627 labels + 674 `goto`
-after this session). Reconstructing loops as `while`/`do` and dense integer
-branch sets as `switch` is the next (larger) bite; instruction-level copies
-(`__chx_vN = __chx_pN`, ~1,389) remain the binary-size lever.
+trampolines or the forwarded loads: the legacy 2c emitted **structured** control
+flow (`while`, `switch`, `if/else`, ~0 `goto`) while MIR emits a flat CFG (still
+627 labels + 674 `goto` after this session). Reconstructing loops as `while`/`do`
+and dense integer branch sets as `switch` is the next (larger) bite. `v = p`
+loads are down to **524** (from 1,162); the remaining `__chx_vN` temporaries are
+mostly aggregates, escaped locals and cross-block uses.
 
 ### Session 22 (2026-10-15) — one function-prototype ABI (action A3, prototypes)
 

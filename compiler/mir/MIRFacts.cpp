@@ -129,12 +129,14 @@ void compute_function_facts(const MIRModule& module, const MIRFunction& function
 
     // ── places: write counts, escape, and parameter aliasing ──
     out.place_writes.assign(nplace, 0);
+    out.place_last_write.assign(nplace, MIR_INVALID_ID);
     for (uint32_t ii = 0; ii < ninst; ++ii) {
         const MIRInstruction& inst = function.instructions[ii];
         if (!writes_place(inst.opcode())) continue;
         const MIROperand* d = operand_at(function, inst, 0);
         if (d && d->kind() == MIROperandKind::Place && d->id < nplace) {
             ++out.place_writes[d->id];
+            out.place_last_write[d->id] = ii;
         }
     }
 
@@ -151,8 +153,29 @@ void compute_function_facts(const MIRModule& module, const MIRFunction& function
     }
 
     out.place_addressed.assign(nplace, 0);
+    out.place_escaped.assign(nplace, 0);
     out.param_alias.assign(nplace, MIR_INVALID_ID);
     {
+        // A place is named "directly" when an instruction's operand 0 is that
+        // place and the instruction reads (Load) or writes it (the writing
+        // opcodes). Any other naming — an address computation, a field/index
+        // base, a call argument — lets the address escape, so an indirect write
+        // could change it and a load must not be forwarded to it by name.
+        auto is_direct_place_access = [](MIROpcode op) {
+            switch (op) {
+                case MIROpcode::Load:
+                case MIROpcode::Store:
+                case MIROpcode::Assign:
+                case MIROpcode::CopyInit:
+                case MIROpcode::MoveInit:
+                case MIROpcode::Init:
+                case MIROpcode::MemCpy:
+                case MIROpcode::MemSet:
+                    return true;
+                default:
+                    return false;
+            }
+        };
         // the argument index a place's single store copies, when that store
         // stores the parameter value itself
         // reused across calls so the candidate table does not reallocate per function
@@ -182,10 +205,19 @@ void compute_function_facts(const MIRModule& module, const MIRFunction& function
                     }
                 }
             }
+            // general escape, over every place: a non-direct operand-0 naming,
+            // or any operand beyond 0 naming the place
+            if (d && d->kind() == MIROperandKind::Place && d->id < nplace &&
+                !is_direct_place_access(inst.opcode())) {
+                out.place_escaped[d->id] = 1;
+            }
             // only operand 0 of a plain read/write may name the place
             for (uint32_t i = 1; i < inst.operand_count; ++i) {
                 const MIROperand* op = operand_at(function, inst, i);
-                if (is_param_place(op)) out.place_addressed[op->id] = 1;
+                if (op && op->kind() == MIROperandKind::Place && op->id < nplace) {
+                    out.place_escaped[op->id] = 1;
+                    if (is_param_place(op)) out.place_addressed[op->id] = 1;
+                }
             }
         }
         const uint32_t nparams = (function.function_type < module.types.size())
@@ -232,6 +264,20 @@ void compute_value_facts(const MIRModule& module, const MIRFunction& function,
         const uint16_t op = out.def_opcode[v];
         if (op != none && opcode_is_pure(static_cast<MIROpcode>(op))) {
             out.single_use_pure[v] = 1;
+        }
+    }
+
+    // first / last use instruction of each value, so a backend can forward a
+    // load across all of its uses while they stay in the defining block
+    out.first_use_inst.assign(nval, MIR_INVALID_ID);
+    out.last_use_inst.assign(nval, MIR_INVALID_ID);
+    for (uint32_t ii = 0; ii < ninst; ++ii) {
+        const MIRInstruction& inst = function.instructions[ii];
+        for (uint32_t i = 0; i < inst.operand_count; ++i) {
+            const MIROperand* op = operand_at(function, inst, i);
+            if (!op || op->kind() != MIROperandKind::Value || op->id >= nval) continue;
+            if (out.first_use_inst[op->id] == MIR_INVALID_ID) out.first_use_inst[op->id] = ii;
+            out.last_use_inst[op->id] = ii;
         }
     }
 }

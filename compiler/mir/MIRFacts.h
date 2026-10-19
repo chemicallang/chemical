@@ -44,6 +44,14 @@ struct MIRValueFacts {
      * its own policy (integer promotion, load fusion) on top.
      */
     std::vector<uint8_t> single_use_pure;
+    /**
+     * Instruction index of the value's first and last use, by `ValueId`, or
+     * `MIR_INVALID_ID` when it has none. A backend can combine the first use
+     * with `MIRFunctionFacts::place_last_write` to forward a load to its uses
+     * only while the place is not written after the load.
+     */
+    std::vector<uint32_t> first_use_inst;
+    std::vector<uint32_t> last_use_inst;
 };
 
 /** Compute `out` for `function`, which must belong to `module`. */
@@ -88,10 +96,28 @@ struct MIRFunctionFacts {
     /** Writes (destination operand of the writing opcodes) per place, by `PlaceId`. */
     std::vector<uint32_t> place_writes;
     /**
+     * Instruction index of the *last* write to each place, by `PlaceId`, or
+     * `MIR_INVALID_ID` when it is never written. A load from a place with no
+     * later write can be forwarded to its use sites: the value it read cannot
+     * change afterwards, however far the use (or an expression containing it)
+     * is re-emitted.
+     */
+    std::vector<uint32_t> place_last_write;
+    /**
      * 1 when a place is used somewhere other than operand 0 of a plain
      * load/store — i.e. its address may escape and it must keep its own storage.
+     * Computed for parameters (the aliasing decision); see `place_escaped` for
+     * the same notion over *every* place.
      */
     std::vector<uint8_t> place_addressed;
+    /**
+     * 1 when a place is named anywhere other than as the operand 0 of a read
+     * (`Load`) or of a write (`Store`/`Assign`/`CopyInit`/`MoveInit`/`Init`/
+     * `MemCpy`/`MemSet`) — i.e. its address could escape and an indirect write
+     * (through a call or a pointer) may change it. Computed for *every* place
+     * (a local's address can be taken too), by `PlaceId`.
+     */
+    std::vector<uint8_t> place_escaped;
     /** C-argument-style index of each `Param` instruction, by instruction index. */
     std::vector<uint32_t> param_index_at_inst;
     /**

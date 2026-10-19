@@ -319,7 +319,7 @@ part of the produced binary (Go-style), not a JVM/browser/WASM/interpreter. This
 first-class goal of Requirement 3, not a workaround.
 
 > **Status (2026-10-13): approved** — see
-> [`proposals/0006-native-gc-mode.html`](proposals/0006-native-gc-mode.html). The model:
+> [`proposals/0006-native-gc-mode.md`](proposals/0006-native-gc-mode.md). The model:
 > **explicit per-module opt-in** (`gc = true`); a GC module may depend only on GC modules,
 > and a GC module in a non-GC build errors (*module requires gc, no gc on the
 > job/executable/program*), so GC cannot silently enter GC-free code. **Collector:**
@@ -489,8 +489,8 @@ syntax covers concrete and parameterized targets. Until then, the only supported
 a nested `impl` inside the generic type, and library authors must instantiate per type.
 
 > **Status (2026-10-13):** the direction is **approved** — proposal
-> [`0003-generic-impls`](proposals/0003-generic-impls.html). It is a prerequisite for
-> proposal [`0014-generic-container-serialization`](proposals/0014-generic-container-serialization.html)
+> [`0003-generic-impls`](proposals/0003-generic-impls.md). It is a prerequisite for
+> proposal [`0014-generic-container-serialization`](proposals/0014-generic-container-serialization.md)
 > (JSON for `vector`/`unordered_map`/`ordered_map`). When implemented, the async
 > `FutureHandle<T>` structural workaround can be retired.
 
@@ -511,7 +511,7 @@ Decisions from the proposal reviews (full log in
   effects are **declared, never inferred** across current-module forward calls (error
   instead); and `unreachable`/traps are **`unsafe`**, not `panic` — so
   `[no_panic, no_unsafe]` is what truly prevents an abort. See
-  [`proposals/0005-effect-system.html`](proposals/0005-effect-system.html).
+  [`proposals/0005-effect-system.md`](proposals/0005-effect-system.md).
 - **Native GC gates the managed targets:** JVM (`0010`) is reconsidered now that GC is
   approved; Android/cross-compilation (`0011`) stays deferred until the GC model works.
 - **WASM (`0009`) is deferred** — TinyCC is adding TLS and may add a WASM backend; revisit

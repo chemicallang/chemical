@@ -44,7 +44,7 @@ participate uniformly in protocols (§6.8); and the open problem of one syntax a
 divergent platform memory models.
 
 **Proposal roadmap (2026-10):** the large-feature proposals live in `lang/docs/proposals/`
-(open `review.html`). Approved: generic impls (`0003`), borrow checker (`0004`), no-panic
+(open `review.md`). Approved: generic impls (`0003`), borrow checker (`0004`), no-panic
 effects (`0005`), native GC (`0006`), JavaScript backend (`0007`), web/DOM types (`0008`),
 async completion (`0013`), generic-container JSON serialization (`0014`) — implemented after
 the MIR consolidation work. WASM (`0009`) is deferred to TinyCC's direction; JVM (`0010`) is

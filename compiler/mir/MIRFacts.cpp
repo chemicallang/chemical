@@ -53,9 +53,53 @@ void compute_function_facts(const MIRModule& module, const MIRFunction& function
 
     // ── blocks: where each starts, and which ones a terminator jumps to ──
     out.block_start.assign(nblock, MIR_INVALID_ID);
+    std::vector<const MIRBlock*> blk_of(nblock, nullptr);
     for (uint32_t b = 0; b < nblock; ++b) {
         const MIRBlock& blk = function.blocks[b];
-        if (blk.id < nblock && blk.inst_start != MIR_INVALID_ID) out.block_start[blk.id] = blk.inst_start;
+        if (blk.id < nblock) {
+            blk_of[blk.id] = &blk;
+            if (blk.inst_start != MIR_INVALID_ID) out.block_start[blk.id] = blk.inst_start;
+        }
+    }
+
+    // A "trampoline" block is empty (`inst_count == 0`) and ends in an
+    // unconditional `Br` to the block that begins on the very next slot. The C
+    // emitter prints nothing for it: the `Br` is a fall-through and a jump to it
+    // is a jump to its target, so emitting it only added a dead label and a
+    // `goto`/label pair per if-without-else — the flat-CFG excess over the
+    // legacy structured translator (evaluation §C). Mark its one instruction
+    // and resolve every jump through the chain.
+    out.inst_transparent_br.assign(ninst, 0);
+    out.block_resolve.assign(nblock, MIR_INVALID_ID);
+    for (uint32_t id = 0; id < nblock; ++id) {
+        out.block_resolve[id] = id;   // resolve to self by default
+        const MIRBlock* blk = blk_of[id];
+        if (!blk || blk->arg_count != 0 || blk->inst_count != 0) continue;
+        const uint32_t s = blk->inst_start;
+        if (s == MIR_INVALID_ID || s >= ninst) continue;
+        const MIRInstruction& term = function.instructions[s];
+        if (term.opcode() != MIROpcode::Br || term.operand_count != 1) continue;
+        const MIROperand* t = operand_at(function, term, 0);
+        if (!t || t->kind() != MIROperandKind::Block || t->id >= nblock) continue;
+        if (out.block_start[t->id] != s + 1) continue;   // must land on the next slot
+        out.inst_transparent_br[s] = 1;
+    }
+    // follow chains (a trampoline may point at another trampoline)
+    for (uint32_t id = 0; id < nblock; ++id) {
+        const MIRBlock* blk = blk_of[id];
+        if (!blk) continue;
+        const uint32_t s = blk->inst_start;
+        if (s == MIR_INVALID_ID || s >= ninst || !out.inst_transparent_br[s]) continue;
+        BlockId cur = id;
+        for (uint32_t guard = 0; guard < nblock; ++guard) {
+            const MIRBlock* cb = cur < nblock ? blk_of[cur] : nullptr;
+            const uint32_t cs = cb ? cb->inst_start : MIR_INVALID_ID;
+            if (cs == MIR_INVALID_ID || cs >= ninst || !out.inst_transparent_br[cs]) break;
+            const MIROperand* t = operand_at(function, function.instructions[cs], 0);
+            if (!t || t->kind() != MIROperandKind::Block || t->id >= nblock) break;
+            cur = t->id;
+        }
+        out.block_resolve[id] = cur;
     }
 
     // a jump to the block beginning at the very next instruction is a
@@ -68,7 +112,7 @@ void compute_function_facts(const MIRModule& module, const MIRFunction& function
             if (!op || op->kind() != MIROperandKind::Block) continue;
             if (op->id >= nblock) continue;
             if (out.is_fallthrough_inst(function, ii, op->id)) continue;
-            out.block_referenced[op->id] = 1;
+            out.block_referenced[out.resolve_block(op->id)] = 1;
         }
     }
 
@@ -78,6 +122,7 @@ void compute_function_facts(const MIRModule& module, const MIRFunction& function
         const MIRBlock& blk = function.blocks[b];
         if (blk.inst_start == MIR_INVALID_ID || blk.inst_start >= ninst) continue;
         out.block_starts_inst[blk.inst_start] = 1;
+        if (out.inst_transparent_br[blk.inst_start]) continue;   // trampoline: no label
         if (blk.id >= nblock || !out.block_referenced[blk.id]) continue;
         out.label_at_inst[blk.inst_start] = blk.id;
     }

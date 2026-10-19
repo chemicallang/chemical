@@ -73,6 +73,17 @@ struct MIRFunctionFacts {
     std::vector<uint8_t> block_referenced;
     /** Label block id at each instruction index, or MIR_INVALID_ID for none. */
     std::vector<BlockId> label_at_inst;
+    /**
+     * 1 at the instruction index of a "trampoline" block — a block with no
+     * instructions (`inst_count == 0`) whose sole terminator is an
+     * unconditional `Br` to the block that begins on the very next slot. Such a
+     * block emits nothing: its `Br` is a fall-through and its label is dead, so
+     * a jump to it is redirected to its target (`resolve_block`). By instruction
+     * index.
+     */
+    std::vector<uint8_t> inst_transparent_br;
+    /** By `BlockId`: the first non-trampoline block a jump to it resolves to. */
+    std::vector<BlockId> block_resolve;
 
     /** Writes (destination operand of the writing opcodes) per place, by `PlaceId`. */
     std::vector<uint32_t> place_writes;
@@ -96,11 +107,30 @@ struct MIRFunctionFacts {
      */
     std::vector<uint32_t> param_alias;
 
-    /** True when the block starting `block_id` begins right after instruction `inst`. */
+    /** The first non-trampoline block a jump to `block_id` resolves to. */
+    BlockId resolve_block(BlockId block_id) const {
+        return block_id < block_resolve.size() && block_resolve[block_id] != MIR_INVALID_ID
+                   ? block_resolve[block_id]
+                   : block_id;
+    }
+
+    /**
+     * True when the block `block_id` resolves to begins right after instruction
+     * `inst`. Trampoline blocks between the two emit nothing (their `Br` is a
+     * fall-through), so they are stepped over: a branch into a trampoline that
+     * lands on the very next slot falls through to the trampoline's target.
+     */
     bool is_fallthrough_inst(const MIRFunction& fn, uint32_t inst, BlockId block_id) const {
-        if (block_id >= block_start.size()) return false;
-        const uint32_t s = block_start[block_id];
-        return s != MIR_INVALID_ID && s == inst + 1;
+        const BlockId b = resolve_block(block_id);
+        if (b >= block_start.size()) return false;
+        const uint32_t s = block_start[b];
+        if (s == MIR_INVALID_ID) return false;
+        uint32_t next = inst + 1;
+        while (next < fn.instructions.size() && next < inst_transparent_br.size() &&
+               inst_transparent_br[next]) {
+            ++next;
+        }
+        return s == next;
     }
 };
 

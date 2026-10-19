@@ -1457,6 +1457,37 @@ is a generic-instantiation ordering/attribution reference).
 be a pure printer. Prototypes, aggregate bodies, global declarations/definitions
 and interface vtables are all MIR now.
 
+### Session 23 (2026-10-19) — flat-CFG residue: trampoline blocks elided, trailing `return` dropped (action C)
+
+Two safe straight-line text wins against the flat `goto` CFG the C emitter prints,
+measured on the generated-code probe (`lang/compiled/perfprobe`, `--emit-c`):
+
+1. **Trailing bare `return;` dropped.** The lowering terminates void and
+   hidden-sret functions with `Return` (no operand); the emitter now strips that
+   `return;` when it is the function's last statement — a C function falls off its
+   closing brace with the same effect. The legacy translator never printed a bare
+   `return;` at all. `return;` sites **399 → 73**.
+2. **Trampoline blocks elided.** A block with no instructions and one
+   unconditional `Br` to the block on the very next slot is a no-op: its `Br` is a
+   fall-through and its label is dead. `compute_function_facts` (`MIRFacts`) now
+   marks its instruction (`inst_transparent_br`) and resolves every jump through it
+   (`block_resolve` / `resolve_block`), `is_fallthrough_inst` steps over it, and
+   the emitter drops its label/instruction and prints the resolved target id. This
+   is the per-`if`-without-else `goto`+label pair that the legacy *structured*
+   translator never emitted.
+
+Probe: C **10,801 → 10,243** lines (−5.2%), label lines **754 → 627**, `goto`
+**779 → 674**, `return;` **399 → 73**; `tests-tcc.exe` **4,322,203 → 4,318,778 B**;
+release suite compile user time ~**1.13 s** (was ~1.21). `--tcc` **2307/2307**,
+`MIRTests` **4495 checks**.
+
+**What remains (action C).** The dominant residue is structural, not the removed
+trampolines: the legacy 2c emitted **structured** control flow (`while`, `switch`,
+`if/else`, ~0 `goto`) while MIR emits a flat CFG (still 627 labels + 674 `goto`
+after this session). Reconstructing loops as `while`/`do` and dense integer
+branch sets as `switch` is the next (larger) bite; instruction-level copies
+(`__chx_vN = __chx_pN`, ~1,389) remain the binary-size lever.
+
 ### Session 22 (2026-10-15) — one function-prototype ABI (action A3, prototypes)
 
 The function *prototype* ABI — sret for struct-like returns, aggregates/arrays by

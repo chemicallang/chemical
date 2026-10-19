@@ -1063,6 +1063,12 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
         if (label_at[idx] != MIR_INVALID_ID) {
             out += "__chx_bb" + std::to_string(label_at[idx]) + ":;\n";
         }
+        // A trampoline block emits nothing (see MIRFacts): its single `Br` is a
+        // fall-through and jumps to it were redirected to its target, so it has
+        // no label and this instruction is dropped.
+        if (idx < facts.inst_transparent_br.size() && facts.inst_transparent_br[idx]) {
+            continue;
+        }
         const MIRInstruction& inst = function.instructions[idx];
         // A single-use address/cast/load/param value was collapsed into its use.
         if ((inlineable_opcode(inst.opcode()) || inst.opcode() == MIROpcode::Param) &&
@@ -1918,7 +1924,7 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 // A branch to the next block needs no jump: control falls into it.
                 if (!facts.is_fallthrough_inst(function, idx, target->id)) {
                     out += "goto __chx_bb";
-                    append_uint(out, target->id);
+                    append_uint(out, facts.resolve_block(target->id));
                     out += ";\n";
                 }
                 break;
@@ -1928,6 +1934,8 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const MIROperand* t = operand_at(function, inst, 1);
                 const MIROperand* f = operand_at(function, inst, 2);
                 if (!cond || !t || !f) { error = "cond_br missing operands"; return false; }
+                const BlockId tb = facts.resolve_block(t->id);
+                const BlockId fb = facts.resolve_block(f->id);
                 std::string cexpr;
                 append_operand_expr(function, module, *cond, cexpr);
                 if (facts.is_fallthrough_inst(function, idx, f->id)) {
@@ -1935,22 +1943,22 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                     out += "if (";
                     out += cexpr;
                     out += ") goto __chx_bb";
-                    append_uint(out, t->id);
+                    append_uint(out, tb);
                     out += ";\n";
                 } else if (facts.is_fallthrough_inst(function, idx, t->id)) {
                     // the true arm falls through: jump on the negated condition
                     out += "if (!(";
                     out += cexpr;
                     out += ")) goto __chx_bb";
-                    append_uint(out, f->id);
+                    append_uint(out, fb);
                     out += ";\n";
                 } else {
                     out += "if (";
                     out += cexpr;
                     out += ") goto __chx_bb";
-                    append_uint(out, t->id);
+                    append_uint(out, tb);
                     out += "; else goto __chx_bb";
-                    append_uint(out, f->id);
+                    append_uint(out, fb);
                     out += ";\n";
                 }
                 break;
@@ -2284,6 +2292,21 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                         opcode_name(inst.opcode()) + "' (straight-line subset only)";
                 return false;
         }
+    }
+
+    // A bare `return;` as the function's final statement is redundant: a C
+    // function falls off its closing brace with the same effect. The lowering
+    // emits one after every `Return` (void and hidden-sret alike), and the
+    // legacy backend never printed a bare `return;` at all, so stripping the
+    // trailing one removes a `return;` from every function that ends by
+    // falling through — pure text, no semantics (evaluation §C). A `return;`
+    // that must leave *before* the end is still emitted above.
+    static constexpr char kTrailingVoidReturn[] = "    return;\n";
+    static constexpr size_t kTrailingVoidReturnLen = sizeof(kTrailingVoidReturn) - 1;
+    if (out.size() >= kTrailingVoidReturnLen &&
+        out.compare(out.size() - kTrailingVoidReturnLen, kTrailingVoidReturnLen,
+                    kTrailingVoidReturn) == 0) {
+        out.resize(out.size() - kTrailingVoidReturnLen);
     }
 
     out += "}\n";

@@ -1,7 +1,6 @@
 // Copyright (c) Chemical Language Foundation 2025.
 
 #include "RepresentationUtils.h"
-#include <random>
 #include <ostream>
 
 void write_escape_encoded(std::ostream& stream, char value) {
@@ -48,15 +47,4 @@ void write_escape_encoded(std::ostream& stream, char value) {
         default:
             stream << value;
     }
-}
-
-int random(int min, int max) //range : [min, max]
-{
-    static bool first = true;
-    if (first)
-    {
-        srand( time(NULL) ); //seeding for the first time only!
-        first = false;
-    }
-    return min + rand() % (( max + 1 ) - min);
 }

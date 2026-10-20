@@ -13,7 +13,6 @@
 #include "MIREmitter.h"
 #include "MIRMangleBuffer.h"
 
-#include <charconv>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -43,22 +42,22 @@ void append_int64(std::string& out, int64_t v) {
     append_uint(out, static_cast<uint64_t>(v));
 }
 
-/** Reproduces `BufferedWriter::append_float` exactly (to_chars general/9, `.0`, `f`). */
+/** Mirrors `BufferedWriter::append_float` (`%.9g`, `.0`, `f`). */
 void append_float(std::string& out, float v) {
     char buf[64];
-    auto [ptr, ec] = std::to_chars(buf, buf + sizeof(buf), v, std::chars_format::general, 9);
-    if (ec != std::errc()) { out += "NaN"; return; }
-    out.append(buf, static_cast<size_t>(ptr - buf));
+    const int n = std::snprintf(buf, sizeof(buf), "%.9g", static_cast<double>(v));
+    if (n < 0 || static_cast<size_t>(n) >= sizeof(buf)) { out += "NaN"; return; }
+    out.append(buf, static_cast<size_t>(n));
     if (std::isfinite(v) && v == std::trunc(v) && std::abs(v) < 1e9f) out += ".0";
     out += 'f';
 }
 
-/** Reproduces `BufferedWriter::append_double` exactly (to_chars general/17, `.0`). */
+/** Mirrors `BufferedWriter::append_double` (`%.17g`, `.0`). */
 void append_double(std::string& out, double v) {
     char buf[80];
-    auto [ptr, ec] = std::to_chars(buf, buf + sizeof(buf), v, std::chars_format::general, 17);
-    if (ec != std::errc()) { out += "NaN"; return; }
-    out.append(buf, static_cast<size_t>(ptr - buf));
+    const int n = std::snprintf(buf, sizeof(buf), "%.17g", v);
+    if (n < 0 || static_cast<size_t>(n) >= sizeof(buf)) { out += "NaN"; return; }
+    out.append(buf, static_cast<size_t>(n));
     if (std::isfinite(v) && v == std::trunc(v) && std::abs(v) < 1e17) out += ".0";
 }
 

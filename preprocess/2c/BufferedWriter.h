@@ -7,7 +7,6 @@
 #include <cassert>
 #include <string>
 #include <string_view>
-#include <charconv>
 #include <type_traits>
 #include <cmath>
 
@@ -279,16 +278,22 @@ public:
         }
     }
 
+    /*
+     * C's `%g` with the maximum round-trip precision is used instead of
+     * std::to_chars.  It produces a (possibly longer) decimal that still
+     * converts back to the exact same float/double, so the emitted C is
+     * semantically identical.  Avoiding std::to_chars keeps libstdc++'s
+     * ~200 KB floating-point formatting implementation (and its Ryu tables)
+     * out of the compiler binary.
+     */
     void append_float(float v) noexcept {
         // max length for float in decimal ~ 48 chars (scientific)
         ensure_total_capacity_for(48 + 3); // +3 for ".0f"
         char* start = buf_ + pos_;
-        char* end   = buf_ + cap_;
-        auto [ptr, ec] = std::to_chars(start, end, v, std::chars_format::general, 9);
-        if (ec == std::errc()) {
-            pos_ += (ptr - start);
-            // If it's a finite whole number within fixed-point range [1e-4, 1e9), 
-            // std::to_chars (general) might omit the decimal point.
+        const int n = std::snprintf(start, cap_ - pos_, "%.9g", static_cast<double>(v));
+        if (n >= 0 && static_cast<size_t>(n) < cap_ - pos_) {
+            pos_ += static_cast<size_t>(n);
+            // `%g` may omit the decimal point for whole numbers.
             if (std::isfinite(v) && v == std::trunc(v) && std::abs(v) < 1e9f) {
                 append(".0", 2);
             }
@@ -303,12 +308,10 @@ public:
         // max length for double in decimal ~ 64 chars (scientific)
         ensure_total_capacity_for(64 + 2); // +2 for ".0"
         char* start = buf_ + pos_;
-        char* end   = buf_ + cap_;
-        auto [ptr, ec] = std::to_chars(start, end, v, std::chars_format::general, 17);
-        if (ec == std::errc()) {
-            pos_ += (ptr - start);
-            // If it's a finite whole number within fixed-point range [1e-4, 1e17), 
-            // std::to_chars (general) might omit the decimal point.
+        const int n = std::snprintf(start, cap_ - pos_, "%.17g", v);
+        if (n >= 0 && static_cast<size_t>(n) < cap_ - pos_) {
+            pos_ += static_cast<size_t>(n);
+            // `%g` may omit the decimal point for whole numbers.
             if (std::isfinite(v) && v == std::trunc(v) && std::abs(v) < 1e17) {
                 append(".0", 2);
             }

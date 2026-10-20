@@ -2108,7 +2108,42 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 const BlockId tb = facts.resolve_block(t->id);
                 const BlockId fb = facts.resolve_block(f->id);
                 std::string cexpr;
-                append_operand_expr(function, module, *cond, cexpr);
+                // Short-circuit lowering stores the condition to a place and
+                // branches on the same value (`p = a; cond_br a`). The value is
+                // still inlined at the branch, so the emitter would evaluate the
+                // whole condition a second time (`p = a < b; if (!(a < b))`).
+                // The store is adjacent and unconditional in the same block, so
+                // the place provably holds exactly this value: read it instead.
+                // This removes a duplicated comparison/shift chain per branch
+                // (e.g. every `&&`/`||` operand), which the C backend cannot
+                // recover because the generated C is compiled without an
+                // optimizer.
+                bool cond_from_place = false;
+                std::string cond_place;
+                if (cond->kind() == MIROperandKind::Value && idx > 0 &&
+                    !block_starts[idx]) {
+                    const MIRInstruction& prev = function.instructions[idx - 1];
+                    if (prev.opcode() == MIROpcode::Store && prev.operand_count == 2) {
+                        const MIROperand* sp = operand_at(function, prev, 0);
+                        const MIROperand* sv = operand_at(function, prev, 1);
+                        if (sp && sv && sp->kind() == MIROperandKind::Place &&
+                            sv->kind() == MIROperandKind::Value && sv->id == cond->id) {
+                            append_place_name(module, function, sp->id, cond_place);
+                            cond_from_place = true;
+                        }
+                    }
+                }
+                if (cond_from_place) {
+                    // Only when the recomputed expression is substantial: for a
+                    // bare two-operand comparison the C backend already has the
+                    // operands live and re-evaluating it is cheaper than
+                    // reloading the `_Bool` place (measured on the suite, where
+                    // applying it unconditionally grew the executable by 0.06%).
+                    append_operand_expr(function, module, *cond, cexpr);
+                    if (cexpr.size() >= 40) cexpr = cond_place;
+                } else {
+                    append_operand_expr(function, module, *cond, cexpr);
+                }
                 if (facts.is_fallthrough_inst(function, idx, f->id)) {
                     // the false arm falls through, so only the true jump is emitted
                     out += "if (";

@@ -1537,10 +1537,23 @@ Release-vs-Release baseline.
    load is correctly not forwarded. Probe C **9,411 → 9,198** lines; `trim`
    **89 → 71** lines.
 
+3. **Short-circuit conditions read their place instead of re-evaluating.** The
+   lowering stores a `&&`/`||` operand to a place and then branches on the same
+   value, so the emitter printed `p = <cond>; if (!(<cond>))` — evaluating the
+   condition twice, which the C backend cannot undo (it compiles without an
+   optimizer). When that store is the immediately-preceding instruction in the
+   same block, the branch now prints `if (!p)`. The win is runtime (no duplicated
+   comparison/shift chain) and text, not lines. Applying it unconditionally grew
+   the main-suite executable by 0.06% (reloading a `_Bool` place costs more than
+   re-evaluating a bare two-operand comparison TinyCC already has in registers),
+   so it is applied only when the recomputed expression is ≥ 40 characters:
+   probe **398,376 → 398,265 B**, main-suite executable **3,859,166 →
+   3,858,912 B**, C lines unchanged.
+
 Measured on the probe (release, same binary, `--emit-c`): C **9,524 → 9,198**
-(−326, −3.4%); probe exe **409,145 → 398,376 B** (−2.6%); main-suite executable
-**3,940,014 → 3,859,166 B** (−2.1%). Compile time and RSS are unchanged (user
-0.62–0.66 s, ~50.8 MB either side) — these are generated-code wins. `--tcc`
+(−326, −3.4%); probe exe **409,145 → 398,265 B** (−2.7%); main-suite executable
+**3,940,014 → 3,858,912 B** (−2.1%). Compile time and RSS are unchanged (user
+0.62–0.69 s, ~50.5 MB either side) — these are generated-code wins. `--tcc`
 **2307/2307**, `MIRTests` **4506 checks**.
 
 **Corrected Release-vs-Release baseline.** The session-23 figures (user ~1.00 s,

@@ -11,6 +11,7 @@
 #include <cstring>
 #include <functional>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace mir {
@@ -944,6 +945,88 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 return "(" + c_type_of(module, function.values[v].type) + ")(" +
                        operand_expr(function, module, *a) + ")";
             }
+            // Load and Call are never reached by the single-use pass above (a
+            // Load is handled by its own forwarding rules and a Call is not
+            // `inlineable_opcode`), but short-circuit reconstruction needs to
+            // spell whatever a branch's RHS computes as one expression.
+            case MIROpcode::Load: {
+                const MIROperand* p = operand_at(function, inst, 0);
+                const MIROperand* fld = operand_at(function, inst, 1);
+                if (!p) return {};
+                if (p->kind() == MIROperandKind::Place) {
+                    if (fld && fld->kind() == MIROperandKind::Value) {
+                        return place_name(module, function, p->id) + "[" +
+                               operand_expr(function, module, *fld) + "]";
+                    }
+                    if (fld && fld->kind() == MIROperandKind::Constant) {
+                        std::string fname;
+                        if (!constant_string(module, fld->id, fname)) return {};
+                        return member_access(function, module, p->id, fname);
+                    }
+                    return place_name(module, function, p->id);
+                }
+                if (p->kind() != MIROperandKind::Value) return {};
+                const bool base_is_array =
+                    p->type() < module.types.size() &&
+                    module.types.get(p->type()).kind == MIRTypeKind::Array;
+                const std::string base = operand_expr(function, module, *p);
+                if (fld && fld->kind() == MIROperandKind::Value) {
+                    return (base_is_array ? ("(*" + base + ")") : base) + "[" +
+                           operand_expr(function, module, *fld) + "]";
+                }
+                if (fld && fld->kind() == MIROperandKind::Constant) {
+                    std::string fname;
+                    if (!constant_string(module, fld->id, fname)) return {};
+                    return base + "->" + fname;
+                }
+                return "*" + base;
+            }
+            case MIROpcode::Call: {
+                const MIROperand* callee = operand_at(function, inst, 0);
+                if (!callee || callee->kind() != MIROperandKind::Symbol) return {};
+                const MIROperand* maybe_place = operand_at(function, inst, 1);
+                if (maybe_place && maybe_place->kind() == MIROperandKind::Place) {
+                    return {}; // sret: a statement, not a call expression
+                }
+                std::string call;
+                if (!symbol_name(module, callee->id, call)) return {};
+                call += "(";
+                for (uint32_t a = 1; a < inst.operand_count; ++a) {
+                    if (a != 1) call += ", ";
+                    append_operand_expr(function, module, *operand_at(function, inst, a), call);
+                }
+                call += ")";
+                return call;
+            }
+            case MIROpcode::CallIndirect: {
+                const MIROperand* fn = operand_at(function, inst, 0);
+                if (!fn) return {};
+                const MIROperand* maybe_place = operand_at(function, inst, 1);
+                if (maybe_place && maybe_place->kind() == MIROperandKind::Place) {
+                    return {}; // sret
+                }
+                std::string callee;
+                append_operand_expr(function, module, *fn, callee);
+                if (fn->type() < module.types.size()) {
+                    const MIRTypeRecord& fr = module.types.get(fn->type());
+                    if (fr.kind == MIRTypeKind::Function) {
+                        std::string typed = "((";
+                        append_fn_ptr_type(module, fr, typed);
+                        typed += ")";
+                        typed += callee;
+                        typed += ")";
+                        callee = std::move(typed);
+                    }
+                }
+                std::string call = callee;
+                call += "(";
+                for (uint32_t a = 1; a < inst.operand_count; ++a) {
+                    if (a != 1) call += ", ";
+                    append_operand_expr(function, module, *operand_at(function, inst, a), call);
+                }
+                call += ")";
+                return call;
+            }
             default:
                 return {};
         }
@@ -1056,10 +1139,17 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
         return m;
     };
 
+    // The pass is re-run after short-circuit reconstruction (below): values
+    // that were already inlined spell the merge value by its old name, so the
+    // whole map must be rebuilt with the reconstructed merge expressions in
+    // place. `frozen` values are the reconstructed merges themselves, which
+    // must keep the expression the reconstruction chose.
+    auto run_inline_pass = [&](const std::vector<uint8_t>& frozen) {
     for (size_t ii = 0; ii < function.instructions.size(); ++ii) {
         const MIRInstruction& inst = function.instructions[ii];
         const ValueId v = inst.result_or_place;
         if (v >= function.values.size()) continue;
+        if (v < frozen.size() && frozen[v]) continue;
         if (inst.opcode() == MIROpcode::Load) {
             const MIROperand* p = operand_at(function, inst, 0);
             // a plain load's only other operand is the result Type; a
@@ -1192,15 +1282,290 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
         std::string e = expr_of_inst(inst);
         if (!e.empty()) inline_expr[v] = std::move(e);
     }
+    };
+    const std::vector<uint8_t> no_frozen;
+    run_inline_pass(no_frozen);
+
+    // ---- Short-circuit expression reconstruction (evaluation action C) ----
+    // `a && b` / `a || b` lower to a CFG shape the legacy translator never
+    // emitted: the LHS is stored to a `_Bool` temporary, the branch tests it,
+    // the RHS is evaluated in its own block and stored to the same temporary,
+    // and the merge loads it (`p = a; if (!p) goto end; p = b; end: ...p...`).
+    // The generated C has no optimizer to recover the operator. When the RHS
+    // region is a single straight-line block whose non-terminator instructions
+    // are all spellable as C expressions, the shape *is* C's own short-circuit
+    // operator, so fold it: keep the LHS store (the LHS must still evaluate
+    // exactly where it did), drop the branch and the RHS block, and read the
+    // merge as `<place> && <rhs>` / `<place> || <rhs>`.
+    std::vector<uint8_t> logical_skip(function.instructions.size(), 0);
+    std::vector<uint8_t> suppress_label(function.instructions.size(), 0);
+    // Merge load instruction index -> the `a && b` / `a || b` expression that
+    // replaces it when its value has more than one use (materialized once, not
+    // duplicated at each use).
+    std::vector<std::pair<uint32_t, std::string>> logical_decl;
+    struct LogicalResult {
+        uint32_t end_start;
+        ValueId mrv;
+        std::string expr;
+        bool inline_at_use;
+    };
+    std::vector<LogicalResult> logicals;
+    {
+        const uint32_t n_inst = static_cast<uint32_t>(function.instructions.size());
+        const uint32_t nv = static_cast<uint32_t>(function.values.size());
+        const uint32_t nb = static_cast<uint32_t>(function.blocks.size());
+        std::vector<BlockId> block_at(n_inst, MIR_INVALID_ID);
+        for (BlockId b = 0; b < nb; ++b) {
+            const uint32_t ss = facts.block_start[b];
+            if (ss != MIR_INVALID_ID && ss < n_inst) block_at[ss] = b;
+        }
+        std::vector<uint32_t> jump_count(nb, 0);
+        for (uint32_t j = 0; j < n_inst; ++j) {
+            const MIRInstruction& in = function.instructions[j];
+            if (in.opcode() == MIROpcode::Br) {
+                const MIROperand* t = operand_at(function, in, 0);
+                if (t) jump_count[facts.resolve_block(t->id)]++;
+            } else if (in.opcode() == MIROpcode::CondBr) {
+                const MIROperand* t = operand_at(function, in, 1);
+                const MIROperand* f = operand_at(function, in, 2);
+                if (t) jump_count[facts.resolve_block(t->id)]++;
+                if (f) jump_count[facts.resolve_block(f->id)]++;
+            }
+        }
+        auto is_expr_inst = [&](const MIRInstruction& in) -> bool {
+            switch (in.opcode()) {
+                case MIROpcode::ConstInt:
+                case MIROpcode::ConstBool:
+                case MIROpcode::ConstFloat:
+                case MIROpcode::ConstDouble:
+                case MIROpcode::ConstString:
+                case MIROpcode::ConstNull:
+                case MIROpcode::AddressOf:
+                case MIROpcode::FieldAddr:
+                case MIROpcode::IndexAddr:
+                case MIROpcode::GlobalAddr:
+                case MIROpcode::FunctionAddr:
+                case MIROpcode::Unary:
+                case MIROpcode::Binary:
+                case MIROpcode::Compare:
+                case MIROpcode::Cast:
+                case MIROpcode::Load:
+                    return true;
+                case MIROpcode::Call:
+                case MIROpcode::CallIndirect: {
+                    const MIROperand* m = operand_at(function, in, 1);
+                    if (m && m->kind() == MIROperandKind::Place) return false; // sret
+                    const ValueId w = in.result_or_place;
+                    return w < nv && !c_type_spells_void(module, function.values[w].type);
+                }
+                default:
+                    return false;
+            }
+        };
+        std::vector<std::pair<ValueId, std::string>> saved;
+        for (uint32_t s = 0; s + 1 < n_inst; ++s) {
+            if (logical_skip[s]) continue;
+            const MIRInstruction& st = function.instructions[s];
+            if (st.opcode() != MIROpcode::Store || st.operand_count != 2) continue;
+            const MIROperand* sp = operand_at(function, st, 0);
+            const MIROperand* sv = operand_at(function, st, 1);
+            if (!sp || !sv || sp->kind() != MIROperandKind::Place ||
+                sv->kind() != MIROperandKind::Value)
+                continue;
+            const PlaceId res = sp->id;
+            if (res >= function.places.size() ||
+                function.places[res].storage_class !=
+                    static_cast<uint8_t>(MIRStorageClass::Temporary))
+                continue;
+            if (facts.place_escaped[res] || facts.place_writes[res] != 2) continue;
+            const MIRInstruction& cb = function.instructions[s + 1];
+            if (cb.opcode() != MIROpcode::CondBr) continue;
+            const MIROperand* cond = operand_at(function, cb, 0);
+            const MIROperand* t = operand_at(function, cb, 1);
+            const MIROperand* f = operand_at(function, cb, 2);
+            if (!cond || !t || !f) continue;
+            if (cond->kind() != MIROperandKind::Value || cond->id != sv->id) continue;
+            if (s + 2 >= n_inst || !block_starts[s + 2]) continue;
+            const uint32_t rhs_start = s + 2;
+            const BlockId tb = facts.resolve_block(t->id);
+            const BlockId fb = facts.resolve_block(f->id);
+            const char* why = nullptr;
+            bool is_and = false;
+            BlockId rhs_blk = 0, end_blk = 0;
+            uint32_t end_start = 0;
+            if (tb >= nb || fb >= nb) {
+                why = "tb/fb oob";
+            } else {
+                const uint32_t tstart = facts.block_start[tb];
+                const uint32_t fstart = facts.block_start[fb];
+                if (tstart == rhs_start) {
+                    is_and = true; rhs_blk = tb; end_blk = fb; end_start = fstart;
+                } else if (fstart == rhs_start) {
+                    is_and = false; rhs_blk = fb; end_blk = tb; end_start = tstart;
+                } else {
+                    why = "orientation";
+                }
+            }
+            if (!why && (end_start < rhs_start + 2 || end_start > n_inst)) why = "end_start";
+            if (!why && jump_count[rhs_blk] != 1) why = "jump_count";
+            if (!why) {
+                for (uint32_t j = rhs_start + 1; j < end_start; ++j) {
+                    if (block_starts[j] && !logical_skip[j]) { why = "nested"; break; }
+                }
+            }
+            std::string rhs_expr;
+            bool ok = false;
+            if (!why) {
+                const MIRInstruction& last = function.instructions[end_start - 1];
+                const MIRInstruction& pen = function.instructions[end_start - 2];
+                const MIROperand* bt = last.opcode() == MIROpcode::Br
+                                            ? operand_at(function, last, 0) : nullptr;
+                const MIROperand* psp = pen.opcode() == MIROpcode::Store
+                                             ? operand_at(function, pen, 0) : nullptr;
+                const MIROperand* psv2 = pen.opcode() == MIROpcode::Store
+                                             ? operand_at(function, pen, 1) : nullptr;
+                const MIRInstruction& mload = function.instructions[end_start];
+                const MIROperand* mp = mload.opcode() == MIROpcode::Load
+                                           ? operand_at(function, mload, 0) : nullptr;
+                const MIROperand* mf = mload.opcode() == MIROpcode::Load
+                                           ? operand_at(function, mload, 1) : nullptr;
+                if (last.opcode() != MIROpcode::Br) why = "last not br";
+                else if (!bt || facts.resolve_block(bt->id) != end_blk) why = "br target";
+                else if (pen.opcode() != MIROpcode::Store || pen.operand_count != 2) why = "pen not store";
+                else if (!psp || psp->kind() != MIROperandKind::Place || psp->id != res) why = "pen place";
+                else if (!psv2) why = "pen value";
+                else if (mload.opcode() != MIROpcode::Load) why = "merge not load";
+                else if (!mp || mp->kind() != MIROperandKind::Place || mp->id != res ||
+                         (mf && (mf->kind() == MIROperandKind::Value ||
+                                 mf->kind() == MIROperandKind::Constant)))
+                    why = "merge place";
+                else {
+                    const ValueId mrv = mload.result_or_place;
+                    if (mrv >= nv) {
+                        why = "merge value";
+                    } else {
+                        ok = true;
+                        saved.clear();
+                        for (uint32_t j = rhs_start; j + 2 < end_start; ++j) {
+                            if (logical_skip[j]) continue;
+                            const MIRInstruction& in = function.instructions[j];
+                            if (!is_expr_inst(in)) { why = "not expr"; break; }
+                            const ValueId w = in.result_or_place;
+                            if (w >= nv) { why = "w oob"; break; }
+                            bool used_out = false;
+                            for (uint32_t u : value_uses[w]) {
+                                if (u < rhs_start || u >= end_start) { used_out = true; break; }
+                            }
+                            if (used_out) { why = "use outside"; break; }
+                            // Recompute even when the generic pass already
+                            // inlined this value: its stored expression may
+                            // name an earlier value of this region that is
+                            // about to be inlined as well (`v = cmp(call)` was
+                            // spelled with `call` as a name before `call` was
+                            // folded). Rebuilding sees the updated map.
+                            std::string e = expr_of_inst(in);
+                            if (e.empty()) { why = "expr empty"; break; }
+                            saved.emplace_back(w, inline_expr[w]);
+                            inline_expr[w] = std::move(e);
+                        }
+                    }
+                }
+            }
+            if (ok && !why) {
+                const MIROperand* bo = operand_at(function, function.instructions[end_start - 2], 1);
+                rhs_expr = bo ? operand_expr(function, module, *bo) : std::string();
+                if (rhs_expr.empty()) ok = false;
+            }
+            if (!ok || why) {
+                for (auto& pr : saved) inline_expr[pr.first] = std::move(pr.second);
+                continue;
+            }
+            {
+                std::string lexpr = "(" + place_name(module, function, res) + ") ";
+                lexpr += is_and ? "&&" : "||";
+                lexpr += " (";
+                lexpr += rhs_expr;
+                lexpr += ")";
+                const ValueId mrv = function.instructions[end_start].result_or_place;
+                // Inline only when the value is read by the very next
+                // instruction. Inlining at an arbitrary later use would move
+                // the RHS *past* whatever sits between the merge point and
+                // that use (e.g. a destructor: `return a && f(v)` would read
+                // `v` after its delete). Otherwise materialize the expression
+                // where the merge load was, which is the RHS block's own
+                // position and preserves evaluation order exactly.
+                // It must also be in the same block: a use that starts the
+                // next block can be reached from another predecessor, where
+                // the LHS place would not have been stored on this path.
+                const bool inline_at_use =
+                    value_uses[mrv].size() == 1 && value_uses[mrv][0] == end_start + 1 &&
+                    !block_starts[end_start + 1];
+                if (inline_at_use) {
+                    // A single, adjacent use: fold the expression straight into
+                    // it, so no temporary is materialized at all.
+                    inline_expr[mrv] = lexpr;
+                } else {
+                    // Otherwise evaluate the RHS once, exactly where the merge
+                    // load used to be, instead of recomputing it (and re-running
+                    // any call in it) at every use.
+                    inline_expr[mrv].clear();
+                    logical_decl.emplace_back(end_start, lexpr);
+                }
+                logicals.push_back({end_start, mrv, std::move(lexpr), inline_at_use});
+            }
+            logical_skip[s + 1] = 1;
+            for (uint32_t j = rhs_start; j < end_start; ++j) logical_skip[j] = 1;
+        }
+        if (!logicals.empty()) {
+            // Rebuild every inline expression now that each merge value stands
+            // for its short-circuit expression. Consumers inlined before the
+            // reconstruction still name the old merge (`!p`, `p == x`, ...),
+            // which would read only the LHS and silently drop the RHS.
+            std::fill(inline_expr.begin(), inline_expr.end(), std::string());
+            std::vector<uint8_t> frozen(function.values.size(), 0);
+            for (const auto& L : logicals) {
+                if (L.mrv >= frozen.size()) continue;
+                frozen[L.mrv] = 1;
+                if (L.inline_at_use) inline_expr[L.mrv] = L.expr;
+            }
+            run_inline_pass(frozen);
+        }
+        bool any = false;
+        for (uint8_t b : logical_skip) {
+            if (b) { any = true; break; }
+        }
+        if (any) {
+            std::vector<uint8_t> live(nb, 0);
+            for (uint32_t j = 0; j < n_inst; ++j) {
+                if (logical_skip[j]) continue;
+                const MIRInstruction& in = function.instructions[j];
+                if (in.opcode() == MIROpcode::Br) {
+                    const MIROperand* t = operand_at(function, in, 0);
+                    if (t) live[facts.resolve_block(t->id)] = 1;
+                } else if (in.opcode() == MIROpcode::CondBr) {
+                    const MIROperand* t = operand_at(function, in, 1);
+                    const MIROperand* f = operand_at(function, in, 2);
+                    if (t) live[facts.resolve_block(t->id)] = 1;
+                    if (f) live[facts.resolve_block(f->id)] = 1;
+                }
+            }
+            for (uint32_t i = 0; i < n_inst; ++i) {
+                if (!block_starts[i] || label_at[i] == MIR_INVALID_ID) continue;
+                const BlockId b = block_at[i];
+                if (b != MIR_INVALID_ID && !live[b]) suppress_label[i] = 1;
+            }
+        }
+    }
 
     uint32_t param_index = 0;
     // Set when an `Alloca` folds its immediately-following plain `Store`
     // into the declaration, so the loop skips that store.
     uint32_t skip_inst = MIR_INVALID_ID;
     for (uint32_t idx = 0; idx < function.instructions.size(); ++idx) {
-        if (label_at[idx] != MIR_INVALID_ID) {
+        if (label_at[idx] != MIR_INVALID_ID && !suppress_label[idx]) {
             out += "__chx_bb" + std::to_string(label_at[idx]) + ":;\n";
         }
+        if (logical_skip[idx]) continue;
         if (idx == skip_inst) continue;
         // A trampoline block emits nothing (see MIRFacts): its single `Br` is a
         // fall-through and jumps to it were redirected to its target, so it has
@@ -1307,6 +1672,19 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
             }
             case MIROpcode::Load: {
                 const ValueId v = inst.result_or_place;
+                // A reconstructed short-circuit merge: the load is replaced by
+                // the `a && b` / `a || b` expression its value stands for.
+                const std::string* logical = nullptr;
+                for (const auto& ld : logical_decl) {
+                    if (ld.first == idx) { logical = &ld.second; break; }
+                }
+                if (logical) {
+                    append_vname_declarator(module, function.values[v].type, v, out);
+                    out += " = ";
+                    out += *logical;
+                    out += ";\n";
+                    break;
+                }
                 const MIROperand* p = operand_at(function, inst, 0);
                 const MIROperand* fld = operand_at(function, inst, 1);
                 if (!p) { error = "load missing place"; return false; }

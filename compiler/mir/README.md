@@ -106,6 +106,57 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 58 (2026-10-20) — short-circuit `&&`/`||` reconstruction in the C emitter (action C)
+
+`a && b` / `a || b` lower to a CFG shape the legacy 2c translator never
+emitted: the LHS is stored to a `_Bool` temporary, the branch tests it, the RHS
+runs in its own block and stores to the same temporary, and the merge block
+loads it (`p = a; if (!p) goto end; p = b; end: …p…`). C has no optimizer here,
+so the generated code carried the branch, the RHS block, its store and the merge
+load for every logical operator.
+
+The emitter now recognizes that exact shape and folds it back to an expression
+when the RHS region is one straight-line block whose non-terminator
+instructions are all spellable as C expressions (the generic `expr_of_inst`
+gained `Load`, `Call` and `CallIndirect` cases for this; they are not reachable
+from the single-use inline pass, which handles `Load` on its own and never
+inlines a `Call`). The LHS store is kept — `a` must still evaluate exactly where
+it did — the `CondBr`, the RHS block and its store are skipped, and the merge
+load becomes:
+
+- `<place> && <rhs>` / `<place> || <rhs>` folded into the value's single,
+  *immediately adjacent* use (no temporary), or
+- a `_Bool v = <place> && <rhs>;` declaration at the merge point when the value
+  has several uses or a later one, so the RHS is evaluated once, exactly where
+  the merge used to be.
+
+The adjacency rule is a correctness requirement, not a size heuristic: inlining
+at an arbitrary later use moves the RHS *past* anything between the merge and
+that use — e.g. `return v.size() == 2 && v.get(1) == 20` read `v` after its
+destructor. Reconstruction is single-pass (left-associative chains
+`a && b && c` reconstruct level by level; a right-associative RHS has a nested
+block start and is left as CFG), requires a single jump into the RHS block and
+no other block start inside the region, and refuses a `CondBr` whose condition
+is not the stored LHS value.
+
+Two emitter-wide consequences:
+
+- **The inline map is rebuilt after reconstruction.** The generic single-use
+  pass ran first, so consumers had already been inlined with the merge spelled
+  by its old name (`!p`); overriding the merge afterwards left them reading only
+  the LHS and silently dropping the RHS. The pass is now a re-runnable lambda;
+  after any reconstruction the map is cleared, the reconstructed merge
+  expressions are frozen, and the pass runs again so every consumer sees them.
+- **Dead labels are dropped.** A block nothing jumps to after the rewrite no
+  longer prints its `__chx_bbN:;` (the RHS block disappears and the merge is
+  now the fall-through).
+
+Measured (`Release`, `debug_quick`, same source): probe C **9,198 → 8,927**
+lines (−2.9%) and probe executable **398,265 → 392,153 B** (−1.5%); like-for-like
+main-suite `-arg-minimal` executable **3,858,914 → 3,811,879 B** (−1.2%; link
+order moves this by a few KB, the C line count is exact).
+`MIRTests` **4506**; `--tcc` **2307/2307**.
+
 ### Session 57 (2026-10-19) — the declaration/definition path is MIR records end to end (action A3, endgame)
 
 The last AST re-reads on the C declaration path are gone. Three moves:

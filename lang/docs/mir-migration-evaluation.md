@@ -952,6 +952,23 @@ compile **1.42×** user (legacy 0.42–0.47 s vs MIR 0.63–0.66 s), RSS **1.14�
 (44.2–45.0 vs 50.8–51.4 MB — the ≤1.35× gate now passes), main-suite executable
 **1.18×**. Details in `compiler/mir/README.md` session 24.
 
+**Status (session 25, 2026-10-20).** Short-circuit expression reconstruction in
+the C emitter (action C, the named remainder above). The `&&`/`||` CFG
+(`store res,a; cond_br; RHS block: …; store res,b; br end; end: load res`) folds
+back to `<place> && <rhs>` / `<place> || <rhs>` when the RHS region is one
+straight-line block of expression-only instructions: the LHS store stays, the
+branch/RHS block/store are skipped, and the merge is either folded into an
+immediately adjacent single use or materialized as one `_Bool` declaration at
+the merge point (never inlined at a later use, which would move the RHS past
+side effects such as a destructor). The inline map is rebuilt after
+reconstruction so values inlined earlier with the merge's old name (`!p`) see
+the reconstructed expression instead of dropping the RHS. Probe C **9,198 →
+8,927** lines (−2.9%), probe executable **398,265 → 392,153 B** (−1.5%),
+like-for-like main-suite executable **3,858,914 → 3,811,879 B** (−1.2%; link
+order moves this by a few KB, the C line count is exact);
+`--tcc` **2307/2307**, `MIRTests` **4506**. The remaining line gap is now
+dominated by flat CFG/temporaries around aggregates, not logical operators.
+
 ### D. Fix the lowering hot path (P1)
 
 **Symptom.** 2.3× compile time, +40% RSS.

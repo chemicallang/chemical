@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -985,6 +986,76 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
     // prologue spill store is emitted at all (evaluation action C3).
     g_param_alias = &facts.param_alias;
 
+    // True when instruction `j` writes place `pid` (a write takes the place as
+    // operand 0). Mirrors MIRFacts' `writes_place` opcode set.
+    auto inst_writes_place = [&](uint32_t j, PlaceId pid) -> bool {
+        const MIRInstruction& wi = function.instructions[j];
+        switch (wi.opcode()) {
+            case MIROpcode::Store:
+            case MIROpcode::Assign:
+            case MIROpcode::CopyInit:
+            case MIROpcode::MoveInit:
+            case MIROpcode::Init:
+            case MIROpcode::MemCpy:
+            case MIROpcode::MemSet:
+                break;
+            default:
+                return false;
+        }
+        const MIROperand* wp = operand_at(function, wi, 0);
+        return wp && wp->kind() == MIROperandKind::Place && wp->id == pid;
+    };
+
+    // Transitive "inline cone" bound. A pure value that inlines a loaded place
+    // re-emits that place name at *every* one of its own use sites, and so on
+    // recursively, so a forwarded load is only sound while every site that can
+    // re-emit the name precedes the next write to the place. `max_use_of`
+    // returns the greatest instruction index that can emit `v`'s place name,
+    // following exactly the pure-op inlining the emitter performs below.
+    std::vector<std::vector<uint32_t>> value_uses(function.values.size());
+    for (uint32_t j = 0; j < function.instructions.size(); ++j) {
+        const MIRInstruction& in = function.instructions[j];
+        for (uint32_t k = 0; k < in.operand_count; ++k) {
+            const MIROperand* op = operand_at(function, in, k);
+            if (op && op->kind() == MIROperandKind::Value && op->id < value_uses.size()) {
+                value_uses[op->id].push_back(j);
+            }
+        }
+    }
+    std::vector<uint32_t> cone_max(function.values.size(), 0);
+    std::vector<uint8_t> cone_known(function.values.size(), 0);
+    std::function<uint32_t(ValueId)> max_use_of = [&](ValueId v) -> uint32_t {
+        if (v >= cone_max.size()) return 0;
+        if (cone_known[v]) return cone_max[v];
+        cone_known[v] = 1;
+        uint32_t m = 0;
+        for (uint32_t u : value_uses[v]) {
+            if (u > m) m = u;
+            const MIRInstruction& ui = function.instructions[u];
+            const ValueId w = ui.result_or_place;
+            if (w >= function.values.size() || function.values[w].def_inst != u) continue;
+            switch (ui.opcode()) {
+                case MIROpcode::Unary:
+                case MIROpcode::Binary:
+                case MIROpcode::Compare:
+                case MIROpcode::Cast:
+                case MIROpcode::AddressOf:
+                case MIROpcode::FieldAddr:
+                case MIROpcode::IndexAddr:
+                case MIROpcode::GlobalAddr:
+                case MIROpcode::FunctionAddr: {
+                    const uint32_t cw = max_use_of(w);
+                    if (cw > m) m = cw;
+                    break;
+                }
+                default:
+                    break;
+            }
+        }
+        cone_max[v] = m;
+        return m;
+    };
+
     for (size_t ii = 0; ii < function.instructions.size(); ++ii) {
         const MIRInstruction& inst = function.instructions[ii];
         const ValueId v = inst.result_or_place;
@@ -1036,13 +1107,33 @@ bool emit_function_c(const MIRFunction& function, const MIRModule& module,
                 // a use site (or an expression containing the value, re-emitted
                 // at a later use) must observe the same value the load did. Any
                 // later write would make reading the place by name wrong.
-                if (facts.place_last_write[pid] != MIR_INVALID_ID &&
-                    facts.place_last_write[pid] > ii) {
-                    continue;
-                }
                 if (value_facts.first_use_inst[v] == MIR_INVALID_ID ||
                     value_facts.first_use_inst[v] <= ii) {
                     continue;
+                }
+                if (facts.place_last_write[pid] != MIR_INVALID_ID &&
+                    facts.place_last_write[pid] > ii) {
+                    // The place is assigned again later, so it cannot be read
+                    // by name across arbitrary blocks. It *can* be read by name
+                    // while every site that would re-emit the name — the load's
+                    // uses and the (transitively inlined) pure values built from
+                    // them — stays in the load's own basic block and precedes the
+                    // next write: that block is straight-line, so the place still
+                    // holds what the load read. This removes the `T v = p;`
+                    // materialization the legacy translator never emitted for
+                    // loop-carried and repeatedly-assigned places (`v = i; i++`).
+                    const uint32_t cone = max_use_of(v);
+                    if (cone <= ii) continue;
+                    bool same_block = true;
+                    for (uint32_t j = ii + 1; j <= cone && same_block; ++j) {
+                        if (j < block_starts.size() && block_starts[j]) same_block = false;
+                    }
+                    if (!same_block) continue;
+                    bool wrote = false;
+                    for (uint32_t j = ii + 1; j <= cone && !wrote; ++j) {
+                        if (inst_writes_place(j, pid)) wrote = true;
+                    }
+                    if (wrote) continue;
                 }
                 inline_expr[v] = place_name(module, function, pid);
                 continue;

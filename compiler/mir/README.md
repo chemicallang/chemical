@@ -106,6 +106,112 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 59 (2026-10-20) — the interning caches' containers, lock elision on the byte pools, an O(1) inline-struct set
+
+Action D turned out not to be dominated by any *algorithm* left in MIR (the
+quadratic scans are gone) but by the **containers the interning caches use** and
+by **locking the shipping path does not need**. Four changes, all
+output-invariant (verified byte-for-byte on the emitted C, below):
+
+**`compiler/mir/MIRKeyMap.h` (new).** Every module-level interning cache is the
+same shape — a 64-bit key (a hash, a pointer, a packed `(declaration, kind)`) to
+a small dense id — and every one of them was a `std::unordered_map` (one
+allocation per node, a pointer chase per probe, a modulo by a prime bucket count
+per lookup) or, in the type builder, a `std::map` (a red-black tree compared key
+by key). `MIRKeyMap` is a flat power-of-two open-addressing map with a splitmix64 probe,
+linear probing and doubling growth; `find`/`set`/`clear` only, and the ids are
+assigned by the caller, so the map's layout can never affect the result.
+It replaces five containers:
+
+- `MIRTypeTable::intern_index_` (was `unordered_map<uint64_t, TypeId>`), hit once
+  per interned type,
+- `MIRConstantPool::index_` (was `unordered_map<uint64_t, ConstantId>`), hit once
+  per interned constant,
+- `MIRTypeBuilder::memo_` and its per-thread twin (were
+  `unordered_map<const BaseType*, TypeId>`), hit once per mapped AST type —
+  900k times on the plugin suite,
+- `MIRTypeBuilder::decl_ids_` + `decl_types_` (two `std::map`s keyed by
+  `(declaration, aggregate kind)`), hit once per mapped aggregate — 80k times.
+  The two maps also merged into one: the sequential `decl` id the first existed
+  to hand out is already the record's `MIRTypeRecord::decl`, so `next_decl_id_`
+  plus one map per aggregate kind (the kind used to be half the key) reproduces
+  exactly the same ids in exactly the same creation order.
+
+**Byte pools honour the single-writer lock policy.** `MIRBytePool` was the one
+table that still took a `std::shared_mutex` on every `append` — and it is on the
+path of every field name, type name, symbol name and string payload (193k
+appends per plugin-suite compile), while its readers were already lock-free (the
+entries never move). It now owns a `MIRTableLockPolicy` like the rest of the
+module tables and is wired from `MIRModule::set_single_threaded`, so the shipping
+single-writer pipeline appends without taking a lock and the parallel phase
+(`kEnableParallelLowering`) still serialises.
+
+**`record_inline_struct` is a flag per type id, not a scan.** `map()` calls it
+for every struct type it resolves and the dedup was a linear scan of
+`inline_structs`, so the cost grew quadratically with a module's aggregate count.
+Type ids are dense, so a `std::vector<uint8_t>` indexed by id answers it in O(1)
+(the mutex is also elided in single-writer mode). `MIRModule::clear` now clears
+both tables (it previously kept `inline_structs`).
+
+**`get()` returns a reference.** `MIRTypeTable`/`MIRConstantPool`/`MIRSymbolTable`
+`get()` returned their record **by value** — a 44-byte copy of every `TypeId`
+lookup, which is the most frequent read in the compiler (every operand's type, on
+every lowered expression and every emitted instruction). Session 45 made them
+by-value because the record vectors could realloc under a reader; session 55's
+stable array removed that reason (elements never move), so the copy is pure cost.
+300 call sites, no behaviour change (the record is append-only and immutable
+after the build phase).
+
+**Dead preamble deleted.** `MIRDeclEmitter::emit_preamble` (95 lines, 4.5 KB of
+text plus its string literals) was never called — `CTranslationContext::prepare_translate`
+emits the real preamble — so it was a second, silently drifting copy of the same
+`#define`/typedef block. Removed (confirmed dead with a `--gc-sections` probe
+build, which is also how the rest of the list was produced).
+
+**Measured** (`Release` `TCCCompiler`, `debug_quick`, `--no-cache`, interleaved
+A/B, same machine):
+
+| Workload / metric | HEAD | Session 59 | Δ |
+|---|---:|---:|---:|
+| Plugin suite (`-arg-test-plugins`) user, median of 6 | 2.765 s | 2.705 s | **−2.2%** |
+| Plugin suite wall, median of 6 | 2.08 s | 2.005 s | **−3.6%** |
+| Main suite (`-arg-minimal`) user, median of 9 | 0.61 s | 0.60 s | **−1.6%** |
+| Main suite wall, median of 9 | 0.48 s | 0.47 s | **−2.1%** |
+| Peak RSS (plugin suite) | 145.4–148.1 MB | 144.3–147.0 MB | flat |
+| `TCCCompiler` binary | 5,216,064 B | 5,200,816 B | **−15,248 B (−0.29%)** |
+
+Sampling profile (`-pg`) puts the moved terms where the change is: `map`'s self
+time dropped 6.2% → 2.7% of the run, and the `_Hashtable`/`_Rb_tree`
+instantiations the interning caches needed are gone from the binary.
+
+**Output-invariant, by diff.** The emitted C of every module of two suites (main
+suite 26 files, plugin suite 26 files) is **byte-identical** between the two
+binaries (`diff -r` → 0 lines).
+
+**Rejected on measurement (kept here so they are not re-tried):**
+
+- *Canonical-id caches for pointer/primitive types* (a dense per-thread
+  `pointee -> TypeId` table, removing ~360k of the 400k `intern` calls). Measured
+  **0%** wall-clock change and **+33 KB** of binary — `intern`'s hash hint already
+  answers these. It also has to be per-thread, not a builder member: lowering
+  runs on a `ctpl::thread_pool` worker and a growing member vector there was a
+  real heap corruption. Not landed.
+- *Opcode metadata tables* (`opcode_flags`/`opcode_name`/`opcode_portability` as
+  `constexpr` arrays instead of switches, ~2–4 KB and one indexed load per
+  instruction). GCC rejects the natural spelling of it — non-trivial designated
+  array initializers (`[static_cast<uint32_t>(MIROpcode::X)] = …`) are
+  unimplemented — and the template/`index_sequence` workaround reintroduces the
+  same three parallel lists it was meant to remove. Not landed.
+- *Dropping `intern`'s fallback linear scan* (it exists so a record mutated after
+  interning can still be found). Skipping it entirely measured **no** change, so
+  the safety net stays.
+
+| Suite | Result |
+|---|---|
+| `MIRTests` | **4524 checks** (new `test_key_map`) |
+| `--tcc` | **2307/2307** |
+| `--llvm` | **2305/2305** |
+
 ### Session 58 (2026-10-20) — short-circuit `&&`/`||` reconstruction in the C emitter (action C)
 
 `a && b` / `a || b` lower to a CFG shape the legacy 2c translator never

@@ -49,7 +49,10 @@ struct MIRSymbolRecord {
 
 struct MIRSymbolTable {
     /** Declare a single mutating thread (see MIRTableLock.h). */
-    void set_single_threaded(bool v) noexcept { lock_policy_.set_single_threaded(v); }
+    void set_single_threaded(bool v) noexcept {
+        lock_policy_.set_single_threaded(v);
+        names.set_single_threaded(v);
+    }
     bool single_threaded() const noexcept { return lock_policy_.single_threaded(); }
     /** `names` is reference-stable on append (action E3, see MIRBytePool.h);
      * `symbols` is a stable append-only array so readers need no lock (action
@@ -57,8 +60,8 @@ struct MIRSymbolTable {
     MIRStableArray<MIRSymbolRecord> symbols;
     MIRBytePool names;
 
-    /** Lock-free copy of the record (action E3d). */
-    MIRSymbolRecord get(SymbolId id) const {
+    /** Lock-free read of the record (the symbols array is stable on append). */
+    const MIRSymbolRecord& get(SymbolId id) const {
         return symbols[id];
     }
     uint32_t size() const {

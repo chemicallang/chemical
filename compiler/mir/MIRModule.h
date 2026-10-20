@@ -116,13 +116,23 @@ struct MIRModule {
      * `second` is a `BaseType*` (a `StructType`).
      */
     std::vector<std::pair<uint32_t, void*>> inline_structs;
+    /**
+     * "Already recorded" flags indexed by type id. The dedup used to be a linear
+     * scan of `inline_structs` on **every** mapped struct type — `map()` calls
+     * this for each struct it resolves — so the cost grew quadratically with the
+     * number of aggregate types in a module. Type ids are dense, so a flag per id
+     * makes the check O(1).
+     */
+    std::vector<uint8_t> inline_struct_seen_;
     /** Guards `inline_structs` (appended from parallel lowering workers). */
     std::mutex inline_structs_mtx_;
     void record_inline_struct(uint32_t id, void* type) {
-        std::lock_guard<std::mutex> lock(inline_structs_mtx_);
-        for (auto& p : inline_structs) {
-            if (p.first == id) return;
-        }
+        if (id == MIR_INVALID_ID) return;
+        std::unique_lock<std::mutex> lock(inline_structs_mtx_, std::defer_lock);
+        if (!single_threaded()) lock.lock();
+        if (id >= inline_struct_seen_.size()) inline_struct_seen_.resize(id + 1, 0);
+        else if (inline_struct_seen_[id]) return;
+        inline_struct_seen_[id] = 1;
         inline_structs.emplace_back(id, type);
     }
 
@@ -136,6 +146,8 @@ struct MIRModule {
         vtables.clear();
         declarations.clear();
         source_files.clear();
+        inline_structs.clear();
+        inline_struct_seen_.clear();
     }
 };
 

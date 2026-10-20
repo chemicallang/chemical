@@ -21,6 +21,7 @@
 #pragma once
 
 #include "MIRStableArray.h"
+#include "MIRTableLock.h"
 
 #include <cstdint>
 #include <shared_mutex>
@@ -34,9 +35,19 @@ public:
     MIRBytePool(const MIRBytePool&) = delete;
     MIRBytePool& operator=(const MIRBytePool&) = delete;
 
+    /**
+     * Declare that one thread performs every append (see MIRTableLock.h). The
+     * shipping pipeline is single-writer, and this pool is on the lowering hot
+     * path — one `append` per aggregate field name, type name and symbol name —
+     * so taking a `shared_mutex` there was pure overhead on the one path that
+     * runs most often. Readers were already lock-free (the entries never move).
+     */
+    void set_single_threaded(bool v) noexcept { lock_policy_.set_single_threaded(v); }
+    bool single_threaded() const noexcept { return lock_policy_.single_threaded(); }
+
     /** Append `n` bytes and return the entry index (the stable "offset"). */
     uint32_t append(const char* s, uint32_t n) {
-        std::lock_guard<std::shared_mutex> lock(mtx_);
+        MIRWriteLock lock(mtx_, single_threaded());
         return entries_.push_back(std::string(s, n));
     }
 
@@ -54,11 +65,12 @@ public:
 
     /** Drop every entry (writer-only barrier; no concurrent readers). */
     void clear() {
-        std::lock_guard<std::shared_mutex> lock(mtx_);
+        MIRWriteLock lock(mtx_, single_threaded());
         entries_.clear();
     }
 
 private:
+    MIRTableLockPolicy lock_policy_;
     mutable std::shared_mutex mtx_;
     MIRStableArray<std::string> entries_;
 };

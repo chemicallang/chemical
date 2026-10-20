@@ -135,12 +135,18 @@ void MIRTypeBuilder::ensure_inline_struct_name(TypeId id, BaseType* struct_type)
 }
 
 TypeId MIRTypeBuilder::aggregate_type(MIRTypeKind kind, const void* decl, BaseType* type) {
-    const auto agg_key = std::make_pair(decl, static_cast<uint8_t>(kind));
-    auto it = decl_types_.find(agg_key);
-    if (it != decl_types_.end()) return it->second;
+    // Keyed by (declaration node, aggregate kind): the AST arena reuses addresses
+    // after a file allocator reset, so keying on the bare pointer would collide a
+    // struct and a variant that happened to land on the same address. One flat
+    // map per kind does the same job as the single `std::map` keyed on the pair
+    // (the kind is a small dense enum), without the tree walk `aggregate_type`
+    // paid on every one of its calls.
+    const uint32_t kind_slot = static_cast<uint32_t>(kind) & (kDeclKindSlots - 1u);
+    const uint64_t decl_key = reinterpret_cast<uintptr_t>(decl);
+    const uint32_t cached = decl_types_[kind_slot].find(decl_key);
+    if (cached != MIRKeyMap::kNotFound) return cached;
 
-    uint32_t did = static_cast<uint32_t>(decl_ids_.size());
-    decl_ids_[agg_key] = did;
+    const uint32_t did = next_decl_id_++;
 
     MIRTypeRecord r;
     r.kind = kind;
@@ -165,7 +171,7 @@ TypeId MIRTypeBuilder::aggregate_type(MIRTypeKind kind, const void* decl, BaseTy
     }
 
     TypeId id = module_.types.push(r);
-    decl_types_[agg_key] = id;
+    decl_types_[kind_slot].set(decl_key, id);
     if (name_resolver_ && decl) {
         std::string name = name_resolver_(reinterpret_cast<ASTNode*>(const_cast<void*>(decl)));
         if (!name.empty()) {
@@ -445,16 +451,17 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
             tm->epoch = e;
             tm->memo.clear();
         }
-        auto hit = tm->memo.find(type);
-        if (hit != tm->memo.end()) return hit->second;
+        const uint32_t hit = tm->memo.find(reinterpret_cast<uintptr_t>(type));
+        if (hit != MIRKeyMap::kNotFound) return hit;
     }
     std::unique_lock<std::recursive_mutex> lk(builder_mtx_, std::defer_lock);
     if (multi) lk.lock();
 
-    auto it = memo_.find(type);
-    if (it != memo_.end()) {
-        if (tm) tm->memo[type] = it->second;
-        return it->second;
+    const uint64_t type_key = reinterpret_cast<uintptr_t>(type);
+    const uint32_t memo_hit = memo_.find(type_key);
+    if (memo_hit != MIRKeyMap::kNotFound) {
+        if (tm) tm->memo.set(type_key, memo_hit);
+        return memo_hit;
     }
 
     TypeId id = opaque_type();
@@ -632,8 +639,8 @@ TypeId MIRTypeBuilder::map(BaseType* type) {
             break;
     }
 
-    memo_[type] = id;
-    if (tm) tm->memo[type] = id;
+    memo_.set(type_key, id);
+    if (tm) tm->memo.set(type_key, id);
     return id;
 }
 

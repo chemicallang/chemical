@@ -8,6 +8,7 @@
 
 #include "MIRTypes.h"
 #include "MIRBytePool.h"
+#include "MIRKeyMap.h"
 #include "MIRStableArray.h"
 #include "MIRTableLock.h"
 
@@ -40,7 +41,10 @@ struct MIRConstant {
 
 struct MIRConstantPool {
     /** Declare a single mutating thread (see MIRTableLock.h). */
-    void set_single_threaded(bool v) noexcept { lock_policy_.set_single_threaded(v); }
+    void set_single_threaded(bool v) noexcept {
+        lock_policy_.set_single_threaded(v);
+        data.set_single_threaded(v);
+    }
     bool single_threaded() const noexcept { return lock_policy_.single_threaded(); }
     /** `data` (the payload bytes) is reference-stable on append (action E3,
      * see MIRBytePool.h); `constants` is a stable append-only array so readers
@@ -48,10 +52,10 @@ struct MIRConstantPool {
     MIRStableArray<MIRConstant> constants;
     MIRBytePool data;
     /** hash -> a representative constant id (see `add`) */
-    std::unordered_map<uint64_t, ConstantId> index_;
+    MIRKeyMap index_;
 
-    /** Lock-free copy of the record (action E3d). */
-    MIRConstant get(ConstantId id) const {
+    /** Lock-free read of the record (the constants array is stable on append). */
+    const MIRConstant& get(ConstantId id) const {
         return constants[id];
     }
     uint32_t size() const {
@@ -170,20 +174,20 @@ private:
     ConstantId add_unlocked(const MIRConstant& c) {
         const uint64_t h = hash_of(c);
         const uint32_t n = constants.size();
-        auto hit = index_.find(h);
-        if (hit != index_.end() && hit->second < n && matches(constants[hit->second], c)) {
-            return hit->second;
+        const uint32_t hit = index_.find(h);
+        if (hit != MIRKeyMap::kNotFound && hit < n && matches(constants[hit], c)) {
+            return hit;
         }
         const uint32_t found = constants.find_writer([this, &c](const MIRConstant& r) {
             return matches(r, c);
         });
         if (found != MIRStableArray<MIRConstant>::kNotFound) {
-            index_[h] = found;
+            index_.set(h, found);
             return found;
         }
         constants.push_back(c);
         const ConstantId id = static_cast<ConstantId>(n);
-        index_[h] = id;
+        index_.set(h, id);
         return id;
     }
 

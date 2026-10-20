@@ -8,13 +8,12 @@
 #pragma once
 
 #include "MIRModule.h"
+#include "MIRKeyMap.h"
 
 #include <atomic>
 #include <functional>
-#include <map>
 #include <mutex>
 #include <string>
-#include <unordered_map>
 #include <utility>
 
 class BaseType;
@@ -222,13 +221,19 @@ public:
 
 private:
     MIRModule& module_;
-    std::unordered_map<const BaseType*, TypeId> memo_;
-    // Keyed by (declaration node, aggregate kind): the AST arena reuses
-    // addresses after a file allocator reset, so keying on the bare pointer
-    // would collide a struct and a variant that happened to land on the same
-    // address.
-    std::map<std::pair<const void*, uint8_t>, uint32_t> decl_ids_;
-    std::map<std::pair<const void*, uint8_t>, TypeId> decl_types_;
+    /** `BaseType*` -> `TypeId` for every type `map` has already resolved. */
+    MIRKeyMap memo_;
+    /**
+     * Aggregate declaration -> `TypeId`, one flat map per aggregate kind (the
+     * kind used to be half of a `std::map` key; `MIRKeyMap` stores a single
+     * 64-bit key, so the kind selects the map instead).
+     */
+    static constexpr uint32_t kDeclKindSlots = 16;
+    static_assert(kDeclKindSlots > static_cast<uint32_t>(MIRTypeKind::Opaque),
+                  "one decl map per MIRTypeKind (raise kDeclKindSlots when a kind is added)");
+    MIRKeyMap decl_types_[kDeclKindSlots];
+    /** The next `MIRTypeRecord::decl` id an aggregate is given, in creation order. */
+    uint32_t next_decl_id_ = 0;
     std::function<std::string(ASTNode*)> name_resolver_;
     TypeId fat_pointer_id_ = MIR_INVALID_ID;
     uint32_t inline_counter_ = 0;
@@ -256,7 +261,7 @@ private:
      */
     struct ThreadMemo {
         uint64_t epoch = 0;
-        std::unordered_map<const BaseType*, TypeId> memo;
+        MIRKeyMap memo;
     };
     static ThreadMemo& thread_memo() {
         static thread_local ThreadMemo tm;

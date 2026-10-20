@@ -7,6 +7,7 @@
 
 #include "MIRTypes.h"
 #include "MIRBytePool.h"
+#include "MIRKeyMap.h"
 #include "MIRStableArray.h"
 #include "MIRTableLock.h"
 
@@ -138,7 +139,11 @@ struct MIRTypeTable {
      * stay safe because there is no concurrent writer. Leave this off when
      * several lowering workers intern into the table (see MIRTableLock.h).
      */
-    void set_single_threaded(bool v) noexcept { lock_policy_.set_single_threaded(v); }
+    void set_single_threaded(bool v) noexcept {
+        lock_policy_.set_single_threaded(v);
+        names.set_single_threaded(v);
+        field_names.set_single_threaded(v);
+    }
     bool single_threaded() const noexcept { return lock_policy_.single_threaded(); }
     /**
      * Three storage classes, chosen by how the container is *read* (action E3):
@@ -262,10 +267,14 @@ struct MIRTypeTable {
     }
 
     /**
-     * Lock-free copy of the record (action E3d: `types` is an append-only stable
-     * array, so another worker's append never moves the record a reader copies).
+     * Lock-free read of the record (action E3d: `types` is an append-only stable
+     * array, so another worker's append never moves the record, and a reader's
+     * reference stays valid). A reference, not a copy: this is the single most
+     * frequent table read in the compiler (every operand's type, on every
+     * lowered expression and every emitted instruction), and the record is 44
+     * bytes.
      */
-    MIRTypeRecord get(TypeId id) const {
+    const MIRTypeRecord& get(TypeId id) const {
         return types[id];
     }
     uint32_t size() const {
@@ -302,21 +311,20 @@ struct MIRTypeTable {
         MIRWriteLock lock(mtx_, single_threaded());
         const uint64_t h = hash_of(rec);
         const uint32_t n = types.size();
-        auto hit = intern_index_.find(h);
-        if (hit != intern_index_.end() && hit->second < n &&
-            equal(types[hit->second], rec)) {
-            return hit->second;
+        const uint32_t hit = intern_index_.find(h);
+        if (hit != MIRKeyMap::kNotFound && hit < n && equal(types[hit], rec)) {
+            return hit;
         }
         const uint32_t found = types.find_writer([this, &rec](const MIRTypeRecord& r) {
             return equal(r, rec);
         });
         if (found != MIRStableArray<MIRTypeRecord>::kNotFound) {
-            intern_index_[h] = found;
+            intern_index_.set(h, found);
             return found;
         }
         types.push_back(rec);
         const TypeId id = static_cast<TypeId>(n);
-        intern_index_[h] = id;
+        intern_index_.set(h, id);
         return id;
     }
 
@@ -367,7 +375,7 @@ struct MIRTypeTable {
      * Only ids whose current record was verified against the querying record are
      * returned, so a stale or mutated entry can never be handed out.
      */
-    std::unordered_map<uint64_t, TypeId> intern_index_;
+    MIRKeyMap intern_index_;
 
     bool equal(const MIRTypeRecord& a, const MIRTypeRecord& b) const {
         if (a.kind != b.kind || a.flags != b.flags || a.size != b.size ||

@@ -56,6 +56,54 @@ static bool test_arena() {
     return true;
 }
 
+// ── key map (the interning caches' hash map) ───────────────────────────────
+static bool test_key_map() {
+    MIRKeyMap m;
+    CHECK(m.find(1) == MIRKeyMap::kNotFound);
+    CHECK(m.size() == 0);
+
+    m.set(1, 10);
+    m.set(2, 20);
+    m.set(3, 30);
+    CHECK(m.find(1) == 10);
+    CHECK(m.find(2) == 20);
+    CHECK(m.find(3) == 30);
+    CHECK(m.find(4) == MIRKeyMap::kNotFound);
+    CHECK(m.size() == 3);
+
+    // overwrite does not add an entry
+    m.set(2, 22);
+    CHECK(m.find(2) == 22);
+    CHECK(m.size() == 3);
+
+    // grow well past the initial capacity, then verify every entry survived the
+    // rehashes (one check for the whole scan, not one per entry)
+    for (uint32_t i = 0; i < 5000; ++i) m.set(1000u + i, i + 1u);
+    bool all_present = m.size() == 5003;
+    for (uint32_t i = 0; i < 5000 && all_present; ++i) {
+        all_present = m.find(1000u + i) == i + 1u;
+    }
+    CHECK(all_present);
+    CHECK(m.find(1) == 10);
+    CHECK(m.find(4) == MIRKeyMap::kNotFound);
+
+    // keys that hash to the same probe start still resolve (the map verifies the
+    // full key, it does not trust the hash)
+    const uint64_t base = 0x9E3779B97F4A7C15ull;
+    m.set(base, 777);
+    CHECK(m.find(base) == 777);
+
+    m.clear();
+    CHECK(m.size() == 0);
+    CHECK(m.find(1) == MIRKeyMap::kNotFound);
+    CHECK(m.find(1000) == MIRKeyMap::kNotFound);
+    // reusable after clear
+    m.set(5, 50);
+    CHECK(m.find(5) == 50);
+    CHECK(m.size() == 1);
+    return true;
+}
+
 // ── instruction encoding ───────────────────────────────────────────────────
 static bool test_instruction_encoding() {
     MIRInstruction inst = MIRInstruction::make(MIROpcode::Binary);
@@ -1620,6 +1668,7 @@ static bool test_interpreter_roundtrip() {
 int main() {
     bool ok = true;
     ok &= test_arena();
+    ok &= test_key_map();
     ok &= test_instruction_encoding();
     ok &= test_table_thread_safety();
     ok &= test_function_build_dump();

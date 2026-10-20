@@ -66,9 +66,6 @@ public:
     /** Callback used to fold a global initializer to a compile-time constant. */
     void set_value_eval(std::function<Value*(Value*)> fn) { value_eval_ = std::move(fn); }
 
-    /** Emit the fixed preamble (typedefs, malloc/free, macros). */
-    void emit_preamble(BufferedWriter& w);
-
     // The declare pass *records* declarations into `module_.declarations` (it
     // still walks the AST — it is the collection pass); `print_decl_list` renders
     // them with the AST-free `MIRDeclPrinter::decl_list_c` (action A3).

@@ -305,22 +305,36 @@ void verify_container_composition(TypeVerifier& verifier, MembersContainer* cont
     }
 }
 
+void verify_container_field_types(TypeVerifier& verifier, MembersContainer* container) {
+    for(const auto var : container->variables()) {
+        if(var == nullptr) continue;
+        const auto type = var->known_type();
+        if(type == nullptr) continue;
+        if(type->canonical()->kind() == BaseTypeKind::Void) {
+            verifier.diagnoser.error(var) << "a container member cannot have type void";
+        }
+    }
+}
+
 void TypeVerifier::VisitStructDecl(StructDefinition* def) {
     RecursiveVisitor::VisitStructDecl(def);
     verify_container_inherited(*this, def);
     verify_container_composition(*this, def);
+    verify_container_field_types(*this, def);
 }
 
 void TypeVerifier::VisitUnionDecl(UnionDef* def) {
     RecursiveVisitor::VisitUnionDecl(def);
     verify_container_inherited(*this, def);
     verify_container_composition(*this, def);
+    verify_container_field_types(*this, def);
 }
 
 void TypeVerifier::VisitVariantDecl(VariantDefinition* def) {
     RecursiveVisitor::VisitVariantDecl(def);
     verify_container_inherited(*this, def);
     verify_container_composition(*this, def);
+    verify_container_field_types(*this, def);
 }
 
 void TypeVerifier::VisitInterfaceDecl(InterfaceDefinition* interface) {
@@ -675,6 +689,24 @@ void verify_call_mutability(TypeVerifier& verifier, FunctionCall* call) {
         if(self_param) {
             const auto grandpa = get_parent_from(parent_val);
             if(grandpa) {
+                const auto grandpa_linked = grandpa->get_chain_last_linked();
+                if(grandpa_linked) {
+                    switch(grandpa_linked->kind()) {
+                        case ASTNodeKind::StructDecl:
+                        case ASTNodeKind::GenericStructDecl:
+                        case ASTNodeKind::UnionDecl:
+                        case ASTNodeKind::GenericUnionDecl:
+                        case ASTNodeKind::VariantDecl:
+                        case ASTNodeKind::GenericVariantDecl:
+                        case ASTNodeKind::InterfaceDecl:
+                        case ASTNodeKind::GenericInterfaceDecl:
+                        case ASTNodeKind::EnumDecl:
+                            diagnoser.error(call) << "method call requires a receiver, but the parent is a type declaration rather than a value";
+                            return;
+                        default:
+                            break;
+                    }
+                }
                 if(!self_param->type->is_mutable()) {
                     // if self param is immutable, we don't need to check anything
                 } else {
@@ -1806,6 +1838,9 @@ void TypeVerifier::VisitDeleteStmt(DestructStmt* node) {
 }
 
 void TypeVerifier::VisitFunctionDecl(FunctionDeclaration *decl) {
+    if(decl->attrs.is_extern && !decl->is_comptime() && decl->body.has_value()) {
+        diagnoser.error(decl) << "an `@extern` function cannot have a body; remove the body or the `@extern` annotation";
+    }
     if(decl->is_async()) {
         if(decl->attrs.is_delete_fn) {
             diagnoser.error(decl) << "an async function cannot be a destructor (suspension is forbidden in `@delete`)";

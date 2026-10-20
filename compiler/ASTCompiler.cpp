@@ -188,6 +188,11 @@ int ASTProcessor::mir_compile_module(Codegen& gen, LabModule* module) {
 
     mir_llvm_collect = true;
     mir_llvm_finish = [&](mir::MIRTypeBuilder& types, mir::MIRModule& m) {
+        // Recursive aggregates may have been laid out while one of their
+        // by-value fields was still incomplete (see
+        // `MIRTypeBuilder::finalize_layouts`); every lowering worker has
+        // stopped by now, so publish the final sizes before emission.
+        types.finalize_layouts();
         mir_emit_llvm_module(gen, module, types, m);
     };
 

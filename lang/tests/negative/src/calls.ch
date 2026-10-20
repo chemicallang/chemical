@@ -19,8 +19,8 @@ func neg_call_mutable_self_immutable(env : &mut TestEnv) {
 func neg_call_no_implicit_self(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct S {\n    var x : int\n    func get(&self) : int { return x }\n}\nfunc main() {\n    var v = S.get()\n}\n"
-    // calling a method without a receiver fails during C translation
-    expect_compile_error(env, "call_no_implicit_self", ch, "couldn't compile")
+    // calling a method without a receiver is rejected by the frontend
+    expect_compile_error(env, "call_no_implicit_self", ch, "requires a receiver")
 }
 
 @test

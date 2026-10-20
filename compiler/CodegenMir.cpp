@@ -673,6 +673,16 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
         }
         return -1;
     };
+    // Translate a MIR field index into the LLVM struct-element index. They
+    // differ whenever the aggregate's access layout has a padding element
+    // (alignment or explicit `@align`), which shifts every later field. `mir_type`
+    // must publish the plan first; argument evaluation order is unspecified, so
+    // do it here rather than relying on the caller's other arguments.
+    auto field_elem = [&](TypeId agg, int fi) -> uint32_t {
+        if (fi < 0) return 0;
+        (void)mir_type(m, agg);
+        return mir_field_elem(agg, static_cast<uint32_t>(fi));
+    };
 
     // Resolve a (possibly dotted) field path into a chain of struct field
     // indices. Variant payload fields are spelled `Case.param`; an inherited
@@ -898,10 +908,10 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
         if (term) {
             llvm::IRBuilder<> top(term);
             gep = top.CreateStructGEP(mir_type(m, agg), frame_ptr_value,
-                                      static_cast<uint32_t>(fi));
+                                      field_elem(agg, fi));
         } else {
             gep = builder->CreateStructGEP(mir_type(m, agg), frame_ptr_value,
-                                           static_cast<uint32_t>(fi));
+                                           field_elem(agg, fi));
         }
         places[p] = gep;
         return gep;
@@ -2159,7 +2169,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     const int st_fi = field_index(frame_ty, "__state");
                     if (st_fi >= 0) {
                         llvm::Value* stp = builder->CreateStructGEP(
-                            mir_type(m, frame_ty), frp, static_cast<uint32_t>(st_fi));
+                            mir_type(m, frame_ty), frp, field_elem(frame_ty, st_fi));
                         builder->CreateStore(builder->getInt32(-1), stp);
                     }
                     const TypeId poll_ty = poll_ty_op->type();
@@ -2179,7 +2189,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                         const int res_fi = field_index(frame_ty, "__result");
                         if (res_fi >= 0 && ready_value_ty < m.types.size()) {
                             llvm::Value* resp = builder->CreateStructGEP(
-                                mir_type(m, frame_ty), frp, static_cast<uint32_t>(res_fi));
+                                mir_type(m, frame_ty), frp, field_elem(frame_ty, res_fi));
                             llvm::Value* rv = builder->CreateLoad(
                                 mir_type(m, ready_value_ty), resp);
                             builder->CreateStore(rv, slot);
@@ -2209,7 +2219,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     const int st_fi = field_index(frame_ty, "__state");
                     if (st_fi >= 0) {
                         llvm::Value* stp = builder->CreateStructGEP(
-                            mir_type(m, frame_ty), frp, static_cast<uint32_t>(st_fi));
+                            mir_type(m, frame_ty), frp, field_elem(frame_ty, st_fi));
                         builder->CreateStore(builder->getInt32(static_cast<uint32_t>(st)), stp);
                     }
                     const TypeId handle_ty = handle_ty_op->type();
@@ -2217,13 +2227,13 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     const int frame_fi = field_index(handle_ty, "frame");
                     if (frame_fi >= 0) {
                         llvm::Value* fp_slot = builder->CreateStructGEP(
-                            handle_ll, sp, static_cast<uint32_t>(frame_fi));
+                            handle_ll, sp, field_elem(handle_ty, frame_fi));
                         builder->CreateStore(frp, fp_slot);
                     }
                     const int vtbl_fi = field_index(handle_ty, "vtbl");
                     if (vtbl_fi >= 0) {
                         llvm::Value* vtbl_slot = builder->CreateStructGEP(
-                            handle_ll, sp, static_cast<uint32_t>(vtbl_fi));
+                            handle_ll, sp, field_elem(handle_ty, vtbl_fi));
                         const TypeId vtbl_field_ty = m.types.field_of(handle_ty, vtbl_fi)->type;
                         const TypeId table_ty =
                             (vtbl_field_ty < m.types.size())
@@ -2267,11 +2277,11 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     if (c_frame_fi < 0 || c_vtbl_fi < 0) break;
                     llvm::Type* child_ll = mir_type(m, child_ty);
                     llvm::Value* cframe_slot = builder->CreateStructGEP(
-                        child_ll, cslot, static_cast<uint32_t>(c_frame_fi));
+                        child_ll, cslot, field_elem(child_ty, c_frame_fi));
                     llvm::Value* cframe =
                         builder->CreateLoad(builder->getPtrTy(), cframe_slot);
                     llvm::Value* cvtbl_slot = builder->CreateStructGEP(
-                        child_ll, cslot, static_cast<uint32_t>(c_vtbl_fi));
+                        child_ll, cslot, field_elem(child_ty, c_vtbl_fi));
                     llvm::Value* cvtbl =
                         builder->CreateLoad(builder->getPtrTy(), cvtbl_slot);
                     const TypeId vtbl_ptr_ty = m.types.field_of(child_ty, c_vtbl_fi)->type;
@@ -2280,7 +2290,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     if (t_poll_fi < 0) break;
                     llvm::Type* table_ll = mir_type(m, table_ty);
                     llvm::Value* poll_slot = builder->CreateStructGEP(
-                        table_ll, cvtbl, static_cast<uint32_t>(t_poll_fi));
+                        table_ll, cvtbl, field_elem(table_ty, t_poll_fi));
                     llvm::Value* poll_fn =
                         builder->CreateLoad(builder->getPtrTy(), poll_slot);
                     llvm::FunctionType* poll_ft =
@@ -2300,7 +2310,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     const int cx_fi = field_index(frame_ty, "__cx");
                     if (cx_fi < 0) break;
                     llvm::Value* cx_slot = builder->CreateStructGEP(
-                        mir_type(m, frame_ty), frp, static_cast<uint32_t>(cx_fi));
+                        mir_type(m, frame_ty), frp, field_elem(frame_ty, cx_fi));
                     llvm::Value* cx =
                         builder->CreateLoad(builder->getPtrTy(), cx_slot);
                     builder->CreateCall(poll_ft, poll_fn, {tmp, cframe, cx});
@@ -2311,7 +2321,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     const int tag_i = variant_tag_index(poll_ty);
                     if (tag_i < 0) break;
                     llvm::Value* tagp = builder->CreateStructGEP(
-                        poll_ll, tmp, static_cast<uint32_t>(tag_i));
+                        poll_ll, tmp, field_elem(poll_ty, tag_i));
                     llvm::Value* tag = builder->CreateLoad(builder->getInt32Ty(), tagp);
                     builder->CreateCondBr(
                         builder->CreateICmpNE(tag, builder->getInt32(0)), pend_b, ready_b);
@@ -2321,7 +2331,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     const int st_fi = field_index(frame_ty, "__state");
                     if (resume_state != 0 && st_fi >= 0) {
                         llvm::Value* stp = builder->CreateStructGEP(
-                            mir_type(m, frame_ty), frp, static_cast<uint32_t>(st_fi));
+                            mir_type(m, frame_ty), frp, field_elem(frame_ty, st_fi));
                         builder->CreateStore(
                             builder->getInt32(static_cast<uint32_t>(resume_state)), stp);
                     }
@@ -2335,7 +2345,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                         const int sfi = field_index(frame_ty, fname);
                         if (sfi < 0) continue;
                         llvm::Value* dst = builder->CreateStructGEP(
-                            mir_type(m, frame_ty), frp, static_cast<uint32_t>(sfi));
+                            mir_type(m, frame_ty), frp, field_elem(frame_ty, sfi));
                         const TypeId lpt = fn.places[loc->id].type;
                         llvm::Value* src = place_ptr(loc->id);
                         if (!src) continue;
@@ -2357,7 +2367,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                         llvm::Value* poll_out =
                             builder->CreateLoad(builder->getPtrTy(), rslot);
                         llvm::Value* outp = builder->CreateStructGEP(
-                            poll_ll, poll_out, static_cast<uint32_t>(tag_i));
+                            poll_ll, poll_out, field_elem(poll_ty, tag_i));
                         builder->CreateStore(builder->getInt32(1), outp);
                     }
                     builder->CreateRetVoid();
@@ -2377,7 +2387,7 @@ bool Codegen::mir_emit_function(const mir::MIRModule& m, const mir::MIRFunction&
                     const int t_drop_fi = field_index(table_ty, "drop");
                     if (t_drop_fi >= 0) {
                         llvm::Value* drop_slot = builder->CreateStructGEP(
-                            table_ll, cvtbl, static_cast<uint32_t>(t_drop_fi));
+                            table_ll, cvtbl, field_elem(table_ty, t_drop_fi));
                         llvm::Value* drop_fn =
                             builder->CreateLoad(builder->getPtrTy(), drop_slot);
                         llvm::FunctionType* drop_ft = mir_fn_type(

@@ -15,6 +15,7 @@
 #include "ast/values/BoolValue.h"
 #include "ast/values/StringValue.h"
 #include "ast/types/ReferenceType.h"
+#include "ast/types/PointerType.h"
 #include "ast/base/InterpretScope.h"
 #include "ast/structures/ImplDefinition.h"
 #include "compiler/symres/CoreNodes.h"
@@ -189,6 +190,18 @@ BaseType* Expression::get_determined_type(
         diagnoser.error("boolean values cannot be used with this operator, use the logical operators instead", expr);
         return typeBuilder.getBoolType();
     }
+    // strings are primitive (they decay to a pointer), but arithmetic on them is not
+    // defined. A string type may still provide an overloaded operator, which is handled
+    // above when the type has a members container.
+    if(is_arithmetic_operation) {
+        const auto is_string_kind = [](BaseTypeKind kind) {
+            return kind == BaseTypeKind::String || kind == BaseTypeKind::ExpressiveString;
+        };
+        if(is_string_kind(first_op_kind) || is_string_kind(second_op_kind)) {
+            diagnoser.error("string values cannot be used with this operator", expr);
+            return firstType;
+        }
+    }
     // a negative shift amount is undefined behaviour, so it must be rejected
     if((expr->operation == Operation::LeftShift || expr->operation == Operation::RightShift)
         && expr->secondValue->kind() == ValueKind::NegativeValue) {
@@ -224,6 +237,18 @@ BaseType* Expression::get_determined_type(
     const auto second = secondType->canonical()->canonicalize_enum();
     const auto first_kind = first->kind();
     const auto second_kind = second->kind();
+    // modulo is only defined for integer operands (C's `%` rejects floating point)
+    if(expr->operation == Operation::Modulus) {
+        const auto is_floating_kind = [](BaseTypeKind kind) {
+            return kind == BaseTypeKind::Float || kind == BaseTypeKind::Double ||
+                   kind == BaseTypeKind::LongDouble || kind == BaseTypeKind::Float128 ||
+                   kind == BaseTypeKind::Complex;
+        };
+        if(is_floating_kind(first_kind) || is_floating_kind(second_kind)) {
+            diagnoser.error("the modulo operator requires integer operands", expr);
+            return first;
+        }
+    }
     // operation between integer and float/double results in float/double
     if(first_kind == BaseTypeKind::IntN && (second_kind == BaseTypeKind::Float || second_kind == BaseTypeKind::Double)) {
         return second;
@@ -284,6 +309,12 @@ BaseType* Expression::get_determined_type(
     }
     // subtracting a pointer results in a ulong type
     if(expr->operation == Operation::Subtraction && first_kind == BaseTypeKind::Pointer && second_kind == BaseTypeKind::Pointer) {
+        const auto firstPtr = first->as_pointer_type_unsafe();
+        const auto secondPtr = second->as_pointer_type_unsafe();
+        if(firstPtr->type && secondPtr->type &&
+           !firstPtr->type->canonical()->is_same(secondPtr->type->canonical())) {
+            diagnoser.error("cannot subtract pointers to different types", expr);
+        }
         return typeBuilder.getULongType();
     }
     return first;

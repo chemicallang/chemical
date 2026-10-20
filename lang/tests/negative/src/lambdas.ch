@@ -59,5 +59,5 @@ func neg_fn_expects_lambda_wrong_param(env : &mut TestEnv) {
 func neg_function_not_takes_self(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "func greet(name : *char) { }\nfunc main() {\n    var str = \"hello\"\n    str.greet()\n}\n"
-    expect_compile_error(env, "method_call_no_self", ch, "symbol resolution")
+    expect_compile_error(env, "method_call_no_self", ch, "unresolved child")
 }

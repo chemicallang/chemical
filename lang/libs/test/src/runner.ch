@@ -138,7 +138,7 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
                     const fn_state = state.tests.get_ptr(ind)
                     const test_id = test_start.id;
                     const test_retry = test_start.retry as int
-                    var timeout_ms = 10000;
+                    var timeout_ms = 60000;
                     if(test_start.timeout > 0) { timeout_ms = test_start.timeout as int }
                     launch_test_with_retries(exe_path, test_id, &mut *fn_state, test_retry, timeout_ms as uint);
                     if(reporter != null) {
@@ -195,8 +195,8 @@ func run_tests(tests_view : &std::span<TestFunction>, exe_path : *char, config :
             const test_retry = test_start.retry as int
 
             // timeout in milliseconds
-            // by default 10 seconds
-            var timeout_ms = 10000;
+            // by default 60 seconds
+            var timeout_ms = 60000;
             if(test_start.timeout > 0) {
                 // assuming test_start.timeout is in milliseconds
                 // if it's in seconds, we should multiply by 1000

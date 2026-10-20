@@ -9,13 +9,16 @@ if(intrinsics::is_clang()) {
 // TODO: @extern
 // public var exposed_constant_213 : int
 
-func test_external_functions() {
+public func test_external_cpp_function() {
     comptime if(intrinsics::is_clang()) {
         test("can call function from C++", () => {
             // C++ adds dummy 3 to confuse you
             return check_external_cpp_sum(80, 20) == 103;
         })
     }
+}
+
+func test_external_inline_functions() {
     test("inline functions from external module work - 1", () => {
         return ext_inline_sum_1(29, 2) == 32
     })

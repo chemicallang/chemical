@@ -120,8 +120,26 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                                       : lower_expr(vi->value, error);
                 if (!r.ok()) return false;
                 if (r.kind == MIRExprKind::Place) {
+                    const PlaceId src = static_cast<PlaceId>(r.id);
+                    const TypeId spt = builder_->function().places[src].type;
+                    if (vt != MIR_INVALID_ID && vt < module_.types.size() &&
+                        spt != MIR_INVALID_ID && spt < module_.types.size()) {
+                        const MIRTypeRecord& dr = module_.types.get(vt);
+                        const MIRTypeRecord& sr = module_.types.get(spt);
+                        if ((dr.kind == MIRTypeKind::Pointer ||
+                             dr.kind == MIRTypeKind::Reference) &&
+                            sr.kind == MIRTypeKind::Array) {
+                            // `const t = <array>` where `t` is a slice/pointer:
+                            // decay the array to its first element. A move_init
+                            // would copy the whole array into a pointer-sized
+                            // slot and corrupt the frame.
+                            const TypeId ptrt = types_.pointer_type(sr.element, true);
+                            builder_->store(place, builder_->address_of(src, ptrt));
+                            return true;
+                        }
+                    }
                     // aggregate initializer: move the temporary into the variable
-                    builder_->move_init(place, static_cast<PlaceId>(r.id), vt);
+                    builder_->move_init(place, src, vt);
                     return true;
                 }
                 if (r.kind == MIRExprKind::Address) {
@@ -655,6 +673,25 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 }
             };
             if (r.kind == MIRExprKind::Place) {
+                const PlaceId src = static_cast<PlaceId>(r.id);
+                const TypeId spt = builder_->function().places[src].type;
+                if (place_type != MIR_INVALID_ID && place_type < module_.types.size() &&
+                    spt != MIR_INVALID_ID && spt < module_.types.size()) {
+                    const MIRTypeRecord& dr = module_.types.get(place_type);
+                    const MIRTypeRecord& sr = module_.types.get(spt);
+                    if ((dr.kind == MIRTypeKind::Pointer ||
+                         dr.kind == MIRTypeKind::Reference) &&
+                        sr.kind == MIRTypeKind::Array) {
+                        // array-to-pointer decay on assignment (see the
+                        // VarInitStmt path above); never copy the array into a
+                        // pointer-sized destination.
+                        destroy_old_dest();
+                        const TypeId ptrt = types_.pointer_type(sr.element, true);
+                        builder_->store(place, builder_->address_of(src, ptrt));
+                        mark_initialized();
+                        return true;
+                    }
+                }
                 destroy_old_dest();
                 builder_->emit(MIROpcode::Store, MIR_NULL,
                                {MIROperand::place(place, place_type),
@@ -1257,6 +1294,25 @@ MIRExprResult MIRLowerer::lower_incdec_value(Value* target, bool increment, bool
     // a simple local / parameter
     if (t->val_kind() == ValueKind::Identifier) {
         auto* id = t->as_identifier_unsafe();
+        if (id->linked && id->linked->kind() == ASTNodeKind::CapturedVariable) {
+            auto* cap = id->linked->as_captured_var_unsafe();
+            if (cap->capture_by_ref) {
+                // a by-reference capture is a pointer to the enclosing local:
+                // `count++` increments the referent, never the pointer itself
+                MIRExprResult cr = lower_captured_variable(cap, false, error);
+                if (!cr.ok()) return cr;
+                const ValueId ptr = static_cast<ValueId>(cr.id);
+                const MIRTypeRecord& rr = module_.types.get(cr.type);
+                const TypeId et =
+                    (rr.kind == MIRTypeKind::Reference || rr.kind == MIRTypeKind::Pointer)
+                        ? rr.element
+                        : cr.type;
+                const ValueId cur = builder_->load_indirect(ptr, et);
+                const ValueId nv = builder_->binary(cur, one, opc, et);
+                builder_->store_indirect(ptr, nv);
+                return MIRExprResult::value(post ? cur : nv, et);
+            }
+        }
         PlaceId place = place_for_linked(id->linked);
         if (place == MIR_INVALID_ID) place = place_for_name(id->value);
         if (place != MIR_INVALID_ID) {

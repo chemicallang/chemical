@@ -187,6 +187,28 @@ private:
 
 public:
     /**
+     * Recompute every aggregate/array layout to a fixpoint.
+     *
+     * `fill_aggregate_fields` lays an aggregate out as soon as its fields are
+     * mapped. A pointer field is mapped eagerly to its pointee, so a recursive
+     * type can reach the aggregate that is still being filled:
+     * `JsonValue` → `ordered_map<string, JsonValue>` → `*mut node` → `node`
+     * has a `JsonValue` field whose record exists but still has size 0 at that
+     * moment. The node is then laid out as 56 bytes instead of 104, and
+     * `sizeof` (MIR, used by the LLVM backend and the interpreter) disagrees
+     * with the C backend's own `sizeof`.
+     *
+     * By-value cycles are not valid C, so sizes only grow. Recompute arrays
+     * (their size is derived from the element) and aggregates until no size or
+     * alignment changes; the longest by-value chain bounds the pass count.
+     *
+     * Call after every lowering worker has stopped (the table is mutated
+     * without the write lock here; `compute_aggregate_layout` writes fields
+     * directly).
+     */
+    void finalize_layouts();
+
+    /**
      * Drop the `BaseType*`-keyed memo. The AST file allocator is reset between
      * files, so an address can be reused for a different type; a stale memo
      * would then return the wrong `TypeId`. Call this after each file.

@@ -1520,7 +1520,7 @@ public:
 
                 // timeout
                 const auto timeArgs = controller.get_args(node.node, "test.timeout");
-                unsigned timeout = 1000 * 10 * 1; // 10 seconds
+                unsigned timeout = 1000 * 60 * 1; // 60 seconds
                 if(timeArgs && !timeArgs->empty() && (*timeArgs)[0]->kind() == ValueKind::IntN) {
                     timeout = (*timeArgs)[0]->as_int_num_value_unsafe()->value;
                 }

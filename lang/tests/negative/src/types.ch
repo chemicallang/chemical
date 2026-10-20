@@ -26,8 +26,8 @@ func neg_bool_arithmetic(env : &mut TestEnv) {
 func neg_string_multiply(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "func main() {\n    var x = \"hello\" * 2\n}\n"
-    // string * int fails during C translation, producing a compiler error
-    expect_compile_error(env, "string_multiply", ch, "couldn't compile")
+    // string * int is not a valid arithmetic operation
+    expect_compile_error(env, "string_multiply", ch, "string values cannot be used")
 }
 
 @test

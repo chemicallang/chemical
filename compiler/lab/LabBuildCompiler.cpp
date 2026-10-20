@@ -5030,6 +5030,11 @@ int LabBuildCompiler::do_interpretation_job(LabJob* job) {
         return 1;
     }
 
+    // Every module has been lowered, so recursive aggregate layouts can be
+    // completed (a field may have been laid out while the aggregate it refers
+    // to was still being filled; see `MIRTypeBuilder::finalize_layouts`).
+    mir_program.types->finalize_layouts();
+
     // Resolve main's mangled name exactly as the lowerer interned it.
     std::string main_mangled;
     {

@@ -20,6 +20,8 @@ func run_executable_tests() {
     test_language_features();
     test_downloaded_module()
     test_deref_pass_func_call()
+    // C++ interop needs the native linker; the interpreter cannot call into it
+    test_external_cpp_function();
 
 
     test_variant_native();

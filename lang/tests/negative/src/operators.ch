@@ -36,16 +36,16 @@ func neg_op_shift_negative(env : &mut TestEnv) {
 func neg_op_mul_string(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "func main() {\n    var x = \"hello\" * 3\n}\n"
-    // string * int fails during C translation, producing a compiler error
-    expect_compile_error(env, "mul_string", ch, "couldn't compile")
+    // string * int is not a valid arithmetic operation
+    expect_compile_error(env, "mul_string", ch, "string values cannot be used")
 }
 
 @test
 func neg_op_mod_float(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "func main() {\n    var x = 5.5 % 2.0\n}\n"
-    // float % float fails during C translation, producing a compiler error
-    expect_compile_error(env, "mod_float", ch, "couldn't compile")
+    // float % float is not valid: modulo requires integer operands
+    expect_compile_error(env, "mod_float", ch, "modulo operator requires integer operands")
 }
 
 @test

@@ -325,6 +325,47 @@ void MIRTypeBuilder::fill_aggregate_fields(TypeId id, MIRTypeKind kind, ASTNode*
     compute_aggregate_layout(module_.types, id, explicit_align);
 }
 
+void MIRTypeBuilder::finalize_layouts() {
+    const uint32_t count = module_.types.size();
+    if (count == 0) return;
+
+    // A by-value chain has at most `count` links, so this bounds the fixpoint.
+    for (uint32_t pass = 0; pass <= count; ++pass) {
+        bool changed = false;
+
+        // Arrays derive their extent from the element, which may itself be a
+        // multi-dimensional array or a recursive aggregate.
+        for (TypeId id = 0; id < count; ++id) {
+            MIRTypeRecord& rec = module_.types.types[id];
+            if (rec.kind != MIRTypeKind::Array || rec.data_count == 0) continue;
+            if (rec.element >= count) continue;
+            const MIRTypeRecord& elem = module_.types.types[rec.element];
+            const uint32_t size = elem.size * rec.data_count;
+            if (size != rec.size || elem.alignment != rec.alignment) {
+                rec.size = size;
+                rec.alignment = elem.alignment;
+                changed = true;
+            }
+        }
+
+        for (TypeId id = 0; id < count; ++id) {
+            const MIRTypeRecord before = module_.types.types[id];
+            if (before.kind != MIRTypeKind::Struct && before.kind != MIRTypeKind::Union &&
+                before.kind != MIRTypeKind::Variant) {
+                continue;
+            }
+            if (before.field_index == MIR_INVALID_ID) continue;
+            compute_aggregate_layout(module_.types, id, before.explicit_alignment);
+            const MIRTypeRecord& after = module_.types.types[id];
+            if (after.size != before.size || after.alignment != before.alignment) {
+                changed = true;
+            }
+        }
+
+        if (!changed) break;
+    }
+}
+
 TypeId MIRTypeBuilder::function_type(BaseType* type) {
     auto* ft = type->as_function_type();
     if (!ft) ft = type->get_canonical_function_type();

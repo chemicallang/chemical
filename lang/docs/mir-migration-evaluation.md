@@ -929,6 +929,29 @@ no zero-loop change (session 16 only touched branch and label emission). The
 size half is still missed: what is left in C is the two zeroing classes named
 against item 1 above.
 
+**Status (session 24, 2026-10-20).** Place materialization is the remaining
+lever, not CFG bracketing. Two emitter-only wins: (a) an `Alloca` immediately
+followed by a plain `Store` of itself emits one initialized declaration
+(probe C 9,524 → 9,411, 109 places); (b) a load from a *repeatedly-assigned*
+place is read by name when every site that can re-emit it (the load's uses plus
+the transitively inlined pure values built from them) stays in the load's block
+and precedes the next write — this is what makes `++i` sound and drops the
+loop-carried `v = i;` temporaries (9,411 → **9,198**). Probe exe **409,145 →
+398,376 B**; main-suite executable **3,940,014 → 3,859,166 B**; compile
+time/RSS unchanged (0.62–0.66 s user, ~50.8 MB). `--tcc` **2307/2307**,
+`MIRTests` **4506**.
+
+The C line count now equals legacy **statements** plus exactly the flat CFG:
+9,198 − (627 labels + 674 `goto`) = 7,897 ≈ legacy 7,901. Bracketing
+`if (!c) goto L; … L:;` as `if (c) { … }` replaces two lines with two braces
+(**net 0**), so a further line win needs fewer statements (short-circuit
+`&&`/`||` / expression reconstruction) or shared join labels — not plain CFG
+structuring. The **like-for-like baseline was also corrected** (the recorded
+1.67×/1.35× were taken with `MIR_OPS_COUNTERS=ON`): interleaved, counters off,
+compile **1.42×** user (legacy 0.42–0.47 s vs MIR 0.63–0.66 s), RSS **1.14×**
+(44.2–45.0 vs 50.8–51.4 MB — the ≤1.35× gate now passes), main-suite executable
+**1.18×**. Details in `compiler/mir/README.md` session 24.
+
 ### D. Fix the lowering hot path (P1)
 
 **Symptom.** 2.3× compile time, +40% RSS.

@@ -1504,6 +1504,10 @@ wall 0.48–0.54 s, RSS 44.0 MB**, `tests-tcc.exe 3,243,929 B`; the MIR compiler
 Like-for-like the gates are **1.67× compile (user and wall)**, **1.35× RSS**,
 **1.22× tests exe** — all above the 1.05× acceptance. This session's C work took
 the tests exe from **1.33× → 1.22×** of legacy; the compile/RSS gap is action D.
+**Correction (session 24):** these figures were taken with `MIR_OPS_COUNTERS=ON`
+and are not like-for-like; the counters-off, interleaved re-measurement is
+**1.42× compile / 1.14× RSS / 1.18× executable** (the RSS gate then passes). See
+session 24 below.
 
 **What remains (action C).** The dominant residue is structural, not the removed
 trampolines or the forwarded loads: the legacy 2c emitted **structured** control
@@ -1512,6 +1516,59 @@ flow (`while`, `switch`, `if/else`, ~0 `goto`) while MIR emits a flat CFG (still
 and dense integer branch sets as `switch` is the next (larger) bite. `v = p`
 loads are down to **524** (from 1,162); the remaining `__chx_vN` temporaries are
 mostly aggregates, escaped locals and cross-block uses.
+
+### Session 24 (2026-10-20) — place-store fusion + block-local load forwarding; corrected baseline (action C)
+
+Two emitter-only C wins, then a re-measurement that corrects the recorded
+Release-vs-Release baseline.
+
+1. **`Alloca` + adjacent `Store` fused.** A place whose very next instruction is
+   a plain store of itself now emits one initialized declaration (`T p = <rhs>;`)
+   and the store is skipped, instead of `T p;` + `p = <rhs>;`. The store is
+   adjacent and unconditional, so it is the same program with one fewer line.
+   Probe C **9,524 → 9,411** lines, 109 places fused.
+2. **Repeatedly-assigned places read by name inside their block.** Forwarding a
+   load to its place name previously required that nothing write the place
+   afterwards, which excluded loop-carried/reassigned locals (`v = i; i++`). The
+   relaxation forwards when every site that can re-emit the name — the load's
+   uses *and* the transitively inlined pure values built from them — stays in the
+   load's own basic block and precedes the next write to the place. The cone is
+   what keeps `++i` sound: the inlined `v + 1` is used after `i`'s write, so the
+   load is correctly not forwarded. Probe C **9,411 → 9,198** lines; `trim`
+   **89 → 71** lines.
+
+Measured on the probe (release, same binary, `--emit-c`): C **9,524 → 9,198**
+(−326, −3.4%); probe exe **409,145 → 398,376 B** (−2.6%); main-suite executable
+**3,940,014 → 3,859,166 B** (−2.1%). Compile time and RSS are unchanged (user
+0.62–0.66 s, ~50.8 MB either side) — these are generated-code wins. `--tcc`
+**2307/2307**, `MIRTests` **4506 checks**.
+
+**Corrected Release-vs-Release baseline.** The session-23 figures (user ~1.00 s,
+RSS ~59.6 MB, 1.67×/1.35×) were taken with `MIR_OPS_COUNTERS=ON` and are **not
+like-for-like**; the counters build was reverted but the numbers were not
+re-measured. Interleaved A/B, counters off, three runs each, same machine:
+
+| Axis | Legacy (`basemain`) | MIR (this tree) | Ratio |
+|---|---:|---:|---:|
+| Compile user CPU | 0.42–0.47 s | 0.63–0.66 s | **1.42×** |
+| Compile wall | 0.37–0.42 s | 0.51–0.53 s | **1.31×** |
+| Peak RSS | 44.2–45.0 MB | 50.8–51.4 MB | **1.14×** |
+| Main-suite executable | 3,262,185 B | 3,859,166 B | **1.18×** |
+| Probe C lines | 7,901 | 9,198 | **1.16×** |
+| Probe executable | 341,554 B | 398,376 B | **1.17×** |
+
+The RSS gate (`≤1.35×`) now **passes**; compile (1.42× vs 1.05×) and binary size
+still miss.
+
+**What remains in C.** At 9,198 lines the *statement* count is at legacy parity:
+9,198 − (627 labels + 674 `goto`) = 7,897 ≈ legacy 7,901. What is left is exactly
+the flat CFG, and bracketing `if (!c) goto L; … L:;` as `if (c) { … }` replaces
+two lines with two braces — **net 0**. A further line win needs fewer
+*statements* (short-circuit `&&`/`||` / expression reconstruction), or a
+structured emitter that shares join labels, not plain CFG bracketing. Remaining
+materialization: 2,109 place declarations, 773 place stores, 1,461 value
+declarations (mostly calls/non-pure), 243 unforwarded `v = p` loads (cross-block
+or escaped places).
 
 ### Session 22 (2026-10-15) — one function-prototype ABI (action A3, prototypes)
 

@@ -28,6 +28,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 namespace mir {
@@ -54,6 +55,24 @@ public:
         const uint32_t i = size_;
         T* blk = ensure_block(i >> kBlockShift);
         blk[i & kBlockMask] = v;
+        size_ = i + 1;
+        size_atomic_.store(size_, std::memory_order_release);
+        return i;
+    }
+
+    /**
+     * Append an element constructed in place from `args`; returns its index.
+     *
+     * `push_back(const T&)` copies, which for a `std::string` element means the
+     * caller's temporary allocates once and the copy allocates a second time.
+     * This constructs the value once and *moves* it into the (empty) slot, so a
+     * long entry costs one allocation instead of two plus a free.
+     */
+    template <class... Args>
+    uint32_t emplace_back(Args&&... args) {
+        const uint32_t i = size_;
+        T* blk = ensure_block(i >> kBlockShift);
+        blk[i & kBlockMask] = T(std::forward<Args>(args)...);
         size_ = i + 1;
         size_atomic_.store(size_, std::memory_order_release);
         return i;

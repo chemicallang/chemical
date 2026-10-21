@@ -21,9 +21,11 @@
 #pragma once
 
 #include "MIRStableArray.h"
+#include "MIRKeyMap.h"
 #include "MIRTableLock.h"
 
 #include <cstdint>
+#include <cstring>
 #include <shared_mutex>
 #include <string>
 
@@ -45,10 +47,33 @@ public:
     void set_single_threaded(bool v) noexcept { lock_policy_.set_single_threaded(v); }
     bool single_threaded() const noexcept { return lock_policy_.single_threaded(); }
 
-    /** Append `n` bytes and return the entry index (the stable "offset"). */
+    /**
+     * Append `n` bytes and return the entry index (the stable "offset").
+     *
+     * The index is an opaque handle that callers only ever read back through
+     * `data_at`/`text`, so **identical text shares one entry**: names repeat
+     * constantly in a module (field names, `__chx_*` spellings, repeated symbol
+     * names) and this is the single most frequent allocation site in lowering
+     * (~193k appends on the plugin suite). Deduplicating by content removes both
+     * the entry and, on a hit, the `std::string` allocation.
+     *
+     * The index is a *hint* verified by a byte compare, so a 64-bit hash
+     * collision can never alias two different texts. A colliding append keeps
+     * the existing entry as the hash's representative instead of overwriting it,
+     * so an unindexed duplicate can never ping-pong the entry out of the map.
+     */
     uint32_t append(const char* s, uint32_t n) {
         MIRWriteLock lock(mtx_, single_threaded());
-        return entries_.push_back(std::string(s, n));
+        const uint64_t h = hash_bytes(s, n);
+        const uint32_t hit = index_.find(h);
+        if (hit != MIRKeyMap::kNotFound && hit < entries_.size() &&
+            entries_[hit].size() == n &&
+            (n == 0 || std::memcmp(entries_[hit].data(), s, n) == 0)) {
+            return hit;
+        }
+        const uint32_t id = entries_.emplace_back(s, n);
+        if (hit == MIRKeyMap::kNotFound) index_.set(h, id);
+        return id;
     }
 
     /**
@@ -67,12 +92,24 @@ public:
     void clear() {
         MIRWriteLock lock(mtx_, single_threaded());
         entries_.clear();
+        index_.clear();
     }
 
 private:
+    static uint64_t hash_bytes(const char* s, uint32_t n) {
+        uint64_t h = 1469598103934665603ull;
+        for (uint32_t i = 0; i < n; ++i) {
+            h ^= static_cast<unsigned char>(s[i]);
+            h *= 1099511628211ull;
+        }
+        return h;
+    }
+
     MIRTableLockPolicy lock_policy_;
     mutable std::shared_mutex mtx_;
     MIRStableArray<std::string> entries_;
+    /** content hash -> a representative entry index (a verified hint) */
+    MIRKeyMap index_;
 };
 
 } // namespace mir

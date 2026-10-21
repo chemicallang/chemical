@@ -209,7 +209,14 @@ struct MIRTypeTable {
     TypeId push(const MIRTypeRecord& rec) {
         MIRWriteLock lock(mtx_, single_threaded());
         types.push_back(rec);
-        return static_cast<TypeId>(types.size() - 1);
+        const TypeId id = static_cast<TypeId>(types.size() - 1);
+        // Register the record's hash even though it is not interned: `intern`
+        // relies on "an absent hash means no equal record exists" (see there),
+        // which only holds if every record in the table is discoverable by its
+        // current hash. A record pushed empty and filled by `update` is
+        // re-registered by `update`.
+        intern_index_.set(hash_of(types[id]), id);
+        return id;
     }
 
     /**
@@ -222,6 +229,12 @@ struct MIRTypeTable {
         MIRWriteLock lock(mtx_, single_threaded());
         if (id >= types.size()) return;
         fn(types[id]);
+        // Re-register under the record's *new* hash: `intern` treats an absent
+        // hash as proof that no equal record exists, which requires the index to
+        // follow a mutation of a hashed field (data_count/field_index/…). The
+        // stale entry under the old hash stays; `intern` treats it as a
+        // present-but-unequal hint and falls back to the verified scan.
+        intern_index_.set(hash_of(types[id]), id);
     }
 
     /**
@@ -299,29 +312,54 @@ struct MIRTypeTable {
      * Intern a type record.
      *
      * `intern_index_` is a *hint*, not the source of truth: every hit is
-     * re-checked with `equal` and every miss falls back to the linear scan, so
-     * the result is identical to a pure scan even when a record is mutated after
-     * it was interned (e.g. `fat_pointer_type` fills its fields, frame/aggregate
-     * records get theirs, all of which push directly instead of interning). The
-     * index exists because most `intern` calls re-look-up a handful of types: on
-     * the main suite it turns ~101M `equal` calls into 186k hash lookups plus
-     * ~7M (the fallback scans for the ~1k genuinely new records).
+     * re-checked with `equal`, and a hash that is present but names a different
+     * record falls back to the verified scan, so a record mutated after it was
+     * interned (e.g. `fat_pointer_type` fills its fields, frame/aggregate
+     * records get theirs) can never be aliased. An *absent* hash skips the scan
+     * entirely — see the comment at the insert below.
+     *
+     * The index exists because most `intern` calls re-look-up a handful of
+     * types: on the main suite it turns ~101M `equal` calls into 116k hash
+     * lookups.
      */
     TypeId intern(const MIRTypeRecord& rec) {
-        MIRWriteLock lock(mtx_, single_threaded());
         const uint64_t h = hash_of(rec);
+        if (!single_threaded()) {
+            // Read-mostly: on the main suite 106,337 of 116,157 `intern` calls
+            // are hits, and an *exclusive* lock per hit serialises every
+            // lowering worker (the parallel phase is the only time the lock is
+            // taken at all). Verify the hint under the shared lock and only fall
+            // through to the writer path when the record is not already here.
+            MIRReadLock rl(mtx_, false);
+            const uint32_t hit = intern_index_.find(h);
+            if (hit != MIRKeyMap::kNotFound && hit < types.size() && equal(types[hit], rec)) {
+                return hit;
+            }
+        }
+        MIRWriteLock lock(mtx_, single_threaded());
         const uint32_t n = types.size();
         const uint32_t hit = intern_index_.find(h);
-        if (hit != MIRKeyMap::kNotFound && hit < n && equal(types[hit], rec)) {
-            return hit;
+        if (hit != MIRKeyMap::kNotFound) {
+            // re-checked under the writer lock: another worker may have interned
+            // this record between the shared fast path above and here
+            if (hit < n && equal(types[hit], rec)) return hit;
+            // The hash is present but names a different record: an exact 64-bit
+            // collision, or an entry left stale by a mutation. Only this case
+            // needs the verified scan.
+            const uint32_t found = types.find_writer([this, &rec](const MIRTypeRecord& r) {
+                return equal(r, rec);
+            });
+            if (found != MIRStableArray<MIRTypeRecord>::kNotFound) {
+                intern_index_.set(h, found);
+                return found;
+            }
         }
-        const uint32_t found = types.find_writer([this, &rec](const MIRTypeRecord& r) {
-            return equal(r, rec);
-        });
-        if (found != MIRStableArray<MIRTypeRecord>::kNotFound) {
-            intern_index_.set(h, found);
-            return found;
-        }
+        // An *absent* hash proves no equal record exists, so the scan above is
+        // skipped: `hash_of` is a pure function of exactly the fields `equal`
+        // compares, and every record's current hash is registered (`intern`,
+        // `push` and `update` all set it). Measured on the main suite: 9,820
+        // misses performed 3,898,451 `equal` calls and found **nothing**, so the
+        // scan was pure cost on every genuinely new type.
         types.push_back(rec);
         const TypeId id = static_cast<TypeId>(n);
         intern_index_.set(h, id);

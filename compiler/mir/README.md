@@ -106,6 +106,95 @@ Do not add new functionality to the AST-based declaration path; move it into MIR
 (action A/B in the evaluation doc). Any commit that grows generated C, compile
 time, memory, or the compiler binary must pay for it.
 
+### Session 60 (2026-10-21) — interning stops re-scanning the whole table, read-mostly interning takes the shared lock, the byte pool deduplicates
+
+Session 59 replaced the interning caches' *containers*; sampling the Release
+`TCCCompiler` (`SIGPROF` at 500 µs over 8 plain main-suite compiles) showed the
+remaining cost was the interning **body**, not the container: `MIRTypeTable::intern`
+was **8.1 %** of all in-executable samples and `MIRConstantPool::add_unlocked`
+**6.7 %** — the top two symbols in the whole compiler.
+
+**The verified fallback scan was pure cost.** Both functions, on a miss of the
+hash hint, ran a linear scan of the *entire* table with `equal`/`matches` so a
+record mutated after interning could still be found. Counting it (a temporary
+`MIR_INTERN_STATS=1` build, reverted) gave the exact shape on the main suite:
+
+| | calls | hint hits | misses | scan steps | scan **hits** | new records |
+|---|---:|---:|---:|---:|---:|---:|
+| types | 116,157 | 106,337 | 9,820 | 3,898,451 | **0** | 9,820 |
+| constants | 55,723 | 50,021 | 5,702 | 3,538,383 | **0** | 5,702 |
+
+Not one scan step ever found a duplicate, so 7.4 M `equal`/`matches` calls per
+suite compile were thrown away. The scan is now skipped when the hash is
+*absent*, which is provably safe: `hash_of` is a pure function of exactly the
+fields `equal`/`matches` compare (so an equal record always hashes the same), and
+**every** record's current hash is in the index — `intern`/`add` set it, and
+`MIRTypeTable::push` (records pushed rather than interned, e.g. variant case
+payloads) and `update` (the only mutator of a hashed field: `data_count`,
+`field_index`, `explicit_alignment`) now set it too. A hash that is *present* but
+names a different record — an exact 64-bit collision, or an entry left stale by
+a mutation — still takes the verified scan, so dedup behaviour is unchanged.
+
+**Interning is read-mostly, so it takes the shared lock.** With parallel lowering
+on, every `intern`/`add` took the exclusive table lock, though 92 % of the calls
+are hits. Both now answer a hit under `MIRReadLock` and only fall into the writer
+lock on a miss (re-checked under it, since another worker may have interned the
+record in between).
+
+**`MIRBytePool` deduplicates by content and moves instead of copying.**
+`append` is the most frequent allocation site in lowering (~193 k per plugin-suite
+compile) and it paid two heap allocations per entry: a temporary `std::string`
+plus the copy-assign inside `MIRStableArray::push_back`. `MIRStableArray` gained
+`emplace_back`, which constructs once and move-assigns into the empty slot (one
+allocation), and the pool now returns the **existing entry for identical bytes**
+(a `MIRKeyMap` hint verified by a byte compare). The entry index is an opaque
+handle that callers only read back, so sharing it is invisible; symbol names,
+field names and `__chx_*` spellings repeat constantly.
+
+**Measured** (`Release` `TCCCompiler`, `debug_quick`, `--no-cache`, interleaved
+A/B, medians, same machine):
+
+| Workload / metric | HEAD | Session 60 | Δ |
+|---|---:|---:|---:|
+| Main suite wall | 0.760 s | 0.740 s | **−2.6%** |
+| Main suite user CPU | 1.000 s | 0.980 s | **−2.0%** |
+| Plugin suite wall | 1.885 s | 1.855 s | **−1.6%** |
+| Plugin suite user CPU | 2.595 s | 2.500 s | **−3.7%** |
+| Peak RSS (plugin suite) | 142.5 MB | 140.9 MB | **−1.1%** |
+| `TCCCompiler` binary | 5,200,816 B | 5,196,920 B | **−3,896 B** |
+
+Sampling share of the in-executable samples: `intern` **8.1 % → 0.7 %**,
+`add_unlocked` **6.7 % → 0.4 %**. The whole-compile numbers are smaller because
+half the process CPU is TinyCC compiling the emitted C, libc, and the lowering
+thread pool, not MIR.
+
+**Output-invariant.** The emitted C of the main suite is identical modulo the
+pre-existing run-to-run jitter: normalized (generic `__cgs__N`/`__cfg__N` and
+lambda `__chemda_N` names folded) line-multiset difference **48** between base
+and this tree, against a same-binary floor of **44–76** on four interleaved runs
+(the `__chemda_N` maximum is 4713 on both). The compiled test executables print
+identical output.
+
+| Suite | Result |
+|---|---|
+| `MIRTests` | **4524 checks** |
+| `--tcc --all` | **7287/7287** (11 suites) |
+| `--llvm --all` | **7285/7285** (11 suites) |
+
+**Rejected on measurement (kept here so they are not re-tried):**
+
+- *`noinline` on `MIRDeclPrinter`'s `append_member_declarator`* (it costs three
+  IPA-CP clones, 28.7 KB, in the binary). `noinline` does not stop cloning — it
+  only stops inlining into the clones' call sites, so the binary **grew** by
+  4 KB and ended up with five copies. Removing the clones needs
+  `-fno-ipa-cp-clone`, i.e. a build-level change.
+- *Deleting dead MIR API to shrink the binary.* A
+  `-ffunction-sections`/`--gc-sections` probe shows 284 KB reclaimed, but it is
+  almost entirely **COMDAT duplicates** (the same header-inline
+  `intern`/`~MIRModule`/… emitted in every TU, of which the linker keeps one
+  anyway), plus non-MIR Lab helpers that are live in the LLVM build. The MIR
+  functions that are genuinely unreachable are ~500 B.
+
 ### Session 59 (2026-10-20) — the interning caches' containers, lock elision on the byte pools, an O(1) inline-struct set
 
 Action D turned out not to be dominated by any *algorithm* left in MIR (the

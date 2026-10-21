@@ -1037,6 +1037,23 @@ per-instruction cost, and E. **The gate is not measurable on this Windows
 checkout** (three identical cold runs: 15.6 / 24.4 / 23.5 s), so D3/per-instruction
 work here can only be verified for correctness, not for a compile-time delta.
 
+**Update (session 60, 2026-10-21, Release, Linux).** Profiled the shipping
+binary instead of guessing (a `SIGPROF` sampler over 8 plain compiles): the two
+hottest symbols in the *whole* compiler were the interning bodies —
+`MIRTypeTable::intern` (**8.1 %** of in-executable samples) and
+`MIRConstantPool::add_unlocked` (**6.7 %**). The cause was not the hash index but
+the **verified linear fallback**: every hint miss re-scanned the entire table
+(3,898,451 `equal` + 3,538,383 `matches` calls per main-suite compile) and found
+**nothing** (0 scan hits in 15,522 misses). An absent hash now skips the scan
+(provably safe: `hash_of` covers exactly the compared fields and every record's
+current hash is registered, including `push`/`update`ed ones), a hit is answered
+under the *shared* lock instead of the exclusive one, and `MIRBytePool` dedups by
+content and moves instead of copy-assigning. Result: `intern` 8.1 % → **0.7 %**,
+`add_unlocked` 6.7 % → **0.4 %** of samples; main-suite wall −2.6 % / user −2.0 %,
+plugin-suite wall −1.6 % / user −3.7 %, peak RSS −1.1 %, binary −3,896 B. Details
+and the rejected variants (`noinline` on the decl printer, dead-API removal) are
+in `compiler/mir/README.md`, session 60.
+
 ### E. Parallelise lowering (P2, after D)
 
 **Symptom.** Serial per-module lowering.

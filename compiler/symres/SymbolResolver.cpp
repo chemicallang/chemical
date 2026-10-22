@@ -39,6 +39,8 @@ SymbolResolver::SymbolResolver(
 {
     global_scope_start();
     stored_file_symbols.reserve(128);
+    // Concrete generic targets guard their member-index reads against adoption.
+    child_resolver.generic_impl_lookup_mutex = &implsIndex.getGenericImplLookupMutex();
 }
 
 UnresolvedDecl* SymbolResolver::get_unresolved_decl() {

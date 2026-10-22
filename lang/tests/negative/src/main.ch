@@ -280,6 +280,51 @@ internal func expect_compile_output_not_contains(env : &mut TestEnv, name : *cha
     cleanup_test_dir(NEG_WORK_DIR, name)
 }
 
+// Returns true when `needle` occurs in the file at `path`.
+internal func read_file_contains(path : *char, needle : *char) : bool {
+    var buf : [131072]u8
+    var r = fs::read_to_buffer(path, unsafe(&raw mut buf[0]), 131071)
+    if(r is std::Result.Err) {
+        return false
+    }
+    var Ok(n) = r else unreachable
+    buf[n] = 0
+    return string_contains(unsafe(&raw buf[0]) as *char, needle)
+}
+
+// Compiles the source with `-o out.c` (C translation, no link) and asserts the
+// emitted translation unit does / does not contain `symbol`. Used to pin the
+// "unused generic impls emit no code" invariant.
+internal func expect_emitted_symbol(env : &mut TestEnv, name : *char, ch_content : *char, symbol : *char, should_exist : bool) {
+    setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
+
+    var mod_path : char[512]
+    sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name)
+    var c_path : char[512]
+    sprintf(unsafe(&raw mut c_path[0]), "%s/%s/out.c", NEG_WORK_DIR, name)
+
+    var output_buf : char[16384]
+    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw c_path[0]), unsafe(&raw mut output_buf[0]), 16384)
+    if(rc != 0) {
+        env.error("expected compiler to succeed while emitting C")
+        neg_debug_print(name, unsafe(&raw output_buf[0]))
+        cleanup_test_dir(NEG_WORK_DIR, name)
+        return
+    }
+
+    var found = read_file_contains(unsafe(&raw c_path[0]), symbol)
+    if(found != should_exist) {
+        if(should_exist) {
+            env.error("expected the generic impl symbol in the emitted C, but it is missing")
+        } else {
+            env.error("unused generic impl emitted code: symbol found in the emitted C")
+        }
+        neg_debug_print(name, unsafe(&raw output_buf[0]))
+    }
+
+    cleanup_test_dir(NEG_WORK_DIR, name)
+}
+
 internal func expect_compile_success(env : &mut TestEnv, name : *char, ch_content : *char) {
     setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
 

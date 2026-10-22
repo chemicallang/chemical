@@ -143,15 +143,6 @@ func neg_impl_missing_target_type(env : &mut TestEnv) {
 }
 
 @test
-func neg_impl_declares_generic_params(env : &mut TestEnv) {
-    mkdir(NEG_WORK_DIR, 0o777 as uint)
-    // `impl <T> I for S<T>` never produced a usable implementation: the parameters of
-    // the implemented type are the ones that are used, so declaring them is rejected
-    var ch = "interface I {\n    func f(&self) : int\n}\nstruct S <T> {\n    var a : T\n}\nimpl <T> I for S<T> {\n    func f(&self) : int { return 1 }\n}\nfunc main() {}\n"
-    expect_compile_error(env, "impl_declares_generic_params", ch, "don't declare generic parameters")
-}
-
-@test
 func neg_impl_generic_params_nested(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     // same rule inside a generic struct, where it used to be reported as a duplicate

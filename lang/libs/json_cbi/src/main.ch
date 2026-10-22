@@ -251,7 +251,11 @@ func unsupported_field_reason(mtype : *mut BaseType) : std::string_view {
         return std::string_view("")
     }
     if(k == BaseTypeKind.Generic) {
-        return std::string_view("generic container field types (std::vector / std::ordered_map / Option) are not supported yet")
+        // Generic containers (std::vector, maps, span, Option, nested generic
+        // structs) are supported by the generic container Serializer /
+        // Deserializer impls in the json library. A container whose element type
+        // has no impl is reported when that impl is instantiated.
+        return std::string_view("")
     }
     if(k == BaseTypeKind.Array) {
         return std::string_view("an array field type (not supported)")

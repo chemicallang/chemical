@@ -4,6 +4,33 @@
 #include "CoreNodes.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/ImplDefinition.h"
+#include "ast/structures/GenericImplDecl.h"
+
+bool ImplementationsIndex::add_generic_impl(ASTNode* target, GenericImplDecl* impl) {
+    if(target == nullptr || impl == nullptr) return false;
+    std::unique_lock lock(index_mutex);
+    auto& list = generic_impls_[target];
+    for(const auto existing : list) {
+        if(existing == impl) {
+            return false;
+        }
+    }
+    list.push_back(impl);
+    generic_impl_count_.fetch_add(1, std::memory_order_relaxed);
+    return true;
+}
+
+std::vector<GenericImplDecl*> ImplementationsIndex::generic_impls_for(ASTNode* target) const {
+    if(target == nullptr || !has_any_generic_impls()) {
+        return {};
+    }
+    std::shared_lock lock(index_mutex);
+    const auto found = generic_impls_.find(target);
+    if(found == generic_impls_.end()) {
+        return {};
+    }
+    return found->second;
+}
 
 void ImplementationsIndex::add_interface(InterfaceDefinition* interface, ASTAny* for_, ImplDefinition* impl) {
     add(interface->generic_parent != nullptr ? (ASTNode*) interface->generic_parent : interface, for_, impl);

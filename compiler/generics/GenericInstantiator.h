@@ -169,6 +169,19 @@ public:
         _requirement = req;
     }
 
+    /**
+     * Nested API calls (demand instantiation during another finalization) must
+     * restore the previous requirement instead of clearing it; otherwise the
+     * outer body visit sees an empty optional and aborts.
+     */
+    inline std::optional<InstantiationRequirement> saveRequirement() const {
+        return _requirement;
+    }
+
+    inline void restoreRequirement(std::optional<InstantiationRequirement> req) {
+        _requirement = req;
+    }
+
     inline void debug_unsetRequirement() {
 #ifdef DEBUG
         _requirement = std::nullopt;

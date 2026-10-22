@@ -28,18 +28,43 @@ ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, ASTAllocator& body_all
 
         if(token->type == TokenType::LessThanSym) {
 
-            // implementations don't declare their own generic parameters. `impl I for S<T>`
-            // is the supported form, in which the parameters come from the implemented type.
-            // Declaring them here (like `impl <T> I for S<T>`) never produced an usable
-            // implementation, so it is reported instead of being silently ignored
-            error("implementations don't declare generic parameters, the type parameters of "
-                  "the implemented type are used instead (like 'impl I for S<T>')");
+            // `impl <T> I for S<T>` is a generic implementation. Nested implementations
+            // (inside a struct/union/variant) keep rejecting their own parameters: the
+            // enclosing type already owns the parameter names, and shadowing them has no
+            // defined semantics (see lang/docs/generic-impls-implementation-plan.md).
+            const auto parent_kind = prev_parent_node ? prev_parent_node->kind() : ASTNodeKind::FileScope;
+            const auto nested = parent_kind == ASTNodeKind::StructDecl ||
+                                parent_kind == ASTNodeKind::UnionDecl ||
+                                parent_kind == ASTNodeKind::VariantDecl ||
+                                parent_kind == ASTNodeKind::GenericStructDecl ||
+                                parent_kind == ASTNodeKind::GenericUnionDecl ||
+                                parent_kind == ASTNodeKind::GenericVariantDecl;
 
-            // consume the parameter list, so the rest of the declaration parses normally
-            std::vector<GenericTypeParameter*> discarded_params;
-            parseGenericParametersList(allocator, discarded_params);
+            if(nested) {
 
-            parent_node = impl;
+                error("implementations inside a type don't declare generic parameters, "
+                      "use a top-level implementation for a generic type");
+
+                // consume the parameter list, so the rest of the declaration parses normally
+                std::vector<GenericTypeParameter*> discarded_params;
+                parseGenericParametersList(allocator, discarded_params);
+
+                parent_node = impl;
+
+            } else {
+
+                const auto gen_decl = new (allocator.allocate<GenericImplDecl>()) GenericImplDecl(
+                        impl, prev_parent_node, location
+                );
+
+                parent_node = gen_decl;
+
+                parseGenericParametersList(allocator, gen_decl->generic_params);
+
+                impl->generic_parent = gen_decl;
+                final_decl = gen_decl;
+
+            }
 
         } else {
 
@@ -93,8 +118,12 @@ ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, ASTAllocator& body_all
             return final_decl;
         }
 
+        // members (and therefore their functions) belong to the ImplDefinition, not
+        // to the generic wrapper. Only the header was parsed in the wrapper scope.
+        parent_node = impl;
+
         // bodies of functions will be allocated on the passed allocator only if
-        // containing is a generic struct, otherwise we can allocate on mod_allocator
+        // containing is a generic impl, otherwise we can allocate on mod_allocator
         auto& body_allocator_final = final_decl->kind() == ASTNodeKind::GenericImplDecl ? allocator : body_allocator;
 
         parseContainerMembersInto(impl, allocator, body_allocator_final, AccessSpecifier::Public, false);

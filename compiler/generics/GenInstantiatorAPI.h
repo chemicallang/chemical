@@ -6,6 +6,7 @@
 #include "ast/structures/BaseGenericDecl.h"
 #include <mutex>
 #include <condition_variable>
+#include <shared_mutex>
 #include <span>
 
 class InstantiationsContainer;
@@ -81,6 +82,21 @@ public:
      * get the allocator
      */
     ASTAllocator& getAllocator();
+
+    /**
+     * the job-global implementation index (generic-impl registry + adoption locks)
+     */
+    ImplementationsIndex& getImplsIndex();
+
+    /**
+     * serialises adoption of a generic impl into its concrete target
+     */
+    std::recursive_mutex& getGenericImplAdoptMutex();
+
+    /**
+     * guards reads of concrete generic target member indexes against adoption
+     */
+    std::shared_mutex& getGenericImplLookupMutex();
 
     /**
      * get the diagnoser
@@ -216,6 +232,18 @@ public:
      * the implementation is determined with instantiation index inside the impl declaration
      */
     void FinalizeBody(GenericImplDecl* decl, const std::span<ImplDefinition*>& instantiations);
+
+    /**
+     * Finalize one impl instantiation without clearing the instantiator's symbol
+     * table. Demand-driven instantiation runs inside an active body finalization,
+     * where `Clear()` (used by the span overloads) would destroy the outer scope.
+     */
+    void FinalizeSignature(GenericImplDecl* decl, ImplDefinition* inst, size_t itr);
+
+    /**
+     * Body counterpart of the single-instantiation signature overload.
+     */
+    void FinalizeBody(GenericImplDecl* decl, ImplDefinition* inst, size_t itr);
 
 
     /**

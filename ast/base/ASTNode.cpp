@@ -28,6 +28,7 @@
 #include "ast/statements/ChildrenMapNode.h"
 #include "ast/structures/VariantMemberParam.h"
 #include "ast/values/PatternMatchExpr.h"
+#include <shared_mutex>
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/LoopBlock.h"
 #include "ast/structures/ForInLoop.h"
@@ -709,6 +710,18 @@ ASTNode* child(VariablesContainer* container, const chem::string_view& name) {
 
 ASTNode* provide_child(const ChildResolver* resolver, BaseType* type, const chem::string_view& name, ASTNode* type_parent);
 
+static bool is_concrete_generic_container(ASTNode* node) {
+    if(node == nullptr) return false;
+    switch(node->kind()) {
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::UnionDecl:
+        case ASTNodeKind::VariantDecl:
+            return node->as_members_container_unsafe()->generic_parent != nullptr;
+        default:
+            return false;
+    }
+}
+
 // exclusive method for linked type
 ASTNode* child_provider_linked_type(const ChildResolver* resolver, LinkedType* type, const chem::string_view& name, ASTNode* type_parent) {
     const auto linked = type->linked;
@@ -719,6 +732,13 @@ ASTNode* child_provider_linked_type(const ChildResolver* resolver, LinkedType* t
         return provide_child(resolver, linked->as_typealias_unsafe()->actual_type, name, type_parent);
     } else {
         if(linked == type_parent) return nullptr;
+        // Generic-impl adoption can mutate a concrete generic target's indexes
+        // from other resolution threads; those targets take the shared lock.
+        if(resolver != nullptr && resolver->generic_impl_lookup_mutex != nullptr
+           && is_concrete_generic_container(linked)) {
+            std::shared_lock lock(*resolver->generic_impl_lookup_mutex);
+            return linked->child(name);
+        }
         return linked->child(name);
     }
 }

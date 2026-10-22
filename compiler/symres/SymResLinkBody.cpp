@@ -492,7 +492,17 @@ inline void link_val(SymResLinkBody &symRes, Value* value, BaseType* expected_ty
 
 bool find_link_in_parent(VariableIdentifier* id, Value* parent, SymResLinkBody& visitor) {
     auto& value = id->value;
-    const auto child = provide_child(visitor.getChildResolver(), parent, value, nullptr);
+    auto child = provide_child(visitor.getChildResolver(), parent, value, nullptr);
+    if(!child) {
+        // The method may be supplied by a dormant generic implementation for a
+        // concrete generic target (e.g. `impl<T> Serializer for vector<T>`).
+        // Demand instantiate it once, then retry the ordinary lookup.
+        if(instantiate_generic_impls_for(
+            visitor.generic_instantiator, parent, nullptr, value, id->encoded_location()
+        )) {
+            child = provide_child(visitor.getChildResolver(), parent, value, nullptr);
+        }
+    }
     if(child) {
         id->linked = child;
         id->setType(child->known_type());
@@ -1719,15 +1729,24 @@ void SymResLinkBody::VisitGenericImplDecl(GenericImplDecl* node) {
     visit(node->master_impl);
     generic_context = prev_gen_context;
     table.scope_end();
-    node->body_linked = true;
+    // Snapshot + publish under the registration mutex. On-demand registration
+    // can append concurrently; a registration that happens after this snapshot
+    // sees `body_linked == true` and finalizes its own body, so no instantiation
+    // is lost (and the snapshot is not invalidated by a vector reallocation).
+    std::vector<ImplDefinition*> snapshot;
+    {
+        std::lock_guard<std::recursive_mutex> lock(linker.generic_inst_reg_mutex);
+        snapshot = node->instantiations;
+        node->body_linked = true;
+    }
     // finalizing body of instantiations that occurred before declare_and_link
     auto& allocator = getAstAllocator();
-    for(const auto inst : node->instantiations) {
+    for(const auto inst : snapshot) {
         node->finalize_body(allocator, inst);
     }
     // finalize the body of all instantiations
     // this basically visits the instantiations body and makes the types concrete
-    generic_instantiator.FinalizeBody(node, node->instantiations);
+    generic_instantiator.FinalizeBody(node, std::span<ImplDefinition*>(snapshot));
 }
 
 void SymResLinkBody::VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
@@ -2513,6 +2532,9 @@ void SymResLinkBody::VisitIncDecValue(IncDecValue* value) {
     visit(val, expected_type);
     // report assignment, if this is a linked parameter / var init
     val->report_assignment_of_chain_id();
+    instantiate_generic_impls_for(
+        generic_instantiator, val, nullptr, chem::string_view(), value->encoded_location()
+    );
     // type determined at symbol resolution must be set
     value->setType(value->determine_type(diagnoser, getCoreNodes(), getImplsIndex()));
 }
@@ -2910,6 +2932,14 @@ void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
 void SymResLinkBody::VisitExpression(Expression* value) {
     visit(value->firstValue, nullptr);
     visit(value->secondValue, nullptr);
+    // a receiver supplied by a dormant generic impl (operators included) must be
+    // instantiated before the operator lookup below
+    if(value->firstValue) {
+        instantiate_generic_impls_for(
+            generic_instantiator, value->firstValue, nullptr,
+            chem::string_view(), value->encoded_location()
+        );
+    }
     value->determine_type(
         getTypeBuilder(),
         getCoreNodes(),
@@ -2926,6 +2956,12 @@ void SymResLinkBody::VisitIndexOperator(IndexOperator* indexOp) {
     visit(indexOp->idx);
 
     // determining the type for this index operator
+    if(indexOp->parent_val) {
+        instantiate_generic_impls_for(
+            generic_instantiator, indexOp->parent_val, nullptr,
+            chem::string_view(), indexOp->encoded_location()
+        );
+    }
     auto& typeBuilder = getTypeBuilder();
     indexOp->determine_type(typeBuilder, getCoreNodes(), getImplsIndex(), diagnoser);
 
@@ -3241,6 +3277,12 @@ void SymResLinkBody::VisitLambdaFunction(LambdaFunction* lambVal) {
 
 void SymResLinkBody::VisitNegativeValue(NegativeValue* negValue) {
     visit(negValue->getValue());
+    if(negValue->getValue()) {
+        instantiate_generic_impls_for(
+            generic_instantiator, negValue->getValue(), nullptr,
+            chem::string_view(), negValue->encoded_location()
+        );
+    }
     // determine type for negative value
     negValue->determine_type(getTypeBuilder(), getCoreNodes(), getImplsIndex(), diagnoser);
 }
@@ -3303,12 +3345,24 @@ void SymResLinkBody::VisitPlacementNewValue(PlacementNewValue* value) {
 
 void SymResLinkBody::VisitNotValue(NotValue* value) {
     visit(value->getValue());
+    if(value->getValue()) {
+        instantiate_generic_impls_for(
+            generic_instantiator, value->getValue(), nullptr,
+            chem::string_view(), value->encoded_location()
+        );
+    }
     // determine the type of not value
     value->determine_type(diagnoser, getCoreNodes(), getImplsIndex());
 }
 
 void SymResLinkBody::VisitBitwiseNot(BitwiseNot* value) {
     visit(value->getValue());
+    if(value->getValue()) {
+        instantiate_generic_impls_for(
+            generic_instantiator, value->getValue(), nullptr,
+            chem::string_view(), value->encoded_location()
+        );
+    }
     // determine the type of bitwise not value
     value->determine_type(diagnoser, getCoreNodes(), getImplsIndex());
 }

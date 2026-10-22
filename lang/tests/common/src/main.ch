@@ -108,6 +108,7 @@ public func run_common_tests() {
     // Generic tests (no pointers, no std deps, no native calls)
     test_basic_generics();
     test_generic_type_deduction();
+    test_generic_impls();
 
     // Generic/impl-dispatch regression tests moved out of the main-only suite:
     // they are pure language tests (no std, no native interop), so every backend

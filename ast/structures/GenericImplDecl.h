@@ -6,6 +6,11 @@
 #include "ast/structures/ImplDefinition.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
 
+class ImplementationsIndex;
+class ASTDiagnoser;
+class MembersContainer;
+class ASTAny;
+
 /**
  * summary:
  * we check if is_master_linked, if not then we shallow copy struct, and store the pointer it into the vector
@@ -74,12 +79,19 @@ public:
     }
 
     /**
-     * register generic args
+     * register generic args.
+     *
+     * `adopter` is the concrete target container (e.g. `vector<int>` or
+     * `TypeDecoder<vector<int>>`) when this instantiation is demanded by a
+     * resolution path. The concrete impl is adopted into it and indexed once its
+     * signature is finalized. Passing null only registers/finalizes the type.
      */
     ImplDefinition* register_generic_args(
         GenericInstantiatorAPI& instantiator,
         std::vector<TypeLoc>& types,
-        InstantiationRequirement requirement
+        InstantiationRequirement requirement,
+        MembersContainer* adopter = nullptr,
+        SourceLocation demand_loc = 0
     );
 
     ImplDefinition* instantiate_type(
@@ -91,4 +103,31 @@ public:
 
 
 };
+
+/**
+ * Validate a top-level generic impl and register it as dormant under its generic
+ * target declaration. No instantiation happens here. Returns false (with a
+ * diagnostic) when the declaration cannot be implemented generically.
+ */
+bool register_generic_impl(
+    ImplementationsIndex& index,
+    GenericImplDecl* impl,
+    ASTDiagnoser& diagnoser
+);
+
+/**
+ * Demand-driven instantiation: instantiate every registered generic impl whose
+ * target pattern matches the concrete target `for_` and whose interface/member
+ * matches the optional filters. `for_` is the concrete target's MembersContainer.
+ *
+ * Returns true if at least one candidate matched (whether it was already
+ * instantiated or created now). The caller retries the failed lookup afterwards.
+ */
+bool instantiate_generic_impls_for(
+    GenericInstantiatorAPI& instantiator,
+    ASTAny* for_,
+    ASTNode* interface_filter,
+    chem::string_view member_filter,
+    SourceLocation demand_loc
+);
 

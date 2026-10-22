@@ -1081,8 +1081,21 @@ void TopLevelLinkSignature::VisitGenericImplDecl(GenericImplDecl* node) {
     for(const auto param : generic_params) {
         link_param(param);
     }
+    // The implemented interface and target type must be linked inside the generic
+    // parameter scope. LinkMembersContainerNoScope only covers inherited types,
+    // variables and functions, so without this both TypeLoc's stay unresolved and
+    // the instantiator dereferences a null `referenced->linked` later.
+    if(node->master_impl->interface_type) {
+        visit(node->master_impl->interface_type);
+    }
+    if(node->master_impl->struct_type) {
+        visit(node->master_impl->struct_type);
+    }
     LinkMembersContainerNoScope(node->master_impl);
     table.scope_end();
+    // Dormant registration only; nothing is instantiated here. All files finish
+    // their link-signature pass before the generic-instantiation pass starts.
+    register_generic_impl(linker.implsIndex, node, diagnoser);
 }
 
 class TopLevelIfStmtConditionChecker : public RecursiveVisitor<TopLevelIfStmtConditionChecker> {

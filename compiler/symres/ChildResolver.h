@@ -8,6 +8,7 @@
 #include "ast/types/LinkedType.h"
 #include "ast/types/GenericType.h"
 #include <unordered_map>
+#include <shared_mutex>
 #include "std/chem_string_view_fast.h"
 #include <span>
 
@@ -75,6 +76,13 @@ public:
 
     // all the pointer types, their children are stored here
     std::unordered_map<ChildKey, ASTNode*, ChildKeyHash> ptr_child_types;
+
+    /**
+     * Guards reads of a concrete generic target's member indexes against
+     * generic-impl adoption. Null when no job index is attached (tests, tools).
+     * Non-generic containers never take this lock.
+     */
+    std::shared_mutex* generic_impl_lookup_mutex = nullptr;
 
     // constructor
     ChildResolver() {}

@@ -3,6 +3,8 @@
 #pragma once
 
 #include <unordered_map>
+#include <vector>
+#include <atomic>
 #include <mutex>
 #include <shared_mutex>
 #include "ast/utils/Operation.h"
@@ -11,6 +13,7 @@ class ASTNode;
 class InterfaceDefinition;
 class ASTAny;
 class ImplDefinition;
+class GenericImplDecl;
 class CoreNodes;
 class FunctionDeclaration;
 class MembersContainer;
@@ -52,9 +55,56 @@ public:
     // reader-writer mutex for thread-safe concurrent reads and exclusive writes
     mutable std::shared_mutex index_mutex;
 
+    /**
+     * Dormant generic implementations, keyed by their generic target declaration
+     * (GenericStructDecl / GenericUnionDecl / GenericVariantDecl). Nothing is
+     * instantiated from this map until a resolution path demands it, so programs
+     * that declare no generic impls never allocate here and pay only an atomic
+     * load on the fast path.
+     */
+    std::unordered_map<ASTNode*, std::vector<GenericImplDecl*>> generic_impls_;
+
+    // relaxed fast-path flag; no lock is taken when it is zero
+    std::atomic<size_t> generic_impl_count_{0};
+
+    // serialises adoption (mutating a concrete target's member indexes and an
+    // interface's users/vtable bookkeeping). Recursive: nested instantiation can
+    // re-enter it.
+    std::recursive_mutex generic_impl_adopt_mutex;
+
+    // protects reads of a concrete generic target's member indexes against
+    // adoption. Only lookups on concrete generic containers pay for it.
+    mutable std::shared_mutex generic_impl_lookup_mutex;
+
     void add(ASTNode* interface, ASTAny* for_, ImplDefinition* impl) {
         std::unique_lock lock(index_mutex);
         map_.emplace(ImplementationIndexKey{ interface, for_ }, impl);
+    }
+
+    inline bool has_any_generic_impls() const noexcept {
+        return generic_impl_count_.load(std::memory_order_relaxed) != 0;
+    }
+
+    /**
+     * Register a dormant generic implementation for `target`. The caller is
+     * responsible for validating the declaration and for rejecting an identical
+     * pattern; returns false when this exact node is already registered.
+     */
+    bool add_generic_impl(ASTNode* target, GenericImplDecl* impl);
+
+    /**
+     * Snapshot the candidates for `target`. The returned vector is owned by the
+     * caller; instantiation must happen after this returns (it re-enters the
+     * index).
+     */
+    std::vector<GenericImplDecl*> generic_impls_for(ASTNode* target) const;
+
+    inline std::recursive_mutex& getGenericImplAdoptMutex() {
+        return generic_impl_adopt_mutex;
+    }
+
+    inline std::shared_mutex& getGenericImplLookupMutex() const {
+        return generic_impl_lookup_mutex;
     }
 
     /**
@@ -77,8 +127,12 @@ public:
     ImplDefinition* get_impl(InterfaceDefinition* interface, ASTAny* for_);
 
     void clear() {
-        std::unique_lock lock(index_mutex);
-        map_.clear();
+        {
+            std::unique_lock lock(index_mutex);
+            map_.clear();
+            generic_impls_.clear();
+        }
+        generic_impl_count_.store(0, std::memory_order_relaxed);
     }
 
     FunctionDeclaration* get_expr_op_impl(const CoreNodes& coreNodes, MembersContainer* container, Operation op) const;

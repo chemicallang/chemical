@@ -15,6 +15,8 @@
 #include "ast/structures/GenericImplDecl.h"
 #include "compiler/symres/ImplementationsIndex.h"
 #include "ast/utils/GenericUtils.h"
+#include <cstdio>
+#include <cstdlib>
 
 void GenericInstantiator::make_gen_type_concrete(BaseType*& type) {
     if(type->kind() == BaseTypeKind::Linked){
@@ -60,8 +62,10 @@ void GenericInstantiator::make_gen_type_concrete(BaseType*& type) {
 }
 
 void GenericInstantiator::VisitFunctionCall(FunctionCall *call) {
+    if(getenv("GIMPL_DEBUG")) fprintf(stderr, "[gimpl] VisitFunctionCall generic_list=%zu linked=%d\n", call->generic_list.size(), (int) (call->parent_val->get_chain_last_linked() ? call->parent_val->get_chain_last_linked()->kind() : ASTNodeKind::FileScope));
     // visit, this would replace generic args and arguments of this call
     RecursiveVisitor<GenericInstantiator>::VisitFunctionCall(call);
+    if(getenv("GIMPL_DEBUG")) { auto* l = call->parent_val->get_chain_last_linked(); fprintf(stderr, "[gimpl] after visit generic_list=%zu linked=%d isgen=%d arg0=%s\n", call->generic_list.size(), (int) (l ? l->kind() : ASTNodeKind::FileScope), (int)(l && l->kind()==ASTNodeKind::GenericFuncDecl), call->generic_list.empty()?"<none>":call->generic_list[0]->representation().c_str()); }
     // now this call can be generic, in this case this call probably doesn't have an implementation
     // since current function is generic as well, let's check this
     // TODO passing nullptr as expected type
@@ -72,6 +76,7 @@ void GenericInstantiator::VisitFunctionCall(FunctionCall *call) {
     if(!call->instantiate_gen_call(genApi, nullptr, getRequirement())) {
         diagnoser.error("couldn't instantiate call", call);
     }
+    if(getenv("GIMPL_DEBUG")) { auto* l = call->parent_val->get_chain_last_linked(); fprintf(stderr, "[gimpl] post-instantiate linked=%d isgen=%d\n", (int)(l?l->kind():ASTNodeKind::FileScope), (int)(l && l->kind()==ASTNodeKind::GenericFuncDecl)); }
     // this determines the type for the function call
     call->determine_type(getAllocator(), diagnoser);
 }
@@ -166,6 +171,14 @@ void relink_parent(AccessChain* chain, GenericInstantiator& instantiator, Functi
         }
         const auto parent = chain->values[i - 1];
         ASTNode* child = provide_child(&instantiator.child_resolver, parent, id->value, nullptr);
+        if(!child) {
+            GenericInstantiatorAPI api(&instantiator);
+            if(instantiate_generic_impls_for(
+                api, parent, nullptr, id->value, id->encoded_location()
+            )) {
+                child = provide_child(&instantiator.child_resolver, parent, id->value, nullptr);
+            }
+        }
         if(child) {
             id->linked = child;
             id->setType(child->known_type());
@@ -286,16 +299,33 @@ void GenericInstantiator::VisitPatternMatchExpr(PatternMatchExpr* value) {
     // set the member
     value->member = member;
 
-    // declare the members so variables are relinked for generics
+    // declare the members so variables are relinked for generics. Mirror
+    // SymResLinkBody: only named destructuring looks the parameter up by name;
+    // the normal `var Ok(local) = ...` form binds positionally, so looking up
+    // `local` in the variant member's parameter map would fail.
     auto& params = member->values;
-    for(const auto nameId : value->param_names) {
-        auto found = params.find(nameId->identifier);
-        if(found == params.end()) {
-            diagnoser.error(nameId) << "couldn't find parameter in variant member";
-        } else {
-            nameId->member_param = found->second;
-            // we declare this id, so anyone can link with it
+    if(value->destructure_by_name) {
+        for(const auto nameId : value->param_names) {
+            auto found = params.find(nameId->identifier);
+            if(found == params.end()) {
+                diagnoser.error(nameId) << "couldn't find parameter in variant member";
+            } else {
+                nameId->member_param = found->second;
+                // we declare this id, so anyone can link with it
+                table.declare(nameId->identifier, nameId);
+            }
+        }
+    } else {
+        auto begin = params.begin();
+        auto end = params.end();
+        for(const auto nameId : value->param_names) {
+            if(begin == end) {
+                diagnoser.error(nameId) << "variant member has fewer parameters than the pattern";
+                break;
+            }
+            nameId->member_param = begin->second;
             table.declare(nameId->identifier, nameId);
+            begin++;
         }
     }
 
@@ -907,6 +937,7 @@ void GenericInstantiator::FinalizeSignature(GenericFuncDecl* decl, FunctionDecla
 
     // finalize signature of the function
     FinalizeSignature(impl);
+    if(getenv("GIMPL_DEBUG")) { fprintf(stderr, "[gimpl] finalize genfunc %s params=%zu", impl->name_str().c_str(), impl->params.size()); for(auto* p : impl->params) fprintf(stderr, " %s", p->type ? p->type->representation().c_str() : "<null>"); fprintf(stderr, "\n"); }
 
     // deactivating iteration in parameters
     // activating iteration in params
@@ -1512,6 +1543,15 @@ void GenericInstantiator::FinalizeSignature(GenericImplDecl* decl, ImplDefinitio
     // activating iteration in params
     activateIteration(decl, itr);
 
+    // visit the interface and target types, so the concrete implementation says
+    // `impl Serializer<...> for vector<int>` instead of keeping the master's `T`
+    if(impl->interface_type) {
+        visit_it(impl->interface_type);
+    }
+    if(impl->struct_type) {
+        visit_it(impl->struct_type);
+    }
+
     // visiting inherited types
     for(auto& inh : impl->inherited) {
         visit(inh.type);
@@ -1730,6 +1770,18 @@ ASTAllocator& GenericInstantiatorAPI::getAllocator() {
     return giPtr->getAllocator();
 }
 
+ImplementationsIndex& GenericInstantiatorAPI::getImplsIndex() {
+    return giPtr->implsIndex;
+}
+
+std::recursive_mutex& GenericInstantiatorAPI::getGenericImplAdoptMutex() {
+    return giPtr->implsIndex.getGenericImplAdoptMutex();
+}
+
+std::shared_mutex& GenericInstantiatorAPI::getGenericImplLookupMutex() {
+    return giPtr->implsIndex.getGenericImplLookupMutex();
+}
+
 ASTDiagnoser& GenericInstantiatorAPI::getDiagnoser() {
     return giPtr->diagnoser;
 }
@@ -1762,98 +1814,128 @@ void GenericInstantiatorAPI::setAllocator(ASTAllocator& allocator) {
 
 void GenericInstantiatorAPI::FinalizeSignature(GenericTypeDecl* decl, TypealiasStatement* impl, std::vector<TypeLoc>& generic_args) {
     auto& g = *giPtr;
+    const auto prev_requirement = g.saveRequirement();
     g.setRequirement(InstantiationRequirement::Registration);
     g.FinalizeSignature(decl, impl, generic_args);
-    g.debug_unsetRequirement();
+    g.restoreRequirement(prev_requirement);
 }
 
 void GenericInstantiatorAPI::FinalizeSignature(GenericTypeDecl* decl, const std::span<TypealiasStatement*>& instantiations) {
     auto& g = *giPtr;
+    const auto prev_requirement = g.saveRequirement();
     g.setRequirement(InstantiationRequirement::Registration);
     g.FinalizeSignature(decl, instantiations);
-    g.debug_unsetRequirement();
+    g.restoreRequirement(prev_requirement);
 }
 
 void GenericInstantiatorAPI::FinalizeSignature(GenericFuncDecl* decl, const std::span<FunctionDeclaration*>& instantiations) {
     auto& g = *giPtr;
+    const auto prev_requirement = g.saveRequirement();
     g.setRequirement(InstantiationRequirement::Registration);
     g.FinalizeSignature(decl, instantiations);
-    g.debug_unsetRequirement();
+    g.restoreRequirement(prev_requirement);
 }
 
 void GenericInstantiatorAPI::FinalizeBody(GenericFuncDecl* decl, const std::span<FunctionDeclaration*>& instantiations) {
     auto& g = *giPtr;
+    const auto prev_requirement = g.saveRequirement();
     g.setRequirement(InstantiationRequirement::SignatureFinalization);
     g.FinalizeBody(decl, instantiations);
-    g.debug_unsetRequirement();
+    g.restoreRequirement(prev_requirement);
 }
 
 void GenericInstantiatorAPI::FinalizeSignature(GenericStructDecl* decl, const std::span<StructDefinition*>& instantiations) {
     auto& g = *giPtr;
+    const auto prev_requirement = g.saveRequirement();
     g.setRequirement(InstantiationRequirement::Registration);
     g.FinalizeSignature(decl, instantiations);
-    g.debug_unsetRequirement();
+    g.restoreRequirement(prev_requirement);
 }
 
 void GenericInstantiatorAPI::FinalizeBody(GenericStructDecl* decl, const std::span<StructDefinition*>& instantiations) {
     auto& g = *giPtr;
+    const auto prev_requirement = g.saveRequirement();
     g.setRequirement(InstantiationRequirement::SignatureFinalization);
     g.FinalizeBody(decl, instantiations);
-    g.debug_unsetRequirement();
+    g.restoreRequirement(prev_requirement);
 }
 
 void GenericInstantiatorAPI::FinalizeSignature(GenericUnionDecl* decl, const std::span<UnionDef*>& instantiations) {
     auto& g = *giPtr;
+    const auto prev_requirement = g.saveRequirement();
     g.setRequirement(InstantiationRequirement::Registration);
     g.FinalizeSignature(decl, instantiations);
-    g.debug_unsetRequirement();
+    g.restoreRequirement(prev_requirement);
 }
 
 void GenericInstantiatorAPI::FinalizeBody(GenericUnionDecl* decl, const std::span<UnionDef*>& instantiations) {
     auto& g = *giPtr;
+    const auto prev_requirement = g.saveRequirement();
     g.setRequirement(InstantiationRequirement::SignatureFinalization);
     g.FinalizeBody(decl, instantiations);
-    g.debug_unsetRequirement();
+    g.restoreRequirement(prev_requirement);
 }
 
 void GenericInstantiatorAPI::FinalizeSignature(GenericInterfaceDecl* decl, const std::span<InterfaceDefinition*>& instantiations) {
     auto& g = *giPtr;
+    const auto prev_requirement = g.saveRequirement();
     g.setRequirement(InstantiationRequirement::Registration);
     g.FinalizeSignature(decl, instantiations);
-    g.debug_unsetRequirement();
+    g.restoreRequirement(prev_requirement);
 }
 
 void GenericInstantiatorAPI::FinalizeBody(GenericInterfaceDecl* decl, const std::span<InterfaceDefinition*>& instantiations) {
     auto& g = *giPtr;
+    const auto prev_requirement = g.saveRequirement();
     g.setRequirement(InstantiationRequirement::SignatureFinalization);
     g.FinalizeBody(decl, instantiations);
-    g.debug_unsetRequirement();
+    g.restoreRequirement(prev_requirement);
 }
 
 void GenericInstantiatorAPI::FinalizeSignature(GenericVariantDecl* decl, const std::span<VariantDefinition*>& instantiations) {
     auto& g = *giPtr;
+    const auto prev_requirement = g.saveRequirement();
     g.setRequirement(InstantiationRequirement::Registration);
     g.FinalizeSignature(decl, instantiations);
-    g.debug_unsetRequirement();
+    g.restoreRequirement(prev_requirement);
 }
 
 void GenericInstantiatorAPI::FinalizeBody(GenericVariantDecl* decl, const std::span<VariantDefinition*>& instantiations) {
     auto& g = *giPtr;
+    const auto prev_requirement = g.saveRequirement();
     g.setRequirement(InstantiationRequirement::SignatureFinalization);
     g.FinalizeBody(decl, instantiations);
-    g.debug_unsetRequirement();
+    g.restoreRequirement(prev_requirement);
 }
 
 void GenericInstantiatorAPI::FinalizeSignature(GenericImplDecl* decl, const std::span<ImplDefinition*>& instantiations) {
     auto& g = *giPtr;
+    const auto prev_requirement = g.saveRequirement();
     g.setRequirement(InstantiationRequirement::Registration);
     g.FinalizeSignature(decl, instantiations);
-    g.debug_unsetRequirement();
+    g.restoreRequirement(prev_requirement);
 }
 
 void GenericInstantiatorAPI::FinalizeBody(GenericImplDecl* decl, const std::span<ImplDefinition*>& instantiations) {
     auto& g = *giPtr;
+    const auto prev_requirement = g.saveRequirement();
     g.setRequirement(InstantiationRequirement::SignatureFinalization);
     g.FinalizeBody(decl, instantiations);
-    g.debug_unsetRequirement();
+    g.restoreRequirement(prev_requirement);
+}
+
+void GenericInstantiatorAPI::FinalizeSignature(GenericImplDecl* decl, ImplDefinition* inst, size_t itr) {
+    auto& g = *giPtr;
+    const auto prev_requirement = g.saveRequirement();
+    g.setRequirement(InstantiationRequirement::Registration);
+    g.FinalizeSignature(decl, inst, itr);
+    g.restoreRequirement(prev_requirement);
+}
+
+void GenericInstantiatorAPI::FinalizeBody(GenericImplDecl* decl, ImplDefinition* inst, size_t itr) {
+    auto& g = *giPtr;
+    const auto prev_requirement = g.saveRequirement();
+    g.setRequirement(InstantiationRequirement::SignatureFinalization);
+    g.FinalizeBody(decl, inst, itr);
+    g.restoreRequirement(prev_requirement);
 }

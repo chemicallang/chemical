@@ -62,6 +62,16 @@ func framing_handler(req : http.Request, res : http::ResponseWriter) {
     res.write_string(&out)
 }
 
+// Reports the framing the server chose for the request Body. The white-box
+// test below uses this to assert `remaining == 0` (empty) directly, so a
+// regression to `-1` ("unknown / read until close") fails immediately instead
+// of only showing up as an 8-second stall.
+func framing_remaining_handler(req : http.Request, res : http::ResponseWriter) {
+    var out = string("REMAINING:")
+    out.append_integer(req.body.remaining as bigint)
+    res.write_string(&out)
+}
+
 // ---------------------------------------------------------------------------
 // Harness
 // ---------------------------------------------------------------------------
@@ -208,6 +218,56 @@ public func FRAM_request_with_zero_content_length_answers_immediately(env : &mut
     var el = raw_exchange(PORT, &req, 3000, &raw mut resp)
 
     framing_check(env, "Content-Length: 0", &resp, "OBSERVED:0:", el)
+
+    srv.shutdown()
+    thread.join()
+}
+
+// White-box companion to the latency tests above: assert the framing value
+// itself, not just how long it takes. RFC 9112 §6.3 says a request with no
+// Transfer-Encoding and no Content-Length has NO body, so `Body.remaining`
+// must be 0 ("empty"). The bug set it to -1 ("unknown / read until close"),
+// which makes every handler that reads the body block in body_recv() until
+// the peer closes or the body timeout fires. Checking the value makes the
+// regression fail deterministically, with no timing dependency.
+@test
+@test.timeout(120000)
+public func FRAM_bodyless_request_is_framed_empty_not_unknown(env : &mut TestEnv) {
+    const PORT : uint = 19897u
+
+    var cfg = server::ServerConfig()
+    cfg.addr = string("127.0.0.1:19897")
+    cfg.header_timeout_secs = FRAM_HEADER_TIMEOUT
+    var srv = server::Server(cfg)
+    srv.router.add("GET", "/remaining", ||(req, res) => { framing_remaining_handler(req, res) })
+    srv.router.add("POST", "/remaining", ||(req, res) => { framing_remaining_handler(req, res) })
+    var thread = srv.serve_async(PORT)
+    std::concurrent.sleep_ms(200u)
+
+    // The production case: a bodyless GET. Before the fix this reported -1.
+    var req = string("GET /remaining HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")
+    var resp = string::empty_str()
+    var el = raw_exchange(PORT, &req, 3000, &raw mut resp)
+    if(el < 0) {
+        env.error("bodyless GET: no response")
+    } else if(!resp.contains("REMAINING:0")) {
+        var m = string("bodyless GET: expected REMAINING:0 (empty body), got: ")
+        m.append_view(resp.to_view())
+        env.error(m.data())
+    }
+
+    // Control: an explicit Content-Length must still be honored, so a "fix"
+    // that hard-codes 0 for every request also fails this test.
+    var req2 = string("POST /remaining HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 7\r\nConnection: close\r\n\r\n{\"a\":1}")
+    var resp2 = string::empty_str()
+    var el2 = raw_exchange(PORT, &req2, 3000, &raw mut resp2)
+    if(el2 < 0) {
+        env.error("Content-Length: 7: no response")
+    } else if(!resp2.contains("REMAINING:7")) {
+        var m = string("Content-Length: 7: expected REMAINING:7, got: ")
+        m.append_view(resp2.to_view())
+        env.error(m.data())
+    }
 
     srv.shutdown()
     thread.join()

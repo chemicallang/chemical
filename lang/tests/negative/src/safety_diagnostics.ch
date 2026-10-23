@@ -29,6 +29,20 @@ func lifetime_reference_syntax_compiles(env : &mut TestEnv) {
 }
 
 @test
+func lifetime_elision_method_and_single_input(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Box {\n    var value : int\n    func get(&self) : &int {\n        return &self.value\n    }\n}\nfunc identity(x : &int) : &int {\n    return x\n}\npublic func main() : int {\n    var b = Box { value : 7 }\n    return *b.get() - 7\n}\n"
+    expect_compile_success(env, "lifetime_elision_ok", ch)
+}
+
+@test
+func neg_lifetime_elision_ambiguous(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "func <'a, 'b> bad(x : &'a int, y : &'b int) : &int {\n    return x\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "lifetime_elision_ambiguous", ch, "missing lifetime specifier")
+}
+
+@test
 func neg_unknown_lifetime_parameter(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct View<'a> {\n    var p : &'b int\n}\npublic func main() : int { return 0 }\n"

@@ -91,9 +91,15 @@
 >   and legacy struct lifetimes; `'static` and `'self` are always valid;
 >   unknown names are rejected (`unknown lifetime parameter`). Negative test
 >   added.
-> - Still pending in S1.1: elision/inference, `'static` bounds, and eventual
->   borrow-checker enforcement. Lifetimes are resolved for declaration validity
->   but not yet related by outlives constraints.
+> - S1.1e signature lifetime elision: `&self` methods tie elided outputs to
+>   `'self`; one input lifetime supplies the output; one elided input gets the
+>   internal `'elided` name; multiple distinct input lifetimes require an
+>   explicit output lifetime. The no-input case stays permissive until the
+>   borrow checker rejects the escape in M4. Positive and ambiguous tests added.
+> - Still pending in S1.1: outlives constraints (`T: 'a`, `'a: 'b`),
+>   `'static` bounds, and eventual borrow-checker enforcement. Lifetimes are
+>   resolved/elided for declaration validity but not yet related by region
+>   constraints.
 >
 > Next: finish S1.1 lifetime parameters/elision, then S1.0b lifetimes in generic
 > impls, S1.2 `'static`/bounds/temporary extension, S1.3 variance, and S1.4

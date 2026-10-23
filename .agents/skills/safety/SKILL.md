@@ -60,8 +60,10 @@ Implemented:
   (S1.1b). Generic lifetime arguments (`View<'a>`) parse in type position and
   are stored on `GenericType::lifetime_args` (S1.1c). Basic lifetime-name
   resolution rejects unknown names while accepting `'static`/`'self`
-  (S1.1d). Elision, outlives constraints, and enforcement are still pending.
-  Chemical syntax is `func <'a> f(...)`.
+  (S1.1d). Signature elision ties `&self` outputs to `'self`, one input
+  lifetime to the output, and rejects ambiguous multi-input outputs (S1.1e).
+  Outlives constraints and enforcement are still pending. Chemical syntax is
+  `func <'a> f(...)`.
 
 Next:
 

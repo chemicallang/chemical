@@ -1840,8 +1840,107 @@ void TypeVerifier::VisitDeleteStmt(DestructStmt* node) {
     }
 }
 
+static void collect_reference_types(BaseType* type, std::vector<ReferenceType*>& refs) {
+    if (type == nullptr) return;
+    switch (type->kind()) {
+        case BaseTypeKind::Reference: {
+            auto* ref = type->as_reference_type_unsafe();
+            refs.push_back(ref);
+            collect_reference_types(ref->type, refs);
+            break;
+        }
+        case BaseTypeKind::Pointer:
+            collect_reference_types(type->as_pointer_type_unsafe()->type, refs);
+            break;
+        case BaseTypeKind::Array:
+            collect_reference_types(type->as_array_type_unsafe()->elem_type, refs);
+            break;
+        case BaseTypeKind::Generic: {
+            auto* gen = type->as_generic_type_unsafe();
+            for (auto& arg : gen->types) collect_reference_types(arg, refs);
+            break;
+        }
+        case BaseTypeKind::Function: {
+            auto* fn = type->as_function_type_unsafe();
+            for (auto& param : fn->params) {
+                if (param) collect_reference_types(param->type, refs);
+            }
+            collect_reference_types(fn->returnType, refs);
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+// Rust-style signature elision, limited to the cases we can represent now:
+// - a method with a self reference ties elided outputs to 'self;
+// - one input lifetime ties elided outputs to it;
+// - one elided input + elided output get the internal 'elided name;
+// - multiple distinct input lifetimes require an explicit output lifetime.
+// A synthetic name is used instead of inventing a declaration, so ordinary
+// declaration validation does not reject it.
+static constexpr chem::string_view kElidedLifetime("'elided");
+
+void apply_signature_lifetime_elision(FunctionDeclaration* decl, ASTDiagnoser& diagnoser) {
+    std::vector<ReferenceType*> params;
+    for (auto* param : decl->params) {
+        if (param) collect_reference_types(const_cast<BaseType*>(param->type.getType()), params);
+    }
+    std::vector<ReferenceType*> returns;
+    collect_reference_types(const_cast<BaseType*>(decl->returnType.getType()), returns);
+    if (returns.empty()) return;
+
+    bool has_self_ref = false;
+    for (auto* param : decl->params) {
+        if (param && param->name_view() == "self") {
+            auto* ref = param->type ? const_cast<BaseType*>(param->type.getType())->as_reference_type() : nullptr;
+            if (ref) { has_self_ref = true; break; }
+        }
+    }
+
+    chem::string_view explicit_input;
+    int explicit_count = 0;
+    bool has_elided_input = false;
+    for (auto* ref : params) {
+        if (!ref->lifetime.empty() && ref->lifetime != kElidedLifetime) {
+            if (explicit_count == 0) explicit_input = ref->lifetime;
+            else if (explicit_input != ref->lifetime) explicit_count = 2;
+            explicit_count = explicit_count == 0 ? 1 : explicit_count;
+        } else {
+            has_elided_input = true;
+        }
+    }
+
+    chem::string_view chosen;
+    if (has_self_ref) {
+        chosen = "'self";
+    } else if (explicit_count == 1) {
+        chosen = explicit_input;
+    } else if (params.size() == 1 && has_elided_input) {
+        chosen = kElidedLifetime;
+        if (params[0]->lifetime.empty()) params[0]->lifetime = kElidedLifetime;
+    } else if (params.empty()) {
+        // No input lifetime to infer from. Keep the existing permissive
+        // behavior until the borrow checker rejects the escape in M4.
+        chosen = kElidedLifetime;
+    } else {
+        for (auto* ref : returns) {
+            if (ref->lifetime.empty()) {
+                diagnoser.error(decl->get_location()) << "missing lifetime specifier: cannot infer the output lifetime from multiple input lifetimes";
+                return;
+            }
+        }
+        return;
+    }
+
+    for (auto* ref : returns) {
+        if (ref->lifetime.empty()) ref->lifetime = chosen;
+    }
+}
+
 void TypeVerifier::VisitReferenceType(ReferenceType* type) {
-    if(!type->lifetime.empty() && type->lifetime != "'static" && type->lifetime != "'self") {
+    if(!type->lifetime.empty() && type->lifetime != "'static" && type->lifetime != "'self" && type->lifetime != "'elided") {
         bool found = false;
         for(const auto declared : lifetime_scope) {
             if(declared == type->lifetime) { found = true; break; }
@@ -1858,6 +1957,7 @@ void TypeVerifier::VisitReferenceType(ReferenceType* type) {
 }
 
 void TypeVerifier::VisitFunctionDecl(FunctionDeclaration *decl) {
+    apply_signature_lifetime_elision(decl, diagnoser);
     if(decl->attrs.is_extern && !decl->is_comptime() && decl->body.has_value()) {
         diagnoser.error(decl) << "an `@extern` function cannot have a body; remove the body or the `@extern` annotation";
     }

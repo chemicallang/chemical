@@ -323,6 +323,14 @@
 >   function from a safe context is a type error. Method calls are covered
 >   through the linked function declaration. Tests cover expression/block
 >   calls, unsafe methods, and both direct-call negative cases.
+> - S1.8c `std::Arc<T>` / `ArcWeak<T>`: thread-safe reference counting with
+>   `clone`, `get`, `downgrade`, `upgrade`, and strong/weak counts. Counts are
+>   currently protected by OS mutexes (`ArcCount`) rather than atomics, so the
+>   safe API and ownership rules match `Arc` without pulling the atomic library
+>   into `std`; the count implementation can be swapped later. `Arc<T>` is
+>   `Send`/`Sync` when `T: Send + Sync`; `ArcWeak<T>` is the flat-namespace
+>   counterpart of `Rc`'s `Weak<T>`. Tests cover sharing, weak upgrade/expiry,
+>   and auto-trait bounds.
 > - S1.6e `std::Mutex<T>` / `MutexGuard<T>`: OS-mutex-backed exclusive
 >   access with `lock`/`try_lock`, `get_mut`, and a guard that unlocks from its
 >   destructor. `Mutex<T>` is `Send`/`Sync` when `T: Send` through conditional

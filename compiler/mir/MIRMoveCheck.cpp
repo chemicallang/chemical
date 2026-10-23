@@ -171,12 +171,69 @@ void require_initialized(std::vector<MIRMoveDiagnostic>& out, const MIRFunction&
                          const char* action) {
     if (path == MIR_INVALID_ID) return;
     const MIRMoveState state = state_of(states, path);
-    // A join that disagrees is a conditional state; the MIR carries a drop flag
-    // for those paths, so the dataflow cannot reject them without modelling the
-    // flag value. Definite states are still rejected.
-    if (state != MIRMoveState::Initialized && state != MIRMoveState::Maybe) {
+    // `Maybe` means the paths reaching this point disagree. A value that is
+    // only conditionally initialized may not be read, moved or unconditionally
+    // destroyed; the guarded cleanup path uses a `Drop` with an explicit flag,
+    // which is handled separately in apply_instruction.
+    if (state != MIRMoveState::Initialized) {
         report(out, fn, function_index, block, inst, path, state, action);
     }
+}
+
+/**
+ * Resolve a drop-flag value when it is a compile-time constant, either directly
+ * (`const.bool`) or through a load of a place last written by `set_drop`. Returns
+ * -1 when the value is not statically known.
+ */
+int constant_drop_flag(const MIRModule& module, const MIRFunction& fn, ValueId value) {
+    if (value == MIR_INVALID_ID || value >= fn.values.size()) return -1;
+    const MIRValueDef& def = fn.values[value];
+    if (def.def_inst == MIR_INVALID_ID || def.def_inst >= fn.instructions.size()) {
+        return -1;
+    }
+    const MIRInstruction& def_inst = fn.instructions[def.def_inst];
+    if (def_inst.opcode() == MIROpcode::ConstBool && def_inst.operand_count > 0) {
+        const MIROperand& op = fn.operands[def_inst.operand_offset];
+        if (op.kind() == MIROperandKind::Constant) {
+            const MIRConstant& c = module.constants.get(op.id);
+            return c.kind == MIRConstantKind::Bool ? (c.bits ? 1 : 0) : -1;
+        }
+        return -1;
+    }
+    if (def_inst.opcode() != MIROpcode::Load || def_inst.operand_count == 0) {
+        return -1;
+    }
+    const MIROperand& base = fn.operands[def_inst.operand_offset];
+    if (base.kind() != MIROperandKind::Place) return -1;
+    const PlaceId flag_place = base.id;
+
+    // Find the block containing the load, then scan its preceding instructions
+    // for the last set_drop of the same flag place.
+    uint32_t block_start = 0;
+    uint32_t block_end = 0;
+    bool found_block = false;
+    for (const MIRBlock& block : fn.blocks) {
+        if (block.inst_start == MIR_INVALID_ID) continue;
+        const uint32_t end = block.inst_start + block.inst_count;
+        if (def.def_inst >= block.inst_start && def.def_inst < end) {
+            block_start = block.inst_start;
+            block_end = def.def_inst;
+            found_block = true;
+            break;
+        }
+    }
+    if (!found_block) return -1;
+    for (uint32_t i = block_end; i-- > block_start;) {
+        const MIRInstruction& inst = fn.instructions[i];
+        if (inst.opcode() != MIROpcode::SetDrop || inst.operand_count < 2) continue;
+        const MIROperand& dst = fn.operands[inst.operand_offset];
+        if (dst.kind() != MIROperandKind::Place || dst.id != flag_place) continue;
+        const MIROperand& src = fn.operands[inst.operand_offset + 1];
+        if (src.kind() != MIROperandKind::Constant) return -1;
+        const MIRConstant& c = module.constants.get(src.id);
+        return c.kind == MIRConstantKind::Bool ? (c.bits ? 1 : 0) : -1;
+    }
+    return -1;
 }
 
 void apply_instruction(const MIRModule& module, const MIRFunction& fn,
@@ -220,10 +277,18 @@ void apply_instruction(const MIRModule& module, const MIRFunction& fn,
             const uint32_t path = path_for_projection(module, fn, ops[0], nullptr, 0);
             if (path == MIR_INVALID_ID) break;
             if (inst.operand_count >= 3) {
-                // Conditional drop: the flag decides at runtime, so the path is
-                // only maybe destroyed afterwards.
+                // Conditional drop: resolve a constant flag when the lowering
+                // used `set_drop`; otherwise the path is only maybe destroyed.
+                const MIROperand& flag = ops[2];
+                const int known = flag.kind() == MIROperandKind::Value
+                                      ? constant_drop_flag(module, fn, flag.id) : -1;
+                if (known == 0) break; // flag is false: no state change
                 const MIRMoveState state = state_of(states, path);
-                if (state == MIRMoveState::Initialized) {
+                if (known == 1) {
+                    require_initialized(out, fn, function_index, block, inst_index, path,
+                                        states, "drop");
+                    set_subtree(fn, states, path, MIRMoveState::Destroyed);
+                } else if (state == MIRMoveState::Initialized) {
                     set_subtree(fn, states, path, MIRMoveState::Maybe);
                 }
                 break;

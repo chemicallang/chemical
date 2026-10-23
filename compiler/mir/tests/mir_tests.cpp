@@ -1864,7 +1864,7 @@ static bool test_move_check() {
         build(fn, [&](MIRBuilder& b) {
             const PlaceId a = b.alloca(owned_id);
             const PlaceId flag = b.alloca(bool_t);
-            b.set_drop(flag, true);
+            b.set_drop(flag, false);
             b.drop(a, dtor, b.load(flag, bool_t));
         });
         MIRMoveCheckResult cr = check_function_moves(module, fn);

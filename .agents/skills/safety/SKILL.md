@@ -65,12 +65,14 @@ Implemented:
 - S3.1b/S3.2 MIR init/move dataflow: `compiler/mir/MIRMoveCheck.{h,cpp}` runs
   over every lowered function (normal and `--check`) before either backend.
   It propagates Uninitialized/Initialized/Moved/Destroyed through the CFG and
-  reports `SAFE-INIT-001` / `SAFE-MOVE-001` for definite moves, drops,
-  destroys and reads of dead paths. Disagreeing joins become `Maybe`; those are
-  left to the runtime drop flag until conditional-state modelling lands.
-  Parameters/globals start initialized and coroutine frame fields are skipped
-  (owned by the async lowering). `unsafe(...)` is not an opt-out: the negative
-  suite proves an uninitialized move inside `unsafe` is still rejected.
+  reports `SAFE-INIT-001` / `SAFE-MOVE-001` for moves, drops, destroys and
+  reads of dead or conditionally initialized paths. Disagreeing joins become
+  `Maybe`; reads/moves/unconditional drops reject it, while a conditional
+  `Drop` is accepted and its constant `set_drop` flag is resolved (false is a
+  no-op, true requires initialization). Parameters/globals start initialized
+  and coroutine frame fields are skipped (owned by the async lowering).
+  `unsafe(...)` is not an opt-out: the negative suite proves an uninitialized
+  move inside `unsafe` is still rejected, and conditional-init use is rejected.
   `MIRTests` is `4563 checks`.
 
 - M1 started: `&'a T` / `&'a mut T` reference lifetimes are parsed and carried

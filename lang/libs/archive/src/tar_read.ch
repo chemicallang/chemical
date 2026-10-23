@@ -187,7 +187,15 @@ public func tar_read_file(archive : *mut TarArchive, name : *char) : std::Result
 }
 
 public func tar_contains(archive : *mut TarArchive, name : *char) : bool {
-    var entry : ArchiveEntry
+    var entry = ArchiveEntry {
+        name : string(),
+        size : 0u,
+        compressed_size : 0u,
+        compression_method : 0u,
+        crc32 : 0u,
+        is_directory : false,
+        offset : 0u
+    }
     var r = tar_find_entry(archive, name, unsafe(&raw mut entry))
     return r is Result.Ok
 }

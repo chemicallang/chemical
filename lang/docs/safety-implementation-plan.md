@@ -276,15 +276,20 @@
 >   covers a struct + array-of-destructor tree and move-state propagation.
 > - S3.1b/S3.2 MIR init/move dataflow: `MIRMoveCheck` propagates
 >   Uninitialized/Initialized/Moved/Destroyed over each function's CFG and
->   reports `SAFE-INIT-001`/`SAFE-MOVE-001` for definite moves/drops/destroys/
->   reads of dead paths. Disagreeing joins become `Maybe` and are left to the
->   runtime drop flag (conditional-state modelling is the next refinement).
->   Parameters and globals start initialized; coroutine frame fields are left to
->   the async lowering. The pass runs for every lowered function in both normal
->   and `--check` builds before either backend sees the MIR, so `unsafe(...)`
->   cannot disable it. `MIRTests` covers valid moves, double moves, drop of an
->   uninitialized path, and conditional drop; the negative suite covers the
->   `unsafe` bypass (`SAFE-INIT-001`).
+>   reports `SAFE-INIT-001`/`SAFE-MOVE-001` for moves/drops/destroys/reads of
+>   dead or conditionally initialized paths. Disagreeing joins become `Maybe`
+>   and are rejected by reads, moves and unconditional drops/destroys; a
+>   conditional `Drop` is accepted and its flag is resolved when the lowering
+>   used a constant `set_drop` (a false flag is a no-op, a true flag requires
+>   an initialized path). Parameters/globals start initialized; coroutine frame
+>   fields are left to the async lowering. The pass runs for every lowered
+>   function in both normal and `--check` builds before either backend sees the
+>   MIR, so `unsafe(...)` cannot disable it. `MIRTests` covers valid moves,
+>   double moves, drop of an uninitialized path, and conditional drop; the
+>   negative suite covers the `unsafe` bypass and conditional-init use.
+>   Element-assignment lowering now marks the moved source before
+>   `element_store_place`, and `archive::zip_contains`/`tar_contains` initialize
+>   their out-parameter entry before passing it to the finder.
 > - S1.5k nested generic-impl body deferral: a generic impl instantiation whose
 >   arguments still contain a generic parameter is registered and
 >   signature-finalized, but its body is not linked until the parameter becomes

@@ -447,6 +447,9 @@ bool MIRLowerer::lower_stmt(ASTNode* node, std::string& error) {
                 const TypeId et = types_.map(io->getType());
                 if (r.kind == MIRExprKind::Place) {
                     if (base.kind == MIRExprKind::Place) {
+                        // The element now owns the source value, so its scope
+                        // destructor must not run at exit.
+                        mark_moved(static_cast<PlaceId>(r.id));
                         builder_->element_store_place(static_cast<PlaceId>(base.id),
                                                       static_cast<ValueId>(idx.id),
                                                       static_cast<PlaceId>(r.id));

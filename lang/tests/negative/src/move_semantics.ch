@@ -93,3 +93,17 @@ func neg_unsafe_does_not_disable_init(env : &mut TestEnv) {
     var ch = "struct S {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var a : S\n        var b = a\n        return b.x\n    }\n}\n"
     expect_compile_error(env, "unsafe_does_not_disable_init", ch, "SAFE-INIT-001")
 }
+
+@test
+func neg_conditional_init_use_errors(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct S {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var cond = true\n        var s : S\n        if(cond) { s = S { x : 1 } }\n        return s.x\n    }\n}\n"
+    expect_compile_error(env, "conditional_init_use", ch, "SAFE-MOVE-001")
+}
+
+@test
+func conditional_init_without_use_is_allowed(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct S {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var cond = true\n        var s : S\n        if(cond) { s = S { x : 1 } }\n        return 0\n    }\n}\n"
+    expect_compile_success(env, "conditional_init_ok", ch)
+}

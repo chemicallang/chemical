@@ -66,14 +66,16 @@ Implemented:
   validated for declared names; `&'static T` is accepted (S1.1f/S1.1g).
   Lifetime-only and mixed generic impl targets (`impl<'a> Trait for View<'a>`,
   `impl<'a, T> Trait for View<'a, T>`) and explicit `View<'a> { ... }` /
-  `View<'a, T> { ... }` literals work end-to-end (S1.0b). Enforcement in the
-  borrow checker is still pending. Chemical syntax is `func <'a> f(...)`.
+  `View<'a, T> { ... }` literals work end-to-end (S1.0b). `std::PhantomData<T>`
+  is a zero-sized marker usable as `PhantomData<&'a T>` (S1.3a); variance
+  analysis waits for regions. Enforcement in the borrow checker is still
+  pending. Chemical syntax is `func <'a> f(...)`.
 
 Next:
 
-- S1.2 `'static`/bounds are done; temporary lifetime extension moves with the
-  borrow checker (M4). Next: S1.3 variance/`PhantomData`, then S1.4 opt-in
-  `Copy`/`Drop`/`Clone`/`Default`.
+- S1.2 `'static`/bounds and S1.3a `PhantomData` are done; temporary lifetime
+  extension and variance analysis move with the borrow checker (M4). Next:
+  S1.4 opt-in `Copy`/`Drop`/`Clone`/`Default`.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

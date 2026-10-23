@@ -120,9 +120,16 @@
 >   related by region constraints.
 > - S1.2 temporary lifetime extension is deferred to M4, where regions and
 >   destruction points exist; it cannot be verified before the borrow checker.
+> - S1.3a `std::PhantomData<T>`: added as a zero-sized marker and verified as a
+>   field type (`std::PhantomData<&'a T>`) in a lifetime-generic struct,
+>   including explicit `PhantomData<&'static int> {}` construction. The parser
+>   now handles a lifetime inside a reference type in `isGenericEndAhead`, so
+>   `View<&'a T>`-style generic arguments are recognized.
+> - S1.3b variance analysis is deferred to the region/borrow-checker work in
+>   M4; without regions there is no consumer for inferred variance. The
+>   `PhantomData` representation it depends on is in place.
 >
-> Next: S1.3 variance/`PhantomData`, and S1.4 opt-in `Copy`/`Drop`/`Clone`/
-> `Default`.
+> Next: S1.4 opt-in `Copy`/`Drop`/`Clone`/`Default`.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

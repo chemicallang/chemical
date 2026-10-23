@@ -18,7 +18,15 @@ static bool read_type_involving_token(Parser& parser) {
         parser.token++;
         return true;
     }
-    if(type == TokenType::MultiplySym || type == TokenType::AmpersandSym || type == TokenType::DynKw || type == TokenType::MutKw) {
+    if(type == TokenType::AmpersandSym) {
+        // a reference type is `& [lifetime] [mut] <type>`; the lifetime is a
+        // separate token, so consume it before reading the pointee.
+        parser.token++;
+        if(parser.token->type == TokenType::Lifetime) parser.token++;
+        parser.consumeToken(TokenType::MutKw);
+        return read_type_involving_token(parser);
+    }
+    if(type == TokenType::MultiplySym || type == TokenType::DynKw || type == TokenType::MutKw) {
         parser.token++;
         read_type_involving_token(parser);
         return true;

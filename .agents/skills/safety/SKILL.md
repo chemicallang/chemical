@@ -99,8 +99,10 @@ Next:
   `T: Show` calls through the bound interface and relinks to the concrete impl
   after monomorphization (S1.5e). Bound methods on generic fields
   (`self.value.show()` / `self.value.clone()`) resolve through a target-param
-  to impl-param alias while linking the impl body (S1.5f). Next: generic
-  negative impls and the move checker.
+  to impl-param alias while linking the impl body (S1.5f). Speculative generic
+  impl discovery is silent on unsatisfied bounds, and impl arguments are
+  checked exactly without pointer stripping (S1.5g). Next: generic negative
+  impls and the move checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

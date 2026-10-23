@@ -662,7 +662,8 @@ static bool check_generic_impl_bounds(
     GenericInstantiatorAPI& instantiator,
     GenericImplDecl* candidate,
     const std::vector<TypeLoc>& impl_args,
-    SourceLocation demand_loc
+    SourceLocation demand_loc,
+    bool report_errors
 ) {
     if(gimpl_demand_depth > 16) {
         instantiator.getDiagnoser().error(demand_loc)
@@ -674,7 +675,11 @@ static bool check_generic_impl_bounds(
     bool ok = true;
 
     auto check_trait = [&](BaseType* concrete_type, BaseType* trait) -> bool {
-        auto* concrete = strip_reference_and_pointer(concrete_type);
+        // `concrete_type` is an impl argument (e.g. the T in
+        // `impl<T> Clone for vector<T>`), not a receiver. Do not strip
+        // pointers here: `*mut T` is not automatically Clone/Copy, and
+        // stripping it would silently claim the pointee's impl applies.
+        auto* concrete = concrete_type;
         if(concrete == nullptr) return true;
         if(contains_generic_parameter(concrete)) return true; // deferred, checked after substitution
         auto* trait_node = trait->get_direct_linked_canonical_node();
@@ -747,11 +752,13 @@ static bool check_generic_impl_bounds(
             if(index.get_impl(interface_key, for_) != nullptr) return true;
         }
 
-        diagnoser.error(demand_loc)
-            << "type '" << concrete->representation() << "' does not satisfy bound '"
-            << trait->representation() << "' required by this generic implementation";
-        diagnoser.info(candidate->master_impl)
-            << "the bound is declared here";
+        if(report_errors) {
+            diagnoser.error(demand_loc)
+                << "type '" << concrete->representation() << "' does not satisfy bound '"
+                << trait->representation() << "' required by this generic implementation";
+            diagnoser.info(candidate->master_impl)
+                << "the bound is declared here";
+        }
         return false;
     };
 
@@ -869,7 +876,9 @@ bool instantiate_generic_impls_for(
         if(!complete) continue;
 
         matched = true;
-        if(!check_generic_impl_bounds(instantiator, candidate, impl_args, demand_loc)) {
+        if(!check_generic_impl_bounds(
+            instantiator, candidate, impl_args, demand_loc, !member_filter.empty()
+        )) {
             continue;
         }
         candidate->register_generic_args(

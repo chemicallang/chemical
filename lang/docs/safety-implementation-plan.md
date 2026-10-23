@@ -226,6 +226,12 @@
 >   `impl<T: Show> Show for Wrapper<T>` and `self.value.clone()` inside
 >   `impl<T: Clone> Clone for Wrapper<T>` resolve and relink to the concrete
 >   impl after monomorphization. Tests cover both.
+> - S1.5g generic-impl bound demand policy: speculative impl discovery (empty
+>   member filter, used to populate a type's method table) no longer reports
+>   bound failures; only an explicit member demand does. Impl arguments are
+>   checked exactly, without stripping pointers/references, so a `*mut T`
+>   argument is not silently treated as `T`. This keeps dormant generic impls
+>   from failing compilations that never use the guarded member.
 > - Still pending in S1.5: generic negative impls and data-race enforcement.
 > - Still pending in S1.4: automatic `Clone` derivation/body generation.
 >

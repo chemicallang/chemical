@@ -46,9 +46,18 @@
 >     build is refreshed after the release configuration is repaired (tracked as
 >     a tooling item, not a safety-rule change).
 >
+> - S0.4 remove user opt-outs:
+>   - removed `safety`, `safe_mode`, and `checks.*` from `LabModuleOptions`,
+>     `ModuleOptionRegistry`, and `lang/libs/lab/src/lab.ch`;
+>   - old `option safety = false` is now rejected as an unknown option;
+>   - fixed module-file `option` parsing to consume the leading identifier;
+>   - negative suite `330/330`.
+>   - `unsafe(expr)`, `da_in_unsafe`, and `@allow_zeroed` remain until their
+>     replacement stages (as planned).
+>
 > **Next**
-> - S0.4 remove module/CLI opt-outs.
-> - Parity corpus/manifest is M8.1 (not a blocker for S0.1–S0.3).
+> - S0.5 MIR source/verifier/interpreter hardening.
+> - Parity corpus/manifest is M8.1 (not a blocker for S0.x).
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

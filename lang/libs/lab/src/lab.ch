@@ -11,16 +11,7 @@ public enum PackageKind {
     Application
 }
 
-public struct ModuleChecksOptions {
-    var bounds : bool = false;
-    var overflow : bool = false;
-    var null : bool = false;
-}
-
 public struct ModuleOptions {
-    var safety : bool = true;
-    var checks : ModuleChecksOptions;
-    var safe_mode : std::string_view;
     var stack_protector : std::string_view;
     var optimization_level : int = 0;
 }

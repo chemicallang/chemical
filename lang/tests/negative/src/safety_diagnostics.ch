@@ -11,6 +11,15 @@ func neg_uninit_diagnostic_has_code(env : &mut TestEnv) {
 }
 
 @test
+func neg_safety_option_removed(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // There is no module-level safety opt-out anymore. The option registry
+    // rejects the old key instead of silently disabling checks.
+    var mod = "module neg_test\nsource \".\"\noption safety = false\n"
+    expect_compile_error_with_mod(env, "safety_option_removed", "func main() {}", "unknown option 'safety'", mod)
+}
+
+@test
 func unsafe_deref_warning_has_code(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     // Report-only safety rule: the program still compiles, but the warning

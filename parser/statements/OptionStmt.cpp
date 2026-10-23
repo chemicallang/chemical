@@ -13,7 +13,11 @@
  * Validates against the global option registry during parsing.
  */
 bool BasicParser::parseOptionStmt(ASTAllocator& allocator, ModuleFileData& data) {
-    // "option" has already been consumed by the caller
+    // The module-file dispatch sees the `option` identifier itself (it is not a
+    // dedicated token). Consume it if present so both call styles work.
+    if (token->value == "option") {
+        token++;
+    }
 
     // ---- Parse the key path (identifiers separated by dots) ----
     auto first_id = consumeIdentifierOrKeyword();

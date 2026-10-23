@@ -11,7 +11,7 @@ The source tree wins over any status note here.
 
 ## Current status (2026-10-23)
 
-**Milestone M0 / S0.1–S0.3 are implemented.**
+**Milestone M0 / S0.1–S0.4 are implemented.**
 
 Implemented:
 
@@ -40,9 +40,15 @@ Implemented:
 - Tests: `lang/tests/negative/src/safety_diagnostics.ch`; safety suite now has
   smoke, report, and runtime-panic tests (`3/3` on TCC and LLVM).
 
+- Module/CLI safety opt-outs removed (S0.4): `safety`, `safe_mode`, and
+  `checks.*` no longer exist; `option safety = false` is rejected. Module-file
+  `option` parsing now consumes its leading identifier.
+- `unsafe(expr)`, `da_in_unsafe`, and `@allow_zeroed` are still kept until their
+  replacement stages; they are not user-facing opt-outs.
+
 Next:
 
-- S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
+- S0.5 MIR source/verifier/interpreter hardening.
 - Parity corpus/manifest is M8.1 (not an S0.x blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

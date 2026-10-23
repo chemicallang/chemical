@@ -2525,31 +2525,6 @@ static void apply_module_options(LabModuleOptions& opts, const std::vector<ModFi
 
         constexpr auto hasher = std::hash<chem::string_view>();
         switch (hasher(key)) {
-            case hasher("safety"):
-                if (key == "safety" && val.kind == ModOptionValueKind::Boolean) {
-                    opts.safety = val.bool_val;
-                }
-                break;
-            case hasher("checks.bounds"):
-                if (key == "checks.bounds" && val.kind == ModOptionValueKind::Boolean) {
-                    opts.checks.bounds = val.bool_val;
-                }
-                break;
-            case hasher("checks.overflow"):
-                if (key == "checks.overflow" && val.kind == ModOptionValueKind::Boolean) {
-                    opts.checks.overflow = val.bool_val;
-                }
-                break;
-            case hasher("checks.null"):
-                if (key == "checks.null" && val.kind == ModOptionValueKind::Boolean) {
-                    opts.checks.null = val.bool_val;
-                }
-                break;
-            case hasher("safe_mode"):
-                if (key == "safe_mode" && val.kind == ModOptionValueKind::String) {
-                    opts.safe_mode = val.str_val;
-                }
-                break;
             case hasher("stack_protector"):
                 if (key == "stack_protector" && val.kind == ModOptionValueKind::String) {
                     opts.stack_protector = val.str_val;

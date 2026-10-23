@@ -384,3 +384,17 @@ func neg_nested_raw_without_send_impl(env : &mut TestEnv) {
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\nstruct Raw {\n    var p : *mut int\n}\nstruct Nested {\n    var raw : Raw\n}\npublic func main() : int {\n    var h = Holder<Nested> { data = null }\n    return h.check()\n}\n"
     expect_compile_error_with_mod(env, "nested_raw_not_send", ch, "does not satisfy", NEG_MOD_CORE)
 }
+
+@test
+func neg_non_null_is_not_send(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\npublic func main() : int {\n    var h = Holder<std::NonNull<int>> { data = null }\n    return h.check()\n}\n"
+    expect_compile_error_with_mod(env, "non_null_not_send", ch, "does not satisfy", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_non_null_is_not_sync(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\npublic func main() : int {\n    var h = Holder<std::NonNull<int>> { data = null }\n    return h.check()\n}\n"
+    expect_compile_error_with_mod(env, "non_null_not_sync", ch, "does not satisfy", NEG_MOD_STD_CORE)
+}

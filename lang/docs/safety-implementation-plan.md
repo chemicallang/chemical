@@ -290,6 +290,10 @@
 >   Element-assignment lowering now marks the moved source before
 >   `element_store_place`, and `archive::zip_contains`/`tar_contains` initialize
 >   their out-parameter entry before passing it to the finder.
+> - S1.6b `std::NonNull<T>`: a non-null raw-pointer wrapper with
+>   `make`/`non_null`, `as_ptr` and `is_null`. It is neither `Send` nor `Sync`
+>   (the field is a raw pointer), matching the conservative auto-trait rule;
+>   tests cover construction, pointer identity and writes through `as_ptr`.
 > - S1.5l nested auto-trait overrides: structural `Send`/`Sync` derivation now
 >   honors an explicit positive impl on a nested field's container (for example
 >   `unsafe impl Send for Raw` makes a struct containing `Raw` Send even though

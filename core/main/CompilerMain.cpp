@@ -73,6 +73,8 @@ void print_help() {
                  "--assertions        -[empty]      enable assertions on generated code\n"
                  "--debug-ir          -[empty]      output llvm ir, even with errors, for debugging\n"
                  "--ignore-errors     -[empty]      ignore any errors that happen and compile any way\n"
+                 "--safety-report     -[empty]      read-only safety audit (raw pointers, unsafe ops, FFI, panics, allocators)\n"
+                 "--safety-report json -[empty]     emit one JSON object per module (JSONL)\n"
                  "--arg-[arg]         -arg-[arg]    can be used to provide arguments to build.lab\n"
                  //                 "--verify            -o            do not compile, only verify source code\n"
                  "--jit               -jit          do just in time compilation using Tiny CC\n"
@@ -379,6 +381,8 @@ int compiler_main(int argc, char *argv[]) {
             CmdOption("incremental", "incremental", CmdOptionType::NoValue),
             CmdOption("keepc", "keepc", CmdOptionType::NoValue),
             CmdOption("test", "test", CmdOptionType::NoValue),
+            CmdOption("safety-report", CmdOptionType::SingleValue),
+            CmdOption("safety-report-json", CmdOptionType::NoValue),
             CmdOption("benchmark", "bm", CmdOptionType::NoValue),
             CmdOption("benchmark-files", "bm-files", CmdOptionType::NoValue),
             CmdOption("benchmark-modules", "bm-modules", CmdOptionType::NoValue),
@@ -534,6 +538,22 @@ int compiler_main(int argc, char *argv[]) {
 #endif
         opts->is_testing_env = options.has_value("test");
         opts->ignore_errors = options.has_value("ignore-errors", "ignore-errors");
+        auto safety_report_opt = options.option_new("safety-report", "safety-report");
+        if(safety_report_opt.has_value()) {
+            opts->safety_report = true;
+            std::string report_value(safety_report_opt.value());
+            if(report_value == "json") {
+                opts->safety_report_json = true;
+            }
+        }
+        if(options.has_value("safety-report-json")) {
+            opts->safety_report = true;
+            opts->safety_report_json = true;
+        }
+        if(opts->safety_report) {
+            // The audit must see parsed declarations, not cached objects.
+            opts->is_caching_enabled = false;
+        }
         auto mode_opt = options.option_new("plugin-mode", "pm");
         if(mode_opt.has_value()) {
             const auto mode = get_output_mode(mode_opt, false);

@@ -24,10 +24,21 @@
 >   `2318/2318`, LLVM main `2316/2316`, interpreter `1907/1907`, negative
 >   `329/329`.
 >
+> - S0.2 `--safety-report` audit mode:
+>   - text table and JSONL (`--safety-report json`), one object per module;
+>   - categories: raw pointer types/derefs/addrs/casts, unsafe blocks/values,
+>     extern declarations/calls, variadic calls, panic/abort, unreachable,
+>     new/delete/dealloc/destruct, allocator/memory calls, inline asm, mutable/
+>     extern globals;
+>   - collected after type checking and before codegen, with per-module dedup;
+>   - safety-suite test verifies the report contains pointer/deref counts.
+>   - Known limitation: generic/master impl bodies are skipped (their evaluated
+>     containers can be stale after instantiation); concrete declarations are
+>     reported. This is tracked for S0.3 audit refinement.
+>
 > **Next**
-> - S0.2 `--safety-report` audit mode.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
-> - Parity corpus/manifest is M8.1 (not a blocker for S0.1).
+> - Parity corpus/manifest is M8.1 (not a blocker for S0.1/S0.2).
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

@@ -345,6 +345,8 @@ set(COMMON_SOURCES
         utils/Benchmark.cpp
         compiler/ASTDiagnoser.h
         compiler/ASTDiagnoser.cpp
+        compiler/safety/SafetyReport.h
+        compiler/safety/SafetyReport.cpp
         server/model/LexResult.h
         preprocess/ImportPathHandler.h
         preprocess/ImportPathHandler.cpp

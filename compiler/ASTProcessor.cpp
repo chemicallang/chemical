@@ -86,8 +86,10 @@ static void ct_stat_decl(const char* tag, FunctionDeclaration* d) {
 #include <future>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include "compiler/async/AwaitNormalizePass.h"
 #include "compiler/mir/MIREmitter.h"
+#include "compiler/safety/SafetyReport.h"
 #include "compiler/mir/MIRDeclEmitter.h"
 #include "compiler/mir/MIRVtable.h"
 #include "compiler/cbi/model/ASTBuilder.h"
@@ -888,6 +890,38 @@ bool ASTProcessor::type_verify_module_parallel(ctpl::thread_pool& pool, LabModul
             Diagnoser::print_diagnostics(res.diagnostics, chem::string_view(module->direct_files[i].abs_path), "TypeCheck");
         }
         i++;
+    }
+
+    if(success && options->safety_report) {
+        // The AST is still fully linked here, before codegen mutates/frees
+        // lowering state. This is the safe point for a read-only audit.
+        //
+        // A module can be compiled more than once for different jobs in one
+        // invocation (shared dependencies); report each module once per
+        // process. The audit is a CLI/dev tool, not part of the release path.
+        static std::mutex safety_report_modules_mutex;
+        static std::unordered_set<std::string> safety_report_modules;
+        const std::string module_key = std::string(module->scope_name.data(), module->scope_name.size())
+            + "::" + std::string(module->name.data(), module->name.size());
+        bool first_report = false;
+        {
+            std::lock_guard<std::mutex> guard(safety_report_modules_mutex);
+            first_report = safety_report_modules.insert(module_key).second;
+        }
+        if(first_report) {
+            chem::safety::SafetyReport report;
+            chem::safety::collect_module_report(*module, loc_man, report);
+            std::lock_guard<std::mutex> guard(print_mutex);
+            if(options->safety_report_json) {
+                std::cout << "{\"module\":\"" << module_key << "\",\"report\":";
+                report.print_json(std::cout);
+                std::cout << "}\n";
+            } else {
+                std::cout << "[safety-report] module " << module_key << '\n';
+                report.print_text(std::cout);
+            }
+            std::cout << std::flush;
+        }
     }
 
     return success;

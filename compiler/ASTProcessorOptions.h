@@ -58,6 +58,13 @@ public:
     bool stop_on_file_error = true;
 
     /**
+     * read-only safety audit (--safety-report / --safety-report=json).
+     * Collected after type checking, before codegen, so the AST is still valid.
+     */
+    bool safety_report = false;
+    bool safety_report_json = false;
+
+    /**
      * is target system 64Bit
      */
     bool is64Bit;

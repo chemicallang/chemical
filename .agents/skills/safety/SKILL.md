@@ -32,12 +32,18 @@ Implemented:
   `lang/tests/build.lab` and `scripts/test.sh`.
 - Runtime-failure harness (`expect_runtime_panic`) using `process::execute` and
   compiler subprocesses; smoke + panic tests pass on TCC and LLVM.
-- Tests: `lang/tests/negative/src/safety_diagnostics.ch`.
+- `--safety-report` read-only audit (S0.2): text table and JSONL
+  (`--safety-report json`), collected after type checking and before codegen.
+  Categories include raw pointers, unsafe blocks, FFI, panics, allocators,
+  memory calls, inline asm, and mutable globals. Per-module dedup. Generic
+  master impl bodies are skipped for now; concrete declarations are reported.
+- Tests: `lang/tests/negative/src/safety_diagnostics.ch`; safety suite now has
+  smoke, report, and runtime-panic tests (`3/3` on TCC and LLVM).
 
 Next:
 
-- `--safety-report` audit mode (S0.2).
-- Parity corpus/manifest is M8.1 (not an S0.1 blocker).
+- S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
+- Parity corpus/manifest is M8.1 (not an S0.x blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).
 
@@ -146,8 +152,12 @@ Compile-fail tests stay in `--negative` so the default suites remain fast.
 # Fast compile-fail gate
 ./scripts/test.sh --tcc --negative --no-build
 
-# Safety suite skeleton
+# Safety suite (smoke, report, runtime-panic)
 ./scripts/test.sh --tcc --safety --no-build
+
+# Read-only audit
+./cmake-build-debug/TCCCompiler <module> --no-cache --safety-report
+./cmake-build-debug/TCCCompiler <module> --no-cache --safety-report json
 
 # Main TCC regression
 ./scripts/test.sh --tcc --no-build

@@ -68,6 +68,25 @@ internal func safety_run_command(args : vector<string>) : int {
     return result.status.code
 }
 
+internal func safety_run_command_capture(args : vector<string>, out : &mut string) : int {
+    var cfg = process::ProcessConfig.default()
+    cfg.args = args
+    cfg.capture_stdout = true
+    cfg.capture_stderr = true
+    cfg.timeout_ms = 60000
+    var r = process::execute(cfg)
+    if(r is Result.Err) {
+        return -1
+    }
+    var Ok(result) = r else unreachable
+    var view = result.stdout_str()
+    out.append_view(&view)
+    if(result.status.signaled) {
+        return 128 + result.status.signal
+    }
+    return result.status.code
+}
+
 // Compile `ch_content` into `name` and run it. The program is expected to
 // terminate abnormally (panic/abort or a nonzero exit code).
 internal func expect_runtime_panic(env : &mut TestEnv, name : *char, ch_content : *char) {
@@ -122,6 +141,59 @@ internal func expect_runtime_panic(env : &mut TestEnv, name : *char, ch_content 
 func safety_suite_smoke(env : &mut TestEnv) {
     if(1 + 1 != 2) {
         env.error("safety suite sanity check failed")
+    }
+}
+
+internal func safety_compile_with_report(env : &mut TestEnv, name : *char, ch_content : *char) : string {
+    safety_init_work_dir()
+    var dir_path : [512]char
+    var mod_path : [512]char
+    var exe_path : [512]char
+    var ch_path : [512]char
+    sprintf(unsafe(&raw mut dir_path[0]), "%s/%s", SAFETY_WORK_DIR, name)
+    mkdir(unsafe(&raw dir_path[0]), 0o777 as uint)
+    sprintf(unsafe(&raw mut mod_path[0]), "%s/chemical.mod", unsafe(&raw dir_path[0]))
+    sprintf(unsafe(&raw mut ch_path[0]), "%s/test.ch", unsafe(&raw dir_path[0]))
+    sprintf(unsafe(&raw mut exe_path[0]), "%s/test.exe", unsafe(&raw dir_path[0]))
+    safety_write_file(unsafe(&raw mut mod_path[0]), "module safety_report_test\nsource \".\"\nimport cstd\nimport std\nimport core\n")
+    safety_write_file(unsafe(&raw mut ch_path[0]), ch_content)
+
+    var compiler_path_buf : [1024]char
+    sprintf(unsafe(&raw mut compiler_path_buf[0]), "%s", intrinsics::get_compiler_path())
+    var compiler_path = string()
+    var compiler_view = std::string_view(unsafe(&raw compiler_path_buf[0]), strlen(unsafe(&raw compiler_path_buf[0])))
+    compiler_path.append_view(&compiler_view)
+    var module_path = string()
+    var module_view = std::string_view(unsafe(&raw mod_path[0]), strlen(unsafe(&raw mod_path[0])))
+    module_path.append_view(&module_view)
+    var executable_path = string()
+    var executable_view = std::string_view(unsafe(&raw exe_path[0]), strlen(unsafe(&raw exe_path[0])))
+    executable_path.append_view(&executable_view)
+
+    var args = vector<string>()
+    args.push(compiler_path)
+    args.push(module_path)
+    args.push(string("--no-cache"))
+    args.push(string("--safety-report"))
+    args.push(string("-o"))
+    args.push(executable_path)
+    var out = string()
+    var rc = safety_run_command_capture(args, &mut out)
+    if(rc != 0) {
+        env.error("safety report compilation failed")
+    }
+    return out
+}
+
+@test
+func safety_report_emits_counts(env : &mut TestEnv) {
+    var ch = "func read_ptr(p : *mut int) : int {\n    return *p\n}\npublic func main() : int {\n    return 0\n}\n"
+    var out = safety_compile_with_report(env, "report_counts", ch)
+    var view = out.to_view()
+    var raw_needle = std::string_view("raw_pointer_types")
+    var deref = std::string_view("raw_pointer_derefs")
+    if(!view.contains(&raw_needle) || !view.contains(&deref)) {
+        env.error("safety report did not contain raw pointer counts")
     }
 }
 

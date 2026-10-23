@@ -201,6 +201,12 @@
 >   concrete `Send`/`Sync` targets; generic negative impls are rejected with a
 >   clear diagnostic. Tests cover positive syntax, `!Send`/`!Sync` bound
 >   rejection, non-auto-trait targets, and positive/negative conflicts.
+> - S1.4f `Clone` implementations: std now implements `Clone` for all primitive
+>   integer/float/bool/char types plus `string_view` and `span<T>`. Direct
+>   `.clone()` calls on those types work; tests cover int, bool and
+>   string_view. Calling `.clone()` on a generic `T: Clone` still hits the
+>   pre-existing generic-interface method-resolution limitation (the same
+>   issue as bound methods on generic fields), so that remains pending.
 > - Still pending in S1.5: generic negative impls and data-race enforcement.
 > - Still pending in S1.4: automatic `Clone` derivation/body generation.
 >

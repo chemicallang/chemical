@@ -66,6 +66,7 @@ func run_executable_tests() {
     // --------------------------------------
     test_for_in()
     test_strings();
+    test_clone_impls();
     test_hashing();
     test_vectors();
     test_array_refs();

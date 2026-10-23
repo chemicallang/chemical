@@ -140,8 +140,10 @@ Next:
   interior mutability: `UnsafeCell` is `!Sync` and `Send` follows `T: Send`;
   `Cell` wraps it with `T: Copy` reads. Structural auto-trait derivation now
   consults the implementation index for unconditional generic negative impls
-  through nested fields. Next: conditional-state/drop-flag modelling, then the
-  borrow checker.
+  through nested fields and honors explicit positive impls on nested fields
+  (S1.5l). `std::NonNull<T>` (S1.6b) wraps a non-null raw pointer and is
+  deliberately neither `Send` nor `Sync`. Next: partial-move/drop elaboration,
+  then the borrow checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

@@ -11,7 +11,7 @@ The source tree wins over any status note here.
 
 ## Current status (2026-10-23)
 
-**Milestone M0 / S0.1 is in progress.**
+**Milestone M0 / S0.1–S0.3 are implemented.**
 
 Implemented:
 
@@ -158,6 +158,14 @@ Compile-fail tests stay in `--negative` so the default suites remain fast.
 # Read-only audit
 ./cmake-build-debug/TCCCompiler <module> --no-cache --safety-report
 ./cmake-build-debug/TCCCompiler <module> --no-cache --safety-report json
+
+# Audit baseline gate
+./scripts/safety-audit.sh            # fail on growth
+./scripts/safety-audit.sh --update   # record a reviewed baseline
+
+# Compiler-size / audit-time baseline
+./scripts/safety-baseline.sh
+./scripts/safety-baseline.sh --update
 
 # Main TCC regression
 ./scripts/test.sh --tcc --no-build

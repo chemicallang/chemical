@@ -307,7 +307,7 @@ void SafetyReport::print_json(std::ostream& os) const {
         if (i) os << ',';
         os << '"' << kCountNames[i] << "\":" << (total.*(kCountFields[i]));
     }
-    os << "}}\n";
+    os << "}}";
 }
 
 void collect_module_report(LabModule& module, LocationManager& loc_man, SafetyReport& report) {

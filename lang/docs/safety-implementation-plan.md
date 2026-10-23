@@ -36,9 +36,19 @@
 >     containers can be stale after instantiation); concrete declarations are
 >     reported. This is tracked for S0.3 audit refinement.
 >
+> - S0.3 baseline/audit gate:
+>   - `scripts/safety-audit.sh` checks `--safety-report` totals against
+>     `lang/docs/safety/audit-baseline.json`; `--update` records a reviewed
+>     baseline.
+>   - `scripts/safety-baseline.sh` records compiler sizes and audit wall time in
+>     `lang/docs/safety/perf-baseline.json`; fails on significant growth.
+>   - The checked-in size baseline currently uses debug binaries; the release
+>     build is refreshed after the release configuration is repaired (tracked as
+>     a tooling item, not a safety-rule change).
+>
 > **Next**
-> - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
-> - Parity corpus/manifest is M8.1 (not a blocker for S0.1/S0.2).
+> - S0.4 remove module/CLI opt-outs.
+> - Parity corpus/manifest is M8.1 (not a blocker for S0.1–S0.3).
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

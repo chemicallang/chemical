@@ -232,6 +232,15 @@
 >   checked exactly, without stripping pointers/references, so a `*mut T`
 >   argument is not silently treated as `T`. This keeps dormant generic impls
 >   from failing compilations that never use the guarded member.
+> - S1.5h generic variant/union field dispatch: the target-param alias map now
+>   covers `GenericVariantDecl` and `GenericUnionDecl` (not only structs), and
+>   `provide_child` falls back to an identifier's type when its linked node has
+>   no child (pattern variables, fields). Alias lookup also falls back to the
+>   parameter identifier for copied parameter nodes. A local `CloneBox<T>`
+>   variant with `impl<T: Clone> Clone for CloneBox<T>` now clones through a
+>   pattern variable (`value.clone()`), with a passing test. Generic `Option`/
+>   `vector` `Clone` still needs instantiation-time alias propagation for
+>   non-Clone element types, so those impls remain out of the tree.
 > - Still pending in S1.5: generic negative impls and data-race enforcement.
 > - Still pending in S1.4: automatic `Clone` derivation/body generation.
 >

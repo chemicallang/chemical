@@ -1977,15 +1977,30 @@ void SymResLinkBody::VisitImplDecl(ImplDefinition* node) {
         if(target_type != nullptr && target_type->kind() == BaseTypeKind::Generic) {
             auto* target_gen = target_type->as_generic_type_unsafe();
             auto* target_decl = target_gen->referenced->linked;
-            if(target_decl != nullptr && target_decl->kind() == ASTNodeKind::GenericStructDecl) {
-                auto* struct_params = &target_decl->as_gen_struct_def_unsafe()->generic_params;
-                const auto count = target_gen->types.size() < struct_params->size()
-                    ? target_gen->types.size() : struct_params->size();
+            std::vector<GenericTypeParameter*>* target_params = nullptr;
+            if(target_decl != nullptr) {
+                switch(target_decl->kind()) {
+                    case ASTNodeKind::GenericStructDecl:
+                        target_params = &target_decl->as_gen_struct_def_unsafe()->generic_params;
+                        break;
+                    case ASTNodeKind::GenericUnionDecl:
+                        target_params = &target_decl->as_gen_union_decl_unsafe()->generic_params;
+                        break;
+                    case ASTNodeKind::GenericVariantDecl:
+                        target_params = &target_decl->as_gen_variant_decl_unsafe()->generic_params;
+                        break;
+                    default:
+                        break;
+                }
+            }
+            if(target_params != nullptr) {
+                const auto count = target_gen->types.size() < target_params->size()
+                    ? target_gen->types.size() : target_params->size();
                 for(size_t i = 0; i < count; i++) {
                     auto* arg_type = const_cast<BaseType*>(target_gen->types[i].getType());
                     auto* arg_linked = arg_type ? arg_type->get_direct_linked_node() : nullptr;
                     if(arg_linked != nullptr && arg_linked->kind() == ASTNodeKind::GenericTypeParam) {
-                        aliases[(*struct_params)[i]] = arg_linked->as_generic_type_param_unsafe();
+                        aliases[(*target_params)[i]] = arg_linked->as_generic_type_param_unsafe();
                     }
                 }
             }

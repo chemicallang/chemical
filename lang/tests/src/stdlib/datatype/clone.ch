@@ -56,6 +56,21 @@ impl<T> Clone for CloneWrapper<T> where T: Clone {
     }
 }
 
+variant CloneBox<T> {
+    Val(value : T)
+    Empty()
+}
+
+impl<T> Clone for CloneBox<T> where T: Clone {
+    func clone(&self) : CloneBox<T> {
+        if(self is CloneBox.Val) {
+            var Val(value) = self else unreachable
+            return CloneBox.Val<T>(value.clone())
+        }
+        return CloneBox.Empty<T>()
+    }
+}
+
 func test_clone_impls() {
     test("int clone", () => {
         var x = 41
@@ -95,5 +110,14 @@ func test_clone_impls() {
         var w = CloneWrapper<CloneRow> { value : CloneRow { x : 41 } }
         var c = w.clone()
         return c.value.x == 41
+    })
+    test("generic variant clone", () => {
+        var b = CloneBox.Val<CloneRow>(CloneRow { x : 41 })
+        var c = b.clone()
+        if(c is CloneBox.Val) {
+            var Val(v) = c else unreachable
+            return v.x == 41
+        }
+        return false
     })
 }

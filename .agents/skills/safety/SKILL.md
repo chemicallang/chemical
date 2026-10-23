@@ -101,8 +101,11 @@ Next:
   (`self.value.show()` / `self.value.clone()`) resolve through a target-param
   to impl-param alias while linking the impl body (S1.5f). Speculative generic
   impl discovery is silent on unsatisfied bounds, and impl arguments are
-  checked exactly without pointer stripping (S1.5g). Next: generic negative
-  impls and the move checker.
+  checked exactly without pointer stripping (S1.5g). Generic variant/union
+  field dispatch works through pattern variables (`value.clone()` in a
+  `CloneBox<T>` impl, S1.5h). Generic `Option`/`vector` `Clone` still needs
+  instantiation-time alias propagation for non-Clone element types. Next:
+  generic negative impls and the move checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

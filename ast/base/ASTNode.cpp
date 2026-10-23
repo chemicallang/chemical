@@ -739,6 +739,13 @@ ASTNode* child_provider_linked_type(const ChildResolver* resolver, LinkedType* t
             const auto alias = resolver->active_param_aliases->find(param);
             if(alias != resolver->active_param_aliases->end()) {
                 param = alias->second;
+            } else {
+                for(const auto& entry : *resolver->active_param_aliases) {
+                    if(entry.first->identifier == param->identifier) {
+                        param = entry.second;
+                        break;
+                    }
+                }
             }
         }
         for(auto& trait : param->traits) {
@@ -859,7 +866,18 @@ ASTNode* provide_child(const ChildResolver* resolver, Value* parent, const chem:
     switch(parent->kind()) {
         case ValueKind::Identifier: {
             const auto id = parent->as_identifier_unsafe();
-            return id->linked->child(resolver, name);
+            if(id->linked != nullptr) {
+                auto* found = id->linked->child(resolver, name);
+                if(found != nullptr) return found;
+            }
+            // A pattern variable or field identifier can be linked to a member
+            // node rather than a container; fall back to its type so methods
+            // on a generic parameter resolve through the parameter's bounds.
+            auto* value_type = id->getType();
+            if(value_type != nullptr) {
+                return provide_child(resolver, value_type, name, type_parent);
+            }
+            return nullptr;
         }
         case ValueKind::AccessChain:
             return provide_child(resolver, parent->as_access_chain_unsafe()->values.back(), name, type_parent);

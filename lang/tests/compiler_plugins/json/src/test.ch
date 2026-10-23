@@ -75,6 +75,51 @@ struct JMChar {
 
 #json(JMChar)
 
+// Generic std-container fields. The json library provides top-level generic
+// Serializer/Deserializer impls for vector / span / maps; #json generates
+// ordinary field calls and relies on those impls being instantiated on demand.
+struct JMVectorInt {
+    var values : std::vector<int>
+}
+
+#json(JMVectorInt)
+
+struct JMVectorStrings {
+    var values : std::vector<std::string>
+}
+
+#json(JMVectorStrings)
+
+struct JMNestedVector {
+    var rows : std::vector<std::vector<int>>
+}
+
+#json(JMNestedVector)
+
+struct JMVectorChild {
+    var children : std::vector<JMChild>
+}
+
+#json(JMVectorChild)
+
+struct JMOrderedMap {
+    var m : std::ordered_map<std::string, int>
+}
+
+#json(JMOrderedMap)
+
+struct JMUnorderedMap {
+    var m : std::unordered_map<std::string, int>
+}
+
+#json(JMUnorderedMap)
+
+struct JMLargeVector {
+    var values : std::vector<int>
+}
+
+#json(JMLargeVector)
+
 @test
 public func json_macro_scalar_struct_roundtrip(env : &mut TestEnv) {
     var buffer = std::string()
@@ -474,4 +519,263 @@ public func json_macro_nested_destructible_roundtrip(env : &mut TestEnv) {
     var got = jmd_child_dtors - before
     if(got > 2) { env.error("JMDChild destructor called MORE than expected - nested payload copied or double-destroyed"); return }
     if(got < 2) { env.error("JMDChild destructor called FEWER times than expected - a nested value leaked") }
+}
+
+// ---------------------------------------------------------------------------
+// Generic container fields: vector / nested vector / maps
+// ---------------------------------------------------------------------------
+
+@test
+public func json_macro_vector_int_roundtrip(env : &mut TestEnv) {
+    var buffer = std::string()
+    var counts = std::vector<u64>()
+    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var p = JMVectorInt { values : std::vector<int>() }
+    p.values.push(1)
+    p.values.push(2)
+    p.values.push(3)
+
+    var r = p.serialize(&encoder)
+    if(!(r is std::Result.Ok)) { env.error("vector<int> serialize returned Err"); return }
+    if(!buffer.to_view().equals(std::string_view("{\"values\":[1,2,3]}"))) {
+        env.error("vector<int> exact JSON text mismatch")
+        return
+    }
+
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(256, 8192)
+    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    if(!pr.ok) { env.error("vector<int> parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var res = d.decode<JMVectorInt>()
+    if(res is std::Result.Err) { env.error("decode<JMVectorInt> returned Err"); return }
+    var Ok(v) = res else unreachable
+    if(v.values.size() != 3u) { env.error("vector<int> decoded size mismatch"); return }
+    if(*(v.values.get_ptr(0)) != 1 || *(v.values.get_ptr(2)) != 3) {
+        env.error("vector<int> decoded values mismatch")
+    }
+}
+
+@test
+public func json_macro_vector_empty_roundtrip(env : &mut TestEnv) {
+    var buffer = std::string()
+    var counts = std::vector<u64>()
+    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var p = JMVectorInt { values : std::vector<int>() }
+
+    var r = p.serialize(&encoder)
+    if(!(r is std::Result.Ok)) { env.error("empty vector serialize returned Err"); return }
+    if(!buffer.to_view().equals(std::string_view("{\"values\":[]}"))) {
+        env.error("empty vector exact JSON text mismatch")
+        return
+    }
+
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(256, 8192)
+    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    if(!pr.ok) { env.error("empty vector parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var res = d.decode<JMVectorInt>()
+    if(res is std::Result.Err) { env.error("decode<empty vector> returned Err"); return }
+    var Ok(v) = res else unreachable
+    if(v.values.size() != 0u) { env.error("empty vector decoded size mismatch") }
+}
+
+@test
+public func json_macro_vector_string_roundtrip(env : &mut TestEnv) {
+    var buffer = std::string()
+    var counts = std::vector<u64>()
+    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var p = JMVectorStrings { values : std::vector<std::string>() }
+    p.values.push(std::string("a\"b"))
+    p.values.push(std::string(""))
+
+    var r = p.serialize(&encoder)
+    if(!(r is std::Result.Ok)) { env.error("vector<string> serialize returned Err"); return }
+    if(!buffer.to_view().equals(std::string_view("{\"values\":[\"a\\\"b\",\"\"]}"))) {
+        env.error("vector<string> exact JSON text mismatch")
+        return
+    }
+
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(256, 8192)
+    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    if(!pr.ok) { env.error("vector<string> parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var res = d.decode<JMVectorStrings>()
+    if(res is std::Result.Err) { env.error("decode<vector<string>> returned Err"); return }
+    var Ok(v) = res else unreachable
+    if(v.values.size() != 2u) { env.error("vector<string> decoded size mismatch"); return }
+    var first = v.values.get_ptr(0)
+    if(!first.to_view().equals(std::string_view("a\"b"))) {
+        env.error("vector<string> first element mismatch")
+    }
+}
+
+@test
+public func json_macro_nested_vector_roundtrip(env : &mut TestEnv) {
+    var buffer = std::string()
+    var counts = std::vector<u64>()
+    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var p = JMNestedVector { rows : std::vector<std::vector<int>>() }
+    var r0 = std::vector<int>()
+    r0.push(1)
+    r0.push(2)
+    var r1 = std::vector<int>()
+    r1.push(3)
+    p.rows.push(r0)
+    p.rows.push(r1)
+
+    var r = p.serialize(&encoder)
+    if(!(r is std::Result.Ok)) { env.error("nested vector serialize returned Err"); return }
+    if(!buffer.to_view().equals(std::string_view("{\"rows\":[[1,2],[3]]}"))) {
+        env.error("nested vector exact JSON text mismatch")
+        return
+    }
+
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(256, 8192)
+    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    if(!pr.ok) { env.error("nested vector parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var res = d.decode<JMNestedVector>()
+    if(res is std::Result.Err) { env.error("decode<nested vector> returned Err"); return }
+    var Ok(v) = res else unreachable
+    if(v.rows.size() != 2u) { env.error("nested vector outer size mismatch"); return }
+    var row0 = v.rows.get_ptr(0)
+    if(row0.size() != 2u || *(row0.get_ptr(1)) != 2) {
+        env.error("nested vector inner values mismatch")
+    }
+}
+
+@test
+public func json_macro_vector_struct_roundtrip(env : &mut TestEnv) {
+    var buffer = std::string()
+    var counts = std::vector<u64>()
+    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var p = JMVectorChild { children : std::vector<JMChild>() }
+    p.children.push(JMChild { a : 3, b : 4 })
+    p.children.push(JMChild { a : 5, b : 6 })
+
+    var r = p.serialize(&encoder)
+    if(!(r is std::Result.Ok)) { env.error("vector<JMChild> serialize returned Err"); return }
+    if(!buffer.to_view().equals(std::string_view("{\"children\":[{\"a\":3,\"b\":4},{\"a\":5,\"b\":6}]}"))) {
+        env.error("vector<JMChild> exact JSON text mismatch")
+        return
+    }
+
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(256, 8192)
+    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    if(!pr.ok) { env.error("vector<JMChild> parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var res = d.decode<JMVectorChild>()
+    if(res is std::Result.Err) { env.error("decode<vector<JMChild>> returned Err"); return }
+    var Ok(v) = res else unreachable
+    if(v.children.size() != 2u) { env.error("vector<JMChild> decoded size mismatch"); return }
+    var child = v.children.get_ptr(1)
+    if(child.a != 5 || child.b != 6) { env.error("vector<JMChild> decoded values mismatch") }
+}
+
+@test
+public func json_macro_ordered_map_roundtrip(env : &mut TestEnv) {
+    var buffer = std::string()
+    var counts = std::vector<u64>()
+    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var p = JMOrderedMap { m : std::ordered_map<std::string, int>() }
+    p.m.insert(std::string("a"), 1)
+    p.m.insert(std::string("b"), 2)
+
+    var r = p.serialize(&encoder)
+    if(!(r is std::Result.Ok)) { env.error("ordered_map serialize returned Err"); return }
+    if(!buffer.to_view().equals(std::string_view("{\"m\":{\"a\":1,\"b\":2}}"))) {
+        env.error("ordered_map exact JSON text mismatch (insertion order)")
+        return
+    }
+
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(256, 8192)
+    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    if(!pr.ok) { env.error("ordered_map parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var res = d.decode<JMOrderedMap>()
+    if(res is std::Result.Err) { env.error("decode<ordered_map> returned Err"); return }
+    var Ok(v) = res else unreachable
+    if(v.m.size() != 2u) { env.error("ordered_map decoded size mismatch"); return }
+    var av = v.m.get_ptr(std::string("a"))
+    if(av == null || *av != 1) { env.error("ordered_map decoded value mismatch") }
+}
+
+@test
+public func json_macro_unordered_map_roundtrip(env : &mut TestEnv) {
+    var buffer = std::string()
+    var counts = std::vector<u64>()
+    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var p = JMUnorderedMap { m : std::unordered_map<std::string, int>() }
+    p.m.insert(std::string("a"), 1)
+    p.m.insert(std::string("b"), 2)
+
+    var r = p.serialize(&encoder)
+    if(!(r is std::Result.Ok)) { env.error("unordered_map serialize returned Err"); return }
+
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(256, 8192)
+    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    if(!pr.ok) { env.error("unordered_map parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var res = d.decode<JMUnorderedMap>()
+    if(res is std::Result.Err) { env.error("decode<unordered_map> returned Err"); return }
+    var Ok(v) = res else unreachable
+    if(v.m.size() != 2u) { env.error("unordered_map decoded size mismatch"); return }
+    var bv = v.m.get_ptr(std::string("b"))
+    if(bv == null || *bv != 2) { env.error("unordered_map decoded value mismatch") }
+}
+
+@test
+public func json_macro_large_vector_roundtrip(env : &mut TestEnv) {
+    var buffer = std::string()
+    var counts = std::vector<u64>()
+    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var p = JMLargeVector { values : std::vector<int>() }
+    var i = 0
+    while(i < 512) {
+        p.values.push(i)
+        i = i + 1
+    }
+
+    var r = p.serialize(&encoder)
+    if(!(r is std::Result.Ok)) { env.error("large vector serialize returned Err"); return }
+
+    var ph = ASTJsonHandler()
+    var parser = JsonParser(512, 16384)
+    var pr = parser.parse(buffer.data(), buffer.size(), &mut ph)
+    if(!pr.ok) { env.error("large vector parse failed"); return }
+    var d = JsonDecoder { value : &ph.root }
+    var res = d.decode<JMLargeVector>()
+    if(res is std::Result.Err) { env.error("decode<large vector> returned Err"); return }
+    var Ok(v) = res else unreachable
+    if(v.values.size() != 512u) { env.error("large vector decoded size mismatch"); return }
+    if(*(v.values.get_ptr(0)) != 0 || *(v.values.get_ptr(511)) != 511) {
+        env.error("large vector decoded values mismatch")
+    }
+}
+
+@test
+public func json_generic_span_serialize(env : &mut TestEnv) {
+    // span<T> is encode-only (it borrows); the generic Serializer impl must
+    // read the span's elements in order.
+    var v = std::vector<int>()
+    v.push(1)
+    v.push(2)
+    v.push(3)
+    var s = std::span<int>(&v)
+
+    var buffer = std::string()
+    var counts = std::vector<u64>()
+    var encoder = JsonEncoder { buffer : &raw mut buffer, counts : &raw mut counts }
+    var r = s.serialize(&encoder)
+    if(!(r is std::Result.Ok)) { env.error("span<int> serialize returned Err"); return }
+    if(!buffer.to_view().equals(std::string_view("[1,2,3]"))) {
+        env.error("span<int> exact JSON text mismatch")
+    }
 }

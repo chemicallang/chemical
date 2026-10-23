@@ -84,6 +84,7 @@ func <T : GImplShow> gimpl_call_show(v : &T) : int {
     return v.gimpl_show()
 }
 
+
 // Unused generic impl with a bound the concrete argument does NOT satisfy. It
 // must never be instantiated unless demanded (I3: cost only on use).
 interface GImplExtra {

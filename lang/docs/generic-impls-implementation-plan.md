@@ -1,10 +1,58 @@
 # Generic impls — implementation plan (v2)
 
-> Status: **plan / not started** · Proposal: [`proposals/0003-generic-impls.md`](proposals/0003-generic-impls.md)
+> Status: **implemented (core + JSON containers), 2026-10-23** · Proposal:
+> [`proposals/0003-generic-impls.md`](proposals/0003-generic-impls.md)
 > Unblocks: [`0014-generic-container-serialization.md`](proposals/0014-generic-container-serialization.md)
 >
 > v2 incorporates an adversarial review of the code paths; the deltas vs. v1 are
 > marked **[review]** where they change a decision.
+>
+> ## Implementation status
+>
+> **Landed**
+> - Parser accepts top-level `impl<T…> Trait for Type<T…>` and creates
+>   `GenericImplDecl`; nested implementations still reject their own parameters.
+> - Master `interface_type`/`struct_type` are linked in the generic scope and
+>   copied/substituted per instantiation.
+> - Dormant registry keyed by generic target + lazy demand for member access,
+>   operators, unary operators, bounds and interface defaults.
+> - Target-pattern unification: nested patterns (`TypeDecoder<vector<T>>`) and
+>   concrete arguments (`ordered_map<std::string, V>`).
+> - Bound checking at the demand site, with `Registered`/signature/adoption
+>   publication driven through `notifySignatureFinalized`.
+> - Dedup across representation (`GenericType` vs relinked concrete decl),
+>   duplicate-pattern diagnostics, laziness (unused impls emit no code).
+> - Generic container impls in `lang/libs/json/src/containers.ch`:
+>   `vector<T>` encode/decode, `span<T>` encode, string-keyed
+>   `ordered_map`/`unordered_map` encode/decode.
+> - `#json` accepts generic container fields; plugin tests cover vector, empty,
+>   strings, nested vectors, vector-of-struct, maps, the 512-element case and
+>   span encode.
+> - Tests: common core-language (TCC/LLVM/interpreter), negative diagnostics +
+>   emitted-symbol laziness, JSON plugin on TCC/LLVM.
+>
+> **Measured (2026-10-23)**
+> - `--tcc` **2318/2318**, `--llvm` **2316/2316**,
+>   `--tcc --interpret` **1907/1907**, `--tcc --plugins` **1305/1305**,
+>   `--llvm --plugins` **1305/1305**, `--tcc --negative` **327/327**,
+>   `--tcc --libs` **719/719**.
+>
+> **Known limitations / follow-ups**
+> - `dyn Trait` coercion from a concrete struct is not supported by the existing
+>   type system (fails for non-generic structs too); the generic-impl typeverify
+>   demand path therefore has no regression test.
+> - Inline `where T : Trait` clauses on functions are not used for method lookup
+>   in a generic body (pre-existing); use `<T : Trait>` parameter bounds.
+> - Registration currently happens in the parallel link-signature pass rather
+>   than a serial post-signature pass; cross-file duplicate patterns are guarded
+>   by the registry lock but ordering is not fully deterministic for diagnostics.
+> - `for x in value` demand is hooked in `SymResLinkBody`; a generic-body
+>   for-in that first becomes concrete during instantiation is a follow-up.
+> - LLVM/interpreter vtable construction still reads top-level file nodes; add
+>   `current_module_instantiations` when dynamic generic impls become testable.
+> - Clean-vs-cached symbol identity (`__cgs__N`) and a compile-time/RSS budget
+>   are not yet automated; the negative suite pins the "unused emits nothing"
+>   half of the cost model.
 
 ## 1. Executive summary
 

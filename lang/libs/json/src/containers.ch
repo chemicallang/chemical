@@ -71,7 +71,7 @@ impl<T : std::Serializer<JsonValue, JsonEncoder>> std::Serializer<JsonValue, Jso
         var arr = encoder.array()
         var i = 0u
         while(i < self.size()) {
-            var item = self.data() as *mut T
+            var item = self.get(i) as *mut T
             __container_begin_item(encoder.buffer, encoder.counts)
             var itemenc = JsonEncoder { buffer : encoder.buffer, counts : encoder.counts }
             var r = item.serialize(__unsafe_cast_json_encoder<JsonValue>(&itemenc))

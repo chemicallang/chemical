@@ -62,10 +62,8 @@ void GenericInstantiator::make_gen_type_concrete(BaseType*& type) {
 }
 
 void GenericInstantiator::VisitFunctionCall(FunctionCall *call) {
-    if(getenv("GIMPL_DEBUG")) fprintf(stderr, "[gimpl] VisitFunctionCall generic_list=%zu linked=%d\n", call->generic_list.size(), (int) (call->parent_val->get_chain_last_linked() ? call->parent_val->get_chain_last_linked()->kind() : ASTNodeKind::FileScope));
     // visit, this would replace generic args and arguments of this call
     RecursiveVisitor<GenericInstantiator>::VisitFunctionCall(call);
-    if(getenv("GIMPL_DEBUG")) { auto* l = call->parent_val->get_chain_last_linked(); fprintf(stderr, "[gimpl] after visit generic_list=%zu linked=%d isgen=%d arg0=%s\n", call->generic_list.size(), (int) (l ? l->kind() : ASTNodeKind::FileScope), (int)(l && l->kind()==ASTNodeKind::GenericFuncDecl), call->generic_list.empty()?"<none>":call->generic_list[0]->representation().c_str()); }
     // now this call can be generic, in this case this call probably doesn't have an implementation
     // since current function is generic as well, let's check this
     // TODO passing nullptr as expected type
@@ -76,7 +74,6 @@ void GenericInstantiator::VisitFunctionCall(FunctionCall *call) {
     if(!call->instantiate_gen_call(genApi, nullptr, getRequirement())) {
         diagnoser.error("couldn't instantiate call", call);
     }
-    if(getenv("GIMPL_DEBUG")) { auto* l = call->parent_val->get_chain_last_linked(); fprintf(stderr, "[gimpl] post-instantiate linked=%d isgen=%d\n", (int)(l?l->kind():ASTNodeKind::FileScope), (int)(l && l->kind()==ASTNodeKind::GenericFuncDecl)); }
     // this determines the type for the function call
     call->determine_type(getAllocator(), diagnoser);
 }
@@ -693,9 +690,16 @@ void GenericInstantiator::VisitComptimeValue(ComptimeValue* value) {
     value->setType(value->getValue()->getType());
 }
 
+static void demand_generic_impls_for_value(GenericInstantiator& g, ASTAny* any, SourceLocation loc) {
+    if(any == nullptr) return;
+    GenericInstantiatorAPI api(&g);
+    instantiate_generic_impls_for(api, any, nullptr, chem::string_view(), loc);
+}
+
 void GenericInstantiator::VisitIncDecValue(IncDecValue* value) {
     RecursiveVisitor<GenericInstantiator>::VisitIncDecValue(value);
     value->getValue()->report_assignment_of_chain_id();
+    demand_generic_impls_for_value(*this, value->getValue(), value->encoded_location());
     // type can change due to generics
     value->setType(value->determine_type(diagnoser, coreNodes, implsIndex));
 }
@@ -728,16 +732,19 @@ void GenericInstantiator::VisitDereferenceValue(DereferenceValue* value) {
 
 void GenericInstantiator::VisitExpression(Expression *expr) {
     RecursiveVisitor<GenericInstantiator>::VisitExpression(expr);
+    demand_generic_impls_for_value(*this, expr->firstValue, expr->encoded_location());
     expr->determine_type(typeBuilder, coreNodes, implsIndex, diagnoser, targetData);
 }
 
 void GenericInstantiator::VisitIndexOperator(IndexOperator* value) {
     RecursiveVisitor<GenericInstantiator>::VisitIndexOperator(value);
+    demand_generic_impls_for_value(*this, value->parent_val, value->encoded_location());
     value->determine_type(typeBuilder, coreNodes, implsIndex, diagnoser);
 }
 
 void GenericInstantiator::VisitNegativeValue(NegativeValue* value) {
     RecursiveVisitor<GenericInstantiator>::VisitNegativeValue(value);
+    demand_generic_impls_for_value(*this, value->getValue(), value->encoded_location());
     value->determine_type(typeBuilder, coreNodes, implsIndex, diagnoser);
 }
 
@@ -759,11 +766,13 @@ void GenericInstantiator::VisitPlacementNewValue(PlacementNewValue *value) {
 
 void GenericInstantiator::VisitNotValue(NotValue* value) {
     RecursiveVisitor<GenericInstantiator>::VisitNotValue(value);
+    demand_generic_impls_for_value(*this, value->getValue(), value->encoded_location());
     value->determine_type(diagnoser, coreNodes, implsIndex);
 }
 
 void GenericInstantiator::VisitBitwiseNot(BitwiseNot* value) {
     RecursiveVisitor<GenericInstantiator>::VisitBitwiseNot(value);
+    demand_generic_impls_for_value(*this, value->getValue(), value->encoded_location());
     value->determine_type(diagnoser, coreNodes, implsIndex);
 }
 
@@ -937,7 +946,6 @@ void GenericInstantiator::FinalizeSignature(GenericFuncDecl* decl, FunctionDecla
 
     // finalize signature of the function
     FinalizeSignature(impl);
-    if(getenv("GIMPL_DEBUG")) { fprintf(stderr, "[gimpl] finalize genfunc %s params=%zu", impl->name_str().c_str(), impl->params.size()); for(auto* p : impl->params) fprintf(stderr, " %s", p->type ? p->type->representation().c_str() : "<null>"); fprintf(stderr, "\n"); }
 
     // deactivating iteration in parameters
     // activating iteration in params

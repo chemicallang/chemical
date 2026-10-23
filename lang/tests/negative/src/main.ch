@@ -192,6 +192,8 @@ internal const NEG_MOD_ASYNC_APP = "application neg_test\nsource \".\"\nimport c
 internal const NEG_MOD_ASYNC_STD = "application neg_test\nsource \".\"\nimport cstd\nimport std\nimport core\nimport async\n"
 
 // variant that imports page + universal_cbi so `#universal` components compile
+internal const NEG_MOD_JSON = "module neg_test\nsource \".\"\nimport std\nimport json\nimport json_cbi\n"
+
 internal const NEG_MOD_UNIVERSAL = "module neg_test\nsource \".\"\nimport std\nimport page\nimport universal_cbi\n"
 
 // variant that imports page + html_cbi so `#html` macros compile
@@ -298,13 +300,15 @@ internal func read_file_contains(path : *char, needle : *char) : bool {
 internal func expect_emitted_symbol(env : &mut TestEnv, name : *char, ch_content : *char, symbol : *char, should_exist : bool) {
     setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
 
-    var mod_path : char[512]
-    sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name)
+    // Compile the single source file directly: `-o <file>.c` selects the C
+    // translation path, and a `.ch` input avoids the build.lab module pipeline.
+    var ch_path : char[512]
+    sprintf(unsafe(&raw mut ch_path[0]), "%s/%s/test.ch", NEG_WORK_DIR, name)
     var c_path : char[512]
     sprintf(unsafe(&raw mut c_path[0]), "%s/%s/out.c", NEG_WORK_DIR, name)
 
     var output_buf : char[16384]
-    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw c_path[0]), unsafe(&raw mut output_buf[0]), 16384)
+    var rc = run_compiler_capture(unsafe(&raw ch_path[0]), unsafe(&raw c_path[0]), unsafe(&raw mut output_buf[0]), 16384)
     if(rc != 0) {
         env.error("expected compiler to succeed while emitting C")
         neg_debug_print(name, unsafe(&raw output_buf[0]))

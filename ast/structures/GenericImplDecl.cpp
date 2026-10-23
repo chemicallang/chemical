@@ -327,8 +327,18 @@ static bool same_pattern(BaseType* a, BaseType* b) {
     if(a == nullptr || b == nullptr) return false;
     if(a->kind() != b->kind()) return false;
     switch(a->kind()) {
-        case BaseTypeKind::Linked:
-            return a->as_linked_type_unsafe()->linked == b->as_linked_type_unsafe()->linked;
+        case BaseTypeKind::Linked: {
+            auto* al = a->as_linked_type_unsafe()->linked;
+            auto* bl = b->as_linked_type_unsafe()->linked;
+            if(al == bl) return true;
+            // Type parameters are placeholders: two impls `Box<T>` and `Box<U>`
+            // have the same target pattern even though the parameter nodes differ.
+            if(al && bl && al->kind() == ASTNodeKind::GenericTypeParam
+               && bl->kind() == ASTNodeKind::GenericTypeParam) {
+                return true;
+            }
+            return false;
+        }
         case BaseTypeKind::Generic: {
             auto* ag = a->as_generic_type_unsafe();
             auto* bg = b->as_generic_type_unsafe();
@@ -378,8 +388,11 @@ bool register_generic_impl(
     auto* target_type = master->struct_type->as_generic_type_unsafe();
     auto* target_params = &target->generic_params;
     if(target_type->types.size() != target_params->size()) {
-        diagnoser.error(master) << "implemented type expects " << target_params->size()
-                                << " type arguments, got " << target_type->types.size();
+        auto message = std::string("implemented type expects ")
+            + std::to_string(target_params->size())
+            + " type arguments, got "
+            + std::to_string(target_type->types.size());
+        diagnoser.error(master) << message.c_str();
         return false;
     }
 

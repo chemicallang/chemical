@@ -468,3 +468,17 @@ func ref_cell_is_send_when_inner_is_send(env : &mut TestEnv) {
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\npublic func main() : int {\n    var c = std::ref_cell(1)\n    var h = Holder<std::RefCell<int>> { data = null }\n    return h.check()\n}\n"
     expect_compile_output_not_contains(env, "ref_cell_send", ch, "does not satisfy", NEG_MOD_STD_CORE)
 }
+
+@test
+func mutex_is_sync_when_inner_is_send(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\npublic func main() : int {\n    var m = std::new_mutex(1)\n    var h = Holder<std::Mutex<int>> { data = null }\n    return h.check()\n}\n"
+    expect_compile_output_not_contains(env, "mutex_sync_send", ch, "does not satisfy", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_mutex_not_sync_when_inner_is_not_send(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\npublic func main() : int {\n    var m = std::new_mutex(std::NonNull<int> { ptr = null })\n    var h = Holder<std::Mutex<std::NonNull<int>>> { data = null }\n    return h.check()\n}\n"
+    expect_compile_error_with_mod(env, "mutex_inner_not_send", ch, "does not satisfy", NEG_MOD_STD_CORE)
+}

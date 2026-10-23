@@ -323,6 +323,11 @@
 >   function from a safe context is a type error. Method calls are covered
 >   through the linked function declaration. Tests cover expression/block
 >   calls, unsafe methods, and both direct-call negative cases.
+> - S1.6e `std::Mutex<T>` / `MutexGuard<T>`: OS-mutex-backed exclusive
+>   access with `lock`/`try_lock`, `get_mut`, and a guard that unlocks from its
+>   destructor. `Mutex<T>` is `Send`/`Sync` when `T: Send` through conditional
+>   unsafe impls; guards stay thread-bound (raw pointers). Tests cover
+>   exclusion, try-lock failure, release on scope exit, and auto-trait bounds.
 > - S1.6d `std::RefCell<T>`: runtime borrow tracking with `try_borrow` /
 >   `try_borrow_mut` returning `Option<Ref<T>>` / `Option<RefMut<T>>` instead
 >   of panicking. Guards release the state from their destructors, shared

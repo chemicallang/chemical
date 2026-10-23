@@ -83,9 +83,19 @@
 >   (`func <'a> f`), unlike the reference language.
 > - S1.1c generic lifetime arguments: `View<'a, T>` parses in type position;
 >   lifetime arguments are stored on `GenericType::lifetime_args` and preserved
->   in copies/representation. A struct field `View<'a>` compiles.
->   Generic struct literals with explicit lifetime arguments
->   (`View<'a> { ... }`) are not parsed yet; construction uses inference.
+>   in copies/representation. A struct field `View<'a>` compiles. Generic
+>   struct literals with explicit lifetime arguments (`View<'a> { ... }` and
+>   `View<'a, T> { ... }`) now parse; expression-level generic argument lists
+>   carry lifetime arguments to struct literals. Function-call and
+>   `GenericInstIdentifier` lifetime arguments are still dropped (they are
+>   erased, and elision/inference supplies the signature), so explicit
+>   turbofish lifetimes are not represented on those nodes yet.
+> - S1.0b lifetimes in generic impl targets: `impl<'a> Trait for View<'a>`
+>   and `impl<'a, T> Trait for View<'a, T>` register and instantiate
+>   end-to-end. `register_generic_impl` now accepts a lifetime-only parameter
+>   list (it still requires a generic target type). Positive tests cover a
+>   lifetime-only target and a mixed lifetime/type-parameter target, including
+>   an explicit `View<'a, T> { ... }` literal and a method returning `&'a T`.
 > - S1.1d lifetime-name resolution (basic): `TypeVerifier` tracks declared
 >   lifetimes from generic functions/structs/unions/variants/interfaces/impls
 >   and legacy struct lifetimes; `'static` and `'self` are always valid;
@@ -104,8 +114,7 @@
 >   resolved/elided for declaration validity but not yet related by region
 >   constraints.
 >
-> Next: finish S1.1 lifetime parameters/elision, then S1.0b lifetimes in generic
-> impls, S1.2 `'static`/bounds/temporary extension, S1.3 variance, and S1.4
+> Next: S1.2 `'static`/bounds/temporary extension, S1.3 variance, and S1.4
 > opt-in `Copy`/`Drop`.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.

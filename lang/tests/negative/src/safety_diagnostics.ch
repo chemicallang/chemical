@@ -57,6 +57,20 @@ func neg_lifetime_where_unknown(env : &mut TestEnv) {
 }
 
 @test
+func lifetime_generic_impl_and_literal_compiles(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "interface Show {\n    func show(&self) : int\n}\nstruct View<'a> {\n    var p : &'a int\n}\nimpl<'a> Show for View<'a> {\n    func show(&self) : int {\n        return *self.p\n    }\n}\nfunc <'a> make(x : &'a int) : View<'a> {\n    return View<'a> { p : x }\n}\npublic func main() : int {\n    var x = 9\n    var v = make(&x)\n    return v.show() - 9\n}\n"
+    expect_compile_success(env, "lifetime_generic_impl_ok", ch)
+}
+
+@test
+func lifetime_generic_impl_with_type_param_compiles(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "interface Show {\n    func show(&self) : int\n}\nstruct View<'a, T> {\n    var p : &'a T\n    func get(&self) : &'a T {\n        return self.p\n    }\n}\nimpl<'a, T> Show for View<'a, T> {\n    func show(&self) : int {\n        return 1\n    }\n}\nfunc <'a, T> make(x : &'a T) : View<'a, T> {\n    return View<'a, T> { p : x }\n}\npublic func main() : int {\n    var x = 9\n    var v = make(&x)\n    return *v.get() + v.show() - 10\n}\n"
+    expect_compile_success(env, "lifetime_generic_impl_type_param_ok", ch)
+}
+
+@test
 func neg_unknown_lifetime_parameter(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct View<'a> {\n    var p : &'b int\n}\npublic func main() : int { return 0 }\n"

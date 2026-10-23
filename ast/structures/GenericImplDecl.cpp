@@ -373,8 +373,8 @@ bool register_generic_impl(
     if(impl == nullptr || impl->master_impl == nullptr) return false;
     auto* master = impl->master_impl;
 
-    if(impl->generic_params.empty()) {
-        diagnoser.error(master) << "a generic implementation must declare at least one type parameter";
+    if(impl->generic_params.empty() && impl->lifetime_params.empty()) {
+        diagnoser.error(master) << "a generic implementation must declare at least one type or lifetime parameter";
         return false;
     }
 

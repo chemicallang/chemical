@@ -301,8 +301,15 @@ FunctionCall* Parser::parseFunctionCall(ASTAllocator& allocator, std::vector<Val
         return nullptr;
     }
 }
-void Parser::parseGenericArgsListNoStart(std::vector<TypeLoc>& outArgs, ASTAllocator& allocator) {
+void Parser::parseGenericArgsListNoStart(std::vector<TypeLoc>& outArgs, ASTAllocator& allocator, std::vector<chem::string_view>* lifetime_args) {
     do {
+        if (token->type == TokenType::Lifetime) {
+            if (lifetime_args != nullptr) {
+                lifetime_args->emplace_back(allocate_view(allocator, token->value));
+            }
+            token++;
+            continue;
+        }
         auto type = parseTypeLoc(allocator);
         if (type) {
             outArgs.emplace_back(type);
@@ -407,14 +414,15 @@ Value* Parser::parseAccessChainAfterId(ASTAllocator& allocator, std::vector<Valu
             if(parseGenList && isGenericEndAhead()) {
                 // generic list detected
                 std::vector<TypeLoc> genArgs;
+                std::vector<chem::string_view> genLifetimes;
                 consumeAny(); // consume the less than symbol
-                parseGenericArgsListNoStart(genArgs, allocator);
+                parseGenericArgsListNoStart(genArgs, allocator, &genLifetimes);
                 // generic list -> struct/call
                 switch(token->type) {
                     case TokenType::LBrace:
                         if(parseStruct) {
                             const auto ref_type = ref_type_from(allocator, values);
-                            const auto gen_type = new (allocator.allocate<GenericType>()) GenericType(ref_type, std::move(genArgs));
+                            const auto gen_type = new (allocator.allocate<GenericType>()) GenericType(ref_type, std::move(genArgs), std::move(genLifetimes));
                             return parseStructValue(allocator, gen_type, start);
                         } else {
                             error("unexpected l-brace, struct value not expected");

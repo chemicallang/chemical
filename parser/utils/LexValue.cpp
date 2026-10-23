@@ -478,7 +478,8 @@ void parseNewValueExpr(Parser& parser, ASTAllocator& allocator, Value*& outValue
 
                     // we have a generic list
                     std::vector<TypeLoc> genArgs;
-                    parser.parseGenericArgsList(genArgs, allocator);
+                    std::vector<chem::string_view> genLifetimes;
+                    parser.parseGenericArgsList(genArgs, allocator, &genLifetimes);
 
                     switch (parser.token->type) {
                         case TokenType::LParen: {
@@ -488,14 +489,14 @@ void parseNewValueExpr(Parser& parser, ASTAllocator& allocator, Value*& outValue
                             return;
                         }
                         case TokenType::LBrace: {
-                            const auto genType = new(allocator.allocate<GenericType>()) GenericType(parser.ref_type_from(allocator, values), std::move(genArgs));
+                            const auto genType = new(allocator.allocate<GenericType>()) GenericType(parser.ref_type_from(allocator, values), std::move(genArgs), std::move(genLifetimes));
                             outValue = (Value*) parser.parseStructValue(allocator, genType, id->position);
                             return;
                         }
                         default:
                             // This is a type
                             outTypeLoc = {
-                                    new(allocator.allocate<GenericType>()) GenericType(parser.ref_type_from(allocator, values), std::move(genArgs)),
+                                    new(allocator.allocate<GenericType>()) GenericType(parser.ref_type_from(allocator, values), std::move(genArgs), std::move(genLifetimes)),
                                     parser.loc_single(id)
                             };
                             return;
@@ -519,7 +520,8 @@ void parseNewValueExpr(Parser& parser, ASTAllocator& allocator, Value*& outValue
 
             // we have a generic list
             std::vector<TypeLoc> genArgs;
-            parser.parseGenericArgsList(genArgs, allocator);
+            std::vector<chem::string_view> genLifetimes;
+            parser.parseGenericArgsList(genArgs, allocator, &genLifetimes);
 
             switch (parser.token->type) {
                 case TokenType::LParen: {
@@ -533,13 +535,13 @@ void parseNewValueExpr(Parser& parser, ASTAllocator& allocator, Value*& outValue
                     return;
                 }
                 case TokenType::LBrace: {
-                    const auto genType = new(allocator.allocate<GenericType>()) GenericType(named_linked_type(parser, allocator, id), std::move(genArgs));
+                    const auto genType = new(allocator.allocate<GenericType>()) GenericType(named_linked_type(parser, allocator, id), std::move(genArgs), std::move(genLifetimes));
                     outValue = (Value*) parser.parseStructValue(allocator, genType, id->position);
                     return;
                 }
                 default:
                     outTypeLoc = {
-                            new(allocator.allocate<GenericType>()) GenericType(named_linked_type(parser, allocator, id), std::move(genArgs)),
+                            new(allocator.allocate<GenericType>()) GenericType(named_linked_type(parser, allocator, id), std::move(genArgs), std::move(genLifetimes)),
                             parser.loc_single(id)
                     };
                     return;

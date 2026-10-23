@@ -14,6 +14,10 @@ static bool read_pointer_type(Parser& parser);
 
 static bool read_type_involving_token(Parser& parser) {
     const auto type = parser.token->type;
+    if(type == TokenType::Lifetime) {
+        parser.token++;
+        return true;
+    }
     if(type == TokenType::MultiplySym || type == TokenType::AmpersandSym || type == TokenType::DynKw || type == TokenType::MutKw) {
         parser.token++;
         read_type_involving_token(parser);

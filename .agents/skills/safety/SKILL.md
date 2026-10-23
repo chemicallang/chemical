@@ -63,14 +63,15 @@ Implemented:
   (S1.1d). Signature elision ties `&self` outputs to `'self`, one input
   lifetime to the output, and rejects ambiguous multi-input outputs (S1.1e).
   `where 'a: 'b` bounds parse and are validated for declared names (S1.1f).
-  Enforcement in the borrow checker is still pending. Chemical syntax is
-  `func <'a> f(...)`.
+  Lifetime-only and mixed generic impl targets (`impl<'a> Trait for View<'a>`,
+  `impl<'a, T> Trait for View<'a, T>`) and explicit `View<'a> { ... }` /
+  `View<'a, T> { ... }` literals work end-to-end (S1.0b). Enforcement in the
+  borrow checker is still pending. Chemical syntax is `func <'a> f(...)`.
 
 Next:
 
-- Finish S1.1 lifetime parameters/elision, then S1.0b lifetimes in generic
-  impls, S1.2 `'static`/bounds/temporary extension, S1.3 variance, S1.4 opt-in
-  `Copy`/`Drop`.
+- S1.2 `'static`/bounds/temporary extension, then S1.3 variance and S1.4
+  opt-in `Copy`/`Drop`.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

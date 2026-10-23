@@ -504,14 +504,14 @@ public:
     /**
      * parses the generic argument list without the start
      */
-    void parseGenericArgsListNoStart(std::vector<TypeLoc>& outArgs, ASTAllocator& allocator);
+    void parseGenericArgsListNoStart(std::vector<TypeLoc>& outArgs, ASTAllocator& allocator, std::vector<chem::string_view>* lifetime_args = nullptr);
 
     /**
      * parse generic argument list
      */
-    inline void parseGenericArgsList(std::vector<TypeLoc>& outArgs, ASTAllocator& allocator) {
+    inline void parseGenericArgsList(std::vector<TypeLoc>& outArgs, ASTAllocator& allocator, std::vector<chem::string_view>* lifetime_args = nullptr) {
         consumeToken(TokenType::LessThanSym);
-        parseGenericArgsListNoStart(outArgs, allocator);
+        parseGenericArgsListNoStart(outArgs, allocator, lifetime_args);
     }
 
     /**

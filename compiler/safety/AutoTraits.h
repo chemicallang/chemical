@@ -14,6 +14,7 @@
 #include "ast/types/ReferenceType.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/LinkedType.h"
+#include "compiler/symres/ImplementationsIndex.h"
 
 /**
  * Structural derivation for the `Send` and `Sync` auto traits.
@@ -35,15 +36,32 @@ enum class AutoTraitKind {
 inline bool type_satisfies_auto_trait(
     BaseType* type,
     AutoTraitKind kind,
-    std::unordered_set<MembersContainer*>& visiting
+    std::unordered_set<MembersContainer*>& visiting,
+    ImplementationsIndex* index = nullptr,
+    ASTNode* send_interface = nullptr,
+    ASTNode* sync_interface = nullptr
 );
 
 inline bool auto_trait_members(
     MembersContainer* container,
     AutoTraitKind kind,
-    std::unordered_set<MembersContainer*>& visiting
+    std::unordered_set<MembersContainer*>& visiting,
+    ImplementationsIndex* index = nullptr,
+    ASTNode* send_interface = nullptr,
+    ASTNode* sync_interface = nullptr
 ) {
     if(container == nullptr) return true;
+    if(index != nullptr) {
+        ASTNode* iface = kind == AutoTraitKind::Send ? send_interface : sync_interface;
+        if(iface != nullptr) {
+            if(index->has_negative_impl(iface, (ASTAny*) container)) return false;
+            if(container->generic_parent != nullptr &&
+               index->has_unconditional_generic_negative_impl(
+                   (ASTNode*) container->generic_parent, iface)) {
+                return false;
+            }
+        }
+    }
     if(!visiting.insert(container).second) {
         // A cycle can only be reached through a pointer/reference, both of
         // which have already been handled; treat the repeated node as fine.
@@ -54,7 +72,8 @@ inline bool auto_trait_members(
             case ASTNodeKind::StructMember: {
                 auto* field = (StructMember*) member;
                 if(!type_satisfies_auto_trait(
-                    const_cast<BaseType*>(field->type.getType()), kind, visiting
+                    const_cast<BaseType*>(field->type.getType()), kind, visiting,
+                    index, send_interface, sync_interface
                 )) {
                     visiting.erase(container);
                     return false;
@@ -66,7 +85,8 @@ inline bool auto_trait_members(
                 for(auto& entry : variant->values) {
                     auto* param = entry.second;
                     if(param != nullptr && !type_satisfies_auto_trait(
-                        const_cast<BaseType*>(param->type.getType()), kind, visiting
+                        const_cast<BaseType*>(param->type.getType()), kind, visiting,
+                        index, send_interface, sync_interface
                     )) {
                         visiting.erase(container);
                         return false;
@@ -85,14 +105,17 @@ inline bool auto_trait_members(
 inline bool type_satisfies_auto_trait(
     BaseType* type,
     AutoTraitKind kind,
-    std::unordered_set<MembersContainer*>& visiting
+    std::unordered_set<MembersContainer*>& visiting,
+    ImplementationsIndex* index,
+    ASTNode* send_interface,
+    ASTNode* sync_interface
 ) {
     if(type == nullptr) return true;
     switch(type->kind()) {
         case BaseTypeKind::Array:
             return type_satisfies_auto_trait(
                 const_cast<BaseType*>(type->as_array_type_unsafe()->elem_type.getType()),
-                kind, visiting
+                kind, visiting, index, send_interface, sync_interface
             );
         case BaseTypeKind::Pointer:
             // *T and *mut T are neither Send nor Sync.
@@ -102,11 +125,13 @@ inline bool type_satisfies_auto_trait(
             auto* inner = ref->type;
             if(kind == AutoTraitKind::Sync) {
                 // &T and &mut T are Sync when T is Sync.
-                return type_satisfies_auto_trait(inner, AutoTraitKind::Sync, visiting);
+                return type_satisfies_auto_trait(inner, AutoTraitKind::Sync, visiting,
+                                                 index, send_interface, sync_interface);
             }
             // &T is Send when T is Sync; &mut T is Send when T is Send.
             return type_satisfies_auto_trait(
-                inner, ref->is_mutable ? AutoTraitKind::Send : AutoTraitKind::Sync, visiting
+                inner, ref->is_mutable ? AutoTraitKind::Send : AutoTraitKind::Sync, visiting,
+                index, send_interface, sync_interface
             );
         }
         case BaseTypeKind::Function:
@@ -118,12 +143,14 @@ inline bool type_satisfies_auto_trait(
             auto* gen = type->as_generic_type_unsafe();
             for(auto& arg : gen->types) {
                 if(!type_satisfies_auto_trait(
-                    const_cast<BaseType*>(arg.getType()), kind, visiting
+                    const_cast<BaseType*>(arg.getType()), kind, visiting,
+                    index, send_interface, sync_interface
                 )) {
                     return false;
                 }
             }
-            return auto_trait_members(type->get_members_container(), kind, visiting);
+            return auto_trait_members(type->get_members_container(), kind, visiting,
+                                      index, send_interface, sync_interface);
         }
         default:
             break;
@@ -138,5 +165,6 @@ inline bool type_satisfies_auto_trait(
         // primitives and other non-container types
         return true;
     }
-    return auto_trait_members(container, kind, visiting);
+    return auto_trait_members(container, kind, visiting,
+                              index, send_interface, sync_interface);
 }

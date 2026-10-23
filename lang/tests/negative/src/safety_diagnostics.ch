@@ -347,3 +347,17 @@ func neg_conditional_where_generic_negative_applies(env : &mut TestEnv) {
     var ch = "using core::ops::Clone;\nstruct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\nstruct Wrapper<T> {\n    var value : T\n}\nimpl<T> !Sync for Wrapper<T> where T: Clone {}\npublic func main() : int {\n    var h = Holder<Wrapper<int>> { data = null }\n    return h.check()\n}\n"
     expect_compile_error_with_mod(env, "conditional_where_generic_negative", ch, "is declared !Sync", NEG_MOD_STD_CORE)
 }
+
+@test
+func neg_unsafe_cell_is_not_sync(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\npublic func main() : int {\n    var h = Holder<std::UnsafeCell<int>> { data = null }\n    return h.check()\n}\n"
+    expect_compile_error_with_mod(env, "unsafe_cell_not_sync", ch, "is declared !Sync", NEG_MOD_STD_CORE)
+}
+
+@test
+func unsafe_cell_is_send(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\npublic func main() : int {\n    var h = Holder<std::UnsafeCell<int>> { data = null }\n    return h.check()\n}\n"
+    expect_compile_output_not_contains(env, "unsafe_cell_send", ch, "does not satisfy", NEG_MOD_STD_CORE)
+}

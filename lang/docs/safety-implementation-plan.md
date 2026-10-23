@@ -253,6 +253,14 @@
 >   where-clause forms, including the case where the bound fails and the
 >   structural derivation is used instead.
 > - Still pending in S1.5: data-race enforcement.
+> - S1.6a `std::UnsafeCell<T>` / `std::Cell<T>`: interior mutability is
+>   available without weakening the auto traits. `UnsafeCell<T>` is `!Sync`
+>   (unconditional negative impl) and `Send` follows `T: Send` structurally;
+>   `Cell<T>` wraps it and exposes `get`/`set`/`get_mut`/`as_ptr` with a
+>   `T: Copy` read bound. Structural `Send`/`Sync` derivation now consults the
+>   implementation index, so an unconditional generic negative impl is honored
+>   through nested fields. Positive tests cover interior mutation; negative
+>   tests prove `UnsafeCell<int>` is not `Sync` and is `Send`.
 > - S3.0a stable move diagnostics: the existing move tracker's errors now carry
 >   `SAFE-MOVE-001` (move of an already-moved value, access after move, and
 >   assignment after move). Tests cover double move and field access after a

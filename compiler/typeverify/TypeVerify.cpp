@@ -1142,7 +1142,8 @@ static bool trait_constraint_satisfied(TypeVerifier& verifier, BaseType* concret
         std::unordered_set<MembersContainer*> visiting;
         const auto kind = iface->interface_bits.has(InterfaceBits::SEND_BIT)
                               ? AutoTraitKind::Send : AutoTraitKind::Sync;
-        return type_satisfies_auto_trait(concrete, kind, visiting);
+        return type_satisfies_auto_trait(concrete, kind, visiting, &verifier.index,
+                                         (ASTNode*) iface, (ASTNode*) iface);
     }
 
     if (iface->interface_bits.has(InterfaceBits::CLONE_BIT)) {
@@ -1362,7 +1363,10 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
                 std::unordered_set<MembersContainer*> visiting;
                 const auto kind = interface_def->interface_bits.has(InterfaceBits::SEND_BIT)
                     ? AutoTraitKind::Send : AutoTraitKind::Sync;
-                if (!type_satisfies_auto_trait(concrete_type, kind, visiting)) {
+                if (!type_satisfies_auto_trait(concrete_type, kind, visiting,
+                                               &verifier.index,
+                                               (ASTNode*) interface_def,
+                                               (ASTNode*) interface_def)) {
                     diagnoser.error(call) << "type '" << concrete_type->representation()
                         << "' does not satisfy where clause constraint '"
                         << constraint.param_name << " : "

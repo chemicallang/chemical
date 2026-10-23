@@ -23,6 +23,22 @@ std::vector<GenericImplDecl*> ImplementationsIndex::generic_negative_impls_for(
     return out;
 }
 
+bool ImplementationsIndex::has_unconditional_generic_negative_impl(
+    ASTNode* target, ASTNode* interface) const {
+    for(GenericImplDecl* impl : generic_negative_impls_for(target, interface)) {
+        if(impl == nullptr || impl->where_clause != nullptr) continue;
+        bool bounded = false;
+        for(auto* param : impl->generic_params) {
+            if(param != nullptr && !param->traits.empty()) {
+                bounded = true;
+                break;
+            }
+        }
+        if(!bounded) return true;
+    }
+    return false;
+}
+
 bool ImplementationsIndex::add_generic_impl(ASTNode* target, GenericImplDecl* impl) {
     if(target == nullptr || impl == nullptr) return false;
     std::unique_lock lock(index_mutex);

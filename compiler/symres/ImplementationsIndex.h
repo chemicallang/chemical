@@ -133,6 +133,15 @@ public:
         return !generic_negative_impls_for(target, interface).empty();
     }
 
+    /**
+     * True when an unconditional generic negative impl exists (no parameter
+     * bounds and no where clause). Structural auto-trait derivation uses this
+     * because it cannot evaluate conditional bounds; the type checker evaluates
+     * the conditional candidates at the actual use site.
+     */
+    bool has_unconditional_generic_negative_impl(ASTNode* target,
+                                                  ASTNode* interface) const;
+
     inline bool has_any_generic_impls() const noexcept {
         return generic_impl_count_.load(std::memory_order_relaxed) != 0;
     }

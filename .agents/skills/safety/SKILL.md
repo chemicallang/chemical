@@ -128,7 +128,11 @@ Next:
   conditional forms with parameter bounds or a where clause
   (`impl<T: Clone> !Send`, `impl<T> !Sync for Wrapper<T> where T: Clone`) are
   evaluated against the concrete arguments at the use site and apply only when
-  the bounds hold. Next: conditional-state/drop-flag modelling, then the
+  the bounds hold. `std::UnsafeCell<T>` / `std::Cell<T>` (S1.6a) provide
+  interior mutability: `UnsafeCell` is `!Sync` and `Send` follows `T: Send`;
+  `Cell` wraps it with `T: Copy` reads. Structural auto-trait derivation now
+  consults the implementation index for unconditional generic negative impls
+  through nested fields. Next: conditional-state/drop-flag modelling, then the
   borrow checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).

@@ -727,7 +727,9 @@ static bool check_generic_impl_bounds(
                 std::unordered_set<MembersContainer*> visiting;
                 const auto kind = iface->interface_bits.has(InterfaceBits::SEND_BIT)
                     ? AutoTraitKind::Send : AutoTraitKind::Sync;
-                if(type_satisfies_auto_trait(concrete, kind, visiting)) {
+                if(type_satisfies_auto_trait(concrete, kind, visiting, &index,
+                                             (ASTNode*) interface_key,
+                                             (ASTNode*) interface_key)) {
                     return true;
                 }
                 // fall through to the standard bound diagnostic

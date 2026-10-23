@@ -55,6 +55,7 @@ inline bool auto_trait_members(
         ASTNode* iface = kind == AutoTraitKind::Send ? send_interface : sync_interface;
         if(iface != nullptr) {
             if(index->has_negative_impl(iface, (ASTAny*) container)) return false;
+            if(index->get_impl(iface, (ASTAny*) container) != nullptr) return true;
             if(container->generic_parent != nullptr &&
                index->has_unconditional_generic_negative_impl(
                    (ASTNode*) container->generic_parent, iface)) {

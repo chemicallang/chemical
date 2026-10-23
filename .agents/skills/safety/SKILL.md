@@ -128,7 +128,8 @@ Next:
   still contain a generic parameter are signature-finalized but their bodies
   are deferred until the parameter is concrete (S1.5k); `Option<T>`/
   `vector<T>` `Clone` remain out until the bound `&T` clone resolves
-  deterministically. `vector::get_ref` now returns `&T` and `vector::get_mut`
+  deterministically. Structural auto-trait derivation also honors explicit
+  positive impls on nested fields (S1.5l), after checking negative overrides. `vector::get_ref` now returns `&T` and `vector::get_mut`
   is the mutable accessor (S1.10a), so mutation through a shared reference is
   rejected. `impl<T> !Send/!Sync for Wrapper<T>` works for all
   instantiations (S1.5i);

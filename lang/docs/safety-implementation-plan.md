@@ -290,6 +290,11 @@
 >   Element-assignment lowering now marks the moved source before
 >   `element_store_place`, and `archive::zip_contains`/`tar_contains` initialize
 >   their out-parameter entry before passing it to the finder.
+> - S1.5l nested auto-trait overrides: structural `Send`/`Sync` derivation now
+>   honors an explicit positive impl on a nested field's container (for example
+>   `unsafe impl Send for Raw` makes a struct containing `Raw` Send even though
+>   `Raw` stores a raw pointer). Negative impls are checked first, so a
+>   conflicting override cannot become a false positive.
 > - S1.5k nested generic-impl body deferral: a generic impl instantiation whose
 >   arguments still contain a generic parameter is registered and
 >   signature-finalized, but its body is not linked until the parameter becomes

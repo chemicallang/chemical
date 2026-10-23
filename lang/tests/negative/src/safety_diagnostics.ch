@@ -368,3 +368,19 @@ func neg_vector_get_ref_is_immutable(env : &mut TestEnv) {
     var ch = "public func main() : int {\n    var v = std::vector<int>()\n    v.push(1)\n    var r = v.get_ref(0)\n    *r = 2\n    return v.get(0)\n}\n"
     expect_compile_error_with_mod(env, "vector_get_ref_immutable", ch, "cannot assign to a non mutable value", NEG_MOD_STD_CORE)
 }
+
+@test
+func nested_unsafe_send_impl_is_honored(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // The raw-pointer field is not Send structurally, but the nested type's
+    // explicit unsafe impl must make the containing aggregate Send too.
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\nstruct Raw {\n    var p : *mut int\n}\nunsafe impl Send for Raw {}\nstruct Nested {\n    var raw : Raw\n}\npublic func main() : int {\n    var h = Holder<Nested> { data = null }\n    return h.check()\n}\n"
+    expect_compile_output_not_contains(env, "nested_unsafe_send", ch, "does not satisfy", NEG_MOD_CORE)
+}
+
+@test
+func neg_nested_raw_without_send_impl(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\nstruct Raw {\n    var p : *mut int\n}\nstruct Nested {\n    var raw : Raw\n}\npublic func main() : int {\n    var h = Holder<Nested> { data = null }\n    return h.check()\n}\n"
+    expect_compile_error_with_mod(env, "nested_raw_not_send", ch, "does not satisfy", NEG_MOD_CORE)
+}

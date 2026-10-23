@@ -82,3 +82,59 @@ func arc_weak_expires_with_last_strong_owner(env : &mut TestEnv) {
         env.error("ArcWeak::upgrade succeeded after the last strong owner was gone")
     }
 }
+
+@test
+func arc_get_mut_requires_unique_owner(env : &mut TestEnv) {
+    arc_reset()
+    {
+        var a = std::arc(ArcCounter { value : 31 })
+        {
+            var second = a.clone()
+            var blocked = a.get_mut()
+            if(blocked is Option.Some) {
+                env.error("Arc::get_mut succeeded while another clone was alive")
+            }
+        }
+        var allowed = a.get_mut()
+        if(allowed is Option.None) {
+            env.error("Arc::get_mut failed for the sole owner")
+            return
+        }
+        var Some(value) = allowed else unreachable
+        value.value = 32
+        if(a.get().value != 32) {
+            env.error("Arc::get_mut did not mutate the shared value")
+        }
+    }
+    if(arc_drops != 1) {
+        env.error("Arc::get_mut changed the drop count")
+    }
+}
+
+@test
+func arc_try_unwrap_with_weak_handle(env : &mut TestEnv) {
+    arc_reset()
+    {
+        var a = std::arc(ArcCounter { value : 33 })
+        var w = a.downgrade()
+        var u = a.try_unwrap()
+        if(u is Option.None) {
+            env.error("Arc::try_unwrap failed for the sole strong owner")
+            return
+        }
+        var Some(out) = u else unreachable
+        if(out.value != 33) {
+            env.error("Arc::try_unwrap returned the wrong value")
+        }
+        if(arc_drops != 0) {
+            env.error("Arc::try_unwrap dropped the moved value early")
+        }
+        var up = w.upgrade()
+        if(up is Option.Some) {
+            env.error("ArcWeak::upgrade succeeded after Arc::try_unwrap")
+        }
+    }
+    if(arc_drops != 1) {
+        env.error("Arc::try_unwrap did not transfer ownership exactly once")
+    }
+}

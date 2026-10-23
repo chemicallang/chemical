@@ -131,6 +131,30 @@ public struct Arc<T> {
     public func weak_count(&self) : size_t {
         return self.ptr.weak.load()
     }
+
+    /** Mutably access the value only when this is the sole strong owner. */
+    public func get_mut(&mut self) : Option<&mut T> {
+        if(self.strong_count() != 1) {
+            return Option.None<&mut T>()
+        }
+        return Option.Some<&mut T>(unsafe(&mut self.ptr.value.value))
+    }
+
+    /** Move the value out only when this is the sole strong owner. */
+    public func try_unwrap(&mut self) : Option<T> {
+        if(self.strong_count() != 1) {
+            return Option.None<T>()
+        }
+        var out = unsafe(self.ptr.value.take())
+        var strong_left = self.ptr.strong.decrement()
+        if(strong_left == 0 && self.ptr.weak.load() == 0) {
+            unsafe {
+                delete self.ptr
+            }
+        }
+        self.ptr = null
+        return Option.Some<T>(out)
+    }
 }
 
 /**

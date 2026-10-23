@@ -163,8 +163,9 @@ Next:
   it is `!Sync` and `Send` follows `T`. `std::Mutex<T>` (S1.6e) adds
   OS-mutex-backed `lock`/`try_lock` with an unlock-on-drop `MutexGuard`, and is
   `Send`/`Sync` when `T: Send`. `std::Arc<T>`/`ArcWeak<T>` (S1.8c) add
-  thread-safe shared ownership with mutex-protected counts (atomic swap later)
-  and are `Send`/`Sync` when `T: Send + Sync`. `Box::into_inner` frees storage
+  thread-safe shared ownership with mutex-protected counts (atomic swap later),
+  unique-owner `get_mut`/`try_unwrap`, and are `Send`/`Sync` when
+  `T: Send + Sync`. `Box::into_inner` frees storage
   without re-running the destructor. `unsafe func` (S2.6a) is parsed at top level and
   as a member, and calls from safe code are rejected; `unsafe(expr)`/`unsafe {}`
   are both unsafe call contexts. Next: partial-move/drop elaboration, then the

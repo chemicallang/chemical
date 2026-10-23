@@ -324,7 +324,8 @@
 >   through the linked function declaration. Tests cover expression/block
 >   calls, unsafe methods, and both direct-call negative cases.
 > - S1.8c `std::Arc<T>` / `ArcWeak<T>`: thread-safe reference counting with
->   `clone`, `get`, `downgrade`, `upgrade`, and strong/weak counts. Counts are
+>   `clone`, `get`, `get_mut`, `try_unwrap`, `downgrade`, `upgrade`, and
+>   strong/weak counts. Counts are
 >   currently protected by OS mutexes (`ArcCount`) rather than atomics, so the
 >   safe API and ownership rules match `Arc` without pulling the atomic library
 >   into `std`; the count implementation can be swapped later. `Arc<T>` is

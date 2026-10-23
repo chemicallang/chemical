@@ -1,1277 +1,1563 @@
-# Chemical Safety Features — AI-Driven Implementation Plan
+# Chemical Full Safety Parity Plan (v4.1)
 
-> **Status: Living Plan — Created July 18, 2026**
+> **Status:** Proposed, fourth revision after independent review cycles and locked scope decisions.
+> **Supersedes:** v2/v3/v3.1/v3.2 (git history).
 >
-> This document defines **what** to build and **why**, with just enough **how** to keep an
-> AI agent on the path to a complete, tested, performant safety system for Chemical.
+> **Goal:** the next release is fully safe for safe programs: ownership, moves,
+> borrowing, lifetimes, initialization/validity, bounds/overflow/null, thread
+> safety, async/Pin, and an explicit FFI/unsafe boundary. Safety is enforced for
+> every module; there is no user-facing opt-out.
 >
-> **Companion document:** `chemical-safety-analysis.md` — the analysis this plan is built from.
+> **Parity contract:** a safe program in the reference language can be translated
+> to Chemical (using Chemical syntax and the shipped standard library) with the
+> same safety guarantees. API names and macro surface may differ; missing
+> library APIs are tracked in the parity backlog and are release blockers for the
+> programs in the parity corpus.
 >
-> **Core assumption:** Every feature is implemented by AI, validated by negative tests,
-> and must not break existing passing tests. Existing libraries and test modules opt out
-> of safety enforcement. New safety-aware modules opt in.
+> **Reference semantics:** Rust-familiar ownership/borrowing. No public
+> diagnostic or documentation mentions the reference language.
+>
+> **Companion documents:** [`chemical-safety-analysis.md`](chemical-safety-analysis.md),
+> [`proposals/0004-borrow-checker-memory-safety.md`](proposals/0004-borrow-checker-memory-safety.md),
+> [`proposals/0005-effect-system.md`](proposals/0005-effect-system.md),
+> [`mir-design.md`](mir-design.md).
 
 ---
 
-## Table of Contents
+## 1. Locked decisions
 
-1. [Design Principles](#design-principles)
-2. [Architecture: The Safety System](#architecture-the-safety-system)
-3. [Prerequisites (Blockers Before Phase 1)](#prerequisites)
-4. [Phase 0: Infrastructure](#phase-0-infrastructure)
-5. [Phase 1: Unsafe Boundary Enforcement](#phase-1-unsafe-boundary-enforcement)
-6. [Phase 2: Module-Level Safety Configuration](#phase-2-module-level-safety-configuration)
-7. [Phase 3: Runtime Safety Checks](#phase-3-runtime-safety-checks)
-8. [Phase 4: Container Safety](#phase-4-container-safety)
-9. [Phase 5: Lifetime & Reference Safety](#phase-5-lifetime--reference-safety)
-10. [Phase 6: Standard Library Safety Wrappers](#phase-6-standard-library-safety-wrappers)
-11. [The Annotation Catalog](#the-annotation-catalog)
-12. [Negative Testing Framework](#negative-testing-framework)
-13. [Regression Protocol](#regression-protocol)
-14. [AI Agent Operating Rules](#ai-agent-operating-rules)
-15. [Feature-to-Phase Dependency Map](#feature-to-phase-dependency-map)
+| Area | Decision |
+|---|---|
+| Scope | Full safe-program parity, including ownership/borrowing/lifetimes, init/validity, bounds/overflow/null, Send/Sync/data races, FFI/unsafe, async/Pin, HRTB, dyn/object safety, associated types/GATs, const generics, tuples, `impl Trait`, derive support, UTF-8 `&str`, and a target-aware C ABI. |
+| Release gating | No partial safe release. Intermediate commits are green, but the release gate is full language/API parity: every shipped API is implemented and safe, and the parity corpus (including all shipped APIs) passes. No suite is excluded from the gate. |
+| Unsafe surface | Explicit `unsafe { }` blocks and `unsafe func`/`unsafe impl`. Safe code cannot perform unsafe operations implicitly. `unsafe` never disables ownership, initialization, or borrow checking. |
+| Raw pointers | `*T`/`*mut T`: creation/copy/compare/null-check safe; dereference, projection, method call, indexing, arithmetic, allocation, deallocation require `unsafe`. |
+| Borrow checking | Rust-faithful NLL + HRTB + variance + dropck, delivered in report→migrate→enforce stages. Unsupported patterns are rejected with a `SAFE-*` diagnostic, never silently accepted. |
+| Runtime model | Bounds checks always on; integer overflow checked in debug and wrapping in release; division/shift always checked; failures panic. Checked/wrapping/saturating APIs available. Unwinding/`catch_unwind` supported for parity. |
+| Standard library | Full safe surface for shipped libraries: `Box`, `Vec`, `String`/`&str`, `Rc`, `Arc`, `Cell`, `RefCell`, `Mutex`, `RwLock`, `Condvar`, atomics, collections, I/O, net/TLS/HTTP, async. `unsafe` confined to reviewed internals/FFI. |
+| GC | Owned mode first. Native GC is a later mode; it relaxes lifetimes but keeps aliasing/race rules. |
+| Opt-out | None. No module flag, CLI escape, or per-dependency exemption. |
+| Enforcement style | **Report-only until the whole in-repo tree is migrated; then enforce per rule globally.** No error-suppressing allowlist. |
+| Breaking changes | Allowed. Existing code is migrated in the same series. |
+| Remote modules | Out of scope for this plan; owned remote modules (mongodb, etc.) are updated in a later compatibility pass. |
+| LSP | Deferred. `--check` runs full MIR safety; LSP safety is a follow-up with its own latency/caching design. |
+| Size | The 5 MB ceiling is a post-feature shrink target. This release tracks size but does not gate on it; a dedicated size-reduction milestone follows feature completion. |
+| Performance | Compile-time and runtime budgets are tracked; safety metadata is compile-time only; runtime checks follow the Rust-compatible model. Optimize before release; no silent regressions. |
 
----
+### 1.1 Generic impls
 
-## Design Principles
+Top-level generic impls (`impl<T> Trait for Type<T>`) landed immediately before
+this plan. Required follow-ups: `impl<'a, T>` lifetime parameters, where clauses
+on impl headers, lifetime/const-aware instantiation, and tests on TCC/LLVM/
+interpreter. These are prerequisites for `Drop`/`Deref`/`Index`/`Iterator`/
+`Send`/`Sync` impls.
 
-These are non-negotiable. Every sub-step must satisfy all of them.
+### 1.2 No allowlist
 
-### P1: Zero Regression
+Earlier drafts used a compiler-internal allowlist that could suppress enforced
+errors. It is removed. The process is:
 
-**No existing test may fail.** The very first action in any sub-step is to run the
-current test suite and record the baseline pass count. The very last action is to run
-the same suite and confirm the same count. Any regression means the sub-step is reverted.
+1. **Report-only:** `SAFE-*` warnings; behavior unchanged. Report-only is a
+   debug-build development mode, compiled out of release builds.
+2. **Migrate:** rewrite every affected site. Warnings reach zero.
+3. **Enforce:** flip the rule to an error. The enforce commit includes the
+   migration diff and a CI assertion of zero report hits for the rule.
 
-How: Every safety feature is gated behind a flag or option that defaults to OFF.
-Without the flag, behavior is identical to before the change.
+A rule is never called enforced while any violation remains. There is no
+per-file, per-module, or per-dependency error suppression.
 
-### P2: Opt-Out by Default (Not Opt-In)
+### 1.3 Release train
 
-Existing modules (std, core, tests, all libraries) must NOT be forced to adopt safety
-features. They use `unsafe = true` (or equivalent) in their `chemical.mod` to opt out.
-New modules get safety enforcement by default.
-
-This means the default module safety level is **safe** (enforcement on). The existing
-codebase explicitly opts out. This is the opposite of what the analysis document
-suggests (it says "opt-in"), but it's the correct choice for a language that wants
-safety as its default story.
-
-### P3: Performant by Default
-
-Safety checks must not add runtime cost to code that doesn't use safety features.
-- Compile-time checks (move semantics, unsafe boundary): zero runtime cost.
-- Runtime checks (bounds, overflow): only inserted when the module enables them.
-- No heap allocations for safety metadata. Use arena-allocated bitflags and
-  inline fields on existing AST nodes.
-- Safety annotations on functions are checked at compile time only.
-
-### P4: Small, Atomic Changes
-
-Every sub-step is designed so that:
-- It modifies at most 3 files.
-- It changes at most 30 lines of C++.
-- It is independently testable with a single `.ch` file.
-- It has a clear "before" and "after" state that an AI can search for.
-- If the sub-step breaks something, reverting it is trivial.
-
-### P5: Negative Tests Are the Source of Truth
-
-Positive tests (code that should compile) verify the language works.
-Negative tests (code that should NOT compile) verify safety features work.
-Without negative tests, safety features are untested.
-
-Every sub-step that adds a safety check MUST add a corresponding negative test
-in `lang/tests/safety/negative/` and a positive test in `lang/tests/safety/positive/`.
-
-### P6: Separation of Concerns
-
-Each safety subsystem is a self-contained component:
-- The annotation system defines what operations are unsafe.
-- The boundary checker enforces unsafe/safe boundaries.
-- The runtime checker inserts runtime safety checks.
-- The container checker validates type constraints.
-- The lifetime checker tracks reference validity.
-
-Each subsystem has its own:
-- Data structures (stored on existing AST nodes, not new heaps).
-- Visitor methods in the appropriate compiler pass.
-- Test files in `lang/tests/safety/`.
-- Feature flag or module option.
+Because full parity is large, work is organized as milestones. **No milestone is
+released alone.** The release branch is cut only when the full parity gate
+passes. Intermediate commits are green but not shipped.
 
 ---
 
-## Architecture: The Safety System
+## 2. Definition of done
 
-### Where Safety Checks Live
+For full safe-program parity:
 
-```
-                    ┌──────────────────────────────────┐
-                    │         chemical.mod              │
-                    │   (module safety options)         │
-                    └────────────┬─────────────────────┘
-                                 │
-                    ┌────────────▼─────────────────────┐
-                    │      LabBuildCompilerOptions      │
-                    │   (global + per-module flags)     │
-                    └────────────┬─────────────────────┘
-                                 │
-         ┌───────────────────────┼───────────────────────┐
-         │                       │                       │
-┌────────▼────────┐   ┌─────────▼────────┐   ┌─────────▼────────┐
-│  SymResLinkBody  │   │   TypeVerify     │   │   LLVM / TCC     │
-│  (compile-time   │   │  (compile-time   │   │  (runtime checks)│
-│   boundary       │   │   type-level     │   │   bounds, overflow│
-│   checks)        │   │   checks)        │   │   null checks)   │
-└──────────────────┘   └──────────────────┘   └──────────────────┘
-```
-
-### The Safety Level Hierarchy
-
-```
-Module-level (chemical.mod)
-  └── applies to all source files in the module
-  └── can be overridden by --safe/--unsafe CLI flags
-
-Function-level (@unsafe annotation)
-  └── the function's body is treated as unsafe context
-  └── callers must be in unsafe block to call it
-
-Block-level (unsafe { } blocks)
-  └── within a function, individual blocks can be marked unsafe
-  └── temporary escape hatch for specific operations
-```
-
-### The `SafeMode` Enum (Central to Everything)
-
-```cpp
-enum class SafeMode : uint8_t {
-    Off = 0,      // No safety enforcement (default for --safe not passed)
-    Warn = 1,     // Emit warnings, don't error
-    Enforce = 2,  // Emit errors for violations
-};
-```
-
-This enum flows through:
-- `LabBuildCompilerOptions.safe_mode` — global, from CLI `--safe` flag.
-- `ModuleFileData.safe_mode` — per-module, from `chemical.mod`.
-- `SymResLinkBody.safe_mode` — used during body linking to check unsafe boundaries.
-- `TypeVerifier.safe_mode` — used during type verification.
-- `LLVMBackendContext.safe_mode` — used during codegen for runtime check insertion.
+1. **Soundness.** No safe in-repo program can cause use-after-move, double-drop,
+   use-after-free, dangling/null/misaligned/OOB references, uninitialized or
+   invalid values, data races, UB through a correctly used safe FFI wrapper, or
+   memory corruption through safe arithmetic/casts/indexing. Remote modules are
+   governed by the later compatibility pass (§14.6).
+2. **Completeness.** Every unsafe operation outside `unsafe` is a compile error.
+   Every safe operation has a checked runtime path or a statically proven safe
+   path.
+3. **Precision.** The language/API parity corpus passes. Every known false
+   positive is closed; every false negative is a release blocker.
+4. **No opt-out.** No module/CLI/dependency escape; report-only is absent from
+   release builds.
+5. **Parity.** All language features in §5.0 are implemented and tested on TCC
+   and LLVM; the interpreter runs every feature it supports, and unsupported
+   coroutine/interface opcodes are hard diagnostics. Interpreter coverage gaps
+   are release blockers for the interpreter corpus (M5.7/M8.1), not silent
+   skips. All shipped-library APIs in the parity backlog are release-blocking;
+   an unimplemented shipped API is a gate failure, not a backlog note.
+6. **Performance.** Compile-time/RSS/runtime targets in §13 are met; size is
+   tracked and handed to the post-feature shrink milestone.
+7. **Portability.** TCC, LLVM, and the interpreter share the same MIR checks.
+8. **Auditability.** Every remaining `unsafe` block is audited, justified, and
+   tested.
+9. **Diagnostics.** Stable `SAFE-*` IDs, notes/help, tests assert IDs.
+10. **Tooling.** `--check` reports the same safety diagnostics as a full build;
+    LSP safety is explicitly deferred.
+11. **No-panic** is a separate approved effect system; it is not claimed here
+    unless the effects milestone is included. The plan schedules it after full
+    memory safety unless the release train includes it.
 
 ---
 
-## Prerequisites
+## 3. Safety contract
 
-These must be completed before Phase 1 begins. They are blockers.
+### 3.1 Safe API rule
 
-### PR1: Negative Test Infrastructure
+A **safe API** is a function, method, type, or trait whose correct use cannot
+cause UB in safe code. If callers must uphold a memory-safety invariant, the API
+is `unsafe`.
 
-**What:** A shell-based test runner that compiles `.ch` files and checks exit code + stderr.
+Two mechanized rules back this up:
 
-**Why:** Without this, every subsequent safety feature has no automated test.
+- **Construction privacy:** fields carrying invariants (`NonNull`, `Vec`,
+  `String`, `FutureHandle`, `Waker`, `Layout`, `MutexGuard`) are private;
+  aggregate init, pattern destructuring, and `@direct_init` cannot forge them
+  from another module.
+- **Reference provenance:** a safe function returning `&'a T`/`&'a mut T`
+  derives the return region from a formal parameter region, from `'static`, or
+  from `&self`/`&'a self`. A raw-pointer-backed field is allowed only when the
+  access is tied to `&self`/`&'a self`; otherwise the function is `unsafe`.
+  `MIRProvenanceCheck` enforces this for every safe return.
 
-**Files:**
-- Create `lang/tests/safety/run_safety_tests.sh`
-- Create directory structure: `lang/tests/safety/positive/`, `lang/tests/safety/negative/`
-- Create `lang/tests/safety/config/test_list.txt`
+### 3.2 Invariants
 
-**Validation:**
-```bash
-bash lang/tests/safety/run_safety_tests.sh cmake-build-debug/TCCCompiler
-# Should show 0 tests initially, exit 0
-```
+| Invariant | Enforced by |
+|---|---|
+| Value initialized before read/move/borrow/drop | MIR move/init |
+| Owned value moved at most once, dropped exactly once | ownership + per-path drop flags |
+| Shared refs may alias; mutable ref exclusive | borrow checker |
+| Reference never outlives referent | lifetimes + borrow checker |
+| Reference non-null/aligned; slice length valid | construction + validity |
+| Slice/array index in bounds | runtime check |
+| Debug arithmetic no overflow; release wrapping defined | checked/wrapping lowering |
+| No data race through safe APIs | `Send`/`Sync` + `&mut` exclusivity |
+| FFI unsafe unless wrapper validates | unsafe checker + audit |
+| `unsafe` code has stated invariants | API audit + docs |
 
-**Sub-steps:**
-1. Create directory structure.
-2. Write the shell script with `run_positive()`, `run_negative()`, `run_runtime_trap()`.
-3. Wire it into `./scripts/test.sh` as an optional `--safety` flag.
-4. Verify it runs clean with no tests registered.
+### 3.3 What `unsafe` permits
 
-### PR2: Module Options Parsing in `chemical.mod`
+- raw pointer deref/projection/method/index/arithmetic;
+- calling `unsafe func`, `extern`, unsafe trait methods;
+- allocation/deallocation and unchecked memory ops;
+- union fields, `static mut`, extern globals;
+- `transmute`, `assume_init`, `unreachable_unchecked`, inline asm;
+- `unsafe impl`.
 
-**What:** Allow `chemical.mod` files to declare arbitrary key=value options.
+`unsafe` does **not** permit use-after-move, uninitialized reads, double-drop,
+borrow-checker violations on references, or OOB safe indexing.
 
-**Why:** Every module needs to declare its safety level. The mechanism must be generic
-so it can support future options too.
+`zeroed<T>()` is **safe** when `T: Zeroable` (an **`unsafe trait`** with audited
+impls); it is not in the unsafe-operation list. `new` returns an owning
+`Box`-like handle and `delete` consumes that owner (so `delete p; delete p` is
+not expressible in safe code); deleting a raw `*mut T` is `unsafe`. Raw
+`malloc`/`dealloc`/`memcpy`/`transmute`/`asm` are unsafe. `unsafe trait` is a
+required language feature (§5.3).
 
-**Files to modify:**
-- `parser/Parser.cpp` (add `var` / `option` keyword handling in `parseModuleFile`)
-- `compiler/processor/ModuleFileData.h` (add `std::unordered_map<chem::string_view, chem::string_view> options`)
-- `compiler/lab/mod_conv/ModToLabConverter.cpp` (emit option-setting code)
-- `compiler/lab/LabBuildCompiler.cpp` (read options in `build_module_from_mod_file`)
+### 3.4 Panic/unwind model
 
-**Syntax in `chemical.mod`:**
-```
-application my_app
-source "src"
+- Recoverable failures use `Option`/`Result`.
+- `panic` is safe. Default profile aborts; an unwinding profile supports
+  `catch_unwind` and drop-on-unwind for parity.
+- Bounds, debug overflow, division by zero, invalid shifts, failed
+  `RefCell`/`Mutex` borrows panic.
+- Panicking in `Drop` is defined: abort if already unwinding; otherwise unwind.
+- No-panic effects (proposal 0005) are a separate milestone.
 
-// Safety options
-option safe = enforce
-option bounds-check = true
-```
+### 3.5 GC boundary
 
-**Or a simpler form using existing `var`/`const` parsing:**
-```
-application my_app
-source "src"
-
-var safe = "enforce"
-var bounds-check = "true"
-```
-
-The `var` form leverages existing parser infrastructure (there's already a TODO for
-handling `var` in `parseModuleFile`). Values are always strings; the consuming code
-parses them.
-
-**Validation:**
-```bash
-# Create test mod file with option
-echo 'application test_mod
-source "src"
-var safe = "enforce"' > /tmp/test_opt/chemical.mod
-mkdir -p /tmp/test_opt/src
-echo 'func main() {}' > /tmp/test_opt/src/main.ch
-
-# Verify the option is parsed (add a diagnostic or verbose output)
-cmake-build-debug/TCCCompiler /tmp/test_opt/chemical.mod -v 2>&1 | grep "safe"
-# Should show the option value
-```
-
-### PR3: `SafeMode` Plumbing Through Compilation Pipeline
-
-**What:** Create `compiler/SafeMode.h`, add `SafeMode safe_mode` to all relevant
-options and visitor classes, wire it from CLI `--safe` flag through to symres/typeverify.
-
-**Files to modify:**
-- Create `compiler/SafeMode.h` (the enum + utility functions)
-- `compiler/lab/LabBuildCompilerOptions.h` (add `SafeMode safe_mode = SafeMode::Off`)
-- `compiler/symres/SymResLinkBody.h` (add `SafeMode safe_mode = SafeMode::Off`)
-- `compiler/symres/SymResLinkBody.cpp` (initialize from options)
-- `compiler/typeverify/TypeVerify.h` (add `SafeMode safe_mode = SafeMode::Off`)
-- `compiler/typeverify/TypeVerify.cpp` (initialize from options)
-- `core/main/CompilerMain.cpp` (parse `--safe` / `--safe=warn` / `--safe=enforce`)
-
-**CLI syntax:**
-```
---safe              → SafeMode::Enforce
---safe=warn         → SafeMode::Warn
---safe=enforce      → SafeMode::Enforce
---safe=off          → SafeMode::Off (default)
-```
-
-**Validation:**
-```bash
-./scripts/build.sh --tcc
-# Must compile without errors
-# No behavior change yet — the flag exists but nothing reads it
-```
-
-### PR4: Expose `--safe` as `release_safe` Mode
-
-**What:** Ensure `--mode release_safe` (which already exists in `OutputMode`) sets
-`SafeMode::Enforce` on all compilation phases.
-
-**Why:** Users already know `-mode` flag. This gives them another way to enable safety.
-
-**Files:**
-- `compiler/lab/LabBuildContext.cpp` (when mode is `ReleaseSafe`, set `safe_mode = Enforce`)
-- `core/main/CompilerMain.cpp` (when parsing `--mode release_safe`, set safe_mode)
+Owned and GC code do not mix implicitly. GC modules relax lifetime/UAF checks
+but keep aliasing/race checks. GC is a later mode.
 
 ---
 
-## Phase 0: Infrastructure
+## 4. Current-state audit
 
-Phase 0 establishes the testing and configuration infrastructure. No safety features
-are implemented yet — just the scaffolding.
+### 4.1 What exists
 
-### Step 0.1: Create the Safety Test Runner
+| Mechanism | State | Notes |
+|---|---|---|
+| Destructors/RAII | Implemented | `@delete`, automatic member destructors, MIR `Drop`/`Destroy`, top-level drop flags. |
+| Move tracking | Partial | Ad-hoc vectors in `SymResLinkBody`; not flow-sensitive. |
+| `Copy` | "No destructor" rule | `where T: Copy` satisfied by non-destructible types; no opt-in, no `Drop` conflict. This is unsound for resource wrappers. |
+| `Clone`/`Default`/`Delete` | Manual | Bounds only. |
+| References | Pointer-shaped | `&T`/`&mut T`; lifetimes not attached to most view fields. |
+| Lifetime syntax | Partial | Single `'a` on structs, `: 'self` return annotation. |
+| `unsafe` | Weakly enforced | Deref warns; `@unsafe` check commented; `unsafe` disables DA; `unsafe "no_lifetime_check"` disables the only lifetime check. |
+| FFI | `@extern` | Calls safe syntax; aggregate parameters use non-C ABI in MIR. |
+| Runtime checks | None | Bounds/overflow/null/validity unchecked. |
+| Thread safety | No model | Raw pthread/OS wrappers, atomics, `std::concurrent`; no `Send`/`Sync`. |
+| Trait objects | Partial | Basic dynamic dispatch works; lifetimes/coercion of `dyn` unmodelled. |
+| Slices/unsized | Absent | Arrays/raw pointers only. |
+| Tuples/const generics/associated types/impl Trait/HRTB | Absent | Required for full parity. |
+| `&str`/UTF-8 | Absent | `string`/`string_view` are byte containers. |
+| Async | Shipped | Self-referential frames; no `Pin`; `FutureHandle<T>` erases borrows. |
+| Derive macros | Absent | CBI macros exist; no built-in derive. |
+| Macros/plugins | Generate AST/raw JS | Generated Chemical checked normally; raw JS outside native safety. |
 
-**Task:** Create `lang/tests/safety/run_safety_tests.sh` and its directory structure.
+### 4.2 Measured migration scale
 
-**Sub-steps:**
-1. Create directories: `lang/tests/safety/{positive,negative,runtime,config}/`
-2. Create `run_safety_tests.sh` with three runner functions:
-   - `run_positive(test_file, flags)` — compile, expect exit 0
-   - `run_negative(test_file, flags, error_pattern)` — compile, expect non-zero + stderr match
-   - `run_runtime_trap(test_file, compiler_flags)` — compile, run, expect non-zero exit
-3. Create `config/test_list.txt` — empty initially
-4. Wire into `./scripts/test.sh` with `--safety` flag
-5. Add a "no tests" default path that exits 0
+Exact queries go in `lang/docs/safety/migration-metrics.md` (S0.2). Current
+approximate counts:
 
-**Test the infrastructure itself:**
-- Write a trivial positive test (`func main() {}`) — should pass
-- Write a trivial negative test (syntax error) — should fail with expected error
-- Verify both work
+| Item | Count |
+|---|---|
+| Raw-pointer type mentions in libs + tests | ~16,500 |
+| Lines containing `unsafe` | ~2,900 |
+| `unsafe(...)` expressions | ~2,500 |
+| `malloc`/`realloc`/`calloc`/`free`/`dealloc`/`memcpy`/`memmove`/`memset` | ~265 libs; ~342 with tests |
+| `new`/`dealloc`/`malloc`/`delete`/`destruct` | ~225/217/181/97/46 |
+| `@extern` declarations | ~1,240 |
+| `printf` calls | ~344 |
+| Top-level `var` | ~165 |
+| Inline `asm(` | ~91 |
+| `zeroed:unsafe` | ~59 |
+| CBI plugin code | ~15,400 lines; ~485 raw-pointer mentions in `lang/libs/compiler` |
+| `build.lab` files | 13, ~1,318 lines, raw-pointer-heavy |
 
-### Step 0.2: Create `SafeMode.h` and Wire Through Pipeline
+**Conclusion:** a language/runtime/std migration, not a warning flip.
 
-**Task:** The plumbing that makes all safety features possible.
+### 4.3 Existing checks and fate
 
-**Sub-steps:**
-1. Create `compiler/SafeMode.h` with the `SafeMode` enum
-2. Add `SafeMode safe_mode = SafeMode::Off` to `LabBuildCompilerOptions`
-3. Parse `--safe` / `--safe=warn` / `--safe=enforce` in `CompilerMain.cpp`
-4. Pass `safe_mode` from options into `SymResLinkBody` constructor
-5. Pass `safe_mode` from options into `TypeVerifier`
-6. Add a `check_safe(message, node)` helper to `SymResLinkBody` that does the
-   warn/emit-error switch
+| Check | Where | Fate |
+|---|---|---|
+| Definite assignment | `TypeVerify` | Replaced by MIR move/init; remove `da_in_unsafe` at replacement. |
+| Destructible deref/index | `TypeVerify`/`SymResLinkBody` | Replaced by borrow rules + raw-pointer unsafe; remove for `&mut String`/`&mut Vec`. |
+| Temporary lifetime escape | `TypeVerify::VisitFunctionCall` | Replaced by lifetime inference. |
+| Move tracking | `SymResLinkBody` | Replaced by MIR move/init. |
+| `unsafe` deref warning | `SymResLinkBody` | Becomes error under unsafe checker. |
+| `@unsafe` | `FunctionDeclaration` | Replaced by `unsafe func`; deprecated alias removed before release. |
+| `unsafe "no_lifetime_check"` | `UnsafeBlock::flag_name` | Removed; named flags are not a semantic escape. |
+| `@allow_zeroed`/`zeroed:unsafe` | Annotation/value | Replaced by `unsafe impl Zeroable`/`unsafe`. |
+| Module `safety`/`safe_mode`/`checks.*` | `LabModuleOptions`, `ModuleOptionRegistry`, `lab.ch` | Removed; no user opt-out. |
 
-**Validation:**
-- Build compiles
-- `--safe` flag is accepted by CLI
-- No behavior change (the flag exists but nothing reads it yet)
+### 4.4 Baseline
 
-### Step 0.3: Module Options in `chemical.mod`
+Pin the baseline SHA and commands in S0.3. Current tree after generic impls:
+TCC `2318`, LLVM `2316`, interpreter `1907`, plugins `1305`, negative `327`.
+Re-baseline explicitly; checked-in logs may lag.
 
-**Task:** Allow modules to declare `var safe = "enforce"` (or similar) in `chemical.mod`.
+### 4.5 Known soundness bugs to fix before enforcement
 
-**Sub-steps:**
-1. Add `std::unordered_map<chem::string_view, chem::string_view> options` to `ModuleFileData`
-2. Handle `var` keyword in `BasicParser::parseModuleFile()` — parse `var name = "value"` 
-   into the options map
-3. In `ModToLabConverter`, emit option-setting code for recognized keys
-4. In `LabBuildCompiler::build_module_from_mod_file()`, read options from parsed data
-5. Create a `ModuleSafetyConfig` struct that reads `safe`, `bounds-check`, `overflow-check`
-   from the options map
-
-**Validation:**
-- A `chemical.mod` with `var safe = "enforce"` parses without error
-- A `chemical.mod` with unknown `var` values also parses (unknown options ignored with warning)
+1. Raw-pointer-derived references/casts unchecked (`&*p`, `p as &mut T`,
+   `0 as &T`).
+2. Aggregate init/`@direct_init` does not enforce field privacy; `FutureHandle`,
+   `Waker`, `Layout`, `NonNull` can be forged.
+3. `vector::get_ref(&self) -> &mut T`.
+4. `string_view`/`span`/`Chunk`/`dyn`/`std::function`/`FutureHandle` erase
+   lifetimes.
+5. Unchecked allocation arithmetic/OOM in vector/string.
+6. `default_function_instance` stores a pointer into its own inline buffer and
+   is moved by memcpy.
+7. `unsafe` disables definite assignment; `unsafe(expr)`/`unsafe "flag"` are
+   inconsistent.
+8. `@extern` aggregate ABI is not the target C ABI.
+9. Drop flags are AST heuristics, not per move path; partial moves/variants not
+   tracked; `MIRMovePath` never built.
+10. `MIRType` is module-interned; function-local regions must not go into it.
+11. Bounds/overflow lowering does not fit one-terminator/single-result MIR.
+12. C signed arithmetic and float→int casts are UB; release wrapping must be
+    lowered explicitly.
+13. Comptime/interpreter memory ops have no bounds/provenance checks.
+14. `--check` stops before MIR, so it misses safety checks.
+15. `vector::get` returns `T` for `Copy`; changing it breaks ~1,000 sites.
 
 ---
 
-## Phase 1: Unsafe Boundary Enforcement
-
-Phase 1 implements the core unsafe/safe boundary: operations that are only allowed
-inside `unsafe { }` blocks or `@unsafe` functions.
-
-### The Concept
-
-Chemical has two kinds of "unsafe context":
-1. **`unsafe { }` blocks** — explicit escape hatch within a function
-2. **`@unsafe` functions** — the entire function body is unsafe context
-
-When `SafeMode::Enforce` is active:
-- Pointer dereference outside unsafe context → error
-- Pointer arithmetic outside unsafe context → error
-- Cast to pointer from non-pointer outside unsafe context → error
-- `dealloc` outside unsafe context → error
-- Calling `@unsafe` function outside unsafe context → error
-- Calling extern C function outside unsafe context → error
-
-When `SafeMode::Warn` is active:
-- Same operations → warning (not error)
-
-When `SafeMode::Off`:
-- No diagnostics (current behavior)
-
-### Step 1.1: Promote Deref Warning to Error
-
-**Task:** Change `VisitDereferenceValue` in `SymResLinkBody.cpp` from always-warn to
-conditional based on `safe_mode`.
-
-**Before (current code at `SymResLinkBody.cpp:2387`):**
-```cpp
-if(safe_context) {
-    diagnoser.warn("de-referencing a pointer in safe context is prohibited", value);
-}
-```
-
-**After:**
-```cpp
-if(safe_context && safe_mode != SafeMode::Off) {
-    check_safe("de-referencing a pointer outside unsafe block is not allowed", value);
-}
-```
-
-**Negative test:** `lang/tests/safety/negative/deref_in_safe.ch`
-```chemical
-func main() {
-    var x = 42
-    var p = &raw x
-    *p  // should error with --safe
-}
-```
-
-**Positive test:** `lang/tests/safety/positive/deref_in_unsafe.ch`
-```chemical
-func main() {
-    unsafe {
-        var x = 42
-        var p = &raw x
-        *p  // OK: inside unsafe block
-    }
-}
-```
-
-**Regression:** `./scripts/test.sh --tcc --no-build` — all existing tests must pass.
-
-### Step 1.2: Check `dealloc` in Safe Context
-
-**Task:** Add safety check to `VisitDeallocStmt` in `SymResLinkBody.cpp`.
-
-**Before (current code):**
-```cpp
-void SymResLinkBody::VisitDeallocStmt(DeallocStmt* node) {
-    visit(node->ptr);
-}
-```
-
-**After:**
-```cpp
-void SymResLinkBody::VisitDeallocStmt(DeallocStmt* node) {
-    if(safe_context && safe_mode != SafeMode::Off) {
-        check_safe("deallocating memory requires an unsafe block", node);
-    }
-    visit(node->ptr);
-}
-```
-
-**Negative test:** Code with `dealloc` outside unsafe block.
-**Positive test:** Code with `dealloc` inside unsafe block.
-
-### Step 1.3: Check Pointer Arithmetic in Safe Context
-
-**Task:** Detect binary operations on pointer types and require unsafe context.
-
-**Where:** This needs to be checked during expression visiting. When a binary expression
-has a pointer operand (`+`, `-`, `++`, `--`), and the context is safe, emit a diagnostic.
-
-**Approach:** In `SymResLinkBody` expression handling, after resolving the expression
-type, check if either operand is a pointer type and the operation is arithmetic.
-
-**Negative test:** `ptr + 1` outside unsafe block.
-**Positive test:** `ptr + 1` inside unsafe block.
-
-### Step 1.4: Check Cast-to-Pointer in Safe Context
-
-**Task:** In `VisitCastedValue`, check if the target type is a pointer.
-
-**Where:** `SymResLinkBody.cpp` — find the cast visitor method.
-
-**Negative test:** `42 as *int` outside unsafe block.
-**Positive test:** `42 as *int` inside unsafe block.
-
-### Step 1.5: Uncomment and Fix `@unsafe` Function Call Check
-
-**Task:** Re-enable the commented-out check in `TypeVerify.cpp:454`.
-
-**Before (current code at `TypeVerify.cpp:454`):**
-```cpp
-// if(func_decl->is_unsafe() && resolver.safe_context) {
-//     resolver.error("unsafe function with name should be called in an unsafe block", this);
-// }
-```
-
-**After:**
-```cpp
-if(func_decl && func_decl->is_unsafe() && !verifier.is_unsafe && verifier.safe_mode != SafeMode::Off) {
-    switch(verifier.safe_mode) {
-        case SafeMode::Enforce:
-            verifier.diagnoser.error("calling @unsafe function requires an unsafe block", node);
-            break;
-        case SafeMode::Warn:
-            verifier.diagnoser.warn("calling @unsafe function from safe context", node);
-            break;
-        default: break;
-    }
-}
-```
-
-**Note:** The TypeVerifier already has `is_unsafe` (line 48 of TypeVerify.h) that toggles
-in `VisitUnsafeBlock`. So the infrastructure is ready — we just need to uncomment and
-update the check.
-
-**Negative test:** Call `@unsafe func` without `unsafe` block, with `--safe`.
-**Positive test:** Call `@unsafe func` inside `unsafe` block, with `--safe`.
-**Regression:** Mark all existing `@unsafe` functions in std/core libraries as safe-to-call
-by wrapping their call sites or by having those modules opt out of safety.
-
-### Step 1.6: Check Extern C Function Calls in Safe Context
-
-**Task:** When a function call resolves to an extern declaration, require unsafe context.
-
-**Where:** `SymResLinkBody::VisitFunctionCall` — after resolving the callee.
-
-**Approach:**
-```cpp
-if(safe_context && safe_mode != SafeMode::Off) {
-    auto callee = /* get linked function */;
-    if(callee && callee->is_extern_fn()) {
-        check_safe("calling extern C function requires an unsafe block", call);
-    }
-}
-```
-
-**Negative test:** `printf("hello")` outside unsafe block with `--safe`.
-**Positive test:** `printf("hello")` inside unsafe block with `--safe`.
-
-**Regression consideration:** ALL existing test code that calls `printf` must either:
-- Be in modules that opt out of safety (`var safe = "off"`), OR
-- Have their `printf` calls wrapped in `unsafe { }`, OR
-- The check must be a warning in Phase 1, not an error
-
-**Decision:** In Phase 1, extern check is **warn-only** even in Enforce mode, because
-every test file uses `printf`. Enforcement begins in Phase 2 when modules can opt out.
-
-### Step 1.7: Exempt Standard Library Modules
-
-**Task:** Ensure that `core`, `std`, and all test modules have safety enforcement OFF.
-
-**Where:** In each library's `chemical.mod`, add `var safe = "off"`.
-In each test module's `build.lab`, set `ctx.set_safe_mode(job, SafeMode::Off)`.
-
-**Files to modify:**
-- `lang/libs/core/chemical.mod` — add `var safe = "off"`
-- `lang/libs/std/chemical.mod` — add `var safe = "off"`
-- `lang/tests/build.lab` — set safe mode off for all test modules
-- All other library `chemical.mod` files — add `var safe = "off"`
-
-**Validation:**
-```bash
-./scripts/test.sh --tcc
-# All existing tests must pass (they already compile without --safe)
-# With --safe, test modules should still compile because they opt out
-```
-
-### Step 1.8: The `@unsafe` "Cannot Be Called in Safe Mode" Annotation
-
-**Task:** This is a new annotation, distinct from `@unsafe`. Where `@unsafe` means
-"a function that contains unsafe operations," this new annotation means "a function
-that MUST NOT be called from safe context under any circumstances — even wrapping
-the call in `unsafe { }` does not help."
-
-**Use case:** `malloc`, `free`, `realloc` — these are C stdlib functions that are
-fundamentally unsafe and should never be called from safe Chemical code. Even if
-the caller wraps in `unsafe`, the compiler should still reject it.
-
-**Proposed annotation:** `@unsafe_call` or `@forbid_safe`
-
-Wait — re-reading the requirement: "annotation to mark a function, so it can't be
-called in unsafe mode, leads to a compile time error, because it is completely unsafe"
-
-This means: the function IS callable, but ONLY from code that explicitly opts into
-unsafe at the module level or function level. The annotation marks functions that
-are too dangerous for normal `unsafe { }` blocks.
-
-**Revised interpretation:** `@unsafe` already means "requires unsafe block to call."
-The user wants a DIFFERENT annotation for functions that are SO unsafe they should
-trigger an error even inside `unsafe { }` blocks.
-
-**Proposed annotation:** `@unsafe("critical")` — a severity parameter on the existing
-`@unsafe` annotation. Functions marked `@unsafe("critical")` can only be called from
-functions that are themselves marked `@unsafe("critical")`. A regular `unsafe { }`
-block is not sufficient.
-
-**Implementation:**
-1. Extend `annot_handler_unsafe` to accept an optional string argument
-2. Store the severity level on `FunctionDeclaration` (e.g., `UnsafeLevel::Normal`
-   vs `UnsafeLevel::Critical`)
-3. In the call-site check, if the callee is `Critical` and the caller is not
-   `Critical`, emit error regardless of `unsafe { }` blocks
-
-**Files to modify:**
-- `compiler/frontend/AnnotationController.cpp` — extend `annot_handler_unsafe`
-- `ast/structures/FunctionDeclaration.h` — add `UnsafeLevel` enum and field
-- `compiler/typeverify/TypeVerify.cpp` — check severity at call sites
-
-**Example usage:**
-```chemical
-@unsafe("critical")
-@extern public func malloc(size : usize) : *void
-
-@unsafe("critical")
-@extern public func free(ptr : *void) : void
-
-func main() {
-    unsafe {
-        var p = malloc(100)  // ERROR: malloc requires critical unsafe context
-    }
-}
-```
-
-**This requires that the caller function itself be `@unsafe("critical")`.**
-A regular `unsafe { }` block is not sufficient.
-
-**Regression:** Mark `malloc`, `free`, `realloc`, `calloc` in cstd with this annotation.
-These are already in the `cstd` or `std` module which opts out of safety, so no existing
-code breaks.
-
----
-
-## Phase 2: Module-Level Safety Configuration
-
-Phase 2 makes safety per-module, not global. This is where the real power comes from.
-
-### Step 2.1: Read Module Safety Options
-
-**Task:** During module compilation, read `var safe = "..."` from the module's parsed
-`ModuleFileData` and set the `SafeMode` for all source files in that module.
-
-**Where:** `LabBuildCompiler::build_module_from_mod_file()` and `ASTProcessor::compile_module()`.
-
-**Flow:**
-```
-chemical.mod parsed → ModuleFileData.options["safe"] → "enforce"
-                    → ModuleSafetyConfig.safe_mode = SafeMode::Enforce
-                    → passed to all SymResLinkBody instances for this module
-```
-
-**Key decision:** The module's safety level applies to ALL source files in that module.
-Individual functions can opt out with `unsafe { }` blocks. But the default within the
-module is safe.
-
-### Step 2.2: CLI Flags Override Module Options
-
-**Task:** Ensure `--safe` and `--unsafe` CLI flags override per-module settings.
-
-**Rules:**
-- `--safe` on CLI → ALL modules use `SafeMode::Enforce` (regardless of their `chemical.mod`)
-- `--safe=warn` on CLI → ALL modules use `SafeMode::Warn`
-- `--unsafe` on CLI → ALL modules use `SafeMode::Off` (regardless of their `chemical.mod`)
-- No flag → each module uses its own `chemical.mod` setting (or default)
-
-**This means:** Users can always force safety on or off globally for testing.
-
-### Step 2.3: The Default Module Safety Level
-
-**Task:** Decide and implement what happens when a `chemical.mod` has NO `var safe = "..."`.
-
-**Decision:** Default is `SafeMode::Enforce`. This means:
-- New projects get safety by default
-- Existing projects must add `var safe = "off"` to their `chemical.mod`
-- This is the opposite of the analysis doc's suggestion, but correct for the goal
-
-**Wait — reconsidering:** The analysis doc says features should default to OFF to
-avoid breaking existing code. But the user says "existing libraries and test modules
-would use these options to opt out." So the plan is:
-
-**Final decision:** Default is `SafeMode::Off` (no enforcement). Modules explicitly
-opt in with `var safe = "enforce"`. This preserves all existing behavior. The
-standard library and test modules don't need changes. New modules that want safety
-add one line to their `chemical.mod`.
-
-### Step 2.4: Opt Out for All Existing Modules
-
-**Task:** Add `var safe = "off"` to every existing library and test module.
-
-**Files to modify:**
-- `lang/libs/core/chemical.mod`
-- `lang/libs/std/chemical.mod`
-- `lang/libs/test/chemical.mod`
-- `lang/libs/test_env/chemical.mod`
-- `lang/libs/json/chemical.mod`
-- `lang/libs/net/chemical.mod`
-- `lang/libs/fs/chemical.mod`
-- `lang/libs/html_cbi/chemical.mod`
-- `lang/libs/css_cbi/chemical.mod`
-- `lang/libs/js_cbi/chemical.mod`
-- `lang/libs/universal_cbi/chemical.mod`
-- `lang/libs/page/chemical.mod`
-- `lang/tests/*/chemical.mod`
-- All compiled app `chemical.mod` files
-
-**Validation:**
-```bash
-# After adding opt-outs, run the full test suite
-./scripts/test.sh --tcc
-# All tests must still pass
-```
-
-### Step 2.5: Verify Module Opt-In Works
-
-**Task:** Create a test project that opts into safety and verify enforcement.
-
-**Create:**
-```
-lang/tests/safety/positive/safe_module_optin/
-├── chemical.mod    # var safe = "enforce"
-└── src/
-    └── main.ch     # safe code that should compile
-```
-
-**Create:**
-```
-lang/tests/safety/negative/safe_module_optin/
-├── chemical.mod    # var safe = "enforce"
-└── src/
-    └── main.ch     # unsafe code without unsafe block — should fail
-```
-
-**Validate:**
-```bash
-# The safe module should compile its safe code
-cmake-build-debug/TCCCompiler lang/tests/safety/positive/safe_module_optin/chemical.mod -o /dev/null
-# Expected: exit 0
-
-# The unsafe code in the safe module should fail
-cmake-build-debug/TCCCompiler lang/tests/safety/negative/safe_module_optin/chemical.mod -o /dev/null 2>&1
-# Expected: exit non-zero, error about dereference
-```
-
----
-
-## Phase 3: Runtime Safety Checks
-
-Phase 3 adds runtime checks that trap at execution time. These are separate from
-compile-time boundary checks — they catch bugs at runtime.
-
-### Step 3.1: Bounds Checking
-
-**Task:** When `--bounds-check` is passed (or module has `var bounds-check = "true"`),
-insert array bounds checks before every array indexing operation.
-
-**Where:** `compiler/backend/LLVM.cpp` (for LLVM backend) and the TCC/C translation
-backend.
-
-**LLVM approach:**
-- In `IndexOperator::llvm_value()` and `IndexOperator::llvm_pointer()`
-- Before the GEP instruction, insert:
-  ```
-  %in_bounds = icmp ult %index, %array_size
-  br i1 %in_bounds, label %cont, label %trap
-  trap: call void @llvm.trap() unreachable
-  cont: ; continue with GEP
-  ```
-
-**TCC/C approach:**
-- In the C translation, insert `if(index >= size) __builtin_trap();` before the access.
-
-**Negative test:** Array access out of bounds → program traps (exit code > 128).
-**Positive test:** Array access in bounds → program runs normally.
-
-### Step 3.2: Overflow Checking
-
-**Task:** When `--overflow-check` is passed, use LLVM `*_with_overflow` intrinsics
-for `+`, `-`, `*` on integer types.
-
-**Where:** `compiler/backend/LLVM.cpp` — in binary operation codegen.
-
-**LLVM approach:**
-- Replace `add i32 %a, %b` with `%result = call { i32, i1 }
-  @llvm.sadd.with.overflow.i32(i32 %a, i32 %b)`
-- Extract the overflow bit
-- If overflow → trap
-
-**Negative test:** `INT_MAX + 1` → program traps.
-**Positive test:** `1 + 1` → program runs normally.
-
-### Step 3.3: Null Pointer Checking (Optional, Lower Priority)
-
-**Task:** When dereferencing a pointer that is known to be nullable, insert a null check.
-
-**Where:** `compiler/backend/LLVM.cpp` — in dereference codegen.
-
-**Approach:** Only check pointers that come from nullable sources (e.g., `get_ptr()`
-which can return null). Static non-nullable pointers don't need checks.
-
-**This is AI-hard** because it requires tracking which pointers are nullable through
-the type system. Defer to Phase 5.
-
----
-
-## Phase 4: Container Safety
-
-Phase 4 fixes the critical bugs in container operations that cause double-free and
-use-after-free.
-
-### Step 4.1: Restrict `vector<T>.get()` to Non-Destructible Types
-
-**Task:** Make `get()` (which returns by value) only available when `T` does NOT have
-a destructor. For destructible `T`, users must use `get_ptr()` or `get_ref()`.
-
-**Where:** `lang/libs/std/src/vector.ch` — the `get` function.
-
-**Approach 1 (preferred):** Use the existing `where` clause system:
-```chemical
-func get(&self, index : size_t) : T where T : Copy {
-    return data_ptr[index]
-}
-```
-
-If `T : Copy` is satisfied, `get()` works. If not, the user gets a clear error:
-"get() requires T to implement Copy. Use get_ptr() for non-copyable types."
-
-**Approach 2:** If `where` clauses on std library functions aren't yet enforced
-during generic instantiation, add a compile-time check in the generic body that
-errors if `T` has a destructor.
-
-**Validation:**
-```chemical
-// This should work (int is Copy):
-var v = std::vector<int>()
-v.push(42)
-var x = v.get(0)  // OK
-
-// This should fail (string is not Copy):
-var s = std::vector<std::string>()
-s.push(std::string("hello"))
-var y = s.get(0)  // ERROR: get() requires Copy
-```
-
-### Step 4.2: Add `where` Constraints to `vector.push()`
-
-**Task:** Ensure `push()` only works when `T` is safely copyable (e.g., `Copy`).
-
-**Where:** `lang/libs/std/src/vector.ch`
+## 5. Target language (full parity)
+
+### 5.0 Parity matrix
+
+The release gate is full safe-program parity for the features below. "Implemented
+and tested" means TCC, LLVM, and interpreter where applicable, plus negative and
+positive tests.
+
+| Area | Required features |
+|---|---|
+| Ownership | moves, opt-in `Copy`, `Clone`, `Drop`, partial moves, reinitialization, drop flags, `ManuallyDrop`, `MaybeUninit`, `mem::replace/take/swap/forget`, dropck |
+| Borrowing | shared/mutable references, lifetime syntax/elision/inference, `'static`, variance, NLL, reborrowing, two-phase borrows, temporary lifetime extension, HRTB |
+| Types | structs, tuple structs, tuples, variants/enums, unions (unsafe), arrays, slices, `str`, `Sized`/`?Sized`, `PhantomData`, `Pin`/`Unpin` |
+| Traits | interfaces/traits, default methods, supertraits, associated types, GATs, auto traits, negative impls, `unsafe trait`, `dyn Trait`/object safety/upcasting, `impl Trait` (argument/return, RPITIT), where clauses, generic impls, arbitrary self types (`self: Pin<&mut Self>`, `self: Box<Self>`) |
+| Core traits | `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Hash`/`Hasher`, `Display`, `Debug`, `From`/`Into`/`TryFrom`/`TryInto`, `Borrow`, `ToOwned`, `Error`, `FromIterator`/`Extend`, `DoubleEndedIterator`/`ExactSizeIterator`, `UnwindSafe`/`RefUnwindSafe`/`AssertUnwindSafe` |
+| Generics | type/lifetime/const parameters, defaults, const generics (`[T; N]`), monomorphization |
+| Closures | `Fn`/`FnMut`/`FnOnce`, capture modes, `move`, HRTB, `'static` bounds |
+| Patterns/control | `if let`, `while let`, `let else`, `match` exhaustiveness, `?`/Try, ranges, `for`/`IntoIterator` |
+| Strings | byte strings, `String`, `&str`, UTF-8 validation, `CString`/`CStr`, `OsStr`/`OsString` |
+| Smart pointers | `Box`, `Rc`/`Weak`, `Arc`/`Weak`, `Cell`, `RefCell`, `UnsafeCell` |
+| Collections | `Vec`, `VecDeque`, `String`, `HashMap`, `BTreeMap`, `HashSet`, `BTreeSet`, `BinaryHeap`, `LinkedList`, `Cow`, `OnceCell`, iterators/adapters |
+| Threads | `Send`/`Sync`, `thread::spawn`, scoped threads, `JoinHandle`, `Mutex`, `RwLock`, `Condvar`, `Barrier`, `Once`, `OnceLock`, atomics, channels |
+| Async | `Future`, `Pin`, `Unpin`, `.await`, executors, `Send` futures, cancellation, async closures, `async fn` in traits/RPITIT, arbitrary self types |
+| FFI | `extern "C"`, target-aware C ABI, `repr(C/transparent/packed)`, callbacks, variadics, `static mut`, unions, `CString`/`CStr` |
+| Unsafe | `unsafe` blocks/functions/impls/traits, raw pointers, casts/provenance, `transmute`, `assume_init`, `zeroed<T>()`, inline asm |
+| Panic | `panic`, abort/unwind profiles, `catch_unwind`, `UnwindSafe`/`RefUnwindSafe`/`AssertUnwindSafe`, drop-on-unwind, no unwinding across FFI |
+| Derive | `Copy`/`Clone`/`Default`/`PartialEq`/`Eq`/`Hash`/`Debug` equivalent generation |
+| Const/comptime | const generics, const evaluation, comptime functions, hardened interpreter |
+| Std API | shipped library surface in §11; parity backlog tracked per API |
+
+**Not required for safety parity** (may differ or be provided by plugins/APIs):
+literal Rust macro syntax (`println!`, `vec!`), crate/edition syntax, Rust
+module syntax, and exact std function names. Equivalent Chemical APIs must exist
+for the parity corpus.
+
+### 5.1 Ownership and moves
+
+- One owner unless `Copy`.
+- `Copy` is **opt-in**: a type declares `impl Copy` (or a derive), and the
+  compiler verifies all fields are `Copy` and there is no `Drop`. There is no
+  implicit auto-`Copy` that could copy an OS handle.
+- `&mut T: !Copy`; raw pointers `Copy`; `Box`/`Rc`/`Arc` not `Copy`.
+- `Clone` explicit. `Drop` and `Copy` cannot coexist.
+- Move makes a place uninitialized; full assignment reinitializes.
+- Partial moves tracked per field/index path; parent becomes partial and drops
+  field-wise.
+- Partial moves out of `Drop` types rejected.
+- Dynamic-index moves rejected; use `replace`/`Option::take`/`swap`.
+- Unions: fields must be `ManuallyDrop` or the union is only used for C interop;
+  dropping a union drops nothing. `Drop` fields in a union are rejected unless
+  wrapped.
+- Destructors run exactly once on every initialized path, reverse order.
+  Abort profile: no drops on abort; unwinding profile: drops run during unwind.
+
+### 5.2 Borrowing and lifetimes
 
 ```chemical
-func push(&mut self, value : T) where T : Copy {
-    // existing implementation
+func longest<'a>(x : &'a str, y : &'a str) : &'a str { ... }
+
+struct Parser<'a> {
+    var input : &'a str
 }
+
+func parse<'a>(p : &mut Parser<'a>) : &'a str { ... }
+
+impl<'a, T> Trait for Wrapper<'a, T> { ... }
+
+func map<'a, T, U, F>(x : &'a T, f : F) : U
+    where F : for<'b> Fn(&'b T) -> U { ... }
 ```
 
-### Step 4.3: Add `where` Constraints to `vector.resize()`
+- `&T`/`&mut T`, optional `'a`.
+- Elision: one input lifetime → all outputs; `&self`/`&mut self` supplies the
+  output; otherwise error.
+- `'static`, `T: 'a`, lifetime bounds, HRTB.
+- Variance: `&T` covariant in `'a`/`T`; `&mut T` covariant in `'a`, invariant
+  in `T`; `*T` covariant, `*mut T` invariant; `Cell`/`UnsafeCell` invariant;
+  `PhantomData` participates (including `PhantomData<fn(T)>`/`PhantomData<*mut T>`
+  forms).
+- Reborrowing, two-phase borrows, temporary lifetime extension.
+- Reference cannot outlive referent; mutable reference exclusive while live.
+- `'static` for threads/static storage.
+- `string_view`/`span`/`Chunk`/`std::function`/`FutureHandle` carry real
+  lifetimes or are replaced by slices/owners.
 
-**Task:** Ensure `resize()` only works when `T` is default-constructible.
+### 5.3 Types and traits
+
+- Associated types and GATs are required for full parity (`Deref<Target>`,
+  `Iterator<Item>`, `Index<Output>`, `Try`).
+- `impl Trait` in argument and return position.
+- Tuples and tuple structs.
+- Const generics and `[T; N]`.
+- `dyn Trait` with object safety, auto-trait bounds (`dyn Trait + Send + Sync`),
+  upcasting, and lifetime bounds.
+- `unsafe trait` declarations (required for `Zeroable`, `Send`/`Sync` internals,
+  allocator/pinning invariants).
+- Arbitrary self types: `self: Pin<&mut Self>`, `self: Box<Self>`,
+  `self: Rc<Self>`, `self: Arc<Self>`.
+- Derive support for `Copy`, `Clone`, `Default`, `PartialEq`, `Eq`, `Hash`,
+  `Debug` (compiler plugin or built-in).
+- Core traits: `PartialEq`, `Eq`, `PartialOrd`, `Ord`, `Hash`/`Hasher`,
+  `Display`, `Debug`, `From`/`Into`/`TryFrom`/`TryInto`, `Borrow`, `ToOwned`,
+  `Error`, `FromIterator`/`Extend`, `DoubleEndedIterator`/`ExactSizeIterator`,
+  `UnwindSafe`/`RefUnwindSafe`/`AssertUnwindSafe`.
+- `Sized`/`?Sized`, `Unpin`, `Send`, `Sync`, `Copy`, `Drop`, `Clone`, `Default`.
+
+### 5.4 Unsafe and FFI
 
 ```chemical
-func resize(&mut self, new_size : size_t) where T : DefaultConstructible {
-    // existing implementation using zeroed<T>()
+unsafe func raw_copy(dst : *mut u8, src : *mut u8, len : usize) { ... }
+
+func safe_copy(dst : &mut [u8], src : &[u8]) {
+    if dst.len() < src.len() { panic("destination too small") }
+    unsafe { memcpy(dst.as_mut_ptr(), src.as_ptr(), src.len()) }
 }
 ```
 
-### Step 4.4: Add `InterfaceBits` for Destructible, TriviallyRelocatable
+- `unsafe func` replaces `@unsafe`; `unsafe impl`.
+- `unsafe func` bodies require explicit `unsafe` blocks.
+- `@extern`/`extern "C"` calls unsafe; new code uses `extern "C"`.
+- `static mut` access unsafe; immutable `static` requires `Sync`.
+- Union fields and inline asm unsafe.
+- `unsafe(expr)` removed or unified; `@allow_zeroed` replaced by `unsafe impl
+  Zeroable`.
+- Variadics (`any...`/C variadics) are an unsafe boundary. Safe printing is
+  fully typed/compile-time-checked (no unchecked format-string mismatch, no
+  borrowed `any` escaping the call). C `printf`-style variadics are `unsafe`
+  and wrapped by typed APIs. `intrinsics::print` accepts only checked typed
+  arguments; arbitrary `any` payloads require `unsafe`.
 
-**Task:** Extend the `InterfaceBits` system with new bit constants.
+### 5.5 Cast/provenance matrix
 
-**Where:** `ast/base/InterfaceBits.h`
+| From → To | Safe? | Notes |
+|---|---|---|
+| numeric → numeric | Yes | Defined truncation; float→int defined, not C UB. |
+| `*T` ↔ integer | Yes | Provenance loss allowed; deref unsafe. |
+| `*T` → `*U`, `*mut T` ↔ `*T` | Yes | Raw-pointer casts. |
+| `&T` → `*T`, `&mut T` → `*mut T` | Yes | Decay. |
+| `&mut T` → `&T` | Yes | Reborrow. |
+| `*T`/integer → `&T`/`&mut T` | **No** | Unsafe; includes `&*p`, `&mut *p`. |
+| `&T` → `&mut T` | **No** | Unsafe. |
+| `&T` → `&U` | Only interface/`dyn` upcast | Other reinterpret casts unsafe. |
+| `&[T; N]` → `&[T]` | Yes | Unsize. |
+| integer → `bool` | **No** | Checked constructor/unsafe. |
+| integer → `enum` | **No** | Checked range/unsafe. |
+| integer → variant tag | **No** | Only constructors/patterns. |
+| raw pointer field/method/index | **No** | Unsafe projection. |
+| fn ptr to `unsafe func`/`@extern` | Call unsafe | Unsafety at call. |
+| `usize` → pointer → reference | **No** | Unsafe/provenance. |
 
-```cpp
-static constexpr BitsType COPY_BIT                  = BitsType(1) << 0;
-static constexpr BitsType DESTRUCTIBLE_BIT          = BitsType(1) << 1;
-static constexpr BitsType DEFAULT_CONSTRUCTIBLE_BIT = BitsType(1) << 2;
-static constexpr BitsType TRIVIALLY_RELOCATABLE_BIT = BitsType(1) << 3;
-```
+### 5.6 Runtime checks and C semantics
 
-**Auto-derive logic:** In symres, after processing a struct's members:
-- If it has a destructor → set `DESTRUCTIBLE_BIT`
-- If it has no destructor and is zeroable → set `DEFAULT_CONSTRUCTIBLE_BIT`
-- If it has no destructor and all fields are trivially relocatable → set `TRIVIALLY_RELOCATABLE_BIT`
+| Operation | Debug | Release |
+|---|---|---|
+| Array/slice index | panic OOB | panic OOB |
+| `get`/`get_mut` | `Option` | `Option` |
+| `+`, `-`, `*`, unary `-` | panic overflow | wrap two's complement |
+| `/`, `%` | panic zero; `MIN/-1` panic | same |
+| `<<`, `>>` | panic shift ≥ bits | same |
+| `as` numeric | defined | defined |
+| float→int | defined/saturating | defined |
+| raw deref | unsafe | unsafe |
+| `transmute` size mismatch | compile error | compile error |
 
-**Define corresponding interfaces** in `lang/libs/core/interfaces.ch`:
-```chemical
-public interface Destructible {}
-public interface DefaultConstructible {}
-public interface TriviallyRelocatable {}
-```
+C backend must not rely on C signed-overflow UB or implementation-defined
+float→int. Wrapping via unsigned arithmetic; explicit defined float→int. Test
+TCC and LLVM.
 
-**Register in `CoreNodes.h`** so the compiler can auto-implement them.
+### 5.7 Thread safety
 
----
+- `Send`: move to another thread. `Sync`: `&T` shared.
+- Auto-derived; negative impls; `unsafe impl` audited.
+- Raw pointers `!Send + !Sync`; erased types carry explicit bounds.
+- `&T: Send` iff `T: Sync`; `&mut T: Send` iff `T: Send`; `MutexGuard: !Send`.
+- `Rc` `!Send + !Sync`; `RefCell<T>` is `Send` when `T: Send` and always
+  `!Sync`; `Cell<T>` is `Send` when `T: Send` and always `!Sync`;
+  `Arc<T>` `Send+Sync` for `T: Send+Sync`; `Mutex<T>` `Sync` for `T: Send`.
+- `thread::spawn` requires `FnOnce + Send + 'static`; scoped threads support
+  non-`'static` borrows with a scope guard.
+- `static` requires `Sync`; `static mut` access unsafe.
+- `UnsafeCell` only interior mutability primitive; wrappers encapsulate it.
+- `@volatile` is not atomic; concurrent volatile access is a data race; volatile
+  read/write unsafe.
 
-## Phase 5: Lifetime & Reference Safety
+### 5.8 Async/Pin
 
-Phase 5 is the hardest and most impactful. It prevents dangling references.
-
-### Step 5.1: Basic Reference Scope Tracking
-
-**Task:** Track which scope each reference was created in, and prevent returning
-references to local variables.
-
-**Where:** `compiler/symres/SymResLinkBody.h` — add scope depth tracking.
-
-**Data:**
-```cpp
-int scope_depth = 0;
-struct RefBinding {
-    ASTNode* referent;     // what the reference points to
-    int scope_depth;       // depth at which referent was created
-};
-std::vector<RefBinding> ref_bindings;
-```
-
-**Check in `VisitReturnStmt`:**
-```cpp
-if(return_value is a reference) {
-    for(auto& binding : ref_bindings) {
-        if(binding.referent == return_value.referent && binding.scope_depth >= current_function_scope_depth) {
-            diagnoser.error("returning reference to local variable", node);
-        }
-    }
-}
-```
-
-### Step 5.2: One Mutable or Many Immutable References
-
-**Task:** Enforce that at any point, there is either one `&mut` reference or
-multiple `&` references to the same data — never multiple `&mut`.
-
-**This is AI-hard.** It requires tracking all live references and their
-mutability at every point in the function body. Defer to a later iteration.
-
-### Step 5.3: Reference Storage in Structs
-
-**Task:** Prevent storing a reference in a struct if the reference would outlive
-the referent.
-
-**This is AI-hard.** Defer to a later iteration.
-
----
-
-## Phase 6: Standard Library Safety Wrappers
-
-Phase 6 adds safe alternatives to unsafe standard library functions.
-
-### Step 6.1: Checked Arithmetic Interfaces
-
-**Task:** Define `CheckedAdd`, `CheckedSub`, `CheckedMul` interfaces and implement
-them for all integer types.
-
-**Where:** `lang/libs/core/ops.ch` (interfaces) and `lang/libs/std/src/` (implementations)
-
-### Step 6.2: `NonNull<T>` Wrapper
-
-**Task:** Create a `NonNull<T>` type that wraps a pointer and guarantees non-null.
-
-**Where:** `lang/libs/std/src/ptr.ch` (new file)
-
-### Step 6.3: Safe `vector` API
-
-**Task:** Ensure the full `vector` API uses `where` clauses consistently:
-- `get()` requires `Copy`
-- `get_ptr()` works for all types
-- `get_ref()` works for all types
-- `push()` requires `Copy` or explicit move
-- `resize()` requires `DefaultConstructible`
-- `reserve()` works for all types
+- `Future`, `Poll`, `Context`, `Waker`, `Pin`, `Unpin`, `.await`.
+- Async closures, `async fn` in traits/RPITIT, arbitrary self types
+  (`self: Pin<&mut Self>`), `IntoFuture`.
+- Coroutine frame fields are stable places; borrows across `.await` are checked
+  across the ramp/poll/drop split.
+- `FutureHandle<T>` carries a lifetime and is `Send` only when the underlying
+  future is `Send`.
+- `Waker` construction from raw parts is unsafe; `Waker: Send + Sync`; safe
+  `wake` requires a validated owned handle.
+- `PhantomPinned`/`!Unpin` and Pin projection rules are required.
+- `catch_unwind`/cancellation drop exactly once.
 
 ---
 
-## The Annotation Catalog
+## 6. Compiler architecture
 
-### Existing Annotations (Relevant to Safety)
+### 6.1 Pipeline and per-function checks
 
-| Annotation | Current Effect | Safety-Relevant? |
-|-----------|---------------|-----------------|
-| `@unsafe` | Sets `func->is_unsafe = true` | Yes — caller requires unsafe context |
-| `@extern` | Marks function as extern C | Yes — calling requires unsafe context |
-| `@allow_zeroed` | Allows `zeroed<T>()` for types with ctors/dtors | Yes — bypasses zero-init safety |
+```
+parse
+  → declare/link signatures (lifetimes, generics, where)
+  → generic instantiation
+  → after-signature facts (auto traits/variance seeds, finalized lazily)
+  → link bodies (unsafe context, lifetimes, borrows)
+  → type verify (types, unsafe calls)
+  → MIR lowering
+  → MIRMoveCheck analysis (init/drop plan; sole state producer)
+  → MIR elaboration (StorageLive/Dead, drop flags from the plan, checked blocks)
+  → MIR move/init verify (plan vs inserted MIR)
+  → MIR borrow/provenance check
+  → MIR validity check
+  → emit/interpret
+```
 
-### New Annotations to Add
+**Every emitted/interpreted `MIRFunction` goes through `lower_and_check`:**
+primary bodies, `async_poll`, `async_drop`, async `main` trampoline, lambda
+functions, static-interface stubs, comptime functions, and generated
+declarations. No caller may emit/interpret unchecked MIR. `--safety-report`
+prints checked vs emitted/interpreted counts; a mismatch is a hard error.
 
-| Annotation | Effect | Example |
-|-----------|--------|---------|
-| `@unsafe("critical")` | Function can only be called from `@unsafe("critical")` functions, not from regular `unsafe { }` blocks | `@unsafe("critical") @extern public func malloc(...) : *void` |
-| `@safe_pure` | Function is guaranteed to have no side effects and no unsafe operations. Can be called from any context. | `@safe_pure func add(a : int, b : int) : int` |
-| `@safe_abi` | Function has a safe ABI boundary — it can be called from safe code even if it's implemented in an unsafe module | For FFI wrappers |
+**Fused placement.** The C path lowers/emits per function in a worker. Checks
+run immediately after lowering and before emission, in the same worker,
+worker-local arena. No module-wide MIR retention for the C path. Diagnostics are
+collected per function and sorted at module end.
 
-### Annotation Implementation Pattern
+**`--check`** lowers MIR and runs safety passes without emission. **LSP is
+deferred**; when added, it will use a background build with debounce/cancel/
+cache and a latency budget, and must not report "unchecked" as success.
 
-Every new annotation follows this pattern:
-1. Add handler function in `AnnotationController.cpp`
-2. Add storage field on the relevant AST node (e.g., `FunctionDeclaration`)
-3. Add the annotation name to `initialize()` registration
-4. Add a check in the appropriate compiler pass (symres or typeverify)
-5. Add positive and negative tests
+**Comptime** is a hardened trusted boundary: unsafe context is checked at
+typecheck; the interpreter enforces allocation/provenance/bounds/uninitialized/
+UAF at runtime; unsupported opcodes are hard diagnostics. All comptime bodies
+must lower through the normal pipeline or be rejected. Borrow/move checking of
+comptime bodies runs in that pipeline.
+
+### 6.2 New modules
+
+| Module | Responsibility |
+|---|---|
+| `compiler/safety/SafetyDiagnostics.{h,cpp}` | IDs, notes, help, spans. |
+| `compiler/safety/UnsafeChecker.{h,cpp}` | Unsafe context, unsafe ops, FFI, unsafe impls. |
+| `compiler/safety/AutoTraits.{h,cpp}` | `Copy`, `Send`, `Sync`, `Sized`, `Unpin`. |
+| `compiler/safety/Variance.{h,cpp}` | Variance/subtyping. |
+| `compiler/safety/LifetimeResolver.{h,cpp}` | Names, elision, `'static`, bounds, HRTB. |
+| `compiler/mir/MIRMoveCheck.{h,cpp}` | Init/move/drop/path dataflow. |
+| `compiler/mir/MIRBorrowCheck.{h,cpp}` | Regions, loans, NLL, two-phase, provenance. |
+| `compiler/mir/MIRValidity.{h,cpp}` | Transmute/layout/union/FFI-decidable validity. |
+| `compiler/mir/MIRRuntimeChecks.{h,cpp}` | Bounds/overflow lowering helpers. |
+
+### 6.3 AST/type changes
+
+- `Lifetime`, `LifetimeParam` (or `GenericTypeParameter` kind Type/Lifetime/Const).
+- `ReferenceType` carries lifetime during resolution; MIR erases it.
+- Function/struct/variant/union/interface/impl declarations carry lifetime and
+  const parameter lists; replace single `string_view` lifetime and `: 'self`.
+- Generic instantiation substitutes lifetimes/consts.
+- Tuples, tuple structs, associated types/GATs, `impl Trait`, const generics.
+- Auto-trait/variance/dropck facts are module-lifetime side tables keyed by
+  lifetime-erased `MIRTypeId`; invalidated on new instantiations; lock discipline
+  like `MIRTypeTable`.
+- New `ASTNodeKind`/`BaseTypeKind`/`ValueKind`/`TokenType` appended and mirrored
+  in `lang/libs/compiler/src/...` (CBI enum-sync rule).
+
+### 6.4 MIR contract
+
+**Types are lifetime-erased.** `MIRType` is module-interned/immutable; regions
+are function-local. Do not add region IDs to `MIRTypeRecord`.
+
+**Region signatures.** A module-lifetime `MIRRegionSignature` side table is built
+from declarations before body lowering: region-parameter count, per-parameter
+region, return region, declared outlives bounds, HRTB binders. `MIRBorrowCheck`
+reads MIR + this table; no AST access. Region IDs are per-function records keyed
+by `InstId`/`PlaceId`, not module `ConstantId`s. Build signatures before
+parallel body lowering with explicit locking/merge.
+
+**Ownership opcode contract** (refined):
+
+| Opcode | Meaning | Types |
+|---|---|---|
+| `Load` | load a value; copying a non-`Copy` aggregate is a **verifier error**; lowering must use `Move` | scalar/`Copy` only |
+| `Assign` | lifetime-aware overwrite/init; drops old value | any |
+| `Store` | raw store; does not drop old value | initialization/unsafe paths |
+| `Move`/`MoveInit` | move | non-Copy (Copy may copy) |
+| `Copy`/`CopyInit` | bitwise copy, source remains | Copy |
+| `MemCpy`/`MemSet` | raw bytes | unsafe/trusted |
+| `Borrow`/`BorrowMut` | explicit borrow + region | references |
+| `StorageLive`/`StorageDead` | storage lifetime | addressed/drop places |
+| `FakeRead` | borrowck-only read | any |
+
+**No `BoundsCheck`/`CheckedBinary`/`Panic` opcodes.** Lower bounds as
+`Compare` + `CondBr` + `Call(__chc_panic)` + `Unreachable`. Lower debug overflow
+as `Binary` + overflow `Compare` + `CondBr` + panic call. `checked_*`/
+`overflowing_*` use `Compare`/`Select`. This preserves the one-terminator/
+single-result MIR shape and avoids a new terminator.
+
+**MIR elaboration (1b)** runs after `MIRMoveCheck` analysis and before
+verification/borrow:
+- `MIRMoveCheck` is the **sole producer** of init/move/drop state. It emits a
+  per-block `MIRInitPlan` (states + required drop flags).
+- Elaboration inserts StorageLive/Dead for addressed/drop places, drop flags
+  from that plan, and checked-operation blocks. It does not invent drop state.
+- A fast post-elaboration verify checks the inserted flags against the plan
+  (no double-drop, no drop-of-uninitialized). Then borrow checking consumes the
+  final MIR.
+- `Assign` is the lifetime-aware init/overwrite opcode (drops old value);
+  `Store` is only for known-uninitialized/raw/unsafe paths. `MIRMoveCheck`
+  validates the choice.
+- `MIRFacts`/`MIRSafetyFacts` computed once on final MIR and passed to checks and
+  emission. `init_state` is a builder hint only.
+- Source map at borrow/index/call/field sites; O(1) dedup; test >65k unique
+  locations and a deterministic fallback.
+- Build real move-path trees; use `MIR_INVALID_ID` (not 0) for "none".
+
+**MIR opcode landing checklist.** For each new opcode (`Borrow`, `BorrowMut`,
+`StorageLive`, `StorageDead`, `FakeRead`): update enum/flags/name/portability,
+builder, lowerer, verifier, dump, C emitter, LLVM emitter, interpreter, facts,
+and `MIRTests`; one green commit per opcode across all consumers.
+
+**MIR verifier.** Mandatory safety passes are distinct from the optional
+structural verifier. Wire `MIRTests`/`verify_module` into CI/`--assertions`; add
+typed validation (operand types, block args, targets) for MIR consumed by safety
+passes.
+
+### 6.5 Diagnostics
+
+- Add `Diag::code`; print `error[SAFE-*]: ...`.
+- Implement related-info/help; update `core/diag/Diagnostic.*`, LSP
+  `DiagnosticUtils.cpp`, and CBI `ASTDiagnoser` if exposed.
+- Update negative harness to accept `error:` and `error[SAFE-`.
+- Report mode prints one summary line per file; full detail behind
+  `--safety-report=json`; never flood the 16 KB negative buffer.
+- IDs: `SAFE-OWN-*`, `SAFE-BORROW-*`, `SAFE-LIFE-*`, `SAFE-INIT-*`,
+  `SAFE-VALID-*`, `SAFE-BOUNDS-*`, `SAFE-OVERFLOW-*`, `SAFE-SEND-*`,
+  `SAFE-UNSAFE-*`, `SAFE-FFI-*`, `SAFE-ASYNC-*`, `SAFE-DEP-*`.
 
 ---
 
-## Negative Testing Framework
+## 7. Borrow checker design
 
-### Directory Structure
+### 7.1 Inputs
 
-```
-lang/tests/safety/
-├── run_safety_tests.sh
-├── config/
-│   └── test_list.txt
-├── positive/
-│   ├── deref_in_unsafe.ch
-│   ├── extern_in_unsafe.ch
-│   ├── safe_by_default.ch
-│   ├── safe_module_optin/
-│   │   ├── chemical.mod
-│   │   └── src/main.ch
-│   └── expected_output/
-├── negative/
-│   ├── deref_in_safe.ch
-│   ├── extern_call_no_unsafe.ch
-│   ├── unsafe_fn_call.ch
-│   ├── critical_unsafe_call.ch
-│   ├── ptr_arith_in_safe.ch
-│   ├── cast_to_ptr_in_safe.ch
-│   ├── dealloc_in_safe.ch
-│   ├── return_ref_to_local.ch
-│   ├── safe_module_unsafe_code/
-│   │   ├── chemical.mod
-│   │   └── src/main.ch
-│   └── expected_errors/
-│       ├── deref_in_safe.txt
-│       ├── extern_call_no_unsafe.txt
-│       └── ...
-└── runtime/
-    ├── oob_test.ch
-    ├── overflow_test.ch
-    └── expected_behavior/
-```
+- MIR CFG/block args, places, borrows, storage live/dead.
+- `MIRRegionSignature` side table (including HRTB binders).
+- Move/init state from `MIRMoveCheck`.
+- Type facts: `Copy`, `Drop`, `Sized`, variance, `Send`/`Sync`, lifetime
+  bounds, auto traits.
+- Source map.
 
-### How Negative Tests Work
+### 7.2 NLL
 
-Each negative test is a complete `.ch` file with a `chemical.mod` (or uses a default).
-The test runner:
-1. Compiles the file with the appropriate flags
-2. Checks that compilation fails (exit code != 0)
-3. Checks that stderr contains the expected error pattern
-4. Reports pass/fail
+1. Region variables for reference lifetimes/temporaries/HRTB.
+2. Backward liveness; `Live(region, point)`.
+3. Outlives constraints from subtyping/assignments/calls/returns/fields.
+4. Loan constraints; loans live where region live.
+5. Solve SCCs; propagate liveness through outlives edges.
+6. Conflicts: overlapping loans with ≥1 mutable; move while loan live; drop of
+   `Drop` type with live lifetime (dropck).
+7. Two-phase: reserve before arg evaluation, activate at call.
+8. Report first conflict with loan origins/help.
 
-**Example negative test (`deref_in_safe.ch`):**
-```chemical
-// chemical.mod: application deref_test, source "src"
-// With --safe flag:
-func main() {
-    var x = 42
-    var p = &raw x
-    *p  // should error: "de-referencing a pointer outside unsafe block"
-}
-```
+### 7.3 Place overlap
 
-**Expected error pattern (`expected_errors/deref_in_safe.txt`):**
-```
-de-referencing a pointer outside unsafe block
-```
+- `p` overlaps `p.field`/`p[i]`; siblings do not.
+- **Dynamic indices overlap unless proven distinct.** `p[i]` and `p[j]` are
+  overlapping when `i`/`j` are not compile-time constants or a proven disjoint
+  range. Only constant indices can be disjoint. (`split_at_mut` uses unsafe
+  internals.)
+- Borrow keeps whole place live; disjoint field reborrows allowed.
+- Whole-aggregate move conflicts with descendant loans; field move with
+  field/parent.
+- Raw-derived places unchecked; `unsafe` does not silence reference borrowck.
 
-### How to Run Negative Tests
+### 7.4 Lifetimes/variance/dropck
 
-```bash
-# Run all safety tests
-bash lang/tests/safety/run_safety_tests.sh cmake-build-debug/TCCCompiler
+- Lifetimes resolved in signature linking; lowered to function regions.
+- Elision/`'static`/`T: 'a`/HRTB.
+- Variance per declaration from fields/`PhantomData`; raw pointer variance:
+  `*T` covariant, `*mut T` invariant.
+- `&mut T` invariant in `T`; `Cell`/`UnsafeCell` invariant.
+- Dropck for `Drop` types; `Pin`/`Unpin` interactions.
+- `PhantomData` ties lifetime/variance/auto traits.
 
-# Run with verbose output
-bash lang/tests/safety/run_safety_tests.sh cmake-build-debug/TCCCompiler --verbose
+### 7.5 Precision/gaps
 
-# Run specific test category
-bash lang/tests/safety/run_safety_tests.sh cmake-build-debug/TCCCompiler --negative-only
-bash lang/tests/safety/run_safety_tests.sh cmake-build-debug/TCCCompiler --positive-only
-```
+- Unsupported patterns: `SAFE-BORROW-099: ... not yet supported; rewrite as ...`.
+- `lang/docs/safety/borrow-gaps.md`; release gate requires empty for parity
+  corpus.
+- Hard cases: conditional returns, loop borrows, reborrows, two-phase, closures,
+  HRTB, struct-stored refs, pattern moves, iterator invalidation, `'static`
+  threads, dropck, temporary extension, async frame borrows, Pin projections.
+- **Never accept a pattern the checker cannot prove safe.**
 
-### Adding a New Safety Test (Step by Step)
+### 7.6 Performance
 
-1. **Determine the test type:**
-   - Code that SHOULD compile → positive test
-   - Code that SHOULD NOT compile → negative test
-   - Code that SHOULD trap at runtime → runtime test
+- One pass per function in existing parallel workers; no second pool.
+- Sparse bitsets/arena; no per-node heap.
+- Fast path only no-refs/no-drop/no-Copy; measure hit rate.
+- Cache type facts by lifetime-erased `MIRTypeId`; finalize in
+  `GenericInstantiator` hooks; invalidate on new instantiations.
+- Source map only safety-relevant instructions.
+- StorageLive/Dead only addressed/drop places.
+- Track compile time/RSS per phase; optimize before release.
 
-2. **Create the `.ch` file** in the appropriate directory
+### 7.7 Async/Pin
 
-3. **Create the expected output/error file** if needed
-
-4. **Register in `test_list.txt`:**
-   ```
-   # test_name test_type flags expected_pattern
-   deref_in_safe negative --safe "de-referencing"
-   deref_in_unsafe positive --safe
-   oob_test runtime "--bounds-check" ""
-   ```
-
-5. **Run the test:**
-   ```bash
-   bash lang/tests/safety/run_safety_tests.sh cmake-build-debug/TCCCompiler
-   ```
+Async is in scope:
+- `Pin<P>`/`Unpin`, `PhantomPinned`, Pin projection.
+- Coroutine-frame fields are stable places.
+- Borrows across `.await` checked across ramp/poll/drop.
+- `FutureHandle<T>` carries a lifetime and conditional `Send`.
+- Cancellation/drop exactly once.
 
 ---
 
-## Regression Protocol
+## 8. Initialization, validity, runtime checks
 
-### Before Every Sub-Step
+### 8.1 Initialization/moves
 
-```bash
-# 1. Record baseline
-./scripts/test.sh --tcc 2>&1 | tee /tmp/baseline.txt
-# Record: "Total X, Passed Y, Failed Z"
+- MIR dataflow per move path: Uninitialized/Initialized/Moved/PartiallyMoved/
+  Destroyed.
+- Joins agree or drop flags; loops fixed point.
+- Reads/moves/borrows/drops require initialization.
+- Full assignment reinitializes; partial writes update children.
+- Remove the "writing one member initializes the whole struct" heuristic.
+- `MIRMoveCheck` produces the init/drop plan; elaboration inserts drop flags
+  from it, per path, field-wise, variant-aware. No AST heuristic produces a
+  flag.
+- No partial moves out of `Drop`; no dynamic-index moves.
+- Variants track active case; unions are always-initialized storage (unsafe
+  access); union fields `ManuallyDrop` or C interop.
+- **Init enforcement lands before move enforcement and before borrow
+  enforcement** (same MIR dataflow). The borrow checker consumes initialized/
+  moved state; enforcing moves before init would accept reads of uninitialized
+  values. Stage order: init → move/drop → borrow (M3 before M4).
 
-# 2. Run safety tests
-bash lang/tests/safety/run_safety_tests.sh cmake-build-debug/TCCCompiler 2>&1 | tee /tmp/safety_baseline.txt
-# Record: "N passed, M failed"
-```
+### 8.2 Validity
 
-### After Every Sub-Step
+- `char` is a byte; `String`/`&str` are UTF-8; `string_view` is a byte view that
+  validates at `&str` boundaries.
+- `enum` integer-backed; validate declared range; `variant` tag in range and
+  matches payload.
+- `bool` 0/1.
+- References non-null/aligned/live; slice length valid.
+- `MaybeUninit<T>` only safe holder; `assume_init` unsafe.
+- `zeroed<T>()` and `= zeroed` both require `T: Zeroable` (unsafe marker trait,
+  audited impls). Integers/floats/char/bool/raw pointers/arrays/all-Zeroable
+  aggregates blanket impl; enums/variants/references/NonNull/invariant types need
+  explicit `unsafe impl`.
+- `transmute` equal size/align, unsafe.
+- `repr(packed)` fields cannot be borrowed; copy/unaligned unsafe.
+- Unions unsafe field access.
 
-```bash
-# 1. Build the compiler
-./scripts/build.sh --tcc
+### 8.3 Allocation/layout
 
-# 2. Run safety tests (fast, ~2 seconds)
-bash lang/tests/safety/run_safety_tests.sh cmake-build-debug/TCCCompiler
+- `Layout`: `size <= isize::MAX`, align power of two, `size*count` checked,
+  always.
+- OOM: `try_*` Result; infallible panics/aborts.
+- `Vec`/`String` capacity arithmetic checked; no `data_cap * 2`/`+1` overflow.
+- Over-aligned allocation for heap-indirected captures.
+- `alloc(0)`/ZST/dealloc layout match tests.
+- `make_with_capacity(SIZE_MAX)`, `resize(SIZE_MAX)` safe-call tests.
 
-# 3. Run full test suite (slower, ~30 seconds)
-./scripts/test.sh --tcc --no-build
+### 8.4 Bounds/overflow
 
-# 4. Compare results
-# - Safety tests: new tests should pass
-# - Full test suite: same pass count as baseline
-# - If any existing test fails → REVERT the sub-step
-```
+- Indexing: Compare/CondBr/panic call/Unreachable/IndexAddr.
+- `Index`/`IndexMut` checked; `get` Option; `get_unchecked` unsafe.
+- Debug arithmetic: Binary/overflow Compare/CondBr/panic; release explicit
+  wrapping.
+- Div/mod zero, `MIN/-1`, shifts, unary negation checked.
+- Casts defined; float→int defined.
+- No C signed-overflow UB.
 
-### The Revert Protocol
+### 8.5 Null
 
-If a sub-step breaks existing tests:
-1. Identify the exact change that caused the regression
-2. Revert that specific change (not the entire sub-step if possible)
-3. Re-run to confirm the regression is gone
-4. Re-analyze why the change broke tests
-5. Fix the issue (usually: the safety check is firing for code that should be exempt)
-6. Re-run the full validation
+- References non-null by construction; raw pointers may be null; deref unsafe.
+- `NonNull<T>` safe wrapper; deref unsafe.
+- FFI wrappers validate null before creating references.
+- Debug null checks not a substitute for construction.
 
----
+### 8.6 Panic/unwind/runtime ABI
 
-## AI Agent Operating Rules
+- Every program, including bare module, links `__chc_panic`,
+  `__chc_bounds_fail`, `__chc_overflow_fail` with source/message.
+- Default abort profile; unwinding profile supports `catch_unwind` and
+  drop-on-unwind.
+- Panic in `Drop`: abort if already unwinding; otherwise unwind.
+- No unwinding across FFI.
+- `std::panic` convenience wrapper.
 
-### Rule 1: Never Modify Existing Test Files
+### 8.7 Interpreter/comptime
 
-AI must never modify `.ch` files in `lang/tests/src/`, `lang/tests/common/src/`, or
-`lang/tests/interpret/src/`. Only add new files in `lang/tests/safety/`.
-
-### Rule 2: Always Use `diagnoser` for Errors
-
-Never use `std::cerr` or `std::cout` for error messages. Always use the compiler's
-diagnostic system: `diagnoser.error(location, message)`.
-
-### Rule 3: Feature Flags Default to OFF
-
-Every new safety feature must have a code path for `SafeMode::Off` that does nothing.
-This ensures existing code is unaffected.
-
-### Rule 4: One Feature at a Time
-
-Never implement multiple safety features in a single sub-step. Each feature is
-independently testable and revertible.
-
-### Rule 5: Build Before Testing
-
-Always run `./scripts/build.sh --tcc` before running any tests. The compiler binary
-must reflect the latest C++ changes.
-
-### Rule 6: Use the Prompt Template
-
-When asking an AI to implement a sub-step, use this template from the analysis doc:
-
-```
-I need to [DO SPECIFIC THING] in the Chemical compiler.
-
-## Before state
-In file [FILE] at line [LINE_NUMBER]:
-[EXACT_EXISTING_CODE]
-
-## After state
-Change it to:
-[EXACT_NEW_CODE]
-
-## Files to modify
-- [FILE_1] — [DESCRIPTION]
-- [FILE_2] — [DESCRIPTION]
-
-## Validation
-[EXACT COMMANDS TO RUN]
-
-## Constraints
-- Do NOT modify any existing test files
-- Default value must be OFF
-- Use diagnoser, not std::cerr
-```
-
-### Rule 7: Document Every Decision
-
-When a sub-step requires a design decision (e.g., "should this be an error or a
-warning?"), document the decision in the safety test file as a comment. This gives
-the next AI agent (or human) context for why things are the way they are.
+This is scheduled **before any enforcement** (S0.5), because comptime runs during
+compilation.
+- Allocation/provenance table; bounds/UAF/uninit checks in debug/CI.
+- Unknown opcodes hard diagnostics.
+- Safety corpus through interpreter as oracle.
+- Comptime unsafe context at typecheck; runtime checks; fuzz; no compiler crash.
+- Coroutine/interface opcodes must be implemented for interpreter parity or
+  rejected as hard diagnostics; unsupported opcodes are release blockers for the
+  interpreter corpus, not silent skips.
 
 ---
 
-## Feature-to-Phase Dependency Map
+## 9. Thread safety
 
-```
-Phase 0 (Infrastructure)
-├── PR1: Negative test runner
-├── PR2: Module options parsing
-├── PR3: SafeMode plumbing
-└── PR4: release_safe mode
+### 9.1 Auto traits
 
-Phase 1 (Unsafe Boundaries) — depends on Phase 0
-├── Step 1.1: Deref check
-├── Step 1.2: Dealloc check
-├── Step 1.3: Pointer arithmetic check
-├── Step 1.4: Cast-to-ptr check
-├── Step 1.5: @unsafe call check
-├── Step 1.6: Extern call check
-├── Step 1.7: Library opt-outs
-└── Step 1.8: @unsafe("critical") annotation
+- `Send`/`Sync` auto; negative impls; `PhantomData`.
+- Raw pointers `!Send + !Sync`.
+- `&T: Send` iff `T: Sync`; `&mut T: Send` iff `T: Send`.
+- `UnsafeCell: !Sync`; `Cell`/`RefCell: !Sync` (but `Send` when `T: Send`);
+  `Rc: !Send + !Sync`.
+- `MutexGuard`/`RwLockGuard: !Send`.
+- `unsafe impl` audited.
 
-Phase 2 (Module Configuration) — depends on Phase 1
-├── Step 2.1: Read module safety options
-├── Step 2.2: CLI override
-├── Step 2.3: Default module safety level
-├── Step 2.4: Opt out existing modules
-└── Step 2.5: Verify opt-in works
+### 9.2 Std audit
 
-Phase 3 (Runtime Checks) — depends on Phase 2
-├── Step 3.1: Bounds checking
-├── Step 3.2: Overflow checking
-└── Step 3.3: Null pointer checking (optional)
+Before `Send`/`Sync` enforcement, audit types storing raw pointers:
+`string`, `vector`, `Box`, `Arc`, `FutureHandle`, `Waker`, function pointers.
+Add audited `unsafe impl Send/Sync` only where the ownership invariant proves it.
+Negative impls for `Rc`, `Cell`, `RefCell`, guards. `Future<T> where T: Send`.
+`Waker` is `Send + Sync`; construction from raw parts is `unsafe`; safe `wake`
+requires a validated owned/refcounted handle (no raw vtable deref in a safe
+method).
 
-Phase 4 (Container Safety) — depends on Phase 0
-├── Step 4.1: Restrict vector.get()
-├── Step 4.2: Where constraints on push()
-├── Step 4.3: Where constraints on resize()
-└── Step 4.4: InterfaceBits extension
+### 9.3 Erased types
 
-Phase 5 (Lifetime Safety) — depends on Phase 1
-├── Step 5.1: Reference scope tracking
-├── Step 5.2: One-mutable-or-many-immutable (AI-hard)
-└── Step 5.3: Reference storage in structs (AI-hard)
+`std::function`, `dyn`, `FutureHandle`, `Waker`, `Context`, thread handles carry
+explicit `Send`/`Sync` bounds. A safe closure capturing `Rc` must not become
+`Send` through erasure. `FutureHandle<T>: Send` only when the underlying future
+is `Send`.
 
-Phase 6 (Std Lib Wrappers) — depends on Phase 4
-├── Step 6.1: Checked arithmetic
-├── Step 6.2: NonNull<T>
-└── Step 6.3: Safe vector API
-```
+### 9.4 Primitives
 
-### Critical Path
+- `Arc`, `Mutex`, `RwLock`, `Condvar`, `Barrier`, `Once`, `OnceLock`.
+- Atomics safe methods; `AtomicPtr` deref unsafe.
+- `thread::spawn`/`JoinHandle`; scoped threads.
+- `std::concurrent::Future<T>`/`threadpool.ch` audited/replaced.
 
-```
-PR1 → PR3 → Step 1.1 → Step 1.5 → Step 1.7 → Step 2.1 → Step 2.4
-```
+### 9.5 Data-race tests
 
-This is the minimum viable safety system: negative test infrastructure,
-safe mode plumbing, deref enforcement, @unsafe enforcement, library opt-outs,
-module-level configuration, and existing code exemption.
-
-### Parallel Workstreams
-
-Phases 3, 4, and 5 are independent of each other and can be worked on in parallel
-after Phase 2 is complete:
-
-```
-Phase 2 ──┬── Phase 3 (Runtime Checks)
-           ├── Phase 4 (Container Safety)
-           └── Phase 5 (Lifetime Safety)
-```
-
-Phase 6 depends on Phase 4 (needs the interface system).
+Compile-fail: `Rc` across threads, non-`Send` closure, non-`'static` capture,
+`&mut` shared, top-level `var`/`static mut`. Runtime TSAN on `Arc<Mutex>`, scoped
+threads, channels/executor.
 
 ---
 
-## Summary: Total Effort Estimate
+## 10. Unsafe and FFI
 
-| Phase | Sub-steps | Estimated Lines Changed | AI Difficulty |
-|-------|-----------|------------------------|---------------|
-| Phase 0 | 4 steps | ~200 lines | Easy |
-| Phase 1 | 8 steps | ~150 lines | Easy-Moderate |
-| Phase 2 | 5 steps | ~100 lines | Easy |
-| Phase 3 | 3 steps | ~100 lines | Moderate |
-| Phase 4 | 4 steps | ~80 lines | Easy-Moderate |
-| Phase 5 | 3 steps | ~60 lines | Hard |
-| Phase 6 | 3 steps | ~100 lines | Easy |
-| **Total** | **30 steps** | **~790 lines** | |
+### 10.1 Unsafe checker
 
-**All changes default to OFF.** Zero risk to existing code when flags are not used.
-The full test suite is the safety net that catches any regressions.
+- Unsafe ops inside `unsafe` context.
+- `unsafe func` bodies require explicit `unsafe` blocks.
+- `unsafe impl`.
+- Raw deref/projection/method/index/arith.
+- Allocation/deallocation, raw mem ops, `transmute`/`assume_init`/`asm`/union/
+  `static mut`/extern globals/variadics.
+- `placement new`/`dealloc`/`destruct` unsafe. `new` returns an owning
+  `Box`-like handle and `delete` consumes it; deleting a raw `*mut T` is
+  `unsafe`. Double-delete is not expressible in safe code.
+- Cast matrix §5.5.
+- Fn pointers to unsafe/extern unsafe to call.
+- `unsafe` does not disable DA/borrow/init; remove `da_in_unsafe`, named flags,
+  `unsafe(expr)` bypasses at replacement time.
+
+### 10.2 Construction/privacy
+
+- Enforce field privacy in aggregate init/pattern/`@direct_init`.
+- Invariant types private fields + checked/unsafe constructors: `NonNull`, `Vec`,
+  `String`, `FutureHandle`, `Waker`, `Layout`, `MutexGuard`.
+- `std::function::make2` and raw constructors internal/unsafe.
+- `@allow_zeroed` -> `unsafe impl Zeroable`.
+- Forge tests cross-module/generic/CBI.
+- Plugin-generated `unsafe` is a hard error at the macro invocation unless the
+  plugin calls an audited unsafe function; no allowlist.
+
+### 10.3 Self-referential values
+
+- v1: heap-indirect all inline captures (`default_function_instance`) with
+  aligned allocation.
+- Async/Pin: `Pin`/`Unpin`/`PhantomPinned` for futures.
+- User-written self-referential safe types are rejected with `SAFE-VALID-*`
+  unless heap-indirect or pinned.
+- Move test checks internal pointer.
+
+### 10.4 FFI
+
+- Extern calls unsafe.
+- `repr(C)`/`repr(transparent)`/`repr(packed)` for ABI types; `@extern struct` ≡
+  `repr(C)` during migration.
+- **Full target-aware C ABI**: by-value aggregates/returns, unions, bitfields
+  (if supported), callbacks, variadics. `MIRABI` becomes target-aware (SysV/
+  Win64/AArch64); no legacy prototype ABI for extern.
+- `repr` layout static assertions.
+- Variadic default promotions (`char`→`int`, `float`→`double`); char signedness;
+  bool representation; reject unsupported long double/128-bit.
+- Callbacks extern "C"; no unwinding; variadics unsafe with typed wrappers.
+- Safe wrappers validate null/alignment/length/lifetime/ownership/error codes/
+  thread safety/reentrancy; small `unsafe` blocks.
+- `CString`/`CStr`, `OsStr`/`OsString`; UTF-8 at boundaries.
+
+### 10.5 Trusted core/plugins
+
+- Unsafe allowed in core/cstd/std internals/platform wrappers/audited FFI.
+- Applications may use `unsafe`; safe apps must not need it.
+- CBI plugins may not forge `unsafe`/unchecked AST; generated Chemical checked
+  normally; diagnostics point at macro invocation.
+- Enum-sync rule for new AST/type/token values.
+- CI counts unsafe per module; unreviewed growth fails.
 
 ---
 
-*This plan is designed to be executed step-by-step by an AI agent, with each step
-independently verifiable and revertible. The plan grows the safety system incrementally
-without ever breaking the existing codebase.*
+## 11. Standard library rebuild
 
-*Last updated: July 18, 2026.*
+### 11.1 Bootstrap DAG (acyclic)
+
+```
+core types: Option/Result/panic (or minimal core equivalents; std re-exports)
+NonNull / MaybeUninit / ManuallyDrop / PhantomData / PhantomPinned
+Drop/Copy/Clone/Default semantics
+trait definitions: Deref/DerefMut/Index/IndexMut/Iterator/IntoIterator/Fn
+UnsafeCell
+Box<T>
+slices / fat pointers
+Box<[T]>
+Vec<T> (raw internals)
+String (UTF-8) / &str / string_view
+core_atomic (no std import; rename atomic or create module)
+Arc / Mutex / RwLock / Condvar / Barrier / Once (requires repr/extern)
+Cell -> Rc / RefCell
+core Iterator/IntoIterator (needs Option/Result)
+closures/Fn traits
+iterator adapters
+collections
+OS / protocol / web libraries
+async executor/channels
+```
+
+- `core` imports nothing; `Option`/`Result`/`panic` must be in core or a
+  dependency-free core module.
+- `atomic` currently imports `std`; create `core_atomic` or remove the import.
+- `UnsafeCell` precedes `Cell`/`RefCell`/`Mutex`.
+- `Mutex`/`Condvar` need `repr`/`extern "C"` before safe.
+- `Box<T>` before slices; `Box<[T]>` after slices.
+- `Deref` trait definitions before Box; impls after Box.
+- `String` is UTF-8; `string_view` validates at `&str` boundaries.
+
+### 11.2 API migration table
+
+| Old | New | Notes |
+|---|---|---|
+| `vector::get(i): T where T: Copy` | `get(i): Option<&T>` / `get_mut` | ~1,000 sites; keep `at` for Copy. |
+| `vector::get_ptr` | `as_mut_ptr` (unsafe deref) | 218 sites. |
+| `vector::data(): *T` | `as_slice()/as_ptr()` | ~1,600 `.data()` sites; `Linear<T>` migration. |
+| `vector::set_len` | unsafe `set_len` | 1 site. |
+| `vector::push` | safe push (moves) | internal MaybeUninit/ptr::write. |
+| `string::data()` | `as_bytes()/as_ptr()` | UTF-8. |
+| `string_view` | `&str`/`&[u8]` | raw constructors unsafe. |
+| `span<T>` | `&[T]`/`&mut [T]` | remove ad-hoc view. |
+| `std::function` | closure/Fn traits | lifetimes/auto traits. |
+| `FutureHandle<T>` | `Pin<Box<dyn Future + Send + 'a>>` or owned handle | no erased borrows. |
+| `alloc_bytes`/`dealloc_bytes` | `Box`/allocator API | raw allocation unsafe. |
+
+### 11.3 API rules
+
+- Public APIs safe unless caller invariants; then unsafe.
+- `get` references; by-value only Copy.
+- `set_len`/`from_raw_parts`/`get_unchecked`/`assume_init`/`transmute` unsafe.
+- `Drop` only automatic cleanup; close/flush explicit for OS resources.
+- Iteration via Iterator/IntoIterator; `for` desugars.
+- `Result` for I/O; panic for invariant violations.
+
+### 11.4 Naming
+
+Primary names: `Box`, `Vec`, `String`, `Rc`, `Arc`, `Cell`, `RefCell`, `Mutex`,
+`RwLock`, `Option`, `Result`; `vector`/`string` deprecated aliases during
+migration, removed before release.
+
+### 11.5 Parity backlog
+
+`lang/docs/safety/parity-backlog.md` lists shipped APIs and gaps. Release blockers
+are the programs in the parity corpus; the backlog is public and prioritized.
+No shipped API may be safe but unsound.
+
+---
+
+## 12. Testing strategy
+
+### 12.1 Layers and wiring
+
+| Layer | Location | Wiring |
+|---|---|---|
+| Compile-fail | `lang/tests/negative/src/safety_*.ch` | `--negative`; `expect_compile_error_id`; TCC+LLVM. |
+| Compile-pass/runtime | `lang/tests/common/src/safety_*.ch` | `--tcc`, `--llvm`, `--interpret` via `run_safety_tests()`. |
+| Runtime-fail | `lang/tests/safety/runtime/` | `--safety`; expected panic. |
+| Parity | `lang/tests/safety/parity/` | `--safety`; manifest. |
+| Library migration | existing suites | all green. |
+| MIR unit | `MIRTests` | `--mirtests`/CI. |
+| Sanitizers | CI | LLVM-only ASAN/UBSAN; selected TSAN. |
+| Fuzz | `lang/tests/safety/fuzz/` | nightly. |
+
+**Exact wiring:**
+
+- `lang/tests/safety/chemical.mod`, `src/main.ch`, `runtime/`, `parity/`.
+- `lang/tests/build.lab`: `test_safety_exe(ctx)`; `ctx.has_arg("test-safety")`.
+- `scripts/test.sh`: `TEST_SAFETY`; `--safety`; `--arg-test-safety`; output
+  `safety-tests-$backend.exe`; add to `--all`; `parse_suite_counts` requires
+  `Summary: N tests - P passed, F failed`.
+- `lang/tests/src/tests.ch` (compiled main), `lang/tests/interpret/src/main.ch`,
+  and native-common call `run_safety_tests()`.
+- `--mirtests` builds/runs `MIRTests` separately; not in `--all` until it prints
+  the summary shape.
+- Negative output per backend: `negative-tests-{tcc,llvm}.exe`.
+- `Diag::code` + `expect_compile_error_id`; accept `error:` and `error[SAFE-`.
+- `expect_runtime_panic` on `process::spawn/wait` using
+  `status.signaled`/`status.signal`/`status.code`, timeout, stderr capture.
+- LSP `DiagnosticUtils.cpp` carries code/related info when LSP safety is added.
+- `scripts/safety-audit.sh` and `--safety-report` diff command.
+
+### 12.2 Matrix
+
+| Test | TCC | LLVM | Interpreter |
+|---|---|---|---|
+| Compile-fail | Yes | Yes | No |
+| Compile-pass/runtime | Yes | Yes | Yes, capability-gated |
+| Runtime-fail | Yes | Yes | Gated |
+| Sanitizers | No | ASAN/UBSAN/TSAN | No |
+| MIR unit | Yes | Yes | Yes |
+
+### 12.3 Per-feature contract
+
+Every safety commit:
+1. Negative test (reject, ID, no executable).
+2. Positive test (compile/run).
+3. Unsafe-context test (legal unsafe; other checks still fire).
+4. Migration test (libs compile; counts zero for the rule).
+5. Backend test.
+6. Report→migrate→enforce commit trail.
+
+### 12.4 Parity corpus
+
+- Categories: ownership, borrow, lifetimes, HRTB, init/validity, runtime,
+  threads, unsafe/FFI, std, async, dyn, const generics, tuples, closures,
+  UTF-8.
+- Outcome (`accept`/`reject` + ID) + expected output/exit.
+- Manifest: `lang/tests/safety/parity/manifest.tsv`, one row per case:
+  `case<TAB>kind<TAB>expected_id<TAB>expected_exit<TAB>expected_stdout<TAB>timeout_ms<TAB>backends<TAB>dependencies`.
+  `kind` is `accept` or `reject`; `expected_id` is empty for accept; `backends`
+  is a comma list (`tcc,llvm,interp`).
+- Harness: accept cases compile+run and compare stdout/exit; reject cases invoke
+  the compiler, assert nonzero exit, `error[SAFE-*]`, no executable, and the
+  expected ID. Reject cases run with the release configuration (no report-only).
+- Independent corpus ported from well-known programs; reference compiler used as
+  a development oracle, not a build dependency.
+- Release gate: all safe cases accepted, all unsafe rejected, zero open gaps for
+  the parity corpus.
+
+### 12.5 No false positives/negatives
+
+- Unsupported safe pattern -> compile error with rewrite.
+- Every rule has a negative test.
+- Fuzz/property + sanitizers.
+- User-reported false positive is a release blocker.
+
+### 12.6 Additional tests
+
+- Cast/provenance, `&*p`, pointer field/method/index, int→bool/enum/variant.
+- Borrowed/erased types, async borrows, HRTB, dyn, tuples/const generics.
+- Construction/privacy forge tests.
+- Self-referential moves; aligned capture allocation.
+- `repr(packed)` unaligned refs.
+- Allocation arithmetic/OOM.
+- Release wrapping/bounds/float→int on TCC/LLVM.
+- FFI full ABI by-value/callbacks/variadics/layout.
+- Comptime/interpreter OOB/UAF/uninit; unsupported opcodes hard error.
+- Runtime-fail tests run under both abort and unwinding profiles; expected exit
+  code/signal differs and is part of the manifest.
+- Determinism across workers/seed.
+- `--check` parity; LSP deferred but tracked.
+- Plugin-generated unsafe attribution.
+- Unsafe audit.
+- Safe canary: Vec/String/iterators/threads no user unsafe.
+
+### 12.7 Gates
+
+**Path→suite map** (maintained in `scripts/test.sh` or a helper):
+
+| Changed paths | Required suites |
+|---|---|
+| `compiler/mir/`, `compiler/safety/`, `parser/`, `compiler/symres/`, `compiler/typeverify/`, `compiler/generics/`, `ast/` | TCC main + interpret + negative + LLVM main + `MIRTests` |
+| `compiler/CodegenMir.cpp`, `preprocess/`, C/LLVM emitters | TCC + LLVM main + `MIRTests` |
+| `lang/libs/core`, `lang/libs/std`, `lang/libs/cstd` | TCC + LLVM main/libs + interpret |
+| `lang/libs/*` other | that library suite + TCC main |
+| `lang/libs/*_cbi`, compiler plugins | `--plugins` + TCC main |
+| tests only | affected suite |
+
+**Per-commit:**
+- build `TCCCompiler`, `Compiler`, `MIRTests`;
+- run the path→suite map above (always TCC main + negative; LLVM/interpret when
+  required);
+- changed sub-suite (`--libs`, `--plugins`, `--interpret`, `--safety`);
+- `MIRTests` via `--mirtests` (separate; prints its own OK line);
+- `--safety-report` diff against the checked-in baseline (zero for enforced
+  rules);
+- `--check` smoke test for a known-bad and known-good program when the change
+  touches safety passes.
+
+**PR/merge:**
+- TCC + LLVM main/interpret/negative/plugins/libs/async/process/regexp;
+- `--safety`, `MIRTests`, `--check`, sanitizer subset;
+- parity accept/reject harness.
+
+**Nightly:** `--all --include-tls`, webview/universal, fuzz, benchmarks.
+
+**CI wiring:** update `.github/workflows/compile-tests.yml` (or a new
+`safety.yml`) with per-commit and PR jobs; add `MIRTests`, `--safety`,
+`--check`, sanitizer, and benchmark jobs. Release artifacts:
+`safety-tests-{tcc,llvm}` and the parity manifest report.
+
+**Release:** §19.
+
+`--mirtests` builds `MIRTests` and requires exit 0; it is not part of `--all`
+until it prints `Summary: N tests - P passed, F failed`. `--check` is invoked as
+`chemical <module> --check` and must exit nonzero with `SAFE-*` for a known-bad
+program and zero for a known-good one.
+
+**Test budget:** parallel compile-fail/parity; `--safety` separate; keep `--tcc`
+fast; triage old negatives with acceptable IDs; do not rely on one substring.
+
+---
+
+## 13. Performance and size
+
+### 13.1 Performance targets
+
+Pin baseline SHA, idle machine, median of 5. Update `scripts/mir-baseline.sh`:
+- include `safety`;
+- run `-bm-modules`/`-bm-files` and parse phase timings;
+- record SHA, dirty state, target triple, mode, compiler size;
+- measure release `TCCCompiler`;
+- emit per-phase JSON; CI reports growth.
+
+Targets (not hard release gate until measured):
+- compile time/RSS: no more than 10–15% total over the pre-safety baseline;
+- borrow check: ≤5% wall / ≤3% RSS on std-heavy code;
+- runtime bounds: ≤5% on the bounds benchmark; optimize loops/cold paths;
+- TCC (no optimizer): measure separately; hoist checks or use audited unchecked
+  std paths.
+- If targets are missed, optimize before release; no silent regression.
+
+### 13.2 TCCCompiler size
+
+The release binary is already ~5,196,920 bytes, over the 5 MB steady-state
+ceiling. Per the agreed scope, size is **tracked but not gated for this release**.
+A **post-release** shrink milestone (M9) targets 5 MB:
+- move `--safety-report`, diagnostics formatting, corpus metadata, and other
+  non-essential tooling out of the core binary;
+- compress tables/strings;
+- share MIR/safety tables;
+- profile binary sections.
+If 5 MB is not achievable, document a signed exception with a dated reduction
+plan. No safety check may be dropped to hit size.
+
+### 13.3 Runtime
+
+- Bounds checks required; optimize loop ranges/hoisting/cold paths.
+- TCC has no optimizer; measure bounds-heavy TCC; hoist MIR checks or audited
+  unchecked std paths.
+- Overflow debug-only; release wrapping explicit.
+- No runtime borrow metadata.
+
+### 13.4 Hot spots
+
+- `MIRType` lifetime-erased; no type-table explosion.
+- `MIRFacts`/`MIRSafetyFacts` once per function.
+- Source map safety-relevant only; O(1) dedup.
+- StorageLive/Dead only addressed/drop places.
+- Fast path measured.
+- One worker pipeline.
+- Report/diagnostic formatting off hot path.
+- `--check` latency budget.
+
+---
+
+## 14. Migration strategy
+
+### 14.1 Report → migrate → enforce
+
+1. **Report-only:** `SAFE-*` warnings; no behavior change; debug-build only.
+2. **Migrate:** wrap/rewrite every affected site; warnings zero for the rule.
+3. **Enforce:** error; include migration diff; CI asserts zero report hits.
+
+No allowlist. A rule is enforced only when the whole in-repo tree is clean.
+Runtime rules (bounds/overflow/ABI/drop order) use **observe/count** first, then
+migration, then enable.
+
+### 14.2 Order
+
+1. Infrastructure/diagnostics/test wiring/interpreter hardening.
+2. Type-system prerequisites: lifetimes, Drop/Copy, slices, Box, traits,
+   associated types/GATs, const generics, tuples, impl Trait, closures/HRTB,
+   dyn, UTF-8.
+3. CBI/lab/build.lab/bootstrap migration.
+4. Unsafe boundary: report → migrate → enforce per rule.
+5. Safe primitives and container/view APIs.
+6. Init + ownership: report → migrate → enforce (init before move/drop).
+7. Borrow/lifetimes/async: report → migrate → enforce.
+8. Validity/runtime.
+9. Send/Sync/threads.
+10. OS/protocol/web/stdlib.
+11. Parity/perf/release; size reduction is post-release (M9).
+
+### 14.3 Tools
+
+- `--safety-report=json`: rule, file, function, count, category; summary line
+  per file.
+- Suggestions include `unsafe { ... }` wrappers for mechanical cases.
+- One-off transformer may apply wrappers; every block reviewed; no automatic
+  unsafe insertion into safe APIs.
+- `scripts/safety-audit.sh` counts unsafe per module; fails on growth.
+- `lang/docs/safety/migration-metrics.md`.
+
+### 14.4 CBI/lab/bootstrap
+
+Before raw-pointer projection/method enforcement:
+- `build.lab` entry is `*mut BuildContext`/`*mut LabJob`/`*mut Module`; add an
+  unsafe adapter in `lang/libs/lab` or a compiler-recognized safe entry
+  (`BuildContextRef<'a>`, `JobRef<'a>`, `ModuleRef<'a>`). Decide in S2.0a.
+- Migrate `lang/libs/lab`, 13 `build.lab`, `lang/libs/compiler`, all `*_cbi`,
+  `test`, and test harness. Split S2.0 into a/b/c/d/e with counts.
+- Plugin-generated `unsafe` is a hard error unless it calls an audited unsafe
+  function; diagnostics point at macro invocation.
+- Enum-sync updates for new AST/type/token values.
+
+### 14.5 Diagnostic compatibility
+
+- New errors can preempt old expected errors. Before removing an old check,
+  update negative tests to accept a set of IDs/phases; avoid double diagnostics.
+- Keep temporary-lifetime diagnostic until lifetime inference replaces it.
+- Remove old move tracking only when MIR move/init is sole source.
+- Remove deprecated aliases (`@unsafe`, `unsafe(expr)`, `@allow_zeroed`,
+  `zeroed:unsafe`, `vector`/`string` aliases) before release; add a CI gate.
+
+### 14.6 Remote dependencies
+
+Out of scope for this plan. In-repo modules must comply; owned remote modules
+are updated in a later compatibility pass. No per-dependency opt-out exists for
+in-repo builds. `SAFE-DEP-*` is reserved for the future remote pass.
+
+---
+
+## 15. Milestones and commit plan
+
+Each enforcement feature is report→migrate→enforce; runtime rules are
+observe→migrate→enable. Each commit is green under §12.7. Sizes and timing are
+indicative; full parity is a large program (see §15.9).
+
+### M0 — Guardrails (2–3 weeks)
+
+| ID | Feature | Exit |
+|---|---|---|
+| S0.1 | Diagnostics/test wiring | `Diag::code`, `SAFE-*`, helpers, `--safety`, safety module, per-backend negative. |
+| S0.2 | Audit report | JSON/text summary, metrics doc. |
+| S0.3 | Baseline/gate | SHA, counts, compile/RSS/size, per-commit/PR/nightly commands; `scripts/safety-audit.sh`; checked-in `--safety-report` baseline JSON + diff command. |
+| S0.4 | Remove user opt-outs | Module/CLI safety/checks removed; old semantics kept until replacements. |
+| S0.5 | MIR source/verifier/interpreter hardening | O(1) source, verifier in CI, interpreter provenance/bounds early. |
+| S0.6 | `--check` wiring | Lowering-only path + synthetic `SAFE-*` diagnostic; parity re-verified in M8. LSP deferred. |
+
+### M1 — Type-system foundations (3–4 months)
+
+| ID | Feature | Exit |
+|---|---|---|
+| S1.0a | Generic impl where-clauses | Tests. |
+| S1.1 | Lifetime syntax/AST | Parse/symres. |
+| S1.0b | Lifetimes in generic impls | Tests. |
+| S1.2 | Elision/static/bounds/temp extension | Corpus. |
+| S1.3 | Variance/PhantomData/PhantomPinned | Soundness. |
+| S1.4 | Opt-in Copy/Drop/Clone/Default/unsafe trait | Drop/negative/unsafe-trait tests. |
+| S1.5 | Auto traits/negative impls/UnwindSafe | Tests. |
+| S1.6 | NonNull/MaybeUninit/ManuallyDrop/UnsafeCell | Unit/drop. |
+| S1.7 | Trait definitions (Deref/Index/Iterator/Fn) | Trait tests. |
+| S1.8 | Box<T> | Box tests. |
+| S1.9 | Slices/fat pointers/Box<[T]> | Cross-backend. |
+| S1.10 | Vec/byte String | Unit/drop. |
+| S1.11 | UTF-8 String/&str/string_view validation | String tests. |
+| S1.12 | Associated types/GATs + core traits (`PartialEq`/`Eq`/`PartialOrd`/`Ord`/`Hash`/`Display`/`Debug`/`From`/`Into`/`TryFrom`/`Error`) | Generic/error tests; derive prerequisites. |
+| S1.13 | Tuples/tuple structs | Type/pattern tests. |
+| S1.14 | Const generics/arrays `[T; N]` | Generic tests. |
+| S1.15 | impl Trait (arg/return/RPITIT) + Box/Rc/Arc self types (Pin self types in S4.1) | Tests. |
+| S1.16 | Closures/Fn traits/HRTB/async closures | Closure/HRTB. |
+| S1.17 | ?/Try/if let/while let/let else | Error/pattern. |
+| S1.18 | Derive support (needs core traits from S1.12) | Derive tests. |
+| S1.19 | dyn/object safety/auto-trait objects | Trait-object. |
+| S1.20 | repr/extern/static/static mut/top-level var migration | ABI/static. |
+
+### M2 — Unsafe/FFI/C ABI (2 months)
+
+| ID | Feature | Exit |
+|---|---|---|
+| S2.0a | build.lab entry ABI | Safe adapter/entry. |
+| S2.0b | lab/build.lab migration | Zero raw projections. |
+| S2.0c | compiler/CBI migration | Counts zero. |
+| S2.0d | plugins/test harness | Counts zero. |
+| S2.1 | Unsafe report | Warnings; keep `unsafe(expr)`/`da_in_unsafe` until M3/M5 replacements. |
+| S2.2 | Unsafe migration → enforce raw-pointer/memory rules | Tree clean; negative tests; extern-call enforcement moves to S2.6 after C ABI; defer DA/`unsafe(expr)` to M3/M5. |
+| S2.3 | Syntactic cast matrix (no provenance) | Matrix tests; provenance is S4.8. |
+| S2.4 | Raw mem ops | Tests. |
+| S2.5 | Full C ABI | Target-aware `MIRABI`; real C callee. |
+| S2.6 | FFI wrappers/variadics/callbacks + extern-call unsafe enforcement | FFI tests. |
+| S2.7 | Platform unsafe wrapping | Per-domain clean. |
+| S2.8 | Tests/apps | All green. |
+| S2.9 | Unsafe audit | CI counts. |
+
+### M3 — Init/ownership/moves/drops (2 months)
+
+| ID | Feature | Exit |
+|---|---|---|
+| S3.1 | MIR move paths, `MIRInitPlan`, drop elaboration from plan | MIR tests; no double-drop/drop-uninit. |
+| S3.2 | Copy/move/use-after-move/double-drop report | Report. |
+| S3.3 | Control-flow/partial moves/variants/unions report | Report. |
+| S3.4 | Drop semantics/dropck prerequisites report | Report. |
+| S3.5 | Init + move/drop migration → enforce (single dataflow) | Green; init before move. |
+| S3.6 | Remove old DA/move tracking; `unsafe(expr)`/`da_in_unsafe` cleanup | Single source; warnings zero. |
+
+### M4 — Borrow/lifetimes/async (3–4 months)
+
+| ID | Feature | Exit |
+|---|---|---|
+| S4.1 | Pin/Unpin/PhantomPinned/async frames/Waker ownership | Async tests; Waker Send+Sync/unsafe construction. |
+| S4.2 | Region signatures/HRTB (from declarations, before body lowering) | Tests. |
+| S4.3 | MIR borrow lowering/autoref | MIR golden. |
+| S4.4 | NLL core | Corpus. |
+| S4.5 | Aliasing/moves/reborrows/dynamic-index overlap | Corpus. |
+| S4.6 | Control flow/escape/dropck/variance | Corpus. |
+| S4.7 | Two-phase | `v.push(v.len())`. |
+| S4.8 | Provenance | Provenance tests. |
+| S4.9 | Migration | Tree clean. |
+| S4.10 | Enforce | Green. |
+
+### M5 — Validity/runtime (2 months)
+
+| ID | Feature | Exit |
+|---|---|---|
+| S5.1 | Validity (init is enforced in M3) | Tests. |
+| S5.2 | Remaining validity/FFI checks | Tests. |
+| S5.3 | Allocation/layout | Safe-call tests. |
+| S5.4 | Bounds enforcement | OOB tests. |
+| S5.5 | Overflow/C semantics | Tests. |
+| S5.6 | Panic/unwind/catch_unwind + UnwindSafe/RefUnwindSafe/AssertUnwindSafe | Runtime tests, both profiles. |
+| S5.7 | Interpreter/comptime final hardening | No crash. |
+
+### M6 — Send/Sync/threads (1–2 months)
+
+| ID | Feature | Exit |
+|---|---|---|
+| S6.0 | Std auto-trait audit | Tests. |
+| S6.1 | Send/Sync enforcement | Compile-fail/positive. |
+| S6.2 | Sync primitives | TSAN. |
+| S6.3 | Threads/scoped threads | Thread tests. |
+| S6.4 | Interior mutability | Negative/panic. |
+| S6.5 | Erased/async Send | Async/net. |
+
+### M7 — Stdlib full surface (3–4 months)
+
+| ID | Feature | Exit |
+|---|---|---|
+| S7.1 | core/std audit | Report/sanitizers. |
+| S7.2 | Collections/iterators/adapters (core traits are S1.12) | Tests. |
+| S7.3 | fs/path/process/environment | Tests. |
+| S7.4 | net/http/tls | Suites. |
+| S7.5 | json/archive/image/audio/font/webview | Suites. |
+| S7.6 | async/executor/channels | Async. |
+| S7.7 | page/html/css/js/universal | Plugin/universal. |
+| S7.8 | Tests/apps | All green. |
+| S7.9 | Parity backlog closure | Corpus blockers. |
+
+### M8 — Release hardening (1–2 months)
+
+| ID | Feature | Exit |
+|---|---|---|
+| S8.1 | Full parity corpus + independent cases | Green. |
+| S8.2 | Fuzz/property/differential | No crashes/unsound. |
+| S8.3 | Performance optimization | Targets met. |
+| S8.4 | Docs/error catalog/migration guide | Reviewed. |
+| S8.5 | Unsafe audit/release checklist | Signed. |
+
+### M9 — Post-release size/performance reduction (1–2 months, not release-gating)
+
+| ID | Feature | Exit |
+|---|---|---|
+| S9.1 | Move diagnostics/report/corpus tooling out of core | Smaller binary. |
+| S9.2 | Compress/share safety tables and strings | 5 MB target. |
+| S9.3 | Profile binary sections | Documented result/exception. |
+
+### 15.9 Schedule reality
+
+Full parity (including async/Pin, HRTB, dyn, GATs, const generics, tuples,
+`impl Trait`, full C ABI, UTF-8, and std migration) is a **large program**:
+- ~90 stage items; with report/migrate/enforce triads and per-opcode/per-backend
+  commits, roughly **300–450 commits**.
+- One strong AI-augmented engineer: **18–24 months**.
+- Two parallel streams (compiler semantics + stdlib/migration): **12–16 months**.
+- The critical path is M1 (type system) and M4 (borrow/async); M7 is parallelizable.
+- No milestone is released alone; the release branch is cut at M8; M9 is
+  post-release size/performance reduction.
+
+These are estimates, not commitments. The project proceeds feature by feature,
+with every commit green and a review at each milestone boundary.
+
+---
+
+## 16. Dependency graph
+
+```
+M0 guardrails
+  ├─ diagnostics/tests
+  ├─ audit
+  ├─ baseline/gate
+  ├─ remove user opt-outs
+  ├─ MIR source/verifier/interpreter hardening
+  └─ --check safety (LSP deferred)
+
+M1 type system
+  ├─ S1.0a generic impl where-clauses
+  ├─ S1.1 lifetimes → S1.0b impl lifetimes → S1.2 → S1.3
+  ├─ S1.4 opt-in Copy/Drop → S1.5 auto traits
+  ├─ S1.6 NonNull/MaybeUninit/UnsafeCell
+  ├─ S1.7 trait defs → S1.8 Box → S1.9 slices → S1.10 Vec/String
+  ├─ S1.11 UTF-8/&str
+  ├─ S1.12 associated types/GATs
+  ├─ S1.13 tuples
+  ├─ S1.14 const generics
+  ├─ S1.15 impl Trait
+  ├─ S1.16 closures/HRTB
+  ├─ S1.17 ?/patterns
+  ├─ S1.18 derive
+  ├─ S1.19 dyn/object safety
+  └─ S1.20 repr/extern/static/top-level var
+
+M2 build.lab/CBI migration → unsafe/FFI/C ABI
+M3 init + ownership infrastructure/report → enforce (init before move/drop)
+M4 Pin/async → borrow report → enforce
+M5 validity/runtime
+M6 Send/Sync/threads
+M7 stdlib full surface
+M8 release hardening (parity/perf/docs)
+M9 post-release size reduction
+```
+
+Hard ordering:
+
+- S1.1 before S1.0b.
+- S1.3 (variance/PhantomData) before S1.6/S1.16.
+- S1.4 before S1.5/S3.
+- S1.6 before S1.8/S1.10; S1.8 before S1.9; S1.9 before S1.10.
+- S1.7 trait definitions before S1.8 Box.
+- S1.9/S1.10 before S1.12/S1.13/S1.14.
+- S1.16 HRTB before borrowed callbacks/iterator adapters.
+- S1.20 repr/extern before Mutex/Condvar/FFI.
+- S2.0a–e before raw-pointer enforcement.
+- S2.5 full C ABI before FFI wrappers.
+- S3.1 before S3.5/S4.
+- S3.5 init+move enforcement before S4 borrow enforcement.
+- S4.1 Pin before S4.3/S4.10 async borrow enforcement.
+- S4.2 region signatures before S4.3 body borrow lowering.
+- S6.0 before S6.1.
+- S6 before S7 async/threads.
+- M7 before M8.
+
+Parallel groups after M1 (respect the hard edges):
+- **A1:** M3.1–M3.4 infrastructure/report (no enforcement).
+- **A2:** M4.1–M4.8 borrow infrastructure/report (after M3.1; enforcement
+  S4.10 after S3.5).
+- **B:** M2/M5.4–M5.7 (runtime/interpreter) after M0.
+- **C:** M1.10–M1.20 std/type surface (within M1, after its prerequisites).
+- **D:** M7.2–M7.7 after M4/M6.
+- **E:** M8 corpus/fuzz/perf after M7.
+
+Only start a group after its hard prerequisites; do not parallelize dependent
+stages.
+
+---
+
+## 17. Risk register
+
+| Risk | Impact | Mitigation |
+|---|---|---|
+| Full parity schedule | Critical | Milestones; no release until full gate; 18–24 month estimate; parallel streams. |
+| Borrowck false positives | High | Report→migrate→enforce; API rewrite before enforcement; gap list; provenance rule. |
+| Borrowck false negatives | Critical | Per-rule negatives; differential/fuzz; verifier; review. |
+| NLL/HRTB/Pin complexity | Critical | Dedicated stages; per-function checks; incremental corpus. |
+| Auto-Copy unsoundness | Critical | Opt-in Copy; no implicit resource copy; Drop conflict; tests. |
+| Enforcement unit | High | Per-rule global enforcement only when tree clean; no allowlist. |
+| Raw-pointer/CBI migration | High | Safe handles; staged build.lab/CBI migration; counts. |
+| Plugin forges unsafe | High | Hard error at invocation; audited unsafe function; enum sync. |
+| C ABI mismatch | Critical | Target-aware MIRABI; real C callee tests. |
+| C UB in release | Critical | Explicit wrapping/float-int; TCC/LLVM tests. |
+| Allocation arithmetic/OOM | Critical | Always-checked Layout; safe-call tests. |
+| Self-referential values | High | Heap indirection/Pin/PhantomPinned; reject unsafe forms. |
+| Construction/privacy | Critical | Private fields/checked constructors; forge tests. |
+| Send/Sync erasure | Critical | Raw ptr !Send/!Sync; explicit bounds; std audit; TSAN. |
+| Async/Pin | High | Dedicated stage; frame borrows; conditional Send. |
+| Interpreter/comptime UB | Critical | Early hardening; provenance/bounds; fuzz; oracle. |
+| `--check` bypass | High | MIR safety in check; LSP deferred. |
+| Type-system surface | High | Tuples/const generics/GATs/impl Trait/HRTB/dyn staged; parity corpus. |
+| Std API surface | High | Parity backlog; release blockers listed; no silent unsound APIs. |
+| TCC size | Medium | Track; post-feature shrink; no safety dropped. |
+| Performance | High | Measure; optimize; TCC-specific; budgets. |
+| Diagnostic compatibility | Medium | IDs; triage; one primary error. |
+| Test suite time | Medium | Separate safety; parallel; per-commit vs PR gate. |
+| Remote deps | Low | Out of scope; later pass. |
+| GC/JS/macros | Medium | Owned/native first; document boundaries. |
+
+---
+
+## 18. Open decisions
+
+All major scope decisions are now locked. Remaining implementation-level choices
+are resolved in favor of the reference semantics unless the parity corpus forces
+otherwise:
+
+1. **Exact `Copy` syntax:** `impl Copy` vs derive; choose the one that reads best
+   in Chemical and supports compile-time field checks.
+2. **String representation:** UTF-8 `String`/`&str` with SSO or `Vec<u8>`; measure
+   and keep the faster safe representation.
+3. **C ABI implementation:** target-aware classifier vs compiler-generated
+   adapter; choose per target, with real C callee tests.
+4. **HRTB encoding:** parser/symres representation; must be usable in trait
+   bounds and closures.
+5. **GAT/impl Trait interaction:** stage order; both must be in place before
+   generic iterator/borrow abstractions.
+6. **Panic unwinding:** abort default; unwinding profile required for
+   `catch_unwind` parity; implement both and test.
+7. **Derive mechanism:** CBI plugin vs built-in; either is acceptable if
+   diagnostics are good and compile time stays low.
+8. **No-panic effects:** separate approved proposal; schedule after full memory
+   safety unless the release train includes it.
+9. **GC:** later mode; owned semantics first.
+10. **Remote deps:** later compatibility pass.
+11. **Size:** 5 MB target after feature completion; no safety dropped.
+12. **Performance budgets:** validate against measured baselines; optimize
+    before release.
+
+---
+
+## 19. Release checklist
+
+- [ ] Full parity corpus green (language + std APIs + unsafe rejections).
+- [ ] No user opt-out; report-only absent from release; zero report hits for
+      every enforced rule.
+- [ ] Every unsafe block audited/justified; plugin unsafe reviewed.
+- [ ] Existing suites green: main, interpret, negative, plugins, libs, regexp,
+      process, server, webview, async, universal/components. No suite is
+      excluded from the release gate.
+- [ ] `--tcc`, `--llvm`, `--tcc --interpret` green.
+- [ ] `--safety`, `MIRTests`, sanitizer matrix green.
+- [ ] Compile-time/RSS/runtime targets met; size tracked; shrink plan scheduled.
+- [ ] `--check` safety parity verified; LSP deferred note.
+- [ ] Full C ABI/FFI tests, allocation regressions, interpreter/comptime fuzz.
+- [ ] std Send/Sync audit; threadpool Future audited; Waker safe.
+- [ ] HRTB, dyn, GATs, const generics, tuples, impl Trait, UTF-8, async/Pin
+      tested on all backends.
+- [ ] Error catalog, safety guide, migration guide, parity backlog published.
+- [ ] GC/macro/JS boundaries documented.
+- [ ] No-panic explicitly not claimed unless the effects milestone is included.
+- [ ] Release notes list breaking changes.
+
+---
+
+*Revision note: v4.1 follows the locked full-parity decision and the final
+consistency review. It removes the safe-subset release, includes async/Pin, HRTB,
+dyn, GATs, const generics, tuples, impl Trait, UTF-8, and full C ABI; makes
+`Copy` opt-in; removes the error-suppressing allowlist; enforces init before
+move/borrow; makes `new`/`delete` ownership-safe; closes the variadic `any`
+printing hole; adds `unsafe trait`, `UnwindSafe`, and Waker ownership; adds the
+missing core traits, collections, arbitrary self types, async closures/RPITIT,
+and const-generic prerequisites; schedules interpreter hardening early; defers
+LSP but keeps `--check`; treats 5 MB as a post-release shrink target (M9); and
+keeps remote modules out of scope. The plan is a multi-milestone program
+(~300–450 commits, 18–24 months one engineer, 12–16 with two streams), not a
+single-drop change.*

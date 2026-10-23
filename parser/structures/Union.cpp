@@ -74,7 +74,7 @@ ASTNode* Parser::parseUnionStructureTokens(ASTAllocator& allocator, AccessSpecif
 
             parent_node = gen_decl;
 
-            parseGenericParametersList(allocator, gen_decl->generic_params);
+            parseGenericParametersList(allocator, gen_decl->generic_params, &gen_decl->lifetime_params);
 
             decl->generic_parent = gen_decl;
 

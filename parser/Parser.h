@@ -930,7 +930,7 @@ public:
     /**
      * this occurs right after the function name
      */
-    bool parseGenericParametersList(ASTAllocator& allocator, std::vector<GenericTypeParameter*>& params);
+    bool parseGenericParametersList(ASTAllocator& allocator, std::vector<GenericTypeParameter*>& params, std::vector<chem::string_view>* lifetime_params = nullptr);
 
     /**
      * parses a function block with parameters

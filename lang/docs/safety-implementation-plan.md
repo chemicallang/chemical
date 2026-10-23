@@ -76,9 +76,14 @@
 > - S1.1a reference lifetime syntax: `&'a T` / `&'a mut T` parse into
 >   `ReferenceType::lifetime`; representation and copying preserve it.
 >   A positive compile test covers `&'a int`.
-> - Still pending in S1.1: lifetime parameter declarations (`func f<'a, T>`,
->   `struct Foo<'a>`), resolution, elision, `'static`, and enforcement. The
->   current syntax is parsed and carried, not yet checked.
+> - S1.1b lifetime parameter declarations: `func <'a, T> f(...)`,
+>   `struct Foo<'a>`, and `impl<'a, T>` now collect lifetime parameters in
+>   `BaseGenericDecl::lifetime_params`; duplicate lifetime names are rejected.
+>   The Chemical grammar keeps generic parameters before the function name
+>   (`func <'a> f`), unlike the reference language.
+> - Still pending in S1.1: lifetime-name resolution, generic lifetime arguments
+>   (`View<'a>` in a type position), elision, `'static`, bounds, and
+>   enforcement. The current syntax is parsed and carried, not yet checked.
 >
 > Next: finish S1.1 lifetime parameters/elision, then S1.0b lifetimes in generic
 > impls, S1.2 `'static`/bounds/temporary extension, S1.3 variance, and S1.4
@@ -417,17 +422,17 @@ for the parity corpus.
 ### 5.2 Borrowing and lifetimes
 
 ```chemical
-func longest<'a>(x : &'a str, y : &'a str) : &'a str { ... }
+func <'a> longest(x : &'a str, y : &'a str) : &'a str { ... }
 
 struct Parser<'a> {
     var input : &'a str
 }
 
-func parse<'a>(p : &mut Parser<'a>) : &'a str { ... }
+func <'a> parse(p : &mut Parser<'a>) : &'a str { ... }
 
 impl<'a, T> Trait for Wrapper<'a, T> { ... }
 
-func map<'a, T, U, F>(x : &'a T, f : F) : U
+func <'a, T, U, F> map(x : &'a T, f : F) : U
     where F : for<'b> Fn(&'b T) -> U { ... }
 ```
 

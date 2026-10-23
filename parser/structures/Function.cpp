@@ -401,10 +401,30 @@ bool Parser::parseParameterList(
     return false;
 }
 
-bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<GenericTypeParameter*>& params) {
+bool Parser::parseGenericParametersList(ASTAllocator& allocator, std::vector<GenericTypeParameter*>& params, std::vector<chem::string_view>* lifetime_params) {
     if(consumeToken(TokenType::LessThanSym)) {
         unsigned int param_index = 0;
         while(true) {
+            if(token->type == TokenType::Lifetime) {
+                const auto lifetime_tok = token;
+                token++;
+                if(lifetime_params != nullptr) {
+                    const auto name = allocate_view(allocator, lifetime_tok->value);
+                    bool duplicate = false;
+                    for(const auto existing : *lifetime_params) {
+                        if(existing == name) { duplicate = true; break; }
+                    }
+                    if(duplicate) {
+                        error() << "duplicate lifetime parameter '" << name << "'";
+                    } else {
+                        lifetime_params->emplace_back(name);
+                    }
+                }
+                if(!consumeToken(TokenType::CommaSym)) {
+                    break;
+                }
+                continue;
+            }
             auto id = consumeIdentifierOrKeyword();
             if(!id) {
                 break;
@@ -485,18 +505,20 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& allocator, ASTAlloca
     if(token->type == TokenType::LessThanSym) {
 
         std::vector<GenericTypeParameter*> gen_params;
+        std::vector<chem::string_view> gen_lifetimes;
 
-        parseGenericParametersList(allocator, gen_params);
+        parseGenericParametersList(allocator, gen_params, &gen_lifetimes);
 
         for(auto param : gen_params) {
             param->set_parent(decl);
         }
 
-        if(!gen_params.empty()) {
+        if(!gen_params.empty() || !gen_lifetimes.empty()) {
 
             const auto gen_decl = new (allocator.allocate<GenericFuncDecl>()) GenericFuncDecl(decl, parent_node, 0);
 
             gen_decl->generic_params = std::move(gen_params);
+            gen_decl->lifetime_params = std::move(gen_lifetimes);
 
             decl->generic_parent = gen_decl;
 

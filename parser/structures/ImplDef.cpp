@@ -59,7 +59,7 @@ ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, ASTAllocator& body_all
 
                 parent_node = gen_decl;
 
-                parseGenericParametersList(allocator, gen_decl->generic_params);
+                parseGenericParametersList(allocator, gen_decl->generic_params, &gen_decl->lifetime_params);
 
                 impl->generic_parent = gen_decl;
                 final_decl = gen_decl;

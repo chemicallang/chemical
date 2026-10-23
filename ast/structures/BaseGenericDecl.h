@@ -32,6 +32,14 @@ public:
     std::vector<GenericTypeParameter*> generic_params;
 
     /**
+     * Lifetime parameters declared in the same `<...>` list, e.g. `'a` in
+     * `func f<'a, T>` or `impl<'a, T>`. Type parameters remain in
+     * `generic_params`; lifetime parameters are tracked separately because they
+     * are not types and are erased before codegen.
+     */
+    std::vector<chem::string_view> lifetime_params;
+
+    /**
      * per-instantiation status vector, parallel to the instantiations vector
      * in each concrete Generic*Decl subclass. Used for phase-aware synchronization:
      * - During signature finalization: only registration is needed (no waiting)

@@ -24,8 +24,15 @@ func lifetime_reference_syntax_compiles(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     // S1.1a: `&'a T` is parsed and carried on ReferenceType. Lifetime
     // resolution/checking lands in the next stage.
-    var ch = "func read_ref(x : &'a int) : int {\n    return *x\n}\npublic func main() : int {\n    var x = 5\n    return read_ref(&x) - 5\n}\n"
+    var ch = "func <'a> read_ref(x : &'a int) : int {\n    return *x\n}\nstruct View<'a> {\n    var p : &'a int\n}\npublic func main() : int {\n    var x = 5\n    return read_ref(&x) - 5\n}\n"
     expect_compile_success(env, "lifetime_reference_syntax", ch)
+}
+
+@test
+func neg_duplicate_lifetime_parameter(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "func <'a, 'a> bad(x : &'a int) : int { return *x }\nfunc main() {}\n"
+    expect_compile_error(env, "duplicate_lifetime_param", ch, "duplicate lifetime parameter")
 }
 
 @test

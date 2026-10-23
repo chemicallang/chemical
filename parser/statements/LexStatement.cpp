@@ -9,6 +9,7 @@
 #include "ast/statements/ProvideStmt.h"
 #include "ast/statements/DeallocStmt.h"
 #include "ast/structures/Scope.h"
+#include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/ComptimeBlock.h"
 #include "ast/structures/BlockScope.h"
 #include "ast/values/CastedValue.h"
@@ -38,6 +39,20 @@ ASTNode* Parser::parseTopLevelAccessSpecifiedDecl(ASTAllocator& allocator, Acces
         case TokenType::FuncKw:
         case TokenType::AsyncKw:
             return (ASTNode*) parseFunctionStructureTokens(allocator, mod_allocator, spec, true, comptime);
+        case TokenType::UnsafeKw:
+            if((token + 1)->type == TokenType::FuncKw ||
+               (token + 1)->type == TokenType::AsyncKw) {
+                token++;
+                const auto fn = parseFunctionStructureTokens(
+                    allocator, mod_allocator, spec, true, comptime
+                );
+                if(fn != nullptr && fn->kind() == ASTNodeKind::FunctionDecl) {
+                    fn->as_function_unsafe()->set_unsafe(true);
+                }
+                return fn;
+            }
+            error("expected an unsafe function declaration");
+            return nullptr;
         case TokenType::ComptimeKw:
             if(comptime) {
                 error("already inside comptime context");
@@ -108,6 +123,17 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) 
                 token++;
                 return (ASTNode*) parseImplTokens(allocator, mod_allocator, AccessSpecifier::Internal, true);
             }
+            if((token + 1)->type == TokenType::FuncKw ||
+               (token + 1)->type == TokenType::AsyncKw) {
+                token++;
+                const auto fn = parseFunctionStructureTokens(
+                    allocator, mod_allocator, AccessSpecifier::Internal, true, comptime
+                );
+                if(fn != nullptr && fn->kind() == ASTNodeKind::FunctionDecl) {
+                    fn->as_function_unsafe()->set_unsafe(true);
+                }
+                return fn;
+            }
             return (ASTNode*) parseUnsafeBlock(allocator);
         case TokenType::ConstKw:
         case TokenType::VarKw:
@@ -168,6 +194,17 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
             if((token + 1)->type == TokenType::ImplKw) {
                 token++;
                 return (ASTNode*) parseImplTokens(allocator, mod_allocator, AccessSpecifier::Internal, true);
+            }
+            if((token + 1)->type == TokenType::FuncKw ||
+               (token + 1)->type == TokenType::AsyncKw) {
+                token++;
+                const auto fn = parseFunctionStructureTokens(
+                    allocator, mod_allocator, AccessSpecifier::Internal, false, false
+                );
+                if(fn != nullptr && fn->kind() == ASTNodeKind::FunctionDecl) {
+                    fn->as_function_unsafe()->set_unsafe(true);
+                }
+                return fn;
             }
             return (ASTNode*) parseUnsafeBlock(allocator);
         case TokenType::BreakKw:

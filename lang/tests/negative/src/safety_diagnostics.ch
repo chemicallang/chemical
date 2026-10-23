@@ -440,3 +440,17 @@ func neg_rc_is_not_sync(env : &mut TestEnv) {
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\npublic func main() : int {\n    var r = std::rc(1)\n    var h = Holder<std::Rc<int>> { data = null }\n    return h.check()\n}\n"
     expect_compile_error_with_mod(env, "rc_not_sync", ch, "does not satisfy", NEG_MOD_STD_CORE)
 }
+
+@test
+func neg_unsafe_function_call_requires_unsafe(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "unsafe func danger() : int { return 1 }\npublic func main() : int {\n    var x = danger()\n    return x\n}\n"
+    expect_compile_error(env, "unsafe_fn_call", ch, "unsafe function")
+}
+
+@test
+func neg_unsafe_method_call_requires_unsafe(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Reader {\n    var value : int\n    unsafe func read(&self) : int { return self.value }\n}\npublic func main() : int {\n    var r = Reader { value : 1 }\n    return r.read()\n}\n"
+    expect_compile_error(env, "unsafe_method_call", ch, "unsafe function")
+}

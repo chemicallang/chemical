@@ -107,6 +107,23 @@ bool Parser::parseAnyVariantMember(ASTAllocator& allocator, ASTAllocator& body_a
                 error("couldn't parse impl declaration");
             }
         }
+        case TokenType::UnsafeKw:
+            if((token + 1)->type == TokenType::FuncKw ||
+               (token + 1)->type == TokenType::AsyncKw) {
+                token++;
+                const auto unsafe_func = parseFunctionStructureTokens(
+                    allocator, body_allocator, specifier, false, comptime
+                );
+                if(unsafe_func != nullptr && unsafe_func->kind() == ASTNodeKind::FunctionDecl) {
+                    unsafe_func->as_function_unsafe()->set_unsafe(true);
+                }
+                if(unsafe_func) {
+                    def->get_parsed_nodes_container().emplace_back(unsafe_func);
+                    return true;
+                }
+                break;
+            }
+            break;
         case TokenType::FuncKw:
         case TokenType::AsyncKw: {
             const auto func = parseFunctionStructureTokens(allocator, body_allocator, specifier, false, comptime);

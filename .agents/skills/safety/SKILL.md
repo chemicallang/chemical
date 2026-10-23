@@ -151,7 +151,9 @@ Next:
   evaluates against concrete arguments. `std::Rc<T>` (S1.8b) adds
   single-threaded reference counting with unique-owner `get_mut`/`try_unwrap`
   and is structurally `!Send`/`!Sync`; `Box::into_inner` frees storage without
-  re-running the destructor. Next: partial-move/drop elaboration, then the
+  re-running the destructor. `unsafe func` (S2.6a) is parsed at top level and
+  as a member, and calls from safe code are rejected; `unsafe(expr)`/`unsafe {}`
+  are both unsafe call contexts. Next: partial-move/drop elaboration, then the
   borrow checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).

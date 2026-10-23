@@ -306,6 +306,12 @@
 >   destruction of the shared value. `Rc` is structurally `!Send`/`!Sync`.
 >   `Box::into_inner` moves the value out and frees its storage without running
 >   the destructor twice.
+> - S2.6a unsafe functions: `unsafe func` / `public unsafe func` parse at
+>   top level and as struct/variant members (including `unsafe async func`).
+>   `unsafe(expr)` and `unsafe { }` open an unsafe context; calling an unsafe
+>   function from a safe context is a type error. Method calls are covered
+>   through the linked function declaration. Tests cover expression/block
+>   calls, unsafe methods, and both direct-call negative cases.
 > - S1.6c `std::MaybeUninit<T>` / `std::ManuallyDrop<T>`: raw storage with
 >   no automatic drop glue. `@no_drop` suppresses both generated and explicit
 >   destructors (leaking is safe); `MaybeUninit::write`/`assume_init` and

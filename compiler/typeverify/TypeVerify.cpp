@@ -689,9 +689,10 @@ void verify_call_mutability(TypeVerifier& verifier, FunctionCall* call) {
     const auto linked_kind = linked ? linked->kind() : ASTNodeKind::EnumMember;
     const auto func_decl = linked_kind == ASTNodeKind::FunctionDecl ? linked->as_function_unsafe() : nullptr;
     if(func_decl) {
-//        if(func_decl->is_unsafe() && resolver.safe_context) {
-//            resolver.error("unsafe function with name should be called in an unsafe block", this);
-//        }
+        if(func_decl->is_unsafe() && !verifier.is_unsafe) {
+            diagnoser.error(call)
+                << "calling an unsafe function requires an unsafe block";
+        }
         const auto self_param = func_decl->get_self_param();
         if(self_param) {
             const auto grandpa = get_parent_from(parent_val);
@@ -2585,14 +2586,19 @@ void TypeVerifier::VisitVariableIdentifier(VariableIdentifier* id) {
 }
 
 void TypeVerifier::VisitUnsafeValue(UnsafeValue* value) {
+    // `unsafe(expr)` is the expression form of an unsafe context, so calls to
+    // unsafe functions inside it are allowed just like inside `unsafe { }`.
+    const bool prev_unsafe = is_unsafe;
+    is_unsafe = true;
     if(da_enabled) {
         bool prev_inner = da_addr_inner;
         da_addr_inner = true;
         RecursiveVisitor<TypeVerifier>::VisitUnsafeValue(value);
         da_addr_inner = prev_inner;
-        return;
+    } else {
+        RecursiveVisitor<TypeVerifier>::VisitUnsafeValue(value);
     }
-    RecursiveVisitor<TypeVerifier>::VisitUnsafeValue(value);
+    is_unsafe = prev_unsafe;
 }
 
 void TypeVerifier::VisitAwaitExpression(AwaitExpression* value) {

@@ -118,6 +118,19 @@ ASTNode* parseAccessSpecifiedMemberStmt(Parser& parser, ASTAllocator& allocator,
             return parser.parseUnnamedStruct(allocator, specifier);
         case TokenType::UnionKw:
             return parser.parseUnnamedUnion(allocator, specifier);
+        case TokenType::UnsafeKw:
+            if((parser.token + 1)->type == TokenType::FuncKw ||
+               (parser.token + 1)->type == TokenType::AsyncKw) {
+                parser.token++;
+                const auto fn = parser.parseFunctionStructureTokens(
+                    allocator, body_allocator, specifier, false, comptime
+                );
+                if(fn != nullptr && fn->kind() == ASTNodeKind::FunctionDecl) {
+                    fn->as_function_unsafe()->set_unsafe(true);
+                }
+                return fn;
+            }
+            return nullptr;
         case TokenType::FuncKw:
         case TokenType::AsyncKw:
             return parser.parseFunctionStructureTokens(allocator, body_allocator, specifier, false, comptime);
@@ -156,6 +169,19 @@ ASTNode* parseMemberStmt(Parser& parser, ASTAllocator& allocator, ASTAllocator& 
         case TokenType::UnionKw:{
             return parser.parseUnnamedUnion(allocator, specifier);
         }
+        case TokenType::UnsafeKw:
+            if((parser.token + 1)->type == TokenType::FuncKw ||
+               (parser.token + 1)->type == TokenType::AsyncKw) {
+                parser.token++;
+                const auto fn = parser.parseFunctionStructureTokens(
+                    allocator, body_allocator, specifier, false, comptime
+                );
+                if(fn != nullptr && fn->kind() == ASTNodeKind::FunctionDecl) {
+                    fn->as_function_unsafe()->set_unsafe(true);
+                }
+                return fn;
+            }
+            return nullptr;
         case TokenType::FuncKw:
         case TokenType::AsyncKw: {
             return parser.parseFunctionStructureTokens(allocator, body_allocator, specifier, false, comptime);

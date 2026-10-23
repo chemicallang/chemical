@@ -1111,6 +1111,15 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
                 continue;
             }
 
+            // Default is satisfied by a zero-argument constructor (`make`).
+            // Primitive types are default-initialized trivially.
+            if (interface_def->interface_bits.has(InterfaceBits::DEFAULT_BIT)) {
+                auto container = concrete_type->get_members_container();
+                if (container == nullptr || container->default_constructor_func() != nullptr) {
+                    continue;
+                }
+            }
+
             // For other interface constraints: check implementations index
             auto container = concrete_type->get_members_container();
             if (!container) continue; // primitive types satisfy all traits

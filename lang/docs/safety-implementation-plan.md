@@ -158,10 +158,15 @@
 >   `&mut self`), no by-value `self`, and a void return. Generated destructors
 >   are exempt. The existing symbol-resolution checks now carry the stable code
 >   as well. Positive and negative tests added.
-> - Still pending in S1.4: `Clone`/`Default` impl generation.
+> - S1.4d `Default` satisfaction: `CoreNodes` marks `Default` and `Clone` with
+>   interface bits; a `Default` bound is satisfied by primitive/non-container
+>   types or by a user type with a zero-argument constructor (`@constructor` /
+>   generated `make`). Generic-impl bound checks use the same rule. Positive
+>   tests cover a user constructor and a primitive. `Clone` is marked for the
+>   next derive step but is not auto-satisfied yet.
+> - Still pending in S1.4: `Clone` derive/auto-satisfaction.
 >
-> Next: `Clone`/`Default` derive-style support, then the M1 ownership/move
-> checker.
+> Next: `Clone` support, then the M1 ownership/move checker.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

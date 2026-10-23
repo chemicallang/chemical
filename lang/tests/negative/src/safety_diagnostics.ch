@@ -99,6 +99,13 @@ func neg_duplicate_lifetime_parameter(env : &mut TestEnv) {
 }
 
 @test
+func default_bound_uses_zero_arg_constructor(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "using core::ops::Default;\nstruct D {\n    var x : int\n    @constructor\n    func make() : D {\n        return D { x : 0 }\n    }\n}\nfunc <T> f(x : T) : int where T: Default {\n    return 0\n}\npublic func main() : int {\n    var d = D()\n    return f<D>(d) + f<int>(1)\n}\n"
+    expect_compile_output_not_contains(env, "default_bound_ok", ch, "does not satisfy where clause constraint", NEG_MOD_CORE)
+}
+
+@test
 func generic_impl_where_clause_copy_compiles(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct Wrapper<T> {\n    var value : T\n}\nimpl<T> Copy for Wrapper<T> where T: Copy {}\npublic func main() : int {\n    var w = Wrapper<int> { value : 3 }\n    return w.value - 3\n}\n"

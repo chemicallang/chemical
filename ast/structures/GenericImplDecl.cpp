@@ -3,6 +3,7 @@
 #include "GenericImplDecl.h"
 #include "ast/utils/GenericUtils.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
+#include "ast/base/InterfaceBits.h"
 #include "compiler/generics/InstantiationsContainer.h"
 #include "compiler/symres/ImplementationsIndex.h"
 #include "ast/structures/GenericFuncDecl.h"
@@ -693,6 +694,14 @@ static bool check_generic_impl_bounds(
         auto* container = concrete->get_members_container();
         auto* for_ = container ? (ASTAny*) container : (ASTAny*) concrete->canonical();
         if(index.get_impl(interface_key, for_) != nullptr) return true;
+        if(trait_node->kind() == ASTNodeKind::InterfaceDecl) {
+            auto* iface = trait_node->as_interface_def_unsafe();
+            if(iface->interface_bits.has(InterfaceBits::DEFAULT_BIT)) {
+                if(container == nullptr || container->default_constructor_func() != nullptr) {
+                    return true;
+                }
+            }
+        }
 
         // A concrete generic argument may need its own generic impl first
         // (vector<vector<int>>: check vector<int> before vector<vector<int>>).

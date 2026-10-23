@@ -16,6 +16,8 @@ public:
     using BitsType = uint64_t;
 
     static constexpr BitsType COPY_BIT = BitsType(1) << 0;
+    static constexpr BitsType DEFAULT_BIT = BitsType(1) << 1;
+    static constexpr BitsType CLONE_BIT = BitsType(1) << 2;
 
     constexpr InterfaceBits() : bits_(0) {}
     constexpr InterfaceBits(BitsType bits) : bits_(bits) {}

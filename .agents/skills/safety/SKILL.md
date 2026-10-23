@@ -84,7 +84,9 @@ Next:
   `SAFE-COPY-002`, non-Copy fields are `SAFE-COPY-003`; generic fields must be
   promised `T: Copy` via inline or impl-header where clauses (S1.0c). S1.4c
   validates `@delete` signatures (`SAFE-DROP-001`: one `&self`/`&mut self`,
-  void return). Next: `Clone`/`Default` support, then the move checker.
+  void return). `Default` bounds are satisfied by primitives or a zero-argument
+  constructor (S1.4d); `Clone` is marked but not auto-satisfied yet. Next:
+  `Clone`, then the move checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

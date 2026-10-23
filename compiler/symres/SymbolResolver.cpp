@@ -76,6 +76,17 @@ void SymbolResolver::link_core_nodes() {
     if (opsNode == nullptr || opsNode->kind() != ASTNodeKind::NamespaceDecl) return;
     if (opsNode->as_namespace_unsafe()->specifier() != AccessSpecifier::Public) return;
 
+    {
+        const auto defaultNode = opsNode->child("Default");
+        if(defaultNode && defaultNode->kind() == ASTNodeKind::InterfaceDecl) {
+            defaultNode->as_interface_def_unsafe()->interface_bits.set(InterfaceBits::DEFAULT_BIT);
+        }
+        const auto cloneNode = opsNode->child("Clone");
+        if(cloneNode && cloneNode->kind() == ASTNodeKind::InterfaceDecl) {
+            cloneNode->as_interface_def_unsafe()->interface_bits.set(InterfaceBits::CLONE_BIT);
+        }
+    }
+
     coreNodes.ops.add = func_of_interface(opsNode, "Add", "add");
     coreNodes.ops.sub = func_of_interface(opsNode, "Sub", "sub");
     coreNodes.ops.mul = func_of_interface(opsNode, "Mul", "mul");

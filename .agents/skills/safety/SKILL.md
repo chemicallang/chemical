@@ -86,8 +86,11 @@ Next:
   validates `@delete` signatures (`SAFE-DROP-001`: one `&self`/`&mut self`,
   void return). `Default` bounds are satisfied by primitives or a zero-argument
   constructor (S1.4d). `Clone` bounds are satisfied by an explicit impl or by
-  `Copy` (S1.4e); automatic Clone derivation is still pending. Next: Clone
-  derivation, then the move checker.
+  `Copy` (S1.4e); automatic Clone derivation is still pending. `Send`/`Sync`
+  bounds are derived structurally from fields (S1.5a); raw pointers are
+  neither, references follow the usual rules, and `PhantomData` participates
+  through its arguments. Next: negative/explicit auto-trait impls, then the
+  move checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

@@ -59,12 +59,20 @@ static FunctionDeclaration* func_of_interface(ASTNode* container, const chem::st
 
 void SymbolResolver::link_core_nodes() {
 
-    // lookup the Copy marker interface
+    // lookup the marker/auto-trait interfaces
     {
         const auto copyNode = find("Copy");
         if(copyNode && copyNode->kind() == ASTNodeKind::InterfaceDecl) {
             coreNodes.copy_interface = copyNode->as_interface_def_unsafe();
             coreNodes.copy_interface->interface_bits.set(InterfaceBits::COPY_BIT);
+        }
+        const auto sendNode = find("Send");
+        if(sendNode && sendNode->kind() == ASTNodeKind::InterfaceDecl) {
+            sendNode->as_interface_def_unsafe()->interface_bits.set(InterfaceBits::SEND_BIT);
+        }
+        const auto syncNode = find("Sync");
+        if(syncNode && syncNode->kind() == ASTNodeKind::InterfaceDecl) {
+            syncNode->as_interface_def_unsafe()->interface_bits.set(InterfaceBits::SYNC_BIT);
         }
     }
 

@@ -18,6 +18,7 @@
 #include "compiler/symres/ImplementationsIndex.h"
 #include "compiler/symres/SymbolResolver.h"
 #include "compiler/symres/CoreNodes.h"
+#include "compiler/safety/AutoTraits.h"
 #include "core/source/LocationManager.h"
 #include "ast/values/IndexOperator.h"
 #include "ast/structures/WhereClause.h"
@@ -1108,6 +1109,23 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
                             << "' is not declared Copy; add `impl Copy for "
                             << concrete_type->representation() << "`";
                     }
+                }
+                continue;
+            }
+
+            // Send/Sync are auto traits derived structurally from fields.
+            if (interface_def->interface_bits.has(InterfaceBits::SEND_BIT) ||
+                interface_def->interface_bits.has(InterfaceBits::SYNC_BIT)) {
+                std::unordered_set<MembersContainer*> visiting;
+                const auto kind = interface_def->interface_bits.has(InterfaceBits::SEND_BIT)
+                    ? AutoTraitKind::Send : AutoTraitKind::Sync;
+                if (!type_satisfies_auto_trait(concrete_type, kind, visiting)) {
+                    diagnoser.error(call) << "type '" << concrete_type->representation()
+                        << "' does not satisfy where clause constraint '"
+                        << constraint.param_name << " : "
+                        << trait_type->representation()
+                        << "' (" << (kind == AutoTraitKind::Send ? "Send" : "Sync")
+                        << " is derived from all fields; raw pointers are neither)";
                 }
                 continue;
             }

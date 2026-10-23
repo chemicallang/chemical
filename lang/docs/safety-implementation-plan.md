@@ -171,9 +171,20 @@
 >   in both normal where-clause checking and generic-impl bound checks.
 >   Positive tests cover Copy-implies-Clone and an explicit Clone impl; a
 >   negative test covers the missing impl.
+> - S1.5a `Send`/`Sync` auto traits: `core::Send` and `core::Sync` are marker
+>   interfaces with `SEND_BIT`/`SYNC_BIT`. Bounds are derived structurally from
+>   fields: scalars are both; `*T`/`*mut T` are neither; `&T` is `Send` when
+>   `T: Sync`, `&mut T` is `Send` when `T: Send`, and both are `Sync` when
+>   `T: Sync`; arrays and nested fields recurse; `PhantomData<T>` participates
+>   through its type arguments. Generic-impl bound checks use the same rules.
+>   Tests cover positive structs, a raw-pointer field, a reference-to-pointer
+>   field, and `PhantomData<*mut int>`.
+> - Still pending in S1.5: negative impls (`impl !Send`), explicit
+>   `unsafe impl Send/Sync`, and data-race enforcement.
 > - Still pending in S1.4: automatic `Clone` derivation/body generation.
 >
-> Next: `Clone` derivation, then the M1 ownership/move checker.
+> Next: negative impls/explicit auto-trait impls, then the M1 ownership/move
+> checker.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

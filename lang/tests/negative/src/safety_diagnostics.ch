@@ -99,6 +99,34 @@ func neg_duplicate_lifetime_parameter(env : &mut TestEnv) {
 }
 
 @test
+func send_bound_structural_ok(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\nstruct Safe {\n    var x : int\n    var r : &int\n}\npublic func main() : int {\n    var h = Holder<Safe> { data = null }\n    return h.check()\n}\n"
+    expect_compile_output_not_contains(env, "send_structural_ok", ch, "does not satisfy where clause constraint", NEG_MOD_CORE)
+}
+
+@test
+func sync_bound_structural_ok(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\nstruct Safe {\n    var x : int\n    var r : &int\n}\npublic func main() : int {\n    var h = Holder<Safe> { data = null }\n    return h.check()\n}\n"
+    expect_compile_output_not_contains(env, "sync_structural_ok", ch, "does not satisfy where clause constraint", NEG_MOD_CORE)
+}
+
+@test
+func neg_send_raw_pointer_field(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\nstruct Unsafe {\n    var p : *mut int\n}\npublic func main() : int {\n    var h = Holder<Unsafe> { data = null }\n    return h.check()\n}\n"
+    expect_compile_error_with_mod(env, "send_raw_pointer", ch, "does not satisfy where clause constraint 'T : Send'", NEG_MOD_CORE)
+}
+
+@test
+func neg_send_phantom_raw_pointer(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\nstruct PhantomBad {\n    var marker : std::PhantomData<*mut int>\n}\npublic func main() : int {\n    var h = Holder<PhantomBad> { data = null }\n    return h.check()\n}\n"
+    expect_compile_error_with_mod(env, "send_phantom_raw_pointer", ch, "does not satisfy where clause constraint 'T : Send'", NEG_MOD_STD_CORE)
+}
+
+@test
 func clone_bound_copy_implies_clone(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "using core::ops::Clone;\nstruct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Clone {\n        return 0\n    }\n}\nstruct Row {\n    var x : int\n}\nimpl Copy for Row {}\npublic func main() : int {\n    var h = Holder<Row> { data = null }\n    return h.check()\n}\n"

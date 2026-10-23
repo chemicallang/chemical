@@ -183,6 +183,7 @@ internal const NEG_MOD = "module neg_test\nsource \".\"\n"
 
 // variant that imports core so the `Copy` marker interface is in scope
 internal const NEG_MOD_CORE = "module neg_test\nsource \".\"\nimport core\n"
+internal const NEG_MOD_STD_CORE = "module neg_test\nsource \".\"\nimport std\nimport core\n"
 
 // an application importing the async protocol, so `async func main` gets its
 // synchronous trampoline and becomes the program entry point

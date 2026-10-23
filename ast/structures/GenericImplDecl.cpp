@@ -5,6 +5,7 @@
 #include "compiler/generics/GenInstantiatorAPI.h"
 #include "ast/base/InterfaceBits.h"
 #include "compiler/symres/CoreNodes.h"
+#include "compiler/safety/AutoTraits.h"
 #include "compiler/generics/InstantiationsContainer.h"
 #include "compiler/symres/ImplementationsIndex.h"
 #include "ast/structures/GenericFuncDecl.h"
@@ -701,6 +702,16 @@ static bool check_generic_impl_bounds(
                 if(container == nullptr || container->default_constructor_func() != nullptr) {
                     return true;
                 }
+            }
+            if(iface->interface_bits.has(InterfaceBits::SEND_BIT) ||
+               iface->interface_bits.has(InterfaceBits::SYNC_BIT)) {
+                std::unordered_set<MembersContainer*> visiting;
+                const auto kind = iface->interface_bits.has(InterfaceBits::SEND_BIT)
+                    ? AutoTraitKind::Send : AutoTraitKind::Sync;
+                if(type_satisfies_auto_trait(concrete, kind, visiting)) {
+                    return true;
+                }
+                // fall through to the standard bound diagnostic
             }
             if(iface->interface_bits.has(InterfaceBits::CLONE_BIT) && container != nullptr) {
                 auto* copy_interface = instantiator.getCoreNodes().copy_interface;

@@ -14,15 +14,20 @@
 > - `SAFE-UNSAFE-001` on safe-context raw-pointer dereference (report-only
 >   warning).
 > - Negative harness accepts coded errors and has `expect_compile_warning_id`.
-> - `lang/tests/safety/` module + `--safety` suite skeleton, wired through
+> - `lang/tests/safety/` module + `--safety` suite, wired through
 >   `lang/tests/build.lab` and `scripts/test.sh`; negative output path is
 >   backend-specific.
+> - Runtime-failure harness (`expect_runtime_panic`) using
+>   `process::execute` and compiler subprocesses; smoke + panic tests on TCC and
+>   LLVM (`2/2` each).
 > - Tests: `lang/tests/negative/src/safety_diagnostics.ch`; TCC main
->   `2318/2318`, negative `329/329`, safety smoke `1/1`.
+>   `2318/2318`, LLVM main `2316/2316`, interpreter `1907/1907`, negative
+>   `329/329`.
 >
 > **Next**
-> - S0.1 runtime-failure harness + parity manifest.
 > - S0.2 `--safety-report` audit mode.
+> - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
+> - Parity corpus/manifest is M8.1 (not a blocker for S0.1).
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

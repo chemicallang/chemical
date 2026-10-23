@@ -28,14 +28,16 @@ Implemented:
     (report-only warning today).
 - Negative harness accepts both `error:` and `error[SAFE-` and has
   `expect_compile_warning_id`.
-- Safety suite skeleton at `lang/tests/safety/` (`--safety`), wired through
+- Safety suite at `lang/tests/safety/` (`--safety`), wired through
   `lang/tests/build.lab` and `scripts/test.sh`.
+- Runtime-failure harness (`expect_runtime_panic`) using `process::execute` and
+  compiler subprocesses; smoke + panic tests pass on TCC and LLVM.
 - Tests: `lang/tests/negative/src/safety_diagnostics.ch`.
 
 Next:
 
-- Runtime-failure harness (`expect_runtime_panic`) and parity manifest.
 - `--safety-report` audit mode (S0.2).
+- Parity corpus/manifest is M8.1 (not an S0.1 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).
 

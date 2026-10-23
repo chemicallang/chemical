@@ -483,13 +483,18 @@ TypeLoc Parser::parseTypeLocNoPostOps(ASTAllocator& allocator) {
         case TokenType::AmpersandSym: {
             const auto refToken = token;
             token++;
+            chem::string_view lifetime;
+            if(token->type == TokenType::Lifetime) {
+                lifetime = allocate_view(allocator, token->value);
+                token++;
+            }
             auto is_mutable = token->type == TokenType::MutKw;
             if(is_mutable) {
                 token++;
             }
             auto type = parseType(allocator);
             if(type) {
-                return { new(allocator.allocate<ReferenceType>()) ReferenceType(type, is_mutable), loc_single(refToken) };
+                return { new(allocator.allocate<ReferenceType>()) ReferenceType(type, is_mutable, lifetime), loc_single(refToken) };
             } else {
                 error("expected a type after the &");
                 return getErroredType(allocator);;

@@ -12,9 +12,16 @@ public:
     bool is_mutable;
 
     /**
+     * optional lifetime name, e.g. `'a` in `&'a mut T`.
+     * Empty when the reference is elided.
+     */
+    chem::string_view lifetime;
+
+    /**
      * constructor
      */
-    constexpr ReferenceType(BaseType* type, bool is_mutable = false) : type(type), BaseType(BaseTypeKind::Reference), is_mutable(is_mutable) {
+    constexpr ReferenceType(BaseType* type, bool is_mutable = false, chem::string_view lifetime = {})
+        : type(type), BaseType(BaseTypeKind::Reference), is_mutable(is_mutable), lifetime(lifetime) {
 
     }
 
@@ -43,7 +50,7 @@ public:
 
     [[nodiscard]]
     ReferenceType *copy(ASTAllocator& allocator) final {
-        return new (allocator.allocate<ReferenceType>()) ReferenceType(type->copy(allocator), is_mutable);
+        return new (allocator.allocate<ReferenceType>()) ReferenceType(type->copy(allocator), is_mutable, lifetime);
     }
 
     ASTNode *linked_node() final {

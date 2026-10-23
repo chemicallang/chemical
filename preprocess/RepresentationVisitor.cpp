@@ -1045,6 +1045,10 @@ void RepresentationVisitor::VisitPointerType(PointerType *type) {
 
 void RepresentationVisitor::VisitReferenceType(ReferenceType *type) {
     write('&');
+    if(!type->lifetime.empty()) {
+        write(type->lifetime);
+        write(' ');
+    }
     if(type->is_mutable) {
         write("mut ");
     }

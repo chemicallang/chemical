@@ -71,9 +71,18 @@
 >     read (exit 1, `SAFE-INIT-001`, no executable);
 >   - full safety parity will be re-verified in M8 after M3–M6 passes land.
 >
-> **M0 complete.** Next: M1 type-system foundations (lifetimes, opt-in
-> `Copy`/`Drop`, slices, Box/Vec/String, traits, HRTB, dyn, UTF-8, full C ABI
-> prerequisites).
+> **M0 complete. M1 started.**
+>
+> - S1.1a reference lifetime syntax: `&'a T` / `&'a mut T` parse into
+>   `ReferenceType::lifetime`; representation and copying preserve it.
+>   A positive compile test covers `&'a int`.
+> - Still pending in S1.1: lifetime parameter declarations (`func f<'a, T>`,
+>   `struct Foo<'a>`), resolution, elision, `'static`, and enforcement. The
+>   current syntax is parsed and carried, not yet checked.
+>
+> Next: finish S1.1 lifetime parameters/elision, then S1.0b lifetimes in generic
+> impls, S1.2 `'static`/bounds/temporary extension, S1.3 variance, and S1.4
+> opt-in `Copy`/`Drop`.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

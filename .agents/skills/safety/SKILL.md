@@ -11,7 +11,7 @@ The source tree wins over any status note here.
 
 ## Current status (2026-10-23)
 
-**Milestone M0 / S0.1–S0.6 are implemented.**
+**M0 (S0.1–S0.6) is implemented. M1 has started.**
 
 Implemented:
 
@@ -54,10 +54,15 @@ Implemented:
   or linking; a good module exits 0 with no executable, an uninitialized read
   exits 1 with `SAFE-INIT-001` and no executable.
 
+- M1 started: `&'a T` / `&'a mut T` reference lifetimes are parsed and carried
+  on `ReferenceType` (S1.1a). Lifetime parameter declarations, resolution,
+  elision, `'static`, and enforcement are still pending.
+
 Next:
 
-- M1 type-system foundations: lifetimes, opt-in `Copy`/`Drop`, slices,
-  Box/Vec/String, traits, HRTB, dyn, UTF-8, full C ABI prerequisites.
+- Finish S1.1 lifetime parameters/elision, then S1.0b lifetimes in generic
+  impls, S1.2 `'static`/bounds/temporary extension, S1.3 variance, S1.4 opt-in
+  `Copy`/`Drop`.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

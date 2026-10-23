@@ -11,7 +11,7 @@ The source tree wins over any status note here.
 
 ## Current status (2026-10-23)
 
-**Milestone M0 / S0.1–S0.4 are implemented.**
+**Milestone M0 / S0.1–S0.5 are implemented.**
 
 Implemented:
 
@@ -45,10 +45,14 @@ Implemented:
   `option` parsing now consumes its leading identifier.
 - `unsafe(expr)`, `da_in_unsafe`, and `@allow_zeroed` are still kept until their
   replacement stages; they are not user-facing opt-outs.
+- S0.5 MIR/interpreter hardening (partial): O(log n) source interning, hard
+  errors for unknown interpreter opcodes, `AtomicFence` no-op for single-threaded
+  comptime, and `--mirtests` (`4524 checks`). Interpreter provenance/bounds/UAF
+  checks are deferred to M5.7.
 
 Next:
 
-- S0.5 MIR source/verifier/interpreter hardening.
+- S0.6 `--check` lowering-only path.
 - Parity corpus/manifest is M8.1 (not an S0.x blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

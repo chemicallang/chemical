@@ -91,14 +91,13 @@ void MIRBuilder::note_result_value(ValueId id, uint32_t inst_index) {
 
 uint32_t MIRBuilder::add_source(const MIRSourceLoc& loc) {
     if (func_.sources.size() >= MIR_NO_SOURCE) return MIR_NO_SOURCE;
-    for (uint32_t i = 0; i < func_.sources.size(); ++i) {
-        const MIRSourceLoc& s = func_.sources[i];
-        if (s.file == loc.file && s.line == loc.line && s.column == loc.column) {
-            return i;
-        }
-    }
+    const auto key = std::make_tuple(loc.file, loc.line, loc.column);
+    auto it = source_lookup_.find(key);
+    if (it != source_lookup_.end()) return it->second;
+    const uint32_t index = static_cast<uint32_t>(func_.sources.size());
     func_.sources.push_back(loc);
-    return static_cast<uint32_t>(func_.sources.size() - 1);
+    source_lookup_.emplace(key, index);
+    return index;
 }
 
 uint32_t MIRBuilder::emit_impl(MIROpcode op, uint32_t result_or_place,

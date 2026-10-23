@@ -18,6 +18,8 @@
 #include "MIRInstruction.h"
 
 #include <initializer_list>
+#include <map>
+#include <tuple>
 
 // glibc exposes `alloca` as a function-like macro (pulled in by <alloca.h> via
 // <stdlib.h>), which collides with the `MIRBuilder::alloca` method declared
@@ -239,6 +241,9 @@ private:
     bool ok_ = true;
     const char* error_ = nullptr;
     uint32_t current_source_ = MIR_NO_SOURCE; // attached to emitted instructions
+    // O(log n) source interning: expression-level spans would make the old
+    // linear scan O(n^2).
+    std::map<std::tuple<uint32_t, uint32_t, uint32_t>, uint32_t> source_lookup_;
     uint32_t cleanup_sp_ = MIR_INVALID_ID;
     uint32_t lexical_sp_ = MIR_INVALID_ID;
 };

@@ -192,6 +192,7 @@ struct MIRInterpreter::Impl {
      * the top-level `call`/`call_sret`/`run` reports it instead of crashing.
      */
     bool stack_exhausted = false;
+    std::string unsupported_error;
 
     explicit Impl(const MIRModule& m) : module(m) {}
 
@@ -1593,9 +1594,14 @@ struct MIRInterpreter::Impl {
                     if (rp < f.values.size()) f.values[rp] = r;
                     break;
                 }
+                case MIROpcode::AtomicFence:
+                    // Comptime is single-threaded; a fence has no observable
+                    // effect. Atomics with observable loads/stores remain
+                    // unsupported below and are hard diagnostics.
+                    break;
                 default:
-                    // Switch / Unreachable / Throw / Async* / InlineAsm: not
-                    // produced for the interpretation suite.
+                    unsupported_error = std::string("MIR interpreter: unsupported opcode '")
+                        + opcode_name(ins.opcode()) + "'";
                     returned = true;
                     break;
             }
@@ -1753,9 +1759,14 @@ bool MIRInterpreter::call(const std::string& name, const uint64_t* args, uint32_
         return false;
     }
     impl_->stack_exhausted = false;
+    impl_->unsupported_error.clear();
     out_result = impl_->call_function(it->second, args, nargs);
     if (impl_->stack_exhausted) {
         error = chem::comptime_stack_error_message();
+        return false;
+    }
+    if (!impl_->unsupported_error.empty()) {
+        error = impl_->unsupported_error;
         return false;
     }
     return true;
@@ -1774,9 +1785,14 @@ bool MIRInterpreter::call_sret(const std::string& name, const uint64_t* args, ui
     cells.push_back(reinterpret_cast<uint64_t>(out_buf));
     for (uint32_t i = 0; i < nargs; ++i) cells.push_back(args[i]);
     impl_->stack_exhausted = false;
+    impl_->unsupported_error.clear();
     impl_->call_function(it->second, cells.data(), nargs + 1);
     if (impl_->stack_exhausted) {
         error = chem::comptime_stack_error_message();
+        return false;
+    }
+    if (!impl_->unsupported_error.empty()) {
+        error = impl_->unsupported_error;
         return false;
     }
     return true;
@@ -1804,9 +1820,14 @@ bool MIRInterpreter::run(const std::string& entry, int argc, const char* const* 
         }
     }
     impl_->stack_exhausted = false;
+    impl_->unsupported_error.clear();
     out_result = static_cast<long long>(impl_->call_function(fn_index, args, nargs));
     if (impl_->stack_exhausted) {
         error = chem::comptime_stack_error_message();
+        return false;
+    }
+    if (!impl_->unsupported_error.empty()) {
+        error = impl_->unsupported_error;
         return false;
     }
     return true;

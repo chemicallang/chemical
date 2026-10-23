@@ -19,6 +19,7 @@ TEST_PLUGINS=false
 TEST_INTERPRET=false
 TEST_NEGATIVE=false
 TEST_SAFETY=false
+TEST_MIR=false
 TEST_TLS=false
 TEST_PROCESS=false
 TEST_WEBVIEW=false
@@ -59,6 +60,7 @@ usage() {
   echo "  --interpret             Run tests via interpretation job (no executable produced)"
   echo "  --negative              Run negative (compile-fail) safety tests only"
   echo "  --safety                Run the runtime/parity safety suite (passes --arg-test-safety)"
+  echo "  --mirtests              Build and run the MIR unit tests (MIRTests)"
   echo "  --plugins               Include compiler plugin tests (passes --arg-test-plugins)"
   echo "  --tls                   Build & run the TLS integration test suite (passes --arg-test-tls)"
   echo "  --process               Build & run the process/environment test suite (passes --arg-test-process)"
@@ -116,6 +118,7 @@ while [ $# -gt 0 ]; do
     --interpret) TEST_INTERPRET=true ;;
     --negative) TEST_NEGATIVE=true ;;
     --safety) TEST_SAFETY=true ;;
+    --mirtests) TEST_MIR=true ;;
     --plugins) TEST_PLUGINS=true ;;
     --tls) TEST_TLS=true ;;
     --process) TEST_PROCESS=true ;;
@@ -437,6 +440,14 @@ if [ "$RUN_ALL" = true ]; then
   rc=$?
   set -e
   exit "$rc"
+fi
+
+if [ "$TEST_MIR" = true ]; then
+  echo "==> Building MIRTests..."
+  cmake --build "$BUILD_DIR" --config Debug --target MIRTests -j "$JOBS"
+  echo "==> Running MIRTests..."
+  "$BUILD_DIR/MIRTests"
+  exit $?
 fi
 
 # Build the compiler target if requested

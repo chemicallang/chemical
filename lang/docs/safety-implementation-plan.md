@@ -55,8 +55,17 @@
 >   - `unsafe(expr)`, `da_in_unsafe`, and `@allow_zeroed` remain until their
 >     replacement stages (as planned).
 >
+> - S0.5 MIR/interpreter hardening (partial):
+>   - MIR source interning is now O(log n) (`MIRBuilder::source_lookup_`)
+>     instead of the previous linear scan;
+>   - unknown interpreter opcodes are hard errors; `AtomicFence` is a
+>     single-threaded no-op (comptime atomics remain correct for fences);
+>   - `--mirtests` builds and runs `MIRTests` (`4524 checks`);
+>   - interpreter provenance/bounds/UAF checks are deferred to M5.7, where they
+>     are release-blocking before enforcement.
+>
 > **Next**
-> - S0.5 MIR source/verifier/interpreter hardening.
+> - S0.6 `--check` lowering-only path (full safety parity re-verified in M8).
 > - Parity corpus/manifest is M8.1 (not a blocker for S0.x).
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.

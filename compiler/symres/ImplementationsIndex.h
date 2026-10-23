@@ -61,11 +61,11 @@ public:
 
     /**
      * Generic negative auto-trait impls (`impl<T> !Send for Wrapper<T>`),
-     * keyed by the generic target declaration. They apply to every
-     * instantiation of that target for now (generic negative impls with
-     * bounds are rejected at registration).
+     * keyed by the generic target declaration. A candidate is conditional when
+     * its parameters/where clause carry bounds; the use site evaluates those
+     * bounds against the concrete arguments.
      */
-    std::unordered_map<ASTNode*, std::vector<ASTNode*>> generic_negative_impls_;
+    std::unordered_map<ASTNode*, std::vector<GenericImplDecl*>> generic_negative_impls_;
 
     // reader-writer mutex for thread-safe concurrent reads and exclusive writes
     mutable std::shared_mutex index_mutex;
@@ -110,26 +110,27 @@ public:
         return negative_impls_.find(ImplementationIndexKey{ interface, for_ }) != negative_impls_.end();
     }
 
-    bool add_generic_negative_impl(ASTNode* target, ASTNode* interface) {
-        if(target == nullptr || interface == nullptr) return false;
+    bool add_generic_negative_impl(ASTNode* target, GenericImplDecl* impl) {
+        if(target == nullptr || impl == nullptr) return false;
         std::unique_lock lock(index_mutex);
         auto& list = generic_negative_impls_[target];
         for(const auto existing : list) {
-            if(existing == interface) return false;
+            if(existing == impl) return false;
         }
-        list.push_back(interface);
+        list.push_back(impl);
         return true;
     }
 
+    /**
+     * All negative-impl candidates for `target` implementing `interface`.
+     * The caller evaluates each candidate's bounds against the concrete
+     * arguments; a candidate with no bounds applies unconditionally.
+     */
+    std::vector<GenericImplDecl*> generic_negative_impls_for(
+        ASTNode* target, ASTNode* interface) const;
+
     bool has_generic_negative_impl(ASTNode* target, ASTNode* interface) const {
-        if(target == nullptr || interface == nullptr) return false;
-        std::shared_lock lock(index_mutex);
-        const auto found = generic_negative_impls_.find(target);
-        if(found == generic_negative_impls_.end()) return false;
-        for(const auto existing : found->second) {
-            if(existing == interface) return true;
-        }
-        return false;
+        return !generic_negative_impls_for(target, interface).empty();
     }
 
     inline bool has_any_generic_impls() const noexcept {

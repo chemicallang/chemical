@@ -6,6 +6,23 @@
 #include "ast/structures/ImplDefinition.h"
 #include "ast/structures/GenericImplDecl.h"
 
+std::vector<GenericImplDecl*> ImplementationsIndex::generic_negative_impls_for(
+    ASTNode* target, ASTNode* interface) const {
+    std::vector<GenericImplDecl*> out;
+    if(target == nullptr || interface == nullptr) return out;
+    std::shared_lock lock(index_mutex);
+    const auto found = generic_negative_impls_.find(target);
+    if(found == generic_negative_impls_.end()) return out;
+    for(GenericImplDecl* impl : found->second) {
+        if(impl == nullptr || impl->master_impl == nullptr) continue;
+        auto* iface = impl->master_impl->interface_type
+            ? impl->master_impl->interface_type->get_direct_linked_canonical_node()
+            : nullptr;
+        if(iface == interface) out.push_back(impl);
+    }
+    return out;
+}
+
 bool ImplementationsIndex::add_generic_impl(ASTNode* target, GenericImplDecl* impl) {
     if(target == nullptr || impl == nullptr) return false;
     std::unique_lock lock(index_mutex);

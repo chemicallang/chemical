@@ -120,10 +120,27 @@ func neg_generic_negative_sync_bound_rejected(env : &mut TestEnv) {
 }
 
 @test
-func neg_generic_negative_with_bound_rejected(env : &mut TestEnv) {
+func generic_negative_with_bound_compiles(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "using core::ops::Clone;\nstruct Wrapper<T> {\n    var value : T\n}\nimpl<T: Clone> !Send for Wrapper<T> {}\npublic func main() : int { return 0 }\n"
-    expect_compile_error_with_mod(env, "generic_negative_bound", ch, "SAFE-AUTO-002", NEG_MOD_STD_CORE)
+    expect_compile_output_not_contains(env, "generic_negative_bound", ch, "negative implementations", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_conditional_generic_negative_applies(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // int is Clone, so the conditional `impl<T: Clone> !Send` applies.
+    var ch = "using core::ops::Clone;\nstruct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\nstruct Wrapper<T> {\n    var value : T\n}\nimpl<T: Clone> !Send for Wrapper<T> {}\npublic func main() : int {\n    var h = Holder<Wrapper<int>> { data = null }\n    return h.check()\n}\n"
+    expect_compile_error_with_mod(env, "conditional_generic_negative", ch, "is declared !Send", NEG_MOD_STD_CORE)
+}
+
+@test
+func conditional_generic_negative_does_not_apply(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // Plain is Send structurally but does not implement Clone, so the
+    // conditional negative impl must not apply.
+    var ch = "using core::ops::Clone;\nstruct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\nstruct Plain {\n    var x : int\n}\nstruct Wrapper<T> {\n    var value : T\n}\nimpl<T: Clone> !Send for Wrapper<T> {}\npublic func main() : int {\n    var h = Holder<Wrapper<Plain>> { data = null }\n    return h.check()\n}\n"
+    expect_compile_output_not_contains(env, "conditional_generic_negative_skip", ch, "is declared !Send", NEG_MOD_STD_CORE)
 }
 
 @test
@@ -322,4 +339,11 @@ func unsafe_deref_warning_has_code(env : &mut TestEnv) {
     // carries a stable code so clients can act on it.
     var ch = "public func main() : int {\n    var x : int = 1\n    var p = &raw x\n    return *p\n}\n"
     expect_compile_warning_id(env, "unsafe_deref_warning_code", ch, "SAFE-UNSAFE-001")
+}
+
+@test
+func neg_conditional_where_generic_negative_applies(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "using core::ops::Clone;\nstruct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\nstruct Wrapper<T> {\n    var value : T\n}\nimpl<T> !Sync for Wrapper<T> where T: Clone {}\npublic func main() : int {\n    var h = Holder<Wrapper<int>> { data = null }\n    return h.check()\n}\n"
+    expect_compile_error_with_mod(env, "conditional_where_generic_negative", ch, "is declared !Sync", NEG_MOD_STD_CORE)
 }

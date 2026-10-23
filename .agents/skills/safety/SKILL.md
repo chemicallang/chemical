@@ -125,9 +125,11 @@ Next:
   `CloneBox<T>` impl, S1.5h). Generic `Option`/`vector` `Clone` still needs
   instantiation-time alias propagation for non-Clone element types.
   `impl<T> !Send/!Sync for Wrapper<T>` works for all instantiations (S1.5i);
-  bounded/where-clause negative impls are rejected with `SAFE-AUTO-002`.
-  Next: conditional-state/drop-flag modelling, then conditional negative impls
-  and the borrow checker.
+  conditional forms with parameter bounds or a where clause
+  (`impl<T: Clone> !Send`, `impl<T> !Sync for Wrapper<T> where T: Clone`) are
+  evaluated against the concrete arguments at the use site and apply only when
+  the bounds hold. Next: conditional-state/drop-flag modelling, then the
+  borrow checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

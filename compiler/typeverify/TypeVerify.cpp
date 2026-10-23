@@ -1104,6 +1104,115 @@ static BaseType* infer_generic_arg_from_call(
     return nullptr;
 }
 
+/**
+ * Silent version of the where-clause trait test, used to decide whether a
+ * conditional negative impl applies. It mirrors the checks in
+ * `verify_where_clause` but never emits a diagnostic; an unknown or
+ * still-generic concrete type is treated as unsatisfied so a negative impl is
+ * not applied prematurely.
+ */
+static bool trait_constraint_satisfied(TypeVerifier& verifier, BaseType* concrete,
+                                       BaseType* trait_type) {
+    if (concrete == nullptr || trait_type == nullptr) return false;
+    auto* trait_node = trait_type->get_direct_linked_node();
+    if (trait_node == nullptr || trait_node->kind() != ASTNodeKind::InterfaceDecl) {
+        return false;
+    }
+    auto* iface = trait_node->as_interface_def_unsafe();
+
+    if (iface->interface_bits.has(InterfaceBits::COPY_BIT)) {
+        if (concrete->kind() == BaseTypeKind::Array) {
+            return trait_constraint_satisfied(
+                verifier,
+                const_cast<BaseType*>(concrete->as_array_type_unsafe()->elem_type.getType()),
+                trait_type
+            );
+        }
+        auto* container = concrete->get_members_container();
+        if (container == nullptr) return true;
+        return verifier.index.get_impl(iface, container) != nullptr;
+    }
+
+    if (iface->interface_bits.has(InterfaceBits::SEND_BIT) ||
+        iface->interface_bits.has(InterfaceBits::SYNC_BIT)) {
+        auto* container = concrete->get_members_container();
+        if (container != nullptr && verifier.index.get_impl(iface, container) != nullptr) {
+            return true;
+        }
+        std::unordered_set<MembersContainer*> visiting;
+        const auto kind = iface->interface_bits.has(InterfaceBits::SEND_BIT)
+                              ? AutoTraitKind::Send : AutoTraitKind::Sync;
+        return type_satisfies_auto_trait(concrete, kind, visiting);
+    }
+
+    if (iface->interface_bits.has(InterfaceBits::CLONE_BIT)) {
+        auto* container = concrete->get_members_container();
+        if (container == nullptr) return true;
+        if (verifier.coreNodes.copy_interface != nullptr &&
+            verifier.index.get_impl(verifier.coreNodes.copy_interface, container) != nullptr) {
+            return true;
+        }
+        return verifier.index.get_impl(iface, container) != nullptr;
+    }
+
+    if (iface->interface_bits.has(InterfaceBits::DEFAULT_BIT)) {
+        auto* container = concrete->get_members_container();
+        return container == nullptr || container->default_constructor_func() != nullptr;
+    }
+
+    auto* container = concrete->get_members_container();
+    if (container == nullptr) return true;
+    return verifier.index.get_impl(iface, container) != nullptr;
+}
+
+/**
+ * A generic negative impl applies only when every parameter/where-clause bound
+ * holds for the concrete instantiation. With no bounds it applies
+ * unconditionally.
+ */
+static bool generic_negative_impl_applies(TypeVerifier& verifier,
+                                          GenericImplDecl* impl,
+                                          BaseType* concrete) {
+    if (impl == nullptr) return false;
+    auto* gen = concrete && concrete->kind() == BaseTypeKind::Generic
+                    ? concrete->as_generic_type_unsafe() : nullptr;
+    auto arg_for = [&](GenericTypeParameter* param) -> BaseType* {
+        if (gen == nullptr || param == nullptr) return nullptr;
+        if (param->param_index >= gen->types.size()) return nullptr;
+        return const_cast<BaseType*>(gen->types[param->param_index].getType());
+    };
+    auto is_generic_param = [](BaseType* t) {
+        auto* node = t ? t->get_direct_linked_node() : nullptr;
+        return node != nullptr && node->kind() == ASTNodeKind::GenericTypeParam;
+    };
+
+    for (auto* param : impl->generic_params) {
+        if (param == nullptr || param->traits.empty()) continue;
+        BaseType* arg = arg_for(param);
+        if (arg == nullptr || is_generic_param(arg)) return false;
+        for (auto& trait : param->traits) {
+            if (!trait_constraint_satisfied(verifier, arg,
+                                            const_cast<BaseType*>(trait.getType()))) {
+                return false;
+            }
+        }
+    }
+    if (impl->where_clause != nullptr) {
+        for (auto& constraint : impl->where_clause->constraints) {
+            if (constraint.param == nullptr || constraint.constraints.empty()) continue;
+            BaseType* arg = arg_for(constraint.param);
+            if (arg == nullptr || is_generic_param(arg)) return false;
+            for (auto& trait : constraint.constraints) {
+                if (!trait_constraint_satisfied(verifier, arg,
+                                                const_cast<BaseType*>(trait.getType()))) {
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
+}
+
 static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
     auto func = call->safe_linked_func();
     if (!func || !func->where_clause) return;
@@ -1223,13 +1332,22 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
                 auto container = concrete_type->get_members_container();
                 auto* for_ = container != nullptr
                     ? (ASTAny*) container : (ASTAny*) concrete_type->canonical();
-                if (container != nullptr && container->generic_parent != nullptr &&
-                    verifier.index.has_generic_negative_impl(
-                        (ASTNode*) container->generic_parent, (ASTNode*) interface_def)) {
-                    diagnoser.error(call) << "type '" << concrete_type->representation()
-                        << "' is declared !"
-                        << (interface_def->interface_bits.has(InterfaceBits::SEND_BIT) ? "Send" : "Sync");
-                    continue;
+                if (container != nullptr && container->generic_parent != nullptr) {
+                    bool negative = false;
+                    for (auto* candidate : verifier.index.generic_negative_impls_for(
+                             (ASTNode*) container->generic_parent,
+                             (ASTNode*) interface_def)) {
+                        if (generic_negative_impl_applies(verifier, candidate, concrete_type)) {
+                            negative = true;
+                            break;
+                        }
+                    }
+                    if (negative) {
+                        diagnoser.error(call) << "type '" << concrete_type->representation()
+                            << "' is declared !"
+                            << (interface_def->interface_bits.has(InterfaceBits::SEND_BIT) ? "Send" : "Sync");
+                        continue;
+                    }
                 }
                 if (verifier.index.has_negative_impl(interface_def, for_)) {
                     diagnoser.error(call) << "type '" << concrete_type->representation()

@@ -1142,18 +1142,6 @@ void TopLevelLinkSignature::VisitGenericImplDecl(GenericImplDecl* node) {
                 << "negative implementations are only supported for Send and Sync";
             return;
         }
-        if(node->where_clause != nullptr) {
-            diagnoser.error(node->master_impl).with_code("SAFE-AUTO-002")
-                << "generic negative implementations with where clauses are not supported yet";
-            return;
-        }
-        for(const auto param : node->generic_params) {
-            if(!param->traits.empty()) {
-                diagnoser.error(node->master_impl).with_code("SAFE-AUTO-002")
-                    << "generic negative implementations with bounds are not supported yet";
-                return;
-            }
-        }
         auto* target_type = node->master_impl->struct_type
             ? const_cast<BaseType*>(node->master_impl->struct_type.getType()) : nullptr;
         if(target_type == nullptr || target_type->kind() != BaseTypeKind::Generic) {
@@ -1170,7 +1158,7 @@ void TopLevelLinkSignature::VisitGenericImplDecl(GenericImplDecl* node) {
                 << "generic negative implementation target must be a generic struct, union or variant";
             return;
         }
-        if(!linker.implsIndex.add_generic_negative_impl((ASTNode*) target_decl, (ASTNode*) iface)) {
+        if(!linker.implsIndex.add_generic_negative_impl((ASTNode*) target_decl, node)) {
             diagnoser.error(node->master_impl).with_code("SAFE-AUTO-002")
                 << "duplicate generic negative implementation for this target";
         }

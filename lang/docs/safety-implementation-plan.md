@@ -245,12 +245,14 @@
 >   `impl<T> !Sync for Wrapper<T>` register under the generic target
 >   declaration and apply to every instantiation. A concrete
 >   `Wrapper<...>` is rejected at a `Send`/`Sync` bound with "is declared
->   !Send/!Sync". Generic negative impls with where clauses or parameter
->   bounds are rejected with `SAFE-AUTO-002` until conditional negative impls
->   are modelled. Positive/negative tests cover both auto traits and the
->   bounded-form rejection.
-> - Still pending in S1.5: conditional generic negative impls and data-race
->   enforcement.
+>   !Send/!Sync". Conditional forms with parameter bounds or a where clause
+>   (`impl<T: Clone> !Send for Wrapper<T>`,
+>   `impl<T> !Sync for Wrapper<T> where T: Clone`) are evaluated against the
+>   concrete arguments at the use site and apply only when the bounds hold.
+>   Positive/negative tests cover the unconditional, inline-bounded and
+>   where-clause forms, including the case where the bound fails and the
+>   structural derivation is used instead.
+> - Still pending in S1.5: data-race enforcement.
 > - S3.0a stable move diagnostics: the existing move tracker's errors now carry
 >   `SAFE-MOVE-001` (move of an already-moved value, access after move, and
 >   assignment after move). Tests cover double move and field access after a

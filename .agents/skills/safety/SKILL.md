@@ -175,6 +175,7 @@ Codes are stable and grouped by domain:
 | `SAFE-DROP-001` | invalid destructor signature (value self, missing self, non-void return, async) |
 | `SAFE-AUTO-001` | `Send`/`Sync` implemented without `unsafe impl` |
 | `SAFE-AUTO-002` | invalid/conflicting negative impl (non-auto trait, duplicate, positive+negative, generic target) |
+| `SAFE-MOVE-001` | move of an already-moved value / access or assignment after a move |
 | `SAFE-LIFE-*` | lifetimes / escapes |
 | `SAFE-INIT-*` | initialization / definite assignment |
 | `SAFE-VALID-*` | invalid values / transmute / packed |

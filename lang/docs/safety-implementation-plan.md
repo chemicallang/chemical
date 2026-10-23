@@ -251,6 +251,11 @@
 >   bounded-form rejection.
 > - Still pending in S1.5: conditional generic negative impls and data-race
 >   enforcement.
+> - S3.0a stable move diagnostics: the existing move tracker's errors now carry
+>   `SAFE-MOVE-001` (move of an already-moved value, access after move, and
+>   assignment after move). Tests cover double move and field access after a
+>   move. The tracker still runs at symbol-resolution time; replacing it with
+>   MIR move/init dataflow remains M3.1–M3.6.
 > - Still pending in S1.4: automatic `Clone` derivation/body generation.
 >
 > Next: negative impls/explicit auto-trait impls, then the M1 ownership/move

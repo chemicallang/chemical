@@ -3933,7 +3933,7 @@ bool SymResLinkBody::check_chain(AccessChain* chain, bool assigning, ASTDiagnose
         moved = find_moved_chain_value(chain);
     }
     if(moved) {
-        auto& diag = diagnoser.error((ASTNode*) chain);
+        auto& diag = diagnoser.error((ASTNode*) chain).with_code("SAFE-MOVE-001");
         diag << "cannot " << (assigning ? "assign" : "access") << " \'" << chain->chain_representation() << "' as '" << moved->representation() << "' has been moved";
         auto message = diag.message;
         diagnoser.error((ASTNode*) moved) << message;
@@ -3945,7 +3945,7 @@ bool SymResLinkBody::check_chain(AccessChain* chain, bool assigning, ASTDiagnose
 bool SymResLinkBody::check_id(VariableIdentifier* id, ASTDiagnoser& diagnoser) {
     const auto moved = find_moved_chain_value(id);
     if(moved) {
-        auto& diag = diagnoser.error(id);
+        auto& diag = diagnoser.error(id).with_code("SAFE-MOVE-001");
         diag << "cannot access identifier '" << id->representation() << "' as '" << moved->representation() << "' has been moved";
         auto message = diag.message;
         diagnoser.error(moved) << message;
@@ -3957,7 +3957,7 @@ bool SymResLinkBody::check_id(VariableIdentifier* id, ASTDiagnoser& diagnoser) {
 bool SymResLinkBody::mark_moved_id(VariableIdentifier* id, ASTDiagnoser& diagnoser) {
     const auto moved = find_moved_chain_value(id);
     if(moved) {
-        auto& diag = diagnoser.error(id);
+        auto& diag = diagnoser.error(id).with_code("SAFE-MOVE-001");
         diag << "cannot move '" << id->representation() << "' as '" << moved->representation() << "' has been moved";
         auto message = diag.message;
         diagnoser.error(moved) << message;
@@ -4030,7 +4030,7 @@ bool SymResLinkBody::mark_moved_value(Value* value, ASTDiagnoser& diagnoser) {
         }
         const auto moved = find_moved_chain_value(chain);
         if(moved) {
-            auto& diag = diagnoser.error((ASTNode*) chain);
+            auto& diag = diagnoser.error((ASTNode*) chain).with_code("SAFE-MOVE-001");
             diag << "cannot move '" << chain->chain_representation() << "' as '" << moved->representation() << "' has been moved";
             auto message = diag.message;
             diagnoser.error((ASTNode*) moved) << message;

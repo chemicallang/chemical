@@ -23,6 +23,20 @@ func neg_move_twice(env : &mut TestEnv) {
 }
 
 @test
+func neg_use_after_move_has_code(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct S {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nfunc main() {\n    var a = S { x : 1 }\n    var b = a\n    var c = a.x\n}\n"
+    expect_compile_error(env, "use_after_move_code", ch, "SAFE-MOVE-001")
+}
+
+@test
+func neg_move_twice_has_code(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct S {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nfunc main() {\n    var a = S { x : 1 }\n    var b = a\n    var c = a\n}\n"
+    expect_compile_error(env, "move_twice_code", ch, "SAFE-MOVE-001")
+}
+
+@test
 func neg_zeroed_with_dtor(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct S {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nfunc main() {\n    var s = zeroed<S>()\n}\n"

@@ -107,3 +107,17 @@ func conditional_init_without_use_is_allowed(env : &mut TestEnv) {
     var ch = "struct S {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var cond = true\n        var s : S\n        if(cond) { s = S { x : 1 } }\n        return 0\n    }\n}\n"
     expect_compile_success(env, "conditional_init_ok", ch)
 }
+
+@test
+func neg_constant_array_index_out_of_bounds(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var a : [3]int\n    a[3] = 1\n    return a[3]\n}\n"
+    expect_compile_error(env, "array_oob", ch, "SAFE-BOUNDS-001")
+}
+
+@test
+func constant_array_index_in_bounds_is_allowed(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var a : [3]int\n    a[2] = 1\n    return a[2]\n}\n"
+    expect_compile_success(env, "array_in_bounds", ch)
+}

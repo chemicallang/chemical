@@ -208,6 +208,10 @@
 >   on a generic `T: Clone` still hits the pre-existing generic-interface
 >   method-resolution limitation (the same issue as bound methods on generic
 >   fields), so that remains pending.
+> - S5.4a static array bounds: a constant index into a fixed-size array is
+>   checked at type verification against the declared length and rejected with
+>   `SAFE-BOUNDS-001`. Dynamic-index and vector bounds are still pending; the
+>   vector runtime checks remain blocked by the router-plugin OOB below.
 > - **Known blockers (2026-10-23):** `Option<T>`/`vector<T>` `Clone` bodies
 >   with `T: Clone` still fail inside `std` with `unresolved child 'clone'`
 >   during generic instantiation, although the identical impl compiles in a

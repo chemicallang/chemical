@@ -3,6 +3,8 @@
 #include "TypeVerifyAPI.h"
 #include <unordered_set>
 #include "ast/values/FunctionCall.h"
+#include "ast/values/IntNumValue.h"
+#include "ast/types/ArrayType.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/values/StructValue.h"
@@ -486,6 +488,22 @@ void TypeVerifier::VisitIndexOperator(IndexOperator* value) {
     RecursiveVisitor::VisitIndexOperator(value);
     if (!disable_index_destructible_check) {
         check_destructible_index(*this, value);
+    }
+    // A constant index into a fixed-size array is checkable statically; do not
+    // wait for a runtime bounds check (which is a separate milestone).
+    BaseType* parent_type = value->parent_val ? value->parent_val->getType() : nullptr;
+    if(parent_type != nullptr && parent_type->kind() == BaseTypeKind::Array &&
+       value->idx != nullptr && value->idx->val_kind() == ValueKind::IntN) {
+        auto* array_type = parent_type->as_array_type_unsafe();
+        if(array_type->has_array_size()) {
+            const uint64_t index = value->idx->as_int_num_value_unsafe()->get_num_value();
+            if(index >= array_type->get_array_size()) {
+                std::string message = "array index " + std::to_string(index) +
+                    " is out of bounds for an array of length " +
+                    std::to_string(array_type->get_array_size());
+                diagnoser.error(value).with_code("SAFE-BOUNDS-001") << message;
+            }
+        }
     }
 }
 

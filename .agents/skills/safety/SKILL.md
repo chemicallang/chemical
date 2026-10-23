@@ -58,9 +58,10 @@ Implemented:
   on `ReferenceType` (S1.1a). `func <'a, T>`, `struct Foo<'a>`, and
   `impl<'a, T>` collect lifetime parameters; duplicate names are rejected
   (S1.1b). Generic lifetime arguments (`View<'a>`) parse in type position and
-  are stored on `GenericType::lifetime_args` (S1.1c). Resolution, elision,
-  `'static`, and enforcement are still pending. Chemical syntax is
-  `func <'a> f(...)`.
+  are stored on `GenericType::lifetime_args` (S1.1c). Basic lifetime-name
+  resolution rejects unknown names while accepting `'static`/`'self`
+  (S1.1d). Elision, outlives constraints, and enforcement are still pending.
+  Chemical syntax is `func <'a> f(...)`.
 
 Next:
 

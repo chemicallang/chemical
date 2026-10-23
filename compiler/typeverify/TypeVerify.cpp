@@ -317,7 +317,10 @@ void verify_container_field_types(TypeVerifier& verifier, MembersContainer* cont
 }
 
 void TypeVerifier::VisitStructDecl(StructDefinition* def) {
+    const auto before = lifetime_scope.size();
+    for(const auto lifetime : def->lifetime_params) lifetime_scope.push_back(lifetime);
     RecursiveVisitor::VisitStructDecl(def);
+    lifetime_scope.resize(before);
     verify_container_inherited(*this, def);
     verify_container_composition(*this, def);
     verify_container_field_types(*this, def);
@@ -1837,6 +1840,23 @@ void TypeVerifier::VisitDeleteStmt(DestructStmt* node) {
     }
 }
 
+void TypeVerifier::VisitReferenceType(ReferenceType* type) {
+    if(!type->lifetime.empty() && type->lifetime != "'static" && type->lifetime != "'self") {
+        bool found = false;
+        for(const auto declared : lifetime_scope) {
+            if(declared == type->lifetime) { found = true; break; }
+        }
+        if(!found) {
+            std::string msg = "unknown lifetime parameter '";
+            msg.append(type->lifetime.data(), type->lifetime.size());
+            msg += "'";
+            const auto loc = current_func_type ? current_func_type->get_location() : SourceLocation(0);
+            diagnoser.error(chem::string_view(msg.data(), msg.size()), loc);
+        }
+    }
+    RecursiveVisitor::VisitReferenceType(type);
+}
+
 void TypeVerifier::VisitFunctionDecl(FunctionDeclaration *decl) {
     if(decl->attrs.is_extern && !decl->is_comptime() && decl->body.has_value()) {
         diagnoser.error(decl) << "an `@extern` function cannot have a body; remove the body or the `@extern` annotation";
@@ -2077,7 +2097,10 @@ void TypeVerifier::VisitLinkedType(LinkedType* type) {
 void TypeVerifier::VisitGenericFuncDecl(GenericFuncDecl* node) {
     const auto prev_gen_public = is_generic_public_context;
     is_generic_public_context = node->master_impl->specifier() == AccessSpecifier::Public;
+    const auto before = lifetime_scope.size();
+    for(const auto lifetime : node->lifetime_params) lifetime_scope.push_back(lifetime);
     visit(node->master_impl);
+    lifetime_scope.resize(before);
     is_generic_public_context = prev_gen_public;
 }
 
@@ -2091,35 +2114,51 @@ void TypeVerifier::VisitGenericTypeDecl(GenericTypeDecl* node) {
 void TypeVerifier::VisitGenericStructDecl(GenericStructDecl* node) {
     const auto prev_gen_public = is_generic_public_context;
     is_generic_public_context = node->master_impl->specifier() == AccessSpecifier::Public;
+    const auto before = lifetime_scope.size();
+    for(const auto lifetime : node->lifetime_params) lifetime_scope.push_back(lifetime);
+    for(const auto lifetime : node->master_impl->lifetime_params) lifetime_scope.push_back(lifetime);
     visit(node->master_impl);
+    lifetime_scope.resize(before);
     is_generic_public_context = prev_gen_public;
 }
 
 void TypeVerifier::VisitGenericUnionDecl(GenericUnionDecl* node) {
     const auto prev_gen_public = is_generic_public_context;
     is_generic_public_context = node->master_impl->specifier() == AccessSpecifier::Public;
+    const auto before = lifetime_scope.size();
+    for(const auto lifetime : node->lifetime_params) lifetime_scope.push_back(lifetime);
     visit(node->master_impl);
+    lifetime_scope.resize(before);
     is_generic_public_context = prev_gen_public;
 }
 
 void TypeVerifier::VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {
     const auto prev_gen_public = is_generic_public_context;
     is_generic_public_context = node->master_impl->specifier() == AccessSpecifier::Public;
+    const auto before = lifetime_scope.size();
+    for(const auto lifetime : node->lifetime_params) lifetime_scope.push_back(lifetime);
     visit(node->master_impl);
+    lifetime_scope.resize(before);
     is_generic_public_context = prev_gen_public;
 }
 
 void TypeVerifier::VisitGenericVariantDecl(GenericVariantDecl* node) {
     const auto prev_gen_public = is_generic_public_context;
     is_generic_public_context = node->master_impl->specifier() == AccessSpecifier::Public;
+    const auto before = lifetime_scope.size();
+    for(const auto lifetime : node->lifetime_params) lifetime_scope.push_back(lifetime);
     visit(node->master_impl);
+    lifetime_scope.resize(before);
     is_generic_public_context = prev_gen_public;
 }
 
 void TypeVerifier::VisitGenericImplDecl(GenericImplDecl* node) {
     const auto prev_gen_public = is_generic_public_context;
     is_generic_public_context = node->master_impl->specifier() == AccessSpecifier::Public;
+    const auto before = lifetime_scope.size();
+    for(const auto lifetime : node->lifetime_params) lifetime_scope.push_back(lifetime);
     visit(node->master_impl);
+    lifetime_scope.resize(before);
     is_generic_public_context = prev_gen_public;
 }
 

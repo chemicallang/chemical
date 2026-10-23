@@ -29,6 +29,13 @@ func lifetime_reference_syntax_compiles(env : &mut TestEnv) {
 }
 
 @test
+func neg_unknown_lifetime_parameter(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct View<'a> {\n    var p : &'b int\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "unknown_lifetime_param", ch, "unknown lifetime parameter 'b'")
+}
+
+@test
 func neg_duplicate_lifetime_parameter(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "func <'a, 'a> bad(x : &'a int) : int { return *x }\nfunc main() {}\n"

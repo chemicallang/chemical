@@ -46,6 +46,12 @@ public:
     bool is_no_lifetime_check = false;
 
     /**
+     * Lifetime parameters in scope while checking a declaration. `'static` and
+     * `'self` are always accepted; other names must be declared.
+     */
+    std::vector<chem::string_view> lifetime_scope;
+
+    /**
      * is inside an unsafe block
      */
     bool is_unsafe = false;
@@ -133,6 +139,7 @@ public:
     void VisitReturnStmt(ReturnStatement *stmt);
 
     void VisitFunctionDecl(FunctionDeclaration *decl);
+    void VisitReferenceType(ReferenceType* type);
 
     void VisitDeleteStmt(DestructStmt* stmt);
 

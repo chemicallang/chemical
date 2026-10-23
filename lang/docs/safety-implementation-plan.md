@@ -86,8 +86,14 @@
 >   in copies/representation. A struct field `View<'a>` compiles.
 >   Generic struct literals with explicit lifetime arguments
 >   (`View<'a> { ... }`) are not parsed yet; construction uses inference.
-> - Still pending in S1.1: lifetime-name resolution, elision, `'static`, bounds,
->   and enforcement. The current syntax is parsed and carried, not yet checked.
+> - S1.1d lifetime-name resolution (basic): `TypeVerifier` tracks declared
+>   lifetimes from generic functions/structs/unions/variants/interfaces/impls
+>   and legacy struct lifetimes; `'static` and `'self` are always valid;
+>   unknown names are rejected (`unknown lifetime parameter`). Negative test
+>   added.
+> - Still pending in S1.1: elision/inference, `'static` bounds, and eventual
+>   borrow-checker enforcement. Lifetimes are resolved for declaration validity
+>   but not yet related by outlives constraints.
 >
 > Next: finish S1.1 lifetime parameters/elision, then S1.0b lifetimes in generic
 > impls, S1.2 `'static`/bounds/temporary extension, S1.3 variance, and S1.4

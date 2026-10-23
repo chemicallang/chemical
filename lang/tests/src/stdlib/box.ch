@@ -96,3 +96,19 @@ func box_send_is_recursive(env : &mut TestEnv) {
         env.error("nested Box<T> lost Send or its value")
     }
 }
+
+@test
+func box_into_inner_transfers_ownership(env : &mut TestEnv) {
+    box_reset()
+    {
+        var b = std::box(BoxCounter { value : 14 })
+        var out = b.into_inner()
+        if(out.value != 14) {
+            env.error("Box::into_inner returned the wrong value")
+            return
+        }
+    }
+    if(box_drops != 1) {
+        env.error("Box::into_inner did not transfer ownership exactly once")
+    }
+}

@@ -148,8 +148,11 @@ Next:
   written and later moved out with `memcpy`/`intrinsics::forget`.
   `std::Box<T>` (S1.8) is a unique heap owner and derives `Send`/`Sync` from
   `T` through conditional positive impls (S1.5m), which the type checker now
-  evaluates against concrete arguments. Next: partial-move/drop elaboration,
-  then the borrow checker.
+  evaluates against concrete arguments. `std::Rc<T>` (S1.8b) adds
+  single-threaded reference counting with unique-owner `get_mut`/`try_unwrap`
+  and is structurally `!Send`/`!Sync`; `Box::into_inner` frees storage without
+  re-running the destructor. Next: partial-move/drop elaboration, then the
+  borrow checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

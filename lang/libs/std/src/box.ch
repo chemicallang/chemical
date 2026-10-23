@@ -41,6 +41,17 @@ public struct Box<T> {
     public func as_mut_ptr(&mut self) : *mut T {
         return self.ptr
     }
+
+    /** Move the value out of the box and free its storage. */
+    public func into_inner(&mut self) : T {
+        var out = zeroed:unsafe<T>()
+        unsafe {
+            memcpy(&raw mut out, self.ptr as *mut void, sizeof(T))
+            free(self.ptr as *mut void)
+        }
+        self.ptr = null
+        return out
+    }
 }
 
 public func <T> box(value : T) : Box<T> {

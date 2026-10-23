@@ -426,3 +426,17 @@ func neg_box_follows_inner_sync(env : &mut TestEnv) {
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\npublic func main() : int {\n    var b = std::box(std::NonNull<int> { ptr = null })\n    var h = Holder<std::Box<std::NonNull<int>>> { data = null }\n    return h.check()\n}\n"
     expect_compile_error_with_mod(env, "box_inner_sync", ch, "does not satisfy", NEG_MOD_STD_CORE)
 }
+
+@test
+func neg_rc_is_not_send(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\npublic func main() : int {\n    var r = std::rc(1)\n    var h = Holder<std::Rc<int>> { data = null }\n    return h.check()\n}\n"
+    expect_compile_error_with_mod(env, "rc_not_send", ch, "does not satisfy", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_rc_is_not_sync(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\npublic func main() : int {\n    var r = std::rc(1)\n    var h = Holder<std::Rc<int>> { data = null }\n    return h.check()\n}\n"
+    expect_compile_error_with_mod(env, "rc_not_sync", ch, "does not satisfy", NEG_MOD_STD_CORE)
+}

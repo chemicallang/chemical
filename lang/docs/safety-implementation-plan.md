@@ -300,6 +300,12 @@
 >   (`memcpy` + `intrinsics::forget`), and `Send`/`Sync` following `T` via
 >   conditional unsafe impls. Tests cover drop-once, mutation, moves, strings,
 >   nested Send, and non-Send/non-Sync inner values.
+> - S1.8b `std::Rc<T>`: single-threaded reference counting with a private
+>   `RcInner<T>` (strong count + value), `clone`, `get`, `strong_count`,
+>   `get_mut` and `try_unwrap` (both require a unique owner), and exactly-once
+>   destruction of the shared value. `Rc` is structurally `!Send`/`!Sync`.
+>   `Box::into_inner` moves the value out and frees its storage without running
+>   the destructor twice.
 > - S1.6c `std::MaybeUninit<T>` / `std::ManuallyDrop<T>`: raw storage with
 >   no automatic drop glue. `@no_drop` suppresses both generated and explicit
 >   destructors (leaking is safe); `MaybeUninit::write`/`assume_init` and

@@ -109,13 +109,20 @@
 > - S1.1f where-clause lifetime bounds: `where 'a: 'b + 'c` parses into
 >   `WhereClause::lifetime_bounds`; every referenced lifetime must be declared
 >   (or `'static`/`'self`). Positive and unknown-bound tests added.
+> - S1.1g type-parameter lifetime bounds: `where T: 'static` and
+>   `where T: 'a + 'static` parse into `WhereConstraint::lifetime_bounds`
+>   alongside trait constraints, and every referenced lifetime must be
+>   declared. `&'static T` is accepted. Synthetic elided lifetimes now use the
+>   lexer's no-apostrophe representation (`self`, `elided`) so all lifetime
+>   names share one form. Positive and unknown-bound tests added.
 > - Still pending in S1.1: enforcement of outlives constraints in the borrow
->   checker and `'static` bounds beyond declaration validation. Lifetimes are
->   resolved/elided for declaration validity but not yet related by region
->   constraints.
+>   checker. Lifetimes are resolved/elided for declaration validity but not yet
+>   related by region constraints.
+> - S1.2 temporary lifetime extension is deferred to M4, where regions and
+>   destruction points exist; it cannot be verified before the borrow checker.
 >
-> Next: S1.2 `'static`/bounds/temporary extension, S1.3 variance, and S1.4
-> opt-in `Copy`/`Drop`.
+> Next: S1.3 variance/`PhantomData`, and S1.4 opt-in `Copy`/`Drop`/`Clone`/
+> `Default`.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

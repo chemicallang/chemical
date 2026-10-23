@@ -71,6 +71,20 @@ func lifetime_generic_impl_with_type_param_compiles(env : &mut TestEnv) {
 }
 
 @test
+func lifetime_static_and_type_bounds_compiles(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "func <'a, T> keep_static(x : T) : int where T: 'static {\n    return 0\n}\nfunc <'a, T> keep_a(x : T) : int where T: 'static + 'a {\n    return 0\n}\nfunc static_ref(x : &'static int) : int {\n    return *x\n}\npublic func main() : int {\n    var one = 1\n    return keep_static(1) + keep_a(2) + static_ref(&one) - 1\n}\n"
+    expect_compile_success(env, "lifetime_static_bounds_ok", ch)
+}
+
+@test
+func neg_lifetime_type_bound_unknown(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "func <'a, T> bad(x : T) : int where T: 'b {\n    return 0\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "lifetime_type_bound_unknown", ch, "unknown lifetime parameter 'b' in where clause")
+}
+
+@test
 func neg_unknown_lifetime_parameter(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct View<'a> {\n    var p : &'b int\n}\npublic func main() : int { return 0 }\n"

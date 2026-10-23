@@ -1880,7 +1880,7 @@ static void collect_reference_types(BaseType* type, std::vector<ReferenceType*>&
 // - multiple distinct input lifetimes require an explicit output lifetime.
 // A synthetic name is used instead of inventing a declaration, so ordinary
 // declaration validation does not reject it.
-static constexpr chem::string_view kElidedLifetime("'elided");
+static constexpr chem::string_view kElidedLifetime("elided");
 
 void apply_signature_lifetime_elision(FunctionDeclaration* decl, ASTDiagnoser& diagnoser) {
     std::vector<ReferenceType*> params;
@@ -1914,7 +1914,7 @@ void apply_signature_lifetime_elision(FunctionDeclaration* decl, ASTDiagnoser& d
 
     chem::string_view chosen;
     if (has_self_ref) {
-        chosen = "'self";
+        chosen = "self";
     } else if (explicit_count == 1) {
         chosen = explicit_input;
     } else if (params.size() == 1 && has_elided_input) {
@@ -1940,6 +1940,9 @@ void apply_signature_lifetime_elision(FunctionDeclaration* decl, ASTDiagnoser& d
 }
 
 static bool is_lifetime_in_scope(const std::vector<chem::string_view>& scope, const chem::string_view& lifetime) {
+    // Lexed lifetime values exclude the leading apostrophe (the lexer stores
+    // `a` for `'a`), so the synthetic names use the same representation.
+    if(lifetime == "static" || lifetime == "self" || lifetime == "elided") return true;
     if(lifetime == "'static" || lifetime == "'self" || lifetime == "'elided") return true;
     for(const auto declared : scope) {
         if(declared == lifetime) return true;
@@ -1969,6 +1972,16 @@ void TypeVerifier::VisitFunctionDecl(FunctionDeclaration *decl) {
                 diagnoser.error(chem::string_view(msg.data(), msg.size()), decl->get_location());
             }
             for(const auto target : bound.bounds) {
+                if(!is_lifetime_in_scope(lifetime_scope, target)) {
+                    std::string msg = "unknown lifetime parameter '";
+                    msg.append(target.data(), target.size());
+                    msg += "' in where clause";
+                    diagnoser.error(chem::string_view(msg.data(), msg.size()), decl->get_location());
+                }
+            }
+        }
+        for(const auto& constraint : decl->where_clause->constraints) {
+            for(const auto target : constraint.lifetime_bounds) {
                 if(!is_lifetime_in_scope(lifetime_scope, target)) {
                     std::string msg = "unknown lifetime parameter '";
                     msg.append(target.data(), target.size());

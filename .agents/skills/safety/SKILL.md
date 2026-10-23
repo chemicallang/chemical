@@ -62,7 +62,8 @@ Implemented:
   resolution rejects unknown names while accepting `'static`/`'self`
   (S1.1d). Signature elision ties `&self` outputs to `'self`, one input
   lifetime to the output, and rejects ambiguous multi-input outputs (S1.1e).
-  `where 'a: 'b` bounds parse and are validated for declared names (S1.1f).
+  `where 'a: 'b` and `where T: 'static`/`T: 'a` bounds parse and are
+  validated for declared names; `&'static T` is accepted (S1.1f/S1.1g).
   Lifetime-only and mixed generic impl targets (`impl<'a> Trait for View<'a>`,
   `impl<'a, T> Trait for View<'a, T>`) and explicit `View<'a> { ... }` /
   `View<'a, T> { ... }` literals work end-to-end (S1.0b). Enforcement in the
@@ -70,8 +71,9 @@ Implemented:
 
 Next:
 
-- S1.2 `'static`/bounds/temporary extension, then S1.3 variance and S1.4
-  opt-in `Copy`/`Drop`.
+- S1.2 `'static`/bounds are done; temporary lifetime extension moves with the
+  borrow checker (M4). Next: S1.3 variance/`PhantomData`, then S1.4 opt-in
+  `Copy`/`Drop`/`Clone`/`Default`.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

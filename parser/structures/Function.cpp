@@ -656,17 +656,27 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& allocator, ASTAlloca
                     break;
                 }
                 std::vector<TypeLoc> trait_types;
+                std::vector<chem::string_view> lifetime_constraints;
                 do {
                     consumeNewLines();
+                    if(token->type == TokenType::Lifetime) {
+                        lifetime_constraints.emplace_back(allocate_view(allocator, token->value));
+                        token++;
+                        continue;
+                    }
                     auto type = parseTypeLoc(allocator);
                     if(type) {
                         trait_types.emplace_back(type);
                     } else {
-                        error("expected a trait/interface type in where clause");
+                        error("expected a trait/interface type or lifetime in where clause");
                         break;
                     }
                 } while(consumeToken(TokenType::PlusSym));
-                constraints.emplace_back(allocate_view(allocator, param_id->value), std::move(trait_types));
+                constraints.emplace_back(
+                    allocate_view(allocator, param_id->value),
+                    std::move(trait_types),
+                    std::move(lifetime_constraints)
+                );
             }
         } while(consumeToken(TokenType::CommaSym));
         decl->where_clause = new (allocator.allocate<WhereClause>()) WhereClause(std::move(constraints), std::move(lifetime_bounds));

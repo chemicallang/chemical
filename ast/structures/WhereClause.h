@@ -26,8 +26,18 @@ struct WhereConstraint {
     /** The trait/interface types the parameter must satisfy */
     std::vector<TypeLoc> constraints;
 
+    /** Lifetime bounds on a type parameter, e.g. `T: 'static + 'a` */
+    std::vector<chem::string_view> lifetime_bounds;
+
     WhereConstraint(chem::string_view param_name, std::vector<TypeLoc> constraints)
         : param_name(param_name), constraints(std::move(constraints)) {}
+
+    WhereConstraint(
+        chem::string_view param_name,
+        std::vector<TypeLoc> constraints,
+        std::vector<chem::string_view> lifetime_bounds
+    ) : param_name(param_name), constraints(std::move(constraints)),
+        lifetime_bounds(std::move(lifetime_bounds)) {}
 };
 
 /**

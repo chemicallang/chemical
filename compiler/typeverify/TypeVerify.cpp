@@ -1221,6 +1221,14 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
             if (interface_def->interface_bits.has(InterfaceBits::SEND_BIT) ||
                 interface_def->interface_bits.has(InterfaceBits::SYNC_BIT)) {
                 auto container = concrete_type->get_members_container();
+                auto* for_ = container != nullptr
+                    ? (ASTAny*) container : (ASTAny*) concrete_type->canonical();
+                if (verifier.index.has_negative_impl(interface_def, for_)) {
+                    diagnoser.error(call) << "type '" << concrete_type->representation()
+                        << "' is declared !"
+                        << (interface_def->interface_bits.has(InterfaceBits::SEND_BIT) ? "Send" : "Sync");
+                    continue;
+                }
                 if (container != nullptr &&
                     verifier.index.get_impl(interface_def, container) != nullptr) {
                     continue;
@@ -1814,6 +1822,17 @@ void TypeVerifier::VisitImplDecl(ImplDefinition* implDecl) {
         // all), in which case there is nothing to verify
         if (interface_node != nullptr && interface_node->kind() == ASTNodeKind::InterfaceDecl) {
             const auto interface = interface_node->as_interface_def_unsafe();
+            if (implDecl->attrs.is_negative) {
+                if (!(interface->interface_bits.has(InterfaceBits::SEND_BIT) ||
+                      interface->interface_bits.has(InterfaceBits::SYNC_BIT))) {
+                    diagnoser.error(implDecl).with_code("SAFE-AUTO-002")
+                        << "negative implementations are only supported for Send and Sync";
+                } else if (!implDecl->evaluated_nodes().empty()) {
+                    diagnoser.error(implDecl).with_code("SAFE-AUTO-002")
+                        << "a negative implementation cannot define members";
+                }
+                return;
+            }
             verify_interface_implementation(index, diagnoser, implDecl, interface);
             if ((interface->interface_bits.has(InterfaceBits::SEND_BIT) ||
                  interface->interface_bits.has(InterfaceBits::SYNC_BIT)) &&

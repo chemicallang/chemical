@@ -3,6 +3,7 @@
 #pragma once
 
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <atomic>
 #include <mutex>
@@ -52,6 +53,12 @@ public:
 
     std::unordered_map<ImplementationIndexKey, ImplDefinition*, ImplementationIndexKeyHash> map_;
 
+    /**
+     * Negative auto-trait impls (`impl !Send for T`). Kept separate from map_
+     * so a negative impl never resolves as a normal implementation.
+     */
+    std::unordered_set<ImplementationIndexKey, ImplementationIndexKeyHash> negative_impls_;
+
     // reader-writer mutex for thread-safe concurrent reads and exclusive writes
     mutable std::shared_mutex index_mutex;
 
@@ -79,6 +86,20 @@ public:
     void add(ASTNode* interface, ASTAny* for_, ImplDefinition* impl) {
         std::unique_lock lock(index_mutex);
         map_.emplace(ImplementationIndexKey{ interface, for_ }, impl);
+    }
+
+    /**
+     * Register a negative auto-trait implementation. Returns false when the
+     * same negative impl is already present.
+     */
+    bool add_negative_impl(ASTNode* interface, ASTAny* for_) {
+        std::unique_lock lock(index_mutex);
+        return negative_impls_.insert(ImplementationIndexKey{ interface, for_ }).second;
+    }
+
+    bool has_negative_impl(ASTNode* interface, ASTAny* for_) const {
+        std::shared_lock lock(index_mutex);
+        return negative_impls_.find(ImplementationIndexKey{ interface, for_ }) != negative_impls_.end();
     }
 
     inline bool has_any_generic_impls() const noexcept {
@@ -130,6 +151,7 @@ public:
         {
             std::unique_lock lock(index_mutex);
             map_.clear();
+            negative_impls_.clear();
             generic_impls_.clear();
         }
         generic_impl_count_.store(0, std::memory_order_relaxed);

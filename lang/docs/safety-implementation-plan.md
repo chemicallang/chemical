@@ -193,8 +193,15 @@
 >   `impl Send/Sync` is rejected with `SAFE-AUTO-001`; explicit impls are
 >   honored by both normal and generic-impl bound checks. `ImplDefinition`
 >   preserves the `unsafe` flag through copies/instantiations.
-> - Still pending in S1.5: negative impls (`impl !Send`) and data-race
->   enforcement.
+> - S1.5d negative impls: `impl !Send for T {}` / `impl !Sync for T {}` parse
+>   and are stored in a separate negative-impl set, so they never resolve as a
+>   normal implementation. Negative impls win over structural derivation and
+>   over an `unsafe impl`; conflicting positive/negative and duplicate negative
+>   impls are rejected (`SAFE-AUTO-002`). They are currently restricted to
+>   concrete `Send`/`Sync` targets; generic negative impls are rejected with a
+>   clear diagnostic. Tests cover positive syntax, `!Send`/`!Sync` bound
+>   rejection, non-auto-trait targets, and positive/negative conflicts.
+> - Still pending in S1.5: generic negative impls and data-race enforcement.
 > - Still pending in S1.4: automatic `Clone` derivation/body generation.
 >
 > Next: negative impls/explicit auto-trait impls, then the M1 ownership/move

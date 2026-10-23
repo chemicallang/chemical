@@ -1587,6 +1587,40 @@ void index_implementation(SymbolResolver& linker, ImplDefinition* node) {
     }
     if (linked_node->kind() == ASTNodeKind::InterfaceDecl) {
         const auto linked = linked_node->as_interface_def_unsafe();
+        if (node->attrs.is_negative) {
+            // Negative impls are only meaningful for the Send/Sync auto
+            // traits, and only for concrete targets for now.
+            if (!(linked->interface_bits.has(InterfaceBits::SEND_BIT) ||
+                  linked->interface_bits.has(InterfaceBits::SYNC_BIT))) {
+                linker.error(node).with_code("SAFE-AUTO-002")
+                    << "negative implementations are only supported for Send and Sync";
+                return;
+            }
+            auto* target_type = node->struct_type ? const_cast<BaseType*>(node->struct_type.getType()) : nullptr;
+            if (target_type == nullptr) {
+                linker.error(node).with_code("SAFE-AUTO-002")
+                    << "negative implementation requires a target type";
+                return;
+            }
+            if (node->parent() != nullptr && node->parent()->kind() == ASTNodeKind::GenericImplDecl) {
+                linker.error(node).with_code("SAFE-AUTO-002")
+                    << "generic negative implementations are not supported yet";
+                return;
+            }
+            auto* container = target_type->get_members_container();
+            ASTAny* for_ = container != nullptr
+                ? (ASTAny*) container : (ASTAny*) target_type->canonical();
+            if (linker.implsIndex.get_impl(linked, for_) != nullptr) {
+                linker.error(node).with_code("SAFE-AUTO-002")
+                    << "cannot combine a negative impl with a positive impl for the same type";
+                return;
+            }
+            if (!linker.implsIndex.add_negative_impl(linked, for_)) {
+                linker.error(node).with_code("SAFE-AUTO-002")
+                    << "duplicate negative implementation for this type";
+            }
+            return;
+        }
         if (linked->is_static() && linked->has_implementation()) {
             linker.error("static interface must have only a single implementation", node->encoded_location());
         }

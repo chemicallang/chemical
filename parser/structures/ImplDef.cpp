@@ -78,6 +78,11 @@ ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, ASTAllocator& body_all
             generic_impl = final_decl->as_gen_impl_decl_unsafe();
         }
 
+        // `impl !Send for T` — a negative auto-trait implementation. The `!`
+        // appears after any generic parameter list and before the interface.
+        const bool is_negative = consumeToken(TokenType::NotSym);
+        impl->attrs.is_negative = is_negative;
+
         auto typeToken = token;
         const auto idType = typeToken->type;
         if(Token::isKeywordOrId(idType)) {

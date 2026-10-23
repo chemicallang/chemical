@@ -92,7 +92,9 @@ Next:
   through its arguments. Generic-function bounds are now checked for both
   explicit `f<T>(...)` and inferred `f(x)` calls (S1.5b). Explicit opt-ins use
   `unsafe impl Send/Sync`; a safe `impl Send/Sync` is `SAFE-AUTO-001`
-  (S1.5c). Next: negative impls, then the move checker.
+  (S1.5c). Negative impls (`impl !Send for T`, concrete targets only) override
+  the structural result and conflicts are `SAFE-AUTO-002` (S1.5d). Next:
+  generic negative impls and the move checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).
@@ -159,6 +161,7 @@ Codes are stable and grouped by domain:
 | `SAFE-COPY-003` | `impl Copy` on a type whose field is not Copy |
 | `SAFE-DROP-001` | invalid destructor signature (value self, missing self, non-void return, async) |
 | `SAFE-AUTO-001` | `Send`/`Sync` implemented without `unsafe impl` |
+| `SAFE-AUTO-002` | invalid/conflicting negative impl (non-auto trait, duplicate, positive+negative, generic target) |
 | `SAFE-LIFE-*` | lifetimes / escapes |
 | `SAFE-INIT-*` | initialization / definite assignment |
 | `SAFE-VALID-*` | invalid values / transmute / packed |

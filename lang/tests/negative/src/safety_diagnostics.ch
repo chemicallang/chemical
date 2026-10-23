@@ -99,6 +99,41 @@ func neg_duplicate_lifetime_parameter(env : &mut TestEnv) {
 }
 
 @test
+func negative_send_impl_compiles(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Safe {\n    var x : int\n}\nimpl !Send for Safe {}\npublic func main() : int { return 0 }\n"
+    expect_compile_output_not_contains(env, "negative_send_impl", ch, "negative implementations", NEG_MOD_CORE)
+}
+
+@test
+func neg_negative_send_bound_rejected(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\nstruct Safe {\n    var x : int\n}\nimpl !Send for Safe {}\npublic func main() : int {\n    var h = Holder<Safe> { data = null }\n    return h.check()\n}\n"
+    expect_compile_error_with_mod(env, "negative_send_bound", ch, "is declared !Send", NEG_MOD_CORE)
+}
+
+@test
+func neg_negative_sync_bound_rejected(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\nstruct Safe {\n    var x : int\n}\nimpl !Sync for Safe {}\npublic func main() : int {\n    var h = Holder<Safe> { data = null }\n    return h.check()\n}\n"
+    expect_compile_error_with_mod(env, "negative_sync_bound", ch, "is declared !Sync", NEG_MOD_CORE)
+}
+
+@test
+func neg_negative_impl_only_auto_traits(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "interface Show {\n    func show(&self) : int\n}\nstruct Row {\n    var x : int\n}\nimpl !Show for Row {}\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "negative_impl_non_auto", ch, "SAFE-AUTO-002")
+}
+
+@test
+func neg_negative_impl_conflicts_with_positive(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Safe {\n    var x : int\n}\nunsafe impl Send for Safe {}\nimpl !Send for Safe {}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "negative_impl_conflict", ch, "SAFE-AUTO-002", NEG_MOD_CORE)
+}
+
+@test
 func unsafe_send_impl_allows_raw_pointer(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\nstruct Raw {\n    var p : *mut int\n}\nunsafe impl Send for Raw {}\npublic func main() : int {\n    var h = Holder<Raw> { data = null }\n    return h.check()\n}\n"

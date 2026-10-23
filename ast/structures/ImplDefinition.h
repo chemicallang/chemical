@@ -21,6 +21,9 @@ struct ImplDeclAttrs {
     /** `unsafe impl Trait for T` — required for Send/Sync opt-ins. */
     bool is_unsafe;
 
+    /** `impl !Trait for T` — a negative auto-trait impl. */
+    bool is_negative;
+
 };
 
 class ImplDefinition : public MembersContainer {
@@ -39,9 +42,10 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal,
-            bool is_unsafe = false
+            bool is_unsafe = false,
+            bool is_negative = false
     ) : MembersContainer(ASTNodeKind::ImplDecl, parent_node, location), interface_type(interface_type),
-        struct_type(struct_type), attrs(specifier, is_unsafe)
+        struct_type(struct_type), attrs(specifier, is_unsafe, is_negative)
     {
 
     }
@@ -53,9 +57,10 @@ public:
             ASTNode* parent_node,
             SourceLocation location,
             AccessSpecifier specifier = AccessSpecifier::Internal,
-            bool is_unsafe = false
+            bool is_unsafe = false,
+            bool is_negative = false
     ) : MembersContainer(ASTNodeKind::ImplDecl, parent_node, location), interface_type(nullptr),
-        struct_type(nullptr), attrs(specifier, is_unsafe) {
+        struct_type(nullptr), attrs(specifier, is_unsafe, is_negative) {
 
     }
 
@@ -72,7 +77,8 @@ public:
             parent(),
             encoded_location(),
             attrs.specifier,
-            attrs.is_unsafe
+            attrs.is_unsafe,
+            attrs.is_negative
         );
         impl->attrs = attrs;
         MembersContainer::shallow_copy_into(*impl, allocator);
@@ -86,7 +92,8 @@ public:
             parent(),
             encoded_location(),
             attrs.specifier,
-            attrs.is_unsafe
+            attrs.is_unsafe,
+            attrs.is_negative
         );
         impl->attrs = attrs;
         MembersContainer::copy_into(*impl, allocator);

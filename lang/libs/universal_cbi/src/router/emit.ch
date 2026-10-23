@@ -361,10 +361,10 @@ func (converter : &mut JsConverter) router_url_entries(rd : *mut JsRouterDecl) :
         const key = out.get(a)
         var b = a
         while(b > 0 && router_entry_precedes(key, out.get(b - 1))) {
-            *out.get_ref(b) = out.get(b - 1)
+            *out.get_mut(b) = out.get(b - 1)
             b = b - 1
         }
-        *out.get_ref(b) = key
+        *out.get_mut(b) = key
     }
     return out
 }

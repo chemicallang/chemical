@@ -122,10 +122,13 @@ Next:
   impl discovery is silent on unsatisfied bounds, and impl arguments are
   checked exactly without pointer stripping (S1.5g). Generic variant/union
   field dispatch works through pattern variables (`value.clone()` in a
-  `CloneBox<T>` impl, S1.5h). `impl<T> Clone for Option<T> where T: Clone`
-  now clones `Some`/`None` (S1.4h); generic `vector<T>` `Clone` still needs a
-  body form that resolves `get_ref(i).clone()` without finalizing for
-  non-Clone elements. `impl<T> !Send/!Sync for Wrapper<T>` works for all
+  `CloneBox<T>` impl, S1.5h). Nested generic-impl instantiations whose arguments
+  still contain a generic parameter are signature-finalized but their bodies
+  are deferred until the parameter is concrete (S1.5k); `Option<T>`/
+  `vector<T>` `Clone` remain out until the bound `&T` clone resolves
+  deterministically. `vector::get_ref` now returns `&T` and `vector::get_mut`
+  is the mutable accessor (S1.10a), so mutation through a shared reference is
+  rejected. `impl<T> !Send/!Sync for Wrapper<T>` works for all
   instantiations (S1.5i);
   conditional forms with parameter bounds or a where clause
   (`impl<T: Clone> !Send`, `impl<T> !Sync for Wrapper<T> where T: Clone`) are

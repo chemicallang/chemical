@@ -38,6 +38,7 @@
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/ImplDefinition.h"
+#include "compiler/generics/InstantiationsContainer.h"
 #include "ast/values/VariantCase.h"
 #include "ast/values/VariantCaseVariable.h"
 #include "ast/structures/VariantMemberParam.h"
@@ -1717,6 +1718,32 @@ void SymResLinkBody::VisitGenericFuncDecl(GenericFuncDecl* node) {
     generic_instantiator.FinalizeBody(node, node->instantiations);
 }
 
+static bool generic_impl_arg_is_still_generic(BaseType* type) {
+    if(type == nullptr) return false;
+    switch(type->kind()) {
+        case BaseTypeKind::Linked: {
+            auto* linked = type->as_linked_type_unsafe()->linked;
+            return linked != nullptr && linked->kind() == ASTNodeKind::GenericTypeParam;
+        }
+        case BaseTypeKind::Generic: {
+            auto* generic = type->as_generic_type_unsafe();
+            for(auto& arg : generic->types) {
+                if(generic_impl_arg_is_still_generic((BaseType*) arg)) return true;
+            }
+            auto* linked = generic->referenced ? generic->referenced->linked : nullptr;
+            return linked != nullptr && linked->kind() == ASTNodeKind::GenericTypeParam;
+        }
+        case BaseTypeKind::Pointer:
+            return generic_impl_arg_is_still_generic(type->as_pointer_type_unsafe()->type);
+        case BaseTypeKind::Reference:
+            return generic_impl_arg_is_still_generic(type->as_reference_type_unsafe()->type);
+        case BaseTypeKind::Array:
+            return generic_impl_arg_is_still_generic(type->as_array_type_unsafe()->elem_type);
+        default:
+            return false;
+    }
+}
+
 void SymResLinkBody::VisitGenericImplDecl(GenericImplDecl* node) {
     auto& generic_params = node->generic_params;
     table.scope_start();
@@ -1739,14 +1766,31 @@ void SymResLinkBody::VisitGenericImplDecl(GenericImplDecl* node) {
         snapshot = node->instantiations;
         node->body_linked = true;
     }
-    // finalizing body of instantiations that occurred before declare_and_link
+    // finalizing body of instantiations that occurred before declare_and_link.
+    // Skip nested instantiations whose arguments still contain a generic
+    // parameter: their body can only be linked once the parameter is concrete.
     auto& allocator = getAstAllocator();
+    std::vector<ImplDefinition*> concrete_snapshot;
+    concrete_snapshot.reserve(snapshot.size());
+    auto inst_types = generic_instantiator.getContainer().getInstantiationTypesFor(node);
     for(const auto inst : snapshot) {
+        bool still_generic = false;
+        const int idx = inst->generic_instantiation;
+        if(idx >= 0 && static_cast<size_t>(idx) < inst_types.size()) {
+            for(BaseType* type : inst_types[idx]) {
+                if(generic_impl_arg_is_still_generic(type)) {
+                    still_generic = true;
+                    break;
+                }
+            }
+        }
+        if(still_generic) continue;
         node->finalize_body(allocator, inst);
+        concrete_snapshot.push_back(inst);
     }
-    // finalize the body of all instantiations
+    // finalize the body of all concrete instantiations
     // this basically visits the instantiations body and makes the types concrete
-    generic_instantiator.FinalizeBody(node, std::span<ImplDefinition*>(snapshot));
+    generic_instantiator.FinalizeBody(node, std::span<ImplDefinition*>(concrete_snapshot));
 }
 
 void SymResLinkBody::VisitGenericInterfaceDecl(GenericInterfaceDecl* node) {

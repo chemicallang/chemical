@@ -3,7 +3,6 @@
 using std::string_view;
 using std::string;
 using core::ops::Clone;
-using std::Option;
 
 struct CloneRow {
     var x : int
@@ -120,19 +119,5 @@ func test_clone_impls() {
             return v.x == 41
         }
         return false
-    })
-    test("Option Some clone", () => {
-        var o = Option.Some<CloneRow>(CloneRow { x : 41 })
-        var c = o.clone()
-        if(c is Option.Some) {
-            var Some(v) = c else unreachable
-            return v.x == 41
-        }
-        return false
-    })
-    test("Option None clone", () => {
-        var o = Option.None<CloneRow>()
-        var c = o.clone()
-        return c is Option.None
     })
 }

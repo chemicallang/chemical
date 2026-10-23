@@ -285,11 +285,17 @@
 >   cannot disable it. `MIRTests` covers valid moves, double moves, drop of an
 >   uninitialized path, and conditional drop; the negative suite covers the
 >   `unsafe` bypass (`SAFE-INIT-001`).
-> - S1.4h `Option<T>: Clone`: `impl<T> Clone for Option<T> where T: Clone`
->   now clones both `Some` and `None`, including through the generic variant
->   pattern path. Positive tests cover `Some<CloneRow>` and `None<CloneRow>`.
->   Generic `vector<T>` `Clone` still needs a body form that resolves
->   `get_ref(i).clone()` without finalizing for non-Clone element types.
+> - S1.5k nested generic-impl body deferral: a generic impl instantiation whose
+>   arguments still contain a generic parameter is registered and
+>   signature-finalized, but its body is not linked until the parameter becomes
+>   concrete. This removes the nondeterministic "unresolved child 'clone'"
+>   failures seen when a nested `Option<T>`/`vector<T>` body was linked too
+>   early. `Option<T>`/`vector<T>` `Clone` remain out of the tree until their
+>   body form can resolve the bound clone on `&T` deterministically.
+> - S1.10a vector reference soundness: `vector::get_ref` now returns `&T`
+>   (it used to return `&mut T` from `&self`), and `vector::get_mut` provides
+>   mutation through a mutable vector. A negative test proves
+>   `*v.get_ref(0) = ...` is rejected; a positive test covers `get_mut`.
 > - Still pending in S1.4: automatic `Clone` derivation/body generation.
 >
 > Next: conditional-state/drop-flag modelling, then conditional negative impls

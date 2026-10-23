@@ -215,8 +215,8 @@ internal func expect_compile_error_with_mod(env : &mut TestEnv, name : *char, ch
     var out_path : char[512]
     sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
 
-    var output_buf : char[16384]
-    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 16384)
+    var output_buf : char[65536]
+    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
 
     var out_view = unsafe(&raw output_buf[0])
     // Coded diagnostics render as `error[SAFE-*]:`; uncoded ones as `error:`.
@@ -248,8 +248,8 @@ internal func expect_compile_warning_id(env : &mut TestEnv, name : *char, ch_con
     var out_path : char[512]
     sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
 
-    var output_buf : char[16384]
-    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 16384)
+    var output_buf : char[65536]
+    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
     if(rc != 0) {
         env.error("expected compiler to succeed while emitting a warning")
         neg_debug_print(name, unsafe(&raw output_buf[0]))
@@ -275,8 +275,8 @@ internal func expect_compile_output_contains(env : &mut TestEnv, name : *char, c
     var out_path : char[512]
     sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
 
-    var output_buf : char[16384]
-    run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 16384)
+    var output_buf : char[65536]
+    run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
 
     if(string_contains(unsafe(&raw output_buf[0]), expected_sub)) {
         env.success("compiler emitted the expected diagnostic")
@@ -298,8 +298,8 @@ internal func expect_compile_output_not_contains(env : &mut TestEnv, name : *cha
     var out_path : char[512]
     sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
 
-    var output_buf : char[16384]
-    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 16384)
+    var output_buf : char[65536]
+    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
 
     if(rc != 0) {
         env.error("expected compiler to succeed")
@@ -337,8 +337,8 @@ internal func expect_emitted_symbol(env : &mut TestEnv, name : *char, ch_content
     var c_path : char[512]
     sprintf(unsafe(&raw mut c_path[0]), "%s/%s/out.c", NEG_WORK_DIR, name)
 
-    var output_buf : char[16384]
-    var rc = run_compiler_capture(unsafe(&raw ch_path[0]), unsafe(&raw c_path[0]), unsafe(&raw mut output_buf[0]), 16384)
+    var output_buf : char[65536]
+    var rc = run_compiler_capture(unsafe(&raw ch_path[0]), unsafe(&raw c_path[0]), unsafe(&raw mut output_buf[0]), 65536)
     if(rc != 0) {
         env.error("expected compiler to succeed while emitting C")
         neg_debug_print(name, unsafe(&raw output_buf[0]))
@@ -367,8 +367,8 @@ internal func expect_compile_success(env : &mut TestEnv, name : *char, ch_conten
     var out_path : char[512]
     sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
 
-    var output_buf : char[16384]
-    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 16384)
+    var output_buf : char[65536]
+    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 65536)
 
     if(rc != 0) {
         env.error("expected compiler to succeed but it failed")
@@ -395,7 +395,7 @@ internal func expect_compile_and_exit_mode(env : &mut TestEnv, name : *char, ch_
     var out_path : char[512]
     sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
 
-    var output_buf : char[16384]
+    var output_buf : char[65536]
     var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 16384, mode)
     if(rc != 0) {
         env.error("expected compiler to succeed but it failed")

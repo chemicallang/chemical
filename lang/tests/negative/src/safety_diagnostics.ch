@@ -361,3 +361,10 @@ func unsafe_cell_is_send(env : &mut TestEnv) {
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\npublic func main() : int {\n    var h = Holder<std::UnsafeCell<int>> { data = null }\n    return h.check()\n}\n"
     expect_compile_output_not_contains(env, "unsafe_cell_send", ch, "does not satisfy", NEG_MOD_STD_CORE)
 }
+
+@test
+func neg_vector_get_ref_is_immutable(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var v = std::vector<int>()\n    v.push(1)\n    var r = v.get_ref(0)\n    *r = 2\n    return v.get(0)\n}\n"
+    expect_compile_error_with_mod(env, "vector_get_ref_immutable", ch, "cannot assign to a non mutable value", NEG_MOD_STD_CORE)
+}

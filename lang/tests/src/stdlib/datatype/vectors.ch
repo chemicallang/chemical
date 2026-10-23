@@ -77,6 +77,13 @@ func test_vectors() {
         v.set(4, 10);
         return v.get(0) == 50 && v.get(1) == 40 && v.get(2) == 30 && v.get(3) == 20 && v.get(4) == 10;
     })
+    test("get_mut mutates an element through a mutable vector", () => {
+        var v = vector<int>();
+        v.push(10);
+        v.push(20);
+        *v.get_mut(0) = 99;
+        return v.get(0) == 99 && v.get(1) == 20;
+    })
     test("struct types can be stored in vector", () => {
         var v = vector<VecConcreteChild>();
         v.push(VecConcreteChild { a : 40, b : 50 })

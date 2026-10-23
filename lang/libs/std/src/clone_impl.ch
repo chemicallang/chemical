@@ -106,14 +106,4 @@ impl<T> Clone for span<T> {
     }
 }
 
-impl<T> Clone for Option<T> where T: Clone {
-    public func clone(&self) : Option<T> {
-        if(self is Option.Some) {
-            var Some(value) = self else unreachable
-            return Option.Some<T>(value.clone())
-        }
-        return Option.None<T>()
-    }
-}
-
 }

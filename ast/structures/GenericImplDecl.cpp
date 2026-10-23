@@ -122,6 +122,8 @@ static void adopt_concrete_generic_impl(
     index.add_interface(iface, target, impl);
 }
 
+static bool contains_generic_parameter(BaseType* type);
+
 ImplDefinition* GenericImplDecl::register_generic_args(
     GenericInstantiatorAPI& instantiator,
     std::vector<TypeLoc>& generic_args,
@@ -179,7 +181,19 @@ ImplDefinition* GenericImplDecl::register_generic_args(
     // Read `body_linked` under the registration lock. `SymResLinkBody` snapshots
     // the instantiations and publishes `body_linked` under the same lock, so an
     // instantiation appended here is either in that snapshot or sees the flag.
-    const bool finalize_body_now = body_linked;
+    bool finalize_body_now = body_linked;
+    // A nested instantiation whose arguments still contain a generic parameter
+    // (e.g. `Option<T>` demanded while resolving another generic body) must not
+    // finalize its body: method lookup on T is only meaningful once T is
+    // concrete. The concrete instantiation finalizes the body later.
+    if(finalize_body_now) {
+        for(auto& arg : generic_args) {
+            if(contains_generic_parameter(const_cast<BaseType*>(arg.getType()))) {
+                finalize_body_now = false;
+                break;
+            }
+        }
+    }
 
     // unlock reg_mutex immediately — signature finalization only needs registration
     reg_mutex.unlock();

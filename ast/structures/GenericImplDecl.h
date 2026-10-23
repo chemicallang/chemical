@@ -10,6 +10,7 @@ class ImplementationsIndex;
 class ASTDiagnoser;
 class MembersContainer;
 class ASTAny;
+class WhereClause;
 
 /**
  * summary:
@@ -40,6 +41,12 @@ public:
      * master implementation is the first implementation we encounter
      */
     ImplDefinition* master_impl;
+
+    /**
+     * optional `where` clause on the impl header, e.g.
+     * `impl<T> Copy for Wrapper<T> where T: Copy`.
+     */
+    WhereClause* where_clause = nullptr;
 
     /**
      * these are concrete instantiations, however before link_signature and before declare_and_link, we only create

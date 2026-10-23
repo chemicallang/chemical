@@ -99,6 +99,34 @@ func neg_duplicate_lifetime_parameter(env : &mut TestEnv) {
 }
 
 @test
+func generic_impl_where_clause_copy_compiles(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Wrapper<T> {\n    var value : T\n}\nimpl<T> Copy for Wrapper<T> where T: Copy {}\npublic func main() : int {\n    var w = Wrapper<int> { value : 3 }\n    return w.value - 3\n}\n"
+    expect_compile_output_not_contains(env, "generic_impl_where_copy", ch, "SAFE-COPY", NEG_MOD_CORE)
+}
+
+@test
+func neg_generic_impl_where_clause_canceled_by_missing_bound(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Wrapper<T> {\n    var value : T\n}\nimpl<T> Copy for Wrapper<T> {}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "generic_impl_where_missing", ch, "SAFE-COPY-003", NEG_MOD_CORE)
+}
+
+@test
+func generic_impl_where_clause_bound_enforced(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "interface Show {\n    func show(&self) : int\n}\nstruct Wrapper<T> {\n    var value : T\n}\nimpl<T> Show for Wrapper<T> where T: Show {\n    func show(&self) : int {\n        return 0\n    }\n}\npublic func main() : int {\n    var w = Wrapper<int> { value : 3 }\n    return w.show()\n}\n"
+    expect_compile_error(env, "generic_impl_where_bound", ch, "does not satisfy bound 'Show' required by this generic implementation")
+}
+
+@test
+func generic_impl_where_clause_bound_ok(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "interface Show {\n    func show(&self) : int\n}\nstruct Row {\n    var x : int\n}\nimpl Show for Row {\n    func show(&self) : int {\n        return self.x\n    }\n}\nstruct Wrapper<T> {\n    var value : T\n}\nimpl<T> Show for Wrapper<T> where T: Show {\n    func show(&self) : int {\n        return 0\n    }\n}\npublic func main() : int {\n    var w = Wrapper<Row> { value : Row { x : 3 } }\n    return w.show()\n}\n"
+    expect_compile_success(env, "generic_impl_where_bound_ok", ch)
+}
+
+@test
 func destructor_valid_signatures_compile(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct A {\n    var x : int\n    @delete\n    func delete(&self) { }\n}\nstruct B {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int { return 0 }\n"

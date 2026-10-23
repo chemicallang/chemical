@@ -8,6 +8,7 @@
 #include "ast/base/TypeBuilder.h"
 #include "ast/structures/ImplDefinition.h"
 #include "ast/structures/GenericImplDecl.h"
+#include "ast/structures/WhereClause.h"
 
 ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, ASTAllocator& body_allocator, AccessSpecifier specifier) {
 
@@ -72,6 +73,11 @@ ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, ASTAllocator& body_all
 
         }
 
+        GenericImplDecl* generic_impl = nullptr;
+        if(final_decl->kind() == ASTNodeKind::GenericImplDecl) {
+            generic_impl = final_decl->as_gen_impl_decl_unsafe();
+        }
+
         auto typeToken = token;
         const auto idType = typeToken->type;
         if(Token::isKeywordOrId(idType)) {
@@ -112,6 +118,71 @@ ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, ASTAllocator& body_all
             // every implementation must name the type it is implemented for
             error("expected 'for' after the interface name in an implementation");
             impl->struct_type = getErroredType(allocator);
+        }
+        if(token->type == TokenType::WhereKw) {
+            token++;
+            std::vector<WhereConstraint> constraints;
+            std::vector<LifetimeBound> lifetime_bounds;
+            do {
+                consumeNewLines();
+                if(token->type == TokenType::Lifetime) {
+                    const auto param = allocate_view(allocator, token->value);
+                    token++;
+                    if(!consumeToken(TokenType::ColonSym)) {
+                        error("expected ':' after the lifetime parameter name in where clause");
+                        break;
+                    }
+                    std::vector<chem::string_view> bounds;
+                    do {
+                        consumeNewLines();
+                        if(token->type != TokenType::Lifetime) {
+                            error("expected a lifetime bound after ':' in where clause");
+                            break;
+                        }
+                        bounds.emplace_back(allocate_view(allocator, token->value));
+                        token++;
+                    } while(consumeToken(TokenType::PlusSym));
+                    lifetime_bounds.emplace_back(param, std::move(bounds));
+                } else {
+                    auto param_id = consumeIdentifierOrKeyword();
+                    if(!param_id) {
+                        error("expected a generic type parameter name or lifetime after 'where'");
+                        break;
+                    }
+                    if(!consumeToken(TokenType::ColonSym)) {
+                        error("expected ':' after the generic type parameter name in where clause");
+                        break;
+                    }
+                    std::vector<TypeLoc> trait_types;
+                    std::vector<chem::string_view> lifetime_constraints;
+                    do {
+                        consumeNewLines();
+                        if(token->type == TokenType::Lifetime) {
+                            lifetime_constraints.emplace_back(allocate_view(allocator, token->value));
+                            token++;
+                            continue;
+                        }
+                        auto type = parseTypeLoc(allocator);
+                        if(type) {
+                            trait_types.emplace_back(type);
+                        } else {
+                            error("expected a trait/interface type or lifetime in where clause");
+                            break;
+                        }
+                    } while(consumeToken(TokenType::PlusSym));
+                    constraints.emplace_back(
+                        allocate_view(allocator, param_id->value),
+                        std::move(trait_types),
+                        std::move(lifetime_constraints)
+                    );
+                }
+            } while(consumeToken(TokenType::CommaSym));
+            if(generic_impl == nullptr) {
+                error("a where clause on an implementation requires generic parameters");
+            } else {
+                generic_impl->where_clause = new (allocator.allocate<WhereClause>())
+                    WhereClause(std::move(constraints), std::move(lifetime_bounds));
+            }
         }
         if (!consumeToken(TokenType::LBrace)) {
             error("expected a '{' when starting an implementation");

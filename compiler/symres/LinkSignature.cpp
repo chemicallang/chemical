@@ -1075,12 +1075,45 @@ void TopLevelLinkSignature::VisitGenericVariantDecl(GenericVariantDecl* node) {
     table.scope_end();
 }
 
+static void link_generic_impl_where_clause(TopLevelLinkSignature& linker, GenericImplDecl* node) {
+    if(node->where_clause == nullptr) return;
+    for(auto& constraint : node->where_clause->constraints) {
+        for(const auto param : node->generic_params) {
+            if(param->identifier == constraint.param_name) {
+                constraint.param = param;
+                break;
+            }
+        }
+        for(auto& trait_type : constraint.constraints) {
+            linker.visit(trait_type);
+        }
+    }
+}
+
 void TopLevelLinkSignature::VisitGenericImplDecl(GenericImplDecl* node) {
     auto& generic_params = node->generic_params;
+    // A header where-clause is an additional source of generic-parameter
+    // traits; merge it into the parameters before linking them so interface
+    // bits, member lookup and generic-impl bound checks all see the same set.
+    if(node->where_clause != nullptr) {
+        for(auto& constraint : node->where_clause->constraints) {
+            if(constraint.param != nullptr) continue;
+            for(const auto param : generic_params) {
+                if(param->identifier == constraint.param_name) {
+                    constraint.param = param;
+                    for(auto& trait_type : constraint.constraints) {
+                        param->traits.push_back(trait_type);
+                    }
+                    break;
+                }
+            }
+        }
+    }
     table.scope_start();
     for(const auto param : generic_params) {
         link_param(param);
     }
+    link_generic_impl_where_clause(*this, node);
     // The implemented interface and target type must be linked inside the generic
     // parameter scope. LinkMembersContainerNoScope only covers inherited types,
     // variables and functions, so without this both TypeLoc's stay unresolved and
@@ -1964,6 +1997,7 @@ void AfterBuildIndexesPass(SymbolResolver& resolver, std::vector<ASTNode*>& node
             }
             case ASTNodeKind::GenericImplDecl: {
                 calculate_gen_param_bits(node->as_gen_impl_decl_unsafe()->generic_params);
+                calculate_where_clause_bits(node->as_gen_impl_decl_unsafe()->where_clause);
                 for(const auto func : node->as_gen_impl_decl_unsafe()->master_impl->evaluated_nodes()) {
                     if (func->kind() == ASTNodeKind::FunctionDecl) {
                         calculate_where_clause_bits(func->as_function_unsafe()->where_clause);

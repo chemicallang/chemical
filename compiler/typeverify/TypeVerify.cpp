@@ -21,6 +21,7 @@
 #include "ast/values/IndexOperator.h"
 #include "ast/structures/WhereClause.h"
 #include "ast/structures/GenericStructDecl.h"
+#include "ast/structures/GenericImplDecl.h"
 #include "ast/types/GenericType.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/AccessChain.h"
@@ -1552,6 +1553,7 @@ static bool is_copy_field_type(
     BaseType* type,
     InterfaceDefinition* copy_interface,
     ImplementationsIndex& index,
+    const std::unordered_set<chem::string_view>& copy_params,
     std::unordered_set<MembersContainer*>& visiting
 ) {
     if(type == nullptr) return true;
@@ -1559,7 +1561,7 @@ static bool is_copy_field_type(
         case BaseTypeKind::Array:
             return is_copy_field_type(
                 const_cast<BaseType*>(type->as_array_type_unsafe()->elem_type.getType()),
-                copy_interface, index, visiting
+                copy_interface, index, copy_params, visiting
             );
         case BaseTypeKind::Pointer:
             return true;
@@ -1573,10 +1575,11 @@ static bool is_copy_field_type(
     }
     auto* linked = type->get_direct_linked_node();
     if(linked && linked->kind() == ASTNodeKind::GenericTypeParam) {
-        // `impl<T> Copy for Wrapper<T>` would need `T: Copy`; impl-header
-        // where-clauses are not supported yet, so reject it instead of
-        // claiming a false Copy guarantee.
-        return false;
+        // `impl<T> Copy for Wrapper<T>` is valid only when the impl header
+        // promises `T: Copy` (inline or where clause).
+        // The struct's `T` and the impl's `<T>` are distinct parameter nodes;
+        // match them by name for the common `impl<T> ... for Wrapper<T>` form.
+        return copy_params.count(linked->as_generic_type_param_unsafe()->identifier) != 0;
     }
     auto* container = type->get_members_container();
     if(container == nullptr) {
@@ -1599,6 +1602,14 @@ static void verify_copy_impl(
 ) {
     auto* target_type = impl->struct_type ? const_cast<BaseType*>(impl->struct_type.getType()) : nullptr;
     auto* container = target_type ? target_type->get_members_container() : nullptr;
+    if(container == nullptr && target_type != nullptr && target_type->kind() == BaseTypeKind::Generic) {
+        // The master impl targets the still-generic `Wrapper<T>`; its member
+        // container lives on the generic struct declaration's master impl.
+        auto* linked = target_type->as_generic_type_unsafe()->referenced->linked;
+        if(linked && linked->kind() == ASTNodeKind::GenericStructDecl) {
+            container = linked->as_gen_struct_def_unsafe()->master_impl;
+        }
+    }
     if(container == nullptr) {
         // primitive/pointer targets are built-in Copy; nothing to validate
         return;
@@ -1609,13 +1620,36 @@ static void verify_copy_impl(
             << "' has a destructor and cannot implement Copy";
         return;
     }
+    std::unordered_set<chem::string_view> copy_params;
+    auto add_copy_param_traits = [&](GenericTypeParameter* param, const std::vector<TypeLoc>& traits) {
+        if(param == nullptr) return;
+        for(auto& trait : traits) {
+            auto* node = trait->get_direct_linked_canonical_node();
+            if(node && node->kind() == ASTNodeKind::InterfaceDecl &&
+               node->as_interface_def_unsafe()->interface_bits.has(InterfaceBits::COPY_BIT)) {
+                copy_params.insert(param->identifier);
+                return;
+            }
+        }
+    };
+    if(impl->generic_parent && impl->generic_parent->kind() == ASTNodeKind::GenericImplDecl) {
+        auto* gen_impl = (GenericImplDecl*) impl->generic_parent;
+        for(auto* param : gen_impl->generic_params) {
+            add_copy_param_traits(param, param->traits);
+        }
+        if(gen_impl->where_clause) {
+            for(auto& constraint : gen_impl->where_clause->constraints) {
+                add_copy_param_traits(constraint.param, constraint.constraints);
+            }
+        }
+    }
     std::unordered_set<MembersContainer*> visiting;
     for(auto* member : container->variables()) {
         if(member->kind() != ASTNodeKind::StructMember) continue;
         auto* field = (StructMember*) member;
         if(!is_copy_field_type(
             const_cast<BaseType*>(field->type.getType()),
-            interface, verifier.index, visiting
+            interface, verifier.index, copy_params, visiting
         )) {
             verifier.diagnoser.error(impl).with_code("SAFE-COPY-003")
                 << "field '" << field->name_view() << "' of type '"

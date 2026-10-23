@@ -96,6 +96,15 @@
 >   list (it still requires a generic target type). Positive tests cover a
 >   lifetime-only target and a mixed lifetime/type-parameter target, including
 >   an explicit `View<'a, T> { ... }` literal and a method returning `&'a T`.
+> - S1.0c impl-header where clauses: `impl<T> Trait for Wrapper<T> where T: Copy`
+>   parses into `GenericImplDecl::where_clause`, is linked in the generic-param
+>   scope, merged into the parameter's traits (so interface bits and bound
+>   checks see it), and checked during demand-driven instantiation. A missing
+>   bound is diagnosed as "does not satisfy bound ... required by this generic
+>   implementation". This unlocks `impl<T> Copy for Wrapper<T> where T: Copy`
+>   and similar conditional impls. Note: method bodies that call a bound method
+>   on a generic field (`self.value.show()`) still hit the pre-existing generic
+>   field-resolution limitation; inline `impl<T: Show>` has the same behavior.
 > - S1.1d lifetime-name resolution (basic): `TypeVerifier` tracks declared
 >   lifetimes from generic functions/structs/unions/variants/interfaces/impls
 >   and legacy struct lifetimes; `'static` and `'self` are always valid;

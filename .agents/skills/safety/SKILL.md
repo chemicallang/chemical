@@ -66,7 +66,9 @@ Implemented:
   validated for declared names; `&'static T` is accepted (S1.1f/S1.1g).
   Lifetime-only and mixed generic impl targets (`impl<'a> Trait for View<'a>`,
   `impl<'a, T> Trait for View<'a, T>`) and explicit `View<'a> { ... }` /
-  `View<'a, T> { ... }` literals work end-to-end (S1.0b). `std::PhantomData<T>`
+  `View<'a, T> { ... }` literals work end-to-end (S1.0b); impl-header
+  `where` clauses (`impl<T> Copy for Wrapper<T> where T: Copy`, S1.0c) are
+  parsed, linked and enforced at instantiation. `std::PhantomData<T>`
   is a zero-sized marker usable as `PhantomData<&'a T>` (S1.3a); variance
   analysis waits for regions. `Copy` is opt-in for user types (S1.4a):
   destructor-bearing types and trivially copyable types without an
@@ -79,9 +81,10 @@ Next:
   extension and variance analysis move with the borrow checker (M4).
   S1.4a opt-in `Copy` is enforced (`SAFE-COPY-001`) and the in-tree tree is
   migrated. S1.4b validates `impl Copy`: destructor targets are
-  `SAFE-COPY-002`, non-Copy fields are `SAFE-COPY-003`. S1.4c validates
-  `@delete` signatures (`SAFE-DROP-001`: one `&self`/`&mut self`, void
-  return). Next: `Clone`/`Default` support, then the move checker.
+  `SAFE-COPY-002`, non-Copy fields are `SAFE-COPY-003`; generic fields must be
+  promised `T: Copy` via inline or impl-header where clauses (S1.0c). S1.4c
+  validates `@delete` signatures (`SAFE-DROP-001`: one `&self`/`&mut self`,
+  void return). Next: `Clone`/`Default` support, then the move checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

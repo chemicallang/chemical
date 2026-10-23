@@ -669,51 +669,56 @@ static bool check_generic_impl_bounds(
     auto& index = instantiator.getImplsIndex();
     auto& diagnoser = instantiator.getDiagnoser();
     bool ok = true;
+
+    auto check_trait = [&](BaseType* concrete_type, BaseType* trait) -> bool {
+        auto* concrete = strip_reference_and_pointer(concrete_type);
+        if(concrete == nullptr) return true;
+        if(contains_generic_parameter(concrete)) return true; // deferred, checked after substitution
+        auto* trait_node = trait->get_direct_linked_canonical_node();
+        if(trait_node == nullptr) return true;
+        ASTNode* interface_key = nullptr;
+        switch(trait_node->kind()) {
+            case ASTNodeKind::InterfaceDecl: {
+                auto* iface = trait_node->as_interface_def_unsafe();
+                interface_key = iface->generic_parent ? (ASTNode*) iface->generic_parent : trait_node;
+                break;
+            }
+            case ASTNodeKind::GenericInterfaceDecl:
+                interface_key = trait_node;
+                break;
+            default:
+                return true;
+        }
+
+        auto* container = concrete->get_members_container();
+        auto* for_ = container ? (ASTAny*) container : (ASTAny*) concrete->canonical();
+        if(index.get_impl(interface_key, for_) != nullptr) return true;
+
+        // A concrete generic argument may need its own generic impl first
+        // (vector<vector<int>>: check vector<int> before vector<vector<int>>).
+        if(container != nullptr && container->generic_parent != nullptr) {
+            instantiate_generic_impls_for(
+                instantiator, (ASTAny*) container, interface_key,
+                chem::string_view(), demand_loc
+            );
+            if(index.get_impl(interface_key, for_) != nullptr) return true;
+        }
+
+        diagnoser.error(demand_loc)
+            << "type '" << concrete->representation() << "' does not satisfy bound '"
+            << trait->representation() << "' required by this generic implementation";
+        diagnoser.info(candidate->master_impl)
+            << "the bound is declared here";
+        return false;
+    };
+
     for(size_t i = 0; i < candidate->generic_params.size() && i < impl_args.size(); i++) {
         const auto param = candidate->generic_params[i];
-        if(param->traits.empty()) continue;
-        auto* concrete = strip_reference_and_pointer((BaseType*) impl_args[i]);
-        if(concrete == nullptr) continue;
-        if(contains_generic_parameter(concrete)) continue; // deferred, checked after substitution
         for(auto& trait : param->traits) {
-            auto* trait_node = trait->get_direct_linked_canonical_node();
-            if(trait_node == nullptr) continue;
-            ASTNode* interface_key = nullptr;
-            switch(trait_node->kind()) {
-                case ASTNodeKind::InterfaceDecl: {
-                    auto* iface = trait_node->as_interface_def_unsafe();
-                    interface_key = iface->generic_parent ? (ASTNode*) iface->generic_parent : trait_node;
-                    break;
-                }
-                case ASTNodeKind::GenericInterfaceDecl:
-                    interface_key = trait_node;
-                    break;
-                default:
-                    continue;
-            }
-
-            auto* container = concrete->get_members_container();
-            auto* for_ = container ? (ASTAny*) container : (ASTAny*) concrete->canonical();
-            if(index.get_impl(interface_key, for_) != nullptr) continue;
-
-            // A concrete generic argument may need its own generic impl first
-            // (vector<vector<int>>: check vector<int> before vector<vector<int>>).
-            if(container != nullptr && container->generic_parent != nullptr) {
-                instantiate_generic_impls_for(
-                    instantiator, (ASTAny*) container, interface_key,
-                    chem::string_view(), demand_loc
-                );
-                if(index.get_impl(interface_key, for_) != nullptr) continue;
-            }
-
-            diagnoser.error(demand_loc)
-                << "type '" << concrete->representation() << "' does not satisfy bound '"
-                << trait->representation() << "' required by this generic implementation";
-            diagnoser.info(candidate->master_impl)
-                << "the bound is declared here";
-            ok = false;
+            if(!check_trait((BaseType*) impl_args[i], (BaseType*) trait)) ok = false;
         }
     }
+
     return ok;
 }
 

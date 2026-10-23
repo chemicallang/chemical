@@ -1782,6 +1782,10 @@ ImplementationsIndex& GenericInstantiatorAPI::getImplsIndex() {
     return giPtr->implsIndex;
 }
 
+CoreNodes& GenericInstantiatorAPI::getCoreNodes() {
+    return giPtr->coreNodes;
+}
+
 std::recursive_mutex& GenericInstantiatorAPI::getGenericImplAdoptMutex() {
     return giPtr->implsIndex.getGenericImplAdoptMutex();
 }

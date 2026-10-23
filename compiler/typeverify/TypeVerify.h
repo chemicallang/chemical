@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+class CoreNodes;
+
 class TypeVerifier : public RecursiveVisitor<TypeVerifier> {
 public:
 
@@ -14,6 +16,11 @@ public:
      * implementations index allows us to verify impl declarations
      */
     ImplementationsIndex& index;
+
+    /**
+     * job-global core interfaces (Copy, Clone, Default, ...)
+     */
+    CoreNodes& coreNodes;
 
     /**
      * the allocator which allows to allocate memory for all instantiations
@@ -97,9 +104,10 @@ public:
      */
     TypeVerifier(
         ImplementationsIndex& index,
+        CoreNodes& coreNodes,
         ASTAllocator& allocator,
         ASTDiagnoser& diagnoser
-    ) : index(index), allocator(allocator), diagnoser(diagnoser) {
+    ) : index(index), coreNodes(coreNodes), allocator(allocator), diagnoser(diagnoser) {
 
     }
 

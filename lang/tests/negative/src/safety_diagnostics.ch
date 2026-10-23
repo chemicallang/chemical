@@ -99,6 +99,27 @@ func neg_duplicate_lifetime_parameter(env : &mut TestEnv) {
 }
 
 @test
+func clone_bound_copy_implies_clone(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "using core::ops::Clone;\nstruct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Clone {\n        return 0\n    }\n}\nstruct Row {\n    var x : int\n}\nimpl Copy for Row {}\npublic func main() : int {\n    var h = Holder<Row> { data = null }\n    return h.check()\n}\n"
+    expect_compile_output_not_contains(env, "clone_copy_implies", ch, "does not satisfy where clause constraint", NEG_MOD_CORE)
+}
+
+@test
+func clone_bound_explicit_impl(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "using core::ops::Clone;\nstruct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Clone {\n        return 0\n    }\n}\nstruct Row {\n    var x : int\n}\nimpl Clone for Row {\n    func clone(&self) : Row {\n        return Row { x : self.x }\n    }\n}\npublic func main() : int {\n    var h = Holder<Row> { data = null }\n    return h.check()\n}\n"
+    expect_compile_output_not_contains(env, "clone_explicit_impl", ch, "does not satisfy where clause constraint", NEG_MOD_CORE)
+}
+
+@test
+func neg_clone_bound_requires_impl(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "using core::ops::Clone;\nstruct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Clone {\n        return 0\n    }\n}\nstruct Row {\n    var x : int\n}\npublic func main() : int {\n    var h = Holder<Row> { data = null }\n    return h.check()\n}\n"
+    expect_compile_error_with_mod(env, "clone_bound_requires_impl", ch, "does not satisfy where clause constraint 'T : Clone'", NEG_MOD_CORE)
+}
+
+@test
 func default_bound_uses_zero_arg_constructor(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "using core::ops::Default;\nstruct D {\n    var x : int\n    @constructor\n    func make() : D {\n        return D { x : 0 }\n    }\n}\nfunc <T> f(x : T) : int where T: Default {\n    return 0\n}\npublic func main() : int {\n    var d = D()\n    return f<D>(d) + f<int>(1)\n}\n"

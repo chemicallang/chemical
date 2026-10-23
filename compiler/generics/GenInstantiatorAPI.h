@@ -89,6 +89,11 @@ public:
     ImplementationsIndex& getImplsIndex();
 
     /**
+     * get the job-global core interfaces (Copy, Clone, Default, ...)
+     */
+    CoreNodes& getCoreNodes();
+
+    /**
      * serialises adoption of a generic impl into its concrete target
      */
     std::recursive_mutex& getGenericImplAdoptMutex();

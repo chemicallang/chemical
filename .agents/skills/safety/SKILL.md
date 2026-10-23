@@ -85,8 +85,9 @@ Next:
   promised `T: Copy` via inline or impl-header where clauses (S1.0c). S1.4c
   validates `@delete` signatures (`SAFE-DROP-001`: one `&self`/`&mut self`,
   void return). `Default` bounds are satisfied by primitives or a zero-argument
-  constructor (S1.4d); `Clone` is marked but not auto-satisfied yet. Next:
-  `Clone`, then the move checker.
+  constructor (S1.4d). `Clone` bounds are satisfied by an explicit impl or by
+  `Copy` (S1.4e); automatic Clone derivation is still pending. Next: Clone
+  derivation, then the move checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

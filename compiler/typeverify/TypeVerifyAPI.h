@@ -13,6 +13,7 @@ class Value;
 class BaseType;
 
 class ImplementationsIndex;
+class CoreNodes;
 
 void unsatisfied_type_err(ASTDiagnoser& diagnoser, Value* value, BaseType* type);
 
@@ -22,6 +23,7 @@ inline void unsatisfied_type_err(ASTDiagnoser& diagnoser, ASTAllocator& allocato
 
 void type_verify(
     ImplementationsIndex& index,
+    CoreNodes& coreNodes,
     ASTDiagnoser& diagnoser,
     ASTAllocator& allocator,
     std::span<ASTNode*> nodes

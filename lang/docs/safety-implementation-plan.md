@@ -164,9 +164,16 @@
 >   generated `make`). Generic-impl bound checks use the same rule. Positive
 >   tests cover a user constructor and a primitive. `Clone` is marked for the
 >   next derive step but is not auto-satisfied yet.
-> - Still pending in S1.4: `Clone` derive/auto-satisfaction.
+> - S1.4e `Clone` bounds: `Copy` implies `Clone` (a type with an `impl Copy`
+>   satisfies a `Clone` bound without a separate `impl Clone`). A non-Copy type
+>   still needs an explicit `impl Clone`; missing impls produce the normal
+>   "does not satisfy where clause constraint 'T : Clone'". The rule is applied
+>   in both normal where-clause checking and generic-impl bound checks.
+>   Positive tests cover Copy-implies-Clone and an explicit Clone impl; a
+>   negative test covers the missing impl.
+> - Still pending in S1.4: automatic `Clone` derivation/body generation.
 >
-> Next: `Clone` support, then the M1 ownership/move checker.
+> Next: `Clone` derivation, then the M1 ownership/move checker.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

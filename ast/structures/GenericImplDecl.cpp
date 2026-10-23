@@ -4,6 +4,7 @@
 #include "ast/utils/GenericUtils.h"
 #include "compiler/generics/GenInstantiatorAPI.h"
 #include "ast/base/InterfaceBits.h"
+#include "compiler/symres/CoreNodes.h"
 #include "compiler/generics/InstantiationsContainer.h"
 #include "compiler/symres/ImplementationsIndex.h"
 #include "ast/structures/GenericFuncDecl.h"
@@ -699,6 +700,19 @@ static bool check_generic_impl_bounds(
             if(iface->interface_bits.has(InterfaceBits::DEFAULT_BIT)) {
                 if(container == nullptr || container->default_constructor_func() != nullptr) {
                     return true;
+                }
+            }
+            if(iface->interface_bits.has(InterfaceBits::CLONE_BIT) && container != nullptr) {
+                auto* copy_interface = instantiator.getCoreNodes().copy_interface;
+                if(copy_interface != nullptr) {
+                    if(index.get_impl(copy_interface, for_) != nullptr) return true;
+                    if(container->generic_parent != nullptr) {
+                        instantiate_generic_impls_for(
+                            instantiator, (ASTAny*) container, copy_interface,
+                            chem::string_view(), demand_loc
+                        );
+                        if(index.get_impl(copy_interface, for_) != nullptr) return true;
+                    }
                 }
             }
         }

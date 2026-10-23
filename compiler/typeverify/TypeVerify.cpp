@@ -17,6 +17,7 @@
 #include "ast/utils/ASTUtils.h"
 #include "compiler/symres/ImplementationsIndex.h"
 #include "compiler/symres/SymbolResolver.h"
+#include "compiler/symres/CoreNodes.h"
 #include "core/source/LocationManager.h"
 #include "ast/values/IndexOperator.h"
 #include "ast/structures/WhereClause.h"
@@ -1111,6 +1112,16 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
                 continue;
             }
 
+            // Copy implies Clone: a Copy type is trivially cloneable even
+            // without an explicit `impl Clone`.
+            if (interface_def->interface_bits.has(InterfaceBits::CLONE_BIT)) {
+                auto container = concrete_type->get_members_container();
+                if (container != nullptr && verifier.coreNodes.copy_interface != nullptr &&
+                   verifier.index.get_impl(verifier.coreNodes.copy_interface, container) != nullptr) {
+                    continue;
+                }
+            }
+
             // Default is satisfied by a zero-argument constructor (`make`).
             // Primitive types are default-initialized trivially.
             if (interface_def->interface_bits.has(InterfaceBits::DEFAULT_BIT)) {
@@ -1549,8 +1560,8 @@ void TypeVerifier::VisitVarInitStmt(VarInitStatement *stmt) {
     }
 }
 
-void type_verify(ImplementationsIndex& index, ASTDiagnoser& diagnoser, ASTAllocator& allocator, std::span<ASTNode*> nodes) {
-    TypeVerifier verifier(index, allocator, diagnoser);
+void type_verify(ImplementationsIndex& index, CoreNodes& coreNodes, ASTDiagnoser& diagnoser, ASTAllocator& allocator, std::span<ASTNode*> nodes) {
+    TypeVerifier verifier(index, coreNodes, allocator, diagnoser);
     for(const auto node : nodes) {
         verifier.visit(node);
     }

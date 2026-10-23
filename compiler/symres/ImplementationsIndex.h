@@ -59,6 +59,14 @@ public:
      */
     std::unordered_set<ImplementationIndexKey, ImplementationIndexKeyHash> negative_impls_;
 
+    /**
+     * Generic negative auto-trait impls (`impl<T> !Send for Wrapper<T>`),
+     * keyed by the generic target declaration. They apply to every
+     * instantiation of that target for now (generic negative impls with
+     * bounds are rejected at registration).
+     */
+    std::unordered_map<ASTNode*, std::vector<ASTNode*>> generic_negative_impls_;
+
     // reader-writer mutex for thread-safe concurrent reads and exclusive writes
     mutable std::shared_mutex index_mutex;
 
@@ -100,6 +108,28 @@ public:
     bool has_negative_impl(ASTNode* interface, ASTAny* for_) const {
         std::shared_lock lock(index_mutex);
         return negative_impls_.find(ImplementationIndexKey{ interface, for_ }) != negative_impls_.end();
+    }
+
+    bool add_generic_negative_impl(ASTNode* target, ASTNode* interface) {
+        if(target == nullptr || interface == nullptr) return false;
+        std::unique_lock lock(index_mutex);
+        auto& list = generic_negative_impls_[target];
+        for(const auto existing : list) {
+            if(existing == interface) return false;
+        }
+        list.push_back(interface);
+        return true;
+    }
+
+    bool has_generic_negative_impl(ASTNode* target, ASTNode* interface) const {
+        if(target == nullptr || interface == nullptr) return false;
+        std::shared_lock lock(index_mutex);
+        const auto found = generic_negative_impls_.find(target);
+        if(found == generic_negative_impls_.end()) return false;
+        for(const auto existing : found->second) {
+            if(existing == interface) return true;
+        }
+        return false;
     }
 
     inline bool has_any_generic_impls() const noexcept {
@@ -152,6 +182,7 @@ public:
             std::unique_lock lock(index_mutex);
             map_.clear();
             negative_impls_.clear();
+            generic_negative_impls_.clear();
             generic_impls_.clear();
         }
         generic_impl_count_.store(0, std::memory_order_relaxed);

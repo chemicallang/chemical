@@ -700,6 +700,11 @@ static bool check_generic_impl_bounds(
 
         auto* container = concrete->get_members_container();
         auto* for_ = container ? (ASTAny*) container : (ASTAny*) concrete->canonical();
+        if(container != nullptr && container->generic_parent != nullptr &&
+           index.has_generic_negative_impl(
+               (ASTNode*) container->generic_parent, (ASTNode*) interface_key)) {
+            return false;
+        }
         if(index.has_negative_impl(interface_key, for_)) return false;
         if(index.get_impl(interface_key, for_) != nullptr) return true;
         if(trait_node->kind() == ASTNodeKind::InterfaceDecl) {

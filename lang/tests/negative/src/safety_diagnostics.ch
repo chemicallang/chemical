@@ -99,6 +99,34 @@ func neg_duplicate_lifetime_parameter(env : &mut TestEnv) {
 }
 
 @test
+func generic_negative_send_impl_compiles(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Wrapper<T> {\n    var value : T\n}\nimpl<T> !Send for Wrapper<T> {}\npublic func main() : int { return 0 }\n"
+    expect_compile_output_not_contains(env, "generic_negative_send_impl", ch, "negative implementations", NEG_MOD_CORE)
+}
+
+@test
+func neg_generic_negative_send_bound_rejected(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\nstruct Wrapper<T> {\n    var value : T\n}\nimpl<T> !Send for Wrapper<T> {}\npublic func main() : int {\n    var h = Holder<Wrapper<int>> { data = null }\n    return h.check()\n}\n"
+    expect_compile_error_with_mod(env, "generic_negative_send_bound", ch, "is declared !Send", NEG_MOD_CORE)
+}
+
+@test
+func neg_generic_negative_sync_bound_rejected(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\nstruct Wrapper<T> {\n    var value : T\n}\nimpl<T> !Sync for Wrapper<T> {}\npublic func main() : int {\n    var h = Holder<Wrapper<int>> { data = null }\n    return h.check()\n}\n"
+    expect_compile_error_with_mod(env, "generic_negative_sync_bound", ch, "is declared !Sync", NEG_MOD_CORE)
+}
+
+@test
+func neg_generic_negative_with_bound_rejected(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "using core::ops::Clone;\nstruct Wrapper<T> {\n    var value : T\n}\nimpl<T: Clone> !Send for Wrapper<T> {}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "generic_negative_bound", ch, "SAFE-AUTO-002", NEG_MOD_STD_CORE)
+}
+
+@test
 func negative_send_impl_compiles(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct Safe {\n    var x : int\n}\nimpl !Send for Safe {}\npublic func main() : int { return 0 }\n"

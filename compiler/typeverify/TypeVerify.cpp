@@ -1223,6 +1223,14 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
                 auto container = concrete_type->get_members_container();
                 auto* for_ = container != nullptr
                     ? (ASTAny*) container : (ASTAny*) concrete_type->canonical();
+                if (container != nullptr && container->generic_parent != nullptr &&
+                    verifier.index.has_generic_negative_impl(
+                        (ASTNode*) container->generic_parent, (ASTNode*) interface_def)) {
+                    diagnoser.error(call) << "type '" << concrete_type->representation()
+                        << "' is declared !"
+                        << (interface_def->interface_bits.has(InterfaceBits::SEND_BIT) ? "Send" : "Sync");
+                    continue;
+                }
                 if (verifier.index.has_negative_impl(interface_def, for_)) {
                     diagnoser.error(call) << "type '" << concrete_type->representation()
                         << "' is declared !"

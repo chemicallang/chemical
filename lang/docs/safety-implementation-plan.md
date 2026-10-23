@@ -241,7 +241,16 @@
 >   pattern variable (`value.clone()`), with a passing test. Generic `Option`/
 >   `vector` `Clone` still needs instantiation-time alias propagation for
 >   non-Clone element types, so those impls remain out of the tree.
-> - Still pending in S1.5: generic negative impls and data-race enforcement.
+> - S1.5i generic negative impls: `impl<T> !Send for Wrapper<T>` and
+>   `impl<T> !Sync for Wrapper<T>` register under the generic target
+>   declaration and apply to every instantiation. A concrete
+>   `Wrapper<...>` is rejected at a `Send`/`Sync` bound with "is declared
+>   !Send/!Sync". Generic negative impls with where clauses or parameter
+>   bounds are rejected with `SAFE-AUTO-002` until conditional negative impls
+>   are modelled. Positive/negative tests cover both auto traits and the
+>   bounded-form rejection.
+> - Still pending in S1.5: conditional generic negative impls and data-race
+>   enforcement.
 > - Still pending in S1.4: automatic `Clone` derivation/body generation.
 >
 > Next: negative impls/explicit auto-trait impls, then the M1 ownership/move

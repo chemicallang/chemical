@@ -1097,14 +1097,13 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
                             << constraint.param_name << " : "
                             << trait_type->representation() << "'";
                     } else {
-                        // Migration stage: trivially copyable user types used to
-                        // be implicitly Copy. Report them until every in-tree
-                        // type opts in; then this becomes an error.
-                        diagnoser.warn(call).with_code("SAFE-COPY-001")
+                        // Copy is opt-in: a trivially copyable user type still
+                        // has to declare it, so a later move/borrow checker can
+                        // rely on the marker.
+                        diagnoser.error(call).with_code("SAFE-COPY-001")
                             << "type '" << concrete_type->representation()
                             << "' is not declared Copy; add `impl Copy for "
-                            << concrete_type->representation()
-                            << "` (required when Copy becomes opt-in)";
+                            << concrete_type->representation() << "`";
                     }
                 }
                 continue;

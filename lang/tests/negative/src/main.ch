@@ -475,10 +475,10 @@ func neg_get_on_destructible_struct_direct_errors(env : &mut TestEnv) {
 // with `impl Copy`. The old behavior treated every destructor-less type as
 // implicitly Copy.
 @test
-func copy_not_declared_warns(env : &mut TestEnv) {
+func neg_copy_requires_explicit_impl(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func get(&self, i : int) : T where T : Copy {\n        return *data\n    }\n}\nstruct Row {\n    var p : *char\n}\npublic func main() : int {\n    var h = Holder<Row> { data = null }\n    var r = h.get(0)\n    return 0\n}\n"
-    expect_compile_output_contains(env, "copy_not_declared", ch, "SAFE-COPY-001", NEG_MOD_CORE)
+    expect_compile_error_with_mod(env, "copy_requires_explicit_impl", ch, "SAFE-COPY-001", NEG_MOD_CORE)
 }
 
 @test

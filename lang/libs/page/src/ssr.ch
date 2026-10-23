@@ -9,6 +9,8 @@ public struct SsrText {
     }
 }
 
+impl Copy for SsrText {}
+
 public struct MultipleAttributeValues {
     var data : *SsrAttributeValue
     var size : u64

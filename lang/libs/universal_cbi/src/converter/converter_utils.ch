@@ -949,7 +949,7 @@ func parse_ssr_bigint(text : std::string_view, outValue : &mut bigint) : bool {
 
 func (converter : &mut JsConverter) find_state_init_text(name : std::string_view) : std::string_view {
     for(var i : uint = 0; i < converter.state_inits.size(); i++) {
-        const init = converter.state_inits.get(i);
+        const init = converter.state_inits.get_ptr(i);
         if(init.name.equals(&name)) return init.init;
     }
     return view("");

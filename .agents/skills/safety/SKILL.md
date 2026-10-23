@@ -69,17 +69,16 @@ Implemented:
   `View<'a, T> { ... }` literals work end-to-end (S1.0b). `std::PhantomData<T>`
   is a zero-sized marker usable as `PhantomData<&'a T>` (S1.3a); variance
   analysis waits for regions. `Copy` is opt-in for user types (S1.4a):
-  destructor-bearing types are rejected, and trivially copyable types without
-  an `impl Copy` emit report-only `SAFE-COPY-001` until migrated. Enforcement
-  in the borrow checker is still pending. Chemical syntax is
-  `func <'a> f(...)`.
+  destructor-bearing types and trivially copyable types without an
+  `impl Copy` are rejected with `SAFE-COPY-001`. Enforcement in the borrow
+  checker is still pending. Chemical syntax is `func <'a> f(...)`.
 
 Next:
 
 - S1.2 `'static`/bounds and S1.3a `PhantomData` are done; temporary lifetime
   extension and variance analysis move with the borrow checker (M4).
-  S1.4a opt-in `Copy` is report-only (`SAFE-COPY-001`) while the tree is
-  migrated; enforcing it and adding `Clone`/`Default`/`Drop` is next.
+  S1.4a opt-in `Copy` is enforced (`SAFE-COPY-001`) and the in-tree tree is
+  migrated. Next: `Clone`/`Default`/`Drop` rules, then the move checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).
@@ -141,7 +140,7 @@ Codes are stable and grouped by domain:
 |---|---|
 | `SAFE-OWN-*` | moves, drops, partial moves |
 | `SAFE-BORROW-*` | aliasing / loans |
-| `SAFE-COPY-001` | user type used with a `Copy` bound but no explicit `impl Copy` (report-only during migration) |
+| `SAFE-COPY-001` | user type used with a `Copy` bound but no explicit `impl Copy` |
 | `SAFE-LIFE-*` | lifetimes / escapes |
 | `SAFE-INIT-*` | initialization / definite assignment |
 | `SAFE-VALID-*` | invalid values / transmute / packed |

@@ -9,6 +9,8 @@ public struct ImportSpecifier {
     var local : std::string_view
 }
 
+impl Copy for ImportSpecifier {}
+
 public struct JsArrayLiteral {
     var base : JsNode
     var elements : std::vector<*mut JsNode>
@@ -181,10 +183,14 @@ public struct JsParam {
     var default_value : *mut JsNode
 }
 
+impl Copy for JsParam {}
+
 public struct JsProperty {
     var key : std::string_view
     var value : *mut JsNode
 }
+
+impl Copy for JsProperty {}
 
 public struct JsReturn {
     var base : JsNode

@@ -179,6 +179,14 @@
 >   through its type arguments. Generic-impl bound checks use the same rules.
 >   Tests cover positive structs, a raw-pointer field, a reference-to-pointer
 >   field, and `PhantomData<*mut int>`.
+> - S1.5b generic-function bound checking: generic parameters on a
+>   `FunctionDeclaration` are parented to the declaration, not the wrapping
+>   `GenericFuncDecl`, so the old bound checker skipped every generic-function
+>   call. Explicit `f<T>(...)` now reads `call->generic_list`; inferred calls
+>   recover the concrete type from argument types (through references,
+>   pointers, arrays and generic arguments). This closes a real hole where
+>   `f(r)` with `where T: Copy` accepted a non-Copy `r`. Positive and negative
+>   tests cover both explicit and inferred calls.
 > - Still pending in S1.5: negative impls (`impl !Send`), explicit
 >   `unsafe impl Send/Sync`, and data-race enforcement.
 > - Still pending in S1.4: automatic `Clone` derivation/body generation.

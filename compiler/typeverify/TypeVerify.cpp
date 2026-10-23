@@ -1016,6 +1016,94 @@ void verifyArguments(FunctionCall* call, ASTDiagnoser& diagnoser, FunctionType* 
     }
 }
 
+// Recover the concrete type bound to a generic parameter from a call's
+// argument types. This is used when the caller relies on inference instead of
+// an explicit `f<T>(...)` list.
+static bool infer_type_argument(
+    BaseType* param_type,
+    BaseType* arg_type,
+    GenericTypeParameter* target,
+    BaseType*& out
+) {
+    if(param_type == nullptr || arg_type == nullptr) return false;
+    auto* linked = param_type->get_direct_linked_node();
+    if(linked == target) {
+        out = arg_type;
+        return true;
+    }
+    switch(param_type->kind()) {
+        case BaseTypeKind::Reference: {
+            auto* param_ref = param_type->as_reference_type_unsafe();
+            auto* arg_ref = arg_type->kind() == BaseTypeKind::Reference
+                ? arg_type->as_reference_type_unsafe() : nullptr;
+            return infer_type_argument(
+                param_ref->type, arg_ref ? arg_ref->type : arg_type, target, out
+            );
+        }
+        case BaseTypeKind::Pointer: {
+            auto* param_ptr = param_type->as_pointer_type_unsafe();
+            auto* arg_ptr = arg_type->kind() == BaseTypeKind::Pointer
+                ? arg_type->as_pointer_type_unsafe() : nullptr;
+            return infer_type_argument(
+                param_ptr->type, arg_ptr ? arg_ptr->type : arg_type, target, out
+            );
+        }
+        case BaseTypeKind::Array: {
+            auto* param_arr = param_type->as_array_type_unsafe();
+            auto* arg_arr = arg_type->kind() == BaseTypeKind::Array
+                ? arg_type->as_array_type_unsafe() : nullptr;
+            return infer_type_argument(
+                const_cast<BaseType*>(param_arr->elem_type.getType()),
+                arg_arr ? const_cast<BaseType*>(arg_arr->elem_type.getType()) : arg_type,
+                target, out
+            );
+        }
+        case BaseTypeKind::Generic: {
+            auto* param_gen = param_type->as_generic_type_unsafe();
+            auto* arg_gen = arg_type->kind() == BaseTypeKind::Generic
+                ? arg_type->as_generic_type_unsafe() : nullptr;
+            if(arg_gen == nullptr) return false;
+            if(param_gen->referenced->linked != arg_gen->referenced->linked) return false;
+            const auto count = param_gen->types.size() < arg_gen->types.size()
+                ? param_gen->types.size() : arg_gen->types.size();
+            for(size_t i = 0; i < count; i++) {
+                if(infer_type_argument(
+                    const_cast<BaseType*>(param_gen->types[i].getType()),
+                    const_cast<BaseType*>(arg_gen->types[i].getType()),
+                    target, out
+                )) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        default:
+            return false;
+    }
+}
+
+static BaseType* infer_generic_arg_from_call(
+    FunctionDeclaration* master,
+    FunctionCall* call,
+    GenericTypeParameter* target
+) {
+    if(master == nullptr) return nullptr;
+    size_t arg_offset = 0;
+    if(!master->params.empty() && master->params[0]->name_view() == "self") {
+        arg_offset = 1;
+    }
+    for(size_t i = 0; i + arg_offset < master->params.size() &&
+                      i < call->values.size(); i++) {
+        auto* param_type = const_cast<BaseType*>(master->params[i + arg_offset]->type.getType());
+        auto* arg_type = call->values[i]->getType();
+        BaseType* found = nullptr;
+        if(infer_type_argument(param_type, arg_type, target, found)) {
+            return found;
+        }
+    }
+    return nullptr;
+}
+
 static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
     auto func = call->safe_linked_func();
     if (!func || !func->where_clause) return;
@@ -1053,6 +1141,20 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
             auto param_index = constraint.param->param_index;
             if (param_index < call->generic_list.size()) {
                 concrete_type = call->generic_list[param_index];
+            }
+        } else if (param_parent && param_parent->kind() == ASTNodeKind::FunctionDecl) {
+            // Generic parameters of a function are parented to the
+            // FunctionDeclaration (the GenericFuncDecl wraps it). Use the
+            // explicit list when present, otherwise infer from arguments.
+            auto* master = param_parent->as_function_unsafe();
+            auto* gen_parent = master->generic_parent;
+            if (gen_parent != nullptr && gen_parent->kind() == ASTNodeKind::GenericFuncDecl) {
+                auto param_index = constraint.param->param_index;
+                if (param_index < call->generic_list.size()) {
+                    concrete_type = call->generic_list[param_index];
+                } else {
+                    concrete_type = infer_generic_arg_from_call(master, call, constraint.param);
+                }
             }
         }
 

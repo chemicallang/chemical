@@ -99,6 +99,27 @@ func neg_duplicate_lifetime_parameter(env : &mut TestEnv) {
 }
 
 @test
+func generic_function_inferred_bound_checked(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Row {\n    var x : int\n}\nfunc <T> f(x : T) : int where T: Copy {\n    return 0\n}\npublic func main() : int {\n    var r = Row { x : 1 }\n    return f(r)\n}\n"
+    expect_compile_error_with_mod(env, "generic_fn_inferred_bound", ch, "SAFE-COPY-001", NEG_MOD_CORE)
+}
+
+@test
+func generic_function_explicit_bound_checked(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Row {\n    var x : int\n}\nfunc <T> f(x : T) : int where T: Copy {\n    return 0\n}\npublic func main() : int {\n    var r = Row { x : 1 }\n    return f<Row>(r)\n}\n"
+    expect_compile_error_with_mod(env, "generic_fn_explicit_bound", ch, "SAFE-COPY-001", NEG_MOD_CORE)
+}
+
+@test
+func generic_function_bound_ok(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Row {\n    var x : int\n}\nimpl Copy for Row {}\nfunc <T> f(x : T) : int where T: Copy {\n    return 0\n}\npublic func main() : int {\n    var r = Row { x : 1 }\n    return f(r) + f<Row>(r)\n}\n"
+    expect_compile_output_not_contains(env, "generic_fn_bound_ok", ch, "SAFE-COPY", NEG_MOD_CORE)
+}
+
+@test
 func send_bound_structural_ok(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\nstruct Safe {\n    var x : int\n    var r : &int\n}\npublic func main() : int {\n    var h = Holder<Safe> { data = null }\n    return h.check()\n}\n"

@@ -285,6 +285,11 @@
 >   cannot disable it. `MIRTests` covers valid moves, double moves, drop of an
 >   uninitialized path, and conditional drop; the negative suite covers the
 >   `unsafe` bypass (`SAFE-INIT-001`).
+> - S1.4h `Option<T>: Clone`: `impl<T> Clone for Option<T> where T: Clone`
+>   now clones both `Some` and `None`, including through the generic variant
+>   pattern path. Positive tests cover `Some<CloneRow>` and `None<CloneRow>`.
+>   Generic `vector<T>` `Clone` still needs a body form that resolves
+>   `get_ref(i).clone()` without finalizing for non-Clone element types.
 > - Still pending in S1.4: automatic `Clone` derivation/body generation.
 >
 > Next: conditional-state/drop-flag modelling, then conditional negative impls

@@ -158,7 +158,10 @@ Next:
   `Weak<T>` (`downgrade`/`upgrade`), and is structurally `!Send`/`!Sync`;
   the shared value lives in `ManuallyDrop`, and
   `ManuallyDrop::destroy`/`MaybeUninit::assume_init_drop` destroy in place.
-  `Box::into_inner` frees storage without re-running the destructor. `unsafe func` (S2.6a) is parsed at top level and
+  `std::RefCell<T>` (S1.6d) adds runtime borrow tracking through
+  `try_borrow`/`try_borrow_mut` guards (`Ref`/`RefMut`) that release on drop;
+  it is `!Sync` and `Send` follows `T`. `Box::into_inner` frees storage without
+  re-running the destructor. `unsafe func` (S2.6a) is parsed at top level and
   as a member, and calls from safe code are rejected; `unsafe(expr)`/`unsafe {}`
   are both unsafe call contexts. Next: partial-move/drop elaboration, then the
   borrow checker.

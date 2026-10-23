@@ -323,6 +323,14 @@
 >   function from a safe context is a type error. Method calls are covered
 >   through the linked function declaration. Tests cover expression/block
 >   calls, unsafe methods, and both direct-call negative cases.
+> - S1.6d `std::RefCell<T>`: runtime borrow tracking with `try_borrow` /
+>   `try_borrow_mut` returning `Option<Ref<T>>` / `Option<RefMut<T>>` instead
+>   of panicking. Guards release the state from their destructors, shared
+>   borrows may coexist, and a mutable borrow is exclusive. The state is a
+>   plain `int` mutated through a raw field pointer, so it has no generic
+>   pointer-type inference issue; `RefCell<T>` is `!Sync` and `Send` follows
+>   `T` through `UnsafeCell`. Tests cover shared overlap, mutable exclusion,
+>   release on scope exit, and auto-trait bounds.
 > - S1.6c `std::MaybeUninit<T>` / `std::ManuallyDrop<T>`: raw storage with
 >   no automatic drop glue. `@no_drop` suppresses both generated and explicit
 >   destructors (leaking is safe); `MaybeUninit::write`/`assume_init` and

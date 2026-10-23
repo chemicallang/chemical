@@ -454,3 +454,17 @@ func neg_unsafe_method_call_requires_unsafe(env : &mut TestEnv) {
     var ch = "struct Reader {\n    var value : int\n    unsafe func read(&self) : int { return self.value }\n}\npublic func main() : int {\n    var r = Reader { value : 1 }\n    return r.read()\n}\n"
     expect_compile_error(env, "unsafe_method_call", ch, "unsafe function")
 }
+
+@test
+func neg_ref_cell_is_not_sync(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\npublic func main() : int {\n    var c = std::ref_cell(1)\n    var h = Holder<std::RefCell<int>> { data = null }\n    return h.check()\n}\n"
+    expect_compile_error_with_mod(env, "ref_cell_not_sync", ch, "does not satisfy", NEG_MOD_STD_CORE)
+}
+
+@test
+func ref_cell_is_send_when_inner_is_send(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\npublic func main() : int {\n    var c = std::ref_cell(1)\n    var h = Holder<std::RefCell<int>> { data = null }\n    return h.check()\n}\n"
+    expect_compile_output_not_contains(env, "ref_cell_send", ch, "does not satisfy", NEG_MOD_STD_CORE)
+}

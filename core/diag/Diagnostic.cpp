@@ -7,8 +7,8 @@
 #include "rang.hpp"
 #include "core/source/LocationManager.h"
 
-Diag Diagnoser::make_diag(const chem::string_view& message, const chem::string_view& filePath, const Position& start, const Position& end, DiagSeverity severity) {
-    return Diag(
+Diag Diagnoser::make_diag(const chem::string_view& message, const chem::string_view& filePath, const Position& start, const Position& end, DiagSeverity severity, const chem::string_view& code) {
+    Diag diag(
             Range {
                     start,
                     end
@@ -17,6 +17,8 @@ Diag Diagnoser::make_diag(const chem::string_view& message, const chem::string_v
             filePath.str(),
             message.str()
     );
+    diag.with_code(code);
+    return diag;
 }
 
 void Diagnoser::add_diag(Diag diag) {
@@ -99,7 +101,17 @@ std::string to_string(DiagSeverity severity) {
 }
 
 void Diag::format(std::ostream& os, const chem::string_view& path, const chem::string_view& tag) const {
-    os << '[' << tag << "] " << message << " at " << path << ':' << range.representation();
+    os << '[' << tag << "] ";
+    if(code.has_value()) {
+        os << '[' << code.value() << "] ";
+    }
+    os << message << " at " << path << ':' << range.representation();
+    if(relatedInformation.has_value()) {
+        for(const auto& related : relatedInformation.value()) {
+            os << "\n  note: " << related.message << " at " << path << ':'
+               << (related.location.line + 1) << ':' << (related.location.character + 1);
+        }
+    }
 }
 
 std::ostream& Diag::ansi(std::ostream& os, const chem::string_view& path, const chem::string_view &tag) const {
@@ -107,19 +119,33 @@ std::ostream& Diag::ansi(std::ostream& os, const chem::string_view& path, const 
     if (severity.has_value()) {
         switch (severity.value()) {
         case DiagSeverity::Error:
-            os << rang::fg::red << "error: " << rang::fg::reset;
+            os << rang::fg::red << "error";
+            if(code.has_value()) os << '[' << code.value() << ']';
+            os << ": " << rang::fg::reset;
             break;
         case DiagSeverity::Warning:
-            os << rang::fg::yellow << "warn: " << rang::fg::reset;
+            os << rang::fg::yellow << "warn";
+            if(code.has_value()) os << '[' << code.value() << ']';
+            os << ": " << rang::fg::reset;
             break;
         case DiagSeverity::Information:
-            os << rang::fg::gray << "info: " << rang::fg::reset;
+            os << rang::fg::gray << "info";
+            if(code.has_value()) os << '[' << code.value() << ']';
+            os << ": " << rang::fg::reset;
             break;
         case DiagSeverity::Hint:
-            os << rang::fg::cyan << "hint: " << rang::fg::reset;
+            os << rang::fg::cyan << "hint";
+            if(code.has_value()) os << '[' << code.value() << ']';
+            os << ": " << rang::fg::reset;
             break;
         }
     }
     os << message << " at " << path << ':' << (range.start.line + 1) << ':' << (range.start.character + 1);
+    if(relatedInformation.has_value()) {
+        for(const auto& related : relatedInformation.value()) {
+            os << "\n  note: " << related.message << " at " << path << ':'
+               << (related.location.line + 1) << ':' << (related.location.character + 1);
+        }
+    }
     return os;
 }

@@ -18,6 +18,7 @@ BUILD_TARGET=true
 TEST_PLUGINS=false
 TEST_INTERPRET=false
 TEST_NEGATIVE=false
+TEST_SAFETY=false
 TEST_TLS=false
 TEST_PROCESS=false
 TEST_WEBVIEW=false
@@ -56,7 +57,8 @@ usage() {
   echo "  --tcc                   Use TCCCompiler (TinyCC backend)"
   echo "  --llvm                  Use Compiler (LLVM/Clang backend)"
   echo "  --interpret             Run tests via interpretation job (no executable produced)"
-  echo "  --negative              Run negative (safety) tests only"
+  echo "  --negative              Run negative (compile-fail) safety tests only"
+  echo "  --safety                Run the runtime/parity safety suite (passes --arg-test-safety)"
   echo "  --plugins               Include compiler plugin tests (passes --arg-test-plugins)"
   echo "  --tls                   Build & run the TLS integration test suite (passes --arg-test-tls)"
   echo "  --process               Build & run the process/environment test suite (passes --arg-test-process)"
@@ -113,6 +115,7 @@ while [ $# -gt 0 ]; do
       ;;
     --interpret) TEST_INTERPRET=true ;;
     --negative) TEST_NEGATIVE=true ;;
+    --safety) TEST_SAFETY=true ;;
     --plugins) TEST_PLUGINS=true ;;
     --tls) TEST_TLS=true ;;
     --process) TEST_PROCESS=true ;;
@@ -286,8 +289,8 @@ run_all_suites() {
   fi
 
   # The slow `tls` suite is opt-in (`--include-tls`); everything else always runs.
-  local names=("main" "interpret" "negative" "plugins" "async" "libs" "regexp" "process" "server")
-  local flags=("" "--interpret" "--negative" "--plugins" "--async" "--libs" "--regexp" "--process" "--server")
+  local names=("main" "interpret" "negative" "safety" "plugins" "async" "libs" "regexp" "process" "server")
+  local flags=("" "--interpret" "--negative" "--safety" "--plugins" "--async" "--libs" "--regexp" "--process" "--server")
   if [ "$INCLUDE_TLS" = true ]; then
     names+=("tls")
     flags+=("--tls")
@@ -461,7 +464,7 @@ fi
 
 # Build the test command
 if [ "$TEST_NEGATIVE" = true ]; then
-  NEG_OUT="$TEST_OUT_DIR/negative-tests-tcc.exe"
+  NEG_OUT="$TEST_OUT_DIR/negative-tests-$([ "$TARGET" = "Compiler" ] && echo llvm || echo tcc).exe"
   CMD=("$COMPILER_BIN" "$TEST_BUILD_LAB" -o "$NEG_OUT" --mode "$MODE" --arg-negative)
   [ -n "$NO_CACHE" ] && CMD+=("$NO_CACHE")
   [ "$EMIT_C" = true ] && CMD+=("--emit-c")
@@ -484,6 +487,31 @@ if [ "$TEST_NEGATIVE" = true ]; then
     fi
     echo "==> Running negative tests..."
     "$NEG_OUT"
+  fi
+elif [ "$TEST_SAFETY" = true ]; then
+  SAFETY_OUT="$TEST_OUT_DIR/safety-tests-$([ "$TARGET" = "Compiler" ] && echo llvm || echo tcc).exe"
+  CMD=("$COMPILER_BIN" "$TEST_BUILD_LAB" -o "$SAFETY_OUT" --mode "$MODE" --arg-test-safety)
+  [ -n "$NO_CACHE" ] && CMD+=("$NO_CACHE")
+  [ "$EMIT_C" = true ] && CMD+=("--emit-c")
+  [ "$DEBUG_FLAG" = true ] && CMD+=("-g")
+  [ "$VERBOSE" = true ] && CMD+=("-v")
+  if [ -n "$COMPILE_TARGET" ]; then
+    CMD+=("--target" "$COMPILE_TARGET")
+  fi
+  if [ "$PRINT_CMD" = true ]; then
+    echo "${CMD[@]}"
+    exit 0
+  fi
+  echo "==> Building safety tests..."
+  echo "${CMD[@]}"
+  "${CMD[@]}"
+  if [ "$RUN_TESTS" = true ]; then
+    if [ ! -f "$SAFETY_OUT" ]; then
+      echo "Error: Safety test executable not found at $SAFETY_OUT"
+      exit 1
+    fi
+    echo "==> Running safety tests..."
+    "$SAFETY_OUT"
   fi
 elif [ "$TEST_INTERPRET" = true ]; then
   # Interpretation mode: run the compiler which interprets main() directly

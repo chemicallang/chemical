@@ -35,7 +35,7 @@ public:
     /**
      * give a diagnostic related to the source location
      */
-    void location_diagnostic(const chem::string_view& message, SourceLocation location, DiagSeverity severity);
+    void location_diagnostic(const chem::string_view& message, SourceLocation location, DiagSeverity severity, const chem::string_view& code = {});
 
     /**
      * record a diagnostic for the given source location
@@ -48,7 +48,7 @@ public:
      * get an empty diagnostic to which you can append to
      * @return
      */
-    Diag& empty_diagnostic(SourceLocation location, DiagSeverity severity);
+    Diag& empty_diagnostic(SourceLocation location, DiagSeverity severity, const chem::string_view& code = {});
 
     /**
      * create empty diagnostic, to which you can append to

@@ -217,8 +217,10 @@ internal func expect_compile_error_with_mod(env : &mut TestEnv, name : *char, ch
     var output_buf : char[16384]
     var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 16384)
 
-    var has_error = string_contains(unsafe(&raw output_buf[0]), "error:")
-    var has_sub = if(strlen(expected_sub) == 0) true else string_contains(unsafe(&raw output_buf[0]), expected_sub)
+    var out_view = unsafe(&raw output_buf[0])
+    // Coded diagnostics render as `error[SAFE-*]:`; uncoded ones as `error:`.
+    var has_error = string_contains(out_view, "error:") || string_contains(out_view, "error[")
+    var has_sub = if(strlen(expected_sub) == 0) true else string_contains(out_view, expected_sub)
 
     if(rc == 0) {
         env.error("expected compiler to fail but it succeeded")
@@ -228,6 +230,33 @@ internal func expect_compile_error_with_mod(env : &mut TestEnv, name : *char, ch
         neg_debug_print(name, unsafe(&raw output_buf[0]))
     } else if(!has_sub) {
         env.error("expected error substring not found in output")
+        neg_debug_print(name, unsafe(&raw output_buf[0]))
+    }
+
+    cleanup_test_dir(NEG_WORK_DIR, name)
+}
+
+// Compiles a program that must succeed, and asserts that the output contains
+// the given warning code (for example SAFE-UNSAFE-001). Used while a safety
+// rule is still in report-only mode.
+internal func expect_compile_warning_id(env : &mut TestEnv, name : *char, ch_content : *char, expected_id : *char) {
+    setup_test_files(NEG_WORK_DIR, name, NEG_MOD, ch_content)
+
+    var mod_path : char[512]
+    sprintf(unsafe(&raw mut mod_path[0]), "%s/%s/chemical.mod", NEG_WORK_DIR, name)
+    var out_path : char[512]
+    sprintf(unsafe(&raw mut out_path[0]), "%s/%s/out.exe", NEG_WORK_DIR, name)
+
+    var output_buf : char[16384]
+    var rc = run_compiler_capture(unsafe(&raw mod_path[0]), unsafe(&raw out_path[0]), unsafe(&raw mut output_buf[0]), 16384)
+    if(rc != 0) {
+        env.error("expected compiler to succeed while emitting a warning")
+        neg_debug_print(name, unsafe(&raw output_buf[0]))
+    } else if(!string_contains(unsafe(&raw output_buf[0]), "warn[")) {
+        env.error("expected a coded warning but found none")
+        neg_debug_print(name, unsafe(&raw output_buf[0]))
+    } else if(!string_contains(unsafe(&raw output_buf[0]), expected_id)) {
+        env.error("expected warning code not found in output")
         neg_debug_print(name, unsafe(&raw output_buf[0]))
     }
 

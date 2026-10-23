@@ -2919,7 +2919,8 @@ void SymResLinkBody::VisitCastedValue(CastedValue* cValue) {
 
 void SymResLinkBody::VisitDereferenceValue(DereferenceValue* value) {
     if(safe_context) {
-        diagnoser.warn("de-referencing a pointer in safe context is prohibited", value);
+        diagnoser.warn(value).with_code("SAFE-UNSAFE-001")
+            << "de-referencing a pointer in safe context is prohibited";
     }
     visit(value->getValue());
     // determining the type for this dereference value

@@ -140,7 +140,7 @@ void TypeVerifier::da_report_uninit(VarInitStatement* v, const char* action, Sou
     msg += "' before it is initialized (";
     msg += action;
     msg += ")";
-    diagnoser.error(chem::string_view(msg.data(), msg.size()), loc);
+    diagnoser.error(loc).with_code("SAFE-INIT-001") << msg;
 }
 
 void TypeVerifier::da_intersect(

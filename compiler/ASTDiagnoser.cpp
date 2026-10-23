@@ -7,16 +7,16 @@
 #include "ast/base/Value.h"
 #include <iostream>
 
-void ASTDiagnoser::location_diagnostic(const chem::string_view& message, SourceLocation location, DiagSeverity severity) {
+void ASTDiagnoser::location_diagnostic(const chem::string_view& message, SourceLocation location, DiagSeverity severity, const chem::string_view& code) {
     const auto pos = loc_man.getLocationPos(location);
     const auto filePath = loc_man.getPathForFileId(pos.fileId);
-    Diagnoser::diagnostic(chem::string_view(message), chem::string_view(filePath), pos.start, pos.end, severity);
+    Diagnoser::diagnostic(chem::string_view(message), chem::string_view(filePath), pos.start, pos.end, severity, code);
 }
 
-Diag& ASTDiagnoser::empty_diagnostic(SourceLocation location, DiagSeverity severity) {
+Diag& ASTDiagnoser::empty_diagnostic(SourceLocation location, DiagSeverity severity, const chem::string_view& code) {
     const auto pos = loc_man.getLocationPos(location);
     const auto filePath = loc_man.getPathForFileId(pos.fileId);
-    return Diagnoser::empty_diagnostic(chem::string_view(filePath), pos.start, pos.end, severity);
+    return Diagnoser::empty_diagnostic(chem::string_view(filePath), pos.start, pos.end, severity, code);
 }
 
 void ASTDiagnoser::print_debug_location(SourceLocation location) {

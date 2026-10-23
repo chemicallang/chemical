@@ -27,7 +27,7 @@ public:
     /**
      * create a diag with parameters
      */
-    static Diag make_diag(const chem::string_view& message, const chem::string_view& file_path, const Position& start, const Position& end, DiagSeverity severity);
+    static Diag make_diag(const chem::string_view& message, const chem::string_view& file_path, const Position& start, const Position& end, DiagSeverity severity, const chem::string_view& code = {});
 
     /**
      * add the given diagnostic
@@ -44,19 +44,20 @@ public:
     /**
      * get diagnostic
      */
-    Diag& empty_diagnostic(const chem::string_view& file_path, const Position& start, const Position& end, DiagSeverity severity) {
+    Diag& empty_diagnostic(const chem::string_view& file_path, const Position& start, const Position& end, DiagSeverity severity, const chem::string_view& code = {}) {
         if(severity == DiagSeverity::Error) {
             error_count++;
         }
         diagnostics.emplace_back(Range { start, end }, severity, file_path.str(), "");
+        if(!code.empty()) diagnostics.back().code = code.str();
         return diagnostics.back();
     }
 
     /**
      * the actual diagnostic function that does everything
      */
-    void diagnostic(const chem::string_view& message, const chem::string_view& file_path, const Position& start, const Position& end, DiagSeverity severity) {
-        add_diag(make_diag(message, file_path, start, end, severity));
+    void diagnostic(const chem::string_view& message, const chem::string_view& file_path, const Position& start, const Position& end, DiagSeverity severity, const chem::string_view& code = {}) {
+        add_diag(make_diag(message, file_path, start, end, severity, code));
     }
 
     /**

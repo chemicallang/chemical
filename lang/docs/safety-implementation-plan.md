@@ -1,7 +1,33 @@
 # Chemical Full Safety Parity Plan (v4.1)
 
-> **Status:** Proposed, fourth revision after independent review cycles and locked scope decisions.
+> **Status:** In progress — S0.1 (guardrails) underway.
 > **Supersedes:** v2/v3/v3.1/v3.2 (git history).
+>
+> ## Implementation status (2026-10-23)
+>
+> **Landed**
+> - `Diag` optional stable `code`; coded output is `error[SAFE-*]:` /
+>   `warn[SAFE-*]:`; uncoded diagnostics keep `error:`.
+> - `Diag::with_code`, related-information rendering; `Diagnoser`/
+>   `ASTDiagnoser` code plumbing.
+> - `SAFE-INIT-001` on use of an uninitialized variable.
+> - `SAFE-UNSAFE-001` on safe-context raw-pointer dereference (report-only
+>   warning).
+> - Negative harness accepts coded errors and has `expect_compile_warning_id`.
+> - `lang/tests/safety/` module + `--safety` suite skeleton, wired through
+>   `lang/tests/build.lab` and `scripts/test.sh`; negative output path is
+>   backend-specific.
+> - Tests: `lang/tests/negative/src/safety_diagnostics.ch`; TCC main
+>   `2318/2318`, negative `329/329`, safety smoke `1/1`.
+>
+> **Next**
+> - S0.1 runtime-failure harness + parity manifest.
+> - S0.2 `--safety-report` audit mode.
+> - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
+> - S0.4 remove module/CLI opt-outs.
+>
+> The detailed status is maintained in `.agents/skills/safety/SKILL.md`.
+
 >
 > **Goal:** the next release is fully safe for safe programs: ownership, moves,
 > borrowing, lifetimes, initialization/validity, bounds/overflow/null, thread

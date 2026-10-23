@@ -42,6 +42,7 @@ import "./webview/chemical.mod" as webviewTestMod
 import "./universal_webview/chemical.mod" as universalWebviewTestMod
 import "./server/chemical.mod" as serverTestMod
 import "./libs/chemical.mod" as libTestsMod
+import "./safety/chemical.mod" as safetyTestsMod
 import "./regexp/chemical.mod" as regexpTestMod
 import "./async/chemical.mod" as asyncMod
 
@@ -260,6 +261,16 @@ func test_libs_exe(ctx : *mut AppBuildContext) : *mut LabJob {
     return exe_job
 }
 
+func test_safety_exe(ctx : *mut AppBuildContext) : *mut LabJob {
+    // Runtime-failure and parity safety tests. Compile-fail tests remain in the
+    // negative suite until the safety runner is expanded.
+    const exe_name = std::string_view("chemical-safety-tests")
+    const exe_job = ctx.build_exe(&exe_name)
+    ctx.set_environment_testing(exe_job, true)
+    ctx.add_module(exe_job, safetyTestsMod.build(ctx, exe_job))
+    return exe_job
+}
+
 func test_regexp_exe(ctx : *mut AppBuildContext) : *mut LabJob {
     // Extensive regular-expression suite for the `regex` library. It is a
     // standalone module (like ./async and ./libs) so `./scripts/test.sh
@@ -366,6 +377,8 @@ func build(ctx : *mut AppBuildContext) : *mut LabJob {
         return test_server_exe(ctx)
     } else if(ctx.has_arg(std::string_view("test-libs"))) {
         return test_libs_exe(ctx)
+    } else if(ctx.has_arg(std::string_view("test-safety"))) {
+        return test_safety_exe(ctx)
     }
 
     const debug = true;

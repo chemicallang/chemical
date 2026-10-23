@@ -47,6 +47,10 @@ public:
     // message, This is the most important thing in this
     std::string message;
 
+    // Stable machine-readable code, e.g. SAFE-BORROW-002. Optional so all
+    // existing diagnostics keep their current output.
+    std::optional<std::string> code;
+
     // Non-serialized set of fixits.
     std::vector<TextReplacement> fixits_;
 
@@ -56,6 +60,19 @@ public:
     // An array of related diagnostic information, e.g. when symbol-names within a scope collide
     // all definitions can be marked via this property.
     std::optional<std::vector<DiagRelatedInfo>> relatedInformation;
+
+    /**
+     * attach a stable diagnostic code (SAFE-*). Returns *this for chaining.
+     */
+    inline Diag& with_code(const chem::string_view& value) {
+        if(!value.empty()) code = value.str();
+        return *this;
+    }
+
+    inline Diag& with_code(const char* value) {
+        if(value && value[0] != '\0') code = std::string(value);
+        return *this;
+    }
 
     /**
      * this format function directly prints the diagnostic to output stream

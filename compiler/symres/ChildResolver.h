@@ -63,6 +63,8 @@ struct ChildKeyHash {
 // types. It should be noted that container types like struct/union/variant/interface aren't covered
 // even pointer to container types aren't resolved here, their children are stored directly inside
 // their MembersContainer class, indexed in VariablesContainer class
+class GenericTypeParameter;
+
 class ChildResolver {
 public:
 
@@ -83,6 +85,14 @@ public:
      * Non-generic containers never take this lock.
      */
     std::shared_mutex* generic_impl_lookup_mutex = nullptr;
+
+    /**
+     * While linking a generic impl body, maps the target type's generic
+     * parameters (e.g. `Wrapper`'s T) to the impl's parameters (e.g.
+     * `impl<T: Show>`'s T). Method lookup on a field of type T can then see the
+     * bounds promised by the impl header. Null outside such a body.
+     */
+    std::unordered_map<GenericTypeParameter*, GenericTypeParameter*>* active_param_aliases = nullptr;
 
     // constructor
     ChildResolver() {}

@@ -1966,7 +1966,36 @@ void SymResLinkBody::VisitImplDecl(ImplDefinition* node) {
         // if its body is being linked, we don't want to call the methods in interface
         if (linked) struct_linked->adopt(linked);
     }
+    // Inside `impl<T: Show> Show for Wrapper<T>`, a field of type Wrapper's T
+    // must be able to call Show methods. Map the target struct's parameters to
+    // the impl's parameters for the duration of this body.
+    std::unordered_map<GenericTypeParameter*, GenericTypeParameter*> aliases;
+    if(node->generic_parent != nullptr && node->generic_parent->kind() == ASTNodeKind::GenericImplDecl &&
+       node->struct_type != nullptr) {
+        auto* gen_impl = (GenericImplDecl*) node->generic_parent;
+        auto* target_type = const_cast<BaseType*>(node->struct_type.getType());
+        if(target_type != nullptr && target_type->kind() == BaseTypeKind::Generic) {
+            auto* target_gen = target_type->as_generic_type_unsafe();
+            auto* target_decl = target_gen->referenced->linked;
+            if(target_decl != nullptr && target_decl->kind() == ASTNodeKind::GenericStructDecl) {
+                auto* struct_params = &target_decl->as_gen_struct_def_unsafe()->generic_params;
+                const auto count = target_gen->types.size() < struct_params->size()
+                    ? target_gen->types.size() : struct_params->size();
+                for(size_t i = 0; i < count; i++) {
+                    auto* arg_type = const_cast<BaseType*>(target_gen->types[i].getType());
+                    auto* arg_linked = arg_type ? arg_type->get_direct_linked_node() : nullptr;
+                    if(arg_linked != nullptr && arg_linked->kind() == ASTNodeKind::GenericTypeParam) {
+                        aliases[(*struct_params)[i]] = arg_linked->as_generic_type_param_unsafe();
+                    }
+                }
+            }
+        }
+        (void) gen_impl;
+    }
+    auto* prev_aliases = linker.child_resolver.active_param_aliases;
+    linker.child_resolver.active_param_aliases = aliases.empty() ? nullptr : &aliases;
     LinkMembersContainerNoScope(node);
+    linker.child_resolver.active_param_aliases = prev_aliases;
     table.scope_end();
 }
 

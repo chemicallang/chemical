@@ -735,6 +735,12 @@ ASTNode* child_provider_linked_type(const ChildResolver* resolver, LinkedType* t
         // once T is substituted, so the concrete impl is used in the emitted
         // code.
         auto* param = linked->as_generic_type_param_unsafe();
+        if(param->traits.empty() && resolver != nullptr && resolver->active_param_aliases != nullptr) {
+            const auto alias = resolver->active_param_aliases->find(param);
+            if(alias != resolver->active_param_aliases->end()) {
+                param = alias->second;
+            }
+        }
         for(auto& trait : param->traits) {
             auto* iface_node = trait->get_direct_linked_canonical_node();
             if(iface_node != nullptr) {

@@ -217,9 +217,15 @@
 >   calls resolve; struct/variant member-function where clauses deliberately
 >   stay out of the container parameter's traits to avoid leaking per-method
 >   bounds. Tests cover generic `Clone` dispatch for primitives and user types
->   and generic `Show` dispatch. A method calling a bound method on a generic
->   **field** (`self.value.show()` inside `impl<T: Show> Show for Wrapper<T>`)
->   still needs substitution-aware lookup.
+>   and generic `Show` dispatch.
+> - S1.5f substitution-aware generic-field lookup: while linking a generic impl
+>   body, `ChildResolver::active_param_aliases` maps the target struct's
+>   parameters to the impl's parameters (e.g. `Wrapper`'s T -> `impl<T: Show>`'s
+>   T). `provide_child` consults the alias when the struct parameter has no
+>   traits of its own. This makes `self.value.show()` inside
+>   `impl<T: Show> Show for Wrapper<T>` and `self.value.clone()` inside
+>   `impl<T: Clone> Clone for Wrapper<T>` resolve and relink to the concrete
+>   impl after monomorphization. Tests cover both.
 > - Still pending in S1.5: generic negative impls and data-race enforcement.
 > - Still pending in S1.4: automatic `Clone` derivation/body generation.
 >

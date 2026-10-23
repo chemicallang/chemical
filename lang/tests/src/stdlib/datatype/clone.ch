@@ -36,6 +36,26 @@ func <T> call_show(x : T) : int where T: Show {
     return x.show()
 }
 
+struct ShowWrapper<T> {
+    var value : T
+}
+
+impl<T> Show for ShowWrapper<T> where T: Show {
+    func show(&self) : int {
+        return self.value.show()
+    }
+}
+
+struct CloneWrapper<T> {
+    var value : T
+}
+
+impl<T> Clone for CloneWrapper<T> where T: Clone {
+    func clone(&self) : CloneWrapper<T> {
+        return CloneWrapper<T> { value : self.value.clone() }
+    }
+}
+
 func test_clone_impls() {
     test("int clone", () => {
         var x = 41
@@ -66,5 +86,14 @@ func test_clone_impls() {
     test("generic interface method dispatch", () => {
         var r = ShowRow { x : 41 }
         return call_show(r) == 41
+    })
+    test("generic field method dispatch in an impl", () => {
+        var w = ShowWrapper<ShowRow> { value : ShowRow { x : 41 } }
+        return w.show() == 41
+    })
+    test("generic field clone in an impl", () => {
+        var w = CloneWrapper<CloneRow> { value : CloneRow { x : 41 } }
+        var c = w.clone()
+        return c.value.x == 41
     })
 }

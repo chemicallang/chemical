@@ -209,6 +209,8 @@ int LabBuildCompiler::do_job(LabJob* job) {
     // switch the mode to current job's mode
     auto previous_mode = options->out_mode;
     options->out_mode = job->mode;
+    const bool previous_check_only = options->check_only;
+    options->check_only = job->attrs.check_only;
 
     const auto bm = options->benchmark;
     current_job = job;
@@ -276,6 +278,7 @@ int LabBuildCompiler::do_job(LabJob* job) {
     // every job has its output mode
     // however we access output mode from options mostly
     options->out_mode = previous_mode;
+    options->check_only = previous_check_only;
 
     // very important
     // annotation controller can collect top level nodes
@@ -857,18 +860,6 @@ int LabBuildCompiler::process_module_tcc(
         return 1;
     }
 
-    // don't compile when user asked for checking only
-    if (job->attrs.check_only) {
-        if(verbose) {
-            std::cout << "[lab] " << "disposing non-public symbols in the module" << std::endl;
-        }
-        // removing non public nodes, because these would be disposed when allocator clears
-        remove_non_public_nodes(processor, mod->direct_files);
-        // disposing data
-        mod_allocator->clear();
-        return 0;
-    }
-
     // check if module has not changed, and use cache appropriately
     // not changed means object file is also present (we make the check when setting the boolean)
     if(mod->has_changed.has_value() && !mod->has_changed.value()) {
@@ -1203,18 +1194,6 @@ int LabBuildCompiler::process_module_gen(
         // the module hasn't changed
         return 0;
 
-    }
-
-    // skip compilation when user asked to check only
-    if (job->attrs.check_only) {
-        if(verbose) {
-            std::cout << "[lab] " << "disposing non-public symbols in the module" << std::endl;
-        }
-        // removing non public nodes, because these would be disposed when allocator clears
-        remove_non_public_nodes(processor, mod->direct_files);
-        // disposing data
-        mod_allocator->clear();
-        return 0;
     }
 
     if(verbose) {

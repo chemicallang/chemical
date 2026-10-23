@@ -11,7 +11,7 @@ The source tree wins over any status note here.
 
 ## Current status (2026-10-23)
 
-**Milestone M0 / S0.1–S0.5 are implemented.**
+**Milestone M0 / S0.1–S0.6 are implemented.**
 
 Implemented:
 
@@ -50,10 +50,15 @@ Implemented:
   comptime, and `--mirtests` (`4524 checks`). Interpreter provenance/bounds/UAF
   checks are deferred to M5.7.
 
+- S0.6 `--check` runs MIR lowering + structural verification without emission
+  or linking; a good module exits 0 with no executable, an uninitialized read
+  exits 1 with `SAFE-INIT-001` and no executable.
+
 Next:
 
-- S0.6 `--check` lowering-only path.
-- Parity corpus/manifest is M8.1 (not an S0.x blocker).
+- M1 type-system foundations: lifetimes, opt-in `Copy`/`Drop`, slices,
+  Box/Vec/String, traits, HRTB, dyn, UTF-8, full C ABI prerequisites.
+- Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).
 
@@ -168,6 +173,9 @@ Compile-fail tests stay in `--negative` so the default suites remain fast.
 # Read-only audit
 ./cmake-build-debug/TCCCompiler <module> --no-cache --safety-report
 ./cmake-build-debug/TCCCompiler <module> --no-cache --safety-report json
+
+# Lower + verify without emitting/linking
+./cmake-build-debug/TCCCompiler <module> --check --no-cache
 
 # Audit baseline gate
 ./scripts/safety-audit.sh            # fail on growth

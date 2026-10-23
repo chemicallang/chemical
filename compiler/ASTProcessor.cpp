@@ -77,6 +77,7 @@ static void ct_stat_decl(const char* tag, FunctionDeclaration* d) {
 #include "compiler/mir/MIRTypeBuilder.h"
 #include "compiler/mir/MIRLowerer.h"
 #include "compiler/mir/MIRTaskContext.h"
+#include "compiler/mir/MIRVerifier.h"
 #include "compiler/mir/MIRMangleBuffer.h"
 #include "compiler/mir/MIRInterpProgram.h"
 
@@ -1988,6 +1989,30 @@ static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& m
         lowerer.clear_lambda_defs();
         return false;
     }
+    if (task.check_only) {
+        // Lowering succeeded; run the structural verifier and discard the
+        // artifact. No C/LLVM emission or linker output in --check mode.
+        auto check_fn = [&](const mir::MIRFunction& check) -> bool {
+            const auto result = mir::verify_function(check);
+            if (!result.ok()) {
+                error = "MIR verifier: " + result.diagnostics.front().message;
+                return false;
+            }
+            return true;
+        };
+        if (!check_fn(fn)) { lowerer.clear_lambda_defs(); return false; }
+        if (decl->is_async()) {
+            if (!check_fn(lowerer.async_poll()) || !check_fn(lowerer.async_drop())) {
+                lowerer.clear_lambda_defs();
+                return false;
+            }
+        }
+        for (const mir::MIRFunction& lf : lowerer.lambda_functions()) {
+            if (!check_fn(lf)) { lowerer.clear_lambda_defs(); return false; }
+        }
+        lowerer.clear_lambda_defs();
+        return true;
+    }
     auto flush_lambdas = [&lowerer, &task]() {
         for (std::string& def : lowerer.lambda_defs()) task.out.append(def.data(), def.size());
         lowerer.clear_lambda_defs();
@@ -2242,6 +2267,7 @@ bool mir_translate_after_declaration(
                     // One worker context per thread: its own lowerer (wired with
                     // the driver's callbacks), arena and output buffer.
                     mir::MIRTaskContext ctx(module, types);
+                    ctx.check_only = task.check_only;
                     ctx.lowerer.copy_callbacks_from(task.lowerer);
                     auto& r = results[w];
                     for (;;) {
@@ -2584,6 +2610,7 @@ int ASTProcessor::implement_module(
     mir::MIRModule& mir_module = mir_interp_program ? mir_interp_program->module : mir_module_local;
     mir::MIRTypeBuilder& mir_types = mir_interp_program ? *mir_interp_program->types : mir_types_local;
     mir::MIRTaskContext& mir_task = mir_interp_program ? *mir_interp_program->task : mir_task_local;
+    mir_task.check_only = options->check_only;
     std::recursive_mutex& mir_visitor_mutex =
         mir_interp_program ? mir_interp_program->visitor_mutex : mir_mutex_local;
     mir_module.layout.is64Bit = c_visitor.comptime_scope.target_data.is64Bit;

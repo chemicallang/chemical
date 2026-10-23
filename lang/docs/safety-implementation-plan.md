@@ -64,9 +64,16 @@
 >   - interpreter provenance/bounds/UAF checks are deferred to M5.7, where they
 >     are release-blocking before enforcement.
 >
-> **Next**
-> - S0.6 `--check` lowering-only path (full safety parity re-verified in M8).
-> - Parity corpus/manifest is M8.1 (not a blocker for S0.x).
+> - S0.6 `--check` lowering-only path:
+>   - `--check` now runs MIR lowering and the structural verifier without
+>     emitting C/LLVM or linking;
+>   - verified with a good module (exit 0, no executable) and an uninitialized
+>     read (exit 1, `SAFE-INIT-001`, no executable);
+>   - full safety parity will be re-verified in M8 after M3–M6 passes land.
+>
+> **M0 complete.** Next: M1 type-system foundations (lifetimes, opt-in
+> `Copy`/`Drop`, slices, Box/Vec/String, traits, HRTB, dyn, UTF-8, full C ABI
+> prerequisites).
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

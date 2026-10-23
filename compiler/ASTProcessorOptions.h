@@ -65,6 +65,12 @@ public:
     bool safety_report_json = false;
 
     /**
+     * --check: lower MIR and run structural safety verification, but do not
+     * emit or link. Set from the current job's check_only attribute.
+     */
+    bool check_only = false;
+
+    /**
      * is target system 64Bit
      */
     bool is64Bit;

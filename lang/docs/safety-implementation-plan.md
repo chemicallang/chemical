@@ -290,6 +290,16 @@
 >   Element-assignment lowering now marks the moved source before
 >   `element_store_place`, and `archive::zip_contains`/`tar_contains` initialize
 >   their out-parameter entry before passing it to the finder.
+> - S1.5m conditional positive auto-trait impls: `unsafe impl<T> Send for
+>   Box<T> where T: Send` is evaluated against the concrete arguments at a
+>   `where T: Send` use site (and recursively for nested boxes), instead of
+>   falling back to the raw-pointer field graph. Negative impls still take
+>   precedence.
+> - S1.8 `std::Box<T>`: a unique heap owner over `malloc`/`delete` with
+>   `get`/`get_mut`/`as_ptr`/`as_mut_ptr`, byte-moving construction
+>   (`memcpy` + `intrinsics::forget`), and `Send`/`Sync` following `T` via
+>   conditional unsafe impls. Tests cover drop-once, mutation, moves, strings,
+>   nested Send, and non-Send/non-Sync inner values.
 > - S1.6c `std::MaybeUninit<T>` / `std::ManuallyDrop<T>`: raw storage with
 >   no automatic drop glue. `@no_drop` suppresses both generated and explicit
 >   destructors (leaking is safe); `MaybeUninit::write`/`assume_init` and

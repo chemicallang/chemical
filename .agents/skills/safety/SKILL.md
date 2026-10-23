@@ -145,8 +145,11 @@ Next:
   deliberately neither `Send` nor `Sync`. `std::MaybeUninit<T>` and
   `std::ManuallyDrop<T>` (S1.6c) use the `@no_drop` container flag, which
   suppresses generated and explicit destructors, so their raw storage can be
-  written and later moved out with `memcpy`/`intrinsics::forget`. Next:
-  partial-move/drop elaboration, then the borrow checker.
+  written and later moved out with `memcpy`/`intrinsics::forget`.
+  `std::Box<T>` (S1.8) is a unique heap owner and derives `Send`/`Sync` from
+  `T` through conditional positive impls (S1.5m), which the type checker now
+  evaluates against concrete arguments. Next: partial-move/drop elaboration,
+  then the borrow checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

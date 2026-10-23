@@ -1111,6 +1111,10 @@ static BaseType* infer_generic_arg_from_call(
  * still-generic concrete type is treated as unsatisfied so a negative impl is
  * not applied prematurely.
  */
+static bool generic_negative_impl_applies(TypeVerifier& verifier,
+                                          GenericImplDecl* impl,
+                                          BaseType* concrete);
+
 static bool trait_constraint_satisfied(TypeVerifier& verifier, BaseType* concrete,
                                        BaseType* trait_type) {
     if (concrete == nullptr || trait_type == nullptr) return false;
@@ -1136,8 +1140,22 @@ static bool trait_constraint_satisfied(TypeVerifier& verifier, BaseType* concret
     if (iface->interface_bits.has(InterfaceBits::SEND_BIT) ||
         iface->interface_bits.has(InterfaceBits::SYNC_BIT)) {
         auto* container = concrete->get_members_container();
-        if (container != nullptr && verifier.index.get_impl(iface, container) != nullptr) {
-            return true;
+        if (container != nullptr) {
+            if (verifier.index.get_impl(iface, container) != nullptr) return true;
+            if (container->generic_parent != nullptr &&
+                !verifier.index.generic_impls_for((ASTNode*) container->generic_parent).empty()) {
+                for (auto* candidate : verifier.index.generic_impls_for(
+                         (ASTNode*) container->generic_parent)) {
+                    auto* candidate_iface = const_cast<BaseType*>(
+                        candidate->master_impl->interface_type.getType());
+                    auto* candidate_node = candidate_iface
+                        ? candidate_iface->get_direct_linked_node() : nullptr;
+                    if (candidate_node != (ASTNode*) iface) continue;
+                    if (generic_negative_impl_applies(verifier, candidate, concrete)) {
+                        return true;
+                    }
+                }
+            }
         }
         std::unordered_set<MembersContainer*> visiting;
         const auto kind = iface->interface_bits.has(InterfaceBits::SEND_BIT)
@@ -1360,6 +1378,22 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
                     verifier.index.get_impl(interface_def, container) != nullptr) {
                     continue;
                 }
+                bool generic_positive = false;
+                if (container != nullptr && container->generic_parent != nullptr) {
+                    for (auto* candidate : verifier.index.generic_impls_for(
+                             (ASTNode*) container->generic_parent)) {
+                        auto* candidate_iface = const_cast<BaseType*>(
+                            candidate->master_impl->interface_type.getType());
+                        auto* candidate_node = candidate_iface
+                            ? candidate_iface->get_direct_linked_node() : nullptr;
+                        if (candidate_node != (ASTNode*) interface_def) continue;
+                        if (generic_negative_impl_applies(verifier, candidate, concrete_type)) {
+                            generic_positive = true;
+                            break;
+                        }
+                    }
+                }
+                if (generic_positive) continue;
                 std::unordered_set<MembersContainer*> visiting;
                 const auto kind = interface_def->interface_bits.has(InterfaceBits::SEND_BIT)
                     ? AutoTraitKind::Send : AutoTraitKind::Sync;

@@ -17,4 +17,6 @@ public namespace std {
  */
 public struct PhantomData<T> {}
 
+impl<T> Copy for PhantomData<T> {}
+
 }

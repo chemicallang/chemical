@@ -275,4 +275,6 @@ public namespace std {
         }
     }
 
+
+impl Copy for string_view {}
 }

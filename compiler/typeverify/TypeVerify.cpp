@@ -1069,15 +1069,43 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
 
             auto interface_def = trait_node->as_interface_def_unsafe();
 
-            // For Copy constraint: check if the type has a destructor.
-            // Types without destructors are implicitly Copy (trivially copyable).
+            // Copy is opt-in for user-defined types: a struct/union/variant
+            // satisfies it only with an explicit `impl Copy`. Primitive types,
+            // pointers, references and functions are built-in Copy, and arrays
+            // are Copy when their element type is. Types with a destructor are
+            // never Copy (the explicit impl is rejected elsewhere).
             if (interface_def->interface_bits.has(InterfaceBits::COPY_BIT)) {
                 auto container = concrete_type->get_members_container();
-                if (container && container->has_destructor()) {
-                    diagnoser.error(call) << "type '" << concrete_type->representation()
-                        << "' does not satisfy where clause constraint '"
-                        << constraint.param_name << " : "
-                        << trait_type->representation() << "'";
+                bool satisfied = true;
+                bool has_destructor = container && container->has_destructor();
+                if (container) {
+                    satisfied = verifier.index.get_impl(interface_def, container) != nullptr;
+                } else if (concrete_type->kind() == BaseTypeKind::Array) {
+                    auto* element = const_cast<BaseType*>(concrete_type->as_array_type_unsafe()->elem_type.getType());
+                    auto* element_container = element ? element->get_members_container() : nullptr;
+                    if (element_container) {
+                        satisfied = verifier.index.get_impl(interface_def, element_container) != nullptr;
+                        has_destructor = element_container->has_destructor();
+                    }
+                }
+                if (!satisfied) {
+                    if (has_destructor) {
+                        // A destructor-bearing value can never be trivially
+                        // copied; this was already a hard error.
+                        diagnoser.error(call) << "type '" << concrete_type->representation()
+                            << "' does not satisfy where clause constraint '"
+                            << constraint.param_name << " : "
+                            << trait_type->representation() << "'";
+                    } else {
+                        // Migration stage: trivially copyable user types used to
+                        // be implicitly Copy. Report them until every in-tree
+                        // type opts in; then this becomes an error.
+                        diagnoser.warn(call).with_code("SAFE-COPY-001")
+                            << "type '" << concrete_type->representation()
+                            << "' is not declared Copy; add `impl Copy for "
+                            << concrete_type->representation()
+                            << "` (required when Copy becomes opt-in)";
+                    }
                 }
                 continue;
             }

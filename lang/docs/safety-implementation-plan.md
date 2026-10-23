@@ -129,7 +129,20 @@
 >   M4; without regions there is no consumer for inferred variance. The
 >   `PhantomData` representation it depends on is in place.
 >
-> Next: S1.4 opt-in `Copy`/`Drop`/`Clone`/`Default`.
+> - S1.4a opt-in `Copy` migration: user-defined types no longer count as
+>   `Copy` merely because they lack a destructor. Primitive types, pointers,
+>   references, functions and arrays of `Copy` are built-in; user types opt in
+>   with `impl Copy for T {}`. Destructor-bearing types remain a hard error.
+>   Trivially copyable user types that have not opted in yet emit
+>   `SAFE-COPY-001` (report-only) so the in-tree tree can be migrated before
+>   enforcement. `std::PhantomData<T>`, `std::string_view` and `std::span<T>`
+>   opt in. Positive/negative tests added. Once the in-repo tree is clean, the
+>   warning becomes an error.
+> - Still pending in S1.4: enforcing `SAFE-COPY-001`, and `Clone`/`Default`/
+>   `Drop` semantic wiring.
+>
+> Next: migrate in-tree `SAFE-COPY-001` warnings, then enforce Copy; add
+> `Clone`/`Default` impl generation and `Drop`/destructor rules.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

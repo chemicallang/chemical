@@ -62,4 +62,6 @@ public struct span<T> {
 
 }
 
+
+impl<T> Copy for span<T> {}
 }

@@ -2182,7 +2182,7 @@ void TypeVerifier::VisitAssignmentStmt(AssignStatement *assign) {
         // IndexOperator on LHS is a write, skip destructible check
         const auto prev_disable = disable_index_destructible_check;
         disable_index_destructible_check = true;
-        RecursiveVisitor<TypeVerifier>::VisitIndexOperator(assign->lhs->as_index_op_unsafe());
+        VisitIndexOperator(assign->lhs->as_index_op_unsafe());
         disable_index_destructible_check = prev_disable;
     } else {
         // DA: suppress read checks when visiting LHS (it's a write target, not a read)

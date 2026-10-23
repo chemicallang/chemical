@@ -210,7 +210,7 @@
 >   fields), so that remains pending.
 > - S5.4a static array bounds: a constant index into a fixed-size array is
 >   checked at type verification against the declared length and rejected with
->   `SAFE-BOUNDS-001`. Dynamic-index and vector bounds are still pending; the
+>   `SAFE-BOUNDS-001`, on reads and assignment LHS alike. Dynamic-index and vector bounds are still pending; the
 >   vector runtime checks remain blocked by the router-plugin OOB below.
 > - **Known blockers (2026-10-23):** `Option<T>`/`vector<T>` `Clone` bodies
 >   with `T: Clone` still fail inside `std` with `unresolved child 'clone'`

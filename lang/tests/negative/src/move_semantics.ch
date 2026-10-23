@@ -111,7 +111,7 @@ func conditional_init_without_use_is_allowed(env : &mut TestEnv) {
 @test
 func neg_constant_array_index_out_of_bounds(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
-    var ch = "public func main() : int {\n    var a : [3]int\n    a[3] = 1\n    return a[3]\n}\n"
+    var ch = "public func main() : int {\n    var a : [3]int\n    a[3] = 1\n    return 0\n}\n"
     expect_compile_error(env, "array_oob", ch, "SAFE-BOUNDS-001")
 }
 

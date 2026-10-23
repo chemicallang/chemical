@@ -54,6 +54,7 @@
 #include "ast/statements/Return.h"
 #include "ast/structures/UnnamedStruct.h"
 #include "ast/structures/InterfaceDefinition.h"
+#include "ast/structures/GenericTypeParameter.h"
 #include "ast/base/TypeBuilder.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/NullValue.h"
@@ -726,6 +727,26 @@ static bool is_concrete_generic_container(ASTNode* node) {
 ASTNode* child_provider_linked_type(const ChildResolver* resolver, LinkedType* type, const chem::string_view& name, ASTNode* type_parent) {
     const auto linked = type->linked;
     if(linked == nullptr) {
+        return nullptr;
+    }
+    if(linked->kind() == ASTNodeKind::GenericTypeParam) {
+        // A method called on a bare generic `T` with interface bounds resolves
+        // to the interface declaration. Generic instantiation relinks the call
+        // once T is substituted, so the concrete impl is used in the emitted
+        // code.
+        auto* param = linked->as_generic_type_param_unsafe();
+        for(auto& trait : param->traits) {
+            auto* iface_node = trait->get_direct_linked_canonical_node();
+            if(iface_node != nullptr) {
+                if(iface_node->kind() == ASTNodeKind::InterfaceDecl) {
+                    auto* found = iface_node->as_interface_def_unsafe()->child(name);
+                    if(found != nullptr) return found;
+                } else if(iface_node->kind() == ASTNodeKind::GenericInterfaceDecl) {
+                    auto* found = iface_node->as_gen_interface_decl_unsafe()->master_impl->child(name);
+                    if(found != nullptr) return found;
+                }
+            }
+        }
         return nullptr;
     }
     if(linked->kind() == ASTNodeKind::TypealiasStmt) {

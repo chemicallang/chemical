@@ -208,6 +208,18 @@
 >   on a generic `T: Clone` still hits the pre-existing generic-interface
 >   method-resolution limitation (the same issue as bound methods on generic
 >   fields), so that remains pending.
+> - S1.5e generic-interface method dispatch: `provide_child` now resolves a
+>   method on a bare generic `T` through its trait bounds (including generic
+>   interfaces such as `Serializer<...>`), returning the interface declaration
+>   for symbol resolution. Generic instantiation relinks the call to the
+>   concrete impl. Where-clause traits on free generic functions are also
+>   appended to the parameter's trait list so `where T: Clone`/`T: Show` method
+>   calls resolve; struct/variant member-function where clauses deliberately
+>   stay out of the container parameter's traits to avoid leaking per-method
+>   bounds. Tests cover generic `Clone` dispatch for primitives and user types
+>   and generic `Show` dispatch. A method calling a bound method on a generic
+>   **field** (`self.value.show()` inside `impl<T: Show> Show for Wrapper<T>`)
+>   still needs substitution-aware lookup.
 > - Still pending in S1.5: generic negative impls and data-race enforcement.
 > - Still pending in S1.4: automatic `Clone` derivation/body generation.
 >

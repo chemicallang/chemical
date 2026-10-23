@@ -1980,6 +1980,32 @@ static void calculate_where_clause_bits(const WhereClause* where_clause) {
     }
 }
 
+// Method lookup on a bare `T` searches the parameter's trait list. Where
+// clauses are an additional source of traits for free generic functions, so
+// expose them there as well (deduplicated by type). Struct/variant member
+// functions keep their where clauses out of the container parameter's traits,
+// because those constraints are per-method, not per-type.
+static void append_where_clause_traits(WhereClause* where_clause) {
+    if (where_clause == nullptr) return;
+    for (auto& c : where_clause->constraints) {
+        if (!c.param) continue;
+        for (auto& trait_type : c.constraints) {
+            const auto node = trait_type->get_direct_linked_node();
+            if (node == nullptr || node->kind() != ASTNodeKind::InterfaceDecl) continue;
+            bool already = false;
+            for (auto& existing : c.param->traits) {
+                if (existing.getType() == trait_type.getType()) {
+                    already = true;
+                    break;
+                }
+            }
+            if (!already) {
+                c.param->traits.push_back(trait_type);
+            }
+        }
+    }
+}
+
 // does two things (currently)
 // 1 - links export statements
 // 2 - calculates interface bits of generic type parameters
@@ -1995,7 +2021,9 @@ void AfterBuildIndexesPass(SymbolResolver& resolver, std::vector<ASTNode*>& node
             case ASTNodeKind::GenericFuncDecl: {
                 calculate_gen_param_bits(node->as_gen_func_decl_unsafe()->generic_params);
                 // also calculate bits from where clause on the master function
-                calculate_where_clause_bits(node->as_gen_func_decl_unsafe()->master_impl->where_clause);
+                auto* where_clause = node->as_gen_func_decl_unsafe()->master_impl->where_clause;
+                calculate_where_clause_bits(where_clause);
+                append_where_clause_traits(where_clause);
                 continue;
             }
             case ASTNodeKind::GenericStructDecl: {

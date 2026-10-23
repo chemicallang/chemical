@@ -705,6 +705,14 @@ static bool check_generic_impl_bounds(
             }
             if(iface->interface_bits.has(InterfaceBits::SEND_BIT) ||
                iface->interface_bits.has(InterfaceBits::SYNC_BIT)) {
+                if(index.get_impl(interface_key, for_) != nullptr) return true;
+                if(container != nullptr && container->generic_parent != nullptr) {
+                    instantiate_generic_impls_for(
+                        instantiator, (ASTAny*) container, interface_key,
+                        chem::string_view(), demand_loc
+                    );
+                    if(index.get_impl(interface_key, for_) != nullptr) return true;
+                }
                 std::unordered_set<MembersContainer*> visiting;
                 const auto kind = iface->interface_bits.has(InterfaceBits::SEND_BIT)
                     ? AutoTraitKind::Send : AutoTraitKind::Sync;

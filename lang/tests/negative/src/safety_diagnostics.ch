@@ -99,6 +99,27 @@ func neg_duplicate_lifetime_parameter(env : &mut TestEnv) {
 }
 
 @test
+func unsafe_send_impl_allows_raw_pointer(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\nstruct Raw {\n    var p : *mut int\n}\nunsafe impl Send for Raw {}\npublic func main() : int {\n    var h = Holder<Raw> { data = null }\n    return h.check()\n}\n"
+    expect_compile_output_not_contains(env, "unsafe_send_impl", ch, "does not satisfy where clause constraint", NEG_MOD_CORE)
+}
+
+@test
+func unsafe_sync_impl_allows_raw_pointer(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\nstruct Raw {\n    var p : *mut int\n}\nunsafe impl Sync for Raw {}\npublic func main() : int {\n    var h = Holder<Raw> { data = null }\n    return h.check()\n}\n"
+    expect_compile_output_not_contains(env, "unsafe_sync_impl", ch, "does not satisfy where clause constraint", NEG_MOD_CORE)
+}
+
+@test
+func neg_safe_send_impl_rejected(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Raw {\n    var p : *mut int\n}\nimpl Send for Raw {}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "safe_send_impl", ch, "SAFE-AUTO-001", NEG_MOD_CORE)
+}
+
+@test
 func generic_function_inferred_bound_checked(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct Row {\n    var x : int\n}\nfunc <T> f(x : T) : int where T: Copy {\n    return 0\n}\npublic func main() : int {\n    var r = Row { x : 1 }\n    return f(r)\n}\n"

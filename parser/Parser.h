@@ -996,7 +996,7 @@ public:
     /**
      * parses impl token
      */
-    ASTNode* parseImplTokens(ASTAllocator& allocator, ASTAllocator& body_allocator, AccessSpecifier specifier);
+    ASTNode* parseImplTokens(ASTAllocator& allocator, ASTAllocator& body_allocator, AccessSpecifier specifier, bool is_unsafe = false);
 
     /**
      * parses a enum block

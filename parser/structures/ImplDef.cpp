@@ -10,7 +10,7 @@
 #include "ast/structures/GenericImplDecl.h"
 #include "ast/structures/WhereClause.h"
 
-ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, ASTAllocator& body_allocator, AccessSpecifier specifier) {
+ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, ASTAllocator& body_allocator, AccessSpecifier specifier, bool is_unsafe) {
 
     auto& tok = *token;
 
@@ -20,7 +20,7 @@ ASTNode* Parser::parseImplTokens(ASTAllocator& allocator, ASTAllocator& body_all
 
         const auto location = loc_single(tok);
 
-        auto impl = new (allocator.allocate<ImplDefinition>()) ImplDefinition(parent_node, location, specifier);
+        auto impl = new (allocator.allocate<ImplDefinition>()) ImplDefinition(parent_node, location, specifier, is_unsafe);
         annotate(impl);
 
         ASTNode* final_decl = impl;

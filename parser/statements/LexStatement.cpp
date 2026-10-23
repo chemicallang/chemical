@@ -104,6 +104,10 @@ ASTNode* Parser::parseTopLevelStatement(ASTAllocator& allocator, bool comptime) 
                     return parseTopLevelStatement(allocator, true);
             }
         case TokenType::UnsafeKw:
+            if((token + 1)->type == TokenType::ImplKw) {
+                token++;
+                return (ASTNode*) parseImplTokens(allocator, mod_allocator, AccessSpecifier::Internal, true);
+            }
             return (ASTNode*) parseUnsafeBlock(allocator);
         case TokenType::ConstKw:
         case TokenType::VarKw:
@@ -161,6 +165,10 @@ ASTNode* Parser::parseNestedLevelStatementTokens(ASTAllocator& allocator, bool i
         case TokenType::ImportKw:
             return (ASTNode*) parseImportStatement(allocator);
         case TokenType::UnsafeKw:
+            if((token + 1)->type == TokenType::ImplKw) {
+                token++;
+                return (ASTNode*) parseImplTokens(allocator, mod_allocator, AccessSpecifier::Internal, true);
+            }
             return (ASTNode*) parseUnsafeBlock(allocator);
         case TokenType::BreakKw:
             return (ASTNode*) parseBreakStatement(allocator);

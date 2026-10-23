@@ -90,8 +90,9 @@ Next:
   bounds are derived structurally from fields (S1.5a); raw pointers are
   neither, references follow the usual rules, and `PhantomData` participates
   through its arguments. Generic-function bounds are now checked for both
-  explicit `f<T>(...)` and inferred `f(x)` calls (S1.5b). Next:
-  negative/explicit auto-trait impls, then the move checker.
+  explicit `f<T>(...)` and inferred `f(x)` calls (S1.5b). Explicit opt-ins use
+  `unsafe impl Send/Sync`; a safe `impl Send/Sync` is `SAFE-AUTO-001`
+  (S1.5c). Next: negative impls, then the move checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).
@@ -157,6 +158,7 @@ Codes are stable and grouped by domain:
 | `SAFE-COPY-002` | `impl Copy` on a type with a destructor |
 | `SAFE-COPY-003` | `impl Copy` on a type whose field is not Copy |
 | `SAFE-DROP-001` | invalid destructor signature (value self, missing self, non-void return, async) |
+| `SAFE-AUTO-001` | `Send`/`Sync` implemented without `unsafe impl` |
 | `SAFE-LIFE-*` | lifetimes / escapes |
 | `SAFE-INIT-*` | initialization / definite assignment |
 | `SAFE-VALID-*` | invalid values / transmute / packed |

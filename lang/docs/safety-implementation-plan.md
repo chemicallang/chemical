@@ -187,8 +187,14 @@
 >   pointers, arrays and generic arguments). This closes a real hole where
 >   `f(r)` with `where T: Copy` accepted a non-Copy `r`. Positive and negative
 >   tests cover both explicit and inferred calls.
-> - Still pending in S1.5: negative impls (`impl !Send`), explicit
->   `unsafe impl Send/Sync`, and data-race enforcement.
+> - S1.5c explicit auto-trait impls: `unsafe impl Send for T {}` /
+>   `unsafe impl Sync for T {}` parse and override the structural derivation
+>   (the author takes responsibility, as in the reference language). A plain
+>   `impl Send/Sync` is rejected with `SAFE-AUTO-001`; explicit impls are
+>   honored by both normal and generic-impl bound checks. `ImplDefinition`
+>   preserves the `unsafe` flag through copies/instantiations.
+> - Still pending in S1.5: negative impls (`impl !Send`) and data-race
+>   enforcement.
 > - Still pending in S1.4: automatic `Clone` derivation/body generation.
 >
 > Next: negative impls/explicit auto-trait impls, then the M1 ownership/move

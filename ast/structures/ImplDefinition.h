@@ -18,6 +18,9 @@ struct ImplDeclAttrs {
 
     AccessSpecifier specifier;
 
+    /** `unsafe impl Trait for T` — required for Send/Sync opt-ins. */
+    bool is_unsafe;
+
 };
 
 class ImplDefinition : public MembersContainer {
@@ -35,9 +38,10 @@ public:
             TypeLoc struct_type,
             ASTNode* parent_node,
             SourceLocation location,
-            AccessSpecifier specifier = AccessSpecifier::Internal
+            AccessSpecifier specifier = AccessSpecifier::Internal,
+            bool is_unsafe = false
     ) : MembersContainer(ASTNodeKind::ImplDecl, parent_node, location), interface_type(interface_type),
-        struct_type(struct_type), attrs(specifier)
+        struct_type(struct_type), attrs(specifier, is_unsafe)
     {
 
     }
@@ -48,9 +52,10 @@ public:
     ImplDefinition(
             ASTNode* parent_node,
             SourceLocation location,
-            AccessSpecifier specifier = AccessSpecifier::Internal
+            AccessSpecifier specifier = AccessSpecifier::Internal,
+            bool is_unsafe = false
     ) : MembersContainer(ASTNodeKind::ImplDecl, parent_node, location), interface_type(nullptr),
-        struct_type(nullptr), attrs(specifier) {
+        struct_type(nullptr), attrs(specifier, is_unsafe) {
 
     }
 
@@ -65,8 +70,11 @@ public:
             interface_type,
             struct_type,
             parent(),
-            encoded_location()
+            encoded_location(),
+            attrs.specifier,
+            attrs.is_unsafe
         );
+        impl->attrs = attrs;
         MembersContainer::shallow_copy_into(*impl, allocator);
         return impl;
     }
@@ -76,8 +84,11 @@ public:
             {interface_type->copy(allocator), interface_type.encoded_location()},
             {struct_type->copy(allocator), struct_type.encoded_location()},
             parent(),
-            encoded_location()
+            encoded_location(),
+            attrs.specifier,
+            attrs.is_unsafe
         );
+        impl->attrs = attrs;
         MembersContainer::copy_into(*impl, allocator);
         return impl;
     }

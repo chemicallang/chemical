@@ -1216,8 +1216,15 @@ static void verify_where_clause(TypeVerifier& verifier, FunctionCall* call) {
             }
 
             // Send/Sync are auto traits derived structurally from fields.
+            // An explicit `unsafe impl Send/Sync` overrides the structural
+            // derivation (the safety responsibility is on the impl author).
             if (interface_def->interface_bits.has(InterfaceBits::SEND_BIT) ||
                 interface_def->interface_bits.has(InterfaceBits::SYNC_BIT)) {
+                auto container = concrete_type->get_members_container();
+                if (container != nullptr &&
+                    verifier.index.get_impl(interface_def, container) != nullptr) {
+                    continue;
+                }
                 std::unordered_set<MembersContainer*> visiting;
                 const auto kind = interface_def->interface_bits.has(InterfaceBits::SEND_BIT)
                     ? AutoTraitKind::Send : AutoTraitKind::Sync;
@@ -1808,6 +1815,14 @@ void TypeVerifier::VisitImplDecl(ImplDefinition* implDecl) {
         if (interface_node != nullptr && interface_node->kind() == ASTNodeKind::InterfaceDecl) {
             const auto interface = interface_node->as_interface_def_unsafe();
             verify_interface_implementation(index, diagnoser, implDecl, interface);
+            if ((interface->interface_bits.has(InterfaceBits::SEND_BIT) ||
+                 interface->interface_bits.has(InterfaceBits::SYNC_BIT)) &&
+                !implDecl->attrs.is_unsafe) {
+                diagnoser.error(implDecl).with_code("SAFE-AUTO-001")
+                    << "an implementation of "
+                    << (interface->interface_bits.has(InterfaceBits::SEND_BIT) ? "Send" : "Sync")
+                    << " must be declared `unsafe impl`";
+            }
             if (interface->interface_bits.has(InterfaceBits::COPY_BIT)) {
                 verify_copy_impl(*this, implDecl, interface);
             }

@@ -208,6 +208,13 @@
 >   on a generic `T: Clone` still hits the pre-existing generic-interface
 >   method-resolution limitation (the same issue as bound methods on generic
 >   fields), so that remains pending.
+> - **Known blockers (2026-10-23):** `Option<T>`/`vector<T>` `Clone` bodies
+>   with `T: Clone` still fail inside `std` with `unresolved child 'clone'`
+>   during generic instantiation, although the identical impl compiles in a
+>   user module; this needs conditional generic-impl body linking at the
+>   concrete use site. Vector runtime bounds checks were attempted and
+>   reverted because they exposed an existing router-plugin `get_ptr(0)` on an
+>   empty vector during compilation; fix that OOB before enabling checks.
 > - S1.5e generic-interface method dispatch: `provide_child` now resolves a
 >   method on a bare generic `T` through its trait bounds (including generic
 >   interfaces such as `Serializer<...>`), returning the interface declaration

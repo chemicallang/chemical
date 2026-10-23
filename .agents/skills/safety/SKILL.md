@@ -127,8 +127,13 @@ Next:
   `CloneBox<T>` impl, S1.5h). Nested generic-impl instantiations whose arguments
   still contain a generic parameter are signature-finalized but their bodies
   are deferred until the parameter is concrete (S1.5k); `Option<T>`/
-  `vector<T>` `Clone` remain out until the bound `&T` clone resolves
-  deterministically. Structural auto-trait derivation also honors explicit
+  `vector<T>` `Clone` remain out: the same `T: Clone` bodies compile in a user
+  module (`CloneBox<T>` and even an impl for `std::Option<T>`), but inside
+  `std` they still hit `unresolved child 'clone'` during generic
+  instantiation. A conditional generic-impl body-linking fix is required.
+  Vector bounds checks were also attempted and reverted: they expose an
+  existing router-plugin `get_ptr(0)` on an empty vector during module
+  compilation, so that OOB must be fixed before checks can be enabled. Structural auto-trait derivation also honors explicit
   positive impls on nested fields (S1.5l), after checking negative overrides. `vector::get_ref` now returns `&T` and `vector::get_mut`
   is the mutable accessor (S1.10a), so mutation through a shared reference is
   rejected. `impl<T> !Send/!Sync for Wrapper<T>` works for all

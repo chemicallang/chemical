@@ -78,6 +78,7 @@ static void ct_stat_decl(const char* tag, FunctionDeclaration* d) {
 #include "compiler/mir/MIRLowerer.h"
 #include "compiler/mir/MIRTaskContext.h"
 #include "compiler/mir/MIRVerifier.h"
+#include "compiler/mir/MIRMoveCheck.h"
 #include "compiler/mir/MIRMangleBuffer.h"
 #include "compiler/mir/MIRInterpProgram.h"
 
@@ -1989,27 +1990,53 @@ static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& m
         lowerer.clear_lambda_defs();
         return false;
     }
+    // Every emitted or interpreted function goes through the structural
+    // verifier and the init/move dataflow before any backend sees it. This is
+    // deliberately not check-only: unsafe(...) is a compile-time marker for
+    // inherently unchecked operations, never an opt-out from ownership.
+    auto validate = [&](const mir::MIRFunction& check) -> bool {
+        const auto result = mir::verify_function(check);
+        if (!result.ok()) {
+            error = "MIR verifier: " + result.diagnostics.front().message;
+            return false;
+        }
+        const auto moves = mir::check_function_moves(module, check);
+        if (!moves.ok()) {
+            const mir::MIRMoveDiagnostic& d = moves.diagnostics.front();
+            error = std::string(d.code ? d.code : "SAFE-MOVE-001") + ": " + d.message;
+            if (d.has_loc && d.loc.file < module.source_files.size()) {
+                error += " at " + module.source_files[d.loc.file] + ":" +
+                         std::to_string(d.loc.line) + ":" +
+                         std::to_string(d.loc.column);
+            }
+            if (d.path != mir::MIR_INVALID_ID && d.path < check.move_paths.size()) {
+                const auto& path = check.move_paths[d.path];
+                error += " (path " + std::to_string(d.path) +
+                         ", place " + std::to_string(path.root_place) +
+                         ", type " + module.types.name_of(path.field_type);
+                if (d.inst_index < check.instructions.size()) {
+                    error += ", op ";
+                    error += mir::opcode_name(check.instructions[d.inst_index].opcode());
+                }
+                error += ")";
+            }
+            return false;
+        }
+        return true;
+    };
+    if (!validate(fn)) { lowerer.clear_lambda_defs(); return false; }
+    if (decl->is_async()) {
+        if (!validate(lowerer.async_poll()) || !validate(lowerer.async_drop())) {
+            lowerer.clear_lambda_defs();
+            return false;
+        }
+    }
+    for (const mir::MIRFunction& lf : lowerer.lambda_functions()) {
+        if (!validate(lf)) { lowerer.clear_lambda_defs(); return false; }
+    }
     if (task.check_only) {
-        // Lowering succeeded; run the structural verifier and discard the
-        // artifact. No C/LLVM emission or linker output in --check mode.
-        auto check_fn = [&](const mir::MIRFunction& check) -> bool {
-            const auto result = mir::verify_function(check);
-            if (!result.ok()) {
-                error = "MIR verifier: " + result.diagnostics.front().message;
-                return false;
-            }
-            return true;
-        };
-        if (!check_fn(fn)) { lowerer.clear_lambda_defs(); return false; }
-        if (decl->is_async()) {
-            if (!check_fn(lowerer.async_poll()) || !check_fn(lowerer.async_drop())) {
-                lowerer.clear_lambda_defs();
-                return false;
-            }
-        }
-        for (const mir::MIRFunction& lf : lowerer.lambda_functions()) {
-            if (!check_fn(lf)) { lowerer.clear_lambda_defs(); return false; }
-        }
+        // Lowering and safety validation succeeded; discard the artifact. No
+        // C/LLVM emission or linker output in --check mode.
         lowerer.clear_lambda_defs();
         return true;
     }
@@ -2030,6 +2057,7 @@ static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& m
                 error = tramp_error;
                 return false;
             }
+            if (!validate(tramp)) return false;
             module.functions.push_back(tramp);
         }
         for (const mir::MIRFunction& lf : lowerer.lambda_functions()) {
@@ -2063,6 +2091,7 @@ static bool mir_lower_and_emit_into(mir::MIRTaskContext& task, mir::MIRModule& m
                 error = tramp_error;
                 return false;
             }
+            if (!validate(tramp)) return false;
             std::string tramp_c, tramp_emit_error;
             if (!mir::emit_function_c(tramp, module, tramp_c, tramp_emit_error)) {
                 error = tramp_emit_error;

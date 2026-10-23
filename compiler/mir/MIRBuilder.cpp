@@ -387,6 +387,7 @@ void MIRBuilder::field_store(PlaceId base, ConstantId field_name, ValueId value)
          {MIROperand::place(base, bt),
           MIROperand::constant(field_name, MIR_INVALID_ID),
           MIROperand::value(value, vt)});
+    set_place_move_path_state(func_, base, MIRInitState::Initialized, false);
 }
 
 void MIRBuilder::field_store_place(PlaceId base, ConstantId field_name, PlaceId value) {
@@ -396,6 +397,7 @@ void MIRBuilder::field_store_place(PlaceId base, ConstantId field_name, PlaceId 
          {MIROperand::place(base, bt),
           MIROperand::constant(field_name, MIR_INVALID_ID),
           MIROperand::place(value, vt)});
+    set_place_move_path_state(func_, base, MIRInitState::Initialized, false);
 }
 
 void MIRBuilder::element_store_place(PlaceId base, ValueId index, PlaceId value) {
@@ -405,6 +407,7 @@ void MIRBuilder::element_store_place(PlaceId base, ValueId index, PlaceId value)
     emit(MIROpcode::Store, MIR_NULL,
          {MIROperand::place(base, bt), MIROperand::value(index, it),
           MIROperand::place(value, vt)});
+    set_place_move_path_state(func_, base, MIRInitState::Initialized, false);
 }
 
 ValueId MIRBuilder::index_load(ValueId base, ValueId index, TypeId element_type) {
@@ -445,6 +448,7 @@ void MIRBuilder::element_store(PlaceId base, ValueId index, ValueId value) {
     emit(MIROpcode::Store, MIR_NULL,
          {MIROperand::place(base, bt), MIROperand::value(index, it),
           MIROperand::value(value, vt)});
+    set_place_move_path_state(func_, base, MIRInitState::Initialized, false);
 }
 
 ValueId MIRBuilder::address_of(PlaceId place, TypeId pointer_type) {
@@ -632,6 +636,10 @@ void MIRBuilder::call_sret(SymbolId callee, PlaceId result_place,
     // sret is encoded by the result place operand (kind Place) immediately
     // after the callee symbol; the emitter reads the callee ABI and writes into it.
     emit_impl(MIROpcode::Call, result_place, ops, count + 2);
+    if (result_place < func_.places.size()) {
+        func_.places[result_place].init_state = static_cast<uint8_t>(MIRInitState::Initialized);
+        set_place_move_path_state(func_, result_place, MIRInitState::Initialized, true);
+    }
 }
 
 ValueId MIRBuilder::call_indirect(ValueId fn, TypeId result_type,
@@ -682,6 +690,10 @@ void MIRBuilder::call_indirect_sret(ValueId fn, PlaceId result_place,
     ops[1] = MIROperand::place(result_place, rt);
     for (uint32_t i = 0; i < count; ++i) ops[i + 2] = args[i];
     emit_impl(MIROpcode::CallIndirect, MIR_NULL, ops, count + 2);
+    if (result_place < func_.places.size()) {
+        func_.places[result_place].init_state = static_cast<uint8_t>(MIRInitState::Initialized);
+        set_place_move_path_state(func_, result_place, MIRInitState::Initialized, true);
+    }
 }
 
 // ── lifetime ───────────────────────────────────────────────────────────────
@@ -701,6 +713,12 @@ void MIRBuilder::init(PlaceId dest, SymbolId ctor, const MIROperand* args, uint3
         func_.places[dest].init_state = static_cast<uint8_t>(MIRInitState::Initialized);
         set_place_move_path_state(func_, dest, MIRInitState::Initialized, true);
     }
+}
+
+void MIRBuilder::mark_initialized(PlaceId place) {
+    if (place >= func_.places.size()) return;
+    func_.places[place].init_state = static_cast<uint8_t>(MIRInitState::Initialized);
+    set_place_move_path_state(func_, place, MIRInitState::Initialized, true);
 }
 
 void MIRBuilder::copy_init(PlaceId dest, ValueId src, TypeId type) {
@@ -748,7 +766,7 @@ void MIRBuilder::destroy(PlaceId place, SymbolId dtor) {
 
 void MIRBuilder::drop(PlaceId place, SymbolId dtor, ValueId flag) {
     TypeId pt = place < func_.places.size() ? func_.places[place].type : MIR_INVALID_ID;
-    if (flag == MIR_NULL) {
+    if (flag == MIR_INVALID_ID) {
         emit(MIROpcode::Drop, MIR_NULL,
              {MIROperand::place(place, pt), MIROperand::symbol(dtor, MIR_INVALID_ID)});
     } else {
@@ -777,6 +795,10 @@ void MIRBuilder::memcpy(PlaceId dest, PlaceId src, ValueId size) {
     emit(MIROpcode::MemCpy, MIR_NULL,
          {MIROperand::place(dest, dt), MIROperand::place(src, st),
           MIROperand::value(size, zt)});
+    if (dest < func_.places.size()) {
+        func_.places[dest].init_state = static_cast<uint8_t>(MIRInitState::Initialized);
+        set_place_move_path_state(func_, dest, MIRInitState::Initialized, true);
+    }
 }
 
 void MIRBuilder::copy_ptr_to_place(PlaceId dest, ValueId src_ptr) {
@@ -784,6 +806,10 @@ void MIRBuilder::copy_ptr_to_place(PlaceId dest, ValueId src_ptr) {
     TypeId st = src_ptr < func_.values.size() ? func_.values[src_ptr].type : MIR_INVALID_ID;
     emit(MIROpcode::MemCpy, MIR_NULL,
          {MIROperand::place(dest, dt), MIROperand::value(src_ptr, st)});
+    if (dest < func_.places.size()) {
+        func_.places[dest].init_state = static_cast<uint8_t>(MIRInitState::Initialized);
+        set_place_move_path_state(func_, dest, MIRInitState::Initialized, true);
+    }
 }
 
 void MIRBuilder::memcpy_size(PlaceId dest, ValueId src_ptr, ValueId size) {
@@ -793,6 +819,10 @@ void MIRBuilder::memcpy_size(PlaceId dest, ValueId src_ptr, ValueId size) {
     emit(MIROpcode::MemCpy, MIR_NULL,
          {MIROperand::place(dest, dt), MIROperand::value(src_ptr, st),
           MIROperand::value(size, zt)});
+    if (dest < func_.places.size()) {
+        func_.places[dest].init_state = static_cast<uint8_t>(MIRInitState::Initialized);
+        set_place_move_path_state(func_, dest, MIRInitState::Initialized, true);
+    }
 }
 
 void MIRBuilder::memset(PlaceId dest, ValueId byte, ValueId size) {
@@ -802,11 +832,19 @@ void MIRBuilder::memset(PlaceId dest, ValueId byte, ValueId size) {
     emit(MIROpcode::MemSet, MIR_NULL,
          {MIROperand::place(dest, dt), MIROperand::value(byte, bt),
           MIROperand::value(size, zt)});
+    if (dest < func_.places.size()) {
+        func_.places[dest].init_state = static_cast<uint8_t>(MIRInitState::Initialized);
+        set_place_move_path_state(func_, dest, MIRInitState::Initialized, true);
+    }
 }
 
 void MIRBuilder::zero_init(PlaceId dest) {
     TypeId dt = dest < func_.places.size() ? func_.places[dest].type : MIR_INVALID_ID;
     emit(MIROpcode::MemSet, MIR_NULL, {MIROperand::place(dest, dt)});
+    if (dest < func_.places.size()) {
+        func_.places[dest].init_state = static_cast<uint8_t>(MIRInitState::Initialized);
+        set_place_move_path_state(func_, dest, MIRInitState::Initialized, true);
+    }
 }
 
 void MIRBuilder::memset_ptr(ValueId dest, ValueId byte, ValueId size) {

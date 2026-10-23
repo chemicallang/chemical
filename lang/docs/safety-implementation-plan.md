@@ -264,10 +264,21 @@
 >   out-of-range links, self-parenting, projection indices on a root, a root not
 >   referenced by its place, and non-terminating sibling lists. `MIRTests`
 >   covers a struct + array-of-destructor tree and move-state propagation.
+> - S3.1b/S3.2 MIR init/move dataflow: `MIRMoveCheck` propagates
+>   Uninitialized/Initialized/Moved/Destroyed over each function's CFG and
+>   reports `SAFE-INIT-001`/`SAFE-MOVE-001` for definite moves/drops/destroys/
+>   reads of dead paths. Disagreeing joins become `Maybe` and are left to the
+>   runtime drop flag (conditional-state modelling is the next refinement).
+>   Parameters and globals start initialized; coroutine frame fields are left to
+>   the async lowering. The pass runs for every lowered function in both normal
+>   and `--check` builds before either backend sees the MIR, so `unsafe(...)`
+>   cannot disable it. `MIRTests` covers valid moves, double moves, drop of an
+>   uninitialized path, and conditional drop; the negative suite covers the
+>   `unsafe` bypass (`SAFE-INIT-001`).
 > - Still pending in S1.4: automatic `Clone` derivation/body generation.
 >
-> Next: MIR init/move dataflow over the move-path trees (S3.1b/S3.2), then
-> conditional negative impls and the M1 ownership/move checker.
+> Next: conditional-state/drop-flag modelling, then conditional negative impls
+> and the M1 ownership/move checker.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

@@ -61,7 +61,17 @@ Implemented:
   propagates initialized/moved/destroyed state through the tree on
   init/copy-init/move-init/assign/drop/destroy, and `MIRVerifier` checks the
   tree structure. `MIRTests` covers a struct + `[3]Destructor` tree and move
-  propagation (`4556 checks`). MIR dataflow over these paths is S3.1b/S3.2.
+  propagation.
+- S3.1b/S3.2 MIR init/move dataflow: `compiler/mir/MIRMoveCheck.{h,cpp}` runs
+  over every lowered function (normal and `--check`) before either backend.
+  It propagates Uninitialized/Initialized/Moved/Destroyed through the CFG and
+  reports `SAFE-INIT-001` / `SAFE-MOVE-001` for definite moves, drops,
+  destroys and reads of dead paths. Disagreeing joins become `Maybe`; those are
+  left to the runtime drop flag until conditional-state modelling lands.
+  Parameters/globals start initialized and coroutine frame fields are skipped
+  (owned by the async lowering). `unsafe(...)` is not an opt-out: the negative
+  suite proves an uninitialized move inside `unsafe` is still rejected.
+  `MIRTests` is `4563 checks`.
 
 - M1 started: `&'a T` / `&'a mut T` reference lifetimes are parsed and carried
   on `ReferenceType` (S1.1a). `func <'a, T>`, `struct Foo<'a>`, and
@@ -116,8 +126,8 @@ Next:
   instantiation-time alias propagation for non-Clone element types.
   `impl<T> !Send/!Sync for Wrapper<T>` works for all instantiations (S1.5i);
   bounded/where-clause negative impls are rejected with `SAFE-AUTO-002`.
-  Next: MIR init/move dataflow over the move-path trees, then conditional
-  negative impls and the move checker.
+  Next: conditional-state/drop-flag modelling, then conditional negative impls
+  and the borrow checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

@@ -184,11 +184,13 @@ public:
 
     // ── lifetime ───────────────────────────────────────────────────────────
     void init(PlaceId dest, SymbolId ctor, const MIROperand* args, uint32_t count);
+    /** Mark a place (and its move-path tree) initialized after a trusted write. */
+    void mark_initialized(PlaceId place);
     void copy_init(PlaceId dest, ValueId src, TypeId type);
     void move_init(PlaceId dest, PlaceId src, TypeId type);
     void assign(PlaceId dest, ValueId src, TypeId type);
     void destroy(PlaceId place, SymbolId dtor);
-    void drop(PlaceId place, SymbolId dtor, ValueId flag = MIR_NULL);
+    void drop(PlaceId place, SymbolId dtor, ValueId flag = MIR_INVALID_ID);
     void set_drop(PlaceId flag_place, bool value);
     void memcpy(PlaceId dest, PlaceId src, ValueId size);
     /** Copy bytes from a pointer into a place: `memcpy(&dest, src, sizeof(dest))`. */

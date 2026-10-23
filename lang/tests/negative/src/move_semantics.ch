@@ -83,3 +83,13 @@ func neg_move_unknown_type(env : &mut TestEnv) {
     var ch = "struct S {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\nfunc main() {\n    var a = S { x : 1 }\n    var b = a\n    b = a\n}\n"
     expect_compile_error(env, "move_unknown", ch, "cannot move")
 }
+
+@test
+func neg_unsafe_does_not_disable_init(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    // unsafe(...) is a marker for inherently unchecked operations. It must not
+    // disable definite-assignment/ownership checking, so the MIR dataflow still
+    // rejects moving the uninitialized destructor-bearing value.
+    var ch = "struct S {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int {\n    unsafe {\n        var a : S\n        var b = a\n        return b.x\n    }\n}\n"
+    expect_compile_error(env, "unsafe_does_not_disable_init", ch, "SAFE-INIT-001")
+}

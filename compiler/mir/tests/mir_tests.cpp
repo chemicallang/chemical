@@ -11,6 +11,7 @@
 #include "compiler/mir/MIREmitter.h"
 #include "compiler/mir/MIRFacts.h"
 #include "compiler/mir/MIRInterpreter.h"
+#include "compiler/mir/MIRMoveCheck.h"
 #include "compiler/mir/MIRTraversal.h"
 
 #include <cassert>
@@ -1772,6 +1773,113 @@ static bool test_move_paths() {
     return true;
 }
 
+
+// ── MIR init/move dataflow ─────────────────────────────────────────────────
+static bool test_move_check() {
+    MIRModule module;
+
+    MIRTypeRecord ir;
+    ir.kind = MIRTypeKind::Int;
+    ir.flags = TF_SIGNED;
+    ir.size = 4;
+    ir.alignment = 4;
+    const TypeId i32 = module.types.intern(ir);
+
+    MIRTypeRecord br;
+    br.kind = MIRTypeKind::Bool;
+    br.size = 1;
+    br.alignment = 1;
+    const TypeId bool_t = module.types.intern(br);
+
+    MIRTypeRecord owned;
+    owned.kind = MIRTypeKind::Struct;
+    owned.flags = TF_HAS_DESTRUCTOR;
+    const TypeId owned_id = module.types.push(owned);
+
+    MIRSymbolRecord drec;
+    drec.kind = MIRSymbolKind::Function;
+    const SymbolId dtor = module.symbols.add(drec, "drop_owned", 10,
+                                             "drop_owned", 10);
+    const SymbolId ctor = module.symbols.add(drec, "make_owned", 10,
+                                             "make_owned", 10);
+
+    auto build = [&](MIRFunction& fn, auto&& body) {
+        fn.function_type = i32;
+        MIRArena arena;
+        MIRBuilder b(arena, module, fn);
+        const BlockId entry = b.create_block();
+        fn.entry_block = entry;
+        b.set_block(entry);
+        body(b);
+        b.ret_void();
+    };
+
+    {
+        MIRFunction fn;
+        build(fn, [&](MIRBuilder& b) {
+            const PlaceId a = b.alloca(owned_id);
+            const PlaceId c = b.alloca(owned_id);
+            b.init(a, ctor, nullptr, 0);
+            b.move_init(c, a, owned_id);
+        });
+        MIRMoveCheckResult vr = check_function_moves(module, fn);
+        if (!vr.ok()) {
+            for (const auto& d : vr.diagnostics) {
+                std::cerr << "valid-move diag: " << d.code << " " << d.message
+                          << " path=" << d.path << " inst=" << d.inst_index << "\n";
+            }
+        }
+        CHECK(vr.ok());
+    }
+
+    {
+        MIRFunction fn;
+        build(fn, [&](MIRBuilder& b) {
+            const PlaceId a = b.alloca(owned_id);
+            const PlaceId c = b.alloca(owned_id);
+            const PlaceId d = b.alloca(owned_id);
+            b.init(a, ctor, nullptr, 0);
+            b.move_init(c, a, owned_id);
+            b.move_init(d, a, owned_id);
+        });
+        MIRMoveCheckResult r = check_function_moves(module, fn);
+        CHECK(!r.ok());
+        CHECK(r.diagnostics[0].code != nullptr);
+        CHECK(std::string(r.diagnostics[0].code) == "SAFE-MOVE-001");
+    }
+
+    {
+        MIRFunction fn;
+        build(fn, [&](MIRBuilder& b) {
+            const PlaceId a = b.alloca(owned_id);
+            b.drop(a, dtor);
+        });
+        MIRMoveCheckResult r = check_function_moves(module, fn);
+        CHECK(!r.ok());
+        CHECK(std::string(r.diagnostics[0].code) == "SAFE-INIT-001");
+    }
+
+    {
+        MIRFunction fn;
+        build(fn, [&](MIRBuilder& b) {
+            const PlaceId a = b.alloca(owned_id);
+            const PlaceId flag = b.alloca(bool_t);
+            b.set_drop(flag, true);
+            b.drop(a, dtor, b.load(flag, bool_t));
+        });
+        MIRMoveCheckResult cr = check_function_moves(module, fn);
+        if (!cr.ok()) {
+            for (const auto& d : cr.diagnostics) {
+                std::cerr << "cond-drop diag: " << d.code << " " << d.message
+                          << " path=" << d.path << " inst=" << d.inst_index << "\n";
+            }
+        }
+        CHECK(cr.ok());
+    }
+
+    return true;
+}
+
 int main() {
     bool ok = true;
     ok &= test_arena();
@@ -1783,6 +1891,7 @@ int main() {
     ok &= test_emitter();
     ok &= test_interpreter_roundtrip();
     ok &= test_move_paths();
+    ok &= test_move_check();
     ok &= test_control_flow_emitter();
     ok &= test_type_names();
     ok &= test_aggregate_layout();

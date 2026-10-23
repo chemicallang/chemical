@@ -1109,8 +1109,11 @@ bool MIRLowerer::lower_async_main_trampoline(FunctionDeclaration* decl, const MI
         params.push_back(b.param(pt));
     }
 
-    // call the ramp: it writes the FutureHandle<T> through its sret slot
+    // call the ramp: it writes the FutureHandle<T> through its explicit sret
+    // pointer argument. Zero the slot first so the MIR dataflow sees a defined
+    // value on every path (the ramp overwrites it immediately).
     const PlaceId handle_place = b.alloca(handle_t, MIRStorageClass::Local);
+    b.zero_init(handle_place);
     {
         MIRArgScope _ag_scope(*this);
         std::vector<MIROperand>& args = _ag_scope.v;
@@ -1121,6 +1124,9 @@ bool MIRLowerer::lower_async_main_trampoline(FunctionDeclaration* decl, const MI
         }
         b.call_scalar(intern_function(decl), types_.void_type(), args.data(),
                       static_cast<uint32_t>(args.size()));
+        // The ramp writes the FutureHandle through the explicit sret pointer
+        // argument (this is the C entry ABI, not a MIR sret result).
+        b.mark_initialized(handle_place);
     }
 
     const PlaceId poll_place = b.alloca(poll_t, MIRStorageClass::Local);

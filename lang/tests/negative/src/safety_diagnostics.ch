@@ -43,6 +43,20 @@ func neg_lifetime_elision_ambiguous(env : &mut TestEnv) {
 }
 
 @test
+func lifetime_where_outlives_compiles(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "func <'a, 'b> f(x : &'a int) : int where 'a: 'b {\n    return *x\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_success(env, "lifetime_where_ok", ch)
+}
+
+@test
+func neg_lifetime_where_unknown(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "func <'a> f(x : &'a int) : int where 'a: 'c {\n    return *x\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "lifetime_where_unknown", ch, "unknown lifetime parameter 'c' in where clause")
+}
+
+@test
 func neg_unknown_lifetime_parameter(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct View<'a> {\n    var p : &'b int\n}\npublic func main() : int { return 0 }\n"

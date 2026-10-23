@@ -31,6 +31,17 @@ struct WhereConstraint {
 };
 
 /**
+ * A lifetime outlives constraint, e.g. `'a: 'b + 'c`.
+ */
+struct LifetimeBound {
+    chem::string_view param_name;
+    std::vector<chem::string_view> bounds;
+
+    LifetimeBound(chem::string_view param_name, std::vector<chem::string_view> bounds)
+        : param_name(param_name), bounds(std::move(bounds)) {}
+};
+
+/**
  * A `where` clause on a function declaration, e.g. `where T: Copy, K: SomeTrait`.
  *
  * Allocated on the ASTAllocator and stored as a pointer on FunctionDeclaration
@@ -40,11 +51,15 @@ struct WhereConstraint {
 class WhereClause : public ASTAny {
 public:
     std::vector<WhereConstraint> constraints;
+    std::vector<LifetimeBound> lifetime_bounds;
 
     explicit WhereClause(std::vector<WhereConstraint> constraints)
         : constraints(std::move(constraints)) {}
 
-    bool empty() const { return constraints.empty(); }
+    WhereClause(std::vector<WhereConstraint> constraints, std::vector<LifetimeBound> lifetime_bounds)
+        : constraints(std::move(constraints)), lifetime_bounds(std::move(lifetime_bounds)) {}
+
+    bool empty() const { return constraints.empty() && lifetime_bounds.empty(); }
 
     ASTAnyKind any_kind() final { return ASTAnyKind::Node; }
 };

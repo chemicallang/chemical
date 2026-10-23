@@ -1939,25 +1939,45 @@ void apply_signature_lifetime_elision(FunctionDeclaration* decl, ASTDiagnoser& d
     }
 }
 
+static bool is_lifetime_in_scope(const std::vector<chem::string_view>& scope, const chem::string_view& lifetime) {
+    if(lifetime == "'static" || lifetime == "'self" || lifetime == "'elided") return true;
+    for(const auto declared : scope) {
+        if(declared == lifetime) return true;
+    }
+    return false;
+}
+
 void TypeVerifier::VisitReferenceType(ReferenceType* type) {
-    if(!type->lifetime.empty() && type->lifetime != "'static" && type->lifetime != "'self" && type->lifetime != "'elided") {
-        bool found = false;
-        for(const auto declared : lifetime_scope) {
-            if(declared == type->lifetime) { found = true; break; }
-        }
-        if(!found) {
-            std::string msg = "unknown lifetime parameter '";
-            msg.append(type->lifetime.data(), type->lifetime.size());
-            msg += "'";
-            const auto loc = current_func_type ? current_func_type->get_location() : SourceLocation(0);
-            diagnoser.error(chem::string_view(msg.data(), msg.size()), loc);
-        }
+    if(!type->lifetime.empty() && !is_lifetime_in_scope(lifetime_scope, type->lifetime)) {
+        std::string msg = "unknown lifetime parameter '";
+        msg.append(type->lifetime.data(), type->lifetime.size());
+        msg += "'";
+        const auto loc = current_func_type ? current_func_type->get_location() : SourceLocation(0);
+        diagnoser.error(chem::string_view(msg.data(), msg.size()), loc);
     }
     RecursiveVisitor::VisitReferenceType(type);
 }
 
 void TypeVerifier::VisitFunctionDecl(FunctionDeclaration *decl) {
     apply_signature_lifetime_elision(decl, diagnoser);
+    if(decl->where_clause) {
+        for(const auto& bound : decl->where_clause->lifetime_bounds) {
+            if(!is_lifetime_in_scope(lifetime_scope, bound.param_name)) {
+                std::string msg = "unknown lifetime parameter '";
+                msg.append(bound.param_name.data(), bound.param_name.size());
+                msg += "' in where clause";
+                diagnoser.error(chem::string_view(msg.data(), msg.size()), decl->get_location());
+            }
+            for(const auto target : bound.bounds) {
+                if(!is_lifetime_in_scope(lifetime_scope, target)) {
+                    std::string msg = "unknown lifetime parameter '";
+                    msg.append(target.data(), target.size());
+                    msg += "' in where clause";
+                    diagnoser.error(chem::string_view(msg.data(), msg.size()), decl->get_location());
+                }
+            }
+        }
+    }
     if(decl->attrs.is_extern && !decl->is_comptime() && decl->body.has_value()) {
         diagnoser.error(decl) << "an `@extern` function cannot have a body; remove the body or the `@extern` annotation";
     }

@@ -624,31 +624,52 @@ ASTNode* Parser::parseFunctionStructureTokens(ASTAllocator& allocator, ASTAlloca
     if(token->type == TokenType::WhereKw) {
         token++;
         std::vector<WhereConstraint> constraints;
+        std::vector<LifetimeBound> lifetime_bounds;
         do {
             consumeNewLines();
-            auto param_id = consumeIdentifierOrKeyword();
-            if(!param_id) {
-                error("expected a generic type parameter name after 'where'");
-                break;
-            }
-            if(!consumeToken(TokenType::ColonSym)) {
-                error("expected ':' after the generic type parameter name in where clause");
-                break;
-            }
-            std::vector<TypeLoc> trait_types;
-            do {
-                consumeNewLines();
-                auto type = parseTypeLoc(allocator);
-                if(type) {
-                    trait_types.emplace_back(type);
-                } else {
-                    error("expected a trait/interface type in where clause");
+            if(token->type == TokenType::Lifetime) {
+                const auto param = allocate_view(allocator, token->value);
+                token++;
+                if(!consumeToken(TokenType::ColonSym)) {
+                    error("expected ':' after the lifetime parameter name in where clause");
                     break;
                 }
-            } while(consumeToken(TokenType::PlusSym));
-            constraints.emplace_back(allocate_view(allocator, param_id->value), std::move(trait_types));
+                std::vector<chem::string_view> bounds;
+                do {
+                    consumeNewLines();
+                    if(token->type != TokenType::Lifetime) {
+                        error("expected a lifetime bound after ':' in where clause");
+                        break;
+                    }
+                    bounds.emplace_back(allocate_view(allocator, token->value));
+                    token++;
+                } while(consumeToken(TokenType::PlusSym));
+                lifetime_bounds.emplace_back(param, std::move(bounds));
+            } else {
+                auto param_id = consumeIdentifierOrKeyword();
+                if(!param_id) {
+                    error("expected a generic type parameter name or lifetime after 'where'");
+                    break;
+                }
+                if(!consumeToken(TokenType::ColonSym)) {
+                    error("expected ':' after the generic type parameter name in where clause");
+                    break;
+                }
+                std::vector<TypeLoc> trait_types;
+                do {
+                    consumeNewLines();
+                    auto type = parseTypeLoc(allocator);
+                    if(type) {
+                        trait_types.emplace_back(type);
+                    } else {
+                        error("expected a trait/interface type in where clause");
+                        break;
+                    }
+                } while(consumeToken(TokenType::PlusSym));
+                constraints.emplace_back(allocate_view(allocator, param_id->value), std::move(trait_types));
+            }
         } while(consumeToken(TokenType::CommaSym));
-        decl->where_clause = new (allocator.allocate<WhereClause>()) WhereClause(std::move(constraints));
+        decl->where_clause = new (allocator.allocate<WhereClause>()) WhereClause(std::move(constraints), std::move(lifetime_bounds));
     }
 
     // HARD_RULE:

@@ -96,8 +96,11 @@
 >   internal `'elided` name; multiple distinct input lifetimes require an
 >   explicit output lifetime. The no-input case stays permissive until the
 >   borrow checker rejects the escape in M4. Positive and ambiguous tests added.
-> - Still pending in S1.1: outlives constraints (`T: 'a`, `'a: 'b`),
->   `'static` bounds, and eventual borrow-checker enforcement. Lifetimes are
+> - S1.1f where-clause lifetime bounds: `where 'a: 'b + 'c` parses into
+>   `WhereClause::lifetime_bounds`; every referenced lifetime must be declared
+>   (or `'static`/`'self`). Positive and unknown-bound tests added.
+> - Still pending in S1.1: enforcement of outlives constraints in the borrow
+>   checker and `'static` bounds beyond declaration validation. Lifetimes are
 >   resolved/elided for declaration validity but not yet related by region
 >   constraints.
 >

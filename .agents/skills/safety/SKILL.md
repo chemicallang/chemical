@@ -62,7 +62,8 @@ Implemented:
   resolution rejects unknown names while accepting `'static`/`'self`
   (S1.1d). Signature elision ties `&self` outputs to `'self`, one input
   lifetime to the output, and rejects ambiguous multi-input outputs (S1.1e).
-  Outlives constraints and enforcement are still pending. Chemical syntax is
+  `where 'a: 'b` bounds parse and are validated for declared names (S1.1f).
+  Enforcement in the borrow checker is still pending. Chemical syntax is
   `func <'a> f(...)`.
 
 Next:

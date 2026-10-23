@@ -126,14 +126,13 @@ Next:
   field dispatch works through pattern variables (`value.clone()` in a
   `CloneBox<T>` impl, S1.5h). Nested generic-impl instantiations whose arguments
   still contain a generic parameter are signature-finalized but their bodies
-  are deferred until the parameter is concrete (S1.5k); `Option<T>`/
-  `vector<T>` `Clone` remain out: the same `T: Clone` bodies compile in a user
-  module (`CloneBox<T>` and even an impl for `std::Option<T>`), but inside
-  `std` they still hit `unresolved child 'clone'` during generic
-  instantiation. A conditional generic-impl body-linking fix is required.
-  Vector bounds checks were also attempted and reverted: they expose an
-  existing router-plugin `get_ptr(0)` on an empty vector during module
-  compilation, so that OOB must be fixed before checks can be enabled. Structural auto-trait derivation also honors explicit
+  are deferred until the parameter is concrete (S1.5k). `Option<T>`/
+  `vector<T>` `Clone` now use inline `<T : Clone>` bounds (the bound must be
+  visible while the master body is linked) plus an explicit cast/pointer helper
+  for the payload (S1.4h); tests cover deep string copies and exactly-once drops.
+  Vector bounds checks were attempted and reverted: they expose an existing
+  router-plugin `get_ptr(0)` on an empty vector during module compilation, so
+  that OOB must be fixed before checks can be enabled. Structural auto-trait derivation also honors explicit
   positive impls on nested fields (S1.5l), after checking negative overrides. `vector::get_ref` now returns `&T` and `vector::get_mut`
   is the mutable accessor (S1.10a), so mutation through a shared reference is
   rejected. `impl<T> !Send/!Sync for Wrapper<T>` works for all

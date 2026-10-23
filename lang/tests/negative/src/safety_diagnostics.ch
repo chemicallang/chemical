@@ -496,3 +496,17 @@ func neg_arc_not_send_when_inner_is_not_send(env : &mut TestEnv) {
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\npublic func main() : int {\n    var a = std::arc(std::NonNull<int> { ptr = null })\n    var h = Holder<std::Arc<std::NonNull<int>>> { data = null }\n    return h.check()\n}\n"
     expect_compile_error_with_mod(env, "arc_inner_not_send", ch, "does not satisfy", NEG_MOD_STD_CORE)
 }
+
+@test
+func neg_option_clone_requires_clone(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var o = std::Option.Some<std::NonNull<int>>(std::NonNull<int> { ptr = null })\n    var c = o.clone()\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "option_clone_bound", ch, "Clone", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_vector_clone_requires_clone(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "public func main() : int {\n    var v = std::vector<std::NonNull<int>>()\n    var c = v.clone()\n    return 0\n}\n"
+    expect_compile_error_with_mod(env, "vector_clone_bound", ch, "Clone", NEG_MOD_STD_CORE)
+}

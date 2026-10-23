@@ -199,4 +199,27 @@ public struct vector<T> {
 
 }
 
+func <T : core::ops::Clone> __vector_clone_value(value : *T) : T {
+    var elem = zeroed:unsafe<T>()
+    unsafe {
+        memcpy(&raw mut elem, value as *void, sizeof(T))
+    }
+    var typed = elem as T
+    var out = typed.clone()
+    intrinsics::forget(elem)
+    intrinsics::forget(typed)
+    return out
+}
+
+impl<T : core::ops::Clone> core::ops::Clone for vector<T> {
+    public func clone(&self) : vector<T> {
+        var out = vector<T>()
+        out.reserve(self.data_size)
+        for(var i : size_t = 0; i < self.data_size; i++) {
+            var ptr = &raw self.data_ptr[i] as *T
+            out.push(__vector_clone_value(ptr))
+        }
+        return out
+    }
+}
 }

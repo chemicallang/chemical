@@ -212,13 +212,16 @@
 >   checked at type verification against the declared length and rejected with
 >   `SAFE-BOUNDS-001`, on reads and assignment LHS alike. Dynamic-index and vector bounds are still pending; the
 >   vector runtime checks remain blocked by the router-plugin OOB below.
-> - **Known blockers (2026-10-23):** `Option<T>`/`vector<T>` `Clone` bodies
->   with `T: Clone` still fail inside `std` with `unresolved child 'clone'`
->   during generic instantiation, although the identical impl compiles in a
->   user module; this needs conditional generic-impl body linking at the
->   concrete use site. Vector runtime bounds checks were attempted and
->   reverted because they exposed an existing router-plugin `get_ptr(0)` on an
->   empty vector during compilation; fix that OOB before enabling checks.
+> - S1.4h `Option<T>`/`vector<T>` `Clone`: both impls use an inline
+>   `<T : Clone>` bound (not a trailing where-clause) so the bound is visible
+>   while the generic impl body is linked. `Option` clones its payload through
+>   an explicit `value as T` copy and forgets the temporary; `vector` clones
+>   each element through a pointer + `memcpy` helper with the same inline
+>   bound. Tests cover Some/None, int/string deep copies, empty vectors, and
+>   exactly-once drops for a destructor-bearing element type.
+> - **Known blocker (2026-10-24):** vector runtime bounds checks were attempted
+>   and reverted because they exposed an existing router-plugin `get_ptr(0)` on
+>   an empty vector during compilation; fix that OOB before enabling checks.
 > - S1.5e generic-interface method dispatch: `provide_child` now resolves a
 >   method on a bare generic `T` through its trait bounds (including generic
 >   interfaces such as `Serializer<...>`), returning the interface declaration
@@ -370,8 +373,8 @@
 >   signature-finalized, but its body is not linked until the parameter becomes
 >   concrete. This removes the nondeterministic "unresolved child 'clone'"
 >   failures seen when a nested `Option<T>`/`vector<T>` body was linked too
->   early. `Option<T>`/`vector<T>` `Clone` remain out of the tree until their
->   body form can resolve the bound clone on `&T` deterministically.
+>   early. The container `Clone` impls now use inline `<T : Clone>` bounds plus
+>   cast/pointer helpers (S1.4h), so their bodies resolve deterministically.
 > - S1.10a vector reference soundness: `vector::get_ref` now returns `&T`
 >   (it used to return `&mut T` from `&self`), and `vector::get_mut` provides
 >   mutation through a mutable vector. A negative test proves

@@ -88,6 +88,12 @@ impl Clone for double {
     }
 }
 
+impl Clone for string {
+    public func clone(&self) : string {
+        return self.copy()
+    }
+}
+
 impl Clone for string_view {
     public func clone(&self) : string_view {
         return *self

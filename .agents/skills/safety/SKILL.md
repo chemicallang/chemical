@@ -94,9 +94,9 @@ Next:
   `unsafe impl Send/Sync`; a safe `impl Send/Sync` is `SAFE-AUTO-001`
   (S1.5c). Negative impls (`impl !Send for T`, concrete targets only) override
   the structural result and conflicts are `SAFE-AUTO-002` (S1.5d). `Clone` is
-  implemented for primitives, `string_view` and `span<T>` (S1.4f); generic
-  `T: Clone` method dispatch is still pending. Next: generic negative impls
-  and the move checker.
+  implemented for primitives, `string` (deep), `string_view` and `span<T>`
+  (S1.4f); generic `T: Clone` method dispatch is still pending. Next: generic
+  negative impls and the move checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

@@ -34,8 +34,9 @@ func neg_generic_where_clause_fail(env : &mut TestEnv) {
 func neg_generic_recursive(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     var ch = "struct Node 'T {\n    var next : Node<Node<'T>>\n}\nfunc main() {}\n"
-    // generic type arguments with a tick (lifetime) inside angle brackets are rejected by the parser
-    expect_compile_error(env, "generic_recursive", ch, "expected '>' for generic type")
+    // lifetime arguments inside generic type arguments are now parsed; this
+    // declaration is still invalid because it is recursively composed.
+    expect_compile_error(env, "generic_recursive", ch, "recursion in composition is not allowed")
 }
 
 @test

@@ -90,7 +90,13 @@ bool Parser::consumeGenericClose() {
 BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idType) {
     if(consumeToken(TokenType::LessThanSym)) {
         std::vector<TypeLoc> types;
+        std::vector<chem::string_view> lifetime_args;
         do {
+            if(token->type == TokenType::Lifetime) {
+                lifetime_args.emplace_back(allocate_view(allocator, token->value));
+                token++;
+                continue;
+            }
             auto type = parseTypeLoc(allocator);
             if(type) {
                 types.emplace_back(type);
@@ -101,7 +107,7 @@ BaseType* Parser::parseGenericTypeAfterId(ASTAllocator& allocator, BaseType* idT
         if(!consumeGenericClose()) {
             unexpected_error("expected '>' for generic type");
         }
-        return new (allocator.allocate<GenericType>()) GenericType((LinkedType*) idType, std::move(types));
+        return new (allocator.allocate<GenericType>()) GenericType((LinkedType*) idType, std::move(types), std::move(lifetime_args));
     } else {
         return idType;
     }

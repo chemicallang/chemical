@@ -1027,7 +1027,17 @@ void RepresentationVisitor::VisitFunctionType(FunctionType *type) {
 void RepresentationVisitor::VisitGenericType(GenericType *type) {
     visit(type->referenced);
     write('<');
-    comma_separated_accept(*this, type->types);
+    bool first = true;
+    for(const auto lifetime : type->lifetime_args) {
+        if(!first) write(", ");
+        first = false;
+        write(lifetime);
+    }
+    for(auto& arg : type->types) {
+        if(!first) write(", ");
+        first = false;
+        visit(arg);
+    }
     write('>');
 }
 

@@ -57,8 +57,10 @@ Implemented:
 - M1 started: `&'a T` / `&'a mut T` reference lifetimes are parsed and carried
   on `ReferenceType` (S1.1a). `func <'a, T>`, `struct Foo<'a>`, and
   `impl<'a, T>` collect lifetime parameters; duplicate names are rejected
-  (S1.1b). Resolution, generic lifetime arguments, elision, `'static`, and
-  enforcement are still pending. Chemical syntax is `func <'a> f(...)`.
+  (S1.1b). Generic lifetime arguments (`View<'a>`) parse in type position and
+  are stored on `GenericType::lifetime_args` (S1.1c). Resolution, elision,
+  `'static`, and enforcement are still pending. Chemical syntax is
+  `func <'a> f(...)`.
 
 Next:
 

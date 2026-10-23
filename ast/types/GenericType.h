@@ -19,6 +19,13 @@ public:
     std::vector<TypeLoc> types;
 
     /**
+     * Lifetime arguments in the same list, e.g. `'a` in `View<'a, T>`.
+     * Lifetimes are erased before MIR/codegen; they are retained for type
+     * checking and diagnostics.
+     */
+    std::vector<chem::string_view> lifetime_args;
+
+    /**
      * constructor
      */
     GenericType(LinkedType* referenced) : BaseType(BaseTypeKind::Generic), referenced(referenced) {
@@ -29,6 +36,11 @@ public:
      * constructor
      */
     GenericType(LinkedType* referenced, std::vector<TypeLoc> types) : BaseType(BaseTypeKind::Generic), referenced(referenced), types(std::move(types)) {
+
+    }
+
+    GenericType(LinkedType* referenced, std::vector<TypeLoc> types, std::vector<chem::string_view> lifetime_args)
+        : BaseType(BaseTypeKind::Generic), referenced(referenced), types(std::move(types)), lifetime_args(std::move(lifetime_args)) {
 
     }
 

@@ -157,6 +157,7 @@ GenericType* GenericType::copy(ASTAllocator& allocator) {
     for(auto& type : types) {
         gen->types.emplace_back(type.copy(allocator));
     }
+    gen->lifetime_args = lifetime_args;
     return gen;
 }
 

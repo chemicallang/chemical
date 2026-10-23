@@ -81,9 +81,13 @@
 >   `BaseGenericDecl::lifetime_params`; duplicate lifetime names are rejected.
 >   The Chemical grammar keeps generic parameters before the function name
 >   (`func <'a> f`), unlike the reference language.
-> - Still pending in S1.1: lifetime-name resolution, generic lifetime arguments
->   (`View<'a>` in a type position), elision, `'static`, bounds, and
->   enforcement. The current syntax is parsed and carried, not yet checked.
+> - S1.1c generic lifetime arguments: `View<'a, T>` parses in type position;
+>   lifetime arguments are stored on `GenericType::lifetime_args` and preserved
+>   in copies/representation. A struct field `View<'a>` compiles.
+>   Generic struct literals with explicit lifetime arguments
+>   (`View<'a> { ... }`) are not parsed yet; construction uses inference.
+> - Still pending in S1.1: lifetime-name resolution, elision, `'static`, bounds,
+>   and enforcement. The current syntax is parsed and carried, not yet checked.
 >
 > Next: finish S1.1 lifetime parameters/elision, then S1.0b lifetimes in generic
 > impls, S1.2 `'static`/bounds/temporary extension, S1.3 variance, and S1.4

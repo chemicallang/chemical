@@ -43,10 +43,81 @@ void verify_operand_bounds(MIRVerifyResult& r, const MIRFunction& fn,
     }
 }
 
+void verify_move_paths(MIRVerifyResult& r, const MIRFunction& function) {
+    const uint32_t n_paths = static_cast<uint32_t>(function.move_paths.size());
+    for (uint32_t p = 0; p < n_paths; ++p) {
+        const MIRMovePathNode& node = function.move_paths[p];
+        if (node.root_place >= function.places.size()) {
+            diag(r, MIR_INVALID_ID, MIR_INVALID_ID, MIR_INVALID_ID,
+                 "move path root_place out of range");
+        }
+        if (node.init_state > static_cast<uint8_t>(MIRInitState::Destroyed)) {
+            diag(r, MIR_INVALID_ID, MIR_INVALID_ID, MIR_INVALID_ID,
+                 "move path has an invalid init state");
+        }
+        if (node.parent_path != MIR_INVALID_ID &&
+            (node.parent_path >= n_paths || node.parent_path == p)) {
+            diag(r, MIR_INVALID_ID, MIR_INVALID_ID, MIR_INVALID_ID,
+                 "move path parent out of range or self-referential");
+        }
+        if (node.first_child != MIR_INVALID_ID && node.first_child >= n_paths) {
+            diag(r, MIR_INVALID_ID, MIR_INVALID_ID, MIR_INVALID_ID,
+                 "move path first_child out of range");
+        }
+        if (node.next_sibling != MIR_INVALID_ID && node.next_sibling >= n_paths) {
+            diag(r, MIR_INVALID_ID, MIR_INVALID_ID, MIR_INVALID_ID,
+                 "move path next_sibling out of range");
+        }
+        if (node.field_index != MIR_INVALID_ID && node.array_index != MIR_INVALID_ID) {
+            diag(r, MIR_INVALID_ID, MIR_INVALID_ID, MIR_INVALID_ID,
+                 "move path node has both a field and an array index");
+        }
+        if (node.parent_path == MIR_INVALID_ID) {
+            if (node.field_index != MIR_INVALID_ID || node.array_index != MIR_INVALID_ID) {
+                diag(r, MIR_INVALID_ID, MIR_INVALID_ID, MIR_INVALID_ID,
+                     "move path root has a projection index");
+            }
+            if (node.root_place < function.places.size() &&
+                function.places[node.root_place].move_path_id != p) {
+                diag(r, MIR_INVALID_ID, MIR_INVALID_ID, MIR_INVALID_ID,
+                     "move path root is not referenced by its place");
+            }
+        }
+        // every child and sibling must point back at this node as its parent
+        uint32_t child = node.first_child;
+        uint32_t guard = 0;
+        while (child != MIR_INVALID_ID && child < n_paths && guard++ < n_paths) {
+            if (function.move_paths[child].parent_path != p) {
+                diag(r, MIR_INVALID_ID, MIR_INVALID_ID, MIR_INVALID_ID,
+                     "move path child has the wrong parent");
+            }
+            child = function.move_paths[child].next_sibling;
+        }
+        if (guard >= n_paths && child != MIR_INVALID_ID) {
+            diag(r, MIR_INVALID_ID, MIR_INVALID_ID, MIR_INVALID_ID,
+                 "move path sibling list does not terminate");
+        }
+    }
+    for (uint32_t place = 0; place < function.places.size(); ++place) {
+        const uint32_t path = function.places[place].move_path_id;
+        if (path == MIR_INVALID_ID) continue;
+        if (path >= n_paths) {
+            diag(r, MIR_INVALID_ID, MIR_INVALID_ID, MIR_INVALID_ID,
+                 "place move_path_id out of range");
+            continue;
+        }
+        if (function.move_paths[path].root_place != place) {
+            diag(r, MIR_INVALID_ID, MIR_INVALID_ID, MIR_INVALID_ID,
+                 "place move path points at another place");
+        }
+    }
+}
+
 } // namespace
 
 MIRVerifyResult verify_function(const MIRFunction& function) {
     MIRVerifyResult r;
+    verify_move_paths(r, function);
 
     const uint32_t n_inst = function.instructions.size();
     const uint32_t n_ops = function.operands.size();

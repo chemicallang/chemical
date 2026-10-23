@@ -5,6 +5,95 @@
 
 namespace mir {
 
+// ── move paths ─────────────────────────────────────────────────────────────
+
+static uint32_t append_move_path_node(MIRFunction& fn, const MIRTypeTable& types,
+                                      PlaceId place, TypeId type, uint32_t parent,
+                                      uint32_t field_index, uint32_t array_index) {
+    MIRMovePathNode node;
+    node.root_place = place;
+    node.parent_path = parent;
+    node.field_type = type;
+    node.field_index = field_index;
+    node.array_index = array_index;
+    fn.move_paths.push_back(node);
+    const uint32_t id = static_cast<uint32_t>(fn.move_paths.size() - 1);
+
+    uint32_t first_child = MIR_INVALID_ID;
+    uint32_t previous = MIR_INVALID_ID;
+
+    auto add_child = [&](TypeId child_type, uint32_t child_field, uint32_t child_array) {
+        if (!type_needs_move_path(types, child_type)) return;
+        const uint32_t child = append_move_path_node(
+            fn, types, place, child_type, id, child_field, child_array
+        );
+        if (first_child == MIR_INVALID_ID) {
+            first_child = child;
+        } else {
+            fn.move_paths[previous].next_sibling = child;
+        }
+        previous = child;
+    };
+
+    if (type != MIR_INVALID_ID && type < types.types.size()) {
+        const MIRTypeRecord& rec = types.types[type];
+        switch (rec.kind) {
+            case MIRTypeKind::Array:
+                for (uint32_t i = 0; i < rec.data_count; ++i) {
+                    add_child(rec.element, MIR_INVALID_ID, i);
+                }
+                break;
+            case MIRTypeKind::Struct:
+            case MIRTypeKind::Union:
+            case MIRTypeKind::Variant:
+                for (uint32_t i = 0; i < rec.data_count; ++i) {
+                    const MIRFieldInfo* field = types.field_of(type, i);
+                    if (field != nullptr) {
+                        add_child(field->type, i, MIR_INVALID_ID);
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+    }
+
+    fn.move_paths[id].first_child = first_child;
+    return id;
+}
+
+uint32_t append_move_path_tree(MIRFunction& function, const MIRTypeTable& types,
+                               PlaceId place, TypeId type) {
+    if (place >= function.places.size()) return MIR_INVALID_ID;
+    if (!type_needs_move_path(types, type)) return MIR_INVALID_ID;
+    const uint32_t root = append_move_path_node(
+        function, types, place, type, MIR_INVALID_ID, MIR_INVALID_ID, MIR_INVALID_ID
+    );
+    function.places[place].move_path_id = root;
+    return root;
+}
+
+static void set_move_path_state(MIRFunction& fn, uint32_t path,
+                                MIRInitState state, bool recursive) {
+    if (path == MIR_INVALID_ID || path >= fn.move_paths.size()) return;
+    fn.move_paths[path].init_state = static_cast<uint8_t>(state);
+    if (!recursive) return;
+    const uint32_t first = fn.move_paths[path].first_child;
+    if (first == MIR_INVALID_ID) return;
+    uint32_t child = first;
+    while (child != MIR_INVALID_ID && child < fn.move_paths.size()) {
+        const uint32_t next = fn.move_paths[child].next_sibling;
+        set_move_path_state(fn, child, state, true);
+        child = next;
+    }
+}
+
+static void set_place_move_path_state(MIRFunction& fn, PlaceId place,
+                                      MIRInitState state, bool recursive) {
+    if (place >= fn.places.size()) return;
+    set_move_path_state(fn, fn.places[place].move_path_id, state, recursive);
+}
+
 // ── blocks ─────────────────────────────────────────────────────────────────
 
 BlockId MIRBuilder::create_block(uint16_t arg_count) {
@@ -56,21 +145,15 @@ PlaceId MIRBuilder::new_place(TypeId type, MIRStorageClass sc, uint32_t move_pat
     pd.init_state = static_cast<uint8_t>(MIRInitState::Uninitialized);
     pd.move_path_id = move_path_id;
     func_.places.push_back(pd);
-    return static_cast<PlaceId>(func_.places.size() - 1);
+    const PlaceId place = static_cast<PlaceId>(func_.places.size() - 1);
+    if (move_path_id == MIR_INVALID_ID && type_needs_move_path(module_.types, type)) {
+        append_move_path_tree(func_, module_.types, place, type);
+    }
+    return place;
 }
 
 uint32_t MIRBuilder::new_move_path(PlaceId place, TypeId type) {
-    MIRMovePathNode node;
-    node.root_place = place;
-    node.parent_path = 0;
-    node.first_child = 0;
-    node.next_sibling = 0;
-    node.init_state = static_cast<uint8_t>(MIRInitState::Uninitialized);
-    node.field_type = type;
-    func_.move_paths.push_back(node);
-    uint32_t id = static_cast<uint32_t>(func_.move_paths.size() - 1);
-    if (place < func_.places.size()) func_.places[place].move_path_id = id;
-    return id;
+    return append_move_path_tree(func_, module_.types, place, type);
 }
 
 // ── emit ───────────────────────────────────────────────────────────────────
@@ -616,6 +699,7 @@ void MIRBuilder::init(PlaceId dest, SymbolId ctor, const MIROperand* args, uint3
     emit_impl(MIROpcode::Init, MIR_NULL, ops, count + 2);
     if (dest < func_.places.size()) {
         func_.places[dest].init_state = static_cast<uint8_t>(MIRInitState::Initialized);
+        set_place_move_path_state(func_, dest, MIRInitState::Initialized, true);
     }
 }
 
@@ -625,6 +709,7 @@ void MIRBuilder::copy_init(PlaceId dest, ValueId src, TypeId type) {
          {MIROperand::place(dest, type), MIROperand::value(src, st), MIROperand::type(type)});
     if (dest < func_.places.size()) {
         func_.places[dest].init_state = static_cast<uint8_t>(MIRInitState::Initialized);
+        set_place_move_path_state(func_, dest, MIRInitState::Initialized, true);
     }
 }
 
@@ -633,9 +718,11 @@ void MIRBuilder::move_init(PlaceId dest, PlaceId src, TypeId type) {
          {MIROperand::place(dest, type), MIROperand::place(src, type), MIROperand::type(type)});
     if (dest < func_.places.size()) {
         func_.places[dest].init_state = static_cast<uint8_t>(MIRInitState::Initialized);
+        set_place_move_path_state(func_, dest, MIRInitState::Initialized, true);
     }
     if (src < func_.places.size()) {
         func_.places[src].init_state = static_cast<uint8_t>(MIRInitState::Moved);
+        set_place_move_path_state(func_, src, MIRInitState::Moved, true);
     }
 }
 
@@ -645,6 +732,7 @@ void MIRBuilder::assign(PlaceId dest, ValueId src, TypeId type) {
          {MIROperand::place(dest, type), MIROperand::value(src, st), MIROperand::type(type)});
     if (dest < func_.places.size()) {
         func_.places[dest].init_state = static_cast<uint8_t>(MIRInitState::Initialized);
+        set_place_move_path_state(func_, dest, MIRInitState::Initialized, true);
     }
 }
 
@@ -654,6 +742,7 @@ void MIRBuilder::destroy(PlaceId place, SymbolId dtor) {
          {MIROperand::place(place, pt), MIROperand::symbol(dtor, MIR_INVALID_ID)});
     if (place < func_.places.size()) {
         func_.places[place].init_state = static_cast<uint8_t>(MIRInitState::Destroyed);
+        set_place_move_path_state(func_, place, MIRInitState::Destroyed, true);
     }
 }
 
@@ -670,6 +759,7 @@ void MIRBuilder::drop(PlaceId place, SymbolId dtor, ValueId flag) {
     }
     if (place < func_.places.size()) {
         func_.places[place].init_state = static_cast<uint8_t>(MIRInitState::Destroyed);
+        set_place_move_path_state(func_, place, MIRInitState::Destroyed, true);
     }
 }
 

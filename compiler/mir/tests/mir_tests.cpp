@@ -1665,6 +1665,113 @@ static bool test_interpreter_roundtrip() {
     return true;
 }
 
+// ── move paths: owned fields and fixed-array elements ──────────────────────
+static bool test_move_paths() {
+    MIRModule module;
+
+    MIRTypeRecord ir;
+    ir.kind = MIRTypeKind::Int;
+    ir.flags = TF_SIGNED;
+    ir.size = 4;
+    ir.alignment = 4;
+    const TypeId i32 = module.types.intern(ir);
+    CHECK(!type_needs_move_path(module.types, i32));
+
+    // inner { a: int, b: int } with a destructor
+    MIRTypeRecord inner;
+    inner.kind = MIRTypeKind::Struct;
+    inner.flags = TF_HAS_DESTRUCTOR;
+    const TypeId inner_id = module.types.push(inner);
+    std::vector<MIRFieldInfo> inner_fields(2);
+    inner_fields[0].type = i32;
+    inner_fields[1].type = i32;
+    const uint32_t inner_field_index = module.types.append_fields(inner_fields);
+    module.types.update(inner_id, [&](MIRTypeRecord& rec) {
+        rec.data_count = 2;
+        rec.field_index = inner_field_index;
+    });
+    CHECK(type_needs_move_path(module.types, inner_id));
+
+    // [3]inner
+    MIRTypeRecord arr;
+    arr.kind = MIRTypeKind::Array;
+    arr.element = inner_id;
+    arr.data_count = 3;
+    const TypeId arr_id = module.types.intern(arr);
+    CHECK(type_needs_move_path(module.types, arr_id));
+
+    // outer { owned: inner, count: int, items: [3]inner }
+    MIRTypeRecord outer;
+    outer.kind = MIRTypeKind::Struct;
+    const TypeId outer_id = module.types.push(outer);
+    std::vector<MIRFieldInfo> outer_fields(3);
+    outer_fields[0].type = inner_id;
+    outer_fields[1].type = i32;
+    outer_fields[2].type = arr_id;
+    const uint32_t outer_field_index = module.types.append_fields(outer_fields);
+    module.types.update(outer_id, [&](MIRTypeRecord& rec) {
+        rec.data_count = 3;
+        rec.field_index = outer_field_index;
+    });
+    CHECK(type_needs_move_path(module.types, outer_id));
+
+    MIRArena arena;
+    MIRFunction fn;
+    fn.function_type = i32;
+    MIRBuilder b(arena, module, fn);
+    const BlockId entry = b.create_block();
+    fn.entry_block = entry;
+    b.set_block(entry);
+
+    const PlaceId src = b.alloca(outer_id);
+    const PlaceId dst = b.alloca(outer_id);
+    CHECK(fn.places[src].move_path_id != MIR_INVALID_ID);
+    CHECK(fn.places[dst].move_path_id != MIR_INVALID_ID);
+    // each place gets root + owned + array + three array elements
+    CHECK(fn.move_paths.size() == 12);
+    CHECK(fn.places[dst].move_path_id == fn.places[src].move_path_id + 6);
+
+    const uint32_t root = fn.places[src].move_path_id;
+    CHECK(fn.move_paths[root].root_place == src);
+    CHECK(fn.move_paths[root].parent_path == MIR_INVALID_ID);
+    CHECK(fn.move_paths[root].field_type == outer_id);
+    CHECK(fn.move_paths[root].first_child != MIR_INVALID_ID);
+
+    // first child is the owned field, its sibling is the array
+    const uint32_t owned = fn.move_paths[root].first_child;
+    CHECK(fn.move_paths[owned].field_index == 0);
+    CHECK(fn.move_paths[owned].field_type == inner_id);
+    const uint32_t items = fn.move_paths[owned].next_sibling;
+    CHECK(fn.move_paths[items].field_index == 2);
+    CHECK(fn.move_paths[items].field_type == arr_id);
+    CHECK(fn.move_paths[items].first_child != MIR_INVALID_ID);
+
+    // the array has three element children, each with the element type
+    uint32_t elem = fn.move_paths[items].first_child;
+    for (uint32_t i = 0; i < 3; ++i) {
+        CHECK(elem != MIR_INVALID_ID);
+        CHECK(fn.move_paths[elem].array_index == i);
+        CHECK(fn.move_paths[elem].field_type == inner_id);
+        elem = fn.move_paths[elem].next_sibling;
+    }
+    CHECK(elem == MIR_INVALID_ID);
+
+    // a move initializes the destination tree and marks the source tree moved
+    b.move_init(dst, src, outer_id);
+    const uint32_t dst_root = fn.places[dst].move_path_id;
+    CHECK(fn.move_paths[dst_root].init_state ==
+          static_cast<uint8_t>(MIRInitState::Initialized));
+    CHECK(fn.move_paths[fn.move_paths[dst_root].first_child].init_state ==
+          static_cast<uint8_t>(MIRInitState::Initialized));
+    CHECK(fn.move_paths[root].init_state == static_cast<uint8_t>(MIRInitState::Moved));
+    CHECK(fn.move_paths[fn.move_paths[root].first_child].init_state ==
+          static_cast<uint8_t>(MIRInitState::Moved));
+
+    b.ret_void();
+    CHECK(verify_function(fn).ok());
+    return true;
+}
+
 int main() {
     bool ok = true;
     ok &= test_arena();
@@ -1675,6 +1782,7 @@ int main() {
     ok &= test_builder();
     ok &= test_emitter();
     ok &= test_interpreter_roundtrip();
+    ok &= test_move_paths();
     ok &= test_control_flow_emitter();
     ok &= test_type_names();
     ok &= test_aggregate_layout();

@@ -256,10 +256,18 @@
 >   assignment after move). Tests cover double move and field access after a
 >   move. The tracker still runs at symbol-resolution time; replacing it with
 >   MIR move/init dataflow remains M3.1–M3.6.
+> - S3.1a move-path trees: every owned place (a destructor-bearing aggregate or
+>   an array of one) now gets a `MIRMovePathNode` tree for its owned fields and
+>   fixed-array elements. Link fields use `MIR_INVALID_ID` for "none" (path 0 is
+>   valid), and the builder keeps root/child states in sync on
+>   init/copy-init/move-init/assign/drop/destroy. The MIR verifier rejects
+>   out-of-range links, self-parenting, projection indices on a root, a root not
+>   referenced by its place, and non-terminating sibling lists. `MIRTests`
+>   covers a struct + array-of-destructor tree and move-state propagation.
 > - Still pending in S1.4: automatic `Clone` derivation/body generation.
 >
-> Next: negative impls/explicit auto-trait impls, then the M1 ownership/move
-> checker.
+> Next: MIR init/move dataflow over the move-path trees (S3.1b/S3.2), then
+> conditional negative impls and the M1 ownership/move checker.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

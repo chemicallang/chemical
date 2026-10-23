@@ -54,6 +54,15 @@ Implemented:
   or linking; a good module exits 0 with no executable, an uninitialized read
   exits 1 with `SAFE-INIT-001` and no executable.
 
+- S3.1a move-path trees: `MIRBuilder::new_place` attaches a
+  `MIRMovePathNode` tree to every owned place (a destructor-bearing aggregate
+  or an array of one), with one node per owned field and fixed-array element.
+  All links use `MIR_INVALID_ID` for "none", so path 0 is valid; the builder
+  propagates initialized/moved/destroyed state through the tree on
+  init/copy-init/move-init/assign/drop/destroy, and `MIRVerifier` checks the
+  tree structure. `MIRTests` covers a struct + `[3]Destructor` tree and move
+  propagation (`4556 checks`). MIR dataflow over these paths is S3.1b/S3.2.
+
 - M1 started: `&'a T` / `&'a mut T` reference lifetimes are parsed and carried
   on `ReferenceType` (S1.1a). `func <'a, T>`, `struct Foo<'a>`, and
   `impl<'a, T>` collect lifetime parameters; duplicate names are rejected
@@ -107,7 +116,8 @@ Next:
   instantiation-time alias propagation for non-Clone element types.
   `impl<T> !Send/!Sync for Wrapper<T>` works for all instantiations (S1.5i);
   bounded/where-clause negative impls are rejected with `SAFE-AUTO-002`.
-  Next: conditional negative impls and the move checker.
+  Next: MIR init/move dataflow over the move-path trees, then conditional
+  negative impls and the move checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

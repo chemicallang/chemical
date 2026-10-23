@@ -73,7 +73,7 @@ public:
 
     // ── value / place creation ─────────────────────────────────────────────
     ValueId new_value(TypeId type, uint8_t flags = VF_NONE);
-    PlaceId new_place(TypeId type, MIRStorageClass sc, uint32_t move_path_id = 0);
+    PlaceId new_place(TypeId type, MIRStorageClass sc, uint32_t move_path_id = MIR_INVALID_ID);
 
     /** Append a move-path root node for an owned place; returns its path id. */
     uint32_t new_move_path(PlaceId place, TypeId type);

@@ -40,7 +40,7 @@ void StructDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser&
             }
         }
     }
-    if(!has_destructor && any_member_has_destructor()) {
+    if(!has_destructor && !no_drop && any_member_has_destructor()) {
         has_destructor = true;
         create_def_destructor(allocator, diagnoser, returnNode, is_extern());
     }

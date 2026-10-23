@@ -111,6 +111,8 @@ public:
                 identifier, parent(), encoded_location(), specifier()
         );
         def->attrs = attrs;
+        def->allow_zeroed = allow_zeroed;
+        def->no_drop = no_drop;
         ExtendableMembersContainerNode::shallow_copy_into(*def, allocator);
         return def;
     }

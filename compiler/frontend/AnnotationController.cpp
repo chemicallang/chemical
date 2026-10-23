@@ -368,6 +368,15 @@ void annot_handler_allow_zeroed(Parser* parser, ASTNode* node, std::vector<Value
     }
 }
 
+void annot_handler_no_drop(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
+    const auto container = node->get_master_members_container();
+    if (container) {
+        container->no_drop = true;
+    } else {
+        parser->error("attribute @no_drop can only be applied to structs, unions or variants");
+    }
+}
+
 void annot_handler_non_dyn(Parser* parser, ASTNode* node, std::vector<Value*>& args) {
     if (node->kind() == ASTNodeKind::InterfaceDecl) {
         node->as_interface_def_unsafe()->set_non_dynamic(true);
@@ -436,6 +445,7 @@ void AnnotationController::initialize() {
             { "deprecated", { annot_handler_deprecated, "deprecated", AnnotationDefType::Handler } },
             { "align", { annot_handler_align, "align", AnnotationDefType::Handler } },
             { "allow_zeroed", { annot_handler_allow_zeroed, "allow_zeroed", AnnotationDefType::Handler } },
+            { "no_drop", { annot_handler_no_drop, "no_drop", AnnotationDefType::Handler } },
             { "non_dyn", { annot_handler_non_dyn, "non_dyn", AnnotationDefType::Handler } },
             { "partial_instantiate", { annot_handler_partial_instantiate, "partial_instantiate", AnnotationDefType::Handler } },
 

@@ -142,8 +142,11 @@ Next:
   consults the implementation index for unconditional generic negative impls
   through nested fields and honors explicit positive impls on nested fields
   (S1.5l). `std::NonNull<T>` (S1.6b) wraps a non-null raw pointer and is
-  deliberately neither `Send` nor `Sync`. Next: partial-move/drop elaboration,
-  then the borrow checker.
+  deliberately neither `Send` nor `Sync`. `std::MaybeUninit<T>` and
+  `std::ManuallyDrop<T>` (S1.6c) use the `@no_drop` container flag, which
+  suppresses generated and explicit destructors, so their raw storage can be
+  written and later moved out with `memcpy`/`intrinsics::forget`. Next:
+  partial-move/drop elaboration, then the borrow checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).

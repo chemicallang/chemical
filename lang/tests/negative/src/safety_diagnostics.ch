@@ -398,3 +398,17 @@ func neg_non_null_is_not_sync(env : &mut TestEnv) {
     var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Sync {\n        return 0\n    }\n}\npublic func main() : int {\n    var h = Holder<std::NonNull<int>> { data = null }\n    return h.check()\n}\n"
     expect_compile_error_with_mod(env, "non_null_not_sync", ch, "does not satisfy", NEG_MOD_STD_CORE)
 }
+
+@test
+func neg_manually_drop_follows_inner_send(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\npublic func main() : int {\n    var d = std::manually_drop(std::NonNull<int> { ptr = null })\n    var h = Holder<std::ManuallyDrop<std::NonNull<int>>> { data = null }\n    return h.check()\n}\n"
+    expect_compile_error_with_mod(env, "manually_drop_inner_send", ch, "does not satisfy", NEG_MOD_STD_CORE)
+}
+
+@test
+func neg_maybe_uninit_follows_inner_send(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Holder<T> {\n    var data : *mut T\n    func check(&self) : int where T: Send {\n        return 0\n    }\n}\npublic func main() : int {\n    var m = std::maybe_uninit<std::NonNull<int>>()\n    var h = Holder<std::MaybeUninit<std::NonNull<int>>> { data = null }\n    return h.check()\n}\n"
+    expect_compile_error_with_mod(env, "maybe_uninit_inner_send", ch, "does not satisfy", NEG_MOD_STD_CORE)
+}

@@ -33,7 +33,7 @@ void VariantDefinition::generate_functions(ASTAllocator& allocator, ASTDiagnoser
             has_destructor = true;
         }
     }
-    if(!has_destructor && any_member_has_destructor()) {
+    if(!has_destructor && !no_drop && any_member_has_destructor()) {
         has_destructor = true;
         create_def_destructor(allocator, diagnoser, returnNode, false);
     }

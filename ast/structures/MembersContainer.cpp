@@ -371,6 +371,10 @@ FunctionDeclaration* MembersContainer::get_first_user_defined_constructor() {
 }
 
 FunctionDeclaration* MembersContainer::destructor_func() {
+    // `@no_drop` containers have no drop glue, even if a destructor was
+    // explicitly declared. This is the storage primitive behind ManuallyDrop
+    // and MaybeUninit; leaking is safe, dropping the wrong value is not.
+    if (no_drop) return nullptr;
     for (const auto function : non_gen_range()) {
         if(function->is_delete_fn()) {
             return function;

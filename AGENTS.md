@@ -501,6 +501,8 @@ All built-in annotations recognized by the compiler:
 | `@noinline` | func | Prevent inlining of the function |
 | `@make` | struct | Enables `T.make()` constructor; **prevents** `T{}` syntax unless `@direct_init` is also present |
 | `@direct_init` | struct | Enables `T{}` and `T{field: val}` aggregate initialization |
+| `@allow_zeroed` | struct, union, variant | Allows `zeroed<T>()` even when the type has a constructor/destructor |
+| `@no_drop` | struct, union, variant | Suppresses all drop glue (automatic and explicit `@delete`); used by `ManuallyDrop`/`MaybeUninit` |
 | `@delete` | func (in struct) | Destructor — called when value goes out of scope or is deleted |
 | `@volatile` | var, const | Marks variable as volatile — prevents compiler optimization of loads/stores |
 | `@compiler.interface` | interface | Marks a CBI interface exposed to the compiler (used in `build.lab` for build API) |

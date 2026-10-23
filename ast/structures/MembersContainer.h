@@ -73,6 +73,14 @@ public:
     bool allow_zeroed = false;
 
     /**
+     * this is set by `@no_drop`: values of this container have no drop glue.
+     * Their fields are never destroyed automatically, which is what
+     * `ManuallyDrop<T>` and `MaybeUninit<T>` need. Explicit `@delete`
+     * declarations are ignored for such a container.
+     */
+    bool no_drop = false;
+
+    /**
      * this is set to true once the indexes for this container have been built
      * indexes contain all the functions/variables an object of this container can access
      */

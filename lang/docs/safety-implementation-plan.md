@@ -290,6 +290,13 @@
 >   Element-assignment lowering now marks the moved source before
 >   `element_store_place`, and `archive::zip_contains`/`tar_contains` initialize
 >   their out-parameter entry before passing it to the finder.
+> - S1.6c `std::MaybeUninit<T>` / `std::ManuallyDrop<T>`: raw storage with
+>   no automatic drop glue. `@no_drop` suppresses both generated and explicit
+>   destructors (leaking is safe); `MaybeUninit::write`/`assume_init` and
+>   `ManuallyDrop::take` move bytes with `memcpy` + `intrinsics::forget`.
+>   `@no_drop` is copied to generic instantiations. Tests cover write/overwrite,
+>   unwritten storage, drop suppression, ownership transfer, and `Send`
+>   following the inner value.
 > - S1.6b `std::NonNull<T>`: a non-null raw-pointer wrapper with
 >   `make`/`non_null`, `as_ptr` and `is_null`. It is neither `Send` nor `Sync`
 >   (the field is a raw pointer), matching the conservative auto-trait rule;

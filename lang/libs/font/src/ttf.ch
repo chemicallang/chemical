@@ -61,6 +61,8 @@ public struct FontTable {
     var length : u32
 }
 
+impl Copy for FontTable {}
+
 public func font_load(path : *char) : std::Result<Font, FontError> {
     var read_result = fs::read_entire_file(path)
     if(read_result is Result.Err) {

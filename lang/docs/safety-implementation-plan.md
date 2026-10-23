@@ -138,6 +138,12 @@
 >   `std::string_view`, `std::span<T>`, `JsProperty`, `JsParam`,
 >   `ImportSpecifier` and `SsrText` opt in; `JsStateInit` uses `get_ptr`
 >   instead of copying through `vector.get`. Positive and negative tests added.
+> - S1.4b `Copy` impl validity: an `impl Copy` is rejected when the target has
+>   a destructor (`SAFE-COPY-002`) or a field that is not Copy
+>   (`SAFE-COPY-003`). Fields are checked recursively through arrays and nested
+>   structs; a raw generic type parameter is rejected until impl-header
+>   where-clauses can express `T: Copy`. The library suite is migrated
+>   (`FontTable`, `RouteChainStep`, `UUID`) and green (719/719).
 > - Still pending in S1.4: `Clone`/`Default` impl generation and `Drop`/
 >   destructor rules.
 >

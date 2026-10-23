@@ -488,6 +488,27 @@ func copy_explicit_impl_satisfies_bound(env : &mut TestEnv) {
     expect_compile_output_not_contains(env, "copy_explicit_impl", ch, "SAFE-COPY-001", NEG_MOD_CORE)
 }
 
+@test
+func copy_impl_with_destructor_rejected(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Bad {\n    var s : *char\n    @delete\n    func delete(&mut self) { }\n}\nimpl Copy for Bad {}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "copy_impl_destructor", ch, "SAFE-COPY-002", NEG_MOD_CORE)
+}
+
+@test
+func copy_impl_with_non_copy_field_rejected(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Row {\n    var x : int\n}\nstruct Outer {\n    var row : Row\n}\nimpl Copy for Outer {}\npublic func main() : int { return 0 }\n"
+    expect_compile_error_with_mod(env, "copy_impl_non_copy_field", ch, "SAFE-COPY-003", NEG_MOD_CORE)
+}
+
+@test
+func copy_impl_with_copy_fields_compiles(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Row {\n    var x : int\n}\nimpl Copy for Row {}\nstruct Outer {\n    var row : Row\n    var values : [4]int\n}\nimpl Copy for Outer {}\npublic func main() : int { return 0 }\n"
+    expect_compile_output_not_contains(env, "copy_impl_valid", ch, "SAFE-COPY", NEG_MOD_CORE)
+}
+
 // Same as above but the receiver of .get is reached through a member access
 // (outer.h.get(0)), which is exactly how `qr.rows.get(0)` triggered the bug.
 @test

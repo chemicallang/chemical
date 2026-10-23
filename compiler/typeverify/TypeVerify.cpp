@@ -11,6 +11,7 @@
 #include "ast/structures/ImplDefinition.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/MembersContainer.h"
+#include "ast/structures/StructMember.h"
 #include "ast/structures/GenericTypeParameter.h"
 #include "ast/base/InterfaceBits.h"
 #include "ast/utils/ASTUtils.h"
@@ -1545,6 +1546,85 @@ void type_verify(ImplementationsIndex& index, ASTDiagnoser& diagnoser, ASTAlloca
     }
 }
 
+// A field is Copy when it is a scalar/pointer/reference/function, an array of
+// Copy, or a user type that opted in with `impl Copy` and has no destructor.
+static bool is_copy_field_type(
+    BaseType* type,
+    InterfaceDefinition* copy_interface,
+    ImplementationsIndex& index,
+    std::unordered_set<MembersContainer*>& visiting
+) {
+    if(type == nullptr) return true;
+    switch(type->kind()) {
+        case BaseTypeKind::Array:
+            return is_copy_field_type(
+                const_cast<BaseType*>(type->as_array_type_unsafe()->elem_type.getType()),
+                copy_interface, index, visiting
+            );
+        case BaseTypeKind::Pointer:
+            return true;
+        case BaseTypeKind::Reference:
+            return true;
+        case BaseTypeKind::Function:
+        case BaseTypeKind::CapturingFunction:
+            return true;
+        default:
+            break;
+    }
+    auto* linked = type->get_direct_linked_node();
+    if(linked && linked->kind() == ASTNodeKind::GenericTypeParam) {
+        // `impl<T> Copy for Wrapper<T>` would need `T: Copy`; impl-header
+        // where-clauses are not supported yet, so reject it instead of
+        // claiming a false Copy guarantee.
+        return false;
+    }
+    auto* container = type->get_members_container();
+    if(container == nullptr) {
+        // primitives and other non-container types
+        return true;
+    }
+    if(container->has_destructor() || container->any_member_has_destructor()) {
+        return false;
+    }
+    // The marker is required even when every field is trivially copyable:
+    // Copy is opt-in, and the impl itself is validated field-by-field in
+    // verify_copy_impl.
+    return index.get_impl(copy_interface, container) != nullptr;
+}
+
+static void verify_copy_impl(
+    TypeVerifier& verifier,
+    ImplDefinition* impl,
+    InterfaceDefinition* interface
+) {
+    auto* target_type = impl->struct_type ? const_cast<BaseType*>(impl->struct_type.getType()) : nullptr;
+    auto* container = target_type ? target_type->get_members_container() : nullptr;
+    if(container == nullptr) {
+        // primitive/pointer targets are built-in Copy; nothing to validate
+        return;
+    }
+    if(container->has_destructor() || container->any_member_has_destructor()) {
+        verifier.diagnoser.error(impl).with_code("SAFE-COPY-002")
+            << "type '" << target_type->representation()
+            << "' has a destructor and cannot implement Copy";
+        return;
+    }
+    std::unordered_set<MembersContainer*> visiting;
+    for(auto* member : container->variables()) {
+        if(member->kind() != ASTNodeKind::StructMember) continue;
+        auto* field = (StructMember*) member;
+        if(!is_copy_field_type(
+            const_cast<BaseType*>(field->type.getType()),
+            interface, verifier.index, visiting
+        )) {
+            verifier.diagnoser.error(impl).with_code("SAFE-COPY-003")
+                << "field '" << field->name_view() << "' of type '"
+                << const_cast<BaseType*>(field->type.getType())->representation()
+                << "' is not Copy; only Copy types can implement Copy";
+        }
+    }
+}
+
 void TypeVerifier::VisitImplDecl(ImplDefinition* implDecl) {
     RecursiveVisitor::VisitImplDecl(implDecl);
     if (implDecl->interface_type) {
@@ -1554,6 +1634,9 @@ void TypeVerifier::VisitImplDecl(ImplDefinition* implDecl) {
         if (interface_node != nullptr && interface_node->kind() == ASTNodeKind::InterfaceDecl) {
             const auto interface = interface_node->as_interface_def_unsafe();
             verify_interface_implementation(index, diagnoser, implDecl, interface);
+            if (interface->interface_bits.has(InterfaceBits::COPY_BIT)) {
+                verify_copy_impl(*this, implDecl, interface);
+            }
         }
     }
 }

@@ -78,7 +78,9 @@ Next:
 - S1.2 `'static`/bounds and S1.3a `PhantomData` are done; temporary lifetime
   extension and variance analysis move with the borrow checker (M4).
   S1.4a opt-in `Copy` is enforced (`SAFE-COPY-001`) and the in-tree tree is
-  migrated. Next: `Clone`/`Default`/`Drop` rules, then the move checker.
+  migrated. S1.4b validates `impl Copy`: destructor targets are
+  `SAFE-COPY-002`, non-Copy fields are `SAFE-COPY-003`. Next:
+  `Clone`/`Default`/`Drop` rules, then the move checker.
 - Parity corpus/manifest is M8.1 (not an M0 blocker).
 - Baseline/performance gate and `scripts/safety-audit.sh` (S0.3).
 - Remove module/CLI opt-outs (S0.4).
@@ -141,6 +143,8 @@ Codes are stable and grouped by domain:
 | `SAFE-OWN-*` | moves, drops, partial moves |
 | `SAFE-BORROW-*` | aliasing / loans |
 | `SAFE-COPY-001` | user type used with a `Copy` bound but no explicit `impl Copy` |
+| `SAFE-COPY-002` | `impl Copy` on a type with a destructor |
+| `SAFE-COPY-003` | `impl Copy` on a type whose field is not Copy |
 | `SAFE-LIFE-*` | lifetimes / escapes |
 | `SAFE-INIT-*` | initialization / definite assignment |
 | `SAFE-VALID-*` | invalid values / transmute / packed |

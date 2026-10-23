@@ -182,4 +182,6 @@ public namespace uuid {
 
         return UUID.from_bytes(bytes);
     }
+
+impl Copy for UUID {}
 }

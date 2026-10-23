@@ -21,6 +21,8 @@ public struct RouteChainStep {
     var id : std::string_view
 }
 
+impl Copy for RouteChainStep {}
+
 // A compiled route pattern. `segments` holds literal segments (`"projects"`) and
 // brace params (`"{id}"`); `is_fallback` marks `route *` (D-6.1). `prefix` marks
 // a nested-fallback entry that matches the pattern plus any remaining segments

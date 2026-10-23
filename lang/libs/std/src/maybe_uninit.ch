@@ -40,6 +40,13 @@ public struct MaybeUninit<T> {
         return out
     }
 
+    /** Drop the value if it is initialized. */
+    public func assume_init_drop(&mut self) {
+        unsafe {
+            destruct &raw mut self.value
+        }
+    }
+
     public func as_ptr(&mut self) : *mut T {
         return &raw mut self.value
     }

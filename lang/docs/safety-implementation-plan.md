@@ -309,8 +309,12 @@
 >   nested Send, and non-Send/non-Sync inner values.
 > - S1.8b `std::Rc<T>`: single-threaded reference counting with a private
 >   `RcInner<T>` (strong count + value), `clone`, `get`, `strong_count`,
->   `get_mut` and `try_unwrap` (both require a unique owner), and exactly-once
->   destruction of the shared value. `Rc` is structurally `!Send`/`!Sync`.
+>   `get_mut` and `try_unwrap` (both require a unique owner), `Weak<T>`
+>   (`downgrade`/`upgrade`, strong/weak counts), and exactly-once destruction
+>   of the shared value. The value lives in `ManuallyDrop` so weak handles can
+>   keep the allocation alive after the last strong owner; `Rc`/`Weak` are
+>   structurally `!Send`/`!Sync`. `ManuallyDrop::destroy` and
+>   `MaybeUninit::assume_init_drop` destroy in place.
 >   `Box::into_inner` moves the value out and frees its storage without running
 >   the destructor twice.
 > - S2.6a unsafe functions: `unsafe func` / `public unsafe func` parse at

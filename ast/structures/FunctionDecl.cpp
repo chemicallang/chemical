@@ -85,7 +85,8 @@ FunctionParam *FunctionParam::copy(ASTAllocator& allocator) const {
 
 void check_returns_void(ASTDiagnoser& diagnoser, FunctionDeclaration* decl) {
     if(decl->returnType->kind() != BaseTypeKind::Void) {
-        diagnoser.error((ASTNode*) decl) << decl->name_view() << " function return type should be void";
+        diagnoser.error((ASTNode*) decl).with_code("SAFE-DROP-001")
+            << decl->name_view() << " function return type should be void";
     }
 }
 
@@ -96,7 +97,8 @@ void check_self_param(ASTDiagnoser& diagnoser, FunctionDeclaration* decl, ASTNod
             return;
         }
     }
-    diagnoser.error((ASTNode*) decl) << decl->name_view() << " must have a single implicit self reference parameter";
+    diagnoser.error((ASTNode*) decl).with_code("SAFE-DROP-001")
+        << decl->name_view() << " must have a single implicit self reference parameter";
 }
 
 void check_self_other_params(ASTDiagnoser& diagnoser, FunctionDeclaration* decl, ASTNode* self) {

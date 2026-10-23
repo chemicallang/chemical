@@ -99,6 +99,34 @@ func neg_duplicate_lifetime_parameter(env : &mut TestEnv) {
 }
 
 @test
+func destructor_valid_signatures_compile(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct A {\n    var x : int\n    @delete\n    func delete(&self) { }\n}\nstruct B {\n    var x : int\n    @delete\n    func delete(&mut self) { }\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_success(env, "destructor_valid_signatures", ch)
+}
+
+@test
+func neg_destructor_value_self_rejected(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Bad {\n    var x : int\n    @delete\n    func delete(self) { }\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "destructor_value_self", ch, "SAFE-DROP-001")
+}
+
+@test
+func neg_destructor_return_value_rejected(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Bad {\n    var x : int\n    @delete\n    func delete(&self) : int { return 1 }\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "destructor_return_value", ch, "SAFE-DROP-001")
+}
+
+@test
+func neg_destructor_non_self_param_rejected(env : &mut TestEnv) {
+    mkdir(NEG_WORK_DIR, 0o777 as uint)
+    var ch = "struct Bad {\n    var x : int\n    @delete\n    func delete(x : int) { }\n}\npublic func main() : int { return 0 }\n"
+    expect_compile_error(env, "destructor_non_self_param", ch, "SAFE-DROP-001")
+}
+
+@test
 func unsafe_deref_warning_has_code(env : &mut TestEnv) {
     mkdir(NEG_WORK_DIR, 0o777 as uint)
     // Report-only safety rule: the program still compiles, but the warning

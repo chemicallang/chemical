@@ -144,11 +144,15 @@
 >   structs; a raw generic type parameter is rejected until impl-header
 >   where-clauses can express `T: Copy`. The library suite is migrated
 >   (`FontTable`, `RouteChainStep`, `UUID`) and green (719/719).
-> - Still pending in S1.4: `Clone`/`Default` impl generation and `Drop`/
->   destructor rules.
+> - S1.4c destructor rules: `@delete` signatures are validated with
+>   `SAFE-DROP-001`: exactly one implicit `self` reference (`&self` or
+>   `&mut self`), no by-value `self`, and a void return. Generated destructors
+>   are exempt. The existing symbol-resolution checks now carry the stable code
+>   as well. Positive and negative tests added.
+> - Still pending in S1.4: `Clone`/`Default` impl generation.
 >
-> Next: `Clone`/`Default` derive-style support and `Drop`/destructor rules,
-> then the M1 ownership/move checker.
+> Next: `Clone`/`Default` derive-style support, then the M1 ownership/move
+> checker.
 > - S0.3 baseline/size/performance gate + `scripts/safety-audit.sh`.
 > - S0.4 remove module/CLI opt-outs.
 >

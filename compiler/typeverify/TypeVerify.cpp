@@ -2104,9 +2104,24 @@ void TypeVerifier::VisitFunctionDecl(FunctionDeclaration *decl) {
     if(decl->attrs.is_extern && !decl->is_comptime() && decl->body.has_value()) {
         diagnoser.error(decl) << "an `@extern` function cannot have a body; remove the body or the `@extern` annotation";
     }
+    if(decl->attrs.is_delete_fn && !decl->is_generated_fn() &&
+       decl->params.size() == 1 && decl->params[0]->name_view() == "self") {
+        // The default constructor/destructor checks in FunctionDecl.cpp cover
+        // the parameter count, name and void return. The remaining rule is
+        // that the self parameter is a reference; a value `self` would run the
+        // destructor on a copy.
+        auto* param_type = decl->params[0]->type
+            ? const_cast<BaseType*>(decl->params[0]->type.getType()) : nullptr;
+        auto* ref = param_type ? param_type->as_reference_type() : nullptr;
+        if(ref == nullptr) {
+            diagnoser.error(decl).with_code("SAFE-DROP-001")
+                << "a destructor must take `&self` or `&mut self`";
+        }
+    }
     if(decl->is_async()) {
-        if(decl->attrs.is_delete_fn) {
-            diagnoser.error(decl) << "an async function cannot be a destructor (suspension is forbidden in `@delete`)";
+        if(decl->attrs.is_delete_fn && !decl->is_generated_fn()) {
+            diagnoser.error(decl).with_code("SAFE-DROP-001")
+                << "an async function cannot be a destructor (suspension is forbidden in `@delete`)";
         }
         if(decl->attrs.is_constructor_fn) {
             diagnoser.error(decl) << "an async function cannot be a constructor";

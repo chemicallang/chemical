@@ -214,11 +214,12 @@
 >   vector runtime checks remain blocked by the router-plugin OOB below.
 > - S1.4h `Option<T>`/`vector<T>` `Clone`: both impls use an inline
 >   `<T : Clone>` bound (not a trailing where-clause) so the bound is visible
->   while the generic impl body is linked. `Option` clones its payload through
->   an explicit `value as T` copy and forgets the temporary; `vector` clones
->   each element through a pointer + `memcpy` helper with the same inline
->   bound. Tests cover Some/None, int/string deep copies, empty vectors, and
->   exactly-once drops for a destructor-bearing element type.
+>   while the generic impl body is linked. `Option` clones through a
+>   `&raw mut value as *mut T` pointer, so there is no shallow-copy temporary
+>   and no `intrinsics::forget`/leaked copy; `vector` clones each element
+>   through a pointer + `memcpy` helper with the same inline bound. Tests cover
+>   Some/None, int/string deep copies, empty vectors, and exactly-once drops for
+>   a destructor-bearing element type.
 > - **Known blocker (2026-10-24):** vector runtime bounds checks were attempted
 >   and reverted because they exposed an existing router-plugin `get_ptr(0)` on
 >   an empty vector during compilation; fix that OOB before enabling checks.

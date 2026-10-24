@@ -24,10 +24,7 @@ impl<T : core::ops::Clone> core::ops::Clone for Option<T> {
     public func clone(&self) : Option<T> {
         if(self is Option.Some) {
             var Some(value) = self else unreachable
-            var typed = value as T
-            var out = typed.clone()
-            intrinsics::forget(typed)
-            return Option.Some<T>(out)
+            return Option.Some<T>(((&raw mut value) as *mut T).clone())
         }
         return Option.None<T>()
     }

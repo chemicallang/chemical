@@ -128,8 +128,10 @@ Next:
   still contain a generic parameter are signature-finalized but their bodies
   are deferred until the parameter is concrete (S1.5k). `Option<T>`/
   `vector<T>` `Clone` now use inline `<T : Clone>` bounds (the bound must be
-  visible while the master body is linked) plus an explicit cast/pointer helper
-  for the payload (S1.4h); tests cover deep string copies and exactly-once drops.
+  visible while the master body is linked); `Option` reads the payload through
+  a `&raw mut value as *mut T` pointer (no shallow-copy temporary or
+  `intrinsics::forget`), and `vector` uses a pointer + `memcpy` helper (S1.4h).
+  Tests cover deep string copies and exactly-once drops.
   Vector bounds checks were attempted and reverted: they expose an existing
   router-plugin `get_ptr(0)` on an empty vector during module compilation, so
   that OOB must be fixed before checks can be enabled. Structural auto-trait derivation also honors explicit

@@ -204,10 +204,8 @@ func <T : core::ops::Clone> __vector_clone_value(value : *T) : T {
     unsafe {
         memcpy(&raw mut elem, value as *void, sizeof(T))
     }
-    var typed = elem as T
-    var out = typed.clone()
+    var out = elem.clone()
     intrinsics::forget(elem)
-    intrinsics::forget(typed)
     return out
 }
 

@@ -215,7 +215,16 @@ ValueId MIRLowerer::emit_malloc(TypeId size_v, TypeId u64t, TypeId ptr_t) {
     const TypeId ft = types_.function_signature(ptr_t, {u64t});
     const SymbolId sym = extern_symbol("malloc", ft);
     MIROperand arg = MIROperand::value(size_v, u64t);
-    return builder_->call_scalar(sym, ptr_t, &arg, 1);
+    const ValueId ptr = builder_->call_scalar(sym, ptr_t, &arg, 1);
+    // `new T` is a safe operation: allocation failure must panic, not produce a
+    // null pointer that is later written through.
+    const TypeId bool_t = types_.bool_type();
+    const ValueId null_v = builder_->const_null(
+        ptr_t, module_.constants.add_null(ptr_t));
+    const ConstantId ne = module_.constants.add_int(
+        MIR_INVALID_ID, static_cast<uint64_t>(MIRBinaryOp::Ne));
+    emit_abort_unless(builder_->compare(ptr, null_v, ne, bool_t));
+    return ptr;
 }
 
 void MIRLowerer::emit_free(ValueId ptr) {

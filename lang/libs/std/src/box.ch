@@ -56,6 +56,9 @@ public struct Box<T> {
 
 public func <T> box(value : T) : Box<T> {
     var ptr = malloc(sizeof(T)) as *mut T
+    if(ptr == null) {
+        panic("box allocation failed")
+    }
     unsafe {
         memcpy(ptr as *mut void, &raw value as *void, sizeof(T))
         intrinsics::forget(value)

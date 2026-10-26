@@ -214,6 +214,10 @@
 >   NUL byte, `ensure_mut` guards growth, and `resize`/`append_with_len` guard
 >   length arithmetic. Runtime safety tests cover `reserve(SIZE_MAX)` on both
 >   containers and `string.resize(SIZE_MAX)`.
+> - S5.3b allocation failure: `new T` checks the `malloc` result and aborts
+>   before returning a null pointer; `std::box` does the same for its direct
+>   allocation. (OOM cannot be forced in the ordinary test suite; the null check
+>   is covered by inspection and the allocation-heavy suites staying green.)
 > - S5.4a static array bounds: a constant index into a fixed-size array is
 >   checked at type verification against the declared length and rejected with
 >   `SAFE-BOUNDS-001`, on reads and assignment LHS alike.

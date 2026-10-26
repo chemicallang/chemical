@@ -382,15 +382,31 @@ public struct string {
         }
         // the size of the string, after we've written
         const new_size = offset + len
+        // If the source aliases this string's own storage, growing may move
+        // that storage. Remember the source offset and recompute it afterwards.
+        const old_data = data()
+        const old_begin = old_data as ubigint
+        const old_end = old_begin + offset
+        const src_addr = value as ubigint
+        var src_offset : size_t = 0
+        var self_source = false
+        if(src_addr >= old_begin && src_addr < old_end) {
+            self_source = true
+            src_offset = (src_addr - old_begin) as size_t
+        }
         // +1 for null terminator
         ensure_mut(new_size + 1);
+        var source = value
+        if(self_source) {
+            source = data() + src_offset
+        }
         if(state == '1') {
-            memcpy(&raw mut storage.sso.buffer[offset], value, len)
+            memcpy(&raw mut storage.sso.buffer[offset], source, len)
             storage.sso.buffer[new_size] = '\0'
             storage.sso.length = new_size
         } else {
             // state is '2', it cannot be '0'
-            memcpy(&raw mut storage.heap.data[offset], value, len)
+            memcpy(&raw mut storage.heap.data[offset], source, len)
             storage.heap.data[new_size] = '\0';
             storage.heap.length = new_size
         }

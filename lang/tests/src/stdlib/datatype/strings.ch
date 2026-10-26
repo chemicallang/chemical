@@ -125,6 +125,18 @@ func test_strings() {
         var second = string("value : 99 end")
         return c.str.equals(&second);
     })
+    test("string can append its own view across reallocation", () => {
+        var s = string("01234567890123456789012345678901")
+        s.reserve(32)
+        var view = s.to_view()
+        s.append_view(&view)
+        if(s.size() != 64) { return false }
+        var out = s.to_view()
+        for(var i : size_t = 0; i < 32; i++) {
+            if(out.get(i) != out.get(i + 32)) { return false }
+        }
+        return true
+    })
     test("struct with std::string member generated constructor and destructor work", () => {
         var c = StringContainerAppendExpr()
         c.str = string("hello generated constructor")

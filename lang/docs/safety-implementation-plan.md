@@ -223,6 +223,11 @@
 >   and `ordered_map` seeds the first resize at 16 buckets (matching
 >   `unordered_map`) instead of allocating zero buckets. Allocation-heavy suites
 >   stay green; OOM itself is not force-testable.
+> - S5.3d self-aliasing string append: `append_with_len` records the source
+>   offset when the source points into the destination's storage and recomputes
+>   it after growth, so `s.append_view(&s.to_view())` remains valid across
+>   reallocation. Tested by doubling a heap-backed string and comparing both
+>   halves.
 > - S5.4a static array bounds: a constant index into a fixed-size array is
 >   checked at type verification against the declared length and rejected with
 >   `SAFE-BOUNDS-001`, on reads and assignment LHS alike.

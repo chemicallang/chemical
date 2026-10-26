@@ -40,6 +40,9 @@ public struct span<T> {
     }
 
     func get(&self, loc : size_t) : *T {
+        if(loc >= _size) {
+            panic("span index out of bounds")
+        }
         return _data + loc;
     }
 

@@ -181,7 +181,8 @@ Next:
   `string`/`string_view`/`u16_string` `get`/`set` (S5.4d) likewise reject
   `index >= size()`; `string_view::subview`/`skip` reject
   `start > end`, `end > size`, and `count > size`. Tests cover string
-  read/write and view reads, subviews, and skips. `vector` and
+  read/write and view reads, subviews, and skips. `span::get` rejects
+  `loc >= size()` (S5.4e). `vector` and
   `string` capacity/length growth is overflow-checked (S5.3a), including the
   string NUL byte and capacity doubling.
   Dynamic fixed-array indices (S5.4c) are guarded in MIR lowering with

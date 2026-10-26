@@ -240,6 +240,8 @@
 >   `count <= size`, so a view can no longer point past its source or underflow
 >   its length. Runtime safety tests cover string read/write and
 >   `string_view` reads, subviews, and skips.
+> - S5.4e span bounds: `span::get` rejects `loc >= size()` instead of returning
+>   a pointer past the view; a runtime safety test covers the OOB pointer.
 > - S5.4b vector runtime bounds: `vector::get`, `get_ptr`, `get_ref`,
 >   `get_mut`, `set`, `remove`, `remove_last`, `take_last`, and `last_ptr`
 >   reject out-of-range or empty access with `vector index out of bounds` /

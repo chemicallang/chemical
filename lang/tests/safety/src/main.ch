@@ -205,6 +205,13 @@ func safety_runtime_panic_harness(env : &mut TestEnv) {
 }
 
 @test
+func span_bounds_panics(env : &mut TestEnv) {
+    safety_init_work_dir()
+    var ch = "public func main() : int {\n    var a : [2]int = [1, 2]\n    var s = std::span<int>(&raw mut a[0], 2)\n    var p = s.get(2)\n    return 0\n}\n"
+    expect_runtime_panic(env, "span_bounds_panics", ch)
+}
+
+@test
 func string_view_subview_start_after_end_panics(env : &mut TestEnv) {
     safety_init_work_dir()
     var ch = "public func main() : int {\n    var v = std::string_view(\"abc\")\n    var s = v.subview(2, 1)\n    return 0\n}\n"
